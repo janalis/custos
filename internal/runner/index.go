@@ -39,7 +39,7 @@ func BuildIndex(files []string, opt syntax.Options) *index.Index {
 		go func() {
 			defer wg.Done()
 			for i := range jobs {
-				src, err := os.ReadFile(files[i])
+				src, err := ReadSource(files[i])
 				if err != nil {
 					continue
 				}

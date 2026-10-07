@@ -14,20 +14,15 @@ func Terminates(s syntax.Stmt) bool { return syntax.Terminates(s) }
 func Reachable(n, scope syntax.Node) bool {
 	var child syntax.Node = n
 	for p := n.Parent(); p != nil && child != scope; p = p.Parent() {
-		var list []syntax.Stmt
-		switch x := p.(type) {
-		case *syntax.Block:
-			list = x.Stmts
-		case *syntax.Case:
-			list = x.Stmts
-		case *syntax.Namespace:
-			list = x.Stmts
-		}
-		for _, s := range list {
-			if syntax.Node(s) == child {
-				break
+		if list, ok := syntax.StmtListOf(p); ok {
+			// Statements before child (all of them when child is not in the
+			// list, e.g. a case condition); FirstTerminating is cached so
+			// long lists stay linear overall.
+			i := syntax.StmtIndex(list, child)
+			if i < 0 {
+				i = len(list)
 			}
-			if Terminates(s) {
+			if syntax.FirstTerminating(p) < i {
 				return false
 			}
 		}

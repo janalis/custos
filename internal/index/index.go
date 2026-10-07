@@ -3,6 +3,7 @@ package index
 import (
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"custos/internal/phpver"
 )
@@ -19,6 +20,39 @@ type Index struct {
 	constants map[string][]*Constant
 	files     map[string]*FileSymbols
 	children  map[string][]string // lower parent/interface FQN -> child FQNs (lazy)
+
+	// gen counts the changes (Add/Remove) of this layer; ancestors caches
+	// Ancestors per class and version, valid while the generation of this
+	// layer and of every base layer is unchanged (see generation).
+	gen       atomic.Uint64
+	ancMu     sync.RWMutex
+	ancestors map[ancKey]ancEntry
+}
+
+type ancKey struct {
+	fqn string // lower-case
+	ver phpver.Version
+}
+
+type ancEntry struct {
+	gen uint64
+	cls []*Class
+}
+
+// MaxAncestors caps the classes Ancestors returns (the class itself, its
+// traits, parents and interfaces, breadth-first). Real hierarchies stay
+// far below; a hostile chain of thousands of classes would otherwise make
+// every member lookup linear in its depth.
+const MaxAncestors = 256
+
+// generation is the sum of the change counters of this layer and its base
+// layers: it changes whenever a layer the lookups read changes.
+func (ix *Index) generation() uint64 {
+	g := ix.gen.Load()
+	if ix.base != nil {
+		g += ix.base.generation()
+	}
+	return g
 }
 
 // New returns an empty index layered over base (may be nil).
@@ -48,6 +82,7 @@ func (ix *Index) Add(fs *FileSymbols) {
 		ix.constants[k] = append(ix.constants[k], c)
 	}
 	ix.children = nil
+	ix.gen.Add(1)
 }
 
 // Remove drops the symbols of a file.
@@ -56,6 +91,7 @@ func (ix *Index) Remove(path string) {
 	defer ix.mu.Unlock()
 	ix.removeLocked(path)
 	ix.children = nil
+	ix.gen.Add(1)
 }
 
 func (ix *Index) removeLocked(path string) {
@@ -160,11 +196,32 @@ func (ix *Index) ResolveFunction(fqn, fallback string, ver phpver.Version) *Func
 
 // Ancestors returns the class, its parents, traits and interfaces
 // (breadth-first, each once, cycle-safe). The class itself comes first.
+// At most MaxAncestors are returned. The result is cached (callers must not
+// modify it).
 func (ix *Index) Ancestors(fqn string, ver phpver.Version) []*Class {
+	k := ancKey{key(fqn), ver}
+	g := ix.generation()
+	ix.ancMu.RLock()
+	e, ok := ix.ancestors[k]
+	ix.ancMu.RUnlock()
+	if ok && e.gen == g {
+		return e.cls
+	}
+	out := ix.computeAncestors(fqn, ver)
+	ix.ancMu.Lock()
+	if ix.ancestors == nil {
+		ix.ancestors = map[ancKey]ancEntry{}
+	}
+	ix.ancestors[k] = ancEntry{gen: g, cls: out}
+	ix.ancMu.Unlock()
+	return out
+}
+
+func (ix *Index) computeAncestors(fqn string, ver phpver.Version) []*Class {
 	var out []*Class
 	seen := map[string]bool{}
 	queue := []string{fqn}
-	for len(queue) > 0 {
+	for len(queue) > 0 && len(out) < MaxAncestors {
 		k := key(queue[0])
 		queue = queue[1:]
 		if seen[k] {
@@ -190,7 +247,7 @@ func (ix *Index) ParentChain(fqn string, ver phpver.Version) []*Class {
 	var out []*Class
 	seen := map[string]bool{key(fqn): true}
 	c := ix.Class(fqn, ver)
-	for c != nil && c.Parent != "" && !seen[key(c.Parent)] {
+	for c != nil && c.Parent != "" && !seen[key(c.Parent)] && len(out) < MaxAncestors {
 		seen[key(c.Parent)] = true
 		c = ix.Class(c.Parent, ver)
 		if c != nil {
@@ -305,6 +362,9 @@ func (ix *Index) DropStaleInferred(fs *FileSymbols) {
 	for _, c := range fs.Classes {
 		for _, m := range c.Methods {
 			m.Inferred = ""
+		}
+		for _, p := range c.Props {
+			p.Inferred = ""
 		}
 	}
 }

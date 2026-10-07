@@ -118,28 +118,12 @@ func (pc *completeValues) variable(v *syntax.Variable) {
 		pc.incomplete = true
 		return
 	}
-	for _, acc := range VarAccesses(pc.f, scope, v.Name) {
-		if !acc.Write {
-			continue
-		}
-		a, ok := acc.By.(*syntax.Assign)
-		if !ok || a.Op.Kind != syntax.TEqual || a.ByRef || UnwrapParens(a.Var) != syntax.Expr(acc.Var) {
-			pc.incomplete = true
-			return
-		}
-	}
-	byRefUse := false
-	syntax.Inspect(body, func(n syntax.Node) bool {
-		if u, ok := n.(*syntax.ClosureUse); ok && u.ByRef && u.Var != nil && u.Var.Name == v.Name {
-			byRefUse = true
-		}
-		return !byRefUse
-	})
-	if byRefUse || UnstableVariable(body, v.Name) {
+	ix := assignsUnder(pc.f, body)
+	if otherWrites(pc.f, scope)[v.Name] || ix.byRefUse[v.Name] || ix.unstable[v.Name] || len(ix.byVar[v.Name]) > maxPossibleValues {
 		pc.incomplete = true
 		return
 	}
-	defs, entry := ReachingAssignments(scope, v, v.Name)
+	defs, entry := ReachingAssignmentsIn(pc.f, scope, v, v.Name)
 	if entry || len(defs) == 0 {
 		pc.incomplete = true
 		return
@@ -316,4 +300,31 @@ func (pc *completeValues) constant(c *syntax.ConstFetch) {
 		return
 	}
 	pc.collect(found)
+}
+
+type otherWritesKey struct{ scope syntax.Node }
+
+// otherWrites returns the names of scope having a write other than a plain
+// `$v = …` assignment (computed once per scope and file).
+func otherWrites(f *syntax.File, scope syntax.Node) map[string]bool {
+	build := func() any {
+		m := map[string]bool{}
+		for name, accs := range VarAccessesByName(f, scope) {
+			for _, acc := range accs {
+				if !acc.Write {
+					continue
+				}
+				a, ok := acc.By.(*syntax.Assign)
+				if !ok || a.Op.Kind != syntax.TEqual || a.ByRef || UnwrapParens(a.Var) != syntax.Expr(acc.Var) {
+					m[name] = true
+					break
+				}
+			}
+		}
+		return m
+	}
+	if f == nil {
+		return build().(map[string]bool)
+	}
+	return f.Memo(otherWritesKey{scope}, build).(map[string]bool)
 }

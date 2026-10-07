@@ -230,6 +230,10 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool) (out []Findi
 		}
 	}
 	sortFindings(out)
+	if ctx.truncated {
+		out = append(out, Finding{Rule: "internal", Severity: meta.SeverityWarning,
+			Message: fmt.Sprintf("more than %d findings in this file; the rest are not reported", MaxFindingsPerFile)})
+	}
 	return out, -1, ""
 }
 
@@ -247,6 +251,8 @@ type Context struct {
 	index    *index.Index
 	types    *infer.Env
 	memo     map[string]any
+	// truncated is set once MaxFindingsPerFile findings were collected.
+	truncated bool
 }
 
 // Text returns the source text of n ("" for a nil node).
@@ -279,8 +285,18 @@ func (c *Context) ReportNode(n syntax.Node, msg string, fixes ...Fix) {
 // ReportSeverity records a finding with an explicit severity (for rules that
 // report several problem classes).
 func (c *Context) ReportSeverity(span syntax.Span, sev meta.Severity, msg string, fixes ...Fix) {
+	if len(c.findings) >= MaxFindingsPerFile {
+		c.truncated = true
+		return
+	}
 	c.findings = append(c.findings, Finding{Rule: c.cur.meta.ID, Severity: sev, Span: span, Message: msg, Fixes: fixes})
 }
+
+// MaxFindingsPerFile caps the findings collected for one file. Generated,
+// minified or hostile files can otherwise yield millions of findings
+// (gigabytes of memory and output, e.g. 20 MB of `;`); beyond the cap the
+// rest are dropped and one "internal" note says so.
+const MaxFindingsPerFile = 10000
 
 // RuleID returns the ID of the rule currently running.
 func (c *Context) RuleID() string { return c.cur.meta.ID }

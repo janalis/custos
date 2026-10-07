@@ -51,7 +51,7 @@ func (longInheritanceChain) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	seen := map[string]bool{strings.ToLower(fqn): true}
 	count := 0
-	for cur := p1; cur != nil; { // D3
+	for cur := p1; cur != nil && count < index.MaxAncestors; { // D3 (bounded: hostile chains)
 		k := strings.ToLower(strings.TrimPrefix(cur.FQN, `\`))
 		if seen[k] { // back at the class itself (E6) or any other cycle
 			break

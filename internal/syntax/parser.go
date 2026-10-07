@@ -2,6 +2,7 @@ package syntax
 
 import (
 	"fmt"
+	"sync"
 	"unsafe"
 
 	"custos/internal/phpver"
@@ -15,6 +16,34 @@ type File struct {
 	Tokens  []Token // complete token stream (trivia included)
 	Stmts   []Stmt
 	Errors  []Error
+
+	memoMu sync.Mutex
+	memo   map[any]any
+}
+
+// Memo returns the value cached on the file under key, computing it with fn
+// on first use. Analysis helpers use it for derived per-file data (indexes
+// over the tree) that would otherwise be recomputed per node — quadratic
+// on large files. fn runs without the lock held (it may use Memo itself);
+// concurrent first uses may both compute, the first stored value wins.
+func (f *File) Memo(key any, fn func() any) any {
+	f.memoMu.Lock()
+	v, ok := f.memo[key]
+	f.memoMu.Unlock()
+	if ok {
+		return v
+	}
+	v = fn()
+	f.memoMu.Lock()
+	defer f.memoMu.Unlock()
+	if old, ok := f.memo[key]; ok {
+		return old
+	}
+	if f.memo == nil {
+		f.memo = map[any]any{}
+	}
+	f.memo[key] = v
+	return v
 }
 
 // Error is a syntax error (the tree is still complete; see BadExpr/BadStmt).
@@ -41,6 +70,14 @@ func Parse(path string, src []byte, opt Options) *File {
 	if opt.Version == 0 {
 		opt.Version = phpver.Default
 	}
+	if len(src) > MaxFileSize {
+		// Hostile or generated input: analysis memory is linear but with a
+		// large constant (peak RSS up to ~250x the file size on garbage
+		// input), and offsets are uint32. Report once, analyse nothing.
+		f := &File{Path: path, Src: src, Version: opt.Version}
+		f.Errors = []Error{{Span: Span{0, 0}, Msg: fmt.Sprintf("file larger than %d MB; not analysed", MaxFileSize>>20)}}
+		return f
+	}
 	toks, lexErrs := Lex(src, LexOptions{Version: opt.Version, ShortOpenTag: opt.ShortOpenTag})
 	p := &parser{src: src, toks: toks, ver: opt.Version, permissive: opt.Permissive}
 	p.sig = make([]int32, 0, len(toks)/2+1)
@@ -55,6 +92,11 @@ func Parse(path string, src []byte, opt Options) *File {
 	}
 	f := &File{Path: path, Src: src, Version: opt.Version, Tokens: toks}
 	f.Stmts = p.parseTopStmts()
+	if len(p.errs) > MaxErrors {
+		// Garbage input yields an error per token: keep the report bounded.
+		p.errs = append(p.errs[:MaxErrors:MaxErrors], Error{Span: p.errs[MaxErrors].Span,
+			Msg: fmt.Sprintf("more than %d syntax errors; the rest are not reported", MaxErrors)})
+	}
 	if p.tooDeep || TreeDepth(f.Stmts) > MaxDepth {
 		// Pathologically nested input (generated or hostile): recursive
 		// consumers would exhaust the stack or go quadratic. Keep the
@@ -66,6 +108,13 @@ func Parse(path string, src []byte, opt Options) *File {
 	SetParents(f)
 	return f
 }
+
+// MaxFileSize is the largest source analysed (bytes); larger files get one
+// error and an empty tree.
+const MaxFileSize = 10 << 20
+
+// MaxErrors caps the syntax errors reported for one file.
+const MaxErrors = 1000
 
 type parser struct {
 	src  []byte
@@ -132,6 +181,9 @@ func (p *parser) expect(k TokenKind) Token {
 }
 
 func (p *parser) describe(t Token) string {
+	if len(p.errs) > MaxErrors {
+		return "" // the message is dropped anyway (errorAt)
+	}
 	if t.Kind == TEOF {
 		return "end of file"
 	}
@@ -144,8 +196,8 @@ func (p *parser) describe(t Token) string {
 
 func (p *parser) errorAt(t Token, msg string) {
 	// One error per position keeps cascades readable.
-	if n := len(p.errs); n > 0 && p.errs[n-1].Span.Start == t.Start {
-		return
+	if n := len(p.errs); n > MaxErrors || n > 0 && p.errs[n-1].Span.Start == t.Start {
+		return // beyond MaxErrors+1 errors nothing more is kept (see Parse)
 	}
 	p.errs = append(p.errs, Error{Span: Span{t.Start, t.End}, Msg: msg})
 }

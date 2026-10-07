@@ -22,7 +22,7 @@ func Terminates(s Stmt) bool {
 		}
 		return false
 	case *Block:
-		return listTerminates(x.Stmts)
+		return FirstTerminating(x) < len(x.Stmts)
 	case *If:
 		if x.Else == nil || !Terminates(x.Body) || !Terminates(x.Else.Body) {
 			return false
@@ -59,7 +59,8 @@ func Terminates(s Stmt) bool {
 		if containsBreak(x) {
 			return false
 		}
-		return listTerminates(x.Cases[len(x.Cases)-1].Stmts)
+		last := x.Cases[len(x.Cases)-1]
+		return FirstTerminating(last) < len(last.Stmts)
 	case *While:
 		return isTrueConst(x.Cond) && !containsBreak(x.Body)
 	case *DoWhile:
@@ -68,15 +69,6 @@ func Terminates(s Stmt) bool {
 		return len(x.Cond) == 0 && !containsBreak(x.Body)
 	case *Declare:
 		return x.Body != nil && Terminates(x.Body)
-	}
-	return false
-}
-
-func listTerminates(list []Stmt) bool {
-	for _, s := range list {
-		if Terminates(s) {
-			return true
-		}
 	}
 	return false
 }

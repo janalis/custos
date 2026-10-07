@@ -124,11 +124,11 @@ func dcsiValues(f *syntax.File, e syntax.Expr) ([]syntax.Expr, bool) {
 				return
 			}
 			params, body := dcsiScopeParts(scope)
-			if util.UnstableVariable(body, x.Name) {
+			if util.UnstableVariableIn(f, body, x.Name) {
 				known = false
 				return
 			}
-			defs, entry := util.ReachingAssignments(scope, x, x.Name)
+			defs, entry := util.ReachingAssignmentsIn(f, scope, x, x.Name)
 			if entry {
 				for _, p := range params {
 					if p.Var != nil && p.Var.Name == x.Name && p.Default != nil {

@@ -49,14 +49,47 @@ func VarAccesses(f *syntax.File, scope syntax.Node, name string) []VarAccess {
 	return w.out
 }
 
+// VarAccessesByName is VarAccesses for every variable name of scope at
+// once (one walk instead of one per name): name -> accesses in source
+// order. Use it when many names of the same scope are examined, which
+// would otherwise be quadratic on large functions.
+func VarAccessesByName(f *syntax.File, scope syntax.Node) map[string][]VarAccess {
+	w := varWalker{all: true, byName: map[string][]VarAccess{}}
+	switch s := scope.(type) {
+	case nil:
+		for _, st := range f.Stmts {
+			w.node(st)
+		}
+	case *syntax.ArrowFunction:
+		w.node(s.Expr)
+	default:
+		if b := FuncLikeBody(scope); b != nil {
+			w.node(b)
+		}
+	}
+	return w.byName
+}
+
 type varWalker struct {
 	name    string
 	out     []VarAccess
 	inArrow int
+	// all mode (VarAccessesByName): every name, grouped; shadow counts the
+	// enclosing arrow functions whose parameters shadow a name.
+	all    bool
+	byName map[string][]VarAccess
+	shadow map[string]int
 }
 
 func (w *varWalker) add(v *syntax.Variable, write, compound, elem bool, by syntax.Node) {
-	if v == nil || v.NameExpr != nil || v.Name != w.name {
+	if v == nil || v.NameExpr != nil {
+		return
+	}
+	if w.all {
+		if w.shadow[v.Name] > 0 {
+			return
+		}
+	} else if v.Name != w.name {
 		return
 	}
 	if w.inArrow > 0 && write {
@@ -65,7 +98,12 @@ func (w *varWalker) add(v *syntax.Variable, write, compound, elem bool, by synta
 	if w.inArrow > 0 {
 		write, compound, elem, by = false, false, false, nil
 	}
-	w.out = append(w.out, VarAccess{Var: v, Write: write, Compound: compound, ElemWrite: elem, By: by})
+	acc := VarAccess{Var: v, Write: write, Compound: compound, ElemWrite: elem, By: by}
+	if w.all {
+		w.byName[v.Name] = append(w.byName[v.Name], acc)
+		return
+	}
+	w.out = append(w.out, acc)
 }
 
 // target records the variables written by an assignment-like target and
@@ -150,6 +188,25 @@ func (w *varWalker) node(n syntax.Node) {
 			if p.Default != nil {
 				w.node(p.Default)
 			}
+		}
+		if w.all {
+			if w.shadow == nil {
+				w.shadow = map[string]int{}
+			}
+			for _, p := range n.Params {
+				if p.Var != nil {
+					w.shadow[p.Var.Name]++
+				}
+			}
+			w.inArrow++
+			w.node(n.Expr)
+			w.inArrow--
+			for _, p := range n.Params {
+				if p.Var != nil {
+					w.shadow[p.Var.Name]--
+				}
+			}
+			return
 		}
 		for _, p := range n.Params {
 			if p.Var != nil && p.Var.Name == w.name {

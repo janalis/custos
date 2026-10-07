@@ -95,9 +95,16 @@ func MethodDecl(f *syntax.File, ix *index.Index, m *index.Method, ver phpver.Ver
 
 // chainWalk visits the class fqn, then (recursively) the traits it uses,
 // then its parent class and so on; interfaces are not visited. Each class
-// is visited once (cycle-safe). visit returns false to stop.
+// is visited once (cycle-safe), at most index.MaxAncestors classes in all.
+// visit returns false to stop.
 func chainWalk(ix *index.Index, fqn string, ver phpver.Version, visit func(*index.Class) bool) {
 	seen := map[string]bool{}
+	budget := index.MaxAncestors
+	visit0 := visit
+	visit = func(c *index.Class) bool {
+		budget--
+		return budget >= 0 && visit0(c)
+	}
 	var walkTraits func(c *index.Class) bool
 	walkTraits = func(c *index.Class) bool {
 		for _, t := range c.Traits {

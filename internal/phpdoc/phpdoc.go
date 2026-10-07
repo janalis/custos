@@ -25,7 +25,10 @@ func Parse(comment string) *Doc {
 	body = strings.TrimSuffix(body, "*/")
 	d := &Doc{}
 	var summary []string
-	var cur *Tag
+	// continuation lines per tag, joined at the end (appending to Text
+	// line by line was quadratic on long tags)
+	var cont [][]string
+	cur := -1
 	for _, line := range strings.Split(body, "\n") {
 		line = strings.TrimSpace(line)
 		line = strings.TrimPrefix(line, "*")
@@ -38,16 +41,22 @@ func Parse(comment string) *Doc {
 				name = name[:i]
 			}
 			d.Tags = append(d.Tags, Tag{Name: name, Text: text})
-			cur = &d.Tags[len(d.Tags)-1]
+			cont = append(cont, nil)
+			cur = len(d.Tags) - 1
 			continue
 		}
-		if cur != nil {
+		if cur >= 0 {
 			if line != "" {
-				cur.Text += "\n" + line
+				cont[cur] = append(cont[cur], line)
 			}
 			continue
 		}
 		summary = append(summary, line)
+	}
+	for i, lines := range cont {
+		if len(lines) > 0 {
+			d.Tags[i].Text += "\n" + strings.Join(lines, "\n")
+		}
 	}
 	d.Summary = strings.TrimSpace(strings.Join(summary, "\n"))
 	return d
@@ -85,6 +94,7 @@ func (d *Doc) All(name string) []Tag {
 func SplitType(text string) (typ, rest string) {
 	text = strings.TrimSpace(text)
 	depth := 0
+	runEnd := 0 // end of the last scanned blank run (rescanning it per blank was quadratic)
 	for i := 0; i < len(text); i++ {
 		switch c := text[i]; c {
 		case '<', '(', '{', '[':
@@ -97,8 +107,13 @@ func SplitType(text string) (typ, rest string) {
 			if depth == 0 {
 				// Allow spaces around | and & at top level ("int | null").
 				j := i
-				for j < len(text) && (text[j] == ' ' || text[j] == '\t') {
-					j++
+				if i < runEnd {
+					j = runEnd
+				} else {
+					for j < len(text) && (text[j] == ' ' || text[j] == '\t') {
+						j++
+					}
+					runEnd = j
 				}
 				if j < len(text) && (text[j] == '|' || text[j] == '&') {
 					i = j
@@ -150,9 +165,13 @@ type Param struct {
 }
 
 // Params returns all @param tags.
-func (d *Doc) Params() []Param {
+func (d *Doc) Params() []Param { return d.ParamsOf("param") }
+
+// ParamsOf returns the tags named tag ("param", "phpstan-param",
+// "psalm-param") parsed as @param tags.
+func (d *Doc) ParamsOf(tag string) []Param {
 	var out []Param
-	for _, t := range d.All("param") {
+	for _, t := range d.All(tag) {
 		typ, rest := SplitType(t.Text)
 		if strings.HasPrefix(typ, "$") { // "@param $x" without type, or "@param $x Type"
 			out = append(out, Param{Name: VarName(typ), Type: trailingType(rest)})
@@ -268,9 +287,14 @@ func (d *Doc) Templates() []string {
 	return out
 }
 
+// MaxAliasLen is the longest type alias definition kept (the same cap as
+// types.MaxDocTypeLen): a longer one is recorded as "" (mixed), so that
+// resolvers do not copy a huge definition at every use of the alias.
+const MaxAliasLen = 4096
+
 // TypeAliases returns local type aliases declared with @phpstan-type /
-// @psalm-type (name -> definition text) and imported ones with
-// @phpstan-import-type / @psalm-import-type (name -> "").
+// @psalm-type (name -> definition text; "" beyond MaxAliasLen) and
+// imported ones with @phpstan-import-type / @psalm-import-type (name -> "").
 func (d *Doc) TypeAliases() map[string]string {
 	var out map[string]string
 	add := func(k, v string) {
@@ -288,7 +312,10 @@ func (d *Doc) TypeAliases() map[string]string {
 				name, def = text[:i], strings.TrimSpace(strings.TrimLeft(text[i:], " \t="))
 			}
 			if name != "" {
-				add(name, strings.Join(strings.Fields(def), " "))
+				if def = strings.Join(strings.Fields(def), " "); len(def) > MaxAliasLen {
+					def = ""
+				}
+				add(name, def)
 			}
 		case "phpstan-import-type", "psalm-import-type":
 			f := strings.Fields(t.Text)

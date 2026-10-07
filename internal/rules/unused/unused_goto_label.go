@@ -28,21 +28,7 @@ func (unusedGotoLabel) Check(ctx *analysis.Context, n syntax.Node) {
 	if body == nil {
 		return
 	}
-	used := false
-	syntax.Inspect(body, func(x syntax.Node) bool { // D3
-		if used {
-			return false
-		}
-		// A goto cannot leave its own function: nested function-likes and
-		// classes are separate scopes (custos diverges).
-		if _, ok := x.(*syntax.ClassLike); ok || (x != body && util.IsFuncLike(x)) {
-			return false
-		}
-		if g, ok := x.(*syntax.Goto); ok && g.Label != nil && g.Label.Value == l.Name.Value {
-			used = true
-		}
-		return !used
-	})
+	used := gotoTargets(ctx, body)[l.Name.Value]
 	if used {
 		return
 	}
@@ -54,4 +40,27 @@ func (unusedGotoLabel) Check(ctx *analysis.Context, n syntax.Node) {
 			return []analysis.TextEdit{{Span: util.WithLeadingWhitespace(f, span)}}
 		},
 	})
+}
+
+// gotoTargets returns the labels targeted by a goto in body (D3), computed
+// once per function body and file (a walk per label was quadratic).
+func gotoTargets(ctx *analysis.Context, body *syntax.Block) map[string]bool {
+	cache := ctx.Memo("gotoTargets", func() any { return map[*syntax.Block]map[string]bool{} }).(map[*syntax.Block]map[string]bool)
+	if m, ok := cache[body]; ok {
+		return m
+	}
+	m := map[string]bool{}
+	syntax.Inspect(body, func(x syntax.Node) bool {
+		// A goto cannot leave its own function: nested function-likes and
+		// classes are separate scopes (custos diverges).
+		if _, ok := x.(*syntax.ClassLike); ok || (x != syntax.Node(body) && util.IsFuncLike(x)) {
+			return false
+		}
+		if g, ok := x.(*syntax.Goto); ok && g.Label != nil {
+			m[g.Label.Value] = true
+		}
+		return true
+	})
+	cache[body] = m
+	return m
 }

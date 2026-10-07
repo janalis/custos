@@ -154,16 +154,27 @@ func uqGoverningNamespace(f *syntax.File, n syntax.Node) *syntax.Namespace {
 			return ns
 		}
 	}
-	var only *syntax.Namespace
-	for _, st := range f.Stmts {
-		if ns, ok := st.(*syntax.Namespace); ok {
-			if only != nil {
-				return nil
+	return uqOnlyNamespace(f)
+}
+
+type uqOnlyNamespaceKey struct{}
+
+// uqOnlyNamespace returns the file's only top-level namespace declaration
+// (nil when none or several), scanned once per file: per node it was
+// quadratic on files with many top-level statements.
+func uqOnlyNamespace(f *syntax.File) *syntax.Namespace {
+	return f.Memo(uqOnlyNamespaceKey{}, func() any {
+		var only *syntax.Namespace
+		for _, st := range f.Stmts {
+			if ns, ok := st.(*syntax.Namespace); ok {
+				if only != nil {
+					return (*syntax.Namespace)(nil)
+				}
+				only = ns
 			}
-			only = ns
 		}
-	}
-	return only
+		return only
+	}).(*syntax.Namespace)
 }
 
 // callback implements Part B (D7–D11).

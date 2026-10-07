@@ -1,6 +1,9 @@
 package phpdoc
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParamsNameFirst(t *testing.T) {
 	d := Parse(`/**
@@ -19,5 +22,16 @@ func TestParamsNameFirst(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("param %d: got %+v, want %+v", i, got[i], want[i])
 		}
+	}
+}
+
+func TestTypeAliasCap(t *testing.T) {
+	d := Parse("/**\n * @phpstan-type Big array{k: " + strings.Repeat("x", MaxAliasLen) + "}\n * @phpstan-type Small int\n */")
+	a := d.TypeAliases()
+	if a["Big"] != "" || a["Small"] != "int" {
+		t.Errorf("got %q / %q", a["Big"][:min(len(a["Big"]), 20)], a["Small"])
+	}
+	if _, ok := a["Big"]; !ok {
+		t.Error("an over-long alias must still be declared (as mixed)")
 	}
 }

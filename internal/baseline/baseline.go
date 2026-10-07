@@ -15,6 +15,8 @@ import (
 	"strings"
 
 	"custos/internal/report"
+	"custos/internal/safeio"
+	"custos/internal/syntax"
 )
 
 // Entry is one baseline key with an occurrence count.
@@ -40,9 +42,13 @@ type Baseline struct {
 	counts map[key]int
 }
 
+// MaxFileSize bounds a baseline file (it may be named by the analysed
+// repository's custos.json).
+const MaxFileSize = 256 << 20
+
 // Load reads a baseline file.
 func Load(path string) (*Baseline, error) {
-	b, err := os.ReadFile(path)
+	b, err := safeio.ReadFile(path, MaxFileSize)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +71,8 @@ func Empty() *Baseline { return &Baseline{counts: map[key]int{}} }
 func lineText(cache map[string][]string, path string, line int) string {
 	lines, ok := cache[path]
 	if !ok {
-		b, _ := os.ReadFile(path)
+		// bounded like the analysis read (the path may name a device)
+		b, _ := safeio.ReadPrefix(path, syntax.MaxFileSize+1)
 		lines = strings.Split(string(bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n"))), "\n")
 		cache[path] = lines
 	}

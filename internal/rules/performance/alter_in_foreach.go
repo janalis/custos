@@ -124,13 +124,24 @@ func (alterInForeach) checkWriteBack(ctx *analysis.Context, a *syntax.Assign) {
 // statement) following n, in source order.
 func nextSibling(f *syntax.File, n syntax.Node) syntax.Node {
 	parent := n.Parent()
-	if parent == nil {
-		for i, s := range f.Stmts {
-			if syntax.Node(s) == n && i+1 < len(f.Stmts) {
-				return f.Stmts[i+1]
+	list, isList := f.Stmts, parent == nil
+	if !isList {
+		list, isList = syntax.StmtListOf(parent)
+	}
+	if isList {
+		// Statements close a block's children: index lookup instead of a
+		// scan (quadratic on long statement lists).
+		if i := syntax.StmtIndex(list, n); i >= 0 {
+			for _, s := range list[i+1:] {
+				if s != nil {
+					return s
+				}
 			}
+			return nil
 		}
-		return nil
+		if parent == nil {
+			return nil
+		}
 	}
 	var next syntax.Node
 	found := false

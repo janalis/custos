@@ -244,7 +244,7 @@ func (c *csrCtx) reportCascade(f csrCall, stmt syntax.Stmt) {
 	const msg = "Fold this str_replace() into the preceding one on the same variable."
 	stmts, calls := c.chain(stmt)
 	strip, fixable := csrKeyMode(calls)
-	if !fixable {
+	if !fixable || len(calls) > csrMaxFixChain {
 		ctx.Report(f.call.Span(), msg)
 		return
 	}
@@ -268,9 +268,35 @@ func (c *csrCtx) reportCascade(f csrCall, stmt syntax.Stmt) {
 	})
 }
 
+// csrMaxFixChain bounds the chains the merge fix folds: each finding of a
+// chain carries a fix rebuilding the whole chain (quadratic text), so a
+// huge generated chain is reported without a fix.
+const csrMaxFixChain = 256
+
+type csrChain struct {
+	stmts []syntax.Stmt
+	calls []csrCall
+}
+
 // chain returns the whole chain of cascading statements around stmt, last
-// statement first, with their calls.
+// statement first, with their calls. Every statement of a chain shares it,
+// so it is computed once per chain and file (per statement it was
+// quadratic on long chains).
 func (c *csrCtx) chain(stmt syntax.Stmt) ([]syntax.Stmt, []csrCall) {
+	memo := c.ctx.Memo("chains", func() any { return map[syntax.Stmt]*csrChain{} }).(map[syntax.Stmt]*csrChain)
+	if ch, ok := memo[stmt]; ok {
+		return ch.stmts, ch.calls
+	}
+	stmts, calls := c.computeChain(stmt)
+	ch := &csrChain{stmts, calls}
+	for _, s := range stmts {
+		memo[s] = ch
+	}
+	memo[stmt] = ch
+	return stmts, calls
+}
+
+func (c *csrCtx) computeChain(stmt syntax.Stmt) ([]syntax.Stmt, []csrCall) {
 	last := stmt
 	for {
 		next, ok := util.NextStmt(c.ctx.File, last)

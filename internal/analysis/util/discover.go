@@ -116,7 +116,8 @@ func (d *discoverer) variable(v *syntax.Variable) {
 		return
 	}
 	params, body := scopeParts(scope)
-	if UnstableVariable(body, v.Name) {
+	ix := assignsUnder(d.f, body)
+	if ix.unstable[v.Name] {
 		d.unknown = true
 		return
 	}
@@ -125,14 +126,13 @@ func (d *discoverer) variable(v *syntax.Variable) {
 			d.collect(p.Default)
 		}
 	}
-	var vals []syntax.Expr
-	assignmentsIn(body, func(a *syntax.Assign) {
-		if t, ok := a.Var.(*syntax.Variable); ok && t.NameExpr == nil && t.Name == v.Name {
-			vals = append(vals, assignedValue(a))
-		}
-	})
-	for _, x := range vals {
-		d.collect(x)
+	assigns := ix.byVar[v.Name]
+	if len(assigns) > maxPossibleValues {
+		d.unknown = true
+		return
+	}
+	for _, a := range assigns {
+		d.collect(assignedValue(a))
 	}
 }
 
@@ -183,21 +183,35 @@ func (d *discoverer) property(fetch syntax.Expr, classes []string, name string) 
 		}
 	}
 	var vals []syntax.Expr
-	match := func(a *syntax.Assign) {
-		if a.Var.Kind() == fetch.Kind() && Equivalent(d.f, a.Var, fetch) {
-			vals = append(vals, assignedValue(a))
+	scan := func(root syntax.Node) {
+		cands := assignsUnder(d.f, root).byKind[fetch.Kind()]
+		if len(cands) > maxAssignScan {
+			d.unknown = true
+			return
+		}
+		for _, a := range cands {
+			if Equivalent(d.f, a.Var, fetch) {
+				vals = append(vals, assignedValue(a))
+			}
 		}
 	}
 	scope := enclosingScope(fetch)
 	if scope != nil {
 		_, body := scopeParts(scope)
-		assignmentsIn(body, match)
+		scan(body)
 	}
 	for _, m := range decl.Members {
 		if meth, ok := m.(*syntax.Method); ok && meth.Name != nil && meth.Body != nil &&
 			strings.EqualFold(meth.Name.Value, "__construct") && syntax.Node(meth) != scope {
-			assignmentsIn(meth.Body, match)
+			scan(meth.Body)
 		}
+	}
+	if d.unknown {
+		return
+	}
+	if len(vals) > maxPossibleValues {
+		d.unknown = true
+		return
 	}
 	for _, x := range vals {
 		d.collect(x)

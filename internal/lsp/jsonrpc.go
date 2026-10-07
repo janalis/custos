@@ -33,6 +33,7 @@ func (e *rpcError) Error() string { return fmt.Sprintf("jsonrpc %d: %s", e.Code,
 
 const (
 	codeParseError     = -32700
+	codeInvalidRequest = -32600
 	codeMethodNotFound = -32601
 	codeInvalidParams  = -32602
 	codeInternalError  = -32603
@@ -48,30 +49,49 @@ type conn struct {
 }
 
 func newConn(r io.Reader, w io.Writer) *conn {
-	return &conn{r: bufio.NewReaderSize(r, 64<<10), w: w}
+	return &conn{r: bufio.NewReaderSize(r, maxHeaderLine), w: w}
 }
+
+// maxMessageSize bounds a JSON-RPC message body (a variable for tests). A
+// document of syntax.MaxFileSize bytes stays well below it even fully
+// JSON-escaped; a larger Content-Length is answered with an error and its
+// body skipped, instead of allocating whatever the header claims (a huge
+// value used to crash the server with an out-of-memory error).
+var maxMessageSize = 128 << 20
+
+// maxHeaderLine bounds one header line (the read buffer size).
+const maxHeaderLine = 64 << 10
 
 func (c *conn) read() (*message, error) {
 	length := -1
 	for {
-		line, err := c.r.ReadString('\n')
+		raw, err := c.r.ReadSlice('\n')
+		if err == bufio.ErrBufferFull {
+			return nil, fmt.Errorf("lsp: header line longer than %d bytes", maxHeaderLine)
+		}
 		if err != nil {
 			return nil, err
 		}
-		line = strings.TrimRight(line, "\r\n")
+		line := strings.TrimRight(string(raw), "\r\n")
 		if line == "" {
 			break
 		}
 		name, value, ok := strings.Cut(line, ":")
 		if ok && strings.EqualFold(strings.TrimSpace(name), "Content-Length") {
 			length, err = strconv.Atoi(strings.TrimSpace(value))
-			if err != nil {
+			if err != nil || length < 0 {
 				return nil, fmt.Errorf("lsp: bad Content-Length %q", value)
 			}
 		}
 	}
 	if length < 0 {
 		return nil, errors.New("lsp: missing Content-Length")
+	}
+	if length > maxMessageSize {
+		if _, err := io.CopyN(io.Discard, c.r, int64(length)); err != nil {
+			return nil, err
+		}
+		return nil, &rpcError{Code: codeInvalidRequest, Message: fmt.Sprintf("message of %d bytes exceeds the %d byte limit", length, maxMessageSize)}
 	}
 	body := make([]byte, length)
 	if _, err := io.ReadFull(c.r, body); err != nil {

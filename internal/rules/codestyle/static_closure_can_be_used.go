@@ -46,7 +46,7 @@ func (staticClosureCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if closureNeedsThis(ctx, region) { // D4 / D5
 		return
 	}
-	sites, unsafe := closureUsageSites(n) // D6
+	sites, unsafe := closureUsageSites(ctx.File, n) // D6
 	if unsafe {
 		return
 	}
@@ -121,7 +121,7 @@ func closureNeedsThis(ctx *analysis.Context, region syntax.Node) bool {
 // (D6): argument lists, receiver method calls, array pairs or literals.
 // unsafe is true when the closure escapes in a way that may bind it later
 // (returned, or its variable used in an unrecognised context).
-func closureUsageSites(n syntax.Node) (sites []syntax.Node, unsafe bool) {
+func closureUsageSites(f *syntax.File, n syntax.Node) (sites []syntax.Node, unsafe bool) {
 	if p, _ := util.ParentSkipParens(n); p != nil {
 		if _, ok := p.(*syntax.Return); ok { // D6d
 			return nil, true
@@ -144,34 +144,31 @@ func closureUsageSites(n syntax.Node) (sites []syntax.Node, unsafe bool) {
 			return nil, false
 		}
 		abandoned := false
-		syntax.Inspect(body, func(x syntax.Node) bool {
-			if abandoned {
-				return false
-			}
-			v, ok := x.(*syntax.Variable)
-			if !ok || v == target || v.NameExpr != nil || v.Name != target.Name {
-				return true
+	uses: // occurrences of the name in the body, in source order (indexed once per body)
+		for _, v := range util.VarOccurrences(f, body)[target.Name] {
+			if v == target {
+				continue
 			}
 			switch vp := v.Parent().(type) {
 			case *syntax.Arg:
 				if list, ok := vp.Parent().(*syntax.ArgList); ok {
 					sites = append(sites, list)
-					return true
+					continue
 				}
 			case *syntax.MethodCall:
 				sites = append(sites, vp)
-				return true
+				continue
 			case *syntax.StaticCall:
 				sites = append(sites, vp)
-				return true
+				continue
 			case *syntax.FuncCall:
 				if vp.Name == syntax.Expr(v) {
-					return true // direct invocation `$v(...)` cannot rebind it
+					continue // direct invocation `$v(...)` cannot rebind it
 				}
 			}
 			abandoned = true // unrecognised use: the closure may be bound later
-			return false
-		})
+			break uses
+		}
 		if abandoned {
 			return nil, true
 		}

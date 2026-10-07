@@ -38,7 +38,8 @@ type owpScope struct {
 	scope    syntax.Node
 	body     *syntax.Block
 	reported map[syntax.Span]bool
-	includes int8 // -1 unknown, 0 no, 1 yes
+	includes int8                        // -1 unknown, 0 no, 1 yes
+	byName   map[string][]util.VarAccess // all accesses of the scope, computed once
 }
 
 func (s *owpScope) report(span syntax.Span, msg string) {
@@ -169,7 +170,10 @@ type owpAccess struct {
 // a write followed by a read on the same node.
 func (s *owpScope) accesses(name string) []owpAccess {
 	var out []owpAccess
-	for _, a := range util.VarAccesses(s.ctx.File, s.scope, name) {
+	if s.byName == nil {
+		s.byName = util.VarAccessesByName(s.ctx.File, s.scope)
+	}
+	for _, a := range s.byName[name] {
 		if !util.Reachable(a.Var, s.scope) {
 			continue
 		}

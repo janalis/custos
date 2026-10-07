@@ -208,13 +208,26 @@ func saParams(ctx *analysis.Context, fn syntax.Node) {
 	if mkdirTestContext(ctx, fn) { // E6
 		return
 	}
+	// D8 for every parameter in one walk (a walk per parameter was
+	// quadratic); only the first two accesses of each matter.
+	names := map[string]bool{}
+	for _, p := range params {
+		if !p.ByRef && p.Var != nil && p.Var.Name != "" {
+			names[p.Var.Name] = true
+		}
+	}
+	firstTwo := map[string][]*syntax.Variable{}
+	saFlowVars(body, func(v *syntax.Variable) {
+		if names[v.Name] && len(firstTwo[v.Name]) < 2 {
+			firstTwo[v.Name] = append(firstTwo[v.Name], v)
+		}
+	})
 	for _, p := range params {
 		if p.ByRef || p.Var == nil || p.Var.Name == "" {
 			continue
 		}
 		name := p.Var.Name
-		var accesses []*syntax.Variable
-		saFlowVars(body, name, &accesses) // D8
+		accesses := firstTwo[name]
 		if len(accesses) < 2 {
 			continue
 		}
@@ -240,31 +253,32 @@ func saParams(ctx *analysis.Context, fn syntax.Node) {
 	}
 }
 
-// saFlowVars appends accesses of $name in approximate evaluation order:
-// assignment right-hand sides before targets, nested function bodies skipped.
-func saFlowVars(n syntax.Node, name string, out *[]*syntax.Variable) {
+// saFlowVars calls fn for the simple variable accesses under n in
+// approximate evaluation order: assignment right-hand sides before targets,
+// nested function bodies skipped.
+func saFlowVars(n syntax.Node, fn func(*syntax.Variable)) {
 	switch x := n.(type) {
 	case *syntax.Variable:
-		if x.NameExpr == nil && x.Name == name && !isStaticPropName(x) {
-			*out = append(*out, x)
+		if x.NameExpr == nil && x.Name != "" && !isStaticPropName(x) {
+			fn(x)
 		}
 		if x.NameExpr != nil {
-			saFlowVars(x.NameExpr, name, out)
+			saFlowVars(x.NameExpr, fn)
 		}
 		return
 	case *syntax.Assign:
-		saFlowVars(x.Value, name, out)
-		saFlowVars(x.Var, name, out)
+		saFlowVars(x.Value, fn)
+		saFlowVars(x.Var, fn)
 		return
 	case *syntax.Closure:
 		for _, u := range x.Uses {
-			saFlowVars(u, name, out)
+			saFlowVars(u, fn)
 		}
 		return
 	case *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
 		return
 	}
-	syntax.Children(n, func(c syntax.Node) { saFlowVars(c, name, out) })
+	syntax.Children(n, func(c syntax.Node) { saFlowVars(c, fn) })
 }
 
 // ---- D. =+ / =- / =! typo ---------------------------------------------------------------

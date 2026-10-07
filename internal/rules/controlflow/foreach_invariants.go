@@ -286,7 +286,7 @@ func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Ex
 	}
 	scope := util.EnclosingFuncLike(l)
 	body := util.FuncLikeBody(scope)
-	if scope == nil || body == nil || util.UnstableVariable(body, v.Name) {
+	if scope == nil || body == nil || util.UnstableVariableIn(ctx.File, body, v.Name) {
 		return nil
 	}
 	innermost := func(e syntax.Expr) syntax.Expr {
@@ -306,7 +306,7 @@ func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Ex
 		}
 	}
 	var out []syntax.Expr
-	defs, entry := util.ReachingAssignments(scope, v, v.Name)
+	defs, entry := util.ReachingAssignmentsIn(ctx.File, scope, v, v.Name)
 	if entry {
 		for _, p := range util.FuncLikeParams(scope) {
 			if p.Var != nil && p.Var.Name == v.Name && p.Default != nil {

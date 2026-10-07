@@ -13,10 +13,16 @@ import (
 	"custos/internal/analysis"
 	"custos/internal/meta"
 	"custos/internal/phpver"
+	"custos/internal/safeio"
 )
 
 // FileName is the project configuration file.
 const FileName = "custos.json"
+
+// MaxFileSize bounds custos.json and composer.json (both come from the
+// analysed repository: a huge file, or a symlink to a device, must fail
+// instead of exhausting memory or blocking).
+const MaxFileSize = 8 << 20
 
 // RuleSettings is the JSON shape of one rule override.
 type RuleSettings struct {
@@ -61,7 +67,7 @@ func Load(dir string) (*Config, error) {
 		return nil, err
 	}
 	var f File
-	if b, err := os.ReadFile(filepath.Join(root, FileName)); err == nil {
+	if b, err := safeio.ReadFile(filepath.Join(root, FileName), MaxFileSize); err == nil {
 		if err := json.Unmarshal(b, &f); err != nil {
 			return nil, fmt.Errorf("%s: %w", filepath.Join(root, FileName), err)
 		}
@@ -74,6 +80,16 @@ func Load(dir string) (*Config, error) {
 // Resolve turns a File into a Config rooted at root.
 func Resolve(root string, f File) (*Config, error) {
 	c := &Config{Root: root, Paths: f.Paths, Baseline: f.Baseline, Exclude: append(append([]string{}, DefaultExclude...), f.Exclude...), Rules: map[string]analysis.RuleConfig{}}
+	// The configuration comes with the analysed code: it must not point
+	// custos (and `custos fix`) at files outside the project.
+	for _, p := range f.Paths {
+		if !insideRoot(p) {
+			return nil, fmt.Errorf("config: paths entry %q leaves the project root", p)
+		}
+	}
+	if f.Baseline != "" && !insideRoot(f.Baseline) {
+		return nil, fmt.Errorf("config: baseline %q leaves the project root", f.Baseline)
+	}
 	switch {
 	case f.PHP != "":
 		v, err := phpver.Parse(f.PHP)
@@ -119,6 +135,16 @@ func Resolve(root string, f File) (*Config, error) {
 	return c, nil
 }
 
+// insideRoot reports whether the relative path p stays within the root
+// directory (no absolute path, no leading "..", no volume name).
+func insideRoot(p string) bool {
+	if filepath.IsAbs(p) || filepath.VolumeName(p) != "" || strings.HasPrefix(p, "/") || strings.HasPrefix(p, `\`) {
+		return false
+	}
+	c := filepath.ToSlash(filepath.Clean(p))
+	return c != ".." && !strings.HasPrefix(c, "../")
+}
+
 // Analysis returns the analysis.Config view.
 func (c *Config) Analysis() analysis.Config {
 	return analysis.Config{PHP: c.PHP, ComparisonStyle: c.ComparisonStyle, Rules: c.Rules}
@@ -145,7 +171,7 @@ var versionRe = regexp.MustCompile(`(\d+)\.(\d+)`)
 
 // composerPHP reads config.platform.php, else the lowest version in require.php.
 func composerPHP(root string) (phpver.Version, bool) {
-	b, err := os.ReadFile(filepath.Join(root, "composer.json"))
+	b, err := safeio.ReadFile(filepath.Join(root, "composer.json"), MaxFileSize)
 	if err != nil {
 		return 0, false
 	}

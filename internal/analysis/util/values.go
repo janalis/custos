@@ -146,19 +146,6 @@ func UnstableVariable(root syntax.Node, name string) bool {
 	return found
 }
 
-// assignmentsIn calls fn for each plain `=` assignment under root.
-func assignmentsIn(root syntax.Node, fn func(*syntax.Assign)) {
-	if root == nil {
-		return
-	}
-	syntax.Inspect(root, func(n syntax.Node) bool {
-		if a, ok := n.(*syntax.Assign); ok && a.Op.Kind == syntax.TEqual && !a.ByRef {
-			fn(a)
-		}
-		return true
-	})
-}
-
 func (pv *possibleValues) variable(v *syntax.Variable) {
 	if v.NameExpr != nil || v.Name == "" {
 		return
@@ -168,7 +155,8 @@ func (pv *possibleValues) variable(v *syntax.Variable) {
 		return
 	}
 	params, body := scopeParts(scope)
-	if UnstableVariable(body, v.Name) {
+	ix := assignsUnder(pv.f, body)
+	if ix.unstable[v.Name] {
 		pv.unknown = true
 		return
 	}
@@ -177,14 +165,13 @@ func (pv *possibleValues) variable(v *syntax.Variable) {
 			pv.collect(p.Default)
 		}
 	}
-	var vals []syntax.Expr
-	assignmentsIn(body, func(a *syntax.Assign) {
-		if t, ok := a.Var.(*syntax.Variable); ok && t.NameExpr == nil && t.Name == v.Name {
-			vals = append(vals, assignedValue(a))
-		}
-	})
-	for _, x := range vals {
-		pv.collect(x)
+	assigns := ix.byVar[v.Name]
+	if len(assigns) > maxPossibleValues {
+		pv.unknown = true
+		return
+	}
+	for _, a := range assigns {
+		pv.collect(assignedValue(a))
 	}
 }
 
@@ -223,21 +210,39 @@ func (pv *possibleValues) property(p *syntax.PropertyFetch) {
 	}
 	target := pv.text(p)
 	var vals []syntax.Expr
-	match := func(a *syntax.Assign) {
-		if _, ok := a.Var.(*syntax.PropertyFetch); ok && pv.text(a.Var) == target {
+	add := func(root syntax.Node) {
+		ix := assignsUnder(pv.f, root)
+		if pv.f == nil { // no text index without the source
+			for _, a := range ix.byKind[syntax.KPropertyFetch] {
+				if pv.text(a.Var) == target {
+					vals = append(vals, assignedValue(a))
+				}
+			}
+			return
+		}
+		as := ix.propByText[target]
+		if len(vals)+len(as) > maxPossibleValues {
+			pv.unknown = true
+			return
+		}
+		for _, a := range as {
 			vals = append(vals, assignedValue(a))
 		}
 	}
 	scope := enclosingScope(p)
 	if scope != nil {
 		_, body := scopeParts(scope)
-		assignmentsIn(body, match)
+		add(body)
 	}
 	for _, m := range class.Members {
 		if meth, ok := m.(*syntax.Method); ok && meth.Name != nil &&
 			strings.EqualFold(meth.Name.Value, "__construct") && syntax.Node(meth) != scope && meth.Body != nil {
-			assignmentsIn(meth.Body, match)
+			add(meth.Body)
 		}
+	}
+	if pv.unknown || len(vals) > maxPossibleValues {
+		pv.unknown = true
+		return
 	}
 	for _, x := range vals {
 		pv.collect(x)

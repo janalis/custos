@@ -78,16 +78,29 @@ func mentionsVariable(n syntax.Node, name string) bool {
 // clause in the enclosing scope, outside other catch clauses rebinding the
 // same name (D4b).
 func usedAfterCatch(ctx *analysis.Context, c *syntax.Catch) bool {
-	name := c.Var.Name
-	end := c.Span().End
-	scope := util.EnclosingFuncLike(c)
-	for _, a := range util.VarAccesses(ctx.File, scope, name) {
-		if a.Var.Span().Start < end || rebindingCatch(a.Var, scope, name) {
-			continue
-		}
-		return true
+	last := lastFreeAccesses(ctx, util.EnclosingFuncLike(c))[c.Var.Name]
+	return last > 0 && last-1 >= c.Span().End
+}
+
+// lastFreeAccesses returns, for scope, name -> 1 + the start offset of the
+// last access to the variable that is not inside a catch clause rebinding
+// it (0: none). Computed once per scope and file: scanning the accesses per
+// catch clause was quadratic on long try/catch sequences.
+func lastFreeAccesses(ctx *analysis.Context, scope syntax.Node) map[string]uint32 {
+	cache := ctx.Memo("lastFreeAccesses", func() any { return map[syntax.Node]map[string]uint32{} }).(map[syntax.Node]map[string]uint32)
+	if m, ok := cache[scope]; ok {
+		return m
 	}
-	return false
+	m := map[string]uint32{}
+	for name, accs := range util.VarAccessesByName(ctx.File, scope) {
+		for _, a := range accs {
+			if !rebindingCatch(a.Var, scope, name) {
+				m[name] = max(m[name], a.Var.Span().Start+1)
+			}
+		}
+	}
+	cache[scope] = m
+	return m
 }
 
 // rebindingCatch reports whether v sits inside a catch clause of scope

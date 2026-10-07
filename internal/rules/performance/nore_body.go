@@ -70,7 +70,7 @@ func (c *noreCase) checkBody() {
 			c.report(meta.SeverityError, "Class ["+s+`] is redundant: \D is already covered by \W.`)
 		}
 	}
-	if body != "" { // D18
+	if body != "" && len(body) <= noreNestedMaxLen { // D18
 		for _, f := range noreNestedQuantifiers(body) {
 			c.report(meta.SeverityError, "Nested quantifier ("+f[0]+")"+f[1]+" risks catastrophic backtracking.")
 		}
@@ -80,14 +80,26 @@ func (c *noreCase) checkBody() {
 	}
 }
 
+// D18 folds innermost groups one pass at a time (quadratic in the number of
+// groups), so a huge hostile pattern could stall the analysis: patterns
+// longer than noreNestedMaxLen, or needing more than noreNestedMaxFolds
+// folds, are not examined. Real patterns stay far below both.
+const (
+	noreNestedMaxLen   = 64 << 10
+	noreNestedMaxFolds = 256
+)
+
 // noreNestedQuantifiers implements D18 and returns (alternative, quantifier)
 // pairs.
 func noreNestedQuantifiers(body string) [][2]string {
 	n := strings.ReplaceAll(body, "(?:", "(")
-	for {
+	for folds := 0; ; folds++ {
 		m := noreInnerGroup.FindStringSubmatch(n)
 		if m == nil {
 			break
+		}
+		if folds == noreNestedMaxFolds {
+			return nil
 		}
 		n = strings.ReplaceAll(n, m[0], m[1]+m[2])
 	}
@@ -103,59 +115,86 @@ func noreNestedQuantifiers(body string) [][2]string {
 	return out
 }
 
-// noreClassAt matches `[X]` (X: one or more non-`]`) at i and returns its end.
-func noreClassAt(s string, i int) (int, bool) {
-	if i >= len(s) || s[i] != '[' {
-		return 0, false
-	}
-	j := strings.IndexByte(s[i+1:], ']')
-	if j <= 0 {
-		return 0, false
-	}
-	return i + 1 + j + 1, true
+// noreScanner answers "next ']' / '}' at or after i" in O(1), so that D15
+// stays linear: scanning ahead from every '[' was quadratic on patterns
+// with many unclosed brackets or braces.
+type noreScanner struct {
+	s                    string
+	nextClose, nextBrace []int32 // -1: none
 }
 
-// noreQuantAt matches an optional quantifier (`*`, `+`, `?`, `{…}`) at i.
-func noreQuantAt(s string, i int) int {
-	if i >= len(s) {
+func newNoreScanner(s string) *noreScanner {
+	sc := &noreScanner{s: s, nextClose: make([]int32, len(s)+1), nextBrace: make([]int32, len(s)+1)}
+	c, b := int32(-1), int32(-1)
+	sc.nextClose[len(s)], sc.nextBrace[len(s)] = -1, -1
+	for i := len(s) - 1; i >= 0; i-- {
+		switch s[i] {
+		case ']':
+			c = int32(i)
+		case '}':
+			b = int32(i)
+		}
+		sc.nextClose[i], sc.nextBrace[i] = c, b
+	}
+	return sc
+}
+
+// classAt matches `[X]` (X: one or more non-`]`) at i and returns its end.
+func (sc *noreScanner) classAt(i int) (int, bool) {
+	if i >= len(sc.s) || sc.s[i] != '[' {
+		return 0, false
+	}
+	j := int(sc.nextClose[i+1])
+	if j <= i+1 {
+		return 0, false
+	}
+	return j + 1, true
+}
+
+// quantAt matches an optional quantifier (`*`, `+`, `?`, `{…}`) at i.
+func (sc *noreScanner) quantAt(i int) int {
+	if i >= len(sc.s) {
 		return i
 	}
-	switch s[i] {
+	switch sc.s[i] {
 	case '*', '+', '?':
 		return i + 1
 	case '{':
-		j := strings.IndexByte(s[i+1:], '}')
-		if j > 0 {
-			return i + 1 + j + 1
+		if j := int(sc.nextBrace[i+1]); j > i+1 {
+			return j + 1
 		}
 	}
 	return i
 }
 
-// noreRepetition matches `[X]q?[X]q?` at i with both classes identical.
-func noreRepetition(s string, i int) (end int, class string, ok bool) {
-	e1, ok := noreClassAt(s, i)
+// repetition matches `[X]q?[X]q?` at i with both classes identical.
+func (sc *noreScanner) repetition(i int) (end int, class string, ok bool) {
+	e1, ok := sc.classAt(i)
 	if !ok {
 		return 0, "", false
 	}
+	s := sc.s
 	class = s[i:e1]
-	j := noreQuantAt(s, e1)
-	if !strings.HasPrefix(s[j:], class) {
+	j := sc.quantAt(e1)
+	// An identical class at j closes exactly len(class) bytes later: check
+	// that in O(1) before comparing the text.
+	if e2, ok := sc.classAt(j); !ok || e2-j != len(class) || s[j:e2] != class {
 		return 0, "", false
 	}
-	return noreQuantAt(s, j+len(class)), class, true
+	return sc.quantAt(j + len(class)), class, true
 }
 
 // noreRepeatedClass implements D15: the leftmost run of one or more
 // repetitions, and the class of its last repetition.
 func noreRepeatedClass(s string) (run, class string, ok bool) {
+	sc := newNoreScanner(s)
 	for i := 0; i < len(s); i++ {
-		end, cl, ok := noreRepetition(s, i)
+		end, cl, ok := sc.repetition(i)
 		if !ok {
 			continue
 		}
 		for {
-			e2, c2, ok := noreRepetition(s, end)
+			e2, c2, ok := sc.repetition(end)
 			if !ok {
 				break
 			}

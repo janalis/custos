@@ -49,7 +49,12 @@ type Function struct {
 	DocReturn string  `json:"dret,omitempty"`
 	// Inferred is the return type derived from the body at index time when
 	// neither Return nor DocReturn is set (see infer.AnnotateReturns).
-	Inferred   string      `json:"iret,omitempty"`
+	Inferred string `json:"iret,omitempty"`
+	// Tpl describes the function's own @template parameters when its
+	// documented return type uses them; nil otherwise.
+	Tpl *FuncTemplates `json:"ftpl,omitempty"`
+	// Asserts are the @phpstan-assert / @psalm-assert annotations.
+	Asserts    []Assertion `json:"as,omitempty"`
 	ByRef      bool        `json:"byRef,omitempty"`
 	Deprecated bool        `json:"dep,omitempty"`
 	Avail      Avail       `json:"a,omitempty"`
@@ -73,7 +78,12 @@ type Method struct {
 	// GenReturn is the documented return type when it mentions class
 	// templates, which appear as `\~T` atoms (see Class.Templates); bound
 	// per receiver by infer. Empty otherwise.
-	GenReturn  string      `json:"gret,omitempty"`
+	GenReturn string `json:"gret,omitempty"`
+	// Tpl describes the method's own @template parameters when its
+	// documented return type uses them; nil otherwise.
+	Tpl *FuncTemplates `json:"ftpl,omitempty"`
+	// Asserts are the @phpstan-assert / @psalm-assert annotations.
+	Asserts    []Assertion `json:"as,omitempty"`
 	Deprecated bool        `json:"dep,omitempty"`
 	Avail      Avail       `json:"a,omitempty"`
 	Span       syntax.Span `json:"-"`
@@ -81,18 +91,21 @@ type Method struct {
 
 // Property is a class property (declared, promoted or @property).
 type Property struct {
-	Name       string      `json:"name"` // without '$'
-	Class      string      `json:"-"`
-	Visibility Visibility  `json:"vis,omitempty"`
-	Static     bool        `json:"static,omitempty"`
-	Readonly   bool        `json:"ro,omitempty"`
-	Type       string      `json:"t,omitempty"`
-	DocType    string      `json:"d,omitempty"`
-	HasDefault bool        `json:"hasDef,omitempty"`
-	Default    string      `json:"def,omitempty"`
-	Promoted   bool        `json:"promoted,omitempty"`
-	Magic      bool        `json:"magic,omitempty"` // @property doc tag
-	Span       syntax.Span `json:"-"`
+	Name       string     `json:"name"` // without '$'
+	Class      string     `json:"-"`
+	Visibility Visibility `json:"vis,omitempty"`
+	Static     bool       `json:"static,omitempty"`
+	Readonly   bool       `json:"ro,omitempty"`
+	Type       string     `json:"t,omitempty"`
+	DocType    string     `json:"d,omitempty"`
+	HasDefault bool       `json:"hasDef,omitempty"`
+	Default    string     `json:"def,omitempty"`
+	Promoted   bool       `json:"promoted,omitempty"`
+	Magic      bool       `json:"magic,omitempty"` // @property doc tag
+	// Inferred is the type derived at index time from the values the class
+	// assigns to an untyped private property (see infer.AnnotateReturns).
+	Inferred string      `json:"iret,omitempty"`
+	Span     syntax.Span `json:"-"`
 }
 
 // ClassConst is a class constant or enum case.
@@ -135,6 +148,48 @@ type Class struct {
 type Template struct {
 	Name  string `json:"n"`
 	Bound string `json:"b,omitempty"` // doc type string; "" when unbounded
+}
+
+// FuncTemplates describes the @template parameters declared on a function
+// or method (`@template T` + `@param class-string<T> $c` + `@return T`).
+// Doc type strings write these templates as `\~~T` atoms and the class
+// templates of the declaring class as `\~T` atoms (see Method.GenReturn);
+// infer binds them from the call's arguments.
+type FuncTemplates struct {
+	Templates []Template `json:"t"`
+	// Params holds, per parameter (same order as the Params of the
+	// function), its documented type when it mentions a template ("" else),
+	// preferring @phpstan-param / @psalm-param.
+	Params []string `json:"p,omitempty"`
+	// Return is the documented return type (preferring @phpstan-return /
+	// @psalm-return), which mentions at least one of Templates.
+	Return string `json:"r"`
+}
+
+// AssertKind says when an assertion holds.
+type AssertKind uint8
+
+const (
+	AssertAlways  AssertKind = iota // after the call returns (@phpstan-assert)
+	AssertIfTrue                    // when the call returns true (-assert-if-true)
+	AssertIfFalse                   // when the call returns false (-assert-if-false)
+)
+
+// Assertion targets other than a parameter (see Assertion.Param).
+const (
+	AssertThisProp = -1 // `$this->prop` of the receiver (Prop names it)
+	AssertThis     = -2 // the receiver itself (`$this`)
+)
+
+// Assertion is `@phpstan-assert[-if-true|-if-false] [!]Type $target` (and
+// the psalm- variants): the target, a parameter or the receiver (or one of
+// its properties), has (Negated: has not) Type when the assertion holds.
+type Assertion struct {
+	Kind    AssertKind `json:"k,omitempty"`
+	Param   int        `json:"p"`             // parameter index, AssertThisProp or AssertThis
+	Prop    string     `json:"pr,omitempty"`  // property name for AssertThisProp
+	Negated bool       `json:"neg,omitempty"` // `!Type`
+	Type    string     `json:"t"`             // doc type string (templates as in FuncTemplates)
 }
 
 // SuperArgs is `@extends Base<A, B>`: the FQN of Base and the arguments

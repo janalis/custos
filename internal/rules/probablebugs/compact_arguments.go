@@ -1,6 +1,8 @@
 package probablebugs
 
 import (
+	"strconv"
+
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
 	"custos/internal/syntax"
@@ -59,17 +61,14 @@ func (compactArguments) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 
-	// D5: every `$name` token of the scope before the call (parameters included).
-	known := map[string]bool{}
-	f := ctx.File
+	// D5: every `$name` token of the scope before the call (parameters
+	// included). The first offset of each name is indexed once per scope.
+	first := compactFirstUses(ctx, scope)
 	callStart := call.Span().Start
-	for i := util.TokenIndex(f, scope.Span().Start); i < len(f.Tokens); i++ {
-		t := f.Tokens[i]
-		if t.Start >= callStart {
-			break
-		}
-		if t.Kind == syntax.TVariable && t.End-t.Start > 1 {
-			known[string(ctx.Src[t.Start+1:t.End])] = true
+	known := map[string]bool{}
+	for _, c := range cands {
+		if off, ok := first[c.name]; ok && off < callStart {
+			known[c.name] = true
 		}
 	}
 	for _, p := range util.FuncLikeParams(scope) {
@@ -83,4 +82,28 @@ func (compactArguments) Check(ctx *analysis.Context, n syntax.Node) {
 			ctx.Report(c.span, "Variable '$"+c.name+"' may be undefined when compact() runs.")
 		}
 	}
+}
+
+// compactFirstUses maps each variable name of scope to the offset of its
+// first `$name` token in the scope (memoised per scope).
+func compactFirstUses(ctx *analysis.Context, scope syntax.Node) map[string]uint32 {
+	sp := scope.Span()
+	key := strconv.FormatUint(uint64(sp.Start), 10)
+	return ctx.Memo(key, func() any {
+		first := map[string]uint32{}
+		f := ctx.File
+		for i := util.TokenIndex(f, sp.Start); i < len(f.Tokens); i++ {
+			t := f.Tokens[i]
+			if t.Start >= sp.End {
+				break
+			}
+			if t.Kind == syntax.TVariable && t.End-t.Start > 1 {
+				name := string(ctx.Src[t.Start+1 : t.End])
+				if _, ok := first[name]; !ok {
+					first[name] = t.Start
+				}
+			}
+		}
+		return first
+	}).(map[string]uint32)
 }

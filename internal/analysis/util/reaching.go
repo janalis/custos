@@ -21,6 +21,13 @@ import "custos/internal/syntax"
 //     belong to another scope and are ignored, except in closures importing
 //     $name by reference, which may run at any time and always count.
 func ReachingAssignments(scope, at syntax.Node, name string) (defs []*syntax.Assign, entry bool) {
+	return ReachingAssignmentsIn(nil, scope, at, name)
+}
+
+// ReachingAssignmentsIn is ReachingAssignments with the scope's write index
+// cached on f (nil: not cached). Prefer it when querying many uses of the
+// same function: without the cache each query walks the whole body.
+func ReachingAssignmentsIn(f *syntax.File, scope, at syntax.Node, name string) (defs []*syntax.Assign, entry bool) {
 	_, body := scopeParts(scope)
 	if body == nil || name == "" {
 		return nil, true
@@ -29,42 +36,25 @@ func ReachingAssignments(scope, at syntax.Node, name string) (defs []*syntax.Ass
 	var killers []syntax.Node // unconditional writes dominating at
 	var all []*syntax.Assign
 	var always []*syntax.Assign // from by-reference closures
-	var walk func(n syntax.Node, byRefClosure bool)
-	walk = func(n syntax.Node, byRefClosure bool) {
-		syntax.Children(n, func(c syntax.Node) {
-			switch x := c.(type) {
-			case *syntax.Function, *syntax.ClassLike, *syntax.ArrowFunction:
-				return
-			case *syntax.Closure:
-				for _, u := range x.Uses {
-					if u.ByRef && u.Var != nil && u.Var.Name == name {
-						walk(x, true)
-						return
-					}
-				}
-				return
-			case *syntax.Assign:
-				if t, ok := UnwrapParens(x.Var).(*syntax.Variable); ok && t.NameExpr == nil && t.Name == name {
-					if x.Op.Kind == syntax.TEqual && !x.ByRef {
-						if byRefClosure {
-							always = append(always, x)
-						} else {
-							all = append(all, x)
-						}
-					}
-					if !byRefClosure && reachDominates(x, at, atStart) {
-						killers = append(killers, x)
-					}
-				}
-			case *syntax.Foreach:
-				if !byRefClosure && x.Body != nil && NodeContains(x.Body, at) && (reachIsVarNamed(x.Value, name) || reachIsVarNamed(x.Key, name)) {
-					killers = append(killers, x)
+	for _, r := range reachWrites(f, scope, body)[name] {
+		switch x := r.n.(type) {
+		case *syntax.Assign:
+			if x.Op.Kind == syntax.TEqual && !x.ByRef {
+				if r.byRef {
+					always = append(always, x)
+				} else {
+					all = append(all, x)
 				}
 			}
-			walk(c, byRefClosure)
-		})
+			if !r.byRef && reachDominates(x, at, atStart) {
+				killers = append(killers, x)
+			}
+		case *syntax.Foreach:
+			if !r.byRef && NodeContains(x.Body, at) {
+				killers = append(killers, x)
+			}
+		}
 	}
-	walk(body, false)
 
 	lastKill := func(within syntax.Node) uint32 {
 		var pos uint32
@@ -174,4 +164,72 @@ func NodeContains(outer, n syntax.Node) bool {
 		}
 	}
 	return false
+}
+
+// reachWrite is a write to a variable relevant to ReachingAssignments: an
+// assignment targeting it, or a foreach (with a body) binding it as key or
+// value; byRef marks writes inside closures importing it by reference.
+type reachWrite struct {
+	n     syntax.Node
+	byRef bool
+}
+
+type reachWritesKey struct{ scope syntax.Node }
+
+// reachWrites indexes, in one walk of body, the writes of every variable
+// name (in walk order). Nested functions, classes and arrow functions are
+// skipped; a closure is entered only for the names it imports by reference
+// (and that are tracked by the enclosing closure, if any).
+func reachWrites(f *syntax.File, scope, body syntax.Node) map[string][]reachWrite {
+	build := func() any {
+		m := map[string][]reachWrite{}
+		var walk func(n syntax.Node, active map[string]bool) // active nil: every name, not by reference
+		tracked := func(active map[string]bool, name string) bool { return active == nil || active[name] }
+		walk = func(n syntax.Node, active map[string]bool) {
+			syntax.Children(n, func(c syntax.Node) {
+				switch x := c.(type) {
+				case *syntax.Function, *syntax.ClassLike, *syntax.ArrowFunction:
+					return
+				case *syntax.Closure:
+					var inner map[string]bool
+					for _, u := range x.Uses {
+						if u.ByRef && u.Var != nil && tracked(active, u.Var.Name) {
+							if inner == nil {
+								inner = map[string]bool{}
+							}
+							inner[u.Var.Name] = true
+						}
+					}
+					if inner != nil {
+						walk(x, inner)
+					}
+					return
+				case *syntax.Assign:
+					if t, ok := UnwrapParens(x.Var).(*syntax.Variable); ok && t.NameExpr == nil && tracked(active, t.Name) {
+						m[t.Name] = append(m[t.Name], reachWrite{x, active != nil})
+					}
+				case *syntax.Foreach:
+					if x.Body != nil {
+						var seen string
+						for _, e := range []syntax.Expr{x.Value, x.Key} {
+							if e == nil {
+								continue
+							}
+							if v, ok := UnwrapParens(e).(*syntax.Variable); ok && v.NameExpr == nil && v.Name != seen && tracked(active, v.Name) {
+								m[v.Name] = append(m[v.Name], reachWrite{x, active != nil})
+								seen = v.Name
+							}
+						}
+					}
+				}
+				walk(c, active)
+			})
+		}
+		walk(body, nil)
+		return m
+	}
+	if f == nil {
+		return build().(map[string][]reachWrite)
+	}
+	return f.Memo(reachWritesKey{scope}, build).(map[string][]reachWrite)
 }

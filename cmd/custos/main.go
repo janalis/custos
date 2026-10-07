@@ -286,7 +286,7 @@ func cmdFix(args []string, stdout, stderr io.Writer) (int, error) {
 	}
 	changed, edits := 0, 0
 	for _, path := range s.files {
-		src, err := os.ReadFile(path)
+		src, err := runner.ReadSource(path)
 		if err != nil {
 			return 2, err
 		}
@@ -300,9 +300,16 @@ func cmdFix(args []string, stdout, stderr io.Writer) (int, error) {
 			fmt.Fprint(stdout, diff.Unified(filepath.ToSlash(path), string(src), string(res.Source), 3))
 		}
 		if !*dry {
-			info, err := os.Stat(path)
+			info, err := os.Lstat(path)
 			if err != nil {
 				return 2, err
+			}
+			if !info.Mode().IsRegular() {
+				// Never write through a symlink: it may lead outside the
+				// project (the analysed repository is untrusted).
+				fmt.Fprintf(stderr, "custos: %s: not a regular file, fixes not written\n", path)
+				changed--
+				continue
 			}
 			if err := os.WriteFile(path, res.Source, info.Mode().Perm()); err != nil {
 				return 2, err

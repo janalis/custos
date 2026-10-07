@@ -108,7 +108,7 @@ func Run(e *analysis.Engine, files []string, opt syntax.Options) []FileResult {
 }
 
 func analyzeFile(e *analysis.Engine, path string, opt syntax.Options) FileResult {
-	src, err := os.ReadFile(path)
+	src, err := ReadSource(path)
 	if err != nil {
 		return FileResult{Path: path, Err: err}
 	}

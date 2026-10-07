@@ -18,10 +18,8 @@ func StmtList(f *syntax.File, s syntax.Stmt) (list []syntax.Stmt, idx int, ok bo
 	default:
 		return nil, -1, false
 	}
-	for i, x := range list {
-		if x == s {
-			return list, i, true
-		}
+	if i := syntax.StmtIndex(list, s); i >= 0 {
+		return list, i, true
 	}
 	return nil, -1, false
 }

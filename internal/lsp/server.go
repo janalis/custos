@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -380,7 +379,7 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 			ix.Remove(path)
 			continue
 		}
-		src, err := os.ReadFile(path)
+		src, err := runner.ReadSource(path)
 		if err != nil {
 			ix.Remove(path)
 			continue
@@ -653,7 +652,7 @@ func (s *Server) buildEdit(data actionData) *workspaceEdit {
 		edits = []analysis.TextEdit{{Span: syntax.Span{Start: 0, End: uint32(len(text))}, NewText: string(res.Source)}}
 	} else {
 		for _, f := range findings {
-			if f.Rule == data.Rule && f.Span.Start == data.Start && f.Span.End == data.End && data.Fix < len(f.Fixes) {
+			if f.Rule == data.Rule && f.Span.Start == data.Start && f.Span.End == data.End && data.Fix >= 0 && data.Fix < len(f.Fixes) {
 				edits = f.Fixes[data.Fix].Edits()
 				break
 			}

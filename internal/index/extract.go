@@ -383,13 +383,167 @@ func (x *extractor) method(c *Class, m *syntax.Method) {
 			x.methodTpl[t] = true
 		}
 	}
-	x.withTemplates(d, func() { x.methodBody(c, m) })
+	x.withTemplates(d, func() { x.methodBody(c, m, d) })
 	x.methodTpl = saved
 }
 
-func (x *extractor) methodBody(c *Class, m *syntax.Method) {
+// tplResolver resolves names like genResolver, but keeps the templates of
+// the function or method being extracted as `~~T` (FromDoc atoms `\~~T`).
+func (x *extractor) tplResolver(at uint32) types.Resolver {
+	gen := x.genResolver(at)
+	return func(w string) string {
+		if x.methodTpl[w] {
+			return "~~" + w
+		}
+		return gen(w)
+	}
+}
+
+// funcTemplates describes the templates of a function or method (the
+// names in x.methodTpl) when its documented return type uses them.
+// assertions reads the @phpstan-assert / @psalm-assert tags of d (and
+// their -if-true / -if-false variants) whose target is a parameter of ps,
+// `$this` or `$this->prop` (method only). Types use tplResolver.
+func (x *extractor) assertions(d *phpdoc.Doc, ps []*syntax.Param, method bool, at uint32) []Assertion {
+	if d == nil {
+		return nil
+	}
+	var out []Assertion
+	for _, t := range d.Tags {
+		var kind AssertKind
+		switch t.Name {
+		case "phpstan-assert", "psalm-assert":
+			kind = AssertAlways
+		case "phpstan-assert-if-true", "psalm-assert-if-true":
+			kind = AssertIfTrue
+		case "phpstan-assert-if-false", "psalm-assert-if-false":
+			kind = AssertIfFalse
+		default:
+			continue
+		}
+		typ, rest := phpdoc.SplitType(t.Text)
+		a := Assertion{Kind: kind, Param: -3}
+		if strings.HasPrefix(typ, "!") {
+			a.Negated, typ = true, typ[1:]
+		} else {
+			typ = strings.TrimPrefix(typ, "=") // `=T`: the same, without negative inference
+		}
+		name := phpdoc.VarName(rest)
+		if name == "" {
+			continue
+		}
+		after := strings.TrimSpace(rest)[1+len(name):]
+		switch {
+		case name == "this" && method && strings.HasPrefix(after, "->"):
+			prop := phpdoc.VarName("$" + after[2:])
+			tail := after[2+len(prop):]
+			if prop == "" || strings.HasPrefix(strings.TrimSpace(tail), "(") || strings.HasPrefix(tail, "->") || strings.HasPrefix(tail, "[") {
+				continue // a method call or a nested target
+			}
+			a.Param, a.Prop = AssertThisProp, prop
+		case name == "this" && method:
+			if strings.HasPrefix(after, "[") {
+				continue
+			}
+			a.Param = AssertThis
+		default:
+			if strings.HasPrefix(after, "->") || strings.HasPrefix(after, "[") {
+				continue
+			}
+			for i, p := range ps {
+				if p.Var != nil && p.Var.Name == name && !p.Variadic {
+					a.Param = i
+				}
+			}
+		}
+		if a.Param == -3 {
+			continue
+		}
+		ty := types.FromDoc(typ, x.tplResolver(at))
+		if ty.IsUnknown() || ty.Has("mixed") {
+			continue
+		}
+		a.Type = ty.DocString()
+		out = append(out, a)
+	}
+	return out
+}
+
+func (x *extractor) funcTemplates(d *phpdoc.Doc, ps []*syntax.Param, asserts []Assertion, at uint32) *FuncTemplates {
+	if d == nil || len(x.methodTpl) == 0 {
+		return nil
+	}
+	res := x.tplResolver(at)
+	need := false // an assertion type uses a template
+	for _, a := range asserts {
+		need = need || strings.Contains(a.Type, `\~~`)
+	}
+	ret := ""
+	for _, tag := range []string{"phpstan-return", "psalm-return", "return"} {
+		t, ok := d.Tag(tag)
+		if !ok {
+			continue
+		}
+		typ, _ := phpdoc.SplitType(t.Text)
+		if ds := types.FromDoc(typ, res).DocString(); strings.Contains(ds, `\~~`) {
+			ret = ds
+			break
+		}
+	}
+	if ret == "" && !need {
+		return nil
+	}
+	ft := &FuncTemplates{Return: ret}
+	for _, p := range d.TemplateParams() {
+		if x.methodTpl[p.Name] {
+			ft.Templates = append(ft.Templates, Template{Name: p.Name, Bound: x.docTypeStr(p.Bound, at)})
+		}
+	}
+	docs := map[string]string{}
+	for _, tag := range []string{"param", "psalm-param", "phpstan-param"} { // later wins
+		for _, p := range d.ParamsOf(tag) {
+			if p.Name != "" && p.Type != "" {
+				docs[p.Name] = p.Type
+			}
+		}
+	}
+	for i, p := range ps {
+		text := docs[p.Var.Name]
+		if text == "" || !mentionsAny(text, x.methodTpl) {
+			continue
+		}
+		if ds := types.FromDoc(text, res).DocString(); strings.Contains(ds, `\~~`) {
+			if ft.Params == nil {
+				ft.Params = make([]string, len(ps))
+			}
+			ft.Params[i] = ds
+		}
+	}
+	return ft
+}
+
+// mentionsAny reports whether doc type text contains one of names as a word
+// (a cheap filter before parsing).
+func mentionsAny(text string, names map[string]bool) bool {
+	start := -1
+	for i := 0; i <= len(text); i++ {
+		word := i < len(text) && (text[i] == '_' || text[i] == '\\' || text[i] >= 'a' && text[i] <= 'z' ||
+			text[i] >= 'A' && text[i] <= 'Z' || text[i] >= '0' && text[i] <= '9' || text[i] >= 0x80)
+		if word && start < 0 {
+			start = i
+		}
+		if !word && start >= 0 {
+			if names[text[start:i]] {
+				return true
+			}
+			start = -1
+		}
+	}
+	return false
+}
+
+func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	at := m.Span().Start
-	d := x.doc(m)
 	meth := &Method{
 		Name: m.Name.Value, Class: c.FQN, Visibility: visibility(m.Modifiers), Static: m.Modifiers.Has(syntax.TStatic),
 		Abstract: m.Modifiers.Has(syntax.TAbstract) || c.Kind == syntax.KindInterface, Final: m.Modifiers.Has(syntax.TFinal),
@@ -399,6 +553,8 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method) {
 	if d != nil {
 		meth.DocReturn = x.docTypeStr(d.ReturnType(), at)
 		meth.GenReturn = x.genReturn(d, at)
+		meth.Asserts = x.assertions(d, m.Params, !meth.Static, at)
+		meth.Tpl = x.funcTemplates(d, m.Params, meth.Asserts, at)
 		meth.Deprecated = d.Has("deprecated")
 	}
 	c.Methods[strings.ToLower(meth.Name)] = meth
@@ -415,21 +571,34 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method) {
 }
 
 func (x *extractor) function(n *syntax.Function) {
-	x.withTemplates(x.doc(n), func() { x.functionBody(n) })
+	d := x.doc(n)
+	saved, savedClass := x.methodTpl, x.classTpl
+	x.methodTpl, x.classTpl = nil, nil
+	if d != nil {
+		for _, t := range d.Templates() {
+			if x.methodTpl == nil {
+				x.methodTpl = map[string]bool{}
+			}
+			x.methodTpl[t] = true
+		}
+	}
+	x.withTemplates(d, func() { x.functionBody(n, d) })
+	x.methodTpl, x.classTpl = saved, savedClass
 }
 
-func (x *extractor) functionBody(n *syntax.Function) {
+func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 	at := n.Span().Start
 	ns := x.r.Namespace(at)
 	fqn := n.Name.Value
 	if ns != "" {
 		fqn = ns + `\` + fqn
 	}
-	d := x.doc(n)
 	fn := &Function{FQN: fqn, Params: x.params(n.Params, d, at), Return: x.returnType(n.ReturnType, n.Attrs, at), ByRef: n.ByRef,
 		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d)}
 	if d != nil {
 		fn.DocReturn = x.docTypeStr(d.ReturnType(), at)
+		fn.Asserts = x.assertions(d, n.Params, false, at)
+		fn.Tpl = x.funcTemplates(d, n.Params, fn.Asserts, at)
 		fn.Deprecated = d.Has("deprecated")
 	}
 	x.out.Functions = append(x.out.Functions, fn)

@@ -453,6 +453,7 @@ type Block struct {
 	stmtBase
 	Stmts []Stmt
 	Alt   bool
+	term  int32 // FirstTerminating cache
 }
 
 type ExprStmt struct {
@@ -531,6 +532,7 @@ type Case struct {
 	stmtBase
 	Cond  Expr // nil for default
 	Stmts []Stmt
+	term  int32 // FirstTerminating cache
 }
 
 type Switch struct {
@@ -652,6 +654,7 @@ type Namespace struct {
 	Name   *Name // nil for global namespace block
 	Stmts  []Stmt
 	Braced bool
+	term   int32 // FirstTerminating cache
 }
 
 type ConstItem struct {

@@ -78,7 +78,13 @@ func decodeDoubleQuoted(s string) string {
 			continue
 		case 'u':
 			if i+2 < len(s) && s[i+2] == '{' {
-				if end := strings.IndexByte(s[i+3:], '}'); end > 0 {
+				// Only hex digits may precede the '}' (scanning to the next
+				// '}' per escape was quadratic on many unterminated `\u{`).
+				end := 0
+				for i+3+end < len(s) && isHex(s[i+3+end]) {
+					end++
+				}
+				if end > 0 && i+3+end < len(s) && s[i+3+end] == '}' {
 					if v, err := strconv.ParseUint(s[i+3:i+3+end], 16, 32); err == nil {
 						b.WriteRune(rune(v))
 						i = i + 3 + end
