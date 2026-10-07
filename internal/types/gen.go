@@ -193,9 +193,53 @@ func isClassUnion(t Type) bool {
 	return !t.IsUnknown() && len(t.Classes()) == len(t.atoms)
 }
 
-// genString renders atom with its generic arguments (doc syntax).
+// CallableReturn returns the return type R that a `callable(…): R` or
+// `Closure(…): R` signature gives the callable members of t, or that a
+// closure's inferred body gives it (see WithCallableReturn); unknown when
+// t has no such member or its members disagree.
+func CallableReturn(t Type) Type {
+	var ret Type
+	for _, a := range [...]string{"callable", `\Closure`} {
+		if !t.Has(a) {
+			continue
+		}
+		args := t.TypeArgs(a)
+		if len(args) != 1 {
+			return Unknown
+		}
+		if !ret.IsUnknown() && ret.DocString() != args[0].DocString() {
+			return Unknown
+		}
+		ret = args[0]
+	}
+	return ret
+}
+
+// WithCallableReturn returns t (which has the callable or \Closure atom)
+// with return type ret on that atom; an unknown or mixed ret leaves t
+// unchanged.
+func WithCallableReturn(t Type, atom string, ret Type) Type {
+	if ret.IsUnknown() || ret.Has("mixed") {
+		return t
+	}
+	return t.WithTypeArgs(atom, []Type{ret})
+}
+
+// isCallableAtom reports the atoms whose generic argument is a callable
+// signature's return type.
+func isCallableAtom(atom string) bool { return atom == "callable" || atom == `\Closure` }
+
+// genString renders atom with its generic arguments (doc syntax); the
+// return type of a callable signature as `callable(): (R)`.
 func genString(atom string, args []Type) string {
 	var b strings.Builder
+	if isCallableAtom(atom) && len(args) == 1 {
+		b.WriteString(atom)
+		b.WriteString("(): (")
+		b.WriteString(args[0].DocString())
+		b.WriteByte(')')
+		return b.String()
+	}
 	if atom == "string" {
 		atom = "class-string"
 	}

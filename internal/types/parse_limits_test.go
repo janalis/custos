@@ -78,6 +78,7 @@ func FuzzFromDoc(f *testing.F) {
 	for _, s := range []string{"int|null", "array{a: int, b?: list<string>}", "?Foo[]", "(T is int ? A : B)",
 		"array<int, array{x: Alias}>", "non-empty-list<int>", "Foo&Bar", "callable(int): void", "iterable<int, Foo>",
 		"Collection<int, Foo>|Foo[]", "array{...}", "'a'|1|1.5",
+		"($x is 'a' ? int : ($x is Foo::BAR ? ?int : callable(): string))", "(T is not non-empty-string ? A : B)",
 		strings.Repeat("Alias|", 600) + "Alias", "array{a: Alias, b: list<Alias>, c: Alias2}"} {
 		f.Add(s)
 	}
@@ -95,8 +96,17 @@ func FuzzFromDoc(f *testing.F) {
 	f.Fuzz(func(t *testing.T, s string) {
 		start := time.Now()
 		got := FromDoc(s, resolve)
+		c, condOK := ParseCond(s, resolve, func(string) string { return "x" })
 		if d := time.Since(start); d > testbudget.Of(time.Second) && !raceEnabled {
 			t.Fatalf("%q took %v", s, d)
+		}
+		if condOK {
+			// The canonical form parses back to itself.
+			if cs := c.String(); len(cs) <= MaxDocTypeLen {
+				if back, ok := ParseCond(cs, nil, nil); !ok || back.String() != cs {
+					t.Fatalf("%q: canonical %q does not parse back", s, cs)
+				}
+			}
 		}
 		ds := got.DocString()
 		if got.IsUnknown() || len(ds) > MaxDocTypeLen || strings.ContainsAny(s, "'\"") {

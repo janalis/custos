@@ -177,6 +177,11 @@ func (e *Env) bindPattern(pat, at types.Type, arg syntax.Expr, found map[string]
 	}
 	a := pat.Atoms()[0]
 	switch {
+	case a == "callable" || strings.EqualFold(a, `\Closure`):
+		// callable(…): T, Closure(…): T ← the callback's return type
+		if args := pat.TypeArgs(a); len(args) == 1 {
+			e.bindSingle(args[0], e.callbackReturn(arg), found)
+		}
 	case a == "string":
 		// class-string<T>
 		if args := pat.TypeArgs(a); len(args) == 1 {

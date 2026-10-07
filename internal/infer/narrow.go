@@ -168,8 +168,7 @@ func (e *Env) dimBroken(scope syntax.Node, key string, from uint32, use syntax.N
 	if e.nonEmptyBroken(scope, base, from, use) {
 		return true
 	}
-	muts := append(append([]mutation(nil), e.mutations(scope, key)...), e.mutations(scope, dimKey(base, "*"))...)
-	return e.brokenBy(scope, muts, from, use)
+	return e.brokenBy(scope, from, use, e.mutations(scope, key), e.mutations(scope, dimKey(base, "*")))
 }
 
 // applyKeyCond narrows the array t of variable (or `$this->prop`) name by
@@ -298,6 +297,9 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 	// scanned below assigns name (or, for an element key, its array or an
 	// element of it): gi.resets records every such top-level assignment.
 	from := gi.lastReset(name, end)
+	if from > 0 && strings.HasPrefix(name, "this->") && !isDimKey(name) {
+		t = e.afterPropertyWrite(use, scope, t, stmts[from-1], name)
+	}
 	lo, _ := slices.BinarySearch(cands, from)
 	hi, _ := slices.BinarySearch(cands, end)
 	if hi-lo > maxGuardScan {
@@ -315,7 +317,8 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 		if g, ok := s.(*syntax.If); ok && g.Else == nil && len(g.ElseIfs) == 0 {
 			if terminates(g.Body) {
 				t = e.condAt(use, scope, t, g.Cond, name, false, g.Span().End)
-			} else if val := e.overwrites(g.Body, name); val != nil && !(isDimKey(name) && e.dimBroken(scope, name, g.Span().End, use)) {
+			} else if val := e.overwrites(g.Body, name); val != nil && !(isDimKey(name) && e.dimBroken(scope, name, g.Span().End, use)) &&
+				!(strings.HasPrefix(name, "this->") && e.nonEmptyBroken(scope, name, g.Span().End, use)) {
 				// `if (false === $x) { $x = $default; }`: past the if, the
 				// condition no longer holds (unless the new value matches it).
 				vt := e.TypeOf(val)
@@ -324,6 +327,26 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 				}
 			}
 		}
+	}
+	return t
+}
+
+// afterPropertyWrite drops null from the type t of `$this->prop` read use
+// when s, a statement preceding it in an enclosing block (so it ran on
+// every path to use), is `$this->prop = v;` or `$this->prop ??= v;` with a
+// non-null v, and nothing that may reset the property (an assignment, a
+// reference, a non-builtin call) lies between them (nonEmptyBroken).
+func (e *Env) afterPropertyWrite(use syntax.Expr, scope syntax.Node, t types.Type, s syntax.Stmt, name string) types.Type {
+	a := s.(*syntax.ExprStmt).Expr.(*syntax.Assign) // gi.resets lists only such statements
+	if a.ByRef || (a.Op.Kind != syntax.TEqual && a.Op.Kind != syntax.TCoalesceEqual) || !t.IsNullable() {
+		return t
+	}
+	vt := e.TypeOf(a.Value)
+	if vt.IsUnknown() || vt.IsNullable() || vt.Has("mixed") || e.nonEmptyBroken(scope, name, a.Span().End, use) {
+		return t
+	}
+	if nt := t.Without("null"); len(nt.Atoms()) > 0 {
+		return nt
 	}
 	return t
 }

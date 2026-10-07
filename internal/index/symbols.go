@@ -38,7 +38,10 @@ type Param struct {
 	Variadic bool   `json:"v,omitempty"`
 	Promoted bool   `json:"p,omitempty"`
 	Default  string `json:"def,omitempty"` // default value source text
-	Avail    Avail  `json:"a,omitempty"`
+	// Out is the type a by-reference parameter holds after the call
+	// (`@param-out`, phpstan-/psalm- variants); "" when not documented.
+	Out   string `json:"out,omitempty"`
+	Avail Avail  `json:"a,omitempty"`
 }
 
 // Function is a global or namespaced function.
@@ -50,6 +53,9 @@ type Function struct {
 	// Inferred is the return type derived from the body at index time when
 	// neither Return nor DocReturn is set (see infer.AnnotateReturns).
 	Inferred string `json:"iret,omitempty"`
+	// CondReturn is the documented conditional return type
+	// (`($x is T ? A : B)`) in types.Cond canonical form; "" when none.
+	CondReturn string `json:"cret,omitempty"`
 	// Tpl describes the function's own @template parameters when its
 	// documented return type uses them; nil otherwise.
 	Tpl *FuncTemplates `json:"ftpl,omitempty"`
@@ -75,6 +81,7 @@ type Method struct {
 	Return     string     `json:"ret,omitempty"`
 	DocReturn  string     `json:"dret,omitempty"`
 	Inferred   string     `json:"iret,omitempty"` // body-derived return type (see Function.Inferred)
+	CondReturn string     `json:"cret,omitempty"` // conditional return type (see Function.CondReturn)
 	// GenReturn is the documented return type when it mentions class
 	// templates, which appear as `\~T` atoms (see Class.Templates); bound
 	// per receiver by infer. Empty otherwise.

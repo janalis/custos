@@ -172,10 +172,15 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 	case "array", "list", "non-empty-array", "non-empty-list", "iterable":
 		return p.arrayPart(low, args, resolve, depth)
 	case "callable", "closure", "\\closure":
+		atom := `\Closure`
 		if low == "callable" {
-			return Of("callable")
+			atom = "callable"
 		}
-		return Of(`\Closure`)
+		t := Of(atom)
+		if ret, ok := p.callableReturn(args, resolve, depth); ok {
+			t = t.WithTypeArgs(atom, []Type{ret})
+		}
+		return t
 	case "int":
 		return Int // int<0, max>
 	case "class-string", "interface-string":
@@ -223,6 +228,29 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		t = t.WithTypeArgs(t.atoms[0], p.typeArgs(args[1:len(args)-1], resolve, depth))
 	}
 	return t
+}
+
+// callableReturn parses the return type of a callable signature
+// `(params): R` (args is the text after `callable` / `Closure`). The
+// parameters are not kept. A missing, unknown or mixed return type gives
+// false: the signature then tells nothing about a call's result.
+func (p *docParser) callableReturn(args string, resolve Resolver, depth int) (Type, bool) {
+	if !strings.HasPrefix(args, "(") {
+		return Unknown, false
+	}
+	end := matchingClose(args)
+	if end < 0 {
+		return Unknown, false
+	}
+	rest := strings.TrimSpace(args[end+1:])
+	if !strings.HasPrefix(rest, ":") {
+		return Unknown, false
+	}
+	ret := p.union(rest[1:], resolve, depth+1)
+	if ret.IsUnknown() || ret.Has("mixed") {
+		return Unknown, false
+	}
+	return ret, true
 }
 
 // typeArgs parses a comma-separated generic argument list.
@@ -372,6 +400,9 @@ func aliasGuard(resolve Resolver, name string) Resolver {
 // conditionalBranches splits a conditional type `T is [not] X ? A : B`
 // (PHPStan/Psalm) into its two result branches.
 func conditionalBranches(s string) (string, string, bool) {
+	if _, a, b, ok := splitConditional(s); ok {
+		return a, b, true // blank-separated: `?int` targets, `callable(): T` branches
+	}
 	parts := splitTop(s, '?')
 	if len(parts) < 2 {
 		return "", "", false

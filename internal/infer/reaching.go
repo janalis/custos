@@ -160,3 +160,46 @@ func (sv *scopeVars) elemDefs(name string) []varDef {
 	sv.edefs[name] = out
 	return out
 }
+
+// writeDominates reports whether an element write into variable v runs on
+// every path to the read v after the variable's last definition: a
+// `$v[k] = x;` statement after every definition reaching v, directly in a
+// block enclosing v, with no mutation of the variable (assignment,
+// reference, by-reference argument) in between.
+func (e *Env) writeDominates(v *syntax.Variable) bool {
+	scope := syntax.EnclosingFuncLike(v)
+	sv := e.scopeVars(scope)
+	if _, ok := scope.(*syntax.ArrowFunction); ok && len(sv.defs[v.Name]) == 0 {
+		scope = syntax.EnclosingFuncLike(scope)
+		sv = e.scopeVars(scope)
+	}
+	defs := sv.elemDefs(v.Name)
+	if len(defs) > maxVarDefs {
+		return false
+	}
+	fwd, _, _ := e.reaching(defs, v, scope)
+	last := uint32(0)
+	for _, d := range fwd {
+		if d.w == nil {
+			last = max(last, d.pos, d.end)
+		}
+	}
+	at := v.Span().Start
+	for _, d := range fwd {
+		if d.w == nil || d.w.a == nil || d.pos < last {
+			continue
+		}
+		es, ok := d.w.a.Parent().(*syntax.ExprStmt)
+		if !ok {
+			continue
+		}
+		blk, ok := es.Parent().(*syntax.Block)
+		if !ok || at < blk.Span().Start || at >= blk.Span().End {
+			continue
+		}
+		if !e.nonEmptyBroken(scope, v.Name, d.w.a.Span().End, v) {
+			return true
+		}
+	}
+	return false
+}

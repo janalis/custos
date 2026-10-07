@@ -355,18 +355,30 @@ func visibility(m syntax.Modifiers) Visibility {
 
 func (x *extractor) params(ps []*syntax.Param, d *phpdoc.Doc, at uint32) []Param {
 	docTypes := map[string]string{}
+	outTypes := map[string]string{}
 	if d != nil {
 		for _, p := range d.Params() {
 			docTypes[p.Name] = p.Type
 		}
+		for _, tag := range []string{"param-out", "psalm-param-out", "phpstan-param-out"} { // later wins
+			for _, p := range d.ParamsOf(tag) {
+				if p.Name != "" && p.Type != "" {
+					outTypes[p.Name] = p.Type
+				}
+			}
+		}
 	}
 	out := make([]Param, 0, len(ps))
 	for _, p := range ps {
-		out = append(out, Param{
+		prm := Param{
 			Name: p.Var.Name, Type: x.typeStr(p.Type, at), DocType: x.docTypeStr(docTypes[p.Var.Name], at),
 			Optional: p.Default != nil || p.Variadic, ByRef: p.ByRef, Variadic: p.Variadic,
 			Promoted: len(p.Modifiers) > 0, Default: x.text(p.Default), Avail: x.avail(p.Attrs, nil),
-		})
+		}
+		if p.ByRef {
+			prm.Out = x.docTypeStr(outTypes[p.Var.Name], at)
+		}
+		out = append(out, prm)
 	}
 	return out
 }
@@ -519,6 +531,39 @@ func (x *extractor) funcTemplates(d *phpdoc.Doc, ps []*syntax.Param, asserts []A
 	return ft
 }
 
+// condReturn returns the conditional return type documented by d
+// (preferring @phpstan-return and @psalm-return) in types.Cond canonical
+// form, "" when there is none. A template subject (`(T is int ? …)`)
+// stands for the parameter documented as exactly T.
+func (x *extractor) condReturn(d *phpdoc.Doc, at uint32) string {
+	subject := func(name string) string {
+		for _, tag := range []string{"phpstan-param", "psalm-param", "param"} {
+			for _, p := range d.ParamsOf(tag) {
+				if p.Type == name && p.Name != "" {
+					return p.Name
+				}
+			}
+		}
+		return ""
+	}
+	for _, tag := range []string{"phpstan-return", "psalm-return", "return"} {
+		t, ok := d.Tag(tag)
+		if !ok {
+			continue
+		}
+		typ, _ := phpdoc.SplitType(t.Text)
+		if !strings.HasPrefix(typ, "(") || !strings.Contains(typ, " is ") {
+			continue
+		}
+		if c, ok := types.ParseCond(typ, x.resolver(at), subject); ok {
+			if s := c.String(); len(s) <= types.MaxDocTypeLen {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
 // mentionsAny reports whether doc type text contains one of names as a word
 // (a cheap filter before parsing).
 func mentionsAny(text string, names map[string]bool) bool {
@@ -550,6 +595,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	if d != nil {
 		meth.DocReturn = x.docTypeStr(d.ReturnType(), at)
 		meth.GenReturn = x.genReturn(d, at)
+		meth.CondReturn = x.condReturn(d, at)
 		meth.Asserts = x.assertions(d, m.Params, !meth.Static, at)
 		meth.Tpl = x.funcTemplates(d, m.Params, meth.Asserts, at)
 		meth.Deprecated = d.Has("deprecated")
@@ -594,6 +640,7 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d)}
 	if d != nil {
 		fn.DocReturn = x.docTypeStr(d.ReturnType(), at)
+		fn.CondReturn = x.condReturn(d, at)
 		fn.Asserts = x.assertions(d, n.Params, false, at)
 		fn.Tpl = x.funcTemplates(d, n.Params, fn.Asserts, at)
 		fn.Deprecated = d.Has("deprecated")

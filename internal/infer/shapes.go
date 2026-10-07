@@ -1,6 +1,8 @@
 package infer
 
 import (
+	"cmp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -641,12 +643,25 @@ func (e *Env) applies(m mutation) bool {
 		// Builtin functions do not reach $this (by-reference arguments are
 		// recorded separately).
 		if c, ok := m.call.(*syntax.FuncCall); ok {
-			if f := e.ResolveFunction(c); f != nil && stubs.Index().Function(f.FQN, e.PHP) == f {
-				return false
-			}
+			return !e.isBuiltinCall(c)
 		}
 	}
 	return true
+}
+
+// isBuiltinCall reports a call resolving to a builtin function (cached:
+// brokenBy asks for the same calls on every read of a property).
+func (e *Env) isBuiltinCall(c *syntax.FuncCall) bool {
+	if b, ok := e.builtinCalls[c]; ok {
+		return b
+	}
+	f := e.ResolveFunction(c)
+	b := f != nil && stubs.Index().Function(f.FQN, e.PHP) == f
+	if e.builtinCalls == nil {
+		e.builtinCalls = map[*syntax.FuncCall]bool{}
+	}
+	e.builtinCalls[c] = b
+	return b
 }
 
 // shapeClobbered reports whether variable name may be modified in scope in
@@ -672,18 +687,28 @@ func (e *Env) shapeClobbered(scope syntax.Node, name string) bool {
 // or the use sits in a loop (entered after from) that mutates it. Moving
 // the internal pointer does not count.
 func (e *Env) nonEmptyBroken(scope syntax.Node, name string, from uint32, use syntax.Node) bool {
-	muts := e.mutations(scope, name)
 	if strings.Contains(name, "->") {
 		// A property may also be changed by any (non-builtin) call.
-		muts = append(append([]mutation(nil), muts...), e.mutations(scope, anyCall)...)
+		return e.brokenBy(scope, from, use, e.mutations(scope, name), e.mutations(scope, anyCall))
 	}
-	return e.brokenBy(scope, muts, from, use)
+	return e.brokenBy(scope, from, use, e.mutations(scope, name))
 }
 
-// brokenBy reports whether one of muts may change a fact established at
-// position from before use (see nonEmptyBroken).
-func (e *Env) brokenBy(scope syntax.Node, muts []mutation, from uint32, use syntax.Node) bool {
-	if len(muts) == 0 {
+// maxMutScan caps the mutations brokenBy examines for one fact (those
+// between the fact and its use, and in loops around the use): beyond it
+// the fact is considered broken. A property read after thousands of calls
+// made each read linear (quadratic bodies); real code stays far below.
+const maxMutScan = 512
+
+// brokenBy reports whether one of the mutations in lists (each in source
+// order, as collectMutations records them) may change a fact established
+// at position from before use (see nonEmptyBroken).
+func (e *Env) brokenBy(scope syntax.Node, from uint32, use syntax.Node, lists ...[]mutation) bool {
+	empty := true
+	for _, l := range lists {
+		empty = empty && len(l) == 0
+	}
+	if empty {
 		return false
 	}
 	at := use.Span().Start
@@ -715,29 +740,52 @@ func (e *Env) brokenBy(scope syntax.Node, muts []mutation, from uint32, use synt
 			}
 		}
 	}
-	inAny := func(s syntax.Span, spans []syntax.Span) bool {
-		for _, x := range spans {
-			if s.Start >= x.Start && s.Start < x.End {
+	// Only mutations starting in [from, limit) can matter: before use, or
+	// later in a loop around use entered after from.
+	limit := at
+	for _, l := range loops {
+		limit = max(limit, l.End)
+	}
+	scanned := 0
+	for _, muts := range lists {
+		lo, _ := slices.BinarySearchFunc(muts, from, func(m mutation, from uint32) int { return cmp.Compare(m.span.Start, from) })
+		for _, m := range muts[lo:] {
+			if m.span.Start >= limit {
+				break
+			}
+			if scanned++; scanned > maxMutScan {
+				return true
+			}
+			if e.mutBreaks(m, at, loops, exclusive) {
 				return true
 			}
 		}
+	}
+	return false
+}
+
+// mutBreaks reports whether mutation m, after a fact was established and
+// before its use at (see brokenBy), may change the fact.
+func (e *Env) mutBreaks(m mutation, at uint32, loops, exclusive []syntax.Span) bool {
+	if m.kind == mutPointer {
 		return false
 	}
-	for _, m := range muts {
-		if m.kind == mutPointer {
-			continue
-		}
-		inLoop := inAny(m.span, loops)
-		if !inLoop && (m.span.Start < from || m.span.Start >= at) {
-			continue
-		}
-		if !inLoop && m.span.End > at && m.kind != mutUnset {
-			continue // the use is inside the mutating expression (`array_shift($x)`, `$x = f($x)`)
-		}
-		if inAny(m.span, exclusive) {
-			continue
-		}
-		if e.applies(m) {
+	// brokenBy passes mutations starting in [from, limit): those at or
+	// after use lie in a loop around it.
+	inLoop := inSpans(m.span, loops)
+	if !inLoop && m.span.End > at && m.kind != mutUnset {
+		return false // the use is inside the mutating expression (`array_shift($x)`, `$x = f($x)`)
+	}
+	if inSpans(m.span, exclusive) {
+		return false
+	}
+	return e.applies(m)
+}
+
+// inSpans reports whether s starts inside one of spans.
+func inSpans(s syntax.Span, spans []syntax.Span) bool {
+	for _, x := range spans {
+		if s.Start >= x.Start && s.Start < x.End {
 			return true
 		}
 	}

@@ -63,6 +63,10 @@ type Env struct {
 
 	// guardIdx caches guardIndexOf by statement-list owner (nil: file).
 	guardIdx map[syntax.Node]*guardIndex
+
+	// conds caches parsedCond; builtinCalls caches isBuiltinCall.
+	conds        map[string]*types.Cond
+	builtinCalls map[*syntax.FuncCall]bool
 }
 
 // docScope holds the @template names and type aliases declared on a
@@ -255,7 +259,7 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.Clone:
 		return e.TypeOf(n.Expr)
 	case *syntax.Closure, *syntax.ArrowFunction:
-		return types.Of(`\Closure`)
+		return e.closureType(n)
 	case *syntax.IncDec:
 		return e.TypeOf(n.Var)
 	case *syntax.Match:
@@ -556,7 +560,11 @@ func memberType(declared, doc string) types.Type {
 	if doc == "" {
 		return d
 	}
-	dt := types.FromDoc(doc, nil)
+	return pickMemberType(d, types.FromDoc(doc, nil))
+}
+
+// pickMemberType is memberType for parsed types (dt: the doc type).
+func pickMemberType(d, dt types.Type) types.Type {
 	if d.IsUnknown() || (d.Has("array") && !dt.IsUnknown()) || d.Has("mixed") || strictSuperset(dt, d) {
 		return dt
 	}
@@ -636,6 +644,11 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 	}
 	if t, ok := e.genMethodReturn(m, origin, args); ok {
 		return bindStatic(t, cls)
+	}
+	if m.CondReturn != "" {
+		if t, ok := e.condCall(m.CondReturn, m.Params, call, m.Return, m.DocReturn); ok {
+			return bindStatic(t, cls)
+		}
 	}
 	if m.Return == "" && m.DocReturn == "" {
 		return e.methodBodyReturn(m, virtual)
@@ -736,7 +749,11 @@ func (e *Env) ResolveFunction(call *syntax.FuncCall) *index.Function {
 }
 
 func (e *Env) funcCallType(n *syntax.FuncCall) types.Type {
-	if t, ok := e.overrideType(n); ok {
+	name, named := n.Name.(*syntax.Name)
+	if !named {
+		return e.invokeType(e.TypeOf(n.Name)) // `$f()`, `(fn() => 1)()`
+	}
+	if t, ok := e.overrideType(n, name); ok {
 		return t
 	}
 	f := e.ResolveFunction(n)
@@ -748,18 +765,21 @@ func (e *Env) funcCallType(n *syntax.FuncCall) types.Type {
 			return t
 		}
 	}
+	if f.CondReturn != "" {
+		if t, ok := e.condCall(f.CondReturn, f.Params, n.Args, f.Return, f.DocReturn); ok {
+			return t
+		}
+	}
 	if f.Return == "" && f.DocReturn == "" {
 		return e.BodyReturnType(f)
 	}
 	return memberType(f.Return, f.DocReturn)
 }
 
-// overrideType refines builtin return types that depend on arguments.
-func (e *Env) overrideType(n *syntax.FuncCall) (types.Type, bool) {
-	name, ok := n.Name.(*syntax.Name)
-	if !ok || n.Args == nil {
-		return types.Unknown, false
-	}
+// overrideType refines builtin return types that depend on arguments
+// (n is a call of the named function name; the parser always builds
+// argument lists).
+func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, bool) {
 	fqn, fb := e.Names.Function(name.Value, name.Span().Start)
 	if fb != "" && e.Index.Function(fqn, e.PHP) == nil {
 		if e.annotating {
@@ -899,10 +919,24 @@ func (e *Env) overrideType(n *syntax.FuncCall) (types.Type, bool) {
 				// Keys are renumbered or dropped: no shape; the result of
 				// array_slice()/array_filter() may be empty.
 				switch strings.ToLower(fqn) {
-				case "array_slice", "array_filter":
+				case "array_filter":
+					return e.arrayFilterType(a, t, len(n.Args.Args) > 1), true
+				case "array_slice":
 					return t.WithoutShape().WithNonEmpty(false), true
 				}
 				return t.WithoutShape(), true
+			}
+		}
+	case "array_map":
+		if cb := arg(0); cb != nil && len(n.Args.Args) > 1 {
+			if t, ok := e.arrayMapType(cb); ok {
+				return t, true
+			}
+		}
+	case "call_user_func", "call_user_func_array":
+		if cb := arg(0); cb != nil {
+			if t := e.callbackReturn(cb); !t.IsUnknown() {
+				return t, true
 			}
 		}
 	}
@@ -1061,15 +1095,22 @@ func (e *Env) withElemWrites(t types.Type, v *syntax.Variable) (types.Type, bool
 			other = append(other, a)
 		}
 	}
-	if len(arr) == 0 {
+	// A write into null creates an array (`?array $n; $n['k'] = 1;`).
+	nullOnly := len(other) == 1 && other[0] == "null"
+	if len(arr) == 0 && !nullOnly {
 		return t, false
 	}
 	ws, back := e.reachingWrites(v)
 	if len(ws) == 0 {
 		return t, false
 	}
+	if nullOnly && e.writeDominates(v) {
+		other = nil // every path to v writes into the array: no longer null
+	}
 	el := t.Elem()
 	switch {
+	case len(arr) == 0:
+		el = types.Of("never") // null only: the writes fill a new array
 	case t.IsSealedShape():
 		ts := []types.Type{types.Of("never")}
 		if !el.IsUnknown() {
@@ -1269,6 +1310,8 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 						sv.defs[name] = append(sv.defs[name], varDef{pos: pos, end: end, kill: kill, typ: t})
 					}
 				})
+			case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
+				e.collectOutArgs(n.(syntax.Expr), sv)
 			case *syntax.If:
 				for _, name := range branchAssigned(n) {
 					sv.defs[name] = append(sv.defs[name], varDef{pos: n.Span().Start, barrier: true, kill: joinSpan(n, e.File)})

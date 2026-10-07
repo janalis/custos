@@ -99,7 +99,7 @@ func TestDocShapes(t *testing.T) {
 		"array{id: int}[]":                       "array[]<array{id: int}>",
 		"array{a: int}|array{a: string, b: int}": "array{a: int|string, b?: int}",
 		"array{a: int}|array<int>":               "array|int[]",
-		"array{a: callable(int): void}":          "array{a: callable}",
+		"array{a: callable(int): void}":          "array{a: callable(): (void)}",
 	}
 	for in, want := range cases {
 		got := FromDoc(in, nil)

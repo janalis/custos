@@ -109,3 +109,50 @@ func BenchmarkTypeOfElementWrites(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkTypeOfCallables types every variable, property read and call of
+// methods using closures, callbacks, out parameters, conditional return
+// types and property writes.
+func BenchmarkTypeOfCallables(b *testing.B) {
+	var sb strings.Builder
+	sb.WriteString(`<?php
+class Foo { public function go(): void {} }
+/** @return ($x is string ? int : float) */
+function conv($x) {}
+final class Subject {
+    private ?Foo $foo = null;
+`)
+	for i := 0; i < 200; i++ {
+		fmt.Fprintf(&sb, `    public function m%d(string $s, array $xs, ?array $opt) {
+        $make = fn(int $n) => new Foo();
+        $f = $make(1);
+        $names = array_map(fn($x) => $x . 'a', $xs);
+        $kept = array_filter([$f, null]);
+        if (preg_match('/(a)/', $s, $m)) { use_it($m[1]); }
+        $this->foo = new Foo();
+        $g = $this->foo;
+        $n = conv($s);
+        $opt['k'] = $n;
+        $cb = function () use ($g) { return $g; };
+        return [$f, $names, $kept, $g, $opt, $cb()];
+    }
+`, i)
+	}
+	sb.WriteString("}\n")
+	src := []byte(sb.String())
+	opt := syntax.Options{Version: phpver.PHP84}
+	b.ReportAllocs()
+	for b.Loop() {
+		f := syntax.Parse("t.php", src, opt)
+		ix := index.New(stubs.Index())
+		ix.Add(index.Extract(f))
+		env := infer.NewEnv(f, names.New(f), ix, phpver.PHP84)
+		syntax.InspectFile(f, func(n syntax.Node) bool {
+			switch n.(type) {
+			case *syntax.Variable, *syntax.PropertyFetch, *syntax.FuncCall, *syntax.MethodCall:
+				env.TypeOf(n.(syntax.Expr))
+			}
+			return true
+		})
+	}
+}
