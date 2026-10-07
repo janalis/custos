@@ -112,8 +112,8 @@ Cast kinds and their target type:
 - Array access on a superglobal (`$_GET[...]`, `$_POST`, `$_COOKIE`,
   `$_REQUEST`, `$_SERVER`, `$_ENV`, `$_FILES`, `$_SESSION`, `$GLOBALS`):
   `{string, array}`; except `$_SERVER['<literal>']`: `argv` → array; `argc`,
-  `REQUEST_TIME`, `REMOTE_PORT`, `SERVER_PORT` → int; `REQUEST_TIME_FLOAT` →
-  float; any other literal key → string.
+  `REQUEST_TIME` → int; `REQUEST_TIME_FLOAT` → float; any other literal key
+  (`REMOTE_PORT`, `SERVER_PORT` included, see Divergences) → string.
 - `$this->p` property fetch: declared type of the property, if any; otherwise
   default rules.
 - Function/method call: union of the callee's declared return type and its
@@ -280,6 +280,11 @@ After fix (changed lines):
 ```
 
 ## Divergences
+- **`$_SERVER` ports are strings (custos diverges):** upstream types
+  `$_SERVER['REMOTE_PORT']` and `['SERVER_PORT']` as int, so `(int)
+  $_SERVER['SERVER_PORT']` is reported and the fix drops the cast. Web SAPIs
+  (FPM, Apache, the built-in server) store them as strings, so removing the
+  cast changes the value's type; custos types them as string.
 - **Flow-aware variables and `?:` (custos diverges):** upstream's T-rules
   union every assignment of a variable regardless of guards, and keep
   `false` in the left part of `?:`. So `if (null !== $next) { $doc = $next; }`

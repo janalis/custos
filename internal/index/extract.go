@@ -268,6 +268,11 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 	for _, i := range n.Implements {
 		c.Interfaces = append(c.Interfaces, x.r.Class(i.Value, at))
 	}
+	for _, g := range n.Attrs {
+		for _, a := range g.Attrs {
+			c.Attrs = append(c.Attrs, x.r.Class(a.Name.Value, a.Span().Start))
+		}
+	}
 	if d := x.doc(n); d != nil {
 		c.Deprecated = d.Has("deprecated")
 		c.Avail = x.avail(n.Attrs, d)
@@ -589,9 +594,10 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	meth := &Method{
 		Name: m.Name.Value, Class: c.FQN, Visibility: visibility(m.Modifiers), Static: m.Modifiers.Has(syntax.TStatic),
 		Abstract: m.Modifiers.Has(syntax.TAbstract) || c.Kind == syntax.KindInterface, Final: m.Modifiers.Has(syntax.TFinal),
-		ByRef: m.ByRef, Params: x.params(m.Params, d, at), Return: x.returnType(m.ReturnType, m.Attrs, at), Span: m.Span(),
+		ByRef: m.ByRef, Params: x.params(m.Params, d, at), Span: m.Span(),
 		Avail: x.avail(m.Attrs, d),
 	}
+	meth.Return, meth.RetVer = x.returnType(m.ReturnType, m.Attrs, at)
 	if d != nil {
 		meth.DocReturn = x.docTypeStr(d.ReturnType(), at)
 		meth.GenReturn = x.genReturn(d, at)
@@ -636,8 +642,9 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 	if ns != "" {
 		fqn = ns + `\` + fqn
 	}
-	fn := &Function{FQN: fqn, Params: x.params(n.Params, d, at), Return: x.returnType(n.ReturnType, n.Attrs, at), ByRef: n.ByRef,
+	fn := &Function{FQN: fqn, Params: x.params(n.Params, d, at), ByRef: n.ByRef,
 		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d)}
+	fn.Return, fn.RetVer = x.returnType(n.ReturnType, n.Attrs, at)
 	if d != nil {
 		fn.DocReturn = x.docTypeStr(d.ReturnType(), at)
 		fn.CondReturn = x.condReturn(d, at)
@@ -648,41 +655,77 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 	x.out.Functions = append(x.out.Functions, fn)
 }
 
-// returnType uses the declared type, else a stub LanguageLevelTypeAware default.
-func (x *extractor) returnType(n syntax.Expr, attrs []*syntax.AttributeGroup, at uint32) string {
+// returnType uses the declared type, else a stub LanguageLevelTypeAware
+// return type: the newest version's type, with the older versions' types
+// in byVer (see VerType; nil when the type does not vary).
+func (x *extractor) returnType(n syntax.Expr, attrs []*syntax.AttributeGroup, at uint32) (ret string, byVer []VerType) {
 	if t := x.typeStr(n, at); t != "" {
-		return t
+		return t, nil
 	}
 	for _, g := range attrs {
 		for _, a := range g.Attrs {
 			if !strings.HasSuffix(a.Name.Value, "LanguageLevelTypeAware") || a.Args == nil {
 				continue
 			}
-			best := ""
+			def, hasDef := "", false
+			var vers []VerType // version map entries: Until = the version it starts at
 			for _, arg := range a.Args.Args {
 				arg, ok := arg.(*syntax.Arg)
 				if !ok {
 					continue
 				}
 				if arg.Name != nil && arg.Name.Value == "default" {
-					if best == "" {
-						best = unquote(x.text(arg.Value))
-					}
+					def, hasDef = x.docTypeStr(unquote(x.text(arg.Value)), at), true
 					continue
 				}
-				// Version map: take the highest version's type.
-				if arr, ok := arg.Value.(*syntax.Array); ok && len(arr.Items) > 0 {
-					if last := arr.Items[len(arr.Items)-1]; last != nil && last.Value != nil {
-						best = unquote(x.text(last.Value))
+				arr, ok := arg.Value.(*syntax.Array)
+				if !ok {
+					continue
+				}
+				for _, it := range arr.Items {
+					if it == nil || it.Value == nil || it.Key == nil {
+						continue
 					}
+					v, err := phpver.Parse(unquote(x.text(it.Key)))
+					if err != nil {
+						continue
+					}
+					vers = append(vers, VerType{Until: v, Type: x.docTypeStr(unquote(x.text(it.Value)), at)})
 				}
 			}
-			if best != "" {
-				return x.docTypeStr(best, at)
+			if len(vers) == 0 {
+				if def != "" {
+					return def, nil
+				}
+				continue
 			}
+			sort.SliceStable(vers, func(i, j int) bool { return vers[i].Until < vers[j].Until })
+			// Before the first listed version the default applies; from
+			// each listed version on, its type (until the next one).
+			prev, prevSet := def, hasDef
+			for _, v := range vers {
+				if prevSet {
+					byVer = append(byVer, VerType{Until: v.Until, Type: prev})
+				}
+				prev, prevSet = v.Type, true
+			}
+			if len(byVer) > 0 && byVer[len(byVer)-1].Type == prev && allSame(byVer) {
+				byVer = nil // the same type at every version
+			}
+			return prev, byVer
 		}
 	}
-	return ""
+	return "", nil
+}
+
+// allSame reports whether every entry of vs has the same type.
+func allSame(vs []VerType) bool {
+	for _, v := range vs {
+		if v.Type != vs[0].Type {
+			return false
+		}
+	}
+	return true
 }
 
 func unquote(s string) string {

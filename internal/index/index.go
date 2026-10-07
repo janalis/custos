@@ -166,12 +166,88 @@ func (ix *Index) Function(fqn string, ver phpver.Version) *Function {
 				return b
 			}
 		}
-		return f
+		return f.at(ver)
 	}
 	if ix.base != nil {
 		return ix.base.Function(fqn, ver)
 	}
 	return nil
+}
+
+// FunctionDecls returns every declaration of function fqn available at ver
+// in the first layer declaring it (several when a project declares it
+// twice, e.g. a real and a no-op version loaded conditionally); nil when
+// a builtin of that name exists (see Function) or none is declared.
+func (ix *Index) FunctionDecls(fqn string, ver phpver.Version) []*Function {
+	ix.mu.RLock()
+	cands := ix.functions[key(fqn)]
+	var out []*Function
+	for _, f := range cands {
+		if ver == 0 || f.Avail.In(ver) {
+			out = append(out, f.at(ver))
+		}
+	}
+	ix.mu.RUnlock()
+	if len(cands) > 0 {
+		if ix.base != nil && ix.builtinFunction(fqn, ver) != nil {
+			return nil
+		}
+		return out
+	}
+	if ix.base != nil {
+		return ix.base.FunctionDecls(fqn, ver)
+	}
+	return nil
+}
+
+// verKey identifies a version-resolved copy of a function or method.
+type verKey struct {
+	decl any // *Function or *Method
+	ver  phpver.Version
+}
+
+// verCopies caches the copies of declarations whose return type differs at
+// a PHP version (see VerType): the same copy is returned for one
+// declaration and version, so identity comparisons keep working. Only
+// stub declarations carry version maps, so the cache stays small.
+var verCopies sync.Map
+
+// at returns f with Return resolved for ver (f itself when unchanged).
+func (f *Function) at(ver phpver.Version) *Function {
+	if len(f.RetVer) == 0 {
+		return f
+	}
+	r := returnAt(f.Return, f.RetVer, ver)
+	if r == f.Return {
+		return f
+	}
+	k := verKey{f, ver}
+	if c, ok := verCopies.Load(k); ok {
+		return c.(*Function)
+	}
+	cp := *f
+	cp.Return, cp.RetVer = r, nil
+	c, _ := verCopies.LoadOrStore(k, &cp)
+	return c.(*Function)
+}
+
+// at returns m with Return resolved for ver (m itself when unchanged).
+func (m *Method) at(ver phpver.Version) *Method {
+	if len(m.RetVer) == 0 {
+		return m
+	}
+	r := returnAt(m.Return, m.RetVer, ver)
+	if r == m.Return {
+		return m
+	}
+	k := verKey{m, ver}
+	if c, ok := verCopies.Load(k); ok {
+		return c.(*Method)
+	}
+	cp := *m
+	cp.Return, cp.RetVer = r, nil
+	c, _ := verCopies.LoadOrStore(k, &cp)
+	return c.(*Method)
 }
 
 // builtinFunction looks fqn up in the bottom layer (the embedded stubs),
@@ -185,7 +261,7 @@ func (ix *Index) builtinFunction(fqn string, ver phpver.Version) *Function {
 	defer b.mu.RUnlock()
 	for _, f := range b.functions[key(fqn)] {
 		if ver == 0 || f.Avail.In(ver) { // strictly available: else the polyfill runs
-			return f
+			return f.at(ver)
 		}
 	}
 	return nil
@@ -299,7 +375,7 @@ func (ix *Index) FindMethod(class, name string, ver phpver.Version) *Method {
 	lname := strings.ToLower(name)
 	for _, c := range ix.Ancestors(class, ver) {
 		if m, ok := c.Methods[lname]; ok && (ver == 0 || m.Avail.In(ver)) {
-			return m
+			return m.at(ver)
 		}
 	}
 	return nil

@@ -1,0 +1,2 @@
+go test fuzz v1
+string("<?php fn {{$text=0$text=")

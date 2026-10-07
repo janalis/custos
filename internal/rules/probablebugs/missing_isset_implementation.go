@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -95,21 +94,12 @@ func checkMissingIsset(ctx *analysis.Context, a syntax.Expr) {
 	}
 }
 
-// misAllowsDynamic reports whether a class of cls' hierarchy declared in
-// this file carries #[\AllowDynamicProperties] (the index does not record
-// attributes, so declarations in other files are not seen).
+// misAllowsDynamic reports whether a class of cls' hierarchy carries
+// #[\AllowDynamicProperties] (recorded by the index for every file).
 func misAllowsDynamic(ctx *analysis.Context, cls string) bool {
 	for _, c := range ctx.Index().Ancestors(cls, ctx.PHP) {
-		decl := util.ClassDecl(ctx.File, c)
-		if decl == nil {
-			continue
-		}
-		for _, g := range decl.Attrs {
-			for _, at := range g.Attrs {
-				if strings.EqualFold(strings.TrimPrefix(ctx.Names().Class(at.Name.Value, at.Span().Start), `\`), "AllowDynamicProperties") {
-					return true
-				}
-			}
+		if c.HasAttr("AllowDynamicProperties") {
+			return true
 		}
 	}
 	return false

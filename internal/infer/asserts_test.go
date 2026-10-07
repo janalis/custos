@@ -80,12 +80,12 @@ class T extends \Lib\Base {
 		"ifTrue":     `\Lib\Child`,
 		"ifFalse":    `\Lib\Base`,
 		"fnTrue":     "int",
-		"fnFalse":    "int|null|string",
+		"fnFalse":    "null|string", // -if-true negated
 		"guard":      "int",
 		"prop":       "string",
 		"propFalse":  "string",
 		"reassigned": "null",
-		"isSetTrue":  "null|string",
+		"isSetTrue":  "string", // -if-false negated
 		"isSetFalse": "null",
 		"unknown":    "?unknown",
 	})

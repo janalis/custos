@@ -134,7 +134,11 @@ func flagChecked(f *syntax.File, s syntax.Node) bool {
 		return true
 	}
 	found := false
-	syntax.Inspect(syntax.FuncLikeBody(syntax.EnclosingFuncLike(s)), func(n syntax.Node) bool {
+	var body syntax.Node // nil for arrow functions (FuncLikeBody's nil *Block must not be walked)
+	if b := syntax.FuncLikeBody(syntax.EnclosingFuncLike(s)); b != nil {
+		body = b
+	}
+	syntax.Inspect(body, func(n syntax.Node) bool {
 		if found {
 			return false
 		}

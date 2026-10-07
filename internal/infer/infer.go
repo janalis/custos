@@ -321,11 +321,12 @@ func (e *Env) dimType(n *syntax.ArrayDimFetch) types.Type {
 	if t, ok := e.shapeDim(ct, n); ok {
 		return t
 	}
-	// X[]|null indexes to X; a plain `array` member has unknown elements.
-	if el := ct.Elem(); !el.IsUnknown() && ct.Without("null").IsArrayLike() && !ct.Has("array") {
+	// X[]|null (or |false: a failed builtin) indexes to X; a plain `array`
+	// member has unknown elements.
+	if el := ct.Elem(); !el.IsUnknown() && ct.Without("null", "false").IsArrayLike() && !ct.Has("array") {
 		return e.widenElem(el, n)
 	}
-	if ct.OnlyOf("string") {
+	if ct.Without("null", "false").OnlyOf("string") {
 		return types.String
 	}
 	return types.Unknown
@@ -760,6 +761,29 @@ func (e *Env) funcCallType(n *syntax.FuncCall) types.Type {
 	if f == nil {
 		return types.Unknown
 	}
+	t := e.declCallType(f, n)
+	if decls := e.Index.FunctionDecls(f.FQN, e.PHP); len(decls) > maxFuncDecls {
+		return types.Unknown // hostile: thousands of declarations of one name
+	} else if len(decls) > 1 {
+		// Declared more than once (a no-op variant loaded instead of the
+		// real one): any declaration may be the one that runs.
+		ts := []types.Type{t}
+		for _, g := range decls {
+			if g != f {
+				ts = append(ts, e.declCallType(g, n))
+			}
+		}
+		t = types.Union(ts...)
+	}
+	return t
+}
+
+// maxFuncDecls caps the declarations of one function a call unions (see
+// funcCallType); beyond it the call is unknown.
+const maxFuncDecls = 16
+
+// declCallType types call n to function declaration f.
+func (e *Env) declCallType(f *index.Function, n *syntax.FuncCall) types.Type {
 	if f.Tpl != nil {
 		if t, ok := e.tplReturn(f.Tpl, f.Params, n.Args, f.Return, nil, nil); ok {
 			return t
@@ -815,7 +839,7 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 		}
 		if s := arg(subjectIdx); s != nil {
 			st := e.TypeOf(s)
-			if st.OnlyOf("string", "int", "float", "bool") { // scalar subjects are converted to string
+			if st.OnlyOf("string", "int", "float", "bool", "true", "false", "null") { // scalar subjects are converted to string
 				if strings.HasPrefix(strings.ToLower(fqn), "preg_") {
 					return types.Of("string", "null"), true
 				}
@@ -932,6 +956,25 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 			if t, ok := e.arrayMapType(cb); ok {
 				return t, true
 			}
+		}
+	case "explode":
+		// Before PHP 8.0 explode() returns false only for an empty
+		// separator (8.0 throws instead).
+		if sep, ok := syntax.UnwrapParens(arg(0)).(*syntax.Literal); ok && sep.LitKind == syntax.LitString {
+			if v, ok := plainString(sep.Raw); ok && v != "" {
+				return types.Of("string[]"), true
+			}
+		}
+	case "array_reduce":
+		// The initial value (null when omitted) for an empty array, else
+		// the callback's last result.
+		if cb := arg(1); cb != nil {
+			r := e.callbackReturn(cb)
+			init := types.Null
+			if x := arg(2); x != nil {
+				init = e.TypeOf(x)
+			}
+			return types.Union(r, init), true // unknown when either is
 		}
 	case "call_user_func", "call_user_func_array":
 		if cb := arg(0); cb != nil {

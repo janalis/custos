@@ -118,9 +118,10 @@ func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 }
 
 // applyAsserts applies the assertions of kind in ca whose target is the
-// expression identified by key name (see narrowKey) to its type t. ok
+// expression identified by key name (see narrowKey) to its type t, negated
+// when negate is set (an -if-true assertion in the false branch). ok
 // reports whether one applied.
-func (e *Env) applyAsserts(ca *callAsserts, kind index.AssertKind, name string, t types.Type) (types.Type, bool) {
+func (e *Env) applyAsserts(ca *callAsserts, kind index.AssertKind, name string, t types.Type, negate bool) (types.Type, bool) {
 	if ca == nil || t.IsUnknown() {
 		return t, false
 	}
@@ -140,7 +141,7 @@ func (e *Env) applyAsserts(ca *callAsserts, kind index.AssertKind, name string, 
 		if at.IsUnknown() {
 			continue
 		}
-		if a.Negated {
+		if a.Negated != negate {
 			t = assertNot(t, at)
 		} else {
 			t = e.assertIs(t, at)

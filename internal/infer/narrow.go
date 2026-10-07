@@ -310,7 +310,7 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 		if es, ok := s.(*syntax.ExprStmt); ok {
 			// `Assert::string($x);` (@phpstan-assert on the callee).
 			if ca := e.assertsOf(es.Expr); ca != nil {
-				t, _ = e.applyAsserts(ca, index.AssertAlways, name, t)
+				t, _ = e.applyAsserts(ca, index.AssertAlways, name, t, false)
 			}
 			continue
 		}
@@ -703,6 +703,12 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 		if narrowKey(c) == name && truthy {
 			return t.Without("null", "false").WithNonEmpty(true)
 		}
+	case *syntax.Assign:
+		// `while ($job = $q->next())`, `if (!$x = f())`: the assigned
+		// variable's truthiness.
+		if c.Op.Kind == syntax.TEqual && !c.ByRef && narrowKey(c.Var) == name {
+			return e.applyCond(t, c.Var, name, truthy)
+		}
 	case *syntax.MethodCall, *syntax.StaticCall:
 		if r, ok := e.condAsserts(c, name, truthy, t); ok {
 			return r
@@ -739,11 +745,16 @@ func (e *Env) condAsserts(c syntax.Expr, name string, truthy bool, t types.Type)
 	if ca == nil {
 		return t, false
 	}
-	kind := index.AssertIfTrue
+	// Where the call is true, -if-true assertions hold and -if-false ones
+	// are negated (`is_wp_error($x)` false: $x is not a WP_Error); and
+	// conversely where it is false.
+	kind, other := index.AssertIfTrue, index.AssertIfFalse
 	if !truthy {
-		kind = index.AssertIfFalse
+		kind, other = other, kind
 	}
-	return e.applyAsserts(ca, kind, name, t)
+	t, ok := e.applyAsserts(ca, kind, name, t, false)
+	t, ok2 := e.applyAsserts(ca, other, name, t, true)
+	return t, ok || ok2
 }
 
 // narrowAtoms keeps (truthy) or removes (falsy) the atoms matching a type check.

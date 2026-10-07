@@ -3,6 +3,8 @@
 package index
 
 import (
+	"strings"
+
 	"custos/internal/phpver"
 	"custos/internal/syntax"
 )
@@ -44,12 +46,37 @@ type Param struct {
 	Avail Avail  `json:"a,omitempty"`
 }
 
+// VerType is the return type of a builtin before a PHP version: Type
+// applies to versions below Until (and at or above the previous entry's
+// Until). From phpstorm-stubs' #[LanguageLevelTypeAware] version maps.
+type VerType struct {
+	Until phpver.Version `json:"u"`
+	Type  string         `json:"t,omitempty"`
+}
+
+// returnAt picks the return type at ver from ret (the newest version's)
+// and the older versions' types byVer.
+func returnAt(ret string, byVer []VerType, ver phpver.Version) string {
+	if ver == 0 {
+		return ret
+	}
+	for _, v := range byVer {
+		if ver < v.Until {
+			return v.Type
+		}
+	}
+	return ret
+}
+
 // Function is a global or namespaced function.
 type Function struct {
-	FQN       string  `json:"fqn"`
-	Params    []Param `json:"params,omitempty"`
-	Return    string  `json:"ret,omitempty"`
-	DocReturn string  `json:"dret,omitempty"`
+	FQN    string  `json:"fqn"`
+	Params []Param `json:"params,omitempty"`
+	Return string  `json:"ret,omitempty"`
+	// RetVer lists the return types of older PHP versions when they differ
+	// (stubs); Index.Function resolves Return for the requested version.
+	RetVer    []VerType `json:"rv,omitempty"`
+	DocReturn string    `json:"dret,omitempty"`
 	// Inferred is the return type derived from the body at index time when
 	// neither Return nor DocReturn is set (see infer.AnnotateReturns).
 	Inferred string `json:"iret,omitempty"`
@@ -79,6 +106,7 @@ type Method struct {
 	ByRef      bool       `json:"byRef,omitempty"`
 	Params     []Param    `json:"params,omitempty"`
 	Return     string     `json:"ret,omitempty"`
+	RetVer     []VerType  `json:"rv,omitempty"` // older versions' return types (see Function.RetVer)
 	DocReturn  string     `json:"dret,omitempty"`
 	Inferred   string     `json:"iret,omitempty"` // body-derived return type (see Function.Inferred)
 	CondReturn string     `json:"cret,omitempty"` // conditional return type (see Function.CondReturn)
@@ -147,8 +175,23 @@ type Class struct {
 	// traits by @extends / @implements / @use (and their template-,
 	// phpstan- and psalm- variants); arguments may use `\~T` atoms.
 	Supers []SuperArgs `json:"sup,omitempty"`
-	File   string      `json:"-"`
-	Span   syntax.Span `json:"-"`
+	// Attrs are the FQNs of the class's attributes (`#[\AllowDynamicProperties]`
+	// → "AllowDynamicProperties"), in source order.
+	Attrs []string    `json:"attrs,omitempty"`
+	File  string      `json:"-"`
+	Span  syntax.Span `json:"-"`
+}
+
+// HasAttr reports whether the class carries attribute fqn (compared
+// case-insensitively, without leading backslash).
+func (c *Class) HasAttr(fqn string) bool {
+	fqn = strings.TrimPrefix(fqn, `\`)
+	for _, a := range c.Attrs {
+		if strings.EqualFold(a, fqn) {
+			return true
+		}
+	}
+	return false
 }
 
 // Template is a class template parameter: `@template T of Bound`.

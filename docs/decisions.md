@@ -669,6 +669,72 @@ rejected) is fixed; see the close-tag note above.
     reports, but `array` is listed only because the guard `if
     (!is_scalar($k) && !$k instanceof \Stringable) throw` is not
     understood: narrowing does not split a falsy `&&`).
+- **Real-world review follow-up (2026-10-08):** engine root causes of
+  false positives found on WordPress, Drupal, Laravel and Nextcloud.
+  - *Version-specific builtin returns:* phpstorm-stubs give many builtins a
+    `#[LanguageLevelTypeAware(["8.0" => "string"], default: "string|false")]`
+    return type; the index kept only the newest. Functions and methods now
+    carry the older versions' types (`RetVer`, `VerType{Until, Type}`), and
+    `Index.Function`/`FindMethod`/`FunctionDecls` return a copy with
+    `Return` resolved for the requested version (cached per declaration
+    and version, so identity comparisons hold). `substr()` at 7.4 is
+    `string|false`, so StrlenInEmptyStringCheckContext suggests
+    `(string)$x !== ''` there. To keep the stricter types from making reads
+    unknown: an element read of `T[]|false` gives T (as for `|null`), an
+    offset read of `string|false|null` gives string, str_replace/preg_*
+    overrides accept `true`/`false`/`null` subjects, and `explode()` with a
+    non-empty literal separator is `string[]` (false only came from an
+    empty separator). Stubs regenerated.
+  - *Assignment as a condition:* `while ($job = $q->next())`,
+    `if (!$x = f())` narrow the assigned variable like `$x` itself.
+  - *Casting typer kills:* outside SpecOnly the T-rules only use the
+    definitions reaching a read (Env's reaching definitions), so `$s = 0;
+    $s = undeclared($s);` is unknown instead of `int` (UnnecessaryCasting);
+    an inline `@var` on an assignment keeps that assignment's value, a
+    standalone one contributes its type.
+  - *Negated conditional assertions:* where a call is false its
+    `-assert-if-true` assertions are applied negated (and `-if-false` ones
+    where it is true): after `if (is_wp_error($m)) return;` `$m` is no
+    `WP_Error`.
+  - *`$_SERVER` ports* are strings (web SAPIs); `argc`, `REQUEST_TIME`
+    (int), `REQUEST_TIME_FLOAT` (float), `argv` (array) stay. Divergence
+    recorded in the UnnecessaryCasting spec.
+  - *Absent literal keys:* reading a key a sealed shape does not list (and
+    no write adds) is unknown instead of the other elements' type.
+  - *`array_reduce()`*: the initial value's type (null when omitted) with
+    the callback's return type; unknown when either is (the stub's
+    `TCarry|null` added null and ignored the initial value).
+  - *Class attributes* are indexed (`Class.Attrs`, FQNs; `HasAttr`), so
+    MissingIssetImplementation sees `#[\AllowDynamicProperties]` declared
+    in another file (Drupal: 26 → 0 findings).
+  - *Duplicate function declarations:* a call to a function the project
+    declares several times (WordPress `apply_filters()` in plugin.php and a
+    no-op in noop.php) is the union of every declaration's type
+    (`Index.FunctionDecls`), unknown beyond `maxFuncDecls` = 16.
+  - *Not done:* `int * int` overflowing to float is still typed int; no
+    finding acted on it in the review, and `int|float` would make every
+    product non-int for the casting rules.
+  - *Deltas* (old = HEAD 7e1530f, default / `--all`): corpus A src −1 / −1
+    (CPUCITC on `$path = ($r = realpath($path)) ? $r : $path`, fixed by the
+    assignment-condition narrowing), Symfony −1 / −1 (CPUCITC, `if ($c =
+    \Closure::bind(…))`), corpus B 0 / −1 (OffsetOperations, `if ($key =
+    array_search(…))`), corpus C +3 / +3: UnnecessaryCasting on `(string)
+    $value` after `null !== $value` where `$value` is a preg_replace chain
+    (now `string|null` through nullable subjects; true positive), and two
+    ReturnTypeCanBeDeclared `: ?string` on preg_replace chains (true: the
+    functions return preg_replace's `string|null`). WordPress (`--php
+    7.4`): 13,613 → 13,480 default, 30,687 → 30,561 `--all`: −120
+    ReturnTypeCanBeDeclared and most UnnecessaryCasting removals come from
+    `apply_filters()` now unknown and `substr()`'s `false`; −5
+    SuspiciousAssignments / −3 CPUCITC from `is_wp_error()` negation; 6
+    StrlenInEmptyStringCheckContext messages now add the `(string)` cast
+    and 138 TypeUnsafeComparison messages no longer call the other operand
+    a non-numeric string (it may be false);
+    +7 OffsetOperations (`--all`) are `substr()` results used as keys
+    (may be false before 8.0); new UnnecessaryCasting are casts made
+    redundant by negated assertions or killed definitions (e.g. `(int)
+    $post_author` after `$post_author = $post_author->ID`). corpus A vendor
+    timing unchanged (0.69 s both).
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.

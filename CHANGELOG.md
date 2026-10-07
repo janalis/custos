@@ -62,6 +62,17 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
+- Type inference (from the WordPress/Drupal review): builtin return types
+  follow the target PHP version (`substr()` is `string|false` before 8.0);
+  `while ($x = f())` / `if ($x = f())` narrow `$x`; an unconditional
+  reassignment hides earlier values in the casting typer; an
+  `-assert-if-true` / `-if-false` assertion is negated in the other branch
+  (`is_wp_error()` guards); `$_SERVER['SERVER_PORT']`/`['REMOTE_PORT']` are
+  strings; an absent key of a literal array is unknown; `array_reduce()`
+  is the initial value's type with the callback's; a function declared
+  twice (`apply_filters()` and its no-op) returns either declaration's
+  type; `#[\AllowDynamicProperties]` declared in another file is seen
+  (MissingIssetImplementation).
 - False positives in ReturnTypeCanBeDeclared, UnnecessaryCasting,
   CallableParameterUseCaseInTypeContext, OffsetOperations,
   NullPointerException, MagicMethodsValidity, MockingMethodsCorrectness,

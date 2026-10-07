@@ -170,12 +170,22 @@ func (e *Env) shapeKeyOf(ct types.Type, key string, v *syntax.Variable) (types.T
 	isVar := v != nil
 	kt, ok := ct.ShapeKey(key)
 	if !ok {
-		// A key missing from a literal array may be added by a write
-		// (`$a = []; $a['k'] = 1;`).
-		if !isVar || !ct.IsSealedShape() || !e.writesKey(v, key) {
+		if !ct.IsSealedShape() {
 			return types.Unknown, false
 		}
-		return e.widenKey(types.Of("never"), v, key), true
+		// A key missing from a literal array may be added by a write
+		// (`$a = []; $a['k'] = 1;`).
+		if isVar && e.writesKey(v, key) {
+			return e.widenKey(types.Of("never"), v, key), true
+		}
+		if isVar {
+			if ws, _ := e.reachingWrites(v); len(ws) > 0 {
+				return types.Unknown, false // a computed key or an append may add it
+			}
+		}
+		// Absent from a sealed shape: reading it gives null (and a
+		// warning), never the type of the other elements.
+		return types.Unknown, true
 	}
 	if isVar {
 		kt = e.widenKey(kt, v, key)

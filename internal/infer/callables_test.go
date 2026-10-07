@@ -60,7 +60,7 @@ function run(array $xs) {
     t('unknown', lazy(fn() => $GLOBALS['x']));
 }
 `, map[string]string{
-		"lazy": `\App\Foo`, "lazystr": "false|string", "map": "float[]", "reduce": "int|null", "unknown": "mixed",
+		"lazy": `\App\Foo`, "lazystr": "false|string", "map": "float[]", "reduce": "int", "unknown": "mixed",
 	})
 }
 

@@ -1,6 +1,7 @@
 package infer_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -127,4 +128,23 @@ function run(Thing $t, Sealed $s) {
 		"sealed":     "true",
 		"polyfill":   "string", // the builtin (8.3+) runs, not its polyfill
 	})
+}
+
+// A function declared twice (WordPress: apply_filters() in plugin.php and
+// a no-op in noop.php) may run as either declaration.
+func TestDuplicateFunctionDeclarations(t *testing.T) {
+	checkWith(t, map[string]string{
+		"plugin.php": `<?php function filt($v) { return $v . ''; } function same(): int { return 1; } function untyped() {}`,
+		"noop.php":   `<?php function filt($v) { return $v; } function same(): int { return 2; }`,
+	}, `<?php t('filt', filt(1)); t('same', same()); t('single', untyped());`,
+		map[string]string{"filt": "?unknown", "same": "int", "single": "null"})
+}
+
+// Beyond maxFuncDecls declarations of one function, calls are unknown.
+func TestManyFunctionDeclarations(t *testing.T) {
+	others := map[string]string{}
+	for i := 0; i < 20; i++ {
+		others[fmt.Sprintf("f%d.php", i)] = `<?php function many(): int { return 1; }`
+	}
+	checkWith(t, others, `<?php t('many', many());`, map[string]string{"many": "?unknown"})
 }

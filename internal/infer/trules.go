@@ -279,7 +279,8 @@ func superglobalDim(n *syntax.ArrayDimFetch) (types.Type, bool) {
 			switch lit.Raw[1 : len(lit.Raw)-1] {
 			case "argv":
 				return types.Array, true
-			case "argc", "REQUEST_TIME", "REMOTE_PORT", "SERVER_PORT":
+			case "argc", "REQUEST_TIME":
+				// (REMOTE_PORT and SERVER_PORT are strings under web SAPIs.)
 				return types.Int, true
 			case "REQUEST_TIME_FLOAT":
 				return types.Float, true
@@ -442,9 +443,16 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 	}
 	scope := syntax.EnclosingFuncLike(v)
 	pos := v.Span().Start
-	var ts []types.Type
+	// Outside SpecOnly, only the definitions reaching v count: an
+	// unconditional reassignment (`$s = undeclared($s);`, of unknown type)
+	// hides earlier ones instead of leaving their types in the union.
+	reach, docs := r.reachingDefs(scope, v)
+	ts := docs
 	for _, p := range syntax.FuncLikeParams(scope) {
 		if p.Var == nil || p.Var.Name != v.Name {
+			continue
+		}
+		if reach != nil && !reach[p.Span().Start] {
 			continue
 		}
 		if p.Variadic {
@@ -476,6 +484,9 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 		if d.Span().Start >= pos || d.Span().Start < cutoff || containsPos(d, pos) {
 			continue
 		}
+		if reach != nil && !reach[d.Span().Start] {
+			continue
+		}
 		after = max(after, d.Span().End)
 		switch {
 		case d.Op.Kind == syntax.TEqual && (!d.ByRef || r.SpecOnly):
@@ -503,6 +514,41 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 
 // foreachBinding returns the variable named name bound by fe's key or value
 // (including list destructuring), or nil.
+// reachingDefs returns the positions of the definitions of v (Env's
+// reaching definitions, forward ones) that reach it, and the types of the
+// reaching inline `@var` annotations that annotate no assignment; reach is
+// nil in SpecOnly mode or when they cannot be computed (no definition
+// known to Env, beyond maxVarDefs), in which case every earlier
+// assignment counts.
+func (r *TRules) reachingDefs(scope syntax.Node, v *syntax.Variable) (reach map[uint32]bool, docs []types.Type) {
+	if r.SpecOnly {
+		return nil, nil
+	}
+	defs := r.Env.scopeVars(scope).defs[v.Name]
+	if len(defs) == 0 || len(defs) > maxVarDefs {
+		return nil, nil
+	}
+	fwd, _, _ := r.Env.reaching(defs, v, scope)
+	reach = make(map[uint32]bool, len(fwd))
+	for _, d := range fwd {
+		reach[d.pos] = true
+	}
+	for i, d := range defs {
+		if !d.doc || !reach[d.pos] {
+			continue
+		}
+		// `/** @var T $x */ $x = v;`: reaching keeps the annotation in
+		// place of the assignment it annotates, whose value the T-rules
+		// still use; a standalone annotation states the type itself.
+		if i+1 < len(defs) && !defs[i+1].doc && defs[i+1].w == nil && !r.Env.semicolonBetween(d.docEnd, defs[i+1].pos) {
+			reach[defs[i+1].pos] = true
+		} else {
+			docs = append(docs, d.typ())
+		}
+	}
+	return reach, docs
+}
+
 func foreachBinding(fe *syntax.Foreach, name string) *syntax.Variable {
 	var found *syntax.Variable
 	for _, e := range []syntax.Expr{fe.Key, fe.Value} {
