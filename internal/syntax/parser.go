@@ -497,6 +497,12 @@ func (p *parser) parseBody(alt *bool, ends ...TokenKind) Stmt {
 		}
 		return spanOf(n, Span{colon.Start, end})
 	}
+	if p.at(TCloseTag) {
+		// `if ($a) ?>html` — the close tag acts as ';': the body is empty and
+		// the inline HTML is the next statement.
+		start := p.advance().Start
+		return fin(p, &Nop{}, start)
+	}
 	s := p.parseStmt(false)
 	if s == nil {
 		s = fin(p, &Nop{}, p.start())

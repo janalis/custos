@@ -9,7 +9,7 @@ STUBS_REPO ?= https://github.com/JetBrains/phpstorm-stubs
 
 FIXCHECK ?= 1
 
-.PHONY: fixcheck stubs build test vet fmt fmt-check lint bench fuzz extract rules-doc fixtures conformance cleanroom verify clean
+.PHONY: coverage fixcheck stubs build test vet fmt fmt-check lint bench fuzz extract rules-doc fixtures conformance cleanroom verify clean
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -81,7 +81,15 @@ cleanroom:
 fixcheck:
 	CUSTOS_FIXCHECK=$(FIXCHECK) $(GO) test ./internal/rules -run TestFixesKeepCodeParsable -v -timeout 30m
 
-verify: lint test fixtures cleanroom
+verify: lint test fixtures coverage cleanroom
+
+# Every statement of internal/rules must be covered by own fixtures and the
+# rule packages' tests (the EA run and local corpora do not count).
+coverage:
+	@mkdir -p .cache
+	go test ./internal/conformance ./internal/rules/... -skip 'TestEA|TestNoCrashOnCorpus|TestFixesKeepCodeParsable' \
+		-coverpkg=./internal/rules/... -coverprofile=.cache/rules-cover.out >/dev/null
+	@awk 'NR>1 { n[$$1]=$$2; if ($$3>0) hit[$$1]=1 } END { for (k in n) if (n[k]>0 && !hit[k]) { print "uncovered: " k; m++ } if (m) { print m " uncovered block(s) in internal/rules"; exit 1 } print "coverage: internal/rules 100%" }' .cache/rules-cover.out
 
 clean:
 	rm -rf bin dist

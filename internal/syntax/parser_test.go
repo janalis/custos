@@ -170,6 +170,7 @@ func TestParseConstructs(t *testing.T) {
 		`const A = 1, B = A * 2; function f($a = null, $b = [1, 2], $c = self::X) {} $x = $y ?: $z; $q ??= 5;`,
 		`$s = "${a}" . "{$b}" . "$c[-1]"; $m = $a{0};`,
 		`$copy = clone($this, ['x' => 1]); $c2 = clone $a;`,
+		"if ($a) ?>html<?php while (0) ?>x<?php for (;0;) ?>y<?php foreach ($l as $v) ?>z<?php else_part();",
 	}
 	for _, src := range srcs {
 		v := phpver.PHP85

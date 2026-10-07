@@ -45,13 +45,9 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 	case *syntax.DoWhile:
 		body = n.Body
 	}
-	if body == nil || n.Span().Len() == 0 {
-		return
-	}
-	kw, ok := util.TokenAfter(ctx.File, n.Span().Start)
-	if !ok {
-		return
-	}
+	// The parser always gives these constructs a body (a Nop on error) and
+	// starts their span at the keyword token.
+	kw, _ := util.TokenAfter(ctx.File, n.Span().Start)
 	kwSpan := syntax.Span{Start: kw.Start, End: kw.End}
 	if b, ok := body.(*syntax.Block); ok {
 		if len(b.Stmts) == 0 && ctx.Bool("REPORT_EMPTY_BODY") { // D2
@@ -64,6 +60,17 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 		return // recovery node
 	}
 	text := ctx.Text(body)
+	if strings.HasPrefix(text, "?>") {
+		// `if ($a) ?>html`: the close tag is the (empty) body; an empty block
+		// before it keeps the inline HTML outside the construct.
+		ctx.Report(kwSpan, "Use a braced block for the body of this construct.", analysis.Fix{
+			Title: "Wrap the body in braces",
+			Edits: func() []analysis.TextEdit {
+				return []analysis.TextEdit{{Span: syntax.Span{Start: bs.Start, End: bs.Start}, NewText: "{} "}}
+			},
+		})
+		return
+	}
 	ctx.Report(kwSpan, "Use a braced block for the body of this construct.", analysis.Fix{ // D1
 		Title: "Wrap the body in braces",
 		Edits: func() []analysis.TextEdit {

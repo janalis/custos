@@ -34,6 +34,9 @@ report which prerequisite blocks the rule.
 4. Write own fixtures in `testdata/rules/<ID>/`: `basic.php` (positives),
    `false-positives.php`, `basic.fixed.php` if fixable, `<name>.json` for
    options/PHP version. Use the spec's examples as a starting point.
+   Fixtures must cover every statement of the rule file (`make coverage`
+   lists uncovered blocks): remove unreachable code; cover parser-recovery
+   guards with broken PHP (`broken*.php`).
 5. `make fixtures RULE=<ID>` then `make conformance RULE=<ID>`. On EA
    mismatches, re-read the spec; if the spec is wrong or incomplete, report it
    (spec fixes go through `spec-rule`) instead of guessing from EA files.

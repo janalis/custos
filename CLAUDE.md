@@ -64,7 +64,8 @@ make fixtures       # own fixtures (CI gate)            RULE=<ID> to filter
 make conformance    # EA fixtures from local checkout   RULE=<ID> to filter
 make bench / fuzz
 make cleanroom      # scan repo for verbatim EA text (local)
-make verify         # definition of done: lint + test + fixtures + cleanroom
+make coverage       # every statement of internal/rules covered by own fixtures + rule tests (100%)
+make verify         # definition of done: lint + test + fixtures + coverage + cleanroom
 make stubs          # rebuild embedded PHP stubs index
 make fixcheck       # apply every quick-fix on CUSTOS_CORPUS, require parsable output (FIXCHECK=php adds php -l samples; ~1-4 min)
 ```
@@ -87,7 +88,8 @@ make fixcheck       # apply every quick-fix on CUSTOS_CORPUS, require parsable o
   positives, fixes changing semantics or producing invalid PHP), diverge,
   document it in the spec's Divergences and in `testdata/ea-divergences.json`.
 - No rule lands without own fixtures in `testdata/rules/<ID>/` (positive,
-  false-positive cases, `.fixed.php` when it has a fix) and a green
+  false-positive cases, `.fixed.php` when it has a fix) covering 100% of its
+  statements (`make coverage`; remove unreachable code rather than exempt it) and a green
   `make conformance RULE=<ID>` (or a documented, justified divergence in the
   spec's "Divergences" section).
 - Messages: short, imperative, our own wording; no `[EA]` prefix.
