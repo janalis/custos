@@ -31,6 +31,15 @@ type Env struct {
 	bodyBusy  map[syntax.Span]bool
 	bodyDepth int
 	decls     map[syntax.Span]syntax.Node
+
+	// Index-time return inference (see AnnotateReturns): the index holds
+	// only this file over the stubs, and deps records the namespaced
+	// function names resolved through the global fallback.
+	annotating bool
+	deps       []string
+
+	// generics caches genBindings.
+	generics map[string]map[string]tplBindings
 }
 
 // NewEnv creates an inference environment.
@@ -211,21 +220,30 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.ClassConstFetch:
 		return e.classConstType(n)
 	case *syntax.ArrayDimFetch:
-		ct := e.TypeOf(n.Var)
-		if ct.IsUnknown() {
-			return types.Unknown
+		t := e.dimType(n)
+		if key := narrowKey(n); key != "" && !t.IsUnknown() {
+			t = e.narrowExpr(t, n, key, scopeOf(n))
 		}
-		if t, ok := e.shapeDim(ct, n); ok {
-			return t
-		}
-		// X[]|null indexes to X; a plain `array` member has unknown elements.
-		if el := ct.Elem(); !el.IsUnknown() && ct.Without("null").IsArrayLike() && !ct.Has("array") {
-			return e.widenElem(el, n)
-		}
-		if ct.OnlyOf("string") {
-			return types.String
-		}
+		return t
+	}
+	return types.Unknown
+}
+
+// dimType is the type of element read n before narrowing.
+func (e *Env) dimType(n *syntax.ArrayDimFetch) types.Type {
+	ct := e.TypeOf(n.Var)
+	if ct.IsUnknown() {
 		return types.Unknown
+	}
+	if t, ok := e.shapeDim(ct, n); ok {
+		return t
+	}
+	// X[]|null indexes to X; a plain `array` member has unknown elements.
+	if el := ct.Elem(); !el.IsUnknown() && ct.Without("null").IsArrayLike() && !ct.Has("array") {
+		return e.widenElem(el, n)
+	}
+	if ct.OnlyOf("string") {
+		return types.String
 	}
 	return types.Unknown
 }
@@ -440,7 +458,7 @@ func bindStatic(t types.Type, receiver string) types.Type {
 			atoms = append(atoms, a)
 		}
 	}
-	return types.Of(atoms...)
+	return types.Of(atoms...).WithTypeArgsFrom(t)
 }
 
 // memberType picks the declared type, falling back to the doc type; when
@@ -454,7 +472,7 @@ func memberType(declared, doc string) types.Type {
 	if d.IsUnknown() || (d.Has("array") && !dt.IsUnknown()) || d.Has("mixed") || strictSuperset(dt, d) {
 		return dt
 	}
-	return d
+	return d.WithTypeArgsFrom(dt) // `@var Collection<int, Foo>` on `: Collection`
 }
 
 // strictSuperset reports whether doc lists every class of an object
@@ -507,11 +525,16 @@ func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types
 
 // methodReturn is the return type of method name called on class cls;
 // virtual reports a call that may dispatch to an override (see
-// methodBodyReturn).
-func (e *Env) methodReturn(cls, name string, virtual bool) types.Type {
+// methodBodyReturn). Class templates in the documented return type are
+// bound from origin (the receiver class, or the calling class for
+// `parent::`) and its generic arguments args.
+func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args []types.Type) types.Type {
 	m := e.Index.FindMethod(cls, name, e.PHP)
 	if m == nil {
 		return types.Unknown
+	}
+	if t, ok := e.genMethodReturn(m, origin, args); ok {
+		return bindStatic(t, cls)
 	}
 	if m.Return == "" && m.DocReturn == "" {
 		return e.methodBodyReturn(m, virtual)
@@ -530,7 +553,8 @@ func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
 	}
 	var ts []types.Type
 	for _, cls := range recv.Classes() {
-		t := e.methodReturn(strings.TrimPrefix(cls, `\`), id.Value, true)
+		c := strings.TrimPrefix(cls, `\`)
+		t := e.methodReturn(c, id.Value, true, c, recv.TypeArgs(cls))
 		if t.IsUnknown() {
 			return types.Unknown
 		}
@@ -555,7 +579,14 @@ func (e *Env) staticCallType(n *syntax.StaticCall) types.Type {
 	if cls == "" {
 		return types.Unknown
 	}
-	return e.methodReturn(cls, id.Value, isVirtualClassRef(n.Class))
+	origin := cls
+	if nm, ok := n.Class.(*syntax.Name); ok && strings.EqualFold(nm.Value, "parent") {
+		// parent::m(): the calling class's @extends arguments bind the parent.
+		if c := e.ClassFQN(EnclosingClass(n)); c != "" {
+			origin = c
+		}
+	}
+	return e.methodReturn(cls, id.Value, isVirtualClassRef(n.Class), origin, nil)
 }
 
 func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
@@ -589,7 +620,11 @@ func (e *Env) ResolveFunction(call *syntax.FuncCall) *index.Function {
 		return nil
 	}
 	fqn, fb := e.Names.Function(name.Value, name.Span().Start)
-	return e.Index.ResolveFunction(fqn, fb, e.PHP)
+	f := e.Index.ResolveFunction(fqn, fb, e.PHP)
+	if e.annotating && fb != "" && f != nil && !strings.EqualFold(f.FQN, fqn) {
+		e.deps = append(e.deps, fqn)
+	}
+	return f
 }
 
 func (e *Env) funcCallType(n *syntax.FuncCall) types.Type {
@@ -614,6 +649,9 @@ func (e *Env) overrideType(n *syntax.FuncCall) (types.Type, bool) {
 	}
 	fqn, fb := e.Names.Function(name.Value, name.Span().Start)
 	if fb != "" && e.Index.Function(fqn, e.PHP) == nil {
+		if e.annotating {
+			e.deps = append(e.deps, fqn)
+		}
 		fqn = fb
 	}
 	arg := func(i int) syntax.Expr {
@@ -1148,6 +1186,7 @@ func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
 		if declared.IsUnknown() || declared.Has("array") || declared.Has("mixed") {
 			return dt
 		}
+		return declared.WithTypeArgsFrom(dt)
 	}
 	return declared
 }

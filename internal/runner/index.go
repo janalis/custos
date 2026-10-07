@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"custos/internal/index"
+	"custos/internal/infer"
 	"custos/internal/stubs"
 	"custos/internal/syntax"
 )
@@ -42,7 +43,7 @@ func BuildIndex(files []string, opt syntax.Options) *index.Index {
 				if err != nil {
 					continue
 				}
-				results[i] = index.Extract(syntax.ParseBest(files[i], src, opt))
+				results[i] = ExtractSymbols(files[i], src, opt)
 			}
 		}()
 	}
@@ -56,5 +57,21 @@ func BuildIndex(files []string, opt syntax.Options) *index.Index {
 			ix.Add(fs)
 		}
 	}
+	for _, fs := range results {
+		if fs != nil {
+			ix.DropStaleInferred(fs)
+		}
+	}
 	return ix
+}
+
+// ExtractSymbols parses one file and returns its symbols, with the return
+// types of untyped functions and methods inferred from their bodies
+// (infer.AnnotateReturns). Before adding the result to a project index,
+// call DropStaleInferred on it once the project symbols are known.
+func ExtractSymbols(path string, src []byte, opt syntax.Options) *index.FileSymbols {
+	f := syntax.ParseBest(path, src, opt)
+	fs := index.Extract(f)
+	infer.AnnotateReturns(f, fs, stubs.Index(), opt.Version)
+	return fs
 }

@@ -213,6 +213,45 @@ var docBuiltin = map[string]bool{
 	"static": true,
 }
 
+// TemplateParam is a declared template: `@template T of Bound`.
+type TemplateParam struct {
+	Name  string
+	Bound string // type text after `of` / `as`; "" when absent
+}
+
+// TemplateParams returns the templates declared by @template (and the
+// variants Templates accepts) with their bounds, in declaration order.
+func (d *Doc) TemplateParams() []TemplateParam {
+	var out []TemplateParam
+	for _, t := range d.Tags {
+		if !isTemplateTag(t.Name) {
+			continue
+		}
+		f := strings.Fields(t.Text)
+		if len(f) == 0 {
+			continue
+		}
+		p := TemplateParam{Name: f[0]}
+		if len(f) > 2 && (f[1] == "of" || f[1] == "as") {
+			rest := strings.TrimSpace(t.Text)
+			rest = strings.TrimSpace(rest[len(f[0]):])
+			rest = strings.TrimSpace(rest[len(f[1]):])
+			p.Bound, _ = SplitType(rest)
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+func isTemplateTag(name string) bool {
+	switch name {
+	case "template", "template-covariant", "template-contravariant",
+		"psalm-template", "psalm-template-covariant", "phpstan-template", "phpstan-template-covariant":
+		return true
+	}
+	return false
+}
+
 // Templates returns the names declared by @template (and the psalm-/phpstan-
 // prefixed and covariant/contravariant variants).
 func (d *Doc) Templates() []string {

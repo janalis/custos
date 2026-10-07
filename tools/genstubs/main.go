@@ -18,6 +18,7 @@ import (
 	"custos/internal/index"
 	"custos/internal/phpver"
 	"custos/internal/syntax"
+	"custos/internal/types"
 )
 
 func main() {
@@ -62,9 +63,18 @@ func main() {
 		fsyms.Path = "stubs/" + filepath.ToSlash(rel)
 		for _, c := range fsyms.Classes {
 			c.File = fsyms.Path
+			for _, m := range c.Methods {
+				noShapes(&m.DocReturn)
+				noParamShapes(m.Params)
+			}
+			for _, p := range c.Props {
+				noShapes(&p.DocType)
+			}
 		}
 		for _, fn := range fsyms.Functions {
 			fn.File = fsyms.Path
+			noShapes(&fn.DocReturn)
+			noParamShapes(fn.Params)
 		}
 		all = append(all, fsyms)
 		return nil
@@ -89,6 +99,25 @@ func main() {
 	st, _ := os.Stat(*out)
 	fmt.Printf("stubs: %d files (%d with parse errors), %d classes, %d functions, %d constants -> %s (%d KB)\n",
 		files, errs, nc, nf, nk, *out, st.Size()/1024)
+}
+
+// noShapes drops the array facts (shapes, non-emptiness) from a stub doc
+// type: the stubs' shapes are not reliable enough to type builtin results
+// (pathinfo() documents its optional keys as required).
+func noShapes(s *string) {
+	if *s == "" {
+		return
+	}
+	t := types.FromDoc(*s, nil)
+	if !t.IsUnknown() {
+		*s = t.WithoutArrayInfo().DocString()
+	}
+}
+
+func noParamShapes(ps []index.Param) {
+	for i := range ps {
+		noShapes(&ps[i].DocType)
+	}
 }
 
 func write(path string, all []*index.FileSymbols) error {

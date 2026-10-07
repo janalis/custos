@@ -43,10 +43,13 @@ type Param struct {
 
 // Function is a global or namespaced function.
 type Function struct {
-	FQN        string      `json:"fqn"`
-	Params     []Param     `json:"params,omitempty"`
-	Return     string      `json:"ret,omitempty"`
-	DocReturn  string      `json:"dret,omitempty"`
+	FQN       string  `json:"fqn"`
+	Params    []Param `json:"params,omitempty"`
+	Return    string  `json:"ret,omitempty"`
+	DocReturn string  `json:"dret,omitempty"`
+	// Inferred is the return type derived from the body at index time when
+	// neither Return nor DocReturn is set (see infer.AnnotateReturns).
+	Inferred   string      `json:"iret,omitempty"`
 	ByRef      bool        `json:"byRef,omitempty"`
 	Deprecated bool        `json:"dep,omitempty"`
 	Avail      Avail       `json:"a,omitempty"`
@@ -56,16 +59,21 @@ type Function struct {
 
 // Method is a class member function.
 type Method struct {
-	Name       string      `json:"name"`
-	Class      string      `json:"-"` // declaring class FQN
-	Visibility Visibility  `json:"vis,omitempty"`
-	Static     bool        `json:"static,omitempty"`
-	Abstract   bool        `json:"abstract,omitempty"`
-	Final      bool        `json:"final,omitempty"`
-	ByRef      bool        `json:"byRef,omitempty"`
-	Params     []Param     `json:"params,omitempty"`
-	Return     string      `json:"ret,omitempty"`
-	DocReturn  string      `json:"dret,omitempty"`
+	Name       string     `json:"name"`
+	Class      string     `json:"-"` // declaring class FQN
+	Visibility Visibility `json:"vis,omitempty"`
+	Static     bool       `json:"static,omitempty"`
+	Abstract   bool       `json:"abstract,omitempty"`
+	Final      bool       `json:"final,omitempty"`
+	ByRef      bool       `json:"byRef,omitempty"`
+	Params     []Param    `json:"params,omitempty"`
+	Return     string     `json:"ret,omitempty"`
+	DocReturn  string     `json:"dret,omitempty"`
+	Inferred   string     `json:"iret,omitempty"` // body-derived return type (see Function.Inferred)
+	// GenReturn is the documented return type when it mentions class
+	// templates, which appear as `\~T` atoms (see Class.Templates); bound
+	// per receiver by infer. Empty otherwise.
+	GenReturn  string      `json:"gret,omitempty"`
 	Deprecated bool        `json:"dep,omitempty"`
 	Avail      Avail       `json:"a,omitempty"`
 	Span       syntax.Span `json:"-"`
@@ -113,8 +121,27 @@ type Class struct {
 	Consts     map[string]*ClassConst `json:"consts,omitempty"`
 	Deprecated bool                   `json:"dep,omitempty"`
 	Avail      Avail                  `json:"a,omitempty"`
-	File       string                 `json:"-"`
-	Span       syntax.Span            `json:"-"`
+	// Templates are the class-level @template parameters, in order.
+	Templates []Template `json:"tpl,omitempty"`
+	// Supers lists the generic arguments given to parents, interfaces and
+	// traits by @extends / @implements / @use (and their template-,
+	// phpstan- and psalm- variants); arguments may use `\~T` atoms.
+	Supers []SuperArgs `json:"sup,omitempty"`
+	File   string      `json:"-"`
+	Span   syntax.Span `json:"-"`
+}
+
+// Template is a class template parameter: `@template T of Bound`.
+type Template struct {
+	Name  string `json:"n"`
+	Bound string `json:"b,omitempty"` // doc type string; "" when unbounded
+}
+
+// SuperArgs is `@extends Base<A, B>`: the FQN of Base and the arguments
+// as doc type strings.
+type SuperArgs struct {
+	Class string   `json:"c"`
+	Args  []string `json:"a"`
 }
 
 // Constant is a global constant (define() or const).
@@ -132,4 +159,9 @@ type FileSymbols struct {
 	Classes   []*Class    `json:"classes,omitempty"`
 	Functions []*Function `json:"functions,omitempty"`
 	Constants []*Constant `json:"constants,omitempty"`
+	// ReturnDeps lists the namespaced function names that the index-time
+	// return inference resolved to a global function because this file does
+	// not declare them; when the project declares one of them, the inferred
+	// returns of this file are dropped (see DropStaleInferred).
+	ReturnDeps []string `json:"-"`
 }

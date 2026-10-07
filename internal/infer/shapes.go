@@ -275,7 +275,9 @@ func (e *Env) foreachElem(x syntax.Expr) types.Type {
 		return el
 	}
 	if !t.Without("null", "false").IsArrayLike() {
-		return types.Unknown
+		// Traversable<K, V>, iterable<V>, possibly with `T[]` members.
+		_, v := e.iterTypes(t)
+		return v
 	}
 	return e.shapeElem(t, x)
 }
@@ -286,7 +288,13 @@ func (e *Env) foreachElem(x syntax.Expr) types.Type {
 func (e *Env) foreachKey(x syntax.Expr) types.Type {
 	anyKey := types.Of("int", "string")
 	t := e.TypeOf(x)
-	if !t.Without("null", "false").IsArrayLike() || !t.IsSealedShape() {
+	if !t.Without("null", "false").IsArrayLike() {
+		if k, _ := e.iterTypes(t); !k.IsUnknown() {
+			return k
+		}
+		return anyKey
+	}
+	if !t.IsSealedShape() {
 		return anyKey
 	}
 	hasInt, hasStr := false, false
@@ -384,7 +392,25 @@ func (e *Env) mutations(scope syntax.Node, name string) []mutation {
 func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 	out := map[string][]mutation{}
 	add := func(x syntax.Expr, m mutation) {
-		if k := narrowKey(unparen(x)); k != "" {
+		x = unparen(x)
+		if d, ok := x.(*syntax.ArrayDimFetch); ok {
+			// An element write: recorded under the first-level element's
+			// key (dimKey), or dimKey(base, "*") for a computed key.
+			for {
+				inner, ok := unparen(d.Var).(*syntax.ArrayDimFetch)
+				if !ok {
+					break
+				}
+				d = inner
+			}
+			if k := narrowKey(d); k != "" {
+				out[k] = append(out[k], m)
+			} else if b := narrowKey(unparen(d.Var)); b != "" && !isDimKey(b) {
+				out[dimKey(b, "*")] = append(out[dimKey(b, "*")], m)
+			}
+			return
+		}
+		if k := narrowKey(x); k != "" {
 			out[k] = append(out[k], m)
 		}
 	}
@@ -642,6 +668,12 @@ func (e *Env) nonEmptyBroken(scope syntax.Node, name string, from uint32, use sy
 		// A property may also be changed by any (non-builtin) call.
 		muts = append(append([]mutation(nil), muts...), e.mutations(scope, anyCall)...)
 	}
+	return e.brokenBy(scope, muts, from, use)
+}
+
+// brokenBy reports whether one of muts may change a fact established at
+// position from before use (see nonEmptyBroken).
+func (e *Env) brokenBy(scope syntax.Node, muts []mutation, from uint32, use syntax.Node) bool {
 	if len(muts) == 0 {
 		return false
 	}

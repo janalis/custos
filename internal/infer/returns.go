@@ -1,9 +1,14 @@
 package infer
 
 import (
+	"slices"
+	"sort"
 	"strings"
 
 	"custos/internal/index"
+	"custos/internal/names"
+	"custos/internal/phpver"
+	"custos/internal/stubs"
 	"custos/internal/syntax"
 	"custos/internal/types"
 )
@@ -12,12 +17,21 @@ import (
 // returned expression whose callee's body is inferred, and so on).
 const maxBodyDepth = 4
 
-// BodyReturnType infers the return type of a function declared in this file
-// from its body (see bodyReturn). Unknown when f is not declared in this
-// file or has a declared or documented return type.
+// BodyReturnType infers the return type of a function without declared or
+// documented return type from its body: see bodyReturn for a function
+// declared in this file; for one declared in another file, the type the
+// index computed from its body (AnnotateReturns), if any.
 func (e *Env) BodyReturnType(f *index.Function) types.Type {
-	if f == nil || f.Return != "" || f.DocReturn != "" || f.File != e.File.Path {
+	if f == nil || f.Return != "" || f.DocReturn != "" {
 		return types.Unknown
+	}
+	if f.File != e.File.Path {
+		if f.Inferred == "" || stubs.Index().Function(f.FQN, 0) != nil {
+			// A polyfill of a builtin keeps the behaviour it had before
+			// (its body is an approximation of the builtin).
+			return types.Unknown
+		}
+		return types.FromDoc(f.Inferred, nil)
 	}
 	return e.bodyReturn(f.Span)
 }
@@ -32,13 +46,73 @@ func (e *Env) methodBodyReturn(m *index.Method, virtual bool) types.Type {
 		return types.Unknown
 	}
 	c := e.Index.Class(m.Class, e.PHP)
-	if c == nil || c.File != e.File.Path || c.Kind == syntax.KindTrait || c.Kind == syntax.KindInterface {
+	if c == nil || c.Kind == syntax.KindTrait || c.Kind == syntax.KindInterface {
 		return types.Unknown
 	}
 	if virtual && !m.Final && m.Visibility != index.Private && !c.Final && c.Kind != syntax.KindEnum {
 		return types.Unknown
 	}
+	if c.File != e.File.Path {
+		return types.FromDoc(m.Inferred, nil) // computed by AnnotateReturns
+	}
 	return e.bodyReturn(m.Span)
+}
+
+// AnnotateReturns stores in fs (the symbols extracted from f) the return
+// types of its functions and non-private methods that have no declared or
+// documented return type, inferred from their bodies as bodyReturn does for
+// the current file, but self-contained: the index holds only f's symbols
+// over base (the stubs), so anything depending on another file (its
+// functions, classes' members, inherited properties) stays unknown. The
+// result is used for calls from other files under the same override rules
+// as same-file inference (see methodBodyReturn). Namespaced function names
+// resolved through the global fallback are recorded in fs.ReturnDeps
+// (index.DropStaleInferred).
+func AnnotateReturns(f *syntax.File, fs *index.FileSymbols, base *index.Index, php phpver.Version) {
+	type target struct {
+		span syntax.Span
+		set  func(string)
+	}
+	var todo []target
+	for _, fn := range fs.Functions {
+		if fn.Return == "" && fn.DocReturn == "" {
+			fn := fn
+			todo = append(todo, target{fn.Span, func(s string) { fn.Inferred = s }})
+		}
+	}
+	for _, c := range fs.Classes {
+		if c.Kind == syntax.KindTrait || c.Kind == syntax.KindInterface {
+			continue
+		}
+		for _, m := range c.Methods {
+			// Private methods are only called from their own file; magic
+			// @method entries have no body.
+			if m.Return != "" || m.DocReturn != "" || m.Abstract || m.Visibility == index.Private || m.Span == (syntax.Span{}) {
+				continue
+			}
+			m := m
+			todo = append(todo, target{m.Span, func(s string) { m.Inferred = s }})
+		}
+	}
+	if len(todo) == 0 {
+		return
+	}
+	// Methods come from a map: infer in source order for determinism (the
+	// cache and depth limit make results order-dependent at the margins).
+	sort.Slice(todo, func(i, j int) bool { return todo[i].span.Start < todo[j].span.Start })
+	ix := index.New(base)
+	ix.Add(fs)
+	e := NewEnv(f, names.New(f), ix, php)
+	e.annotating = true
+	for _, t := range todo {
+		if rt := e.bodyReturn(t.span); !rt.IsUnknown() {
+			t.set(rt.DocString())
+		}
+	}
+	if len(e.deps) > 0 {
+		slices.Sort(e.deps)
+		fs.ReturnDeps = slices.Compact(e.deps)
+	}
 }
 
 // bodyReturn infers the return type of the function or method declared at

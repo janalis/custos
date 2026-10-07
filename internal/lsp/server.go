@@ -385,7 +385,9 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 			ix.Remove(path)
 			continue
 		}
-		ix.Add(index.Extract(syntax.ParseBest(path, src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})))
+		fs := runner.ExtractSymbols(path, src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+		ix.DropStaleInferred(fs)
+		ix.Add(fs)
 	}
 	if touched {
 		s.reanalyzeAll()
@@ -406,7 +408,9 @@ func (s *Server) reindexDoc(uri string) {
 	if !ok || ix == nil {
 		return
 	}
-	ix.Add(index.Extract(syntax.ParseBest(path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})))
+	fs := runner.ExtractSymbols(path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+	ix.DropStaleInferred(fs)
+	ix.Add(fs)
 }
 
 // ---- documents -----------------------------------------------------------------------

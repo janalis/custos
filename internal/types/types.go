@@ -21,6 +21,7 @@ import (
 type Type struct {
 	atoms []string   // sorted, unique; nil = unknown
 	arr   *arrayInfo // optional array facts; nil when none
+	gen   []genEntry // generic arguments of class atoms (see gen.go); nil when none
 }
 
 // Common types.
@@ -130,7 +131,7 @@ func Union(ts ...Type) Type {
 	if info {
 		u = u.withInfo(unionInfo(ts))
 	}
-	return u
+	return u.withGen(unionGen(u, ts))
 }
 
 // Without removes atoms.
@@ -151,7 +152,7 @@ func (t Type) Without(atoms ...string) Type {
 			out = append(out, a)
 		}
 	}
-	return Type{atoms: append([]string{}, out...)}.withInfo(t.arr)
+	return Type{atoms: append([]string{}, out...)}.withInfo(t.arr).withGen(t.gen)
 }
 
 // Classes returns class atoms (with leading backslash, excluding T[] forms).

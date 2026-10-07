@@ -272,10 +272,21 @@ func unionInfo(ts []Type) *arrayInfo {
 // known non-empty without a shape saying so, followed by the shape
 // `{a: int, b?: string}` (`...` when unsealed) and the element facts `<…>`.
 func (t Type) ShapeString() string {
-	if t.arr == nil {
-		return t.String()
+	base := t.String()
+	if len(t.gen) > 0 {
+		parts := make([]string, len(t.atoms))
+		for i, a := range t.atoms {
+			parts[i] = a
+			if args := t.TypeArgs(a); args != nil {
+				parts[i] = genString(a, args)
+			}
+		}
+		base = strings.Join(parts, "|")
 	}
-	return infoString(t.arr, t.String())
+	if t.arr == nil {
+		return base
+	}
+	return infoString(t.arr, base)
 }
 
 func infoString(a *arrayInfo, base string) string {
@@ -324,11 +335,15 @@ func (a *arrayInfo) isNonEmptyByKeys() bool {
 // atoms and array facts (shapes on the `array` member, `non-empty-array`,
 // element shapes). Used to store doc types in the symbol index.
 func (t Type) DocString() string {
-	if t.arr == nil {
+	if t.arr == nil && t.gen == nil {
 		return t.String()
 	}
 	parts := make([]string, len(t.atoms))
 	for i, a := range t.atoms {
+		if args := t.TypeArgs(a); args != nil {
+			parts[i] = genString(a, args)
+			continue
+		}
 		parts[i] = docAtom(a, t.arr)
 	}
 	return strings.Join(parts, "|")

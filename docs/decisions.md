@@ -200,7 +200,12 @@ Found on real code (corpus A, Symfony) and fixed through spec → implement.
   array_shift` lose their `false`/`null` member, `current` too unless the
   pointer may have moved (next/prev/end/reset/each); these functions also use
   the union of a sealed shape's values and the variable's element writes.
-- **PHPDoc:** `@template` names map to `mixed`; `@phpstan-type`/`@psalm-type`
+- **PHPDoc:** parsing is single-pass (each sub-expression once), capped at
+  `types.MaxDocTypeLen` = 4096 bytes (longer: unknown), 32 nesting levels
+  and 4096 parts per type including alias expansions (beyond: mixed);
+  `FuzzFromDoc` checks speed and `DocString` round-trips.
+  `@template` names map to `mixed` (except class templates bound by
+  generic arguments, see Generics); `@phpstan-type`/`@psalm-type`
   aliases expand (including aliases used inside an alias; a self-reference
   reads as `mixed`); `@phpstan-import-type` → `mixed`; nested generics parse. Conditional
   types `(T is X ? A : B)` give `A|B`. A doc intersection refining an object
@@ -229,8 +234,66 @@ Found on real code (corpus A, Symfony) and fixed through spec → implement.
   nested inferences. Methods only when the call cannot reach an override:
   private or final method, final class or enum, or a non-virtual static call
   (`self::`, `parent::`, `Name::`); trait and interface methods are skipped.
-  Declarations in other files are not inferred (the index keeps no bodies);
   `@phpstan-return`/`@psalm-return` alone do not count as documented.
+- **Cross-file inferred returns (2026-10-07):** while building the project
+  index (`runner.ExtractSymbols`, which parses every file anyway),
+  `infer.AnnotateReturns` infers the body return type of each untyped
+  function and non-private, non-abstract class/enum method and stores it as
+  `Inferred` (separate from `Return`/`DocReturn`). The inference is
+  self-contained: its index holds only that file over the stubs, so
+  literals, `new`, casts, declared params/properties, `$this`, builtins and
+  typed same-file calls work, anything from another file is unknown.
+  Namespaced function names resolved through the global fallback are
+  recorded (`ReturnDeps`); when the project declares one, the file's
+  inferred returns are dropped (`DropStaleInferred`). Calls from other files
+  use it under the same override rules as same-file inference (functions;
+  private/final methods, final classes/enums, `self::`/`parent::`/`Name::`).
+  A project function shadowing a builtin (a polyfill) is not typed from its
+  body. Cost on corpus A (17.5k indexed files): 4,655 inferred returns, index
+  build time within noise, +1.4 % allocations; no finding changed on the
+  three reference corpora (their cross-file calls are typed).
+- **Generics (2026-10-07):** a class atom may carry generic arguments
+  (`types.TypeArgs`; `Collection<int, Foo>` is still the atom
+  `\Collection`, so `Has`, `Classes`, `Equal`, `String` are unchanged;
+  `DocString` round-trips them; unions keep them only when every member
+  agrees). The index stores class templates with bounds
+  (`@template[-covariant] T of X`, psalm-/phpstan- variants), the arguments
+  given by `@extends`/`@implements`/`@use` (and `template-`, `phpstan-`,
+  `psalm-` variants) with templates as `\~T` atoms, and per method the
+  documented return mentioning class templates (`GenReturn`, preferring
+  `@phpstan-return`/`@psalm-return`). A method call on `Collection<int,
+  Foo>` (or a class whose `@extends` binds them, or `parent::` from such a
+  class) substitutes the bindings (`T`, `T[]`, `?T`, `list<T>`,
+  `Coll<TKey, U>`); method templates and unbound class templates still
+  read as mixed (bounds are not used for returns). One argument given to a
+  Traversable class with several templates binds the value template
+  (`Collection<Foo>`, `Generator<Foo>`). foreach over `iterable<K, V>` or a
+  Traversable class yields the bindings of `Traversable`'s TKey/TValue
+  (through `@implements IteratorAggregate<int, Foo>`, Doctrine
+  collections, `ArrayIterator<K, V>`, `Generator<K, V>`, stub classes such
+  as `DOMNodeList<DOMElement>`; unbound templates fall back to their
+  bound), mixed with `T[]` members (`Collection<Foo>|Foo[]`); a mixed or
+  unknown value stays unknown. `instanceof` and declared types refined by a
+  doc type (`@var Collection<int, Foo>` on `: Collection`) keep the
+  arguments. The stubs were regenerated to carry the templates; their
+  array shapes are stripped at generation (`pathinfo()` documents optional
+  keys as required). Delta: +9 UnnecessaryCasting on corpus B, all true
+  positives (`(int) $entity->id` on `?int` ids narrowed by a null check,
+  reached through `Collection<int, Entity>` / `iterable<Entity>` foreach).
+- **Per-key narrowing (2026-10-07):** `$a['k']` (literal key on a variable
+  or `$this->prop`) is narrowed like a variable: `isset`, `!== null` /
+  `!= null`, `!empty`, truthiness, `instanceof`, `is_*()` and early-exit
+  guards (`if (!isset($a['k'])) return;`, `if (!isset($a['k'])) { $a['k']
+  = default; }`). The array itself gains the key: `isset($a['k'])`,
+  `array_key_exists('k', $a)`, `$a['k'] !== null`, `!empty($a['k'])` make
+  a shape key required (and non-null where the condition says so), the
+  array non-empty and not null/false. Both are dropped when the array or
+  the element may have changed between the condition and the use (whole
+  assignment, reference, unset, by-reference argument, a write to the same
+  literal key or to a computed key; for `$this->prop` any call). Fixed on
+  the way: `is_numeric()`/`is_scalar()`/… on a value with no matching atom
+  (mixed) narrowed to the first checked atom only (`int`), now to all of
+  them. No finding changed on the reference corpora.
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.
@@ -279,6 +342,23 @@ Found on real code (corpus A, Symfony) and fixed through spec → implement.
   registers a `**/*.php` file watcher (dynamic registration) and updates the
   index on `workspace/didChangeWatchedFiles` (create/change/delete), then
   re-analyses open documents; saved buffers are re-indexed on `didSave`.
+
+## Security (untrusted input)
+
+custos analyses code it does not trust (pull requests in CI, files opened in
+an editor), so hostile input must not crash or hang it.
+
+- **Nesting limit:** parser recursion and AST depth are capped at
+  `syntax.MaxDepth` = 4000 (≈1,300–4,000 source levels depending on the
+  construct; real code stays below ~100). Deeper files are reported once
+  ("nesting deeper than 4000 levels; file not analysed") and skipped, instead
+  of overflowing the Go stack (a fatal, unrecoverable error) or going
+  quadratic in recursive consumers. Found by probing: 200k nested `[`,
+  300k `!`, 300k-part `.` chains crashed; 100k nested `if` hung.
+- **Doc-type parsing:** a security review (2026-10-07) found
+  `types.FromDoc` exponential on nested generics (`array<array<…>>`, ×2 per
+  level, ~30 levels hangs) — a single doc comment could hang CI or the LSP
+  server. Fixed with linear parsing plus depth/size caps and a fuzz target.
 
 ## Clean-room incidents
 

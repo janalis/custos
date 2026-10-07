@@ -17,7 +17,8 @@ func (e *Env) narrow(t types.Type, v *syntax.Variable, scope syntax.Node) types.
 }
 
 // narrowKey identifies an expression whose type guards can refine: a
-// variable by its name, or `$this->prop` as "this->prop" ("" otherwise).
+// variable by its name, `$this->prop` as "this->prop", and an element with
+// a literal key of either (`$a['k']`) as dimKey(base, key) ("" otherwise).
 func narrowKey(x syntax.Expr) string {
 	switch n := x.(type) {
 	case *syntax.Variable:
@@ -30,8 +31,34 @@ func narrowKey(x syntax.Expr) string {
 				return "this->" + id.Value
 			}
 		}
+	case *syntax.ArrayDimFetch:
+		if n.Dim == nil {
+			return ""
+		}
+		base := narrowKey(n.Var)
+		if base == "" || isDimKey(base) {
+			return ""
+		}
+		if k, ok := literalKey(n.Dim); ok {
+			return dimKey(base, k)
+		}
 	}
 	return ""
+}
+
+// dimSep separates the base and the key of an element's narrowing key.
+const dimSep = "\x01"
+
+// dimKey is the narrowing key of element `key` of base (see narrowKey);
+// dimKey(base, "*") collects the writes with a computed key.
+func dimKey(base, key string) string { return base + dimSep + key }
+
+func isDimKey(k string) bool { return strings.Contains(k, dimSep) }
+
+// splitDimKey returns the base and key of an element's narrowing key.
+func splitDimKey(k string) (base, key string) {
+	base, key, _ = strings.Cut(k, dimSep)
+	return base, key
 }
 
 // narrowExpr refines the type t of occurrence x (identified by key, see
@@ -98,12 +125,147 @@ func (e *Env) cond(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Ex
 
 func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, truthy bool, from uint32) types.Type {
 	r := e.applyCond(t, c, key, truthy)
+	if isDimKey(key) {
+		// An element is narrowed only while neither it nor its array can
+		// have changed since the condition.
+		if r.ShapeString() != t.ShapeString() && e.dimBroken(scope, key, from, use) {
+			return t
+		}
+		return r
+	}
+	if k, changed := e.applyKeyCond(r, c, key, truthy); changed && !e.nonEmptyBroken(scope, key, from, use) {
+		r = k
+	}
 	if r.IsNonEmptyArray() && !t.IsNonEmptyArray() {
 		if e.nonEmptyBroken(scope, key, from, use) {
 			r = r.WithNonEmpty(false)
 		}
 	}
 	return r
+}
+
+// dimBroken reports whether element key (a dimKey) may have changed
+// between from and use: a mutation of its array (assignment, reference,
+// unset, by-reference argument; for `$this->prop` any call), or a write to
+// the same literal key or to a computed key.
+func (e *Env) dimBroken(scope syntax.Node, key string, from uint32, use syntax.Node) bool {
+	base, _ := splitDimKey(key)
+	if e.nonEmptyBroken(scope, base, from, use) {
+		return true
+	}
+	muts := append(append([]mutation(nil), e.mutations(scope, key)...), e.mutations(scope, dimKey(base, "*"))...)
+	return e.brokenBy(scope, muts, from, use)
+}
+
+// applyKeyCond narrows the array t of variable (or `$this->prop`) name by
+// conditions on its elements: `isset($a['k'])`, `$a['k'] !== null`,
+// `!empty($a['k'])`, `$a['k']` (truthy) make key k present with a non-null
+// (non-false for the last two) value; `array_key_exists('k', $a)` makes it
+// present. The array then is neither null nor false, and non-empty.
+// changed reports whether a condition applied.
+func (e *Env) applyKeyCond(t types.Type, cond syntax.Expr, name string, truthy bool) (types.Type, bool) {
+	elem := func(x syntax.Expr) (string, bool) {
+		d, ok := unparen(x).(*syntax.ArrayDimFetch)
+		if !ok || d.Dim == nil || narrowKey(d.Var) != name {
+			return "", false
+		}
+		return literalKey(d.Dim)
+	}
+	switch c := unparen(cond).(type) {
+	case *syntax.Unary:
+		if c.Op.Kind == syntax.TExclaim {
+			return e.applyKeyCond(t, c.Expr, name, !truthy)
+		}
+	case *syntax.Binary:
+		switch c.Op.Kind {
+		case syntax.TBooleanAnd, syntax.TAnd:
+			if truthy {
+				l, cl := e.applyKeyCond(t, c.Left, name, true)
+				r, cr := e.applyKeyCond(l, c.Right, name, true)
+				return r, cl || cr
+			}
+		case syntax.TBooleanOr, syntax.TOr:
+			if !truthy {
+				l, cl := e.applyKeyCond(t, c.Left, name, false)
+				r, cr := e.applyKeyCond(l, c.Right, name, false)
+				return r, cl || cr
+			}
+		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+			notNull := c.Op.Kind == syntax.TIsNotIdentical || c.Op.Kind == syntax.TIsNotEqual
+			if notNull != truthy {
+				break
+			}
+			k, ok := elem(c.Left)
+			other := c.Right
+			if !ok {
+				k, ok = elem(c.Right)
+				other = c.Left
+			}
+			if ok && isNullConst(other) {
+				return keyPresent(t, k, "null"), true
+			}
+		}
+	case *syntax.Isset:
+		if !truthy {
+			break
+		}
+		changed := false
+		for _, x := range c.Vars {
+			if k, ok := elem(x); ok {
+				t, changed = keyPresent(t, k, "null"), true
+			}
+		}
+		return t, changed
+	case *syntax.Empty:
+		if k, ok := elem(c.Expr); ok && !truthy {
+			return keyPresent(t, k, "null", "false"), true
+		}
+	case *syntax.ArrayDimFetch:
+		if k, ok := elem(c); ok && truthy {
+			return keyPresent(t, k, "null", "false"), true
+		}
+	case *syntax.FuncCall:
+		nm, ok := c.Name.(*syntax.Name)
+		if !ok || !truthy || c.Args == nil || len(c.Args.Args) != 2 {
+			break
+		}
+		switch strings.ToLower(strings.TrimPrefix(nm.Value, `\`)) {
+		case "array_key_exists", "key_exists":
+		default:
+			return t, false
+		}
+		a0, ok0 := c.Args.Args[0].(*syntax.Arg)
+		a1, ok1 := c.Args.Args[1].(*syntax.Arg)
+		if !ok0 || !ok1 || a0.Name != nil || a1.Name != nil || a0.Unpack || a1.Unpack || narrowKey(unparen(a1.Value)) != name {
+			break
+		}
+		if k, ok := literalKey(a0.Value); ok {
+			return keyPresent(t, k), true
+		}
+	}
+	return t, false
+}
+
+// keyPresent marks key k of the array members of t as present (a shape
+// key becomes required, its value loses the drop atoms), the array as
+// non-empty, and drops null and false from t.
+func keyPresent(t types.Type, k string, drop ...string) types.Type {
+	if nt := t.Without("null", "false"); len(nt.Atoms()) > 0 {
+		t = nt
+	}
+	if t.HasShape() {
+		t = t.MapShape(func(sk types.ShapeKey) types.ShapeKey {
+			if sk.Name != k {
+				return sk
+			}
+			sk.Optional = false
+			if nv := sk.Type.Without(drop...); len(drop) > 0 && len(nv.Atoms()) > 0 {
+				sk.Type = nv
+			}
+			return sk
+		})
+	}
+	return t.WithNonEmpty(true)
 }
 
 // guards applies early-exit guards among the statements preceding child.
@@ -113,7 +275,7 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, stmts []s
 		if syntax.Node(s) == child {
 			break
 		}
-		if assigns(s, name) {
+		if assigns(s, name) || (isDimKey(name) && assignsBase(s, name)) {
 			// A later write invalidates earlier guards.
 			t = orig
 			continue
@@ -121,7 +283,7 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, stmts []s
 		if g, ok := s.(*syntax.If); ok && g.Else == nil && len(g.ElseIfs) == 0 {
 			if terminates(g.Body) {
 				t = e.condAt(use, scope, t, g.Cond, name, false, g.Span().End)
-			} else if val := e.overwrites(g.Body, name); val != nil {
+			} else if val := e.overwrites(g.Body, name); val != nil && !(isDimKey(name) && e.dimBroken(scope, name, g.Span().End, use)) {
 				// `if (false === $x) { $x = $default; }`: past the if, the
 				// condition no longer holds (unless the new value matches it).
 				vt := e.TypeOf(val)
@@ -132,6 +294,29 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, stmts []s
 		}
 	}
 	return t
+}
+
+// assignsBase reports whether statement s assigns the array whose element
+// dimKey name designates (`$a = …;`, `$a[$i] = …;`).
+func assignsBase(s syntax.Stmt, name string) bool {
+	es, ok := s.(*syntax.ExprStmt)
+	if !ok {
+		return false
+	}
+	a, ok := es.Expr.(*syntax.Assign)
+	if !ok {
+		return false
+	}
+	base, _ := splitDimKey(name)
+	x := a.Var
+	for {
+		d, ok := x.(*syntax.ArrayDimFetch)
+		if !ok {
+			break
+		}
+		x = d.Var
+	}
+	return narrowKey(x) == base
 }
 
 // assigns reports whether statement s writes variable name at its top level.
@@ -311,7 +496,9 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 		}
 		if truthy {
 			if cls := e.classRef(c.Class); cls != "" {
-				return types.Of(`\` + cls)
+				atom := `\` + cls
+				// Keep the generic arguments the type already had for it.
+				return types.Of(atom).WithTypeArgs(atom, t.TypeArgs(atom))
 			}
 			return t
 		}
@@ -324,7 +511,7 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 				return t.Without("null")
 			}
 		}
-	case *syntax.Variable, *syntax.PropertyFetch:
+	case *syntax.Variable, *syntax.PropertyFetch, *syntax.ArrayDimFetch:
 		if narrowKey(c) == name && truthy {
 			return t.Without("null", "false").WithNonEmpty(true)
 		}
@@ -369,7 +556,12 @@ func narrowAtoms(t types.Type, atoms []string, truthy bool) types.Type {
 	}
 	if len(drop) == len(t.Atoms()) {
 		if truthy {
-			return types.Of(atoms[0])
+			// Nothing known matches (e.g. mixed): the checked type, all of
+			// it (is_numeric() is int|float|string, not int).
+			if atoms[0] == "bool" {
+				return types.Bool
+			}
+			return types.Of(atoms...)
 		}
 		return t
 	}

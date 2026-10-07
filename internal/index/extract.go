@@ -16,6 +16,8 @@ type extractor struct {
 	r         *names.Resolver
 	out       *FileSymbols
 	templates map[string]bool   // @template names in scope (class + member)
+	classTpl  map[string]bool   // class-level @template names of the class being extracted
+	methodTpl map[string]bool   // @template names of the method being extracted
 	aliases   map[string]string // @phpstan-type / import-type names in scope
 }
 
@@ -145,14 +147,100 @@ func (x *extractor) doc(n syntax.Node) *phpdoc.Doc {
 
 func (x *extractor) class(n *syntax.ClassLike) {
 	d := x.doc(n)
-	saved := x.aliases
+	saved, savedTpl := x.aliases, x.classTpl
+	x.classTpl = nil
 	if d != nil {
 		if a := d.TypeAliases(); len(a) > 0 {
 			x.aliases = a
 		}
+		for _, t := range d.Templates() {
+			if x.classTpl == nil {
+				x.classTpl = map[string]bool{}
+			}
+			x.classTpl[t] = true
+		}
 	}
 	x.withTemplates(d, func() { x.classBody(n) })
-	x.aliases = saved
+	x.aliases, x.classTpl = saved, savedTpl
+}
+
+// genResolver resolves names like resolver, but keeps the class templates
+// of the class being extracted as `~T` (FromDoc atoms `\~T`) so that infer
+// can bind them per receiver; method templates read as mixed.
+func (x *extractor) genResolver(at uint32) types.Resolver {
+	return func(w string) string {
+		if x.methodTpl[w] {
+			return ""
+		}
+		if x.classTpl[w] {
+			return "~" + w
+		}
+		if x.templates[w] {
+			return ""
+		}
+		if def, ok := x.aliases[w]; ok {
+			return "=" + def
+		}
+		return x.r.Class(w, at)
+	}
+}
+
+// generics records the class templates of d and the generic arguments
+// given to the parents, interfaces and traits (@extends Base<Foo> …).
+func (x *extractor) generics(c *Class, d *phpdoc.Doc, at uint32) {
+	for _, p := range d.TemplateParams() {
+		c.Templates = append(c.Templates, Template{Name: p.Name, Bound: x.docTypeStr(p.Bound, at)})
+	}
+	for _, t := range d.Tags {
+		switch t.Name {
+		case "extends", "template-extends", "phpstan-extends", "psalm-extends",
+			"implements", "template-implements", "phpstan-implements", "psalm-implements",
+			"use", "template-use", "phpstan-use", "psalm-use":
+		default:
+			continue
+		}
+		typ, _ := phpdoc.SplitType(t.Text)
+		if !strings.Contains(typ, "<") {
+			continue
+		}
+		st := types.FromDoc(typ, x.genResolver(at))
+		cs := st.Classes()
+		if len(cs) != 1 {
+			continue
+		}
+		args := st.TypeArgs(cs[0])
+		if len(args) == 0 {
+			continue
+		}
+		sa := SuperArgs{Class: strings.TrimPrefix(cs[0], `\`), Args: make([]string, len(args))}
+		for i, a := range args {
+			sa.Args[i] = "mixed"
+			if !a.IsUnknown() {
+				sa.Args[i] = a.DocString()
+			}
+		}
+		c.Supers = append(c.Supers, sa)
+	}
+}
+
+// genReturn returns the documented return type of d when it mentions a
+// class template (as `\~T` atoms), preferring @phpstan-return and
+// @psalm-return, which carry the generic form when @return does not.
+func (x *extractor) genReturn(d *phpdoc.Doc, at uint32) string {
+	if len(x.classTpl) == 0 {
+		return ""
+	}
+	for _, tag := range []string{"phpstan-return", "psalm-return", "return"} {
+		t, ok := d.Tag(tag)
+		if !ok {
+			continue
+		}
+		typ, _ := phpdoc.SplitType(t.Text)
+		if ds := types.FromDoc(typ, x.genResolver(at)).DocString(); strings.Contains(ds, `\~`) {
+			return ds
+		}
+	}
+	return ""
 }
 
 func (x *extractor) classBody(n *syntax.ClassLike) {
@@ -184,6 +272,7 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 		c.Deprecated = d.Has("deprecated")
 		c.Avail = x.avail(n.Attrs, d)
 		x.magicMembers(c, d, at)
+		x.generics(c, d, at)
 	}
 	for _, m := range n.Members {
 		switch m := m.(type) {
@@ -283,7 +372,19 @@ func (x *extractor) params(ps []*syntax.Param, d *phpdoc.Doc, at uint32) []Param
 }
 
 func (x *extractor) method(c *Class, m *syntax.Method) {
-	x.withTemplates(x.doc(m), func() { x.methodBody(c, m) })
+	d := x.doc(m)
+	saved := x.methodTpl
+	x.methodTpl = nil
+	if d != nil {
+		for _, t := range d.Templates() {
+			if x.methodTpl == nil {
+				x.methodTpl = map[string]bool{}
+			}
+			x.methodTpl[t] = true
+		}
+	}
+	x.withTemplates(d, func() { x.methodBody(c, m) })
+	x.methodTpl = saved
 }
 
 func (x *extractor) methodBody(c *Class, m *syntax.Method) {
@@ -297,6 +398,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method) {
 	}
 	if d != nil {
 		meth.DocReturn = x.docTypeStr(d.ReturnType(), at)
+		meth.GenReturn = x.genReturn(d, at)
 		meth.Deprecated = d.Has("deprecated")
 	}
 	c.Methods[strings.ToLower(meth.Name)] = meth

@@ -25,19 +25,57 @@ var pseudo = map[string][]string{
 	"key-of": {"mixed"}, "value-of": {"mixed"}, "int-mask": {"int"}, "int-mask-of": {"int"},
 }
 
+// Limits on PHPDoc type parsing. Doc comments come from analysed (possibly
+// hostile) code: parsing is linear in the input (each sub-expression is
+// parsed once), and these caps bound the work on pathological input.
+const (
+	// MaxDocTypeLen is the longest doc type parsed; longer ones are unknown.
+	MaxDocTypeLen = 4096
+	// maxDocDepth caps the nesting of generic arguments, shapes, `[]`,
+	// parentheses and alias expansions; deeper parts read as mixed.
+	maxDocDepth = 32
+	// maxDocParts caps the number of type parts one FromDoc call parses
+	// (alias expansions included); beyond it parts read as mixed.
+	maxDocParts = 4096
+)
+
+// docParser carries the work budget of one FromDoc call.
+type docParser struct {
+	budget int
+}
+
 // FromDoc parses a PHPDoc type expression.
 func FromDoc(text string, resolve Resolver) Type {
+	text = strings.TrimSpace(text)
+	if text == "" || len(text) > MaxDocTypeLen {
+		return Unknown
+	}
+	p := docParser{budget: maxDocParts}
+	return p.union(text, resolve, 0)
+}
+
+// union parses a `|`-separated type: the atoms of its members, and the
+// array facts of the members with an array atom (see unionInfo).
+func (p *docParser) union(text string, resolve Resolver, depth int) Type {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return Unknown
 	}
+	parts := splitTop(text, '|')
+	if len(parts) == 1 {
+		return p.part(parts[0], resolve, depth)
+	}
 	var atoms []string
 	var infos []Type
-	for _, part := range splitTop(text, '|') {
-		pa := docAtoms(part, resolve)
-		atoms = append(atoms, pa...)
-		if t := Of(pa...); t.hasArrayAtom() {
-			infos = append(infos, t.withInfo(docArr(part, resolve)))
+	var gens [][]genEntry
+	for _, part := range parts {
+		pt := p.part(part, resolve, depth)
+		atoms = append(atoms, pt.atoms...)
+		if pt.hasArrayAtom() {
+			infos = append(infos, pt)
+		}
+		if pt.gen != nil {
+			gens = append(gens, pt.gen)
 		}
 	}
 	if len(atoms) == 0 {
@@ -47,80 +85,201 @@ func FromDoc(text string, resolve Resolver) Type {
 	if len(infos) > 0 {
 		t = t.withInfo(unionInfo(infos))
 	}
+	if len(gens) > 0 {
+		t = t.withGen(mergeGen(gens...))
+	}
 	return t
 }
 
-// docArr computes the array facts of one doc union member: shapes
-// (`array{k: T, k2?: U}`, `list{T, U}`), `non-empty-*` arrays, and the facts
-// of element types (`array<K, array{...}>`, `array{...}[]`). Nil when none.
-func docArr(s string, resolve Resolver) *arrayInfo {
+// plus returns a new slice holding a followed by extra.
+func plus(a []string, extra ...string) []string {
+	out := make([]string, 0, len(a)+len(extra))
+	return append(append(out, a...), extra...)
+}
+
+// part parses one union member: its atoms and array facts (shapes
+// `array{k: T, k2?: U}` / `list{T, U}`, `non-empty-*` arrays, the facts of
+// element types `array<K, array{...}>` / `array{...}[]`).
+func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 	s = strings.TrimSpace(s)
 	if s == "" {
-		return nil
+		return Unknown
+	}
+	p.budget--
+	if depth > maxDocDepth || p.budget < 0 {
+		return Mixed
 	}
 	if s[0] == '?' {
-		return docArr(s[1:], resolve)
+		in := p.part(s[1:], resolve, depth+1)
+		return Of(plus(in.atoms, "null")...).withInfo(in.arr).withGen(in.gen)
 	}
 	if s[0] == '(' && s[len(s)-1] == ')' && matchingClose(s) == len(s)-1 {
-		if _, _, ok := conditionalBranches(s[1 : len(s)-1]); ok {
-			return nil
+		if a, b, ok := conditionalBranches(s[1 : len(s)-1]); ok {
+			ta, tb := p.union(a, resolve, depth+1), p.union(b, resolve, depth+1)
+			return ofAtoms(plus(ta.atoms, tb.atoms...))
 		}
-		return FromDoc(s[1:len(s)-1], resolve).arr
+		return p.union(s[1:len(s)-1], resolve, depth+1)
 	}
-	if len(splitTop(s, '&')) > 1 {
-		return nil
+	if parts := splitTop(s, '&'); len(parts) > 1 {
+		var out []string
+		var gens [][]genEntry
+		for _, x := range parts {
+			pt := p.part(x, resolve, depth+1)
+			out = append(out, pt.atoms...)
+			gens = append(gens, pt.gen)
+		}
+		return ofAtoms(out).withGen(mergeGen(gens...))
 	}
+	// Literal types: 'foo', 1, 1.5
+	if s[0] == '\'' || s[0] == '"' {
+		return String
+	}
+	if s[0] >= '0' && s[0] <= '9' || s[0] == '-' {
+		if strings.ContainsAny(s, ".eE") {
+			return Float
+		}
+		return Int
+	}
+	// T[]
 	if strings.HasSuffix(s, "[]") {
-		if el := FromDoc(s[:len(s)-2], resolve); el.arr != nil {
-			return &arrayInfo{elem: el.arr}
+		in := p.part(s[:len(s)-2], resolve, depth+1)
+		out := make([]string, 0, len(in.atoms))
+		for _, a := range in.atoms {
+			out = append(out, a+"[]")
 		}
-		return nil
+		t := ofAtoms(out)
+		if in.arr != nil {
+			t = t.withInfo(&arrayInfo{elem: in.arr})
+		}
+		return t
 	}
+	// Generic forms: name<...> and shapes name{...}, callable(...)
 	base, args := s, ""
 	if i := strings.IndexAny(s, "<{("); i > 0 {
 		base, args = s[:i], s[i:]
 	}
 	low := strings.ToLower(base)
-	var a arrayInfo
 	switch low {
-	case "array", "list":
-	case "non-empty-array", "non-empty-list":
-		a.nonEmpty = true
-	default:
-		// A type alias (@phpstan-type) standing for an array shape.
-		if resolve != nil && base != "" && base[0] != '$' && !isBuiltinAtom(low) && pseudo[low] == nil {
-			if fqn := resolve(base); strings.HasPrefix(fqn, "=") && len(fqn) > 1 && fqn[1:] != base {
-				return FromDoc(fqn[1:], aliasGuard(resolve, base)).arr
-			}
+	case "array", "list", "non-empty-array", "non-empty-list", "iterable":
+		return p.arrayPart(low, args, resolve, depth)
+	case "callable", "closure", "\\closure":
+		if low == "callable" {
+			return Of("callable")
 		}
-		return nil
+		return Of(`\Closure`)
+	case "int":
+		return Int // int<0, max>
 	}
-	if end := matchingClose(args); end == len(args)-1 && end > 0 {
-		inner := args[1:end]
-		switch args[0] {
-		case '<':
-			gen := splitTop(inner, ',')
-			a.elem = FromDoc(gen[len(gen)-1], resolve).arr
-		case '{':
-			keys, sealed, ok := parseShape(inner, resolve)
-			if !ok {
-				return norm(&a)
+	if ps, ok := pseudo[low]; ok {
+		return Of(ps...)
+	}
+	if isBuiltinAtom(low) || scalarAliases[low] != "" {
+		return Of(normalizeAtom(low))
+	}
+	if low == "$this" {
+		return Of("static")
+	}
+	if strings.HasPrefix(base, "$") || base == "" {
+		return Unknown
+	}
+	// Class name (generic arguments dropped).
+	fqn := base
+	if resolve != nil {
+		fqn = resolve(base)
+		if fqn == "" {
+			// The resolver reports template parameters (@template T) as "".
+			return Mixed
+		}
+		if strings.HasPrefix(fqn, "=") {
+			// Type alias (@phpstan-type / @psalm-type): "=<definition>".
+			def := fqn[1:]
+			if def == "" || def == base {
+				return Mixed
 			}
-			if len(keys) > MaxShapeKeys {
-				for _, k := range keys {
-					a.nonEmpty = a.nonEmpty || !k.Optional
-				}
-				return norm(&a)
+			// Aliases may use other aliases (not themselves).
+			return p.union(def, aliasGuard(resolve, base), depth+1)
+		}
+	} else {
+		fqn = strings.TrimPrefix(base, `\`)
+	}
+	t := Of(`\` + fqn)
+	if strings.HasPrefix(args, "<") && matchingClose(args) == len(args)-1 {
+		// Generic arguments: Collection<int, Foo>.
+		t = t.WithTypeArgs(t.atoms[0], p.typeArgs(args[1:len(args)-1], resolve, depth))
+	}
+	return t
+}
+
+// typeArgs parses a comma-separated generic argument list.
+func (p *docParser) typeArgs(inner string, resolve Resolver, depth int) []Type {
+	parts := splitTop(inner, ',')
+	out := make([]Type, len(parts))
+	for i, a := range parts {
+		out[i] = p.union(a, resolve, depth+1)
+	}
+	return out
+}
+
+// ofAtoms is Of for a possibly empty atom list (empty: unknown).
+func ofAtoms(atoms []string) Type {
+	if len(atoms) == 0 {
+		return Unknown
+	}
+	return Of(atoms...)
+}
+
+// arrayPart parses `array`, `list`, `non-empty-array`, `non-empty-list` and
+// `iterable`, with optional generic arguments `<K, V>` or a shape `{…}`.
+func (p *docParser) arrayPart(low, args string, resolve Resolver, depth int) Type {
+	var a arrayInfo
+	a.nonEmpty = strings.HasPrefix(low, "non-empty-")
+	end := matchingClose(args)
+	closed := end == len(args)-1 && end > 0
+	if strings.HasPrefix(args, "<") {
+		inner := args[1:]
+		if end > 0 {
+			inner = args[1:end]
+		}
+		if low == "iterable" {
+			// iterable<V> / iterable<K, V>
+			return Of("iterable").WithTypeArgs("iterable", p.typeArgs(inner, resolve, depth))
+		}
+		gen := splitTop(inner, ',')
+		// The element type may itself be a union (array<string, int|false>).
+		el := p.union(gen[len(gen)-1], resolve, depth+1)
+		out := make([]string, 0, len(el.atoms))
+		for _, x := range el.atoms {
+			out = append(out, x+"[]")
+		}
+		if len(out) == 0 {
+			out = append(out, "array")
+		}
+		if closed {
+			a.elem = el.arr
+		}
+		return Of(out...).withInfo(&a)
+	}
+	if low == "iterable" {
+		return Of("iterable")
+	}
+	if closed && args[0] == '{' {
+		keys, sealed, ok := p.shape(args[1:end], resolve, depth+1)
+		switch {
+		case !ok:
+		case len(keys) > MaxShapeKeys:
+			for _, k := range keys {
+				a.nonEmpty = a.nonEmpty || !k.Optional
 			}
+		default:
 			a.shape, a.sealed, a.keys = true, sealed, keys
 		}
 	}
-	return norm(&a)
+	return Array.withInfo(&a)
 }
 
-// parseShape parses the body of a doc shape: `k: T, 'k2'?: U, 0: V, ...`
+// shape parses the body of a doc shape: `k: T, 'k2'?: U, 0: V, ...`
 // or positional `T, U` (keys 0, 1, ...). A trailing `...` unseals it.
-func parseShape(body string, resolve Resolver) ([]ShapeKey, bool, bool) {
+func (p *docParser) shape(body string, resolve Resolver, depth int) ([]ShapeKey, bool, bool) {
 	sealed := true
 	var keys []ShapeKey
 	next := 0
@@ -145,7 +304,7 @@ func parseShape(body string, resolve Resolver) ([]ShapeKey, bool, bool) {
 				name = name[1 : len(name)-1]
 			}
 			k.Name = name
-			k.Type = FromDoc(strings.Join(kv[1:], ":"), resolve)
+			k.Type = p.union(strings.Join(kv[1:], ":"), resolve, depth)
 			if IsIntKey(name) {
 				if n, _ := strconv.Atoi(name); n >= next {
 					next = n + 1
@@ -154,7 +313,7 @@ func parseShape(body string, resolve Resolver) ([]ShapeKey, bool, bool) {
 		} else {
 			k.Name = strconv.Itoa(next)
 			next++
-			k.Type = FromDoc(entry, resolve)
+			k.Type = p.union(entry, resolve, depth)
 		}
 		if _, dup := findKey(keys, k.Name); dup {
 			return nil, false, false
@@ -182,125 +341,6 @@ func isShapeKey(s string) bool {
 		}
 	}
 	return true
-}
-
-func docAtoms(s string, resolve Resolver) []string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil
-	}
-	if strings.HasPrefix(s, "?") {
-		return append(docAtoms(s[1:], resolve), "null")
-	}
-	if strings.HasPrefix(s, "(") && strings.HasSuffix(s, ")") && matchingClose(s) == len(s)-1 {
-		if a, b, ok := conditionalBranches(s[1 : len(s)-1]); ok {
-			return append(FromDoc(a, resolve).Atoms(), FromDoc(b, resolve).Atoms()...)
-		}
-		var out []string
-		for _, p := range splitTop(s[1:len(s)-1], '|') {
-			out = append(out, docAtoms(p, resolve)...)
-		}
-		return out
-	}
-	if parts := splitTop(s, '&'); len(parts) > 1 {
-		var out []string
-		for _, p := range parts {
-			out = append(out, docAtoms(p, resolve)...)
-		}
-		return out
-	}
-	// Literal types: 'foo', 1, 1.5
-	if s[0] == '\'' || s[0] == '"' {
-		return []string{"string"}
-	}
-	if s[0] >= '0' && s[0] <= '9' || s[0] == '-' {
-		if strings.ContainsAny(s, ".eE") {
-			return []string{"float"}
-		}
-		return []string{"int"}
-	}
-	// T[]
-	if strings.HasSuffix(s, "[]") {
-		inner := docAtoms(s[:len(s)-2], resolve)
-		out := make([]string, 0, len(inner))
-		for _, a := range inner {
-			out = append(out, a+"[]")
-		}
-		return out
-	}
-	// Generic forms: name<...> and shapes name{...}, callable(...)
-	base, args := s, ""
-	if i := strings.IndexAny(s, "<{("); i > 0 {
-		base, args = s[:i], s[i:]
-	}
-	low := strings.ToLower(base)
-	switch low {
-	case "array", "list", "non-empty-array", "non-empty-list", "iterable":
-		if strings.HasPrefix(args, "<") {
-			inner := args[1:]
-			if end := matchingClose(args); end > 0 {
-				inner = args[1:end]
-			}
-			gen := splitTop(inner, ',')
-			// The element type may itself be a union (array<string, int|false>).
-			elem := FromDoc(gen[len(gen)-1], resolve).Atoms()
-			if low == "iterable" {
-				return []string{"iterable"}
-			}
-			out := make([]string, 0, len(elem))
-			for _, a := range elem {
-				out = append(out, a+"[]")
-			}
-			if len(out) == 0 {
-				return []string{"array"}
-			}
-			return out
-		}
-		if low == "iterable" {
-			return []string{"iterable"}
-		}
-		return []string{"array"}
-	case "callable", "closure", "\\closure":
-		if low == "callable" {
-			return []string{"callable"}
-		}
-		return []string{`\Closure`}
-	case "int":
-		return []string{"int"} // int<0, max>
-	}
-	if p, ok := pseudo[low]; ok {
-		return p
-	}
-	if isBuiltinAtom(low) || scalarAliases[low] != "" {
-		return []string{normalizeAtom(low)}
-	}
-	if low == "$this" {
-		return []string{"static"}
-	}
-	if strings.HasPrefix(base, "$") || base == "" {
-		return nil
-	}
-	// Class name (generic arguments dropped).
-	fqn := base
-	if resolve != nil {
-		fqn = resolve(base)
-		if fqn == "" {
-			// The resolver reports template parameters (@template T) as "".
-			return []string{"mixed"}
-		}
-		if strings.HasPrefix(fqn, "=") {
-			// Type alias (@phpstan-type / @psalm-type): "=<definition>".
-			def := fqn[1:]
-			if def == "" || def == base {
-				return []string{"mixed"}
-			}
-			// Aliases may use other aliases (not themselves).
-			return FromDoc(def, aliasGuard(resolve, base)).Atoms()
-		}
-	} else {
-		fqn = strings.TrimPrefix(base, `\`)
-	}
-	return []string{`\` + fqn}
 }
 
 // aliasGuard wraps resolve so that expanding alias name cannot recurse into

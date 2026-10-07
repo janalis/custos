@@ -279,3 +279,32 @@ func (ix *Index) Stats() (files, classes, functions, constants int) {
 	}
 	return len(ix.files), classes, functions, constants
 }
+
+// DropStaleInferred clears the body-inferred return types of fs when the
+// index declares one of its ReturnDeps (a namespaced function the inference
+// took for the global one). Call it before fs is shared with readers.
+func (ix *Index) DropStaleInferred(fs *FileSymbols) {
+	if len(fs.ReturnDeps) == 0 {
+		return
+	}
+	stale := false
+	ix.mu.RLock()
+	for _, d := range fs.ReturnDeps {
+		if len(ix.functions[key(d)]) > 0 {
+			stale = true
+			break
+		}
+	}
+	ix.mu.RUnlock()
+	if !stale {
+		return
+	}
+	for _, f := range fs.Functions {
+		f.Inferred = ""
+	}
+	for _, c := range fs.Classes {
+		for _, m := range c.Methods {
+			m.Inferred = ""
+		}
+	}
+}
