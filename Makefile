@@ -110,9 +110,11 @@ COVER_CHECK = awk -v what="$(1)" -v allow="$(2)" 'BEGIN { na = split(allow, ex, 
 coverage:
 	@mkdir -p .cache
 	go test ./internal/conformance ./internal/rules/... -skip '$(COVER_SKIP)' \
-		-coverpkg=./internal/rules/... -coverprofile=.cache/rules-cover.out >/dev/null
+		-coverpkg=./internal/rules/... -coverprofile=.cache/rules-cover.out >.cache/rules-cover.log 2>&1 \
+		|| { grep -E -B2 -A20 '^(--- FAIL|FAIL|panic:)' .cache/rules-cover.log; exit 1; }
 	@$(call COVER_CHECK,internal/rules,) .cache/rules-cover.out
-	go test ./... -skip '$(COVER_SKIP)' -coverpkg=./cmd/...,./internal/...,./tools/... -coverprofile=.cache/all-cover.out >/dev/null
+	go test ./... -skip '$(COVER_SKIP)' -coverpkg=./cmd/...,./internal/...,./tools/... -coverprofile=.cache/all-cover.out >.cache/all-cover.log 2>&1 \
+		|| { grep -E -B2 -A20 '^(--- FAIL|FAIL|panic:)' .cache/all-cover.log; exit 1; }
 	@$(call COVER_CHECK,cmd/ internal/ and tools/,$(COVER_MAINS)) .cache/all-cover.out
 
 clean:

@@ -49,7 +49,16 @@ versions follow [Semantic Versioning](https://semver.org/).
   ClassOverridesFieldOfSuperClass, PropertyInitializationFlaws.
 - Unsafe quick-fixes: nullable return types where values can be null,
   preload/autoload requires kept, `@mkdir` kept, typed property defaults
-  kept.
+  kept; regex-to-string-function rewrites only when exactly equivalent
+  (`$` and trailing newlines, `\s` vs `trim()`, modifiers).
+- Parser: `if ($a) ?>html` (close tag as an empty body), `readonly(` as a
+  call on PHP 8.2+, `new` without parentheses, `break N` levels; about 50
+  further rule, engine, CLI and LSP bugs found by the 100% coverage work
+  (see `docs/decisions.md`).
+- CLI: unknown `--fail-on` / `--format` values are usage errors (a typo
+  no longer disables the CI gate); `fix` continues past unwritable files.
+- LSP: `custos.json` `paths`/`exclude`/`baseline` honoured when the editor
+  sends settings; crashing requests return an error instead of success.
 
 ### Notes
 - custos intentionally diverges from upstream where upstream behaviour is
