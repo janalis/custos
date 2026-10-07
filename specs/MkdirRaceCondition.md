@@ -116,7 +116,9 @@ namespace declaring `function is_dir()`, F1 gives
   (one space after the comma inside `sprintf`):
   - normal: `if (!mkdir(ARGS) && !is_dir(DIR)) { THROW(DIR) }`
   - temp-var: `if (!mkdir($concurrentDirectory = ARGS) && !is_dir($concurrentDirectory)) { THROW($concurrentDirectory) }`
-  Any `@` or `!` in front of the original call is dropped. Keep a space after
+  Any `!` in front of the original call is dropped; an `@` is kept in front
+  of the new `mkdir` (`!@mkdir(ARGS) && !is_dir(DIR)`; also in F2/F3, see
+  Divergences). Keep a space after
   `{` and before `}` (output is compared whitespace-collapsed).
 - **F2** (D5) Replace the whole `if` condition `T` (dropping its extra
   parentheses, comparisons, `!` and `@`) with:
@@ -219,3 +221,8 @@ inverted.)
   original `\mkdir(...)` in a namespace declaring its own `mkdir` is
   rewritten to call the user function. custos qualifies those names with
   `\` when needed (Fix, "Builtin spelling").
+- **Silence operator kept (custos diverges).** Upstream drops an `@` in
+  front of the original call. Without it, `mkdir()` emits a "File exists"
+  warning precisely in the race the re-check is meant to absorb (and
+  frameworks that turn warnings into exceptions then throw). custos writes
+  `@mkdir(ARGS)` in every fix form when the original call was silenced.

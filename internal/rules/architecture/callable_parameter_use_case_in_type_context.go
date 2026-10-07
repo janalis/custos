@@ -52,6 +52,7 @@ func (callableParameterUseCaseInTypeContext) Check(ctx *analysis.Context, n synt
 	}
 	tr := infer.NewTRules(ctx.Types())
 	tr.SpecOnly = true
+	tr.SoundArithmetic = true // `time() + $untyped` is not known to be a float
 	cp := &cpState{ctx: ctx, fn: n, tr: tr}
 	var accesses map[string][]*syntax.Variable
 	for _, p := range params {

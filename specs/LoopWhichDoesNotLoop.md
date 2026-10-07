@@ -22,7 +22,8 @@ Applies to `foreach`, `for`, `while` and `do … while` loops `L`.
 - **D1** `L` has a braced body `{ … }`. Loops without a group body
   (`while (x) stmt;`, `for (;;);`) are never reported.
 - **D2** Let `last` be the last statement of the body, ignoring comments and
-  docblocks. Either the body has no statement at all (`{}` or only comments),
+  docblocks. Either the body has no statement at all (`{}` or only comments;
+  custos: `foreach` only, see Divergences),
   or `last` is a `break` (any level), a `return` (with or without value) or a
   `throw` statement.
 - **D3** No `continue` inside the body continues `L`. For every `continue`
@@ -141,3 +142,8 @@ while ($ok) break;
 - Alternative syntax (`foreach (…): … endforeach;`): upstream behaviour
   depends on whether the parser exposes a group body; recommendation: treat
   the statement list as the body.
+- **Empty `while`/`do`/`for` bodies (custos diverges).** Upstream reports
+  any empty loop body, but `while (@ob_end_flush()) {}` or
+  `for (; next($a) !== false;) {}` repeat as long as the condition holds —
+  the condition does the work. custos reports an empty body only for
+  `foreach`.

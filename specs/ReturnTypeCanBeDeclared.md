@@ -41,6 +41,16 @@ engine enforce the contract and documents it in the signature.
   `@var`-annotated variables, etc. A type that cannot be determined is
   *unknown* (e.g. `mixed`-returning calls are `mixed`, which is known but not
   declarable; an unresolvable call, or an untyped parameter, is unknown).
+- **D5b** (custos) For a `return $this->p;` whose property `p` has no
+  native type, is not static/promoted/magic, has no default or a `null`
+  default, and is not assigned (non-null) by a top-level statement of this
+  class's constructor, also add `null`: such a property holds null until
+  written, whatever its `@var` says (`@var int` on a nullable ORM column).
+  When the property's own type is unknown (no `@var`), that return
+  contributes `null` instead of an unknown member (the `@return` tag
+  describes the written values).
+  A doc type that is not a valid type or class name (`@return {array}`,
+  `@return self::KIND_*`) contributes nothing (unknown).
 - **D6** If `R0` contains any unknown member, stop — unless `R0` has exactly
   two members, exactly one of which is known (a contribution from an
   unresolvable parent/interface declaration must not block the report; in our
@@ -49,7 +59,7 @@ engine enforce the contract and documents it in the signature.
   any type containing `[]` → `array`; `boolean`, `true`, `false` → `bool`;
   `integer` → `int`; `\Closure` → `callable`; `$this` → `static`; the
   built-in names `array iterable string bool int float number null void mixed
-  callable resource static self object`, written with or without a leading
+  callable resource static self object never parent`, written with or without a leading
   backslash, map to themselves without the backslash. Anything else (class
   names) stays as its fully-qualified name with a leading `\`. Let `R` be the
   resulting **set** (duplicates collapse).
@@ -323,3 +333,15 @@ abstract class Node {
   methods by exact name, so `__TOSTRING()` or `__DebugInfo()` get a return
   type suggestion (and a fix that may conflict with the magic signature).
   custos compares the names case-insensitively (D3).
+- **Implicitly null properties (custos diverges).** Upstream trusts the
+  property's `@var` for `return $this->p;`, so an entity getter
+  `/** @return int */ function getId() { return $this->id; }` over
+  `/** @var int */ private $id;` gets `: int` — a TypeError whenever the
+  property is still null (new object, nullable column). custos adds `null`
+  for untyped properties without a non-null default that the constructor
+  does not assign (D5b) and suggests `?int`.
+- **`never` and malformed doc types (custos diverges).** `return exit();`
+  infers `never`, which upstream treats as a class name (`: \never`, invalid
+  before 8.1 and a compile error in a returning method after); custos treats
+  `never` (and `parent`) as non-suggestible built-ins. Doc types that are not
+  type or class names (`{array}`) are ignored instead of becoming `\{array}`.

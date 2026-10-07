@@ -27,6 +27,12 @@ preload script usually wants.
 - **E1** Any other file name (`Preload.php`, `preload.inc.php`, `boot.php`).
 - **E2** `$cfg = require 'config.php';`, `$cfg = (require 'config.php');`,
   `return include 'x.php';`, `if (include 'x.php') {}`.
+- **E3** (custos) The argument contains a string literal (or literal part of
+  an interpolated string) mentioning `autoload` or `preload`
+  (case-insensitive): `require __DIR__.'/vendor/autoload.php';`,
+  `require dirname(__DIR__).'/var/cache/prod/App_KernelProdContainer.preload.php';`.
+  Such files must run (register the autoloader, execute the generated
+  preload list); compiling them does nothing useful.
 
 ## Report
 - Range: the inclusion expression, from the keyword through the end of its
@@ -81,3 +87,10 @@ None.
   which a function of that name declared in (or imported into) the current
   namespace captures, so the fix would call user code. custos writes
   `\opcache_compile_file(` in that case.
+- **Scripts that must run (custos diverges).** Upstream reports every
+  statement-level inclusion, including the Composer autoloader and the
+  preload script Symfony generates (`config/preload.php` requires
+  `var/cache/prod/*.preload.php`, which itself loads classes and calls
+  `Preloader::preload()`). Replacing those with `opcache_compile_file()`
+  silently disables preloading (and autoloading). custos skips inclusions
+  whose path literal mentions `autoload` or `preload` (E3).

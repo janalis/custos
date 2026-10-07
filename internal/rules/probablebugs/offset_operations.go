@@ -152,7 +152,7 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		cls := strings.TrimPrefix(a, `\`)
 		if ctx.Index().Class(cls, ctx.PHP) == nil {
-			continue
+			return // D1: an unresolvable class empties S
 		}
 		for _, m := range []string{"offsetGet", "offsetSet", "__get", "__set"} {
 			meth := ctx.Index().FindMethod(cls, m, ctx.PHP)

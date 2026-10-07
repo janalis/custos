@@ -125,6 +125,6 @@ function run(Thing $t, Sealed $s) {
 		"loose":      "?unknown",
 		"inherited":  "?unknown",
 		"sealed":     "true",
-		"polyfill":   "?unknown", // a builtin's polyfill body is not trusted
+		"polyfill":   "string", // the builtin (8.3+) runs, not its polyfill
 	})
 }

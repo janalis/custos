@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
+	"custos/internal/analysis/util"
 	"custos/internal/index"
 	"custos/internal/phpdoc"
 	"custos/internal/phpver"
@@ -34,7 +35,7 @@ var rtdMagic = map[string]bool{
 var rtdBuiltin = map[string]bool{
 	"array": true, "iterable": true, "string": true, "bool": true, "int": true, "float": true,
 	"number": true, "null": true, "void": true, "mixed": true, "callable": true, "resource": true,
-	"static": true, "self": true, "object": true,
+	"static": true, "self": true, "object": true, "never": true, "parent": true,
 }
 
 var rtdScalarOK = map[string]bool{
@@ -170,6 +171,13 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 					t := rtdExprType(ctx, x.Expr)
 					if t.IsUnknown() {
 						t = rtdInheritedParamType(ctx, class, m, x.Expr)
+					}
+					if rtdImplicitNullProp(ctx, class, x.Expr) { // D5b
+						if t.IsUnknown() {
+							t = types.Null // the @return tag covers the written values
+						} else {
+							add(types.Null)
+						}
 					}
 					add(t)
 				}
@@ -517,4 +525,40 @@ func rtdInheritedParamType(ctx *analysis.Context, class *syntax.ClassLike, m *sy
 		return types.Unknown
 	}
 	return types.Unknown
+}
+
+// rtdImplicitNullProp implements D5b: e reads `$this->p` where p has no
+// native type and no non-null default, so it holds null until written —
+// unless p is a promoted parameter or this class's constructor assigns it
+// in a top-level statement. (Its @var documentation does not prevent null:
+// `@var int` on a nullable ORM column is the common case.)
+func rtdImplicitNullProp(ctx *analysis.Context, class *syntax.ClassLike, e syntax.Expr) bool {
+	for {
+		pe, ok := e.(*syntax.Paren)
+		if !ok {
+			break
+		}
+		e = pe.Expr
+	}
+	pf, ok := e.(*syntax.PropertyFetch)
+	if !ok || pf.NullSafe {
+		return false
+	}
+	v, ok := pf.Var.(*syntax.Variable)
+	id, ok2 := pf.Name.(*syntax.Identifier)
+	if !ok || !ok2 || v.NameExpr != nil || v.Name != "this" {
+		return false
+	}
+	fqn := strings.TrimPrefix(ctx.Types().ClassFQN(class), `\`)
+	if fqn == "" {
+		return false
+	}
+	p := ctx.Index().FindProperty(fqn, id.Value, ctx.PHP)
+	if p == nil || p.Type != "" || p.Static || p.Promoted || p.Magic {
+		return false
+	}
+	if p.HasDefault && !strings.EqualFold(strings.TrimPrefix(strings.TrimSpace(p.Default), `\`), "null") {
+		return false
+	}
+	return !util.CtorAssignsProperty(class, id.Value)
 }

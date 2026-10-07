@@ -1,8 +1,8 @@
 <?php
 class Key
 {
-    private array $data = [];
-    private string $label = <weak_warning descr="Default is always replaced by the constructor; remove it.">'key'</weak_warning>;
+    private $data = [];
+    private $label = <weak_warning descr="Default is always replaced by the constructor; remove it.">'key'</weak_warning>;
 
     public function __construct(?array $data = null, string $label = 'k')
     {
@@ -16,7 +16,7 @@ class Key
 
 class Token
 {
-    private string $value = <weak_warning descr="Default is always replaced by the constructor; remove it.">''</weak_warning>;
+    private $value = <weak_warning descr="Default is always replaced by the constructor; remove it.">''</weak_warning>;
 
     public function __construct(string $value)
     {

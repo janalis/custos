@@ -793,6 +793,27 @@ func (e *Env) overrideType(n *syntax.FuncCall) (types.Type, bool) {
 				return types.Array, true
 			}
 		}
+	case "mb_convert_encoding":
+		// An array only for an array input.
+		if a := arg(0); a != nil {
+			st := e.TypeOf(a)
+			if st.OnlyOf("string", "int", "float", "bool", "true", "false", "null") {
+				return types.Of("string", "false"), true
+			}
+			if st.IsArrayLike() {
+				return types.Of("array", "false"), true
+			}
+		}
+	case "array_rand":
+		// One key unless a count other than 1 is asked for.
+		if len(n.Args.Args) == 1 {
+			return types.Of("int", "string"), true
+		}
+		if c := arg(1); c != nil {
+			if lit, ok := unparen(c).(*syntax.Literal); ok && lit.LitKind == syntax.LitInt && lit.Raw == "1" {
+				return types.Of("int", "string"), true
+			}
+		}
 	case "current", "reset", "end", "next", "prev", "array_pop", "array_shift":
 		if a := arg(0); a != nil {
 			at := e.TypeOf(a)
@@ -1015,7 +1036,11 @@ func (e *Env) variableType(v *syntax.Variable) types.Type {
 			t = t.WithNonEmpty(false)
 		}
 	}
-	return e.narrow(t, v, scope)
+	after := uint32(0)
+	for _, d := range fwd {
+		after = max(after, d.pos, d.end)
+	}
+	return e.narrow(t, v, scope, after)
 }
 
 // iterElem is the element type of iterating over t: unknown as soon as one

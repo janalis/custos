@@ -51,7 +51,10 @@ Cast kinds and their target type:
 - **T1** *A* is a property fetch (`$obj->p`, `$this->p`, `$obj?->p`): resolve
   the property; only a **private** property yields a type, namely the
   property's own type (declared type; if none, union of its `@var` docblock
-  types and the type of its default value). Non-private or unresolved → empty.
+  types and the type of its default value — `null` when it has no default,
+  unless it is promoted or this class's constructor assigns it a non-null
+  value in a top-level statement; custos diverges, see Divergences).
+  Non-private or unresolved → empty.
 - **T2** *A* is a function / method / static-method call: resolve the callee;
   only if the callee has a **declared** return type (in source or stubs) does
   it yield a type, namely the call's type per T-rules below (R-function
@@ -89,7 +92,13 @@ Cast kinds and their target type:
      exact; this step is specific to this rule — specs referencing these
      T-rules, such as CallableParameterUseCaseInTypeContext, keep int);
      else int.
-  Consequences: `int op int` → int for `+`, `-`, `*`, `**`; `int / int` →
+  **custos (this rule only, see Divergences):** arithmetic is typed by
+  PHP's actual result instead: an operand with no known type → empty; any
+  float-only operand → float; int with int → int (`/` → `{int, float}`;
+  `**` with a non-literal exponent → `{int, float}`); arrays only for
+  `array + array`; anything else (numeric strings, null, bool) →
+  `{int, float}`.
+  Consequences (upstream heuristic): `int op int` → int for `+`, `-`, `*`, `**`; `int / int` →
   `{int, float}` (two types, so a cast of it is never reported, and a
   variable assigned from it is not single-typed either); any float operand →
   float; an unresolvable operand → float; a string operand (without int) →
@@ -301,3 +310,20 @@ After fix (changed lines):
   silent (empty type ⇒ no report).
 - `(string)` casts as concatenation operands are reported even when the operand
   is an object without `__toString` or an array; upstream does not check.
+- **Sound arithmetic (custos diverges).** Upstream's heuristic types an
+  arithmetic result as float when an operand is unresolvable or a string,
+  so `(float) ($cell * 100)` with `$cell` a `string|null` is reported —
+  yet `"41" * 100` is the int `4100` and the cast is not redundant. custos
+  types arithmetic by PHP's result rules (T-rules note above).
+- **Implicitly null private properties (custos diverges).** Upstream types
+  an untyped private property by `@var` plus its default; with no default
+  the property still holds null until written, so `(float) $this->cout`
+  over `/** @var float */ private $cout;` is not redundant (null → 0.0).
+  custos adds `null` unless the constructor assigns the property (T1).
+  EA cases `unnecessary-casting.php` and `unnecessary-casting.php8.php` are
+  listed divergences.
+- **`mb_convert_encoding()` (custos, shared T-rules).** Typed by its first
+  argument: `{string, bool}` for a scalar input, `{array, bool}` for an
+  array, instead of the stub's `array|string|false` (which made
+  `$text = mb_convert_encoding($text, 'UTF-8')` look like an array
+  assignment to CallableParameterUseCaseInTypeContext).

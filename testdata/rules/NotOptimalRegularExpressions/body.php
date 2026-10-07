@@ -39,8 +39,14 @@ function bodyDemo($s, $m) {
     preg_match('#<li>.*</li>#s', $s, $m);
     preg_match('#<li>[^<]*</li>#', $s, $m);
 
-    preg_match(<error descr="Non-ASCII characters in the pattern need the /u flag.">'/café/'</error>, $s, $m);
+    preg_match('/café/', $s, $m);
     preg_match('/café/u', $s, $m);
+    preg_replace('/\[entité\]/', 'x', $s);
+    preg_match(<error descr="Non-ASCII characters in the pattern need the /u flag.">'/[éè]/'</error>, $s, $m);
+    preg_match(<error descr="Non-ASCII characters in the pattern need the /u flag.">'/[^\]é]/'</error>, $s, $m);
+    preg_match(<error descr="Non-ASCII characters in the pattern need the /u flag.">'/né+/'</error>, $s, $m);
+    preg_match(<error descr="Non-ASCII characters in the pattern need the /u flag.">'/é/i'</error>, $s, $m);
+    preg_match('/€+/u', $s, $m);
     preg_match(<error descr="Unicode escapes (\p, \P, \X) need the /u flag.">'/\pL+/'</error>, $s, $m);
     preg_match(<error descr="Unicode escapes (\p, \P, \X) need the /u flag.">'/k\X/'</error>, $s, $m);
     preg_match('/\\p/', $s, $m);

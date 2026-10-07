@@ -14,8 +14,8 @@ import (
 // guard it: ternary branches, if/elseif/else bodies, the right operand of
 // && / ||, and early-exit guards (`if (cond) { return; }`) earlier in the
 // same block. Only checks on the same variable name are understood.
-func (e *Env) narrow(t types.Type, v *syntax.Variable, scope syntax.Node) types.Type {
-	return e.narrowExpr(t, v, v.Name, scope)
+func (e *Env) narrow(t types.Type, v *syntax.Variable, scope syntax.Node, after uint32) types.Type {
+	return e.narrowExprAfter(t, v, v.Name, scope, after)
 }
 
 // narrowKey identifies an expression whose type guards can refine: a
@@ -66,40 +66,54 @@ func splitDimKey(k string) (base, key string) {
 // narrowExpr refines the type t of occurrence x (identified by key, see
 // narrowKey) by the conditions guarding it.
 func (e *Env) narrowExpr(t types.Type, x syntax.Expr, key string, scope syntax.Node) types.Type {
+	return e.narrowExprAfter(t, x, key, scope, 0)
+}
+
+// narrowExprAfter is narrowExpr ignoring the enclosing conditions that end
+// before after (the end of the last definition reaching x): a value
+// assigned inside `if (null === $x) { $x = f(); }` is not narrowed by that
+// condition.
+func (e *Env) narrowExprAfter(t types.Type, x syntax.Expr, key string, scope syntax.Node, after uint32) types.Type {
 	if t.IsUnknown() || key == "" {
 		return t
+	}
+	cond := func(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, truthy bool) types.Type {
+		if c.Span().End < after {
+			return t
+		}
+		return e.cond(use, scope, t, c, key, truthy)
 	}
 	var child syntax.Node = x
 	for p := x.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
 		switch n := p.(type) {
 		case *syntax.Ternary:
 			if n.Then != nil && child == syntax.Node(n.Then) {
-				t = e.cond(x, scope, t, n.Cond, key, true)
+				t = cond(x, scope, t, n.Cond, key, true)
 			} else if child == syntax.Node(n.Else) && n.Then != nil {
-				t = e.cond(x, scope, t, n.Cond, key, false)
+				t = cond(x, scope, t, n.Cond, key, false)
 			}
 		case *syntax.Binary:
 			if child == syntax.Node(n.Right) {
 				switch n.Op.Kind {
 				case syntax.TBooleanAnd, syntax.TAnd:
-					t = e.cond(x, scope, t, n.Left, key, true)
+					t = cond(x, scope, t, n.Left, key, true)
 				case syntax.TBooleanOr, syntax.TOr:
-					t = e.cond(x, scope, t, n.Left, key, false)
+					t = cond(x, scope, t, n.Left, key, false)
 				}
 			}
 		case *syntax.If:
 			if child == syntax.Node(n.Body) {
-				t = e.cond(x, scope, t, n.Cond, key, true)
+				t = cond(x, scope, t, n.Cond, key, true)
 			} else if n.Else != nil && child == syntax.Node(n.Else) && len(n.ElseIfs) == 0 {
-				t = e.cond(x, scope, t, n.Cond, key, false)
+				t = cond(x, scope, t, n.Cond, key, false)
 			}
 		case *syntax.While:
 			if child == syntax.Node(n.Body) {
-				t = e.cond(x, scope, t, n.Cond, key, true)
+				t = cond(x, scope, t, n.Cond, key, true)
 			}
 		case *syntax.ElseIf:
 			if child == syntax.Node(n.Body) {
-				t = e.cond(x, scope, t, n.Cond, key, true)
+				t = cond(x, scope, t, n.Cond, key, true)
 			}
 		case *syntax.Block:
 			t = e.guards(x, scope, t, n, n.Stmts, child, key)
@@ -687,7 +701,16 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 			return t
 		}
 		if cls := e.classRef(c.Class); cls != "" {
-			return t.Without(`\` + cls)
+			// Not an instance of cls: neither cls nor any of its subtypes
+			// (`string|PropertyPath` minus `instanceof PropertyPathInterface`).
+			drop := []string{`\` + cls}
+			for _, a := range t.Classes() {
+				if !strings.HasSuffix(a, "[]") && !strings.EqualFold(a, `\`+cls) &&
+					e.Index.IsSubtype(strings.TrimPrefix(a, `\`), cls, e.PHP) {
+					drop = append(drop, a)
+				}
+			}
+			return t.Without(drop...)
 		}
 	case *syntax.Isset:
 		for _, x := range c.Vars {
@@ -758,6 +781,15 @@ func narrowAtoms(t types.Type, atoms []string, truthy bool) types.Type {
 		if match(a) != truthy {
 			drop = append(drop, a)
 		}
+	}
+	if truthy && t.Has("mixed") && len(drop) < len(t.Atoms()) {
+		// mixed may hold any of the checked types, not only the matching
+		// members (`string|mixed` passing is_scalar() may be an int).
+		kept := slices.DeleteFunc(slices.Clone(t.Atoms()), func(a string) bool { return slices.Contains(drop, a) })
+		if atoms[0] == "bool" {
+			return types.Of(append(kept, "bool")...)
+		}
+		return types.Of(append(kept, atoms...)...)
 	}
 	if len(drop) == len(t.Atoms()) {
 		if truthy {

@@ -31,3 +31,15 @@ function normalizeEol(string $text, array $lines) {
     $lines = str_replace("\t", ' ', subject: $lines);
     return [$text, $lines];
 }
+
+function expiry(int $ttl, $extra) {
+    // An operand of unknown type: the sum is not known to be a float.
+    $ttl = time() + $extra;
+    return $ttl;
+}
+
+function toUtf8(string $text) {
+    // A string input converts to a string (or false), never an array.
+    $text = mb_convert_encoding($text, 'UTF-8');
+    return $text;
+}

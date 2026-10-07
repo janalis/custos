@@ -32,6 +32,9 @@ func (preloadingUsageCorrectness) Check(ctx *analysis.Context, n syntax.Node) {
 	if _, ok := inc.Parent().(*syntax.ExprStmt); !ok { // D3
 		return
 	}
+	if preloadRunsScript(inc.Expr) { // E3
+		return
+	}
 	keyword := strings.ToLower(ctx.SpanText(inc.Keyword.Span))
 	span := inc.Span()
 	arg := util.UnwrapParens(inc.Expr).Span()
@@ -43,4 +46,28 @@ func (preloadingUsageCorrectness) Check(ctx *analysis.Context, n syntax.Node) {
 			return []analysis.TextEdit{{Span: span, NewText: fn + "(" + string(src[arg.Start:arg.End]) + ")"}}
 		},
 	})
+}
+
+// preloadRunsScript reports an inclusion whose path literal names a file that
+// must run rather than merely be compiled: a Composer autoloader
+// (`vendor/autoload.php`) or another preload script (`….preload.php`, as
+// Symfony generates). opcache_compile_file() would not execute it.
+func preloadRunsScript(arg syntax.Expr) bool {
+	found := false
+	syntax.Inspect(arg, func(n syntax.Node) bool {
+		raw := ""
+		switch x := n.(type) {
+		case *syntax.Literal:
+			if x.LitKind == syntax.LitString {
+				raw = x.Raw
+			}
+		case *syntax.StringPart:
+			raw = x.Raw
+		}
+		if low := strings.ToLower(raw); strings.Contains(low, "autoload") || strings.Contains(low, "preload") {
+			found = true
+		}
+		return !found
+	})
+	return found
 }

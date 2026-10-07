@@ -366,7 +366,10 @@ func (c *magicCheck) returns(allowed ...string) {
 	any := false
 	c.returnsOf(func(*syntax.Return, bool) { any = true })
 	if !any {
-		c.report(msg(nil))
+		// A body that always throws (or exits) returns nothing either way.
+		if c.m.Body == nil || !syntax.Terminates(c.m.Body) {
+			c.report(msg(nil))
+		}
 		return
 	}
 	c.returnsOf(func(r *syntax.Return, own bool) {
@@ -378,7 +381,7 @@ func (c *magicCheck) returns(allowed ...string) {
 			return
 		}
 		t := c.ctx.TypeOf(util.UnwrapParens(r.Expr))
-		if t.IsUnknown() {
+		if t.IsUnknown() || t.Has("mixed") { // mixed may well be the right type
 			return
 		}
 		if bad := offending(c.normaliseMagicType(t)); len(bad) > 0 {

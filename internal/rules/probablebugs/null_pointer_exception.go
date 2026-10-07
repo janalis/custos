@@ -713,10 +713,12 @@ func (u *npeUnit) impliesWhenTrue(e syntax.Expr, name string) bool {
 				return ok
 			}
 		case syntax.TIsIdentical, syntax.TIsEqual:
-			if npeIsVar(r, name) {
+			// $n === E, or a chain rooted at $n (`$n->p === E`): a null $n
+			// makes the chain null (or throws), so a non-null E proves it.
+			if ok, _ := npeRootedAt(r, name); ok {
 				l, r = r, l
 			}
-			if !npeIsVar(l, name) || npeIsNullConst(util.UnwrapParens(r)) {
+			if ok, _ := npeRootedAt(l, name); !ok || npeIsNullConst(util.UnwrapParens(r)) {
 				return false
 			}
 			t := u.ctx.TypeOf(r)

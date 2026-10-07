@@ -133,3 +133,22 @@ final class Box {
 		t.Fatalf("wrap: %+v", w)
 	}
 }
+
+func TestPolyfillYieldsToBuiltin(t *testing.T) {
+	stubs := New(nil)
+	stubs.Add(extract(t, "stub.php", `<?php
+#[PhpStormStubsElementAvailable(from: '8.3')]
+function pad(string $s): string {}
+`))
+	project := New(stubs)
+	project.Add(extract(t, "polyfill.php", `<?php
+if (!function_exists('pad')) { function pad($s) { return $s; } }
+`))
+	file := New(project)
+	if f := file.Function("pad", phpver.PHP84); f == nil || f.Return != "string" {
+		t.Fatalf("8.4: the builtin must win: %+v", f)
+	}
+	if f := file.Function("pad", phpver.PHP80); f == nil || f.Return != "" {
+		t.Fatalf("8.0: the polyfill must be used: %+v", f)
+	}
+}

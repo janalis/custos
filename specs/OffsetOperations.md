@@ -70,7 +70,10 @@ a container `C`):
     method's first parameter (declared type or `@param`; unknown parts
     dropped; nothing when untyped). A class with none of these methods does
     not by itself mark the container as unsupported, but leaves it unsupported
-    if nothing else in `S` supports it. Unknown classes contribute nothing.
+    if nothing else in `S` supports it. A class name not found in the index
+    is unresolvable: per D1, `S` is then empty and nothing is reported
+    (`$c = new MissingChart(); $c[0]` — the class may simply live under
+    another namespace or in an unindexed file).
   Net effect: any scalar in `S` → not supported; otherwise supported iff at
   least one array/string or one class with one of the four methods.
 - **D6** Not supported → report the whole access expression (message lists

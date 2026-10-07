@@ -61,8 +61,10 @@ Method names named in this spec (`willReturn`, `returnCallback`,
   array literal (`[...]` or `array(...)`), and **any** string literal anywhere
   inside that array (values, keys, nested arrays) has source text identical to
   `L`'s source text (quotes included, so `'run'` ≠ `"run"`), stop — the method
-  was explicitly added to the double. (`onlyMethods()` / `addMethods()` are
-  not recognised.)
+  was explicitly added to the double. custos also searches the first
+  `addMethods` call the same way, comparing the literal contents
+  case-insensitively (see Divergences); `onlyMethods()` is not recognised
+  (it only lists existing methods).
 - **D8** `B` must have exactly one argument, of the form `X::class` where `X`
   is a class name (including `self`/`static`/`parent` when they resolve);
   `X` must resolve to a class-like `K` (class, interface, trait, enum).
@@ -231,9 +233,11 @@ class LedgerTest
 - D7 compares literals by raw source text, so `setMethods(["run"])` does not
   cover `method('run')`. Recommendation: compare unquoted contents; no fixture
   depends on the quote style.
-- `onlyMethods([...])` / `addMethods([...])` (PHPUnit 8.3+/9) are ignored
-  upstream, so a method added via `addMethods` is reported as missing.
-  Recommendation: treat `addMethods` like `setMethods` (no fixture covers it).
+- **`addMethods([...])` (custos diverges).** Upstream ignores
+  `addMethods` (PHPUnit 8.3+/9), so a method added to the double that way
+  (`getMockBuilder(\stdClass::class)->addMethods(['getRepository'])`) is
+  reported as missing. custos treats it like `setMethods` (D7), matching
+  method names case-insensitively.
 - A class with `__call` is still reported as MISSING; kept (matches
   upstream, PHPUnit cannot configure magic methods without `addMethods`).
 - The `expects(...)` unwrap is skipped when the receiver is parenthesised

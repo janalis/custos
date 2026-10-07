@@ -26,7 +26,7 @@ func (propertyInitializationFlaws) Kinds() []syntax.NodeKind {
 
 const (
 	pifMsgNull     = "Explicit null default is redundant; remove it."
-	pifMsgSame     = "Default repeats the inherited value; remove it."
+	pifMsgSame     = "Default repeats the inherited value; drop the re-declaration."
 	pifMsgReplaced = "Default is always replaced by the constructor; remove it."
 	pifMsgWrites   = "Assignment writes the property's default value; remove it."
 )
@@ -107,7 +107,9 @@ func pifDefaults(ctx *analysis.Context, prop *syntax.Property) {
 			}
 			continue
 		}
-		if parent == "" { // D2
+		// D2; a static re-declaration gives the subclass its own storage
+		// (custos: not reported even with the same default).
+		if parent == "" || prop.Modifiers.Has(syntax.TStatic) {
 			continue
 		}
 		o := util.PropertyInChain(ctx.Index(), parent, item.Var.Name, ctx.PHP)
@@ -284,7 +286,11 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 			}
 			return !reuses
 		})
-		if reuses || earlyReturn || !ctx.Bool("REPORT_DEFAULTS_FLAWS") || reported[id.Value] {
+		// A typed property without default is uninitialised: objects made
+		// without the constructor (unserialize, reflection, ORM hydration)
+		// would then throw on access, so its default is kept (custos).
+		typed := c.prop.Type != nil
+		if reuses || earlyReturn || typed || !ctx.Bool("REPORT_DEFAULTS_FLAWS") || reported[id.Value] {
 			continue
 		}
 		reported[id.Value] = true

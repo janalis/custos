@@ -196,8 +196,9 @@ walk for this name, *skip* goes to the next usage:
   (`$n->p`, `$n?->m()`, `$n['k']`, any depth) used as a truthy value;
   `$n instanceof T`; `isset(...)` with an argument that is `$n` or such a
   chain; `is_object($n)` (global function); `X !== null` / `X != null` with
-  `X` being `$n` or such a chain; `$n === E` where `E`'s inferred type is
-  known and contains neither `null`, `void` nor `mixed`; `$n == E` where
+  `X` being `$n` or such a chain; `X === E` (`X` being `$n` or such a
+  chain: a null `$n` makes the chain null or throws) where `E`'s inferred
+  type is known and contains neither `null`, `void` nor `mixed`; `X == E` where
   `E`'s type is additionally object-only (a loose comparison with `''`,
   `0`, `false` or `[]` also holds for `null`).
   `c` *guarantees non-null when false* if: `!x` when `x` guarantees it when
@@ -353,7 +354,8 @@ function visit(?Node $item) {
   on the same range upstream. Recommendation: report each `->` once.
 - Enclosing conditions (custos diverges from upstream). Upstream does not
   model control flow: a check it does not recognise as a null check
-  (`is_object($v)`, `$v === $known`, `$v?->p !== null`) merely skips, so a
+  (`is_object($v)`, `$v === $known`, `'v' === $v->name`, `$v?->p !== null`)
+  merely skips, so a
   dereference inside the branch that this check guards is still reported.
   custos drops reports whose enclosing condition proves the variable
   non-null (U12). The rest of the walk is unchanged: dereferences outside

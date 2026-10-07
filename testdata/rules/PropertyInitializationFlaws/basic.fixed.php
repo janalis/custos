@@ -16,7 +16,7 @@ class Cart extends BaseCart
 {
     protected $items = [];
     private $secret = 'x';
-    public static $currency = 'EUR';
+    public static $currency = 'EUR'; // own static storage: kept
     protected $tagClass = Tag::class;
     protected $notes = 'n/a';
     private $mode;

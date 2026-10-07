@@ -70,9 +70,11 @@ func (redundantElseClause) Check(ctx *analysis.Context, n syntax.Node) {
 	text := func(s syntax.Span) string { return string(src[s.Start:s.End]) }
 	bodyEnd := body.Span().End
 	// Comments between `}` and the keyword are kept before the moved code.
+	// Moved code starts on a new line at the `if` statement's indentation.
+	nl := "\n" + util.LineIndent(src, ifs.Span().Start)
 	gap := strings.TrimSpace(text(syntax.Span{Start: bodyEnd, End: kw.Start}))
 	if gap != "" {
-		gap = "\n" + gap
+		gap = nl + gap
 	}
 	ctx.Report(syntax.Span{Start: kw.Start, End: kw.End}, msg, analysis.Fix{
 		Title: "Remove the redundant clause",
@@ -86,7 +88,7 @@ func (redundantElseClause) Check(ctx *analysis.Context, n syntax.Node) {
 				b.WriteString(") ")
 				b.WriteString(ctx.Text(body))
 				b.WriteString(gap)
-				b.WriteString("\n")
+				b.WriteString(nl)
 				b.WriteString(text(syntax.Span{Start: is.Start, End: ifs.Cond.Span().Start}))
 				b.WriteString(ctx.Text(ei.Cond))
 				b.WriteString(text(syntax.Span{Start: ifs.Cond.Span().End, End: body.Span().Start}))
@@ -97,7 +99,7 @@ func (redundantElseClause) Check(ctx *analysis.Context, n syntax.Node) {
 			removed := syntax.Span{Start: bodyEnd, End: alt.Span().End}
 			var moved string
 			if nested, isIf := altBody.(*syntax.If); isIf { // F2
-				moved = "\n" + ctx.Text(nested)
+				moved = nl + ctx.Text(nested)
 			} else { // F1
 				bs := altBody.Span()
 				inner := strings.TrimSpace(text(syntax.Span{Start: bs.Start + 1, End: bs.End - 1}))
@@ -106,7 +108,7 @@ func (redundantElseClause) Check(ctx *analysis.Context, n syntax.Node) {
 				case strings.HasPrefix(inner, ";") && gap == "":
 					moved = inner
 				default:
-					moved = "\n" + inner
+					moved = nl + inner
 				}
 			}
 			return []analysis.TextEdit{{Span: removed, NewText: gap + moved}}

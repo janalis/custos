@@ -4,7 +4,7 @@ class Base {
     protected $mode = Mode::FAST;
 }
 class Child extends Base {
-    protected $mode = <weak_warning descr="Default repeats the inherited value; remove it.">mode::FAST</weak_warning>;
+    protected $mode = <weak_warning descr="Default repeats the inherited value; drop the re-declaration.">mode::FAST</weak_warning>;
 }
 class Own {
     private $mode = Mode::FAST;

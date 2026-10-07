@@ -30,7 +30,8 @@ parents) and `O` the property with the same name found in `Par` or anything
 - **D1 (null default)** `D` is the constant `null` (case-insensitive, an
   optional leading `\` allowed) → report pattern **N** on `D`, unless E1
   applies. (Independent of any parent.)
-- **D2 (inherited duplicate)** Otherwise, when `D` and `OD` both exist,
+- **D2 (inherited duplicate)** Otherwise, when the property is not static
+  (custos, see Divergences), `D` and `OD` both exist,
   `O` is **not** `private`, and `D` is *equivalent* to `OD` (same node kind
   and structurally identical ignoring whitespace/comments, or identical
   source text) → candidate.
@@ -74,8 +75,9 @@ least one statement.
   earlier direct statement of the constructor body contains a `return`
   (nested functions/closures excluded): the constructor may leave before the
   assignment and keep the default (custos diverges, see Divergences).
-  Otherwise, when `REPORT_DEFAULTS_FLAWS` is on, report pattern **O** on
-  that property's default `D`.
+  Also nothing when the property has a declared type (custos, see
+  Divergences). Otherwise, when `REPORT_DEFAULTS_FLAWS` is on, report
+  pattern **O** on that property's default `D`.
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -106,7 +108,7 @@ least one statement.
 - Severity: info for all (fixture markup `weak_warning`).
 - Messages:
   - N: `Explicit null default is redundant; remove it.`
-  - S: `Default repeats the inherited value; remove it.`
+  - S: `Default repeats the inherited value; drop the re-declaration.`
   - O: `Default is always replaced by the constructor; remove it.`
   - W: `Assignment writes the property's default value; remove it.`
 
@@ -154,10 +156,10 @@ class BaseCart
 
 class Cart extends BaseCart
 {
-    protected $items = <weak_warning descr="Default repeats the inherited value; remove it.">[]</weak_warning>;
+    protected $items = <weak_warning descr="Default repeats the inherited value; drop the re-declaration.">[]</weak_warning>;
     private $secret = 'x';
-    public static $currency = <weak_warning descr="Default repeats the inherited value; remove it.">'EUR'</weak_warning>;
-    protected $tagClass = <weak_warning descr="Default repeats the inherited value; remove it.">Tag::class</weak_warning>;
+    public static $currency = 'EUR';
+    protected $tagClass = <weak_warning descr="Default repeats the inherited value; drop the re-declaration.">Tag::class</weak_warning>;
     protected $notes = 'n/a';
 
     private $total = <weak_warning descr="Default is always replaced by the constructor; remove it.">0</weak_warning>;
@@ -282,3 +284,20 @@ No findings.
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Typed properties keep their default (custos diverges).** Upstream
+  reports (and its fix removes) the default of a typed private property the
+  constructor overwrites (`private array $items = [];`). Without a default
+  a typed property is *uninitialised*, so objects created without the
+  constructor (unserialize of older payloads, `newInstanceWithoutConstructor`,
+  ORM hydration, proxies) throw "must not be accessed before
+  initialization" where they used to see `[]`. custos skips pattern O for
+  typed properties.
+- **Pattern S message (custos).** Removing only the default of a
+  re-declared property does not inherit the parent's default: the property
+  becomes null (untyped) or uninitialised (typed). The message therefore
+  advises dropping the whole re-declaration.
+- **Static re-declarations (custos diverges).** Upstream reports a static
+  property re-declared with the parent's default. Re-declaring a static
+  property gives the subclass its own storage (a per-class registry or
+  cache); dropping it makes the subclass share — and overwrite — the
+  parent's value. custos skips static properties in D2.

@@ -56,6 +56,7 @@ func (r unnecessaryCasting) Check(ctx *analysis.Context, n syntax.Node) {
 	a := util.UnwrapParens(u.Expr)
 	tr := infer.NewTRules(ctx.Types())
 	tr.DivisionIntOrFloat = true // `int / int` may be a float
+	tr.SoundArithmetic = true    // `"4" * 100` is an int, `$unknown * 2` unknown
 	ts := castStrictTypes(ctx, tr, a)
 	if len(ts) != 1 || ts[0] != target { // D3 / E1
 		return
@@ -196,8 +197,12 @@ func castPrivatePropertyType(ctx *analysis.Context, env *infer.Env, x *syntax.Pr
 		return types.FromDoc(p.Type, nil)
 	}
 	var def types.Type
-	if p.HasDefault {
+	switch {
+	case p.HasDefault:
 		def = infer.LiteralTextType(p.Default)
+	case !p.Promoted && !util.CtorAssignsProperty(infer.EnclosingClass(x), id.Value):
+		// No default: an untyped property holds null until written.
+		def = types.Null
 	}
 	return infer.KnownUnion(types.FromDoc(p.DocType, nil), def)
 }

@@ -14,10 +14,10 @@ class BaseCart
 
 class Cart extends BaseCart
 {
-    protected $items = <weak_warning descr="Default repeats the inherited value; remove it.">[]</weak_warning>;
+    protected $items = <weak_warning descr="Default repeats the inherited value; drop the re-declaration.">[]</weak_warning>;
     private $secret = 'x';
-    public static $currency = <weak_warning descr="Default repeats the inherited value; remove it.">'EUR'</weak_warning>;
-    protected $tagClass = <weak_warning descr="Default repeats the inherited value; remove it.">Tag::class</weak_warning>;
+    public static $currency = 'EUR'; // own static storage: kept
+    protected $tagClass = <weak_warning descr="Default repeats the inherited value; drop the re-declaration.">Tag::class</weak_warning>;
     protected $notes = 'n/a';
     private $mode // legacy
         = <weak_warning descr="Explicit null default is redundant; remove it.">\null</weak_warning>;

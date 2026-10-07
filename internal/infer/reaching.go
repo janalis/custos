@@ -38,6 +38,19 @@ func (e *Env) reaching(defs []varDef, use, scope syntax.Node) (fwd, back []varDe
 			fwd = fwd[:0]
 			lastKill = d.pos
 		}
+		if d.w == nil && !d.doc && d.kill.Len() > 0 && len(fwd) > 0 {
+			// d runs unconditionally in its block: earlier definitions made
+			// inside that block are overwritten for every later use, even
+			// one after the block (`if (…) { $x = a(); $x = b($x); } use($x)`).
+			kept := fwd[:0]
+			for _, f := range fwd {
+				if f.pos >= d.kill.Start && f.pos < d.pos && max(f.pos, f.end) <= d.kill.End {
+					continue
+				}
+				kept = append(kept, f)
+			}
+			fwd = kept
+		}
 		if len(fwd) == 0 {
 			from = max(d.pos, d.end)
 		}

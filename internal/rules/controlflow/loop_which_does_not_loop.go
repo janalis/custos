@@ -52,6 +52,13 @@ func (loopWhichDoesNotLoop) Check(ctx *analysis.Context, n syntax.Node) {
 			break
 		}
 	}
+	if last == nil {
+		// An empty while/do/for body still loops: the condition (or step)
+		// does the work (`while (@ob_end_flush()) {}`).
+		if _, ok := n.(*syntax.Foreach); !ok {
+			return
+		}
+	}
 	isThrow := false
 	if last != nil {
 		switch x := last.(type) {

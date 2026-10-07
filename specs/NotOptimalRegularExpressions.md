@@ -132,7 +132,11 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
   Both can fire on the same literal (two findings).
 - **D13** `mods` lacks `u`, `body` non-empty, `fn` ≠ `preg_quote`:
   - **D13a** `body` contains a non-ASCII character (code point > U+007F) and
-    no line terminator → report `L` (error: non-ASCII text needs `u`);
+    no line terminator → report `L` (error: non-ASCII text needs `u`).
+    custos only counts a non-ASCII character that changes meaning without
+    `u`: inside a character class, directly followed by a quantifier
+    (`*`, `+`, `?`, `{`), or a letter when `mods` contains `i` (see
+    Divergences);
   - **D13b** otherwise: remove every `\\` pair from `body` (left to right);
     if the result contains `\p`, `\P` or `\X` and no line terminator →
     report `L` (error: Unicode escapes need `u`). `\\p` (escaped backslash)
@@ -655,3 +659,9 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
   rewritten) as if it were the builtin. custos matches case-insensitively and
   only calls that reach the global function.
 - **Builtin spelling (custos diverges).** Upstream inserts a bare `strpos(`, `str_replace(`, `trim(`, `explode(`, … in its fix, so a function of that name declared in (or imported into) the namespace captures the rewritten call. custos writes `\name(` in that case (F2–F6).
+- **Literal non-ASCII text (custos diverges).** Upstream reports any
+  non-ASCII character in a pattern without `/u` as an error, but a plain
+  literal sequence (`'/\[entité\]/'`) matches the same UTF-8 bytes with or
+  without `/u`. custos reports D13a only when the character sits in a
+  character class, carries a quantifier, or is a letter under `/i` — the
+  cases where byte-wise matching gives a different result.

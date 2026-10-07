@@ -91,6 +91,7 @@ the correct behaviour are in the rule spec's *Divergences* section.
 | SubStrUsedAsArrayAccess | `substr-used-as-index-access.php` | no fix below PHP 7.0 (?? does not parse); ?? '' guard from 7.0; negative offsets other than -1 skipped (strlen($s) - n can go negative) |
 | SubStrUsedAsStrPos | `substr-used-as-strpos.php` | 4-argument mb_substr fix emits mb_strpos($h, $n, 0, $enc); case-folded comparisons only against literals already in folded case |
 | TraitsPropertiesConflicts | `traits-properties-conflicts.php` | an own property incompatible with the trait's (different default, visibility, static, readonly or type) is reported as an error: PHP refuses to compose such a class |
+| UnnecessaryCasting | `unnecessary-casting.php`, `unnecessary-casting.php8.php` | an untyped private property without default (not set by the constructor) holds null: casting it is not redundant |
 | UnnecessaryAssertion | `unnecessary-assertion.php` | assertInternalType is reported only when the declared return type always satisfies the named type; unknown/contradicting type names are not reported (that call fails, it is not redundant) |
 | VariableFunctionsUsage | `variable-functions-php54.php` | calls with call-time & arguments are not reported/rewritten ($fn($a, &$b) is a fatal error since PHP 5.4) |
 
@@ -134,6 +135,27 @@ Found on real code (corpus A, Symfony) and fixed through spec → implement.
 | OnlyWritesOnParameter | Variables read via `compact('v')` / `get_defined_vars()` reported. | Counted as reads. |
 | PropertyInitializationFlaws | Default reported as always replaced after an early `return`. | Pattern O skipped after a `return`. |
 
+**corpus C / corpus D review (2026-10-07).** First run on corpus C (506 files, PHP
+8.0, default + `--all`), corpus C/vendor and corpus D/vendor (sampled); every fix
+also applied with `custos fix --all` on a copy (`php -l` clean).
+
+| Rule | Was | Now |
+|---|---|---|
+| ReturnTypeCanBeDeclared | `: int` for `return $this->id;` over an untyped `@var int` property without default (TypeError on a null/nullable column); `: \never` for `return exit();`; `: {array}` from `@return {array}`. | Untyped properties without non-null default and not set by the constructor add `null` (`?int`, D5b); `never`/`parent` are non-suggestible built-ins; malformed doc types are ignored. 1915 → 1916 findings, ~360 messages now nullable. |
+| UnnecessaryCasting | `(float) ($cell * 100)` with a `string|null` cell reported (string × int is an int); `(float) $this->cout` over an untyped private property without default reported (null → 0.0). | Sound arithmetic typing (unknown operand → unknown, numeric strings → int\|float); implicit `null` for untyped private properties without default (listed divergences `unnecessary-casting.php`, `unnecessary-casting.php8.php`). corpus C 16 → 12. |
+| CallableParameterUseCaseInTypeContext | `$ttl = time() + $untyped` reported as float; `$text = mb_convert_encoding($text, …)` reported as array. | Sound arithmetic here too; `mb_convert_encoding()` typed by its input. |
+| OffsetOperations | Offset access on an unresolvable class (`new Highchart()` in the wrong namespace) reported; `{array}`/`Foo::*` doc types became classes. | Unresolvable class empties S (D1). corpus C `--all` 59 → 1. |
+| NullPointerException | `if ('v' === $node->name) { $node->x }` still reported. | `X === E` / `X == E` with `X` a chain rooted at the variable proves non-null (U12). |
+| PreloadingUsageCorrectness | Symfony `config/preload.php` (`require …/App_KernelProdContainer.preload.php`) and `vendor/autoload.php` rewritten to `opcache_compile_file()` (disables preloading). | Inclusions whose path mentions `autoload`/`preload` skipped (E3). |
+| MkdirRaceCondition | Fix dropped the `@` of `@mkdir(...)` (warning in the very race it handles). | `@` kept in every fix form. |
+| NotOptimalRegularExpressions | `'/\[entité\]/'` without `/u` reported as an error. | Only non-ASCII in a class, before a quantifier, or a letter under `/i`. |
+| MagicMethodsValidity | Always-throwing `__toString()` reported; `return call_user_func(…)` reported as `got 'mixed'`. | Bodies that cannot complete are skipped; `mixed` treated as unknown. |
+| MockingMethodsCorrectness | Methods added with `getMockBuilder(…)->addMethods([...])` reported as missing (5 on corpus C). | `addMethods` honoured like `setMethods`. |
+| LoopWhichDoesNotLoop | `while (@ob_end_flush()) {}` reported. | Empty bodies reported for `foreach` only. |
+| ClassOverridesFieldOfSuperClass | `protected $table = 'invoices';` / `protected bool $skipScalars = true;` (default overrides) told to drop the re-declaration. | Only re-declarations with the same default. corpus C/vendor 371 → 58, corpus D/vendor 141 → 29, corpus B 36 → 30. |
+| PropertyInitializationFlaws | Typed `private array $items = [];` default removed (uninitialised for objects built without the constructor); static re-declarations (own storage) reported; S told to remove the default (which yields null, not the inherited value). | Pattern O skipped for typed properties; S skipped for static properties and its message now says to drop the re-declaration. corpus D/vendor 62 → 23. |
+| RedundantElseClause | Moved code started at column 0. | Indented like the `if` (cosmetic). |
+
 ## Engine
 
 - **Parsing:** version-aware lexer/parser (5.3–8.5); `syntax.ParseBest`
@@ -150,6 +172,18 @@ Found on real code (corpus A, Symfony) and fixed through spec → implement.
   `/** @var T $x */` overrides the next assignment; a foreach binding hides
   earlier definitions inside the loop body; element writes (`$a[k] = v`)
   widen the element type of the reads they reach (below).
+- **corpus C review (2026-10-07):** builtins win over polyfills — a source
+  declaration of a function the stubs know at the target version (e.g.
+  symfony/polyfill-mbstring's untyped `mb_strtolower`) is ignored, as PHP
+  cannot redeclare a builtin (it was hiding `string` returns); an
+  unconditional assignment hides earlier definitions made in the same block
+  even for uses after the block; enclosing conditions that precede the last
+  reaching definition no longer narrow it (`if (null === $x) { $x = f(); }`);
+  `!($x instanceof I)` also removes the subtypes of `I`; a type check on a
+  set containing `mixed` keeps every checked type (`string|mixed` passing
+  `is_scalar()` may be an int); doc types that are not type or class names
+  (`{array}`, `self::KIND_*`) are unknown instead of classes; `array_rand()`
+  with one key and `mb_convert_encoding()` are typed by their arguments.
 - **Narrowing:** `is_*()`, `instanceof`, null/true/false comparisons, isset,
   truthiness — in ternary branches, if/elseif/else bodies, `&&`/`||` operands,
   `while` bodies and after early-exit guards.
@@ -430,6 +464,12 @@ Found on real code (corpus A, Symfony) and fixed through spec → implement.
   registers a `**/*.php` file watcher (dynamic registration) and updates the
   index on `workspace/didChangeWatchedFiles` (create/change/delete), then
   re-analyses open documents; saved buffers are re-indexed on `didSave`.
+- No on-disk index cache (planned in the migration, declined 2026-10-07):
+  a cold project index takes 0.37 s for a 7.6k-source project (incl. vendor)
+  and 0.48 s for a 10k-source project; a cache would still stat/hash every
+  file and decode the symbols, saving ~0.3 s at best while adding
+  invalidation bugs (binary version, PHP target, renamed files). The LSP
+  builds it in the background, so first diagnostics are not blocked.
 
 ## Security (untrusted input)
 

@@ -241,3 +241,13 @@ function untyped($flag = null) {
   implement `Shape` (a class from a missing dependency, a generated class).
   custos treats an unresolvable class, or a class whose hierarchy is only
   partly known, as unknown and stays silent (D7e.2).
+- **Sound arithmetic (custos diverges):** the arithmetic T-rule's
+  heuristic types `int + <unknown>` (and string operands) as float, so
+  `$ttl = time() + $lifeTime;` with an untyped `$lifeTime` was reported
+  against an `int` parameter. custos uses the sound arithmetic typing of
+  UnnecessaryCasting here too: an operand of unknown type gives an unknown
+  result (no report); numeric strings give `int|float`.
+- **`mb_convert_encoding()` (custos diverges):** inherited from the shared
+  T-rules (see UnnecessaryCasting): a string input yields `string|false`,
+  so `$text = mb_convert_encoding($text, 'UTF-8');` on a `string`
+  parameter is not reported as assigning an array.

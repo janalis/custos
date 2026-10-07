@@ -45,7 +45,7 @@ func (mkdirRaceCondition) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 
 	// D3: locate the target.
-	inverted := false
+	inverted, silenced := false, false
 	var target syntax.Node = call
 	var cur syntax.Node = call
 locate:
@@ -68,6 +68,7 @@ locate:
 			case syntax.TExclaim:
 				inverted = !inverted
 			case syntax.TAt:
+				silenced = true
 			default:
 				return
 			}
@@ -108,6 +109,11 @@ locate:
 	if tempVar {
 		mk = mkdirFn + "($concurrentDirectory = " + args + ")"
 		isDir = isDirFn + "($concurrentDirectory)"
+	}
+	if silenced {
+		// Keep the silence operator: dropping it would emit "File exists"
+		// warnings in the very race the re-check handles.
+		mk = "@" + mk
 	}
 	andForm := "!" + mk + " && !" + isDir
 	orForm := mk + " || " + isDir

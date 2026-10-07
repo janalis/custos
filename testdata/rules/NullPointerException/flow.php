@@ -2,6 +2,7 @@
 class Item
 {
     public $value;
+    public $name;
     public function next(): ?Item { return null; }
     public function same(Item $other): bool { return true; }
 
@@ -47,5 +48,16 @@ class Item
         if (is_object($b) || $s) {
             <warning descr="Possible null dereference.">$b</warning>->value = 1;
         }
+    }
+
+    public function chainCompared(?Item $a, ?Item $b, string $s)
+    {
+        if ('v' === <warning descr="Possible null dereference.">$a</warning>->name) {
+            return $a->value;
+        }
+        if (<warning descr="Possible null dereference.">$b</warning>->name == $s) {
+            return <warning descr="Possible null dereference.">$b</warning>->value;
+        }
+        return 0;
     }
 }

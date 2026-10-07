@@ -197,7 +197,7 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 	if low == "$this" {
 		return Of("static")
 	}
-	if strings.HasPrefix(base, "$") || base == "" {
+	if strings.HasPrefix(base, "$") || base == "" || !validClassName(base) {
 		return Unknown
 	}
 	// Class name (generic arguments dropped).
@@ -482,4 +482,34 @@ func matchingClose(s string) int {
 		}
 	}
 	return -1
+}
+
+// validClassName reports whether s is a syntactically valid (possibly
+// qualified) class name: `{array}`, `foo-bar` or `a\\b` in a doc tag are not
+// types.
+func validClassName(s string) bool {
+	s = strings.TrimPrefix(s, `\`)
+	// The index marks template parameters `~T` (class) and `~~T` (method).
+	s = strings.TrimPrefix(strings.TrimPrefix(s, "~"), "~")
+	start := true
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c == '\\':
+			if start {
+				return false
+			}
+			start = true
+			continue
+		case c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= 0x80:
+		case c >= '0' && c <= '9':
+			if start {
+				return false
+			}
+		default:
+			return false
+		}
+		start = false
+	}
+	return !start
 }

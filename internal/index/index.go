@@ -158,10 +158,35 @@ func (ix *Index) Function(fqn string, ver phpver.Version) *Function {
 	f, ok := pick(ix.functions[key(fqn)], func(f *Function) Avail { return f.Avail }, ver)
 	ix.mu.RUnlock()
 	if ok {
+		// PHP cannot redeclare a built-in function: a source declaration of
+		// a name the stubs know at this version is a polyfill (guarded by
+		// function_exists), so the built-in is what runs.
+		if ix.base != nil {
+			if b := ix.builtinFunction(fqn, ver); b != nil {
+				return b
+			}
+		}
 		return f
 	}
 	if ix.base != nil {
 		return ix.base.Function(fqn, ver)
+	}
+	return nil
+}
+
+// builtinFunction looks fqn up in the bottom layer (the embedded stubs),
+// returning it only when available at ver.
+func (ix *Index) builtinFunction(fqn string, ver phpver.Version) *Function {
+	b := ix.base
+	for b.base != nil {
+		b = b.base
+	}
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	for _, f := range b.functions[key(fqn)] {
+		if ver == 0 || f.Avail.In(ver) { // strictly available: else the polyfill runs
+			return f
+		}
 	}
 	return nil
 }

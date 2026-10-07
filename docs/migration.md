@@ -145,3 +145,9 @@ Execute Phase 0 (init repo, CLAUDE.md, skill, docs/migration.md with this plan, 
 - Adaptive parsing (`syntax.ParseBest`): parse at the target version, fall back to the newest grammar when that fails (8.4 fixtures in an 8.1 project).
 - Rule panics are isolated per file (`internal` finding); `TestNoCrashOnCorpus` runs every rule over a corpus (`CUSTOS_CORPUS`; 17,841 files with Symfony src).
 - Spec-level false positives applied as documented divergences (see docs/decisions.md); value discovery treats incremented/compound-assigned variables as unknown.
+
+## Status update (2026-10-07, hardening)
+- Phase 8 items: slab allocation, shared test-path helper, false-positive reviews (corpus A, Symfony, corpus B, corpus E, EasyAdminBundle, corpus C, corpus D) and goreleaser packaging done.
+- Index disk cache declined (cold index 0.4–0.5 s on 8–10k sources; see docs/decisions.md).
+- Security: syntax nesting cap, linear doc-type parsing, whole-tool hostile-input audit (LSP framing, file size/IO caps, linear mini-parsers, quadratic paths removed), see the Security section of docs/decisions.md.
+- Engine: generics (class and method templates), assertions, array shapes, inferred returns and properties.

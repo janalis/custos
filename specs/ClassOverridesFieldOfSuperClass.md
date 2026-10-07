@@ -44,6 +44,12 @@ property it creates a second, unrelated property with the same name.
     public, private over protected → report;
   - public over protected → no report (visibility deliberately widened).
   A `var` property is public.
+- **D6b** (custos, see Divergences) No "duplicate" report when the own
+  declaration's default differs from the found property's default:
+  defaults are compared as source text with whitespace removed; `null`
+  (any case) and a missing default on an untyped property are the same;
+  a missing default on a typed property (uninitialised) differs from any
+  default.
 
 **T — test context**: the file path ends with `Test.php`, `Spec.php` or
 `.phpt`, or contains `/Fixtures/`; or the class FQN ends with `Test`, or
@@ -136,4 +142,9 @@ class Door extends Locked {
 ```
 
 ## Divergences
-None known.
+- **Default overrides (custos diverges).** Upstream reports any
+  re-declaration, including `protected $table = 'invoices';` over a parent's
+  `protected $table;` (Eloquent models) or `protected bool $skipScalars =
+  true;` over `false` (Symfony compiler passes). Re-declaring is the way to
+  override a default; dropping it as advised changes behaviour. custos only
+  reports re-declarations with the same default (D6b).

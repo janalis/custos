@@ -69,7 +69,7 @@ func (c *noreCase) checkModifiers() {
 	}
 	if !has('u') && body != "" && c.fn != "preg_quote" { // D13
 		lt := noreHasLineTerminator(body)
-		if !lt && strings.IndexFunc(body, func(r rune) bool { return r > 0x7f }) >= 0 {
+		if !lt && noreNonASCIIUnsafe(body, has('i')) {
 			c.report(meta.SeverityError, "Non-ASCII characters in the pattern need the /u flag.")
 		} else if !lt {
 			n := strings.ReplaceAll(body, `\\`, "")
@@ -78,4 +78,43 @@ func (c *noreCase) checkModifiers() {
 			}
 		}
 	}
+}
+
+// noreNonASCIIUnsafe reports whether a non-ASCII character of body behaves
+// differently without /u (D13a, custos): inside a character class (each
+// byte becomes a class member), followed by a quantifier (it applies to
+// the last byte only), or a letter under /i (no case folding without /u).
+// A plain literal sequence matches byte for byte either way.
+func noreNonASCIIUnsafe(body string, caseless bool) bool {
+	inClass := false
+	classStart := -1
+	rs := []rune(body)
+	for i := 0; i < len(rs); i++ {
+		r := rs[i]
+		switch {
+		case r == '\\':
+			i++
+			continue
+		case !inClass && r == '[':
+			inClass, classStart = true, i
+			if i+1 < len(rs) && rs[i+1] == '^' {
+				i++
+				classStart = i
+			}
+			continue
+		case inClass && r == ']' && i != classStart+1:
+			inClass = false
+			continue
+		}
+		if r <= 0x7f {
+			continue
+		}
+		if inClass || caseless && unicode.IsLetter(r) {
+			return true
+		}
+		if i+1 < len(rs) && strings.ContainsRune("*+?{", rs[i+1]) {
+			return true
+		}
+	}
+	return false
 }

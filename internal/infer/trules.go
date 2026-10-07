@@ -38,9 +38,16 @@ type TRules struct {
 	// unless the division is exact) instead of the spec heuristic's int
 	// (UnnecessaryCasting). Set it before the first TypeOf call.
 	DivisionIntOrFloat bool
-	cache              map[syntax.Expr]types.Type
-	busy               map[syntax.Expr]bool
-	assigns            map[syntax.Node]map[string][]*syntax.Assign // assignments, by scope
+	// SoundArithmetic types `+ - * / **` by PHP's actual result rules
+	// instead of the spec heuristic (UnnecessaryCasting): an unknown
+	// operand gives unknown, a float operand gives float, int with int
+	// gives int (`/` and `**` with a non-literal exponent may give a
+	// float), and any other operand (numeric strings, null, bool) gives
+	// int|float. Set it before the first TypeOf call.
+	SoundArithmetic bool
+	cache           map[syntax.Expr]types.Type
+	busy            map[syntax.Expr]bool
+	assigns         map[syntax.Node]map[string][]*syntax.Assign // assignments, by scope
 }
 
 // NewTRules creates a T-rules typer over env.
@@ -220,6 +227,9 @@ func (r *TRules) hasArray(s types.Type) bool {
 }
 
 func (r *TRules) arithmetic(n *syntax.Binary) types.Type {
+	if r.SoundArithmetic {
+		return r.soundArithmetic(n)
+	}
 	l := r.TypeOf(n.Left)
 	isFloat := r.floatish(l)
 	isArray := r.hasArray(l)
@@ -358,6 +368,20 @@ func (r *TRules) override(n *syntax.FuncCall, name string) (types.Type, bool) {
 			res = append(res, "null")
 		}
 		return types.Of(res...), true
+	case "mb_convert_encoding": // custos: an array only for an array input
+		if s := r.arg(n, 0); s != nil {
+			st := r.Env.TypeOf(s)
+			if r.SpecOnly {
+				st = r.TypeOf(s)
+			}
+			switch {
+			case st.IsUnknown():
+			case st.OnlyOf("string", "int", "float", "bool", "true", "false", "null"):
+				return types.Of("string", "bool"), true
+			case st.IsArrayLike():
+				return types.Of("array", "bool"), true
+			}
+		}
 	case "strstr":
 		return types.Of("string", "bool"), true
 	case "get_class":
@@ -443,10 +467,12 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 	if len(as) > maxVarDefs {
 		return types.Unknown // see maxVarDefs
 	}
+	after := uint32(0) // conditions before the last assignment do not narrow it
 	for _, d := range as {
 		if d.Span().Start >= pos || d.Span().Start < cutoff || containsPos(d, pos) {
 			continue
 		}
+		after = max(after, d.Span().End)
 		switch {
 		case d.Op.Kind == syntax.TEqual && (!d.ByRef || r.SpecOnly):
 			ts = append(ts, r.TypeOf(d.Value))
@@ -460,7 +486,7 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 		// T-rules sets may be partial (unknown members dropped), so a guard
 		// is only trusted to remove members: a result naming types outside
 		// the known set comes from the unknown part.
-		n := r.Env.narrow(t, v, scope)
+		n := r.Env.narrow(t, v, scope, after)
 		for _, a := range n.Atoms() {
 			if !t.Has(a) {
 				return types.Unknown
@@ -559,4 +585,34 @@ func (r *TRules) ParamTypes(scope syntax.Node, p *syntax.Param) types.Type {
 		}
 	}
 	return KnownUnion(declared, doc)
+}
+
+// soundArithmetic implements SoundArithmetic.
+func (r *TRules) soundArithmetic(n *syntax.Binary) types.Type {
+	l, rt := r.TypeOf(n.Left), r.TypeOf(n.Right)
+	if l.IsUnknown() || rt.IsUnknown() {
+		return types.Unknown
+	}
+	if r.hasArray(l) || r.hasArray(rt) {
+		if n.Op.Kind == syntax.TPlus && l.OnlyOf("array") && rt.OnlyOf("array") {
+			return types.Array
+		}
+		return types.Unknown
+	}
+	intOrFloat := types.Of("int", "float")
+	switch {
+	case l.OnlyOf("float") || rt.OnlyOf("float"):
+		return types.Float
+	case l.OnlyOf("int") && rt.OnlyOf("int"):
+		switch n.Op.Kind {
+		case syntax.TDiv:
+			return intOrFloat
+		case syntax.TPow:
+			if lit, ok := unparen(n.Right).(*syntax.Literal); !ok || lit.LitKind != syntax.LitInt {
+				return intOrFloat // a negative exponent gives a float
+			}
+		}
+		return types.Int
+	}
+	return intOrFloat
 }

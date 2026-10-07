@@ -69,7 +69,8 @@ Building-block checks:
     class type of T in the index (a subclass instance satisfies a class
     contract, e.g. `__set_state` returning a subclass).
   - Otherwise, if the method contains no `return` statement at all (any depth,
-    closures included) → report on the name identifier (resolved = nothing).
+    closures included) → report on the name identifier (resolved = nothing),
+    unless its body always ends in `throw`/`exit` (custos, see Divergences).
   - Otherwise, for each `return` statement at any depth:
     - with a value (parentheses stripped): infer its type; drop unknown parts.
       If the result is empty (inference failed, e.g. an untyped property) or
@@ -301,3 +302,12 @@ interface Printable { public function __toString(); }
   of a subclass of the containing class is reported, although a subclass
   instance satisfies the contract. custos accepts subtypes of the allowed
   class types (C-returns).
+- **Always-throwing bodies (custos diverges).** Upstream reports a
+  `__toString()` (or `__sleep()`, …) without any `return` even when every
+  path throws — a deliberate "not supported" implementation, common in test
+  doubles. Such a method never returns a wrong value; custos skips it when
+  the body cannot complete normally.
+- **`mixed` results (custos diverges).** A returned value typed `mixed`
+  (`return call_user_func($this->fn);`) may well be of the required type;
+  custos treats it like an unknown type (no report) instead of reporting
+  `got 'mixed'`.

@@ -26,7 +26,7 @@ function strictArg(int $n, $loose) {
 
 class Meter {
     /** @var int */
-    private $hidden;
+    private $hidden = 0;
     /** @var int */
     public $shown;
     public function size(): int { return 1; }

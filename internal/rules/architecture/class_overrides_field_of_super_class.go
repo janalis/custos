@@ -77,6 +77,32 @@ func (classOverridesFieldOfSuperClass) Check(ctx *analysis.Context, n syntax.Nod
 		if own < found.Visibility { // D6: deliberately widened
 			continue
 		}
+		// D6b: a re-declaration that changes the default value is how a
+		// subclass overrides it; dropping it would change behaviour.
+		ownDef := ""
+		if item.Default != nil {
+			ownDef = ctx.Text(item.Default)
+		}
+		if cofsDefault(ownDef, item.Default != nil, prop.Type != nil) != cofsDefault(found.Default, found.HasDefault, found.Type != "") {
+			continue
+		}
 		ctx.ReportSeverity(item.Var.Span(), meta.SeverityInfo, "Property '"+item.Var.Name+"' is already declared in "+holder+"; drop this re-declaration.")
 	}
+}
+
+// cofsDefault normalises a property default for comparison: whitespace
+// removed, lower-cased `null`; an untyped property without default holds
+// null, a typed one is uninitialised.
+func cofsDefault(text string, has, typed bool) string {
+	if !has {
+		if typed {
+			return "<uninitialised>"
+		}
+		return "null"
+	}
+	t := strings.Join(strings.Fields(text), "")
+	if strings.EqualFold(strings.TrimPrefix(t, `\`), "null") {
+		return "null"
+	}
+	return t
 }

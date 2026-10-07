@@ -95,22 +95,34 @@ func mmcCheckMethod(ctx *analysis.Context, c puCall, arg syntax.Expr) {
 	if builder == nil {
 		return
 	}
-	if s := mmcFirstCall(mock.Node, "setMethods"); s != nil { // D7
-		if sargs := s.Args.Args; len(sargs) > 0 {
-			if a, ok := sargs[0].(*syntax.Arg); ok {
-				if arr, ok := a.Value.(*syntax.Array); ok {
-					listed := false
-					syntax.Inspect(arr, func(x syntax.Node) bool {
-						if l, ok := x.(*syntax.Literal); ok && l.LitKind == syntax.LitString && l.Raw == lit.Raw {
-							listed = true
-						}
-						return !listed
-					})
-					if listed {
-						return
-					}
+	// D7: methods explicitly added to the double. setMethods() compares the
+	// literal text (upstream); addMethods() (PHPUnit 8.3+, custos) compares
+	// the method names case-insensitively.
+	for _, adder := range []string{"setMethods", "addMethods"} {
+		s := mmcFirstCall(mock.Node, adder)
+		if s == nil || len(s.Args.Args) == 0 {
+			continue
+		}
+		a, ok := s.Args.Args[0].(*syntax.Arg)
+		if !ok {
+			continue
+		}
+		arr, ok := a.Value.(*syntax.Array)
+		if !ok {
+			continue
+		}
+		listed := false
+		syntax.Inspect(arr, func(x syntax.Node) bool {
+			if l, ok := x.(*syntax.Literal); ok && l.LitKind == syntax.LitString {
+				if adder == "setMethods" && l.Raw == lit.Raw ||
+					adder == "addMethods" && strings.EqualFold(mmcLiteralContent(l.Raw), mmcLiteralContent(lit.Raw)) {
+					listed = true
 				}
 			}
+			return !listed
+		})
+		if listed {
+			return
 		}
 	}
 	bargs, ok := builder.args() // D8

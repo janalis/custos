@@ -12,8 +12,10 @@
 <warning descr="Loop body exits on the first iteration; the loop never repeats.">do</warning> {
     break 1;
 } while ($again);
-<warning descr="Loop body exits on the first iteration; the loop never repeats.">while</warning> (wait()) {
-    // nothing yet
+while (wait()) {
+    // the condition does the work: still loops
+}
+<warning descr="Loop body exits on the first iteration; the loop never repeats.">foreach</warning> ($queue as $unused) {
 }
 <warning descr="Loop body exits on the first iteration; the loop never repeats.">foreach</warning> ($grid as $line) {
     foreach ($line as $cell) {
