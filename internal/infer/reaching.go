@@ -47,6 +47,11 @@ func (e *Env) reaching(defs []varDef, use, scope syntax.Node) (fwd, back []varDe
 		// attached to: no `;` between the comment and that definition.
 		if d.doc && i+1 < len(defs) && !defs[i+1].doc && defs[i+1].w == nil && defs[i+1].pos <= pos && !e.semicolonBetween(d.docEnd, defs[i+1].pos) {
 			i++
+			if len(fwd) == 1 {
+				// The annotated assignment is where the value is defined:
+				// it is no mutation of the annotated type (non-empty facts).
+				from = max(defs[i].pos, defs[i].end)
+			}
 		}
 	}
 	if len(fwd) == 0 {
@@ -101,6 +106,10 @@ func (e *Env) reachingWrites(v *syntax.Variable) (ws []*elemWrite, back []bool) 
 	defs := sv.elemDefs(v.Name)
 	if defs == nil {
 		return nil, nil
+	}
+	if len(defs) > maxVarDefs {
+		// Too many to walk per read (see maxVarDefs): one unknown write.
+		return []*elemWrite{{}}, []bool{false}
 	}
 	fwd, bk, _ := e.reaching(defs, v, scope)
 	for _, d := range fwd {

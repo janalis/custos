@@ -205,7 +205,8 @@ Found on real code (corpus A, Symfony) and fixed through spec → implement.
   and 4096 parts per type including alias expansions (beyond: mixed);
   `FuzzFromDoc` checks speed and `DocString` round-trips.
   `@template` names map to `mixed` (except class templates bound by
-  generic arguments, see Generics); `@phpstan-type`/`@psalm-type`
+  generic arguments, see Generics, and method templates bound by a call's
+  arguments, see Method-level templates); `@phpstan-type`/`@psalm-type`
   aliases expand (including aliases used inside an alias; a self-reference
   reads as `mixed`); `@phpstan-import-type` → `mixed`; nested generics parse. Conditional
   types `(T is X ? A : B)` give `A|B`. A doc intersection refining an object
@@ -294,6 +295,93 @@ Found on real code (corpus A, Symfony) and fixed through spec → implement.
   the way: `is_numeric()`/`is_scalar()`/… on a value with no matching atom
   (mixed) narrowed to the first checked atom only (`int`), now to all of
   them. No finding changed on the reference corpora.
+- **Method-level templates (2026-10-07):** a function or method declaring
+  `@template T` (psalm-/phpstan- variants) whose documented return type
+  (preferring `@phpstan-return`/`@psalm-return`) uses T is indexed with
+  `FuncTemplates`: the template names/bounds, the return type and the
+  parameter types mentioning them (preferring `@phpstan-param`/
+  `@psalm-param`), with method templates as `\~~T` atoms (class templates
+  stay `\~T`). A call binds T from its arguments (positional or named):
+  `class-string<T>` from `Foo::class`/`self::class`/`parent::class` (now
+  typed `class-string<\Foo>`, a `string` atom carrying the class as
+  generic argument; `static::class` stays `string`) or a `class-string<Foo>`
+  value, `T`/`?T` from the argument's type (minus the other members),
+  `array<T>`/`T[]`/`list<T>` from the element type (or a sealed shape's
+  values), `iterable<K, V>` from the iteration types, `Box<T>` from the
+  argument's own `Box<…>` arguments; several parameters binding T give the
+  union. Class templates in the same return type bind from the receiver as
+  for Generics. The bound type replaces the declared one when it agrees
+  with it (declared unknown/mixed/`object`, every member a subtype of a
+  declared member, or an intersection refining it: `@return T&Stub` on
+  `: Stub`); otherwise, or when a template stays unbound or binds to
+  mixed, the call is typed as before (templates read as mixed). So
+  `$em->getRepository(Foo::class)->find(1)` is `?Foo`,
+  `$container->get(Foo::class)` is `Foo`, `createStub(Foo::class)` is
+  `Foo&Stub`. The embedded stubs were not regenerated (phpstorm-stubs
+  hardly use method templates). Delta: +4 UnnecessaryCasting on corpus B,
+  all true positives (`(int) $id` where `$id` is a `?int` entity id narrowed
+  by a null check, the entity coming from `narrowList($rows, Foo::class)`
+  documented `@param class-string<T>` / `@return list<T>`).
+- **Assertion annotations (2026-10-07):** `@phpstan-assert`,
+  `@psalm-assert` and their `-if-true`/`-if-false` variants are indexed per
+  function/method (`index.Assertion`: kind, target = parameter, `$this` (the
+  receiver) or `$this->prop`, negation `!T`, type; `=T` reads as T;
+  method-call targets are skipped). A call statement narrows the argument
+  bound to an asserted parameter for the following statements of the same
+  block (until it is reassigned, like early-exit guards); an
+  `-if-true`/`-if-false` call used as a condition narrows in the matching
+  branch only (if/elseif/while bodies, ternary branches, `&&`/`||`
+  operands, `!call()` guards that leave). `$this` targets narrow the
+  receiver (`if ($e->isTestMethod()) { $e->… }`), `$this->prop` targets
+  only calls made on `$this` (or `self::`/`static::`/`parent::` from an
+  instance method). Positive assertions keep the members of the current
+  type that belong to the asserted type (subclasses, `true`/`false` for
+  `bool`, arrays for `iterable`), else take the asserted type; negative
+  ones remove it. Templates bind as for method templates, so PHPUnit's
+  `assertInstanceOf(Foo::class, $x)` (`@phpstan-assert =ExpectedType`)
+  and webmozart's `Assert::isInstanceOf($x, Foo::class)` narrow to `Foo`.
+  Like other guards, an assertion never makes an unknown type known.
+  A method call on a union of classes uses the assertions only when every
+  class resolves to the same method. Delta: −3 OffsetOperations on
+  corpus B `--all` (false positives after `static::assertIsInt($pos)` /
+  `assertIsString($label)`), and −1 on corpus A vendor (`Assert::notFalse()`).
+- **Untyped property inference (2026-10-07):** a property without declared
+  or doc type that only its own class can write — private, or protected in
+  a final class; not static, no hooks, not declared in a trait nor in a
+  class using traits — is typed as the union of its initial value (its
+  default; else null; for a promoted constructor parameter, the
+  parameter's declared/`@param` type) and every value the class's methods
+  assign to it (`$this->p = v`, but also `$copy->p = v` on another
+  instance, e.g. withers on a clone). The implicit null is dropped when the
+  constructor assigns the property in a top-level statement. Unknown when
+  an assigned value is unknown or mixed, when the property is written in an
+  untracked way (by reference, destructuring, foreach target, unset,
+  by-reference argument), on a dynamic property write anywhere in the class
+  (`$this->$k = $v`), and for a property without default that the class
+  never writes (ORMs and serializers hydrate those through reflection).
+  `$this->p[] = v` / `$this->p['k'] = v` widen its arrays to plain `array`
+  (keeping null; other members: unknown); `$this->p++` keeps an
+  `int|float|null` type and adds `int`. Public properties are not inferred
+  (any code may write them). Same-file reads compute it from the class body
+  (cached per class: one walk collects every property's writes);
+  `AnnotateReturns` stores it in the index as `Property.Inferred` for other
+  files (dropped with the inferred returns by `DropStaleInferred`). On corpus A
+  vendor + src and corpus B src 157 of 248 untyped instance properties are
+  inferred (modern code types its properties); no finding changed on the
+  three reference corpora.
+- **Doc comments in infer** are parsed once per declaration and Env
+  (`Env.DocOf`; the templates/aliases in scope at a declaration are cached
+  too): `resolverFor` used to re-parse every enclosing doc comment for each
+  `@param` and inline `@var` it resolved (quadratic: an 800 KB class doc
+  with 5,000 inline annotations took 12 s, now 1 s). Inline `@var` scanning
+  starts at the scope by binary search instead of from the file start.
+- **Fixed on the way (2026-10-07):** an annotated assignment
+  (`/** @var array{k: int} $v */ $v = f();`) counted as a mutation after
+  the annotation, so the non-empty fact of the shape was dropped and its
+  keys became optional; the assignment is now the definition point.
+  `ArrAY <…>` (a builtin name followed by a space and `<`) attached generic
+  arguments to the builtin atom, which did not round-trip (found by
+  `FuzzFromDoc`).
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.
@@ -359,6 +447,137 @@ an editor), so hostile input must not crash or hang it.
   `types.FromDoc` exponential on nested generics (`array<array<…>>`, ×2 per
   level, ~30 levels hangs) — a single doc comment could hang CI or the LSP
   server. Fixed with linear parsing plus depth/size caps and a fuzz target.
+- **Expansion caps (2026-10-07):** a follow-up review flagged a resource
+  cap bypass in `types/parse.go` and `infer/generics.go`; both confirmed by
+  probes. (1) Alias and template expansions (`"=" + definition` from a
+  resolver) were parsed without the `MaxDocTypeLen` check applied to the
+  top-level text: a 1 MB `@phpstan-type` definition with few parts, used
+  1,000 times in a 2 KB doc type, was rescanned at each use (13.6 s for one
+  type). Now an expansion longer than `MaxDocTypeLen` reads as mixed,
+  `phpdoc.TypeAliases` records such definitions as "" (mixed) so resolvers
+  never copy them, and each `FromDoc` call also has a total byte budget
+  (`maxDocBytes` = 64 × 4096 scanned, nested members and expansions
+  included; beyond it parts read as mixed). (2) Each `@extends` level
+  substituted the bindings into the next class's arguments with a fresh
+  parse budget, so arguments using a template several times
+  (`@extends B<array{a: T, b: T, c: T, d: list<T>}>`) grew geometrically
+  along a chain: 1,000 such classes took 17.7 s for one method call, again
+  for each distinct receiver. Now a binding whose text exceeds
+  `MaxDocTypeLen` is not used (the template reads as its bound or mixed)
+  and `genBindings` visits at most `maxGenAncestors` = 64 classes per
+  receiver (17.7 s → 27 ms; 20 distinct receivers on the 1,000-class
+  chain in 0.7 s including parsing). Method-template bindings (above) use
+  the same length cap. Regression tests: `TestFromDocPathological` (huge
+  and long aliases), `TestGenericChainBounded`, `TestScopeDocsParsedOnce`,
+  `TestTypeAliasCap`; alias-heavy seeds added to `FuzzFromDoc`.
+- **Whole-tool audit (2026-10-07):** probes with generated files (one
+  construct repeated N and 4N times: 20k statements, 20k-case chains,
+  try/catch, closures, goto labels, …), pathological string literals
+  (300 KB of `[`, `{`, `\u{`, `%`, `(`, invalid UTF-8, … passed to the
+  string-parsing rules), 15–50 MB files and malformed LSP / config input.
+  Findings were unchanged on the reference corpora (corpus A, corpus B,
+  EasyAdminBundle). Limits:
+  - `syntax.MaxFileSize` = 10 MB: larger sources get one error ("file
+    larger than 10 MB; not analysed") and no tree. Memory is linear but
+    peaks at up to ~250× the file size on garbage input (a 50 MB unterminated
+    string took 11 GB, 20 MB of `;` 13.7 GB and 5 GB of output); a 15 MB
+    garbage file now peaks at ~4 GB, so 10 MB keeps one file near 2.5 GB.
+    Files are read through `safeio` (`runner.ReadSource`): at most
+    MaxFileSize+1 bytes, regular files only, so a `.php` symlink to
+    `/dev/zero` or a FIFO fails instead of hanging; `custos fix` never writes
+    through a symlink.
+  - `syntax.MaxErrors` = 1000 syntax errors per file (then one "more than"
+    error; messages beyond it are not even formatted) and
+    `analysis.MaxFindingsPerFile` = 10,000 findings (then one "internal"
+    warning).
+  - LSP: a Content-Length above 128 MB is answered with an error and its
+    body skipped (a huge value crashed the server: `makeslice` panic outside
+    any recover); header lines are capped at 64 KB, negative lengths and
+    framing errors end the server cleanly; a negative fix index in
+    `codeAction/resolve` no longer panics.
+  - Config: custos.json / composer.json are read with an 8 MB cap and the
+    baseline with 256 MB (regular files only); `paths` and `baseline` must
+    stay inside the project root, so a repository cannot point custos (or
+    `custos fix`) outside it (`"baseline": "../../../../dev/zero"` hung).
+    Go's JSON decoder already rejects nesting beyond 10,000 levels; the
+    hand-written composer.json parser of SecurityAdvisories caps depth at 512.
+
+  Quadratic algorithms fixed (input, before → after at N = 20k unless
+  noted): per-finding suppression lookup re-walking the tree from the top
+  (20k findings: 3.4 s, a 40k-statement file did not finish in 120 s;
+  now one indexed pass) and tag parsing re-scanning a long comment line per
+  tag; `util.Reachable` / `StmtList` scanning statement lists (cached
+  `syntax.FirstTerminating`, binary-searched `syntax.StmtIndex`); line /
+  rune / UTF-16 columns counted from the line start for every finding
+  (minified one-line files; checkpoints every 1 KB on lines > 4 KB);
+  value discovery (`PossibleValues*`, `DiscoverValues`,
+  `ReachingAssignments`) re-walking the function body per variable use
+  (printf on one variable 20k times: 40 s → 0.2 s; per-scope indexes
+  cached with `syntax.File.Memo`; more than 512 candidate assignments make
+  the result unknown); `VarAccesses` per name in OnlyWritesOnParameter
+  (13 s → 0.5 s) and BadExceptionsProcessing (28 s → 0.6 s); per-label
+  walks in UnusedGotoLabel (13 s → 0.6 s); chain recomputation in
+  CascadeStringReplacement (N = 5k: 12 s → 0.7 s; chains over 256 calls get
+  no fix); per-closure body walks in StaticClosureCanBeUsed (48 s → 1 s);
+  per-parameter walks in SuspiciousAssignments (12 s → 0.1 s);
+  AlterInForeach sibling scans; UnqualifiedReference rescanning top-level
+  statements per name. String parsers: `\u{` escapes in
+  `util.StringLiteralValue` scanned to the next `}` each (300k unterminated
+  escapes hung); NotOptimalRegularExpressions D15 rescanned for `]`/`}` from
+  every `[` (now O(1) lookups, checked against the old code by
+  `FuzzNorePattern`) and D18 folds groups one regex pass at a time (now
+  skipped beyond 64 KB or 256 folds); `phpdoc.Parse` concatenated
+  continuation lines (quadratic on long tags) and `SplitType` rescanned
+  blank runs. `syntax.TreeDepth` no longer stacks every pending sibling
+  (~1 GB of allocations on a 3 MB file). Custom backtracking: none — every
+  regexp in custos is a constant compiled with Go's linear-time engine; no
+  user-provided pattern is ever compiled.
+
+  Fuzz targets added: `FuzzStringLiterals` (all rules, fuzzed text passed as
+  regex/format/date/callable/JSON/doc/suppression literals),
+  `FuzzStringLiteralValue`, `FuzzNorePattern`, `FuzzParse` (phpdoc),
+  `FuzzParseSuppressionComment`, `FuzzParseJSON`. Regression tests:
+  `TestSuppressionsScale`, `TestFindingsCap`, `TestLineIndexLongLines`,
+  `TestParseLimits`, `TestReadSourceBounded`, `TestHostile*` (LSP frames and
+  requests, config, repository), `*Pathological`, plus equivalence tests of
+  the new indexes against the previous per-query code
+  (`TestVarAccessesByNameMatches`, `TestReachingAssignmentsIndexMatches`).
+  The engine paths this audit reported are fixed below (Engine scaling).
+- **Engine scaling (2026-10-07):** fixes for the super-linear engine paths
+  found by the whole-tool audit; findings identical on the reference
+  corpora (corpus A src/vendor/symfony, corpus B, default and `--all`),
+  corpus A vendor timing unchanged (~0.7 s).
+  - `index.Ancestors` (every class/member lookup, `IsSubtype`) is cached
+    per class and PHP version; each index layer counts its changes and an
+    entry is valid while the sum over the layer and its bases is unchanged
+    (Add/Remove on the project index or a base invalidate it). At most
+    `index.MaxAncestors` = 256 classes are returned (`ParentChain` too).
+    Lookups on a 5,000-class chain / cycle: 6.9 s / 13.5 s → 20,000-class
+    chain / cycle: 2.0 s each (`TestAncestorsBounded`,
+    `TestAncestorsCacheInvalidation`).
+  - `guards` indexes each statement list once (`guardIndex`): the keys
+    occurring in its expression statements and else-less ifs, the
+    assignments resetting each key; a read only visits the statements after
+    the last assignment of its key that mention it, and more than
+    `maxGuardScan` = 512 of them make the read unknown. The definitions of
+    one variable in one scope are capped at `maxVarDefs` = 512 (beyond:
+    unknown; element writes: one unknown write), the definition sort is no
+    longer an insertion sort, and the T-rules typer collects a scope's
+    assignments once instead of walking the scope per read (same cap).
+    At N = 20k (`TestLongBodiesBounded`, before → after): `$a['k'] = …`
+    121 s → <0.1 s, `if (!isset($a['k'])) return;` 86 s → <0.1 s,
+    `$o = new X` 15.6 s, `array_push($a, $x)` 4.1 s, `$s = str_replace(…,
+    $s)` 3.7 s → all under 0.5 s together; whole-file analysis of the
+    probes: 22 s / 8.7 s / 5.3 s / 89 s → 0.24 / 0.14 / 0.18 / 1.2 s.
+  - Untyped property inference finds declarations through a per-class map
+    built with the writes (a class with 20k properties: 1.07 s → 0.12 s
+    whole-file).
+  - Rule-side follow-ups: `util.chainWalk` (`MethodInChain`,
+    `PropertyInChain`) and LongInheritanceChain stop after
+    `index.MaxAncestors` classes (20k-class chain: 68 s → 4.3 s
+    whole-file, now linear); CompactArguments indexes the first `$name`
+    token of each scope once instead of rescanning per call (20k
+    `compact()` calls: 9 s → 0.2 s).
 
 ## Clean-room incidents
 

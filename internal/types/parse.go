@@ -37,11 +37,17 @@ const (
 	// maxDocParts caps the number of type parts one FromDoc call parses
 	// (alias expansions included); beyond it parts read as mixed.
 	maxDocParts = 4096
+	// maxDocBytes caps the text one FromDoc call scans, summed over every
+	// union it parses (nested members and alias or template expansions are
+	// scanned again); beyond it parts read as mixed. An expansion longer
+	// than MaxDocTypeLen reads as mixed too.
+	maxDocBytes = 64 * MaxDocTypeLen
 )
 
 // docParser carries the work budget of one FromDoc call.
 type docParser struct {
-	budget int
+	budget int // parts left
+	bytes  int // text bytes left to scan
 }
 
 // FromDoc parses a PHPDoc type expression.
@@ -50,7 +56,7 @@ func FromDoc(text string, resolve Resolver) Type {
 	if text == "" || len(text) > MaxDocTypeLen {
 		return Unknown
 	}
-	p := docParser{budget: maxDocParts}
+	p := docParser{budget: maxDocParts, bytes: maxDocBytes}
 	return p.union(text, resolve, 0)
 }
 
@@ -60,6 +66,9 @@ func (p *docParser) union(text string, resolve Resolver, depth int) Type {
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return Unknown
+	}
+	if p.bytes -= len(text); p.bytes < 0 {
+		return Mixed
 	}
 	parts := splitTop(text, '|')
 	if len(parts) == 1 {
@@ -156,7 +165,7 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 	// Generic forms: name<...> and shapes name{...}, callable(...)
 	base, args := s, ""
 	if i := strings.IndexAny(s, "<{("); i > 0 {
-		base, args = s[:i], s[i:]
+		base, args = strings.TrimSpace(s[:i]), s[i:]
 	}
 	low := strings.ToLower(base)
 	switch low {
@@ -169,6 +178,15 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		return Of(`\Closure`)
 	case "int":
 		return Int // int<0, max>
+	case "class-string", "interface-string":
+		// class-string<Foo>: a string carrying the class as generic
+		// argument (bound by method templates, see ClassString).
+		if strings.HasPrefix(args, "<") && matchingClose(args) == len(args)-1 {
+			if in := p.union(args[1:len(args)-1], resolve, depth+1); isClassUnion(in) {
+				return ClassString(in)
+			}
+		}
+		return String
 	}
 	if ps, ok := pseudo[low]; ok {
 		return Of(ps...)
@@ -193,7 +211,7 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		if strings.HasPrefix(fqn, "=") {
 			// Type alias (@phpstan-type / @psalm-type): "=<definition>".
 			def := fqn[1:]
-			if def == "" || def == base {
+			if def == "" || def == base || len(def) > MaxDocTypeLen {
 				return Mixed
 			}
 			// Aliases may use other aliases (not themselves).
@@ -203,7 +221,7 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		fqn = strings.TrimPrefix(base, `\`)
 	}
 	t := Of(`\` + fqn)
-	if strings.HasPrefix(args, "<") && matchingClose(args) == len(args)-1 {
+	if strings.HasPrefix(args, "<") && matchingClose(args) == len(args)-1 && strings.HasPrefix(t.atoms[0], `\`) {
 		// Generic arguments: Collection<int, Foo>.
 		t = t.WithTypeArgs(t.atoms[0], p.typeArgs(args[1:len(args)-1], resolve, depth))
 	}

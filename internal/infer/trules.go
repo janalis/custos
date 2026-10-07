@@ -3,8 +3,6 @@ package infer
 import (
 	"strings"
 
-	"custos/internal/index"
-	"custos/internal/phpdoc"
 	"custos/internal/syntax"
 	"custos/internal/types"
 )
@@ -42,6 +40,7 @@ type TRules struct {
 	DivisionIntOrFloat bool
 	cache              map[syntax.Expr]types.Type
 	busy               map[syntax.Expr]bool
+	assigns            map[syntax.Node]map[string][]*syntax.Assign // assignments, by scope
 }
 
 // NewTRules creates a T-rules typer over env.
@@ -440,7 +439,11 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 			break
 		}
 	}
-	for _, d := range r.assignments(scope, v.Name) {
+	as := r.assignments(scope, v.Name)
+	if len(as) > maxVarDefs {
+		return types.Unknown // see maxVarDefs
+	}
+	for _, d := range as {
 		if d.Span().Start >= pos || d.Span().Start < cutoff || containsPos(d, pos) {
 			continue
 		}
@@ -507,16 +510,21 @@ func scopeParams(scope syntax.Node) []*syntax.Param {
 
 // assignments lists the assignments (plain and compound) whose target is the
 // variable `name`, directly in scope (nil scope: the file's top level).
+// The scope is walked once (cached): walking it for every read was
+// quadratic on long bodies.
 func (r *TRules) assignments(scope syntax.Node, name string) []*syntax.Assign {
-	var out []*syntax.Assign
+	if byName, ok := r.assigns[scope]; ok {
+		return byName[name]
+	}
+	byName := map[string][]*syntax.Assign{}
 	visit := func(root syntax.Node) {
 		syntax.Inspect(root, func(n syntax.Node) bool {
 			switch n := n.(type) {
 			case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
 				return n == scope
 			case *syntax.Assign:
-				if t, ok := n.Var.(*syntax.Variable); ok && t.NameExpr == nil && t.Name == name {
-					out = append(out, n)
+				if t, ok := n.Var.(*syntax.Variable); ok && t.NameExpr == nil {
+					byName[t.Name] = append(byName[t.Name], n)
 				}
 			}
 			return true
@@ -529,7 +537,11 @@ func (r *TRules) assignments(scope syntax.Node, name string) []*syntax.Assign {
 	} else {
 		visit(scope)
 	}
-	return out
+	if r.assigns == nil {
+		r.assigns = map[syntax.Node]map[string][]*syntax.Assign{}
+	}
+	r.assigns[scope] = byName
+	return byName[name]
 }
 
 // ParamTypes returns the declared type of a parameter united with its
@@ -539,8 +551,8 @@ func (r *TRules) ParamTypes(scope syntax.Node, p *syntax.Param) types.Type {
 	res := r.Env.resolver(at)
 	declared := types.FromNode(p.Type, res)
 	var doc types.Type
-	if c := index.DocComment(r.Env.File, scope); c != "" && p.Var != nil {
-		for _, dp := range phpdoc.Parse(c).Params() {
+	if d := r.Env.DocOf(scope); d != nil && p.Var != nil {
+		for _, dp := range d.Params() {
 			if dp.Name == p.Var.Name {
 				doc = types.FromDoc(dp.Type, res)
 			}

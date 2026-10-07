@@ -2,6 +2,8 @@
 package infer
 
 import (
+	"cmp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,6 +42,95 @@ type Env struct {
 
 	// generics caches genBindings.
 	generics map[string]map[string]tplBindings
+
+	// docs caches DocOf; docScopes caches the template names and type
+	// aliases in scope at a declaration (see resolverFor).
+	docs      map[syntax.Node]*phpdoc.Doc
+	docScopes map[syntax.Node]*docScope
+
+	// asserts caches assertsOf.
+	asserts map[syntax.Expr]*callAsserts
+
+	// Untyped property inference (see propinfer.go): writes per class,
+	// results and recursion guard by property span, classes by span.
+	propWritesCache map[*syntax.ClassLike]*classWrites
+	props           map[syntax.Span]types.Type
+	propBusy        map[syntax.Span]bool
+	classes         map[syntax.Span]syntax.Node
+
+	// guardIdx caches guardIndexOf by statement-list owner (nil: file).
+	guardIdx map[syntax.Node]*guardIndex
+}
+
+// docScope holds the @template names and type aliases declared on a
+// declaration and its enclosing ones.
+type docScope struct {
+	tpl     map[string]bool
+	aliases map[string]string
+}
+
+// DocOf returns the parsed doc comment of declaration n (nil when it has
+// none), parsed once per Env.
+func (e *Env) DocOf(n syntax.Node) *phpdoc.Doc {
+	if d, ok := e.docs[n]; ok {
+		return d
+	}
+	var d *phpdoc.Doc
+	if c := index.DocComment(e.File, n); c != "" {
+		d = phpdoc.Parse(c)
+	}
+	if e.docs == nil {
+		e.docs = map[syntax.Node]*phpdoc.Doc{}
+	}
+	e.docs[n] = d
+	return d
+}
+
+// scopeDocs returns the template names and aliases declared on the
+// function-likes and classes enclosing n (n included), innermost last.
+func (e *Env) scopeDocs(n syntax.Node) *docScope {
+	for n != nil {
+		switch n.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ClassLike:
+		default:
+			n = n.Parent()
+			continue
+		}
+		break
+	}
+	if n == nil {
+		return nil
+	}
+	if s, ok := e.docScopes[n]; ok {
+		return s
+	}
+	outer := e.scopeDocs(n.Parent())
+	s := outer
+	if d := e.DocOf(n); d != nil {
+		names, aliases := d.Templates(), d.TypeAliases()
+		if len(names) > 0 || len(aliases) > 0 {
+			s = &docScope{tpl: map[string]bool{}, aliases: map[string]string{}}
+			if outer != nil {
+				for k := range outer.tpl {
+					s.tpl[k] = true
+				}
+				for k, v := range outer.aliases {
+					s.aliases[k] = v
+				}
+			}
+			for _, t := range names {
+				s.tpl[t] = true
+			}
+			for k, v := range aliases {
+				s.aliases[k] = v
+			}
+		}
+	}
+	if e.docScopes == nil {
+		e.docScopes = map[syntax.Node]*docScope{}
+	}
+	e.docScopes[n] = s
+	return s
 }
 
 // NewEnv creates an inference environment.
@@ -55,30 +146,15 @@ func (e *Env) resolver(at uint32) types.Resolver {
 // resolverFor resolves names in docs attached around n, mapping @template
 // names declared on the enclosing function/method/class to "" (mixed).
 func (e *Env) resolverFor(n syntax.Node, at uint32) types.Resolver {
-	tpl := map[string]bool{}
-	aliases := map[string]string{}
-	for p := n; p != nil; p = p.Parent() {
-		switch p.(type) {
-		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ClassLike:
-			if c := index.DocComment(e.File, p); c != "" {
-				d := phpdoc.Parse(c)
-				for _, t := range d.Templates() {
-					tpl[t] = true
-				}
-				for k, v := range d.TypeAliases() {
-					aliases[k] = v
-				}
-			}
-		}
-	}
-	if len(tpl) == 0 && len(aliases) == 0 {
+	ds := e.scopeDocs(n)
+	if ds == nil {
 		return e.resolver(at)
 	}
 	return func(w string) string {
-		if tpl[w] {
+		if ds.tpl[w] {
 			return ""
 		}
-		if def, ok := aliases[w]; ok {
+		if def, ok := ds.aliases[w]; ok {
 			return "=" + def
 		}
 		return e.Names.Class(w, at)
@@ -500,6 +576,9 @@ func strictSuperset(doc, declared types.Type) bool {
 }
 
 func (e *Env) propType(p *index.Property, receiver string) types.Type {
+	if p.Type == "" && p.DocType == "" {
+		return bindStatic(e.inferredProp(p), receiver)
+	}
 	return bindStatic(memberType(p.Type, p.DocType), receiver)
 }
 
@@ -528,10 +607,20 @@ func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types
 // methodBodyReturn). Class templates in the documented return type are
 // bound from origin (the receiver class, or the calling class for
 // `parent::`) and its generic arguments args.
-func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args []types.Type) types.Type {
+func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args []types.Type, call *syntax.ArgList) types.Type {
 	m := e.Index.FindMethod(cls, name, e.PHP)
 	if m == nil {
 		return types.Unknown
+	}
+	if m.Tpl != nil {
+		var classB tplBindings
+		c := e.Index.Class(m.Class, e.PHP)
+		if c != nil && len(c.Templates) > 0 {
+			classB = e.genBindings(origin, args)[strings.ToLower(strings.TrimPrefix(m.Class, `\`))]
+		}
+		if t, ok := e.tplReturn(m.Tpl, m.Params, call, m.Return, classB, c); ok {
+			return bindStatic(t, cls)
+		}
 	}
 	if t, ok := e.genMethodReturn(m, origin, args); ok {
 		return bindStatic(t, cls)
@@ -554,7 +643,7 @@ func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
 	var ts []types.Type
 	for _, cls := range recv.Classes() {
 		c := strings.TrimPrefix(cls, `\`)
-		t := e.methodReturn(c, id.Value, true, c, recv.TypeArgs(cls))
+		t := e.methodReturn(c, id.Value, true, c, recv.TypeArgs(cls), n.Args)
 		if t.IsUnknown() {
 			return types.Unknown
 		}
@@ -586,7 +675,7 @@ func (e *Env) staticCallType(n *syntax.StaticCall) types.Type {
 			origin = c
 		}
 	}
-	return e.methodReturn(cls, id.Value, isVirtualClassRef(n.Class), origin, nil)
+	return e.methodReturn(cls, id.Value, isVirtualClassRef(n.Class), origin, nil, n.Args)
 }
 
 func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
@@ -595,6 +684,13 @@ func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
 		return types.Unknown
 	}
 	if strings.EqualFold(id.Value, "class") {
+		// `Foo::class`, `self::class`, `parent::class`: class-string<Foo>
+		// (not `static::class` nor `$obj::class`, which may name a subclass).
+		if nm, ok := n.Class.(*syntax.Name); ok && !strings.EqualFold(nm.Value, "static") {
+			if cls := e.classRef(nm); cls != "" {
+				return types.ClassString(types.Of(`\` + cls))
+			}
+		}
 		return types.String
 	}
 	cls := e.classRef(n.Class)
@@ -634,6 +730,11 @@ func (e *Env) funcCallType(n *syntax.FuncCall) types.Type {
 	f := e.ResolveFunction(n)
 	if f == nil {
 		return types.Unknown
+	}
+	if f.Tpl != nil {
+		if t, ok := e.tplReturn(f.Tpl, f.Params, n.Args, f.Return, nil, nil); ok {
+			return t
+		}
 	}
 	if f.Return == "" && f.DocReturn == "" {
 		return e.BodyReturnType(f)
@@ -883,6 +984,9 @@ func (e *Env) variableType(v *syntax.Variable) types.Type {
 		outer := e.scopeVars(scopeOf(scope))
 		defs = outer.defs[v.Name]
 	}
+	if len(defs) > maxVarDefs {
+		return types.Unknown
+	}
 	fwd, back, from := e.reaching(defs, v, scope)
 	ts := make([]types.Type, 0, len(fwd)+len(back))
 	for _, d := range fwd {
@@ -1082,12 +1186,16 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 }
 
 func sortDefs(d []varDef) {
-	for i := 1; i < len(d); i++ {
-		for j := i; j > 0 && d[j].pos < d[j-1].pos; j-- {
-			d[j], d[j-1] = d[j-1], d[j]
-		}
-	}
+	slices.SortStableFunc(d, func(a, b varDef) int { return cmp.Compare(a.pos, b.pos) })
 }
+
+// maxVarDefs caps the definitions (assignments, element writes, inline
+// annotations) of one variable in one scope that reads consider; beyond it
+// the variable is unknown (element writes: an unknown write). Each read
+// walks them, so thousands of assignments to one variable with as many
+// reads were quadratic; real code stays far below (same cap as value
+// discovery in analysis/util).
+const maxVarDefs = 512
 
 // collectTargets registers variables written by an assignment target
 // (plain variable or list/array destructuring).
@@ -1174,8 +1282,8 @@ func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
 		declared = types.Union(declared, types.Null)
 	}
 	doc := ""
-	if c := index.DocComment(e.File, scope); c != "" {
-		for _, dp := range phpdoc.Parse(c).Params() {
+	if d := e.DocOf(scope); d != nil {
+		for _, dp := range d.Params() {
 			if dp.Name == p.Var.Name {
 				doc = dp.Type
 			}
@@ -1198,10 +1306,9 @@ func (e *Env) inlineVarDocs(scope syntax.Node, addDoc func(string, uint32, uint3
 	} else {
 		span = scope.Span()
 	}
-	for _, t := range e.File.Tokens {
-		if t.Start < span.Start {
-			continue
-		}
+	toks := e.File.Tokens
+	first := sort.Search(len(toks), func(i int) bool { return toks[i].Start >= span.Start })
+	for _, t := range toks[first:] {
 		if t.Start >= span.End {
 			break
 		}

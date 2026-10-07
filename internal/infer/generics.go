@@ -18,6 +18,15 @@ import (
 // tplBindings maps a template name to its bound type.
 type tplBindings map[string]types.Type
 
+// maxGenAncestors caps the classes genBindings visits for one receiver:
+// each @extends level substitutes the bindings into the next arguments, so
+// a long hostile chain must not cost one doc parse per class without end.
+// Ancestors beyond it get no bindings (their templates read as before:
+// bound or mixed). Bindings whose text exceeds types.MaxDocTypeLen are
+// dropped the same way (see substTemplates), so they cannot grow
+// geometrically along the chain.
+const maxGenAncestors = 64
+
 // genBindings returns the template bindings of class cls instantiated with
 // args, and of every ancestor reached through @extends/@implements/@use
 // (lower-case FQN -> bindings). Ancestors without generic arguments are
@@ -42,7 +51,7 @@ func (e *Env) genBindings(cls string, args []types.Type) map[string]tplBindings 
 		args []types.Type
 	}
 	queue := []item{{strings.TrimPrefix(cls, `\`), args}}
-	for len(queue) > 0 {
+	for len(queue) > 0 && len(out) < maxGenAncestors {
 		it := queue[0]
 		queue = queue[1:]
 		k := strings.ToLower(strings.TrimPrefix(it.fqn, `\`))
@@ -110,8 +119,11 @@ func substTemplates(text string, b tplBindings, c *index.Class) (t types.Type, b
 		}
 		name = name[1:]
 		if bt, ok := b[name]; ok && !bt.IsUnknown() && !bt.Has("mixed") {
-			bound = true
-			return "=" + bt.DocString()
+			// An over-long binding (see maxGenAncestors) is not used.
+			if ds := bt.DocString(); len(ds) <= types.MaxDocTypeLen {
+				bound = true
+				return "=" + ds
+			}
 		}
 		for _, tp := range c.Templates {
 			if tp.Name == name && tp.Bound != "" {

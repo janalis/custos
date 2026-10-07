@@ -1,9 +1,11 @@
 package infer
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
+	"custos/internal/index"
 	"custos/internal/syntax"
 	"custos/internal/types"
 )
@@ -100,17 +102,17 @@ func (e *Env) narrowExpr(t types.Type, x syntax.Expr, key string, scope syntax.N
 				t = e.cond(x, scope, t, n.Cond, key, true)
 			}
 		case *syntax.Block:
-			t = e.guards(x, scope, t, n.Stmts, child, key)
+			t = e.guards(x, scope, t, n, n.Stmts, child, key)
 		case *syntax.Case:
-			t = e.guards(x, scope, t, n.Stmts, child, key)
+			t = e.guards(x, scope, t, n, n.Stmts, child, key)
 		case *syntax.Namespace:
-			t = e.guards(x, scope, t, n.Stmts, child, key)
+			t = e.guards(x, scope, t, n, n.Stmts, child, key)
 		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction:
 			return t
 		}
 	}
 	if scope == nil {
-		t = e.guards(x, scope, t, e.File.Stmts, child, key)
+		t = e.guards(x, scope, t, nil, e.File.Stmts, child, key)
 	}
 	return t
 }
@@ -268,16 +270,37 @@ func keyPresent(t types.Type, k string, drop ...string) types.Type {
 	return t.WithNonEmpty(true)
 }
 
-// guards applies early-exit guards among the statements preceding child.
-func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, stmts []syntax.Stmt, child syntax.Node, name string) types.Type {
+// guards applies early-exit guards among the statements preceding child
+// in stmts (the statements of owner; nil: the file). Only the statements
+// that can matter for name are visited (see guardIndex).
+func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syntax.Node, stmts []syntax.Stmt, child syntax.Node, name string) types.Type {
 	orig := t
-	for _, s := range stmts {
-		if syntax.Node(s) == child {
-			break
-		}
+	gi := e.guardIndexOf(owner, stmts)
+	end, ok := gi.pos[child]
+	if !ok {
+		return t
+	}
+	cands := gi.candidates(name)
+	// Only the statements after the last one assigning name (or its array)
+	// matter: an assignment resets the guards seen before it.
+	from := gi.lastReset(name, end)
+	lo, _ := slices.BinarySearch(cands, from)
+	hi, _ := slices.BinarySearch(cands, end)
+	if hi-lo > maxGuardScan {
+		return types.Unknown // hostile statement lists: see maxGuardScan
+	}
+	for _, i := range cands[lo:hi] {
+		s := stmts[i]
 		if assigns(s, name) || (isDimKey(name) && assignsBase(s, name)) {
 			// A later write invalidates earlier guards.
 			t = orig
+			continue
+		}
+		if es, ok := s.(*syntax.ExprStmt); ok {
+			// `Assert::string($x);` (@phpstan-assert on the callee).
+			if ca := e.assertsOf(es.Expr); ca != nil {
+				t, _ = e.applyAsserts(ca, index.AssertAlways, name, t)
+			}
 			continue
 		}
 		if g, ok := s.(*syntax.If); ok && g.Else == nil && len(g.ElseIfs) == 0 {
@@ -294,6 +317,167 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, stmts []s
 		}
 	}
 	return t
+}
+
+// guardIndex lists, for one statement list, the statements guards may use
+// for each narrowing key: expression statements (assignments, assertion
+// calls) and else-less ifs, by the keys (narrowKey) occurring in them.
+// guards used to test every preceding statement for each read, which is
+// quadratic in long statement lists.
+type guardIndex struct {
+	pos  map[syntax.Node]int // statement -> position
+	keys map[string][]int    // key -> positions, ascending
+	// resets lists, per key, the positions of the statements assigning it
+	// (assigns) and, under baseKey(k), those assigning an element of it
+	// or it (assignsBase).
+	resets map[string][]int
+}
+
+// maxGuardScan caps the statements guards examines for one read (those
+// after the last assignment of the name that mention it). Beyond it the
+// read is unknown: real code stays far below; hostile code with thousands
+// of guards or calls on one variable would make each read linear.
+const maxGuardScan = 512
+
+func baseKey(k string) string { return "\x02" + k }
+
+// lastReset returns the position just after the last statement before end
+// that assigns name (for an element key, also its array): guards before
+// it no longer apply (0 when none).
+func (gi *guardIndex) lastReset(name string, end int) int {
+	from := 0
+	last := func(l []int) {
+		if i, _ := slices.BinarySearch(l, end); i > 0 && l[i-1]+1 > from {
+			from = l[i-1] + 1
+		}
+	}
+	last(gi.resets[name])
+	if isDimKey(name) {
+		base, _ := splitDimKey(name)
+		last(gi.resets[baseKey(base)])
+	}
+	return from
+}
+
+// thisCallKey lists the statements with a call on `$this` (assertions on
+// `$this->prop` targets).
+const thisCallKey = "this->*"
+
+func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
+	if gi, ok := e.guardIdx[owner]; ok {
+		return gi
+	}
+	gi := &guardIndex{pos: make(map[syntax.Node]int, len(stmts)), keys: map[string][]int{}, resets: map[string][]int{}}
+	for i, st := range stmts {
+		gi.pos[st] = i
+		seen := map[string]bool{}
+		add := func(k string) {
+			if k != "" && !seen[k] {
+				seen[k] = true
+				gi.keys[k] = append(gi.keys[k], i)
+			}
+		}
+		collect := func(x syntax.Node) {
+			if x == nil {
+				return
+			}
+			syntax.Inspect(x, func(n syntax.Node) bool {
+				switch n := n.(type) {
+				case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
+					return false
+				case *syntax.Variable, *syntax.PropertyFetch, *syntax.ArrayDimFetch:
+					add(narrowKey(n.(syntax.Expr)))
+				case *syntax.MethodCall:
+					if narrowKey(unparen(n.Var)) == "this" {
+						add(thisCallKey)
+					}
+				case *syntax.StaticCall:
+					if nm, ok := n.Class.(*syntax.Name); ok {
+						switch strings.ToLower(nm.Value) {
+						case "self", "static", "parent":
+							add(thisCallKey)
+						}
+					}
+				}
+				return true
+			})
+		}
+		switch st := st.(type) {
+		case *syntax.ExprStmt:
+			collect(st.Expr)
+			if a, ok := st.Expr.(*syntax.Assign); ok {
+				// See assigns and assignsBase.
+				if k := narrowKey(a.Var); k != "" {
+					gi.resets[k] = append(gi.resets[k], i)
+				}
+				x := a.Var
+				for {
+					d, ok := x.(*syntax.ArrayDimFetch)
+					if !ok {
+						break
+					}
+					x = d.Var
+				}
+				if k := narrowKey(x); k != "" {
+					bk := baseKey(k)
+					if l := gi.resets[bk]; len(l) == 0 || l[len(l)-1] != i {
+						gi.resets[bk] = append(gi.resets[bk], i)
+					}
+				}
+			}
+		case *syntax.If:
+			if st.Else == nil && len(st.ElseIfs) == 0 {
+				collect(st.Cond)
+				last := st.Body
+				if b, ok := last.(*syntax.Block); ok && len(b.Stmts) > 0 {
+					last = b.Stmts[len(b.Stmts)-1]
+				}
+				if es, ok := last.(*syntax.ExprStmt); ok {
+					if a, ok := es.Expr.(*syntax.Assign); ok {
+						add(narrowKey(a.Var))
+					}
+				}
+			}
+		}
+	}
+	if e.guardIdx == nil {
+		e.guardIdx = map[syntax.Node]*guardIndex{}
+	}
+	e.guardIdx[owner] = gi
+	return gi
+}
+
+// candidates returns the positions of the statements that may concern
+// name, ascending: those mentioning it, its array for an element key, and
+// calls on `$this` for a `$this->prop` key.
+func (gi *guardIndex) candidates(name string) []int {
+	lists := [][]int{gi.keys[name]}
+	if isDimKey(name) {
+		base, _ := splitDimKey(name)
+		lists = append(lists, gi.keys[base])
+		if strings.HasPrefix(base, "this->") {
+			lists = append(lists, gi.keys[thisCallKey])
+		}
+	} else if strings.HasPrefix(name, "this->") {
+		lists = append(lists, gi.keys[thisCallKey])
+	}
+	n := 0
+	var only []int
+	for _, l := range lists {
+		if len(l) > 0 {
+			n++
+			only = l
+		}
+	}
+	if n <= 1 {
+		return only
+	}
+	var out []int
+	for _, l := range lists {
+		out = append(out, l...)
+	}
+	slices.Sort(out)
+	return slices.Compact(out)
 }
 
 // assignsBase reports whether statement s assigns the array whose element
@@ -515,7 +699,14 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 		if narrowKey(c) == name && truthy {
 			return t.Without("null", "false").WithNonEmpty(true)
 		}
+	case *syntax.MethodCall, *syntax.StaticCall:
+		if r, ok := e.condAsserts(c, name, truthy, t); ok {
+			return r
+		}
 	case *syntax.FuncCall:
+		if r, ok := e.condAsserts(c, name, truthy, t); ok {
+			return r
+		}
 		nm, ok := c.Name.(*syntax.Name)
 		if !ok || c.Args == nil || len(c.Args.Args) == 0 {
 			return t
@@ -535,6 +726,20 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 		return narrowAtoms(t, atoms, truthy)
 	}
 	return t
+}
+
+// condAsserts applies the -assert-if-true (truthy) or -assert-if-false
+// annotations of call c to the type t of name.
+func (e *Env) condAsserts(c syntax.Expr, name string, truthy bool, t types.Type) (types.Type, bool) {
+	ca := e.assertsOf(c)
+	if ca == nil {
+		return t, false
+	}
+	kind := index.AssertIfTrue
+	if !truthy {
+		kind = index.AssertIfFalse
+	}
+	return e.applyAsserts(ca, kind, name, t)
 }
 
 // narrowAtoms keeps (truthy) or removes (falsy) the atoms matching a type check.

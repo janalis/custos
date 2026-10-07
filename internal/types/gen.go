@@ -170,9 +170,38 @@ func sameArgs(a, b []Type) bool {
 	return true
 }
 
+// ClassString is `class-string<C>`: the string atom carrying the class
+// type c (class atoms only) as generic argument. `Foo::class` has this type.
+func ClassString(c Type) Type {
+	if !isClassUnion(c) {
+		return String
+	}
+	return String.WithTypeArgs("string", []Type{c})
+}
+
+// ClassStringOf returns the class type C of a `class-string<C>` type t (a
+// string, possibly nullable or false, carrying it); unknown otherwise.
+func ClassStringOf(t Type) Type {
+	if !t.Has("string") || !t.Without("null", "false").OnlyOf("string") {
+		return Unknown
+	}
+	if args := t.TypeArgs("string"); len(args) == 1 && isClassUnion(args[0]) {
+		return args[0]
+	}
+	return Unknown
+}
+
+// isClassUnion reports a known type made of class atoms only.
+func isClassUnion(t Type) bool {
+	return !t.IsUnknown() && len(t.Classes()) == len(t.atoms)
+}
+
 // genString renders atom with its generic arguments (doc syntax).
 func genString(atom string, args []Type) string {
 	var b strings.Builder
+	if atom == "string" {
+		atom = "class-string"
+	}
 	b.WriteString(atom)
 	b.WriteByte('<')
 	for i, a := range args {

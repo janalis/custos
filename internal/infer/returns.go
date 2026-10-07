@@ -94,7 +94,15 @@ func AnnotateReturns(f *syntax.File, fs *index.FileSymbols, base *index.Index, p
 			todo = append(todo, target{m.Span, func(s string) { m.Inferred = s }})
 		}
 	}
-	if len(todo) == 0 {
+	var props []*index.Property
+	for _, c := range fs.Classes {
+		for _, p := range c.Props {
+			if propEligible(p, c) && p.Span != (syntax.Span{}) {
+				props = append(props, p)
+			}
+		}
+	}
+	if len(todo) == 0 && len(props) == 0 {
 		return
 	}
 	// Methods come from a map: infer in source order for determinism (the
@@ -107,6 +115,15 @@ func AnnotateReturns(f *syntax.File, fs *index.FileSymbols, base *index.Index, p
 	for _, t := range todo {
 		if rt := e.bodyReturn(t.span); !rt.IsUnknown() {
 			t.set(rt.DocString())
+		}
+	}
+	// Untyped private properties (see inferredProp), in source order.
+	sort.Slice(props, func(i, j int) bool { return props[i].Span.Start < props[j].Span.Start })
+	for _, p := range props {
+		if c := ix.Class(p.Class, php); c != nil {
+			if pt := e.propFromBody(p, c); !pt.IsUnknown() {
+				p.Inferred = pt.DocString()
+			}
 		}
 	}
 	if len(e.deps) > 0 {

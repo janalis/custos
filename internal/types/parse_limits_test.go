@@ -14,9 +14,21 @@ func TestFromDocPathological(t *testing.T) {
 	for i := 0; i < 60; i++ {
 		aliases["E"+strconv.Itoa(i)] = strings.Repeat("E"+strconv.Itoa(i+1)+"|", 2) + "array<E" + strconv.Itoa(i+1) + ">"
 	}
+	// A huge alias with few parts, used many times: each expansion used to
+	// rescan the whole definition (2,000 x 1 MB).
+	aliases["Huge"] = "array{k" + strings.Repeat("x", 1<<20) + ": int}"
+	aliases["ManyHuge"] = strings.TrimSuffix(strings.Repeat("Huge|", 2000), "|")
+	// An alias whose members are long but under the cap, used many times:
+	// bounded by the byte budget.
+	aliases["Long"] = "array{k" + strings.Repeat("x", MaxDocTypeLen-20) + ": int}"
+	aliases["ManyLong"] = strings.TrimSuffix(strings.Repeat("Long|", 800), "|")
+	defs := map[string]string{}
+	for k, d := range aliases {
+		defs[k] = "=" + d // built once: the test resolver must not dominate
+	}
 	resolve := func(w string) string {
-		if d, ok := aliases[w]; ok {
-			return "=" + d
+		if d, ok := defs[w]; ok {
+			return d
 		}
 		return w
 	}
@@ -38,6 +50,8 @@ func TestFromDocPathological(t *testing.T) {
 		"conditionals":      nest("(T is int ? ", "int", " : false)", 150),
 		"mutual aliases":    "A",
 		"exploding aliases": "E0",
+		"huge alias":        "ManyHuge",
+		"long aliases":      "ManyLong",
 	}
 	for name, in := range cases {
 		start := time.Now()
@@ -61,7 +75,8 @@ func TestFromDocPathological(t *testing.T) {
 func FuzzFromDoc(f *testing.F) {
 	for _, s := range []string{"int|null", "array{a: int, b?: list<string>}", "?Foo[]", "(T is int ? A : B)",
 		"array<int, array{x: Alias}>", "non-empty-list<int>", "Foo&Bar", "callable(int): void", "iterable<int, Foo>",
-		"Collection<int, Foo>|Foo[]", "array{...}", "'a'|1|1.5"} {
+		"Collection<int, Foo>|Foo[]", "array{...}", "'a'|1|1.5",
+		strings.Repeat("Alias|", 600) + "Alias", "array{a: Alias, b: list<Alias>, c: Alias2}"} {
 		f.Add(s)
 	}
 	resolve := func(w string) string {
@@ -85,15 +100,36 @@ func FuzzFromDoc(f *testing.F) {
 		if got.IsUnknown() || len(ds) > MaxDocTypeLen || strings.ContainsAny(s, "'\"") {
 			return
 		}
-		for _, a := range got.Atoms() {
-			if !wellFormedAtom(a) {
-				return // garbage names need not round-trip
-			}
+		if !wellFormedType(got) {
+			return // garbage names need not round-trip
 		}
 		if back := FromDoc(ds, nil); !back.Equal(got) {
 			t.Fatalf("%q: DocString %q parses back as %s, want %s", s, ds, back, got)
 		}
 	})
+}
+
+// wellFormedType reports whether every atom of t, its shape keys' and its
+// generic arguments' types is well formed.
+func wellFormedType(t Type) bool {
+	for _, a := range t.Atoms() {
+		if !wellFormedAtom(a) {
+			return false
+		}
+	}
+	for _, g := range t.gen {
+		for _, x := range g.args {
+			if !x.IsUnknown() && !wellFormedType(x) {
+				return false
+			}
+		}
+	}
+	for _, k := range t.ShapeKeys() {
+		if !k.Type.IsUnknown() && !wellFormedType(k.Type) {
+			return false
+		}
+	}
+	return true
 }
 
 // wellFormedAtom reports an atom made of a (backslash-separated) identifier
