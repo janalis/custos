@@ -629,6 +629,21 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
   reported), and its D22/D22f end-anchors also accept a single trailing
   newline. Recommendation: for D13 ignore line breaks (report anyway); keep
   D19 as specified. Not covered by fixtures.
+- **End anchor and trailing newline (custos diverges from upstream).** In
+  PCRE `$` also matches before a final newline unless the `D` modifier is
+  set, so `^T$` accepts `"T\n"`: D22a (identity comparison) is offered only
+  with `D`, and D22e trims of a character other than `\s` anchored with `$`
+  (rtrim/trim) need `D` too (`c+$` stops before the newline; `\s+$`
+  consumes it). Two upstream fixtures expect the rewrites; listed in
+  `testdata/ea-divergences.json`.
+- **`\s` is not trim()'s default set (custos diverges from upstream).**
+  PCRE's `\s` is space, `\t`, `\n`, `\v`, `\f`, `\r`; trim()'s default
+  list has `\0` instead of `\f`. D22e with `\s` writes the set
+  explicitly: `H(X2, " \t\n\r\v\f")`.
+- **D22e modifiers (custos diverges from upstream).** Only `D` and `S` are
+  neutral; `i` is accepted only when c has no case variant (`/^a+/i` also
+  strips `A`); `U` makes `+` lazy (one character removed), `x` ignores
+  whitespace, `m`/`u` change anchors/encoding — all skipped.
 - **Delimiters as PHP parses them (custos diverges from upstream).**
   Upstream accepts letters, digits and `\` as delimiters, and treats leading
   whitespace as the delimiter itself. So `'abca'` (rejected by PHP) is

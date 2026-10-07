@@ -5,8 +5,9 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
     $r[] = <warning descr="Replace with 'false !== stripos($path, &quot;cache-dir&quot;)'.">preg_match('#cache-dir#i', $path)</warning>;
     $r[] = <warning descr="Replace with '0 === strpos($path, &quot;.&quot;)'.">preg_match('/^\./', $path)</warning>;
     $r[] = <warning descr="Replace with '0 === stripos($name, &quot;img_&quot;)'.">preg_match('/^img_/i', $name)</warning>;
-    $r[] = <warning descr="Replace with '&quot;index&quot; === $name'.">preg_match('/^index$/', $name)</warning>;
-    $r[] = <warning descr="Replace with '&quot;index&quot; !== $name'.">!preg_match('/^index$/', $name)</warning>;
+    $r[] = <warning descr="Replace with '&quot;index&quot; === $name'.">preg_match('/^index$/D', $name)</warning>;
+    $r[] = <warning descr="Replace with '&quot;index&quot; !== $name'.">!preg_match('/^index$/D', $name)</warning>;
+    $r[] = preg_match('/^index$/', $name); // also matches "index\n"
     $r[] = <warning descr="Replace with '0 !== strpos($path, &quot;tmp&quot;)'.">preg_match('/^tmp/', $path) == 0</warning>;
     $r[] = <warning descr="Replace with 'false === strpos($path, &quot;tmp&quot;)'.">0 === preg_match('/tmp/', $path)</warning>;
     $r[] = <warning descr="Replace with 'false !== strpos($path, &quot;tmp&quot;)'.">preg_match('/tmp/', $path) > 0</warning>;
@@ -24,11 +25,15 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
     $r[] = preg_replace('/^draft/', 'x', $tpl);
 
     $r[] = <warning descr="Replace with 'ltrim($raw, '0')'.">preg_replace('/^0+/', '', $raw)</warning>;
-    $r[] = <warning descr="Replace with 'rtrim($raw, '/')'.">preg_replace('#/+$#', '', $raw)</warning>;
-    $r[] = <warning descr="Replace with 'trim($raw, '-')'.">preg_replace('/^-*|-+$/', '', $raw)</warning>;
-    $r[] = <warning descr="Replace with 'trim($raw)'.">preg_replace('/^\s+|\s+$/', "", $raw)</warning>;
-    $r[] = <warning descr="Replace with 'rtrim($raw)'.">preg_replace('/\s*$/', '', $raw)</warning>;
+    $r[] = <warning descr="Replace with 'rtrim($raw, '/')'.">preg_replace('#/+$#D', '', $raw)</warning>;
+    $r[] = preg_replace('#/+$#', '', $raw); // keeps a final newline rtrim would not
+    $r[] = <warning descr="Replace with 'trim($raw, '-')'.">preg_replace('/^-*|-+$/D', '', $raw)</warning>;
+    $r[] = <warning descr="Replace with 'trim($raw, &quot; \t\n\r\v\f&quot;)'.">preg_replace('/^\s+|\s+$/', "", $raw)</warning>;
+    $r[] = <warning descr="Replace with 'rtrim($raw, &quot; \t\n\r\v\f&quot;)'.">preg_replace('/\s*$/', '', $raw)</warning>;
     $r[] = preg_replace('/^0+/u', '', $raw);
+    $r[] = preg_replace('/^a+/i', '', $raw); // also strips A
+    $r[] = preg_replace('/^0+/U', '', $raw); // lazy: strips one zero
+    $r[] = <warning descr="Replace with 'ltrim($raw, '0')'.">preg_replace('/^0+/S', '', $raw)</warning>;
     $r[] = preg_replace('/^0+/', ' ', $raw);
     $r[] = preg_replace('/^.+/', '', $raw);
     $r[] = preg_replace('/^0+|1+$/', '', $raw);

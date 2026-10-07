@@ -7,6 +7,7 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
     $r[] = 0 === stripos($name, "img_");
     $r[] = "index" === $name;
     $r[] = "index" !== $name;
+    $r[] = preg_match('/^index$/', $name); // also matches "index\n"
     $r[] = 0 !== strpos($path, "tmp");
     $r[] = false === strpos($path, "tmp");
     $r[] = false !== strpos($path, "tmp");
@@ -25,10 +26,14 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
 
     $r[] = ltrim($raw, '0');
     $r[] = rtrim($raw, '/');
+    $r[] = preg_replace('#/+$#', '', $raw); // keeps a final newline rtrim would not
     $r[] = trim($raw, '-');
-    $r[] = trim($raw);
-    $r[] = rtrim($raw);
+    $r[] = trim($raw, " \t\n\r\v\f");
+    $r[] = rtrim($raw, " \t\n\r\v\f");
     $r[] = preg_replace('/^0+/u', '', $raw);
+    $r[] = preg_replace('/^a+/i', '', $raw); // also strips A
+    $r[] = preg_replace('/^0+/U', '', $raw); // lazy: strips one zero
+    $r[] = ltrim($raw, '0');
     $r[] = preg_replace('/^0+/', ' ', $raw);
     $r[] = preg_replace('/^.+/', '', $raw);
     $r[] = preg_replace('/^0+|1+$/', '', $raw);

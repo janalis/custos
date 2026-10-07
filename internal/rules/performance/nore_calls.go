@@ -76,7 +76,10 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 		start, end := m[1] != "", m[3] != ""
 		t := noreUnescapeText(m[2])
 		site, inverted, siteOK := noreSite(call)
-		anchored := strings.IndexByte(c.mods, 'A') >= 0                  // `A` anchors at the start
+		anchored := strings.IndexByte(c.mods, 'A') >= 0 // `A` anchors at the start
+		// Without `D`, `$` also matches before a final newline, so `^T$`
+		// accepts "T\n" and is not the same as an identity comparison.
+		strictEnd := strings.IndexByte(c.mods, 'D') >= 0
 		perLine := strings.IndexByte(c.mods, 'm') >= 0 && (start || end) // ^/$ match at line breaks
 		find := bi("strpos")
 		if ci {
@@ -86,7 +89,7 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 		switch {
 		case anchored || perLine:
 		case c.fn == "preg_match" && !siteOK:
-		case c.fn == "preg_match" && argc == 2 && start && end && !ci: // D22a
+		case c.fn == "preg_match" && argc == 2 && start && end && !ci && strictEnd: // D22a
 			op := "==="
 			if inverted {
 				op = "!=="
@@ -134,7 +137,12 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 				ch, ok = m[1], true
 			}
 			if ok {
-				if strings.ContainsAny(c.mods, "mu") || noreMetaChars(ch) {
+				if !noreTrimModsOK(c.mods, ch) || noreMetaChars(ch) {
+					return
+				}
+				if strings.HasSuffix(c.body, "$") && ch != `\s` && strings.IndexByte(c.mods, 'D') < 0 {
+					// `c+$` without `D` stops before a final newline, which
+					// rtrim/trim would not; `\s+$` consumes it, so it is fine.
 					return
 				}
 				h := "trim"
@@ -145,7 +153,9 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 					h = "ltrim"
 				}
 				h = bi(h)
-				repl := h + "(" + x2 + ")"
+				// PCRE's \s is space, \t, \n, \v, \f and \r; trim()'s default
+				// list differs (\0 instead of \f), so it is spelled out.
+				repl := h + "(" + x2 + `, " \t\n\r\v\f")`
 				if ch != `\s` {
 					repl = h + "(" + x2 + ", '" + noreUnescapeText(ch) + "')"
 				}
@@ -164,6 +174,22 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 			noreReplace(ctx, call.Span(), repl+")")
 		}
 	}
+}
+
+// noreTrimModsOK reports whether the modifiers keep a trim pattern on
+// character ch equivalent to trim(): only D and S are neutral; i is fine
+// unless ch has a case variant (`/^a+/i` also strips A); m, u, U (lazy `+`
+// strips one character), x (whitespace ignored) and the rest are not.
+func noreTrimModsOK(mods, ch string) bool {
+	for _, m := range mods {
+		switch {
+		case m == 'D' || m == 'S':
+		case m == 'i' && strings.ToLower(ch) == strings.ToUpper(ch):
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // noreMetaChars reports whether a one-character trim/split body is a regex

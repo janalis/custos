@@ -23,7 +23,7 @@ function sites($p, $x)
     $r[] = preg_match('/^a$/', $p) + 1;
     $r[] = @preg_match('/tmp/', $p);
     $r[] = preg_match('/tmp/', $p) instanceof Countable;
-    $r[] = 'n' . <warning descr="Replace with '&quot;a&quot; !== $p'.">!preg_match('/^a$/', $p)</warning>;
+    $r[] = 'n' . <warning descr="Replace with '&quot;a&quot; !== $p'.">!preg_match('/^a$/D', $p)</warning>;
     $r[] = <warning descr="Replace with 'false !== strpos($p, &quot;abc&quot;)'.">preg_match('/abc/', subject: $p)</warning>;
     $r[] = preg_match('/^a/m', $p);
     $r[] = preg_match('/abc/A', $p);

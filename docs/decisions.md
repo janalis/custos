@@ -212,7 +212,20 @@ test time, so a loaded machine does not fail them while a quadratic or
 exponential regression (seconds to minutes) still does; the LSP edit-latency
 budget (p95 < 30 ms) is enforced only by `make bench` (`CUSTOS_PERF=1`).
 `runner.BuildIndex` recovers a crash while indexing one file (that file's
-symbols are dropped) instead of taking down the CLI or the language server.
+symbols are dropped) instead of taking down the CLI or the language server. A test that
+guards a complexity bound compares timings at n and 4n (linear ≈ 4×,
+quadratic ≈ 16×) where a fixed limit proved flaky (`TestAncestorsBounded`
+under coverage instrumentation); `make coverage` prints the failing tests
+instead of hiding them.
+
+NotOptimalRegularExpressions string-API rewrites made exact (2026-10-07):
+`^T$` without the `D` modifier also matches `"T\n"`, so the identity
+comparison (D22a) and `$`-anchored trims of a character other than `\s`
+need `D`; `\s` trims spell PCRE's set (`" \t\n\r\v\f"`, which differs from
+trim()'s default `\0`); trims accept only the neutral modifiers `D`/`S`
+(and `i` for caseless characters) — `U` makes `+` lazy, `x` ignores
+whitespace. Two upstream fixtures expect the old rewrites (listed
+divergences); no finding changed on corpus A, corpus B, corpus C or corpus D.
 
 Parser bug reported by the audit: a close tag right after a control header
 (`if ($a) ?>html`, also `while`/`for`/`foreach`) was a syntax error; PHP
