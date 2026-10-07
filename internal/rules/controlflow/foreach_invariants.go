@@ -185,6 +185,12 @@ func (foreachInvariants) counterLoop(ctx *analysis.Context, l *syntax.For) {
 			return
 		}
 	}
+	// D8d: the container itself changes in the loop (reassigned, passed by
+	// reference as to sort()/array_splice(), unset, pushed to, or an element
+	// unset): foreach iterates a snapshot, the counter loop the live array.
+	if foreachInvContainerChanged(ctx, l, container) {
+		return
+	}
 	// D8c: the counter, or a limit assigned in the header, read after the loop
 	// would see the foreach's leftovers instead of the final for values.
 	if foreachInvUsedAfter(ctx.File, l, counter.Name) {
@@ -609,6 +615,31 @@ func foreachInvWritten(ctx *analysis.Context, l *syntax.For, match func(syntax.E
 		syntax.Inspect(e, visit)
 	}
 	syntax.Inspect(l.Body, visit)
+	return found
+}
+
+// foreachInvContainerChanged implements D8d.
+func foreachInvContainerChanged(ctx *analysis.Context, l *syntax.For, container syntax.Expr) bool {
+	isContainer := func(e syntax.Expr) bool {
+		if d, ok := e.(*syntax.ArrayDimFetch); ok && d.Dim == nil { // `$c[] = …`
+			e = d.Var
+		}
+		return util.EquivalentFoldNames(ctx.File, e, container)
+	}
+	if foreachInvWritten(ctx, l, isContainer, nil) {
+		return true
+	}
+	found := false
+	syntax.Inspect(l.Body, func(n syntax.Node) bool {
+		if u, ok := n.(*syntax.Unset); ok {
+			for _, v := range u.Vars {
+				if d, ok := syntax.UnwrapParens(v).(*syntax.ArrayDimFetch); ok && util.EquivalentFoldNames(ctx.File, d.Var, container) {
+					found = true
+				}
+			}
+		}
+		return !found
+	})
 	return found
 }
 

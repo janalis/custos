@@ -8,6 +8,7 @@ import (
 	"custos/internal/index"
 	"custos/internal/meta"
 	"custos/internal/phpdoc"
+	"custos/internal/phpver"
 	"custos/internal/syntax"
 )
 
@@ -90,6 +91,9 @@ func (senselessProxyMethod) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	isCtor := strings.EqualFold(m.Name.Value, "__construct")
+	if isCtor && spmLegacyCtor(ctx, cl, ownFQN) { // E7
+		return
+	}
 	for i, p := range m.Params { // D7
 		pp, mp := pm.Params[i], mine.Params[i]
 		if (p.Default == nil) != (pp.Default == "") {
@@ -184,6 +188,21 @@ func spmParentReturnsNothing(pm *index.Method, decl *syntax.Method) bool {
 		return !value
 	})
 	return !value
+}
+
+// spmLegacyCtor implements E7: below PHP 8.0 a class outside any namespace
+// with a method named like itself would make that method the constructor
+// once `__construct` is removed.
+func spmLegacyCtor(ctx *analysis.Context, cl *syntax.ClassLike, fqn string) bool {
+	if !ctx.PHP.Below(phpver.PHP80) || cl.Name == nil || strings.Contains(strings.TrimPrefix(fqn, `\`), `\`) {
+		return false
+	}
+	for _, mem := range cl.Members {
+		if mm, ok := mem.(*syntax.Method); ok && mm.Name != nil && strings.EqualFold(mm.Name.Value, cl.Name.Value) {
+			return true
+		}
+	}
+	return false
 }
 
 // spmStatements returns the body's statements, ignoring empty ones.

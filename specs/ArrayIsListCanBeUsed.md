@@ -159,3 +159,10 @@ function inspect(array $cfg, array $other) {
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Empty array in the `range()` form (custos diverges).**
+  `array_keys($a) === range(0, count($a) - 1)` is false for `[]`
+  (`range(0, -1)` is `[0, -1]`) while `array_is_list([])` is true. custos
+  keeps the meaning: the replacement (message and fix) is
+  `$a !== [] && array_is_list($a)`, negated `$a === [] || !array_is_list($a)`,
+  parenthesized when the comparison is an operand of another operator.
+  The `array_values()` form is exact and unchanged.

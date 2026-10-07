@@ -96,3 +96,16 @@ $cfg = (require 'config.php');
   comparison is whitespace-collapsed, so `include ($p)` and `include($p)`
   differ. Upstream fixtures only use unparenthesized operands in fixed
   output. Recommendation: emit `include ($p)` (keyword, space, operand text).
+- **Success tests (custos diverges).** `include_once`/`require_once`
+  return `false` only when the file cannot be included, so a result that is
+  only tested for success is reliable: custos does not report an inclusion
+  (through parentheses and `@`) used as an `if`/`elseif`/`while`/`do-while`
+  or ternary condition, as an operand of `!`, `&&`, `||`, `and`, `or`,
+  `xor`, or compared with `false` (`===`, `!==`, `==`, `!=`) — e.g.
+  `if (!include_once $lib)`, `(@include_once $f) !== false` (E3).
+  Upstream reports them all.
+- **No quick-fix (custos diverges).** Replacing `_once` with a plain
+  `include`/`require` (upstream F1/F2) re-runs the file on every call, which
+  redeclares the classes and functions it defines (fatal) and repeats its
+  side effects. custos reports without a fix; whether to load the value
+  another way is the author's decision.

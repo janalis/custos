@@ -5,7 +5,7 @@ class Ghostly extends Missing {}
  * @param int[] $ids
  * @param Invoice|int $mixed
  */
-function literals($v, array $ids, $mixed, Unknown $u) {
+function literals(string $v, array $ids, $mixed, Unknown $u) {
     return [
         <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$v == 1</weak_warning>,
         <weak_warning descr="Prefer '===' to avoid implicit type juggling.">2 == $v</weak_warning>,
@@ -24,7 +24,7 @@ function literals($v, array $ids, $mixed, Unknown $u) {
         <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$v == <<<TXT
             TXT</weak_warning>,
         <warning descr="Use '===' here; the string is not numeric, so strict comparison is safe.">$ids == 'x'</warning>,
-        <warning descr="Use '===' here; the string is not numeric, so strict comparison is safe.">$mixed == 'x'</warning>,
+        <warning descr="Use '===' here if the other operand is never a bool, a number or a Stringable object; the string is not numeric.">$mixed == 'x'</warning>,
         $u == 'x',
         (new Ghostly()) == 'x', // an unresolved ancestor may declare __toString()
     ];

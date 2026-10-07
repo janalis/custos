@@ -169,3 +169,12 @@ name of each of the four calls, e.g.
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Truthiness checks of the strength flag (custos diverges).** The flag
+  is a plain bool, so `if ($strong)`, `$ok ? … : …`, `$bytes && $strong`
+  and `$strong == false` / `true != $strong` check it just as well as
+  `=== false`. Upstream's false-check test accepts only `===`/`!==` with
+  `false` and `!`, and reported `if ($strong) {…}`. For D5 custos also
+  accepts the flag used as a condition or logical operand (if/elseif/while,
+  ternary condition, `&&`/`||`/`and`/`or`) and loose `==`/`!=` comparisons
+  with `true` or `false` anywhere in the function body. D3 (the generated
+  bytes, a string that may be `"0"`) keeps the strict test.

@@ -1,8 +1,11 @@
 package probablebugs
 
 import (
+	"strings"
+
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
+	"custos/internal/phpver"
 	"custos/internal/syntax"
 )
 
@@ -30,5 +33,59 @@ func (pregQuoteUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !util.ResolvesToGlobalFunction(ctx.Names(), ctx.Index(), ctx.PHP, call, "preg_quote") { // D1
 		return
 	}
+	if pregQuoteDelimiterEscaped(ctx, call) { // E3
+		return
+	}
 	ctx.Report(util.NamePartSpan(call.Name.(*syntax.Name)), "Pass the pattern delimiter to preg_quote() as its second argument.")
+}
+
+// pregQuoteDelimiterEscaped reports whether the pattern the call is
+// concatenated into (or the sprintf() format it is an argument of) visibly
+// starts with a delimiter that preg_quote() escapes anyway: the first
+// non-blank character of the leftmost string literal of the concatenation.
+func pregQuoteDelimiterEscaped(ctx *analysis.Context, call *syntax.FuncCall) bool {
+	var top syntax.Node = call
+	for {
+		parent, child := util.ParentSkipParens(top)
+		if b, ok := parent.(*syntax.Binary); ok && b.Op.Kind == syntax.TDot {
+			top = b
+			continue
+		}
+		top = child
+		break
+	}
+	var first syntax.Expr
+	if b, ok := top.(*syntax.Binary); ok {
+		first = b.Left
+		for {
+			inner, ok := syntax.UnwrapParens(first).(*syntax.Binary)
+			if !ok || inner.Op.Kind != syntax.TDot {
+				break
+			}
+			first = inner.Left
+		}
+	} else if arg, ok := top.Parent().(*syntax.Arg); ok {
+		// sprintf('|^%s$|', preg_quote($x))
+		args := arg.Parent().(*syntax.ArgList)
+		outer, ok := args.Parent().(*syntax.FuncCall)
+		if !ok || ctx.GlobalFunctionName(outer) != "sprintf" || len(args.Args) == 0 || args.Args[0] == syntax.Node(arg) {
+			return false
+		}
+		if fa, ok := args.Args[0].(*syntax.Arg); ok {
+			first = fa.Value
+		}
+	}
+	if first == nil {
+		return false
+	}
+	v, ok := util.QuotedStringValue(syntax.UnwrapParens(first))
+	v = strings.TrimLeft(v, " \t\n\r\v\f")
+	if !ok || v == "" {
+		return false
+	}
+	escaped := `.\+*?[^]$(){}=!<>|:-`
+	if ctx.PHP >= phpver.PHP73 {
+		escaped += "#"
+	}
+	return strings.IndexByte(escaped, v[0]) >= 0
 }

@@ -235,3 +235,16 @@ Yoda style, default options: `empty($ratio)` → `null === $ratio`;
   F2 custos wraps such a subject in parentheses: `($a ?? $b) === null`
   (message included). F1 is unaffected (the subject is a `count()`
   argument).
+- **Nullable int/float/bool (custos diverges).** Upstream D2a suggests
+  `$v === null` for `int|null`, `float|null` and `bool|null` subjects, but
+  `empty()` is also true for `0`, `0.0` and `false`, so the replacement
+  changes the result. custos applies D2a to `resource|null` only (a resource
+  is never empty); the other subjects fall through to D3.
+- **Possibly unassigned variables (custos diverges).** `$v === null` warns
+  "Undefined variable" where `empty($v)` is silent. D1/D2 suggestions on a
+  bare local variable need it to be certainly assigned: `$this`, a
+  parameter or closure import, a variable at file scope or in an arrow
+  function, or one assigned with `=` (or declared `global`/`static`) by a
+  statement of the function body itself before the statement holding
+  `empty()`. Otherwise the subject falls through to D3
+  (`if ($tz instanceof Zone) { $z = $tz; } ... empty($z)`).

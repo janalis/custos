@@ -62,7 +62,7 @@ func (cryptographicallySecureRandomness) Check(ctx *analysis.Context, n syntax.N
 		}
 		return
 	}
-	if second.Span().Len() > 0 && !falseChecked(ctx.File, second) { // D5
+	if second.Span().Len() > 0 && !flagChecked(ctx.File, second) { // D5
 		ctx.ReportNode(second, "The strength flag may be false; check it.")
 	}
 }
@@ -123,6 +123,37 @@ func falseChecked(f *syntax.File, s syntax.Node) bool {
 		return !found
 	})
 	return found
+}
+
+// flagChecked is falseChecked for the D5 strength flag, a plain bool: a
+// truthiness test (a condition or logical operand, `$strong ? … : …`) or a
+// loose `==`/`!=` comparison with true or false checks it as well
+// (custos diverges).
+func flagChecked(f *syntax.File, s syntax.Node) bool {
+	if falseChecked(f, s) {
+		return true
+	}
+	found := false
+	syntax.Inspect(syntax.FuncLikeBody(syntax.EnclosingFuncLike(s)), func(n syntax.Node) bool {
+		if found {
+			return false
+		}
+		if x, ok := n.(*syntax.Binary); ok && (x.Op.Kind == syntax.TIsEqual || x.Op.Kind == syntax.TIsNotEqual) {
+			if isBoolConst(x.Left) && util.EquivalentFoldNames(f, x.Right, s) || isBoolConst(x.Right) && util.EquivalentFoldNames(f, x.Left, s) {
+				found = true
+			}
+		}
+		if e, ok := n.(syntax.Expr); ok && n != s && util.IsLogicalOperand(n) && util.EquivalentFoldNames(f, e, s) {
+			found = true
+		}
+		return !found
+	})
+	return found
+}
+
+func isBoolConst(e syntax.Expr) bool {
+	_, ok := util.BoolConst(e)
+	return ok
 }
 
 func isFalse(e syntax.Expr) bool {

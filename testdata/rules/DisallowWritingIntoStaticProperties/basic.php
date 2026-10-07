@@ -17,10 +17,10 @@ class Cache
         SELF::$ttl = &$x;
 
         array_map(function ($v) {
-            <weak_warning descr="Modify this static property only from the class that declares it.">Cache::$hits = $v</weak_warning>;
+            Cache::$hits = $v;
             self::$hits = $v;
         }, []);
-        $f = fn() => <weak_warning descr="Modify this static property only from the class that declares it.">static::$ttl ??= 1</weak_warning>;
+        $f = fn() => static::$ttl ??= 1;
     }
 }
 

@@ -16,6 +16,8 @@ func init() { register(phpUnitDeprecations{}) }
 
 func (phpUnitDeprecations) ID() string { return "PhpUnitDeprecations" }
 
+func (phpUnitDeprecations) Semantic() {}
+
 func (phpUnitDeprecations) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KMethodCall, syntax.KStaticCall}
 }
@@ -60,7 +62,7 @@ func (phpUnitDeprecations) Check(ctx *analysis.Context, n syntax.Node) {
 	name := puName(id.Value) // method names are case-insensitive
 	switch name {
 	case "assertEquals", "assertNotEquals":
-		if args != nil {
+		if args != nil && !puForeignAssertEquals(ctx, n, name) {
 			checkEqualsArgs(ctx, name, args.Args)
 		}
 	case "assertFileNotExists", "assertDirectoryNotExists":
@@ -76,6 +78,34 @@ func (phpUnitDeprecations) Check(ctx *analysis.Context, n syntax.Node) {
 			},
 		})
 	}
+}
+
+// puForeignAssertEquals reports whether the call may target another API
+// than PHPUnit's assertions (custos): a receiver resolving to a class whose
+// method `name` is declared outside PHPUnit (e.g. a comparator library's own
+// assertEquals with another signature), or an instance call on a receiver
+// other than `$this` that does not resolve to PHPUnit's declaration
+// (assertions are called on the test case itself).
+func puForeignAssertEquals(ctx *analysis.Context, n syntax.Node, name string) bool {
+	var classes []string
+	switch c := n.(type) {
+	case *syntax.MethodCall:
+		classes = ctx.TypeOf(c.Var).Classes()
+		if v, ok := c.Var.(*syntax.Variable); (!ok || v.Name != "this") && len(classes) == 0 {
+			return true
+		}
+	case *syntax.StaticCall:
+		if fqn := ctx.Types().ClassRef(c.Class); fqn != "" {
+			classes = []string{fqn}
+		}
+	}
+	for _, cl := range classes {
+		m := ctx.Index().FindMethod(cl, name, ctx.PHP)
+		if m == nil || strings.HasPrefix(strings.ToLower(strings.TrimPrefix(m.Class, `\`)), `phpunit\`) {
+			return false
+		}
+	}
+	return len(classes) > 0
 }
 
 var equalsParamIndex = map[string]int{"delta": 3, "maxDepth": 4, "canonicalize": 5, "ignoreCase": 6}

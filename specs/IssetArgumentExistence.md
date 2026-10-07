@@ -63,6 +63,11 @@ For each candidate variable `V` named `n`:
 - **D10** Suppress when option `IGNORE_INCLUDES` is `false` and `F`'s body
   contains (any depth) an `include`, `include_once`, `require` or
   `require_once` expression.
+- **D11** (custos, see Divergences) Suppress when `F`'s body defines
+  variables dynamically: it calls the global `extract()`, the global
+  `parse_str()` with a single argument, assigns a variable-variable
+  (`$$name = …`, `${expr} = …`), or contains an include/require placed before
+  `V` in the source (regardless of `IGNORE_INCLUDES`).
 
 Each candidate is checked independently; several candidates of the same name
 can each be reported (e.g. `isset($q) && empty($q)` as first two mentions:
@@ -143,7 +148,7 @@ class Billing
     public function including()
     {
         include 'defaults.php';
-        return isset($config); // reported only when IGNORE_INCLUDES = true
+        return isset($config); // reported upstream when IGNORE_INCLUDES = true; never by custos (D11)
     }
 
     public function arrow()
@@ -167,3 +172,12 @@ annotated above).
   genuinely undefined `$total ?? …` in the outer function. custos stops the
   scan at scope boundaries (D7): only a closure's `use` list and arrow
   function bodies (which capture outer variables) count.
+- **custos diverges — dynamically defined variables (D11).** Upstream
+  reports `extract($config); … isset($host)` (Laravel's database
+  connectors), `$$name = 1; isset($port)`, and, with the default
+  `IGNORE_INCLUDES = true`, `include 'version.php'; … isset($wp_version)`
+  (WordPress's update screens and loaders) as undefined variables at error
+  severity, although those statements define them. custos suppresses the
+  report when the function calls `extract()` or one-argument `parse_str()`,
+  assigns a variable-variable, or includes a file before the check;
+  `IGNORE_INCLUDES = false` still skips functions with any include.

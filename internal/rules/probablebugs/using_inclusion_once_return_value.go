@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
+	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -30,15 +31,48 @@ func (usingInclusionOnceReturnValue) Check(ctx *analysis.Context, n syntax.Node)
 	if es, ok := inc.Parent().(*syntax.ExprStmt); ok && es.Expr == syntax.Expr(inc) { // D2
 		return
 	}
-	span := syntax.Span{Start: inc.Keyword.Span.Start, End: inc.Expr.Span().End}
-	repl := strings.TrimSuffix(kw, "_once") + " "
-	edit := syntax.Span{Start: inc.Keyword.Span.Start, End: inc.Expr.Span().Start}
-	ctx.Report(span, usingInclusionOnceReturnValueMsg, analysis.Fix{
-		Title: "Use " + strings.TrimSpace(repl),
-		Edits: func() []analysis.TextEdit {
-			// Only the keyword (and what precedes the operand) is replaced,
-			// so nested inclusions inside the operand can be fixed too.
-			return []analysis.TextEdit{{Span: edit, NewText: repl}}
-		},
-	})
+	if inclusionOnceTestedForSuccess(inc) { // E3
+		return
+	}
+	// No fix: a plain include/require re-runs the file, which redeclares
+	// the classes and functions it defines (fatal).
+	ctx.Report(syntax.Span{Start: inc.Keyword.Span.Start, End: inc.Expr.Span().End}, usingInclusionOnceReturnValueMsg)
+}
+
+// inclusionOnceTestedForSuccess reports whether the inclusion's result
+// (through parentheses and `@`) is only tested for success: a condition,
+// a logical operand, or compared with false. include_once returns false
+// only when the file cannot be included, so such tests are reliable.
+func inclusionOnceTestedForSuccess(inc *syntax.Include) bool {
+	var n syntax.Node = inc
+	for {
+		parent := n.Parent()
+		if u, ok := parent.(*syntax.Unary); ok && u.Op.Kind == syntax.TAt {
+			n = u
+			continue
+		}
+		if _, ok := parent.(*syntax.Paren); ok {
+			n = parent
+			continue
+		}
+		break
+	}
+	if util.IsLogicalOperand(n) {
+		return true
+	}
+	switch p := n.Parent().(type) {
+	case *syntax.Binary:
+		switch p.Op.Kind {
+		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+			other := p.Right
+			if p.Right == n {
+				other = p.Left
+			}
+			v, ok := util.BoolConst(syntax.UnwrapParens(other))
+			return ok && !v
+		case syntax.TXor:
+			return true
+		}
+	}
+	return false
 }

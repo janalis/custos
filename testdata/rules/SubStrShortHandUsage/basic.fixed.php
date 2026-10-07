@@ -1,6 +1,6 @@
 <?php
 function cut($name, $head, $k) {
-    $a = substr($name, 0, -4);
+    $a = substr($name, 0, -1);
     $b = mb_substr($name, 3, -2, 'UTF-8');
     $c = \substr($name, 7);
     $d = mb_substr($name, $k);

@@ -9,8 +9,8 @@ class Palette {
     }
 
     public function render() {
-        $a = <warning descr="Static method shade() called through $this; use self::shade().">$this</warning>->shade(2);
-        $a2 = <warning descr="Static method shade() called through $this; use self::shade().">$this</warning> -> SHADE(2);
+        $a = <warning descr="Static method shade() called through $this; use static::shade().">$this</warning>->shade(2);
+        $a2 = <warning descr="Static method shade() called through $this; use static::shade().">$this</warning> -> SHADE(2);
         $b = $this->tint();
         $c = $this->staticTone();
         $d = self::shade(3);

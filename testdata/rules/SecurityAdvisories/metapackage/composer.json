@@ -1,0 +1,8 @@
+{
+  "name": "acme/dev-tools",
+  "type": "metapackage",
+  "require": {
+    "phpunit/phpunit": "^11.0",
+    "acme/linter": "^2.0"
+  }
+}

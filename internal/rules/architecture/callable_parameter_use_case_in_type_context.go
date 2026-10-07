@@ -288,7 +288,9 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 			}
 		}
 	}
-	delete(r, "mixed")              // D7d
+	if r["mixed"] { // D7d: mixed covers every type; custos skips (E3)
+		return
+	}
 	for _, t := range cpSorted(r) { // D7e
 		if t == "self" || t == "static" {
 			t = cp.translateSelf(value, v)

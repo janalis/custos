@@ -251,3 +251,8 @@ function untyped($flag = null) {
   T-rules (see UnnecessaryCasting): a string input yields `string|false`,
   so `$text = mb_convert_encoding($text, 'UTF-8');` on a `string`
   parameter is not reported as assigning an array.
+- **`mixed` in a value type (custos diverges).** D7d removes `mixed` from
+  `R` and checks what is left, so `$p = func_get_arg(2)` (stub type
+  `mixed|false`) is reported as assigning a `bool` to a `string|null`
+  parameter, although `mixed` already admits any type. custos treats a
+  value type containing `mixed` as unknown (E3): no report.

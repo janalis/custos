@@ -15,8 +15,8 @@ function tally(array $rows, \SplObjectStorage $seen)
 function probe($ratio, $flag, $label, ?\DateTime $when, \stdClass $box, $map)
 {
     return [
-        <weak_warning descr="Replace with '$ratio === null'.">empty($ratio)</weak_warning>,
-        <weak_warning descr="Replace with '$flag !== null'.">!empty($flag)</weak_warning>,
+        <weak_warning descr="Prefer a type-specific check over empty().">empty($ratio)</weak_warning>,
+        !<weak_warning descr="Prefer a type-specific check over empty().">empty($flag)</weak_warning>,
         <weak_warning descr="Replace with '$when === null'.">empty($when)</weak_warning>,
         <weak_warning descr="Replace with '$box === null'.">empty($box)</weak_warning>,
         <weak_warning descr="Prefer a type-specific check over empty().">empty($label)</weak_warning>,
@@ -45,4 +45,4 @@ function walk(Node $n)
 }
 
 function maybe(?int $i) { return $i; }
-echo <weak_warning descr="Replace with 'maybe(1) !== null'.">!empty(maybe(1))</weak_warning>;
+echo !<weak_warning descr="Prefer a type-specific check over empty().">empty(maybe(1))</weak_warning>;

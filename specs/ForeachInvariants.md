@@ -100,6 +100,14 @@ A `for` statement `L` is reported when all of the following hold:
   Property-access limits compare by structural equality; a method call on the
   property's object does not count as a write.
   Any such write → no report.
+- **D8d** Container changes (custos refinement, see Divergences): no report
+  when, in `L`'s init, condition or body, the container `$c` itself is
+  assigned (any operator, destructuring, by-reference), passed to a
+  by-reference parameter (`sort($c)`, `array_splice($c, $i, 1)`), unset,
+  pushed to (`$c[] = …`), or one of its elements is unset. `foreach`
+  iterates a snapshot of the array while the counter loop reads the live
+  one, so such loops visit different elements. Element writes
+  (`$c[$i] = …`) are allowed.
 - **D8c** Use after the loop (custos refinement, see Divergences): no
   report when the counter `$i`, or a limit `X` that is a plain variable
   assigned in `L`'s own init clause, is mentioned anywhere after the end of
@@ -357,3 +365,9 @@ so step 4 deletes `$total = count($rows);`.
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Container changes (D8d) — custos refinement, not upstream.** Upstream
+  rewrites `for ($i = 0; $i < $n; $i++) { … array_splice($posts, $i, 1); … }`
+  (WordPress sticky-post reordering), loops that `sort()`, reassign, push to
+  or unset elements of the iterated array; the `foreach` replacement walks a
+  snapshot and changes behaviour. custos skips them. No upstream fixture
+  changed outcome.

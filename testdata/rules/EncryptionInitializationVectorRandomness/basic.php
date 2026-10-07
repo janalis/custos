@@ -8,7 +8,7 @@ class Box
     public function lock($msg, $pass, $iv = '0000')
     {
         $iv = uniqid();
-        $out = openssl_encrypt($msg, 'aes-256-cbc', $pass, 0, <error descr="Generate the IV with openssl_random_pseudo_bytes(); it may come from: '0000', uniqid().">$iv</error>);
+        $out = openssl_encrypt($msg, 'aes-256-cbc', $pass, 0, <error descr="Generate the IV with openssl_random_pseudo_bytes(); it may come from: uniqid().">$iv</error>);
         $old = mcrypt_encrypt('rijndael-128', $pass, $msg, 'cbc', <error descr="Generate the IV with mcrypt_create_iv(); it may come from: 'static-iv'.">self::SALT</error>);
 
         $this->nonce = rand();

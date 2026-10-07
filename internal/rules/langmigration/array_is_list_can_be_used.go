@@ -62,9 +62,24 @@ func (arrayIsListCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if negated {
 		repl = "!" + repl
 	}
+	msg := repl
+	if name == "array_keys" {
+		// range(0, -1) is [0, -1]: the range form is false for [] while
+		// array_is_list([]) is true.
+		if negated {
+			repl = ctx.Text(arg) + " === [] || " + repl
+		} else {
+			repl = ctx.Text(arg) + " !== [] && " + repl
+		}
+		msg = repl
+		switch bin.Parent().(type) {
+		case *syntax.Binary, *syntax.Unary, *syntax.Ternary, *syntax.Instanceof:
+			repl = "(" + repl + ")"
+		}
+	}
 	span := bin.Span()
-	ctx.Report(span, "Replace with '"+repl+"'.", analysis.Fix{
-		Title: "Replace with '" + repl + "'",
+	ctx.Report(span, "Replace with '"+msg+"'.", analysis.Fix{
+		Title: "Replace with '" + msg + "'",
 		Edits: func() []analysis.TextEdit {
 			return []analysis.TextEdit{{Span: span, NewText: repl}}
 		},

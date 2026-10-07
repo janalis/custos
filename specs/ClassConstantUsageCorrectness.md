@@ -203,3 +203,11 @@ is acceptable next to the alias `Bag`.)
 - Group imports (`use A\{B, C as D};`): upstream handling of the target text
   is unverified; recommendation: treat each item as an import whose target is
   the full name (`A\B`).
+- **Imports unrelated to the written name (custos diverges).** Upstream's
+  L4 adds an import's alias whenever the import targets `C`, even when the
+  access does not go through it: in `namespace Shop\Model; use
+  Shop\Model\Bag as ModelBag;`, a bare `Bag::class` (resolved through the
+  namespace, spelled as declared) is reported because `ModelBag` differs
+  from `Bag`. custos considers, for unqualified `T`, only imports whose
+  alias (or last segment when unaliased) equals `T` case-insensitively —
+  the ones PHP actually uses to resolve `T`.

@@ -26,7 +26,11 @@ function modifiersDemo($line, $m) {
     preg_match(<weak_warning descr="The /s flag is pointless: the pattern has no '.'.">'/k\.\d/s'</weak_warning>, $line, $m);
 
     preg_match('/k\d/i', $line, $m);
-    preg_match('/\\d/i', $line, $m);
+    preg_match(<weak_warning descr="The /i flag is pointless: the pattern has no letters.">'/\\d/i'</weak_warning>, $line, $m); // the PHP value is /\d/i
+    preg_match('/\\\\d/i', $line, $m); // an escaped backslash, then the letter d
+    preg_match("/^[a-z]*\$/D", $line);
+    preg_match("/^[0-5]*\x24/D", $line);
+    preg_match("/^\x2e/s", $line);
     preg_match('/ид/iu', $line, $m);
     preg_match(<weak_warning descr="The /i flag is pointless: the pattern has no letters.">'/\d{3}-\d{2}/i'</weak_warning>, $line, $m);
     preg_match(<weak_warning descr="The /i flag is pointless: the pattern has no letters.">'/

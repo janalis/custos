@@ -41,7 +41,16 @@ func (disallowWritingIntoStaticProperties) Check(ctx *analysis.Context, n syntax
 		return
 	}
 	const msg = "Modify this static property only from the class that declares it."
-	meth, ok := syntax.EnclosingFuncLike(a).(*syntax.Method)
+	scope := syntax.EnclosingFuncLike(a)
+	for { // D3c: closures and arrow functions take the class scope of their method
+		switch scope.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction:
+			scope = syntax.EnclosingFuncLike(scope)
+			continue
+		}
+		break
+	}
+	meth, ok := scope.(*syntax.Method)
 	if !ok { // D3b
 		ctx.Report(span, msg)
 		return

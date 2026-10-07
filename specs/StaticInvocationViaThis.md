@@ -150,3 +150,21 @@ namespace PHPUnit\Framework {
 - E3 normalises underscores in the whole FQN string (class and method part),
   so a method name containing `_` is affected too; harmless because only the
   prefix is compared.
+- **Late static binding in the fix (custos diverges).** Upstream rewrites
+  `$this->m()` to `self::m()`. `$this->m()` resolves `m` on the runtime
+  class, `self::m()` on the lexical class, so when a subclass overrides the
+  static method the fix silently calls the parent's version. custos uses
+  `static::` (and says so in the message), keeping `self::` only when `m`
+  cannot be overridden: a private or final method, or a final class or an
+  enum. EA case affected: `static-method-invocation-via-this.php` (listed
+  divergence).
+- **Abstract trait methods (custos diverges).** A trait may re-declare a
+  method it needs as `abstract public static function assertTrue(...)`;
+  `$this->assertTrue()` then resolves to that requirement instead of the
+  real implementation (PHPUnit's, often not indexed), and the
+  PHPUnit-assertion exception no longer applies. custos looks past such
+  an abstract trait method for the implementation inherited from a parent
+  (whose class then decides, e.g. the PHPUnit exception); when none is
+  found and an ancestor does not resolve, the call is skipped. Inside the
+  trait itself (no parent to consult) the abstract static requirement is
+  used as before.

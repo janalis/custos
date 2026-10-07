@@ -163,6 +163,9 @@ func (unqualifiedReference) callback(ctx *analysis.Context, call *syntax.FuncCal
 	if !ok || util.ArgCount(call) < 2 {                          // D7
 		return
 	}
+	if uqGoverningNamespace(call) == nil { // D4 (custos: Part B too)
+		return
+	}
 	arg, ok := call.Args.Args[pos].(*syntax.Arg)
 	if !ok || arg.Value == nil {
 		return

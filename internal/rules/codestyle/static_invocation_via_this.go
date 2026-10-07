@@ -51,11 +51,12 @@ func (staticInvocationViaThis) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		thisSpan := v.Span()
 		arrow, _ := util.FindToken(ctx.File, syntax.Span{Start: thisSpan.End, End: id.Span().Start}, syntax.TObjectOperator) // not ?-> (D1)
-		ctx.Report(thisSpan, "Static method "+m.Name+"() called through $this; use self::"+m.Name+"().", analysis.Fix{
-			Title: "Use self::",
+		kw := sivtKeyword(meth, m)
+		ctx.Report(thisSpan, "Static method "+m.Name+"() called through $this; use "+kw+"::"+m.Name+"().", analysis.Fix{
+			Title: "Use " + kw + "::",
 			Edits: func() []analysis.TextEdit {
 				return []analysis.TextEdit{
-					{Span: thisSpan, NewText: "self"},
+					{Span: thisSpan, NewText: kw},
 					{Span: syntax.Span{Start: arrow.Start, End: arrow.End}, NewText: "::"},
 				}
 			},
@@ -77,11 +78,36 @@ func sivtResolve(ctx *analysis.Context, recv syntax.Expr, name string) *index.Me
 	}
 	ix := ctx.Index()
 	for _, cls := range t.Classes() {
-		if m := ix.FindMethod(strings.TrimPrefix(cls, `\`), name, ctx.PHP); m != nil {
+		if m := sivtFind(ix, strings.TrimPrefix(cls, `\`), name, ctx); m != nil {
 			return m
 		}
 	}
 	return nil
+}
+
+// sivtFind looks name up through the hierarchy of cls. An abstract method
+// of a used trait only states a requirement (custos diverges): the
+// implementation inherited from a parent decides, and when none is found
+// while an ancestor does not resolve, the method stays unknown.
+func sivtFind(ix *index.Index, cls, name string, ctx *analysis.Context) *index.Method {
+	lname := strings.ToLower(name)
+	var required *index.Method
+	for _, c := range ix.Ancestors(cls, ctx.PHP) {
+		m, ok := c.Methods[lname]
+		if !ok || !m.Avail.In(ctx.PHP) {
+			continue
+		}
+		if !m.Abstract || c.Kind != syntax.KindTrait {
+			return m
+		}
+		if required == nil {
+			required = m
+		}
+	}
+	if required != nil && !util.HierarchyResolved(ix, cls, ctx.PHP) {
+		return nil
+	}
+	return required
 }
 
 // sivtExcluded applies EXCEPT_PHPUNIT_ASSERTIONS / EXCEPT_ELOQUENT_MODELS.
@@ -118,4 +144,19 @@ func sivtScopeInput(scope syntax.Node, name string) bool {
 		}
 	}
 	return false
+}
+
+// sivtKeyword picks the class keyword for the fix. `$this->m()` resolves m
+// on the runtime class; `self::m()` on the lexical class, which differs
+// when a subclass overrides m (custos diverges: upstream always uses self).
+// self is kept only when m cannot be overridden: a private or final method,
+// or a final (or enum) enclosing class.
+func sivtKeyword(meth *syntax.Method, m *index.Method) string {
+	if m.Visibility == index.Private || m.Final {
+		return "self"
+	}
+	if cl, ok := meth.Parent().(*syntax.ClassLike); ok && (cl.ClassKind == syntax.KindEnum || cl.Modifiers.Has(syntax.TFinal)) {
+		return "self"
+	}
+	return "static"
 }

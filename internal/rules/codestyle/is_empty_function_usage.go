@@ -56,6 +56,11 @@ func (r isEmptyFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		inv = u
 	}
 	ts := emptySubjectTypes(ctx, s)
+	if len(ts) > 0 && !isEmptySubjectAssigned(s) {
+		// `count($v)` / `$v === null` warn on an unassigned variable;
+		// empty() does not: only the generic report remains.
+		ts = nil
+	}
 
 	// D1
 	if ctx.Bool("SUGGEST_TO_USE_COUNT_CHECK") && len(ts) > 0 {
@@ -85,7 +90,7 @@ func (r isEmptyFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 				switch t {
 				case "null":
 					hasNull = true
-				case "int", "float", "bool", "resource":
+				case "resource": // int/float/bool: empty() is also true for 0, 0.0, false
 					scalar = true
 				}
 			}
@@ -188,4 +193,67 @@ func isEmptyNeedsParens(n syntax.Node) bool {
 		return true
 	}
 	return false
+}
+
+// isEmptySubjectAssigned reports whether a variable subject is certainly
+// assigned where empty() reads it: `$this`, a parameter or closure import,
+// a variable at file scope or in an arrow function (not tracked), or one
+// assigned (or declared global/static) by a statement of the function body
+// itself before the statement holding empty(). Other subjects are not
+// variables and always qualify.
+func isEmptySubjectAssigned(s syntax.Expr) bool {
+	v, ok := s.(*syntax.Variable)
+	if !ok || v.Name == "" || v.Name == "this" {
+		return true
+	}
+	fn := syntax.EnclosingFuncLike(v)
+	body := syntax.FuncLikeBody(fn)
+	if body == nil {
+		return true
+	}
+	for _, p := range syntax.FuncLikeParams(fn) {
+		if p.Var.Name == v.Name {
+			return true
+		}
+	}
+	if c, ok := fn.(*syntax.Closure); ok {
+		for _, u := range c.Uses {
+			if u.Var.Name == v.Name {
+				return true
+			}
+		}
+	}
+	var holder syntax.Node = v
+	for holder.Parent() != syntax.Node(body) {
+		holder = holder.Parent()
+	}
+	for _, st := range body.Stmts {
+		if syntax.Node(st) == holder {
+			break
+		}
+		switch st := st.(type) {
+		case *syntax.ExprStmt:
+			if a, ok := st.Expr.(*syntax.Assign); ok && isEmptyVarNamed(a.Var, v.Name) {
+				return true
+			}
+		case *syntax.Global:
+			for _, g := range st.Vars {
+				if isEmptyVarNamed(g, v.Name) {
+					return true
+				}
+			}
+		case *syntax.StaticStmt:
+			for _, sv := range st.Vars {
+				if sv.Var.Name == v.Name {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func isEmptyVarNamed(e syntax.Node, name string) bool {
+	v, ok := e.(*syntax.Variable)
+	return ok && v.Name == name
 }

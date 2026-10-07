@@ -9,8 +9,8 @@ class Palette {
     }
 
     public function render() {
-        $a = self::shade(2);
-        $a2 = self :: SHADE(2);
+        $a = static::shade(2);
+        $a2 = static :: SHADE(2);
         $b = $this->tint();
         $c = $this->staticTone();
         $d = self::shade(3);

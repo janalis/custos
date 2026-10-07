@@ -63,3 +63,27 @@ function assignedEarlier()
     $known = 1;
     return isset($known);
 }
+
+function connectionString(array $options)
+{
+    extract($options, EXTR_SKIP);
+    return isset($hostname) ? "host=$hostname" : '';
+}
+
+function fromQuery(string $query)
+{
+    parse_str($query);
+    return $page ?? 1;
+}
+
+function dynamicName(string $key)
+{
+    $$key = true;
+    return empty($enabled);
+}
+
+function loadVersion(string $dir)
+{
+    require $dir . '/version.php';
+    return $release ?? 'dev';
+}

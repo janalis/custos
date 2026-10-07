@@ -31,7 +31,7 @@ var debugDefaultEntries = []string{
 	`\Zend\Debug\Debug::dump`, `\Zend\Di\Display\Console::export`,
 	`\TYPO3\CMS\Core\Utility\DebugUtility::debug`, `\Illuminate\Support\Debug\Dumper::dump`,
 	"dd", "dump", "trap", "debug_print_backtrace", "debug_zval_dump", "error_log", "phpinfo", "print_r",
-	"var_export", "var_dump", "dpm", "dsm", "dvm", "kpr", "dpq", "wp_die",
+	"var_export", "var_dump", "dpm", "dsm", "dvm", "kpr", "dpq",
 	"xdebug_break", "xdebug_call_class", "xdebug_call_file", "xdebug_call_function", "xdebug_call_line",
 	"xdebug_code_coverage_started", "xdebug_debug_zval", "xdebug_debug_zval_stdout", "xdebug_dump_superglobals",
 	"xdebug_enable", "xdebug_get_code_coverage", "xdebug_get_collected_errors", "xdebug_get_declared_vars",
@@ -170,6 +170,9 @@ func debugInWrapper(ctx *analysis.Context, n syntax.Node, entries []string) bool
 	case *syntax.Function:
 		return fn.Name != nil && debugHasEntry(entries, fn.Name.Value)
 	case *syntax.Method:
+		if debugHasEntry(entries, fn.Name.Value) { // a `dump()` method dumping
+			return true
+		}
 		fqn := ctx.Types().ClassFQN(syntax.EnclosingClass(fn))
 		return fqn != "" && debugHasEntry(entries, `\`+fqn+"::"+fn.Name.Value)
 	}

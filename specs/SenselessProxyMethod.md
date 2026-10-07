@@ -99,6 +99,9 @@ When D1–D10 all hold, report.
 - **E6** The child calls the parent without `return` while the parent
   returns a value, is a generator, declares a non-void return type, or
   cannot be shown to return nothing (D10).
+- **E7** (custos, see Divergences) Below PHP 8.0, a `__construct` proxy in a
+  class outside any namespace that also declares a method named like the
+  class (case-insensitively).
 
 ## Report
 - Range: the method's name identifier.
@@ -306,3 +309,9 @@ class DiskStore extends Store
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **custos diverges — PHP 4 constructors (E7).** Below PHP 8.0, removing a
+  `__construct` proxy from a non-namespaced class that also has a method
+  named like the class turns that method into the constructor (found on
+  WordPress's `pomo` streams, where the legacy method calls
+  `self::__construct()`: infinite recursion after the fix). custos does not
+  report such proxies.

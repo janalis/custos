@@ -35,6 +35,13 @@ func (emptyClass) Check(ctx *analysis.Context, n syntax.Node) {
 	if util.DocHasTag(ctx.File, cl, "deprecated") { // D3
 		return
 	}
+	for _, g := range cl.Attrs { // E: an attribute class is used by its name alone
+		for _, a := range g.Attrs {
+			if a.Name != nil && strings.EqualFold(strings.TrimPrefix(ctx.Names().Class(a.Name.Value, a.Name.Span().Start), `\`), "Attribute") {
+				return
+			}
+		}
+	}
 	if parent := ctx.Names().ParentFQN(cl); parent != "" { // D4
 		ix := ctx.Index()
 		if pc := ix.Class(parent, ctx.PHP); pc != nil {

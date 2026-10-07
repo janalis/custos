@@ -63,3 +63,12 @@ $re4 = $quoter->preg_quote($needle);
 - **Name case — custos diverges** (D1). Upstream compares the name
   case-sensitively, so `PREG_QUOTE($s)` is missed even though PHP calls the
   same built-in; custos compares it case-insensitively.
+- **Delimiters preg_quote() escapes anyway (custos diverges).** Without a
+  second argument preg_quote() still escapes `. \ + * ? [ ^ ] $ ( ) { } =
+  ! < > | : -` and, from PHP 7.3, `#`. When the delimiter is visible — the
+  first non-blank character of the leftmost string literal of the
+  concatenation the call belongs to (`'|' . preg_quote($x) . '$|'`), or of
+  the format of the `sprintf()` call it is an argument of
+  (`sprintf('{^%s}', preg_quote($x))`) — and is one of those characters,
+  passing it changes nothing and custos does not report (E3). `/`, `~`,
+  `%`, `@` and invisible delimiters are still reported.

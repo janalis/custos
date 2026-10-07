@@ -1,11 +1,11 @@
 <?php
 function plainDemo($path, $name, $tpl, $raw, $list) {
     $r = [];
-    $r[] = false !== strpos($path, "tmp");
-    $r[] = false !== stripos($path, "cache-dir");
-    $r[] = 0 === strpos($path, ".");
-    $r[] = 0 === stripos($name, "img_");
-    $r[] = "index" === $name;
+    $r[] = false !== strpos($path, "tmp") && $name;
+    $r[] = false !== stripos($path, "cache-dir") && $name;
+    $r[] = 0 === strpos($path, ".") && $name;
+    $r[] = 0 === stripos($name, "img_") && $name;
+    $r[] = "index" === $name && $name;
     $r[] = "index" !== $name;
     $r[] = preg_match('/^index$/', $name); // also matches "index\n"
     $r[] = 0 !== strpos($path, "tmp");
@@ -16,6 +16,8 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
     $r[] = preg_match('/tmp$/', $path);
     $r[] = preg_match('/tmp/', $path, $hit);
     $r[] = preg_match('/tmp\d/', $path);
+    $r[] = preg_match('/tmp/', $path); // 1/0: a boolean test would change the value
+    echo preg_match('/tmp/', $path);
 
     $r[] = str_replace("__NAME__", $name, $tpl);
     $r[] = str_ireplace("draft", '', $tpl);

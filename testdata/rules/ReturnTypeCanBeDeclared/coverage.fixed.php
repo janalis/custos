@@ -21,7 +21,7 @@ namespace App\Model {
         public function wheel(): Wheel { return new Parts\Wheel(); }
         public function chair(): Chair { return new Parts\Seat(); }
         public function engine(): Engine { return new Parts\Engine(); }
-        public function gen(): ?\Generator { yield 1; }
+        public function gen(): \Generator { yield 1; }
         public function fails(): void { throw new \LogicException(); }
         public function nested(): void { $c = function () { return 1; }; $c(); }
         public function nestedFn(): void { function inner() { return 1; } }

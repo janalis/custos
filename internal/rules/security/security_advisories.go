@@ -62,7 +62,9 @@ func (securityAdvisories) CheckFile(ctx *analysis.Context) {
 	for _, d := range ctx.List("optionConfiguration") {
 		dev[strings.ToLower(d)] = true
 	}
-	if t := root.get("type"); t != nil && t.kind == jsonString && t.str == "library" { // D1
+	// D1; a metapackage only bundles requirements meant to be pulled in
+	// elsewhere (often into require-dev): custos diverges.
+	if t := root.get("type"); t != nil && t.kind == jsonString && (t.str == "library" || t.str == "metapackage") {
 		return
 	}
 	owner := "" // D2

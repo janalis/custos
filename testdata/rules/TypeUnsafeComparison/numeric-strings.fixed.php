@@ -1,6 +1,6 @@
 <?php
 // Strings PHP treats as numeric keep loose semantics: no strict fix offered.
-function numbers($v) {
+function numbers(string $v) {
     return [
         $v == '1e3',
         $v == ' 1',

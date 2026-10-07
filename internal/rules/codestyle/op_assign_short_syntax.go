@@ -58,6 +58,11 @@ func (opAssignShortSyntax) Check(ctx *analysis.Context, n syntax.Node) {
 	if !util.EquivalentFoldNames(ctx.File, base, a.Var) {
 		return
 	}
+	if opAssignTargetWrites(a.Var) {
+		// `$m[$i++] = $m[$i++] + 1` evaluates the target twice; the
+		// compound form once.
+		return
+	}
 	if len(frags) > 1 && op != "+" && op != "." && op != "*" { // D4
 		return
 	}
@@ -86,4 +91,21 @@ func (opAssignShortSyntax) Check(ctx *analysis.Context, n syntax.Node) {
 		Title: "Use the compound assignment",
 		Edits: func() []analysis.TextEdit { return []analysis.TextEdit{{Span: span, NewText: repl}} },
 	})
+}
+
+// opAssignTargetWrites reports whether evaluating the target writes
+// something (an assignment or ++/--; closures excluded). Calls are left
+// alone: in a target they are almost always getters.
+func opAssignTargetWrites(e syntax.Expr) bool {
+	found := false
+	syntax.Inspect(e, func(n syntax.Node) bool {
+		switch n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction:
+			return false
+		case *syntax.Assign, *syntax.IncDec:
+			found = true
+		}
+		return !found
+	})
+	return found
 }

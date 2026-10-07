@@ -4,7 +4,7 @@
 function probe($ratio, ?\DateTime $when, array $rows, ?string $s, int|bool|null $x, ?array $a)
 {
     return [
-        null === $ratio,
+        empty($ratio),
         null !== $when,
         empty($rows),
         empty($s),

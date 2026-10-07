@@ -66,6 +66,9 @@ func (alterInForeach) checkByRef(ctx *analysis.Context, f *syntax.Foreach, name 
 
 // checkUnset implements part B (D4-D6).
 func (alterInForeach) checkUnset(ctx *analysis.Context, f *syntax.Foreach, name string) {
+	if syntax.EnclosingFuncLike(f) == nil { // E5: at file scope the unset keeps the global scope clean
+		return
+	}
 	cur := f
 	next := followerKeepingDocs(ctx.File, cur) // D5
 	for {

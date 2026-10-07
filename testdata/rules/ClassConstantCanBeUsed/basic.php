@@ -22,15 +22,15 @@ class Clerk {
         return [
             <weak_warning descr="Use static::class instead.">get_called_class()</weak_warning>,
             get_parent_class(),
-            <weak_warning descr="Use \ArrayObject::class instead of the class name string.">'\ArrayObject'</weak_warning>,
+            <weak_warning descr="Use \ArrayObject::class instead of the class name string (::class has no leading backslash).">'\ArrayObject'</weak_warning>,
             <weak_warning descr="Use \ArrayObject::class instead of the class name string.">'ArrayObject'</weak_warning>,
             <weak_warning descr="Use \Shop\Billing\Invoice::class instead of the class name string.">'Shop\Billing\Invoice'</weak_warning>,
-            <weak_warning descr="Use \Shop\Billing\Ledger::class instead of the class name string.">"\\Shop\\Billing\\Ledger"</weak_warning>,
+            <weak_warning descr="Use \Shop\Billing\Ledger::class instead of the class name string.">"Shop\\Billing\\Ledger"</weak_warning>,
             <weak_warning descr="Use Ledger::class instead of the class name string.">__NAMESPACE__ . '\Ledger'</weak_warning>,
             <weak_warning descr="Use \Shop\Billing\Tax\Rate::class instead of the class name string.">'Shop\Billing\Tax\Rate'</weak_warning>,
             <weak_warning descr="Use \Vendor\Kit\Ledger::class instead of the class name string.">'Vendor\Kit\Ledger'</weak_warning>,
             <weak_warning descr="Use \Vendor\Kit\Meter::class instead of the class name string.">'Vendor\Kit\Meter'</weak_warning>,
-            <weak_warning descr="Use \Vendor\Kit\Meter::class instead of the class name string.">'\Vendor\Kit\Meter'</weak_warning>,
+            <weak_warning descr="Use \Vendor\Kit\Meter::class instead of the class name string (::class has no leading backslash).">'\Vendor\Kit\Meter'</weak_warning>,
         ];
     }
 

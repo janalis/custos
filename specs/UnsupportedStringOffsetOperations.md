@@ -111,3 +111,12 @@ $str[0][0] = 'x';
   assignment check, which covers compound assignments as well.
 - The `$words[0][1][2]` and `$words[0][]` cases rely on the element-type
   rule (`string[]` → `string`); the upstream fixture does not cover them.
+- **Offsets of local variables (custos diverges).** For a nested target
+  (`C` is itself an offset access), D6 trusts the inferred element type only
+  when the chain's root has a declared type: a property (typed or
+  `@var`), or a parameter of the enclosing function. A local variable
+  initialised with an array literal (`$page = ['#markup' => 'x'];`) gets
+  the literal's element type for *every* key, so `$page['#attached'][] =
+  ...` — an absent key that PHP autovivifies as an array — was reported as
+  a fatal error. Locals are no longer trusted there; the rare real fatal
+  on a present string key of a local literal is missed.

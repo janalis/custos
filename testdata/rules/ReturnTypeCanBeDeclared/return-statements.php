@@ -37,8 +37,8 @@ class Stub
         return new Stub();
     }
 
-    // Generators accept a bare return under : ?\Generator.
-    public function <weak_warning descr="Declare ': ?\Generator' as the return type.">items</weak_warning>($flag)
+    // Generators accept a bare return; the call always returns a Generator.
+    public function <weak_warning descr="Declare ': \Generator' as the return type.">items</weak_warning>($flag)
     {
         if ($flag) {
             return;

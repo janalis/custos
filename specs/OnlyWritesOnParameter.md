@@ -68,6 +68,13 @@ non-empty name:
 ### Entry 3 — local assignments
 For each plain assignment `$v = …` or by-reference assignment `$v = &…`
 (compound assignments `+=`, `.=`, `??=`… are not entry points):
+- **D4c** (custos refinement, see Divergences) Object locals: for an Entry 3
+  local, drop all **W** findings when some plain assignment `$v = expr` of
+  the scope gives `expr` an inferred type with an object member (D1
+  criterion): `$t = new ArrayObject(); $t[] = 1;` writes into the object.
+- **D4d** (custos refinement, see Divergences) A `global $v` declaration
+  counts as a read: the variable is bound to the global one, so writes to it
+  are never lost.
 - **D5** The target is a simple variable with a non-empty literal name that
   is not one of `_GET`, `_POST`, `_SESSION`, `_REQUEST`, `_FILES`, `_COOKIE`,
   `_ENV`, `_SERVER`, `GLOBALS`, `HTTP_RAW_POST_DATA`.
@@ -132,7 +139,7 @@ parent, apply the first matching rule:
   `empty(...)`, `isset(...)`, or a `foreach` header (subject, key or value
   variable) → `reads++`.
 - **A7** otherwise use the access's own nature: a write (e.g. destructuring
-  target, `catch` variable, `global`/`static` declaration, `foreach` by
+  target, `catch` variable, `static` declaration (`global`: D4d), `foreach` by
   reference handled above) → add `X` to targets and `writes++`; a read
   (return, interpolation, call on `$v->m()`, property fetch, …) → `reads++`.
 
@@ -321,3 +328,12 @@ function silenced(array $out)
   expression statement.
 - A2 counts nothing for a non-`++/--` unary used as a bare statement
   (`!$v;`). Harmless; keep.
+- **custos diverges — globals, by-reference aliases, object locals (D4c,
+  D4d).** Found on WordPress and Nextcloud: upstream reports writes to a
+  variable declared `global` (`global $mode; $mode = 'x';`, 95 findings),
+  `$c['n']++` after `$c = &$info['count']` (the A1 `++/--` branch ignored the
+  reference, unlike the assignment branch), and `$t[] = 1` on a local
+  holding an `ArrayObject`. custos counts `global` declarations as reads,
+  treats `++/--` on an element through a reference like an assignment, and
+  drops W findings for locals assigned an object-typed value. No upstream
+  fixture covers these shapes.

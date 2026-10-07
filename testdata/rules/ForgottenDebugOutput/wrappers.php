@@ -12,6 +12,13 @@ class Tracer {
 
 class Other {
     public function dump($v) {
+        var_dump($v);
+    }
+    public function dd(...$vars) {
+        dump(...$vars);
+        exit(1);
+    }
+    public function render($v) {
         <error descr="Debug output call; remove it if it was left over from debugging.">var_dump($v)</error>;
     }
 }

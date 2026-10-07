@@ -1,6 +1,6 @@
 <?php
 // Strings PHP treats as numeric keep loose semantics: no strict fix offered.
-function numbers($v) {
+function numbers(string $v) {
     return [
         <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$v == '1e3'</weak_warning>,
         <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$v == ' 1'</weak_warning>,

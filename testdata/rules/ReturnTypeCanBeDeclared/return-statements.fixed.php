@@ -37,8 +37,8 @@ class Stub
         return new Stub();
     }
 
-    // Generators accept a bare return under : ?\Generator.
-    public function items($flag): ?\Generator
+    // Generators accept a bare return; the call always returns a Generator.
+    public function items($flag): \Generator
     {
         if ($flag) {
             return;

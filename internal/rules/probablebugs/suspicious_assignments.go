@@ -364,7 +364,9 @@ func saOverwrite(ctx *analysis.Context, a *syntax.Assign) {
 			return
 		}
 		blk, ok := ifs.Body.(*syntax.Block)
-		if !ok || blk.Alt || len(blk.Stmts) == 0 || saTerminates(blk.Stmts[len(blk.Stmts)-1], false) {
+		// custos: a block that always leaves (also through a nested
+		// if/else, try, ...) never reaches the write after the 'if'.
+		if !ok || blk.Alt || len(blk.Stmts) == 0 || syntax.Terminates(blk) {
 			return
 		}
 		idx := -1
@@ -377,12 +379,11 @@ func saOverwrite(ctx *analysis.Context, a *syntax.Assign) {
 		if idx < 0 {
 			return
 		}
-		if idx+1 < len(blk.Stmts) {
-			var region syntax.Node = blk.Stmts[idx+1]
-			if si, ok := region.(*syntax.If); ok {
-				region = si.Cond
-			}
-			if region != nil && saContainsEquivalent(ctx.File, region, t, true) {
+		// custos: the conditional value may be read by any later statement
+		// of the block (not only the next one), or — for a target other
+		// than a local variable — by any call made there.
+		for _, later := range blk.Stmts[idx+1:] {
+			if saContainsEquivalent(ctx.File, later, t, true) || saSharedTarget(ctx, t) && saHasCall(later) {
 				return
 			}
 		}
@@ -406,6 +407,11 @@ func saOverwrite(ctx *analysis.Context, a *syntax.Assign) {
 		return !incdec
 	})
 	if incdec {
+		return
+	}
+	// custos: a call on the right-hand side may read the first value when
+	// the target is visible outside the local scope.
+	if saSharedTarget(ctx, t) && saHasCall(a.Value) {
 		return
 	}
 	ctx.ReportNode(t, target+" is overwritten right after being assigned.")
@@ -451,4 +457,77 @@ func saArrayAccess(ctx *analysis.Context, cls string) bool {
 		return true
 	}
 	return ctx.Index().IsSubtype(cls, "ArrayAccess", ctx.PHP)
+}
+
+// saHasCall reports whether n contains a function, method or static call,
+// an instantiation or an include (code that may read shared state).
+func saHasCall(n syntax.Node) bool {
+	found := false
+	syntax.Inspect(n, func(x syntax.Node) bool {
+		switch x.(type) {
+		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New, *syntax.Include:
+			found = true
+		}
+		return !found
+	})
+	return found
+}
+
+var saSuperglobals = map[string]bool{
+	"GLOBALS": true, "_SERVER": true, "_GET": true, "_POST": true, "_FILES": true,
+	"_COOKIE": true, "_SESSION": true, "_REQUEST": true, "_ENV": true,
+}
+
+// saSharedTarget reports whether the root of target t is visible to code
+// other than the enclosing function: a property, a static property, a
+// superglobal, a variable declared global or static, a by-reference
+// parameter, or a variable bound by reference.
+func saSharedTarget(ctx *analysis.Context, t syntax.Expr) bool {
+	root := t
+	for {
+		d, ok := root.(*syntax.ArrayDimFetch)
+		if !ok {
+			break
+		}
+		root = d.Var
+	}
+	v, ok := root.(*syntax.Variable)
+	if !ok || v.NameExpr != nil {
+		return true // properties, static properties, variable variables
+	}
+	if saSuperglobals[v.Name] {
+		return true
+	}
+	fn := syntax.EnclosingFuncLike(t)
+	if fn == nil {
+		return true // file scope: every variable is global
+	}
+	for _, p := range syntax.FuncLikeParams(fn) {
+		if p.ByRef && p.Var != nil && p.Var.Name == v.Name {
+			return true
+		}
+	}
+	shared := false
+	syntax.Inspect(syntax.FuncLikeBody(fn), func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Function, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+			return false
+		case *syntax.Global:
+			for _, g := range x.Vars {
+				if gv, ok := g.(*syntax.Variable); ok && gv.Name == v.Name {
+					shared = true
+				}
+			}
+		case *syntax.StaticVar:
+			if x.Var != nil && x.Var.Name == v.Name {
+				shared = true
+			}
+		case *syntax.Assign:
+			if tv, ok := x.Var.(*syntax.Variable); ok && x.ByRef && tv.Name == v.Name {
+				shared = true
+			}
+		}
+		return !shared
+	})
+	return shared
 }

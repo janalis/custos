@@ -117,3 +117,10 @@ if ($answer == 'no') {}
 
 ## Divergences
 None.
+- **Parenthesized operands (custos diverges).** Upstream swaps the operand
+  texts verbatim, so `while (false !== $r = $r->next())` became
+  `while ($r = $r->next() !== false)`, which assigns the comparison's bool.
+  custos parenthesizes a moved operand that binds looser than an equality
+  operator (assignment, `??`, `?:`/ternary, logical and bitwise operators,
+  another comparison, `print`, `yield`, include/require, `throw`, arrow
+  functions): `($r = $r->next()) !== false`.

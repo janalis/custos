@@ -364,3 +364,10 @@ function visit(?Node $item) {
   "assignments" in D4/U6 is unverified upstream; recommendation: only plain
   and by-reference `=` with a variable on the left are declarations; a
   compound assignment to the variable is a non-stopping usage (skip).
+- **`??=` stops the walk (custos diverges).** `$b ??= $this->box;` leaves
+  `$b` non-null when the right side is not nullable, exactly like
+  `$b = $b ?? $this->box;` (which already stopped the walk), yet a later
+  `$b->open()` was reported. In U6 custos treats `??=` to the variable like
+  a plain `=`: it stops the walk unless the right side is nullable in the
+  D5 sense (`$c ??= $this->next()` with `next(): ?Box` keeps walking).
+  Other compound assignments stay non-stopping usages.

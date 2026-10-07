@@ -17,7 +17,7 @@ namespace App\Tests {
         public function testHome(): void {
             // Symfony's assertion traits follow PHPUnit's $this-> convention
             $this->assertResponseIsSuccessful();
-            <warning descr="Static method assertHomeRendered() called through $this; use self::assertHomeRendered().">$this</warning>->assertHomeRendered();
+            <warning descr="Static method assertHomeRendered() called through $this; use static::assertHomeRendered().">$this</warning>->assertHomeRendered();
         }
     }
 }

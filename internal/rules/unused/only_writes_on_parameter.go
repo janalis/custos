@@ -108,7 +108,8 @@ func (onlyWritesOnParameter) Check(ctx *analysis.Context, n syntax.Node) {
 				return true
 			}
 			done[v.Name] = true
-			s.analyse(v.Name, nil) // D8
+			name := v.Name
+			s.analyse(name, func() bool { return s.holdsObject(name) }) // D8, D4c
 		}
 		return true
 	})
@@ -253,8 +254,12 @@ func (s *owpScope) analyse(name string, dropWrites func() bool) int {
 					targets = append(targets, t)
 				}
 			case *syntax.IncDec:
-				targets = append(targets, t)
 				writes++
+				if ref { // through a by-reference alias the write is visible
+					reads++
+				} else {
+					targets = append(targets, t)
+				}
 			default:
 				reads++
 			}
@@ -308,6 +313,8 @@ func (s *owpScope) analyse(name string, dropWrites func() bool) int {
 				reads++ // the value is $v (or nested in it): a read
 			}
 		case *syntax.Arg, *syntax.ArgList, *syntax.ClosureUse, *syntax.Unset, *syntax.Empty, *syntax.Isset, *syntax.Foreach: // A6
+			reads++
+		case *syntax.Global: // D4d: writes to a global are not lost
 			reads++
 		default: // A7
 			if owpIsWriteNature(x) {
@@ -384,7 +391,7 @@ func (s *owpScope) dynamicReads() map[string]bool {
 // targets, catch variables, global/static declarations.
 func owpIsWriteNature(x *syntax.Variable) bool {
 	switch p := x.Parent().(type) {
-	case *syntax.Catch, *syntax.Global, *syntax.StaticVar:
+	case *syntax.Catch, *syntax.StaticVar:
 		return true
 	case *syntax.ArrayItem:
 		if p.Value != syntax.Expr(x) {
@@ -426,6 +433,25 @@ func owpObjectType(t types.Type) bool {
 		}
 	}
 	return false
+}
+
+// holdsObject reports whether a plain assignment of the scope gives the
+// local name a value whose inferred type has an object member (D4c): writes
+// such as `$v[] = x` then go to the object (ArrayAccess) and are not lost.
+func (s *owpScope) holdsObject(name string) bool {
+	found := false
+	syntax.Inspect(s.body, func(x syntax.Node) bool {
+		switch a := x.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+			return false
+		case *syntax.Assign:
+			if a.Op.Kind == syntax.TEqual && owpIsVar(a.Var, name) && owpObjectType(s.ctx.TypeOf(a.Value)) {
+				found = true
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 // owpClosureIncludes reports whether a closure body contains an

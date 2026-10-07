@@ -174,3 +174,13 @@ final class ExportTest
   `maxDepth`, `canonicalize`, `ignoreCase`) and report the whole named
   argument (name label included); positional arguments as specified. No
   fixture covers it.
+- **Foreign `assertEquals` methods (custos diverges).** Upstream matches
+  `assertEquals`/`assertNotEquals` by name on any receiver, so a comparator
+  library's own `$comparator->assertEquals($a, $b, $delta, $canonicalize)`
+  (another signature, not deprecated) is reported. custos skips the call
+  when the receiver's type (or the static class) resolves to classes whose
+  method of that name is declared outside the `PHPUnit\` namespace, and an
+  instance call on a receiver other than `$this` whose type is unknown
+  (PHPUnit assertions are called on the test case, or statically). `$this`,
+  `self::`/`static::`, and receivers resolving to PHPUnit's declaration are
+  still checked.

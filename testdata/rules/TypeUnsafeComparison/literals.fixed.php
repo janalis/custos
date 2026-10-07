@@ -5,7 +5,7 @@ class Ghostly extends Missing {}
  * @param int[] $ids
  * @param Invoice|int $mixed
  */
-function literals($v, array $ids, $mixed, Unknown $u) {
+function literals(string $v, array $ids, $mixed, Unknown $u) {
     return [
         $v == 1,
         2 == $v,
@@ -24,7 +24,7 @@ function literals($v, array $ids, $mixed, Unknown $u) {
         $v == <<<TXT
             TXT,
         $ids === 'x',
-        $mixed === 'x',
+        $mixed == 'x',
         $u == 'x',
         (new Ghostly()) == 'x', // an unresolved ancestor may declare __toString()
     ];

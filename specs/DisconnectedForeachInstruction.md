@@ -82,6 +82,10 @@ assignment / argument list). Rules, applied in order (first that ends with
     function (user-defined or stub) whose parameter at the same position as
     `$v` is declared by-reference: add `n` to `M` and `Dep(S)`; stop.
     Unresolved functions or by-value parameters: continue.
+- **D8c** (custos, see Divergences) `$v` (or a property chain rooted at it)
+  is the receiver of an instance method call that is itself an expression
+  statement (its result is discarded: `$bar->advance();`): add `n` to `M`
+  and `Dep(s)`.
 - **D9** `P` is a `++`/`--` operation (prefix or postfix): add `n` to `M` and
   `Dep(S)`; stop.
 - **D10** Otherwise add `n` to `Dep(S)`.
@@ -232,3 +236,10 @@ foreach ($rows as $row) {
   read the caller's variables) hid a genuine finding. custos matches the
   name case-insensitively and only when the call resolves to the global
   built-in (D11).
+- **custos diverges — method calls made for their side effect (D8c).**
+  Upstream reports `$bar->advance();`, `$stack->pop();`,
+  `$writer->endElement();` in a loop as not depending on it, although each
+  call changes the object on every iteration (about 13 of 18 sampled
+  findings on Drupal, Laravel and Nextcloud). custos treats the receiver of
+  a method call whose result is discarded as modified. Calls whose result
+  is used (`echo $o->label();`) are unchanged.

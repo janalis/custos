@@ -20,7 +20,9 @@ func (invertedIfElseConstructs) Kinds() []syntax.NodeKind { return []syntax.Node
 func (invertedIfElseConstructs) Check(ctx *analysis.Context, n syntax.Node) {
 	els := n.(*syntax.Else)
 	elseBody, ok := bracedBlock(ctx, els.Body) // D1
-	if !ok {
+	if !ok || len(elseBody.Stmts) == 0 {
+		// An empty else is dead weight: swapping would leave an empty if
+		// body; dropping the else is the better change (custos diverges).
 		return
 	}
 	owner := els.Parent().(*syntax.If) // alternative syntax fails D3

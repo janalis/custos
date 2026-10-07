@@ -118,3 +118,12 @@ class Box
   `openssl_encrypt($m, 'aes-256-gcm', $k, 0, 'fixed-nonce', $tag)` — where a
   repeated nonce is catastrophic — goes unreported. custos checks the fifth
   argument whenever there are at least 5 (D2).
+- **Only reaching assignments (custos diverges).** Upstream discovers every
+  assignment of an IV variable in the function, so
+  `$iv = random_bytes(16); openssl_encrypt(…, $iv); $iv = base64_encode($iv);`
+  was reported for `base64_encode($iv)`, which runs after the call, and a
+  parameter default overwritten before the call was listed too. For a local
+  variable argument inside a function custos takes only the plain `=`
+  assignments that reach the call, plus the parameter default when the
+  entry value reaches it (`util.PossibleValuesReaching`); other arguments
+  keep D3.

@@ -51,6 +51,20 @@ Two loop anti-patterns:
   variables, same name; for other expressions, structurally equal or
   identical source text (`$this->items` ≡ `$this->items`,
   `self::$cache` ≡ `self::$cache`).
+- **G7** (custos, see Divergences) With `L` the innermost loop of G5, no
+  report when the merge does not accumulate across iterations:
+  - `C`'s base variable (`$v` of `$v`, `$v[…]`) is assigned by `L`'s header
+    (foreach key/value, `for` initialiser/step) or by another plain `=`
+    assignment inside `L` (a fresh value each iteration);
+  - an index of `C` mentions such a variable (`$form[$id]`: another element
+    each iteration);
+  - `C` (for a plain variable: any mention of it) is read elsewhere in `L`,
+    including the merge's other arguments and `L`'s condition
+    (`$ctx = array_merge($ctx, $cb($ctx))`, `while ($g = array_shift($q))
+    { $q = array_merge($q, …); }`): the next iteration needs the merged
+    value.
+  Other accumulating merges into the same `C` inside `L` are ignored by these
+  checks.
 - Report kind G on the call (once).
 
 ### Part F — length call in a `for` condition
@@ -252,3 +266,11 @@ function collect(array $batches, $repo)
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **custos diverges — merges that do not accumulate (G7).** Upstream reports
+  every `C = array_merge(…, C, …)` in a loop at error severity, including
+  `foreach ($items as $args) { $args = array_merge($defaults, $args); }`
+  (a fresh value per iteration), `$form[$id] = array_merge([…],
+  $form[$id])` (a different element per iteration) and accumulators the loop
+  reads back (`$ctx = array_merge($ctx, $cb($ctx))`, work lists driven by
+  `array_shift()`), none of which can be merged once after the loop (found
+  on WordPress, Laravel and Drupal). custos skips them (G7).

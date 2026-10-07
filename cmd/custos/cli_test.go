@@ -107,7 +107,7 @@ func TestAnalyseOptions(t *testing.T) {
 		want string // substring of stdout+stderr
 	}{
 		{"file argument", []string{"--rule", "UnnecessarySemicolon", file}, 0, "a.php:2:"},
-		{"php", []string{"--php", "7.4", "--stats", "--rule", "UnnecessarySemicolon", dir}, 0, "PHP 7.4 (composer)"},
+		{"php", []string{"--php", "7.4", "--stats", "--rule", "UnnecessarySemicolon", dir}, 0, "PHP 7.4 (flag)"},
 		{"bad php", []string{"--php", "nine", dir}, 2, "invalid version"},
 		{"regular", []string{"--comparison-style", "regular", "--rule", "UnnecessarySemicolon", dir}, 0, "1 file(s) analysed"},
 		{"yoda", []string{"--comparison-style", "yoda", "--rule", "UnnecessarySemicolon", dir}, 0, "1 file(s) analysed"},

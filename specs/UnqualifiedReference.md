@@ -81,8 +81,8 @@ namespace does not count), at the given callback position (0-based):
 - **D11** The callback contents name a **known global function**: a
   function of that fully-qualified name (no namespace) exists in the project
   index or the built-in stubs (function names compared case-insensitively).
-  Unknown names are not reported. Part B does **not** require a namespace
-  (D4 is not applied) — see Divergences.
+  Unknown names are not reported. Part B requires a namespace too (D4; custos
+  diverges — see Divergences).
 
 ### Opcode list
 `array_slice`, `assert`, `boolval`, `call_user_func`, `call_user_func_array`,
@@ -207,10 +207,11 @@ define('LIMIT', 3);
 ```
 
 ## Divergences
-- **Part B ignores the namespace context (upstream):** callback strings are
-  reported even in files without a namespace, where qualifying makes no
-  difference. Recommendation: apply D4 to Part B too (skip when the file has no
-  namespace). Not covered by upstream fixtures.
+- **Part B honours D4 (custos diverges).** Upstream reports callback
+  strings even in files without a namespace, where qualifying makes no
+  difference (WordPress-style procedural code: `array_map('intval', $ids)`).
+  custos applies D4 to Part B too: no report when the file declares no
+  namespace. Not covered by upstream fixtures.
 - **D11 — custos diverges from upstream.** Upstream checks that the *outer*
   function (`array_map`, …) exists instead of the callback, so with
   `REPORT_ALL_FUNCTIONS` any callback string is reported, including names

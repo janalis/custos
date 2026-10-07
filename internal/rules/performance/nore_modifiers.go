@@ -19,6 +19,7 @@ var (
 
 func (c *noreCase) checkModifiers() {
 	mods, body := c.mods, c.body
+	pat := c.decoded // D9–D11 count the characters PCRE sees
 	has := func(m byte) bool { return strings.IndexByte(mods, m) >= 0 }
 
 	if has('e') { // D7
@@ -42,19 +43,19 @@ func (c *noreCase) checkModifiers() {
 		if has('m') {
 			c.report(meta.SeverityInfo, "The /D flag has no effect together with /m.")
 		}
-		if body != "" && noreCountDiff(body, "$", `\$`) == 0 {
+		if pat != "" && noreCountDiff(pat, "$", `\$`) == 0 {
 			c.report(meta.SeverityInfo, "The /D flag is pointless: the pattern has no '$'.")
 		}
 	}
-	if has('s') && body != "" { // D10
-		n := noreEscapedDotBracket.ReplaceAllString(body, "")
+	if has('s') && pat != "" { // D10
+		n := noreEscapedDotBracket.ReplaceAllString(pat, "")
 		n = noreBracketRun.ReplaceAllString(n, "")
 		if noreCountDiff(n, ".", `\.`) == 0 {
 			c.report(meta.SeverityInfo, "The /s flag is pointless: the pattern has no '.'.")
 		}
 	}
-	if has('i') && body != "" { // D11
-		n := noreClassEscape.ReplaceAllString(body, "")
+	if has('i') && pat != "" { // D11
+		n := noreClassEscape.ReplaceAllString(pat, "")
 		if strings.IndexFunc(n, unicode.IsLetter) < 0 {
 			c.report(meta.SeverityInfo, "The /i flag is pointless: the pattern has no letters.")
 		}

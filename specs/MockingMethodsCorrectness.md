@@ -243,3 +243,9 @@ class LedgerTest
   upstream, PHPUnit cannot configure magic methods without `addMethods`).
 - The `expects(...)` unwrap is skipped when the receiver is parenthesised
   (`($d->expects($x))->method('a')`), which then yields no report; harmless.
+- **Unresolvable ancestors (custos diverges).** Upstream reports a method
+  as missing when the mocked class extends, implements or uses a type the
+  project does not contain (e.g. a vendor base class outside the analysed
+  tree): the method may well be declared there. custos reports MISSING only
+  when every parent, interface and trait of the class resolves; FINAL is
+  unaffected.

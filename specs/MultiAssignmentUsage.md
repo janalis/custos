@@ -36,6 +36,10 @@ Two patterns where destructuring would be clearer:
   `switch`, `try`, inner loop, plain `{ … }` block, etc. inside the loop are
   not reported.
 
+- **D4c** (custos refinement, see Divergences) The loop body does not
+  mention `$v` before the destructuring (e.g. `$v[2] ??= null;`): the
+  header form would destructure the unmodified value.
+
 ### Part B — consecutive numbered element reads
 - **D5** An assignment (`=`) whose left side is a plain variable and which is
   itself a whole expression statement.
@@ -180,3 +184,9 @@ foreach ($records as $record) <weak_warning descr="Destructure directly in the f
   and when the base is a call (`load()[0]; load()[1]`) each statement
   evaluates it anew; a single destructuring assignment would change the
   result or the number of calls in both cases. custos skips these (D7b).
+- **Other uses of the value variable (D4c) — custos refinement, not
+  upstream.** Upstream suggests destructuring in the header even when the
+  body fills in a default first (`$m[2] ??= null; [$a, $b, $c] = $m;`, found
+  on Nextcloud); moving the destructuring into the header would lose the
+  default. custos only reports when the destructuring is the first mention
+  of the variable in the body.

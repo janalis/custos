@@ -273,8 +273,7 @@
     "summary": "A loop whose body always leaves on the first pass (its last statement is\n`break`, `return` or `throw` and nothing continues it), or whose body is\nempty, never actually iterates. It is either a bug or a disguised `if` /\n\"take first element\" idiom."
   },
   "MagicMethodsValidity": {
-    "summary": "PHP's magic methods (`__get`, `__toString`, `__clone`, …) have fixed contracts:\nstatic-ness, visibility, number of parameters, return value. Violations are\nfatal errors, silently ignored methods or subtle bugs. This rule validates\neach magic method declared in a class-like, flags `__`-prefixed methods that\nare not magic, and catches magic names typed with a single underscore.",
-    "fix": true
+    "summary": "PHP's magic methods (`__get`, `__toString`, `__clone`, …) have fixed contracts:\nstatic-ness, visibility, number of parameters, return value. Violations are\nfatal errors, silently ignored methods or subtle bugs. This rule validates\neach magic method declared in a class-like, flags `__`-prefixed methods that\nare not magic, and catches magic names typed with a single underscore."
   },
   "MisorderedModifiers": {
     "summary": "PSR-1/PSR-12 style expects method modifiers in a fixed order: `final` /\n`abstract` first, then the visibility, then `static`. Methods whose modifiers\nare written in another order are flagged and re-sorted.",
@@ -683,8 +682,7 @@
     "summary": "Calling `unset()` on a function parameter only destroys the function's local\nbinding: the caller's value (whether passed by value or by reference) is\nunaffected, and the local goes away at return anyway. Such an `unset()` is\nalmost always pointless."
   },
   "UsingInclusionOnceReturnValue": {
-    "summary": "`include_once`/`require_once` return the file's value only the first time;\nevery later evaluation returns `true`. Code that uses that value works once\nand then silently breaks. Use `include`/`require` when the result matters.",
-    "fix": true
+    "summary": "`include_once`/`require_once` return the file's value only the first time;\nevery later evaluation returns `true`. Code that uses that value works once\nand then silently breaks. Use `include`/`require` when the result matters."
   },
   "UsingInclusionReturnValue": {
     "summary": "Using the value produced by `include`/`require` (a file that `return`s\nsomething) couples code to file layout and hides dependencies. Prefer explicit\nobjects or functions; inclusion should be a standalone statement."

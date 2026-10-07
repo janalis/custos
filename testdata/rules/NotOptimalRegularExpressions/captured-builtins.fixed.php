@@ -6,7 +6,7 @@ namespace Strings {
     use function Other\explode;
 
     $r = [];
-    $r[] = false !== \strpos($path, "tmp");
+    $r[] = false !== \strpos($path, "tmp") && $path;
     $r[] = \str_replace("__NAME__", $name, $tpl);
     $r[] = \ltrim($raw, '0');
     $r[] = rtrim($raw, '/');

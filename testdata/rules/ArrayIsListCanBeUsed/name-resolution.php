@@ -11,7 +11,7 @@ namespace Lists {
             array_values($rows) === $rows,
             \array_keys($rows) === range(0, \count($rows) - 1),
             <weak_warning descr="Replace with '\array_is_list($rows)'.">\Array_Values($rows) === $rows</weak_warning>,
-            <weak_warning descr="Replace with '\array_is_list($rows)'.">\ARRAY_KEYS($rows) === \Range(0, COUNT($rows) - 1)</weak_warning>,
+            <weak_warning descr="Replace with '$rows !== [] && \array_is_list($rows)'.">\ARRAY_KEYS($rows) === \Range(0, COUNT($rows) - 1)</weak_warning>,
         ];
     }
 }

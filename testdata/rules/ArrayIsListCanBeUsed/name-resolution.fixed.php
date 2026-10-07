@@ -11,7 +11,7 @@ namespace Lists {
             array_values($rows) === $rows,
             \array_keys($rows) === range(0, \count($rows) - 1),
             \array_is_list($rows),
-            \array_is_list($rows),
+            $rows !== [] && \array_is_list($rows),
         ];
     }
 }

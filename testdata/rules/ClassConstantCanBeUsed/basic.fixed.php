@@ -23,7 +23,7 @@ class Clerk {
         return [
             static::class,
             get_parent_class(),
-            Bag::class,
+            '\ArrayObject',
             Bag::class,
             Bill::class,
             \Shop\Billing\Ledger::class,
@@ -31,7 +31,7 @@ class Clerk {
             Tax\Rate::class,
             \Vendor\Kit\Ledger::class,
             Meter::class,
-            Meter::class,
+            '\Vendor\Kit\Meter',
         ];
     }
 

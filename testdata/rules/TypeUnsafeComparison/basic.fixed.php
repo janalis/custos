@@ -9,7 +9,7 @@ class Stamp extends DateTimeImmutable {}
 trait Printable               { function __toString() { return ''; } }
 class Note                    { use Printable; }
 
-function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, Note $note, $v, $w) {
+function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, Note $note, string $v, $w) {
     return [
         $l == 'x',
         $p != 'x',

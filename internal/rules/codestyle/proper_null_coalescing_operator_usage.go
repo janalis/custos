@@ -128,6 +128,9 @@ func (properNullCoalescingOperatorUsage) typeSet(ctx *analysis.Context, e syntax
 			out[`\Traversable`] = true
 			continue
 		}
+		if strings.HasPrefix(a, `\`) && ctx.Index().Class(a, ctx.PHP) == nil {
+			return nil, false // unresolved class: unusable set (D3)
+		}
 		out[a] = true
 	}
 	return out, len(out) > 0
@@ -155,7 +158,16 @@ func (properNullCoalescingOperatorUsage) related(ctx *analysis.Context, lt, rt m
 			return true
 		}
 	}
-	return false
+	// An invokable class fits a callable side (custos).
+	invokable := func(set map[string]bool) bool {
+		for t := range set {
+			if strings.HasPrefix(t, `\`) && ctx.Index().FindMethod(t, "__invoke", ctx.PHP) != nil {
+				return true
+			}
+		}
+		return false
+	}
+	return lt["callable"] && invokable(rt) || rt["callable"] && invokable(lt)
 }
 
 func pncoSetString(s map[string]bool) string {

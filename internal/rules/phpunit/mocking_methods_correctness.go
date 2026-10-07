@@ -128,6 +128,9 @@ func mmcCheckMethod(ctx *analysis.Context, c puCall, arg syntax.Expr) {
 	m := ctx.Index().FindMethod(fqn, name, ctx.PHP)
 	switch {
 	case m == nil:
+		if !util.HierarchyResolved(ctx.Index(), fqn, ctx.PHP) {
+			return // an unresolvable ancestor may declare it (custos)
+		}
 		ctx.ReportSeverity(lit.Span(), meta.SeverityError, mmcMissingMsg)
 	case m.Final:
 		ctx.ReportSeverity(lit.Span(), meta.SeverityError, mmcFinalMsg)

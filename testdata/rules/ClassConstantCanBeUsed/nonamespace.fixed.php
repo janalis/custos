@@ -8,7 +8,7 @@ final class Local {}
 class Pool {}
 
 return [
-    \ArrayObject::class,
+    '\ArrayObject',
     'Local',
     'Pool',
 ];

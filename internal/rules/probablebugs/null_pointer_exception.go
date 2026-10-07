@@ -441,7 +441,8 @@ func (u *npeUnit) evaluate(v *syntax.Variable, name string, decl *syntax.Assign)
 	}
 	switch p := p.(type) {
 	case *syntax.Assign: // U6
-		if p == decl || p.Op.Kind != syntax.TEqual {
+		// `$v ??= <non-null>` leaves $v non-null too (custos diverges).
+		if p == decl || p.Op.Kind != syntax.TEqual && p.Op.Kind != syntax.TCoalesceEqual {
 			return false, false
 		}
 		if t, ok := p.Var.(*syntax.Variable); ok && t.NameExpr == nil && t.Name == name && !u.nullableAssign(p, name) {

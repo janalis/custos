@@ -1,6 +1,6 @@
 <?php
 function cut($name, $head, $k) {
-    $a = substr($name, 0, <warning descr="Pass '-4' as the length instead.">strlen($name) - 4</warning>);
+    $a = substr($name, 0, <warning descr="Pass '-1' as the length instead.">strlen($name) - 1</warning>);
     $b = mb_substr($name, 3, <warning descr="Pass '-2' as the length instead.">mb_strlen($name) - 5</warning>, 'UTF-8');
     $c = \substr($name, 7, <warning descr="The length 'strlen($name) - 2' is unnecessary; remove it.">strlen($name) - 2</warning>);
     $d = mb_substr($name, $k, <warning descr="The length 'mb_strlen($name) - $k' is unnecessary; remove it.">mb_strlen($name) - $k</warning>);

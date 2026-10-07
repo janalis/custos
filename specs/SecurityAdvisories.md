@@ -292,3 +292,9 @@ full, `vendor/package`, exactly as the fix must produce it.)
   the advisory package although only first-party code is required. custos
   lower-cases the owner prefix too, matching Composer's case-insensitive
   package names.
+- **Metapackages (custos diverges).** A manifest with
+  `"type": "metapackage"` has no code of its own: its `require` list is the
+  package, typically pulled into another project's `require-dev` (a
+  "dev tools" bundle). Reporting development packages in its `require`, or
+  a missing advisories package, is wrong. custos skips metapackages like
+  libraries (D1).

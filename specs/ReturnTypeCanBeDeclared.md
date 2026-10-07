@@ -345,3 +345,28 @@ abstract class Node {
   before 8.1 and a compile error in a returning method after); custos treats
   `never` (and `parent`) as non-suggestible built-ins. Doc types that are not
   type or class names (`{array}`) are ignored instead of becoming `\{array}`.
+- **Unknown returned values (custos diverges).** Upstream's D6 allowance
+  (two members, one known) also lets an unknown *returned value* through,
+  so `if ($x) { return $x; } return '';` with an untyped `$x`, or
+  `return false;` next to an unresolvable call's result, gets `: string` /
+  `: bool` — a TypeError or a silent coercion when the unknown value is
+  anything else. custos applies the allowance only when the method has a
+  `@return` tag (which then describes the unknown values); without one, a
+  `return expr;` of unknown type stops the rule.
+- **PHP 4 constructors (custos diverges).** Below PHP 8.0, a method named
+  like its class (outside a named namespace, in a class without
+  `__construct`) is the constructor; upstream suggests `: void` for it,
+  which is fatal ("Constructor cannot declare a return type"). custos skips
+  such methods.
+- **`__serialize` / `__unserialize` (custos diverges).** These magic
+  methods (PHP 7.4) have mandated return types (`array` / `void`) but are
+  missing from upstream's D3 list, so an always-throwing `__serialize()`
+  got `: void` — fatal ("Return type must be array when declared"). custos
+  adds both to D3.
+- **Generators (custos diverges).** Calling a generator function always
+  returns a `Generator` object; its `return` statements set the
+  generator's return value, not the call's. Upstream adds their types and
+  the implicit null (D9), suggesting `?\Generator` (or nothing, with
+  `return 5;`). When the method's own body yields, custos ignores its
+  return statements and D9, so the suggestion is `\Generator` (together
+  with what a `@return` tag says).

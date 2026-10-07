@@ -164,14 +164,10 @@ func (magicMethodsValidity) Check(ctx *analysis.Context, n syntax.Node) {
 			c.report("The '__' prefix is reserved for magic methods.")
 			return
 		}
+		// custos: no rename fix — it would break every caller of the
+		// method, and the signature may not fit the magic contract.
 		if magicLookup(magicMissingUnderscore, c.name) {
-			at := m.Name.Span().Start
-			c.report("'"+c.name+"' is not magic; did you mean '_"+c.name+"'?", analysis.Fix{
-				Title: "Add the missing underscore",
-				Edits: func() []analysis.TextEdit {
-					return []analysis.TextEdit{{Span: syntax.Span{Start: at, End: at}, NewText: "_"}}
-				},
-			})
+			c.report("'" + c.name + "' is not magic; did you mean '_" + c.name + "'?")
 		}
 	}
 }
@@ -349,7 +345,9 @@ func (c *magicCheck) returns(allowed ...string) {
 	offending := func(atoms []string) []string {
 		var bad []string
 		for _, a := range atoms {
-			if !ok[a] && !c.subtypeOfAllowed(a, allowed) {
+			// custos: a declared `never` (always throws) satisfies any
+			// return contract.
+			if !ok[a] && a != "never" && !c.subtypeOfAllowed(a, allowed) {
 				bad = append(bad, a)
 			}
 		}

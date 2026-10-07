@@ -36,9 +36,12 @@ D3. Option `ALLOW_WRITE_FROM_SOURCE_CLASS = true` (default): the class part
       is not the class/trait containing the method. A child class overriding
       (re-declaring) the property counts as declaring it.
     - D3b. If the nearest enclosing scope is **not** a method — top-level code,
-      a plain function, a closure or an arrow function (even one nested inside
-      a method) — report unconditionally, whether or not the class or property
-      exists.
+      a plain function, a closure or an arrow function (upstream: even one
+      nested inside a method; custos: see D3c) — report unconditionally,
+      whether or not the class or property exists.
+    - D3c. (custos, see Divergences) A closure or arrow function nested in a
+      method is checked as that method (D3a): it has the method's class
+      scope (`self`/`static` resolve to it).
 
 ## Exceptions (no report)
 E1. Reads of static properties (`echo X::$p;`).
@@ -159,3 +162,10 @@ class Counter
   `parent::$p = 1` inside `new class extends Base { … }` is reported, a
   property of a trait the anonymous class uses counts as its own, and
   `static::$p` (unresolvable without a name) is not reported.
+- **custos diverges — closures inside methods (D3c).** Upstream reports
+  every write from a closure or arrow function, even one defined in a
+  method of the declaring class (`static::$factory = null` in a callback of
+  Laravel's `Str`), while it accepts `self::$p = …` in the same closure.
+  Closures have the class scope of the method that defines them, so custos
+  checks them like the method. One upstream case expects the old reports
+  (listed in `testdata/ea-divergences.json`).

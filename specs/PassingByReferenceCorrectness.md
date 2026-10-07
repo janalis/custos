@@ -102,3 +102,9 @@ key($s->plain());
 - Named arguments are paired positionally upstream (probably wrong for
   `f(b: g())`). Recommendation: pair named arguments with the parameter of
   that name.
+- **Prefer-ref parameters (custos diverges).** `array_multisort()` declares
+  its parameters by reference in the stubs, but PHP passes them
+  "prefer-ref": a temporary such as `array_values($a)` is accepted without
+  any notice (its sort order still drives the multisort). Upstream reports
+  `array_multisort(array_values($a), SORT_ASC, $a)`; custos skips calls that
+  resolve to the global `array_multisort()`.

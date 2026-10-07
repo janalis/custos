@@ -37,7 +37,7 @@ namespace Shop {
 
         public function both($f) { return $f ? 1 : 'one'; }
 
-        public function chars($s) { yield $s; return 1; }
+        public function chars($s): \Generator { yield $s; return 1; }
     }
 }
 

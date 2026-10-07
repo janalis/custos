@@ -69,13 +69,24 @@ func (issetArgumentExistence) candidate(ctx *analysis.Context, e syntax.Expr) {
 
 	// D7: first mention of name in the function's own scope.
 	first := issetFirstMention(body, name)
-	hasGoto, hasInclude := false, false
+	hasGoto, hasInclude, dynamic := false, false, false
 	syntax.Inspect(body, func(c syntax.Node) bool {
-		switch c.(type) {
+		switch c := c.(type) {
 		case *syntax.Goto:
 			hasGoto = true
 		case *syntax.Include:
 			hasInclude = true
+			if c.Span().Start < v.Span().Start { // D11: may define the variable
+				dynamic = true
+			}
+		case *syntax.FuncCall: // D11: extract(), parse_str($s) define variables
+			if ctx.IsGlobalFunctionCall(c, "extract") || (ctx.IsGlobalFunctionCall(c, "parse_str") && util.ArgCount(c) == 1) {
+				dynamic = true
+			}
+		case *syntax.Assign: // D11: `$$name = …`
+			if t, ok := c.Var.(*syntax.Variable); ok && t.NameExpr != nil {
+				dynamic = true
+			}
 		}
 		return true
 	})
@@ -88,7 +99,7 @@ func (issetArgumentExistence) candidate(ctx *analysis.Context, e syntax.Expr) {
 			return
 		}
 	}
-	if hasGoto { // D9
+	if hasGoto || dynamic { // D9, D11
 		return
 	}
 	if hasInclude && !ctx.Bool("IGNORE_INCLUDES") { // D10

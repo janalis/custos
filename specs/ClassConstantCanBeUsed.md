@@ -390,3 +390,13 @@ return [
   names and local aliases case-sensitively, so with `use Other\LEDGER;` the
   fix for `'Vendor\Kit\Ledger'` adds `use Vendor\Kit\Ledger;`, a fatal "name
   already in use" error. custos compares both ignoring case (F3 step 1).
+- **Leading backslash (custos diverges).** `X::class` never starts with a
+  backslash, so rewriting `'\Shop\Jar'` to `\Shop\Jar::class` changes the
+  string's value (`'\Shop\Jar' === 'Shop\Jar'` is false): string
+  comparisons, array keys and maps built from such literals behave
+  differently after the fix. custos still reports these literals but
+  without a fix, with the message `Use {name}::class instead of the class
+  name string (::class has no leading backslash).` Literals without a
+  leading backslash (and `__NAMESPACE__ . '\X'`, whose value has none) keep
+  the fix. EA cases affected: `class-name-constant-collisions.php`,
+  `configuration-class-reference.php` (listed divergences).

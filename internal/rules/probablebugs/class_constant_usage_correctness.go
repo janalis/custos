@@ -117,6 +117,17 @@ func (classConstantUsageCorrectness) Check(ctx *analysis.Context, n syntax.Node)
 		}
 	default:
 		for _, u := range uses {
+			// Only an import that resolves the written name (alias, or last
+			// segment when unaliased) can say how T should be spelled; the
+			// others (`use A\Bag as B;` with `Bag` resolved through the
+			// namespace) are unrelated to this access (custos).
+			eff := u.alias
+			if eff == "" {
+				eff = util.LastNamePart(u.target)
+			}
+			if !strings.EqualFold(eff, t) {
+				continue
+			}
 			switch {
 			case strings.EqualFold(u.target, cfqn): // L4
 				if u.alias != "" {

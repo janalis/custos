@@ -250,7 +250,9 @@ func noreReplaceText(ctx *analysis.Context, span syntax.Span, repl, text string)
 //     both or neither (`== 2`, `< 5`);
 //   - any other operator operand (arithmetic, `@`, casts, a comparison
 //     with something else or through parentheses): skipped;
-//   - a value position (assignment, return, argument…): the call.
+//   - a value position (assignment, return, argument…): skipped — the
+//     replacement yields true/false where preg_match() yields 1/0
+//     (`echo`, `: int` returns under strict_types, arithmetic).
 func noreSite(call *syntax.FuncCall) (site syntax.Node, inverted, ok bool) {
 	if util.IsLogicalOperand(call) {
 		if u, isNot := call.Parent().(*syntax.Unary); isNot && u.Op.Kind == syntax.TExclaim {
@@ -259,12 +261,8 @@ func noreSite(call *syntax.FuncCall) (site syntax.Node, inverted, ok bool) {
 		return call, false, true
 	}
 	parent, _ := util.ParentSkipParens(call)
-	switch parent.(type) {
-	case *syntax.Binary:
-	case *syntax.Unary, *syntax.Instanceof:
+	if _, isBinary := parent.(*syntax.Binary); !isBinary {
 		return nil, false, false
-	default:
-		return call, false, true
 	}
 	b, direct := call.Parent().(*syntax.Binary)
 	if !direct {

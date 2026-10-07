@@ -40,8 +40,26 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `@phpstan-assert` / `@psalm-assert` (incl. `-if-true` / `-if-false`)
   narrowing.
 - Types for private untyped properties, inferred from the class's writes.
+- Closures and arrow functions carry their return type (declared, or
+  inferred from the body); `$f()`, `call_user_func()`, invokable objects,
+  `callable(…): R` / `Closure(…): R` doc types and `array_map()` results
+  are typed from it; `array_filter()` without callback drops null/false.
+- Out parameters: `@param-out` (phpstan-/psalm- variants) and builtin
+  outputs (`preg_match()` `$matches`, `exec()` `$output`, `parse_str()`,
+  `str_replace()` count, …) type the variable after the call.
+- Conditional return types (`@return ($x is string ? int : float)`,
+  class-constant and literal targets, template subjects) resolved from the
+  call's arguments (also PDOStatement::fetch()/fetchAll() modes).
+- `$this->prop` is non-null after a non-null assignment in the same method
+  until a call may reset it; writing an element into a nullable array
+  (`?array $n; $n['k'] = 1;`) drops null.
 - LSP: "Suppress <Rule> for this statement" code action; saving a file
   re-checks the other open files.
+
+### Changed
+- `custos fix` fixes files in parallel (WordPress 7.1 s → 1.6 s);
+  `--stats` labels a `--php` version as "flag".
+- `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
 - False positives in ReturnTypeCanBeDeclared, UnnecessaryCasting,
@@ -61,6 +79,36 @@ versions follow [Semantic Versioning](https://semver.org/).
   no longer disables the CI gate); `fix` continues past unwritable files.
 - LSP: `custos.json` `paths`/`exclude`/`baseline` honoured when the editor
   sends settings; crashing requests return an error instead of success.
+- `custos fix`: fixes of different rules no longer combine into invalid
+  PHP (an insertion such as UnqualifiedReference's `\` touching another
+  fix's rewrite is deferred to the next pass); 569 of 9,138 files fixed on
+  WordPress, Laravel, Drupal and Nextcloud were broken before.
+- Parser: `$a = &f() && $b` binds as `($a = &f()) && $b`.
+- Unsafe or invalid quick-fixes (WordPress / Laravel / Drupal / Nextcloud
+  review): MagicMethodsValidity `_set` → `__set` rename,
+  ReturnTypeCanBeDeclared on PHP 4 constructors, `__serialize()` and
+  unknown return values, StaticInvocationViaThis `self::` (now `static::`),
+  TypeUnsafeComparison `===` on possibly numeric/bool operands,
+  ClassConstantCanBeUsed on `'\A\B'`, UsingInclusionOnceReturnValue
+  (plain include re-ran the file), IsEmptyFunctionUsage on nullable
+  scalars, SenselessProxyMethod next to PHP 4 constructors,
+  ForeachInvariants on mutated arrays, MultiAssignmentUsage,
+  ReferencingObjects on overriding methods, ComparisonOperandsOrder with
+  assignments, OpAssignShortSyntax with side effects,
+  NotOptimalRegularExpressions value rewrites, SubStrShortHandUsage,
+  ArrayIsListCanBeUsed on `[]`.
+- False positives in OnlyWritesOnParameter (`global`), ForgottenDebugOutput
+  (`wp_die` no longer a default), SuspiciousAssignments,
+  MissingIssetImplementation, UnsupportedStringOffsetOperations,
+  AlterInForeach, IssetArgumentExistence, SlowArrayOperationsInLoop,
+  PregQuoteUsage, MockingMethodsCorrectness, PhpUnitDeprecations,
+  PassingByReferenceCorrectness, ClassConstantUsageCorrectness,
+  ProperNullCoalescingOperatorUsage, CallableParameterUseCaseInTypeContext,
+  UnserializeExploits, EncryptionInitializationVectorRandomness,
+  CryptographicallySecureRandomness, SecurityAdvisories (metapackages),
+  DisconnectedForeachInstruction, DisallowWritingIntoStaticProperties,
+  UnqualifiedReference, EmptyClass, InvertedIfElseConstructs,
+  NullPointerException.
 
 ### Notes
 - custos intentionally diverges from upstream where upstream behaviour is

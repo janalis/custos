@@ -81,6 +81,8 @@ func TestPrecedence(t *testing.T) {
 		{"(int)$a + 1;", phpver.PHP84, "(+ ((int) a) 1)"},
 		{"print $a and $b;", phpver.PHP84, "(and (print a) b)"},
 		{"$x = &$y;", phpver.PHP84, "(=& x y)"},
+		{"$x = &$y && $z;", phpver.PHP84, "(&& (=& x y) z)"},
+		{"$x = &$o->m() ?? $z;", phpver.PHP84, "(?? (=& x $o->m()) z)"},
 		{"$a .= $b . $c;", phpver.PHP84, "(.= a (. b c))"},
 	}
 	for _, c := range cases {

@@ -10,9 +10,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/pprof"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"custos/internal/analysis"
@@ -153,7 +155,7 @@ func (c *common) prepare(args []string) (*setup, error) {
 		if err != nil {
 			return nil, err
 		}
-		cfg.PHP = v
+		cfg.PHP, cfg.PHPSource = v, "flag"
 	}
 	switch c.style {
 	case "":
@@ -312,34 +314,34 @@ func cmdFix(args []string, stdout, stderr io.Writer) (int, error) {
 	if s.engine.NeedsIndex() {
 		s.engine.SetIndex(runner.BuildIndex(runner.IndexSources(s.cfg.Root, s.files), s.parse))
 	}
+	outs := fixAll(s)
 	changed, edits, failed := 0, 0, 0
-	for _, path := range s.files {
-		src, perm, err := readFixable(path)
-		if errors.Is(err, errSkipped) {
-			fmt.Fprintf(stderr, "custos: %v, not fixed\n", err)
+	for i, path := range s.files {
+		o := outs[i]
+		if errors.Is(o.err, errSkipped) {
+			fmt.Fprintf(stderr, "custos: %v, not fixed\n", o.err)
 			continue
 		}
-		if err != nil {
-			fmt.Fprintln(stderr, "custos:", err)
+		if o.err != nil {
+			fmt.Fprintln(stderr, "custos:", o.err)
 			failed++
 			continue
 		}
-		res := fix.FixSource(s.engine, path, src, fix.Options{Parse: s.parse})
-		if res.Applied == 0 || string(res.Source) == string(src) {
+		if o.out == nil {
 			continue
 		}
 		if *showDiff {
-			fmt.Fprint(stdout, diff.Unified(filepath.ToSlash(path), string(src), string(res.Source), 3))
+			fmt.Fprint(stdout, diff.Unified(filepath.ToSlash(path), string(o.src), string(o.out), 3))
 		}
 		if !*dry {
-			if err := os.WriteFile(path, res.Source, perm); err != nil {
+			if err := os.WriteFile(path, o.out, o.perm); err != nil {
 				fmt.Fprintln(stderr, "custos:", err)
 				failed++
 				continue
 			}
 		}
 		changed++
-		edits += res.Applied
+		edits += o.applied
 	}
 	verb := "fixed"
 	if *dry {
@@ -350,6 +352,48 @@ func cmdFix(args []string, stdout, stderr io.Writer) (int, error) {
 		return 2, fmt.Errorf("%d file(s) could not be fixed", failed)
 	}
 	return 0, nil
+}
+
+// fixOutcome is the result of fixing one file; out is nil when nothing
+// changed.
+type fixOutcome struct {
+	src, out []byte
+	perm     os.FileMode
+	applied  int
+	err      error
+}
+
+// fixAll fixes every file with one worker per CPU (files are independent;
+// the engine is safe for concurrent use). Outcomes are in input order so
+// diffs and messages stay deterministic.
+func fixAll(s *setup) []fixOutcome {
+	outs := make([]fixOutcome, len(s.files))
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	for w := 0; w < runtime.GOMAXPROCS(0); w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range jobs {
+				src, perm, err := readFixable(s.files[i])
+				if err != nil {
+					outs[i].err = err
+					continue
+				}
+				res := fix.FixSource(s.engine, s.files[i], src, fix.Options{Parse: s.parse})
+				if res.Applied == 0 || string(res.Source) == string(src) {
+					continue
+				}
+				outs[i] = fixOutcome{src: src, out: res.Source, perm: perm, applied: res.Applied}
+			}
+		}()
+	}
+	for i := range s.files {
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+	return outs
 }
 
 // errSkipped marks files fix leaves alone without failing.

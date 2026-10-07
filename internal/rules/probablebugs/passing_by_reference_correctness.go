@@ -35,6 +35,12 @@ func (passingByReferenceCorrectness) Check(ctx *analysis.Context, n syntax.Node)
 			if f := ctx.Types().ResolveFunction(c); f == nil || !strings.Contains(strings.TrimPrefix(f.FQN, `\`), `\`) {
 				return
 			}
+		case "array_multisort":
+			// Prefer-ref parameters: temporaries are accepted without a
+			// notice (custos).
+			if ctx.IsGlobalFunctionCall(c, "array_multisort") {
+				return
+			}
 		}
 	case *syntax.MethodCall:
 		if id, ok := c.Name.(*syntax.Identifier); !ok || id.Value == "" {

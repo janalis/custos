@@ -322,3 +322,21 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **D16 reads and exits (custos diverges).** Upstream looks for a read of
+  `T` only in the statement following the conditional write (only its
+  condition when it is an `if`), and only checks whether the block's last
+  statement is a jump. So `if ($warm) { $r = get($k, $hit); if ($hit) {
+  return $r; } } $r = build();` and a block ending in an `if/else` whose
+  branches both return are reported, although the conditional value is used
+  or the code after the `if` is never reached from it. custos scans every
+  later statement of the block, skips blocks that always terminate
+  (`syntax.Terminates`), and — when `T` is shared state (see below) — also
+  skips when a later statement of the block makes a call, which may read it.
+- **D17 shared targets (custos diverges).** `global $r; $r = load(); $r =
+  tidy();`, `$_SESSION['k'] = []; $_SESSION['k'] = merge();` or
+  `$this->p = 1; $this->p = $this->compute();` are reported by upstream,
+  but the call on the second right-hand side can read the first value. When
+  `T` is a property, static property, variable variable, superglobal,
+  file-scope variable, `global`/`static` variable, by-reference parameter or
+  a variable bound by reference, custos skips D16/D17 if the relevant code
+  contains a call (function, method, static call, `new` or include).

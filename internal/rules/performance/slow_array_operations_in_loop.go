@@ -49,25 +49,130 @@ func (slowArrayOperationsInLoop) checkMerge(ctx *analysis.Context, n *syntax.Fun
 	if st, ok := start.(*syntax.ExprStmt); ok && mergeRunsOnce(st) { // G4
 		return
 	}
-	inLoop := false // G5
-	for p := syntax.Node(start); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
+	var loop syntax.Node // G5
+	for p := syntax.Node(start); p != nil && !syntax.IsFuncLike(p) && loop == nil; p = p.Parent() {
 		switch p.(type) {
 		case *syntax.Foreach, *syntax.For, *syntax.While, *syntax.DoWhile:
-			inLoop = true
-		}
-		if inLoop {
-			break
+			loop = p
 		}
 	}
-	if !inLoop {
+	if loop == nil {
 		return
 	}
 	for _, arg := range args { // G6
 		if util.EquivalentFoldNames(ctx.File, a.Var, arg.Value) {
+			if mergeNotAccumulating(ctx, loop, a, arg.Value) { // G7
+				return
+			}
 			ctx.ReportNode(call, "'"+name+"(...)' inside a loop re-copies the accumulator each time; merge once after the loop.")
 			return
 		}
 	}
+}
+
+// mergeNotAccumulating implements G7 (custos): the merge cannot be hoisted
+// out of the innermost loop when the target's base variable is (re)assigned
+// elsewhere in the loop or in its header (the foreach value: a fresh value
+// per iteration), when the target's index mentions such a variable (a
+// different element per iteration), or when the accumulator is read
+// elsewhere in the loop (the next iteration needs the merged value).
+func mergeNotAccumulating(ctx *analysis.Context, loop syntax.Node, a *syntax.Assign, matched syntax.Expr) bool {
+	base, dims := a.Var, []syntax.Expr(nil)
+	for {
+		d, ok := base.(*syntax.ArrayDimFetch)
+		if !ok {
+			break
+		}
+		if d.Dim != nil {
+			dims = append(dims, d.Dim)
+		}
+		base = d.Var
+	}
+	// Other accumulating merges into the same target (`$r = array_merge($r,
+	// …)` twice in one loop) neither reset nor read it in between.
+	sibling := func(x syntax.Node) bool {
+		w, ok := x.(*syntax.Assign)
+		if !ok || w == a || !util.EquivalentFoldNames(ctx.File, a.Var, w.Var) {
+			return false
+		}
+		c, _ := perfCall(ctx, w.Value, "array_merge", "array_merge_recursive", "array_replace", "array_replace_recursive")
+		return c != nil
+	}
+	written := mergeLoopWrites(loop, a, sibling)
+	if bv, ok := base.(*syntax.Variable); ok && bv.NameExpr == nil && written[bv.Name] {
+		return true
+	}
+	for _, d := range dims {
+		hit := false
+		syntax.Inspect(d, func(x syntax.Node) bool {
+			if v, ok := x.(*syntax.Variable); ok && v.NameExpr == nil && written[v.Name] {
+				hit = true
+			}
+			return !hit
+		})
+		if hit {
+			return true
+		}
+	}
+	plain, _ := a.Var.(*syntax.Variable)
+	read := false
+	syntax.Inspect(loop, func(x syntax.Node) bool {
+		if x == syntax.Node(a.Var) || x == syntax.Node(matched) || sibling(x) {
+			return false
+		}
+		if e, ok := x.(syntax.Expr); ok && e.Kind() == a.Var.Kind() {
+			if plain != nil {
+				v := e.(*syntax.Variable)
+				read = v.NameExpr == nil && v.Name == plain.Name
+			} else {
+				read = util.EquivalentFoldNames(ctx.File, a.Var, e)
+			}
+		}
+		return !read
+	})
+	return read
+}
+
+// mergeLoopWrites returns the plain variables assigned by the loop header
+// (foreach key/value, for initialiser/step, assignments in a while
+// condition) or by a plain assignment in its body other than a.
+func mergeLoopWrites(loop syntax.Node, a *syntax.Assign, skip func(syntax.Node) bool) map[string]bool {
+	out := map[string]bool{}
+	vars := func(n syntax.Node) {
+		if n == nil {
+			return
+		}
+		syntax.Inspect(n, func(x syntax.Node) bool {
+			if v, ok := x.(*syntax.Variable); ok && v.NameExpr == nil {
+				out[v.Name] = true
+			}
+			return true
+		})
+	}
+	switch l := loop.(type) {
+	case *syntax.Foreach:
+		vars(l.Key)
+		vars(l.Value)
+	case *syntax.For:
+		for _, e := range l.Init {
+			vars(e)
+		}
+		for _, e := range l.Loop {
+			vars(e)
+		}
+	}
+	syntax.Inspect(loop, func(x syntax.Node) bool {
+		if skip(x) {
+			return false
+		}
+		if w, ok := x.(*syntax.Assign); ok && w != a && w.Op.Kind == syntax.TEqual {
+			if v, ok := w.Var.(*syntax.Variable); ok && v.NameExpr == nil {
+				out[v.Name] = true
+			}
+		}
+		return true
+	})
+	return out
 }
 
 // mergeRunsOnce implements G4: walking from st up to the nearest enclosing

@@ -50,3 +50,40 @@ func TestFixSourceInvalidEditStops(t *testing.T) {
 		t.Fatalf("got %+v", res)
 	}
 }
+
+func TestOverlapsAnyInsertions(t *testing.T) {
+	ins := func(p uint32) analysis.TextEdit {
+		return analysis.TextEdit{Span: syntax.Span{Start: p, End: p}, NewText: "\\"}
+	}
+	rep := func(s, e uint32) analysis.TextEdit {
+		return analysis.TextEdit{Span: syntax.Span{Start: s, End: e}, NewText: "r"}
+	}
+	for _, tc := range []struct {
+		a, b analysis.TextEdit
+		want bool
+	}{
+		{ins(5), rep(5, 9), true},  // `\` before a call another fix rewrites
+		{rep(5, 9), ins(5), true},  // same, other order
+		{ins(9), rep(5, 9), true},  // insertion at the end of a replacement
+		{rep(5, 9), ins(7), true},  // insertion inside
+		{ins(4), rep(5, 9), false}, // disjoint
+		{ins(5), ins(5), true},     // two insertions at one point
+		{ins(5), ins(6), false},
+		{rep(1, 3), rep(3, 5), false}, // adjacent replacements
+	} {
+		if got := overlapsAny([]analysis.TextEdit{tc.a}, []analysis.TextEdit{tc.b}); got != tc.want {
+			t.Errorf("overlapsAny(%v, %v) = %v", tc.a.Span, tc.b.Span, got)
+		}
+	}
+}
+
+func TestApplySameStart(t *testing.T) {
+	// Edits starting at one point are ordered by end: the insertion first.
+	out, n := Apply([]byte("abcdef"), []analysis.TextEdit{
+		{Span: syntax.Span{Start: 2, End: 4}, NewText: "XY"},
+		{Span: syntax.Span{Start: 2, End: 2}, NewText: "+"},
+	})
+	if string(out) != "ab+XYef" || n != 2 {
+		t.Fatalf("got %q (%d)", out, n)
+	}
+}

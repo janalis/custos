@@ -39,7 +39,7 @@ func (multiAssignmentUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		if !ok || v.NameExpr != nil {
 			return
 		}
-		if declaredByDirectForeach(stmt, v.Name) { // D4
+		if fe := declaredByDirectForeach(stmt, v.Name); fe != nil && !mentionedBefore(fe.Body, v) { // D4, D4c
 			ctx.ReportNode(as, "Destructure directly in the foreach header.")
 		}
 	case *syntax.Variable:
@@ -140,7 +140,7 @@ func sameTextIgnoringSpace(a, b string) bool {
 // declaredByDirectForeach reports whether stmt is a direct statement of a
 // foreach body (braced, alternative syntax or brace-less) whose header
 // declares $name.
-func declaredByDirectForeach(stmt syntax.Stmt, name string) bool {
+func declaredByDirectForeach(stmt syntax.Stmt, name string) *syntax.Foreach {
 	var fe *syntax.Foreach
 	switch p := stmt.Parent().(type) {
 	case *syntax.Foreach:
@@ -152,7 +152,24 @@ func declaredByDirectForeach(stmt syntax.Stmt, name string) bool {
 			fe = f
 		}
 	}
-	return fe != nil && (declaresVar(fe.Key, name) || declaresVar(fe.Value, name))
+	if fe != nil && (declaresVar(fe.Key, name) || declaresVar(fe.Value, name)) {
+		return fe
+	}
+	return nil
+}
+
+// mentionedBefore implements D4c: the loop body mentions the destructured
+// variable before the destructuring (`$m[2] ??= null;`), whose effect the
+// header form would skip.
+func mentionedBefore(body syntax.Stmt, v *syntax.Variable) bool {
+	found := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		if o, ok := n.(*syntax.Variable); ok && o.Span().Start < v.Span().Start && o.NameExpr == nil && o.Name == v.Name {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
 
 func declaresVar(e syntax.Expr, name string) bool {

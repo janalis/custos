@@ -96,6 +96,8 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
   (`/* */` always skipped; doc comments skipped in part A).
 - **E3** Unset not naming the non-reference value variable as a plain
   variable argument (`unset($obj->v)` does not count).
+- **E5** (custos, see Divergences) Part B: the loop is at file scope (no
+  enclosing function, method or closure).
 - **E4** Part C: option off; append form `$a[] = …`; non-variable index
   (`$a[$k + 1]`, `$a['x']`); container/key not matching the foreach; the
   assignment inside a closure/function nested in the loop.
@@ -181,3 +183,9 @@ function tail(array $list) {
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **custos diverges — part B at file scope (E5).** Upstream reports
+  `unset($item)` after a by-value loop everywhere. At file scope the loop
+  variable is a global: the unset keeps it from leaking into the global
+  scope (and into files included later, which WordPress's bootstrap files
+  rely on — 17 findings). custos only reports part B inside functions,
+  methods and closures.

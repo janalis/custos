@@ -2,7 +2,8 @@
 
 Decisions taken during the port. "user decision" marks choices made by the
 project owner; everything else is an engineering default that can be revisited.
-Last updated: 2026-10-07.
+Private projects used as test corpora are named "corpus A" to "corpus E".
+Last updated: 2026-10-08.
 
 ## Process
 
@@ -74,11 +75,13 @@ the correct behaviour are in the rule spec's *Divergences* section.
 | CascadeStringReplacement | `cascade-str-replace.74.php` | array-typed arguments are spread via ...array_values() so string keys neither throw (<8.1) nor collide (>=8.1) |
 | ClassConstantCanBeUsed | `class-name-constant-ns.php` | get_parent_class() in a class without extends is not rewritten to parent::class (fatal error) |
 | ConstantCanBeUsed | `constants-usage.php` | get_class() outside a class is not rewritten to __CLASS__ (empty there); version_compare(..., '7.1', '==') not rewritten (patch level makes it non-equivalent) |
+| DisallowWritingIntoStaticProperties | `disallow-write-into-static-property-default.php` | closures and arrow functions defined in a method of the declaring class are checked like the method (they have its class scope) |
 | DuplicateArrayKeys | `duplicate-array-keys.php` | keys are compared as PHP stores them (escapes decoded, '7' == 7, any integer base); duplicate integer keys are reported too |
 | ForeachInvariants | `foreach-invariants.php` | upstream's IDE formatter re-spaces an untouched inner for header (custos copies the body verbatim); additionally a limit variable reused by several loops is resolved from the assignment reaching each loop (one extra report); loops whose counter or header-assigned limit is mentioned after the loop are not reported (two fewer reports) |
 | GetDebugTypeCanBeUsed | `get_debug_type.php` | reported without a fix: get_debug_type() names differ from gettype() for scalars (int/integer, float/double, null/NULL) |
 | InstanceofCanBeUsed | `instanceof-can-be-used.php` | only exact equivalents get a fix (is_a, get_class on a final class, class_implements with an interface literal on an object); get_parent_class/is_subclass_of/class_parents and non-final get_class are reported without a fix |
 | InvertedIfElseConstructs | `if-inverted-condition-else-normalization.php` | for a bool operand the fix emits x() instead of false !== x() |
+| IsEmptyFunctionUsage | `empty-function.php` | no null-comparison suggestion for int/float/bool\|null subjects (empty() is also true for 0, 0.0, false) nor for possibly unassigned variables; such subjects get the generic report |
 | MkdirRaceCondition | `mkdir-race-conditions.php` | the or-form re-check emits || is_dir($concurrentDirectory) (upstream negates it, inverting the logic) |
 | NotOptimalIfConditions | `if-instanceof-flaws-false-positives.php` | under && the broader (redundant) instanceof is reported, not the more specific one |
 | NotOptimalIfConditions | `if-optimal-conditions.php` | method/static calls are not reordered (they may have side effects); isset($x[...]) && $x is not reported (isset also guards $x itself) |
@@ -93,6 +96,7 @@ the correct behaviour are in the rule spec's *Divergences* section.
 | TraitsPropertiesConflicts | `traits-properties-conflicts.php` | an own property incompatible with the trait's (different default, visibility, static, readonly or type) is reported as an error: PHP refuses to compose such a class |
 | UnnecessaryCasting | `unnecessary-casting.php`, `unnecessary-casting.php8.php` | an untyped private property without default (not set by the constructor) holds null: casting it is not redundant |
 | UnnecessaryAssertion | `unnecessary-assertion.php` | assertInternalType is reported only when the declared return type always satisfies the named type; unknown/contradicting type names are not reported (that call fails, it is not redundant) |
+| UsingInclusionOnceReturnValue | `using-inclusion-once-return.php` | success tests (conditions, logical operands, comparison with false) are not reported; no quick-fix (a plain include re-runs the file and redeclares its symbols) |
 | VariableFunctionsUsage | `variable-functions-php54.php` | calls with call-time & arguments are not reported/rewritten ($fn($a, &$b) is a fatal error since PHP 5.4) |
 
 ## Rule-level decisions
@@ -155,6 +159,67 @@ also applied with `custos fix --all` on a copy (`php -l` clean).
 | ClassOverridesFieldOfSuperClass | `protected $table = 'invoices';` / `protected bool $skipScalars = true;` (default overrides) told to drop the re-declaration. | Only re-declarations with the same default. corpus C/vendor 371 → 58, corpus D/vendor 141 → 29, corpus B 36 → 30. |
 | PropertyInitializationFlaws | Typed `private array $items = [];` default removed (uninitialised for objects built without the constructor); static re-declarations (own storage) reported; S told to remove the default (which yields null, not the inherited value). | Pattern O skipped for typed properties; S skipped for static properties and its message now says to drop the re-declaration. corpus D/vendor 62 → 23. |
 | RedundantElseClause | Moved code started at column 0. | Indented like the `if` (cosmetic). |
+
+**WordPress / Laravel / Drupal / Nextcloud review (2026-10-08).** First run
+on large code custos had never seen, downloaded as untrusted data and only
+read: WordPress (1,900 files, PHP 7.4), laravel/framework from a fresh
+`laravel/laravel` project (1,762 files, 8.3), Drupal core (10,425 files,
+8.5) and Nextcloud server (5,879 files, 8.3), default and `--all`.
+Robustness: no internal finding and no syntax error (every file also passes
+`php -l` of the target version); `analyse --all` takes 0.5 s (WordPress,
+Laravel) to 1.5 s (Drupal); the largest files (1–1.7 MB arrays) scale
+linearly. About 1,500 findings were sampled over 150 rules (all findings
+below 20, 15–20 otherwise, WordPress weighted). `custos fix --all` on
+copies, then `php -l` on every changed file: 569 of 9,138 changed files
+were broken, all but three by fixes of *different* rules combining (below);
+after the fixes every changed file lints (Nextcloud's `build/stubs`
+redeclare builtins and fail before fixing too).
+
+| Rule / area | Was | Now |
+|---|---|---|
+| Fix engine (`internal/fix`) | An insertion at the start or end of another fix's replacement was not an overlap: `\` (UnqualifiedReference) landed before a rewritten call (`\$x === null`, `\$f($a)`, `\static::$i`), sometimes eating a `;`. 566 broken files. | An insertion touching another edit conflicts; the next iteration re-analyses. `make fixcheck` also applies all fixes of each file together. |
+| Parser | `$b = &f() && $c` parsed as `$b = &(f() && $c)` (PHP: `($b = &f()) && $c`); a parenthesising fix then broke the code. | The by-reference value is a single operand. |
+| `custos fix` | Files fixed one after another (WordPress 7.1 s). | One worker per CPU, output in input order (1.6 s). `--stats` labels a `--php` version "flag". |
+| MagicMethodsValidity | `_set($n)` renamed to `__set($n)` (fatal: must take 2 arguments; callers break); `: never` reported as "got 'never'". | Reported without a fix; `never` accepted (listed divergence). |
+| ReturnTypeCanBeDeclared | Unknown returned values dropped when one known type remained (`if ($x) return $x; return '';` → `: string`); PHP 4 constructors below 8.0 and always-throwing `__serialize()` got `: void` (fatal); generators got `?\Generator`. | Unknown values stop the rule unless an `@return` tag exists; those methods skipped; generators get `\Generator`. Drupal 14521 → 14367 (same tree, only this rule changed). |
+| StaticInvocationViaThis | Fix `self::m()` dropped late static binding; `$this->createStub()`/`assertTrue()` resolved to a trait's `abstract static` re-declaration (PHPUnit exception lost). | `static::` unless private/final method or final class/enum (listed divergence); an abstract trait method defers to the inherited implementation, unknown when an ancestor does not resolve. corpus B 497 → 19, Nextcloud 672 → 656. |
+| TypeUnsafeComparison | `$key != 'streams'` → `!==` although an int key 0 equals `'streams'` below PHP 8.0 (also bools, Stringable objects). | Fix only for operands known to be string/null/array (numbers from 8.0); otherwise a warning without fix (listed divergence). Fixable WordPress 485 → 217. |
+| ClassConstantCanBeUsed | `'\A\B'` → `\A\B::class` (string loses its leading `\`). | Reported without a fix (listed divergences). |
+| SuspiciousAssignments | "else may be missing" when a later statement of the `if` read the value or the block always exited; "overwritten" when the second right side could read a global/property/by-ref target. | All later statements scanned; exiting blocks and shared targets followed by a call skipped. Nextcloud 45 → 8. |
+| MissingIssetImplementation | Interfaces, abstract classes, `#[\AllowDynamicProperties]` and `object\|X` unions reported as "always false" (error). | Only concrete resolved classes without `__isset`/dynamic properties. 101 → 33. |
+| UnsupportedStringOffsetOperations | `$p = ['#markup' => 'x']; $p['#attached']['lib'][] = …` reported as fatal. | Nested targets trusted for property/parameter roots only. 19 → 4. |
+| MockingMethodsCorrectness, PhpUnitDeprecations, PassingByReferenceCorrectness, ClassConstantUsageCorrectness, ProperNullCoalescingOperatorUsage, CallableParameterUseCaseInTypeContext | Methods of unresolvable parents reported missing; a comparator's own `assertEquals($a, $b, $delta)`; `array_multisort(array_values($a), …)`; `Bag::class` next to `use …\Bag as Alias`; unresolved class on the right of `??`; `func_get_arg()` (`mixed\|false`) taken as bool. | Each skipped (unresolvable hierarchy, foreign receiver, prefer-ref builtin, only imports resolving the written name, D3, `mixed` = unknown). |
+| OnlyWritesOnParameter | `global $x; $x = …` reported (95); `++` through a by-ref alias; locals holding objects. | `global` counts as a read; by-ref `++` is a use; object locals skipped. WordPress 88 → 10. |
+| ForgottenDebugOutput | `wp_die()` (permission guards) reported as debug output at error severity (563); `dump()` inside methods named `dump`. | `wp_die` dropped from the defaults; methods named like an entry are wrappers. WordPress 597 → 34. |
+| AlterInForeach, IssetArgumentExistence, SlowArrayOperationsInLoop | File-scope `unset($v)` after a loop (keeps included files clean); `extract()`/`$$k`/earlier include before `isset($x)` (error); per-iteration targets and read-back accumulators told to merge once (error). | Skipped. 44 → 27 (WordPress), 15 → 3, 217 → 186. |
+| ForeachInvariants, MultiAssignmentUsage, SenselessProxyMethod, ReferencingObjects | Loops mutating the iterated array rewritten to `foreach` (snapshot); destructuring moved into the header past `$m[2] ??= null`; `__construct` proxy removed next to a PHP 4 constructor (infinite recursion below 8.0); `&` dropped from overriding/interface methods (fatal signature mismatch) and unions with arrays. | Not reported in those cases. ReferencingObjects Drupal 65 → 22. |
+| DisconnectedForeachInstruction, DisallowWritingIntoStaticProperties (disabled) | `$bar->advance();` treated as loop-independent; `static::$x = …` in a closure inside a method of the declaring class. | A discarded method call modifies its receiver; closures use the enclosing method's class (listed divergence). Drupal 126 → 19. |
+| UsingInclusionOnceReturnValue | `if (!include_once $f)` reported; the fix to plain `include` re-ran the file (redeclaration fatal). | Success tests not reported; no fix (listed divergence). |
+| IsEmptyFunctionUsage | `!empty($n)` with `?int` → `$n !== null` (differs for 0); `$z === null` for a maybe-unassigned `$z` (warning). | Null form only for `resource\|null` and certainly assigned variables (listed divergence). |
+| NotOptimalRegularExpressions, SubStrShortHandUsage, ArrayIsListCanBeUsed | `"/a\$/D"` told `/D` is pointless; `return preg_match(…)` rewritten to a bool; `substr($s, 3, strlen($s) - 6)` → `-3` (differs for short strings); `array_keys($a) === range(0, count($a) - 1)` → `array_is_list($a)` (true for `[]`). | Decoded patterns; rewrites only in boolean contexts; d ≥ −2 only; `$a !== [] && array_is_list($a)`. |
+| PregQuoteUsage, UnserializeExploits, EncryptionInitializationVectorRandomness, CryptographicallySecureRandomness, SecurityAdvisories | Delimiters preg_quote() escapes itself (`|`, `#`, `{`) reported (error); `unserialize(serialize($o))`; IV assignments after the call; `if ($strong)`; drupal/core-dev metapackages. | Skipped. PregQuoteUsage 40 → 20, SecurityAdvisories Drupal 12 → 0. |
+| UnqualifiedReference, EmptyClass, ComparisonOperandsOrder, InvertedIfElseConstructs, OpAssignShortSyntax, NullPointerException | Callback strings in files without a namespace (94 on WordPress); `#[Attribute]` marker classes; `false !== $r = f()` swapped to `$r = f() !== false`; empty `else {}` swapped; `$m[$i++] = $m[$i++] + 1`; `$b ??= $x` not seen as a non-null write. | Fixed (namespace required, attributes skipped, loose operands parenthesised, empty else and side-effect targets skipped, `??=` handled). |
+
+Declined: SuspiciousSemicolon on deliberate empty loops (`for (…; …; $i++);`,
+`while (pcntl_waitpid(…) != -1);`) — indistinguishable from the bug the rule
+targets; DegradedSwitch, TypeUnsafeArraySearch, UnSafeIsSetOverArray,
+AutoloadingIssues (WordPress `class-*.php`), PropertyCanBeStatic,
+BadExceptionsProcessing, LongInheritanceChain, EfferentObjectCoupling,
+MultipleReturnStatements, ParameterDefaultValueIsNotNull,
+ClassConstantCanBeUsed on Composer `autoload_*.php` maps — noise by design;
+NullPointerException reports every dereference after the first (spec, and
+disabled by default); IncrementDecrementOperationEquivalent `$n -= 1` →
+`--$n` differs for null (types are rarely known; upstream behaviour);
+InArrayMissUse `in_array($x, array_keys($a), true)` → `array_key_exists`
+(numeric-string keys; never seen). Engine-level causes found by the review
+(target-version stub return types — `substr()` is `string|false` below 8.0;
+assignments used as conditions not narrowed; a call to an unresolvable
+function keeps the variable's old type; negation of `@phpstan-assert-if-true`
+in the false branch; `$_SERVER['SERVER_PORT']` typed `int`; absent literal
+keys typed by the literal's element type; `array_reduce()` with a non-null
+initial value typed nullable; class attributes not in the index;
+duplicate function declarations; int overflow to float) are left to the
+type-engine work.
 
 **Coverage audit (2026-10-07).** Own fixtures were extended until every
 statement of `internal/rules` is executed by `TestOwnFixtures` (90.3% →
@@ -331,7 +396,8 @@ rejected) is fixed; see the close-tag note above.
   arguments, see Method-level templates); `@phpstan-type`/`@psalm-type`
   aliases expand (including aliases used inside an alias; a self-reference
   reads as `mixed`); `@phpstan-import-type` → `mixed`; nested generics parse. Conditional
-  types `(T is X ? A : B)` give `A|B`. A doc intersection refining an object
+  types `(T is X ? A : B)` give `A|B` (a return type is resolved per call,
+  see Deeper inference below). A doc intersection refining an object
   declaration (`@return Mock&T` on `: Mock`) is kept. Native declarations
   know no scalar aliases (`Double`, `integer` are class names).
 - **Flow (2026-10-07 review):** `$this->prop` is narrowed like a variable;
@@ -346,8 +412,8 @@ rejected) is fixed; see the close-tag note above.
   namespaced or imported user symbol does not. Fixes that insert builtin
   calls/constants write `\name` when a bare name would be captured
   (`util.QualifiedBuiltin`, `util.QualifiedGlobalConst`).
-- **Calls:** first-class callables (`f(...)`) are `\Closure`; named arguments
-  bound in builtin return-type overrides.
+- **Calls:** first-class callables (`f(...)`) are `\Closure` (without a
+  return type); named arguments bound in builtin return-type overrides.
 - **Body return types (2026-10-07):** a call to a function or method
   declared in the current file without declared or `@return` type is typed
   from its body (`infer/returns.go`): the union of its `return` values, plus
@@ -504,6 +570,105 @@ rejected) is fixed; see the close-tag note above.
   `ArrAY <…>` (a builtin name followed by a space and `<`) attached generic
   arguments to the builtin atom, which did not round-trip (found by
   `FuzzFromDoc`).
+- **Deeper inference (2026-10-08):** five additions, each bounded by the
+  existing caps; findings measured old vs new engine built from the same
+  tree (rules unchanged) on corpus A `src`, corpus A `vendor/symfony`,
+  corpus B and corpus C (vendor excluded), default and `--all`: no change
+  except +4 / +5 on Symfony (below). corpus A vendor `analyse --all` timing
+  unchanged (alternating runs, within noise); `BenchmarkTypeOfCallables`
+  +36 % allocations, the other infer benchmarks +1 %.
+  - *Closures and callables* (`infer/callables.go`): a closure or arrow
+    function is `\Closure` carrying its return type as the atom's generic
+    argument (`types.CallableReturn`, like class generics it never changes
+    the atom set): declared type, refined by an `@return` doc on the
+    closure, else its body inferred like a function's (`void` reads as
+    null; generators, recursion and nesting beyond `maxBodyDepth` give
+    unknown). `callable(…): R` and `Closure(…): R` doc types keep R the same
+    way (parameters are dropped; `DocString` writes `callable(): (R)`, which
+    round-trips; a mixed R is not recorded). Calling a value — `$f()`,
+    `(fn() => …)()`, `call_user_func[_array]($f)`, an object with
+    `__invoke()` — gives that type (null/false callees ignored, any other
+    member unknown). `array_map($cb, …)` is `R[]` (callback a closure, a
+    typed callable, an invokable or a string naming a global function;
+    a null, mixed or unknown R keeps the stub type); `array_filter()` keeps
+    the element type (a sealed shape's values) and, without callback, drops
+    null and false; `usort()` & co. keep the element type (only the shape
+    goes, as for every by-reference argument). Method templates bind from a
+    callback's return type (`@param callable(): T`, `Closure(int): U`), so
+    `array_reduce()` and `Ds\*::map()` stubs bind too.
+  - *Out parameters* (`infer/outparams.go`): a variable passed to a
+    by-reference parameter documenting `@param-out T` (phpstan-/psalm-
+    variants; `index.Param.Out`) or to a builtin output (`builtinOut`:
+    preg_match `$matches` → `string[]`, `string[][]` for preg_match_all,
+    plain `array` with flags; exec `$output` appends `string` to the
+    elements it had; parse_str, count arguments, error codes/messages of
+    fsockopen/stream_socket_*, …) is defined by the call. The definition
+    kills earlier ones like an assignment when the call always runs with a
+    statement directly in a block (expression statement, return, echo,
+    condition of `if`/`while`/`switch`, not under the right operand of
+    `&&`/`||`/`??` nor a ternary branch). Callees are resolved without type
+    inference (definitions are collected before any variable is typed):
+    named functions, `Name::`/`self::`/`parent::`/`static::`, `$this->`
+    and `new Name`; other receivers keep the previous behaviour.
+  - *Conditional return types* (`types/cond.go`, `infer/condreturn.go`):
+    the index stores the conditional of `@phpstan-return` / `@psalm-return`
+    / `@return` in a canonical form (`CondReturn`, names resolved; a
+    template subject stands for the parameter documented as exactly that
+    template). A call takes the branch its argument decides: literal
+    targets (`'a'`, `1`) compare the literal argument, class-constant
+    targets (`PDO::FETCH_ASSOC`) the constant or its literal value, type
+    targets decide "then" only when the target is a plain type or class
+    name list (`string`, `?Foo`; refined types such as `non-empty-string`
+    or `array<int>` only decide "else") and the argument's atoms all belong
+    to it, "else" when no value category overlaps; a missing argument uses
+    the parameter's literal default. Nested branches resolve recursively;
+    an undecided call keeps the previous type (the flattened union), or the
+    union of the branches when only a `@phpstan-return` holds the
+    conditional. The result must agree with the declared return type
+    (`withDeclared`). Separators of a conditional need blanks around them,
+    so `($x is ?int ? callable(): int : T)` parses (the old split broke
+    on `?int` and on `callable(): int`). Parsing is capped like doc types
+    (`MaxDocTypeLen`, 32 levels) and cached per Env; `FuzzFromDoc` also
+    round-trips the canonical form. The stubs were regenerated: PDOStatement
+    fetch/fetchAll and iterator_to_array gained conditionals, 47 stub
+    callables gained signatures.
+  - *Property writes* (`afterPropertyWrite`): a `$this->prop` read
+    preceded, in an enclosing block, by `$this->prop = v;` / `??= v;` with
+    a non-null `v` loses null unless something that may reset the property
+    lies between (assignment, reference, any non-builtin call, mutation in
+    a loop entered after the write: `nonEmptyBroken`). The existing
+    `if ($this->p === null) { $this->p = …; }` guard now applies the same
+    check (it ignored intervening calls). Non-null `$this->prop` reads
+    (all narrowing): corpus A src 330 → 346, Symfony 245 → 253, corpus B
+    132 → 148, corpus C 3 → 6.
+  - *Element writes into null*: a variable whose type is an array and/or
+    null gains an array of the written values for its null member
+    (`$n = null; $n[] = 'x';` is `string[]`), and loses null when a write
+    `$n[k] = v;` sits directly in a block enclosing the read after every
+    reaching definition with no mutation in between (`writeDominates`).
+    Other non-array members (strings: offset writes) are left alone.
+  - *Bounds:* `brokenBy` (mutation scan between a fact and its use) now
+    binary-searches the source-ordered mutation lists and examines at most
+    `maxMutScan` = 512 mutations (beyond: broken); builtin-call
+    resolution is cached per Env. Without it, 20k `$this->p = new X; $y =
+    $this->p;` statements took 23 s; all probes of
+    `TestCallableInferenceBounded` (20k repeated constructs, a 20k closure
+    chain, conditionals at the length cap, 1,000 nested closures or arrow
+    functions) now take under 0.25 s each.
+  - *Symfony deltas* (all verified against the source): −1
+    TypeUnsafeArraySearch (`array_search(strtolower($t), array_map('strtolower',
+    …))`: string needle in a `string[]` haystack, spec E2); +1
+    UnnecessaryCasting (`(string) $matches[$ofs]`, `$matches` from a
+    `callable(string): list<string>` callback); +1 SubStrUsedAsArrayAccess
+    (`substr($m[1], 0, 1)` after `preg_match(…, $m)`); +1
+    ReturnTypeCanBeDeclared (`?int` from preg_replace's count); +2
+    CallableParameterUseCaseInTypeContext (`string $s1` reassigned the
+    `string[]` matches of preg_match_all); +1 OffsetOperations in `--all`
+    (ParameterBag: `resolveValue()` documented `(TValue is scalar ?
+    array|scalar : …)` used as a key — bool/float keys are what the rule
+    reports, but `array` is listed only because the guard `if
+    (!is_scalar($k) && !$k instanceof \Stringable) throw` is not
+    understood: narrowing does not split a falsy `&&`).
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.

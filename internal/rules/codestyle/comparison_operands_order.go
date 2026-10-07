@@ -2,6 +2,7 @@ package codestyle
 
 import (
 	"custos/internal/analysis"
+	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -39,7 +40,7 @@ func (comparisonOperandsOrder) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	ls, rs := b.Left.Span(), b.Right.Span()
-	lt, rt := ctx.Text(b.Left), ctx.Text(b.Right)
+	lt, rt := cooOperandText(ctx, b.Left), cooOperandText(ctx, b.Right)
 	ctx.Report(syntax.Span{Start: ls.Start, End: rs.End}, msg, analysis.Fix{
 		Title: "Swap the operands",
 		Edits: func() []analysis.TextEdit {
@@ -63,4 +64,14 @@ func cooConstantLike(e syntax.Expr) bool {
 		return ok && (l.LitKind == syntax.LitInt || l.LitKind == syntax.LitFloat)
 	}
 	return false
+}
+
+// cooOperandText is the operand's text for the other side: an operand
+// binding looser than the comparison is parenthesized, or
+// `false !== $r = f()` would become `$r = f() !== false`.
+func cooOperandText(ctx *analysis.Context, e syntax.Expr) string {
+	if util.NeedsParensAsEqualityOperand(e) {
+		return "(" + ctx.Text(e) + ")"
+	}
+	return ctx.Text(e)
 }

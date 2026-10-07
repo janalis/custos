@@ -311,3 +311,14 @@ interface Printable { public function __toString(); }
   (`return call_user_func($this->fn);`) may well be of the required type;
   custos treats it like an unknown type (no report) instead of reporting
   `got 'mixed'`.
+- **Missing-underscore fix dropped (custos diverges).** Upstream renames
+  `_set` to `__set` (and the other D15 near-misses). The rename breaks every
+  caller of the method (`$this->_set($n)`), and the existing signature may
+  not satisfy the magic contract: a one-parameter `_set($number)` became a
+  fatal "Method __set() must take exactly 2 arguments" (found on real
+  code). custos keeps the report without a fix. EA case affected:
+  `magic-methods-missing-underscore.php` (listed divergence).
+- **`never` return type (custos diverges).** A declared `: never` on
+  `__toString`, `__debugInfo`, `__serialize`, `__sleep` or `__set_state`
+  is accepted by PHP (the method always throws); upstream reports it as
+  "got 'never'". custos treats `never` as satisfying any return contract.

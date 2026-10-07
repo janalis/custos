@@ -17,7 +17,7 @@ namespace App\Tests {
         public function testHome(): void {
             // Symfony's assertion traits follow PHPUnit's $this-> convention
             $this->assertResponseIsSuccessful();
-            self::assertHomeRendered();
+            static::assertHomeRendered();
         }
     }
 }

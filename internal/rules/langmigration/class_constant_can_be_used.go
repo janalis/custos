@@ -190,6 +190,12 @@ func (st *cccState) checkLiteral(lit *syntax.Literal) {
 		name = strings.TrimPrefix(strings.ReplaceAll(raw, `\\`, `\`), `\`)
 	}
 	span := report.Span()
+	if !nsConcat && strings.HasPrefix(raw, `\`) {
+		// custos: `::class` never has a leading backslash, so the fix
+		// would change the string's value ('\A\B' !== 'A\B').
+		ctx.Report(span, "Use "+name+"::class instead of the class name string (::class has no leading backslash).")
+		return
+	}
 	ctx.Report(span, "Use "+name+"::class instead of the class name string.", analysis.Fix{
 		Title: "Use " + name + "::class",
 		Edits: func() []analysis.TextEdit { return st.edits(span, name) },
@@ -283,18 +289,20 @@ func (st *cccState) edits(span syntax.Span, q string) []analysis.TextEdit {
 }
 
 // chainImport adds a second import right after the one a previous fix
-// inserted after the marker. Two insertions at one offset would conflict, so
-// the edit replaces the byte following the anchor and re-emits it.
+// inserted after the marker. Edits touching that insertion would conflict,
+// so the import is inserted one byte further, after the character that
+// follows the anchor.
 func (st *cccState) chainImport(q string) (analysis.TextEdit, bool) {
 	src := st.ctx.Src
 	if !st.chainAfter || st.chained || int(st.anchor) >= len(src) {
 		return analysis.TextEdit{}, false
 	}
 	st.chained = true
-	return analysis.TextEdit{
-		Span:    syntax.Span{Start: st.anchor, End: st.anchor + 1},
-		NewText: "\nuse " + strings.TrimPrefix(q, `\`) + ";" + string(src[st.anchor]),
-	}, true
+	text := "\nuse " + strings.TrimPrefix(q, `\`) + ";"
+	if src[st.anchor] == '\n' {
+		text = "use " + strings.TrimPrefix(q, `\`) + ";\n"
+	}
+	return analysis.TextEdit{Span: syntax.Span{Start: st.anchor + 1, End: st.anchor + 1}, NewText: text}, true
 }
 
 // firstStmt returns the first statement that is not inline HTML. The file

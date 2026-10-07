@@ -30,6 +30,7 @@ var rtdMagic = map[string]bool{
 	"__construct": true, "__destruct": true, "__call": true, "__callstatic": true, "__get": true,
 	"__set": true, "__isset": true, "__unset": true, "__sleep": true, "__wakeup": true,
 	"__tostring": true, "__invoke": true, "__set_state": true, "__clone": true, "__debuginfo": true,
+	"__serialize": true, "__unserialize": true, // custos: mandated return types
 }
 
 var rtdBuiltin = map[string]bool{
@@ -117,6 +118,9 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || m.Name == nil || m.ReturnType != nil || rtdMagic[strings.ToLower(m.Name.Value)] { // D1-D3
 		return
 	}
+	if ctx.PHP < phpver.PHP80 && rtdLegacyConstructor(class, m) { // custos: constructors take no return type
+		return
+	}
 	abstract := m.Body == nil
 	var doc *phpdoc.Doc
 	if c := index.DocComment(ctx.File, m); c != "" {
@@ -150,11 +154,25 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 		add(types.FromDoc(docRet, resolve))
 	}
 	hasYield := false
+	if !abstract {
+		rtdWalkOwn(m.Body, func(x syntax.Node) {
+			switch x.(type) {
+			case *syntax.Yield, *syntax.YieldFrom:
+				hasYield = true
+			}
+		})
+	}
+	unknownReturn := false                  // a `return expr;` of unknown type
 	bareReturn, valueReturn := false, false // own `return;` / `return expr;`
 	if !abstract {
 		rtdWalkOwn(m.Body, func(x syntax.Node) {
 			switch x := x.(type) {
 			case *syntax.Return:
+				if hasYield {
+					// custos: a generator's return value is not what the
+					// call returns (always a Generator object).
+					return
+				}
 				if x.Expr == nil {
 					bareReturn = true
 					add(types.Void)
@@ -171,14 +189,19 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 							add(types.Null)
 						}
 					}
+					if t.IsUnknown() {
+						unknownReturn = true
+					}
 					add(t)
 				}
-			case *syntax.Yield, *syntax.YieldFrom:
-				hasYield = true
 			}
 		})
 	}
-	if unknown && len(known) != 1 { // D6
+	// D6. Without a @return tag, the "one known member" allowance does not
+	// cover returned values (custos diverges: an unknown returned value may
+	// be anything, so declaring the other member's type would throw or
+	// coerce).
+	if unknownReturn && !hasReturnTag || unknown && len(known) != 1 {
 		return
 	}
 	set := map[string]bool{} // D7
@@ -191,7 +214,7 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 			delete(set, "null")
 		}
 	}
-	if len(set) > 0 && !abstract { // D9
+	if len(set) > 0 && !abstract && !hasYield { // D9 (a generator call never returns null)
 		if !set["null"] && !set["void"] {
 			last := syntax.Stmt(nil)
 			if len(m.Body.Stmts) > 0 {
@@ -536,4 +559,19 @@ func rtdImplicitNullProp(ctx *analysis.Context, class *syntax.ClassLike, e synta
 		return false
 	}
 	return !util.CtorAssignsProperty(class, id.Value)
+}
+
+// rtdLegacyConstructor reports whether m is a PHP 4 style constructor below
+// PHP 8.0: a method named like its class (outside a named namespace) in a
+// class without __construct.
+func rtdLegacyConstructor(class *syntax.ClassLike, m *syntax.Method) bool {
+	if class.ClassKind != syntax.KindClass || class.Name == nil || !strings.EqualFold(m.Name.Value, class.Name.Value) || inNamedNamespace(class) {
+		return false
+	}
+	for _, mem := range class.Members {
+		if o, ok := mem.(*syntax.Method); ok && o.Name != nil && strings.EqualFold(o.Name.Value, "__construct") {
+			return false
+		}
+	}
+	return true
 }

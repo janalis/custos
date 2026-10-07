@@ -9,7 +9,7 @@ function rest(DOMNode ...$nodes) {}
 
 interface Visitor {
     public function visit(
-        Tree $tree,
+        Tree & $tree,
         mixed &$extra
     );
 }
@@ -21,5 +21,5 @@ function check(DOMNode &$a, DOMNode &$b, DOMNode &$c, DOMNode &$d = null) {
     if (($a)) {}
     return !$b || ($c ? 1 : 0);
 }
-function scalars(\string &$s, int|null &$i, ?\string &$t, Foo|string $u) {}
+function scalars(\string &$s, int|null &$i, ?\string &$t, Foo|string &$u) {}
 $fn = function (DOMNode &$node) {};

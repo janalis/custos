@@ -24,7 +24,7 @@ function sites($p, $x)
     $r[] = @preg_match('/tmp/', $p);
     $r[] = preg_match('/tmp/', $p) instanceof Countable;
     $r[] = 'n' . ("a" !== $p);
-    $r[] = false !== strpos($p, "abc");
+    $r[] = false !== strpos($p, "abc") && $p;
     $r[] = preg_match('/^a/m', $p);
     $r[] = preg_match('/abc/A', $p);
     $r[] = str_replace("abc", 'x', $p) == 0;

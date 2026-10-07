@@ -15,8 +15,8 @@ function tally(array $rows, \SplObjectStorage $seen)
 function probe($ratio, $flag, $label, ?\DateTime $when, \stdClass $box, $map)
 {
     return [
-        $ratio === null,
-        $flag !== null,
+        empty($ratio),
+        !empty($flag),
         $when === null,
         $box === null,
         empty($label),
@@ -45,4 +45,4 @@ function walk(Node $n)
 }
 
 function maybe(?int $i) { return $i; }
-echo maybe(1) !== null;
+echo !empty(maybe(1));

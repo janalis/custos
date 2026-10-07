@@ -13,7 +13,7 @@ class Billing
     public function including()
     {
         include 'defaults.php';
-        return isset(<error descr="Variable '$config' is not defined in this scope.">$config</error>);
+        return isset($config); // the included file may define it (D11)
     }
 }
 
@@ -30,4 +30,13 @@ function looped(array $rows)
         }
     }
     return null;
+}
+
+function includeAfter(string $dir)
+{
+    $flag = <error descr="Variable '$fallback' is not defined in this scope.">$fallback</error> ?? 0;
+    include $dir . '/late.php';
+    $out = [];
+    parse_str('a=1', $out);
+    return $flag;
 }

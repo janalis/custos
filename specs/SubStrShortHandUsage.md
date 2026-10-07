@@ -185,3 +185,11 @@ function cut($name, $head, $k) {
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Simplify only when `d >= -2` (custos diverges).** For a string shorter
+  than `R` the original length `strlen($s) - R` is negative and PHP still
+  keeps characters up to `2·strlen($s) - R`, while the suggested constant
+  `d` keeps none: `substr('abcde', 3, strlen('abcde') - 6)` is `'d'`,
+  `substr('abcde', 3, -3)` is `''`. The two differ for some length in
+  `((R + start) / 2, R)`, which contains an integer exactly when
+  `d <= -3`. custos reports *Simplify* for `d` = -1 or -2 only and stays
+  silent below.

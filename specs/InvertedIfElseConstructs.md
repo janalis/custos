@@ -151,3 +151,7 @@ if (!ready()) { a(); }
   function/method, a bool literal); otherwise skip.
 - Alternative syntax (`if (!x): … else: … endif;`) is not covered by upstream
   fixtures. Recommendation: do not report (bodies are not braced blocks).
+- **Empty else (custos diverges).** `if (!$ok) { … } else { }` (no
+  statements, comments only) is not reported: swapping the branches would
+  leave an empty `if` body — removing the empty `else` is the change to
+  make, and the negation then reads naturally.

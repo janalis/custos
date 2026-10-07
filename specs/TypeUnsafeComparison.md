@@ -226,3 +226,15 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, $v
   the missing declaration, so D2 skips it instead of reporting kind M
   (`class Ghostly extends Missing {}`, `new Ghostly() == 'x'`: no report;
   analysis still ends, as for any object-only operand).
+- **Kind S fix only when equivalent (custos diverges).** Upstream always
+  replaces `==` with `===` against a non-numeric string, but the result
+  changes when the other operand is a bool (`true == 'yes'` holds), a
+  number before PHP 8.0 (`0 == 'yes'` holds on 7.x, e.g. an int array key
+  compared with a string) or a Stringable object (compared by its string
+  form). custos offers the fix only when the other operand's type is known
+  and contains nothing but `string`, `null`, arrays — and `int`/`float`
+  from PHP 8.0. Otherwise kind S is still reported (warning, no fix) with
+  `Use '{op}' here if the other operand is never a bool, a number or a
+  Stringable object; the string is not numeric.` EA case affected:
+  `type-unsafe-comparison.php` (listed divergence: untyped operands get no
+  fix).

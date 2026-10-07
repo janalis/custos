@@ -1494,7 +1494,7 @@ never be set at that point — usually a typo or a leftover after a refactoring.
 
 ### MagicMethodsValidity
 
-`MagicMethodsValidityInspection` · severity **error** · default **on** · quick-fix **yes**
+`MagicMethodsValidityInspection` · severity **error** · default **on** · quick-fix **no**
 
 PHP's magic methods (`__get`, `__toString`, `__clone`, …) have fixed contracts:
 static-ness, visibility, number of parameters, return value. Violations are
@@ -1709,7 +1709,7 @@ the class), it is a real conflict.
 
 ### UsingInclusionOnceReturnValue
 
-`UsingInclusionOnceReturnValueInspection` · severity **error** · default **on** · quick-fix **yes**
+`UsingInclusionOnceReturnValueInspection` · severity **error** · default **on** · quick-fix **no**
 
 `include_once`/`require_once` return the file's value only the first time;
 every later evaluation returns `true`. Code that uses that value works once

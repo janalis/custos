@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
+	"custos/internal/index"
 	"custos/internal/syntax"
 )
 
@@ -31,21 +32,28 @@ func (r referencingObjects) Check(ctx *analysis.Context, n syntax.Node) {
 
 func (referencingObjects) checkParam(ctx *analysis.Context, p *syntax.Param) {
 	var body *syntax.Block
+	var meth *syntax.Method
 	switch fn := p.Parent().(type) { // D1
 	case *syntax.Function:
 		body = fn.Body
 	case *syntax.Method:
-		body = fn.Body
+		body, meth = fn.Body, fn
 	default:
 		return
 	}
 	if !p.ByRef || p.Default != nil || p.Var.NameExpr != nil || p.Type == nil { // D2/D3
 		return
 	}
-	if scalarOnlyType(p.Type) {
+	if hasScalarMember(p.Type) { // D3, D3a
 		return
 	}
-	if body != nil && usedAsReference(body, p.Var.Name) { // D4
+	if body == nil { // D6: abstract/interface methods fix the contract of implementations
+		return
+	}
+	if usedAsReference(body, p.Var.Name) || forwardedByRef(ctx, body, p.Var.Name) { // D4, D4a
+		return
+	}
+	if meth != nil && roInHierarchy(ctx, meth) { // D6
 		return
 	}
 	f := ctx.File
@@ -68,23 +76,155 @@ var scalarTypeNames = map[string]bool{
 	"callable": true, // may be a string or an array (spec Divergences)
 }
 
-// scalarOnlyType reports whether every name of the type is a scalar/array
-// pseudo-type (D3 fails).
-func scalarOnlyType(t syntax.Expr) bool {
+// hasScalarMember reports whether some member of the type other than null
+// is a scalar/array pseudo-type (D3, D3a): for such values (`array|\ArrayAccess
+// &$ctx` with `$ctx['k'] = 1`) the reference matters.
+func hasScalarMember(t syntax.Expr) bool {
 	switch x := t.(type) {
 	case *syntax.Name:
-		return scalarTypeNames[strings.ToLower(strings.TrimPrefix(x.Value, `\`))]
+		n := strings.ToLower(strings.TrimPrefix(x.Value, `\`))
+		return n != "null" && scalarTypeNames[n]
 	case *syntax.NullableType:
-		return scalarOnlyType(x.Type)
+		return hasScalarMember(x.Type)
 	case *syntax.UnionType:
 		for _, m := range x.Types {
-			if !scalarOnlyType(m) {
-				return false
+			if hasScalarMember(m) {
+				return true
 			}
 		}
-		return true
 	}
 	return false // intersection members are always classes
+}
+
+// forwardedByRef implements D4a: the parameter is passed directly to a call
+// whose matching parameter is (or, for an unresolved callee, may be) by
+// reference — the callee may re-assign it through the reference.
+func forwardedByRef(ctx *analysis.Context, body *syntax.Block, name string) bool {
+	found := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		v, ok := n.(*syntax.Variable)
+		if !ok || v.NameExpr != nil || v.Name != name {
+			return !found
+		}
+		arg, ok := v.Parent().(*syntax.Arg)
+		if !ok {
+			return true
+		}
+		list := arg.Parent().(*syntax.ArgList)
+		params, ok := roCallParams(ctx, list.Parent())
+		found = !ok || roBindsByRef(list, arg, params)
+		return !found
+	})
+	return found
+}
+
+// roBindsByRef reports whether arg binds to a by-reference parameter
+// (positional, variadic tail or named).
+func roBindsByRef(list *syntax.ArgList, arg *syntax.Arg, params []index.Param) bool {
+	if arg.Name != nil {
+		for _, p := range params {
+			if strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
+				return p.ByRef
+			}
+		}
+		return false
+	}
+	pos := 0
+	for _, a := range list.Args {
+		if a == syntax.Expr(arg) {
+			break
+		}
+		pos++
+	}
+	if pos < len(params) {
+		return params[pos].ByRef
+	}
+	n := len(params)
+	return n > 0 && params[n-1].Variadic && params[n-1].ByRef
+}
+
+// roCallParams resolves the parameters of the function, method or
+// constructor called with an argument list.
+func roCallParams(ctx *analysis.Context, call syntax.Node) ([]index.Param, bool) {
+	var cls []string
+	var name string
+	switch c := call.(type) {
+	case *syntax.FuncCall:
+		if f := ctx.Types().ResolveFunction(c); f != nil {
+			return f.Params, true
+		}
+		return nil, false
+	case *syntax.MethodCall:
+		cls = ctx.TypeOf(c.Var).Classes()
+		name = roIdent(c.Name)
+	case *syntax.StaticCall:
+		if fqn := ctx.Types().ClassRef(c.Class); fqn != "" {
+			cls = []string{fqn}
+		}
+		name = roIdent(c.Name)
+	case *syntax.New:
+		if fqn := ctx.Types().ClassRef(c.Class); fqn != "" {
+			cls = []string{fqn}
+		}
+		name = "__construct"
+	}
+	if len(cls) != 1 || name == "" {
+		return nil, false
+	}
+	m := ctx.Index().FindMethod(cls[0], name, ctx.PHP)
+	if m == nil {
+		return nil, false
+	}
+	return m.Params, true
+}
+
+func roIdent(e syntax.Expr) string {
+	if id, ok := e.(*syntax.Identifier); ok {
+		return id.Value
+	}
+	return ""
+}
+
+// roInHierarchy implements D6: the method overrides a method of an ancestor
+// (or its class has an unresolvable ancestor that may declare it), or a
+// known descendant overrides it — dropping the '&' would make the
+// signatures incompatible.
+func roInHierarchy(ctx *analysis.Context, m *syntax.Method) bool {
+	cl := m.Parent().(*syntax.ClassLike) // methods only live in class-likes
+	if cl.ClassKind == syntax.KindTrait {
+		return true
+	}
+	ix := ctx.Index()
+	fqn := ctx.Types().ClassFQN(cl)
+	own := ix.Class(fqn, ctx.PHP)
+	if fqn == "" || own == nil {
+		return true
+	}
+	lname := strings.ToLower(m.Name.Value)
+	for i, c := range ix.Ancestors(fqn, ctx.PHP) {
+		if i > 0 && c.Methods[lname] != nil {
+			return true
+		}
+		for _, sup := range append(append([]string{c.Parent}, c.Interfaces...), c.Traits...) {
+			if sup != "" && ix.Class(sup, ctx.PHP) == nil {
+				return true
+			}
+		}
+	}
+	// Descendants form a tree (a cycle makes the class its own ancestor and
+	// was caught above); the step cap bounds huge hierarchies.
+	queue := []string{fqn}
+	for steps := 0; len(queue) > 0 && steps < 1000; steps++ {
+		k := queue[0]
+		queue = queue[1:]
+		for _, ch := range ix.ChildrenAll(k) {
+			if c := ix.Class(ch, ctx.PHP); c != nil && c.Methods[lname] != nil {
+				return true
+			}
+			queue = append(queue, ch)
+		}
+	}
+	return false
 }
 
 // usedAsReference reports whether the parameter is assigned to or used as a

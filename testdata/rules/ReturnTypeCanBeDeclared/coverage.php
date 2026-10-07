@@ -21,7 +21,7 @@ namespace App\Model {
         public function <weak_warning descr="Declare ': Wheel' as the return type.">wheel</weak_warning>() { return new Parts\Wheel(); }
         public function <weak_warning descr="Declare ': Chair' as the return type.">chair</weak_warning>() { return new Parts\Seat(); }
         public function <weak_warning descr="Declare ': Engine' as the return type.">engine</weak_warning>() { return new Parts\Engine(); }
-        public function <weak_warning descr="Declare ': ?\Generator' as the return type.">gen</weak_warning>() { yield 1; }
+        public function <weak_warning descr="Declare ': \Generator' as the return type.">gen</weak_warning>() { yield 1; }
         public function <weak_warning descr="Declare ': void' as the return type.">fails</weak_warning>() { throw new \LogicException(); }
         public function <weak_warning descr="Declare ': void' as the return type.">nested</weak_warning>() { $c = function () { return 1; }; $c(); }
         public function <weak_warning descr="Declare ': void' as the return type.">nestedFn</weak_warning>() { function inner() { return 1; } }

@@ -289,7 +289,12 @@ func (p *parser) parsePostfix(e Expr, start uint32) Expr {
 			p.advance()
 			n := put(&p.slabs.sAssign, Assign{Var: e, Op: p.ref(t)})
 			if _, ok := p.accept(TAmpersand); ok {
+				// `$a = &v` binds only a variable (or `new`): the
+				// operators after it apply to the whole assignment —
+				// `$a = &f() && $b` is `($a = &f()) && $b`.
 				n.ByRef = true
+				n.Value = p.parseUnary()
+				return fin(p, n, start)
 			}
 			n.Value = p.parseExpr(precAssign)
 			return fin(p, n, start)

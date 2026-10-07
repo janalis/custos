@@ -264,6 +264,15 @@ func dfiVariable(ctx *analysis.Context, v *syntax.Variable, m, dep map[string]bo
 			}
 		}
 	}
+	// D8c: a method call made for its side effect (an expression statement
+	// whose result is discarded: `$bar->advance();`, `$stack->pop();`) may
+	// change its receiver: the object counts as modified.
+	if mc, ok := p.(*syntax.MethodCall); ok && mc.Var == c {
+		if _, stmt := mc.Parent().(*syntax.ExprStmt); stmt {
+			m[name], dep[name] = true, true
+			return
+		}
+	}
 	// D9
 	if _, ok := p.(*syntax.IncDec); ok {
 		m[name], dep[name] = true, true

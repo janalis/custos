@@ -692,8 +692,11 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
     in parentheses compared with a number, or used as the operand of any
     other operator (arithmetic, `.`, `@`, casts, `instanceof`, a comparison
     with a non-literal), is not reported. A logical operand (`!C`,
-    conditions, `&&`/`||`) and a value position (assignment, return,
-    argument) keep the upstream context. The fix wraps the replacement in
+    conditions, `&&`/`||`) keeps the upstream context. A value position
+    (assignment, return, argument, `echo`) is not reported (custos
+    diverges): `preg_match()` yields 1/0 there and the replacement
+    true/false, which changes printed output and fails `: int` returns
+    under `strict_types`. The fix wraps the replacement in
     parentheses when its context is the operand of a tighter operator
     (`'n' . !preg_match('/^a$/', $p)` → `'n' . ("a" !== $p)`); the message
     shows it without them.
@@ -714,3 +717,11 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
     argument the call is rewritten only when it is a positive integer
     literal (`preg_split()` treats `0`/`-1` as "no limit", `explode()` does
     not).
+- **D9–D11 count the pattern PHP passes to PCRE (custos diverges).**
+  Upstream counts `$`, `.` and letters in the literal's source text, so
+  `"/^[a-z]*\$/D"` and `"/^[0-9]*\x24/D"` (an anchor `$` written as a PHP
+  escape) were told the `D` flag is pointless — it is not (`"ab\n"`
+  matches without it). custos runs these three checks on the string value
+  (escapes resolved, both quote styles): `"\x2e"` is a `.`, and
+  `'/\\d/i'` is the pattern `\d` (no letters, `/i` pointless) while
+  `'/\\\\d/i'` is an escaped backslash followed by the letter `d`.

@@ -17,5 +17,5 @@ namespace App;
 $list = [
     Hammer::class,
     Saw::class,
-    Hammer::class,
+    '\Lib\Tools\Hammer',
 ];

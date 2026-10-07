@@ -103,3 +103,15 @@ class Bag
 
 ## Divergences
 None known.
+- **Undecidable receivers (custos diverges).** Upstream reports as soon as
+  one class of the receiver's type lacks `__isset()`, with severity error
+  and "always false". That is wrong when another possible value can carry
+  the property, so custos reports only when *every* non-null member of the
+  type is a resolvable, concrete class (not an interface, abstract class,
+  trait or enum) without the property, without `__isset()` and without
+  `#[\AllowDynamicProperties]` in its hierarchy (attributes are seen on
+  declarations in the analysed file; the index does not record them for
+  other files). A union with `object`, `mixed`, an array or scalar type,
+  `stdClass`/`SimpleXMLElement`/`DOMDocument`, or an unresolvable class
+  yields no report. Interfaces and abstract classes are skipped because
+  their implementations may declare `__isset()`.

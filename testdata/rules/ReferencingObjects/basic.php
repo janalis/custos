@@ -9,7 +9,7 @@ function rest(<warning descr="Objects are handed over by handle already; drop th
 
 interface Visitor {
     public function visit(
-        <warning descr="Objects are handed over by handle already; drop the '&' before '$tree'.">Tree & $tree</warning>,
+        Tree & $tree,
         mixed &$extra
     );
 }
@@ -21,5 +21,5 @@ function check(DOMNode &$a, DOMNode &$b, DOMNode &$c, DOMNode &$d = null) {
     if (($a)) {}
     return !$b || ($c ? 1 : 0);
 }
-function scalars(\string &$s, int|null &$i, ?\string &$t, <warning descr="Objects are handed over by handle already; drop the '&' before '$u'.">Foo|string &$u</warning>) {}
+function scalars(\string &$s, int|null &$i, ?\string &$t, Foo|string &$u) {}
 $fn = function (DOMNode &$node) {};

@@ -31,13 +31,16 @@ var noreFunctions = []string{
 
 // noreCase is one pattern literal being checked for one call.
 type noreCase struct {
-	ctx   *analysis.Context
-	call  *syntax.FuncCall
-	fn    string
-	lit   syntax.Expr // the resolved literal L
-	body  string
-	mods  string
-	array bool // array mode (D5)
+	ctx  *analysis.Context
+	call *syntax.FuncCall
+	fn   string
+	lit  syntax.Expr // the resolved literal L
+	body string
+	mods string
+	// decoded is the body of the PHP string value (escapes resolved),
+	// for the checks that count pattern characters (D9–D11).
+	decoded string
+	array   bool // array mode (D5)
 
 	sink  *[]string       // dry run: collect literal findings instead of reporting
 	prior map[string]bool // literal findings already made by an earlier call
@@ -113,6 +116,13 @@ func (c *noreCase) checkLiteral() bool {
 		return false
 	}
 	c.body, c.mods = body, mods
+	c.decoded = body
+	if v, ok := util.QuotedStringValue(c.lit); ok {
+		// D9–D11 look at the pattern PCRE sees: "\$" and "\x24" are a `$`.
+		if b, _, ok := noreSplitDelimiters(v); ok {
+			c.decoded = b
+		}
+	}
 	c.checkModifiers()
 	c.checkBody()
 	return true

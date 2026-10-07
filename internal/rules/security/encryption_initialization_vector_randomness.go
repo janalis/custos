@@ -54,7 +54,14 @@ func (encryptionInitializationVectorRandomness) Check(ctx *analysis.Context, n s
 	if !ok || arg.Value == nil || arg.Value.Span().Len() == 0 {
 		return
 	}
-	values := util.DiscoverValues(ctx.Types(), arg.Value) // D3
+	var values []syntax.Expr
+	if v, ok := syntax.UnwrapParens(arg.Value).(*syntax.Variable); ok && syntax.EnclosingFuncLike(v) != nil {
+		// Only the assignments reaching the call matter: a later
+		// `$iv = base64_encode($iv)` does not feed the encryption.
+		values, _ = util.PossibleValuesReaching(ctx.File, v)
+	} else {
+		values = util.DiscoverValues(ctx.Types(), arg.Value) // D3
+	}
 	if len(values) == 0 {
 		return
 	}

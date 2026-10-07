@@ -105,8 +105,13 @@ func overlapsAny(a, b []analysis.TextEdit) bool {
 			if x.Span.Start < y.Span.End && y.Span.Start < x.Span.End {
 				return true
 			}
-			// Two insertions at the same point are ambiguous: keep the first.
-			if x.Span.Start == x.Span.End && y.Span.Start == y.Span.End && x.Span.Start == y.Span.Start {
+			// An insertion touching another edit (two insertions at the same
+			// point, or an insertion at either end of a replacement) is
+			// ambiguous: `\` inserted before a call that another fix
+			// rewrites would land before the rewritten text. Keep the first;
+			// the next iteration re-analyses the result.
+			if (x.Span.Start == x.Span.End && y.Span.Start <= x.Span.Start && x.Span.Start <= y.Span.End) ||
+				(y.Span.Start == y.Span.End && x.Span.Start <= y.Span.Start && y.Span.Start <= x.Span.End) {
 				return true
 			}
 		}

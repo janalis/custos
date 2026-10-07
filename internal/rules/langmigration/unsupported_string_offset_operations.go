@@ -102,5 +102,26 @@ func (unsupportedStringOffsetOperations) Check(ctx *analysis.Context, n syntax.N
 	if t := usoType(ctx, c); !t.Equal(types.String) { // D6
 		return
 	}
+	if _, ok := c.(*syntax.ArrayDimFetch); ok && !usoDeclaredRoot(root, target) {
+		return
+	}
 	ctx.ReportNode(target, msg)
+}
+
+// usoDeclaredRoot reports whether the root of an offset chain has a declared
+// type (property, or parameter of the enclosing function). A local variable
+// is typed from its assignments, e.g. an array literal whose element type
+// says nothing about keys the literal lacks: `$a = ['k' => 's'];
+// $a['x'][] = 1;` autovivifies `$a['x']` as an array (custos).
+func usoDeclaredRoot(root syntax.Expr, at syntax.Node) bool {
+	v, ok := root.(*syntax.Variable)
+	if !ok {
+		return true // property or static property
+	}
+	for _, p := range syntax.FuncLikeParams(syntax.EnclosingFuncLike(at)) {
+		if p.Var != nil && p.Var.Name == v.Name {
+			return true
+		}
+	}
+	return false
 }

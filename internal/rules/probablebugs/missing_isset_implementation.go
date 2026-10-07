@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
+	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -54,24 +55,62 @@ func checkMissingIsset(ctx *analysis.Context, a syntax.Expr) {
 		return
 	}
 	ix := ctx.Index()
-	types := ctx.TypeOf(pf.Var).Classes()
+	typ := ctx.TypeOf(pf.Var)
+	types := typ.Classes()
 	for _, t := range types { // D2
 		if ix.FindProperty(strings.TrimPrefix(t, `\`), id.Value, ctx.PHP) != nil {
 			return
 		}
 	}
-	for _, t := range types { // D4
-		if issetExempt(t) {
-			continue
-		}
-		cls := strings.TrimPrefix(t, `\`)
-		c := ix.Class(cls, ctx.PHP)
-		if c == nil || issetExempt(c.FQN) {
-			continue
-		}
-		if ix.FindMethod(cls, "__isset", ctx.PHP) == nil {
-			ctx.ReportNode(pf, t+" has no __isset(); this isset/empty check is always false.")
+	// custos: the check is "always false" only when every possible value
+	// is an object of a concrete class without __isset() and without
+	// dynamic properties; a non-class member (object, mixed, array…), an
+	// unresolvable class, an interface or abstract class (implementations
+	// may declare __isset()) or an #[\AllowDynamicProperties] hierarchy
+	// makes the outcome undecidable.
+	for _, a := range typ.Atoms() {
+		if a != "null" && !strings.HasPrefix(a, `\`) {
 			return
 		}
 	}
+	report := ""
+	for _, t := range types { // D4
+		if issetExempt(t) {
+			return
+		}
+		cls := strings.TrimPrefix(t, `\`)
+		c := ix.Class(cls, ctx.PHP)
+		if c == nil || issetExempt(c.FQN) || c.Kind != syntax.KindClass || c.Abstract {
+			return
+		}
+		if ix.FindMethod(cls, "__isset", ctx.PHP) != nil || misAllowsDynamic(ctx, cls) {
+			return
+		}
+		if report == "" {
+			report = t
+		}
+	}
+	if report != "" {
+		ctx.ReportNode(pf, report+" has no __isset(); this isset/empty check is always false.")
+	}
+}
+
+// misAllowsDynamic reports whether a class of cls' hierarchy declared in
+// this file carries #[\AllowDynamicProperties] (the index does not record
+// attributes, so declarations in other files are not seen).
+func misAllowsDynamic(ctx *analysis.Context, cls string) bool {
+	for _, c := range ctx.Index().Ancestors(cls, ctx.PHP) {
+		decl := util.ClassDecl(ctx.File, c)
+		if decl == nil {
+			continue
+		}
+		for _, g := range decl.Attrs {
+			for _, at := range g.Attrs {
+				if strings.EqualFold(strings.TrimPrefix(ctx.Names().Class(at.Name.Value, at.Span().Start), `\`), "AllowDynamicProperties") {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

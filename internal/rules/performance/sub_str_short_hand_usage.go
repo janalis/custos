@@ -57,6 +57,12 @@ func (subStrShortHandUsage) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 		if d := s - r; d < 0 {
+			if d < -2 {
+				// For a string shorter than R the original length is
+				// negative and still keeps characters; `d` keeps none.
+				// Some length L in ((R+start)/2, R) exists once d <= -3.
+				return
+			}
 			repl := strconv.FormatInt(d, 10)
 			ctx.Report(span, "Pass '"+repl+"' as the length instead.", replaceFix(span, repl))
 			return

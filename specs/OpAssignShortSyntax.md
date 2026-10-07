@@ -129,3 +129,8 @@ expression → not reported, the same outcome as with the older precedence.
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Targets that write (custos diverges).** `$m[$i++] = $m[$i++] + 1`
+  evaluates the target twice (two increments, two different elements);
+  `$m[$i++] += 1` evaluates it once. custos does not report a target
+  containing an assignment or `++`/`--` (outside closures). Calls in the
+  target are still reported: there they are almost always getters.

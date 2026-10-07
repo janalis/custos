@@ -6,6 +6,7 @@ import (
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
 	"custos/internal/meta"
+	"custos/internal/phpver"
 	"custos/internal/syntax"
 )
 
@@ -68,6 +69,10 @@ func (typeUnsafeComparison) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 		if val, known := tucLiteralValue(lit, content); known && val != "" && !tucNumeric(val) { // D3
+			if !tucStrictSafe(ctx, other) {
+				ctx.ReportSeverity(span, meta.SeverityWarning, "Use '"+strict+"' here if the other operand is never a bool, a number or a Stringable object; the string is not numeric.")
+				return
+			}
 			op := b.Op.Span
 			ctx.ReportSeverity(span, meta.SeverityWarning, "Use '"+strict+"' here; the string is not numeric, so strict comparison is safe.", analysis.Fix{
 				Title: "Use " + strict,
@@ -264,6 +269,31 @@ func tucHierarchyKnown(ctx *analysis.Context, class string) bool {
 			if r != "" && ix.Class(r, ctx.PHP) == nil {
 				return false
 			}
+		}
+	}
+	return true
+}
+
+// tucStrictSafe reports whether `e == 'text'` (a non-empty, non-numeric
+// string) always equals `e === 'text'`: e is known to hold only strings,
+// null or arrays — or numbers from PHP 8.0, where they compare as strings.
+// A bool (`true == 'text'`), a number before 8.0 (`0 == 'text'`) or a
+// Stringable object (compared by its string form) would change the result
+// (custos diverges: upstream always fixes).
+func tucStrictSafe(ctx *analysis.Context, e syntax.Expr) bool {
+	parts := tucNormalizedParts(ctx, e)
+	if len(parts) == 0 {
+		return false
+	}
+	for _, p := range parts {
+		switch p {
+		case "string", "null", "array":
+		case "int", "float":
+			if ctx.PHP < phpver.PHP80 {
+				return false
+			}
+		default:
+			return false
 		}
 	}
 	return true

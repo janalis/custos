@@ -45,6 +45,19 @@ caller's variable.
     operand of `&&`, `||`, `and`, `or`; or the condition of a full ternary
     `$p ? … : …` (not of a short ternary `?:`).
   Otherwise (no such use, or no body at all) → report.
+- **D3a** (custos, see Divergences) The type has no member other than
+  `null` from the D3 list (`array|\ArrayAccess`, `Foo|string`,
+  `Foo|int` fail): for such values the reference matters.
+- **D4a** (custos, see Divergences) The parameter is passed directly as an
+  argument whose matching parameter is by reference (positional, variadic
+  tail or named), or to a function, method or constructor that cannot be
+  resolved → no report (the callee may re-assign it).
+- **D6** (custos, see Divergences) No report for methods without a body
+  (abstract and interface methods), trait methods, methods of anonymous
+  classes, methods that override a method of an ancestor class, interface
+  or trait (or whose class has an ancestor that cannot be resolved), and
+  methods overridden by a known descendant: removing the `&` from one
+  signature makes it incompatible with the others (fatal error).
 
 ### By-reference instantiation
 - **D5** A `new` expression whose direct parent is an assignment by
@@ -158,3 +171,14 @@ $fn = function (DOMNode &$node) {};
   reassigned case, so no extra rule is needed for it).
 - Compound assignments count as "written to" (D4) because upstream treats
   every assignment kind alike. Recommendation: keep.
+- **custos diverges — references that matter (D3a, D4a, D6).** Found on
+  Drupal, Laravel and Nextcloud: upstream reports `array|\ArrayAccess
+  &$context` with `$context['k'] = 1` (the reference matters for arrays),
+  a by-reference parameter forwarded to another by-reference parameter
+  (`$step->process($node)` whose implementation re-assigns `$node`), and
+  interface/overriding methods whose fix produces "Declaration of
+  Replace::process(Node &$node) must be compatible with
+  Step::process(Node $node)" — a fatal error `php -l` does not catch.
+  custos skips types with a scalar/array member, parameters forwarded by
+  reference (or to unresolved callees), and methods that take part in an
+  override relation, have no body, or live in traits or anonymous classes.

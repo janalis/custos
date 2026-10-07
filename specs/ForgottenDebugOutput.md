@@ -40,7 +40,7 @@ Built-in defaults:
   `\Illuminate\Support\Debug\Dumper::dump`.
 - Function entries: `dd`, `dump`, `trap`, `debug_print_backtrace`,
   `debug_zval_dump`, `error_log`, `phpinfo`, `print_r`, `var_export`,
-  `var_dump`, `dpm`, `dsm`, `dvm`, `kpr`, `dpq`, `wp_die`, and the Xdebug
+  `var_dump`, `dpm`, `dsm`, `dvm`, `kpr`, `dpq` (upstream also lists `wp_die`, see Divergences), and the Xdebug
   functions `xdebug_break`, `xdebug_call_class`, `xdebug_call_file`,
   `xdebug_call_function`, `xdebug_call_line`, `xdebug_code_coverage_started`,
   `xdebug_debug_zval`, `xdebug_debug_zval_stdout`, `xdebug_dump_superglobals`,
@@ -108,6 +108,9 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
   - a *named function* whose short name equals (case-insensitively) a function entry of the
     effective list — e.g. `function dd($v) { var_dump($v); }` is not reported
     when `dd` is in the list; or
+  - a *method* whose short name equals (case-insensitively) a function
+    entry (custos, see Divergences) — e.g. `public function dump()` calling
+    `var_dump()`; or
   - a *method* whose identity `\<declaring class FQN>::<method name>` (compared
     case-insensitively) equals a method entry — e.g. calls inside
     `\Acme\Tracer::dump()` itself are not reported when
@@ -203,3 +206,11 @@ function work($order, Probe $probe, Quiet $quiet) {
   are already flagged.
 - Closures: upstream compares the closure's internal name with the list;
   treat closures as never being wrappers.
+- **custos diverges — `wp_die` and dumping methods.** Upstream's default
+  list contains `wp_die`, WordPress's error-page/terminate helper used for
+  permission and nonce guards (563 error findings on WordPress core, none of
+  them debugging leftovers); custos drops it from the defaults (users can
+  still add it through `configuration`). A method named like a function
+  entry (`dump()`, `dd()` of a `Dumpable` trait or a query builder) is the
+  dumping helper itself, so calls inside it are not reported (E3), like
+  named functions. No upstream fixture uses `wp_die` or such methods.

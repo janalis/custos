@@ -17,8 +17,9 @@ import (
 )
 
 // TestFixesKeepCodeParsable applies every quick-fix offered on a real-world
-// corpus, one finding at a time, and requires the result to parse with no
-// more syntax errors than the original. Skipped with -short or without a
+// corpus, one finding at a time and then all together per file (the
+// `custos fix` loop), and requires the result to parse with no more syntax
+// errors than the original. Skipped with -short or without a
 // corpus (CUSTOS_CORPUS, a list of directories).
 func TestFixesKeepCodeParsable(t *testing.T) {
 	if os.Getenv("CUSTOS_FIXCHECK") == "" {
@@ -49,9 +50,12 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 
 	broken := map[string][]string{} // rule -> examples
 	applied := 0
+	combined := 0
 	for _, r := range runner.Run(e, files, opt) {
 		base := len(r.Errors)
+		fixable := false
 		for _, fd := range r.Findings {
+			fixable = fixable || len(fd.Fixes) > 0
 			for _, fx := range fd.Fixes {
 				out, n := fix.Apply(r.Src, fx.Edits())
 				if n == 0 {
@@ -72,6 +76,20 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 				}
 			}
 		}
+		// All fixes together, as `custos fix` applies them: edits of
+		// different rules must not combine into invalid code.
+		if fixable {
+			res := fix.FixSource(e, r.Path, r.Src, fix.Options{Parse: opt})
+			combined++
+			if got := len(syntax.ParseBest(r.Path, res.Source, opt).Errors); got > base {
+				broken["(all fixes combined)"] = append(broken["(all fixes combined)"], r.Path)
+			} else if phpLint && base == 0 && linted["(all fixes combined)"] < 50 && res.Applied > 0 {
+				linted["(all fixes combined)"]++
+				if msg := phpLintSource(t, res.Source); msg != "" {
+					broken["(all fixes combined)"] = append(broken["(all fixes combined)"], r.Path+" php -l: "+msg)
+				}
+			}
+		}
 	}
 	rules := make([]string, 0, len(broken))
 	for k := range broken {
@@ -82,7 +100,7 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 		ex := broken[k]
 		t.Errorf("%s: %d fix(es) produce unparsable code, e.g. %s", k, len(ex), ex[0])
 	}
-	t.Logf("%d fixes applied on %d files, %d rules with broken fixes", applied, len(files), len(broken))
+	t.Logf("%d fixes applied on %d files (%d fixed with all fixes combined), %d rules with broken fixes", applied, len(files), combined, len(broken))
 }
 
 // phpLintSource runs `php -l` on src and returns the error output ("" = OK).
