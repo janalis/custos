@@ -1,0 +1,184 @@
+package probablebugs
+
+import (
+	"regexp"
+	"strconv"
+	"strings"
+
+	"custos/internal/analysis"
+	"custos/internal/analysis/util"
+	"custos/internal/syntax"
+)
+
+// printfScanfArguments checks printf/scanf format strings against the number
+// of arguments passed.
+type printfScanfArguments struct{}
+
+func init() { register(printfScanfArguments{}) }
+
+func (printfScanfArguments) ID() string { return "PrintfScanfArguments" }
+
+func (printfScanfArguments) Kinds() []syntax.NodeKind {
+	return []syntax.NodeKind{syntax.KFuncCall}
+}
+
+var printfFormatPos = map[string]int{
+	"printf": 0, "sprintf": 0, "fprintf": 1, "sscanf": 1, "fscanf": 1,
+}
+
+var (
+	printfSpec = regexp.MustCompile(`%(?:(\d+)\$)?[+-]?(?: |0|\\?'.)?-?\d*(?:\.\d*)?[\[sducoxXbgGeEfF]`)
+)
+
+func (printfScanfArguments) Check(ctx *analysis.Context, n syntax.Node) {
+	call := n.(*syntax.FuncCall)
+	if call.Args == nil {
+		return
+	}
+	fname := ctx.GlobalFunctionName(call) // D1: case-insensitive, global function only
+	pos, ok := printfFormatPos[fname]
+	if !ok || len(call.Args.Args) < pos+1 {
+		return
+	}
+	arg, ok := call.Args.Args[pos].(*syntax.Arg)
+	if !ok || arg.Value == nil {
+		return
+	}
+	a := arg.Value
+
+	// D2: every possible format must be a known literal (custos diverges).
+	vals, complete := util.PossibleValuesComplete(ctx.File, a)
+	if !complete || len(vals) == 0 {
+		return
+	}
+	// D3–D6 per candidate; all candidates must agree (custos diverges).
+	malformed, expected := false, -1
+	for i, v := range vals {
+		lit := printfLiteral(v)
+		if lit == nil {
+			return
+		}
+		bad, exp, ok := printfVerdict(lit, pos)
+		if !ok || (i > 0 && (bad != malformed || exp != expected)) {
+			return
+		}
+		malformed, expected = bad, exp
+	}
+	if malformed {
+		ctx.ReportNode(a, "Malformed format string.")
+		return
+	}
+	// D7
+	args := call.Args.Args
+	if len(args) == expected {
+		return
+	}
+	if (fname == "sscanf" || fname == "fscanf") && len(args) == 2 && printfUsedAsValue(call) { // D7a
+		return
+	}
+	if last, ok := args[len(args)-1].(*syntax.Arg); ok && last.Unpack { // D7b
+		return
+	}
+	if v, ok := a.(*syntax.Variable); ok && v.NameExpr == nil && printfCompoundAssigned(v) { // D7c
+		return
+	}
+	ctx.ReportNode(call.Name, "This call needs "+strconv.Itoa(expected)+" argument(s) in total.")
+}
+
+// printfVerdict applies D3–D6 to one candidate literal: whether the format
+// is malformed and, if not, the expected argument count. ok is false when
+// the format is unknown (interpolation) or empty.
+func printfVerdict(lit syntax.Expr, pos int) (malformed bool, expected int, ok bool) {
+	// D3: a format with interpolation is only known at run time.
+	if _, interp := lit.(*syntax.InterpolatedString); interp {
+		return false, 0, false
+	}
+	content, ok := printfContent(lit)
+	if !ok {
+		return false, 0, false
+	}
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return false, 0, false
+	}
+	adapted := strings.ReplaceAll(content, "%%", "") // D4
+	// D5
+	matches, plain, maxArg := 0, 0, 0
+	for _, m := range printfSpec.FindAllStringSubmatch(adapted, -1) {
+		matches++
+		if m[1] == "" {
+			plain++
+		} else if k, err := strconv.Atoi(m[1]); err == nil && k > maxArg {
+			maxArg = k
+		}
+	}
+	// D6
+	if matches != strings.Count(strings.ReplaceAll(adapted, "%*", ""), "%") {
+		return true, 0, true
+	}
+	return false, pos + 1 + max(plain, maxArg), true
+}
+
+// printfContent returns the format text of a quoted literal: the raw
+// contents of a single-quoted string, the decoded value of a double-quoted
+// one (so `"%1\$s"` reads as `%1$s`).
+func printfContent(lit syntax.Expr) (string, bool) {
+	raw, quote, ok := util.QuotedStringRaw(lit)
+	if !ok {
+		return "", false
+	}
+	if quote == '"' {
+		return util.StringLiteralValue(lit.(*syntax.Literal).Raw)
+	}
+	return raw, true
+}
+
+// printfLiteral returns e when it is a quoted string literal.
+func printfLiteral(e syntax.Expr) syntax.Expr {
+	switch l := e.(type) {
+	case *syntax.Literal:
+		if l.LitKind == syntax.LitString && len(l.Raw) >= 2 && (l.Raw[0] == '\'' || l.Raw[0] == '"') {
+			return l
+		}
+	case *syntax.InterpolatedString:
+		if !l.Heredoc && !l.Backtick {
+			return l
+		}
+	}
+	return nil
+}
+
+// printfUsedAsValue implements D7a.
+func printfUsedAsValue(call *syntax.FuncCall) bool {
+	p := call.Parent()
+	if _, ok := p.(*syntax.Arg); ok {
+		return true
+	}
+	if _, ok := p.(*syntax.Assign); ok {
+		return true
+	}
+	if p != nil {
+		if _, ok := p.Parent().(*syntax.Assign); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// printfCompoundAssigned implements D7c.
+func printfCompoundAssigned(v *syntax.Variable) bool {
+	body := util.FuncLikeBody(util.EnclosingFuncLike(v))
+	if body == nil {
+		return false
+	}
+	found := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		if as, ok := n.(*syntax.Assign); ok && as.Op.Kind != syntax.TEqual {
+			if t, ok := as.Var.(*syntax.Variable); ok && t.NameExpr == nil && t.Name == v.Name {
+				found = true
+			}
+		}
+		return !found
+	})
+	return found
+}

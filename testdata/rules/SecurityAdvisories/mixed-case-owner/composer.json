@@ -1,0 +1,4 @@
+{
+  "name": "Bakery/Oven",
+  "require": {"php": "^8.2", "bakery/core": "1.*", "Bakery/Dough": "^2.0"}
+}

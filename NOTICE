@@ -1,0 +1,14 @@
+custos
+======
+
+custos is an independent, clean-room implementation of PHP inspections whose
+rule catalogue is modelled on "Php Inspections (EA Extended)"
+(https://github.com/kalessil/phpinspectionsea, LGPL-2.1, (C) Vladimir Reznichenko).
+No source code, messages, descriptions, documentation or test fixtures of that
+project are included in this repository. Rule identifiers are reused so that
+existing `@noinspection` suppressions keep working.
+
+Third-party data
+----------------
+- JetBrains phpstorm-stubs (https://github.com/JetBrains/phpstorm-stubs),
+  Apache License 2.0 — used to generate the embedded builtin symbol index.

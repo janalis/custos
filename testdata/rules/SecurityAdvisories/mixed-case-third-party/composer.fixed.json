@@ -1,0 +1,7 @@
+{
+  "name": "Bakery/Oven",
+  "require": {"bakery/core": "1.*", "monolog/monolog": "^3.0"},
+  "require-dev": {
+    "roave/security-advisories":
+      "dev-latest"}
+}

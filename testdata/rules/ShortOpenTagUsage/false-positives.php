@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<?php echo 1; ?>
+<?= $x ?>
+<?PHP echo 2; ?>

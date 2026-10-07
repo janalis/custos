@@ -1,0 +1,12 @@
+{
+  "name": "bakery/oven",
+  "require": {
+    "monolog/monolog": "^3.0"
+  },
+  "require-dev": {
+    "roave/security-advisories":
+      "dev-latest"
+    ,
+    "bakery/fixtures": "*"
+  }
+}

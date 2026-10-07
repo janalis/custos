@@ -1,0 +1,42 @@
+<?php
+function plainDemo($path, $name, $tpl, $raw, $list) {
+    $r = [];
+    $r[] = <warning descr="Replace with 'false !== strpos($path, &quot;tmp&quot;)'.">preg_match('/tmp/', $path)</warning>;
+    $r[] = <warning descr="Replace with 'false !== stripos($path, &quot;cache-dir&quot;)'.">preg_match('#cache-dir#i', $path)</warning>;
+    $r[] = <warning descr="Replace with '0 === strpos($path, &quot;.&quot;)'.">preg_match('/^\./', $path)</warning>;
+    $r[] = <warning descr="Replace with '0 === stripos($name, &quot;img_&quot;)'.">preg_match('/^img_/i', $name)</warning>;
+    $r[] = <warning descr="Replace with '&quot;index&quot; === $name'.">preg_match('/^index$/', $name)</warning>;
+    $r[] = <warning descr="Replace with '&quot;index&quot; !== $name'.">!preg_match('/^index$/', $name)</warning>;
+    $r[] = <warning descr="Replace with '0 !== strpos($path, &quot;tmp&quot;)'.">preg_match('/^tmp/', $path) == 0</warning>;
+    $r[] = <warning descr="Replace with 'false === strpos($path, &quot;tmp&quot;)'.">0 === preg_match('/tmp/', $path)</warning>;
+    $r[] = <warning descr="Replace with 'false !== strpos($path, &quot;tmp&quot;)'.">preg_match('/tmp/', $path) > 0</warning>;
+    if (<warning descr="Replace with 'false !== strpos($path, &quot;tmp&quot;)'.">preg_match('/tmp/', $path)</warning> && $name) {}
+    $r[] = preg_match('/^index$/i', $name);
+    $r[] = preg_match('/tmp$/', $path);
+    $r[] = preg_match('/tmp/', $path, $hit);
+    $r[] = preg_match('/tmp\d/', $path);
+
+    $r[] = <warning descr="Replace with 'str_replace(&quot;__NAME__&quot;, $name, $tpl)'.">preg_replace('/__NAME__/', $name, $tpl)</warning>;
+    $r[] = <warning descr="Replace with 'str_ireplace(&quot;draft&quot;, '', $tpl)'.">preg_replace('/draft/i', '', $tpl)</warning>;
+    $r[] = <warning descr="Replace with 'str_replace(&quot;*&quot;, $name, $tpl)'.">preg_replace('/\*/', $name, $tpl)</warning>;
+    $r[] = preg_replace('/draft/', '', $tpl, 2);
+    $r[] = preg_replace(['/draft/'], '', $tpl);
+    $r[] = preg_replace('/^draft/', 'x', $tpl);
+
+    $r[] = <warning descr="Replace with 'ltrim($raw, '0')'.">preg_replace('/^0+/', '', $raw)</warning>;
+    $r[] = <warning descr="Replace with 'rtrim($raw, '/')'.">preg_replace('#/+$#', '', $raw)</warning>;
+    $r[] = <warning descr="Replace with 'trim($raw, '-')'.">preg_replace('/^-*|-+$/', '', $raw)</warning>;
+    $r[] = <warning descr="Replace with 'trim($raw)'.">preg_replace('/^\s+|\s+$/', "", $raw)</warning>;
+    $r[] = <warning descr="Replace with 'rtrim($raw)'.">preg_replace('/\s*$/', '', $raw)</warning>;
+    $r[] = preg_replace('/^0+/u', '', $raw);
+    $r[] = preg_replace('/^0+/', ' ', $raw);
+    $r[] = preg_replace('/^.+/', '', $raw);
+    $r[] = preg_replace('/^0+|1+$/', '', $raw);
+
+    $r[] = <warning descr="Replace with 'explode(&quot;;&quot;, $list)'.">preg_split('/;/', $list)</warning>;
+    $r[] = <warning descr="Replace with 'explode(&quot;=>&quot;, $list, 3)'.">preg_split('/=>/', $list, 3)</warning>;
+    $r[] = preg_split('/\s*,\s*/', $list);
+    $r[] = preg_split('/;/u', $list);
+    $r[] = preg_split('/;/', $list, -1, PREG_SPLIT_NO_EMPTY);
+    return $r;
+}

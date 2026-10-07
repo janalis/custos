@@ -1,0 +1,1 @@
+{"type": "library", "require": {"x/y": "*", "phpunit/phpunit": "*"}}

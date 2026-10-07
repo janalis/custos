@@ -1,0 +1,464 @@
+package architecture
+
+import (
+	"strings"
+
+	"custos/internal/analysis"
+	"custos/internal/analysis/util"
+	"custos/internal/infer"
+	"custos/internal/syntax"
+)
+
+// callableParameterUseCaseInTypeContext reports is_*() checks that
+// contradict a parameter's declared type and re-assignments of values of
+// an unrelated type.
+type callableParameterUseCaseInTypeContext struct{}
+
+func init() { register(callableParameterUseCaseInTypeContext{}) }
+
+func (callableParameterUseCaseInTypeContext) ID() string {
+	return "CallableParameterUseCaseInTypeContext"
+}
+
+func (callableParameterUseCaseInTypeContext) Semantic() {}
+
+func (callableParameterUseCaseInTypeContext) Kinds() []syntax.NodeKind {
+	return []syntax.NodeKind{syntax.KFunction, syntax.KMethod}
+}
+
+const (
+	cpMsgFalse  = "This check is always false for the declared parameter type; is the parameter being reused?"
+	cpMsgTrue   = "This check is always true for the declared parameter type; is the parameter being reused?"
+	cpMsgAssign = "Assigning a value of type %s does not match the parameter's declared type."
+)
+
+func (callableParameterUseCaseInTypeContext) Check(ctx *analysis.Context, n syntax.Node) {
+	var params []*syntax.Param
+	var body *syntax.Block
+	switch fn := n.(type) {
+	case *syntax.Function:
+		params, body = fn.Params, fn.Body
+	case *syntax.Method:
+		params, body = fn.Params, fn.Body
+	}
+	if body == nil || len(params) == 0 {
+		return
+	}
+	if util.IsTestPath(ctx.File.Path) { // D0
+		return
+	}
+	if cl := infer.EnclosingClass(n); cl != nil && util.IsTestClassFQN(util.ClassDeclFQN(ctx.Names(), cl)) {
+		return
+	}
+	tr := infer.NewTRules(ctx.Types())
+	tr.SpecOnly = true
+	cp := &cpState{ctx: ctx, fn: n, tr: tr}
+	var accesses map[string][]*syntax.Variable
+	for _, p := range params {
+		if p.Var == nil || p.Var.Name == "" {
+			continue
+		}
+		set, ok := cp.paramSet(p)
+		if !ok {
+			continue
+		}
+		if accesses == nil {
+			accesses = cpReachableAccesses(body)
+		}
+		for _, v := range accesses[p.Var.Name] {
+			cp.checkIs(v, set)
+			cp.checkAssign(v, set)
+		}
+	}
+}
+
+type cpState struct {
+	ctx *analysis.Context
+	fn  syntax.Node
+	tr  *infer.TRules
+}
+
+// cpNorm is the N normalisation of one type name.
+func cpNorm(a string) string {
+	if strings.Contains(a, "[]") {
+		return "array"
+	}
+	low := strings.ToLower(strings.TrimPrefix(a, `\`))
+	switch low {
+	case "array", "iterable", "string", "float", "number", "null", "void", "mixed", "callable", "resource", "self", "object":
+		return low
+	case "bool", "boolean", "true", "false":
+		return "bool"
+	case "int", "integer":
+		return "int"
+	case "closure":
+		return "callable"
+	case "static", "$this":
+		return "static"
+	}
+	if strings.HasPrefix(a, `\`) {
+		return a
+	}
+	return `\` + a
+}
+
+// cpIsClass reports whether a P/R entry denotes a class name.
+func cpIsClass(t string) bool {
+	return (strings.HasPrefix(t, `\`) && t != `\Closure`) || t == "self" || t == "static"
+}
+
+// paramSet builds P (D1–D4); ok is false when the parameter is skipped.
+func (cp *cpState) paramSet(p *syntax.Param) (map[string]bool, bool) {
+	raw := []string{"array"} // D1: variadic
+	if !p.Variadic {
+		raw = cp.tr.ParamTypes(cp.fn, p).Atoms()
+		if p.Default != nil {
+			raw = append(raw, cp.typeOf(p.Default)...)
+		}
+	}
+	set := map[string]bool{}
+	for _, r := range raw { // D2
+		switch t := cpNorm(r); t {
+		case "mixed", "object":
+			return nil, false
+		case "callable":
+			set["callable"], set["array"], set["string"], set[`\Closure`] = true, true, true, true
+		case "iterable":
+			set["iterable"], set["array"], set[`\Traversable`] = true, true, true
+		default:
+			set[t] = true
+		}
+	}
+	if len(set) == 0 { // D3
+		return nil, false
+	}
+	if len(set) == 1 && set["null"] && cpIsNullConst(p.Default) { // D4
+		return nil, false
+	}
+	return set, true
+}
+
+func cpIsNullConst(e syntax.Expr) bool {
+	c, ok := e.(*syntax.ConstFetch)
+	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
+}
+
+// cpReachableAccesses collects variable accesses by name in the reachable
+// statements of body, skipping nested function-likes and classes (D5).
+func cpReachableAccesses(body *syntax.Block) map[string][]*syntax.Variable {
+	out := map[string][]*syntax.Variable{}
+	var visitNode func(n syntax.Node)
+	var visitList func(list []syntax.Stmt) bool
+	visitNode = func(n syntax.Node) {
+		if n == nil {
+			return
+		}
+		switch x := n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike, *syntax.Function:
+			return
+		case *syntax.Variable:
+			if x.Name != "" {
+				out[x.Name] = append(out[x.Name], x)
+			}
+		case *syntax.Block:
+			visitList(x.Stmts)
+			return
+		case *syntax.Case:
+			visitNode(x.Cond)
+			visitList(x.Stmts)
+			return
+		}
+		syntax.Children(n, visitNode)
+	}
+	// visitList walks a statement list and reports whether it always
+	// terminates; statements after a terminating one are unreachable.
+	visitList = func(list []syntax.Stmt) bool {
+		for _, s := range list {
+			visitNode(s)
+			if cpTerminates(s) {
+				return true
+			}
+		}
+		return false
+	}
+	visitList(body.Stmts)
+	return out
+}
+
+// cpTerminates reports whether control never continues after s.
+func cpTerminates(s syntax.Stmt) bool {
+	switch x := s.(type) {
+	case *syntax.Return, *syntax.Break, *syntax.Continue, *syntax.Goto:
+		return true
+	case *syntax.ExprStmt:
+		switch x.Expr.(type) {
+		case *syntax.Throw, *syntax.Exit:
+			return true
+		}
+	case *syntax.Block:
+		for _, st := range x.Stmts {
+			if cpTerminates(st) {
+				return true
+			}
+		}
+	case *syntax.If:
+		if x.Else == nil || !cpTerminates(x.Body) || !cpTerminates(x.Else.Body) {
+			return false
+		}
+		for _, ei := range x.ElseIfs {
+			if !cpTerminates(ei.Body) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// cpPlausible maps is_* functions to the P entries making them plausible.
+var cpPlausible = map[string][]string{
+	"is_array":    {"array", "iterable"},
+	"is_string":   {"string"},
+	"is_bool":     {"bool"},
+	"is_int":      {"int", "number"},
+	"is_float":    {"float", "number"},
+	"is_resource": {"resource"},
+	"is_numeric":  {"number", "float", "int"},
+	"is_callable": {"callable", "array", "string", `\Closure`},
+	"is_object":   {"object", "callable"},
+	"is_a":        {"object", "string"},
+}
+
+// checkIs implements D6.
+func (cp *cpState) checkIs(v *syntax.Variable, set map[string]bool) {
+	arg, ok := v.Parent().(*syntax.Arg)
+	if !ok || arg.Value != syntax.Expr(v) || arg.Unpack {
+		return
+	}
+	list, ok := arg.Parent().(*syntax.ArgList)
+	if !ok {
+		return
+	}
+	call, ok := list.Parent().(*syntax.FuncCall)
+	if !ok {
+		return
+	}
+	fn := cp.ctx.GlobalFunctionName(call) // any case; not a namespaced same-named function
+	wanted, known := cpPlausible[fn]
+	if !known {
+		return
+	}
+	if fn == "is_numeric" && set["string"] {
+		return
+	}
+	for _, w := range wanted {
+		if set[w] {
+			return
+		}
+	}
+	if fn == "is_object" || fn == "is_a" {
+		for t := range set {
+			if cpIsClass(t) {
+				return
+			}
+		}
+	}
+	msg := cpMsgFalse
+	if u, ok := call.Parent().(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
+		msg = cpMsgTrue
+	}
+	cp.ctx.ReportNode(call, msg)
+}
+
+// checkAssign implements D7 (at most one finding per assignment).
+func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
+	as, ok := v.Parent().(*syntax.Assign)
+	if !ok || as.Var != syntax.Expr(v) || as.Op.Kind != syntax.TEqual || as.Value == nil {
+		return
+	}
+	value := as.Value
+	r := map[string]bool{}
+	for _, a := range cp.typeOf(value) { // D7b
+		r[cpNorm(a)] = true
+	}
+	_, plainCall := value.(*syntax.FuncCall)
+	if len(r) >= 2 { // D7c
+		if r["string"] || r["array"] {
+			if r["bool"] && plainCall {
+				delete(r, "bool")
+			} else if r["null"] && plainCall {
+				delete(r, "null")
+			}
+		} else if r["null"] {
+			for t := range set {
+				if cpIsClass(t) {
+					delete(r, "null")
+					break
+				}
+			}
+		}
+	}
+	delete(r, "mixed")              // D7d
+	for _, t := range cpSorted(r) { // D7e
+		if t == "self" || t == "static" {
+			t = cp.translateSelf(value, v)
+			if t == "" {
+				continue
+			}
+		}
+		if cp.compatible(t, set) {
+			continue
+		}
+		cp.ctx.ReportNode(value, strings.Replace(cpMsgAssign, "%s", t, 1))
+		return
+	}
+}
+
+func cpSorted(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	for i := 1; i < len(out); i++ {
+		for j := i; j > 0 && out[j] < out[j-1]; j-- {
+			out[j], out[j-1] = out[j-1], out[j]
+		}
+	}
+	return out
+}
+
+// translateSelf maps a self/static value type to a class (D7e.1); "" when
+// it cannot be translated.
+func (cp *cpState) translateSelf(value syntax.Expr, target *syntax.Variable) string {
+	x := util.UnwrapParens(value)
+	if b, ok := x.(*syntax.Binary); ok && b.Op.Kind == syntax.TCoalesce {
+		if lv, ok := util.UnwrapParens(b.Left).(*syntax.Variable); ok && lv.Name == target.Name {
+			x = util.UnwrapParens(b.Right)
+		}
+	}
+	var recv syntax.Expr
+	switch c := x.(type) {
+	case *syntax.MethodCall:
+		recv = c.Var
+	case *syntax.StaticCall:
+		if nm, ok := c.Class.(*syntax.Name); ok {
+			fqn := cp.classRef(nm)
+			if fqn == "" {
+				return ""
+			}
+			if cls := cp.ctx.Index().Class(fqn, cp.ctx.PHP); cls != nil {
+				return `\` + strings.TrimPrefix(cls.FQN, `\`)
+			}
+			return ""
+		}
+		recv = c.Class
+	default:
+		return ""
+	}
+	var classes []string
+	for _, a := range cp.typeOf(recv) {
+		if strings.HasPrefix(a, `\`) && !strings.Contains(a, "[]") {
+			classes = append(classes, a)
+		}
+	}
+	if len(classes) == 1 || len(classes) == 2 {
+		return classes[0]
+	}
+	return ""
+}
+
+// compatible implements D7e.2.
+func (cp *cpState) compatible(t string, set map[string]bool) bool {
+	if set[t] {
+		return true
+	}
+	if !strings.HasPrefix(t, `\`) {
+		return false
+	}
+	for s := range set {
+		if strings.EqualFold(s, t) {
+			return true
+		}
+	}
+	mine, complete := cp.closureOf(t)
+	if !complete {
+		return true // unresolvable class or hierarchy: unknown, no report
+	}
+	for s := range set {
+		if !cpIsClass(s) {
+			continue
+		}
+		cls := s
+		if s == "self" || s == "static" {
+			cls = util.ClassDeclFQN(cp.ctx.Names(), infer.EnclosingClass(cp.fn))
+			if cls == "" {
+				continue
+			}
+		}
+		theirs := cp.closure(cls)
+		if len(theirs) == 0 {
+			theirs = map[string]bool{strings.ToLower(strings.TrimPrefix(cls, `\`)): true}
+		}
+		for k := range theirs {
+			if mine[k] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// closure returns the lower-case FQNs of a class, its ancestors, interfaces
+// and traits (empty when the class does not resolve).
+func (cp *cpState) closure(fqn string) map[string]bool {
+	out := map[string]bool{}
+	for _, c := range cp.ctx.Index().Ancestors(strings.TrimPrefix(fqn, `\`), cp.ctx.PHP) {
+		out[strings.ToLower(strings.TrimPrefix(c.FQN, `\`))] = true
+	}
+	return out
+}
+
+// closureOf is closure for a value class (D7e.2): it also reports whether
+// the class and every class-like in its hierarchy resolve; an incomplete
+// hierarchy makes compatibility unknown.
+func (cp *cpState) closureOf(fqn string) (map[string]bool, bool) {
+	out := map[string]bool{}
+	complete := true
+	queue := []string{strings.TrimPrefix(fqn, `\`)}
+	for len(queue) > 0 {
+		k := strings.ToLower(strings.TrimPrefix(queue[0], `\`))
+		queue = queue[1:]
+		if out[k] {
+			continue
+		}
+		out[k] = true
+		c := cp.ctx.Index().Class(k, cp.ctx.PHP)
+		if c == nil {
+			complete = false
+			continue
+		}
+		queue = append(queue, c.Traits...)
+		if c.Parent != "" {
+			queue = append(queue, c.Parent)
+		}
+		queue = append(queue, c.Interfaces...)
+	}
+	return out, complete
+}
+
+// classRef resolves a class name reference (self/static/parent aware).
+func (cp *cpState) classRef(nm *syntax.Name) string {
+	switch strings.ToLower(nm.Value) {
+	case "self", "static":
+		return util.ClassDeclFQN(cp.ctx.Names(), infer.EnclosingClass(nm))
+	case "parent":
+		return util.ParentFQN(cp.ctx.Names(), infer.EnclosingClass(nm))
+	}
+	return cp.ctx.Names().Class(nm.Value, nm.Span().Start)
+}
+
+// typeOf returns the raw (unnormalised) type atoms of e per the shared
+// T-rules typer (specs/UnnecessaryCasting.md), nil when unknown.
+func (cp *cpState) typeOf(e syntax.Expr) []string {
+	return cp.tr.TypeOf(e).Atoms()
+}

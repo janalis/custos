@@ -1,0 +1,87 @@
+package util
+
+import (
+	"sort"
+	"strings"
+	"testing"
+
+	"custos/internal/index"
+	"custos/internal/infer"
+	"custos/internal/names"
+	"custos/internal/phpver"
+	"custos/internal/stubs"
+	"custos/internal/syntax"
+)
+
+func discoverOf(t *testing.T, src string) string {
+	t.Helper()
+	f := parse(t, src)
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpver.PHP84)
+	var arg syntax.Expr
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok && CallLastName(c) == "probe" {
+			args, _ := CallArgValues(c)
+			arg = args[0]
+		}
+		return true
+	})
+	var out []string
+	vals, known := DiscoverValuesKnown(env, arg)
+	if !known {
+		return "?"
+	}
+	for _, v := range vals {
+		out = append(out, text(f, v))
+	}
+	sort.Strings(out)
+	return strings.Join(out, " ")
+}
+
+func TestDiscoverValues(t *testing.T) {
+	for src, want := range map[string]string{
+		`<?php probe($a ? 'x' : ('y' ?? 'z'));`:                "'x' 'y' 'z'",
+		`<?php probe($a ?: 'z');`:                              "'z'",
+		`<?php function f($p = 1) { $p = $q = 2; probe($p); }`: "1 2",
+		`<?php $top = 1; probe($top);`:                         "",
+		`<?php class P { const K = 'k'; } class C extends P { function m() { probe(self::K); } }`:                          "'k'",
+		`<?php class C { const K = 'k'; } function f() { probe(C::K); }`:                                                   "'k'",
+		`<?php class C { private $p = 'd'; function __construct() { $this->p = 'c'; } function m() { probe($this->p); } }`: "'c' 'd'",
+		`<?php class C { static $s = 's'; function m() { probe(static::$s); } }`:                                           "'s'",
+		`<?php class C { public $p = 'd'; } function f(C $c) { $c->p = 'e'; probe($c->p); }`:                               "'d' 'e'",
+		`<?php const G = 'g'; probe(G);`:      "'g'",
+		`<?php define('H', A | B); probe(H);`: "A | B",
+		`<?php probe(JSON_THROW_ON_ERROR);`:   "JSON_THROW_ON_ERROR",
+		`<?php probe(UNKNOWN);`:               "",
+		`<?php probe(null);`:                  "null",
+		`<?php probe(X::class);`:              "X::class",
+		`<?php function f() { $v = 'a'; $g = function () { $v = 'b'; }; probe($v); }`:     "'a' 'b'",
+		`<?php function f() { $n = 0; foreach ([1] as $x) { ++$n; } probe($n); }`:         "?",
+		`<?php function f() { $n = 0; $g = function () use (&$n) { $n--; }; probe($n); }`: "?",
+		`<?php function f() { $s = 'P1D'; if (g()) { $s .= 'T2H'; } probe($s); }`:         "?",
+		`<?php function f($o = null) { $o ??= 'x'; probe($o); }`:                          "?",
+		`<?php function f(bool $c) { $s = 'a'; $s |= 4; probe($c ? 'b' : $s); }`:          "?",
+		`<?php function f() { $t = 'a'; $u = $t; $t += 1; probe($u); }`:                   "?",
+		`<?php function f() { $n = 0; $m++; $n = $m . 'x'; probe($n); }`:                  "$m . 'x' 0",
+		`<?php function f() { $n = 0; $other++; $arr[$n] .= 'x'; probe($n); }`:            "0",
+		`<?php $n = 0; $n++; probe($n);`:                                                  "",
+	} {
+		if got := discoverOf(t, src); got != want {
+			t.Errorf("%s:\n got %q\nwant %q", src, got, want)
+		}
+	}
+}
+
+func TestFunctionDecl(t *testing.T) {
+	f := parse(t, `<?php namespace A; if (true) { function g() { return 1; } }`)
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	d := FunctionDecl(f, ix.Function(`A\g`, 0))
+	if d == nil || d.Name.Value != "g" {
+		t.Fatalf("got %v", d)
+	}
+	if FunctionDecl(f, ix.Function("strlen", 0)) != nil {
+		t.Fatal("stub function must not resolve to a node")
+	}
+}

@@ -1,0 +1,11 @@
+/bin/
+# stray `go build ./cmd/custos` output (the real build goes to bin/)
+/custos
+/custos.exe
+/dist/
+/.cache/
+/.custos/
+*.test
+*.out
+*.prof
+/testdata/fuzz/

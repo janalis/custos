@@ -1,0 +1,1870 @@
+[
+  {
+    "id": "AccessModifierPresented",
+    "legacyId": "AccessModifierPresentedInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "ANALYZE_INTERFACES",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "ANALYZE_CONSTANTS",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "AliasFunctionsUsage",
+    "legacyId": "AliasFunctionsUsageInspection",
+    "group": "Language level migration",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "AlterInForeach",
+    "legacyId": "AlterInForeachInspection",
+    "group": "Performance",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "SUGGEST_USING_VALUE_BY_REF",
+        "type": "bool",
+        "default": false
+      }
+    ]
+  },
+  {
+    "id": "AmbiguousMethodsCallsInArrayMapping",
+    "legacyId": "AmbiguousMethodsCallsInArrayMappingInspection",
+    "group": "Performance",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ArgumentUnpackingCanBeUsed",
+    "legacyId": "ArgumentUnpackingCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "ArrayIsListCanBeUsed",
+    "legacyId": "ArrayIsListCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "ArrayPushMissUse",
+    "legacyId": "ArrayPushMissUseInspection",
+    "group": "Performance",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "REPORT_EXCESSIVE_COUNT_CALLS",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "ArraySearchUsedAsInArray",
+    "legacyId": "ArraySearchUsedAsInArrayInspection",
+    "group": "Control flow",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "ArrayUniqueCanBeUsed",
+    "legacyId": "ArrayUniqueCanBeUsedInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "AutoloadingIssues",
+    "legacyId": "AutoloadingIssuesInspection",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "BacktickOperatorUsage",
+    "legacyId": "BacktickOperatorUsageInspection",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "BadExceptionsProcessing",
+    "legacyId": "BadExceptionsProcessingInspection",
+    "group": "Architecture",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "CallableMethodValidity",
+    "legacyId": "CallableMethodValidityInspection",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "CallableParameterUseCaseInTypeContext",
+    "legacyId": "CallableParameterUseCaseInTypeContextInspection",
+    "group": "Architecture",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "CascadeStringReplacement",
+    "legacyId": "CascadeStringReplacementInspection",
+    "group": "Performance",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "USE_SHORT_ARRAYS_SYNTAX",
+        "type": "bool",
+        "default": false
+      }
+    ]
+  },
+  {
+    "id": "CascadingDirnameCalls",
+    "legacyId": "CascadingDirnameCallsInspection",
+    "group": "Language level migration",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "CaseInsensitiveStringFunctionsMissUse",
+    "legacyId": "CaseInsensitiveStringFunctionsMissUseInspection",
+    "group": "Performance",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "ClassConstantCanBeUsed",
+    "legacyId": "ClassConstantCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "IMPORT_CLASSES_ON_QF",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "USE_RELATIVE_QF",
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "LOOK_ROOT_NS_UP",
+        "type": "bool",
+        "default": false
+      }
+    ]
+  },
+  {
+    "id": "ClassConstantUsageCorrectness",
+    "legacyId": "ClassConstantUsageCorrectnessInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ClassMethodNameMatchesFieldName",
+    "legacyId": "ClassMethodNameMatchesFieldNameInspection",
+    "group": "Confusing constructs",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ClassMockingCorrectness",
+    "legacyId": "ClassMockingCorrectnessInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ClassOverridesFieldOfSuperClass",
+    "legacyId": "ClassOverridesFieldOfSuperClassInspection",
+    "group": "Architecture",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "REPORT_PRIVATE_REDEFINITION",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "ClassReImplementsParentInterface",
+    "legacyId": "ClassReImplementsParentInterfaceInspection",
+    "group": "Architecture",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "CompactArguments",
+    "legacyId": "CompactArgumentsInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "CompactCanBeUsed",
+    "legacyId": "CompactCanBeUsedInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": true
+  },
+  {
+    "id": "ComparisonOperandsOrder",
+    "legacyId": "ComparisonOperandsOrderInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": true
+  },
+  {
+    "id": "ConstantCanBeUsed",
+    "legacyId": "ConstantCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "CryptographicallySecureAlgorithms",
+    "legacyId": "CryptographicallySecureAlgorithmsInspection",
+    "group": "Security",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "CryptographicallySecureRandomness",
+    "legacyId": "CryptographicallySecureRandomnessInspection",
+    "group": "Security",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "CurlSslServerSpoofing",
+    "legacyId": "CurlSslServerSpoofingInspection",
+    "group": "Security",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "DateIntervalSpecification",
+    "legacyId": "DateIntervalSpecificationInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "DateTimeConstantsUsage",
+    "legacyId": "DateTimeConstantsUsageInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "DateTimeSetTimeUsage",
+    "legacyId": "DateTimeSetTimeUsageInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "DateUsage",
+    "legacyId": "DateUsageInspection",
+    "group": "Unused",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "DegradedSwitch",
+    "legacyId": "DegradedSwitchInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "DeprecatedConstructorStyle",
+    "legacyId": "DeprecatedConstructorStyleInspection",
+    "group": "Language level migration",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "DeprecatedIniOptions",
+    "legacyId": "DeprecatedIniOptionsInspection",
+    "group": "Compatibility",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "DirectoryConstantCanBeUsed",
+    "legacyId": "DirectoryConstantCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "DisallowWritingIntoStaticProperties",
+    "legacyId": "DisallowWritingIntoStaticPropertiesInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "ALLOW_WRITE_FROM_SOURCE_CLASS",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "DisconnectedForeachInstruction",
+    "legacyId": "DisconnectedForeachInstructionInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "SUGGEST_USING_CLONE",
+        "type": "bool",
+        "default": false
+      }
+    ]
+  },
+  {
+    "id": "DuplicateArrayKeys",
+    "legacyId": "DuplicateArrayKeysInspection",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "DynamicCallsToScopeIntrospection",
+    "legacyId": "DynamicCallsToScopeIntrospectionInspection",
+    "group": "Language level migration",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "DynamicInvocationViaScopeResolution",
+    "legacyId": "DynamicInvocationViaScopeResolutionInspection",
+    "group": "Code style",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "EfferentObjectCoupling",
+    "legacyId": "EfferentObjectCouplingInspection",
+    "group": "Architecture",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "optionCouplingLimit",
+        "type": "int",
+        "default": 20
+      }
+    ]
+  },
+  {
+    "id": "ElvisOperatorCanBeUsed",
+    "legacyId": "ElvisOperatorCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "EmptyClass",
+    "legacyId": "EmptyClassInspection",
+    "group": "Architecture",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "EncryptionInitializationVectorRandomness",
+    "legacyId": "EncryptionInitializationVectorRandomnessInspection",
+    "group": "Security",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "FixedTimeStartWith",
+    "legacyId": "FixedTimeStartWithInspection",
+    "group": "Performance",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": true
+  },
+  {
+    "id": "FopenBinaryUnsafeUsage",
+    "legacyId": "FopenBinaryUnsafeUsageInspection",
+    "group": "Compatibility",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "ENFORCE_BINARY_MODIFIER_USAGE",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "ForeachInvariants",
+    "legacyId": "ForeachInvariantsInspection",
+    "group": "Control flow",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "ForgottenDebugOutput",
+    "legacyId": "ForgottenDebugOutputInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "configuration",
+        "type": "list"
+      },
+      {
+        "name": "migratedIntoUserSpace",
+        "type": "bool",
+        "default": false
+      }
+    ]
+  },
+  {
+    "id": "GetClassUsage",
+    "legacyId": "GetClassUsageInspection",
+    "group": "Language level migration",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "GetDebugTypeCanBeUsed",
+    "legacyId": "GetDebugTypeCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "GetTypeMissUse",
+    "legacyId": "GetTypeMissUseInspection",
+    "group": "Control flow",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "HostnameSubstitution",
+    "legacyId": "HostnameSubstitutionInspection",
+    "group": "Security",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "IfReturnReturnSimplification",
+    "legacyId": "IfReturnReturnSimplificationInspection",
+    "group": "Control flow",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "ImplodeArgumentsOrder",
+    "legacyId": "ImplodeArgumentsOrderInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "InArrayMissUse",
+    "legacyId": "InArrayMissUseInspection",
+    "group": "Performance",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "FORCE_STRICT_COMPARISON",
+        "type": "bool",
+        "default": false
+      }
+    ]
+  },
+  {
+    "id": "IncorrectRandomRange",
+    "legacyId": "IncorrectRandomRangeInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "IncrementDecrementOperationEquivalent",
+    "legacyId": "IncrementDecrementOperationEquivalentInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "PREFER_PREFIX_STYLE",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "PREFER_SUFFIX_STYLE",
+        "type": "bool",
+        "default": false
+      }
+    ]
+  },
+  {
+    "id": "InfinityLoop",
+    "legacyId": "InfinityLoopInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "InstanceofCanBeUsed",
+    "legacyId": "InstanceofCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "InvertedIfElseConstructs",
+    "legacyId": "InvertedIfElseConstructsInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": true
+  },
+  {
+    "id": "IsCountableCanBeUsed",
+    "legacyId": "IsCountableCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "IsEmptyFunctionUsage",
+    "legacyId": "IsEmptyFunctionUsageInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "REPORT_EMPTY_USAGE",
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "SUGGEST_TO_USE_COUNT_CHECK",
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "SUGGEST_TO_USE_NULL_COMPARISON",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "SUGGEST_NULL_COMPARISON_FOR_SCALARS",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "IsIterableCanBeUsed",
+    "legacyId": "IsIterableCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "IsNullFunctionUsage",
+    "legacyId": "IsNullFunctionUsageInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": true
+  },
+  {
+    "id": "IssetArgumentExistence",
+    "legacyId": "IssetArgumentExistenceInspection",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "IGNORE_INCLUDES",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "IssetConstructsCanBeMerged",
+    "legacyId": "IssetConstructsCanBeMergedInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "JsonEncodingApiUsage",
+    "legacyId": "JsonEncodingApiUsageInspection",
+    "group": "Type compatibility",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "HARDEN_DECODING_RESULT_TYPE",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "DECODE_AS_ARRAY",
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "DECODE_AS_OBJECT",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "HARDEN_ERRORS_HANDLING",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "LongInheritanceChain",
+    "legacyId": "LongInheritanceChainInspection",
+    "group": "Architecture",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "COMPLAIN_THRESHOLD",
+        "type": "int",
+        "default": 3
+      }
+    ]
+  },
+  {
+    "id": "LoopWhichDoesNotLoop",
+    "legacyId": "LoopWhichDoesNotLoopInspection",
+    "group": "Control flow",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "MagicMethodsValidity",
+    "legacyId": "MagicMethodsValidityInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "MisorderedModifiers",
+    "legacyId": "MisorderedModifiersInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "MissUsingParentKeyword",
+    "legacyId": "MissUsingParentKeywordInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "MissingArrayInitialization",
+    "legacyId": "MissingArrayInitializationInspection",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "MissingIssetImplementation",
+    "legacyId": "MissingIssetImplementationInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "MissingOrEmptyGroupStatement",
+    "legacyId": "MissingOrEmptyGroupStatementInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "REPORT_EMPTY_BODY",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "MkdirRaceCondition",
+    "legacyId": "MkdirRaceConditionInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "MktimeUsage",
+    "legacyId": "MktimeUsageInspection",
+    "group": "Compatibility",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "MockingMethodsCorrectness",
+    "legacyId": "MockingMethodsCorrectnessInspection",
+    "group": "PHPUnit",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "MultiAssignmentUsage",
+    "legacyId": "MultiAssignmentUsageInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "MultipleReturnStatements",
+    "legacyId": "MultipleReturnStatementsInspection",
+    "group": "Architecture",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "COMPLAIN_THRESHOLD",
+        "type": "int",
+        "default": 3
+      },
+      {
+        "name": "SCREAM_THRESHOLD",
+        "type": "int",
+        "default": 5
+      }
+    ]
+  },
+  {
+    "id": "NestedAssignmentsUsage",
+    "legacyId": "NestedAssignmentsUsageInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": true
+  },
+  {
+    "id": "NestedNotOperators",
+    "legacyId": "NestedNotOperatorsInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "NestedPositiveIfStatements",
+    "legacyId": "NestedPositiveIfStatementsInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "NestedTernaryOperator",
+    "legacyId": "NestedTernaryOperatorInspection",
+    "group": "Confusing constructs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "NonSecureParseStrUsage",
+    "legacyId": "NonSecureParseStrUsageInspection",
+    "group": "Security",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "NonSecureUniqidUsage",
+    "legacyId": "NonSecureUniqidUsageInspection",
+    "group": "Security",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "NotOptimalIfConditions",
+    "legacyId": "NotOptimalIfConditionsInspection",
+    "group": "Control flow",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "REPORT_LITERAL_OPERATORS",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "REPORT_INSTANCE_OF_FLAWS",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "SUGGEST_OPTIMIZING_CONDITIONS",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "NotOptimalRegularExpressions",
+    "legacyId": "NotOptimalRegularExpressionsInspection",
+    "group": "Performance",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "NullCoalescingOperatorCanBeUsed",
+    "legacyId": "NullCoalescingOperatorCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "SUGGEST_SIMPLIFYING_TERNARIES",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "SUGGEST_SIMPLIFYING_IFS",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "NullPointerException",
+    "legacyId": "NullPointerExceptionInspection",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "experimental": true
+  },
+  {
+    "id": "ObGetCleanCanBeUsed",
+    "legacyId": "ObGetCleanCanBeUsedInspection",
+    "group": "Control flow",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "OffsetOperations",
+    "legacyId": "OffsetOperationsInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "OneTimeUseVariables",
+    "legacyId": "OneTimeUseVariablesInspection",
+    "group": "Control flow",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "ALLOW_LONG_STATEMENTS",
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "ANALYZE_RETURN_STATEMENTS",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "ANALYZE_THROW_STATEMENTS",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "ANALYZE_ARRAY_DESTRUCTURING",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "OnlyWritesOnParameter",
+    "legacyId": "OnlyWritesOnParameterInspection",
+    "group": "Unused",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "IGNORE_INCLUDES",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "OpAssignShortSyntax",
+    "legacyId": "OpAssignShortSyntaxInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "PackedHashtableOptimization",
+    "legacyId": "PackedHashtableOptimizationInspection",
+    "group": "Performance",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ParameterDefaultValueIsNotNull",
+    "legacyId": "ParameterDefaultValueIsNotNullInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "PassingByReferenceCorrectness",
+    "legacyId": "PassingByReferenceCorrectnessInspection",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "PdoApiUsage",
+    "legacyId": "PdoApiUsageInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "PhpUnitDeprecations",
+    "legacyId": "PhpUnitDeprecationsInspection",
+    "group": "PHPUnit",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "PHP_UNIT_VERSION",
+        "type": "enum",
+        "default": "PHPUNIT80"
+      }
+    ]
+  },
+  {
+    "id": "PhpUnitTests",
+    "legacyId": "PhpUnitTestsInspection",
+    "group": "PHPUnit",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "PHP_UNIT_VERSION",
+        "type": "enum",
+        "default": "PHPUNIT80"
+      },
+      {
+        "name": "SUGGEST_TO_USE_ASSERTSAME",
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "SUGGEST_TO_USE_NAMED_DATASETS",
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "PROMOTE_PHPUNIT_API",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "PROMOTE_MOCKING_ONCE",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "PROMOTE_MOCKING_WILL_RETURN",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "PotentialMalware",
+    "legacyId": "PotentialMalwareInspection",
+    "group": "Security",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "PowerOperatorCanBeUsed",
+    "legacyId": "PowerOperatorCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "PregQuoteUsage",
+    "legacyId": "PregQuoteUsageInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "PreloadingUsageCorrectness",
+    "legacyId": "PreloadingUsageCorrectnessInspection",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "PrintfScanfArguments",
+    "legacyId": "PrintfScanfArgumentsInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ProperNullCoalescingOperatorUsage",
+    "legacyId": "ProperNullCoalescingOperatorUsageInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "ANALYZE_TYPES",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "ALLOW_OVERLAPPING_TYPES",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "PropertyCanBeStatic",
+    "legacyId": "PropertyCanBeStaticInspection",
+    "group": "Architecture",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "PropertyInitializationFlaws",
+    "legacyId": "PropertyInitializationFlawsInspection",
+    "group": "Unused",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "REPORT_DEFAULTS_FLAWS",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "REPORT_INIT_FLAWS",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "RandomApiMigration",
+    "legacyId": "RandomApiMigrationInspection",
+    "group": "Compatibility",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "SUGGEST_USING_RANDOM_INT",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "RealpathInStreamContext",
+    "legacyId": "RealpathInStreamContextInspection",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "RedundantElseClause",
+    "legacyId": "RedundantElseClauseInspection",
+    "group": "Control flow",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "ReferencingObjects",
+    "legacyId": "ReferencingObjectsInspection",
+    "group": "Confusing constructs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "ReturnTypeCanBeDeclared",
+    "legacyId": "ReturnTypeCanBeDeclaredInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "LOOKUP_PHPDOC_RETURN_DECLARATIONS",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "SecurityAdvisories",
+    "legacyId": "SecurityAdvisoriesInspection",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "REPORT_MISSING_ROAVE_ADVISORIES",
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "REPORT_MISPLACED_DEPENDENCIES",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "optionConfiguration",
+        "type": "list"
+      }
+    ]
+  },
+  {
+    "id": "SelfClassReferencing",
+    "legacyId": "SelfClassReferencingInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "PREFER_CLASS_NAMES",
+        "type": "bool",
+        "default": false
+      }
+    ]
+  },
+  {
+    "id": "SenselessMethodDuplication",
+    "legacyId": "SenselessMethodDuplicationInspection",
+    "group": "Unused",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "MAX_METHOD_SIZE",
+        "type": "int",
+        "default": 20
+      }
+    ]
+  },
+  {
+    "id": "SenselessProxyMethod",
+    "legacyId": "SenselessProxyMethodInspection",
+    "group": "Unused",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "SenselessTernaryOperator",
+    "legacyId": "SenselessTernaryOperatorInspection",
+    "group": "Confusing constructs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "ShortEchoTagCanBeUsed",
+    "legacyId": "ShortEchoTagCanBeUsedInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": true
+  },
+  {
+    "id": "ShortListSyntaxCanBeUsed",
+    "legacyId": "ShortListSyntaxCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "ShortOpenTagUsage",
+    "legacyId": "ShortOpenTagUsageInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "SimpleXmlLoadFileUsage",
+    "legacyId": "SimpleXmlLoadFileUsageInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "SlowArrayOperationsInLoop",
+    "legacyId": "SlowArrayOperationsInLoopInspection",
+    "group": "Performance",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "StaticClosureCanBeUsed",
+    "legacyId": "StaticClosureCanBeUsedInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "SUGGEST_FOR_SHORT_FUNCTIONS",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "StaticInvocationViaThis",
+    "legacyId": "StaticInvocationViaThisInspection",
+    "group": "Code style",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "EXCEPT_PHPUNIT_ASSERTIONS",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "EXCEPT_ELOQUENT_MODELS",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "StaticLambdaBinding",
+    "legacyId": "StaticLambdaBindingInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "StrContainsCanBeUsed",
+    "legacyId": "StrContainsCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "StrEndsWithCanBeUsed",
+    "legacyId": "StrEndsWithCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "StrStartsWithCanBeUsed",
+    "legacyId": "StrStartsWithCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "StrStrUsedAsStrPos",
+    "legacyId": "StrStrUsedAsStrPosInspection",
+    "group": "Performance",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "StrTrUsageAsStrReplace",
+    "legacyId": "StrTrUsageAsStrReplaceInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "StringCaseManipulation",
+    "legacyId": "StringCaseManipulationInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "StringNormalization",
+    "legacyId": "StringNormalizationInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "StringsFirstCharactersCompare",
+    "legacyId": "StringsFirstCharactersCompareInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "StrlenInEmptyStringCheckContext",
+    "legacyId": "StrlenInEmptyStringCheckContextInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "StrtotimeUsage",
+    "legacyId": "StrtotimeUsageInspection",
+    "group": "Performance",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "SubStrShortHandUsage",
+    "legacyId": "SubStrShortHandUsageInspection",
+    "group": "Performance",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "SubStrUsedAsArrayAccess",
+    "legacyId": "SubStrUsedAsArrayAccessInspection",
+    "group": "Performance",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "SubStrUsedAsStrPos",
+    "legacyId": "SubStrUsedAsStrPosInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "SuspiciousAssignments",
+    "legacyId": "SuspiciousAssignmentsInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "SuspiciousBinaryOperation",
+    "legacyId": "SuspiciousBinaryOperationInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "VERIFY_CONSTANTS_IN_CONDITIONS",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "VERIFY_UNCLEAR_OPERATIONS_PRIORITIES",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "SuspiciousFunctionCalls",
+    "legacyId": "SuspiciousFunctionCallsInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "SuspiciousLoop",
+    "legacyId": "SuspiciousLoopInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "VERIFY_VARIABLES_OVERRIDE",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "SuspiciousReturn",
+    "legacyId": "SuspiciousReturnInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "SuspiciousSemicolon",
+    "legacyId": "SuspiciousSemicolonInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "SwitchContinuationInLoop",
+    "legacyId": "SwitchContinuationInLoopInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "TernaryOperatorSimplify",
+    "legacyId": "TernaryOperatorSimplifyInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "ThrowRawException",
+    "legacyId": "ThrowRawExceptionInspection",
+    "group": "Control flow",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "REPORT_MISSING_ARGUMENTS",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "TraitsPropertiesConflicts",
+    "legacyId": "TraitsPropertiesConflictsInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "TypeUnsafeArraySearch",
+    "legacyId": "TypeUnsafeArraySearchInspection",
+    "group": "Type compatibility",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "TypeUnsafeComparison",
+    "legacyId": "TypeUnsafeComparisonInspection",
+    "group": "Type compatibility",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "TypesCastingCanBeUsed",
+    "legacyId": "TypesCastingCanBeUsedInspection",
+    "group": "Language level migration",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "REPORT_INLINES",
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "REPORT_TO_STRING_METHOD_CALLS",
+        "type": "bool",
+        "default": false
+      }
+    ]
+  },
+  {
+    "id": "UnNecessaryDoubleQuotes",
+    "legacyId": "UnNecessaryDoubleQuotesInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": true
+  },
+  {
+    "id": "UnSafeIsSetOverArray",
+    "legacyId": "UnSafeIsSetOverArrayInspection",
+    "group": "Control flow",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "SUGGEST_TO_USE_ARRAY_KEY_EXISTS",
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "SUGGEST_TO_USE_NULL_COMPARISON",
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "REPORT_CONCATENATION_IN_INDEXES",
+        "type": "bool",
+        "default": true
+      }
+    ]
+  },
+  {
+    "id": "UnknownInspection",
+    "legacyId": "UnknownInspectionInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "UnnecessaryAssertion",
+    "legacyId": "UnnecessaryAssertionInspection",
+    "group": "PHPUnit",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "UnnecessaryCasting",
+    "legacyId": "UnnecessaryCastingInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "UnnecessaryFinalModifier",
+    "legacyId": "UnnecessaryFinalModifierInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "UnnecessaryIssetArguments",
+    "legacyId": "UnnecessaryIssetArgumentsInspection",
+    "group": "Unused",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "UnnecessarySemicolon",
+    "legacyId": "UnnecessarySemicolonInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "UnnecessaryUseAlias",
+    "legacyId": "UnnecessaryUseAliasInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "UnqualifiedReference",
+    "legacyId": "UnqualifiedReferenceInspection",
+    "group": "Performance",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": true,
+    "options": [
+      {
+        "name": "REPORT_ALL_FUNCTIONS",
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "REPORT_CONSTANTS",
+        "type": "bool",
+        "default": false
+      }
+    ]
+  },
+  {
+    "id": "UnserializeExploits",
+    "legacyId": "UnserializeExploitsInspection",
+    "group": "Security",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "UnsetConstructsCanBeMerged",
+    "legacyId": "UnsetConstructsCanBeMergedInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "UnsupportedEmptyListAssignments",
+    "legacyId": "UnsupportedEmptyListAssignmentsInspection",
+    "group": "Language level migration",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "UnsupportedStringOffsetOperations",
+    "legacyId": "UnsupportedStringOffsetOperationsInspection",
+    "group": "Language level migration",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "UntrustedInclusion",
+    "legacyId": "UntrustedInclusionInspection",
+    "group": "Security",
+    "severity": "error",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "UnusedConstructorDependencies",
+    "legacyId": "UnusedConstructorDependenciesInspection",
+    "group": "Unused",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "UnusedGotoLabel",
+    "legacyId": "UnusedGotoLabelInspection",
+    "group": "Unused",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "UselessReturn",
+    "legacyId": "UselessReturnInspection",
+    "group": "Confusing constructs",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "UselessUnset",
+    "legacyId": "UselessUnsetInspection",
+    "group": "Unused",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "UsingInclusionOnceReturnValue",
+    "legacyId": "UsingInclusionOnceReturnValueInspection",
+    "group": "Probable bugs",
+    "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "UsingInclusionReturnValue",
+    "legacyId": "UsingInclusionReturnValueInspection",
+    "group": "Code style",
+    "severity": "info",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "VariableFunctionsUsage",
+    "legacyId": "VariableFunctionsUsageInspection",
+    "group": "Performance",
+    "severity": "info",
+    "enabledByDefault": true,
+    "hasFix": true
+  }
+]

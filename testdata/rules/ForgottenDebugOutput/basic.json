@@ -1,0 +1,1 @@
+{"options": {"configuration": "audit_dump, \\Acme\\Tracer::dump, \\Acme\\Probe::dump"}}

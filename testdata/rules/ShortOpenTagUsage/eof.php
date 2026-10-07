@@ -1,0 +1,1 @@
+<p>end</p><weak_warning descr="Replace the short open tag &apos;&lt;?&apos; with &apos;&lt;?php&apos;."><?</weak_warning>

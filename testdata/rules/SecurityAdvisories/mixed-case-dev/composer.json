@@ -1,0 +1,7 @@
+{
+  "name": "acme/app",
+  "require": {
+    <warning descr="Development package in require; move it to require-dev.">"mikey179/vfsStream"</warning>: "^1.6",
+    <warning descr="Development package in require; move it to require-dev.">"PHPUnit/PHPUnit"</warning>: "^11"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Bakery/Oven",
+  <warning descr="Add the security advisories package (dev-latest) to require-dev.">"require"</warning>: {"bakery/core": "1.*", "monolog/monolog": "^3.0"},
+  "require-dev": {}
+}

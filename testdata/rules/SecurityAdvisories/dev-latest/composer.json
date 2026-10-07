@@ -1,0 +1,5 @@
+{
+  "name": "",
+  "require": { "nesbot/carbon": "^2.0", <warning descr="Development package in require; move it to require-dev.">"roave/security-advisories"</warning>: "dev-latest" },
+  "require-dev": { "roave/security-advisories": <warning descr="Constrain the advisory package to dev-latest.">"dev-main"</warning> }
+}

@@ -1,0 +1,1 @@
+{"name": "phpstan/phpstan", "require": {"phpunit/phpunit": "*", "x/y": "*"}}

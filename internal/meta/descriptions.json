@@ -1,0 +1,696 @@
+{
+  "AccessModifierPresented": {
+    "summary": "Class members that rely on PHP's implicit public visibility (methods declared\nwith no visibility keyword, properties declared with `var`/`static`/`readonly`\nonly, constants declared with a bare `const`) should spell out their visibility\nexplicitly so intent is clear to readers.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| ANALYZE_INTERFACES | bool | true | When false, interface declarations are not inspected at all. |\n| ANALYZE_CONSTANTS | bool | true | When false, class constants are never reported (D3 disabled). |",
+    "fix": true
+  },
+  "AliasFunctionsUsage": {
+    "summary": "Several built-in PHP functions exist only as alternative names for another\nbuilt-in (`sizeof` for `count`, `join` for `implode`, …), and a few of those\nalternative names were deprecated or removed. Calling the canonical function\nkeeps code consistent and avoids relying on legacy names.",
+    "fix": true
+  },
+  "AlterInForeach": {
+    "summary": "Three related `foreach` value-variable pitfalls:\n1. a by-reference value (`as \u0026$v`) that stays alive after the loop, so a later\n   write to `$v` silently modifies the last array element;\n2. an `unset($v)` right after a loop whose `$v` was *not* a reference (the\n   unset is pointless, probably a leftover);\n3. (opt-in) writing back through `$array[$key] = …` inside\n   `foreach ($array as $key =\u003e $value)` where a by-reference value would do.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_VALUE_BY_REF | bool | false | Enables part C (D7–D8). Parts A and B are always active. |"
+  },
+  "AmbiguousMethodsCallsInArrayMapping": {
+    "summary": "When a loop builds a map like `$map[key($x)] = key($x);`, the same call is\nevaluated twice per iteration (once for the key, once for the value). Compute\nit once into a local variable."
+  },
+  "ArgumentUnpackingCanBeUsed": {
+    "summary": "Since PHP 5.6, `call_user_func_array('fn', $args)` with a literal function\nname can be written as a direct call with argument unpacking, `fn(...$args)`,\nwhich is faster and easier to read and analyse.",
+    "fix": true
+  },
+  "ArrayIsListCanBeUsed": {
+    "summary": "Hand-written \"is this array a list?\" checks — comparing `array_values($a)`\nwith `$a`, or `array_keys($a)` with `range(0, count($a) - 1)` — are better\nexpressed with the built-in `array_is_list($a)`.",
+    "fix": true
+  },
+  "ArrayPushMissUse": {
+    "summary": "Appending a single element with `array_push($list, $item);` costs a function\ncall; the append operator `$list[] = $item;` does the same faster. Likewise,\n`$list[count($list)] = $item;` computes an index that the append operator\nwould produce anyway (for list-shaped arrays).",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_EXCESSIVE_COUNT_CALLS | bool | true | Enables part B (`C[count(C)] = …`). |",
+    "fix": true
+  },
+  "ArraySearchUsedAsInArray": {
+    "summary": "`array_search()` returns a key (which may be `0` or `''`) or `false`. When its\nresult is only used as a yes/no answer, `in_array()` expresses the intent\ndirectly and avoids the classic \"key 0 is falsy\" trap. Comparing its result\nwith `true` is always pointless, since the function never returns `true`.",
+    "fix": true
+  },
+  "ArrayUniqueCanBeUsed": {
+    "summary": "Counting occurrences with `array_count_values()` just to take the keys or the\nnumber of keys is an indirect way of deduplicating. Since PHP 7.2\n`array_unique()` is fast and says what is meant: `array_values(array_unique($a))`\nor `count(array_unique($a))`.",
+    "fix": true
+  },
+  "AutoloadingIssues": {
+    "summary": "PSR-0/PSR-4 autoloaders locate a class by its name, so a file that declares a\nsingle class whose name does not match the file name will not be found by the\nautoloader. Point at the class name when file and class names disagree."
+  },
+  "BacktickOperatorUsage": {
+    "summary": "The backtick operator runs a shell command just like `shell_exec()`, but it\nis easy to overlook when reading code and security scanners often miss it.\nCalling `shell_exec()` explicitly makes command execution visible.",
+    "fix": true
+  },
+  "BadExceptionsProcessing": {
+    "summary": "Two smells around `try`/`catch`: a `try` block that wraps too many statements\n(hard to tell which one is expected to throw), and a `catch` clause that\nbinds the exception to a variable but never looks at it (the error is\nswallowed or its cause is lost)."
+  },
+  "CallableMethodValidity": {
+    "summary": "`is_callable()` on a method callback that names a non-public method, or a\nnon-static method without an object, describes a callback that cannot really\nbe invoked from the outside (or will break when invoked statically). Flag the\nargument so the method's visibility/static-ness gets fixed."
+  },
+  "CallableParameterUseCaseInTypeContext": {
+    "summary": "A parameter's declared/documented type is a contract. Testing it with an\n`is_*()` function that can never succeed (or never fail) for that type is dead\nlogic, and re-assigning the parameter a value of an unrelated type breaks the\ncontract for every later reader of the variable."
+  },
+  "CascadeStringReplacement": {
+    "summary": "`str_replace()` accepts arrays of searches and replacements and applies them\nin order, so several consecutive replacements on the same subject — written\nas back-to-back assignments or as nested calls — can be one call. Also, a\nsearch array whose items are all the same string literal can be that string.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax for arrays in the rebuilt call (F5): `[...]` when true, `array(...)` when false. Detection unaffected. Upstream fixtures run with `true`. |",
+    "fix": true
+  },
+  "CascadingDirnameCalls": {
+    "summary": "Since PHP 7.0 `dirname()` accepts a second \"levels\" argument, so a chain of\nnested `dirname()` calls can be collapsed into a single call with the summed\nlevel count: fewer calls, easier to read.",
+    "fix": true
+  },
+  "CaseInsensitiveStringFunctionsMissUse": {
+    "summary": "Case-insensitive search functions (`stripos`, `strripos`, `stristr`) do extra\ncase-folding work. When the needle has no letters at all (e.g. `'/'`, `'::'`,\n`'42'`), case does not matter and the plain case-sensitive counterpart gives\nthe same result faster.",
+    "fix": true
+  },
+  "ClassConstantCanBeUsed": {
+    "summary": "Since PHP 5.5 a class name can be obtained with `Name::class`. Writing class\nnames as string literals hides them from refactoring tools and static\nanalysis, and `get_called_class()` / `get_parent_class()` without arguments\nhave constant-expression equivalents (`static::class`, `parent::class`).",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `IMPORT_CLASSES_ON_QF` | bool | true | Fix may add a `use` import for namespaced classes and reference them by short name. |\n| `USE_RELATIVE_QF` | bool | false | When importing is otherwise possible, a class below the file's (first) namespace is written as a namespace-relative name instead of being imported. |\n| `LOOK_ROOT_NS_UP` | bool | false | Also consider unqualified strings (no backslash), looked up as root-namespace classes (`'Thing'` → `\\Thing`). |\n\nUpstream fixtures run with `IMPORT_CLASSES_ON_QF=true, USE_RELATIVE_QF=true,\nLOOK_ROOT_NS_UP=true`, except the no-namespace configuration case\n(`true, false, false`). Some upstream cases rely on classes declared in a\ncompanion file (project index).",
+    "fix": true
+  },
+  "ClassConstantUsageCorrectness": {
+    "summary": "`Foo::class` is resolved at compile time from the name *as written*, so a\nclass name typed with the wrong letter case (or imported with the wrong case)\nproduces a string that differs from the real class name. That string then\nbreaks case-sensitive comparisons, array keys, container ids and autoloaders\non case-sensitive file systems."
+  },
+  "ClassMethodNameMatchesFieldName": {
+    "summary": "When a method and a property share a name, `$obj-\u003ename()` and\n`($obj-\u003ename)()` mean different things. This is especially confusing when the\nproperty holds a callable, and when the property's type is unknown the reader\ncannot tell which one is meant."
+  },
+  "ClassMockingCorrectness": {
+    "summary": "Test doubles are generated by subclassing: final classes cannot be mocked,\ntraits and abstract classes need dedicated factory methods, and mocks built\nwith the constructor enabled need the constructor's required arguments.\nPoint at the class argument of PHPUnit / Prophecy mocking calls (and PhpSpec\ncollaborator type hints) that will fail at runtime."
+  },
+  "ClassOverridesFieldOfSuperClass": {
+    "summary": "Re-declaring a property that an ancestor already declares is usually\naccidental: for protected/public properties it merely duplicates the\ndeclaration (often with a diverging default), and for an ancestor's private\nproperty it creates a second, unrelated property with the same name.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_PRIVATE_REDEFINITION` | bool | true | Also report re-declarations of an ancestor's (or ancestor trait's) private property (D5). |"
+  },
+  "ClassReImplementsParentInterface": {
+    "summary": "Listing an interface in `implements` when the parent class already implements\nit (directly or through its own ancestors) is redundant noise. Remove the\nentry.",
+    "fix": true
+  },
+  "CompactArguments": {
+    "summary": "`compact('name')` silently skips (or, since PHP 7.3, warns about) variables\nthat do not exist at that point. A name that never appeared earlier in the\nfunction is usually a typo or a variable assigned too late."
+  },
+  "CompactCanBeUsed": {
+    "summary": "An array literal whose every entry maps a string key to the variable of the\nsame name (`['id' =\u003e $id, 'tag' =\u003e $tag]`) can be written as\n`compact('id', 'tag')`, which avoids repeating each name twice.",
+    "fix": true
+  },
+  "ComparisonOperandsOrder": {
+    "summary": "Enforces one consistent operand order for equality comparisons against a\nliteral/constant: with the project-wide comparison style set to *yoda*, the\nliteral must come first (`10 === $n`); with the *regular* style (default), the\nvariable part must come first (`$n === 10`).",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| (none) | | | Driven by the global comparison style setting (`comparisonStyle`: `regular` default, or `yoda`). |",
+    "fix": true
+  },
+  "ConstantCanBeUsed": {
+    "summary": "Some function calls only return a value that PHP already exposes as a\nconstant (`PHP_VERSION`, `PHP_SAPI`, `M_PI`, …), and comparisons of\n`PHP_VERSION` via `version_compare()` or OS sniffing on `PHP_OS` have cheaper,\nclearer constant-based equivalents (`PHP_VERSION_ID`, `PHP_OS_FAMILY`).",
+    "fix": true
+  },
+  "CryptographicallySecureAlgorithms": {
+    "summary": "Some cipher/hash selector constants of mcrypt, OpenSSL and `crypt()` pick\nalgorithms that are broken or weak (DES, 3DES, RC2, RC4, MD5) or that are\ncommonly mistaken for AES (Rijndael with 192/256-bit blocks). Point at each\nuse so a stronger algorithm can be chosen."
+  },
+  "CryptographicallySecureRandomness": {
+    "summary": "`openssl_random_pseudo_bytes()` and `mcrypt_create_iv()` can silently fall\nback to weak sources or fail (returning `false`) and their strength depends on\noptional arguments. Point out missing strength arguments, unverified results\nand weak sources, and suggest `random_bytes()` on PHP 7+."
+  },
+  "CurlSslServerSpoofing": {
+    "summary": "Turning off cURL's TLS peer or host-name verification\n(`CURLOPT_SSL_VERIFYPEER`, `CURLOPT_SSL_VERIFYHOST`) lets anyone in the\nmiddle impersonate the server. Report places where these options are set to a\ndisabling value."
+  },
+  "DateIntervalSpecification": {
+    "summary": "`new DateInterval($spec)` throws for a malformed ISO-8601 duration string.\nCheck literal specifications against the accepted shapes so the mistake is\ncaught before runtime."
+  },
+  "DateTimeConstantsUsage": {
+    "summary": "The `ISO8601` date format constants do not actually produce ISO-8601 output\n(the offset lacks a colon). The `ATOM` variants produce the compliant format\nand should be used instead.",
+    "fix": true
+  },
+  "DateTimeSetTimeUsage": {
+    "summary": "The microseconds argument of `DateTime::setTime()` / `date_time_set()` only\nexists since PHP 7.1. On older versions passing it makes the call fail and\nreturn `false`, so the extra argument is a bug when targeting PHP \u003c 7.1."
+  },
+  "DateUsage": {
+    "summary": "`date()` already formats the current moment when its timestamp argument is\nomitted, so passing `time()` explicitly is redundant noise (and costs an extra\ncall). Drop the second argument.",
+    "fix": true
+  },
+  "DegradedSwitch": {
+    "summary": "A `switch` with only a `default` branch, or with a single `case` (optionally\nplus `default`), is just an `if` / `if-else` (or plain code) in disguise and\nreads better rewritten that way."
+  },
+  "DeprecatedConstructorStyle": {
+    "summary": "A method named after its class used to act as the constructor (PHP 4 style).\nThis form is deprecated since PHP 7.0 and no longer a constructor in PHP 8.0;\nthe method should be called `__construct`.",
+    "fix": true
+  },
+  "DeprecatedIniOptions": {
+    "summary": "Reading, changing or restoring an ini directive that the targeted PHP version\nhas deprecated or removed is either a no-op or a future breakage. Point out\nsuch directives, naming the version and the replacement when there is one."
+  },
+  "DirectoryConstantCanBeUsed": {
+    "summary": "`dirname(__FILE__)` computes at runtime what the magic constant `__DIR__`\n(PHP 5.3+) already provides. Use the constant.",
+    "fix": true
+  },
+  "DisallowWritingIntoStaticProperties": {
+    "summary": "Static properties are global mutable state. This opt-in rule flags assignments\nto static properties: by default only writes performed outside the class that\ndeclares the property; optionally every write.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| ALLOW_WRITE_FROM_SOURCE_CLASS | bool | true | true: only writes from outside the declaring class are reported (D3). false: every static property assignment is reported (D2). |"
+  },
+  "DisconnectedForeachInstruction": {
+    "summary": "A statement inside a `foreach` body that uses no loop variable and nothing the\nloop body changes produces the same effect on every iteration; it most likely\nbelongs before or after the loop. Optionally (off by default) the rule also\npoints at objects instantiated on every iteration that could be built once and\ncloned.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). The upstream test suite runs with it enabled. |"
+  },
+  "DuplicateArrayKeys": {
+    "summary": "In an array literal a repeated string key silently overwrites the earlier\nentry. Either the earlier entry is dead (different value) or the whole entry\nis a redundant copy (same value)."
+  },
+  "DynamicCallsToScopeIntrospection": {
+    "summary": "Since PHP 7.1, functions that read or write the caller's local scope\n(`compact`, `extract`, `func_get_args`, …) refuse to run when invoked\nindirectly — through a variable holding their name or as a callback string.\nSuch calls only produce a warning and do nothing useful."
+  },
+  "DynamicInvocationViaScopeResolution": {
+    "summary": "Calling an instance (non-static) method through `::` (`self::run()`,\n`static::run()`, `$obj::run()`) hides that the call is really an instance call\nand breaks in static contexts. Such calls should use `-\u003e`.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|",
+    "fix": true
+  },
+  "EfferentObjectCoupling": {
+    "summary": "A class that refers to many distinct other classes depends on too much of the\ncode base; it is hard to change and to test in isolation. The rule counts the\ndistinct class names a class mentions and flags it once the count reaches a\nlimit.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `optionCouplingLimit` | int | 20 | Minimum number of distinct referenced classes that triggers a report (inclusive). The upstream conformance case runs with `2`. |"
+  },
+  "ElvisOperatorCanBeUsed": {
+    "summary": "A full ternary whose \"then\" branch repeats its condition (`$a ? $a : $b`) can\nbe written with the short ternary operator `$a ?: $b` (PHP 5.3+), which is\nshorter and evaluates the condition once.",
+    "fix": true
+  },
+  "EmptyClass": {
+    "summary": "A named class (or trait, or enum) that declares nothing at all — no\nproperties, constants, methods, used traits or enum cases — is usually dead\nweight or an unfinished stub."
+  },
+  "EncryptionInitializationVectorRandomness": {
+    "summary": "An encryption initialization vector must be unpredictable. When the IV passed\nto `openssl_encrypt()` / `mcrypt_encrypt()` can be traced to something other\nthan a cryptographic random generator (a literal, `mt_rand()`, …), report it."
+  },
+  "FixedTimeStartWith": {
+    "summary": "`strpos($s, 'lit') === 0` scans the whole haystack when the prefix is absent,\nso its cost grows with the length of `$s`. Comparing only the first N bytes\nwith `strncmp`/`strncasecmp` answers the same \"starts with\" question in time\nbounded by the needle length.",
+    "fix": true
+  },
+  "FopenBinaryUnsafeUsage": {
+    "summary": "The PHP manual recommends always opening files with the `b` (binary) flag\nfor portability; the `t` (text translation) flag is Windows-only and\nmangles line endings. Also, `b` must come after the access letter (`rb`,\n`wb+`, `r+b`) — a leading or middle `b` (`bw`) is wrong.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `ENFORCE_BINARY_MODIFIER_USAGE` | bool | `true` | When on, modes lacking `b` (with or without `t`) are reported; when off only misplaced `b` is reported. |",
+    "fix": true
+  },
+  "ForeachInvariants": {
+    "summary": "Two loop shapes that are really array iterations in disguise:\n1. a counter-based `for` that walks `0 … count($a)` and reads `$a[$i]`;\n2. a `while (list($k, $v) = each($a))` loop (`each()` is slow, deprecated in\n   PHP 7.2 and removed in PHP 8).\nBoth are clearer (and faster) as `foreach`.",
+    "fix": true
+  },
+  "ForgottenDebugOutput": {
+    "summary": "Dumping, tracing and profiler helpers (`var_dump()`, `print_r()`,\nframework dumpers, Xdebug functions, …) are typically added while debugging\nand forgotten afterwards. Flag their calls unless the context shows the\noutput is intentional.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| configuration | list of strings | empty (see below) | Additional debug entries (`function_name` or `\\Class::method`). |\n| migratedIntoUserSpace | bool | false | When false, the built-in defaults are merged into `configuration`; when true, only `configuration` is used. |\n\nUpstream persists the merged list into `configuration` once and flips\n`migratedIntoUserSpace` to true; custos only needs the \"effective list\"\nsemantics above."
+  },
+  "GetClassUsage": {
+    "summary": "Since PHP 7.2, passing `null` to `get_class()` is an error-level misuse (it no\nlonger silently falls back to the calling class). This rule flags\n`get_class(x)` calls whose single argument may be `null` and that are not\npreceded by any null check of that same expression in the enclosing function."
+  },
+  "GetDebugTypeCanBeUsed": {
+    "summary": "The hand-rolled idiom \"class name for objects, `gettype()` otherwise\",\nwritten as a ternary over `is_object()`, is what PHP 8.0's\n`get_debug_type()` provides in one call. Suggest the built-in."
+  },
+  "GetTypeMissUse": {
+    "summary": "Comparing the result of `gettype($v)` with a type-name string is a roundabout\n(and typo-prone) way of calling the dedicated `is_*()` predicate. The rule\nsuggests the predicate, and flags strings that `gettype()` can never return.",
+    "fix": true
+  },
+  "HostnameSubstitution": {
+    "summary": "`$_SERVER['HTTP_HOST']` and `$_SERVER['SERVER_NAME']` can be controlled by the\nclient (Host header). Using them to build e-mail addresses or storing them in\ndomain/host/email-like variables or properties without a whitelist check lets\nan attacker inject their own domain."
+  },
+  "IfReturnReturnSimplification": {
+    "summary": "An `if` whose only job is to return `true` in one branch and `false` in the\nother is a long-winded way of returning the condition itself (or its\nnegation). Return the expression directly.",
+    "fix": true
+  },
+  "ImplodeArgumentsOrder": {
+    "summary": "`implode()` historically accepted its separator in either position; passing the\npieces first and the separator second is deprecated (7.4) and removed (8.0).\nWhen the second argument is clearly the separator (a string literal), the\narguments are swapped.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|",
+    "fix": true
+  },
+  "InArrayMissUse": {
+    "summary": "Two wasteful `in_array()` shapes:\n- searching the keys list built by `array_keys($a)` — a direct key lookup\n  (`array_key_exists`) avoids building the list;\n- searching a one-element array literal — that is just a comparison with the\n  single element.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `FORCE_STRICT_COMPARISON` | bool | `false` | When on, pattern C always produces `===`/`!==`, whatever the 3rd argument. The EA fixture runs with it off. |\n\nComparison style (`regular`/`yoda`) is the global setting.",
+    "fix": true
+  },
+  "IncorrectRandomRange": {
+    "summary": "`rand()`, `mt_rand()` and `random_int()` expect `(min, max)`. Passing a\nminimum greater than the maximum is an error (`random_int()` throws,\n`mt_rand()` warns/returns false on older versions, `rand()` silently swaps).\nFlag calls whose bounds are known numbers in the wrong order."
+  },
+  "IncrementDecrementOperationEquivalent": {
+    "summary": "Adding or subtracting the literal `1` to a variable and storing it back\n(`$n += 1`, `$n = $n - 1`, …) is more idiomatically written with the increment\nor decrement operator.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| PREFER_PREFIX_STYLE | bool | true | Fix produces `++$x` / `--$x`. |\n| PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` whenever `PREFER_PREFIX_STYLE` is false. |",
+    "fix": true
+  },
+  "InfinityLoop": {
+    "summary": "A method whose only statement calls the very same method on `$this`,\n`self` or `static` recurses unconditionally until the stack overflows —\ntypically a getter/proxy that was meant to call a property, a parent method\nor a differently named method."
+  },
+  "InstanceofCanBeUsed": {
+    "summary": "Testing an object's class through string comparisons or reflection-like\nhelpers (`get_class($o) === 'Foo'`, `is_a($o, 'Foo')`,\n`in_array('Foo', class_parents($o))`, …) is slower and less readable than the\n`instanceof` operator, and hides the class name from refactoring tools.\nSuggest `instanceof` when the subject is known to be a non-string value and\nthe named class exists.",
+    "fix": true
+  },
+  "InvertedIfElseConstructs": {
+    "summary": "An `if`/`else` whose condition is a negation (`!expr`, or `false === expr`)\nreads backwards: swapping the two branches and dropping the negation makes the\nmain path positive and easier to follow.",
+    "fix": true
+  },
+  "IsCountableCanBeUsed": {
+    "summary": "`is_array($v) || $v instanceof Countable` is exactly what `is_countable($v)`\nchecks. On a language level where `is_countable()` is available, the one call\nis shorter and makes the intent obvious."
+  },
+  "IsEmptyFunctionUsage": {
+    "summary": "`empty()` treats many unrelated values (`0`, `'0'`, `''`, `[]`, `null`,\n`false`) as \"empty\". When the argument's type is known, a precise check is\nclearer: `count(...) === 0` for countables, `... === null` for nullable\nscalars/objects. Optionally, any other `empty()` use can be flagged.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_EMPTY_USAGE | bool | false | Enables the generic report D3. |\n| SUGGEST_TO_USE_COUNT_CHECK | bool | false | Enables D1 (count comparison for arrays/Countable). |\n| SUGGEST_TO_USE_NULL_COMPARISON | bool | true | Enables D2 (null comparison) as a whole. |\n| SUGGEST_NULL_COMPARISON_FOR_SCALARS | bool | true | Enables D2a (nullable int/float/bool/resource); D2b (objects) only needs the previous option. |\n\nGlobal setting: comparison style (`regular` default / `yoda`) selects the\noperand order of F1/F2.",
+    "fix": true
+  },
+  "IsIterableCanBeUsed": {
+    "summary": "`is_array($v) || $v instanceof Traversable` is exactly what `is_iterable($v)`\nchecks. On a language level where `is_iterable()` is available, the one call\nis shorter and makes the intent obvious."
+  },
+  "IsNullFunctionUsage": {
+    "summary": "`is_null($v)` is a function call doing what the `=== null` comparison does\nnatively. This opt-in rule rewrites `is_null()` calls (including negations and\ncomparisons of the result against `true`/`false`) into an identity comparison\nwith `null`.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| (none) | | | Operand order follows the global comparison style (`regular` default / `yoda`). |",
+    "fix": true
+  },
+  "IssetArgumentExistence": {
+    "summary": "`isset($v)`, `empty($v)` and `$v ?? …` silently accept a variable that is\nnever defined in the current function. When the first mention of a plain\nvariable inside a function body is such an existence check, the variable can\nnever be set at that point — usually a typo or a leftover after a refactoring.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `IGNORE_INCLUDES` | bool | `true` | When `true`, include/require statements in the function are disregarded (reports still happen). When `false`, a function containing any include/require is skipped entirely (the included file could define the variable). The EA fixture runs with `false`. |"
+  },
+  "IssetConstructsCanBeMerged": {
+    "summary": "`isset()` accepts several arguments and is true only when all of them are set.\nA chain such as `isset($p) \u0026\u0026 isset($q)` is therefore the same as\n`isset($p, $q)`, and `!isset($p) || !isset($q)` the same as `!isset($p, $q)`.\nMerging keeps conditions short.",
+    "fix": true
+  },
+  "JsonEncodingApiUsage": {
+    "summary": "`json_decode()` without its second argument silently returns `stdClass`\nobjects, which readers often confuse with arrays; and both `json_decode()` and\n`json_encode()` report failures only through `json_last_error()` unless the\n`JSON_THROW_ON_ERROR` flag (PHP 7.3+) is passed. This rule asks for an explicit\ndecoding target and for exception-based error handling.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| HARDEN_DECODING_RESULT_TYPE | bool | true | Enables kind T (D1). Also affects `\u003cassoc\u003e` in F2. |\n| DECODE_AS_ARRAY | bool | false | Fixes insert `true` (decode to arrays) instead of `false`. |\n| DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |\n| HARDEN_ERRORS_HANDLING | bool | true | Enables kind E (D2–D5). |\n\nUpstream fixture configurations: (a) T only — HARDEN_DECODING_RESULT_TYPE on,\nDECODE_AS_ARRAY on, HARDEN_ERRORS_HANDLING off, default PHP level;\n(b) E only — HARDEN_DECODING_RESULT_TYPE off, HARDEN_ERRORS_HANDLING on, PHP 7.3.",
+    "fix": true
+  },
+  "LongInheritanceChain": {
+    "summary": "Deep `extends` chains spread behaviour over many levels and make a class hard\nto understand. The rule counts the ancestors of a class and complains when the\nchain reaches a threshold, with carve-outs for exception hierarchies, test\ncases and well-known framework base classes.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `COMPLAIN_THRESHOLD` | int | 3 | Minimum ancestor count (inclusive) that triggers a report. |"
+  },
+  "LoopWhichDoesNotLoop": {
+    "summary": "A loop whose body always leaves on the first pass (its last statement is\n`break`, `return` or `throw` and nothing continues it), or whose body is\nempty, never actually iterates. It is either a bug or a disguised `if` /\n\"take first element\" idiom."
+  },
+  "MagicMethodsValidity": {
+    "summary": "PHP's magic methods (`__get`, `__toString`, `__clone`, …) have fixed contracts:\nstatic-ness, visibility, number of parameters, return value. Violations are\nfatal errors, silently ignored methods or subtle bugs. This rule validates\neach magic method declared in a class-like, flags `__`-prefixed methods that\nare not magic, and catches magic names typed with a single underscore.",
+    "fix": true
+  },
+  "MisorderedModifiers": {
+    "summary": "PSR-1/PSR-12 style expects method modifiers in a fixed order: `final` /\n`abstract` first, then the visibility, then `static`. Methods whose modifiers\nare written in another order are flagged and re-sorted.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|",
+    "fix": true
+  },
+  "MissUsingParentKeyword": {
+    "summary": "`parent::m()` is meant for calling the overridden implementation of the\ncurrent method. When it calls some *other* inherited method that nobody in the\nhierarchy overrides, it is equivalent to `$this-\u003em()` / `self::m()`, and using\n`parent::` there only misleads readers (and silently bypasses future\noverrides).",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|",
+    "fix": true
+  },
+  "MissingArrayInitialization": {
+    "summary": "Appending to a local array (`$list[] = …`) deep inside nested loops without\never initialising it means the variable is undefined (`null`) when nothing is\nappended, and its contents leak between outer iterations if it is meant to be\nreset. The array should be initialised explicitly at the right place."
+  },
+  "MissingIssetImplementation": {
+    "summary": "`isset($obj-\u003ename)` / `empty($obj-\u003ename)` on a property the class does not\ndeclare can only answer correctly if the class implements `__isset()`. When it\ndoes not (typically classes with `__get` only), the check is always\nfalse/empty, which is a silent logic bug."
+  },
+  "MissingOrEmptyGroupStatement": {
+    "summary": "Control structures should always use a braced block for their body. A body\nwritten as a bare statement is easy to break when a second line is added; a\nbraced block that contains nothing is usually leftover or unfinished code.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_EMPTY_BODY | bool | true | Enables D2 (empty braced bodies). D1 is always on. |",
+    "fix": true
+  },
+  "MkdirRaceCondition": {
+    "summary": "`mkdir()` fails when the directory already exists — including when another\nprocess created it a moment after our own `is_dir()` check. A failed\n`mkdir()` must therefore be followed by an `is_dir()` re-check before being\ntreated as an error, and its result must not be ignored.",
+    "fix": true
+  },
+  "MktimeUsage": {
+    "summary": "Two legacy `mktime()` / `gmmktime()` usages:\ncalling them without arguments just returns the current timestamp (and\nemits an `E_STRICT`/deprecation notice on PHP 5.x/7.x) — `time()` is the\nintended call; and the seventh `$is_dst` argument was deprecated in PHP 5.1\nand removed in PHP 7.0.",
+    "fix": true
+  },
+  "MockingMethodsCorrectness": {
+    "summary": "Two classes of PHPUnit mock-configuration mistakes inside tests:\npassing a stub *object* (`$this-\u003ereturnValue(...)`, `$this-\u003ereturnCallback(...)`)\nto `willReturn()` — which then returns the stub object itself instead of\nrunning it — and configuring (`-\u003emethod('name')`) a method that the mocked\nclass does not have, or that is `final` and therefore cannot be overridden by\nthe generated double.",
+    "fix": true
+  },
+  "MultiAssignmentUsage": {
+    "summary": "Two patterns where destructuring would be clearer:\n1. unpacking the `foreach` value variable with `list(...) = $value` as a\n   separate statement, when `foreach (... as list(...))` can do it directly\n   (PHP 5.5+);\n2. consecutive statements pulling numbered elements out of the same array\n   one at a time (`$a = $row[0]; $b = $row[1];`), which a single\n   `list(...) = $row` replaces."
+  },
+  "MultipleReturnStatements": {
+    "summary": "A method with many exit points is harder to follow than one with a single\nresult path. The rule counts `return` statements per method and reports it\nabove two configurable thresholds (a normal one and a severe one).",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `COMPLAIN_THRESHOLD` | int | 3 | Return count (inclusive) from which a warning is raised. |\n| `SCREAM_THRESHOLD` | int | 5 | Return count (inclusive) from which an error is raised instead. |"
+  },
+  "NestedAssignmentsUsage": {
+    "summary": "Chained assignments such as `$x = $y = 5` pack several writes into one\nexpression; they are easy to misread and a typo (`=` instead of `+`/`==`)\nsilently becomes another assignment. Separate statements are clearer.",
+    "fix": true
+  },
+  "NestedNotOperators": {
+    "summary": "Stacking logical-not operators (`!!$x`, `!!!$x`) is a cryptic way to write a\nboolean cast or a single negation. An even number of `!` is a `(bool)` cast, an\nodd number is one `!`.",
+    "fix": true
+  },
+  "NestedPositiveIfStatements": {
+    "summary": "An `if` that is the only statement inside another `if` (without alternative\nbranches) can be merged into its parent with `\u0026\u0026`; an `if` that is the only\nstatement inside an `else` block can become `else if`. Both remove a nesting\nlevel.",
+    "fix": true
+  },
+  "NestedTernaryOperator": {
+    "summary": "A ternary inside another ternary is hard to read and, without parentheses,\nits associativity is a classic PHP trap. Chains of short ternaries\n(`$a ?: $b ?: $c`) read naturally and are accepted."
+  },
+  "NonSecureParseStrUsage": {
+    "summary": "Called with a single argument, `parse_str()` / `mb_parse_str()` create\nvariables in the current scope from user-supplied query strings, which can\noverwrite existing variables. Always pass the result array as second\nargument."
+  },
+  "NonSecureUniqidUsage": {
+    "summary": "Without its `more_entropy` argument, `uniqid()` is based only on the current\ntime in microseconds and collides easily. Pass `true` as second argument,\nalso when `uniqid` is used as a callback.",
+    "fix": true
+  },
+  "NotOptimalIfConditions": {
+    "summary": "Looks at the conditions of `if`/`elseif` statements and flags four kinds of\nproblems: a cheap operand evaluated after an expensive one in an `\u0026\u0026`/`||`\nchain (short-circuiting would save work if swapped), `and`/`or` keyword\noperators (low precedence, error-prone), an equality comparison on a value\nthat the same `\u0026\u0026` chain also tests with `instanceof` (likely a logic bug),\nand an `instanceof` check made redundant by another `instanceof` on the same\nsubject against a related type.",
+    "options": "| Option | Type | Default | Effect |\n|--------|------|---------|--------|\n| REPORT_LITERAL_OPERATORS | bool | true | enables D2 |\n| REPORT_INSTANCE_OF_FLAWS | bool | true | enables D3 and D4 |\n| SUGGEST_OPTIMIZING_CONDITIONS | bool | true | enables D1 |\n\nUpstream tests set one option to `true` without disabling the others, so each\nfixture is effectively evaluated with all checks on."
+  },
+  "NotOptimalRegularExpressions": {
+    "summary": "A family of checks on PCRE patterns passed to the `preg_*` functions: broken\nor missing delimiters, invalid / pointless / missing modifiers, class\nspellings that have a shorter escape, redundant or backtracking-prone\nconstructs, and calls where a plain string function (`strpos`,\n`str_replace`, `trim`, `explode`, a `===` comparison) does the same job\nfaster. Only a few findings carry a fix (the plain-function replacements).",
+    "fix": true
+  },
+  "NullCoalescingOperatorCanBeUsed": {
+    "summary": "Ternaries and small `if` constructs that pick a value when it \"exists\"\n(`isset`, `!== null`, `array_key_exists`, truthiness of the owning object) and a\nfallback otherwise can be collapsed into a single `??` expression, which is\nshorter and easier to read.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_SIMPLIFYING_TERNARIES | bool | true | Enables Form A (ternaries). |\n| SUGGEST_SIMPLIFYING_IFS | bool | true | Enables Form B (`if` statements). |\n\nBoth upstream fixtures set only one option explicitly, but the other one keeps\nits default `true`, so both forms are active in both runs.",
+    "fix": true
+  },
+  "NullPointerException": {
+    "summary": "A value that may be `null` (nullable object parameter, nullable local\nvariable, call declared to return `?T`/`void`) is dereferenced — property or\nmethod access, array access, invocation, `clone`, or passed to a parameter\nthat rejects null — without a preceding null check. At runtime this is an\n\"call to a member function on null\"-style error.\n\nDisabled by default (experimental upstream)."
+  },
+  "ObGetCleanCanBeUsed": {
+    "summary": "Reading the output buffer with `ob_get_contents()` and then discarding it with\n`ob_end_clean()` in the next statement is exactly what the single built-in\n`ob_get_clean()` does. Merge the two calls.",
+    "fix": true
+  },
+  "OffsetOperations": {
+    "summary": "Offset access `$x[...]` only works on arrays, strings and objects that\nimplement offset handling. Using it on a boolean, number or a plain object is\na bug (or a sign of missing type annotations); using an index whose type the\ncontainer does not accept (an array as a key, an object as a key) is also\nflagged.\n\nDisabled by default."
+  },
+  "OneTimeUseVariables": {
+    "summary": "A local variable that is assigned in one statement and consumed exactly once in\nthe very next `return`, `throw` or destructuring statement adds a name without\nadding meaning. The value can be used directly at the consumption site.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `ALLOW_LONG_STATEMENTS` | bool | false | When false, assignments whose text exceeds 80 characters are left alone (a long expression may deserve a name). When true, length is ignored. |\n| `ANALYZE_RETURN_STATEMENTS` | bool | true | Inspect `return` consumers (D1). |\n| `ANALYZE_THROW_STATEMENTS` | bool | true | Inspect `throw` consumers (D2). |\n| `ANALYZE_ARRAY_DESTRUCTURING` | bool | true | Inspect `list()`/`[]` destructuring consumers (D3). |",
+    "fix": true
+  },
+  "OnlyWritesOnParameter": {
+    "summary": "A parameter, closure import or local variable that is only ever written to\n(elements appended, incremented, concatenated onto…) but never read is dead\nwork: the changes are lost when the function returns (by-value semantics).\nLikewise a closure `use` import that the closure body never touches, or an\ninline assignment whose target is never read afterwards, is unused.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `IGNORE_INCLUDES` | bool | `true` | When on, write-only findings are reported even if the scope contains `include`/`require` (which could read variables). When off, such scopes produce no W findings. U findings are unaffected. |"
+  },
+  "OpAssignShortSyntax": {
+    "summary": "`$total = $total + $step` repeats the target; the compound assignment\n`$total += $step` says the same thing more directly.",
+    "fix": true
+  },
+  "PackedHashtableOptimization": {
+    "summary": "Since PHP 7 an array whose keys are integers inserted in ascending order can\nbe stored in a compact \"packed\" layout. An array literal that lists integer\nkeys out of order, or spells integer keys as numeric strings, misses that\nlayout. Sorting the keys or writing them as integers lets the engine use it."
+  },
+  "ParameterDefaultValueIsNotNull": {
+    "summary": "Optional parameters that may be \"absent\" are best expressed with a `null`\ndefault (and a nullable type) rather than a sentinel such as `0`, `''` or\n`[]`. This opt-in style rule flags non-null defaults where `null` could be used."
+  },
+  "PassingByReferenceCorrectness": {
+    "summary": "A parameter declared by reference (`\u0026$p`) needs a variable-like argument.\nPassing the result of a call that does not return by reference, or a `new`\nexpression, makes PHP emit a notice (\"only variables should be passed by\nreference\") and the callee's writes are lost."
+  },
+  "PdoApiUsage": {
+    "summary": "Preparing a statement with `PDO::prepare()` and immediately running it with an\nargument-less `execute()` gains nothing from the prepare step: no parameters\nare bound. A single `PDO::query()` call does the same job.",
+    "fix": true
+  },
+  "PhpUnitDeprecations": {
+    "summary": "Flags PHPUnit assertion APIs deprecated in the configured PHPUnit version:\nthe optional trailing parameters of `assertEquals()` / `assertNotEquals()`\n(deprecated in 8.0 in favour of dedicated assertions) and the\n`assertFileNotExists()` / `assertDirectoryNotExists()` assertions (deprecated\nin 9.1 in favour of their `...DoesNotExist()` counterparts).",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `PHP_UNIT_VERSION` | enum (`PHPUNIT70` … `PHPUNIT95`, see ordering above) | `PHPUNIT80` | PHPUnit version targeted by the project. D1/D2 need ≥ `PHPUNIT80`; D3 needs ≥ `PHPUNIT91`. Unset → inferred from the indexed PHPUnit (see Divergences). |",
+    "fix": true
+  },
+  "PhpUnitTests": {
+    "summary": "A grab-bag of PHPUnit hygiene checks. On test method docblocks it validates the\ntargets of `@covers`, `@depends` and `@dataProvider`, flags a redundant `@test`\nand (optionally) unnamed datasets. On assertion and mock-builder calls it\npoints at generic assertions that have a dedicated, more expressive PHPUnit\ncounterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,\n`assertSame(1, count($l))` → `assertCount(1, $l)`, `-\u003ewill($this-\u003ereturnValue(…))`\n→ `-\u003ewillReturn(…)`, …) and rewrites them.\n\nThe rule has two independent halves:\n- **Part A** — docblock tags on methods (D1–D12).\n- **Part B** — method calls whose name starts with `assert`, or is `expects`\n  or `will` (D13–D30).\n\nNeither half checks that the class extends a PHPUnit test case: every method\nof every class-like and every matching method call is examined.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 D20 suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. D25 only runs below 9.0. D23 uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. D26/D27 use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Conformance passes it as `PhpUnitVersion.PHPUNIT75` style values; strip the prefix. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |\n| `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Enables D17. |\n| `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Enables D6. |\n| `PROMOTE_PHPUNIT_API` | bool | `true` | Enables D18–D28. |\n| `PROMOTE_MOCKING_ONCE` | bool | `true` | Enables D29. |\n| `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Enables D30. |",
+    "fix": true
+  },
+  "PotentialMalware": {
+    "summary": "Flags code shapes typical of injected web-shells and backdoors: `eval()` of\ndecoded or fetched payloads, small decoder functions, timestamp forging\nwith `touch()`, and enumeration of all defined functions."
+  },
+  "PowerOperatorCanBeUsed": {
+    "summary": "Since PHP 5.6 exponentiation has its own operator. `pow($a, $b)` can be\nwritten `$a ** $b`, which is shorter and avoids a function call.",
+    "fix": true
+  },
+  "PregQuoteUsage": {
+    "summary": "`preg_quote()` only escapes the pattern delimiter when it is given as the\nsecond argument. Called with a single argument, a `/` or `#` inside the quoted\ntext breaks the surrounding pattern."
+  },
+  "PreloadingUsageCorrectness": {
+    "summary": "In an opcache preload script, including files with `require`/`include`\nexecutes them, which can fail on unresolved dependencies (PHP bug #78918).\n`opcache_compile_file()` only compiles and caches the file, which is what a\npreload script usually wants.",
+    "fix": true
+  },
+  "PrintfScanfArguments": {
+    "summary": "The `printf`/`scanf` family takes as many value arguments as the format string\nhas conversions. A missing or extra argument silently produces wrong output\n(or an `ArgumentCountError` in PHP 8), and a stray `%` makes the format\ninvalid."
+  },
+  "ProperNullCoalescingOperatorUsage": {
+    "summary": "Two misuses of `??`: (a) `call() ?? null` — a call result never triggers an\nundefined-index/variable notice, so `?? null` does nothing; (b) a fallback\nwhose type has nothing in common with the left operand's type, which usually\nsignals a bug or a confusing API.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| ANALYZE_TYPES | bool | true | Enables Case B (type complementarity). |\n| ALLOW_OVERLAPPING_TYPES | bool | true | When true, any shared type makes operands complementary; when false, the right operand's types must cover all of the left operand's types. |\n\nUpstream fixtures run with `ANALYZE_TYPES` = true and\n`ALLOW_OVERLAPPING_TYPES` = false.",
+    "fix": true
+  },
+  "PropertyCanBeStatic": {
+    "summary": "A non-public instance property initialised with a sizeable array literal\n(several nested arrays or strings) is copied into every object. When such data\nis really per-class configuration it is cheaper as a static property — or, on\nPHP 5.6+, as a class constant."
+  },
+  "PropertyInitializationFlaws": {
+    "summary": "Property defaults and constructor assignments that do nothing: an explicit\n`= null` default (untyped properties are already `null`), a default that\nmerely repeats the inherited one, a default on a private property that the\nconstructor unconditionally overwrites, and a constructor assignment that\nwrites exactly the default value.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_DEFAULTS_FLAWS` | bool | `true` | Enables Check 1 (N, S) and pattern O of Check 2. |\n| `REPORT_INIT_FLAWS` | bool | `true` | Enables Check 2 (W, and O when the other option is on). |",
+    "fix": true
+  },
+  "RandomApiMigration": {
+    "summary": "The libc-based `rand()` family is weaker and slower than the Mersenne Twister\nfamily (`mt_*`), and since PHP 7.0 `random_int()` provides a CSPRNG integer.\nSuggest renaming legacy random calls to their modern counterpart.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `SUGGEST_USING_RANDOM_INT` | bool | `true` | When on and the level is 7.0+, `rand`/`mt_rand` with two arguments are pointed at `random_int`; when off, the classic table is used at every level. |",
+    "fix": true
+  },
+  "RealpathInStreamContext": {
+    "summary": "`realpath()` returns `false` for paths inside stream wrappers such as\n`phar://`, so code that works on disk breaks once packaged. Climbing\ndirectories with `realpath(__DIR__ . '/../')` or wrapping include paths in\n`realpath()` should use `dirname()` / the plain path instead.",
+    "fix": true
+  },
+  "RedundantElseClause": {
+    "summary": "When an `if` body always leaves the current flow (return, throw, break,\ncontinue, exit/die), the following `else`/`elseif` keyword is superfluous: its\ncode can simply follow the `if`. Removing it flattens nesting.",
+    "fix": true
+  },
+  "ReferencingObjects": {
+    "summary": "Since PHP 5, object handles are passed and assigned by value of the handle:\nthe callee already works on the same object. Taking objects by reference\n(`Foo \u0026$x` parameters, `$x = \u0026new Foo()`) is a PHP 4 leftover that only\nconfuses readers — unless the reference is really used to replace the\ncaller's variable.",
+    "fix": true
+  },
+  "ReturnTypeCanBeDeclared": {
+    "summary": "A method without a declared return type whose returned values (and `@return`\ndocumentation) all agree on one type — optionally nullable, or nothing at all\n(`void`) — can carry a native return type declaration. Declaring it lets the\nengine enforce the contract and documents it in the signature.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| LOOKUP_PHPDOC_RETURN_DECLARATIONS | bool | true | Lets `@return self` / `@return $this` turn a class-typed suggestion into `self` (compact step 1). |",
+    "fix": true
+  },
+  "SecurityAdvisories": {
+    "summary": "Works on a project's `composer.json` (not on PHP code). Two concerns:\ndevelopment-only packages (test frameworks, debuggers, static analysers…)\nlisted under `require` end up in production; and an application that pulls\nthird-party packages should also require the advisory \"firewall\" meta-package\nin `require-dev`, which blocks installing versions with known\nvulnerabilities.\n\nThroughout this spec:\n- **ADV** is the advisory meta-package: vendor `roave`, package\n  `security-advisories`; its full name is vendor, `/`, package.\n- **CHK** is the alternative checker package: vendor `sensiolabs`, package\n  `security-checker`.\n- **DEV** is the effective development-package list (option\n  `optionConfiguration`, see Options).",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_MISSING_ROAVE_ADVISORIES` | bool | false | Enables kinds A (missing advisory package, with fix) and L (advisory package not on `dev-latest`). |\n| `REPORT_MISPLACED_DEPENDENCIES` | bool | true | Enables kind M (development packages under `require`). |\n| `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for the owner skip (D2). |\n\nEffective DEV: upstream always merges the default list into whatever the\nuser configured (user entries ∪ defaults, deduplicated). Recommendation for\ncustos: DEV = defaults ∪ user entries. Entries may also be vendor prefixes\nending in `/` (only meaningful for the owner skip D2).\n\nConformance note: upstream test cases that do not add the defaults run with\nan *empty* DEV (the merge happens only when settings are loaded). With the\nupstream fixtures this makes no difference to the outcome, except that the\ntwo cases which explicitly add the defaults are the only ones where kind M\nor the owner skip can fire. Using the defaults always is safe.\n\nDefault list (vendor / package; the list entry is `vendor/package`, compared\ncase-insensitively — the entry is stored as `mikey179/vfsStream`):\n\n| Vendor | Package | | Vendor | Package |\n|---|---|---|---|---|\n| phpunit | phpunit | | phpspec | prophecy |\n| johnkary | phpunit-speedtrap | | phpspec | phpspec |\n| brianium | paratest | | humbug | humbug |\n| mybuilder | phpunit-accelerator | | infection | infection |\n| codedungeon | phpunit-result-printer | | mockery | mockery |\n| spatie | phpunit-watcher | | satooshi | php-coveralls |\n| symfony | phpunit-bridge | | mikey179 | vfsStream |\n| symfony | debug | | filp | whoops |\n| symfony | maker-bundle | | friendsofphp | php-cs-fixer |\n| zendframework | zend-test | | phpstan | phpstan |\n| zendframework | zend-debug | | vimeo | psalm |\n| yiisoft | yii2-gii | | jakub-onderka | php-parallel-lint |\n| yiisoft | yii2-debug | | squizlabs | php_codesniffer |\n| orchestra | testbench | | slevomat | coding-standard |\n| barryvdh | laravel-debugbar | | doctrine | coding-standard |\n| codeception | codeception | | phpcompatibility | php-compatibility |\n| behat | behat | | zendframework | zend-coding-standard |\n| yiisoft | yii2-coding-standards | | wp-coding-standards | wpcs |\n| phpmd | phpmd | | pdepend | pdepend |\n| sebastian | phpcpd | | povils | phpmnd |\n| phan | phan | | phpro | grumphp |\n| wimg | php-compatibility | | sstalle | php7cc |\n| phing | phing | | composer | composer |\n| roave | security-advisories | | kalessil | production-dependencies-guard |\n\n(48 entries.) ADV itself is in the list, so ADV under `require` is reported\nas kind M.",
+    "fix": true
+  },
+  "SelfClassReferencing": {
+    "summary": "Inside a class's own methods, refer to the class consistently: by default with\n`self` (and `__CLASS__` instead of `Name::class`), which survives renames; or,\nwhen `PREFER_CLASS_NAMES` is on, with the explicit class name instead of `self`\n/ `__CLASS__`.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| PREFER_CLASS_NAMES | bool | false | Switches the preferred style: false = use `self`/`__CLASS__`; true = use the explicit class name / `Name::class`. |",
+    "fix": true
+  },
+  "SenselessMethodDuplication": {
+    "summary": "A child class method whose body is a copy of the inherited method's body is\ndead weight: if the visibility is the same the override can simply be\ndeleted; if only the visibility differs, the override should delegate to\n`parent::` instead of duplicating the code.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `MAX_METHOD_SIZE` | int | `20` | Methods with more top-level statements than this are skipped. |",
+    "fix": true
+  },
+  "SenselessProxyMethod": {
+    "summary": "An override whose only statement forwards its parameters unchanged to the\nsame-named parent method — with the same signature, modifiers and\ndocumentation tags — adds nothing; inheritance already provides that\nbehaviour. Remove it.",
+    "fix": true
+  },
+  "SenselessTernaryOperator": {
+    "summary": "`$a === $b ? $a : $b` always evaluates to `$b`: when the two are identical it\ndoes not matter which one is returned. The same holds for `!==` with swapped\nbranches. Such ternaries only add branching; replace them with the operand\nthat is always the result.",
+    "fix": true
+  },
+  "ShortEchoTagCanBeUsed": {
+    "summary": "In templates, a PHP block that only outputs something — `\u003c?php echo $x ?\u003e` —\nreads better as the short echo tag `\u003c?= $x ?\u003e`.",
+    "fix": true
+  },
+  "ShortListSyntaxCanBeUsed": {
+    "summary": "From PHP 7.1 destructuring can use the short `[...]` form instead of\n`list(...)`, consistent with short array syntax.",
+    "fix": true
+  },
+  "ShortOpenTagUsage": {
+    "summary": "The short open tag `\u003c?` depends on the `short_open_tag` ini setting; code using\nit breaks (prints source code) where that setting is off. Use `\u003c?php`.",
+    "fix": true
+  },
+  "SimpleXmlLoadFileUsage": {
+    "summary": "`simplexml_load_file()` is affected by a long-standing PHP bug (#62577) where\nloading fails depending on the libxml entity-loader state. Reading the file\nyourself and passing its contents to `simplexml_load_string()` avoids it.",
+    "fix": true
+  },
+  "SlowArrayOperationsInLoop": {
+    "summary": "Two loop anti-patterns:\n- **Accumulating merges**: `$acc = array_merge($acc, $chunk)` inside a loop\n  copies the whole accumulator on every iteration (quadratic cost). Collect\n  the chunks and merge once after the loop.\n- **Length in a `for` condition**: `$i \u003c count($items)` re-evaluates the\n  length on every iteration. Compute it once in the initialiser.",
+    "fix": true
+  },
+  "StaticClosureCanBeUsed": {
+    "summary": "A closure (or arrow function) that never touches the object it was created in\ncan be declared `static`. That prevents an implicit `$this` binding, makes the\nscope explicit and avoids keeping the surrounding object alive.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_FOR_SHORT_FUNCTIONS | bool | true | When false, arrow functions are never reported. |",
+    "fix": true
+  },
+  "StaticInvocationViaThis": {
+    "summary": "Calling a static method through an object (`$this-\u003emake()` or `$obj-\u003emake()`)\nhides the fact that no instance is involved. Use `self::`/`ClassName::` so the\ncall reads as what it is.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| EXCEPT_PHPUNIT_ASSERTIONS | bool | true | Skip static methods declared in PHPUnit framework classes and Symfony's test assertion traits (E3). |\n| EXCEPT_ELOQUENT_MODELS | bool | true | Skip static methods declared in Laravel's Eloquent base model (E4). |",
+    "fix": true
+  },
+  "StaticLambdaBinding": {
+    "summary": "A `static` closure or arrow function has no bound object: using `$this` in it,\nor calling an instance method of the parent class through `parent::`, fails at\nruntime. Either drop `static` or stop relying on the object.",
+    "fix": true
+  },
+  "StrContainsCanBeUsed": {
+    "summary": "Comparing a `strpos()`/`mb_strpos()` result strictly against `false` is the\npre-PHP 8 idiom for \"does the string contain this substring\". PHP 8 has\n`str_contains()` for exactly that.",
+    "fix": true
+  },
+  "StrEndsWithCanBeUsed": {
+    "summary": "Cutting the tail off a string with `substr($h, -strlen($n))` and comparing it\nto `$n` is the pre-PHP 8 \"ends with\" idiom. PHP 8 has `str_ends_with()`,\nwhich is clearer and avoids building a temporary string.",
+    "fix": true
+  },
+  "StrStartsWithCanBeUsed": {
+    "summary": "`strpos($h, $n) === 0` is the pre-PHP 8 way to ask \"does `$h` begin with\n`$n`\". PHP 8 provides `str_starts_with()`, which says it directly and does not\nscan the whole haystack.",
+    "fix": true
+  },
+  "StrStrUsedAsStrPos": {
+    "summary": "`strstr()` / `stristr()` build and return a substring. When the result is only\nused as a yes/no answer (\"does the haystack contain the needle?\"), that copy is\nwasted work: a position search (`strpos()` / `stripos()`) compared strictly\nagainst `false` answers the same question without allocating.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| (none) | | | Operand order in the fix follows the global comparison style (`regular` default / `yoda`). |",
+    "fix": true
+  },
+  "StrTrUsageAsStrReplace": {
+    "summary": "`strtr($subject, $from, $to)` with single-character `$from` and `$to` is really\na plain character replacement; `str_replace($from, $to, $subject)` states that intent\nmore clearly.",
+    "fix": true
+  },
+  "StringCaseManipulation": {
+    "summary": "Lower- or upper-casing the haystack and/or needle only to make a substring\nsearch case-insensitive costs extra string copies; PHP already ships\ncase-insensitive variants of the position functions (`stripos`, `strripos`,\n`mb_stripos`, `mb_strripos`). Use them on the raw strings instead.",
+    "fix": true
+  },
+  "StringNormalization": {
+    "summary": "Two smells when chaining string normalisation calls:\n1. Changing the case of a string and *then* trimming / cutting it converts\n   characters that are thrown away right after; cut first, convert the case\n   of the (shorter) result.\n2. Wrapping a case conversion inside another case conversion is pointless\n   when the outer call overrides what the inner one did (or repeats it); the\n   inner call can be dropped.",
+    "fix": true
+  },
+  "StringsFirstCharactersCompare": {
+    "summary": "`strncmp()`/`strncasecmp()` with a literal prefix and a hard-coded length that\ndoes not match the literal's length compares too few (or too many)\ncharacters — usually a leftover after editing the literal.",
+    "fix": true
+  },
+  "StrlenInEmptyStringCheckContext": {
+    "summary": "Measuring a string's length only to know whether it is empty\n(`strlen($s) \u003e 0`, `!mb_strlen($s)`, `if (strlen($s))`) is indirect and\nslower than comparing with the empty string. Suggest an identity comparison\nwith `''` instead, casting to string when the value is not known to be a\nstring.",
+    "options": "| Option | Type | Default | Effect |\n|--------|------|---------|--------|\n| (none) | | | Operand order follows the global comparison style (`regular` default / `yoda`). |",
+    "fix": true
+  },
+  "StrtotimeUsage": {
+    "summary": "Two wasteful `strtotime()` idioms: parsing the literal `'now'` just to get the\ncurrent timestamp (`time()` does that directly), and passing `time()` as the\nbase timestamp, which is already the default.",
+    "fix": true
+  },
+  "SubStrShortHandUsage": {
+    "summary": "`substr()` / `mb_substr()` accept a negative length (\"stop N characters before\nthe end\") and treat a missing length as \"up to the end\". Computing the length\nas `strlen($s) - something` is therefore either replaceable by a negative\nconstant, or entirely unnecessary.",
+    "fix": true
+  },
+  "SubStrUsedAsArrayAccess": {
+    "summary": "Extracting a single character with `substr($str, $i, 1)` costs a function call;\nstring offset access (`$str[$i]`) reads the same byte directly. Negative\npositions are translated to `strlen($str) - n`.",
+    "fix": true
+  },
+  "SubStrUsedAsStrPos": {
+    "summary": "Checking a prefix by cutting it out with `substr($s, 0, …)` and comparing the\npiece is the long way of asking \"does `$s` start with this?\". The idiomatic\nform is a position search compared strictly against `0`\n(`strpos($s, $prefix) === 0`), or its case-insensitive variant when the cut\npiece was case-folded first.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| (none) | | | Operand order of the fix follows the global comparison style (`regular` default / `yoda`). |",
+    "fix": true
+  },
+  "SuspiciousAssignments": {
+    "summary": "Groups six independent checks for assignments that are most likely mistakes:\nwrites lost to a switch fall-through, compound operators that repeat their\ntarget (`$n += $n + 1`), parameters overwritten before ever being read,\n`=+`/`=-`/`=!` typos, values written twice in a row, and array destructuring\nof something that is not an array."
+  },
+  "SuspiciousBinaryOperation": {
+    "summary": "Flags binary operations that are almost certainly not what the author meant:\n`instanceof` against a trait, identical operands, `==` used as a statement,\n`\u003e=` typed instead of `=\u003e` in an array, a comparison placed inside a call's\nparentheses, negated comparisons on nullable values, `??` after a cast or\n`!`, concatenation with an array literal, hard-coded booleans in `\u0026\u0026`/`||`,\nand mixed `\u0026\u0026`/`||`/assignment precedence.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `VERIFY_CONSTANTS_IN_CONDITIONS` | bool | `true` | Enables D9. |\n| `VERIFY_UNCLEAR_OPERATIONS_PRIORITIES` | bool | `true` | Enables D10. |",
+    "fix": true
+  },
+  "SuspiciousFunctionCalls": {
+    "summary": "A string comparison function called with the same expression as both\noperands always yields \"equal\" — typically a copy-paste slip where one side\nshould have been a different variable."
+  },
+  "SuspiciousLoop": {
+    "summary": "Two loop mistakes: a `for` condition section with several comma-separated\nexpressions (only the last one decides whether the loop continues), and loop\nvariables that silently overwrite a parameter of the enclosing function or the\nvariable of an outer loop.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `VERIFY_VARIABLES_OVERRIDE` | bool | `true` | Enables the parameter and outer-loop clash checks (D2–D4). |"
+  },
+  "SuspiciousReturn": {
+    "summary": "A `return` inside a `finally` block discards whatever the `try` block was\ndoing on its way out: its own return value is replaced and any exception in\nflight is swallowed. When the `try` block itself returns or throws, this is\nalmost always a bug."
+  },
+  "SuspiciousSemicolon": {
+    "summary": "A lone `;` used as the body of an `if`/`elseif`/`else` or of a loop makes that\nbody empty; the block that follows then runs unconditionally (or only once,\nafter the loop). This is nearly always an accidental semicolon."
+  },
+  "SwitchContinuationInLoop": {
+    "summary": "PHP treats `switch` as a loop structure for `continue`, so a bare `continue`\ninside a `switch` only leaves the `switch` (like `break`) instead of starting\nthe next iteration of the surrounding loop. `continue 2` is what was meant.",
+    "fix": true
+  },
+  "TernaryOperatorSimplify": {
+    "summary": "A ternary whose branches are the literals `true` and `false` merely restates\nits condition. When the condition is a binary expression, the ternary can be\nreplaced by the condition itself, its negation, or a boolean cast.",
+    "fix": true
+  },
+  "ThrowRawException": {
+    "summary": "Throwing the base `\\Exception` class gives callers nothing specific to catch;\na more specific (SPL) exception class communicates intent better. Separately,\nthrowing a standard-shaped exception without any constructor argument loses\nthe diagnostic message.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_MISSING_ARGUMENTS | bool | true | Enables D3 (exceptions created without any argument). |",
+    "fix": true
+  },
+  "TraitsPropertiesConflicts": {
+    "summary": "When a class and one of its traits (or its parent class and one of its\ntraits) declare the same property, PHP only accepts it if both declarations\nare compatible, and even then the duplication is fragile. Point out these\noverlaps; when the two declarations are incompatible (PHP refuses to compose\nthe class), it is a real conflict."
+  },
+  "TypeUnsafeArraySearch": {
+    "summary": "`in_array()` and `array_search()` compare loosely unless their third argument\nis `true`, so `'1abc'`, `1`, `true` and `'1'` can all \"match\". Asking for the\nthird argument forces the author to decide whether loose matching is really\nwanted.",
+    "fix": true
+  },
+  "TypeUnsafeComparison": {
+    "summary": "Loose equality (`==`, `!=`, `\u003c\u003e`) silently juggles types (`'abc' == 0` was\ntrue before PHP 8, `'1e1' == '10'` is true). This rule asks for strict\ncomparison, offers a one-click switch when comparing against a non-numeric\nstring literal, and flags objects compared to strings that have no\n`__toString()`.",
+    "fix": true
+  },
+  "TypesCastingCanBeUsed": {
+    "summary": "Conversion helpers (`intval()`, `floatval()`, `strval()`, `boolval()`,\n`settype()`), a string made of a single interpolated expression (`\"$x\"`), and\nexplicit `-\u003e__toString()` calls all perform a plain type conversion. A cast\nexpresses the same thing directly and avoids a function call.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_INLINES | bool | true | Enables the single-interpolation string check (D8–D9). |\n| REPORT_TO_STRING_METHOD_CALLS | bool | false | Enables the `__toString()` call check (D10–D11). |\n\nThe upstream fixture enables both.",
+    "fix": true
+  },
+  "UnNecessaryDoubleQuotes": {
+    "summary": "A double-quoted string that contains no interpolation and no escape sequence\nbehaves exactly like a single-quoted one. Single quotes make it obvious that\nnothing is evaluated inside.",
+    "fix": true
+  },
+  "UnSafeIsSetOverArray": {
+    "summary": "`isset()` mixes two questions: \"does the key/variable exist\" and \"is it not\nnull\". This rule points out single-argument `isset()` calls where a more\nexplicit construct says what is meant: a plain `!== null` comparison for\nvariables and declared properties, `array_key_exists()` for array keys, and\nflags concatenated index expressions that should be computed beforehand.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_TO_USE_ARRAY_KEY_EXISTS | bool | false | Enables D10. |\n| SUGGEST_TO_USE_NULL_COMPARISON | bool | false | Enables D8 and its fix. |\n| REPORT_CONCATENATION_IN_INDEXES | bool | true | Enables D9. When off, such accesses go straight to D10. |\n\nAll upstream fixtures run with all three options **on** and regular comparison\nstyle.",
+    "fix": true
+  },
+  "UnknownInspection": {
+    "summary": "A `@noinspection` suppression naming an inspection that does not exist (typo,\nrenamed or removed rule) silently suppresses nothing. Point it out so it can be\ncorrected or deleted."
+  },
+  "UnnecessaryAssertion": {
+    "summary": "Some PHPUnit assertions verify something the language already guarantees:\nasserting `null`/emptiness on the result of a `void` function, or the class\nor type of a value returned by a function with a declared return type. Also,\n`-\u003eexpects($this-\u003eany())` on a mock asserts nothing and can be dropped.",
+    "fix": true
+  },
+  "UnnecessaryCasting": {
+    "summary": "A type cast whose operand already has exactly the target type, or a string cast\nused as an operand of concatenation (which converts to string anyway), is noise.\nDropping it simplifies the expression.",
+    "fix": true
+  },
+  "UnnecessaryFinalModifier": {
+    "summary": "`final` on a method is redundant when the class itself is `final` (nothing can\nextend it) or when the method is `private` (it cannot be overridden anyway,\nconstructors and other magic methods aside).",
+    "fix": true
+  },
+  "UnnecessaryIssetArguments": {
+    "summary": "`isset($m['a']['b'])` already implies that `$m` and `$m['a']` are set, so\nlisting those containers as extra `isset()` arguments next to the deeper\naccess is redundant. Drop them.",
+    "fix": true
+  },
+  "UnnecessarySemicolon": {
+    "summary": "Stray semicolons — empty statements and the terminator right before `?\u003e` in a\nshort echo tag — add nothing and are usually typos. Remove them.",
+    "fix": true
+  },
+  "UnnecessaryUseAlias": {
+    "summary": "An import alias identical to the last segment of the imported name\n(`use App\\Mail\\Sender as Sender;`) changes nothing. Drop the `as` clause.",
+    "fix": true
+  },
+  "UnqualifiedReference": {
+    "summary": "Inside a namespace, an unqualified call such as `strlen($s)` must be resolved\nat run time (namespace first, then global). Writing `\\strlen($s)` lets the\nPHP 7+ compiler bind it at compile time and, for a set of special functions,\nreplace the call by a dedicated opcode. The same holds for global constants\nand for function names passed as string callbacks.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_ALL_FUNCTIONS` | bool | false | Report every unqualified global function call (and every callback name), not only those in the opcode list. |\n| `REPORT_CONSTANTS` | bool | false | Also report unqualified references to global constants. |\n\nThe rule is disabled by default.",
+    "fix": true
+  },
+  "UnserializeExploits": {
+    "summary": "`unserialize()` on attacker-controlled data can instantiate arbitrary\nclasses (PHP object injection). Report calls whose input can be traced to\nrequest data or raw decoders, and — on PHP 7+ — calls that do not restrict\nthe allowed classes."
+  },
+  "UnsetConstructsCanBeMerged": {
+    "summary": "`unset()` accepts several arguments, so consecutive `unset(...)` statements can\nbe collapsed into one call.",
+    "fix": true
+  },
+  "UnsupportedEmptyListAssignments": {
+    "summary": "Since PHP 7.0 destructuring into a pattern that has no target at all\n(`list()`, `list(, )`, `[]`, `[, ]`) is a compile-time fatal error. In a\n`foreach` value position this is easy to miss."
+  },
+  "UnsupportedStringOffsetOperations": {
+    "summary": "Writing through a string offset as if it were a nested array\n(`$str[0][1] = …`) or appending to a string with `[]` (`$str[] = …`) is a\nfatal error since PHP 7.1. When the written-to value is known to be a string,\nsuch writes are bugs."
+  },
+  "UntrustedInclusion": {
+    "summary": "Including a file by a relative path makes PHP search `include_path` (and the\ncurrent working directory), so a different file than intended can be loaded.\nAnchor paths with `__DIR__` (or rely on autoloading)."
+  },
+  "UnusedConstructorDependencies": {
+    "summary": "A private property that is assigned in the constructor but never touched by\nany other method of the class (or its traits) is dead state — typically a\nleftover injected dependency. Point at the constructor assignments."
+  },
+  "UnusedGotoLabel": {
+    "summary": "A `goto` label that no `goto` statement targets is dead code; it only\nsuggests control flow that does not exist. Remove it.",
+    "fix": true
+  },
+  "UselessReturn": {
+    "summary": "Two pointless `return` forms: a bare `return;` as the very last statement of a\nfunction body (the function ends there anyway), and `return $local = expr;`\nwhere the assignment to a local variable can never be observed after the\nfunction has returned.",
+    "fix": true
+  },
+  "UselessUnset": {
+    "summary": "Calling `unset()` on a function parameter only destroys the function's local\nbinding: the caller's value (whether passed by value or by reference) is\nunaffected, and the local goes away at return anyway. Such an `unset()` is\nalmost always pointless."
+  },
+  "UsingInclusionOnceReturnValue": {
+    "summary": "`include_once`/`require_once` return the file's value only the first time;\nevery later evaluation returns `true`. Code that uses that value works once\nand then silently breaks. Use `include`/`require` when the result matters.",
+    "fix": true
+  },
+  "UsingInclusionReturnValue": {
+    "summary": "Using the value produced by `include`/`require` (a file that `return`s\nsomething) couples code to file layout and hides dependencies. Prefer explicit\nobjects or functions; inclusion should be a standalone statement."
+  },
+  "VariableFunctionsUsage": {
+    "summary": "`call_user_func()` / `forward_static_call()` with a callable that is known at\nthe call site can be written as a direct call (`$fn(...)`, `Cls::m(...)`,\n`$obj-\u003em(...)`), which is faster and analysable. Likewise\n`call_user_func_array()` / `forward_static_call_array()` with a literal\nargument array can pass the arguments inline.",
+    "fix": true
+  }
+}

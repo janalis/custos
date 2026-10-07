@@ -1,0 +1,9 @@
+{
+  "name": "bakery/oven",
+  <warning descr="Add the security advisories package (dev-latest) to require-dev.">"require"</warning>: {
+    "php": ">=8.1",
+    "guzzlehttp/guzzle": "^7.0",
+    <warning descr="Development package in require; move it to require-dev.">"Mockery/Mockery"</warning>: "^1.6"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "bakery/oven",
+  "require": {
+    "monolog/monolog": "^3.0",
+    <warning descr="Development package in require; move it to require-dev.">"phpunit/phpunit"</warning>: "^11"
+  }
+}

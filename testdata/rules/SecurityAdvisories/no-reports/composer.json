@@ -1,0 +1,5 @@
+{
+  "name": "bakery/oven",
+  "require": {"php": "^8.2", "ext-json": "*", "bakery/core": "1.*", "a": 1, "b": [], "c": null},
+  "require-dev": {"sensiolabs/security-checker": "^6.0"}
+}

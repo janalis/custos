@@ -1,0 +1,171 @@
+---
+id: CryptographicallySecureRandomness
+group: Security
+kind: syntax
+needs: []
+php: { min: "", max: "" }
+---
+
+# CryptographicallySecureRandomness
+
+## Summary
+`openssl_random_pseudo_bytes()` and `mcrypt_create_iv()` can silently fall
+back to weak sources or fail (returning `false`) and their strength depends on
+optional arguments. Point out missing strength arguments, unverified results
+and weak sources, and suggest `random_bytes()` on PHP 7+.
+
+## Detection
+Applies to plain function calls resolving to the global function
+`openssl_random_pseudo_bytes` (variant **O**) or `mcrypt_create_iv` (variant
+**M**) — names compare case-insensitively; a call resolving to a same-named
+namespaced function (declared in the current namespace, imported, or written
+qualified) is ignored —, with exactly **1 or
+2** arguments. Calls with 0 or 3+ arguments are ignored entirely.
+
+Let `L` be the configured PHP language level. Several findings may be
+produced for one call; checks are independent unless noted.
+
+- **D1 (modernise)** `L ≥ 7.0` → report the call (info).
+- **D2 (missing 2nd argument)** exactly one argument → report the call
+  (error); the meaning differs per variant: O — the strength flag
+  out-parameter is not captured; M — the entropy source is not given
+  explicitly.
+- **D3 (unchecked result)** only when `L < 7.4`:
+  - Let `P` be the parent of the call; if `P` is an error-suppression `@`
+    expression, use the parent of that instead (one level only; parentheses
+    are **not** skipped).
+  - The result counts as verified when `P` is an assignment expression
+    (`=`; compound assignments such as `.=` are believed to count too —
+    unverified, no fixture) whose target `T`
+    satisfies the *false-check* test (below) — or when the assignment has
+    no recognisable target.
+  - Otherwise (call not directly assigned: used as an argument, returned,
+    standalone, wrapped in parentheses before assignment…) or `T` is not
+    false-checked → report the call (error).
+- **D4 (weak mcrypt source)** variant M with two arguments: if the second
+  argument is a constant reference (any global constant, e.g.
+  `MCRYPT_DEV_URANDOM`, `MCRYPT_RAND`) whose name is not exactly
+  `MCRYPT_DEV_RANDOM` → report the **second argument** (error). Non-constant
+  second arguments (variables, numbers, expressions) are not reported.
+- **D5 (unchecked strength flag)** variant O with two arguments: if the
+  second argument's text is non-empty and it does **not** satisfy the
+  false-check test → report the **second argument** (error).
+
+### False-check test for an expression `S`
+1. Find the nearest enclosing function, method, closure or arrow function
+   of `S`. If there is none (top-level code) or it has no `{ }` body, `S`
+   is considered checked.
+2. Otherwise `S` is checked if anywhere inside that body (any position,
+   before or after, nested closures included) there is:
+   - a binary `===` or `!==` comparison where one operand is the constant
+     `false` (case-insensitive) and the other operand is *equivalent* to
+     `S`; or
+   - a logical-not `!X` whose direct operand `X` is equivalent to `S`
+     (`!($x)` with parentheses does not count).
+   Equivalence: two variables are equivalent when they have the same name;
+   other expressions are equivalent when structurally identical or when
+   their source texts are identical.
+   `== false`, `!= false`, `empty()`, `is_bool()`, `if ($x)` do not count.
+- **Name case.** Wherever this rule compares two expressions for
+  equivalence, the names PHP resolves case-insensitively — function and
+  method names, class names in calls, `new`, `instanceof` and `::`
+  accesses, and keywords — compare case-insensitively (`Cache::$map['k']`
+  matches `cache::$map['k']`, `$o->Name()` matches `$o->name()`); variable,
+  property and constant names stay case-sensitive.
+
+## Exceptions (no report)
+- **E1** 0 or 3+ arguments; other function names; method calls.
+- **E2** D3 is skipped from PHP 7.4 on.
+- **E3** D3: top-level code (no enclosing function) is always treated as
+  verified, so only D1/D2/D4/D5 can fire there.
+- **E4** D4: second argument `MCRYPT_DEV_RANDOM`, or not a constant.
+- **E5** D5: strength variable compared with `=== false`/`!== false` or
+  negated somewhere in the same function.
+
+## Report
+- Range:
+  - D1, D2, D3: the function **name identifier only** (e.g.
+    `openssl_random_pseudo_bytes`), not the argument list; a leading `\` is
+    not included. (Upstream fixtures all write a space before `(`; the
+    highlight never covers it.)
+  - D4, D5: the second argument as written.
+- Severity: D1 info (weak warning); D2–D5 error.
+- Messages:
+  - D1: `Use random_bytes() for cryptographically secure randomness.`
+  - D2 (O): `Pass a second argument to learn whether a strong algorithm was used.`
+  - D2 (M): `Pass the entropy source explicitly; its default differs between PHP versions.`
+  - D3: `The generated bytes may be false; check the result.`
+  - D4: `Prefer MCRYPT_DEV_RANDOM as the entropy source.`
+  - D5: `The strength flag may be false; check it.`
+
+## Fix
+None.
+
+## Options
+None.
+
+## PHP versions
+- D1 needs `L ≥ 7.0`; D3 needs `L < 7.4`. Upstream fixtures run at 5.6 (D1
+  off, D3 on) and 7.0 (D1 on, D3 on). The harness default level (used when a
+  case gives none) is below 7.0.
+
+## Examples
+
+```php
+<?php
+class Tokens
+{
+    public function salt()
+    {
+        $raw = <error descr="Pass a second argument to learn whether a strong algorithm was used.">openssl_random_pseudo_bytes</error>(16);
+        if (false === $raw) {
+            throw new RuntimeException('no entropy');
+        }
+        return $raw;
+    }
+
+    public function nonce()
+    {
+        $n = mcrypt_create_iv(24, <error descr="Prefer MCRYPT_DEV_RANDOM as the entropy source.">MCRYPT_RAND</error>);
+        return $n !== false ? $n : null;
+    }
+
+    public function pepper()
+    {
+        return <error descr="The generated bytes may be false; check the result.">openssl_random_pseudo_bytes</error>(8, <error descr="The strength flag may be false; check it.">$strong</error>);
+    }
+
+    public function seed()
+    {
+        $bytes = @openssl_random_pseudo_bytes(32, $good);
+        if (!$bytes || !$good) {
+            return null;
+        }
+        return $bytes;
+    }
+}
+```
+
+Same class analysed at PHP 7.0 additionally gets an info finding (D1) on the
+name of each of the four calls, e.g.
+`<weak_warning descr="Use random_bytes() for cryptographically secure randomness.">mcrypt_create_iv</weak_warning>`.
+
+## Divergences
+- **Function-name matching (custos diverges from upstream).** Upstream
+  matches the written last name segment case-sensitively without
+  resolution: `OpenSSL_Random_Pseudo_Bytes(16)` is missed and a namespace's
+  own `openssl_random_pseudo_bytes()` is reported. custos resolves the call
+  to the global function, in any case.
+- Upstream registers D1/D2/D3 on the whole call node but its fixtures show
+  the highlight on the name identifier only; follow the fixtures.
+- D3's "no recognisable target" branch also covers destructuring
+  (`[$a] = openssl_random_pseudo_bytes(4, $s);`) upstream (treated as
+  verified). Unverified; keep it.
+- The false-check test is position-insensitive and name-based (a check of a
+  same-named variable in an unrelated branch counts). Keep upstream
+  behaviour.
+- **Name case (custos diverges).** Upstream compares the expressions
+  textually, so operands that differ only in the case of a function, method
+  or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
+  are not recognised as equivalent. custos folds the case of those names
+  (Detection, "Name case").
