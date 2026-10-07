@@ -88,34 +88,19 @@ verify: lint test fixtures coverage cleanroom
 # - every statement of internal/rules is covered by own fixtures and the rule
 #   packages' tests;
 # - every statement of cmd/, internal/ and tools/ is covered by the whole test
-#   suite, except each command's one-line `func main() { os.Exit(run(...)) }`
-#   wrapper, listed below (file:line;
-#   an exemption matching no uncovered block fails, so it cannot go stale).
+#   suite. tools/covercheck exempts only the body of a one-statement
+#   `func main()` in package main (each command's os.Exit(run(...)) wrapper),
+#   found from the source, so nothing has to be listed or kept in sync.
 COVER_SKIP := TestEA|TestNoCrashOnCorpus|TestFixesKeepCodeParsable
-COVER_MAINS := \
-	custos/cmd/custos/main.go:55. \
-	custos/tools/cleanroom/main.go:25. \
-	custos/tools/extract/main.go:78. \
-	custos/tools/genexplain/main.go:34. \
-	custos/tools/genkinds/main.go:16. \
-	custos/tools/genstubs/main.go:29. \
-	custos/tools/rulesdoc/main.go:25. \
-	custos/tools/rulesref/main.go:25.
-COVER_CHECK = awk -v what="$(1)" -v allow="$(2)" 'BEGIN { na = split(allow, ex, " ") } \
-	NR>1 { n[$$1]=$$2; if ($$3>0) hit[$$1]=1 } \
-	END { for (k in n) { x = 0; for (i = 1; i <= na; i++) if (index(k, ex[i]) == 1) { x = 1; if (!hit[k]) used[i] = 1 } \
-		if (n[k]>0 && !hit[k] && !x) { print "uncovered: " k; m++ } } \
-	for (i = 1; i <= na; i++) if (!used[i]) { print "stale exemption: " ex[i]; m++ } \
-	if (m) { print m " problem(s) in " what; exit 1 } print "coverage: " what " 100%" }'
 coverage:
 	@mkdir -p .cache
 	go test ./internal/conformance ./internal/rules/... -skip '$(COVER_SKIP)' \
 		-coverpkg=./internal/rules/... -coverprofile=.cache/rules-cover.out >.cache/rules-cover.log 2>&1 \
 		|| { grep -E -B2 -A20 '^(--- FAIL|FAIL|panic:)' .cache/rules-cover.log; exit 1; }
-	@$(call COVER_CHECK,internal/rules,) .cache/rules-cover.out
+	@$(GO) run ./tools/covercheck -what internal/rules .cache/rules-cover.out
 	go test ./... -skip '$(COVER_SKIP)' -coverpkg=./cmd/...,./internal/...,./tools/... -coverprofile=.cache/all-cover.out >.cache/all-cover.log 2>&1 \
 		|| { grep -E -B2 -A20 '^(--- FAIL|FAIL|panic:)' .cache/all-cover.log; exit 1; }
-	@$(call COVER_CHECK,cmd/ internal/ and tools/,$(COVER_MAINS)) .cache/all-cover.out
+	@$(GO) run ./tools/covercheck -what "cmd/, internal/ and tools/" .cache/all-cover.out
 
 clean:
 	rm -rf bin dist
