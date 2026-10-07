@@ -40,6 +40,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `@phpstan-assert` / `@psalm-assert` (incl. `-if-true` / `-if-false`)
   narrowing.
 - Types for private untyped properties, inferred from the class's writes.
+- LSP: "Suppress <Rule> for this statement" code action; saving a file
+  re-checks the other open files.
 
 ### Fixed
 - False positives in ReturnTypeCanBeDeclared, UnnecessaryCasting,

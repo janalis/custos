@@ -106,8 +106,11 @@ custos analyse --fail-on=error                               # gate on errors on
 
 `custos lsp` speaks LSP over stdio: diagnostics as you type (push), quick-fixes
 (`quickfix`, lazily resolved when the client supports it), a
-`source.fixAll.custos` action and the commands `custos.fixFile` /
-`custos.fixRule`. Settings are read from `custos.json` at the workspace root;
+"Suppress <Rule> for this statement" action (inserts `// @custos-ignore
+<Rule>` above the statement; offered only when it silences exactly that
+finding, never at file level), a `source.fixAll.custos` action and the
+commands `custos.fixFile` / `custos.fixRule`. Saving a file updates the
+project index and re-checks the other open files. Settings are read from `custos.json` at the workspace root;
 editors may override them with `initializationOptions` (same JSON shape). Run
 it beside your main PHP language server.
 

@@ -623,6 +623,17 @@ split into `decode`/`must` so a corrupt embed panics through tested code.
   registers a `**/*.php` file watcher (dynamic registration) and updates the
   index on `workspace/didChangeWatchedFiles` (create/change/delete), then
   re-analyses open documents; saved buffers are re-indexed on `didSave`.
+- Suppress action (2026-10-07): for each finding in the requested range the
+  LSP offers "Suppress <Rule> for this statement", inserting
+  `// @custos-ignore <Rule>` (indented) above the innermost statement that
+  starts its own line. It is offered only after re-analysing the edited
+  buffer shows exactly that finding gone (a shared statement would silence
+  neighbours) and never before a file's first statement (that position
+  suppresses the rule file-wide); checked eagerly even with lazy resolve,
+  so clients never see an action that fails. Listed after the fixes.
+- `didSave` re-indexes the buffer and re-analyses every open document (a
+  saved declaration can change other files' findings); before, they
+  waited for their next edit.
 - No on-disk index cache (planned in the migration, declined 2026-10-07):
   a cold project index takes 0.37 s for a 7.6k-source project (incl. vendor)
   and 0.48 s for a 10k-source project; a cache would still stat/hash every

@@ -418,6 +418,8 @@ func TestProjectIndex(t *testing.T) {
 	cl.diagsFor(lib)
 	_ = cl.c.notify("textDocument/didSave", map[string]any{"textDocument": map[string]any{"uri": lib}})
 	_ = cl.c.notify("textDocument/didSave", map[string]any{"textDocument": map[string]any{"uri": "file:///tmp/not-open.php"}})
+	// the save alone re-analyses the other open documents
+	cl.diagsN(user, 0)
 	cl.change(user, 2, "<?php\nhelper();\n")
 	cl.diagsN(user, 0)
 	// non-PHP changes are ignored; an unreadable changed path leaves the index

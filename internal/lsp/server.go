@@ -138,7 +138,14 @@ func (s *Server) handle(m *message) (result any, rerr *rpcError) {
 			} `json:"textDocument"`
 		}
 		_ = json.Unmarshal(m.Params, &p)
-		s.reindexDoc(p.TextDocument.URI)
+		go func() {
+			defer s.guard("save", nil)
+			// The saved file's symbols may change what other open documents
+			// report (e.g. a method added or removed), so they are re-analysed.
+			if s.reindexDoc(p.TextDocument.URI) {
+				s.reanalyzeAll()
+			}
+		}()
 		return nil, nil
 	case "$/cancelRequest", "$/setTrace":
 		return nil, nil
@@ -417,7 +424,9 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 }
 
 // reindexDoc refreshes the saved document's symbols in the project index.
-func (s *Server) reindexDoc(uri string) {
+// reindexDoc refreshes the index entry of an open document from its buffer;
+// it reports whether the index changed.
+func (s *Server) reindexDoc(uri string) bool {
 	s.mu.Lock()
 	d, ok := s.docs[uri]
 	ix, cfg := s.index, s.cfg
@@ -428,11 +437,12 @@ func (s *Server) reindexDoc(uri string) {
 	}
 	s.mu.Unlock()
 	if !ok || ix == nil {
-		return
+		return false
 	}
 	fs := runner.ExtractSymbols(path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
 	ix.DropStaleInferred(fs)
 	ix.Add(fs)
+	return true
 }
 
 // ---- documents -----------------------------------------------------------------------
@@ -575,6 +585,8 @@ type actionData struct {
 	End     uint32 `json:"end,omitempty"`
 	Fix     int    `json:"fix,omitempty"`
 	All     bool   `json:"all,omitempty"`
+	// Suppress asks for a `// @custos-ignore <Rule>` comment instead of a fix.
+	Suppress bool `json:"suppress,omitempty"`
 }
 
 func (s *Server) codeActions(p codeActionParams) []codeAction {
@@ -609,11 +621,11 @@ func (s *Server) codeActions(p codeActionParams) []codeAction {
 			named[*d.Data] = true
 		}
 	}
+	var suppress []codeAction
 	for _, f := range findings {
-		if len(f.Fixes) == 0 {
-			continue
+		if len(f.Fixes) > 0 {
+			fixable++
 		}
-		fixable++
 		inRange := f.Span.End >= start && f.Span.Start <= end
 		if !want("quickfix") || (!inRange && !named[diagData{Rule: f.Rule, Start: f.Span.Start, End: f.Span.End}]) {
 			continue
@@ -627,7 +639,21 @@ func (s *Server) codeActions(p codeActionParams) []codeAction {
 			}
 			actions = append(actions, a)
 		}
+		data := actionData{URI: p.TextDocument.URI, Version: version, Rule: f.Rule, Start: f.Span.Start, End: f.Span.End, Suppress: true}
+		a := codeAction{Title: "Suppress " + f.Rule + " for this statement", Kind: "quickfix", Diagnostics: []diagnostic{diag}, Data: mustJSON(data)}
+		// Only offered when it works (a line to annotate, and re-analysis
+		// confirms just this finding goes away), even with lazy resolve.
+		edit := s.buildEdit(data)
+		if edit == nil {
+			continue
+		}
+		if !s.resolve {
+			a.Edit = edit
+		}
+		suppress = append(suppress, a)
 	}
+	// Fixes first, then the suppressions (less often wanted).
+	actions = append(actions, suppress...)
 	if fixable > 0 && want(kindFixAll) {
 		data := actionData{URI: p.TextDocument.URI, Version: version, All: true}
 		a := codeAction{Title: "custos: fix all problems in file", Kind: kindFixAll, Data: mustJSON(data)}
@@ -663,7 +689,13 @@ func (s *Server) buildEdit(data actionData) *workspaceEdit {
 	s.mu.Unlock()
 
 	var edits []analysis.TextEdit
-	if data.All {
+	if data.Suppress {
+		edit, ok := suppressEdit(e, path, text, findings, data, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+		if !ok {
+			return nil
+		}
+		edits = []analysis.TextEdit{edit}
+	} else if data.All {
 		res := fix.FixSource(e, path, text, fix.Options{Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}})
 		if res.Applied == 0 {
 			return nil
@@ -753,4 +785,35 @@ func uriToPath(uri string) string {
 		p = p[1:]
 	}
 	return filepath.FromSlash(p)
+}
+
+// suppressEdit builds the `// @custos-ignore` edit for one finding and checks
+// it by re-analysing the edited source: exactly that finding must go away
+// (a comment before a file's first statement would silence the rule in the
+// whole file, so such an edit is refused).
+func suppressEdit(e *analysis.Engine, path string, text []byte, findings []analysis.Finding, data actionData, opt syntax.Options) (analysis.TextEdit, bool) {
+	before := 0
+	found := false
+	for _, f := range findings {
+		if f.Rule == data.Rule {
+			before++
+			found = found || (f.Span.Start == data.Start && f.Span.End == data.End)
+		}
+	}
+	if !found {
+		return analysis.TextEdit{}, false
+	}
+	edit, ok := analysis.SuppressEdit(syntax.ParseBest(path, text, opt), data.Rule, syntax.Span{Start: data.Start, End: data.End})
+	if !ok {
+		return analysis.TextEdit{}, false
+	}
+	edited := make([]byte, 0, len(text)+len(edit.NewText))
+	edited = append(append(append(edited, text[:edit.Span.Start]...), edit.NewText...), text[edit.Span.Start:]...)
+	after := 0
+	for _, f := range e.Analyze(syntax.ParseBest(path, edited, opt)) {
+		if f.Rule == data.Rule {
+			after++
+		}
+	}
+	return edit, after == before-1
 }
