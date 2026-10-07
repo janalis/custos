@@ -12,6 +12,10 @@ existing `@noinspection XxxInspection` comments keep working. See `NOTICE`.
 
 ## Install
 
+Download the archive for your platform from the releases page (Linux, macOS
+and Windows, amd64/arm64; checksums in `SHA256SUMS`), extract `custos` and put
+it on your `PATH`. Or build from source (Go 1.27):
+
 ```sh
 make build          # → bin/custos
 ```
@@ -80,6 +84,12 @@ make stubs          # rebuild the embedded PHP stubs index
 Docs: `docs/usage.md` (CLI, configuration, CI, editors), `docs/rules-reference.md` (every rule, its options and defaults),
 `docs/migration.md` (plan & status), `docs/rules.md` (per-rule status),
 `docs/decisions.md`, `specs/` (one behavioural spec per rule).
+
+## Releasing
+
+Update `CHANGELOG.md`, then tag: `git tag vX.Y.Z && git push --tags`. The
+`release` workflow runs `make verify` and goreleaser (`.goreleaser.yaml`).
+Locally: `go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean`.
 
 ## License
 

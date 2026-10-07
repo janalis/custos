@@ -39,7 +39,7 @@ Last updated: 2026-10-07.
   `ctx.IsGlobalFunctionCall`, which now also honours same-named functions
   declared in the current namespace). 88 rules fixed, each with a
   "custos diverges" spec entry; no EA conformance case changed outcome.
-- **Commits:** custos has no commit yet (pending the owner's go-ahead).
+- **Commits** (owner-approved, 2026-10-07): custos initial import `ebd152f`.
 
 ## Conformance harness
 
