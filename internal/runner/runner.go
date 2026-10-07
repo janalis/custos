@@ -86,6 +86,12 @@ func matchesAny(base string, patterns []string) bool {
 // Run parses and analyses files with one worker per CPU. Results are
 // returned in input order.
 func Run(e *analysis.Engine, files []string, opt syntax.Options) []FileResult {
+	return RunSources(e, files, nil, opt)
+}
+
+// RunSources is Run with sources already read (srcs[i] for files[i]; a nil
+// or missing entry is read from disk), e.g. by BuildIndexKeep.
+func RunSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options) []FileResult {
 	results := make([]FileResult, len(files))
 	jobs := make(chan int)
 	var wg sync.WaitGroup
@@ -95,7 +101,11 @@ func Run(e *analysis.Engine, files []string, opt syntax.Options) []FileResult {
 		go func() {
 			defer wg.Done()
 			for i := range jobs {
-				results[i] = analyzeFile(e, files[i], opt)
+				var src []byte
+				if i < len(srcs) {
+					src = srcs[i]
+				}
+				results[i] = analyzeFile(e, files[i], src, opt)
 			}
 		}()
 	}
@@ -107,10 +117,12 @@ func Run(e *analysis.Engine, files []string, opt syntax.Options) []FileResult {
 	return results
 }
 
-func analyzeFile(e *analysis.Engine, path string, opt syntax.Options) FileResult {
-	src, err := ReadSource(path)
-	if err != nil {
-		return FileResult{Path: path, Err: err}
+func analyzeFile(e *analysis.Engine, path string, src []byte, opt syntax.Options) FileResult {
+	if src == nil {
+		var err error
+		if src, err = ReadSource(path); err != nil {
+			return FileResult{Path: path, Err: err}
+		}
 	}
 	f := syntax.ParseBest(path, src, opt)
 	return FileResult{Path: path, Src: src, Findings: e.Analyze(f), Errors: f.Errors}

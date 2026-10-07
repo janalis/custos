@@ -5,6 +5,7 @@
 package safeio
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -17,12 +18,21 @@ var ErrNotRegular = errors.New("not a regular file")
 // ReadPrefix returns at most max bytes of the regular file at path (the
 // whole file when it is smaller).
 func ReadPrefix(path string, max int64) ([]byte, error) {
-	f, err := open(path)
+	f, size, err := open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return io.ReadAll(io.LimitReader(f, max))
+	// Size the buffer from the opened file (one allocation for the common
+	// case); a file that grows meanwhile is still read up to max.
+	if size > max {
+		size = max
+	}
+	// bytes.Buffer.ReadFrom keeps MinRead bytes free before each read, so
+	// that much headroom avoids any reallocation for an unchanged file.
+	buf := bytes.NewBuffer(make([]byte, 0, size+bytes.MinRead))
+	_, err = buf.ReadFrom(io.LimitReader(f, max))
+	return buf.Bytes(), err
 }
 
 // ReadFile returns the content of the regular file at path, or an error
@@ -38,30 +48,7 @@ func ReadFile(path string, max int64) ([]byte, error) {
 	return b, nil
 }
 
-// beforeOpen, when set (tests only), runs between the Stat and the Open so
-// a test can swap the path the way a concurrent writer could.
-var beforeOpen func(path string)
-
-func open(path string) (*os.File, error) {
-	// Stat first: opening a FIFO would block until a writer appears.
-	st, err := os.Stat(path)
-	if err != nil {
-		return nil, err
-	}
-	if !st.Mode().IsRegular() {
-		return nil, &os.PathError{Op: "read", Path: path, Err: ErrNotRegular}
-	}
-	if beforeOpen != nil {
-		beforeOpen(path)
-	}
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	// Re-check on the opened file (the path may have been swapped).
-	if st, err := f.Stat(); err != nil || !st.Mode().IsRegular() {
-		f.Close()
-		return nil, &os.PathError{Op: "read", Path: path, Err: ErrNotRegular}
-	}
-	return f, nil
+// notRegular is the error for a path that is not a regular file.
+func notRegular(path string) error {
+	return &os.PathError{Op: "read", Path: path, Err: ErrNotRegular}
 }

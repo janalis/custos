@@ -30,8 +30,17 @@ func IndexSources(root string, files []string) []string {
 // so when a symbol is declared more than once (polyfills) the same
 // declaration wins on every run.
 func BuildIndex(files []string, opt syntax.Options) *index.Index {
+	ix, _ := BuildIndexKeep(files, 0, opt)
+	return ix
+}
+
+// BuildIndexKeep is BuildIndex that also returns the sources it read for the
+// first keep files (nil where unreadable), so a following Run over them does
+// not read them again (IndexSources lists the analysed files first).
+func BuildIndexKeep(files []string, keep int, opt syntax.Options) (*index.Index, [][]byte) {
 	ix := index.New(stubs.Index())
 	results := make([]*index.FileSymbols, len(files))
+	srcs := make([][]byte, keep)
 	jobs := make(chan int)
 	var wg sync.WaitGroup
 	for w := 0; w < runtime.GOMAXPROCS(0); w++ {
@@ -39,7 +48,11 @@ func BuildIndex(files []string, opt syntax.Options) *index.Index {
 		go func() {
 			defer wg.Done()
 			for i := range jobs {
-				results[i] = indexOne(files[i], opt)
+				var src []byte
+				results[i], src = indexOne(files[i], opt)
+				if i < keep {
+					srcs[i] = src
+				}
 			}
 		}()
 	}
@@ -58,7 +71,7 @@ func BuildIndex(files []string, opt syntax.Options) *index.Index {
 			ix.DropStaleInferred(fs)
 		}
 	}
-	return ix
+	return ix, srcs
 }
 
 // extract is ExtractSymbols; tests replace it to simulate a crash.
@@ -68,7 +81,7 @@ var extract = ExtractSymbols
 // unusual input) drops that file's symbols instead of taking down the CLI
 // or the language server; the file itself still gets an "internal" finding
 // when it is analysed.
-func indexOne(path string, opt syntax.Options) (fs *index.FileSymbols) {
+func indexOne(path string, opt syntax.Options) (fs *index.FileSymbols, src []byte) {
 	defer func() {
 		if recover() != nil {
 			fs = nil
@@ -76,9 +89,9 @@ func indexOne(path string, opt syntax.Options) (fs *index.FileSymbols) {
 	}()
 	src, err := ReadSource(path)
 	if err != nil {
-		return nil
+		return nil, nil
 	}
-	return extract(path, src, opt)
+	return extract(path, src, opt), src
 }
 
 // ExtractSymbols parses one file and returns its symbols, with the return

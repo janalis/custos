@@ -20,6 +20,7 @@ import (
 	"custos/internal/config"
 	"custos/internal/diff"
 	"custos/internal/fix"
+	"custos/internal/index"
 	"custos/internal/lsp"
 	"custos/internal/meta"
 	"custos/internal/phpver"
@@ -231,10 +232,15 @@ func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {
 		return 2, err
 	}
 	start := time.Now()
+	var srcs [][]byte
 	if s.engine.NeedsIndex() {
-		s.engine.SetIndex(runner.BuildIndex(runner.IndexSources(s.cfg.Root, s.files), s.parse))
+		// The index pass reads the analysed files first; keep those bytes
+		// so the analysis does not read every file a second time.
+		var ix *index.Index
+		ix, srcs = runner.BuildIndexKeep(runner.IndexSources(s.cfg.Root, s.files), len(s.files), s.parse)
+		s.engine.SetIndex(ix)
 	}
-	results := runner.Run(s.engine, s.files, s.parse)
+	results := runner.RunSources(s.engine, s.files, srcs, s.parse)
 	stop()
 	items := report.Items(results)
 	if *genBaseline != "" {

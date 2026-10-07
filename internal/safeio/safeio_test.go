@@ -52,35 +52,31 @@ func TestReadLimits(t *testing.T) {
 	}
 }
 
-// TestSwappedPath swaps the path between the Stat and the Open, as a
-// concurrent writer could: a vanished file fails the Open, a file replaced
-// by a directory fails the re-check on the opened descriptor.
-func TestSwappedPath(t *testing.T) {
-	defer func() { beforeOpen = nil }()
-	dir := t.TempDir()
-	p := filepath.Join(dir, "f")
-	write := func() {
-		if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	if _, err := ReadPrefix(filepath.Join(dir, "missing"), 10); !errors.Is(err, os.ErrNotExist) {
+func TestMissingFile(t *testing.T) {
+	if _, err := ReadPrefix(filepath.Join(t.TempDir(), "missing"), 10); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("missing: %v", err)
 	}
+}
 
-	write()
-	beforeOpen = func(path string) { os.Remove(path) }
-	if _, err := ReadFile(p, 10); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("vanished: %v", err)
+// A file larger than its buffer estimate (here: max exceeds the size) and a
+// file read exactly to its size both come back whole.
+func TestReadSizes(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "f")
+	data := make([]byte, 100000)
+	for i := range data {
+		data[i] = byte('a' + i%26)
 	}
-
-	write()
-	beforeOpen = func(path string) {
-		os.Remove(path)
-		os.Mkdir(path, 0o755)
+	if err := os.WriteFile(p, data, 0o644); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := ReadFile(p, 10); !errors.Is(err, ErrNotRegular) {
-		t.Fatalf("swapped for a directory: %v", err)
+	for _, max := range []int64{100000, 1 << 30, 99999} {
+		b, err := ReadPrefix(p, max)
+		want := data
+		if max < int64(len(data)) {
+			want = data[:max]
+		}
+		if err != nil || string(b) != string(want) {
+			t.Fatalf("max %d: %d bytes, %v", max, len(b), err)
+		}
 	}
 }

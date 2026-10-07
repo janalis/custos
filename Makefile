@@ -93,7 +93,7 @@ verify: lint test fixtures coverage cleanroom
 #   an exemption matching no uncovered block fails, so it cannot go stale).
 COVER_SKIP := TestEA|TestNoCrashOnCorpus|TestFixesKeepCodeParsable
 COVER_MAINS := \
-	custos/cmd/custos/main.go:54. \
+	custos/cmd/custos/main.go:55. \
 	custos/tools/cleanroom/main.go:25. \
 	custos/tools/extract/main.go:78. \
 	custos/tools/genexplain/main.go:34. \

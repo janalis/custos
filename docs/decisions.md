@@ -634,6 +634,15 @@ split into `decode`/`must` so a corrupt embed panics through tested code.
 - `didSave` re-indexes the buffer and re-analyses every open document (a
   saved declaration can change other files' findings); before, they
   waited for their next edit.
+- File reading (2026-10-08): profiles showed ~45% of CPU in `open`/`stat`
+  (kernel contention with one reader per core, every file read twice).
+  `safeio` opens with `O_NONBLOCK` and checks the descriptor (`fstat`)
+  instead of a path `stat` first (same FIFO/device protection, no
+  check-then-open window; Windows keeps stat-then-open), sizes its buffer
+  from the file; `analyse` reuses the bytes the index pass read
+  (`BuildIndexKeep` → `RunSources`); at most 6 files are read at once.
+  corpus A vendor `--all`: 0.78–0.93 s → 0.74–0.77 s, system CPU 2–4 s →
+  1.2 s; findings byte-identical.
 - No on-disk index cache (planned in the migration, declined 2026-10-07):
   a cold project index takes 0.37 s for a 7.6k-source project (incl. vendor)
   and 0.48 s for a 10k-source project; a cache would still stat/hash every
