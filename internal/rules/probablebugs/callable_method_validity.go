@@ -62,7 +62,7 @@ func (callableMethodValidity) Check(ctx *analysis.Context, n syntax.Node) {
 				return
 			}
 		}
-		recv, nameExpr := util.UnwrapParens(v.Items[0].Value), util.UnwrapParens(v.Items[1].Value)
+		recv, nameExpr := syntax.UnwrapParens(v.Items[0].Value), syntax.UnwrapParens(v.Items[1].Value)
 		lit, ok := nameExpr.(*syntax.Literal)
 		if !ok || lit.LitKind != syntax.LitString {
 			return

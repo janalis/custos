@@ -52,12 +52,12 @@ func (strTrUsageAsStrReplace) Check(ctx *analysis.Context, n syntax.Node) {
 // strtrSingleLiteral resolves e to a single string literal: e itself, or the
 // only string literal among its possible values (D3); nil otherwise.
 func strtrSingleLiteral(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
-	if isStringLiteral(e) {
+	if util.IsStringLiteral(e) {
 		return e
 	}
 	var lit syntax.Expr
 	for _, v := range util.PossibleValues(ctx.File, e) {
-		if !isStringLiteral(v) {
+		if !util.IsStringLiteral(v) {
 			continue
 		}
 		if lit != nil {
@@ -66,16 +66,6 @@ func strtrSingleLiteral(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 		lit = v
 	}
 	return lit
-}
-
-func isStringLiteral(e syntax.Expr) bool {
-	switch x := e.(type) {
-	case *syntax.Literal:
-		return x.LitKind == syntax.LitString
-	case *syntax.InterpolatedString:
-		return !x.Backtick
-	}
-	return false
 }
 
 // singleCharFrom implements D4 on the raw source of a string literal.

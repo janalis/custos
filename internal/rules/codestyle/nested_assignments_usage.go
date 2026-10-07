@@ -1,6 +1,7 @@
 package codestyle
 
 import (
+	"custos/internal/analysis/util"
 	"strings"
 
 	"custos/internal/analysis"
@@ -56,7 +57,7 @@ func (nestedAssignmentsUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		Title: "Split into separate assignments",
 		Edits: func() []analysis.TextEdit {
 			text := func(n syntax.Node) string { s := n.Span(); return string(src[s.Start:s.End]) }
-			indent := naIndent(src, span.Start)
+			indent := util.IndentBefore(src, span.Start)
 			last := text(targets[len(targets)-1])
 			value := text(e)
 			var b strings.Builder
@@ -93,17 +94,4 @@ func naSimpleValue(e syntax.Expr) bool {
 		return e.Op.Kind == syntax.TMinus && ok && l.LitKind != syntax.LitString
 	}
 	return false
-}
-
-// naIndent returns the horizontal whitespace between the start of the line
-// and off ("" when other code precedes off on its line).
-func naIndent(src []byte, off uint32) string {
-	i := int(off)
-	for i > 0 && (src[i-1] == ' ' || src[i-1] == '\t') {
-		i--
-	}
-	if i > 0 && src[i-1] != '\n' && src[i-1] != '\r' {
-		return ""
-	}
-	return string(src[i:off])
 }

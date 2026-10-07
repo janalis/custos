@@ -133,22 +133,13 @@ func putFunc(ctx *analysis.Context, e syntax.Expr, f string) ([]syntax.Expr, boo
 	return util.CallArgValues(call)
 }
 
-// putNumber reports whether e is an int/float literal, optionally negated.
-func putNumber(e syntax.Expr) bool {
-	if u, ok := e.(*syntax.Unary); ok && u.Op.Kind == syntax.TMinus {
-		e = u.Expr
-	}
-	l, ok := e.(*syntax.Literal)
-	return ok && (l.LitKind == syntax.LitInt || l.LitKind == syntax.LitFloat)
-}
-
 // D15
 func putInvertedBool(ctx *analysis.Context, c puCall, args []syntax.Expr) (putSuggestion, bool) {
 	m := c.Name
 	if !putIn(m, "assertTrue", "assertFalse") || len(args) < 1 {
 		return putSuggestion{}, false
 	}
-	u, ok := util.UnwrapParens(args[0]).(*syntax.Unary)
+	u, ok := syntax.UnwrapParens(args[0]).(*syntax.Unary)
 	if !ok || u.Op.Kind != syntax.TExclaim {
 		return putSuggestion{}, false
 	}
@@ -156,7 +147,7 @@ func putInvertedBool(ctx *analysis.Context, c puCall, args []syntax.Expr) (putSu
 	if m == "assertFalse" {
 		name = "assertNotFalse"
 	}
-	slots := []string{ctx.Text(util.UnwrapParens(u.Expr))}
+	slots := []string{ctx.Text(syntax.UnwrapParens(u.Expr))}
 	if len(args) == 2 {
 		slots = append(slots, ctx.Text(args[1]))
 	}
@@ -169,7 +160,7 @@ func putBoolOfComparison(ctx *analysis.Context, c puCall, args []syntax.Expr) (p
 	if !putIn(m, "assertTrue", "assertNotTrue", "assertFalse", "assertNotFalse") || len(args) < 1 {
 		return putSuggestion{}, false
 	}
-	b, ok := util.UnwrapParens(args[0]).(*syntax.Binary)
+	b, ok := syntax.UnwrapParens(args[0]).(*syntax.Binary)
 	if !ok {
 		return putSuggestion{}, false
 	}
@@ -511,7 +502,7 @@ func putRegexNumeric(ctx *analysis.Context, c puCall, args []syntax.Expr) (putSu
 	default:
 		return putSuggestion{}, false
 	}
-	if len(args) < 2 || !putNumber(args[0]) {
+	if len(args) < 2 || !util.IsNumberLiteral(args[0]) {
 		return putSuggestion{}, false
 	}
 	inner, ok := putFunc(ctx, args[1], "preg_match")
@@ -537,7 +528,7 @@ func putRegexComparison(ctx *analysis.Context, c puCall, args []syntax.Expr) (pu
 		return putSuggestion{}, false
 	}
 	b, ok := args[0].(*syntax.Binary)
-	if !ok || b.Op.Kind != syntax.TGreater || !putNumber(b.Right) || ctx.Text(b.Right) != "0" {
+	if !ok || b.Op.Kind != syntax.TGreater || !util.IsNumberLiteral(b.Right) || ctx.Text(b.Right) != "0" {
 		return putSuggestion{}, false
 	}
 	inner, ok := putFunc(ctx, b.Left, "preg_match")
@@ -550,7 +541,7 @@ func putRegexComparison(ctx *analysis.Context, c puCall, args []syntax.Expr) (pu
 // putEnclosingFuncName returns the name of the nearest enclosing function
 // or method ("" for closures and top-level code).
 func putEnclosingFuncName(n syntax.Node) string {
-	switch f := util.EnclosingFuncLike(n).(type) {
+	switch f := syntax.EnclosingFuncLike(n).(type) {
 	case *syntax.Function:
 		if f.Name != nil {
 			return f.Name.Value
@@ -617,7 +608,7 @@ func putExpectsOnce(ctx *analysis.Context, c puCall) {
 		return
 	}
 	iargs, ok := inner.args()
-	if !ok || len(iargs) != 1 || !putNumber(iargs[0]) || ctx.Text(iargs[0]) != "1" {
+	if !ok || len(iargs) != 1 || !util.IsNumberLiteral(iargs[0]) || ctx.Text(iargs[0]) != "1" {
 		return
 	}
 	ctx.ReportNode(inner.Node, "Use '->once()' instead.", putRenameFix(ctx, inner, "once", nil))

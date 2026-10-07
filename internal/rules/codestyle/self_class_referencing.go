@@ -1,6 +1,7 @@
 package codestyle
 
 import (
+	"custos/internal/analysis/util"
 	"strings"
 
 	"custos/internal/analysis"
@@ -92,7 +93,7 @@ func (c *selfRefCheck) ref(n *syntax.Name) {
 		return
 	}
 	v := n.Value
-	if !strings.EqualFold(v[strings.LastIndexByte(v, '\\')+1:], c.name) { // D1 (any case)
+	if !strings.EqualFold(util.LastNamePart(v), c.name) { // D1 (any case)
 		return
 	}
 	resolved := ctx.Names().Class(v, n.Span().Start)

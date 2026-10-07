@@ -110,34 +110,10 @@ func usedAsReference(body *syntax.Block, name string) bool {
 			found = true
 			return false
 		}
-		found = isLogicalOperand(v)
+		found = util.IsLogicalOperand(v)
 		return !found
 	})
 	return found
-}
-
-func isLogicalOperand(v syntax.Node) bool {
-	parent, child := util.ParentSkipParens(v)
-	switch p := parent.(type) {
-	case *syntax.If:
-		return p.Cond == child
-	case *syntax.ElseIf:
-		return p.Cond == child
-	case *syntax.While:
-		return p.Cond == child
-	case *syntax.DoWhile:
-		return p.Cond == child
-	case *syntax.Unary:
-		return p.Op.Kind == syntax.TExclaim
-	case *syntax.Binary:
-		switch p.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr:
-			return true
-		}
-	case *syntax.Ternary:
-		return p.Then != nil && p.Cond == child
-	}
-	return false
 }
 
 func (referencingObjects) checkNew(ctx *analysis.Context, nw *syntax.New) {

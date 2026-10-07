@@ -166,7 +166,7 @@ func (foreachInvariants) counterLoop(ctx *analysis.Context, l *syntax.For) {
 	if foreachInvWritten(ctx, l, isCounter, skip) {
 		return
 	}
-	lim := util.UnwrapParens(limit)
+	lim := syntax.UnwrapParens(limit)
 	var isLimit func(syntax.Expr) bool
 	if lv, ok := ruleSimpleVar(lim); ok {
 		isLimit = func(e syntax.Expr) bool {
@@ -251,7 +251,7 @@ func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, co
 				return false
 			}
 		}
-		if v, ok := ruleSimpleVar(ruleAsExpr(x)); ok && v.Name == counter.Name {
+		if v, ok := ruleSimpleVar(util.AsExpr(x)); ok && v.Name == counter.Name {
 			remains = true
 		}
 		return true
@@ -263,7 +263,7 @@ func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, co
 	header += valName + ") "
 	edits := []analysis.TextEdit{{Span: l.Span(), NewText: header + b.String()}}
 	// F1.4: limit cleanup.
-	if _, direct := util.UnwrapParens(limit).(*syntax.FuncCall); !direct {
+	if _, direct := syntax.UnwrapParens(limit).(*syntax.FuncCall); !direct {
 		if del, ok := limitAssignment(ctx, l, limit); ok {
 			edits = append(edits, analysis.TextEdit{Span: util.WithLeadingWhitespace(ctx.File, del.Span())})
 		}
@@ -271,27 +271,25 @@ func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, co
 	return edits
 }
 
-func ruleAsExpr(n syntax.Node) syntax.Expr {
-	e, _ := n.(syntax.Expr)
-	return e
-}
-
 // foreachInvLimitValues implements D8 for the limit X: a plain variable takes
 // only the assignments that reach the loop condition (its own init
-// assignment when present, which dominates the condition).
+// assignment when present, which dominates the condition). Not
+// util.PossibleValuesReaching: the loop's own init assignment wins,
+// assignment chains stop at a by-reference assignment and arrow functions
+// yield nothing (the spec's D8).
 func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Expr) []syntax.Expr {
 	v, ok := ruleSimpleVar(limit)
 	if !ok {
 		return util.PossibleValues(ctx.File, limit)
 	}
-	scope := util.EnclosingFuncLike(l)
-	body := util.FuncLikeBody(scope)
+	scope := syntax.EnclosingFuncLike(l)
+	body := syntax.FuncLikeBody(scope)
 	if scope == nil || body == nil || util.UnstableVariableIn(ctx.File, body, v.Name) {
 		return nil
 	}
 	innermost := func(e syntax.Expr) syntax.Expr {
 		for {
-			a, ok := util.UnwrapParens(e).(*syntax.Assign)
+			a, ok := syntax.UnwrapParens(e).(*syntax.Assign)
 			if !ok || a.Op.Kind != syntax.TEqual || a.ByRef {
 				return e
 			}
@@ -308,7 +306,7 @@ func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Ex
 	var out []syntax.Expr
 	defs, entry := util.ReachingAssignmentsIn(ctx.File, scope, v, v.Name)
 	if entry {
-		for _, p := range util.FuncLikeParams(scope) {
+		for _, p := range syntax.FuncLikeParams(scope) {
 			if p.Var != nil && p.Var.Name == v.Name && p.Default != nil {
 				out = append(out, util.PossibleValues(ctx.File, p.Default)...)
 			}
@@ -324,11 +322,11 @@ func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Ex
 // limit's only remaining occurrence in the enclosing function is its
 // assignment.
 func limitAssignment(ctx *analysis.Context, l *syntax.For, limit syntax.Expr) (syntax.Stmt, bool) {
-	fn := util.EnclosingFuncLike(l)
+	fn := syntax.EnclosingFuncLike(l)
 	if fn == nil {
 		return nil, false
 	}
-	fbody := util.FuncLikeBody(fn)
+	fbody := syntax.FuncLikeBody(fn)
 	if fbody == nil {
 		return nil, false
 	}
@@ -506,7 +504,7 @@ func foreachInvWritten(ctx *analysis.Context, l *syntax.For, match func(syntax.E
 	found := false
 	var targetHit func(e syntax.Expr) bool
 	targetHit = func(e syntax.Expr) bool {
-		switch t := util.UnwrapParens(e).(type) {
+		switch t := syntax.UnwrapParens(e).(type) {
 		case *syntax.List:
 			for _, it := range t.Items {
 				if it != nil && it.Value != nil && targetHit(it.Value) {
@@ -545,12 +543,12 @@ func foreachInvWritten(ctx *analysis.Context, l *syntax.For, match func(syntax.E
 			}
 			return false
 		case *syntax.Assign:
-			if targetHit(x.Var) || (x.ByRef && match(util.UnwrapParens(x.Value))) {
+			if targetHit(x.Var) || (x.ByRef && match(syntax.UnwrapParens(x.Value))) {
 				found = true
 				return false
 			}
 		case *syntax.IncDec:
-			if match(util.UnwrapParens(x.Var)) {
+			if match(syntax.UnwrapParens(x.Var)) {
 				found = true
 				return false
 			}
@@ -561,7 +559,7 @@ func foreachInvWritten(ctx *analysis.Context, l *syntax.For, match func(syntax.E
 			}
 		case *syntax.Unset:
 			for _, v := range x.Vars {
-				if match(util.UnwrapParens(v)) {
+				if match(syntax.UnwrapParens(v)) {
 					found = true
 					return false
 				}
@@ -585,7 +583,7 @@ func foreachInvWritten(ctx *analysis.Context, l *syntax.For, match func(syntax.E
 				if !ok {
 					continue
 				}
-				if !arg.Unpack && match(util.UnwrapParens(arg.Value)) && foreachInvByRefArg(ctx, arg, pos) {
+				if !arg.Unpack && match(syntax.UnwrapParens(arg.Value)) && foreachInvByRefArg(ctx, arg, pos) {
 					found = true
 					return false
 				}
@@ -677,7 +675,7 @@ func (foreachInvariants) eachLoop(ctx *analysis.Context, a *syntax.Assign) {
 				Edits: func() []analysis.TextEdit {
 					keyUsed := false
 					syntax.Inspect(blk, func(x syntax.Node) bool {
-						if v, ok := ruleSimpleVar(ruleAsExpr(x)); ok && v.Name == kv.Name {
+						if v, ok := ruleSimpleVar(util.AsExpr(x)); ok && v.Name == kv.Name {
 							keyUsed = true
 						}
 						return !keyUsed

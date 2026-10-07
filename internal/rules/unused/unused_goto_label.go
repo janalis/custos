@@ -20,11 +20,11 @@ func (unusedGotoLabel) Check(ctx *analysis.Context, n syntax.Node) {
 	if l.Name == nil || l.Span().Len() == 0 {
 		return
 	}
-	fn := util.EnclosingFuncLike(l) // D1
+	fn := syntax.EnclosingFuncLike(l) // D1
 	if fn == nil {
 		return
 	}
-	body := util.FuncLikeBody(fn) // D2
+	body := syntax.FuncLikeBody(fn) // D2
 	if body == nil {
 		return
 	}
@@ -53,7 +53,7 @@ func gotoTargets(ctx *analysis.Context, body *syntax.Block) map[string]bool {
 	syntax.Inspect(body, func(x syntax.Node) bool {
 		// A goto cannot leave its own function: nested function-likes and
 		// classes are separate scopes (custos diverges).
-		if _, ok := x.(*syntax.ClassLike); ok || (x != syntax.Node(body) && util.IsFuncLike(x)) {
+		if _, ok := x.(*syntax.ClassLike); ok || (x != syntax.Node(body) && syntax.IsFuncLike(x)) {
 			return false
 		}
 		if g, ok := x.(*syntax.Goto); ok && g.Label != nil {

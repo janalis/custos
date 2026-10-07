@@ -51,14 +51,14 @@ func (s *owpScope) report(span syntax.Span, msg string) {
 }
 
 func (onlyWritesOnParameter) Check(ctx *analysis.Context, n syntax.Node) {
-	body := util.FuncLikeBody(n)
+	body := syntax.FuncLikeBody(n)
 	if body == nil || n.Span().Len() == 0 { // E2
 		return
 	}
 	s := &owpScope{ctx: ctx, scope: n, body: body, reported: map[syntax.Span]bool{}, includes: -1}
 	excluded := map[string]bool{}
 	// Entry 1: parameters.
-	for _, p := range util.FuncLikeParams(n) {
+	for _, p := range syntax.FuncLikeParams(n) {
 		if p.Var == nil || p.Var.NameExpr != nil || p.Var.Name == "" {
 			continue
 		}
@@ -353,7 +353,7 @@ func (s *owpScope) dynamicReads() map[string]bool {
 			s.dynamic[c] = true
 			return
 		}
-		if arr, ok := util.UnwrapParens(e).(*syntax.Array); ok {
+		if arr, ok := syntax.UnwrapParens(e).(*syntax.Array); ok {
 			for _, it := range arr.Items {
 				if it != nil && it.Value != nil {
 					names(it.Value)

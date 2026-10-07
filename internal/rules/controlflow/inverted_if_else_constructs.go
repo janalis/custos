@@ -45,7 +45,7 @@ func (invertedIfElseConstructs) Check(ctx *analysis.Context, n syntax.Node) {
 		if c.Op.Kind != syntax.TExclaim {
 			return
 		}
-		x := util.UnwrapParens(c.Expr)
+		x := syntax.UnwrapParens(c.Expr)
 		if _, isEmpty := x.(*syntax.Empty); isEmpty || x == nil {
 			return
 		}
@@ -62,7 +62,7 @@ func (invertedIfElseConstructs) Check(ctx *analysis.Context, n syntax.Node) {
 		} else {
 			return
 		}
-		x := util.UnwrapParens(other)
+		x := syntax.UnwrapParens(other)
 		atoms := ctx.TypeOf(x).Atoms()
 		if len(atoms) != 1 {
 			return

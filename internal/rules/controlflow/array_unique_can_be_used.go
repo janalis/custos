@@ -31,7 +31,7 @@ func (arrayUniqueCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || len(args) != 1 {
 		return
 	}
-	outer := directArgOf(inner) // D3
+	outer := util.ParentFuncCall(inner) // D3
 	if outer == nil {
 		return
 	}
@@ -61,19 +61,4 @@ func (arrayUniqueCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 			return []analysis.TextEdit{{Span: span, NewText: fixed}}
 		},
 	})
-}
-
-// directArgOf returns the plain function call of which e is directly an
-// argument (no parentheses in between), or nil.
-func directArgOf(e syntax.Expr) *syntax.FuncCall {
-	arg, ok := e.Parent().(*syntax.Arg)
-	if !ok || arg.Value != e {
-		return nil
-	}
-	list, ok := arg.Parent().(*syntax.ArgList)
-	if !ok {
-		return nil
-	}
-	call, _ := list.Parent().(*syntax.FuncCall)
-	return call
 }

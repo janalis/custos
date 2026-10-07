@@ -150,7 +150,7 @@ func jsonStrictFlags(ctx *analysis.Context, f syntax.Expr) bool {
 	strict := false
 	syntax.Inspect(v, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.ConstFetch); ok && c.Name != nil {
-			switch util.LastSegment(c.Name.Value) {
+			switch util.LastNamePart(c.Name.Value) {
 			case "JSON_THROW_ON_ERROR", "JSON_PARTIAL_OUTPUT_ON_ERROR":
 				strict = true
 			}

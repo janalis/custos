@@ -3,6 +3,7 @@ package util
 import (
 	"strings"
 
+	"custos/internal/index"
 	"custos/internal/syntax"
 )
 
@@ -83,4 +84,39 @@ func BoolConst(e syntax.Node) (value, ok bool) {
 		return false, true
 	}
 	return false, false
+}
+
+// ArgBindsByRef reports whether an argument of list binds to a by-reference
+// parameter of params (positional, variadic tail or named). With
+// callTimeRef, a call-time `&$x` argument counts too.
+func ArgBindsByRef(list *syntax.ArgList, params []index.Param, callTimeRef bool) bool {
+	if list == nil {
+		return false
+	}
+	pos := 0
+	for _, a := range list.Args {
+		arg, ok := a.(*syntax.Arg)
+		if !ok {
+			continue
+		}
+		if callTimeRef && arg.ByRef {
+			return true
+		}
+		if arg.Name != nil {
+			for _, p := range params {
+				if p.ByRef && strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
+					return true
+				}
+			}
+			continue
+		}
+		if pos < len(params) && params[pos].ByRef {
+			return true
+		}
+		if n := len(params); pos >= n && n > 0 && params[n-1].Variadic && params[n-1].ByRef {
+			return true
+		}
+		pos++
+	}
+	return false
 }

@@ -107,7 +107,7 @@ the correct behaviour are in the rule spec's *Divergences* section.
 | ClassReImplementsParentInterface, CascadeStringReplacement | Fixes compute the combined result so single-pass "apply all" gives the same output as repeated fixing. |
 | NullPointerException | Commented out upstream; ported as experimental, disabled by default. |
 | PhpUnitTests | Regex assertion names follow the configured PHPUnit version (`assertMatchesRegularExpression` from 9.1). A stricter "only inside TestCase classes" check was tried and reverted: it would have skipped every upstream case, losing all regression coverage for a rare false positive. |
-| Test-file detection | Spec definition everywhere: path ends with `Test.php`, `Spec.php`, `.phpt` or contains `/Fixtures/` (case-sensitive) — `ctx.IsTestFile()` / `util.IsTestPath`; rules add their own test-class checks per spec. |
+| Test-file detection | Spec definition everywhere: path ends with `Test.php`, `Spec.php`, `.phpt` or contains `/Fixtures/` (case-sensitive) — `ctx.IsTestFile()` (`analysis.IsTestPath`); "test file or test class" is `util.InTestContext`, other test-class checks stay per spec. |
 | SecurityAdvisories | Runs on `composer.json`; the CLI discovers `composer.json` when the rule is enabled (`FilePatterns`). |
 
 ## Spec-level false positives (applied as divergences)
@@ -618,6 +618,48 @@ an editor), so hostile input must not crash or hang it.
     whole-file, now linear); CompactArguments indexes the first `$name`
     token of each scope once instead of rescanning per call (20k
     `compact()` calls: 9 s → 0.2 s).
+- **Helper consolidation (2026-10-07, Phase 8):** duplicated helpers merged,
+  behaviour unchanged — findings (default and `--all`, JSON incl. messages,
+  ranges, fixable) and `fix --all --dry-run --diff` output byte-identical
+  before/after on corpus A src/vendor, corpus B, corpus C and corpus D/vendor;
+  corpus A vendor timing unchanged. Merged:
+  - *Value discovery:* `PossibleValues`, `DiscoverValues`,
+    `PossibleValuesComplete` and DynamicCallsToScopeIntrospection's private
+    variant (now `util.PossibleValuesReaching`) share one traversal
+    (`valueWalk`: parentheses, ternaries, `??`, visited set, unknown flag)
+    and the local-variable, file-constant, class-by-short-name and
+    class-constant lookups; each variant only supplies its resolver.
+  - *AST navigation* moved to `syntax` so `infer` and `util` share it:
+    `UnwrapParens`, `IsFuncLike`, `EnclosingFuncLike`, `EnclosingClass`,
+    `FuncLikeParams`, `FuncLikeBody`, `IsNullConst` (replacing
+    `util.UnwrapParens`, `util.EnclosingFuncLike`, `infer.EnclosingClass`,
+    `infer.scopeOf`/`unparen`/`isNullConst`, the T-rules' `scopeParams` and
+    ~15 per-rule copies); `names.Resolver.DeclFQN`/`ParentFQN` replace
+    `util.ClassDeclFQN`/`ParentFQN` and back `Env.ClassFQN`/`ClassRef`.
+  - *Test context:* `analysis.IsTestPath` (behind `ctx.IsTestFile`) replaces
+    `util.IsTestPath`; `util.InTestContext` (test file, or the nearest enclosing
+    class-like is named and has a test-like FQN) replaces five per-rule
+    copies.
+  - *Per-rule copies of util helpers:* string/number literal checks
+    (`util.IsStringLiteral`, `IsNumberLiteral`, `QuotedStringValue`,
+    `QuotedStringContent`), `BoolConst`, `LastNamePart` (was also
+    `LastSegment`), `ParentFuncCall`, `CallLastName`, `ArgValues`,
+    `IndentBefore`, `IsSpace`, `AsExpr`, `IsStaticPropName`,
+    `MentionsVariable`, `IsLogicalOperand`, `ArgBindsByRef` (call-time `&`
+    as an option), `DocHasAnnotation`, `GlobalConstName`,
+    `ResolvesToGlobalFunction`, `Env.ClassRef`, `QualifiedBuiltin`.
+  Kept separate on purpose (comment at each site): the T-rules typer
+  (spec-defined partial typing, layered over `Env`; its `ParamTypes`
+  differs from `Env.paramType`); `infer.terminates` (shallower than
+  `syntax.Terminates`, narrowing depends on it); `infer.plainString`
+  (narrower than `util.StringLiteralValue` for shape keys); ForeachInvariants'
+  limit discovery (init assignment wins, by-ref chains); the test-class
+  checks of CryptographicallySecureAlgorithms and RealpathInStreamContext
+  (skip anonymous classes, different FQN source); IsNullFunctionUsage's
+  ASCII-only `true`/`false` match; InArrayMissUse's precedence check;
+  `IsFuncNamed`/`IsFuncNamedFold` (one implementation, two entry points);
+  the class-reference resolvers that differ (`puResolveClassName`,
+  `staticCallClass`, `semClassesOf`).
 
 ## Clean-room incidents
 

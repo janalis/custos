@@ -200,12 +200,12 @@ func saCompound(ctx *analysis.Context, a *syntax.Assign) {
 // ---- C. parameter overwritten before use ---------------------------------------------------
 
 func saParams(ctx *analysis.Context, fn syntax.Node) {
-	body := util.FuncLikeBody(fn)
-	params := util.FuncLikeParams(fn)
+	body := syntax.FuncLikeBody(fn)
+	params := syntax.FuncLikeParams(fn)
 	if body == nil || len(params) == 0 || len(body.Stmts) == 0 { // D7
 		return
 	}
-	if mkdirTestContext(ctx, fn) { // E6
+	if util.InTestContext(ctx, fn) { // E6
 		return
 	}
 	// D8 for every parameter in one walk (a walk per parameter was
@@ -259,7 +259,7 @@ func saParams(ctx *analysis.Context, fn syntax.Node) {
 func saFlowVars(n syntax.Node, fn func(*syntax.Variable)) {
 	switch x := n.(type) {
 	case *syntax.Variable:
-		if x.NameExpr == nil && x.Name != "" && !isStaticPropName(x) {
+		if x.NameExpr == nil && x.Name != "" && !util.IsStaticPropName(x) {
 			fn(x)
 		}
 		if x.NameExpr != nil {
@@ -326,7 +326,7 @@ func saOverwrite(ctx *analysis.Context, a *syntax.Assign) {
 		if d.Dim == nil {
 			return
 		}
-		switch k := util.UnwrapParens(d.Dim).(type) {
+		switch k := syntax.UnwrapParens(d.Dim).(type) {
 		case *syntax.Literal:
 		case *syntax.MagicConst:
 			return

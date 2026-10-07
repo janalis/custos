@@ -26,7 +26,7 @@ func (nestedNotOperators) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || inner.Expr == nil {
 		return
 	}
-	x := util.UnwrapParens(inner.Expr)
+	x := syntax.UnwrapParens(inner.Expr)
 	if _, ok := isNot(x); ok {
 		return // D1: only the innermost `!` starts a chain
 	}

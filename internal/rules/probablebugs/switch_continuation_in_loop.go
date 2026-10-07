@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -29,7 +28,7 @@ func (switchContinuationInLoop) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	switches := 0
 	for p := c.Parent(); p != nil; p = p.Parent() { // D2
-		if util.IsFuncLike(p) {
+		if syntax.IsFuncLike(p) {
 			return
 		}
 		switch p.(type) {

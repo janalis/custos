@@ -31,7 +31,7 @@ func (badExceptionsProcessing) Check(ctx *analysis.Context, n syntax.Node) {
 		if x.Var == nil || x.Var.NameExpr != nil || x.Var.Name == "" || x.Body == nil { // D3/E3
 			return
 		}
-		if mentionsVariable(x.Body, x.Var.Name) { // D4/E2
+		if util.MentionsVariable(x.Body, x.Var.Name) { // D4/E2
 			return
 		}
 		if usedAfterCatch(ctx, x) { // D4b/E2b
@@ -58,27 +58,11 @@ func countStmts(stmts []syntax.Stmt) int {
 	return c
 }
 
-// mentionsVariable reports whether a simple variable named name occurs
-// anywhere inside n.
-func mentionsVariable(n syntax.Node, name string) bool {
-	found := false
-	syntax.Inspect(n, func(x syntax.Node) bool {
-		if found {
-			return false
-		}
-		if v, ok := x.(*syntax.Variable); ok && v.NameExpr == nil && v.Name == name {
-			found = true
-		}
-		return !found
-	})
-	return found
-}
-
 // usedAfterCatch reports whether the caught variable occurs after the catch
 // clause in the enclosing scope, outside other catch clauses rebinding the
 // same name (D4b).
 func usedAfterCatch(ctx *analysis.Context, c *syntax.Catch) bool {
-	last := lastFreeAccesses(ctx, util.EnclosingFuncLike(c))[c.Var.Name]
+	last := lastFreeAccesses(ctx, syntax.EnclosingFuncLike(c))[c.Var.Name]
 	return last > 0 && last-1 >= c.Span().End
 }
 

@@ -53,7 +53,7 @@ func (r isEmptyFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if e.Span().Len() == 0 || e.Expr == nil {
 		return
 	}
-	s := util.UnwrapParens(e.Expr)
+	s := syntax.UnwrapParens(e.Expr)
 	if _, ok := s.(*syntax.ArrayDimFetch); ok { // D0
 		return
 	}

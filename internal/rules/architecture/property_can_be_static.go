@@ -29,7 +29,7 @@ func (propertyCanBeStatic) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	parent := ""
-	if p := util.ParentFQN(ctx.Names(), cl); p != "" {
+	if p := ctx.Names().ParentFQN(cl); p != "" {
 		if pc := ctx.Index().Class(p, ctx.PHP); pc != nil {
 			parent = pc.FQN
 		}
@@ -47,7 +47,7 @@ func (propertyCanBeStatic) Check(ctx *analysis.Context, n syntax.Node) {
 			if el == nil || el.Unpack || el.Value == nil {
 				continue
 			}
-			switch v := util.UnwrapParens(el.Value).(type) {
+			switch v := syntax.UnwrapParens(el.Value).(type) {
 			case *syntax.Array:
 				count++
 			case *syntax.InterpolatedString:

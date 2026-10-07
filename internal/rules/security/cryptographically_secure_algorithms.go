@@ -1,8 +1,6 @@
 package security
 
 import (
-	"strings"
-
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
 	"custos/internal/syntax"
@@ -53,31 +51,19 @@ func (cryptographicallySecureAlgorithms) Check(ctx *analysis.Context, n syntax.N
 	}
 	name := util.LastNamePart(c.Name.Value)
 	w, ok := weakAlgos[name]
-	if !ok || !cryptoNamesGlobal(ctx, c.Name) || isTestContext(ctx, n) {
+	if !ok || util.GlobalConstName(ctx, c) == "" || isTestContext(ctx, n) {
 		return
 	}
 	ctx.ReportNode(n, "Weak algorithm selected via "+name+" ("+w.family+"); prefer "+w.alternative+".")
 }
 
-// cryptoNamesGlobal reports whether the constant reference resolves to the
-// global constant of its last segment (D1): fully qualified, or unqualified
-// with PHP's global fallback (no `use const` import and no constant of that
-// name declared in the current namespace).
-func cryptoNamesGlobal(ctx *analysis.Context, nm *syntax.Name) bool {
-	fqn, fallback := ctx.Names().Const(nm.Value, nm.Span().Start)
-	if fallback != "" {
-		if ctx.Index().Constant(fqn, ctx.PHP) != nil {
-			return false
-		}
-		fqn = fallback
-	}
-	return !strings.Contains(fqn, `\`)
-}
-
-// isTestContext implements D2: a test file path (spec list, deliberately
-// narrower than ctx.IsTestFile) or a class whose FQN looks like a test class.
+// isTestContext implements D2: a test file path (ctx.IsTestFile) or a class
+// whose FQN looks like a test class.
+// Unlike util.InTestContext it skips anonymous classes (an anonymous class
+// inside a test class counts) and resolves the class name through the
+// file's imports; kept separate so the rule's output does not change.
 func isTestContext(ctx *analysis.Context, n syntax.Node) bool {
-	if util.IsTestPath(ctx.File.Path) {
+	if ctx.IsTestFile() {
 		return true
 	}
 	for p := n.Parent(); p != nil; p = p.Parent() {
@@ -85,9 +71,7 @@ func isTestContext(ctx *analysis.Context, n syntax.Node) bool {
 		if !ok || cl.Name == nil {
 			continue
 		}
-		fqn := ctx.Names().Class(cl.Name.Value, cl.Name.Span().Start)
-		fqn = `\` + fqn
-		return strings.HasSuffix(fqn, "Test") || strings.Contains(fqn, `\Tests\`) || strings.Contains(fqn, `\Test\`)
+		return util.IsTestClassFQN(ctx.Names().Class(cl.Name.Value, cl.Name.Span().Start))
 	}
 	return false
 }

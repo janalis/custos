@@ -41,14 +41,14 @@ func (nullPointerException) CheckFile(ctx *analysis.Context) {
 	syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
 		switch f := n.(type) {
 		case *syntax.Method:
-			if f.Body == nil || mkdirTestContext(ctx, f) {
+			if f.Body == nil || util.InTestContext(ctx, f) {
 				return true
 			}
 		case *syntax.Function, *syntax.Closure, *syntax.ArrowFunction:
 		default:
 			return true
 		}
-		u := &npeUnit{ctx: ctx, fn: n, body: util.FuncLikeBody(n), report: report}
+		u := &npeUnit{ctx: ctx, fn: n, body: syntax.FuncLikeBody(n), report: report}
 		u.strategyParams()
 		u.strategyChains()
 		u.strategyLocals()
@@ -81,11 +81,6 @@ func npeObjectOnly(t types.Type) bool {
 	return n > 0
 }
 
-func npeIsNullConst(e syntax.Expr) bool {
-	c, ok := e.(*syntax.ConstFetch)
-	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
-}
-
 func (u *npeUnit) declaredType(n syntax.Expr) types.Type {
 	if n == nil {
 		return types.Unknown
@@ -100,12 +95,12 @@ func (u *npeUnit) strategyParams() {
 	if u.body == nil { // D1
 		return
 	}
-	for _, p := range util.FuncLikeParams(u.fn) { // D2
+	for _, p := range syntax.FuncLikeParams(u.fn) { // D2
 		if p.Var == nil || p.Var.Name == "" || p.Type == nil {
 			continue
 		}
 		t := u.declaredType(p.Type)
-		if !t.Has("null") && !(p.Default != nil && npeIsNullConst(p.Default)) {
+		if !t.Has("null") && !(p.Default != nil && syntax.IsNullConst(p.Default)) {
 			continue
 		}
 		if !npeObjectOnly(t.Without("void")) || t.Has("void") {
@@ -196,7 +191,7 @@ func npeNullTested(call syntax.Expr) bool {
 			if other == call {
 				other = p.Right
 			}
-			return npeIsNullConst(other)
+			return syntax.IsNullConst(other)
 		case syntax.TBooleanAnd, syntax.TAnd:
 			return true
 		}
@@ -250,7 +245,7 @@ func (u *npeUnit) strategyLocals() {
 		return
 	}
 	params := map[string]bool{}
-	for _, p := range util.FuncLikeParams(u.fn) {
+	for _, p := range syntax.FuncLikeParams(u.fn) {
 		if p.Var != nil {
 			params[p.Var.Name] = true
 		}
@@ -327,7 +322,7 @@ func (u *npeUnit) nullableAssign(a *syntax.Assign, name string) bool {
 
 func npeVarsNamed(root syntax.Node, name string, strict bool, fn func(*syntax.Variable)) {
 	syntax.Inspect(root, func(n syntax.Node) bool {
-		if v, ok := n.(*syntax.Variable); ok && v.NameExpr == nil && v.Name == name && !isStaticPropName(v) {
+		if v, ok := n.(*syntax.Variable); ok && v.NameExpr == nil && v.Name == name && !util.IsStaticPropName(v) {
 			if !strict || n != root {
 				fn(v)
 			}
@@ -339,7 +334,7 @@ func npeVarsNamed(root syntax.Node, name string, strict bool, fn func(*syntax.Va
 func (u *npeUnit) usages(name string) []*syntax.Variable {
 	var out []*syntax.Variable
 	npeVarsNamed(u.body, name, false, func(v *syntax.Variable) {
-		if util.EnclosingFuncLike(v) != u.fn {
+		if syntax.EnclosingFuncLike(v) != u.fn {
 			return
 		}
 		if a, ok := v.Parent().(*syntax.Assign); ok {
@@ -436,7 +431,7 @@ func (u *npeUnit) evaluate(v *syntax.Variable, name string, decl *syntax.Assign)
 			if other == syntax.Expr(v) {
 				other = p.Right
 			}
-			return npeIsNullConst(other), false
+			return syntax.IsNullConst(other), false
 		}
 	case *syntax.Isset, *syntax.Empty: // U3
 		return true, false
@@ -456,7 +451,7 @@ func (u *npeUnit) evaluate(v *syntax.Variable, name string, decl *syntax.Assign)
 			nm = npeMemberName(c.Name)
 		case *syntax.FuncCall:
 			if n, ok := c.Name.(*syntax.Name); ok && u.ctx.IsGlobalFunctionCall(c, "is_null") &&
-				strings.EqualFold(n.Value[strings.LastIndexByte(n.Value, '\\')+1:], "is_null") {
+				strings.EqualFold(util.LastNamePart(n.Value), "is_null") {
 				return true, false
 			}
 		}
@@ -633,7 +628,7 @@ func (u *npeUnit) guardedByCondition(v *syntax.Variable, name string) bool {
 
 // implies reports whether e evaluating to want guarantees $name is not null.
 func (u *npeUnit) implies(e syntax.Expr, name string, want bool) bool {
-	e = util.UnwrapParens(e)
+	e = syntax.UnwrapParens(e)
 	if un, ok := e.(*syntax.Unary); ok && un.Op.Kind == syntax.TExclaim {
 		return u.implies(un.Expr, name, !want)
 	}
@@ -652,7 +647,7 @@ func (u *npeUnit) implies(e syntax.Expr, name string, want bool) bool {
 }
 
 func npeIsVar(e syntax.Expr, name string) bool {
-	v, ok := util.UnwrapParens(e).(*syntax.Variable)
+	v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
 	return ok && v.NameExpr == nil && v.Name == name
 }
 
@@ -660,7 +655,7 @@ func npeIsVar(e syntax.Expr, name string) bool {
 // chain (nullsafe or not) starting at $name; depth counts the accesses.
 func npeRootedAt(e syntax.Expr, name string) (ok bool, depth int) {
 	for {
-		e = util.UnwrapParens(e)
+		e = syntax.UnwrapParens(e)
 		switch x := e.(type) {
 		case *syntax.Variable:
 			return x.NameExpr == nil && x.Name == name, depth
@@ -703,12 +698,12 @@ func (u *npeUnit) impliesWhenTrue(e syntax.Expr, name string) bool {
 		return u.globalCallOn(x, "is_object", name)
 	case *syntax.Binary:
 		l, r := x.Left, x.Right
-		if npeIsNullConst(util.UnwrapParens(l)) {
+		if syntax.IsNullConst(syntax.UnwrapParens(l)) {
 			l, r = r, l
 		}
 		switch x.Op.Kind {
 		case syntax.TIsNotIdentical, syntax.TIsNotEqual:
-			if npeIsNullConst(util.UnwrapParens(r)) {
+			if syntax.IsNullConst(syntax.UnwrapParens(r)) {
 				ok, _ := npeRootedAt(l, name)
 				return ok
 			}
@@ -718,7 +713,7 @@ func (u *npeUnit) impliesWhenTrue(e syntax.Expr, name string) bool {
 			if ok, _ := npeRootedAt(r, name); ok {
 				l, r = r, l
 			}
-			if ok, _ := npeRootedAt(l, name); !ok || npeIsNullConst(util.UnwrapParens(r)) {
+			if ok, _ := npeRootedAt(l, name); !ok || syntax.IsNullConst(syntax.UnwrapParens(r)) {
 				return false
 			}
 			t := u.ctx.TypeOf(r)
@@ -744,10 +739,10 @@ func (u *npeUnit) impliesWhenFalse(e syntax.Expr, name string) bool {
 		switch x.Op.Kind {
 		case syntax.TIsIdentical, syntax.TIsEqual:
 			l, r := x.Left, x.Right
-			if npeIsNullConst(util.UnwrapParens(l)) {
+			if syntax.IsNullConst(syntax.UnwrapParens(l)) {
 				l, r = r, l
 			}
-			if npeIsNullConst(util.UnwrapParens(r)) {
+			if syntax.IsNullConst(syntax.UnwrapParens(r)) {
 				ok, _ := npeRootedAt(l, name)
 				return ok
 			}
@@ -773,35 +768,16 @@ func (u *npeUnit) assignedBetween(name string, from, to uint32) bool {
 		case *syntax.Assign:
 			if x.Span().Start >= from && x.Span().End <= to { // completed before v
 				syntax.Inspect(x.Var, func(t syntax.Node) bool {
-					if npeIsVar(npeAsExpr(t), name) {
+					if npeIsVar(util.AsExpr(t), name) {
 						found = true
 					}
 					return !found
 				})
 			}
 		case *syntax.Foreach:
-			if x.Span().Start >= from && (npeContainsVar(x.Key, name) || npeContainsVar(x.Value, name)) {
+			if x.Span().Start >= from && (util.MentionsVariable(x.Key, name) || util.MentionsVariable(x.Value, name)) {
 				found = true
 			}
-		}
-		return !found
-	})
-	return found
-}
-
-func npeAsExpr(n syntax.Node) syntax.Expr {
-	e, _ := n.(syntax.Expr)
-	return e
-}
-
-func npeContainsVar(e syntax.Expr, name string) bool {
-	if e == nil {
-		return false
-	}
-	found := false
-	syntax.Inspect(e, func(n syntax.Node) bool {
-		if npeIsVar(npeAsExpr(n), name) {
-			found = true
 		}
 		return !found
 	})

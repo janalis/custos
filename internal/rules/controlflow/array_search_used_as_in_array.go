@@ -33,7 +33,7 @@ func (arraySearchUsedAsInArray) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	name := call.Name.(*syntax.Name)
 	// D2
-	if isLogicalOperand(call) {
+	if util.IsLogicalOperand(call) {
 		span := call.Span()
 		ctx.Report(span, arraySearchMsg, analysis.Fix{
 			Title: "Use in_array()",
@@ -52,7 +52,7 @@ func (arraySearchUsedAsInArray) Check(ctx *analysis.Context, n syntax.Node) {
 	if bin.Right == syntax.Expr(call) {
 		other = bin.Left
 	}
-	val, ok := boolConstant(other)
+	val, ok := util.BoolConst(other)
 	if !ok {
 		return
 	}
@@ -75,29 +75,4 @@ func (arraySearchUsedAsInArray) Check(ctx *analysis.Context, n syntax.Node) {
 			return []analysis.TextEdit{{Span: span, NewText: b.String()}}
 		},
 	})
-}
-
-// isLogicalOperand implements D2.
-func isLogicalOperand(call *syntax.FuncCall) bool {
-	parent, child := util.ParentSkipParens(call)
-	switch p := parent.(type) {
-	case *syntax.If:
-		return p.Cond == child
-	case *syntax.ElseIf:
-		return p.Cond == child
-	case *syntax.While:
-		return p.Cond == child
-	case *syntax.DoWhile:
-		return p.Cond == child
-	case *syntax.Unary:
-		return p.Op.Kind == syntax.TExclaim
-	case *syntax.Binary:
-		switch p.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr:
-			return true
-		}
-	case *syntax.Ternary:
-		return p.Then != nil && p.Cond == child
-	}
-	return false
 }

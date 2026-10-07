@@ -2,7 +2,6 @@ package langmigration
 
 import (
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
 	"custos/internal/phpver"
 	"custos/internal/syntax"
 	"custos/internal/types"
@@ -97,7 +96,7 @@ func (unsupportedStringOffsetOperations) Check(ctx *analysis.Context, n syntax.N
 	} else {
 		return
 	}
-	if util.EnclosingFuncLike(target) == nil { // D5
+	if syntax.EnclosingFuncLike(target) == nil { // D5
 		return
 	}
 	if t := usoType(ctx, c); !t.Equal(types.String) { // D6

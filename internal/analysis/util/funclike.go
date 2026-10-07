@@ -6,56 +6,6 @@ import (
 	"custos/internal/syntax"
 )
 
-// IsFuncLike reports whether n is a function, method, closure or arrow
-// function.
-func IsFuncLike(n syntax.Node) bool {
-	switch n.(type) {
-	case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction:
-		return true
-	}
-	return false
-}
-
-// EnclosingFuncLike returns the nearest function, method, closure or arrow
-// function strictly enclosing n (nil in top-level code).
-func EnclosingFuncLike(n syntax.Node) syntax.Node {
-	for p := n.Parent(); p != nil; p = p.Parent() {
-		if IsFuncLike(p) {
-			return p
-		}
-	}
-	return nil
-}
-
-// FuncLikeBody returns the braced body of a function-like (nil for arrow
-// functions and abstract methods).
-func FuncLikeBody(n syntax.Node) *syntax.Block {
-	switch f := n.(type) {
-	case *syntax.Function:
-		return f.Body
-	case *syntax.Method:
-		return f.Body
-	case *syntax.Closure:
-		return f.Body
-	}
-	return nil
-}
-
-// FuncLikeParams returns the parameters of a function-like.
-func FuncLikeParams(n syntax.Node) []*syntax.Param {
-	switch f := n.(type) {
-	case *syntax.Function:
-		return f.Params
-	case *syntax.Method:
-		return f.Params
-	case *syntax.Closure:
-		return f.Params
-	case *syntax.ArrowFunction:
-		return f.Params
-	}
-	return nil
-}
-
 // Equivalent reports whether a and b are the same expression: same node
 // kind and, for two simple variables, the same name; otherwise the same
 // significant token sequence (whitespace and comments ignored).

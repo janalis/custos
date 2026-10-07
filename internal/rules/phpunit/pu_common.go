@@ -5,7 +5,6 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
-	"custos/internal/infer"
 	"custos/internal/syntax"
 )
 
@@ -86,9 +85,9 @@ func puMethodCallNamed(e syntax.Node, names ...string) (puCall, bool) {
 func puResolveClassName(ctx *analysis.Context, n *syntax.Name) string {
 	switch strings.ToLower(n.Value) {
 	case "self", "static":
-		return ctx.Types().ClassFQN(infer.EnclosingClass(n))
+		return ctx.Types().ClassFQN(syntax.EnclosingClass(n))
 	case "parent":
-		c := infer.EnclosingClass(n)
+		c := syntax.EnclosingClass(n)
 		if c == nil || len(c.Extends) == 0 || c.ClassKind == syntax.KindInterface {
 			return ""
 		}

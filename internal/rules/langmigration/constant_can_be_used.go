@@ -78,7 +78,7 @@ func (constantCanBeUsed) checkCall(ctx *analysis.Context, call *syntax.FuncCall)
 	if cf, ok := args[0].(*syntax.ConstFetch); !ok || util.GlobalConstName(ctx, cf) != "PHP_VERSION" {
 		return
 	}
-	ver, ok := quotedRaw(args[1])
+	ver, ok := util.QuotedStringContent(args[1])
 	if !ok {
 		return
 	}
@@ -86,7 +86,7 @@ func (constantCanBeUsed) checkCall(ctx *analysis.Context, call *syntax.FuncCall)
 	if !ok {
 		return
 	}
-	opRaw, ok := quotedRaw(args[2])
+	opRaw, ok := util.QuotedStringContent(args[2])
 	if !ok {
 		return
 	}
@@ -166,20 +166,6 @@ func versionID(s string) (string, bool) {
 	return out, true
 }
 
-// quotedRaw returns the raw contents (between the quotes, undecoded) of a
-// single- or double-quoted string literal.
-func quotedRaw(e syntax.Expr) (string, bool) {
-	lit, ok := e.(*syntax.Literal)
-	if !ok || lit.LitKind != syntax.LitString || len(lit.Raw) < 2 {
-		return "", false
-	}
-	q := lit.Raw[0]
-	if (q != '\'' && q != '"') || lit.Raw[len(lit.Raw)-1] != q {
-		return "", false
-	}
-	return lit.Raw[1 : len(lit.Raw)-1], true
-}
-
 var osSniffers = map[string]bool{
 	"strpos": true, "stripos": true, "mb_strpos": true, "mb_stripos": true,
 	"strncmp": true, "strncasecmp": true, "substr": true, "mb_substr": true,
@@ -193,7 +179,7 @@ func (constantCanBeUsed) checkOS(ctx *analysis.Context, c *syntax.ConstFetch) {
 	if ctx.PHP < phpver.PHP72 || util.GlobalConstName(ctx, c) != "PHP_OS" {
 		return
 	}
-	f := directArgOf(c) // D5
+	f := util.ParentFuncCall(c) // D5
 	if f == nil {
 		return
 	}
@@ -204,7 +190,7 @@ func (constantCanBeUsed) checkOS(ctx *analysis.Context, c *syntax.ConstFetch) {
 	isSubstr := fname == "substr" || fname == "mb_substr"
 	x := f // D6
 	if isSubstr {
-		if outer := directArgOf(f); outer != nil {
+		if outer := util.ParentFuncCall(f); outer != nil {
 			if caseFolders[ctx.GlobalFunctionName(outer)] {
 				x = outer
 			}
@@ -248,19 +234,4 @@ func isNumberOrFalse(e syntax.Expr) bool {
 		return strings.EqualFold(c.Name.Value, "false")
 	}
 	return false
-}
-
-// directArgOf returns the plain function call of which e is directly an
-// argument value, or nil.
-func directArgOf(e syntax.Node) *syntax.FuncCall {
-	arg, ok := e.Parent().(*syntax.Arg)
-	if !ok || arg.Value != e {
-		return nil
-	}
-	list, ok := arg.Parent().(*syntax.ArgList)
-	if !ok {
-		return nil
-	}
-	call, _ := list.Parent().(*syntax.FuncCall)
-	return call
 }

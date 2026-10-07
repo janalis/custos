@@ -81,13 +81,13 @@ func (magicMethodsValidity) Check(ctx *analysis.Context, n syntax.Node) {
 	if cl.ClassKind == syntax.KindInterface || m.Modifiers.Has(syntax.TAbstract) {
 		return
 	}
-	c := &magicCheck{ctx: ctx, m: m, cl: cl, fqn: util.ClassDeclFQN(ctx.Names(), cl), name: m.Name.Value}
+	c := &magicCheck{ctx: ctx, m: m, cl: cl, fqn: ctx.Names().DeclFQN(cl), name: m.Name.Value}
 	canonical := magicCanonical[strings.ToLower(c.name)]
 	switch canonical {
 	case "__construct": // D1
 		c.notStatic()
 		c.noReturn()
-		if !util.IsTestPath(ctx.File.Path) && !util.IsTestClassFQN(c.fqn) {
+		if !ctx.IsTestFile() && !util.IsTestClassFQN(c.fqn) {
 			c.callsParent()
 		}
 	case "__destruct", "__clone": // D2
@@ -223,7 +223,7 @@ func (c *magicCheck) returnsOf(fn func(r *syntax.Return, own bool)) {
 	}
 	syntax.Inspect(c.m.Body, func(n syntax.Node) bool {
 		if r, ok := n.(*syntax.Return); ok {
-			fn(r, util.EnclosingFuncLike(r) == syntax.Node(c.m))
+			fn(r, syntax.EnclosingFuncLike(r) == syntax.Node(c.m))
 		}
 		return true
 	})
@@ -246,7 +246,7 @@ func (c *magicCheck) pair(companion string) {
 	}
 	ix := c.ctx.Index()
 	var refs []string
-	if p := util.ParentFQN(c.ctx.Names(), c.cl); p != "" {
+	if p := c.ctx.Names().ParentFQN(c.cl); p != "" {
 		refs = append(refs, p)
 	}
 	for _, mem := range c.cl.Members {
@@ -279,7 +279,7 @@ func (c *magicCheck) callsParent() {
 	if c.hasOverride() {
 		return
 	}
-	parent := util.ParentFQN(c.ctx.Names(), c.cl)
+	parent := c.ctx.Names().ParentFQN(c.cl)
 	if parent == "" {
 		return
 	}
@@ -314,7 +314,7 @@ func (c *magicCheck) callsParent() {
 		return
 	}
 	declaring := strings.TrimPrefix(pm.Class, `\`)
-	declaring = declaring[strings.LastIndexByte(declaring, '\\')+1:]
+	declaring = util.LastNamePart(declaring)
 	c.report(c.name + " does not call " + declaring + "::" + c.name + "().")
 }
 
@@ -380,7 +380,7 @@ func (c *magicCheck) returns(allowed ...string) {
 			c.ctx.ReportNode(r, msg(nil))
 			return
 		}
-		t := c.ctx.TypeOf(util.UnwrapParens(r.Expr))
+		t := c.ctx.TypeOf(syntax.UnwrapParens(r.Expr))
 		if t.IsUnknown() || t.Has("mixed") { // mixed may well be the right type
 			return
 		}

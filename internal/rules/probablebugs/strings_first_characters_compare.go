@@ -38,12 +38,12 @@ func (stringsFirstCharactersCompare) Check(ctx *analysis.Context, n syntax.Node)
 		}
 		vals[i] = arg.Value
 	}
-	if !isIntLiteralArg(vals[2]) { // D3
+	if !util.IsNumberLiteral(vals[2]) { // D3
 		return
 	}
-	lit, ok := quotedStringValue(vals[1]) // D4
+	lit, ok := util.QuotedStringValue(vals[1]) // D4
 	if !ok {
-		if lit, ok = quotedStringValue(vals[0]); !ok {
+		if lit, ok = util.QuotedStringValue(vals[0]); !ok {
 			return
 		}
 	}
@@ -63,16 +63,6 @@ func (stringsFirstCharactersCompare) Check(ctx *analysis.Context, n syntax.Node)
 	})
 }
 
-// isIntLiteralArg reports whether e is a number literal or `-` applied
-// directly to one.
-func isIntLiteralArg(e syntax.Expr) bool {
-	if u, ok := e.(*syntax.Unary); ok && u.Op.Kind == syntax.TMinus {
-		e = u.Expr
-	}
-	l, ok := e.(*syntax.Literal)
-	return ok && (l.LitKind == syntax.LitInt || l.LitKind == syntax.LitFloat)
-}
-
 // parsePHPInt32 parses an integer literal as PHP reads it (decimal, octal,
 // hex, binary, `_` separators), optionally preceded directly by `-`, within
 // the signed 32-bit range.
@@ -89,14 +79,4 @@ func parsePHPInt32(s string) (int, bool) {
 		return 0, false
 	}
 	return int(v), true
-}
-
-// quotedStringValue decodes a single- or double-quoted, non-interpolated
-// string literal.
-func quotedStringValue(e syntax.Expr) (string, bool) {
-	l, ok := e.(*syntax.Literal)
-	if !ok || l.LitKind != syntax.LitString {
-		return "", false
-	}
-	return util.StringLiteralValue(l.Raw)
 }

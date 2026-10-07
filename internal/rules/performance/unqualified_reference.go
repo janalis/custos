@@ -134,7 +134,7 @@ func uqEligible(ctx *analysis.Context, name *syntax.Name, constant bool) bool {
 			if (constant && kind != syntax.UseConst) || (!constant && kind != syntax.UseFunction) || it.Name == nil {
 				continue
 			}
-			last := util.LastSegment(it.Name.Value) // the name the import binds: its alias when given
+			last := util.LastNamePart(it.Name.Value) // the name the import binds: its alias when given
 			if it.Alias != nil {
 				last = it.Alias.Value
 			}

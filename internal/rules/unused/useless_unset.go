@@ -21,8 +21,8 @@ func (uselessUnset) Kinds() []syntax.NodeKind {
 const uselessUnsetMsg = "Unsetting a parameter only drops the local variable; this unset() is pointless."
 
 func (uselessUnset) Check(ctx *analysis.Context, n syntax.Node) {
-	params := util.FuncLikeParams(n)
-	body := util.FuncLikeBody(n)
+	params := syntax.FuncLikeParams(n)
+	body := syntax.FuncLikeBody(n)
 	if len(params) == 0 || body == nil {
 		return
 	}

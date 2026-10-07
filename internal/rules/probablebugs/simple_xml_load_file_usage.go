@@ -28,7 +28,7 @@ func (simpleXmlLoadFileUsage) Kinds() []syntax.NodeKind {
 
 func (simpleXmlLoadFileUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
-	if !strings.EqualFold(writtenCallName(call), "simplexml_load_file") || call.Args == nil || len(call.Args.Args) == 0 { // D1, D2/E1
+	if !strings.EqualFold(util.CallLastName(call), "simplexml_load_file") || call.Args == nil || len(call.Args.Args) == 0 { // D1, D2/E1
 		return
 	}
 	if !util.ResolvesToGlobalFunction(ctx.Names(), ctx.Index(), ctx.PHP, call, "simplexml_load_file") { // D1
@@ -47,9 +47,9 @@ func (simpleXmlLoadFileUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		Title: "Use simplexml_load_string(file_get_contents(...))",
 		Edits: func() []analysis.TextEdit {
 			var b strings.Builder
-			b.WriteString(simpleXmlGlobalName(ctx, call, "simplexml_load_string"))
+			b.WriteString(util.QualifiedBuiltin(ctx, "simplexml_load_string", call.Span().Start))
 			b.WriteByte('(')
-			b.WriteString(simpleXmlGlobalName(ctx, call, "file_get_contents"))
+			b.WriteString(util.QualifiedBuiltin(ctx, "file_get_contents", call.Span().Start))
 			b.WriteByte('(')
 			b.WriteString(ctx.Text(args[0]))
 			b.WriteByte(')')
@@ -61,20 +61,4 @@ func (simpleXmlLoadFileUsage) Check(ctx *analysis.Context, n syntax.Node) {
 			return []analysis.TextEdit{{Span: call.Span(), NewText: b.String()}}
 		},
 	})
-}
-
-// writtenCallName returns the last segment of a plain function call's name as
-// written (case preserved), or "" for dynamic calls.
-func writtenCallName(call *syntax.FuncCall) string {
-	name, ok := call.Name.(*syntax.Name)
-	if !ok {
-		return ""
-	}
-	return name.Value[strings.LastIndexByte(name.Value, '\\')+1:]
-}
-
-// simpleXmlGlobalName returns fn unqualified when a bare call at the position
-// of call reaches the global function, `\fn` otherwise (F1).
-func simpleXmlGlobalName(ctx *analysis.Context, call *syntax.FuncCall, fn string) string {
-	return util.QualifiedBuiltin(ctx, fn, call.Span().Start)
 }

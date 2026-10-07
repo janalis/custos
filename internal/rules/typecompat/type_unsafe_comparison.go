@@ -55,13 +55,7 @@ func (typeUnsafeComparison) Check(ctx *analysis.Context, n syntax.Node) {
 		content, isLit = tucStringContent(ctx, lit)
 	}
 	if isLit {
-		for {
-			p, ok := other.(*syntax.Paren)
-			if !ok || p.Expr == nil {
-				break
-			}
-			other = p.Expr
-		}
+		other = syntax.UnwrapParens(other)
 		if cls, objectOnly := tucObjectWithoutToString(ctx, other); objectOnly { // D2
 			// A nullable object compared with '' is a null test
 			// (null == '' holds), not a string comparison.

@@ -2,7 +2,6 @@ package probablebugs
 
 import (
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -25,7 +24,7 @@ func (suspiciousReturn) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	for p := n.Parent(); p != nil; p = p.Parent() { // D2
-		if util.IsFuncLike(p) {
+		if syntax.IsFuncLike(p) {
 			return
 		}
 		fin, ok := p.(*syntax.Finally)
@@ -52,7 +51,7 @@ func containsReturnOrThrow(n syntax.Node) bool {
 		if found {
 			return false
 		}
-		if util.IsFuncLike(c) {
+		if syntax.IsFuncLike(c) {
 			return false
 		}
 		switch c.(type) {

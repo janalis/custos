@@ -69,7 +69,7 @@ func strlenTarget(ctx *analysis.Context, call *syntax.FuncCall) (syntax.Node, bo
 		if !left {
 			other = b.Left
 		}
-		if strlenIsNumber(other) {
+		if util.IsNumberLiteral(other) {
 			num := ctx.Text(other)
 			switch {
 			case b.Op.Kind == syntax.TGreater && left && num == "0": // D3
@@ -114,12 +114,4 @@ func strlenTarget(ctx *analysis.Context, call *syntax.FuncCall) (syntax.Node, bo
 		return u, true, true
 	}
 	return call, false, true
-}
-
-func strlenIsNumber(e syntax.Expr) bool {
-	if u, ok := e.(*syntax.Unary); ok && u.Op.Kind == syntax.TMinus {
-		e = u.Expr
-	}
-	l, ok := e.(*syntax.Literal)
-	return ok && (l.LitKind == syntax.LitInt || l.LitKind == syntax.LitFloat)
 }

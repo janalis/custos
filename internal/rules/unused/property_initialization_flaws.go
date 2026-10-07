@@ -44,12 +44,6 @@ func (propertyInitializationFlaws) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 }
 
-// pifIsNull reports whether e is the constant null.
-func pifIsNull(e syntax.Expr) bool {
-	c, ok := e.(*syntax.ConstFetch)
-	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
-}
-
 // pifNullableTyped implements E1.
 func pifNullableTyped(ctx *analysis.Context, typ syntax.Expr) bool {
 	if typ == nil || ctx.PHP < phpver.PHP74 {
@@ -92,7 +86,7 @@ func pifDefaults(ctx *analysis.Context, prop *syntax.Property) {
 	}
 	parent := ""
 	if cl.ClassKind == syntax.KindClass {
-		if pc := ctx.Index().Class(util.ParentFQN(ctx.Names(), cl), ctx.PHP); pc != nil {
+		if pc := ctx.Index().Class(ctx.Names().ParentFQN(cl), ctx.PHP); pc != nil {
 			parent = pc.FQN
 		}
 	}
@@ -101,7 +95,7 @@ func pifDefaults(ctx *analysis.Context, prop *syntax.Property) {
 		if d == nil || item.Var == nil || d.Span().Len() == 0 {
 			continue
 		}
-		if pifIsNull(d) { // D1
+		if syntax.IsNullConst(d) { // D1
 			if !pifNullableTyped(ctx, prop.Type) {
 				ctx.Report(d.Span(), pifMsgNull, pifRemoveDefault(item))
 			}
@@ -267,10 +261,10 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 			continue
 		}
 		d := c.item.Default
-		if d != nil && pifIsNull(d) {
+		if d != nil && syntax.IsNullConst(d) {
 			d = nil
 		}
-		if (d == nil && pifIsNull(as.Value)) || (d != nil && util.EquivalentFoldNames(ctx.File, as.Value, d)) { // D5
+		if (d == nil && syntax.IsNullConst(as.Value)) || (d != nil && util.EquivalentFoldNames(ctx.File, as.Value, d)) { // D5
 			if !pifNullableTyped(ctx, c.prop.Type) {
 				ctx.Report(es.Span(), pifMsgWrites)
 			}
@@ -310,7 +304,7 @@ func pifHasReturn(st syntax.Node) bool {
 			found = true
 			return false
 		}
-		return x == st || !util.IsFuncLike(x)
+		return x == st || !syntax.IsFuncLike(x)
 	})
 	return found
 }

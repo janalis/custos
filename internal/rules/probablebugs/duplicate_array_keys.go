@@ -53,10 +53,10 @@ func (duplicateArrayKeys) Check(ctx *analysis.Context, n syntax.Node) {
 // well as integer literals in any base become integer keys. ok is false for
 // any other key expression.
 func arrayKeyValue(e syntax.Expr) (string, bool) {
-	e = util.UnwrapParens(e)
+	e = syntax.UnwrapParens(e)
 	neg := false
 	if u, isUnary := e.(*syntax.Unary); isUnary && u.Op.Kind == syntax.TMinus {
-		neg, e = true, util.UnwrapParens(u.Expr)
+		neg, e = true, syntax.UnwrapParens(u.Expr)
 	}
 	lit, isLit := e.(*syntax.Literal)
 	if !isLit {

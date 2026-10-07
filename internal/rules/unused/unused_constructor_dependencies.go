@@ -5,8 +5,6 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
-	"custos/internal/index"
-	"custos/internal/phpdoc"
 	"custos/internal/syntax"
 )
 
@@ -54,7 +52,7 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 	candidates := map[string]bool{} // D2
 	for _, m := range cl.Members {
 		p, ok := m.(*syntax.Property)
-		if !ok || !p.Modifiers.Has(syntax.TPrivate) || p.Modifiers.Has(syntax.TStatic) || isAnnotated(ctx, p) {
+		if !ok || !p.Modifiers.Has(syntax.TPrivate) || p.Modifiers.Has(syntax.TStatic) || util.DocHasAnnotation(ctx.File, p) {
 			continue
 		}
 		for _, it := range p.Props {
@@ -70,7 +68,7 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 	ctorRefs := map[string][]syntax.Expr{} // D4
 	used := map[string]bool{}              // D5
 	collectPropRefs(ctx, ctor.Body, fqn, candidates, func(name string, ref syntax.Expr) {
-		if util.EnclosingFuncLike(ref) != syntax.Node(ctor) {
+		if syntax.EnclosingFuncLike(ref) != syntax.Node(ctor) {
 			// D4a: inside a closure/arrow function defined in the
 			// constructor (it may run later): a read is a use, a plain
 			// write is ignored.
@@ -133,21 +131,6 @@ func ucdPlainTarget(ref syntax.Expr) bool {
 	parent, child := util.ParentSkipParens(ref)
 	a, ok := parent.(*syntax.Assign)
 	return ok && a.Op.Kind == syntax.TEqual && syntax.Node(a.Var) == child && child == syntax.Node(ref)
-}
-
-// isAnnotated reports whether the property's doc comment has a tag whose
-// name is not entirely lower-case (`@Inject`, `@ORM\Column`).
-func isAnnotated(ctx *analysis.Context, p *syntax.Property) bool {
-	c := index.DocComment(ctx.File, p)
-	if c == "" {
-		return false
-	}
-	for _, t := range phpdoc.Parse(c).Tags {
-		if t.Name != strings.ToLower(t.Name) {
-			return true
-		}
-	}
-	return false
 }
 
 // collectPropRefs calls fn for every property access under root named after

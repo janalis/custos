@@ -44,7 +44,7 @@ func (cascadingDirnameCalls) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
-	if outer := directArgOf(top); outer != nil { // D2: only chain members
+	if outer := util.ParentFuncCall(top); outer != nil { // D2: only chain members
 		if oargs, ok := dirnameArgs(ctx, outer); ok && oargs[0] == syntax.Expr(top) {
 			return
 		}

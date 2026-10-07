@@ -5,7 +5,6 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
-	"custos/internal/index"
 	"custos/internal/syntax"
 )
 
@@ -38,7 +37,7 @@ func (ambiguousMethodsCallsInArrayMapping) Check(ctx *analysis.Context, n syntax
 		if !ok {
 			continue
 		}
-		a, ok := util.UnwrapParens(es.Expr).(*syntax.Assign)
+		a, ok := syntax.UnwrapParens(es.Expr).(*syntax.Assign)
 		if !ok || a.Value == nil {
 			continue
 		}
@@ -135,42 +134,11 @@ func ambiguousHasSideEffects(ctx *analysis.Context, r syntax.Node) bool {
 			}
 			if ambiguousImpureFunctions[strings.ToLower(strings.TrimPrefix(fqn, `\`))] {
 				found = true
-			} else if f != nil && ambiguousPassesByRef(c.Args, f.Params) {
+			} else if f != nil && util.ArgBindsByRef(c.Args, f.Params, false) {
 				found = true
 			}
 		}
 		return !found
 	})
 	return found
-}
-
-// ambiguousPassesByRef reports whether an argument of list binds to a
-// by-reference parameter.
-func ambiguousPassesByRef(list *syntax.ArgList, params []index.Param) bool {
-	if list == nil {
-		return false
-	}
-	pos := 0
-	for _, a := range list.Args {
-		arg, ok := a.(*syntax.Arg)
-		if !ok {
-			continue
-		}
-		if arg.Name != nil {
-			for _, p := range params {
-				if p.ByRef && strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
-					return true
-				}
-			}
-			continue
-		}
-		if pos < len(params) && params[pos].ByRef {
-			return true
-		}
-		if n := len(params); pos >= n && n > 0 && params[n-1].Variadic && params[n-1].ByRef {
-			return true
-		}
-		pos++
-	}
-	return false
 }

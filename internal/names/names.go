@@ -222,3 +222,24 @@ func join(ns, name string) string {
 	}
 	return ns + `\` + name
 }
+
+// DeclFQN returns the FQN (without leading backslash) of a named class-like
+// declaration of the file, "" for anonymous classes and nil.
+func (r *Resolver) DeclFQN(c *syntax.ClassLike) string {
+	if c == nil || c.Name == nil {
+		return ""
+	}
+	if ns := r.Namespace(c.Span().Start); ns != "" {
+		return ns + `\` + c.Name.Value
+	}
+	return c.Name.Value
+}
+
+// ParentFQN resolves the `extends` clause of a class (not interface)
+// declaration of the file; "" when there is none.
+func (r *Resolver) ParentFQN(c *syntax.ClassLike) string {
+	if c == nil || c.ClassKind == syntax.KindInterface || len(c.Extends) == 0 {
+		return ""
+	}
+	return r.Class(c.Extends[0].Value, c.Span().Start)
+}

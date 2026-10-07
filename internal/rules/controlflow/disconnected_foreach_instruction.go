@@ -61,7 +61,7 @@ func (disconnectedForeachInstruction) Check(ctx *analysis.Context, n syntax.Node
 		return
 	}
 	modified := map[string]bool{} // D4
-	for p := syntax.Node(loop); p != nil && !util.IsFuncLike(p); p = p.Parent() {
+	for p := syntax.Node(loop); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
 		fe, ok := p.(*syntax.Foreach)
 		if !ok {
 			continue
@@ -150,7 +150,7 @@ func dfiCollect(ctx *analysis.Context, s syntax.Stmt, m map[string]bool, bind fu
 			}
 		}
 		v, ok := x.(*syntax.Variable)
-		if !ok || v.Name == "" || dfiStaticPropName(v) {
+		if !ok || v.Name == "" || util.IsStaticPropName(v) {
 			return true
 		}
 		dfiVariable(ctx, v, m, dep, bind)
@@ -180,7 +180,7 @@ func dfiVariable(ctx *analysis.Context, v *syntax.Variable, m, dep map[string]bo
 	}
 	// D5
 	if a, ok := p.(*syntax.Assign); ok {
-		switch util.UnwrapParens(a.Var).(type) {
+		switch syntax.UnwrapParens(a.Var).(type) {
 		case *syntax.List, *syntax.Array:
 			if a.Value != syntax.Expr(v) {
 				m[name], dep[name] = true, true
@@ -337,20 +337,13 @@ func dfiDisconnected(s syntax.Stmt) bool {
 			exits = true
 			return false
 		case *syntax.Variable:
-			if !dfiStaticPropName(v) {
+			if !util.IsStaticPropName(v) {
 				hasVar = true
 			}
 		}
 		return true
 	})
 	return !exits && hasVar
-}
-
-// dfiStaticPropName reports whether v is the member name of a static property
-// access (`X::$p`), which the AST models as a variable but is not one.
-func dfiStaticPropName(v *syntax.Variable) bool {
-	sp, ok := v.Parent().(*syntax.StaticPropertyFetch)
-	return ok && sp.Name == syntax.Expr(v)
 }
 
 func dfiRange(ctx *analysis.Context, s syntax.Stmt) syntax.Span {

@@ -70,7 +70,7 @@ func (staticLambdaBinding) Check(ctx *analysis.Context, n syntax.Node) {
 // nearest enclosing function-like, skipping non-static arrow functions,
 // which inherit the binding of the scope they are defined in.
 func staticLambdaOwner(n syntax.Node) syntax.Node {
-	for f := util.EnclosingFuncLike(n); f != nil; f = util.EnclosingFuncLike(f) {
+	for f := syntax.EnclosingFuncLike(n); f != nil; f = syntax.EnclosingFuncLike(f) {
 		if af, ok := f.(*syntax.ArrowFunction); ok && !af.Static {
 			continue
 		}

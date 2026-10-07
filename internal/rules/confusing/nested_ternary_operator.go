@@ -2,7 +2,6 @@ package confusing
 
 import (
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -25,7 +24,7 @@ func (nestedTernaryOperator) Check(ctx *analysis.Context, n syntax.Node) {
 		if op == nil {
 			return
 		}
-		inner, ok := util.UnwrapParens(op).(*syntax.Ternary)
+		inner, ok := syntax.UnwrapParens(op).(*syntax.Ternary)
 		if !ok || inner.Span().Len() == 0 {
 			return
 		}

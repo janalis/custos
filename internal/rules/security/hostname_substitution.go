@@ -34,7 +34,7 @@ func (r hostnameSubstitution) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	for p := s.Parent(); p != nil; p = p.Parent() { // D2
-		if util.IsFuncLike(p) {
+		if syntax.IsFuncLike(p) {
 			return
 		}
 		switch x := p.(type) {
@@ -74,7 +74,7 @@ func (hostnameSubstitution) checkConcat(ctx *analysis.Context, c *syntax.Binary,
 	var leaves []syntax.Expr
 	var flatten func(e syntax.Expr)
 	flatten = func(e syntax.Expr) {
-		if b, ok := util.UnwrapParens(e).(*syntax.Binary); ok && b.Op.Kind == syntax.TDot {
+		if b, ok := syntax.UnwrapParens(e).(*syntax.Binary); ok && b.Op.Kind == syntax.TDot {
 			flatten(b.Left)
 			flatten(b.Right)
 			return
@@ -87,8 +87,8 @@ func (hostnameSubstitution) checkConcat(ctx *analysis.Context, c *syntax.Binary,
 	xs := x.Span()
 	for i, l := range leaves {
 		if l.Span().Contains(xs) {
-			if i > 0 && endsWithAt(ctx, util.UnwrapParens(leaves[i-1])) && !whitelisted(ctx, s) {
-				ctx.ReportNode(util.UnwrapParens(l), "E-mail address built from client-controlled $_SERVER['"+attr+"']; validate it against a whitelist.")
+			if i > 0 && endsWithAt(ctx, syntax.UnwrapParens(leaves[i-1])) && !whitelisted(ctx, s) {
+				ctx.ReportNode(syntax.UnwrapParens(l), "E-mail address built from client-controlled $_SERVER['"+attr+"']; validate it against a whitelist.")
 			}
 			return
 		}
@@ -121,7 +121,7 @@ func (r hostnameSubstitution) checkAssign(ctx *analysis.Context, a *syntax.Assig
 		if t.NameExpr != nil || t.Name == "" {
 			return
 		}
-		fn := util.EnclosingFuncLike(s)
+		fn := syntax.EnclosingFuncLike(s)
 		if fn == nil { // D6
 			if hostLikeName(t.Name) {
 				ctx.ReportNode(s, hostnameStoredMsg)
@@ -148,13 +148,7 @@ func (r hostnameSubstitution) checkAssign(ctx *analysis.Context, a *syntax.Assig
 				killed = true
 				return false
 			}
-			par := v.Parent()
-			for {
-				if _, ok := par.(*syntax.Paren); !ok {
-					break
-				}
-				par = par.Parent()
-			}
+			par, _ := util.ParentSkipParens(v)
 			if c, ok := par.(*syntax.Binary); ok && c.Op.Kind == syntax.TDot {
 				r.checkConcat(ctx, c, v, s, attr)
 			}
@@ -182,7 +176,7 @@ func hostOverwrites(v *syntax.Variable, src *syntax.Assign) bool {
 			enclosing = true
 			break
 		}
-		if util.IsFuncLike(p) {
+		if syntax.IsFuncLike(p) {
 			break
 		}
 	}
@@ -206,12 +200,12 @@ func hostLikeName(name string) bool {
 
 // whitelisted implements D7.
 func whitelisted(ctx *analysis.Context, s *syntax.ArrayDimFetch) bool {
-	fn := util.EnclosingFuncLike(s)
+	fn := syntax.EnclosingFuncLike(s)
 	if fn == nil {
 		return false
 	}
 	var scope syntax.Node = fn
-	if body := util.FuncLikeBody(fn); body != nil {
+	if body := syntax.FuncLikeBody(fn); body != nil {
 		scope = body
 	}
 	want := ctx.Text(s)

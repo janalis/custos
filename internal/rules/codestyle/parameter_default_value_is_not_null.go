@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
 	"custos/internal/index"
 	"custos/internal/syntax"
 )
@@ -24,13 +23,13 @@ func (parameterDefaultValueIsNotNull) Kinds() []syntax.NodeKind {
 }
 
 func (parameterDefaultValueIsNotNull) Check(ctx *analysis.Context, n syntax.Node) {
-	params := util.FuncLikeParams(n)
+	params := syntax.FuncLikeParams(n)
 	if len(params) == 0 {
 		return
 	}
 	var candidates []*syntax.Param
 	for _, p := range params {
-		if p.Default == nil || p.Default.Span().Len() == 0 || pdvNullConst(p.Default) { // D1
+		if p.Default == nil || p.Default.Span().Len() == 0 || syntax.IsNullConst(syntax.UnwrapParens(p.Default)) { // D1
 			continue
 		}
 		if p.Type != nil && !pdvTypeHasNull(ctx, p.Type) { // D2 / E1
@@ -47,13 +46,6 @@ func (parameterDefaultValueIsNotNull) Check(ctx *analysis.Context, n syntax.Node
 	for _, p := range candidates {
 		ctx.Report(syntax.Span{Start: p.Span().Start, End: p.Default.Span().End}, "Prefer null as the default value for this parameter.")
 	}
-}
-
-// pdvNullConst reports whether e is the constant null (any case, optionally
-// fully qualified).
-func pdvNullConst(e syntax.Expr) bool {
-	c, ok := util.UnwrapParens(e).(*syntax.ConstFetch)
-	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
 }
 
 // pdvTypeHasNull reports whether a declared type includes null.

@@ -23,12 +23,12 @@ func (compactArguments) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ctx.IsGlobalFunctionCall(call, "compact") || call.Args == nil || len(call.Args.Args) == 0 { // D1, D2
 		return
 	}
-	scope := util.EnclosingFuncLike(call) // D3
+	scope := syntax.EnclosingFuncLike(call) // D3
 	for scope != nil {
 		if _, arrow := scope.(*syntax.ArrowFunction); !arrow {
 			break
 		}
-		scope = util.EnclosingFuncLike(scope) // arrow functions share the parent scope
+		scope = syntax.EnclosingFuncLike(scope) // arrow functions share the parent scope
 	}
 	if scope == nil {
 		return
@@ -71,7 +71,7 @@ func (compactArguments) Check(ctx *analysis.Context, n syntax.Node) {
 			known[c.name] = true
 		}
 	}
-	for _, p := range util.FuncLikeParams(scope) {
+	for _, p := range syntax.FuncLikeParams(scope) {
 		if p.Var != nil && p.Var.Name != "" {
 			known[p.Var.Name] = true
 		}

@@ -42,7 +42,7 @@ func (r alterInForeach) Check(ctx *analysis.Context, n syntax.Node) {
 // checkByRef implements part A (D1-D3).
 func (alterInForeach) checkByRef(ctx *analysis.Context, f *syntax.Foreach, name string) {
 	next := statementFollower(ctx.File, f) // D2
-	for p := f.Parent(); next == nil && p != nil && !util.IsFuncLike(p); p = p.Parent() {
+	for p := f.Parent(); next == nil && p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
 		if _, isBlock := p.(*syntax.Block); !isBlock {
 			next = statementFollower(ctx.File, p)
 		}
@@ -101,7 +101,7 @@ func (alterInForeach) checkWriteBack(ctx *analysis.Context, a *syntax.Assign) {
 	if !ok {
 		return
 	}
-	for p := a.Parent(); p != nil && !util.IsFuncLike(p); p = p.Parent() {
+	for p := a.Parent(); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
 		f, ok := p.(*syntax.Foreach)
 		if !ok || f.Key == nil || f.Expr == nil {
 			continue

@@ -23,7 +23,7 @@ func (throwRawException) Kinds() []syntax.NodeKind { return []syntax.NodeKind{sy
 func (throwRawException) Semantic() {}
 
 func (throwRawException) Check(ctx *analysis.Context, n syntax.Node) {
-	nw, ok := util.UnwrapParens(n.(*syntax.Throw).Expr).(*syntax.New) // D1 (parentheses looked through)
+	nw, ok := syntax.UnwrapParens(n.(*syntax.Throw).Expr).(*syntax.New) // D1 (parentheses looked through)
 	if !ok {
 		return
 	}

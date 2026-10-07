@@ -102,7 +102,7 @@ func ivSecureWrapper(ctx *analysis.Context, v syntax.Expr) bool {
 		if !ok {
 			return false
 		}
-		if cls := ivClassRef(ctx, c.Class); cls != "" {
+		if cls := ctx.Types().ClassRef(c.Class); cls != "" {
 			if m := util.MethodDecl(ctx.File, ix, ix.FindMethod(cls, id.Value, ctx.PHP), ctx.PHP); m != nil {
 				body = m.Body
 			}
@@ -133,29 +133,4 @@ func ivSecureWrapper(ctx *analysis.Context, v syntax.Expr) bool {
 		return !found
 	})
 	return found
-}
-
-func ivClassRef(ctx *analysis.Context, x syntax.Expr) string {
-	if n, ok := x.(*syntax.Name); ok {
-		switch strings.ToLower(n.Value) {
-		case "self", "static":
-			return util.ClassDeclFQN(ctx.Names(), enclosingClassLike(n))
-		case "parent":
-			return util.ParentFQN(ctx.Names(), enclosingClassLike(n))
-		}
-		return ctx.Names().Class(n.Value, n.Span().Start)
-	}
-	if cs := ctx.TypeOf(x).Classes(); len(cs) == 1 {
-		return strings.TrimPrefix(cs[0], `\`)
-	}
-	return ""
-}
-
-func enclosingClassLike(n syntax.Node) *syntax.ClassLike {
-	for p := n.Parent(); p != nil; p = p.Parent() {
-		if c, ok := p.(*syntax.ClassLike); ok {
-			return c
-		}
-	}
-	return nil
 }

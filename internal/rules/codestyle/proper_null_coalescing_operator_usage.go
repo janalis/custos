@@ -5,8 +5,6 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
-	"custos/internal/infer"
 	"custos/internal/phpver"
 	"custos/internal/syntax"
 )
@@ -30,11 +28,6 @@ func pncoIsCoalesce(n syntax.Node) bool {
 	return ok && b.Op.Kind == syntax.TCoalesce
 }
 
-func pncoIsNull(e syntax.Expr) bool {
-	c, ok := e.(*syntax.ConstFetch)
-	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
-}
-
 func (r properNullCoalescingOperatorUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	b := n.(*syntax.Binary)
 	if b.Op.Kind != syntax.TCoalesce || b.Span().Len() == 0 || b.Left == nil || b.Right == nil || ctx.PHP < phpver.PHP70 {
@@ -48,7 +41,7 @@ func (r properNullCoalescingOperatorUsage) Check(ctx *analysis.Context, n syntax
 			return
 		}
 	}
-	if pncoIsNull(b.Right) { // Case A
+	if syntax.IsNullConst(b.Right) { // Case A
 		switch b.Left.(type) {
 		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
 			left := ctx.Text(b.Left)
@@ -60,7 +53,7 @@ func (r properNullCoalescingOperatorUsage) Check(ctx *analysis.Context, n syntax
 		}
 		return
 	}
-	if !ctx.Bool("ANALYZE_TYPES") || util.EnclosingFuncLike(b) == nil { // D2
+	if !ctx.Bool("ANALYZE_TYPES") || syntax.EnclosingFuncLike(b) == nil { // D2
 		return
 	}
 	lt, ok := r.typeSet(ctx, b.Left)
@@ -96,7 +89,7 @@ func (r properNullCoalescingOperatorUsage) Check(ctx *analysis.Context, n syntax
 
 // typeSet returns the normalised types of e without null/static (D3).
 func (properNullCoalescingOperatorUsage) typeSet(ctx *analysis.Context, e syntax.Expr) (map[string]bool, bool) {
-	if v, ok := util.UnwrapParens(e).(*syntax.Variable); ok && v.Name == "this" {
+	if v, ok := syntax.UnwrapParens(e).(*syntax.Variable); ok && v.Name == "this" {
 		return nil, false // `$this` is static
 	}
 	t := ctx.TypeOf(e)
@@ -111,7 +104,7 @@ func (properNullCoalescingOperatorUsage) typeSet(ctx *analysis.Context, e syntax
 			continue
 		case strings.EqualFold(a, "self") || strings.EqualFold(a, "parent"):
 			// Bind self/parent to the enclosing class (or its parent).
-			fqn := ctx.Types().ClassFQN(infer.EnclosingClass(e))
+			fqn := ctx.Types().ClassFQN(syntax.EnclosingClass(e))
 			if fqn != "" && strings.EqualFold(a, "parent") {
 				c := ctx.Index().Class(fqn, ctx.PHP)
 				fqn = ""

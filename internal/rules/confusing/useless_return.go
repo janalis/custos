@@ -39,7 +39,7 @@ func (uselessReturn) checkTrailing(ctx *analysis.Context, ret *syntax.Return) {
 	default:
 		return
 	}
-	if util.FuncLikeBody(b.Parent()) != b || len(b.Stmts) == 0 || b.Stmts[len(b.Stmts)-1] != syntax.Stmt(ret) {
+	if syntax.FuncLikeBody(b.Parent()) != b || len(b.Stmts) == 0 || b.Stmts[len(b.Stmts)-1] != syntax.Stmt(ret) {
 		return
 	}
 	ctx.ReportSeverity(ret.Span(), meta.SeverityInfo, "Redundant 'return;' at the end of the body; remove it.")
@@ -55,13 +55,13 @@ func (uselessReturn) checkAssign(ctx *analysis.Context, ret *syntax.Return) {
 	if !ok || v.NameExpr != nil || v.Name == "" {
 		return
 	}
-	scope := util.EnclosingFuncLike(ret) // D4
-	body := util.FuncLikeBody(scope)
+	scope := syntax.EnclosingFuncLike(ret) // D4
+	body := syntax.FuncLikeBody(scope)
 	if body == nil {
 		return
 	}
 	name := v.Name
-	for _, p := range util.FuncLikeParams(scope) { // D5a
+	for _, p := range syntax.FuncLikeParams(scope) { // D5a
 		if p.ByRef && p.Var != nil && p.Var.NameExpr == nil && p.Var.Name == name {
 			return
 		}
@@ -97,7 +97,7 @@ func (uselessReturn) checkAssign(ctx *analysis.Context, ret *syntax.Return) {
 	}
 	for p := ret.Parent(); p != nil && p != scope; p = p.Parent() { // D5d
 		if t, ok := p.(*syntax.Try); ok {
-			if t.Finally != nil && t.Finally.Body != nil && mentionsVar(t.Finally.Body, name) {
+			if t.Finally != nil && t.Finally.Body != nil && util.MentionsVariable(t.Finally.Body, name) {
 				return
 			}
 			break
@@ -127,15 +127,4 @@ func byRefUse(c *syntax.Closure, name string) bool {
 		}
 	}
 	return false
-}
-
-func mentionsVar(n syntax.Node, name string) bool {
-	found := false
-	syntax.Inspect(n, func(x syntax.Node) bool {
-		if v, ok := x.(*syntax.Variable); ok && v.NameExpr == nil && v.Name == name {
-			found = true
-		}
-		return !found
-	})
-	return found
 }

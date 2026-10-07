@@ -16,3 +16,20 @@ func LineIndent(src []byte, off uint32) string {
 	}
 	return string(src[start:end])
 }
+
+// IndentBefore returns the horizontal whitespace between the start of the
+// line and off, or "" when other code precedes off on its line (unlike
+// LineIndent, which returns the line's indentation regardless).
+func IndentBefore(src []byte, off uint32) string {
+	i := int(off)
+	for i > 0 && (src[i-1] == ' ' || src[i-1] == '\t') {
+		i--
+	}
+	if i > 0 && src[i-1] != '\n' && src[i-1] != '\r' {
+		return ""
+	}
+	return string(src[i:off])
+}
+
+// IsSpace reports whether c is a space, tab, newline or carriage return.
+func IsSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }

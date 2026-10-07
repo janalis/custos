@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
 	"custos/internal/meta"
 	"custos/internal/syntax"
 )
@@ -43,11 +42,11 @@ func (unSafeIsSetOverArray) Check(ctx *analysis.Context, n syntax.Node) {
 		if inverted {
 			branch = t.Then
 		}
-		if c, ok := branch.(*syntax.ConstFetch); ok && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null") {
+		if syntax.IsNullConst(branch) {
 			return
 		}
 	}
-	arg := util.UnwrapParens(is.Vars[0]) // D5
+	arg := syntax.UnwrapParens(is.Vars[0]) // D5
 
 	dim, isDim := arg.(*syntax.ArrayDimFetch)
 	if !isDim {
@@ -100,7 +99,7 @@ func (unSafeIsSetOverArray) Check(ctx *analysis.Context, n syntax.Node) {
 
 func isetInFuncOrClass(n syntax.Node) bool {
 	for p := n.Parent(); p != nil; p = p.Parent() {
-		if _, ok := p.(*syntax.ClassLike); ok || util.IsFuncLike(p) {
+		if _, ok := p.(*syntax.ClassLike); ok || syntax.IsFuncLike(p) {
 			return true
 		}
 	}
@@ -140,7 +139,7 @@ func issetDeclaredProperty(ctx *analysis.Context, e syntax.Expr) bool {
 			case "self", "static", "parent":
 				// parent:: is approximated by a hierarchy lookup from the
 				// enclosing class.
-				if c := enclosingClassFQN(ctx, p); c != "" {
+				if c := ctx.Types().ClassFQN(syntax.EnclosingClass(p)); c != "" {
 					classes = []string{c}
 				}
 			default:
@@ -159,15 +158,6 @@ func issetDeclaredProperty(ctx *analysis.Context, e syntax.Expr) bool {
 		}
 	}
 	return false
-}
-
-func enclosingClassFQN(ctx *analysis.Context, n syntax.Node) string {
-	for p := n.Parent(); p != nil; p = p.Parent() {
-		if c, ok := p.(*syntax.ClassLike); ok {
-			return ctx.Types().ClassFQN(c)
-		}
-	}
-	return ""
 }
 
 // issetObjectContainer reports whether the container's resolved types are

@@ -49,12 +49,12 @@ func (issetArgumentExistence) candidate(ctx *analysis.Context, e syntax.Expr) {
 	if issetSpecialNames[name] { // D4
 		return
 	}
-	fn := util.EnclosingFuncLike(v)
-	body := util.FuncLikeBody(fn) // D6
+	fn := syntax.EnclosingFuncLike(v)
+	body := syntax.FuncLikeBody(fn) // D6
 	if fn == nil || body == nil {
 		return
 	}
-	for _, p := range util.FuncLikeParams(fn) { // D5
+	for _, p := range syntax.FuncLikeParams(fn) { // D5
 		if p.Var != nil && p.Var.Name == name {
 			return
 		}
@@ -108,11 +108,6 @@ report:
 	ctx.ReportSeverity(v.Span(), meta.SeverityError, "Variable '$"+name+"' is not defined in this scope.")
 }
 
-func isStaticPropName(v *syntax.Variable) bool {
-	sp, ok := v.Parent().(*syntax.StaticPropertyFetch)
-	return ok && sp.Name == syntax.Expr(v)
-}
-
 func isAncestor(anc, n syntax.Node) bool {
 	for p := n.Parent(); p != nil; p = p.Parent() {
 		if p == anc {
@@ -153,7 +148,7 @@ func issetFirstMention(body syntax.Node, name string) *syntax.Variable {
 		}
 		switch c := c.(type) {
 		case *syntax.Variable:
-			if c.NameExpr == nil && c.Name == name && !isStaticPropName(c) {
+			if c.NameExpr == nil && c.Name == name && !util.IsStaticPropName(c) {
 				first = c
 				return false
 			}

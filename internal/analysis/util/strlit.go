@@ -3,6 +3,8 @@ package util
 import (
 	"strconv"
 	"strings"
+
+	"custos/internal/syntax"
 )
 
 // StringLiteralValue decodes the raw source of a single- or double-quoted
@@ -114,4 +116,37 @@ func decodeDoubleQuoted(s string) string {
 
 func isHex(c byte) bool {
 	return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
+}
+
+// QuotedStringValue decodes a single- or double-quoted string literal
+// without interpolation (see StringLiteralValue); ok is false for any other
+// node.
+func QuotedStringValue(e syntax.Expr) (string, bool) {
+	l, ok := e.(*syntax.Literal)
+	if !ok || l.LitKind != syntax.LitString {
+		return "", false
+	}
+	return StringLiteralValue(l.Raw)
+}
+
+// IsStringLiteral reports whether e is a string literal: quoted, heredoc or
+// nowdoc, interpolated or not (backtick shell commands excluded).
+func IsStringLiteral(e syntax.Expr) bool {
+	switch x := e.(type) {
+	case *syntax.Literal:
+		return x.LitKind == syntax.LitString
+	case *syntax.InterpolatedString:
+		return !x.Backtick
+	}
+	return false
+}
+
+// IsNumberLiteral reports whether e is an int or float literal, or `-`
+// applied directly to one (no parentheses looked through).
+func IsNumberLiteral(e syntax.Expr) bool {
+	if u, ok := e.(*syntax.Unary); ok && u.Op.Kind == syntax.TMinus {
+		e = u.Expr
+	}
+	l, ok := e.(*syntax.Literal)
+	return ok && (l.LitKind == syntax.LitInt || l.LitKind == syntax.LitFloat)
 }

@@ -49,7 +49,7 @@ func (strEndsWithCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if !util.EquivalentFoldNames(ctx.File, m.other, largs[0]) { // D5
 		return
 	}
-	if raw, _, ok := util.QuotedStringRaw(util.UnwrapParens(m.other)); ok && raw == "" { // D7
+	if raw, _, ok := util.QuotedStringRaw(syntax.UnwrapParens(m.other)); ok && raw == "" { // D7
 		return // empty needle: the original is false, str_ends_with() is true
 	}
 	reportStrCallReplacement(ctx, m, "str_ends_with", m.other, m.cmp.Op.Kind == syntax.TIsNotIdentical) // D6

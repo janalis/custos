@@ -34,7 +34,7 @@ func TestReachingAssignmentsIndexMatches(t *testing.T) {
 			if !ok || v.NameExpr != nil || v.Name == "" {
 				return true
 			}
-			scope := enclosingScope(v)
+			scope := syntax.EnclosingFuncLike(v)
 			if scope == nil {
 				return true
 			}
@@ -49,7 +49,7 @@ func TestReachingAssignmentsIndexMatches(t *testing.T) {
 }
 
 func reachingAssignmentsRef(scope, at syntax.Node, name string) (defs []*syntax.Assign, entry bool) {
-	_, body := scopeParts(scope)
+	_, body := ScopeParts(scope)
 	if body == nil || name == "" {
 		return nil, true
 	}
@@ -72,7 +72,7 @@ func reachingAssignmentsRef(scope, at syntax.Node, name string) (defs []*syntax.
 				}
 				return
 			case *syntax.Assign:
-				if t, ok := UnwrapParens(x.Var).(*syntax.Variable); ok && t.NameExpr == nil && t.Name == name {
+				if t, ok := syntax.UnwrapParens(x.Var).(*syntax.Variable); ok && t.NameExpr == nil && t.Name == name {
 					if x.Op.Kind == syntax.TEqual && !x.ByRef {
 						if byRefClosure {
 							always = append(always, x)

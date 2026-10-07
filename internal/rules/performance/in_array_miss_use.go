@@ -112,7 +112,9 @@ func replaceFix(span syntax.Span, repl string) analysis.Fix {
 }
 
 // lowerThanEquality reports whether e binds looser than (or as tight as) a
-// comparison and must be parenthesised as an operand of `==`.
+// comparison and must be parenthesised as an operand of `==`. Not
+// util.NeedsParensAsEqualityOperand: every binary operator outside the
+// tighter list counts here (e.g. the PHP 8.5 pipe operator).
 func lowerThanEquality(e syntax.Expr) bool {
 	switch e := e.(type) {
 	case *syntax.Binary:

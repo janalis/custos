@@ -52,7 +52,7 @@ func (isCountableCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 		if found != nil {
 			return
 		}
-		e = util.UnwrapParens(e)
+		e = syntax.UnwrapParens(e)
 		if b, ok := isBooleanOr(e); ok {
 			visit(b.Left)
 			visit(b.Right)

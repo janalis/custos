@@ -181,13 +181,13 @@ func (e *Env) dimBroken(scope syntax.Node, key string, from uint32, use syntax.N
 // changed reports whether a condition applied.
 func (e *Env) applyKeyCond(t types.Type, cond syntax.Expr, name string, truthy bool) (types.Type, bool) {
 	elem := func(x syntax.Expr) (string, bool) {
-		d, ok := unparen(x).(*syntax.ArrayDimFetch)
+		d, ok := syntax.UnwrapParens(x).(*syntax.ArrayDimFetch)
 		if !ok || d.Dim == nil || narrowKey(d.Var) != name {
 			return "", false
 		}
 		return literalKey(d.Dim)
 	}
-	switch c := unparen(cond).(type) {
+	switch c := syntax.UnwrapParens(cond).(type) {
 	case *syntax.Unary:
 		if c.Op.Kind == syntax.TExclaim {
 			return e.applyKeyCond(t, c.Expr, name, !truthy)
@@ -217,7 +217,7 @@ func (e *Env) applyKeyCond(t types.Type, cond syntax.Expr, name string, truthy b
 				k, ok = elem(c.Right)
 				other = c.Left
 			}
-			if ok && isNullConst(other) {
+			if ok && syntax.IsNullConst(syntax.UnwrapParens(other)) {
 				return keyPresent(t, k, "null"), true
 			}
 		}
@@ -252,7 +252,7 @@ func (e *Env) applyKeyCond(t types.Type, cond syntax.Expr, name string, truthy b
 		}
 		a0, ok0 := c.Args.Args[0].(*syntax.Arg)
 		a1, ok1 := c.Args.Args[1].(*syntax.Arg)
-		if !ok0 || !ok1 || a0.Name != nil || a1.Name != nil || a0.Unpack || a1.Unpack || narrowKey(unparen(a1.Value)) != name {
+		if !ok0 || !ok1 || a0.Name != nil || a1.Name != nil || a0.Unpack || a1.Unpack || narrowKey(syntax.UnwrapParens(a1.Value)) != name {
 			break
 		}
 		if k, ok := literalKey(a0.Value); ok {
@@ -402,7 +402,7 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 				case *syntax.Variable, *syntax.PropertyFetch, *syntax.ArrayDimFetch:
 					add(narrowKey(n.(syntax.Expr)))
 				case *syntax.MethodCall:
-					if narrowKey(unparen(n.Var)) == "this" {
+					if narrowKey(syntax.UnwrapParens(n.Var)) == "this" {
 						add(thisCallKey)
 					}
 				case *syntax.StaticCall:
@@ -551,6 +551,9 @@ func (e *Env) overwrites(body syntax.Stmt, name string) syntax.Expr {
 }
 
 // terminates reports whether a statement always leaves the current block.
+// Deliberately shallower than syntax.Terminates (no if/else, try or switch
+// analysis): switching would make more guards count as early exits, which
+// changes narrowing and therefore findings.
 func terminates(s syntax.Stmt) bool {
 	switch n := s.(type) {
 	case *syntax.Return, *syntax.Break, *syntax.Continue, *syntax.Goto:
@@ -568,32 +571,17 @@ func terminates(s syntax.Stmt) bool {
 	return false
 }
 
-func unparen(x syntax.Expr) syntax.Expr {
-	for {
-		p, ok := x.(*syntax.Paren)
-		if !ok {
-			return x
-		}
-		x = p.Expr
-	}
-}
-
 func isVar(x syntax.Expr, name string) bool {
-	x = unparen(x)
+	x = syntax.UnwrapParens(x)
 	if a, ok := x.(*syntax.Assign); ok && a.Op.Kind == syntax.TEqual && !a.ByRef {
 		x = a.Var // `false === ($x = f())` tests $x
 	}
 	return narrowKey(x) == name
 }
 
-func isNullConst(x syntax.Expr) bool {
-	c, ok := unparen(x).(*syntax.ConstFetch)
-	return ok && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
-}
-
 // constLiteral returns "null", "true" or "false" for those constants.
 func constLiteral(x syntax.Expr) string {
-	c, ok := unparen(x).(*syntax.ConstFetch)
+	c, ok := syntax.UnwrapParens(x).(*syntax.ConstFetch)
 	if !ok {
 		return ""
 	}
@@ -614,7 +602,7 @@ var typeChecks = map[string][]string{
 
 // applyCond narrows t assuming cond evaluates to `truthy`.
 func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool) types.Type {
-	switch c := unparen(cond).(type) {
+	switch c := syntax.UnwrapParens(cond).(type) {
 	case *syntax.Unary:
 		if c.Op.Kind == syntax.TExclaim {
 			return e.applyCond(t, c.Expr, name, !truthy)
@@ -676,7 +664,7 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 			if n, ok := countComparison(c, name); ok {
 				return nonEmptyIf(t, countNonEmpty(c.Op.Kind, n, truthy))
 			}
-			isNull := (isVar(c.Left, name) && isNullConst(c.Right)) || (isVar(c.Right, name) && isNullConst(c.Left))
+			isNull := (isVar(c.Left, name) && syntax.IsNullConst(syntax.UnwrapParens(c.Right))) || (isVar(c.Right, name) && syntax.IsNullConst(syntax.UnwrapParens(c.Left)))
 			if !isNull {
 				return t
 			}
@@ -808,7 +796,7 @@ func narrowAtoms(t types.Type, atoms []string, truthy bool) types.Type {
 // isEmptyArrayComparison reports `$x OP []` / `[] OP $x` on variable name.
 func isEmptyArrayComparison(c *syntax.Binary, name string) bool {
 	isEmpty := func(x syntax.Expr) bool {
-		a, ok := unparen(x).(*syntax.Array)
+		a, ok := syntax.UnwrapParens(x).(*syntax.Array)
 		return ok && len(a.Items) == 0
 	}
 	return (isVar(c.Left, name) && isEmpty(c.Right)) || (isVar(c.Right, name) && isEmpty(c.Left))
@@ -818,7 +806,7 @@ func isEmptyArrayComparison(c *syntax.Binary, name string) bool {
 // name with an integer literal n.
 func countComparison(c *syntax.Binary, name string) (countCmp, bool) {
 	isCount := func(x syntax.Expr) bool {
-		f, ok := unparen(x).(*syntax.FuncCall)
+		f, ok := syntax.UnwrapParens(x).(*syntax.FuncCall)
 		if !ok || f.Args == nil || len(f.Args.Args) != 1 {
 			return false
 		}
@@ -839,7 +827,7 @@ func countComparison(c *syntax.Binary, name string) (countCmp, bool) {
 		if !ok {
 			return 0, false
 		}
-		l, isLit := unparen(x).(*syntax.Literal)
+		l, isLit := syntax.UnwrapParens(x).(*syntax.Literal)
 		if isLit && l.LitKind != syntax.LitInt {
 			return 0, false
 		}

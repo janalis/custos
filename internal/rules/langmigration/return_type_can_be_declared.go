@@ -93,11 +93,6 @@ func rtdFirstReturn(body syntax.Node) *syntax.Return {
 	return first
 }
 
-func rtdIsNullLit(e syntax.Expr) bool {
-	c, ok := e.(*syntax.ConstFetch)
-	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
-}
-
 // rtdExprType is the inferred type of a returned expression, with `$this`
 // and `new static` typed as static.
 func rtdExprType(ctx *analysis.Context, e syntax.Expr) types.Type {
@@ -217,7 +212,7 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 		}
 		if len(set) == 1 && set["null"] {
-			if fr := rtdFirstReturn(m.Body); fr != nil && fr.Expr != nil && !rtdIsNullLit(fr.Expr) {
+			if fr := rtdFirstReturn(m.Body); fr != nil && fr.Expr != nil && !syntax.IsNullConst(fr.Expr) {
 				delete(set, "null")
 			}
 		}
@@ -232,7 +227,7 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		if !abstract {
 			fr := rtdFirstReturn(m.Body)
-			if fr != nil && rtdEnclosingFunc(fr) != syntax.Node(m) {
+			if fr != nil && syntax.EnclosingFuncLike(fr) != syntax.Node(m) {
 				fr = nil
 			}
 			if fr != nil {
@@ -331,16 +326,6 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 	})
 }
 
-func rtdEnclosingFunc(n syntax.Node) syntax.Node {
-	for p := n.Parent(); p != nil; p = p.Parent() {
-		switch p.(type) {
-		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction:
-			return p
-		}
-	}
-	return nil
-}
-
 // compact implements compact(t).
 func (returnTypeCanBeDeclared) compact(ctx *analysis.Context, class *syntax.ClassLike, doc *phpdoc.Doc, docRet string, t string) string {
 	if !strings.HasPrefix(t, `\`) && t != "static" {
@@ -389,7 +374,7 @@ func (returnTypeCanBeDeclared) compact(ctx *analysis.Context, class *syntax.Clas
 					if it.Alias != nil {
 						return it.Alias.Value
 					}
-					return name[strings.LastIndexByte(name, '\\')+1:]
+					return util.LastNamePart(name)
 				}
 			}
 		}
@@ -533,14 +518,7 @@ func rtdInheritedParamType(ctx *analysis.Context, class *syntax.ClassLike, m *sy
 // in a top-level statement. (Its @var documentation does not prevent null:
 // `@var int` on a nullable ORM column is the common case.)
 func rtdImplicitNullProp(ctx *analysis.Context, class *syntax.ClassLike, e syntax.Expr) bool {
-	for {
-		pe, ok := e.(*syntax.Paren)
-		if !ok {
-			break
-		}
-		e = pe.Expr
-	}
-	pf, ok := e.(*syntax.PropertyFetch)
+	pf, ok := syntax.UnwrapParens(e).(*syntax.PropertyFetch)
 	if !ok || pf.NullSafe {
 		return false
 	}

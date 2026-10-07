@@ -167,7 +167,7 @@ func printfUsedAsValue(call *syntax.FuncCall) bool {
 
 // printfCompoundAssigned implements D7c.
 func printfCompoundAssigned(v *syntax.Variable) bool {
-	body := util.FuncLikeBody(util.EnclosingFuncLike(v))
+	body := syntax.FuncLikeBody(syntax.EnclosingFuncLike(v))
 	if body == nil {
 		return false
 	}

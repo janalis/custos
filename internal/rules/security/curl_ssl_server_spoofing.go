@@ -31,7 +31,7 @@ func (curlSslServerSpoofing) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	var host bool
-	switch util.LastSegment(k.Name.Value) {
+	switch util.LastNamePart(k.Name.Value) {
 	case "CURLOPT_SSL_VERIFYHOST":
 		host = true
 	case "CURLOPT_SSL_VERIFYPEER":
@@ -119,7 +119,7 @@ func curlClassify(ctx *analysis.Context, v syntax.Expr, host bool) int {
 		return -1
 	}
 	if c, ok := v.(*syntax.ConstFetch); ok {
-		name := util.LastSegment(c.Name.Value)
+		name := util.LastNamePart(c.Name.Value)
 		switch strings.ToLower(name) {
 		case "true":
 			return curlBool(!host)

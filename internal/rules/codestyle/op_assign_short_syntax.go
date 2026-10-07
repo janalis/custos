@@ -33,7 +33,7 @@ func (opAssignShortSyntax) Check(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.Array, *syntax.List:
 		return
 	}
-	bin, ok := util.UnwrapParens(a.Value).(*syntax.Binary)
+	bin, ok := syntax.UnwrapParens(a.Value).(*syntax.Binary)
 	if !ok {
 		return
 	}

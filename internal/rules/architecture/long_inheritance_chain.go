@@ -33,12 +33,12 @@ func (longInheritanceChain) Check(ctx *analysis.Context, n syntax.Node) {
 	if cl.Name == nil || cl.ClassKind != syntax.KindClass || cl.Name.Span().Len() == 0 {
 		return
 	}
-	fqn := util.ClassDeclFQN(ctx.Names(), cl)
-	if strings.HasSuffix(cl.Name.Value, "Exception") || util.IsTestPath(ctx.File.Path) || util.IsTestClassFQN(fqn) { // D1
+	fqn := ctx.Names().DeclFQN(cl)
+	if strings.HasSuffix(cl.Name.Value, "Exception") || ctx.IsTestFile() || util.IsTestClassFQN(fqn) { // D1
 		return
 	}
 	ix := ctx.Index()
-	parent := util.ParentFQN(ctx.Names(), cl)
+	parent := ctx.Names().ParentFQN(cl)
 	if parent == "" {
 		return
 	}
@@ -68,7 +68,7 @@ func (longInheritanceChain) Check(ctx *analysis.Context, n syntax.Node) {
 				count++
 				break
 			}
-			short := nfqn[strings.LastIndexByte(nfqn, '\\')+1:]
+			short := util.LastNamePart(nfqn)
 			if strings.HasSuffix(short, "Exception") {
 				return
 			}

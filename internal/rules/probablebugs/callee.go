@@ -5,7 +5,6 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/index"
-	"custos/internal/infer"
 	"custos/internal/syntax"
 )
 
@@ -60,9 +59,9 @@ func staticCallClass(ctx *analysis.Context, e syntax.Expr) string {
 	}
 	switch strings.ToLower(nm.Value) {
 	case "self", "static":
-		return ctx.Types().ClassFQN(infer.EnclosingClass(nm))
+		return ctx.Types().ClassFQN(syntax.EnclosingClass(nm))
 	case "parent":
-		if c := ctx.Index().Class(ctx.Types().ClassFQN(infer.EnclosingClass(nm)), ctx.PHP); c != nil {
+		if c := ctx.Index().Class(ctx.Types().ClassFQN(syntax.EnclosingClass(nm)), ctx.PHP); c != nil {
 			return strings.TrimPrefix(c.Parent, `\`)
 		}
 		return ""

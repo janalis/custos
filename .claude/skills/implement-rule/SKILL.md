@@ -64,6 +64,23 @@ current directory. To only check compilation use `go build ./...`.
   `Const`), `ctx.IsGlobalFunctionCall(call, "strlen")`, `ctx.FunctionName(call)`
   (lower-case resolved name). No type inference / symbol index yet — rules
   needing them are not assigned yet.
+- AST navigation lives in `syntax`: `syntax.UnwrapParens`, `IsFuncLike`,
+  `EnclosingFuncLike`, `EnclosingClass`, `FuncLikeParams`, `FuncLikeBody`,
+  `IsNullConst`; class declarations: `ctx.Names().DeclFQN(cl)` /
+  `ParentFQN(cl)`.
+- Common util helpers (check before writing a private one):
+  `util.ParentSkipParens`, `CallArgValues`/`ArgValues`, `CallLastName`,
+  `LastNamePart`, `BoolConst`, `IsStringLiteral`, `IsNumberLiteral`,
+  `QuotedStringValue`/`QuotedStringContent`/`QuotedStringRaw`,
+  `StringLiteralValue`, `IsLogicalOperand`, `ParentFuncCall`,
+  `MentionsVariable`, `IsStaticPropName`, `ArgBindsByRef`, `IndentBefore`/
+  `LineIndent`, `DocHasTag`/`DocHasAnnotation`, `GlobalConstName`,
+  `ResolvesToGlobalFunction`, `QualifiedBuiltin`; tests:
+  `ctx.IsTestFile()`, `util.InTestContext(ctx, n)`, `util.IsTestClassFQN`.
+- Value discovery: `util.PossibleValues[Known]` (file-local),
+  `PossibleValuesReaching` (reaching assignments only),
+  `DiscoverValues[Known]` (index-aware), `PossibleValuesComplete`
+  (every value or nothing).
 - Recovery nodes: error recovery may create zero-width nodes (`Nop`,
   `BadExpr`); ignore nodes whose span is empty.
 - Context: `ctx.PHP` (target version, `phpver.PHP71` …), `ctx.ComparisonStyle`,
@@ -93,7 +110,7 @@ current directory. To only check compilation use `go build ./...`.
   `null`, `\Foo\Bar`, `\Foo[]`…); `IsUnknown()`, `Has`, `OnlyOf`, `Classes()`,
   `Elem()`, `IsArrayLike()`. Unknown means "no information": rules must stay
   silent on unknown unless the spec says otherwise. Helpers on the env:
-  `ResolveFunction(call)`, `ClassFQN(classLike)`, `infer.EnclosingClass(n)`.
+  `ResolveFunction(call)`, `ClassFQN(classLike)`, `ClassRef(classExpr)`.
 - `index.DocComment(file, node)` + `internal/phpdoc` (`Parse`, `Tag`, `Params`,
   `ReturnType`, `VarType`) for doc tags.
 - Rules needing symbols from OTHER files must implement the marker

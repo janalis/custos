@@ -1,6 +1,7 @@
 package codestyle
 
 import (
+	"custos/internal/analysis/util"
 	"strings"
 
 	"custos/internal/analysis"
@@ -33,7 +34,7 @@ func (unnecessaryUseAlias) Check(ctx *analysis.Context, n syntax.Node) {
 		kind = use.Type
 	}
 	name := it.Name.Value
-	last := name[strings.LastIndexByte(name, '\\')+1:]
+	last := util.LastNamePart(name)
 	// D2 / E1: case-sensitive, except for function imports (function names
 	// are case-insensitive in PHP).
 	if last != it.Alias.Value && (kind != syntax.UseFunction || !strings.EqualFold(last, it.Alias.Value)) {

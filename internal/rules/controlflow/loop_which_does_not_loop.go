@@ -108,7 +108,7 @@ func continuesLoop(body syntax.Node, loop syntax.Node) bool {
 		if found {
 			return false
 		}
-		if util.IsFuncLike(x) {
+		if syntax.IsFuncLike(x) {
 			return false
 		}
 		c, ok := x.(*syntax.Continue)
@@ -125,7 +125,7 @@ func continuesLoop(body syntax.Node, loop syntax.Node) bool {
 		}
 		k := 0
 		for p := c.Parent(); p != nil; p = p.Parent() {
-			if util.IsFuncLike(p) {
+			if syntax.IsFuncLike(p) {
 				break
 			}
 			_, isSwitch := p.(*syntax.Switch)

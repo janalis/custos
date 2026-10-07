@@ -120,10 +120,10 @@ func numberedRead(e syntax.Expr) (base syntax.Expr, key int64, ok bool) {
 func sameTextIgnoringSpace(a, b string) bool {
 	i, j := 0, 0
 	for {
-		for i < len(a) && isSpaceByte(a[i]) {
+		for i < len(a) && util.IsSpace(a[i]) {
 			i++
 		}
-		for j < len(b) && isSpaceByte(b[j]) {
+		for j < len(b) && util.IsSpace(b[j]) {
 			j++
 		}
 		if i == len(a) || j == len(b) {
@@ -136,8 +136,6 @@ func sameTextIgnoringSpace(a, b string) bool {
 		j++
 	}
 }
-
-func isSpaceByte(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
 
 // declaredByDirectForeach reports whether stmt is a direct statement of a
 // foreach body (braced, alternative syntax or brace-less) whose header

@@ -34,7 +34,7 @@ func (suspiciousBinaryOperation) Check(ctx *analysis.Context, n syntax.Node) {
 		if sboTrait(ctx, io) || io.Class == nil {
 			return
 		}
-		if util.Equivalent(ctx.File, util.UnwrapParens(io.Expr), util.UnwrapParens(io.Class)) { // D5
+		if util.Equivalent(ctx.File, syntax.UnwrapParens(io.Expr), syntax.UnwrapParens(io.Class)) { // D5
 			ctx.ReportNode(io, "Both operands are the same.")
 		}
 		return
@@ -162,7 +162,7 @@ func sboSame(ctx *analysis.Context, b *syntax.Binary) bool {
 	default:
 		return false
 	}
-	if !util.EquivalentFoldNames(ctx.File, util.UnwrapParens(b.Left), util.UnwrapParens(b.Right)) {
+	if !util.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(b.Left), syntax.UnwrapParens(b.Right)) {
 		return false
 	}
 	ctx.ReportNode(b, "Both operands are the same.")
@@ -249,7 +249,7 @@ func sboCoalesce(ctx *analysis.Context, b *syntax.Binary) bool {
 	if b.Op.Kind != syntax.TCoalesce {
 		return false
 	}
-	u, ok := util.UnwrapParens(b.Left).(*syntax.Unary)
+	u, ok := syntax.UnwrapParens(b.Left).(*syntax.Unary)
 	if !ok {
 		return false
 	}

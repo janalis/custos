@@ -57,10 +57,10 @@ func (dynamicCallsToScopeIntrospection) Check(ctx *analysis.Context, n syntax.No
 		return
 	}
 	var lit *syntax.Literal
-	if l, ok := util.UnwrapParens(target).(*syntax.Literal); ok && l.LitKind == syntax.LitString { // D3
+	if l, ok := syntax.UnwrapParens(target).(*syntax.Literal); ok && l.LitKind == syntax.LitString { // D3
 		lit = l
 	} else { // D4
-		vals, known := dcsiValues(ctx.File, target)
+		vals, known := util.PossibleValuesReaching(ctx.File, target)
 		if !known {
 			return
 		}
@@ -87,95 +87,4 @@ func (dynamicCallsToScopeIntrospection) Check(ctx *analysis.Context, n syntax.No
 		return
 	}
 	ctx.ReportNode(target, "'"+val+"' reads the caller scope and cannot be invoked indirectly since PHP 7.1.")
-}
-
-// dcsiValues is the possible-values procedure of the spec (R1-R7) where
-// variables (R3) only take the assignments that reach the use.
-func dcsiValues(f *syntax.File, e syntax.Expr) ([]syntax.Expr, bool) {
-	var out []syntax.Expr
-	seen := map[syntax.Node]bool{}
-	known := true
-	var collect func(e syntax.Expr)
-	collect = func(e syntax.Expr) {
-		e = util.UnwrapParens(e)
-		if e == nil || seen[e] || !known {
-			return
-		}
-		seen[e] = true
-		switch x := e.(type) {
-		case *syntax.Ternary: // R1
-			if x.Then != nil {
-				collect(x.Then)
-			}
-			collect(x.Else)
-		case *syntax.Binary: // R2
-			if x.Op.Kind != syntax.TCoalesce {
-				out = append(out, e)
-				return
-			}
-			collect(x.Left)
-			collect(x.Right)
-		case *syntax.Variable: // R3
-			if x.NameExpr != nil || x.Name == "" {
-				return
-			}
-			scope := util.EnclosingFuncLike(x)
-			if scope == nil {
-				return
-			}
-			params, body := dcsiScopeParts(scope)
-			if util.UnstableVariableIn(f, body, x.Name) {
-				known = false
-				return
-			}
-			defs, entry := util.ReachingAssignmentsIn(f, scope, x, x.Name)
-			if entry {
-				for _, p := range params {
-					if p.Var != nil && p.Var.Name == x.Name && p.Default != nil {
-						collect(p.Default)
-					}
-				}
-			}
-			for _, d := range defs {
-				v := d.Value
-				for {
-					inner, ok := util.UnwrapParens(v).(*syntax.Assign)
-					if !ok || inner.Op.Kind != syntax.TEqual {
-						break
-					}
-					v = inner.Value
-				}
-				collect(v)
-			}
-		default: // R4-R7
-			vals, ok := util.PossibleValuesKnown(f, e)
-			if !ok {
-				known = false
-				return
-			}
-			out = append(out, vals...)
-		}
-	}
-	collect(e)
-	if !known {
-		return nil, false
-	}
-	return out, true
-}
-
-func dcsiScopeParts(scope syntax.Node) ([]*syntax.Param, syntax.Node) {
-	switch s := scope.(type) {
-	case *syntax.Function:
-		return s.Params, s.Body
-	case *syntax.Method:
-		if s.Body != nil {
-			return s.Params, s.Body
-		}
-		return s.Params, nil
-	case *syntax.Closure:
-		return s.Params, s.Body
-	case *syntax.ArrowFunction:
-		return s.Params, s.Expr
-	}
-	return nil, nil
 }

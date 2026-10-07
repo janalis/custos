@@ -95,11 +95,11 @@ func resultVerified(ctx *analysis.Context, call *syntax.FuncCall) bool {
 // falseChecked reports whether s is compared with `=== false`/`!== false`
 // or negated anywhere in its enclosing function body.
 func falseChecked(f *syntax.File, s syntax.Node) bool {
-	fn := util.EnclosingFuncLike(s)
+	fn := syntax.EnclosingFuncLike(s)
 	if fn == nil {
 		return true
 	}
-	body := util.FuncLikeBody(fn)
+	body := syntax.FuncLikeBody(fn)
 	if body == nil {
 		return true
 	}

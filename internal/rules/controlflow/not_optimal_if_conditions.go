@@ -63,24 +63,24 @@ func (r notOptimalIfConditions) Check(ctx *analysis.Context, n syntax.Node) {
 
 // splitCondition flattens a condition into its && / || operands.
 func splitCondition(c syntax.Expr) ([]syntax.Expr, syntax.TokenKind) {
-	e := util.UnwrapParens(c)
+	e := syntax.UnwrapParens(c)
 	if u, ok := e.(*syntax.Unary); ok {
-		e = util.UnwrapParens(u.Expr)
+		e = syntax.UnwrapParens(u.Expr)
 	}
 	b, ok := e.(*syntax.Binary)
 	if !ok || (b.Op.Kind != syntax.TBooleanAnd && b.Op.Kind != syntax.TBooleanOr) {
 		return []syntax.Expr{e}, 0
 	}
 	op := b.Op.Kind
-	ops := []syntax.Expr{util.UnwrapParens(b.Right)}
-	left := util.UnwrapParens(b.Left)
+	ops := []syntax.Expr{syntax.UnwrapParens(b.Right)}
+	left := syntax.UnwrapParens(b.Left)
 	for {
 		lb, ok := left.(*syntax.Binary)
 		if !ok || lb.Op.Kind != op {
 			break
 		}
-		ops = append(ops, util.UnwrapParens(lb.Right))
-		left = util.UnwrapParens(lb.Left)
+		ops = append(ops, syntax.UnwrapParens(lb.Right))
+		left = syntax.UnwrapParens(lb.Left)
 	}
 	ops = append(ops, left)
 	for i, j := 0, len(ops)-1; i < j; i, j = i+1, j-1 {
@@ -127,7 +127,7 @@ func conditionCost(ctx *analysis.Context, e syntax.Expr) int {
 	if e == nil {
 		return 0
 	}
-	e = util.UnwrapParens(e)
+	e = syntax.UnwrapParens(e)
 	if e == nil {
 		return 0
 	}
@@ -212,7 +212,7 @@ func operandsCoupledS123(ctx *analysis.Context, prev, cur syntax.Expr) bool {
 	// S1
 	var mutated []syntax.Node
 	addTargets := func(t syntax.Expr) {
-		t = util.UnwrapParens(t)
+		t = syntax.UnwrapParens(t)
 		switch l := t.(type) {
 		case *syntax.List, *syntax.Array:
 			syntax.Inspect(l, func(x syntax.Node) bool {
@@ -333,7 +333,7 @@ func operandsCoupledS123(ctx *analysis.Context, prev, cur syntax.Expr) bool {
 			if hit {
 				return false
 			}
-			if v, ok := ruleSimpleVar(ruleAsExpr(x)); ok && guarded[v.Name] {
+			if v, ok := ruleSimpleVar(util.AsExpr(x)); ok && guarded[v.Name] {
 				hit = true
 			}
 			return true
@@ -415,7 +415,7 @@ func notOptimalImpure(ctx *analysis.Context, e syntax.Expr) bool {
 				impure = true
 				return false
 			}
-			if notOptimalPassesByRef(c.Args, f.Params) {
+			if util.ArgBindsByRef(c.Args, f.Params, true) {
 				impure = true
 				return false
 			}
@@ -423,40 +423,6 @@ func notOptimalImpure(ctx *analysis.Context, e syntax.Expr) bool {
 		return true
 	})
 	return impure
-}
-
-// notOptimalPassesByRef reports whether some argument binds to a
-// by-reference parameter.
-func notOptimalPassesByRef(list *syntax.ArgList, params []index.Param) bool {
-	if list == nil {
-		return false
-	}
-	pos := 0
-	for _, a := range list.Args {
-		arg, ok := a.(*syntax.Arg)
-		if !ok {
-			continue
-		}
-		if arg.ByRef {
-			return true
-		}
-		if arg.Name != nil {
-			for _, p := range params {
-				if p.ByRef && strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
-					return true
-				}
-			}
-			continue
-		}
-		if pos < len(params) && params[pos].ByRef {
-			return true
-		}
-		if n := len(params); pos >= n && n > 0 && params[n-1].Variadic && params[n-1].ByRef {
-			return true
-		}
-		pos++
-	}
-	return false
 }
 
 // byRefVarArgs returns the plain-variable arguments of call passed to
@@ -566,7 +532,7 @@ func keywordOperators(ctx *analysis.Context, c syntax.Expr) {
 // value: a scalar or string literal, null/true/false, an array literal, or a
 // signed number.
 func notOptimalLiteral(e syntax.Expr) bool {
-	switch x := util.UnwrapParens(e).(type) {
+	switch x := syntax.UnwrapParens(e).(type) {
 	case *syntax.Literal, *syntax.InterpolatedString, *syntax.Array:
 		return true
 	case *syntax.ConstFetch:

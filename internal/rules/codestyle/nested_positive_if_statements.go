@@ -157,7 +157,7 @@ func npiWithComments(f *syntax.File, block *syntax.Block, c *syntax.If, n syntax
 		return text
 	}
 	at := body.Span().Start + 1 - ns.Start
-	indent := naIndent(f.Src, c.Span().Start)
+	indent := util.IndentBefore(f.Src, c.Span().Start)
 	var b strings.Builder
 	b.WriteString(text[:at])
 	for _, cm := range comments {

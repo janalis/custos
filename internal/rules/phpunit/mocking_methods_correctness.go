@@ -5,7 +5,6 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
-	"custos/internal/infer"
 	"custos/internal/meta"
 	"custos/internal/syntax"
 )
@@ -44,7 +43,7 @@ func (mockingMethodsCorrectness) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || len(args) != 1 {
 		return
 	}
-	if !mmcTestContext(ctx, n) { // D0
+	if !util.InTestContext(ctx, n) { // D0
 		return
 	}
 	if c.Name == "willReturn" {
@@ -60,18 +59,6 @@ func (mockingMethodsCorrectness) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	mmcCheckMethod(ctx, c, args[0])
-}
-
-func mmcTestContext(ctx *analysis.Context, n syntax.Node) bool {
-	if util.IsTestPath(ctx.File.Path) {
-		return true
-	}
-	cl := infer.EnclosingClass(n)
-	if cl == nil {
-		return false
-	}
-	fqn := `\` + ctx.Types().ClassFQN(cl)
-	return strings.HasSuffix(fqn, "Test") || strings.Contains(fqn, `\Tests\`) || strings.Contains(fqn, `\Test\`)
 }
 
 func mmcCheckMethod(ctx *analysis.Context, c puCall, arg syntax.Expr) {

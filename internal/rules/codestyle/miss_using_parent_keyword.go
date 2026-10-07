@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -32,7 +31,7 @@ func (missUsingParentKeyword) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || id.Value == "" {
 		return
 	}
-	meth, ok := util.EnclosingFuncLike(call).(*syntax.Method) // D2
+	meth, ok := syntax.EnclosingFuncLike(call).(*syntax.Method) // D2
 	if !ok || meth.Name == nil || meth.Modifiers.Has(syntax.TStatic) {
 		return
 	}

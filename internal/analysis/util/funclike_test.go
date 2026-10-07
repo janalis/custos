@@ -42,10 +42,10 @@ func TestEnclosingFuncLike(t *testing.T) {
 		}
 		return true
 	})
-	if fn, ok := EnclosingFuncLike(x).(*syntax.Closure); !ok || FuncLikeBody(fn) == nil {
-		t.Errorf("$x: want enclosing closure, got %T", EnclosingFuncLike(x))
+	if fn, ok := syntax.EnclosingFuncLike(x).(*syntax.Closure); !ok || syntax.FuncLikeBody(fn) == nil {
+		t.Errorf("$x: want enclosing closure, got %T", syntax.EnclosingFuncLike(x))
 	}
-	if fn := EnclosingFuncLike(y); fn != nil {
+	if fn := syntax.EnclosingFuncLike(y); fn != nil {
 		t.Errorf("$y: want nil, got %T", fn)
 	}
 }

@@ -31,8 +31,8 @@ func (senselessMethodDuplication) Check(ctx *analysis.Context, n syntax.Node) {
 	if m.Modifiers.Has(syntax.TAbstract) || m.Modifiers.Has(syntax.TPrivate) || smdDeprecated(ctx, m) { // D1
 		return
 	}
-	ownFQN := util.ClassDeclFQN(ctx.Names(), cl)
-	if util.IsTestPath(ctx.File.Path) || util.IsTestClassFQN(ownFQN) { // D2
+	ownFQN := ctx.Names().DeclFQN(cl)
+	if ctx.IsTestFile() || util.IsTestClassFQN(ownFQN) { // D2
 		return
 	}
 	stmts := spmStatements(m.Body) // D4
@@ -40,7 +40,7 @@ func (senselessMethodDuplication) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	ix := ctx.Index()
-	parentFQN := util.ParentFQN(ctx.Names(), cl)
+	parentFQN := ctx.Names().ParentFQN(cl)
 	if parentFQN == "" {
 		return
 	}
@@ -275,7 +275,7 @@ func smdDelegateEdits(ctx *analysis.Context, m *syntax.Method) []analysis.TextEd
 	if smdReturns(ctx, m) {
 		ret = "return "
 	}
-	indent := smdIndent(ctx.Src, m.Span().Start)
+	indent := util.IndentBefore(ctx.Src, m.Span().Start)
 	text := "{\n" + indent + "    " + ret + "parent::" + m.Name.Value + "(" + strings.Join(args, ", ") + ");\n" + indent + "}"
 	return []analysis.TextEdit{{Span: m.Body.Span(), NewText: text}}
 }
@@ -306,15 +306,4 @@ func smdReturns(ctx *analysis.Context, m *syntax.Method) bool {
 		return !found
 	})
 	return found
-}
-
-func smdIndent(src []byte, off uint32) string {
-	i := int(off)
-	for i > 0 && (src[i-1] == ' ' || src[i-1] == '\t') {
-		i--
-	}
-	if i > 0 && src[i-1] != '\n' && src[i-1] != '\r' {
-		return ""
-	}
-	return string(src[i:off])
 }

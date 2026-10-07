@@ -87,14 +87,14 @@ func (e *Env) classWritesOf(c *syntax.ClassLike) *classWrites {
 	// prop returns the property written by target x (with element writes
 	// resolved to their base): its name and whether x is an element.
 	prop := func(x syntax.Expr) (string, bool, bool) {
-		x = unparen(x)
+		x = syntax.UnwrapParens(x)
 		elem := false
 		for {
 			d, ok := x.(*syntax.ArrayDimFetch)
 			if !ok {
 				break
 			}
-			x, elem = unparen(d.Var), true
+			x, elem = syntax.UnwrapParens(d.Var), true
 		}
 		pf, ok := x.(*syntax.PropertyFetch)
 		if !ok {
@@ -115,7 +115,7 @@ func (e *Env) classWritesOf(c *syntax.ClassLike) *classWrites {
 	}
 	var targets func(x syntax.Expr)
 	targets = func(x syntax.Expr) {
-		switch t := unparen(x).(type) {
+		switch t := syntax.UnwrapParens(x).(type) {
 		case *syntax.List:
 			for _, it := range t.Items {
 				if it != nil && it.Value != nil {
@@ -162,7 +162,7 @@ func (e *Env) classWritesOf(c *syntax.ClassLike) *classWrites {
 					continue
 				}
 				if a, ok := es.Expr.(*syntax.Assign); ok && a.Op.Kind == syntax.TEqual && !a.ByRef {
-					if pf, ok := unparen(a.Var).(*syntax.PropertyFetch); ok && narrowKey(unparen(pf.Var)) == "this" {
+					if pf, ok := syntax.UnwrapParens(a.Var).(*syntax.PropertyFetch); ok && narrowKey(syntax.UnwrapParens(pf.Var)) == "this" {
 						if id, ok := pf.Name.(*syntax.Identifier); ok {
 							get(id.Value).ctorSets = true
 						}
@@ -175,7 +175,7 @@ func (e *Env) classWritesOf(c *syntax.ClassLike) *classWrites {
 			case *syntax.ClassLike, *syntax.Function:
 				return false
 			case *syntax.Assign:
-				switch t := unparen(n.Var).(type) {
+				switch t := syntax.UnwrapParens(n.Var).(type) {
 				case *syntax.List, *syntax.Array:
 					targets(t)
 				default:

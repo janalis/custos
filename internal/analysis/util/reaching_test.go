@@ -38,7 +38,7 @@ func TestReachingAssignments(t *testing.T) {
 		if !ok || CallLastName(c) != "at" {
 			return true
 		}
-		scope := EnclosingFuncLike(c)
+		scope := syntax.EnclosingFuncLike(c)
 		fn := scope.(*syntax.Function).Name.Value
 		defs, entry := ReachingAssignments(scope, c, "v")
 		var parts []string

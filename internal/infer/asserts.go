@@ -155,9 +155,9 @@ func (e *Env) applyAsserts(ca *callAsserts, kind index.AssertKind, name string, 
 func (e *Env) assertTargets(ca *callAsserts, a index.Assertion, name string) bool {
 	switch a.Param {
 	case index.AssertThis:
-		return ca.recv != nil && narrowKey(unparen(ca.recv)) == name
+		return ca.recv != nil && narrowKey(syntax.UnwrapParens(ca.recv)) == name
 	case index.AssertThisProp:
-		return ca.recv != nil && narrowKey(unparen(ca.recv)) == "this" && name == "this->"+a.Prop
+		return ca.recv != nil && narrowKey(syntax.UnwrapParens(ca.recv)) == "this" && name == "this->"+a.Prop
 	}
 	arg := tplArg(ca.args, ca.params, a.Param)
 	return arg != nil && isVar(arg, name)

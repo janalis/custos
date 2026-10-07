@@ -49,7 +49,7 @@ func (dynamicInvocationViaScopeResolution) Check(ctx *analysis.Context, n syntax
 	instanceMsg := "Call '" + id.Value + "' on an instance with '->' instead of '::'."
 	left := ctx.SpanText(classSpan)
 	if strings.EqualFold(left, "static") || strings.EqualFold(left, "self") || strings.EqualFold(left, util.LastNamePart(m.Class)) { // D3
-		meth, ok := util.EnclosingFuncLike(call).(*syntax.Method)
+		meth, ok := syntax.EnclosingFuncLike(call).(*syntax.Method)
 		if !ok || meth.Name == nil || strings.EqualFold(meth.Name.Value, id.Value) {
 			return
 		}

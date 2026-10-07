@@ -37,8 +37,7 @@ func CtorAssignsProperty(c *syntax.ClassLike, name string) bool {
 			if !ok1 || !ok2 || v.NameExpr != nil || v.Name != "this" || id.Value != name {
 				continue
 			}
-			if c, ok := UnwrapParens(a.Value).(*syntax.ConstFetch); ok && c.Name != nil &&
-				strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null") {
+			if syntax.IsNullConst(syntax.UnwrapParens(a.Value)) {
 				continue
 			}
 			return true

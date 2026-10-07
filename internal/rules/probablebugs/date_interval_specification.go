@@ -37,16 +37,6 @@ func validDateIntervalSpec(s string) bool {
 	return true
 }
 
-func isStringLiteralNode(e syntax.Expr) bool {
-	switch x := e.(type) {
-	case *syntax.Literal:
-		return x.LitKind == syntax.LitString
-	case *syntax.InterpolatedString:
-		return !x.Backtick
-	}
-	return false
-}
-
 func (dateIntervalSpecification) Check(ctx *analysis.Context, n syntax.Node) {
 	nw := n.(*syntax.New)
 	lit, discovered := dateIntervalLiteral(ctx, nw)
@@ -81,12 +71,12 @@ func dateIntervalLiteral(ctx *analysis.Context, nw *syntax.New) (syntax.Expr, bo
 	if arg == nil {
 		return nil, false
 	}
-	if isStringLiteralNode(arg) { // D3
+	if util.IsStringLiteral(arg) { // D3
 		return arg, false
 	}
 	var lits []syntax.Expr
 	for _, v := range util.DiscoverValues(ctx.Types(), arg) {
-		if isStringLiteralNode(v) {
+		if util.IsStringLiteral(v) {
 			lits = append(lits, v)
 		}
 	}

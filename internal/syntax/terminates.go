@@ -16,7 +16,7 @@ func Terminates(s Stmt) bool {
 	case *Return, *Break, *Continue, *Goto:
 		return true
 	case *ExprStmt:
-		switch unwrapParens(x.Expr).(type) {
+		switch UnwrapParens(x.Expr).(type) {
 		case *Throw, *Exit:
 			return true
 		}
@@ -74,18 +74,8 @@ func Terminates(s Stmt) bool {
 }
 
 func isTrueConst(e Expr) bool {
-	c, ok := unwrapParens(e).(*ConstFetch)
+	c, ok := UnwrapParens(e).(*ConstFetch)
 	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "true")
-}
-
-func unwrapParens(e Expr) Expr {
-	for {
-		p, ok := e.(*Paren)
-		if !ok || p.Expr == nil {
-			return e
-		}
-		e = p.Expr
-	}
 }
 
 // containsBreak reports whether a `break` that could leave the construct

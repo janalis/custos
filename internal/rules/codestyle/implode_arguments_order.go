@@ -2,6 +2,7 @@ package codestyle
 
 import (
 	"custos/internal/analysis"
+	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -29,7 +30,7 @@ func (implodeArgumentsOrder) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok1 || !ok2 || first.Value == nil || second.Value == nil {
 		return
 	}
-	if !iaoStringLiteral(second.Value) || iaoStringLiteral(first.Value) { // D3, E2, E5
+	if !util.IsStringLiteral(second.Value) || util.IsStringLiteral(first.Value) { // D3, E2, E5
 		return
 	}
 	span := call.Span()
@@ -40,14 +41,4 @@ func (implodeArgumentsOrder) Check(ctx *analysis.Context, n syntax.Node) {
 			return []analysis.TextEdit{{Span: span, NewText: repl}}
 		},
 	})
-}
-
-func iaoStringLiteral(e syntax.Expr) bool {
-	switch e := e.(type) {
-	case *syntax.Literal:
-		return e.LitKind == syntax.LitString
-	case *syntax.InterpolatedString:
-		return !e.Backtick
-	}
-	return false
 }

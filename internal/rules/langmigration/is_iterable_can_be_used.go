@@ -49,7 +49,7 @@ func (isIterableCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	var walk func(b *syntax.Binary) bool // D5, D6
 	walk = func(b *syntax.Binary) bool {
 		for _, op := range [2]syntax.Expr{b.Left, b.Right} {
-			e := util.UnwrapParens(op)
+			e := syntax.UnwrapParens(op)
 			if inner, ok := e.(*syntax.Binary); ok && inner.Op.Kind == syntax.TBooleanOr {
 				if walk(inner) {
 					return true

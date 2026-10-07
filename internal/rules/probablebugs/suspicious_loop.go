@@ -2,7 +2,6 @@ package probablebugs
 
 import (
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -43,12 +42,12 @@ func (suspiciousLoop) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(names) == 0 {
 		return
 	}
-	if fn := util.EnclosingFuncLike(n); fn != nil { // D3
+	if fn := syntax.EnclosingFuncLike(n); fn != nil { // D3
 		kind := "function"
 		if _, ok := fn.(*syntax.Method); ok {
 			kind = "method"
 		}
-		params := util.FuncLikeParams(fn)
+		params := syntax.FuncLikeParams(fn)
 		for _, name := range names {
 			for _, p := range params {
 				if p.Var != nil && p.Var.Name == name {
@@ -59,7 +58,7 @@ func (suspiciousLoop) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	var outer []string
-	for p := n.Parent(); p != nil && !util.IsFuncLike(p); p = p.Parent() { // D4
+	for p := n.Parent(); p != nil && !syntax.IsFuncLike(p); p = p.Parent() { // D4
 		switch p.(type) {
 		case *syntax.For, *syntax.Foreach:
 		default:

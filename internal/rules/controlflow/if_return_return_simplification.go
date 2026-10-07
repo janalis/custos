@@ -1,8 +1,6 @@
 package controlflow
 
 import (
-	"strings"
-
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
 	"custos/internal/syntax"
@@ -47,7 +45,7 @@ func (ifReturnReturnSimplification) Check(ctx *analysis.Context, n syntax.Node) 
 	if s.Cond == nil || len(s.ElseIfs) > 0 { // D2
 		return
 	}
-	c := util.UnwrapParens(s.Cond) // D1
+	c := syntax.UnwrapParens(s.Cond) // D1
 	switch c := c.(type) {
 	case *syntax.Instanceof:
 	case *syntax.Binary:
@@ -118,7 +116,7 @@ func returnsBool(r *syntax.Return) (val, ok bool) {
 	if r.Expr == nil {
 		return false, false
 	}
-	return boolConstant(r.Expr)
+	return util.BoolConst(r.Expr)
 }
 
 // precededByGuardIf implements D6.
@@ -137,20 +135,4 @@ func precededByGuardIf(f *syntax.File, s *syntax.If) bool {
 	}
 	_, ok = stmts[len(stmts)-1].(*syntax.Return)
 	return ok
-}
-
-// boolConstant reports whether e is the constant true/false
-// (case-insensitive, optionally `\`-qualified) and which one.
-func boolConstant(e syntax.Expr) (val, ok bool) {
-	c, isConst := e.(*syntax.ConstFetch)
-	if !isConst || c.Name == nil {
-		return false, false
-	}
-	switch v := strings.TrimPrefix(c.Name.Value, `\`); {
-	case strings.EqualFold(v, "true"):
-		return true, true
-	case strings.EqualFold(v, "false"):
-		return false, true
-	}
-	return false, false
 }

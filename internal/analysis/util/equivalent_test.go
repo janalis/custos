@@ -39,8 +39,8 @@ func TestFunctionLike(t *testing.T) {
 		}
 		return true
 	})
-	fn := EnclosingFuncLike(arrow)
-	if fn == nil || len(FuncLikeParams(fn)) != 1 || FuncLikeParams(fn)[0].Var.Name != "p" {
+	fn := syntax.EnclosingFuncLike(arrow)
+	if fn == nil || len(syntax.FuncLikeParams(fn)) != 1 || syntax.FuncLikeParams(fn)[0].Var.Name != "p" {
 		t.Fatalf("unexpected enclosing function %v", fn)
 	}
 }

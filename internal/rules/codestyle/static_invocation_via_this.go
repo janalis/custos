@@ -43,7 +43,7 @@ func (staticInvocationViaThis) Check(ctx *analysis.Context, n syntax.Node) {
 	if sivtExcluded(ctx, m) { // D5
 		return
 	}
-	scope := util.EnclosingFuncLike(call)
+	scope := syntax.EnclosingFuncLike(call)
 	if v, ok := call.Var.(*syntax.Variable); ok && v.NameExpr == nil && v.Name == "this" { // D6
 		meth, ok := scope.(*syntax.Method)
 		if !ok || meth.Modifiers.Has(syntax.TStatic) {
@@ -108,7 +108,7 @@ func sivtExcluded(ctx *analysis.Context, m *index.Method) bool {
 // sivtScopeInput reports whether name is a parameter or closure `use`
 // variable of the function-like scope.
 func sivtScopeInput(scope syntax.Node, name string) bool {
-	for _, p := range util.FuncLikeParams(scope) {
+	for _, p := range syntax.FuncLikeParams(scope) {
 		if p.Var != nil && p.Var.Name == name {
 			return true
 		}

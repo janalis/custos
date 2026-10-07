@@ -35,13 +35,13 @@ func (emptyClass) Check(ctx *analysis.Context, n syntax.Node) {
 	if util.DocHasTag(ctx.File, cl, "deprecated") { // D3
 		return
 	}
-	if parent := util.ParentFQN(ctx.Names(), cl); parent != "" { // D4
+	if parent := ctx.Names().ParentFQN(cl); parent != "" { // D4
 		ix := ctx.Index()
 		if pc := ix.Class(parent, ctx.PHP); pc != nil {
 			if pc.Abstract {
 				return
 			}
-			for _, a := range ix.Ancestors(util.ClassDeclFQN(ctx.Names(), cl), ctx.PHP) {
+			for _, a := range ix.Ancestors(ctx.Names().DeclFQN(cl), ctx.PHP) {
 				if strings.TrimPrefix(a.FQN, `\`) == "Exception" {
 					return
 				}

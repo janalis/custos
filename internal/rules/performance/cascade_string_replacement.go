@@ -61,12 +61,12 @@ func (cascadeStringReplacement) Check(ctx *analysis.Context, n syntax.Node) {
 		if x.Expr == nil {
 			return
 		}
-		f, ok = csrMatchN(ctx, util.UnwrapParens(x.Expr))
+		f, ok = csrMatchN(ctx, syntax.UnwrapParens(x.Expr))
 	case *syntax.Assign:
 		if x.Op.Kind != syntax.TEqual || x.ByRef || x.Value == nil {
 			return
 		}
-		f, ok = csrMatchN(ctx, util.UnwrapParens(x.Value))
+		f, ok = csrMatchN(ctx, syntax.UnwrapParens(x.Value))
 	}
 	if !ok { // D2
 		return
@@ -192,14 +192,14 @@ func csrStmtCall(ctx *analysis.Context, s syntax.Stmt) (f csrCall, target string
 		if x.Expr == nil {
 			return csrCall{}, "", false, false
 		}
-		f, ok = csrMatch(ctx, util.UnwrapParens(x.Expr))
+		f, ok = csrMatch(ctx, syntax.UnwrapParens(x.Expr))
 		return f, "", true, ok
 	case *syntax.ExprStmt:
 		a, isAssign := x.Expr.(*syntax.Assign)
 		if !isAssign || a.Op.Kind != syntax.TEqual || a.ByRef || a.Value == nil {
 			return csrCall{}, "", false, false
 		}
-		f, ok = csrMatch(ctx, util.UnwrapParens(a.Value))
+		f, ok = csrMatch(ctx, syntax.UnwrapParens(a.Value))
 		if !ok {
 			return csrCall{}, "", false, false
 		}
@@ -565,7 +565,7 @@ func (c *csrCtx) constValue(e syntax.Expr) syntax.Expr {
 	if !ok || cf.Name == nil {
 		return e
 	}
-	name := util.LastSegment(cf.Name.Value)
+	name := util.LastNamePart(cf.Name.Value)
 	switch strings.ToLower(name) {
 	case "true", "false", "null":
 		return e

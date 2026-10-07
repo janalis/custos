@@ -28,7 +28,7 @@ func ReachingAssignments(scope, at syntax.Node, name string) (defs []*syntax.Ass
 // cached on f (nil: not cached). Prefer it when querying many uses of the
 // same function: without the cache each query walks the whole body.
 func ReachingAssignmentsIn(f *syntax.File, scope, at syntax.Node, name string) (defs []*syntax.Assign, entry bool) {
-	_, body := scopeParts(scope)
+	_, body := ScopeParts(scope)
 	if body == nil || name == "" {
 		return nil, true
 	}
@@ -152,7 +152,7 @@ func reachIsVarNamed(e syntax.Expr, name string) bool {
 	if e == nil {
 		return false
 	}
-	v, ok := UnwrapParens(e).(*syntax.Variable)
+	v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
 	return ok && v.NameExpr == nil && v.Name == name
 }
 
@@ -205,7 +205,7 @@ func reachWrites(f *syntax.File, scope, body syntax.Node) map[string][]reachWrit
 					}
 					return
 				case *syntax.Assign:
-					if t, ok := UnwrapParens(x.Var).(*syntax.Variable); ok && t.NameExpr == nil && tracked(active, t.Name) {
+					if t, ok := syntax.UnwrapParens(x.Var).(*syntax.Variable); ok && t.NameExpr == nil && tracked(active, t.Name) {
 						m[t.Name] = append(m[t.Name], reachWrite{x, active != nil})
 					}
 				case *syntax.Foreach:
@@ -215,7 +215,7 @@ func reachWrites(f *syntax.File, scope, body syntax.Node) map[string][]reachWrit
 							if e == nil {
 								continue
 							}
-							if v, ok := UnwrapParens(e).(*syntax.Variable); ok && v.NameExpr == nil && v.Name != seen && tracked(active, v.Name) {
+							if v, ok := syntax.UnwrapParens(e).(*syntax.Variable); ok && v.NameExpr == nil && v.Name != seen && tracked(active, v.Name) {
 								m[v.Name] = append(m[v.Name], reachWrite{x, active != nil})
 								seen = v.Name
 							}

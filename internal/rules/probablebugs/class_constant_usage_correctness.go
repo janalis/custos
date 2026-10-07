@@ -1,6 +1,7 @@
 package probablebugs
 
 import (
+	"custos/internal/analysis/util"
 	"strings"
 
 	"custos/internal/analysis"
@@ -129,7 +130,7 @@ func (classConstantUsageCorrectness) Check(ctx *analysis.Context, n syntax.Node)
 				}
 				rfqn := `\` + strings.TrimPrefix(r.FQN, `\`)
 				precise := strings.HasSuffix(rfqn, u.target)
-				if !precise || rfqn[strings.LastIndexByte(rfqn, '\\')+1:] != t {
+				if !precise || util.LastNamePart(rfqn) != t {
 					list = append(list, rfqn)
 				} else {
 					list = append(list, t) // correct plain import (spec L4)

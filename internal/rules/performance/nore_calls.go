@@ -39,7 +39,7 @@ func (c *noreCase) checkCall() {
 	if c.fn == "preg_quote" && argc == 1 { // D20
 		ctx.ReportSeverity(call.Span(), meta.SeverityWarning, "Pass the delimiter to preg_quote() so it is escaped as well.")
 	}
-	if c.fn == "preg_match_all" && argc == 2 && usedAsCondition(call) { // D21
+	if c.fn == "preg_match_all" && argc == 2 && util.IsLogicalOperand(call) { // D21
 		ctx.ReportSeverity(call.Name.Span(), meta.SeverityInfo, "Use preg_match() when only testing for a match.")
 	}
 	if argc >= 2 && len(args) == argc && c.body != "" { // D22
@@ -198,7 +198,7 @@ func noreCompared(call *syntax.FuncCall) (*syntax.Binary, syntax.TokenKind, stri
 
 // noreInverted implements the D22 "inverted" definition.
 func noreInverted(call *syntax.FuncCall) bool {
-	if usedAsCondition(call) {
+	if util.IsLogicalOperand(call) {
 		u, ok := call.Parent().(*syntax.Unary)
 		return ok && u.Op.Kind == syntax.TExclaim
 	}
@@ -219,7 +219,7 @@ func noreInverted(call *syntax.FuncCall) bool {
 
 // noreContext implements the D22 "context" definition.
 func noreContext(call *syntax.FuncCall) syntax.Node {
-	if usedAsCondition(call) {
+	if util.IsLogicalOperand(call) {
 		if u, ok := call.Parent().(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
 			return u
 		}

@@ -77,7 +77,8 @@ func (isNullFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // inBoolConst reports whether e is the constant true/false (any case,
-// optionally fully qualified) and its value.
+// optionally fully qualified) and its value. Kept apart from util.BoolConst,
+// which folds case with Unicode rules (`falſe` matches there, not here).
 func inBoolConst(e syntax.Expr) (val, ok bool) {
 	c, isConst := e.(*syntax.ConstFetch)
 	if !isConst || c.Name == nil {

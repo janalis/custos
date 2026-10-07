@@ -53,7 +53,7 @@ func (r unnecessaryCasting) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 		}
 	}
-	a := util.UnwrapParens(u.Expr)
+	a := syntax.UnwrapParens(u.Expr)
 	tr := infer.NewTRules(ctx.Types())
 	tr.DivisionIntOrFloat = true // `int / int` may be a float
 	tr.SoundArithmetic = true    // `"4" * 100` is an int, `$unknown * 2` unknown
@@ -62,7 +62,7 @@ func (r unnecessaryCasting) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	if v, ok := a.(*syntax.Variable); ok && v.NameExpr == nil { // D3a
-		for _, p := range util.FuncLikeParams(util.EnclosingFuncLike(a)) {
+		for _, p := range syntax.FuncLikeParams(syntax.EnclosingFuncLike(a)) {
 			if p.Var != nil && p.Var.Name == v.Name && p.Type == nil {
 				return
 			}
@@ -164,9 +164,9 @@ func castStaticMethod(ctx *analysis.Context, env *infer.Env, x *syntax.StaticCal
 	var cls string
 	switch strings.ToLower(nm.Value) {
 	case "self", "static":
-		cls = env.ClassFQN(infer.EnclosingClass(x))
+		cls = env.ClassFQN(syntax.EnclosingClass(x))
 	case "parent":
-		if c := infer.EnclosingClass(x); c != nil && len(c.Extends) > 0 {
+		if c := syntax.EnclosingClass(x); c != nil && len(c.Extends) > 0 {
 			cls = ctx.Names().Class(c.Extends[0].Value, c.Span().Start)
 		}
 	default:
@@ -200,7 +200,7 @@ func castPrivatePropertyType(ctx *analysis.Context, env *infer.Env, x *syntax.Pr
 	switch {
 	case p.HasDefault:
 		def = infer.LiteralTextType(p.Default)
-	case !p.Promoted && !util.CtorAssignsProperty(infer.EnclosingClass(x), id.Value):
+	case !p.Promoted && !util.CtorAssignsProperty(syntax.EnclosingClass(x), id.Value):
 		// No default: an untyped property holds null until written.
 		def = types.Null
 	}

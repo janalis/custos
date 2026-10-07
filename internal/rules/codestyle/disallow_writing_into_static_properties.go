@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -42,7 +41,7 @@ func (disallowWritingIntoStaticProperties) Check(ctx *analysis.Context, n syntax
 		return
 	}
 	const msg = "Modify this static property only from the class that declares it."
-	meth, ok := util.EnclosingFuncLike(a).(*syntax.Method)
+	meth, ok := syntax.EnclosingFuncLike(a).(*syntax.Method)
 	if !ok { // D3b
 		ctx.Report(span, msg)
 		return

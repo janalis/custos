@@ -44,57 +44,29 @@ func DiscoverValues(env *infer.Env, e syntax.Expr) []syntax.Expr {
 // DiscoverValuesKnown is DiscoverValues reporting whether the result is
 // known; when known is false, vals is nil and consumers must stay silent.
 func DiscoverValuesKnown(env *infer.Env, e syntax.Expr) (vals []syntax.Expr, known bool) {
-	d := discoverer{env: env, f: env.File, seen: map[syntax.Node]bool{}}
+	d := &discoverer{valueWalk: newValueWalk(env.File), env: env}
+	d.elvisCond, d.skipEmpty = true, true
+	d.resolve = d.resolveExpr
 	d.collect(e)
-	if d.unknown {
-		return nil, false
-	}
-	return d.out, true
+	return d.result()
 }
 
 type discoverer struct {
-	env     *infer.Env
-	f       *syntax.File
-	seen    map[syntax.Node]bool
-	out     []syntax.Expr
-	unknown bool
+	valueWalk
+	env *infer.Env
 }
 
-func (d *discoverer) text(n syntax.Node) string {
-	s := n.Span()
-	return string(d.f.Src[s.Start:s.End])
-}
-
-func (d *discoverer) collect(e syntax.Expr) {
-	e = UnwrapParens(e)
-	if e == nil || d.seen[e] || d.unknown || e.Span().Len() == 0 {
-		return
-	}
-	d.seen[e] = true
+func (d *discoverer) resolveExpr(e syntax.Expr) bool {
 	switch x := e.(type) {
-	case *syntax.Ternary:
-		if x.Then != nil {
-			d.collect(x.Then)
-		} else {
-			d.collect(x.Cond)
-		}
-		d.collect(x.Else)
-	case *syntax.Binary:
-		if x.Op.Kind != syntax.TCoalesce {
-			d.out = append(d.out, e)
-			return
-		}
-		d.collect(x.Left)
-		d.collect(x.Right)
 	case *syntax.Variable:
-		d.variable(x)
+		d.localVar(x)
 	case *syntax.PropertyFetch:
 		if id, ok := x.Name.(*syntax.Identifier); ok {
 			d.property(x, d.env.TypeOf(x.Var).Classes(), id.Value)
 		}
 	case *syntax.StaticPropertyFetch:
 		if v, ok := x.Name.(*syntax.Variable); ok && v.NameExpr == nil && v.Name != "" {
-			if cls := d.classRef(x.Class); cls != "" {
+			if cls := d.env.ClassRef(x.Class); cls != "" {
 				d.property(x, []string{cls}, v.Name)
 			}
 		}
@@ -103,55 +75,9 @@ func (d *discoverer) collect(e syntax.Expr) {
 	case *syntax.ConstFetch:
 		d.constant(x)
 	default:
-		d.out = append(d.out, e)
+		return false
 	}
-}
-
-func (d *discoverer) variable(v *syntax.Variable) {
-	if v.NameExpr != nil || v.Name == "" {
-		return
-	}
-	scope := enclosingScope(v)
-	if scope == nil {
-		return
-	}
-	params, body := scopeParts(scope)
-	ix := assignsUnder(d.f, body)
-	if ix.unstable[v.Name] {
-		d.unknown = true
-		return
-	}
-	for _, p := range params {
-		if p.Var != nil && p.Var.Name == v.Name && p.Default != nil {
-			d.collect(p.Default)
-		}
-	}
-	assigns := ix.byVar[v.Name]
-	if len(assigns) > maxPossibleValues {
-		d.unknown = true
-		return
-	}
-	for _, a := range assigns {
-		d.collect(assignedValue(a))
-	}
-}
-
-// classRef resolves a class reference (name or expression) to an FQN
-// without leading backslash.
-func (d *discoverer) classRef(x syntax.Expr) string {
-	if n, ok := x.(*syntax.Name); ok {
-		switch strings.ToLower(n.Value) {
-		case "self", "static":
-			return ClassDeclFQN(d.env.Names, enclosingClass(n))
-		case "parent":
-			return ParentFQN(d.env.Names, enclosingClass(n))
-		}
-		return d.env.Names.Class(n.Value, n.Span().Start)
-	}
-	if cs := d.env.TypeOf(x).Classes(); len(cs) == 1 {
-		return strings.TrimPrefix(cs[0], `\`)
-	}
-	return ""
+	return true
 }
 
 func (d *discoverer) property(fetch syntax.Expr, classes []string, name string) {
@@ -186,18 +112,18 @@ func (d *discoverer) property(fetch syntax.Expr, classes []string, name string) 
 	scan := func(root syntax.Node) {
 		cands := assignsUnder(d.f, root).byKind[fetch.Kind()]
 		if len(cands) > maxAssignScan {
-			d.unknown = true
+			d.stop = true
 			return
 		}
 		for _, a := range cands {
 			if Equivalent(d.f, a.Var, fetch) {
-				vals = append(vals, assignedValue(a))
+				vals = append(vals, AssignedValue(a))
 			}
 		}
 	}
-	scope := enclosingScope(fetch)
+	scope := syntax.EnclosingFuncLike(fetch)
 	if scope != nil {
-		_, body := scopeParts(scope)
+		_, body := ScopeParts(scope)
 		scan(body)
 	}
 	for _, m := range decl.Members {
@@ -206,11 +132,11 @@ func (d *discoverer) property(fetch syntax.Expr, classes []string, name string) 
 			scan(meth.Body)
 		}
 	}
-	if d.unknown {
+	if d.stop {
 		return
 	}
 	if len(vals) > maxPossibleValues {
-		d.unknown = true
+		d.stop = true
 		return
 	}
 	for _, x := range vals {
@@ -227,7 +153,7 @@ func (d *discoverer) classConst(c *syntax.ClassConstFetch) {
 		d.out = append(d.out, c)
 		return
 	}
-	cls := d.classRef(c.Class)
+	cls := d.env.ClassRef(c.Class)
 	if cls == "" {
 		return
 	}
@@ -240,14 +166,8 @@ func (d *discoverer) classConst(c *syntax.ClassConstFetch) {
 	if decl == nil {
 		return
 	}
-	for _, m := range decl.Members {
-		if cc, ok := m.(*syntax.ClassConst); ok {
-			for _, it := range cc.Consts {
-				if it.Name != nil && it.Name.Value == id.Value && it.Value != nil {
-					d.collect(it.Value)
-				}
-			}
-		}
+	for _, v := range classConstValues(decl, id.Value) {
+		d.collect(v)
 	}
 }
 
@@ -255,7 +175,7 @@ func (d *discoverer) constant(c *syntax.ConstFetch) {
 	if c.Name == nil {
 		return
 	}
-	switch strings.ToLower(LastSegment(c.Name.Value)) {
+	switch strings.ToLower(LastNamePart(c.Name.Value)) {
 	case "true", "false", "null":
 		d.out = append(d.out, c)
 		return

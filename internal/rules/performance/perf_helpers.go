@@ -2,6 +2,7 @@ package performance
 
 import (
 	"custos/internal/analysis"
+	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -45,18 +46,10 @@ func perfArgs(list *syntax.ArgList) []*syntax.Arg {
 
 // perfPlainArgs returns the argument values when none is spread or named.
 func perfPlainArgs(list *syntax.ArgList) ([]syntax.Expr, bool) {
-	args := perfArgs(list)
-	if list == nil || len(args) != len(list.Args) {
+	if list == nil {
 		return nil, false
 	}
-	out := make([]syntax.Expr, len(args))
-	for i, a := range args {
-		if a.Unpack || a.Name != nil {
-			return nil, false
-		}
-		out[i] = a.Value
-	}
-	return out, true
+	return util.ArgValues(list)
 }
 
 // perfPlainVar returns the name of a simple `$name` variable.

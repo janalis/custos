@@ -24,7 +24,7 @@ func (elvisOperatorCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if span.Len() == 0 || t.Else.Span().Len() == 0 {
 		return
 	}
-	if !util.EquivalentFoldNames(ctx.File, util.UnwrapParens(t.Cond), util.UnwrapParens(t.Then)) { // D3
+	if !util.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(t.Cond), syntax.UnwrapParens(t.Then)) { // D3
 		return
 	}
 	// E4: the short ternary evaluates the condition once; with calls or

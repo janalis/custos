@@ -42,7 +42,7 @@ func VarAccesses(f *syntax.File, scope syntax.Node, name string) []VarAccess {
 	case *syntax.ArrowFunction:
 		w.node(s.Expr)
 	default:
-		if b := FuncLikeBody(scope); b != nil {
+		if b := syntax.FuncLikeBody(scope); b != nil {
 			w.node(b)
 		}
 	}
@@ -63,7 +63,7 @@ func VarAccessesByName(f *syntax.File, scope syntax.Node) map[string][]VarAccess
 	case *syntax.ArrowFunction:
 		w.node(s.Expr)
 	default:
-		if b := FuncLikeBody(scope); b != nil {
+		if b := syntax.FuncLikeBody(scope); b != nil {
 			w.node(b)
 		}
 	}

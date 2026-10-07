@@ -5,7 +5,6 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
-	"custos/internal/infer"
 	"custos/internal/syntax"
 )
 
@@ -167,14 +166,14 @@ func debugOutputBuffered(f *syntax.File, call *syntax.FuncCall) bool {
 // named function listed as a function entry, or a method whose
 // `\Class::method` identity is listed as a method entry.
 func debugInWrapper(ctx *analysis.Context, n syntax.Node, entries []string) bool {
-	switch fn := util.EnclosingFuncLike(n).(type) {
+	switch fn := syntax.EnclosingFuncLike(n).(type) {
 	case *syntax.Function:
 		return fn.Name != nil && debugHasEntry(entries, fn.Name.Value)
 	case *syntax.Method:
 		if fn.Name == nil {
 			return false
 		}
-		fqn := ctx.Types().ClassFQN(infer.EnclosingClass(fn))
+		fqn := ctx.Types().ClassFQN(syntax.EnclosingClass(fn))
 		return fqn != "" && debugHasEntry(entries, `\`+fqn+"::"+fn.Name.Value)
 	}
 	return false

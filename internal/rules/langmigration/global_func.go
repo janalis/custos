@@ -13,20 +13,8 @@ import (
 // namespaced function (PHP's runtime fallback). When known is set, the
 // global function must also exist in the index.
 func callsGlobalFunction(ctx *analysis.Context, call *syntax.FuncCall, known bool) bool {
-	name, ok := call.Name.(*syntax.Name)
-	if !ok {
-		return false
-	}
-	fqn, fallback := ctx.Names().Function(name.Value, name.Span().Start)
-	if fallback != "" {
-		if ctx.Index().Function(fqn, ctx.PHP) != nil {
-			return false
-		}
-		fqn = fallback
-	} else if strings.Contains(fqn, `\`) {
-		return false
-	}
-	return !known || ctx.Index().Function(fqn, ctx.PHP) != nil
+	name := ctx.GlobalFunctionName(call)
+	return name != "" && (!known || ctx.Index().Function(name, ctx.PHP) != nil)
 }
 
 // namesGlobalClass reports whether e is a class name that resolves, with the

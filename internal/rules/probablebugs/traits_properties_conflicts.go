@@ -9,7 +9,6 @@ import (
 	"custos/internal/analysis/util"
 	"custos/internal/index"
 	"custos/internal/meta"
-	"custos/internal/phpdoc"
 	"custos/internal/syntax"
 	"custos/internal/types"
 )
@@ -77,7 +76,7 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	className := cl.Name.Value
 	msg := func(t *index.Class, prop string) string {
-		return className + " and trait " + util.LastSegment(t.FQN) + " both declare property $" + prop + "."
+		return className + " and trait " + util.LastNamePart(t.FQN) + " both declare property $" + prop + "."
 	}
 	first := func(name string) (*index.Class, *index.Property) {
 		for _, t := range traits {
@@ -109,7 +108,7 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 	for _, m := range cl.Members {
 		switch m := m.(type) {
 		case *syntax.Property:
-			if m.Modifiers.Has(syntax.TAbstract) || tpcAnnotated(ctx, m) {
+			if m.Modifiers.Has(syntax.TAbstract) || util.DocHasAnnotation(ctx.File, m) {
 				continue
 			}
 			typ := tpcTypeString(ctx, m.Type)
@@ -191,21 +190,6 @@ func tpcFind(ctx *analysis.Context, t *index.Class, name string, seen map[string
 		}
 	}
 	return nil
-}
-
-// tpcAnnotated reports whether the property's docblock has a tag whose name
-// is not all-lowercase.
-func tpcAnnotated(ctx *analysis.Context, p *syntax.Property) bool {
-	doc := index.DocComment(ctx.File, p)
-	if doc == "" {
-		return false
-	}
-	for _, t := range phpdoc.Parse(doc).Tags {
-		if t.Name != strings.ToLower(t.Name) {
-			return true
-		}
-	}
-	return false
 }
 
 func tpcSameDefault(has bool, def string, tp *index.Property) bool {

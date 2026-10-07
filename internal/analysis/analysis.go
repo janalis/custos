@@ -354,12 +354,16 @@ func (c *Context) List(name string) []string {
 	return nil
 }
 
-// IsTestFile reports whether the file looks like a test (by path).
-func (c *Context) IsTestFile() bool {
-	p := strings.ReplaceAll(c.File.Path, "\\", "/")
-	base := p[strings.LastIndexByte(p, '/')+1:]
-	return strings.HasSuffix(base, "Test.php") || strings.HasSuffix(base, "Spec.php") ||
-		strings.HasSuffix(base, ".phpt") || strings.Contains(p, "/Fixtures/")
+// IsTestFile reports whether the file looks like a test (IsTestPath).
+func (c *Context) IsTestFile() bool { return IsTestPath(c.File.Path) }
+
+// IsTestPath reports whether a file path denotes a test context: it ends
+// with Test.php, Spec.php or .phpt, or contains a /Fixtures/ directory
+// (case-sensitive; `\` separators accepted).
+func IsTestPath(path string) bool {
+	p := strings.ReplaceAll(path, `\`, "/")
+	return strings.HasSuffix(p, "Test.php") || strings.HasSuffix(p, "Spec.php") ||
+		strings.HasSuffix(p, ".phpt") || strings.Contains(p, "/Fixtures/")
 }
 
 func sortFindings(fs []Finding) {

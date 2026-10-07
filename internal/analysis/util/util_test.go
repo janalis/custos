@@ -38,11 +38,11 @@ func spanText(f *syntax.File, s syntax.Span) string { return string(f.Src[s.Star
 func TestUnwrapParens(t *testing.T) {
 	f := parse(t, "<?php ((($a + 1)));")
 	e := firstExpr(t, f)
-	if got := text(f, UnwrapParens(e)); got != "$a + 1" {
+	if got := text(f, syntax.UnwrapParens(e)); got != "$a + 1" {
 		t.Fatalf("got %q", got)
 	}
 	f = parse(t, "<?php $a;")
-	if got := text(f, UnwrapParens(firstExpr(t, f))); got != "$a" {
+	if got := text(f, syntax.UnwrapParens(firstExpr(t, f))); got != "$a" {
 		t.Fatalf("got %q", got)
 	}
 }
@@ -50,7 +50,7 @@ func TestUnwrapParens(t *testing.T) {
 func TestParentSkipParens(t *testing.T) {
 	f := parse(t, "<?php !(($a));")
 	not := firstExpr(t, f).(*syntax.Unary)
-	v := UnwrapParens(not.Expr)
+	v := syntax.UnwrapParens(not.Expr)
 	parent, child := ParentSkipParens(v)
 	if parent != syntax.Node(not) {
 		t.Fatalf("parent = %T", parent)

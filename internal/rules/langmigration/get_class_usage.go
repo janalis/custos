@@ -38,17 +38,10 @@ func (getClassUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ctx.TypeOf(arg).Has("null") && !isNullDefaultedParam(arg) { // D4
 		return
 	}
-	if scope := util.EnclosingFuncLike(call); scope != nil && nullCheckedBefore(ctx.File, scope, arg) { // D5
+	if scope := syntax.EnclosingFuncLike(call); scope != nil && nullCheckedBefore(ctx.File, scope, arg) { // D5
 		return
 	}
 	ctx.ReportNode(call, "get_class() rejects null on PHP 7.2+; guard the argument.")
-}
-
-// gcuIsNullConst reports whether e is the constant null (any case, optionally
-// `\`-qualified).
-func gcuIsNullConst(e syntax.Expr) bool {
-	c, ok := util.UnwrapParens(e).(*syntax.ConstFetch)
-	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
 }
 
 // isNullDefaultedParam implements D4b.
@@ -57,15 +50,15 @@ func isNullDefaultedParam(arg syntax.Expr) bool {
 	if !ok || v.NameExpr != nil {
 		return false
 	}
-	scope := util.EnclosingFuncLike(arg)
+	scope := syntax.EnclosingFuncLike(arg)
 	if scope == nil {
 		return false
 	}
 	if _, ok := scope.(*syntax.ArrowFunction); ok {
 		return false
 	}
-	for _, p := range util.FuncLikeParams(scope) {
-		if p.Var != nil && p.Var.Name == v.Name && p.Default != nil && gcuIsNullConst(p.Default) {
+	for _, p := range syntax.FuncLikeParams(scope) {
+		if p.Var != nil && p.Var.Name == v.Name && p.Default != nil && syntax.IsNullConst(syntax.UnwrapParens(p.Default)) {
 			return true
 		}
 	}
@@ -74,7 +67,7 @@ func isNullDefaultedParam(arg syntax.Expr) bool {
 
 // nullCheckedBefore implements the null-check search of the spec.
 func nullCheckedBefore(f *syntax.File, scope syntax.Node, arg syntax.Expr) bool {
-	body := util.FuncLikeBody(scope)
+	body := syntax.FuncLikeBody(scope)
 	if body == nil {
 		return false
 	}
@@ -107,7 +100,7 @@ func isNullCheck(c syntax.Node) bool {
 			if p.Right == c {
 				other = p.Left
 			}
-			if gcuIsNullConst(other) {
+			if syntax.IsNullConst(syntax.UnwrapParens(other)) {
 				return true
 			}
 		}

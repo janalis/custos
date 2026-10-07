@@ -4,8 +4,6 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
-	"custos/internal/infer"
 	"custos/internal/syntax"
 )
 
@@ -17,9 +15,9 @@ func semClassesOf(ctx *analysis.Context, ref syntax.Expr) []string {
 		var fqn string
 		switch strings.ToLower(n.Value) {
 		case "self", "static":
-			fqn = util.ClassDeclFQN(ctx.Names(), infer.EnclosingClass(n))
+			fqn = ctx.Names().DeclFQN(syntax.EnclosingClass(n))
 		case "parent":
-			fqn = util.ParentFQN(ctx.Names(), infer.EnclosingClass(n))
+			fqn = ctx.Names().ParentFQN(syntax.EnclosingClass(n))
 		default:
 			fqn = ctx.Names().Class(n.Value, n.Span().Start)
 		}

@@ -70,8 +70,8 @@ func (senselessProxyMethod) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	ix := ctx.Index()
-	ownFQN := util.ClassDeclFQN(ctx.Names(), cl)
-	parentFQN := util.ParentFQN(ctx.Names(), cl)
+	ownFQN := ctx.Names().DeclFQN(cl)
+	parentFQN := ctx.Names().ParentFQN(cl)
 	own := ix.Class(ownFQN, ctx.PHP)
 	if own == nil || parentFQN == "" {
 		return

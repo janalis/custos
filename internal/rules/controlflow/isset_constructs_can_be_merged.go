@@ -36,7 +36,7 @@ func (issetConstructsCanBeMerged) Check(ctx *analysis.Context, n syntax.Node) {
 	var frags []syntax.Expr
 	var flatten func(e syntax.Expr)
 	flatten = func(e syntax.Expr) {
-		e = util.UnwrapParens(e)
+		e = syntax.UnwrapParens(e)
 		if b, ok := e.(*syntax.Binary); ok && b.Op.Kind == op {
 			flatten(b.Left)
 			flatten(b.Right)

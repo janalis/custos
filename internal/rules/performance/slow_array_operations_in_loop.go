@@ -50,7 +50,7 @@ func (slowArrayOperationsInLoop) checkMerge(ctx *analysis.Context, n *syntax.Fun
 		return
 	}
 	inLoop := false // G5
-	for p := syntax.Node(start); p != nil && !util.IsFuncLike(p); p = p.Parent() {
+	for p := syntax.Node(start); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
 		switch p.(type) {
 		case *syntax.Foreach, *syntax.For, *syntax.While, *syntax.DoWhile:
 			inLoop = true
@@ -75,7 +75,7 @@ func (slowArrayOperationsInLoop) checkMerge(ctx *analysis.Context, n *syntax.Fun
 // else, switch case) or in a block whose last statement leaves the loop
 // (break, return, throw).
 func mergeRunsOnce(st *syntax.ExprStmt) bool {
-	for p := st.Parent(); p != nil && !util.IsFuncLike(p); p = p.Parent() {
+	for p := st.Parent(); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
 		switch p := p.(type) {
 		case *syntax.Foreach, *syntax.For, *syntax.While, *syntax.DoWhile:
 			return false
@@ -188,7 +188,7 @@ type forNames struct {
 }
 
 func newForNames(ctx *analysis.Context, f *syntax.For) *forNames {
-	scope := util.EnclosingFuncLike(f)
+	scope := syntax.EnclosingFuncLike(f)
 	used := map[string]bool{}
 	collect := func(n syntax.Node) {
 		syntax.Inspect(n, func(c syntax.Node) bool {
@@ -219,7 +219,7 @@ func (n *forNames) pick(f *syntax.For, ci int, base string) string {
 			k++
 		}
 	}
-	for p := f.Parent(); p != nil && p != n.scope && !util.IsFuncLike(p); p = p.Parent() {
+	for p := f.Parent(); p != nil && p != n.scope && !syntax.IsFuncLike(p); p = p.Parent() {
 		if outer, ok := p.(*syntax.For); ok {
 			for _, b := range forFixBases(n.ctx, outer) {
 				if b == base {

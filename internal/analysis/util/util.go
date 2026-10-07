@@ -4,17 +4,6 @@ package util
 
 import "custos/internal/syntax"
 
-// UnwrapParens strips any number of enclosing parentheses from e.
-func UnwrapParens(e syntax.Expr) syntax.Expr {
-	for {
-		p, ok := e.(*syntax.Paren)
-		if !ok || p.Expr == nil {
-			return e
-		}
-		e = p.Expr
-	}
-}
-
 // ParentSkipParens returns the first ancestor of n that is not a Paren, and
 // the outermost Paren (or n itself) directly below it.
 func ParentSkipParens(n syntax.Node) (parent, child syntax.Node) {

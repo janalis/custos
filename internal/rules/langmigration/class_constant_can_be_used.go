@@ -147,7 +147,7 @@ func (st *cccState) checkLiteral(lit *syntax.Literal) {
 	}
 	candidate := raw // D5
 	if nsConcat {
-		if cl := enclosingClassLike(lit); cl != nil {
+		if cl := syntax.EnclosingClass(lit); cl != nil {
 			ns := ctx.Names().Namespace(cl.Span().Start)
 			candidate = `\` + ns + `\` + strings.TrimPrefix(raw, `\`)
 			if ns == "" {
@@ -206,15 +206,6 @@ func classScope(n syntax.Node) *syntax.ClassLike {
 			return nil
 		case *syntax.ClassLike:
 			return p
-		}
-	}
-	return nil
-}
-
-func enclosingClassLike(n syntax.Node) *syntax.ClassLike {
-	for p := n.Parent(); p != nil; p = p.Parent() {
-		if c, ok := p.(*syntax.ClassLike); ok {
-			return c
 		}
 	}
 	return nil

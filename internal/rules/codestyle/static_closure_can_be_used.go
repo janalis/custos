@@ -5,7 +5,6 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
-	"custos/internal/infer"
 	"custos/internal/phpver"
 	"custos/internal/syntax"
 )
@@ -77,7 +76,7 @@ func (staticClosureCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 // call not known to target a static method (D5b).
 func closureNeedsThis(ctx *analysis.Context, region syntax.Node) bool {
 	found := false
-	home := infer.EnclosingClass(region)
+	home := syntax.EnclosingClass(region)
 	syntax.Inspect(region, func(x syntax.Node) bool {
 		if found {
 			return false
@@ -88,7 +87,7 @@ func closureNeedsThis(ctx *analysis.Context, region syntax.Node) bool {
 				found = true
 			}
 		case *syntax.StaticCall:
-			if cls, ok := x.Class.(*syntax.Name); ok && home != nil && infer.EnclosingClass(x) == home &&
+			if cls, ok := x.Class.(*syntax.Name); ok && home != nil && syntax.EnclosingClass(x) == home &&
 				(strings.EqualFold(cls.Value, "self") || strings.EqualFold(cls.Value, "static")) { // D5b
 				id, ok := x.Name.(*syntax.Identifier)
 				if !ok {
@@ -139,7 +138,7 @@ func closureUsageSites(f *syntax.File, n syntax.Node) (sites []syntax.Node, unsa
 		if !ok || p.Value != n || p.Op.Kind != syntax.TEqual || target.NameExpr != nil || target.Name == "" {
 			return nil, false
 		}
-		body := util.FuncLikeBody(util.EnclosingFuncLike(p))
+		body := syntax.FuncLikeBody(syntax.EnclosingFuncLike(p))
 		if body == nil {
 			return nil, false
 		}
@@ -218,7 +217,7 @@ func closureSiteSafe(ctx *analysis.Context, site syntax.Node) bool {
 		return ok && strings.EqualFold(id.Value, "bindTo") && bindNullScope(ctx, s.Args, 0) &&
 			ctx.Index().FindMethod("Closure", "bindTo", ctx.PHP) != nil
 	case *syntax.ArrayItem: // S5
-		return util.EnclosingFuncLike(s) == nil
+		return syntax.EnclosingFuncLike(s) == nil
 	}
 	return false // S6
 }
@@ -229,7 +228,7 @@ func bindNullScope(ctx *analysis.Context, list *syntax.ArgList, i int) bool {
 		return false
 	}
 	args, ok := util.ArgValues(list)
-	return ok && len(args) > i && pdvNullConst(args[i])
+	return ok && len(args) > i && syntax.IsNullConst(syntax.UnwrapParens(args[i]))
 }
 
 // closureMethodResolves reports whether cls::name resolves to the built-in

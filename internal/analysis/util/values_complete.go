@@ -37,61 +37,32 @@ import (
 //     value; true/false/null are values themselves;
 //   - anything that cannot be resolved this way: incomplete.
 func PossibleValuesComplete(f *syntax.File, e syntax.Expr) (vals []syntax.Expr, complete bool) {
-	pc := completeValues{f: f, seen: map[syntax.Node]bool{}}
+	pc := &completeValues{valueWalk: newValueWalk(f)}
+	pc.elvisCond, pc.nilStops = true, true
+	pc.resolve = pc.resolveExpr
 	pc.collect(e)
-	if pc.incomplete {
-		return nil, false
-	}
-	return pc.out, true
+	return pc.result()
 }
 
-type completeValues struct {
-	f          *syntax.File
-	seen       map[syntax.Node]bool
-	out        []syntax.Expr
-	incomplete bool
-}
+type completeValues struct{ valueWalk }
 
-func (pc *completeValues) collect(e syntax.Expr) {
-	e = UnwrapParens(e)
-	if e == nil {
-		pc.incomplete = true
-		return
-	}
-	if pc.seen[e] || pc.incomplete {
-		return
-	}
-	pc.seen[e] = true
+func (pc *completeValues) resolveExpr(e syntax.Expr) bool {
 	switch x := e.(type) {
-	case *syntax.Ternary:
-		if x.Then != nil {
-			pc.collect(x.Then)
-		} else {
-			pc.collect(x.Cond)
-		}
-		pc.collect(x.Else)
-	case *syntax.Binary:
-		if x.Op.Kind != syntax.TCoalesce {
-			pc.out = append(pc.out, e)
-			return
-		}
-		pc.collect(x.Left)
-		pc.collect(x.Right)
 	case *syntax.Variable:
 		pc.variable(x)
 	case *syntax.PropertyFetch:
 		id, ok := x.Name.(*syntax.Identifier)
 		v, isVar := x.Var.(*syntax.Variable)
 		if !ok || !isVar || v.Name != "this" || x.NullSafe {
-			pc.incomplete = true
-			return
+			pc.stop = true
+			return true
 		}
-		pc.property(enclosingClass(x), id.Value, false)
+		pc.property(syntax.EnclosingClass(x), id.Value, false)
 	case *syntax.StaticPropertyFetch:
 		v, ok := x.Name.(*syntax.Variable)
 		if !ok || v.NameExpr != nil || v.Name == "" {
-			pc.incomplete = true
-			return
+			pc.stop = true
+			return true
 		}
 		pc.property(pc.staticClass(x, x.Class), v.Name, true)
 	case *syntax.ClassConstFetch:
@@ -99,37 +70,38 @@ func (pc *completeValues) collect(e syntax.Expr) {
 	case *syntax.ConstFetch:
 		pc.constant(x)
 	default:
-		pc.out = append(pc.out, e)
+		return false
 	}
+	return true
 }
 
 func (pc *completeValues) variable(v *syntax.Variable) {
 	if v.NameExpr != nil || v.Name == "" || v.Name == "this" {
-		pc.incomplete = true
+		pc.stop = true
 		return
 	}
-	scope := enclosingScope(v)
+	scope := syntax.EnclosingFuncLike(v)
 	if scope == nil {
-		pc.incomplete = true
+		pc.stop = true
 		return
 	}
-	_, body := scopeParts(scope)
+	_, body := ScopeParts(scope)
 	if body == nil {
-		pc.incomplete = true
+		pc.stop = true
 		return
 	}
 	ix := assignsUnder(pc.f, body)
 	if otherWrites(pc.f, scope)[v.Name] || ix.byRefUse[v.Name] || ix.unstable[v.Name] || len(ix.byVar[v.Name]) > maxPossibleValues {
-		pc.incomplete = true
+		pc.stop = true
 		return
 	}
 	defs, entry := ReachingAssignmentsIn(pc.f, scope, v, v.Name)
 	if entry || len(defs) == 0 {
-		pc.incomplete = true
+		pc.stop = true
 		return
 	}
 	for _, d := range defs {
-		pc.collect(assignedValue(d))
+		pc.collect(AssignedValue(d))
 	}
 }
 
@@ -142,32 +114,21 @@ func (pc *completeValues) staticClass(at syntax.Node, class syntax.Expr) *syntax
 	}
 	switch strings.ToLower(cn.Value) {
 	case "self":
-		return enclosingClass(at)
+		return syntax.EnclosingClass(at)
 	case "static":
-		if c := enclosingClass(at); c != nil && c.Modifiers.Has(syntax.TFinal) {
+		if c := syntax.EnclosingClass(at); c != nil && c.Modifiers.Has(syntax.TFinal) {
 			return c
 		}
 		return nil
 	case "parent":
 		return nil
 	}
-	want := LastSegment(cn.Value)
-	var found *syntax.ClassLike
-	syntax.InspectFile(pc.f, func(n syntax.Node) bool {
-		if found != nil {
-			return false
-		}
-		if cl, ok := n.(*syntax.ClassLike); ok && cl.Name != nil && strings.EqualFold(cl.Name.Value, want) {
-			found = cl
-		}
-		return true
-	})
-	return found
+	return fileClassNamed(pc.f, LastNamePart(cn.Value))
 }
 
 func (pc *completeValues) property(class *syntax.ClassLike, name string, static bool) {
 	if class == nil {
-		pc.incomplete = true
+		pc.stop = true
 		return
 	}
 	var decl *syntax.PropertyItem
@@ -182,18 +143,18 @@ func (pc *completeValues) property(class *syntax.ClassLike, name string, static 
 		}
 	}
 	if decl == nil || prop.Modifiers.Has(syntax.TStatic) != static || len(prop.Hooks) > 0 {
-		pc.incomplete = true
+		pc.stop = true
 		return
 	}
 	switch {
 	case decl.Default != nil:
 		pc.collect(decl.Default)
 	case prop.Type == nil:
-		pc.incomplete = true // implicit null
+		pc.stop = true // implicit null
 		return
 	}
 	matches := func(e syntax.Expr) bool {
-		switch x := UnwrapParens(e).(type) {
+		switch x := syntax.UnwrapParens(e).(type) {
 		case *syntax.PropertyFetch:
 			id, ok := x.Name.(*syntax.Identifier)
 			v, isVar := x.Var.(*syntax.Variable)
@@ -211,24 +172,24 @@ func (pc *completeValues) property(class *syntax.ClassLike, name string, static 
 			case *syntax.Assign:
 				if matches(x.Var) {
 					if x.Op.Kind != syntax.TEqual || x.ByRef {
-						pc.incomplete = true
+						pc.stop = true
 					} else {
-						vals = append(vals, assignedValue(x))
+						vals = append(vals, AssignedValue(x))
 					}
 				}
 			case *syntax.IncDec:
 				if matches(x.Var) {
-					pc.incomplete = true
+					pc.stop = true
 				}
 			}
-			return !pc.incomplete
+			return !pc.stop
 		})
 	}
-	if pc.incomplete {
+	if pc.stop {
 		return
 	}
 	if decl.Default == nil && len(vals) == 0 {
-		pc.incomplete = true
+		pc.stop = true
 		return
 	}
 	for _, v := range vals {
@@ -240,63 +201,30 @@ func (pc *completeValues) classConst(c *syntax.ClassConstFetch) {
 	id, ok := c.Name.(*syntax.Identifier)
 	class := pc.staticClass(c, c.Class)
 	if !ok || class == nil {
-		pc.incomplete = true
+		pc.stop = true
 		return
 	}
-	for _, m := range class.Members {
-		if cc, ok := m.(*syntax.ClassConst); ok {
-			for _, it := range cc.Consts {
-				if it.Name != nil && it.Name.Value == id.Value && it.Value != nil {
-					pc.collect(it.Value)
-					return
-				}
-			}
-		}
+	if vals := classConstValues(class, id.Value); len(vals) > 0 {
+		pc.collect(vals[0])
+		return
 	}
-	pc.incomplete = true
+	pc.stop = true
 }
 
 func (pc *completeValues) constant(c *syntax.ConstFetch) {
 	if c.Name == nil {
-		pc.incomplete = true
+		pc.stop = true
 		return
 	}
-	name := LastSegment(c.Name.Value)
+	name := LastNamePart(c.Name.Value)
 	switch strings.ToLower(name) {
 	case "true", "false", "null":
 		pc.out = append(pc.out, c)
 		return
 	}
-	var found syntax.Expr
-	syntax.InspectFile(pc.f, func(n syntax.Node) bool {
-		if found != nil {
-			return false
-		}
-		switch x := n.(type) {
-		case *syntax.ConstStmt:
-			for _, it := range x.Consts {
-				if it.Name != nil && it.Name.Value == name && it.Value != nil {
-					found = it.Value
-				}
-			}
-		case *syntax.FuncCall:
-			if CallLastName(x) != "define" {
-				return true
-			}
-			args, ok := CallArgValues(x)
-			if !ok || len(args) < 2 {
-				return true
-			}
-			if lit, ok := args[0].(*syntax.Literal); ok && lit.LitKind == syntax.LitString {
-				if v, ok := StringLiteralValue(lit.Raw); ok && strings.TrimPrefix(v, `\`) == name {
-					found = args[1]
-				}
-			}
-		}
-		return true
-	})
+	found := fileConstValue(pc.f, name)
 	if found == nil {
-		pc.incomplete = true
+		pc.stop = true
 		return
 	}
 	pc.collect(found)
@@ -315,7 +243,7 @@ func otherWrites(f *syntax.File, scope syntax.Node) map[string]bool {
 					continue
 				}
 				a, ok := acc.By.(*syntax.Assign)
-				if !ok || a.Op.Kind != syntax.TEqual || a.ByRef || UnwrapParens(a.Var) != syntax.Expr(acc.Var) {
+				if !ok || a.Op.Kind != syntax.TEqual || a.ByRef || syntax.UnwrapParens(a.Var) != syntax.Expr(acc.Var) {
 					m[name] = true
 					break
 				}

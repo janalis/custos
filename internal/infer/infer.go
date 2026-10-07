@@ -277,7 +277,7 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.PropertyFetch:
 		t := e.propertyType(e.TypeOf(n.Var), n.Name, false)
 		if key := narrowKey(n); key != "" {
-			t = e.narrowExpr(t, n, key, scopeOf(n))
+			t = e.narrowExpr(t, n, key, syntax.EnclosingFuncLike(n))
 		}
 		return t
 	case *syntax.StaticPropertyFetch:
@@ -298,7 +298,7 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.ArrayDimFetch:
 		t := e.dimType(n)
 		if key := narrowKey(n); key != "" && !t.IsUnknown() {
-			t = e.narrowExpr(t, n, key, scopeOf(n))
+			t = e.narrowExpr(t, n, key, syntax.EnclosingFuncLike(n))
 		}
 		return t
 	}
@@ -463,26 +463,8 @@ func (e *Env) compoundType(n *syntax.Assign) types.Type {
 
 // ---- classes -------------------------------------------------------------------------
 
-// EnclosingClass returns the class-like declaration containing n (nil outside).
-func EnclosingClass(n syntax.Node) *syntax.ClassLike {
-	for p := n.Parent(); p != nil; p = p.Parent() {
-		if c, ok := p.(*syntax.ClassLike); ok {
-			return c
-		}
-	}
-	return nil
-}
-
 // ClassFQN returns the FQN of a class declaration ("" for anonymous classes).
-func (e *Env) ClassFQN(c *syntax.ClassLike) string {
-	if c == nil || c.Name == nil {
-		return ""
-	}
-	if ns := e.Names.Namespace(c.Span().Start); ns != "" {
-		return ns + `\` + c.Name.Value
-	}
-	return c.Name.Value
-}
+func (e *Env) ClassFQN(c *syntax.ClassLike) string { return e.Names.DeclFQN(c) }
 
 // classRef resolves a class reference expression (Name or expression) to a FQN.
 func (e *Env) classRef(x syntax.Expr) string {
@@ -491,12 +473,9 @@ func (e *Env) classRef(x syntax.Expr) string {
 		low := strings.ToLower(n.Value)
 		switch low {
 		case "self", "static":
-			return e.ClassFQN(EnclosingClass(n))
+			return e.ClassFQN(syntax.EnclosingClass(n))
 		case "parent":
-			if c := EnclosingClass(n); c != nil && len(c.Extends) > 0 && c.ClassKind != syntax.KindInterface {
-				return e.Names.Class(c.Extends[0].Value, c.Span().Start)
-			}
-			return ""
+			return e.Names.ParentFQN(syntax.EnclosingClass(n))
 		}
 		return e.Names.Class(n.Value, n.Span().Start)
 	default:
@@ -671,7 +650,7 @@ func (e *Env) staticCallType(n *syntax.StaticCall) types.Type {
 	origin := cls
 	if nm, ok := n.Class.(*syntax.Name); ok && strings.EqualFold(nm.Value, "parent") {
 		// parent::m(): the calling class's @extends arguments bind the parent.
-		if c := e.ClassFQN(EnclosingClass(n)); c != "" {
+		if c := e.ClassFQN(syntax.EnclosingClass(n)); c != "" {
 			origin = c
 		}
 	}
@@ -810,7 +789,7 @@ func (e *Env) overrideType(n *syntax.FuncCall) (types.Type, bool) {
 			return types.Of("int", "string"), true
 		}
 		if c := arg(1); c != nil {
-			if lit, ok := unparen(c).(*syntax.Literal); ok && lit.LitKind == syntax.LitInt && lit.Raw == "1" {
+			if lit, ok := syntax.UnwrapParens(c).(*syntax.Literal); ok && lit.LitKind == syntax.LitInt && lit.Raw == "1" {
 				return types.Of("int", "string"), true
 			}
 		}
@@ -820,7 +799,7 @@ func (e *Env) overrideType(n *syntax.FuncCall) (types.Type, bool) {
 			el := at.Elem()
 			if el.IsUnknown() {
 				el = e.shapeElem(at, a)
-			} else if v, ok := unparen(a).(*syntax.Variable); ok && v.Name != "" && v.Name != "this" {
+			} else if v, ok := syntax.UnwrapParens(a).(*syntax.Variable); ok && v.Name != "" && v.Name != "this" {
 				el = e.widenVarElem(el, v)
 			}
 			if !el.IsUnknown() {
@@ -836,7 +815,7 @@ func (e *Env) overrideType(n *syntax.FuncCall) (types.Type, bool) {
 					case "reset", "end", "array_pop", "array_shift":
 						return el, true
 					case "current":
-						if v, ok := unparen(a).(*syntax.Variable); ok && v.Name != "" && !e.pointerMoved(scopeOf(v), v.Name) {
+						if v, ok := syntax.UnwrapParens(a).(*syntax.Variable); ok && v.Name != "" && !e.pointerMoved(syntax.EnclosingFuncLike(v), v.Name) {
 							return el, true
 						}
 					}
@@ -850,7 +829,7 @@ func (e *Env) overrideType(n *syntax.FuncCall) (types.Type, bool) {
 		if len(n.Args.Args) == 0 {
 			return types.Of("int[]", "false"), true
 		}
-		if c, ok := unparen(arg(0)).(*syntax.ConstFetch); ok && c.Name != nil {
+		if c, ok := syntax.UnwrapParens(arg(0)).(*syntax.ConstFetch); ok && c.Name != nil {
 			switch strings.ToLower(strings.TrimPrefix(c.Name.Value, `\`)) {
 			case "false":
 				return types.Of("int[]", "false"), true
@@ -866,7 +845,7 @@ func (e *Env) overrideType(n *syntax.FuncCall) (types.Type, bool) {
 				return types.Of("array", "false"), true
 			}
 		case 2:
-			if c, ok := unparen(arg(1)).(*syntax.ConstFetch); ok && c != nil {
+			if c, ok := syntax.UnwrapParens(arg(1)).(*syntax.ConstFetch); ok && c != nil {
 				if strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "PHP_URL_PORT") {
 					return types.Of("int", "null", "false"), true
 				}
@@ -975,34 +954,23 @@ func (e *Env) writtenType(a *syntax.Assign) types.Type {
 	return e.TypeOf(a)
 }
 
-// scopeOf returns the function-like node (or nil for file scope) owning n.
-func scopeOf(n syntax.Node) syntax.Node {
-	for p := n.Parent(); p != nil; p = p.Parent() {
-		switch p.(type) {
-		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction:
-			return p
-		}
-	}
-	return nil
-}
-
 func (e *Env) variableType(v *syntax.Variable) types.Type {
 	if v.Name == "" {
 		return types.Unknown
 	}
 	if v.Name == "this" {
-		if fqn := e.ClassFQN(EnclosingClass(v)); fqn != "" {
+		if fqn := e.ClassFQN(syntax.EnclosingClass(v)); fqn != "" {
 			return types.Of(`\` + fqn)
 		}
 		return types.Unknown
 	}
-	scope := scopeOf(v)
+	scope := syntax.EnclosingFuncLike(v)
 	sv := e.scopeVars(scope)
 	defs := sv.defs[v.Name]
 	if af, ok := scope.(*syntax.ArrowFunction); ok && len(defs) == 0 {
 		// Arrow functions capture the enclosing scope by value.
 		_ = af
-		outer := e.scopeVars(scopeOf(scope))
+		outer := e.scopeVars(syntax.EnclosingFuncLike(scope))
 		defs = outer.defs[v.Name]
 	}
 	if len(defs) > maxVarDefs {
@@ -1027,7 +995,7 @@ func (e *Env) variableType(v *syntax.Variable) types.Type {
 	if t.HasShape() || t.IsNonEmptyArray() {
 		ms := scope
 		if _, ok := scope.(*syntax.ArrowFunction); ok && len(sv.defs[v.Name]) == 0 {
-			ms = scopeOf(scope)
+			ms = syntax.EnclosingFuncLike(scope)
 		}
 		if t.HasShape() && e.shapeClobbered(ms, v.Name) {
 			t = t.WithoutShape()
@@ -1096,7 +1064,7 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 		for _, u := range s.Uses {
 			u := u
 			add(u.Var.Name, u.Span().Start, func() types.Type {
-				outer := e.scopeVars(scopeOf(scope))
+				outer := e.scopeVars(syntax.EnclosingFuncLike(scope))
 				var ts []types.Type
 				for _, d := range outer.defs[u.Var.Name] {
 					if d.pos < scope.Span().Start && !d.barrier {

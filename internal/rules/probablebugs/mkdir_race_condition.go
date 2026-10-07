@@ -5,7 +5,6 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
-	"custos/internal/infer"
 	"custos/internal/syntax"
 )
 
@@ -40,7 +39,7 @@ func (mkdirRaceCondition) Check(ctx *analysis.Context, n syntax.Node) {
 	} else if !ctx.IsGlobalFunctionCall(call, "mkdir") {
 		return
 	}
-	if mkdirTestContext(ctx, call) { // D2
+	if util.InTestContext(ctx, call) { // D2
 		return
 	}
 
@@ -140,7 +139,7 @@ locate:
 			return []analysis.TextEdit{{Span: target.Span(), NewText: repl}}
 		}})
 	case *syntax.Binary: // D6
-		if _, ok := util.UnwrapParens(c.Right).(*syntax.Exit); ok {
+		if _, ok := syntax.UnwrapParens(c.Right).(*syntax.Exit); ok {
 			return
 		}
 		outer := c
@@ -224,7 +223,7 @@ func hasIsDirCall(ctx *analysis.Context, e syntax.Expr, keys []string) bool {
 			return true
 		}
 		if a, ok := call.Args.Args[0].(*syntax.Arg); ok && a.Value != nil && !a.Unpack {
-			k := mkdirNorm(ctx.Text(util.UnwrapParens(a.Value)))
+			k := mkdirNorm(ctx.Text(syntax.UnwrapParens(a.Value)))
 			for _, want := range keys {
 				if k == want {
 					found = true
@@ -244,10 +243,10 @@ func mkdirDirKeys(ctx *analysis.Context, call *syntax.FuncCall) []string {
 	if !ok || a.Value == nil {
 		return nil
 	}
-	v := util.UnwrapParens(a.Value)
+	v := syntax.UnwrapParens(a.Value)
 	keys := []string{mkdirNorm(ctx.Text(v))}
 	if as, ok := v.(*syntax.Assign); ok && as.Op.Kind == syntax.TEqual {
-		keys = append(keys, mkdirNorm(ctx.Text(util.UnwrapParens(as.Var))), mkdirNorm(ctx.Text(util.UnwrapParens(as.Value))))
+		keys = append(keys, mkdirNorm(ctx.Text(syntax.UnwrapParens(as.Var))), mkdirNorm(ctx.Text(syntax.UnwrapParens(as.Value))))
 	}
 	return keys
 }
@@ -261,17 +260,4 @@ func mkdirNorm(s string) string {
 		}
 		return r
 	}, s)
-}
-
-func mkdirTestContext(ctx *analysis.Context, n syntax.Node) bool {
-	if util.IsTestPath(ctx.File.Path) {
-		return true
-	}
-	if cls := infer.EnclosingClass(n); cls != nil && cls.Name != nil {
-		fqn := ctx.Types().ClassFQN(cls)
-		if strings.HasSuffix(fqn, "Test") || strings.Contains(fqn, `\Tests\`) || strings.Contains(fqn, `\Test\`) {
-			return true
-		}
-	}
-	return false
 }

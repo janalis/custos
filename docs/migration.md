@@ -147,7 +147,7 @@ Execute Phase 0 (init repo, CLAUDE.md, skill, docs/migration.md with this plan, 
 - Spec-level false positives applied as documented divergences (see docs/decisions.md); value discovery treats incremented/compound-assigned variables as unknown.
 
 ## Status update (2026-10-07, hardening)
-- Phase 8 items: slab allocation, shared test-path helper, false-positive reviews (corpus A, Symfony, corpus B, corpus E, EasyAdminBundle, corpus C, corpus D) and goreleaser packaging done.
+- Phase 8 items: slab allocation, shared test-path helper, helper consolidation (value discovery, AST navigation, test context; see docs/decisions.md Engine), false-positive reviews (Symfony, EasyAdminBundle, private projects) and goreleaser packaging done.
 - Index disk cache declined (cold index 0.4–0.5 s on 8–10k sources; see docs/decisions.md).
 - Security: syntax nesting cap, linear doc-type parsing, whole-tool hostile-input audit (LSP framing, file size/IO caps, linear mini-parsers, quadratic paths removed), see the Security section of docs/decisions.md.
 - Engine: generics (class and method templates), assertions, array shapes, inferred returns and properties.

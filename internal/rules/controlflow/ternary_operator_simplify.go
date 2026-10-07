@@ -35,15 +35,15 @@ func (ternaryOperatorSimplify) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	// D2
-	thenV, ok1 := util.BoolConst(util.UnwrapParens(t.Then))
-	_, ok2 := util.BoolConst(util.UnwrapParens(t.Else))
+	thenV, ok1 := util.BoolConst(syntax.UnwrapParens(t.Then))
+	_, ok2 := util.BoolConst(syntax.UnwrapParens(t.Else))
 	if !ok1 || !ok2 {
 		return
 	}
 	inverted := !thenV // D3
 	// D1/D4
 	var repl string
-	switch b := util.UnwrapParens(t.Cond).(type) {
+	switch b := syntax.UnwrapParens(t.Cond).(type) {
 	case *syntax.Binary:
 		text := ctx.Text(b)
 		if opp, cmp := oppositeComparison[b.Op.Kind]; cmp {

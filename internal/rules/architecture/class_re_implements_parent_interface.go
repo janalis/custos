@@ -28,7 +28,7 @@ func (classReImplementsParentInterface) Check(ctx *analysis.Context, n syntax.No
 		return
 	}
 	ix := ctx.Index()
-	parent := ix.Class(util.ParentFQN(ctx.Names(), cl), ctx.PHP) // D3
+	parent := ix.Class(ctx.Names().ParentFQN(cl), ctx.PHP) // D3
 	if parent == nil {
 		return
 	}
@@ -83,7 +83,7 @@ func criRemoveEdits(f *syntax.File, ext *syntax.Name, list []*syntax.Name, redun
 	if len(list) == 1 || (all && idx == 0) { // F1: drop the whole clause
 		end := list[len(list)-1].Span().End
 		text := " "
-		if int(end) < len(f.Src) && criIsSpace(f.Src[end]) {
+		if int(end) < len(f.Src) && util.IsSpace(f.Src[end]) {
 			text = ""
 		}
 		return []analysis.TextEdit{{Span: syntax.Span{Start: ext.Span().End, End: end}, NewText: text}}
@@ -106,5 +106,3 @@ func criRemoveEdits(f *syntax.File, ext *syntax.Name, list []*syntax.Name, redun
 	}
 	return []analysis.TextEdit{{Span: syntax.Span{Start: comma.Start, End: entry.End}}}
 }
-
-func criIsSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }

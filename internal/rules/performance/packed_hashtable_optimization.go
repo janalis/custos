@@ -30,7 +30,7 @@ func (packedHashtableOptimization) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(arr.Items) < 3 || isDestructuringTarget(arr) { // D2
 		return
 	}
-	if pkIsTestContext(ctx, arr) { // D3
+	if util.InTestContext(ctx, arr) { // D3
 		return
 	}
 	ascending, hasString := true, false
@@ -137,26 +137,4 @@ func isDestructuringTarget(arr *syntax.Array) bool {
 			return false
 		}
 	}
-}
-
-// pkIsTestContext implements D3: test-like file path or enclosing class.
-func pkIsTestContext(ctx *analysis.Context, n syntax.Node) bool {
-	if util.IsTestPath(ctx.File.Path) {
-		return true
-	}
-	for a := n.Parent(); a != nil; a = a.Parent() {
-		cls, ok := a.(*syntax.ClassLike)
-		if !ok {
-			continue
-		}
-		if cls.Name == nil {
-			return false // anonymous class: no FQN
-		}
-		fqn := `\` + cls.Name.Value
-		if ns := ctx.Names().Namespace(cls.Span().Start); ns != "" {
-			fqn = `\` + strings.Trim(ns, `\`) + fqn
-		}
-		return strings.HasSuffix(fqn, "Test") || strings.Contains(fqn, `\Tests\`) || strings.Contains(fqn, `\Test\`)
-	}
-	return false
 }

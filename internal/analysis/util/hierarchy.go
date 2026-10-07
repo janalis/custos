@@ -1,21 +1,21 @@
 package util
 
 import (
+	"custos/internal/analysis"
 	"strings"
 
 	"custos/internal/index"
-	"custos/internal/names"
 	"custos/internal/phpdoc"
 	"custos/internal/phpver"
 	"custos/internal/syntax"
 )
 
-// IsTestPath reports whether a file path denotes a test context: it ends
-// with Test.php, Spec.php or .phpt, or contains a /Fixtures/ directory.
-func IsTestPath(path string) bool {
-	p := strings.ReplaceAll(path, `\`, "/")
-	return strings.HasSuffix(p, "Test.php") || strings.HasSuffix(p, "Spec.php") ||
-		strings.HasSuffix(p, ".phpt") || strings.Contains(p, "/Fixtures/")
+// InTestContext reports whether n is in a test context: a test file
+// (Context.IsTestFile) or the nearest enclosing class-like is a named class
+// whose FQN looks like a test class (IsTestClassFQN). An anonymous class
+// ends the search (it has no FQN).
+func InTestContext(ctx *analysis.Context, n syntax.Node) bool {
+	return ctx.IsTestFile() || IsTestClassFQN(ctx.Names().DeclFQN(syntax.EnclosingClass(n)))
 }
 
 // IsTestClassFQN reports whether a class FQN (with or without leading
@@ -29,27 +29,6 @@ func IsTestClassFQN(fqn string) bool {
 		fqn = `\` + fqn
 	}
 	return strings.HasSuffix(fqn, "Test") || strings.Contains(fqn, `\Tests\`) || strings.Contains(fqn, `\Test\`)
-}
-
-// ClassDeclFQN returns the FQN (without leading backslash) of a named
-// class-like declaration, "" for anonymous classes.
-func ClassDeclFQN(r *names.Resolver, c *syntax.ClassLike) string {
-	if c == nil || c.Name == nil {
-		return ""
-	}
-	if ns := r.Namespace(c.Span().Start); ns != "" {
-		return ns + `\` + c.Name.Value
-	}
-	return c.Name.Value
-}
-
-// ParentFQN resolves the `extends` clause of a class (not interface)
-// declaration; "" when there is none.
-func ParentFQN(r *names.Resolver, c *syntax.ClassLike) string {
-	if c == nil || c.ClassKind == syntax.KindInterface || len(c.Extends) == 0 {
-		return ""
-	}
-	return r.Class(c.Extends[0].Value, c.Span().Start)
 }
 
 // ClassDecl returns the declaration node of an indexed class when it lives
@@ -178,4 +157,20 @@ func MethodInChain(ix *index.Index, fqn, name string, ver phpver.Version) *index
 func DocHasTag(f *syntax.File, n syntax.Node, tag string) bool {
 	c := index.DocComment(f, n)
 	return c != "" && phpdoc.Parse(c).Has(tag)
+}
+
+// DocHasAnnotation reports whether the doc comment attached to declaration
+// n has a tag whose name is not all lower-case (`@Inject`, `@ORM\Column`):
+// a framework annotation rather than a phpDoc tag.
+func DocHasAnnotation(f *syntax.File, n syntax.Node) bool {
+	c := index.DocComment(f, n)
+	if c == "" {
+		return false
+	}
+	for _, t := range phpdoc.Parse(c).Tags {
+		if t.Name != strings.ToLower(t.Name) {
+			return true
+		}
+	}
+	return false
 }

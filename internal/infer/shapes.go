@@ -16,7 +16,7 @@ import (
 // literalKey returns the canonical array key of a literal key expression
 // (integer or plain string literal, optionally negated): "0", "-1", "name".
 func literalKey(x syntax.Expr) (string, bool) {
-	switch n := unparen(x).(type) {
+	switch n := syntax.UnwrapParens(x).(type) {
 	case *syntax.Literal:
 		switch n.LitKind {
 		case syntax.LitInt:
@@ -34,7 +34,7 @@ func literalKey(x syntax.Expr) (string, bool) {
 		}
 	case *syntax.Unary:
 		if n.Op.Kind == syntax.TMinus {
-			if l, ok := unparen(n.Expr).(*syntax.Literal); ok && l.LitKind == syntax.LitInt {
+			if l, ok := syntax.UnwrapParens(n.Expr).(*syntax.Literal); ok && l.LitKind == syntax.LitInt {
 				if k, ok := literalKey(l); ok && k != "0" {
 					return "-" + k, true
 				}
@@ -45,7 +45,9 @@ func literalKey(x syntax.Expr) (string, bool) {
 }
 
 // plainString decodes a quoted string literal without escapes that need
-// interpretation beyond `\\` and `\'` in single quotes.
+// interpretation beyond `\\` and `\'` in single quotes. Narrower than
+// util.StringLiteralValue on purpose: a double-quoted key with escapes or
+// `$` is not given a shape key.
 func plainString(raw string) (string, bool) {
 	if len(raw) > 0 && (raw[0] == 'b' || raw[0] == 'B') {
 		raw = raw[1:]
@@ -230,7 +232,7 @@ func (e *Env) shapeElem(t types.Type, x syntax.Expr) types.Type {
 	if !t.IsSealedShape() {
 		return types.Unknown
 	}
-	v, ok := unparen(x).(*syntax.Variable)
+	v, ok := syntax.UnwrapParens(x).(*syntax.Variable)
 	isVar := ok && v.Name != "" && v.Name != "this"
 	keys := t.ShapeKeys()
 	if len(keys) == 0 {
@@ -269,7 +271,7 @@ func (e *Env) shapeElem(t types.Type, x syntax.Expr) types.Type {
 func (e *Env) foreachElem(x syntax.Expr) types.Type {
 	t := e.TypeOf(x)
 	if el := iterElem(t); !el.IsUnknown() {
-		if v, ok := unparen(x).(*syntax.Variable); ok && v.Name != "" && v.Name != "this" {
+		if v, ok := syntax.UnwrapParens(x).(*syntax.Variable); ok && v.Name != "" && v.Name != "this" {
 			return e.widenVarElem(el, v)
 		}
 		return el
@@ -308,7 +310,7 @@ func (e *Env) foreachKey(x syntax.Expr) types.Type {
 	for _, k := range t.ShapeKeys() {
 		kind(k.Name)
 	}
-	if v, ok := unparen(x).(*syntax.Variable); ok && v.Name != "" && v.Name != "this" {
+	if v, ok := syntax.UnwrapParens(x).(*syntax.Variable); ok && v.Name != "" && v.Name != "this" {
 		ws, _ := e.reachingWrites(v)
 		for _, w := range ws {
 			var d syntax.Expr
@@ -392,12 +394,12 @@ func (e *Env) mutations(scope syntax.Node, name string) []mutation {
 func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 	out := map[string][]mutation{}
 	add := func(x syntax.Expr, m mutation) {
-		x = unparen(x)
+		x = syntax.UnwrapParens(x)
 		if d, ok := x.(*syntax.ArrayDimFetch); ok {
 			// An element write: recorded under the first-level element's
 			// key (dimKey), or dimKey(base, "*") for a computed key.
 			for {
-				inner, ok := unparen(d.Var).(*syntax.ArrayDimFetch)
+				inner, ok := syntax.UnwrapParens(d.Var).(*syntax.ArrayDimFetch)
 				if !ok {
 					break
 				}
@@ -405,7 +407,7 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 			}
 			if k := narrowKey(d); k != "" {
 				out[k] = append(out[k], m)
-			} else if b := narrowKey(unparen(d.Var)); b != "" && !isDimKey(b) {
+			} else if b := narrowKey(syntax.UnwrapParens(d.Var)); b != "" && !isDimKey(b) {
 				out[dimKey(b, "*")] = append(out[dimKey(b, "*")], m)
 			}
 			return
@@ -517,7 +519,7 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 			case *syntax.Unset:
 				for _, x := range n.Vars {
 					for {
-						d, ok := unparen(x).(*syntax.ArrayDimFetch)
+						d, ok := syntax.UnwrapParens(x).(*syntax.ArrayDimFetch)
 						if !ok {
 							break
 						}

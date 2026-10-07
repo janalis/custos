@@ -47,17 +47,12 @@ type ncoCond struct {
 	call    *syntax.FuncCall
 }
 
-func ncoIsNull(e syntax.Expr) bool {
-	c, ok := e.(*syntax.ConstFetch)
-	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
-}
-
 func ncoClassify(ctx *analysis.Context, c0 syntax.Expr) (ncoCond, bool) {
 	var c ncoCond
-	k := util.UnwrapParens(c0)
+	k := syntax.UnwrapParens(c0)
 	if u, ok := k.(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
 		c.negated = true
-		k = util.UnwrapParens(u.Expr)
+		k = syntax.UnwrapParens(u.Expr)
 	}
 	c.k = k
 	switch x := k.(type) {
@@ -75,9 +70,9 @@ func ncoClassify(ctx *analysis.Context, c0 syntax.Expr) (ncoCond, bool) {
 			return c, false
 		}
 		switch {
-		case ncoIsNull(x.Left):
+		case syntax.IsNullConst(x.Left):
 			c.subject = x.Right
-		case ncoIsNull(x.Right):
+		case syntax.IsNullConst(x.Right):
 			c.subject = x.Left
 		default:
 			return c, false
@@ -134,7 +129,7 @@ func ncoPropBase(e syntax.Expr, allowStatic bool) (syntax.Expr, bool) {
 // non-object and yield null — and when the property can never be null, since
 // a set object with a null property yielded null, not the fallback.
 func ncoSafeFallback(ctx *analysis.Context, probe syntax.Expr, allowNull bool, cand, alt syntax.Expr) bool {
-	if alt == nil || ncoIsNull(alt) {
+	if alt == nil || syntax.IsNullConst(alt) {
 		return true
 	}
 	if pt := ctx.TypeOf(cand); pt.IsUnknown() || pt.Has("null") {
@@ -212,7 +207,7 @@ func ncoGenerate(ctx *analysis.Context, c ncoCond, t, f syntax.Expr) (string, bo
 		}
 		cand, alt := pick(!c.negated)
 		dim, ok := cand.(*syntax.ArrayDimFetch)
-		if !ok || dim.Dim == nil || !eq(dim.Var, args[1]) || !eq(dim.Dim, args[0]) || !ncoIsNull(alt) {
+		if !ok || dim.Dim == nil || !eq(dim.Var, args[1]) || !eq(dim.Dim, args[0]) || !syntax.IsNullConst(alt) {
 			return "", false
 		}
 		return ncoWrap(ctx, cand) + " ?? " + ncoWrap(ctx, alt), true
@@ -316,7 +311,7 @@ func (nullCoalescingOperatorCanBeUsed) checkIf(ctx *analysis.Context, n *syntax.
 		if !ok || !util.EquivalentFoldNames(ctx.File, pa.Var, asg.Var) || pa.ByRef {
 			return
 		}
-		if _, ok := util.UnwrapParens(pa.Value).(*syntax.Assign); ok {
+		if _, ok := syntax.UnwrapParens(pa.Value).(*syntax.Assign); ok {
 			return
 		}
 		reads := false
@@ -347,7 +342,7 @@ func (nullCoalescingOperatorCanBeUsed) checkIf(ctx *analysis.Context, n *syntax.
 			}
 			switch p := blk.Parent().(type) {
 			case *syntax.Function, *syntax.Method, *syntax.Closure:
-				if util.FuncLikeBody(p) != blk {
+				if syntax.FuncLikeBody(p) != blk {
 					return
 				}
 			default:

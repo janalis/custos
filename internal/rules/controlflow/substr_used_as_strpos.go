@@ -136,7 +136,7 @@ func prefixLengthMatches(ctx *analysis.Context, substr string, length, other syn
 	if err != nil {
 		return false
 	}
-	val, ok := stringLit(other)
+	val, ok := util.QuotedStringValue(other)
 	if !ok || (mb && !isASCII(val)) {
 		return false
 	}
@@ -147,7 +147,7 @@ func prefixLengthMatches(ctx *analysis.Context, substr string, length, other syn
 // the case produced by the folding function (D8), so that a case-insensitive
 // search is equivalent to comparing the folded prefix.
 func foldedLiteral(folding string, other syntax.Expr) bool {
-	val, ok := stringLit(other)
+	val, ok := util.QuotedStringValue(other)
 	if !ok || !isASCII(val) {
 		return false
 	}
@@ -166,14 +166,6 @@ func foldedLiteral(folding string, other syntax.Expr) bool {
 		}
 	}
 	return true
-}
-
-func stringLit(e syntax.Expr) (string, bool) {
-	l, ok := e.(*syntax.Literal)
-	if !ok || l.LitKind != syntax.LitString {
-		return "", false
-	}
-	return util.StringLiteralValue(l.Raw)
 }
 
 func isASCII(s string) bool {

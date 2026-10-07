@@ -1,6 +1,7 @@
 package util
 
 import (
+	"custos/internal/analysis"
 	"testing"
 
 	"custos/internal/index"
@@ -14,7 +15,7 @@ func TestTestContext(t *testing.T) {
 		"src/FooTest.php": true, "a/Spec.php": true, "x.phpt": true, "a/Fixtures/b.php": true,
 		"src/Foo.php": false, "a/fixtures/b.php": false,
 	} {
-		if got := IsTestPath(p); got != want {
+		if got := analysis.IsTestPath(p); got != want {
 			t.Errorf("IsTestPath(%q) = %v", p, got)
 		}
 	}
@@ -70,10 +71,10 @@ class C extends B {}
 		}
 		return true
 	})
-	if got := ClassDeclFQN(r, decl); got != `N\C` {
-		t.Fatalf("ClassDeclFQN = %q", got)
+	if got := r.DeclFQN(decl); got != `N\C` {
+		t.Fatalf("DeclFQN = %q", got)
 	}
-	if got := ParentFQN(r, decl); got != `N\B` {
+	if got := r.ParentFQN(decl); got != `N\B` {
 		t.Fatalf("ParentFQN = %q", got)
 	}
 	if ClassDecl(f, ix.Class(`N\C`, 0)) != decl {

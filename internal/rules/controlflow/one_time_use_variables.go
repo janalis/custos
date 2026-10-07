@@ -58,7 +58,7 @@ func (oneTimeUseVariables) Check(ctx *analysis.Context, n syntax.Node) {
 	if arg == nil {
 		return
 	}
-	subject, member := otuSubject(util.UnwrapParens(arg)) // D4
+	subject, member := otuSubject(syntax.UnwrapParens(arg)) // D4
 	if subject == nil {
 		return
 	}
@@ -80,10 +80,10 @@ func (oneTimeUseVariables) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || lhs.NameExpr != nil || lhs.Name != name {
 		return
 	}
-	val := util.UnwrapParens(as.Value)
+	val := syntax.UnwrapParens(as.Value)
 
-	if s := util.EnclosingFuncLike(consumer); s != nil { // D6
-		for _, p := range util.FuncLikeParams(s) {
+	if s := syntax.EnclosingFuncLike(consumer); s != nil { // D6
+		for _, p := range syntax.FuncLikeParams(s) {
 			if p.ByRef && p.Var != nil && p.Var.Name == name {
 				return
 			}
@@ -103,7 +103,7 @@ func (oneTimeUseVariables) Check(ctx *analysis.Context, n syntax.Node) {
 
 	// D8: nil scope = file-level code, counted like a function body.
 	reads, writes := 0, 0
-	scope := util.EnclosingFuncLike(as)
+	scope := syntax.EnclosingFuncLike(as)
 	for _, a := range util.VarAccesses(ctx.File, scope, name) {
 		if !otuReachable(ctx.File, a.Var, scope) {
 			continue

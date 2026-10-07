@@ -21,7 +21,7 @@ func (senselessTernaryOperator) Check(ctx *analysis.Context, n syntax.Node) {
 	if t.Then == nil || t.Else == nil { // D1/E2
 		return
 	}
-	cond, ok := util.UnwrapParens(t.Cond).(*syntax.Binary) // D2
+	cond, ok := syntax.UnwrapParens(t.Cond).(*syntax.Binary) // D2
 	if !ok || cond.Left == nil || cond.Right == nil {
 		return
 	}

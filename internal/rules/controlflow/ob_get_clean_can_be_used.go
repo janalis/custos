@@ -1,8 +1,6 @@
 package controlflow
 
 import (
-	"strings"
-
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
 	"custos/internal/syntax"
@@ -51,7 +49,7 @@ func (obGetCleanCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		return true
 	})
-	if get == nil || count > 1 || !obIsBuiltin(ctx, end, "ob_end_clean") || !obIsBuiltin(ctx, get, "ob_get_contents") { // D4
+	if get == nil || count > 1 || !util.ResolvesToGlobalFunction(ctx.Names(), ctx.Index(), ctx.PHP, end, "ob_end_clean") || !util.ResolvesToGlobalFunction(ctx.Names(), ctx.Index(), ctx.PHP, get, "ob_get_contents") { // D4
 		return
 	}
 	name := get.Name.(*syntax.Name)
@@ -64,10 +62,4 @@ func (obGetCleanCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 		},
 	})
-}
-
-// obIsBuiltin reports whether call resolves to the global function global.
-func obIsBuiltin(ctx *analysis.Context, call *syntax.FuncCall, global string) bool {
-	f := ctx.Types().ResolveFunction(call)
-	return f != nil && strings.EqualFold(strings.TrimPrefix(f.FQN, `\`), global)
 }

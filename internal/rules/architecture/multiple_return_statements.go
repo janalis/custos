@@ -4,7 +4,6 @@ import (
 	"strconv"
 
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
 	"custos/internal/meta"
 	"custos/internal/syntax"
 )
@@ -25,7 +24,7 @@ func (multipleReturnStatements) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	r := 0 // D2
 	syntax.Inspect(m.Body, func(x syntax.Node) bool {
-		if util.IsFuncLike(x) {
+		if syntax.IsFuncLike(x) {
 			return false
 		}
 		switch x.(type) {

@@ -23,7 +23,7 @@ func TestReachable(t *testing.T) {
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {
 			if name := CallLastName(c); len(name) == 2 && name[0] == 'a' {
-				got[name] = Reachable(c, EnclosingFuncLike(c))
+				got[name] = Reachable(c, syntax.EnclosingFuncLike(c))
 			}
 		}
 		return true

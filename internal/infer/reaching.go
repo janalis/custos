@@ -109,11 +109,11 @@ func (w *elemWrite) dim() syntax.Expr {
 // (same kill rules as variables), plus the writes later in an enclosing loop
 // (back edge). back flags the latter.
 func (e *Env) reachingWrites(v *syntax.Variable) (ws []*elemWrite, back []bool) {
-	scope := scopeOf(v)
+	scope := syntax.EnclosingFuncLike(v)
 	sv := e.scopeVars(scope)
 	if _, ok := scope.(*syntax.ArrowFunction); ok && len(sv.defs[v.Name]) == 0 {
 		// Arrow functions capture the enclosing scope by value.
-		scope = scopeOf(scope)
+		scope = syntax.EnclosingFuncLike(scope)
 		sv = e.scopeVars(scope)
 	}
 	defs := sv.elemDefs(v.Name)

@@ -53,7 +53,7 @@ func (strStrUsedAsStrPos) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		target = b
 	} else {
-		if !usedAsCondition(n) { // D5
+		if !util.IsLogicalOperand(n) { // D5
 			return
 		}
 		target, op = call, "!=="
@@ -79,33 +79,6 @@ func isEqualityOp(k syntax.TokenKind) bool {
 	switch k {
 	case syntax.TIsEqual, syntax.TIsNotEqual, syntax.TIsIdentical, syntax.TIsNotIdentical:
 		return true
-	}
-	return false
-}
-
-// usedAsCondition implements D5: the call (through parentheses) is a
-// condition of if/elseif/while/do-while, the operand of `!`, `&&`, `||`,
-// `and`, `or`, or the condition of a full ternary.
-func usedAsCondition(n syntax.Node) bool {
-	p, w := util.ParentSkipParens(n)
-	switch p := p.(type) {
-	case *syntax.If:
-		return p.Cond == w
-	case *syntax.ElseIf:
-		return p.Cond == w
-	case *syntax.While:
-		return p.Cond == w
-	case *syntax.DoWhile:
-		return p.Cond == w
-	case *syntax.Unary:
-		return p.Op.Kind == syntax.TExclaim
-	case *syntax.Binary:
-		switch p.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr:
-			return true
-		}
-	case *syntax.Ternary:
-		return p.Then != nil && p.Cond == w
 	}
 	return false
 }

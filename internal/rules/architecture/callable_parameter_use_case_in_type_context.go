@@ -44,10 +44,7 @@ func (callableParameterUseCaseInTypeContext) Check(ctx *analysis.Context, n synt
 	if body == nil || len(params) == 0 {
 		return
 	}
-	if util.IsTestPath(ctx.File.Path) { // D0
-		return
-	}
-	if cl := infer.EnclosingClass(n); cl != nil && util.IsTestClassFQN(util.ClassDeclFQN(ctx.Names(), cl)) {
+	if util.InTestContext(ctx, n) { // D0
 		return
 	}
 	tr := infer.NewTRules(ctx.Types())
@@ -133,15 +130,10 @@ func (cp *cpState) paramSet(p *syntax.Param) (map[string]bool, bool) {
 	if len(set) == 0 { // D3
 		return nil, false
 	}
-	if len(set) == 1 && set["null"] && cpIsNullConst(p.Default) { // D4
+	if len(set) == 1 && set["null"] && syntax.IsNullConst(p.Default) { // D4
 		return nil, false
 	}
 	return set, true
-}
-
-func cpIsNullConst(e syntax.Expr) bool {
-	c, ok := e.(*syntax.ConstFetch)
-	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "null")
 }
 
 // cpReachableAccesses collects variable accesses by name in the reachable
@@ -331,10 +323,10 @@ func cpSorted(m map[string]bool) []string {
 // translateSelf maps a self/static value type to a class (D7e.1); "" when
 // it cannot be translated.
 func (cp *cpState) translateSelf(value syntax.Expr, target *syntax.Variable) string {
-	x := util.UnwrapParens(value)
+	x := syntax.UnwrapParens(value)
 	if b, ok := x.(*syntax.Binary); ok && b.Op.Kind == syntax.TCoalesce {
-		if lv, ok := util.UnwrapParens(b.Left).(*syntax.Variable); ok && lv.Name == target.Name {
-			x = util.UnwrapParens(b.Right)
+		if lv, ok := syntax.UnwrapParens(b.Left).(*syntax.Variable); ok && lv.Name == target.Name {
+			x = syntax.UnwrapParens(b.Right)
 		}
 	}
 	var recv syntax.Expr
@@ -391,7 +383,7 @@ func (cp *cpState) compatible(t string, set map[string]bool) bool {
 		}
 		cls := s
 		if s == "self" || s == "static" {
-			cls = util.ClassDeclFQN(cp.ctx.Names(), infer.EnclosingClass(cp.fn))
+			cls = cp.ctx.Names().DeclFQN(syntax.EnclosingClass(cp.fn))
 			if cls == "" {
 				continue
 			}
@@ -451,9 +443,9 @@ func (cp *cpState) closureOf(fqn string) (map[string]bool, bool) {
 func (cp *cpState) classRef(nm *syntax.Name) string {
 	switch strings.ToLower(nm.Value) {
 	case "self", "static":
-		return util.ClassDeclFQN(cp.ctx.Names(), infer.EnclosingClass(nm))
+		return cp.ctx.Names().DeclFQN(syntax.EnclosingClass(nm))
 	case "parent":
-		return util.ParentFQN(cp.ctx.Names(), infer.EnclosingClass(nm))
+		return cp.ctx.Names().ParentFQN(syntax.EnclosingClass(nm))
 	}
 	return cp.ctx.Names().Class(nm.Value, nm.Span().Start)
 }

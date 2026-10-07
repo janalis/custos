@@ -16,6 +16,11 @@ import (
 // means "empty". Atoms are raw (not normalised by any rule-specific scheme):
 // class names keep their leading backslash, `self`/`static` returned by
 // methods are kept as written, `T[]` forms are kept.
+//
+// It is kept separate from Env on purpose: its rules come from the specs
+// (partial sets, spec-defined arithmetic and overrides, optional SpecOnly
+// mode) and differ from the engine's typing; folding it into Env would
+// change the engine's types or the two rules' findings.
 type TRules struct {
 	Env *Env
 	// SpecOnly evaluates the T-rules as literally written, without the
@@ -149,7 +154,7 @@ func (r *TRules) infer(x syntax.Expr) types.Type {
 	case *syntax.PropertyFetch:
 		if v, ok := n.Var.(*syntax.Variable); ok && v.Name == "this" {
 			if id, ok := n.Name.(*syntax.Identifier); ok {
-				if cls := e.ClassFQN(EnclosingClass(n)); cls != "" {
+				if cls := e.ClassFQN(syntax.EnclosingClass(n)); cls != "" {
 					if p := e.Index.FindProperty(cls, id.Value, e.PHP); p != nil && p.Type != "" {
 						return types.FromDoc(p.Type, nil)
 					}
@@ -238,7 +243,7 @@ func (r *TRules) arithmetic(n *syntax.Binary) types.Type {
 		isFloat = isFloat || r.floatish(rt)
 		right := n.Right
 		if r.SpecOnly {
-			right = unparen(right)
+			right = syntax.UnwrapParens(right)
 		}
 		isArray = (isArray && !isNumericLiteral(right)) || r.hasArray(rt)
 	}
@@ -436,10 +441,10 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 	if v.Name == "this" {
 		return r.Env.TypeOf(v)
 	}
-	scope := scopeOf(v)
+	scope := syntax.EnclosingFuncLike(v)
 	pos := v.Span().Start
 	var ts []types.Type
-	for _, p := range scopeParams(scope) {
+	for _, p := range syntax.FuncLikeParams(scope) {
 		if p.Var == nil || p.Var.Name != v.Name {
 			continue
 		}
@@ -520,20 +525,6 @@ func containsPos(n syntax.Node, pos uint32) bool {
 	return s.Start <= pos && pos < s.End
 }
 
-func scopeParams(scope syntax.Node) []*syntax.Param {
-	switch s := scope.(type) {
-	case *syntax.Function:
-		return s.Params
-	case *syntax.Method:
-		return s.Params
-	case *syntax.Closure:
-		return s.Params
-	case *syntax.ArrowFunction:
-		return s.Params
-	}
-	return nil
-}
-
 // assignments lists the assignments (plain and compound) whose target is the
 // variable `name`, directly in scope (nil scope: the file's top level).
 // The scope is walked once (cached): walking it for every read was
@@ -571,7 +562,9 @@ func (r *TRules) assignments(scope syntax.Node, name string) []*syntax.Assign {
 }
 
 // ParamTypes returns the declared type of a parameter united with its
-// @param docblock types (no default-value contribution).
+// @param docblock types (no default-value contribution). Unlike
+// Env.paramType it neither wraps variadics nor adds null for a `= null`
+// default, as the T-rules specify.
 func (r *TRules) ParamTypes(scope syntax.Node, p *syntax.Param) types.Type {
 	at := p.Span().Start
 	res := r.Env.resolver(at)
@@ -608,7 +601,7 @@ func (r *TRules) soundArithmetic(n *syntax.Binary) types.Type {
 		case syntax.TDiv:
 			return intOrFloat
 		case syntax.TPow:
-			if lit, ok := unparen(n.Right).(*syntax.Literal); !ok || lit.LitKind != syntax.LitInt {
+			if lit, ok := syntax.UnwrapParens(n.Right).(*syntax.Literal); !ok || lit.LitKind != syntax.LitInt {
 				return intOrFloat // a negative exponent gives a float
 			}
 		}

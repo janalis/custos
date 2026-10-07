@@ -37,7 +37,7 @@ func (preloadingUsageCorrectness) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	keyword := strings.ToLower(ctx.SpanText(inc.Keyword.Span))
 	span := inc.Span()
-	arg := util.UnwrapParens(inc.Expr).Span()
+	arg := syntax.UnwrapParens(inc.Expr).Span()
 	src := ctx.Src
 	fn := util.QualifiedBuiltin(ctx, "opcache_compile_file", span.Start) // a namespaced function would capture a bare call
 	ctx.Report(span, "Use opcache_compile_file() in a preload script instead of "+keyword+".", analysis.Fix{

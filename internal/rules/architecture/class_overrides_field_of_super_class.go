@@ -34,7 +34,7 @@ func (classOverridesFieldOfSuperClass) Check(ctx *analysis.Context, n syntax.Nod
 	if !ok || cl.ClassKind != syntax.KindClass || len(cl.Extends) == 0 {
 		return
 	}
-	if util.IsTestPath(ctx.File.Path) || util.IsTestClassFQN(util.ClassDeclFQN(ctx.Names(), cl)) {
+	if ctx.IsTestFile() || util.IsTestClassFQN(ctx.Names().DeclFQN(cl)) {
 		return
 	}
 	if c := index.DocComment(ctx.File, prop); c != "" { // D2
@@ -45,7 +45,7 @@ func (classOverridesFieldOfSuperClass) Check(ctx *analysis.Context, n syntax.Nod
 		}
 	}
 	ix := ctx.Index()
-	parent := ix.Class(util.ParentFQN(ctx.Names(), cl), ctx.PHP)
+	parent := ix.Class(ctx.Names().ParentFQN(cl), ctx.PHP)
 	if parent == nil {
 		return
 	}

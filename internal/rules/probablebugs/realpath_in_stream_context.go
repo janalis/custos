@@ -51,9 +51,12 @@ func (realpathInStreamContext) Check(ctx *analysis.Context, n syntax.Node) {
 	})
 }
 
-// realpathTestContext implements D2: test files and test classes.
+// realpathTestContext implements D2: test files and test classes. Unlike
+// util.InTestContext it skips anonymous classes and takes the namespace
+// from the enclosing namespace node (spec wording); kept separate so the
+// rule's output does not change.
 func realpathTestContext(ctx *analysis.Context, n syntax.Node) bool {
-	if util.IsTestPath(ctx.File.Path) {
+	if ctx.IsTestFile() {
 		return true
 	}
 	var class *syntax.ClassLike
@@ -71,14 +74,10 @@ func realpathTestContext(ctx *analysis.Context, n syntax.Node) bool {
 			if a.Name != nil {
 				fqn = "\\" + strings.TrimPrefix(a.Name.Value, "\\") + fqn
 			}
-			return isTestFQN(fqn)
+			return util.IsTestClassFQN(fqn)
 		}
 	}
-	return class != nil && isTestFQN("\\"+class.Name.Value)
-}
-
-func isTestFQN(fqn string) bool {
-	return strings.HasSuffix(fqn, "Test") || strings.Contains(fqn, "\\Tests\\") || strings.Contains(fqn, "\\Test\\")
+	return class != nil && util.IsTestClassFQN("\\"+class.Name.Value)
 }
 
 // hasParentDirLiteral reports whether a string literal inside n contains `..`.
