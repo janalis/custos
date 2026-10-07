@@ -33,7 +33,7 @@ import (
 //   - anything else is a value itself.
 //
 // A variable expanded at any depth that is also incremented/decremented or
-// compound-assigned in its scope (UnstableVariable) makes the whole result
+// compound-assigned in its scope (UnstableVariableIn) makes the whole result
 // unknown: DiscoverValues then returns nil. Consumers for which an empty
 // result is not already "no report" must use DiscoverValuesKnown.
 func DiscoverValues(env *infer.Env, e syntax.Expr) []syntax.Expr {
@@ -172,9 +172,6 @@ func (d *discoverer) classConst(c *syntax.ClassConstFetch) {
 }
 
 func (d *discoverer) constant(c *syntax.ConstFetch) {
-	if c.Name == nil {
-		return
-	}
 	switch strings.ToLower(LastNamePart(c.Name.Value)) {
 	case "true", "false", "null":
 		d.out = append(d.out, c)

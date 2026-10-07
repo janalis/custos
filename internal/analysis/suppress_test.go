@@ -7,6 +7,7 @@ import (
 
 	"custos/internal/phpver"
 	"custos/internal/syntax"
+	"custos/internal/testbudget"
 )
 
 func analyseOK(t *testing.T, src string) []Finding {
@@ -71,14 +72,14 @@ func TestSuppressionsScale(t *testing.T) {
 	if kept != n/2 {
 		t.Fatalf("kept %d findings, want %d", kept, n/2)
 	}
-	if d := time.Since(start); d > 5*time.Second && !raceEnabled {
+	if d := time.Since(start); d > testbudget.Of(5*time.Second) && !raceEnabled {
 		t.Errorf("%d findings took %v", n, d)
 	}
 
 	line := "// " + strings.Repeat("@noinspection ", 200000)
 	start = time.Now()
 	ids := ParseSuppressionComment(line)
-	if d := time.Since(start); d > 2*time.Second && !raceEnabled {
+	if d := time.Since(start); d > testbudget.Of(2*time.Second) && !raceEnabled {
 		t.Errorf("long comment took %v", d)
 	}
 	if len(ids) > 200000 {

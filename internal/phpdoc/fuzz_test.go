@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"custos/internal/testbudget"
 )
 
 // exercise runs every accessor on a parsed doc comment.
@@ -46,7 +48,7 @@ func TestParsePathological(t *testing.T) {
 	} {
 		start := time.Now()
 		exercise(c)
-		if d := time.Since(start); d > 3*time.Second {
+		if d := time.Since(start); d > testbudget.Of(3*time.Second) {
 			t.Errorf("%s: %v", name, d)
 		}
 	}

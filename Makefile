@@ -38,6 +38,7 @@ lint: vet fmt-check
 # Benchmarks on a real file need CUSTOS_BENCH_FILE (a large PHP source).
 bench:
 	$(GO) test -run '^$$' -bench . -benchmem ./...
+	CUSTOS_PERF=1 $(GO) test -count=1 -run TestEditLatency -v ./internal/lsp | grep -E 'p95|FAIL|SKIP|ok'
 
 # Short fuzz smoke over every Fuzz* target (parser/lexer once they exist).
 fuzz:
@@ -83,13 +84,22 @@ fixcheck:
 
 verify: lint test fixtures coverage cleanroom
 
-# Every statement of internal/rules must be covered by own fixtures and the
-# rule packages' tests (the EA run and local corpora do not count).
+# Coverage gates (the EA run and local corpora do not count):
+# - every statement of internal/rules is covered by own fixtures and the rule
+#   packages' tests;
+# - every statement of cmd/ and internal/ is covered by the whole test suite,
+#   except main()'s one-line os.Exit wrapper.
+COVER_SKIP := TestEA|TestNoCrashOnCorpus|TestFixesKeepCodeParsable
+COVER_CHECK = awk -v what="$(1)" -v allow="$(2)" 'NR>1 { n[$$1]=$$2; if ($$3>0) hit[$$1]=1 } \
+	END { for (k in n) if (n[k]>0 && !hit[k] && (allow=="" || index(k, allow)!=1)) { print "uncovered: " k; m++ } \
+	if (m) { print m " uncovered block(s) in " what; exit 1 } print "coverage: " what " 100%" }'
 coverage:
 	@mkdir -p .cache
-	go test ./internal/conformance ./internal/rules/... -skip 'TestEA|TestNoCrashOnCorpus|TestFixesKeepCodeParsable' \
+	go test ./internal/conformance ./internal/rules/... -skip '$(COVER_SKIP)' \
 		-coverpkg=./internal/rules/... -coverprofile=.cache/rules-cover.out >/dev/null
-	@awk 'NR>1 { n[$$1]=$$2; if ($$3>0) hit[$$1]=1 } END { for (k in n) if (n[k]>0 && !hit[k]) { print "uncovered: " k; m++ } if (m) { print m " uncovered block(s) in internal/rules"; exit 1 } print "coverage: internal/rules 100%" }' .cache/rules-cover.out
+	@$(call COVER_CHECK,internal/rules,) .cache/rules-cover.out
+	go test ./... -skip '$(COVER_SKIP)' -coverpkg=./cmd/...,./internal/... -coverprofile=.cache/all-cover.out >/dev/null
+	@$(call COVER_CHECK,cmd/ and internal/,custos/cmd/custos/main.go:54.) .cache/all-cover.out
 
 clean:
 	rm -rf bin dist

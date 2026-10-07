@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"custos/internal/testbudget"
 )
 
 // noreRepeatedClassRef is the original (quadratic) D15 scan, kept as the
@@ -106,7 +108,7 @@ func TestNorePathological(t *testing.T) {
 		if len(body) <= noreNestedMaxLen {
 			noreNestedQuantifiers(body)
 		}
-		if d := time.Since(start); d > 3*time.Second {
+		if d := time.Since(start); d > testbudget.Of(3*time.Second) {
 			t.Errorf("%s: %v", name, d)
 		}
 	}
@@ -121,7 +123,7 @@ func TestNorePathological(t *testing.T) {
 	for _, p := range []string{nested, b.String()} {
 		start := time.Now()
 		noreNestedQuantifiers(p)
-		if d := time.Since(start); d > 3*time.Second {
+		if d := time.Since(start); d > testbudget.Of(3*time.Second) {
 			t.Errorf("max-size D18 pattern: %v", d)
 		}
 	}

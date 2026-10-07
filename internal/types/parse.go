@@ -194,9 +194,6 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 	if isBuiltinAtom(low) || scalarAliases[low] != "" {
 		return Of(normalizeAtom(low))
 	}
-	if low == "$this" {
-		return Of("static")
-	}
 	if strings.HasPrefix(base, "$") || base == "" || !validClassName(base) {
 		return Unknown
 	}

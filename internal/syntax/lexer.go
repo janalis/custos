@@ -109,6 +109,10 @@ func Lex(src []byte, opt LexOptions) ([]Token, []LexError) {
 	}
 	l := &lexer{src: src, ver: opt.Version, short: opt.ShortOpenTag, states: []lexState{stInitial}, halt: -1}
 	l.toks = make([]Token, 0, len(src)/4+16)
+	return l.run()
+}
+
+func (l *lexer) run() ([]Token, []LexError) {
 	for l.pos < len(l.src) {
 		start := l.pos
 		k := l.next()
@@ -208,8 +212,7 @@ func (l *lexer) next() TokenKind {
 	case stProperty:
 		return l.lexStringProperty()
 	}
-	l.pos++
-	return TBadCharacter
+	return TBadCharacter // unreachable state; run's guard consumes a byte
 }
 
 // ---- inline HTML ---------------------------------------------------------------
@@ -272,6 +275,14 @@ func (l *lexer) lexScripting() TokenKind {
 		return TWhitespace
 	}
 	if l.expectProperty {
+		// After -> / ?->, comments keep the member-name context (`#[` is a
+		// comment there too, as in PHP).
+		switch {
+		case c == '#' || (c == '/' && l.peek(1) == '/'):
+			return l.lineComment()
+		case c == '/' && l.peek(1) == '*':
+			return l.blockComment()
+		}
 		l.expectProperty = false
 		if isLabelStart(c) {
 			l.scanLabel()
@@ -504,8 +515,17 @@ func (l *lexer) labelOrKeyword() TokenKind {
 			return TString
 		}
 	case TReadonly:
-		if p := l.skipTriviaFrom(l.pos); p < len(l.src) && l.src[p] == '(' {
-			return TString
+		// PHP 8.1 lexes `readonly (` (whitespace only) as a name so that
+		// readonly() calls keep working; 8.2+ always emits the keyword (the
+		// grammar accepts it as a function name, and DNF types may follow).
+		if l.ver.Below(phpver.PHP82) {
+			p := l.pos
+			for p < len(l.src) && isSpace(l.src[p]) {
+				p++
+			}
+			if p < len(l.src) && l.src[p] == '(' {
+				return TString
+			}
 		}
 	case TPublic, TProtected, TPrivate:
 		if l.ver.AtLeast(phpver.PHP84) {
@@ -520,26 +540,13 @@ func (l *lexer) labelOrKeyword() TokenKind {
 	return kw.kind
 }
 
-// matchSetSuffix matches `(set)` with optional inner spaces at p.
+// matchSetSuffix matches `(set)` (any case, no inner whitespace: PHP lexes
+// `private( set )` as separate tokens, a syntax error) at p.
 func (l *lexer) matchSetSuffix(p int) (int, bool) {
-	if p >= len(l.src) || l.src[p] != '(' {
+	if len(l.src)-p < 5 || !asciiEqualFold(l.src[p:p+5], "(set)") {
 		return 0, false
 	}
-	p++
-	for p < len(l.src) && (l.src[p] == ' ' || l.src[p] == '\t') {
-		p++
-	}
-	if len(l.src)-p < 3 || !asciiEqualFold(l.src[p:p+3], "set") {
-		return 0, false
-	}
-	p += 3
-	for p < len(l.src) && (l.src[p] == ' ' || l.src[p] == '\t') {
-		p++
-	}
-	if p >= len(l.src) || l.src[p] != ')' {
-		return 0, false
-	}
-	return p + 1, true
+	return p + 5, true
 }
 
 // skipTriviaFrom skips whitespace and comments starting at p.
@@ -635,8 +642,8 @@ func (l *lexer) number() TokenKind {
 		float = true
 		l.pos++
 		l.digits()
-	} else if l.peek(0) == '.' && l.pos > start && !(l.peek(1) == '.') {
-		// "1." is a float.
+	} else if l.peek(0) == '.' && l.pos > start {
+		// "1." is a float (also in `1..2`: "1." then ".2", as PHP).
 		float = true
 		l.pos++
 	}

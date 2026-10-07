@@ -122,16 +122,12 @@ func (w *varWalker) target(e syntax.Expr, compound bool, by syntax.Node) {
 		w.items(t.Items, by)
 	case *syntax.ArrayDimFetch:
 		w.elemBase(t.Var, by)
-		if t.Dim != nil {
-			w.node(t.Dim)
-		}
+		w.node(t.Dim)
 	case *syntax.PropertyFetch:
 		w.elemBase(t.Var, by)
 		w.node(t.Name)
 	default:
-		if e != nil {
-			w.node(e)
-		}
+		w.node(e)
 	}
 }
 
@@ -145,9 +141,7 @@ func (w *varWalker) elemBase(e syntax.Expr, by syntax.Node) {
 		}
 	case *syntax.ArrayDimFetch:
 		w.elemBase(b.Var, by)
-		if b.Dim != nil {
-			w.node(b.Dim)
-		}
+		w.node(b.Dim)
 		return
 	case *syntax.PropertyFetch:
 		w.elemBase(b.Var, by)
@@ -162,15 +156,13 @@ func (w *varWalker) items(items []*syntax.ArrayItem, by syntax.Node) {
 		if it == nil {
 			continue
 		}
-		if it.Key != nil {
-			w.node(it.Key)
-		}
-		if it.Value != nil {
-			w.target(it.Value, false, by)
-		}
+		w.node(it.Key)
+		w.target(it.Value, false, by)
 	}
 }
 
+// node walks n; nil (an absent optional part: array index, key, default)
+// is ignored.
 func (w *varWalker) node(n syntax.Node) {
 	if n == nil {
 		return
@@ -185,9 +177,7 @@ func (w *varWalker) node(n syntax.Node) {
 		return
 	case *syntax.ArrowFunction:
 		for _, p := range n.Params {
-			if p.Default != nil {
-				w.node(p.Default)
-			}
+			w.node(p.Default)
 		}
 		if w.all {
 			if w.shadow == nil {
@@ -238,12 +228,8 @@ func (w *varWalker) node(n syntax.Node) {
 		return
 	case *syntax.Foreach:
 		w.node(n.Expr)
-		if n.Key != nil {
-			w.target(n.Key, false, n)
-		}
-		if n.Value != nil {
-			w.target(n.Value, false, n)
-		}
+		w.target(n.Key, false, n) // nil key/value: ignored
+		w.target(n.Value, false, n)
 		w.node(n.Body)
 		return
 	case *syntax.Global:
@@ -257,9 +243,7 @@ func (w *varWalker) node(n syntax.Node) {
 		return
 	case *syntax.StaticVar:
 		w.add(n.Var, true, false, false, n)
-		if n.Default != nil {
-			w.node(n.Default)
-		}
+		w.node(n.Default)
 		return
 	case *syntax.Catch:
 		for _, t := range n.Types {

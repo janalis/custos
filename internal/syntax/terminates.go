@@ -1,6 +1,10 @@
 package syntax
 
-import "strings"
+import (
+	"math"
+	"strconv"
+	"strings"
+)
 
 // Terminates reports whether control never falls through s to the next
 // statement of its list: return, throw, exit/die, break, continue, goto,
@@ -78,13 +82,17 @@ func isTrueConst(e Expr) bool {
 	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "true")
 }
 
-// containsBreak reports whether a `break` that could leave the construct
-// rooted at n appears inside it (nested loops/switches are skipped unless
-// the break has a level > 1; nested function-likes are skipped).
+// containsBreak reports whether a jump that could make control fall out of
+// the construct rooted at n appears inside it: a `break` whose level reaches
+// past the loops and switches nested in n (nested function-likes are
+// skipped), or — when n is a switch — a `continue` targeting n, which PHP
+// treats as `break`. A non-literal level (PHP 5.3 `break $n`) is assumed to
+// leave n.
 func containsBreak(n Node) bool {
 	if n == nil {
 		return false
 	}
+	_, rootSwitch := n.(*Switch)
 	found := false
 	var walk func(m Node, depth int)
 	walk = func(m Node, depth int) {
@@ -95,13 +103,10 @@ func containsBreak(n Node) bool {
 		case *Function, *Method, *Closure, *ArrowFunction, *ClassLike:
 			return
 		case *Break:
-			lvl := 1
-			if l, ok := x.Num.(*Literal); ok && l.LitKind == LitInt && l.Raw != "1" {
-				lvl = 2
-			}
-			if lvl > depth {
-				found = true
-			}
+			found = jumpLevel(x.Num) > depth
+			return
+		case *Continue:
+			found = rootSwitch && jumpLevel(x.Num) == depth+1
 			return
 		case *While, *DoWhile, *For, *Foreach, *Switch:
 			if m != n {
@@ -113,4 +118,25 @@ func containsBreak(n Node) bool {
 	}
 	walk(n, 0)
 	return found
+}
+
+// jumpLevel is the number of enclosing loops/switches a break/continue
+// leaves: 1 without an argument, the literal's value otherwise (0 means 1,
+// as PHP 5.3), and a huge level for anything else.
+func jumpLevel(num Expr) int {
+	if num == nil {
+		return 1
+	}
+	l, ok := UnwrapParens(num).(*Literal)
+	if !ok || l.LitKind != LitInt {
+		return math.MaxInt32
+	}
+	v, err := strconv.ParseInt(strings.ReplaceAll(l.Raw, "_", ""), 0, 32)
+	switch {
+	case err != nil:
+		return math.MaxInt32
+	case v < 1:
+		return 1
+	}
+	return int(v)
 }

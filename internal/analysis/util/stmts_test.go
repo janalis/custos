@@ -33,3 +33,11 @@ func TestStmtNeighbours(t *testing.T) {
 		t.Fatal("unbraced body is not a block")
 	}
 }
+
+func TestStmtListForeignStmt(t *testing.T) {
+	f := parse(t, "<?php a();")
+	g := parse(t, "<?php b(); c();")
+	if _, _, ok := StmtList(f, g.Stmts[1]); ok {
+		t.Fatal("a statement of another file is not in f's list")
+	}
+}

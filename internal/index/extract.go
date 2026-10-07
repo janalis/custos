@@ -175,9 +175,9 @@ func (x *extractor) genResolver(at uint32) types.Resolver {
 		if x.classTpl[w] {
 			return "~" + w
 		}
-		if x.templates[w] {
-			return ""
-		}
+		// x.templates holds no other names here: genResolver runs while
+		// a class or a member is extracted, whose templates are exactly
+		// classTpl and methodTpl.
 		if def, ok := x.aliases[w]; ok {
 			return "=" + def
 		}
@@ -403,11 +403,8 @@ func (x *extractor) tplResolver(at uint32) types.Resolver {
 // names in x.methodTpl) when its documented return type uses them.
 // assertions reads the @phpstan-assert / @psalm-assert tags of d (and
 // their -if-true / -if-false variants) whose target is a parameter of ps,
-// `$this` or `$this->prop` (method only). Types use tplResolver.
+// `$this` or `$this->prop` (method only). Types use tplResolver. d is non-nil.
 func (x *extractor) assertions(d *phpdoc.Doc, ps []*syntax.Param, method bool, at uint32) []Assertion {
-	if d == nil {
-		return nil
-	}
 	var out []Assertion
 	for _, t := range d.Tags {
 		var kind AssertKind

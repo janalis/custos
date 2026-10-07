@@ -412,8 +412,10 @@ func InspectFile(f *File, fn func(Node) bool) {
 }
 
 // SetParents links every node to its parent (top-level statements have a
-// nil parent). It also widens parent spans to cover their children, which
-// only matters for zero-width nodes created by error recovery.
+// nil parent). It also moves parent span starts back to cover their
+// children, which only matters for zero-width nodes created by error
+// recovery. Ends need no widening: a parser node ends at the last consumed
+// token, after all its children were parsed (lastEnd never decreases).
 func SetParents(f *File) {
 	var link func(parent Node)
 	link = func(parent Node) {
@@ -424,9 +426,6 @@ func SetParents(f *File) {
 			cs := c.Span()
 			if cs.Start < b.span.Start {
 				b.span.Start = cs.Start
-			}
-			if cs.End > b.span.End {
-				b.span.End = cs.End
 			}
 		})
 	}

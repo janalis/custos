@@ -151,3 +151,17 @@ func TestNeedsParensAsUnaryOperand(t *testing.T) {
 		}
 	}
 }
+
+func TestTokenEdges(t *testing.T) {
+	f := parse(t, "<?php $a;")
+	if _, ok := TokenBefore(f, 0); ok {
+		t.Fatal("nothing before offset 0")
+	}
+	if _, ok := TokenBefore(f, 7); ok {
+		t.Fatal("offset inside a token")
+	}
+	sp := syntax.Span{Start: 6, End: 8}
+	if got := WithTrailingWhitespace(f, sp); got != sp {
+		t.Fatalf("no whitespace to add: %v", got)
+	}
+}

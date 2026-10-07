@@ -56,19 +56,10 @@ func ReachingAssignmentsIn(f *syntax.File, scope, at syntax.Node, name string) (
 		}
 	}
 
-	lastKill := func(within syntax.Node) uint32 {
+	lastKill := func() uint32 {
 		var pos uint32
-		found := false
 		for _, k := range killers {
-			if within != nil && !NodeContains(within, k) {
-				continue
-			}
-			if p := reachKillPos(k); !found || p > pos {
-				pos, found = p, true
-			}
-		}
-		if !found {
-			return 0
+			pos = max(pos, reachKillPos(k))
 		}
 		return pos
 	}
@@ -82,7 +73,7 @@ func ReachingAssignmentsIn(f *syntax.File, scope, at syntax.Node, name string) (
 	}
 
 	entry = !hasKill(nil)
-	kill := lastKill(nil)
+	kill := lastKill()
 	for _, a := range all {
 		if !Reachable(a, scope) {
 			continue

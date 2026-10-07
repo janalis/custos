@@ -25,7 +25,7 @@ func project(t *testing.T) string {
 func runCLI(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
 	var out, errb bytes.Buffer
-	code := run(args, &out, &errb)
+	code := run(args, strings.NewReader(""), &out, &errb)
 	return code, out.String(), errb.String()
 }
 

@@ -26,9 +26,6 @@ func (t Type) TypeArgs(atom string) []Type {
 	return nil
 }
 
-// HasTypeArgs reports whether any atom carries generic arguments.
-func (t Type) HasTypeArgs() bool { return len(t.gen) > 0 }
-
 // WithTypeArgs returns t with generic arguments args on atom (which t must
 // have; otherwise t is returned unchanged). Nil args remove them.
 func (t Type) WithTypeArgs(atom string, args []Type) Type {

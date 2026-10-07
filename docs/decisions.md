@@ -194,7 +194,16 @@ findings on corpus A `src/` and corpus B unchanged):
 
 Coverage is kept at 100%: `make coverage` (part of `make verify`) fails on any
 statement of `internal/rules` not executed by own fixtures or the rule
-packages' tests (the EA run and local corpora do not count).
+packages' tests, and on any statement of `cmd/` and `internal/` not executed
+by the whole test suite (the EA run and local corpora do not count; the only
+exemption is `main()`'s one-line `os.Exit` wrapper). Tools under `tools/`
+(dev-time generators) are outside the gate. Complexity-regression tests use
+`testbudget.Of(d)`, which scales the limit by a CPU calibration measured at
+test time, so a loaded machine does not fail them while a quadratic or
+exponential regression (seconds to minutes) still does; the LSP edit-latency
+budget (p95 < 30 ms) is enforced only by `make bench` (`CUSTOS_PERF=1`).
+`runner.BuildIndex` recovers a crash while indexing one file (that file's
+symbols are dropped) instead of taking down the CLI or the language server.
 
 Parser bug reported by the audit: a close tag right after a control header
 (`if ($a) ?>html`, also `while`/`for`/`foreach`) was a syntax error; PHP
@@ -210,8 +219,8 @@ accessors, severity overrides, rule selection, panic propagation and nested
 suppressions have unit tests; `resolveAsserts`, `assertIs` (mixed is never
 asserted) and `computeProp` (initial value always present) lost unreachable
 branches; method templates, assertions and untyped-property writes gained
-edge-case tests. Known gap (outside this audit): the parser rejects
-`if ($a) ?>html<?php` (valid PHP) and gives the `if` an empty body.
+edge-case tests. The parser gap the audit reported (`if ($a) ?>html<?php`
+rejected) is fixed; see the close-tag note above.
 
 ## Engine
 
@@ -493,6 +502,77 @@ edge-case tests. Known gap (outside this audit): the parser rejects
   `ctx.Text`/`ctx.SpanText` return "" for empty, inverted or out-of-range
   spans.
 
+### Coverage pass on infer, types, index, phpdoc, names, stubs (2026-10-07)
+
+All six packages are at 100% statement coverage from their own tests and own
+fixtures (EA fixtures and local corpora excluded). Most new tests sit in the
+package itself (`*_cov_test.go`, `edges_test.go`). No exemptions; the
+embedded stubs data is a gob file, not Go code. Bugs fixed on the way (no
+finding delta on corpus A `src` or corpus B, vendor excluded):
+
+- **Element writes reach whole-variable reads.** The writes `$a['k'] = v` /
+  `$a[] = v` were applied only by the per-key readers (`$a['k']`, foreach,
+  `current()`…), so the variable itself kept its pre-write type. After
+  `$a = ['x' => 1]; $a['y'] = 'a'; $b = $a;`, `$b` was the sealed shape
+  `{x: int}`, `$b['y']` was `int` and iterating `$b` gave `int`; returned or
+  passed arrays had the same stale type. A variable read now applies the
+  writes reaching it to its array members (`withElemWrites`): the element
+  type gains the written values (plain `array` after a nested or unknown
+  write) and the shape is dropped (`$b` is `(int|string)[]`; `$l = [];
+  $l[] = new Foo;` returns `Foo[]`). Readers that apply the writes key by
+  key read the base type (`baseType`), so `$a['x']` keeps its per-key
+  precision. Destructuring a variable (`[$p, $q] = $a`) reads keys the same
+  way. Strings and ArrayAccess objects are not affected. Only reads of
+  array variables with reaching writes pay for it: `BenchmarkTypeOfElementWrites`
+  (write-heavy) allocates about 30% more, `BenchmarkTypeOfVariables` is
+  unchanged, and `analyse --all` on corpus A vendor takes the same time.
+- **Bitwise operators on strings.** `&`, `|`, `^` (and `&=`, `|=`, `^=`)
+  were always `int`, and so was `~`. Two string operands give a string in
+  PHP, so these are now `string` for two strings, `int` when one operand
+  cannot be a string, and unknown when both may be (unknown or mixed
+  operands).
+- `/=` was unknown. It is now `int|float` like `/` for numeric operands.
+- A type emptied by `Without` (for example `null` minus `null` in
+  `$x !== null && …` narrowing) printed as `""` instead of `?unknown`.
+- With `SoundArithmetic` (T-rules typer), `$a + $b` on `T[]` arrays was
+  `int|float`, and so were `$a - 1` and `$a + 1`. Now `$a + $b` is `array`
+  and the other two are unknown (TypeError).
+
+Removed as unreachable, each with its proof in the code or the tests:
+
+- `names.Resolver.Scopes` and `types.HasTypeArgs` (unused).
+- The `$this` case in doc type parsing (`scalarAliases` maps it first).
+- The zero-atom fast path in `types.Of` (it gave the same unknown type).
+- In index: the `x.templates` check in `genResolver`, since there the names
+  in scope are exactly the class and member templates. Also the nil-doc
+  guard of `assertions`, since callers pass a doc.
+- In infer:
+  - the unreachable tail of `unaryType` (the parser builds only the listed
+    operators);
+  - the nil-body checks in `scopeVars` and `collectMutations` (parser bodies
+    are never nil, and abstract methods are skipped);
+  - the class nil check in `genMethodReturn` (`genBindings` lists only
+    indexed classes);
+  - the no-argument `iterable` pattern (patterns mention a template, so they
+    carry arguments);
+  - the function-boundary case of `narrowExprAfter` (callers pass the
+    enclosing function-like);
+  - the "later write invalidates guards" branch of `guards` (`lastReset`
+    already starts after the last assignment);
+  - `FuncCall.Args` nil checks in the T-rules typer (the parser always
+    builds the list).
+- `index.directSubclasses` now reads the children's classes under one lock
+  instead of re-locking per child (a removal in between gave a nil class).
+
+Guards kept and triggered by tests: shape key caps (literal arrays, doc
+shapes, merged unions), `maxVarDefs` for element writes, `maxBodyDepth` and
+body recursion, a stale index whose spans no longer match the buffer (LSP
+edits: the property and body inference give unknown), `TypeOf(nil)`,
+malformed `define()` calls, constants with an empty initialiser, no
+`Traversable` without stubs. Also the T-rules recursion guard and stub
+functions lacking a parameter the overrides read. `stubs.Index` decoding is
+split into `decode`/`must` so a corrupt embed panics through tested code.
+
 ## CLI and LSP
 
 - `docs/rules-reference.md` (generated by `make rules-doc`) documents every
@@ -527,6 +607,107 @@ edge-case tests. Known gap (outside this audit): the parser rejects
   file and decode the symbols, saving ~0.3 s at best while adding
   invalidation bugs (binary version, PHP target, renamed files). The LSP
   builds it in the background, so first diagnostics are not blocked.
+
+### Coverage pass on the CLI, LSP and I/O packages (2026-10-07)
+
+Bringing cmd/custos, runner, report, baseline, config, safeio, lsp and the
+conformance harness to full statement coverage surfaced these bugs (fixed):
+
+- `--fail-on` accepted any value: a typo such as `--fail-on=warn` silently
+  meant `never` and turned a CI gate off. Unknown values (and unknown
+  `--format` values, previously reported only after the whole analysis) are
+  now usage errors (exit 2) checked before analysing.
+- `custos fix` aborted at the first unreadable file (after having rewritten
+  the files sorted before it) and on the first write failure. It now reports
+  each failure, fixes the other files and exits 2 at the end.
+- `custos fix --dry-run` counted and diffed symlinked files that a real run
+  refuses to write. Non-regular files are now skipped (`not fixed`) before
+  being read, in both modes.
+- `fix --cpuprofile` was accepted but ignored; it now profiles. A failing
+  `pprof.StartCPUProfile` leaked the created profile file.
+- `custos rules -h` / `lsp -h` printed "flag: help requested" and exited 2;
+  `-h` now exits 0 everywhere. Flag errors go to the command's stderr writer.
+- Output errors were ignored by the `github` format (and per line by
+  `text`): a closed stdout returned success. They are now returned (exit 2).
+- LSP: when the client sent `initializationOptions` (some always do),
+  the merged configuration dropped `custos.json`'s `paths`, `exclude` and
+  `baseline`, so the project index covered the whole root including
+  excluded directories. What to analyse now always stays the project's.
+- LSP: a request whose handler panicked (e.g. a crashing quick-fix while
+  building code actions) was answered with a `null` success result; it now
+  gets an internal error (-32603). The `didChangeWatchedFiles` goroutine is
+  guarded the same way (a parser crash there killed the server).
+- LSP: file changes arriving between `initialized` and the start of the
+  background index build were dropped (the "indexing" flag was set inside
+  the goroutine); it is now set before the goroutine starts, so they are
+  queued and replayed.
+- LSP framing: header and body are written in one `Write` (a failure can no
+  longer leave a header without its body).
+
+Removed as unreachable: JSON marshalling error branches for values built
+from known types (baseline file, LSP messages/results/params, now
+`mustJSON`). Test seams added: `safeio.beforeOpen` (swap a path between
+the Stat and the Open, as a concurrent writer could) and, in cmd/custos,
+`registry`/`catalogue` (the embedded rule set and catalogue cannot fail
+otherwise). The only uncovered statement left is `main()` itself, a
+one-line `os.Exit(run(...))` wrapper. Tests that rely on permission bits
+(unreadable working directory, chmod 000 files) skip under root.
+
+### Coverage pass on syntax, analysis, util, fix, diff (2026-10-07)
+
+syntax, analysis, analysis/util, fix, diff, phpver and meta are at 100%
+statement coverage from their own tests and own fixtures (EA fixtures and
+local corpora excluded). Lexer edge cases are checked token by token against
+PHP 8.5's `token_get_all` (`TestLexSnippetsMatchPHP`). Grammar cases are
+checked against `php -l` of the matching version (`/opt/homebrew/opt/php@X.Y`,
+`TestParseCases`). `TestNodeKinds` parses `testdata/cov/allkinds.php`, which
+uses every construct, and requires each node kind to appear and to name its
+own Go type, so the generated `kinds.go` is covered without an exemption.
+Findings (`--all`, JSON) are byte-identical old/new on corpus A src and vendor
+and on corpus B (vendor excluded). Bugs fixed:
+
+- Lexer, `readonly (`: it was lexed as a name in every version when `(`
+  followed (comments included). Only PHP 8.1 does that, and only across
+  whitespace. 8.2+ always emits the keyword, so `public readonly
+  (A&B)|null $x` (DNF type) was a false syntax error. The parser now
+  accepts `readonly(...)` as a function call.
+- Lexer, `private( set )`: inner whitespace was accepted, but PHP lexes only
+  `(set)` (any case) as one token. With spaces, PHP reports a syntax error,
+  and now custos does too.
+- Lexer: `1..2` gave `1` `.` `.2` instead of PHP's `1.` `.2`.
+- Lexer: a comment between `->`/`?->` and the member name dropped the
+  member-name context. `$o->/*c*/list` lexed `list` as a keyword, and `#[`
+  right after `->` started an attribute instead of a comment.
+- Parser: an argument-less `new` took postfix operators. `new A->b`,
+  `new A::C`, `new A[0]` and `new $a::C` were accepted, though PHP rejects
+  them (only `new A()->b` and `new class {}->b` are valid). The fix exposed
+  that `new A::$cls` / `new static::$cls` used to parse as
+  `(new A)::$cls`. `New.Class` is now the static property fetch.
+- Parser: `$x instanceof 1` / `instanceof [1]` was accepted without an
+  error, and a reserved word before `::` (`Foreach::x()`) was taken
+  silently as a class name. Both are now reported, with the same recovery.
+- Parser: `use T { foo as; }` (no visibility or alias) was accepted.
+- `Terminates`: `break N` used level 2 for every literal other than `1`.
+  So `while (true) { foreach (…) { foreach (…) { break 3; } } }` counted as
+  never exiting, and `break 01` / `break 0` were misread. Levels are now
+  parsed (non-literal: assumed to leave). A `continue` aimed at a switch
+  acts as `break` in PHP, and it now makes the switch fall through.
+- diff: an empty hunk range was printed as `-N+1,0` instead of `-N,0`. With
+  `patch`, that put insertions at the wrong line (context 0) or warned
+  (an empty old file).
+- util: casts that differ only in case (`(INT)` vs `(int)`) were not
+  equivalent.
+
+Removed as unreachable (proof in a comment at each site): the lexer
+dispatcher's fallback (an unknown state now returns without consuming, and
+the run loop's never-stall guard is tested by forcing such a state), the
+closure parser's zero-width error branch, the progress guards of the class
+body and string-interpolation loops, end widening in `SetParents` (a node
+ends at the last consumed token, after its children), the negative
+checkpoint index in `LineIndex`, the Myers loop's unreachable `return nil`,
+and the unused `TokenKind.IsMagicConst`. The util removals are the unused
+`UnstableVariable` plus nil and cap re-checks already enforced by the
+callers.
 
 ## Security (untrusted input)
 

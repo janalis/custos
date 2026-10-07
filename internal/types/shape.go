@@ -183,7 +183,8 @@ func (t Type) WithoutShape() Type {
 	return t.withInfo(a)
 }
 
-// WithoutArrayInfo drops every array fact beyond the atoms.
+// WithoutArrayInfo drops every array fact beyond the atoms (tools/genstubs
+// stores plain atom sets).
 func (t Type) WithoutArrayInfo() Type {
 	t.arr = nil
 	return t

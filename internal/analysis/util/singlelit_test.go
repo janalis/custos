@@ -36,3 +36,10 @@ func TestSingleStringLiteral(t *testing.T) {
 		}
 	}
 }
+
+func TestSingleStringLiteralNumber(t *testing.T) {
+	f := parse(t, `<?php 1;`)
+	if SingleStringLiteral(f, firstExpr(t, f)) != nil {
+		t.Fatal("a number literal is not a string")
+	}
+}

@@ -80,8 +80,10 @@ func Write(w io.Writer, format string, items []Item, files int) error {
 			if level == "" {
 				level = "notice"
 			}
-			fmt.Fprintf(w, "::%s file=%s,line=%d,col=%d,endLine=%d,endColumn=%d,title=%s::%s\n",
-				level, it.Path, it.Line, it.Column, it.EndLine, it.EndColumn, it.Rule, escapeGitHub(it.Message))
+			if _, err := fmt.Fprintf(w, "::%s file=%s,line=%d,col=%d,endLine=%d,endColumn=%d,title=%s::%s\n",
+				level, it.Path, it.Line, it.Column, it.EndLine, it.EndColumn, it.Rule, escapeGitHub(it.Message)); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -95,7 +97,9 @@ func writeText(w io.Writer, items []Item, files int) error {
 		if it.Fixable {
 			fix = " (fixable)"
 		}
-		fmt.Fprintf(w, "%s:%d:%d: %s: %s [%s]%s\n", it.Path, it.Line, it.Column, it.Severity, it.Message, it.Rule, fix)
+		if _, err := fmt.Fprintf(w, "%s:%d:%d: %s: %s [%s]%s\n", it.Path, it.Line, it.Column, it.Severity, it.Message, it.Rule, fix); err != nil {
+			return err
+		}
 		counts[it.Severity]++
 	}
 	_, err := fmt.Fprintf(w, "\n%d file(s) analysed: %d error(s), %d warning(s), %d info\n", files, counts["error"], counts["warning"], counts["info"])
@@ -135,8 +139,7 @@ func writeCheckstyle(w io.Writer, items []Item) error {
 			r.Files = append(r.Files, csFile{Name: it.Path})
 		}
 		sev := it.Severity
-		if sev == "warning" || sev == "error" {
-		} else {
+		if sev != "warning" && sev != "error" {
 			sev = "info"
 		}
 		r.Files[i].Errors = append(r.Files[i].Errors, csError{Line: it.Line, Column: it.Column, Severity: sev, Message: it.Message, Source: "custos." + it.Rule})

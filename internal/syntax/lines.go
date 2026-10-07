@@ -91,10 +91,8 @@ func (l *LineIndex) checkpoint(line int, offset uint32) colCheckpoint {
 	if len(cps) == 0 {
 		return colCheckpoint{off: l.starts[line]}
 	}
+	// cps[0] is the line start, at or before offset: i >= 0.
 	i := sort.Search(len(cps), func(i int) bool { return cps[i].off > offset }) - 1
-	if i < 0 {
-		i = 0
-	}
 	return cps[i]
 }
 

@@ -155,7 +155,17 @@ func (e *Env) shapeDim(ct types.Type, n *syntax.ArrayDimFetch) (types.Type, bool
 		return types.Unknown, false
 	}
 	v, isVar := n.Var.(*syntax.Variable)
-	isVar = isVar && v.Name != "" && v.Name != "this"
+	if !isVar || v.Name == "" || v.Name == "this" {
+		v = nil
+	}
+	return e.shapeKeyOf(ct, key, v)
+}
+
+// shapeKeyOf types key of a value of type ct from its shape, widened by
+// the element writes into variable v (nil: not a variable) reaching it; ok
+// is false when the shape does not list the key and no write adds it.
+func (e *Env) shapeKeyOf(ct types.Type, key string, v *syntax.Variable) (types.Type, bool) {
+	isVar := v != nil
 	kt, ok := ct.ShapeKey(key)
 	if !ok {
 		// A key missing from a literal array may be added by a write
@@ -269,7 +279,7 @@ func (e *Env) shapeElem(t types.Type, x syntax.Expr) types.Type {
 // a `T[]`-only collection, else the union of a sealed shape's values; both
 // widened by the element writes into variable x reaching the loop.
 func (e *Env) foreachElem(x syntax.Expr) types.Type {
-	t := e.TypeOf(x)
+	t := e.baseType(x)
 	if el := iterElem(t); !el.IsUnknown() {
 		if v, ok := syntax.UnwrapParens(x).(*syntax.Variable); ok && v.Name != "" && v.Name != "this" {
 			return e.widenVarElem(el, v)
@@ -289,7 +299,7 @@ func (e *Env) foreachElem(x syntax.Expr) types.Type {
 // into variable x reaching the loop may add.
 func (e *Env) foreachKey(x syntax.Expr) types.Type {
 	anyKey := types.Of("int", "string")
-	t := e.TypeOf(x)
+	t := e.baseType(x)
 	if !t.Without("null", "false").IsArrayLike() {
 		if k, _ := e.iterTypes(t); !k.IsUnknown() {
 			return k
@@ -479,9 +489,6 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 		}
 	}
 	for _, b := range body {
-		if b == nil {
-			continue
-		}
 		syntax.Inspect(b, func(n syntax.Node) bool {
 			switch n := n.(type) {
 			case *syntax.Closure:

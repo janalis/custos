@@ -66,3 +66,46 @@ final class Subject {
 		})
 	}
 }
+
+// BenchmarkTypeOfElementWrites types every variable and element read of
+// functions building arrays by element writes (whole-variable reads apply
+// the reaching writes, element reads widen key by key).
+func BenchmarkTypeOfElementWrites(b *testing.B) {
+	var sb strings.Builder
+	sb.WriteString("<?php\n")
+	for i := 0; i < 200; i++ {
+		fmt.Fprintf(&sb, `function f%d(array $rows, string $k) {
+    $out = ['count' => 0, 'names' => []];
+    $list = [];
+    foreach ($rows as $i => $row) {
+        $out['count']++;
+        $out['names'][] = $row['name'];
+        $list[] = $row;
+        $list[$k] = $i;
+        if ($out['count'] > 10) { break; }
+    }
+    $copy = $out;
+    $n = $copy['count'] + count($list);
+    [$first] = $list;
+    foreach ($list as $key => $value) { use_it($key, $value, $first, $n); }
+    return $out;
+}
+`, i)
+	}
+	src := []byte(sb.String())
+	opt := syntax.Options{Version: phpver.PHP84}
+	b.ReportAllocs()
+	for b.Loop() {
+		f := syntax.Parse("t.php", src, opt)
+		ix := index.New(stubs.Index())
+		ix.Add(index.Extract(f))
+		env := infer.NewEnv(f, names.New(f), ix, phpver.PHP84)
+		syntax.InspectFile(f, func(n syntax.Node) bool {
+			switch n.(type) {
+			case *syntax.Variable, *syntax.ArrayDimFetch:
+				env.TypeOf(n.(syntax.Expr))
+			}
+			return true
+		})
+	}
+}

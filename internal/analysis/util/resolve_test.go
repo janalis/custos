@@ -39,3 +39,10 @@ namespace B { use function A\time; time(); nope(); }
 		}
 	}
 }
+
+func TestResolvedFunctionFQNDynamic(t *testing.T) {
+	f := parse(t, `<?php $f();`)
+	if _, ok := ResolvedFunctionFQN(names.New(f), index.New(stubs.Index()), phpver.Max, firstExpr(t, f).(*syntax.FuncCall)); ok {
+		t.Fatal("dynamic call")
+	}
+}

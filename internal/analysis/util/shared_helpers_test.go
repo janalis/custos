@@ -184,3 +184,15 @@ func TestDocHasAnnotation(t *testing.T) {
 		t.Errorf("got %v", got)
 	}
 }
+
+func TestPossibleValuesReachingEdges(t *testing.T) {
+	for src, want := range map[string]bool{
+		`<?php function f() { probe($$x); }`:                                               true,
+		`<?php class C { function m() { $n = 1; $n++; $this->p = $n; probe($this->p); } }`: false,
+	} {
+		f := parse(t, src)
+		if vals, known := PossibleValuesReaching(f, probeArg(f)); known != want || len(vals) != 0 {
+			t.Errorf("%s: got %v %v", src, vals, known)
+		}
+	}
+}

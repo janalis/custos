@@ -89,3 +89,37 @@ func BenchmarkPossibleValuesKnown(b *testing.B) {
 		}
 	}
 }
+
+func TestPossibleValuesEdges(t *testing.T) {
+	many := func(stmt string, n int) string { return strings.Repeat(stmt, n) }
+	for src, want := range map[string]string{
+		`<?php function f() { probe($$x); }`:                                                                     "",
+		`<?php class C { function m() { probe($this->{$x}); } }`:                                                 "",
+		`<?php class C { const K = 'k'; function m() { probe(C::{$x}); } }`:                                      "",
+		`<?php function f($o) { probe($o::K); }`:                                                                 "",
+		`<?php class C { const K = 'k'; } function f() { probe(C::K); }`:                                         "'k'",
+		`<?php class C { const K = 'k'; function m() { probe(static::K); } }`:                                    "'k'",
+		`<?php function f() { probe(Missing::K); }`:                                                              "",
+		`<?php define('X'); probe(X);`:                                                                           "",
+		`<?php function f() { ` + many(`$v = 1; `, maxPossibleValues+1) + `probe($v); }`:                         "?",
+		`<?php class C { function m() { ` + many(`$this->p = 1; `, maxPossibleValues+1) + `probe($this->p); } }`: "?",
+	} {
+		if got := valuesOf(t, src); got != want {
+			t.Errorf("%.80s:\n got %q\nwant %q", src, got, want)
+		}
+	}
+	f := parse(t, `<?php 1;`)
+	if vals, known := PossibleValuesKnown(f, nil); vals != nil || !known {
+		t.Fatalf("nil expression: %v %v", vals, known)
+	}
+	if p, b := ScopeParts(nil); p != nil || b != nil {
+		t.Fatal("ScopeParts of a non-function")
+	}
+}
+
+func TestPossibleValuesAbstractScope(t *testing.T) {
+	// A variable in an abstract method's parameter default: no body to scan.
+	if got := valuesOf(t, `<?php interface I { function f($a = probe($b)); }`); got != "" {
+		t.Fatalf("got %q", got)
+	}
+}

@@ -88,3 +88,37 @@ class C extends B {}
 		t.Fatalf("stub method not found (spans lost?)")
 	}
 }
+
+func TestChainWalkEdges(t *testing.T) {
+	src := `<?php
+trait A { function a() {} }
+trait B { use A; }
+trait C { use A; }
+class X { use B, C, Missing; }
+class P extends Q { function p() {} }
+class Q extends P {}
+interface I { function i(); }
+`
+	f := parse(t, src)
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	if m := MethodInChain(ix, `X`, "a", 0); m == nil || m.Class != `A` {
+		t.Fatalf("shared trait: %+v", m)
+	}
+	if m := MethodInChain(ix, `X`, "zz", 0); m != nil {
+		t.Fatal("missing method found")
+	}
+	if m := MethodInChain(ix, `Q`, "zz", 0); m != nil {
+		t.Fatal("cyclic chain must terminate")
+	}
+	if m := MethodInChain(ix, `I`, "i", 0); m != nil {
+		t.Fatal("interface methods are not considered")
+	}
+	if MethodDecl(f, ix, nil, 0) != nil || MethodDecl(f, ix, &index.Method{}, 0) != nil {
+		t.Fatal("MethodDecl without a method")
+	}
+	p := MethodInChain(ix, `P`, "p", 0)
+	if MethodDecl(f, ix, &index.Method{Class: p.Class, Span: syntax.Span{Start: 1, End: 2}}, 0) != nil {
+		t.Fatal("MethodDecl with a foreign span")
+	}
+}

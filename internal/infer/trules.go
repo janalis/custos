@@ -3,6 +3,7 @@ package infer
 import (
 	"strings"
 
+	"custos/internal/index"
 	"custos/internal/syntax"
 	"custos/internal/types"
 )
@@ -296,24 +297,25 @@ func (r *TRules) funcCall(n *syntax.FuncCall) types.Type {
 	if f == nil {
 		return types.Unknown
 	}
-	if t, ok := r.override(n, strings.ToLower(strings.TrimPrefix(f.FQN, `\`))); ok {
+	if t, ok := r.override(n, f); ok {
 		return t
 	}
 	return DeclaredAndDoc(f.Return, f.DocReturn)
 }
 
-func (r *TRules) arg(n *syntax.FuncCall, i int) syntax.Expr {
-	if n.Args == nil {
-		return nil
-	}
+// arg returns the argument of n (a call of f) for f's parameter i, positional
+// or named; nil when absent. The parser always gives a FuncCall an argument
+// list (parseArgs), so n.Args is never nil here.
+func (r *TRules) arg(n *syntax.FuncCall, f *index.Function, i int) syntax.Expr {
 	if i < len(n.Args.Args) {
 		if a, ok := n.Args.Args[i].(*syntax.Arg); ok && a.Name == nil && !a.Unpack {
 			return a.Value
 		}
 	}
-	// Named argument: match the callee's parameter name at position i.
-	f := r.Env.ResolveFunction(n)
-	if f == nil || i >= len(f.Params) {
+	// Named argument: match the callee's parameter name at position i (the
+	// stubs declare every parameter the overrides read; the bound only
+	// guards against a stub lacking one).
+	if i >= len(f.Params) {
 		return nil
 	}
 	want := strings.TrimPrefix(f.Params[i].Name, "$")
@@ -326,15 +328,12 @@ func (r *TRules) arg(n *syntax.FuncCall, i int) syntax.Expr {
 }
 
 func (r *TRules) argCount(n *syntax.FuncCall) int {
-	if n.Args == nil {
-		return 0
-	}
 	return len(n.Args.Args)
 }
 
 // override implements the R-function return types.
-func (r *TRules) override(n *syntax.FuncCall, name string) (types.Type, bool) {
-	switch name {
+func (r *TRules) override(n *syntax.FuncCall, f *index.Function) (types.Type, bool) {
+	switch name := strings.ToLower(strings.TrimPrefix(f.FQN, `\`)); name {
 	case "str_replace", "str_ireplace", "preg_replace", "preg_replace_callback", "substr_replace",
 		"preg_filter", "preg_replace_callback_array":
 		idx := 2
@@ -345,7 +344,7 @@ func (r *TRules) override(n *syntax.FuncCall, name string) (types.Type, bool) {
 			idx = 1
 		}
 		res := []string{"string", "array"}
-		if s := r.arg(n, idx); s != nil {
+		if s := r.arg(n, f, idx); s != nil {
 			st := r.Env.TypeOf(s)
 			if r.SpecOnly {
 				st = r.TypeOf(s)
@@ -374,7 +373,7 @@ func (r *TRules) override(n *syntax.FuncCall, name string) (types.Type, bool) {
 		}
 		return types.Of(res...), true
 	case "mb_convert_encoding": // custos: an array only for an array input
-		if s := r.arg(n, 0); s != nil {
+		if s := r.arg(n, f, 0); s != nil {
 			st := r.Env.TypeOf(s)
 			if r.SpecOnly {
 				st = r.TypeOf(s)
@@ -393,7 +392,7 @@ func (r *TRules) override(n *syntax.FuncCall, name string) (types.Type, bool) {
 		return types.String, true
 	case "explode":
 		if r.argCount(n) >= 2 {
-			if lit, ok := r.arg(n, 0).(*syntax.Literal); ok && lit.LitKind == syntax.LitString {
+			if lit, ok := r.arg(n, f, 0).(*syntax.Literal); ok && lit.LitKind == syntax.LitString {
 				if len(lit.Raw) <= 2 {
 					return types.Bool, true
 				}
@@ -403,7 +402,7 @@ func (r *TRules) override(n *syntax.FuncCall, name string) (types.Type, bool) {
 		return types.Of("array", "bool"), true
 	case "parse_url":
 		if r.argCount(n) == 2 {
-			if c, ok := r.arg(n, 1).(*syntax.ConstFetch); ok {
+			if c, ok := r.arg(n, f, 1).(*syntax.ConstFetch); ok {
 				if strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "PHP_URL_PORT") {
 					return types.Of("int", "null"), true
 				}
@@ -415,14 +414,14 @@ func (r *TRules) override(n *syntax.FuncCall, name string) (types.Type, bool) {
 		return types.Mixed, true
 	case "microtime":
 		if r.argCount(n) == 1 {
-			if c, ok := r.arg(n, 0).(*syntax.ConstFetch); !ok || !strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "false") {
+			if c, ok := r.arg(n, f, 0).(*syntax.ConstFetch); !ok || !strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "false") {
 				return types.Float, true
 			}
 		}
 		return types.Int, true
 	case "abs":
 		if r.argCount(n) == 1 {
-			if a := r.arg(n, 0); a != nil {
+			if a := r.arg(n, f, 0); a != nil {
 				if t := r.TypeOf(a); t.OnlyOf("int", "float") {
 					return t, true
 				}
@@ -586,8 +585,10 @@ func (r *TRules) soundArithmetic(n *syntax.Binary) types.Type {
 	if l.IsUnknown() || rt.IsUnknown() {
 		return types.Unknown
 	}
-	if r.hasArray(l) || r.hasArray(rt) {
-		if n.Op.Kind == syntax.TPlus && l.OnlyOf("array") && rt.OnlyOf("array") {
+	// Array operands (`array` or element-typed `T[]`): only array + array
+	// is an array; anything else throws a TypeError.
+	if hasArrayAtom(l) || hasArrayAtom(rt) {
+		if n.Op.Kind == syntax.TPlus && l.IsArrayLike() && rt.IsArrayLike() {
 			return types.Array
 		}
 		return types.Unknown
@@ -608,4 +609,14 @@ func (r *TRules) soundArithmetic(n *syntax.Binary) types.Type {
 		return types.Int
 	}
 	return intOrFloat
+}
+
+// hasArrayAtom reports an `array` or `T[]` atom in s.
+func hasArrayAtom(s types.Type) bool {
+	for _, a := range s.Atoms() {
+		if a == "array" || strings.HasSuffix(a, "[]") {
+			return true
+		}
+	}
+	return false
 }

@@ -38,6 +38,10 @@ func ReadFile(path string, max int64) ([]byte, error) {
 	return b, nil
 }
 
+// beforeOpen, when set (tests only), runs between the Stat and the Open so
+// a test can swap the path the way a concurrent writer could.
+var beforeOpen func(path string)
+
 func open(path string) (*os.File, error) {
 	// Stat first: opening a FIFO would block until a writer appears.
 	st, err := os.Stat(path)
@@ -46,6 +50,9 @@ func open(path string) (*os.File, error) {
 	}
 	if !st.Mode().IsRegular() {
 		return nil, &os.PathError{Op: "read", Path: path, Err: ErrNotRegular}
+	}
+	if beforeOpen != nil {
+		beforeOpen(path)
 	}
 	f, err := os.Open(path)
 	if err != nil {

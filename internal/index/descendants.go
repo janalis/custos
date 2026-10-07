@@ -24,22 +24,17 @@ func (ix *Index) Subclasses(fqn string) []string {
 }
 
 // directSubclasses lists classes of this layer only whose parent is fqn.
+// The first declaration of each child decides (as for lookups); a child
+// removed concurrently since Children was computed is skipped.
 func (ix *Index) directSubclasses(fqn string) []string {
 	var out []string
-	for _, c := range ix.Children(fqn) {
-		if cls := ix.layerClass(c); cls != nil && cls.Parent != "" && key(cls.Parent) == key(fqn) {
+	children := ix.Children(fqn)
+	ix.mu.RLock()
+	defer ix.mu.RUnlock()
+	for _, c := range children {
+		if cs := ix.classes[key(c)]; len(cs) > 0 && cs[0].Parent != "" && key(cs[0].Parent) == key(fqn) {
 			out = append(out, c)
 		}
 	}
 	return out
-}
-
-// layerClass looks a class up in this layer only.
-func (ix *Index) layerClass(fqn string) *Class {
-	ix.mu.RLock()
-	defer ix.mu.RUnlock()
-	if cs := ix.classes[key(fqn)]; len(cs) > 0 {
-		return cs[0]
-	}
-	return nil
 }

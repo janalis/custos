@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"custos/internal/testbudget"
 )
 
 // Doc types come from analysed code: pathological input must parse fast.
@@ -57,7 +59,7 @@ func TestFromDocPathological(t *testing.T) {
 		start := time.Now()
 		got := FromDoc(in, resolve)
 		_ = got.DocString()
-		if d := time.Since(start); d > 200*time.Millisecond && !raceEnabled {
+		if d := time.Since(start); d > testbudget.Of(200*time.Millisecond) && !raceEnabled {
 			t.Errorf("%s: took %v", name, d)
 		}
 	}
@@ -93,7 +95,7 @@ func FuzzFromDoc(f *testing.F) {
 	f.Fuzz(func(t *testing.T, s string) {
 		start := time.Now()
 		got := FromDoc(s, resolve)
-		if d := time.Since(start); d > time.Second && !raceEnabled {
+		if d := time.Since(start); d > testbudget.Of(time.Second) && !raceEnabled {
 			t.Fatalf("%q took %v", s, d)
 		}
 		ds := got.DocString()

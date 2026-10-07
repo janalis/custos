@@ -37,9 +37,13 @@ Common flags (`analyse` and `fix`):
 
 `fix` only: `--dry-run` (do not write) and `--diff` (print a unified diff).
 Fixes are applied repeatedly until nothing changes (at most 10 rounds).
+Symlinks and other non-regular files are skipped (with a note on stderr);
+a file that cannot be read or written is reported and the other files are
+still fixed, then `fix` exits 2.
 
 Exit codes: `0` success / no finding at or above `--fail-on`; `1` findings at
-or above `--fail-on`; `2` usage or configuration error.
+or above `--fail-on`; `2` usage or configuration error (including an unknown
+`--format` or `--fail-on` value), or files `fix` could not process.
 
 ## Configuration (`custos.json`)
 

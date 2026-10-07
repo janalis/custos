@@ -37,3 +37,9 @@ namespace { echo PHP_VERSION, \Foo\PHP_VERSION; }
 		}
 	}
 }
+
+func TestGlobalConstNameNil(t *testing.T) {
+	if GlobalConstName(nil, nil) != "" {
+		t.Fatal("nil constant")
+	}
+}

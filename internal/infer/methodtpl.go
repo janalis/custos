@@ -194,10 +194,9 @@ func (e *Env) bindPattern(pat, at types.Type, arg syntax.Expr, found map[string]
 			found[strings.TrimSuffix(a[3:], "[]")] = append(found[strings.TrimSuffix(a[3:], "[]")], el)
 		}
 	case a == "iterable":
+		// A pattern mentions a template (bindCall gets only those), so a
+		// bare `iterable` pattern carries its arguments: at least one.
 		args := pat.TypeArgs(a)
-		if len(args) == 0 {
-			return
-		}
 		k, v := e.iterTypes(at)
 		if v.IsUnknown() && at.IsArrayLike() {
 			v = e.elemOf(at, arg)

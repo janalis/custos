@@ -39,11 +39,7 @@ func BuildIndex(files []string, opt syntax.Options) *index.Index {
 		go func() {
 			defer wg.Done()
 			for i := range jobs {
-				src, err := ReadSource(files[i])
-				if err != nil {
-					continue
-				}
-				results[i] = ExtractSymbols(files[i], src, opt)
+				results[i] = indexOne(files[i], opt)
 			}
 		}()
 	}
@@ -63,6 +59,26 @@ func BuildIndex(files []string, opt syntax.Options) *index.Index {
 		}
 	}
 	return ix
+}
+
+// extract is ExtractSymbols; tests replace it to simulate a crash.
+var extract = ExtractSymbols
+
+// indexOne reads and extracts one file. A crash (parser or inference bug on
+// unusual input) drops that file's symbols instead of taking down the CLI
+// or the language server; the file itself still gets an "internal" finding
+// when it is analysed.
+func indexOne(path string, opt syntax.Options) (fs *index.FileSymbols) {
+	defer func() {
+		if recover() != nil {
+			fs = nil
+		}
+	}()
+	src, err := ReadSource(path)
+	if err != nil {
+		return nil
+	}
+	return extract(path, src, opt)
 }
 
 // ExtractSymbols parses one file and returns its symbols, with the return

@@ -38,11 +38,16 @@ func EquivalentFoldNames(f *syntax.File, a, b syntax.Node) bool {
 		}
 		ta, tb := f.Tokens[i], f.Tokens[j]
 		xa, xb := f.Src[ta.Start:ta.End], f.Src[tb.Start:tb.End]
+		if ta.Kind != tb.Kind {
+			return false
+		}
 		if !bytes.Equal(xa, xb) {
 			if !bytes.EqualFold(xa, xb) {
 				return false
 			}
-			if !(ta.Kind.IsKeyword() && tb.Kind.IsKeyword()) {
+			// Keywords and casts are case-insensitive; other tokens only
+			// as the names PHP resolves case-insensitively.
+			if !ta.Kind.IsKeyword() && !ta.Kind.IsCast() {
 				if fold == nil {
 					fold = map[uint32]bool{}
 					foldNameSpans(a, fold)
@@ -52,8 +57,6 @@ func EquivalentFoldNames(f *syntax.File, a, b syntax.Node) bool {
 					return false
 				}
 			}
-		} else if ta.Kind != tb.Kind {
-			return false
 		}
 		i++
 		j++

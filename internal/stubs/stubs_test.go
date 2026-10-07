@@ -1,6 +1,8 @@
 package stubs
 
 import (
+	"bytes"
+	"compress/gzip"
 	"sync"
 	"testing"
 	"time"
@@ -34,4 +36,23 @@ func BenchmarkDecode(b *testing.B) {
 		once = *new(sync.Once)
 		Index()
 	}
+}
+
+func TestDecodeErrors(t *testing.T) {
+	if _, err := decode([]byte("not gzip")); err == nil {
+		t.Error("non-gzip data must fail")
+	}
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	zw.Write([]byte("not gob"))
+	zw.Close()
+	if _, err := decode(buf.Bytes()); err == nil {
+		t.Error("non-gob payload must fail")
+	}
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("must should panic on error")
+		}
+	}()
+	must(decode([]byte("x")))
 }

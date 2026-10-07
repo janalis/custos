@@ -38,3 +38,16 @@ func TestEquivalentFoldNamesNested(t *testing.T) {
 		t.Fatal("nested")
 	}
 }
+
+func TestEquivalentFoldNamesEdges(t *testing.T) {
+	f := parse(t, `<?php [$a instanceof Foo, $a instanceof foo, F($a), f(1), (INT)$x, (int)$x, (Int)$y];`)
+	items := firstExpr(t, f).(*syntax.Array).Items
+	for _, c := range []struct {
+		i, j int
+		want bool
+	}{{0, 1, true}, {2, 3, false}, {4, 5, true}, {4, 6, false}} {
+		if got := EquivalentFoldNames(f, items[c.i].Value, items[c.j].Value); got != c.want {
+			t.Errorf("%s vs %s: got %v", text(f, items[c.i].Value), text(f, items[c.j].Value), got)
+		}
+	}
+}

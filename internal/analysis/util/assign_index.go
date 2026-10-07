@@ -9,7 +9,7 @@ import "custos/internal/syntax"
 type assignIndex struct {
 	plain    []*syntax.Assign            // plain `=` (not by-ref) assignments, preorder
 	byVar    map[string][]*syntax.Assign // the plain ones whose target is $name
-	unstable map[string]bool             // UnstableVariable(root, name)
+	unstable map[string]bool             // UnstableVariableIn(f, root, name)
 	byRefUse map[string]bool             // imported by reference into a closure under root
 	// the plain ones by target kind (non-variable targets) and, for
 	// property fetches, by target source text
@@ -80,8 +80,11 @@ func buildAssignIndex(f *syntax.File, root syntax.Node) *assignIndex {
 	return ix
 }
 
-// UnstableVariableIn is UnstableVariable using the per-file cache of f
-// (prefer it when called for many variables of the same scope).
+// UnstableVariableIn reports whether variable $name is, anywhere under root
+// (nested closures included), the operand of `++`/`--` or the target of a
+// compound assignment (`+=`, `.=`, `??=`, ...). Value discovery treats such
+// a variable's value set as unknown. The answer for every name of root is
+// computed in one walk and cached on f (nil: not cached).
 func UnstableVariableIn(f *syntax.File, root syntax.Node, name string) bool {
 	if root == nil || name == "" {
 		return false

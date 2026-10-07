@@ -99,13 +99,12 @@ func Serve(ctx context.Context, r io.Reader, w io.Writer) error {
 	}
 }
 
-func (s *Server) handle(m *message) (any, *rpcError) {
-	defer func() {
-		// A crashing rule must never take the server down.
-		if r := recover(); r != nil {
-			s.logf("panic handling %s: %v", m.Method, r)
-		}
-	}()
+func (s *Server) handle(m *message) (result any, rerr *rpcError) {
+	// A crashing rule must never take the server down; a request that
+	// crashed gets an error, not a null success.
+	defer s.guard("handling "+m.Method, func() {
+		result, rerr = nil, &rpcError{Code: codeInternalError, Message: "custos crashed handling " + m.Method}
+	})
 	switch m.Method {
 	case "initialize":
 		return s.initialize(m.Params)
@@ -118,14 +117,19 @@ func (s *Server) handle(m *message) (any, *rpcError) {
 				"registerOptions": map[string]any{"watchers": []any{map[string]any{"globPattern": "**/*.php"}}},
 			}}})
 		}
-		go s.buildIndex()
+		if s.beginIndexing() {
+			go s.buildIndex()
+		}
 		return nil, nil
 	case "workspace/didChangeWatchedFiles":
 		var p struct {
 			Changes []fileChange `json:"changes"`
 		}
 		_ = json.Unmarshal(m.Params, &p)
-		go s.watchedFilesChanged(p.Changes)
+		go func() {
+			defer s.guard("file changes", nil)
+			s.watchedFilesChanged(p.Changes)
+		}()
 		return nil, nil
 	case "textDocument/didSave":
 		var p struct {
@@ -290,6 +294,8 @@ func mergeOverrides(base *config.Config, over config.File) (*config.Config, erro
 	if err != nil {
 		return nil, err
 	}
+	// What to analyse stays the project's choice.
+	merged.Paths, merged.Exclude, merged.Baseline = base.Paths, base.Exclude, base.Baseline
 	for id, rc := range base.Rules {
 		if _, ok := merged.Rules[id]; !ok {
 			merged.Rules[id] = rc
@@ -298,23 +304,40 @@ func mergeOverrides(base *config.Config, over config.File) (*config.Config, erro
 	return merged, nil
 }
 
+// guard, deferred, recovers a panic: it is logged and onPanic (if any) runs.
+func (s *Server) guard(what string, onPanic func()) {
+	if r := recover(); r != nil {
+		s.logf("%s panicked: %v", what, r)
+		if onPanic != nil {
+			onPanic()
+		}
+	}
+}
+
 func (s *Server) logf(format string, args ...any) {
 	_ = s.c.notify("window/logMessage", map[string]any{"type": 3, "message": "custos: " + fmt.Sprintf(format, args...)})
 }
 
 // ---- project index -----------------------------------------------------------------
 
-// buildIndex indexes the workspace (and vendor) in the background when an
-// enabled rule needs cross-file symbols, then re-analyses open documents.
+// beginIndexing reports whether an enabled rule needs cross-file symbols
+// and, if so, marks the index as being built: file changes arriving from
+// now on are queued for buildIndex instead of being dropped.
+func (s *Server) beginIndexing() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.engine == nil || !s.engine.NeedsIndex() {
+		return false
+	}
+	s.indexing = true
+	return true
+}
+
+// buildIndex indexes the workspace (and vendor) after beginIndexing, then
+// re-analyses open documents.
 func (s *Server) buildIndex() {
 	s.mu.Lock()
 	e, cfg := s.engine, s.cfg
-	s.mu.Unlock()
-	if e == nil || !e.NeedsIndex() {
-		return
-	}
-	s.mu.Lock()
-	s.indexing = true
 	s.mu.Unlock()
 	start := time.Now()
 	var paths []string
@@ -498,12 +521,8 @@ func (s *Server) analyzeNow(uri string) {
 	s.mu.Unlock()
 
 	s.sem <- struct{}{}
-	findings := func() (out []analysis.Finding) {
-		defer func() {
-			if r := recover(); r != nil {
-				s.logf("analysis of %s panicked: %v", path, r)
-			}
-		}()
+	findings := func() []analysis.Finding {
+		defer s.guard("analysis of "+path, nil)
 		f := syntax.ParseBest(path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
 		return e.Analyze(f)
 	}()

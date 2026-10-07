@@ -61,11 +61,9 @@ func ParentFuncCall(e syntax.Node) *syntax.FuncCall {
 	if !ok || arg.Value != e {
 		return nil
 	}
-	list, ok := arg.Parent().(*syntax.ArgList)
-	if !ok {
-		return nil
-	}
-	call, _ := list.Parent().(*syntax.FuncCall)
+	// An Arg's parent is always its ArgList (the parser builds Args there
+	// only).
+	call, _ := arg.Parent().Parent().(*syntax.FuncCall)
 	return call
 }
 
@@ -110,10 +108,10 @@ func ArgBindsByRef(list *syntax.ArgList, params []index.Param, callTimeRef bool)
 			}
 			continue
 		}
+		// Positional arguments bind in order; one past the last parameter
+		// binds to a variadic last parameter, already checked at its own
+		// position (positional arguments cannot follow named ones).
 		if pos < len(params) && params[pos].ByRef {
-			return true
-		}
-		if n := len(params); pos >= n && n > 0 && params[n-1].Variadic && params[n-1].ByRef {
 			return true
 		}
 		pos++

@@ -37,7 +37,9 @@ func script(a, b []string) []op {
 	v := make([]int, 2*max+2)
 	var trace [][]int
 	off := max + 1
-	for d := 0; d <= max; d++ {
+	// The path reaches (n, m) by d = n+m at the latest, so the loop always
+	// returns.
+	for d := 0; ; d++ {
 		snap := make([]int, len(v))
 		copy(snap, v)
 		trace = append(trace, snap)
@@ -59,7 +61,6 @@ func script(a, b []string) []op {
 			}
 		}
 	}
-	return nil
 }
 
 func backtrack(trace [][]int, a, b []string, off, d, k int) []op {
@@ -147,7 +148,7 @@ func Unified(path, oldText, newText string, context int) string {
 				bLen++
 			}
 		}
-		fmt.Fprintf(&sb, "@@ -%d,%d +%d,%d @@\n", aStart+1, aLen, bStart+1, bLen)
+		fmt.Fprintf(&sb, "@@ -%d,%d +%d,%d @@\n", hunkStart(aStart, aLen), aLen, hunkStart(bStart, bLen), bLen)
 		for _, o := range ops[start:end] {
 			line := ""
 			switch o.kind {
@@ -165,4 +166,13 @@ func Unified(path, oldText, newText string, context int) string {
 		i = end
 	}
 	return sb.String()
+}
+
+// hunkStart is the 1-based start line of a hunk range; an empty range names
+// the line after which it applies (0 at the start of the file), as diff -u.
+func hunkStart(start, n int) int {
+	if n == 0 {
+		return start
+	}
+	return start + 1
 }

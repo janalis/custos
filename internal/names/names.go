@@ -103,9 +103,6 @@ func (r *Resolver) ScopeAt(offset uint32) *Scope {
 // Namespace returns the namespace at offset ("" for global).
 func (r *Resolver) Namespace(offset uint32) string { return r.ScopeAt(offset).Namespace }
 
-// Scopes returns all scopes (global first).
-func (r *Resolver) Scopes() []*Scope { return r.scopes }
-
 // special class names that are not resolved through imports.
 var special = map[string]bool{"self": true, "static": true, "parent": true}
 

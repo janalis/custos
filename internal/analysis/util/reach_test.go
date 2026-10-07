@@ -34,3 +34,19 @@ func TestReachable(t *testing.T) {
 		}
 	}
 }
+
+func TestReachableCaseCondition(t *testing.T) {
+	f := parse(t, `<?php function g($x) { return; switch ($x) { case a9(): } }`)
+	var call syntax.Node
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			call = c
+		}
+		return true
+	})
+	// The case condition is not in the case's statement list: every
+	// statement of the enclosing lists before the switch counts.
+	if Reachable(call, syntax.EnclosingFuncLike(call)) {
+		t.Fatal("case condition after return is unreachable")
+	}
+}

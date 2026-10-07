@@ -212,10 +212,6 @@ func (pc *completeValues) classConst(c *syntax.ClassConstFetch) {
 }
 
 func (pc *completeValues) constant(c *syntax.ConstFetch) {
-	if c.Name == nil {
-		pc.stop = true
-		return
-	}
 	name := LastNamePart(c.Name.Value)
 	switch strings.ToLower(name) {
 	case "true", "false", "null":
@@ -233,7 +229,8 @@ func (pc *completeValues) constant(c *syntax.ConstFetch) {
 type otherWritesKey struct{ scope syntax.Node }
 
 // otherWrites returns the names of scope having a write other than a plain
-// `$v = …` assignment (computed once per scope and file).
+// `$v = …` assignment (computed once per scope and file; f is never nil
+// here: PossibleValuesComplete needs the file).
 func otherWrites(f *syntax.File, scope syntax.Node) map[string]bool {
 	build := func() any {
 		m := map[string]bool{}
@@ -250,9 +247,6 @@ func otherWrites(f *syntax.File, scope syntax.Node) map[string]bool {
 			}
 		}
 		return m
-	}
-	if f == nil {
-		return build().(map[string]bool)
 	}
 	return f.Memo(otherWritesKey{scope}, build).(map[string]bool)
 }

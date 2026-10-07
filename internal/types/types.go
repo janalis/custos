@@ -39,9 +39,6 @@ var (
 
 // Of builds a type from atoms (normalised and deduplicated).
 func Of(atoms ...string) Type {
-	if len(atoms) == 0 {
-		return Type{atoms: []string{}}
-	}
 	out := make([]string, 0, len(atoms))
 	for _, a := range atoms {
 		if a = normalizeAtom(a); a != "" {
@@ -201,7 +198,7 @@ func (t Type) IsArrayLike() bool {
 }
 
 func (t Type) String() string {
-	if t.atoms == nil {
+	if len(t.atoms) == 0 { // as IsUnknown: Without may leave an empty set
 		return "?unknown"
 	}
 	return strings.Join(t.atoms, "|")

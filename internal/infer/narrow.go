@@ -72,7 +72,8 @@ func (e *Env) narrowExpr(t types.Type, x syntax.Expr, key string, scope syntax.N
 // narrowExprAfter is narrowExpr ignoring the enclosing conditions that end
 // before after (the end of the last definition reaching x): a value
 // assigned inside `if (null === $x) { $x = f(); }` is not narrowed by that
-// condition.
+// condition. scope is syntax.EnclosingFuncLike(x) (every caller passes it),
+// so the walk up to it never crosses another function boundary.
 func (e *Env) narrowExprAfter(t types.Type, x syntax.Expr, key string, scope syntax.Node, after uint32) types.Type {
 	if t.IsUnknown() || key == "" {
 		return t
@@ -121,8 +122,6 @@ func (e *Env) narrowExprAfter(t types.Type, x syntax.Expr, key string, scope syn
 			t = e.guards(x, scope, t, n, n.Stmts, child, key)
 		case *syntax.Namespace:
 			t = e.guards(x, scope, t, n, n.Stmts, child, key)
-		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction:
-			return t
 		}
 	}
 	if scope == nil {
@@ -288,7 +287,6 @@ func keyPresent(t types.Type, k string, drop ...string) types.Type {
 // in stmts (the statements of owner; nil: the file). Only the statements
 // that can matter for name are visited (see guardIndex).
 func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syntax.Node, stmts []syntax.Stmt, child syntax.Node, name string) types.Type {
-	orig := t
 	gi := e.guardIndexOf(owner, stmts)
 	end, ok := gi.pos[child]
 	if !ok {
@@ -296,7 +294,9 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 	}
 	cands := gi.candidates(name)
 	// Only the statements after the last one assigning name (or its array)
-	// matter: an assignment resets the guards seen before it.
+	// matter: an assignment resets the guards seen before it. No statement
+	// scanned below assigns name (or, for an element key, its array or an
+	// element of it): gi.resets records every such top-level assignment.
 	from := gi.lastReset(name, end)
 	lo, _ := slices.BinarySearch(cands, from)
 	hi, _ := slices.BinarySearch(cands, end)
@@ -305,11 +305,6 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 	}
 	for _, i := range cands[lo:hi] {
 		s := stmts[i]
-		if assigns(s, name) || (isDimKey(name) && assignsBase(s, name)) {
-			// A later write invalidates earlier guards.
-			t = orig
-			continue
-		}
 		if es, ok := s.(*syntax.ExprStmt); ok {
 			// `Assert::string($x);` (@phpstan-assert on the callee).
 			if ca := e.assertsOf(es.Expr); ca != nil {
@@ -343,7 +338,7 @@ type guardIndex struct {
 	keys map[string][]int    // key -> positions, ascending
 	// resets lists, per key, the positions of the statements assigning it
 	// (assigns) and, under baseKey(k), those assigning an element of it
-	// or it (assignsBase).
+	// or it.
 	resets map[string][]int
 }
 
@@ -392,9 +387,6 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 			}
 		}
 		collect := func(x syntax.Node) {
-			if x == nil {
-				return
-			}
 			syntax.Inspect(x, func(n syntax.Node) bool {
 				switch n := n.(type) {
 				case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
@@ -420,7 +412,8 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 		case *syntax.ExprStmt:
 			collect(st.Expr)
 			if a, ok := st.Expr.(*syntax.Assign); ok {
-				// See assigns and assignsBase.
+				// The writes assigns matches, and under baseKey those of
+				// the array or one of its elements.
 				if k := narrowKey(a.Var); k != "" {
 					gi.resets[k] = append(gi.resets[k], i)
 				}
@@ -492,29 +485,6 @@ func (gi *guardIndex) candidates(name string) []int {
 	}
 	slices.Sort(out)
 	return slices.Compact(out)
-}
-
-// assignsBase reports whether statement s assigns the array whose element
-// dimKey name designates (`$a = …;`, `$a[$i] = …;`).
-func assignsBase(s syntax.Stmt, name string) bool {
-	es, ok := s.(*syntax.ExprStmt)
-	if !ok {
-		return false
-	}
-	a, ok := es.Expr.(*syntax.Assign)
-	if !ok {
-		return false
-	}
-	base, _ := splitDimKey(name)
-	x := a.Var
-	for {
-		d, ok := x.(*syntax.ArrayDimFetch)
-		if !ok {
-			break
-		}
-		x = d.Var
-	}
-	return narrowKey(x) == base
 }
 
 // assigns reports whether statement s writes variable name at its top level.

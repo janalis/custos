@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"custos/internal/testbudget"
 )
 
 // FuzzParseJSON checks the composer.json parser of SecurityAdvisories: no
@@ -47,7 +49,7 @@ func TestParseJSONPathological(t *testing.T) {
 	} {
 		start := time.Now()
 		parseJSON([]byte(s))
-		if d := time.Since(start); d > 3*time.Second {
+		if d := time.Since(start); d > testbudget.Of(3*time.Second) {
 			t.Errorf("%s: %v", name, d)
 		}
 	}

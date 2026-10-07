@@ -67,7 +67,7 @@ var phpCharKinds = map[string]TokenKind{
 	";": TSemicolon, ",": TComma, ".": TDot, "{": TLBrace, "}": TRBrace, "(": TLParen, ")": TRParen,
 	"[": TLBracket, "]": TRBracket, "+": TPlus, "-": TMinus, "*": TMul, "/": TDiv, "%": TMod, "=": TEqual,
 	"<": TLess, ">": TGreater, "!": TExclaim, "?": TQuestion, ":": TColon, "&": TAmpersand, "|": TBar,
-	"^": TCaret, "~": TTilde, "@": TAt, "$": TDollar, `"`: TDoubleQuote, "`": TBacktick,
+	"^": TCaret, "~": TTilde, "@": TAt, "$": TDollar, `"`: TDoubleQuote, "`": TBacktick, `b"`: TDoubleQuote, `B"`: TDoubleQuote,
 }
 
 type oracleTok struct {

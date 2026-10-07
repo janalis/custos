@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/pprof"
+	"slices"
 	"strings"
 	"time"
 
@@ -43,11 +44,16 @@ Usage:
 Run "custos <command> -h" for command flags.
 `
 
-func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
-}
+// Seams for tests: the rule registry and the catalogue are embedded, so
+// their failure paths can only be exercised by swapping them.
+var (
+	registry  = rules.All
+	catalogue = meta.All
+)
 
-func run(args []string, stdout, stderr io.Writer) int {
+func main() { os.Exit(run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }
+
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(args) == 0 {
 		fmt.Fprint(stderr, usage)
 		return 2
@@ -60,11 +66,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 	case "fix":
 		code, err = cmdFix(args[1:], stdout, stderr)
 	case "rules":
-		err = cmdRules(args[1:], stdout)
+		err = cmdRules(args[1:], stdout, stderr)
 	case "explain":
 		err = cmdExplain(args[1:], stdout)
 	case "lsp":
-		err = cmdLSP(args[1:])
+		err = cmdLSP(args[1:], stdin, stdout, stderr)
 	case "version", "--version":
 		fmt.Fprintln(stdout, "custos", version)
 	case "-h", "--help", "help":
@@ -72,6 +78,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 	default:
 		fmt.Fprintf(stderr, "custos: unknown command %q\n\n%s", args[0], usage)
 		return 2
+	}
+	if errors.Is(err, flag.ErrHelp) {
+		return 0
 	}
 	if err != nil {
 		fmt.Fprintln(stderr, "custos:", err)
@@ -94,8 +103,14 @@ type common struct {
 	profile   string
 }
 
-func newCommon(name string) *common {
-	c := &common{fs: flag.NewFlagSet(name, flag.ContinueOnError)}
+func newFlagSet(name string, stderr io.Writer) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	return fs
+}
+
+func newCommon(name string, stderr io.Writer) *common {
+	c := &common{fs: newFlagSet(name, stderr)}
 	c.fs.StringVar(&c.style, "comparison-style", "", "operand order in comparisons: regular or yoda (default: custos.json)")
 	c.fs.StringVar(&c.php, "php", "", "target PHP version (default: custos.json, composer.json, else "+phpver.Default.String()+")")
 	c.fs.StringVar(&c.configDir, "config", "", "directory to look for custos.json (default: first path)")
@@ -159,7 +174,7 @@ func (c *common) prepare(args []string) (*setup, error) {
 			acfg.Only = append(acfg.Only, m.ID)
 		}
 	}
-	e, err := analysis.NewEngine(rules.All(), acfg)
+	e, err := analysis.NewEngine(registry(), acfg)
 	if err != nil {
 		return nil, err
 	}
@@ -188,13 +203,14 @@ func (c *common) startProfile() (func(), error) {
 		return nil, err
 	}
 	if err := pprof.StartCPUProfile(f); err != nil {
+		f.Close()
 		return nil, err
 	}
 	return func() { pprof.StopCPUProfile(); f.Close() }, nil
 }
 
 func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {
-	c := newCommon("analyse")
+	c := newCommon("analyse", stderr)
 	format := c.fs.String("format", "text", "output format: "+strings.Join(report.Formats, ", "))
 	failOn := c.fs.String("fail-on", "warning", "exit 1 when a finding has at least this severity: info, warning, error, never")
 	stats := c.fs.Bool("stats", false, "print timing to stderr")
@@ -202,10 +218,13 @@ func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {
 	genBaseline := c.fs.String("generate-baseline", "", "write all current findings to this baseline file and exit 0")
 	s, err := c.prepare(args)
 	if err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return 0, nil
-		}
 		return 2, err
+	}
+	if _, ok := failRank[*failOn]; !ok && *failOn != "never" {
+		return 2, fmt.Errorf("--fail-on must be info, warning, error or never, got %q", *failOn)
+	}
+	if !slices.Contains(report.Formats, *format) {
+		return 2, fmt.Errorf("unknown format %q (want one of %s)", *format, strings.Join(report.Formats, ", "))
 	}
 	stop, err := c.startProfile()
 	if err != nil {
@@ -256,14 +275,15 @@ func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {
 	return exitCode(items, *failOn), nil
 }
 
+var failRank = map[string]int{"info": 1, "warning": 2, "error": 3}
+
 func exitCode(items []report.Item, failOn string) int {
-	rank := map[string]int{"info": 1, "warning": 2, "error": 3}
-	threshold, ok := rank[failOn]
+	threshold, ok := failRank[failOn]
 	if !ok {
 		return 0 // never
 	}
 	for _, it := range items {
-		if rank[it.Severity] >= threshold {
+		if failRank[it.Severity] >= threshold {
 			return 1
 		}
 	}
@@ -271,71 +291,92 @@ func exitCode(items []report.Item, failOn string) int {
 }
 
 func cmdFix(args []string, stdout, stderr io.Writer) (int, error) {
-	c := newCommon("fix")
+	c := newCommon("fix", stderr)
 	dry := c.fs.Bool("dry-run", false, "do not write files")
 	showDiff := c.fs.Bool("diff", false, "print a unified diff of the changes")
 	s, err := c.prepare(args)
 	if err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return 0, nil
-		}
 		return 2, err
 	}
+	stop, err := c.startProfile()
+	if err != nil {
+		return 2, err
+	}
+	defer stop()
 	if s.engine.NeedsIndex() {
 		s.engine.SetIndex(runner.BuildIndex(runner.IndexSources(s.cfg.Root, s.files), s.parse))
 	}
-	changed, edits := 0, 0
+	changed, edits, failed := 0, 0, 0
 	for _, path := range s.files {
-		src, err := runner.ReadSource(path)
+		src, perm, err := readFixable(path)
+		if errors.Is(err, errSkipped) {
+			fmt.Fprintf(stderr, "custos: %v, not fixed\n", err)
+			continue
+		}
 		if err != nil {
-			return 2, err
+			fmt.Fprintln(stderr, "custos:", err)
+			failed++
+			continue
 		}
 		res := fix.FixSource(s.engine, path, src, fix.Options{Parse: s.parse})
 		if res.Applied == 0 || string(res.Source) == string(src) {
 			continue
 		}
-		changed++
-		edits += res.Applied
 		if *showDiff {
 			fmt.Fprint(stdout, diff.Unified(filepath.ToSlash(path), string(src), string(res.Source), 3))
 		}
 		if !*dry {
-			info, err := os.Lstat(path)
-			if err != nil {
-				return 2, err
-			}
-			if !info.Mode().IsRegular() {
-				// Never write through a symlink: it may lead outside the
-				// project (the analysed repository is untrusted).
-				fmt.Fprintf(stderr, "custos: %s: not a regular file, fixes not written\n", path)
-				changed--
+			if err := os.WriteFile(path, res.Source, perm); err != nil {
+				fmt.Fprintln(stderr, "custos:", err)
+				failed++
 				continue
 			}
-			if err := os.WriteFile(path, res.Source, info.Mode().Perm()); err != nil {
-				return 2, err
-			}
 		}
+		changed++
+		edits += res.Applied
 	}
 	verb := "fixed"
 	if *dry {
 		verb = "would fix"
 	}
 	fmt.Fprintf(stderr, "custos: %s %d file(s), %d edit(s)\n", verb, changed, edits)
+	if failed > 0 {
+		return 2, fmt.Errorf("%d file(s) could not be fixed", failed)
+	}
 	return 0, nil
 }
 
-func cmdRules(args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("rules", flag.ContinueOnError)
+// errSkipped marks files fix leaves alone without failing.
+var errSkipped = errors.New("not a regular file")
+
+// readFixable reads a file fix may rewrite and returns its permission bits.
+// Symlinks (and other non-regular files) are skipped, in dry runs too:
+// writing through a link may lead outside the project, and the analysed
+// repository is untrusted.
+func readFixable(path string) ([]byte, os.FileMode, error) {
+	info, err := os.Lstat(path)
+	if err == nil && !info.Mode().IsRegular() {
+		err = fmt.Errorf("%s: %w", path, errSkipped)
+	}
+	if err != nil {
+		return nil, 0, err
+	}
+	src, err := runner.ReadSource(path)
+	return src, info.Mode().Perm(), err
+}
+
+func cmdRules(args []string, stdout, stderr io.Writer) error {
+	fs := newFlagSet("rules", stderr)
 	asJSON := fs.Bool("json", false, "JSON output")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	all, err := meta.All()
+	all, err := catalogue()
 	if err != nil {
 		return err
 	}
 	implemented := map[string]bool{}
-	for _, r := range rules.All() {
+	for _, r := range registry() {
 		implemented[r.ID()] = true
 	}
 	if *asJSON {
@@ -396,12 +437,12 @@ func cmdExplain(args []string, stdout io.Writer) error {
 	return nil
 }
 
-func cmdLSP(args []string) error {
-	fs := flag.NewFlagSet("lsp", flag.ContinueOnError)
+func cmdLSP(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	fs := newFlagSet("lsp", stderr)
 	_ = fs.Bool("stdio", true, "communicate over stdin/stdout (the only transport)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	lsp.Version = version
-	return lsp.Serve(context.Background(), os.Stdin, os.Stdout)
+	return lsp.Serve(context.Background(), stdin, stdout)
 }

@@ -68,3 +68,27 @@ func TestPossibleValuesComplete(t *testing.T) {
 		}
 	}
 }
+
+func TestPossibleValuesCompleteEdges(t *testing.T) {
+	for src, want := range map[string]string{
+		`<?php function f($o) { probe($o->p); }`:                                                       "?",
+		`<?php class C { static $p = 1; function m() { probe(self::$$n); } }`:                          "?",
+		`<?php class C { function m() { probe($this); } }`:                                             "?",
+		`<?php interface I { function f($a = probe($b)); }`:                                            "?",
+		`<?php function f($c) { probe($c::K); }`:                                                       "?",
+		`<?php class P { const K = 1; } class C extends P { function m() { probe(parent::K); } }`:      "?",
+		`<?php class C { static $p = 1; function m() { probe(static::$p); } }`:                         "?",
+		`<?php class C { function m() { probe($this->nope); } }`:                                       "?",
+		`<?php class C { private static $p = 's'; function m() { self::$p = 't'; probe(self::$p); } }`: "'s' 't'",
+		`<?php class C { private $p = 'd'; function m() { $this->p++; probe($this->p); } }`:            "?",
+		`<?php class C { private string $p; function m() { probe($this->p); } }`:                       "?",
+	} {
+		if got := completeValuesOf(t, src); got != want {
+			t.Errorf("%s\n got %q, want %q", src, got, want)
+		}
+	}
+	f := parse(t, `<?php 1;`)
+	if _, complete := PossibleValuesComplete(f, nil); complete {
+		t.Fatal("a missing expression is not a complete value set")
+	}
+}

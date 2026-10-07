@@ -21,3 +21,12 @@ func TestStringLiteralValue(t *testing.T) {
 		t.Error("number accepted")
 	}
 }
+
+func TestStringLiteralValueEdges(t *testing.T) {
+	if _, ok := StringLiteralValue("1231"); ok {
+		t.Fatal("number with equal first/last byte")
+	}
+	if v, ok := StringLiteralValue(`"\r\v\e\f"`); !ok || v != "\r\v\x1b\f" {
+		t.Fatalf("got %q %v", v, ok)
+	}
+}

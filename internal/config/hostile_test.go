@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"custos/internal/testbudget"
 )
 
 // TestHostileConfig checks that malicious custos.json / composer.json files
@@ -56,7 +58,7 @@ func TestHostileConfig(t *testing.T) {
 		if err == nil {
 			c.Analysis()
 		}
-		if d := time.Since(start); d > 3*time.Second {
+		if d := time.Since(start); d > testbudget.Of(3*time.Second) {
 			t.Errorf("%s: %v", name, d)
 		}
 	}

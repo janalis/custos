@@ -11,6 +11,7 @@ import (
 	"custos/internal/fix"
 	"custos/internal/phpver"
 	"custos/internal/syntax"
+	"custos/internal/testbudget"
 )
 
 // FuzzRules runs every rule (and every fix) on fuzzed sources and fails on
@@ -97,7 +98,7 @@ func FuzzStringLiterals(f *testing.F) {
 				t.Fatalf("%q: %s", s, fd.Message)
 			}
 		}
-		if d := time.Since(start); d > 10*time.Second {
+		if d := time.Since(start); d > testbudget.Of(10*time.Second) {
 			t.Fatalf("%q: analysis took %v", s, d)
 		}
 	})

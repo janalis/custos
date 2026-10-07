@@ -31,3 +31,13 @@ class A {
 		}
 	}
 }
+
+func TestCtorAssignsPropertyEdges(t *testing.T) {
+	if CtorAssignsProperty(nil, "a") {
+		t.Fatal("nil class")
+	}
+	f := parse(t, `<?php class A { private $a; function __construct() { $x = 1; } }`)
+	if CtorAssignsProperty(f.Stmts[0].(*syntax.ClassLike), "a") {
+		t.Fatal("local variable assignment")
+	}
+}

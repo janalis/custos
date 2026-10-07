@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"custos/internal/syntax"
+	"custos/internal/testbudget"
 )
 
 // Every member lookup walks the ancestors: they are cached per class and
@@ -44,7 +45,7 @@ func TestAncestorsBounded(t *testing.T) {
 		}
 		d := time.Since(start)
 		t.Logf("cycle=%v: %v", cycle, d)
-		if d > 3*time.Second && !raceEnabled {
+		if d > testbudget.Of(3*time.Second) && !raceEnabled {
 			t.Errorf("cycle=%v: lookups took %v", cycle, d)
 		}
 		if !cycle && found < MaxAncestors {

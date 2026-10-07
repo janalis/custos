@@ -85,3 +85,26 @@ func TestFunctionDecl(t *testing.T) {
 		t.Fatal("stub function must not resolve to a node")
 	}
 }
+
+func TestDiscoverValuesEdges(t *testing.T) {
+	many := func(n int) string { return strings.Repeat(`$this->p = 1; `, n) }
+	for src, want := range map[string]string{
+		`<?php class C {} function f(C $c) { probe($c->q); }`:                                             "",
+		`<?php class C { const K = 1; } function f() { probe(C::{$x}); }`:                                 "",
+		`<?php function f($o) { probe($o::K); }`:                                                          "",
+		`<?php class C {} function f() { probe(C::NOPE); }`:                                               "",
+		`<?php enum E { case A; } function f() { probe(E::A); }`:                                          "",
+		`<?php function f() { probe(\DateTime::ATOM); }`:                                                  "",
+		`<?php class C { public $p; function m() { ` + many(maxPossibleValues+1) + `probe($this->p); } }`: "?",
+		`<?php class C { public $p; function m() { ` + many(maxAssignScan+1) + `probe($this->p); } }`:     "?",
+	} {
+		if got := discoverOf(t, src); got != want {
+			t.Errorf("%.80s:\n got %q\nwant %q", src, got, want)
+		}
+	}
+	f := parse(t, `<?php 1;`)
+	env := infer.NewEnv(f, names.New(f), index.New(stubs.Index()), phpver.PHP84)
+	if ResolveConstant(env, nil) != nil {
+		t.Fatal("ResolveConstant(nil)")
+	}
+}

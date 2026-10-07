@@ -27,6 +27,9 @@ type Env struct {
 	cache  map[syntax.Expr]types.Type
 	scopes map[syntax.Node]*scopeVars
 	busy   map[syntax.Expr]bool
+	// bases holds the type of variable reads before the element writes
+	// reaching them are applied (see baseType).
+	bases map[*syntax.Variable]types.Type
 
 	// Return types inferred from bodies (see bodyReturn), by declaration span.
 	bodies    map[syntax.Span]types.Type
@@ -307,7 +310,7 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 
 // dimType is the type of element read n before narrowing.
 func (e *Env) dimType(n *syntax.ArrayDimFetch) types.Type {
-	ct := e.TypeOf(n.Var)
+	ct := e.baseType(n.Var)
 	if ct.IsUnknown() {
 		return types.Unknown
 	}
@@ -395,17 +398,23 @@ func (e *Env) unaryType(n *syntax.Unary) types.Type {
 	case syntax.TVoidCast:
 		return types.Void
 	case syntax.TTilde:
+		// ~ on a string flips its bytes and yields a string.
+		switch t := e.TypeOf(n.Expr); {
+		case t.OnlyOf("string"):
+			return types.String
+		case mayBeString(t):
+			return types.Unknown
+		}
 		return types.Int
 	case syntax.TAt:
 		return e.TypeOf(n.Expr)
-	case syntax.TMinus, syntax.TPlus:
+	default: // TMinus, TPlus: the parser builds no other unary operator
 		t := e.TypeOf(n.Expr)
 		if t.OnlyOf("int") || t.OnlyOf("float") {
 			return t
 		}
 		return types.Unknown
 	}
-	return types.Unknown
 }
 
 func (e *Env) numeric(a, b syntax.Expr) types.Type {
@@ -435,7 +444,9 @@ func (e *Env) binaryType(n *syntax.Binary) types.Type {
 			return types.Of("int", "float")
 		}
 		return types.Unknown
-	case syntax.TMod, syntax.TSl, syntax.TSr, syntax.TAmpersand, syntax.TBar, syntax.TCaret, syntax.TSpaceship:
+	case syntax.TAmpersand, syntax.TBar, syntax.TCaret:
+		return e.bitwise(n.Left, n.Right)
+	case syntax.TMod, syntax.TSl, syntax.TSr, syntax.TSpaceship:
 		return types.Int
 	case syntax.TIsEqual, syntax.TIsNotEqual, syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TLess,
 		syntax.TIsSmallerOrEqual, syntax.TGreater, syntax.TIsGreaterOrEqual, syntax.TBooleanAnd,
@@ -453,13 +464,35 @@ func (e *Env) compoundType(n *syntax.Assign) types.Type {
 		return types.String
 	case syntax.TPlusEqual, syntax.TMinusEqual, syntax.TMulEqual, syntax.TPowEqual:
 		return e.numeric(n.Var, n.Value)
+	case syntax.TDivEqual: // as `/`
+		if t := e.numeric(n.Var, n.Value); !t.IsUnknown() {
+			return types.Of("int", "float")
+		}
+		return types.Unknown
 	case syntax.TCoalesceEqual:
 		return types.Union(e.TypeOf(n.Var).Without("null"), e.TypeOf(n.Value))
-	case syntax.TModEqual, syntax.TSlEqual, syntax.TSrEqual, syntax.TAndEqual, syntax.TOrEqual, syntax.TXorEqual:
+	case syntax.TAndEqual, syntax.TOrEqual, syntax.TXorEqual:
+		return e.bitwise(n.Var, n.Value)
+	default: // %=, <<=, >>= (syntax.TokenKind.IsAssignOp lists every compound operator)
 		return types.Int
 	}
-	return types.Unknown
 }
+
+// bitwise types `&`, `|`, `^`: a string when both operands are strings
+// (PHP operates on the bytes), else an int; unknown when both may be strings.
+func (e *Env) bitwise(a, b syntax.Expr) types.Type {
+	ta, tb := e.TypeOf(a), e.TypeOf(b)
+	switch {
+	case ta.OnlyOf("string") && tb.OnlyOf("string"):
+		return types.String
+	case mayBeString(ta) && mayBeString(tb):
+		return types.Unknown
+	}
+	return types.Int
+}
+
+// mayBeString reports a type that is unknown or may hold a string.
+func mayBeString(t types.Type) bool { return t.IsUnknown() || t.HasAny("string", "mixed") }
 
 // ---- classes -------------------------------------------------------------------------
 
@@ -795,7 +828,7 @@ func (e *Env) overrideType(n *syntax.FuncCall) (types.Type, bool) {
 		}
 	case "current", "reset", "end", "next", "prev", "array_pop", "array_shift":
 		if a := arg(0); a != nil {
-			at := e.TypeOf(a)
+			at := e.baseType(a)
 			el := at.Elem()
 			if el.IsUnknown() {
 				el = e.shapeElem(at, a)
@@ -922,10 +955,15 @@ func (e *Env) widenElem(el types.Type, n *syntax.ArrayDimFetch) types.Type {
 }
 
 // widenVarElem unions el with every value written into the elements of
-// variable v by a write reaching v (see widenElem). A nested write into an
-// element makes the result unknown.
+// variable v by a write reaching v (see widenElem). Nested writes are
+// skipped (see widenKey); an unknown write makes the result unknown.
 func (e *Env) widenVarElem(el types.Type, v *syntax.Variable) types.Type {
 	ws, back := e.reachingWrites(v)
+	return e.widenWrites(el, ws, back)
+}
+
+// widenWrites is widenVarElem for the reaching writes ws (back: back edge).
+func (e *Env) widenWrites(el types.Type, ws []*elemWrite, back []bool) types.Type {
 	if len(ws) == 0 {
 		return el
 	}
@@ -954,7 +992,116 @@ func (e *Env) writtenType(a *syntax.Assign) types.Type {
 	return e.TypeOf(a)
 }
 
+// variableType is the type of a variable read: its reaching definitions
+// (variableBase) with the element writes reaching the read applied to its
+// array members (withElemWrites), so the value is right wherever it flows.
 func (e *Env) variableType(v *syntax.Variable) types.Type {
+	if v.Name == "" || v.Name == "this" {
+		return e.variableBase(v)
+	}
+	t, known := e.bases[v] // computed by baseType
+	if !known {
+		t = e.variableBase(v)
+	}
+	w, changed := e.withElemWrites(t, v)
+	if changed && !known {
+		e.setBase(v, t)
+	}
+	return w
+}
+
+func (e *Env) setBase(v *syntax.Variable, t types.Type) {
+	if e.bases == nil {
+		e.bases = map[*syntax.Variable]types.Type{}
+	}
+	e.bases[v] = t
+}
+
+// baseType is TypeOf, except that a variable read gives its type before
+// the element writes reaching it: for the readers that apply those writes
+// themselves, key by key (dimType, foreachElem, foreachKey, pointer
+// functions), keeping shapes precise.
+func (e *Env) baseType(x syntax.Expr) types.Type {
+	v, ok := syntax.UnwrapParens(x).(*syntax.Variable)
+	if !ok || v.Name == "" || v.Name == "this" {
+		return e.TypeOf(x)
+	}
+	if t, ok := e.bases[v]; ok {
+		return t
+	}
+	if t, ok := e.cache[v]; ok {
+		return t // typed already, and no write changed it
+	}
+	if e.busy[v] {
+		return types.Unknown // recursion, as TypeOf
+	}
+	e.busy[v] = true
+	t := e.variableBase(v)
+	delete(e.busy, v)
+	e.setBase(v, t)
+	return t
+}
+
+// withElemWrites applies the element writes reaching variable read v to
+// the array members of its type t: their element type gains the written
+// values (unknown, as `array`, after a nested or unknown write) and shapes
+// are dropped. `$a = ['x' => 1]; $a['y'] = 'a'; $b = $a;` types $b as
+// (int|string)[], not as the sealed shape {x: int}. Non-array members
+// (strings, ArrayAccess objects) are unchanged.
+// changed is false when t is returned as is.
+func (e *Env) withElemWrites(t types.Type, v *syntax.Variable) (types.Type, bool) {
+	if t.IsUnknown() {
+		return t, false
+	}
+	var arr, other []string
+	for _, a := range t.Atoms() {
+		if a == "array" || strings.HasSuffix(a, "[]") {
+			arr = append(arr, a)
+		} else {
+			other = append(other, a)
+		}
+	}
+	if len(arr) == 0 {
+		return t, false
+	}
+	ws, back := e.reachingWrites(v)
+	if len(ws) == 0 {
+		return t, false
+	}
+	el := t.Elem()
+	switch {
+	case t.IsSealedShape():
+		ts := []types.Type{types.Of("never")}
+		if !el.IsUnknown() {
+			ts = append(ts, el)
+		}
+		for _, k := range t.ShapeKeys() {
+			ts = append(ts, k.Type)
+		}
+		el = types.Union(ts...)
+	case slices.Contains(arr, "array"):
+		el = types.Unknown // elements of a plain array are unknown
+	}
+	for _, w := range ws {
+		if w.nested {
+			el = types.Unknown // changes an element in place
+		}
+	}
+	if !el.IsUnknown() {
+		el = e.widenWrites(el, ws, back)
+	}
+	if el.IsUnknown() || el.OnlyOf("never") {
+		arr = []string{"array"}
+	} else {
+		arr = arr[:0]
+		for _, a := range el.Atoms() {
+			arr = append(arr, a+"[]")
+		}
+	}
+	return types.Of(append(other, arr...)...).WithNonEmpty(t.IsNonEmptyArray()), true
+}
+
+func (e *Env) variableBase(v *syntax.Variable) types.Type {
 	if v.Name == "" {
 		return types.Unknown
 	}
@@ -967,9 +1114,8 @@ func (e *Env) variableType(v *syntax.Variable) types.Type {
 	scope := syntax.EnclosingFuncLike(v)
 	sv := e.scopeVars(scope)
 	defs := sv.defs[v.Name]
-	if af, ok := scope.(*syntax.ArrowFunction); ok && len(defs) == 0 {
+	if _, ok := scope.(*syntax.ArrowFunction); ok && len(defs) == 0 {
 		// Arrow functions capture the enclosing scope by value.
-		_ = af
 		outer := e.scopeVars(syntax.EnclosingFuncLike(scope))
 		defs = outer.defs[v.Name]
 	}
@@ -1088,10 +1234,10 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 		p := p
 		add(p.Var.Name, p.Span().Start, func() types.Type { return e.paramType(scope, p) })
 	}
+	// body holds no nil node: the parser always builds function and closure
+	// bodies (parseBlock) and arrow function expressions (BadExpr at worst);
+	// an abstract method's missing body is not added.
 	for _, b := range body {
-		if b == nil {
-			continue
-		}
 		syntax.Inspect(b, func(n syntax.Node) bool {
 			switch n := n.(type) {
 			case *syntax.Closure:
@@ -1118,7 +1264,7 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 						}
 					}
 				}
-				e.collectTargets(n.Var, n.Span().Start, func() types.Type { return e.TypeOf(n) }, func(name string, pos uint32, t func() types.Type) {
+				e.collectAssignTargets(n, func(name string, pos uint32, t func() types.Type) {
 					if name != "" {
 						sv.defs[name] = append(sv.defs[name], varDef{pos: pos, end: end, kill: kill, typ: t})
 					}
@@ -1203,9 +1349,44 @@ func (e *Env) collectTargets(target syntax.Expr, pos uint32, t func() types.Type
 	}
 }
 
+// collectAssignTargets registers the targets of assignment n. Destructuring
+// a variable (`[$a, $b] = $v`) reads its keys as `$v[0]`, `$v[1]` would:
+// from its base type, with the element writes reaching n applied key by key.
+func (e *Env) collectAssignTargets(n *syntax.Assign, add func(string, uint32, func() types.Type)) {
+	t := func() types.Type { return e.TypeOf(n) }
+	var items []*syntax.ArrayItem
+	switch l := n.Var.(type) {
+	case *syntax.List:
+		items = l.Items
+	case *syntax.Array:
+		items = l.Items
+	}
+	v, ok := syntax.UnwrapParens(n.Value).(*syntax.Variable)
+	if items == nil || !ok || v.Name == "" || v.Name == "this" || n.Op.Kind != syntax.TEqual {
+		e.collectTargets(n.Var, n.Span().Start, t, add)
+		return
+	}
+	e.collectItems(items, n.Span().Start, func(key string) func() types.Type {
+		return func() types.Type {
+			ct := e.baseType(v)
+			if !ct.Without("null").IsArrayLike() {
+				return types.Unknown
+			}
+			kt, _ := e.shapeKeyOf(ct, key, v)
+			return kt
+		}
+	}, add)
+}
+
 // collectItemTargets registers destructuring items; an item reads the
 // destructured value's shape key (explicit literal key or position).
 func (e *Env) collectItemTargets(items []*syntax.ArrayItem, pos uint32, t func() types.Type, add func(string, uint32, func() types.Type)) {
+	e.collectItems(items, pos, func(key string) func() types.Type { return shapeTarget(t, key) }, add)
+}
+
+// collectItems registers destructuring items, typing the item of a
+// literal key (explicit or positional) with keyType.
+func (e *Env) collectItems(items []*syntax.ArrayItem, pos uint32, keyType func(string) func() types.Type, add func(string, uint32, func() types.Type)) {
 	for i, it := range items {
 		if it == nil || it.Value == nil {
 			continue
@@ -1216,7 +1397,7 @@ func (e *Env) collectItemTargets(items []*syntax.ArrayItem, pos uint32, t func()
 		}
 		item := func() types.Type { return types.Unknown }
 		if ok && !it.ByRef {
-			item = shapeTarget(t, key)
+			item = keyType(key)
 		}
 		e.collectTargets(it.Value, pos, item, add)
 	}

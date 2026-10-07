@@ -69,3 +69,10 @@ func TestQuotedStringContentAndLastNamePart(t *testing.T) {
 		}
 	}
 }
+
+func TestQuotedStringContentPrefixed(t *testing.T) {
+	f := parse(t, `<?php b'x';`)
+	if _, ok := QuotedStringContent(firstExpr(t, f)); ok {
+		t.Fatal("binary-prefixed literal is not plainly quoted")
+	}
+}

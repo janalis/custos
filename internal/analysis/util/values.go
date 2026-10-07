@@ -132,7 +132,7 @@ func (w *valueWalk) localVar(v *syntax.Variable) {
 // value itself. Unresolvable variables/constants yield nothing.
 //
 // A variable that is also incremented/decremented or compound-assigned in
-// its scope (see UnstableVariable) makes the whole result unknown:
+// its scope (see UnstableVariableIn) makes the whole result unknown:
 // PossibleValues then returns nil. Consumers for which an empty result is
 // not already "no report" must use PossibleValuesKnown.
 func PossibleValues(f *syntax.File, e syntax.Expr) []syntax.Expr {
@@ -247,34 +247,6 @@ func ScopeParts(scope syntax.Node) (params []*syntax.Param, body syntax.Node) {
 	return nil, nil
 }
 
-// UnstableVariable reports whether variable $name is, anywhere under root
-// (nested closures included), the operand of `++`/`--` or the target of a
-// compound assignment (`+=`, `.=`, `??=`, ...). Value discovery treats such
-// a variable's value set as unknown.
-func UnstableVariable(root syntax.Node, name string) bool {
-	if root == nil || name == "" {
-		return false
-	}
-	found := false
-	isVar := func(e syntax.Expr) bool {
-		v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
-		return ok && v.NameExpr == nil && v.Name == name
-	}
-	syntax.Inspect(root, func(n syntax.Node) bool {
-		if found {
-			return false
-		}
-		switch x := n.(type) {
-		case *syntax.IncDec:
-			found = isVar(x.Var)
-		case *syntax.Assign:
-			found = x.Op.Kind != syntax.TEqual && isVar(x.Var)
-		}
-		return !found
-	})
-	return found
-}
-
 func (pv *possibleValues) property(p *syntax.PropertyFetch) {
 	id, ok := p.Name.(*syntax.Identifier)
 	if !ok {
@@ -302,16 +274,7 @@ func (pv *possibleValues) property(p *syntax.PropertyFetch) {
 	target := pv.text(p)
 	var vals []syntax.Expr
 	add := func(root syntax.Node) {
-		ix := assignsUnder(pv.f, root)
-		if pv.f == nil { // no text index without the source
-			for _, a := range ix.byKind[syntax.KPropertyFetch] {
-				if pv.text(a.Var) == target {
-					vals = append(vals, AssignedValue(a))
-				}
-			}
-			return
-		}
-		as := ix.propByText[target]
+		as := assignsUnder(pv.f, root).propByText[target]
 		if len(vals)+len(as) > maxPossibleValues {
 			pv.stop = true
 			return
@@ -331,8 +294,7 @@ func (pv *possibleValues) property(p *syntax.PropertyFetch) {
 			add(meth.Body)
 		}
 	}
-	if pv.stop || len(vals) > maxPossibleValues {
-		pv.stop = true
+	if pv.stop { // add keeps vals within maxPossibleValues
 		return
 	}
 	for _, x := range vals {
@@ -365,9 +327,6 @@ func (pv *possibleValues) classConst(c *syntax.ClassConstFetch) {
 }
 
 func (pv *possibleValues) constant(c *syntax.ConstFetch) {
-	if c.Name == nil {
-		return
-	}
 	name := LastNamePart(c.Name.Value)
 	switch strings.ToLower(name) {
 	case "true", "false", "null":

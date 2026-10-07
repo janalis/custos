@@ -226,9 +226,6 @@ func (k TokenKind) IsTrivia() bool {
 // member-name positions).
 func (k TokenKind) IsKeyword() bool { return k > kwFirst && k < kwLast }
 
-// IsMagicConst reports whether k is __LINE__ & co.
-func (k TokenKind) IsMagicConst() bool { return k >= TLine && k <= TPropertyC }
-
 // IsCast reports whether k is a cast token.
 func (k TokenKind) IsCast() bool { return k >= TIntCast && k <= TVoidCast }
 

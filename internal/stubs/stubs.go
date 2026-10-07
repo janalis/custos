@@ -25,19 +25,32 @@ var (
 
 // Index returns the builtin symbol index (decoded on first use).
 func Index() *index.Index {
-	once.Do(func() {
-		ix = index.New(nil)
-		zr, err := gzip.NewReader(bytes.NewReader(data))
-		if err != nil {
-			panic("stubs: " + err.Error())
-		}
-		var files []*index.FileSymbols
-		if err := gob.NewDecoder(zr).Decode(&files); err != nil {
-			panic("stubs: " + err.Error())
-		}
-		for _, f := range files {
-			ix.Add(f)
-		}
-	})
+	once.Do(func() { ix = must(decode(data)) })
 	return ix
+}
+
+// decode builds an index from gzip-compressed, gob-encoded FileSymbols.
+func decode(b []byte) (*index.Index, error) {
+	zr, err := gzip.NewReader(bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	var files []*index.FileSymbols
+	if err := gob.NewDecoder(zr).Decode(&files); err != nil {
+		return nil, err
+	}
+	out := index.New(nil)
+	for _, f := range files {
+		out.Add(f)
+	}
+	return out, nil
+}
+
+// must panics on a decode error: the embedded data is a build artefact, so a
+// failure is a broken build, not a runtime condition.
+func must(x *index.Index, err error) *index.Index {
+	if err != nil {
+		panic("stubs: " + err.Error())
+	}
+	return x
 }

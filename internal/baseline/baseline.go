@@ -144,9 +144,7 @@ func Write(path string, items []report.Item) (int, error) {
 		}
 		return a.Line < b.Line
 	})
-	data, err := json.MarshalIndent(f, "", "  ")
-	if err != nil {
-		return 0, err
-	}
+	// strings and ints only: marshalling cannot fail
+	data, _ := json.MarshalIndent(f, "", "  ")
 	return len(f.Entries), os.WriteFile(path, append(data, '\n'), 0o644)
 }

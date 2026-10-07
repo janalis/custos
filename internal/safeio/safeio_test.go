@@ -51,3 +51,36 @@ func TestReadLimits(t *testing.T) {
 		}
 	}
 }
+
+// TestSwappedPath swaps the path between the Stat and the Open, as a
+// concurrent writer could: a vanished file fails the Open, a file replaced
+// by a directory fails the re-check on the opened descriptor.
+func TestSwappedPath(t *testing.T) {
+	defer func() { beforeOpen = nil }()
+	dir := t.TempDir()
+	p := filepath.Join(dir, "f")
+	write := func() {
+		if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, err := ReadPrefix(filepath.Join(dir, "missing"), 10); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("missing: %v", err)
+	}
+
+	write()
+	beforeOpen = func(path string) { os.Remove(path) }
+	if _, err := ReadFile(p, 10); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("vanished: %v", err)
+	}
+
+	write()
+	beforeOpen = func(path string) {
+		os.Remove(path)
+		os.Mkdir(path, 0o755)
+	}
+	if _, err := ReadFile(p, 10); !errors.Is(err, ErrNotRegular) {
+		t.Fatalf("swapped for a directory: %v", err)
+	}
+}

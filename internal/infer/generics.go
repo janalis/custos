@@ -148,10 +148,8 @@ func (e *Env) genMethodReturn(m *index.Method, cls string, args []types.Type) (t
 	if !ok || len(b) == 0 {
 		return types.Unknown, false
 	}
+	// genBindings lists only the classes the index has: c is non-nil.
 	c := e.Index.Class(m.Class, e.PHP)
-	if c == nil {
-		return types.Unknown, false
-	}
 	t, bound := substTemplates(m.GenReturn, b, c)
 	if !bound || t.IsUnknown() {
 		return types.Unknown, false

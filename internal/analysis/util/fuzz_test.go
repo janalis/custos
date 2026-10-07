@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"custos/internal/testbudget"
 )
 
 // FuzzStringLiteralValue checks escape decoding never panics and that a
@@ -37,7 +39,7 @@ func TestStringLiteralValuePathological(t *testing.T) {
 		if _, ok := StringLiteralValue(raw); !ok {
 			t.Errorf("%s: not decoded", name)
 		}
-		if d := time.Since(start); d > 2*time.Second {
+		if d := time.Since(start); d > testbudget.Of(2*time.Second) {
 			t.Errorf("%s: %v", name, d)
 		}
 	}

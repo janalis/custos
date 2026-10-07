@@ -137,7 +137,14 @@ func (p *parser) parseUnary() Expr {
 		p.advance()
 		return fin(p, &IncDec{Op: p.ref(t), Prefix: true, Var: p.parseUnary()}, start)
 	case TNew:
-		return p.parsePostfix(p.parseNew(), start)
+		n := p.parseNew()
+		if n.Args == nil {
+			if _, anon := n.Class.(*ClassLike); !anon {
+				// `new A->b`, `new A::C`, `new A[0]` are not dereferencable.
+				return n
+			}
+		}
+		return p.parsePostfix(n, start)
 	case TClone:
 		p.advance()
 		if p.at(TLParen) && p.ver.AtLeast(phpver.PHP85) {
@@ -413,6 +420,43 @@ func (p *parser) parseArgs() *ArgList {
 	return fin(p, n, start)
 }
 
+// classRefChain continues a class reference with property, offset and
+// static-property accesses (no calls); parseClassRef passes a bare name
+// only when `::` follows.
+func (p *parser) classRefChain(e Expr, start uint32) Expr {
+	for {
+		switch p.kind() {
+		case TLBracket:
+			p.advance()
+			n := put(&p.slabs.sArrayDimFetch, ArrayDimFetch{Var: e})
+			if !p.at(TRBracket) {
+				n.Dim = p.parseExpr(precLowest)
+			}
+			p.expect(TRBracket)
+			e = fin(p, n, start)
+		case TLBrace:
+			if !p.legacyCurlyOffsets() {
+				return e
+			}
+			p.advance()
+			n := put(&p.slabs.sArrayDimFetch, ArrayDimFetch{Var: e, Curly: true, Dim: p.parseExpr(precLowest)})
+			p.expect(TRBrace)
+			e = fin(p, n, start)
+		case TObjectOperator, TNullsafeObjectOperator:
+			ns := p.advance().Kind == TNullsafeObjectOperator
+			e = fin(p, put(&p.slabs.sPropertyFetch, PropertyFetch{Var: e, Name: p.parseMemberName(), NullSafe: ns}), start)
+		case TPaamayimNekudotayim:
+			if k := p.peekKind(1); k != TVariable && k != TDollar {
+				return e
+			}
+			p.advance()
+			e = fin(p, &StaticPropertyFetch{Class: e, Name: p.parseSimpleVariable()}, start)
+		default:
+			return e
+		}
+	}
+}
+
 // parseClassRef parses a class reference after `new` or `instanceof`:
 // a name, static/self/parent, a variable with property/offset/static-property
 // chains (no calls), or a parenthesised expression.
@@ -421,55 +465,29 @@ func (p *parser) parseClassRef(forNew bool) Expr {
 	start := t.Start
 	switch t.Kind {
 	case TString, TNameQualified, TNameFullyQualified, TNameRelative, TStatic:
-		return p.parseName()
+		name := p.parseName()
+		if !p.at(TPaamayimNekudotayim) {
+			return name
+		}
+		// `new A::$cls`: a static property holding the class name.
+		return p.classRefChain(name, start)
 	case TLParen:
 		p.advance()
 		e := p.parseExpr(precLowest)
 		p.expect(TRParen)
 		return fin(p, put(&p.slabs.sParen, Paren{Expr: e}), start)
 	case TVariable, TDollar:
-		var e Expr = p.parseSimpleVariable()
-		for {
-			switch p.kind() {
-			case TLBracket:
-				p.advance()
-				n := put(&p.slabs.sArrayDimFetch, ArrayDimFetch{Var: e})
-				if !p.at(TRBracket) {
-					n.Dim = p.parseExpr(precLowest)
-				}
-				p.expect(TRBracket)
-				e = fin(p, n, start)
-			case TLBrace:
-				if !p.legacyCurlyOffsets() {
-					return e
-				}
-				p.advance()
-				n := put(&p.slabs.sArrayDimFetch, ArrayDimFetch{Var: e, Curly: true, Dim: p.parseExpr(precLowest)})
-				p.expect(TRBrace)
-				e = fin(p, n, start)
-			case TObjectOperator, TNullsafeObjectOperator:
-				ns := p.advance().Kind == TNullsafeObjectOperator
-				e = fin(p, put(&p.slabs.sPropertyFetch, PropertyFetch{Var: e, Name: p.parseMemberName(), NullSafe: ns}), start)
-			case TPaamayimNekudotayim:
-				if k := p.peekKind(1); k != TVariable && k != TDollar {
-					return e
-				}
-				p.advance()
-				e = fin(p, &StaticPropertyFetch{Class: e, Name: p.parseSimpleVariable()}, start)
-			default:
-				return e
-			}
-		}
-	}
-	if !forNew {
-		// instanceof accepts arbitrary expressions in recovery mode.
-		return p.parseUnary()
+		return p.classRefChain(p.parseSimpleVariable(), start)
 	}
 	p.errorAt(t, "expected class name, found "+p.describe(t))
+	if !forNew {
+		// Recovery: keep the operand of instanceof as an expression.
+		return p.parseUnary()
+	}
 	return spanOf(&BadExpr{}, p.missing())
 }
 
-func (p *parser) parseNew() Expr {
+func (p *parser) parseNew() *New {
 	start := p.start()
 	p.advance() // new
 	n := &New{}
@@ -503,6 +521,12 @@ func (p *parser) parsePrimary() Expr {
 			return name // class reference; handled by parsePostfix
 		}
 		return fin(p, put(&p.slabs.sConstFetch, ConstFetch{Name: name}), start)
+	case TReadonly:
+		// readonly(...) is a function call (PHP 8.2+ lexes the keyword).
+		if p.peekKind(1) == TLParen {
+			name := p.parseName()
+			return fin(p, put(&p.slabs.sFuncCall, FuncCall{Name: name, Args: p.parseArgs()}), start)
+		}
 	case TStatic:
 		// static::  (static closures are handled in parseUnary)
 		return p.parseName()
@@ -574,7 +598,9 @@ func (p *parser) parsePrimary() Expr {
 		return spanOf(&MagicConst{Token: p.ref(t)}, Span{t.Start, t.End})
 	}
 	if t.Kind.IsKeyword() && p.peekKind(1) == TPaamayimNekudotayim {
-		// e.g. `parent::` is TString, but tolerate other keywords as class refs.
+		// Reserved words are not class names (self/parent are TString,
+		// static is handled above): report, and recover as a class ref.
+		p.errorAt(t, "unexpected "+p.describe(t)+" as class name")
 		return p.parseName()
 	}
 	p.errorAt(t, "unexpected "+p.describe(t))
@@ -699,7 +725,6 @@ func (p *parser) parseInterpolated(end TokenKind, heredoc, backtick bool) Expr {
 	p.advance() // opening token
 	n := &InterpolatedString{Heredoc: heredoc, Backtick: backtick}
 	for !p.at(end) && !p.at(TEOF) {
-		before := p.pos
 		t := p.tok()
 		switch t.Kind {
 		case TEncapsedAndWhitespace:
@@ -734,9 +759,7 @@ func (p *parser) parseInterpolated(end TokenKind, heredoc, backtick bool) Expr {
 			p.errorAt(t, "unexpected "+p.describe(t)+" in string")
 			p.advance()
 		}
-		if p.pos == before {
-			p.advance()
-		}
+		// Every case consumes at least its first token: no progress guard.
 	}
 	p.expect(end)
 	if !backtick {

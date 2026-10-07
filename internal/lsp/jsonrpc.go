@@ -106,45 +106,30 @@ func (c *conn) read() (*message, error) {
 
 func (c *conn) write(m *message) error {
 	m.JSONRPC = "2.0"
-	body, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
+	// Every raw field is valid JSON (decoded from the client or produced
+	// by mustJSON), so marshalling cannot fail.
+	body := mustJSON(m)
+	frame := append(fmt.Appendf(nil, "Content-Length: %d\r\n\r\n", len(body)), body...)
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
-	if _, err := fmt.Fprintf(c.w, "Content-Length: %d\r\n\r\n", len(body)); err != nil {
-		return err
-	}
-	_, err = c.w.Write(body)
+	_, err := c.w.Write(frame)
 	return err
 }
 
 func (c *conn) reply(id *json.RawMessage, result any, rerr *rpcError) error {
 	m := &message{ID: id, Error: rerr}
 	if rerr == nil {
-		b, err := json.Marshal(result)
-		if err != nil {
-			return err
-		}
-		m.Result = b
+		m.Result = mustJSON(result)
 	}
 	return c.write(m)
 }
 
 func (c *conn) notify(method string, params any) error {
-	b, err := json.Marshal(params)
-	if err != nil {
-		return err
-	}
-	return c.write(&message{Method: method, Params: b})
+	return c.write(&message{Method: method, Params: mustJSON(params)})
 }
 
 // request sends a server->client request; the response is ignored.
 func (c *conn) request(method string, params any) error {
-	b, err := json.Marshal(params)
-	if err != nil {
-		return err
-	}
 	id := json.RawMessage(strconv.FormatInt(c.nextID.Add(1), 10))
-	return c.write(&message{ID: &id, Method: method, Params: b})
+	return c.write(&message{ID: &id, Method: method, Params: mustJSON(params)})
 }

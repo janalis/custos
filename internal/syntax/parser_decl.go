@@ -198,11 +198,10 @@ func (p *parser) parseClosureLike(attrs []*AttributeGroup, start uint32) Expr {
 		n.Body = p.parseBlock()
 		return fin(p, n, start)
 	}
+	// Only reached after attributes (or `static` following them): the
+	// error node covers what was consumed.
 	t := p.tok()
 	p.errorAt(t, "expected function or fn, found "+p.describe(t))
-	if start == t.Start {
-		return spanOf(&BadExpr{}, p.missing())
-	}
 	return fin(p, &BadExpr{}, start)
 }
 
@@ -284,12 +283,9 @@ func (p *parser) parseClassBody(n *ClassLike) {
 	lb := p.expect(TLBrace)
 	n.LBrace = Span{lb.Start, lb.End}
 	for !p.at(TRBrace) && !p.at(TEOF) {
-		before := p.pos
+		// parseMember always consumes a token: `;`, use, attributes, case,
+		// modifiers, const/function, a type, or skipTo past a bad token.
 		n.Members = append(n.Members, p.parseMember())
-		if p.pos == before {
-			p.errorAt(p.tok(), "unexpected "+p.describe(p.tok())+" in class body")
-			p.advance()
-		}
 	}
 	p.expect(TRBrace)
 }
@@ -454,8 +450,10 @@ func (p *parser) parseTraitUse() Stmt {
 				r := p.ref(p.advance())
 				a.Modifier = &r
 			}
-			if p.at(TString) || (p.kind().IsKeyword() && !p.at(TSemicolon)) {
+			if p.at(TString) || p.kind().IsKeyword() {
 				a.Alias = p.parseIdentifier()
+			} else if a.Modifier == nil {
+				p.errorAt(p.tok(), "expected visibility or alias, found "+p.describe(p.tok()))
 			}
 		default:
 			p.errorAt(p.tok(), "expected insteadof or as, found "+p.describe(p.tok()))

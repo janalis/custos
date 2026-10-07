@@ -26,3 +26,13 @@ func TestMayHaveSideEffects(t *testing.T) {
 		}
 	}
 }
+
+func TestMayHaveSideEffectsEdges(t *testing.T) {
+	if MayHaveSideEffects(nil) {
+		t.Fatal("nil")
+	}
+	f := parse(t, `<?php f() + $a;`)
+	if !MayHaveSideEffects(firstExpr(t, f)) {
+		t.Fatal("call on the left operand")
+	}
+}

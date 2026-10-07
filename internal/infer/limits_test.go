@@ -12,6 +12,7 @@ import (
 	"custos/internal/phpver"
 	"custos/internal/stubs"
 	"custos/internal/syntax"
+	"custos/internal/testbudget"
 )
 
 // returnTypes infers the type of every `return` expression of src.
@@ -51,7 +52,7 @@ func TestGenericChainBounded(t *testing.T) {
 	b.WriteString("function short(){ /** @var S2<int> $x */ $x = g(); return $x->m(); }\n")
 	start := time.Now()
 	got := returnTypes(t, b.String())
-	if d := time.Since(start); d > 2*time.Second && !raceEnabled {
+	if d := time.Since(start); d > testbudget.Of(2*time.Second) && !raceEnabled {
 		t.Errorf("generic chain took %v", d)
 	}
 	for _, r := range got {
@@ -80,7 +81,7 @@ func TestScopeDocsParsedOnce(t *testing.T) {
 	b.WriteString("        return $v4999;\n    }\n}\n")
 	start := time.Now()
 	got := returnTypes(t, b.String())
-	if d := time.Since(start); d > 2*time.Second && !raceEnabled {
+	if d := time.Since(start); d > testbudget.Of(2*time.Second) && !raceEnabled {
 		t.Errorf("took %v", d)
 	}
 	if len(got) != 1 || got[0] != "array{k:int}" {
@@ -141,7 +142,7 @@ func TestLongBodiesBounded(t *testing.T) {
 	props.WriteString("}\n")
 	cases["properties"] = props.String()
 	for name, src := range cases {
-		if d := typeAll(t, src); d > 2*time.Second && !raceEnabled {
+		if d := typeAll(t, src); d > testbudget.Of(2*time.Second) && !raceEnabled {
 			t.Errorf("%s: took %v", name, d)
 		}
 	}

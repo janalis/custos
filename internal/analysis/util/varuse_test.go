@@ -72,3 +72,22 @@ func TestVarAccessesFileScopeAndCount(t *testing.T) {
 		t.Fatalf("arrow scope: %q", got)
 	}
 }
+
+func TestVarAccessesEdges(t *testing.T) {
+	cases := []struct{ body, want string }{
+		{`global $$v, $v;`, "w"},
+		{`$f = fn($x = $v) => $x;`, "r"},
+	}
+	for _, c := range cases {
+		f := parse(t, "<?php function scope($p) { "+c.body+" }")
+		fn := f.Stmts[0].(*syntax.Function)
+		if got := describe(VarAccesses(f, fn, "v")); got != c.want {
+			t.Errorf("%s\n got %q, want %q", c.body, got, c.want)
+		}
+	}
+	// Recovery: a non-variable after `global` is walked as a read.
+	f := syntax.Parse("t.php", []byte("<?php function scope() { global $v, 1; }"), syntax.Options{})
+	if got := describe(VarAccesses(f, f.Stmts[0], "v")); got != "w" {
+		t.Errorf("recovered global: %q", got)
+	}
+}
