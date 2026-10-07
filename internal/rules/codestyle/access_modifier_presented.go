@@ -63,18 +63,7 @@ func (r accessModifierPresented) Check(ctx *analysis.Context, n syntax.Node) {
 			if name == nil || name.Span().Len() == 0 {
 				continue
 			}
-			f := ctx.File
-			span := syntax.Span{Start: m.Span().Start, End: name.Span().Start}
-			r.report(ctx, name.Span(), name.Value, analysis.Fix{
-				Title: "Declare 'public'",
-				Edits: func() []analysis.TextEdit {
-					kw, ok := util.FindToken(f, span, syntax.TConst)
-					if !ok {
-						return nil
-					}
-					return []analysis.TextEdit{{Span: syntax.Span{Start: kw.Start, End: kw.Start}, NewText: "public "}}
-				},
-			})
+			r.report(ctx, name.Span(), name.Value, r.modifierFix(ctx, m.Modifiers, m.Span(), name.Span().Start, syntax.TConst))
 		}
 	}
 }
@@ -100,10 +89,9 @@ func (accessModifierPresented) modifierFix(ctx *analysis.Context, mods syntax.Mo
 			if len(mods) == 0 {
 				at := limit
 				if kw != 0 {
-					t, ok := util.FindToken(f, syntax.Span{Start: decl.Start, End: limit}, kw)
-					if !ok {
-						return nil
-					}
+					// The parser builds a method/constant only after reading
+					// its keyword, which follows the attributes and modifiers.
+					t, _ := util.FindToken(f, syntax.Span{Start: decl.Start, End: limit}, kw)
 					at = t.Start
 				}
 				return []analysis.TextEdit{{Span: syntax.Span{Start: at, End: at}, NewText: "public "}}

@@ -25,14 +25,7 @@ func (unnecessaryUseAlias) Check(ctx *analysis.Context, n syntax.Node) {
 	if it.Alias == nil || it.Alias.Value == "" || it.Name == nil || it.Alias.Span().Len() == 0 { // D1
 		return
 	}
-	use, ok := it.Parent().(*syntax.Use)
-	if !ok {
-		return
-	}
-	kind := it.Type
-	if kind == syntax.UseNormal {
-		kind = use.Type
-	}
+	kind := it.Type // the parser gives items the statement's kind
 	name := it.Name.Value
 	last := util.LastNamePart(name)
 	// D2 / E1: case-sensitive, except for function imports (function names

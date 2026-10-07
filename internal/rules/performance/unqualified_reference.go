@@ -117,7 +117,7 @@ func uqEligible(ctx *analysis.Context, name *syntax.Name, constant bool) bool {
 	if name.NameKind != syntax.NameUnqualified { // D3
 		return false
 	}
-	ns := uqGoverningNamespace(ctx.File, name) // D4
+	ns := uqGoverningNamespace(name) // D4
 	if ns == nil {
 		return false
 	}
@@ -127,10 +127,7 @@ func uqEligible(ctx *analysis.Context, name *syntax.Name, constant bool) bool {
 			continue
 		}
 		for _, it := range u.Items {
-			kind := it.Type
-			if kind == syntax.UseNormal {
-				kind = u.Type
-			}
+			kind := it.Type // the parser gives items the statement's kind
 			if (constant && kind != syntax.UseConst) || (!constant && kind != syntax.UseFunction) || it.Name == nil {
 				continue
 			}
@@ -146,35 +143,18 @@ func uqEligible(ctx *analysis.Context, name *syntax.Name, constant bool) bool {
 	return true
 }
 
-// uqGoverningNamespace returns the namespace governing n: the enclosing
-// namespace block, or the file's only namespace declaration.
-func uqGoverningNamespace(f *syntax.File, n syntax.Node) *syntax.Namespace {
+// uqGoverningNamespace returns the namespace governing n (D4): its
+// enclosing namespace declaration. The parser nests the statements of an
+// unbraced `namespace X;` under it, and PHP allows no code outside the
+// namespaces of a file that declares one, so a node outside every namespace
+// lives in a file without namespace.
+func uqGoverningNamespace(n syntax.Node) *syntax.Namespace {
 	for p := n.Parent(); p != nil; p = p.Parent() {
 		if ns, ok := p.(*syntax.Namespace); ok {
 			return ns
 		}
 	}
-	return uqOnlyNamespace(f)
-}
-
-type uqOnlyNamespaceKey struct{}
-
-// uqOnlyNamespace returns the file's only top-level namespace declaration
-// (nil when none or several), scanned once per file: per node it was
-// quadratic on files with many top-level statements.
-func uqOnlyNamespace(f *syntax.File) *syntax.Namespace {
-	return f.Memo(uqOnlyNamespaceKey{}, func() any {
-		var only *syntax.Namespace
-		for _, st := range f.Stmts {
-			if ns, ok := st.(*syntax.Namespace); ok {
-				if only != nil {
-					return (*syntax.Namespace)(nil)
-				}
-				only = ns
-			}
-		}
-		return only
-	}).(*syntax.Namespace)
+	return nil
 }
 
 // callback implements Part B (D7–D11).

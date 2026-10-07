@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
-	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -24,7 +23,7 @@ func (loopWhichDoesNotLoop) Kinds() []syntax.NodeKind {
 }
 
 func (loopWhichDoesNotLoop) Check(ctx *analysis.Context, n syntax.Node) {
-	if n.Span().Len() == 0 || strings.HasSuffix(ctx.File.Path, ".blade.php") {
+	if strings.HasSuffix(ctx.File.Path, ".blade.php") {
 		return
 	}
 	var body syntax.Stmt
@@ -40,9 +39,6 @@ func (loopWhichDoesNotLoop) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	blk, ok := body.(*syntax.Block) // D1
 	if !ok || blk.Span().Len() == 0 {
-		return
-	}
-	if !blk.Alt && ctx.Src[blk.Span().Start] != '{' {
 		return
 	}
 	var last syntax.Stmt // D2
@@ -86,11 +82,7 @@ func (loopWhichDoesNotLoop) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 		}
 	}
-	tok, ok := util.NextSignificant(ctx.File, n.Span().Start)
-	if !ok {
-		return
-	}
-	ctx.Report(syntax.Span{Start: tok.Start, End: tok.End}, loopNoLoopMsg)
+	ctx.Report(keywordSpan(ctx, n), loopNoLoopMsg)
 }
 
 func loopNoLoopIsLoop(n syntax.Node) bool {
@@ -124,10 +116,9 @@ func continuesLoop(body syntax.Node, loop syntax.Node) bool {
 			}
 		}
 		k := 0
+		// The walk never crosses a function boundary: Inspect does not enter
+		// function-likes, so the loop is reached first.
 		for p := c.Parent(); p != nil; p = p.Parent() {
-			if syntax.IsFuncLike(p) {
-				break
-			}
 			_, isSwitch := p.(*syntax.Switch)
 			if isSwitch || loopNoLoopIsLoop(p) {
 				// PHP counts a switch as a loop structure for continue.

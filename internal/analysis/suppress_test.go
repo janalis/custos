@@ -34,6 +34,8 @@ func TestSuppressions(t *testing.T) {
 		{"closure statement", "<?php\nf();\n$f = function () {\n  // @noinspection NestedNotOperators\n  return !$x;\n};\n$g = function () { return !$y; };", 1},
 		{"not directly before", "<?php\nf();\n// @noinspection NestedNotOperators\ng();\n$a = !$b;", 1},
 		{"param", "<?php\nf();\nfunction g(\n  /** @noinspection NestedNotOperators */ $p = !X,\n  $q = !Y) {}", 1},
+		{"sibling statements", "<?php\nf();\nfunction g() {\n  // @noinspection NestedNotOperators\n  $a = !$b;\n  // @noinspection NestedNotOperators\n  $c = !$d;\n  $e = !$f;\n}", 1},
+		{"nested", "<?php\nf();\n// @noinspection Foo\nfunction g() {\n  // @noinspection NestedNotOperators\n  $a = !$b;\n  $c = !$d;\n}", 1},
 		{"second tag same line", "<?php\nf();\n// @noinspection Foo @noinspection NestedNotOperators\n$a = !$b;", 0},
 	} {
 		if got := analyseOK(t, tc.src); len(got) != tc.want {

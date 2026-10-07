@@ -1,6 +1,7 @@
 package conformance
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 
@@ -122,6 +123,11 @@ func convertOption(m *meta.Rule, name, raw string) any {
 		}
 	case "string":
 		return strings.Trim(raw, `"`)
+	case "list":
+		var list []any
+		if json.Unmarshal([]byte(raw), &list) == nil {
+			return list
+		}
 	}
 	return raw
 }

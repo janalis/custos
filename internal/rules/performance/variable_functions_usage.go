@@ -112,7 +112,7 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, static bool) (s
 	}
 	a0 := a0arg.Value
 	for _, a := range list[1:] { // D5a: call-time `&` is a fatal error
-		if arg, ok := a.(*syntax.Arg); ok && arg.ByRef {
+		if arg, ok := a.(*syntax.Arg); !ok || arg.ByRef { // or a misplaced `...`
 			return "", false
 		}
 	}
@@ -201,11 +201,7 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, static bool) (s
 func vfuArgsText(ctx *analysis.Context, list []syntax.Expr) string {
 	parts := make([]string, 0, len(list))
 	for _, a := range list {
-		arg, ok := a.(*syntax.Arg)
-		if !ok || arg.Value == nil {
-			parts = append(parts, ctx.Text(a))
-			continue
-		}
+		arg := a.(*syntax.Arg) // placeholders are rejected earlier (D5a)
 		var b strings.Builder
 		if arg.Name != nil {
 			b.WriteString(arg.Name.Value + ": ")

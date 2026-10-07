@@ -7,4 +7,5 @@ function stamp($pattern, Clock $clock)
     echo date('H:i', (time()));
     echo gmdate('H:i', time());
     echo date('H:i');
+    echo date('H:i', ...$pattern);
 }

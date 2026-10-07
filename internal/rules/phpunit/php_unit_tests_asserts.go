@@ -66,14 +66,8 @@ func putRenameFix(ctx *analysis.Context, c puCall, name string, slots []string) 
 	return analysis.Fix{
 		Title: "Use " + name + "()",
 		Edits: func() []analysis.TextEdit {
-			parts := make([]string, len(slots))
-			for i, s := range slots {
-				if s == "" {
-					s = "null"
-				}
-				parts[i] = s
-			}
-			return []analysis.TextEdit{{Span: syntax.Span{Start: start, End: end}, NewText: name + "(" + strings.Join(parts, ", ") + ")"}}
+			// every slot holds source text: putSlotsFrom never leaves a gap
+			return []analysis.TextEdit{{Span: syntax.Span{Start: start, End: end}, NewText: name + "(" + strings.Join(slots, ", ") + ")"}}
 		},
 	}
 }
@@ -255,7 +249,7 @@ func putConstant(ctx *analysis.Context, c puCall, args []syntax.Expr) (putSugges
 	idx, kind := -1, ""
 	for i, a := range args {
 		cf, ok := a.(*syntax.ConstFetch)
-		if !ok || cf.Name == nil {
+		if !ok {
 			continue
 		}
 		switch strings.ToLower(cf.Name.Value) {
@@ -543,13 +537,9 @@ func putRegexComparison(ctx *analysis.Context, c puCall, args []syntax.Expr) (pu
 func putEnclosingFuncName(n syntax.Node) string {
 	switch f := syntax.EnclosingFuncLike(n).(type) {
 	case *syntax.Function:
-		if f.Name != nil {
-			return f.Name.Value
-		}
+		return f.Name.Value
 	case *syntax.Method:
-		if f.Name != nil {
-			return f.Name.Value
-		}
+		return f.Name.Value
 	}
 	return ""
 }

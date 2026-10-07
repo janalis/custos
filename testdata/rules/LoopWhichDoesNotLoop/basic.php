@@ -57,3 +57,7 @@ function firstOfPlain(Plain $p, Bag2 $b) {
 class Bag2 implements \IteratorAggregate {
     public function getIterator(): \Iterator { return new \ArrayIterator([]); }
 }
+<warning descr="Loop body exits on the first iteration; the loop never repeats.">foreach</warning> ($items as $it) {
+    $f = function () { return 1; };
+    break 1;
+}

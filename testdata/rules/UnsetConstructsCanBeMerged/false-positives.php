@@ -17,3 +17,5 @@ switch ($j) {
     case 2:
         unset($l);
 }
+
+if ($drop) unset($cache);

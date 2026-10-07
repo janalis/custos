@@ -24,10 +24,7 @@ const isEmptyGenericMsg = "Prefer a type-specific check over empty()."
 // emptySubjectTypes returns the normalised type names of the subject (nil
 // when unknown).
 func emptySubjectTypes(ctx *analysis.Context, s syntax.Expr) []string {
-	t := ctx.TypeOf(s)
-	if call, ok := s.(*syntax.FuncCall); ok && t.IsUnknown() {
-		t = ctx.Types().BodyReturnType(ctx.Types().ResolveFunction(call))
-	}
+	t := ctx.TypeOf(s) // calls without declared return are typed from their body
 	if t.IsUnknown() {
 		return nil
 	}
@@ -50,9 +47,6 @@ func emptySubjectTypes(ctx *analysis.Context, s syntax.Expr) []string {
 
 func (r isEmptyFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	e := n.(*syntax.Empty)
-	if e.Span().Len() == 0 || e.Expr == nil {
-		return
-	}
 	s := syntax.UnwrapParens(e.Expr)
 	if _, ok := s.(*syntax.ArrayDimFetch); ok { // D0
 		return
@@ -160,7 +154,11 @@ func (isEmptyFunctionUsage) suggest(ctx *analysis.Context, e *syntax.Empty, inv 
 	if inv != nil {
 		target, op = inv, "!=="
 	}
-	subj := strings.Replace(subjFmt, "%s", ctx.Text(s), 1)
+	st := ctx.Text(s)
+	if subjFmt == "%s" && util.NeedsParensAsEqualityOperand(s) {
+		st = "(" + st + ")" // `$a ?? $b === null` would compare $b only
+	}
+	subj := strings.Replace(subjFmt, "%s", st, 1)
 	repl := subj + " " + op + " " + other
 	if ctx.ComparisonStyle == analysis.StyleYoda {
 		repl = other + " " + op + " " + subj

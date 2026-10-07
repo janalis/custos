@@ -229,3 +229,9 @@ Yoda style, default options: `empty($ratio)` → `null === $ratio`;
   which a function of that name declared in (or imported into) the current
   namespace captures, so the fix would call user code. custos writes
   `\count(` in that case.
+- **Low-precedence subjects (custos diverges):** `{S}` is inserted verbatim,
+  so `empty($a ?? $b)` became `$a ?? $b === null`, which compares only `$b`
+  (and likewise for ternaries, assignments, logical/bitwise operators). In
+  F2 custos wraps such a subject in parentheses: `($a ?? $b) === null`
+  (message included). F1 is unaffected (the subject is a `count()`
+  argument).

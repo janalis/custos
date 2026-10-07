@@ -87,11 +87,7 @@ func puResolveClassName(ctx *analysis.Context, n *syntax.Name) string {
 	case "self", "static":
 		return ctx.Types().ClassFQN(syntax.EnclosingClass(n))
 	case "parent":
-		c := syntax.EnclosingClass(n)
-		if c == nil || len(c.Extends) == 0 || c.ClassKind == syntax.KindInterface {
-			return ""
-		}
-		return ctx.Names().Class(c.Extends[0].Value, c.Extends[0].Span().Start)
+		return ctx.Names().ParentFQN(syntax.EnclosingClass(n))
 	}
 	return strings.TrimPrefix(ctx.Names().Class(n.Value, n.Span().Start), `\`)
 }

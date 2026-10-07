@@ -32,9 +32,6 @@ var (
 
 func (printfScanfArguments) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
-	if call.Args == nil {
-		return
-	}
 	fname := ctx.GlobalFunctionName(call) // D1: case-insensitive, global function only
 	pos, ok := printfFormatPos[fname]
 	if !ok || len(call.Args.Args) < pos+1 {
@@ -79,9 +76,8 @@ func (printfScanfArguments) Check(ctx *analysis.Context, n syntax.Node) {
 	if last, ok := args[len(args)-1].(*syntax.Arg); ok && last.Unpack { // D7b
 		return
 	}
-	if v, ok := a.(*syntax.Variable); ok && v.NameExpr == nil && printfCompoundAssigned(v) { // D7c
-		return
-	}
+	// D7c (compound-assigned format variable) is subsumed by D2: value
+	// discovery yields no complete value set for such a variable.
 	ctx.ReportNode(call.Name, "This call needs "+strconv.Itoa(expected)+" argument(s) in total.")
 }
 
@@ -163,22 +159,4 @@ func printfUsedAsValue(call *syntax.FuncCall) bool {
 		}
 	}
 	return false
-}
-
-// printfCompoundAssigned implements D7c.
-func printfCompoundAssigned(v *syntax.Variable) bool {
-	body := syntax.FuncLikeBody(syntax.EnclosingFuncLike(v))
-	if body == nil {
-		return false
-	}
-	found := false
-	syntax.Inspect(body, func(n syntax.Node) bool {
-		if as, ok := n.(*syntax.Assign); ok && as.Op.Kind != syntax.TEqual {
-			if t, ok := as.Var.(*syntax.Variable); ok && t.NameExpr == nil && t.Name == v.Name {
-				found = true
-			}
-		}
-		return !found
-	})
-	return found
 }

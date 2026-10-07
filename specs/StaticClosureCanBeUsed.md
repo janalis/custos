@@ -208,6 +208,13 @@ After fix (only changed lines shown):
   that binds the closure elsewhere. custos treats such a use as unsafe and
   stays silent. Direct invocation `$v(...)` is the one exception, since
   calling a closure never rebinds it.
+- **Closures stored outside a plain variable — custos diverges from
+  upstream** (D6b). Upstream collects no usage site for
+  `$this->hook = function () {…};` (or an array element, a static property,
+  a compound `??=` assignment) and reports the closure, although whoever
+  reads that storage later may bind it, exactly like a variable that is
+  stored elsewhere. custos treats such an assignment as an escape and stays
+  silent.
 - **Returned closures — custos diverges from upstream** (D6d). Upstream
   reports `return function () {...};` because it finds no usage site, but
   the caller receives the closure and may `bindTo()` an object; a static

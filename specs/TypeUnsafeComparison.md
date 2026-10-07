@@ -221,3 +221,8 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, $v
   reported.
 - Heredoc/nowdoc literals: treated as string literals per PhpStorm's model;
   no upstream fixture covers them.
+- **Unresolved ancestors (custos).** A class whose parent, interfaces or
+  traits (transitively) cannot be resolved may inherit `__toString()` from
+  the missing declaration, so D2 skips it instead of reporting kind M
+  (`class Ghostly extends Missing {}`, `new Ghostly() == 'x'`: no report;
+  analysis still ends, as for any object-only operand).

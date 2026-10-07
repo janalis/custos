@@ -1,0 +1,4 @@
+{
+  "name": "bakery/oven",
+  "require": {"monolog/monolog": "^3.0",
+}

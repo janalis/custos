@@ -23,6 +23,8 @@ class Exporter {
             json_encode($rows, self::MODE),
             json_encode($rows, 4194304),
             json_encode(),
+            json_encode(...$rows),
+            json_encode($rows, -4194304),
         ];
     }
 }

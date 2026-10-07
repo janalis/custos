@@ -71,3 +71,16 @@ function loop()
 {
     return loop();
 }
+
+class Proxy
+{
+    public function dyn($m)
+    {
+        return $this->$m();
+    }
+
+    public function delegate()
+    {
+        return $this->dyn('x');
+    }
+}

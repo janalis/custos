@@ -31,7 +31,7 @@ func (typeUnsafeArraySearch) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	needle, ok1 := call.Args.Args[0].(*syntax.Arg)
 	haystack, ok2 := call.Args.Args[1].(*syntax.Arg)
-	if !ok1 || !ok2 || needle.Value == nil || haystack.Value == nil {
+	if !ok1 || !ok2 { // `...` placeholder (rejected by PHP after another argument)
 		return
 	}
 	if literalStringHaystack(ctx, haystack.Value) { // E1

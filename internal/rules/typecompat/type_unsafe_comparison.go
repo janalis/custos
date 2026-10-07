@@ -104,9 +104,9 @@ func tucStringContent(ctx *analysis.Context, e syntax.Expr) (string, bool) {
 		t = t[1:]
 	}
 	if strings.HasPrefix(t, "<<<") {
-		nl := strings.IndexByte(t, '\n')
+		nl := strings.IndexByte(t, '\n') // a heredoc always has an opening newline
 		last := strings.LastIndexByte(t, '\n')
-		if nl < 0 || last <= nl {
+		if last == nl { // empty body
 			return "", true
 		}
 		return t[nl+1 : last], true
@@ -201,10 +201,6 @@ func tucNormalizedParts(ctx *analysis.Context, e syntax.Expr) []string {
 			out = append(out, k)
 			continue
 		}
-		if !strings.HasPrefix(a, `\`) {
-			out = append(out, a)
-			continue
-		}
 		out = append(out, a)
 	}
 	return out
@@ -231,7 +227,7 @@ func tucObjectWithoutToString(ctx *analysis.Context, e syntax.Expr) (cls string,
 	ix := ctx.Index()
 	for _, c := range classes {
 		decl := ix.Class(c, ctx.PHP)
-		if decl == nil {
+		if decl == nil || !tucHierarchyKnown(ctx, decl.FQN) {
 			continue
 		}
 		if ix.FindMethod(decl.FQN, "__toString", ctx.PHP) == nil {
@@ -255,4 +251,20 @@ func tucComparableObject(ctx *analysis.Context, e syntax.Expr) bool {
 		}
 	}
 	return false
+}
+
+// tucHierarchyKnown reports whether every parent, interface and trait of
+// class (transitively) resolves: otherwise an unresolved ancestor may
+// declare __toString() and D2 cannot decide.
+func tucHierarchyKnown(ctx *analysis.Context, class string) bool {
+	ix := ctx.Index()
+	for _, c := range ix.Ancestors(class, ctx.PHP) {
+		refs := append(append([]string{c.Parent}, c.Interfaces...), c.Traits...)
+		for _, r := range refs {
+			if r != "" && ix.Class(r, ctx.PHP) == nil {
+				return false
+			}
+		}
+	}
+	return true
 }

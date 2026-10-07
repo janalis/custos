@@ -23,3 +23,10 @@ function rebound(array $lines, array $refs) {
         $id = (string) $v;
     }
 }
+
+class Integer {}
+class Boolean {}
+
+function aliasClasses(Integer $i, Boolean $b) {
+    return [(int) $i, (bool) $b];
+}

@@ -26,10 +26,7 @@ func (curlSslServerSpoofing) Kinds() []syntax.NodeKind {
 }
 
 func (curlSslServerSpoofing) Check(ctx *analysis.Context, n syntax.Node) {
-	k := n.(*syntax.ConstFetch)
-	if k.Name == nil || k.Span().Len() == 0 {
-		return
-	}
+	k := n.(*syntax.ConstFetch) // the parser always gives it a name token
 	var host bool
 	switch util.LastNamePart(k.Name.Value) {
 	case "CURLOPT_SSL_VERIFYHOST":
@@ -64,10 +61,7 @@ func (curlSslServerSpoofing) Check(ctx *analysis.Context, n syntax.Node) {
 // curlSettingSite implements D1–D3: the reported node and the value set.
 func curlSettingSite(ctx *analysis.Context, k *syntax.ConstFetch) (site syntax.Node, value syntax.Expr) {
 	switch p := k.Parent().(type) {
-	case *syntax.Arg: // D1
-		if p.Value != syntax.Expr(k) {
-			return nil, nil
-		}
+	case *syntax.Arg: // D1 (an Arg's only expression child is its value)
 		call := util.ParentFuncCall(k)
 		if call == nil || !ctx.IsGlobalFunctionCall(call, "curl_setopt") || util.ArgCount(call) != 3 {
 			return nil, nil
@@ -81,7 +75,8 @@ func curlSettingSite(ctx *analysis.Context, k *syntax.ConstFetch) (site syntax.N
 		if p.Key != syntax.Expr(k) || p.Value == nil {
 			return nil, nil
 		}
-		if _, ok := p.Parent().(*syntax.Array); !ok {
+		arr, ok := p.Parent().(*syntax.Array)
+		if !ok || curlDestructuring(arr) { // list() / destructuring read the option
 			return nil, nil
 		}
 		return p, p.Value
@@ -104,6 +99,27 @@ func curlSettingSite(ctx *analysis.Context, k *syntax.ConstFetch) (site syntax.N
 		return a, a.Value
 	}
 	return nil, nil
+}
+
+// curlDestructuring reports whether arr is (part of) a destructuring
+// pattern: an assignment target or a foreach value, possibly nested in
+// other arrays or list().
+func curlDestructuring(arr *syntax.Array) bool {
+	var cur syntax.Expr = arr
+	for {
+		it, ok := cur.Parent().(*syntax.ArrayItem)
+		if !ok || it.Value != cur {
+			break
+		}
+		cur = it.Parent().(syntax.Expr) // an Array or a list()
+	}
+	switch p := cur.Parent().(type) {
+	case *syntax.Assign:
+		return p.Var == cur
+	case *syntax.Foreach:
+		return p.Value == cur
+	}
+	return false
 }
 
 // curlClassify implements D4/D5: 1 = enable, -1 = disable, 0 = ignored.

@@ -9,3 +9,13 @@ function delimiters($line) {
     preg_quote('xa.bx');
     <warning descr="Pass the delimiter to preg_quote() so it is escaped as well.">preg_quote(' #a.b#')</warning>;
 }
+
+function pairedDelimiters($line) {
+    preg_match('{k\d}', $line);
+    preg_match('<k\d>i', $line);
+    preg_match('(k\d)', $line);
+    preg_match('[k\d]', $line);
+    preg_match(<warning descr="Pattern has no valid delimiters.">'/'</warning>, $line);
+    preg_match(<warning descr="Pattern has no valid delimiters.">'/ab'</warning>, $line);
+    $matcher = preg_match(...);
+}

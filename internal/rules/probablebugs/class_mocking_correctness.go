@@ -205,35 +205,25 @@ func checkPhpSpec(ctx *analysis.Context, cl *syntax.ClassLike) {
 			continue
 		}
 		for _, p := range m.Params {
+			if p.Type == nil { // only the type: defaults are not collaborators
+				continue
+			}
 			var hit *syntax.Name
-			visit := func(root syntax.Node) {
-				if root == nil || hit != nil {
-					return
+			syntax.Inspect(p.Type, func(x syntax.Node) bool {
+				if hit != nil {
+					return false
 				}
-				syntax.Inspect(root, func(x syntax.Node) bool {
-					if hit != nil {
-						return false
-					}
-					nm, ok := x.(*syntax.Name)
-					if !ok {
-						return true
-					}
-					switch nm.Parent().(type) {
-					case *syntax.ConstFetch, *syntax.FuncCall:
-						return false
-					}
-					if names.IsBuiltinType(nm.Value) {
-						return false
-					}
+				nm, ok := x.(*syntax.Name)
+				if !ok {
+					return true
+				}
+				if !names.IsBuiltinType(nm.Value) {
 					if c := ix.Class(ctx.Names().Class(nm.Value, nm.Span().Start), ctx.PHP); c != nil && c.Final {
 						hit = nm
 					}
-					return false
-				})
-			}
-			if p.Type != nil { // only the type: defaults are not collaborators
-				visit(p.Type)
-			}
+				}
+				return false
+			})
 			if hit != nil && !finalsBypassed(ctx) {
 				ctx.ReportNode(hit, mockFinal)
 			}

@@ -345,6 +345,13 @@ is negated K-null with `===`, so the true branch is the "set" branch.
   warning, becomes `'x'`). custos requires G6 for any non-null fallback:
   a known non-nullable property type and a probe known to be an object (or
   null). With a null fallback the rewrite is value-preserving and is kept.
+- G2 with a static candidate (custos diverges from upstream).
+  `!empty($c) ? $c::$p : null` skips the class lookup when `$c` is `''`,
+  `null`, `0` or `false`, but `$c::$p ?? null` performs it and throws
+  (`Class "" not found`, "Class name must be a valid object or a string"):
+  `??` does not guard the class part. custos rewrites the static form only
+  when the probe's type is known and holds objects only (no `null`, no
+  string), whatever the fallback.
 - S3 (custos diverges from upstream). Upstream turns
   `$v = f(); if (isset($w)) { $v = $w; }` into `$v = $w ?? f();`, so `f()`
   is only evaluated when `$w` is unset and its side effects may be lost.

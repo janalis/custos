@@ -52,10 +52,7 @@ func (throwRawException) Check(ctx *analysis.Context, n syntax.Node) {
 	if ix.ClassCount(fqn) != 1 {
 		return
 	}
-	cls := ix.Class(fqn, ctx.PHP)
-	if cls == nil {
-		return
-	}
+	cls := ix.Class(fqn, ctx.PHP) // never nil once the class is indexed
 	ctor := ix.FindMethod(fqn, "__construct", ctx.PHP)
 	if ctor == nil || len(ctor.Params) != 3 {
 		return

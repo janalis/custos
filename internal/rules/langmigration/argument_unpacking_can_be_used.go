@@ -29,9 +29,6 @@ func (argumentUnpackingCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ctx.IsGlobalFunctionCall(call, "call_user_func_array") {
 		return // D2: any case; not a namespaced function of the same name
 	}
-	if f := ctx.Types().ResolveFunction(call); f != nil && !strings.EqualFold(strings.TrimPrefix(f.FQN, `\`), "call_user_func_array") {
-		return // D2: unqualified call resolving to a user function
-	}
 	args, ok := util.CallArgValues(call)
 	if !ok || len(args) != 2 { // D3
 		return
@@ -40,9 +37,9 @@ func (argumentUnpackingCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || lit.LitKind != syntax.LitString || strings.HasPrefix(lit.Raw, "<<<") {
 		return
 	}
-	fn, ok := util.StringLiteralValue(lit.Raw) // D6
-	if !ok {
-		return
+	fn, _ := util.StringLiteralValue(lit.Raw) // D6
+	if !isFunctionPath(fn) {
+		return // not a plain function name (spec Divergences)
 	}
 	switch args[1].(type) { // D5
 	case *syntax.Variable, *syntax.PropertyFetch, *syntax.StaticPropertyFetch, *syntax.Array,
@@ -104,4 +101,23 @@ func keysListSafe(ctx *analysis.Context, arg syntax.Expr) unpackKeys {
 		}
 	}
 	return res
+}
+
+// isFunctionPath reports whether s is an optionally \-qualified,
+// \-separated path of PHP identifiers: only such strings can be written as a
+// direct call (`Cls::m`, the empty string or names with spaces cannot).
+func isFunctionPath(s string) bool {
+	s = strings.TrimPrefix(s, `\`)
+	for _, seg := range strings.Split(s, `\`) {
+		if seg == "" || (seg[0] >= '0' && seg[0] <= '9') {
+			return false
+		}
+		for i := 0; i < len(seg); i++ {
+			c := seg[i]
+			if !(c == '_' || c >= 0x80 || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) {
+				return false
+			}
+		}
+	}
+	return true
 }

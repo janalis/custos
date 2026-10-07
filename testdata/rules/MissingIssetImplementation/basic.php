@@ -32,6 +32,7 @@ class Bag
         $o = new \STDCLASS();
         $x = new \SimpleXMLElement('<a/>');
         $k = 'x';
+        $m = new Missing();
         return [
             isset($p->nick),
             isset($p->secret),
@@ -47,6 +48,7 @@ class Bag
             isset($o->field),
             isset($x->node),
             isset($unknown->field),
+            isset($m->field),
             isset(Bag::${$k}),
             isset($k[$b->color]),
         ];

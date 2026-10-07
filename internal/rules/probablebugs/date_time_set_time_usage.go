@@ -46,8 +46,6 @@ func (dateTimeSetTimeUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		ctx.ReportNode(x.Args.Args[4], dateTimeSetTimeMsg)
 		return
-	default:
-		return
 	}
 	// D1-D3
 	id, ok := name.(*syntax.Identifier)

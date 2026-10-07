@@ -83,7 +83,7 @@ func (passingByReferenceCorrectness) Check(ctx *analysis.Context, n syntax.Node)
 				}
 			}
 		}
-		if pi < 0 || pi >= len(cal.params) || (arg.Name == nil && i >= len(cal.params)) {
+		if pi < 0 || pi >= len(cal.params) {
 			continue
 		}
 		if !cal.params[pi].ByRef || arg.Value == nil {

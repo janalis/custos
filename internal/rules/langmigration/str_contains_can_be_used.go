@@ -77,11 +77,9 @@ func matchStrCallCompare(ctx *analysis.Context, call *syntax.FuncCall, nargs int
 	if !ok || (b.Op.Kind != syntax.TIsIdentical && b.Op.Kind != syntax.TIsNotIdentical) {
 		return m, false
 	}
-	other := b.Left
+	other := b.Left // call is b.Left or b.Right, its direct parent
 	if other == syntax.Expr(call) {
 		other = b.Right
-	} else if b.Right != syntax.Expr(call) {
-		return m, false
 	}
 	return strCallCompare{call: call, qual: qual, args: args, cmp: b, other: other}, true
 }

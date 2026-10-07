@@ -58,14 +58,11 @@ func (redundantElseClause) Check(ctx *analysis.Context, n syntax.Node) {
 	if !leavesFlow(ctx, body) { // D5
 		return
 	}
-	kwKind, msg := syntax.TElse, redundantElseMsg
+	msg := redundantElseMsg
 	if isElseIf {
-		kwKind, msg = syntax.TElseif, redundantElseIfMsg
+		msg = redundantElseIfMsg
 	}
-	kw, ok := util.FindToken(ctx.File, alt.Span(), kwKind)
-	if !ok {
-		return
-	}
+	kw := keywordSpan(ctx, alt) // `else` / `elseif`
 	src := ctx.Src
 	text := func(s syntax.Span) string { return string(src[s.Start:s.End]) }
 	bodyEnd := body.Span().End
@@ -76,7 +73,7 @@ func (redundantElseClause) Check(ctx *analysis.Context, n syntax.Node) {
 	if gap != "" {
 		gap = nl + gap
 	}
-	ctx.Report(syntax.Span{Start: kw.Start, End: kw.End}, msg, analysis.Fix{
+	ctx.Report(kw, msg, analysis.Fix{
 		Title: "Remove the redundant clause",
 		Edits: func() []analysis.TextEdit {
 			if isElseIf {

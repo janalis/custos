@@ -13,3 +13,6 @@ function tally(int $count, string $label) {
     $count = $count . 'a' + 1;
     [$a, $b] = $a + 1;
 }
+
+$total = $other;
+$total = $total * 2 + 1;

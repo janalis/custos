@@ -1,0 +1,2 @@
+go test fuzz v1
+string("<?php for$i=0$i%Count($items$i++{00\"000$items[$i")

@@ -1,0 +1,7 @@
+{
+  "name": "bakery/oven",
+  "require": {
+    <warning descr="Development package in require; move it to require-dev.">"bakery/test-kit"</warning>: "^1",
+    "bakery/core": "^1"
+  }
+}

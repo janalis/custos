@@ -28,7 +28,7 @@ func (uselessUnset) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	names := map[string]bool{}
 	for _, p := range params { // D1
-		if p.Var != nil && p.Var.NameExpr == nil && p.Var.Name != "" {
+		if p.Var.NameExpr == nil && p.Var.Name != "" {
 			names[p.Var.Name] = true
 		}
 	}

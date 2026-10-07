@@ -7,3 +7,6 @@ strncmp($s, 'abc', 4.0);
 strncmp($s, 'abc', LEN);
 $o->strncmp($s, 'abc', 5);
 strncmp($s, "\x41\101\u{1F600}", 6);
+strncmp(...$args);
+strncmp($s, 'abc', ...$n);
+strncmp($s, 'abc', 4294967296);

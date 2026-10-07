@@ -70,9 +70,7 @@ func isBodyNop(n *syntax.Nop) bool {
 		body = p.Body
 	case *syntax.Foreach:
 		body = p.Body
-	case *syntax.Declare:
-		body = p.Body
-	default:
+	default: // a declare body is never a `;` Nop: `declare(x=1);` has no body
 		return false
 	}
 	return body == syntax.Stmt(n)

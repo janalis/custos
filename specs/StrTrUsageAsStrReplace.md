@@ -160,10 +160,14 @@ function slug($title, $glue = '+') {
   bytes, so such a call maps each byte on its own (affecting other characters
   that share those bytes) and is not a substring replacement; custos
   requires single-byte `from`/`to`.
-- Heredoc/nowdoc `from` arguments: upstream treats anything not
-  single-quoted with the double-quoted rule (nowdoc likely counted as
-  non-single-quoted). Untested; recommendation: treat nowdoc like
-  single-quoted and heredoc like double-quoted.
+- **Heredoc/nowdoc literals — custos diverges from upstream** (D4/D5).
+  Upstream treats anything not single-quoted with the double-quoted rule.
+  custos applies PHP's own escape rules: a heredoc body is read like a
+  double-quoted string except that `\"` is two characters (no escape in a
+  heredoc), and a nowdoc has no escapes at all, so `\'`, `\\` or `\n` in a
+  nowdoc are two characters (`strtr` would then map only the backslash,
+  not replace the pair) and are not reported. One plain character is
+  accepted in both.
 - **Case of the name (custos diverges from upstream).** Upstream matches
   `strtr` case-sensitively, so `STRTR($s, '-', '_')` is not reported
   although PHP calls the same function. custos compares the name

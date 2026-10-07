@@ -135,6 +135,12 @@ func ncoSafeFallback(ctx *analysis.Context, probe syntax.Expr, allowNull bool, c
 	if pt := ctx.TypeOf(cand); pt.IsUnknown() || pt.Has("null") {
 		return false
 	}
+	return ncoObjectsOnly(ctx, probe, allowNull)
+}
+
+// ncoObjectsOnly reports whether probe's type is known and every component
+// is a class type, `object` or `static` (or null, when allowNull).
+func ncoObjectsOnly(ctx *analysis.Context, probe syntax.Expr, allowNull bool) bool {
 	t := ctx.TypeOf(probe)
 	if t.IsUnknown() {
 		return false
@@ -180,6 +186,12 @@ func ncoGenerate(ctx *analysis.Context, c ncoCond, t, f syntax.Expr) (string, bo
 			return "", false
 		}
 		_, static := cand.(*syntax.StaticPropertyFetch)
+		// `$c::$p ?? x` throws when $c is '' or null (?? does not guard the
+		// class lookup), where `!empty($c)` skipped it: objects only (spec
+		// Divergences).
+		if static && !ncoObjectsOnly(ctx, c.subject, false) {
+			return "", false
+		}
 		if !ncoSafeFallback(ctx, c.subject, !static, cand, alt) { // G6
 			return "", false
 		}
@@ -211,7 +223,7 @@ func ncoGenerate(ctx *analysis.Context, c ncoCond, t, f syntax.Expr) (string, bo
 			return "", false
 		}
 		return ncoWrap(ctx, cand) + " ?? " + ncoWrap(ctx, alt), true
-	case 'n': // G5
+	default: // 'n', G5
 		if f == nil {
 			return "", false
 		}
@@ -222,7 +234,6 @@ func ncoGenerate(ctx *analysis.Context, c ncoCond, t, f syntax.Expr) (string, bo
 		}
 		return ncoWrap(ctx, cand) + " ?? " + ncoWrap(ctx, alt), true
 	}
-	return "", false
 }
 
 func (nullCoalescingOperatorCanBeUsed) checkTernary(ctx *analysis.Context, t *syntax.Ternary) {
@@ -340,11 +351,8 @@ func (nullCoalescingOperatorCanBeUsed) checkIf(ctx *analysis.Context, n *syntax.
 			if !ok {
 				return
 			}
-			switch p := blk.Parent().(type) {
+			switch blk.Parent().(type) { // a block directly under a function is its body
 			case *syntax.Function, *syntax.Method, *syntax.Closure:
-				if syntax.FuncLikeBody(p) != blk {
-					return
-				}
 			default:
 				return
 			}

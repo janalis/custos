@@ -24,8 +24,7 @@ func (classConstantUsageCorrectness) Kinds() []syntax.NodeKind {
 func (classConstantUsageCorrectness) Semantic() {}
 
 type ccImport struct {
-	target string // as written, without leading backslash
-	fqn    string
+	target string // as written, without leading backslash (also the FQN)
 	alias  string // explicit alias or ""
 }
 
@@ -62,7 +61,7 @@ func ccScope(f *syntax.File, n syntax.Node) (*syntax.Namespace, []ccImport) {
 				continue
 			}
 			target := prefix + strings.TrimPrefix(it.Name.Value, `\`)
-			imp := ccImport{target: target, fqn: target}
+			imp := ccImport{target: target}
 			if it.Alias != nil {
 				imp.alias = it.Alias.Value
 			}
@@ -119,16 +118,13 @@ func (classConstantUsageCorrectness) Check(ctx *analysis.Context, n syntax.Node)
 	default:
 		for _, u := range uses {
 			switch {
-			case strings.EqualFold(u.fqn, cfqn): // L4
+			case strings.EqualFold(u.target, cfqn): // L4
 				if u.alias != "" {
 					list = append(list, u.alias)
 					break
 				}
-				r := ix.Class(u.target, ctx.PHP)
-				if r == nil {
-					break
-				}
-				rfqn := `\` + strings.TrimPrefix(r.FQN, `\`)
+				// the import's target resolves to C itself (same FQN)
+				rfqn := `\` + cfqn
 				precise := strings.HasSuffix(rfqn, u.target)
 				if !precise || util.LastNamePart(rfqn) != t {
 					list = append(list, rfqn)

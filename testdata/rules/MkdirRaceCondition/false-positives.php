@@ -14,6 +14,9 @@ function prepare($root, $cfg) {
     $cfg->mkdir($root);
     mkdir();
     mkdir($root, 0700, true, null);
+    Fs\mkdir($root);
+    mkdir(...);
+    $cb = mkdir(...);
     return mkdir($root);
 }
 

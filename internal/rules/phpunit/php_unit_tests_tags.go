@@ -146,8 +146,8 @@ func putIsQualifiedName(s string) bool {
 }
 
 func putCheckTags(ctx *analysis.Context, m *syntax.Method) {
-	cl, ok := m.Parent().(*syntax.ClassLike)
-	if !ok || m.Name == nil || m.Name.Span().Len() == 0 { // D1
+	cl := m.Parent().(*syntax.ClassLike) // methods only appear in class-like bodies
+	if m.Name.Span().Len() == 0 {        // D1: recovered method without a name
 		return
 	}
 	tok, ok := putDocToken(ctx.File, m, m.Name)
@@ -284,15 +284,13 @@ func putUnnamedDatasets(m *syntax.Method) bool {
 	if !ok || len(arr.Items) == 0 {
 		return false
 	}
-	first := arr.Items[0]
-	if first == nil {
-		return true
-	}
-	switch k := first.Key.(type) {
-	case *syntax.Literal:
-		return k.LitKind != syntax.LitString
-	case *syntax.InterpolatedString:
-		return false
+	if first := arr.Items[0]; first != nil { // nil: an empty slot (invalid PHP)
+		switch k := first.Key.(type) {
+		case *syntax.Literal:
+			return k.LitKind != syntax.LitString
+		case *syntax.InterpolatedString:
+			return false
+		}
 	}
 	return true
 }
@@ -349,10 +347,9 @@ func putCoversResolves(ctx *analysis.Context, ref string, at uint32) bool {
 	return classOK
 }
 
+// putFunctionExists resolves a function name (never empty: D4 rejects
+// `::` and empty references).
 func putFunctionExists(ctx *analysis.Context, name string, at uint32) bool {
-	if name == "" {
-		return false
-	}
 	fqn, fb := ctx.Names().Function(name, at)
 	return ctx.Index().ResolveFunction(fqn, fb, ctx.PHP) != nil
 }

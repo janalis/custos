@@ -17,6 +17,8 @@ class Report
         echo sprintf('   ');
         $this->sprintf('%s');
         vsprintf('%s %s', [1]);
+        $fmt = sprintf(...);
+        $n = (sscanf($raw, '%d'));
     }
 
     public function grow()

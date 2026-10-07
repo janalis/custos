@@ -1,6 +1,7 @@
 package security
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -350,8 +351,10 @@ func (p *jsonParser) str() (string, bool) {
 			if !escaped {
 				return raw[1 : len(raw)-1], true
 			}
-			s, err := strconv.Unquote(raw)
-			if err != nil {
+			// JSON escapes (`\/`, `\u00e9`…); an invalid escape keeps
+			// the raw contents.
+			var s string
+			if json.Unmarshal([]byte(raw), &s) != nil {
 				return raw[1 : len(raw)-1], true
 			}
 			return s, true

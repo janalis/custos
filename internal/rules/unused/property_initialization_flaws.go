@@ -80,10 +80,7 @@ func pifRemoveDefault(item *syntax.PropertyItem) analysis.Fix {
 
 // pifDefaults is Check 1 (D1, D2).
 func pifDefaults(ctx *analysis.Context, prop *syntax.Property) {
-	cl, ok := prop.Parent().(*syntax.ClassLike)
-	if !ok {
-		return
-	}
+	cl := prop.Parent().(*syntax.ClassLike) // properties only parse as class members
 	parent := ""
 	if cl.ClassKind == syntax.KindClass {
 		if pc := ctx.Index().Class(ctx.Names().ParentFQN(cl), ctx.PHP); pc != nil {
@@ -92,7 +89,7 @@ func pifDefaults(ctx *analysis.Context, prop *syntax.Property) {
 	}
 	for _, item := range prop.Props {
 		d := item.Default
-		if d == nil || item.Var == nil || d.Span().Len() == 0 {
+		if d == nil || d.Span().Len() == 0 {
 			continue
 		}
 		if syntax.IsNullConst(d) { // D1
@@ -149,41 +146,33 @@ func pifPropertyDefault(ctx *analysis.Context, p *index.Property) syntax.Expr {
 	if cl == nil {
 		return nil
 	}
+	var out syntax.Expr
 	for _, m := range cl.Members {
 		if pr, ok := m.(*syntax.Property); ok {
 			for _, it := range pr.Props {
 				if it.Span() == p.Span {
-					return it.Default
+					out = it.Default
 				}
 			}
 		}
 	}
-	return nil
+	return out
 }
 
 // pifClassRefs collects the resolved class references inside e ("?" for
-// unresolvable ones); nil when there are none.
+// unresolvable ones); nil when there are none. Property defaults are
+// constant expressions, so `X::NAME` / `X::class` are the only class
+// references they can hold. self/parent resolve against the class declaring
+// the default (custos: a child's self::X may name its own constant).
 func pifClassRefs(ctx *analysis.Context, e syntax.Expr) map[string]bool {
 	var out map[string]bool
 	syntax.Inspect(e, func(x syntax.Node) bool {
-		nm, ok := x.(*syntax.Name)
+		cf, ok := x.(*syntax.ClassConstFetch)
 		if !ok {
 			return true
 		}
-		var cls syntax.Expr
-		switch p := nm.Parent().(type) {
-		case *syntax.ClassConstFetch:
-			cls = p.Class
-		case *syntax.StaticPropertyFetch:
-			cls = p.Class
-		case *syntax.StaticCall:
-			cls = p.Class
-		case *syntax.New:
-			cls = p.Class
-		case *syntax.Instanceof:
-			cls = p.Class
-		}
-		if cls != syntax.Expr(nm) {
+		nm, ok := cf.Class.(*syntax.Name)
+		if !ok {
 			return true
 		}
 		if out == nil {
@@ -191,10 +180,13 @@ func pifClassRefs(ctx *analysis.Context, e syntax.Expr) map[string]bool {
 		}
 		key := "?"
 		fqn := ctx.Names().Class(nm.Value, nm.Span().Start)
-		if strings.EqualFold(fqn, "self") || strings.EqualFold(fqn, "static") || strings.EqualFold(fqn, "parent") {
-			fqn = ""
+		switch strings.ToLower(fqn) {
+		case "self", "static":
+			fqn = ctx.Names().DeclFQN(syntax.EnclosingClass(nm))
+		case "parent":
+			fqn = ctx.Names().ParentFQN(syntax.EnclosingClass(nm))
 		}
-		if c := ctx.Index().Class(fqn, ctx.PHP); fqn != "" && c != nil {
+		if c := ctx.Index().Class(fqn, ctx.PHP); c != nil {
 			key = strings.ToLower(strings.TrimPrefix(c.FQN, `\`))
 		}
 		out[key] = true
@@ -224,7 +216,7 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 			continue
 		}
 		for _, it := range pr.Props {
-			if it.Var != nil && it.Var.Name != "" {
+			if it.Var.Name != "" {
 				cands[it.Var.Name] = pifCandidate{item: it, prop: pr}
 			}
 		}

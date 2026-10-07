@@ -67,7 +67,7 @@ func localProperty(ctx *analysis.Context, cls *syntax.ClassLike, name string) *i
 	for _, mem := range cls.Members {
 		if p, ok := mem.(*syntax.Property); ok {
 			for _, it := range p.Props {
-				if it.Var != nil && it.Var.Name == name {
+				if it.Var.Name == name {
 					return &index.Property{Name: name, Span: it.Span(), Default: ctx.Text(it.Default), HasDefault: it.Default != nil}
 				}
 			}

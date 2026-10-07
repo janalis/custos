@@ -17,3 +17,7 @@ class A {
 
 start:
 echo "top level";
+
+// Top-level labels are not inspected (E1).
+top:
+echo 1;

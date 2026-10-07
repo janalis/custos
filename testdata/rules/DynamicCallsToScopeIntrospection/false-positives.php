@@ -17,6 +17,9 @@ function collect($flag, $items, $row)
     array_map(function ($x) { return $x; }, $items);
     compact('either', 'twice');
     \extract($row);
+    call_user_func(...$items);
+    array_filter(...);
+    $ref = call_user_func(...);
 }
 
 $top = 'get_defined_vars';

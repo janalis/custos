@@ -68,7 +68,10 @@ value is classified:
 - **E2** `K` used as an array element *value* (`[CURLOPT_SSL_VERIFYPEER]`),
   in a comparison, as an argument of other functions, or in an array access
   not under a plain assignment (`$o[CURLOPT_SSL_VERIFYPEER] ??= 0`,
-  `isset($o[CURLOPT_SSL_VERIFYHOST])`).
+  `isset($o[CURLOPT_SSL_VERIFYHOST])`), or as a key in a destructuring
+  pattern (`[CURLOPT_SSL_VERIFYPEER => $peer] = $opts;`, `list(...)`,
+  `foreach ($all as [CURLOPT_SSL_VERIFYHOST => $h])`, at any nesting
+  depth): the pattern reads the option, it does not set it.
 - **E3** Mixed discoveries such as `$strict ? 2 : 0` (H) or
   `$dev ? 0 : true` (P) contain an "enable" → not reported.
 - **E4** Values that cannot be classified (`getenv('VERIFY')`, `10`).
@@ -119,6 +122,10 @@ function fetch($handle, $insecure)
 ```
 
 ## Divergences
+- **Destructuring patterns (custos diverges).** A `key => $var` element of
+  an array used as a destructuring target is not a setting; custos skips
+  it (E2) instead of discovering the target variable's earlier values
+  (`$peer = false; [CURLOPT_SSL_VERIFYPEER => $peer] = $opts;` was reported).
 - **`curl_setopt` matching (custos diverges from upstream).** Upstream
   accepts any call whose written last segment is exactly `curl_setopt`, so a
   namespace's own `curl_setopt()` is checked while `\Curl_SetOpt()` is not.

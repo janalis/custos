@@ -20,9 +20,6 @@ func (suspiciousReturn) Kinds() []syntax.NodeKind {
 }
 
 func (suspiciousReturn) Check(ctx *analysis.Context, n syntax.Node) {
-	if n.Span().Len() == 0 {
-		return
-	}
 	for p := n.Parent(); p != nil; p = p.Parent() { // D2
 		if syntax.IsFuncLike(p) {
 			return
@@ -31,10 +28,7 @@ func (suspiciousReturn) Check(ctx *analysis.Context, n syntax.Node) {
 		if !ok {
 			continue
 		}
-		try, ok := fin.Parent().(*syntax.Try)
-		if !ok || try.Body == nil {
-			return
-		}
+		try := fin.Parent().(*syntax.Try)    // the parser builds Finally inside Try only
 		if containsReturnOrThrow(try.Body) { // D3
 			ctx.ReportNode(n, suspiciousReturnMsg)
 		}

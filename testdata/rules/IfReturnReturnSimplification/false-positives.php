@@ -34,3 +34,10 @@ function i($q) {
     if ($q = 1) { return true; }
     return false;
 }
+function lastStatement($a) {
+    if ($a > 1) { return true; }
+}
+function bareReturn($a) {
+    if ($a > 1) { return; }
+    return false;
+}

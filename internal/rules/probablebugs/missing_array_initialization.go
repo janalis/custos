@@ -69,9 +69,7 @@ func (missingArrayInitialization) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 		}
 	}
-	if body == nil {
-		return
-	}
+	// body is set: an arrow function never encloses two loops (D3 stopped)
 	for _, p := range params {
 		if p.Var != nil && p.Var.Name == name {
 			return
@@ -119,12 +117,7 @@ func initialisesArray(v *syntax.Variable) bool {
 func isDestructuringItem(item *syntax.ArrayItem) bool {
 	var n syntax.Node = item
 	for {
-		lst := n.Parent()
-		switch lst.(type) {
-		case *syntax.Array, *syntax.List:
-		default:
-			return false
-		}
+		lst := n.Parent() // an array item always sits in an Array or List
 		switch p := lst.Parent().(type) {
 		case *syntax.Assign:
 			return p.Var == lst

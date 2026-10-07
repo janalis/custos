@@ -37,6 +37,7 @@ final class Counter {
     public function readHydrated() { return $this->hydrated; }
 }
 class Thing {}
+/** @property $magic */
 class Dyn {
     private $a = 1;
     public function hydrate(array $data): void { foreach ($data as $k => $v) { $this->$k = $v; } }
@@ -44,17 +45,19 @@ class Dyn {
 }
 `
 	want := map[string]string{
-		"count":    "int",
-		"name":     "string",
-		"items":    "array",
-		"maybe":    `\Lib\Thing|null`,
-		"prot":     "string",
-		"pub":      "?unknown",
-		"byRef":    "?unknown",
-		"mixed":    "?unknown",
-		"promoted": "?unknown",
-		"dyn":      "?unknown",
-		"hydrated": "?unknown",
+		"count":     "int",
+		"name":      "string",
+		"items":     "array",
+		"maybe":     `\Lib\Thing|null`,
+		"prot":      "string",
+		"pub":       "?unknown",
+		"byRef":     "?unknown",
+		"mixed":     "?unknown",
+		"promoted":  "?unknown",
+		"dyn":       "?unknown",
+		"hydrated":  "?unknown",
+		"pubDirect": "?unknown",
+		"magic":     "?unknown",
 	}
 	src := `<?php
 use Lib\{Counter, Dyn};
@@ -70,6 +73,8 @@ function run(Counter $c, Dyn $d) {
     t('promoted', $c->readPromoted());
     t('dyn', $d->readA());
     t('hydrated', $c->readHydrated());
+    t('pubDirect', $c->pub);
+    t('magic', $d->magic);
 }
 `
 	// Cross-file (index-time inference) and same-file.

@@ -54,7 +54,7 @@ func (typesCastingCanBeUsed) checkCall(ctx *analysis.Context, call *syntax.FuncC
 		return
 	}
 	if name == "settype" {
-		if len(args) != 2 || !isBuiltinSettype(ctx, call) { // D4, D5
+		if len(args) != 2 { // D4; D5 (shadowing) is part of GlobalFunctionName
 			return
 		}
 		lit, ok := args[1].(*syntax.Literal)
@@ -94,10 +94,7 @@ func (typesCastingCanBeUsed) checkString(ctx *analysis.Context, s *syntax.Interp
 	if s.Heredoc || s.Backtick || len(s.Parts) != 1 || sp.Len() < 2 || ctx.Src[sp.End-1] != '"' { // D8
 		return
 	}
-	part := s.Parts[0]
-	if _, ok := part.(*syntax.StringPart); ok {
-		return
-	}
+	part := s.Parts[0] // never a StringPart: the lexer only interpolates strings with a $var, ${ or {$
 	ps := part.Span()
 	var r string
 	switch {
@@ -159,33 +156,4 @@ func guardCastResult(n syntax.Expr, r string) string {
 		}
 	}
 	return r
-}
-
-// isBuiltinSettype reports whether call targets the global settype(): not
-// qualified into another namespace, not imported from one, and not shadowed
-// by a settype() declared in the call's namespace.
-func isBuiltinSettype(ctx *analysis.Context, call *syntax.FuncCall) bool {
-	if !ctx.IsGlobalFunctionCall(call, "settype") {
-		return false
-	}
-	name := call.Name.(*syntax.Name)
-	if name.NameKind != syntax.NameUnqualified {
-		return true
-	}
-	ns := ctx.Names().Namespace(name.Span().Start)
-	if ns == "" {
-		return true
-	}
-	shadowed := false
-	syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
-		if shadowed {
-			return false
-		}
-		if fn, ok := n.(*syntax.Function); ok && fn.Name != nil && strings.EqualFold(fn.Name.Value, "settype") &&
-			strings.EqualFold(ctx.Names().Namespace(fn.Span().Start), ns) {
-			shadowed = true
-		}
-		return true
-	})
-	return !shadowed
 }

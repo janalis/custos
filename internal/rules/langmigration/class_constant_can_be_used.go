@@ -297,11 +297,16 @@ func (st *cccState) chainImport(q string) (analysis.TextEdit, bool) {
 	}, true
 }
 
+// firstStmt returns the first statement that is not inline HTML. The file
+// holds the reported literal, so stmts is never empty and never only HTML;
+// the last statement is returned as a fallback.
 func firstStmt(stmts []syntax.Stmt) syntax.Stmt {
-	for _, s := range stmts {
-		if _, ok := s.(*syntax.InlineHTML); !ok {
-			return s
+	i := 0
+	for i < len(stmts)-1 {
+		if _, ok := stmts[i].(*syntax.InlineHTML); !ok {
+			break
 		}
+		i++
 	}
-	return nil
+	return stmts[i]
 }

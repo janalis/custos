@@ -1,0 +1,1 @@
+{"name": "a\q", <warning descr="Add the security advisories package (dev-latest) to require-dev.">"require"</warning>: {"monolog/monolog": "^3.0"}}

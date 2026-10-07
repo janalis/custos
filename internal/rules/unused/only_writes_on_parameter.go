@@ -70,7 +70,7 @@ func (onlyWritesOnParameter) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	// Entry 2: closure imports.
 	if c, ok := n.(*syntax.Closure); ok {
-		includes := c.Body != nil && owpClosureIncludes(c.Body) // D4b
+		includes := owpClosureIncludes(c.Body) // D4b
 		for _, u := range c.Uses {
 			if u.Var == nil || u.Var.NameExpr != nil || u.Var.Name == "" {
 				continue
@@ -141,9 +141,7 @@ func owpHasObjectType(t syntax.Expr) bool {
 	syntax.Inspect(t, func(x syntax.Node) bool {
 		var v string
 		switch n := x.(type) {
-		case *syntax.Name:
-			v = n.Value
-		case *syntax.Identifier:
+		case *syntax.Name: // type atoms are always names
 			v = n.Value
 		default:
 			return true
@@ -434,9 +432,6 @@ func owpObjectType(t types.Type) bool {
 // include/require outside nested closures, functions and classes (arrow
 // function bodies count) (D4b).
 func owpClosureIncludes(body syntax.Node) bool {
-	if body == nil {
-		return false
-	}
 	found := false
 	syntax.Inspect(body, func(x syntax.Node) bool {
 		switch x.(type) {

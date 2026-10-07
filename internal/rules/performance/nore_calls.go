@@ -2,6 +2,7 @@ package performance
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 
 	"custos/internal/analysis"
@@ -14,13 +15,12 @@ import (
 // replacements (D20–D23).
 
 var (
-	noreTextForm   = regexp.MustCompile(`^(\^)?([A-Za-z0-9_-]+|\\[.*+?])(\$)?$`)
-	noreTrimStart  = regexp.MustCompile(`^\^(\\s|[^.])[+*]$`)
-	noreTrimEnd    = regexp.MustCompile(`^(\\s|[^.])[+*]\$$`)
-	noreTrimBoth   = regexp.MustCompile(`^\^(\\s|[^.])[+*]\|(\\s|[^.])[+*]\$$`)
-	noreSplitClass = regexp.MustCompile(`^(?:[^.]|\[[^.]\])$`)
-	noreRegexSyn   = regexp.MustCompile(`[^\\][\^$.*+?\\\[\](){}!|-]|\\[dDhHsSvVwWRb]`)
-	noreUnescape   = regexp.MustCompile(`\\([.+*?-])`)
+	noreTextForm  = regexp.MustCompile(`^(\^)?([A-Za-z0-9_-]+|\\[.*+?])(\$)?$`)
+	noreTrimStart = regexp.MustCompile(`^\^(\\s|[^.])[+*]$`)
+	noreTrimEnd   = regexp.MustCompile(`^(\\s|[^.])[+*]\$$`)
+	noreTrimBoth  = regexp.MustCompile(`^\^(\\s|[^.])[+*]\|(\\s|[^.])[+*]\$$`)
+	noreRegexSyn  = regexp.MustCompile(`[^\\][\^$.*+?\\\[\](){}!|-]|\\[dDhHsSvVwWRb]`)
+	noreUnescape  = regexp.MustCompile(`\\([.+*?-])`)
 )
 
 var noreCaseConversions = []string{"strtolower", "strtoupper", "mb_strtolower", "mb_strtoupper"}
@@ -75,13 +75,17 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 	if m := noreTextForm.FindStringSubmatch(norm); m != nil {
 		start, end := m[1] != "", m[3] != ""
 		t := noreUnescapeText(m[2])
-		inverted := noreInverted(call)
+		site, inverted, siteOK := noreSite(call)
+		anchored := strings.IndexByte(c.mods, 'A') >= 0                  // `A` anchors at the start
+		perLine := strings.IndexByte(c.mods, 'm') >= 0 && (start || end) // ^/$ match at line breaks
 		find := bi("strpos")
 		if ci {
 			find = bi("stripos")
 		}
 		repl := ""
 		switch {
+		case anchored || perLine:
+		case c.fn == "preg_match" && !siteOK:
 		case c.fn == "preg_match" && argc == 2 && start && end && !ci: // D22a
 			op := "==="
 			if inverted {
@@ -108,7 +112,13 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 			repl = g + `("` + t + `", ` + x1 + ", " + x2 + ")"
 		}
 		if repl != "" {
-			noreReplace(ctx, noreContext(call).Span(), repl)
+			if c.fn != "preg_match" {
+				site = call // D22d replaces the call by a string function
+			} else if needsParensAsComparison(site) {
+				noreReplaceText(ctx, site.Span(), repl, "("+repl+")")
+				return
+			}
+			noreReplace(ctx, site.Span(), repl)
 			return
 		}
 	}
@@ -124,7 +134,7 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 				ch, ok = m[1], true
 			}
 			if ok {
-				if strings.ContainsAny(c.mods, "mu") {
+				if strings.ContainsAny(c.mods, "mu") || noreMetaChars(ch) {
 					return
 				}
 				h := "trim"
@@ -146,8 +156,8 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 	}
 
 	if c.fn == "preg_split" && (argc == 2 || argc == 3) && c.mods == "" { // D22f
-		if noreSplitClass.MatchString(norm) || !noreRegexSyn.MatchString(norm) {
-			repl := bi("explode") + `("` + noreUnescapeText(norm) + `", ` + x1
+		if u, ok := noreExplodeDelimiter(norm); ok && (argc == 2 || norePositiveInt(args[2])) {
+			repl := bi("explode") + `("` + strings.ReplaceAll(u, `"`, `\"`) + `", ` + x1
 			if argc == 3 {
 				repl += ", " + x2
 			}
@@ -156,80 +166,157 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 	}
 }
 
+// noreMetaChars reports whether a one-character trim/split body is a regex
+// metacharacter (or a quote/backslash that cannot be written as is in the
+// replacement), so it is not the literal character.
+func noreMetaChars(ch string) bool {
+	return len(ch) == 1 && strings.Contains(`\^$.[]|()?*+{'"`, ch)
+}
+
+// noreExplodeDelimiter returns the literal string a D22f body splits on:
+// a single literal character, `[c]` with c literal, or a body without regex
+// syntax (escapes `\.` `\+` `\*` `\?` `\-` resolved). Bodies starting with
+// a metacharacter, or keeping another escape (`\/`, `\n`), are refused.
+func noreExplodeDelimiter(norm string) (string, bool) {
+	if len(norm) == 3 && norm[0] == '[' && norm[2] == ']' && !strings.Contains(`\^]`, norm[1:2]) {
+		return norm[1:2], true // a class of one character, `.` included
+	}
+	if len(norm) == 1 {
+		return norm, !noreMetaChars(norm) || norm == `"` || norm == "'"
+	}
+	if noreRegexSyn.MatchString(norm) || strings.ContainsAny(norm[:1], `^$.*+?[](){}|`) {
+		return "", false
+	}
+	u := noreUnescapeText(norm)
+	return u, !strings.Contains(u, `\`)
+}
+
+// norePositiveInt reports whether e is a positive integer literal (a limit
+// that preg_split() and explode() treat alike).
+func norePositiveInt(e syntax.Expr) bool {
+	lit, ok := e.(*syntax.Literal)
+	if !ok || lit.LitKind != syntax.LitInt {
+		return false
+	}
+	n, err := strconv.ParseInt(strings.ReplaceAll(lit.Raw, "_", ""), 0, 64)
+	return err == nil && n > 0
+}
+
 func noreReplace(ctx *analysis.Context, span syntax.Span, repl string) {
+	noreReplaceText(ctx, span, repl, repl)
+}
+
+// noreReplaceText reports repl and fixes with text (repl, parenthesised
+// where the context binds tighter than the replacement).
+func noreReplaceText(ctx *analysis.Context, span syntax.Span, repl, text string) {
 	ctx.ReportSeverity(span, meta.SeverityWarning, "Replace with '"+repl+"'.", analysis.Fix{
 		Title: "Replace with '" + repl + "'",
-		Edits: func() []analysis.TextEdit { return []analysis.TextEdit{{Span: span, NewText: repl}} },
+		Edits: func() []analysis.TextEdit { return []analysis.TextEdit{{Span: span, NewText: text}} },
 	})
 }
 
-// noreNumberOperand returns the text of a number literal, optionally
-// negated, or ok=false.
-func noreNumberOperand(e syntax.Expr) (string, bool) {
-	if u, ok := e.(*syntax.Unary); ok && u.Op.Kind == syntax.TMinus {
-		if lit, ok := u.Expr.(*syntax.Literal); ok && (lit.LitKind == syntax.LitInt || lit.LitKind == syntax.LitFloat) {
-			return "-" + lit.Raw, true
+// noreSite implements the D22 context and inversion of a preg_match()
+// call whose 0/1 result is replaced by a boolean test (custos diverges from
+// upstream, see spec): ok is false when no replacement keeps the meaning.
+//   - logical operand: the call, or its direct `!` (inverted);
+//   - direct operand of a comparison with a number literal: the comparison,
+//     inverted when it holds for 0 and not for 1; skipped when it holds for
+//     both or neither (`== 2`, `< 5`);
+//   - any other operator operand (arithmetic, `@`, casts, a comparison
+//     with something else or through parentheses): skipped;
+//   - a value position (assignment, return, argument…): the call.
+func noreSite(call *syntax.FuncCall) (site syntax.Node, inverted, ok bool) {
+	if util.IsLogicalOperand(call) {
+		if u, isNot := call.Parent().(*syntax.Unary); isNot && u.Op.Kind == syntax.TExclaim {
+			return u, true, true
 		}
-		return "", false
+		return call, false, true
 	}
-	if lit, ok := e.(*syntax.Literal); ok && (lit.LitKind == syntax.LitInt || lit.LitKind == syntax.LitFloat) {
-		return lit.Raw, true
+	parent, _ := util.ParentSkipParens(call)
+	switch parent.(type) {
+	case *syntax.Binary:
+	case *syntax.Unary, *syntax.Instanceof:
+		return nil, false, false
+	default:
+		return call, false, true
 	}
-	return "", false
-}
-
-// noreCompared returns the binary comparison directly containing call with a
-// number on the other side, its operator kind and the number text.
-func noreCompared(call *syntax.FuncCall) (*syntax.Binary, syntax.TokenKind, string) {
-	b, ok := call.Parent().(*syntax.Binary)
-	if !ok {
-		return nil, 0, ""
+	b, direct := call.Parent().(*syntax.Binary)
+	if !direct {
+		return nil, false, false // `(preg_match(…)) === 0`
 	}
-	other := b.Left
+	op, other := b.Op.Kind, b.Left
 	if other == syntax.Expr(call) {
 		other = b.Right
-	}
-	num, ok := noreNumberOperand(other)
-	if !ok {
-		return nil, 0, ""
-	}
-	return b, b.Op.Kind, num
-}
-
-// noreInverted implements the D22 "inverted" definition.
-func noreInverted(call *syntax.FuncCall) bool {
-	if util.IsLogicalOperand(call) {
-		u, ok := call.Parent().(*syntax.Unary)
-		return ok && u.Op.Kind == syntax.TExclaim
-	}
-	b, op, num := noreCompared(call)
-	if b == nil {
-		return false
-	}
-	switch op {
-	case syntax.TLess:
-		return num == "1"
-	case syntax.TIsEqual, syntax.TIsIdentical:
-		return num == "0"
-	case syntax.TIsNotEqual, syntax.TIsNotIdentical:
-		return num == "1"
-	}
-	return false
-}
-
-// noreContext implements the D22 "context" definition.
-func noreContext(call *syntax.FuncCall) syntax.Node {
-	if util.IsLogicalOperand(call) {
-		if u, ok := call.Parent().(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
-			return u
-		}
-	}
-	if b, op, _ := noreCompared(call); b != nil {
+	} else { // number on the left: `1 > C` reads `C < 1`
 		switch op {
-		case syntax.TIsEqual, syntax.TIsNotEqual, syntax.TIsIdentical, syntax.TIsNotIdentical,
-			syntax.TLess, syntax.TGreater, syntax.TIsSmallerOrEqual, syntax.TIsGreaterOrEqual:
-			return b
+		case syntax.TLess:
+			op = syntax.TGreater
+		case syntax.TGreater:
+			op = syntax.TLess
+		case syntax.TIsSmallerOrEqual:
+			op = syntax.TIsGreaterOrEqual
+		case syntax.TIsGreaterOrEqual:
+			op = syntax.TIsSmallerOrEqual
 		}
 	}
-	return call
+	holds0, ok0 := noreCompare(op, 0, other)
+	holds1, ok1 := noreCompare(op, 1, other)
+	if !ok0 || !ok1 || holds0 == holds1 {
+		return nil, false, false
+	}
+	return b, holds0, true
+}
+
+// noreCompare evaluates `v op n` for a number literal n (optionally negated).
+func noreCompare(op syntax.TokenKind, v int64, n syntax.Expr) (holds, ok bool) {
+	neg := false
+	if u, isNeg := n.(*syntax.Unary); isNeg && u.Op.Kind == syntax.TMinus {
+		neg, n = true, u.Expr
+	}
+	lit, isLit := n.(*syntax.Literal)
+	if !isLit {
+		return false, false
+	}
+	raw := strings.ReplaceAll(lit.Raw, "_", "")
+	var f float64
+	isInt := lit.LitKind == syntax.LitInt
+	switch {
+	case isInt:
+		i, err := strconv.ParseInt(raw, 0, 64)
+		if err != nil {
+			return false, false
+		}
+		f = float64(i)
+	case lit.LitKind == syntax.LitFloat:
+		x, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return false, false
+		}
+		f = x
+	default:
+		return false, false
+	}
+	if neg {
+		f = -f
+	}
+	x := float64(v)
+	switch op {
+	case syntax.TIsEqual:
+		return x == f, true
+	case syntax.TIsNotEqual:
+		return x != f, true
+	case syntax.TIsIdentical: // an int is never identical to a float
+		return isInt && x == f, true
+	case syntax.TIsNotIdentical:
+		return !isInt || x != f, true
+	case syntax.TLess:
+		return x < f, true
+	case syntax.TGreater:
+		return x > f, true
+	case syntax.TIsSmallerOrEqual:
+		return x <= f, true
+	case syntax.TIsGreaterOrEqual:
+		return x >= f, true
+	}
+	return false, false
 }

@@ -30,9 +30,6 @@ var gettypePredicates = map[string]string{
 
 func (getTypeMissUse) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
-	if call.Span().Len() == 0 {
-		return
-	}
 	name, ok := call.Name.(*syntax.Name) // D1
 	if !ok {
 		return

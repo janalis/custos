@@ -1,0 +1,4 @@
+{
+  <warning descr="Add the security advisories package (dev-latest) to require-dev.">"require"</warning>: {"": "^1", "monolog/monolog": "", "slim/slim": "^4"},
+  "require-dev": {"x/y": 1, "": "^1", "sensiolabs/security-checker": ""}
+}

@@ -71,7 +71,7 @@ func (stringNormalization) Check(ctx *analysis.Context, n syntax.Node) {
 	subject := iargs[0]
 
 	if isLengthFunc(oname) { // pattern A
-		if !isBasicCaseFunc(iname) || !cutFirstApplies(ctx, oname, oargs) { // D3, D4
+		if !isBasicCaseFunc(iname) || !cutFirstApplies(oname, oargs) { // D3, D4
 			return
 		}
 		src := ctx.Src
@@ -109,32 +109,24 @@ func (stringNormalization) Check(ctx *analysis.Context, n syntax.Node) {
 
 // cutFirstApplies implements D4 for a length function with a case-converted
 // first argument.
-func cutFirstApplies(ctx *analysis.Context, oname string, oargs []syntax.Expr) bool {
+func cutFirstApplies(oname string, oargs []syntax.Expr) bool {
 	if oname == "substr" || oname == "mb_substr" || len(oargs) == 1 {
 		return true
 	}
 	if len(oargs) != 2 {
 		return false
 	}
-	var raw string
-	switch lit := oargs[1].(type) {
-	case *syntax.Literal:
-		if lit.LitKind != syntax.LitString {
-			return false
-		}
-		raw = lit.Raw
-	case *syntax.InterpolatedString:
-		if lit.Backtick {
-			return false
-		}
-		raw = ctx.Text(lit)
-	default:
+	// Only a literal without interpolation: the characters of "$x" or
+	// "{$x}" are unknown.
+	lit, ok := oargs[1].(*syntax.Literal)
+	if !ok || lit.LitKind != syntax.LitString {
 		return false
 	}
-	if raw == "" || (raw[0] != '\'' && raw[0] != '"') {
-		return true // heredoc/nowdoc
-	}
-	if strings.ContainsAny(raw, "\r\n") {
+	raw := strings.TrimLeft(lit.Raw, "bB")
+	if strings.HasPrefix(raw, "<<<") {
+		// heredoc/nowdoc: the body, between the opening and closing lines
+		raw = raw[strings.IndexByte(raw, '\n') : strings.LastIndexByte(raw, '\n')+1]
+	} else if strings.ContainsAny(raw, "\r\n") {
 		return false
 	}
 	for _, r := range raw {
@@ -142,5 +134,15 @@ func cutFirstApplies(ctx *analysis.Context, oname string, oargs []syntax.Expr) b
 			return false
 		}
 	}
+	// a range such as '@..Z' or '!..~' covers letters too
+	for i := 1; i+2 < len(raw); i++ {
+		if raw[i] == '.' && raw[i+1] == '.' && rangeHasLetter(raw[i-1], raw[i+2]) {
+			return false
+		}
+	}
 	return true
+}
+
+func rangeHasLetter(lo, hi byte) bool {
+	return lo <= 'z' && hi >= 'a' || lo <= 'Z' && hi >= 'A'
 }

@@ -28,9 +28,6 @@ func (r suspiciousAssignments) Check(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.Switch:
 		saSwitch(ctx, x)
 	case *syntax.Assign:
-		if x.Span().Len() == 0 {
-			return
-		}
 		saCompound(ctx, x)
 		saTypo(ctx, x)
 		saOverwrite(ctx, x)

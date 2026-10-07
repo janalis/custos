@@ -19,9 +19,6 @@ func (degradedSwitch) Check(ctx *analysis.Context, n syntax.Node) {
 	sw := n.(*syntax.Switch)
 	cases, hasDefault := 0, false
 	for _, c := range sw.Cases {
-		if c == nil {
-			continue
-		}
 		if c.Cond == nil {
 			hasDefault = true
 		} else {

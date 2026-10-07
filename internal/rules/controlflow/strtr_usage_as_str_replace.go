@@ -74,7 +74,7 @@ func singleCharFrom(raw string) bool {
 		raw = raw[1:]
 	}
 	var content string
-	single := false
+	allowed := `\"$rnt` // escapes standing for one character
 	switch {
 	case strings.HasPrefix(raw, "<<<"):
 		nl := strings.IndexByte(raw, '\n')
@@ -82,12 +82,17 @@ func singleCharFrom(raw string) bool {
 		if nl < 0 || end <= nl {
 			return false
 		}
-		single = strings.Contains(raw[:nl], "'")
+		allowed = `\$rnt` // heredoc: \" is two characters
+		if strings.Contains(raw[:nl], "'") {
+			allowed = "" // nowdoc: no escapes at all
+		}
 		content = strings.TrimLeft(raw[nl+1:end], " \t")
 	case len(raw) >= 2:
-		single = raw[0] == '\''
+		if raw[0] == '\'' {
+			allowed = `\'`
+		}
 		content = raw[1 : len(raw)-1]
-	default:
+	default: // unterminated literal at the end of a broken file
 		return false
 	}
 	switch utf8.RuneCountInString(content) {
@@ -96,14 +101,7 @@ func singleCharFrom(raw string) bool {
 		// byte by byte, unlike str_replace().
 		return len(content) == 1 && content != "\n" && content != "\r"
 	case 2:
-		if content[0] != '\\' {
-			return false
-		}
-		allowed := `\"$rnt`
-		if single {
-			allowed = `\'`
-		}
-		return strings.IndexByte(allowed, content[1]) >= 0
+		return content[0] == '\\' && strings.IndexByte(allowed, content[1]) >= 0
 	}
 	return false
 }

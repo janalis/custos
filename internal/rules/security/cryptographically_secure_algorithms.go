@@ -45,10 +45,7 @@ func (cryptographicallySecureAlgorithms) Kinds() []syntax.NodeKind {
 }
 
 func (cryptographicallySecureAlgorithms) Check(ctx *analysis.Context, n syntax.Node) {
-	c := n.(*syntax.ConstFetch)
-	if c.Name == nil {
-		return
-	}
+	c := n.(*syntax.ConstFetch) // the parser always gives it a name
 	name := util.LastNamePart(c.Name.Value)
 	w, ok := weakAlgos[name]
 	if !ok || util.GlobalConstName(ctx, c) == "" || isTestContext(ctx, n) {

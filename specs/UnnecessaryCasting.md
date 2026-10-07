@@ -327,3 +327,9 @@ After fix (changed lines):
   array, instead of the stub's `array|string|false` (which made
   `$text = mb_convert_encoding($text, 'UTF-8')` look like an array
   assignment to CallableParameterUseCaseInTypeContext).
+- **Classes named like scalar aliases (custos diverges):** T4 maps the
+  normalised names `integer`/`boolean` to `int`/`bool`, so an object of a
+  user class `Integer` or `Boolean` counts as already int/bool and
+  `(int) new Integer()` is reported (the fix drops a cast that converts an
+  object). custos resolves scalar aliases when parsing types; a remaining
+  `\Integer` or `\Boolean` is a class and never matches a scalar target.

@@ -11,6 +11,9 @@ function routes($uri, $base, $o) {
     $r[] = mb_convert_case(substr($uri, 0, 3), MB_CASE_LOWER) == $base;
     $r[] = $o->strtolower(substr($uri, 0, 3)) == $base;
     $r[] = $o->substr($uri, 0, 3) == $base;
+    $r[] = substr($uri, 0, strlen($base, 1)) == $base;        // strlen() takes one argument
+    $r[] = substr($uri, 0, 0x3) == 'abc';                       // not a decimal literal
+    $r[] = mb_convert_case(substr($uri, 0, 3)) == 'abc';        // missing mode: never folded
     $x = substr($uri, 0, 3);
     return $r;
 }

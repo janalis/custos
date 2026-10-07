@@ -1,0 +1,12 @@
+{
+  "name": "bakery\/oven",
+  "description": "An \"oven\" é with a bad \x escape",
+  "keywords": ["bread", "oven"],
+  "require": {
+    <warning descr="Development package in require; move it to require-dev.">"phpunit\/phpunit"</warning>: "^10",
+    "monolog\/monolog": "^3.0"
+  },
+  "require-dev": {
+    "roave\/security-advisories": "dev-latest"
+  }
+}

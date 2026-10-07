@@ -9,5 +9,14 @@ class Report {
         $j = call_user_func_array('sprintf', ($cols));
         $k = call_user_func_array('sprintf', $cols, 1);
         $l = $this->call_user_func_array('sprintf', $cols);
+        // strings that cannot be written as a direct call
+        $m = call_user_func_array('Report::render', $cols);
+        $n = call_user_func_array('', $cols);
+        $o = call_user_func_array('my fmt', $cols);
+        $p = call_user_func_array('1fmt', $cols);
+        $q = call_user_func_array('Lib\\', $cols);
+        $r = call_user_func_array(<<<'TXT'
+sprintf
+TXT, $cols);
     }
 }

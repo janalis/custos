@@ -46,31 +46,38 @@ func (disallowWritingIntoStaticProperties) Check(ctx *analysis.Context, n syntax
 		ctx.Report(span, msg)
 		return
 	}
-	owner, ok := meth.Parent().(*syntax.ClassLike)
-	if !ok {
-		return
-	}
-	env := ctx.Types()
-	ownerFQN := env.ClassFQN(owner)
+	owner, _ := meth.Parent().(*syntax.ClassLike) // methods only live in class-likes
+	ownerFQN := ctx.Types().ClassFQN(owner)       // "" for an anonymous class
 	var target string
 	switch strings.ToLower(cls.Value) {
 	case "self", "static":
 		target = ownerFQN
 	case "parent":
-		if owner.ClassKind != syntax.KindInterface && len(owner.Extends) > 0 {
-			target = ctx.Names().Class(owner.Extends[0].Value, owner.Span().Start)
-		}
+		target = ctx.Names().ParentFQN(owner)
 	default:
 		target = ctx.Names().Class(cls.Value, cls.Span().Start)
 	}
-	if target == "" || ownerFQN == "" {
+	if target == "" { // `static`/`self` in an anonymous class, `parent` without one
 		return
 	}
 	p := ctx.Index().FindProperty(target, prop.Name, ctx.PHP) // D3a
 	if p == nil {
 		return
 	}
-	if dwspSameClass(p.Class, ownerFQN) || dwspUsesTrait(ctx, ownerFQN, p.Class) {
+	// The method's own class, or for an anonymous class the traits it uses
+	// (trait-imported members count as own, see spec Divergences).
+	start := []string{ownerFQN}
+	if ownerFQN == "" {
+		start = start[:0]
+		for _, m := range owner.Members {
+			if tu, ok := m.(*syntax.TraitUse); ok {
+				for _, t := range tu.Traits {
+					start = append(start, ctx.Names().Class(t.Value, t.Span().Start))
+				}
+			}
+		}
+	}
+	if dwspOwns(ctx, start, p.Class) {
 		return
 	}
 	ctx.Report(span, msg)
@@ -80,12 +87,11 @@ func dwspSameClass(a, b string) bool {
 	return strings.EqualFold(strings.TrimPrefix(a, `\`), strings.TrimPrefix(b, `\`))
 }
 
-// dwspUsesTrait reports whether class (directly or through its traits) uses
-// trait (see spec Divergences: trait-imported members count as own).
-func dwspUsesTrait(ctx *analysis.Context, class, trait string) bool {
+// dwspOwns reports whether decl is one of the classes in queue or a trait
+// they use, directly or through other traits.
+func dwspOwns(ctx *analysis.Context, queue []string, decl string) bool {
 	ix := ctx.Index()
 	seen := map[string]bool{}
-	queue := []string{class}
 	for len(queue) > 0 {
 		k := strings.ToLower(strings.TrimPrefix(queue[0], `\`))
 		queue = queue[1:]
@@ -93,15 +99,11 @@ func dwspUsesTrait(ctx *analysis.Context, class, trait string) bool {
 			continue
 		}
 		seen[k] = true
-		c := ix.Class(k, ctx.PHP)
-		if c == nil {
-			continue
+		if dwspSameClass(k, decl) {
+			return true
 		}
-		for _, t := range c.Traits {
-			if dwspSameClass(t, trait) {
-				return true
-			}
-			queue = append(queue, t)
+		if c := ix.Class(k, ctx.PHP); c != nil {
+			queue = append(queue, c.Traits...)
 		}
 	}
 	return false

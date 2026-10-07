@@ -9,3 +9,4 @@ function plugin()
     $entry = 'plugins/main.php';
     <error descr="Relative include depends on include_path; anchor it with __DIR__.">include_once $entry</error>;
 }
+<error descr="Relative include depends on include_path; anchor it with __DIR__.">include "themes/$theme.php"</error>;

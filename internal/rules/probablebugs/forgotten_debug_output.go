@@ -170,9 +170,6 @@ func debugInWrapper(ctx *analysis.Context, n syntax.Node, entries []string) bool
 	case *syntax.Function:
 		return fn.Name != nil && debugHasEntry(entries, fn.Name.Value)
 	case *syntax.Method:
-		if fn.Name == nil {
-			return false
-		}
 		fqn := ctx.Types().ClassFQN(syntax.EnclosingClass(fn))
 		return fqn != "" && debugHasEntry(entries, `\`+fqn+"::"+fn.Name.Value)
 	}

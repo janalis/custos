@@ -27,3 +27,9 @@ function method()
 {
     return $obj->compact('missing');
 }
+
+function spread(array $names)
+{
+    $cb = compact(...);
+    return [compact(...$names), compact($names)];
+}

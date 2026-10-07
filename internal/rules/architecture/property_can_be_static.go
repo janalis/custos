@@ -24,10 +24,7 @@ func (propertyCanBeStatic) Check(ctx *analysis.Context, n syntax.Node) {
 	if prop.Modifiers.Has(syntax.TStatic) || !(prop.Modifiers.Has(syntax.TPrivate) || prop.Modifiers.Has(syntax.TProtected)) { // D2
 		return
 	}
-	cl, ok := prop.Parent().(*syntax.ClassLike)
-	if !ok {
-		return
-	}
+	cl := prop.Parent().(*syntax.ClassLike) // properties only appear in class-like bodies
 	parent := ""
 	if p := ctx.Names().ParentFQN(cl); p != "" {
 		if pc := ctx.Index().Class(p, ctx.PHP); pc != nil {
@@ -36,7 +33,7 @@ func (propertyCanBeStatic) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, item := range prop.Props { // D1
 		arr, ok := item.Default.(*syntax.Array) // D3
-		if !ok || item.Var == nil || item.Var.Span().Len() == 0 {
+		if !ok || item.Var.Span().Len() == 0 {
 			continue
 		}
 		if parent != "" && util.PropertyInChain(ctx.Index(), parent, item.Var.Name, ctx.PHP) != nil { // D4

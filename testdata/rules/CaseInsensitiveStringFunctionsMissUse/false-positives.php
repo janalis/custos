@@ -14,3 +14,6 @@ function parts($path, $mode, $flag)
 }
 $top = '/';
 $o = stripos('a/b', $top);
+
+$finder = 'stripos';
+$pos = $finder($haystack, '@');

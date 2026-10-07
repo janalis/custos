@@ -60,8 +60,6 @@ func pdvTypeHasNull(ctx *analysis.Context, t syntax.Expr) bool {
 			}
 		}
 		return false
-	case *syntax.Paren:
-		return false
 	}
 	return strings.EqualFold(strings.TrimSpace(ctx.Text(t)), "null")
 }

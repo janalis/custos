@@ -48,9 +48,6 @@ func (issetConstructsCanBeMerged) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	flatten(root.Left)
 	flatten(root.Right)
-	if len(frags) < 2 {
-		return
-	}
 	// D3 / D4
 	first, second := -1, -1
 	var hits [2]*syntax.Isset

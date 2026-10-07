@@ -55,11 +55,9 @@ func randomBound(ctx *analysis.Context, e syntax.Expr) (int64, bool) {
 	case *syntax.Literal, *syntax.Unary:
 		return numberNodeValue(v)
 	case *syntax.ConstFetch: // constant declared outside the file (stubs)
-		k := util.ResolveConstant(ctx.Types(), v)
-		if k == nil {
-			return 0, false
+		if k := util.ResolveConstant(ctx.Types(), v); k != nil {
+			return parseDecimalBound(strings.TrimSpace(k.Value))
 		}
-		return parseDecimalBound(strings.TrimSpace(k.Value))
 	}
 	return 0, false
 }
@@ -98,15 +96,6 @@ func numberNodeValue(e syntax.Expr) (int64, bool) {
 }
 
 func parseDecimalBound(s string) (int64, bool) {
-	digits := strings.TrimPrefix(s, "-")
-	if digits == "" {
-		return 0, false
-	}
-	for i := 0; i < len(digits); i++ {
-		if digits[i] < '0' || digits[i] > '9' {
-			return 0, false
-		}
-	}
 	v, err := strconv.ParseInt(s, 10, 64)
 	return v, err == nil
 }

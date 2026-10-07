@@ -76,9 +76,8 @@ func (r nonSecureUniqidUsage) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 func (nonSecureUniqidUsage) direct(ctx *analysis.Context, call *syntax.FuncCall) {
-	if call.Args == nil || !util.ResolvesToGlobalFunction(ctx.Names(), ctx.Index(), ctx.PHP, call, "uniqid") { // D1, E2
-		return
-	}
+	// D1, E2: Check only calls this for calls resolving to the global
+	// uniqid() (GlobalFunctionName); a call always has an argument list.
 	positional, named, spread := 0, false, false
 	var texts []string
 	for _, a := range call.Args.Args {

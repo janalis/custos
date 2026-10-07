@@ -89,33 +89,32 @@ func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 		}
 		return &callAsserts{asserts: m.Asserts, params: m.Params, ft: m.Tpl, cls: e.Index.Class(m.Class, e.PHP),
 			args: n.Args, recv: n.Var, origin: origin, recvArgs: recv.TypeArgs(`\` + origin)}
-	case *syntax.StaticCall:
-		id, ok := n.Name.(*syntax.Identifier)
-		if !ok || isFirstClassCallable(n.Args) {
-			return nil
-		}
-		cls := e.classRef(n.Class)
-		if cls == "" {
-			return nil
-		}
-		m := e.Index.FindMethod(cls, id.Value, e.PHP)
-		if m == nil || len(m.Asserts) == 0 {
-			return nil
-		}
-		ca := &callAsserts{asserts: m.Asserts, params: m.Params, ft: m.Tpl, cls: e.Index.Class(m.Class, e.PHP), args: n.Args, origin: cls}
-		if !m.Static {
-			// `self::isFoo()` / `parent::isFoo()` from an instance method
-			// calls it on $this.
-			if nm, ok := n.Class.(*syntax.Name); ok {
-				switch strings.ToLower(nm.Value) {
-				case "self", "static", "parent":
-					ca.recv = &syntax.Variable{Name: "this"}
-				}
+	}
+	n := x.(*syntax.StaticCall) // assertsOf admits only the three call kinds
+	id, ok := n.Name.(*syntax.Identifier)
+	if !ok || isFirstClassCallable(n.Args) {
+		return nil
+	}
+	cls := e.classRef(n.Class)
+	if cls == "" {
+		return nil
+	}
+	m := e.Index.FindMethod(cls, id.Value, e.PHP)
+	if m == nil || len(m.Asserts) == 0 {
+		return nil
+	}
+	ca := &callAsserts{asserts: m.Asserts, params: m.Params, ft: m.Tpl, cls: e.Index.Class(m.Class, e.PHP), args: n.Args, origin: cls}
+	if !m.Static {
+		// `self::isFoo()` / `parent::isFoo()` from an instance method
+		// calls it on $this.
+		if nm, ok := n.Class.(*syntax.Name); ok {
+			switch strings.ToLower(nm.Value) {
+			case "self", "static", "parent":
+				ca.recv = &syntax.Variable{Name: "this"}
 			}
 		}
-		return ca
 	}
-	return nil
+	return ca
 }
 
 // applyAsserts applies the assertions of kind in ca whose target is the
@@ -186,10 +185,9 @@ func (e *Env) assertedType(ca *callAsserts, a index.Assertion) (types.Type, bool
 // assertIs narrows t to the asserted type a: the members of t that belong
 // to a (a subclass of an asserted class, `true` for `bool`, arrays for
 // `iterable`…), or a itself when none does.
+// (The index drops `mixed` assertions and assertedType rejects bindings
+// to mixed, so a never contains mixed.)
 func (e *Env) assertIs(t, a types.Type) types.Type {
-	if a.Has("mixed") {
-		return t
-	}
 	var drop []string
 	for _, x := range t.Atoms() {
 		if !e.atomIn(x, a) {

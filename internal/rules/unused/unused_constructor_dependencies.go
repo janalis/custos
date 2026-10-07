@@ -56,7 +56,7 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 			continue
 		}
 		for _, it := range p.Props {
-			if it.Var != nil && it.Var.Name != "" {
+			if it.Var.Name != "" {
 				candidates[it.Var.Name] = true
 			}
 		}
@@ -109,9 +109,6 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 			continue
 		}
 		for _, it := range p.Props {
-			if it.Var == nil {
-				continue
-			}
 			name := it.Var.Name
 			refs := ctorRefs[name]
 			if !candidates[name] || used[name] || len(refs) == 0 {

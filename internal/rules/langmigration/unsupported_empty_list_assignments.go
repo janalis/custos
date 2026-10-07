@@ -41,8 +41,5 @@ func (unsupportedEmptyListAssignments) Check(ctx *analysis.Context, n syntax.Nod
 	default:
 		return
 	}
-	if span.End > n.Span().End {
-		return
-	}
 	ctx.Report(span, "Empty destructuring pattern: PHP 7+ rejects this with a fatal error.") // D3
 }

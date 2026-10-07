@@ -9,3 +9,6 @@ $fn = function ($p) use ($q) {
 foreach ($a as $i) {
     while (true) { $i++; break; }
 }
+for (;;) { break; }
+foreach ($a as $$name) {}
+foreach ($a as [$m, $m]) {}

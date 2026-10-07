@@ -130,18 +130,15 @@ func nextSibling(f *syntax.File, n syntax.Node) syntax.Node {
 	}
 	if isList {
 		// Statements close a block's children: index lookup instead of a
-		// scan (quadratic on long statement lists).
-		if i := syntax.StmtIndex(list, n); i >= 0 {
-			for _, s := range list[i+1:] {
-				if s != nil {
-					return s
-				}
+		// scan (quadratic on long statement lists). n is always one of the
+		// list's statements here (callers pass statements and clauses).
+		i := syntax.StmtIndex(list, n)
+		for _, s := range list[i+1:] {
+			if s != nil {
+				return s
 			}
-			return nil
 		}
-		if parent == nil {
-			return nil
-		}
+		return nil
 	}
 	var next syntax.Node
 	found := false

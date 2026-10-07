@@ -78,10 +78,7 @@ func (dynamicCallsToScopeIntrospection) Check(ctx *analysis.Context, n syntax.No
 	if lit == nil {
 		return
 	}
-	val, ok := util.StringLiteralValue(lit.Raw) // D5
-	if !ok {
-		return
-	}
+	val, _ := util.StringLiteralValue(lit.Raw) // D5
 	val = strings.TrimPrefix(val, `\`)
 	if !scopeSensitive[strings.ToLower(val)] {
 		return

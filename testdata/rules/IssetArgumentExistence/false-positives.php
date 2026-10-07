@@ -57,3 +57,9 @@ class Billing
     }
 }
 $top = $undefinedAtTop ?? 1;
+
+function assignedEarlier()
+{
+    $known = 1;
+    return isset($known);
+}

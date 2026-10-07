@@ -92,17 +92,13 @@ func criRemoveEdits(f *syntax.File, ext *syntax.Name, list []*syntax.Name, redun
 	for _, r := range redundant[idx+1:] {
 		keptAfter = keptAfter || !r
 	}
+	// The parser only continues a name list after a comma, so consecutive
+	// entries are always separated by one.
 	if keptAfter { // F2: entry plus the following comma
-		comma, ok := util.NextSignificant(f, entry.End)
-		if !ok || comma.Kind != syntax.TComma {
-			return nil
-		}
+		comma, _ := util.NextSignificant(f, entry.End)
 		return []analysis.TextEdit{{Span: syntax.Span{Start: entry.Start, End: comma.End}}}
 	}
 	// F3: the preceding comma plus the entry.
-	comma, ok := util.FindToken(f, syntax.Span{Start: list[idx-1].Span().End, End: entry.Start}, syntax.TComma)
-	if !ok {
-		return nil
-	}
+	comma, _ := util.FindToken(f, syntax.Span{Start: list[idx-1].Span().End, End: entry.Start}, syntax.TComma)
 	return []analysis.TextEdit{{Span: syntax.Span{Start: comma.Start, End: entry.End}}}
 }

@@ -131,6 +131,11 @@ type fixtureConfig struct {
 	PHP             string         `json:"php"`
 	ComparisonStyle string         `json:"comparisonStyle"`
 	Options         map[string]any `json:"options"` // OPTION -> value (rule prefix implied); bool/number/string
+	Calls           []string       `json:"calls"`   // list-option calls, e.g. `registerX("v")` (rule prefix implied)
+	// Companions are extra project files (paths relative to the rule
+	// directory, plain PHP, conventionally *.inc so they are not fixtures
+	// themselves) whose symbols are indexed next to the fixture.
+	Companions []string `json:"companions"`
 }
 
 // TestOwnFixtures checks testdata/rules/<RuleID>/*.php (with optional
@@ -178,10 +183,30 @@ func TestOwnFixtures(t *testing.T) {
 				}
 				opts := map[string]string{}
 				for k, v := range cfg.Options {
+					if list, ok := v.([]any); ok { // list option: passed as JSON
+						b, _ := json.Marshal(list)
+						opts[rule+"."+k] = string(b)
+						continue
+					}
 					opts[rule+"."+k] = fmt.Sprint(v)
 				}
+				var calls []string
+				for _, c := range cfg.Calls {
+					calls = append(calls, rule+"."+c)
+				}
 				fixed, _ := os.ReadFile(base + ".fixed" + ext)
-				req := Request{Path: f, Rules: []string{rule}, PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts}
+				req := Request{Path: f, Rules: []string{rule}, PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls}
+				for _, comp := range cfg.Companions {
+					p := filepath.Join(ownRoot, rule, comp)
+					src, err := os.ReadFile(p)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if req.Companions == nil {
+						req.Companions = map[string][]byte{}
+					}
+					req.Companions[p] = src
+				}
 				res, err := Check(engine, req, marked, fixed, CompareOptions{Messages: true})
 				if err != nil {
 					t.Fatal(err)

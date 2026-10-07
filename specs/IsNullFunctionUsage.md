@@ -134,6 +134,11 @@ $y = null === ($m ?: $n);
   namespaced calls like `App\is_null($v)` (a user function) are reported and
   rewritten. custos matches calls that resolve to the global `is_null` in any
   letter case and skips namespaced/shadowing user functions (D1).
-- No outer parentheses are added: in a tighter-binding context
-  (`'v=' . is_null($x)`) the rewrite changes meaning. Recommendation: wrap the
-  replacement in parentheses when the parent binds tighter than `===`.
+- **Parentheses (custos diverges):** upstream adds no outer parentheses, so
+  in a tighter-binding context (`'v=' . is_null($x)`, `is_null($x) == $y`)
+  the rewrite changes meaning or does not parse. custos wraps the fix text
+  (not the message) in parentheses when the target is an operand of a
+  binary operator other than `&&`, `||`, `and`, `or`, `xor`, `??`, of a
+  unary operator or of `instanceof`. *A* is also wrapped when it is a
+  low-precedence keyword expression (`include`, `print`, `yield`, `throw`,
+  arrow function): `is_null(include 'x.php')` → `(include 'x.php') === null`.

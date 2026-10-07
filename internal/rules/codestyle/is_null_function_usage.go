@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
+	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -56,8 +57,12 @@ func (isNullFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	a := ctx.Text(arg.Value)
 	switch arg.Value.(type) {
-	case *syntax.Assign, *syntax.Ternary, *syntax.Binary, *syntax.Instanceof:
+	case *syntax.Binary, *syntax.Instanceof:
 		a = "(" + a + ")"
+	default:
+		if util.NeedsParensAsEqualityOperand(arg.Value) { // assignments, ternaries, include, print…
+			a = "(" + a + ")"
+		}
 	}
 	op := "==="
 	if !positive {
@@ -68,7 +73,11 @@ func (isNullFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		repl = "null " + op + " " + a
 	}
 	span := target.Span()
-	ctx.Report(span, "Replace with '"+repl+"'.", analysis.Fix{
+	msg := "Replace with '" + repl + "'."
+	if isEmptyNeedsParens(target) { // `'v=' . $x === null` would compare the concatenation
+		repl = "(" + repl + ")"
+	}
+	ctx.Report(span, msg, analysis.Fix{
 		Title: "Replace with '" + repl + "'",
 		Edits: func() []analysis.TextEdit {
 			return []analysis.TextEdit{{Span: span, NewText: repl}}

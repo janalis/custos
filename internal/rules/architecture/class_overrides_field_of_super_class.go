@@ -60,7 +60,7 @@ func (classOverridesFieldOfSuperClass) Check(ctx *analysis.Context, n syntax.Nod
 		own = index.Protected
 	}
 	for _, item := range prop.Props {
-		if item.Var == nil || item.Var.Name == "" || item.Var.Span().Len() == 0 {
+		if item.Var.Name == "" { // recovered declaration without a variable
 			continue
 		}
 		found := util.PropertyInChain(ix, parent.FQN, item.Var.Name, ctx.PHP) // D4

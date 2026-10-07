@@ -21,9 +21,6 @@ func (nestedTernaryOperator) Check(ctx *analysis.Context, n syntax.Node) {
 	o := n.(*syntax.Ternary)
 	short := o.Then == nil
 	check := func(op syntax.Expr) {
-		if op == nil {
-			return
-		}
 		inner, ok := syntax.UnwrapParens(op).(*syntax.Ternary)
 		if !ok || inner.Span().Len() == 0 {
 			return

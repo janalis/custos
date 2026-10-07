@@ -9,3 +9,6 @@ function sizeOf($bag, $other) {
     $j = !is_array($bag) || $bag instanceof Countable;            // negated
     $k = is_array($bag, 1) || $bag instanceof Countable;          // argument count
 }
+function dynamicClass($bag, $cls) {
+    $l = is_array($bag) || $bag instanceof $cls;                 // class not a name
+}

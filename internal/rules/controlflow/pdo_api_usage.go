@@ -81,10 +81,7 @@ func pdoPrepareResolves(ctx *analysis.Context, call *syntax.MethodCall) bool {
 		if m == nil {
 			continue
 		}
-		decl := m.Class
-		if decl == "" {
-			decl = c
-		}
+		decl := m.Class // always set by the index extractor
 		dc := ix.Class(decl, ctx.PHP)
 		if dc == nil || dc.Kind == syntax.KindTrait {
 			continue

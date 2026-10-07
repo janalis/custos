@@ -82,9 +82,6 @@ func npeObjectOnly(t types.Type) bool {
 }
 
 func (u *npeUnit) declaredType(n syntax.Expr) types.Type {
-	if n == nil {
-		return types.Unknown
-	}
 	at := n.Span().Start
 	return types.FromNode(n, func(w string) string { return u.ctx.Names().Class(w, at) })
 }
@@ -117,9 +114,8 @@ func (u *npeUnit) strategyChains() {
 	if af, ok := u.fn.(*syntax.ArrowFunction); ok {
 		root = af.Expr
 	}
-	if root == nil || isNilBlock(root) {
-		return
-	}
+	// root is never nil: methods without a body are skipped, functions and
+	// closures always have one, arrow functions an expression.
 	var tested []syntax.Node
 	syntax.Inspect(root, func(n syntax.Node) bool {
 		mc, ok := n.(*syntax.MethodCall)
@@ -160,25 +156,14 @@ func (u *npeUnit) chainBaseType(x syntax.Expr) types.Type {
 	if !ok || !mc.NullSafe || !t.Has("null") {
 		return t
 	}
-	id, ok := mc.Name.(*syntax.Identifier)
-	if !ok {
-		return t
-	}
+	name := npeMemberName(mc.Name) // "" (no method) for a dynamic name
 	for _, cls := range u.ctx.TypeOf(mc.Var).Classes() {
-		m := u.ctx.Index().FindMethod(strings.TrimPrefix(cls, `\`), id.Value, u.ctx.PHP)
-		if m == nil {
-			return t
-		}
-		if types.FromDoc(m.Return, nil).HasAny("null", "void") || types.FromDoc(m.DocReturn, nil).HasAny("null", "void") {
+		m := u.ctx.Index().FindMethod(strings.TrimPrefix(cls, `\`), name, u.ctx.PHP)
+		if m == nil || types.FromDoc(m.Return, nil).HasAny("null", "void") || types.FromDoc(m.DocReturn, nil).HasAny("null", "void") {
 			return t
 		}
 	}
 	return t.Without("null")
-}
-
-func isNilBlock(n syntax.Node) bool {
-	b, ok := n.(*syntax.Block)
-	return ok && b == nil
 }
 
 // npeNullTested reports whether call is used as a null test.
@@ -288,9 +273,7 @@ func (u *npeUnit) nullableAssign(a *syntax.Assign, name string) bool {
 	if !t.HasAny("null", "void") || !npeObjectOnly(t) {
 		return false
 	}
-	if a.Op.Kind != syntax.TEqual {
-		return true
-	}
+	// a is a plain `=` assignment (both callers check it)
 	stmt, ok := a.Parent().(*syntax.ExprStmt)
 	if !ok {
 		return true
@@ -400,10 +383,7 @@ func npeArgCall(v syntax.Expr) (syntax.Node, int) {
 	if !ok || arg.Value != v {
 		return nil, -1
 	}
-	list, ok := arg.Parent().(*syntax.ArgList)
-	if !ok {
-		return nil, -1
-	}
+	list := arg.Parent().(*syntax.ArgList) // arguments only live in argument lists
 	idx := -1
 	for i, a := range list.Args {
 		if a == syntax.Expr(arg) {
@@ -532,18 +512,14 @@ func npeChainedNotNull(call syntax.Node) bool {
 	cur := call
 	for {
 		var nm string
+		object := false // cur is the object of its parent call
 		switch mc := cur.Parent().(type) {
 		case *syntax.MethodCall:
-			if mc.Var != cur {
-				return false
-			}
-			nm = npeMemberName(mc.Name)
+			object, nm = mc.Var == cur, npeMemberName(mc.Name)
 		case *syntax.StaticCall:
-			if mc.Class != cur {
-				return false
-			}
-			nm = npeMemberName(mc.Name)
-		default:
+			object, nm = mc.Class == cur, npeMemberName(mc.Name)
+		}
+		if !object {
 			return false
 		}
 		if strings.EqualFold(nm, "notNull") {

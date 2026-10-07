@@ -75,7 +75,7 @@ the correct behaviour are in the rule spec's *Divergences* section.
 | ClassConstantCanBeUsed | `class-name-constant-ns.php` | get_parent_class() in a class without extends is not rewritten to parent::class (fatal error) |
 | ConstantCanBeUsed | `constants-usage.php` | get_class() outside a class is not rewritten to __CLASS__ (empty there); version_compare(..., '7.1', '==') not rewritten (patch level makes it non-equivalent) |
 | DuplicateArrayKeys | `duplicate-array-keys.php` | keys are compared as PHP stores them (escapes decoded, '7' == 7, any integer base); duplicate integer keys are reported too |
-| ForeachInvariants | `foreach-invariants.php` | upstream's IDE formatter re-spaces an untouched inner for header (custos copies the body verbatim); additionally a limit variable reused by several loops is resolved from the assignment reaching each loop (one extra report) |
+| ForeachInvariants | `foreach-invariants.php` | upstream's IDE formatter re-spaces an untouched inner for header (custos copies the body verbatim); additionally a limit variable reused by several loops is resolved from the assignment reaching each loop (one extra report); loops whose counter or header-assigned limit is mentioned after the loop are not reported (two fewer reports) |
 | GetDebugTypeCanBeUsed | `get_debug_type.php` | reported without a fix: get_debug_type() names differ from gettype() for scalars (int/integer, float/double, null/NULL) |
 | InstanceofCanBeUsed | `instanceof-can-be-used.php` | only exact equivalents get a fix (is_a, get_class on a final class, class_implements with an interface literal on an object); get_parent_class/is_subclass_of/class_parents and non-final get_class are reported without a fix |
 | InvertedIfElseConstructs | `if-inverted-condition-else-normalization.php` | for a bool operand the fix emits x() instead of false !== x() |
@@ -155,6 +155,63 @@ also applied with `custos fix --all` on a copy (`php -l` clean).
 | ClassOverridesFieldOfSuperClass | `protected $table = 'invoices';` / `protected bool $skipScalars = true;` (default overrides) told to drop the re-declaration. | Only re-declarations with the same default. corpus C/vendor 371 → 58, corpus D/vendor 141 → 29, corpus B 36 → 30. |
 | PropertyInitializationFlaws | Typed `private array $items = [];` default removed (uninitialised for objects built without the constructor); static re-declarations (own storage) reported; S told to remove the default (which yields null, not the inherited value). | Pattern O skipped for typed properties; S skipped for static properties and its message now says to drop the re-declaration. corpus D/vendor 62 → 23. |
 | RedundantElseClause | Moved code started at column 0. | Indented like the `if` (cosmetic). |
+
+**Coverage audit (2026-10-07).** Own fixtures were extended until every
+statement of `internal/rules` is executed by `TestOwnFixtures` (90.3% →
+99.99%; the single remaining statement, SecurityAdvisories'
+`FilePatterns()`, is called only by the CLI and is covered by a unit test).
+Unreachable branches were removed (nil/zero-span guards on nodes the parser
+always fills, re-checks already implied by `GlobalFunctionName`, fallbacks
+after lookups that cannot fail); guards against error-recovery trees stay and
+are each exercised by a broken-PHP fixture (`broken*.php`, `recovery.php`,
+`bad-*/composer.json`). Bugs found in previously untested branches (each with
+a spec Divergences entry and fixtures; no EA conformance outcome changed;
+findings on corpus A `src/` and corpus B unchanged):
+
+| Rule | Was | Now |
+|---|---|---|
+| ArgumentUnpackingCanBeUsed | `call_user_func_array('', $a)`, `'my fmt'`, `'1fmt'`, `'Cls::m'` rewritten to invalid calls. | Only identifier paths (optionally `\`-qualified) are reported. |
+| NullCoalescingOperatorCanBeUsed | `!empty($c) ? $c::$p : null` → `$c::$p ?? null` (throws for `''`/null: `??` does not guard the class lookup). | Static form only when the probe is known to hold objects. |
+| ForeachInvariants | Fix dropped the braces of interpolated `{$c[$i]}abc` / `"$c[$i][0]"` (reads another variable / an offset); counter or header-assigned limit read after the loop (search loop + `if ($i == count($a))`, `echo $n`) still rewritten; fix panicked on an unterminated string at end of file (fuzz). | `{$iValue}` when the string continues the name; such loops not reported (D8c/E9, listed divergence updated: two fewer EA reports); EOF guarded. |
+| StrTrUsageAsStrReplace | Heredoc/nowdoc arguments decoded with quoted-string escapes (`\'` in a nowdoc is two characters). | Heredoc: double-quoted rules except `\"`; nowdoc: no escapes. |
+| StringNormalization | D4 trim lists: heredoc/nowdoc always accepted, `b'…'` taken for a heredoc, interpolated strings judged by source text, ranges (`'@..Z'`) covering letters ignored. | Bodies decoded, interpolation skipped, letter ranges count as letters. |
+| TypeUnsafeComparison | Class with an unresolvable parent/interface/trait reported as lacking `__toString()`. | Skipped (the missing ancestor may declare it). |
+| PropertyInitializationFlaws | `protected $kind = self::KIND;` in a child overriding `KIND` reported as repeating the parent default. | `self`/`parent` resolved against the declaring class. |
+| CurlSslServerSpoofing | Destructuring keys (`[CURLOPT_SSL_VERIFYPEER => $peer] = $opts`, `list()`, foreach targets) reported as option writes. | Destructuring patterns ignored (E2). |
+| SecurityAdvisories | Escaped JSON keys (`"roave\/security-advisories"`) not recognised (`strconv.Unquote`). | Decoded with `encoding/json`. |
+| MockingMethodsCorrectness | Heredoc/nowdoc method names with an indented closing marker kept their indentation (reported as missing). | Indentation stripped (D9). |
+| UnnecessaryAssertion | `assertInternalType('resource', f())` with `f(): resource` (a class named resource) reported. | `resource` never reported. |
+| StaticLambdaBinding | `#[Pure] static fn () => $this` missed (looked for `static` as the first token). | `static` searched after attributes. |
+| MkdirRaceCondition | `mkdir(...);` (first-class callable) reported; fix produced `mkdir($concurrentDirectory = ...)` (parse error). | Skipped. |
+| SuspiciousBinaryOperation | D6 never fired for a declared return type without `@return` (`types.Union` with an unknown side is unknown). | Unknown parts dropped, as the spec says. |
+| UnnecessaryCasting | Objects of user classes named `Integer`/`Boolean` counted as int/bool (cast removed). | Only the scalar types. |
+| CascadeStringReplacement | "All searched items identical" compared keys, not values (`['x'=>'a','y'=>'a']` missed, `['-1'=>'a']` fixed to search `'-1'`). | Values compared. |
+| DisallowWritingIntoStaticProperties | Methods of anonymous classes never checked. | Checked (incl. used traits). |
+| IsEmptyFunctionUsage | `empty($a ?? $b)` → `$a ?? $b === null`. | Low-precedence subjects parenthesised. |
+| IsNullFunctionUsage | No outer parentheses: `'v=' . is_null($x)` changed meaning, `is_null($x) == $y` became a parse error. | Wrapped in tighter contexts (and include/print/yield operands). |
+| StaticClosureCanBeUsed | Closures assigned to a property, array element, static property or via `??=` reported (may be bound later). | Treated as escaping. |
+| NotOptimalRegularExpressions | D22 recommendations unimplemented: numeric comparisons misread (`1 > C`, `C <= 0`, `== 2`), calls inside arithmetic/casts/`@` rewritten, missing parentheses, D22d replaced the enclosing comparison, `A`/anchored-`m` patterns, unsafe explode/trim characters. | Implemented as specified. |
+
+Coverage is kept at 100%: `make coverage` (part of `make verify`) fails on any
+statement of `internal/rules` not executed by own fixtures or the rule
+packages' tests (the EA run and local corpora do not count).
+
+Parser bug reported by the audit: a close tag right after a control header
+(`if ($a) ?>html`, also `while`/`for`/`foreach`) was a syntax error; PHP
+treats it as `;` (empty body, the HTML is the next statement). Parsed as an
+empty `Nop` body now; MissingOrEmptyGroupStatement's fix inserts `{} ` before
+the tag instead of wrapping it (which produced unbalanced braces).
+
+Harness: own-fixture `.json` sidecars gained `companions` (extra `.inc`
+files indexed with the fixture), `calls` (EA list-option calls such as
+`registerCustomDebugMethod`) and JSON-array list options.
+Engine/infer: `Analyze`'s retry loop has no unreachable exit; option
+accessors, severity overrides, rule selection, panic propagation and nested
+suppressions have unit tests; `resolveAsserts`, `assertIs` (mixed is never
+asserted) and `computeProp` (initial value always present) lost unreachable
+branches; method templates, assertions and untyped-property writes gained
+edge-case tests. Known gap (outside this audit): the parser rejects
+`if ($a) ?>html<?php` (valid PHP) and gives the `if` an empty body.
 
 ## Engine
 
@@ -674,3 +731,7 @@ an editor), so hostile input must not crash or hang it.
 - `make cleanroom` flagged PHPUnit API names stored as `Class.method` keys in
   ClassMockingCorrectness (mirroring upstream's key format); restructured as
   class/method pairs.
+- Coverage audit (2026-10-07): `make cleanroom` flagged
+  a one-line `switch` whose case repeats its subject in a new own fixture
+  (ForeachInvariants `shapes.fixed.php`, written from the spec; a generic
+  coincidence). The fixture was reworded.

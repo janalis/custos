@@ -149,3 +149,8 @@ class Widget extends Base {
   stops at the first offending `$this`/`parent::` of a function, leaving
   the others unmarked. custos reports each one; they share the single fix
   (removing `static`).
+- **Attributed closures (custos fix).** D2 looks for the `static` keyword
+  after the function's attributes: `#[Pure] static fn () => $this->x` is
+  reported like the unattributed form (the attribute groups are not part of
+  the check; the fix removes only `static`). An earlier custos version
+  compared the function's first token, which is `#[` there, and missed it.

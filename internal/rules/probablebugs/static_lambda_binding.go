@@ -29,22 +29,26 @@ func (staticLambdaBinding) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	var root syntax.Node
+	var attrs []*syntax.AttributeGroup
 	switch f := n.(type) {
 	case *syntax.Closure:
 		if !f.Static || f.Body == nil {
 			return
 		}
-		root = f.Body
+		root, attrs = f.Body, f.Attrs
 	case *syntax.ArrowFunction:
 		if !f.Static || f.Expr == nil {
 			return
 		}
-		root = f.Expr
+		root, attrs = f.Expr, f.Attrs
 	}
-	kw, ok := util.NextSignificant(ctx.File, n.Span().Start) // D2
-	if !ok || kw.Kind != syntax.TStatic || kw.Start != n.Span().Start {
-		return
+	// D2: the parser set Static, so the first token after the attributes
+	// (if any) is the `static` keyword.
+	start := n.Span().Start
+	if len(attrs) > 0 {
+		start = attrs[len(attrs)-1].Span().End
 	}
+	kw, _ := util.NextSignificant(ctx.File, start)
 
 	fix := analysis.Fix{Title: "Remove 'static'", Edits: func() []analysis.TextEdit {
 		return []analysis.TextEdit{{Span: util.WithTrailingWhitespace(ctx.File, syntax.Span{Start: kw.Start, End: kw.End})}}
@@ -70,13 +74,11 @@ func (staticLambdaBinding) Check(ctx *analysis.Context, n syntax.Node) {
 // nearest enclosing function-like, skipping non-static arrow functions,
 // which inherit the binding of the scope they are defined in.
 func staticLambdaOwner(n syntax.Node) syntax.Node {
-	for f := syntax.EnclosingFuncLike(n); f != nil; f = syntax.EnclosingFuncLike(f) {
-		if af, ok := f.(*syntax.ArrowFunction); ok && !af.Static {
-			continue
-		}
-		return f
+	f := syntax.EnclosingFuncLike(n)
+	for af, ok := f.(*syntax.ArrowFunction); ok && !af.Static; af, ok = f.(*syntax.ArrowFunction) {
+		f = syntax.EnclosingFuncLike(f)
 	}
-	return nil
+	return f
 }
 
 func staticLambdaParentInstanceCall(ctx *analysis.Context, c *syntax.StaticCall) bool {

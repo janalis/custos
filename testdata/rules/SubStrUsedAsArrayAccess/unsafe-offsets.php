@@ -10,3 +10,7 @@ function grab(string $word, int $back, string $pos, $loose, int|string $either)
     $f = substr($word, 1.5, 1);
     return [$a, $b, $c, $d, $e, $f];
 }
+
+function decremented(string $s, int $i) {
+    return substr($s, --$i, 1);
+}

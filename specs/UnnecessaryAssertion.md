@@ -63,7 +63,7 @@ resolved and there is no test-context check.
     | `scalar`                       | `int`, `float`, `string`, `bool`, `true`, `false` |
     | `null`                         | `null`, `void`                       |
     | `object`                       | `object`, any class                  |
-    | `resource`                     | `resource`                           |
+    | `resource`                     | nothing (see Divergences)            |
     | `callable`                     | `callable`, `\Closure`               |
     | `iterable`                     | `iterable`, `array`, `X[]`           |
 
@@ -256,6 +256,11 @@ abstract class CartTest
 ```
 
 ## Divergences
+- **`resource` (custos diverges).** A native return type `resource` names a
+  class called `resource` (PHP has no resource type declaration), so a
+  function declared `: resource` returns an object and
+  `assertInternalType('resource', f())` is not redundant; custos never
+  reports the `resource` type name.
 - **Case of method names (custos diverges from upstream).** Upstream
   compares the assertion, `expects` and `any` names case-sensitively, so
   `$this->AssertNull($this->clear())` is not reported although PHP calls the

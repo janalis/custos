@@ -331,9 +331,8 @@ func (e *Env) computeProp(p *index.Property, c *index.Class) types.Type {
 	for _, a := range w.compound {
 		ts = append(ts, e.TypeOf(a))
 	}
-	if len(ts) == 0 {
-		return types.Unknown
-	}
+	// ts is never empty: the initial value is added unless the constructor
+	// sets the property, which records a value.
 	t := types.Union(ts...)
 	if t.IsUnknown() || t.Has("mixed") {
 		return types.Unknown

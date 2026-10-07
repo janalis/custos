@@ -79,12 +79,12 @@ func (issetArgumentExistence) candidate(ctx *analysis.Context, e syntax.Expr) {
 		}
 		return true
 	})
-	if first == nil {
+	if first == nil { // only in broken code (error recovery), e.g. `isset$x`
 		return
 	}
 	if first != v {
 		a, ok := first.Parent().(*syntax.Assign)
-		if !ok || !a.Span().Contains(v.Span()) || !isAncestor(a, v) {
+		if !ok || !isAncestor(a, v) {
 			return
 		}
 	}
@@ -122,9 +122,6 @@ func isAncestor(anc, n syntax.Node) bool {
 func assignsPlainVar(root syntax.Node, name string) bool {
 	found := false
 	syntax.Inspect(root, func(c syntax.Node) bool {
-		if found {
-			return false
-		}
 		if a, ok := c.(*syntax.Assign); ok {
 			if t, ok := a.Var.(*syntax.Variable); ok && t.NameExpr == nil && t.Name == name {
 				found = true

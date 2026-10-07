@@ -39,7 +39,7 @@ func (referencingObjects) checkParam(ctx *analysis.Context, p *syntax.Param) {
 	default:
 		return
 	}
-	if !p.ByRef || p.Default != nil || p.Var == nil || p.Var.NameExpr != nil || p.Type == nil { // D2/D3
+	if !p.ByRef || p.Default != nil || p.Var.NameExpr != nil || p.Type == nil { // D2/D3
 		return
 	}
 	if scalarOnlyType(p.Type) {
@@ -83,15 +83,8 @@ func scalarOnlyType(t syntax.Expr) bool {
 			}
 		}
 		return true
-	case *syntax.IntersectionType:
-		for _, m := range x.Types {
-			if !scalarOnlyType(m) {
-				return false
-			}
-		}
-		return true
 	}
-	return false
+	return false // intersection members are always classes
 }
 
 // usedAsReference reports whether the parameter is assigned to or used as a

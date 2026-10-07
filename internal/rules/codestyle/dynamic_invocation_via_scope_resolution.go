@@ -34,17 +34,11 @@ func (dynamicInvocationViaScopeResolution) Check(ctx *analysis.Context, n syntax
 	}
 	ix := ctx.Index()
 	m := ix.FindMethod(cls, id.Value, ctx.PHP)
-	if m == nil || m.Static || m.Abstract {
-		return
-	}
-	if decl := ix.Class(m.Class, ctx.PHP); decl == nil || decl.Kind == syntax.KindInterface {
+	if m == nil || m.Static || m.Abstract { // interface methods are indexed abstract
 		return
 	}
 	classSpan := call.Class.Span()
-	colons, ok := util.FindToken(ctx.File, syntax.Span{Start: classSpan.End, End: id.Span().Start}, syntax.TPaamayimNekudotayim)
-	if !ok {
-		return
-	}
+	colons, _ := util.FindToken(ctx.File, syntax.Span{Start: classSpan.End, End: id.Span().Start}, syntax.TPaamayimNekudotayim)
 	colonsSpan := syntax.Span{Start: colons.Start, End: colons.End}
 	instanceMsg := "Call '" + id.Value + "' on an instance with '->' instead of '::'."
 	left := ctx.SpanText(classSpan)

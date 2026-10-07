@@ -20,10 +20,10 @@ func (elvisOperatorCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if t.Cond == nil || t.Then == nil || t.Else == nil { // D1, D2
 		return
 	}
-	span := t.Span()
-	if span.Len() == 0 || t.Else.Span().Len() == 0 {
+	if t.Else.Span().Len() == 0 { // error recovery: missing else branch
 		return
 	}
+	span := t.Span()
 	if !util.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(t.Cond), syntax.UnwrapParens(t.Then)) { // D3
 		return
 	}

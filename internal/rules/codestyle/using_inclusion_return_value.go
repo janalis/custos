@@ -20,9 +20,6 @@ func (usingInclusionReturnValue) Kinds() []syntax.NodeKind {
 }
 
 func (usingInclusionReturnValue) Check(ctx *analysis.Context, n syntax.Node) {
-	if n.Span().Len() == 0 {
-		return
-	}
 	parent := n.Parent()
 	for { // D2: look through `@` and parentheses
 		if u, ok := parent.(*syntax.Unary); ok && u.Op.Kind == syntax.TAt {

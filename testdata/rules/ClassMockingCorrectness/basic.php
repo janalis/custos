@@ -59,6 +59,13 @@ namespace {
             $this->getMockBuilder(Relaxed::class)->getMock();
             $this->getMockBuilder(Spread::class)->getMock();
             $this->getMockBuilder(Gateway::class)->disableOriginalConstructor()->getMock();
+            parent::createMock(<error descr="Final classes cannot be mocked.">Sealed::class</error>);
+            $m = 'createMock';
+            $this->$m(Sealed::class);
+            $this->createMock(...[Sealed::class]);
+            $this->createMock(Sealed::LIMIT);
+            $this->createMock($other::class);
+            $this->getMockBuilder(<error descr="Final classes cannot be mocked.">Sealed::class</error>)->$m();
         }
     }
 
@@ -69,6 +76,8 @@ namespace {
     class GatewaySpec extends \PhpSpec\ObjectBehavior
     {
         function it_charges(<error descr="Final classes cannot be mocked.">Sealed</error> $card, Relaxed $log, ?<error descr="Final classes cannot be mocked.">Sealed</error> $maybe, int $n, $limit = Sealed::LIMIT) {}
+        private $state;
+        function it_unions(<error descr="Final classes cannot be mocked.">Sealed</error>|Relaxed $first) {}
         function it_limits($max = Sealed::LIMIT, Relaxed|<error descr="Final classes cannot be mocked.">Sealed</error> $either = Sealed::DEFAULT) {}
     }
 

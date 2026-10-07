@@ -65,21 +65,18 @@ func reportIssetArg(ctx *analysis.Context, m syntax.Expr, last bool) {
 	ctx.Report(span, "Redundant isset() argument: a deeper array access already covers it.", analysis.Fix{
 		Title: "Remove the argument",
 		Edits: func() []analysis.TextEdit {
+			// isset() arguments are always comma-separated (the parser
+			// stops at a missing comma), and a trailing redundant argument
+			// is never the first one (the covering access is kept).
 			del := span
 			if !last { // F1
-				comma, ok := util.NextSignificant(f, span.End)
-				if !ok || comma.Kind != syntax.TComma {
-					return nil
-				}
+				comma, _ := util.NextSignificant(f, span.End)
 				del.End = comma.End
 				del = util.WithTrailingWhitespace(f, del)
 			} else { // F2
 				i := util.TokenIndex(f, span.Start) - 1
-				for i >= 0 && f.Tokens[i].Kind.IsTrivia() {
+				for f.Tokens[i].Kind.IsTrivia() {
 					i--
-				}
-				if i < 0 || f.Tokens[i].Kind != syntax.TComma {
-					return nil
 				}
 				del.Start = f.Tokens[i].Start
 			}

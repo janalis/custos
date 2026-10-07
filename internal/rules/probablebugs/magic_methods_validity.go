@@ -74,8 +74,8 @@ func (c *magicCheck) report(msg string, fixes ...analysis.Fix) {
 
 func (magicMethodsValidity) Check(ctx *analysis.Context, n syntax.Node) {
 	m := n.(*syntax.Method)
-	cl, ok := m.Parent().(*syntax.ClassLike)
-	if !ok || m.Name == nil || m.Name.Span().Len() == 0 || !strings.HasPrefix(m.Name.Value, "_") {
+	cl := m.Parent().(*syntax.ClassLike)       // methods only appear in class bodies
+	if !strings.HasPrefix(m.Name.Value, "_") { // also skips recovery (empty) names
 		return
 	}
 	if cl.ClassKind == syntax.KindInterface || m.Modifiers.Has(syntax.TAbstract) {

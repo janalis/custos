@@ -169,7 +169,9 @@ func (e *Engine) Config() Config { return e.cfg }
 func (e *Engine) Analyze(f *syntax.File) []Finding {
 	var disabled map[int]bool
 	var internal []Finding
-	for attempt := 0; attempt <= len(e.rules); attempt++ {
+	// Terminates: each crash disables a distinct rule, and a run with every
+	// rule disabled cannot crash.
+	for {
 		findings, crashed, msg := e.analyzeOnce(f, disabled)
 		if crashed < 0 {
 			return append(internal, findings...)
@@ -181,7 +183,6 @@ func (e *Engine) Analyze(f *syntax.File) []Finding {
 		internal = append(internal, Finding{Rule: "internal", Severity: meta.SeverityError,
 			Message: fmt.Sprintf("custos rule %s crashed on this file and was skipped: %s", e.rules[crashed].meta.ID, msg)})
 	}
-	return internal
 }
 
 // analyzeOnce runs the rules not in disabled. When a rule panics it returns

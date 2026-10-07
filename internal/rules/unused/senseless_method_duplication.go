@@ -96,10 +96,7 @@ func (senselessMethodDuplication) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 func smdVisibility(mods syntax.Modifiers) index.Visibility {
-	switch {
-	case mods.Has(syntax.TPrivate):
-		return index.Private
-	case mods.Has(syntax.TProtected):
+	if mods.Has(syntax.TProtected) { // private methods are skipped by D1
 		return index.Protected
 	}
 	return index.Public
@@ -170,9 +167,6 @@ func smdSymbols(ctx *analysis.Context, body *syntax.Block, class string) (map[st
 				classRef(x)
 			}
 		case *syntax.ConstFetch:
-			if x.Name == nil {
-				return true
-			}
 			switch low := strings.ToLower(strings.TrimPrefix(x.Name.Value, `\`)); low {
 			case "true", "false", "null":
 				out["k:"+low] = true
@@ -203,17 +197,14 @@ func smdSymbols(ctx *analysis.Context, body *syntax.Block, class string) (map[st
 	return out, ok
 }
 
-// smdTouchesPrivate reports $this->/self:: accesses in body resolving to a
-// private member, seen from class (D9).
+// smdTouchesPrivate reports $this->/$this:: accesses in body resolving to a
+// private member, seen from class (D9). Literal self:: accesses never get
+// here: D8 already resolves self to a different class in child and parent.
 func smdTouchesPrivate(ctx *analysis.Context, body *syntax.Block, class string) bool {
 	ix := ctx.Index()
 	isThis := func(e syntax.Expr) bool {
 		v, ok := e.(*syntax.Variable)
 		return ok && v.Name == "this"
-	}
-	isSelf := func(e syntax.Expr) bool {
-		nm, ok := e.(*syntax.Name)
-		return ok && strings.EqualFold(nm.Value, "self")
 	}
 	ident := func(e syntax.Expr) string {
 		if id, ok := e.(*syntax.Identifier); ok {
@@ -238,17 +229,17 @@ func smdTouchesPrivate(ctx *analysis.Context, body *syntax.Block, class string) 
 				priv = p != nil && p.Visibility == index.Private
 			}
 		case *syntax.StaticCall:
-			if (isThis(x.Class) || isSelf(x.Class)) && ident(x.Name) != "" {
+			if isThis(x.Class) && ident(x.Name) != "" {
 				mm := ix.FindMethod(class, ident(x.Name), ctx.PHP)
 				priv = mm != nil && mm.Visibility == index.Private
 			}
 		case *syntax.ClassConstFetch:
-			if (isThis(x.Class) || isSelf(x.Class)) && ident(x.Name) != "" {
+			if isThis(x.Class) && ident(x.Name) != "" {
 				k := ix.FindConst(class, ident(x.Name), ctx.PHP)
 				priv = k != nil && k.Visibility == index.Private
 			}
 		case *syntax.StaticPropertyFetch:
-			if v, ok := x.Name.(*syntax.Variable); ok && (isThis(x.Class) || isSelf(x.Class)) && v.Name != "" {
+			if v, ok := x.Name.(*syntax.Variable); ok && isThis(x.Class) && v.Name != "" {
 				p := ix.FindProperty(class, v.Name, ctx.PHP)
 				priv = p != nil && p.Visibility == index.Private
 			}
@@ -262,9 +253,6 @@ func smdTouchesPrivate(ctx *analysis.Context, body *syntax.Block, class string) 
 func smdDelegateEdits(ctx *analysis.Context, m *syntax.Method) []analysis.TextEdit {
 	args := make([]string, 0, len(m.Params))
 	for _, p := range m.Params {
-		if p.Var == nil {
-			return nil
-		}
 		a := "$" + p.Var.Name
 		if p.Variadic {
 			a = "..." + a

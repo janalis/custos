@@ -60,14 +60,9 @@ func (subStrUsedAsStrPos) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
-	var other syntax.Expr
-	switch {
-	case b.Left == subject:
-		other = b.Right
-	case b.Right == subject:
+	other := b.Right
+	if b.Right == subject {
 		other = b.Left
-	default:
-		return
 	}
 	if !prefixLengthMatches(ctx, name, args[2], other) { // D7
 		return

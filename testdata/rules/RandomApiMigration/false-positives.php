@@ -7,4 +7,5 @@ namespace Game {
     $d = Dice::srand();
     $e = mt_srand();
     $f = mt_getrandmax();
+    $g = $rand(1, 2);
 }

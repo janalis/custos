@@ -29,9 +29,6 @@ func (foreachInvariants) Kinds() []syntax.NodeKind {
 }
 
 func (r foreachInvariants) Check(ctx *analysis.Context, n syntax.Node) {
-	if n.Span().Len() == 0 {
-		return
-	}
 	switch x := n.(type) {
 	case *syntax.For:
 		r.counterLoop(ctx, x)
@@ -142,9 +139,6 @@ func (foreachInvariants) counterLoop(ctx *analysis.Context, l *syntax.For) {
 	if !ok || !ctx.IsGlobalFunctionCall(cnt, "count") {
 		return
 	}
-	if _, isName := cnt.Name.(*syntax.Name); !isName {
-		return
-	}
 	args, ok := util.CallArgValues(cnt)
 	if !ok || len(args) != 1 || !util.EquivalentFoldNames(ctx.File, args[0], container) {
 		return
@@ -191,11 +185,15 @@ func (foreachInvariants) counterLoop(ctx *analysis.Context, l *syntax.For) {
 			return
 		}
 	}
-	kw, ok := util.NextSignificant(ctx.File, l.Span().Start)
-	if !ok {
+	// D8c: the counter, or a limit assigned in the header, read after the loop
+	// would see the foreach's leftovers instead of the final for values.
+	if foreachInvUsedAfter(ctx.File, l, counter.Name) {
 		return
 	}
-	ctx.Report(syntax.Span{Start: kw.Start, End: kw.End}, foreachInvCounterMsg, analysis.Fix{
+	if lv, ok := ruleSimpleVar(lim); ok && foreachInvHeaderAssigns(l, lv.Name) && foreachInvUsedAfter(ctx.File, l, lv.Name) {
+		return
+	}
+	ctx.Report(keywordSpan(ctx, l), foreachInvCounterMsg, analysis.Fix{
 		Title: "Convert to foreach",
 		Edits: func() []analysis.TextEdit {
 			return counterLoopFix(ctx, l, body, counter, container, limit)
@@ -208,7 +206,11 @@ func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, co
 	cName := "$" + counter.Name
 	valName := cName + "Value"
 	// F1.1: qualifying accesses.
-	var repl []syntax.Span
+	type piece struct {
+		sp   syntax.Span
+		text string
+	}
+	var repl []piece
 	var replaced []syntax.Node
 	syntax.Inspect(body, func(x syntax.Node) bool {
 		d, ok := x.(*syntax.ArrayDimFetch)
@@ -221,23 +223,29 @@ func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, co
 		if !accessReplaceable(ctx, d) {
 			return true
 		}
-		sp := d.Span()
-		if _, inStr := d.Parent().(*syntax.InterpolatedString); inStr &&
-			sp.Start > 0 && ctx.Src[sp.Start-1] == '{' && int(sp.End) < len(ctx.Src) && ctx.Src[sp.End] == '}' {
-			sp = syntax.Span{Start: sp.Start - 1, End: sp.End + 1}
+		sp, text := d.Span(), valName
+		if _, inStr := d.Parent().(*syntax.InterpolatedString); inStr {
+			if ctx.Src[sp.Start-1] == '{' && ctx.Src[sp.End] == '}' {
+				sp = syntax.Span{Start: sp.Start - 1, End: sp.End + 1}
+			}
+			// "{$c[$i]}abc", "$c[$i][0]", "{$c[$i]}->p": a bare $iValue
+			// would absorb the following characters.
+			if interpolationContinues(ctx.Src[sp.End:]) {
+				text = "{" + valName + "}"
+			}
 		}
-		repl = append(repl, sp)
+		repl = append(repl, piece{sp, text})
 		replaced = append(replaced, d)
 		return false
 	})
-	sort.Slice(repl, func(i, j int) bool { return repl[i].Start < repl[j].Start })
+	sort.Slice(repl, func(i, j int) bool { return repl[i].sp.Start < repl[j].sp.Start })
 	bs := body.Span()
 	var b strings.Builder
 	pos := bs.Start
-	for _, sp := range repl {
-		b.Write(ctx.Src[pos:sp.Start])
-		b.WriteString(valName)
-		pos = sp.End
+	for _, r := range repl {
+		b.Write(ctx.Src[pos:r.sp.Start])
+		b.WriteString(r.text)
+		pos = r.sp.End
 	}
 	b.Write(ctx.Src[pos:bs.End])
 	// F1.3: does the counter remain in the body?
@@ -269,6 +277,19 @@ func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, co
 		}
 	}
 	return edits
+}
+
+// interpolationContinues reports whether the string text after a simple
+// interpolated variable would be read as part of it (an identifier
+// character, an offset or a property access). rest is empty only for an
+// unterminated string at the end of the file (fuzz).
+func interpolationContinues(rest []byte) bool {
+	if len(rest) == 0 {
+		return false
+	}
+	c := rest[0]
+	return c == '_' || c == '[' || c >= 0x80 || (c >= '0' && c <= '9') || (c|0x20 >= 'a' && c|0x20 <= 'z') ||
+		(c == '-' && len(rest) > 1 && rest[1] == '>')
 }
 
 // foreachInvLimitValues implements D8 for the limit X: a plain variable takes
@@ -322,11 +343,9 @@ func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Ex
 // limit's only remaining occurrence in the enclosing function is its
 // assignment.
 func limitAssignment(ctx *analysis.Context, l *syntax.For, limit syntax.Expr) (syntax.Stmt, bool) {
-	fn := syntax.EnclosingFuncLike(l)
-	if fn == nil {
-		return nil, false
-	}
-	fbody := syntax.FuncLikeBody(fn)
+	// nil at top level (a limit constant defined by define()); a loop can
+	// not sit in an arrow function, the other body-less function-like.
+	fbody := syntax.FuncLikeBody(syntax.EnclosingFuncLike(l))
 	if fbody == nil {
 		return nil, false
 	}
@@ -404,11 +423,8 @@ func accessReplaceable(ctx *analysis.Context, d *syntax.ArrayDimFetch) bool {
 		if p.ByRef || p.Unpack {
 			return false
 		}
-		list, ok := p.Parent().(*syntax.ArgList)
-		if !ok {
-			return false
-		}
-		return callHasNoByRefParams(ctx, list.Parent())
+		// an Arg always sits in an ArgList, whose parent is the call
+		return callHasNoByRefParams(ctx, p.Parent().Parent())
 	}
 	return false
 }
@@ -472,11 +488,7 @@ func foreachInvByRefArg(ctx *analysis.Context, arg *syntax.Arg, pos int) bool {
 	if arg.ByRef {
 		return true
 	}
-	list, ok := arg.Parent().(*syntax.ArgList)
-	if !ok {
-		return false
-	}
-	params, ok := foreachInvCallParams(ctx, list.Parent())
+	params, ok := foreachInvCallParams(ctx, arg.Parent().Parent())
 	if !ok {
 		return false
 	}
@@ -519,14 +531,12 @@ func foreachInvWritten(ctx *analysis.Context, l *syntax.For, match func(syntax.E
 				}
 			}
 			return false
-		case nil:
-			return false
 		default:
 			return match(t)
 		}
 	}
 	visit := func(n syntax.Node) bool {
-		if found || n == nil {
+		if found {
 			return false
 		}
 		if skip[n] {
@@ -602,6 +612,75 @@ func foreachInvWritten(ctx *analysis.Context, l *syntax.For, match func(syntax.E
 	return found
 }
 
+// foreachInvHeaderAssigns reports whether the loop's init clause assigns
+// the variable name.
+func foreachInvHeaderAssigns(l *syntax.For, name string) bool {
+	for _, in := range l.Init {
+		if a, ok := in.(*syntax.Assign); ok {
+			if v, ok := ruleSimpleVar(a.Var); ok && v.Name == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// foreachInvUsedAfter implements D8c: whether $name is mentioned after the
+// loop's end in its scope (function body, or the file at top level; nested
+// named functions and classes are other scopes). A first later mention that
+// is a plain re-assignment dominating the rest — the target of `$x = …;` or
+// of a `for` header's `$x = …`, in the statement list holding the loop or
+// one of its enclosing statements, with a value not reading $x — does not
+// count.
+func foreachInvUsedAfter(f *syntax.File, l *syntax.For, name string) bool {
+	end := l.Span().End
+	var first *syntax.Variable
+	visit := func(x syntax.Node) bool {
+		if first != nil {
+			return false
+		}
+		switch x.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.ClassLike:
+			return false
+		}
+		if v, ok := x.(*syntax.Variable); ok && v.Name == name && v.NameExpr == nil && v.Span().Start >= end {
+			first = v
+		}
+		return true
+	}
+	if scope := syntax.FuncLikeBody(syntax.EnclosingFuncLike(l)); scope != nil {
+		syntax.Inspect(scope, visit)
+	} else {
+		for _, st := range f.Stmts {
+			syntax.Inspect(st, visit)
+		}
+	}
+	if first == nil {
+		return false
+	}
+	a, ok := first.Parent().(*syntax.Assign)
+	if !ok || a.Var != syntax.Expr(first) || a.Op.Kind != syntax.TEqual || a.ByRef || util.MentionsVariable(a.Value, name) {
+		return true
+	}
+	var stmt syntax.Node
+	switch p := a.Parent().(type) {
+	case *syntax.ExprStmt:
+		stmt = p
+	case *syntax.For:
+		stmt = p
+	default:
+		return true
+	}
+	// Two statements sharing a parent sit in one statement list (block,
+	// case, namespace or the file), the later one after the loop.
+	for anc := syntax.Node(l); anc != nil; anc = anc.Parent() {
+		if anc.Parent() == stmt.Parent() {
+			return false
+		}
+	}
+	return true
+}
+
 // ---- Part B ---------------------------------------------------------------------------
 
 func (foreachInvariants) eachLoop(ctx *analysis.Context, a *syntax.Assign) {
@@ -632,10 +711,7 @@ func (foreachInvariants) eachLoop(ctx *analysis.Context, a *syntax.Assign) {
 	var loop syntax.Stmt // D11
 	var body syntax.Stmt
 	switch p := a.Parent().(type) {
-	case *syntax.While:
-		if p.Cond != syntax.Expr(a) {
-			return
-		}
+	case *syntax.While: // an expression child of a while is its condition
 		loop, body = p, p.Body
 	case *syntax.For:
 		loop, body = p, p.Body
@@ -659,11 +735,7 @@ func (foreachInvariants) eachLoop(ctx *analysis.Context, a *syntax.Assign) {
 	if used {
 		return
 	}
-	kw, ok := util.NextSignificant(ctx.File, loop.Span().Start)
-	if !ok {
-		return
-	}
-	span := syntax.Span{Start: kw.Start, End: kw.End}
+	span := keywordSpan(ctx, loop)
 	var fixes []analysis.Fix
 	if _, isWhile := loop.(*syntax.While); isWhile && len(items) == 2 &&
 		items[0] != nil && items[1] != nil && items[0].Key == nil && items[1].Key == nil {

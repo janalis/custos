@@ -15,3 +15,5 @@ function due($spec, $clock) {
     $k = strtotime('now', 1, 2);
     return [$a, $b, $c, $e, $f, $g, $h, $i, $j, $k];
 }
+
+$parse = strtotime(...);

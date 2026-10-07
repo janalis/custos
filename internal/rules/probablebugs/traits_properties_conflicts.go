@@ -125,7 +125,7 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 				reportOwn(it.Var, own, len(m.Attrs) > 0)
 			}
 		case *syntax.Method:
-			if m.Name == nil || !strings.EqualFold(m.Name.Value, "__construct") {
+			if !strings.EqualFold(m.Name.Value, "__construct") {
 				continue
 			}
 			for _, p := range m.Params {
@@ -159,10 +159,8 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 		if t == nil {
 			continue
 		}
+		// every trait in traits was registered in refs when collected
 		ref := refs[strings.ToLower(strings.TrimPrefix(t.FQN, `\`))]
-		if ref == nil {
-			continue
-		}
 		sev := meta.SeverityError
 		if tpcSameDefault(tpcHasDefault(q), q.Default, tp) && tpcCompare(q, tp) != tpcDiffers {
 			sev = meta.SeverityInfo
@@ -299,11 +297,10 @@ func tpcDefaultValue(p *index.Property) (string, bool) {
 			sig = append(sig, t)
 		}
 	}
-	if len(sig) == 0 || string(src[sig[len(sig)-1].Start:sig[len(sig)-1].End]) != ";" {
-		return "", false
-	}
-	sig = sig[:len(sig)-1]
 	text := func(t syntax.Token) string { return string(src[t.Start:t.End]) }
+	if n := len(sig); n > 0 && text(sig[n-1]) == ";" {
+		sig = sig[:n-1]
+	}
 	neg := false
 	if len(sig) == 2 && text(sig[0]) == "-" {
 		neg, sig = true, sig[1:]
@@ -364,9 +361,6 @@ func tpcTypeString(ctx *analysis.Context, n syntax.Expr) string {
 		return ""
 	}
 	at := n.Span().Start
-	t := types.FromNode(n, func(w string) string { return ctx.Names().Class(w, at) })
-	if t.IsUnknown() {
-		return ""
-	}
-	return t.String()
+	// String() of a type without atoms is "", like the index's rendering.
+	return types.FromNode(n, func(w string) string { return ctx.Names().Class(w, at) }).String()
 }

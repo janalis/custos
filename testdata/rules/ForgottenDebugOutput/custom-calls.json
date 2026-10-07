@@ -1,0 +1,1 @@
+{"options": {"migratedIntoUserSpace": "true"}, "calls": ["registerCustomDebugMethod(\"my_trace\")", "registerCustomDebugMethod(\"\\\\Acme\\\\Probe::trace\")", "otherCall(\"x\")", "registerCustomDebugMethod(noquotes)"]}

@@ -8,3 +8,11 @@ foreach ($queue as [$first]) {
 foreach ($queue as list($this->slot)) {
 }
 list(, $only) = $queue;
+foreach ($queue as $key => []) {
+}
+foreach ($queue as $item) {
+}
+foreach ($queue as [[$deep]]) {
+}
+foreach ($queue as [list($deep)]) {
+}

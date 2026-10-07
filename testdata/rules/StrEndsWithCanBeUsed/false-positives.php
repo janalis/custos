@@ -8,5 +8,6 @@ function isType(string $file, string $ext): array {
         mb_substr($file, -mb_strlen($ext, 'UTF-8')) === $ext,
         substr($file, -strlen($ext)) == $ext,
         (substr($file, -strlen($ext))) === $ext,
+        substr($file, 3) === $ext,
     ];
 }

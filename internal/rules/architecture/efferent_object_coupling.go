@@ -59,9 +59,7 @@ func isClassReference(n *syntax.Name) bool {
 	isType := false
 	switch p := n.Parent().(type) {
 	case *syntax.ClassLike, *syntax.TraitUse, *syntax.Catch, *syntax.Attribute:
-		if a, ok := p.(*syntax.Attribute); ok && a.Name != n {
-			return false
-		}
+		// an Attribute's only Name child is its class name
 		if c, ok := p.(*syntax.ClassLike); ok && c.EnumType == syntax.Expr(n) {
 			return false
 		}

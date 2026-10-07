@@ -226,3 +226,7 @@ inverted.)
   warning precisely in the race the re-check is meant to absorb (and
   frameworks that turn warnings into exceptions then throw). custos writes
   `@mkdir(ARGS)` in every fix form when the original call was silenced.
+- **First-class callable (custos fix).** `mkdir(...)` builds a closure and
+  creates nothing; it is not reported (D1). An earlier custos version
+  reported `mkdir(...);` as an ignored outcome and offered a fix producing
+  `mkdir($concurrentDirectory = ...)`, which does not parse.

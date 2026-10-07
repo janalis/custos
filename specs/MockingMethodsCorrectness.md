@@ -71,7 +71,8 @@ Method names named in this spec (`willReturn`, `returnCallback`,
   Anything else (string class name, variable, `$obj::class`, unresolvable
   name) → stop.
 - **D9** Look up a method named `L`'s raw content (between the quotes, no
-  escape processing; method-name matching case-insensitive, like PHP) in `K`
+  escape processing; for a heredoc/nowdoc, its body with the closing
+  marker's indentation removed from each line, as PHP 7.3+ does; method-name matching case-insensitive, like PHP) in `K`
   including inherited members (parent classes, implemented interfaces, used
   traits).
   - not found → report `L` (finding **MISSING**). A magic `__call` on `K`

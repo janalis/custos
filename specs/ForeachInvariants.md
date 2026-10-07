@@ -100,6 +100,22 @@ A `for` statement `L` is reported when all of the following hold:
   Property-access limits compare by structural equality; a method call on the
   property's object does not count as a write.
   Any such write → no report.
+- **D8c** Use after the loop (custos refinement, see Divergences): no
+  report when the counter `$i`, or a limit `X` that is a plain variable
+  assigned in `L`'s own init clause, is mentioned anywhere after the end of
+  `L` in the same scope (the enclosing function/method/closure body, or the
+  whole file for top-level code; nested named functions and classes are
+  other scopes). A `foreach` leaves different values behind (no counter, or
+  the last key instead of the element count; no limit at all once the
+  header is gone), so a later read would change meaning. Exception, without
+  flow analysis: the first later mention does not count when it is the
+  target of a plain `=` assignment (not by reference) whose value does not
+  mention the variable, and that assignment is a statement of its own
+  (`$i = …;`) or an init expression of a `for` header, in the statement list
+  that holds `L` or one of `L`'s enclosing statements (so it dominates every
+  later mention). `for ($i = 0; …) {…} for ($i = 0; …) {…}` is therefore still
+  reported for both loops, while a re-assignment inside an `if`, a call
+  argument, `$i = $i + 1` or `$i += 1` keeps the first loop unreported.
 - **D9** Report on the `for` keyword (severity warning) and offer fix F1.
 
 ### Part B — `each()` loops
@@ -139,6 +155,9 @@ A `for` statement `L` is reported when all of the following hold:
   (D8b): `$i += 2;` / `$i--` / `$n--` in the body, `$i = 0, $i = 1` in the
   init, `$i < ($n = count($a))` in the condition, `advance($i)` with a
   by-reference parameter, `foreach ($x as $i)` in the body.
+- **E9** Counter, or header-assigned limit, used after the loop (D8c): a
+  search loop `for (…) { if (…) break; } if ($i == count($a))`, or
+  `echo $n;` after `for ($i = 0, $n = count($a); …)`.
 
 ## Report
 - Range: the loop's first keyword token (`for` or `while`).
@@ -165,7 +184,10 @@ counter text with `Value` appended (`$i` → `$iValue`, `$idx` → `$idxValue`).
    - a loop header clause (`for` clauses, `while` / `do … while` condition,
      `foreach` source);
    - string interpolation: `"… $c[$i] …"` **and** `"… {$c[$i]} …"` both become
-     `"… $iValue …"` (the braces are dropped);
+     `"… $iValue …"` (the braces are dropped), except that `{$iValue}` is
+     written when the next character would extend the interpolation (an
+     identifier character, `[` or `->`: `"{$c[$i]}abc"` → `"{$iValue}abc"`,
+     `"$c[$i][0]"` → `"{$iValue}[0]"`);
    - an argument of a function or method call that resolves to a known
      function none of whose parameters (any position) is by-reference;
      unresolved calls → not replaced;
@@ -288,13 +310,15 @@ so step 4 deletes `$total = count($rows);`.
   although it iterates one element too many. Recommendation: only accept
   `$i < X`, `X > $i`, `$i != X`, `X != $i` (and `!==`). No fixture covers
   other operators.
-- String interpolation `"{$c[$i]}abc"` becomes `"$iValueabc"` (braces dropped),
-  which changes meaning when an identifier character follows. Recommendation:
-  keep braces only when the next character is an identifier character, `[` or
-  `->`; drop them otherwise to match upstream output.
-- `++`/`--` applied to `$c[$i]` are unary expressions and get rewritten
-  (`$c[$i]++` → `$iValue++`), silently losing the write. Recommendation: do not
-  replace operands of `++`/`--`. No fixture covers it.
+- **String interpolation (custos diverges).** Upstream turns
+  `"{$c[$i]}abc"` into `"$iValueabc"` (another variable) and
+  `"$c[$i][0]"` into `"$iValue[0]"` (an offset read instead of literal
+  text). custos keeps braces (`{$iValue}`) when the next character is an
+  identifier character, `[` or `->`, and drops them otherwise, as upstream
+  does.
+- `++`/`--` applied to `$c[$i]` are unary expressions upstream and get
+  rewritten (`$c[$i]++` → `$iValue++`), silently losing the write. custos
+  does not replace operands of `++`/`--` (they are not in the F1.1 list).
 - **Reused limit variables (custos diverges):** upstream collects every
   assignment to the limit variable in the function, so a `$n` reused by
   several loops — each re-assigning it right before — has several values
@@ -311,6 +335,14 @@ so step 4 deletes `$total = count($rows);`.
   reported loop (the only writes in reported loops are the limit's own init
   assignment, which stays allowed), so conformance is unaffected. Recorded in
   `docs/decisions.md` ("Spec-level false positives").
+- **Use after the loop (D8c/E9) — custos refinement, not upstream.**
+  Upstream ignores what happens after the loop, so a search loop whose
+  counter is tested after a `break`, or a header limit read afterwards, is
+  reported and the fix leaves the later code reading a stale or undefined
+  variable. custos skips such loops (conservative syntactic check described
+  in D8c, no flow analysis). The upstream fixture loses two reports
+  (counters mentioned again after their loop without a dominating
+  re-assignment); the case was already a listed divergence.
 - Part B requires the iterated argument to be absent from the body; the fix
   does not check that the iterated array's internal pointer state is relied
   upon afterwards.

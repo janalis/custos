@@ -84,9 +84,6 @@ func realpathTestContext(ctx *analysis.Context, n syntax.Node) bool {
 func hasParentDirLiteral(n syntax.Node) bool {
 	found := false
 	syntax.Inspect(n, func(c syntax.Node) bool {
-		if found {
-			return false
-		}
 		switch c := c.(type) {
 		case *syntax.Literal:
 			if c.LitKind == syntax.LitString && strings.Contains(c.Raw, "..") {

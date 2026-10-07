@@ -190,28 +190,17 @@ func noreSplitDelimiters(r string) (body, mods string, ok bool) {
 	if lo < openLen {
 		lo = openLen
 	}
-	// the last occurrence of close starting at or after lo whose remaining
-	// suffix consists of ASCII letters only
+	// the last occurrence of close starting at or after lo: its remaining
+	// suffix lies in the trailing letter run (j+len(close) >= t)
 	for j := len(r) - len(close); j >= lo; j-- {
 		if r[j:j+len(close)] == close {
-			if allASCIILetters(r[j+len(close):]) {
-				return r[openLen:j], r[j+len(close):], true
-			}
+			return r[openLen:j], r[j+len(close):], true
 		}
 	}
 	return "", "", false
 }
 
 func isASCIILetter(b byte) bool { return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' }
-
-func allASCIILetters(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if !isASCIILetter(s[i]) {
-			return false
-		}
-	}
-	return true
-}
 
 // noreHasLineTerminator reports whether s contains \n, \r, U+0085, U+2028
 // or U+2029.

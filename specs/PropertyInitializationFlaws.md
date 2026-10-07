@@ -301,3 +301,10 @@ No findings.
   property gives the subclass its own storage (a per-class registry or
   cache); dropping it makes the subclass share — and overwrite — the
   parent's value. custos skips static properties in D2.
+- **`self::`/`parent::` in defaults (custos diverges).** The class-reference
+  guard of D2 treated `self`/`parent` as unresolvable, so `protected $kind =
+  self::KIND;` re-declared in a child that overrides `KIND` was reported as
+  repeating the inherited value although it names the child's constant.
+  custos resolves `self` to the class declaring the default and `parent` to
+  that class's parent, so such re-declarations are not reported (they
+  denote different classes in child and parent).

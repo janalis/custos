@@ -18,9 +18,6 @@ func (uselessReturn) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax
 
 func (r uselessReturn) Check(ctx *analysis.Context, n syntax.Node) {
 	ret := n.(*syntax.Return)
-	if ret.Span().Len() == 0 {
-		return
-	}
 	if ret.Expr == nil {
 		r.checkTrailing(ctx, ret)
 		return

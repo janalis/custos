@@ -50,10 +50,7 @@ func (staticInvocationViaThis) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 		thisSpan := v.Span()
-		arrow, ok := util.FindToken(ctx.File, syntax.Span{Start: thisSpan.End, End: id.Span().Start}, syntax.TObjectOperator)
-		if !ok {
-			return
-		}
+		arrow, _ := util.FindToken(ctx.File, syntax.Span{Start: thisSpan.End, End: id.Span().Start}, syntax.TObjectOperator) // not ?-> (D1)
 		ctx.Report(thisSpan, "Static method "+m.Name+"() called through $this; use self::"+m.Name+"().", analysis.Fix{
 			Title: "Use self::",
 			Edits: func() []analysis.TextEdit {

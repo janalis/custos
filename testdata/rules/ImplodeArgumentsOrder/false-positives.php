@@ -13,3 +13,6 @@ $ok10  = implode(',', 'abc');
 $ok11  = implode("-", <<<TXT
 a
 TXT);
+
+$join = 'implode';
+echo $join($parts, ',');

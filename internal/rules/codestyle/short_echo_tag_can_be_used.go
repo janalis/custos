@@ -36,18 +36,13 @@ func (shortEchoTagCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 		args = []syntax.Expr{p.Expr}
-	default:
-		return
 	}
 	f := ctx.File
 	start := n.Span().Start
-	kw, ok := util.TokenAfter(f, start)
-	if !ok || (kw.Kind != syntax.TEcho && kw.Kind != syntax.TPrint) {
-		return
-	}
+	kw, _ := util.TokenAfter(f, start) // the statement starts at echo/print
 	// D2: a regular opening tag right before, only whitespace in between.
-	open, ok := shortEchoPrevTok(f, start)
-	if !ok || open.Kind != syntax.TOpenTag {
+	open := shortEchoPrevTok(f, start)
+	if open.Kind != syntax.TOpenTag {
 		return
 	}
 	// D3: optional `;`, then `?>`, only whitespace in between.
@@ -81,13 +76,13 @@ func (shortEchoTagCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // shortEchoPrevTok returns the token before off, skipping whitespace only.
-func shortEchoPrevTok(f *syntax.File, off uint32) (syntax.Token, bool) {
-	for i := util.TokenIndex(f, off) - 1; i >= 0; i-- {
-		if t := f.Tokens[i]; t.Kind != syntax.TWhitespace {
-			return t, true
-		}
+// (A statement is always preceded by at least its file's open tag.)
+func shortEchoPrevTok(f *syntax.File, off uint32) syntax.Token {
+	i := max(util.TokenIndex(f, off)-1, 0)
+	for i > 0 && f.Tokens[i].Kind == syntax.TWhitespace {
+		i--
 	}
-	return syntax.Token{}, false
+	return f.Tokens[i]
 }
 
 // shortEchoNextTok returns the token starting at or after off, skipping

@@ -1,6 +1,7 @@
 package architecture
 
 import (
+	"sort"
 	"strings"
 
 	"custos/internal/analysis"
@@ -228,11 +229,7 @@ func (cp *cpState) checkIs(v *syntax.Variable, set map[string]bool) {
 	if !ok || arg.Value != syntax.Expr(v) || arg.Unpack {
 		return
 	}
-	list, ok := arg.Parent().(*syntax.ArgList)
-	if !ok {
-		return
-	}
-	call, ok := list.Parent().(*syntax.FuncCall)
+	call, ok := arg.Parent().Parent().(*syntax.FuncCall) // an Arg always sits in an ArgList
 	if !ok {
 		return
 	}
@@ -312,11 +309,7 @@ func cpSorted(m map[string]bool) []string {
 	for k := range m {
 		out = append(out, k)
 	}
-	for i := 1; i < len(out); i++ {
-		for j := i; j > 0 && out[j] < out[j-1]; j-- {
-			out[j], out[j-1] = out[j-1], out[j]
-		}
-	}
+	sort.Strings(out)
 	return out
 }
 
@@ -334,15 +327,12 @@ func (cp *cpState) translateSelf(value syntax.Expr, target *syntax.Variable) str
 	case *syntax.MethodCall:
 		recv = c.Var
 	case *syntax.StaticCall:
+		// A typed call on a class name implies the class resolves; an
+		// unresolvable one falls back to the (unknown) receiver type.
 		if nm, ok := c.Class.(*syntax.Name); ok {
-			fqn := cp.classRef(nm)
-			if fqn == "" {
-				return ""
-			}
-			if cls := cp.ctx.Index().Class(fqn, cp.ctx.PHP); cls != nil {
+			if cls := cp.ctx.Index().Class(cp.classRef(nm), cp.ctx.PHP); cls != nil {
 				return `\` + strings.TrimPrefix(cls.FQN, `\`)
 			}
-			return ""
 		}
 		recv = c.Class
 	default:
@@ -383,10 +373,9 @@ func (cp *cpState) compatible(t string, set map[string]bool) bool {
 		}
 		cls := s
 		if s == "self" || s == "static" {
+			// "" outside a class (a compile error in PHP): its closure
+			// is {""}, which intersects nothing.
 			cls = cp.ctx.Names().DeclFQN(syntax.EnclosingClass(cp.fn))
-			if cls == "" {
-				continue
-			}
 		}
 		theirs := cp.closure(cls)
 		if len(theirs) == 0 {

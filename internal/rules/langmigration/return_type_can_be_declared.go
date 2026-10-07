@@ -42,7 +42,8 @@ var rtdScalarOK = map[string]bool{
 	"self": true, "array": true, "callable": true, "bool": true, "float": true, "int": true, "string": true,
 }
 
-// rtdNormalize implements D7.
+// rtdNormalize implements D7. Type atoms are already normalised by the
+// type model (integer -> int, boolean -> bool, $this -> static).
 func rtdNormalize(a string) string {
 	low := strings.ToLower(a)
 	switch {
@@ -50,12 +51,8 @@ func rtdNormalize(a string) string {
 		return "array"
 	case low == "boolean" || low == "true" || low == "false":
 		return "bool"
-	case low == "integer":
-		return "int"
 	case low == `\closure` || low == "closure":
 		return "callable"
-	case low == "$this":
-		return "static"
 	}
 	if rtdBuiltin[strings.TrimPrefix(low, `\`)] {
 		return strings.TrimPrefix(low, `\`)

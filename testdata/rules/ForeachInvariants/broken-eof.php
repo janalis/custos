@@ -1,0 +1,1 @@
+<?php <warning descr="Iterate with foreach instead of a counter loop.">for</warning>$i=0$i%Count($items$i++{00"000$items[$i

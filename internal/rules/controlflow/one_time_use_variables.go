@@ -157,7 +157,7 @@ func otuReachable(f *syntax.File, n, scope syntax.Node) bool {
 	}
 	for _, s := range f.Stmts {
 		if syntax.Node(s) == top {
-			return true
+			break
 		}
 		if util.Terminates(s) {
 			return false
@@ -211,12 +211,10 @@ func otuVarAnnotated(ctx *analysis.Context, as *syntax.Assign, name string) bool
 	if !ok {
 		return false
 	}
+	// a statement is always preceded by at least the open tag
 	i := util.TokenIndex(ctx.File, stmt.Span().Start) - 1
-	for i >= 0 && ctx.File.Tokens[i].Kind == syntax.TWhitespace {
+	for ctx.File.Tokens[i].Kind == syntax.TWhitespace {
 		i--
-	}
-	if i < 0 {
-		return false
 	}
 	t := ctx.File.Tokens[i]
 	text := ctx.SpanText(syntax.Span{Start: t.Start, End: t.End})

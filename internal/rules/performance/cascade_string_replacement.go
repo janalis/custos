@@ -152,11 +152,10 @@ func (c *csrCtx) simplifiedSearch(f csrCall) syntax.Expr {
 		if it == nil {
 			return nil
 		}
+		// str_replace() searches the values; keys are ignored (custos
+		// diverges: upstream compares the key of `k => v` elements).
 		e := it.Value
-		if it.Key != nil {
-			e = it.Key
-		}
-		if !isStringLit(e) {
+		if it.ByRef || !isStringLit(e) {
 			return nil
 		}
 		t := c.ctx.Text(e)
@@ -517,15 +516,7 @@ func (c *csrCtx) contribution(v csrVal) []string {
 	return []string{c.ctx.Text(v.expr)}
 }
 
-func (c *csrCtx) count(v csrVal) int {
-	if v.expr != nil {
-		if arr, ok := v.expr.(*syntax.Array); ok {
-			return len(c.elemTexts(arr))
-		}
-		return 1
-	}
-	return len(c.contribution(v))
-}
+func (c *csrCtx) count(v csrVal) int { return len(c.contribution(v)) }
 
 // merge implements F3: from's elements followed by to's.
 func (c *csrCtx) merge(to, from csrVal) csrVal {
@@ -539,10 +530,8 @@ func (c *csrCtx) merge(to, from csrVal) csrVal {
 		}
 		return csrVal{src: arr, inserted: fe}
 	}
-	if to.src != nil {
-		to.inserted = append(append([]string(nil), fe...), to.inserted...)
-		return to
-	}
+	// to is never a src value here: merges always start from a call's own
+	// (exprVal) argument or an expanded replace (elems).
 	return csrVal{elems: append(append([]string(nil), fe...), c.contribution(to)...)}
 }
 
@@ -657,9 +646,8 @@ func (c *csrCtx) render(v csrVal) string {
 	case v.expr == nil:
 		return c.wrap(v.elems)
 	}
-	if arr, ok := v.expr.(*syntax.Array); ok && arr.Short != c.opt {
-		return c.wrap(c.elemTexts(arr))
-	}
+	// An unmerged value is only ever a replace kept as is (F2: a string
+	// literal or constant), never an array literal.
 	return c.ctx.Text(v.expr)
 }
 

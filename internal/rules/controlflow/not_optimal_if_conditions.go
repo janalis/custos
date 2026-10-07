@@ -31,9 +31,6 @@ func (notOptimalIfConditions) Kinds() []syntax.NodeKind { return []syntax.NodeKi
 
 func (r notOptimalIfConditions) Check(ctx *analysis.Context, n syntax.Node) {
 	ifs := n.(*syntax.If)
-	if ifs.Span().Len() == 0 {
-		return
-	}
 	conds := []syntax.Expr{ifs.Cond}
 	for _, ei := range ifs.ElseIfs {
 		conds = append(conds, ei.Cond)
@@ -112,10 +109,9 @@ var cheapFunctions = map[string]bool{
 	"is_scalar": true, "is_string": true,
 }
 
+// notOptimalArgsCost sums the argument costs (calls always carry an
+// argument list).
 func notOptimalArgsCost(ctx *analysis.Context, l *syntax.ArgList) int {
-	if l == nil {
-		return 0
-	}
 	s := 0
 	for _, a := range l.Args {
 		s += conditionCost(ctx, a)
@@ -127,11 +123,7 @@ func conditionCost(ctx *analysis.Context, e syntax.Expr) int {
 	if e == nil {
 		return 0
 	}
-	e = syntax.UnwrapParens(e)
-	if e == nil {
-		return 0
-	}
-	switch x := e.(type) {
+	switch x := syntax.UnwrapParens(e).(type) {
 	case *syntax.ConstFetch, *syntax.MagicConst, *syntax.Name, *syntax.ClassConstFetch, *syntax.Identifier,
 		*syntax.StringPart, *syntax.VariadicPlaceholder:
 		return 0
@@ -231,8 +223,12 @@ func operandsCoupledS123(ctx *analysis.Context, prev, cur syntax.Expr) bool {
 		switch c := x.(type) {
 		case *syntax.Assign:
 			addTargets(c.Var)
-		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
-			mutated = append(mutated, byRefVarArgs(ctx, c)...)
+		case *syntax.FuncCall:
+			mutated = append(mutated, byRefVarArgs(ctx, c, c.Args)...)
+		case *syntax.MethodCall:
+			mutated = append(mutated, byRefVarArgs(ctx, c, c.Args)...)
+		case *syntax.StaticCall:
+			mutated = append(mutated, byRefVarArgs(ctx, c, c.Args)...)
 		}
 		return true
 	})
@@ -426,20 +422,8 @@ func notOptimalImpure(ctx *analysis.Context, e syntax.Expr) bool {
 }
 
 // byRefVarArgs returns the plain-variable arguments of call passed to
-// by-reference parameters of the resolved callee.
-func byRefVarArgs(ctx *analysis.Context, call syntax.Node) []syntax.Node {
-	var list *syntax.ArgList
-	switch c := call.(type) {
-	case *syntax.FuncCall:
-		list = c.Args
-	case *syntax.MethodCall:
-		list = c.Args
-	case *syntax.StaticCall:
-		list = c.Args
-	}
-	if list == nil {
-		return nil
-	}
+// by-reference parameters of the resolved callee; list is call's arguments.
+func byRefVarArgs(ctx *analysis.Context, call syntax.Node, list *syntax.ArgList) []syntax.Node {
 	hasVar := false
 	for _, a := range list.Args {
 		if arg, ok := a.(*syntax.Arg); ok {

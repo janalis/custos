@@ -235,7 +235,7 @@ function os_checks() {
 - F2 inserts `PHP_VERSION_ID <op> V` without parentheses, so in a
   higher-precedence context (`!version_compare(PHP_VERSION, '8', '<')`,
   `version_compare(...) . 'x'`) the text reparses differently
-  (`!PHP_VERSION_ID < 80000`). Recommendation: wrap `E` in parentheses when the
+  (`!PHP_VERSION_ID < 80000`). custos wraps `E` in parentheses when the
   call's parent is an operator binding tighter than comparisons (unary `!`,
   arithmetic, concatenation, `instanceof`, casts, …). Statement/argument/
   assignment contexts (the only ones in fixtures) need none.

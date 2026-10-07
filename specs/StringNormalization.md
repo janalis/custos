@@ -51,9 +51,13 @@ Pattern A — case conversion before cutting (checked first):
     double-quoted literal that contains **no** Unicode letter
     (e.g. `'-'`, `"/ "`, `'.,;'`, `'0..9'`). A quoted literal containing any
     letter — including letters of escape sequences such as `"\n"` or `"\t"`
-    — is not reported. A heredoc/nowdoc literal (text does not start with a
-    quote) counts as "no letter" and is reported. A non-literal second
-    argument (variable, constant, call, concatenation) is not reported.
+    — is not reported. A `b` prefix is ignored. A heredoc/nowdoc literal
+    without interpolation is judged by its body (the lines between the
+    opening and closing labels, multi-line allowed): reported only when it
+    contains no letter. A character range `x..y` whose span covers a letter
+    (`'@..Z'`, `'!..~'`) counts as containing letters. A non-literal second
+    argument (variable, constant, call, concatenation, string with
+    interpolation, backtick command) is not reported.
 - Report `O` (pattern A).
 
 Pattern B — redundant nested case conversion (only when `O` is not a length
@@ -237,3 +241,13 @@ function tidy($code, $mask, $o) {
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Trim character lists — custos diverges from upstream** (D4). Upstream
+  reports every heredoc/nowdoc second argument (its text does not start
+  with a quote), checks `b'…'` literals the same way (so `b'abc'` was
+  reported), accepts interpolated double-quoted strings by their source
+  text, and ignores `x..y` ranges. Each of these lets a letter into the
+  trimmed set, and then cutting before or after the case conversion gives
+  different results (`trim(strtolower('A'), '@..Z')` keeps `'a'`, the
+  swapped form returns `''`). custos reads the heredoc/nowdoc body, strips
+  the `b` prefix, skips strings with interpolation and treats a range
+  covering a letter as a letter.

@@ -31,7 +31,7 @@ const (
 
 func (unnecessaryAssertion) Check(ctx *analysis.Context, n syntax.Node) {
 	c, ok := asPuCall(n)
-	if !ok || n.Span().Len() == 0 {
+	if !ok {
 		return
 	}
 	if strings.HasPrefix(strings.ToLower(c.Name), "assert") {
@@ -164,9 +164,8 @@ func uaDeclaredReturn(ctx *analysis.Context, e syntax.Expr) (types.Type, bool) {
 	if doc != "" {
 		t = types.Union(t, types.FromDoc(doc, nil))
 	}
-	if t.IsUnknown() {
-		return t, false
-	}
+	// An unparsable type has no atoms: the caller's single-type check (D5)
+	// rejects it.
 	if cls != "" {
 		atoms := make([]string, 0, len(t.Atoms()))
 		for _, a := range t.Atoms() {
@@ -208,8 +207,8 @@ func uaInternalTypeMatches(name, atom string) bool {
 		return atom == "null" || atom == "void"
 	case "object":
 		return (isClass && !isArray) || atom == "object"
-	case "resource":
-		return atom == "resource"
+	// "resource": no declared return type is a resource (`: resource`
+	// names a class), so it is never guaranteed.
 	case "callable":
 		return atom == "callable" || atom == `\closure`
 	case "iterable":

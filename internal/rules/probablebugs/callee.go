@@ -69,15 +69,13 @@ func staticCallClass(ctx *analysis.Context, e syntax.Expr) string {
 	return ctx.Names().Class(nm.Value, nm.Span().Start)
 }
 
-// callArgs returns the argument list of a call node (nil when absent).
+// callArgs returns the argument list of a function, method or static call.
 func callArgs(call syntax.Node) *syntax.ArgList {
 	switch c := call.(type) {
 	case *syntax.FuncCall:
 		return c.Args
 	case *syntax.MethodCall:
 		return c.Args
-	case *syntax.StaticCall:
-		return c.Args
 	}
-	return nil
+	return call.(*syntax.StaticCall).Args
 }

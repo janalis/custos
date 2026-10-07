@@ -65,7 +65,7 @@ func (senselessProxyMethod) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 		v, ok := arg.Value.(*syntax.Variable)
-		if !ok || v.NameExpr != nil || m.Params[i].Var == nil || v.Name != m.Params[i].Var.Name {
+		if !ok || v.NameExpr != nil || v.Name != m.Params[i].Var.Name {
 			return
 		}
 	}

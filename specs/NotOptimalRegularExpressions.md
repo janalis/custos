@@ -607,11 +607,11 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
   inverted while the whole comparison is replaced, flipping the meaning;
   comparisons with other numbers (`== 2`) are replaced too. A parenthesised
   call compared to a number (`(preg_match(…)) === 0`) only has the call
-  replaced, producing `(false !== strpos(…)) === 0`. Recommendation: treat
+  replaced, producing `(false !== strpos(…)) === 0`. Recommendation (implemented, see "D22 rewrites that keep the meaning" below): treat
   `n > C` like `C < n`, `<= 0`/`0 >=` as inverted, skip numbers other than
   0/1 and skip parenthesised operands. None of this is in the fixtures.
 - **Precedence.** Replacements are inserted without parentheses
-  (`preg_match('/^a$/', $s) + 1` → `"a" === $s + 1`). Recommendation: wrap
+  (`preg_match('/^a$/', $s) + 1` → `"a" === $s + 1`). Recommendation (implemented, see "D22 rewrites that keep the meaning" below): wrap
   in parentheses when the context's parent binds tighter than `===`.
 - **Broken trim / explode output.** A trim character `\` or `'`
   (`/^\++/`-like bodies such as `^\+`) yields invalid PHP (`ltrim($s, '\')`);
@@ -619,9 +619,9 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
   `"`, `$` or `\` inside produce a broken or different string; a metacharacter
   at the very start of the body (`+x`, `|`) escapes the regex-syntax test.
   `preg_split` limit semantics (`0`/`-1`) differ from `explode`.
-  Recommendation: skip these cases (use the inner character for `[x]`).
+  Recommendation (implemented, see "D22 rewrites that keep the meaning" below): skip these cases (use the inner character for `[x]`).
 - **Modifiers ignored by D22.** `m` (with `^`/`$`) and `x` change meaning
-  but are not checked for D22a–d. Recommendation: skip D22a/b when `mods`
+  but are not checked for D22a–d. Recommendation (implemented, see "D22 rewrites that keep the meaning" below): skip D22a/b when `mods`
   contains `m`. D22 also builds `T` from the normalised body, so a literal
   `a-zA-Z` becomes `A-Za-z` in the suggestion; use the original text.
 - **Line terminators.** Upstream's D13 and D19 tests fail on any body
@@ -665,3 +665,37 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
   without `/u`. custos reports D13a only when the character sits in a
   character class, carries a quantifier, or is a letter under `/i` — the
   cases where byte-wise matching gives a different result.
+- **D22 rewrites that keep the meaning (custos diverges).** Upstream's D22
+  suggestions can change what the code does; custos only rewrites when the
+  result is equivalent:
+  - *Comparisons* of a `preg_match()` call with a number literal are
+    evaluated for the two possible results 0 and 1 (with the number on
+    either side, `n > C` read as `C < n`; `===`/`!==` with a float literal
+    never hold): when the comparison holds for 1 only, it is replaced by
+    the positive test; for 0 only, by the inverted one; when it holds for
+    both or neither (`== 2`, `== -1`, `< 5`) nothing is reported. A call
+    in parentheses compared with a number, or used as the operand of any
+    other operator (arithmetic, `.`, `@`, casts, `instanceof`, a comparison
+    with a non-literal), is not reported. A logical operand (`!C`,
+    conditions, `&&`/`||`) and a value position (assignment, return,
+    argument) keep the upstream context. The fix wraps the replacement in
+    parentheses when its context is the operand of a tighter operator
+    (`'n' . !preg_match('/^a$/', $p)` → `'n' . ("a" !== $p)`); the message
+    shows it without them.
+  - *D22d* (`preg_replace` → `str_replace`) replaces the call only, never
+    an enclosing comparison.
+  - *Modifiers:* D22a–d are skipped when `mods` contains `A` (anchored at
+    the start), and D22a/D22b (anchored forms) when it contains `m`.
+  - *Trim (D22e):* not reported when the character is a regex
+    metacharacter (`\ ^ $ . [ ] | ( ) ? * + {`) or a quote — `/^\+/` has no
+    quantifier and `ltrim($s, '\')` does not parse.
+  - *Explode (D22f):* the delimiter is the literal string the pattern
+    matches: the character of a one-character class `[c]` (`[.]` included;
+    not `\`, `^`, `]`), a single character that is not a metacharacter, or
+    a body without regex syntax whose first character is not a
+    metacharacter (`/|/` splits between every character), with
+    `\. \+ \* \? \-` resolved; a body keeping another escape (`\/`, `\n`)
+    is not reported, and `"` is escaped in the replacement. With a third
+    argument the call is rewritten only when it is a positive integer
+    literal (`preg_split()` treats `0`/`-1` as "no limit", `explode()` does
+    not).

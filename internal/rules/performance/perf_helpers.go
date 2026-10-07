@@ -28,11 +28,8 @@ func perfCall(ctx *analysis.Context, e syntax.Node, names ...string) (*syntax.Fu
 }
 
 // perfArgs returns the call's arguments as written (spreads and named
-// arguments included); nil when a placeholder `f(...)` or no list is present.
+// arguments included); nil for a first-class callable `f(...)`.
 func perfArgs(list *syntax.ArgList) []*syntax.Arg {
-	if list == nil {
-		return nil
-	}
 	out := make([]*syntax.Arg, 0, len(list.Args))
 	for _, a := range list.Args {
 		arg, ok := a.(*syntax.Arg)
@@ -46,9 +43,6 @@ func perfArgs(list *syntax.ArgList) []*syntax.Arg {
 
 // perfPlainArgs returns the argument values when none is spread or named.
 func perfPlainArgs(list *syntax.ArgList) ([]syntax.Expr, bool) {
-	if list == nil {
-		return nil, false
-	}
 	return util.ArgValues(list)
 }
 

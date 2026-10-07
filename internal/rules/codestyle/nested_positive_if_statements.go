@@ -26,17 +26,11 @@ func (nestedPositiveIfStatements) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || block.Alt || len(block.Stmts) != 1 || c.Cond == nil { // D3, D7, E2, E6
 		return
 	}
-	kw, ok := util.TokenAfter(ctx.File, c.Span().Start)
-	if !ok || kw.Kind != syntax.TIf {
-		return
-	}
+	kw, _ := util.TokenAfter(ctx.File, c.Span().Start) // the span starts at `if`
 	kwSpan := syntax.Span{Start: kw.Start, End: kw.End}
 	f := ctx.File
 	switch p := block.Parent().(type) {
-	case *syntax.If: // Case A
-		if p.Body != syntax.Stmt(block) || p.Cond == nil { // D1
-			return
-		}
+	case *syntax.If: // Case A (D1: a block child of an if is its body)
 		if npiIsOr(p.Cond) || npiIsOr(c.Cond) { // D2, E3
 			return
 		}
@@ -61,10 +55,7 @@ func (nestedPositiveIfStatements) Check(ctx *analysis.Context, n syntax.Node) {
 				}
 			},
 		})
-	case *syntax.Else: // Case B
-		if p.Body != syntax.Stmt(block) { // D6
-			return
-		}
+	case *syntax.Else: // Case B (D6: the block is the else body)
 		ctx.Report(kwSpan, nestedPositiveIfMsg, analysis.Fix{
 			Title: "Turn into else if",
 			Edits: func() []analysis.TextEdit {

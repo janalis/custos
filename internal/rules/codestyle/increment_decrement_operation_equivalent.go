@@ -29,9 +29,6 @@ func incDecIsOne(e syntax.Expr) bool {
 
 func (incrementDecrementOperationEquivalent) Check(ctx *analysis.Context, n syntax.Node) {
 	a := n.(*syntax.Assign)
-	if a.Var == nil || a.Value == nil || a.Span().Len() == 0 {
-		return
-	}
 	op := ""
 	switch a.Op.Kind {
 	case syntax.TPlusEqual: // D1

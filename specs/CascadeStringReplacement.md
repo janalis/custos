@@ -74,9 +74,9 @@ imported from another namespace, or a qualified non-global name such as
 
 ### C. Redundant search array
 - **D7** `F.replace` is a string literal, `F.search` is an array literal,
-  and every element's first child (the value, or the key for `k => v`
-  elements) is a string literal; collect their exact source texts (quotes
-  included, so `'a'` and `"a"` differ).
+  and every element's value is a string literal (upstream takes the key
+  for `k => v` elements; custos diverges, see Divergences); collect their
+  exact source texts (quotes included, so `'a'` and `"a"` differ).
 - **D8** Exactly one distinct text → report `F.search` (simplification
   report). An empty array or any non-string element → no report.
 
@@ -312,3 +312,9 @@ function swap(array $from, array $to, $text) {
   custos addition, see above) is written `\array_values(` when a function of
   that name declared in or imported into the namespace would capture a bare
   call (F3).
+- **Keys in the redundant search array (custos diverges):** D7 takes the
+  key of `k => v` elements, but `str_replace()` searches the array values
+  and ignores keys. So `['x' => 'a', 'y' => 'a']` was missed, while
+  `['-1' => 'a']` was reported and its fix searched for `'-1'` instead of
+  `'a'`. custos compares the element values (keys ignored; a by-reference
+  element is not a string literal).

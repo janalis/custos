@@ -17,3 +17,11 @@ class Report
         <error descr="This call needs 2 argument(s) in total.">printf</error>('%s');
     }
 }
+
+function scan_bare($raw)
+{
+    if (<error descr="This call needs 3 argument(s) in total.">sscanf</error>($raw, '%d')) {
+        return 1;
+    }
+    return 0;
+}

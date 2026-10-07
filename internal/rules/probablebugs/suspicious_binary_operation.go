@@ -27,9 +27,6 @@ func (suspiciousBinaryOperation) Kinds() []syntax.NodeKind {
 const sboPrecedenceMsg = "Operator precedence is unclear here; add parentheses."
 
 func (suspiciousBinaryOperation) Check(ctx *analysis.Context, n syntax.Node) {
-	if n.Span().Len() == 0 {
-		return
-	}
 	if io, ok := n.(*syntax.Instanceof); ok {
 		if sboTrait(ctx, io) || io.Class == nil {
 			return
@@ -40,9 +37,6 @@ func (suspiciousBinaryOperation) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	b := n.(*syntax.Binary)
-	if b.Left == nil || b.Right == nil {
-		return
-	}
 	for _, check := range []func(*analysis.Context, *syntax.Binary) bool{
 		sboStatement, sboArrayArrow, sboNegated, sboSame, sboMisplaced, sboCoalesce, sboConcatArray, sboConstants, sboPrecedence,
 	} {
@@ -233,15 +227,19 @@ func sboMisplaced(ctx *analysis.Context, b *syntax.Binary) bool {
 
 // sboCalleeReturn returns the declared/doc return type of a call's callee.
 func sboCalleeReturn(ctx *analysis.Context, call syntax.Node) types.Type {
-	switch c := call.(type) {
-	case *syntax.FuncCall:
-		if f := ctx.Types().ResolveFunction(c); f != nil {
-			return types.Union(types.FromDoc(f.Return, nil), types.FromDoc(f.DocReturn, nil))
+	if c, ok := call.(*syntax.FuncCall); ok {
+		f := ctx.Types().ResolveFunction(c) // non-nil: resolveCallee succeeded
+		// declared and documented return types, unknown parts dropped
+		decl, doc := types.FromDoc(f.Return, nil), types.FromDoc(f.DocReturn, nil)
+		if decl.IsUnknown() {
+			return doc
 		}
-	case *syntax.MethodCall, *syntax.StaticCall:
-		return ctx.TypeOf(call.(syntax.Expr))
+		if doc.IsUnknown() {
+			return decl
+		}
+		return types.Union(decl, doc)
 	}
-	return types.Unknown
+	return ctx.TypeOf(call.(syntax.Expr))
 }
 
 // D7

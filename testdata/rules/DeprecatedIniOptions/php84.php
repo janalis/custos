@@ -17,3 +17,6 @@ ini_get(<warning descr="Ini directive 'session.sid_bits_per_character' is deprec
 ini_get(<warning descr="Ini directive 'allow_url_include' is deprecated since PHP 7.4.0.">'allow_url_include'</warning>);
 ini_get('zend.assertions');
 ini_set('session.use_strict_mode', '1');
+// not reported: no argument / first-class callable
+ini_get();
+$get = ini_get(...);

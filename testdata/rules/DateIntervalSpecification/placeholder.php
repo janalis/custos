@@ -1,0 +1,2 @@
+<?php
+$i = new DateInterval(...);

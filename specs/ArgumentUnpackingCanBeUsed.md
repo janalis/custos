@@ -155,9 +155,10 @@ class Report {
 
 ## Divergences
 - Upstream does not validate the decoded string: `'Cls::method'`, `''`, or a
-  name with spaces would produce invalid or different code. Recommendation:
-  only report when `F` matches an optionally `\`-qualified, `\`-separated
-  identifier path (no `::`). No upstream fixture covers this.
+  name with spaces would produce invalid or different code. custos only
+  reports when `F` is an optionally `\`-qualified, `\`-separated identifier
+  path (no `::`, no empty segment, no leading digit). No upstream fixture
+  covers this.
 - custos diverges from upstream on string keys (D8, E6, F2). Upstream offers
   the rewrite for any second argument at every level. Below PHP 8.0 that fix
   can turn a working call into a fatal "cannot unpack array with string

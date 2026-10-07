@@ -32,10 +32,7 @@ func (compactCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 		if !ok || lit.LitKind != syntax.LitString || len(lit.Raw) < 2 || (lit.Raw[0] != '\'' && lit.Raw[0] != '"') {
 			return
 		}
-		key, ok := util.StringLiteralValue(lit.Raw) // escapes decoded
-		if !ok {
-			return
-		}
+		key, _ := util.StringLiteralValue(lit.Raw) // escapes decoded; a quoted key is always terminated
 		v, ok := it.Value.(*syntax.Variable)
 		if !ok || v.NameExpr != nil || v.Name != key {
 			return
@@ -67,20 +64,13 @@ func isDestructuringTarget(arr *syntax.Array) bool {
 		if !ok || item.Value != cur {
 			break
 		}
-		switch outer := item.Parent().(type) {
-		case *syntax.Array, *syntax.List:
-			cur = outer
-			continue
-		}
-		break
+		cur = item.Parent() // the enclosing array literal or list()
 	}
 	switch p := cur.Parent().(type) {
 	case *syntax.Assign:
 		return p.Var == cur
 	case *syntax.Foreach:
 		return p.Value == cur || p.Key == cur
-	case *syntax.List:
-		return true
 	}
 	return false
 }

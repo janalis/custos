@@ -7,6 +7,8 @@ function os_checks() {
     $sun  = <weak_warning descr="Compare PHP_OS_FAMILY instead of sniffing PHP_OS.">substr(PHP_OS, 0, 3)</weak_warning> === 'Sun';
     $neg  = <weak_warning descr="Compare PHP_OS_FAMILY instead of sniffing PHP_OS.">strpos(PHP_OS, 'X')</weak_warning> !== -1;
 
+    $plain = PHP_OS;
+
     // not reported
     $p1 = (strpos(PHP_OS, 'WIN')) === 0;
     $p2 = strpos(PHP_OS, 'WIN') > 0;

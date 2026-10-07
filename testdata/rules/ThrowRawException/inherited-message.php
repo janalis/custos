@@ -26,5 +26,8 @@ function raise($n) {
     if ($n === 3) {
         throw new TraitChildFailure();
     }
+    if ($n === 4) {
+        throw new TraitFailure();      // the class itself uses the trait
+    }
     throw <weak_warning descr="Pass a message when throwing this exception.">new BareChildFailure()</weak_warning>;
 }

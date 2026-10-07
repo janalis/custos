@@ -32,6 +32,9 @@ func (mkdirRaceCondition) Check(ctx *analysis.Context, n syntax.Node) {
 	if c := len(call.Args.Args); c < 1 || c > 3 {
 		return
 	}
+	if _, ok := call.Args.Args[0].(*syntax.Arg); !ok { // mkdir(...) builds a closure
+		return
+	}
 	if f := ctx.Types().ResolveFunction(call); f != nil {
 		if !strings.EqualFold(strings.TrimPrefix(f.FQN, `\`), "mkdir") {
 			return
@@ -51,10 +54,7 @@ locate:
 	for {
 		p := cur.Parent()
 		switch p := p.(type) {
-		case *syntax.If:
-			if p.Cond != cur {
-				return
-			}
+		case *syntax.If: // an expression child of an if is its condition
 			target = cur
 			break locate
 		case *syntax.Assign, *syntax.ExprStmt:
@@ -171,28 +171,17 @@ locate:
 	}
 }
 
-// argsInner returns the span between the parentheses of an argument list.
-// argsInner is the span between the parentheses of l (tolerating a missing
-// closing parenthesis in broken code).
+// argsInner is the span from after the opening parenthesis of l to the end
+// of its last argument (l has at least one; a missing closing parenthesis in
+// broken code is tolerated).
 func argsInner(l *syntax.ArgList) syntax.Span {
-	s := l.Span()
-	in := syntax.Span{Start: s.Start + 1, End: s.End}
-	if len(l.Args) > 0 {
-		in.End = l.Args[len(l.Args)-1].Span().End
-	}
-	if in.End < in.Start {
-		in.End = in.Start
-	}
-	return in
+	return syntax.Span{Start: l.Span().Start + 1, End: l.Args[len(l.Args)-1].Span().End}
 }
 
 // mkdirDir returns the first argument text and whether the temp-var form is
 // needed (first argument neither a plain variable nor a quoted string).
 func mkdirDir(ctx *analysis.Context, call *syntax.FuncCall) (string, bool) {
-	a, ok := call.Args.Args[0].(*syntax.Arg)
-	if !ok || a.Value == nil {
-		return "", true
-	}
+	a := call.Args.Args[0].(*syntax.Arg) // checked by Check
 	switch v := a.Value.(type) {
 	case *syntax.Variable:
 		if v.NameExpr == nil {
@@ -215,9 +204,6 @@ func mkdirDir(ctx *analysis.Context, call *syntax.FuncCall) (string, bool) {
 func hasIsDirCall(ctx *analysis.Context, e syntax.Expr, keys []string) bool {
 	found := false
 	syntax.Inspect(e, func(n syntax.Node) bool {
-		if found {
-			return false
-		}
 		call, ok := n.(*syntax.FuncCall)
 		if !ok || !strings.EqualFold(util.CallLastName(call), "is_dir") || call.Args == nil || len(call.Args.Args) == 0 {
 			return true
@@ -239,10 +225,7 @@ func hasIsDirCall(ctx *analysis.Context, e syntax.Expr, keys []string) bool {
 // mkdir's directory: the first argument itself and, when it is an assignment
 // (`mkdir($d = expr)`), the assigned variable and the assigned value.
 func mkdirDirKeys(ctx *analysis.Context, call *syntax.FuncCall) []string {
-	a, ok := call.Args.Args[0].(*syntax.Arg)
-	if !ok || a.Value == nil {
-		return nil
-	}
+	a := call.Args.Args[0].(*syntax.Arg) // checked by Check
 	v := syntax.UnwrapParens(a.Value)
 	keys := []string{mkdirNorm(ctx.Text(v))}
 	if as, ok := v.(*syntax.Assign); ok && as.Op.Kind == syntax.TEqual {

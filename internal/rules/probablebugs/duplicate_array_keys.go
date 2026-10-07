@@ -76,10 +76,7 @@ func arrayKeyValue(e syntax.Expr) (string, bool) {
 		if neg {
 			return "", false
 		}
-		if _, _, quoted := util.QuotedStringRaw(lit); !quoted {
-			return "", false
-		}
-		val, ok := util.StringLiteralValue(lit.Raw)
+		val, ok := util.StringLiteralValue(lit.Raw) // not ok for nowdoc
 		if !ok {
 			return "", false
 		}

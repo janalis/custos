@@ -1,0 +1,1 @@
+<?php ClAss A funCtion {{A:

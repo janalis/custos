@@ -7,5 +7,6 @@ function scan(string $line, string $tag) {
     $wrapped = (strpos($line, $tag)) !== false;
     $other = stripos($line, $tag) !== false;
     $enc = mb_strpos($line, $tag, 0, 'UTF-8') !== false;
+    $dyn = $finder($line, $tag) !== false;
     return [$from, $loose, $zero, $null, $wrapped, $other, $enc];
 }

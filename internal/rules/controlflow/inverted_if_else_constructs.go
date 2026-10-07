@@ -19,17 +19,11 @@ func (invertedIfElseConstructs) Kinds() []syntax.NodeKind { return []syntax.Node
 
 func (invertedIfElseConstructs) Check(ctx *analysis.Context, n syntax.Node) {
 	els := n.(*syntax.Else)
-	if els.Span().Len() == 0 {
-		return
-	}
 	elseBody, ok := bracedBlock(ctx, els.Body) // D1
 	if !ok {
 		return
 	}
-	owner, ok := els.Parent().(*syntax.If)
-	if !ok || owner.Alt {
-		return
-	}
+	owner := els.Parent().(*syntax.If) // alternative syntax fails D3
 	// D2
 	cond, body := owner.Cond, owner.Body
 	if k := len(owner.ElseIfs); k > 0 {
@@ -75,10 +69,6 @@ func (invertedIfElseConstructs) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return
 	}
-	kw, ok := util.FindToken(ctx.File, els.Span(), syntax.TElse)
-	if !ok {
-		return
-	}
 	lp, lok := invertedSignificantBefore(ctx.File, cond.Span().Start, syntax.TLParen)
 	rp, rok := util.NextSignificant(ctx.File, cond.Span().End)
 	var fixes []analysis.Fix
@@ -94,18 +84,16 @@ func (invertedIfElseConstructs) Check(ctx *analysis.Context, n syntax.Node) {
 			},
 		})
 	}
-	ctx.Report(syntax.Span{Start: kw.Start, End: kw.End}, invertedIfElseMsg, fixes...)
+	ctx.Report(keywordSpan(ctx, els), invertedIfElseMsg, fixes...)
 }
 
-// invertedSignificantBefore returns the last non-trivia token ending at or before off
-// when it has kind k.
+// invertedSignificantBefore returns the last non-trivia token ending at or
+// before off (a condition always follows the `if`/`elseif` keyword) and
+// whether it has kind k.
 func invertedSignificantBefore(f *syntax.File, off uint32, k syntax.TokenKind) (syntax.Token, bool) {
-	for i := util.TokenIndex(f, off) - 1; i >= 0; i-- {
-		t := f.Tokens[i]
-		if t.Kind.IsTrivia() {
-			continue
-		}
-		return t, t.Kind == k
+	i := util.TokenIndex(f, off) - 1
+	for f.Tokens[i].Kind.IsTrivia() {
+		i--
 	}
-	return syntax.Token{}, false
+	return f.Tokens[i], f.Tokens[i].Kind == k
 }

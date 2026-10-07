@@ -116,19 +116,20 @@ func issetInFinally(n syntax.Node) bool {
 }
 
 // issetDeclaredProperty reports whether a property access resolves to a
-// declared property (class body or constructor promotion; not magic).
+// declared property (class body or constructor promotion; not magic). e is
+// a *syntax.PropertyFetch or a *syntax.StaticPropertyFetch.
 func issetDeclaredProperty(ctx *analysis.Context, e syntax.Expr) bool {
 	var classes []string
 	var name string
-	switch p := e.(type) {
-	case *syntax.PropertyFetch:
+	if p, ok := e.(*syntax.PropertyFetch); ok {
 		id, ok := p.Name.(*syntax.Identifier)
 		if !ok {
 			return false
 		}
 		name = id.Value
 		classes = ctx.TypeOf(p.Var).Classes()
-	case *syntax.StaticPropertyFetch:
+	} else {
+		p := e.(*syntax.StaticPropertyFetch)
 		v, ok := p.Name.(*syntax.Variable)
 		if !ok || v.NameExpr != nil {
 			return false
@@ -148,8 +149,6 @@ func issetDeclaredProperty(ctx *analysis.Context, e syntax.Expr) bool {
 		} else {
 			classes = ctx.TypeOf(p.Class).Classes()
 		}
-	default:
-		return false
 	}
 	ix := ctx.Index()
 	for _, c := range classes {

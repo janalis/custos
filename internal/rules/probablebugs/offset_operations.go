@@ -78,10 +78,7 @@ func offsetSetIs(set []string, want ...string) bool {
 
 func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 	access := n.(*syntax.ArrayDimFetch)
-	sp := access.Span()
-	if sp.Len() == 0 || access.Var == nil || access.Var.Span().Len() == 0 {
-		return
-	}
+	sp := access.Span() // never empty: it includes the opening bracket
 	if last := ctx.Src[sp.End-1]; last != ']' && last != '}' {
 		return
 	}

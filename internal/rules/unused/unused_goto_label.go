@@ -17,16 +17,13 @@ func (unusedGotoLabel) Kinds() []syntax.NodeKind { return []syntax.NodeKind{synt
 
 func (unusedGotoLabel) Check(ctx *analysis.Context, n syntax.Node) {
 	l := n.(*syntax.Label)
-	if l.Name == nil || l.Span().Len() == 0 {
-		return
-	}
 	fn := syntax.EnclosingFuncLike(l) // D1
 	if fn == nil {
 		return
 	}
 	body := syntax.FuncLikeBody(fn) // D2
 	if body == nil {
-		return
+		return // error recovery: `class A function {{A:` (fuzz)
 	}
 	used := gotoTargets(ctx, body)[l.Name.Value]
 	if used {

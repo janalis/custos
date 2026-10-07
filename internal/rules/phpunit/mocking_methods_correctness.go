@@ -31,7 +31,7 @@ const (
 
 func (mockingMethodsCorrectness) Check(ctx *analysis.Context, n syntax.Node) {
 	c, ok := asPuCall(n)
-	if !ok || n.Span().Len() == 0 {
+	if !ok {
 		return
 	}
 	switch c.Name {
@@ -87,14 +87,14 @@ func mmcCheckMethod(ctx *analysis.Context, c puCall, arg syntax.Expr) {
 	// the method names case-insensitively.
 	for _, adder := range []string{"setMethods", "addMethods"} {
 		s := mmcFirstCall(mock.Node, adder)
-		if s == nil || len(s.Args.Args) == 0 {
+		if s == nil {
 			continue
 		}
-		a, ok := s.Args.Args[0].(*syntax.Arg)
-		if !ok {
+		sargs, _ := s.args() // nil with spreads, named arguments or placeholders
+		if len(sargs) == 0 {
 			continue
 		}
-		arr, ok := a.Value.(*syntax.Array)
+		arr, ok := sargs[0].(*syntax.Array)
 		if !ok {
 			continue
 		}
@@ -159,13 +159,18 @@ func mmcLiteralContent(raw string) string {
 	if c, _, ok := util.QuotedStringRaw(&syntax.Literal{LitKind: syntax.LitString, Raw: raw}); ok {
 		return c
 	}
-	if strings.HasPrefix(raw, "<<<") {
-		if i := strings.IndexByte(raw, '\n'); i >= 0 {
-			body := raw[i+1:]
-			if j := strings.LastIndexByte(body, '\n'); j >= 0 {
-				return body[:j]
-			}
-		}
+	// Otherwise a heredoc/nowdoc: `<<<ID` line, body lines, closing marker
+	// line whose indentation (PHP 7.3+) is removed from every body line.
+	body := raw[strings.IndexByte(raw, '\n')+1:]
+	j := strings.LastIndexByte(body, '\n')
+	if j < 0 {
+		return "" // empty body
 	}
-	return raw
+	closing := body[j+1:]
+	indent := closing[:len(closing)-len(strings.TrimLeft(closing, " \t"))]
+	lines := strings.Split(body[:j], "\n")
+	for k := range lines {
+		lines[k] = strings.TrimPrefix(lines[k], indent)
+	}
+	return strings.Join(lines, "\n")
 }

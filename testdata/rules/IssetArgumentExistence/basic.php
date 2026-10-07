@@ -21,3 +21,13 @@ function chained()
 {
     return <error descr="Variable '$a' is not defined in this scope.">$a</error> ?? <error descr="Variable '$b' is not defined in this scope.">$b</error> ?? 1;
 }
+
+function looped(array $rows)
+{
+    foreach ($rows as $row) {
+        if (isset(<error descr="Variable '$seen' is not defined in this scope.">$seen</error>)) {
+            return $row;
+        }
+    }
+    return null;
+}

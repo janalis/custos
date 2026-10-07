@@ -41,9 +41,6 @@ const (
 
 func (disconnectedForeachInstruction) Check(ctx *analysis.Context, n syntax.Node) {
 	loop := n.(*syntax.Foreach)
-	if loop.Span().Len() == 0 {
-		return
-	}
 	body, ok := bracedBlock(ctx, loop.Body) // D1
 	if !ok {
 		return

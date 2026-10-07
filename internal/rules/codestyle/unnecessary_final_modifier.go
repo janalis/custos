@@ -20,9 +20,6 @@ func (unnecessaryFinalModifier) Kinds() []syntax.NodeKind { return []syntax.Node
 
 func (unnecessaryFinalModifier) Check(ctx *analysis.Context, n syntax.Node) {
 	m := n.(*syntax.Method) // D2: property hooks are a different node kind
-	if m.Name == nil {
-		return
-	}
 	var final syntax.Span
 	found := false
 	for _, t := range m.Modifiers { // D1

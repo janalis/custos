@@ -123,14 +123,15 @@ func castStrictTypes(ctx *analysis.Context, tr *infer.TRules, a syntax.Expr) []s
 	seen := map[string]bool{}
 	var out []string
 	for _, at := range t.Atoms() {
-		at = strings.ToLower(strings.TrimPrefix(at, `\`))
+		// Atoms are already normalised (integer→int, boolean→bool); a
+		// remaining `\Integer` / `\Boolean` is a class, not a scalar alias.
 		switch {
 		case strings.Contains(at, "[]"):
 			at = "array"
-		case at == "integer":
-			at = "int"
-		case at == "boolean" || at == "true" || at == "false":
+		case at == "true" || at == "false":
 			at = "bool"
+		default:
+			at = strings.ToLower(at)
 		}
 		if !seen[at] {
 			seen[at] = true

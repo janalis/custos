@@ -129,8 +129,7 @@ func isDestructuringTarget(arr *syntax.Array) bool {
 		case *syntax.ArrayItem:
 			outer, ok := p.Parent().(*syntax.Array)
 			if !ok {
-				_, isList := p.Parent().(*syntax.List)
-				return isList
+				return true // an item of a list(...) pattern
 			}
 			n = outer
 		default:

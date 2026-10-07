@@ -24,9 +24,6 @@ func (suspiciousLoop) Kinds() []syntax.NodeKind {
 
 func (suspiciousLoop) Check(ctx *analysis.Context, n syntax.Node) {
 	s := n.Span()
-	if s.Len() == 0 {
-		return
-	}
 	kwLen := uint32(len("foreach"))
 	if f, ok := n.(*syntax.For); ok {
 		kwLen = uint32(len("for"))

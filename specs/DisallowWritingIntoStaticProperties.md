@@ -152,3 +152,10 @@ class Counter
   through to resolution and is reported inside closures and functions,
   while `self::$p = 1` is not. Both mean the same class; custos excludes
   `self` case-insensitively (D3).
+- **Methods of anonymous classes (custos diverges from its earlier
+  behaviour):** an anonymous class has no name, so D3a could not compare it
+  with the declaring class and such writes were never reported. custos now
+  applies D3a to them as to any other class: `Base::$p = 1` or
+  `parent::$p = 1` inside `new class extends Base { … }` is reported, a
+  property of a trait the anonymous class uses counts as its own, and
+  `static::$p` (unresolvable without a name) is not reported.

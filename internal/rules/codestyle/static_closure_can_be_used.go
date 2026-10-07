@@ -58,10 +58,7 @@ func (staticClosureCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(attrs) > 0 {
 		from = attrs[len(attrs)-1].Span().End
 	}
-	tok, ok := util.FindToken(ctx.File, syntax.Span{Start: from, End: n.Span().End}, kw)
-	if !ok {
-		return
-	}
+	tok, _ := util.FindToken(ctx.File, syntax.Span{Start: from, End: n.Span().End}, kw) // always present
 	span := syntax.Span{Start: tok.Start, End: tok.End}
 	ctx.Report(span, "Closure does not use $this; declare it static.", analysis.Fix{
 		Title: "Declare static",
@@ -135,8 +132,10 @@ func closureUsageSites(f *syntax.File, n syntax.Node) (sites []syntax.Node, unsa
 		}
 	case *syntax.Assign: // D6b
 		target, ok := p.Var.(*syntax.Variable)
-		if !ok || p.Value != n || p.Op.Kind != syntax.TEqual || target.NameExpr != nil || target.Name == "" {
-			return nil, false
+		if !ok || p.Op.Kind != syntax.TEqual || target.NameExpr != nil || target.Name == "" {
+			// Stored in a property, an array element, a static or dynamic
+			// variable: it may be bound later (custos diverges, see spec).
+			return nil, true
 		}
 		body := syntax.FuncLikeBody(syntax.EnclosingFuncLike(p))
 		if body == nil {
@@ -179,9 +178,7 @@ func closureUsageSites(f *syntax.File, n syntax.Node) (sites []syntax.Node, unsa
 		if p.Key != nil {
 			return []syntax.Node{p}, false
 		}
-		if arr := p.Parent(); arr != nil {
-			return []syntax.Node{arr}, false
-		}
+		return []syntax.Node{p.Parent()}, false
 	}
 	return nil, false
 }
@@ -224,9 +221,6 @@ func closureSiteSafe(ctx *analysis.Context, site syntax.Node) bool {
 
 // bindNullScope reports whether argument i of list exists and is null.
 func bindNullScope(ctx *analysis.Context, list *syntax.ArgList, i int) bool {
-	if list == nil {
-		return false
-	}
 	args, ok := util.ArgValues(list)
 	return ok && len(args) > i && syntax.IsNullConst(syntax.UnwrapParens(args[i]))
 }
