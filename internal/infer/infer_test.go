@@ -199,7 +199,7 @@ function f(array $names) {
         $list['b'] = [];
     }
 }
-`, map[string]string{"coalesce": "array|string", "same": "string", "loop": "array|string"})
+`, map[string]string{"coalesce": "array", "same": "string", "loop": "array"})
 }
 
 func TestArrayPopReturnsNullWhenEmpty(t *testing.T) {
@@ -425,4 +425,313 @@ function f(string $from) {
     t('attached', $n);
 }
 `, map[string]string{"later": "array", "attached": "int"})
+}
+
+// checkShape is check() with types rendered with their array facts
+// (types.Type.ShapeString).
+func checkShape(t *testing.T, src string, want map[string]string) {
+	t.Helper()
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpver.PHP84})
+	if len(f.Errors) > 0 {
+		t.Fatalf("parse: %v", f.Errors)
+	}
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpver.PHP84)
+	got := map[string]string{}
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "t" && len(c.Args.Args) == 2 {
+				label := strings.Trim(string(f.Src[c.Args.Args[0].Span().Start:c.Args.Args[0].Span().End]), "'")
+				got[label] = env.TypeOf(c.Args.Args[1].(*syntax.Arg).Value).ShapeString()
+			}
+		}
+		return true
+	})
+	for k, w := range want {
+		if got[k] != w {
+			t.Errorf("%s: got %s want %s", k, got[k], w)
+		}
+	}
+}
+
+func TestLiteralArrayShapes(t *testing.T) {
+	checkShape(t, `<?php
+function f(bool $c, $u) {
+    $a = ['a' => 1, 'b' => 'x'];
+    t('lit', $a);
+    t('a', $a['a']); t('b', $a['b']); t('missing', $a['zz']);
+    $l = [1, 'x', 5 => true, false];
+    t('list', $l); t('l1', $l[1]); t('l6', $l[6]); t('l1s', $l['1']);
+    $u2 = [...$u, 1];
+    t('unpack', $u2);
+    $e = [];
+    t('empty', $e);
+    $nested = ['in' => ['k' => 1.5]];
+    t('nested', $nested['in']['k']);
+    $m = $c ? ['a' => 1, 'b' => 2] : ['a' => 'x'];
+    t('merged', $m); t('ma', $m['a']); t('mb', $m['b']);
+}
+`, map[string]string{
+		"lit": "array{a: int, b: string}", "a": "int", "b": "string", "missing": "?unknown",
+		"list": "array{0: int, 1: string, 5: true, 6: false}", "l1": "string", "l6": "false", "l1s": "string",
+		"unpack": "non-empty array", "empty": "array{}", "nested": "float",
+		"merged": "int[]|string[]{a: int|string, b?: int}", "ma": "int|string", "mb": "int",
+	})
+}
+
+func TestShapeElementWrites(t *testing.T) {
+	checkShape(t, `<?php
+function f(array $xs, string $k) {
+    $a = [];
+    $a['name'] = 'x';
+    $a['n'] = 1;
+    t('name', $a['name']); t('n', $a['n']);
+    $b = ['v' => 1];
+    $b['v'] = 'str';
+    t('overwritten', $b['v']);
+    $c = ['v' => 1, 'w' => 2];
+    $c[$k] = null;
+    t('computed', $c['v']);
+    $d = ['v' => 1, 'w' => 'x'];
+    $d['v']['deep'] = 2;
+    t('nestedWrite', $d['v']); t('otherKey', $d['w']);
+    $e = ['v' => 1];
+    $e[] = 'appended';
+    t('append', $e['v']);
+    $s = ['k' => 1, 'j' => 'x'];
+    sort($s);
+    t('byRef', $s['k']);
+    $r = ['k' => 1, 'j' => 'x'];
+    foreach ($r as &$ref) { $ref = 'x'; }
+    t('foreachRef', $r['k']);
+    ['k' => $dk, 'w' => $dw] = $d;
+    t('destructKey', $dw);
+    [$p0, $p1] = [1, 'two'];
+    t('destructPos', $p1);
+}
+`, map[string]string{
+		"name": "string", "n": "int", "overwritten": "int|string", "computed": "int|null",
+		"nestedWrite": "?unknown", "otherKey": "string", "append": "int",
+		"byRef": "?unknown", "foreachRef": "?unknown", "destructKey": "string", "destructPos": "string",
+	})
+}
+
+func TestDocShapes(t *testing.T) {
+	checkShape(t, `<?php
+/**
+ * @param array{path: string, line: int, col?: int} $loc
+ * @param list{int, string} $pair
+ * @param list<array{id: int, name: string}> $rows
+ * @param non-empty-array<string> $ne
+ */
+function f(array $loc, array $pair, array $rows, array $ne) {
+    t('loc', $loc); t('path', $loc['path']); t('col', $loc['col']); t('none', $loc['zz']);
+    t('pair1', $pair[1]);
+    foreach ($rows as $row) { t('rowName', $row['name']); }
+    t('rowIdx', $rows[0]['id']);
+    t('ne', $ne);
+}
+class R {
+    /** @return array{ok: bool, data: string[]} */
+    public function get(): array { return []; }
+    public function use() { t('ret', $this->get()['data']); }
+}
+`, map[string]string{
+		"loc": "array{path: string, line: int, col?: int}", "path": "string", "col": "int", "none": "?unknown",
+		"pair1": "string", "rowName": "string", "rowIdx": "int", "ne": "non-empty string[]",
+		"ret": "string[]",
+	})
+}
+
+func TestNonEmptyNarrowing(t *testing.T) {
+	check(t, `<?php
+/** @param string[] $xs */
+function f(array $xs, array $ys) {
+    t('plain', array_shift($xs));
+    if ([] !== $xs) { t('notEmptyLit', array_shift($xs)); }
+    if ($xs !== []) { t('notEmptyLit2', reset($xs)); }
+    if (!empty($xs)) { t('notEmpty', end($xs)); }
+    if (empty($xs)) { t('empty', end($xs)); } else { t('emptyElse', end($xs)); }
+    if (count($xs) > 0) { t('countGt', array_pop($xs)); }
+    if (0 === count($xs)) { t('countZero', array_pop($xs)); } else { t('countZeroElse', array_pop($xs)); }
+    if ($xs) { array_shift($xs); t('afterShift', array_shift($xs)); }
+    while (!empty($xs)) { t('whileShift', array_shift($xs)); }
+    if ($xs) { foreach ($ys as $y) { t('loopShift', array_shift($xs)); } }
+    if ([] === $xs) { return; }
+    t('guard', array_pop($xs));
+}
+/** @param int[] $q */
+function g(array $q) {
+    if (count($q) === 0) { throw new \Exception(); }
+    next($q);
+    t('pointerMoved', current($q));
+    $lit = [1, 2];
+    t('literal', array_shift($lit));
+    t('literal2', array_shift($lit));
+    $s = ['a' => 1, 'b' => 'x'];
+    t('shapeReset', reset($s));
+    $w = [1];
+    $w[] = 'x';
+    t('widened', end($w));
+}
+/** @param int[] $c */
+function h(array $c) {
+    if ($c) { t('truthy', current($c)); }
+}
+`, map[string]string{
+		"plain": "null|string", "notEmptyLit": "string", "notEmptyLit2": "string", "notEmpty": "string",
+		"empty": "false|string", "emptyElse": "string", "countGt": "string",
+		"countZero": "null|string", "countZeroElse": "string",
+		"afterShift": "null|string", "whileShift": "string", "loopShift": "null|string", "guard": "string",
+		"pointerMoved": "false|int", "literal": "int", "literal2": "int|null",
+		"shapeReset": "int|string", "widened": "int|string", "truthy": "int",
+	})
+}
+
+func TestNonEmptyPropertyNarrowing(t *testing.T) {
+	check(t, `<?php
+class Stack {
+    /** @var string[] */
+    private array $items = [];
+    public function a() {
+        if ([] === $this->items) { return null; }
+        t('prop', array_pop($this->items));
+    }
+    public function b() {
+        if ($this->items) { $this->refill(); t('afterCall', array_pop($this->items)); }
+        if (count($this->items) > 0) { $n = \strlen('x'); t('afterBuiltin', end($this->items)); }
+    }
+    private function refill(): void {}
+}
+`, map[string]string{"prop": "string", "afterCall": "null|string", "afterBuiltin": "string"})
+}
+
+func TestShapeSurvivesTypeCheckNarrowing(t *testing.T) {
+	check(t, `<?php
+/** @param array{a: int}|null $x */
+function f($x) {
+    if (is_array($x)) { t('a', $x['a']); }
+    if ($x !== null) { t('b', $x['a']); }
+}
+`, map[string]string{"a": "int", "b": "int"})
+}
+
+func TestOrderAwareElementWrites(t *testing.T) {
+	checkShape(t, `<?php
+function f(array $xs, bool $c) {
+    $a = ['k' => 1];
+    t('before', $a['k']);
+    $a['k'] = 'x';
+    t('after', $a['k']);
+    $b = ['k' => 1];
+    if ($c) { $b['k'] = 'x'; }
+    t('branch', $b['k']);
+    $d = ['k' => 1];
+    $d['k'] = 'x';
+    $d = ['k' => 2.5];
+    t('reassigned', $d['k']);
+    $l = ['k' => 1];
+    foreach ($xs as $x) {
+        t('loopBefore', $l['k']);
+        $l['k'] = 'x';
+    }
+    $m = ['k' => 1];
+    t('beforeNested', $m['k']);
+    $m['k']['deep'] = 2;
+    t('afterNested', $m['k']);
+    $e = [];
+    t('missingBefore', $e['n']);
+    $e['n'] = 1;
+    t('missingAfter', $e['n']);
+    $s = ['a' => 1];
+    t('elemBefore', reset($s));
+    $s[] = 'x';
+    t('elemAfter', reset($s));
+    $w = ['a' => 1];
+    foreach ($xs as $x) {
+        $v = $w['a'];
+        $w['a'] = $v + 1;
+    }
+    t('cycle', $w['a']);
+}
+`, map[string]string{
+		"before": "int", "after": "int|string", "branch": "int|string", "reassigned": "float",
+		"loopBefore": "int|string", "beforeNested": "int", "afterNested": "?unknown",
+		"missingBefore": "?unknown", "missingAfter": "int",
+		"elemBefore": "int", "elemAfter": "int|string", "cycle": "int",
+	})
+}
+
+func TestForeachOverShapes(t *testing.T) {
+	check(t, `<?php
+/**
+ * @param array{int, string} $pair
+ * @param array{a: int, ...} $open
+ */
+function f(array $pair, array $open, array $xs) {
+    foreach (['a' => 1, 'b' => 'x'] as $k => $v) { t('litK', $k); t('litV', $v); }
+    foreach ($pair as $k => $v) { t('pairK', $k); t('pairV', $v); }
+    foreach ($open as $k => $v) { t('openK', $k); t('openV', $v); }
+    $m = ['a' => 1, 2 => 1.5];
+    foreach ($m as $k => $v) { t('mixedK', $k); t('mixedV', $v); }
+    $out = [];
+    foreach ($xs as $x) { $out[] = new \DateTime(); }
+    foreach ($out as $k => $o) { t('builtK', $k); t('builtV', $o); }
+    $n = [1, 2];
+    $n[] = 'x';
+    foreach ($n as $v) { t('widenedList', $v); }
+    $c = ['a' => 1];
+    $c[$xs[0]] = 2;
+    foreach ($c as $k => $v) { t('computedK', $k); }
+    $none = [];
+    foreach ($none as $v) { t('empty', $v); }
+}
+`, map[string]string{
+		"litK": "string", "litV": "int|string", "pairK": "int", "pairV": "int|string",
+		"openK": "int|string", "openV": "?unknown", "mixedK": "int|string", "mixedV": "float|int",
+		"builtK": "int", "builtV": `\DateTime`, "widenedList": "int|string", "computedK": "int|string",
+		"empty": "?unknown",
+	})
+}
+
+func TestBodyReturnTypeInCalls(t *testing.T) {
+	check(t, `<?php
+function plain() { return 1; }
+function maybe($c) { if ($c) { return 'x'; } }
+function viaOther() { return plain(); }
+function rec($n) { if ($n) { return 1; } return rec($n - 1); }
+function gen() { yield 1; }
+function thrower() { throw new \Exception(); }
+function unknownRet($u) { return $u; }
+/** @return string */
+function documented() { return g(); }
+function a1() { return a2(); }
+function a2() { return a1(); }
+class Base {
+    public function open() { return 1; }
+    private function hidden() { return 'h'; }
+    final public function sealed() { return 2.5; }
+    public static function make() { return new Base(); }
+    public function run() {
+        t('virtual', $this->open()); t('private', $this->hidden()); t('final', $this->sealed());
+        t('self', self::make()); t('static', static::make()); t('named', Base::make());
+    }
+}
+final class Leaf { public function v() { return true; } }
+trait T { public function tv() { return 1; } }
+class UsesT { use T; }
+function calls() {
+    t('plain', plain()); t('maybe', maybe(1)); t('viaOther', viaOther()); t('rec', rec(1));
+    t('gen', gen()); t('thrower', thrower()); t('unknownRet', unknownRet(1)); t('documented', documented());
+    t('cycle', a1()); t('leaf', (new Leaf())->v()); t('trait', (new UsesT())->tv());
+    t('strlen', strlen('x'));
+}
+`, map[string]string{
+		"plain": "int", "maybe": "null|string", "viaOther": "int", "rec": "?unknown",
+		"gen": "?unknown", "thrower": "?unknown", "unknownRet": "?unknown", "documented": "string",
+		"cycle": "?unknown", "leaf": "true", "trait": "?unknown", "strlen": "int",
+		"virtual": "?unknown", "private": "string", "final": "float",
+		"self": `\Base`, "static": "?unknown", "named": `\Base`,
+	})
 }

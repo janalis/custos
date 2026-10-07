@@ -13,8 +13,14 @@ import (
 
 // Type is an immutable union of atoms. The zero value is "unknown" (no
 // information); use Mixed for an explicit mixed.
+//
+// A type may also carry array facts (see shape.go) describing its array
+// members: per-key types, non-emptiness. They never change the atom set, so
+// atom-based checks (Has("array"), IsArrayLike, Atoms) behave as without
+// them; Equal and String ignore them (ShapeString shows them).
 type Type struct {
-	atoms []string // sorted, unique; nil = unknown
+	atoms []string   // sorted, unique; nil = unknown
+	arr   *arrayInfo // optional array facts; nil when none
 }
 
 // Common types.
@@ -112,13 +118,19 @@ func (t Type) OnlyOf(atoms ...string) bool {
 // is represented as unknown (callers must treat partial knowledge as unknown).
 func Union(ts ...Type) Type {
 	var all []string
+	info := false
 	for _, t := range ts {
 		if t.IsUnknown() {
 			return Unknown
 		}
 		all = append(all, t.atoms...)
+		info = info || t.arr != nil
 	}
-	return Of(all...)
+	u := Of(all...)
+	if info {
+		u = u.withInfo(unionInfo(ts))
+	}
+	return u
 }
 
 // Without removes atoms.
@@ -139,7 +151,7 @@ func (t Type) Without(atoms ...string) Type {
 			out = append(out, a)
 		}
 	}
-	return Type{atoms: append([]string{}, out...)}
+	return Type{atoms: append([]string{}, out...)}.withInfo(t.arr)
 }
 
 // Classes returns class atoms (with leading backslash, excluding T[] forms).
@@ -167,7 +179,11 @@ func (t Type) Elem() Type {
 	if len(out) == 0 {
 		return Unknown
 	}
-	return Of(out...)
+	el := Of(out...)
+	if t.arr != nil && t.arr.elem != nil {
+		el = el.withInfo(t.arr.elem)
+	}
+	return el
 }
 
 // IsArrayLike reports whether every atom is an array form.

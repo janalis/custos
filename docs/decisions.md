@@ -147,13 +147,62 @@ Found on real code (corpus A, Symfony) and fixed through spec → implement.
   in a block, or an if/elseif/else chain assigning `$x` in every branch (or
   leaving), hides earlier definitions; loops add back-edge definitions; a use
   inside its own assignment sees only earlier definitions; inline
-  `/** @var T $x */` overrides the next assignment; element writes
-  (`$a[k] = v`) widen the element type.
+  `/** @var T $x */` overrides the next assignment; a foreach binding hides
+  earlier definitions inside the loop body; element writes (`$a[k] = v`)
+  widen the element type of the reads they reach (below).
 - **Narrowing:** `is_*()`, `instanceof`, null/true/false comparisons, isset,
   truthiness — in ternary branches, if/elseif/else bodies, `&&`/`||` operands,
   `while` bodies and after early-exit guards.
+- **Array shapes and emptiness (2026-10-07):** a type may carry array
+  facts beside its atoms (`types/shape.go`): per-key types, a sealed flag,
+  non-emptiness, and the same facts for the elements of `T[]` members. They
+  never change the atom set (`array{a: int}` is still the atom `array`, a
+  uniform literal still `int[]`), so `Has("array")`, `IsArrayLike`, `Atoms`,
+  `Equal` and `String` behave as before; `ShapeString` shows them (tests),
+  `DocString` round-trips them through the index's doc-type strings. Sources:
+  literal arrays with literal/implicit keys (`[]` is the sealed empty shape),
+  doc shapes `array{k: T, k2?: U, ...}`, `list{T, U}` / `array{T, U}`,
+  `non-empty-array/list`, element shapes (`list<array{…}>`, `array{…}[]`),
+  and destructuring (`['k' => $v] = $shape`, `[$a, $b] = …`). Unions merge
+  shapes key by key (a key missing from a sealed side becomes optional); a
+  member without facts (plain `array`) drops them. Capped at
+  `MaxShapeKeys` = 32 keys. `$a['k']` with a literal key listed by the shape
+  gives that key's type, widened by the writes to the same key or to a
+  computed key that reach the read (a nested `$a['k'][…] = v` or a
+  destructuring write makes it unknown); a key added by `$a['k'] = v` to a
+  sealed literal is typed from its reaching writes; anything else falls back
+  to the element type / unknown as before.
+- **Order-aware element writes (2026-10-07):** element writes are
+  definitions in the variable's reaching-definition list
+  (`infer/reaching.go`, the same kill/barrier/back-edge walk as variables)
+  that never kill: a write reaches the reads after it in its block, after
+  branches that may have run it, and the reads earlier in an enclosing loop
+  (back edge); a whole-variable assignment that kills earlier definitions
+  also hides earlier element writes. As for variables, a back-edge write of
+  unknown type (usually a cycle through the read) adds nothing.
+- **foreach over shapes:** iterating a sealed shape (`['a' => 1, 'b' =>
+  'x']`, `array{int, string}`, `[]` filled by `$a[] = v` writes) gives the
+  union of its values and, for the key, `int` or `string` when every listed
+  key and reaching write key is of that kind (`int|string` otherwise);
+  iterating a `T[]` variable also unions the reaching element writes.
+  Unsealed shapes (`array{a: int, ...}`) stay unknown. Passing the variable to a by-reference parameter
+  (`sort($a)`), binding it by reference or iterating it by reference drops
+  its shape. `array_values/reverse/unique` drop the shape, `array_slice/
+  filter` also the non-empty fact.
+- **Non-empty narrowing:** `[] !== $x`, `$x != []`, `!empty($x)`, `$x`
+  truthiness, `count($x) > 0` / `>= 1` / `!== 0` / `=== n≥1` (either operand
+  order, negations, `sizeof`) mark the array members non-empty, as do
+  non-empty literals and doc types. The fact is dropped when a mutation of the
+  variable (assignment, by-reference argument, unset, reference) lies between
+  the condition/definition and the use, outside branches exclusive with the
+  use, or anywhere in a loop entered after it; for `$this->prop`, any
+  non-builtin call also counts. On a non-empty array `reset/end/array_pop/
+  array_shift` lose their `false`/`null` member, `current` too unless the
+  pointer may have moved (next/prev/end/reset/each); these functions also use
+  the union of a sealed shape's values and the variable's element writes.
 - **PHPDoc:** `@template` names map to `mixed`; `@phpstan-type`/`@psalm-type`
-  aliases expand; `@phpstan-import-type` → `mixed`; nested generics parse. Conditional
+  aliases expand (including aliases used inside an alias; a self-reference
+  reads as `mixed`); `@phpstan-import-type` → `mixed`; nested generics parse. Conditional
   types `(T is X ? A : B)` give `A|B`. A doc intersection refining an object
   declaration (`@return Mock&T` on `: Mock`) is kept. Native declarations
   know no scalar aliases (`Double`, `integer` are class names).
@@ -171,6 +220,17 @@ Found on real code (corpus A, Symfony) and fixed through spec → implement.
   (`util.QualifiedBuiltin`, `util.QualifiedGlobalConst`).
 - **Calls:** first-class callables (`f(...)`) are `\Closure`; named arguments
   bound in builtin return-type overrides.
+- **Body return types (2026-10-07):** a call to a function or method
+  declared in the current file without declared or `@return` type is typed
+  from its body (`infer/returns.go`): the union of its `return` values, plus
+  `null` for `return;` or a reachable end of body (`syntax.Terminates`).
+  Unknown when any returned value is unknown, for generators, bodies that
+  never return, on recursion (a body already being inferred) and beyond 4
+  nested inferences. Methods only when the call cannot reach an override:
+  private or final method, final class or enum, or a non-virtual static call
+  (`self::`, `parent::`, `Name::`); trait and interface methods are skipped.
+  Declarations in other files are not inferred (the index keeps no bodies);
+  `@phpstan-return`/`@psalm-return` alone do not count as documented.
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.

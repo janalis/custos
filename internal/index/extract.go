@@ -102,7 +102,7 @@ func (x *extractor) docTypeStr(text string, at uint32) string {
 	if t.IsUnknown() {
 		return ""
 	}
-	return t.String()
+	return t.DocString() // keeps array shapes (round-trips through FromDoc)
 }
 
 // DocComment returns the doc comment directly preceding node n ("" if none).

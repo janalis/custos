@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"strconv"
 	"strings"
 
 	"custos/internal/syntax"
@@ -44,51 +45,69 @@ func (e *Env) narrowExpr(t types.Type, x syntax.Expr, key string, scope syntax.N
 		switch n := p.(type) {
 		case *syntax.Ternary:
 			if n.Then != nil && child == syntax.Node(n.Then) {
-				t = e.applyCond(t, n.Cond, key, true)
+				t = e.cond(x, scope, t, n.Cond, key, true)
 			} else if child == syntax.Node(n.Else) && n.Then != nil {
-				t = e.applyCond(t, n.Cond, key, false)
+				t = e.cond(x, scope, t, n.Cond, key, false)
 			}
 		case *syntax.Binary:
 			if child == syntax.Node(n.Right) {
 				switch n.Op.Kind {
 				case syntax.TBooleanAnd, syntax.TAnd:
-					t = e.applyCond(t, n.Left, key, true)
+					t = e.cond(x, scope, t, n.Left, key, true)
 				case syntax.TBooleanOr, syntax.TOr:
-					t = e.applyCond(t, n.Left, key, false)
+					t = e.cond(x, scope, t, n.Left, key, false)
 				}
 			}
 		case *syntax.If:
 			if child == syntax.Node(n.Body) {
-				t = e.applyCond(t, n.Cond, key, true)
+				t = e.cond(x, scope, t, n.Cond, key, true)
 			} else if n.Else != nil && child == syntax.Node(n.Else) && len(n.ElseIfs) == 0 {
-				t = e.applyCond(t, n.Cond, key, false)
+				t = e.cond(x, scope, t, n.Cond, key, false)
 			}
 		case *syntax.While:
 			if child == syntax.Node(n.Body) {
-				t = e.applyCond(t, n.Cond, key, true)
+				t = e.cond(x, scope, t, n.Cond, key, true)
 			}
 		case *syntax.ElseIf:
 			if child == syntax.Node(n.Body) {
-				t = e.applyCond(t, n.Cond, key, true)
+				t = e.cond(x, scope, t, n.Cond, key, true)
 			}
 		case *syntax.Block:
-			t = e.guards(t, n.Stmts, child, key)
+			t = e.guards(x, scope, t, n.Stmts, child, key)
 		case *syntax.Case:
-			t = e.guards(t, n.Stmts, child, key)
+			t = e.guards(x, scope, t, n.Stmts, child, key)
 		case *syntax.Namespace:
-			t = e.guards(t, n.Stmts, child, key)
+			t = e.guards(x, scope, t, n.Stmts, child, key)
 		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction:
 			return t
 		}
 	}
 	if scope == nil {
-		t = e.guards(t, e.File.Stmts, child, key)
+		t = e.guards(x, scope, t, e.File.Stmts, child, key)
 	}
 	return t
 }
 
+// cond applies condition c (evaluated to truthy) to the type t of use. A
+// non-empty-array fact it establishes is kept only when no mutation can have
+// emptied the array between the condition and use (for `$this->prop`, no
+// non-builtin call either).
+func (e *Env) cond(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, truthy bool) types.Type {
+	return e.condAt(use, scope, t, c, key, truthy, c.Span().End)
+}
+
+func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, truthy bool, from uint32) types.Type {
+	r := e.applyCond(t, c, key, truthy)
+	if r.IsNonEmptyArray() && !t.IsNonEmptyArray() {
+		if e.nonEmptyBroken(scope, key, from, use) {
+			r = r.WithNonEmpty(false)
+		}
+	}
+	return r
+}
+
 // guards applies early-exit guards among the statements preceding child.
-func (e *Env) guards(t types.Type, stmts []syntax.Stmt, child syntax.Node, name string) types.Type {
+func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, stmts []syntax.Stmt, child syntax.Node, name string) types.Type {
 	orig := t
 	for _, s := range stmts {
 		if syntax.Node(s) == child {
@@ -101,7 +120,7 @@ func (e *Env) guards(t types.Type, stmts []syntax.Stmt, child syntax.Node, name 
 		}
 		if g, ok := s.(*syntax.If); ok && g.Else == nil && len(g.ElseIfs) == 0 {
 			if terminates(g.Body) {
-				t = e.applyCond(t, g.Cond, name, false)
+				t = e.condAt(use, scope, t, g.Cond, name, false, g.Span().End)
 			} else if val := e.overwrites(g.Body, name); val != nil {
 				// `if (false === $x) { $x = $default; }`: past the if, the
 				// condition no longer holds (unless the new value matches it).
@@ -228,6 +247,15 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 				return e.applyCond(e.applyCond(t, c.Left, name, false), c.Right, name, false)
 			}
 		case syntax.TIsIdentical, syntax.TIsNotIdentical:
+			if isEmptyArrayComparison(c, name) {
+				if (c.Op.Kind == syntax.TIsNotIdentical) == truthy {
+					return t.WithNonEmpty(true)
+				}
+				return t
+			}
+			if n, ok := countComparison(c, name); ok {
+				return nonEmptyIf(t, countNonEmpty(c.Op.Kind, n, truthy))
+			}
 			lit := ""
 			switch {
 			case isVar(c.Left, name):
@@ -250,7 +278,21 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 				out = types.Union(out.Without("bool"), types.Of(other))
 			}
 			return out
+		case syntax.TLess, syntax.TIsSmallerOrEqual, syntax.TGreater, syntax.TIsGreaterOrEqual:
+			if n, ok := countComparison(c, name); ok {
+				return nonEmptyIf(t, countNonEmpty(c.Op.Kind, n, truthy))
+			}
 		case syntax.TIsEqual, syntax.TIsNotEqual:
+			if isEmptyArrayComparison(c, name) {
+				// `$x != []`: neither null, false nor an empty array.
+				if (c.Op.Kind == syntax.TIsNotEqual) == truthy {
+					return t.Without("null", "false").WithNonEmpty(true)
+				}
+				return t
+			}
+			if n, ok := countComparison(c, name); ok {
+				return nonEmptyIf(t, countNonEmpty(c.Op.Kind, n, truthy))
+			}
 			isNull := (isVar(c.Left, name) && isNullConst(c.Right)) || (isVar(c.Right, name) && isNullConst(c.Left))
 			if !isNull {
 				return t
@@ -258,6 +300,10 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 			if (c.Op.Kind == syntax.TIsEqual) != truthy {
 				return t.Without("null")
 			}
+		}
+	case *syntax.Empty:
+		if !truthy && isVar(c.Expr, name) {
+			return t.Without("null", "false").WithNonEmpty(true)
 		}
 	case *syntax.Instanceof:
 		if !isVar(c.Expr, name) {
@@ -280,7 +326,7 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 		}
 	case *syntax.Variable, *syntax.PropertyFetch:
 		if narrowKey(c) == name && truthy {
-			return t.Without("null", "false")
+			return t.Without("null", "false").WithNonEmpty(true)
 		}
 	case *syntax.FuncCall:
 		nm, ok := c.Name.(*syntax.Name)
@@ -292,6 +338,9 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 			return t
 		}
 		fn := strings.ToLower(strings.TrimPrefix(nm.Value, `\`))
+		if (fn == "count" || fn == "sizeof") && truthy {
+			return t.WithNonEmpty(true)
+		}
 		atoms, ok := typeChecks[fn]
 		if !ok {
 			return t
@@ -312,17 +361,130 @@ func narrowAtoms(t types.Type, atoms []string, truthy bool) types.Type {
 		}
 		return false
 	}
-	var keep []string
+	var drop []string
 	for _, a := range t.Atoms() {
-		if match(a) == truthy {
-			keep = append(keep, a)
+		if match(a) != truthy {
+			drop = append(drop, a)
 		}
 	}
-	if len(keep) == 0 {
+	if len(drop) == len(t.Atoms()) {
 		if truthy {
 			return types.Of(atoms[0])
 		}
 		return t
 	}
-	return types.Of(keep...)
+	return t.Without(drop...) // keeps array facts (shapes) of the remaining members
+}
+
+// isEmptyArrayComparison reports `$x OP []` / `[] OP $x` on variable name.
+func isEmptyArrayComparison(c *syntax.Binary, name string) bool {
+	isEmpty := func(x syntax.Expr) bool {
+		a, ok := unparen(x).(*syntax.Array)
+		return ok && len(a.Items) == 0
+	}
+	return (isVar(c.Left, name) && isEmpty(c.Right)) || (isVar(c.Right, name) && isEmpty(c.Left))
+}
+
+// countComparison matches `count($x) OP n` or `n OP count($x)` on variable
+// name with an integer literal n.
+func countComparison(c *syntax.Binary, name string) (countCmp, bool) {
+	isCount := func(x syntax.Expr) bool {
+		f, ok := unparen(x).(*syntax.FuncCall)
+		if !ok || f.Args == nil || len(f.Args.Args) != 1 {
+			return false
+		}
+		nm, ok := f.Name.(*syntax.Name)
+		if !ok {
+			return false
+		}
+		switch strings.ToLower(strings.TrimPrefix(nm.Value, `\`)) {
+		case "count", "sizeof":
+		default:
+			return false
+		}
+		a, ok := f.Args.Args[0].(*syntax.Arg)
+		return ok && !a.Unpack && isVar(a.Value, name)
+	}
+	intLit := func(x syntax.Expr) (int64, bool) {
+		k, ok := literalKey(x)
+		if !ok {
+			return 0, false
+		}
+		l, isLit := unparen(x).(*syntax.Literal)
+		if isLit && l.LitKind != syntax.LitInt {
+			return 0, false
+		}
+		n, err := strconv.ParseInt(k, 10, 64)
+		return n, err == nil
+	}
+	if isCount(c.Left) {
+		if n, ok := intLit(c.Right); ok {
+			return countCmp{n: n}, true
+		}
+	}
+	if isCount(c.Right) {
+		if n, ok := intLit(c.Left); ok {
+			return countCmp{n: n, flipped: true}, true
+		}
+	}
+	return countCmp{}, false
+}
+
+type countCmp struct {
+	n       int64
+	flipped bool // `n OP count($x)`
+}
+
+// countNonEmpty reports whether `count($x) OP n` evaluating to truthy
+// implies count($x) >= 1.
+func countNonEmpty(op syntax.TokenKind, c countCmp, truthy bool) bool {
+	if c.flipped {
+		switch op {
+		case syntax.TLess:
+			op = syntax.TGreater
+		case syntax.TGreater:
+			op = syntax.TLess
+		case syntax.TIsSmallerOrEqual:
+			op = syntax.TIsGreaterOrEqual
+		case syntax.TIsGreaterOrEqual:
+			op = syntax.TIsSmallerOrEqual
+		}
+	}
+	if !truthy {
+		// Negate the comparison.
+		switch op {
+		case syntax.TLess:
+			op = syntax.TIsGreaterOrEqual
+		case syntax.TGreater:
+			op = syntax.TIsSmallerOrEqual
+		case syntax.TIsSmallerOrEqual:
+			op = syntax.TGreater
+		case syntax.TIsGreaterOrEqual:
+			op = syntax.TLess
+		case syntax.TIsIdentical, syntax.TIsEqual:
+			op = syntax.TIsNotIdentical
+		case syntax.TIsNotIdentical, syntax.TIsNotEqual:
+			op = syntax.TIsIdentical
+		}
+	}
+	n := c.n
+	switch op {
+	case syntax.TGreater:
+		return n >= 0
+	case syntax.TIsGreaterOrEqual:
+		return n >= 1
+	case syntax.TIsIdentical, syntax.TIsEqual:
+		return n >= 1
+	case syntax.TIsNotIdentical, syntax.TIsNotEqual:
+		return n == 0
+	}
+	return false
+}
+
+// nonEmptyIf marks t's array members non-empty when cond holds.
+func nonEmptyIf(t types.Type, cond bool) types.Type {
+	if cond {
+		return t.WithNonEmpty(true)
+	}
+	return t
 }

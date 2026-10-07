@@ -3,6 +3,7 @@ package infer
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 
 	"custos/internal/types"
@@ -24,11 +25,18 @@ type Env struct {
 	cache  map[syntax.Expr]types.Type
 	scopes map[syntax.Node]*scopeVars
 	busy   map[syntax.Expr]bool
+
+	// Return types inferred from bodies (see bodyReturn), by declaration span.
+	bodies    map[syntax.Span]types.Type
+	bodyBusy  map[syntax.Span]bool
+	bodyDepth int
+	decls     map[syntax.Span]syntax.Node
 }
 
 // NewEnv creates an inference environment.
 func NewEnv(f *syntax.File, r *names.Resolver, ix *index.Index, php phpver.Version) *Env {
-	return &Env{File: f, Names: r, Index: ix, PHP: php, cache: map[syntax.Expr]types.Type{}, scopes: map[syntax.Node]*scopeVars{}, busy: map[syntax.Expr]bool{}}
+	return &Env{File: f, Names: r, Index: ix, PHP: php, cache: map[syntax.Expr]types.Type{}, scopes: map[syntax.Node]*scopeVars{}, busy: map[syntax.Expr]bool{},
+		bodies: map[syntax.Span]types.Type{}, bodyBusy: map[syntax.Span]bool{}}
 }
 
 func (e *Env) resolver(at uint32) types.Resolver {
@@ -207,6 +215,9 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 		if ct.IsUnknown() {
 			return types.Unknown
 		}
+		if t, ok := e.shapeDim(ct, n); ok {
+			return t
+		}
 		// X[]|null indexes to X; a plain `array` member has unknown elements.
 		if el := ct.Elem(); !el.IsUnknown() && ct.Without("null").IsArrayLike() && !ct.Has("array") {
 			return e.widenElem(el, n)
@@ -267,24 +278,6 @@ func literalTextType(v string) types.Type {
 		return types.Null
 	}
 	return types.Unknown
-}
-
-func (e *Env) arrayType(n *syntax.Array) types.Type {
-	var elems []types.Type
-	for _, it := range n.Items {
-		if it == nil || it.Value == nil || it.Unpack {
-			return types.Array
-		}
-		elems = append(elems, e.TypeOf(it.Value))
-	}
-	if len(elems) == 0 {
-		return types.Array
-	}
-	u := types.Union(elems...)
-	if u.IsUnknown() || len(u.Atoms()) != 1 || strings.HasSuffix(u.Atoms()[0], "[]") {
-		return types.Array
-	}
-	return types.Of(u.Atoms()[0] + "[]")
 }
 
 func (e *Env) unaryType(n *syntax.Unary) types.Type {
@@ -433,7 +426,7 @@ func (e *Env) newType(n *syntax.New) types.Type {
 
 // bindStatic replaces static/self in a member type by the receiver class.
 func bindStatic(t types.Type, receiver string) types.Type {
-	if t.IsUnknown() || receiver == "" {
+	if t.IsUnknown() || receiver == "" || !t.HasAny("static", "self", "static[]", "self[]") {
 		return t
 	}
 	atoms := make([]string, 0, len(t.Atoms()))
@@ -512,10 +505,16 @@ func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types
 	return types.Union(ts...)
 }
 
-func (e *Env) methodReturn(cls, name string) types.Type {
+// methodReturn is the return type of method name called on class cls;
+// virtual reports a call that may dispatch to an override (see
+// methodBodyReturn).
+func (e *Env) methodReturn(cls, name string, virtual bool) types.Type {
 	m := e.Index.FindMethod(cls, name, e.PHP)
 	if m == nil {
 		return types.Unknown
+	}
+	if m.Return == "" && m.DocReturn == "" {
+		return e.methodBodyReturn(m, virtual)
 	}
 	return bindStatic(memberType(m.Return, m.DocReturn), cls)
 }
@@ -531,7 +530,7 @@ func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
 	}
 	var ts []types.Type
 	for _, cls := range recv.Classes() {
-		t := e.methodReturn(strings.TrimPrefix(cls, `\`), id.Value)
+		t := e.methodReturn(strings.TrimPrefix(cls, `\`), id.Value, true)
 		if t.IsUnknown() {
 			return types.Unknown
 		}
@@ -556,7 +555,7 @@ func (e *Env) staticCallType(n *syntax.StaticCall) types.Type {
 	if cls == "" {
 		return types.Unknown
 	}
-	return e.methodReturn(cls, id.Value)
+	return e.methodReturn(cls, id.Value, isVirtualClassRef(n.Class))
 }
 
 func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
@@ -600,6 +599,9 @@ func (e *Env) funcCallType(n *syntax.FuncCall) types.Type {
 	f := e.ResolveFunction(n)
 	if f == nil {
 		return types.Unknown
+	}
+	if f.Return == "" && f.DocReturn == "" {
+		return e.BodyReturnType(f)
 	}
 	return memberType(f.Return, f.DocReturn)
 }
@@ -654,10 +656,30 @@ func (e *Env) overrideType(n *syntax.FuncCall) (types.Type, bool) {
 		}
 	case "current", "reset", "end", "next", "prev", "array_pop", "array_shift":
 		if a := arg(0); a != nil {
-			if el := e.TypeOf(a).Elem(); !el.IsUnknown() {
+			at := e.TypeOf(a)
+			el := at.Elem()
+			if el.IsUnknown() {
+				el = e.shapeElem(at, a)
+			} else if v, ok := unparen(a).(*syntax.Variable); ok && v.Name != "" && v.Name != "this" {
+				el = e.widenVarElem(el, v)
+			}
+			if !el.IsUnknown() {
+				l := strings.ToLower(fqn)
 				empty := "false" // the pointer functions return false on an empty array
-				if l := strings.ToLower(fqn); l == "array_pop" || l == "array_shift" {
+				if l == "array_pop" || l == "array_shift" {
 					empty = "null" // array_pop()/array_shift() return null
+				}
+				// A provably non-empty array yields an element; current()
+				// only while the internal pointer cannot have moved.
+				if at.IsArrayLike() && at.IsNonEmptyArray() {
+					switch l {
+					case "reset", "end", "array_pop", "array_shift":
+						return el, true
+					case "current":
+						if v, ok := unparen(a).(*syntax.Variable); ok && v.Name != "" && !e.pointerMoved(scopeOf(v), v.Name) {
+							return el, true
+						}
+					}
 				}
 				return types.Union(el, types.Of(empty)), true
 			}
@@ -702,7 +724,13 @@ func (e *Env) overrideType(n *syntax.FuncCall) (types.Type, bool) {
 	case "array_values", "array_reverse", "array_slice", "array_filter", "array_unique":
 		if a := arg(0); a != nil {
 			if t := e.TypeOf(a); t.IsArrayLike() {
-				return t, true
+				// Keys are renumbered or dropped: no shape; the result of
+				// array_slice()/array_filter() may be empty.
+				switch strings.ToLower(fqn) {
+				case "array_slice", "array_filter":
+					return t.WithoutShape().WithNonEmpty(false), true
+				}
+				return t.WithoutShape(), true
 			}
 		}
 	}
@@ -726,41 +754,65 @@ type varDef struct {
 	// variable (or leaves): uses within kill (after the chain, same block)
 	// forget definitions made before it. Barriers carry no type.
 	barrier bool
+	// w marks an element write (see elemDefs); such entries carry no type.
+	w *elemWrite
 }
 
 type scopeVars struct {
 	defs map[string][]varDef
-	// dimWrites lists, per variable, the values written into its elements
-	// (`$x[k] = v`, `$x[] = v`, `$x[k] ??= v`); nil entries are writes of
-	// unknown type (destructuring targets).
-	dimWrites map[string][]*syntax.Assign
+	// elemWrites lists, per variable, the writes into its elements (see
+	// elemWrite), as definitions positioned at the writing assignment.
+	elemWrites map[string][]varDef
+	// edefs caches elemDefs.
+	edefs map[string][]varDef
+	// muts lists the operations that may change each variable (lazy, see
+	// mutations()).
+	muts map[string][]mutation
 }
 
 // widenElem unions the element type el of the array read by n with every
-// value directly written into the same variable's elements in its scope
-// (flow-insensitively), so `$a = ['k' => 'x']; $a['l'] = [];` does not type
+// value directly written into the same variable's elements by a write that
+// can reach the read, so `$a = ['k' => 'x']; $a['l'] = [];` does not type
 // `$a['l']` as string.
 func (e *Env) widenElem(el types.Type, n *syntax.ArrayDimFetch) types.Type {
 	v, ok := n.Var.(*syntax.Variable)
 	if !ok || v.Name == "" || v.Name == "this" {
 		return el
 	}
-	ws := e.scopeVars(scopeOf(v)).dimWrites[v.Name]
+	return e.widenVarElem(el, v)
+}
+
+// widenVarElem unions el with every value written into the elements of
+// variable v by a write reaching v (see widenElem). A nested write into an
+// element makes the result unknown.
+func (e *Env) widenVarElem(el types.Type, v *syntax.Variable) types.Type {
+	ws, back := e.reachingWrites(v)
 	if len(ws) == 0 {
 		return el
 	}
 	ts := []types.Type{el}
-	for _, a := range ws {
-		switch {
-		case a == nil:
-			return types.Unknown
-		case a.Op.Kind == syntax.TEqual || a.Op.Kind == syntax.TCoalesceEqual:
-			ts = append(ts, e.TypeOf(a.Value))
-		default:
-			ts = append(ts, e.TypeOf(a))
+	for i, w := range ws {
+		if w.nested {
+			continue // changes an element already counted; see widenKey
 		}
+		if w.a == nil {
+			return types.Unknown
+		}
+		t := e.writtenType(w.a)
+		if t.IsUnknown() && back[i] {
+			continue // a back-edge cycle adds nothing (as for variables)
+		}
+		ts = append(ts, t)
 	}
 	return types.Union(ts...)
+}
+
+// writtenType is the value an element write stores.
+func (e *Env) writtenType(a *syntax.Assign) types.Type {
+	if a.Op.Kind == syntax.TEqual || a.Op.Kind == syntax.TCoalesceEqual {
+		return e.TypeOf(a.Value)
+	}
+	return e.TypeOf(a)
 }
 
 // scopeOf returns the function-like node (or nil for file scope) owning n.
@@ -793,64 +845,35 @@ func (e *Env) variableType(v *syntax.Variable) types.Type {
 		outer := e.scopeVars(scopeOf(scope))
 		defs = outer.defs[v.Name]
 	}
-	var ts []types.Type
-	pos := v.Span().Start
-	var lastKill uint32 // position of the last definition that reset ts
-	for i := 0; i < len(defs); i++ {
-		d := defs[i]
-		if d.pos > pos {
-			break
-		}
-		if d.end > pos {
-			// The use is inside the defining assignment itself (e.g. the
-			// right-hand side of `$x = $x ?? null`): it sees earlier definitions only.
-			continue
-		}
-		if d.barrier {
-			if d.kill.Start <= pos && pos < d.kill.End {
-				ts = ts[:0]
-				lastKill = d.pos
-			}
-			continue
-		}
-		if d.doc || (d.kill.Len() > 0 && d.kill.Start <= pos && pos < d.kill.End) {
-			// An inline annotation states the type from here on; so does an
-			// unconditional assignment earlier in an enclosing block.
-			ts = ts[:0]
-			lastKill = d.pos
-		}
+	fwd, back, from := e.reaching(defs, v, scope)
+	ts := make([]types.Type, 0, len(fwd)+len(back))
+	for _, d := range fwd {
 		ts = append(ts, d.typ())
-		// `/** @var T $x */ $x = ...;` — the annotation replaces the
-		// assigned value's type.
-		// Only the statement the annotation is attached to: no `;` between
-		// the comment and that definition.
-		if d.doc && i+1 < len(defs) && !defs[i+1].doc && defs[i+1].pos <= pos && !e.semicolonBetween(d.docEnd, defs[i+1].pos) {
-			i++
-		}
 	}
-	if len(ts) > 0 {
-		// Inside a loop, definitions later in the loop reach the use through
-		// the back edge (`$prev = null; foreach (…) { f($prev); $prev = $x; }`).
-		// Not when an unconditional definition inside the loop precedes the
-		// use: every path from the back edge passes through it.
-		if loop := outermostLoop(v, scope); loop != nil && lastKill < loop.Span().Start {
-			end := loop.Span().End
-			for _, d := range defs {
-				if d.pos > pos && d.pos < end && !d.doc && !d.barrier {
-					// An unknown back-edge type (often a cycle through this
-					// very use) adds nothing: keep what the forward
-					// definitions say.
-					if t := d.typ(); !t.IsUnknown() {
-						ts = append(ts, t)
-					}
-				}
-			}
+	for _, d := range back {
+		// An unknown back-edge type (often a cycle through this very use)
+		// adds nothing: keep what the forward definitions say.
+		if t := d.typ(); !t.IsUnknown() {
+			ts = append(ts, t)
 		}
 	}
 	if len(ts) == 0 {
 		return types.Unknown
 	}
-	return e.narrow(types.Union(ts...), v, scope)
+	t := types.Union(ts...)
+	if t.HasShape() || t.IsNonEmptyArray() {
+		ms := scope
+		if _, ok := scope.(*syntax.ArrowFunction); ok && len(sv.defs[v.Name]) == 0 {
+			ms = scopeOf(scope)
+		}
+		if t.HasShape() && e.shapeClobbered(ms, v.Name) {
+			t = t.WithoutShape()
+		}
+		if t.IsNonEmptyArray() && e.nonEmptyBroken(ms, v.Name, from, v) {
+			t = t.WithNonEmpty(false)
+		}
+	}
+	return e.narrow(t, v, scope)
 }
 
 // iterElem is the element type of iterating over t: unknown as soon as one
@@ -884,7 +907,7 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 	if sv, ok := e.scopes[scope]; ok {
 		return sv
 	}
-	sv := &scopeVars{defs: map[string][]varDef{}, dimWrites: map[string][]*syntax.Assign{}}
+	sv := &scopeVars{defs: map[string][]varDef{}, elemWrites: map[string][]varDef{}}
 	e.scopes[scope] = sv
 	add := func(name string, pos uint32, t func() types.Type) {
 		if name != "" {
@@ -950,7 +973,7 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 			case *syntax.Function, *syntax.Method, *syntax.ArrowFunction, *syntax.ClassLike:
 				return n == scope // do not descend into nested scopes
 			case *syntax.Assign:
-				e.collectDimWrites(n, n.Var, sv)
+				e.collectDimWrites(n, n, n.Var, sv)
 				end := n.Span().End
 				var kill syntax.Span
 				if _, plain := n.Var.(*syntax.Variable); plain && n.Op.Kind == syntax.TEqual {
@@ -971,12 +994,23 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 				}
 			case *syntax.Foreach:
 				it := n.Expr
-				if n.Key != nil {
-					if kv, ok := n.Key.(*syntax.Variable); ok {
-						add(kv.Name, n.Key.Span().Start, func() types.Type { return types.Of("int", "string") })
+				// The loop binds its targets at the start of every iteration:
+				// inside the body they hide earlier definitions.
+				var kill syntax.Span
+				if n.Body != nil {
+					kill = n.Body.Span()
+				}
+				addKill := func(name string, pos uint32, t func() types.Type) {
+					if name != "" {
+						sv.defs[name] = append(sv.defs[name], varDef{pos: pos, kill: kill, typ: t})
 					}
 				}
-				e.collectTargets(n.Value, n.Value.Span().Start, func() types.Type { return iterElem(e.TypeOf(it)) }, add)
+				if n.Key != nil {
+					if kv, ok := n.Key.(*syntax.Variable); ok {
+						addKill(kv.Name, n.Key.Span().Start, func() types.Type { return e.foreachKey(it) })
+					}
+				}
+				e.collectTargets(n.Value, n.Value.Span().Start, func() types.Type { return e.foreachElem(it) }, addKill)
 			case *syntax.Catch:
 				if n.Var != nil {
 					var atoms []string
@@ -1024,43 +1058,70 @@ func (e *Env) collectTargets(target syntax.Expr, pos uint32, t func() types.Type
 	case *syntax.Variable:
 		add(v.Name, pos, t)
 	case *syntax.List:
-		for _, it := range v.Items {
-			if it != nil && it.Value != nil {
-				e.collectTargets(it.Value, pos, func() types.Type { return types.Unknown }, add)
-			}
-		}
+		e.collectItemTargets(v.Items, pos, t, add)
 	case *syntax.Array:
-		for _, it := range v.Items {
-			if it != nil && it.Value != nil {
-				e.collectTargets(it.Value, pos, func() types.Type { return types.Unknown }, add)
-			}
-		}
+		e.collectItemTargets(v.Items, pos, t, add)
 	}
 }
 
-// collectDimWrites records element writes `$x[...] = v` made by target
-// (destructuring targets are recorded as unknown writes).
-func (e *Env) collectDimWrites(a *syntax.Assign, target syntax.Expr, sv *scopeVars) {
+// collectItemTargets registers destructuring items; an item reads the
+// destructured value's shape key (explicit literal key or position).
+func (e *Env) collectItemTargets(items []*syntax.ArrayItem, pos uint32, t func() types.Type, add func(string, uint32, func() types.Type)) {
+	for i, it := range items {
+		if it == nil || it.Value == nil {
+			continue
+		}
+		key, ok := strconv.Itoa(i), it.Key == nil
+		if it.Key != nil {
+			key, ok = literalKey(it.Key)
+		}
+		item := func() types.Type { return types.Unknown }
+		if ok && !it.ByRef {
+			item = shapeTarget(t, key)
+		}
+		e.collectTargets(it.Value, pos, item, add)
+	}
+}
+
+// collectDimWrites records the element writes `$x[...] = v` made by target,
+// part of assignment outer (destructuring targets are recorded as unknown
+// writes: a is nil).
+func (e *Env) collectDimWrites(outer, a *syntax.Assign, target syntax.Expr, sv *scopeVars) {
+	add := func(name string, w *elemWrite) {
+		sv.elemWrites[name] = append(sv.elemWrites[name], varDef{pos: outer.Span().Start, end: outer.Span().End, w: w})
+	}
 	switch t := target.(type) {
 	case *syntax.ArrayDimFetch:
 		if v, ok := t.Var.(*syntax.Variable); ok && v.Name != "" {
-			sv.dimWrites[v.Name] = append(sv.dimWrites[v.Name], a)
+			add(v.Name, &elemWrite{a: a})
+			return
+		}
+		// Nested write: remember which first-level key it changes.
+		inner := t
+		for {
+			d, ok := inner.Var.(*syntax.ArrayDimFetch)
+			if !ok {
+				break
+			}
+			inner = d
+		}
+		if v, ok := inner.Var.(*syntax.Variable); ok && v.Name != "" {
+			add(v.Name, &elemWrite{a: a, nested: true, key: inner.Dim})
 		}
 	case *syntax.List:
 		for _, it := range t.Items {
 			if it != nil && it.Value != nil {
-				e.collectDimWrites(nil, it.Value, sv)
+				e.collectDimWrites(outer, nil, it.Value, sv)
 			}
 		}
 	case *syntax.Array:
 		for _, it := range t.Items {
 			if it != nil && it.Value != nil {
-				e.collectDimWrites(nil, it.Value, sv)
+				e.collectDimWrites(outer, nil, it.Value, sv)
 			}
 		}
 	}
 }
-
 func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
 	at := p.Span().Start
 	declared := types.FromNode(p.Type, e.resolver(at))

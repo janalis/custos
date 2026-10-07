@@ -1,6 +1,7 @@
 package types
 
 import (
+	"strconv"
 	"strings"
 
 	"custos/internal/syntax"
@@ -31,13 +32,156 @@ func FromDoc(text string, resolve Resolver) Type {
 		return Unknown
 	}
 	var atoms []string
+	var infos []Type
 	for _, part := range splitTop(text, '|') {
-		atoms = append(atoms, docAtoms(part, resolve)...)
+		pa := docAtoms(part, resolve)
+		atoms = append(atoms, pa...)
+		if t := Of(pa...); t.hasArrayAtom() {
+			infos = append(infos, t.withInfo(docArr(part, resolve)))
+		}
 	}
 	if len(atoms) == 0 {
 		return Unknown
 	}
-	return Of(atoms...)
+	t := Of(atoms...)
+	if len(infos) > 0 {
+		t = t.withInfo(unionInfo(infos))
+	}
+	return t
+}
+
+// docArr computes the array facts of one doc union member: shapes
+// (`array{k: T, k2?: U}`, `list{T, U}`), `non-empty-*` arrays, and the facts
+// of element types (`array<K, array{...}>`, `array{...}[]`). Nil when none.
+func docArr(s string, resolve Resolver) *arrayInfo {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	if s[0] == '?' {
+		return docArr(s[1:], resolve)
+	}
+	if s[0] == '(' && s[len(s)-1] == ')' && matchingClose(s) == len(s)-1 {
+		if _, _, ok := conditionalBranches(s[1 : len(s)-1]); ok {
+			return nil
+		}
+		return FromDoc(s[1:len(s)-1], resolve).arr
+	}
+	if len(splitTop(s, '&')) > 1 {
+		return nil
+	}
+	if strings.HasSuffix(s, "[]") {
+		if el := FromDoc(s[:len(s)-2], resolve); el.arr != nil {
+			return &arrayInfo{elem: el.arr}
+		}
+		return nil
+	}
+	base, args := s, ""
+	if i := strings.IndexAny(s, "<{("); i > 0 {
+		base, args = s[:i], s[i:]
+	}
+	low := strings.ToLower(base)
+	var a arrayInfo
+	switch low {
+	case "array", "list":
+	case "non-empty-array", "non-empty-list":
+		a.nonEmpty = true
+	default:
+		// A type alias (@phpstan-type) standing for an array shape.
+		if resolve != nil && base != "" && base[0] != '$' && !isBuiltinAtom(low) && pseudo[low] == nil {
+			if fqn := resolve(base); strings.HasPrefix(fqn, "=") && len(fqn) > 1 && fqn[1:] != base {
+				return FromDoc(fqn[1:], aliasGuard(resolve, base)).arr
+			}
+		}
+		return nil
+	}
+	if end := matchingClose(args); end == len(args)-1 && end > 0 {
+		inner := args[1:end]
+		switch args[0] {
+		case '<':
+			gen := splitTop(inner, ',')
+			a.elem = FromDoc(gen[len(gen)-1], resolve).arr
+		case '{':
+			keys, sealed, ok := parseShape(inner, resolve)
+			if !ok {
+				return norm(&a)
+			}
+			if len(keys) > MaxShapeKeys {
+				for _, k := range keys {
+					a.nonEmpty = a.nonEmpty || !k.Optional
+				}
+				return norm(&a)
+			}
+			a.shape, a.sealed, a.keys = true, sealed, keys
+		}
+	}
+	return norm(&a)
+}
+
+// parseShape parses the body of a doc shape: `k: T, 'k2'?: U, 0: V, ...`
+// or positional `T, U` (keys 0, 1, ...). A trailing `...` unseals it.
+func parseShape(body string, resolve Resolver) ([]ShapeKey, bool, bool) {
+	sealed := true
+	var keys []ShapeKey
+	next := 0
+	for _, entry := range splitTop(body, ',') {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		if strings.HasPrefix(entry, "...") {
+			sealed = false
+			continue
+		}
+		kv := splitTop(entry, ':')
+		var k ShapeKey
+		if len(kv) >= 2 && isShapeKey(strings.TrimSpace(kv[0])) {
+			name := strings.TrimSpace(kv[0])
+			if strings.HasSuffix(name, "?") {
+				k.Optional = true
+				name = strings.TrimSpace(name[:len(name)-1])
+			}
+			if len(name) >= 2 && (name[0] == '\'' || name[0] == '"') && name[len(name)-1] == name[0] {
+				name = name[1 : len(name)-1]
+			}
+			k.Name = name
+			k.Type = FromDoc(strings.Join(kv[1:], ":"), resolve)
+			if IsIntKey(name) {
+				if n, _ := strconv.Atoi(name); n >= next {
+					next = n + 1
+				}
+			}
+		} else {
+			k.Name = strconv.Itoa(next)
+			next++
+			k.Type = FromDoc(entry, resolve)
+		}
+		if _, dup := findKey(keys, k.Name); dup {
+			return nil, false, false
+		}
+		keys = append(keys, k)
+	}
+	return keys, sealed, true
+}
+
+// isShapeKey reports whether s (trimmed, maybe with a trailing `?`) is a
+// shape key: identifier-like, integer, or quoted.
+func isShapeKey(s string) bool {
+	s = strings.TrimSuffix(s, "?")
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false
+	}
+	if len(s) >= 2 && (s[0] == '\'' || s[0] == '"') && s[len(s)-1] == s[0] {
+		return true
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if !(c == '_' || c == '-' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= 0x80) {
+			return false
+		}
+	}
+	return true
 }
 
 func docAtoms(s string, resolve Resolver) []string {
@@ -150,12 +294,24 @@ func docAtoms(s string, resolve Resolver) []string {
 			if def == "" || def == base {
 				return []string{"mixed"}
 			}
-			return FromDoc(def, nil).Atoms()
+			// Aliases may use other aliases (not themselves).
+			return FromDoc(def, aliasGuard(resolve, base)).Atoms()
 		}
 	} else {
 		fqn = strings.TrimPrefix(base, `\`)
 	}
 	return []string{`\` + fqn}
+}
+
+// aliasGuard wraps resolve so that expanding alias name cannot recurse into
+// itself (a self-reference reads as mixed).
+func aliasGuard(resolve Resolver, name string) Resolver {
+	return func(w string) string {
+		if w == name {
+			return ""
+		}
+		return resolve(w)
+	}
 }
 
 // conditionalBranches splits a conditional type `T is [not] X ? A : B`
