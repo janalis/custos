@@ -80,3 +80,48 @@ func TestReadSizes(t *testing.T) {
 		}
 	}
 }
+
+// TestSwappedPath swaps the path between the check and the open, as a
+// concurrent writer could: a vanished file fails the open; a directory, or
+// a FIFO (which must not block the open), fails the descriptor re-check.
+func TestSwappedPath(t *testing.T) {
+	defer func() { beforeOpen = nil }()
+	dir := t.TempDir()
+	p := filepath.Join(dir, "f")
+	write := func() {
+		if err := os.WriteFile(p, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write()
+	beforeOpen = func(path string) { os.Remove(path) }
+	if _, err := ReadFile(p, 10); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("vanished: %v", err)
+	}
+	write()
+	beforeOpen = func(path string) {
+		os.Remove(path)
+		os.Mkdir(path, 0o755)
+	}
+	if _, err := ReadFile(p, 10); !errors.Is(err, ErrNotRegular) {
+		t.Fatalf("swapped for a directory: %v", err)
+	}
+	q := filepath.Join(dir, "g")
+	if err := os.WriteFile(q, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	beforeOpen = func(path string) {
+		os.Remove(path)
+		syscall.Mkfifo(path, 0o644)
+	}
+	done := make(chan error, 1)
+	go func() { _, err := ReadFile(q, 10); done <- err }()
+	select {
+	case err := <-done:
+		if !errors.Is(err, ErrNotRegular) {
+			t.Fatalf("swapped for a FIFO: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("opening a swapped-in FIFO blocked")
+	}
+}

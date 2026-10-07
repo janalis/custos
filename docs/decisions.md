@@ -196,10 +196,10 @@ Coverage is kept at 100%: `make coverage` (part of `make verify`) fails on any
 statement of `internal/rules` not executed by own fixtures or the rule
 packages' tests, and on any statement of `cmd/`, `internal/` and `tools/` not
 executed by the whole test suite (the EA run and local corpora do not count;
-the only exemptions are each command's one-line
-`func main() { os.Exit(run(...)) }` wrapper, listed by file:line in the
-Makefile's `COVER_MAINS`; an exemption that matches no uncovered block fails
-the gate). The generators under `tools/` keep their logic in `run` functions
+the only exemption is the body of a one-statement `func main()` in package
+main — each command's `os.Exit(run(...))` wrapper — which `tools/covercheck`
+finds by parsing the source; a line-number list in the Makefile broke on
+every edit above `main()`). The generators under `tools/` keep their logic in `run` functions
 taking the repository root or input/output paths, tested on temporary trees
 with invented inputs (fake plugin layout, stub PHP, specs, "upstream" text),
 so the gate needs neither the EA checkout nor phpstorm-stubs. Refactoring them
@@ -636,13 +636,17 @@ split into `decode`/`must` so a corrupt embed panics through tested code.
   waited for their next edit.
 - File reading (2026-10-08): profiles showed ~45% of CPU in `open`/`stat`
   (kernel contention with one reader per core, every file read twice).
-  `safeio` opens with `O_NONBLOCK` and checks the descriptor (`fstat`)
-  instead of a path `stat` first (same FIFO/device protection, no
-  check-then-open window; Windows keeps stat-then-open), sizes its buffer
-  from the file; `analyse` reuses the bytes the index pass read
-  (`BuildIndexKeep` → `RunSources`); at most 6 files are read at once.
-  corpus A vendor `--all`: 0.78–0.93 s → 0.74–0.77 s, system CPU 2–4 s →
-  1.2 s; findings byte-identical.
+  `analyse` reuses the bytes the index pass read (`BuildIndexKeep` →
+  `RunSources`), at most 6 files are read at once, and `safeio` sizes its
+  buffer from the file. Vendor corpus `--all`: 0.78–0.93 s → 0.73–0.78 s,
+  system CPU 2–4 s → 1.2 s; findings byte-identical. `safeio` still checks
+  the path (`stat`) before opening: an intermediate version opened first
+  and checked the descriptor, which a security review flagged — opening a
+  device can have side effects (tape rewind, serial line toggling, a
+  terminal becoming the controlling tty). The open adds `O_NONBLOCK` and
+  `O_NOCTTY` for a path swapped between check and open, and the type is
+  re-checked on the descriptor; with reads capped, the extra `stat` costs
+  nothing measurable.
 - No on-disk index cache (planned in the migration, declined 2026-10-07):
   a cold project index takes 0.37 s for a 7.6k-source project (incl. vendor)
   and 0.48 s for a 10k-source project; a cache would still stat/hash every
