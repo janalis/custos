@@ -5,18 +5,31 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"custos/internal/meta"
 )
 
-func main() {
-	rules, err := meta.All()
+const out = "docs/rules-reference.md"
+
+// Seams for tests: the catalogue and the descriptions are embedded.
+var (
+	catalogue = meta.All
+	describe  = meta.Describe
+)
+
+func main() { os.Exit(run(".", os.Stdout, os.Stderr)) }
+
+// run writes root/docs/rules-reference.md.
+func run(root string, stdout, stderr io.Writer) int {
+	rules, err := catalogue()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fmt.Fprintln(stderr, err)
+		return 1
 	}
 	byGroup := map[string][]meta.Rule{}
 	var groups []string
@@ -47,12 +60,13 @@ func main() {
 			}
 			// What custos actually offers: a rule has quick-fixes when its own
 			// fixtures include an expected fix output (*.fixed.*).
+			d, ok := describe(r.ID)
 			fix := "no"
-			if d, ok := meta.Describe(r.ID); ok && d.Fix {
+			if ok && d.Fix {
 				fix = "yes"
 			}
 			fmt.Fprintf(&b, "\n### %s\n\n`%s` · severity **%s** · default **%s** · quick-fix **%s**\n\n", r.ID, r.LegacyID, r.Severity, def, fix)
-			if d, ok := meta.Describe(r.ID); ok {
+			if ok {
 				if d.Summary != "" {
 					b.WriteString(d.Summary + "\n")
 				}
@@ -62,11 +76,12 @@ func main() {
 			}
 		}
 	}
-	if err := os.WriteFile("docs/rules-reference.md", []byte(b.String()), 0o644); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	if err := os.WriteFile(filepath.Join(root, out), []byte(b.String()), 0o644); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
 	}
-	fmt.Printf("docs/rules-reference.md: %d rules in %d groups\n", len(rules), len(groups))
+	fmt.Fprintf(stdout, "%s: %d rules in %d groups\n", out, len(rules), len(groups))
+	return 0
 }
 
 func anchor(s string) string {

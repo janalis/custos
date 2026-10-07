@@ -6,10 +6,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -31,8 +31,12 @@ func section(md, title string) string {
 	return strings.TrimSpace(rest)
 }
 
-func main() {
-	files, _ := filepath.Glob("specs/*.md")
+func main() { os.Exit(run(".", os.Stdout, os.Stderr)) }
+
+// run reads root/specs and root/testdata/rules and writes
+// root/internal/meta/descriptions.json.
+func run(root string, stdout, stderr io.Writer) int {
+	files, _ := filepath.Glob(filepath.Join(root, "specs", "*.md"))
 	out := map[string]desc{}
 	for _, f := range files {
 		id := strings.TrimSuffix(filepath.Base(f), ".md")
@@ -41,27 +45,24 @@ func main() {
 		}
 		b, err := os.ReadFile(f)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			fmt.Fprintln(stderr, err)
+			return 1
 		}
 		md := string(b)
-		d := desc{Summary: section(md, "Summary"), Options: section(md, "Options"), Fix: hasRealFix(id)}
+		d := desc{Summary: section(md, "Summary"), Options: section(md, "Options"), Fix: hasRealFix(root, id)}
 		if strings.EqualFold(strings.Trim(d.Options, ". "), "none") {
 			d.Options = ""
 		}
 		out[id] = d
 	}
-	keys := make([]string, 0, len(out))
-	for k := range out {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	// encoding/json sorts map keys: the output is deterministic.
 	b, _ := json.MarshalIndent(out, "", "  ")
-	if err := os.WriteFile("internal/meta/descriptions.json", append(b, '\n'), 0o644); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	if err := os.WriteFile(filepath.Join(root, "internal", "meta", "descriptions.json"), append(b, '\n'), 0o644); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
 	}
-	fmt.Printf("descriptions: %d rules\n", len(keys))
+	fmt.Fprintf(stdout, "descriptions: %d rules\n", len(out))
+	return 0
 }
 
 var tagRe = regexp.MustCompile(`</?(?:error|warning|weak_warning|info)(?:\s[^>]*)?>|<caret>`)
@@ -69,15 +70,15 @@ var tagRe = regexp.MustCompile(`</?(?:error|warning|weak_warning|info)(?:\s[^>]*
 // hasRealFix reports whether some own fixture's expected fix output
 // (*.fixed.*) differs from its source once markup and whitespace are
 // ignored — "no change" expectations do not count as a quick-fix.
-func hasRealFix(id string) bool {
+func hasRealFix(root, id string) bool {
 	var fixed []string
 	for _, pat := range []string{"*.fixed.*", "*/*.fixed.*"} {
-		m, _ := filepath.Glob(filepath.Join("testdata/rules", id, pat))
+		m, _ := filepath.Glob(filepath.Join(root, "testdata", "rules", id, pat))
 		fixed = append(fixed, m...)
 	}
 	norm := func(b []byte) string { return strings.Join(strings.Fields(tagRe.ReplaceAllString(string(b), "")), " ") }
 	for _, f := range fixed {
-		src := strings.Replace(f, ".fixed.", ".", 1)
+		src := filepath.Join(filepath.Dir(f), strings.Replace(filepath.Base(f), ".fixed.", ".", 1))
 		a, err1 := os.ReadFile(src)
 		b, err2 := os.ReadFile(f)
 		if err1 != nil || err2 != nil || norm(a) != norm(b) {

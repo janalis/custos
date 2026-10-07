@@ -194,10 +194,19 @@ findings on corpus A `src/` and corpus B unchanged):
 
 Coverage is kept at 100%: `make coverage` (part of `make verify`) fails on any
 statement of `internal/rules` not executed by own fixtures or the rule
-packages' tests, and on any statement of `cmd/` and `internal/` not executed
-by the whole test suite (the EA run and local corpora do not count; the only
-exemption is `main()`'s one-line `os.Exit` wrapper). Tools under `tools/`
-(dev-time generators) are outside the gate. Complexity-regression tests use
+packages' tests, and on any statement of `cmd/`, `internal/` and `tools/` not
+executed by the whole test suite (the EA run and local corpora do not count;
+the only exemptions are each command's one-line
+`func main() { os.Exit(run(...)) }` wrapper, listed by file:line in the
+Makefile's `COVER_MAINS`; an exemption that matches no uncovered block fails
+the gate). The generators under `tools/` keep their logic in `run` functions
+taking the repository root or input/output paths, tested on temporary trees
+with invented inputs (fake plugin layout, stub PHP, specs, "upstream" text),
+so the gate needs neither the EA checkout nor phpstorm-stubs. Refactoring them
+(2026-10-07) changed no generated artifact (`make extract`, `go generate`,
+`make stubs` decoded and compared, `make cleanroom`); it fixed `genstubs`
+ignoring the output file's `Close` error and `cleanroom` truncating reported
+text inside a multi-byte character. Complexity-regression tests use
 `testbudget.Of(d)`, which scales the limit by a CPU calibration measured at
 test time, so a loaded machine does not fail them while a quadratic or
 exponential regression (seconds to minutes) still does; the LSP edit-latency

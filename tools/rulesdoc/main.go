@@ -5,7 +5,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -17,18 +19,26 @@ const (
 	statusFile = ".cache/ea/conformance.json"
 )
 
-func main() {
-	rules, err := meta.All()
+// catalogue is a seam for tests: the rule facts are embedded.
+var catalogue = meta.All
+
+func main() { os.Exit(run(".", os.Stdout, os.Stderr)) }
+
+// run writes root/docs/rules.md from the catalogue, root/specs and the last
+// conformance results (root/.cache/ea/conformance.json, then the current
+// docs/rules.md for rules not run this time).
+func run(root string, stdout, stderr io.Writer) int {
+	rules, err := catalogue()
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		fmt.Fprintln(stderr, err)
+		return 1
 	}
 	status := map[string]string{}
-	if b, err := os.ReadFile(statusFile); err == nil {
+	if b, err := os.ReadFile(filepath.Join(root, statusFile)); err == nil {
 		_ = json.Unmarshal(b, &status)
 	}
 	// Keep the last known status of rules not run this time (e.g. RULE= runs).
-	prev := previousStatus()
+	prev := previousStatus(filepath.Join(root, out))
 	for id, s := range prev {
 		if _, ok := status[id]; !ok {
 			status[id] = s
@@ -43,7 +53,7 @@ func main() {
 			groups = append(groups, r.Group)
 		}
 		byGroup[r.Group] = append(byGroup[r.Group], r)
-		if hasSpec(r.ID) {
+		if hasSpec(root, r.ID) {
 			specs++
 		}
 		if status[r.ID] == "pass" {
@@ -68,18 +78,19 @@ func main() {
 			if st == "" {
 				st = "—"
 			}
-			fmt.Fprintf(&b, "| `%s` | %s | %s | %s | %s | %s |\n", r.ID, r.Severity, def, yes(r.HasFix), yes(hasSpec(r.ID)), st)
+			fmt.Fprintf(&b, "| `%s` | %s | %s | %s | %s | %s |\n", r.ID, r.Severity, def, yes(r.HasFix), yes(hasSpec(root, r.ID)), st)
 		}
 	}
-	if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	if err := os.WriteFile(filepath.Join(root, out), []byte(b.String()), 0o644); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
 	}
-	fmt.Printf("%s: %d rules, %d specs, %d passing\n", out, len(rules), specs, pass)
+	fmt.Fprintf(stdout, "%s: %d rules, %d specs, %d passing\n", out, len(rules), specs, pass)
+	return 0
 }
 
-func hasSpec(id string) bool {
-	_, err := os.Stat("specs/" + id + ".md")
+func hasSpec(root, id string) bool {
+	_, err := os.Stat(filepath.Join(root, "specs", id+".md"))
 	return err == nil
 }
 
@@ -91,9 +102,9 @@ func yes(b bool) string {
 }
 
 // previousStatus parses the conformance column of the current docs/rules.md.
-func previousStatus() map[string]string {
+func previousStatus(path string) map[string]string {
 	m := map[string]string{}
-	b, err := os.ReadFile(out)
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return m
 	}

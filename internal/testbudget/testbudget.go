@@ -6,7 +6,6 @@ package testbudget
 
 import (
 	"runtime"
-	"sync"
 	"time"
 )
 
@@ -14,16 +13,12 @@ import (
 // machine; budgets passed to Of are expressed for that speed.
 const reference = 4 * time.Millisecond
 
-var (
-	once   sync.Once
-	factor float64
-)
-
 // Of returns d scaled by how much slower than the reference the machine is
-// right now (never less than d itself).
+// right now (never less than d itself). It calibrates on every call (about
+// 10 ms), so call it right after the timed work: the load then is the load
+// the work ran under, not that of a quieter moment earlier in the run.
 func Of(d time.Duration) time.Duration {
-	once.Do(func() { factor = scale(calibrate(), reference) })
-	return time.Duration(float64(d) * factor)
+	return time.Duration(float64(d) * scale(calibrate(), reference))
 }
 
 // scale is the slowdown factor of measured against ref, at least 1.

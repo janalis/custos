@@ -7,8 +7,10 @@ package main
 import (
 	"compress/gzip"
 	"encoding/gob"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -21,25 +23,45 @@ import (
 	"custos/internal/types"
 )
 
-func main() {
-	src := flag.String("src", "", "phpstorm-stubs checkout")
-	out := flag.String("out", "internal/stubs/stubs.gob.gz", "output file")
-	rev := flag.String("rev", "", "stubs revision recorded in internal/stubs/VERSION")
-	flag.Parse()
-	if *src == "" {
-		matches, _ := filepath.Glob(".cache/stubs-src/*phpstorm-stubs*")
-		if len(matches) == 0 {
-			fail(fmt.Errorf("no -src given and no .cache/stubs-src/*phpstorm-stubs* found"))
+// defaultSrc locates the stubs checkout when -src is not given (`make stubs`).
+var defaultSrc = ".cache/stubs-src/*phpstorm-stubs*"
+
+func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
+
+func run(args []string, stdout, stderr io.Writer) int {
+	fl := flag.NewFlagSet("genstubs", flag.ContinueOnError)
+	fl.SetOutput(stderr)
+	src := fl.String("src", "", "phpstorm-stubs checkout")
+	out := fl.String("out", "internal/stubs/stubs.gob.gz", "output file")
+	rev := fl.String("rev", "", "stubs revision recorded in internal/stubs/VERSION")
+	if err := fl.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return 0
 		}
-		*src = matches[0]
+		return 2
+	}
+	if err := generate(*src, *out, *rev, stdout); err != nil {
+		fmt.Fprintln(stderr, "genstubs:", err)
+		return 1
+	}
+	return 0
+}
+
+func generate(src, out, rev string, stdout io.Writer) error {
+	if src == "" {
+		matches, _ := filepath.Glob(defaultSrc)
+		if len(matches) == 0 {
+			return fmt.Errorf("no -src given and no %s found", defaultSrc)
+		}
+		src = matches[0]
 	}
 	var all []*index.FileSymbols
 	files, errs := 0, 0
-	err := filepath.WalkDir(*src, func(p string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		rel, _ := filepath.Rel(*src, p)
+		rel, _ := filepath.Rel(src, p)
 		if d.IsDir() {
 			switch d.Name() {
 			case "tests", "meta", ".github", "vendor":
@@ -80,25 +102,26 @@ func main() {
 		return nil
 	})
 	if err != nil {
-		fail(err)
+		return err
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].Path < all[j].Path })
-	if err := write(*out, all); err != nil {
-		fail(err)
+	if err := write(out, all); err != nil {
+		return err
 	}
-	if *rev == "" {
-		*rev = filepath.Base(*src)
+	if rev == "" {
+		rev = filepath.Base(src)
 	}
-	_ = os.WriteFile(filepath.Join(filepath.Dir(*out), "VERSION"), []byte(*rev+"\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(filepath.Dir(out), "VERSION"), []byte(rev+"\n"), 0o644)
 	nc, nf, nk := 0, 0, 0
 	for _, f := range all {
 		nc += len(f.Classes)
 		nf += len(f.Functions)
 		nk += len(f.Constants)
 	}
-	st, _ := os.Stat(*out)
-	fmt.Printf("stubs: %d files (%d with parse errors), %d classes, %d functions, %d constants -> %s (%d KB)\n",
-		files, errs, nc, nf, nk, *out, st.Size()/1024)
+	st, _ := os.Stat(out)
+	fmt.Fprintf(stdout, "stubs: %d files (%d with parse errors), %d classes, %d functions, %d constants -> %s (%d KB)\n",
+		files, errs, nc, nf, nk, out, st.Size()/1024)
+	return nil
 }
 
 // noShapes drops the array facts (shapes, non-emptiness) from a stub doc
@@ -125,15 +148,8 @@ func write(path string, all []*index.FileSymbols) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 	zw, _ := gzip.NewWriterLevel(f, gzip.BestCompression)
-	if err := gob.NewEncoder(zw).Encode(all); err != nil {
-		return err
-	}
-	return zw.Close()
-}
-
-func fail(err error) {
-	fmt.Fprintln(os.Stderr, "genstubs:", err)
-	os.Exit(1)
+	// Every step's error is reported, the file's Close included (a failed
+	// final flush would otherwise leave a truncated index unnoticed).
+	return errors.Join(gob.NewEncoder(zw).Encode(all), zw.Close(), f.Close())
 }

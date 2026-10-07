@@ -6,16 +6,28 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
+	"io"
 	"os"
 	"regexp"
 )
 
 var nodeRe = regexp.MustCompile(`type (\w+) struct\s*\{\s*(?:exprBase|stmtBase)`)
 
-func main() {
-	src, err := os.ReadFile("ast.go")
+func main() { os.Exit(run("ast.go", "kinds.go", os.Stderr)) }
+
+// run generates kindsPath from the node types declared in astPath.
+func run(astPath, kindsPath string, stderr io.Writer) int {
+	if err := generate(astPath, kindsPath); err != nil {
+		fmt.Fprintln(stderr, "genkinds:", err)
+		return 1
+	}
+	return 0
+}
+
+func generate(astPath, kindsPath string) error {
+	src, err := os.ReadFile(astPath)
 	if err != nil {
-		fail(err)
+		return err
 	}
 	var names []string
 	for _, m := range nodeRe.FindAllSubmatch(src, -1) {
@@ -38,14 +50,7 @@ func main() {
 	b.WriteString("}\n\nfunc (k NodeKind) String() string {\n\tif int(k) < len(nodeKindNames) {\n\t\treturn nodeKindNames[k]\n\t}\n\treturn \"NodeKind(?)\"\n}\n")
 	out, err := format.Source(b.Bytes())
 	if err != nil {
-		fail(err)
+		return err
 	}
-	if err := os.WriteFile("kinds.go", out, 0o644); err != nil {
-		fail(err)
-	}
-}
-
-func fail(err error) {
-	fmt.Fprintln(os.Stderr, "genkinds:", err)
-	os.Exit(1)
+	return os.WriteFile(kindsPath, out, 0o644)
 }

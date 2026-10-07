@@ -64,7 +64,7 @@ make fixtures       # own fixtures (CI gate)            RULE=<ID> to filter
 make conformance    # EA fixtures from local checkout   RULE=<ID> to filter
 make bench / fuzz
 make cleanroom      # scan repo for verbatim EA text (local)
-make coverage       # 100% gates: internal/rules from own fixtures + rule tests; cmd/ + internal/ from the whole suite
+make coverage       # 100% gates: internal/rules from own fixtures + rule tests; cmd/ + internal/ + tools/ from the whole suite
 make verify         # definition of done: lint + test + fixtures + coverage + cleanroom
 make stubs          # rebuild embedded PHP stubs index
 make fixcheck       # apply every quick-fix on CUSTOS_CORPUS, require parsable output (FIXCHECK=php adds php -l samples; ~1-4 min)

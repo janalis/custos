@@ -18,5 +18,4 @@ func TestOf(t *testing.T) {
 	if d := Of(time.Second); d < time.Second {
 		t.Errorf("Of shrank the budget: %v", d)
 	}
-	t.Logf("calibration factor %.2f", factor)
 }

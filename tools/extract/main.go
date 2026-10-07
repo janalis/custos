@@ -11,6 +11,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"errors"
@@ -71,17 +72,32 @@ type Index struct {
 	Unresolved []string             `json:"unresolved,omitempty"`
 }
 
-func main() {
-	ea := flag.String("ea", os.ExpandEnv("$HOME/Sites/phpinspectionsea"), "path to the EA checkout")
-	flag.Parse()
-	if err := run(*ea); err != nil {
-		fmt.Fprintln(os.Stderr, "extract:", err)
-		os.Exit(1)
+// abs is a seam for tests (filepath.Abs only fails without a working directory).
+var abs = filepath.Abs
+
+func main() { os.Exit(run(".", os.Args[1:], os.Stdout, os.Stderr)) }
+
+// run extracts from the checkout given by -ea into root/internal/meta and
+// root/.cache/ea.
+func run(root string, args []string, stdout, stderr io.Writer) int {
+	fl := flag.NewFlagSet("extract", flag.ContinueOnError)
+	fl.SetOutput(stderr)
+	ea := fl.String("ea", os.ExpandEnv("$HOME/Sites/phpinspectionsea"), "path to the EA checkout")
+	if err := fl.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return 0
+		}
+		return 2
 	}
+	if err := extract(*ea, root, stdout); err != nil {
+		fmt.Fprintln(stderr, "extract:", err)
+		return 1
+	}
+	return 0
 }
 
-func run(ea string) error {
-	ea, err := filepath.Abs(ea)
+func extract(ea, root string, stdout io.Writer) error {
+	ea, err := abs(ea)
 	if err != nil {
 		return err
 	}
@@ -139,10 +155,10 @@ func run(ea string) error {
 	}
 	sort.Slice(rules, func(i, j int) bool { return rules[i].ID < rules[j].ID })
 
-	if err := writeJSON(metaOut, rules); err != nil {
+	if err := writeJSON(filepath.Join(root, metaOut), rules); err != nil {
 		return err
 	}
-	if err := writeJSON(indexOut, idx); err != nil {
+	if err := writeJSON(filepath.Join(root, indexOut), idx); err != nil {
 		return err
 	}
 
@@ -155,15 +171,15 @@ func run(ea string) error {
 			withCases[r] = true
 		}
 	}
-	fmt.Printf("rules: %d (with fix: %d)\n", len(rules), countFix(rules))
-	fmt.Printf("cases: %d (with .fixed: %d), rules covered: %d\n", len(idx.Cases), fixed, len(withCases))
+	fmt.Fprintf(stdout, "rules: %d (with fix: %d)\n", len(rules), countFix(rules))
+	fmt.Fprintf(stdout, "cases: %d (with .fixed: %d), rules covered: %d\n", len(idx.Cases), fixed, len(withCases))
 	for _, r := range rules {
 		if !withCases[r.ID] {
-			fmt.Printf("  no cases: %s\n", r.ID)
+			fmt.Fprintf(stdout, "  no cases: %s\n", r.ID)
 		}
 	}
 	for _, u := range idx.Unresolved {
-		fmt.Printf("  unresolved: %s\n", u)
+		fmt.Fprintf(stdout, "  unresolved: %s\n", u)
 	}
 	return nil
 }
@@ -176,12 +192,11 @@ type inspectionDecl struct {
 }
 
 func parsePluginXML(path string) ([]inspectionDecl, error) {
-	f, err := os.Open(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
-	dec := xml.NewDecoder(f)
+	dec := xml.NewDecoder(bytes.NewReader(raw))
 	dec.Strict = false
 	var out []inspectionDecl
 	for {
@@ -218,10 +233,6 @@ func parsePluginXML(path string) ([]inspectionDecl, error) {
 	}
 	// Inspections commented out upstream are still part of the catalogue,
 	// flagged experimental and disabled by default.
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
 	for _, m := range commentRe.FindAllSubmatch(raw, -1) {
 		for _, el := range declRe.FindAll(m[1], -1) {
 			var x struct {
@@ -364,7 +375,7 @@ func parseTests(ea string, classToID map[string]string, idx *Index) error {
 		}
 		for id := range touched {
 			ri := idx.Rules[id]
-			ri.Tests = appendUnique(ri.Tests, rel)
+			ri.Tests = append(ri.Tests, rel) // each file is walked once
 			idx.Rules[id] = ri
 		}
 		return nil
@@ -555,15 +566,6 @@ func simpleName(fqcn string) string {
 	return fqcn[strings.LastIndex(fqcn, ".")+1:]
 }
 
-func appendUnique(list []string, v string) []string {
-	for _, x := range list {
-		if x == v {
-			return list
-		}
-	}
-	return append(list, v)
-}
-
 func countFix(rules []meta.Rule) int {
 	n := 0
 	for _, r := range rules {
@@ -578,9 +580,6 @@ func writeJSON(path string, v any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	b, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return err
-	}
+	b, _ := json.MarshalIndent(v, "", "  ") // plain data: cannot fail
 	return os.WriteFile(path, append(b, '\n'), 0o644)
 }
