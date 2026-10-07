@@ -321,3 +321,24 @@ func TestParseBest(t *testing.T) {
 		t.Fatalf("legacy identifiers: %v", f.Errors)
 	}
 }
+
+func TestPathologicalNesting(t *testing.T) {
+	cases := map[string]string{
+		"arrays": "<?php $a = " + strings.Repeat("[", 200000) + strings.Repeat("]", 200000) + ";",
+		"unary":  "<?php $a = " + strings.Repeat("!", 300000) + "$b;",
+		"concat": "<?php $a = $b" + strings.Repeat(" . $b", 300000) + ";",
+		"ifs":    "<?php " + strings.Repeat("if (1) ", 100000) + "echo 1;",
+		"parens": "<?php $a = " + strings.Repeat("(", 200000) + "1" + strings.Repeat(")", 200000) + ";",
+	}
+	for name, src := range cases {
+		f := Parse(name+".php", []byte(src), Options{Version: phpver.PHP84})
+		if len(f.Stmts) != 0 || len(f.Errors) == 0 {
+			t.Errorf("%s: expected the file to be rejected as too deep", name)
+		}
+	}
+	// Moderate nesting still parses.
+	ok := "<?php $a = " + strings.Repeat("[", 500) + strings.Repeat("]", 500) + ";"
+	if f := Parse("ok.php", []byte(ok), Options{Version: phpver.PHP84}); len(f.Errors) != 0 || len(f.Stmts) == 0 {
+		t.Fatalf("500 levels must parse: %v", f.Errors)
+	}
+}

@@ -55,6 +55,13 @@ func Parse(path string, src []byte, opt Options) *File {
 	}
 	f := &File{Path: path, Src: src, Version: opt.Version, Tokens: toks}
 	f.Stmts = p.parseTopStmts()
+	if p.tooDeep || TreeDepth(f.Stmts) > MaxDepth {
+		// Pathologically nested input (generated or hostile): recursive
+		// consumers would exhaust the stack or go quadratic. Keep the
+		// tokens, drop the tree, report once.
+		f.Stmts = nil
+		p.errs = append(p.errs, Error{Span: Span{0, 0}, Msg: fmt.Sprintf("nesting deeper than %d levels; file not analysed", MaxDepth)})
+	}
 	f.Errors = p.errs
 	SetParents(f)
 	return f
@@ -69,9 +76,13 @@ type parser struct {
 	eof  Token
 	// permissive accepts removed legacy syntax regardless of ver.
 	permissive bool
-	slabs      slabs
-	errs       []Error
-	lastEnd    uint32
+	// depth is the current recursion depth of statement/expression parsing;
+	// tooDeep is set once it exceeds MaxDepth (parsing then stops).
+	depth   int
+	tooDeep bool
+	slabs   slabs
+	errs    []Error
+	lastEnd uint32
 }
 
 // ---- token access --------------------------------------------------------------
@@ -226,7 +237,29 @@ func (p *parser) endStmt() {
 	}
 }
 
+// MaxDepth bounds syntax nesting (parser recursion and AST depth). Real code
+// stays far below it; deeper input is reported and not analysed, so that no
+// recursive consumer can overflow the stack.
+const MaxDepth = 4000
+
+// enter increments the recursion depth; when it exceeds MaxDepth parsing is
+// abandoned (the rest of the input is skipped). Callers must defer p.leave().
+func (p *parser) enter() bool {
+	p.depth++
+	if p.depth > MaxDepth && !p.tooDeep {
+		p.tooDeep = true
+		p.pos = len(p.sig) // skip to EOF
+	}
+	return !p.tooDeep
+}
+
+func (p *parser) leave() { p.depth-- }
+
 func (p *parser) parseStmt(top bool) Stmt {
+	defer p.leave()
+	if !p.enter() {
+		return nil
+	}
 	t := p.tok()
 	start := t.Start
 	switch t.Kind {

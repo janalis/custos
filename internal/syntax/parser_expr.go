@@ -76,6 +76,10 @@ func (p *parser) binPrec(k TokenKind) (prec int, right bool, ok bool) {
 }
 
 func (p *parser) parseExpr(min int) Expr {
+	defer p.leave()
+	if !p.enter() {
+		return spanOf(&BadExpr{}, p.missing())
+	}
 	start := p.start()
 	return p.parseBinaryRHS(p.parseUnary(), min, start)
 }
@@ -115,6 +119,10 @@ func (p *parser) parseBinaryRHS(left Expr, min int, start uint32) Expr {
 }
 
 func (p *parser) parseUnary() Expr {
+	defer p.leave()
+	if !p.enter() {
+		return spanOf(&BadExpr{}, p.missing())
+	}
 	t := p.tok()
 	start := t.Start
 	switch t.Kind {
