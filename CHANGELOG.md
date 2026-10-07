@@ -5,6 +5,20 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+- Untrusted code can no longer crash, hang or exhaust memory: syntax
+  nesting capped (4,000 levels); PHPDoc types, aliases and generic chains
+  parsed in linear time with size caps; files over 10 MB skipped; at most
+  1,000 syntax errors and 10,000 findings per file.
+- Only regular files are read, with size caps (sources, `custos.json`,
+  `composer.json`, baselines); `paths` and `baseline` must stay inside the
+  project; `custos fix` never writes through symlinks.
+- LSP: oversized or malformed `Content-Length` headers and negative fix
+  indexes return errors instead of crashing the server.
+- Quadratic paths removed (suppression lookup, long-line columns,
+  reachability, value discovery, class hierarchy walks, narrowing, several
+  rules) so large legal files stay fast.
+
 ### Added
 - 178 PHP inspections (probable bugs, performance, security, code style,
   control flow, language-level migration 5.3 → 8.5, PHPUnit, …) with 111
@@ -20,6 +34,22 @@ versions follow [Semantic Versioning](https://semver.org/).
   `custos.fixFile` / `custos.fixRule`, background project index kept current
   through file watching.
 - Configuration via `custos.json`; PHP target from composer.json.
+- Method and function `@template` binding from call arguments
+  (`getRepository(Foo::class)` → `Foo`), `class-string<Foo>` for
+  `Foo::class`.
+- `@phpstan-assert` / `@psalm-assert` (incl. `-if-true` / `-if-false`)
+  narrowing.
+- Types for private untyped properties, inferred from the class's writes.
+
+### Fixed
+- False positives in ReturnTypeCanBeDeclared, UnnecessaryCasting,
+  CallableParameterUseCaseInTypeContext, OffsetOperations,
+  NullPointerException, MagicMethodsValidity, MockingMethodsCorrectness,
+  LoopWhichDoesNotLoop, NotOptimalRegularExpressions,
+  ClassOverridesFieldOfSuperClass, PropertyInitializationFlaws.
+- Unsafe quick-fixes: nullable return types where values can be null,
+  preload/autoload requires kept, `@mkdir` kept, typed property defaults
+  kept.
 
 ### Notes
 - custos intentionally diverges from upstream where upstream behaviour is
