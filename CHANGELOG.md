@@ -19,6 +19,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 - UnnecessaryAssertion: a value reached through a nullsafe chain
   (`$r->find()?->sidebar()`) is no longer said to be guaranteed by the last
   call's declared return type: the chain can yield `null`.
+- NullPointerException: a named argument is checked against the parameter
+  of that name; a nullsafe check followed by an early exit, a `match (true)`
+  arm guarded by a nullsafe check, and a loop condition re-checked after a
+  `continue` now narrow the variable; a property write no longer undoes a
+  null check.
 
 ## [0.1.0] - 2026-10-08
 

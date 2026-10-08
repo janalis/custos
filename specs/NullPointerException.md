@@ -185,7 +185,8 @@ walk for this name, *skip* goes to the next usage:
 - **U10** `P` is `clone v` → **report** `v`.
 - **U11** `v` is an argument of a function or method call `G` that resolves:
   take the callee parameter at `v`'s position (positional index among the
-  call's arguments; none → skip). If that parameter's declared type does not
+  call's arguments; none → skip), or, for a named argument (`tint: $v`),
+  the parameter of that name (none → skip). If that parameter's declared type does not
   contain `null`, its default is not `null`, and its declared types form an
   object-only set → **report** `v`.
 - Anything else (e.g. `v ?? x`, `v ?: x`, `return v`, plain read) → skip.
@@ -193,13 +194,22 @@ walk for this name, *skip* goes to the next usage:
   the walk goes on without stopping — when `v` sits in a region that an
   enclosing condition `c` (between `v` and `F`) only enters when `$n` is not
   null, and `$n` is not the target of an assignment (any operator,
-  destructuring included) or a `foreach` key/value that completes between
-  the end of `c` and `v`. Regions and the truth value of `c` they imply:
+  destructuring included; a write to `$n->p` or `$n[…]` is not one) or a
+  `foreach` key/value that completes between the end of `c` and `v`.
+  An assignment does not count when it cannot reach `v` without passing
+  `c` again: a statement list that holds it but not `v` then ends (after
+  it) in `return`, `throw` or `exit`, or in `continue`/`break` whose
+  nearest enclosing loop (no `switch` in between) holds `c`.
+  Regions and the truth value of `c` they imply:
   the body of `if (c)` / `elseif (c)` / `while (c)` (true); an `elseif` body
   also implies every earlier `if`/`elseif` condition false; the `else` body
   implies every condition of its chain false; ternary `c ? v : …` (true),
   `c ? … : v` and `c ?: v` (false); the right operand of `c && v` /
-  `c and v` (true) and of `c || v` / `c or v` (false).
+  `c and v` (true) and of `c || v` / `c or v` (false); the body of the arm
+  `c => v` of `match (true)` when it has the single condition `c` (true);
+  the statements following, in the same statement list, an `if (c)` whose
+  body always terminates (`return`, `throw`, `exit`, `continue`, `break`)
+  (false).
   `c` *guarantees non-null when true* if, after removing parentheses:
   `!x` guarantees it when `x` is false; `a && b` when `a` or `b` does;
   otherwise `c` is `$n` itself or an access chain starting at `$n`
@@ -226,7 +236,11 @@ walk for this name, *skip* goes to the next usage:
 - **E2b** Dereferences inside a branch whose enclosing condition proves
   non-null without being one of the checks above (U12):
   `if (is_object($v)) { $v->p; }`, `$v?->p !== null ? $v->p : 0`,
-  `if ($v === $known) { $v->p; }`, `else` of `if (!is_object($v))`.
+  `if ($v === $known) { $v->p; }`, `else` of `if (!is_object($v))`,
+  `match (true) { null !== $v?->m() => $v->m(), … }`, and statements after
+  `if (null === $v?->m()) { return; }`.
+- **E2c** A nullable value passed by name to a parameter that accepts null
+  (`f(tint: $v)` with `?Tint $tint`), whatever its position.
 - **E3** `$v->prop ?? …`, `isset($v->prop)`, `isset($v->a['k'])`.
 - **E4** `$v = $v->m();` only when that statement is the local variable's
   own declaring assignment (strategy C, first collected assignment). It is
@@ -375,7 +389,16 @@ function visit(?Node $item) {
   dereference inside the branch that this check guards is still reported.
   custos drops reports whose enclosing condition proves the variable
   non-null (U12). The rest of the walk is unchanged: dereferences outside
-  that branch are still reported.
+  that branch are still reported. The same holds after an early exit
+  (`if (null === $v?->m()) { return; }`), in a `match (true)` arm, and in a
+  loop whose condition is re-checked after a branch that reassigns the
+  variable and then `continue`s; writing a property of the variable
+  (`$v->p = 1`) does not undo the check.
+- **Named arguments (custos diverges, U11).** A named argument is matched
+  to the parameter of that name, not to the parameter at its position:
+  `Box::draw($on, tint: $v)` with
+  `draw(?bool $on, Mode $mode = Mode::Idle, ?Tint $tint = null)` passes
+  `$v` to `?Tint $tint`, which accepts null, not to `Mode $mode`.
 - Whether compound assignments (`.=`, `??=`) and list destructuring count as
   "assignments" in D4/U6 is unverified upstream; recommendation: only plain
   and by-reference `=` with a variable on the left are declarations; a
