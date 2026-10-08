@@ -13,67 +13,64 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- NotOptimalRegularExpressions: an escaped backslash before `.` or `$`
-  (`\\\\.` in a single-quoted pattern) no longer hides the metacharacter,
-  so `/s` and `/D` are not called pointless when they matter.
-- SlowArrayOperationsInLoop: a `for` condition measuring a value the loop
-  body visibly writes (element assignment, `[] =`, `array_push()`, `unset()`,
-  reassignment) is no longer reported: its length changes on purpose.
-- MultiAssignmentUsage: consecutive offset reads from a string
-  (`$a = $s[0]; $b = $s[1];`) are no longer told to destructure, which
-  would assign `null` from a string.
-- UnnecessaryAssertion: a value reached through a nullsafe chain
-  (`$r->find()?->sidebar()`) is no longer said to be guaranteed by the last
-  call's declared return type: the chain can yield `null`.
-- NullPointerException: a named argument is checked against the parameter
-  of that name; a nullsafe check followed by an early exit, a `match (true)`
-  arm guarded by a nullsafe check, and a loop condition re-checked after a
-  `continue` now narrow the variable; a property write no longer undoes a
-  null check.
-- StaticInvocationViaThis: with `EXCEPT_PHPUNIT_ASSERTIONS`, an abstract
-  restatement of a PHPUnit assertion (a trait's
-  `abstract public static function assertIsResource(…)`) called through
-  `$this` is exempt like PHPUnit's own assertions.
-- PhpUnitTests: `assertTrue(is_resource($h))` / `assertFalse(is_resource($h))`
-  are no longer rewritten to `assertIsResource()` / `assertIsNotResource()`,
-  which treat a closed resource as a resource.
-- NotOptimalIfConditions: filesystem calls (`is_file()`, `is_dir()`,
-  `file_exists()`, …) are no longer considered cheaper than in-memory checks,
-  and an operand is no longer moved ahead of a neighbour that narrows one of
-  its variables (null/false comparison, `instanceof`, `is_*()`).
+- Parser: in permissive mode, a property or promoted-parameter default
+  followed by hooks is no longer read as a legacy `$a{0}` offset.
 - JsonEncodingApiUsage fixes keep named arguments (appending `flags:` or
   `associative:` by name), extend a named `flags:` value instead of giving
   up, parenthesise low-precedence flags (`$p ? A : B` no longer becomes
   `(JSON_THROW_ON_ERROR | $p) ? A : B`), and write `\JSON_THROW_ON_ERROR`
   when the file qualifies its global constants.
-
+- MultiAssignmentUsage: consecutive offset reads from a string
+  (`$a = $s[0]; $b = $s[1];`) are no longer told to destructure, which
+  would assign `null` from a string.
+- NotOptimalIfConditions: filesystem calls (`is_file()`, `is_dir()`,
+  `file_exists()`, …) are no longer considered cheaper than in-memory checks;
+  an operand is no longer moved ahead of a neighbour that narrows one of
+  its variables (null/false comparison, `instanceof`, `is_*()`); property
+  reads that run code (a PHP 8.4 `get` hook, a virtual, abstract or
+  interface property, `__get()`) cost like a method call and are never
+  reordered; reads on an unknown receiver are left out of the comparison.
+- NotOptimalRegularExpressions: an escaped backslash before `.` or `$`
+  (`\\\\.` in a single-quoted pattern) no longer hides the metacharacter,
+  so `/s` and `/D` are not called pointless when they matter.
+- NullPointerException: a named argument is checked against the parameter
+  of that name; a nullsafe check followed by an early exit, a `match (true)`
+  arm guarded by a nullsafe check, and a loop condition re-checked after a
+  `continue` now narrow the variable; a property write no longer undoes a
+  null check.
+- PhpUnitTests: `assertTrue(is_resource($h))` / `assertFalse(is_resource($h))`
+  are no longer rewritten to `assertIsResource()` / `assertIsNotResource()`,
+  which treat a closed resource as a resource; `empty()` checks become
+  `assertEmpty()`/`assertNotEmpty()` only when the operand is known to be a
+  scalar, an array or null (PHPUnit counts `Countable` objects), and
+  `assertTrue(!empty($x))` names the assertion its fix writes.
+- PropertyInitializationFlaws: a property default equal to the default of
+  the constructor parameter assigned to it is kept (objects built without
+  the constructor, such as old serialized messages, still see it).
 - ProperNullCoalescingOperatorUsage: a scalar fallback of another scalar
   type (`$id ?? 'new'`) and an array fallback for an iterable object
   (`$node->attributes ?? []`, a Doctrine `Collection`) are no longer
   reported.
-- NotOptimalIfConditions: property reads that run code (a PHP 8.4 `get`
-  hook, a virtual, abstract or interface property, `__get()`) cost like a
-  method call and are never reordered; reads on an unknown receiver are
-  left out of the comparison.
-- PropertyInitializationFlaws: a property default equal to the default of
-  the constructor parameter assigned to it is kept (objects built without
-  the constructor, such as old serialized messages, still see it).
+- SlowArrayOperationsInLoop: a `for` condition measuring a value the loop
+  body visibly writes (element assignment, `[] =`, `array_push()`, `unset()`,
+  reassignment) is no longer reported: its length changes on purpose.
+- StaticInvocationViaThis: with `EXCEPT_PHPUNIT_ASSERTIONS`, an abstract
+  restatement of a PHPUnit assertion (a trait's
+  `abstract public static function assertIsResource(…)`) called through
+  `$this` is exempt like PHPUnit's own assertions.
 - TraitsPropertiesConflicts: a trait property that re-declares a parent
   property only to attach attributes is no longer reported; a hooked
   property composed with a same-named trait property is an error, while
   the parent's hooks are ignored when a trait re-declares its property.
-- VariableFunctionsUsage: `call_user_func('name', …)` is kept when a
-  same-named namespace function or a `use function` shadows the global
-  function at the call (a wrapper reaching the builtin).
-- PhpUnitTests: `empty()` checks become `assertEmpty()`/`assertNotEmpty()`
-  only when the operand is known to be a scalar, an array or null (PHPUnit
-  counts `Countable` objects), and `assertTrue(!empty($x))` names the
-  assertion its fix writes.
+- UnnecessaryAssertion: a value reached through a nullsafe chain
+  (`$r->find()?->sidebar()`) is no longer said to be guaranteed by the last
+  call's declared return type: the chain can yield `null`.
 - UnnecessaryCasting: a `(string)` cast in a concatenation is reported
   only when its operand is known to be a string, int or float, not on
   nullable, `bool`, `mixed` or `__toString()` operands.
-- Parser: in permissive mode, a property or promoted-parameter default
-  followed by hooks is no longer read as a legacy `$a{0}` offset.
+- VariableFunctionsUsage: `call_user_func('name', …)` is kept when a
+  same-named namespace function or a `use function` shadows the global
+  function at the call (a wrapper reaching the builtin).
 
 ## [0.1.0] - 2026-10-08
 
