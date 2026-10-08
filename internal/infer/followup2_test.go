@@ -410,6 +410,9 @@ function f(int $i, int $j, $u, float $f) {
 			"max": "int", "maxMixed": "mixed", "maxSpread": "mixed", "maxSpread2": "mixed", "maxOne": "mixed", "minNum": "float|int",
 			"pregUnknown": "array|null|string", "strUnknown": "array|string",
 		}
+		if !spec { // an unknown subject leaves the result unknown
+			want["pregUnknown"], want["strUnknown"] = "?unknown", "?unknown"
+		}
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			if c, ok := n.(*syntax.FuncCall); ok {
 				if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "t" {

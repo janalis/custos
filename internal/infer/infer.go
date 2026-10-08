@@ -558,9 +558,28 @@ func (e *Env) classRef(x syntax.Expr) string {
 	return ""
 }
 
-func (e *Env) newType(n *syntax.New) types.Type {
-	if _, ok := n.Class.(*syntax.ClassLike); ok {
+// anonClassType types an instance of anonymous class cl as the
+// intersection of its parent and interfaces (`new class extends P
+// implements I {}` is `\P&\I`), a valid declared type whose members are
+// found on either side; object without any. Its own extra methods are not
+// known (no name could be written for it).
+func (e *Env) anonClassType(cl *syntax.ClassLike) types.Type {
+	var cs []string
+	if p := e.Names.ParentFQN(cl); p != "" {
+		cs = append(cs, `\`+p)
+	}
+	for _, i := range cl.Implements {
+		cs = append(cs, `\`+e.Names.Class(i.Value, i.Span().Start))
+	}
+	if len(cs) == 0 {
 		return types.Of("object")
+	}
+	return types.Intersect(cs...)
+}
+
+func (e *Env) newType(n *syntax.New) types.Type {
+	if cl, ok := n.Class.(*syntax.ClassLike); ok {
+		return e.anonClassType(cl)
 	}
 	if cls := e.classRef(n.Class); cls != "" {
 		return types.Of(`\` + cls)
@@ -634,7 +653,7 @@ func refining(d, dt types.Type) types.Type {
 
 // pickMemberType is memberType for parsed types (dt: the doc type).
 func pickMemberType(d, dt types.Type) types.Type {
-	if d.IsUnknown() || (d.Has("array") && !dt.IsUnknown()) || d.Has("mixed") || strictSuperset(dt, d) {
+	if d.IsUnknown() || (d.HasAny("array", "iterable") && !dt.IsUnknown()) || d.Has("mixed") || strictSuperset(dt, d) {
 		return dt
 	}
 	return d.WithTypeArgsFrom(dt) // `@var Collection<int, Foo>` on `: Collection`
@@ -743,12 +762,35 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 		}
 	}
 	if m.Return == "" && m.DocReturn == "" {
+		// An override without return type keeps the contract of the method
+		// it overrides (a parent's or interface's `: mixed`); the body is
+		// only consulted when no ancestor declares one.
+		if pm := e.inheritedSignature(m); pm != nil {
+			if pm.Builtin {
+				return bindStatic(builtinMemberType(pm.Return, pm.DocReturn), cls)
+			}
+			return bindStatic(memberType(pm.Return, pm.DocReturn), cls)
+		}
 		return e.methodBodyReturn(m, virtual)
 	}
 	if m.Builtin {
 		return bindStatic(builtinMemberType(m.Return, m.DocReturn), cls)
 	}
 	return bindStatic(memberType(m.Return, m.DocReturn), cls)
+}
+
+// inheritedSignature returns the nearest method m overrides (in the parents
+// and interfaces of its class) that declares or documents a return type;
+// nil when none does.
+func (e *Env) inheritedSignature(m *index.Method) *index.Method {
+	anc := e.Index.Ancestors(strings.TrimPrefix(m.Class, `\`), e.PHP)
+	low := strings.ToLower(m.Name)
+	for _, c := range anc[min(1, len(anc)):] {
+		if pm, ok := c.Methods[low]; ok && !pm.Magic && (pm.Return != "" || pm.DocReturn != "") {
+			return pm
+		}
+	}
+	return nil
 }
 
 func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
@@ -939,7 +981,11 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 			subjectIdx = 1
 		}
 		if s := arg(subjectIdx); s != nil {
-			if t, ok := replaceResult(e.TypeOf(s), strings.HasPrefix(strings.ToLower(fqn), "preg_")); ok {
+			st := e.TypeOf(s)
+			if st.IsUnknown() {
+				return types.Unknown, true // string or array: not known
+			}
+			if t, ok := replaceResult(st, strings.HasPrefix(strings.ToLower(fqn), "preg_")); ok {
 				return t, true
 			}
 		}
@@ -1157,6 +1203,9 @@ type varDef struct {
 	kill syntax.Span
 	typ  func() types.Type
 	doc  bool // inline @var annotation: overrides the next definition
+	// asg is the plain `$x = value;` assignment making the definition
+	// (nil for other kinds); boolean aliases read it (see aliasCond).
+	asg *syntax.Assign
 	// docEnd is the end of the annotation's comment (doc defs only).
 	docEnd uint32
 	// barrier marks an if/elseif/else chain whose every branch assigns the
@@ -1590,9 +1639,13 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 						}
 					}
 				}
+				var asg *syntax.Assign
+				if v, plain := n.Var.(*syntax.Variable); plain && n.Op.Kind == syntax.TEqual && !n.ByRef && v.NameExpr == nil {
+					asg = n
+				}
 				e.collectAssignTargets(n, func(name string, pos uint32, t func() types.Type) {
 					if name != "" {
-						sv.defs[name] = append(sv.defs[name], varDef{pos: pos, end: end, kill: kill, typ: t})
+						sv.defs[name] = append(sv.defs[name], varDef{pos: pos, end: end, kill: kill, typ: t, asg: asg})
 					}
 				})
 			case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
@@ -1795,7 +1848,7 @@ func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
 	}
 	if doc != "" {
 		dt := types.FromDoc(doc, e.resolverFor(scope, at))
-		if declared.IsUnknown() || declared.Has("array") || declared.Has("mixed") {
+		if declared.IsUnknown() || declared.HasAny("array", "iterable", "mixed") {
 			return dt
 		}
 		return declared.WithTypeArgsFrom(dt)

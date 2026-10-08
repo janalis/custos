@@ -28,9 +28,21 @@ func narrowKey(x syntax.Expr) string {
 			return n.Name
 		}
 	case *syntax.PropertyFetch:
-		if v, ok := n.Var.(*syntax.Variable); ok && v.Name == "this" && v.NameExpr == nil {
-			if id, ok := n.Name.(*syntax.Identifier); ok {
-				return "this->" + id.Value
+		// `$this->p`, `$v->p` on a plain variable and chains of them
+		// (`$param->var->name`); their facts also end when the variable or
+		// a property along the chain changes (see propBase, condAt).
+		id, ok := n.Name.(*syntax.Identifier)
+		if !ok {
+			return ""
+		}
+		switch b := syntax.UnwrapParens(n.Var).(type) {
+		case *syntax.Variable:
+			if b.Name != "" && b.NameExpr == nil {
+				return b.Name + "->" + id.Value
+			}
+		case *syntax.PropertyFetch:
+			if base := narrowKey(b); base != "" && !isDimKey(base) && !strings.Contains(base, "::") {
+				return base + "->" + id.Value
 			}
 		}
 	case *syntax.StaticPropertyFetch:
@@ -63,7 +75,34 @@ func narrowKey(x syntax.Expr) string {
 
 // isPropKey reports the narrowing key of a property (`$this->p`, a static
 // property): any non-builtin call may change it.
-func isPropKey(k string) bool { return strings.HasPrefix(k, "this->") || strings.Contains(k, "::") }
+func isPropKey(k string) bool { return strings.Contains(k, "->") || strings.Contains(k, "::") }
+
+// propBase returns the variable holding the object of a `$v->p` key (also
+// `this`, which never changes itself, for its chains); "" for other keys.
+func propBase(k string) string {
+	if isDimKey(k) {
+		return ""
+	}
+	if b, _, ok := strings.Cut(k, "->"); ok {
+		return b
+	}
+	return ""
+}
+
+// chainBroken reports whether the variable b holding the object of
+// property key k, or one of the properties along the chain (`$a->b` for
+// `$a->b->c`), was written between from and use.
+func (e *Env) chainBroken(scope syntax.Node, k, b string, from uint32, use syntax.Node) bool {
+	if e.nonEmptyBroken(scope, b, from, use) {
+		return true
+	}
+	for i := strings.LastIndex(k, "->"); i > len(b); i = strings.LastIndex(k[:i], "->") {
+		if e.brokenBy(scope, from, use, e.mutations(scope, k[:i])) {
+			return true
+		}
+	}
+	return false
+}
 
 // dimSep separates the base and the key of an element's narrowing key.
 const dimSep = "\x01"
@@ -179,6 +218,9 @@ func (e *Env) cond(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Ex
 
 func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, truthy bool, from uint32) types.Type {
 	r := e.applyCond(t, c, key, truthy)
+	if b := propBase(key); b != "" && r.ShapeString() != t.ShapeString() && e.chainBroken(scope, key, b, from, use) {
+		return t // `$v` (or a property along the chain) changed since
+	}
 	if isDimKey(key) {
 		// An element is narrowed only while neither it nor its array can
 		// have changed since the condition.
@@ -205,6 +247,9 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 func (e *Env) dimBroken(scope syntax.Node, key string, from uint32, use syntax.Node) bool {
 	base, _ := splitDimKey(key)
 	if e.nonEmptyBroken(scope, base, from, use) {
+		return true
+	}
+	if b := propBase(base); b != "" && e.nonEmptyBroken(scope, b, from, use) {
 		return true
 	}
 	return e.brokenBy(scope, from, use, e.mutations(scope, key), e.mutations(scope, dimKey(base, "*")))
@@ -330,7 +375,6 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 	if !ok {
 		return t
 	}
-	cands := gi.candidates(name)
 	// Only the statements after the last one assigning name (or its array)
 	// matter: an assignment resets the guards seen before it. No statement
 	// scanned below assigns name (or, for an element key, its array or an
@@ -339,12 +383,11 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 	if from > 0 && isPropKey(name) && !isDimKey(name) {
 		t = e.afterPropertyWrite(use, scope, t, stmts[from-1], name)
 	}
-	lo, _ := slices.BinarySearch(cands, from)
-	hi, _ := slices.BinarySearch(cands, end)
-	if hi-lo > maxGuardScan {
+	cands, ok := gi.candidates(name, from, end)
+	if !ok {
 		return types.Unknown // hostile statement lists: see maxGuardScan
 	}
-	for _, i := range cands[lo:hi] {
+	for _, i := range cands {
 		s := stmts[i]
 		if es, ok := s.(*syntax.ExprStmt); ok {
 			// `Assert::string($x);` (@phpstan-assert on the callee).
@@ -377,6 +420,9 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 // reference, a non-builtin call) lies between them (nonEmptyBroken).
 func (e *Env) afterPropertyWrite(use syntax.Expr, scope syntax.Node, t types.Type, s syntax.Stmt, name string) types.Type {
 	a := s.(*syntax.ExprStmt).Expr.(*syntax.Assign) // gi.resets lists only such statements
+	if narrowKey(a.Var) != name {
+		return t // `$v = …` resetting `$v->p`: the property's value is not known
+	}
 	if a.ByRef || (a.Op.Kind != syntax.TEqual && a.Op.Kind != syntax.TCoalesceEqual) || !t.IsNullable() {
 		return t
 	}
@@ -423,11 +469,35 @@ func (gi *guardIndex) lastReset(name string, end int) int {
 		}
 	}
 	last(gi.resets[name])
+	if b := propBase(name); b != "" {
+		last(gi.resets[b])
+	}
 	if isDimKey(name) {
 		base, _ := splitDimKey(name)
 		last(gi.resets[baseKey(base)])
 	}
 	return from
+}
+
+// aliasGuardKey lists the else-less ifs whose condition is a bare variable
+// (possibly negated or combined): a boolean alias (see aliasCond).
+const aliasGuardKey = "\x04alias"
+
+// bareVarCond reports a condition made of plain variables under `!`, `&&`
+// and `||` (at least one).
+func bareVarCond(c syntax.Expr) bool {
+	switch n := syntax.UnwrapParens(c).(type) {
+	case *syntax.Variable:
+		return n.NameExpr == nil
+	case *syntax.Unary:
+		return n.Op.Kind == syntax.TExclaim && bareVarCond(n.Expr)
+	case *syntax.Binary:
+		switch n.Op.Kind {
+		case syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr:
+			return bareVarCond(n.Left) || bareVarCond(n.Right)
+		}
+	}
+	return false
 }
 
 // thisCallKey lists the statements with a call on `$this` (assertions on
@@ -497,6 +567,9 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 		case *syntax.If:
 			if st.Else == nil && len(st.ElseIfs) == 0 {
 				collect(st.Cond)
+				if bareVarCond(st.Cond) {
+					add(aliasGuardKey) // may stand for a condition on another variable
+				}
 				last := st.Body
 				if b, ok := last.(*syntax.Block); ok && len(b.Stmts) > 0 {
 					last = b.Stmts[len(b.Stmts)-1]
@@ -516,11 +589,15 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 	return gi
 }
 
-// candidates returns the positions of the statements that may concern
-// name, ascending: those mentioning it, its array for an element key, and
-// calls on `$this` for a `$this->prop` key.
-func (gi *guardIndex) candidates(name string) []int {
-	lists := [][]int{gi.keys[name]}
+// candidates returns the positions in [from, end) of the statements that
+// may concern name, ascending: those mentioning it, its array for an
+// element key, calls on `$this` for a `$this->prop` key, boolean-alias
+// guards for a variable. ok is false beyond maxGuardScan of them (each
+// list is cut by binary search before merging, so a read costs no more
+// than the statements it may scan).
+func (gi *guardIndex) candidates(name string, from, end int) ([]int, bool) {
+	var buf [3][]int
+	lists := append(buf[:0], gi.keys[name])
 	if isDimKey(name) {
 		base, _ := splitDimKey(name)
 		lists = append(lists, gi.keys[base])
@@ -529,24 +606,34 @@ func (gi *guardIndex) candidates(name string) []int {
 		}
 	} else if strings.HasPrefix(name, "this->") {
 		lists = append(lists, gi.keys[thisCallKey])
+	} else if !isPropKey(name) {
+		lists = append(lists, gi.keys[aliasGuardKey])
 	}
-	n := 0
+	total, n := 0, 0
 	var only []int
-	for _, l := range lists {
-		if len(l) > 0 {
+	for i, l := range lists {
+		lo, _ := slices.BinarySearch(l, from)
+		hi, _ := slices.BinarySearch(l, end)
+		lists[i] = l[lo:hi]
+		if hi > lo {
+			total += hi - lo
 			n++
-			only = l
+			only = lists[i]
 		}
 	}
 	if n <= 1 {
-		return only
+		return only, len(only) <= maxGuardScan
 	}
-	var out []int
+	if total > len(lists)*maxGuardScan {
+		return nil, false // more than maxGuardScan even without duplicates
+	}
+	out := make([]int, 0, total)
 	for _, l := range lists {
 		out = append(out, l...)
 	}
 	slices.Sort(out)
-	return slices.Compact(out)
+	out = slices.Compact(out)
+	return out, len(out) <= maxGuardScan
 }
 
 // assigns reports whether statement s writes variable name at its top level.
@@ -640,8 +727,15 @@ const maxCondSteps = 1024
 
 // applyCond narrows t assuming cond evaluates to `truthy`.
 func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool) types.Type {
-	steps := maxCondSteps
-	return e.applyCondB(t, cond, name, truthy, &steps)
+	return e.applyCondB(t, cond, name, truthy, &condBudget{n: maxCondSteps})
+}
+
+// condBudget bounds one applyCond evaluation: n condition nodes at most
+// (see maxCondSteps); inAlias is set while a boolean alias's condition is
+// applied, so aliases of aliases are not followed.
+type condBudget struct {
+	n       int
+	inAlias bool
 }
 
 // unionNarrowed is the union of two alternative narrowings of one type; an
@@ -656,11 +750,11 @@ func unionNarrowed(a, b types.Type) types.Type {
 	return types.Union(a, b)
 }
 
-func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy bool, steps *int) types.Type {
-	if t.IsUnknown() || *steps <= 0 {
+func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy bool, steps *condBudget) types.Type {
+	if t.IsUnknown() || steps.n <= 0 {
 		return t
 	}
-	*steps--
+	steps.n--
 	switch c := syntax.UnwrapParens(cond).(type) {
 	case *syntax.Unary:
 		if c.Op.Kind == syntax.TExclaim {
@@ -735,6 +829,18 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 				return truthyType(t)
 			}
 			return falsyType(t)
+		}
+		if v, ok := c.(*syntax.Variable); ok {
+			// `$isObject = is_object($r); if ($isObject) { … }`
+			if !steps.inAlias {
+				if ac := e.aliasCond(v, name); ac != nil {
+					steps.inAlias = true // one level: the alias's condition is read as is
+					r := e.applyCondB(t, ac, name, truthy, steps)
+					steps.inAlias = false
+					return r
+				}
+			}
+			return t
 		}
 		if mc, ok := c.(*syntax.MethodCall); ok {
 			if r, ok := e.condAsserts(mc, name, truthy, t); ok {
@@ -961,4 +1067,36 @@ func nonEmptyIf(t types.Type, cond bool) types.Type {
 		t = nt
 	}
 	return t.WithNonEmpty(true)
+}
+
+// aliasCond returns the condition a boolean variable v stands for when it
+// narrows variable name: v's only reaching definition is `$v = cond;` with
+// cond a boolean expression, and name is not written between that
+// assignment and v. Only direct aliases (an alias of an alias is not
+// followed) and plain variable names; nil otherwise.
+func (e *Env) aliasCond(v *syntax.Variable, name string) syntax.Expr {
+	if v.NameExpr != nil || v.Name == "" || v.Name == "this" || strings.ContainsAny(name, ">:"+dimSep) {
+		return nil
+	}
+	scope := syntax.EnclosingFuncLike(v)
+	defs := e.scopeVars(scope).defs[v.Name]
+	if len(defs) == 0 || len(defs) > maxVarDefs {
+		return nil
+	}
+	fwd, back, _ := e.reaching(defs, v, scope)
+	if len(fwd) != 1 || len(back) != 0 || fwd[0].asg == nil {
+		return nil
+	}
+	a := fwd[0].asg
+	cond := syntax.UnwrapParens(a.Value)
+	if !isBoolExpr(cond) {
+		return nil
+	}
+	end, at := a.Span().End, v.Span().Start
+	for _, m := range e.mutations(scope, name) {
+		if m.span.Start >= end && m.span.Start < at {
+			return nil // name changed since the alias was computed
+		}
+	}
+	return cond
 }

@@ -189,7 +189,7 @@ func (x *extractor) genResolver(at uint32) types.Resolver {
 // given to the parents, interfaces and traits (@extends Base<Foo> …).
 func (x *extractor) generics(c *Class, d *phpdoc.Doc, at uint32) {
 	for _, p := range d.TemplateParams() {
-		c.Templates = append(c.Templates, Template{Name: p.Name, Bound: x.docTypeStr(p.Bound, at)})
+		c.Templates = append(c.Templates, Template{Name: p.Name, Bound: x.docTypeStr(p.Bound, at), Default: x.docTypeStr(p.Default, at)})
 	}
 	for _, t := range d.Tags {
 		switch t.Name {
@@ -619,13 +619,15 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	}
 	c.Methods[strings.ToLower(meth.Name)] = meth
 	if strings.EqualFold(meth.Name, "__construct") {
-		for _, p := range m.Params {
+		for i, p := range m.Params {
 			if len(p.Modifiers) == 0 {
 				continue
 			}
+			// The constructor's `@param Foo[] $items` documents the
+			// promoted property too (as PhpStorm and PHPStan read it).
 			c.Props[p.Var.Name] = &Property{Name: p.Var.Name, Class: c.FQN, Visibility: visibility(p.Modifiers),
 				Readonly: p.Modifiers.Has(syntax.TReadonly) || c.Readonly, Type: x.typeStr(p.Type, at), Promoted: true,
-				HasDefault: p.Default != nil, Default: x.text(p.Default), Span: p.Span()}
+				DocType: meth.Params[i].DocType, HasDefault: p.Default != nil, Default: x.text(p.Default), Span: p.Span()}
 		}
 	}
 }

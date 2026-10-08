@@ -24,6 +24,12 @@ func (t Type) Intersection() []string {
 	return *t.inter
 }
 
+// Intersect is the intersection type of class atoms (one class: that
+// class).
+func Intersect(classes ...string) Type {
+	return Of(classes...).withInter(classes)
+}
+
 // withInter records classes (atoms of t) as an intersection; fewer than two
 // distinct class atoms, or another class alternative in t, record nothing.
 func (t Type) withInter(classes []string) Type {

@@ -234,8 +234,9 @@ var docBuiltin = map[string]bool{
 
 // TemplateParam is a declared template: `@template T of Bound`.
 type TemplateParam struct {
-	Name  string
-	Bound string // type text after `of` / `as`; "" when absent
+	Name    string
+	Bound   string // type text after `of` / `as`; "" when absent
+	Default string // type text after `=` (`@template T of array-key = int`); "" when absent
 }
 
 // TemplateParams returns the templates declared by @template (and the
@@ -251,11 +252,13 @@ func (d *Doc) TemplateParams() []TemplateParam {
 			continue
 		}
 		p := TemplateParam{Name: f[0]}
+		rest := strings.TrimSpace(strings.TrimSpace(t.Text)[len(f[0]):])
 		if len(f) > 2 && (f[1] == "of" || f[1] == "as") {
-			rest := strings.TrimSpace(t.Text)
-			rest = strings.TrimSpace(rest[len(f[0]):])
-			rest = strings.TrimSpace(rest[len(f[1]):])
-			p.Bound, _ = SplitType(rest)
+			p.Bound, rest = SplitType(strings.TrimSpace(rest[len(f[1]):]))
+			rest = strings.TrimSpace(rest)
+		}
+		if strings.HasPrefix(rest, "=") {
+			p.Default, _ = SplitType(strings.TrimSpace(rest[1:]))
 		}
 		out = append(out, p)
 	}

@@ -106,7 +106,7 @@ func (e *Env) notInstance(t types.Type, cls string, withSelf bool) types.Type {
 }
 
 // eqCond narrows t by comparison c (`===`, `!==`, `==`, `!=`).
-func (e *Env) eqCond(t types.Type, c *syntax.Binary, name string, truthy bool, steps *int) types.Type {
+func (e *Env) eqCond(t types.Type, c *syntax.Binary, name string, truthy bool, steps *condBudget) types.Type {
 	strict := c.Op.Kind == syntax.TIsIdentical || c.Op.Kind == syntax.TIsNotIdentical
 	// holds: the operands are equal (identical when strict).
 	holds := (c.Op.Kind == syntax.TIsIdentical || c.Op.Kind == syntax.TIsEqual) == truthy

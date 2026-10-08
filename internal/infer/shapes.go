@@ -175,16 +175,14 @@ func (e *Env) shapeKeyOf(ct types.Type, key string, v *syntax.Variable) (types.T
 		}
 		// A key missing from a literal array may be added by a write
 		// (`$a = []; $a['k'] = 1;`).
-		if isVar && e.writesKey(v, key) {
+		// Absent from the literal: only the writes that may store into the
+		// key give it a type (the same literal key, or a computed one);
+		// otherwise it is unknown, never the type of the other elements
+		// (`$rows = ['total' => 1]; $rows['meta']['s'] = 1;` does not make
+		// `$rows['meta']` an int).
+		if isVar && e.mayWriteKey(v, key) {
 			return e.widenKey(types.Of("never"), v, key), true
 		}
-		if isVar {
-			if ws, _ := e.reachingWrites(v); len(ws) > 0 {
-				return types.Unknown, false // a computed key or an append may add it
-			}
-		}
-		// Absent from a sealed shape: reading it gives null (and a
-		// warning), never the type of the other elements.
 		return types.Unknown, true
 	}
 	if isVar {
@@ -193,18 +191,30 @@ func (e *Env) shapeKeyOf(ct types.Type, key string, v *syntax.Variable) (types.T
 	return kt, true
 }
 
-// writesKey reports whether variable v's element `key` is written with that
-// literal key by a write reaching v.
-func (e *Env) writesKey(v *syntax.Variable, key string) bool {
+// mayWriteKey reports whether a write reaching variable v may store a
+// known value into its element `key`: a direct write with that literal key
+// or with a computed key, and no nested, unknown or (for an integer key)
+// appending write that would leave its value unknown.
+func (e *Env) mayWriteKey(v *syntax.Variable, key string) bool {
 	ws, _ := e.reachingWrites(v)
+	may := false
 	for _, w := range ws {
-		if d := w.dim(); d != nil {
-			if k, ok := literalKey(d); ok && k == key {
-				return true
+		if w.nested {
+			if k, ok := literalKey(w.key); !ok || k == key {
+				return false
 			}
+			continue
+		}
+		d := w.dim()
+		switch k, ok := literalKey(d); {
+		case w.a == nil, d == nil && types.IsIntKey(key):
+			return false
+		case d == nil || (ok && k != key):
+		default:
+			may = true
 		}
 	}
-	return false
+	return may
 }
 
 // widenKey unions the type kt of key `key` of variable v with the values

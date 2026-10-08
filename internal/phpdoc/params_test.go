@@ -48,7 +48,7 @@ func TestVarTypeNameFirstOtherVariable(t *testing.T) {
 
 func TestEmptyTemplateAndImportTags(t *testing.T) {
 	d := Parse("/**\n * @template\n * @template T of Foo\n * @phpstan-import-type\n * @phpstan-import-type A from B as C\n */")
-	if tp := d.TemplateParams(); len(tp) != 1 || tp[0] != (TemplateParam{"T", "Foo"}) {
+	if tp := d.TemplateParams(); len(tp) != 1 || tp[0] != (TemplateParam{Name: "T", Bound: "Foo"}) {
 		t.Errorf("TemplateParams = %+v", tp)
 	}
 	if a := d.TypeAliases(); len(a) != 1 || a["C"] != "" {
@@ -60,5 +60,19 @@ func TestTagMissing(t *testing.T) {
 	d := Parse("/** @return int */")
 	if d.Has("param") || !d.Has("return") {
 		t.Error("Has")
+	}
+}
+
+func TestTemplateDefaults(t *testing.T) {
+	d := Parse("/**\n * @template TKey of array-key = int\n * @template TValue = mixed\n * @template U of Foo\n */")
+	want := []TemplateParam{{Name: "TKey", Bound: "array-key", Default: "int"}, {Name: "TValue", Default: "mixed"}, {Name: "U", Bound: "Foo"}}
+	tp := d.TemplateParams()
+	if len(tp) != len(want) {
+		t.Fatalf("TemplateParams = %+v", tp)
+	}
+	for i := range want {
+		if tp[i] != want[i] {
+			t.Errorf("%d: %+v want %+v", i, tp[i], want[i])
+		}
 	}
 }

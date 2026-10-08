@@ -102,17 +102,6 @@ func (classMethodNameMatchesFieldName) propertyTypes(ctx *analysis.Context, p *i
 	} else {
 		add(types.FromDoc(p.Type, nil))
 		add(types.FromDoc(p.DocType, nil))
-		if p.Promoted { // custos: the constructor's @param documents it
-			if c := ctx.Index().Class(p.Class, ctx.PHP); c != nil {
-				if ctor := c.Methods["__construct"]; ctor != nil {
-					for _, prm := range ctor.Params {
-						if prm.Name == p.Name {
-							add(types.FromDoc(prm.DocType, nil))
-						}
-					}
-				}
-			}
-		}
 		if p.HasDefault {
 			add(infer.LiteralTextType(p.Default))
 		}

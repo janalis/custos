@@ -371,6 +371,11 @@ func (r *TRules) override(n *syntax.FuncCall, f *index.Function) (types.Type, bo
 			if t, ok := replaceResult(st, strings.HasPrefix(name, "preg_")); ok {
 				return t, true
 			}
+			if st.IsUnknown() && !r.SpecOnly {
+				// Outside the spec-literal mode an unknown subject leaves
+				// the result unknown (string or array).
+				return types.Unknown, true
+			}
 		}
 		res := []string{"string", "array"}
 		if strings.HasPrefix(name, "preg_") { // null on a PCRE failure

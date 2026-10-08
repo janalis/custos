@@ -87,22 +87,54 @@ func (e *Env) genBindings(cls string, args []types.Type) map[string]tplBindings 
 	return out
 }
 
-// bindArgs binds the templates of c to args: positionally, except that a
-// single argument given to a Traversable class with several templates is
-// its value type (`Collection<Foo>`, `Generator<Foo>`), bound to the
-// second template.
+// bindArgs binds the templates of c to args: positionally, except when
+// fewer arguments than templates are given. Then the arguments bind, in
+// order, the templates without bound or default when there are exactly as
+// many (Shopware's `@template TElement` + `@template TKey of array-key =
+// array-key`: `Collection<Foo>` is its element type); else the trailing
+// templates when the leading ones all have a bound or default; else, for a
+// single argument to a Traversable class, the value template (`Generator<
+// Foo>`). Templates left unbound take their default.
 func (e *Env) bindArgs(c *index.Class, args []types.Type) tplBindings {
 	if len(args) == 0 || len(c.Templates) == 0 {
 		return nil
 	}
 	b := tplBindings{}
-	if len(args) == 1 && len(c.Templates) >= 2 && e.Index.IsSubtype(c.FQN, "Traversable", e.PHP) {
-		b[c.Templates[1].Name] = args[0]
-		return b
+	pos := make([]int, 0, len(args)) // template index of each argument
+	for i := range args {
+		pos = append(pos, i)
 	}
-	for i, t := range c.Templates {
-		if i < len(args) {
-			b[t.Name] = args[i]
+	if n := len(c.Templates) - len(args); n > 0 {
+		var req []int
+		lead := true
+		for i, t := range c.Templates {
+			opt := t.Bound != "" || t.Default != ""
+			if !opt {
+				req = append(req, i)
+			}
+			if i < n {
+				lead = lead && opt
+			}
+		}
+		switch {
+		case len(req) == len(args):
+			pos = req
+		case lead:
+			for i := range pos {
+				pos[i] += n
+			}
+		case len(args) == 1 && e.Index.IsSubtype(c.FQN, "Traversable", e.PHP):
+			pos[0] = 1
+		}
+	}
+	for i, p := range pos {
+		if p < len(c.Templates) {
+			b[c.Templates[p].Name] = args[i]
+		}
+	}
+	for _, t := range c.Templates {
+		if _, ok := b[t.Name]; !ok && t.Default != "" {
+			b[t.Name] = types.FromDoc(t.Default, nil)
 		}
 	}
 	return b

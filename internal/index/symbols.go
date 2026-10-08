@@ -209,8 +209,9 @@ func (c *Class) HasAttr(fqn string) bool {
 
 // Template is a class template parameter: `@template T of Bound`.
 type Template struct {
-	Name  string `json:"n"`
-	Bound string `json:"b,omitempty"` // doc type string; "" when unbounded
+	Name    string `json:"n"`
+	Bound   string `json:"b,omitempty"`   // doc type string; "" when unbounded
+	Default string `json:"def,omitempty"` // `= T` default, doc type string; "" when none
 }
 
 // FuncTemplates describes the @template parameters declared on a function
