@@ -81,7 +81,7 @@ func (r properNullCoalescingOperatorUsage) Check(ctx *analysis.Context, n syntax
 			}
 		}
 	}
-	if complementary || pncoScalarOnly(lt) && pncoScalarOnly(rt) || r.related(ctx, lt, rt) || r.iterable(ctx, lt) && r.iterable(ctx, rt) {
+	if complementary || pncoScalarOnly(lt) && pncoScalarOnly(rt) && !pncoNeverNull(b.Left) || r.related(ctx, lt, rt) || r.iterable(ctx, lt) && r.iterable(ctx, rt) {
 		return
 	}
 	ctx.Report(b.Span(), "Operand types of '??' do not match ("+pncoSetString(lt)+" vs "+pncoSetString(rt)+").")
@@ -180,6 +180,26 @@ func pncoScalarOnly(set map[string]bool) bool {
 		}
 	}
 	return true
+}
+
+// pncoNeverNull reports whether e is an operator expression whose value is
+// never null (comparison, &&/||, instanceof, !): a scalar fallback after it
+// is a precedence mistake, not a placeholder (D5a).
+func pncoNeverNull(e syntax.Expr) bool {
+	switch x := e.(type) {
+	case *syntax.Binary:
+		switch x.Op.Kind {
+		case syntax.TLess, syntax.TIsSmallerOrEqual, syntax.TGreater, syntax.TIsGreaterOrEqual, syntax.TSpaceship,
+			syntax.TIsEqual, syntax.TIsNotEqual, syntax.TIsIdentical, syntax.TIsNotIdentical,
+			syntax.TBooleanAnd, syntax.TBooleanOr:
+			return true
+		}
+	case *syntax.Instanceof:
+		return true
+	case *syntax.Unary:
+		return x.Op.Kind == syntax.TExclaim
+	}
+	return false
 }
 
 // iterable reports whether the set holds a member of the iterable family:
