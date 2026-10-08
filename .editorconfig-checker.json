@@ -1,0 +1,16 @@
+{
+  "Disable": {
+    "IndentSize": true
+  },
+  "Exclude": [
+    "^\\.cache/",
+    "^bin/",
+    "^dist/",
+    "^docs/node_modules/",
+    "^docs/\\.vitepress/(cache|dist)/",
+    "testdata/",
+    "\\.go$",
+    "\\.gob\\.gz$",
+    "\\.png$"
+  ]
+}

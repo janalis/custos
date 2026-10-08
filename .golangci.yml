@@ -1,0 +1,110 @@
+# golangci-lint v2 configuration, run by `make lint` (pinned version in the
+# Makefile). `make fmt` applies the formatters. Policy: no baseline; a finding
+# is fixed, or silenced on its line with `//nolint:<linter> // <reason>`.
+version: "2"
+
+run:
+  tests: true
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    gofumpt:
+      # The module path has no dot: without this, gofumpt takes custos/...
+      # for standard library imports.
+      module-path: custos
+    goimports:
+      local-prefixes:
+        - custos
+  exclusions:
+    paths:
+      - docs/node_modules
+      - \.cache
+
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - copyloopvar
+    - errcheck
+    - errorlint
+    - gocritic
+    - govet
+    - ineffassign
+    - misspell
+    - nolintlint
+    - revive
+    - staticcheck
+    - unconvert
+    - unused
+    - usestdlibvars
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment # struct layout is tuned by benchmarks, not by this check
+        - shadow # `err :=` shadowing is idiomatic and pervasive
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+      disabled-checks:
+        - ifElseChain # parsers and rules read better as if/else ladders
+        - unnamedResult
+        - commentedOutCode
+        - whyNoLint # nolintlint already requires an explanation
+        - filepathJoin # filepath.Join cleans `a/b` into the OS separator
+        - importShadow # locals named like a package (names, fix, path) are fine
+        - argOrder # flags strings.ContainsRune(charset, ch), the intended order
+        - weakCond # flags `m != nil && m[1]` on regexp submatches, always full
+        - initClause
+        - boolExprSimplify # `len(args) < pos+1` states the arity being checked
+        - builtinShadow # local min/max/close/any are clear in context
+    staticcheck:
+      checks:
+        - all
+        - -ST1000 # package comments: revive's package-comments covers them
+        - -ST1003 # naming: revive's var-naming covers it
+        - -QF1001 # De Morgan rewrites: the original form often mirrors the spec
+    misspell:
+      # No locale: prose is British English, while protocol and PHP names
+      # (initialize, __serialize, ANALYZE_* options) are American.
+      ignore-rules:
+        - ther # `\other` in PHP names
+        - alse # `\false`
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: var-declaration
+        - name: var-naming
+  exclusions:
+    generated: strict
+    presets:
+      - std-error-handling
+    paths:
+      - docs/node_modules
+      - \.cache
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

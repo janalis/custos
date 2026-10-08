@@ -16,6 +16,13 @@ jobs:
         with:
           php-version: "8.5"
           coverage: none
+      # markdownlint (part of `make lint`) comes from the docs site's packages.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+      - run: npm ci --prefix docs
       - run: make verify
 
   # Release packaging: goreleaser config, composer.json and the Composer

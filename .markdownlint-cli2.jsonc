@@ -1,0 +1,34 @@
+// Markdown style, checked by `make lint` and applied by `make fmt`
+// (markdownlint-cli2 from docs/package.json).
+{
+  "config": {
+    "default": true,
+    // Prose is wrapped by hand or not at all; tables and URLs run long.
+    "MD013": false,
+    // VitePress components (<Badge>) and HTML comments are part of the docs.
+    "MD033": false,
+    // Pages may start with front matter or a generated-file comment.
+    "MD041": false,
+    // Repeated headings (Examples, Options) are fine under different parents.
+    "MD024": { "siblings_only": true },
+    // Go code blocks are tab-indented.
+    "MD010": { "code_blocks": false },
+    // Rule pages carry their title in front matter and as the H1.
+    "MD025": { "front_matter_title": "" },
+    // Spaces inside code spans are meaningful (`public `, `[] = `).
+    "MD038": false,
+    // Table cells are not padded to align columns.
+    "MD060": false
+  },
+  "globs": ["**/*.md"],
+  "ignores": [
+    "**/node_modules/**",
+    ".cache/**",
+    "bin/**",
+    "dist/**",
+    "docs/.vitepress/cache/**",
+    "docs/.vitepress/dist/**",
+    "testdata/**",
+    "**/testdata/**"
+  ]
+}

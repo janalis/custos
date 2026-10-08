@@ -27,7 +27,7 @@ into this repo.
 
 ## Layout
 
-```
+```text
 cmd/custos/            CLI (analyse | fix | rules | explain | lsp | version)
 internal/syntax/       lexer, parser (version-aware, permissive mode), AST, walk, line index
 internal/phpver/       PHP version model
@@ -57,10 +57,11 @@ testdata/rules/<ID>/   own fixtures: *.php (markup), *.fixed.php, *.json (option
 
 ## Commands
 
-```
+```text
 make build          # bin/custos
 make test           # go test ./...
-make lint           # go vet + gofmt check + staticcheck (pinned; STATICCHECK= to skip offline)
+make lint           # golangci-lint + actionlint + editorconfig-checker + markdownlint (pinned; GOLANGCI=/ACTIONLINT=/ECCHECK=/MDLINT= to skip)
+make fmt            # gofumpt + goimports + markdownlint --fix (run before committing)
 make extract        # regenerate rule facts + local EA index (EA_PATH=~/Sites/phpinspectionsea)
 make rules-doc      # regenerate docs/rules/ (site), docs/internals/rules.md, explain texts
 make fixtures       # own fixtures (CI gate)            RULE=<ID> to filter

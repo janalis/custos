@@ -1,7 +1,7 @@
 # Contributing to custos
 
 Thanks for your interest! The full contributor guide is at
-**https://janalis.github.io/custos/contributing/** (sources in
+**<https://janalis.github.io/custos/contributing/>** (sources in
 [`docs/contributing/`](docs/contributing/)).
 
 ## Reporting a problem
@@ -31,8 +31,10 @@ Details: [Clean-room process](https://janalis.github.io/custos/contributing/clea
 ## Before opening a pull request
 
 ```sh
-make verify         # lint, tests, own fixtures, 100 % coverage, clean-room scan
-make rules-doc      # if you changed a spec or a rule's fixtures
+npm ci --prefix docs  # once: markdownlint (and the docs site)
+make fmt              # gofumpt, goimports, markdownlint fixes
+make verify           # lint, tests, own fixtures, 100 % coverage, clean-room scan
+make rules-doc        # if you changed a spec or a rule's fixtures
 ```
 
 - Every new statement is covered by tests (`make coverage`).
