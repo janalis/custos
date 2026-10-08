@@ -137,6 +137,14 @@ func putInvertedBool(ctx *analysis.Context, c puCall, args []syntax.Expr) (putSu
 	if !ok || u.Op.Kind != syntax.TExclaim {
 		return putSuggestion{}, false
 	}
+	// D15a: `!empty(Y)` names the final assertion when D18 accepts Y.
+	if e, ok := syntax.UnwrapParens(u.Expr).(*syntax.Empty); ok && e.Expr != nil && ctx.Bool("PROMOTE_PHPUNIT_API") && putEmptyOperand(ctx, e.Expr) {
+		name := "assertEmpty"
+		if m == "assertTrue" {
+			name = "assertNotEmpty"
+		}
+		return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 1, len(args), ctx.Text(e.Expr), putOpt(ctx, args, 1))}, true
+	}
 	name := "assertNotTrue"
 	if m == "assertFalse" {
 		name = "assertNotFalse"
@@ -230,7 +238,7 @@ func putEmpty(ctx *analysis.Context, c puCall, args []syntax.Expr) (putSuggestio
 		return putSuggestion{}, false
 	}
 	e, ok := args[0].(*syntax.Empty)
-	if !ok || e.Expr == nil {
+	if !ok || e.Expr == nil || !putEmptyOperand(ctx, e.Expr) {
 		return putSuggestion{}, false
 	}
 	name := "assertNotEmpty"
@@ -238,6 +246,26 @@ func putEmpty(ctx *analysis.Context, c puCall, args []syntax.Expr) (putSuggestio
 		name = "assertEmpty"
 	}
 	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 1, len(args), ctx.Text(e.Expr), putOpt(ctx, args, 1))}, true
+}
+
+// putEmptyOperand reports whether x has a fully known type made only of
+// null, bool, int, float, string and array: there assertEmpty() agrees
+// with empty() (objects, Countable ones especially, do not).
+func putEmptyOperand(ctx *analysis.Context, x syntax.Expr) bool {
+	t := ctx.TypeOf(x)
+	if t.IsUnknown() {
+		return false
+	}
+	for _, a := range t.Atoms() {
+		switch a {
+		case "null", "bool", "true", "false", "int", "float", "string", "array":
+		default:
+			if !strings.HasSuffix(a, "[]") {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // D19

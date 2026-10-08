@@ -1,7 +1,7 @@
 <?php
 class ExtraArgsTest
 {
-    public function testExtra($rows, $n, $list, $obj)
+    public function testExtra(array $rows, $n, $list, $obj)
     {
         $this->assertEmpty($rows, 'm', 3);
         $this->assertIsInt($n, 'm', $flag);

@@ -1,7 +1,7 @@
 <?php
 class CartTest
 {
-    public function testThings($rows, $bag, $cart, $path, $body, $slug)
+    public function testThings(array $rows, $bag, $cart, $path, $body, $slug)
     {
         <weak_warning descr="Use 'assertNotTrue()' instead.">$this->assertTrue(!($cart->open && $rows))</weak_warning>;
         <weak_warning descr="Use 'assertSame()' instead.">self::assertFalse($cart->size !== 4, 'size')</weak_warning>;
