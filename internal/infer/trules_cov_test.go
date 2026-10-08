@@ -59,7 +59,7 @@ class A {
         t('this', $this);
     }
 }
-class B { public function b(): string { return ''; } }
+class B extends A { public function b(): string { return ''; } }
 /** @param string $doc */
 function g($o, $m, $name, int $i, $doc) {
     t('classConst', A::C);

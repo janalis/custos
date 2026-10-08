@@ -89,6 +89,43 @@ func instanceType(t types.Type, cls string) types.Type {
 	return types.Of(atom)
 }
 
+// instanceOf narrows t to the values that are instances of class cls: the
+// members of t that are cls or its subtypes, plus cls itself when another
+// member may hold an instance of it (a parent class, an interface, an
+// unknown class; mixed, object, iterable, callable). Nothing left (`string`
+// tested against a class) is an impossible branch: unknown.
+func (e *Env) instanceOf(t types.Type, cls string) types.Type {
+	if t.HasAny("mixed", "object", "iterable", "callable") {
+		return instanceType(t, cls)
+	}
+	iface := func(c string) bool {
+		k := e.Index.Class(c, e.PHP)
+		return k == nil || k.Kind == syntax.KindInterface
+	}
+	var keep []string
+	possible := false
+	for _, a := range t.Classes() {
+		c := strings.TrimPrefix(a, `\`)
+		switch {
+		case strings.EqualFold(c, cls) || e.Index.IsSubtype(c, cls, e.PHP):
+			keep = append(keep, a)
+		case e.Index.IsSubtype(cls, c, e.PHP) || iface(c) || iface(cls):
+			possible = true
+		}
+	}
+	var parts []types.Type
+	for _, a := range keep {
+		parts = append(parts, types.Of(a).WithTypeArgs(a, t.TypeArgs(a)))
+	}
+	if possible {
+		parts = append(parts, instanceType(t, cls))
+	}
+	if len(parts) == 0 {
+		return types.Unknown
+	}
+	return types.Union(parts...)
+}
+
 // notInstance removes from t the class cls (when withSelf) and its
 // subtypes (`string|PropertyPath` minus `instanceof PropertyPathInterface`).
 func (e *Env) notInstance(t types.Type, cls string, withSelf bool) types.Type {

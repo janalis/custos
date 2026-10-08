@@ -122,7 +122,15 @@ func IsSpecialClass(name string) bool { return special[strings.ToLower(name)] }
 
 // Class resolves a class-like name written at offset to its FQN (without
 // leading backslash). self/static/parent are returned lower-cased as-is.
+//
+// A name written with a leading "!" asks whether it is explicitly imported
+// at offset (`use App\Number;` for "!number", case-insensitively): the FQN,
+// or "" when it is not (types.FromDoc then reads a pseudo-type such as
+// `number` as the class only when imported).
 func (r *Resolver) Class(written string, offset uint32) string {
+	if probe, ok := strings.CutPrefix(written, "!"); ok {
+		return r.ScopeAt(offset).Classes[strings.ToLower(probe)]
+	}
 	if strings.HasPrefix(written, `\`) {
 		return written[1:]
 	}

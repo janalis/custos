@@ -394,6 +394,12 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 			if ca := e.assertsOf(es.Expr); ca != nil {
 				t, _ = e.applyAsserts(ca, index.AssertAlways, name, t, false)
 			}
+			// `assert($x instanceof Foo);`: the code after it relies on
+			// the condition (with assertions disabled it is not checked,
+			// but then the author's claim is all there is).
+			if c := e.assertCall(es.Expr); c != nil {
+				t = e.condAt(use, scope, t, c, name, true, es.Span().End)
+			}
 			continue
 		}
 		if g, ok := s.(*syntax.If); ok && g.Else == nil && len(g.ElseIfs) == 0 {
@@ -408,10 +414,76 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 					t = e.applyCond(t, g.Cond, name, false)
 				}
 			}
+		} else if ok && len(g.ElseIfs) < maxBranchScan {
+			t = e.chainJoin(use, scope, t, g, name)
 		}
 	}
 	return t
 }
+
+// chainJoin types name past an if/elseif(/else) chain g preceding use: the
+// union, over the paths through the chain, of the value each path leaves —
+// the value a branch assigns last, or the incoming type narrowed by the
+// conditions that path saw (earlier ones false, its own true; all false
+// without else). Branches that always leave contribute nothing. t is kept
+// when a branch writes name otherwise, or a written value is unknown.
+// (`if ($c instanceof Lang) {…} elseif ($c instanceof Code) { $c = 'x'; }`
+// leaves a string|Code $c a string.)
+func (e *Env) chainJoin(use syntax.Expr, scope syntax.Node, t types.Type, g *syntax.If, name string) types.Type {
+	from := g.Span().End
+	var parts []types.Type
+	var prefix []syntax.Expr // conditions found false so far
+	path := func(body syntax.Stmt, last syntax.Expr) bool {
+		if terminates(body) {
+			return true
+		}
+		if val := e.overwrites(body, name); val != nil {
+			vt := e.TypeOf(val)
+			parts = append(parts, vt)
+			return !vt.IsUnknown()
+		}
+		sp := body.Span()
+		for _, m := range e.mutations(scope, name) {
+			if m.span.Start >= sp.Start && m.span.Start < sp.End {
+				return false
+			}
+		}
+		pt := t
+		for _, c := range prefix {
+			pt = e.condAt(use, scope, pt, c, name, false, from)
+		}
+		if last != nil {
+			pt = e.condAt(use, scope, pt, last, name, true, from)
+		}
+		if !pt.IsUnknown() { // unknown: an impossible path
+			parts = append(parts, pt)
+		}
+		return true
+	}
+	prefix = make([]syntax.Expr, 0, 1+len(g.ElseIfs))
+	parts = make([]types.Type, 0, 2+len(g.ElseIfs))
+	for i := -1; i < len(g.ElseIfs); i++ {
+		c, body := g.Cond, g.Body
+		if i >= 0 {
+			c, body = g.ElseIfs[i].Cond, g.ElseIfs[i].Body
+		}
+		if !path(body, c) {
+			return t
+		}
+		prefix = append(prefix, c)
+	}
+	var tail syntax.Stmt = emptyBlock // all conditions false, nothing runs
+	if g.Else != nil {
+		tail = g.Else.Body
+	}
+	if !path(tail, nil) || len(parts) == 0 {
+		return t
+	}
+	return types.Union(parts...)
+}
+
+// emptyBlock stands for the missing else of a chain (see chainJoin).
+var emptyBlock = &syntax.Block{}
 
 // afterPropertyWrite drops null from the type t of `$this->prop` read use
 // when s, a statement preceding it in an enclosing block (so it ran on
@@ -578,6 +650,12 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 					if a, ok := es.Expr.(*syntax.Assign); ok {
 						add(narrowKey(a.Var))
 					}
+				}
+			} else if len(st.ElseIfs) < maxBranchScan {
+				// Chains: their conditions narrow the join (chainJoin).
+				collect(st.Cond)
+				for _, ei := range st.ElseIfs {
+					collect(ei.Cond)
 				}
 			}
 		}
@@ -805,7 +883,7 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			return t
 		}
 		if truthy {
-			return instanceType(t, cls)
+			return e.instanceOf(t, cls)
 		}
 		return e.notInstance(t, cls, true)
 	case *syntax.Isset:
@@ -1099,4 +1177,26 @@ func (e *Env) aliasCond(v *syntax.Variable, name string) syntax.Expr {
 		}
 	}
 	return cond
+}
+
+// assertCall returns the condition of a call statement `assert(cond)` to
+// the global assert() (nil otherwise).
+func (e *Env) assertCall(x syntax.Expr) syntax.Expr {
+	c, ok := x.(*syntax.FuncCall)
+	if !ok || len(c.Args.Args) == 0 {
+		return nil
+	}
+	nm, ok := c.Name.(*syntax.Name)
+	if !ok {
+		return nil
+	}
+	fqn, fb := e.Names.Function(nm.Value, nm.Span().Start)
+	if !strings.EqualFold(fqn, "assert") && !(strings.EqualFold(fb, "assert") && e.Index.Function(fqn, e.PHP) == nil) {
+		return nil
+	}
+	a, ok := c.Args.Args[0].(*syntax.Arg)
+	if !ok || a.Unpack || a.Name != nil {
+		return nil
+	}
+	return a.Value
 }

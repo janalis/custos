@@ -19,6 +19,7 @@ type Index struct {
 	functions map[string][]*Function
 	constants map[string][]*Constant
 	files     map[string]*FileSymbols
+	aliases   map[string]string   // lower class_alias() alias -> original FQN
 	children  map[string][]string // lower parent/interface FQN -> child FQNs (lazy)
 
 	// gen counts the changes (Add/Remove) of this layer; ancestors caches
@@ -35,8 +36,9 @@ type ancKey struct {
 }
 
 type ancEntry struct {
-	gen uint64
-	cls []*Class
+	gen      uint64
+	cls      []*Class
+	complete bool // false when MaxAncestors cut the list
 }
 
 // MaxAncestors caps the classes Ancestors returns (the class itself, its
@@ -81,6 +83,12 @@ func (ix *Index) Add(fs *FileSymbols) {
 		k := strings.TrimPrefix(c.FQN, `\`)
 		ix.constants[k] = append(ix.constants[k], c)
 	}
+	for _, a := range fs.ClassAliases {
+		if ix.aliases == nil {
+			ix.aliases = map[string]string{}
+		}
+		ix.aliases[key(a[0])] = a[1]
+	}
 	ix.children = nil
 	ix.gen.Add(1)
 }
@@ -110,6 +118,9 @@ func (ix *Index) removeLocked(path string) {
 		k := strings.TrimPrefix(c.FQN, `\`)
 		ix.constants[k] = without(ix.constants[k], c)
 	}
+	for _, a := range old.ClassAliases {
+		delete(ix.aliases, key(a[0]))
+	}
 }
 
 func without[T comparable](list []T, x T) []T {
@@ -138,8 +149,40 @@ func pick[T any](cands []T, avail func(T) Avail, ver phpver.Version) (T, bool) {
 	return cands[0], true
 }
 
+// maxAliasHops bounds the class_alias() chain Class follows (an alias of an
+// alias…; a cycle ends there too).
+const maxAliasHops = 8
+
 // Class returns the class-like with the given FQN available at ver (0 = any).
+// A name declared by class_alias() resolves to the original class.
 func (ix *Index) Class(fqn string, ver phpver.Version) *Class {
+	for hop := 0; hop <= maxAliasHops; hop++ {
+		if c := ix.declared(fqn, ver); c != nil {
+			return c
+		}
+		if fqn = ix.aliasOf(fqn); fqn == "" {
+			return nil
+		}
+	}
+	return nil
+}
+
+// aliasOf returns the original class of a class_alias() alias, in this
+// layer or a base ("" when fqn is no alias).
+func (ix *Index) aliasOf(fqn string) string {
+	for l := ix; l != nil; l = l.base {
+		l.mu.RLock()
+		t := l.aliases[key(fqn)]
+		l.mu.RUnlock()
+		if t != "" {
+			return t
+		}
+	}
+	return ""
+}
+
+// declared is Class without aliases.
+func (ix *Index) declared(fqn string, ver phpver.Version) *Class {
 	ix.mu.RLock()
 	c, ok := pick(ix.classes[key(fqn)], func(c *Class) Avail { return c.Avail }, ver)
 	ix.mu.RUnlock()
@@ -147,7 +190,7 @@ func (ix *Index) Class(fqn string, ver phpver.Version) *Class {
 		return c
 	}
 	if ix.base != nil {
-		return ix.base.Class(fqn, ver)
+		return ix.base.declared(fqn, ver)
 	}
 	return nil
 }
@@ -325,25 +368,38 @@ func (ix *Index) ResolveFunction(fqn, fallback string, ver phpver.Version) *Func
 // At most MaxAncestors are returned. The result is cached (callers must not
 // modify it).
 func (ix *Index) Ancestors(fqn string, ver phpver.Version) []*Class {
+	return ix.ancestorEntry(fqn, ver).cls
+}
+
+// AncestorsComplete reports whether Ancestors(fqn, ver) lists every
+// ancestor: false when the MaxAncestors cap cut it (a class implementing
+// hundreds of interfaces), so callers that need the whole hierarchy can
+// stay conservative.
+func (ix *Index) AncestorsComplete(fqn string, ver phpver.Version) bool {
+	return ix.ancestorEntry(fqn, ver).complete
+}
+
+func (ix *Index) ancestorEntry(fqn string, ver phpver.Version) ancEntry {
 	k := ancKey{key(fqn), ver}
 	g := ix.generation()
 	ix.ancMu.RLock()
 	e, ok := ix.ancestors[k]
 	ix.ancMu.RUnlock()
 	if ok && e.gen == g {
-		return e.cls
+		return e
 	}
-	out := ix.computeAncestors(fqn, ver)
+	out, complete := ix.computeAncestors(fqn, ver)
+	e = ancEntry{gen: g, cls: out, complete: complete}
 	ix.ancMu.Lock()
 	if ix.ancestors == nil {
 		ix.ancestors = map[ancKey]ancEntry{}
 	}
-	ix.ancestors[k] = ancEntry{gen: g, cls: out}
+	ix.ancestors[k] = e
 	ix.ancMu.Unlock()
-	return out
+	return e
 }
 
-func (ix *Index) computeAncestors(fqn string, ver phpver.Version) []*Class {
+func (ix *Index) computeAncestors(fqn string, ver phpver.Version) ([]*Class, bool) {
 	var out []*Class
 	seen := map[string]bool{}
 	queue := []string{fqn}
@@ -365,7 +421,13 @@ func (ix *Index) computeAncestors(fqn string, ver phpver.Version) []*Class {
 		}
 		queue = append(queue, c.Interfaces...)
 	}
-	return out
+	// Cut when a class not yet listed remains to be visited.
+	for _, q := range queue {
+		if !seen[key(q)] && ix.Class(q, ver) != nil {
+			return out, false
+		}
+	}
+	return out, true
 }
 
 // ParentChain returns the parent classes (nearest first), cycle-safe.

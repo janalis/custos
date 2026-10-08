@@ -429,6 +429,10 @@ func (r *TRules) override(n *syntax.FuncCall, f *index.Function) (types.Type, bo
 			}
 		}
 		return types.Int, true
+	case "var_export", "print_r":
+		if t, ok := printReturn(name, r.arg(n, f, 1), r.argCount(n)); ok {
+			return t, true
+		}
 	case "max", "min":
 		if r.argCount(n) >= 2 {
 			var ts []types.Type
@@ -515,6 +519,9 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 		if reach != nil && !reach[d.Span().Start] {
 			continue
 		}
+		if reach == nil && r.Env.exited(d.Span().Start, v, scope) {
+			continue // SpecOnly: an assignment followed by return/throw/exit/break
+		}
 		after = max(after, d.Span().End)
 		var dt types.Type
 		switch {
@@ -532,6 +539,13 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 	// definitions (never in SpecOnly mode, whose sets are partial by spec).
 	if unknownDef {
 		return types.Unknown
+	}
+	clob, undef := r.Env.dynamicRead(v)
+	if clob {
+		return types.Unknown // extract(), parse_str(), `$$name =` since
+	}
+	if undef && !r.SpecOnly {
+		ts = append(ts, types.Null)
 	}
 	t := KnownUnion(ts...)
 	if !t.IsUnknown() {
@@ -566,7 +580,14 @@ func (r *TRules) reachingDefs(scope syntax.Node, v *syntax.Variable) (reach map[
 	if len(defs) == 0 || len(defs) > maxVarDefs {
 		return nil, nil
 	}
-	fwd, _, _ := r.Env.reaching(defs, v, scope)
+	fwd, back, _ := r.Env.reaching(defs, v, scope)
+	if _, ok := r.Env.dynReads[v]; !ok && len(fwd)+len(back) > 0 {
+		// The dynamic-write facts of this read, from the same reaching
+		// definitions (dynamicRead then reads the cache).
+		sv := r.Env.scopeVars(scope)
+		clob := r.Env.clobbered(sv, fwd, back, v, scope)
+		r.Env.noteDynRead(v, clob, !clob && r.Env.maybeUndefined(sv, defs, fwd, v, scope))
+	}
 	reach = make(map[uint32]bool, len(fwd))
 	for _, d := range fwd {
 		reach[d.pos] = true

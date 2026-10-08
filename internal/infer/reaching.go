@@ -533,40 +533,69 @@ func (e *Env) dropExited(defs []varDef, use, scope syntax.Node, back bool) (kept
 		return defs, nil, nil
 	}
 	at := use.Span().Start
-	in := func(sp syntax.Span, p uint32) bool { return p >= sp.Start && p < sp.End }
 	kept = defs[:0]
 	for _, d := range defs {
-		i, _ := slices.BinarySearchFunc(rs, d.pos, func(r exitRegion, p uint32) int {
-			if r.span.Start <= p {
-				return -1
-			}
-			return 1
-		})
-		i-- // last region starting at or before d
-		for i >= 0 && !in(rs[i].span, d.pos) {
-			i = rs[i].parent
-		}
-		dead := false
-		for ; i >= 0; i = rs[i].parent {
-			if in(rs[i].list, at) {
-				break // before the exit, or dead code after it
-			}
-			if in(rs[i].limit, at) {
-				switch {
-				case rs[i].kind != exitContinue:
-					dead = true
-				case !back:
-					dead = true
-					via, loops = append(via, d), append(loops, rs[i].limit.Start)
-				}
-				break
-			}
-		}
-		if !dead {
+		switch kind := exitedKind(rs, d.pos, at); {
+		case kind == exitNone:
+			kept = append(kept, d)
+		case kind != exitContinue:
+		case !back:
+			via, loops = append(via, d), append(loops, continueLoop(rs, d.pos, at))
+		default:
 			kept = append(kept, d)
 		}
 	}
 	return kept, via, loops
+}
+
+// exitedKind returns the kind of the exit region that keeps a definition
+// at p from reaching at (exitNone when none does): the innermost region
+// holding p whose statement list does not hold at, at being within its
+// limit (else the enclosing regions are tried).
+func exitedKind(rs []exitRegion, p, at uint32) int {
+	if i := deadRegion(rs, p, at); i >= 0 {
+		return rs[i].kind
+	}
+	return exitNone
+}
+
+// continueLoop returns the start of the loop a continue region keeping p
+// from at leaves to.
+func continueLoop(rs []exitRegion, p, at uint32) uint32 {
+	return rs[deadRegion(rs, p, at)].limit.Start
+}
+
+// deadRegion is the index of the region exitedKind finds, -1 when none.
+func deadRegion(rs []exitRegion, p, at uint32) int {
+	in := func(sp syntax.Span, p uint32) bool { return p >= sp.Start && p < sp.End }
+	i, _ := slices.BinarySearchFunc(rs, p, func(r exitRegion, p uint32) int {
+		if r.span.Start <= p {
+			return -1
+		}
+		return 1
+	})
+	i--
+	for i >= 0 && !in(rs[i].span, p) {
+		i = rs[i].parent
+	}
+	for ; i >= 0; i = rs[i].parent {
+		if in(rs[i].list, at) {
+			return -1
+		}
+		if in(rs[i].limit, at) {
+			return i
+		}
+	}
+	return -1
+}
+
+// exited reports whether a definition at p cannot reach use because every
+// path from it leaves first (return, throw, exit, break; not continue,
+// which comes back through the loop head). The SpecOnly T-rules typer,
+// which ignores reaching definitions otherwise, applies it.
+func (e *Env) exited(p uint32, use, scope syntax.Node) bool {
+	k := exitedKind(e.exitRegions(scope), p, use.Span().Start)
+	return k != exitNone && k != exitContinue
 }
 
 // inLoop reports whether a loop of scope encloses n.

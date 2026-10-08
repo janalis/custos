@@ -42,6 +42,7 @@ func Extract(f *syntax.File) *FileSymbols {
 			}
 		case *syntax.FuncCall:
 			x.define(n)
+			x.classAlias(n)
 		}
 		return true
 	})
@@ -817,4 +818,40 @@ func (x *extractor) define(call *syntax.FuncCall) {
 		return
 	}
 	x.out.Constants = append(x.out.Constants, &Constant{FQN: strings.TrimPrefix(unquote(lit.Raw), `\`), Value: x.text(a1.Value), File: x.f.Path, Span: call.Span()})
+}
+
+// classAlias records `class_alias(Original::class, 'Alias')` (class
+// constants or string literals for both names).
+func (x *extractor) classAlias(call *syntax.FuncCall) {
+	name, ok := call.Name.(*syntax.Name)
+	if !ok || !strings.EqualFold(strings.TrimPrefix(name.Value, `\`), "class_alias") || len(call.Args.Args) < 2 {
+		return
+	}
+	var fqns [2]string
+	for i := range fqns {
+		a, ok := call.Args.Args[i].(*syntax.Arg)
+		if !ok || a.Name != nil || a.Unpack {
+			return
+		}
+		switch v := syntax.UnwrapParens(a.Value).(type) {
+		case *syntax.ClassConstFetch:
+			id, ok := v.Name.(*syntax.Identifier)
+			nm, ok2 := v.Class.(*syntax.Name)
+			if !ok || !ok2 || !strings.EqualFold(id.Value, "class") || names.IsSpecialClass(nm.Value) {
+				return
+			}
+			fqns[i] = x.r.Class(nm.Value, nm.Span().Start)
+		case *syntax.Literal:
+			if v.LitKind != syntax.LitString {
+				return
+			}
+			fqns[i] = strings.TrimPrefix(unquote(v.Raw), `\`)
+		default:
+			return
+		}
+		if fqns[i] == "" {
+			return
+		}
+	}
+	x.out.ClassAliases = append(x.out.ClassAliases, [2]string{fqns[1], fqns[0]})
 }

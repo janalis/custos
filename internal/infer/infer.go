@@ -68,6 +68,11 @@ type Env struct {
 	conds        map[string]*types.Cond
 	builtinCalls map[*syntax.FuncCall]bool
 
+	// dynReads caches dynamicRead per variable read (computed by
+	// variableBase); assignsMemo caches stmtAssigns.
+	dynReads    map[*syntax.Variable]uint8
+	assignsMemo map[assignKey]bool
+
 	// native: types come from native declarations only (see Native);
 	// nativeTwin caches the native Env of this one.
 	native     bool
@@ -176,7 +181,23 @@ func NewEnv(f *syntax.File, r *names.Resolver, ix *index.Index, php phpver.Versi
 }
 
 func (e *Env) resolver(at uint32) types.Resolver {
-	return func(w string) string { return e.Names.Class(w, at) }
+	return func(w string) string { return e.className(w, at) }
+}
+
+// className resolves a class name written in a doc type at offset at. For
+// a "!name" probe (see names.Resolver.Class) a class declared under that
+// name in the current namespace also counts.
+func (e *Env) className(w string, at uint32) string {
+	if probe, ok := strings.CutPrefix(w, "!"); ok {
+		if fqn := e.Names.Class(w, at); fqn != "" {
+			return fqn
+		}
+		if fqn := e.Names.Class(probe, at); e.Index.Class(fqn, e.PHP) != nil {
+			return fqn
+		}
+		return ""
+	}
+	return e.Names.Class(w, at)
 }
 
 // resolverFor resolves names in docs attached around n, mapping @template
@@ -193,7 +214,7 @@ func (e *Env) resolverFor(n syntax.Node, at uint32) types.Resolver {
 		if def, ok := ds.aliases[w]; ok {
 			return "=" + def
 		}
-		return e.Names.Class(w, at)
+		return e.className(w, at)
 	}
 }
 
@@ -993,6 +1014,10 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 		if t, ok := e.maxMinType(n); ok {
 			return t, true
 		}
+	case "var_export", "print_r":
+		if t, ok := printReturn(fqn, arg(1), len(n.Args.Args)); ok {
+			return t, true
+		}
 	case "mb_convert_encoding":
 		// An array only for an array input.
 		if a := arg(0); a != nil {
@@ -1137,6 +1162,27 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 	return types.Unknown, false
 }
 
+// printReturn types var_export()/print_r(): the output as a string when
+// $return (ret, nil when absent or not positional) is literally true, else
+// printed: null for var_export, true for print_r. nargs is the number of
+// arguments; ok is false when $return is not a literal.
+func printReturn(fn string, ret syntax.Expr, nargs int) (types.Type, bool) {
+	printed := types.Null
+	if strings.EqualFold(fn, "print_r") {
+		printed = types.Of("true")
+	}
+	if ret == nil && nargs < 2 {
+		return printed, true
+	}
+	switch constLiteral(ret) {
+	case "true":
+		return types.String, true
+	case "false":
+		return printed, true
+	}
+	return types.Unknown, false
+}
+
 // replaceResult is the result of str_replace()/preg_replace() & co. for a
 // subject of type st: a string for scalar or object members (converted),
 // an array for array members, plus null for the preg_ functions (a PCRE
@@ -1229,6 +1275,11 @@ type scopeVars struct {
 	// exits lists the exit regions of the scope (lazy, see exitRegions).
 	exits     []exitRegion
 	exitsDone bool
+	// clobbers holds the positions of extract(), one-argument parse_str()
+	// and `$$name = …` writes, which may set any local (see noteDynamic);
+	// dynamic is also set by include/require (which may define locals).
+	clobbers []uint32
+	dynamic  bool
 }
 
 // widenElem unions the element type el of the array read by n with every
@@ -1446,6 +1497,12 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		return types.Unknown
 	}
 	fwd, back, from := e.reaching(defs, v, scope)
+	clob := e.clobbered(sv, fwd, back, v, scope)
+	undef := !clob && len(fwd)+len(back) > 0 && e.maybeUndefined(sv, defs, fwd, v, scope)
+	e.noteDynRead(v, clob, undef)
+	if clob {
+		return types.Unknown
+	}
 	ts := make([]types.Type, 0, len(fwd)+len(back))
 	after := uint32(0)
 	for _, d := range fwd {
@@ -1470,6 +1527,9 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 	}
 	if len(ts) == 0 {
 		return types.Unknown
+	}
+	if undef {
+		ts = append(ts, types.Null) // read before any assignment on some path
 	}
 	t := types.Union(ts...)
 	if t.HasShape() || t.IsNonEmptyArray() {
@@ -1614,6 +1674,7 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 	// an abstract method's missing body is not added.
 	for _, b := range body {
 		syntax.Inspect(b, func(n syntax.Node) bool {
+			e.noteDynamic(n, sv)
 			switch n := n.(type) {
 			case *syntax.Closure:
 				if n != scope {

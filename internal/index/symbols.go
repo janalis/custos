@@ -283,4 +283,7 @@ type FileSymbols struct {
 	// not declare them; when the project declares one of them, the inferred
 	// returns of this file are dropped (see DropStaleInferred).
 	ReturnDeps []string `json:"-"`
+	// ClassAliases lists the class_alias(original, alias) calls of the
+	// file with literal names: [alias FQN, original FQN].
+	ClassAliases [][2]string `json:"aliases,omitempty"`
 }

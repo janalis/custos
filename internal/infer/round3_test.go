@@ -165,8 +165,8 @@ function f(array|int $c, $cc, int $i) {
 }
 `, map[string]string{
 		"else": "array", "ternary": "int", "arm": "int|string", "loopElse": "array|int|string",
-		"afterReturn": "int", "afterThrow": "int", "afterIfElse": "string", "catch": "int|string",
-		"inLoop": "int", "afterBreak": "int|string", "outerLoop": "int|string", "continued": "int",
+		"afterReturn": "int", "afterThrow": "int", "afterIfElse": "string", "catch": "int|null|string",
+		"inLoop": "int", "afterBreak": "int|null|string", "outerLoop": "int|null|string", "continued": "int",
 		"nextIteration": "int|string", "viaHead": "int|string", "innerSwitch": "?unknown", "afterInner": "int|string", "noCond": "int|string",
 		"switchDefault": "?unknown", "dead": "string",
 	})

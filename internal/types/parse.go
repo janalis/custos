@@ -202,6 +202,13 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		return String
 	}
 	if ps, ok := pseudo[low]; ok {
+		// A pseudo-type name that the file imports or declares as a class
+		// (`use App\Number;` then `@param Number $n`) is that class.
+		if resolve != nil && validClassName(base) {
+			if fqn := resolve("!" + base); fqn != "" && !strings.ContainsAny(fqn, "!=~") {
+				return Of(`\` + fqn)
+			}
+		}
 		return Of(ps...)
 	}
 	if isBuiltinAtom(low) || scalarAliases[low] != "" {

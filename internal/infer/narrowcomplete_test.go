@@ -34,7 +34,7 @@ function h(int|string $v) {
     if (is_int($v) && is_string($v)) { t('impossible', $v); } else { t('impossibleElse', $v); }
 }
 `, map[string]string{
-		"guard":          `\Stringable|bool|float|int|string`,
+		"guard":          "bool|float|int|string", // arrays are no Stringable
 		"andTrue":        "int",
 		"andElse":        "int|null|string",
 		"orTrue":         "null|string",
@@ -68,7 +68,7 @@ function g(array|int|string $k) {
 }
 `, map[string]string{
 		"key":  `\Stringable|bool|false|float|int|string|true`, // mixed passing is_scalar()
-		"key2": `\Stringable|int|string`,
+		"key2": "int|string",                                   // an array is never Stringable
 	})
 }
 
