@@ -243,11 +243,13 @@ Yoda style, default options: `empty($ratio)` → `null === $ratio`;
 - **Possibly unassigned variables (custos diverges).** `$v === null` warns
   "Undefined variable" where `empty($v)` is silent. D1/D2 suggestions on a
   bare local variable need it to be certainly assigned: `$this`, a
-  parameter or closure import, a variable at file scope or in an arrow
-  function, or one assigned with `=` (or declared `global`/`static`) by a
-  statement of the function body itself before the statement holding
-  `empty()`. Otherwise the subject falls through to D3
-  (`if ($tz instanceof Zone) { $z = $tz; } ... empty($z)`).
+  parameter or closure import, a variable in an arrow function, or one
+  assigned with `=` (or declared `global`/`static`) by a statement of the
+  function body itself — at file scope, of the top-level statement list —
+  before the statement holding `empty()`. Otherwise the subject falls
+  through to D3 (`if ($tz instanceof Zone) { $z = $tz; } ... empty($z)`;
+  Dolibarr templates' `/** @var Conf $conf */ if (empty($conf) || …) exit;`
+  guards, about 120 reports, whose variable only the including page sets).
 - **Objects that can be empty (custos diverges).** `SimpleXMLElement`
   (empty elements) and `GMP` (zero) objects convert to false, so
   `empty($x)` is not `$x === null` for them: classes that are or extend

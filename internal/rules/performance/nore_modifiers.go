@@ -73,7 +73,14 @@ func (c *noreCase) checkModifiers() {
 		if !lt && noreNonASCIIUnsafe(body, has('i')) {
 			c.report(meta.SeverityError, "Non-ASCII characters in the pattern need the /u flag.")
 		} else if !lt {
-			n := strings.ReplaceAll(body, `\\`, "")
+			// custos: escapes are counted in the decoded pattern: the
+			// source text '/A\\\P/' is the pattern A\\P (an escaped
+			// backslash, then P), not a \P escape.
+			src := body
+			if pat != "" {
+				src = pat
+			}
+			n := strings.ReplaceAll(src, `\\`, "")
 			if strings.Contains(n, `\p`) || strings.Contains(n, `\P`) || strings.Contains(n, `\X`) {
 				c.report(meta.SeverityError, `Unicode escapes (\p, \P, \X) need the /u flag.`)
 			}

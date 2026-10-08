@@ -46,7 +46,7 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 			traits = append(traits, x.Traits...)
 		}
 	}
-	if ctor == nil || ctor.Body == nil || !hasProps {
+	if ctor == nil || ctor.Body == nil || !hasProps || ucdReentered(ctor.Body) {
 		return
 	}
 	candidates := map[string]bool{} // D2
@@ -157,6 +157,22 @@ func ucdDynamicAccess(ctx *analysis.Context, body syntax.Node) bool {
 					found = true
 				}
 			}
+		}
+		return !found
+	})
+	return found
+}
+
+// ucdReentered reports whether the constructor calls itself on the same
+// object (`$this->__construct(…)`, SimplePie's redirect handling): the
+// re-entered constructor sees what the first run stored (custos).
+func ucdReentered(body syntax.Node) bool {
+	found := false
+	syntax.Inspect(body, func(x syntax.Node) bool {
+		if c, ok := x.(*syntax.MethodCall); ok {
+			v, isVar := syntax.UnwrapParens(c.Var).(*syntax.Variable)
+			id, isID := c.Name.(*syntax.Identifier)
+			found = found || isVar && v.Name == "this" && isID && strings.EqualFold(id.Value, "__construct")
 		}
 		return !found
 	})

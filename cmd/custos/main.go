@@ -242,7 +242,7 @@ func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {
 		ix, srcs = runner.BuildIndexKeep(runner.IndexSources(s.cfg.Root, s.files), len(s.files), s.parse)
 		s.engine.SetIndex(ix)
 	}
-	results := runner.RunSources(s.engine, s.files, srcs, s.parse)
+	results := runner.RunReport(s.engine, s.files, srcs, s.parse)
 	stop()
 	items := report.Items(results)
 	if *genBaseline != "" {

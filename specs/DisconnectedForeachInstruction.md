@@ -252,9 +252,17 @@ foreach ($rows as $row) {
   values (PrestaShop writes one `.htaccess` header per shop; Matomo draws a
   random value per period). `error_log()` and `usleep()` keep the upstream
   behaviour (upstream fixtures). Output is per-iteration too: statements
-  containing `echo` or `print`, or calling `printf`/`vprintf`, are not
-  reported (Moodle prints `$OUTPUT->box_start()` per row, progress dots
-  under `if ($display) { echo '.'; }`); listed upstream divergence.
+  containing `echo` or `print`, or calling `printf`/`vprintf`/
+  `var_dump`/`print_r`/`var_export`/`debug_zval_dump`/
+  `debug_print_backtrace`, are not reported (Moodle prints
+  `$OUTPUT->box_start()` per row, progress dots under `if ($display) {
+  echo '.'; }`); listed upstream divergence.
+- **Repeat loops (custos diverges).** A loop whose body never reads its
+  own key or value variable (`foreach (range(1, 10) as $attempt) {
+  post(…); }`, Bagisto's login-throttle test) exists to repeat the body:
+  nothing in it is reported. Bodies calling `compact()`,
+  `get_defined_vars()`, `extract()`, using variable variables, `include`
+  or `eval` may read the variable and are checked as before.
 - **By-reference arguments of methods (custos extends D8b).** D8b also
   applies to resolved instance, static and constructor calls:
   `StringHelper::stringIncrement($column)` (`string &$str`) changes

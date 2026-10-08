@@ -90,3 +90,9 @@ function usedInClosure() {
     $f = function () use ($v) { return $v; };
     return $v;
 }
+
+function namelessAnnotation($auth) {
+    /** @var \App\Guard */
+    $guard = $auth->guard('api');
+    return $guard;
+}

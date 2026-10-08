@@ -128,11 +128,13 @@ func (oneTimeUseVariables) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.ReportNode(lhs, "Variable $"+name+" is used only once; inline its value.", analysis.Fix{
 		Title: "Inline the variable",
 		Edits: func() []analysis.TextEdit {
-			var edits []analysis.TextEdit
+			del := util.WithTrailingWhitespace(ctx.File, ps.Span())              // F2, F4
 			if doc, ok := util.DocCommentBefore(ctx.File, ps.Span().Start); ok { // F1
-				edits = append(edits, analysis.TextEdit{Span: syntax.Span{Start: doc.Start, End: doc.End}})
+				// custos: with the whitespace up to the statement, so no
+				// indentation-only line is left behind
+				del.Start = doc.Start
 			}
-			edits = append(edits, analysis.TextEdit{Span: util.WithTrailingWhitespace(ctx.File, ps.Span())}) // F2, F4
+			edits := []analysis.TextEdit{{Span: del}}
 			text := ctx.Text(val)
 			if member && otuNeedsParens(val) {
 				text = "(" + text + ")"
@@ -205,7 +207,8 @@ func otuSubject(e syntax.Expr) (*syntax.Variable, bool) {
 }
 
 // otuVarAnnotated reports whether the statement of assignment as is
-// immediately preceded by a comment with exactly one @var tag naming $name.
+// immediately preceded by a comment with exactly one @var tag naming $name
+// (or naming no variable).
 func otuVarAnnotated(ctx *analysis.Context, as *syntax.Assign, name string) bool {
 	stmt, ok := as.Parent().(*syntax.ExprStmt)
 	if !ok {
@@ -230,7 +233,9 @@ func otuVarAnnotated(ctx *analysis.Context, as *syntax.Assign, name string) bool
 	if strings.HasPrefix(typ, "$") {
 		v = phpdoc.VarName(typ)
 	}
-	return v == name
+	// custos: a nameless `/** @var T */` right before the assignment
+	// annotates its target too (the usual PHPStan form)
+	return v == name || v == "" && typ != "" && !strings.HasPrefix(typ, "$")
 }
 
 // otuNeedsParens reports whether val must be parenthesised to become the

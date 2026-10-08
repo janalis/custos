@@ -19,3 +19,22 @@ class Router extends Base {
     const NAMES = ['p', 'q', 'r'];
     public function __construct(private $promoted = ['a', 'b', 'c']) {}
 }
+class Connection
+{
+    protected $options = ['prefix' => '', 'start' => '"', 'end' => '"'];
+    private $hooks = ['a', 'b', 'c'];
+    private $counters = ['x', 'y', 'z'];
+    private $flags = ['p', 'q', 'r'];
+    private $state = ['on', 'off', 'idle'];
+
+    public function __construct(string $prefix)
+    {
+        $this->options['prefix'] = $prefix;
+        $this->hooks[] = 'd';
+        ($this->counters)['x'] .= '!';
+        unset($this->flags[0]);
+        $this->state = [];
+        $other->list = [];
+        $this->{$prefix} = 1;
+    }
+}

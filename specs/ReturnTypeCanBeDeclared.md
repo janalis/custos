@@ -363,7 +363,9 @@ abstract class Node {
   like its class (outside a named namespace, in a class without
   `__construct`) is the constructor; upstream suggests `: void` for it,
   which is fatal ("Constructor cannot declare a return type"). custos skips
-  such methods.
+  such methods — from PHP 8.0 too, where DeprecatedConstructorStyle renames
+  them to `__construct` and the two fixes together gave `__construct():
+  void` (Dolibarr's phan stubs, found by `TestFixesKeepCodeParsable`).
 - **`__serialize` / `__unserialize` (custos diverges).** These magic
   methods (PHP 7.4) have mandated return types (`array` / `void`) but are
   missing from upstream's D3 list, so an always-throwing `__serialize()`

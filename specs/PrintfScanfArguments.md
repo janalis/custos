@@ -210,3 +210,7 @@ A text like `'99% sure'` is *valid* for D5 (`% s` = space padding + `s`).
   `return sscanf(…)`, an array element), not only assignments and call
   arguments; a discarded call or one used as a truth value (`if`/`while`
   condition, `!`, `&&`/`||` operand, ternary condition) is still reported.
+- **`l` length modifier (custos diverges).** PHP accepts and ignores an
+  `l` before the conversion character (`%ld`, `%.0lf`, common in code
+  ported from C: nusoap). D5 accepts an optional `l` after the precision;
+  upstream reports such formats as malformed.

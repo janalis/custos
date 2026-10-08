@@ -45,6 +45,9 @@ func (mkdirRaceCondition) Check(ctx *analysis.Context, n syntax.Node) {
 	if util.InTestContext(ctx, call) { // D2
 		return
 	}
+	if mkdirUsedAsLock(ctx, call) {
+		return
+	}
 
 	// D3: locate the target.
 	inverted, silenced := false, false
@@ -184,6 +187,37 @@ locate:
 		}})
 	}
 }
+
+// mkdirUsedAsLock reports whether the outcome of call is tested and the
+// function (or the file's top-level code) holding it also removes the same
+// directory with rmdir(): mkdir()
+// is then an atomic lock (`if (!@mkdir($lock)) return; …; rmdir($lock);`),
+// and its failure must not be overridden by an is_dir() re-check (custos).
+func mkdirUsedAsLock(ctx *analysis.Context, call *syntax.FuncCall) bool {
+	var n syntax.Node = call
+	for {
+		switch p := n.Parent().(type) {
+		case *syntax.Paren, *syntax.Unary:
+			n = p
+			continue
+		case *syntax.ExprStmt:
+			return false // outcome ignored: a scratch directory, not a lock
+		}
+		break
+	}
+	keys := mkdirDirKeys(ctx, call)
+	if scope := syntax.EnclosingFuncLike(call); scope != nil {
+		return hasCheckCall(ctx, scope, keys, rmdirOnly)
+	}
+	for _, st := range ctx.File.Stmts {
+		if hasCheckCall(ctx, st, keys, rmdirOnly) {
+			return true
+		}
+	}
+	return false
+}
+
+var rmdirOnly = map[string]bool{"rmdir": true}
 
 // laterIsDirCall reports whether a statement following s, in its own
 // statement list or in an enclosing one of the same function, checks one of

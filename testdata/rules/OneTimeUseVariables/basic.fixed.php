@@ -39,3 +39,7 @@ function legacyList() {
 $fn = function () {
     return compute();
 };
+
+function namelessNotVar($auth) {
+    return $auth->guard('api');
+}

@@ -161,6 +161,12 @@ func (magicMethodsValidity) Check(ctx *analysis.Context, n syntax.Node) {
 		c.report("__autoload is deprecated since PHP 7.2; use spl_autoload_register().")
 	default: // D15
 		if strings.HasPrefix(c.name, "__") && !magicLookup(magicKnownNonMagic, c.name) {
+			// custos: a name imposed by an interface or parent class
+			// (Restler's iFilter::__isAllowed()) cannot be renamed here;
+			// the declaring ancestor is reported instead.
+			if c.inherited() {
+				return
+			}
 			c.report("The '__' prefix is reserved for magic methods.")
 			return
 		}

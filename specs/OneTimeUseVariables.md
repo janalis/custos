@@ -330,3 +330,9 @@ function refParam(&$out) {
   `print`/`include`/closure); no upstream fixture covers this.
 - A consumer such as `$v->m($v)` reads `V` twice, so D8 suppresses it at
   file level as well as in functions.
+- **Nameless `@var` (custos diverges).** `/** @var \Illuminate\Auth\RequestGuard */
+  $guard = $this->auth->guard('sanctum'); return $guard;` is the usual
+  PHPStan form of an inline type annotation and counts like `@var T $guard`
+  for E4/D8 (Monica middleware): inlining would drop the narrowed type.
+  F1 also removes the whitespace between a deleted doc comment and the
+  statement, so no indentation-only line is left.

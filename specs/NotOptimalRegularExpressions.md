@@ -735,3 +735,17 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
   unless the group is followed by `?`: `(\s+(?:unsigned|zerofill))*` is not
   `(\s+)*` (each repetition needs the keyword), while `(\s+(?:x)?)` may
   still collapse.
+- **Decoded escapes for D13b (custos diverges).** The `\p`/`\P`/`\X`
+  search runs on the decoded pattern, not the source text: `'/A\\\P/'`
+  (single-quoted) is the pattern `A\\P`, an escaped backslash then `P`
+  (phpspreadsheet's autoloader), and `'/\\p/'` is the pattern `\p`.
+  Upstream reports the first and misses the second (listed divergence
+  `missing-u-modifier.php`).
+- **D22d needs a literal replacement (custos diverges).** preg_replace()
+  interprets `\0`–`\99`, `$n`, `${n}` and `\\` in its replacement;
+  str_replace() inserts it as is. D22d applies only when the replacement
+  is a quoted literal without `\` and `$`, a number, or an `(int)`/
+  `(float)` cast; other replacements (variables, escaped SQL values,
+  translations, `'$0$0'`) are not reported by D22d (Dolibarr's
+  `preg_replace('/__HANDLER__/i', "'" . $db->escape($h) . "'", $sql)`
+  would have lost the backslash collapsing).

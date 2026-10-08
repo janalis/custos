@@ -58,6 +58,22 @@ func (c *noreCase) checkCall() {
 
 func noreUnescapeText(s string) string { return noreUnescape.ReplaceAllString(s, "$1") }
 
+// noreLiteralReplacement reports whether a preg_replace() replacement is
+// inserted as is (custos, D22d): preg_replace() interprets `\0`–`\99`,
+// `$n`, `${n}` and `\\` in it, str_replace() does not. Only a quoted
+// literal free of `\` and `$`, a number, or an int/float cast qualifies.
+func noreLiteralReplacement(e syntax.Expr) bool {
+	e = syntax.UnwrapParens(e)
+	if u, ok := e.(*syntax.Unary); ok && (u.Op.Kind == syntax.TIntCast || u.Op.Kind == syntax.TDoubleCast) {
+		return true
+	}
+	if util.IsNumberLiteral(e) {
+		return true
+	}
+	v, ok := util.QuotedStringValue(e)
+	return ok && !strings.ContainsAny(v, `\$`)
+}
+
 // plainAPI implements D22.
 func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 	ctx, call := c.ctx, c.call
@@ -107,7 +123,7 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 				op = "==="
 			}
 			repl = "false " + op + " " + find + "(" + x1 + `, "` + t + `")`
-		case c.fn == "preg_replace" && argc == 3 && !start && !end: // D22d
+		case c.fn == "preg_replace" && argc == 3 && !start && !end && noreLiteralReplacement(args[1]): // D22d
 			g := bi("str_replace")
 			if ci {
 				g = bi("str_ireplace")

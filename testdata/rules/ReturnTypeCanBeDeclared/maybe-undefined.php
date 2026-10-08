@@ -23,7 +23,8 @@ class Finder
         return $r;
     }
 
-    // Certainly assigned, parameters, other binders: inference decides.
+    // Certainly assigned, parameters, other binders: inference decides
+    // (extract(), `$$n =` and parse_str() may set $r: unknown).
     public function <weak_warning descr="Declare ': string' as the return type.">always</weak_warning>($t)
     {
         $r = 'Y';
@@ -68,7 +69,7 @@ class Finder
         return $m;
     }
 
-    public function <weak_warning descr="Declare ': string' as the return type.">extracted</weak_warning>($t, array $vars)
+    public function extracted($t, array $vars)
     {
         if ($t) {
             $r = 'X';
@@ -77,7 +78,7 @@ class Finder
         return $r;
     }
 
-    public function <weak_warning descr="Declare ': string' as the return type.">variable</weak_warning>($t, $n)
+    public function variable($t, $n)
     {
         if ($t) {
             $r = 'X';
@@ -95,7 +96,7 @@ class Finder
         return $r;
     }
 
-    public function <weak_warning descr="Declare ': string' as the return type.">parsed</weak_warning>($t, $q)
+    public function parsed($t, $q)
     {
         if ($t) {
             $r = 'X';

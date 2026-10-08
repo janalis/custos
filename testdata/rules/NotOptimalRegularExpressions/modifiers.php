@@ -41,3 +41,8 @@ function modifiersDemo($line, $m) {
     preg_match($rx, $line, $m);
     preg_match(<error descr="The /r flag needs /u to take effect."><error descr="The /r flag needs /i to take effect."><error descr="'r' is not a valid PCRE modifier.">'/kelvin/r'</error></error></error>, $line, $m);
 }
+function decodedEscapes(string $class)
+{
+    // The pattern is ^PhpOffice\\PhpSpreadsheet\\ (escaped backslashes), not \P.
+    return preg_match('/^PhpOffice\\\PhpSpreadsheet\\\/', $class);
+}

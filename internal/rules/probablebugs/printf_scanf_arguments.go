@@ -27,7 +27,7 @@ var printfFormatPos = map[string]int{
 }
 
 var (
-	printfSpec = regexp.MustCompile(`%(?:(\d+)\$)?[+-]?(?: |0|\\?'.)?-?\d*(?:\.\d*)?[\[sducoxXbgGeEfF]`)
+	printfSpec = regexp.MustCompile(`%(?:(\d+)\$)?[+-]?(?: |0|\\?'.)?-?\d*(?:\.\d*)?l?[\[sducoxXbgGeEfF]`)
 )
 
 func (printfScanfArguments) Check(ctx *analysis.Context, n syntax.Node) {

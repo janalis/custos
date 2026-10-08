@@ -72,6 +72,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
+- Type engine (review round 5): `extract()`, `$$name =` and one-argument
+  `parse_str()` make earlier locals unknown; variables possibly read before
+  any assignment include null; the type of a variable past an
+  if/elseif/else chain joins what each path leaves (and `instanceof` keeps
+  only compatible members); `class_alias()` names resolve; imported classes
+  named like pseudo-types (`Number`) win; `var_export()`/`print_r()` with
+  `true` return strings; `assert()` narrows; the SpecOnly casting typer
+  respects early exits; the ancestor cap is exposed
+  (`Index.AncestorsComplete`).
 - Unsafe quick-fixes (TYPO3 / MediaWiki / Moodle / phpBB / Flarum /
   Pimcore review): IsEmptyFunctionUsage rewrote `empty()` of a value typed
   only by PHPDoc (a failed lookup passed an access check);
@@ -102,6 +111,33 @@ versions follow [Semantic Versioning](https://semver.org/).
   over `mixed` results.
 - OffsetOperations was quadratic on huge classes (Moodle's tcpdf.php
   4.8 s → 0.4 s).
+- Unsafe quick-fixes (Firefly III / Monica / Bagisto / Dolibarr /
+  Roundcube / FreshRSS review): DynamicInvocationViaScopeResolution
+  rewrote `self::m()` to `$this->m()` when a subclass overrides `m()`
+  (Dolibarr's printipp ran the subclass hook from the base constructor);
+  NotOptimalRegularExpressions rewrote `preg_replace()` to `str_replace()`
+  with replacements holding back-references or backslashes (escaped SQL
+  values lost their unescaping); MkdirRaceCondition turned a `mkdir()`
+  lock (`if (!@mkdir($lock)) return; … rmdir($lock);`) into a lock every
+  process takes; OneTimeUseVariables dropped a nameless `/** @var T */`
+  and left an indentation-only line.
+- ReturnTypeCanBeDeclared and DeprecatedConstructorStyle combined into
+  `__construct(): void` (fatal) on PHP 4-style constructors at PHP 8.x;
+  such methods get no return type suggestion at any version.
+- False positives (same review): MagicMethodsValidity (`__` names imposed
+  by an interface or parent), UsingInclusionOnceReturnValue (results kept
+  in success flags; 36 → 18), PrintfScanfArguments (`%ld`, `%.0lf`),
+  NotOptimalRegularExpressions (`\P` searched in the decoded pattern),
+  OffsetOperations (classes with unresolvable ancestors),
+  IsEmptyFunctionUsage (`=== null` for file-scope variables not certainly
+  assigned: Dolibarr templates' `@var` guards; 216 → 67),
+  UnusedConstructorDependencies (re-entered constructors),
+  PropertyCanBeStatic (properties written per instance),
+  DisconnectedForeachInstruction (`var_dump()`/`print_r()` output, repeat
+  loops that never read their variable).
+- `custos analyse` no longer keeps the quick-fix closures of every finding
+  (and with them every file's syntax tree) until the report: peak memory
+  on Dolibarr (4,350 files, 273,000 findings with `--all`) 3.0 GB → 1.4 GB.
 - Type engine (review round 4): `iterable` is refined by its doc type;
   generic classes given fewer arguments bind them to the templates without
   bound or default (Shopware collections) and use template defaults;

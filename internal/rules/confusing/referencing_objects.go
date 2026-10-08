@@ -202,7 +202,7 @@ func roInHierarchy(ctx *analysis.Context, m *syntax.Method) bool {
 	}
 	lname := strings.ToLower(m.Name.Value)
 	ancestors := ix.Ancestors(fqn, ctx.PHP)
-	if len(ancestors) >= index.MaxAncestors {
+	if !ix.AncestorsComplete(fqn, ctx.PHP) {
 		return true // capped: the hierarchy is not fully known (MediaWiki's HookRunner)
 	}
 	for i, c := range ancestors {

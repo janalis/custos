@@ -55,7 +55,7 @@ func (disconnectedForeachInstruction) Check(ctx *analysis.Context, n syntax.Node
 			stmts = append(stmts, s)
 		}
 	}
-	if len(stmts) == 0 {
+	if len(stmts) == 0 || dfiRepeatLoop(loop, body) {
 		return
 	}
 	modified := map[string]bool{} // D4
@@ -130,6 +130,43 @@ func (disconnectedForeachInstruction) Check(ctx *analysis.Context, n syntax.Node
 			}
 		}
 	}
+}
+
+// dfiRepeatLoop reports whether the body never reads the loop's own key or
+// value variable (`foreach (range(1, 5) as $attempt) { post(…); }`): the
+// loop exists to repeat its body, so every statement belongs to it (custos).
+func dfiRepeatLoop(loop *syntax.Foreach, body *syntax.Block) bool {
+	dynamic := false // compact('v'), $$n, include… may read the variable
+	syntax.Inspect(body, func(x syntax.Node) bool {
+		switch c := x.(type) {
+		case *syntax.FuncCall:
+			switch strings.ToLower(util.CallLastName(c)) {
+			case "compact", "get_defined_vars", "extract":
+				dynamic = true
+			}
+		case *syntax.Include, *syntax.Eval:
+			dynamic = true
+		case *syntax.Variable:
+			dynamic = dynamic || c.Name == ""
+		}
+		return !dynamic
+	})
+	if dynamic {
+		return false
+	}
+	for _, e := range []syntax.Expr{loop.Key, loop.Value} {
+		found := false
+		syntax.Inspect(e, func(x syntax.Node) bool {
+			if v, ok := x.(*syntax.Variable); ok && (v.Name == "" || util.MentionsVariable(body, v.Name)) {
+				found = true
+			}
+			return !found
+		})
+		if found {
+			return false
+		}
+	}
+	return true
 }
 
 // dfiParent returns the parent of n, seeing through call argument wrappers.
@@ -363,12 +400,12 @@ func dfiIsDomCreate(ctx *analysis.Context, call *syntax.MethodCall) bool {
 }
 
 // dfiPerIterationFuncs are built-ins whose effect or result belongs to each
-// iteration: stream writes, random numbers and clocks
+// iteration: output, stream writes, random numbers and clocks
 // (lower-case).
 var dfiPerIterationFuncs = func() map[string]bool {
 	m := map[string]bool{}
 	for _, f := range strings.Fields(`fwrite fputs fputcsv fprintf vfprintf fflush printf vprintf
-		file_put_contents
+		file_put_contents var_dump print_r var_export debug_zval_dump debug_print_backtrace
 		rand mt_rand random_int random_bytes lcg_value uniqid microtime hrtime time array_rand
 		shuffle str_shuffle`) {
 		m[f] = true

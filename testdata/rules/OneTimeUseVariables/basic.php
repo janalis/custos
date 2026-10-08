@@ -50,3 +50,9 @@ $fn = function () {
     <warning descr="Variable $r is used only once; inline its value.">$r</warning> = compute();
     return $r;
 };
+
+function namelessNotVar($auth) {
+    /** @return \App\Guard */
+    <warning descr="Variable $guard is used only once; inline its value.">$guard</warning> = $auth->guard('api');
+    return $guard;
+}

@@ -115,3 +115,10 @@ $cfg = (require 'config.php');
 - **Bool cast (custos diverges).** `(bool) include_once $path` (Joomla's
   loader: `$found = (bool) include_once $path; if ($found) …`) is a
   success test like `!include_once`: not reported. Other casts still are.
+- **Success flags (custos diverges).** A result stored in a plain local
+  variable (`$found = @include_once $dir . $f; if ($found) break;`,
+  `$res = include_once $f; if (!$res) die();`) is a success flag when
+  every read of the variable in its scope is a success test as above (and
+  it is never extended with `[]`/`.=`): not reported. Inside a function a
+  variable that is never read is not reported either; at file scope it
+  is (the including file may read it). About 22 of 36 reports on Dolibarr.

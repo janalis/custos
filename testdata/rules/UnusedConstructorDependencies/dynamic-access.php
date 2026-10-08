@@ -76,3 +76,15 @@ class Other
 
     public function read($o, $k) { return [$o->$k, get_object_vars($o), (array) $o, (int) $this]; }
 }
+class Fetcher
+{
+    private $permanentUrl;
+
+    public function __construct($url, $redirects = 5)
+    {
+        if ($redirects > 0 && $url === 'moved') {
+            $this->permanentUrl = $url;
+            $this->__construct('target', $redirects - 1);
+        }
+    }
+}

@@ -232,3 +232,8 @@ function ok($m, $c, $n) {
   `SimpleXMLElement|false`; ten Moodle reports). D7 skips an index whose
   documented union admits an accepted type (`@return string[]|string`,
   depending on the input) unless native declarations type the index.
+- **Unresolvable ancestors (custos diverges).** A class whose parent,
+  interface or trait (at any depth) does not resolve is treated like an
+  unresolvable class (D1): the missing ancestor may implement
+  `ArrayAccess` (Webklex's `FolderCollection` extends Laravel's
+  `Collection`, not indexed in Dolibarr's bundled copy).

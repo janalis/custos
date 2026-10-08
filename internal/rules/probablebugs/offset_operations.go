@@ -175,8 +175,8 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		cls := strings.TrimPrefix(a, `\`)
 		c := ctx.Index().Class(cls, ctx.PHP)
-		if c == nil {
-			return // D1: an unresolvable class empties S
+		if c == nil || !util.HierarchyResolved(ctx.Index(), cls, ctx.PHP) {
+			return // D1: an unresolvable class (or ancestor, custos) empties S
 		}
 		if offsetNativeAccess(ctx, cls) {
 			supported = true

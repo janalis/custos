@@ -255,3 +255,11 @@ inverted.)
   running the error branch on success (Joomla image thumbnails). The
   message follows the polarity too, and the operator is kept as written
   (`or` binds looser than an assignment).
+- **Directory locks (custos diverges).** `if (!@mkdir($lock)) { return; }
+  … rmdir($lock);` uses mkdir() as an atomic lock: its failure means
+  "someone else holds the lock", and the suggested `&& !is_dir($lock)`
+  re-check would make every process take it (FreshRSS's migrator). A
+  mkdir() whose outcome is tested (not a bare statement) and whose
+  function (or top-level code) also calls `rmdir()` on the same directory
+  expression is not reported; an ignored `mkdir($scratch); …
+  rmdir($scratch);` temporary directory still is.

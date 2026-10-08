@@ -118,7 +118,10 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || m.Name == nil || m.ReturnType != nil || rtdMagic[strings.ToLower(m.Name.Value)] { // D1-D3
 		return
 	}
-	if ctx.PHP < phpver.PHP80 && rtdLegacyConstructor(class, m) { // custos: constructors take no return type
+	// custos: constructors take no return type below 8.0; from 8.0
+	// DeprecatedConstructorStyle renames such a method to __construct, and
+	// both fixes together would give `__construct(): void` (fatal).
+	if rtdLegacyConstructor(class, m) {
 		return
 	}
 	abstract := m.Body == nil
@@ -186,9 +189,6 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 					}
 					if t.IsUnknown() {
 						t = rtdInheritedParamType(ctx, class, m, x.Expr)
-					}
-					if rtdMaybeUndefined(ctx, m, x.Expr) {
-						add(types.Null) // custos: an undefined variable returns null
 					}
 					if rtdImplicitNullProp(ctx, class, x.Expr) { // D5b
 						if t.IsUnknown() {
@@ -578,9 +578,9 @@ func rtdImplicitNullProp(ctx *analysis.Context, class *syntax.ClassLike, e synta
 	return !util.CtorAssignsProperty(class, id.Value)
 }
 
-// rtdLegacyConstructor reports whether m is a PHP 4 style constructor below
-// PHP 8.0: a method named like its class (outside a named namespace) in a
-// class without __construct.
+// rtdLegacyConstructor reports whether m is shaped like a PHP 4 style
+// constructor (one below PHP 8.0): a method named like its class (outside
+// a named namespace) in a class without __construct.
 func rtdLegacyConstructor(class *syntax.ClassLike, m *syntax.Method) bool {
 	if class.ClassKind != syntax.KindClass || class.Name == nil || !strings.EqualFold(m.Name.Value, class.Name.Value) || inNamedNamespace(class) {
 		return false
@@ -591,54 +591,4 @@ func rtdLegacyConstructor(class *syntax.ClassLike, m *syntax.Method) bool {
 		}
 	}
 	return true
-}
-
-// rtdMaybeUndefined reports whether e is a local variable of m that may be
-// returned unassigned (`if ($c) { $r = 'x'; } return $r;`, a switch without
-// default), so the call yields null. Only variables written by plain `=`
-// assignments alone qualify; anything else that may bind it (other writes,
-// element writes, by-reference arguments, extract(), variable variables,
-// includes) leaves the type to inference.
-func rtdMaybeUndefined(ctx *analysis.Context, m *syntax.Method, e syntax.Expr) bool {
-	v, ok := e.(*syntax.Variable)
-	if !ok || v.NameExpr != nil || v.Name == "this" {
-		return false
-	}
-	for _, p := range m.Params {
-		if p.Var != nil && p.Var.Name == v.Name {
-			return false
-		}
-	}
-	defs, entry := util.ReachingAssignmentsIn(ctx.File, m, v, v.Name)
-	if !entry || len(defs) == 0 {
-		return false
-	}
-	for _, acc := range util.VarAccessesByName(ctx.File, m)[v.Name] {
-		if acc.ElemWrite {
-			return false
-		}
-		if _, isArg := acc.Var.Parent().(*syntax.Arg); isArg {
-			return false // may be a by-reference out parameter
-		}
-		if !acc.Write {
-			continue
-		}
-		a, ok := acc.By.(*syntax.Assign)
-		if !ok || a.Op.Kind != syntax.TEqual || a.ByRef || syntax.UnwrapParens(a.Var) != syntax.Expr(acc.Var) {
-			return false
-		}
-	}
-	dynamic := false
-	syntax.Inspect(m.Body, func(x syntax.Node) bool {
-		switch y := x.(type) {
-		case *syntax.Variable:
-			dynamic = dynamic || y.NameExpr != nil
-		case *syntax.Include:
-			dynamic = true
-		case *syntax.FuncCall:
-			dynamic = dynamic || ctx.IsGlobalFunctionCall(y, "extract") || ctx.IsGlobalFunctionCall(y, "parse_str")
-		}
-		return !dynamic
-	})
-	return !dynamic
 }

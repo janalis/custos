@@ -20,12 +20,12 @@ class Car extends Engine
     public function drive($speed)
     {
         $this->honk();
-        $this->start();
+        Car::start();
         $this->honk($speed, 2);
         $this->honk();
         parent::start();
         $this->honk();
-        $this->start();
+        car::start();
         $cb = function () { self::honk(); };
     }
 }

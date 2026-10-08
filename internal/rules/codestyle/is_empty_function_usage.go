@@ -62,7 +62,7 @@ func (r isEmptyFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		inv = u
 	}
 	ts := emptySubjectTypes(ctx, s)
-	if len(ts) > 0 && !isEmptySubjectAssigned(s) {
+	if len(ts) > 0 && !isEmptySubjectAssigned(ctx.File, s) {
 		// `count($v)` / `$v === null` warn on an unassigned variable;
 		// empty() does not: only the generic report remains.
 		ts = nil
@@ -215,16 +215,30 @@ func isEmptyNeedsParens(n syntax.Node) bool {
 
 // isEmptySubjectAssigned reports whether a variable subject is certainly
 // assigned where empty() reads it: `$this`, a parameter or closure import,
-// a variable at file scope or in an arrow function (not tracked), or one
-// assigned (or declared global/static) by a statement of the function body
-// itself before the statement holding empty(). Other subjects are not
-// variables and always qualify.
-func isEmptySubjectAssigned(s syntax.Expr) bool {
+// a variable in an arrow function (not tracked), or one assigned (or
+// declared global/static) by a statement of the function body — or, at
+// file scope, of the top-level statement list (custos: a template's
+// `/** @var Conf $conf */ if (empty($conf))` guard reads a variable only
+// the including file may set) — before the statement holding empty().
+// Other subjects are not variables and always qualify.
+func isEmptySubjectAssigned(f *syntax.File, s syntax.Expr) bool {
 	v, ok := s.(*syntax.Variable)
 	if !ok || v.Name == "" || v.Name == "this" {
 		return true
 	}
 	fn := syntax.EnclosingFuncLike(v)
+	if fn == nil {
+		var holder syntax.Node = v
+		for {
+			switch holder.Parent().(type) {
+			case nil, *syntax.Namespace:
+				st, _ := holder.(syntax.Stmt)
+				list, i, ok := util.StmtList(f, st)
+				return !ok || isEmptyAssignedBefore(list[:i], v.Name)
+			}
+			holder = holder.Parent()
+		}
+	}
 	body := syntax.FuncLikeBody(fn)
 	if body == nil {
 		return true
@@ -248,24 +262,28 @@ func isEmptySubjectAssigned(s syntax.Expr) bool {
 			return true // recovery tree: the subject is not under the body
 		}
 	}
-	for _, st := range body.Stmts {
-		if syntax.Node(st) == holder {
-			break
-		}
+	i := syntax.StmtIndex(body.Stmts, holder.(syntax.Stmt))
+	return isEmptyAssignedBefore(body.Stmts[:i], v.Name)
+}
+
+// isEmptyAssignedBefore reports whether one of stmts assigns the variable
+// name as a whole statement or declares it global/static.
+func isEmptyAssignedBefore(stmts []syntax.Stmt, name string) bool {
+	for _, st := range stmts {
 		switch st := st.(type) {
 		case *syntax.ExprStmt:
-			if a, ok := st.Expr.(*syntax.Assign); ok && isEmptyVarNamed(a.Var, v.Name) {
+			if a, ok := st.Expr.(*syntax.Assign); ok && isEmptyVarNamed(a.Var, name) {
 				return true
 			}
 		case *syntax.Global:
 			for _, g := range st.Vars {
-				if isEmptyVarNamed(g, v.Name) {
+				if isEmptyVarNamed(g, name) {
 					return true
 				}
 			}
 		case *syntax.StaticStmt:
 			for _, sv := range st.Vars {
-				if sv.Var.Name == v.Name {
+				if sv.Var.Name == name {
 					return true
 				}
 			}

@@ -7,7 +7,7 @@ namespace Strings {
 
     $r = [];
     $r[] = false !== \strpos($path, "tmp") && $path;
-    $r[] = \str_replace("__NAME__", $name, $tpl);
+    $r[] = \str_replace("__NAME__", 'Name', $tpl);
     $r[] = \ltrim($raw, '0');
     $r[] = rtrim($raw, '/');
     $r[] = \explode(",", $list);

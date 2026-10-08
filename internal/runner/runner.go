@@ -92,6 +92,18 @@ func Run(e *analysis.Engine, files []string, opt syntax.Options) []FileResult {
 // RunSources is Run with sources already read (srcs[i] for files[i]; a nil
 // or missing entry is read from disk), e.g. by BuildIndexKeep.
 func RunSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options) []FileResult {
+	return runSources(e, files, srcs, opt, false)
+}
+
+// RunReport is RunSources for reporting only: each finding keeps its fix
+// titles (so it still reads as fixable) but not the edit closures, which
+// hold the file's syntax tree and semantic data alive until the end of
+// the run (gigabytes on large legacy trees with many findings).
+func RunReport(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options) []FileResult {
+	return runSources(e, files, srcs, opt, true)
+}
+
+func runSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options, report bool) []FileResult {
 	results := make([]FileResult, len(files))
 	jobs := make(chan int)
 	var wg sync.WaitGroup
@@ -106,6 +118,9 @@ func RunSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Op
 					src = srcs[i]
 				}
 				results[i] = analyzeFile(e, files[i], src, opt)
+				if report {
+					dropEdits(results[i].Findings)
+				}
 			}
 		}()
 	}
@@ -126,4 +141,12 @@ func analyzeFile(e *analysis.Engine, path string, src []byte, opt syntax.Options
 	}
 	f := syntax.ParseBest(path, src, opt)
 	return FileResult{Path: path, Src: src, Findings: e.Analyze(f), Errors: f.Errors}
+}
+
+func dropEdits(fs []analysis.Finding) {
+	for i := range fs {
+		for j := range fs[i].Fixes {
+			fs[i].Fixes[j].Edits = nil
+		}
+	}
 }

@@ -12,6 +12,7 @@ function render(array $rows, array $cfg, array $state, \SplStack $jobs)
     foreach ($rows as $row) {
         $state['seen']++;
         echo $state['seen'];            // written above: connected
+        emit($row);
     }
 
     foreach ($rows as $row) {
@@ -22,16 +23,19 @@ function render(array $rows, array $cfg, array $state, \SplStack $jobs)
     foreach ($rows as $row) {
         sort($cfg['order']);
         apply($cfg['order']);           // by-reference argument: connected
+        emit($row);
     }
 
     foreach ($rows as $row) {
         unset($state['tmp']);
         echo $state['tmp'];             // unset: connected
+        emit($row);
     }
 
     foreach ($rows as $row) {
         $alias = &$state['ref'];
         echo $state['ref'];             // reference binding: connected
+        emit($row);
     }
 
     foreach ($rows as $row) {

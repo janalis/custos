@@ -150,3 +150,7 @@ class Mailer
   (`get_object_vars($this)`, `foreach ($this as …)`, `(array) $this`), any
   candidate may be read there: nothing is reported for the class (Moodle's
   `cm_info::__get()` returning `$this->$name`).
+- **Re-entered constructors (custos diverges).** A constructor that calls
+  `$this->__construct(…)` (SimplePie's `File` follows a redirect by
+  re-running itself) reads, in the second run, what the first one stored:
+  such classes are not reported.

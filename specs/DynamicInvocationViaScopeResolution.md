@@ -190,3 +190,15 @@ $car::build();
   the class short name case-sensitively in D3; `SELF::m()` or `car::m()`
   then fall to D4, which skips plain names, so they are never reported.
   custos compares case-insensitively (D3).
+- **Bound calls keep their target (custos diverges).** `self::m()` and
+  `Foo::m()` always run that class's `m()`; `$this->m()` runs a subclass
+  override. D3a's fix is offered only when both run the same method: the
+  name resolves on the enclosing class to the called method itself (not
+  `Ancestor::m()` while the class overrides `m`, which works like
+  `parent::m()`), and no subclass can override it — the method is private
+  or final, the class is final or an enum, or no indexed descendant
+  declares it. Traits never get the fix (`self` is the using class).
+  `static::m()` keeps the fix. Otherwise the call is reported without a
+  fix (Dolibarr's printipp: `BasicIPP`'s constructor calls
+  `self::_initTags()`, which `CupsPrintIPP` overrides). Listed divergence
+  `dynamic-method-invocation-via-scope-resolution.php`.

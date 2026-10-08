@@ -95,3 +95,9 @@ TXT, 3, ['three']];
 
 ## Divergences
 None known.
+- **Per-instance state (custos diverges).** A property the class writes
+  through `$this` (`$this->p = …`, `$this->p['k'] = …`, `$this->p[] = …`,
+  compound assignments, `++`/`--`, `unset($this->p['k'])`) holds state
+  of each instance; a static property would share it between instances
+  (Roundcube's `rcube_db::$options`, set per connection). Such properties
+  are not reported.

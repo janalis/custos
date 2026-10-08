@@ -597,7 +597,7 @@ on 8.x targets (disabled by default); UsingInclusionOnceReturnValue on
 OffsetOperations on wrong legacy PHPDoc (`@var integer` over an `array()`
 default — true to the docs); Moodle `*_test.php` files not recognised as
 tests (test detection decided earlier). Engine-level causes found by the
-review (reported to the engine work, not fixed here): *`extract()`,
+review (since fixed, Engine section "Review round 5 engine causes"): *`extract()`,
 variable variables and one-argument `parse_str()` keep local types* —
 `function g($c, array $v) { $n = (int) $c; extract($v); return (int) $n; }`:
 `$n` expected unknown, actual `int` (UnnecessaryCasting, TypeUnsafeComparison
@@ -618,6 +618,113 @@ $code = 'x'; }`: after the if expected `string`, actual `string|\Code`;
 *`var_export($x, true)` / `print_r($x, true)`*: expected `string`, actual
 `string|null` / `string|true` (MagicMethodsValidity `__toString`);
 *`assert($b instanceof X)`* apparently not narrowing (unconfirmed).
+
+**Firefly III / Monica / Bagisto / Dolibarr / Roundcube / FreshRSS
+review (2026-10-08).** Sixth run on code custos had never seen: three
+Laravel applications and three legacy, mostly procedural code bases
+(`global $conf, $db, $langs`, templates included by pages, bundled PHP 4-era
+libraries), shallow clones plus `composer install --no-scripts
+--no-plugins` where a vendor exists (vendor indexed, not analysed), only
+read: firefly-iii/firefly-iii (1,743 files, PHP 8.5), monicahq/monica
+(1,650, 8.3), bagisto/bagisto (3,053, 8.4), Dolibarr/dolibarr (4,350, 7.1,
+its minimum), roundcube/roundcubemail (590, 8.1) and FreshRSS/FreshRSS
+(611, 8.1), `analyse --all`. Robustness: no internal finding and no syntax
+error; `php -l` of the target version on every analysed file reports
+nothing (Dolibarr included, at 7.1). No super-linear file: the slowest
+files with the project index loaded are tcpdf.php (0.38 s, 900 KB) and
+Dolibarr's 1.6 MB CJK font tables (0.15 s); a synthetic 8,000-branch
+elseif chain scales linearly. Timing and peak RSS (`/usr/bin/time -l`,
+vendor index included, final tree): Firefly 1.1 s / 560 MB, Monica 0.8 s / 340 MB, Bagisto 1.3 s / 590 MB, Dolibarr 3.4 s / 1.4 GB, Roundcube 0.6 s / 195 MB, FreshRSS 0.3 s / 150 MB (times from the idle first run; under the final load average of 30–40 they were 1.3–1.6× longer). Dolibarr first peaked at
+3.0 GB: every finding (273,000 with `--all`) kept its quick-fix closure
+and with it the file's syntax tree and type environment until the report;
+`custos analyse` now drops the edit closures as each file finishes
+(`runner.RunReport`; fix titles kept, output identical), 1.4 GB. About
+1,500 findings were sampled over 140 rules (four parallel reviews: error
+rules all or 15–20 each, warning rules on the Laravel and on the legacy
+projects, info and semantic rules 10–15 each; version gating checked on
+Dolibarr's 7.1 target: no suggestion needs a newer PHP). Fix safety:
+`custos fix --all` on copies (256,000 edits in 6,550 files, Dolibarr
+232,800), then `php -l` of the target version on every changed file: none
+broken, before and after the fixes below; every fix was also applied alone
+and re-parsed on each project including its vendor
+(`TestFixesKeepCodeParsable`, `php -l` samples; 474,000 fixes): one
+Dolibarr file broke when all its fixes were combined, 0 after the fix
+below. Four fixes changed behaviour and one dropped a type annotation
+(below).
+
+| Rule / area | Was | Now |
+|---|---|---|
+| `custos analyse` memory (`internal/runner`) | Quick-fix closures of every finding retained each file's tree until the report: Dolibarr `--all` 3.0 GB. | Report mode drops the edit closures per file: 1.4 GB, same output. |
+| DynamicInvocationViaScopeResolution (fix) | `self::_initTags()` in printipp's `BasicIPP` constructor → `$this->_initTags()`, which runs `CupsPrintIPP`'s override (also `Ancestor::m()` while the class overrides `m`). | Fix only when the name resolves to the called method and no subclass can override it (private/final method, final class or enum, no indexed descendant declaring it); traits never; otherwise reported without fix (listed divergence). |
+| NotOptimalRegularExpressions (fix, D22d) | `preg_replace('/__HANDLER__/i', "'" . $db->escape($h) . "'", $sql)` → `str_ireplace(…)`: preg_replace() collapses `\\` and expands `$0`/`\0` in the replacement, str_replace() does not (Dolibarr SQL templates). | Only for literal replacements without `\` and `$`, numbers and int/float casts. 1,340 → 1,259 fixable. |
+| MkdirRaceCondition (fix) | `if (!@mkdir($lock_path)) { return true; } … rmdir($lock_path);` (FreshRSS migrator lock) → `&& !is_dir($lock_path)`: every process takes the lock. | A tested mkdir() whose function also rmdir()s the same path is a lock: not reported (an ignored `mkdir($scratch)` still is). |
+| OneTimeUseVariables (fix) | `/** @var \Illuminate\Auth\RequestGuard */ $guard = $this->auth->guard('sanctum'); return $guard;` inlined, dropping the type; the doc deletion left an indentation-only line. | A nameless `@var` right before the assignment counts (E4/D8); F1 deletes up to the statement. 302 → 300. |
+| MagicMethodsValidity | Restler's `iFilter::__isAllowed()`, `iAuthenticate::__getWWWAuthenticateString()` implementations reported as misusing the reserved prefix (error, 14). | Names imposed by an interface or parent skipped, like single-underscore names. |
+| UsingInclusionOnceReturnValue | `$found = @include_once $dir . $f; if ($found) break;`, `$res = include_once $f; if (!$res) die();` (error). | A local only tested for success (or never read inside a function) is a success flag. 36 → 18. |
+| ReturnTypeCanBeDeclared + DeprecatedConstructorStyle (combined fixes, found by `TestFixesKeepCodeParsable` on Dolibarr's phan stubs) | At PHP 8.x `function Mail_mime()` got `: void` while DeprecatedConstructorStyle renamed it: `__construct(): void` (fatal). | Methods shaped like PHP 4 constructors are skipped at every version. |
+| PrintfScanfArguments | `sprintf("%.0lf", $v)`, `%ld` reported as malformed (PHP accepts and ignores `l`; nusoap). | `l` accepted. |
+| NotOptimalRegularExpressions (D13b) | `'/^PhpOffice\\\PhpSpreadsheet\\\/'` (an escaped backslash, then P) told `\P` needs /u (error); `'/\\p/'` (the pattern `\p`) missed. | Escapes searched in the decoded pattern (listed divergence). |
+| OffsetOperations | `$folders[0]` on Webklex `FolderCollection` → `PaginatedCollection` → unindexed `Illuminate\Support\Collection` (error). | Unresolvable ancestors empty S like an unresolvable class. 110 → 108. |
+| IsEmptyFunctionUsage | `/** @var Conf $conf */ if (empty($conf) \|\| !is_object($conf)) exit;` in Dolibarr templates → `$conf === null` ("Undefined variable" in exactly the guarded case; about 120), and file-scope variables assigned only in an `if`, with a fix. | At file scope the top-level statements must assign the variable first, as in functions. 216 → 67 (fixable 24 → 14). |
+| UnusedConstructorDependencies | SimplePie `File` stores `$this->permanentUrlMutable` and re-runs `$this->__construct()` on a redirect, which reads it. | Constructors calling `$this->__construct()` exempt the class. 9 → 7. |
+| PropertyCanBeStatic | `protected $options = [...]` with `$this->options['table_prefix'] = $prefix` per connection (Roundcube `rcube_db`) told to become static (shared between instances). | Properties written through `$this` (plain, element, compound, `++`, `unset`) skipped. 122 → 111. |
+| DisconnectedForeachInstruction | `var_dump($matches)` / `print_r()` in a loop; `foreach (range(1, 10) as $attempt) { post(…); }` (throttle tests) told to move statements out. | Those calls are output (per iteration); loops that never read their key/value variable repeat their body and are skipped (unless compact/extract/`$$`/include/eval). 16 → 7. |
+
+Deltas on the local corpora (HEAD 6294e7d → this tree's rule changes
+alone, default / `--all`): corpus A `src/` 0 / 0, corpus B 0 / −1 and
+corpus C 0 / −2 (PropertyCanBeStatic on properties with setters or element
+writes: `DatesComponent::$days`/`$months`, a test's `$sections`).
+
+Declined: SecurityAdvisories on a tool-install manifest
+(`.ci/php-cs-fixer/composer.json`, one case); NullPointerException in Pest
+`*Test.php` closures (disabled by default, every dereference reported by
+spec); DisconnectedForeachInstruction on a call that depends on state an
+earlier connected statement changed (`$rcube->config->set(…)` then
+`invokeMethod($plugin, '_init_driver')`; not detectable without effect
+analysis); StaticClosureCanBeUsed on Laravel `macro()` closures (current
+`Macroable` survives static closures); StaticInvocationViaThis following a
+project's wrong `/** @var Storage $disk */`; OffsetOperations and
+UnsupportedStringOffsetOperations on wrong legacy PHPDoc (nusoap
+`@return false`, `@var resource`), UntrustedInclusion,
+MultipleReturnStatements, NonSecureUniqidUsage, ForgottenDebugOutput
+(`error_log`), UnserializeExploits, SuspiciousLoop, TypeUnsafeComparison
+fixes trusted from `@return string` (Dolibarr's GETPOST), AutoloadingIssues
+on FreshRSS controllers and Roundcube actions, FixedTimeStartWith,
+UnSafeIsSetOverArray, NestedTernaryOperator — decided earlier or noise by
+design. Engine-level causes found by the review (reported to the engine
+work, not fixed here): *index body facts* — MagicMethodsValidity "does not
+call parent::__construct()" on parents whose constructor only stores its
+parameters (`$this->db = $db;`) or promotes them in an empty body, when
+the child does the same (about 280 of Dolibarr's 424 errors: DolibarrModules,
+CommonDocGenerator, ModeleBoxes, CommonObjectLine; Bagisto `AbstractType`):
+`index.Method` needs a summary such as "body only assigns parameters to
+same-named properties" and an empty-statements flag independent of
+promotion; and EncryptionInitializationVectorRandomness's wrapper
+exemption works only in the same file (`rcube_utils::random_bytes()`
+calling `random_bytes()`, declared elsewhere) — needs a "returns a CSPRNG
+call" fact; *`Safe\` functions* — `use function Safe\preg_replace;
+$s = preg_replace('/\s+/', '', $s)` with `string $s`: expected `string`,
+actual `array|string` (docblock `string|array|string[]`; 6
+CallableParameterUseCaseInTypeContext on Firefly/Monica; type them like the
+builtin minus false/null); *`include`/`require` keep local types* —
+`$total = '0'; include 'x.php'; strlen($total)`: expected unknown, actual
+`string` (UnnecessaryCasting fixes removing `(int)` in Dolibarr SQL after
+`require '../../main.inc.php'`, Roundcube `$config = []; require $file;
+(array) $config`); *T-rules typer loop back edges* — `$t = '0'; foreach
+($rows as $r) { bcadd((string) $t, '1'); if ($r) { $t = null; } }`:
+expected `string|null` at the cast, actual `string` (Firefly
+`PiggyBankEnrichment`, a TypeError under strict_types once the cast is
+removed; the main typer is right); *`pathinfo($f, PATHINFO_EXTENSION)`*:
+expected `string`, actual `array|string` (5 OffsetOperations "index of
+type array"); *`gettimeofday()`* without argument or with `false`:
+expected `array`, actual `float|array` (8 OffsetOperations); *`??=` on an
+absent key* — `$r = ['count' => 0]; $r[$id] ??= []; $r[$id]['a'] = 1;`:
+`$r[$id]` expected `array`, actual `array|int` (3 on Firefly); *negated
+`is_object()` on a doc-only class* — `/** @param Translate $langs */
+!is_object($langs) && $langs == 'es_MX'`: expected unknown/empty, actual
+`\Translate` (TypeUnsafeComparison error); *optional regex groups* —
+`preg_match('/(a)(.+)*?(b)?/', $s, $m)`: `$m[3]` expected `string|null`
+(may be missing), actual `string` (UnnecessaryCasting on PHPMailer).
 
 **Coverage audit (2026-10-07).** Own fixtures were extended until every
 statement of `internal/rules` is executed by `TestOwnFixtures` (90.3% →
@@ -1427,6 +1534,66 @@ rejected) is fixed; see the close-tag note above.
     benchmarks within 1 % allocations except `BenchmarkTypeOfConditions`
     (+4 %). Probe `TestRound4Bounded` (20k variable-property guards and
     boolean aliases): 1.1 s.
+- **Review round 5 engine causes (2026-10-08):** the nine engine requests
+  of the TYPO3/MediaWiki/Moodle/phpBB/Flarum/Pimcore review.
+  - *Dynamic writes:* `extract()` (any flags, conservatively),
+    one-argument `parse_str()` and `$$name = …` may set any local. A read
+    of a variable defined before one of them (it lies between a reaching
+    definition and the read, or in a loop around the read) is unknown, in
+    the engine and the T-rules typer (`noteDynamic`, `clobbered`; the
+    positions are binary-searched).
+  - *Possibly undefined variables:* a variable that only plain `$v = …`
+    assignments define (no parameter, import, binding, reference, element
+    write, out argument or inline @var; no dynamic construct or include in
+    the scope), read where no unconditional assignment precedes it in an
+    enclosing block and no statement or condition on the way always
+    assigns it, also holds null (`if ($t) { $r = 'X'; } return $r;` is
+    `string|null`). "Always assigns" is structural (`stmtAssigns`): an
+    if/elseif/else whose branches all assign or return/throw/exit, a switch
+    with default whose non-empty cases all assign, a try whose body and
+    catches (or finally) assign, a do-while, assignments in conditions
+    evaluated before the read; continue/break end a list without assigning.
+    At most `maxAssignScan` = 64 statements are examined per read (beyond:
+    taken as assigned, no null). ReturnTypeCanBeDeclared's local
+    `rtdMaybeUndefined` is removed (its fixture passes; the extract/`$$`/
+    parse_str cases are now unknown instead of `string`).
+  - *Ancestor cap visible:* `Index.AncestorsComplete` reports a hierarchy
+    cut by `MaxAncestors`; ReferencingObjects uses it instead of comparing
+    the length.
+  - *SpecOnly T-rules exits:* assignments followed by return/throw/exit/
+    break (exit regions) no longer reach later reads in the SpecOnly typer
+    either (`Env.exited`).
+  - *Pseudo-types vs classes:* a pseudo-type name (`number`, `scalar`,
+    `numeric`…) imported as a class (`use App\Number;`, case-insensitive)
+    or declared in the current namespace is that class (`!name` resolver
+    probe, `Env.className`); otherwise the pseudo-type.
+  - *`class_alias()`:* calls with class constants or string literals are
+    indexed (`FileSymbols.ClassAliases`); `Index.Class` resolves an alias
+    to the original (at most `maxAliasHops` = 8 hops, cycles end there).
+  - *Chains joining:* past an if/elseif(/else) chain, a variable is the
+    union of what each path leaves: a branch's last assignment, or the
+    incoming type narrowed by the conditions of that path (earlier false,
+    own true; all false without else); always-leaving branches add nothing;
+    another write in a branch keeps the type (`chainJoin`). `instanceof`
+    now keeps the members of the tested type that are the class or its
+    subtypes, adds the class only when another member may hold an instance
+    of it (a parent, an interface, an unknown class, mixed/object/iterable/
+    callable), and makes an impossible test (a string against a class) an
+    unknown branch (`instanceOf`).
+  - *`var_export()` / `print_r()`* return a string with a literal `true`
+    `$return`, null / true without it or with `false` (both typers).
+  - *`assert(cond)`* (the global function) narrows the following
+    statements like an early-exit guard.
+  - *Deltas* (old = HEAD 6294e7d, default / `--all`): no finding added or
+    removed on corpus A src, Symfony, corpus B and corpus C; one message
+    change: ParameterBag's OffsetOperations index type is now `float`
+    instead of `\Stringable|float` (`resolveValue()` is documented
+    `array|scalar`, which cannot be Stringable).
+  - *Cost:* corpus A vendor `analyse --all` unchanged (10 alternating runs,
+    medians 1.40 s / 1.47 s real, 6.5 s / 6.6 s user);
+    `BenchmarkTypeOfConditions` +15 % allocations (chain joins), the other
+    infer benchmarks within 1 %. Probe `TestPossiblyUndefinedBounded`
+    (20k reads after 20k guarded ifs, 20k `extract()` calls): 0.4 s.
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.

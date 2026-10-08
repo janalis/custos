@@ -327,7 +327,10 @@ interface Printable { public function __toString(); }
   declares the same method: the name is imposed by the hierarchy (an
   abstract cache class's `_get()` hook, 8 reports on PrestaShop), not a
   misspelt magic method. The declaring ancestor is reported as before
-  unless it is abstract (E1).
+  unless it is abstract (E1). The same holds for the reserved-prefix
+  report: a `__`-prefixed method implementing an interface or overriding
+  a parent (Restler's `iFilter::__isAllowed()`, 14 reports on Dolibarr)
+  cannot be renamed in the implementing class.
 - **Empty parent methods (custos diverges).** C-parent does not report a
   method whose parent version has an empty body and promotes no
   constructor parameter (`public function __construct() {}`): calling it

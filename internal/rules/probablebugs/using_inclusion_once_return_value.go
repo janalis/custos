@@ -31,7 +31,7 @@ func (usingInclusionOnceReturnValue) Check(ctx *analysis.Context, n syntax.Node)
 	if es, ok := inc.Parent().(*syntax.ExprStmt); ok && es.Expr == syntax.Expr(inc) { // D2
 		return
 	}
-	if inclusionOnceTestedForSuccess(inc) { // E3
+	if inclusionOnceTestedForSuccess(inc) || inclusionOnceFlagVariable(ctx, inc) { // E3
 		return
 	}
 	// No fix: a plain include/require re-runs the file, which redeclares
@@ -44,7 +44,46 @@ func (usingInclusionOnceReturnValue) Check(ctx *analysis.Context, n syntax.Node)
 // a logical operand, compared with false, or cast to bool. include_once returns false
 // only when the file cannot be included, so such tests are reliable.
 func inclusionOnceTestedForSuccess(inc *syntax.Include) bool {
-	var n syntax.Node = inc
+	return testedForSuccess(inc)
+}
+
+// inclusionOnceFlagVariable reports whether the inclusion's result is
+// stored in a local variable (`$found = @include_once $f;`) that is never
+// read (in a function) or only tested for success (`if ($found) break;`, `if (!$res)
+// die();`): the variable is a success flag, which stays reliable.
+func inclusionOnceFlagVariable(ctx *analysis.Context, inc *syntax.Include) bool {
+	n := skipAtParens(inc)
+	as, ok := n.Parent().(*syntax.Assign)
+	if !ok || as.Op.Kind != syntax.TEqual || as.Value != n || as.ByRef {
+		return false
+	}
+	target, ok := as.Var.(*syntax.Variable)
+	if !ok {
+		return false
+	}
+	if target.Name == "" {
+		return false
+	}
+	if _, stmt := as.Parent().(*syntax.ExprStmt); !stmt && !testedForSuccess(as) {
+		return false
+	}
+	scope := syntax.EnclosingFuncLike(inc)
+	reads := 0
+	for _, a := range util.VarAccesses(ctx.File, scope, target.Name) {
+		if a.ElemWrite || a.Compound || !a.Write && !testedForSuccess(a.Var) {
+			return false
+		}
+		if !a.Write {
+			reads++
+		}
+	}
+	// A file-scope variable never read here may be read by the file
+	// that includes this one.
+	return reads > 0 || scope != nil
+}
+
+// skipAtParens climbs from n through enclosing parentheses and `@`.
+func skipAtParens(n syntax.Node) syntax.Node {
 	for {
 		parent := n.Parent()
 		if u, ok := parent.(*syntax.Unary); ok && u.Op.Kind == syntax.TAt {
@@ -55,8 +94,14 @@ func inclusionOnceTestedForSuccess(inc *syntax.Include) bool {
 			n = parent
 			continue
 		}
-		break
+		return n
 	}
+}
+
+// testedForSuccess reports whether the value of n (through parentheses
+// and `@`) is discarded or only tested for truth.
+func testedForSuccess(start syntax.Node) bool {
+	n := skipAtParens(start)
 	if util.IsLogicalOperand(n) {
 		return true
 	}

@@ -19,9 +19,9 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
     $r[] = preg_match('/tmp/', $path); // 1/0: a boolean test would change the value
     echo preg_match('/tmp/', $path);
 
-    $r[] = <warning descr="Replace with 'str_replace(&quot;__NAME__&quot;, $name, $tpl)'.">preg_replace('/__NAME__/', $name, $tpl)</warning>;
+    $r[] = <warning descr="Replace with 'str_replace(&quot;__NAME__&quot;, 'Name', $tpl)'.">preg_replace('/__NAME__/', 'Name', $tpl)</warning>;
     $r[] = <warning descr="Replace with 'str_ireplace(&quot;draft&quot;, '', $tpl)'.">preg_replace('/draft/i', '', $tpl)</warning>;
-    $r[] = <warning descr="Replace with 'str_replace(&quot;*&quot;, $name, $tpl)'.">preg_replace('/\*/', $name, $tpl)</warning>;
+    $r[] = <warning descr="Replace with 'str_replace(&quot;*&quot;, 7, $tpl)'.">preg_replace('/\*/', 7, $tpl)</warning>;
     $r[] = preg_replace('/draft/', '', $tpl, 2);
     $r[] = preg_replace(['/draft/'], '', $tpl);
     $r[] = preg_replace('/^draft/', 'x', $tpl);
@@ -46,4 +46,14 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
     $r[] = preg_split('/;/u', $list);
     $r[] = preg_split('/;/', $list, -1, PREG_SPLIT_NO_EMPTY);
     return $r;
+}
+function replacementsWithReferences(string $s, string $r, $db)
+{
+    // preg_replace() interprets $0, \0, ${1} and \\ in the replacement.
+    $a = preg_replace('/abc/', '$0$0', $s);
+    $b = preg_replace('/abc/', '\\0x', $s);
+    $c = preg_replace('/abc/', $r, $s);
+    $d = preg_replace('/__HANDLER__/i', "'" . $db->escape($r) . "'", $s);
+    $e = <warning descr="Replace with 'str_replace(&quot;abc&quot;, (int) $r, $s)'.">preg_replace('/abc/', (int) $r, $s)</warning>;
+    return [$a, $b, $c, $d, $e];
 }

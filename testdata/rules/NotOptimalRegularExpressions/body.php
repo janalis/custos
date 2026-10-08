@@ -49,6 +49,7 @@ function bodyDemo($s, $m) {
     preg_match('/€+/u', $s, $m);
     preg_match(<error descr="Unicode escapes (\p, \P, \X) need the /u flag.">'/\pL+/'</error>, $s, $m);
     preg_match(<error descr="Unicode escapes (\p, \P, \X) need the /u flag.">'/k\X/'</error>, $s, $m);
-    preg_match('/\\p/', $s, $m);
+    preg_match(<error descr="Unicode escapes (\p, \P, \X) need the /u flag.">'/\\p/'</error>, $s, $m); // the value is \p
+    preg_match('/\\\\p/', $s, $m); // the value is \\p: an escaped backslash
     preg_quote('/ü/', '/');
 }
