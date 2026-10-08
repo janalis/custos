@@ -30,4 +30,24 @@ abstract class CartTest
         $double->expects($matcher);
         $double->expects($this->never());
     }
+
+    abstract protected function shelf(): ?Shelf;
+
+    public function testNullSafe(?Shelf $shelf)
+    {
+        $found = $this->shelf()?->bag();
+        $this->assertInstanceOf(Bag::class, $found);
+        $this->assertInstanceOf(Bag::class, $shelf?->bag());
+        $this->assertInstanceOf(Bag::class, $shelf?->owner->bag());
+        $this->assertInstanceOf(Bag::class, $shelf?->owner->owner->bag());
+        $this->assertInstanceOf(Bag::class, $shelf?->bags[0]->bag());
+    }
+}
+
+final class Shelf
+{
+    public Shelf $owner;
+    /** @var list<Shelf> */
+    public array $bags = [];
+    public function bag(): Bag { return new Bag(); }
 }

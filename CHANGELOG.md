@@ -16,6 +16,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - MultiAssignmentUsage: consecutive offset reads from a string
   (`$a = $s[0]; $b = $s[1];`) are no longer told to destructure, which
   would assign `null` from a string.
+- UnnecessaryAssertion: a value reached through a nullsafe chain
+  (`$r->find()?->sidebar()`) is no longer said to be guaranteed by the last
+  call's declared return type: the chain can yield `null`.
 
 ## [0.1.0] - 2026-10-08
 
