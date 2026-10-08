@@ -33,11 +33,21 @@ Cast kinds and their target type:
 
 ### Concatenation (string casts only)
 
+- **D0** *Plain operand*: the type of *A*, as the general type engine
+  infers it (declared types, PHPDoc types, stubs, flow narrowing; `?->`
+  adds `null` as in T4), is known and non-empty, contains no unknown or
+  unresolved part, and every member is `string`, `int` or `float`
+  (including literal and refined forms such as `non-empty-string`,
+  `numeric-string`, `positive-int`). Any `null`, `bool`/`true`/`false`,
+  `array`, object or class type (even with `__toString()`), `resource`,
+  `mixed`, `nonnull`/`scalar`/`array-key`-style pseudo-types that admit
+  something else, or `callable`/`iterable` makes the operand not plain.
 - **D1** A `(string)` cast whose direct parent is a binary `.` expression
-  (either operand) → report (message M2). No type check.
-- **D2** A `(string)` cast whose direct parent is a `.=` compound assignment →
-  report (message M2). No type check.
-- When D1/D2 fires, D3 is not evaluated for that cast.
+  (either operand) and whose operand is plain (D0) → report (message M2).
+- **D2** A `(string)` cast whose direct parent is a `.=` compound assignment
+  and whose operand is plain (D0) → report (message M2).
+- When D1/D2 fires, D3 is not evaluated for that cast. A concatenation cast
+  that is not reported by D1/D2 goes on to D3 like any other cast.
 
 ### Already of the target type
 
@@ -185,6 +195,14 @@ visited at most once, parentheses removed first:
   `(int) ($undefined ?? 0)`.
 - **E5** Null-safe member access (adds `null`).
 - **E6** `(object)` / `(unset)` casts.
+- **E7** Concatenation casts (D1/D2) whose operand is not plain (D0): an
+  untyped or `mixed` value (`'%'.(string) $filters['q'].'%'`), a nullable or
+  false-able one (`':'.(string) $node->slug` with `?string`,
+  `(string) preg_replace(...)`, `(string) strpos($f, '.')`), a `bool`, or an
+  object converted through `__toString()` (`(string) $person.' / '`,
+  `(string) new Markup($s)`). The result is the same at run time,
+  but the cast states a deliberate conversion and strict analysers require
+  it.
 
 ## Report
 
@@ -259,9 +277,10 @@ class Meter {
     }
 }
 
-function joins($a, $b) {
+function joins(string $a, int $b, ?string $c, $d, \Stringable $e, string|false $f) {
     $a .= <weak_warning descr="Concatenation converts to string anyway; remove the cast.">(string)</weak_warning> $b;
-    return 'n=' . <weak_warning descr="Concatenation converts to string anyway; remove the cast.">(string)</weak_warning>$b;
+    $a .= (string) $c . (string) $d . (string) $e . (string) $f . (string) true;
+    return 'n=' . <weak_warning descr="Concatenation converts to string anyway; remove the cast.">(string)</weak_warning>$b . <weak_warning descr="Concatenation converts to string anyway; remove the cast.">(string)</weak_warning> 2.5;
 }
 
 function stamps() {
@@ -288,7 +307,7 @@ After fix (changed lines):
             $this->hidden,
             $this->size(),
     $a .= $b;
-    return 'n=' . $b;
+    return 'n=' . $b . 2.5;
         (microtime() * 10),
 ```
 
@@ -327,8 +346,17 @@ After fix (changed lines):
   assignments, declared parameter/return/property types, `@var` on private
   properties, `new`). Where custos cannot infer a single type it must stay
   silent (empty type ⇒ no report).
-- `(string)` casts as concatenation operands are reported even when the operand
-  is an object without `__toString` or an array; upstream does not check.
+- **Concatenation casts need a plain operand (custos diverges, D0).**
+  Upstream reports every `(string)` cast that is an operand of `.` or `.=`,
+  whatever the operand's type (even an array or an object without
+  `__toString()`). Concatenation does convert the same way, but on a
+  nullable, false-able, `bool`, `mixed` or `__toString()` operand the cast
+  is the explicit, analyser-checked statement of that conversion: dropping
+  it on a real project raised 14 errors and about 40 warnings in a strict
+  analyser the project gates on. custos reports only operands known to be
+  `string`, `int` or `float`; upstream's untyped-parameter cases in
+  `unnecessary-casting.php` and `unnecessary-casting.php8.php` are no
+  longer reported (both fixtures are already listed divergences).
 - **Sound arithmetic (custos diverges).** Upstream's heuristic types an
   arithmetic result as float when an operand is unresolvable or a string,
   so `(float) ($cell * 100)` with `$cell` a `string|null` is reported —
