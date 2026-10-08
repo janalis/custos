@@ -24,7 +24,7 @@ class Finder
     }
 
     // Certainly assigned, parameters, other binders: inference decides
-    // (extract(), `$$n =` and parse_str() may set $r: unknown).
+    // (extract(), `$$n =`, parse_str() and include may set $r: unknown).
     public function <weak_warning descr="Declare ': string' as the return type.">always</weak_warning>($t)
     {
         $r = 'Y';
@@ -87,7 +87,7 @@ class Finder
         return $r;
     }
 
-    public function <weak_warning descr="Declare ': string' as the return type.">included</weak_warning>($t)
+    public function included($t)
     {
         if ($t) {
             $r = 'X';

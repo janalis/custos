@@ -52,14 +52,17 @@ func (e *Env) reaching(defs []varDef, use, scope syntax.Node) (fwd, back []varDe
 			// d runs unconditionally in its block: earlier definitions made
 			// inside that block are overwritten for every later use, even
 			// one after the block (`if (…) { $x = a(); $x = b($x); } use($x)`).
-			kept := fwd[:0]
-			for _, f := range fwd {
-				if f.pos >= d.kill.Start && f.pos < d.pos && max(f.pos, f.end) <= d.kill.End {
-					continue
+			// fwd is in source order, so those definitions are a suffix
+			// of it: popping them keeps the walk linear in the
+			// definitions (a filter over fwd per definition was
+			// quadratic: 400 definitions read 20k times took 10 s).
+			for len(fwd) > 0 {
+				f := fwd[len(fwd)-1]
+				if f.pos < d.kill.Start || f.pos >= d.pos || max(f.pos, f.end) > d.kill.End {
+					break
 				}
-				kept = append(kept, f)
+				fwd = fwd[:len(fwd)-1]
 			}
-			fwd = kept
 		}
 		if len(fwd) == 0 {
 			from = max(d.pos, d.end)
@@ -77,6 +80,7 @@ func (e *Env) reaching(defs []varDef, use, scope syntax.Node) (fwd, back []varDe
 			}
 		}
 	}
+	fwd = dropDominated(fwd, use, scope)
 	fwd = dropOtherCases(fwd, use, scope)
 	fwd = dropExclusive(fwd, use, scope)
 	fwd, via, loops := e.dropExited(fwd, use, scope, false)
@@ -626,4 +630,103 @@ func (e *Env) docFits(d varDef, fwd []varDef) bool {
 		}
 	}
 	return false
+}
+
+// dropDominated keeps, of fwd, only the definitions from the last one that
+// always runs right before use within an enclosing condition: a definition
+// in the left operand of && / || (or in the condition of the if/while
+// whose body holds use) outside any conditional part of it (`preg_match(…,
+// $m) && $m[1]`, `while ($row = f()) { … $row … }`) hides the definitions
+// made before that condition.
+func dropDominated(fwd []varDef, use, scope syntax.Node) []varDef {
+	if len(fwd) < 2 {
+		return fwd
+	}
+	var child syntax.Node = use
+	for p := use.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
+		var cond syntax.Expr
+		switch n := p.(type) {
+		case *syntax.Binary:
+			switch n.Op.Kind {
+			case syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr:
+				if child == syntax.Node(n.Right) {
+					cond = n.Left
+				}
+			}
+		case *syntax.If:
+			if child == syntax.Node(n.Body) {
+				cond = n.Cond
+			}
+		case *syntax.While:
+			if child == syntax.Node(n.Body) {
+				cond = n.Cond
+			}
+		}
+		if cond == nil {
+			continue
+		}
+		sp := cond.Span()
+		known := 1 // the condition is true where use runs
+		if b, ok := p.(*syntax.Binary); ok && (b.Op.Kind == syntax.TBooleanOr || b.Op.Kind == syntax.TOr) {
+			known = -1
+		}
+		for i := len(fwd) - 1; i > 0; i-- {
+			d := fwd[i]
+			if d.w == nil && !d.doc && d.pos >= sp.Start && d.pos < sp.End && !condPart(cond, d.pos, known) {
+				return fwd[i:]
+			}
+		}
+	}
+	return fwd
+}
+
+// condPart reports whether position p of condition x lies in a part
+// evaluated only sometimes, x's value being known (k: 1 true, -1 false,
+// 0 unknown): when x is true all operands of its && run, when false all
+// of its ||; a ?? right side, a ternary branch, a match arm or a nested
+// function may not run.
+func condPart(x syntax.Expr, p uint32, k int) bool {
+	in := func(n syntax.Node) bool {
+		sp := n.Span()
+		return p >= sp.Start && p < sp.End
+	}
+	switch n := syntax.UnwrapParens(x).(type) {
+	case *syntax.Binary:
+		switch n.Op.Kind {
+		case syntax.TBooleanAnd, syntax.TAnd:
+			if in(n.Left) {
+				return condPart(n.Left, p, max(k, 0))
+			}
+			return k != 1 || condPart(n.Right, p, 1)
+		case syntax.TBooleanOr, syntax.TOr:
+			if in(n.Left) {
+				return condPart(n.Left, p, min(k, 0))
+			}
+			return k != -1 || condPart(n.Right, p, -1)
+		}
+	case *syntax.Unary:
+		if n.Op.Kind == syntax.TExclaim {
+			return condPart(n.Expr, p, -k)
+		}
+	}
+	// Elsewhere: any conditional construct around p.
+	found := false
+	syntax.Inspect(x, func(n syntax.Node) bool {
+		if found || !in(n) {
+			return false
+		}
+		switch n := n.(type) {
+		case *syntax.Binary:
+			switch n.Op.Kind {
+			case syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr, syntax.TCoalesce:
+				found = in(n.Right)
+			}
+		case *syntax.Ternary:
+			found = (n.Then != nil && in(n.Then)) || in(n.Else)
+		case *syntax.Match, *syntax.Closure, *syntax.ArrowFunction:
+			found = true
+		}
+		return !found
+	})
+	return found
 }

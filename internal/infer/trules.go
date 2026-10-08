@@ -301,7 +301,11 @@ func (r *TRules) funcCall(n *syntax.FuncCall) types.Type {
 	if t, ok := r.override(n, f); ok {
 		return t
 	}
-	return r.declaredAndDoc(f.Return, f.DocReturn, f.Builtin)
+	t := r.declaredAndDoc(f.Return, f.DocReturn, f.Builtin)
+	if st, ok := r.Env.safeCallType(f, n, t); ok {
+		return st // thecodingmachine/safe wrappers
+	}
+	return t
 }
 
 // declaredAndDoc is DeclaredAndDoc, without the doc type of a project
@@ -433,6 +437,11 @@ func (r *TRules) override(n *syntax.FuncCall, f *index.Function) (types.Type, bo
 		if t, ok := printReturn(name, r.arg(n, f, 1), r.argCount(n)); ok {
 			return t, true
 		}
+	case "pathinfo", "gettimeofday":
+		// Argument-decided returns: the engine's override.
+		if t := r.Env.TypeOf(n); !t.IsUnknown() {
+			return t, true
+		}
 	case "max", "min":
 		if r.argCount(n) >= 2 {
 			var ts []types.Type
@@ -513,7 +522,8 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 	}
 	after := uint32(0) // conditions before the last assignment do not narrow it
 	for _, d := range as {
-		if d.Span().Start >= pos || d.Span().Start < cutoff || containsPos(d, pos) {
+		later := d.Span().Start >= pos && !(reach != nil && reach[d.Span().Start])
+		if later || d.Span().Start < cutoff || containsPos(d, pos) {
 			continue
 		}
 		if reach != nil && !reach[d.Span().Start] {
@@ -588,8 +598,13 @@ func (r *TRules) reachingDefs(scope syntax.Node, v *syntax.Variable) (reach map[
 		clob := r.Env.clobbered(sv, fwd, back, v, scope)
 		r.Env.noteDynRead(v, clob, !clob && r.Env.maybeUndefined(sv, defs, fwd, v, scope))
 	}
-	reach = make(map[uint32]bool, len(fwd))
+	reach = make(map[uint32]bool, len(fwd)+len(back))
 	for _, d := range fwd {
+		reach[d.pos] = true
+	}
+	// Definitions later in a loop around v reach it on the next iteration
+	// (`foreach (…) { (int) $n; $n = f(); }`).
+	for _, d := range back {
 		reach[d.pos] = true
 	}
 	for i, d := range defs {

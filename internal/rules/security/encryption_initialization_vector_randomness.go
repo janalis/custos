@@ -88,10 +88,14 @@ func ivSecureWrapper(ctx *analysis.Context, v syntax.Expr) bool {
 	env := ctx.Types()
 	ix := ctx.Index()
 	var body *syntax.Block
+	indexed := false // custos: the index records wrappers of other files
 	switch c := v.(type) {
 	case *syntax.FuncCall:
-		if d := util.FunctionDecl(ctx.File, env.ResolveFunction(c)); d != nil {
+		f := env.ResolveFunction(c)
+		if d := util.FunctionDecl(ctx.File, f); d != nil {
 			body = d.Body
+		} else if f != nil {
+			indexed = f.CSPRNG
 		}
 	case *syntax.MethodCall:
 		id, ok := c.Name.(*syntax.Identifier)
@@ -99,10 +103,12 @@ func ivSecureWrapper(ctx *analysis.Context, v syntax.Expr) bool {
 			return false
 		}
 		for _, cls := range env.TypeOf(c.Var).Classes() {
-			if m := util.MethodDecl(ctx.File, ix, ix.FindMethod(strings.TrimPrefix(cls, `\`), id.Value, ctx.PHP), ctx.PHP); m != nil {
+			im := ix.FindMethod(strings.TrimPrefix(cls, `\`), id.Value, ctx.PHP)
+			if m := util.MethodDecl(ctx.File, ix, im, ctx.PHP); m != nil {
 				body = m.Body
 				break
 			}
+			indexed = indexed || (im != nil && im.CSPRNG)
 		}
 	case *syntax.StaticCall:
 		id, ok := c.Name.(*syntax.Identifier)
@@ -110,13 +116,16 @@ func ivSecureWrapper(ctx *analysis.Context, v syntax.Expr) bool {
 			return false
 		}
 		if cls := ctx.Types().ClassRef(c.Class); cls != "" {
-			if m := util.MethodDecl(ctx.File, ix, ix.FindMethod(cls, id.Value, ctx.PHP), ctx.PHP); m != nil {
+			im := ix.FindMethod(cls, id.Value, ctx.PHP)
+			if m := util.MethodDecl(ctx.File, ix, im, ctx.PHP); m != nil {
 				body = m.Body
+			} else {
+				indexed = im != nil && im.CSPRNG
 			}
 		}
 	}
 	if body == nil {
-		return false
+		return indexed
 	}
 	found := false
 	syntax.Inspect(body, func(n syntax.Node) bool {

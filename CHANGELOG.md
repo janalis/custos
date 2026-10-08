@@ -72,6 +72,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
+- Type engine (review round 6): MagicMethodsValidity no longer asks for
+  `parent::__construct()` when the parent only stores its parameters and
+  the child sets them; IV wrappers in other files are recognised;
+  `Safe\X` (thecodingmachine/safe) functions are typed like the builtins
+  without false; include/require make earlier locals unknown; the casting
+  typer sees loop back edges; pathinfo()/gettimeofday() flags, `??=` on
+  empty literals, refuted type checks and preg_match() flags are typed;
+  definitions earlier in a condition hide older ones; reaching definitions
+  no longer go quadratic with hundreds of definitions per variable.
 - Type engine (review round 5): `extract()`, `$$name =` and one-argument
   `parse_str()` make earlier locals unknown; variables possibly read before
   any assignment include null; the type of a variable past an

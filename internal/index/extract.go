@@ -590,6 +590,77 @@ func mentionsAny(text string, names map[string]bool) bool {
 	return false
 }
 
+// callsCSPRNG reports whether body calls a secure random generator by name
+// (a function or a method of that name, as the IV rule's same-file check).
+func callsCSPRNG(body syntax.Node) bool {
+	found := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		if found {
+			return false
+		}
+		var name string
+		switch c := n.(type) {
+		case *syntax.FuncCall:
+			if nm, ok := c.Name.(*syntax.Name); ok {
+				name = nm.Value[strings.LastIndexByte(nm.Value, '\\')+1:]
+			}
+		case *syntax.MethodCall:
+			if id, ok := c.Name.(*syntax.Identifier); ok {
+				name = id.Value
+			}
+		case *syntax.StaticCall:
+			if id, ok := c.Name.(*syntax.Identifier); ok {
+				name = id.Value
+			}
+		}
+		switch strings.ToLower(name) {
+		case "random_bytes", "openssl_random_pseudo_bytes", "mcrypt_create_iv":
+			found = true
+		}
+		return !found
+	})
+	return found
+}
+
+// storedParams reports whether constructor m only stores its parameters
+// (each statement `$this->prop = $param;`, promoted parameters aside) and
+// the properties it sets that way.
+func storedParams(m *syntax.Method) (bool, []string) {
+	if m.Body == nil {
+		return false, nil
+	}
+	params := map[string]bool{}
+	var props []string
+	for _, p := range m.Params {
+		params[p.Var.Name] = true
+		if len(p.Modifiers) > 0 {
+			props = append(props, p.Var.Name)
+		}
+	}
+	for _, st := range m.Body.Stmts {
+		es, ok := st.(*syntax.ExprStmt)
+		if !ok {
+			return false, nil
+		}
+		a, ok := es.Expr.(*syntax.Assign)
+		if !ok || a.Op.Kind != syntax.TEqual || a.ByRef {
+			return false, nil
+		}
+		pf, ok := a.Var.(*syntax.PropertyFetch)
+		if !ok || pf.NullSafe {
+			return false, nil
+		}
+		this, ok := pf.Var.(*syntax.Variable)
+		id, ok2 := pf.Name.(*syntax.Identifier)
+		v, ok3 := syntax.UnwrapParens(a.Value).(*syntax.Variable)
+		if !ok || !ok2 || !ok3 || this.Name != "this" || v.NameExpr != nil || !params[v.Name] {
+			return false, nil
+		}
+		props = append(props, id.Value)
+	}
+	return true, props
+}
+
 // promotes reports whether a constructor parameter list promotes a
 // property (a modifier on a parameter).
 func promotes(ps []*syntax.Param) bool {
@@ -608,6 +679,12 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 		Abstract: m.Modifiers.Has(syntax.TAbstract) || c.Kind == syntax.KindInterface, Final: m.Modifiers.Has(syntax.TFinal),
 		ByRef: m.ByRef, Params: x.params(m.Params, d, at), Span: m.Span(),
 		Avail: x.avail(m.Attrs, d), EmptyBody: m.Body != nil && len(m.Body.Stmts) == 0 && !promotes(m.Params),
+	}
+	if strings.EqualFold(m.Name.Value, "__construct") {
+		meth.StoresParams, meth.Stores = storedParams(m)
+	}
+	if m.Body != nil {
+		meth.CSPRNG = callsCSPRNG(m.Body)
 	}
 	meth.Return, meth.RetVer = x.returnType(m.ReturnType, m.Attrs, at)
 	if d != nil {
@@ -657,7 +734,7 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 		fqn = ns + `\` + fqn
 	}
 	fn := &Function{FQN: fqn, Params: x.params(n.Params, d, at), ByRef: n.ByRef,
-		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d)}
+		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d), CSPRNG: callsCSPRNG(n.Body)}
 	fn.Return, fn.RetVer = x.returnType(n.ReturnType, n.Attrs, at)
 	if d != nil {
 		fn.DocReturn = x.docTypeStr(d.ReturnType(), at)

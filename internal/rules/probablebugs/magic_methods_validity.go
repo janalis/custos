@@ -364,12 +364,45 @@ func (c *magicCheck) callsParent() {
 			return true
 		})
 	}
-	if called {
+	if called || (pm.StoresParams && c.setsAll(pm.Stores)) {
 		return
 	}
 	declaring := strings.TrimPrefix(pm.Class, `\`)
 	declaring = util.LastNamePart(declaring)
 	c.report(c.name + " does not call " + declaring + "::" + c.name + "().")
+}
+
+// setsAll reports whether the method sets every property of props itself
+// (`$this->p = …` anywhere in its body, or a promoted parameter p): a
+// parent constructor that only stores its parameters into those
+// properties has nothing left to do (custos, see Divergences).
+func (c *magicCheck) setsAll(props []string) bool {
+	set := map[string]bool{}
+	for _, p := range c.m.Params {
+		if len(p.Modifiers) > 0 {
+			set[p.Var.Name] = true
+		}
+	}
+	if c.m.Body != nil {
+		syntax.Inspect(c.m.Body, func(n syntax.Node) bool {
+			if a, ok := n.(*syntax.Assign); ok {
+				if pf, ok := a.Var.(*syntax.PropertyFetch); ok {
+					if v, ok := pf.Var.(*syntax.Variable); ok && v.Name == "this" {
+						if id, ok := pf.Name.(*syntax.Identifier); ok {
+							set[id.Value] = true
+						}
+					}
+				}
+			}
+			return true
+		})
+	}
+	for _, p := range props {
+		if !set[p] {
+			return false
+		}
+	}
+	return true
 }
 
 // normaliseMagicType maps self to the containing class and typed arrays

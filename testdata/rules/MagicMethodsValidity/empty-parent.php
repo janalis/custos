@@ -18,7 +18,7 @@ class PromotingBase
 }
 class FromPromoting extends PromotingBase
 {
-    public function <error descr="__construct does not call PromotingBase::__construct().">__construct</error>() { $this->id = 1; }
+    public function __construct() { $this->id = 1; } // sets what the parent would
 }
 class WorkingBase
 {

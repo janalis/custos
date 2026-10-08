@@ -93,9 +93,13 @@ type Function struct {
 	Avail      Avail       `json:"a,omitempty"`
 	// Builtin marks a declaration of the embedded stubs (set when they are
 	// loaded): its documented types describe PHP itself, not user PHPDoc.
-	Builtin bool        `json:"-"`
-	File    string      `json:"-"`
-	Span    syntax.Span `json:"-"`
+	Builtin bool `json:"-"`
+	// CSPRNG is set when the body calls a cryptographically secure
+	// generator by name (random_bytes, openssl_random_pseudo_bytes,
+	// mcrypt_create_iv): an IV wrapper usable from other files.
+	CSPRNG bool        `json:"csprng,omitempty"`
+	File   string      `json:"-"`
+	Span   syntax.Span `json:"-"`
 }
 
 // Method is a class member function.
@@ -128,6 +132,14 @@ type Method struct {
 	// __construct() {}`): calling it does nothing. Never set for builtins
 	// (stub bodies are empty placeholders).
 	EmptyBody bool `json:"empty,omitempty"`
+	// StoresParams is set for a project constructor that only stores its
+	// parameters: every statement is `$this->prop = $param;` (a parameter
+	// of the constructor, plain `=`), besides promoted parameters; Stores
+	// lists the properties it sets (assigned or promoted). Never set for
+	// builtins.
+	StoresParams bool     `json:"stores,omitempty"`
+	CSPRNG       bool     `json:"csprng,omitempty"` // see Function.CSPRNG
+	Stores       []string `json:"storesProps,omitempty"`
 	// Magic marks a method declared only by a class `@method` tag: a real
 	// declaration in the class or its ancestors wins over it (FindMethod).
 	Magic   bool        `json:"magic,omitempty"`

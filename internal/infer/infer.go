@@ -366,6 +366,38 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	return types.Unknown
 }
 
+// sealedComputedDim types an element read with a computed key on an empty
+// literal array: one of the values written into it since (a missing key
+// reads null with a warning, which is not added, as for `T[]` elements). Unknown with an unknown write; ok is false for
+// another type, or nothing known.
+func (e *Env) sealedComputedDim(ct types.Type, n *syntax.ArrayDimFetch) (types.Type, bool) {
+	// (A literal key on a sealed shape is shapeDim's: dimType asks it
+	// first.) Only an empty literal: with listed keys, any of their values
+	// may be read, a union rules would distrust.
+	if !ct.IsSealedShape() || len(ct.ShapeKeys()) > 0 || n.Dim == nil || !ct.Without("null").IsArrayLike() {
+		return types.Unknown, false
+	}
+	el := e.widenElem(types.Of("never"), n) // the values written since
+	if el.IsUnknown() || el.OnlyOf("never") {
+		return types.Unknown, false
+	}
+	if v := asVariable(n.Var); v != nil {
+		if ws, _ := e.reachingWrites(v); slices.ContainsFunc(ws, func(w *elemWrite) bool { return w.nested }) {
+			// `$by[$k][] = $row`: the stored arrays grew since.
+			el = el.WithoutArrayInfo()
+		}
+	}
+	return el, true
+}
+
+// asVariable returns x as a plain variable (nil otherwise).
+func asVariable(x syntax.Expr) *syntax.Variable {
+	if v, ok := syntax.UnwrapParens(x).(*syntax.Variable); ok && v.Name != "" && v.Name != "this" {
+		return v
+	}
+	return nil
+}
+
 // dimType is the type of element read n before narrowing.
 func (e *Env) dimType(n *syntax.ArrayDimFetch) types.Type {
 	ct := e.baseType(n.Var)
@@ -373,6 +405,9 @@ func (e *Env) dimType(n *syntax.ArrayDimFetch) types.Type {
 		return types.Unknown
 	}
 	if t, ok := e.shapeDim(ct, n); ok {
+		return t
+	}
+	if t, ok := e.sealedComputedDim(ct, n); ok {
 		return t
 	}
 	// X[]|null (or |false: a failed builtin) indexes to X; a plain `array`
@@ -529,7 +564,19 @@ func (e *Env) compoundType(n *syntax.Assign) types.Type {
 		}
 		return types.Unknown
 	case syntax.TCoalesceEqual:
-		return types.Union(e.TypeOf(n.Var).Without("null"), e.TypeOf(n.Value))
+		lt := e.TypeOf(n.Var)
+		if d, ok := syntax.UnwrapParens(n.Var).(*syntax.ArrayDimFetch); ok && lt.IsUnknown() {
+			// `$by[$k] ??= []` on a literal array no write has filled yet:
+			// the key is absent, the result is the new value.
+			if v := asVariable(d.Var); v != nil && d.Dim != nil {
+				if ct := e.baseType(v); ct.IsSealedShape() && len(ct.ShapeKeys()) == 0 {
+					if ws, _ := e.reachingWrites(v); len(ws) == 0 {
+						return e.TypeOf(n.Value)
+					}
+				}
+			}
+		}
+		return types.Union(lt.Without("null"), e.TypeOf(n.Value))
 	case syntax.TAndEqual, syntax.TOrEqual, syntax.TXorEqual:
 		return e.bitwise(n.Var, n.Value)
 	default: // %=, <<=, >>= (syntax.TokenKind.IsAssignOp lists every compound operator)
@@ -919,6 +966,9 @@ func (e *Env) funcCallType(n *syntax.FuncCall) types.Type {
 		return types.Unknown
 	}
 	t := e.declCallType(f, n)
+	if st, ok := e.safeCallType(f, n, t); ok {
+		return st
+	}
 	if decls := e.Index.FunctionDecls(f.FQN, e.PHP); len(decls) > maxFuncDecls {
 		return types.Unknown // hostile: thousands of declarations of one name
 	} else if len(decls) > 1 {
@@ -933,6 +983,46 @@ func (e *Env) funcCallType(n *syntax.FuncCall) types.Type {
 		t = types.Union(ts...)
 	}
 	return t
+}
+
+// safeCallType types a call to thecodingmachine/safe's `Safe\X`, which
+// wraps the builtin X and throws where X returns false (and, for the preg_
+// functions, null): the builtin's type for these arguments without false
+// (and null), unless the Safe declaration's own type t is narrower.
+func (e *Env) safeCallType(f *index.Function, n *syntax.FuncCall, t types.Type) (types.Type, bool) {
+	ns, base, ok := strings.Cut(f.FQN, `\`)
+	if !ok || !strings.EqualFold(ns, "safe") || strings.Contains(base, `\`) {
+		return types.Unknown, false
+	}
+	b := e.Index.Function(base, e.PHP)
+	if b == nil || !b.Builtin {
+		return types.Unknown, false
+	}
+	bt, ok := e.overrideType(n, &syntax.Name{Value: `\` + base})
+	if !ok {
+		bt = e.declCallType(b, n)
+	}
+	drop := []string{"false"}
+	if strings.HasPrefix(strings.ToLower(base), "preg_") || (!t.IsUnknown() && !t.Has("null")) {
+		drop = append(drop, "null")
+	}
+	if nt := bt.Without(drop...); len(nt.Atoms()) > 0 {
+		bt = nt
+	}
+	if bt.IsUnknown() {
+		return types.Unknown, false
+	}
+	if f.Return == "" && f.DocReturn == "" {
+		return bt, true // the wrapper's body says nothing about its contract
+	}
+	if !t.IsUnknown() && !t.Has("mixed") {
+		for _, a := range bt.Atoms() {
+			if !e.atomIn(a, t) {
+				return types.Unknown, false // the Safe declaration knows better
+			}
+		}
+	}
+	return bt, true
 }
 
 // maxFuncDecls caps the declarations of one function a call unions (see
@@ -1013,6 +1103,25 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 	case "max", "min":
 		if t, ok := e.maxMinType(n); ok {
 			return t, true
+		}
+	case "pathinfo":
+		// One PATHINFO_* flag returns that part as a string, none the
+		// array of parts.
+		if len(n.Args.Args) == 1 && arg(0) != nil {
+			return types.Array, true
+		}
+		if c, ok := syntax.UnwrapParens(arg(1)).(*syntax.ConstFetch); ok && strings.HasPrefix(strings.ToUpper(strings.TrimPrefix(c.Name.Value, `\`)), "PATHINFO_") {
+			return types.String, true
+		}
+	case "gettimeofday":
+		// gettimeofday(true) is a float, else the array of parts.
+		switch {
+		case len(n.Args.Args) == 0:
+			return types.Array, true
+		case constLiteral(arg(0)) == "true":
+			return types.Float, true
+		case constLiteral(arg(0)) == "false":
+			return types.Array, true
 		}
 	case "var_export", "print_r":
 		if t, ok := printReturn(fqn, arg(1), len(n.Args.Args)); ok {
@@ -1275,9 +1384,9 @@ type scopeVars struct {
 	// exits lists the exit regions of the scope (lazy, see exitRegions).
 	exits     []exitRegion
 	exitsDone bool
-	// clobbers holds the positions of extract(), one-argument parse_str()
-	// and `$$name = …` writes, which may set any local (see noteDynamic);
-	// dynamic is also set by include/require (which may define locals).
+	// clobbers holds the positions of extract(), one-argument parse_str(),
+	// `$$name = …` writes and include/require, which may set any local
+	// (see noteDynamic); dynamic is set by any of them.
 	clobbers []uint32
 	dynamic  bool
 }

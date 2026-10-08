@@ -208,17 +208,28 @@ func (e *Env) builtinOutType(kind outKind, al *syntax.ArgList, v *syntax.Variabl
 	case outString:
 		return func() types.Type { return types.String }
 	case outMatches, outMatchesAll:
-		// With flags (PREG_OFFSET_CAPTURE, PREG_UNMATCHED_AS_NULL,
-		// PREG_SET_ORDER…) the entries change shape: plain array.
-		flags := len(al.Args) > 3
+		// Unmatched groups are '' (trailing ones absent) without flags;
+		// PREG_UNMATCHED_AS_NULL makes them null. Other flags
+		// (PREG_OFFSET_CAPTURE, PREG_SET_ORDER…) change the entries'
+		// shape: plain array.
+		el := "string"
+		if len(al.Args) > 3 {
+			switch matchFlags(al.Args[3]) {
+			case "0":
+			case "preg_unmatched_as_null":
+				el = "(string|null)"
+			default:
+				el = ""
+			}
+		}
 		return func() types.Type {
 			switch {
-			case flags:
+			case el == "":
 				return types.Array
 			case kind == outMatches:
-				return types.Of("string[]")
+				return types.FromDoc(el+"[]", nil)
 			}
-			return types.Of("string[][]")
+			return types.FromDoc(el+"[][]", nil)
 		}
 	case outAppendLines:
 		// exec() appends to an array (a non-array becomes one): the lines
@@ -274,4 +285,22 @@ func unconditionalBlock(call syntax.Expr) syntax.Span {
 		}
 		return syntax.Span{}
 	}
+}
+
+// matchFlags names the flags argument of preg_match(): "0" for a literal 0,
+// the lower-case constant name for a single constant, "" otherwise.
+func matchFlags(x syntax.Expr) string {
+	a, ok := x.(*syntax.Arg)
+	if !ok || a.Name != nil || a.Unpack {
+		return ""
+	}
+	switch v := syntax.UnwrapParens(a.Value).(type) {
+	case *syntax.Literal:
+		if v.Raw == "0" {
+			return "0"
+		}
+	case *syntax.ConstFetch:
+		return strings.ToLower(strings.TrimPrefix(v.Name.Value, `\`))
+	}
+	return ""
 }

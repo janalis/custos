@@ -691,8 +691,8 @@ MultipleReturnStatements, NonSecureUniqidUsage, ForgottenDebugOutput
 fixes trusted from `@return string` (Dolibarr's GETPOST), AutoloadingIssues
 on FreshRSS controllers and Roundcube actions, FixedTimeStartWith,
 UnSafeIsSetOverArray, NestedTernaryOperator — decided earlier or noise by
-design. Engine-level causes found by the review (reported to the engine
-work, not fixed here): *index body facts* — MagicMethodsValidity "does not
+design. Engine-level causes found by the review (since fixed, Engine
+section "Review round 6 engine causes"): *index body facts* — MagicMethodsValidity "does not
 call parent::__construct()" on parents whose constructor only stores its
 parameters (`$this->db = $db;`) or promotes them in an empty body, when
 the child does the same (about 280 of Dolibarr's 424 errors: DolibarrModules,
@@ -1594,6 +1594,64 @@ rejected) is fixed; see the close-tag note above.
     `BenchmarkTypeOfConditions` +15 % allocations (chain joins), the other
     infer benchmarks within 1 %. Probe `TestPossiblyUndefinedBounded`
     (20k reads after 20k guarded ifs, 20k `extract()` calls): 0.4 s.
+- **Review round 6 engine causes (2026-10-08):** the seven engine requests
+  of the Firefly III/Monica/Bagisto/Dolibarr/Roundcube/FreshRSS review.
+  - *Parameter-storing constructors:* `Method.StoresParams` / `Stores`: a
+    project constructor whose every statement is `$this->prop = $param;`
+    (plus promoted parameters) and the properties it sets. MagicMethodsValidity
+    no longer asks for `parent::__construct()` when the parent constructor
+    only stores its parameters and the child sets every one of those
+    properties itself (assignment anywhere in its body, or promotion);
+    spec Divergence, fixture `storing-parent.php`.
+  - *CSPRNG wrappers across files:* `Function.CSPRNG` / `Method.CSPRNG`
+    record a body calling random_bytes, openssl_random_pseudo_bytes or
+    mcrypt_create_iv; EncryptionInitializationVectorRandomness accepts such
+    a wrapper from another file (companion fixture, spec Divergence).
+  - *thecodingmachine/safe:* a call to `Safe\X` with a builtin X is typed
+    like X for these arguments, without false (Safe throws instead) and,
+    for the preg_ functions or when the Safe declaration excludes it, null;
+    a narrower documented Safe type wins; an undocumented body is ignored
+    (both typers).
+  - *include/require* count as dynamic writes: a later read of a local
+    defined before them (or in a loop holding them) is unknown.
+  - *Casting typer back edges:* outside SpecOnly, the T-rules typer adds the
+    definitions later in a loop around the read (Env's back-edge
+    definitions), so `foreach (…) { (int) $n; $n = (string) $r; }` sees
+    `int|string`.
+  - *Builtins and narrowing:* `pathinfo($f, PATHINFO_*)` is a string
+    (array without flag), `gettimeofday()` an array (`true`: float);
+    `$x[$k] ??= v` on an empty literal no write filled yet is v, and a
+    computed-key read of an empty literal is typed by the values written
+    since (non-empty literals stay unknown: a union of their values reads
+    as noise); a type check that every known member fails (`!is_object($o)`
+    on a `@var Foo`) leaves the branch unknown instead of the refuted type;
+    preg_match()'s `$matches` is `string[]` without flags or with `0`
+    (unmatched groups are `''`, trailing ones absent), `(string|null)[]`
+    with `PREG_UNMATCHED_AS_NULL` (preg_match_all likewise, one level
+    deeper), plain `array` with other flags.
+  - *Definitions dominating a read inside a condition:* a definition in the
+    left operand of && / || (or the condition of the if/while whose body
+    holds the read) that always runs when the read runs — the && operands
+    when the condition is true, the || ones when false, never a ?? right
+    side, ternary branch or match arm — hides the definitions made before
+    (`dropDominated`: `preg_match(…, $m, 0) && isset($t[$m[1]])` no longer
+    unions an earlier preg_match_all() `$m`).
+  - *Reaching definitions performance:* the kill of earlier definitions in
+    the same block popped a suffix of the reaching list instead of
+    filtering it per definition (quadratic: 400 definitions per variable
+    read 20k times took 10 s, now 5 s, the rest being the union of up to
+    400 reaching types per read); `TestReachingScales` checks that 4x the
+    reads costs under 8x (measured ~4.7x).
+  - *Deltas* (old = HEAD a031675, default / `--all`): corpus A src, corpus B
+    and corpus C unchanged; Symfony −2 / −6: 4 OffsetOperations float-index
+    reports in AbstractUnicodeString removed because a `require` of a data
+    file sits in the loop around them (conservative: an include may reset
+    locals), 2 UnnecessaryCasting `(int) max(…)` in AnsiUtils removed
+    because the casting typer now sees the loop's later `+=` writes of
+    unknown type (conservative).
+  - *Cost:* corpus A vendor `analyse --all` real time unchanged (medians 1.18
+    s both), user +2 %; infer benchmarks within 1 % allocations except
+    `BenchmarkTypeOfConditions` −6 %.
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.

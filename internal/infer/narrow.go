@@ -1024,7 +1024,10 @@ func narrowAtoms(t types.Type, atoms []string, truthy bool) types.Type {
 			}
 			return types.Of(atoms...)
 		}
-		return t
+		// Every known member fails: a branch the types say is impossible
+		// (often a PHPDoc type that does not hold, `!is_object($x)` on a
+		// `@var Foo`): unknown rather than the refuted type.
+		return types.Unknown
 	}
 	return t.Without(drop...) // keeps array facts (shapes) of the remaining members
 }

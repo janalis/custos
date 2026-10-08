@@ -9,8 +9,8 @@ import (
 
 // Dynamic writes and possibly undefined variables.
 //
-// extract(), parse_str() with one argument and `$$name = …` may set any
-// local variable: a read after one of them (in its block or later, or
+// extract(), parse_str() with one argument, `$$name = …` and include /
+// require (the included file runs in the scope) may set any local variable: a read after one of them (in its block or later, or
 // anywhere in a loop holding both) of a variable defined before it is
 // unknown. A variable that only plain `=` assignments define, read on a
 // path that assigns it nowhere, is null there (PHP warns and reads null).
@@ -40,6 +40,8 @@ func (e *Env) noteDynamic(n syntax.Node, sv *scopeVars) {
 			sv.dynamic = true
 		}
 	case *syntax.Include:
+		// The included file runs in this scope and may reassign any local.
+		sv.clobbers = append(sv.clobbers, n.Span().Start)
 		sv.dynamic = true
 	}
 }

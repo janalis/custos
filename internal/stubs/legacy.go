@@ -42,7 +42,7 @@ func markBuiltin(files []*index.FileSymbols) {
 		}
 		for _, c := range f.Classes {
 			for _, m := range c.Methods {
-				m.Builtin, m.EmptyBody = true, false
+				m.Builtin, m.EmptyBody, m.StoresParams = true, false, false
 			}
 			for _, p := range c.Props {
 				p.Builtin = true

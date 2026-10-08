@@ -127,3 +127,8 @@ class Box
   assignments that reach the call, plus the parameter default when the
   entry value reaches it (`util.PossibleValuesReaching`); other arguments
   keep D3.
+- **Wrappers in other files (custos diverges).** D5 also accepts a
+  wrapper declared in another file of the project: the index records
+  whether a function or method body calls a secure generator by name, so
+  `openssl_encrypt(…, make_iv(16))` with `make_iv()` returning
+  `random_bytes()` elsewhere is not reported.

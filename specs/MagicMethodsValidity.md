@@ -342,3 +342,12 @@ interface Printable { public function __toString(); }
   `$this->_construct()`, Magento models and blocks) or when the file calls
   the method by name (`$this->_get($k)`, `$this->_call($args)`): they are
   deliberate hooks, not misspelt magic methods.
+- **Parent constructors that only store their parameters (custos
+  diverges).** C-parent does not report a constructor whose parent
+  constructor only stores its parameters (every statement is `$this->p =
+  $param;`, plus promoted parameters) when the constructor itself sets every
+  one of those properties (`$this->p = …` anywhere in its body, or a
+  promoted parameter of that name): calling the parent would only store
+  values the child overwrites or sets itself (Dolibarr's `$this->db = $db`
+  pattern, ~280 reports). A parent constructor doing anything else, or a
+  child leaving one of its properties unset, is still reported.
