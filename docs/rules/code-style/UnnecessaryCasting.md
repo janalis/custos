@@ -16,7 +16,7 @@ Dropping it simplifies the expression.
 
 ## Example
 
-```php{9,10,11,12,13,14,16,23,37,39,48,49,54}
+```php{9,10,11,12,13,14,16,23,37,39,48,50,55}
 <?php
 $text  = 'abc';
 $list  = [1];
@@ -63,9 +63,10 @@ class Meter {
     }
 }
 
-function joins($a, $b) {
+function joins(string $a, int $b, ?string $c, $d, \Stringable $e, string|false $f) {
     $a .= (string) $b;
-    return 'n=' . (string)$b;
+    $a .= (string) $c . (string) $d . (string) $e . (string) $f . (string) true;
+    return 'n=' . (string)$b . (string) 2.5;
 }
 
 function stamps() {
@@ -91,8 +92,8 @@ Reported:
 <li>line 37: Operand already has the target type; remove the cast.</li>
 <li>line 39: Operand already has the target type; remove the cast.</li>
 <li>line 48: Concatenation converts to string anyway; remove the cast.</li>
-<li>line 49: Concatenation converts to string anyway; remove the cast.</li>
-<li>line 54: Operand already has the target type; remove the cast.</li>
+<li>line 50: Concatenation converts to string anyway; remove the cast.</li>
+<li>line 55: Operand already has the target type; remove the cast.</li>
 </ul>
 
 ## Configure
