@@ -79,6 +79,9 @@ func uaCheckTyped(ctx *analysis.Context, c puCall) {
 	if len(vals) != 1 {
 		return
 	}
+	if uaNullSafeChain(vals[0]) { // E4b (custos)
+		return
+	}
 	t, ok := uaDeclaredReturn(ctx, vals[0]) // D3–D5
 	if !ok || len(t.Atoms()) != 1 {
 		return
@@ -112,6 +115,30 @@ func uaCheckTyped(ctx *analysis.Context, c puCall) {
 		}
 	}
 	ctx.ReportNode(c.Node, uaTypedMsg)
+}
+
+// uaNullSafeChain reports whether a nullsafe access (`?->`) anywhere in
+// e's member-access chain can short-circuit the whole chain to null, whatever
+// the final method declares (`$r->find()?->sidebar()`).
+func uaNullSafeChain(e syntax.Expr) bool {
+	for {
+		switch x := e.(type) {
+		case *syntax.MethodCall:
+			if x.NullSafe {
+				return true
+			}
+			e = x.Var
+		case *syntax.PropertyFetch:
+			if x.NullSafe {
+				return true
+			}
+			e = x.Var
+		case *syntax.ArrayDimFetch:
+			e = x.Var
+		default:
+			return false
+		}
+	}
 }
 
 // uaDeclaredReturn resolves a function/method call to its declaration and

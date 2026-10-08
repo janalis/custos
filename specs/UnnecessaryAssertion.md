@@ -123,6 +123,9 @@ parentheses stripped first):
 - **E4** Values that are not resolvable calls, calls to functions without a
   declared return type, calls whose inferred type is nullable, a union, or
   unknown.
+- **E4b** (custos) Calls reached through a nullsafe access anywhere in
+  their chain (`$r->find()?->bag()`, `$r?->owner->bag()`): the chain
+  yields `null` when it short-circuits, whatever the last call declares.
 - **E5** `assertNull`/`assertEmpty` on a non-`void` call;
   `assertInternalType` whose type name is not a literal, is not a PHPUnit
   internal type, or is not guaranteed by the declared type;
@@ -272,6 +275,11 @@ abstract class CartTest
   function declared `: resource` returns an object and
   `assertInternalType('resource', f())` is not redundant; custos never
   reports the `resource` type name.
+- **Nullsafe chains (custos diverges, E4b).** Upstream reads the declared
+  return type of the last call only, so
+  `$s = $this->regions->find('x')?->sidebar(); $this->assertInstanceOf(Sidebar::class, $s);`
+  was called redundant although `$s` is `null` whenever `find()` returns
+  `null`. custos skips values whose access chain contains `?->`.
 - **Case of method names (custos diverges from upstream).** Upstream
   compares the assertion, `expects` and `any` names case-sensitively, so
   `$this->AssertNull($this->clear())` is not reported although PHP calls the
