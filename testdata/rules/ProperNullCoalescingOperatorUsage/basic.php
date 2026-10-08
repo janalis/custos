@@ -16,7 +16,7 @@ class Garage {
             <weak_warning descr="'$this->lookup()' alone is equivalent; drop the '?? null' fallback.">$this->lookup() ?? null</weak_warning>,
             <weak_warning descr="'strrev($label)' alone is equivalent; drop the '?? null' fallback.">strrev($label) ?? NULL</weak_warning>,
             <weak_warning descr="Operand types of '??' do not match ([\Engine] vs [string]).">$this->engine ?? 'none'</weak_warning>,
-            <weak_warning descr="Operand types of '??' do not match ([int] vs [string]).">$n ?? 'n/a'</weak_warning>,
+            $n ?? 'n/a',                    // scalar placeholder (D5a)
             $this->engine ?? null,
             $label ?? null,
             $t ?? $e,

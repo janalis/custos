@@ -81,7 +81,7 @@ func (r properNullCoalescingOperatorUsage) Check(ctx *analysis.Context, n syntax
 			}
 		}
 	}
-	if complementary || r.related(ctx, lt, rt) {
+	if complementary || pncoScalarOnly(lt) && pncoScalarOnly(rt) || r.related(ctx, lt, rt) || r.iterable(ctx, lt) && r.iterable(ctx, rt) {
 		return
 	}
 	ctx.Report(b.Span(), "Operand types of '??' do not match ("+pncoSetString(lt)+" vs "+pncoSetString(rt)+").")
@@ -168,6 +168,29 @@ func (properNullCoalescingOperatorUsage) related(ctx *analysis.Context, lt, rt m
 		return false
 	}
 	return lt["callable"] && invokable(rt) || rt["callable"] && invokable(lt)
+}
+
+// pncoScalarOnly reports whether every type of the set is a scalar (D5a).
+func pncoScalarOnly(set map[string]bool) bool {
+	for t := range set {
+		switch t {
+		case "int", "float", "string", "bool":
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+// iterable reports whether the set holds a member of the iterable family:
+// array, \Traversable or one of its implementors (D5b).
+func (properNullCoalescingOperatorUsage) iterable(ctx *analysis.Context, set map[string]bool) bool {
+	for t := range set {
+		if t == "array" || strings.HasPrefix(t, `\`) && ctx.Index().IsSubtype(t, `\Traversable`, ctx.PHP) {
+			return true
+		}
+	}
+	return false
 }
 
 func pncoSetString(s map[string]bool) string {

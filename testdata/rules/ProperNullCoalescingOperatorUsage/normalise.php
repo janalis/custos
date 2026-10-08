@@ -20,7 +20,7 @@ class Plain
             <weak_warning descr="Operand types of '??' do not match ([callable] vs [string]).">$c ?? 'strlen'</weak_warning>,
             $c ?? fn() => 1,
             $flag ?? true,
-            <weak_warning descr="Operand types of '??' do not match ([bool] vs [int]).">$flag ?? 0</weak_warning>,
+            $flag ?? 0,                     // scalar-only sides (D5a)
         ];
     }
 }
