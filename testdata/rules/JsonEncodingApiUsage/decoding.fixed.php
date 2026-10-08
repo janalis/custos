@@ -6,6 +6,7 @@ function load(string $body, string $alt) {
     $b = \json_decode(trim($alt), true);
     $c = json_decode($body, false);
     $d = json_decode($body, associative: true);
+    $f = json_decode($body, depth: 8, associative: true);
     $e = json_decode();
-    return [$a, $b, $c, $d, $e];
+    return [$a, $b, $c, $d, $e, $f];
 }

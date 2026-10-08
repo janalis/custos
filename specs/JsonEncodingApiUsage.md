@@ -104,32 +104,49 @@ The fix replaces the whole call with newly built text. `NS` is the namespace
 qualifier exactly as written before the function name (`\` for
 `\json_decode(...)`, empty for an unqualified call). Argument texts are the
 argument expressions' source text (without any `name:` label). Separators are
-exactly `, `.
+exactly `, `. `C` is the spelling of `JSON_THROW_ON_ERROR` chosen by F6. F1b,
+F4 and F5 edit the call in place instead of replacing it.
 
 - **F1** (kind T) `NS json_decode(<arg0>, <bool>)` where `<arg0>` is the first
   argument's text and `<bool>` is `true` when `DECODE_AS_ARRAY` is on, else
   `false`. All other arguments are dropped (see Divergences).
   `json_decode($raw)` → `json_decode($raw, true)` (with DECODE_AS_ARRAY on).
-- **F2** (kind E, `json_decode`) only when there is **no** named argument
-  `flags:`; result
+- **F1b** (kind T, custos) When the call passes an argument by name, the
+  fix instead appends `, associative: <bool>` after the last argument and
+  keeps every argument: `json_decode($raw, depth: 8)` →
+  `json_decode($raw, depth: 8, associative: true)`.
+- **F2** (kind E, `json_decode`) only when **no** argument is passed by
+  name; result
   `NS json_decode(<json>, <assoc>, <depth>, <flags>)`:
   - `<json>`: text of argument `json`/position 0;
   - `<assoc>`: text of argument `associative`/position 1 if present, else
     `true` when `HARDEN_DECODING_RESULT_TYPE` and `DECODE_AS_ARRAY` are both
     on, else `false`;
   - `<depth>`: text of argument `depth`/position 2 if present, else `512`;
-  - `<flags>`: `JSON_THROW_ON_ERROR` if there is no flags argument, else
-    `JSON_THROW_ON_ERROR | ` + flags text.
+  - `<flags>`: `C` if there is no flags argument, else `C | ` + flags
+    text, the flags text in parentheses when it binds more loosely than
+    `|` (logical operators, `??`, ternary, assignment, `yield`, `print`,
+    `include`, `throw`, arrow function).
   `json_decode($raw, true, 64, $mode)` →
-  `json_decode($raw, true, 64, JSON_THROW_ON_ERROR | $mode)`.
-- **F3** (kind E, `json_encode`) only when there is no named `flags:`
-  argument; result `NS json_encode(<value>, <flags>)` when there is no
+  `json_decode($raw, true, 64, JSON_THROW_ON_ERROR | $mode)` (with a bare
+  `C`).
+- **F3** (kind E, `json_encode`) only when no argument is passed by name;
+  result `NS json_encode(<value>, <flags>)` when there is no
   `depth` argument (position 2), else `NS json_encode(<value>, <flags>, <depth>)`,
   with `<flags>` built as in F2.
   `json_encode($row, $mode, 8)` → `json_encode($row, JSON_THROW_ON_ERROR | $mode, 8)`.
-- **F4** With a named `flags:` argument, kind E is reported without a fix.
-- Inserted constant names are unqualified (`JSON_THROW_ON_ERROR`, no `\`),
-  even inside a namespace.
+- **F4** (custos) With a named `flags:` argument, `C | ` is prepended to
+  its value (parenthesised as in F2): `json_encode($v, flags: $m)` →
+  `json_encode($v, flags: C | $m)`.
+- **F5** (custos) With another argument passed by name, `, flags: C` is
+  appended after the last argument and every argument is kept:
+  `\json_decode($x, associative: true)` →
+  `\json_decode($x, associative: true, flags: \JSON_THROW_ON_ERROR)`.
+- **F6** `C` is `\JSON_THROW_ON_ERROR` when the file already writes a global
+  constant with a leading backslash (`\PHP_EOL`; `\true`, `\false` and
+  `\null` do not count), or when a bare name at the call would not reach
+  the global constant (a `use const` import or a constant of that name in
+  the current namespace); otherwise `JSON_THROW_ON_ERROR`.
 
 ## Options
 
@@ -261,13 +278,22 @@ class Exporter {
   and keep the remaining arguments when they are named; produce no fix when
   positional and named arguments make insertion ambiguous. No fixture covers
   it.
-- F2/F3 prepend `JSON_THROW_ON_ERROR | ` to the raw flags text; a
-  low-precedence flags expression (`$c ? A : B`, `$a ?: B`, assignment) would
-  change meaning. Recommendation: parenthesise such flags texts. Not covered
-  by fixtures.
-- F2/F3 rebuild the argument list and drop `name:` labels of other named
-  arguments (e.g. `json_decode(json: $s)` → `json_decode($s, false, 512, …)`),
-  which is still valid. Keep as upstream.
+- **Low-precedence flags are parenthesised (custos diverges, F2–F4).**
+  Prepending `JSON_THROW_ON_ERROR | ` to `$pretty ? JSON_PRETTY_PRINT : 0`
+  gives `(JSON_THROW_ON_ERROR | $pretty) ? JSON_PRETTY_PRINT : 0`, which
+  drops the strict flag and changes the flags; custos writes
+  `JSON_THROW_ON_ERROR | ($pretty ? JSON_PRETTY_PRINT : 0)`.
+- **Named arguments are kept (custos diverges, F1b, F4, F5).** Upstream
+  rebuilds the call positionally, turning `json_decode($x, associative: true)`
+  into `json_decode($x, true, 512, JSON_THROW_ON_ERROR)`, and its result-type
+  fix drops named trailing arguments (`json_decode($s, flags: X)` lost its
+  flags). When the call already uses named arguments, custos appends the
+  missing one by name (or extends the named `flags:` value) and leaves the
+  others untouched.
+- **Constant spelling follows the file (custos diverges, F6).** Upstream
+  always inserts the bare `JSON_THROW_ON_ERROR`, out of place in a file that
+  writes `\JSON_PRETTY_PRINT` or `\PHP_EOL`, and wrong where a namespaced
+  constant of that name would capture the bare name.
 - The numeric check treats a literal `512` as a strict flag; the value equals
   `JSON_PARTIAL_OUTPUT_ON_ERROR`, so it is correct for the flags slot. Keep.
 - With both kinds enabled on the same `json_decode` call, applying both fixes

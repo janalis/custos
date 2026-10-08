@@ -35,6 +35,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   `file_exists()`, …) are no longer considered cheaper than in-memory checks,
   and an operand is no longer moved ahead of a neighbour that narrows one of
   its variables (null/false comparison, `instanceof`, `is_*()`).
+- JsonEncodingApiUsage fixes keep named arguments (appending `flags:` or
+  `associative:` by name), extend a named `flags:` value instead of giving
+  up, parenthesise low-precedence flags (`$p ? A : B` no longer becomes
+  `(JSON_THROW_ON_ERROR | $p) ? A : B`), and write `\JSON_THROW_ON_ERROR`
+  when the file qualifies its global constants.
 
 ## [0.1.0] - 2026-10-08
 
