@@ -9,15 +9,18 @@ php: { min: "", max: "" }
 # IsEmptyFunctionUsage
 
 ## Summary
+
 `empty()` treats many unrelated values (`0`, `'0'`, `''`, `[]`, `null`,
 `false`) as "empty". When the argument's type is known, a precise check is
 clearer: `count(...) === 0` for countables, `... === null` for nullable
 scalars/objects. Optionally, any other `empty()` use can be flagged.
 
 ## Detection
+
 Node: an `empty(...)` construct.
 
 Definitions:
+
 - *S* (subject): the single argument with any number of wrapping parentheses
   removed.
 - *inverted*: the **direct** parent of the `empty(...)` node is a logical-not
@@ -67,6 +70,7 @@ D3. **Generic report** (only when `REPORT_EMPTY_USAGE` is on): reached when
     unknown types, and property accesses whose type does not qualify for D2.
 
 ## Exceptions (no report)
+
 E1. Array element subjects (D0), regardless of options.
 E2. D2-qualifying subjects that go through a property access (guard in D2),
     regardless of `REPORT_EMPTY_USAGE`.
@@ -76,6 +80,7 @@ E4. `?string`, `string|null`, `int|bool|null` (three members), `array|null`,
     D3).
 
 ## Report
+
 - Range:
   - D1/D2 not inverted: the `empty(...)` construct (`empty` through `)`).
   - D1/D2 inverted: the whole `!empty(...)` unary expression (including `!`).
@@ -86,6 +91,7 @@ E4. `?string`, `string|null`, `int|bool|null` (three members), `array|null`,
   - D3: `Prefer a type-specific check over empty().`
 
 ## Fix
+
 The reported range (the `empty(...)` or the `!empty(...)`) is replaced by a
 new expression; `{S}` is the verbatim source text of the subject with its
 wrapping parentheses removed. `{op}` is `===` when not inverted, `!==` when
@@ -101,6 +107,7 @@ namespace) (F1, message included): `\count($rows) === 0`.
 D3 has no fix.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | REPORT_EMPTY_USAGE | bool | false | Enables the generic report D3. |
@@ -112,9 +119,11 @@ Global setting: comparison style (`regular` default / `yoda`) selects the
 operand order of F1/F2.
 
 ## PHP versions
+
 None.
 
 ## Examples
+
 All four options on, regular style:
 
 ```php
@@ -215,6 +224,7 @@ Yoda style, default options: `empty($ratio)` → `null === $ratio`;
 `!empty($when)` → `null !== $when`.
 
 ## Divergences
+
 - The replacement is inserted without parentheses; in a higher-precedence
   context (`'x' . empty($n)`) upstream's output changes meaning. Recommendation:
   wrap the replacement in parentheses when the parent expression binds tighter

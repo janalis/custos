@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # NestedAssignmentsUsage
 
 ## Summary
+
 Chained assignments such as `$x = $y = 5` pack several writes into one
 expression; they are easy to misread and a typo (`=` instead of `+`/`==`)
 silently becomes another assignment. Separate statements are clearer.
 
 ## Detection
+
 - D1: a plain assignment `L = R` (operator `=`, including by-reference `= &`)
   whose right-hand side `R` is itself an assignment expression (directly, not
   through parentheses). `R` may be a plain, by-reference or compound assignment
@@ -26,6 +28,7 @@ silently becomes another assignment. Separate statements are clearer.
   `return`, call arguments, array elements, etc. are all reported.
 
 ## Exceptions (no report)
+
 - E1: the right-hand side is a parenthesised assignment, e.g. `$p = ($q = 1)`.
 - E2: the outermost operator is compound (`$t .= $u = 'x'`): compound
   assignments are never the reported node, and the inner `$u = 'x'` is skipped
@@ -34,12 +37,14 @@ silently becomes another assignment. Separate statements are clearer.
   reported node.
 
 ## Report
+
 - Range: the whole outermost assignment expression, from the start of the first
   left-hand side to the end of the innermost value (excluding a trailing `;`).
 - Severity: info (weak warning).
 - Message: "Split this chained assignment into separate assignments."
 
 ## Fix
+
 Available only when the reported assignment is the entire expression of an
 expression statement (its parent is a statement `…;`). In any other context
 (condition, `return`, argument, …) the issue is reported without a fix.
@@ -66,9 +71,11 @@ Let the chain be `V1 = V2 = … = Vn = E` (n ≥ 2 targets, `E` the innermost va
   chain contains a destructuring assignment (see Divergences).
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -114,6 +121,7 @@ function setup() {
 ```
 
 ## Divergences
+
 - F4: upstream offers the fix also for chains containing a compound or
   by-reference inner link, producing plain `=` statements that change
   semantics (`$a = $b += 1` would become `$b = 1; $a = 1;`, and `= &` loses the

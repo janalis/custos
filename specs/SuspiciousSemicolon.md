@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # SuspiciousSemicolon
 
 ## Summary
+
 A lone `;` used as the body of an `if`/`elseif`/`else` or of a loop makes that
 body empty; the block that follows then runs unconditionally (or only once,
 after the loop). This is nearly always an accidental semicolon.
 
 ## Detection
+
 - **D1** An empty statement: a statement made of the `;` token only (no
   expression, no keyword).
 - **D2** Its direct parent is one of:
@@ -25,6 +27,7 @@ after the loop). This is nearly always an accidental semicolon.
     (`while (f()) ;`, `do ; while ($x);`).
 
 ## Exceptions (no report)
+
 - **E1** Empty statements anywhere else: top level, inside `{ }` blocks,
   after another statement (`f();;`), after `}` (`class A {};`), in `switch`
   case lists. (Those belong to `UnnecessarySemicolon`.)
@@ -33,17 +36,21 @@ after the loop). This is nearly always an accidental semicolon.
   block).
 
 ## Report
+
 - Range: the single `;` character.
 - Severity: error.
 - Message: `This ';' is the entire body of the statement; probably unintended.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -69,6 +76,7 @@ function poll($queue, $ready, $late) {
 ```
 
 ## Divergences
+
 - Alternative syntax (`while ($x): ; endwhile;`, `if ($x): ; endif;`): whether
   the `;` is a direct child of the construct depends on the parser's tree
   shape; upstream behaviour unverified. Recommendation: do not report (the

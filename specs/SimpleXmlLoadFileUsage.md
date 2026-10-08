@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # SimpleXmlLoadFileUsage
 
 ## Summary
+
 `simplexml_load_file()` is affected by a long-standing PHP bug (#62577) where
 loading fails depending on the libxml entity-loader state. Reading the file
 yourself and passing its contents to `simplexml_load_string()` avoids it.
 
 ## Detection
+
 - **D1** A function call (not a method call, not a static call) whose name
   part is `simplexml_load_file`, compared case-insensitively like PHP
   function names (`SimpleXML_Load_File(...)` matches), and which resolves to the global function under PHP's runtime
@@ -24,16 +26,19 @@ yourself and passing its contents to `simplexml_load_string()` avoids it.
 - **D2** The call has at least one argument.
 
 ## Exceptions (no report)
+
 - **E1** `simplexml_load_file()` with no arguments.
 - **E3** Method calls `$x->simplexml_load_file($f)` / `X::simplexml_load_file($f)`.
 
 ## Report
+
 - Range: the whole call expression, from the first character of the name
   (including any namespace qualifier) to the closing `)`.
 - Severity: error.
 - Message: `simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().`
 
 ## Fix
+
 - **F1** Replace the whole call with
   `simplexml_load_string(file_get_contents(A1)REST)` where
   - `A1` is the source text of the first argument, verbatim;
@@ -51,9 +56,11 @@ yourself and passing its contents to `simplexml_load_string()` avoids it.
   `simplexml_load_string(file_get_contents($path), Node::class, LIBXML_NOCDATA)`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating upstream; custos reports only below PHP 8.0 (see Divergences).
 
 ## Examples
@@ -83,6 +90,7 @@ function feeds(string $dir, string $cls, int $flags, string $nsUri) {
 ```
 
 ## Divergences
+
 - **Case of the name (custos diverges from upstream).** Upstream matches
   `simplexml_load_file` case-sensitively, so `SimpleXML_Load_File($f)` —
   the same function for PHP — is not reported. custos compares the name

@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # MktimeUsage
 
 ## Summary
+
 Two legacy `mktime()` / `gmmktime()` usages:
 calling them without arguments just returns the current timestamp (and
 emits an `E_STRICT`/deprecation notice on PHP 5.x/7.x) — `time()` is the
@@ -16,6 +17,7 @@ intended call; and the seventh `$is_dst` argument was deprecated in PHP 5.1
 and removed in PHP 7.0.
 
 ## Detection
+
 Visit every plain function call (not method/static calls).
 
 - **D1** The called name — last segment, compared case-insensitively as PHP
@@ -31,32 +33,39 @@ Visit every plain function call (not method/static calls).
   never treated as a call.
 
 ### No arguments
+
 - **D4** Zero arguments: report the call (pattern A).
 
 ### `is_dst` argument
+
 - **D5** Exactly seven arguments: report the seventh argument (pattern B),
   whatever expression it is (literal, unary `-1`, variable, constant, call…).
 
 ## Exceptions (no report)
+
 - **E1** One to six arguments, or eight or more.
 - **E2** Calls not resolving to the global function (D2).
 - **E3** Other spellings (`MkTime()`), method calls `$x->mktime()`, static
   calls `X::mktime()`.
 
 ## Report
+
 Pattern A
+
 - Range: the whole call, from the function name (including a leading `\` or
   namespace qualifier as written) to the closing `)`.
 - Severity: warning.
 - Message: `Call time() instead; mktime()/gmmktime() without arguments is deprecated.`
 
 Pattern B
+
 - Range: the seventh argument expression exactly (e.g. `-1` including the
   minus sign).
 - Severity: warning (rendered as deprecated/strikethrough).
 - Message: `The is_dst argument is deprecated and was removed in PHP 7.0.`
 
 ## Fix
+
 - **F1** Pattern A only: replace the whole call expression (including any
   leading `\` / qualifier) with `time()`.
   - `mktime()` → `time()`, `\gmmktime()` → `time()`, `gmmktime( )` → `time()`.
@@ -67,9 +76,11 @@ Pattern B
 - Pattern B has no fix.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating: both patterns are reported at every language level (upstream
 does not check the configured version; the `is_dst` report applies
 regardless of whether the target is below 7.0).
@@ -113,6 +124,7 @@ function epoch_values($flag)
 ```
 
 ## Divergences
+
 - **Case of the name (custos diverges from upstream).** Upstream compares
   the written name case-sensitively, so `MKTIME()` is not reported. custos
   matches the name in any case (D1).

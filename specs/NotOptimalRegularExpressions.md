@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # NotOptimalRegularExpressions
 
 ## Summary
+
 A family of checks on PCRE patterns passed to the `preg_*` functions: broken
 or missing delimiters, invalid / pointless / missing modifiers, class
 spellings that have a shorter escape, redundant or backtracking-prone
@@ -19,6 +20,7 @@ faster. Only a few findings carry a fix (the plain-function replacements).
 ## Detection
 
 ### Entry point and pattern extraction
+
 - **D1** A plain function call (not a method or static call) that resolves to
   the global function (names compared case-insensitively, as PHP does; `\` and
   a global `use function` import are fine, but a same-named function declared
@@ -96,12 +98,14 @@ substrings are non-overlapping left-to-right occurrence counts; "line
 terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
 
 ### Missing delimiters
+
 - **D6** D4 fails (invalid delimiter, or no rule matches) and
   `fn` ≠ `preg_quote` → report `L` (warning). No other check runs on that
   literal: `'abca'` and `'1x1'` get only this report (PHP rejects them before
   compiling anything).
 
 ### Modifier checks (run whenever D4 succeeded)
+
 - **D7** `mods` contains `e` → report `L` (error) — the eval modifier is
   gone. Applies to every function in D1 (including `preg_quote`) and at
   every PHP level.
@@ -144,6 +148,7 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
   At most one of D13a/D13b per literal.
 
 ### Body checks (run whenever D4 succeeded)
+
 - **D14** Short class spellings. `body` non-empty. Let `B'` = `body` with all
   occurrences of `a-zA-Z` replaced by `A-Za-z`, then all `0-9A-Za-z` by
   `A-Za-z0-9`. For **each** key below that `B'` contains, one report on `L`
@@ -205,6 +210,7 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
   → report `L` (info).
 
 ### Call checks (only when `C` is not in array mode, once per processed literal)
+
 - **D20** `fn` = `preg_quote` with exactly 1 argument → report `C` (whole
   call; warning: pass the delimiter). Note this is only reached when the
   argument resolved to a literal that parses with D4 (e.g. `'#a.b#'`);
@@ -278,6 +284,7 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
   use the `i` modifier instead.
 
 ## Exceptions (no report)
+
 - **E1** Method/static calls, other function names, differently-cased
   names; calls without arguments.
 - **E2** First argument not resolvable to exactly one string literal;
@@ -296,6 +303,7 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
 - **E7** D23 with a third argument or another wrapper function.
 
 ## Report
+
 | Finding | Range | Severity |
 |---|---|---|
 | D6 | literal `L` (with quotes) | warning |
@@ -309,6 +317,7 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
 
 Several findings on the same literal are independent and all reported
 (multiset). Messages (our wording):
+
 - D6 `Pattern has no valid delimiters.`
 - D7 `The /e flag was removed from PCRE; use a callback replacement.`
 - D8 `'{char}' is not a valid PCRE modifier.`
@@ -333,8 +342,10 @@ Several findings on the same literal are independent and all reported
   case-insensitive.` / `Drop the case conversion and add the /i flag instead.`
 
 ## Fix
+
 Only D22 has a fix. In every case the reported range is replaced by the
 replacement text, verbatim, with no added parentheses:
+
 - **F1** (D22a) `"T" === X1` / `"T" !== X1`.
 - **F2** (D22b) `0 === strpos(X1, "T")`, `0 !== stripos(X1, "T")`, …
 - **F3** (D22c) `false !== strpos(X1, "T")` / `false === stripos(X1, "T")`.
@@ -350,9 +361,11 @@ unqualified call at the reported position would not reach the global
 function (a `use function` import under that name, or a same-named function declared in the current namespace).
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - D8 allowed modifiers: `eimsuxADJSUX` below 8.2; `+n` from 8.2; `+n r` from
   8.4. Upstream fixtures without an explicit level run at the IDE test
   default (between 5.6 and 7.0), i.e. the base set; the `n`/`e`/unknown
@@ -593,6 +606,7 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
 ```
 
 ## Divergences
+
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no candidate, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
 - **D21 range.** The upstream fixture highlights only the function name of
   the `preg_match_all` call although the finding is attached to the whole

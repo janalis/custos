@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # DegradedSwitch
 
 ## Summary
+
 A `switch` with only a `default` branch, or with a single `case` (optionally
 plus `default`), is just an `if` / `if-else` (or plain code) in disguise and
 reads better rewritten that way.
 
 ## Detection
+
 For every `switch` statement (brace form or alternative `switch (...): … endswitch;`
 form), let *C* be the number of `case <expr>:` labels (each `case` label counts
 separately, even when several labels share one body / fall through) and *D*
@@ -27,11 +29,13 @@ Body content of the branches is irrelevant (empty bodies, bodies with only
 `break`, fall-through all count the same).
 
 ## Exceptions (no report)
+
 E1. A `switch` with no labels at all (`switch ($v) {}`).
 E2. Two or more `case` labels, with or without `default` — including two
     labels sharing one body (`case 1: case 2: …`).
 
 ## Report
+
 - Range: the `switch` keyword token only.
 - Severity: info (fixture markup `weak_warning`).
 - Message (per kind):
@@ -40,12 +44,15 @@ E2. Two or more `case` labels, with or without `default` — including two
   - D3: `This switch has a single case and a default; an 'if'/'else' is clearer.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -80,6 +87,7 @@ function route($verb) {
 ```
 
 ## Divergences
+
 - A (deprecated, PHP < 7 only valid) `switch` with two `default` labels and no
   `case` is counted once as "default only"; upstream behaves the same as far
   as can be told. No action.

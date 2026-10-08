@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # ImplodeArgumentsOrder
 
 ## Summary
+
 `implode()` historically accepted its separator in either position; passing the
 pieces first and the separator second is deprecated (7.4) and removed (8.0).
 When the second argument is clearly the separator (a string literal), the
 arguments are swapped.
 
 ## Detection
+
 D1. Node: a plain function call (not a method or static call) that resolves
     to the global function `implode`. The name is compared case-insensitively
     (`IMPLODE`, `Implode` count) and may be written `\implode`; a qualified
@@ -27,6 +29,7 @@ D3. The **second** argument is a string literal (any quoting style, including
 D4. The **first** argument is not a string literal (same definition as D3).
 
 ## Exceptions (no report)
+
 E1. Zero, one, or three-plus arguments.
 E2. Second argument not a string literal (variable, constant, concatenation,
     array, call, …): `implode($glue, $parts)`, `implode($parts, SEP)`.
@@ -38,12 +41,14 @@ E5. Both arguments are string literals (`implode(',', 'a')`): nothing
     the call valid (the pieces must be an array).
 
 ## Report
+
 - Range: the whole call expression, from the first character of the function
   name (including a leading namespace qualifier such as `\`) to the closing `)`.
 - Severity: info (fixtures tag it `weak_warning`).
 - Message: `Pass the separator as the first argument of implode().`
 
 ## Fix
+
 F1. Replace the whole call with
     `{name}({second}, {first})`
     where `{name}` is the function name exactly as written, qualifier and
@@ -53,13 +58,16 @@ F1. Replace the whole call with
     parentheses outside the argument texts are not preserved.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 
 ## PHP versions
+
 None (reported at every level).
 
 ## Examples
+
 ```php
 <?php
 
@@ -83,6 +91,7 @@ $ok4   = join($labels, '-');
 ```
 
 ## Divergences
+
 - Two string literals (custos diverges from upstream). Upstream reports
   `implode('a', 'b')` and swaps the arguments, although the call is already
   in the conventional order and swapping only moves the mistake (a string is

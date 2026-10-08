@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # MagicMethodsValidity
 
 ## Summary
+
 PHP's magic methods (`__get`, `__toString`, `__clone`, …) have fixed contracts:
 static-ness, visibility, number of parameters, return value. Violations are
 fatal errors, silently ignored methods or subtle bugs. This rule validates
@@ -16,7 +17,9 @@ each magic method declared in a class-like, flags `__`-prefixed methods that
 are not magic, and catches magic names typed with a single underscore.
 
 ## Detection
+
 Visit every method declaration that:
+
 - belongs to a class-like (class, trait, interface, enum, anonymous class);
 - has a name identifier;
 - has a name starting with `_`;
@@ -30,6 +33,7 @@ Divergences). Messages show the name as written (`{m}`). Unless stated otherwise
 reports (possibly on the same range).
 
 Building-block checks:
+
 - **C-static** "cannot be static": the method is declared `static`.
 - **C-mstatic** "must be static": the method is not `static`.
 - **C-public** "must be public": the method is `protected` or `private`
@@ -84,6 +88,7 @@ Building-block checks:
   available from V, unused before".
 
 Dispatch:
+
 - **D1** `__construct`: C-static, C-noreturn, and C-parent unless the file is
   a test context (D16).
 - **D2** `__destruct`, `__clone`: C-static, C-noreturn, C-noargs, C-parent.
@@ -129,6 +134,7 @@ Dispatch:
   FQN ends with `Test` or contains `\Tests\` or `\Test\`.
 
 ## Exceptions (no report)
+
 - **E1** Abstract methods and interface methods.
 - **E2** Functions outside class-likes (a global `function __autoload()` is
   not visited).
@@ -143,6 +149,7 @@ Dispatch:
 - **E6** Known non-magic `__` names (D15 list).
 
 ## Report
+
 - Range: the method name identifier, except C-noreturn and the per-return
   branch of C-returns, which highlight the full `return …;` statement.
 - Severity: error for every report (fixtures tag all of them `error`,
@@ -168,14 +175,17 @@ Dispatch:
   - D15 underscore: `'{m}' is not magic; did you mean '_{m}'?`
 
 ## Fix
+
 - **F1** (D15 missing underscore only): prepend one `_` to the method name
   identifier (`_clone` → `__clone`). Nothing else changes.
 - All other reports: no fix.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - C-version for `__debugInfo` fires only when the configured level is below
   5.6. EA cases without explicit level run at PhpStorm's test default, which
   is ≥ 5.6 and < 7.1: a valid `__debugInfo` is **not** reported there.
@@ -288,6 +298,7 @@ interface Printable { public function __toString(); }
 ```
 
 ## Divergences
+
 - Case-insensitive names (custos diverges from upstream). Upstream
   dispatches on the exact spelling, so a real magic method written
   `__ToString` or `__Get` is reported as a non-magic `__` method (and its

@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # SubStrUsedAsArrayAccess
 
 ## Summary
+
 Extracting a single character with `substr($str, $i, 1)` costs a function call;
 string offset access (`$str[$i]`) reads the same byte directly. Negative
 positions are translated to `strlen($str) - n`.
 
 ## Detection
+
 - **D1** A plain function call that resolves to the global function (names
   compared case-insensitively, as PHP does; `\` and a global `use function`
   import are fine, but a same-named function declared in the current
@@ -42,6 +44,7 @@ positions are translated to `strlen($str) - n`.
     `int` only (an integer literal, an `int` parameter, …).
 
 ## Exceptions (no report)
+
 - **E1** `mb_substr`, other name casing (`SubStr`).
 - **E2** Length other than literal `1` (`-1`, `2`, `$len`), or a 2/4-argument call.
 - **E3** Source expression of another syntactic kind (`substr(trim($s), 0, 1)`,
@@ -57,6 +60,7 @@ positions are translated to `strlen($str) - n`.
   differently from `substr`.
 
 ## Report
+
 - Range: the whole call `S` (start of its name including any namespace
   qualifier, to its closing `)`).
 - Severity: warning.
@@ -65,6 +69,7 @@ positions are translated to `strlen($str) - n`.
   form may be shown with or without inner padding).
 
 ### Replacement text
+
 - `{src}` = verbatim text of the 1st argument, `{off}` = verbatim text of the
   2nd argument.
 - **R1** Offset `-1`: `{access}` = `{src}[strlen({src}) - 1]`.
@@ -77,6 +82,7 @@ positions are translated to `strlen($str) - n`.
     `{access}` and no fix is offered.
 
 ## Fix
+
 - **F1** (PHP ≥ 7.0 only) Replace `S` with the wrapped replacement text. The
   produced code has **no** padding inside the parentheses: `($s[$i] ?? '')`,
   `($s[strlen($s) - 1] ?? '')`. The inserted `strlen` is written `\strlen`
@@ -85,13 +91,16 @@ positions are translated to `strlen($str) - n`.
 - No fix below PHP 7.0.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - The fix exists from PHP 7.0 (R3); below that the rule reports without a
   fix.
 
 ## Examples
+
 At PHP 7.0+:
 
 ```php
@@ -146,6 +155,7 @@ Below 7.0: `substr($buf, $at, 1)` is reported as `Use '$buf[$at]' (string
 offset access) instead.` with no fix.
 
 ## Divergences
+
 - **Version gate (custos diverges):** upstream wraps the access in `?? ''`
   only below PHP 7.0, where `??` is a parse error, and emits the bare access
   from 7.0 on, where an out-of-range position raises a warning instead of

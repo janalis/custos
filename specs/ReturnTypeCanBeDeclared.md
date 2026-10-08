@@ -9,6 +9,7 @@ php: { min: "7.0", max: "" }
 # ReturnTypeCanBeDeclared
 
 ## Summary
+
 A method without a declared return type whose returned values (and `@return`
 documentation) all agree on one type — optionally nullable, or nothing at all
 (`void`) — can carry a native return type declaration. Declaring it lets the
@@ -17,6 +18,7 @@ engine enforce the contract and documents it in the signature.
 ## Detection
 
 ### Candidates
+
 - **D1** Methods only (class, abstract class, interface, trait and enum
   methods). Plain functions and closures are never reported. Property hooks
   (`get`/`set` hooks of PHP 8.4 properties) are never reported.
@@ -30,6 +32,7 @@ engine enforce the contract and documents it in the signature.
   when they have a doc comment containing a `@return` tag; otherwise skipped.
 
 ### Inferred type set
+
 - **D5** Infer the method's return type set `R0` as the union of:
   - the types listed in its `@return` doc tag, if any;
   - for each `return expr;` belonging to the method itself (not to nested
@@ -76,6 +79,7 @@ engine enforce the contract and documents it in the signature.
     is not the null literal, remove `null` (making `R` empty).
 
 ### Decision (L = configured language level)
+
 - **D10 Empty set** (`|R| = 0`), only when L ≥ 7.1: let `r` be the first
   `return` statement in the method in document order (any depth). Suggest
   `void` when `r` does not exist or belongs to a nested closure/function.
@@ -107,8 +111,10 @@ engine enforce the contract and documents it in the signature.
   own body has a bare `return;` (a compile error under a non-void type).
 
 ### compact(t)
+
 Only applies when `t` starts with `\` or equals `static`; otherwise returns
 `t` unchanged.
+
 1. If option LOOKUP_PHPDOC_RETURN_DECLARATIONS is on and the method's
    `@return` tag lists a type written exactly `self` or `$this` → `self`.
 2. Else if `t` is `static` → `static`.
@@ -124,6 +130,7 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
    `\stdClass`).
 
 ### Overridden methods
+
 - **D13** The method counts as *overridden* when its class is not `final`, the
   method is not `final` and not `private`, and some other type declares its own
   method with the same name, among: all ancestors (parent classes
@@ -133,6 +140,7 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
   that recommends changing the whole hierarchy.
 
 ## Exceptions (no report)
+
 - **E1** Language level below 7.0.
 - **E2** Functions, closures, property hooks, magic methods from D3, methods
   already declaring a return type.
@@ -144,6 +152,7 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
   resulting types (e.g. `string`, `\Generator`, `null`).
 
 ## Report
+
 - Range: the method's name identifier.
 - Severity: info (weak warning).
 - Message: `Declare ': {type}' as the return type.`; for overridden methods:
@@ -152,6 +161,7 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
   `?\Foo`, `self`, `static`, `Sub\Iface`, …).
 
 ## Fix
+
 - **F1** (not offered for overridden methods) Insert `: {type}` right after
   the closing `)` of the parameter list, i.e. `)` + `: ` + type.
   - Non-abstract: `function f($x) { … }` → `function f($x): T { … }`. If there
@@ -162,11 +172,13 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
   - Everything else (doc comments, body) is unchanged.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | LOOKUP_PHPDOC_RETURN_DECLARATIONS | bool | true | Lets `@return self` / `@return $this` turn a class-typed suggestion into `self` (compact step 1). |
 
 ## PHP versions
+
 - Nothing below 7.0.
 - `void` and nullable `?T` suggestions (D10, D11-void, D12) need ≥ 7.1.
 - `static` from an `@return static`-only tag needs ≥ 8.0.
@@ -301,6 +313,7 @@ abstract class Node {
 ```
 
 ## Divergences
+
 - **Doc-only suggestions have no fix (custos diverges from upstream).** When
   a returned value's type is unknown (or `mixed`) and the suggestion
   therefore rests on the `@return` tag alone, the finding is reported

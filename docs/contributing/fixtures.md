@@ -6,7 +6,7 @@ of the rule's statements (`make coverage`).
 
 ## Files
 
-```
+```text
 testdata/rules/OneTimeUseVariables/
 ├── basic.php              # findings, marked up
 ├── basic.fixed.php        # expected source after `custos fix`

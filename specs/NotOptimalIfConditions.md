@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # NotOptimalIfConditions
 
 ## Summary
+
 Looks at the conditions of `if`/`elseif` statements and flags four kinds of
 problems: a cheap operand evaluated after an expensive one in an `&&`/`||`
 chain (short-circuiting would save work if swapped), `and`/`or` keyword
@@ -18,12 +19,15 @@ and an `instanceof` check made redundant by another `instanceof` on the same
 subject against a related type.
 
 ## Detection
+
 Applies to each `if` statement: its own condition, then each of its `elseif`
 conditions (in source order). An `else if` is a nested `if` visited on its
 own. Conditions of loops, ternaries, `match` etc. are not inspected.
 
 ### Splitting a condition into operands
+
 For a condition expression `K`:
+
 1. Remove wrapping parentheses.
 2. If the result is a prefix unary expression (any unary: `!`, `-`, `@`,
    cast, …), take its operand and remove wrapping parentheses again (only one
@@ -41,11 +45,13 @@ For a condition expression `K`:
    `OP` is remembered as the chain operator for this condition.
 
 ### D1 — ordering (option SUGGEST_OPTIMIZING_CONDITIONS)
+
 With the operand list `O1…On` (n ≥ 2), compute `cost(Oi)` (below). For each
 `i ≥ 2`: report `Oi` when `cost(Oi) < cost(Oi-1)` and `Oi` is **not coupled**
 with `Oi-1` (below). Comparison is only between neighbours.
 
 **Cost** (`cost(e)`, `e` with parentheses stripped first):
+
 - 0: missing expression, constant reference (`true`, `null`, `PHP_EOL`,
   magic constants), class reference, class constant access (`A::B`,
   `A::class`, `static::X`), numeric literal.
@@ -81,6 +87,7 @@ with `Oi-1` (below). Comparison is only between neighbours.
   modelled as unary, …): 10.
 
 **Coupling** (`prev` = `Oi-1`, `cur` = `Oi`); coupled if any scenario holds:
+
 - **S1 (mutation)**: collect the "mutated" expressions of `prev`:
   - the target of every assignment in `prev` (including `prev` itself when it
     is an assignment, nested assignments, compound assignments); for
@@ -172,6 +179,7 @@ non-empty); otherwise same structure/token sequence ignoring whitespace and
 comments, or identical source text.
 
 ### D2 — keyword logical operators (option REPORT_LITERAL_OPERATORS)
+
 For the whole condition expression of the `if`/`elseif` (no splitting), visit
 it and every nested binary expression at any depth (including inside calls,
 closures, nested parentheses). Each binary whose operator token is `and`
@@ -179,6 +187,7 @@ closures, nested parentheses). Each binary whose operator token is `and`
 `||`). `xor` is not reported.
 
 ### D3 — equality next to instanceof (option REPORT_INSTANCE_OF_FLAWS)
+
 Applies when the chain operator of this condition is `&&` and the operand list
 has ≥ 2 entries. Let `subj` be the left operand of the **first** operand (in
 list order) that is an `instanceof` binary. If there is one, report every
@@ -191,7 +200,9 @@ diverges: comparing `subj` with any other expression, e.g. `$a instanceof X
 && $a !== $b`, is an ordinary identity check and is not reported).
 
 ### D4 — redundant instanceof (option REPORT_INSTANCE_OF_FLAWS)
+
 Applies when the operand list has ≥ 2 entries (chain operator `&&` or `||`).
+
 1. Take every operand that is an `instanceof` binary whose right side is a
    class name that resolves to a class/interface/trait. Others are ignored.
 2. Group them by subject (left operand), using *Equivalence*.
@@ -218,6 +229,7 @@ Applies when the operand list has ≥ 2 entries (chain operator `&&` or `||`).
   names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Neighbouring operands in non-increasing order, or equal cost.
 - **E2** Coupled neighbours (S1–S3), e.g. `($n = $c->count()) && $n > 0`,
   `count($a) > 0 && $a[0]`, `($x = array_shift($q)) && $q`,
@@ -234,6 +246,7 @@ Applies when the operand list has ≥ 2 entries (chain operator `&&` or `||`).
   variable/expression.
 
 ## Report
+
 | Check | Range | Severity |
 |-------|-------|----------|
 | D1 | the reported operand, parentheses stripped (inner expression only) | info (weak warning) |
@@ -242,15 +255,18 @@ Applies when the operand list has ≥ 2 entries (chain operator `&&` or `||`).
 | D4 | the whole `instanceof` operand (parentheses stripped) | warning (rule default) |
 
 Messages (our wording):
+
 - D1: `Cheaper check placed after a costlier one; evaluate it first.`
 - D2: `Use '&&' instead of 'and'.` / `Use '||' instead of 'or'.`
 - D3: `Equality check on a value also tested with instanceof; verify the logic.`
 - D4: `Redundant instanceof: another check on the same value already covers this type.`
 
 ## Fix
+
 None.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |--------|------|---------|--------|
 | REPORT_LITERAL_OPERATORS | bool | true | enables D2 |
@@ -261,6 +277,7 @@ Upstream tests set one option to `true` without disabling the others, so each
 fixture is effectively evaluated with all checks on.
 
 ## PHP versions
+
 - D4: `\DateTimeInterface` as ancestor is ignored below PHP 5.5. Upstream
   tests run at the PhpStorm test default (7.x) except one fixture at 5.4.
 - Otherwise no gating.
@@ -314,6 +331,7 @@ if ($s instanceof Circle || $t instanceof Shape) {}
 (No fix output: the rule has no quick-fix.)
 
 ## Divergences
+
 - **D3 identity checks (custos diverges from upstream).** Upstream reports
   any equality operand on the instanceof subject, so the common
   `$other instanceof User && $other !== $current` ("another user than this

@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # UntrustedInclusion
 
 ## Summary
+
 Including a file by a relative path makes PHP search `include_path` (and the
 current working directory), so a different file than intended can be loaded.
 Anchor paths with `__DIR__` (or rely on autoloading).
 
 ## Detection
+
 - **D1** Any inclusion expression: `include`, `include_once`, `require`,
   `require_once`, with or without parentheses around the argument, in any
   context (statement, assignment, condition…).
@@ -30,6 +32,7 @@ Anchor paths with `__DIR__` (or rely on autoloading).
   `../x.php`) are still reported: they depend on the working directory.
 
 ## Exceptions (no report)
+
 - **E1** Absolute paths: `'/etc/app.php'`, `'C:\app\x.php'`, `'c://x.php'`.
 - **E2** Arguments that do not resolve to exactly one string literal:
   concatenations (`__DIR__ . '/x.php'`), constants, function calls,
@@ -42,6 +45,7 @@ Anchor paths with `__DIR__` (or rely on autoloading).
   (`'\\\\host\\share\\x.php'`).
 
 ## Report
+
 - Range: the whole inclusion expression, from the keyword to the end of the
   argument (closing `)` included when parenthesised; the terminating `;`
   excluded).
@@ -49,12 +53,15 @@ Anchor paths with `__DIR__` (or rely on autoloading).
 - Message: `Relative include depends on include_path; anchor it with __DIR__.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -81,6 +88,7 @@ include '\\\\fileserver\\shared\\boot.php';
 ```
 
 ## Divergences
+
 - **E4/E5 — custos diverges from upstream.** Upstream reports stream-wrapper
   paths (`'phar://app.phar/x.php'`, `'file:///x.php'`) and UNC paths
   (`'\\\\host\\x.php'`) as relative includes. Neither is resolved through

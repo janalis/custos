@@ -9,11 +9,13 @@ php: { min: "7.4", max: "" }
 # IsCountableCanBeUsed
 
 ## Summary
+
 `is_array($v) || $v instanceof Countable` is exactly what `is_countable($v)`
 checks. On a language level where `is_countable()` is available, the one call
 is shorter and makes the intent obvious.
 
 ## Detection
+
 Visit every function call `F`.
 
 - **D1** `F` is a call to the global `is_array()`: name compared
@@ -47,6 +49,7 @@ Visit every function call `F`.
 
 The instanceof fragment may appear before or after the call and may sit inside
 nested parentheses of the same `||` chain.
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -55,6 +58,7 @@ nested parentheses of the same `||` chain.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Language level below 7.4.
 - **E2** `is_array` with zero or more than one argument.
 - **E3** The call is not a direct `||` operand (`!is_array($v) || …`,
@@ -65,6 +69,7 @@ nested parentheses of the same `||` chain.
   sub-expression).
 
 ## Report
+
 - Range: the whole `is_array(...)` call `F` (name through closing parenthesis).
   The instanceof part is not highlighted.
 - Severity: info (weak warning).
@@ -72,12 +77,15 @@ nested parentheses of the same `||` chain.
   where `{arg}` is the instanceof subject's source text.
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Reported only when the configured language level is ≥ 7.4 (upstream gate,
 although `is_countable()` exists since 7.3). The upstream fixture runs at 7.4.
 
@@ -100,6 +108,7 @@ function sizeOf($bag, $other) {
 ```
 
 ## Divergences
+
 - None in behaviour. Upstream's own message mentions `Traversable` while the
   check is about `Countable`; our message names the right interface.
 - **Name resolution (custos diverges):** upstream compares the written last

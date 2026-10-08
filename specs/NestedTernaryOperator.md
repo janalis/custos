@@ -9,14 +9,17 @@ php: { min: "", max: "" }
 # NestedTernaryOperator
 
 ## Summary
+
 A ternary inside another ternary is hard to read and, without parentheses,
 its associativity is a classic PHP trap. Chains of short ternaries
 (`$a ?: $b ?: $c`) read naturally and are accepted.
 
 ## Detection
+
 For every ternary expression `O` (full `c ? t : f` or short `c ?: f`), look at
 its operands; "unwrapped" means with all surrounding parentheses removed (any
 depth):
+
 - **D1** If the unwrapped condition is a ternary → report that inner ternary.
 - **D2** If `O` is a full ternary and its unwrapped "then" operand is a
   ternary → report that inner ternary.
@@ -27,6 +30,7 @@ several nested ternaries yields several reports (one per nested node, at every
 depth — the inner ternary is itself checked as an `O`).
 
 ### Elvis chains (allowed)
+
 - **E1** An unparenthesised chain of short ternaries is not reported:
   `$a ?: $b ?: $c` (any length). In terms of the syntax tree:
   - if the parser nests the chain to the **left** (`($a ?: $b) ?: $c`, PHP's
@@ -40,12 +44,14 @@ depth — the inner ternary is itself checked as an `O`).
   reported.
 
 ## Exceptions (no report)
+
 - **E1** Unparenthesised short-ternary chains (above).
 - **E2** Ternaries whose operands contain ternaries only deeper inside other
   expressions (e.g. `$a ? f($b ? 1 : 2) : 3`, `$a ? [$b ?: 0] : 1`): only a
   ternary that is directly an operand (through parentheses only) counts.
 
 ## Report
+
 - Range: the inner ternary expression, without the parentheses that wrap it
   (from the first character of its condition to the last character of its
   else operand).
@@ -54,12 +60,15 @@ depth — the inner ternary is itself checked as an `O`).
   variable.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. Unparenthesised nested full ternaries (`$a ? 1 : $b ? 2 : 3`) are
 deprecated in 7.4 and an error in 8.0, but are parsed at every level (see
 Divergences for the range).
@@ -78,6 +87,7 @@ $call  = $ok ? strtoupper($v ? 'y' : 'n') : '';
 ```
 
 ## Divergences
+
 - Unparenthesised mixed chains such as `$a ? 1 : $b ? 2 : 3` or
   `$a ? $b : $c ?: $d`: upstream's tree shape for these is not observable in
   the fixtures, so the exact node reported is unknown. Recommendation: with

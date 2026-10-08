@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # NestedNotOperators
 
 ## Summary
+
 Stacking logical-not operators (`!!$x`, `!!!$x`) is a cryptic way to write a
 boolean cast or a single negation. An even number of `!` is a `(bool)` cast, an
 odd number is one `!`.
 
 ## Detection
+
 Consider a maximal chain of logical-not operators `!` where each `!` applies to
 the next one, possibly through any number of parentheses, e.g. `!!$v`,
 `!(!$v)`, `!(!((!$v)))`.
@@ -32,11 +34,13 @@ the next one, possibly through any number of parentheses, e.g. `!!$v`,
 Each chain is reported once (only from its innermost `!`).
 
 ## Exceptions (no report)
+
 - E1: a single `!` (N = 1).
 - E2: chains broken by other operators are handled per D-walk rules; see
   Divergences for unary operators other than `!` sitting between nots.
 
 ## Report
+
 - Range: the outermost `!` expression `T` — from its `!` token to the end of
   its operand (including closing parentheses that belong to the operand). Any
   parentheses wrapping `T` itself are not included.
@@ -45,15 +49,18 @@ Each chain is reported once (only from its innermost `!`).
   `{replacement}` is the D5 text.
 
 ## Fix
+
 - F1: replace `T` with `(bool)S` (even N) or `!S` (odd N), with no space after
   `(bool)` or `!`. Examples: `!!$k` → `(bool)$k`; `!!!$k` → `!$k`;
   `!! ($a && $b)` → `(bool)($a && $b)`; `!(!(($k)))` → `(bool)$k`;
   `!(!((!$k)))` → `!$k`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -83,6 +90,7 @@ $one  = !$token;
 ```
 
 ## Divergences
+
 - Upstream walks outwards through *any* unary operator (unary minus/plus,
   bitwise not, casts, error suppression `@`, …) while counting only the `!`
   ones, so `!(int)!$v` or `!-!$v` is reported as `(bool)$v` and the fix drops

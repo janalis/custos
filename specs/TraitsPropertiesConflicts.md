@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # TraitsPropertiesConflicts
 
 ## Summary
+
 When a class and one of its traits (or its parent class and one of its
 traits) declare the same property, PHP only accepts it if both declarations
 are compatible, and even then the duplication is fragile. Point out these
@@ -16,11 +17,13 @@ overlaps; when the two declarations are incompatible (PHP refuses to compose
 the class), it is a real conflict.
 
 ## Detection
+
 Visit every class-like declaration (class, trait, enum) that directly uses at
 least one trait (`use T1, T2;` inside its body). Let `Traits` be the resolved
 traits in declaration order. Unresolvable trait names are ignored.
 
 Helper predicates:
+
 - *real property* of `X`: a property declared in `X`'s own body (not a class
   constant, not a `@property` docblock tag, not a property inherited from
   elsewhere, not a promoted-constructor quirk — promoted properties count as
@@ -56,6 +59,7 @@ Helper predicates:
   count).
 
 ### A. Own properties
+
 - **D1** For each real property `p` of the class (named, non-constant,
   non-abstract):
   - skip if `p`'s docblock contains a tag whose name is not all-lowercase
@@ -71,6 +75,7 @@ Helper predicates:
     differ).
 
 ### B. Parent properties
+
 - **D2** Collect the trait references written in the class's `use` lists
   (including names inside a `{ ... insteadof ...; }` adaptation block); map
   each resolved trait to its first reference. Let `Parent` be the directly
@@ -90,6 +95,7 @@ Helper predicates:
 Checks A and B are independent; both may report for the same class.
 
 ## Exceptions (no report)
+
 - **E1** Classes without trait usage.
 - **E2** Own property and trait property whose compatibility cannot be
   decided (A): e.g. `= self::RED` against `= 'red'`.
@@ -99,6 +105,7 @@ Checks A and B are independent; both may report for the same class.
 - **E5** No parent class (B).
 
 ## Report
+
 - A: range = the property's name token including `$` (e.g. `$same`, not the
   modifiers, not the default). Severity: info (weak warning).
 - B: range = the trait name as written in the `use` list (the reference that
@@ -110,12 +117,15 @@ Checks A and B are independent; both may report for the same class.
   trait's short name.
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -163,6 +173,7 @@ class Box extends Shape {
 ```
 
 ## Divergences
+
 - **Attributed re-declarations (custos diverges):** upstream exempts only
   properties annotated in their docblock (`@ORM\Column`), so the PHP 8
   equivalent — re-declaring a trait property to attach `#[ORM\ManyToOne]`

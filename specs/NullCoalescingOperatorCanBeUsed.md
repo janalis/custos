@@ -9,6 +9,7 @@ php: { min: "7.0", max: "" }
 # NullCoalescingOperatorCanBeUsed
 
 ## Summary
+
 Ternaries and small `if` constructs that pick a value when it "exists"
 (`isset`, `!== null`, `array_key_exists`, truthiness of the owning object) and a
 fallback otherwise can be collapsed into a single `??` expression, which is
@@ -17,6 +18,7 @@ shorter and easier to read.
 ## Detection
 
 ### Terminology
+
 - *Strip(e)*: `e` with any number of surrounding parentheses removed.
 - *Equivalent*: same node kind and same token sequence ignoring
   whitespace/comments, or identical source text; for plain variables, same
@@ -33,6 +35,7 @@ shorter and easier to read.
   text as is (already-parenthesised expressions are not wrapped again).
 
 ### Condition classification (shared)
+
 Given a condition `C0`, let `C = Strip(C0)`. If `C` is a logical-not `!X`,
 the condition is **negated** and the subject condition is `K = Strip(X)`;
 otherwise it is **positive** and `K = C`. (Only one `!` is unwrapped; other
@@ -51,6 +54,7 @@ unary operators make it unclassifiable.) `K` is classified as:
 - anything else: no report.
 
 ### Replacement generation (shared)
+
 Inputs: the classified condition, `T` = the value used when the condition is
 true, `F` = the value used when it is false (`F` may be **absent** only in the
 `if` forms, see below). Produces replacement `R` or nothing. "cand" is the
@@ -96,11 +100,13 @@ value that must equal the probed expression, "alt" the fallback.
 Separator in `R` is exactly ` ?? ` (one space each side).
 
 ### Form A — ternaries (option SUGGEST_SIMPLIFYING_TERNARIES)
+
 - **D1** A full ternary `C0 ? T : F` (short ternaries `?:` are ignored).
 - **D2** Classify `C0`; generate `R` with `T`, `F` taken verbatim (including
   any parentheses around a branch). Report when `R` exists.
 
 ### Form B — `if` statements (option SUGGEST_SIMPLIFYING_IFS)
+
 - **D3** An `if` statement without `elseif` branches (an `else` whose body is
   another `if`, i.e. `else if`, is allowed on the *outer* statement but then
   the outer statement does not match any shape below; the inner `if` is
@@ -160,6 +166,7 @@ Separator in `R` is exactly ` ?? ` (one space each side).
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Language level below 7.0, or the corresponding option is off.
 - **E2** Short ternary `?:`.
 - **E3** `isset()`/`empty()` with more than one argument; `array_key_exists`
@@ -184,6 +191,7 @@ Separator in `R` is exactly ` ?? ` (one space each side).
   as `F`) never produce a report for them.
 
 ## Report
+
 - Form A range: the whole ternary expression (condition start to false-branch
   end, without parentheses wrapping the ternary).
 - Form B range: the `if` keyword token only (for an `else if`, the `if`
@@ -193,6 +201,7 @@ Separator in `R` is exactly ` ?? ` (one space each side).
   is `R` for Form A and the statement text `Q` for Form B.
 
 ## Fix
+
 - **F1 Form A**: replace the ternary with `R` verbatim.
 - **F2 Form B, S1/S2/S5**: replace the whole `if` statement (through the end of
   its `else` block, if any) with `Q;`. If that `if` is itself the body of an
@@ -207,6 +216,7 @@ Separator in `R` is exactly ` ?? ` (one space each side).
 - Whitespace before the replaced range and after it is kept untouched.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | SUGGEST_SIMPLIFYING_TERNARIES | bool | true | Enables Form A (ternaries). |
@@ -216,9 +226,11 @@ Both upstream fixtures set only one option explicitly, but the other one keeps
 its default `true`, so both forms are active in both runs.
 
 ## PHP versions
+
 Nothing is reported below PHP 7.0. Upstream fixtures run at 7.1.
 
 ## Type inference requirements (G3 only)
+
 The cand property's type comes from: declared property types, `@var` doc
 comments on properties (`null|Foo`, `string`, …), `@var` inline doc comments
 declaring a variable's class (`/** @var Foo $x */`), element types of
@@ -337,6 +349,7 @@ it matches no shape; only the inner `if` is reported. `if (!(null === $in))`
 is negated K-null with `===`, so the true branch is the "set" branch.
 
 ## Divergences
+
 - G2/G3 fallback (custos diverges from upstream). Upstream rewrites
   `!empty($o) ? $o->p : 'x'` without any type check, and the truthy form
   `$o ? $o->p : 'x'` only checks the property's nullability. Both change the

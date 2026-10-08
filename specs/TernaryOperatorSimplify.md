@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # TernaryOperatorSimplify
 
 ## Summary
+
 A ternary whose branches are the literals `true` and `false` merely restates
 its condition. When the condition is a binary expression, the ternary can be
 replaced by the condition itself, its negation, or a boolean cast.
 
 ## Detection
+
 Visit every ternary expression `C ? T : F` (full form; a short ternary `C ?: F`
 has no explicit true branch and is never reported).
 
@@ -49,6 +51,7 @@ has no explicit true branch and is never reported).
     - inverted: `R` = `!(` + text of `B` + `)`.
 
 ## Exceptions (no report)
+
 - **E1** Condition (after paren stripping) is not a binary expression
   (`is_int($v) ? false : true`, `$flag ? true : false`, `!$a ? …`).
 - **E2** Either branch is not a boolean constant (`null`, `0`, `1`, `'yes'`,
@@ -56,6 +59,7 @@ has no explicit true branch and is never reported).
 - **E3** Short ternary `?:`.
 
 ## Report
+
 - Range: the whole ternary expression, from the first character of `C` (including
   any parentheses that are part of `C`) to the end of `F`. Parentheses wrapping
   the ternary itself are not included.
@@ -63,6 +67,7 @@ has no explicit true branch and is never reported).
 - Message: `Replace the ternary with '{R}'.`
 
 ## Fix
+
 - **F1** Replace the ternary expression with `R` verbatim. No extra
   parentheses are added around `R` even if the surrounding context binds
   tighter (see Divergences).
@@ -74,9 +79,11 @@ has no explicit true branch and is never reported).
   - `$ok = ($n < 10) ? (true) : false;` → `$ok = $n < 10;`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -120,6 +127,7 @@ function probe($n, $m, $a, $b, $obj, int $k) {
 ```
 
 ## Divergences
+
 - `C ? true : true` / `C ? false : false` are reported by upstream as if they
   were `true : false` / `false : true`, and the fix changes semantics.
   Recommendation: only report when the two branches differ.

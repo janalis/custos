@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # RandomApiMigration
 
 ## Summary
+
 The libc-based `rand()` family is weaker and slower than the Mersenne Twister
 family (`mt_*`), and since PHP 7.0 `random_int()` provides a CSPRNG integer.
 Suggest renaming legacy random calls to their modern counterpart.
 
 ## Detection
+
 Visit every plain function call (not method/static calls).
 
 - **D1** Pick the mapping table:
@@ -50,12 +52,14 @@ Visit every plain function call (not method/static calls).
 - **D5** Report with the (possibly adjusted) suggestion.
 
 ## Exceptions (no report)
+
 - **E1** `mt_rand(...)` with an argument count other than 2 under the modern
   table; `mt_rand` always under the classic table.
 - **E2** `mt_srand`, `mt_getrandmax`, `random_int` themselves.
 - **E3** Calls not resolving to the global function; method/static calls.
 
 ## Report
+
 - Range: the whole call expression, from the function name (including a
   leading `\` or qualifier as written) to the closing `)`.
 - Severity: warning.
@@ -63,6 +67,7 @@ Visit every plain function call (not method/static calls).
   written (last segment), `{suggested}` the D1/D4 result.
 
 ## Fix
+
 - **F1** Rename the function: replace only the name identifier (last segment)
   with the suggested name; any leading `\` / qualifier and the argument list
   are kept verbatim.
@@ -76,11 +81,13 @@ Visit every plain function call (not method/static calls).
   rand(1, 6);` → `\random_int(1, 6)`.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `SUGGEST_USING_RANDOM_INT` | bool | `true` | When on and the level is 7.0+, `rand`/`mt_rand` with two arguments are pointed at `random_int`; when off, the classic table is used at every level. |
 
 ## PHP versions
+
 - The table choice depends on the level (D1): `>= 7.0` with the option on →
   modern table; otherwise classic.
 - Upstream test cases without an explicit level run at the IDE test default
@@ -89,6 +96,7 @@ Visit every plain function call (not method/static calls).
   sets 7.0 explicitly.
 
 ## Examples
+
 Option `SUGGEST_USING_RANDOM_INT = false` (any level):
 
 ```php
@@ -142,6 +150,7 @@ function throwDice($sides)
 ```
 
 ## Divergences
+
 - **Case of the name (custos diverges from upstream).** Upstream compares
   the written name case-sensitively, so `RAND(1, 6)` is not reported. custos
   matches any case; the message names the function in lower case and the fix

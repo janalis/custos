@@ -9,7 +9,9 @@ php: { min: "", max: "" }
 # SlowArrayOperationsInLoop
 
 ## Summary
+
 Two loop anti-patterns:
+
 - **Accumulating merges**: `$acc = array_merge($acc, $chunk)` inside a loop
   copies the whole accumulator on every iteration (quadratic cost). Collect
   the chunks and merge once after the loop.
@@ -19,6 +21,7 @@ Two loop anti-patterns:
 ## Detection
 
 ### Part G — accumulating merges
+
 - **G1** A function call (not a method/static call) that resolves to the
   global function (names compared case-insensitively, as PHP does; `\` and a
   global `use function` import are fine, but a same-named function declared in
@@ -68,6 +71,7 @@ Two loop anti-patterns:
 - Report kind G on the call (once).
 
 ### Part F — length call in a `for` condition
+
 - **F-1** A `for` statement. For each expression of its condition part (the
   middle, comma-separated section) that is a binary comparison `B`: one of
   `<`, `<=`, `>`, `>=`, `==`, `!=`/`<>`, `===`, `!==` (logical, arithmetic
@@ -85,6 +89,7 @@ Two loop anti-patterns:
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Merge call whose 1st argument is an element access.
 - **E2** Merge result not directly assigned (returned, passed on, wrapped in
   parentheses), or the target not among the arguments.
@@ -99,6 +104,7 @@ Two loop anti-patterns:
   `$i < (count($a))`), method calls (`$i < $c->count()`).
 
 ## Report
+
 - Range:
   - G: the merge call (name including qualifier through `)`).
   - F: the whole binary condition expression `B` (left operand start to right
@@ -109,6 +115,7 @@ Two loop anti-patterns:
   - F: `'{name}(...)' is re-evaluated on every iteration; compute it once before the loop.`
 
 ## Fix
+
 Kind G: none.
 
 - **F1 (kind F)** Let `L` be `B`'s length call and `O` the other operand. The
@@ -140,9 +147,11 @@ Kind G: none.
       `for ($k = 1, $loopsMax = strlen($s); $loopsMax > $this->pos; $k++)`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. The EA tests run at the PhpStorm default level (between 5.6 and 7.0).
 
 ## Examples
@@ -224,6 +233,7 @@ function collect(array $batches, $repo)
 ```
 
 ## Divergences
+
 - **Fix side detection (upstream bug):** upstream decides which operand is the
   length call by testing whether the left operand is *any* call, including
   method calls. For `$o->limit() > count($a)` it would replace the method

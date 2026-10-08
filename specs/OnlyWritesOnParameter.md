@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # OnlyWritesOnParameter
 
 ## Summary
+
 A parameter, closure import or local variable that is only ever written to
 (elements appended, incremented, concatenated onto…) but never read is dead
 work: the changes are lost when the function returns (by-value semantics).
@@ -16,12 +17,14 @@ Likewise a closure `use` import that the closure body never touches, or an
 inline assignment whose target is never read afterwards, is unused.
 
 ## Detection
+
 The rule has three entry points that all feed one shared *access analysis*
 (defined after them). "Scope" means a function declaration, a non-abstract
 method, or a closure (arrow functions behave like closures but cannot hold
 the relevant statements in practice).
 
 ### Entry 1 — parameters
+
 - **D1** For each scope, each parameter that
   - has a non-empty name,
   - is **not** by-reference (`&$p`),
@@ -38,8 +41,10 @@ the relevant statements in practice).
 - **D2** Run the access analysis for that name in the scope.
 
 ### Entry 2 — closure imports
+
 For each closure with a `use (...)` list, for each imported variable with a
 non-empty name:
+
 - **D3** By-reference import (`use (&$v)`): report **U** (unused) on the
   imported variable when the closure body contains **no** reachable access
   to `$v` at all (the `use` list itself does not count as an access inside
@@ -66,8 +71,10 @@ non-empty name:
   variable of the closure's scope.
 
 ### Entry 3 — local assignments
+
 For each plain assignment `$v = …` or by-reference assignment `$v = &…`
 (compound assignments `+=`, `.=`, `??=`… are not entry points):
+
 - **D4c** (custos refinement, see Divergences) Object locals: for an Entry 3
   local, drop all **W** findings when some plain assignment `$v = expr` of
   the scope gives `expr` an inferred type with an object member (D1
@@ -94,6 +101,7 @@ For each plain assignment `$v = …` or by-reference assignment `$v = &…`
   N times is analysed N times; findings must be de-duplicated by range.)
 
 ### Access analysis for name `v` in scope `S`
+
 Collect all accesses to `$v` inside `S`'s body that are reachable by control
 flow from `S`'s entry, in control-flow order (nested closures/functions are
 separate scopes and not included, but a closure's `use ($v)` list is an
@@ -149,6 +157,7 @@ After all accesses: when `reads == 0` and `writes > 0`, and not suppressed
 included) → report **W** on every distinct target.
 
 Notable consequences:
+
 - A plain `$v = value;` statement counts as a write but is never itself a W
   target; so a local only assigned and never read produces no finding
   (`$tmp = 0;` alone is silent).
@@ -158,6 +167,7 @@ Notable consequences:
 - After `$v = &$other`, later writes also count as reads (no finding).
 
 ## Exceptions (no report)
+
 - **E1** By-reference parameters; parameters typed with a class/interface or
   `object` (but `Closure`-typed parameters are analysed).
 - **E2** Abstract methods and interface methods (no body).
@@ -191,6 +201,7 @@ Notable consequences:
   every variable.
 
 ## Report
+
 - Ranges:
   - W, array element write: the outermost array access `T` as written, from
     the variable through the last `]` (e.g. `$items[]`, `$m[$k]`), not
@@ -206,17 +217,21 @@ Notable consequences:
   - U: `Variable is never used.`
 
 ## Fix
+
 None.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `IGNORE_INCLUDES` | bool | `true` | When on, write-only findings are reported even if the scope contains `include`/`require` (which could read variables). When off, such scopes produce no W findings. U findings are unaffected. |
 
 ## PHP versions
+
 None.
 
 ## Examples
+
 `IGNORE_INCLUDES = false`:
 
 ```php
@@ -302,6 +317,7 @@ function silenced(array $out)
 ```
 
 ## Divergences
+
 - **compact() / get_defined_vars() (E8) — custos refinement, not upstream.**
   Upstream's flow analysis does not see names passed to `compact()`, so
   `if (!($page = $repo->find()))) { throw …; } return compact('page');`

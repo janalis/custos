@@ -9,12 +9,14 @@ php: { min: "7.1", max: "" }
 # DynamicCallsToScopeIntrospection
 
 ## Summary
+
 Since PHP 7.1, functions that read or write the caller's local scope
 (`compact`, `extract`, `func_get_args`, …) refuse to run when invoked
 indirectly — through a variable holding their name or as a callback string.
 Such calls only produce a warning and do nothing useful.
 
 ## Detection
+
 Only active when the configured PHP level is **7.1 or higher**.
 
 Scope-sensitive function names (set **S**, matched case-insensitively, as
@@ -56,6 +58,7 @@ Then resolve `T` to a single string literal `L`:
 
 Possible-values rules (applied recursively, each node visited at most once to
 avoid cycles; parentheses around any expression are stripped first):
+
 - **R1** Ternary `c ? a : b`: union of the values of `a` and `b` (the
   condition is not a value).
 - **R2** Null coalescing `a ?? b`: union of the values of `a` and `b`.
@@ -96,12 +99,14 @@ avoid cycles; parentheses around any expression are stripped first):
 - **R7** Anything else: the expression itself.
 
 Finally:
+
 - **D5** Take `L`'s content between the quotes, unescape it according to the
   quote style (single- vs double-quoted rules), and drop one leading `\` if
   present. If the result equals one of the names in S ignoring case
   (`'Compact'` and `'EXTRACT'` match), report `T`.
 
 ## Exceptions (no report)
+
 - **E1** PHP level below 7.1.
 - **E2** Direct calls by name (`compact('a')`, `\extract($row)`) — only
   indirect invocation is a problem.
@@ -120,6 +125,7 @@ Finally:
   syntax, or any non-string value.
 
 ## Report
+
 - Range: exactly the target expression `T` (the callback argument node — e.g.
   the string literal including its quotes — or the callee expression of the
   dynamic call, e.g. `$fn` without the argument list).
@@ -129,12 +135,15 @@ Finally:
   (without leading `\`).
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Active only for PHP ≥ 7.1 (the upstream fixture runs at 7.1). Under PhpStorm's
 default test level (below 7.1) nothing is reported.
 
@@ -165,6 +174,7 @@ $top();
 ```
 
 ## Divergences
+
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
 - Short ternary `a ?: b` in R1: which operands upstream treats as values is not
   covered by fixtures. Recommendation: union of `a` and `b`.

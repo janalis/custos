@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # ConstantCanBeUsed
 
 ## Summary
+
 Some function calls only return a value that PHP already exposes as a
 constant (`PHP_VERSION`, `PHP_SAPI`, `M_PI`, …), and comparisons of
 `PHP_VERSION` via `version_compare()` or OS sniffing on `PHP_OS` have cheaper,
 clearer constant-based equivalents (`PHP_VERSION_ID`, `PHP_OS_FAMILY`).
 
 ## Detection
+
 Function names below are compared case-insensitively (`PhpVersion()`
 matches), and the call must resolve to the global function: unqualified or
 `\`-qualified (`\phpversion()`), not a qualified `Foo\phpversion()`, a
@@ -24,6 +26,7 @@ plain function calls are considered (not method/static calls). A name
 appearing inside a `use function …;` import is not a call.
 
 ### Constant-returning calls (no version gating)
+
 - **D1** A call with **zero** arguments to one of:
 
   | Call | Constant |
@@ -39,6 +42,7 @@ appearing inside a `use function …;` import is not a call.
   arrow functions are transparent. The other calls need no context.
 
 ### version_compare (no version gating)
+
 - **D2** A call to `version_compare` with exactly 3 arguments where:
   - argument 1 is a constant reference that resolves to the global
     constant `PHP_VERSION`: unqualified (`PHP_VERSION`, with PHP's global
@@ -86,6 +90,7 @@ appearing inside a `use function …;` import is not a call.
   equality operator is not reported.
 
 ### PHP_OS sniffing (PHP ≥ 7.2)
+
 - **D5** A constant reference resolving to the global constant `PHP_OS`
   (same resolution as for `PHP_VERSION` in D2; `Foo\PHP_OS` does not match) that
   is a **direct argument** (any position, not parenthesised or nested in
@@ -105,6 +110,7 @@ appearing inside a `use function …;` import is not a call.
     literal (`-1`), or the constant `false` (any letter case).
 
 ## Exceptions (no report)
+
 - **E1** D1 calls with any argument (`phpversion('mysqli')`,
   `phpversion($ext)`); functions not in the table (`php_uname()` etc.).
 - **E4** `get_class()` without a class scope (file level, plain functions,
@@ -120,6 +126,7 @@ appearing inside a `use function …;` import is not a call.
   substr compared to a number; strpos compared to a string.
 
 ## Report
+
 - Range:
   - D1, D2: the whole call (name through closing `)`).
   - D5: the context node `X` only (the function call, or the wrapping case
@@ -131,6 +138,7 @@ appearing inside a `use function …;` import is not a call.
   - D5: `Compare PHP_OS_FAMILY instead of sniffing PHP_OS.`
 
 ## Fix
+
 - **F1** D1: replace the call with the constant name (`PHP_VERSION`,
   `PHP_SAPI`, `__CLASS__`, `M_PI`).
 - **F2** D2: replace the whole `version_compare(...)` call with `E`, e.g.
@@ -139,9 +147,11 @@ appearing inside a `use function …;` import is not a call.
 - D5: no fix.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - D1/D2: no gating (fixture runs at the test default level, below 7.1).
 - D5–D8: only when the configured PHP level is ≥ 7.2 (`PHP_OS_FAMILY`
   availability); fixture runs at 7.3.
@@ -232,6 +242,7 @@ function os_checks() {
 ```
 
 ## Divergences
+
 - F2 inserts `PHP_VERSION_ID <op> V` without parentheses, so in a
   higher-precedence context (`!version_compare(PHP_VERSION, '8', '<')`,
   `version_compare(...) . 'x'`) the text reparses differently

@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # RealpathInStreamContext
 
 ## Summary
+
 `realpath()` returns `false` for paths inside stream wrappers such as
 `phar://`, so code that works on disk breaks once packaged. Climbing
 directories with `realpath(__DIR__ . '/../')` or wrapping include paths in
 `realpath()` should use `dirname()` / the plain path instead.
 
 ## Detection
+
 - **D1** A plain function call that resolves to the global function
   `realpath` (name compared case-insensitively, as PHP does: `RealPath(...)`
   matches; `\realpath(...)` and an unqualified call in the global namespace
@@ -35,6 +37,7 @@ directories with `realpath(__DIR__ . '/../')` or wrapping include paths in
   At most one report per call.
 
 ### Replacement text `R` (computed from `S`)
+
 - **R1** `S` is a concatenation `L . Q` whose left operand `L` is **not**
   itself a concatenation and whose right operand `Q` is a string literal
   whose raw contents start with `/..`: let `rest` = the contents; while
@@ -58,12 +61,14 @@ directories with `realpath(__DIR__ . '/../')` or wrapping include paths in
   concatenation), variables, calls.
 
 ## Exceptions (no report)
+
 - **E1** Zero or several arguments.
 - **E2** Calls outside include context without any `..` in their literals:
   `realpath(__DIR__ . '/')`, `realpath($path)`.
 - **E3** Test contexts.
 
 ## Report
+
 - Range: the whole call, from `realpath` through its closing `)`.
 - Severity: warning.
 - Message:
@@ -71,6 +76,7 @@ directories with `realpath(__DIR__ . '/../')` or wrapping include paths in
   - without `R`: `realpath() fails inside stream wrappers such as phar://; prefer dirname().`
 
 ## Fix
+
 - **F1** Only when `R` exists: replace the whole call with `R`, verbatim.
   Surrounding code (an `include` keyword, parentheses around the call, the
   statement's `;`) stays untouched: `include (realpath('/a.php'));` →
@@ -78,9 +84,11 @@ directories with `realpath(__DIR__ . '/../')` or wrapping include paths in
 - No fix when `R` does not exist (the report remains).
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -110,6 +118,7 @@ $two  = realpath('/tmp', 'x');
 ```
 
 ## Divergences
+
 - **Function name (custos diverges).** Upstream matches the written name
   `realpath` case-sensitively and without resolution, so `RealPath(...)` is
   missed while a namespaced user function named `realpath` is reported (and

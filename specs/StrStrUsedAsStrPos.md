@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # StrStrUsedAsStrPos
 
 ## Summary
+
 `strstr()` / `stristr()` build and return a substring. When the result is only
 used as a yes/no answer ("does the haystack contain the needle?"), that copy is
 wasted work: a position search (`strpos()` / `stripos()`) compared strictly
 against `false` answers the same question without allocating.
 
 ## Detection
+
 - **D1** A plain function call (not a method or static call) that resolves to
   the global function (names compared case-insensitively, as PHP does; `\` and
   a global `use function` import are fine, but a same-named function declared
@@ -27,6 +29,7 @@ against `false` answers the same question without allocating.
   produces the (single) report.
 
 ### Pattern A — explicit comparison with `false`
+
 - **D3** The **direct** parent of `C` (no parentheses in between) is a binary
   expression `B` whose operator is `==`, `!=`, `===` or `!==`. `C` may be the
   left or right operand.
@@ -42,9 +45,11 @@ pattern A fails and pattern B is tried; B then fails because the parent is a
 comparison, so nothing is reported.
 
 ### Pattern B — used as a boolean condition
+
 Let `P` be the first ancestor of `C` that is not a parenthesized expression
 (skip any number of wrapping parentheses); `W` is the node directly below `P`
 on that path (`C` itself or its outermost wrapping parenthesis).
+
 - **D5** One of:
   - `P` is an `if` or `elseif` / `else if` statement and `W` is its condition;
   - `P` is a `while` or `do … while` loop and `W` is its condition;
@@ -63,6 +68,7 @@ on that path (`C` itself or its outermost wrapping parenthesis).
     parentheses are kept).
 
 ## Exceptions (no report)
+
 - **E1** Fewer than 2 arguments.
 - **E2** Compared with anything other than `false` (`true`, `null`, `''`, a
   variable, …), or with a non-equality operator (`<`, `<=>`, …).
@@ -74,6 +80,7 @@ on that path (`C` itself or its outermost wrapping parenthesis).
 - **E5** Name differing in case (`StrStr`), method calls `$o->strstr(...)`.
 
 ## Report
+
 - Range: the reported node (pattern A: whole comparison `B` from its left
   operand start to its right operand end; pattern B: the `!` expression from
   `!` to the call's `)`, or just the call from its name — including any
@@ -82,6 +89,7 @@ on that path (`C` itself or its outermost wrapping parenthesis).
 - Message: `Use '{replacement}' instead; it avoids building a substring.`
 
 ## Fix
+
 - **F1** Replace the reported node with `{replacement}`:
   - `{call}` = `{qualifier}{fn}({arg1}, {arg2})` where `{qualifier}` is the
     namespace qualifier written before `C`'s name (empty or `\`; when empty
@@ -100,11 +108,13 @@ on that path (`C` itself or its outermost wrapping parenthesis).
   - `$ok && \strstr($h, $n, true)` → `$ok && \strpos($h, $n) !== false`
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | (none) | | | Operand order in the fix follows the global comparison style (`regular` default / `yoda`). |
 
 ## PHP versions
+
 No gating. Upstream fixtures run at the test default level.
 
 ## Examples
@@ -152,6 +162,7 @@ function scan($text, $word, $flag) {
 Yoda style: `!strstr($text, $word)` becomes `false === strpos($text, $word)`.
 
 ## Divergences
+
 - **`<>` operator:** upstream appends `=` to any 2-character operator, so
   `strstr($a, $b) <> false` would become the invalid `<>=`. Recommendation:
   map `<>` to `!==`. Not covered by upstream fixtures.

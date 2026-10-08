@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # UsingInclusionOnceReturnValue
 
 ## Summary
+
 `include_once`/`require_once` return the file's value only the first time;
 every later evaluation returns `true`. Code that uses that value works once
 and then silently breaks. Use `include`/`require` when the result matters.
 
 ## Detection
+
 - **D1** An inclusion expression whose keyword is `include_once` or
   `require_once`, in any letter case (`REQUIRE_ONCE`, `Include_Once`; see
   Divergences), and that has an operand.
@@ -29,11 +31,13 @@ inclusion spans up to the end of `$b` and the inner one is reported as well
 (its parent is the `&&` expression).
 
 ## Exceptions (no report)
+
 - **E1** `require_once 'x.php';` / `include_once('y.php');` as standalone
   statements.
 - **E2** `include`/`require` (non-`_once`) anywhere.
 
 ## Report
+
 - Range: the inclusion expression, from the keyword to the end of its operand
   (the operand may span lines and contain other inclusions). Surrounding
   parentheses and the `;` are not included.
@@ -41,6 +45,7 @@ inclusion spans up to the end of `$b` and the inner one is reported as well
 - Message: `Only the first include_once/require_once returns the file's value; later ones return true.`
 
 ## Fix
+
 - **F1** Replace the inclusion with `include {operand}` (for `include_once`)
   or `require {operand}` (for `require_once`): the new keyword, one space,
   then the operand's source text verbatim (whitespace/comments that were
@@ -53,9 +58,11 @@ inclusion spans up to the end of `$b` and the inner one is reported as well
   `include $f`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -87,6 +94,7 @@ $cfg = (require 'config.php');
 ```
 
 ## Divergences
+
 - **Keyword case (custos diverges).** Upstream requires the keyword text to
   end with lowercase `_once`, so `$cfg = REQUIRE_ONCE $f;` is not reported
   although PHP keywords are case-insensitive and the value is just as

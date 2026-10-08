@@ -9,16 +9,19 @@ php: { min: "", max: "" }
 # SenselessProxyMethod
 
 ## Summary
+
 An override whose only statement forwards its parameters unchanged to the
 same-named parent method — with the same signature, modifiers and
 documentation tags — adds nothing; inheritance already provides that
 behaviour. Remove it.
 
 ## Detection
+
 Visit every class (interfaces and traits are skipped; enums are not
 relevant) and each method `M` declared directly in it.
 
 ### Shape of `M`
+
 - **D1** `M` is not abstract, not private, and carries **no attributes**
   (`#[...]` on the method itself).
 - **D2** `M`'s body contains exactly one statement (ordinary comments and
@@ -35,6 +38,7 @@ relevant) and each method `M` declared directly in it.
   report.
 
 ### Signature unchanged
+
 - **D5** The call resolves to a parent method `PM` (unresolvable → no
   report).
 - **D6** `PM` has the same number of parameters as `M`, and both have
@@ -63,6 +67,7 @@ relevant) and each method `M` declared directly in it.
   has no doc comment, nothing is compared.
 
 ### Return value preserved
+
 - **D10** When the statement is `E;` (no `return`), the parent method must be
   known to produce no value, otherwise no report (removing the child would
   start returning the parent's value). `PM` produces no value when:
@@ -78,6 +83,7 @@ relevant) and each method `M` declared directly in it.
   `return parent::m($a);` qualifies regardless of what the parent returns.
 
 When D1–D10 all hold, report.
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -86,6 +92,7 @@ When D1–D10 all hold, report.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Abstract/private methods, methods with attributes, interfaces and
   traits.
 - **E2** Bodies with more than one statement or zero statements.
@@ -104,11 +111,13 @@ When D1–D10 all hold, report.
   class (case-insensitively).
 
 ## Report
+
 - Range: the method's name identifier.
 - Severity: info (weak warning).
 - Message: `Method '{name}' only forwards to its parent; remove it.`
 
 ## Fix
+
 - **F1** Remove the method:
   - if the method's previous sibling (skipping whitespace and ordinary
     comments) is a `/** … */` doc comment, delete it (whitespace before it
@@ -119,9 +128,11 @@ When D1–D10 all hold, report.
     through the closing `}`).
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None (attributes, promoted parameters and return types are simply parsed at
 any level).
 
@@ -290,6 +301,7 @@ class DiskStore extends Store
 ```
 
 ## Divergences
+
 - **custos diverges from upstream** on dropped returns (D10). Upstream also
   reports a child that calls `parent::m($a);` without `return` when the
   parent returns a value; deleting such a child makes calls start returning

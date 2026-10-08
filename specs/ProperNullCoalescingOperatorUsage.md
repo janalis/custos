@@ -9,15 +9,18 @@ php: { min: "7.0", max: "" }
 # ProperNullCoalescingOperatorUsage
 
 ## Summary
+
 Two misuses of `??`: (a) `call() ?? null` — a call result never triggers an
 undefined-index/variable notice, so `?? null` does nothing; (b) a fallback
 whose type has nothing in common with the left operand's type, which usually
 signals a bug or a confusing API.
 
 ## Detection
+
 Applies to a binary `??` expression `L ?? R`.
 
 Pre-conditions (all cases):
+
 - P1: the expression's direct parent is not another `??` binary expression
   (in either operand position). A `??` wrapped in parentheses inside another
   `??` is still inspected (its direct parent is the parentheses).
@@ -26,6 +29,7 @@ Pre-conditions (all cases):
   `(int)`, `(bool)`, `(array)`, `(object)`, `(float)`, `(unset)`, …).
 
 Case A — useless null fallback:
+
 - D1: `R` is the `null` constant (case-insensitive). If additionally `L` is a
   function call, method call (instance, nullsafe, or static) or a call on a
   callable variable (`$fn()`), report. If `R` is `null` and `L` is anything
@@ -33,6 +37,7 @@ Case A — useless null fallback:
 
 Case B — non-complementary types (only when `ANALYZE_TYPES` is true and `R` is
 not `null`):
+
 - D2: the expression is inside a function, method, closure or arrow function
   body (not at file/class level).
 - D3: resolve the type sets of `L` and `R`. A set is unusable (→ no report)
@@ -56,6 +61,7 @@ not `null`):
 - D6: not complementary and not related → report.
 
 ## Exceptions (no report)
+
 - E1: nested `??` chains: inner `??` nodes are skipped (P1).
 - E2: `??` that is directly cast, e.g. `(string) ($a ?? $b)` (P2).
 - E3: `$var ?? null`, `$arr['k'] ?? null`, `$obj->prop ?? null` (left is not a
@@ -67,16 +73,19 @@ not `null`):
 - E6: code outside any function body (for Case B).
 
 ## Report
+
 - Range: the whole `L ?? R` binary expression.
 - Severity: info (weak warning).
 - Message (Case A): "'{L}' alone is equivalent; drop the '?? null' fallback."
 - Message (Case B): "Operand types of '??' do not match ({left types} vs {right types})."
 
 ## Fix
+
 - F1 (Case A only): replace the whole `L ?? R` expression with the text of `L`.
 - Case B has no fix.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | ANALYZE_TYPES | bool | true | Enables Case B (type complementarity). |
@@ -86,6 +95,7 @@ Upstream fixtures run with `ANALYZE_TYPES` = true and
 `ALLOW_OVERLAPPING_TYPES` = false.
 
 ## PHP versions
+
 The `??` operator exists since PHP 7.0; nothing to report before.
 
 ## Examples
@@ -157,6 +167,7 @@ class Garage {
 ```
 
 ## Divergences
+
 - **`iterable` (custos diverges):** upstream compares `iterable` as an
   opaque type name, so `$this->rows() ?? []` on an `iterable`-returning
   method is reported although an array is an iterable. custos expands

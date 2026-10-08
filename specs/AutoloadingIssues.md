@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # AutoloadingIssues
 
 ## Summary
+
 PSR-0/PSR-4 autoloaders locate a class by its name, so a file that declares a
 single class whose name does not match the file name will not be found by the
 autoloader. Point at the class name when file and class names disagree.
 
 ## Detection
+
 The rule works per file, using only the file's base name (no directory) and
 the declarations in it.
 
@@ -40,6 +42,7 @@ the declarations in it.
   E1 applies.
 
 ## Exceptions (no report)
+
 - **E1** WordPress naming: the base name ends with `class-` + `lower(N)` with
   every `_` replaced by `-`, + `.php` (e.g. class `Shop_Cart_Item` in
   `class-shop-cart-item.php`). The comparison is case-sensitive against the
@@ -53,25 +56,31 @@ the declarations in it.
   not.
 
 ## Report
+
 - Range: the class name identifier of the declaration (just `N`, not the
   `class` keyword or the body).
 - Severity: warning.
 - Message: `File name does not match the class name; autoloading may fail.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
+
 Each block is a separate file; its base name is given in the comment line
 above the block.
 
 `Invoice.php` — no report:
+
 ```php
 <?php
 namespace Billing;
@@ -82,6 +91,7 @@ final class Invoice
 ```
 
 `invoice.php` — reported (case differs):
+
 ```php
 <?php
 class <warning descr="File name does not match the class name; autoloading may fail.">Invoice</warning>
@@ -90,6 +100,7 @@ class <warning descr="File name does not match the class name; autoloading may f
 ```
 
 `Ledger.inc.php` — no report via PSR-0 extraction (`E` = `Ledger`):
+
 ```php
 <?php
 abstract class Accounts_Books_Ledger
@@ -98,6 +109,7 @@ abstract class Accounts_Books_Ledger
 ```
 
 `Journal.inc.php` — reported:
+
 ```php
 <?php
 trait <warning descr="File name does not match the class name; autoloading may fail.">Accounts_Books_Ledger</warning>
@@ -106,6 +118,7 @@ trait <warning descr="File name does not match the class name; autoloading may f
 ```
 
 `Pair.php` — no report (two declarations):
+
 ```php
 <?php
 interface PairContract {}
@@ -113,18 +126,21 @@ class Pair implements PairContract {}
 ```
 
 `2031_04_17_093015_add_orders_table.php` — no report (migration name):
+
 ```php
 <?php
 class AddOrdersTable {}
 ```
 
 `class-shop-cart-item.php` — no report (WordPress naming):
+
 ```php
 <?php
 class Shop_Cart_Item {}
 ```
 
 ## Divergences
+
 - Conditional declarations (a class declared inside an `if` at file level) and
   whether they count as top-level definitions are unverified upstream.
   Recommendation: count only declarations that are direct statements of the

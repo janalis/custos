@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # DateTimeConstantsUsage
 
 ## Summary
+
 The `ISO8601` date format constants do not actually produce ISO-8601 output
 (the offset lacks a colon). The `ATOM` variants produce the compliant format
 and should be used instead.
@@ -16,6 +17,7 @@ and should be used instead.
 ## Detection
 
 ### Global constant
+
 - **D1** A constant reference that resolves to the global constant
   `DATE_ISO8601` (case-sensitive): written `\DATE_ISO8601`, or unqualified
   with PHP's global fallback (no constant `DATE_ISO8601` declared in the
@@ -25,6 +27,7 @@ and should be used instead.
   reported (those are user constants).
 
 ### Class constant
+
 - **D2** A class constant access `X::ISO8601` (constant name exactly
   `ISO8601`, case-sensitive) — `X` may be a class name, `self`/`static`/
   `parent`, or an expression such as `$date::ISO8601`.
@@ -37,12 +40,14 @@ and should be used instead.
   redeclare the constant.
 
 ## Exceptions (no report)
+
 - **E1** Constants with other names (`__DATE_ISO8601`, `DATE_ISO8601_X`,
   `date_iso8601`).
 - **E2** `ISO8601` constants declared by user classes (including a redeclared
   `ISO8601` in a `DateTime` subclass) or unresolvable accesses.
 
 ## Report
+
 - Range: D1 — the whole constant reference including any leading `\` or
   namespace qualifier. D2 — the whole class constant access, from the start
   of `X` to the end of `ISO8601` (e.g. `DateTime::ISO8601`).
@@ -52,6 +57,7 @@ and should be used instead.
   - D2: `ISO8601 is not ISO-8601 compliant; use the ATOM constant.`
 
 ## Fix
+
 - **F1** D1: replace the constant's name by `DATE_ATOM`:
   `DATE_ISO8601` → `DATE_ATOM`, `\DATE_ISO8601` → `\DATE_ATOM`. An
   unqualified (or aliased) reference becomes `\DATE_ATOM` when a bare
@@ -63,9 +69,11 @@ and should be used instead.
   `DateTime::ISO8601` → `DateTime::ATOM`, `$when::ISO8601` → `$when::ATOM`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -113,6 +121,7 @@ function formats(DateTimeImmutable $at)
 ```
 
 ## Divergences
+
 - Depending on the stub set, `DateTimeImmutable` may declare its own copy of
   the constants (identity `\DateTimeImmutable::ISO8601`), in which case
   upstream would not report `DateTimeImmutable::ISO8601`. Recommendation:

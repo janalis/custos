@@ -9,10 +9,12 @@ php: { min: "", max: "" }
 # ShortOpenTagUsage
 
 ## Summary
+
 The short open tag `<?` depends on the `short_open_tag` ini setting; code using
 it breaks (prints source code) where that setting is off. Use `<?php`.
 
 ## Detection
+
 Token-level: requires the lexer to recognise `<?` as an opening tag (as PHP
 does with `short_open_tag=On`).
 
@@ -22,23 +24,28 @@ does with `short_open_tag=On`).
   it is the last token of the file.
 
 ## Exceptions (no report)
+
 - E1: `<?php` and `<?=` tags.
 - E2: `<?` immediately followed by a non-whitespace character (e.g. `<?xml`,
   `<?echo`): not reported (also avoids turning `<?echo` into `<?phpecho`).
 
 ## Report
+
 - Range: the two characters `<?`.
 - Severity: info (weak warning).
 - Message: "Replace the short open tag '<?' with '<?php'."
 
 ## Fix
+
 - F1: replace the `<?` token with `<?php`; the following whitespace and code
   are unchanged.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -68,4 +75,5 @@ No gating.
 ```
 
 ## Divergences
+
 None known.

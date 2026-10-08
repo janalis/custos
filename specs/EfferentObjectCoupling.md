@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # EfferentObjectCoupling
 
 ## Summary
+
 A class that refers to many distinct other classes depends on too much of the
 code base; it is hard to change and to test in isolation. The rule counts the
 distinct class names a class mentions and flags it once the count reaches a
 limit.
 
 ## Detection
+
 - **D1** Every named class-like declaration: `class`, `interface`, `trait`,
   `enum`. Anonymous classes are not reported themselves (they have no name),
   but their references count for the enclosing declaration (D2).
@@ -38,6 +40,7 @@ limit.
 - **D4** Report when `N >= optionCouplingLimit`.
 
 ## Exceptions (no report)
+
 - **E1** Declarations with fewer than `optionCouplingLimit` distinct
   references.
 - **E2** Anonymous classes (no name to report).
@@ -47,22 +50,27 @@ limit.
   relative names `self`, `static`, `parent`.
 
 ## Report
+
 - Range: the name identifier of the declaration.
 - Severity: info.
 - Message: `Depends on {N} distinct classes; consider splitting it up.`
 
 ## Fix
+
 None.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `optionCouplingLimit` | int | 20 | Minimum number of distinct referenced classes that triggers a report (inclusive). The upstream conformance case runs with `2`. |
 
 ## PHP versions
+
 No gating.
 
 ## Examples
+
 With `optionCouplingLimit = 2`:
 
 ```php
@@ -88,10 +96,12 @@ class Basket {
     public function total(int $cents): string { return (string) $cents; }
 }
 ```
+
 (`Checkout` → `\Shop\Wallet`, `\Psr\Log\LoggerInterface`, `\Shop\Money`;
 `Wallet` → only `\Shop\Money`; `Basket` → none.)
 
 ## Divergences
+
 - Upstream counts every class-reference node of the syntax tree. Whether its
   tree models scalar type keywords and `self`/`static`/`parent` as class
   references (and how they would be named) is not observable from the

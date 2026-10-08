@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # PropertyInitializationFlaws
 
 ## Summary
+
 Property defaults and constructor assignments that do nothing: an explicit
 `= null` default (untyped properties are already `null`), a default that
 merely repeats the inherited one, a default on a private property that the
@@ -16,9 +17,11 @@ constructor unconditionally overwrites, and a constructor assignment that
 writes exactly the default value.
 
 ## Detection
+
 Two independent checks.
 
 ### Check 1 — property defaults (only when `REPORT_DEFAULTS_FLAWS` is on)
+
 Visit every property declaration (each variable of a `public/protected/
 private [static] [type] $a = …, $b = …;` declaration separately; class
 constants are not properties). Let `D` be its default value expression
@@ -44,6 +47,7 @@ parents) and `O` the property with the same name found in `Par` or anything
   - Report pattern **S** on `D`.
 
 ### Check 2 — constructor (only when `REPORT_INIT_FLAWS` is on)
+
 Visit every method named `__construct` (any letter case, as PHP compares
 method names) whose
 containing type is a class (not an interface or trait) and whose body has at
@@ -86,6 +90,7 @@ least one statement.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Nullable typed properties: when the language level is **7.4 or
   higher** and the property's declared type contains `null` (`?T`,
   `T|null`, `null`) or is/contains `mixed`, patterns N and W are not
@@ -98,6 +103,7 @@ least one statement.
 - **E5** Overrides that reuse the property (`$this->p = array_merge($this->p, …)`).
 
 ## Report
+
 - Ranges:
   - N: the `null` default token.
   - S: the default value expression `D`.
@@ -113,26 +119,31 @@ least one statement.
   - W: `Assignment writes the property's default value; remove it.`
 
 ## Fix
+
 Only patterns N and O have a fix; S and W have none.
 
 - **F1** Delete everything from immediately after the property's name
   (`$name`) through the end of the default value — the whitespace, any
   comments, the `=` and the value. The terminator (`,` or `;`) stays.
   - `protected $cache = null;` → `protected $cache;`
-  - ```
+
+  - ```text
     private $mode // legacy
         = null;
     ```
+
     → `private $mode;` (the comment between name and `=` is removed too).
   - `private $items = [];` (overwritten in constructor) → `private $items;`
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `REPORT_DEFAULTS_FLAWS` | bool | `true` | Enables Check 1 (N, S) and pattern O of Check 2. |
 | `REPORT_INIT_FLAWS` | bool | `true` | Enables Check 2 (W, and O when the other option is on). |
 
 ## PHP versions
+
 - E1 only applies at language level ≥ 7.4. Upstream cases without an explicit
   level run at the IDE test default (5.6–7.0), the typed-property case runs
   at 7.4. Typed properties are parsed at any level.
@@ -258,9 +269,11 @@ namespace B {
     }
 }
 ```
+
 No findings.
 
 ## Divergences
+
 - **Early return before the assignment (custos diverges):** upstream
   reports a default as always replaced even when the constructor can
   `return` before assigning it (`if (!$data) { return; } $this->data =

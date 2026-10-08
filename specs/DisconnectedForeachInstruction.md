@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # DisconnectedForeachInstruction
 
 ## Summary
+
 A statement inside a `foreach` body that uses no loop variable and nothing the
 loop body changes produces the same effect on every iteration; it most likely
 belongs before or after the loop. Optionally (off by default) the rule also
@@ -16,9 +17,11 @@ points at objects instantiated on every iteration that could be built once and
 cloned.
 
 ## Detection
+
 The rule runs on every `foreach` statement `L`.
 
 ### Preconditions
+
 - **D1** `L` has a braced body (`{ … }`, a group statement). Bodies without
   braces (`foreach ($a as $b) stmt;`) are not analysed.
 - **D2** If any direct child of the body is inline HTML (the body contains a
@@ -27,6 +30,7 @@ The rule runs on every `foreach` statement `L`.
   real statements/elements; comments and docblocks are ignored.
 
 ### Loop variables (seed of the "modified" set `M`)
+
 - **D4** Walk from `L` upwards through its ancestors (including `L` itself),
   stopping at the nearest enclosing function, method, closure or arrow
   function, or the file. For every `foreach` met on the way, add to `M` the
@@ -35,6 +39,7 @@ The rule runs on every `foreach` statement `L`.
   not contribute.
 
 ### Pass 1 — per statement dependencies `Dep(S)` and global writes `M`
+
 All statements are scanned in pass 1 before any is judged, so a variable
 written by a later statement still counts as "modified" for an earlier one.
 
@@ -95,6 +100,7 @@ assignment / argument list). Rules, applied in order (first that ends with
   contents adds those contents (the variable name without `$`) to `Dep(S)`.
 
 ### Pass 2 — judging each statement
+
 `S` is **connected** when `Dep(S)` contains a name that is in `M`, or that
 is bound (D6a) by a statement other than `S`. Connected statements are never
 reported. For an unconnected statement, classify it (looking through an
@@ -121,6 +127,7 @@ expression statement `expr;` to `expr`):
   message. (Independent of D12, which never applies to those classes.)
 
 ## Exceptions (no report)
+
 - **E1** Statements depending on a loop variable (current or any enclosing
   `foreach` up to the function boundary), on any variable written anywhere
   in the body, or on a catch / inner-foreach variable bound by another
@@ -138,6 +145,7 @@ expression statement `expr;` to `expr`):
 - **E8** `compact('name')` referencing a loop/modified variable (D11).
 
 ## Report
+
 - Range (D12):
   - when the statement is `if`, `while`, `do … while`, `for`, `foreach`,
     `switch` or `try`: only its leading keyword token (`if`, `while`, `do`,
@@ -149,14 +157,17 @@ expression statement `expr;` to `expr`):
   D13 `Create the object once before the loop and clone it here.`
 
 ## Fix
+
 None.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). The upstream test suite runs with it enabled. |
 
 ## PHP versions
+
 No gating. Short list syntax `[$a, $b] = …` (7.1+) follows D5 the same way as
 `list(…)`.
 
@@ -210,6 +221,7 @@ foreach ($rows as $row) {
 ```
 
 ## Divergences
+
 - Throw: upstream searches for a `throw` strictly *inside* the statement, so a
   bare `throw $error;` statement directly in the body may be reported as
   disconnected depending on how the parser nests the throw (older parsers:

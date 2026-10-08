@@ -9,10 +9,12 @@ php: { min: "", max: "" }
 # DirectoryConstantCanBeUsed
 
 ## Summary
+
 `dirname(__FILE__)` computes at runtime what the magic constant `__DIR__`
 (PHP 5.3+) already provides. Use the constant.
 
 ## Detection
+
 - **D1** A function call (not a method or static call) whose function name —
   the last segment of the called name — is `dirname`, compared
   case-insensitively as PHP does (`Dirname`, `DIRNAME` match). A leading
@@ -25,6 +27,7 @@ php: { min: "", max: "" }
   constant `__FILE__` in any case (`__file__` is the same constant).
 
 ## Exceptions (no report)
+
 - **E1** Any other argument shape: an expression built from `__FILE__`
   (`dirname(__FILE__ . '/x')`), a parenthesised `(__FILE__)`, a variable, a
   string, etc.
@@ -35,20 +38,24 @@ php: { min: "", max: "" }
   and static calls.
 
 ## Report
+
 - Range: the whole function call expression, from the start of the function
   name (including a leading `\` if present) to the closing `)`.
 - Severity: warning (rendered as deprecated in IDEs).
 - Message: `Replace dirname(__FILE__) with __DIR__.`
 
 ## Fix
+
 - **F1** Replace the whole reported call with `__DIR__`. Surrounding code is
   untouched (`echo dirname(__FILE__);` → `echo __DIR__;`,
   `require dirname(__FILE__) . '/boot.php';` → `require __DIR__ . '/boot.php';`).
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Upstream applies no gating (`__DIR__` exists since 5.3, the minimum custos
 supports).
 
@@ -85,6 +92,7 @@ function bootstrap()
 ```
 
 ## Divergences
+
 - Upstream matches only the bare last segment of the called name, so a
   namespaced user function call like `Tools\dirname(__FILE__)` is reported as
   well. Recommendation: report only unqualified or `\`-qualified `dirname`

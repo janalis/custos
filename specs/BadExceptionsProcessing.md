@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # BadExceptionsProcessing
 
 ## Summary
+
 Two smells around `try`/`catch`: a `try` block that wraps too many statements
 (hard to tell which one is expected to throw), and a `catch` clause that
 binds the exception to a variable but never looks at it (the error is
@@ -17,6 +18,7 @@ swallowed or its cause is lost).
 ## Detection
 
 ### Oversized try block
+
 - **D1** A `try` statement whose own block (`try { … }`, not the catch or
   finally blocks) contains **more than 3** statements.
 - **D2** Statement counting: count the direct children of the block that are
@@ -25,6 +27,7 @@ swallowed or its cause is lost).
   doc comments do not count. Nested blocks are not descended into.
 
 ### Unused caught exception
+
 - **D3** A `catch` clause that names a variable (`catch (Foo $err)`,
   `catch (A | B $err)`). PHP 8 catch clauses without a variable are ignored.
 - **D4** The variable name does not occur anywhere inside the catch body:
@@ -52,6 +55,7 @@ swallowed or its cause is lost).
     "cause lost" message.
 
 ## Exceptions (no report)
+
 - **E1** A `try` block with 0–3 statements.
 - **E2** A catch variable that is referenced at least once in its body
   (read, written, passed on, used inside a closure).
@@ -61,6 +65,7 @@ swallowed or its cause is lost).
   whose variable has an empty name.
 
 ## Report
+
 - D1: range = the `try` keyword only (3 characters). Severity: info.
   Message: `Too many statements in this try block; extract some of them so the
   failing call is obvious.`
@@ -70,12 +75,15 @@ swallowed or its cause is lost).
   or pass it on as the previous exception.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. The variable-less catch form (PHP 8.0) is parsed at every level
 and simply never matches D3.
 
@@ -145,6 +153,7 @@ function cleanup($handle) {
 ```
 
 ## Divergences
+
 - **Uses after the catch (D4b/E2b) — custos refinement, not upstream.**
   Upstream looks only inside the catch body, so a caught exception kept for
   later (`throw $e ?? new …` after a retry loop, inspected in `finally`) is

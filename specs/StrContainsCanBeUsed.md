@@ -9,11 +9,13 @@ php: { min: "8.0", max: "" }
 # StrContainsCanBeUsed
 
 ## Summary
+
 Comparing a `strpos()`/`mb_strpos()` result strictly against `false` is the
 pre-PHP 8 idiom for "does the string contain this substring". PHP 8 has
 `str_contains()` for exactly that.
 
 ## Detection
+
 - **D1** A function call `P` whose name (last segment, case-insensitive, as
   PHP compares function names: `StrPos` matches) is
   `strpos` or `mb_strpos` and which resolves to that global
@@ -35,6 +37,7 @@ pre-PHP 8 idiom for "does the string contain this substring". PHP 8 has
   - `!==` → `R = core`; `===` → `R = !core` (negated).
 
 ## Exceptions (no report)
+
 - **E1** Language level below 8.0.
 - **E2** A third argument (offset), or a fourth (`mb_strpos` encoding), or
   fewer than two arguments.
@@ -44,6 +47,7 @@ pre-PHP 8 idiom for "does the string contain this substring". PHP 8 has
 - **E4** Other functions (`stripos`, `strrpos`, `mb_stripos`, `strstr`, …).
 
 ## Report
+
 - Range: the whole comparison `B` (from its left operand start to its right
   operand end).
 - Severity: info (weak warning).
@@ -51,6 +55,7 @@ pre-PHP 8 idiom for "does the string contain this substring". PHP 8 has
   `!str_contains($a, $b)` for the negated form).
 
 ## Fix
+
 - **F1** Replace `B` with `R`. The negated form is emitted **without** a space
   after `!`: `!str_contains(H, N)`. Arguments are separated by `, ` and copied
   verbatim.
@@ -58,9 +63,11 @@ pre-PHP 8 idiom for "does the string contain this substring". PHP 8 has
   - `false === \mb_strpos($s, $t)` → `!\str_contains($s, $t)`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Reported only at language level ≥ 8.0. The upstream fixture runs at 8.0.
 
 ## Examples
@@ -94,6 +101,7 @@ function scan(string $line, string $tag) {
 ```
 
 ## Divergences
+
 - **Callee resolved — custos diverges from upstream** (D1, D5). Upstream
   ignores namespaces: a user `App\strpos()` (with its own semantics) is
   reported, and the generated call keeps the original qualifier, producing a

@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # UnnecessaryAssertion
 
 ## Summary
+
 Some PHPUnit assertions verify something the language already guarantees:
 asserting `null`/emptiness on the result of a `void` function, or the class
 or type of a value returned by a function with a declared return type. Also,
 `->expects($this->any())` on a mock asserts nothing and can be dropped.
 
 ## Detection
+
 Visit every method call (`->`, `?->` or `::`, any receiver). The method name,
 compared case-insensitively as PHP does (`AssertNull`, `EXPECTS`, `$this->ANY()`
 match; this applies to every method name in this spec), selects the check:
@@ -22,6 +24,7 @@ names starting with `assert` go to Part A, every other name to Part B. The asser
 resolved and there is no test-context check.
 
 ### Part A — assertion on a typed return value (PHP ≥ 7.0)
+
 - **D1** The method name is exactly one of the following; `p` is the 0-based
   position of the checked argument and `T` the expected type:
 
@@ -81,6 +84,7 @@ resolved and there is no test-context check.
 
 Possible-values rules for D2 (recursive; each node visited at most once;
 parentheses stripped first):
+
 - **V1** Ternary `c ? a : b` / `c ?: b`: union of the values of both result
   branches.
 - **V2** `a ?? b`: union of the values of `a` and `b`.
@@ -102,6 +106,7 @@ parentheses stripped first):
 - **V7** Anything else (calls included): the expression itself.
 
 ### Part B — `expects($this->any())`
+
 - **D7** The method name is exactly `expects`, with exactly one argument.
 - **D8** That argument is a method call (`->`, `?->` or `::`, any receiver,
   any arguments) named exactly `any`. A plain function `any()` does not
@@ -109,6 +114,7 @@ parentheses stripped first):
 - No PHP-level gating for Part B.
 
 ## Exceptions (no report)
+
 - **E1** Part A when the PHP language level is below 7.0.
 - **E2** Other assertions (`assertNotNull`, `assertIsString`,
   `assertSame`, `assertTrue`, …), and the listed ones with too few arguments.
@@ -126,6 +132,7 @@ parentheses stripped first):
   `expects($matcher)`, `expects(any())`.
 
 ## Report
+
 - Range:
   - TYPED: the entire assertion method-call expression, from the start of
     its receiver (`$this`, `self`, `static`, a variable…) to its closing `)`;
@@ -137,6 +144,7 @@ parentheses stripped first):
   - ANY: `expects(any()) verifies nothing; drop the expects() call.`
 
 ## Fix
+
 - TYPED: no fix.
 - **F1** ANY: replace the whole `expects(...)` call expression (receiver,
   arrow/`::`, name and argument list) with the source text of its receiver
@@ -152,9 +160,11 @@ parentheses stripped first):
   - a bare statement `$double->expects($this->any());` → `$double;`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - Part A requires PHP language level ≥ 7.0 (return type declarations).
   The EA fixture runs at 7.1 and uses `void` (7.1) and `object` (7.2)
   return types; custos parses them regardless of level, only the 7.0 gate
@@ -256,6 +266,7 @@ abstract class CartTest
 ```
 
 ## Divergences
+
 - **`resource` (custos diverges).** A native return type `resource` names a
   class called `resource` (PHP has no resource type declaration), so a
   function declared `: resource` returns an object and

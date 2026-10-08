@@ -9,13 +9,16 @@ php: { min: "", max: "" }
 # UnnecessarySemicolon
 
 ## Summary
+
 Stray semicolons — empty statements and the terminator right before `?>` in a
 short echo tag — add nothing and are usually typos. Remove them.
 
 ## Detection
+
 Skipped entirely when the file name ends with `.blade.php`.
 
 ### Empty statements
+
 - **D1** An empty statement: a statement consisting solely of `;` (no
   expression, no keyword). Statements such as `return;`, `break;`,
   `continue;`, `declare(...);` are not empty statements.
@@ -30,6 +33,7 @@ Skipped entirely when the file name ends with `.blade.php`.
   statement (`foo();;`), after a closing brace (`class A {};`) — it is reported.
 
 ### Short echo tags
+
 - **D3** A short echo tag statement `<?= expr ;` (not an `echo` keyword
   statement) whose last token is `;`, and the next non-whitespace thing after
   it is not a PHP statement/expression (typically the closing `?>`, or a
@@ -39,17 +43,20 @@ Skipped entirely when the file name ends with `.blade.php`.
 - Regular statements before `?>` (`<?php foo(); ?>`) are never reported.
 
 ## Exceptions (no report)
+
 - **E1** Bodies of `if`/`elseif`/`else`/loops/`declare` consisting of `;`.
 - **E2** `<?= ...; ?>` followed by more statements in the same tag.
 - **E3** `.blade.php` files.
 
 ## Report
+
 - Range: the single `;` character (the whole empty statement for D1; the
   terminator token for D3).
 - Severity: info.
 - Message: `Stray semicolon; remove it.`
 
 ## Fix
+
 - **F1** Delete the `;`. If the token immediately preceding it is whitespace
   (spaces, tabs, newlines — one contiguous run), delete that whitespace too.
   If something else precedes it (another `;`, `}`, a comment), only the `;` is
@@ -60,9 +67,11 @@ Skipped entirely when the file name ends with `.blade.php`.
   - `<?= $title; ?>` → `<?= $title ?>`; `<?= $title ;?>` → `<?= $title?>`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -113,6 +122,7 @@ class Box {}
 ```
 
 ## Divergences
+
 - Alternative syntax (`if (...): ; endif;`, `while (...): ; endwhile;`): the `;`
   sits inside the statement list rather than directly as the clause body;
   upstream behaviour unverified. Recommendation: report it (treat the

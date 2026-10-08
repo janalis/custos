@@ -9,10 +9,12 @@ php: { min: "", max: "" }
 # UnnecessaryUseAlias
 
 ## Summary
+
 An import alias identical to the last segment of the imported name
 (`use App\Mail\Sender as Sender;`) changes nothing. Drop the `as` clause.
 
 ## Detection
+
 Visit every namespace import clause (`use ...;` at file/namespace level),
 including `use function`, `use const` and each item of a group import
 `use Prefix\{A as A, B}`. Trait imports inside class bodies are ignored.
@@ -27,6 +29,7 @@ including `use function`, `use const` and each item of a group import
   or `use Redis as Redis;` qualifies (FQN `\Redis`).
 
 ## Exceptions (no report)
+
 - **E1** Alias differs from the last segment, including differences in case
   only for class and constant imports (`use App\Sender as sender;`,
   `use const App\LIMIT as Limit;`).
@@ -34,11 +37,13 @@ including `use function`, `use const` and each item of a group import
 - **E3** Trait `use` statements (and their `insteadof`/`as` adaptations).
 
 ## Report
+
 - Range: the alias identifier only (the name after `as`).
 - Severity: info.
 - Message: `Alias {alias} repeats the imported name; remove it.`
 
 ## Fix
+
 - **F1** Delete the ` as Alias` part: from the end of the imported name to the
   end of the alias (the whitespace before `as`, the `as` keyword, and the
   alias). The `;`, `,` or `}` that follows is kept.
@@ -46,9 +51,11 @@ including `use function`, `use const` and each item of a group import
   `use App\{Sender as Sender, Queue};` → `use App\{Sender, Queue};`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -86,6 +93,7 @@ class Cart {
 ```
 
 ## Divergences
+
 - Group imports and `use function`/`use const` are not covered by EA fixtures;
   they are included because upstream treats every import clause the same way.
 - **Function imports (custos diverges).** Upstream compares the alias with

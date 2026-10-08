@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # SwitchContinuationInLoop
 
 ## Summary
+
 PHP treats `switch` as a loop structure for `continue`, so a bare `continue`
 inside a `switch` only leaves the `switch` (like `break`) instead of starting
 the next iteration of the surrounding loop. `continue 2` is what was meant.
 
 ## Detection
+
 - **D1** A `continue` statement without a level argument (`continue;`).
   Any argument, including `continue 1;`, disables the check.
 - **D2** Walk up its ancestors:
@@ -25,6 +27,7 @@ the next iteration of the surrounding loop. `continue 2` is what was meant.
     stops there in both cases.
 
 ## Exceptions (no report)
+
 - **E1** `continue` whose nearest enclosing loop lies inside the `switch`
   (the loop is met before the `switch`).
 - **E2** `continue N;` with any explicit level.
@@ -32,18 +35,22 @@ the next iteration of the surrounding loop. `continue 2` is what was meant.
   report).
 
 ## Report
+
 - Range: the whole `continue` statement, from `continue` through its `;`
   inclusive.
 - Severity: error.
 - Message: `Inside 'switch', 'continue' acts like 'break'; use 'continue 2' to reach the loop.`
 
 ## Fix
+
 - **F1** Replace the whole statement with `continue 2;`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -99,6 +106,7 @@ function dispatch(array $events) {
 ```
 
 ## Divergences
+
 - With nested switches inside a loop (`loop { switch { switch { continue; } } }`)
   upstream still reports and suggests `continue 2`, which then only targets
   the outer `switch`. Recommendation: count the `switch` levels passed and use

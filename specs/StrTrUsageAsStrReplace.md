@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # StrTrUsageAsStrReplace
 
 ## Summary
+
 `strtr($subject, $from, $to)` with single-character `$from` and `$to` is really
 a plain character replacement; `str_replace($from, $to, $subject)` states that intent
 more clearly.
 
 ## Detection
+
 - **D1** A function call (not a method/static call) whose name, as written in
   its last segment, is `strtr` compared case-insensitively like PHP function
   names (`StrTr`, `\STRTR` match), and that resolves to the global function:
@@ -46,8 +48,10 @@ more clearly.
   empty).
 
 ### Possible-values set
+
 Collect candidate value expressions of an expression, recursively, visiting
 each expression at most once, with surrounding parentheses removed first:
+
 - ternary → values of both branches (short ternary: the false branch, plus
   the true branch when present);
 - `??` → values of both operands;
@@ -66,6 +70,7 @@ each expression at most once, with surrounding parentheses removed first:
 - anything else → the expression itself.
 
 ## Exceptions (no report)
+
 - **E1** Argument counts other than 3 (`strtr($s, $map)` with an array map).
 - **E2** `from` longer than one character (`'ab'`), or empty (`''`), or a
   multi-byte character (`'é'`).
@@ -79,6 +84,7 @@ each expression at most once, with surrounding parentheses removed first:
 - **E6** Calls resolving to a user function named `strtr` (D1).
 
 ## Report
+
 - Range: the whole call expression, from the start of the function name
   (including any leading `\` or namespace qualifier) to the closing `)`.
 - Severity: info (weak warning).
@@ -86,6 +92,7 @@ each expression at most once, with surrounding parentheses removed first:
   text.
 
 ## Fix
+
 - **F1** Replace the call with
   `{qualifier}str_replace({from}, {to}, {subject})`, where:
   - `{qualifier}` is `\` for `\strtr`, and also for a plain `strtr` when an
@@ -101,9 +108,11 @@ each expression at most once, with surrounding parentheses removed first:
   - `\strtr($row, "\t", ';')` → `\str_replace("\t", ';', $row)`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -149,6 +158,7 @@ function slug($title, $glue = '+') {
 ```
 
 ## Divergences
+
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
 - **`to` length — custos diverges from upstream** (D5). Upstream reports and
   rewrites whatever `to` is. With a one-character `from`, `strtr` uses only

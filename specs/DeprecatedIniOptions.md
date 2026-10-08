@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # DeprecatedIniOptions
 
 ## Summary
+
 Reading, changing or restoring an ini directive that the targeted PHP version
 has deprecated or removed is either a no-op or a future breakage. Point out
 such directives, naming the version and the replacement when there is one.
 
 ## Detection
+
 Visit every plain function call.
 
 - **D1** The call resolves to one of the global functions `ini_set`,
@@ -33,6 +35,7 @@ Visit every plain function call.
   - Otherwise no report.
 
 ### Directive table (facts)
+
 | Directive | Deprecated | Removed | Replacement |
 |---|---|---|---|
 | `define_syslog_variables` | 5.3 | 5.4 | – |
@@ -102,6 +105,7 @@ Directives deprecated only for some values (PHP 8.4's
 listed: reading or setting them is not deprecated in itself.
 
 ## Exceptions (no report)
+
 - **E1** First argument not a string literal (variable, constant,
   concatenation).
 - **E2** Directive not in the table.
@@ -111,6 +115,7 @@ listed: reading or setting them is not deprecated in itself.
   like the targets.
 
 ## Report
+
 - Range: the first argument string literal, including its quotes.
 - Severity: warning for both patterns (P is additionally rendered as
   deprecated/strikethrough).
@@ -122,18 +127,22 @@ listed: reading or setting them is not deprecated in itself.
   - P with replacement: `Ini directive '{name}' is deprecated since PHP {ver}; use {alt}.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Fully level-dependent (D4). Upstream's only fixture runs at the IDE test
 default level, which (as that fixture proves: `always_populate_raw_post_data`
 reported as *deprecated*, not removed) is at least 5.6 and below 7.0 —
 custos conformance should run it at 5.6.
 
 ## Examples
+
 Target PHP 5.6:
 
 ```php
@@ -154,6 +163,7 @@ PHP 7.0.0*, `track_errors` reports *deprecated since PHP 7.2.0*, and
 `always_populate_raw_post_data` reports *no longer exists since PHP 7.0.0*.
 
 ## Divergences
+
 - **Function matching (custos diverges from upstream).** Upstream matches
   the written last segment case-sensitively without resolution, so
   `INI_SET('safe_mode', ...)` is missed and a namespace's own `ini_set()` is

@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # SecurityAdvisories
 
 ## Summary
+
 Works on a project's `composer.json` (not on PHP code). Two concerns:
 development-only packages (test frameworks, debuggers, static analysers…)
 listed under `require` end up in production; and an application that pulls
@@ -17,6 +18,7 @@ in `require-dev`, which blocks installing versions with known
 vulnerabilities.
 
 Throughout this spec:
+
 - **ADV** is the advisory meta-package: vendor `roave`, package
   `security-advisories`; its full name is vendor, `/`, package.
 - **CHK** is the alternative checker package: vendor `sensiolabs`, package
@@ -25,6 +27,7 @@ Throughout this spec:
   `optionConfiguration`, see Options).
 
 ## Input
+
 - **D0** The file's base name is exactly `composer.json` (case-sensitive)
   and its top-level JSON value is an object (the *manifest*). Any other
   file (e.g. `any.json`, `composer.lock`) or a manifest that is not an
@@ -36,7 +39,9 @@ Throughout this spec:
 - Top-level properties are looked up by exact key (first occurrence).
 
 ## Detection
+
 ### Skips (whole file)
+
 - **D1 (library)** The manifest has a `type` property whose value is the
   string `library` (exactly) → nothing is reported.
 - **D2 (owner)** Let `N` be the string value of the top-level `name`
@@ -55,10 +60,12 @@ Throughout this spec:
   string/array/…).
 
 ### Production packages
+
 Consider each member of the `require` object whose value is a **string**;
 other members (numbers, booleans, null, arrays, objects) are ignored. Let
 `p` = key lower-cased, `v` = value lower-cased; skip the member when `p` or
 `v` is empty.
+
 - **D4 (misplaced dev package)** If option `REPORT_MISPLACED_DEPENDENCIES`
   is on and `p` is an element of DEV (the lower-cased key against the
   lower-cased list entries, so `mikey179/vfsStream` and `PHPUnit/PHPUnit`
@@ -72,6 +79,7 @@ other members (numbers, booleans, null, arrays, objects) are ignored. Let
   member has `p` equal to CHK.
 
 ### Advisory checks (only when option `REPORT_MISSING_ROAVE_ADVISORIES` is on)
+
 - **D7** If the manifest has a `require-dev` property whose value is an
   object, scan its string-valued members (same `p`/`v` rules and empty
   skipping as above), in any order:
@@ -86,6 +94,7 @@ other members (numbers, booleans, null, arrays, objects) are ignored. Let
   The fix F1/F2 is attached to this report.
 
 ## Exceptions (no report)
+
 - **E1** Files not named `composer.json`; non-object manifests.
 - **E2** `"type": "library"` manifests.
 - **E3** Manifests whose owner (D2) is in DEV.
@@ -101,6 +110,7 @@ other members (numbers, booleans, null, arrays, objects) are ignored. Let
 - **E8** A `require` object with no string values (D5/D6 cannot fire).
 
 ## Report
+
 - Range: kind M — the key literal of the offending `require` member,
   including its quotes (`"phpunit/phpunit"`); kind L — the value literal of
   the ADV member in `require-dev`, including quotes; kind A — the key
@@ -113,6 +123,7 @@ other members (numbers, booleans, null, arrays, objects) are ignored. Let
   - A: `Add the security advisories package (dev-latest) to require-dev.`
 
 ## Fix
+
 Only kind A has a fix. Let `RQ` be the top-level `require` property and
 `PAIR` the text `"<ADV>": "dev-latest"` (ADV spelled out, one space after
 the colon).
@@ -140,6 +151,7 @@ the colon).
   `PAIR`, which has exactly one space after its colon).
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `REPORT_MISSING_ROAVE_ADVISORIES` | bool | false | Enables kinds A (missing advisory package, with fix) and L (advisory package not on `dev-latest`). |
@@ -191,9 +203,11 @@ case-insensitively — the entry is stored as `mikey179/vfsStream`):
 as kind M.
 
 ## PHP versions
+
 Not applicable (JSON input).
 
 ## Examples
+
 All examples assume both bool options on and the default DEV list.
 
 Misplaced packages plus missing advisory (new section, F1):
@@ -274,6 +288,7 @@ No reports: `{"name": "bakery/oven", "require": {"php": "^8.2", "bakery/core": "
 full, `vendor/package`, exactly as the fix must produce it.)
 
 ## Divergences
+
 - **Case-insensitive DEV list (custos diverges from upstream).** Upstream
   lower-cases the package keys but compares them with the list entries as
   stored, so the default entry `mikey179/vfsStream` can never match and a

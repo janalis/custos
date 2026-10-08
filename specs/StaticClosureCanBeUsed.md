@@ -9,11 +9,13 @@ php: { min: "5.4", max: "" }
 # StaticClosureCanBeUsed
 
 ## Summary
+
 A closure (or arrow function) that never touches the object it was created in
 can be declared `static`. That prevents an implicit `$this` binding, makes the
 scope explicit and avoids keeping the surrounding object alive.
 
 ## Detection
+
 Visit every anonymous function: classic closures (`function (...) use (...) { ... }`)
 and arrow functions (`fn (...) => expr`).
 
@@ -95,6 +97,7 @@ and arrow functions (`fn (...) => expr`).
   holds for all usage sites.
 
 ## Exceptions (no report)
+
 - **E1** Already `static` closures / arrow functions.
 - **E2** Closures with an empty body or a body of comments only.
 - **E3** Arrow functions when `SUGGEST_FOR_SHORT_FUNCTIONS` is `false`.
@@ -114,22 +117,26 @@ and arrow functions (`fn (...) => expr`).
   method.
 
 ## Report
+
 - Range: the `function` keyword of a classic closure, or the `fn` keyword of an
   arrow function (also when attributes precede it; see Divergences).
 - Severity: info (`weak_warning` in fixtures).
 - Message: `Closure does not use $this; declare it static.`
 
 ## Fix
+
 - **F1** Insert `static ` immediately before the `function` / `fn` keyword.
   Nothing else changes (`function () {...}` → `static function () {...}`,
   `fn() => 1` → `static fn() => 1`).
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | SUGGEST_FOR_SHORT_FUNCTIONS | bool | true | When false, arrow functions are never reported. |
 
 ## PHP versions
+
 - Nothing reported below PHP 5.4.
 - Arrow functions exist from PHP 7.4 (parser concern only).
 
@@ -201,6 +208,7 @@ After fix (only changed lines shown):
 ```
 
 ## Divergences
+
 - **Escaping variables — custos diverges from upstream** (D6b). When the
   variable holding the closure is used in an unrecognised way (returned,
   stored, re-assigned, captured), upstream throws away every collected usage

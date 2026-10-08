@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # SuspiciousBinaryOperation
 
 ## Summary
+
 Flags binary operations that are almost certainly not what the author meant:
 `instanceof` against a trait, identical operands, `==` used as a statement,
 `>=` typed instead of `=>` in an array, a comparison placed inside a call's
@@ -17,12 +18,14 @@ parentheses, negated comparisons on nullable values, `??` after a cast or
 and mixed `&&`/`||`/assignment precedence.
 
 ## Detection
+
 Every binary expression is examined on its own (nested binary expressions get
 their own pass). For one binary expression the checks below are tried **in
 this order**, and the first one that reports stops the others for that
 expression. Checks 9 and 10 run only when their option is enabled.
 
 Common definitions:
+
 - *strip(x)*: remove any number of wrapping parentheses from `x`.
 - *Equivalent* (`≡`): same node kind and, for simple variables, same name;
   otherwise the same token sequence ignoring whitespace/comments, or identical
@@ -112,6 +115,7 @@ Common definitions:
     - **D10d** Otherwise, operator `<`, `>`, `<=` or `>=` (not `<=>`) and the
       left operand is directly a unary `!` expression (`! $a > $b`,
       `!($a) > $b`). Report the whole binary expression.
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -120,6 +124,7 @@ Common definitions:
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** `instanceof self`, `instanceof static`, `instanceof $var`, unresolved
   names, classes and interfaces.
 - **E2** `==` that is part of a larger expression; `===` statements.
@@ -137,6 +142,7 @@ Common definitions:
   `$z = $a && $b;` as a statement; `!$a <=> $b`.
 
 ## Report
+
 Severity: error for every check (upstream shows the "useless" variant of D9
 with a strike-through style, but its severity is still error).
 
@@ -155,6 +161,7 @@ with a strike-through style, but its severity is still error).
 | D10 | as described in D10a–D10d | `Operator precedence is unclear here; add parentheses.` |
 
 ## Fix
+
 - **F1 (D4)** Replace the whole `!(...)` expression with `R`
   (`!(($cnt <= 3))` → `$cnt > 3`).
 - **F2 (D6)** Replace the whole call `C` with
@@ -175,12 +182,14 @@ with a strike-through style, but its severity is still error).
 - D1, D2, D3, D5, D7, D8, D9 have no fix.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `VERIFY_CONSTANTS_IN_CONDITIONS` | bool | `true` | Enables D9. |
 | `VERIFY_UNCLEAR_OPERATIONS_PRIORITIES` | bool | `true` | Enables D10. |
 
 ## PHP versions
+
 No gating. Upstream fixtures run at the test-default level (below 7.1) but use
 `??` and scalar type hints; parse them regardless of the configured level.
 
@@ -277,6 +286,7 @@ if ((!$x) < $y) {}
 ```
 
 ## Divergences
+
 - `?int $limit` resolves to `int|null`, fully known, so D4 fires; a parameter
   without a type is unknown and is skipped. This mirrors upstream.
 - F4/F5 use plain text substitution upstream: *every* occurrence of the

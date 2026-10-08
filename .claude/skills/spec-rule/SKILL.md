@@ -10,6 +10,7 @@ allowed to read the upstream EA sources; your output must let an implementer
 reproduce the behaviour **without** ever opening EA.
 
 ## Inputs
+
 - Rule IDs (e.g. `UnnecessarySemicolon`), or a group name from `docs/internals/rules.md`.
 - `.cache/ea/index.json` (run `make extract` if missing):
   - `rules.<ID>.source` — inspection Java file (relative to `eaPath`)
@@ -19,6 +20,7 @@ reproduce the behaviour **without** ever opening EA.
 - Facts: `internal/meta/rules.json` entry for the ID.
 
 ## Steps
+
 1. Read the inspection class and every helper it relies on (strategy classes,
    `utils/*`, `fixers/*`) until you understand every branch. Note which ones
    need semantic data (reference resolution, types, class hierarchy, index,
@@ -38,6 +40,7 @@ reproduce the behaviour **without** ever opening EA.
 6. Run `make rules-doc`.
 
 ## Clean-room checklist (verify before finishing)
+
 - [ ] No Java code, pseudo-Java, or method/class names of EA internals.
 - [ ] No EA message, display name or description text (not even translated
       or lightly reworded) — write our own message wording.
@@ -48,4 +51,5 @@ reproduce the behaviour **without** ever opening EA.
       recommendation.
 
 ## Output
+
 Report per rule: kind, needs, number of D/E/F items, open questions.

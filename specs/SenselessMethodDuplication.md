@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # SenselessMethodDuplication
 
 ## Summary
+
 A child class method whose body is a copy of the inherited method's body is
 dead weight: if the visibility is the same the override can simply be
 deleted; if only the visibility differs, the override should delegate to
 `parent::` instead of duplicating the code.
 
 ## Detection
+
 Visit every method `M` (in a class `C`).
 
 - **D1** `M` is not abstract, not private, and not deprecated (doc-block
@@ -70,6 +72,7 @@ Visit every method `M` (in a class `C`).
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Abstract, private or deprecated methods (child or parent); a
   static method paired with a non-static one.
 - **E2** Test contexts (D2); traits and interfaces.
@@ -82,6 +85,7 @@ Visit every method `M` (in a class `C`).
   methods do not count as parents).
 
 ## Report
+
 - Range: the method's name identifier only.
 - Severity: info (fixture markup `weak_warning`).
 - Messages (`{name}` is the method name):
@@ -89,6 +93,7 @@ Visit every method `M` (in a class `C`).
   - X: `Method '{name}' duplicates the inherited implementation; delegate to parent::{name}() instead.`
 
 ## Fix
+
 - **F1 (I)** Remove the method:
   - if the method's previous sibling (skipping whitespace and ordinary
     comments) is a `/** … */` doc comment, delete that doc comment (the
@@ -113,11 +118,13 @@ Visit every method `M` (in a class `C`).
   is free; e.g. `{\n    return parent::save($row, $flag);\n}` is fine.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `MAX_METHOD_SIZE` | int | `20` | Methods with more top-level statements than this are skipped. |
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -249,6 +256,7 @@ class UserRepo extends MiddleRepo
 ```
 
 ## Divergences
+
 - Whether `true`/`false`/`null` and `self`/`static`/`parent` references
   resolve (and to which FQN) is an IDE detail upstream; an unresolved entry
   suppresses the report. Recommendation: treat `true`/`false`/`null` as

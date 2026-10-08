@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # CurlSslServerSpoofing
 
 ## Summary
+
 Turning off cURL's TLS peer or host-name verification
 (`CURLOPT_SSL_VERIFYPEER`, `CURLOPT_SSL_VERIFYHOST`) lets anyone in the
 middle impersonate the server. Report places where these options are set to a
 disabling value.
 
 ## Detection
+
 Start from every global constant reference whose name (last segment,
 case-sensitive) is exactly `CURLOPT_SSL_VERIFYHOST` (kind **H**) or
 `CURLOPT_SSL_VERIFYPEER` (kind **P**). Let `K` be that reference. Determine
@@ -62,6 +64,7 @@ value is classified:
   scope; custos refinement, see Divergences) → no report.
 
 ## Exceptions (no report)
+
 - **E1** `curl_setopt` with other than 3 arguments; calls to other
   functions, including a namespaced lookalike `curl_setopt` that the call
   resolves to.
@@ -78,6 +81,7 @@ value is classified:
 - **E5** Other `CURLOPT_*` constants.
 
 ## Report
+
 - Range: D1 the whole `curl_setopt(...)` call (name to closing `)`); D2 the
   whole array element from key start to value end; D3 the whole assignment
   from target start to value end.
@@ -87,12 +91,15 @@ value is classified:
   - P: `Peer certificate verification is disabled; keep CURLOPT_SSL_VERIFYPEER enabled.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -122,6 +129,7 @@ function fetch($handle, $insecure)
 ```
 
 ## Divergences
+
 - **Destructuring patterns (custos diverges).** A `key => $var` element of
   an array used as a destructuring target is not a setting; custos skips
   it (E2) instead of discovering the target variable's earlier values

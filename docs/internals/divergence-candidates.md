@@ -6,6 +6,7 @@
 > Class C resolved as well (61 fixed, 8 declined — reasons in each spec's
 > Divergences). Remaining work: the follow-ups listed at the end of this file.
 > Follow-ups found while fixing class A:
+>
 > - ConstantCanBeUsed: `version_compare(PHP_VERSION, '7.1', '>')` is true on
 >   7.1.0 but is rewritten to `PHP_VERSION_ID > 70100` (should be `>= 70100`;
 >   likewise `<=` → `< 70100`).
@@ -33,6 +34,7 @@ in the offset slot, VariableFunctionsUsage's call-time `&`, and
 ClassConstantCanBeUsed D1/D2 with no class or `extends` guard.
 
 Impact class:
+
 - **A**: the fix changes program behaviour or produces invalid PHP.
 - **B**: a false positive or a misleading report.
 - **C**: a false negative, or cosmetic.
@@ -237,12 +239,14 @@ ClassConstantCanBeUsed D2, OneTimeUseVariables, UnnecessaryCasting,
 IssetConstructsCanBeMerged and SenselessProxyMethod.
 
 ## Follow-ups found during class B
+
 - MultiAssignmentUsage: `$row = $row[0]; $b = $row[1];` (base overwritten in between) and `load()[0]; load()[1]` (destructuring changes call count) may be false positives.
 - **Done (2026-10-07).** StrlenInEmptyStringCheckContext (class A, found during class C): the fix inserts the argument unparenthesised, so `strlen($p ?: $q) > 0` becomes `'' !== $p ?: $q` (wrong precedence).
 - **Done (2026-10-07).** PrintfScanfArguments (class B, found during class C): when the format can be a literal or something else (`$message ?: 'fmt %s'`, nowdoc alternatives), only the literal branch is checked → false positives (infection NoSourceFound.php:102, webmozart Assert.php:377).
 - **Done (2026-10-07).** Function names still matched case-sensitively (class C): CaseInsensitiveStringFunctionsMissUse, CascadingDirnameCalls, AmbiguousMethodsCallsInArrayMapping (called-name comparison).
 
 ## Follow-ups found during the name-matching audit
+
 - **Done (2026-10-07).** Fixes emitting an unqualified builtin name that a same-named namespaced function would capture: RealpathInStreamContext (`dirname(`), MkdirRaceCondition (`is_dir(`), ArgumentUnpackingCanBeUsed (bare callee). Emit `\name(` when a bare name would not reach the global function. Shared helpers `util.QualifiedBuiltin`/`QualifiedBuiltinFor` (+ `util.StringCallableFunction`/`StringCallableClass` for string callables); the audit fixed 28 rules in all.
 - **Done (2026-10-07).** Namespaced constants accepted as builtins: ConstantCanBeUsed (`Foo\PHP_VERSION`), DateTimeConstantsUsage (`X\DATE_ISO8601`). Resolved via `util.GlobalConstName`; inserted constants spelled with `util.QualifiedGlobalConst`.
 - **Done (2026-10-07).** `util.Equivalent` compares function/method/class names case-sensitively; switch callers to `util.EquivalentFoldNames` where names are compared. 28 rules switched (incl. NotOptimalIfConditions).

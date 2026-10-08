@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # FixedTimeStartWith
 
 ## Summary
+
 `strpos($s, 'lit') === 0` scans the whole haystack when the prefix is absent,
 so its cost grows with the length of `$s`. Comparing only the first N bytes
 with `strncmp`/`strncasecmp` answers the same "starts with" question in time
 bounded by the needle length.
 
 ## Detection
+
 - **D1** A function call (not a method/static call) that resolves to the
   global function (names compared case-insensitively, as PHP does; `\` and a
   global `use function` import are fine, but a same-named function declared in
@@ -34,6 +36,7 @@ bounded by the needle length.
   `0x0`, `0.0`, `-0`, `(0)`, `false`).
 
 ## Exceptions (no report)
+
 - **E1** A 3rd (offset) argument is present.
 - **E2** Needle is not a plain literal or contains interpolation.
 - **E5** Empty needle (D4a).
@@ -43,6 +46,7 @@ bounded by the needle length.
   comparison.
 
 ## Report
+
 - Range: the function call only (name including any qualifier through the
   closing `)`), not the comparison.
 - Severity: warning (rule disabled by default).
@@ -50,6 +54,7 @@ bounded by the needle length.
   where `{replacement}` is the F1 text.
 
 ## Fix
+
 - **F1** Replace the function call (only the call; the comparison operator and
   the `0` operand stay untouched) with
   `{counterpart}({arg1}, {arg2}, {n})`:
@@ -67,9 +72,11 @@ bounded by the needle length.
   `0 !== \stripos($h, "x\ty")` → `0 !== \strncasecmp($h, "x\ty", 3)`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. The EA test runs at the PhpStorm default level (between 5.6 and 7.0).
 
 ## Examples
@@ -117,6 +124,7 @@ function prefixes($url, $head, $part)
 ```
 
 ## Divergences
+
 - **Multibyte needles (upstream bug):** upstream counts the decoded needle in
   UTF-16 code units (≈ characters), but `strncmp` counts bytes, so `'é/'`
   gets `2` instead of `3` and the rewritten check compares too few bytes.

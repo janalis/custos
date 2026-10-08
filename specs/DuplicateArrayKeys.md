@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # DuplicateArrayKeys
 
 ## Summary
+
 In an array literal a repeated string key silently overwrites the earlier
 entry. Either the earlier entry is dead (different value) or the whole entry
 is a redundant copy (same value).
 
 ## Detection
+
 Visit every array literal (`[...]` and `array(...)`, including short-list
 destructuring targets, which share the same syntax).
 
@@ -46,6 +48,7 @@ without an explicit key and spread elements are skipped.
 whitespace and comments (e.g. `$a+1` vs `$a + 1`), or identical source text.
 Two variables are equivalent when their names are equal. Different literal
 spellings are not equivalent (`'x'` vs `"x"`, `1` vs `1.0`, `0x1` vs `1`).
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -54,6 +57,7 @@ spellings are not equivalent (`'x'` vs `"x"`, `1` vs `1.0`, `0x1` vs `1`).
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Non-literal keys and floats: constants, class constants,
   variables, expressions, float literals (`K => …, K => …` is not reported).
 - **E2** Interpolated string keys (`"k$n"`).
@@ -61,6 +65,7 @@ spellings are not equivalent (`'x'` vs `"x"`, `1` vs `1.0`, `0x1` vs `1`).
 - **E4** Duplicates across different (nested) array literals.
 
 ## Report
+
 - Range:
   - D2a: the whole element from the start of the key to the end of the
     value (`'k' => 'v'`, no trailing comma).
@@ -72,12 +77,15 @@ spellings are not equivalent (`'x'` vs `"x"`, `1` vs `1.0`, `0x1` vs `1`).
   - D2b: `Key already used earlier; the earlier entry is overwritten.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -104,6 +112,7 @@ $settings = [
 ```
 
 ## Divergences
+
 - custos diverges: upstream compares the raw text between the quotes and
   ignores integer keys, so keys PHP stores identically but spelled
   differently (`"\x41"` vs `'A'`, `'1'` vs `1`, `0x10` vs `16`, or simply

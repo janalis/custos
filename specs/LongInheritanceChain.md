@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # LongInheritanceChain
 
 ## Summary
+
 Deep `extends` chains spread behaviour over many levels and make a class hard
 to understand. The rule counts the ancestors of a class and complains when the
 chain reaches a threshold, with carve-outs for exception hierarchies, test
 cases and well-known framework base classes.
 
 ## Detection
+
 Applies to every named class-like declaration that can have a parent class
 (in practice: classes, including abstract ones).
 
@@ -23,7 +25,8 @@ Applies to every named class-like declaration that can have a parent class
 - **D2** Let `P1` be the resolved direct parent class. If `P1` exists, the
   class is **not** abstract and `P1` **is** abstract → no report.
 - **D3** Walk up the chain, counting:
-  ```
+
+  ```text
   count = 0; cur = P1
   while cur exists and cur is not the class itself:
       next = resolved parent of cur
@@ -33,6 +36,7 @@ Applies to every named class-like declaration that can have a parent class
           if short name of next ends with "Exception": no report at all (abort)
       cur = next
   ```
+
   Notes that matter:
   - the direct parent `P1` itself is never tested against S or the
     `Exception` suffix — only ancestors from the grandparent upwards are;
@@ -52,6 +56,7 @@ Applies to every named class-like declaration that can have a parent class
 contains `\Tests\` or `\Test\`.
 
 ## Exceptions (no report)
+
 - **E1** Classes named `…Exception`, and classes having an ancestor at
   grandparent level or above named `…Exception`.
 - **E2** Concrete classes directly extending an abstract class.
@@ -62,6 +67,7 @@ contains `\Tests\` or `\Test\`.
   when it comes back to the class.
 
 ## Report
+
 - Range: the class name identifier.
 - Severity: **info** (weak warning). Upstream registers this problem with a
   weak-warning level even though the catalogue default is `warning`; the
@@ -70,17 +76,21 @@ contains `\Tests\` or `\Test\`.
   inheritance.`
 
 ## Fix
+
 None.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `COMPLAIN_THRESHOLD` | int | 3 | Minimum ancestor count (inclusive) that triggers a report. |
 
 ## PHP versions
+
 No gating.
 
 ## Examples
+
 Default threshold 3:
 
 ```php
@@ -113,10 +123,12 @@ namespace App\Widgets {
     class <weak_warning descr="3 levels of parent classes; prefer composition over deep inheritance.">MegaPanel</weak_warning> extends FancyPanel {}
 }
 ```
+
 (`Err4`: walking from `Err3`, the grandparent `Err2Exception` ends with
 `Exception` → aborted. `Concrete`: concrete class over an abstract parent.)
 
 ## Divergences
+
 - Cycles not passing through the class itself (`A extends B`, `B extends C`,
   `C extends B`) would loop forever upstream. Recommendation: stop the walk
   on any already-visited class.

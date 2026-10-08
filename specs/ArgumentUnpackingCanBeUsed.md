@@ -9,11 +9,13 @@ php: { min: "5.6", max: "" }
 # ArgumentUnpackingCanBeUsed
 
 ## Summary
+
 Since PHP 5.6, `call_user_func_array('fn', $args)` with a literal function
 name can be written as a direct call with argument unpacking, `fn(...$args)`,
 which is faster and easier to read and analyse.
 
 ## Detection
+
 - **D1** Project PHP level ≥ 5.6.
 - **D2** A plain function call (not a method/static call) whose last name
   segment, compared case-insensitively (`Call_User_Func_Array` matches), is
@@ -69,6 +71,7 @@ which is faster and easier to read and analyse.
     without a fix (F2).
 
 ## Exceptions (no report)
+
 - **E1** PHP level below 5.6.
 - **E2** Argument count other than 2.
 - **E3** First argument not a non-interpolated string literal (e.g.
@@ -86,6 +89,7 @@ No check is made that `F` is a valid function name; `'Cls::m'` would yield
 `Cls::m(...$a)` (see Divergences).
 
 ## Report
+
 - Range: the whole `call_user_func_array(...)` call expression, from its first
   character (including a leading `\` qualifier if present) to the closing
   `)`.
@@ -93,6 +97,7 @@ No check is made that `F` is a valid function name; `'Cls::m'` would yield
 - Message: `Call '{replacement}' directly using argument unpacking (wrap with array_values() when keys are not sequential).`
 
 ## Fix
+
 - **F1** Replace the whole reported call with the D7 replacement text. The
   qualifier of `call_user_func_array` itself disappears; a leading `\` that
   was inside the string literal is preserved:
@@ -109,9 +114,11 @@ No check is made that `F` is a valid function name; `'Cls::m'` would yield
   turned out to be string-keyed.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - Requires ≥ 5.6. Below 8.0 the fix is restricted to integer-keyed array literals (D8); the examples assume 8.0+.
 - Conformance note: the upstream fixture runs at the harness default level
   (no explicit level; below 7.1 but at least 5.6) and expects reports, so the
@@ -154,6 +161,7 @@ class Report {
 ```
 
 ## Divergences
+
 - Upstream does not validate the decoded string: `'Cls::method'`, `''`, or a
   name with spaces would produce invalid or different code. custos only
   reports when `F` is an optionally `\`-qualified, `\`-separated identifier

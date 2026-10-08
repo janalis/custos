@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # BacktickOperatorUsage
 
 ## Summary
+
 The backtick operator runs a shell command just like `shell_exec()`, but it
 is easy to overlook when reading code and security scanners often miss it.
 Calling `shell_exec()` explicitly makes command execution visible.
 
 ## Detection
+
 - **D1** Every shell-command expression (backtick literal `` `...` ``),
   wherever it appears (statement, argument, `return`, assignment, inside
   interpolation contexts, …).
@@ -21,17 +23,20 @@ Calling `shell_exec()` explicitly makes command execution visible.
   characters, i.e. the content between the backticks is not empty.
 
 ## Exceptions (no report)
+
 - **E1** The empty command ` `` ` (two backticks, nothing between).
 - **E2** Backticks inside ordinary string literals or comments are not shell
   commands and are never considered.
 
 ## Report
+
 - Range: the whole backtick expression, from the opening backtick to the
   closing backtick inclusive.
 - Severity: warning.
 - Message: `Run the command through shell_exec() instead of backticks.`
 
 ## Fix
+
 - **F1** Replace the whole backtick expression with
   `shell_exec("` + `C` + `")`, where `C` is computed from the raw text
   between the backticks:
@@ -55,9 +60,11 @@ Calling `shell_exec()` explicitly makes command execution visible.
   namespace).
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -85,6 +92,7 @@ $text = 'uses `backticks` in a plain string';
 ```
 
 ## Divergences
+
 - Upstream escapes the content with the IDE's generic "escape for a
   double-quoted string" helper. Only the behaviour for `"` is confirmed by
   fixtures. That helper may additionally double backslashes, escape `$`

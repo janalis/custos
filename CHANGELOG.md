@@ -6,6 +6,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Security
+
 - Untrusted code can no longer crash, hang or exhaust memory: syntax
   nesting capped (4,000 levels); PHPDoc types, aliases and generic chains
   parsed in linear time with size caps; files over 10 MB skipped; at most
@@ -20,7 +21,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   rules) so large legal files stay fast.
 
 ### Added
-- Documentation site (https://janalis.github.io/custos/), built with
+
+- Documentation site (<https://janalis.github.io/custos/>), built with
   VitePress and deployed to GitHub Pages on every change and release: user
   guide (installation, CLI, configuration, suppressions, CI, editors), one
   page per rule with an example, its options and the quick-fix result, and a
@@ -78,11 +80,13 @@ versions follow [Semantic Versioning](https://semver.org/).
   `count($x) > 0` also drops null; truthiness turns `bool` into `true`.
 
 ### Changed
+
 - `custos fix` fixes files in parallel (WordPress 7.1 s → 1.6 s);
   `--stats` labels a `--php` version as "flag".
 - `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
+
 - Type engine (review round 7): `.=` (and every compound assignment)
   replaces a variable's earlier types; `$this`/`self`/`static` inside a
   trait are the unknown using class, never the trait; negated
@@ -371,6 +375,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   NullPointerException.
 
 ### Notes
+
 - custos intentionally diverges from upstream where upstream behaviour is
   wrong (fixes that change semantics or produce invalid PHP, false positives);
   see `docs/decisions.md`.

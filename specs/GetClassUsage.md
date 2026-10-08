@@ -9,12 +9,14 @@ php: { min: "7.1", max: "" }
 # GetClassUsage
 
 ## Summary
+
 Since PHP 7.2, passing `null` to `get_class()` is an error-level misuse (it no
 longer silently falls back to the calling class). This rule flags
 `get_class(x)` calls whose single argument may be `null` and that are not
 preceded by any null check of that same expression in the enclosing function.
 
 ## Detection
+
 - **D1** Node: a function call (not a method/static call) whose name part is
   `get_class` (case-insensitive: `Get_Class` matches) and that resolves to the global
   `get_class()` with PHP's runtime rules: `get_class(...)` and
@@ -41,6 +43,7 @@ preceded by any null check of that same expression in the enclosing function.
   holds and the check fails, report.
 
 ### Null-check search (used by D5)
+
 Performed only when the call sits inside a function/method/closure body
 (the **nearest** enclosing one). At file/top level there is no search and the
 call is always reported when D4 holds.
@@ -63,6 +66,7 @@ call is always reported when D4 holds.
      `elseif`, `while` or `do … while`; or a logical-not `!`; or either
      operand of `&&`, `||`, `and`, `or`; or the condition (not a branch) of a
      full ternary `c ? x : y` (the short form `?:` does not count).
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -71,6 +75,7 @@ call is always reported when D4 holds.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** PHP level below 7.1.
 - **E2** Argument type known and not containing `null`, and not a
   null-defaulted parameter (e.g. `$s = ''`, `string $s`, `$this`, `new X`).
@@ -85,24 +90,29 @@ call is always reported when D4 holds.
   (`$n === false`), occurrences after the call.
 
 ## Report
+
 - Range: the whole call expression, from the start of the function name
   (including any leading `\` or namespace qualifier) to the closing `)`.
 - Severity: warning.
 - Message: `get_class() rejects null on PHP 7.2+; guard the argument.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - Active only when the language level is >= 7.1 (the upstream threshold;
   the PHP behaviour change itself is in 7.2).
 - Upstream fixture is run at level 7.1. Tests with no explicit level run below
   7.1 in upstream's harness and would produce no reports.
 
 ## Examples
+
 Language level 7.4:
 
 ```php
@@ -147,6 +157,7 @@ function legacy($item = null) {
 ```
 
 ## Divergences
+
 - Arrow functions (`fn($m = null) => get_class($m)`): upstream treats the
   arrow function as the enclosing scope but has no block body to search;
   this path throws internally and nothing gets reported. Recommendation:

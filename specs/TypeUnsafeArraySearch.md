@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # TypeUnsafeArraySearch
 
 ## Summary
+
 `in_array()` and `array_search()` compare loosely unless their third argument
 is `true`, so `'1abc'`, `1`, `true` and `'1'` can all "match". Asking for the
 third argument forces the author to decide whether loose matching is really
 wanted.
 
 ## Detection
+
 Visit every function call.
 
 - **D1** The called name (last name segment, compared case-insensitively as
@@ -29,6 +31,7 @@ Visit every function call.
 - **D3** Not excluded by E1/E2 → report.
 
 ## Exceptions (no report)
+
 - **E1** *Literal string haystack*: `H` is an array literal (`[...]` or
   `array(...)`, not wrapped in parentheses) with at least one element, and
   **every** element is a plain value element (no `key =>`, no spread) whose
@@ -60,12 +63,14 @@ Visit every function call.
   (`\App\in_array($a, $b)`).
 
 ## Report
+
 - Range: the whole call expression, from the start of the function name
   (including any leading `\` or qualifier) to the closing `)`.
 - Severity: info (weak warning).
 - Message: `Pass a third argument to say whether this search must be type-strict.`
 
 ## Fix
+
 - **F1** Replace the whole call with
   `<qualifier><name>(<N>, <H>, true)` where `<qualifier>` is the namespace
   qualifier exactly as written (`\` for `\in_array(...)`, empty when
@@ -76,9 +81,11 @@ Visit every function call.
   - `\array_search(7, [])` → `\array_search(7, [], true)`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None. Upstream fixture runs at the PhpStorm test default level (5.6–7.0).
 
 ## Examples
@@ -140,6 +147,7 @@ function pick($code, array $allowed) {
 ```
 
 ## Divergences
+
 - **Case of the name (custos diverges from upstream).** Upstream compares
   the written name case-sensitively, so `In_Array($a, $b)` is not reported.
   custos matches any case; the fix keeps the name as written.

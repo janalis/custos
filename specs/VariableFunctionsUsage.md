@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # VariableFunctionsUsage
 
 ## Summary
+
 `call_user_func()` / `forward_static_call()` with a callable that is known at
 the call site can be written as a direct call (`$fn(...)`, `Cls::m(...)`,
 `$obj->m(...)`), which is faster and analysable. Likewise
@@ -16,6 +17,7 @@ the call site can be written as a direct call (`$fn(...)`, `Cls::m(...)`,
 argument array can pass the arguments inline.
 
 ## Detection
+
 Applies to plain function calls that resolve to the global function (names
 compared case-insensitively, as PHP does; `\` and a global `use function`
 import are fine, but a same-named function declared in the current namespace,
@@ -23,6 +25,7 @@ one imported from another namespace, or a qualified non-global name such as
 `Ns\call_user_func` does not count).
 
 ### Part A — inline the argument array
+
 - **D1** Name is `call_user_func_array` (target `call_user_func`) or
   `forward_static_call_array` (target `forward_static_call`).
 - **D2** Exactly 2 arguments, and the 2nd is an array literal (`array(...)` or
@@ -39,6 +42,7 @@ one imported from another namespace, or a qualified non-global name such as
   simply dropped.
 
 ### Part B — direct call
+
 - **D5** Name is `call_user_func` or `forward_static_call`, with at least 1
   argument. Let `A0` be the 1st argument.
 - **D5a** No argument after `A0` is written with a call-time by-reference
@@ -88,6 +92,7 @@ one imported from another namespace, or a qualified non-global name such as
 lists, as upstream fixtures contain it.)
 
 ## Exceptions (no report)
+
 - **E1** Part A: argument array empty, contains `&` or `...` elements, is not a
   literal (variable, call), or the call has ≠ 2 arguments.
 - **E1a** Part A at PHP ≥ 8.0: an element has a non-integer-literal key
@@ -105,6 +110,7 @@ lists, as upstream fixtures contain it.)
   array.
 
 ## Report
+
 - Range: the whole outer call (from the start of its name, including any
   qualifier, to its closing `)`; whitespace between name and `(` is inside).
 - Severity: info (weak warning).
@@ -113,6 +119,7 @@ lists, as upstream fixtures contain it.)
   - Part B: `Call it directly: '{replacement}'.`
 
 ## Fix
+
 - **F1** Part A: replace the call with
   `{target}({A0}, {values})` — `{target}` is the bare target name
   (`call_user_func` / `forward_static_call`, without the original
@@ -150,14 +157,17 @@ lists, as upstream fixtures contain it.)
   `\Repo::find(1)`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - Part B with a plain variable callable (D6b) requires level ≥ 5.4.
 - Part A skips arrays with non-integer keys from level 8.0 (D4a).
   Everything else is ungated. Upstream fixtures run at 5.3 and 5.4.
 
 ## Examples
+
 Level 8.0+:
 
 ```php
@@ -227,6 +237,7 @@ Level 5.3: `call_user_func($hook, 1)` is not reported; `call_user_func('trim', $
 → `trim($s)` still is.
 
 ## Divergences
+
 - **Keys in Part A (custos diverges):** upstream always drops the keys of
   the argument array. From PHP 8 on, string keys are named arguments, so the
   positional rewrite calls the function differently. custos keeps dropping

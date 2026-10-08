@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # IfReturnReturnSimplification
 
 ## Summary
+
 An `if` whose only job is to return `true` in one branch and `false` in the
 other is a long-winded way of returning the condition itself (or its
 negation). Return the expression directly.
 
 ## Detection
+
 Visit every `if` statement `S` (the keyword form; `else if` is an `else` whose
 body is a nested `if` and that nested `if` is visited on its own).
 
@@ -50,6 +52,7 @@ body is a nested `if` and that nested `if` is visited on its own).
   `else`.
 
 ## Exceptions (no report)
+
 - **E1** Condition (after unwrapping parentheses) is not binary: a variable,
   call, `!`-expression, `isset(...)`, assignment, ternary; or it is a binary
   expression whose value is not a `bool` (`$a + $b`, `$a . $b`, `$a ?? $b`,
@@ -62,12 +65,14 @@ body is a nested `if` and that nested `if` is visited on its own).
   `else`.
 
 ## Report
+
 - Range: the `if` keyword token of `S` (2 characters).
 - Severity: warning.
 - Message: `Return the condition directly: '{replacement}'.` where
   `{replacement}` is the final F-text below without the trailing `;`.
 
 ## Fix
+
 Let `T` be the source text of `C` (D1, parentheses already stripped, inner
 text kept verbatim).
 
@@ -99,9 +104,11 @@ text kept verbatim).
   The indentation before `S` is kept; text after `R2` is untouched.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -220,6 +227,7 @@ function hasElseif($q) {
 ```
 
 ## Divergences
+
 - custos diverges from upstream on the accepted operators (D1/E1). Upstream
   takes any binary operator, so `if ($a + $b) { return true; } return false;`
   would become `return $a + $b;`, which returns an `int` instead of a `bool`

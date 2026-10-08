@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # UnNecessaryDoubleQuotes
 
 ## Summary
+
 A double-quoted string that contains no interpolation and no escape sequence
 behaves exactly like a single-quoted one. Single quotes make it obvious that
 nothing is evaluated inside.
 
 ## Detection
+
 Visit every string literal.
 
 - **D1** The literal is double-quoted (`"..."`, optionally with a `b` prefix —
@@ -29,25 +31,30 @@ Visit every string literal.
 - The empty string `""` qualifies.
 
 ## Exceptions (no report)
+
 - **E1** Strings with interpolation.
 - **E2** Strings containing `'` (after D3's replacements) or any remaining
   backslash.
 - **E3** Heredoc / nowdoc / single-quoted strings.
 
 ## Report
+
 - Range: the whole literal including both double quotes.
 - Severity: info.
 - Message: `No interpolation or escapes here; use single quotes.`
 
 ## Fix
+
 - **F1** Replace the literal by `'` + content + `'`, where content is the raw
   text with `\$` → `$` and `\"` → `"` applied (D3 guarantees nothing else needs
   escaping). Examples: `"plain"` → `'plain'`; `"\$\"x"` → `'$"x'`; `""` → `''`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -78,6 +85,7 @@ $dollar = 'cost: $';
 ```
 
 ## Divergences
+
 - Binary-prefixed strings (`b"..."`): upstream behaviour unverified. Recommend
   treating them like ordinary double-quoted strings and keeping the `b` prefix
   in the fix (`b"x"` → `b'x'`).

@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # PhpUnitTests
 
 ## Summary
+
 A grab-bag of PHPUnit hygiene checks. On test method docblocks it validates the
 targets of `@covers`, `@depends` and `@dataProvider`, flags a redundant `@test`
 and (optionally) unnamed datasets. On assertion and mock-builder calls it
@@ -18,6 +19,7 @@ counterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,
 → `->willReturn(…)`, …) and rewrites them.
 
 The rule has two independent halves:
+
 - **Part A** — docblock tags on methods (D1–D12).
 - **Part B** — method calls whose name starts with `assert`, or is `expects`
   or `will` (D13–D30).
@@ -50,6 +52,7 @@ of every class-like and every matching method call is examined.
 
 Reference resolution used below: a reference is the word from D4. It may
 contain a class part and a member part separated by `::`.
+
 - Class part: resolved like a class name in code at that position (current
   namespace, `use` imports/aliases, leading `\` = fully qualified), against
   project classes and built-in stubs (classes, interfaces, traits).
@@ -63,6 +66,7 @@ contain a class part and a member part separated by `::`.
 - A trailing `()` after the member name is ignored for resolution.
 
 #### `@dataProvider`
+
 - **D5** The reference's **member** (the last component; for a bare word, the
   word itself; for `C::m`, `m` in `C`) must resolve to a method. If there is no
   resolvable reference at all, or it resolves to nothing / to something other
@@ -82,6 +86,7 @@ contain a class part and a member part separated by `::`.
   returning a variable or a call, empty body) are not reported.
 
 #### `@depends`
+
 - **D7** Resolve the member like D5. If it does not resolve to a method →
   report (error).
 - **D8** If it resolves to a method whose name does **not** start with `test`
@@ -90,6 +95,7 @@ contain a class part and a member part separated by `::`.
   A method named `test…` or carrying `@test` is a valid dependency.
 
 #### `@covers`
+
 - **D9** Let `T` be the reference text as written (e.g. `Book::settle`,
   `\App\Cart`, `::strlen`, `Cart::<public>`, `Cart::pay()`).
   A *callable target* is required when `T` contains `::` and does **not**
@@ -115,6 +121,7 @@ contain a class part and a member part separated by `::`.
   Otherwise fall back to D10 (global function `m`).
 
 #### `@test`
+
 - **D11** Tag `@test` in annotation position (D3) on a method whose name
   starts with `test` (case-sensitive) → report the redundant tag (info,
   deprecated-style highlight). A `@test` on a method not named `test…` is fine.
@@ -141,10 +148,16 @@ contain a class part and a member part separated by `::`.
   1. inverted boolean (D15) — always;
   2. boolean of comparison (D16) — always;
   3. strict equality (D17) — only if `SUGGEST_TO_USE_ASSERTSAME`;
-  then, only if `PROMOTE_PHPUNIT_API`:
-  4. empty (D18); 5. constant (D19); 6. internal type (D20);
-  7. instanceof (D21, D22); 8. resource exists (D23); 9. count (D24);
-  10. contains (D25); 11. regex (D26, D27); 12. file equals (D28a);
+  4. empty (D18) — this one and all the following only if
+     `PROMOTE_PHPUNIT_API`;
+  5. constant (D19);
+  6. internal type (D20);
+  7. instanceof (D21, D22);
+  8. resource exists (D23);
+  9. count (D24);
+  10. contains (D25);
+  11. regex (D26, D27);
+  12. file equals (D28a);
   13. string equals file (D28b).
 
 Conventions for D15–D28: `args` are the assertion call's arguments (`n` of
@@ -285,6 +298,7 @@ integer/float literal, optionally with a unary minus.
   `willReturnArgument`, with exactly one argument `V`.
 
 ## Exceptions (no report)
+
 - **E1** Methods without docblock, functions, closures (Part A).
 - **E2** Tags not in annotation position (D3); tags with no reference value.
 - **E3** `@dataProvider`/`@depends` resolving to a valid target (D5/D8);
@@ -310,6 +324,7 @@ integer/float literal, optionally with a unary minus.
   off only D15, D16 (and D17 if enabled) run.
 
 ## Report
+
 - Severity: rule default `info` for everything **except** the unresolved /
   inappropriate targets D5, D7, D8, D10, which are `error`. D6 is `info`.
   D11 is `info` (upstream marks it with a strike-through "deprecated" style;
@@ -336,6 +351,7 @@ integer/float literal, optionally with a unary minus.
   - D30: `Use '->{method}()' instead.`
 
 ## Fix
+
 All Part B fixes keep the receiver and the `->`/`::` operator, **rename the
 called method** to the suggested name and **replace the whole argument list**
 `( … )` with a freshly built one: the listed argument texts copied verbatim
@@ -407,6 +423,7 @@ filled, in order, with the original arguments that follow the message
 - D5–D10 and D6 have no fix.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 D20 suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. D25 only runs below 9.0. D23 uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. D26/D27 use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Conformance passes it as `PhpUnitVersion.PHPUNIT75` style values; strip the prefix. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |
@@ -417,6 +434,7 @@ filled, in order, with the original arguments that follow the message
 | `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Enables D30. |
 
 ## PHP versions
+
 - No rule-level gating; PHPUnit version handled by `PHP_UNIT_VERSION`.
 - D21/D22 fix output depends on the language level: ≥ 5.5 uses `::class`,
   below uses a quoted FQN with doubled backslashes. Upstream fixtures run at
@@ -629,6 +647,7 @@ class LegacyTest
 ```
 
 ## Divergences
+
 - **Name matching in Part B (custos diverges from upstream).** Upstream
   compares the assertion and mock method names case-sensitively (so
   `$this->AssertTrue(!$x)` is skipped) and matches the inner function calls

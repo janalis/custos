@@ -9,7 +9,9 @@ php: { min: "", max: "" }
 # StringNormalization
 
 ## Summary
+
 Two smells when chaining string normalisation calls:
+
 1. Changing the case of a string and *then* trimming / cutting it converts
    characters that are thrown away right after; cut first, convert the case
    of the (shorter) result.
@@ -18,12 +20,14 @@ Two smells when chaining string normalisation calls:
    inner call can be dropped.
 
 ## Detection
+
 Definitions (a call "is" one of these functions when it resolves to the
 global function of that name: names compared case-insensitively as PHP does —
 `TRIM`, `\StrToLower` match — written with a single leading `\` or
 unqualified with no same-named function declared or imported in the current
 namespace; `Ns\trim(...)` and shadowing user functions never match. Names
 are compared in this canonical lower-case form, e.g. for D5a):
+
 - *Length* functions: `trim`, `ltrim`, `rtrim`, `substr`, `mb_substr`.
 - *Basic case* functions: `strtolower`, `strtoupper`, `mb_convert_case`,
   `mb_strtolower`, `mb_strtoupper`.
@@ -31,6 +35,7 @@ are compared in this canonical lower-case form, e.g. for D5a):
   `ucwords`.
 
 Common preconditions, for an outer call `O`:
+
 - **D1** `O` is a plain function call (not a method / static call) with at
   least one argument.
 - **D2** `O`'s first argument is itself, directly (not in parentheses), a
@@ -38,6 +43,7 @@ Common preconditions, for an outer call `O`:
   argument. Let `S` be `I`'s first argument.
 
 Pattern A — case conversion before cutting (checked first):
+
 - **D3** `O` is a length function and `I` is a **basic** case function.
   `ucfirst`/`lcfirst`/`ucwords` do not qualify: they act on the first
   character of the string or of each word, so cutting before or after them
@@ -62,6 +68,7 @@ Pattern A — case conversion before cutting (checked first):
 
 Pattern B — redundant nested case conversion (only when `O` is not a length
 function):
+
 - **D5** `O` and `I` are both case functions, and either:
   - **D5a** `O` and `I` have the same name (any argument counts, e.g.
     `mb_convert_case(mb_convert_case($v, A), B)` or `ucwords(ucwords($v))`),
@@ -80,6 +87,7 @@ A single outer call yields at most one report. Nested chains are visited at
 every level, so e.g. `trim(strtolower(strtolower($v)))` yields a pattern A
 report on the `trim(...)` call and a pattern B report on the inner
 `strtolower(...)`.
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -88,6 +96,7 @@ report on the `trim(...)` call and a pattern B report on the inner
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Method / static calls at either level (`$o->trim(strtolower($v))`,
   `trim($o->strtolower($v))`).
 - **E2** The case call is not the *first* argument of the outer call, or is
@@ -110,6 +119,7 @@ report on the `trim(...)` call and a pattern B report on the inner
   `ucwords` with a different delimiter.
 
 ## Report
+
 - Pattern A
   - Range: the whole outer call `O` (name, including any namespace
     qualifier, through its closing `)`).
@@ -123,6 +133,7 @@ report on the `trim(...)` call and a pattern B report on the inner
 - Severity: info (weak warning) for both.
 
 ## Fix
+
 - **F1** (pattern A) Swap the nesting: the outer call `O` is replaced with
   `I`'s source text in which `S` is replaced by `O`'s source text in which
   `I` (its first argument) is replaced by `S`. All other text — names as
@@ -137,9 +148,11 @@ report on the `trim(...)` call and a pattern B report on the inner
   `strtoupper($code)`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. (Upstream fixture runs at the IDE test default level, below 7.1;
 nothing in the rule is version-dependent.)
 
@@ -208,6 +221,7 @@ function tidy($code, $mask, $o) {
 ```
 
 ## Divergences
+
 - Upstream builds the F1 text with global *textual* search-and-replace
   (every occurrence of `I`'s text inside `O`'s text, then every occurrence of
   `S`'s text inside `I`'s text), not by node ranges. It produces broken code

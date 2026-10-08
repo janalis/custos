@@ -9,11 +9,13 @@ php: { min: "8.0", max: "" }
 # StrStartsWithCanBeUsed
 
 ## Summary
+
 `strpos($h, $n) === 0` is the pre-PHP 8 way to ask "does `$h` begin with
 `$n`". PHP 8 provides `str_starts_with()`, which says it directly and does not
 scan the whole haystack.
 
 ## Detection
+
 - **D1** A function call `P` whose name (last segment, case-insensitive, as
   PHP compares function names: `StrPos` matches) is
   `strpos` or `mb_strpos` and which resolves to that global
@@ -35,6 +37,7 @@ scan the whole haystack.
   - `===` → `R = core`; `!==` → `R = !core` (negated).
 
 ## Exceptions (no report)
+
 - **E1** Language level below 8.0.
 - **E2** Offset or encoding argument present, or fewer than two arguments.
 - **E3** Loose comparisons (`==`, `!=`), comparisons with anything other than
@@ -42,11 +45,13 @@ scan the whole haystack.
 - **E4** Other functions (`stripos`, `strrpos`, `mb_stripos`, …).
 
 ## Report
+
 - Range: the whole comparison `B`.
 - Severity: info (weak warning).
 - Message: `Replace with '{R}'.` (`{R}` exactly as produced by the fix).
 
 ## Fix
+
 - **F1** Replace `B` with `R`; the negated form has no space after `!`
   (`!str_starts_with(H, N)`). Arguments are copied verbatim, separated by
   `, `.
@@ -54,9 +59,11 @@ scan the whole haystack.
   - `mb_strpos($s, $p) !== 0` → `!str_starts_with($s, $p)`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Reported only at language level ≥ 8.0. The upstream fixture runs at 8.0.
 
 ## Examples
@@ -92,6 +99,7 @@ function route(string $uri, string $prefix): array {
 ```
 
 ## Divergences
+
 - **Callee resolved — custos diverges from upstream** (D1, D5). Upstream
   ignores namespaces: a user `App\strpos()` is reported, and the generated
   call keeps the original qualifier (`Foo\strpos` → `Foo\str_starts_with`,

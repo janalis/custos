@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # JsonEncodingApiUsage
 
 ## Summary
+
 `json_decode()` without its second argument silently returns `stdClass`
 objects, which readers often confuse with arrays; and both `json_decode()` and
 `json_encode()` report failures only through `json_last_error()` unless the
@@ -16,6 +17,7 @@ objects, which readers often confuse with arrays; and both `json_decode()` and
 decoding target and for exception-based error handling.
 
 ## Detection
+
 Visit every function call whose name (last segment, compared
 case-insensitively as PHP does) is `json_decode` or `json_encode`.
 
@@ -31,12 +33,14 @@ case-insensitively as PHP does) is `json_decode` or `json_encode`.
   `json_encode(value, flags, depth)`.
 
 ### Decoding target (`json_decode` only)
+
 - **D1** Option `HARDEN_DECODING_RESULT_TYPE` is on, the call has at least one
   argument, and there is no argument `associative` at position 1 (neither
   positional second argument nor `associative:` named argument). Report
   kind T.
 
 ### Error handling (`json_decode` and `json_encode`)
+
 - **D2** Option `HARDEN_ERRORS_HANDLING` is on, the project PHP level is
   **≥ 7.3**, and the call has at least one argument.
 - **D3** The subject argument exists: `json` at position 0 for
@@ -75,6 +79,7 @@ Both kinds may be reported on the same call (T first, then E), each with its
 own fix.
 
 ## Exceptions (no report)
+
 - **E1** Calls with no arguments.
 - **E2** Calls resolving to a non-global function of the same name.
 - **E3** `json_decode` with an explicit second / `associative:` argument (any
@@ -85,6 +90,7 @@ own fix.
   with other names), nothing is reported.
 
 ## Report
+
 - Range: the whole call expression, from the function name (including any
   leading `\`) to the closing `)`.
 - Severity: info (weak warning), both kinds.
@@ -93,6 +99,7 @@ own fix.
   - E: `Pass JSON_THROW_ON_ERROR in the flags of this call.`
 
 ## Fix
+
 The fix replaces the whole call with newly built text. `NS` is the namespace
 qualifier exactly as written before the function name (`\` for
 `\json_decode(...)`, empty for an unqualified call). Argument texts are the
@@ -125,6 +132,7 @@ exactly `, `.
   even inside a namespace.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | HARDEN_DECODING_RESULT_TYPE | bool | true | Enables kind T (D1). Also affects `<assoc>` in F2. |
@@ -137,6 +145,7 @@ DECODE_AS_ARRAY on, HARDEN_ERRORS_HANDLING off, default PHP level;
 (b) E only — HARDEN_DECODING_RESULT_TYPE off, HARDEN_ERRORS_HANDLING on, PHP 7.3.
 
 ## PHP versions
+
 - Kind T: no gating.
 - Kind E: project level ≥ 7.3 (`JSON_THROW_ON_ERROR` introduced in 7.3). Test
   cases without an explicit level run below 7.3, so kind E never appears
@@ -241,6 +250,7 @@ class Exporter {
 ```
 
 ## Divergences
+
 - **Case of the name (custos diverges from upstream).** Upstream compares
   the written name case-sensitively, so `JSON_DECODE($s)` is not reported.
   custos matches any case; the fix keeps the name and qualifier as written.

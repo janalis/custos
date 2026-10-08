@@ -9,7 +9,9 @@ php: { min: "", max: "" }
 # AlterInForeach
 
 ## Summary
+
 Three related `foreach` value-variable pitfalls:
+
 1. a by-reference value (`as &$v`) that stays alive after the loop, so a later
    write to `$v` silently modifies the last array element;
 2. an `unset($v)` right after a loop whose `$v` was *not* a reference (the
@@ -18,6 +20,7 @@ Three related `foreach` value-variable pitfalls:
    `foreach ($array as $key => $value)` where a by-reference value would do.
 
 ## Detection
+
 Only foreach loops whose value target is a plain variable (`$v` or `&$v`)
 are considered for parts A and B (value written as `list(...)`/`[...]`:
 skip). "Next sibling" below means the next statement/node following a node in
@@ -25,6 +28,7 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
 **not** doc comments (`/** */`), unless stated otherwise.
 
 ### A. By-reference value not unset
+
 - **D1** The foreach value variable `V` is preceded by `&` (whitespace allowed
   between `&` and `$v`: `& $v`).
 - **D2** Find the *follower* `N`:
@@ -55,6 +59,7 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
   Otherwise report `V` (severity warning).
 
 ### B. Unset of a non-reference value
+
 - **D4** `V` is not preceded by `&`.
 - **D5** Find `N` = next sibling of the foreach (doc comments are **not**
   skipped here, and no general ancestor climbing). While `N` is not an
@@ -69,6 +74,7 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
   (`$obj->v`, `$a['v']`) are never reported.
 
 ### C. Write-back through key (option `SUGGEST_USING_VALUE_BY_REF`, default off)
+
 - **D7** Any assignment expression (plain `=`, by-reference `= &`, and
   compound `+=`, `.=`, …) whose left side is an array access `C[I]` with a
   non-empty index (`$a[]` excluded) where `I` is a plain variable.
@@ -90,6 +96,7 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** By-ref loop followed (directly or via the D2 climb) by
   `unset($v, ...)`, `return`, `throw`, or by nothing.
 - **E2** Comments/doc comments between the loop and the unset/return
@@ -103,6 +110,7 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
   assignment inside a closure/function nested in the loop.
 
 ## Report
+
 - A: range = the value variable `V` only (`$item`, without `&`); severity
   warning. Message: `Unset '$item' right after the loop: it is still a
   reference to the last element.`
@@ -115,14 +123,17 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
   name.)
 
 ## Fix
+
 None.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | SUGGEST_USING_VALUE_BY_REF | bool | false | Enables part C (D7–D8). Parts A and B are always active. |
 
 ## PHP versions
+
 No gating. Upstream fixtures run at the test default level.
 
 ## Examples
@@ -160,6 +171,7 @@ function tail(array $list) {
 (Highlighting above assumes `SUGGEST_USING_VALUE_BY_REF = true`.)
 
 ## Divergences
+
 - **Unset arguments tested individually (custos diverges):** upstream applies
   the "is a plain variable" test to the first unset argument instead of the
   argument being examined, so `unset($a['k'], $v)` reports nothing, while

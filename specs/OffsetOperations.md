@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # OffsetOperations
 
 ## Summary
+
 Offset access `$x[...]` only works on arrays, strings and objects that
 implement offset handling. Using it on a boolean, number or a plain object is
 a bug (or a sign of missing type annotations); using an index whose type the
@@ -18,11 +19,13 @@ flagged.
 Disabled by default.
 
 ## Detection
+
 For every array-access expression `C[I]` (also the legacy `C{I}` form and the
 push form `C[]`) that is syntactically complete (has its closing bracket and
 a container `C`):
 
 ### Container types
+
 - **D1** Determine the container type set `S`:
   - First try *value discovery* on `C` (below). If it yields exactly one
     value expression, `S` = inferred type of that value.
@@ -57,6 +60,7 @@ a container `C`):
   `void`, `object` and the empty-set marker. If `S` is now empty → no report.
 
 ### Offset support
+
 - **D5** Walk `S`:
   - `array` or `string` → supported; allowed index types gain `string` and
     `int`.
@@ -80,6 +84,7 @@ a container `C`):
   `S`); no index check for this node.
 
 ### Index type
+
 - **D7** Supported, the allowed index set is non-empty, and an index
   expression `I` exists (not `C[]`): infer `I`'s type, drop unknown parts,
   normalise. If empty → nothing. Remove from it: `mixed`, `null`, every type
@@ -90,6 +95,7 @@ a container `C`):
   anything remains → report `I`.
 
 ## Exceptions (no report)
+
 - **E1** Unknown/partially-unknown container types; `mixed`.
 - **E2** `string|int` and `string|false` containers.
 - **E3** Containers whose only non-null types are `object`/`null`/`void`.
@@ -103,6 +109,7 @@ a container `C`):
   class/interface type.
 
 ## Report
+
 - Range:
   - D6: the whole access expression from the start of `C` to the closing
     bracket (`$flag[0]`, `$pdo[]`).
@@ -114,12 +121,15 @@ a container `C`):
   - D7: `Index of type {types} does not fit the accepted {allowed}.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 The legacy `$s{0}` syntax is accepted and treated like `$s[0]` (it appears in
 the upstream fixture, which runs at the test default level < 7.1; it was
 removed in PHP 8.0).
@@ -173,6 +183,7 @@ function ok($m, $c, $n) {
 ```
 
 ## Divergences
+
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (`S` empty, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
 - Built-in return types are stub-dependent. Upstream's fixture expects no
   report for `explode(...)[0]`-style containers whose stub type is

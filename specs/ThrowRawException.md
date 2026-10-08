@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # ThrowRawException
 
 ## Summary
+
 Throwing the base `\Exception` class gives callers nothing specific to catch;
 a more specific (SPL) exception class communicates intent better. Separately,
 throwing a standard-shaped exception without any constructor argument loses
 the diagnostic message.
 
 ## Detection
+
 Visit every `throw` (statement form and, on PHP 8+, expression form). Let `A`
 be the thrown operand.
 
@@ -48,6 +50,7 @@ be the thrown operand.
   → report M2 on the whole `new` expression.
 
 ## Exceptions (no report)
+
 - **E1** `\Exception` thrown with or without arguments is only ever reported
   via D2 (never additionally via D3).
 - **E2** Zero-argument `new` of a class whose effective constructor has a
@@ -62,6 +65,7 @@ be the thrown operand.
 - **E6** `REPORT_MISSING_ARGUMENTS` off disables D3 entirely (D2 unaffected).
 
 ## Report
+
 - D2 range: the class reference token(s) after `new` only, e.g. `Exception`
   or `\Exception` (including the leading `\`), not `new`, not the arguments.
 - D3 range: the whole `new` expression, from `new` through the closing `)`
@@ -73,6 +77,7 @@ be the thrown operand.
   - M2: `Pass a message when throwing this exception.`
 
 ## Fix
+
 - **F1** (D2 only) Replace the class reference text with
   `<qualifier>RuntimeException`, where `<qualifier>` is the namespace part
   written in front of the reference's last segment. When there is no
@@ -85,11 +90,13 @@ be the thrown operand.
 - D3 has no fix.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | REPORT_MISSING_ARGUMENTS | bool | true | Enables D3 (exceptions created without any argument). |
 
 ## PHP versions
+
 No gating. Throw-as-expression (PHP 8: `$x ?? throw new …`, `fn() => throw …`)
 is handled the same way as the statement form.
 
@@ -180,6 +187,7 @@ throw new Exception\Declined('card'); // resolves to \Exception\Declined (via th
 ```
 
 ## Divergences
+
 - **D3 — custos diverges from upstream.** Upstream looks only at the thrown
   class's own property list, so `class NotFound extends BaseError {}` where
   `BaseError` sets `protected $message = 'not found';` is reported as

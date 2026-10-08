@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # MultipleReturnStatements
 
 ## Summary
+
 A method with many exit points is harder to follow than one with a single
 result path. The rule counts `return` statements per method and reports it
 above two configurable thresholds (a normal one and a severe one).
 
 ## Detection
+
 - **D1** Every method declaration with a body: methods of classes, abstract
   classes, traits, enums and anonymous classes. Abstract methods and
   interface methods are skipped. Plain functions and closures are **not**
@@ -27,12 +29,14 @@ above two configurable thresholds (a normal one and a severe one).
   Else if `R >= COMPLAIN_THRESHOLD` → report with severity **warning**.
 
 ## Exceptions (no report)
+
 - **E1** Methods with fewer than `COMPLAIN_THRESHOLD` returns.
 - **E2** Abstract / interface methods.
 - **E3** Functions and closures outside classes, and returns of closures
   nested in a method (counted for nobody unless the closure is a method).
 
 ## Report
+
 - Range: the method name identifier.
 - Severity: `error` when `R >= SCREAM_THRESHOLD`, otherwise `warning` (the
   catalogue default).
@@ -40,18 +44,22 @@ above two configurable thresholds (a normal one and a severe one).
   single exit.`
 
 ## Fix
+
 None.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `COMPLAIN_THRESHOLD` | int | 3 | Return count (inclusive) from which a warning is raised. |
 | `SCREAM_THRESHOLD` | int | 5 | Return count (inclusive) from which an error is raised instead. |
 
 ## PHP versions
+
 No gating.
 
 ## Examples
+
 Defaults (3 / 5):
 
 ```php
@@ -105,6 +113,7 @@ function plain($x) {
 ```
 
 ## Divergences
+
 - Upstream counts the `return` instructions that flow directly into the
   method's exit in its control-flow graph rather than return statements in
   the source. Consequences not covered by fixtures: a `return` inside a

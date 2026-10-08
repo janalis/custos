@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # SuspiciousFunctionCalls
 
 ## Summary
+
 A string comparison function called with the same expression as both
 operands always yields "equal" — typically a copy-paste slip where one side
 should have been a different variable.
 
 ## Detection
+
 - **D1** A function call (not a method call) whose name part is exactly one of
   `strcmp`, `strncmp`, `strcasecmp`, `strncasecmp`, `strnatcmp`,
   `strnatcasecmp`, `substr_compare`, `hash_equals`, compared
@@ -38,23 +40,28 @@ should have been a different variable.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Fewer than two arguments.
 - **E2** Different first and second arguments (later arguments are ignored).
 - **E3** Other functions (`strcoll`, `levenshtein`, …) and method calls.
 
 ## Report
+
 - Range: the whole call, from the start of the name (including any namespace
   qualifier) to the closing `)`.
 - Severity: error.
 - Message: `Both compared strings are the same expression; one of them is probably wrong.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -72,6 +79,7 @@ function verify(string $token, string $expected, array $row) {
 ```
 
 ## Divergences
+
 - **Name case (custos diverges).** Upstream matches the function name
   case-sensitively, so `STRCMP($a, $a)` or `Hash_Equals($t, $t)` escape the
   check even though PHP calls the same function. custos compares the name

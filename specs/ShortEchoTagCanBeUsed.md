@@ -9,10 +9,12 @@ php: { min: "", max: "" }
 # ShortEchoTagCanBeUsed
 
 ## Summary
+
 In templates, a PHP block that only outputs something — `<?php echo $x ?>` —
 reads better as the short echo tag `<?= $x ?>`.
 
 ## Detection
+
 Token-level view: a PHP block delimited by an opening tag and a closing tag
 that contains exactly one statement.
 
@@ -27,6 +29,7 @@ that contains exactly one statement.
 - Report when D1–D3 hold.
 
 ## Exceptions (no report)
+
 - E1: the block contains more than one statement (`<?php echo $a; echo $b; ?>`
   — neither is reported).
 - E2: already short echo tags (`<?= … ?>`).
@@ -36,11 +39,13 @@ that contains exactly one statement.
 - E5: `print` used inside a larger expression (`<?php $r = print $x ?>`).
 
 ## Report
+
 - Range: the `echo` or `print` keyword token only.
 - Severity: info (weak warning).
 - Message: "Use the short echo tag '<?= … ?>' here."
 
 ## Fix
+
 - F1: replace the opening tag token with `<?=`; replace the statement (from the
   keyword through its trailing `;` if any) with its argument texts joined by
   `, ` (for `print`, its single argument's text). The trailing `;` is dropped.
@@ -50,9 +55,11 @@ that contains exactly one statement.
   `<?php echo $a, $b; ?>` → `<?= $a, $b ?>`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating (the rule is disabled by default). `<?=` is always available from
 PHP 5.4.
 
@@ -85,4 +92,5 @@ PHP 5.4.
 ```
 
 ## Divergences
+
 None known.

@@ -9,7 +9,9 @@ php: { min: "", max: "" }
 # MultiAssignmentUsage
 
 ## Summary
+
 Two patterns where destructuring would be clearer:
+
 1. unpacking the `foreach` value variable with `list(...) = $value` as a
    separate statement, when `foreach (... as list(...))` can do it directly
    (PHP 5.5+);
@@ -20,6 +22,7 @@ Two patterns where destructuring would be clearer:
 ## Detection
 
 ### Part A — destructuring a foreach variable
+
 - **D1** Project language level is PHP 5.5 or higher.
 - **D2** A destructuring assignment whose first token is `list` or `[`
   (`list($a, $b) = …` or `[$a, $b] = …`), and which is itself a whole
@@ -41,6 +44,7 @@ Two patterns where destructuring would be clearer:
   header form would destructure the unmodified value.
 
 ### Part B — consecutive numbered element reads
+
 - **D5** An assignment (`=`) whose left side is a plain variable and which is
   itself a whole expression statement.
 - **D6** The previous statement in the same statement list — skipping
@@ -74,6 +78,7 @@ Two patterns where destructuring would be clearer:
   statements every statement after the first is reported.
 
 ## Exceptions (no report)
+
 - **E1** Part A below PHP 5.5.
 - **E2** Destructuring of something other than a plain variable, or of a
   variable that is not declared by an enclosing `foreach` within the same
@@ -97,6 +102,7 @@ Two patterns where destructuring would be clearer:
   `$a = $r[1]; $b = $r[1.0];`).
 
 ## Report
+
 - Range:
   - Part A: the whole destructuring assignment expression, from `list` / `[`
     to the end of the right-hand side, **excluding** the `;`.
@@ -108,12 +114,15 @@ Two patterns where destructuring would be clearer:
   `{base}` is the source text of `X`.
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - Part A requires PHP ≥ 5.5 (upstream test runs at the IDE default level,
   which is above 5.5).
 - Part B: no gating (short `[…] =` syntax would need 7.1, but `list()` works
@@ -160,6 +169,7 @@ foreach ($records as $record) <weak_warning descr="Destructure directly in the f
 ```
 
 ## Divergences
+
 - **Depth-1 only (D4/E2b) — custos refinement, not upstream.** Upstream
   reports a destructuring of the loop variable anywhere inside the loop
   (under `if`, inner loops, …), so code like

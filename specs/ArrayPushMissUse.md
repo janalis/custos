@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # ArrayPushMissUse
 
 ## Summary
+
 Appending a single element with `array_push($list, $item);` costs a function
 call; the append operator `$list[] = $item;` does the same faster. Likewise,
 `$list[count($list)] = $item;` computes an index that the append operator
@@ -17,6 +18,7 @@ would produce anyway (for list-shaped arrays).
 ## Detection
 
 ### A. Single-element `array_push` statement
+
 - **D1** A function call (not a method/static call) that resolves to the
   global function (names compared case-insensitively, as PHP does; `\` and a
   global `use function` import are fine, but a same-named function declared in
@@ -35,6 +37,7 @@ would produce anyway (for list-shaped arrays).
   mixed types are not reported.
 
 ### B. Index computed with `count()` (option `REPORT_EXCESSIVE_COUNT_CALLS`, default on)
+
 - **D5** An array access `C[I]` that is the **left side** of a plain
   assignment (`=`, including `= &`; compound operators such as `.=`/`+=`
   excluded). The array access must be the direct left operand (in
@@ -54,6 +57,7 @@ would produce anyway (for list-shaped arrays).
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** `array_push` with 1 or ≥ 3 arguments, or with an unpacked 2nd
   argument.
 - **E2** `array_push` whose return value is used (assigned, compared,
@@ -67,6 +71,7 @@ would produce anyway (for list-shaped arrays).
 - **E5** Option `REPORT_EXCESSIVE_COUNT_CALLS` off disables part B.
 
 ## Report
+
 - A: range = the whole `array_push(...)` call (name through closing `)`, not
   the `;`). Severity: warning. Message: `Use '{replacement}' instead; it
   avoids a function call.` with `{replacement}` as in F1.
@@ -76,6 +81,7 @@ would produce anyway (for list-shaped arrays).
   default). Message: `The index is redundant here; use '[]' to append.`
 
 ## Fix
+
 - **F1** (part A only) Replace the call with `{arg1}[] = {arg2}`, where
   `{arg1}`/`{arg2}` are the verbatim source texts of the 1st and 2nd
   arguments, joined exactly as `[] = ` (no space before `[]`, one space on
@@ -85,11 +91,13 @@ would produce anyway (for list-shaped arrays).
 - Part B has no fix.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | REPORT_EXCESSIVE_COUNT_CALLS | bool | true | Enables part B (`C[count(C)] = …`). |
 
 ## PHP versions
+
 No gating. (Unpacking `...` requires 5.6 at runtime; it is merely recognised
 as an exclusion.)
 
@@ -140,6 +148,7 @@ $queue[count($queue)] .= 'x';
 ```
 
 ## Divergences
+
 - custos diverges from upstream on the target type (D8, E6). Upstream
   reports every single-element `array_push` statement, but `$a[] = $b` is
   not the same operation when `$a` is not an array: on an `ArrayAccess`

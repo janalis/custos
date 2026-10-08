@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # OneTimeUseVariables
 
 ## Summary
+
 A local variable that is assigned in one statement and consumed exactly once in
 the very next `return`, `throw` or destructuring statement adds a name without
 adding meaning. The value can be used directly at the consumption site.
 
 ## Detection
+
 Three *consumer* statement shapes are inspected (each gated by an option):
 
 - **D1 (return)** — option `ANALYZE_RETURN_STATEMENTS`. A `return <arg>;`
@@ -92,6 +94,7 @@ Three *consumer* statement shapes are inspected (each gated by an option):
 When D1/D2/D3 + D4–D9 all hold, report.
 
 ## Exceptions (no report)
+
 - **E1** The function/method returns by reference (return consumers only).
 - **E2** `V` is a by-reference parameter or a by-reference closure import of
   the consumer's scope.
@@ -112,12 +115,14 @@ When D1/D2/D3 + D4–D9 all hold, report.
 - **E9** `new` value under PHP < 5.4.
 
 ## Report
+
 - Range: the left-hand-side variable of the assignment (`$name`, including the
   `$`) — not the consumer.
 - Severity: warning.
 - Message: `Variable ${name} is used only once; inline its value.`
 
 ## Fix
+
 - **F1** If the assignment statement is immediately preceded (as its previous
   non-whitespace sibling) by a doc comment `/** … */`, delete that comment.
   (Whitespace before the comment is left as is.)
@@ -133,6 +138,7 @@ When D1/D2/D3 + D4–D9 all hold, report.
 - **F4** Delete the assignment statement (including its `;`).
 
 Resulting shapes:
+
 - `$m = 7;⏎return $m;` → `return 7;`
 - `$e = new Oops('x');⏎throw $e;` → `throw new Oops('x');`
 - `$o = new Box();⏎return $o->size;` → `return (new Box())->size;`
@@ -143,6 +149,7 @@ Resulting shapes:
 - `$m = (1 + 2);⏎return $m;` → `return 1 + 2;`
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `ALLOW_LONG_STATEMENTS` | bool | false | When false, assignments whose text exceeds 80 characters are left alone (a long expression may deserve a name). When true, length is ignored. |
@@ -151,6 +158,7 @@ Resulting shapes:
 | `ANALYZE_ARRAY_DESTRUCTURING` | bool | true | Inspect `list()`/`[]` destructuring consumers (D3). |
 
 ## PHP versions
+
 - `new` values are reported only for PHP ≥ 5.4 (D9).
 - Upstream positive fixture runs at PHP 7.0 with all four options true
   (including `ALLOW_LONG_STATEMENTS = true`); the false-positive fixture runs
@@ -307,6 +315,7 @@ function refParam(&$out) {
 ```
 
 ## Divergences
+
 - **File-level counting (custos diverges from upstream).** Upstream skips
   D8 entirely at file level, so it inlines `$r` even when the variable is
   read again later in the file, or when the value reads the variable itself

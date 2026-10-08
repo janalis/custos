@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # SuspiciousLoop
 
 ## Summary
+
 Two loop mistakes: a `for` condition section with several comma-separated
 expressions (only the last one decides whether the loop continues), and loop
 variables that silently overwrite a parameter of the enclosing function or the
@@ -17,12 +18,15 @@ variable of an outer loop.
 ## Detection
 
 ### Multiple conditions
+
 - **D1** A `for` statement whose condition section (between the two `;`)
   contains two or more comma-separated expressions
   (`for ($i = 0; $i < $n, $ok; $i++)`). Always checked, regardless of options.
 
 ### Loop variables (only when `VERIFY_VARIABLES_OVERRIDE` is true)
+
 Applies to `for` and `foreach` statements.
+
 - **D2** Loop variable names of a loop:
   - `for`: for each expression of the init section that is an assignment
     whose target is a simple variable (`$i = 0`), that variable's name;
@@ -41,6 +45,7 @@ Applies to `for` and `foreach` statements.
   shared name per ancestor loop). `while`/`do-while` ancestors are ignored.
 
 ## Exceptions (no report)
+
 - **E1** `for` with zero or one condition expression.
 - **E2** Loop variables that match neither a parameter nor an outer
   `for`/`foreach` variable; closure `use` variables are not parameters.
@@ -48,6 +53,7 @@ Applies to `for` and `foreach` statements.
 - **E4** With `VERIFY_VARIABLES_OVERRIDE` false, D2–D4 are skipped entirely.
 
 ## Report
+
 - Range: the loop keyword token only (`for` or `foreach`), for every report.
   Several reports may share the same keyword (one per clashing name / outer
   loop, plus possibly D1).
@@ -60,14 +66,17 @@ Applies to `for` and `foreach` statements.
   - D4: `Loop variable '${name}' overwrites a variable of an outer loop.`
 
 ## Fix
+
 None.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `VERIFY_VARIABLES_OVERRIDE` | bool | `true` | Enables the parameter and outer-loop clash checks (D2–D4). |
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -101,6 +110,7 @@ foreach ($matrix as $row => $cols) {
 ```
 
 ## Divergences
+
 - Upstream gathers loop variable names in a hash set, so the order of
   multiple reports on one keyword is unspecified. Report in source order of
   the clashing variables.

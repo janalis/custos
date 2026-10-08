@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # TypeUnsafeComparison
 
 ## Summary
+
 Loose equality (`==`, `!=`, `<>`) silently juggles types (`'abc' == 0` was
 true before PHP 8, `'1e1' == '10'` is true). This rule asks for strict
 comparison, offers a one-click switch when comparing against a non-numeric
@@ -16,14 +17,17 @@ string literal, and flags objects compared to strings that have no
 `__toString()`.
 
 ## Detection
+
 Visit every binary expression whose operator is `==`, `!=` or `<>`. The
 *strict counterpart* is `===` for `==`, and `!==` for `!=` and `<>`.
 Let `L` and `R` be the operands as written.
 
 ### Step 1 — comparison with a string literal
+
 Applies when `R` or `L` is itself a string literal (single- or double-quoted,
 heredoc/nowdoc; an operand wrapped in parentheses such as `('x')` is **not** a
 string literal here).
+
 - **D1** Pick the literal: if `R` is a string literal, the literal is `R` and
   the other operand `O` is `L`; otherwise the literal is `L` and `O` is `R`.
   (When both are literals, `R` is the literal and `O` is `L`.) Strip
@@ -68,6 +72,7 @@ string literal here).
   step 2.
 
 ### Step 2 — general hardening
+
 - **D4** Both operands exist (no parse error), and
 - **D5** neither operand is a *comparable object*: an operand whose inferred
   type (unknown parts dropped) contains a class-name part (starting with `\`)
@@ -82,6 +87,7 @@ string literal here).
 At most one report per expression (M, S or H).
 
 ## Exceptions (no report)
+
 - **E1** `===`, `!==` and all other operators.
 - **E2** An object-typed operand compared with a string literal (D2) when
   every resolved class has `__toString()` — no report at all.
@@ -93,6 +99,7 @@ At most one report per expression (M, S or H).
   go on to D3 / step 2.
 
 ## Report
+
 - Range: the whole binary expression (left operand start to right operand
   end); parentheses around the whole expression are not included.
 - Severities and messages (D7):
@@ -103,6 +110,7 @@ At most one report per expression (M, S or H).
   `{op}` is the strict counterpart.
 
 ## Fix
+
 - **F1** Kind S only: replace the operator token with its strict counterpart
   (`==` → `===`, `!=` → `!==`, `<>` → `!==`). Operands and the whitespace
   around the operator are kept unchanged: `$a <> 'x'` → `$a !== 'x'`,
@@ -110,9 +118,11 @@ At most one report per expression (M, S or H).
 - Kinds M and H have no fix.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None. Upstream fixtures run at the PhpStorm test default level (5.6–7.0).
 
 ## Examples
@@ -196,6 +206,7 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, $v
 ```
 
 ## Divergences
+
 - **Numeric-string grammar (custos diverges):** upstream's numeric test only
   knows plain decimals, so exponent forms (`'1e3'`), a trailing dot (`'1.'`)
   and whitespace-padded numbers (`' 1'`) get the strict fix although PHP

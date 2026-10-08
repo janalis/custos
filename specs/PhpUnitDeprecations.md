@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # PhpUnitDeprecations
 
 ## Summary
+
 Flags PHPUnit assertion APIs deprecated in the configured PHPUnit version:
 the optional trailing parameters of `assertEquals()` / `assertNotEquals()`
 (deprecated in 8.0 in favour of dedicated assertions) and the
@@ -16,6 +17,7 @@ the optional trailing parameters of `assertEquals()` / `assertNotEquals()`
 in 9.1 in favour of their `...DoesNotExist()` counterparts).
 
 ## Detection
+
 Visit every method call (`->`, `?->` or `::`; any receiver — `$this`, `self`,
 `static`, `parent`, a variable). The call is **not** resolved: matching is by
 the method name, compared case-insensitively as PHP compares method names
@@ -29,6 +31,7 @@ ordered `PHPUNIT70 < 71 < 72 < 73 < 74 < 75 < 80 < 81 < 82 < 83 < 84 < 85 <
 90 < 91 < 92 < 93 < 94 < 95`.
 
 ### Trailing `assertEquals` parameters (V ≥ PHPUNIT80)
+
 - **D1** Method name is `assertEquals` or `assertNotEquals` and the call has
   **more than 3** arguments (spread `...$x` counts as one argument).
 - **D2** For each 0-based argument position that exists, report that
@@ -45,11 +48,13 @@ ordered `PHPUNIT70 < 71 < 72 < 73 < 74 < 75 < 80 < 81 < 82 < 83 < 84 < 85 <
   (`0.0`, `false`, a variable, an assignment expression — all reported).
 
 ### Renamed file/directory assertions (V ≥ PHPUNIT91)
+
 - **D3** Method name is exactly `assertFileNotExists` or
   `assertDirectoryNotExists` (any number of arguments). Report the name
   identifier (finding **RENAMED**). Replacement name: see F1.
 
 ## Exceptions (no report)
+
 - **E1** V below `PHPUNIT80`: nothing at all is reported.
 - **E2** V below `PHPUNIT91`: D3 is not reported (D1/D2 still apply).
 - **E3** `assertEquals`/`assertNotEquals` with 3 or fewer arguments.
@@ -57,6 +62,7 @@ ordered `PHPUNIT70 < 71 < 72 < 73 < 74 < 75 < 80 < 81 < 82 < 83 < 84 < 85 <
   deprecated PHPUnit APIs (not covered by this rule).
 
 ## Report
+
 - Range:
   - DELTA / DEPTH / CANON / CASE: the whole argument expression at that
     position (e.g. `0.01`, `$tolerance`, `$depth = 5`).
@@ -71,6 +77,7 @@ ordered `PHPUNIT70 < 71 < 72 < 73 < 74 < 75 < 80 < 81 < 82 < 83 < 84 < 85 <
   - RENAMED: `{name}() was deprecated by PHPUnit 9.1; call {replacement}() instead.`
 
 ## Fix
+
 - DELTA / DEPTH / CANON / CASE: no fix.
 - **F1** RENAMED: rename the method identifier, leaving receiver, arrow,
   arguments, whitespace and comments untouched:
@@ -83,11 +90,13 @@ ordered `PHPUNIT70 < 71 < 72 < 73 < 74 < 75 < 80 < 81 < 82 < 83 < 84 < 85 <
 upstream inspection offers F1; treat the rule as fixable.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `PHP_UNIT_VERSION` | enum (`PHPUNIT70` … `PHPUNIT95`, see ordering above) | `PHPUNIT80` | PHPUnit version targeted by the project. D1/D2 need ≥ `PHPUNIT80`; D3 needs ≥ `PHPUNIT91`. Unset → inferred from the indexed PHPUnit (see Divergences). |
 
 ## PHP versions
+
 No PHP-level gating; only the PHPUnit version option matters.
 
 ## Examples
@@ -146,6 +155,7 @@ final class ExportTest
 ```
 
 ## Divergences
+
 - **PHPUnit version when `PHP_UNIT_VERSION` is unset (custos diverges):**
   upstream assumes `PHPUNIT80`, so a PHPUnit 7 project is told that
   `assertEquals`' delta argument is deprecated. When the option is not

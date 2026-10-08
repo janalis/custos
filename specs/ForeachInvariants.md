@@ -9,7 +9,9 @@ php: { min: "", max: "" }
 # ForeachInvariants
 
 ## Summary
+
 Two loop shapes that are really array iterations in disguise:
+
 1. a counter-based `for` that walks `0 … count($a)` and reads `$a[$i]`;
 2. a `while (list($k, $v) = each($a))` loop (`each()` is slow, deprecated in
    PHP 7.2 and removed in PHP 8).
@@ -18,6 +20,7 @@ Both are clearer (and faster) as `foreach`.
 ## Detection
 
 ### Part A — counter `for` loops
+
 A `for` statement `L` is reported when all of the following hold:
 
 - **D1** `L` has exactly one "step" expression (third clause).
@@ -127,6 +130,7 @@ A `for` statement `L` is reported when all of the following hold:
 - **D9** Report on the `for` keyword (severity warning) and offer fix F1.
 
 ### Part B — `each()` loops
+
 - **D10** A destructuring assignment (`list(…) = …` or `[…] = …`) whose
   right side (after unwrapping a bare expression wrapper) is a plain function
   call written unqualified that resolves to the global function `each`
@@ -149,6 +153,7 @@ A `for` statement `L` is reported when all of the following hold:
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** More than one step expression, or a step other than `++` on the
   counter (`$i += 1`, `$i--`).
 - **E2** Counter not initialised to literal `0`.
@@ -168,6 +173,7 @@ A `for` statement `L` is reported when all of the following hold:
   `echo $n;` after `for ($i = 0, $n = count($a); …)`.
 
 ## Report
+
 - Range: the loop's first keyword token (`for` or `while`).
 - Severity: Part A warning (rule default); Part B error.
 - Messages: Part A `Iterate with foreach instead of a counter loop.`;
@@ -176,6 +182,7 @@ A `for` statement `L` is reported when all of the following hold:
 ## Fix
 
 ### F1 — counter loop → foreach
+
 Let `$i` be the counter text, `$c` the container text, and `$iValue` the
 counter text with `Value` appended (`$i` → `$iValue`, `$idx` → `$idxValue`).
 
@@ -221,14 +228,17 @@ counter text with `Value` appended (`$i` → `$iValue`, `$idx` → `$idxValue`).
    `count(...)` call.
 
 ### F2 — each loop → foreach (while only)
+
 With the two destructuring targets `$k`, `$v` and argument `$c`: replace the
 whole loop with `foreach (<c> as <k> => <v>) <body>`; if the body has no
 variable named like `$k`, drop `<k> => `. No body rewriting, no cleanup.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating (Part B is reported on every level, even where `each()` no longer
 exists).
 
@@ -312,6 +322,7 @@ After the first loop is replaced, `$total` occurs only in its own assignment,
 so step 4 deletes `$total = count($rows);`.
 
 ## Divergences
+
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
 - **Loop condition (custos diverges).** Upstream's D5 accepts any binary
   operator between counter and limit (`<=`, `>`, `!=`, even `+`), so

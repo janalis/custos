@@ -6,6 +6,7 @@ description: Implement one or more custos rules in Go from their clean-room spec
 # implement-rule
 
 ## Hard rule
+
 Work **only** from `specs/<ID>.md`, `internal/meta/rules.json` and custos'
 own code. Do **not** open any file under the EA checkout
 (`~/Sites/phpinspectionsea`) — not the Java sources, not the fixtures. The
@@ -13,11 +14,13 @@ conformance runner reads EA fixtures for you and only reports
 missing/unexpected ranges and fix diffs.
 
 ## Prerequisites
+
 Phases 2–3 (parser, analysis engine, fixer) must exist; semantic rules
 (`kind: semantic`) also need Phase 6 for their `needs`. If missing, stop and
 report which prerequisite blocks the rule.
 
 ## Steps
+
 1. Read the spec and the rule's facts (`internal/meta/rules.json`).
 2. Create `internal/rules/<group-slug>/<rule_snake>.go` implementing the
    `analysis.Rule` interface: `Meta()` from the catalogue, `Kinds()` listing
@@ -44,6 +47,7 @@ report which prerequisite blocks the rule.
 7. `make verify && make rules-doc`.
 
 ## Output
+
 Per rule: files added, conformance result (pass / fail with reasons /
 documented divergence), spec gaps found.
 

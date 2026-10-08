@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # LoopWhichDoesNotLoop
 
 ## Summary
+
 A loop whose body always leaves on the first pass (its last statement is
 `break`, `return` or `throw` and nothing continues it), or whose body is
 empty, never actually iterates. It is either a bug or a disguised `if` /
 "take first element" idiom.
 
 ## Detection
+
 Skipped entirely when the file name ends with `.blade.php`.
 
 Applies to `foreach`, `for`, `while` and `do … while` loops `L`.
@@ -49,6 +51,7 @@ Applies to `foreach`, `for`, `while` and `do … while` loops `L`.
 When D1–D3 hold (and D4 does not exempt), report.
 
 ## Exceptions (no report)
+
 - **E1** Last statement is anything other than `break`/`return`/`throw`
   (including `exit`, a call, an `if` that contains a `break`).
 - **E2** A matching `continue` (D3), e.g. `continue;` in an `if` directly in
@@ -61,18 +64,22 @@ When D1–D3 hold (and D4 does not exempt), report.
 - **E4** Brace-less loops; `.blade.php` files.
 
 ## Report
+
 - Range: the loop's first keyword token (`foreach`, `for`, `while`, or `do`
   for do-while).
 - Severity: warning.
 - Message: `Loop body exits on the first iteration; the loop never repeats.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -125,6 +132,7 @@ while ($ok) break;
 ```
 
 ## Divergences
+
 - `continue` inside `switch` (custos diverges from upstream). Upstream does
   not count `switch` as a level, so a bare `continue;` in a `switch` inside
   the loop is taken as continuing the loop and the loop is not reported. PHP

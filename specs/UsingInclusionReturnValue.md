@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # UsingInclusionReturnValue
 
 ## Summary
+
 Using the value produced by `include`/`require` (a file that `return`s
 something) couples code to file layout and hides dependencies. Prefer explicit
 objects or functions; inclusion should be a standalone statement.
 
 ## Detection
+
 - **D1** Visit every inclusion expression: `include`, `include_once`,
   `require`, `require_once` (with or without parentheses around the path).
 - **D2** Going up from the inclusion through any number of `@` (silence)
@@ -24,11 +26,13 @@ objects or functions; inclusion should be a standalone statement.
   (`$x = (require 'a.php');` and `$x = @include 'a.php';` are reported.)
 
 ## Exceptions (no report)
+
 - **E1** `require 'x.php';` / `include_once('y.php');` as a statement of its own
   (top level or inside any block), also when silenced or parenthesized:
   `@include 'x.php';`, `(require 'x.php');`.
 
 ## Report
+
 - Range: the inclusion expression itself, from the keyword to the end of its
   operand (closing `)` included when the path is parenthesized); not the
   surrounding statement, not the `;`.
@@ -36,12 +40,15 @@ objects or functions; inclusion should be a standalone statement.
 - Message: `Avoid relying on the value returned by an included file.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -63,6 +70,7 @@ function settings(array $env) {
 ```
 
 ## Divergences
+
 - **D2 — custos diverges from upstream.** Upstream checks only the direct
   parent, so `@include 'optional.php';` (and a parenthesized inclusion used
   as a statement) is reported although its value is discarded. custos looks

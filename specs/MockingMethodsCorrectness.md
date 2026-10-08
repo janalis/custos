@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # MockingMethodsCorrectness
 
 ## Summary
+
 Two classes of PHPUnit mock-configuration mistakes inside tests:
 passing a stub *object* (`$this->returnValue(...)`, `$this->returnCallback(...)`)
 to `willReturn()` — which then returns the stub object itself instead of
@@ -17,6 +18,7 @@ class does not have, or that is `final` and therefore cannot be overridden by
 the generated double.
 
 ## Detection
+
 All checks run on method calls (`->`, `?->` or `::`) and only in a **test
 context**:
 
@@ -26,6 +28,7 @@ context**:
   nothing is reported.
 
 ### Part A — `willReturn()` given a stub object
+
 Method names named in this spec (`willReturn`, `returnCallback`,
 `returnValue`, `method`, `expects`, `getMock`, `getMockBuilder`,
 `setMethods`) compare case-insensitively, as PHP resolves method names;
@@ -41,6 +44,7 @@ Method names named in this spec (`willReturn`, `returnCallback`,
 - Report the `willReturn` name token (finding **WILL**).
 
 ### Part B — configured method does not exist / is final
+
 - **D3** A method call `C` whose name as written is exactly `method`, with
   exactly one argument `L` which is a string literal (single- or
   double-quoted; heredoc/nowdoc count as string literals too).
@@ -83,6 +87,7 @@ Method names named in this spec (`willReturn`, `returnCallback`,
 
 Possible-values rules for D5 (applied recursively; each node visited at
 most once; parentheses around any expression are stripped first):
+
 - **V1** Ternary `c ? a : b` / `c ?: b`: union of the values of both result
   branches.
 - **V2** `a ?? b`: union of the values of `a` and `b`.
@@ -112,6 +117,7 @@ directly (V7), and `$double` is checked when it has exactly one assignment in
 the function, e.g. `$double = $this->getMockBuilder(K::class)->getMock();`.
 
 ## Exceptions (no report)
+
 - **E1** Code outside a test context (D0).
 - **E2** `willReturn($stub)` where the stub is not a direct
   `returnValue`/`returnCallback` method call, or `willReturn` with zero or
@@ -127,6 +133,7 @@ the function, e.g. `$double = $this->getMockBuilder(K::class)->getMock();`.
 - **E7** Existing non-final methods (own or inherited).
 
 ## Report
+
 - Range:
   - WILL: the method-name identifier `willReturn` only.
   - MISSING / FINAL: the string literal argument `L` including its quotes.
@@ -139,6 +146,7 @@ the function, e.g. `$double = $this->getMockBuilder(K::class)->getMock();`.
   - FINAL: `Final methods cannot be mocked.`
 
 ## Fix
+
 - **F1** (WILL only) Rename the method call `willReturn` to `will`: only the
   name identifier changes; receiver, arrow, argument list, whitespace and
   comments are untouched.
@@ -147,9 +155,11 @@ the function, e.g. `$double = $this->getMockBuilder(K::class)->getMock();`.
 - MISSING / FINAL: no fix.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -225,6 +235,7 @@ class LedgerTest
 ```
 
 ## Divergences
+
 - **Case of method names (custos diverges from upstream).** Upstream
   compares the PHPUnit method names case-sensitively, so
   `->WillReturn($this->ReturnValue(1))` or `->METHOD('missing')` are not

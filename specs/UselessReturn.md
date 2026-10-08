@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # UselessReturn
 
 ## Summary
+
 Two pointless `return` forms: a bare `return;` as the very last statement of a
 function body (the function ends there anyway), and `return $local = expr;`
 where the assignment to a local variable can never be observed after the
@@ -17,6 +18,7 @@ function has returned.
 ## Detection
 
 ### Trailing bare return
+
 - **D1** A function-like with a body: named function, method (non-abstract),
   or closure (`function () { … }`). Arrow functions have no body and are not
   concerned.
@@ -27,6 +29,7 @@ function has returned.
   statement inside an `if`/loop block is not reported.
 
 ### Assignment in return
+
 - **D3** A `return` statement whose value is directly (no parentheses) an
   assignment whose target is a plain variable `$v` (not a property, array
   element, static property, list/array destructuring or variable-variable),
@@ -47,6 +50,7 @@ function has returned.
   Variable-name comparisons are case-sensitive and exclude the `$`.
 
 ## Exceptions (no report)
+
 - **E1** `return;` that is not the last top-level statement of the body, and
   `return null;` / `return <value>;` at the end.
 - **E2** `return ($v = expr);` (parenthesised value).
@@ -55,6 +59,7 @@ function has returned.
 - **E4** Abstract methods and interface methods (no body).
 
 ## Report
+
 - D1–D2: range = the whole `return;` statement including the `;`.
   Severity: info. Message: `Redundant 'return;' at the end of the body;
   remove it.` (No fix.)
@@ -63,6 +68,7 @@ function has returned.
   after returning; return the value directly.`
 
 ## Fix
+
 - **F1** (D3–D5 only) Replace the whole return statement with
   `return ` + source text of the assigned value + `;`.
   `return $total = $a + $b;` → `return $a + $b;`.
@@ -71,9 +77,11 @@ function has returned.
 - The trailing bare `return;` (D1–D2) has **no** fix; the statement stays.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -165,6 +173,7 @@ function wrapped() {
 ```
 
 ## Divergences
+
 - Upstream treats compound assignments (`return $v .= 'x';`, `return
   $v += 1;`) as assignments too, and its fix would produce `return 'x';` —
   changing the result. Recommendation: only report plain `=` (and `= &`)

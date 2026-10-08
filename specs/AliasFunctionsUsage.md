@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # AliasFunctionsUsage
 
 ## Summary
+
 Several built-in PHP functions exist only as alternative names for another
 built-in (`sizeof` for `count`, `join` for `implode`, …), and a few of those
 alternative names were deprecated or removed. Calling the canonical function
 keeps code consistent and avoids relying on legacy names.
 
 ## Detection
+
 Applies to plain function calls only (not method calls, static calls,
 `new`, `use function` imports, or callable strings).
 
@@ -36,6 +38,7 @@ Applies to plain function calls only (not method calls, static calls,
 - **D3** The node is not part of a `use function` statement.
 
 ### Table A — replaceable aliases (report + fix)
+
 | alias | canonical |
 |---|---|
 | close | closedir |
@@ -77,6 +80,7 @@ Applies to plain function calls only (not method calls, static calls,
 (`rand`/`srand` are deliberately absent: another rule handles them.)
 
 ### Table B — legacy aliases (report only, no fix)
+
 | alias | status (for the message) |
 |---|---|
 | mysqli_bind_param | deprecated 5.3, removed 5.4 |
@@ -92,6 +96,7 @@ Applies to plain function calls only (not method calls, static calls,
 The argument list is irrelevant (any number of arguments, including none).
 
 ## Exceptions (no report)
+
 - **E1** The call resolves to a function declared in a namespace (local
   function with the same short name, or one imported via `use function`).
 - **E2** (removed: names are matched case-insensitively, see D1.)
@@ -100,6 +105,7 @@ The argument list is irrelevant (any number of arguments, including none).
 - **E4** Names not in either table.
 
 ## Report
+
 - Range: the function name identifier only — the bare name token, excluding
   any leading `\` or namespace qualifier and excluding the argument list.
   For `\join($a, $b)` only `join` is highlighted.
@@ -112,6 +118,7 @@ The argument list is irrelevant (any number of arguments, including none).
     `{canonical}` is the lower-case table value.
 
 ## Fix
+
 - **F1** Table A only: replace the name identifier token with the canonical
   name. Any namespace qualifier (`\`) and the arguments are kept untouched:
   `\fputs($h, $s)` → `\fwrite($h, $s)`; `sizeof($list)` → `count($list)`.
@@ -124,9 +131,11 @@ The argument list is irrelevant (any number of arguments, including none).
 - **F2** Table B: no fix offered.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. (Removed functions in Table B are still reported at any level.)
 
 ## Examples
@@ -172,6 +181,7 @@ namespace Shop\Web {
 ```
 
 ## Divergences
+
 - custos diverges: upstream matches the alias name case-sensitively, so
   `SIZEOF()` or `Join()` are missed. PHP function names are case-insensitive,
   so these are the same alias calls; custos matches case-insensitively (D1).

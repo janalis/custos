@@ -9,11 +9,13 @@ php: { min: "8.0", max: "" }
 # StrEndsWithCanBeUsed
 
 ## Summary
+
 Cutting the tail off a string with `substr($h, -strlen($n))` and comparing it
 to `$n` is the pre-PHP 8 "ends with" idiom. PHP 8 has `str_ends_with()`,
 which is clearer and avoids building a temporary string.
 
 ## Detection
+
 - **D1** A function call `S` whose name (last segment, case-insensitive, as
   PHP compares function names: `SubStr` matches) is
   `substr` or `mb_substr` and which resolves to that global
@@ -50,6 +52,7 @@ which is clearer and avoids building a temporary string.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Language level below 8.0.
 - **E2** A length argument (three or more arguments).
 - **E3** Start argument not of the form `-strlen(x)` / `-mb_strlen(x)`
@@ -60,20 +63,24 @@ which is clearer and avoids building a temporary string.
 - **E6** Empty literal needle: `substr($h, -strlen('')) === ''`.
 
 ## Report
+
 - Range: the whole comparison `B`.
 - Severity: info (weak warning).
 - Message: `Replace with '{R}'.` (`{R}` exactly as produced by the fix).
 
 ## Fix
+
 - **F1** Replace `B` with `R`; the negated form has no space after `!`
   (`!str_ends_with(H, N)`). Arguments are copied verbatim, separated by `, `.
   - `substr($file, -strlen('.php')) === '.php'` → `str_ends_with($file, '.php')`
   - `$ext !== mb_substr($name, - mb_strlen($ext))` → `!str_ends_with($name, $ext)`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Reported only at language level ≥ 8.0. The upstream fixture runs at 8.0.
 
 ## Examples
@@ -109,6 +116,7 @@ function isType(string $file, string $ext): array {
 ```
 
 ## Divergences
+
 - **Empty needle — custos diverges from upstream** (D7). With `''` as the
   needle, `-strlen('')` is `0`, so `substr($h, 0)` is the whole haystack and
   the comparison is false for any non-empty `$h`; `str_ends_with($h, '')` is

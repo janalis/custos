@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # UnknownInspection
 
 ## Summary
+
 A `@noinspection` suppression naming an inspection that does not exist (typo,
 renamed or removed rule) silently suppresses nothing. Point it out so it can be
 corrected or deleted.
 
 ## Detection
+
 - **D1** Scan block comments — both doc comments `/** ... */` and plain block
   comments `/* ... */` — for the tag `@noinspection` (exact, case-sensitive).
   Line comments (`//`, `#`) are not scanned. Each occurrence of the tag in a
@@ -65,12 +67,14 @@ corrected or deleted.
 - **D6** Report the tag when at least one relevant candidate is unknown.
 
 ## Exceptions (no report)
+
 - **E1** All relevant candidates known (custos/EA legacy IDs, PhpStorm names).
 - **E2** No relevant candidate at all (only non-`Php*`, non-`*Inspection`,
   non-`*Inspector` names such as SQL or other-language inspection names).
 - **E3** `@noinspection` in a line comment or in a string.
 
 ## Report
+
 - Range: the `@noinspection` tag text itself (13 characters, from `@` to the
   final `n`).
 - Severity: info.
@@ -79,12 +83,15 @@ corrected or deleted.
 - One report per tag, even if several names are unknown.
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -106,6 +113,7 @@ function audit() {
 ```
 
 ## Divergences
+
 - Upstream compares against every inspection registered in the running IDE
   (PhpStorm built-ins and all installed plugins). custos cannot know those, so
   it uses its own catalogue plus a curated PhpStorm list (D5). Names from other

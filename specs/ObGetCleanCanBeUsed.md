@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # ObGetCleanCanBeUsed
 
 ## Summary
+
 Reading the output buffer with `ob_get_contents()` and then discarding it with
 `ob_end_clean()` in the next statement is exactly what the single built-in
 `ob_get_clean()` does. Merge the two calls.
 
 ## Detection
+
 - **D1** A plain function call (not a method/static call) whose name part is
   `ob_end_clean` (case-insensitive, as PHP compares function names), which is by itself an expression statement
   (`ob_end_clean();` — the call is the statement's whole expression; not
@@ -45,6 +47,7 @@ Reading the output buffer with `ob_get_contents()` and then discarding it with
   `ob_get_clean()` has already closed.
 
 ## Exceptions (no report)
+
 - **E1** `ob_end_clean()` used as a value or with a prefix operator.
 - **E2** The previous statement is not an expression statement (e.g.
   `echo ob_get_contents();`, `return …;`) or is separated by a doc comment.
@@ -56,12 +59,14 @@ Reading the output buffer with `ob_get_contents()` and then discarding it with
   `ob_get_contents()` more than once (`send(ob_get_contents(), ob_get_contents());`).
 
 ## Report
+
 - Range: the `ob_get_contents(...)` call expression (name through closing
   parenthesis, including any namespace qualifier written before the name).
 - Severity: warning.
 - Message: `Use ob_get_clean() instead of ob_get_contents() + ob_end_clean().`
 
 ## Fix
+
 - **F1** Rename the reported call's function name to `ob_get_clean` (only the
   name identifier changes; a leading `\` and the argument list are kept).
   The new name is written `\ob_get_clean` when an unqualified call to it at
@@ -71,14 +76,17 @@ Reading the output buffer with `ob_get_contents()` and then discarding it with
   blank / the whitespace before and after remains).
 
 Examples:
+
 - `$html = ob_get_contents();⏎ob_end_clean();` → `$html = ob_get_clean();⏎`
 - `$len = strlen(\ob_get_contents());⏎ob_end_clean();` →
   `$len = strlen(\ob_get_clean());⏎`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None (`ob_get_clean()` exists since PHP 4.3). The upstream fixture runs at the
 IDE test default level (below 7.1); nothing in it is version-sensitive.
 
@@ -145,6 +153,7 @@ function renderPanel($tpl) {
 ```
 
 ## Divergences
+
 - Resolution (D4) needs function name resolution with the built-in function
   list. Without an index, an acceptable approximation is: accept unqualified
   and `\`-qualified names, reject any other qualified name (`Foo\ob_get_contents`)

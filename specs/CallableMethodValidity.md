@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # CallableMethodValidity
 
 ## Summary
+
 `is_callable()` on a method callback that names a non-public method, or a
 non-static method without an object, describes a callback that cannot really
 be invoked from the outside (or will break when invoked statically). Flag the
 argument so the method's visibility/static-ness gets fixed.
 
 ## Detection
+
 Visit every function call.
 
 - **D1** The call resolves to the global function `is_callable`: the name is
@@ -67,8 +69,10 @@ Both P and S can be reported for the same argument (two findings on the same
 range), P first.
 
 ### Value discovery
+
 Shared procedure, applied to an expression `e` (with a visited-set guarding
 against cycles; an already-visited node yields nothing):
+
 1. Strip any parentheses around `e`.
 2. Ternary `c ? a : b` → union of discovery on `a` and on `b`.
 3. `a ?? b` → union of discovery on `a` and `b`.
@@ -111,6 +115,7 @@ only string literals"). Example: `$n = 0; foreach ($xs as $x) { ++$n; }
 mt_rand(1, $n);` — `$n` is unknown, so nothing is reported.
 
 ## Exceptions (no report)
+
 - **E1** `is_callable()` with zero or 2+ arguments.
 - **E2** Value discovery yields zero or several candidates (e.g. a top-level
   variable, a ternary with two different literals).
@@ -126,6 +131,7 @@ mt_rand(1, $n);` — `$n` is unknown, so nothing is reported.
   protected method, inside a subclass.
 
 ## Report
+
 - Range: the argument `A` exactly as written in the call (when `A` is a
   variable whose value was discovered elsewhere, the variable is
   highlighted, not the literal).
@@ -135,12 +141,15 @@ mt_rand(1, $n);` — `$n` is unknown, so nothing is reported.
   - S: `Method '{m}' is not static but is referenced without an object.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -198,6 +207,7 @@ function check() {
 ```
 
 ## Divergences
+
 - **Function name (custos diverges).** Upstream matches the written name
   case-sensitively and without resolving it, so `IS_CALLABLE([$this, 'helper'])` is missed while
   a namespaced user function of the same name (declared in the namespace,

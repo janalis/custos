@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # ClassReImplementsParentInterface
 
 ## Summary
+
 Listing an interface in `implements` when the parent class already implements
 it (directly or through its own ancestors) is redundant noise. Remove the
 entry.
 
 ## Detection
+
 - **D1** A class declaration (named or anonymous) with a non-empty
   `implements` list. Interfaces (`interface X extends …`) are not concerned.
 - **D2** Resolve each `implements` entry to an interface declaration (through
@@ -30,6 +32,7 @@ entry.
   (each entry node at most once).
 
 ## Exceptions (no report)
+
 - **E1** Classes without a parent.
 - **E2** An entry the parent does not cover: e.g. parent implements `A`, the
   class implements `B extends A` → `B` is not reported.
@@ -37,6 +40,7 @@ entry.
   `B extends A`, no parent involved) is not reported.
 
 ## Report
+
 - Range: the entry's name reference exactly as written (e.g. `Sized`,
   `\Countable`, `Contracts\Cache`).
 - Severity: warning.
@@ -44,9 +48,11 @@ entry.
   remove it here.` (FQNs with leading `\`.)
 
 ## Fix
+
 Each report carries a fix acting on its own entry; fixes are applied one at a
 time (the conformance runner re-analyses until fixpoint), so each fix sees the
 list as left by the previous ones.
+
 - **F1** The entry is the **only** entry of the `implements` list: delete the
   entry's text and the `implements` keyword. Whitespace around them is left
   in place, so `extends Base\n    implements\n        Sized {}` becomes
@@ -67,9 +73,11 @@ When every entry of a list is redundant, the successive fixes end with F1 and
 the whole `implements` clause disappears.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -126,4 +134,5 @@ namespace Store {
 ```
 
 ## Divergences
+
 None known.
