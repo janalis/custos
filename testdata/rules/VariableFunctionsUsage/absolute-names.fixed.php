@@ -6,8 +6,9 @@ namespace Shop {
     function max(...$values) { return 0; }
     function call_user_func($f, ...$args) { return null; }
 
-    \max($a, $b);
-    \sum($a);
+    \call_user_func('max', $a, $b);          // shadowed by Shop\max (D7a)
+    \call_user_func('\max', $a, $b);         // shadowed by Shop\max (D7a)
+    \call_user_func('sum', $a);              // shadowed by use function (D7a)
     min($a);
     \Pkg\Tool::run($a);
     \Lib\fmt($a);

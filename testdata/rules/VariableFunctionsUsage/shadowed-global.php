@@ -1,0 +1,30 @@
+<?php
+namespace Probe;
+
+use function Other\is_file;
+use function is_link;
+
+final class Fake { public static ?float $free = null; }
+
+function disk_free_space(string $dir): float|false
+{
+    $real = call_user_func('disk_free_space', $dir);
+    return Fake::$free ?? $real;
+}
+
+function DISK_TOTAL_SPACE(string $dir): float|false
+{
+    return call_user_func('\disk_total_space', $dir) ?: 0.0;
+}
+
+function sample(string $dir)
+{
+    return [
+        <weak_warning descr="Call it directly: 'is_dir($dir)'.">call_user_func('is_dir', $dir)</weak_warning>,
+        call_user_func('Disk_Free_Space', $dir),
+        call_user_func('disk_total_space', $dir),
+        call_user_func('is_file', $dir),
+        <weak_warning descr="Call it directly: 'is_link($dir)'.">call_user_func('is_link', $dir)</weak_warning>,
+        <weak_warning descr="Call it directly: '\is_readable($dir)'.">call_user_func('\is_readable', $dir)</weak_warning>,
+    ];
+}
