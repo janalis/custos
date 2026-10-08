@@ -282,12 +282,29 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 		// without the constructor (unserialize, reflection, ORM hydration)
 		// would then throw on access, so its default is kept (custos).
 		typed := c.prop.Type != nil
-		if reuses || earlyReturn || before || pifReachesThis(as.Value) || typed || !ctx.Bool("REPORT_DEFAULTS_FLAWS") || reported[id.Value] {
+		if reuses || earlyReturn || before || pifReachesThis(as.Value) || typed || pifMirroredParam(ctx, m, as.Value, d) ||
+			!ctx.Bool("REPORT_DEFAULTS_FLAWS") || reported[id.Value] {
 			continue
 		}
 		reported[id.Value] = true
 		ctx.Report(d.Span(), pifMsgReplaced, pifRemoveDefault(c.item))
 	}
+}
+
+// pifMirroredParam reports whether value is exactly a non-variadic
+// parameter of the constructor m whose default is equivalent to the
+// property default d (E6): both state the same "not provided" value.
+func pifMirroredParam(ctx *analysis.Context, m *syntax.Method, value, d syntax.Expr) bool {
+	v, ok := value.(*syntax.Variable)
+	if !ok {
+		return false
+	}
+	for _, p := range m.Params {
+		if p.Var != nil && p.Var.Name == v.Name {
+			return !p.Variadic && p.Default != nil && util.EquivalentFoldNames(ctx.File, p.Default, d)
+		}
+	}
+	return false
 }
 
 // pifHasReturn reports whether st contains a return statement of the
