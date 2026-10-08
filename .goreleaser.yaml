@@ -20,9 +20,8 @@ archives:
     name_template: "custos_{{ .Os }}_{{ .Arch }}"
 checksum:
   name_template: SHA256SUMS
-# Release notes come from CHANGELOG.md (tools/relprep, --release-notes).
-changelog:
-  disable: true
+# Release notes come from CHANGELOG.md (tools/relprep, --release-notes): keep
+# the changelog pipe enabled, it is the one that reads that file.
 release:
   github:
     owner: janalis
