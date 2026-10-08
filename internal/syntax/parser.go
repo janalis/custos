@@ -127,6 +127,9 @@ type parser struct {
 	eof  Token
 	// permissive accepts removed legacy syntax regardless of ver.
 	permissive bool
+	// inDefault is set while parsing a property or parameter default: a
+	// `{` after it opens the property hooks, never a legacy `$a{0}` offset.
+	inDefault bool
 	// depth is the current recursion depth of statement/expression parsing;
 	// tooDeep is set once it exceeds MaxDepth (parsing then stops).
 	depth   int
