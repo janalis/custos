@@ -80,7 +80,13 @@ least one statement.
   (nested functions/closures excluded): the constructor may leave before the
   assignment and keep the default (custos diverges, see Divergences).
   Also nothing when the property has a declared type (custos, see
-  Divergences). Otherwise, when `REPORT_DEFAULTS_FLAWS` is on, report
+  Divergences). Also nothing when the assigned value is exactly a variable
+  naming a non-variadic parameter of this constructor whose default value
+  is equivalent to `D` (`private $tags = [];` with
+  `__construct(array $tags = [])` and `$this->tags = $tags;`): the property
+  default is the same "not provided" value as the parameter's, and it is the
+  one an object created without running the constructor keeps (custos
+  diverges, see Divergences). Otherwise, when `REPORT_DEFAULTS_FLAWS` is on, report
   pattern **O** on that property's default `D`.
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
@@ -101,6 +107,12 @@ least one statement.
 - **E4** Assignments not directly in the constructor body (D4), assignments
   in other methods.
 - **E5** Overrides that reuse the property (`$this->p = array_merge($this->p, …)`).
+- **E6** Overrides by a constructor parameter whose default equals the
+  property default (D7), e.g. `private $strict = false;` with
+  `__construct(bool $strict = false) { $this->strict = $strict; }`. A
+  parameter without default, with a different default, or an expression
+  built from the parameter (`(bool) $strict`, `$strict ?? false`) does not
+  qualify.
 
 ## Report
 
@@ -272,7 +284,65 @@ namespace B {
 
 No findings.
 
+Defaults mirrored by a constructor parameter's default (E6):
+
+```php
+<?php
+final class Job
+{
+    /** Also the value when the constructor is bypassed. */
+    private $context = [];
+    private $retry = false;
+    private $queue = 'default';
+    private $level = <weak_warning descr="Default is always replaced by the constructor; remove it.">1</weak_warning>;
+
+    public function __construct(array $context = [], bool $retry = false, string $queue = 'low', int $level = 1)
+    {
+        $this->context = $context;
+        $this->retry = $retry;
+        $this->queue = $queue;
+        $this->level = $level * 2;
+    }
+}
+```
+
+```php
+<?php
+final class Job
+{
+    /** Also the value when the constructor is bypassed. */
+    private $context = [];
+    private $retry = false;
+    private $queue;
+    private $level;
+
+    public function __construct(array $context = [], bool $retry = false, string $queue = 'low', int $level = 1)
+    {
+        $this->context = $context;
+        $this->retry = $retry;
+        $this->queue = $queue;
+        $this->level = $level * 2;
+    }
+}
+```
+
 ## Divergences
+
+- **Default mirrored by the parameter default (custos diverges).**
+  Upstream reports (and its fix removes) `private $options = [];` when the
+  constructor runs `$this->payload = $options;` with `array $options = []`.
+  Objects are also created without the constructor (`unserialize()` of a
+  object serialized before the property existed, which then stays `null`;
+  `ReflectionClass::newInstanceWithoutConstructor()`; ORM hydration and
+  proxies), and those see the class default. When the class default and
+  the parameter default are the same value, the author has stated one
+  "absent" value for both paths; removing it turned an `array` getter into
+  a `TypeError` on old messages (found on real code). custos keeps such
+  defaults (E6). It does not go further: a default the constructor
+  replaces with an unrelated value (`$this->queue = $queue` with a
+  different parameter default, `$this->level = $level * 2`) is still
+  reported, since nothing in the code ties the default to the bypass paths,
+  and typed properties are exempt anyway (see below).
 
 - **Early return before the assignment (custos diverges):** upstream
   reports a default as always replaced even when the constructor can
