@@ -201,7 +201,11 @@ func roInHierarchy(ctx *analysis.Context, m *syntax.Method) bool {
 		return true
 	}
 	lname := strings.ToLower(m.Name.Value)
-	for i, c := range ix.Ancestors(fqn, ctx.PHP) {
+	ancestors := ix.Ancestors(fqn, ctx.PHP)
+	if len(ancestors) >= index.MaxAncestors {
+		return true // capped: the hierarchy is not fully known (MediaWiki's HookRunner)
+	}
+	for i, c := range ancestors {
 		if i > 0 && c.Methods[lname] != nil {
 			return true
 		}

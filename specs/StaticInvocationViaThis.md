@@ -173,3 +173,7 @@ namespace PHPUnit\Framework {
   reported only when every class of the union resolves the method as
   static; a member declaring it as an instance method, or not declaring it,
   makes the call an instance call (Matomo 587 → 469).
+- **XMLReader (custos diverges).** `XMLReader::open()` and `XMLReader::XML()`
+  are declared static, but called on an instance they open that instance
+  (`$this->reader->open($file)`, MediaWiki dump readers, PhpSpreadsheet);
+  the static form would leave the reader unopened. They are not reported.

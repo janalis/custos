@@ -8,11 +8,11 @@ namespace App\Model {
         /** @return int[] */
         public function ids(): array { return []; }
         /** @return boolean */
-        public function flag(): bool { return $this->x(); }
+        public function flag() { return $this->x(); }
         /** @return true */
         public function yes(): bool { return true; }
         /** @return integer */
-        public function count(): int { return $this->x(); }
+        public function count() { return $this->x(); }
         /** @return \Closure */
         public function cb(): callable { return function () { return 1; }; }
         /** @return $this */

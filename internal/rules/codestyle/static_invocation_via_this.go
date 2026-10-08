@@ -143,6 +143,11 @@ func sivtExcluded(ctx *analysis.Context, m *index.Method) bool {
 	if ctx.Bool("EXCEPT_ELOQUENT_MODELS") && strings.EqualFold(fqn, `\Illuminate\Database\Eloquent\Model`) {
 		return true
 	}
+	// custos: XMLReader::open()/XML() are declared static but, called on an
+	// instance, open that instance (`$this->reader->open($f)`).
+	if strings.EqualFold(fqn, `\XMLReader`) && (strings.EqualFold(m.Name, "open") || strings.EqualFold(m.Name, "xml")) {
+		return true
+	}
 	return false
 }
 

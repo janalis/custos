@@ -125,3 +125,12 @@ class Pool
   that code sees (Joomla module dispatchers: `extract($displayData);
   unset($displayData); include $path;`): nothing is reported in that
   function.
+- **Observed unsets (custos diverges from D5's "no other condition").**
+  An `unset($p)` followed (in source order, or anywhere in a loop enclosing
+  it) by a read of `$p` — including `isset`/`empty`, element and property
+  writes, compound assignments — that the parameter's value or an assignment
+  made before the unset may reach changes what that code sees (null instead
+  of the value): Moodle's `blog_get_headers()` unsets `$userid` so a later
+  `!empty($userid)` is false; `unset($config)` in a loop restarts the array
+  built by `$config[$k] = …`. Such unsets are not reported; rebinding writes
+  (`=`, `global`, `static`, another `unset`) do not count as reads.

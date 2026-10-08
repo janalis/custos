@@ -1,11 +1,13 @@
 package codestyle
 
 import (
+	"slices"
 	"strings"
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
 	"custos/internal/syntax"
+	"custos/internal/types"
 )
 
 // isEmptyFunctionUsage suggests type-specific checks instead of empty().
@@ -24,7 +26,11 @@ const isEmptyGenericMsg = "Prefer a type-specific check over empty()."
 // emptySubjectTypes returns the normalised type names of the subject (nil
 // when unknown).
 func emptySubjectTypes(ctx *analysis.Context, s syntax.Expr) []string {
-	t := ctx.TypeOf(s) // calls without declared return are typed from their body
+	return emptyTypeNames(ctx.TypeOf(s)) // calls without declared return are typed from their body
+}
+
+// emptyTypeNames normalises the atoms of t (nil when unknown).
+func emptyTypeNames(t types.Type) []string {
 	if t.IsUnknown() {
 		return nil
 	}
@@ -175,6 +181,16 @@ func (isEmptyFunctionUsage) suggest(ctx *analysis.Context, e *syntax.Empty, inv 
 		repl = "(" + repl + ")"
 	}
 	span := target.Span()
+	// custos: the rewrite is only offered when native declarations alone
+	// give the same types; a PHPDoc-only type (`@return stdClass` over a
+	// lookup returning false) would turn a failure into "not empty".
+	native, all := emptyTypeNames(ctx.Types().Native().TypeOf(s)), emptySubjectTypes(ctx, s)
+	slices.Sort(native)
+	slices.Sort(all)
+	if !slices.Equal(native, all) {
+		ctx.Report(span, msg)
+		return
+	}
 	ctx.Report(span, msg, analysis.Fix{
 		Title: "Use a type-specific check",
 		Edits: func() []analysis.TextEdit { return []analysis.TextEdit{{Span: span, NewText: repl}} },

@@ -1,9 +1,9 @@
 <?php
 function lookup(string $text, string $term, array $row) {
-    $a = stripos($text, $term);
-    $b = strripos($row['k'], 'abc');
-    $c = mb_stripos($text, $term);
-    $d = mb_strripos(trim($text), $term);
-    $e = stripos($text, $term);
+    $a = strpos(strtoupper($text), $term);
+    $b = strrpos($row['k'], strtolower('abc'));
+    $c = \mb_strpos(mb_strtolower($text), mb_strtoupper($term));
+    $d = mb_strrpos(strtoupper(trim($text)), mb_strtolower($term));
+    $e = strpos(strtolower($text),$term);
     return [$a, $b, $c, $d, $e];
 }

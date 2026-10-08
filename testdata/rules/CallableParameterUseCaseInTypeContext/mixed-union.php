@@ -28,7 +28,7 @@ class Helper
 
     public static function pos(?string $label = null)
     {
-        $label = <warning descr="Assigning a value of type bool does not match the parameter's declared type.">position('a:b')</warning>;
+        $label = <warning descr="Assigning a value of type int does not match the parameter's declared type.">position('a:b')</warning>;
         return $label;
     }
 }

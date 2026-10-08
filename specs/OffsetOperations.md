@@ -227,3 +227,8 @@ function ok($m, $c, $n) {
     is a deliberate lookup (`array|int $counts; $counts[$id] ?? 0`).
   - D7: an index type containing `mixed` is not checked (any key may
     fit), and `void` (`@return string|void`) is dropped like `null`.
+- **Round-5 refinements (custos diverges).** A boolean next to a class is a
+  failure marker too (`simplexml_load_string()` returns
+  `SimpleXMLElement|false`; ten Moodle reports). D7 skips an index whose
+  documented union admits an accepted type (`@return string[]|string`,
+  depending on the input) unless native declarations type the index.

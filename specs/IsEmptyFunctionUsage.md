@@ -252,3 +252,9 @@ Yoda style, default options: `empty($ratio)` → `null === $ratio`;
   (empty elements) and `GMP` (zero) objects convert to false, so
   `empty($x)` is not `$x === null` for them: classes that are or extend
   them do not qualify for D2b.
+- **PHPDoc-only types (custos diverges).** A subject typed only by PHPDoc
+  (`@return stdClass` on a wrapper of a lookup that returns `false` on
+  failure — Moodle's `get_record()` helpers) would turn the failure into
+  "not empty" with `=== null` (and `count(false)` throws). The D1/D2
+  message is still reported, but the fix is offered only when native
+  declarations alone give the subject the same types.

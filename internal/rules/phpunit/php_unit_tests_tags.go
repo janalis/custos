@@ -344,7 +344,7 @@ func putCoversResolves(ctx *analysis.Context, ref string, at uint32) bool {
 	if needCallable {
 		return callableOK
 	}
-	return classOK
+	return classOK || callableOK // a bare name may be a global function (`@covers \clean_param`)
 }
 
 // putClassRef resolves a class named in a tag. PHPUnit reads these names

@@ -84,3 +84,7 @@ $re4 = $quoter->preg_quote($needle);
   unescaped delimiter (a delimiter cannot be alphanumeric, a backslash or
   whitespace), so the second argument would change nothing: not reported.
   Found in Magento's legacy-code tests.
+- **Delimiter-free constants (custos).** The delimiter-free literal
+  exemption also applies to a class or global constant whose discovered
+  values are all such literals (`preg_quote(Packer::PREFIX)` with a
+  letters-and-spaces prefix, Moodle).

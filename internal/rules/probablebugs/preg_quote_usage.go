@@ -106,19 +106,32 @@ func pregQuoteEscapes(ctx *analysis.Context) string {
 // be a delimiter) or one preg_quote() escapes anyway (custos refinement:
 // preg_quote('::'), preg_quote('\\')).
 func pregQuoteDelimiterFree(ctx *analysis.Context, call *syntax.FuncCall) bool {
-	v, ok := util.QuotedStringValue(syntax.UnwrapParens(call.Args.Args[0].(*syntax.Arg).Value))
-	if !ok {
-		return false
+	arg := syntax.UnwrapParens(call.Args.Args[0].(*syntax.Arg).Value)
+	vals := []syntax.Expr{arg}
+	switch arg.(type) {
+	case *syntax.ClassConstFetch, *syntax.ConstFetch:
+		// custos: a constant holding such a literal (`Packer::PREFIX`).
+		found, known := util.DiscoverValuesKnown(ctx.Types(), arg)
+		if !known || len(found) == 0 {
+			return false
+		}
+		vals = found
 	}
 	escaped := pregQuoteEscapes(ctx)
-	for i := 0; i < len(v); i++ {
-		c := v[i]
-		switch {
-		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9',
-			c == ' ', c == '\t', c == '\n', c == '\r', c == '\v', c == '\f':
-		case strings.IndexByte(escaped, c) >= 0:
-		default:
+	for _, e := range vals {
+		v, ok := util.QuotedStringValue(e)
+		if !ok {
 			return false
+		}
+		for i := 0; i < len(v); i++ {
+			c := v[i]
+			switch {
+			case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9',
+				c == ' ', c == '\t', c == '\n', c == '\r', c == '\v', c == '\f':
+			case strings.IndexByte(escaped, c) >= 0:
+			default:
+				return false
+			}
 		}
 	}
 	return true

@@ -68,6 +68,9 @@ func (getTypeMissUse) Check(ctx *analysis.Context, n syntax.Node) {
 		ctx.ReportSeverity(lit.Span(), meta.SeverityError, "gettype() never returns '"+t+"'.")
 		return
 	}
+	if lit != other && !gettypeOnlyValue(ctx, other) {
+		return // custos: other values (a subclass default, a caller's argument) may reach the comparison
+	}
 	// A namespaced function of that name would capture a bare call.
 	repl := util.QualifiedBuiltin(ctx, pred, call.Span().Start) + "(" + ctx.Text(args[0]) + ")"
 	if bin.Op.Kind == syntax.TIsNotEqual || bin.Op.Kind == syntax.TIsNotIdentical {
@@ -101,4 +104,15 @@ func gettypeOperandLiteral(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 		}
 	}
 	return found
+}
+
+// gettypeOnlyValue reports whether the complete value set of e is a single
+// string literal: only then does the comparison always test that type.
+func gettypeOnlyValue(ctx *analysis.Context, e syntax.Expr) bool {
+	vals, complete := util.PossibleValuesComplete(ctx.File, e)
+	if !complete || len(vals) != 1 {
+		return false
+	}
+	_, _, ok := util.QuotedStringRaw(vals[0])
+	return ok
 }

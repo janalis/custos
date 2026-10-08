@@ -105,17 +105,16 @@ func (issetArgumentExistence) candidate(ctx *analysis.Context, e syntax.Expr) {
 	if hasInclude && !ctx.Bool("IGNORE_INCLUDES") { // D10
 		return
 	}
-	// D8: innermost loop enclosing the first mention.
+	// D8 (custos: every enclosing loop, not only the innermost — an outer
+	// loop's later statement sets the variable for the next iteration).
 	for p := first.Parent(); p != nil && p != fn; p = p.Parent() {
 		switch p.(type) {
 		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
 			if assignsPlainVar(p, name) {
 				return
 			}
-			goto report
 		}
 	}
-report:
 	ctx.ReportSeverity(v.Span(), meta.SeverityError, "Variable '$"+name+"' is not defined in this scope.")
 }
 

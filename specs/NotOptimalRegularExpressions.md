@@ -725,3 +725,13 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
   (escapes resolved, both quote styles): `"\x2e"` is a `.`, and
   `'/\\d/i'` is the pattern `\d` (no letters, `/i` pointless) while
   `'/\\\\d/i'` is an escaped backslash followed by the letter `d`.
+- **preg_quote() text (custos diverges from E3).** `preg_quote()`'s
+  argument is literal text, not a pattern: only D20 applies to it (the
+  delimiter split still decides whether it looks delimited); D7 and D9–D19
+  are not run (`preg_quote('/test/invalidpath/testing', '/')` was told its
+  "/e flag" was removed).
+- **Mandatory inner groups (custos diverges from D18 step 2).** Step 2
+  replaces an inner group by a placeholder atom instead of deleting it,
+  unless the group is followed by `?`: `(\s+(?:unsigned|zerofill))*` is not
+  `(\s+)*` (each repetition needs the keyword), while `(\s+(?:x)?)` may
+  still collapse.

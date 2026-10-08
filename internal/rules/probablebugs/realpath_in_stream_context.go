@@ -46,7 +46,9 @@ func (realpathInStreamContext) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	msg := "Use '" + r + "' instead: realpath() fails inside stream wrappers."
-	if realpathResultTested(ctx, call) { // custos: the failure check would go dead
+	if realpathResultTested(ctx, call) || !realpathResolvedBase(ctx, arg.Value) {
+		// custos: the failure check would go dead; dirname() of a path that
+		// may cross a symlink names another directory than realpath().
 		ctx.Report(span, msg)
 		return
 	}
@@ -215,4 +217,30 @@ func realpathResultTested(ctx *analysis.Context, e syntax.Node) bool {
 		return found
 	}
 	return false
+}
+
+// realpathResolvedBase reports whether dropping realpath() keeps the same
+// directory: an R2 literal, or an R1 concatenation whose base is __DIR__,
+// __FILE__ or dirname() of them (PHP resolves symlinks in those). Any other
+// base may be a symlink: realpath() climbs from its target, dirname() from
+// the link (TYPO3's typo3_src).
+func realpathResolvedBase(ctx *analysis.Context, s syntax.Expr) bool {
+	b, ok := s.(*syntax.Binary)
+	if !ok {
+		return true
+	}
+	e := syntax.UnwrapParens(b.Left)
+	for {
+		call, ok := e.(*syntax.FuncCall)
+		if !ok || !ctx.IsGlobalFunctionCall(call, "dirname") {
+			break
+		}
+		args, ok := util.CallArgValues(call)
+		if !ok || len(args) == 0 {
+			return false
+		}
+		e = syntax.UnwrapParens(args[0])
+	}
+	m, ok := e.(*syntax.MagicConst)
+	return ok && (m.Token.Kind == syntax.TDir || m.Token.Kind == syntax.TFile)
 }

@@ -190,3 +190,7 @@ foreach ($records as $record) <weak_warning descr="Destructure directly in the f
   on Nextcloud); moving the destructuring into the header would lose the
   default. custos only reports when the destructuring is the first mention
   of the variable in the body.
+- **By-reference assignments (custos diverges from D5).** `$q =& $m[6];
+  $t =& $m[7];` binds references (missing keys are created silently, writes
+  go through to the array); destructuring would copy the values and warn on
+  missing keys, so by-reference assignments are not paired.

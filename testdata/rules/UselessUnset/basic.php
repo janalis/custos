@@ -12,7 +12,7 @@ function consume(array &$queue, $item, ...$rest)
         <weak_warning descr="Unsetting a parameter only drops the local variable; this unset() is pointless.">$queue</weak_warning>,
         <weak_warning descr="Unsetting a parameter only drops the local variable; this unset() is pointless.">$item</weak_warning>
     );
-    if ($item) {
+    if (rand(0, 1)) {
         <weak_warning descr="Unsetting a parameter only drops the local variable; this unset() is pointless.">unset($rest);</weak_warning>
     }
 }

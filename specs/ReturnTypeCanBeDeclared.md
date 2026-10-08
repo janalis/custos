@@ -301,6 +301,12 @@ abstract class Node {
 ```
 
 ## Divergences
+- **Doc-only suggestions have no fix (custos diverges from upstream).** When
+  a returned value's type is unknown (or `mixed`) and the suggestion
+  therefore rests on the `@return` tag alone, the finding is reported
+  without a quick-fix: a wrong doc would make the added native type throw a
+  TypeError at runtime. Suggestions backed by the returned code keep their
+  fix.
 - **Void with valued returns, types with bare returns (custos diverges):**
   upstream suggests `: void` for a method whose only result is null —
   including `return null;` or returning a `null`/`void`-documented value —
@@ -380,3 +386,16 @@ abstract class Node {
   some mapped in XML where nothing in the class shows it). The
   `Collection` interface is suggested as usual when that is what is
   documented.
+- **Possibly unassigned returned variable (custos diverges).** `if ($c) {
+  $r = 'x'; } return $r;` (or a `switch` without `default`) returns null
+  when no assignment ran, so `: string` would throw. When a returned local
+  variable (not a parameter) is written only by plain `=` assignments, none
+  of which certainly runs before the `return`, and the body has no
+  by-reference argument, element write, `extract()`, `parse_str()`,
+  variable variable or inclusion that could bind it, `null` is added to the
+  returned types (Moodle `test_finder::get_regexp()`).
+- **`mixed` returned values (custos).** A returned expression typed `mixed`
+  (Doctrine's `Query::getResult(): mixed`) carries no more information than
+  an unknown one: it is treated as unknown, so the method's own `@return`
+  tag decides (`@return Item[]` → `: array`), and without a tag nothing is
+  suggested. The `ArrayCollection` exclusion above still applies to the tag.

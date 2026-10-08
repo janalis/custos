@@ -318,3 +318,9 @@ function swap(array $from, array $to, $text) {
   `['-1' => 'a']` was reported and its fix searched for `'-1'` instead of
   `'a'`. custos compares the element values (keys ignored; a by-reference
   element is not a string literal).
+- **Arguments reading the subject (custos).** `$s = str_replace('a', 'b',
+  $s); $s = str_replace('x', strlen($s), $s);` is not a cascade: the second
+  call's search/replace arguments read `$s` after the first replacement,
+  while the merged call would evaluate them on the original value. A call
+  whose search or replace argument mentions the subject variable is not
+  linked to the previous one.

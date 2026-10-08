@@ -115,6 +115,11 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 	// D4. A boolean next to an array or string is a failure marker
 	// (`array|false` from a lookup), handled like null (custos refinement).
 	falsy := offsetHas(set, "array") || offsetHas(set, "string") || offsetHas(set, "callable")
+	for _, a := range set {
+		// custos: also next to a class (`simplexml_load_string()` is
+		// SimpleXMLElement|false).
+		falsy = falsy || strings.HasPrefix(a, `\`)
+	}
 	var s []string
 	for _, a := range set {
 		if a == "bool" && falsy {
@@ -244,6 +249,18 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 			continue
 		}
 		rest = append(rest, a)
+	}
+	// custos: an index documented as a union admitting an accepted type
+	// (`@return string[]|string` by input) is loose documentation unless
+	// the native types confirm the other members.
+	accepted := len(it) - len(rest)
+	for _, a := range it {
+		if a == "null" || a == "void" {
+			accepted--
+		}
+	}
+	if len(rest) > 0 && accepted > 0 && ctx.Types().Native().TypeOf(access.Dim).IsUnknown() {
+		return
 	}
 	if len(rest) > 0 {
 		ctx.ReportNode(access.Dim, "Index of type "+strings.Join(rest, "|")+" does not fit the accepted "+strings.Join(allowed, "|")+".")

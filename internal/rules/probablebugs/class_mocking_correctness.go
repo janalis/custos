@@ -152,11 +152,11 @@ func checkMockCall(ctx *analysis.Context, call syntax.Node, name syntax.Expr, li
 		}
 		switch {
 		case k.Abstract && !isIface:
-			if chained == "" {
+			if chained == "" && !mockBuilderEscapes(call, "getmockforabstractclass") {
 				ctx.ReportNode(a, mockUseAbstract)
 			}
 		case isTrait:
-			if chained == "" {
+			if chained == "" && !mockBuilderEscapes(call, "getmockfortrait") {
 				ctx.ReportNode(a, mockUseTrait)
 			}
 		case k.Final:
@@ -244,6 +244,37 @@ func phpSpecDoubled(name string) bool {
 		if rest, ok := strings.CutPrefix(l, p); ok && rest != "" && (rest[0] < 'a' || rest[0] > 'z') {
 			return true
 		}
+	}
+	return false
+}
+
+// mockBuilderEscapes reports whether an unchained getMockBuilder() result
+// may still build the right double (custos): it is returned, passed on, or
+// stored in a variable on which the function later calls the builder
+// method want (`$mb = $this->getMockBuilder(A::class);
+// $mb->getMockForAbstractClass();`).
+func mockBuilderEscapes(call syntax.Node, want string) bool {
+	p, _ := util.ParentSkipParens(call)
+	switch x := p.(type) {
+	case *syntax.Return, *syntax.Arg, *syntax.ArrowFunction:
+		return true
+	case *syntax.Assign:
+		v, ok := x.Var.(*syntax.Variable)
+		if !ok || v.NameExpr != nil {
+			return true // stored in a property or element: used elsewhere
+		}
+		found := false
+		if fn := syntax.EnclosingFuncLike(call); fn != nil {
+			syntax.Inspect(fn, func(n syntax.Node) bool {
+				if mc, ok := n.(*syntax.MethodCall); ok {
+					id, isID := mc.Name.(*syntax.Identifier)
+					rv, isVar := syntax.UnwrapParens(mc.Var).(*syntax.Variable)
+					found = found || isID && isVar && rv.Name == v.Name && strings.ToLower(id.Value) == want
+				}
+				return !found
+			})
+		}
+		return found
 	}
 	return false
 }

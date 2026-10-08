@@ -219,3 +219,11 @@ namespace {
   (`private function makeEvaluation(ProductUuid $uuid)`), so a final class
   there is not mocked. custos checks only those methods in D6 (13 Akeneo
   false positives at error severity).
+- **Stored builders (custos diverges).** An unchained `getMockBuilder()` of
+  an abstract class or trait is reported only when its result is discarded
+  or stored in a local variable on which the function never calls
+  `getMockForAbstractClass()` / `getMockForTrait()`; a builder returned,
+  passed on, captured by an arrow function or stored in a property or
+  element may still build the right double (`$mb =
+  $this->getMockBuilder(A::class); $mb->getMockForAbstractClass();`,
+  Moodle).

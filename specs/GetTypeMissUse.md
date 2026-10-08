@@ -173,3 +173,10 @@ function kinds($item, $mode = 'array') {
 - **Builtin spelling (custos diverges).** Upstream always inserts the bare
   predicate name, which a namespaced or imported function of that name
   captures. custos writes `\predicate(` in that case (F1).
+- **One complete value (custos diverges from D3).** For a non-literal
+  operand, the `is_*()` advice (D4a) needs the operand's complete value set
+  to be that single literal: a parameter default (`$mode = 'array'`, callers
+  pass others), a branch with an unknown value, or a property a subclass may
+  redeclare (MediaWiki's `NumericDef::$valueType = 'integer'`, redeclared
+  `'double'` by `FloatDef`) would make `is_int()` test the wrong type. The
+  invalid-name report (D4b) keeps the spec's resolution.

@@ -79,6 +79,9 @@ func (uselessUnset) Check(ctx *analysis.Context, n syntax.Node) {
 				if at, ok := rebound[vr.Name]; ok && at < vr.Span().Start { // E6
 					continue
 				}
+				if uselessUnsetObserved(ctx, n, u, vr.Name) {
+					continue
+				}
 				if len(u.Vars) == 1 {
 					ctx.Report(u.Span(), uselessUnsetMsg)
 				} else {
@@ -113,4 +116,43 @@ func uselessUnsetScopeExposed(ctx *analysis.Context, body syntax.Node) bool {
 		return !found
 	})
 	return found
+}
+
+// uselessUnsetObserved reports whether the unset changes what later code of
+// the scope sees (custos): a read of the name after the unset statement (or
+// anywhere in a loop enclosing it) that the parameter's value or an earlier
+// assignment may reach — `unset($userid); … if (!empty($userid))`, or an
+// unset in a loop followed by `$config[$k] = …` that starts a fresh array.
+// Rebinding writes (`=`, global, static, another unset) do not observe it.
+func uselessUnsetObserved(ctx *analysis.Context, scope syntax.Node, u *syntax.Unset, name string) bool {
+	var loops []syntax.Node
+	for p := u.Parent(); p != scope; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+			loops = append(loops, p)
+		}
+	}
+	end := u.Span().End
+	for _, acc := range util.VarAccesses(ctx.File, scope, name) {
+		after := acc.Var.Span().Start >= end
+		for _, l := range loops {
+			after = after || l.Span().Contains(acc.Var.Span())
+		}
+		if !after {
+			continue
+		}
+		if acc.Write && !acc.Compound {
+			continue // rebinding: `=`, destructuring, foreach, global, static, unset, catch
+		}
+		defs, entry := util.ReachingAssignmentsIn(ctx.File, scope, acc.Var, name)
+		if entry {
+			return true
+		}
+		for _, d := range defs {
+			if d.Span().Start < end {
+				return true
+			}
+		}
+	}
+	return false
 }

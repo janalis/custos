@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
+	"custos/internal/index"
 	"custos/internal/meta"
 	"custos/internal/syntax"
 )
@@ -238,53 +239,52 @@ func dfiVariable(ctx *analysis.Context, v *syntax.Variable, m, dep map[string]bo
 	}
 	// D8
 	if list, ok := p.(*syntax.ArgList); ok && c == syntax.Node(v) {
-		switch call := list.Parent().(type) {
-		case *syntax.MethodCall:
-			if !call.NullSafe {
-				obj := call.Var
-				for {
-					switch o := obj.(type) {
-					case *syntax.Paren:
-						obj = o.Expr
-						continue
-					case *syntax.PropertyFetch:
-						obj = o.Var
-						continue
-					case *syntax.ArrayDimFetch:
-						obj = o.Var
-						continue
-					case *syntax.MethodCall: // custos: a fluent chain modifies its root
-						obj = o.Var
-						continue
-					}
+		// D8b (custos: also resolved method, static and constructor calls)
+		if params := dfiCalleeParams(ctx, list.Parent()); len(params) > 0 {
+			idx := -1
+			for i, a := range list.Args {
+				if arg, ok := a.(*syntax.Arg); ok && arg.Value == syntax.Expr(v) {
+					idx = i
 					break
 				}
-				if ov, ok := obj.(*syntax.Variable); ok && ov.Name != "" {
-					m[ov.Name] = true
-					return
-				}
 			}
-		case *syntax.FuncCall:
-			if f := ctx.Types().ResolveFunction(call); f != nil && len(f.Params) > 0 {
-				idx := -1
-				for i, a := range list.Args {
-					if arg, ok := a.(*syntax.Arg); ok && arg.Value == syntax.Expr(v) {
-						idx = i
-						break
-					}
+			if idx >= 0 {
+				byRef := false
+				if idx < len(params) {
+					byRef = params[idx].ByRef
+				} else if last := params[len(params)-1]; last.Variadic {
+					byRef = last.ByRef
 				}
-				if idx >= 0 {
-					byRef := false
-					if idx < len(f.Params) {
-						byRef = f.Params[idx].ByRef
-					} else if last := f.Params[len(f.Params)-1]; last.Variadic {
-						byRef = last.ByRef
-					}
-					if byRef {
-						m[name], dep[name] = true, true
+				if byRef {
+					m[name], dep[name] = true, true
+					if _, isMethod := list.Parent().(*syntax.MethodCall); !isMethod {
 						return
 					}
 				}
+			}
+		}
+		if call, ok := list.Parent().(*syntax.MethodCall); ok && !call.NullSafe { // D8a
+			obj := call.Var
+			for {
+				switch o := obj.(type) {
+				case *syntax.Paren:
+					obj = o.Expr
+					continue
+				case *syntax.PropertyFetch:
+					obj = o.Var
+					continue
+				case *syntax.ArrayDimFetch:
+					obj = o.Var
+					continue
+				case *syntax.MethodCall: // custos: a fluent chain modifies its root
+					obj = o.Var
+					continue
+				}
+				break
+			}
+			if ov, ok := obj.(*syntax.Variable); ok && ov.Name != "" {
+				m[ov.Name] = true
+				return
 			}
 		}
 	}
@@ -367,7 +367,7 @@ func dfiIsDomCreate(ctx *analysis.Context, call *syntax.MethodCall) bool {
 // (lower-case).
 var dfiPerIterationFuncs = func() map[string]bool {
 	m := map[string]bool{}
-	for _, f := range strings.Fields(`fwrite fputs fputcsv fprintf vfprintf fflush
+	for _, f := range strings.Fields(`fwrite fputs fputcsv fprintf vfprintf fflush printf vprintf
 		file_put_contents
 		rand mt_rand random_int random_bytes lcg_value uniqid microtime hrtime time array_rand
 		shuffle str_shuffle`) {
@@ -376,14 +376,17 @@ var dfiPerIterationFuncs = func() map[string]bool {
 	return m
 }()
 
-// dfiPerIteration reports whether s calls one of the functions above:
-// running it once instead of on every iteration would change the program
-// (custos, see Divergences).
+// dfiPerIteration reports whether s outputs (echo, print) or calls one of
+// the functions above: running it once instead of on every iteration would
+// change the program (custos, see Divergences).
 func dfiPerIteration(ctx *analysis.Context, s syntax.Stmt) bool {
 	found := false
 	syntax.Inspect(s, func(x syntax.Node) bool {
-		if c, ok := x.(*syntax.FuncCall); ok {
+		switch c := x.(type) {
+		case *syntax.FuncCall:
 			found = dfiPerIterationFuncs[ctx.GlobalFunctionName(c)]
+		case *syntax.Echo, *syntax.Print:
+			found = true
 		}
 		return !found
 	})
@@ -535,4 +538,40 @@ func dfiJumpLevels(n syntax.Node) int {
 		return 2
 	}
 	return 1
+}
+
+// dfiCalleeParams returns the parameters of the resolved callee of call (a
+// function, method, static method or constructor call), nil when unknown.
+func dfiCalleeParams(ctx *analysis.Context, call syntax.Node) []index.Param {
+	method := func(classes []string, name syntax.Node) []index.Param {
+		id, ok := name.(*syntax.Identifier)
+		if !ok {
+			return nil
+		}
+		for _, cls := range classes {
+			if m := ctx.Index().FindMethod(cls, id.Value, ctx.PHP); m != nil {
+				return m.Params
+			}
+		}
+		return nil
+	}
+	switch c := call.(type) {
+	case *syntax.FuncCall:
+		if f := ctx.Types().ResolveFunction(c); f != nil {
+			return f.Params
+		}
+	case *syntax.MethodCall:
+		return method(ctx.TypeOf(c.Var).Classes(), c.Name)
+	case *syntax.StaticCall:
+		if cls := ctx.Types().ClassRef(c.Class); cls != "" {
+			return method([]string{cls}, c.Name)
+		}
+	case *syntax.New:
+		if cls := ctx.Types().ClassRef(c.Class); cls != "" {
+			if m := ctx.Index().FindMethod(cls, "__construct", ctx.PHP); m != nil {
+				return m.Params
+			}
+		}
+	}
+	return nil
 }

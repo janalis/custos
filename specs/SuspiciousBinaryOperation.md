@@ -308,3 +308,11 @@ if ((!$x) < $y) {}
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Operands that may vary (custos diverges from D5).** Two identical
+  operands are not "the same" when evaluating them twice may give different
+  values: method, static and nullsafe calls, `new`, `++`/`--`,
+  assignments, calls to user-defined or unresolved functions, and
+  built-ins with randomness, clocks or cursors (`mt_rand() == mt_rand()`,
+  MediaWiki's `wfRandom() == wfRandom()`, Pimcore's
+  `Asset::getById($id) === Asset::getById($id)`). Deterministic built-ins
+  (`count($tags) > count($tags)`) stay reported.

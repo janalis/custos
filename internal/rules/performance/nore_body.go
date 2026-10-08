@@ -105,7 +105,14 @@ func noreNestedQuantifiers(body string) [][2]string {
 		if folds == noreNestedMaxFolds {
 			return nil
 		}
-		n = strings.ReplaceAll(n, m[0], m[1]+m[2])
+		// custos: a mandatory inner group stays as a placeholder atom
+		// (`(\s+(?:a|b))*` is not `(\s+)*`); only an optional one (`?`)
+		// may vanish.
+		keep := "#"
+		if m[2] == "?" {
+			keep = ""
+		}
+		n = strings.ReplaceAll(n, m[0], m[1]+keep+m[2])
 	}
 	var out [][2]string
 	for _, m := range noreOuterGroup.FindAllStringSubmatch(n, -1) {

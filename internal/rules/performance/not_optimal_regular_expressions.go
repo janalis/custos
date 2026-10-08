@@ -115,6 +115,9 @@ func (c *noreCase) checkLiteral() bool {
 		}
 		return false
 	}
+	if c.fn == "preg_quote" {
+		return true // custos: its argument is literal text, not a pattern (E3)
+	}
 	c.body, c.mods = body, mods
 	c.decoded = body
 	if v, ok := util.QuotedStringValue(c.lit); ok {

@@ -155,3 +155,7 @@ In `views/page.blade.php` nothing is reported (E2).
   re-fired on every pass; Magento's Redis session vendor code). The block
   is opened right after the header (`for (…) { // note`), the body stays
   in place and the closing brace follows it.
+- **Statements ended by a close tag (custos).** `if ($h) echo "x" ?>` has
+  no `;`: the close tag ends the statement. The braced body gets a `;` and
+  the closing brace goes before the tag (`{ echo "x"; } ?>`); placed after
+  it, the brace landed in the HTML (phpxmlrpc debugger, Moodle vendor).

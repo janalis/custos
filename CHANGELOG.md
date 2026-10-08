@@ -72,6 +72,45 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
+- Unsafe quick-fixes (TYPO3 / MediaWiki / Moodle / phpBB / Flarum /
+  Pimcore review): IsEmptyFunctionUsage rewrote `empty()` of a value typed
+  only by PHPDoc (a failed lookup passed an access check);
+  RealpathInStreamContext replaced `realpath($base . '/..')` by `dirname()`
+  for bases that may be symlinks; StringCaseManipulation rewrote one-sided
+  case conversions to `stripos()` (matches more); CascadeStringReplacement
+  merged calls whose arguments read the intermediate result;
+  NestedAssignmentsUsage split a chained assignment in a brace-less `if`
+  body (detaching the `else`); MissingOrEmptyGroupStatement put the brace
+  after a statement-ending `?>`.
+- False positives (same review): GetTypeMissUse and PrintfScanfArguments
+  (properties a subclass may redeclare, parameter defaults, `sscanf()`
+  results used as values), MissingIssetImplementation (properties declared
+  by subclasses; 16 → 6), UnusedConstructorDependencies (dynamic `$this`
+  reads), OnlyWritesOnParameter (`compact($vars)`, variable variables),
+  UselessUnset (unsets observed later), DisconnectedForeachInstruction
+  (output, by-reference method arguments), CallableParameterUseCaseInTypeContext
+  (`@` calls, false markers, invokable objects, int for float),
+  StaticInvocationViaThis (`XMLReader::open()`), SuspiciousBinaryOperation
+  (identical calls that may differ), PhpUnitTests (`@covers` of a
+  function), IssetArgumentExistence (outer loops), ClassMockingCorrectness
+  (stored builders), NotOptimalRegularExpressions (preg_quote() text,
+  mandatory inner groups), OffsetOperations (`SimpleXMLElement|false`,
+  loosely documented indexes), MultiAssignmentUsage (by-reference pairs),
+  ReferencingObjects (hierarchies beyond the ancestor cap), PregQuoteUsage
+  (delimiter-free constants); ReturnTypeCanBeDeclared adds `null` for a
+  possibly unassigned returned variable and lets the `@return` tag decide
+  over `mixed` results.
+- OffsetOperations was quadratic on huge classes (Moodle's tcpdf.php
+  4.8 s → 0.4 s).
+- Type engine (review round 4): `iterable` is refined by its doc type;
+  generic classes given fewer arguments bind them to the templates without
+  bound or default (Shopware collections) and use template defaults;
+  boolean aliases (`$ok = is_object($r); if ($ok)`) and properties of
+  variables (`$ref->value`, chains) narrow; overriding methods without a
+  return type keep the overridden one; keys absent from an array literal
+  no longer take the other elements' type; `str_replace()` on an unknown
+  subject is unknown; anonymous classes are typed by their parent and
+  interfaces; promoted properties read the constructor's `@param`.
 - Unsafe quick-fixes (Sylius / Shopware / API Platform / Mautic / Kimai /
   Akeneo review): ReturnTypeCanBeDeclared declared `: ArrayCollection`
   for Doctrine collections (TypeError on hydrated `PersistentCollection`s

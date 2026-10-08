@@ -86,6 +86,9 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 	mark := func(name string, _ syntax.Expr) { used[name] = true }
 	for _, m := range methods {
 		if m != ctor && m.Body != nil {
+			if ucdDynamicAccess(ctx, m.Body) {
+				return
+			}
 			collectPropRefs(ctx, m.Body, fqn, candidates, mark)
 		}
 	}
@@ -100,6 +103,9 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 		}
 		for _, m := range decl.Members {
 			if meth, ok := m.(*syntax.Method); ok && meth.Body != nil {
+				if ucdDynamicAccess(ctx, meth.Body) {
+					return
+				}
 				collectPropRefs(ctx, meth.Body, fqn, candidates, mark)
 			}
 		}
@@ -122,6 +128,39 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 			}
 		}
 	}
+}
+
+// ucdDynamicAccess reports whether body reads properties of `$this` by a
+// computed name (`$this->$name`, `$this->{$k}`) or all at once
+// (`get_object_vars($this)`, `foreach ($this as …)`, `(array) $this`): any
+// private property may be used there (custos divergence from D3, found on
+// Moodle's `cm_info::__get()`).
+func ucdDynamicAccess(ctx *analysis.Context, body syntax.Node) bool {
+	isThis := func(e syntax.Expr) bool {
+		v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
+		return ok && v.Name == "this"
+	}
+	found := false
+	syntax.Inspect(body, func(x syntax.Node) bool {
+		switch f := x.(type) {
+		case *syntax.PropertyFetch:
+			if _, ok := f.Name.(*syntax.Identifier); !ok && isThis(f.Var) {
+				found = true
+			}
+		case *syntax.Foreach:
+			found = found || isThis(f.Expr)
+		case *syntax.Unary:
+			found = found || (f.Op.Kind == syntax.TArrayCast && isThis(f.Expr))
+		case *syntax.FuncCall:
+			if ctx.IsGlobalFunctionCall(f, "get_object_vars") {
+				if args, ok := util.CallArgValues(f); ok && len(args) == 1 && isThis(args[0]) {
+					found = true
+				}
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 // ucdPlainTarget reports whether ref is the target of a plain `=` assignment.

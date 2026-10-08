@@ -13,32 +13,32 @@ class Uploads
 }
 
 function a(string $d) {
-    if (!realpath($d . '/../x')) {
+    if (!realpath(__DIR__ . '/../x')) {
         return null;
     }
-    if (($p = realpath($d . '/../y')) === false) {
+    if (($p = realpath(__DIR__ . '/../y')) === false) {
         return null;
     }
-    $q = realpath($d . '/../z') ?: '/fallback';
-    $r = (bool) realpath($d . '/../w');
-    $s = realpath($d . '/../v');
+    $q = realpath(__DIR__ . '/../z') ?: '/fallback';
+    $r = (bool) realpath(__DIR__ . '/../w');
+    $s = realpath(__DIR__ . '/../v');
     $t = $s ? 1 : 0;
-    $u = realpath($d . '/../u') && $q;
-    while (realpath($d . '/../t')) {
+    $u = realpath(__DIR__ . '/../u') && $q;
+    while (realpath(__DIR__ . '/../t')) {
         break;
     }
     if ($d) {
-    } elseif (realpath($d . '/../s')) {
+    } elseif (realpath(__DIR__ . '/../s')) {
     }
-    $kept = dirname($d) . '/k';
+    $kept = dirname(__DIR__) . '/k';
     $other = $kept;
     $kept = 'reset';
-    $in = [dirname($d) . '/i'];
-    $x = 1 + (int) ($y = dirname($d) . '/j');
+    $in = [dirname(__DIR__) . '/i'];
+    $x = 1 + (int) ($y = dirname(__DIR__) . '/j');
     $acc = 'x';
-    $acc .= dirname($d) . '/c';
-    if ($d) $single = dirname($d) . '/b';
-    if (realpath($d . '/../a')) {
+    $acc .= dirname(__DIR__) . '/c';
+    if ($d) $single = dirname(__DIR__) . '/b';
+    if (realpath(__DIR__ . '/../a')) {
         $acc .= '!';
     }
     return [$p, $q, $r, $t, $u, $other, $in, $x, $acc, $single ?? null];

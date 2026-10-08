@@ -126,3 +126,10 @@ None known.
   (native isset handler) are skipped like those classes themselves; so is
   a class whose hierarchy does not fully resolve (a missing parent may
   declare the property or `__isset()`).
+- **Subclass instances (custos diverges from D4).** A value typed as a
+  non-final class may be an instance of a subclass that declares the
+  property, `__isset()` or `#[\AllowDynamicProperties]`
+  (`isset($fault->errorcode)` on `Exception` where Moodle's exceptions
+  declare it, `isset($node->tagName)` on `DOMNode` — `DOMElement` has it);
+  such checks are not reported. Descendants come from the project index and
+  the stubs.

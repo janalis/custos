@@ -366,7 +366,9 @@ func (s *owpScope) dynamicReads() map[string]bool {
 					names(it.Value)
 				}
 			}
+			return
 		}
+		s.dynamic["*"] = true // compact($names): any variable may be read
 	}
 	syntax.Inspect(s.body, func(x syntax.Node) bool {
 		switch c := x.(type) {
@@ -375,12 +377,18 @@ func (s *owpScope) dynamicReads() map[string]bool {
 		case *syntax.FuncCall:
 			switch {
 			case s.ctx.IsGlobalFunctionCall(c, "compact"):
-				if args, ok := util.CallArgValues(c); ok {
-					for _, a := range args {
-						names(a)
-					}
+				args, ok := util.CallArgValues(c)
+				if !ok {
+					s.dynamic["*"] = true // compact(...$names)
+				}
+				for _, a := range args {
+					names(a)
 				}
 			case s.ctx.IsGlobalFunctionCall(c, "get_defined_vars"):
+				s.dynamic["*"] = true
+			}
+		case *syntax.Variable:
+			if c.NameExpr != nil { // $$name, ${expr}: any variable may be accessed
 				s.dynamic["*"] = true
 			}
 		}

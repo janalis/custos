@@ -21,3 +21,31 @@ function lost(array $context) {
 $cb = function () use ($config, &$state) {
     return compact('config', 'state');
 };
+
+// Names held in a variable (phpBB's event idiom) or spread: any variable may
+// be read.
+function search($d) {
+    $sort = $join = '';
+    $vars = array('sort', 'join');
+    extract($d->trigger('core.search', compact($vars)));
+    return $sort;
+}
+
+function spread(array $context, array $names) {
+    $context['seen'] = true;
+    return compact(...$names);
+}
+
+function mixedNames(array $context, $more) {
+    $context['seen'] = true;
+    return compact(['other', $more]);
+}
+
+// Variable variables may write or read any variable.
+function langs($user) {
+    $rule_lang = $action_lang = array();
+    array_map(function ($m) use (&$rule_lang, &$action_lang, $user) {
+        ${strtolower($m[0]) . '_lang'}[] = $user->lang[$m[1]];
+    }, ['x']);
+    return [$rule_lang, $action_lang];
+}

@@ -87,3 +87,18 @@ function loadVersion(string $dir)
     require $dir . '/version.php';
     return $release ?? 'dev';
 }
+
+// Set by a later statement of an outer loop, for the next iteration.
+function rows(array $ids): array
+{
+    $out = [];
+    foreach ($ids as $id) {
+        foreach ([1, 2] as $k) {
+            if (isset($prev) && $prev === $k) {
+                $out[] = $id;
+            }
+        }
+        $prev = $id;
+    }
+    return $out;
+}

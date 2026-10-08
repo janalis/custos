@@ -92,6 +92,13 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 			if ws, ok := util.TokenBefore(ctx.File, bs.Start); ok && ws.Kind == syntax.TWhitespace {
 				span.Start, open = ws.Start, " {\n"
 			}
+			// custos: a statement ended by a close tag (`if ($h) echo "x" ?>`)
+			// gets a `;` and the brace before the tag, not after it in the
+			// HTML.
+			if i := strings.LastIndex(text, "?>"); i > 0 && strings.TrimSpace(text[i+2:]) == "" {
+				stmt := strings.TrimRight(text[:i], " \t\r\n")
+				return []analysis.TextEdit{{Span: span, NewText: open + indent + "    " + stmt + ";\n" + indent + "} " + text[i:]}}
+			}
 			return []analysis.TextEdit{{Span: span, NewText: open + indent + "    " + text + "\n" + indent + "}"}}
 		},
 	})

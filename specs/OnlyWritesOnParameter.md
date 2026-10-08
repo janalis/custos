@@ -185,7 +185,10 @@ Notable consequences:
   naming `$v` (directly or inside an array literal argument), or calls the
   global `get_defined_vars()`, the variable counts as read: no **W** and no
   **U** finding for it (parameters, imports — by value or by reference — and
-  local assignments alike).
+  local assignments alike). A `compact()` argument that is not a string
+  literal or an array of them (`compact($vars)`, `compact(...$names)`), and
+  any variable variable (`$$name`, `${expr}`) in the body, count as reads of
+  every variable.
 
 ## Report
 - Ranges:
@@ -304,7 +307,9 @@ function silenced(array $out)
   `if (!($page = $repo->find()))) { throw …; } return compact('page');`
   reports `$page` as never used, and a parameter written then exported via
   `compact()` as a lost write (found on real code). custos treats those
-  names (and every variable, after `get_defined_vars()`) as read.
+  names (and every variable, after `get_defined_vars()`, `compact()` of a
+  computed list — phpBB's `extract(trigger_event(…, compact($vars)))` idiom —
+  or a variable variable) as read.
 - **Object imports (D4a/E5b) — custos refinement, not upstream.** Upstream
   checks the native type only for parameters; a closure import has no type
   hint, so `use ($obj)` followed by `$obj['k'] = …` on an `ArrayObject` /

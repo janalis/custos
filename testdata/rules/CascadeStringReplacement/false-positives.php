@@ -15,3 +15,12 @@ function f($a, $o, $line) {
     $line .= str_replace('k', 'l', $line);
     return [$b, $c, $d, $e, $g, $h, $i];
 }
+
+// The second call's arguments read the variable after the first replacement.
+function reads_subject($s)
+{
+    $s = str_replace('a', 'b', $s);
+    $s = str_replace('x', strlen($s), $s);
+    $s = str_replace(substr($s, 0, 1), 'y', $s);
+    return $s;
+}

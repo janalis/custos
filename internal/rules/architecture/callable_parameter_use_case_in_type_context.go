@@ -286,11 +286,20 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 	// custos: method, static and nullsafe calls carry the same failure
 	// markers (`Yii::getAlias()` is string|false) as plain function calls.
 	plainCall := cpAllCalls(value)
+	others := 0
+	for t := range r {
+		if t != "bool" && t != "null" {
+			others++
+		}
+	}
 	if len(r) >= 2 { // D7c
-		if r["string"] || r["array"] {
-			if r["bool"] && plainCall {
-				delete(r, "bool")
-			} else if r["null"] && plainCall {
+		if plainCall && others > 0 {
+			// custos: a call's false is a failure marker next to any other
+			// type (`filemtime()` int|false, `fopen()` resource|false), and
+			// next to string/array both false and null are (`array|bool|null`
+			// lookups).
+			delete(r, "bool")
+			if r["string"] || r["array"] {
 				delete(r, "null")
 			}
 		} else if r["null"] {
@@ -372,6 +381,8 @@ func cpAllCalls(e syntax.Expr) bool {
 	switch x := syntax.UnwrapParens(e).(type) {
 	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
 		return true
+	case *syntax.Unary: // `@iconv(…)`
+		return x.Op.Kind == syntax.TAt && cpAllCalls(x.Expr)
 	case *syntax.Match:
 		for _, arm := range x.Arms {
 			if arm.Body == nil || !cpAllCalls(arm.Body) {
@@ -395,6 +406,17 @@ func (cp *cpState) compatible(t string, set map[string]bool) bool {
 			if cpIsClass(s) {
 				return true
 			}
+		}
+	}
+	if t == "int" && set["float"] { // custos: PHP accepts an int for float (even strict)
+		return true
+	}
+	if set["callable"] && strings.HasPrefix(t, `\`) {
+		// custos: an object with __invoke() is callable; unknown classes
+		// may be.
+		cls := strings.TrimPrefix(t, `\`)
+		if cp.ctx.Index().Class(cls, cp.ctx.PHP) == nil || cp.ctx.Index().FindMethod(cls, "__invoke", cp.ctx.PHP) != nil {
+			return true
 		}
 	}
 	if !strings.HasPrefix(t, `\`) {

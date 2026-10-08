@@ -152,3 +152,10 @@ $two  = realpath('/tmp', 'x');
   way (`$this->root = realpath($r . '/../public'); if (!$this->root) {
   throw …; }`, Akeneo) — the finding is reported without a fix: the
   existence check would silently go dead.
+- **Symlinked bases (custos diverges from F1).** `realpath($base . '/..')`
+  resolves `$base` first, so through a symlink it names the parent of the
+  link's *target*, while `dirname($base)` names the parent of the link
+  (TYPO3's `typo3_src` symlink in `CoreUpdateService`). The R1 rewrite is
+  offered as a fix only when the base is `__DIR__`, `__FILE__` or
+  `dirname()` of them (PHP resolves symlinks in those); other bases are
+  reported without a fix.

@@ -86,6 +86,9 @@ func checkMissingIsset(ctx *analysis.Context, a syntax.Expr) {
 		if ix.FindMethod(cls, "__isset", ctx.PHP) != nil || misAllowsDynamic(ctx, cls) {
 			return
 		}
+		if !c.Final && misSubclassMayHave(ctx, cls, id.Value) {
+			return
+		}
 		// custos: a missing ancestor may declare the property or
 		// __isset().
 		if !util.HierarchyResolved(ix, cls, ctx.PHP) {
@@ -145,4 +148,29 @@ func misDynamicWrite(ctx *analysis.Context, name string) bool {
 		return names
 	}).(map[string]bool)
 	return w[""] || w[name]
+}
+
+// misSubclassMayHave reports whether a descendant of cls declares the
+// property or __isset() or allows dynamic properties (custos): the value may be such a subclass instance
+// (`isset($e->errorcode)` on `Exception`, `isset($node->tagName)` on
+// `DOMNode`).
+func misSubclassMayHave(ctx *analysis.Context, cls, prop string) bool {
+	ix := ctx.Index()
+	queue := []string{cls}
+	seen := map[string]bool{strings.ToLower(cls): true}
+	for len(queue) > 0 {
+		k := queue[0]
+		queue = queue[1:]
+		for _, ch := range ix.ChildrenAll(k) {
+			lk := strings.ToLower(strings.TrimPrefix(ch, `\`))
+			if c := ix.Class(ch, ctx.PHP); c != nil && !seen[lk] {
+				if c.Props[prop] != nil || c.Methods["__isset"] != nil || c.HasAttr("AllowDynamicProperties") {
+					return true
+				}
+				seen[lk] = true
+				queue = append(queue, ch)
+			}
+		}
+	}
+	return false
 }

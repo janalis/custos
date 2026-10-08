@@ -485,7 +485,7 @@ breaking Shopware's `eval`-defined namespace function mocks (`IniMock`;
 not detectable); DateTimeConstantsUsage `format()` output `+02:00` vs
 `+0200` (the rule's intent); JsonEncodingApiUsage, TypeUnsafeArraySearch,
 NonSecureUniqidUsage and RandomApiMigration fixes (decided earlier).
-Engine-level causes found by the review (not fixed; reported): *native
+Engine-level causes found by the review (since fixed, Engine section "Review round 4 engine causes"): *native
 `iterable` refined by docs* — `/** @var array<string, X> */ private
 iterable $p` and `@return Collection<Activity>` on `: iterable` stay
 `iterable` (expected `array` / the collection class; OffsetOperations);
@@ -508,6 +508,116 @@ an unknown subject* typed `array|string` (expected unknown);
 no `DocType` from the constructor's `@param`
 (`index/extract.go`, constructor promotion; ClassMethodNameMatchesFieldName
 works around it locally).
+
+**TYPO3 / MediaWiki / Moodle / phpBB / Flarum / Pimcore review
+(2026-10-08).** Fifth run on code custos had never seen, in other styles
+(legacy procedural code with `global $CFG, $DB`, includes, generated API
+clients, PHP 4-era libraries bundled by Moodle), shallow clones plus
+`composer install --no-scripts --no-plugins` (vendor indexed, not
+analysed), only read: typo3/typo3 (6,726 files, PHP 8.5),
+wikimedia/mediawiki (5,660, 8.3), moodle/moodle (55,457, 8.3), phpbb/phpbb
+(1,899, 8.2), flarum/framework (1,777, 8.3) and pimcore/pimcore (1,927,
+8.4), `analyse --all`. Robustness: no internal finding and no syntax
+error; `php -l` of the target version on every analysed file reports only
+PHP 8.4 deprecations in Pimcore tests. One super-linear file: Moodle's
+900 KB `tcpdf.php` took 4.8 s (OffsetOperations →
+`PossibleValuesComplete` rescanned the whole 25,000-line class for every
+`$this->p[…]`); with a per-class index of property declarations and
+writes it takes 0.4 s (complexity test added); the other large files
+(1.4 MB phpBB CJK table, 1.3 MB AWS data, 870 KB Google client) analyse in
+0.1–0.4 s and scale linearly when doubled. Timing and peak RSS
+(`/usr/bin/time -l`, vendor index included, final tree): Flarum 0.9 s /
+315 MB, Pimcore 1.1 s / 500 MB, phpBB 0.5 s / 400 MB, TYPO3 1.5 s /
+740 MB, MediaWiki 2.2 s / 1.2 GB, Moodle 11.9 s / 5.4 GB (24 s before the
+tcpdf fix); Moodle is linear (224 files 1.2 s, 2,644 files 2.2 s, 47,051
+files 19.5 s and 55,457 files 24 s before the fix; about 90 KB per file).
+About 1,700 findings were sampled over 150 rules (four parallel reviews:
+error rules all, warning rules 15–20 each, info rules 10–15 each,
+semantic rules and legacy idioms first). Fix safety: `custos fix --all`
+on copies (508,000 edits in 52,600 files), then `php -l` of the target
+version on every changed file: none broken, before and after the fixes
+below. Version gating: Moodle, phpBB and MediaWiki fixed with `--php 7.4`
+(and Moodle with `--php 5.6`), then every changed file that linted before
+was linted with PHP 7.4 (5.6): no new failure. Every fix was also applied
+alone and re-parsed on each project including its vendor
+(`TestFixesKeepCodeParsable`, `php -l` samples; 680,000 fixes): three
+fixes broke parsing on Moodle (adodb, vendored phpxmlrpc), 0 after the
+fixes below. Four further fixes changed behaviour (below).
+
+| Rule / area | Was | Now |
+|---|---|---|
+| OffsetOperations (performance, `util.PossibleValuesComplete`) | 4.8 s on tcpdf.php: property declarations and writes rescanned per lookup. | Per-class index memoised on the file; 0.4 s. |
+| IsEmptyFunctionUsage (fix) | `empty($user)` → `$user === null` when `$user` came from a method documented `@return stdClass` that returns `get_record()` (`stdClass\|false`): a failed lookup passed Moodle's access check. | Fix only when native declarations alone give the same types; otherwise reported without a fix. Fixable 363 → 175. |
+| RealpathInStreamContext (fix) | `@realpath($this->symlinkToCoreFiles . '/../')` → `dirname(…)`: the parent of the symlink instead of the parent of its target (TYPO3 core updater). | Fix only for `__DIR__`, `__FILE__` and `dirname()` of them. Fixable 21 → 17. |
+| StringCaseManipulation (fix) | `strpos(strtolower($name), $query)` → `stripos($name, $query)` (matches queries with capitals, the original never did). | Fix only when both sides are converted the same way or the other side is a literal without opposite-case letters. Fixable 8 → 4. |
+| CascadeStringReplacement (fix) | `$s = str_replace('a', 'b', $s); $s = str_replace('x', strlen($s), $s);` merged (second arguments evaluated on the original). | Not linked when the later search/replace mentions the subject. |
+| GetTypeMissUse, PrintfScanfArguments (`util.PossibleValuesComplete`) | `gettype($v) !== $this->valueType` → `!is_int($v)` although `FloatDef` redeclares `'double'` (MediaWiki); adodb `$dropIndex` formats checked against the base class's default; `$mode = 'array'` parameter defaults taken as the only value. | `$this->p` complete only for private properties or final/anonymous classes; GetTypeMissUse needs a complete single value (listed divergence for one upstream printf case). 12 → 9, 15 → 8. |
+| PrintfScanfArguments | `sscanf($t, 'PT%dH%dM%dS') ?? []` (two-argument form used as a value) reported as missing arguments. | Any value use counts; discarded calls and truth-value uses still reported. |
+| MissingIssetImplementation | `isset($fault->errorcode)` on `Exception`, `isset($node->tagName)` on `DOMNode` (subclasses declare them; error, 12/16 FP). | Descendants declaring the property, `__isset()` or dynamic properties exempt the check. 16 → 6. |
+| UnusedConstructorDependencies | Moodle `cm_info` properties read by `__get()` returning `$this->$name`. | Computed `$this` reads, `get_object_vars($this)`, `foreach ($this …)`, `(array) $this` exempt the class. 111 → 81. |
+| OnlyWritesOnParameter | phpBB's `extract(trigger_event(…, compact($vars)))`; `${…}[] = …` writing by-reference imports. | Non-literal `compact()` and variable variables read every variable. 214 → 199. |
+| UselessUnset | `unset($userid)` so a later `!empty($userid)` is false; `unset($config)` in a loop before `$config[$k] = …`. | Not reported when a later read can see the unset. 28 → 23. |
+| DisconnectedForeachInstruction | `echo $OUTPUT->box_start()`, progress dots per row; `StringHelper::stringIncrement($column)` (by-reference method parameter). | Output is per-iteration (listed divergence); D8b covers method, static and constructor calls. 33 → 23. |
+| ReturnTypeCanBeDeclared | `if ($t) { $r = 'X'; } return $r;` and switch without default → `: string` (null returned). | Null added when the plain-assigned local may be unassigned. |
+| ReturnTypeCanBeDeclared (engine interplay) | Engine now types Doctrine `getResult()` as `mixed`; 43 corpus C `@return array` repository methods lost `: array`. | A `mixed` returned value is treated as unknown, so the `@return` tag decides (ArrayCollection exclusion kept). Moodle +14,481 (14,274 in the generated Google API client, `call()` wrappers documented with their class), corpus C +8. |
+| CallableParameterUseCaseInTypeContext | `@iconv(…)` not seen as a call; `filemtime()` `int\|false`, `fopen()` `resource\|false` reported as bool; `?callable` assigned an invokable Guzzle handler; `$grade = 1` on `float`. | `@` looked through; false is a marker next to any type; `__invoke()` classes are callable; int fits float. 1,007 → 962. |
+| StaticInvocationViaThis | `$this->reader->open($f)` on XMLReader (static in the stubs, opens the instance). | `XMLReader::open()`/`XML()` exempt. |
+| SuspiciousBinaryOperation | `wfRandom() == wfRandom()`, `Asset::getById($id) === Asset::getById($id)` "both operands are the same" (error). | Operands that may vary (calls to methods, user functions, random/clock built-ins, `new`, `++`) skipped. |
+| PhpUnitTests | `@covers \clean_param` (a global function) reported as an unresolvable class (error). | Function names accepted. 3,091 → 3,041. |
+| IssetArgumentExistence | `isset($prev)` in an inner loop with `$prev` set later in the outer loop (tcpdf; error). | Every enclosing loop checked. |
+| ClassMockingCorrectness | `$mb = $this->getMockBuilder(Abstract::class); $mb->getMockForAbstractClass();` told to use getMockForAbstractClass(). | Stored builders followed; returned/passed ones skipped. 4 → 2. |
+| NotOptimalRegularExpressions | `preg_quote('/test/…', '/')` told the /e flag was removed; `(\s+(?:unsigned\|zerofill))*` reported as `(\s+)*`. | preg_quote() text only gets D20; mandatory inner groups kept as an atom. |
+| OffsetOperations | `simplexml_load_string()` (`SimpleXMLElement\|false`) offsets; `@return string[]\|string` indexes (error). | false next to a class is a failure marker; loosely documented index unions skipped. 358 → 276. |
+| NestedAssignmentsUsage, MissingOrEmptyGroupStatement (fix, found by `TestFixesKeepCodeParsable` on Moodle) | `if ($c) $n = $_SESSION['k'] = 10; else …` split into two statements (the `else` detached: parse error, adodb); `if ($h) echo "x" ?>` (statement ended by the close tag) got its closing brace after `?>`, in the HTML (phpxmlrpc). | Split statements of a brace-less body are wrapped in braces; the brace goes before the close tag and the statement gets a `;`. |
+| MultiAssignmentUsage, ReferencingObjects, PregQuoteUsage | `$q =& $m[6]; $t =& $m[7];`; MediaWiki's `HookRunner` (540 interfaces, beyond the index's 256-ancestor cap) told to drop `&` (fatal signature mismatch); `preg_quote(Packer::PREFIX)` with a delimiter-free constant. | By-reference pairs skipped; capped hierarchies are unknown; constants resolved. 414 → 398, 70 → 66. |
+
+Deltas on the local corpora (HEAD 7c1e498 → this tree, engine changes
+included, default / `--all`): corpus A `src/` 0 / 0, corpus B 0 / 0, corpus C
++7 / +7 (eight ReturnTypeCanBeDeclared suggestions from `@return` tags over
+`mixed` results — Doctrine repositories and `VacationDays::first()` — and
+one CallableParameterUseCaseInTypeContext `mb_ereg_replace()` result
+`string|false|null` no longer reported as null).
+
+Declined: UntrustedInclusion and MultipleReturnStatements on Moodle's
+`require_once($CFG->dirroot . …)` and legacy functions,
+NonSecureUniqidUsage, ForgottenDebugOutput (`error_log`, `xdebug_*`),
+SuspiciousLoop on reused parameters, SlowArrayOperationsInLoop,
+UnserializeExploits and UnSafeIsSetOverArray, AutoloadingIssues on
+Moodle's frankenstyle `classes/` and phpBB scripts, NestedTernaryOperator,
+TypeUnsafeComparison fixes trusted from `@param string`, SecurityAdvisories
+on `composer/composer` and testing packages, TraitsPropertiesConflicts,
+CryptographicallySecureRandomness (`openssl_random_pseudo_bytes`),
+ClassMethodNameMatchesFieldName (Flarum fluent setters),
+AmbiguousMethodsCallsInArrayMapping on getters, PotentialMalware in dev
+tools — noise by design or decided earlier; DeprecatedIniOptions reads of
+`mbstring.func_overload` under a `PHP_VERSION_ID < 80000` guard (two
+vendored libraries); FixedTimeStartWith overlapping StrStartsWithCanBeUsed
+on 8.x targets (disabled by default); UsingInclusionOnceReturnValue on
+`array_map(fn ($f) => require_once …)` with a discarded result (one case);
+OffsetOperations on wrong legacy PHPDoc (`@var integer` over an `array()`
+default — true to the docs); Moodle `*_test.php` files not recognised as
+tests (test detection decided earlier). Engine-level causes found by the
+review (reported to the engine work, not fixed here): *`extract()`,
+variable variables and one-argument `parse_str()` keep local types* —
+`function g($c, array $v) { $n = (int) $c; extract($v); return (int) $n; }`:
+`$n` expected unknown, actual `int` (UnnecessaryCasting, TypeUnsafeComparison
+fix; phpBB event dispatch); *possibly undefined variable* — `if ($t) { $r
+= 'X'; } return $r;`: expected `string|null`, actual `string` (worked
+around in ReturnTypeCanBeDeclared); *256-ancestor cap is silent* —
+`index.Ancestors` truncates without a flag (worked around in
+ReferencingObjects); *SpecOnly T-rules typer* — `if ($c) { $sql =
+array_shift($c); return $sql; } $y = $sql; str_replace('a', 'b', $y)` with
+`string $sql`: expected `string`, actual `array|string`; *doc pseudo-type
+`number` shadows a class* — `use App\Number; @param array|Number $v`:
+expected `array|\App\Number`, actual `array|int|float` (SuspiciousAssignments
+on scssphp); *`class_alias()` not indexed* — `class_alias(user::class,
+\core_user::class)`: `\core_user` expected to resolve (PhpUnitTests
+`@covers \core_user::…`); *elseif instanceof chain* — `@param string|Code
+$code; if ($code instanceof Lang) {…} elseif ($code instanceof Code) {
+$code = 'x'; }`: after the if expected `string`, actual `string|\Code`;
+*`var_export($x, true)` / `print_r($x, true)`*: expected `string`, actual
+`string|null` / `string|true` (MagicMethodsValidity `__toString`);
+*`assert($b instanceof X)`* apparently not narrowing (unconfirmed).
 
 **Coverage audit (2026-10-07).** Own fixtures were extended until every
 statement of `internal/rules` is executed by `TestOwnFixtures` (90.3% →
@@ -1249,6 +1359,74 @@ rejected) is fixed; see the close-tag note above.
   reassignment hides it). Test `TestTRulesUnknownReachingDefinition`. The
   other engine causes of that review are listed with it (rule-level
   section) and left open.
+- **Review round 4 engine causes (2026-10-08):** the nine engine requests
+  of the Sylius/Shopware/API Platform/Mautic/Kimai/Akeneo review.
+  - *`iterable` refined by docs:* a native `iterable` (parameter, property,
+    return) takes its doc type when one is given, as `array` does
+    (`@param Foo[]`, `@var array<string, X>`, `@return Collection<A>`).
+  - *Partial generic arguments:* `@template` defaults (`@template TKey of
+    array-key = array-key`) are parsed (`phpdoc.TemplateParam.Default`,
+    `index.Template.Default`). With fewer arguments than templates, the
+    arguments bind, in order, the templates without bound or default when
+    their count matches (Shopware `Collection<LineItem>`: TElement); else
+    the trailing templates when the leading ones are all bounded or
+    defaulted; else a single argument to a Traversable class binds the
+    value template (as before); unbound templates take their default.
+  - *Boolean aliases:* `$isObject = is_object($r); if ($isObject)` narrows
+    `$r`: a variable used as a condition whose only reaching definition is
+    `$v = <boolean expression>` stands for that expression (`aliasCond`),
+    unless the narrowed variable was written in between; one level only (an
+    alias of an alias is not followed, `condBudget.inAlias`), plain
+    variables only. Early-exit guards on aliases are found through an
+    `aliasGuardKey` index entry for ifs whose condition is made of bare
+    variables. Guard candidates are now cut by binary search per list
+    before merging (a read with thousands of such ifs stays linear).
+  - *Properties of variables:* `$v->p` and chains (`$param->var->name`,
+    `$this->a->b`) have narrowing keys and narrow like `$this->p`
+    (conditions, continue/return guards, non-null writes); a fact ends when
+    the variable, or a property along the chain, is written in between
+    (`chainBroken`, also for elements `$v->p['k']`); an assignment to `$v`
+    resets its guards (and no longer counts as a write of `$v->p`).
+  - *Inherited return types:* a method without declared or documented
+    return type keeps the one of the nearest ancestor method it overrides
+    (interfaces included, builtin ones through the stub rules); the body is
+    inferred only when no ancestor declares one. `: mixed` declared on the
+    method itself always won.
+  - *Absent literal keys:* reading a key a sealed literal does not list is
+    typed only by the reaching writes that may store into it (the same
+    literal key, or a computed one, `mayWriteKey`); nested, appending (for
+    integer keys) and destructuring writes, or writes to other keys only,
+    leave it unknown, never typed as the other elements (`$rows['meta']`
+    after `$rows['meta']['s'] = 1`).
+  - *`str_replace()` & co. on an unknown subject* are unknown in the engine
+    and in the T-rules typer outside SpecOnly (CallableParameterUseCaseInTypeContext's
+    spec still types them `string|array`).
+  - *Anonymous classes* are typed as the intersection of their parent and
+    interfaces (`types.Intersect`; `\P&\I`, one class alone, `object`
+    without any): members of either side are found; their own extra methods
+    stay unknown. A synthetic indexed class was tried and dropped: its name
+    leaked into rule output (ReturnTypeCanBeDeclared offered `:
+    \class@anonymous…`) and anonymous-class scoping in rules.
+  - *Promoted properties* take the constructor's `@param` type as their
+    doc type; ClassMethodNameMatchesFieldName's local workaround was removed
+    (fixture unchanged).
+  - *Deltas* (old = HEAD 7c1e498 engine, rules unchanged; default /
+    `--all`): corpus A src 0 / 0, corpus B 0 / 0, Symfony 0 / −3, corpus C
+    −41 / −41. Removed: 3 OffsetOperations "index of type array" on
+    `str_replace()` results of untyped values (Symfony config; true
+    removals) and 43 ReturnTypeCanBeDeclared `: array` on corpus C
+    repositories whose body returns Doctrine `getResult()`: inheriting
+    `EntityManagerInterface::createQuery(): Query` types the body as
+    `mixed`, so the rule no longer falls back on the `@return array` doc
+    (the suggestions were doc-derived; the rule could prefer the doc for a
+    `mixed` body — rule-side). Added: 2 ReturnTypeCanBeDeclared (`: Query`
+    on `createQuery()`, `: ObjectRepository` on `getRepository()`, both
+    per the declared contracts).
+  - *Cost:* corpus A vendor `analyse --all` unchanged (10 alternating runs on
+    a loaded machine, medians 1.7 s / 1.8 s real, 7.1 s user both); infer
+    benchmarks within 1 % allocations except `BenchmarkTypeOfConditions`
+    (+4 %). Probe `TestRound4Bounded` (20k variable-property guards and
+    boolean aliases): 1.1 s.
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.
@@ -1392,6 +1570,13 @@ split into `decode`/`must` so a corrupt embed panics through tested code.
   `O_NOCTTY` for a path swapped between check and open, and the type is
   re-checked on the descriptor; with reads capped, the extra `stat` costs
   nothing measurable.
+- ReturnTypeCanBeDeclared doc trust (2026-10-08, user decision): a
+  suggestion that rests on the `@return` tag alone (a returned value of
+  unknown or `mixed` type) is reported without a quick-fix. Restoring the
+  doc fallback for `mixed` bodies (Doctrine `getResult()`) brought back
+  43 corpus C suggestions but added ~14.5k on Moodle (mostly a generated
+  API client); applying them blindly would turn any wrong doc into a
+  TypeError. Same policy as UnnecessaryCasting's PHPDoc-only types.
 - No on-disk index cache (planned in the migration, declined 2026-10-07):
   a cold project index takes 0.37 s for a 7.6k-source project (incl. vendor)
   and 0.48 s for a 10k-source project; a cache would still stat/hash every

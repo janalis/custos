@@ -28,3 +28,27 @@ class Report
         return sprintf($tpl, 1, 'x');
     }
 }
+
+// The 2-argument form used as a value in any expression.
+function scan_values(string $t)
+{
+    $hms = implode(':', sscanf($t, 'PT%dH%dM%dS') ?? []);
+    $n = count(sscanf($t, '%d-%d') ?: []);
+    return [$hms, $n, sscanf($t, '%s')];
+}
+
+// A redeclarable format property is not resolved (a subclass may change it).
+class Dict
+{
+    public $dropIndex = 'DROP INDEX %s';
+
+    public function drop($idx, $table)
+    {
+        return sprintf($this->dropIndex, $idx, $table);
+    }
+}
+
+class MyDict extends Dict
+{
+    public $dropIndex = 'DROP INDEX %s ON %s';
+}

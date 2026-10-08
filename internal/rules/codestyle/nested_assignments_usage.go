@@ -67,16 +67,31 @@ func (nestedAssignmentsUsage) Check(ctx *analysis.Context, n syntax.Node) {
 			indent := util.IndentBefore(src, span.Start)
 			last := text(targets[len(targets)-1])
 			value := text(e)
+			// custos: a brace-less control body (`if ($c) $a = $b = 1;
+			// else …`) needs braces around the split statements.
+			braces := false
+			switch stmt.Parent().(type) {
+			case *syntax.If, *syntax.ElseIf, *syntax.Else, *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach, *syntax.Declare:
+				braces = true
+			}
+			sep := indent
 			var b strings.Builder
+			if braces {
+				sep = indent + "    "
+				b.WriteString("{\n" + sep)
+			}
 			for i := len(targets) - 1; i >= 0; i-- {
 				if i != len(targets)-1 {
-					b.WriteString("\n" + indent)
+					b.WriteString("\n" + sep)
 				}
 				v := value
 				if !simple && i != len(targets)-1 {
 					v = last
 				}
 				b.WriteString(text(targets[i]) + " = " + v + ";")
+			}
+			if braces {
+				b.WriteString("\n" + indent + "}")
 			}
 			return []analysis.TextEdit{{Span: span, NewText: b.String()}}
 		},

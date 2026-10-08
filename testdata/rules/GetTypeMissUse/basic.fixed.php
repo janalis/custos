@@ -4,7 +4,7 @@ function kinds($item, $mode = 'array') {
     $b = !is_bool($item);
     $c = is_null($item);
     $d = !is_float($item);
-    $e = is_array($item);
+    $e = gettype($item) === $mode; // callers may pass another type
     $f = gettype($item) === 'int';
     $g = gettype($item) === 'null';
 

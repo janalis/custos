@@ -1,6 +1,6 @@
 <?php
 $root = dirname(dirname(__DIR__, 1)) . '/var';
-$cfg  = dirname(dirname($app)) . "/etc";
+$cfg  = realpath($app . "/../../etc");
 $odd  = realpath($app . '/lib' . '/..');
 $rel  = realpath('../shared');
 require '/opt/app/boot.php';

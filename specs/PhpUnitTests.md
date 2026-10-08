@@ -703,3 +703,7 @@ class LegacyTest
   exists as written now wins over the namespace-relative reading:
   `@covers Composer\Downloader\DownloadManager::m` in namespace
   `Composer\Test\Downloader` resolves (21 false reports on Composer).
+- **Bare function names (custos diverges from D10).** PHPUnit accepts a
+  global function name in `@covers` (`@covers \clean_param`, Moodle); a
+  bare name that resolves to a function satisfies the target instead of
+  being reported as an unresolvable class.

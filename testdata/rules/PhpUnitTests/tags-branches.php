@@ -33,7 +33,7 @@ namespace Shop\Tests {
         public function testWholeClass() {}
 
         /** @covers \Shop\Mail\deliver */
-        public function <error descr="The @covers target '\Shop\Mail\deliver' cannot be resolved.">testFunctionAsClass</error>() {}
+        public function testFunctionAsClass() {}
 
         /** @covers \Shop\Mail\Missing */
         public function <error descr="The @covers target '\Shop\Mail\Missing' cannot be resolved.">testMissingClass</error>() {}

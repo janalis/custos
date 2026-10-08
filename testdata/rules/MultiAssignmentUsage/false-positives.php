@@ -35,3 +35,12 @@ function sameKey(array $r) {
     $u = $r[0x2];
     $v = $r[2];
 }
+
+// By-reference copies (no notice for missing keys, writes go through).
+function refs($matches) {
+    $quote =& $matches[6];
+    $title =& $matches[7];
+    $plain = $matches[1];
+    $other =& $matches[2];
+    return $quote . $title . $plain . $other;
+}

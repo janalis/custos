@@ -1,6 +1,8 @@
 package controlflow
 
 import (
+	"strings"
+
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
 	"custos/internal/syntax"
@@ -44,6 +46,7 @@ func (stringCaseManipulation) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	var parts [2]string
+	var dirs [2]byte // 'l' lower-cased, 'u' upper-cased, 0 kept
 	found := false
 	for i, a := range args { // D3
 		parts[i] = ctx.Text(a)
@@ -51,7 +54,8 @@ func (stringCaseManipulation) Check(ctx *analysis.Context, n syntax.Node) {
 		if !ok {
 			continue
 		}
-		if !isCaseConversion(ctx.GlobalFunctionName(inner)) {
+		conv := ctx.GlobalFunctionName(inner)
+		if !isCaseConversion(conv) {
 			continue
 		}
 		iargs, ok := util.CallArgValues(inner)
@@ -59,6 +63,10 @@ func (stringCaseManipulation) Check(ctx *analysis.Context, n syntax.Node) {
 			continue
 		}
 		parts[i] = ctx.Text(iargs[0])
+		dirs[i] = 'l'
+		if strings.HasSuffix(conv, "upper") {
+			dirs[i] = 'u'
+		}
 		found = true
 	}
 	if !found { // D4
@@ -67,10 +75,38 @@ func (stringCaseManipulation) Check(ctx *analysis.Context, n syntax.Node) {
 	// A namespaced function of that name would capture a bare call.
 	repl := util.QualifiedBuiltin(ctx, variant, call.Span().Start) + "(" + parts[0] + ", " + parts[1] + ")"
 	span := call.Span()
-	ctx.Report(span, "Use '"+repl+"' instead of changing the case.", analysis.Fix{
+	msg := "Use '" + repl + "' instead of changing the case."
+	if !caseSearchEquivalent(args, dirs) {
+		ctx.Report(span, msg)
+		return
+	}
+	ctx.Report(span, msg, analysis.Fix{
 		Title: "Use '" + variant + "'",
 		Edits: func() []analysis.TextEdit {
 			return []analysis.TextEdit{{Span: span, NewText: repl}}
 		},
 	})
+}
+
+// caseSearchEquivalent reports whether the case-insensitive search finds
+// exactly what the converted one does (custos): both sides converted the
+// same way, or the kept side a literal without letters of the other case.
+// `strpos(strtolower($name), $query)` never matches a query with capitals;
+// stripos() would.
+func caseSearchEquivalent(args []syntax.Expr, dirs [2]byte) bool {
+	if dirs[0] != 0 && dirs[1] != 0 {
+		return dirs[0] == dirs[1]
+	}
+	kept, dir := args[0], dirs[1]
+	if dirs[0] != 0 {
+		kept, dir = args[1], dirs[0]
+	}
+	v, ok := util.QuotedStringValue(kept)
+	if !ok {
+		return false
+	}
+	if dir == 'l' {
+		return strings.ToLower(v) == v
+	}
+	return strings.ToUpper(v) == v
 }

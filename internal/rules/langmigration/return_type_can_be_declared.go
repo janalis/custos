@@ -179,8 +179,16 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 				} else {
 					valueReturn = true
 					t := rtdExprType(ctx, x.Expr)
+					if t.Has("mixed") {
+						// custos: `mixed` (Doctrine's getResult()) says no more
+						// than an unknown value: the @return tag decides.
+						t = types.Type{}
+					}
 					if t.IsUnknown() {
 						t = rtdInheritedParamType(ctx, class, m, x.Expr)
+					}
+					if rtdMaybeUndefined(ctx, m, x.Expr) {
+						add(types.Null) // custos: an undefined variable returns null
 					}
 					if rtdImplicitNullProp(ctx, class, x.Expr) { // D5b
 						if t.IsUnknown() {
@@ -336,7 +344,10 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	pos, ok := rtdParamsEnd(ctx, m)
-	if !ok {
+	if !ok || unknownReturn {
+		// custos: a returned value of unknown type means the suggestion
+		// rests on the @return tag alone; a wrong doc would make the added
+		// native type throw, so it is reported without a fix.
 		ctx.Report(span, "Declare ': "+suggestion+"' as the return type.")
 		return
 	}
@@ -580,4 +591,54 @@ func rtdLegacyConstructor(class *syntax.ClassLike, m *syntax.Method) bool {
 		}
 	}
 	return true
+}
+
+// rtdMaybeUndefined reports whether e is a local variable of m that may be
+// returned unassigned (`if ($c) { $r = 'x'; } return $r;`, a switch without
+// default), so the call yields null. Only variables written by plain `=`
+// assignments alone qualify; anything else that may bind it (other writes,
+// element writes, by-reference arguments, extract(), variable variables,
+// includes) leaves the type to inference.
+func rtdMaybeUndefined(ctx *analysis.Context, m *syntax.Method, e syntax.Expr) bool {
+	v, ok := e.(*syntax.Variable)
+	if !ok || v.NameExpr != nil || v.Name == "this" {
+		return false
+	}
+	for _, p := range m.Params {
+		if p.Var != nil && p.Var.Name == v.Name {
+			return false
+		}
+	}
+	defs, entry := util.ReachingAssignmentsIn(ctx.File, m, v, v.Name)
+	if !entry || len(defs) == 0 {
+		return false
+	}
+	for _, acc := range util.VarAccessesByName(ctx.File, m)[v.Name] {
+		if acc.ElemWrite {
+			return false
+		}
+		if _, isArg := acc.Var.Parent().(*syntax.Arg); isArg {
+			return false // may be a by-reference out parameter
+		}
+		if !acc.Write {
+			continue
+		}
+		a, ok := acc.By.(*syntax.Assign)
+		if !ok || a.Op.Kind != syntax.TEqual || a.ByRef || syntax.UnwrapParens(a.Var) != syntax.Expr(acc.Var) {
+			return false
+		}
+	}
+	dynamic := false
+	syntax.Inspect(m.Body, func(x syntax.Node) bool {
+		switch y := x.(type) {
+		case *syntax.Variable:
+			dynamic = dynamic || y.NameExpr != nil
+		case *syntax.Include:
+			dynamic = true
+		case *syntax.FuncCall:
+			dynamic = dynamic || ctx.IsGlobalFunctionCall(y, "extract") || ctx.IsGlobalFunctionCall(y, "parse_str")
+		}
+		return !dynamic
+	})
+	return !dynamic
 }

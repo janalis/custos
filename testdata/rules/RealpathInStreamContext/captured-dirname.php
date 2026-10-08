@@ -8,9 +8,9 @@ namespace Paths {
 namespace Imported {
     use function Paths\dirname;
 
-    $b = <warning descr="Use '\dirname($root)' instead: realpath() fails inside stream wrappers.">realpath($root . '/../')</warning>;
+    $b = <warning descr="Use '\dirname(__DIR__)' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../')</warning>;
 }
 
 namespace Plain {
-    $c = <warning descr="Use 'dirname($root)' instead: realpath() fails inside stream wrappers.">realpath($root . '/../')</warning>;
+    $c = <warning descr="Use 'dirname(__DIR__)' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../')</warning>;
 }

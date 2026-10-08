@@ -144,19 +144,15 @@ func printfLiteral(e syntax.Expr) syntax.Expr {
 	return nil
 }
 
-// printfUsedAsValue implements D7a.
+// printfUsedAsValue implements D7a: custos accepts any use of the result
+// as a value (`sscanf($t, $f) ?? []`, `return sscanf(…)`, an element of an
+// array), not only assignments and arguments; a discarded call or one used
+// as a truth value (`if (sscanf($s, '%d'))`, always a non-empty array) is
+// still reported.
 func printfUsedAsValue(call *syntax.FuncCall) bool {
-	p := call.Parent()
-	if _, ok := p.(*syntax.Arg); ok {
-		return true
+	p, _ := util.ParentSkipParens(call)
+	if _, discarded := p.(*syntax.ExprStmt); discarded {
+		return false
 	}
-	if _, ok := p.(*syntax.Assign); ok {
-		return true
-	}
-	if p != nil {
-		if _, ok := p.Parent().(*syntax.Assign); ok {
-			return true
-		}
-	}
-	return false
+	return !util.IsLogicalOperand(call)
 }

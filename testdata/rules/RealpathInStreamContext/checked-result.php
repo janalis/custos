@@ -13,32 +13,32 @@ class Uploads
 }
 
 function a(string $d) {
-    if (!<warning descr="Use 'dirname($d) . '/x'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../x')</warning>) {
+    if (!<warning descr="Use 'dirname(__DIR__) . '/x'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../x')</warning>) {
         return null;
     }
-    if (($p = <warning descr="Use 'dirname($d) . '/y'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../y')</warning>) === false) {
+    if (($p = <warning descr="Use 'dirname(__DIR__) . '/y'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../y')</warning>) === false) {
         return null;
     }
-    $q = <warning descr="Use 'dirname($d) . '/z'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../z')</warning> ?: '/fallback';
-    $r = (bool) <warning descr="Use 'dirname($d) . '/w'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../w')</warning>;
-    $s = <warning descr="Use 'dirname($d) . '/v'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../v')</warning>;
+    $q = <warning descr="Use 'dirname(__DIR__) . '/z'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../z')</warning> ?: '/fallback';
+    $r = (bool) <warning descr="Use 'dirname(__DIR__) . '/w'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../w')</warning>;
+    $s = <warning descr="Use 'dirname(__DIR__) . '/v'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../v')</warning>;
     $t = $s ? 1 : 0;
-    $u = <warning descr="Use 'dirname($d) . '/u'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../u')</warning> && $q;
-    while (<warning descr="Use 'dirname($d) . '/t'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../t')</warning>) {
+    $u = <warning descr="Use 'dirname(__DIR__) . '/u'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../u')</warning> && $q;
+    while (<warning descr="Use 'dirname(__DIR__) . '/t'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../t')</warning>) {
         break;
     }
     if ($d) {
-    } elseif (<warning descr="Use 'dirname($d) . '/s'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../s')</warning>) {
+    } elseif (<warning descr="Use 'dirname(__DIR__) . '/s'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../s')</warning>) {
     }
-    $kept = <warning descr="Use 'dirname($d) . '/k'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../k')</warning>;
+    $kept = <warning descr="Use 'dirname(__DIR__) . '/k'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../k')</warning>;
     $other = $kept;
     $kept = 'reset';
-    $in = [<warning descr="Use 'dirname($d) . '/i'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../i')</warning>];
-    $x = 1 + (int) ($y = <warning descr="Use 'dirname($d) . '/j'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../j')</warning>);
+    $in = [<warning descr="Use 'dirname(__DIR__) . '/i'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../i')</warning>];
+    $x = 1 + (int) ($y = <warning descr="Use 'dirname(__DIR__) . '/j'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../j')</warning>);
     $acc = 'x';
-    $acc .= <warning descr="Use 'dirname($d) . '/c'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../c')</warning>;
-    if ($d) $single = <warning descr="Use 'dirname($d) . '/b'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../b')</warning>;
-    if (<warning descr="Use 'dirname($d) . '/a'' instead: realpath() fails inside stream wrappers.">realpath($d . '/../a')</warning>) {
+    $acc .= <warning descr="Use 'dirname(__DIR__) . '/c'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../c')</warning>;
+    if ($d) $single = <warning descr="Use 'dirname(__DIR__) . '/b'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../b')</warning>;
+    if (<warning descr="Use 'dirname(__DIR__) . '/a'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../a')</warning>) {
         $acc .= '!';
     }
     return [$p, $q, $r, $t, $u, $other, $in, $x, $acc, $single ?? null];

@@ -156,7 +156,7 @@ func sboSame(ctx *analysis.Context, b *syntax.Binary) bool {
 	default:
 		return false
 	}
-	if !util.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(b.Left), syntax.UnwrapParens(b.Right)) {
+	if !util.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(b.Left), syntax.UnwrapParens(b.Right)) || sboMayVary(ctx, b.Left) {
 		return false
 	}
 	ctx.ReportNode(b, "Both operands are the same.")
@@ -374,4 +374,33 @@ func sboPrecedence(ctx *analysis.Context, b *syntax.Binary) bool {
 // sboIsWordLogical reports the keyword logical operators `and`, `or`, `xor`.
 func sboIsWordLogical(k syntax.TokenKind) bool {
 	return k == syntax.TAnd || k == syntax.TOr || k == syntax.TXor
+}
+
+// sboVarying lists built-ins whose result differs between two identical
+// calls (randomness, clocks, cursors and streams).
+var sboVarying = map[string]bool{
+	"rand": true, "mt_rand": true, "random_int": true, "random_bytes": true, "lcg_value": true,
+	"uniqid": true, "microtime": true, "hrtime": true, "time": true, "array_rand": true,
+	"next": true, "prev": true, "each": true, "array_shift": true, "array_pop": true,
+	"fgets": true, "fgetc": true, "fread": true, "fgetcsv": true, "fscanf": true,
+	"readdir": true, "openssl_random_pseudo_bytes": true,
+}
+
+// sboMayVary reports whether evaluating e twice may give two different
+// values (custos): method, static and nullsafe calls, `new`, calls to user
+// or unresolved functions, `++`/`--`, assignments and the built-ins above.
+// `count($tags) > count($tags)` stays reported.
+func sboMayVary(ctx *analysis.Context, e syntax.Expr) bool {
+	vary := false
+	syntax.Inspect(e, func(x syntax.Node) bool {
+		switch c := x.(type) {
+		case *syntax.MethodCall, *syntax.StaticCall, *syntax.New, *syntax.IncDec, *syntax.Assign:
+			vary = true
+		case *syntax.FuncCall:
+			f := ctx.Types().ResolveFunction(c)
+			vary = f == nil || !f.Builtin || sboVarying[ctx.GlobalFunctionName(c)]
+		}
+		return !vary
+	})
+	return vary
 }

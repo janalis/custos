@@ -229,6 +229,11 @@ func (c *csrCtx) link(s syntax.Stmt) (prev syntax.Stmt, g csrCall, ok bool) {
 	if !isReturn && target != p {
 		return nil, csrCall{}, false
 	}
+	// custos: a search/replace argument reading the variable sees the
+	// first replacement's result; merged, it would see the original.
+	if util.MentionsVariable(f.args[0], p) || util.MentionsVariable(f.args[1], p) {
+		return nil, csrCall{}, false
+	}
 	if !c.mergeable(f, g) {
 		return nil, csrCall{}, false
 	}

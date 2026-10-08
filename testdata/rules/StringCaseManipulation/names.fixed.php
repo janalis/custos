@@ -6,7 +6,7 @@ namespace Search {
     function find(string $text, string $term) {
         $a = strpos(strtolower($text), $term);
         $b = strrpos(\strtolower($text), $term);
-        $c = stripos($text, $term);
+        $c = stripos($text, 'term');
         return [$a, $b, $c];
     }
 }

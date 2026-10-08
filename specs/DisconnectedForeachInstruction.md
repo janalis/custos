@@ -251,7 +251,15 @@ foreach ($rows as $row) {
   reported: running them once before the loop changes the output or the
   values (PrestaShop writes one `.htaccess` header per shop; Matomo draws a
   random value per period). `error_log()` and `usleep()` keep the upstream
-  behaviour (upstream fixtures).
+  behaviour (upstream fixtures). Output is per-iteration too: statements
+  containing `echo` or `print`, or calling `printf`/`vprintf`, are not
+  reported (Moodle prints `$OUTPUT->box_start()` per row, progress dots
+  under `if ($display) { echo '.'; }`); listed upstream divergence.
+- **By-reference arguments of methods (custos extends D8b).** D8b also
+  applies to resolved instance, static and constructor calls:
+  `StringHelper::stringIncrement($column)` (`string &$str`) changes
+  `$column` on every iteration (PhpSpreadsheet). For an instance call the
+  receiver is still marked modified (D8a).
 - **Round-4 refinements (custos diverges).** Found on Shopware, Akeneo,
   Kimai and API Platform (14 of 20 findings):
   - D8c also applies at the root of a discarded method chain

@@ -186,3 +186,7 @@ annotated above).
   …`) inside the innermost enclosing loop defines it for the next
   iteration, like a plain assignment (lazy initialisation in Craft's
   formatter).
+- **Every enclosing loop (custos diverges from D8).** The loop guard checks
+  every loop enclosing the first mention up to `F`, not only the innermost:
+  `foreach ($ids as $id) { foreach (… as $k) { if (isset($prev)) … }
+  $prev = $id; }` sets `$prev` for the outer loop's next iteration (tcpdf).

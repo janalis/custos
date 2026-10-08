@@ -144,3 +144,9 @@ class Mailer
   (`#[ORM\Column]`, `#[ORM\Id]`) counts as annotated (D2/E1) like one with
   a non-lower-case doc tag: mapped properties are read by the ORM through
   reflection (Doctrine ORM test models: 26 reports).
+- **Dynamic reads (custos diverges from D3).** When another method of the
+  class (or of a directly used trait) reads `$this` properties by a computed
+  name (`$this->$name`, `$this->{expr}`) or all at once
+  (`get_object_vars($this)`, `foreach ($this as …)`, `(array) $this`), any
+  candidate may be read there: nothing is reported for the class (Moodle's
+  `cm_info::__get()` returning `$this->$name`).

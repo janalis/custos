@@ -25,3 +25,21 @@ function scan_bare($raw)
     }
     return 0;
 }
+
+function scan_conditions($raw)
+{
+    if (!<error descr="This call needs 3 argument(s) in total.">sscanf</error>($raw, '%d') || <error descr="This call needs 3 argument(s) in total.">sscanf</error>($raw, '%x')) {
+        return 1;
+    }
+    return 0;
+}
+
+final class FixedDict
+{
+    public $dropIndex = 'DROP INDEX %s';
+
+    public function drop($idx, $table)
+    {
+        return <error descr="This call needs 2 argument(s) in total.">sprintf</error>($this->dropIndex, $idx, $table);
+    }
+}

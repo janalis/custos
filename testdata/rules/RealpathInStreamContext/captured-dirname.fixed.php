@@ -8,9 +8,9 @@ namespace Paths {
 namespace Imported {
     use function Paths\dirname;
 
-    $b = \dirname($root);
+    $b = \dirname(__DIR__);
 }
 
 namespace Plain {
-    $c = dirname($root);
+    $c = dirname(__DIR__);
 }

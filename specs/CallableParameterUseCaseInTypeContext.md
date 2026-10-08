@@ -280,3 +280,15 @@ function untyped($flag = null) {
     every arm is a call, or a full ternary whose both branches are calls
     (`$t = match ($p) { 'a' => preg_replace_callback(…), default =>
     preg_replace_callback(…) };`).
+- **Round-5 refinements (custos diverges).** Found on Moodle, TYPO3 and
+  PhpSpreadsheet:
+  - D7c: for call values (a call, possibly `@`-silenced, or a
+    match/ternary of calls), `false`/`bool` is a failure marker next to
+    *any* other type (`$ts = filemtime($p)` on `int|null`, `$r = fopen(…)`),
+    and next to string/array both `bool` and `null` are dropped
+    (`array|bool|null` lookups); `@iconv(…)` counts as a call. A `null`
+    next to a scalar (`?int` from a lookup) is still reported.
+  - D7e.2: an `int` value is compatible with a `float` parameter (PHP
+    converts it, even under `strict_types`); a class value is compatible
+    with `callable` when it declares or inherits `__invoke()` or does not
+    resolve (`?callable $handler` assigned a Guzzle handler object).

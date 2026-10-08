@@ -127,3 +127,8 @@ function setup() {
   (`$t = $list[] = f()`, `$a = $m[$i++] = f()`, `$m[g()]`, dynamic names,
   method-call receivers) the report has no fix (Composer: the fix produced
   `$target = $this->filesToCleanup[];`, a fatal error).
+- **Brace-less bodies (custos).** When the chained assignment is the whole
+  body of a brace-less `if`/`elseif`/`else`/loop/`declare`
+  (`if ($c) $n = $_SESSION['k'] = 10; else …`, adodb), the split
+  statements are wrapped in braces; otherwise the second statement would
+  leave the body and detach the `else` (parse error).

@@ -43,7 +43,7 @@ func (multiAssignmentUsage) Check(ctx *analysis.Context, n syntax.Node) {
 			ctx.ReportNode(as, "Destructure directly in the foreach header.")
 		}
 	case *syntax.Variable:
-		if as.Op.Kind != syntax.TEqual { // D5
+		if as.Op.Kind != syntax.TEqual || as.ByRef { // D5; custos: `$q =& $m[6]` keeps a reference
 			return
 		}
 		base, key, ok := numberedRead(as.Value) // D7
@@ -59,7 +59,7 @@ func (multiAssignmentUsage) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 		pa, ok := ps.Expr.(*syntax.Assign)
-		if !ok || pa.Op.Kind != syntax.TEqual {
+		if !ok || pa.Op.Kind != syntax.TEqual || pa.ByRef {
 			return
 		}
 		pbase, pkey, ok := numberedRead(pa.Value)

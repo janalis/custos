@@ -10,7 +10,7 @@ class Report
         }
         foreach ($rows as $row) {
             $this->write($row);
-            <weak_warning descr="Statement does not depend on the loop; move it out.">echo $meter->label();</weak_warning>
+            <weak_warning descr="Statement does not depend on the loop; move it out.">store($meter->label());</weak_warning>
         }
     }
 

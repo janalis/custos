@@ -199,3 +199,14 @@ A text like `'99% sure'` is *valid* for D5 (`% s` = space padding + `s`).
   call to reach the global function (D1).
 - An argnum of `*` followed by `$` would make upstream fail while parsing
   the number. Recommendation: treat `*$` as a non-match.
+- **Redeclarable format properties (custos diverges).** `$this->p` is
+  resolved only when the property is private or its class is final (or
+  anonymous): a subclass may redeclare it with another format (adodb's
+  `$dropIndex = 'DROP INDEX %s'`, redeclared `'DROP INDEX %s ON %s'` by the
+  MySQL dictionary), which `$this->p` then reads. One upstream case is
+  listed in `testdata/ea-divergences.json`.
+- **Two-argument scanf used as a value (custos diverges from D7a).** Any
+  use of the returned array counts (`sscanf($t, 'PT%dH%dM%dS') ?? []`,
+  `return sscanf(…)`, an array element), not only assignments and call
+  arguments; a discarded call or one used as a truth value (`if`/`while`
+  condition, `!`, `&&`/`||` operand, ternary condition) is still reported.

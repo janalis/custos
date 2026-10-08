@@ -131,3 +131,10 @@ function lookup(string $text, string $term, array $row) {
 - **Builtin spelling (custos diverges).** Upstream always inserts the bare
   variant name, which a namespaced or imported function of that name
   captures. custos writes `\variant(` in that case (F1).
+- **Equivalent rewrites only (custos diverges from F1).** Converting one
+  side only, or the two sides in opposite cases, is not a case-insensitive
+  search: `strpos(strtolower($name), $query)` never matches a query with
+  capitals, `stripos()` does (Moodle, phpBB). The report stays; the fix is
+  offered only when both sides are converted the same way, or when the
+  unconverted side is a string literal without letters of the opposite case
+  (`strpos(strtolower($t), 'abc-1')`). Listed upstream divergence.

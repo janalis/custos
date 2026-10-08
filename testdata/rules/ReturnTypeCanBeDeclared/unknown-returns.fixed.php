@@ -20,7 +20,7 @@ final class Lookup {
 
     // A @return tag describes the unknown values: still reported.
     /** @return string */
-    public function named($candidate): string {
+    public function named($candidate) {
         if ($candidate) {
             return $candidate;
         }

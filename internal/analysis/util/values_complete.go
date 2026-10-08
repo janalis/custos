@@ -25,7 +25,9 @@ import (
 //     static, catch, unset, ++/--) or is imported by reference into a
 //     closure;
 //   - `$this->p`, `self::$p`, `static::$p`, `C::$p` (C declared in this
-//     file): only properties declared in the class itself (without hooks);
+//     file): only properties declared in the class itself (without hooks;
+//     for `$this->p`, private or in a final or anonymous class, since a
+//     subclass may redeclare it with another default);
 //     the declared default (an untyped property without one is null, i.e.
 //     incomplete) plus every plain `=` assignment to the property anywhere
 //     in the class; any other write in the class makes the result
@@ -131,18 +133,14 @@ func (pc *completeValues) property(class *syntax.ClassLike, name string, static 
 		pc.stop = true
 		return
 	}
-	var decl *syntax.PropertyItem
-	var prop *syntax.Property
-	for _, m := range class.Members {
-		if p, ok := m.(*syntax.Property); ok {
-			for _, it := range p.Props {
-				if it.Var != nil && it.Var.Name == name {
-					decl, prop = it, p
-				}
-			}
-		}
+	idx := classPropWrites(pc.f, class)
+	d, ok := idx.decls[name]
+	if !ok {
+		pc.stop = true
+		return
 	}
-	if decl == nil || prop.Modifiers.Has(syntax.TStatic) != static || len(prop.Hooks) > 0 {
+	decl, prop := d.item, d.prop
+	if prop.Modifiers.Has(syntax.TStatic) != static || len(prop.Hooks) > 0 || !static && mayRedeclare(class, prop) {
 		pc.stop = true
 		return
 	}
@@ -153,40 +151,14 @@ func (pc *completeValues) property(class *syntax.ClassLike, name string, static 
 		pc.stop = true // implicit null
 		return
 	}
-	matches := func(e syntax.Expr) bool {
-		switch x := syntax.UnwrapParens(e).(type) {
-		case *syntax.PropertyFetch:
-			id, ok := x.Name.(*syntax.Identifier)
-			v, isVar := x.Var.(*syntax.Variable)
-			return !static && ok && isVar && v.Name == "this" && id.Value == name
-		case *syntax.StaticPropertyFetch:
-			v, ok := x.Name.(*syntax.Variable)
-			return static && ok && v.Name == name && pc.staticClass(x, x.Class) == class
-		}
-		return false
+	w := idx.writes[propWriteKey{name, static}]
+	if w != nil && w.dirty {
+		pc.stop = true
+		return
 	}
 	var vals []syntax.Expr
-	for _, m := range class.Members {
-		syntax.Inspect(m, func(n syntax.Node) bool {
-			switch x := n.(type) {
-			case *syntax.Assign:
-				if matches(x.Var) {
-					if x.Op.Kind != syntax.TEqual || x.ByRef {
-						pc.stop = true
-					} else {
-						vals = append(vals, AssignedValue(x))
-					}
-				}
-			case *syntax.IncDec:
-				if matches(x.Var) {
-					pc.stop = true
-				}
-			}
-			return !pc.stop
-		})
-	}
-	if pc.stop {
-		return
+	if w != nil {
+		vals = w.vals
 	}
 	if decl.Default == nil && len(vals) == 0 {
 		pc.stop = true
@@ -195,6 +167,13 @@ func (pc *completeValues) property(class *syntax.ClassLike, name string, static 
 	for _, v := range vals {
 		pc.collect(v)
 	}
+}
+
+// mayRedeclare reports whether a subclass may redeclare the instance
+// property (with another default): `$this->p` then reads the subclass's
+// value. Private properties and final or anonymous classes are safe.
+func mayRedeclare(class *syntax.ClassLike, prop *syntax.Property) bool {
+	return !prop.Modifiers.Has(syntax.TPrivate) && !class.Modifiers.Has(syntax.TFinal) && class.Name != nil
 }
 
 func (pc *completeValues) classConst(c *syntax.ClassConstFetch) {
@@ -249,4 +228,95 @@ func otherWrites(f *syntax.File, scope syntax.Node) map[string]bool {
 		return m
 	}
 	return f.Memo(otherWritesKey{scope}, build).(map[string]bool)
+}
+
+type propWriteKey struct {
+	name   string
+	static bool
+}
+
+// propWrites records the writes to one property inside its class: the
+// values of plain `=` assignments, in source order, and whether any other
+// kind of write (compound, by-reference, ++/--) exists.
+type propWrites struct {
+	vals  []syntax.Expr
+	dirty bool
+}
+
+type classPropWritesKey struct{ class *syntax.ClassLike }
+
+type propDecl struct {
+	item *syntax.PropertyItem
+	prop *syntax.Property
+}
+
+// classProps is the per-class index behind property lookups: the last
+// declaration of each property name and the writes to each property.
+type classProps struct {
+	decls  map[string]propDecl
+	writes map[propWriteKey]*propWrites
+}
+
+// classPropWrites indexes, once per class and file, the writes to
+// `$this->p` and to static properties of class (`self::$p`, `static::$p`
+// in a final class, `C::$p`) found anywhere in its members. Building it per
+// lookup made offset checks on huge classes quadratic.
+func classPropWrites(f *syntax.File, class *syntax.ClassLike) *classProps {
+	build := func() any {
+		idx := map[propWriteKey]*propWrites{}
+		decls := map[string]propDecl{}
+		pc := &completeValues{valueWalk: newValueWalk(f)}
+		keyOf := func(e syntax.Expr) (propWriteKey, bool) {
+			switch x := syntax.UnwrapParens(e).(type) {
+			case *syntax.PropertyFetch:
+				id, ok := x.Name.(*syntax.Identifier)
+				v, isVar := x.Var.(*syntax.Variable)
+				if ok && isVar && v.Name == "this" {
+					return propWriteKey{id.Value, false}, true
+				}
+			case *syntax.StaticPropertyFetch:
+				if v, ok := x.Name.(*syntax.Variable); ok && pc.staticClass(x, x.Class) == class {
+					return propWriteKey{v.Name, true}, true
+				}
+			}
+			return propWriteKey{}, false
+		}
+		entry := func(k propWriteKey) *propWrites {
+			w := idx[k]
+			if w == nil {
+				w = &propWrites{}
+				idx[k] = w
+			}
+			return w
+		}
+		for _, m := range class.Members {
+			if p, ok := m.(*syntax.Property); ok {
+				for _, it := range p.Props {
+					if it.Var != nil {
+						decls[it.Var.Name] = propDecl{it, p}
+					}
+				}
+			}
+			syntax.Inspect(m, func(n syntax.Node) bool {
+				switch x := n.(type) {
+				case *syntax.Assign:
+					if k, ok := keyOf(x.Var); ok {
+						w := entry(k)
+						if x.Op.Kind != syntax.TEqual || x.ByRef {
+							w.dirty = true
+						} else {
+							w.vals = append(w.vals, AssignedValue(x))
+						}
+					}
+				case *syntax.IncDec:
+					if k, ok := keyOf(x.Var); ok {
+						entry(k).dirty = true
+					}
+				}
+				return true
+			})
+		}
+		return &classProps{decls, idx}
+	}
+	return f.Memo(classPropWritesKey{class}, build).(*classProps)
 }

@@ -4,7 +4,7 @@ function kinds($item, $mode = 'array') {
     $b = <warning descr="Use '!is_bool($item)' instead.">'boolean' !== gettype($item)</warning>;
     $c = <warning descr="Use 'is_null($item)' instead.">gettype($item) == 'NULL'</warning>;
     $d = <warning descr="Use '!is_float($item)' instead.">gettype($item) != 'double'</warning>;
-    $e = <warning descr="Use 'is_array($item)' instead.">gettype($item) === $mode</warning>;
+    $e = gettype($item) === $mode; // callers may pass another type
     $f = gettype($item) === <error descr="gettype() never returns 'int'.">'int'</error>;
     $g = gettype($item) === <error descr="gettype() never returns 'null'.">'null'</error>;
 
