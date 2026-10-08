@@ -1,7 +1,7 @@
 <?php
 class ExtraArgsTest
 {
-    public function testExtra($rows, $n, $list, $obj)
+    public function testExtra(array $rows, $n, $list, $obj)
     {
         <weak_warning descr="Use 'assertEmpty()' instead.">$this->assertTrue(empty($rows), 'm', 3)</weak_warning>;
         <weak_warning descr="Use 'assertIsInt()' instead.">$this->assertTrue(is_int($n), 'm', $flag)</weak_warning>;

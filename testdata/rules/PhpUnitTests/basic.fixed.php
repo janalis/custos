@@ -1,7 +1,7 @@
 <?php
 class CartTest
 {
-    public function testThings($rows, $bag, $cart, $path, $body, $slug)
+    public function testThings(array $rows, $bag, $cart, $path, $body, $slug)
     {
         $this->assertNotTrue($cart->open && $rows);
         self::assertSame($cart->size, 4, 'size');

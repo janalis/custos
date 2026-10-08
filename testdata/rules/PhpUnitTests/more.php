@@ -5,7 +5,7 @@ use Shop\Cart as Basket;
 
 class MoreTest
 {
-    public function testMore($a, $b, $e, $f, $s, $list)
+    public function testMore($a, $b, $e, $f, $s, $list, ?string $str)
     {
         <weak_warning descr="Use 'assertFalse()' instead.">static::assertSame(false, $a)</weak_warning>;
         <weak_warning descr="Use 'assertNotTrue()' instead.">$this->assertNotSame($a, TRUE, 'm')</weak_warning>;
@@ -20,7 +20,7 @@ class MoreTest
         <weak_warning descr="Use 'assertNotRegExp()' instead.">$this->assertEquals(0, preg_match('/a/', $s))</weak_warning>;
         <weak_warning descr="Use 'assertRegExp()' instead.">$this->assertTrue(preg_match('/a/', $s) > 0)</weak_warning>;
         <weak_warning descr="Use 'assertFileEquals()' instead.">$this->assertStringEqualsFile($a, file_get_contents($b), 'm')</weak_warning>;
-        <weak_warning descr="Use 'assertEmpty()' instead.">$this->assertTrue(empty($a), 'm', 3)</weak_warning>;
+        <weak_warning descr="Use 'assertEmpty()' instead.">$this->assertTrue(empty($str), 'm', 3)</weak_warning>;
         <weak_warning descr="Use 'assertNotEquals()' instead.">$this->assertFalse(($a == $b))</weak_warning>;
         <weak_warning descr="Use 'assertNotSame()' instead.">$this->assertNotTrue($a === $b, 'm')</weak_warning>;
 
