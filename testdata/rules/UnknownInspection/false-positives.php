@@ -1,6 +1,7 @@
 <?php
 function audit() {
     /** @noinspection PhpUndefinedMethodInspection */
+    /** @noinspection PhpIncompatibleReturnTypeInspection */
     /** @noinspection UnnecessarySemicolonInspection */
     /** @noinspection UnnecessarySemicolon */
     /** @noinspection SqlNoDataSourceInspection2 */

@@ -1,13 +1,16 @@
 package runner
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sync"
 
+	"custos/internal/config"
 	"custos/internal/index"
 	"custos/internal/infer"
+	"custos/internal/safeio"
 	"custos/internal/stubs"
 	"custos/internal/syntax"
 )
@@ -16,13 +19,31 @@ import (
 // project's vendor directory (symbols only; vendor is not analysed).
 func IndexSources(root string, files []string) []string {
 	out := append([]string(nil), files...)
-	vendor := filepath.Join(root, "vendor")
+	vendor := filepath.Join(root, vendorDir(root))
 	if st, err := os.Stat(vendor); err == nil && st.IsDir() {
 		if vf, err := Discover([]string{vendor}, []string{".git", "node_modules", "tests", "Tests", "test"}); err == nil {
 			out = append(out, vf...)
 		}
 	}
 	return out
+}
+
+// vendorDir returns composer.json's `config.vendor-dir` (Joomla:
+// `libraries/vendor`) when it is a path inside root, else "vendor".
+func vendorDir(root string) string {
+	b, err := safeio.ReadFile(filepath.Join(root, "composer.json"), config.MaxFileSize)
+	if err != nil {
+		return "vendor"
+	}
+	var c struct {
+		Config struct {
+			VendorDir string `json:"vendor-dir"`
+		} `json:"config"`
+	}
+	if json.Unmarshal(b, &c) != nil || c.Config.VendorDir == "" || !filepath.IsLocal(c.Config.VendorDir) {
+		return "vendor"
+	}
+	return filepath.Clean(c.Config.VendorDir)
 }
 
 // BuildIndex parses files in parallel and returns their symbols layered over

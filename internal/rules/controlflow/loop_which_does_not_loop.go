@@ -79,6 +79,13 @@ func (loopWhichDoesNotLoop) Check(ctx *analysis.Context, n syntax.Node) {
 		if last == nil && (t.IsUnknown() || t.Has("object") || t.Has("iterable") || t.Has("mixed") || len(t.Classes()) > 0) {
 			return
 		}
+		// custos: `foreach ($this as …)` in a trait iterates the using
+		// class (CakePHP's CollectionTrait::isEmpty()).
+		if v, ok := syntax.UnwrapParens(fe.Expr).(*syntax.Variable); ok && v.Name == "this" {
+			if cl := syntax.EnclosingClass(fe); cl != nil && cl.ClassKind == syntax.KindTrait {
+				return
+			}
+		}
 		for _, a := range t.Atoms() {
 			switch strings.ToLower(a) {
 			case `\generator`, `\traversable`, `\iterator`, "iterable":

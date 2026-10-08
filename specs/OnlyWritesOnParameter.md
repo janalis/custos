@@ -341,3 +341,10 @@ function silenced(array $out)
   arguments of `new class ($a, $b) { … }` are evaluated in the enclosing
   scope (shared variable-access walker): a closure import passed only
   there (`use ($organisation)`, Matomo tests) is a use, not "never used".
+- **Element writes on values of unknown type (custos diverges, extends
+  D4c).** For a local variable, when every lost write is an element write
+  (`$v['k'] = …`) and the variable's inferred type there is unknown or has
+  an object member, nothing is reported: the value
+  (`$spec = $e->getParam('inputSpec')`) may be an ArrayAccess object such
+  as ArrayObject, whose writes are not lost (laminas-form listeners).
+  Parameters keep the upstream behaviour.

@@ -45,6 +45,26 @@ func TestIndexVendor(t *testing.T) {
 	}
 }
 
+// TestIndexVendorDir: composer.json's config.vendor-dir is honoured when it
+// stays inside the project; anything else falls back to "vendor".
+func TestIndexVendorDir(t *testing.T) {
+	root := t.TempDir()
+	app := filepath.Join(root, "src", "app.php")
+	writeFile(t, app, "<?php\n")
+	lib := filepath.Join(root, "libraries", "vendor", "lib", "Lib.php")
+	writeFile(t, lib, "<?php\nclass Lib {}\n")
+	writeFile(t, filepath.Join(root, "composer.json"), `{"config": {"vendor-dir": "libraries/vendor"}}`)
+	if got := IndexSources(root, []string{app}); !reflect.DeepEqual(got, []string{app, lib}) {
+		t.Fatalf("vendor-dir: %v", got)
+	}
+	for _, bad := range []string{`{"config": {"vendor-dir": "../outside"}}`, `{"config": {"vendor-dir": "/abs"}}`, `{`, `{}`} {
+		writeFile(t, filepath.Join(root, "composer.json"), bad)
+		if got := vendorDir(root); got != "vendor" {
+			t.Fatalf("%s: %q", bad, got)
+		}
+	}
+}
+
 func TestDiscoverErrors(t *testing.T) {
 	dir := t.TempDir()
 	if _, err := Discover([]string{filepath.Join(dir, "missing")}, nil); !errors.Is(err, os.ErrNotExist) {

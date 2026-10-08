@@ -121,6 +121,11 @@ locate:
 
 	switch c := target.Parent().(type) {
 	case *syntax.ExprStmt: // D4
+		// custos: `if (!is_dir($d)) { mkdir($d); } return is_dir($d);`
+		// re-checks in a later statement.
+		if laterIsDirCall(ctx, c, mkdirDirKeys(ctx, call)) {
+			return
+		}
 		thrown := dir
 		if tempVar {
 			thrown = "$concurrentDirectory"
@@ -156,24 +161,52 @@ locate:
 		if hasIsDirCall(ctx, outer.Right, mkdirDirKeys(ctx, call)) {
 			return
 		}
-		and := outer.Op.Kind == syntax.TBooleanAnd || outer.Op.Kind == syntax.TAnd
-		msg := orMsg
-		if and {
-			msg = andMsg
+		// custos: the re-check form follows the call's polarity, not the
+		// operator: `A || !mkdir($d)` needs `!mkdir($d) && !is_dir($d)`
+		// (upstream emitted the `||` form, inverting the condition).
+		msg, form, formAnd := orMsg, orForm, false
+		if inverted {
+			msg, form, formAnd = andMsg, andForm, true
 		}
 		if c.Right != target {
 			ctx.ReportNode(target, msg)
 			return
 		}
-		left := ctx.Text(c.Left)
-		repl := left + " || " + orForm
-		if c.Op.Kind == syntax.TBooleanAnd || c.Op.Kind == syntax.TAnd {
-			repl = left + " && " + andForm
+		and := c.Op.Kind == syntax.TBooleanAnd || c.Op.Kind == syntax.TAnd
+		if and != formAnd {
+			form = "(" + form + ")"
 		}
+		// The operator is kept as written: `$x = A or mkdir($d)` binds
+		// differently from `||`.
+		repl := ctx.Text(c.Left) + " " + ctx.SpanText(c.Op.Span) + " " + form
 		ctx.ReportNode(target, msg, analysis.Fix{Title: "Re-check with is_dir()", Edits: func() []analysis.TextEdit {
 			return []analysis.TextEdit{{Span: c.Span(), NewText: repl}}
 		}})
 	}
+}
+
+// laterIsDirCall reports whether a statement following s, in its own
+// statement list or in an enclosing one of the same function, calls is_dir()
+// on one of the directory expressions in keys.
+func laterIsDirCall(ctx *analysis.Context, s syntax.Stmt, keys []string) bool {
+	for s != nil {
+		if list, i, ok := util.StmtList(ctx.File, s); ok {
+			for _, next := range list[i+1:] {
+				if hasIsDirCall(ctx, next, keys) {
+					return true
+				}
+			}
+		}
+		var n syntax.Node = s.Parent()
+		s = nil
+		for ; n != nil && !syntax.IsFuncLike(n); n = n.Parent() {
+			if st, ok := n.(syntax.Stmt); ok {
+				s = st
+				break
+			}
+		}
+	}
+	return false
 }
 
 // argsInner is the span from after the opening parenthesis of l to the end

@@ -211,3 +211,12 @@ is acceptable next to the alias `Bag`.)
   from `Bag`. custos considers, for unqualified `T`, only imports whose
   alias (or last segment when unaliased) equals `T` case-insensitively —
   the ones PHP actually uses to resolve `T`.
+- **Case of an imported name at the access (custos diverges, L4/L5).**
+  PHP resolves an unqualified class name against the imports
+  case-insensitively and `::class` then yields the import's target as
+  written in the `use` statement: after `use Magento\Framework\Filesystem;`,
+  `FileSystem::class` is `'Magento\Framework\Filesystem'`, and an alias
+  (`use A\Invoice as Bill;`, `BILL::class`) likewise. Only a wrong-case
+  import (`use Catalog\product;` for `Catalog\Product`) gives the wrong
+  string, so only that is reported (listed EA divergence;
+  ~12 Magento/Yii findings were false).

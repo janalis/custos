@@ -262,3 +262,9 @@ function untyped($flag = null) {
   Matomo and PrestaShop). custos skips such parameters instead of taking
   the default's type as P (D1). EA case affected: `parameter-types-checks.php`
   (one fewer report, listed divergence).
+- **Failure markers of method calls (custos diverges, D7c).** The
+  `bool`/`null` removal next to `string`/`array` applies to method, static
+  and nullsafe calls as well as plain function calls: `$path =
+  Yii::getAlias($path)` (`string|false`) and `$key =
+  $this->resize($key)` (`?string`) are the same "may fail" convention
+  (most of the 140 bool/null findings sampled on Yii, Joomla and Laminas).

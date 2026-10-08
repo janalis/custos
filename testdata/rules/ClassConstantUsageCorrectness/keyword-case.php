@@ -13,7 +13,7 @@ namespace App {
         {
             return [
                 <error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">invoice</error>::CLASS,
-                <error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">BILL</error>::Class,
+                BILL::Class,
                 Bill::CLASS,
                 SELF::CLASS,
                 Static::class,

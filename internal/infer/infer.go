@@ -967,6 +967,13 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 				return types.Of("int", "float", "false"), true
 			}
 		}
+	case "sscanf":
+		// Without output variables the matches are returned (null when
+		// the string is empty or input ends early); the int is the count
+		// of assigned variables.
+		if len(n.Args.Args) == 2 {
+			return types.Of("array", "null"), true
+		}
 	case "parse_url":
 		// Without a component the result is the parts array (or false).
 		switch len(n.Args.Args) {

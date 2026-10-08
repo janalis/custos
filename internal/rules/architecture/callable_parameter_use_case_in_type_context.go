@@ -274,7 +274,13 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 	for _, a := range cp.typeOf(value) { // D7b
 		r[cpNorm(a)] = true
 	}
-	_, plainCall := value.(*syntax.FuncCall)
+	// custos: method, static and nullsafe calls carry the same failure
+	// markers (`Yii::getAlias()` is string|false) as plain function calls.
+	plainCall := false
+	switch value.(type) {
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		plainCall = true
+	}
 	if len(r) >= 2 { // D7c
 		if r["string"] || r["array"] {
 			if r["bool"] && plainCall {

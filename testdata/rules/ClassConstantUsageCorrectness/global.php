@@ -6,7 +6,7 @@ class Local {}
 
 Bag::class;
 ArrayObject::class;
-<error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">arrayobject</error>::class;
-<error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">BAG</error>::class;
+arrayobject::class;
+BAG::class;
 local::class;
 Sub\Thing::class;

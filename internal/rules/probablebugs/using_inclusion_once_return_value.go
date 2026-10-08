@@ -41,7 +41,7 @@ func (usingInclusionOnceReturnValue) Check(ctx *analysis.Context, n syntax.Node)
 
 // inclusionOnceTestedForSuccess reports whether the inclusion's result
 // (through parentheses and `@`) is discarded or only tested for success: a condition,
-// a logical operand, or compared with false. include_once returns false
+// a logical operand, compared with false, or cast to bool. include_once returns false
 // only when the file cannot be included, so such tests are reliable.
 func inclusionOnceTestedForSuccess(inc *syntax.Include) bool {
 	var n syntax.Node = inc
@@ -63,6 +63,8 @@ func inclusionOnceTestedForSuccess(inc *syntax.Include) bool {
 	switch p := n.Parent().(type) {
 	case *syntax.ExprStmt: // `@include_once $f;`: the result is discarded
 		return true
+	case *syntax.Unary: // custos: `(bool) include_once $f` is the success flag
+		return p.Op.Kind == syntax.TBoolCast
 	case *syntax.Binary:
 		switch p.Op.Kind {
 		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:

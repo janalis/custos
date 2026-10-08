@@ -200,3 +200,16 @@ function ok($m, $c, $n) {
   (3) In D7 a `bool` index is accepted where `int` is: PHP casts `true`/
   `false` keys to 1/0. A variable read before its first assignment is no
   longer typed by that later assignment.
+- **Native offset classes (custos diverges).** `DOMNodeList`,
+  `DOMNamedNodeMap`, `ResourceBundle`, `Dom\NodeList`, `Dom\NamedNodeMap`,
+  `Dom\HTMLCollection`, `FFI\CData` and their subclasses support `$o[…]`
+  natively although the stubs declare no `offsetGet()`: supported, with
+  `string|int` keys (Magento locale lists, Joomla DOM templates).
+- **Loose PHPDoc unions (custos diverges).** When `S` contains `array` or
+  `string` next to other scalar members (`@return
+  array|int|string|float|bool`, 3,416 Magento test findings from one
+  helper) and the variable's type without PHPDoc is unknown, nothing is
+  reported: the documentation admits offset access and the other members
+  are not confirmed by native types. Native unions (`int|array $v`) and
+  documented types without an array/string member (`@param \stdClass`)
+  are still reported.

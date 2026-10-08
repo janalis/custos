@@ -373,3 +373,26 @@ so step 4 deletes `$total = count($rows);`.
   or unset elements of the iterated array; the `foreach` replacement walks a
   snapshot and changes behaviour. custos skips them. No upstream fixture
   changed outcome.
+- **Element writes (custos diverges, refines D8d).** Writing an element
+  other than `$c[$i]` (`$c[$i + 1] = …`, `$c[$k][…] = …`, by-reference
+  passing of such an element) makes later iterations read values the
+  foreach snapshot does not have; writing under `$c[$i]` and mentioning an
+  overlapping path later in the body (`$c[$i] = trim($c[$i]); echo
+  $c[$i];`, `$c[$i][$k] = 0; echo $c[$i][1];`) would make the fix read the
+  stale `$iValue`. Both → no report. Paths that differ by literal offsets
+  (`$c[$i][1] = …; echo $c[$i][2];`) and taking a reference (`$r =
+  &$c[$i]`) do not count. Found on Magento (`RtlTextHandler`).
+- **Property limits (custos diverges, refines D8).** A property limit is
+  discovered only from plain assignments to it located before the loop in
+  the enclosing function; a write in the loop's init clause (the fix would
+  drop it), a write after the loop, or no assignment before the loop (the
+  default, the constructor or another method may not hold at the loop) →
+  no value, no report. F1.4 never deletes a property write (only a limit
+  variable's assignment located before the loop). Upstream took a
+  `$this->n = count($p);` written *after* the loop as the limit's value and
+  deleted it (Magento UPS carrier).
+- **Other init expressions (custos diverges).** The fix keeps only the
+  counter and a limit variable of the header; a loop whose init clause has
+  any other expression (`for ($i = 0, $acc = []; …)`, `$stop += 1`,
+  `$o->p = 0`) is not reported, since the rewrite would drop it (Magento
+  `AbstractIo`).

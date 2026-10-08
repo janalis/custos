@@ -57,7 +57,9 @@ func (subStrUsedAsArrayAccess) Check(ctx *analysis.Context, n syntax.Node) {
 		access = src + "[" + off + "]"
 	}
 	span := call.Span()
-	if ctx.PHP < phpver.PHP70 { // R3: `??` does not parse below 7.0, no fix
+	// R3: `??` does not parse below 7.0, no fix; custos: nor when the
+	// source may be another scalar (an int's offset is null, not a digit).
+	if ctx.PHP < phpver.PHP70 || !ctx.TypeOf(args[0]).OnlyOf("string", "null") {
 		ctx.Report(span, "Use '"+access+"' (string offset access) instead.")
 		return
 	}

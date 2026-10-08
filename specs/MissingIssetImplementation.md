@@ -121,3 +121,8 @@ None known.
   of that name on a receiver other than `$this`, or a property with a
   computed name (`$entity->$field = $value`, an importer), the check is not
   reported: it is not always false (PrestaShop: 63 → 1).
+- **Dynamic and unresolvable ancestors (custos diverges).** Subclasses of
+  `stdClass` (always dynamic, Joomla `Table`) and of `SimpleXMLElement`
+  (native isset handler) are skipped like those classes themselves; so is
+  a class whose hierarchy does not fully resolve (a missing parent may
+  declare the property or `__isset()`).

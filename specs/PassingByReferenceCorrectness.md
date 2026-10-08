@@ -107,4 +107,7 @@ key($s->plain());
   "prefer-ref": a temporary such as `array_values($a)` is accepted without
   any notice (its sort order still drives the multisort). Upstream reports
   `array_multisort(array_values($a), SORT_ASC, $a)`; custos skips calls that
-  resolve to the global `array_multisort()`.
+  resolve to the global `array_multisort()`. `extract()` is prefer-ref too
+  (by reference only for `EXTR_REFS`): `extract(array_merge($defaults,
+  $vars))` is accepted silently (view renderers in Joomla, CakePHP, Yii),
+  so calls resolving to the global `extract()` are skipped as well.

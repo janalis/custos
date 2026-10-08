@@ -119,3 +119,9 @@ class Pool
   alias at that point, which E2 never reports. custos skips `unset()`
   arguments placed after a `global`/`static` rebinding of the name. No
   upstream fixture covers it.
+- **Exposed scope (custos diverges).** When the function body includes a
+  file, calls `eval`, `get_defined_vars()` or `compact()` (outside nested
+  functions and classes), unsetting a parameter keeps it out of the scope
+  that code sees (Joomla module dispatchers: `extract($displayData);
+  unset($displayData); include $path;`): nothing is reported in that
+  function.

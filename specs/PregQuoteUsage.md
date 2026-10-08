@@ -77,3 +77,10 @@ $re4 = $quoter->preg_quote($needle);
   `strtr(preg_quote($x), …)`: the classic glob-to-regex
   `'{^' . str_replace('\\*', '.*', preg_quote($p)) . '$}i'` uses a
   delimiter preg_quote() escapes itself (Composer).
+- **Delimiter-free literal text (custos diverges).** When the quoted text
+  is a plain string literal made only of letters, digits, whitespace,
+  backslashes and characters preg_quote() escapes anyway
+  (`preg_quote('::')`, `preg_quote('\\')`), the result can never contain an
+  unescaped delimiter (a delimiter cannot be alphanumeric, a backslash or
+  whitespace), so the second argument would change nothing: not reported.
+  Found in Magento's legacy-code tests.

@@ -33,7 +33,7 @@ func (pregQuoteUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !util.ResolvesToGlobalFunction(ctx.Names(), ctx.Index(), ctx.PHP, call, "preg_quote") { // D1
 		return
 	}
-	if pregQuoteDelimiterEscaped(ctx, call) { // E3
+	if pregQuoteDelimiterEscaped(ctx, call) || pregQuoteDelimiterFree(ctx, call) { // E3
 		return
 	}
 	ctx.Report(util.NamePartSpan(call.Name.(*syntax.Name)), "Pass the pattern delimiter to preg_quote() as its second argument.")
@@ -89,11 +89,39 @@ func pregQuoteDelimiterEscaped(ctx *analysis.Context, call *syntax.FuncCall) boo
 	if !ok || v == "" {
 		return false
 	}
-	escaped := `.\+*?[^]$(){}=!<>|:-`
+	return strings.IndexByte(pregQuoteEscapes(ctx), v[0]) >= 0
+}
+
+// pregQuoteEscapes lists the characters preg_quote() escapes by itself.
+func pregQuoteEscapes(ctx *analysis.Context) string {
 	if ctx.PHP >= phpver.PHP73 {
-		escaped += "#"
+		return `.\+*?[^]$(){}=!<>|:-#`
 	}
-	return strings.IndexByte(escaped, v[0]) >= 0
+	return `.\+*?[^]$(){}=!<>|:-`
+}
+
+// pregQuoteDelimiterFree reports whether the quoted text is a plain string
+// literal whose result cannot contain an unescaped delimiter: every
+// character is alphanumeric, whitespace or a backslash (none of which can
+// be a delimiter) or one preg_quote() escapes anyway (custos refinement:
+// preg_quote('::'), preg_quote('\\')).
+func pregQuoteDelimiterFree(ctx *analysis.Context, call *syntax.FuncCall) bool {
+	v, ok := util.QuotedStringValue(syntax.UnwrapParens(call.Args.Args[0].(*syntax.Arg).Value))
+	if !ok {
+		return false
+	}
+	escaped := pregQuoteEscapes(ctx)
+	for i := 0; i < len(v); i++ {
+		c := v[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9',
+			c == ' ', c == '\t', c == '\n', c == '\r', c == '\v', c == '\f':
+		case strings.IndexByte(escaped, c) >= 0:
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // pregQuoteRewriter returns the str_replace() call whose subject (third

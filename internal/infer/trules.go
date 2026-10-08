@@ -487,6 +487,7 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 			break
 		}
 	}
+	unknownDef := false
 	as := r.assignments(scope, v.Name)
 	if len(as) > maxVarDefs {
 		return types.Unknown // see maxVarDefs
@@ -500,12 +501,22 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 			continue
 		}
 		after = max(after, d.Span().End)
+		var dt types.Type
 		switch {
 		case d.Op.Kind == syntax.TEqual && (!d.ByRef || r.SpecOnly):
-			ts = append(ts, r.TypeOf(d.Value))
+			dt = r.TypeOf(d.Value)
 		case !r.SpecOnly:
-			ts = append(ts, r.Env.TypeOf(d))
+			dt = r.Env.TypeOf(d)
 		}
+		ts = append(ts, dt)
+		unknownDef = unknownDef || (reach != nil && dt.IsUnknown())
+	}
+	// A reaching definition of unknown type makes the variable unknown:
+	// dropping it would leave a partial set that rules act on (`$f =
+	// $o->x; if ($c) { $f = 'x'; } (string) $f`). Only with reaching
+	// definitions (never in SpecOnly mode, whose sets are partial by spec).
+	if unknownDef {
+		return types.Unknown
 	}
 	t := KnownUnion(ts...)
 	if !t.IsUnknown() {

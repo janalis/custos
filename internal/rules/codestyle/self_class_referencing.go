@@ -146,9 +146,10 @@ func selfRefPosition(n *syntax.Name) bool {
 		return p.Type == e
 	case *syntax.Method:
 		return p.ReturnType == e
-	case *syntax.NullableType, *syntax.UnionType, *syntax.IntersectionType:
+	case *syntax.NullableType, *syntax.UnionType:
 		return true
 	}
+	// An intersection type cannot contain self (compile error).
 	return false
 }
 

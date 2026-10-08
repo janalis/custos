@@ -1,6 +1,18 @@
 <?php
 // Earlier boolean uses of the argument count as null checks (C3, C4), even
 // in unrelated branches.
+function viaIsset(?Order $o) {
+    $set = isset($o);
+    return get_class($o);
+}
+function viaEmpty(?Order $o) {
+    $none = empty($o);
+    return get_class($o);
+}
+function viaInstanceof(?Order $o) {
+    $is = $o instanceof Order;
+    return get_class($o);
+}
 function viaIf(?Order $o) {
     if ($o) { echo 1; }
     return get_class($o);

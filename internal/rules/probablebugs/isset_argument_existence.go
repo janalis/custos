@@ -129,18 +129,39 @@ func isAncestor(anc, n syntax.Node) bool {
 }
 
 // assignsPlainVar reports whether root contains an assignment whose target
-// is the plain variable $name.
+// is the plain variable $name, directly or (custos) inside a destructuring
+// pattern (`[$ts, $tz] = …`).
 func assignsPlainVar(root syntax.Node, name string) bool {
 	found := false
 	syntax.Inspect(root, func(c syntax.Node) bool {
-		if a, ok := c.(*syntax.Assign); ok {
-			if t, ok := a.Var.(*syntax.Variable); ok && t.NameExpr == nil && t.Name == name {
-				found = true
-			}
+		if a, ok := c.(*syntax.Assign); ok && issetTargets(a.Var, name) {
+			found = true
 		}
 		return !found
 	})
 	return found
+}
+
+// issetTargets reports whether the assignment target e is $name or a
+// destructuring pattern listing it.
+func issetTargets(e syntax.Expr, name string) bool {
+	switch t := syntax.UnwrapParens(e).(type) {
+	case *syntax.Variable:
+		return t.NameExpr == nil && t.Name == name
+	case *syntax.List:
+		for _, it := range t.Items {
+			if it != nil && it.Value != nil && issetTargets(it.Value, name) {
+				return true
+			}
+		}
+	case *syntax.Array:
+		for _, it := range t.Items {
+			if it != nil && it.Value != nil && issetTargets(it.Value, name) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // issetFirstMention returns the first plain variable named name in body, in

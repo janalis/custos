@@ -10,8 +10,8 @@ function shapes(array $a, $o, $cls, $m, $stop) {
     for ($i = 0; ; $i++) { echo $a[$i]; }                             // E3: no condition
     for ($i = 0; $i < count($a); $j++) { echo $a[$i]; }               // E1: other variable stepped
     for ($i = 0; check($i); $i++) { echo $a[$i]; }                     // E3: not binary
-    foreach ($a as $iValue) {
-        echo $iValue;
+    for ($stop += 1, $o->p = 0, $i = 0; $i < count($a); $i++) {
+        echo $a[$i];
     }
 }
 function chained(array $a) {
@@ -54,7 +54,6 @@ function contexts(array $a, Box $box, $o, $m, $cls) {
         while ($iValue) {}
         do {} while ($iValue);
         foreach ($iValue as $v) {}
-        bump($a[$i]);
         strlen($iValue);
         unknownFn($a[$i]);
         strlen(...$a[$i]);
@@ -66,7 +65,10 @@ function contexts(array $a, Box $box, $o, $m, $cls) {
         Box::keep($iValue);
         Box::missing($a[$i]);
         new Box($a[$i]);
-        return $a[$i];
+        if ($o) {
+            return $a[$i];
+        }
+        bump($a[$i]);
     }
 }
 function bump(&$v) {}

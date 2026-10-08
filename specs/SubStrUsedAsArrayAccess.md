@@ -167,3 +167,7 @@ offset access) instead.` with no fix.
   reported (and rewritten) as if it were the builtin. custos matches
   case-insensitively and only calls that reach the global function.
 - **Builtin spelling (custos diverges).** Upstream inserts a bare `strlen(` in its fix, so a function of that name declared in (or imported into) the namespace captures the rewritten call. custos writes `\name(` in that case (F1).
+- **Non-string sources (custos diverges, R3).** When the source may hold
+  another scalar (`string|int $code`), the finding has no fix: an int's
+  offset is null, so `($code[$i] ?? '')` would return `''` where
+  `substr()` returns the digit.

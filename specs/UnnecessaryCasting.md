@@ -346,3 +346,9 @@ After fix (changed lines):
   array<int, int> $ids`, or `(float) $this->rate` on a `@var float`
   property, is not reported: nothing enforces the docblock, and such casts
   guard SQL and output building (phpMyAdmin, PrestaShop review).
+- **Unknown reaching definitions (custos diverges, T4).** Outside the
+  spec-only typer, a variable with a reaching definition of unknown type
+  (`$f = $o->x; if ($c) { $f = 'x'; } return (string) $f;`) is unknown
+  instead of the union of its known definitions: the partial set made the
+  cast look redundant and the fix changed behaviour (Magento config
+  element and fixtures).

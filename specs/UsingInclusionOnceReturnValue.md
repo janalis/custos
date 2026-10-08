@@ -112,3 +112,6 @@ $cfg = (require 'config.php');
 - **Silenced statements (custos diverges).** `@include_once $f;` is an
   expression statement whose result is discarded through the `@`
   (PrestaShop); D2 now looks through `@` and parentheses.
+- **Bool cast (custos diverges).** `(bool) include_once $path` (Joomla's
+  loader: `$found = (bool) include_once $path; if ($found) …`) is a
+  success test like `!include_once`: not reported. Other casts still are.

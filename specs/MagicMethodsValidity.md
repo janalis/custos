@@ -333,3 +333,9 @@ interface Printable { public function __toString(); }
   constructor parameter (`public function __construct() {}`): calling it
   would do nothing (Doctrine/PrestaShop base classes). Builtin parents are
   always checked (their stub bodies say nothing).
+- **Single-underscore hooks (custos diverges, D15).** `_construct()`,
+  `_get()`, `_call()`… are not reported when the class hierarchy also
+  declares the real magic method (`__construct()` calling
+  `$this->_construct()`, Magento models and blocks) or when the file calls
+  the method by name (`$this->_get($k)`, `$this->_call($args)`): they are
+  deliberate hooks, not misspelt magic methods.

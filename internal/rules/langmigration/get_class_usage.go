@@ -35,7 +35,9 @@ func (getClassUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	arg := args[0]
-	if !ctx.TypeOf(arg).Has("null") && !isNullDefaultedParam(arg) { // D4
+	// D4; custos: D4b only when the flow type at the call is unknown (a
+	// guard or reassignment may have made the parameter non-null).
+	if t := ctx.TypeOf(arg); !t.Has("null") && (!t.IsUnknown() || !isNullDefaultedParam(arg)) {
 		return
 	}
 	if scope := syntax.EnclosingFuncLike(call); scope != nil && nullCheckedBefore(ctx.File, scope, arg) { // D5
@@ -93,6 +95,13 @@ func isNullCheck(c syntax.Node) bool {
 		return true
 	case *syntax.Instanceof: // C2
 		return true
+	case *syntax.Arg: // custos: is_object($x), is_a($x, …) type guards
+		if call, ok := p.Parent().Parent().(*syntax.FuncCall); ok {
+			switch strings.ToLower(util.CallLastName(call)) {
+			case "is_object", "is_a", "is_subclass_of":
+				return true
+			}
+		}
 	case *syntax.Binary: // C3
 		switch p.Op.Kind {
 		case syntax.TIsEqual, syntax.TIsNotEqual, syntax.TIsIdentical, syntax.TIsNotIdentical:

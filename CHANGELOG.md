@@ -72,6 +72,34 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
+- Unsafe or invalid quick-fixes (Magento / Joomla / CakePHP / Yii2 /
+  Laminas / Craft review): UnnecessarySemicolon removed the required `;`
+  of a short echo tag at the end of a file; SelfClassReferencing put
+  `self` into intersection types (compile error); MissingOrEmptyGroupStatement
+  placed the opening brace after a line comment; MkdirRaceCondition
+  inverted `A || !mkdir($d)` and threw where a later `is_dir()` already
+  handled the failure; ForeachInvariants deleted a property write made
+  after the loop, dropped extra header expressions and read stale values
+  after element writes; RealpathInStreamContext kept a trailing `/`;
+  SlowArrayOperationsInLoop hoisted the length of an array the loop
+  modifies; SubStrUsedAsArrayAccess rewrote `string|int` sources.
+- False positives (same review): OffsetOperations (loose
+  `array|int|string|float|bool` docs, `DOMNodeList`/`ResourceBundle`;
+  3,973 → 455), MagicMethodsValidity (`_construct()` hooks),
+  ClassConstantUsageCorrectness (imported names written in another case),
+  MissingIssetImplementation (`stdClass`/`SimpleXMLElement` subclasses,
+  unresolved parents), SuspiciousAssignments (`array|bool`, `sscanf()`),
+  PassingByReferenceCorrectness (`extract()`), PregQuoteUsage
+  (delimiter-free literals), CallableParameterUseCaseInTypeContext
+  (failure markers of method calls), GetClassUsage (guards and
+  reassignments), UselessUnset (before `include`/`get_defined_vars()`),
+  OnlyWritesOnParameter (element writes on possibly ArrayAccess values),
+  IssetArgumentExistence (destructuring), UsingInclusionOnceReturnValue
+  (`(bool) include_once`), LoopWhichDoesNotLoop (`foreach ($this)` in a
+  trait), UnknownInspection (more PhpStorm names), UnnecessaryCasting
+  (variables with a definition of unknown type).
+- The project index honours composer.json `config.vendor-dir` (Joomla's
+  `libraries/vendor` was not indexed).
 - Type engine (review round 2): `str_replace()`/`preg_replace()` & co.
   follow the subject's members (a string subject is `string|null` for
   `preg_*`, never `array`); `max()`/`min()` return their arguments' type;

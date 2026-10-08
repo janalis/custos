@@ -4,6 +4,6 @@ function peek(string $buf, ?string $maybe, string|int $mixed, array $rows, int $
     $a = ($buf[$at] ?? '');
     $b = ($buf[strlen($buf) - 1] ?? '');
     $c = ($maybe[0] ?? '');
-    $d = ($mixed[2] ?? '');
+    $d = substr($mixed, 2, 1);
     return [$a, $b, $c, $d];
 }

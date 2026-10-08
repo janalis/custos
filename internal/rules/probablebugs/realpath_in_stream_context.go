@@ -106,6 +106,8 @@ func realpathReplacement(ctx *analysis.Context, s syntax.Expr) (string, bool) {
 		if s.LitKind == syntax.LitString {
 			if raw, _, ok := util.QuotedStringRaw(s); !ok || !isAbsolutePathLiteral(raw) {
 				return "", false // relative paths resolve differently once realpath() is gone
+			} else if len(raw) > 1 && strings.HasSuffix(raw, "/") {
+				return "", false // custos: realpath() drops the trailing separator
 			}
 			return ctx.Text(s), true
 		}
@@ -126,6 +128,9 @@ func realpathReplacement(ctx *analysis.Context, s syntax.Expr) (string, bool) {
 			rest = rest[3:]
 			left = dirname + "(" + left + ")"
 		}
+		// custos: realpath() drops trailing separators (`/../` names the
+		// parent itself, `/../etc/` is `…/etc`).
+		rest = strings.TrimRight(rest, "/")
 		if rest == "" {
 			return left, true // no `. ''` tail
 		}

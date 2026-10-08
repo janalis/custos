@@ -118,3 +118,10 @@ function audit() {
   consecutive capitals better.
 - Message order: upstream joins names in hash order; custos uses source order.
 - Optional extension (not upstream): also validate IDs in `@custos-ignore`.
+- **Wider PhpStorm list (custos).** Beyond the names this spec requires,
+  the embedded list holds further PhpStorm short names seen in real code
+  (`PhpIncompatibleReturnTypeInspection`,
+  `ArrayTypeOfParameterByDefaultValueInspection`,
+  `PhpNamedArgumentsWithChangedOrderInspection`,
+  `AdditionOperationOnArraysInspection`, … — Craft CMS), so suppressions
+  of real PhpStorm inspections are not reported as unknown.

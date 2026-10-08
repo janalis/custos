@@ -69,6 +69,43 @@ t('top', $count * 3);
 	}
 }
 
+func TestTRulesUnknownReachingDefinition(t *testing.T) {
+	src := `<?php
+function g($o, bool $c) {
+    $f = $o->x;
+    if ($c) {
+        $f = 'x';
+    }
+    t('partial', $f);
+    $g = 'y';
+    if ($c) {
+        $g = 'z';
+    }
+    t('known', $g);
+}
+`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpver.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpver.PHP84))
+	want := map[string]string{"partial": "", "known": "string"}
+	got := map[string]string{}
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "t" {
+				label := strings.Trim(string(f.Src[c.Args.Args[0].Span().Start:c.Args.Args[0].Span().End]), "'")
+				got[label] = strings.Join(tr.TypeOf(c.Args.Args[1].(*syntax.Arg).Value).Atoms(), "|")
+			}
+		}
+		return true
+	})
+	for k, w := range want {
+		if got[k] != w {
+			t.Errorf("%s: got %q want %q", k, got[k], w)
+		}
+	}
+}
+
 func TestTRulesForeachRebindingHidesEarlierAssignments(t *testing.T) {
 	src := `<?php
 function g(array $rows, array $names) {

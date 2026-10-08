@@ -10,7 +10,7 @@ function shapes(array $a, $o, $cls, $m, $stop) {
     for ($i = 0; ; $i++) { echo $a[$i]; }                             // E3: no condition
     for ($i = 0; $i < count($a); $j++) { echo $a[$i]; }               // E1: other variable stepped
     for ($i = 0; check($i); $i++) { echo $a[$i]; }                     // E3: not binary
-    <warning descr="Iterate with foreach instead of a counter loop.">for</warning> ($stop += 1, $o->p = 0, $i = 0; $i < count($a); $i++) {
+    for ($stop += 1, $o->p = 0, $i = 0; $i < count($a); $i++) {
         echo $a[$i];
     }
 }
@@ -55,7 +55,6 @@ function contexts(array $a, Box $box, $o, $m, $cls) {
         while ($a[$i]) {}
         do {} while ($a[$i]);
         foreach ($a[$i] as $v) {}
-        bump($a[$i]);
         strlen($a[$i]);
         unknownFn($a[$i]);
         strlen(...$a[$i]);
@@ -67,7 +66,10 @@ function contexts(array $a, Box $box, $o, $m, $cls) {
         Box::keep($a[$i]);
         Box::missing($a[$i]);
         new Box($a[$i]);
-        return $a[$i];
+        if ($o) {
+            return $a[$i];
+        }
+        bump($a[$i]);
     }
 }
 function bump(&$v) {}

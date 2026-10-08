@@ -302,6 +302,113 @@ types the absent `$a[0]` as `array`; target-version stub returns (`hash()`
 is `string|false` on 7.x); `index.Method` without an empty-body flag and
 without native-vs-doc provenance of types.
 
+**Magento / Joomla / CakePHP / Yii2 / Laminas / Craft review
+(2026-10-08).** Third run on code custos had never seen, shallow clones
+plus `composer install --no-scripts --no-plugins` (vendor indexed, not
+analysed), only read: magento/magento2 (25,860 files, PHP 8.3), Joomla CMS
+(3,260, 8.1), cakephp/cakephp (1,748, 8.2), yiisoft/yii2 (1,078, 7.4),
+craftcms/cms (1,708, 8.2) and eight Laminas packages (mvc, router,
+servicemanager, eventmanager, view, form, db, validator: 62–383 files
+each, 8.2), `analyse --all`. Robustness: no internal finding and no
+syntax error; `php -l` of the target version reports nothing either,
+except ten Yii test stubs written for PHP 8.0/8.1 (enums, union and
+intersection types), which custos parses with its newest-grammar
+fallback. Timing (`--stats`, index of vendor included): Magento 6.3 s,
+Craft 1.3 s, Joomla 0.7 s (1.0 s once its `libraries/vendor` is indexed,
+below), CakePHP and Yii 0.7 s, Laminas 0.2–0.7 s. Magento scales
+linearly (1,624 files 1.6 s, 15,245 files 3.1 s, 25,860 files 4.6–6.3 s);
+peak RSS is linear too (470 MB, 1.8 GB, 2.5 GB: about 90 KB per analysed
+file plus the vendor index — sources are kept for the analysis pass).
+The largest file, Craft's 1 MB icon table, analyses in well under a
+second (its run time is the vendor index). About 1,100 findings were
+sampled over 100 rules (all findings below 20, 15–20 otherwise;
+error/warning severity and rules the earlier rounds had not sampled
+first), and sampled fix diffs of about 75 fixable rules were read for semantic
+changes. Fix safety: `custos fix --all` on copies (Magento 15,112 changed
+files, all projects 19,600), then `php -l` of the target version on every
+changed file; every fix was also applied alone and re-parsed
+(`TestFixesKeepCodeParsable` on each project including its vendor,
+`php -l` samples per rule). Before the fixes 6 changed files failed to
+lint (UnnecessarySemicolon, SelfClassReferencing) and one vendor fix was
+unparsable (MissingOrEmptyGroupStatement); after them every changed file
+lints except the three Yii PHP 8.0 stubs that fail before fixing too.
+
+| Rule / area | Was | Now |
+|---|---|---|
+| UnnecessarySemicolon | `<?= $x;` at the end of a file (no `?>`) told the `;` is stray; the fix was a parse error (Magento, Yii views). | Only before a closing tag. |
+| SelfClassReferencing | `Sample&Menu` rewritten to `self&Menu` (compile error: self in an intersection). | Names inside intersection types skipped. |
+| MissingOrEmptyGroupStatement | `for (…) // note` + body: the brace landed after the comment (commented out; the fix re-fired ten times). | Brace right after the header, body kept in place. |
+| MkdirRaceCondition | `A \|\| !@mkdir($d)` → `A \|\| @mkdir($d) \|\| is_dir($d)` (error branch on success, Joomla thumbnails); statement `mkdir()` followed by `return is_dir($p) && …` turned into a throw. | Form follows the call's polarity (parenthesised, operator kept); later `is_dir()` re-checks accepted. 47 → 44. |
+| ForeachInvariants | `$this->n = count($p)` written *after* the loop taken as the limit and deleted (Magento UPS); element writes (`$a[$i] = trim($a[$i]); echo $a[$i];`, `$a[$i + 1] = …`) read stale `$iValue`; `for ($i = 0, $acc = []; …)` lost `$acc = []`. | Property limits only from assignments before the loop, property writes never deleted; overlapping element writes, other header expressions → not reported. 39 → 34. |
+| RealpathInStreamContext | `realpath(__DIR__ . '/../')` → `dirname(__DIR__) . '/'` (realpath() drops the separator; `$root . '/app'` became `//app`). | Trailing `/` dropped (listed divergence). |
+| SlowArrayOperationsInLoop | Length hoisted into the initialiser although the body pops/pushes/reassigns the subject or calls a method on its object. | Reported without a fix then. |
+| SubStrUsedAsArrayAccess | `substr($code, $i, 1)` with `string\|int $code` → `($code[$i] ?? '')` (`''` for an int). | No fix unless the source is string (or null). |
+| OffsetOperations | 3,416 Magento findings from one `@return array\|int\|string\|float\|bool` test helper; `DOMNodeList`, `DOMNamedNodeMap`, `ResourceBundle` (native offset access, no `offsetGet()` in the stubs). | Doc unions admitting array/string with unconfirmed scalar members skipped (native type unknown); those classes supported. 3,973 → 455. |
+| MagicMethodsValidity | Magento `_construct()` (called by `__construct()`), `_get`/`_set`, Cake `_call()` hooks reported as misspelt magic methods (error). | Skipped when the hierarchy declares the real magic method or the file calls the method by name. Magento 91 → 85. |
+| ClassConstantUsageCorrectness | `use X\Filesystem; FileSystem::class` reported as returning the wrong string (PHP yields the import's spelling). | Only wrong-case imports reported (listed divergence). 15 → 3. |
+| MissingIssetImplementation | Joomla `Table extends \stdClass`, `SimpleXMLElement` subclasses, classes with unindexed parents (error). | Skipped. 19 → 6. |
+| SuspiciousAssignments | `@return array\|bool` narrowed to `array\|true` then destructured; `list($r, $g, $b) = sscanf($c, '#%02x…')`. | true/bool are failure markers next to array; engine: two-argument `sscanf()` is `array\|null`. 110 → 93. |
+| PassingByReferenceCorrectness, PregQuoteUsage, UsingInclusionOnceReturnValue | `extract(array_merge(…))` (prefer-ref); `preg_quote('::')`, `preg_quote('\\')` (cannot contain a delimiter); `$found = (bool) include_once $p`. | Skipped (PregQuoteUsage listed divergence). 7 → 2, 51 → 42, 9 → 4. |
+| CallableParameterUseCaseInTypeContext | `$path = Yii::getAlias($path)` (`string\|false`), `$key = $this->resize($key)` (`?string`) reported as bool/null: D7c dropped failure markers for plain function calls only. | Method, static and nullsafe calls too. 619 → 561. |
+| GetClassUsage | `setObject($o = null) { if (is_object($o)) get_class($o) }`, `$t = $t ?: $this; get_class($t)` (D4b ignored flow). | D4b only when the flow type is unknown; `is_object()`/`is_a()` guards count. 12 → 9. |
+| UselessUnset, OnlyWritesOnParameter, IssetArgumentExistence, LoopWhichDoesNotLoop | `extract($d); unset($d); include $tpl;` (Joomla dispatchers); `$spec = $e->getParam('spec'); $spec['x'] = 1;` (ArrayObject); `[$ts, $tz] = …` lazy init in a loop; `foreach ($this as $e) return false;` in Cake's CollectionTrait. | Skipped. 27 → 19 (UselessUnset). |
+| UnknownInspection | 19 Craft suppressions of real PhpStorm inspections (`PhpIncompatibleReturnTypeInspection` …). | List extended. 19 → 1. |
+| UnnecessaryCasting (T-rules typer) | `$f = $o->x; if ($c) { $f = 'x'; } (string) $f` taken as string (the unknown definition was dropped from the union); the fix changed behaviour. | A reaching definition of unknown type makes the variable unknown outside SpecOnly. 249 → 234. |
+| Project index (`runner`) | Joomla's `config.vendor-dir: libraries/vendor` ignored: no dependency indexed. | composer.json `config.vendor-dir` honoured when it stays inside the project. Joomla gains true positives (e.g. `BaseApplication::__construct()` not calling the vendor parent's) and loses unresolved-class noise. |
+
+Deltas on the local corpora (HEAD 3f240eb → this tree, default /
+`--all`): corpus A `src/` −1 / −1 (MkdirRaceCondition, `DiagnosticLog`
+re-checks with `is_dir()` after the call), corpus B 0 / 0, corpus C −1 /
+−2 (SuspiciousAssignments on an `array|bool` reader result,
+OffsetOperations on `InputBag::get()`'s documented scalar union).
+
+Declined: NonSecureUniqidUsage's fix changes the identifier format
+(23 characters with a `.`; Magento uses one in a temporary table name) —
+that change is the advice itself; SuspiciousLoop on reassigned parameters,
+ForgottenDebugOutput on deliberate `var_dump()`/`error_log()` in build
+scripts, UnSafeIsSetOverArray, AutoloadingIssues (legacy helpers, entry
+scripts), NullPointerException, SecurityAdvisories on `composer/composer`
+and `yii2-debug` required at runtime, ProperNullCoalescingOperatorUsage
+type-mismatch infos, MultipleReturnStatements, UnnecessaryAssertion
+(`expects($this->any())`, 10,566 Magento tests) — noise by design;
+EncryptionInitializationVectorRandomness on IVs from a helper returning
+`openssl_random_pseudo_bytes()` or the previous CBC block (not
+detectable); CallableParameterUseCaseInTypeContext on untyped closure
+parameters (`$data` in a CakePHP `beforeMarshal` closure — the rule's
+core case); OnlyWritesOnParameter element writes on parameters (same);
+SenselessProxyMethod removing a PHPUnit test re-declared to change the run
+order (deliberate fix, round 2); StrStrUsedAsStrPos with a `"0"` needle
+(spec divergence, never seen); RandomApiMigration `rand($hi, $lo)`
+(`random_int()` throws; arguments are ordered in every sample);
+ReturnTypeCanBeDeclared `?array` where both branches of a final if/else
+return (wider but safe, spec heuristic); MissingIssetImplementation's
+remaining DOM/legacy cases and laminas-db `getMockForAbstractClass()` on
+concrete classes (ClassMockingCorrectness, per spec).
+Engine-level causes found by the review (reported, not fixed here):
+*do-while back edge* — `do { $all[] = $e; } while ($e = $e->getPrevious());`
+with `\Exception $e`: element type expected `\Exception|\Throwable`, actual
+includes null (GetClassUsage, Magento ExceptionHandler); *`array_pop()`
+after `!empty(self::$stack)`* on `public static $stack = []`: expected the
+element type, actual `…|null` (the static property is not narrowed
+non-empty; Yii Widget); *inline `@var` on an unrelated statement* —
+`/** @var \yii\base\Widget $class */ $config['model'] = …;` retypes the
+string parameter `$class` to `\yii\base\Widget` (expected `string`;
+InstanceofCanBeUsed, Yii ActiveField); *narrowing lost when the then
+branch writes the guarded variable* — `if (is_int($c)) { $c = []; } else
+{ $c['x']; }` with `array|int $c`: else type expected `array`, actual
+`array|int` (OffsetOperations, Magento fixture); *builtin stub docs keep
+pre-8.0 members* — `substr()` at 8.1 inside a ternary is typed
+`string|false` because the stub's `@return string|false` doc is unioned
+with the version-resolved native `string` (`TRules.declaredAndDoc`;
+CallableParameterUseCaseInTypeContext, Joomla ExtensionManagerTrait);
+*`@method static` tags* are stored as ordinary methods
+(`index/extract.go`), so Craft's `@method static ActiveQuery hasOne()`
+hides Yii's real instance `hasOne()` (StaticInvocationViaThis; needs a
+`Method.Magic` flag); *exiting blocks still reach later uses* —
+`$x = 5; if ($c) { $x = 'a'; return 1; } return (int) $x;`: expected
+`int`, actual `int|string` (`Env.reaching`; UnnecessaryCasting and
+ReturnTypeCanBeDeclared).
+
 **Coverage audit (2026-10-07).** Own fixtures were extended until every
 statement of `internal/rules` is executed by `TestOwnFixtures` (90.3% →
 99.99%; the single remaining statement, SecurityAdvisories'

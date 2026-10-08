@@ -149,3 +149,9 @@ In `views/page.blade.php` nothing is reported (E2).
   line (replacing the whitespace before the body), the body is indented one
   level under the construct's line and the closing brace aligned with it
   (`if ($a)\n    stmt;` → `if ($a) {\n    stmt;\n}`).
+- **Line comment after the header (custos diverges, F1).** In `for (…) //
+  note` followed by the body on the next line, a brace placed after the
+  comment is commented out (the fix produced unbalanced braces and
+  re-fired on every pass; Magento's Redis session vendor code). The block
+  is opened right after the header (`for (…) { // note`), the body stays
+  in place and the closing brace follows it.

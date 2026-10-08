@@ -134,6 +134,16 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(s) == 0 {
 		return
 	}
+	// custos: a PHPDoc union that admits arrays or strings next to other
+	// scalars (`@return array|int|string|float|bool`) is loose
+	// documentation unless the native types confirm the scalar members.
+	if (offsetHas(s, "array") || offsetHas(s, "string")) && ctx.Types().Native().TypeOf(access.Var).IsUnknown() {
+		for _, a := range s {
+			if a != "array" && a != "string" && !strings.HasPrefix(a, `\`) {
+				return
+			}
+		}
+	}
 
 	// D5
 	supported := false
@@ -158,6 +168,11 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 		cls := strings.TrimPrefix(a, `\`)
 		if ctx.Index().Class(cls, ctx.PHP) == nil {
 			return // D1: an unresolvable class empties S
+		}
+		if offsetNativeAccess(ctx, cls) {
+			supported = true
+			allow("string", "int")
+			continue
 		}
 		for _, m := range []string{"offsetGet", "offsetSet", "__get", "__set"} {
 			meth := ctx.Index().FindMethod(cls, m, ctx.PHP)
@@ -220,6 +235,19 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 
 // offsetSubtypeOfAllowed reports whether the class type a extends or
 // implements a class type of the allowed set.
+// offsetNativeAccess reports whether cls is (or extends) a builtin class
+// whose objects support `$o[…]` natively without declaring offsetGet() in
+// the stubs (custos refinement).
+func offsetNativeAccess(ctx *analysis.Context, cls string) bool {
+	for _, b := range []string{"DOMNodeList", "DOMNamedNodeMap", "ResourceBundle", `Dom\NodeList`,
+		`Dom\NamedNodeMap`, `Dom\HTMLCollection`, `FFI\CData`} {
+		if strings.EqualFold(cls, b) || ctx.Index().IsSubtype(cls, b, ctx.PHP) {
+			return true
+		}
+	}
+	return false
+}
+
 func offsetSubtypeOfAllowed(ctx *analysis.Context, a string, allowed []string) bool {
 	if !strings.HasPrefix(a, `\`) {
 		return false

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"custos/internal/analysis"
+	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -85,6 +86,11 @@ func checkMissingIsset(ctx *analysis.Context, a syntax.Expr) {
 		if ix.FindMethod(cls, "__isset", ctx.PHP) != nil || misAllowsDynamic(ctx, cls) {
 			return
 		}
+		// custos: a missing ancestor may declare the property or
+		// __isset().
+		if !util.HierarchyResolved(ix, cls, ctx.PHP) {
+			return
+		}
 		// custos: without __set() a write creates a real (dynamic)
 		// property, which isset() does see; skip it when the file writes
 		// properties of that name or by a computed name (an importer's
@@ -102,10 +108,13 @@ func checkMissingIsset(ctx *analysis.Context, a syntax.Expr) {
 }
 
 // misAllowsDynamic reports whether a class of cls' hierarchy carries
-// #[\AllowDynamicProperties] (recorded by the index for every file).
+// #[\AllowDynamicProperties] (recorded by the index for every file) or is
+// one of the exempt builtins.
 func misAllowsDynamic(ctx *analysis.Context, cls string) bool {
 	for _, c := range ctx.Index().Ancestors(cls, ctx.PHP) {
-		if c.HasAttr("AllowDynamicProperties") {
+		// custos: subclasses of stdClass (always dynamic) and of the
+		// exempt builtins (SimpleXMLElement's native isset handler).
+		if c.HasAttr("AllowDynamicProperties") || issetExempt(c.FQN) {
 			return true
 		}
 	}

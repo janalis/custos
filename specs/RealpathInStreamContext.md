@@ -138,3 +138,9 @@ $two  = realpath('/tmp', 'x');
   directory, not the parent, and is reported without a fix. When nothing
   remains after the climbs the replacement is `dirname(L)` without a
   `. ''` tail.
+- **Trailing separators (custos diverges).** realpath() returns the path
+  without a trailing `/`: `realpath(__DIR__ . '/../')` is
+  `dirname(__DIR__)`, not `dirname(__DIR__) . '/'` (which made Magento's
+  `$root . '/app/bootstrap.php'` read `//app`). R1 drops trailing `/` from
+  the remaining tail (no tail left → no concatenation); R2 offers no fix
+  for an absolute literal ending in `/` (other than `/` itself).

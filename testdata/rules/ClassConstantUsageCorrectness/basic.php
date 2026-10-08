@@ -11,7 +11,7 @@ namespace Storefront {
 
     return [
         <error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">Product</error>::class,
-        <error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">OPTION</error>::class,
+        OPTION::class,
         Option::class,
         <error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">Widgets\banner</error>::class,
         Widgets\Banner::class,
@@ -27,7 +27,7 @@ namespace Storefront\Widgets {
 
     return [
         Product::class,
-        <error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">product</error>::class,
+        product::class,
         banner::class,
     ];
 }

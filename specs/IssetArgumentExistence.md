@@ -181,3 +181,8 @@ annotated above).
   report when the function calls `extract()` or one-argument `parse_str()`,
   assigns a variable-variable, or includes a file before the check;
   `IGNORE_INCLUDES = false` still skips functions with any include.
+- **Destructuring in the loop (custos diverges, D8).** A destructuring
+  assignment listing the variable (`[$ts, $tz] = …`, `list(, list($x)) =
+  …`) inside the innermost enclosing loop defines it for the next
+  iteration, like a plain assignment (lazy initialisation in Craft's
+  formatter).

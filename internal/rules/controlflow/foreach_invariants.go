@@ -111,6 +111,21 @@ func (foreachInvariants) counterLoop(ctx *analysis.Context, l *syntax.For) {
 	} else {
 		return
 	}
+	// custos: the fix keeps only the counter and a limit variable of the
+	// header; any other init expression (`$acc = []`) would be lost.
+	for _, in := range l.Init {
+		if a, ok := in.(*syntax.Assign); ok {
+			if v, ok := ruleSimpleVar(a.Var); ok && v.Name == counter.Name {
+				continue
+			}
+			if v, ok := ruleSimpleVar(a.Var); ok {
+				if lv, ok := ruleSimpleVar(syntax.UnwrapParens(limit)); ok && lv.Name == v.Name {
+					continue
+				}
+			}
+		}
+		return
+	}
 	// D6
 	var container syntax.Expr
 	distinct := false
@@ -192,7 +207,7 @@ func (foreachInvariants) counterLoop(ctx *analysis.Context, l *syntax.For) {
 	// D8d: the container itself changes in the loop (reassigned, passed by
 	// reference as to sort()/array_splice(), unset, pushed to, or an element
 	// unset): foreach iterates a snapshot, the counter loop the live array.
-	if foreachInvContainerChanged(ctx, l, container) {
+	if foreachInvContainerChanged(ctx, l, container) || foreachInvElementsChanged(ctx, l, container, counter.Name) {
 		return
 	}
 	// D8c: the counter, or a limit assigned in the header, read after the loop
@@ -281,7 +296,8 @@ func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, co
 	header += valName + ") "
 	edits := []analysis.TextEdit{{Span: l.Span(), NewText: header + b.String()}}
 	// F1.4: limit cleanup.
-	if _, direct := syntax.UnwrapParens(limit).(*syntax.FuncCall); !direct {
+	// custos: only a variable's assignment; a property write is state.
+	if _, isVar := ruleSimpleVar(limit); isVar {
 		if del, ok := limitAssignment(ctx, l, limit); ok {
 			edits = append(edits, analysis.TextEdit{Span: util.WithLeadingWhitespace(ctx.File, del.Span())})
 		}
@@ -311,6 +327,9 @@ func interpolationContinues(rest []byte) bool {
 func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Expr) []syntax.Expr {
 	v, ok := ruleSimpleVar(limit)
 	if !ok {
+		if pf, ok := syntax.UnwrapParens(limit).(*syntax.PropertyFetch); ok {
+			return foreachInvPropertyLimitValues(ctx, l, pf)
+		}
 		return util.PossibleValues(ctx.File, limit)
 	}
 	scope := syntax.EnclosingFuncLike(l)
@@ -349,16 +368,53 @@ func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Ex
 	return out
 }
 
+// foreachInvPropertyLimitValues discovers a property limit (custos): the
+// plain assignments to it located before the loop in the enclosing
+// function. A write after the loop, or none before it (the value then
+// comes from another method or the default, which other code may change)
+// gives no value.
+func foreachInvPropertyLimitValues(ctx *analysis.Context, l *syntax.For, limit *syntax.PropertyFetch) []syntax.Expr {
+	isLimit := func(e syntax.Expr) bool {
+		_, ok := syntax.UnwrapParens(e).(*syntax.PropertyFetch)
+		return ok && util.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(e), limit)
+	}
+	// A header write to the property never gets here: only the counter
+	// and a limit variable may be assigned in the init clause.
+	body := syntax.FuncLikeBody(syntax.EnclosingFuncLike(l))
+	if body == nil {
+		return nil
+	}
+	var out []syntax.Expr
+	after := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.ClassLike, *syntax.Closure, *syntax.ArrowFunction:
+			return false
+		case *syntax.Assign:
+			if !isLimit(x.Var) {
+				return true
+			}
+			if x.Span().Start >= l.Span().Start || x.Op.Kind != syntax.TEqual || x.ByRef {
+				after = true
+				return false
+			}
+			out = append(out, util.PossibleValues(ctx.File, x.Value)...)
+		}
+		return !after
+	})
+	if after {
+		return nil
+	}
+	return out
+}
+
 // limitAssignment returns the statement `$n = count(..);` to delete when the
 // limit's only remaining occurrence in the enclosing function is its
 // assignment.
 func limitAssignment(ctx *analysis.Context, l *syntax.For, limit syntax.Expr) (syntax.Stmt, bool) {
-	// nil at top level (a limit constant defined by define()); a loop can
-	// not sit in an arrow function, the other body-less function-like.
+	// Only variable limits get here, and those have values only inside a
+	// function body (D8): fbody is never nil.
 	fbody := syntax.FuncLikeBody(syntax.EnclosingFuncLike(l))
-	if fbody == nil {
-		return nil, false
-	}
 	header := syntax.Span{Start: l.Span().Start, End: l.Body.Span().Start}
 	var found []syntax.Node
 	syntax.Inspect(fbody, func(x syntax.Node) bool {
@@ -378,8 +434,8 @@ func limitAssignment(ctx *analysis.Context, l *syntax.For, limit syntax.Expr) (s
 		return nil, false
 	}
 	st, ok := a.Parent().(*syntax.ExprStmt)
-	if !ok {
-		return nil, false
+	if !ok || st.Span().End > l.Span().Start {
+		return nil, false // custos: never a write after the loop
 	}
 	return st, true
 }
@@ -603,7 +659,8 @@ func foreachInvWritten(ctx *analysis.Context, l *syntax.For, match func(syntax.E
 				if !ok {
 					continue
 				}
-				if !arg.Unpack && match(syntax.UnwrapParens(arg.Value)) && foreachInvByRefArg(ctx, arg, pos) {
+				// match last: callers may record what it matches.
+				if !arg.Unpack && foreachInvByRefArg(ctx, arg, pos) && match(syntax.UnwrapParens(arg.Value)) {
 					found = true
 					return false
 				}
@@ -645,6 +702,114 @@ func foreachInvContainerChanged(ctx *analysis.Context, l *syntax.For, container 
 		return !found
 	})
 	return found
+}
+
+// foreachInvElementsChanged reports whether the loop writes container
+// elements in a way foreach's snapshot and the fix's value variable would
+// not see (custos): an element other than `$c[$i]` (`$c[$i + 1] = …`,
+// `$c[$k]['x'] = …`; a later iteration would read the new value), or a
+// path under `$c[$i]` followed in the body by a mention of an overlapping
+// path (`$c[$i] = trim($c[$i]); echo $c[$i];`: the fix would read the stale
+// `$iValue`). Taking a reference (`$r = &$c[$i]`) is not a write.
+func foreachInvElementsChanged(ctx *analysis.Context, l *syntax.For, container syntax.Expr, counter string) bool {
+	type write struct {
+		end  uint32
+		path []syntax.Expr
+	}
+	var writes []write
+	other := false
+	match := func(e syntax.Expr) bool {
+		path, ok := foreachInvElementPath(ctx, e, container)
+		if !ok {
+			return false
+		}
+		if a, ok := e.Parent().(*syntax.Assign); ok && a.ByRef && a.Value == e {
+			return false
+		}
+		if v, ok := ruleSimpleVar(path[0]); !ok || v.Name != counter {
+			other = true
+			return true
+		}
+		// The write takes effect at the end of its statement: reads in
+		// the assigned value (`$c[$i] = trim($c[$i])`) run before it.
+		var n syntax.Node = e
+		for {
+			if _, ok := n.(syntax.Stmt); ok {
+				break
+			}
+			n = n.Parent()
+		}
+		writes = append(writes, write{n.Span().End, path})
+		return false
+	}
+	if foreachInvWritten(ctx, l, match, nil) || other {
+		return true
+	}
+	if len(writes) == 0 {
+		return false
+	}
+	stale := false
+	syntax.Inspect(l.Body, func(n syntax.Node) bool {
+		d, ok := n.(*syntax.ArrayDimFetch)
+		if !ok || stale || !util.EquivalentFoldNames(ctx.File, d.Var, container) {
+			return !stale
+		}
+		var outer syntax.Expr = d
+		for {
+			p, ok := outer.Parent().(*syntax.ArrayDimFetch)
+			if !ok || p.Var != outer {
+				break
+			}
+			outer = p
+		}
+		path, _ := foreachInvElementPath(ctx, outer, container)
+		for _, w := range writes {
+			if d.Span().Start >= w.end && foreachInvPathsOverlap(ctx, path, w.path) {
+				stale = true
+			}
+		}
+		return !stale
+	})
+	return stale
+}
+
+// foreachInvElementPath returns the offsets of an element chain
+// `$c[k1][k2]…` of the container, outermost container offset first (a nil
+// offset for `$c[]`).
+func foreachInvElementPath(ctx *analysis.Context, e syntax.Expr, container syntax.Expr) ([]syntax.Expr, bool) {
+	var rev []syntax.Expr
+	for {
+		d, ok := syntax.UnwrapParens(e).(*syntax.ArrayDimFetch)
+		if !ok {
+			return nil, false
+		}
+		rev = append(rev, d.Dim)
+		if util.EquivalentFoldNames(ctx.File, d.Var, container) {
+			for i, j := 0, len(rev)-1; i < j; i, j = i+1, j-1 {
+				rev[i], rev[j] = rev[j], rev[i]
+			}
+			return rev, true
+		}
+		e = d.Var
+	}
+}
+
+// foreachInvPathsOverlap reports whether two element paths may designate
+// the same storage: one is a prefix of the other, unless two offsets at the
+// same depth are different literals.
+func foreachInvPathsOverlap(ctx *analysis.Context, a, b []syntax.Expr) bool {
+	for i := 0; i < len(a) && i < len(b); i++ {
+		x, y := a[i], b[i]
+		if x == nil || y == nil {
+			return true
+		}
+		lx, okx := syntax.UnwrapParens(x).(*syntax.Literal)
+		ly, oky := syntax.UnwrapParens(y).(*syntax.Literal)
+		if okx && oky && ctx.Text(lx) != ctx.Text(ly) {
+			return false
+		}
+	}
+	return true
 }
 
 // foreachInvHeaderAssigns reports whether the loop's init clause assigns

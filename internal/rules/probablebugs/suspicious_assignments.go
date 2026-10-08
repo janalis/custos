@@ -458,7 +458,8 @@ func saDestructuring(ctx *analysis.Context, a *syntax.Assign) {
 		return
 	}
 	// D20a: null and false are failure markers, ignored next to a
-	// supporting type.
+	// supporting type; so are true/bool (custos: `@return array|bool`
+	// narrowed by `if (!$r) return;` leaves `array|true`).
 	supporting, bad, onlyMarkers := false, false, true
 	for _, at := range t.Atoms() { // D20
 		switch {
@@ -466,7 +467,7 @@ func saDestructuring(ctx *analysis.Context, a *syntax.Assign) {
 			supporting = true
 		case strings.HasPrefix(at, `\`) && saArrayAccess(ctx, strings.TrimPrefix(at, `\`)):
 			supporting = true
-		case at == "null" || at == "false":
+		case at == "null" || at == "false" || at == "true" || at == "bool":
 			bad = true
 		default:
 			bad = true

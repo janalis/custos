@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
+	"custos/internal/index"
 	"custos/internal/syntax"
 )
 
@@ -247,9 +248,140 @@ func (slowArrayOperationsInLoop) checkFor(ctx *analysis.Context, f *syntax.For) 
 			if names == nil {
 				names = newForNames(ctx, f)
 			}
+			if forSubjectMayChange(ctx, f, call) {
+				ctx.ReportNode(b, msg) // custos: hoisting would freeze a changing length
+				continue
+			}
 			ctx.ReportNode(b, msg, forLengthFix(ctx, f, call, names.pick(f, ci, forFixBase(other))))
 		}
 	}
+}
+
+// forSubjectMayChange reports whether the measured value may change while
+// the loop runs (custos), so computing its length once would change the
+// number of iterations: the subject is not a variable or property fetch,
+// or the body/step writes it or one of its elements, unsets or passes it
+// (or an element) to a by-reference or unresolved parameter, or calls a
+// method on the object holding a measured property.
+func forSubjectMayChange(ctx *analysis.Context, f *syntax.For, call *syntax.FuncCall) bool {
+	args, ok := util.CallArgValues(call)
+	if !ok || len(args) == 0 {
+		return true
+	}
+	subj := syntax.UnwrapParens(args[0])
+	// An element (`count($grid[$r])`) is measured through its root array:
+	// any write into the root, or to an offset expression, counts.
+	var dims []syntax.Expr
+	for {
+		d, ok := subj.(*syntax.ArrayDimFetch)
+		if !ok || d.Dim == nil {
+			break
+		}
+		dims = append(dims, syntax.UnwrapParens(d.Dim))
+		subj = syntax.UnwrapParens(d.Var)
+	}
+	var holder syntax.Expr // object whose property is measured
+	switch x := subj.(type) {
+	case *syntax.Variable:
+		if x.NameExpr != nil {
+			return true
+		}
+	case *syntax.PropertyFetch:
+		holder = x.Var
+	case *syntax.StaticPropertyFetch:
+	default:
+		return true
+	}
+	touches := func(e syntax.Expr) bool { // e is subj, one of its elements or an offset
+		for _, d := range dims {
+			if util.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(e), d) {
+				return true
+			}
+		}
+		for {
+			e = syntax.UnwrapParens(e)
+			if util.EquivalentFoldNames(ctx.File, e, subj) {
+				return true
+			}
+			d, ok := e.(*syntax.ArrayDimFetch)
+			if !ok {
+				return false
+			}
+			e = d.Var
+		}
+	}
+	changed := false
+	visit := func(n syntax.Node) bool {
+		if changed {
+			return false
+		}
+		switch x := n.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.ClassLike, *syntax.Closure, *syntax.ArrowFunction:
+			return false
+		case *syntax.Assign:
+			changed = touches(x.Var) || (x.ByRef && touches(x.Value))
+		case *syntax.IncDec:
+			changed = touches(x.Var)
+		case *syntax.Unset:
+			for _, v := range x.Vars {
+				changed = changed || touches(v)
+			}
+		case *syntax.Foreach:
+			changed = x.ByRef && touches(x.Expr)
+		case *syntax.MethodCall:
+			if holder != nil && util.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(x.Var), holder) {
+				changed = true
+			}
+		}
+		if list := callArgList(n); list != nil && !changed {
+			var params []index.Param
+			resolved := false
+			if fc, ok := n.(*syntax.FuncCall); ok {
+				if fn := ctx.Types().ResolveFunction(fc); fn != nil {
+					params, resolved = fn.Params, true
+				}
+			}
+			pos := 0
+			for _, a := range list.Args {
+				arg, ok := a.(*syntax.Arg)
+				if !ok {
+					continue
+				}
+				if touches(arg.Value) {
+					switch {
+					case !resolved, arg.Unpack:
+						changed = true
+					case pos < len(params) && params[pos].ByRef:
+						changed = true
+					case len(params) > 0 && params[len(params)-1].Variadic && params[len(params)-1].ByRef && pos >= len(params)-1:
+						changed = true
+					}
+				}
+				pos++
+			}
+		}
+		return !changed
+	}
+	syntax.Inspect(f.Body, visit)
+	for _, e := range f.Loop {
+		syntax.Inspect(e, visit)
+	}
+	return changed
+}
+
+// callArgList returns the argument list of a call or instantiation.
+func callArgList(n syntax.Node) *syntax.ArgList {
+	switch c := n.(type) {
+	case *syntax.FuncCall:
+		return c.Args
+	case *syntax.MethodCall:
+		return c.Args
+	case *syntax.StaticCall:
+		return c.Args
+	case *syntax.New:
+		return c.Args
+	}
+	return nil
 }
 
 // forFixBase is the preferred name of the cached length variable (F1).

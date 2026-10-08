@@ -44,8 +44,8 @@ func (r unnecessarySemicolon) Check(ctx *analysis.Context, n syntax.Node) {
 		if s.Len() == 0 || ctx.Src[s.End-1] != ';' {
 			return // terminated by `?>`
 		}
-		if next, ok := util.NextSignificant(ctx.File, s.End); ok && next.Kind != syntax.TCloseTag {
-			return // E2: more code in the same tag
+		if next, ok := util.NextSignificant(ctx.File, s.End); !ok || next.Kind != syntax.TCloseTag {
+			return // E2: more code in the same tag; at end of file the `;` is required
 		}
 		r.report(ctx, syntax.Span{Start: s.End - 1, End: s.End})
 	}

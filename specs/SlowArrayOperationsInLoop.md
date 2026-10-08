@@ -274,3 +274,12 @@ function collect(array $batches, $repo)
   reads back (`$ctx = array_merge($ctx, $cb($ctx))`, work lists driven by
   `array_shift()`), none of which can be merged once after the loop (found
   on WordPress, Laravel and Drupal). custos skips them (G7).
+- **Changing loop subjects (custos diverges, F1).** The length is hoisted
+  into the initialiser only when the measured value cannot change while
+  the loop runs: a variable or property fetch (or an element of one,
+  measured through its root and offsets) that the body and step do not
+  write, push to, unset, iterate by reference, or pass (or an element of)
+  to a by-reference or unresolved parameter, and — for a property — whose
+  object receives no method call in the body. Otherwise the finding is
+  reported without a fix (`array_pop($a)` in the body made the hoisted
+  loop read past the end).

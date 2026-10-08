@@ -14,9 +14,9 @@ namespace Storefront {
     $name = 'X';
     return [
         Product::class,
-        <error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">product</error>::class,
+        product::class,
         V::class,
-        <error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">v</error>::class,
+        v::class,
         Product::{$name},
     ];
 }

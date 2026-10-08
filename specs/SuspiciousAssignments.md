@@ -347,3 +347,8 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
   later statements of D16 (Composer `PathRepository`: the conditional value
   was passed to `load($package)` before being replaced). Reads of sibling
   elements (`$package['name']`) do not count.
+- **`true`/`bool` as failure markers (custos diverges, extends D20a).**
+  Next to a supporting type, `true` and `bool` are ignored like `null` and
+  `false`: `@return array|bool` guarded by `if (!$r) return;` leaves
+  `array|true`, a loose documentation of "array or false" (Magento price
+  filter). `bool` alone is still reported.

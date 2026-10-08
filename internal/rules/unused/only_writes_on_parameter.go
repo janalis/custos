@@ -84,7 +84,7 @@ func (onlyWritesOnParameter) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 			// D4; W findings dropped for object imports (D4a).
 			v := u.Var
-			objectImport := func() bool { return owpObjectType(ctx.TypeOf(v)) }
+			objectImport := func([]syntax.Node) bool { return owpObjectType(ctx.TypeOf(v)) }
 			if s.analyse(v.Name, objectImport) == 0 && !includes {
 				s.report(v.Span(), owpUnusedMsg)
 			}
@@ -109,7 +109,9 @@ func (onlyWritesOnParameter) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 			done[v.Name] = true
 			name := v.Name
-			s.analyse(name, func() bool { return s.holdsObject(name) }) // D8, D4c
+			s.analyse(name, func(targets []syntax.Node) bool { // D8, D4c
+				return s.holdsObject(name) || s.elementWritesMayReachObject(targets)
+			})
 		}
 		return true
 	})
@@ -209,7 +211,7 @@ func owpDirectStmt(n syntax.Node) bool {
 // analyse runs the access analysis for name and returns the number of
 // accesses found. When dropWrites is non-nil and returns true, the W
 // findings of this analysis are not reported (D4a).
-func (s *owpScope) analyse(name string, dropWrites func() bool) int {
+func (s *owpScope) analyse(name string, dropWrites func(targets []syntax.Node) bool) int {
 	accs := s.accesses(name)
 	if s.dynamicReads()[name] || s.dynamicReads()["*"] { // E8: compact('v'), get_defined_vars()
 		return len(accs) + 1
@@ -334,7 +336,7 @@ func (s *owpScope) analyse(name string, dropWrites func() bool) int {
 	if s.suppressed(targets) { // E4
 		return len(accs)
 	}
-	if dropWrites != nil && dropWrites() { // D4a, E5b
+	if dropWrites != nil && dropWrites(targets) { // D4a, E5b
 		return len(accs)
 	}
 	for _, t := range targets {
@@ -433,6 +435,32 @@ func owpObjectType(t types.Type) bool {
 		}
 	}
 	return false
+}
+
+// elementWritesMayReachObject reports whether every write target of a
+// local is an element write (`$v['k'] = …`) on a variable whose inferred
+// type there is unknown or has an object member (custos): the value
+// (`$spec = $e->getParam('spec')`) may be an ArrayAccess object, whose
+// writes are not lost.
+func (s *owpScope) elementWritesMayReachObject(targets []syntax.Node) bool {
+	for _, t := range targets {
+		d, ok := t.(*syntax.ArrayDimFetch)
+		if !ok {
+			return false
+		}
+		var base syntax.Expr = d
+		for {
+			inner, ok := base.(*syntax.ArrayDimFetch)
+			if !ok {
+				break
+			}
+			base = inner.Var
+		}
+		if ty := s.ctx.TypeOf(base); !ty.IsUnknown() && !owpObjectType(ty) {
+			return false
+		}
+	}
+	return true
 }
 
 // holdsObject reports whether a plain assignment of the scope gives the

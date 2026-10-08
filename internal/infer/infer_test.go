@@ -345,6 +345,15 @@ function f() {
 `, map[string]string{"none": "false|int[]", "false": "false|int[]", "qualified": "false|int[]", "true": "false|float|int", "named": "false|float|int"})
 }
 
+func TestSscanfReturns(t *testing.T) {
+	check(t, `<?php
+function f(string $c) {
+    t('matches', sscanf($c, "#%02x%02x%02x"));
+    t('count', sscanf($c, "%d", $n));
+}
+`, map[string]string{"matches": "array|null", "count": "array|int|null"})
+}
+
 func TestForeachOverMixedIterable(t *testing.T) {
 	check(t, `<?php
 class Box {}

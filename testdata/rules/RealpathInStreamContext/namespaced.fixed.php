@@ -8,5 +8,5 @@ class BootTest
 
 class Boot
 {
-    public function a() { return dirname(__DIR__) . '/'; }
+    public function a() { return dirname(__DIR__); }
 }

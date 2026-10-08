@@ -152,3 +152,8 @@ while ($ok) break;
   unknown, `object`, `iterable`, `mixed` or a class: iterating may be done
   for the iterator's side effects (Doctrine tests initialise lazy
   collections with `foreach ($user->groups as $g) {}`).
+- **`$this` in a trait (custos diverges, D4).** `foreach ($this as $el) {
+  return false; }` inside a trait method tests the using class (a
+  Traversable collection, CakePHP's `CollectionTrait::isEmpty()`) for
+  emptiness; `$this` has no class type in a trait, so the Traversable
+  exemption cannot apply: such loops are not reported.

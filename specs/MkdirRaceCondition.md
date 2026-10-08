@@ -235,3 +235,18 @@ inverted.)
   already re-checks the same directory inside the `if` body (Composer);
   D5 no longer reports the and-form when that body contains an `is_dir()`
   call on the directory (same matching as D6).
+- **Re-check in a later statement (custos diverges).** A statement-form
+  `mkdir($d);` (D4) followed, in the same function, by a statement calling
+  `is_dir($d)` (`if (!is_dir($p)) { mkdir($p, 0777, true); } return
+  is_dir($p) && is_writable($p);`, CakePHP) already handles the failure;
+  the D4 fix would turn a `false` result into an exception. Not reported
+  (same matching as D6; following statements of the enclosing statement
+  lists up to the function body).
+- **Polarity in logical operands (custos diverges, D6/F3).** The re-check
+  form follows the call's polarity, not the operator: `A || !mkdir($d)`
+  becomes `A || (!mkdir($d) && !is_dir($d))` and `A && mkdir($d)` becomes
+  `A && (mkdir($d) || is_dir($d))` (parenthesised when the form's operator
+  differs); upstream emitted the operator's form and dropped the `!`,
+  running the error branch on success (Joomla image thumbnails). The
+  message follows the polarity too, and the operator is kept as written
+  (`or` binds looser than an assignment).

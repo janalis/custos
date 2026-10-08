@@ -172,3 +172,10 @@ function legacy($item = null) {
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Flow-aware D4b (custos diverges).** A parameter with a `null` default
+  counts as possibly null only when the inferred type at the call is
+  unknown; when inference proves it non-null (`$t = $t ?: $this;`) the call
+  is not reported. A type guard `is_object($x)`, `is_a($x, …)` or
+  `is_subclass_of($x, …)` earlier in the function counts as a null check
+  (C5). Found on Magento (`setObject($object = null) { if
+  (is_object($object)) { get_class($object) … }`).

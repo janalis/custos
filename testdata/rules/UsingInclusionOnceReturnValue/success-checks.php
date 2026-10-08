@@ -14,3 +14,6 @@ if ((include_once 'a.php') xor $other) {
 $label = (include_once 'b.php') ? 'yes' : 'no';
 if (include_once 'c.php' && $x) {
 }
+$found = (bool) include_once $path;
+$also = (boolean) (@include_once $path);
+$num = (int) <error descr="Only the first include_once/require_once returns the file's value; later ones return true.">include_once $path</error>;

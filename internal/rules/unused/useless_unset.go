@@ -32,7 +32,7 @@ func (uselessUnset) Check(ctx *analysis.Context, n syntax.Node) {
 			names[p.Var.Name] = true
 		}
 	}
-	if len(names) == 0 {
+	if len(names) == 0 || uselessUnsetScopeExposed(ctx, body) {
 		return
 	}
 	// E6: `global $p;` / `static $p;` rebinds the name; unsets after it are
@@ -89,4 +89,28 @@ func (uselessUnset) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		return true
 	})
+}
+
+// uselessUnsetScopeExposed reports whether the function body hands its
+// local variables to code that reads them by name (custos): an included
+// file (templates: `extract($data); unset($data); include $tpl;`), eval,
+// get_defined_vars() or compact(). Unsetting a parameter then keeps it out
+// of that scope.
+func uselessUnsetScopeExposed(ctx *analysis.Context, body syntax.Node) bool {
+	found := false
+	syntax.Inspect(body, func(x syntax.Node) bool {
+		if found {
+			return false
+		}
+		switch c := x.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+			return false
+		case *syntax.Include, *syntax.Eval:
+			found = true
+		case *syntax.FuncCall:
+			found = ctx.IsGlobalFunctionCall(c, "get_defined_vars") || ctx.IsGlobalFunctionCall(c, "compact")
+		}
+		return !found
+	})
+	return found
 }

@@ -8,5 +8,5 @@ class BootTest
 
 class Boot
 {
-    public function a() { return <warning descr="Use 'dirname(__DIR__) . '/'' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../')</warning>; }
+    public function a() { return <warning descr="Use 'dirname(__DIR__)' instead: realpath() fails inside stream wrappers.">realpath(__DIR__ . '/../')</warning>; }
 }

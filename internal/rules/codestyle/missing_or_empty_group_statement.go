@@ -78,6 +78,16 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 			// The brace joins the header line: whitespace before the body
 			// (a line break for `if ($a)\n    stmt;`) is replaced.
 			indent := util.LineIndent(ctx.Src, kwSpan.Start)
+			// custos: a comment between the header and the body (`for (…)
+			// // note`) would swallow a brace placed after it; open the
+			// block right after the header instead and keep the body
+			// where it is.
+			if at, ok := braceBeforeComment(ctx.File, bs.Start); ok {
+				return []analysis.TextEdit{
+					{Span: syntax.Span{Start: at, End: at}, NewText: " {"},
+					{Span: bs, NewText: text + "\n" + indent + "}"},
+				}
+			}
 			span, open := bs, "{\n"
 			if ws, ok := util.TokenBefore(ctx.File, bs.Start); ok && ws.Kind == syntax.TWhitespace {
 				span.Start, open = ws.Start, " {\n"
@@ -85,4 +95,22 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 			return []analysis.TextEdit{{Span: span, NewText: open + indent + "    " + text + "\n" + indent + "}"}}
 		},
 	})
+}
+
+// braceBeforeComment returns the end of the last significant token before
+// off when a line comment (`//`, `#`) sits between it and off.
+func braceBeforeComment(f *syntax.File, off uint32) (uint32, bool) {
+	comment := false
+	// The file's first token (inline HTML or the open tag) is significant,
+	// so the walk always stops.
+	for i := util.TokenIndex(f, off) - 1; ; i-- {
+		t := f.Tokens[i]
+		switch t.Kind {
+		case syntax.TWhitespace, syntax.TDocComment:
+		case syntax.TComment:
+			comment = comment || f.Src[t.Start] != '/' || f.Src[t.Start+1] == '/'
+		default:
+			return f.Tokens[i].End, comment
+		}
+	}
 }

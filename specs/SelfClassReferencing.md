@@ -196,3 +196,6 @@ __CLASS__;                          // not inside a class method
   them in any letter case (D1, D4, D5), except `Name::class` whose case
   differs from the declaration (E6), since rewriting it would change the
   string value. Reverse-mode messages quote the reference as written.
+- custos diverges: class names inside an intersection type (`Crate&Other`,
+  also within a DNF type) are not reported — `self` cannot be part of an
+  intersection type (compile error); found on a Magento test sample.

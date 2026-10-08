@@ -166,7 +166,7 @@ func (magicMethodsValidity) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		// custos: no rename fix — it would break every caller of the
 		// method, and the signature may not fit the magic contract.
-		if magicLookup(magicMissingUnderscore, c.name) && !c.inherited() {
+		if magicLookup(magicMissingUnderscore, c.name) && !c.inherited() && !c.deliberateHook() {
 			c.report("'" + c.name + "' is not magic; did you mean '_" + c.name + "'?")
 		}
 	}
@@ -186,6 +186,42 @@ func (c *magicCheck) inherited() bool {
 		}
 	}
 	return false
+}
+
+// deliberateHook reports whether a single-underscore name is an explicit
+// hook rather than a misspelt magic method (custos): the class hierarchy
+// also declares the real magic method (`__construct()` calling
+// `$this->_construct()`), or the file calls the method by name.
+func (c *magicCheck) deliberateHook() bool {
+	lname := strings.ToLower(c.name)
+	if c.fqn != "" {
+		for _, a := range c.ctx.Index().Ancestors(c.fqn, c.ctx.PHP) {
+			if _, ok := a.Methods["_"+lname]; ok {
+				return true
+			}
+		}
+	}
+	called := c.ctx.Memo("called-methods", func() any {
+		names := map[string]bool{}
+		visit := func(n syntax.Node) bool {
+			var name syntax.Expr
+			switch x := n.(type) {
+			case *syntax.MethodCall:
+				name = x.Name
+			case *syntax.StaticCall:
+				name = x.Name
+			}
+			if id, ok := name.(*syntax.Identifier); ok {
+				names[strings.ToLower(id.Value)] = true
+			}
+			return true
+		}
+		for _, st := range c.ctx.File.Stmts {
+			syntax.Inspect(st, visit)
+		}
+		return names
+	}).(map[string]bool)
+	return called[lname]
 }
 
 func (c *magicCheck) notStatic() {

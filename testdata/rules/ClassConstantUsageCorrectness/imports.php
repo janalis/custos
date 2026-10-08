@@ -14,7 +14,7 @@ namespace Garage {
     return [
         Nut::class,
         Fastener::class,
-        <error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">nut</error>::class,
+        nut::class,
         <error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">P\Bolt</error>::class,
         Q\Bolt::class,
     ];

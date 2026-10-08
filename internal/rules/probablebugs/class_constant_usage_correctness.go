@@ -128,22 +128,19 @@ func (classConstantUsageCorrectness) Check(ctx *analysis.Context, n syntax.Node)
 			if !strings.EqualFold(eff, t) {
 				continue
 			}
+			// custos: `::class` on an imported name yields the import's
+			// target as written in the `use` statement, whatever the case
+			// of the short name or alias at the access: only a wrong-case
+			// import gives the wrong string.
 			switch {
 			case strings.EqualFold(u.target, cfqn): // L4
-				if u.alias != "" {
-					list = append(list, u.alias)
-					break
-				}
-				// the import's target resolves to C itself (same FQN)
-				rfqn := `\` + cfqn
-				precise := strings.HasSuffix(rfqn, u.target)
-				if !precise || util.LastNamePart(rfqn) != t {
-					list = append(list, rfqn)
+				if u.target == cfqn {
+					list = append(list, t)
 				} else {
-					list = append(list, t) // correct plain import (spec L4)
+					list = append(list, `\`+cfqn)
 				}
-			case u.alias != "" && strings.EqualFold(u.alias, t): // L5
-				list = append(list, u.alias)
+			case u.alias != "": // L5
+				list = append(list, t)
 			}
 		}
 	}
