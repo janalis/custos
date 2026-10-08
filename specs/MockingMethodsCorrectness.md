@@ -230,7 +230,7 @@ class LedgerTest
   `->WillReturn($this->ReturnValue(1))` or `->METHOD('missing')` are not
   checked although PHP calls the same methods. custos compares them
   case-insensitively.
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/decisions.md` ("Spec-level false positives").
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
 - D7 compares literals by raw source text, so `setMethods(["run"])` does not
   cover `method('run')`. Recommendation: compare unquoted contents; no fixture
   depends on the quote style.

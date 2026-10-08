@@ -58,7 +58,7 @@ func TestRun(t *testing.T) {
 	if code := run(root, &stdout, &stderr); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
-	if got := stdout.String(); got != "docs/rules.md: 5 rules, 2 specs, 1 passing\n" {
+	if got := stdout.String(); got != "docs/internals/rules.md: 5 rules, 2 specs, 1 passing\n" {
 		t.Errorf("stdout = %q", got)
 	}
 	doc, err := os.ReadFile(filepath.Join(root, out))
@@ -103,7 +103,7 @@ Conformance: ` + "`pass` / `fail` / `pending` (not implemented) / `—` (not run
 func TestRunNoHistory(t *testing.T) {
 	fake(t, []meta.Rule{{ID: "Vase", Group: "Hall", Severity: meta.SeverityInfo}}, nil)
 	root := t.TempDir()
-	write(t, filepath.Join(root, "docs/.keep"), "")
+	write(t, filepath.Join(root, "docs/internals/.keep"), "")
 	var stdout, stderr bytes.Buffer
 	if code := run(root, &stdout, &stderr); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
@@ -120,7 +120,7 @@ func TestRunErrors(t *testing.T) {
 	if code := run(t.TempDir(), &stdout, &stderr); code != 1 || stderr.String() != "catalogue broken\n" {
 		t.Fatalf("catalogue error: exit %d, %q", code, stderr.String())
 	}
-	// No docs/ directory to write into.
+	// No docs/internals/ directory to write into.
 	fake(t, nil, nil)
 	stderr.Reset()
 	if code := run(t.TempDir(), &stdout, &stderr); code != 1 || stderr.Len() == 0 {

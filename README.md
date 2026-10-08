@@ -1,130 +1,117 @@
-# custos
+<p align="center">
+  <img src="docs/public/logo.png" alt="custos" width="160">
+</p>
 
-A fast PHP inspector and fixer written in Go: 178 inspections with quick-fixes
-covering probable bugs, performance, security, code style, control flow,
-language-level migration (PHP 5.3 → 8.5), PHPUnit usage and more. Single
-static binary, no PHP runtime required. Usable from the command line / CI and
-as an LSP server for any editor.
+<h1 align="center">custos</h1>
 
-custos is an independent clean-room implementation whose rule catalogue is
-modelled on *Php Inspections (EA Extended)*; rule IDs are compatible, so
-existing `@noinspection XxxInspection` comments keep working. See `NOTICE`.
+<p align="center">
+  <strong>Fast PHP inspector and fixer.</strong><br>
+  178 inspections with quick-fixes · one static binary · CLI, CI and LSP
+</p>
+
+<p align="center">
+  <a href="https://github.com/janalis/custos/actions/workflows/ci.yml"><img src="https://github.com/janalis/custos/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://janalis.github.io/custos/"><img src="https://github.com/janalis/custos/actions/workflows/docs.yml/badge.svg" alt="Docs"></a>
+  <a href="https://github.com/janalis/custos/releases"><img src="https://img.shields.io/github/v/release/janalis/custos" alt="Latest release"></a>
+  <a href="https://packagist.org/packages/janalis/custos"><img src="https://img.shields.io/packagist/v/janalis/custos" alt="Packagist"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/janalis/custos" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <a href="https://janalis.github.io/custos/"><strong>Documentation</strong></a> ·
+  <a href="https://janalis.github.io/custos/guide/getting-started">Getting started</a> ·
+  <a href="https://janalis.github.io/custos/rules/">Rules</a> ·
+  <a href="https://janalis.github.io/custos/guide/editors">Editors</a>
+</p>
+
+---
+
+custos finds probable bugs, performance and security issues, needless
+complexity and outdated constructs in PHP code (PHP 5.3 to 8.5), and fixes
+many of them for you. It is written in Go with its own PHP parser and type
+inference, so it needs no PHP runtime. It runs from the command line, in CI,
+and in any editor as a language server.
+
+Its rule catalogue is modelled on *Php Inspections (EA Extended)*, and rule IDs
+are compatible: existing `@noinspection XxxInspection` comments keep working.
+custos is an independent clean-room implementation (see [NOTICE](NOTICE)).
 
 ## Install
 
 ```sh
-brew install janalis/tap/custos           # macOS / Linux (Homebrew cask)
+brew install janalis/tap/custos           # macOS / Linux
 composer require --dev janalis/custos     # per project → vendor/bin/custos
 ```
 
-The Composer package is a small PHP launcher: on first run it downloads the
-binary of its version for your platform from the GitHub release (checked
-against `SHA256SUMS`) and caches it in the package directory. Set
-`CUSTOS_DOWNLOAD_URL` to a mirror (URL or directory holding the release
-assets), or `CUSTOS_BINARY` to an existing binary to skip the download.
+Release archives for Linux, macOS and Windows (amd64/arm64) are on the
+[releases page](https://github.com/janalis/custos/releases). See
+[Installation](https://janalis.github.io/custos/guide/installation) for
+details and building from source.
 
-Or download the archive for your platform from the
-[releases page](https://github.com/janalis/custos/releases) (Linux, macOS and
-Windows, amd64/arm64; checksums in `SHA256SUMS`), extract `custos` and put it
-on your `PATH`. Or build from source (Go 1.27):
+## Quick start
 
 ```sh
-make build          # → bin/custos
-```
-
-## Usage
-
-```sh
-custos analyse [paths...]                 # report problems (exit 1 on warnings by default)
-custos analyse --format=checkstyle src    # text | json | checkstyle | github
-custos analyse --all --php 7.4 src        # every rule, target PHP 7.4
-custos analyse --generate-baseline custos-baseline.json src   # accept current findings
-custos analyse --baseline custos-baseline.json src            # report only new ones
+custos analyse                            # report problems in the project
 custos fix --dry-run --diff src           # preview quick-fixes
-custos fix --rule NestedNotOperators src  # apply one rule's fixes
-custos rules                              # list rules (✓ = implemented)
-custos explain UnnecessarySemicolon       # describe a rule and its options
+custos fix src                            # apply them
+custos analyse --generate-baseline custos-baseline.json   # adopt on legacy code
+custos explain OneTimeUseVariables        # what a rule does, its options
 custos lsp                                # language server over stdio
 ```
 
-Suppress a finding with a comment before the statement or declaration:
-
-```php
-/** @noinspection UnnecessarySemicolonInspection */
-// @custos-ignore UnnecessarySemicolon
 ```
+src/Invoice.php:3:5: warning: Variable $total is used only once; inline its value. [OneTimeUseVariables] (fixable)
+src/Invoice.php:7:6: error: Restrict the classes unserialize() may create via its second argument. [UnserializeExploits]
+```
+
+## Highlights
+
+- **178 rules** in 12 groups: probable bugs, performance, security, control
+  flow, code style, unused code, PHPUnit, language-level migration…
+  ([reference](https://janalis.github.io/custos/rules/))
+- **Quick-fixes** for over a hundred rules, applied by `custos fix` or as
+  editor code actions.
+- **Version-aware**: rules follow the target PHP version from `custos.json`
+  or `composer.json`.
+- **CI-ready**: text, JSON, Checkstyle, GitHub annotations and SARIF output;
+  baselines for legacy code. ([CI recipes](https://janalis.github.io/custos/guide/ci))
+- **Editor integration** through LSP: Neovim, Helix, VS Code, PhpStorm,
+  Sublime Text, Emacs. ([setup](https://janalis.github.io/custos/guide/editors))
 
 ## Configuration
 
-`custos.json` at the project root (all keys optional):
+An optional `custos.json` at the project root:
 
 ```json
 {
   "php": "8.3",
-  "comparisonStyle": "yoda",
   "paths": ["src", "tests"],
-  "exclude": ["var"],
   "baseline": "custos-baseline.json",
   "rules": {
-    "OneTimeUseVariables": { "enabled": true, "severity": "warning",
-                             "options": { "ALLOW_LONG_STATEMENTS": false } },
-    "MultipleReturnStatements": { "enabled": false }
+    "MultipleReturnStatements": { "enabled": false },
+    "OneTimeUseVariables": { "options": { "ALLOW_LONG_STATEMENTS": false } }
   }
 }
 ```
 
-Without `php`, the target version is taken from `composer.json`
-(`config.platform.php`, else the lowest version allowed by `require.php`).
-The same object is accepted as LSP `initializationOptions`.
+All keys are described in
+[Configuration](https://janalis.github.io/custos/guide/configuration).
 
-## Editor integration
+## Contributing
 
-`custos lsp` publishes diagnostics as you type and offers quick-fixes
-(`quickfix`, lazily resolved), a `source.fixAll.custos` action and the
-`custos.fixFile` / `custos.fixRule` commands; run it beside your main PHP
-language server. Setup for common editors: `docs/usage.md`.
-
-## Development
+Contributions are welcome: bug reports with a PHP snippet, false positives,
+fixes. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[contributor guide](https://janalis.github.io/custos/contributing/). Please
+note the **clean-room rule**: no code or text from the upstream plugin may
+enter this repository.
 
 ```sh
-make verify         # lint + tests + own fixtures + clean-room scan
-make conformance    # compare against a local EA checkout (EA_PATH=…)
-make bench          # parser / rule benchmarks
-make stubs          # rebuild the embedded PHP stubs index
+make build          # → bin/custos
+make verify         # lint + tests + fixtures + 100 % coverage + clean-room scan
 ```
-
-Docs: `docs/usage.md` (CLI, configuration, CI, editors), `docs/rules-reference.md` (every rule, its options and defaults),
-`docs/migration.md` (plan & status), `docs/rules.md` (per-rule status),
-`docs/decisions.md`, `specs/` (one behavioural spec per rule).
-
-## Releasing
-
-Write the changes under `## [Unreleased]` in `CHANGELOG.md` as you go, then
-run **Actions → release → Run workflow** on `main` with a version (`X.Y.Z`,
-or `patch` / `minor` / `major` to bump the latest tag; tick *dry run* to build
-without publishing). The workflow:
-
-1. runs `make verify`;
-2. `tools/relprep`: turns `[Unreleased]` into `[X.Y.Z] - <date>`, pins the
-   version in the Composer launcher (`composer/custos`), extracts the release
-   notes; commits `Release vX.Y.Z`, tags and pushes;
-3. goreleaser (`.goreleaser.yaml`): archives + bare binaries + `SHA256SUMS`
-   on the GitHub release, and the cask in `janalis/homebrew-tap`;
-4. Packagist picks up the tag (and is pinged when its secrets are set).
-
-A failed publish can be retried with *Re-run failed jobs* (the tag is kept).
-Locally: `go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean --skip=publish`.
-
-One-time setup:
-- create the empty `janalis/homebrew-tap` repository and the
-  `HOMEBREW_TAP_TOKEN` secret (fine-grained token, *Contents: read and write*
-  on that repository only);
-- submit `https://github.com/janalis/custos` on packagist.org (its GitHub
-  hook updates on every tag); optionally add `PACKAGIST_USERNAME` and
-  `PACKAGIST_TOKEN` secrets;
-- if `main` is protected, let GitHub Actions bypass it so the release commit
-  can be pushed.
 
 ## License
 
-MIT. Builtin symbol data from JetBrains phpstorm-stubs (Apache-2.0).
+[MIT](LICENSE). Builtin symbol data from
+[JetBrains phpstorm-stubs](https://github.com/JetBrains/phpstorm-stubs)
+(Apache-2.0). See [NOTICE](NOTICE).

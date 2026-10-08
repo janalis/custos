@@ -9,7 +9,7 @@ STUBS_REPO ?= https://github.com/JetBrains/phpstorm-stubs
 
 FIXCHECK ?= 1
 
-.PHONY: coverage fixcheck stubs build test vet fmt fmt-check lint bench fuzz extract rules-doc fixtures conformance cleanroom verify clean
+.PHONY: coverage fixcheck stubs build test vet fmt fmt-check lint bench fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -22,11 +22,14 @@ test:
 vet:
 	$(GO) vet ./...
 
+# Go sources, leaving out the docs site's installed packages.
+GOFILES = $$(find . -name node_modules -prune -o -name '*.go' -print)
+
 fmt:
-	gofmt -w -s .
+	gofmt -w -s $(GOFILES)
 
 fmt-check:
-	@out=$$(gofmt -l -s .); if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi
+	@out=$$(gofmt -l -s $(GOFILES)); if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi
 
 # staticcheck is pinned and run through `go run` (downloaded once into the
 # module cache); set STATICCHECK= to skip it offline.
@@ -63,6 +66,16 @@ rules-doc:
 	$(GO) run ./tools/rulesdoc
 	$(GO) run ./tools/genexplain
 	$(GO) run ./tools/rulesref
+
+# Documentation site (VitePress, Node 20+): build to docs/.vitepress/dist, or
+# serve with live reload.
+docs: rules-doc
+	npm --prefix docs ci
+	npm --prefix docs run build
+
+docs-dev: rules-doc
+	npm --prefix docs install
+	npm --prefix docs run dev
 
 # custos' own fixtures (CI gate).
 fixtures:
@@ -103,4 +116,4 @@ coverage:
 	@$(GO) run ./tools/covercheck -what "cmd/, internal/ and tools/" .cache/all-cover.out
 
 clean:
-	rm -rf bin dist
+	rm -rf bin dist docs/.vitepress/dist docs/.vitepress/cache

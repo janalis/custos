@@ -110,7 +110,7 @@ function roll($bonus = 10)
   imported with `use function`, or called qualified) is checked as if it
   were the builtin. custos compares the name case-insensitively and
   requires the call to reach the global function (D1).
-- **Unstable variables — custos refinement, not upstream.** Upstream value discovery ignores `++`/`--` and compound assignments, so `$n = 0; … ++$n; mt_rand(1, $n)` is reported as min > max (found on real code). custos treats such a variable as unknown (no report), per the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on it; recorded in `docs/decisions.md` ("Spec-level false positives").
+- **Unstable variables — custos refinement, not upstream.** Upstream value discovery ignores `++`/`--` and compound assignments, so `$n = 0; … ++$n; mt_rand(1, $n)` is reported as min > max (found on real code). custos treats such a variable as unknown (no report), per the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on it; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
 - **Non-decimal and float bounds (custos diverges):** upstream only parses
   plain decimal text, so `random_int(0x10, 1)`, `mt_rand(1_000, 1)`,
   `rand(2.5, 1)` or `random_int(- 5, -6)` are silently skipped. custos

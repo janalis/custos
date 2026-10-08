@@ -1,0 +1,786 @@
+[
+  {
+    "text": "Architecture",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "BadExceptionsProcessing",
+        "link": "/rules/architecture/BadExceptionsProcessing"
+      },
+      {
+        "text": "CallableParameterUseCaseInTypeContext",
+        "link": "/rules/architecture/CallableParameterUseCaseInTypeContext"
+      },
+      {
+        "text": "ClassOverridesFieldOfSuperClass",
+        "link": "/rules/architecture/ClassOverridesFieldOfSuperClass"
+      },
+      {
+        "text": "ClassReImplementsParentInterface",
+        "link": "/rules/architecture/ClassReImplementsParentInterface"
+      },
+      {
+        "text": "EfferentObjectCoupling",
+        "link": "/rules/architecture/EfferentObjectCoupling"
+      },
+      {
+        "text": "EmptyClass",
+        "link": "/rules/architecture/EmptyClass"
+      },
+      {
+        "text": "LongInheritanceChain",
+        "link": "/rules/architecture/LongInheritanceChain"
+      },
+      {
+        "text": "MultipleReturnStatements",
+        "link": "/rules/architecture/MultipleReturnStatements"
+      },
+      {
+        "text": "PropertyCanBeStatic",
+        "link": "/rules/architecture/PropertyCanBeStatic"
+      }
+    ]
+  },
+  {
+    "text": "Code style",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "AccessModifierPresented",
+        "link": "/rules/code-style/AccessModifierPresented"
+      },
+      {
+        "text": "ComparisonOperandsOrder",
+        "link": "/rules/code-style/ComparisonOperandsOrder"
+      },
+      {
+        "text": "DisallowWritingIntoStaticProperties",
+        "link": "/rules/code-style/DisallowWritingIntoStaticProperties"
+      },
+      {
+        "text": "DynamicInvocationViaScopeResolution",
+        "link": "/rules/code-style/DynamicInvocationViaScopeResolution"
+      },
+      {
+        "text": "ImplodeArgumentsOrder",
+        "link": "/rules/code-style/ImplodeArgumentsOrder"
+      },
+      {
+        "text": "IncrementDecrementOperationEquivalent",
+        "link": "/rules/code-style/IncrementDecrementOperationEquivalent"
+      },
+      {
+        "text": "IsEmptyFunctionUsage",
+        "link": "/rules/code-style/IsEmptyFunctionUsage"
+      },
+      {
+        "text": "IsNullFunctionUsage",
+        "link": "/rules/code-style/IsNullFunctionUsage"
+      },
+      {
+        "text": "MisorderedModifiers",
+        "link": "/rules/code-style/MisorderedModifiers"
+      },
+      {
+        "text": "MissUsingParentKeyword",
+        "link": "/rules/code-style/MissUsingParentKeyword"
+      },
+      {
+        "text": "MissingOrEmptyGroupStatement",
+        "link": "/rules/code-style/MissingOrEmptyGroupStatement"
+      },
+      {
+        "text": "NestedAssignmentsUsage",
+        "link": "/rules/code-style/NestedAssignmentsUsage"
+      },
+      {
+        "text": "NestedNotOperators",
+        "link": "/rules/code-style/NestedNotOperators"
+      },
+      {
+        "text": "NestedPositiveIfStatements",
+        "link": "/rules/code-style/NestedPositiveIfStatements"
+      },
+      {
+        "text": "OpAssignShortSyntax",
+        "link": "/rules/code-style/OpAssignShortSyntax"
+      },
+      {
+        "text": "ParameterDefaultValueIsNotNull",
+        "link": "/rules/code-style/ParameterDefaultValueIsNotNull"
+      },
+      {
+        "text": "ProperNullCoalescingOperatorUsage",
+        "link": "/rules/code-style/ProperNullCoalescingOperatorUsage"
+      },
+      {
+        "text": "SelfClassReferencing",
+        "link": "/rules/code-style/SelfClassReferencing"
+      },
+      {
+        "text": "ShortEchoTagCanBeUsed",
+        "link": "/rules/code-style/ShortEchoTagCanBeUsed"
+      },
+      {
+        "text": "ShortOpenTagUsage",
+        "link": "/rules/code-style/ShortOpenTagUsage"
+      },
+      {
+        "text": "StaticClosureCanBeUsed",
+        "link": "/rules/code-style/StaticClosureCanBeUsed"
+      },
+      {
+        "text": "StaticInvocationViaThis",
+        "link": "/rules/code-style/StaticInvocationViaThis"
+      },
+      {
+        "text": "UnNecessaryDoubleQuotes",
+        "link": "/rules/code-style/UnNecessaryDoubleQuotes"
+      },
+      {
+        "text": "UnknownInspection",
+        "link": "/rules/code-style/UnknownInspection"
+      },
+      {
+        "text": "UnnecessaryCasting",
+        "link": "/rules/code-style/UnnecessaryCasting"
+      },
+      {
+        "text": "UnnecessaryFinalModifier",
+        "link": "/rules/code-style/UnnecessaryFinalModifier"
+      },
+      {
+        "text": "UnnecessarySemicolon",
+        "link": "/rules/code-style/UnnecessarySemicolon"
+      },
+      {
+        "text": "UnnecessaryUseAlias",
+        "link": "/rules/code-style/UnnecessaryUseAlias"
+      },
+      {
+        "text": "UnsetConstructsCanBeMerged",
+        "link": "/rules/code-style/UnsetConstructsCanBeMerged"
+      },
+      {
+        "text": "UsingInclusionReturnValue",
+        "link": "/rules/code-style/UsingInclusionReturnValue"
+      }
+    ]
+  },
+  {
+    "text": "Compatibility",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "DeprecatedIniOptions",
+        "link": "/rules/compatibility/DeprecatedIniOptions"
+      },
+      {
+        "text": "FopenBinaryUnsafeUsage",
+        "link": "/rules/compatibility/FopenBinaryUnsafeUsage"
+      },
+      {
+        "text": "MktimeUsage",
+        "link": "/rules/compatibility/MktimeUsage"
+      },
+      {
+        "text": "RandomApiMigration",
+        "link": "/rules/compatibility/RandomApiMigration"
+      }
+    ]
+  },
+  {
+    "text": "Confusing constructs",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "ClassMethodNameMatchesFieldName",
+        "link": "/rules/confusing-constructs/ClassMethodNameMatchesFieldName"
+      },
+      {
+        "text": "NestedTernaryOperator",
+        "link": "/rules/confusing-constructs/NestedTernaryOperator"
+      },
+      {
+        "text": "ReferencingObjects",
+        "link": "/rules/confusing-constructs/ReferencingObjects"
+      },
+      {
+        "text": "SenselessTernaryOperator",
+        "link": "/rules/confusing-constructs/SenselessTernaryOperator"
+      },
+      {
+        "text": "UselessReturn",
+        "link": "/rules/confusing-constructs/UselessReturn"
+      }
+    ]
+  },
+  {
+    "text": "Control flow",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "ArraySearchUsedAsInArray",
+        "link": "/rules/control-flow/ArraySearchUsedAsInArray"
+      },
+      {
+        "text": "ArrayUniqueCanBeUsed",
+        "link": "/rules/control-flow/ArrayUniqueCanBeUsed"
+      },
+      {
+        "text": "CompactCanBeUsed",
+        "link": "/rules/control-flow/CompactCanBeUsed"
+      },
+      {
+        "text": "DegradedSwitch",
+        "link": "/rules/control-flow/DegradedSwitch"
+      },
+      {
+        "text": "DisconnectedForeachInstruction",
+        "link": "/rules/control-flow/DisconnectedForeachInstruction"
+      },
+      {
+        "text": "ForeachInvariants",
+        "link": "/rules/control-flow/ForeachInvariants"
+      },
+      {
+        "text": "GetTypeMissUse",
+        "link": "/rules/control-flow/GetTypeMissUse"
+      },
+      {
+        "text": "IfReturnReturnSimplification",
+        "link": "/rules/control-flow/IfReturnReturnSimplification"
+      },
+      {
+        "text": "InvertedIfElseConstructs",
+        "link": "/rules/control-flow/InvertedIfElseConstructs"
+      },
+      {
+        "text": "IssetConstructsCanBeMerged",
+        "link": "/rules/control-flow/IssetConstructsCanBeMerged"
+      },
+      {
+        "text": "LoopWhichDoesNotLoop",
+        "link": "/rules/control-flow/LoopWhichDoesNotLoop"
+      },
+      {
+        "text": "MultiAssignmentUsage",
+        "link": "/rules/control-flow/MultiAssignmentUsage"
+      },
+      {
+        "text": "NotOptimalIfConditions",
+        "link": "/rules/control-flow/NotOptimalIfConditions"
+      },
+      {
+        "text": "ObGetCleanCanBeUsed",
+        "link": "/rules/control-flow/ObGetCleanCanBeUsed"
+      },
+      {
+        "text": "OneTimeUseVariables",
+        "link": "/rules/control-flow/OneTimeUseVariables"
+      },
+      {
+        "text": "PdoApiUsage",
+        "link": "/rules/control-flow/PdoApiUsage"
+      },
+      {
+        "text": "RedundantElseClause",
+        "link": "/rules/control-flow/RedundantElseClause"
+      },
+      {
+        "text": "StrTrUsageAsStrReplace",
+        "link": "/rules/control-flow/StrTrUsageAsStrReplace"
+      },
+      {
+        "text": "StringCaseManipulation",
+        "link": "/rules/control-flow/StringCaseManipulation"
+      },
+      {
+        "text": "StringNormalization",
+        "link": "/rules/control-flow/StringNormalization"
+      },
+      {
+        "text": "StrlenInEmptyStringCheckContext",
+        "link": "/rules/control-flow/StrlenInEmptyStringCheckContext"
+      },
+      {
+        "text": "SubStrUsedAsStrPos",
+        "link": "/rules/control-flow/SubStrUsedAsStrPos"
+      },
+      {
+        "text": "TernaryOperatorSimplify",
+        "link": "/rules/control-flow/TernaryOperatorSimplify"
+      },
+      {
+        "text": "ThrowRawException",
+        "link": "/rules/control-flow/ThrowRawException"
+      },
+      {
+        "text": "UnSafeIsSetOverArray",
+        "link": "/rules/control-flow/UnSafeIsSetOverArray"
+      }
+    ]
+  },
+  {
+    "text": "Language level migration",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "AliasFunctionsUsage",
+        "link": "/rules/language-level-migration/AliasFunctionsUsage"
+      },
+      {
+        "text": "ArgumentUnpackingCanBeUsed",
+        "link": "/rules/language-level-migration/ArgumentUnpackingCanBeUsed"
+      },
+      {
+        "text": "ArrayIsListCanBeUsed",
+        "link": "/rules/language-level-migration/ArrayIsListCanBeUsed"
+      },
+      {
+        "text": "CascadingDirnameCalls",
+        "link": "/rules/language-level-migration/CascadingDirnameCalls"
+      },
+      {
+        "text": "ClassConstantCanBeUsed",
+        "link": "/rules/language-level-migration/ClassConstantCanBeUsed"
+      },
+      {
+        "text": "ConstantCanBeUsed",
+        "link": "/rules/language-level-migration/ConstantCanBeUsed"
+      },
+      {
+        "text": "DeprecatedConstructorStyle",
+        "link": "/rules/language-level-migration/DeprecatedConstructorStyle"
+      },
+      {
+        "text": "DirectoryConstantCanBeUsed",
+        "link": "/rules/language-level-migration/DirectoryConstantCanBeUsed"
+      },
+      {
+        "text": "DynamicCallsToScopeIntrospection",
+        "link": "/rules/language-level-migration/DynamicCallsToScopeIntrospection"
+      },
+      {
+        "text": "ElvisOperatorCanBeUsed",
+        "link": "/rules/language-level-migration/ElvisOperatorCanBeUsed"
+      },
+      {
+        "text": "GetClassUsage",
+        "link": "/rules/language-level-migration/GetClassUsage"
+      },
+      {
+        "text": "GetDebugTypeCanBeUsed",
+        "link": "/rules/language-level-migration/GetDebugTypeCanBeUsed"
+      },
+      {
+        "text": "InstanceofCanBeUsed",
+        "link": "/rules/language-level-migration/InstanceofCanBeUsed"
+      },
+      {
+        "text": "IsCountableCanBeUsed",
+        "link": "/rules/language-level-migration/IsCountableCanBeUsed"
+      },
+      {
+        "text": "IsIterableCanBeUsed",
+        "link": "/rules/language-level-migration/IsIterableCanBeUsed"
+      },
+      {
+        "text": "NullCoalescingOperatorCanBeUsed",
+        "link": "/rules/language-level-migration/NullCoalescingOperatorCanBeUsed"
+      },
+      {
+        "text": "PowerOperatorCanBeUsed",
+        "link": "/rules/language-level-migration/PowerOperatorCanBeUsed"
+      },
+      {
+        "text": "ReturnTypeCanBeDeclared",
+        "link": "/rules/language-level-migration/ReturnTypeCanBeDeclared"
+      },
+      {
+        "text": "ShortListSyntaxCanBeUsed",
+        "link": "/rules/language-level-migration/ShortListSyntaxCanBeUsed"
+      },
+      {
+        "text": "StrContainsCanBeUsed",
+        "link": "/rules/language-level-migration/StrContainsCanBeUsed"
+      },
+      {
+        "text": "StrEndsWithCanBeUsed",
+        "link": "/rules/language-level-migration/StrEndsWithCanBeUsed"
+      },
+      {
+        "text": "StrStartsWithCanBeUsed",
+        "link": "/rules/language-level-migration/StrStartsWithCanBeUsed"
+      },
+      {
+        "text": "TypesCastingCanBeUsed",
+        "link": "/rules/language-level-migration/TypesCastingCanBeUsed"
+      },
+      {
+        "text": "UnsupportedEmptyListAssignments",
+        "link": "/rules/language-level-migration/UnsupportedEmptyListAssignments"
+      },
+      {
+        "text": "UnsupportedStringOffsetOperations",
+        "link": "/rules/language-level-migration/UnsupportedStringOffsetOperations"
+      }
+    ]
+  },
+  {
+    "text": "PHPUnit",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "MockingMethodsCorrectness",
+        "link": "/rules/phpunit/MockingMethodsCorrectness"
+      },
+      {
+        "text": "PhpUnitDeprecations",
+        "link": "/rules/phpunit/PhpUnitDeprecations"
+      },
+      {
+        "text": "PhpUnitTests",
+        "link": "/rules/phpunit/PhpUnitTests"
+      },
+      {
+        "text": "UnnecessaryAssertion",
+        "link": "/rules/phpunit/UnnecessaryAssertion"
+      }
+    ]
+  },
+  {
+    "text": "Performance",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "AlterInForeach",
+        "link": "/rules/performance/AlterInForeach"
+      },
+      {
+        "text": "AmbiguousMethodsCallsInArrayMapping",
+        "link": "/rules/performance/AmbiguousMethodsCallsInArrayMapping"
+      },
+      {
+        "text": "ArrayPushMissUse",
+        "link": "/rules/performance/ArrayPushMissUse"
+      },
+      {
+        "text": "CascadeStringReplacement",
+        "link": "/rules/performance/CascadeStringReplacement"
+      },
+      {
+        "text": "CaseInsensitiveStringFunctionsMissUse",
+        "link": "/rules/performance/CaseInsensitiveStringFunctionsMissUse"
+      },
+      {
+        "text": "FixedTimeStartWith",
+        "link": "/rules/performance/FixedTimeStartWith"
+      },
+      {
+        "text": "InArrayMissUse",
+        "link": "/rules/performance/InArrayMissUse"
+      },
+      {
+        "text": "NotOptimalRegularExpressions",
+        "link": "/rules/performance/NotOptimalRegularExpressions"
+      },
+      {
+        "text": "PackedHashtableOptimization",
+        "link": "/rules/performance/PackedHashtableOptimization"
+      },
+      {
+        "text": "SlowArrayOperationsInLoop",
+        "link": "/rules/performance/SlowArrayOperationsInLoop"
+      },
+      {
+        "text": "StrStrUsedAsStrPos",
+        "link": "/rules/performance/StrStrUsedAsStrPos"
+      },
+      {
+        "text": "StrtotimeUsage",
+        "link": "/rules/performance/StrtotimeUsage"
+      },
+      {
+        "text": "SubStrShortHandUsage",
+        "link": "/rules/performance/SubStrShortHandUsage"
+      },
+      {
+        "text": "SubStrUsedAsArrayAccess",
+        "link": "/rules/performance/SubStrUsedAsArrayAccess"
+      },
+      {
+        "text": "UnqualifiedReference",
+        "link": "/rules/performance/UnqualifiedReference"
+      },
+      {
+        "text": "VariableFunctionsUsage",
+        "link": "/rules/performance/VariableFunctionsUsage"
+      }
+    ]
+  },
+  {
+    "text": "Probable bugs",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "AutoloadingIssues",
+        "link": "/rules/probable-bugs/AutoloadingIssues"
+      },
+      {
+        "text": "CallableMethodValidity",
+        "link": "/rules/probable-bugs/CallableMethodValidity"
+      },
+      {
+        "text": "ClassConstantUsageCorrectness",
+        "link": "/rules/probable-bugs/ClassConstantUsageCorrectness"
+      },
+      {
+        "text": "ClassMockingCorrectness",
+        "link": "/rules/probable-bugs/ClassMockingCorrectness"
+      },
+      {
+        "text": "CompactArguments",
+        "link": "/rules/probable-bugs/CompactArguments"
+      },
+      {
+        "text": "DateIntervalSpecification",
+        "link": "/rules/probable-bugs/DateIntervalSpecification"
+      },
+      {
+        "text": "DateTimeConstantsUsage",
+        "link": "/rules/probable-bugs/DateTimeConstantsUsage"
+      },
+      {
+        "text": "DateTimeSetTimeUsage",
+        "link": "/rules/probable-bugs/DateTimeSetTimeUsage"
+      },
+      {
+        "text": "DuplicateArrayKeys",
+        "link": "/rules/probable-bugs/DuplicateArrayKeys"
+      },
+      {
+        "text": "ForgottenDebugOutput",
+        "link": "/rules/probable-bugs/ForgottenDebugOutput"
+      },
+      {
+        "text": "IncorrectRandomRange",
+        "link": "/rules/probable-bugs/IncorrectRandomRange"
+      },
+      {
+        "text": "InfinityLoop",
+        "link": "/rules/probable-bugs/InfinityLoop"
+      },
+      {
+        "text": "IssetArgumentExistence",
+        "link": "/rules/probable-bugs/IssetArgumentExistence"
+      },
+      {
+        "text": "MagicMethodsValidity",
+        "link": "/rules/probable-bugs/MagicMethodsValidity"
+      },
+      {
+        "text": "MissingArrayInitialization",
+        "link": "/rules/probable-bugs/MissingArrayInitialization"
+      },
+      {
+        "text": "MissingIssetImplementation",
+        "link": "/rules/probable-bugs/MissingIssetImplementation"
+      },
+      {
+        "text": "MkdirRaceCondition",
+        "link": "/rules/probable-bugs/MkdirRaceCondition"
+      },
+      {
+        "text": "NullPointerException",
+        "link": "/rules/probable-bugs/NullPointerException"
+      },
+      {
+        "text": "OffsetOperations",
+        "link": "/rules/probable-bugs/OffsetOperations"
+      },
+      {
+        "text": "PassingByReferenceCorrectness",
+        "link": "/rules/probable-bugs/PassingByReferenceCorrectness"
+      },
+      {
+        "text": "PregQuoteUsage",
+        "link": "/rules/probable-bugs/PregQuoteUsage"
+      },
+      {
+        "text": "PreloadingUsageCorrectness",
+        "link": "/rules/probable-bugs/PreloadingUsageCorrectness"
+      },
+      {
+        "text": "PrintfScanfArguments",
+        "link": "/rules/probable-bugs/PrintfScanfArguments"
+      },
+      {
+        "text": "RealpathInStreamContext",
+        "link": "/rules/probable-bugs/RealpathInStreamContext"
+      },
+      {
+        "text": "SimpleXmlLoadFileUsage",
+        "link": "/rules/probable-bugs/SimpleXmlLoadFileUsage"
+      },
+      {
+        "text": "StaticLambdaBinding",
+        "link": "/rules/probable-bugs/StaticLambdaBinding"
+      },
+      {
+        "text": "StringsFirstCharactersCompare",
+        "link": "/rules/probable-bugs/StringsFirstCharactersCompare"
+      },
+      {
+        "text": "SuspiciousAssignments",
+        "link": "/rules/probable-bugs/SuspiciousAssignments"
+      },
+      {
+        "text": "SuspiciousBinaryOperation",
+        "link": "/rules/probable-bugs/SuspiciousBinaryOperation"
+      },
+      {
+        "text": "SuspiciousFunctionCalls",
+        "link": "/rules/probable-bugs/SuspiciousFunctionCalls"
+      },
+      {
+        "text": "SuspiciousLoop",
+        "link": "/rules/probable-bugs/SuspiciousLoop"
+      },
+      {
+        "text": "SuspiciousReturn",
+        "link": "/rules/probable-bugs/SuspiciousReturn"
+      },
+      {
+        "text": "SuspiciousSemicolon",
+        "link": "/rules/probable-bugs/SuspiciousSemicolon"
+      },
+      {
+        "text": "SwitchContinuationInLoop",
+        "link": "/rules/probable-bugs/SwitchContinuationInLoop"
+      },
+      {
+        "text": "TraitsPropertiesConflicts",
+        "link": "/rules/probable-bugs/TraitsPropertiesConflicts"
+      },
+      {
+        "text": "UsingInclusionOnceReturnValue",
+        "link": "/rules/probable-bugs/UsingInclusionOnceReturnValue"
+      }
+    ]
+  },
+  {
+    "text": "Security",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "BacktickOperatorUsage",
+        "link": "/rules/security/BacktickOperatorUsage"
+      },
+      {
+        "text": "CryptographicallySecureAlgorithms",
+        "link": "/rules/security/CryptographicallySecureAlgorithms"
+      },
+      {
+        "text": "CryptographicallySecureRandomness",
+        "link": "/rules/security/CryptographicallySecureRandomness"
+      },
+      {
+        "text": "CurlSslServerSpoofing",
+        "link": "/rules/security/CurlSslServerSpoofing"
+      },
+      {
+        "text": "EncryptionInitializationVectorRandomness",
+        "link": "/rules/security/EncryptionInitializationVectorRandomness"
+      },
+      {
+        "text": "HostnameSubstitution",
+        "link": "/rules/security/HostnameSubstitution"
+      },
+      {
+        "text": "NonSecureParseStrUsage",
+        "link": "/rules/security/NonSecureParseStrUsage"
+      },
+      {
+        "text": "NonSecureUniqidUsage",
+        "link": "/rules/security/NonSecureUniqidUsage"
+      },
+      {
+        "text": "PotentialMalware",
+        "link": "/rules/security/PotentialMalware"
+      },
+      {
+        "text": "SecurityAdvisories",
+        "link": "/rules/security/SecurityAdvisories"
+      },
+      {
+        "text": "UnserializeExploits",
+        "link": "/rules/security/UnserializeExploits"
+      },
+      {
+        "text": "UntrustedInclusion",
+        "link": "/rules/security/UntrustedInclusion"
+      }
+    ]
+  },
+  {
+    "text": "Type compatibility",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "JsonEncodingApiUsage",
+        "link": "/rules/type-compatibility/JsonEncodingApiUsage"
+      },
+      {
+        "text": "TypeUnsafeArraySearch",
+        "link": "/rules/type-compatibility/TypeUnsafeArraySearch"
+      },
+      {
+        "text": "TypeUnsafeComparison",
+        "link": "/rules/type-compatibility/TypeUnsafeComparison"
+      }
+    ]
+  },
+  {
+    "text": "Unused",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "DateUsage",
+        "link": "/rules/unused/DateUsage"
+      },
+      {
+        "text": "OnlyWritesOnParameter",
+        "link": "/rules/unused/OnlyWritesOnParameter"
+      },
+      {
+        "text": "PropertyInitializationFlaws",
+        "link": "/rules/unused/PropertyInitializationFlaws"
+      },
+      {
+        "text": "SenselessMethodDuplication",
+        "link": "/rules/unused/SenselessMethodDuplication"
+      },
+      {
+        "text": "SenselessProxyMethod",
+        "link": "/rules/unused/SenselessProxyMethod"
+      },
+      {
+        "text": "UnnecessaryIssetArguments",
+        "link": "/rules/unused/UnnecessaryIssetArguments"
+      },
+      {
+        "text": "UnusedConstructorDependencies",
+        "link": "/rules/unused/UnusedConstructorDependencies"
+      },
+      {
+        "text": "UnusedGotoLabel",
+        "link": "/rules/unused/UnusedGotoLabel"
+      },
+      {
+        "text": "UselessUnset",
+        "link": "/rules/unused/UselessUnset"
+      }
+    ]
+  }
+]

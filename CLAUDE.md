@@ -4,7 +4,7 @@ Fast PHP inspector + fixer written in Go. Its rule catalogue (178 rules) is
 modelled on Php Inspections (EA Extended); it is an **independent clean-room
 implementation** released under MIT. Also runs as an LSP server (`custos lsp`) for editors.
 
-Full plan and phases: `docs/migration.md`. Per-rule status: `docs/rules.md`.
+Full plan and phases: `docs/internals/migration.md`. Per-rule status: `docs/internals/rules.md`.
 
 ## Clean-room rules (MANDATORY)
 
@@ -47,8 +47,11 @@ internal/lsp/          language server
 internal/config/       custos.json / composer.json
 internal/meta/         rule facts (rules.json) + descriptions (from specs)
 internal/conformance/  fixture markup, own-fixture + EA conformance runners
-tools/                 extract, rulesdoc, cleanroom, genkinds, genstubs, genexplain
+tools/                 extract, rulesdoc, rulesref, cleanroom, genkinds, genstubs, genexplain
+tools/internal/specmd/ spec section/front-matter/example parsing shared by the generators
 specs/                 clean-room behavioural spec per rule
+docs/                  VitePress site (guide/, contributing/, generated rules/), deployed to GitHub Pages
+docs/internals/        working notes, not published: migration plan, decisions, divergences, rule status
 testdata/rules/<ID>/   own fixtures: *.php (markup), *.fixed.php, *.json (options)
 ```
 
@@ -59,11 +62,12 @@ make build          # bin/custos
 make test           # go test ./...
 make lint           # go vet + gofmt check + staticcheck (pinned; STATICCHECK= to skip offline)
 make extract        # regenerate rule facts + local EA index (EA_PATH=~/Sites/phpinspectionsea)
-make rules-doc      # regenerate docs/rules.md
+make rules-doc      # regenerate docs/rules/ (site), docs/internals/rules.md, explain texts
 make fixtures       # own fixtures (CI gate)            RULE=<ID> to filter
 make conformance    # EA fixtures from local checkout   RULE=<ID> to filter
 make bench / fuzz
 make cleanroom      # scan repo for verbatim EA text (local)
+make docs / docs-dev # build / serve the docs site (Node 20+, docs/package.json)
 make coverage       # 100% gates: internal/rules from own fixtures + rule tests; cmd/ + internal/ + tools/ from the whole suite
 make verify         # definition of done: lint + test + fixtures + coverage + cleanroom
 make stubs          # rebuild embedded PHP stubs index
@@ -97,5 +101,8 @@ make fixcheck       # apply every quick-fix on CUSTOS_CORPUS, require parsable o
 - New code ships with tests covering every statement (`make coverage`);
   timing limits in tests use `testbudget.Of(d)` (load-scaled), and hard
   performance budgets live in `make bench`.
-- Run `make verify` before declaring work done; regenerate `docs/rules.md`
-  when rule status changes.
+- Run `make verify` before declaring work done; run `make rules-doc` when a
+  spec, a rule's fixtures or rule status changes (CI fails on stale rule pages).
+- User docs live in `docs/guide/` (check claims against the real binary);
+  never put `<Tag>`-like text or `{{` in prose outside code (Vue compiles
+  the pages).

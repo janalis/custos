@@ -94,3 +94,15 @@ jobs:
         with:
           name: dist
           path: dist/
+
+  # Refresh the documentation site (changelog, version in the nav).
+  docs:
+    needs: [prepare, publish]
+    if: ${{ !inputs.dry_run }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/docs.yml
+    with:
+      ref: ${{ needs.prepare.outputs.tag }}

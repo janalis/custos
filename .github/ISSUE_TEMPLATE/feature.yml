@@ -1,0 +1,32 @@
+name: Feature request
+description: A new rule, rule option, output format, editor integration or CLI feature.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the behaviour you want **in your own words**, with your own examples.
+        custos is a clean-room implementation: please don't paste code, messages or descriptions from other tools.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and why is it hard today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What custos should do. For a rule, what it reports, what it does not report, and what a fix would produce.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Example
+      render: php
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

@@ -11,3 +11,6 @@
 /testdata/fuzz/
 # binary cached by the Composer launcher
 /composer/.bin/
+/docs/node_modules/
+/docs/.vitepress/cache/
+/docs/.vitepress/dist/

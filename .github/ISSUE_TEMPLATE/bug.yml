@@ -1,0 +1,61 @@
+name: Bug report
+description: A crash, a hang, wrong output from the CLI or language server, or an installation problem.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a problem with a specific rule (false positive, missed case, bad fix), use **Wrong finding or fix** instead.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Command line (analyse / fix / explain / rules)
+        - Language server (custos lsp)
+        - Output format (json / checkstyle / github / sarif)
+        - Configuration (custos.json / composer.json)
+        - Baseline
+        - Installation (Homebrew / Composer / archives)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Include the exact command, its output and the exit code.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: A minimal project or PHP file, the commands to run, and your custos.json if relevant.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: custos version
+      description: Output of `custos version`.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and architecture
+      placeholder: macOS 15 arm64
+    validations:
+      required: true
+  - type: input
+    id: editor
+    attributes:
+      label: Editor and LSP client (language server issues)
+      placeholder: Neovim 0.11, built-in client

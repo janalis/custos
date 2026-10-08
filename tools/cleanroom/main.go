@@ -68,7 +68,7 @@ func run(root string, args []string, stdout, stderr io.Writer) int {
 			}
 			// The migration plan names upstream internals on purpose (facts,
 			// not code); the conformance harness parses the "[EA]" prefix.
-			exempt := p == "docs/migration.md" || strings.HasPrefix(p, "internal/conformance/")
+			exempt := p == "docs/internals/migration.md" || strings.HasPrefix(p, "internal/conformance/")
 			if m := forbidden.FindString(text); m != "" && !exempt {
 				fmt.Fprintf(stdout, "%s: forbidden token %q\n", p, m)
 				hits++
@@ -93,6 +93,10 @@ func run(root string, args []string, stdout, stderr io.Writer) int {
 // whose name ends with ext ("" for any).
 func walk(root, ext string, fn func(path, text string)) {
 	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		// Installed packages and build output of the docs site are not ours.
+		if d != nil && d.IsDir() && (d.Name() == "node_modules" || filepath.Base(filepath.Dir(p)) == ".vitepress" && (d.Name() == "cache" || d.Name() == "dist")) {
+			return filepath.SkipDir
+		}
 		if err != nil || d.IsDir() || (ext != "" && !strings.HasSuffix(p, ext)) {
 			return nil
 		}

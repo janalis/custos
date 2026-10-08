@@ -1,4 +1,4 @@
-// Command rulesdoc regenerates docs/rules.md: the migration status of every
+// Command rulesdoc regenerates docs/internals/rules.md: the migration status of every
 // rule (spec written, EA conformance result from the last local run).
 package main
 
@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	out        = "docs/rules.md"
+	out        = "docs/internals/rules.md"
 	statusFile = ".cache/ea/conformance.json"
 )
 
@@ -24,9 +24,9 @@ var catalogue = meta.All
 
 func main() { os.Exit(run(".", os.Stdout, os.Stderr)) }
 
-// run writes root/docs/rules.md from the catalogue, root/specs and the last
-// conformance results (root/.cache/ea/conformance.json, then the current
-// docs/rules.md for rules not run this time).
+// run writes root/docs/internals/rules.md from the catalogue, root/specs and
+// the last conformance results (root/.cache/ea/conformance.json, then the
+// current docs/internals/rules.md for rules not run this time).
 func run(root string, stdout, stderr io.Writer) int {
 	rules, err := catalogue()
 	if err != nil {
@@ -101,7 +101,7 @@ func yes(b bool) string {
 	return ""
 }
 
-// previousStatus parses the conformance column of the current docs/rules.md.
+// previousStatus parses the conformance column of the current docs/internals/rules.md.
 func previousStatus(path string) map[string]string {
 	m := map[string]string{}
 	b, err := os.ReadFile(path)

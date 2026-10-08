@@ -31,7 +31,7 @@ homebrew_casks:
   - name: custos
     ids: [default]
     binaries: [custos]
-    homepage: https://github.com/janalis/custos
+    homepage: https://janalis.github.io/custos/
     description: Fast PHP inspector and fixer
     repository:
       owner: janalis

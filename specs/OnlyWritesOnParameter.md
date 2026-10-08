@@ -322,7 +322,7 @@ function silenced(array $out)
   does `include $path`, where the included file reads `$config` (found on
   real code). custos suppresses unused-import findings in such closures. No
   upstream fixture has an include inside a closure, so conformance is
-  unaffected. Both recorded in `docs/decisions.md` ("Spec-level false
+  unaffected. Both recorded in `docs/internals/decisions.md` ("Spec-level false
   positives").
 - A variable assigned in several statements triggers the analysis once per
   assignment upstream; identical findings must be emitted once.

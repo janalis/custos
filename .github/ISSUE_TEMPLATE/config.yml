@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://janalis.github.io/custos/
+    about: Installation, configuration, CI and editor setup, and every rule's page.
+  - name: Questions and ideas
+    url: https://github.com/janalis/custos/discussions
+    about: Ask how to do something or discuss an idea before opening an issue.

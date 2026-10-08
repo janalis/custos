@@ -20,6 +20,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   rules) so large legal files stay fast.
 
 ### Added
+- Documentation site (https://janalis.github.io/custos/), built with
+  VitePress and deployed to GitHub Pages on every change and release: user
+  guide (installation, CLI, configuration, suppressions, CI, editors), one
+  page per rule with an example, its options and the quick-fix result, and a
+  contributor guide. New project logo.
 - Distribution: Homebrew cask (`brew install janalis/tap/custos`) and
   Composer package (`composer require --dev janalis/custos`, a launcher that
   downloads the checksum-verified binary for its version on first run).
@@ -28,7 +33,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - 178 PHP inspections (probable bugs, performance, security, code style,
   control flow, language-level migration 5.3 → 8.5, PHPUnit, …) with 111
   quick-fixes; rule IDs compatible with Php Inspections (EA Extended), so
-  existing `@noinspection` comments keep working. See `docs/rules-reference.md`.
+  existing `@noinspection` comments keep working. See the
+  [rule reference](https://janalis.github.io/custos/rules/).
 - Hand-written, version-aware PHP 5.3–8.5 parser (lossless, error tolerant,
   adaptive fallback to the newest grammar).
 - Symbol index with embedded JetBrains phpstorm-stubs, type inference with
@@ -58,7 +64,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `$this->prop` is non-null after a non-null assignment in the same method
   until a call may reset it; writing an element into a nullable array
   (`?array $n; $n['k'] = 1;`) drops null.
-- LSP: "Suppress <Rule> for this statement" code action; saving a file
+- LSP: "Suppress `<Rule>` for this statement" code action; saving a file
   re-checks the other open files.
 - Narrowing: negated compound conditions (`if (!is_scalar($k) && !$k
   instanceof \Stringable) throw …;` leaves `scalar|\Stringable`; the true

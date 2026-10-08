@@ -151,7 +151,7 @@ function cleanup($handle) {
   reported as discarded although it is not (found on real code). custos also
   searches the rest of the enclosing scope after the catch clause. The
   upstream fixture's caught variables are never used afterwards, so
-  conformance is unaffected. Recorded in `docs/decisions.md`
+  conformance is unaffected. Recorded in `docs/internals/decisions.md`
   ("Spec-level false positives").
 - Whether an empty statement `;` inside the block counts as a statement is
   unverified upstream. Recommendation: do not count empty statements.

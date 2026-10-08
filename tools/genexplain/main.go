@@ -11,24 +11,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"custos/tools/internal/specmd"
 )
 
 type desc struct {
 	Summary string `json:"summary"`
 	Options string `json:"options,omitempty"`
 	Fix     bool   `json:"fix,omitempty"` // custos offers a quick-fix (from own fixtures)
-}
-
-func section(md, title string) string {
-	i := strings.Index(md, "\n## "+title)
-	if i < 0 {
-		return ""
-	}
-	rest := md[i+len("\n## "+title):]
-	if j := strings.Index(rest, "\n## "); j >= 0 {
-		rest = rest[:j]
-	}
-	return strings.TrimSpace(rest)
 }
 
 func main() { os.Exit(run(".", os.Stdout, os.Stderr)) }
@@ -49,7 +39,7 @@ func run(root string, stdout, stderr io.Writer) int {
 			return 1
 		}
 		md := string(b)
-		d := desc{Summary: section(md, "Summary"), Options: section(md, "Options"), Fix: hasRealFix(root, id)}
+		d := desc{Summary: specmd.Section(md, "Summary"), Options: specmd.Section(md, "Options"), Fix: hasRealFix(root, id)}
 		if strings.EqualFold(strings.Trim(d.Options, ". "), "none") {
 			d.Options = ""
 		}

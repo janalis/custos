@@ -300,7 +300,7 @@ After fix (changed lines):
   custos adds `null` to their R-function result, so the cast is kept. This
   also applies to CallableParameterUseCaseInTypeContext, which shares the
   T-rules.
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (M1 not reported; M2 does not use discovery and is unaffected), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/decisions.md` ("Spec-level false positives").
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (M1 not reported; M2 does not use discovery and is unaffected), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
 - **Integer division (custos diverges):** upstream types `int / int` as int,
   so `(int) ($a / $b)` with two ints is reported and the fix drops the cast,
   turning `7 / 2` from `3` into `3.5`. custos types the quotient as

@@ -1,0 +1,77 @@
+name: Wrong finding or fix
+description: A rule reports correct code, misses a case, or its quick-fix breaks or changes the code.
+title: "[RuleID]: "
+labels: ["rule", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! A minimal snippet that reproduces the problem is the most useful thing you can give us.
+        Please write it yourself (or take it from your own code), not from another tool's test suite.
+  - type: input
+    id: rule
+    attributes:
+      label: Rule
+      description: The rule ID shown in brackets in the output, e.g. `OneTimeUseVariables`.
+      placeholder: OneTimeUseVariables
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What goes wrong?
+      options:
+        - Reported, but the code is fine (false positive)
+        - Not reported, but it should be (missed case)
+        - The quick-fix changes behaviour
+        - The quick-fix produces invalid PHP
+        - The message is wrong or unclear
+    validations:
+      required: true
+  - type: textarea
+    id: snippet
+    attributes:
+      label: PHP snippet
+      description: The smallest code that shows the problem.
+      render: php
+      placeholder: |
+        <?php
+        function total($a) {
+            $total = $a + 1;
+            return $total;
+        }
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What custos does
+      description: The output of `custos analyse` or `custos fix --dry-run --diff` on the snippet.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: input
+    id: php
+    attributes:
+      label: Target PHP version
+      description: Printed by `custos analyse --stats`.
+      placeholder: "8.3"
+  - type: textarea
+    id: config
+    attributes:
+      label: custos.json (if any)
+      render: json
+  - type: input
+    id: version
+    attributes:
+      label: custos version
+      description: Output of `custos version`.
+      placeholder: custos v1.2.3
+    validations:
+      required: true

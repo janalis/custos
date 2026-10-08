@@ -182,7 +182,7 @@ becomes `0 === strpos($uri, $base)`.
   passes the encoding as the 3rd argument of `mb_strpos`/`mb_stripos`, which
   is the offset parameter, so the produced call fails or searches from the
   wrong position. custos emits `mb_strpos({arg1}, {O}, 0, {arg4})` (F1, see
-  `docs/decisions.md`).
+  `docs/internals/decisions.md`).
 - **`<>` operator:** upstream appends `=` to any 2-character operator, so
   `<>` would become the invalid `<>=`. Recommendation: map `<>` to `!==`.
   Not covered by upstream fixtures.

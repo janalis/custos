@@ -167,7 +167,7 @@ foreach ($records as $record) <weak_warning descr="Destructure directly in the f
   into the header, which would drop the type guard (found on real code).
   custos only reports statements directly in the loop body. The upstream
   fixture's report is a direct body statement, so conformance is unaffected.
-  Recorded in `docs/decisions.md` ("Spec-level false positives").
+  Recorded in `docs/internals/decisions.md` ("Spec-level false positives").
 - Upstream visits only plain assignments for Part B; whether compound
   (`.=`) or by-reference (`=&`) current statements are included depends on the
   host parser's node kinds. Recommendation: require plain `=` (by-reference

@@ -56,10 +56,12 @@ func TestRunHits(t *testing.T) {
 	write(t, filepath.Join(repo, "specs/Giraffe.md"), "We say: "+sentence+".\n")
 	write(t, filepath.Join(repo, "docs/notes.md"), longLine+"\n"+shortLine+"\n")
 	write(t, filepath.Join(repo, "docs/otters.md"), prefixed+" .\n")
-	write(t, filepath.Join(repo, "docs/migration.md"), "Upstream prefixes messages with [EA].\n")
+	write(t, filepath.Join(repo, "docs/internals/migration.md"), "Upstream prefixes messages with [EA].\n")
 	write(t, filepath.Join(repo, "internal/conformance/strip.go"), "// drops [EA]\n")
 	write(t, filepath.Join(repo, "internal/meta/rules.json"), sentence)
 	write(t, filepath.Join(repo, "cmd/tool/main.go"), "// PsiWobbleNode\n")
+	write(t, filepath.Join(repo, "docs/node_modules/pkg/copy.md"), sentence)
+	write(t, filepath.Join(repo, "docs/.vitepress/dist/page.html"), sentence)
 	dangling(t, filepath.Join(repo, "internal/broken.go"))
 
 	var stdout, stderr bytes.Buffer

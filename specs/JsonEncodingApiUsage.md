@@ -244,7 +244,7 @@ class Exporter {
 - **Case of the name (custos diverges from upstream).** Upstream compares
   the written name case-sensitively, so `JSON_DECODE($s)` is not reported.
   custos matches any case; the fix keeps the name and qualifier as written.
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (kind E is not reported, since the flags may well include a strict flag added through `|=`), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/decisions.md` ("Spec-level false positives").
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (kind E is not reported, since the flags may well include a strict flag added through `|=`), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
 - F1 keeps only the first argument; with named trailing arguments
   (`json_decode($s, depth: 4)`, `json_decode($s, flags: X)`) upstream drops
   them. Recommendation: insert the boolean as the second positional argument

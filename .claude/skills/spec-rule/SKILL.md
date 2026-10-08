@@ -10,7 +10,7 @@ allowed to read the upstream EA sources; your output must let an implementer
 reproduce the behaviour **without** ever opening EA.
 
 ## Inputs
-- Rule IDs (e.g. `UnnecessarySemicolon`), or a group name from `docs/rules.md`.
+- Rule IDs (e.g. `UnnecessarySemicolon`), or a group name from `docs/internals/rules.md`.
 - `.cache/ea/index.json` (run `make extract` if missing):
   - `rules.<ID>.source` — inspection Java file (relative to `eaPath`)
   - `rules.<ID>.description`, `rules.<ID>.tests`
