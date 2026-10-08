@@ -5,6 +5,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- A suppression comment right before a call argument or an array item now
+  applies to that argument or item, so one line of a multi-line call or
+  array can be suppressed without silencing the whole statement.
+
 ### Fixed
 
 - NotOptimalRegularExpressions: an escaped backslash before `.` or `$`

@@ -19,6 +19,18 @@ function legacy() { /* … */ }
 - `ALL` suppresses every rule: `// @custos-ignore ALL`.
 - Put the comment before the **first statement of a file** to suppress the
   rules for the whole file.
+- Inside a statement that spans several lines, a comment right before a
+  call argument or an array item suppresses the rules for that argument or
+  item only:
+
+  ```php
+  return new SettingsRow(
+      'Layout',
+      // @noinspection JsonEncodingApiUsageInspection -- the value is display text
+      value: (string) \json_encode($layout),
+      hint: \json_encode($hint), // still reported
+  );
+  ```
 
 In an editor, the language server offers a *Suppress … for this
 statement* action that writes the comment for you. See [Editors](./editors).
