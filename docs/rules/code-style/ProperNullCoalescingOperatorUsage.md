@@ -21,7 +21,7 @@ With `ALLOW_OVERLAPPING_TYPES` = false:
 
 ::: code-group
 
-```php{16,17,18,19} [Before]
+```php{16,17,18} [Before]
 <?php
 interface Shape {}
 class Square implements Shape {}
@@ -40,7 +40,7 @@ class Garage {
             $this->lookup() ?? null,
             strrev($label) ?? NULL,
             $this->engine ?? 'none',
-            $n ?? 'n/a',
+            $n ?? 'n/a',                    // scalar placeholder (D5a)
             $this->engine ?? null,
             $label ?? null,
             $t ?? $e,
@@ -72,7 +72,7 @@ class Garage {
             $this->lookup(),
             strrev($label),
             $this->engine ?? 'none',
-            $n ?? 'n/a',
+            $n ?? 'n/a',                    // scalar placeholder (D5a)
             $this->engine ?? null,
             $label ?? null,
             $t ?? $e,
@@ -93,7 +93,6 @@ Reported:
 <li>line 16: &#39;$this-&gt;lookup()&#39; alone is equivalent; drop the &#39;?? null&#39; fallback.</li>
 <li>line 17: &#39;strrev($label)&#39; alone is equivalent; drop the &#39;?? null&#39; fallback.</li>
 <li>line 18: Operand types of &#39;??&#39; do not match ([\Engine] vs [string]).</li>
-<li>line 19: Operand types of &#39;??&#39; do not match ([int] vs [string]).</li>
 </ul>
 
 ## Options

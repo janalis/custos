@@ -301,7 +301,7 @@ No findings.
   reports (and its fix removes) the default of a typed private property the
   constructor overwrites (`private array $items = [];`). Without a default
   a typed property is *uninitialised*, so objects created without the
-  constructor (unserialize of older payloads, `newInstanceWithoutConstructor`,
+  constructor (unserialize of older objects, `newInstanceWithoutConstructor`,
   ORM hydration, proxies) throw "must not be accessed before
   initialization" where they used to see `[]`. custos skips pattern O for
   typed properties.

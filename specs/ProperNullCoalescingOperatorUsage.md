@@ -58,7 +58,24 @@ not `null`):
   its full inheritance closure (itself, all parent classes, all implemented
   interfaces recursively, all used traits recursively). If the two closures
   share at least one element, the sides are related → no report.
-- D6: not complementary and not related → report.
+- D5a: scalar fallback (custos diverges). When every type left in `L`'s set
+  and every type left in `R`'s set is a scalar (`int`, `float`, `string`,
+  `bool`), the sides are compatible → no report. A placeholder of another
+  scalar type (`$id ?? 'new'`, `$count ?? '?'`) is a deliberate display or
+  serialisation choice, not a bug. Applies under both values of
+  `ALLOW_OVERLAPPING_TYPES`. A side holding a scalar *and* a non-scalar
+  (`int|Engine`) is not covered by D5a.
+- D5b: iterable family (custos diverges). A type belongs to the iterable
+  family when it is `array`, `\Traversable`, or a class/interface whose
+  inheritance closure (as in D5) contains `\Traversable` (`\Iterator`,
+  `\IteratorAggregate`, `\Generator`, `\ArrayObject`, `\DOMNamedNodeMap`,
+  `\DOMNodeList`, a Doctrine `Collection`, any user class implementing one
+  of those). When `L`'s set and `R`'s set each contain at least one member
+  of the family, the sides are related → no report. The typical case is an
+  empty-array fallback for an iterable: `$node->attributes ?? []`,
+  `$owner->items ?? []` with `Collection $items`.
+- D6: not complementary, not related, and neither D5a nor D5b applies →
+  report.
 
 ## Exceptions (no report)
 
@@ -71,6 +88,12 @@ not `null`):
 - E5: class types in an inheritance relationship (`Child ?? Base`, or both
   implementing a shared interface).
 - E6: code outside any function body (for Case B).
+- E7: both sides scalar-only after removing `null` (D5a), e.g.
+  `sprintf('#%s', $row->id ?? 'new')` with `?int $id`.
+- E8: both sides in the iterable family (D5b), e.g.
+  `iterator_to_array($el->attributes ?? [])` with `?\DOMNamedNodeMap`, or
+  `foreach ($order->lines ?? [] as $l)` where `$order` is nullable and
+  `lines` is a `Collection`.
 
 ## Report
 
@@ -121,7 +144,7 @@ class Garage {
             <weak_warning descr="'$this->lookup()' alone is equivalent; drop the '?? null' fallback.">$this->lookup() ?? null</weak_warning>,
             <weak_warning descr="'strrev($label)' alone is equivalent; drop the '?? null' fallback.">strrev($label) ?? NULL</weak_warning>,
             <weak_warning descr="Operand types of '??' do not match ([\Engine] vs [string]).">$this->engine ?? 'none'</weak_warning>,
-            <weak_warning descr="Operand types of '??' do not match ([int] vs [string]).">$n ?? 'n/a'</weak_warning>,
+            $n ?? 'n/a',                    // scalar placeholder (D5a)
             $this->engine ?? null,
             $label ?? null,
             $t ?? $e,
@@ -153,7 +176,7 @@ class Garage {
             $this->lookup(),
             strrev($label),
             $this->engine ?? 'none',
-            $n ?? 'n/a',
+            $n ?? 'n/a',                    // scalar placeholder (D5a)
             $this->engine ?? null,
             $label ?? null,
             $t ?? $e,
@@ -166,7 +189,48 @@ class Garage {
 }
 ```
 
+Iterable fallbacks (D5b) and the shapes produced by
+`NullCoalescingOperatorCanBeUsed`'s fix are not reported:
+
+```php
+<?php
+class Shelf implements \IteratorAggregate {
+    public function getIterator(): \Iterator { return new \ArrayIterator([]); }
+}
+class Room {
+    public Shelf $shelf;
+}
+class Inventory {
+    private ?int $cap = null;
+
+    public function demo(?Room $room, ?\DOMElement $el, ?\Iterator $it, ?float $ratio) {
+        foreach ($room?->shelf ?? [] as $item) {}
+        $attrs = iterator_to_array($el?->attributes ?? []);
+        $rows = $it ?? [];
+        $shown = $ratio ?? '-';
+        return [$this->cap ?? 'none', $attrs, $rows, $shown];
+    }
+}
+```
+
 ## Divergences
+
+- **Scalar fallbacks (custos diverges, D5a).** Upstream reports any `??`
+  whose scalar operand types differ, e.g. a nullable `int` with a string
+  placeholder. That fallback is ordinary code (labels, log lines, array rows
+  for `implode()`), and custos's own `NullCoalescingOperatorCanBeUsed` fix
+  produces it from `null === $x ? 'none' : $x`; custos stays silent when
+  both sides are scalar-only.
+- **Iterable family (custos diverges, D5b).** Upstream compares an
+  object type with `array` as unrelated, so `$node->attributes ?? []` on a
+  `?DOMNamedNodeMap`, or `$owner->items ?? []` on a `Collection`, is
+  reported although both operands can be iterated the same way (and the
+  latter is what `NullCoalescingOperatorCanBeUsed` writes for
+  `$owner ? $owner->items : []`). custos treats `array`, `\Traversable` and
+  every `\Traversable` implementor as related. Class-vs-scalar pairs
+  (`$engine ?? 'none'`) remain reported: the ternary that a
+  `NullCoalescingOperatorCanBeUsed` fix would turn into one mixes the same
+  types, so the finding is about the original code, not the rewrite.
 
 - **`iterable` (custos diverges):** upstream compares `iterable` as an
   opaque type name, so `$this->rows() ?? []` on an `iterable`-returning
