@@ -37,6 +37,16 @@ class Queue
         for ($i = 0; $i < count($a); $i++) { new Box($a); }
     }
 
+    public function grow(array $a): void
+    {
+        for ($i = 0; $i < count($this->items); ++$i) { $this->items['x' . $i] = 1; }
+        for ($i = 0; $i < count($a); ++$i) { array_push($a, 1); }
+        for ($i = 0; $i < count($a); ++$i) { if ($a[$i] === 0) { $a = []; } }
+        for ($i = 0; $i < count(self::$all); ++$i) { self::$all[] = $i; }
+    }
+
+    private static array $all = [];
+
     private function remove(int $i): void { unset($this->items[$i]); }
     private function load(): array { return $this->items; }
 }
