@@ -590,6 +590,29 @@ func mentionsAny(text string, names map[string]bool) bool {
 	return false
 }
 
+// voidDoc drops a documented `void` return contradicted by the body: a
+// `return value;` of the function itself (`@return void` left over after
+// a refactoring); the body's own type then applies.
+func voidDoc(doc string, body *syntax.Block) string {
+	if !strings.EqualFold(doc, "void") || body == nil {
+		return doc
+	}
+	found := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
+			return false
+		case *syntax.Return:
+			found = found || n.Expr != nil
+		}
+		return !found
+	})
+	if found {
+		return ""
+	}
+	return doc
+}
+
 // callsCSPRNG reports whether body calls a secure random generator by name
 // (a function or a method of that name, as the IV rule's same-file check).
 func callsCSPRNG(body syntax.Node) bool {
@@ -688,7 +711,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	}
 	meth.Return, meth.RetVer = x.returnType(m.ReturnType, m.Attrs, at)
 	if d != nil {
-		meth.DocReturn = x.docTypeStr(d.ReturnType(), at)
+		meth.DocReturn = voidDoc(x.docTypeStr(d.ReturnType(), at), m.Body)
 		meth.GenReturn = x.genReturn(d, at)
 		meth.CondReturn = x.condReturn(d, at)
 		meth.Asserts = x.assertions(d, m.Params, !meth.Static, at)
@@ -737,7 +760,7 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d), CSPRNG: callsCSPRNG(n.Body)}
 	fn.Return, fn.RetVer = x.returnType(n.ReturnType, n.Attrs, at)
 	if d != nil {
-		fn.DocReturn = x.docTypeStr(d.ReturnType(), at)
+		fn.DocReturn = voidDoc(x.docTypeStr(d.ReturnType(), at), n.Body)
 		fn.CondReturn = x.condReturn(d, at)
 		fn.Asserts = x.assertions(d, n.Params, false, at)
 		fn.Tpl = x.funcTemplates(d, n.Params, fn.Asserts, at)

@@ -31,3 +31,24 @@ trait Singleton
         return null;
     }
 }
+
+// A docblock naming the trait does not make it a type either.
+class UsesSingleton
+{
+    use Singleton;
+
+    /** @return Singleton */
+    public function documented()
+    {
+        return $this->make();
+    }
+
+    /** @return Singleton|null */
+    public function documentedNullable()
+    {
+        return $this->make();
+    }
+
+    /** @return Singleton */
+    private function make() {}
+}

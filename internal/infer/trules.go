@@ -155,7 +155,7 @@ func (r *TRules) infer(x syntax.Expr) types.Type {
 	case *syntax.PropertyFetch:
 		if v, ok := n.Var.(*syntax.Variable); ok && v.Name == "this" {
 			if id, ok := n.Name.(*syntax.Identifier); ok {
-				if cls := e.ClassFQN(syntax.EnclosingClass(n)); cls != "" {
+				if cls := e.selfClass(syntax.EnclosingClass(n)); cls != "" {
 					if p := e.Index.FindProperty(cls, id.Value, e.PHP); p != nil && p.Type != "" {
 						return types.FromDoc(p.Type, nil)
 					}
@@ -547,7 +547,7 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 	// dropping it would leave a partial set that rules act on (`$f =
 	// $o->x; if ($c) { $f = 'x'; } (string) $f`). Only with reaching
 	// definitions (never in SpecOnly mode, whose sets are partial by spec).
-	if unknownDef {
+	if unknownDef || r.unmodelled(scope, v, reach, as) {
 		return types.Unknown
 	}
 	clob, undef := r.Env.dynamicRead(v)
@@ -572,6 +572,43 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 		t = n
 	}
 	return t
+}
+
+// unmodelled reports whether a definition reaching v is of a kind the
+// T-rules do not type: destructuring (`list($h, $m) = explode(…)`), out
+// arguments, catch, global/static, a foreach binding read after its loop,
+// a by-reference closure import. Typing v from the other definitions
+// alone would give a partial set the casting rule trusts (outside
+// SpecOnly; reach nil: SpecOnly).
+func (r *TRules) unmodelled(scope syntax.Node, v *syntax.Variable, reach map[uint32]bool, as []*syntax.Assign) bool {
+	if reach == nil {
+		return false
+	}
+	modelled := make(map[uint32]bool, len(as)+4)
+	for _, p := range syntax.FuncLikeParams(scope) {
+		modelled[p.Span().Start] = true
+	}
+	for _, d := range as {
+		modelled[d.Span().Start] = true
+	}
+	for _, d := range r.Env.scopeVars(scope).defs[v.Name] {
+		if d.doc {
+			modelled[d.pos] = true
+		}
+	}
+	for p := v.Parent(); p != nil && p != scope; p = p.Parent() {
+		if fe, ok := p.(*syntax.Foreach); ok && fe.Body != nil && containsPos(fe.Body, v.Span().Start) {
+			if b := foreachBinding(fe, v.Name); b != nil {
+				modelled[b.Span().Start] = true
+			}
+		}
+	}
+	for p := range reach {
+		if !modelled[p] {
+			return true
+		}
+	}
+	return false
 }
 
 // foreachBinding returns the variable named name bound by fe's key or value

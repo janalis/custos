@@ -72,6 +72,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
+- Type engine (review round 7): `.=` (and every compound assignment)
+  replaces a variable's earlier types; `$this`/`self`/`static` inside a
+  trait are the unknown using class, never the trait; negated
+  `is_numeric()` keeps strings; the casting typer gives up on variables
+  also set by destructuring or out arguments (a needed `(int)` is no
+  longer removed); a property read right after an unknown write is
+  unknown unless natively typed; `@return void` over a body returning a
+  value is ignored; `OAuthProvider`'s runtime properties are declared.
 - Unsafe quick-fixes (SuiteCRM / EspoCRM / Kanboard / Grav / October CMS /
   Koel review): StaticClosureCanBeUsed made closures static that the
   including code or a facade binds (Grav's update `postflight` hooks

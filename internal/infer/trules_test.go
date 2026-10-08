@@ -134,7 +134,7 @@ function g(array $rows, array $names) {
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
 	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpver.PHP84))
-	want := map[string]string{"rebound": "", "inner": "int", "after": "int|string"}
+	want := map[string]string{"rebound": "", "inner": "int", "after": ""} // after: the binding also reaches (unmodelled)
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {
@@ -209,7 +209,7 @@ function g(array $rows, A|B $o, A $a) {
 		want map[string]string
 	}{
 		"default": {infer.NewTRules(env), map[string]string{
-			"rebound": "", "compound": "int|string", "byref": "string", "recv": "int", "union": "",
+			"rebound": "", "compound": "string", "byref": "string", "recv": "int", "union": "",
 			"subject": "string", "elems": "int", "parlit": "array", "elvis": "string",
 		}},
 		"specOnly": {spec, map[string]string{

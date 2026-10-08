@@ -605,6 +605,17 @@ func mayBeString(t types.Type) bool { return t.IsUnknown() || t.HasAny("string",
 // ClassFQN returns the FQN of a class declaration ("" for anonymous classes).
 func (e *Env) ClassFQN(c *syntax.ClassLike) string { return e.Names.DeclFQN(c) }
 
+// selfClass is the class `$this`, `self`, `static` and `new static` denote
+// inside class-like c: its FQN, but "" (unknown) in a trait, whose methods
+// run as members of the using class (no object is an instance of a
+// trait).
+func (e *Env) selfClass(c *syntax.ClassLike) string {
+	if c != nil && c.ClassKind == syntax.KindTrait {
+		return ""
+	}
+	return e.ClassFQN(c)
+}
+
 // classRef resolves a class reference expression (Name or expression) to a FQN.
 func (e *Env) classRef(x syntax.Expr) string {
 	switch n := x.(type) {
@@ -612,7 +623,7 @@ func (e *Env) classRef(x syntax.Expr) string {
 		low := strings.ToLower(n.Value)
 		switch low {
 		case "self", "static":
-			return e.ClassFQN(syntax.EnclosingClass(n))
+			return e.selfClass(syntax.EnclosingClass(n))
 		case "parent":
 			return e.Names.ParentFQN(syntax.EnclosingClass(n))
 		}
@@ -901,7 +912,7 @@ func (e *Env) staticCallType(n *syntax.StaticCall) types.Type {
 	origin := cls
 	if nm, ok := n.Class.(*syntax.Name); ok && strings.EqualFold(nm.Value, "parent") {
 		// parent::m(): the calling class's @extends arguments bind the parent.
-		if c := e.ClassFQN(syntax.EnclosingClass(n)); c != "" {
+		if c := e.selfClass(syntax.EnclosingClass(n)); c != "" {
 			origin = c
 		}
 	}
@@ -1589,7 +1600,7 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		return types.Unknown
 	}
 	if v.Name == "this" {
-		if fqn := e.ClassFQN(syntax.EnclosingClass(v)); fqn != "" {
+		if fqn := e.selfClass(syntax.EnclosingClass(v)); fqn != "" {
 			return types.Of(`\` + fqn)
 		}
 		return types.Unknown
@@ -1802,7 +1813,9 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 				e.collectDimWrites(n, n, n.Var, sv)
 				end := n.Span().End
 				var kill syntax.Span
-				if _, plain := n.Var.(*syntax.Variable); plain && n.Op.Kind == syntax.TEqual {
+				// Any assignment replaces the value (`.=` is a string, `+=` a
+				// number), not only `=` (by reference: not a kill).
+				if _, plain := n.Var.(*syntax.Variable); plain && !n.ByRef {
 					if es, ok := n.Parent().(*syntax.ExprStmt); ok {
 						if blk, ok := es.Parent().(*syntax.Block); ok {
 							kill = blk.Span()

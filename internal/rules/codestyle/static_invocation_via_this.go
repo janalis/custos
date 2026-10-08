@@ -7,6 +7,7 @@ import (
 	"custos/internal/analysis/util"
 	"custos/internal/index"
 	"custos/internal/syntax"
+	"custos/internal/types"
 )
 
 // staticInvocationViaThis flags static methods called through an object
@@ -78,6 +79,13 @@ func (staticInvocationViaThis) Check(ctx *analysis.Context, n syntax.Node) {
 // otherwise the first non-static declaration is returned.
 func sivtResolve(ctx *analysis.Context, recv syntax.Expr, name string) *index.Method {
 	t := ctx.TypeOf(recv)
+	if v, ok := recv.(*syntax.Variable); ok && v.Name == "this" && t.IsUnknown() {
+		// In a trait `$this` is the (unknown) using class; the trait's
+		// own methods are members of it.
+		if fqn := ctx.Types().ClassFQN(syntax.EnclosingClass(recv)); fqn != "" {
+			t = types.Of(`\` + fqn)
+		}
+	}
 	if t.IsUnknown() {
 		return nil
 	}

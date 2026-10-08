@@ -172,7 +172,7 @@ func (e *Env) calleeParams(call syntax.Expr) (params []index.Param, builtin map[
 		if !ok || !isVar || recv.Name != "this" || recv.NameExpr != nil {
 			return nil, nil
 		}
-		if cls := e.ClassFQN(syntax.EnclosingClass(c)); cls != "" {
+		if cls := e.selfClass(syntax.EnclosingClass(c)); cls != "" {
 			m = e.Index.FindMethod(cls, id.Value, e.PHP)
 		}
 	case *syntax.StaticCall:

@@ -30,6 +30,11 @@ func (dynamicInvocationViaScopeResolution) Check(ctx *analysis.Context, n syntax
 		return
 	}
 	cls := ctx.Types().ClassRef(call.Class) // D2
+	if nm, ok := call.Class.(*syntax.Name); ok && cls == "" && (strings.EqualFold(nm.Value, "self") || strings.EqualFold(nm.Value, "static")) {
+		// In a trait self:: is the (unknown) using class; the trait's own
+		// methods are members of it.
+		cls = ctx.Types().ClassFQN(syntax.EnclosingClass(call))
+	}
 	if cls == "" {
 		return
 	}

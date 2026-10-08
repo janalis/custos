@@ -50,7 +50,7 @@ func (e *Env) closureReturn(n syntax.Expr) types.Type {
 		e.bodyDepth--
 		delete(e.bodyBusy, span)
 	}
-	t = bindStatic(t, e.ClassFQN(syntax.EnclosingClass(n)))
+	t = bindStatic(t, e.selfClass(syntax.EnclosingClass(n)))
 	return voidAsNull(t)
 }
 

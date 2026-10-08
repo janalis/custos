@@ -40,6 +40,7 @@ func decode(b []byte) (*index.Index, error) {
 		return nil, err
 	}
 	addPre80Failures(files)
+	addMissingProps(files)
 	markBuiltin(files)
 	out := index.New(nil)
 	for _, f := range files {

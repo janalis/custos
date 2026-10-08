@@ -495,11 +495,19 @@ func (e *Env) afterPropertyWrite(use syntax.Expr, scope syntax.Node, t types.Typ
 	if narrowKey(a.Var) != name {
 		return t // `$v = …` resetting `$v->p`: the property's value is not known
 	}
-	if a.ByRef || (a.Op.Kind != syntax.TEqual && a.Op.Kind != syntax.TCoalesceEqual) || !t.IsNullable() {
+	if a.ByRef || (a.Op.Kind != syntax.TEqual && a.Op.Kind != syntax.TCoalesceEqual) {
 		return t
 	}
 	vt := e.TypeOf(a.Value)
-	if vt.IsUnknown() || vt.IsNullable() || vt.Has("mixed") || e.nonEmptyBroken(scope, name, a.Span().End, use) {
+	if e.nonEmptyBroken(scope, name, a.Span().End, use) {
+		return t
+	}
+	if a.Op.Kind == syntax.TEqual && (vt.IsUnknown() || vt.Has("mixed")) && !e.nativeProp(a.Var) {
+		// The value just stored is not known and nothing enforces the
+		// property's documented type: it is no more than a hint.
+		return types.Unknown
+	}
+	if !t.IsNullable() || vt.IsUnknown() || vt.IsNullable() || vt.Has("mixed") {
 		return t
 	}
 	if nt := t.Without("null"); len(nt.Atoms()) > 0 {
@@ -965,6 +973,11 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		if !ok {
 			return t
 		}
+		if fn == "is_numeric" && !truthy {
+			// A string failing is_numeric() is a non-numeric string: only
+			// int and float are excluded.
+			atoms = atoms[:2]
+		}
 		return narrowAtoms(t, atoms, truthy)
 	}
 	return t
@@ -1202,4 +1215,22 @@ func (e *Env) assertCall(x syntax.Expr) syntax.Expr {
 		return nil
 	}
 	return a.Value
+}
+
+// nativeProp reports whether property fetch x names a property with a
+// native type on every class of its receiver (PHP enforces it on write).
+func (e *Env) nativeProp(x syntax.Expr) bool {
+	pf, ok := x.(*syntax.PropertyFetch)
+	if !ok {
+		return false
+	}
+	id := pf.Name.(*syntax.Identifier) // a narrowing key names the property
+	cs := e.TypeOf(pf.Var).Classes()
+	for _, c := range cs {
+		p := e.Index.FindProperty(strings.TrimPrefix(c, `\`), id.Value, e.PHP)
+		if p == nil || p.Type == "" {
+			return false
+		}
+	}
+	return len(cs) > 0
 }

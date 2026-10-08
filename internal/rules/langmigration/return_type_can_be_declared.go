@@ -443,8 +443,8 @@ func (returnTypeCanBeDeclared) compact(ctx *analysis.Context, class *syntax.Clas
 }
 
 // rtdTrait reports whether t names a trait: no value is ever an instance
-// of a trait, so `: Singleton` always throws (custos; `new static` and
-// `clone $this` inside a trait are typed as the trait).
+// of a trait, so `: Singleton` always throws (custos; a doc type may still
+// name one, though `new static` / `clone $this` in a trait are unknown).
 func rtdTrait(ctx *analysis.Context, t string) bool {
 	if !strings.HasPrefix(t, `\`) {
 		return false

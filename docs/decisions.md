@@ -830,7 +830,9 @@ wording (multi-line expressions in IfReturnReturnSimplification /
 ArrayPushMissUse messages, StringCaseManipulation and ArrayIsListCanBeUsed
 message text, EmptyClass on traits); MissingIssetImplementation on
 `\OAuthProvider` (stub gap, below). Engine-level causes found by the
-review (not fixed here): *`.=` keeps the old type* — `$h =
+review (since fixed, Engine section "Review round 7 engine causes"; the
+remark on PHPDoc contradicted by every `return` stays a decision of earlier
+rounds): *`.=` keeps the old type* — `$h =
 file_get_contents($f); $h .= 'x';`: expected `string`, actual
 `false|string`; `$n = null; $n .= 'x';`: expected `string`, actual
 `null|string` (MagicMethodsValidity "`__toString` must return string",
@@ -1785,6 +1787,48 @@ rejected) is fixed; see the close-tag note above.
   - *Cost:* corpus A vendor `analyse --all` real time unchanged (medians 1.18
     s both), user +2 %; infer benchmarks within 1 % allocations except
     `BenchmarkTypeOfConditions` −6 %.
+- **Review round 7 engine causes (2026-10-08):** the seven engine requests
+  of the SuiteCRM/EspoCRM/Kanboard/Grav/October/Koel review.
+  - *Every assignment replaces the value:* an assignment to a plain
+    variable with any operator (not by reference) hides the earlier
+    definitions in its block like `=` does, so `$h = file_get_contents($f);
+    $h .= 'x';` and `$n = null; $n .= 'x';` are `string`.
+  - *Traits:* `$this`, `self`, `static`, `new static`, `clone $this` and
+    `self::`/`static::` calls inside a trait are the using class, unknown
+    when the trait is analysed (`Env.selfClass`; no object is an instance
+    of a trait). StaticInvocationViaThis and DynamicInvocationViaScopeResolution
+    keep resolving a trait's own methods through the trait (their only
+    consumers of the old typing); ReturnTypeCanBeDeclared keeps its trait
+    guard for doc types naming a trait (new fixture cases).
+  - *Negated `is_numeric()`* removes only int and float: a string failing
+    it is a non-numeric string (`if (is_numeric($v)) return; $v` is
+    `string`).
+  - *Casting typer and unmodelled definitions:* outside SpecOnly, a
+    variable some reaching definition of which the T-rules do not type
+    (destructuring, out arguments, catch, global/static, a foreach binding
+    read after its loop, by-reference imports) is unknown instead of the
+    type of the other definitions (`list($h, $m) = explode(…); if (!$h) $h
+    = 0; (int) $h` keeps its cast).
+  - *Unknown property writes:* a property read right after storing an
+    unknown (or mixed) value in it (the existing property-write guard: same
+    block, nothing that may reset it in between) is unknown, unless the
+    property's native type is enforced on every receiver class; a doc type
+    alone no longer survives the write.
+  - *`@return void` over a returning body:* the index drops a documented
+    `void` return when the function's own body has `return value;`, so the
+    body's type (same file, or inferred at index time) applies.
+  - *Stub gaps:* phpstorm-stubs does not declare the public properties
+    pecl/oauth fills on `OAuthProvider` (consumer_key, nonce, timestamp,
+    token, …); there is no extraction bug (the stub file has none, nor the
+    reflection caches, oauth being PECL). `stubs.missingProps` declares them
+    at load time (no regeneration needed), a table for any further
+    extension class found incomplete.
+  - *Deltas* (old = HEAD 2b89e41, default / `--all`): unchanged except
+    corpus C +1 / +1 ReturnTypeCanBeDeclared `: ?string` on
+    a Twig extension's `getAmount()` (the wrapped `amount()` returns `.=`
+    results or `null`; true positive).
+  - *Cost:* corpus A vendor `analyse --all` unchanged (medians 1.13 s real,
+    6.47 s / 6.50 s user); infer benchmarks unchanged.
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.

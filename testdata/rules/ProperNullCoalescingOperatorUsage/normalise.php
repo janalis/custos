@@ -24,3 +24,13 @@ class Plain
         ];
     }
 }
+
+class NoParent
+{
+    public function up(): ?parent { return null; }
+
+    public function fallback()
+    {
+        return $this->up() ?? 'none';
+    }
+}
