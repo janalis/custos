@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-08
+
 ### Changed
 
 - A suppression comment right before a call argument or an array item now
