@@ -122,7 +122,7 @@ func (p *parser) parseParam() *Param {
 	}
 	n.Var = p.parseVariableToken()
 	if _, ok := p.accept(TEqual); ok {
-		n.Default = p.parseExpr(precLowest)
+		n.Default = p.parseDefault()
 	}
 	if p.at(TLBrace) {
 		n.Hooks = p.parseHooks()
@@ -367,7 +367,7 @@ func (p *parser) parseMember() Stmt {
 		ps := p.start()
 		it := &PropertyItem{Var: p.parseVariableToken()}
 		if _, ok := p.accept(TEqual); ok {
-			it.Default = p.parseExpr(precLowest)
+			it.Default = p.parseDefault()
 		}
 		n.Props = append(n.Props, fin(p, it, ps))
 		if _, ok := p.accept(TComma); !ok {
@@ -380,6 +380,16 @@ func (p *parser) parseMember() Stmt {
 		p.endStmt()
 	}
 	return fin(p, n, start)
+}
+
+// parseDefault parses a property or parameter default value, which may be
+// followed by a property hook list.
+func (p *parser) parseDefault() Expr {
+	saved := p.inDefault
+	p.inDefault = true
+	e := p.parseExpr(precLowest)
+	p.inDefault = saved
+	return e
 }
 
 // parseHooks parses a property hook list `{ get => ...; set { ... } }`.

@@ -310,7 +310,9 @@ func (p *parser) parsePostfix(e Expr, start uint32) Expr {
 }
 
 // legacyCurlyOffsets reports whether `$a{0}` offsets are accepted.
-func (p *parser) legacyCurlyOffsets() bool { return p.permissive || p.ver.Below(phpver.PHP80) }
+func (p *parser) legacyCurlyOffsets() bool {
+	return !p.inDefault && (p.permissive || p.ver.Below(phpver.PHP80))
+}
 
 // isOffsetTarget limits legacy `$a{0}` offsets to variable-like bases.
 func isOffsetTarget(e Expr) bool {
