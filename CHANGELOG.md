@@ -28,6 +28,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   restatement of a PHPUnit assertion (a trait's
   `abstract public static function assertIsResource(…)`) called through
   `$this` is exempt like PHPUnit's own assertions.
+- PhpUnitTests: `assertTrue(is_resource($h))` / `assertFalse(is_resource($h))`
+  are no longer rewritten to `assertIsResource()` / `assertIsNotResource()`,
+  which treat a closed resource as a resource.
 
 ## [0.1.0] - 2026-10-08
 
