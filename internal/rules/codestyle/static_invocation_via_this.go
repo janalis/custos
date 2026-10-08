@@ -150,6 +150,15 @@ func sivtExcluded(ctx *analysis.Context, m *index.Method) bool {
 	if ctx.Bool("EXCEPT_PHPUNIT_ASSERTIONS") && strings.HasPrefix(fqn, `\Symfony\Bundle\FrameworkBundle\Test\`) {
 		return true
 	}
+	// custos: an abstract redeclaration of one of PHPUnit's static
+	// assertions (a trait stating `abstract public static function
+	// assertIsResource(…)` so static analysers narrow through it) is
+	// implemented by PHPUnit's own Assert in the using test case.
+	if ctx.Bool("EXCEPT_PHPUNIT_ASSERTIONS") && m.Abstract {
+		if a := ctx.Index().FindMethod(`PHPUnit\Framework\Assert`, m.Name, ctx.PHP); a != nil && a.Static {
+			return true
+		}
+	}
 	if ctx.Bool("EXCEPT_ELOQUENT_MODELS") && strings.EqualFold(fqn, `\Illuminate\Database\Eloquent\Model`) {
 		return true
 	}
