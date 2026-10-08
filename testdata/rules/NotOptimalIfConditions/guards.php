@@ -1,5 +1,11 @@
 <?php
-function guards(?object $o, $v, string $path, string $base)
+final class Row
+{
+    public string $name = '';
+    public int $id = 0;
+}
+
+function guards(?Row $o, $v, string $path, string $base)
 {
     $file = \realpath($path);
     $fence = \realpath($base);
@@ -11,7 +17,7 @@ function guards(?object $o, $v, string $path, string $base)
 
     // S5: an operand narrowing a variable stays ahead of its uses.
     if (!(null === $o || \strlen($o->name) === 0) && $o->id > 0) {}
-    if (!(!$v instanceof \Countable || \count($v) === 0) && $v->id > 0) {}
+    if (!(!$v instanceof \Countable || \count($v) === 0) && $v) {}
     if (!(!\is_string($v) || \strlen($v) === 0) && $v === 'x') {}
     if (!(\strlen($o->name) === 0 || $v == false) && $v > 1) {}
     if (\strlen($o->name) === \PHP_INT_MAX && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$o > 1</weak_warning>) {}
