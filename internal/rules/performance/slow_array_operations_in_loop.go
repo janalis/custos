@@ -248,8 +248,11 @@ func (slowArrayOperationsInLoop) checkFor(ctx *analysis.Context, f *syntax.For) 
 			if names == nil {
 				names = newForNames(ctx, f)
 			}
-			if forSubjectMayChange(ctx, f, call) {
-				ctx.ReportNode(b, msg) // custos: hoisting would freeze a changing length
+			switch forSubjectChange(ctx, f, call) {
+			case forSubjectWritten:
+				continue // custos: the loop changes the length on purpose
+			case forSubjectMayChange:
+				ctx.ReportNode(b, msg) // custos: hoisting could freeze a changing length
 				continue
 			}
 			ctx.ReportNode(b, msg, forLengthFix(ctx, f, call, names.pick(f, ci, forFixBase(other))))
@@ -257,16 +260,25 @@ func (slowArrayOperationsInLoop) checkFor(ctx *analysis.Context, f *syntax.For) 
 	}
 }
 
-// forSubjectMayChange reports whether the measured value may change while
-// the loop runs (custos), so computing its length once would change the
-// number of iterations: the subject is not a variable or property fetch,
-// or the body/step writes it or one of its elements, unsets or passes it
-// (or an element) to a by-reference or unresolved parameter, or calls a
-// method on the object holding a measured property.
-func forSubjectMayChange(ctx *analysis.Context, f *syntax.For, call *syntax.FuncCall) bool {
+// forSubjectChange tells whether the measured value may change while the
+// loop runs (custos), so computing its length once would change the number
+// of iterations.
+//
+// It is written when the body or step visibly changes it: assigns, pushes
+// to, increments or unsets it or one of its elements (or an offset of the
+// measured element), or passes it (or an element) to a by-reference
+// parameter of a resolved function. The loop then measures a length it
+// changes on purpose, and the condition is not reported.
+//
+// It may change when the subject is not a variable or property fetch, or
+// when the body iterates it by reference, binds a reference to it, passes it
+// to an unresolved callee or unpacks it into a call, or calls a method on
+// the object holding a measured property. The condition is reported
+// without a fix.
+func forSubjectChange(ctx *analysis.Context, f *syntax.For, call *syntax.FuncCall) forChange {
 	args, ok := util.CallArgValues(call)
 	if !ok || len(args) == 0 {
-		return true
+		return forSubjectMayChange
 	}
 	subj := syntax.UnwrapParens(args[0])
 	// An element (`count($grid[$r])`) is measured through its root array:
@@ -284,13 +296,13 @@ func forSubjectMayChange(ctx *analysis.Context, f *syntax.For, call *syntax.Func
 	switch x := subj.(type) {
 	case *syntax.Variable:
 		if x.NameExpr != nil {
-			return true
+			return forSubjectMayChange
 		}
 	case *syntax.PropertyFetch:
 		holder = x.Var
 	case *syntax.StaticPropertyFetch:
 	default:
-		return true
+		return forSubjectMayChange
 	}
 	touches := func(e syntax.Expr) bool { // e is subj, one of its elements or an offset
 		for _, d := range dims {
@@ -310,30 +322,43 @@ func forSubjectMayChange(ctx *analysis.Context, f *syntax.For, call *syntax.Func
 			e = d.Var
 		}
 	}
-	changed := false
+	state := forSubjectStable
+	mark := func(c forChange) {
+		state = max(state, c)
+	}
 	visit := func(n syntax.Node) bool {
-		if changed {
+		if state == forSubjectWritten {
 			return false
 		}
 		switch x := n.(type) {
 		case *syntax.Function, *syntax.Method, *syntax.ClassLike, *syntax.Closure, *syntax.ArrowFunction:
 			return false
 		case *syntax.Assign:
-			changed = touches(x.Var) || (x.ByRef && touches(x.Value))
+			if touches(x.Var) {
+				mark(forSubjectWritten)
+			} else if x.ByRef && touches(x.Value) {
+				mark(forSubjectMayChange)
+			}
 		case *syntax.IncDec:
-			changed = touches(x.Var)
+			if touches(x.Var) {
+				mark(forSubjectWritten)
+			}
 		case *syntax.Unset:
 			for _, v := range x.Vars {
-				changed = changed || touches(v)
+				if touches(v) {
+					mark(forSubjectWritten)
+				}
 			}
 		case *syntax.Foreach:
-			changed = x.ByRef && touches(x.Expr)
+			if x.ByRef && touches(x.Expr) {
+				mark(forSubjectMayChange)
+			}
 		case *syntax.MethodCall:
 			if holder != nil && util.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(x.Var), holder) {
-				changed = true
+				mark(forSubjectMayChange)
 			}
 		}
-		if list := callArgList(n); list != nil && !changed {
+		if list := callArgList(n); list != nil {
 			var params []index.Param
 			resolved := false
 			if fc, ok := n.(*syntax.FuncCall); ok {
@@ -350,24 +375,34 @@ func forSubjectMayChange(ctx *analysis.Context, f *syntax.For, call *syntax.Func
 				if touches(arg.Value) {
 					switch {
 					case !resolved, arg.Unpack:
-						changed = true
+						mark(forSubjectMayChange)
 					case pos < len(params) && params[pos].ByRef:
-						changed = true
+						mark(forSubjectWritten)
 					case len(params) > 0 && params[len(params)-1].Variadic && params[len(params)-1].ByRef && pos >= len(params)-1:
-						changed = true
+						mark(forSubjectWritten)
 					}
 				}
 				pos++
 			}
 		}
-		return !changed
+		return state != forSubjectWritten
 	}
 	syntax.Inspect(f.Body, visit)
 	for _, e := range f.Loop {
 		syntax.Inspect(e, visit)
 	}
-	return changed
+	return state
 }
+
+// forChange grades how the measured value of a `for` condition may change
+// while the loop runs (see forSubjectChange).
+type forChange int
+
+const (
+	forSubjectStable forChange = iota
+	forSubjectMayChange
+	forSubjectWritten
+)
 
 // callArgList returns the argument list of a call or instantiation.
 func callArgList(n syntax.Node) *syntax.ArgList {

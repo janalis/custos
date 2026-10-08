@@ -10,6 +10,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - NotOptimalRegularExpressions: an escaped backslash before `.` or `$`
   (`\\\\.` in a single-quoted pattern) no longer hides the metacharacter,
   so `/s` and `/D` are not called pointless when they matter.
+- SlowArrayOperationsInLoop: a `for` condition measuring a value the loop
+  body visibly writes (element assignment, `[] =`, `array_push()`, `unset()`,
+  reassignment) is no longer reported: its length changes on purpose.
 
 ## [0.1.0] - 2026-10-08
 

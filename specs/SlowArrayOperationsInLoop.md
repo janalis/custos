@@ -102,6 +102,8 @@ Two loop anti-patterns:
   (`for ($i = 0, $n = count($a); $i < $n; $i++)`), empty condition, length
   call nested deeper than a direct operand (`$i < count($a) - 1`,
   `$i < (count($a))`), method calls (`$i < $c->count()`).
+- **E6** (custos) Length of a value the loop body or step visibly writes
+  (see Divergences): `for ($i = 0; $i < count($a); $i++) { $a[] = 0; }`.
 
 ## Report
 
@@ -284,12 +286,17 @@ function collect(array $batches, $repo)
   reads back (`$ctx = array_merge($ctx, $cb($ctx))`, work lists driven by
   `array_shift()`), none of which can be merged once after the loop (found
   on WordPress, Laravel and Drupal). custos skips them (G7).
-- **Changing loop subjects (custos diverges, F1).** The length is hoisted
-  into the initialiser only when the measured value cannot change while
-  the loop runs: a variable or property fetch (or an element of one,
-  measured through its root and offsets) that the body and step do not
-  write, push to, unset, iterate by reference, or pass (or an element of)
-  to a by-reference or unresolved parameter, and — for a property — whose
-  object receives no method call in the body. Otherwise the finding is
-  reported without a fix (`array_pop($a)` in the body made the hoisted
-  loop read past the end).
+- **Changing loop subjects (custos diverges, F1, E6).** The length is
+  hoisted into the initialiser only when the measured value cannot change
+  while the loop runs. When the body or step visibly changes it — assigns,
+  pushes to, increments or unsets the measured variable or property, one of
+  its elements or an offset of the measured element, or passes one of them
+  to a by-reference parameter of a resolved function (`array_push()`,
+  `array_pop()`, `sscanf()`) — the loop measures a length it changes on
+  purpose (`$i < count($this->n)` with `$this->n['x'.$i] = 1;` in the
+  body), and the condition is not reported at all (E6). When the change is
+  only possible — the subject is not a variable or property fetch, or the
+  body iterates it by reference, binds a reference to it, passes it to an
+  unresolved callee or unpacks it, or calls a method on the object holding a
+  measured property — the finding is reported without a fix
+  (`$this->remove($i)` may shrink `$this->items`).
