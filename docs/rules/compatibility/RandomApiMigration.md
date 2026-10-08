@@ -6,7 +6,7 @@ title: RandomApiMigration
 
 # RandomApiMigration
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Compatibility](/rules/#compatibility) · PhpStorm name: `RandomApiMigrationInspection`
 

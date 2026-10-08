@@ -9,25 +9,25 @@ import (
 	"custos/internal/syntax"
 )
 
-// simpleXmlLoadFileUsage reports simplexml_load_file() calls (PHP bug #62577)
+// simpleXMLLoadFileUsage reports simplexml_load_file() calls (PHP bug #62577)
 // and rewrites them to simplexml_load_string(file_get_contents(...)).
-type simpleXmlLoadFileUsage struct{}
+type simpleXMLLoadFileUsage struct{}
 
-func init() { register(simpleXmlLoadFileUsage{}) }
+func init() { register(simpleXMLLoadFileUsage{}) }
 
-const simpleXmlLoadFileUsageMsg = "simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string()."
+const simpleXMLLoadFileUsageMsg = "simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string()."
 
 // Semantic marks the rule as needing the project index (user functions with
 // the same names may be declared in other files).
-func (simpleXmlLoadFileUsage) Semantic() {}
+func (simpleXMLLoadFileUsage) Semantic() {}
 
-func (simpleXmlLoadFileUsage) ID() string { return "SimpleXmlLoadFileUsage" }
+func (simpleXMLLoadFileUsage) ID() string { return "SimpleXmlLoadFileUsage" }
 
-func (simpleXmlLoadFileUsage) Kinds() []syntax.NodeKind {
+func (simpleXMLLoadFileUsage) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
 }
 
-func (simpleXmlLoadFileUsage) Check(ctx *analysis.Context, n syntax.Node) {
+func (simpleXMLLoadFileUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	// custos: the bug needs the entity loader disabled with
 	// libxml_disable_entity_loader(), deprecated from PHP 8.0 (libxml 2.9
 	// disables external entities by default).
@@ -50,7 +50,7 @@ func (simpleXmlLoadFileUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		args = append(args, arg)
 	}
-	ctx.ReportNode(call, simpleXmlLoadFileUsageMsg, analysis.Fix{
+	ctx.ReportNode(call, simpleXMLLoadFileUsageMsg, analysis.Fix{
 		Title: "Use simplexml_load_string(file_get_contents(...))",
 		Edits: func() []analysis.TextEdit {
 			var b strings.Builder

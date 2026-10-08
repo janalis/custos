@@ -169,7 +169,7 @@ func isFalse(e syntax.Expr) bool {
 		return false
 	}
 	v := c.Name.Value
-	if len(v) > 0 && v[0] == '\\' {
+	if v != "" && v[0] == '\\' {
 		v = v[1:]
 	}
 	return len(v) == 5 && (v[0]|0x20) == 'f' && (v[1]|0x20) == 'a' && (v[2]|0x20) == 'l' && (v[3]|0x20) == 's' && (v[4]|0x20) == 'e'

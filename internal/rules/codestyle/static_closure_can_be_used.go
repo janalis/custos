@@ -142,7 +142,7 @@ func closureUsageSites(f *syntax.File, n syntax.Node) (sites []syntax.Node, unsa
 			return nil, false
 		}
 		abandoned := false
-	uses: // occurrences of the name in the body, in source order (indexed once per body)
+		// occurrences of the name in the body, in source order (indexed once per body)
 		for _, v := range util.VarOccurrences(f, body)[target.Name] {
 			if v == target {
 				continue
@@ -165,7 +165,7 @@ func closureUsageSites(f *syntax.File, n syntax.Node) (sites []syntax.Node, unsa
 				}
 			}
 			abandoned = true // unrecognised use: the closure may be bound later
-			break uses
+			break
 		}
 		if abandoned {
 			return nil, true

@@ -6,7 +6,7 @@ title: SecurityAdvisories
 
 # SecurityAdvisories
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Security](/rules/#security) · PhpStorm name: `SecurityAdvisoriesInspection`
 
@@ -18,6 +18,7 @@ in `require-dev`, which blocks installing versions with known
 vulnerabilities.
 
 Throughout this spec:
+
 - **ADV** is the advisory meta-package: vendor `roave`, package
   `security-advisories`; its full name is vendor, `/`, package.
 - **CHK** is the alternative checker package: vendor `sensiolabs`, package

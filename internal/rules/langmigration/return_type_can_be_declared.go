@@ -176,8 +176,7 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 	bareReturn, valueReturn := false, false // own `return;` / `return expr;`
 	if !abstract {
 		rtdWalkOwn(m.Body, func(x syntax.Node) {
-			switch x := x.(type) {
-			case *syntax.Return:
+			if x, ok := x.(*syntax.Return); ok {
 				if hasYield {
 					// custos: a generator's return value is not what the
 					// call returns (always a Generator object).
@@ -379,7 +378,7 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // compact implements compact(t).
-func (returnTypeCanBeDeclared) compact(ctx *analysis.Context, class *syntax.ClassLike, doc *phpdoc.Doc, docRet string, t string) string {
+func (returnTypeCanBeDeclared) compact(ctx *analysis.Context, class *syntax.ClassLike, doc *phpdoc.Doc, docRet, t string) string {
 	if !strings.HasPrefix(t, `\`) && t != "static" {
 		return t
 	}

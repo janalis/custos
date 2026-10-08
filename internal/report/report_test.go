@@ -120,7 +120,7 @@ func TestFormatDetails(t *testing.T) {
 	}
 	if s := func() string {
 		var b bytes.Buffer
-		Write(&b, "json", nil, 0)
+		_ = Write(&b, "json", nil, 0)
 		return b.String()
 	}(); !strings.Contains(s, `"findings": []`) {
 		t.Errorf("json without findings: %s", s)

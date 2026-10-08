@@ -75,11 +75,13 @@ func TestFromDocPathological(t *testing.T) {
 // FuzzFromDoc checks that doc type parsing never panics, stays fast and
 // that DocString round-trips to the same atoms.
 func FuzzFromDoc(f *testing.F) {
-	for _, s := range []string{"int|null", "array{a: int, b?: list<string>}", "?Foo[]", "(T is int ? A : B)",
+	for _, s := range []string{
+		"int|null", "array{a: int, b?: list<string>}", "?Foo[]", "(T is int ? A : B)",
 		"array<int, array{x: Alias}>", "non-empty-list<int>", "Foo&Bar", "callable(int): void", "iterable<int, Foo>",
 		"Collection<int, Foo>|Foo[]", "array{...}", "'a'|1|1.5",
 		"($x is 'a' ? int : ($x is Foo::BAR ? ?int : callable(): string))", "(T is not non-empty-string ? A : B)",
-		strings.Repeat("Alias|", 600) + "Alias", "array{a: Alias, b: list<Alias>, c: Alias2}"} {
+		strings.Repeat("Alias|", 600) + "Alias", "array{a: Alias, b: list<Alias>, c: Alias2}",
+	} {
 		f.Add(s)
 	}
 	resolve := func(w string) string {

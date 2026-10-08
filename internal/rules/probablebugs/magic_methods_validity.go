@@ -29,9 +29,11 @@ func (magicMethodsValidity) Semantic() {}
 // spelling: PHP method names are case-insensitive, so dispatch is too.
 var magicCanonical = func() map[string]string {
 	m := map[string]string{}
-	for _, n := range []string{"__construct", "__destruct", "__clone", "__get", "__isset", "__unset", "__set",
+	for _, n := range []string{
+		"__construct", "__destruct", "__clone", "__get", "__isset", "__unset", "__set",
 		"__call", "__callStatic", "__toString", "__debugInfo", "__set_state", "__invoke", "__wakeup",
-		"__unserialize", "__sleep", "__serialize", "__autoload"} {
+		"__unserialize", "__sleep", "__serialize", "__autoload",
+	} {
 		m[strings.ToLower(n)] = n
 	}
 	return m

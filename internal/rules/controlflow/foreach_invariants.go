@@ -227,7 +227,8 @@ func (foreachInvariants) counterLoop(ctx *analysis.Context, l *syntax.For) {
 }
 
 func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, counter *syntax.Variable,
-	container, limit syntax.Expr) []analysis.TextEdit {
+	container, limit syntax.Expr,
+) []analysis.TextEdit {
 	cName := "$" + counter.Name
 	valName := cName + "Value"
 	// F1.1: qualifying accesses.
@@ -776,7 +777,7 @@ func foreachInvElementsChanged(ctx *analysis.Context, l *syntax.For, container s
 // foreachInvElementPath returns the offsets of an element chain
 // `$c[k1][k2]…` of the container, outermost container offset first (a nil
 // offset for `$c[]`).
-func foreachInvElementPath(ctx *analysis.Context, e syntax.Expr, container syntax.Expr) ([]syntax.Expr, bool) {
+func foreachInvElementPath(ctx *analysis.Context, e, container syntax.Expr) ([]syntax.Expr, bool) {
 	var rev []syntax.Expr
 	for {
 		d, ok := syntax.UnwrapParens(e).(*syntax.ArrayDimFetch)

@@ -122,6 +122,12 @@ func (cascadeStringReplacement) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 }
 
+type csrCtx struct {
+	ctx   *analysis.Context
+	opt   bool // USE_SHORT_ARRAYS_SYNTAX
+	strip bool // drop explicit keys of merged array elements (csrKeyMode)
+}
+
 // reportSimplified reports part C; nestedFix, when set, replaces the
 // simplification fix.
 func (c *csrCtx) reportSimplified(f csrCall, simplified syntax.Expr, nestedFix *analysis.Fix) {
@@ -443,12 +449,6 @@ func csrDistinctKeys(arr *syntax.Array) bool {
 		seen[k] = true
 	}
 	return true
-}
-
-type csrCtx struct {
-	ctx   *analysis.Context
-	opt   bool // USE_SHORT_ARRAYS_SYNTAX
-	strip bool // drop explicit keys of merged array elements (csrKeyMode)
 }
 
 // arrayOnly reports whether e's known types include array but not string.

@@ -110,7 +110,7 @@ func tucStringContent(ctx *analysis.Context, e syntax.Expr) (string, bool) {
 		return "", false
 	}
 	t := ctx.Text(e)
-	if len(t) > 0 && (t[0] == 'b' || t[0] == 'B') {
+	if t != "" && (t[0] == 'b' || t[0] == 'B') {
 		t = t[1:]
 	}
 	if strings.HasPrefix(t, "<<<") {
@@ -136,7 +136,7 @@ func tucLiteralValue(lit syntax.Expr, content string) (string, bool) {
 		return "", false // interpolated
 	}
 	raw := l.Raw
-	if len(raw) > 0 && (raw[0] == 'b' || raw[0] == 'B') {
+	if raw != "" && (raw[0] == 'b' || raw[0] == 'B') {
 		raw = raw[1:]
 	}
 	if v, ok := util.StringLiteralValue(raw); ok {
@@ -158,10 +158,10 @@ func tucNumeric(s string) bool {
 	isWS := func(c byte) bool {
 		return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f'
 	}
-	for len(s) > 0 && isWS(s[0]) {
+	for s != "" && isWS(s[0]) {
 		s = s[1:]
 	}
-	for len(s) > 0 && isWS(s[len(s)-1]) {
+	for s != "" && isWS(s[len(s)-1]) {
 		s = s[:len(s)-1]
 	}
 	i := 0

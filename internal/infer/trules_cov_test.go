@@ -149,8 +149,10 @@ t('intInt', $i - 1);
 t('unknown', $i + $nope);
 `
 	checkLabels(t, trulesLabels(t, src, phpver.PHP84, func(r *TRules) { r.SoundArithmetic = true }),
-		map[string]string{"plus": "array", "minus": "", "mixed": "", "plain": "array",
-			"float": "float", "div": "float|int", "pow": "int", "powVar": "float|int", "numStr": "float|int", "intInt": "int", "unknown": ""})
+		map[string]string{
+			"plus": "array", "minus": "", "mixed": "", "plain": "array",
+			"float": "float", "div": "float|int", "pow": "int", "powVar": "float|int", "numStr": "float|int", "intInt": "int", "unknown": "",
+		})
 }
 
 // More than maxVarDefs assignments to one variable: unknown (cost cap).

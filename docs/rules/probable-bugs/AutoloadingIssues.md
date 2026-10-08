@@ -6,7 +6,7 @@ title: AutoloadingIssues
 
 # AutoloadingIssues
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs) · PhpStorm name: `AutoloadingIssuesInspection`
 

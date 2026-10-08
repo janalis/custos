@@ -38,10 +38,18 @@ class C {
 		ver  phpver.Version
 		want string
 	}{
-		{"substr", phpver.PHP74, "false|string"}, {"substr", phpver.PHP80, "string"}, {"substr", 0, "string"},
-		{"steps", phpver.PHP70, ""}, {"steps", phpver.PHP74, "int"}, {"steps", phpver.PHP84, "float|int"},
-		{"same", phpver.PHP74, "int"}, {"onlyDefault", phpver.PHP74, "bool"}, {"badKeys", phpver.PHP74, ""},
-		{"notAMap", phpver.PHP74, ""}, {"twice", phpver.PHP56, "bool"}, {"twice", phpver.PHP74, "int"},
+		{"substr", phpver.PHP74, "false|string"},
+		{"substr", phpver.PHP80, "string"},
+		{"substr", 0, "string"},
+		{"steps", phpver.PHP70, ""},
+		{"steps", phpver.PHP74, "int"},
+		{"steps", phpver.PHP84, "float|int"},
+		{"same", phpver.PHP74, "int"},
+		{"onlyDefault", phpver.PHP74, "bool"},
+		{"badKeys", phpver.PHP74, ""},
+		{"notAMap", phpver.PHP74, ""},
+		{"twice", phpver.PHP56, "bool"},
+		{"twice", phpver.PHP74, "int"},
 	}
 	for _, c := range cases {
 		if got := ix.Function(c.fn, c.ver).Return; got != c.want {

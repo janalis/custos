@@ -51,7 +51,7 @@ func literalKey(x syntax.Expr) (string, bool) {
 // util.StringLiteralValue on purpose: a double-quoted key with escapes or
 // `$` is not given a shape key.
 func plainString(raw string) (string, bool) {
-	if len(raw) > 0 && (raw[0] == 'b' || raw[0] == 'B') {
+	if raw != "" && (raw[0] == 'b' || raw[0] == 'B') {
 		raw = raw[1:]
 	}
 	if len(raw) < 2 || raw[len(raw)-1] != raw[0] {
@@ -734,7 +734,7 @@ func (e *Env) brokenBy(scope syntax.Node, from uint32, use syntax.Node, lists ..
 	at := use.Span().Start
 	var exclusive []syntax.Span // branches that cannot run on the way to use
 	var loops []syntax.Span     // loops around use entered after from
-	var child syntax.Node = use
+	child := use
 	for p := use.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
 		switch n := p.(type) {
 		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:

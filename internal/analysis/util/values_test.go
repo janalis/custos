@@ -91,7 +91,7 @@ func BenchmarkPossibleValuesKnown(b *testing.B) {
 }
 
 func TestPossibleValuesEdges(t *testing.T) {
-	many := func(stmt string, n int) string { return strings.Repeat(stmt, n) }
+	many := strings.Repeat
 	for src, want := range map[string]string{
 		`<?php function f() { probe($$x); }`:                                                                     "",
 		`<?php class C { function m() { probe($this->{$x}); } }`:                                                 "",

@@ -6,7 +6,7 @@ title: PhpUnitDeprecations
 
 # PhpUnitDeprecations
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [PHPUnit](/rules/#phpunit) · PhpStorm name: `PhpUnitDeprecationsInspection`
 

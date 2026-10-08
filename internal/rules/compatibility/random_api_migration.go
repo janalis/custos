@@ -9,26 +9,26 @@ import (
 	"custos/internal/syntax"
 )
 
-// randomApiMigration suggests the mt_* / random_int() replacements of the
+// randomAPIMigration suggests the mt_* / random_int() replacements of the
 // libc-based rand() family.
-type randomApiMigration struct{}
+type randomAPIMigration struct{}
 
-func init() { register(randomApiMigration{}) }
+func init() { register(randomAPIMigration{}) }
 
 // Semantic marks the rule as needing the project index (symbols or types
 // declared in other files).
-func (randomApiMigration) Semantic() {}
+func (randomAPIMigration) Semantic() {}
 
-func (randomApiMigration) ID() string { return "RandomApiMigration" }
+func (randomAPIMigration) ID() string { return "RandomApiMigration" }
 
-func (randomApiMigration) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
+func (randomAPIMigration) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 
 var (
 	randomClassic = map[string]string{"srand": "mt_srand", "getrandmax": "mt_getrandmax", "rand": "mt_rand"}
 	randomModern  = map[string]string{"srand": "mt_srand", "getrandmax": "mt_getrandmax", "rand": "random_int", "mt_rand": "random_int"}
 )
 
-func (randomApiMigration) Check(ctx *analysis.Context, n syntax.Node) {
+func (randomAPIMigration) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
 	nameNode, name, ok := util.FuncNamePart(call)
 	if !ok {

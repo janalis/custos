@@ -9,22 +9,22 @@ import (
 	"custos/internal/syntax"
 )
 
-// jsonEncodingApiUsage asks json_decode() for an explicit result type and
+// jsonEncodingAPIUsage asks json_decode() for an explicit result type and
 // json_decode()/json_encode() for JSON_THROW_ON_ERROR.
-type jsonEncodingApiUsage struct{}
+type jsonEncodingAPIUsage struct{}
 
-func init() { register(jsonEncodingApiUsage{}) }
+func init() { register(jsonEncodingAPIUsage{}) }
 
 const (
 	jsonTypeMsg  = "Pass the second argument to state whether JSON decodes to arrays or objects."
 	jsonThrowMsg = "Pass JSON_THROW_ON_ERROR in the flags of this call."
 )
 
-func (jsonEncodingApiUsage) ID() string { return "JsonEncodingApiUsage" }
+func (jsonEncodingAPIUsage) ID() string { return "JsonEncodingApiUsage" }
 
-func (jsonEncodingApiUsage) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
+func (jsonEncodingAPIUsage) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 
-func (jsonEncodingApiUsage) Semantic() {}
+func (jsonEncodingAPIUsage) Semantic() {}
 
 // jsonArg looks an argument up by name, else by unnamed position.
 func jsonArg(call *syntax.FuncCall, name string, pos int) (*syntax.Arg, bool) {
@@ -50,7 +50,7 @@ func jsonNamedArg(call *syntax.FuncCall, name string) bool {
 	return false
 }
 
-func (jsonEncodingApiUsage) Check(ctx *analysis.Context, n syntax.Node) {
+func (jsonEncodingAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
 	qual, name, ok := util.CallName(call)
 	lname := strings.ToLower(name)

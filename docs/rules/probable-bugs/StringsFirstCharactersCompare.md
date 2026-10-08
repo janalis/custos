@@ -6,7 +6,7 @@ title: StringsFirstCharactersCompare
 
 # StringsFirstCharactersCompare
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs) · PhpStorm name: `StringsFirstCharactersCompareInspection`
 

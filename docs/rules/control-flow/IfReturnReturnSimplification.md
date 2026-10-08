@@ -6,7 +6,7 @@ title: IfReturnReturnSimplification
 
 # IfReturnReturnSimplification
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Control flow](/rules/#control-flow) · PhpStorm name: `IfReturnReturnSimplificationInspection`
 

@@ -107,7 +107,7 @@ func (e *Env) maybeUndefined(sv *scopeVars, defs, fwd []varDef, v *syntax.Variab
 // x in an enclosing list, or a condition evaluated before x.
 func (e *Env) definitelyAssigned(x syntax.Node, name string, scope syntax.Node) bool {
 	scanned := 0
-	var child syntax.Node = x
+	child := x
 	for p := x.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
 		var stmts []syntax.Stmt
 		switch n := p.(type) {

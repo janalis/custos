@@ -6,7 +6,7 @@ title: DisconnectedForeachInstruction
 
 # DisconnectedForeachInstruction
 
-<Badge type="info" text="info" /> <Badge type="info" text="off by default" /> 
+<Badge type="info" text="info" /> <Badge type="info" text="off by default" />
 
 Group: [Control flow](/rules/#control-flow) · PhpStorm name: `DisconnectedForeachInstructionInspection`
 

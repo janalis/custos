@@ -6,7 +6,7 @@ title: NestedNotOperators
 
 # NestedNotOperators
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Code style](/rules/#code-style) · PhpStorm name: `NestedNotOperatorsInspection`
 

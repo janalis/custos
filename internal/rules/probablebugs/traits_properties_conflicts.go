@@ -116,9 +116,11 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 				if it.Var == nil || it.Var.Name == "" {
 					continue
 				}
-				own := &index.Property{Name: it.Var.Name, Visibility: tpcVisibility(m.Modifiers),
+				own := &index.Property{
+					Name: it.Var.Name, Visibility: tpcVisibility(m.Modifiers),
 					Static: m.Modifiers.Has(syntax.TStatic), Readonly: classReadonly || m.Modifiers.Has(syntax.TReadonly),
-					Type: typ, HasDefault: it.Default != nil}
+					Type: typ, HasDefault: it.Default != nil,
+				}
 				if it.Default != nil {
 					own.Default = ctx.Text(it.Default)
 				}
@@ -133,8 +135,10 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 					continue
 				}
 				// A promoted property never has a default value of its own.
-				reportOwn(p.Var, &index.Property{Name: p.Var.Name, Visibility: tpcVisibility(p.Modifiers),
-					Readonly: classReadonly || p.Modifiers.Has(syntax.TReadonly), Type: tpcTypeString(ctx, p.Type), Promoted: true}, len(p.Attrs) > 0)
+				reportOwn(p.Var, &index.Property{
+					Name: p.Var.Name, Visibility: tpcVisibility(p.Modifiers),
+					Readonly: classReadonly || p.Modifiers.Has(syntax.TReadonly), Type: tpcTypeString(ctx, p.Type), Promoted: true,
+				}, len(p.Attrs) > 0)
 			}
 		}
 	}

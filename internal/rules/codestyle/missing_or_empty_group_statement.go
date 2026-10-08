@@ -17,8 +17,10 @@ func init() { register(missingOrEmptyGroupStatement{}) }
 func (missingOrEmptyGroupStatement) ID() string { return "MissingOrEmptyGroupStatement" }
 
 func (missingOrEmptyGroupStatement) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KIf, syntax.KElseIf, syntax.KElse, syntax.KForeach,
-		syntax.KFor, syntax.KWhile, syntax.KDoWhile}
+	return []syntax.NodeKind{
+		syntax.KIf, syntax.KElseIf, syntax.KElse, syntax.KForeach,
+		syntax.KFor, syntax.KWhile, syntax.KDoWhile,
+	}
 }
 
 func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) {

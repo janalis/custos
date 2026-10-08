@@ -35,7 +35,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	out := fl.String("out", "internal/stubs/stubs.gob.gz", "output file")
 	rev := fl.String("rev", "", "stubs revision recorded in internal/stubs/VERSION")
 	if err := fl.Parse(args); err != nil {
-		if err == flag.ErrHelp {
+		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 2

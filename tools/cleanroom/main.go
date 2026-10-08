@@ -4,6 +4,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -31,7 +32,7 @@ func run(root string, args []string, stdout, stderr io.Writer) int {
 	fl.SetOutput(stderr)
 	ea := fl.String("ea", os.ExpandEnv("$HOME/Sites/phpinspectionsea"), "EA checkout")
 	if err := fl.Parse(args); err != nil {
-		if err == flag.ErrHelp {
+		if errors.Is(err, flag.ErrHelp) {
 			return 0
 		}
 		return 2

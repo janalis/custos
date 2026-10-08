@@ -148,7 +148,7 @@ func VarName(text string) string {
 		return ""
 	}
 	end := 1
-	for end < len(text) && (isIdent(text[end])) {
+	for end < len(text) && isIdent(text[end]) {
 		end++
 	}
 	return text[1:end]

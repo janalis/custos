@@ -90,7 +90,6 @@ func AnnotateReturns(f *syntax.File, fs *index.FileSymbols, base *index.Index, p
 			if m.Return != "" || m.DocReturn != "" || m.Abstract || m.Visibility == index.Private || m.Span == (syntax.Span{}) {
 				continue
 			}
-			m := m
 			todo = append(todo, target{m.Span, func(s string) { m.Inferred = s }})
 		}
 	}

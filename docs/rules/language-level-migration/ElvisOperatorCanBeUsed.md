@@ -6,7 +6,7 @@ title: ElvisOperatorCanBeUsed
 
 # ElvisOperatorCanBeUsed
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Language level migration](/rules/#language-level-migration) · PhpStorm name: `ElvisOperatorCanBeUsedInspection`
 

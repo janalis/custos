@@ -6,7 +6,7 @@ title: VariableFunctionsUsage
 
 # VariableFunctionsUsage
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Performance](/rules/#performance) · PhpStorm name: `VariableFunctionsUsageInspection`
 

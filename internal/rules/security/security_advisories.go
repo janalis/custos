@@ -233,8 +233,8 @@ func (p *jsonParser) value(depth int) (*jsonValue, bool) {
 		return nil, false
 	}
 	start := p.pos
-	switch c := p.src[p.pos]; {
-	case c == '{':
+	switch p.src[p.pos] {
+	case '{':
 		p.pos++
 		v := &jsonValue{kind: jsonObject}
 		p.ws()
@@ -276,7 +276,7 @@ func (p *jsonParser) value(depth int) (*jsonValue, bool) {
 			v.span = syntax.Span{Start: uint32(start), End: uint32(p.pos)}
 			return v, true
 		}
-	case c == '[':
+	case '[':
 		p.pos++
 		v := &jsonValue{kind: jsonArray}
 		p.ws()
@@ -306,7 +306,7 @@ func (p *jsonParser) value(depth int) (*jsonValue, bool) {
 			v.span = syntax.Span{Start: uint32(start), End: uint32(p.pos)}
 			return v, true
 		}
-	case c == '"':
+	case '"':
 		s, ok := p.str()
 		if !ok {
 			return nil, false
@@ -341,13 +341,12 @@ func (p *jsonParser) str() (string, bool) {
 	p.pos++
 	escaped := false
 	for p.pos < len(p.src) {
-		c := p.src[p.pos]
-		switch {
-		case c == '\\':
+		switch p.src[p.pos] {
+		case '\\':
 			escaped = true
 			p.pos += 2
 			continue
-		case c == '"':
+		case '"':
 			p.pos++
 			raw := string(p.src[start:p.pos])
 			if !escaped {

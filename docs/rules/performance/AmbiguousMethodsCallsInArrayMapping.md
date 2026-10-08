@@ -6,7 +6,7 @@ title: AmbiguousMethodsCallsInArrayMapping
 
 # AmbiguousMethodsCallsInArrayMapping
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
 
 Group: [Performance](/rules/#performance) · PhpStorm name: `AmbiguousMethodsCallsInArrayMappingInspection`
 

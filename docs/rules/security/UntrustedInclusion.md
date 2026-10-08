@@ -6,7 +6,7 @@ title: UntrustedInclusion
 
 # UntrustedInclusion
 
-<Badge type="danger" text="error" /> <Badge type="info" text="off by default" /> 
+<Badge type="danger" text="error" /> <Badge type="info" text="off by default" />
 
 Group: [Security](/rules/#security) · PhpStorm name: `UntrustedInclusionInspection`
 

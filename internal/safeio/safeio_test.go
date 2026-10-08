@@ -100,8 +100,8 @@ func TestSwappedPath(t *testing.T) {
 	}
 	write()
 	beforeOpen = func(path string) {
-		os.Remove(path)
-		os.Mkdir(path, 0o755)
+		_ = os.Remove(path)
+		_ = os.Mkdir(path, 0o755)
 	}
 	if _, err := ReadFile(p, 10); !errors.Is(err, ErrNotRegular) {
 		t.Fatalf("swapped for a directory: %v", err)
@@ -111,8 +111,8 @@ func TestSwappedPath(t *testing.T) {
 		t.Fatal(err)
 	}
 	beforeOpen = func(path string) {
-		os.Remove(path)
-		syscall.Mkfifo(path, 0o644)
+		_ = os.Remove(path)
+		_ = syscall.Mkfifo(path, 0o644)
 	}
 	done := make(chan error, 1)
 	go func() { _, err := ReadFile(q, 10); done <- err }()

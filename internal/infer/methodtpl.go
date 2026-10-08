@@ -50,7 +50,8 @@ func tplArg(args *syntax.ArgList, params []index.Param, i int) syntax.Expr {
 // cls bind the class templates of the declaring class (nil when unknown).
 // ok is false when the call must be typed as before.
 func (e *Env) tplReturn(ft *index.FuncTemplates, params []index.Param, args *syntax.ArgList, declared string,
-	classB tplBindings, cls *index.Class) (types.Type, bool) {
+	classB tplBindings, cls *index.Class,
+) (types.Type, bool) {
 	if ft == nil || ft.Return == "" {
 		return types.Unknown, false
 	}

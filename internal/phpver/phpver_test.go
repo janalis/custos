@@ -3,7 +3,7 @@ package phpver
 import "testing"
 
 func TestParse(t *testing.T) {
-	ok := map[string]Version{"": Default, " 8.3 ": PHP83, "5.3": PHP53, "8.5.1": PHP85, "7.4": PHP74}
+	ok := map[string]Version{"": Default, " 8.3 ": PHP83, "5.3": PHP53, "8.5.1": PHP85, "7.4": PHP74} //nolint:gocritic // " 8.3 ": surrounding spaces are trimmed
 	for s, want := range ok {
 		if v, err := Parse(s); err != nil || v != want {
 			t.Errorf("Parse(%q) = %v, %v; want %v", s, v, err, want)

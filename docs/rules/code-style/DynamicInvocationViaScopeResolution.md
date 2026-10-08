@@ -6,7 +6,7 @@ title: DynamicInvocationViaScopeResolution
 
 # DynamicInvocationViaScopeResolution
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Code style](/rules/#code-style) · PhpStorm name: `DynamicInvocationViaScopeResolutionInspection`
 

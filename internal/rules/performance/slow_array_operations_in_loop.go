@@ -51,7 +51,7 @@ func (slowArrayOperationsInLoop) checkMerge(ctx *analysis.Context, n *syntax.Fun
 		return
 	}
 	var loop syntax.Node // G5
-	for p := syntax.Node(start); p != nil && !syntax.IsFuncLike(p) && loop == nil; p = p.Parent() {
+	for p := start; p != nil && !syntax.IsFuncLike(p) && loop == nil; p = p.Parent() {
 		switch p.(type) {
 		case *syntax.Foreach, *syntax.For, *syntax.While, *syntax.DoWhile:
 			loop = p

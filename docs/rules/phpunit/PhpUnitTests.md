@@ -6,7 +6,7 @@ title: PhpUnitTests
 
 # PhpUnitTests
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [PHPUnit](/rules/#phpunit) · PhpStorm name: `PhpUnitTestsInspection`
 
@@ -19,6 +19,7 @@ counterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,
 → `->willReturn(…)`, …) and rewrites them.
 
 The rule has two independent halves:
+
 - **Part A** — docblock tags on methods (D1–D12).
 - **Part B** — method calls whose name starts with `assert`, or is `expects`
   or `will` (D13–D30).

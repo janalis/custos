@@ -6,11 +6,12 @@ title: AlterInForeach
 
 # AlterInForeach
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
 
 Group: [Performance](/rules/#performance) · PhpStorm name: `AlterInForeachInspection`
 
 Three related `foreach` value-variable pitfalls:
+
 1. a by-reference value (`as &$v`) that stays alive after the loop, so a later
    write to `$v` silently modifies the last array element;
 2. an `unset($v)` right after a loop whose `$v` was *not* a reference (the

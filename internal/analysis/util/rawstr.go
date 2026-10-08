@@ -12,7 +12,7 @@ func QuotedStringRaw(n syntax.Node) (content string, quote byte, ok bool) {
 		return "", 0, false
 	}
 	raw := lit.Raw
-	if len(raw) > 0 && (raw[0] == 'b' || raw[0] == 'B') {
+	if raw != "" && (raw[0] == 'b' || raw[0] == 'B') {
 		raw = raw[1:]
 	}
 	if len(raw) < 2 || (raw[0] != '\'' && raw[0] != '"') || raw[len(raw)-1] != raw[0] {

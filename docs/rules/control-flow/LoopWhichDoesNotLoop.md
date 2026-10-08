@@ -6,7 +6,7 @@ title: LoopWhichDoesNotLoop
 
 # LoopWhichDoesNotLoop
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
 
 Group: [Control flow](/rules/#control-flow) · PhpStorm name: `LoopWhichDoesNotLoopInspection`
 

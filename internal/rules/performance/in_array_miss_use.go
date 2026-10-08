@@ -1,12 +1,11 @@
 package performance
 
 import (
-	"custos/internal/phpver"
-
 	"regexp"
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
+	"custos/internal/phpver"
 	"custos/internal/syntax"
 )
 

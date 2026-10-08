@@ -570,8 +570,10 @@ func toDiagnostic(lines *syntax.LineIndex, f analysis.Finding) diagnostic {
 	case meta.SeverityWarning:
 		sev = 2
 	}
-	return diagnostic{Range: toRange(lines, f.Span), Severity: sev, Code: f.Rule, Source: "custos", Message: f.Message,
-		Data: &diagData{Rule: f.Rule, Start: f.Span.Start, End: f.Span.End}}
+	return diagnostic{
+		Range: toRange(lines, f.Span), Severity: sev, Code: f.Rule, Source: "custos", Message: f.Message,
+		Data: &diagData{Rule: f.Rule, Start: f.Span.Start, End: f.Span.End},
+	}
 }
 
 // ---- code actions ---------------------------------------------------------------------

@@ -87,8 +87,10 @@ func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 		if m == nil || len(m.Asserts) == 0 || e.userDoc(m.Builtin) {
 			return nil
 		}
-		return &callAsserts{asserts: m.Asserts, params: m.Params, ft: m.Tpl, cls: e.Index.Class(m.Class, e.PHP),
-			args: n.Args, recv: n.Var, origin: origin, recvArgs: recv.TypeArgs(`\` + origin)}
+		return &callAsserts{
+			asserts: m.Asserts, params: m.Params, ft: m.Tpl, cls: e.Index.Class(m.Class, e.PHP),
+			args: n.Args, recv: n.Var, origin: origin, recvArgs: recv.TypeArgs(`\` + origin),
+		}
 	}
 	n := x.(*syntax.StaticCall) // assertsOf admits only the three call kinds
 	id, ok := n.Name.(*syntax.Identifier)

@@ -6,11 +6,12 @@ title: InArrayMissUse
 
 # InArrayMissUse
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Performance](/rules/#performance) · PhpStorm name: `InArrayMissUseInspection`
 
 Two wasteful `in_array()` shapes:
+
 - searching the keys list built by `array_keys($a)` — a direct key lookup
   (`array_key_exists`) avoids building the list;
 - searching a one-element array literal — that is just a comparison with the

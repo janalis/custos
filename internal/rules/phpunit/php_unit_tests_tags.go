@@ -17,7 +17,7 @@ const (
 )
 
 // putDocToken returns the doc comment token attached to a declaration.
-func putDocToken(f *syntax.File, n syntax.Node, name syntax.Node) (syntax.Token, bool) {
+func putDocToken(f *syntax.File, n, name syntax.Node) (syntax.Token, bool) {
 	i := util.TokenIndex(f, n.Span().Start)
 	for j := i - 1; j >= 0; j-- {
 		t := f.Tokens[j]

@@ -6,7 +6,7 @@ title: MockingMethodsCorrectness
 
 # MockingMethodsCorrectness
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [PHPUnit](/rules/#phpunit) · PhpStorm name: `MockingMethodsCorrectnessInspection`
 

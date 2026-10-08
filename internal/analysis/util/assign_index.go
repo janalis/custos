@@ -31,8 +31,10 @@ func assignsUnder(f *syntax.File, root syntax.Node) *assignIndex {
 }
 
 func buildAssignIndex(f *syntax.File, root syntax.Node) *assignIndex {
-	ix := &assignIndex{byVar: map[string][]*syntax.Assign{}, unstable: map[string]bool{}, byRefUse: map[string]bool{},
-		byKind: map[syntax.NodeKind][]*syntax.Assign{}, propByText: map[string][]*syntax.Assign{}}
+	ix := &assignIndex{
+		byVar: map[string][]*syntax.Assign{}, unstable: map[string]bool{}, byRefUse: map[string]bool{},
+		byKind: map[syntax.NodeKind][]*syntax.Assign{}, propByText: map[string][]*syntax.Assign{},
+	}
 	simple := func(e syntax.Expr) (string, bool) {
 		v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
 		if !ok || v.NameExpr != nil {

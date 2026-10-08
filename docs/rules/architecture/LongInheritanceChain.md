@@ -6,7 +6,7 @@ title: LongInheritanceChain
 
 # LongInheritanceChain
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> 
+<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
 
 Group: [Architecture](/rules/#architecture) · PhpStorm name: `LongInheritanceChainInspection`
 

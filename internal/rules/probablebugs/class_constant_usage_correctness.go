@@ -1,10 +1,10 @@
 package probablebugs
 
 import (
-	"custos/internal/analysis/util"
 	"strings"
 
 	"custos/internal/analysis"
+	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 

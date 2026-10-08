@@ -6,11 +6,12 @@ title: ForeachInvariants
 
 # ForeachInvariants
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Control flow](/rules/#control-flow) · PhpStorm name: `ForeachInvariantsInspection`
 
 Two loop shapes that are really array iterations in disguise:
+
 1. a counter-based `for` that walks `0 … count($a)` and reads `$a[$i]`;
 2. a `while (list($k, $v) = each($a))` loop (`each()` is slow, deprecated in
    PHP 7.2 and removed in PHP 8).

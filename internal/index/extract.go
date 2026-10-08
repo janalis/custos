@@ -287,9 +287,11 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 		case *syntax.Property:
 			d := x.doc(m)
 			for _, p := range m.Props {
-				prop := &Property{Name: p.Var.Name, Class: fqn, Visibility: visibility(m.Modifiers), Static: m.Modifiers.Has(syntax.TStatic),
+				prop := &Property{
+					Name: p.Var.Name, Class: fqn, Visibility: visibility(m.Modifiers), Static: m.Modifiers.Has(syntax.TStatic),
 					Readonly: m.Modifiers.Has(syntax.TReadonly) || c.Readonly, Type: x.typeStr(m.Type, at), HasDefault: p.Default != nil,
-					Default: x.text(p.Default), Span: p.Span()}
+					Default: x.text(p.Default), Span: p.Span(),
+				}
 				if d != nil {
 					prop.DocType = x.docTypeStr(d.VarType(p.Var.Name), at)
 				}
@@ -297,8 +299,10 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 			}
 		case *syntax.ClassConst:
 			for _, k := range m.Consts {
-				c.Consts[k.Name.Value] = &ClassConst{Name: k.Name.Value, Class: fqn, Visibility: visibility(m.Modifiers),
-					Final: m.Modifiers.Has(syntax.TFinal), Value: x.text(k.Value), Span: k.Span()}
+				c.Consts[k.Name.Value] = &ClassConst{
+					Name: k.Name.Value, Class: fqn, Visibility: visibility(m.Modifiers),
+					Final: m.Modifiers.Has(syntax.TFinal), Value: x.text(k.Value), Span: k.Span(),
+				}
 			}
 		case *syntax.EnumCase:
 			c.Consts[m.Name.Value] = &ClassConst{Name: m.Name.Value, Class: fqn, Case: true, Value: x.text(m.Value), Span: m.Span()}
@@ -726,9 +730,11 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 			}
 			// The constructor's `@param Foo[] $items` documents the
 			// promoted property too (as PhpStorm and PHPStan read it).
-			c.Props[p.Var.Name] = &Property{Name: p.Var.Name, Class: c.FQN, Visibility: visibility(p.Modifiers),
+			c.Props[p.Var.Name] = &Property{
+				Name: p.Var.Name, Class: c.FQN, Visibility: visibility(p.Modifiers),
 				Readonly: p.Modifiers.Has(syntax.TReadonly) || c.Readonly, Type: x.typeStr(p.Type, at), Promoted: true,
-				DocType: meth.Params[i].DocType, HasDefault: p.Default != nil, Default: x.text(p.Default), Span: p.Span()}
+				DocType: meth.Params[i].DocType, HasDefault: p.Default != nil, Default: x.text(p.Default), Span: p.Span(),
+			}
 		}
 	}
 }
@@ -756,8 +762,10 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 	if ns != "" {
 		fqn = ns + `\` + fqn
 	}
-	fn := &Function{FQN: fqn, Params: x.params(n.Params, d, at), ByRef: n.ByRef,
-		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d), CSPRNG: callsCSPRNG(n.Body)}
+	fn := &Function{
+		FQN: fqn, Params: x.params(n.Params, d, at), ByRef: n.ByRef,
+		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d), CSPRNG: callsCSPRNG(n.Body),
+	}
 	fn.Return, fn.RetVer = x.returnType(n.ReturnType, n.Attrs, at)
 	if d != nil {
 		fn.DocReturn = voidDoc(x.docTypeStr(d.ReturnType(), at), n.Body)

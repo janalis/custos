@@ -295,10 +295,10 @@ func sboConstants(ctx *analysis.Context, b *syntax.Binary) bool {
 		}
 		v := strings.ToLower(strings.TrimPrefix(c.Name.Value, `\`))
 		var decides bool
-		switch {
-		case v == "true":
+		switch v {
+		case "true":
 			decides = !and
-		case v == "false" || v == "null":
+		case "false", "null":
 			decides = and
 		default:
 			continue

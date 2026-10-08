@@ -32,8 +32,13 @@ namespace { $y = 1; }
 		at   uint32
 		want string
 	}{
-		{"max", ns, `\max`}, {"sum", ns, `\sum`}, {"min", ns, "min"}, {"Lib\\fmt", ns, `\Lib\fmt`},
-		{"Util\\fmt", ns, `\Util\fmt`}, {"\\Util\\fmt", ns, `\Util\fmt`}, {"Util\\fmt", global, `Util\fmt`},
+		{"max", ns, `\max`},
+		{"sum", ns, `\sum`},
+		{"min", ns, "min"},
+		{"Lib\\fmt", ns, `\Lib\fmt`},
+		{"Util\\fmt", ns, `\Util\fmt`},
+		{"\\Util\\fmt", ns, `\Util\fmt`},
+		{"Util\\fmt", global, `Util\fmt`},
 	}
 	for _, c := range fn {
 		if got := StringCallableFunction(ctx, c.in, c.at); got != c.want {
