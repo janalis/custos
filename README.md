@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/janalis/custos/actions/workflows/ci.yml"><img src="https://github.com/janalis/custos/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://janalis.github.io/custos/"><img src="https://github.com/janalis/custos/actions/workflows/docs.yml/badge.svg" alt="Docs"></a>
-  <a href="https://github.com/janalis/custos/releases"><img src="https://img.shields.io/github/v/release/janalis/custos" alt="Latest release"></a>
+  <a href="https://github.com/janalis/custos/releases"><img src="https://img.shields.io/github/v/release/janalis/custos?sort=semver" alt="Latest release"></a>
   <a href="https://packagist.org/packages/janalis/custos"><img src="https://img.shields.io/packagist/v/janalis/custos" alt="Packagist"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/janalis/custos" alt="MIT license"></a>
 </p>
