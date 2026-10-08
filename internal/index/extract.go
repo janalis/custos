@@ -343,7 +343,7 @@ func (x *extractor) magicMembers(c *Class, d *phpdoc.Doc, at uint32) {
 		}
 		key := strings.ToLower(name)
 		if _, exists := c.Methods[key]; !exists {
-			c.Methods[key] = &Method{Name: name, Class: c.FQN, Static: static, DocReturn: x.docTypeStr(ret, at)}
+			c.Methods[key] = &Method{Name: name, Class: c.FQN, Static: static, DocReturn: x.docTypeStr(ret, at), Magic: true}
 		}
 	}
 }

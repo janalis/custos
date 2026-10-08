@@ -127,10 +127,13 @@ type Method struct {
 	// and that promotes no constructor parameter (`public function
 	// __construct() {}`): calling it does nothing. Never set for builtins
 	// (stub bodies are empty placeholders).
-	EmptyBody bool        `json:"empty,omitempty"`
-	Builtin   bool        `json:"-"` // a stub declaration (see Function.Builtin)
-	Avail     Avail       `json:"a,omitempty"`
-	Span      syntax.Span `json:"-"`
+	EmptyBody bool `json:"empty,omitempty"`
+	// Magic marks a method declared only by a class `@method` tag: a real
+	// declaration in the class or its ancestors wins over it (FindMethod).
+	Magic   bool        `json:"magic,omitempty"`
+	Builtin bool        `json:"-"` // a stub declaration (see Function.Builtin)
+	Avail   Avail       `json:"a,omitempty"`
+	Span    syntax.Span `json:"-"`
 }
 
 // Property is a class property (declared, promoted or @property).

@@ -310,6 +310,12 @@ func (r *TRules) declaredAndDoc(declared, doc string, builtin bool) types.Type {
 	if r.Env.userDoc(builtin) {
 		return types.FromDoc(declared, nil)
 	}
+	if builtin && declared != "" {
+		// The version-resolved signature is authoritative; the stub doc
+		// only refines it (see builtinMemberType).
+		d := types.FromDoc(declared, nil)
+		return KnownUnion(d, refining(d, types.FromDoc(doc, nil)))
+	}
 	return DeclaredAndDoc(declared, doc)
 }
 

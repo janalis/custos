@@ -398,10 +398,21 @@ func (ix *Index) IsSubtype(child, parent string, ver phpver.Version) bool {
 // interfaces. Returns nil when not found.
 func (ix *Index) FindMethod(class, name string, ver phpver.Version) *Method {
 	lname := strings.ToLower(name)
+	var magic *Method
 	for _, c := range ix.Ancestors(class, ver) {
 		if m, ok := c.Methods[lname]; ok && (ver == 0 || m.Avail.In(ver)) {
-			return m.at(ver)
+			if !m.Magic {
+				return m.at(ver)
+			}
+			if magic == nil {
+				magic = m
+			}
 		}
+	}
+	// A `@method` tag only describes what no real declaration provides
+	// (`@method static foo()` on a child must not hide the parent's foo()).
+	if magic != nil {
+		return magic.at(ver)
 	}
 	return nil
 }

@@ -1,6 +1,9 @@
 package infer
 
 import (
+	"cmp"
+	"slices"
+
 	"custos/internal/syntax"
 )
 
@@ -30,6 +33,13 @@ func (e *Env) reaching(defs []varDef, use, scope syntax.Node) (fwd, back []varDe
 				fwd = fwd[:0]
 				lastKill = d.pos
 			}
+			continue
+		}
+		if d.doc && len(fwd) > 0 && !(i+1 < len(defs) && !defs[i+1].doc && defs[i+1].w == nil && defs[i+1].pos <= pos &&
+			!e.semicolonBetween(d.docEnd, defs[i+1].pos)) && !e.docFits(d, fwd) {
+			// A standalone `/** @var T $x */` contradicting what $x holds
+			// (`@var Widget $class` on a class-name string) is a hint about
+			// something else: the definitions keep their type.
 			continue
 		}
 		if d.doc || (d.kill.Len() > 0 && d.kill.Start <= pos && pos < d.kill.End) {
@@ -68,7 +78,16 @@ func (e *Env) reaching(defs []varDef, use, scope syntax.Node) (fwd, back []varDe
 		}
 	}
 	fwd = dropOtherCases(fwd, use, scope)
-	if len(fwd) == 0 {
+	fwd = dropExclusive(fwd, use, scope)
+	fwd, via, loops := e.dropExited(fwd, use, scope, false)
+	// Definitions followed by continue come back through their loop's
+	// head, unless a definition after that head hides them.
+	for i, d := range via {
+		if lastKill < loops[i] {
+			back = append(back, d)
+		}
+	}
+	if len(fwd) == 0 && len(back) == 0 {
 		return nil, nil, 0
 	}
 	// Inside a loop, definitions later in the loop reach the use through
@@ -82,6 +101,7 @@ func (e *Env) reaching(defs []varDef, use, scope syntax.Node) (fwd, back []varDe
 				back = append(back, d)
 			}
 		}
+		back, _, _ = e.dropExited(back, use, scope, true)
 	}
 	return fwd, back, from
 }
@@ -218,6 +238,9 @@ func dropOtherCases(fwd []varDef, use, scope syntax.Node) []varDef {
 			continue
 		}
 		sw := c.Parent().(*syntax.Switch)
+		if inLoop(sw, scope) {
+			continue // the next iteration enters any case again
+		}
 		j := nodeIndex(sw.Cases, c)
 		last := -1 // last case before j that leaves the switch
 		for k := j - 1; k >= 0 && k >= j-maxBranchScan; k-- {
@@ -260,4 +283,318 @@ func caseExits(c *syntax.Case) bool {
 		return false
 	}
 	return terminates(s)
+}
+
+// dropExclusive removes from fwd the definitions made in a branch that
+// excludes the one holding use (`if (is_int($c)) { $c = []; } else {
+// use($c); }`): another if/elseif/else body, the other ternary branch,
+// another match arm. Only for branchings outside every loop around use:
+// inside a loop the other branch runs on an earlier iteration.
+func dropExclusive(fwd []varDef, use, scope syntax.Node) []varDef {
+	var excl []syntax.Span
+	var child syntax.Node = use
+	for p := use.Parent(); p != nil && p != scope && len(fwd) > 0; child, p = p, p.Parent() {
+		switch n := p.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+			excl = excl[:0] // branchings below a loop do not exclude
+		case *syntax.If:
+			if child == syntax.Node(n.Cond) {
+				continue
+			}
+			add := func(b syntax.Node) {
+				if b != nil && b != child {
+					excl = append(excl, b.Span())
+				}
+			}
+			if len(n.ElseIfs) >= maxBranchScan {
+				continue // hostile chains: keep the definitions (sound)
+			}
+			add(n.Body)
+			for _, ei := range n.ElseIfs {
+				add(ei.Body)
+			}
+			if n.Else != nil {
+				add(n.Else)
+			}
+		case *syntax.Ternary:
+			switch {
+			case n.Then != nil && child == syntax.Node(n.Then):
+				excl = append(excl, n.Else.Span())
+			case n.Then != nil && child == syntax.Node(n.Else):
+				excl = append(excl, n.Then.Span())
+			}
+		case *syntax.MatchArm:
+			if m := n.Parent().(*syntax.Match); child == syntax.Node(n.Body) && len(m.Arms) <= maxBranchScan {
+				for _, a := range m.Arms {
+					if a != n {
+						excl = append(excl, a.Body.Span())
+					}
+				}
+			}
+		}
+	}
+	if len(excl) == 0 {
+		return fwd
+	}
+	kept := fwd[:0]
+	for _, d := range fwd {
+		in := false
+		for _, sp := range excl {
+			if d.pos >= sp.Start && d.pos < sp.End {
+				in = true
+				break
+			}
+		}
+		if !in {
+			kept = append(kept, d)
+		}
+	}
+	return kept
+}
+
+// exitRegion is a statement list prefix that always ends by leaving: from
+// the list's start to the end of its first statement that always exits
+// (return, throw, exit; a break or an if/else whose branches all exit).
+// A definition inside it reaches no read outside it within limit (the
+// function, or the loop/switch a break leaves).
+type exitRegion struct {
+	span, limit syntax.Span
+	list        syntax.Span // the whole statement list (code after the exit is dead)
+	kind        int         // exitContinue, exitBreak or exitFunc
+	parent      int         // index of the innermost enclosing region, -1 when none
+}
+
+const (
+	exitNone = iota
+	exitContinue
+	exitBreak
+	exitFunc
+)
+
+// exitKind classifies a statement that always leaves: exitFunc (return,
+// throw, exit), exitBreak (a plain break, or a mix with exitFunc).
+func exitKind(s syntax.Stmt) int {
+	switch n := s.(type) {
+	case *syntax.Return:
+		return exitFunc
+	case *syntax.Break:
+		if n.Num == nil {
+			return exitBreak
+		}
+	case *syntax.Continue:
+		if n.Num == nil {
+			return exitContinue
+		}
+	case *syntax.ExprStmt:
+		switch n.Expr.(type) {
+		case *syntax.Exit, *syntax.Throw:
+			return exitFunc
+		}
+	case *syntax.Block:
+		for _, st := range n.Stmts {
+			if k := exitKind(st); k != exitNone || jumps(st) {
+				return k
+			}
+		}
+	case *syntax.If:
+		if n.Else == nil {
+			return exitNone
+		}
+		k := exitKind(n.Body)
+		for _, ei := range n.ElseIfs {
+			k = min(k, exitKind(ei.Body))
+		}
+		return min(k, exitKind(n.Else.Body))
+	}
+	return exitNone
+}
+
+// jumps reports a statement that leaves to another point of the function
+// (goto, a multi-level break or continue): what follows it in its list is
+// unreachable, but definitions before it still reach code elsewhere.
+func jumps(s syntax.Stmt) bool {
+	switch n := s.(type) {
+	case *syntax.Goto:
+		return true
+	case *syntax.Break:
+		return n.Num != nil
+	case *syntax.Continue:
+		return n.Num != nil
+	}
+	return false
+}
+
+// exitRegions returns the exit regions of scope, sorted by start (outer
+// first among equal starts), each with its parent region.
+func (e *Env) exitRegions(scope syntax.Node) []exitRegion {
+	sv := e.scopeVars(scope)
+	if sv.exitsDone {
+		return sv.exits
+	}
+	sv.exitsDone = true
+	whole := syntax.Span{Start: 0, End: uint32(len(e.File.Src))}
+	if scope != nil {
+		whole = scope.Span()
+	}
+	var out []exitRegion
+	list := func(ls syntax.Span, stmts []syntax.Stmt) {
+		start := ls.Start
+		for _, st := range stmts {
+			k := exitKind(st)
+			if jumps(st) {
+				return // the rest of the list never runs
+			}
+			if k == exitNone {
+				continue
+			}
+			limit := whole
+			for p := st.Parent(); p != nil && p != scope; p = p.Parent() {
+				switch p.(type) {
+				case *syntax.Try:
+					return // catch/finally may resume: no region
+				case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile, *syntax.Switch:
+					if k == exitContinue && limit == whole {
+						if _, sw := p.(*syntax.Switch); sw {
+							k = exitBreak // continue in a switch acts as break
+						} else {
+							limit = p.Span() // later iterations: see dropExited
+							continue
+						}
+					}
+					if k != exitBreak {
+						break
+					}
+					if limit != whole {
+						// A loop around the construct the break leaves
+						// comes back to it: no region.
+						if _, sw := p.(*syntax.Switch); !sw {
+							return
+						}
+						break
+					}
+					limit = p.Span()
+				}
+			}
+			out = append(out, exitRegion{span: syntax.Span{Start: start, End: st.Span().End}, limit: limit, list: ls, parent: -1, kind: k})
+			return
+		}
+	}
+	visit := func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.Method, *syntax.ClassLike:
+			return false
+		case *syntax.Block:
+			list(n.Span(), n.Stmts)
+		case *syntax.Case:
+			list(n.Span(), n.Stmts)
+		}
+		return true
+	}
+	if scope == nil {
+		list(whole, e.File.Stmts)
+		for _, st := range e.File.Stmts {
+			syntax.Inspect(st, visit)
+		}
+	} else if body := syntax.FuncLikeBody(scope); body != nil {
+		syntax.Inspect(body, visit)
+	}
+	// Statement lists start at distinct positions (their `{` or `case`).
+	slices.SortFunc(out, func(a, b exitRegion) int { return cmp.Compare(a.span.Start, b.span.Start) })
+	// Regions nest or are disjoint: a stack sweep finds each parent.
+	var stack []int
+	for i := range out {
+		for len(stack) > 0 && out[stack[len(stack)-1]].span.End <= out[i].span.Start {
+			stack = stack[:len(stack)-1]
+		}
+		if len(stack) > 0 {
+			out[i].parent = stack[len(stack)-1]
+		}
+		stack = append(stack, i)
+	}
+	sv.exits = out
+	return out
+}
+
+// dropExited removes from defs those that cannot reach use because every
+// path from them leaves first (`$x = 5; if ($c) { $x = 'a'; return; }
+// use($x)`: only 5 reaches): the innermost exit region holding the
+// definition must not hold use, use being within its limit (else the
+// enclosing regions are tried). A definition followed by continue reaches
+// the reads of its loop only through the loop's head: for forward
+// definitions (back false) it is returned in via with that loop's start,
+// for the caller to treat as a back-edge definition; back-edge definitions
+// (back true) are kept.
+func (e *Env) dropExited(defs []varDef, use, scope syntax.Node, back bool) (kept, via []varDef, loops []uint32) {
+	if len(defs) == 0 {
+		return defs, nil, nil
+	}
+	rs := e.exitRegions(scope)
+	if len(rs) == 0 {
+		return defs, nil, nil
+	}
+	at := use.Span().Start
+	in := func(sp syntax.Span, p uint32) bool { return p >= sp.Start && p < sp.End }
+	kept = defs[:0]
+	for _, d := range defs {
+		i, _ := slices.BinarySearchFunc(rs, d.pos, func(r exitRegion, p uint32) int {
+			if r.span.Start <= p {
+				return -1
+			}
+			return 1
+		})
+		i-- // last region starting at or before d
+		for i >= 0 && !in(rs[i].span, d.pos) {
+			i = rs[i].parent
+		}
+		dead := false
+		for ; i >= 0; i = rs[i].parent {
+			if in(rs[i].list, at) {
+				break // before the exit, or dead code after it
+			}
+			if in(rs[i].limit, at) {
+				switch {
+				case rs[i].kind != exitContinue:
+					dead = true
+				case !back:
+					dead = true
+					via, loops = append(via, d), append(loops, rs[i].limit.Start)
+				}
+				break
+			}
+		}
+		if !dead {
+			kept = append(kept, d)
+		}
+	}
+	return kept, via, loops
+}
+
+// inLoop reports whether a loop of scope encloses n.
+func inLoop(n, scope syntax.Node) bool {
+	for p := n.Parent(); p != nil && p != scope; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+			return true
+		}
+	}
+	return false
+}
+
+// docFits reports whether inline annotation d may override the
+// definitions fwd reaching it. It may, except in the class-name idiom: a
+// standalone `/** @var Widget $class */` over a variable holding strings
+// (a class name used for `$class::widget()`) describes the class, not the
+// value, so the strings stay (PhpStorm uses such hints for completion;
+// typing the string as an instance would be wrong).
+func (e *Env) docFits(d varDef, fwd []varDef) bool {
+	dt := d.typ()
+	if dt.IsUnknown() || len(dt.Classes()) != len(dt.Atoms()) {
+		return true
+	}
+	for _, f := range fwd {
+		if ft := f.typ(); f.w != nil || !ft.OnlyOf("string") {
+			return true
+		}
+	}
+	return false
 }

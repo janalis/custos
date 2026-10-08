@@ -33,6 +33,19 @@ func narrowKey(x syntax.Expr) string {
 				return "this->" + id.Value
 			}
 		}
+	case *syntax.StaticPropertyFetch:
+		// `self::$p`, `static::$p` (the same property in practice) and
+		// `Name::$p`, by the class as written.
+		nm, ok := n.Class.(*syntax.Name)
+		v, ok2 := n.Name.(*syntax.Variable)
+		if !ok || !ok2 || v.NameExpr != nil || v.Name == "" {
+			return ""
+		}
+		cls := strings.ToLower(strings.TrimPrefix(nm.Value, `\`))
+		if cls == "static" {
+			cls = "self"
+		}
+		return cls + "::" + v.Name
 	case *syntax.ArrayDimFetch:
 		if n.Dim == nil {
 			return ""
@@ -47,6 +60,10 @@ func narrowKey(x syntax.Expr) string {
 	}
 	return ""
 }
+
+// isPropKey reports the narrowing key of a property (`$this->p`, a static
+// property): any non-builtin call may change it.
+func isPropKey(k string) bool { return strings.HasPrefix(k, "this->") || strings.Contains(k, "::") }
 
 // dimSep separates the base and the key of an element's narrowing key.
 const dimSep = "\x01"
@@ -319,7 +336,7 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 	// scanned below assigns name (or, for an element key, its array or an
 	// element of it): gi.resets records every such top-level assignment.
 	from := gi.lastReset(name, end)
-	if from > 0 && strings.HasPrefix(name, "this->") && !isDimKey(name) {
+	if from > 0 && isPropKey(name) && !isDimKey(name) {
 		t = e.afterPropertyWrite(use, scope, t, stmts[from-1], name)
 	}
 	lo, _ := slices.BinarySearch(cands, from)
@@ -340,7 +357,7 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 			if terminates(g.Body) {
 				t = e.condAt(use, scope, t, g.Cond, name, false, g.Span().End)
 			} else if val := e.overwrites(g.Body, name); val != nil && !(isDimKey(name) && e.dimBroken(scope, name, g.Span().End, use)) &&
-				!(strings.HasPrefix(name, "this->") && e.nonEmptyBroken(scope, name, g.Span().End, use)) {
+				!(isPropKey(name) && e.nonEmptyBroken(scope, name, g.Span().End, use)) {
 				// `if (false === $x) { $x = $default; }`: past the if, the
 				// condition no longer holds (unless the new value matches it).
 				vt := e.TypeOf(val)
@@ -436,7 +453,7 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 				switch n := n.(type) {
 				case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
 					return false
-				case *syntax.Variable, *syntax.PropertyFetch, *syntax.ArrayDimFetch:
+				case *syntax.Variable, *syntax.PropertyFetch, *syntax.ArrayDimFetch, *syntax.StaticPropertyFetch:
 					add(narrowKey(n.(syntax.Expr)))
 				case *syntax.MethodCall:
 					if narrowKey(syntax.UnwrapParens(n.Var)) == "this" {

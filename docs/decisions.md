@@ -384,7 +384,7 @@ ReturnTypeCanBeDeclared `?array` where both branches of a final if/else
 return (wider but safe, spec heuristic); MissingIssetImplementation's
 remaining DOM/legacy cases and laminas-db `getMockForAbstractClass()` on
 concrete classes (ClassMockingCorrectness, per spec).
-Engine-level causes found by the review (reported, not fixed here):
+Engine-level causes found by the review (since fixed, Engine section "Review round 3 engine causes"):
 *do-while back edge* — `do { $all[] = $e; } while ($e = $e->getPrevious());`
 with `\Exception $e`: element type expected `\Exception|\Throwable`, actual
 includes null (GetClassUsage, Magento ExceptionHandler); *`array_pop()`
@@ -1073,6 +1073,74 @@ rejected) is fixed; see the close-tag note above.
   - *Cost:* infer benchmarks within ±2 % allocations, +3 % bytes (the
     pointer field); corpus A vendor `analyse --all` user time unchanged
     (12 alternating runs, medians 5.9 s / 6.0 s on a loaded machine).
+- **Review round 3 engine causes (2026-10-08):** the seven engine
+  requests of the Magento/Joomla/CakePHP/Yii2/Laminas/Craft review.
+  - *Loop back edges:* a back-edge definition sitting in a do-while
+    condition, or in a for step/condition, is narrowed by the loop
+    condition being true (`loopCondNarrow`): `do { $all[] = $e; } while ($e
+    = $e->getPrevious());` gives `\Exception|\Throwable` in the body.
+    A for step (`for (…; $r !== null; $r = next())`) written before the
+    body in the source is treated as a back edge for body reads (it no
+    longer suppresses the loop condition's narrowing).
+  - *Static properties* (`self::$p`, `static::$p` (same key), `Name::$p`)
+    have narrowing keys and narrow like `$this->p`: conditions, early-exit
+    guards, `!empty()` non-emptiness (so `array_pop(self::$stack)` loses
+    null), non-null after a write; any non-builtin call or write breaks
+    the facts the way it does for `$this->p` (guards survive calls, as for
+    `$this->p`).
+  - *Inline `@var` class-name idiom:* a standalone `/** @var Widget $class
+    */` (not attached to an assignment of `$class`) whose type is classes
+    only, over a variable whose reaching definitions are all strings, is
+    ignored: it describes the class a class-name string names (PhpStorm
+    completion for `$class::widget()`), not the value. Other standalone
+    hints keep overriding (`/** @var string $n */` after `$n = 1`), and
+    declarations of otherwise undefined variables still apply.
+  - *Exclusive branches:* definitions in another if/elseif/else body, the
+    other ternary branch or another match arm no longer reach a read
+    (`dropExclusive`), when no loop encloses the branching (a later
+    iteration may run the other branch); so `if (is_int($c)) { $c = []; }
+    else { … }` narrows `$c` to array in the else branch. Chains of more
+    than `maxBranchScan` branches are not split (sound).
+  - *Exits in reaching definitions:* per scope, each statement list's
+    prefix up to its first always-leaving statement (return, throw, exit;
+    break; continue; an if/else whose branches all leave) is an exit region
+    (`exitRegions`, nested regions linked to their parent). A definition in
+    a region reaches no read outside the region's statement list within
+    the region's limit: the function for return/throw/exit, the loop or
+    switch a break leaves (no region when a loop encloses that construct,
+    or when a try encloses the statement: catch/finally resume). Code
+    after the exit in the same list is dead and keeps its definitions.
+    After continue, a definition reaches the reads of its loop only through
+    the loop head: it joins the back-edge definitions unless a definition
+    inside the loop precedes the read; a continue in a switch acts as
+    break. Goto and multi-level break/continue end the scan of a list
+    (no region). The dropped-case rule for switches (`dropOtherCases`) now
+    also stands back inside loops. Probe `TestExitRegionsBounded` (20k
+    guarded returns and if/else pairs: 0.2 s).
+  - *Builtin docs never widen:* a builtin's version-resolved native return
+    is authoritative; the stub doc only refines its members
+    (`builtinMemberType`/`refining`: `string[]` for `array`, a class for
+    `object`), in the engine and in the T-rules typer: `substr()` and
+    `date()` at 8.x are `string`, `str_split()` `string[]`, `fgetcsv()`
+    `array|false`.
+  - *`@method` tags:* stored with `Method.Magic`; `Index.FindMethod`
+    returns a real declaration from the class or any ancestor before a tag
+    (Craft's `@method static ActiveQuery hasOne()` no longer hides Yii's
+    instance `hasOne()`); `@method static` keeps the static flag.
+  - *Deltas* (old = HEAD 2b80eec, default / `--all`): corpus A src −1 / −1,
+    Symfony −1 / −1, corpus B 0 / −1, corpus C −1 / −2. Removed: 9
+    CallableParameterUseCaseInTypeContext "type bool" on `substr()`/`date()`
+    results at 8.x (true removals: no false since 8.0), 1 NullPointerException
+    on corpus B `self::$inflector ??= …; $inflector = self::$inflector;`
+    (static property non-null after the write; true removal). Added: 3
+    UnnecessaryCasting in symfony/polyfill-mbstring `(string) substr(…)`
+    (redundant at the configured 8.4 target, which the polyfill does not
+    run on), 2 UnnecessaryCasting `(int) max(0, $a - $b)` with native ints
+    (true positives), 1 ReturnTypeCanBeDeclared `: QueryBuilder` on corpus C
+    `addSearch()` (every return is the QueryBuilder parameter or a
+    `@return static` call on it; true positive).
+  - *Cost:* corpus A vendor `analyse --all` unchanged (10 alternating runs,
+    medians 1.17 s / 1.16 s real); infer benchmarks within 1 % allocations.
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.

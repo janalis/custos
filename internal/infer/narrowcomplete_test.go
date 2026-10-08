@@ -377,7 +377,7 @@ function f(string|int|null $d, $c) {
 `, map[string]string{
 		"afterBreak":  "int|null|string",
 		"fallThrough": "float|int|null|string",
-		"afterGoto":   "int|int[]|null|string|true{0?: int}",
+		"afterGoto":   "int|null|string|true", // [1] is followed by break
 		"loop":        "false|float|int|int[]|null|string|string[]|true",
 	})
 }

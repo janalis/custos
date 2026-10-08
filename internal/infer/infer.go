@@ -326,7 +326,11 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 			return types.Unknown
 		}
 		if p := e.Index.FindProperty(cls, v.Name, e.PHP); p != nil {
-			return e.propType(p, cls)
+			t := e.propType(p, cls)
+			if key := narrowKey(n); key != "" {
+				t = e.narrowExpr(t, n, key, syntax.EnclosingFuncLike(n))
+			}
+			return t
 		}
 		return types.Unknown
 	case *syntax.ClassConstFetch:
@@ -593,6 +597,41 @@ func memberType(declared, doc string) types.Type {
 	return pickMemberType(d, types.FromDoc(doc, nil))
 }
 
+// builtinMemberType is memberType for a builtin declaration (stubs): the
+// declared type is the real, version-resolved signature, so the doc type
+// only refines its members (`string[]` for `array`) and never widens it
+// (`substr()` documents `string|false`, its 8.0+ signature is `string`).
+func builtinMemberType(declared, doc string) types.Type {
+	d := types.FromDoc(declared, nil)
+	if doc == "" {
+		return d
+	}
+	return pickMemberType(d, refining(d, types.FromDoc(doc, nil)))
+}
+
+// refining keeps the members of the doc type dt that belong to the
+// declared type d (all of dt when d is unknown or mixed; d when none does).
+func refining(d, dt types.Type) types.Type {
+	if d.IsUnknown() || d.Has("mixed") || dt.IsUnknown() {
+		return dt
+	}
+	var drop []string
+	for _, a := range dt.Atoms() {
+		switch {
+		case d.Has(a), (a == "true" || a == "false") && d.Has("bool"),
+			strings.HasSuffix(a, "[]") && d.HasAny("array", "iterable"),
+			strings.HasPrefix(a, `\`) && d.HasAny("object", "iterable", "callable"),
+			a == "callable" && d.Has("callable"):
+		default:
+			drop = append(drop, a)
+		}
+	}
+	if len(drop) == len(dt.Atoms()) {
+		return d
+	}
+	return dt.Without(drop...)
+}
+
 // pickMemberType is memberType for parsed types (dt: the doc type).
 func pickMemberType(d, dt types.Type) types.Type {
 	if d.IsUnknown() || (d.Has("array") && !dt.IsUnknown()) || d.Has("mixed") || strictSuperset(dt, d) {
@@ -705,6 +744,9 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 	}
 	if m.Return == "" && m.DocReturn == "" {
 		return e.methodBodyReturn(m, virtual)
+	}
+	if m.Builtin {
+		return bindStatic(builtinMemberType(m.Return, m.DocReturn), cls)
 	}
 	return bindStatic(memberType(m.Return, m.DocReturn), cls)
 }
@@ -851,6 +893,9 @@ func (e *Env) declCallType(f *index.Function, n *syntax.FuncCall) types.Type {
 	}
 	if f.Return == "" && f.DocReturn == "" {
 		return e.BodyReturnType(f)
+	}
+	if f.Builtin {
+		return builtinMemberType(f.Return, f.DocReturn)
 	}
 	return memberType(f.Return, f.DocReturn)
 }
@@ -1132,6 +1177,9 @@ type scopeVars struct {
 	// muts lists the operations that may change each variable (lazy, see
 	// mutations()).
 	muts map[string][]mutation
+	// exits lists the exit regions of the scope (lazy, see exitRegions).
+	exits     []exitRegion
+	exitsDone bool
 }
 
 // widenElem unions the element type el of the array read by n with every
@@ -1350,14 +1398,25 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 	}
 	fwd, back, from := e.reaching(defs, v, scope)
 	ts := make([]types.Type, 0, len(fwd)+len(back))
+	after := uint32(0)
 	for _, d := range fwd {
-		ts = append(ts, d.typ())
+		t := d.typ()
+		if !t.IsUnknown() && e.forStep(d, v, scope) {
+			// The step of a for loop around v runs before the condition
+			// is tested again: a back edge, not a definition after it.
+			if nt := e.loopCondNarrow(t, d, v, scope); !nt.IsUnknown() {
+				ts = append(ts, nt)
+			}
+			continue
+		}
+		ts = append(ts, t)
+		after = max(after, d.pos, d.end)
 	}
 	for _, d := range back {
 		// An unknown back-edge type (often a cycle through this very use)
 		// adds nothing: keep what the forward definitions say.
 		if t := d.typ(); !t.IsUnknown() {
-			ts = append(ts, t)
+			ts = append(ts, e.loopCondNarrow(t, d, v, scope))
 		}
 	}
 	if len(ts) == 0 {
@@ -1376,11 +1435,52 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 			t = t.WithNonEmpty(false)
 		}
 	}
-	after := uint32(0)
-	for _, d := range fwd {
-		after = max(after, d.pos, d.end)
-	}
 	return e.narrow(t, v, scope, after)
+}
+
+// forStep reports whether definition d sits in the step expressions of a
+// for loop whose body holds v.
+func (e *Env) forStep(d varDef, v *syntax.Variable, scope syntax.Node) bool {
+	var child syntax.Node = v
+	for p := v.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
+		if f, ok := p.(*syntax.For); ok && child == syntax.Node(f.Body) {
+			for _, x := range f.Loop {
+				if sp := x.Span(); d.pos >= sp.Start && d.pos < sp.End {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// loopCondNarrow narrows the type t of back-edge definition d of v when d
+// sits in the condition (or step) of a loop around v that is tested before
+// the body runs again: `do { … } while ($e = $e->getPrevious());` only
+// loops with a truthy $e; `for (…; $x !== null; $x = next($x))` likewise.
+func (e *Env) loopCondNarrow(t types.Type, d varDef, v *syntax.Variable, scope syntax.Node) types.Type {
+	in := func(x syntax.Node) bool {
+		sp := x.Span()
+		return d.pos >= sp.Start && d.pos < sp.End
+	}
+	for p := v.Parent(); p != nil && p != scope; p = p.Parent() {
+		switch n := p.(type) {
+		case *syntax.DoWhile:
+			if in(n.Cond) {
+				return e.applyCond(t, n.Cond, v.Name, true)
+			}
+		case *syntax.For:
+			if len(n.Cond) == 0 {
+				continue
+			}
+			for _, x := range append(slices.Clone(n.Loop), n.Cond...) {
+				if in(x) {
+					return e.applyCond(t, n.Cond[len(n.Cond)-1], v.Name, true)
+				}
+			}
+		}
+	}
+	return t
 }
 
 // iterElem is the element type of iterating over t: unknown as soon as one

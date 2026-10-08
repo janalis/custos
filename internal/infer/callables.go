@@ -125,6 +125,9 @@ func (e *Env) callbackReturn(x syntax.Expr) types.Type {
 		if f.Return == "" && f.DocReturn == "" {
 			return voidAsNull(e.BodyReturnType(f))
 		}
+		if f.Builtin {
+			return voidAsNull(builtinMemberType(f.Return, f.DocReturn))
+		}
 		return voidAsNull(memberType(f.Return, f.DocReturn))
 	}
 	return e.invokeType(e.TypeOf(x))

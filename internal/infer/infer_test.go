@@ -330,7 +330,7 @@ function f($fh) {
     }
     t('hr', $t);
 }
-`, map[string]string{"row": "array|null", "hr": "int[]"})
+`, map[string]string{"row": "array", "hr": "int[]"})
 }
 
 func TestHrtimeVariants(t *testing.T) {

@@ -72,6 +72,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
+- Type engine (review round 3): definitions on paths that always leave
+  (return, throw, exit, break, continue) and in mutually exclusive
+  branches no longer reach later reads; do-while and for back edges are
+  narrowed by the loop condition; static properties (`self::$p`,
+  `static::$p`) narrow like `$this->p`; a `/** @var Class $name */` hint
+  over a class-name string no longer retypes it; stub PHPDoc no longer
+  widens builtin return types (`substr()` is `string` on PHP 8); `@method`
+  tags no longer hide real methods.
 - Unsafe or invalid quick-fixes (Magento / Joomla / CakePHP / Yii2 /
   Laminas / Craft review): UnnecessarySemicolon removed the required `;`
   of a short echo tag at the end of a file; SelfClassReferencing put
