@@ -39,21 +39,11 @@ func (r unnecessaryCasting) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || u.Expr == nil || u.Op.Span.Len() == 0 || u.Expr.Span().Len() == 0 {
 		return
 	}
-	if target == "string" { // D1 / D2
-		switch p := u.Parent().(type) {
-		case *syntax.Binary:
-			if p.Op.Kind == syntax.TDot {
-				r.report(ctx, u, unnecessaryCastingConcatMsg)
-				return
-			}
-		case *syntax.Assign:
-			if p.Op.Kind == syntax.TConcatEqual {
-				r.report(ctx, u, unnecessaryCastingConcatMsg)
-				return
-			}
-		}
-	}
 	a := syntax.UnwrapParens(u.Expr)
+	if target == "string" && castInConcat(u) && castPlainOperand(ctx, a) { // D1 / D2
+		r.report(ctx, u, unnecessaryCastingConcatMsg)
+		return
+	}
 	tr := infer.NewTRules(ctx.Types())
 	tr.DivisionIntOrFloat = true // `int / int` may be a float
 	tr.SoundArithmetic = true    // `"4" * 100` is an int, `$unknown * 2` unknown
@@ -86,6 +76,44 @@ func (r unnecessaryCasting) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	r.report(ctx, u, unnecessaryCastingTypeMsg)
+}
+
+// castInConcat reports whether the cast is an operand of `.` or `.=`.
+func castInConcat(u *syntax.Unary) bool {
+	switch p := u.Parent().(type) {
+	case *syntax.Binary:
+		return p.Op.Kind == syntax.TDot
+	case *syntax.Assign:
+		return p.Op.Kind == syntax.TConcatEqual
+	}
+	return false
+}
+
+// castPlainOperand implements D0: a's type is fully known and made only of
+// string, int and float, so concatenation converts it without surprise.
+func castPlainOperand(ctx *analysis.Context, a syntax.Expr) bool {
+	switch x := a.(type) {
+	case *syntax.PropertyFetch:
+		if x.NullSafe {
+			return false
+		}
+	case *syntax.MethodCall:
+		if x.NullSafe {
+			return false
+		}
+	}
+	t := ctx.TypeOf(a)
+	if t.IsUnknown() {
+		return false
+	}
+	for _, at := range t.Atoms() {
+		switch at {
+		case "string", "int", "float":
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func (unnecessaryCasting) report(ctx *analysis.Context, u *syntax.Unary, msg string) {
