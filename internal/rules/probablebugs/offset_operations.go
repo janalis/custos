@@ -47,6 +47,9 @@ func offsetNormalize(t types.Type) ([]string, bool) {
 			add("array")
 		case strings.EqualFold(a, `\Closure`):
 			add("callable")
+		case a == "iterable": // custos: array|\Traversable
+			add("array")
+			add(`\Traversable`)
 		case a == "self" || a == "static":
 		default:
 			add(a)
@@ -166,7 +169,8 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 			break
 		}
 		cls := strings.TrimPrefix(a, `\`)
-		if ctx.Index().Class(cls, ctx.PHP) == nil {
+		c := ctx.Index().Class(cls, ctx.PHP)
+		if c == nil {
 			return // D1: an unresolvable class empties S
 		}
 		if offsetNativeAccess(ctx, cls) {
@@ -174,11 +178,13 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 			allow("string", "int")
 			continue
 		}
+		classSupports := false
 		for _, m := range []string{"offsetGet", "offsetSet", "__get", "__set"} {
 			meth := ctx.Index().FindMethod(cls, m, ctx.PHP)
 			if meth == nil {
 				continue
 			}
+			classSupports = true
 			supported = true
 			if strings.HasPrefix(m, "__") {
 				allow("string", "int")
@@ -200,8 +206,19 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 				}
 			}
 		}
+		// custos: implementations of an interface or of a non-final
+		// abstract class may be ArrayAccess (Laravel's `$app['config']`).
+		if !classSupports && (c.Kind == syntax.KindInterface || c.Abstract && !c.Final) {
+			return
+		}
 	}
 	if !supported { // D6
+		// custos: PHP returns null without an error for these reads when
+		// the value is a scalar; with an array or string member the union
+		// is a deliberate "array or not" lookup (`$counts[$id] ?? 0`).
+		if quietOffsetRead(access) && (offsetHas(s, "array") || offsetHas(s, "string")) {
+			return
+		}
 		ctx.ReportNode(access, "'"+ctx.Text(access.Var)+"' does not support offset access (types: "+strings.Join(s, "|")+").")
 		return
 	}
@@ -211,13 +228,13 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	it, ok := offsetNormalize(ctx.TypeOf(access.Dim))
-	if !ok {
+	if !ok || offsetHas(it, "mixed") { // custos: mixed admits any key
 		return
 	}
 	var rest []string
 	for _, a := range it {
 		// PHP casts bool keys to int (custos refinement).
-		if a == "mixed" || a == "null" || offsetHas(allowed, a) || a == "bool" && offsetHas(allowed, "int") {
+		if a == "null" || a == "void" || offsetHas(allowed, a) || a == "bool" && offsetHas(allowed, "int") {
 			continue
 		}
 		if offsetHas(allowed, "object") && strings.HasPrefix(a, `\`) {
@@ -258,4 +275,32 @@ func offsetSubtypeOfAllowed(ctx *analysis.Context, a string, allowed []string) b
 		}
 	}
 	return false
+}
+
+// quietOffsetRead reports whether access (possibly the base of a longer
+// access chain) is read inside isset(), empty() or on the left of `??`.
+func quietOffsetRead(access *syntax.ArrayDimFetch) bool {
+	var n syntax.Node = access
+	for {
+		p, child := util.ParentSkipParens(n)
+		switch x := p.(type) {
+		case *syntax.ArrayDimFetch:
+			if x.Var != child {
+				return false
+			}
+			n = x
+			continue
+		case *syntax.PropertyFetch:
+			if x.Var != child {
+				return false
+			}
+			n = x
+			continue
+		case *syntax.Isset, *syntax.Empty:
+			return true
+		case *syntax.Binary:
+			return x.Op.Kind == syntax.TCoalesce && x.Left == child
+		}
+		return false
+	}
 }

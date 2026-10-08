@@ -12,5 +12,5 @@ namespace App\Queue {
     class Pinned {}
 
     #[Marker]
-    class <weak_warning descr="This class declares no members; remove it or give it a purpose.">Tagged</weak_warning> {}
+    class Tagged {}
 }

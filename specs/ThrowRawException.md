@@ -194,3 +194,8 @@ throw new Exception\Declined('card'); // resolves to \Exception\Declined (via th
   `throw` whose operand is directly a `new` expression, so
   `throw (new \Exception('x'));` escapes both checks. The parentheses change
   nothing at runtime, so custos looks through them (D1).
+- **Constructor default message (custos diverges, E3).** A class whose
+  constructor's first parameter defaults to a non-empty string literal
+  (`__construct(string $message = 'Payment request not found.', …)`)
+  presets the message as surely as a `$message` property; a zero-argument
+  `new` of it is not reported (Sylius).

@@ -21,10 +21,10 @@ foreach ($orders as $key => $order) {
         report($problem);
     }
 
+    $copy = clone $template;            // clone: never reported
     echo '<br>';                        // E4: no variables
     if ($stop) { return; }              // E3
     $total += $order;                   // E2 + connected
-    $copy = clone $template;            // clone: never reported
     $sink[] = 'seen';                   // accumulate
     $logger->push($order);              // D8a: $logger becomes modified
     $logger->flush();                   // connected through $logger

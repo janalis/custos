@@ -348,3 +348,8 @@ function silenced(array $out)
   (`$spec = $e->getParam('inputSpec')`) may be an ArrayAccess object such
   as ArrayObject, whose writes are not lost (laminas-form listeners).
   Parameters keep the upstream behaviour.
+- **`mixed` values (custos diverges).** A local holding a value of type
+  `mixed` (`$list = $prop->getValue($owner); $list[] = $item;`, the
+  Doctrine `UnitOfWork` patch in Mautic) may hold an `ArrayAccess` object
+  just like an unknown value, so `mixed` counts as an object member in D4c
+  and in the element-write exception above.

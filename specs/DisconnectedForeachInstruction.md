@@ -252,3 +252,18 @@ foreach ($rows as $row) {
   values (PrestaShop writes one `.htaccess` header per shop; Matomo draws a
   random value per period). `error_log()` and `usleep()` keep the upstream
   behaviour (upstream fixtures).
+- **Round-4 refinements (custos diverges).** Found on Shopware, Akeneo,
+  Kimai and API Platform (14 of 20 findings):
+  - D8c also applies at the root of a discarded method chain
+    (`$qb->where(…)->setParameter('k', $row);`,
+    `$ctx->getContext()->addState(…);`, `$this->getBrowser()->request(…);`),
+    and D8's argument case strips method calls from the receiver like
+    property fetches: the root variable counts as modified.
+  - Once a statement of the body may leave the iteration without being a
+    jump itself (a `continue`/`break` not bound by a nested loop or switch,
+    `return`, `throw`, `exit`; nested functions skipped), every later
+    statement is connected: it runs on some iterations only (`if ($i !==
+    $w) { continue; } notify($w);`).
+  - Two statements writing the same variable are connected
+    (`$level = 1; if (isset($p['d'])) { $level = $p['d'] + 1; }`): moving
+    either out of the loop changes what the other sees.

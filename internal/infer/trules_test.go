@@ -77,6 +77,16 @@ function g($o, bool $c) {
         $f = 'x';
     }
     t('partial', $f);
+    foreach ($o->list as $v) {
+        if ($c) {
+            $v = 'a';
+        }
+        t('element', $v);
+    }
+    foreach ($o->list as $w) {
+        $w = 'a';
+        t('overwritten', $w);
+    }
     $g = 'y';
     if ($c) {
         $g = 'z';
@@ -88,7 +98,7 @@ function g($o, bool $c) {
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
 	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpver.PHP84))
-	want := map[string]string{"partial": "", "known": "string"}
+	want := map[string]string{"partial": "", "known": "string", "element": "", "overwritten": "string"}
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {

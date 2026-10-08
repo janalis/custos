@@ -211,3 +211,11 @@ namespace {
   parameter's default value, so `function it_works($max = Sealed::LIMIT)`
   is reported although nothing is mocked there (a constant of a final class
   is a plain value). custos inspects only the parameter type (D6).
+- **Part B helper methods (custos diverges).** Upstream walks every method
+  of the specification, but PhpSpec builds doubles only for the parameters
+  of `let()`, `letGo()` and the examples (names starting with `it` or `its`
+  followed by a non-letter: `it_charges`, `its_total`). Other methods are
+  helpers the specification calls itself with real objects
+  (`private function makeEvaluation(ProductUuid $uuid)`), so a final class
+  there is not mocked. custos checks only those methods in D6 (13 Akeneo
+  false positives at error severity).

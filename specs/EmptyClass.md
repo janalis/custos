@@ -94,3 +94,11 @@ $x = new class {};
   #[Attribute(…)]`) is an attribute: it is used by its name alone
   (`#[WithoutRelations]`), so declaring nothing is its purpose. custos does
   not report it; upstream does.
+- **Configured classes (custos diverges, extends the above).** A class
+  carrying any attribute (`#[ApiResource]`, `#[ORM\Entity]`, `#[Get(…)]`,
+  `#[AsEventListener]`, `#[DiscriminatorMap]`) is configured from outside:
+  frameworks discover and use it through the attribute, so having no
+  members is its purpose (7 of 18 sampled findings on API Platform,
+  Sylius and Shopware). custos does not report it. This also exempts
+  classes whose only attribute is metadata (Shopware `#[Package]`), an
+  accepted loss.

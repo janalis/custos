@@ -207,6 +207,12 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 	set := map[string]bool{} // D7
 	for a := range known {
 		set[rtdNormalize(a)] = true
+		// custos: Doctrine hydrates mapped collections as
+		// PersistentCollection and matching() returns a lazy collection;
+		// neither is an ArrayCollection, so `: ArrayCollection` throws.
+		if strings.EqualFold(rtdNormalize(a), `\Doctrine\Common\Collections\ArrayCollection`) {
+			return
+		}
 	}
 	if hasYield && !set[`\Generator`] { // D8
 		set[`\Generator`] = true

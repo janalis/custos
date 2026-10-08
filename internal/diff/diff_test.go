@@ -48,3 +48,11 @@ func TestUnifiedMergesCloseHunks(t *testing.T) {
 		t.Fatalf("got %q want %q", got, want)
 	}
 }
+
+func TestUnifiedAbsolutePath(t *testing.T) {
+	got := Unified("/tmp/p/x.php", "a\n", "b\n", 3)
+	want := "--- a/tmp/p/x.php\n+++ b/tmp/p/x.php\n@@ -1,1 +1,1 @@\n-a\n+b\n"
+	if got != want {
+		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
+	}
+}

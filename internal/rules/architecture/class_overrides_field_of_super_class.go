@@ -9,6 +9,7 @@ import (
 	"custos/internal/meta"
 	"custos/internal/phpdoc"
 	"custos/internal/syntax"
+	"custos/internal/types"
 )
 
 // classOverridesFieldOfSuperClass reports properties re-declaring a
@@ -86,6 +87,12 @@ func (classOverridesFieldOfSuperClass) Check(ctx *analysis.Context, n syntax.Nod
 		if cofsDefault(ownDef, item.Default != nil, prop.Type != nil) != cofsDefault(found.Default, found.HasDefault, found.Type != "") {
 			continue
 		}
+		// custos: a re-declaration whose @var narrows the documented type
+		// is the only way to refine it (native property types are
+		// invariant); dropping it loses the type.
+		if d := cofsOwnDocType(ctx, prop, item.Var.Name); d != "" && d != found.DocType && d != found.Type {
+			continue
+		}
 		ctx.ReportSeverity(item.Var.Span(), meta.SeverityInfo, "Property '"+item.Var.Name+"' is already declared in "+holder+"; drop this re-declaration.")
 	}
 }
@@ -105,4 +112,16 @@ func cofsDefault(text string, has, typed bool) string {
 		return "null"
 	}
 	return t
+}
+
+// cofsOwnDocType is the canonical @var type documented on the property
+// declaration for name ("" when there is none).
+func cofsOwnDocType(ctx *analysis.Context, prop *syntax.Property, name string) string {
+	c := index.DocComment(ctx.File, prop)
+	at := prop.Span().Start
+	t := types.FromDoc(phpdoc.Parse(c).VarType(name), func(w string) string { return ctx.Names().Class(w, at) })
+	if t.IsUnknown() {
+		return ""
+	}
+	return t.DocString()
 }

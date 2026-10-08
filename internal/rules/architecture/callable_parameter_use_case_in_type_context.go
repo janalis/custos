@@ -6,7 +6,9 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
+	"custos/internal/index"
 	"custos/internal/infer"
+	"custos/internal/phpdoc"
 	"custos/internal/syntax"
 )
 
@@ -270,17 +272,20 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 		return
 	}
 	value := as.Value
+	// custos: an inline `/** @var User $u */` on the assignment states the
+	// value's type (a repository's `object|null` find result).
+	if es, ok := as.Parent().(*syntax.ExprStmt); ok {
+		if c := index.DocComment(cp.ctx.File, es); c != "" && phpdoc.Parse(c).VarType(v.Name) != "" {
+			return
+		}
+	}
 	r := map[string]bool{}
 	for _, a := range cp.typeOf(value) { // D7b
 		r[cpNorm(a)] = true
 	}
 	// custos: method, static and nullsafe calls carry the same failure
 	// markers (`Yii::getAlias()` is string|false) as plain function calls.
-	plainCall := false
-	switch value.(type) {
-	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
-		plainCall = true
-	}
+	plainCall := cpAllCalls(value)
 	if len(r) >= 2 { // D7c
 		if r["string"] || r["array"] {
 			if r["bool"] && plainCall {
@@ -361,10 +366,36 @@ func (cp *cpState) translateSelf(value syntax.Expr, target *syntax.Variable) str
 	return ""
 }
 
+// cpAllCalls reports whether e is a call, or a match/ternary whose every
+// result is one (custos: the failure markers of D7c then come from calls).
+func cpAllCalls(e syntax.Expr) bool {
+	switch x := syntax.UnwrapParens(e).(type) {
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		return true
+	case *syntax.Match:
+		for _, arm := range x.Arms {
+			if arm.Body == nil || !cpAllCalls(arm.Body) {
+				return false
+			}
+		}
+		return len(x.Arms) > 0
+	case *syntax.Ternary:
+		return x.Then != nil && cpAllCalls(x.Then) && cpAllCalls(x.Else)
+	}
+	return false
+}
+
 // compatible implements D7e.2.
 func (cp *cpState) compatible(t string, set map[string]bool) bool {
 	if set[t] {
 		return true
+	}
+	if t == "object" { // custos: an object may be the parameter's class
+		for s := range set {
+			if cpIsClass(s) {
+				return true
+			}
+		}
 	}
 	if !strings.HasPrefix(t, `\`) {
 		return false

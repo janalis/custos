@@ -148,3 +148,12 @@ class Door extends Locked {
   true;` over `false` (Symfony compiler passes). Re-declaring is the way to
   override a default; dropping it as advised changes behaviour. custos only
   reports re-declarations with the same default (D6b).
+- **Documented narrowing (custos diverges).** A re-declaration whose `@var`
+  type differs from the inherited property's documented type (or, without
+  one, its declared type) narrows the type for static analysis and
+  completion (`/** @var ReportModel|null */ protected $model;` over the
+  parent's `@var Model|null`); native property types are invariant, so
+  the doc comment is the only way to refine it. Dropping it changes nothing
+  at runtime but loses the type, so custos does not report it (Mautic API
+  controllers, Akeneo `OptionValue::$data`). Re-declarations repeating the
+  same type are still reported.

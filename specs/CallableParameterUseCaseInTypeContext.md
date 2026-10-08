@@ -268,3 +268,15 @@ function untyped($flag = null) {
   Yii::getAlias($path)` (`string|false`) and `$key =
   $this->resize($key)` (`?string`) are the same "may fail" convention
   (most of the 140 bool/null findings sampled on Yii, Joomla and Laminas).
+- **Round-4 refinements (custos diverges, D7).** Found on Sylius, Akeneo
+  and Mautic:
+  - An inline `@var` doc comment on the assignment statement that types
+    the variable (`/** @var User $user */ $user = $repo->findOneBy(…);`)
+    states the value's type; the assignment is not checked.
+  - A value of type `object` is compatible with a class-typed parameter
+    (D7e.2): it may well be an instance of that class (Doctrine
+    `ObjectRepository::findOneBy()` returns `object|null`).
+  - D7c also drops the failure markers when the value is a `match` whose
+    every arm is a call, or a full ternary whose both branches are calls
+    (`$t = match ($p) { 'a' => preg_replace_callback(…), default =>
+    preg_replace_callback(…) };`).

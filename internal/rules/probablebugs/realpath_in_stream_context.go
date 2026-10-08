@@ -45,7 +45,12 @@ func (realpathInStreamContext) Check(ctx *analysis.Context, n syntax.Node) {
 		ctx.Report(span, realpathGenericMsg)
 		return
 	}
-	ctx.Report(span, "Use '"+r+"' instead: realpath() fails inside stream wrappers.", analysis.Fix{
+	msg := "Use '" + r + "' instead: realpath() fails inside stream wrappers."
+	if realpathResultTested(ctx, call) { // custos: the failure check would go dead
+		ctx.Report(span, msg)
+		return
+	}
+	ctx.Report(span, msg, analysis.Fix{
 		Title: "Drop realpath()",
 		Edits: func() []analysis.TextEdit { return []analysis.TextEdit{{Span: span, NewText: r}} },
 	})
@@ -157,4 +162,57 @@ func isAbsolutePathLiteral(raw string) bool {
 func isConcat(e syntax.Expr) bool {
 	b, ok := e.(*syntax.Binary)
 	return ok && b.Op.Kind == syntax.TDot
+}
+
+// realpathResultTested reports whether the value of e (a realpath() call,
+// or an assignment holding its result) is tested for failure: negated,
+// compared, used as a condition or a logical/elvis operand, or assigned to
+// a target that a later statement of the same list tests that way. The
+// replacement never returns false, so such a check would go dead.
+func realpathResultTested(ctx *analysis.Context, e syntax.Node) bool {
+	p, child := util.ParentSkipParens(e)
+	switch x := p.(type) {
+	case *syntax.Unary:
+		return x.Op.Kind == syntax.TExclaim || x.Op.Kind == syntax.TBoolCast
+	case *syntax.Binary:
+		switch x.Op.Kind {
+		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual,
+			syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr:
+			return true
+		}
+	case *syntax.Ternary:
+		return x.Cond == child
+	case *syntax.If:
+		return x.Cond == child
+	case *syntax.ElseIf:
+		return x.Cond == child
+	case *syntax.While:
+		return x.Cond == child
+	case *syntax.Assign:
+		if x.Value != child || x.Op.Kind != syntax.TEqual {
+			return false
+		}
+		if realpathResultTested(ctx, x) {
+			return true
+		}
+		es, ok := x.Parent().(*syntax.ExprStmt)
+		if !ok {
+			return false
+		}
+		list, i, ok := util.StmtList(ctx.File, es)
+		if !ok {
+			return false
+		}
+		found := false
+		for _, next := range list[i+1:] {
+			syntax.Inspect(next, func(n syntax.Node) bool {
+				if !found && n.Kind() == x.Var.Kind() && util.EquivalentFoldNames(ctx.File, n, x.Var) && realpathResultTested(ctx, n) {
+					found = true
+				}
+				return !found
+			})
+		}
+		return found
+	}
+	return false
 }

@@ -426,7 +426,7 @@ func owpIsWriteNature(x *syntax.Variable) bool {
 // owpObjectType reports whether an inferred type has an object member by
 // the D1 criterion: `object` or a class/interface other than Closure.
 func owpObjectType(t types.Type) bool {
-	if t.Has("object") {
+	if t.Has("object") || t.Has("mixed") { // custos: mixed may hold an object
 		return true
 	}
 	for _, c := range t.Classes() {

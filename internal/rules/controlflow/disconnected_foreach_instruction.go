@@ -77,19 +77,40 @@ func (disconnectedForeachInstruction) Check(ctx *analysis.Context, n syntax.Node
 	}
 	deps := make([]map[string]bool, len(stmts)) // pass 1
 	bound := map[string]map[int]bool{}          // D6a: names bound by catch / inner foreach headers, per statement
+	writers := map[string]map[int]bool{}        // custos: statements writing each name
+	writes := make([]map[string]bool, len(stmts))
 	for i, s := range stmts {
-		deps[i] = dfiCollect(ctx, s, modified, func(name string) {
+		w := map[string]bool{}
+		writes[i] = w
+		deps[i] = dfiCollect(ctx, s, w, func(name string) {
 			if bound[name] == nil {
 				bound[name] = map[int]bool{}
 			}
 			bound[name][i] = true
 		})
+		for name := range w {
+			modified[name] = true
+			if writers[name] == nil {
+				writers[name] = map[int]bool{}
+			}
+			writers[name][i] = true
+		}
 	}
 	suggestClone := ctx.Bool("SUGGEST_USING_CLONE")
+	guarded := false          // custos: an earlier statement may leave the iteration
 	for i, s := range stmts { // pass 2
-		connected := false
+		connected := guarded
+		guarded = guarded || dfiMayLeave(s)
 		for name := range deps[i] {
 			if modified[name] || dfiBoundElsewhere(bound[name], i) {
+				connected = true
+				break
+			}
+		}
+		// custos: a variable another statement of the body also writes (a
+		// per-iteration reset such as `$level = 1;`) ties them together.
+		for name := range writes[i] {
+			if dfiBoundElsewhere(writers[name], i) {
 				connected = true
 				break
 			}
@@ -232,6 +253,9 @@ func dfiVariable(ctx *analysis.Context, v *syntax.Variable, m, dep map[string]bo
 					case *syntax.ArrayDimFetch:
 						obj = o.Var
 						continue
+					case *syntax.MethodCall: // custos: a fluent chain modifies its root
+						obj = o.Var
+						continue
 					}
 					break
 				}
@@ -268,7 +292,17 @@ func dfiVariable(ctx *analysis.Context, v *syntax.Variable, m, dep map[string]bo
 	// whose result is discarded: `$bar->advance();`, `$stack->pop();`) may
 	// change its receiver: the object counts as modified.
 	if mc, ok := p.(*syntax.MethodCall); ok && mc.Var == c {
-		if _, stmt := mc.Parent().(*syntax.ExprStmt); stmt {
+		// custos: also at the root of a discarded chain
+		// (`$qb->where(…)->bind('k', $row);`, `$ctx->console()->tick();`).
+		var top syntax.Node = mc
+		for {
+			q, ok := top.Parent().(*syntax.MethodCall)
+			if !ok || q.Var != top {
+				break
+			}
+			top = q
+		}
+		if _, stmt := top.Parent().(*syntax.ExprStmt); stmt {
 			m[name], dep[name] = true, true
 			return
 		}
@@ -438,4 +472,67 @@ func dfiElementWrite(ctx *analysis.Context, d *syntax.ArrayDimFetch) bool {
 		}
 	}
 	return false
+}
+
+// dfiMayLeave reports whether s contains a jump that may end the current
+// iteration (continue or break not bound by a nested loop or switch,
+// return, throw, exit) without being one itself: later statements then run
+// on some iterations only, and moving them out of the loop changes
+// behaviour. Nested functions and classes are skipped.
+func dfiMayLeave(s syntax.Stmt) bool {
+	switch s.(type) {
+	case *syntax.Break, *syntax.Continue, *syntax.Return:
+		return false // the rest of the body is dead code
+	}
+	found := false
+	var walk func(n syntax.Node, inner bool)
+	walk = func(n syntax.Node, inner bool) {
+		syntax.Inspect(n, func(x syntax.Node) bool {
+			if found {
+				return false
+			}
+			switch x := x.(type) {
+			case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+				return false
+			case *syntax.Return, *syntax.Throw, *syntax.Exit:
+				found = true
+			case *syntax.Break, *syntax.Continue:
+				if !inner || dfiJumpLevels(x) > 1 {
+					found = true
+				}
+			default:
+				if x != n && dfiIsLoopOrSwitch(x) {
+					walk(x, true)
+					return false
+				}
+			}
+			return !found
+		})
+	}
+	walk(s, dfiIsLoopOrSwitch(s))
+	return found
+}
+
+func dfiIsLoopOrSwitch(n syntax.Node) bool {
+	switch n.(type) {
+	case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile, *syntax.Switch:
+		return true
+	}
+	return false
+}
+
+// dfiJumpLevels is the level count of a break/continue (1 when omitted or
+// not a literal).
+func dfiJumpLevels(n syntax.Node) int {
+	var e syntax.Expr
+	switch j := n.(type) {
+	case *syntax.Break:
+		e = j.Num
+	case *syntax.Continue:
+		e = j.Num
+	}
+	if lit, ok := e.(*syntax.Literal); ok && lit.Raw != "" && lit.Raw[0] >= '2' && lit.Raw[0] <= '9' {
+		return 2
+	}
+	return 1
 }

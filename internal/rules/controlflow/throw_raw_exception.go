@@ -60,6 +60,11 @@ func (throwRawException) Check(ctx *analysis.Context, n syntax.Node) {
 	if _, own := cls.Props["message"]; own {
 		return
 	}
+	// custos: `__construct(string $message = 'Resource not found.', …)`
+	// presets the message as surely as a `$message` property does.
+	if d := strings.TrimSpace(ctor.Params[0].Default); len(d) > 2 && (d[0] == '\'' || d[0] == '"') {
+		return
+	}
 	if treUserPresetsMessage(ctx, fqn) {
 		return
 	}

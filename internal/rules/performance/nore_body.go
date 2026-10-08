@@ -43,7 +43,11 @@ func (c *noreCase) checkBody() {
 		}
 		for _, kv := range noreShortClasses {
 			if strings.Contains(norm, kv[0]) {
-				c.report(meta.SeverityInfo, "Write '"+kv[0]+"' as '"+kv[1]+"' ("+hint+").")
+				h := hint
+				if strings.HasPrefix(kv[0], `[^\`) {
+					h = "same result" // a negated shorthand is its complement in every mode
+				}
+				c.report(meta.SeverityInfo, "Write '"+kv[0]+"' as '"+kv[1]+"' ("+h+").")
 			}
 		}
 	}

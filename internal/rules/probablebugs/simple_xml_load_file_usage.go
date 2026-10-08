@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
+	"custos/internal/phpver"
 	"custos/internal/syntax"
 )
 
@@ -27,6 +28,12 @@ func (simpleXmlLoadFileUsage) Kinds() []syntax.NodeKind {
 }
 
 func (simpleXmlLoadFileUsage) Check(ctx *analysis.Context, n syntax.Node) {
+	// custos: the bug needs the entity loader disabled with
+	// libxml_disable_entity_loader(), deprecated from PHP 8.0 (libxml 2.9
+	// disables external entities by default).
+	if ctx.PHP >= phpver.PHP80 {
+		return
+	}
 	call := n.(*syntax.FuncCall)
 	if !strings.EqualFold(util.CallLastName(call), "simplexml_load_file") || call.Args == nil || len(call.Args.Args) == 0 { // D1, D2/E1
 		return

@@ -100,3 +100,9 @@ interface Named {
   inferred from `$this->prop = …` assignments inside the class also count is
   not observable in fixtures. Recommendation: use only D3 sources (declared
   type, preceding `@var` comment, default value).
+- **Promoted properties (custos diverges, D3).** For a constructor-promoted
+  property, the constructor's `@param` type of the same name is part of
+  the property's type set (`/** @param bool $isFinal */ __construct(private
+  $isFinal)`): the doc comment of the constructor is where such a property
+  is documented. Upstream (no promotion support) has no type and reports
+  "type unknown" (three Mautic DTOs).

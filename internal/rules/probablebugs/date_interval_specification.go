@@ -75,12 +75,15 @@ func dateIntervalLiteral(ctx *analysis.Context, nw *syntax.New) (syntax.Expr, bo
 		return arg, false
 	}
 	var lits []syntax.Expr
-	for _, v := range util.DiscoverValues(ctx.Types(), arg) {
+	vals := util.DiscoverValues(ctx.Types(), arg)
+	for _, v := range vals {
 		if util.IsStringLiteral(v) {
 			lits = append(lits, v)
 		}
 	}
-	if len(lits) != 1 {
+	// custos: another (non-literal) value may be the one that reaches the
+	// constructor (`$v = $q['v'] ?? ''; if ($v === '') throw …;`).
+	if len(lits) != 1 || len(vals) != 1 {
 		return nil, false
 	}
 	return lits[0], true

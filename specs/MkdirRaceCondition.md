@@ -241,7 +241,12 @@ inverted.)
   is_dir($p) && is_writable($p);`, CakePHP) already handles the failure;
   the D4 fix would turn a `false` result into an exception. Not reported
   (same matching as D6; following statements of the enclosing statement
-  lists up to the function body).
+  lists up to the function body). Besides `is_dir()`, a later
+  `file_exists()`, `realpath()`, `is_writable()` or `is_writeable()` of the
+  same directory counts as the check (`@mkdir($p); $real = realpath($p);`
+  then a test of `$real`, Kimai's doctor page). The scan stops at a
+  statement that assigns the directory expression (`$dir .= '/sub';`): a
+  later check then names another directory.
 - **Polarity in logical operands (custos diverges, D6/F3).** The re-check
   form follows the call's polarity, not the operator: `A || !mkdir($d)`
   becomes `A || (!mkdir($d) && !is_dir($d))` and `A && mkdir($d)` becomes

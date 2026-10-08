@@ -482,6 +482,7 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 	// every earlier definition: only its binding and the definitions inside
 	// its body are visible.
 	var cutoff uint32
+	unknownDef := false
 	for p := v.Parent(); p != nil && p != scope && !r.SpecOnly; p = p.Parent() {
 		fe, ok := p.(*syntax.Foreach)
 		if !ok || fe.Body == nil || !containsPos(fe.Body, pos) {
@@ -489,11 +490,14 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 		}
 		if b := foreachBinding(fe, v.Name); b != nil {
 			cutoff = fe.Span().Start
-			ts = append(ts, r.Env.TypeOf(b))
+			bt := r.Env.TypeOf(b)
+			ts = append(ts, bt)
+			// An unknown element that reaches v keeps the union unknown,
+			// like an unknown assignment below.
+			unknownDef = bt.IsUnknown() && reach != nil && reach[b.Span().Start]
 			break
 		}
 	}
-	unknownDef := false
 	as := r.assignments(scope, v.Name)
 	if len(as) > maxVarDefs {
 		return types.Unknown // see maxVarDefs

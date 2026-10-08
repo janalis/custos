@@ -352,3 +352,15 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
   `false`: `@return array|bool` guarded by `if (!$r) return;` leaves
   `array|true`, a loose documentation of "array or false" (Magento price
   filter). `bool` alone is still reported.
+- **Check A reads before the overwrite (custos diverges).** A fall-through
+  that reads the earlier case's value before writing it again
+  (`case 1: $errors = check(); if ($errors !== []) { return 1; } // no
+  break` then `case 2: $errors = more();`) loses nothing, so it is not the
+  missing-`break` bug. A target read by a statement after its write (in its
+  own case or in a later one, before the overwrite; for an assignment, its
+  right-hand side) is dropped from `W` (Mautic installer steps).
+- **Check C positional reads (custos diverges).** A function that calls
+  `func_get_arg()` or `func_get_args()` (outside nested functions) reads
+  the passed values without naming the parameter, so its parameters are
+  not reported (`$b = func_num_args() > 1 ? func_get_arg(1) : null;`
+  keeps a deprecated signature working).

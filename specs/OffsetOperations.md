@@ -213,3 +213,17 @@ function ok($m, $c, $n) {
   are not confirmed by native types. Native unions (`int|array $v`) and
   documented types without an array/string member (`@param \stdClass`)
   are still reported.
+- **Round-4 refinements (custos diverges).** Found on API Platform,
+  Shopware, Mautic, Akeneo and Kimai:
+  - `iterable` is `array` plus `\Traversable` (D4), not an unsupported
+    scalar: `private iterable $handlers = []; $this->handlers[$k] = $h;`.
+  - A class member that is an interface or a non-final abstract class
+    without `offsetGet`/`offsetSet`/`__get`/`__set` empties S (like an
+    unresolvable class): its implementations may be `ArrayAccess`
+    (Laravel's `Application $app; $app['config']`).
+  - D6 is not reported for reads inside `isset()`, `empty()` or on the
+    left of `??` (also as the base of a longer chain) when S has an array
+    or string member: PHP yields null there without an error, and the union
+    is a deliberate lookup (`array|int $counts; $counts[$id] ?? 0`).
+  - D7: an index type containing `mixed` is not checked (any key may
+    fit), and `void` (`@return string|void`) is dropped like `null`.

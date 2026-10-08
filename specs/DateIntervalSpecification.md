@@ -124,3 +124,10 @@ function later()
   The highlight stays on the literal itself, even far from the `new`
   expression: the literal is what needs fixing, and moving the range to
   the call site would only differ from upstream without helping.
+- **Other discovered values (custos diverges, D3).** Upstream keeps the
+  single string literal among the discovered values even when other,
+  non-literal values were discovered too, so `$v = $q['v'] ?? ''; if ($v
+  === '') { throw …; } new DateInterval($v)` reports `''` (error) although
+  the guard keeps it from the constructor and the other value is the one
+  used (Shopware query parser). custos reports a discovered literal only
+  when it is the only discovered value.

@@ -7,3 +7,6 @@ function plain(string $s, $unknown, ?Order $o = null) {
     if (isset($o)) {}
     get_class($o);
 }
+function viaCall() {
+    get_class(make_thing());
+}

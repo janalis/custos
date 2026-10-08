@@ -409,6 +409,106 @@ hides Yii's real instance `hasOne()` (StaticInvocationViaThis; needs a
 `int`, actual `int|string` (`Env.reaching`; UnnecessaryCasting and
 ReturnTypeCanBeDeclared).
 
+**Sylius / Shopware / API Platform / Mautic / Kimai / Akeneo review
+(2026-10-08).** Fourth run on code custos had never seen, shallow clones
+plus `composer install --no-scripts --no-plugins` (vendor indexed, not
+analysed), only read: Sylius/Sylius (5,008 files, PHP 8.3),
+shopware/shopware (12,222, 8.2), api-platform/core (3,162, 8.2),
+mautic/mautic (4,817, 8.2), kimai/kimai (1,909, 8.2) and Akeneo
+pim-community-dev (8,442, 8.3), `analyse --all`. Robustness: no internal
+finding and no syntax error; `php -l` of the target version on every
+analysed file reports nothing but PHP 8.3 deprecations in Akeneo (`${var}`
+interpolation, optional-before-required parameters). Timing and peak RSS
+(`/usr/bin/time -l`, index of vendor included): Kimai 0.7 s / 440 MB, API
+Platform 1.2 s / 490 MB, Sylius 1.5 s / 615 MB, Akeneo 2.7 s / 920 MB,
+Mautic 2.7 s / 870 MB, Shopware 3.1 s / 830 MB. The largest file, Mautic's
+790 KB emoji table, analyses in 0.06 s (twice its size: 0.05 s). About
+1,900 findings were sampled over 140 rules (all below 20, 15–20
+otherwise; error/warning rules and rules least sampled by the earlier
+rounds first; Symfony/Doctrine idioms — attributes, promoted and readonly
+properties, enums, PHPDoc generics — checked on purpose). Fix safety:
+`custos fix --all` on copies (82,440 edits in 11,343 files), then `php -l`
+of the target version on every changed file: none broken, before and
+after the fixes below; every fix was also applied alone and re-parsed on
+each project including its vendor (`TestFixesKeepCodeParsable`: 428,000
+fixes, 0 broken, `php -l` samples). Sampled fix diffs were read for
+semantic changes (three, below).
+
+| Rule / area | Was | Now |
+|---|---|---|
+| ReturnTypeCanBeDeclared | `: ArrayCollection` for Doctrine collection getters (`@var ArrayCollection` + `new ArrayCollection()` in the constructor), `matching()` results and repositories documented `@return ArrayCollection` but returning arrays: TypeError once Doctrine hydrates a `PersistentCollection`. | Not reported when the types include `ArrayCollection` (`Collection` still suggested). 67 removed; corpus C −64. |
+| OffsetOperations | `iterable` taken as unsupported (`private iterable $handlers = []; $this->handlers[$k] = …`); Laravel's `Application $app; $app['config']` (interface); `$counts[$id] ?? 0` on native `array\|int`; index types `mixed\|Struct\|null` and `string\|void`. | `iterable` is array + Traversable; interfaces and non-final abstract classes without offset methods empty S; quiet reads (isset/empty/`??`) skipped when an array/string member exists; `mixed` indexes not checked, `void` dropped. 227 → 106 (error). |
+| ClassMockingCorrectness | Final classes in parameters of private helpers of PhpSpec specifications (error, 13/13 FP). | Only `let`, `letGo` and `it…`/`its…` examples are doubled. 13 → 0. |
+| SuspiciousAssignments | Switch fall-through that reads the previous case's value before overwriting it (`// no break` installer steps, error); parameter overwritten while `func_get_arg()` reads the passed value. | Targets read before the overwrite leave `W`; `func_get_arg(s)` count as reads. 38 → 28. |
+| DisconnectedForeachInstruction | Discarded method chains (`$qb->where()->setParameter('k', $row);`, `$ctx->getConsole()->progressAdvance();`) not seen as modifying their root; statements after a conditional `continue`/`throw`; a variable reset at the top of the body (`$level = 1; if (…) { $level = …; }`). | Chain roots modified (as D8c already did for `$o->m();`); statements after a possible iteration exit and statements writing a shared variable are connected. 20 → 6 (14 FP removed, all TPs kept). |
+| ClassOverridesFieldOfSuperClass | `/** @var ReportModel\|null */ protected $model;` over the parent's `@var Model\|null` told to drop the re-declaration (the only way to narrow a documented type). | Re-declarations whose `@var` differs from the inherited documented/declared type skipped. 111 → 65. |
+| EmptyClass | `#[ApiResource]`, `#[ORM\Entity]`, `#[Get(…)]` configuration-only classes reported. | Any attribute exempts the class. 291 → 180; corpus B −42 (`#[ORM\Entity]` log classes). |
+| CallableParameterUseCaseInTypeContext | `/** @var User $user */ $user = $repo->findOneBy([])` (`object\|null`) reported as type object; `match` of calls not treated like a call for failure markers. | Inline `@var` on the assignment trusted, `object` compatible with class parameters, all-call `match`/ternary drop the markers. 245 → 233. |
+| MkdirRaceCondition | `@mkdir($p); $real = realpath($p);` then a test of `$real` turned into a throw (Kimai doctor page). | Later `file_exists()`/`realpath()`/`is_writable()` re-checks accepted; the scan stops at a reassignment of the path. 25 → 23. |
+| RealpathInStreamContext (fix) | `$this->webRoot = realpath($r . '/../public'); if (!$this->webRoot) throw …` rewritten to `dirname()`, killing the existence check. | Reported without a fix when the result is tested for failure. |
+| SimpleXmlLoadFileUsage | Bug #62577 advice (error, with a rewrite) on PHP 8.x targets. | Only below 8.0 (the trigger, `libxml_disable_entity_loader()`, is deprecated from 8.0). 14 → 0; corpus A −1. |
+| DateIntervalSpecification | `$v = $q['v'] ?? ''; if ($v === '') throw …; new DateInterval($v)` reported `''` (error). | A discovered literal only when it is the only discovered value. |
+| ThrowRawException, ClassMethodNameMatchesFieldName, OnlyWritesOnParameter | Exceptions whose constructor defaults the message (`AccessDeniedException()`); promoted properties documented by the constructor's `@param` reported as "type unknown"; element writes on a `mixed` local (`ReflectionProperty::getValue()`). | Constructor default message counts as a preset; the constructor `@param` types promoted properties; `mixed` counts as a possible object. 531 → 515, 3 → 0, 37 → 36. |
+| UnnecessaryCasting (T-rules typer) | `foreach ($p as $v) { if ($c) { $v = 'x'; } (string) $v; }` typed string (the unknown element dropped); the fix removed a needed cast under strict types. | An unknown foreach binding reaching the read keeps the variable unknown (`infer/trules.go`). 106 → 105. |
+| NotOptimalRegularExpressions, `custos fix --diff` | `[^\s]` → `\S` hinted "matches more under /u" (same set in every mode); diff headers `a//abs/path`. | "same result"; leading `/` trimmed. |
+
+Deltas on the local corpora (HEAD 0ae0ff1 → this tree, default /
+`--all`): corpus A `src/` −1 / −2 (SimpleXmlLoadFileUsage at 8.4; one
+DisconnectedForeachInstruction after a guarded `continue`), corpus B 0 /
+−43 (42 EmptyClass `#[ORM\Entity]` log classes, one OffsetOperations on
+an `iterable` property, one DisconnectedForeachInstruction after a guarded
+`continue`), corpus C −69 / −75 (64 ReturnTypeCanBeDeclared
+`: ArrayCollection` — 14 of them repository methods documented
+`@return ArrayCollection` but returning `getResult()`/`execute()` arrays, a
+TypeError — and six
+DisconnectedForeachInstruction `$this->getDoctrine()->getManager()->flush()`
+per-iteration flushes, now unreported like `$em->flush();` already was;
+four regex messages reworded).
+
+Declined: ForgottenDebugOutput on `Doctrine\Common\Util\Debug::export()`
+nested in `print_r(…, true)` (spec default list; three legacy Behat
+contexts); TraitsPropertiesConflicts on a trait property re-declared by
+constructor promotion (compatible, info, the redundancy is the point);
+CascadeStringReplacement `array(…)` in the rebuilt call
+(`USE_SHORT_ARRAYS_SYNTAX`); PackedHashtableOptimization on `'0' =>`
+keys, CryptographicallySecureRandomness `openssl_random_pseudo_bytes()` →
+`random_bytes()`, PregQuoteUsage on delimiter-less regex consumers
+(MongoDB, Varnish), UsingInclusionReturnValue on config includes,
+NestedTernaryOperator, NotOptimalIfConditions, SuspiciousLoop on reused
+parameters, AutoloadingIssues on fixtures and scripts, UnserializeExploits
+in `Serializable::unserialize()`, MagicMethodsValidity on decorators that
+skip the parent constructor, UnnecessaryCasting `(string)
+$_SERVER['X']` (spec typing) — noise by design;
+NestedAssignmentsUsage F2 copying a value past a typed-property coercion
+(`$z = $m->floatProp = 1`; theoretical, never seen); UnqualifiedReference
+breaking Shopware's `eval`-defined namespace function mocks (`IniMock`;
+not detectable); DateTimeConstantsUsage `format()` output `+02:00` vs
+`+0200` (the rule's intent); JsonEncodingApiUsage, TypeUnsafeArraySearch,
+NonSecureUniqidUsage and RandomApiMigration fixes (decided earlier).
+Engine-level causes found by the review (not fixed; reported): *native
+`iterable` refined by docs* — `/** @var array<string, X> */ private
+iterable $p` and `@return Collection<Activity>` on `: iterable` stay
+`iterable` (expected `array` / the collection class; OffsetOperations);
+*partial generic arguments* — Shopware `Collection` (`@template TElement`,
+`@template TKey of array-key = array-key`, `@implements
+IteratorAggregate<TKey, TElement>`) extended as `Collection<LineItemQuantity>`
+types `foreach ($c as $key => $v)` `$key` as `\LineItemQuantity`
+(expected `int|string`); *boolean alias narrowing* — `if (($isObject =
+is_object($r)) && …) {} if ($isObject) {} else { $r }` with `object|string
+$r`: expected `string`, actual `object|string`; *property guard with
+`continue`* — `foreach ($m as $ref) { if (!is_string($ref->value))
+continue; str_replace('_', '-', $ref->value); }`: result expected
+`string`, actual `array|string`; *native `: mixed` return* typed from the
+body (`float|array|int|string`) instead of `mixed`; *absent literal keys*
+— `$rows = ['total' => count($x)]; $rows['meta']['s'] = 1;` types
+`$rows['meta']` as `int` (round-1 item, still open); *`str_replace()` on
+an unknown subject* typed `array|string` (expected unknown);
+*anonymous classes* — `new class implements TranslatorInterface {…}` typed
+`object` (expected to include the interface); *promoted properties* have
+no `DocType` from the constructor's `@param`
+(`index/extract.go`, constructor promotion; ClassMethodNameMatchesFieldName
+works around it locally).
+
 **Coverage audit (2026-10-07).** Own fixtures were extended until every
 statement of `internal/rules` is executed by `TestOwnFixtures` (90.3% →
 99.99%; the single remaining statement, SecurityAdvisories'
@@ -1141,6 +1241,14 @@ rejected) is fixed; see the close-tag note above.
     `@return static` call on it; true positive).
   - *Cost:* corpus A vendor `analyse --all` unchanged (10 alternating runs,
     medians 1.17 s / 1.16 s real); infer benchmarks within 1 % allocations.
+- **Review round 4 (2026-10-08):** one engine fix, in the T-rules typer:
+  an enclosing `foreach` binding of unknown element type that reaches the
+  read now makes the variable unknown, like an unknown reaching
+  assignment (`foreach ($p as $v) { if ($c) { $v = 'a'; } (string) $v; }`
+  was typed `string`; the binding is ignored when an unconditional
+  reassignment hides it). Test `TestTRulesUnknownReachingDefinition`. The
+  other engine causes of that review are listed with it (rule-level
+  section) and left open.
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.

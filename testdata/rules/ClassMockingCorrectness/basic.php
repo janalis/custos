@@ -79,6 +79,14 @@ namespace {
         private $state;
         function it_unions(<error descr="Final classes cannot be mocked.">Sealed</error>|Relaxed $first) {}
         function it_limits($max = Sealed::LIMIT, Relaxed|<error descr="Final classes cannot be mocked.">Sealed</error> $either = Sealed::DEFAULT) {}
+        function let(<error descr="Final classes cannot be mocked.">Sealed</error> $setUp) {}
+        function letGo(<error descr="Final classes cannot be mocked.">Sealed</error> $tearDown) {}
+        public function its_total_is_known(<error descr="Final classes cannot be mocked.">Sealed</error> $card) {}
+        function it1(<error descr="Final classes cannot be mocked.">Sealed</error> $card) {}
+        private function makeCard(Sealed $card): void {}
+        function itself(Sealed $card) {}
+        function it(Sealed $card) {}
+        public function getMatchers(Sealed $unused): array { return []; }
     }
 
     class IndirectSpec extends GatewaySpec

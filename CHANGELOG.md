@@ -72,6 +72,31 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
+- Unsafe quick-fixes (Sylius / Shopware / API Platform / Mautic / Kimai /
+  Akeneo review): ReturnTypeCanBeDeclared declared `: ArrayCollection`
+  for Doctrine collections (TypeError on hydrated `PersistentCollection`s
+  and on repositories returning arrays); RealpathInStreamContext replaced
+  a `realpath()` whose `false` result was tested (the existence check went
+  dead); MkdirRaceCondition threw where a later `realpath()` /
+  `file_exists()` already handled the failure; UnnecessaryCasting removed
+  a cast from a loop variable of unknown type reassigned in a branch.
+- False positives (same review): OffsetOperations (`iterable`,
+  interfaces such as Laravel's `Application`, reads under `isset()`/`??`,
+  `mixed`/`void` indexes; 227 → 106), ClassMockingCorrectness (PhpSpec
+  helper methods), SuspiciousAssignments (fall-through reading the
+  previous value, `func_get_arg()`), DisconnectedForeachInstruction
+  (fluent chains, statements after a conditional `continue`, shared
+  resets; 20 → 6), ClassOverridesFieldOfSuperClass (re-declarations
+  narrowing the `@var` type), EmptyClass (attribute-configured classes),
+  CallableParameterUseCaseInTypeContext (inline `@var`, `object` values,
+  `match` of calls), DateIntervalSpecification (guarded fallbacks),
+  ThrowRawException (constructor default messages),
+  ClassMethodNameMatchesFieldName (promoted properties documented by the
+  constructor), OnlyWritesOnParameter (`mixed` locals);
+  SimpleXmlLoadFileUsage only reports below PHP 8.0.
+- `custos fix --diff` printed `a//abs/path` headers for absolute paths;
+  NotOptimalRegularExpressions said `[^\s]` → `\S` "matches more under
+  /u" (same set in every mode).
 - Type engine (review round 3): definitions on paths that always leave
   (return, throw, exit, break, continue) and in mutually exclusive
   branches no longer reach later reads; do-while and for back edges are

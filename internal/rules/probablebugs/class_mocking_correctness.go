@@ -201,7 +201,7 @@ func checkPhpSpec(ctx *analysis.Context, cl *syntax.ClassLike) {
 	}
 	for _, mem := range cl.Members { // D6
 		m, ok := mem.(*syntax.Method)
-		if !ok {
+		if !ok || m.Name == nil || !phpSpecDoubled(m.Name.Value) {
 			continue
 		}
 		for _, p := range m.Params {
@@ -229,4 +229,21 @@ func checkPhpSpec(ctx *analysis.Context, cl *syntax.ClassLike) {
 			}
 		}
 	}
+}
+
+// phpSpecDoubled reports whether PhpSpec builds doubles for the parameters
+// of a method with this name: let(), letGo() and the examples (it_…,
+// its_…: "it" or "its" followed by a non-letter). Other methods are helpers
+// the specification calls itself with real objects (custos divergence).
+func phpSpecDoubled(name string) bool {
+	l := strings.ToLower(name)
+	if l == "let" || l == "letgo" {
+		return true
+	}
+	for _, p := range []string{"its", "it"} {
+		if rest, ok := strings.CutPrefix(l, p); ok && rest != "" && (rest[0] < 'a' || rest[0] > 'z') {
+			return true
+		}
+	}
+	return false
 }

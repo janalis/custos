@@ -144,3 +144,11 @@ $two  = realpath('/tmp', 'x');
   `$root . '/app/bootstrap.php'` read `//app`). R1 drops trailing `/` from
   the remaining tail (no tail left → no concatenation); R2 offers no fix
   for an absolute literal ending in `/` (other than `/` itself).
+- **Tested results keep realpath() (custos diverges, fix).** `realpath()`
+  returns `false` for a missing path; the `dirname()` replacement never
+  does. When the call's value is tested for failure — negated, cast to
+  bool, compared, used as a condition, a logical or `?:` operand, or
+  assigned to a target that a later statement of the same list tests that
+  way (`$this->root = realpath($r . '/../public'); if (!$this->root) {
+  throw …; }`, Akeneo) — the finding is reported without a fix: the
+  existence check would silently go dead.

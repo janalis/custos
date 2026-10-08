@@ -109,6 +109,7 @@ func Unified(path, oldText, newText string, context int) string {
 	a, b := splitLines(oldText), splitLines(newText)
 	ops := script(a, b)
 	var sb strings.Builder
+	path = strings.TrimLeft(path, "/") // absolute paths: `a/tmp/x`, not `a//tmp/x`
 	fmt.Fprintf(&sb, "--- a/%s\n+++ b/%s\n", path, path)
 	for i := 0; i < len(ops); {
 		if ops[i].kind == opEqual {

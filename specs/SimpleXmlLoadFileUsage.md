@@ -54,7 +54,7 @@ yourself and passing its contents to `simplexml_load_string()` avoids it.
 None.
 
 ## PHP versions
-No gating.
+No gating upstream; custos reports only below PHP 8.0 (see Divergences).
 
 ## Examples
 
@@ -98,3 +98,9 @@ function feeds(string $dir, string $cls, int $flags, string $nsUri) {
   `file_get_contents(filename: $f)` (works by accident). Spread arguments
   (`...$args`) as first argument produce wrong code. Recommendation: skip the
   report when the first argument is a spread or any argument is named.
+- **PHP 8.0 and later (custos diverges).** Bug #62577 needs the libxml
+  entity loader disabled through `libxml_disable_entity_loader()`, which
+  PHP 8.0 deprecated (it requires libxml 2.9, where external entities are
+  off by default, so the call is no longer needed). On an 8.0+ target the
+  advice only rewrites working code, at error severity (14 findings on
+  Akeneo, Mautic and Shopware); custos reports from 5.3 to 7.4 only.

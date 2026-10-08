@@ -112,6 +112,14 @@ func saSwitch(ctx *analysis.Context, sw *syntax.Switch) {
 		var local []syntax.Node
 		for _, s := range c.Stmts { // D2
 			a := saStmtAssign(s)
+			// Divergence: a value read before it is overwritten (a fall-through
+			// that uses the earlier case's result) is not lost.
+			var reads syntax.Node = s
+			if a != nil {
+				reads = a.Value
+			}
+			written = saDropRead(ctx, reads, written)
+			local = saDropRead(ctx, reads, local)
 			if a == nil {
 				continue
 			}
@@ -149,6 +157,17 @@ func saSwitch(ctx *analysis.Context, sw *syntax.Switch) {
 			written = nil
 		}
 	}
+}
+
+// saDropRead removes the targets read under root.
+func saDropRead(ctx *analysis.Context, root syntax.Node, targets []syntax.Node) []syntax.Node {
+	out := targets[:0]
+	for _, t := range targets {
+		if e, ok := t.(syntax.Expr); !ok || !saReads(ctx, root, e) {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 func saListItems(e syntax.Expr) []syntax.Node {
@@ -205,6 +224,9 @@ func saParams(ctx *analysis.Context, fn syntax.Node) {
 	if util.InTestContext(ctx, fn) { // E6
 		return
 	}
+	if saReadsArgsByPosition(ctx, body) { // divergence: func_get_arg(s) read the values
+		return
+	}
 	// D8 for every parameter in one walk (a walk per parameter was
 	// quadratic); only the first two accesses of each matter.
 	names := map[string]bool{}
@@ -248,6 +270,24 @@ func saParams(ctx *analysis.Context, fn syntax.Node) {
 			ctx.ReportNode(first, "Parameter is overwritten before its value is used.")
 		}
 	}
+}
+
+// saReadsArgsByPosition reports whether body (nested functions excluded)
+// calls func_get_arg() or func_get_args(), which read the passed values.
+func saReadsArgsByPosition(ctx *analysis.Context, body syntax.Node) bool {
+	found := false
+	syntax.Inspect(body, func(x syntax.Node) bool {
+		switch c := x.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ClassLike:
+			return false
+		case *syntax.FuncCall:
+			if ctx.IsGlobalFunctionCall(c, "func_get_arg") || ctx.IsGlobalFunctionCall(c, "func_get_args") {
+				found = true
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 // saFlowVars calls fn for the simple variable accesses under n in

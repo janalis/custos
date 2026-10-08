@@ -370,3 +370,13 @@ abstract class Node {
   `return 5;`). When the method's own body yields, custos ignores its
   return statements and D9, so the suggestion is `\Generator` (together
   with what a `@return` tag says).
+- **Doctrine `ArrayCollection` (custos diverges).** A method whose return
+  types include `\Doctrine\Common\Collections\ArrayCollection` (from a
+  `@return`/`@var` doc or `new ArrayCollection()` in the constructor) is
+  not reported: Doctrine hydrates mapped collections as
+  `PersistentCollection` and `matching()` returns a lazy criteria
+  collection, neither of which extends `ArrayCollection`, so the declared
+  type throws a TypeError at runtime (67 findings on Mautic and Akeneo,
+  some mapped in XML where nothing in the class shows it). The
+  `Collection` interface is suggested as usual when that is what is
+  documented.

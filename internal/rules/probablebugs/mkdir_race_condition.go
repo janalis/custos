@@ -186,14 +186,17 @@ locate:
 }
 
 // laterIsDirCall reports whether a statement following s, in its own
-// statement list or in an enclosing one of the same function, calls is_dir()
-// on one of the directory expressions in keys.
+// statement list or in an enclosing one of the same function, checks one of
+// the directory expressions in keys (laterChecks).
 func laterIsDirCall(ctx *analysis.Context, s syntax.Stmt, keys []string) bool {
 	for s != nil {
 		if list, i, ok := util.StmtList(ctx.File, s); ok {
 			for _, next := range list[i+1:] {
-				if hasIsDirCall(ctx, next, keys) {
+				if hasCheckCall(ctx, next, keys, laterChecks) {
 					return true
+				}
+				if assignsKey(ctx, next, keys) { // a later check names another directory
+					return false
 				}
 			}
 		}
@@ -207,6 +210,24 @@ func laterIsDirCall(ctx *analysis.Context, s syntax.Stmt, keys []string) bool {
 		}
 	}
 	return false
+}
+
+// assignsKey reports whether n assigns (any operator) to one of the
+// directory expressions in keys.
+func assignsKey(ctx *analysis.Context, n syntax.Node, keys []string) bool {
+	found := false
+	syntax.Inspect(n, func(x syntax.Node) bool {
+		if a, ok := x.(*syntax.Assign); ok {
+			k := mkdirNorm(ctx.Text(syntax.UnwrapParens(a.Var)))
+			for _, want := range keys {
+				if k == want {
+					found = true
+				}
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 // argsInner is the span from after the opening parenthesis of l to the end
@@ -240,10 +261,24 @@ func mkdirDir(ctx *analysis.Context, call *syntax.FuncCall) (string, bool) {
 // hasIsDirCall reports whether e contains an is_dir() call whose first
 // argument is one of the directory expressions in keys (normalised text).
 func hasIsDirCall(ctx *analysis.Context, e syntax.Node, keys []string) bool {
+	return hasCheckCall(ctx, e, keys, isDirOnly)
+}
+
+var (
+	isDirOnly = map[string]bool{"is_dir": true}
+	// laterChecks are the calls that, in a statement after an ignored
+	// mkdir(), find out whether the directory exists (custos: realpath()
+	// returns false for a missing directory, Kimai's doctor page).
+	laterChecks = map[string]bool{"is_dir": true, "file_exists": true, "realpath": true, "is_writable": true, "is_writeable": true}
+)
+
+// hasCheckCall reports whether e contains a call to one of names whose
+// first argument is one of the directory expressions in keys.
+func hasCheckCall(ctx *analysis.Context, e syntax.Node, keys []string, names map[string]bool) bool {
 	found := false
 	syntax.Inspect(e, func(n syntax.Node) bool {
 		call, ok := n.(*syntax.FuncCall)
-		if !ok || !strings.EqualFold(util.CallLastName(call), "is_dir") || call.Args == nil || len(call.Args.Args) == 0 {
+		if !ok || !names[strings.ToLower(util.CallLastName(call))] || call.Args == nil || len(call.Args.Args) == 0 {
 			return true
 		}
 		if a, ok := call.Args.Args[0].(*syntax.Arg); ok && a.Value != nil && !a.Unpack {
