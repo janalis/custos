@@ -73,7 +73,12 @@ with `Oi-1` (below). Comparison is only between neighbours.
   interface_exists trait_exists is_a is_subclass_of defined is_array is_bool
   is_callable is_countable is_float is_double is_real is_int is_integer
   is_long is_iterable is_null is_numeric is_object is_resource is_scalar
-  is_string`. (Note `method_exists` is not in the list.)
+  is_string`. (Note `method_exists` is not in the list.) A call to one of
+  the filesystem functions `file_exists is_file is_dir is_link is_readable
+  is_writable is_writeable is_executable is_uploaded_file filesize filemtime
+  fileatime filectime fileinode fileowner filegroup fileperms filetype stat
+  lstat realpath glob disk_free_space disk_total_space` adds 50 instead of 5
+  (custos, see Divergences).
 - method call (instance or static, incl. nullsafe): sum of argument costs +
   cost of the object/class expression + 5.
 - unary expression (`!`, `-`, casts, `@`, `++`/`--`): cost of its operand.
@@ -113,6 +118,12 @@ with `Oi-1` (below). Comparison is only between neighbours.
   `isset()` also guards the existence of the variable itself: moving `$x`
   before `isset($x[...])` can raise "Undefined variable".
 
+- **S5 (type guard — custos divergence, see Divergences)**: `prev`
+  (itself or any sub-expression, not inside a closure or arrow function)
+  compares a plain variable `$v` with `null`, `true` or `false` (`===`,
+  `!==`, `==`, `!=`, either side), tests `$v instanceof …`, or passes `$v`
+  as the first argument of a global `is_*` function; coupled if `cur`
+  itself or any sub-expression of `cur` is a variable named `v`.
 - **S4 (side effects — custos divergence, see Divergences)**: coupled if
   `prev` or `cur` (itself or any sub-expression, not descending into closure
   / arrow-function bodies) contains an *impure* construct, because swapping
@@ -238,6 +249,8 @@ Applies when the operand list has ≥ 2 entries (chain operator `&&` or `||`).
   `fwrite($h, $line) && $ok`, `mkdir($dir) || $dryRun`,
   `rebuild($cache) && $fresh` (user function), `$repo->save($e) || $quiet`,
   `Cache::clear() || $quiet` (method calls).
+  Neighbours where `prev` narrows a variable `cur` uses (S5):
+  `!(null === $o || strlen($o->name) === 0) && $o->id > 0`.
 
 - **E3** Keyword `and`/`or` chains are a single operand for D1/D3/D4 (still
   reported by D2).
@@ -358,6 +371,19 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   the `Shape` check is the redundant one, and removing the reported
   `Circle` check (as upstream suggests) would change the condition. custos
   reports the broader check under `&&`.
+- **Filesystem calls are not cheap (custos diverges from upstream).**
+  Upstream gives every non-listed function call the same cost, so
+  `false === $f || !str_starts_with($f, rtrim($root, '/') . '/') || !is_file($f)`
+  is told to evaluate `is_file()` (one call) before the string checks (two
+  calls), although `is_file()` asks the operating system about the path. A
+  call to a filesystem function costs 50 in custos, more than any in-memory
+  expression of ordinary size.
+- **Type guards stay first (custos diverges from upstream, S5).** When
+  `prev` narrows a variable (null/false/true comparison, `instanceof`,
+  `is_*()`), moving a `cur` that uses that variable ahead of it can run
+  `cur` on the value the check excludes:
+  `!(null === $o || strlen($o->name) === 0) && $o->id > 0` was told to read
+  `$o->id` first. custos treats such neighbours as coupled.
 - **isset guard on the variable itself (custos diverges from upstream).**
   Upstream's S3 ignores `cur` when it is exactly the guarded variable, so
   `isset($x[f()]) && $x` is told to evaluate `$x` first, which raises
