@@ -30,12 +30,10 @@ MDLINT     ?= docs/node_modules/.bin/markdownlint-cli2
 # Rules: .golangci.yml, .editorconfig (+ .editorconfig-checker.json),
 # .markdownlint-cli2.jsonc. See docs/contributing/index.md.
 lint:
-	@if [ -n "$(GOLANGCI)" ]; then $(GOLANGCI) run ./...; else echo "golangci-lint skipped"; fi
-	@if [ -n "$(ACTIONLINT)" ]; then $(ACTIONLINT); else echo "actionlint skipped"; fi
-	@if [ -n "$(ECCHECK)" ]; then $(ECCHECK); else echo "editorconfig-checker skipped"; fi
-	@if [ -z "$(MDLINT)" ]; then echo "markdownlint skipped"; \
-	elif [ ! -x "$(MDLINT)" ]; then echo "markdownlint missing: run npm ci --prefix docs (or MDLINT= to skip)"; exit 1; \
-	else $(MDLINT); fi
+	@$(if $(GOLANGCI),$(GOLANGCI) run ./...,echo "golangci-lint skipped")
+	@$(if $(ACTIONLINT),$(ACTIONLINT),echo "actionlint skipped")
+	@$(if $(ECCHECK),$(ECCHECK),echo "editorconfig-checker skipped")
+	@$(if $(MDLINT),if [ ! -x "$(MDLINT)" ]; then echo "markdownlint missing: run npm ci --prefix docs (or MDLINT= to skip)"; exit 1; fi; $(MDLINT),echo "markdownlint skipped")
 
 # Apply the formatters (gofumpt, goimports) and markdownlint's fixes.
 fmt:
