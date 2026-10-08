@@ -48,18 +48,26 @@ For a condition expression `K`:
 
 With the operand list `O1…On` (n ≥ 2), compute `cost(Oi)` (below). For each
 `i ≥ 2`: report `Oi` when `cost(Oi) < cost(Oi-1)` and `Oi` is **not coupled**
-with `Oi-1` (below). Comparison is only between neighbours.
+with `Oi-1` (below). Comparison is only between neighbours. When either
+neighbour's cost is *unknown* (an unknown part anywhere inside it, see
+*Property fetches*), the pair is not compared and nothing is reported for
+it.
 
 **Cost** (`cost(e)`, `e` with parentheses stripped first):
 
 - 0: missing expression, constant reference (`true`, `null`, `PHP_EOL`,
   magic constants), class reference, class constant access (`A::B`,
   `A::class`, `static::X`), numeric literal.
-- variable, string literal (incl. interpolated/heredoc), property access
-  (`$o->p`, `$o?->p`, `A::$p`): sum of the costs of its embedded
+- variable, string literal (incl. interpolated/heredoc), static property
+  access (`A::$p`), and an instance property access (`$o->p`, `$o?->p`)
+  classified *stored* (below): sum of the costs of its embedded
   sub-expressions — e.g. the object expression of a property access, the
   expression inside `${…}` / `$o->{…}`, interpolated expressions in a string.
-  Plain `$x`, `'text'`, `$o->p` cost 0; `"{$o->m()}"` costs 5.
+  Plain `$x`, `'text'`, a stored `$o->p` cost 0; `"{$o->m()}"` costs 5.
+- instance property access classified *computed* (below): costs like a
+  method call — cost of the object expression + 5.
+- instance property access classified *unknown* (below): its cost is
+  unknown, and so is the cost of every expression containing it.
 - array access `b[i]`: `cost(b) + cost(i)`.
 - `empty(...)` / `isset(...)`: sum of argument costs.
 - function call: sum of argument costs, `+5` unless the call resolves to
@@ -85,6 +93,30 @@ with `Oi-1` (below). Comparison is only between neighbours.
   `?:` costs 0).
 - anything else (`new`, closures, `include`, `print`, `match`, `clone` if not
   modelled as unary, …): 10.
+
+**Property fetches.** Reading a property is cheap only when it reads a
+stored slot. Since PHP 8.4 a property may carry a `get` hook (arbitrary code,
+which can e.g. initialise a lazy collection and run a database query), and on
+any version a read of an undeclared property can land in `__get()`. Each
+instance property access `R->name` / `R?->name` with an identifier name is
+classified from the inferred type of `R`:
+
+- *stored*: every class of `R`'s type set resolves in the index, and in each
+  of them `name` resolves (own or inherited) to a declared property that is
+  not virtual and has no `get` hook (a `set`-only hook on a backed property
+  keeps it stored: reads do not run code); or `name` is not declared and
+  neither the class nor any ancestor declares `__get()` (a dynamic property,
+  e.g. on `\stdClass`).
+- *computed*: in at least one class of the set, `name` resolves to a
+  property with a `get` hook, a virtual property, or a property declared
+  only by an interface or as `abstract` (an implementation may hook it); or
+  `name` is not declared and the class or an ancestor declares `__get()`.
+- *unknown*: anything else — `R`'s type is missing, contains an unknown or
+  unresolved part, `mixed` or `object`, or the name is dynamic
+  (`$o->{$k}`, `$o->$k`).
+
+Static property access (`A::$p`) cannot be hooked nor reach `__get()` and is
+always stored.
 
 **Coupling** (`prev` = `Oi-1`, `cur` = `Oi`); coupled if any scenario holds:
 
@@ -137,7 +169,9 @@ with `Oi-1` (below). Comparison is only between neighbours.
     `parent::m()`, …) and object creation (`new X(...)`, which runs a
     constructor): their targets run arbitrary user code (or magic
     `__call`/`__get`), and there is no safe subset that can be recognised
-    from the call alone.
+    from the call alone;
+  - every instance property access classified *computed* (see *Property
+    fetches*): a `get` hook or `__get()` runs user code just like a method.
 
   **Purity list** (function name matched case-insensitively, without
   namespace, and only when it resolves to the built-in — a same-named user
@@ -239,6 +273,12 @@ Applies when the operand list has ≥ 2 entries (chain operator `&&` or `||`).
   `rebuild($cache) && $fresh` (user function), `$repo->save($e) || $quiet`,
   `Cache::clear() || $quiet` (method calls).
 
+- **E2a** Neighbours where one side reads a property whose cost cannot be
+  established (*unknown*: untyped receiver, dynamic name), and neighbours
+  where one side reads a hooked, virtual, interface/abstract or `__get()`
+  property (*computed*, impure under S4), e.g. `'' === $slug ||
+  filter_var($slug, FILTER_VALIDATE_URL) || !$page->hasContent` when
+  `hasContent` has a `get` hook.
 - **E3** Keyword `and`/`or` chains are a single operand for D1/D3/D4 (still
   reported by D2).
 - **E4** D3 when the chain is `||`, or no `instanceof` operand exists.
@@ -310,6 +350,25 @@ if ($repo->find($id) || empty($cache)) {}       // method call: impure
 if (isset($rows[md5($k)]) && $rows) {}          // S3: $rows itself is guarded
 if (fetch($a) <weak_warning descr="Use '&&' instead of 'and'.">and</weak_warning> $b) {} // one operand for D1
 
+// property fetches
+final class Folder {
+    public bool $open = false;
+    public array $files = [];
+    public bool $isEmpty { get => $this->files === []; }
+    public function __construct(public ?string $label = null) {}
+}
+final class Lazy {
+    public function __get(string $n) { return load($n); }
+}
+function scan(Folder $f, Lazy $l, $any, string $p) {
+    if (strlen($p) > 3 && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$f->open</weak_warning>) {}
+    if (trim($p) || <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$f->label</weak_warning>) {}
+    if (strlen($p) > 3 && !$f->isEmpty) {}      // get hook: computed, impure
+    if (is_dir($p) && $l->cached) {}            // __get(): computed, impure
+    if (strlen($p) > 3 && $any->flag) {}        // untyped receiver: unknown
+    if ($f->isEmpty || $f->open) {}             // computed neighbour: impure
+}
+
 // D2 keyword operators
 if ($p <weak_warning descr="Use '&&' instead of 'and'.">AND</weak_warning> $q) {}
 if ($p || ($q <weak_warning descr="Use '||' instead of 'or'.">or</weak_warning> $r)) {}
@@ -377,6 +436,17 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   current namespace) is treated as a cheap builtin. custos looks up the
   resolved global function name; user functions cost like any call. This
   only affects the suggested evaluation order.
+- **Property reads with hooks or `__get()` (custos diverges).** Upstream
+  prices every `$o->p` like a variable (free), so a read that runs a PHP 8.4
+  `get` hook or `__get()` — possibly a lazy-loaded Doctrine collection, i.e.
+  a query — is called cheaper than a preceding `filter_var()` and is
+  suggested to move first (found on real code). custos classifies property
+  reads (*Property fetches*): only stored properties are free; hooked,
+  virtual, interface/abstract and `__get()` reads cost like a method call
+  and are not reordered (S4); reads whose receiver type is unknown are left
+  out of the comparison rather than guessed at. Upstream's own edge case
+  (`... || $object->field || Clazz::STATE`, untyped `$object`) stays silent
+  in both.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so subjects that differ only in the case of a function, method
   or class name (`Repo::$node` vs `repo::$node`), which PHP treats as the
