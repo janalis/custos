@@ -46,6 +46,13 @@ Helper predicates:
   - *undecided* otherwise: a type mentioning `self`/`static`/`parent`
     (meaning depends on the composing class), or defaults that differ in
     text but are not both known values.
+  Property hooks (PHP 8.4+): in check A, a pair where either side declares
+  hooks (`{ get … }`, `{ set … }`, also an abstract `{ get; }`) is
+  *incompatible* — PHP refuses to compose a hooked property with a trait
+  property of the same name, whichever side carries the hooks. In check B
+  hooks are ignored on both sides: the trait property re-declares the
+  inherited one in the child, which PHP accepts, and the parent's hooks
+  stay in force on the re-declared property.
   Known initial values: no initializer (equals `null` for an untyped
   property, "uninitialized" for a typed one), integer and float literals
   with an optional leading minus (compared by value and kind, so `1` and
@@ -87,6 +94,10 @@ Helper predicates:
   checked here):
   - take the first trait `T` in `Traits` for which `find(T, q.name)` exists;
     stop there;
+  - if the trait's property carries a PHP attribute (`#[...]`) and the pair
+    would be reported weak (same defaults, not *incompatible*), do not
+    report: the trait re-declares the inherited property to attach a
+    mapping or other metadata (custos diverges, see Divergences);
   - if `T` has a mapped reference: report on that reference — **weak** when
     the defaults are the *same* and the pair is not *incompatible*,
     **error** otherwise (different defaults, or a visibility/`static`/
@@ -103,6 +114,9 @@ Checks A and B are independent; both may report for the same class.
   either side; class constants.
 - **E4** Private or inherited (non-own) parent properties (B).
 - **E5** No parent class (B).
+- **E6** Attributed trait re-declaration of a parent property with the same
+  default and compatible declaration (B), e.g. a trait adding
+  `#[ORM\Column]` to a property an unmapped base class declares.
 
 ## Report
 
@@ -172,7 +186,50 @@ class Box extends Shape {
 }
 ```
 
+Attributed trait re-declarations and hooks (PHP 8.4):
+
+```php
+<?php
+use Doctrine\ORM\Mapping as ORM;
+
+abstract class Node {
+    public ?string $locale = null {
+        set(?string $v) { $this->locale = $v === null ? null : strtolower($v); }
+    }
+    public ?string $code = null;
+}
+trait Localised {
+    #[ORM\Column(length: 35, nullable: true)]
+    public ?string $locale = null;
+}
+trait Coded {
+    public ?string $code = null;
+}
+trait Titled {
+    public string $title = '';
+}
+final class Page extends Node {
+    use Localised, <weak_warning descr="Page and trait Coded both declare property $code.">Coded</weak_warning>, Titled;
+
+    public string <error descr="Page and trait Titled both declare property $title.">$title</error> = '' {
+        set(string $v) { $this->title = trim($v); }
+    }
+}
+```
+
 ## Divergences
+
+- **Attributed trait re-declarations of parent properties (custos
+  diverges, B).** Upstream reports a trait property that re-declares an
+  inherited one even when it only adds attributes, the PHP 8 way of mapping
+  a column that an unmapped base class declares (often with a `set` hook
+  that the child keeps). custos skips the weak report when the trait's
+  property carries an attribute, as check A does for own properties; a
+  report that would be an error is kept.
+- **Hooked properties (custos).** Upstream predates property hooks. custos
+  treats an own/trait pair with hooks on either side as incompatible (PHP
+  stops with a fatal error when composing it) and ignores hooks in check B,
+  where PHP accepts the re-declaration and keeps the parent's hooks.
 
 - **Attributed re-declarations (custos diverges):** upstream exempts only
   properties annotated in their docblock (`@ORM\Column`), so the PHP 8
