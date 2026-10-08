@@ -17,7 +17,9 @@ import (
 //	// @custos-ignore RuleID
 //
 // A suppression comment placed before the first statement of the file
-// applies to the whole file.
+// applies to the whole file. Inside a statement, a comment right before a
+// call argument or an array item applies to that argument or item only
+// (a multi-line `new Row(…)` or array literal is one statement).
 
 type suppressions struct {
 	f       *syntax.File
@@ -137,7 +139,7 @@ func (s *suppressions) chainMatches(i int, rule string, match func(map[string]bo
 
 func isSuppressible(n syntax.Node) bool {
 	switch n.(type) {
-	case syntax.Stmt, *syntax.Param, *syntax.PropertyHook:
+	case syntax.Stmt, *syntax.Param, *syntax.PropertyHook, *syntax.Arg, *syntax.ArrayItem:
 		return true
 	}
 	return false

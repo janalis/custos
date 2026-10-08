@@ -38,6 +38,9 @@ func TestSuppressions(t *testing.T) {
 		{"sibling statements", "<?php\nf();\nfunction g() {\n  // @noinspection NestedNotOperators\n  $a = !$b;\n  // @noinspection NestedNotOperators\n  $c = !$d;\n  $e = !$f;\n}", 1},
 		{"nested", "<?php\nf();\n// @noinspection Foo\nfunction g() {\n  // @noinspection NestedNotOperators\n  $a = !$b;\n  $c = !$d;\n}", 1},
 		{"second tag same line", "<?php\nf();\n// @noinspection Foo @noinspection NestedNotOperators\n$a = !$b;", 0},
+		{"argument", "<?php\nf();\n$r = new Row(\n  'a',\n  // @noinspection NestedNotOperatorsInspection -- why\n  value: !$b,\n  other: !$c,\n);", 1},
+		{"inline argument", "<?php\nf();\ng(/* @custos-ignore NestedNotOperators */ !$b, !$c);", 1},
+		{"array item", "<?php\nf();\n$r = [\n  // @custos-ignore NestedNotOperators\n  'k' => !$b,\n  'l' => !$c,\n];", 1},
 	} {
 		if got := analyseOK(t, tc.src); len(got) != tc.want {
 			t.Errorf("%s: got %d findings, want %d: %+v", tc.name, len(got), tc.want, got)
