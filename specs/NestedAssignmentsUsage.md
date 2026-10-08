@@ -119,3 +119,11 @@ function setup() {
   semantics (`$a = $b += 1` would become `$b = 1; $a = 1;`, and `= &` loses the
   reference). We report but offer no fix in those cases. Not covered by
   upstream fixtures.
+- **Re-readable innermost target (custos diverges).** For a non-simple
+  value the fix makes the outer targets read the innermost one back. That
+  is only equivalent when the read has no side effect and returns the
+  stored value: a plain variable, or property/element accesses on one with
+  identifier names and literal, constant or plain-variable keys. Otherwise
+  (`$t = $list[] = f()`, `$a = $m[$i++] = f()`, `$m[g()]`, dynamic names,
+  method-call receivers) the report has no fix (Composer: the fix produced
+  `$target = $this->filesToCleanup[];`, a fatal error).

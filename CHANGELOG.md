@@ -55,6 +55,16 @@ versions follow [Semantic Versioning](https://semver.org/).
   (`?array $n; $n['k'] = 1;`) drops null.
 - LSP: "Suppress <Rule> for this statement" code action; saving a file
   re-checks the other open files.
+- Narrowing: negated compound conditions (`if (!is_scalar($k) && !$k
+  instanceof \Stringable) throw …;` leaves `scalar|\Stringable`; the true
+  branch of `A || B`); every elseif and else of a chain sees the earlier
+  conditions as false; `for` conditions; `match (true)` / `match ($x)` arms
+  and `switch (true)` / `switch ($x)` cases (earlier arms and cases as
+  failed, `default` included); `$x?->m()`, `isset($x->p)`, `$x->p !==
+  null` make `$x` non-null; `is_a()`, `is_subclass_of()`, `gettype()`,
+  `get_debug_type()`, `get_class()` / `$x::class` comparisons, strict
+  `in_array()`, `$x === 'lit'` / `=== Enum::Case`, `true === is_*()`;
+  `count($x) > 0` also drops null; truthiness turns `bool` into `true`.
 
 ### Changed
 - `custos fix` fixes files in parallel (WordPress 7.1 s → 1.6 s);
@@ -62,6 +72,30 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
+- Unsafe quick-fixes (phpMyAdmin / Matomo / PrestaShop / Composer /
+  PHPUnit / Doctrine ORM review): NestedAssignmentsUsage split
+  `$t = $list[] = x` into a read of `$list[]` (fatal);
+  NullCoalescingOperatorCanBeUsed dropped `= &` references;
+  TypeUnsafeArraySearch's `, true` changed results (now reported without a
+  fix); InArrayMissUse `array_key_exists()` for numeric-string needles;
+  ForeachInvariants on `$i <= count($a)`; StrEndsWithCanBeUsed with
+  possibly empty needles; IsEmptyFunctionUsage `=== null` for
+  `SimpleXMLElement`/`GMP`; RealpathInStreamContext on `/..name`
+  segments; MissingOrEmptyGroupStatement and ObGetCleanCanBeUsed output
+  formatting.
+- False positives in OffsetOperations (736 → 322), MissingIssetImplementation
+  (dynamic properties, 65 → 2), StaticInvocationViaThis (union receivers),
+  CallableParameterUseCaseInTypeContext (untyped parameters),
+  UnusedConstructorDependencies (attributes), LoopWhichDoesNotLoop (empty
+  loops over iterators), MagicMethodsValidity (inherited `_get`),
+  PhpUnitTests (fully qualified `@covers`), PregQuoteUsage, MkdirRaceCondition,
+  SuspiciousAssignments, PropertyInitializationFlaws,
+  DisconnectedForeachInstruction, CryptographicallySecureRandomness (PHP
+  7.4+), UsingInclusionOnceReturnValue, OnlyWritesOnParameter
+  (anonymous-class arguments).
+- IsEmptyFunctionUsage crashed on a recovery tree (fuzz).
+- A variable assigned in a `switch` case ending with `break` no longer
+  reaches the later cases (only through an enclosing loop).
 - Type inference (from the WordPress/Drupal review): builtin return types
   follow the target PHP version (`substr()` is `string|false` before 8.0);
   `while ($x = f())` / `if ($x = f())` narrow `$x`; an unconditional

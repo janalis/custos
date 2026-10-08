@@ -133,3 +133,8 @@ $two  = realpath('/tmp', 'x');
   `dirname(`, which a namespaced or imported function of that name captures
   (the fix then calls user code). custos writes `\dirname(` in that case
   (R1).
+- **Whole segments (custos diverges).** R1 only climbs for `/..` followed
+  by `/` or the end of the literal: `realpath(__DIR__ . '/..cache')` names a
+  directory, not the parent, and is reported without a fix. When nothing
+  remains after the climbs the replacement is `dirname(L)` without a
+  `. ''` tail.

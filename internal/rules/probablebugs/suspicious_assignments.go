@@ -336,8 +336,9 @@ func saOverwrite(ctx *analysis.Context, a *syntax.Assign) {
 		}
 		e = d.Var
 	}
-	// D14: the right-hand side (itself included) must not read T.
-	if saContainsEquivalent(ctx.File, a.Value, t, true) {
+	// D14: the right-hand side (itself included) must not read T — nor,
+	// custos, the array holding it (`$a['n'] = count($a)`).
+	if saReads(ctx, a.Value, t) {
 		return
 	}
 	seen := map[string]bool{}
@@ -383,7 +384,7 @@ func saOverwrite(ctx *analysis.Context, a *syntax.Assign) {
 		// of the block (not only the next one), or — for a target other
 		// than a local variable — by any call made there.
 		for _, later := range blk.Stmts[idx+1:] {
-			if saContainsEquivalent(ctx.File, later, t, true) || saSharedTarget(ctx, t) && saHasCall(later) {
+			if saReads(ctx, later, t) || saSharedTarget(ctx, t) && saHasCall(later) {
 				return
 			}
 		}
@@ -415,6 +416,32 @@ func saOverwrite(ctx *analysis.Context, a *syntax.Assign) {
 		return
 	}
 	ctx.ReportNode(t, target+" is overwritten right after being assigned.")
+}
+
+// saReads reports whether root contains t, or an array holding it used as
+// a whole: for `$p['a']['b']` also `load($p)` or `$q = $p['a']`, but not a
+// sibling element such as `$p['c']`.
+func saReads(ctx *analysis.Context, root syntax.Node, t syntax.Expr) bool {
+	if saContainsEquivalent(ctx.File, root, t, true) {
+		return true
+	}
+	var bases []syntax.Node
+	for d, ok := t.(*syntax.ArrayDimFetch); ok; d, ok = d.Var.(*syntax.ArrayDimFetch) {
+		bases = append(bases, d.Var)
+	}
+	found := false
+	syntax.Inspect(root, func(n syntax.Node) bool {
+		if d, ok := n.Parent().(*syntax.ArrayDimFetch); ok && d.Var == n {
+			return true // an element of n is read, not n itself
+		}
+		for _, b := range bases {
+			if n.Kind() == b.Kind() && util.EquivalentFoldNames(ctx.File, n, b) {
+				found = true
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 // ---- F. destructuring a non-array --------------------------------------------------------

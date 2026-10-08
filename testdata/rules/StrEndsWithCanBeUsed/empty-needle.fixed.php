@@ -5,6 +5,6 @@ function tails(string $s, string $t): array {
         "" !== mb_substr($s, -mb_strlen("")),
         substr($s, -strlen('')) === (''),
         str_ends_with($s, '/'),
-        !str_ends_with($s, $t),
+        substr($s, -strlen($t)) !== $t,
     ];
 }

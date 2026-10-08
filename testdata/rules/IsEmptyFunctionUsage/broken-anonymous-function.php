@@ -1,0 +1,1 @@
+<?php funCtion{{/*@var 0 $s*/emptY$s

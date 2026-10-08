@@ -164,3 +164,6 @@ function renderPanel($tpl) {
 - **Builtin spelling (custos diverges).** Upstream renames only the
   identifier, so a namespaced or imported `ob_get_clean` captures the
   rewritten call. custos writes `\ob_get_clean` in that case (F1).
+- **Formatting (custos).** The removed `ob_end_clean();` statement takes
+  the whitespace before it along, so no blank line with trailing spaces is
+  left.

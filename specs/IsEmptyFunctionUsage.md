@@ -248,3 +248,7 @@ Yoda style, default options: `empty($ratio)` → `null === $ratio`;
   statement of the function body itself before the statement holding
   `empty()`. Otherwise the subject falls through to D3
   (`if ($tz instanceof Zone) { $z = $tz; } ... empty($z)`).
+- **Objects that can be empty (custos diverges).** `SimpleXMLElement`
+  (empty elements) and `GMP` (zero) objects convert to false, so
+  `empty($x)` is not `$x === null` for them: classes that are or extend
+  them do not qualify for D2b.

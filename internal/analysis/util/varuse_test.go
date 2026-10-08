@@ -44,6 +44,8 @@ func TestVarAccesses(t *testing.T) {
 		{`function inner() { $v = 1; } class K { function m() { $v = 2; } }`, ""},
 		{`$$v = 1; ${'v'} = 2;`, "r"},
 		{`$w = &$v;`, "r"},
+		{`return new class ($v) { function m() { $v = 2; } };`, "r"},
+		{`return new class { function m() { return $v; } };`, ""},
 	}
 	for _, c := range cases {
 		f := parse(t, "<?php function scope($p) { "+c.body+" }")

@@ -697,3 +697,9 @@ class LegacyTest
   conformance coverage for a rare false positive.
 - **PHPUnit 10+ attributes** (`#[DataProvider]`, `#[Depends]`, `#[CoversClass]`,
   `#[Test]`) are not examined. Recommendation: out of scope, as upstream.
+- **Fully qualified tag names (custos diverges).** PHPUnit reads the class
+  names of `@covers`, `@coversDefaultClass`, `@depends` and
+  `@dataProvider` as fully qualified (no leading `\` needed). A name that
+  exists as written now wins over the namespace-relative reading:
+  `@covers Composer\Downloader\DownloadManager::m` in namespace
+  `Composer\Test\Downloader` resolves (21 false reports on Composer).

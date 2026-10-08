@@ -221,6 +221,85 @@ initial value typed nullable; class attributes not in the index;
 duplicate function declarations; int overflow to float) are left to the
 type-engine work.
 
+**phpMyAdmin / Matomo / PrestaShop / Composer / PHPUnit / Doctrine ORM
+review (2026-10-08).** Second run on code custos had never seen, shallow
+clones plus `composer install --no-scripts --no-plugins` (vendor indexed,
+not analysed), only read: phpMyAdmin (1,236 files, PHP 8.2), Matomo (3,769,
+8.1), PrestaShop (7,898, 8.1), composer/composer (635, 7.2),
+sebastianbergmann/phpunit (3,089, 8.4) and doctrine/orm (1,527, 8.1),
+`analyse --all`. Robustness: no internal finding; the only syntax errors
+are PHPUnit's own invalid fixtures (`$b = ;`, partial function application
+`f(?, '!')`), confirmed by `php -l` of the target version, which reports
+nothing else but compile-time errors custos does not model (closures in
+constant expressions, PHP 8.4 property hooks and the 8.5 pipe operator in
+PHPUnit/ORM test files that target newer versions, `true` as a class
+name). `analyse --all` takes 0.4–3.3 s (PrestaShop, 7,898 files, index of
+its vendor included); the largest files (Matomo's 825 KB ISO region table,
+PrestaShop's 315 KB `Product.php`) analyse in under 0.1 s once the index is
+built, linearly. About 700 findings were sampled over 50 rules (all
+findings below 20, 12–20 otherwise; error-severity and semantic rules
+first), and sampled hunks of the fix diffs of all 90 fixable rules were
+read. Fix safety: `custos fix --all` on copies (77,000 edits in 7,187
+files), then `php -l` of the target version on every changed file: one
+broken file (NestedAssignmentsUsage, below); every individual fix was also
+applied alone and re-parsed (`TestFixesKeepCodeParsable` on each project,
+`php -l` samples); per-rule diffs were read for semantic changes (seven
+fixes changed behaviour, below). After the fixes all changed files lint
+(two ORM test models use PHP 8.4 property hooks and fail before fixing).
+
+| Rule / area | Was | Now |
+|---|---|---|
+| NestedAssignmentsUsage | `$target = $this->files[] = $path` split into `$this->files[] = $path; $target = $this->files[];` (fatal: `[]` for reading); `$m[$i++]`, `$m[g()]` targets read back with side effects. | Fix only when the innermost target is re-readable (plain variable, identifier properties, literal/constant/variable keys); otherwise report only. |
+| NullCoalescingOperatorCanBeUsed | `if (isset($m[$k])) { $x = &$m[$k]; } else { $x = null; }` → `$x = $m[$k] ?? null;` (reference lost, Matomo menus no longer edited); if/return in `function &get()`. | Not rewritten. 576 → 572. |
+| TypeUnsafeArraySearch | `in_array(Configuration::get('PS_ROUND_TYPE'), [Order::ROUND_ITEM, …])` given `, true` (a config string never equals an int constant). | Reported without a fix: the equivalent cases (same type both sides) are already exempt (listed divergence). Fixable 833 → 0. |
+| InArrayMissUse | `in_array($k, array_keys($a)[, true])` → `array_key_exists($k, $a)` (`'5'` is the int key 5; `'1.0' == 1`; `'abc' == 0` before 8.0). | Fix for int needles (strict) and non-numeric string literals (loose, 8.0+) only (listed divergence). Fixable 23 → 10. |
+| ForeachInvariants | `for ($a = 0; $a <= count($delays); $a++)` (one more iteration) rewritten to `foreach`. | Only `<`, `>` and `!=`/`!==` conditions (Matomo retry loop). |
+| StrEndsWithCanBeUsed, IsEmptyFunctionUsage | `substr($h, -strlen($n)) === $n` → `str_ends_with()` for possibly empty `$n` (`''` flips the result); `empty($xml)` → `$xml === null` for `SimpleXMLElement`/`GMP` (both can be empty). | Fix only for known non-empty needles; those classes excluded from D2b. |
+| RealpathInStreamContext, MissingOrEmptyGroupStatement, ObGetCleanCanBeUsed | `realpath(__DIR__ . '/..cache')` → `dirname(__DIR__) . 'cache'`, `. ''` tails; braces inserted as `{\nstmt\n}` at column 0; a blank line with trailing spaces left by `ob_end_clean();`. | Whole `/..` segments only; formatted braces (`if ($a) {` + indented body); the statement takes its leading whitespace. |
+| OffsetOperations | 736 reports, mostly `array\|bool` lookups (`Db::getRow()`), parameter defaults (`$tables = false` called with arrays), `$last = false` reassigned in a `foreach`, `bool` keys. | Fallback needs every value (`PossibleValuesComplete`); `bool` next to `array`/`string` is a failure marker; `bool` keys accepted. 736 → 322 (rest mostly loose `@return array<int\|array>` docs). |
+| MissingIssetImplementation | PrestaShop importers' dynamic properties (`$entity->$field = $value`, then `isset($product->shop)`) reported as always false (error). | Skipped when the class has no `__set()` and the file writes the property or computed names. 65 → 2. |
+| StaticInvocationViaThis | `$db->fetchAll()` with `Db::get(): Tracker\Db\|AdapterInterface\|Db` reported because `Piwik\Db::fetchAll()` is static. | Every class of a union must resolve the method as static. Matomo 421 → 303. |
+| CallableParameterUseCaseInTypeContext | `function f($extra = false) { $extra = sprintf(…); }` reported against the default's type. | Untyped, undocumented parameters skipped (listed divergence). 246 → 229. |
+| UnusedConstructorDependencies, LoopWhichDoesNotLoop | `#[ORM\Column] private int $id` assigned in the constructor only; `foreach ($user->groups as $g) {}` initialising lazy collections. | Attributes count as annotations; empty bodies over objects/unknown subjects skipped. ORM 26 → 8, 10 → 2. |
+| MagicMethodsValidity, PhpUnitTests, PregQuoteUsage, MkdirRaceCondition | `_get()` implementing an abstract `Cache::_get()`; `@covers Composer\X::m` resolved relative to the test's namespace; `'{^' . str_replace('\\*', '.*', preg_quote($p)) . '$}'`; `if (!@mkdir($d)) { … if (is_dir($d)) return; … }`. | Inherited names skipped; tag names tried as fully qualified first; str_replace()/strtr() looked through; re-check in the failure branch accepted. |
+| SuspiciousAssignments, PropertyInitializationFlaws, DisconnectedForeachInstruction | `$package['version'] = …; $loader->load($package);` then overwritten after the `if`; `private $removed = [];` removed although `$this->setPackages()` runs first; per-host `fwrite($fd, '# …')` and `mt_rand()` told to move out of the loop. | Reads of the holding array count; O skipped after calls that can run the object's code; stream-write/random/clock calls kept in the loop. |
+| CryptographicallySecureRandomness, UsingInclusionOnceReturnValue, OnlyWritesOnParameter (shared walker) | Strength-flag advice on PHP 7.4+ (always true there); `@include_once $f;` (result discarded); `use ($org)` passed only to `new class ($org)` reported unused. | Skipped from 7.4; `@` looked through; anonymous-class arguments belong to the enclosing scope (`util.VarAccessesByName`). |
+
+Deltas on the local corpora (HEAD 6c987f9 → this tree, engine changes
+included): corpus A `src/` −1 and corpus B −2 (OffsetOperations `bool`
+keys), corpus B +1 UnnecessaryCasting (engine narrowing); corpus C: one
+TypeUnsafeArraySearch fix fewer. FuzzRules also found a nil dereference in
+IsEmptyFunctionUsage on a recovery tree (`funCtion{{…emptY$s`), guarded
+(seed and broken-PHP fixture added). New fixtures shifted FuzzRules' "every
+third fixture" seed sample, and one engine branch (`brokenBy`, a ternary's
+other branch) was covered only by a sampled fixture; that fixture is now a
+permanent seed (`testdata/fuzz/FuzzRules/seed-unsafe-isset-shapes`).
+
+Declined: ForgottenDebugOutput on `error_log()` (upstream default list, 12
+of 29 samples deliberate logging; configurable); PotentialMalware on
+Composer's `touch($target, filemtime($source))` (exactly the
+timestamp-copying pattern the rule targets); RandomApiMigration's
+`random_int()` ignores `mt_srand()` seeds (fixtures mix seeding and calls;
+`SUGGEST_USING_RANDOM_INT` can be turned off); MagicMethodsValidity
+"does not call parent::__construct()" for empty parent constructors (the
+index records no body facts — engine request below); AmbiguousMethodsCallsInArrayMapping
+on stateful calls (`$map[$this->read($s)] = $this->read($s)`, not
+detectable); UnnecessaryCasting removing `(int)` casts trusted from PHPDoc
+(`@param array<int, int>`) in SQL-building code — the engine does not
+record whether a type is native or documented (engine request below);
+SuspiciousBinaryOperation D10, OneTimeUseVariables, SlowArrayOperationsInLoop,
+SuspiciousLoop, UntrustedInclusion, DynamicInvocationViaScopeResolution,
+SenselessProxyMethod, ClassOverridesFieldOfSuperClass, AlterInForeach,
+UnnecessaryAssertion, ReturnTypeCanBeDeclared, JsonEncodingApiUsage and
+ThrowRawException fixes (deliberate behaviour changes) — by design.
+Engine-level causes left to the type-engine work: `preg_replace()` with a
+string subject typed `string|array|null`; `abs(int)` typed `int|float`;
+PHPDoc intersections `A&B` read as unions; an early `return` after
+`$this->p === false` not narrowing the property; writing `$a[1] = explode()`
+types the absent `$a[0]` as `array`; target-version stub returns (`hash()`
+is `string|false` on 7.x); `index.Method` without an empty-body flag and
+without native-vs-doc provenance of types.
+
 **Coverage audit (2026-10-07).** Own fixtures were extended until every
 statement of `internal/rules` is executed by `TestOwnFixtures` (90.3% →
 99.99%; the single remaining statement, SecurityAdvisories'
@@ -339,7 +418,8 @@ rejected) is fixed; see the close-tag note above.
   with one key and `mb_convert_encoding()` are typed by their arguments.
 - **Narrowing:** `is_*()`, `instanceof`, null/true/false comparisons, isset,
   truthiness — in ternary branches, if/elseif/else bodies, `&&`/`||` operands,
-  `while` bodies and after early-exit guards.
+  `while`/`for` bodies, match arms, switch cases and after early-exit guards
+  (see Narrowing completeness below).
 - **Array shapes and emptiness (2026-10-07):** a type may carry array
   facts beside its atoms (`types/shape.go`): per-key types, a sealed flag,
   non-emptiness, and the same facts for the elements of `T[]` members. They
@@ -735,6 +815,83 @@ rejected) is fixed; see the close-tag note above.
     redundant by negated assertions or killed definitions (e.g. `(int)
     $post_author` after `$post_author = $post_author->ID`). corpus A vendor
     timing unchanged (0.69 s both).
+- **Narrowing completeness (2026-10-08):** conditions narrow in every
+  place they decide control flow, measured old vs new engine built from
+  one tree (rules unchanged).
+  - *Negated compound conditions* (De Morgan): where `A && B` is false the
+    type is the union of "A false" and "A true, then B false"; where
+    `A || B` is true, the union of "A true" and "A false, then B true"
+    (`applyCondB`; an emptied side is an impossible path and adds
+    nothing). It applies wherever conditions do: guards, else branches,
+    ternaries, loops. After `if (!is_scalar($k) && !$k instanceof
+    \Stringable) throw …;` `$k` is `scalar|\Stringable` (Symfony
+    ParameterBag). Both polarities of A are evaluated, so alternating
+    nestings would cost 3^depth: one condition evaluation examines at most
+    `maxCondSteps` = 1024 nodes, the rest narrows nothing (sound).
+  - *Branch chains:* an elseif body sees the `if` and earlier elseif
+    conditions as false, an else after elseifs all of them; `for` bodies
+    use the last condition expression. `match` arms see the earlier arms
+    as failed and their own values as `subject === value` (several values:
+    their `||`), `default` all others failed; `switch` cases likewise with
+    `==`, the empty cases falling into a case added to its values, nothing
+    when a non-empty case may fall through (its last statement does not
+    break/continue/return/throw/exit; goto does not count). The arm and
+    case comparisons are synthetic `Binary` nodes handed to the ordinary
+    condition code, so `match (true) { is_string($x) => … }` narrows like
+    `if`, and `match ($x) { null => …, default => … }` like `=== null`.
+    At most `maxBranchScan` = 256 earlier branches are applied (beyond:
+    none, so a 10k-arm match stays linear).
+  - *Comparisons:* `$x === 'a'` / `=== 1` / `=== K::C` / `=== Enum::A`
+    narrow to the constant's type (members of the current type belonging
+    to it, as for assertions); `true/false ===/== cond` narrows by cond
+    (`!==` only when cond is boolean syntax: `match (true)` arms are
+    compared strictly); `gettype($x)` (closed resources read "resource
+    (closed)", so `!== 'resource'` keeps resources), `get_debug_type($x)`
+    names and classes, `get_class($x)` / `$x::class` against `Foo::class`
+    or a class-name literal (exact class: inequality removes nothing).
+  - *Chains:* `$x?->m()` / `$x->p` truthy, `isset($x->p)`, `!empty($x->p)`,
+    `$x?->p !== null` (or strictly equal to a non-null constant), `$x->p
+    instanceof Foo` make `$x` non-null (an element chain `$x[…]`: not
+    false either, non-empty).
+  - *Type guards:* `is_a($x, Foo::class)` (with `allow_string` a string
+    member stays), `is_subclass_of()` (strings allowed by default; false
+    removes only strict subclasses), strict `in_array($x, list, true)`
+    narrows to the list's element type (literal lists: the union of their
+    values); `count($x) > 0` also drops null (count(null) is 0 or a
+    TypeError); truthiness makes `bool` `true` and falsiness `false`
+    (removing `true`). `instanceof` on `$this->prop` already narrowed.
+  - *Fixed on the way:* a definition in a switch case ending with `break`
+    (and the like) reached the later cases' reads (`dropOtherCases`; an
+    enclosing loop's back edge still brings it); `bool` minus `true`/`false`
+    became unknown when bool was the only member (now `false`/`true`, also
+    in negative assertions).
+  - *Cost:* `types.normalizeAtom` no longer lower-cases class names on
+    every `Of`/`Has`/`Without` (case-folded map lookups on a stack buffer)
+    and `Without` normalizes its arguments once: `BenchmarkTypeOfCallables`
+    −10 % allocations; the new `BenchmarkTypeOfConditions` (compound
+    guards, chains, match, switch) is ~+40 % time / +25 % allocations, the
+    price of the extra narrowing; corpus A vendor `analyse --all` unchanged
+    (8 alternating runs on a loaded machine: median real 1.6 s, user
+    5.9 s for both engines). Probes
+    (`TestNarrowingBounded`, n = 10k): 1,500-operand `&&`/`||` chains
+    0.31 s, a 140-level alternating `&&`/`||` guard followed by 10k reads
+    0.35 s, 10k elseifs 0.09 s, a 10k-arm `match ($x)` 0.04 s and `match
+    (true)` 0.13 s, a 10k-case `switch (true)` 0.14 s.
+  - *Deltas* (old = HEAD 6c987f9 engine, default / `--all`): corpus A src
+    0 / 0, corpus C 0 / 0. Symfony −1 / 0: −1 UnnecessaryCasting
+    (console Application: `(int) $exitCode` from `$e->getCode()` after
+    `if ($e instanceof \Exception && !…) throw` guards — `$e` is now
+    `\Exception|\Throwable` and `Exception::getCode()` is not int; true
+    removal, PDOException codes are strings); `--all` also +1
+    OffsetOperations (SymfonyQuestionHelper `$choices[$default]`: the
+    failed `case null === $default:` removes null and the previous case's
+    `$default = explode(…)` no longer reaches, leaving the documented
+    `float` member, reported like other float keys) and the ParameterBag
+    message now lists `\Stringable|float` instead of `array|float`
+    (objects, Stringable included, are illegal array keys: correct).
+    corpus B +1 / +1 UnnecessaryCasting (`(int) $workEditionId` where the
+    id comes from `match (true) { $e instanceof WorkEdition => $e->id, …}`
+    after a null check: true positive).
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.
@@ -1133,6 +1290,13 @@ an editor), so hostile input must not crash or hang it.
     whole-file, now linear); CompactArguments indexes the first `$name`
     token of each scope once instead of rescanning per call (20k
     `compact()` calls: 9 s → 0.2 s).
+- **Condition narrowing caps (2026-10-08):** negating `A && B` narrows A
+  in both polarities, so an alternating `&&`/`||` nesting was exponential;
+  one condition evaluation examines at most `infer.maxCondSteps` = 1024
+  nodes, and elseif chains, match arms and switch cases apply at most
+  `infer.maxBranchScan` = 256 earlier branches (beyond: no narrowing from
+  them). Probes in `TestNarrowingBounded` (Engine: Narrowing
+  completeness).
 - **Helper consolidation (2026-10-07, Phase 8):** duplicated helpers merged,
   behaviour unchanged — findings (default and `--all`, JSON incl. messages,
   ranges, fixable) and `fix --all --dry-run --diff` output byte-identical

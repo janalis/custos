@@ -85,6 +85,13 @@ func checkMissingIsset(ctx *analysis.Context, a syntax.Expr) {
 		if ix.FindMethod(cls, "__isset", ctx.PHP) != nil || misAllowsDynamic(ctx, cls) {
 			return
 		}
+		// custos: without __set() a write creates a real (dynamic)
+		// property, which isset() does see; skip it when the file writes
+		// properties of that name or by a computed name (an importer's
+		// `$entity->$field = $value`).
+		if ix.FindMethod(cls, "__set", ctx.PHP) == nil && misDynamicWrite(ctx, id.Value) {
+			return
+		}
 		if report == "" {
 			report = t
 		}
@@ -103,4 +110,30 @@ func misAllowsDynamic(ctx *analysis.Context, cls string) bool {
 		}
 	}
 	return false
+}
+
+// misDynamicWrite reports whether the file assigns a property named name on
+// a receiver other than $this, or assigns a property with a computed name.
+func misDynamicWrite(ctx *analysis.Context, name string) bool {
+	w := ctx.Memo("writes", func() any {
+		names := map[string]bool{}
+		for _, st := range ctx.File.Stmts {
+			syntax.Inspect(st, func(n syntax.Node) bool {
+				as, ok := n.(*syntax.Assign)
+				if !ok {
+					return true
+				}
+				if pf, ok := as.Var.(*syntax.PropertyFetch); ok {
+					if id, ok := pf.Name.(*syntax.Identifier); !ok {
+						names[""] = true // computed name
+					} else if ctx.Text(pf.Var) != "$this" {
+						names[id.Value] = true
+					}
+				}
+				return true
+			})
+		}
+		return names
+	}).(map[string]bool)
+	return w[""] || w[name]
 }

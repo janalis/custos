@@ -22,7 +22,7 @@ func (typeUnsafeArraySearch) Semantic() {}
 
 func (typeUnsafeArraySearch) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
-	qual, name, ok := util.CallName(call)
+	_, name, ok := util.CallName(call)
 	if lname := strings.ToLower(name); !ok || (lname != "in_array" && lname != "array_search") || util.ArgCount(call) != 2 { // D1, D2, E3
 		return
 	}
@@ -42,12 +42,12 @@ func (typeUnsafeArraySearch) Check(ctx *analysis.Context, n syntax.Node) {
 		strings.TrimPrefix(ht.Atoms()[0], `\`) == strings.TrimPrefix(nt.Atoms()[0], `\`)+"[]" {
 		return
 	}
-	span := call.Span()
-	newText := qual + name + "(" + ctx.Text(needle.Value) + ", " + ctx.Text(haystack.Value) + ", true)"
-	ctx.Report(span, "Pass a third argument to say whether this search must be type-strict.", analysis.Fix{
-		Title: "Make the search type-strict",
-		Edits: func() []analysis.TextEdit { return []analysis.TextEdit{{Span: span, NewText: newText}} },
-	})
+	// custos: no fix. `true` changes the result whenever loose and strict
+	// equality differ ('1' == 1, null == '', '1e1' == '10'): a config
+	// string searched among int constants stops matching. The only cases
+	// known to be equivalent (same scalar type on both sides) are already
+	// exempt (E2).
+	ctx.Report(call.Span(), "Pass a third argument to say whether this search must be type-strict.")
 }
 
 // literalStringHaystack implements E1.

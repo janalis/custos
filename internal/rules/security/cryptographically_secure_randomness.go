@@ -39,7 +39,10 @@ func (cryptographicallySecureRandomness) Check(ctx *analysis.Context, n syntax.N
 	if ctx.PHP.AtLeast(phpver.PHP70) { // D1
 		ctx.ReportSeverity(nameSpan, meta.SeverityInfo, "Use random_bytes() for cryptographically secure randomness.")
 	}
-	if len(args) == 1 { // D2
+	// custos: from PHP 7.4 openssl_random_pseudo_bytes() throws instead of
+	// using a weak source, so the strength flag is always true (D2, D5).
+	modern := openssl && ctx.PHP.AtLeast(phpver.PHP74)
+	if len(args) == 1 && !modern { // D2
 		if openssl {
 			ctx.Report(nameSpan, "Pass a second argument to learn whether a strong algorithm was used.")
 		} else {
@@ -62,7 +65,7 @@ func (cryptographicallySecureRandomness) Check(ctx *analysis.Context, n syntax.N
 		}
 		return
 	}
-	if second.Span().Len() > 0 && !flagChecked(ctx.File, second) { // D5
+	if !modern && second.Span().Len() > 0 && !flagChecked(ctx.File, second) { // D5
 		ctx.ReportNode(second, "The strength flag may be false; check it.")
 	}
 }

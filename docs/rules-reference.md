@@ -1909,7 +1909,7 @@ DECODE_AS_ARRAY on, HARDEN_ERRORS_HANDLING off, default PHP level;
 
 ### TypeUnsafeArraySearch
 
-`TypeUnsafeArraySearchInspection` · severity **info** · default **on** · quick-fix **yes**
+`TypeUnsafeArraySearchInspection` · severity **info** · default **on** · quick-fix **no**
 
 `in_array()` and `array_search()` compare loosely unless their third argument
 is `true`, so `'1abc'`, `1`, `true` and `'1'` can all "match". Asking for the

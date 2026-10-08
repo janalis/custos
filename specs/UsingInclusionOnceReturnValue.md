@@ -109,3 +109,6 @@ $cfg = (require 'config.php');
   redeclares the classes and functions it defines (fatal) and repeats its
   side effects. custos reports without a fix; whether to load the value
   another way is the author's decision.
+- **Silenced statements (custos diverges).** `@include_once $f;` is an
+  expression statement whose result is discarded through the `@`
+  (PrestaShop); D2 now looks through `@` and parentheses.

@@ -15,7 +15,11 @@
 while (wait()) {
     // the condition does the work: still loops
 }
-<warning descr="Loop body exits on the first iteration; the loop never repeats.">foreach</warning> ($queue as $unused) {
+$names = ['a', 'b'];
+<warning descr="Loop body exits on the first iteration; the loop never repeats.">foreach</warning> ($names as $unused) {
+}
+// An empty body over an unknown subject may iterate for side effects.
+foreach ($queue as $unused) {
 }
 <warning descr="Loop body exits on the first iteration; the loop never repeats.">foreach</warning> ($grid as $line) {
     foreach ($line as $cell) {

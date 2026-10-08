@@ -56,3 +56,14 @@ final class Registry
         $this->entries[] = $entry;
     }
 }
+
+function anonymous_class_args($container)
+{
+    $org = 'acme';
+    return function ($c) use ($org) {
+        // Constructor arguments of an anonymous class are read in this scope.
+        return new class ($c, $org) {
+            public function __construct($a, $b) {}
+        };
+    };
+}

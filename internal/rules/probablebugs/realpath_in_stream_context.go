@@ -114,14 +114,20 @@ func realpathReplacement(ctx *analysis.Context, s syntax.Expr) (string, bool) {
 			return "", false
 		}
 		rest, quote, ok := util.QuotedStringRaw(s.Right)
-		if !ok || !strings.HasPrefix(rest, "/..") {
+		// custos: `/..` must be a whole path segment (`/..cache` names a
+		// directory).
+		parent := func(r string) bool { return r == "/.." || strings.HasPrefix(r, "/../") }
+		if !ok || !parent(rest) {
 			return "", false
 		}
 		left := ctx.Text(s.Left)
 		dirname := util.QualifiedBuiltin(ctx, "dirname", s.Span().Start) // a namespaced dirname() would capture a bare call
-		for strings.HasPrefix(rest, "/..") {
+		for parent(rest) {
 			rest = rest[3:]
 			left = dirname + "(" + left + ")"
+		}
+		if rest == "" {
+			return left, true // no `. ''` tail
 		}
 		q := string(quote)
 		return left + " . " + q + rest + q, true

@@ -168,3 +168,8 @@ namespace PHPUnit\Framework {
   found and an ancestor does not resolve, the call is skipped. Inside the
   trait itself (no parent to consult) the abstract static requirement is
   used as before.
+- **Union receivers (custos diverges).** With a receiver typed as a union
+  (`Tracker\Db|AdapterInterface|Db` from Matomo's `Db::get()`), the call is
+  reported only when every class of the union resolves the method as
+  static; a member declaring it as an instance method, or not declaring it,
+  makes the call an instance call (Matomo 587 → 469).

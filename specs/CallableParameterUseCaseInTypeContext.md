@@ -256,3 +256,9 @@ function untyped($flag = null) {
   `mixed|false`) is reported as assigning a `bool` to a `string|null`
   parameter, although `mixed` already admits any type. custos treats a
   value type containing `mixed` as unknown (E3): no report.
+- **Untyped parameters (custos diverges).** A parameter without a declared
+  type and without a `@param` tag accepts any value; its default value is
+  only one of them (`$extraWhere = false` later assigned a string, common in
+  Matomo and PrestaShop). custos skips such parameters instead of taking
+  the default's type as P (D1). EA case affected: `parameter-types-checks.php`
+  (one fewer report, listed divergence).

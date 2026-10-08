@@ -111,6 +111,11 @@ func (cp *cpState) paramSet(p *syntax.Param) (map[string]bool, bool) {
 	raw := []string{"array"} // D1: variadic
 	if !p.Variadic {
 		raw = cp.tr.ParamTypes(cp.fn, p).Atoms()
+		// custos: without a declared or documented type the parameter
+		// accepts anything; its default is just one possible value.
+		if len(raw) == 0 {
+			return nil, false
+		}
 		if p.Default != nil {
 			raw = append(raw, cp.typeOf(p.Default)...)
 		}
@@ -128,9 +133,7 @@ func (cp *cpState) paramSet(p *syntax.Param) (map[string]bool, bool) {
 			set[t] = true
 		}
 	}
-	if len(set) == 0 { // D3
-		return nil, false
-	}
+	// D3 (empty P) cannot happen: raw is not empty (custos skip above).
 	if len(set) == 1 && set["null"] && syntax.IsNullConst(p.Default) { // D4
 		return nil, false
 	}

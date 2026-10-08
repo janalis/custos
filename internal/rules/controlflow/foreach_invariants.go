@@ -99,10 +99,14 @@ func (foreachInvariants) counterLoop(ctx *analysis.Context, l *syntax.For) {
 	if !ok {
 		return
 	}
+	// custos: only conditions that stop at the limit (`$i < X`, `X > $i`,
+	// `$i != X`); `$i <= count($a)` runs once more than foreach would.
 	var limit syntax.Expr
-	if v, ok := ruleSimpleVar(cond.Left); ok && v.Name == counter.Name {
+	op := cond.Op.Kind
+	ne := op == syntax.TIsNotEqual || op == syntax.TIsNotIdentical
+	if v, ok := ruleSimpleVar(cond.Left); ok && v.Name == counter.Name && (ne || op == syntax.TLess) {
 		limit = cond.Right
-	} else if v, ok := ruleSimpleVar(cond.Right); ok && v.Name == counter.Name {
+	} else if v, ok := ruleSimpleVar(cond.Right); ok && v.Name == counter.Name && (ne || op == syntax.TGreater) {
 		limit = cond.Left
 	} else {
 		return

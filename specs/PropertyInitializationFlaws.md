@@ -308,3 +308,10 @@ No findings.
   custos resolves `self` to the class declaring the default and `parent` to
   that class's parent, so such re-declarations are not reported (they
   denote different classes in child and parent).
+- **Calls before the write (custos diverges).** Pattern O is skipped when
+  a statement before the constructor assignment, or its right-hand side,
+  can run the object's own code: a method call on `$this`, a `parent::`,
+  `self::` or `static::` call, or `$this` passed to a call. That code may
+  read the default (Composer's `Pool::__construct()` calls
+  `$this->setPackages()` before assigning the other properties), so
+  removing it could change behaviour.

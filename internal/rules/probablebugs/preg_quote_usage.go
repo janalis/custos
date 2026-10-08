@@ -51,6 +51,12 @@ func pregQuoteDelimiterEscaped(ctx *analysis.Context, call *syntax.FuncCall) boo
 			top = b
 			continue
 		}
+		// str_replace('\\*', '.*', preg_quote($glob)) is still the quoted
+		// text, rewritten (custos refinement).
+		if outer := pregQuoteRewriter(ctx, child); outer != nil {
+			top = outer
+			continue
+		}
 		top = child
 		break
 	}
@@ -88,4 +94,29 @@ func pregQuoteDelimiterEscaped(ctx *analysis.Context, call *syntax.FuncCall) boo
 		escaped += "#"
 	}
 	return strings.IndexByte(escaped, v[0]) >= 0
+}
+
+// pregQuoteRewriter returns the str_replace() call whose subject (third
+// argument), or the strtr() call whose string (first argument), is e.
+func pregQuoteRewriter(ctx *analysis.Context, e syntax.Node) *syntax.FuncCall {
+	arg, ok := e.Parent().(*syntax.Arg)
+	if !ok || arg.Unpack || arg.Name != nil {
+		return nil
+	}
+	args := arg.Parent().(*syntax.ArgList)
+	outer, ok := args.Parent().(*syntax.FuncCall)
+	if !ok {
+		return nil
+	}
+	want := -1
+	switch ctx.GlobalFunctionName(outer) {
+	case "str_replace":
+		want = 2
+	case "strtr":
+		want = 0
+	}
+	if want < 0 || len(args.Args) <= want || args.Args[want] != syntax.Node(arg) {
+		return nil
+	}
+	return outer
 }

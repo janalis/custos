@@ -272,7 +272,8 @@ func ncoAssign(s syntax.Stmt) (*syntax.Assign, bool) {
 		return nil, false
 	}
 	a, ok := es.Expr.(*syntax.Assign)
-	if !ok || a.Op.Kind != syntax.TEqual {
+	// custos: `$v = &$a['k']` binds a reference, which `??` cannot keep.
+	if !ok || a.Op.Kind != syntax.TEqual || a.ByRef {
 		return nil, false
 	}
 	if v, ok := a.Var.(*syntax.Variable); !ok || v.NameExpr != nil {
@@ -295,7 +296,7 @@ func (nullCoalescingOperatorCanBeUsed) checkIf(ctx *analysis.Context, n *syntax.
 	}
 	ret, isRet := body.(*syntax.Return)
 	asg, isAsg := ncoAssign(body)
-	if !isRet && !isAsg {
+	if !isRet && !isAsg || isRet && ncoReturnsByRef(n) {
 		return
 	}
 	var t, f syntax.Expr
@@ -378,4 +379,19 @@ func (nullCoalescingOperatorCanBeUsed) checkIf(ctx *analysis.Context, n *syntax.
 		Title: "Use '??'",
 		Edits: func() []analysis.TextEdit { return []analysis.TextEdit{{Span: replace, NewText: text}} },
 	})
+}
+
+// ncoReturnsByRef reports whether n is inside a function-like declared to
+// return by reference (`function &get()`): its `return $a['k'];` returns a
+// reference, a `??` expression only a value (custos).
+func ncoReturnsByRef(n syntax.Node) bool {
+	switch f := syntax.EnclosingFuncLike(n).(type) {
+	case *syntax.Function:
+		return f.ByRef
+	case *syntax.Method:
+		return f.ByRef
+	case *syntax.Closure:
+		return f.ByRef
+	}
+	return false
 }

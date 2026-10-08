@@ -99,7 +99,7 @@ func (disconnectedForeachInstruction) Check(ctx *analysis.Context, n syntax.Node
 		}
 		switch dfiClassify(ctx, s) {
 		case dfiOther:
-			if dfiDisconnected(s) {
+			if dfiDisconnected(s) && !dfiPerIteration(ctx, s) {
 				ctx.ReportSeverity(dfiRange(ctx, s), meta.SeverityInfo, disconnectedMsg)
 			}
 		case dfiNew, dfiDomCreate:
@@ -326,6 +326,34 @@ func dfiIsDomCreate(ctx *analysis.Context, call *syntax.MethodCall) bool {
 		}
 	}
 	return false
+}
+
+// dfiPerIterationFuncs are built-ins whose effect or result belongs to each
+// iteration: stream writes, random numbers and clocks
+// (lower-case).
+var dfiPerIterationFuncs = func() map[string]bool {
+	m := map[string]bool{}
+	for _, f := range strings.Fields(`fwrite fputs fputcsv fprintf vfprintf fflush
+		file_put_contents
+		rand mt_rand random_int random_bytes lcg_value uniqid microtime hrtime time array_rand
+		shuffle str_shuffle`) {
+		m[f] = true
+	}
+	return m
+}()
+
+// dfiPerIteration reports whether s calls one of the functions above:
+// running it once instead of on every iteration would change the program
+// (custos, see Divergences).
+func dfiPerIteration(ctx *analysis.Context, s syntax.Stmt) bool {
+	found := false
+	syntax.Inspect(s, func(x syntax.Node) bool {
+		if c, ok := x.(*syntax.FuncCall); ok {
+			found = dfiPerIterationFuncs[ctx.GlobalFunctionName(c)]
+		}
+		return !found
+	})
+	return found
 }
 
 // dfiDisconnected checks the D12 shape conditions of an "other" statement.

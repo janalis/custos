@@ -28,6 +28,7 @@ function objects(ObjMap $m) {
 }
 
 function late() {
-    echo <error descr="'$x' does not support offset access (types: int).">$x[0]</error>;
+    // $x is still undefined (null) here: the later assignment does not reach.
+    echo $x[0];
     $x = 5;
 }

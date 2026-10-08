@@ -9,5 +9,5 @@ namespace App {
 
 namespace {
     $c = $role == 'a';
-    $d = array_key_exists($role, $map);
+    $d = IN_ARRAY($role, Array_Keys($map));
 }

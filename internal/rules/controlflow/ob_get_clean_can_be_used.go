@@ -56,9 +56,15 @@ func (obGetCleanCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.ReportNode(get, "Use ob_get_clean() instead of ob_get_contents() + ob_end_clean().", analysis.Fix{
 		Title: "Use ob_get_clean()",
 		Edits: func() []analysis.TextEdit {
+			// The removed statement takes the whitespace before it along
+			// (no blank line with trailing spaces is left).
+			del := stmt.Span()
+			if ws, ok := util.TokenBefore(ctx.File, del.Start); ok && ws.Kind == syntax.TWhitespace {
+				del.Start = ws.Start
+			}
 			return []analysis.TextEdit{
 				{Span: name.Span(), NewText: util.QualifiedBuiltinFor(ctx, "ob_get_clean", get)},
-				{Span: stmt.Span(), NewText: ""},
+				{Span: del, NewText: ""},
 			}
 		},
 	})

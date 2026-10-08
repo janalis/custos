@@ -243,3 +243,12 @@ foreach ($rows as $row) {
   findings on Drupal, Laravel and Nextcloud). custos treats the receiver of
   a method call whose result is discarded as modified. Calls whose result
   is used (`echo $o->label();`) are unchanged.
+- **Per-iteration effects (custos diverges).** Statements calling a
+  stream-writing, random or clock built-in (`fwrite`, `fputs`, `fputcsv`,
+  `fprintf`, `vfprintf`, `fflush`, `file_put_contents`, `rand`, `mt_rand`,
+  `random_int`, `random_bytes`, `lcg_value`, `uniqid`, `microtime`,
+  `hrtime`, `time`, `array_rand`, `shuffle`, `str_shuffle`) are not
+  reported: running them once before the loop changes the output or the
+  values (PrestaShop writes one `.htaccess` header per shop; Matomo draws a
+  random value per period). `error_log()` and `usleep()` keep the upstream
+  behaviour (upstream fixtures).

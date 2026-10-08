@@ -103,7 +103,9 @@ func (r isEmptyFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 					continue
 				}
 				cnt++
-				if !strings.HasPrefix(t, `\`) {
+				// custos: SimpleXMLElement and GMP objects can be empty
+				// (`empty(gmp_init(0))`), so `=== null` would differ.
+				if !strings.HasPrefix(t, `\`) || isEmptyFalsyObject(ctx, t) {
 					all = false
 				}
 			}
@@ -226,6 +228,9 @@ func isEmptySubjectAssigned(s syntax.Expr) bool {
 	var holder syntax.Node = v
 	for holder.Parent() != syntax.Node(body) {
 		holder = holder.Parent()
+		if holder == nil {
+			return true // recovery tree: the subject is not under the body
+		}
 	}
 	for _, st := range body.Stmts {
 		if syntax.Node(st) == holder {
@@ -256,4 +261,14 @@ func isEmptySubjectAssigned(s syntax.Expr) bool {
 func isEmptyVarNamed(e syntax.Node, name string) bool {
 	v, ok := e.(*syntax.Variable)
 	return ok && v.Name == name
+}
+
+// isEmptyFalsyObject reports whether objects of class t (or of an
+// unresolvable class) may convert to false.
+func isEmptyFalsyObject(ctx *analysis.Context, t string) bool {
+	cls := strings.TrimPrefix(t, `\`)
+	if ctx.Index().Class(cls, ctx.PHP) == nil {
+		return false // unresolvable: as before (D2b)
+	}
+	return ctx.Index().IsSubtype(cls, "SimpleXMLElement", ctx.PHP) || ctx.Index().IsSubtype(cls, "GMP", ctx.PHP)
 }

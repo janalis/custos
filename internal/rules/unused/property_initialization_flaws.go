@@ -225,9 +225,15 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 		return
 	}
 	reported := map[string]bool{}
-	earlyReturn := false              // a `return` before this statement: later writes are conditional
+	earlyReturn := false // a `return` before this statement: later writes are conditional
+	// custos: a call that can run the object's own code (`$this->init()`,
+	// `parent::__construct()`, `f($this)`) before the write may read the
+	// default.
+	escaped := false
 	for _, st := range m.Body.Stmts { // D4
 		mayReturn := pifHasReturn(st)
+		before := escaped
+		escaped = escaped || pifReachesThis(st)
 		es, ok := st.(*syntax.ExprStmt)
 		if !ok {
 			earlyReturn = earlyReturn || mayReturn
@@ -276,7 +282,7 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 		// without the constructor (unserialize, reflection, ORM hydration)
 		// would then throw on access, so its default is kept (custos).
 		typed := c.prop.Type != nil
-		if reuses || earlyReturn || typed || !ctx.Bool("REPORT_DEFAULTS_FLAWS") || reported[id.Value] {
+		if reuses || earlyReturn || before || pifReachesThis(as.Value) || typed || !ctx.Bool("REPORT_DEFAULTS_FLAWS") || reported[id.Value] {
 			continue
 		}
 		reported[id.Value] = true
@@ -297,6 +303,35 @@ func pifHasReturn(st syntax.Node) bool {
 			return false
 		}
 		return x == st || !syntax.IsFuncLike(x)
+	})
+	return found
+}
+
+// pifReachesThis reports whether n contains a call that can run code of
+// the object under construction: a method call on $this, a parent::,
+// self:: or static:: call, or $this passed to a call (nested functions and
+// closures excluded).
+func pifReachesThis(n syntax.Node) bool {
+	isThis := func(e syntax.Expr) bool {
+		v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
+		return ok && v.Name == "this"
+	}
+	found := false
+	syntax.Inspect(n, func(x syntax.Node) bool {
+		switch c := x.(type) {
+		case *syntax.MethodCall:
+			found = found || isThis(c.Var)
+		case *syntax.StaticCall:
+			if nm, ok := c.Class.(*syntax.Name); ok {
+				switch strings.ToLower(nm.Value) {
+				case "parent", "self", "static":
+					found = true
+				}
+			}
+		case *syntax.Arg:
+			found = found || isThis(c.Value)
+		}
+		return !found && (x == n || !syntax.IsFuncLike(x))
 	})
 	return found
 }

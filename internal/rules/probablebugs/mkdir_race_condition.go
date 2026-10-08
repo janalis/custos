@@ -131,6 +131,11 @@ locate:
 				return []analysis.TextEdit{{Span: c.Span(), NewText: repl}}
 			}})
 	case *syntax.If: // D5
+		// custos: `if (!mkdir($d)) { …is_dir($d)… }` already re-checks in
+		// the failure branch.
+		if inverted && hasIsDirCall(ctx, c.Body, mkdirDirKeys(ctx, call)) {
+			return
+		}
 		msg, repl := orMsg, orForm
 		if inverted {
 			msg, repl = andMsg, andForm
@@ -201,7 +206,7 @@ func mkdirDir(ctx *analysis.Context, call *syntax.FuncCall) (string, bool) {
 
 // hasIsDirCall reports whether e contains an is_dir() call whose first
 // argument is one of the directory expressions in keys (normalised text).
-func hasIsDirCall(ctx *analysis.Context, e syntax.Expr, keys []string) bool {
+func hasIsDirCall(ctx *analysis.Context, e syntax.Node, keys []string) bool {
 	found := false
 	syntax.Inspect(e, func(n syntax.Node) bool {
 		call, ok := n.(*syntax.FuncCall)

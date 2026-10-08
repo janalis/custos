@@ -178,3 +178,8 @@ name of each of the four calls, e.g.
   ternary condition, `&&`/`||`/`and`/`or`) and loose `==`/`!=` comparisons
   with `true` or `false` anywhere in the function body. D3 (the generated
   bytes, a string that may be `"0"`) keeps the strict test.
+- **Strength flag from PHP 7.4 (custos diverges).** From PHP 7.4
+  `openssl_random_pseudo_bytes()` throws instead of falling back to a weak
+  source, so its strength flag is always true: D2 (`Pass a second
+  argument…`) and D5 (`The strength flag may be false`) are skipped for
+  `openssl_random_pseudo_bytes` at 7.4+, like D3 (E2).

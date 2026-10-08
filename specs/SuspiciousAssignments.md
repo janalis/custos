@@ -340,3 +340,10 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
   file-scope variable, `global`/`static` variable, by-reference parameter or
   a variable bound by reference, custos skips D16/D17 if the relevant code
   contains a call (function, method, static call, `new` or include).
+- **Reads through the holding array (custos diverges).** For an element
+  target such as `$package['version']`, a read of the array holding it as a
+  whole (`$loader->load($package)`, `$q = $package['a']` for
+  `$package['a']['b']`) counts as a read of the value in D14 and in the
+  later statements of D16 (Composer `PathRepository`: the conditional value
+  was passed to `load($package)` before being replaced). Reads of sibling
+  elements (`$package['name']`) do not count.

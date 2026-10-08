@@ -144,3 +144,8 @@ In `views/page.blade.php` nothing is reported (E2).
   style); for D2, treat a colon-syntax body with zero statements as empty.
 - Whether `{ ; }` counts as empty is not covered by upstream fixtures; we count
   `;` as a statement (not empty).
+- **Formatting (custos).** Upstream relies on the IDE formatter; the fix
+  now produces formatted code itself: the opening brace joins the header
+  line (replacing the whitespace before the body), the body is indented one
+  level under the construct's line and the closing brace aligned with it
+  (`if ($a)\n    stmt;` → `if ($a) {\n    stmt;\n}`).

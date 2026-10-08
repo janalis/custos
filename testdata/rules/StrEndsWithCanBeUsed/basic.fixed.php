@@ -1,8 +1,8 @@
 <?php
 function isType(string $file, string $ext): array {
     return [
-        str_ends_with($file, $ext),
+        substr($file, -strlen($ext)) === $ext,
         str_ends_with($file, '.gz'),
-        !str_ends_with(basename($file), $ext),
+        substr(basename($file), -mb_strlen($ext)) !== $ext,
     ];
 }

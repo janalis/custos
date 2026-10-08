@@ -130,3 +130,9 @@ function isType(string $file, string $ext): array {
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Possibly empty needles (custos diverges).** Beyond the empty literal of
+  D7, a needle that may be `''` makes the original comparison false and
+  `str_ends_with()` true. The fix is only offered when the needle is known
+  to be non-empty: a non-empty literal, a concatenation with such a part,
+  or a variable or constant whose every possible value is one; other
+  needles (`string $ext` parameters) are reported without a fix.

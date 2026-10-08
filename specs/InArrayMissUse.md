@@ -189,3 +189,12 @@ Yoda style: `in_array($role, ['admin'], true)` → `'admin' === $role`.
   custos matches case-insensitively and only calls that reach the global
   function.
 - **Builtin spelling (custos diverges).** Upstream inserts a bare `array_key_exists(` in its fix, so a function of that name declared in (or imported into) the namespace captures the rewritten call. custos writes `\name(` in that case (F1).
+- **Key lookups (custos diverges).** `in_array($x, array_keys($a))` and
+  `array_key_exists($x, $a)` differ: `'5'` is stored as the int key 5 (a
+  strict search for `'5'` misses it, array_key_exists() finds it), loose
+  comparison matches numeric strings (`'1.0' == 1`) and, before PHP 8,
+  `'abc' == 0`. Pattern K keeps the report but offers the fix only for an
+  int-typed needle with strict comparison, a string literal that is not a
+  canonical integer with strict comparison, or a non-numeric string
+  literal with loose comparison on PHP 8+. EA case affected:
+  `in-array-misuse.php` (listed divergence).

@@ -221,7 +221,7 @@ func putResolveMember(ctx *analysis.Context, ref, classFQN string, at uint32) (s
 		if cls == "" || member == "" || strings.HasPrefix(member, "<") {
 			return "", nil
 		}
-		fqn = strings.TrimPrefix(ctx.Names().Class(cls, at), `\`)
+		fqn = putClassRef(ctx, cls, at)
 	}
 	if fqn == "" {
 		return "", nil
@@ -323,7 +323,7 @@ func putCoversResolves(ctx *analysis.Context, ref string, at uint32) bool {
 	case hasMember && cls == "":
 		callableOK = putFunctionExists(ctx, member, at)
 	case hasMember:
-		fqn := strings.TrimPrefix(ctx.Names().Class(cls, at), `\`)
+		fqn := putClassRef(ctx, cls, at)
 		if ctx.Index().Class(fqn, ctx.PHP) != nil {
 			classOK = true
 			if member != "" && !strings.HasPrefix(member, "<") && ctx.Index().FindMethod(fqn, member, ctx.PHP) != nil {
@@ -334,7 +334,7 @@ func putCoversResolves(ctx *analysis.Context, ref string, at uint32) bool {
 			}
 		}
 	default:
-		fqn := strings.TrimPrefix(ctx.Names().Class(cls, at), `\`)
+		fqn := putClassRef(ctx, cls, at)
 		if ctx.Index().Class(fqn, ctx.PHP) != nil {
 			classOK = true
 		} else if putFunctionExists(ctx, cls, at) {
@@ -345,6 +345,17 @@ func putCoversResolves(ctx *analysis.Context, ref string, at uint32) bool {
 		return callableOK
 	}
 	return classOK
+}
+
+// putClassRef resolves a class named in a tag. PHPUnit reads these names
+// as fully qualified (`@covers Vendor\Pkg\Cls`, no leading backslash
+// needed), so a name that exists as written wins over the namespace-
+// relative reading (custos).
+func putClassRef(ctx *analysis.Context, cls string, at uint32) string {
+	if fq := strings.TrimPrefix(cls, `\`); strings.Contains(fq, `\`) && ctx.Index().Class(fq, ctx.PHP) != nil {
+		return fq
+	}
+	return strings.TrimPrefix(ctx.Names().Class(cls, at), `\`)
 }
 
 // putFunctionExists resolves a function name (never empty: D4 rejects

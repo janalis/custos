@@ -52,7 +52,8 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 	candidates := map[string]bool{} // D2
 	for _, m := range cl.Members {
 		p, ok := m.(*syntax.Property)
-		if !ok || !p.Modifiers.Has(syntax.TPrivate) || p.Modifiers.Has(syntax.TStatic) || util.DocHasAnnotation(ctx.File, p) {
+		// custos: attributes (`#[ORM\Column]`) mark mapped properties like annotations.
+		if !ok || !p.Modifiers.Has(syntax.TPrivate) || p.Modifiers.Has(syntax.TStatic) || util.DocHasAnnotation(ctx.File, p) || len(p.Attrs) > 0 {
 			continue
 		}
 		for _, it := range p.Props {

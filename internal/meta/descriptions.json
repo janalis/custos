@@ -598,8 +598,7 @@
     "summary": "When a class and one of its traits (or its parent class and one of its\ntraits) declare the same property, PHP only accepts it if both declarations\nare compatible, and even then the duplication is fragile. Point out these\noverlaps; when the two declarations are incompatible (PHP refuses to compose\nthe class), it is a real conflict."
   },
   "TypeUnsafeArraySearch": {
-    "summary": "`in_array()` and `array_search()` compare loosely unless their third argument\nis `true`, so `'1abc'`, `1`, `true` and `'1'` can all \"match\". Asking for the\nthird argument forces the author to decide whether loose matching is really\nwanted.",
-    "fix": true
+    "summary": "`in_array()` and `array_search()` compare loosely unless their third argument\nis `true`, so `'1abc'`, `1`, `true` and `'1'` can all \"match\". Asking for the\nthird argument forces the author to decide whether loose matching is really\nwanted."
   },
   "TypeUnsafeComparison": {
     "summary": "Loose equality (`==`, `!=`, `\u003c\u003e`) silently juggles types (`'abc' == 0` was\ntrue before PHP 8, `'1e1' == '10'` is true). This rule asks for strict\ncomparison, offers a one-click switch when comparing against a non-numeric\nstring literal, and flags objects compared to strings that have no\n`__toString()`.",

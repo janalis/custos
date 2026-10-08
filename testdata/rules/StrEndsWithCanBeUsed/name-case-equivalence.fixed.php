@@ -1,7 +1,7 @@
 <?php
 function endsWithSuffix($o, $s) {
-    return str_ends_with($o->Path(), $s);
+    return substr($o->Path(), -strlen($s)) === $s;
 }
 function endsWith($o) {
-    return str_ends_with($o->Path(), $o->Suffix());
+    return substr($o->Path(), -strlen($o->suffix())) === $o->Suffix();
 }

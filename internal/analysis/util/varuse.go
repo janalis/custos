@@ -168,7 +168,14 @@ func (w *varWalker) node(n syntax.Node) {
 		return
 	}
 	switch n := n.(type) {
-	case *syntax.Function, *syntax.Method, *syntax.ClassLike:
+	case *syntax.Function, *syntax.Method:
+		return
+	case *syntax.ClassLike:
+		// The constructor arguments of `new class ($a)` are evaluated in
+		// the enclosing scope; the class body is a scope of its own.
+		if n.Args != nil {
+			w.node(n.Args)
+		}
 		return
 	case *syntax.Closure:
 		for _, u := range n.Uses {

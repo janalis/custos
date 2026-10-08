@@ -88,6 +88,12 @@ func matchStrCallCompare(ctx *analysis.Context, call *syntax.FuncCall, nargs int
 // with `[!]qual fn(haystack, needle)`, where qual is `\` when the original
 // call was fully qualified or a bare fn would not reach the global function.
 func reportStrCallReplacement(ctx *analysis.Context, m strCallCompare, fn string, needle syntax.Expr, negate bool) {
+	reportStrCallReplacementFix(ctx, m, fn, needle, negate, true)
+}
+
+// reportStrCallReplacementFix is reportStrCallReplacement with the fix
+// optional.
+func reportStrCallReplacementFix(ctx *analysis.Context, m strCallCompare, fn string, needle syntax.Expr, negate, fixable bool) {
 	qual := ""
 	if m.qual != "" || !util.BareReachesGlobal(ctx, fn, m.call.Span().Start) {
 		qual = `\`
@@ -97,6 +103,10 @@ func reportStrCallReplacement(ctx *analysis.Context, m strCallCompare, fn string
 		r = "!" + r
 	}
 	span := m.cmp.Span()
+	if !fixable {
+		ctx.Report(span, "Replace with '"+r+"'.")
+		return
+	}
 	ctx.Report(span, "Replace with '"+r+"'.", analysis.Fix{
 		Title: "Use " + fn + "()",
 		Edits: func() []analysis.TextEdit {

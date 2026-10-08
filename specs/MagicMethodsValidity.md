@@ -322,3 +322,9 @@ interface Printable { public function __toString(); }
   `__toString`, `__debugInfo`, `__serialize`, `__sleep` or `__set_state`
   is accepted by PHP (the method always throws); upstream reports it as
   "got 'never'". custos treats `never` as satisfying any return contract.
+- **Inherited single-underscore names (custos diverges).** D15 does not
+  report `_get`, `_set`… when a parent, interface or trait of the class
+  declares the same method: the name is imposed by the hierarchy (an
+  abstract cache class's `_get()` hook, 8 reports on PrestaShop), not a
+  misspelt magic method. The declaring ancestor is reported as before
+  unless it is abstract (E1).

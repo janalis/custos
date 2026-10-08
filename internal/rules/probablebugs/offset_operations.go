@@ -89,13 +89,16 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 	// discovered value is only a fallback when the occurrence is untyped.
 	// An unknown discovery result (unstable variable) empties S: no
 	// fallback to the occurrence type.
-	vals, known := util.PossibleValuesKnown(ctx.File, access.Var)
-	if !known {
+	if _, known := util.PossibleValuesKnown(ctx.File, access.Var); !known {
 		return
 	}
 	t := ctx.TypeOf(access.Var)
-	if t.IsUnknown() && len(vals) == 1 {
-		t = ctx.TypeOf(vals[0])
+	if t.IsUnknown() {
+		// The fallback needs every value: a parameter default, a foreach
+		// variable or an unresolved source is only one of the values.
+		if all, complete := util.PossibleValuesComplete(ctx.File, access.Var); complete && len(all) == 1 {
+			t = ctx.TypeOf(all[0])
+		}
 	}
 	set, ok := offsetNormalize(t)
 	if !ok || len(set) == 0 {
@@ -106,9 +109,14 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 		offsetSetIs(set, "array", "bool") {
 		return
 	}
-	// D4
+	// D4. A boolean next to an array or string is a failure marker
+	// (`array|false` from a lookup), handled like null (custos refinement).
+	falsy := offsetHas(set, "array") || offsetHas(set, "string") || offsetHas(set, "callable")
 	var s []string
 	for _, a := range set {
+		if a == "bool" && falsy {
+			continue
+		}
 		switch a {
 		case "callable":
 			for _, x := range []string{"array", "string"} {
@@ -193,7 +201,8 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	var rest []string
 	for _, a := range it {
-		if a == "mixed" || a == "null" || offsetHas(allowed, a) {
+		// PHP casts bool keys to int (custos refinement).
+		if a == "mixed" || a == "null" || offsetHas(allowed, a) || a == "bool" && offsetHas(allowed, "int") {
 			continue
 		}
 		if offsetHas(allowed, "object") && strings.HasPrefix(a, `\`) {

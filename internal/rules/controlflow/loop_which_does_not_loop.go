@@ -71,8 +71,15 @@ func (loopWhichDoesNotLoop) Check(ctx *analysis.Context, n syntax.Node) {
 	if continuesLoop(blk, n) { // D3
 		return
 	}
-	if fe, ok := n.(*syntax.Foreach); ok && last != nil && !isThrow { // D4
-		for _, a := range ctx.TypeOf(fe.Expr).Atoms() {
+	if fe, ok := n.(*syntax.Foreach); ok && !isThrow { // D4
+		t := ctx.TypeOf(fe.Expr)
+		// custos: an empty body iterates for the iterator's side effects
+		// (initialising a lazy collection) unless the subject is known not
+		// to be an object.
+		if last == nil && (t.IsUnknown() || t.Has("object") || t.Has("iterable") || t.Has("mixed") || len(t.Classes()) > 0) {
+			return
+		}
+		for _, a := range t.Atoms() {
 			switch strings.ToLower(a) {
 			case `\generator`, `\traversable`, `\iterator`, "iterable":
 				return

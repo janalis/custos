@@ -147,3 +147,8 @@ while ($ok) break;
   `for (; next($a) !== false;) {}` repeat as long as the condition holds —
   the condition does the work. custos reports an empty body only for
   `foreach`.
+- **Empty bodies over objects (custos diverges).** An empty `foreach` body
+  is still reported over known arrays, but not when the subject's type is
+  unknown, `object`, `iterable`, `mixed` or a class: iterating may be done
+  for the iterator's side effects (Doctrine tests initialise lazy
+  collections with `foreach ($user->groups as $g) {}`).

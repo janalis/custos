@@ -2,15 +2,15 @@
 namespace Lookup {
     function array_key_exists($k, $a) { return false; }
 
-    $a = \array_key_exists($id, $map);
+    $a = in_array($id, array_keys($map));
 }
 
 namespace Imported {
     use function Lookup\array_key_exists;
 
-    $b = \array_key_exists($id, $map);
+    $b = in_array($id, array_keys($map));
 }
 
 namespace Plain {
-    $c = array_key_exists($id, $map);
+    $c = in_array($id, array_keys($map));
 }

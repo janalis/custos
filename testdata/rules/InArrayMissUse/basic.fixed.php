@@ -14,7 +14,7 @@ function checks($role, $list, $map, $a, $b)
     $r[] = ($a ? $b : 0) === 3;
     $r[] = ($a ?? 0) != 7;
     $r[] = ($a == 1) . 'x';
-    $r[] = !array_key_exists($role, $map);
+    $r[] = !in_array($role, array_keys($map), true);
     $r[] = array_key_exists('id', $map);
     return $r;
 }

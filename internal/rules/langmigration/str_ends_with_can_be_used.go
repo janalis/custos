@@ -52,5 +52,34 @@ func (strEndsWithCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if raw, _, ok := util.QuotedStringRaw(syntax.UnwrapParens(m.other)); ok && raw == "" { // D7
 		return // empty needle: the original is false, str_ends_with() is true
 	}
-	reportStrCallReplacement(ctx, m, "str_ends_with", m.other, m.cmp.Op.Kind == syntax.TIsNotIdentical) // D6
+	// custos: a needle that may be '' makes the original false and
+	// str_ends_with() true, so the fix needs a known non-empty needle.
+	reportStrCallReplacementFix(ctx, m, "str_ends_with", m.other, m.cmp.Op.Kind == syntax.TIsNotIdentical, sewNonEmpty(ctx, m.other)) // D6
+}
+
+// sewNonEmpty reports whether e is certainly a non-empty string: a
+// non-empty literal, a concatenation with such a part, or a variable or
+// constant whose every possible value is one.
+func sewNonEmpty(ctx *analysis.Context, e syntax.Expr) bool {
+	e = syntax.UnwrapParens(e)
+	if v, ok := util.QuotedStringValue(e); ok {
+		return v != ""
+	}
+	if b, ok := e.(*syntax.Binary); ok && b.Op.Kind == syntax.TDot {
+		return sewNonEmpty(ctx, b.Left) || sewNonEmpty(ctx, b.Right)
+	}
+	switch e.(type) {
+	case *syntax.Variable, *syntax.ClassConstFetch, *syntax.ConstFetch:
+		vals, complete := util.PossibleValuesComplete(ctx.File, e)
+		if !complete || len(vals) == 0 {
+			return false
+		}
+		for _, v := range vals {
+			if v == e || !sewNonEmpty(ctx, v) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }

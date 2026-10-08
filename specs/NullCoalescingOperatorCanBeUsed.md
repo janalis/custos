@@ -369,3 +369,8 @@ is negated K-null with `===`, so the true branch is the "set" branch.
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **References (custos diverges).** An if/else (or S3) whose assignment
+  binds a reference (`$item = &$this->menu[$k];`) is not rewritten: `??`
+  yields a value, so later writes through `$item` would no longer reach the
+  array (Matomo `MenuAbstract`). Neither is the if/return form inside a
+  function declared to return by reference (`function &get()`).

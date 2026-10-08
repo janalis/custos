@@ -72,3 +72,8 @@ $re4 = $quoter->preg_quote($needle);
   (`sprintf('{^%s}', preg_quote($x))`) — and is one of those characters,
   passing it changes nothing and custos does not report (E3). `/`, `~`,
   `%`, `@` and invisible delimiters are still reported.
+- **Rewritten quotes (custos diverges).** The E3 delimiter check also
+  looks through `str_replace(…, …, preg_quote($x))` (the subject) and
+  `strtr(preg_quote($x), …)`: the classic glob-to-regex
+  `'{^' . str_replace('\\*', '.*', preg_quote($p)) . '$}i'` uses a
+  delimiter preg_quote() escapes itself (Composer).

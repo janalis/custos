@@ -188,3 +188,15 @@ function ok($m, $c, $n) {
   types by plain set membership, so with `offsetGet(Key $k)` an index of a
   subclass `SpecialKey` is reported although PHP accepts it. custos accepts
   subtypes of the allowed class types (D7).
+- **Complete fallback, failure markers, bool keys (custos diverges).**
+  Found on PrestaShop, Matomo and phpMyAdmin (736 reports, about 410 of
+  them false). (1) The single-value fallback of D1 now needs *every* value
+  of the container (`PossibleValuesComplete`): a parameter default
+  (`function copy($tables = false)` called with arrays) or `$last = false`
+  reassigned from a `foreach` value is only one of the values, so it no
+  longer types the container as `bool`. (2) In D4 a `bool` next to `array`,
+  `string` or `callable` is a failure marker (`array|false` from a lookup,
+  `Db::getRow(): array|bool|object|null`) and is dropped like `null`.
+  (3) In D7 a `bool` index is accepted where `int` is: PHP casts `true`/
+  `false` keys to 1/0. A variable read before its first assignment is no
+  longer typed by that later assignment.

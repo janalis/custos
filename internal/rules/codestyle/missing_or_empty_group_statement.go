@@ -74,7 +74,15 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 	ctx.Report(kwSpan, "Use a braced block for the body of this construct.", analysis.Fix{ // D1
 		Title: "Wrap the body in braces",
 		Edits: func() []analysis.TextEdit {
-			return []analysis.TextEdit{{Span: bs, NewText: "{\n" + text + "\n}"}}
+			// Indented under the construct's line (one level deeper).
+			// The brace joins the header line: whitespace before the body
+			// (a line break for `if ($a)\n    stmt;`) is replaced.
+			indent := util.LineIndent(ctx.Src, kwSpan.Start)
+			span, open := bs, "{\n"
+			if ws, ok := util.TokenBefore(ctx.File, bs.Start); ok && ws.Kind == syntax.TWhitespace {
+				span.Start, open = ws.Start, " {\n"
+			}
+			return []analysis.TextEdit{{Span: span, NewText: open + indent + "    " + text + "\n" + indent + "}"}}
 		},
 	})
 }

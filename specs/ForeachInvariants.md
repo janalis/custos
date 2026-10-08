@@ -313,10 +313,12 @@ so step 4 deletes `$total = count($rows);`.
 
 ## Divergences
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/decisions.md` ("Spec-level false positives").
-- D5 accepts any binary operator between counter and limit (`<=`, `>`, `!=`,
-  even `+`), so `for ($i = 0; $i <= count($a); $i++)` is reported and fixed
-  although it iterates one element too many. Recommendation: only accept
-  `$i < X`, `X > $i`, `$i != X`, `X != $i` (and `!==`). No fixture covers
+- **Loop condition (custos diverges).** Upstream's D5 accepts any binary
+  operator between counter and limit (`<=`, `>`, `!=`, even `+`), so
+  `for ($i = 0; $i <= count($a); $i++)` is reported and fixed although it
+  iterates one element more than `foreach` (found on real code: a retry
+  loop `$attempt <= count($delays)`). custos only accepts `$i < X`,
+  `X > $i`, `$i != X`, `X != $i` (and `!==`). No upstream fixture covers
   other operators.
 - **String interpolation (custos diverges).** Upstream turns
   `"{$c[$i]}abc"` into `"$iValueabc"` (another variable) and

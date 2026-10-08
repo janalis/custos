@@ -140,3 +140,7 @@ class Mailer
   dead, and writes inside such closures are reported as well. custos treats
   a read inside those closures as a use, and never reports a write inside
   them. No upstream fixture covers it.
+- **Attributes (custos diverges).** A property with a PHP 8 attribute
+  (`#[ORM\Column]`, `#[ORM\Id]`) counts as annotated (D2/E1) like one with
+  a non-lower-case doc tag: mapped properties are read by the ORM through
+  reflection (Doctrine ORM test models: 26 reports).

@@ -1,6 +1,10 @@
 package performance
 
 import (
+	"custos/internal/phpver"
+
+	"regexp"
+
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
 	"custos/internal/syntax"
@@ -35,7 +39,12 @@ func (inArrayMissUse) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		repl := util.QualifiedBuiltin(ctx, "array_key_exists", call.Span().Start) + "(" + ctx.Text(needle) + ", " + ctx.Text(kargs[0]) + ")"
 		span := call.Span()
-		ctx.Report(span, "Look the key up directly with '"+repl+"'.", replaceFix(span, repl))
+		msg := "Look the key up directly with '" + repl + "'."
+		if !iamKeyLookupSafe(ctx, needle, len(args) == 3) {
+			ctx.Report(span, msg)
+			return
+		}
+		ctx.Report(span, msg, replaceFix(span, repl))
 		return
 	}
 
@@ -102,6 +111,31 @@ func (inArrayMissUse) Check(ctx *analysis.Context, n syntax.Node) {
 		repl = "(" + cmp + ")"
 	}
 	ctx.Report(target.Span(), "Compare directly: '"+cmp+"'.", replaceFix(target.Span(), repl))
+}
+
+var (
+	iamNumeric      = regexp.MustCompile(`^[ \t\n\r\v\f]*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?[ \t\n\r\v\f]*$`)
+	iamCanonicalInt = regexp.MustCompile(`^(0|-?[1-9]\d{0,17})$`)
+)
+
+// iamKeyLookupSafe reports whether array_key_exists() answers like the
+// in_array() over array_keys() it replaces (custos, see Divergences): keys
+// are ints or strings, `'5'` is stored as the int 5, and loose comparison
+// matches numeric strings (`'1.0' == 1`), so only these needles qualify:
+// with strict comparison an int-typed needle or a string literal that is
+// not a canonical integer; with loose comparison (PHP 8, where `'abc' == 0`
+// is false) a non-numeric string literal. Anything else keeps the report
+// without a fix.
+func iamKeyLookupSafe(ctx *analysis.Context, needle syntax.Expr, strict bool) bool {
+	if strict {
+		if v, ok := util.QuotedStringValue(syntax.UnwrapParens(needle)); ok {
+			return !iamCanonicalInt.MatchString(v)
+		}
+		t := ctx.TypeOf(needle)
+		return !t.IsUnknown() && t.OnlyOf("int")
+	}
+	v, ok := util.QuotedStringValue(syntax.UnwrapParens(needle))
+	return ok && ctx.PHP >= phpver.PHP80 && !iamNumeric.MatchString(v)
 }
 
 func replaceFix(span syntax.Span, repl string) analysis.Fix {

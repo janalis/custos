@@ -230,3 +230,8 @@ inverted.)
   creates nothing; it is not reported (D1). An earlier custos version
   reported `mkdir(...);` as an ignored outcome and offered a fix producing
   `mkdir($concurrentDirectory = ...)`, which does not parse.
+- **Re-check in the failure branch (custos diverges).**
+  `if (!mkdir($d)) { clearstatcache(); if (is_dir($d)) { return; } … }`
+  already re-checks the same directory inside the `if` body (Composer);
+  D5 no longer reports the and-form when that body contains an `is_dir()`
+  call on the directory (same matching as D6).

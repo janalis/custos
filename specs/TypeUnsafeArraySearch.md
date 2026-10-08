@@ -161,3 +161,11 @@ function pick($code, array $allowed) {
   `['1e3']` is skipped as "plain strings" although PHP compares numeric
   strings by value under loose matching (`'1.50'` finds `'1.5'`). custos
   uses the full numeric-string grammar and reports such haystacks.
+- **No fix (custos diverges).** Adding `true` changes the result whenever
+  loose and strict equality differ (`'1' == 1`, `null == ''`,
+  `'1e1' == '10'`): PrestaShop searched a configuration string among int
+  constants (`in_array(Configuration::get('PS_ROUND_TYPE'), [Order::ROUND_ITEM, …])`),
+  which the fix would have made always false. The cases known to be
+  equivalent (same type on both sides) are already exempt (E2), so the
+  rule reports without a fix. EA case affected: `strict-array-search.php`
+  (listed divergence).

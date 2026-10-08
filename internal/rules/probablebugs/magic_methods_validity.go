@@ -166,10 +166,26 @@ func (magicMethodsValidity) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		// custos: no rename fix — it would break every caller of the
 		// method, and the signature may not fit the magic contract.
-		if magicLookup(magicMissingUnderscore, c.name) {
+		if magicLookup(magicMissingUnderscore, c.name) && !c.inherited() {
 			c.report("'" + c.name + "' is not magic; did you mean '_" + c.name + "'?")
 		}
 	}
+}
+
+// inherited reports whether a parent, interface or trait of the class
+// declares the method too: the name is then imposed by the hierarchy (a
+// `_get()` hook of an abstract cache class), not a misspelt magic method.
+func (c *magicCheck) inherited() bool {
+	if c.fqn == "" {
+		return false
+	}
+	lname := strings.ToLower(c.name)
+	for i, a := range c.ctx.Index().Ancestors(c.fqn, c.ctx.PHP) {
+		if _, ok := a.Methods[lname]; ok && i > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *magicCheck) notStatic() {

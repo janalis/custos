@@ -70,19 +70,37 @@ func (staticInvocationViaThis) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // sivtResolve resolves `recv->name()` to a method declaration via the
-// receiver's inferred type (first class declaring it).
+// receiver's inferred type. custos: with a union receiver every class must
+// resolve the method as static (`Db|AdapterInterface` where only `Db`
+// declares a static fetchAll() is an instance call on the adapter);
+// otherwise the first non-static declaration is returned.
 func sivtResolve(ctx *analysis.Context, recv syntax.Expr, name string) *index.Method {
 	t := ctx.TypeOf(recv)
 	if t.IsUnknown() {
 		return nil
 	}
 	ix := ctx.Index()
+	var first *index.Method
 	for _, cls := range t.Classes() {
-		if m := sivtFind(ix, strings.TrimPrefix(cls, `\`), name, ctx); m != nil {
+		m := sivtFind(ix, strings.TrimPrefix(cls, `\`), name, ctx)
+		if m == nil {
+			continue
+		}
+		if !m.Static {
 			return m
 		}
+		if first == nil {
+			first = m
+		}
 	}
-	return nil
+	if first != nil && len(t.Classes()) > 1 {
+		for _, cls := range t.Classes() {
+			if sivtFind(ix, strings.TrimPrefix(cls, `\`), name, ctx) == nil {
+				return nil // the method's kind is unknown on that member
+			}
+		}
+	}
+	return first
 }
 
 // sivtFind looks name up through the hierarchy of cls. An abstract method

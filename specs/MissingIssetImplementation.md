@@ -115,3 +115,9 @@ None known.
   `stdClass`/`SimpleXMLElement`/`DOMDocument`, or an unresolvable class
   yields no report. Interfaces and abstract classes are skipped because
   their implementations may declare `__isset()`.
+- **Dynamic properties (custos diverges).** Without `__set()`, a write
+  `$o->name = …` creates a real (dynamic) property that `isset()` does see.
+  When the class has no `__set()` and the analysed file writes a property
+  of that name on a receiver other than `$this`, or a property with a
+  computed name (`$entity->$field = $value`, an importer), the check is not
+  reported: it is not always false (PrestaShop: 63 → 1).

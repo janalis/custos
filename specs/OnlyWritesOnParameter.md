@@ -337,3 +337,7 @@ function silenced(array $out)
   treats `++/--` on an element through a reference like an assignment, and
   drops W findings for locals assigned an object-typed value. No upstream
   fixture covers these shapes.
+- **Anonymous class arguments (custos diverges).** The constructor
+  arguments of `new class ($a, $b) { … }` are evaluated in the enclosing
+  scope (shared variable-access walker): a closure import passed only
+  there (`use ($organisation)`, Matomo tests) is a use, not "never used".
