@@ -47,6 +47,34 @@ versions follow [Semantic Versioning](https://semver.org/).
   `(JSON_THROW_ON_ERROR | $p) ? A : B`), and write `\JSON_THROW_ON_ERROR`
   when the file qualifies its global constants.
 
+- ProperNullCoalescingOperatorUsage: a scalar fallback of another scalar
+  type (`$id ?? 'new'`) and an array fallback for an iterable object
+  (`$node->attributes ?? []`, a Doctrine `Collection`) are no longer
+  reported.
+- NotOptimalIfConditions: property reads that run code (a PHP 8.4 `get`
+  hook, a virtual, abstract or interface property, `__get()`) cost like a
+  method call and are never reordered; reads on an unknown receiver are
+  left out of the comparison.
+- PropertyInitializationFlaws: a property default equal to the default of
+  the constructor parameter assigned to it is kept (objects built without
+  the constructor, such as old serialized messages, still see it).
+- TraitsPropertiesConflicts: a trait property that re-declares a parent
+  property only to attach attributes is no longer reported; a hooked
+  property composed with a same-named trait property is an error, while
+  the parent's hooks are ignored when a trait re-declares its property.
+- VariableFunctionsUsage: `call_user_func('name', …)` is kept when a
+  same-named namespace function or a `use function` shadows the global
+  function at the call (a wrapper reaching the builtin).
+- PhpUnitTests: `empty()` checks become `assertEmpty()`/`assertNotEmpty()`
+  only when the operand is known to be a scalar, an array or null (PHPUnit
+  counts `Countable` objects), and `assertTrue(!empty($x))` names the
+  assertion its fix writes.
+- UnnecessaryCasting: a `(string)` cast in a concatenation is reported
+  only when its operand is known to be a string, int or float, not on
+  nullable, `bool`, `mixed` or `__toString()` operands.
+- Parser: in permissive mode, a property or promoted-parameter default
+  followed by hooks is no longer read as a legacy `$a{0}` offset.
+
 ## [0.1.0] - 2026-10-08
 
 First public release.
