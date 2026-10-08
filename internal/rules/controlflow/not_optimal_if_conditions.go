@@ -109,6 +109,17 @@ var cheapFunctions = map[string]bool{
 	"is_scalar": true, "is_string": true,
 }
 
+// filesystemFunctions ask the operating system about a path (custos): a
+// stat() call costs more than any in-memory check, so they are never the
+// cheaper operand of a pure computation.
+var filesystemFunctions = map[string]bool{
+	"file_exists": true, "is_file": true, "is_dir": true, "is_link": true, "is_readable": true,
+	"is_writable": true, "is_writeable": true, "is_executable": true, "is_uploaded_file": true,
+	"filesize": true, "filemtime": true, "fileatime": true, "filectime": true, "fileinode": true,
+	"fileowner": true, "filegroup": true, "fileperms": true, "filetype": true, "stat": true,
+	"lstat": true, "realpath": true, "glob": true, "disk_free_space": true, "disk_total_space": true,
+}
+
 // notOptimalArgsCost sums the argument costs (calls always carry an
 // argument list).
 func notOptimalArgsCost(ctx *analysis.Context, l *syntax.ArgList) int {
@@ -155,7 +166,10 @@ func conditionCost(ctx *analysis.Context, e syntax.Expr) int {
 		return conditionCost(ctx, x.Value)
 	case *syntax.FuncCall:
 		c := notOptimalArgsCost(ctx, x.Args)
-		if !cheapFunctions[ctx.GlobalFunctionName(x)] { // resolved, lower-case: user functions cost like any call
+		switch name := ctx.GlobalFunctionName(x); { // resolved, lower-case: user functions cost like any call
+		case filesystemFunctions[name]:
+			c += 50
+		case !cheapFunctions[name]:
 			c += 5
 		}
 		return c
@@ -191,9 +205,9 @@ func conditionCost(ctx *analysis.Context, e syntax.Expr) int {
 	return 10
 }
 
-// operandsCoupled implements scenarios S1–S4.
+// operandsCoupled implements scenarios S1–S5.
 func operandsCoupled(ctx *analysis.Context, prev, cur syntax.Expr) bool {
-	if operandsCoupledS123(ctx, prev, cur) {
+	if operandsCoupledS123(ctx, prev, cur) || typeGuarded(ctx, prev, cur) {
 		return true
 	}
 	// S4: side effects are never reordered.
@@ -337,6 +351,65 @@ func operandsCoupledS123(ctx *analysis.Context, prev, cur syntax.Expr) bool {
 		if hit {
 			return true
 		}
+	}
+	return false
+}
+
+// typeGuarded implements S5 (custos): prev checks the type or the null /
+// false value of a plain variable that cur uses (`false === $f`,
+// `$f instanceof X`, `is_string($f)`), so cur may only be valid once prev
+// has narrowed that variable. Such checks cost nothing by themselves: they
+// matter inside a costlier operand (`(null !== $o && $o->ready()) && $o->id`).
+func typeGuarded(ctx *analysis.Context, prev, cur syntax.Expr) bool {
+	guarded := map[string]bool{}
+	guard := func(e syntax.Expr) {
+		if v, ok := ruleSimpleVar(syntax.UnwrapParens(e)); ok {
+			guarded[v.Name] = true
+		}
+	}
+	syntax.Inspect(prev, func(x syntax.Node) bool {
+		switch g := x.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction:
+			return false
+		case *syntax.Binary:
+			switch g.Op.Kind {
+			case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+				if notOptimalNullOrBool(g.Left) {
+					guard(g.Right)
+				} else if notOptimalNullOrBool(g.Right) {
+					guard(g.Left)
+				}
+			}
+		case *syntax.Instanceof:
+			guard(g.Expr)
+		case *syntax.FuncCall:
+			name := ctx.GlobalFunctionName(g)
+			if args, ok := util.CallArgValues(g); ok && len(args) > 0 && strings.HasPrefix(name, "is_") {
+				guard(args[0])
+			}
+		}
+		return true
+	})
+	hit := false
+	syntax.Inspect(cur, func(x syntax.Node) bool {
+		if v, ok := ruleSimpleVar(util.AsExpr(x)); ok && guarded[v.Name] {
+			hit = true
+		}
+		return !hit
+	})
+	return hit
+}
+
+// notOptimalNullOrBool reports whether e is the constant null, true or
+// false (any case).
+func notOptimalNullOrBool(e syntax.Expr) bool {
+	c, ok := syntax.UnwrapParens(e).(*syntax.ConstFetch)
+	if !ok || c.Name == nil {
+		return false
+	}
+	switch strings.ToLower(strings.TrimPrefix(c.Name.Value, `\`)) {
+	case "null", "true", "false":
+		return true
 	}
 	return false
 }

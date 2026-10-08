@@ -31,6 +31,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - PhpUnitTests: `assertTrue(is_resource($h))` / `assertFalse(is_resource($h))`
   are no longer rewritten to `assertIsResource()` / `assertIsNotResource()`,
   which treat a closed resource as a resource.
+- NotOptimalIfConditions: filesystem calls (`is_file()`, `is_dir()`,
+  `file_exists()`, …) are no longer considered cheaper than in-memory checks,
+  and an operand is no longer moved ahead of a neighbour that narrows one of
+  its variables (null/false comparison, `instanceof`, `is_*()`).
 
 ## [0.1.0] - 2026-10-08
 
