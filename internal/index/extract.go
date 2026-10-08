@@ -290,7 +290,7 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 				prop := &Property{
 					Name: p.Var.Name, Class: fqn, Visibility: visibility(m.Modifiers), Static: m.Modifiers.Has(syntax.TStatic),
 					Readonly: m.Modifiers.Has(syntax.TReadonly) || c.Readonly, Type: x.typeStr(m.Type, at), HasDefault: p.Default != nil,
-					Default: x.text(p.Default), Span: p.Span(),
+					Default: x.text(p.Default), Span: p.Span(), ReadsRunCode: readsRunCode(p.Var.Name, m.Modifiers, m.Hooks),
 				}
 				if d != nil {
 					prop.DocType = x.docTypeStr(d.VarType(p.Var.Name), at)
@@ -313,6 +313,44 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 		}
 	}
 	x.out.Classes = append(x.out.Classes, c)
+}
+
+// readsRunCode reports whether reading the property `name` declared with
+// these modifiers and hooks may run code: it is abstract, has a `get` hook
+// or an abstract hook, or is virtual (no hook touches its backing store).
+func readsRunCode(name string, mods syntax.Modifiers, hooks []*syntax.PropertyHook) bool {
+	if mods.Has(syntax.TAbstract) {
+		return true
+	}
+	if len(hooks) == 0 {
+		return false
+	}
+	backed := false
+	for _, h := range hooks {
+		if h.Body == nil || strings.EqualFold(h.Name.Value, "get") {
+			return true
+		}
+		if _, short := h.Body.(syntax.Expr); short || refsBackingStore(h.Body, name) {
+			backed = true // `set => expr` assigns the backing store
+		}
+	}
+	return !backed
+}
+
+// refsBackingStore reports whether body reads or writes `$this->name`.
+func refsBackingStore(body syntax.Node, name string) bool {
+	found := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		if f, ok := n.(*syntax.PropertyFetch); ok {
+			v, isVar := f.Var.(*syntax.Variable)
+			id, isID := f.Name.(*syntax.Identifier)
+			if isVar && isID && v.Name == "this" && id.Value == name {
+				found = true
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 func (x *extractor) magicMembers(c *Class, d *phpdoc.Doc, at uint32) {
@@ -734,6 +772,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 				Name: p.Var.Name, Class: c.FQN, Visibility: visibility(p.Modifiers),
 				Readonly: p.Modifiers.Has(syntax.TReadonly) || c.Readonly, Type: x.typeStr(p.Type, at), Promoted: true,
 				DocType: meth.Params[i].DocType, HasDefault: p.Default != nil, Default: x.text(p.Default), Span: p.Span(),
+				ReadsRunCode: readsRunCode(p.Var.Name, p.Modifiers, p.Hooks),
 			}
 		}
 	}

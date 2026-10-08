@@ -90,11 +90,13 @@ func splitCondition(c syntax.Expr) ([]syntax.Expr, syntax.TokenKind) {
 
 func (notOptimalIfConditions) ordering(ctx *analysis.Context, ops []syntax.Expr) {
 	costs := make([]int, len(ops))
+	known := make([]bool, len(ops))
 	for i, o := range ops {
 		costs[i] = conditionCost(ctx, o)
+		known[i] = !costUnknown(ctx, o)
 	}
 	for i := 1; i < len(ops); i++ {
-		if costs[i] < costs[i-1] && !operandsCoupled(ctx, ops[i-1], ops[i]) {
+		if known[i] && known[i-1] && costs[i] < costs[i-1] && !operandsCoupled(ctx, ops[i-1], ops[i]) {
 			ctx.ReportSeverity(ops[i].Span(), meta.SeverityInfo, notOptimalOrderMsg)
 		}
 	}
@@ -138,6 +140,9 @@ func conditionCost(ctx *analysis.Context, e syntax.Expr) int {
 		}
 		return s
 	case *syntax.PropertyFetch:
+		if classifyPropertyRead(ctx, x) == propComputed {
+			return conditionCost(ctx, x.Var) + 5
+		}
 		return conditionCost(ctx, x.Var) + conditionCost(ctx, x.Name)
 	case *syntax.StaticPropertyFetch:
 		return conditionCost(ctx, x.Class) + conditionCost(ctx, x.Name)
@@ -189,6 +194,61 @@ func conditionCost(ctx *analysis.Context, e syntax.Expr) int {
 		return conditionCost(ctx, x.Cond) + t
 	}
 	return 10
+}
+
+// Property read classes (see the spec's *Property fetches*).
+const (
+	propStored = iota
+	propComputed
+	propUnknown
+)
+
+// classifyPropertyRead tells whether an instance property read reads a
+// stored slot, runs code (get hook, virtual, abstract, __get()) or cannot
+// be classified.
+func classifyPropertyRead(ctx *analysis.Context, f *syntax.PropertyFetch) int {
+	id, ok := f.Name.(*syntax.Identifier)
+	if !ok {
+		return propUnknown // dynamic name
+	}
+	atoms := ctx.TypeOf(f.Var).Without("null").Atoms()
+	if len(atoms) == 0 {
+		return propUnknown
+	}
+	out := propStored
+	for _, a := range atoms {
+		if !strings.HasPrefix(a, `\`) || strings.HasSuffix(a, "[]") || ctx.Index().Class(a, ctx.PHP) == nil {
+			return propUnknown // scalar, mixed, object, template or unresolved class
+		}
+		p := ctx.Index().FindProperty(a, id.Value, ctx.PHP)
+		switch {
+		case p != nil && !p.Magic:
+			if p.ReadsRunCode {
+				out = propComputed
+			}
+		case ctx.Index().FindMethod(a, "__get", ctx.PHP) != nil:
+			out = propComputed
+		}
+	}
+	return out
+}
+
+// costUnknown reports whether e reads a property whose cost cannot be
+// established (closures and nested classes are not evaluated).
+func costUnknown(ctx *analysis.Context, e syntax.Expr) bool {
+	unknown := false
+	syntax.Inspect(e, func(x syntax.Node) bool {
+		switch c := x.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+			return false
+		case *syntax.PropertyFetch:
+			if classifyPropertyRead(ctx, c) == propUnknown {
+				unknown = true
+			}
+		}
+		return !unknown
+	})
+	return unknown
 }
 
 // operandsCoupled implements scenarios S1–S4.
@@ -388,6 +448,11 @@ func notOptimalImpure(ctx *analysis.Context, e syntax.Expr) bool {
 		switch c := x.(type) {
 		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
 			return false
+		case *syntax.PropertyFetch:
+			if classifyPropertyRead(ctx, c) == propComputed {
+				impure = true // a get hook or __get() runs user code
+				return false
+			}
 		case *syntax.Include, *syntax.Eval, *syntax.Exit, *syntax.Print,
 			*syntax.MethodCall, *syntax.StaticCall, *syntax.New:
 			// Method, static and constructor calls run arbitrary code.
