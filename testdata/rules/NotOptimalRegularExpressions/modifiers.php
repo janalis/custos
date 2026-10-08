@@ -31,6 +31,14 @@ function modifiersDemo($line, $m) {
     preg_match("/^[a-z]*\$/D", $line);
     preg_match("/^[0-5]*\x24/D", $line);
     preg_match("/^\x2e/s", $line);
+    preg_match('/\G\[((?:[^\\\\\[\]]|\\\\.){0,999})\]/s', $line, $m); // \\. is an escaped backslash, then any character
+    preg_match('/k\\\\$/D', $line, $m); // an escaped backslash, then the end anchor
+    preg_match('/[[:alpha:]]./s', $line, $m);
+    preg_match(<weak_warning descr="The /s flag is pointless: the pattern has no '.'.">'/[]. ]k/s'</weak_warning>, $line, $m);
+    preg_match(<weak_warning descr="The /s flag is pointless: the pattern has no '.'.">'/[^]. ]k/s'</weak_warning>, $line, $m);
+    preg_match(<weak_warning descr="The /s flag is pointless: the pattern has no '.'.">'/k\Q.\E\d/s'</weak_warning>, $line, $m);
+    preg_match(<weak_warning descr="The /s flag is pointless: the pattern has no '.'.">'/k\Q.\d/s'</weak_warning>, $line, $m);
+    preg_match(<weak_warning descr="The /D flag is pointless: the pattern has no '$'.">'/k[$]/D'</weak_warning>, $line, $m);
     preg_match('/ид/iu', $line, $m);
     preg_match(<weak_warning descr="The /i flag is pointless: the pattern has no letters.">'/\d{3}-\d{2}/i'</weak_warning>, $line, $m);
     preg_match(<weak_warning descr="The /i flag is pointless: the pattern has no letters.">'/

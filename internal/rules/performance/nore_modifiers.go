@@ -11,11 +11,7 @@ import (
 
 // NotOptimalRegularExpressions: modifier checks (D7–D13).
 
-var (
-	noreEscapedDotBracket = regexp.MustCompile(`\\[.\[\]]`)
-	noreBracketRun        = regexp.MustCompile(`\[[^\]]+\]`)
-	noreClassEscape       = regexp.MustCompile(`\\[\\dDwWsS]`)
-)
+var noreClassEscape = regexp.MustCompile(`\\[\\dDwWsS]`)
 
 func (c *noreCase) checkModifiers() {
 	mods, body := c.mods, c.body
@@ -43,14 +39,12 @@ func (c *noreCase) checkModifiers() {
 		if has('m') {
 			c.report(meta.SeverityInfo, "The /D flag has no effect together with /m.")
 		}
-		if pat != "" && noreCountDiff(pat, "$", `\$`) == 0 {
+		if pat != "" && !noreHasMeta(pat, '$') {
 			c.report(meta.SeverityInfo, "The /D flag is pointless: the pattern has no '$'.")
 		}
 	}
 	if has('s') && pat != "" { // D10
-		n := noreEscapedDotBracket.ReplaceAllString(pat, "")
-		n = noreBracketRun.ReplaceAllString(n, "")
-		if noreCountDiff(n, ".", `\.`) == 0 {
+		if !noreHasMeta(pat, '.') {
 			c.report(meta.SeverityInfo, "The /s flag is pointless: the pattern has no '.'.")
 		}
 	}
@@ -86,6 +80,46 @@ func (c *noreCase) checkModifiers() {
 			}
 		}
 	}
+}
+
+// noreHasMeta reports whether the decoded pattern uses want as a
+// metacharacter (D9b, D10): outside a character class, not escaped (each
+// backslash escapes the next character, so `\\.` is an escaped backslash
+// then a dot) and not inside a \Q…\E literal run.
+func noreHasMeta(pat string, want byte) bool {
+	inClass := false
+	for i := 0; i < len(pat); i++ {
+		ch := pat[i]
+		switch {
+		case ch == '\\' && i+1 < len(pat) && pat[i+1] == 'Q':
+			end := strings.Index(pat[i+2:], `\E`)
+			if end < 0 {
+				return false
+			}
+			i += end + 3
+		case ch == '\\':
+			i++
+		case inClass:
+			if ch == '[' && i+1 < len(pat) && pat[i+1] == ':' {
+				if end := strings.Index(pat[i+2:], ":]"); end >= 0 {
+					i += end + 3 // a POSIX class [:name:]
+				}
+			} else if ch == ']' {
+				inClass = false
+			}
+		case ch == '[':
+			inClass = true
+			if i+1 < len(pat) && pat[i+1] == '^' {
+				i++
+			}
+			if i+1 < len(pat) && pat[i+1] == ']' {
+				i++ // a leading ] is a member
+			}
+		case ch == want:
+			return true
+		}
+	}
+	return false
 }
 
 // noreNonASCIIUnsafe reports whether a non-ASCII character of body behaves

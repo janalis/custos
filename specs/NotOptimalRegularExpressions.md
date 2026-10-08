@@ -116,14 +116,18 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
 - **D9** `mods` contains `D`:
   - **D9a** `mods` also contains `m` → report `L` (info: `D` is ignored
     under `m`);
-  - **D9b** independently, `body` non-empty and
-    count(`$`) − count(`\$`) = 0 → report `L` (info: `D` has nothing to
-    act on). `[\\$]` counts as escaped and is reported.
-- **D10** `mods` contains `s`, `body` non-empty: let `N` = `body` with every
-  `\.`, `\[`, `\]` removed (scan left to right), then with every bracket
-  run removed (a `[`, one or more characters other than `]`, then `]`;
-  leftmost first, non-overlapping). If count(`.` in `N`) − count(`\.` in
-  `N`) = 0 → report `L` (info: no `.` for `s` to affect).
+  - **D9b** independently, `body` non-empty and the pattern has no
+    *active* `$` (below) → report `L` (info: `D` has nothing to act on).
+    `[\\$]` and `\$` have none and are reported.
+- **D10** `mods` contains `s`, `body` non-empty, and the pattern has no
+  active `.` → report `L` (info: no `.` for `s` to affect).
+- A character is *active* when a left-to-right scan of the pattern meets
+  it outside a character class: a backslash always consumes the character
+  after it (so `\\.` is an escaped backslash followed by an active `.`),
+  `\Q` skips everything up to the next `\E` (all of the rest when there is
+  none), a class starts at `[` (a `]` right after `[` or `[^` is a member)
+  and ends at the next unescaped `]` that does not close a POSIX name such
+  as `[:alpha:]`.
 - **D11** `mods` contains `i`, `body` non-empty: let `N` = `body` with
   every two-character sequence `\` + one of `\ d D w W s S` removed (left to
   right, non-overlapping; so `\\d` loses `\\` and keeps the letter `d`). If
@@ -739,6 +743,12 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
   (escapes resolved, both quote styles): `"\x2e"` is a `.`, and
   `'/\\d/i'` is the pattern `\d` (no letters, `/i` pointless) while
   `'/\\\\d/i'` is an escaped backslash followed by the letter `d`.
+- **Escapes and classes are scanned, not counted (custos diverges).**
+  Counting `.` against `\.` (and `$` against `\$`) takes the pair `\\.` —
+  an escaped backslash then a dot — for an escaped dot, so
+  `'/(?:[^\\\\]|\\\\.)+/s'` (any character after a backslash, newline
+  included) was told `/s` is pointless. custos walks the pattern once,
+  honouring escapes, `\Q…\E` and character classes (D9b, D10).
 - **preg_quote() text (custos diverges from E3).** `preg_quote()`'s
   argument is literal text, not a pattern: only D20 applies to it (the
   delimiter split still decides whether it looks delimited); D7 and D9–D19
