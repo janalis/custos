@@ -20,7 +20,7 @@ subject against a related type.
 
 ## Example
 
-```php{3,4,5,6,7,8,24,27,28,32,39,40}
+```php{3,4,5,6,7,8,24,37,38,46,47,51,58,59}
 <?php
 // D1 ordering
 if (strlen($name) > 3 && $enabled) {}
@@ -45,6 +45,25 @@ if (strlen(file_get_contents($path)) && $ok) {}
 if ($repo->find($id) || empty($cache)) {}       // method call: impure
 if (isset($rows[md5($k)]) && $rows) {}          // S3: $rows itself is guarded
 if (fetch($a) and $b) {} // one operand for D1
+
+// property fetches
+final class Folder {
+    public bool $open = false;
+    public array $files = [];
+    public bool $isEmpty { get => $this->files === []; }
+    public function __construct(public ?string $label = null) {}
+}
+final class Lazy {
+    public function __get(string $n) { return load($n); }
+}
+function scan(Folder $f, Lazy $l, $any, string $p) {
+    if (strlen($p) > 3 && $f->open) {}
+    if (trim($p) || $f->label) {}
+    if (strlen($p) > 3 && !$f->isEmpty) {}      // get hook: computed, impure
+    if (is_dir($p) && $l->cached) {}            // __get(): computed, impure
+    if (strlen($p) > 3 && $any->flag) {}        // untyped receiver: unknown
+    if ($f->isEmpty || $f->open) {}             // computed neighbour: impure
+}
 
 // D2 keyword operators
 if ($p AND $q) {}
@@ -74,11 +93,13 @@ Reported:
 <li>line 7: Cheaper check placed after a costlier one; evaluate it first.</li>
 <li>line 8: Cheaper check placed after a costlier one; evaluate it first.</li>
 <li>line 24: Use &#39;&amp;&amp;&#39; instead of &#39;and&#39;.</li>
-<li>line 27: Use &#39;&amp;&amp;&#39; instead of &#39;and&#39;.</li>
-<li>line 28: Use &#39;||&#39; instead of &#39;or&#39;.</li>
-<li>line 32: Equality check on a value also tested with instanceof; verify the logic.</li>
-<li>line 39: Redundant instanceof: another check on the same value already covers this type.</li>
-<li>line 40: Redundant instanceof: another check on the same value already covers this type.</li>
+<li>line 37: Cheaper check placed after a costlier one; evaluate it first.</li>
+<li>line 38: Cheaper check placed after a costlier one; evaluate it first.</li>
+<li>line 46: Use &#39;&amp;&amp;&#39; instead of &#39;and&#39;.</li>
+<li>line 47: Use &#39;||&#39; instead of &#39;or&#39;.</li>
+<li>line 51: Equality check on a value also tested with instanceof; verify the logic.</li>
+<li>line 58: Redundant instanceof: another check on the same value already covers this type.</li>
+<li>line 59: Redundant instanceof: another check on the same value already covers this type.</li>
 </ul>
 
 ## Options
