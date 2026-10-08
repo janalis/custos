@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -31,7 +32,7 @@ func propertyLookupTime(t *testing.T, n int) time.Duration {
 	}
 	b.WriteString("}\n")
 	best := time.Duration(1<<63 - 1)
-	for run := 0; run < 3; run++ {
+	for run := 0; run < 5; run++ {
 		f := parse(t, b.String())
 		var probes []syntax.Expr
 		syntax.InspectFile(f, func(n syntax.Node) bool {
@@ -41,6 +42,7 @@ func propertyLookupTime(t *testing.T, n int) time.Duration {
 			}
 			return true
 		})
+		runtime.GC()
 		start := time.Now()
 		for _, p := range probes {
 			if vals, ok := PossibleValuesComplete(f, p); !ok || len(vals) != 2 {
