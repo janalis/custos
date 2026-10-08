@@ -16,7 +16,7 @@ foreach ($orders as $key => $order) {
         default:
     }
     <weak_warning descr="Statement does not depend on the loop; move it out.">try</weak_warning> {
-        $warmup();
+        warmup();
     } catch (\RuntimeException $problem) {
         report($problem);
     }

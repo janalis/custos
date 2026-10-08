@@ -38,3 +38,12 @@ function polyfilled(string $code) {
     $map[preg_replace('/-/', '', mb_strtolower($code))] = 1;
     return $map;
 }
+
+// Float keys are truncated to int (pChart's chart scales).
+function bucket(float $y, array $units): array
+{
+    $out = [];
+    $out[floor($y)] = 1;
+    $out[] = $units[$y / 2];
+    return $out;
+}

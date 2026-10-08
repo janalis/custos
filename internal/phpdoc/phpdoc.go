@@ -185,7 +185,10 @@ func (d *Doc) ParamsOf(tag string) []Param {
 // ReturnType returns the @return type text ("" when absent).
 func (d *Doc) ReturnType() string {
 	if t, ok := d.Tag("return"); ok {
-		typ, _ := SplitType(t.Text)
+		typ, desc := SplitType(t.Text)
+		if desc != "" && proseWord[strings.ToLower(typ)] {
+			return "" // "@return The item unserialized": a description, no type
+		}
 		return typ
 	}
 	return ""
@@ -219,10 +222,21 @@ func trailingType(rest string) string {
 	if typ == "" {
 		return ""
 	}
+	if desc != "" && proseWord[strings.ToLower(typ)] {
+		return "" // "@param $x The extension name"
+	}
 	if desc == "" || strings.ContainsAny(typ, `|&[]<\?`) || (typ[0] >= 'A' && typ[0] <= 'Z') || docBuiltin[strings.ToLower(typ)] {
 		return typ
 	}
 	return ""
+}
+
+// proseWord lists words that start a description, not a type, when more
+// words follow (legacy docs without a type: "@return The item", "@param $x
+// The extension name" read as class \The).
+var proseWord = map[string]bool{
+	"the": true, "a": true, "an": true, "this": true, "that": true, "these": true, "those": true,
+	"optional": true, "returns": true, "whether": true, "if": true,
 }
 
 var docBuiltin = map[string]bool{

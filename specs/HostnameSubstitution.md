@@ -174,3 +174,7 @@ class Mailer
   in `'admin@' . ($host . '.example')` — yields a report on another node or
   none at all. custos flattens the whole chain and checks the operand that
   actually holds the host against its predecessor (D3).
+- **Fetches inside `isset()` / `empty()` (custos).** A `$_SERVER['SERVER_NAME']`
+  that is only tested (`!empty($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : …`)
+  is not a source: only the read flows into the address, so the finding is
+  reported once instead of twice (Swiftmailer's message ids).

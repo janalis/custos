@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"custos/internal/analysis"
@@ -129,11 +130,59 @@ func Resolve(root string, f File) (*Config, error) {
 		}
 		c.Rules[m.ID] = rc
 	}
+	if v := composerPHPUnit(root); v > 0 {
+		// Fallback for the PHPUnit rules when PHPUnit itself is not
+		// indexed (see rules/phpunit detectedPHPUnitVersion).
+		for _, id := range []string{"PhpUnitTests", "PhpUnitDeprecations"} {
+			rc := c.Rules[id]
+			if rc.Options == nil {
+				rc.Options = map[string]any{}
+			}
+			rc.Options["@composerPHPUnit"] = v
+			c.Rules[id] = rc
+		}
+	}
 	if len(c.Paths) == 0 {
 		c.Paths = []string{"."}
 	}
 	return c, nil
 }
+
+// composerPHPUnit returns the lowest PHPUnit version composer.json allows
+// (require-dev, else require), as the PHPUnit rules number versions
+// (9.1 → 91; 10 and later → 100); 0 when none is declared.
+func composerPHPUnit(root string) int {
+	b, err := safeio.ReadFile(filepath.Join(root, "composer.json"), MaxFileSize)
+	if err != nil {
+		return 0
+	}
+	var c struct {
+		Require    map[string]string `json:"require"`
+		RequireDev map[string]string `json:"require-dev"`
+	}
+	if json.Unmarshal(b, &c) != nil {
+		return 0
+	}
+	constraint := c.RequireDev["phpunit/phpunit"]
+	if constraint == "" {
+		constraint = c.Require["phpunit/phpunit"]
+	}
+	best := 0
+	for _, m := range unitVersionRe.FindAllStringSubmatch(constraint, -1) {
+		major, _ := strconv.Atoi(m[1])
+		minor, _ := strconv.Atoi(m[2])
+		v := major*10 + min(minor, 9)
+		if major >= 10 {
+			v = 100
+		}
+		if best == 0 || v < best {
+			best = v
+		}
+	}
+	return best
+}
+
+var unitVersionRe = regexp.MustCompile(`(\d+)(?:\.(\d+))?`)
 
 // insideRoot reports whether the relative path p stays within the root
 // directory (no absolute path, no leading "..", no volume name).

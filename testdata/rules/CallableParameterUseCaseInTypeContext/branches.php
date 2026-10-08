@@ -24,7 +24,7 @@ abstract class Fluent
         $s = Missing::make();
         $s = <warning descr="Assigning a value of type \Fluent does not match the parameter's declared type.">$s ?? $this->with()</warning>;
         $l = $l->with();
-        $g = <warning descr="Assigning a value of type \Label does not match the parameter's declared type.">new Label()</warning>;
+        $g = new Label();
         $s = new circle();
         return [is_object($s), is_a($s, Shape::class)];
     }

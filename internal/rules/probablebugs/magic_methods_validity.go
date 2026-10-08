@@ -357,6 +357,10 @@ func (c *magicCheck) callsParent() {
 				name = x.Name
 			case *syntax.StaticCall:
 				name = x.Name
+			case *syntax.FuncCall:
+				// custos: call_user_func_array('Base::__construct', $args),
+				// [$this, 'parent::__construct'], parent::class . '::__construct'
+				called = c.callableNamesParent(x)
 			}
 			if id, ok := name.(*syntax.Identifier); ok && strings.EqualFold(id.Value, c.name) {
 				called = true
@@ -370,6 +374,27 @@ func (c *magicCheck) callsParent() {
 	declaring := strings.TrimPrefix(pm.Class, `\`)
 	declaring = util.LastNamePart(declaring)
 	c.report(c.name + " does not call " + declaring + "::" + c.name + "().")
+}
+
+// callableNamesParent reports whether call is call_user_func[_array]() with
+// a callable whose string part ends in `::<method name>`.
+func (c *magicCheck) callableNamesParent(call *syntax.FuncCall) bool {
+	if fn := c.ctx.GlobalFunctionName(call); fn != "call_user_func" && fn != "call_user_func_array" {
+		return false
+	}
+	args, ok := util.CallArgValues(call)
+	if !ok || len(args) == 0 {
+		return false
+	}
+	found := false
+	syntax.Inspect(args[0], func(n syntax.Node) bool {
+		if e, ok := n.(syntax.Expr); ok {
+			v, ok := util.QuotedStringValue(e)
+			found = ok && strings.HasSuffix(strings.ToLower(v), "::"+strings.ToLower(c.name))
+		}
+		return !found
+	})
+	return found
 }
 
 // setsAll reports whether the method sets every property of props itself

@@ -241,6 +241,10 @@ function untyped($flag = null) {
   implement `Shape` (a class from a missing dependency, a generated class).
   custos treats an unresolvable class, or a class whose hierarchy is only
   partly known, as unknown and stays silent (D7e.2).
+  The same holds for the parameter side: a parameter whose P names a
+  class that does not resolve (`@param unknown_type $x`, a misspelt or
+  unindexed class, `Ghost $g`) is skipped — nothing is known about the
+  values it accepts (SuiteCRM's SOAP layer, 6 findings).
 - **Sound arithmetic (custos diverges):** the arithmetic T-rule's
   heuristic types `int + <unknown>` (and string operands) as float, so
   `$ttl = time() + $lifeTime;` with an untyped `$lifeTime` was reported
@@ -292,3 +296,9 @@ function untyped($flag = null) {
     converts it, even under `strict_types`); a class value is compatible
     with `callable` when it declares or inherits `__invoke()` or does not
     resolve (`?callable $handler` assigned a Guzzle handler object).
+- **Replacements on an unknown subject (custos diverges).** The spec types
+  `str_replace()`, `preg_replace()` and their relatives as `string|array`
+  (`|null`); with a subject of unknown type that union only says "string
+  for a string, array for an array". Such an assignment is not checked
+  (SuiteCRM `SugarBean`: `$where = preg_replace(…, $where)` after a
+  `require`, which forgets local types; 8 findings).

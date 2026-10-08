@@ -17,3 +17,31 @@ function write_rules($fd, array $hosts, bool $fixed)
     }
     return [$stats, $modes];
 }
+
+// A progress callback ticks once per item (Grav's ZipArchiver).
+function archive(array $items, ?callable $progress, callable $log): array
+{
+    $out = [];
+    foreach ($items as $item) {
+        $out[] = strtoupper($item);
+        $progress && $progress(['type' => 'progress']);
+        $log('step');
+    }
+    return $out;
+}
+
+function firstMatches(array $rows, array $needles): array
+{
+    $hits = [];
+    foreach ($rows as $row) {
+        if ($row) {
+            foreach ($needles as $needle) {
+                if ($needle === $row) {
+                    break;
+                }
+            }
+        }
+        $hits[] = $row;
+    }
+    return $hits;
+}

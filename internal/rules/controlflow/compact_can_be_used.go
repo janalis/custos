@@ -24,6 +24,7 @@ func (compactCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	keys := make([]string, 0, len(arr.Items))
+	var names []string
 	for _, it := range arr.Items { // D3
 		if it == nil || it.ByRef || it.Unpack || it.Key == nil {
 			return
@@ -38,6 +39,13 @@ func (compactCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 		keys = append(keys, lit.Raw)
+		names = append(names, key)
+	}
+	// An arrow function captures only the variables its body names:
+	// compact('a') there sees its own parameters, nothing else (custos
+	// diverges).
+	if fn, ok := syntax.EnclosingFuncLike(arr).(*syntax.ArrowFunction); ok && !arrowParamsCover(fn, names) {
+		return
 	}
 	// A namespaced compact() would capture a bare call.
 	repl := util.QualifiedBuiltin(ctx, "compact", arr.Span().Start) + "(" + strings.Join(keys, ", ") + ")"
@@ -52,6 +60,22 @@ func (compactCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 			return []analysis.TextEdit{{Span: s, NewText: repl}}
 		},
 	})
+}
+
+// arrowParamsCover reports whether every name is a parameter of fn.
+func arrowParamsCover(fn *syntax.ArrowFunction, names []string) bool {
+	params := map[string]bool{}
+	for _, p := range fn.Params {
+		if p.Var != nil {
+			params[p.Var.Name] = true
+		}
+	}
+	for _, n := range names {
+		if !params[n] {
+			return false
+		}
+	}
+	return true
 }
 
 // isDestructuringTarget reports whether arr (or an array/list it is nested

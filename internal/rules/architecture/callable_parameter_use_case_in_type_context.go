@@ -135,6 +135,13 @@ func (cp *cpState) paramSet(p *syntax.Param) (map[string]bool, bool) {
 			set[t] = true
 		}
 	}
+	// custos: a class that does not resolve (`@param unknown_type $x`, a
+	// misspelt or unindexed class) says nothing about accepted values.
+	for t := range set {
+		if strings.HasPrefix(t, `\`) && cp.ctx.Index().Class(t, cp.ctx.PHP) == nil {
+			return nil, false
+		}
+	}
 	// D3 (empty P) cannot happen: raw is not empty (custos skip above).
 	if len(set) == 1 && set["null"] && syntax.IsNullConst(p.Default) { // D4
 		return nil, false
@@ -279,6 +286,9 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 			return
 		}
 	}
+	if cp.unknownReplaceSubject(value) {
+		return
+	}
 	r := map[string]bool{}
 	for _, a := range cp.typeOf(value) { // D7b
 		r[cpNorm(a)] = true
@@ -373,6 +383,33 @@ func (cp *cpState) translateSelf(value syntax.Expr, target *syntax.Variable) str
 		return classes[0]
 	}
 	return ""
+}
+
+// unknownReplaceSubject reports whether value is a str_replace()-family
+// call whose subject has no known type: its result is a string for a string
+// subject and an array for an array one, so "array|string" says nothing
+// about the value (custos; SuiteCRM `$where = preg_replace(…, $where)` after
+// a `require`).
+func (cp *cpState) unknownReplaceSubject(value syntax.Expr) bool {
+	call, ok := syntax.UnwrapParens(value).(*syntax.FuncCall)
+	if !ok {
+		return false
+	}
+	idx := 2
+	switch cp.ctx.GlobalFunctionName(call) {
+	case "str_replace", "str_ireplace", "preg_replace", "preg_replace_callback", "preg_filter":
+	case "substr_replace":
+		idx = 0
+	case "preg_replace_callback_array":
+		idx = 1
+	default:
+		return false
+	}
+	args, ok := util.CallArgValues(call)
+	if !ok || len(args) <= idx {
+		return false
+	}
+	return cp.ctx.TypeOf(args[idx]).IsUnknown() && cp.tr.TypeOf(args[idx]).IsUnknown()
 }
 
 // cpAllCalls reports whether e is a call, or a match/ternary whose every

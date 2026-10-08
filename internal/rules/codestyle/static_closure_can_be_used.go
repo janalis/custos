@@ -199,7 +199,9 @@ func closureSiteSafe(ctx *analysis.Context, site syntax.Node) bool {
 			if ok && strings.EqualFold(id.Value, "bind") {
 				return bindNullScope(ctx, s, 1) && closureMethodResolves(ctx, ctx.Types().ClassRef(call.Class), "bind")
 			}
-			return true
+			// custos: only a real static method; a facade's magic
+			// `Cache::extend()` reaches an instance that may bind it.
+			return !ok || closureStaticTarget(ctx, ctx.Types().ClassRef(call.Class), id.Value)
 		case *syntax.FuncCall: // S2
 			f := ctx.Types().ResolveFunction(call)
 			return f != nil && !strings.Contains(strings.TrimPrefix(f.FQN, `\`), `\`)
@@ -214,9 +216,22 @@ func closureSiteSafe(ctx *analysis.Context, site syntax.Node) bool {
 		return ok && strings.EqualFold(id.Value, "bindTo") && bindNullScope(ctx, s.Args, 0) &&
 			ctx.Index().FindMethod("Closure", "bindTo", ctx.PHP) != nil
 	case *syntax.ArrayItem: // S5
-		return syntax.EnclosingFuncLike(s) == nil
+		// custos: a keyed value at file level too (`return ['postflight' =>
+		// function () {…}];`, bound by the code that includes the file).
+		return s.Key == nil && syntax.EnclosingFuncLike(s) == nil
 	}
 	return false // S6
+}
+
+// closureStaticTarget reports whether cls::name may be treated as a static
+// method: a declared one, or an unknown class or method (upstream), but not
+// a magic method reached through __callStatic() (a facade's instance).
+func closureStaticTarget(ctx *analysis.Context, cls, name string) bool {
+	ix := ctx.Index()
+	if m := ix.FindMethod(cls, name, ctx.PHP); m != nil {
+		return m.Static && !m.Magic
+	}
+	return cls == "" || ix.FindMethod(cls, "__callStatic", ctx.PHP) == nil
 }
 
 // bindNullScope reports whether argument i of list exists and is null.

@@ -73,6 +73,10 @@ func (redundantElseClause) Check(ctx *analysis.Context, n syntax.Node) {
 	if gap != "" {
 		gap = nl + gap
 	}
+	if !redundantElseMovable(ctx, ifs, altBody) {
+		ctx.Report(kw, msg)
+		return
+	}
 	ctx.Report(kw, msg, analysis.Fix{
 		Title: "Remove the redundant clause",
 		Edits: func() []analysis.TextEdit {
@@ -111,6 +115,28 @@ func (redundantElseClause) Check(ctx *analysis.Context, n syntax.Node) {
 			return []analysis.TextEdit{{Span: removed, NewText: gap + moved}}
 		},
 	})
+}
+
+// redundantElseMovable reports whether the clause's code can move after the
+// if (custos): the if must sit in a statement list — as the unbraced body of
+// another if or a loop the moved code would run unconditionally — and the
+// clause must declare no function or class, which PHP would then hoist
+// (a conditional declaration becoming unconditional).
+func redundantElseMovable(ctx *analysis.Context, ifs *syntax.If, altBody syntax.Stmt) bool {
+	if _, _, ok := util.StmtList(ctx.File, ifs); !ok {
+		return false
+	}
+	blk, ok := altBody.(*syntax.Block)
+	if !ok {
+		return true // an `else if` moves as one statement
+	}
+	for _, st := range blk.Stmts {
+		switch st.(type) {
+		case *syntax.Function, *syntax.ClassLike:
+			return false
+		}
+	}
+	return true
 }
 
 // bracedBlock returns s as a `{ … }` block.

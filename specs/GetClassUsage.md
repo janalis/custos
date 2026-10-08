@@ -179,3 +179,7 @@ function legacy($item = null) {
   `is_subclass_of($x, …)` earlier in the function counts as a null check
   (C5). Found on Magento (`setObject($object = null) { if
   (is_object($object)) { get_class($object) … }`).
+- **C5 — earlier method call (custos).** An earlier non-nullsafe method
+  call on an equivalent occurrence (`$model->methodExists($m)`) counts as a
+  null check: on null it throws before `get_class()` is reached (October
+  CMS filter widgets). Property reads and `?->` do not count.

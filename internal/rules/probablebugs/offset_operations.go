@@ -238,8 +238,8 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	var rest []string
 	for _, a := range it {
-		// PHP casts bool keys to int (custos refinement).
-		if a == "null" || a == "void" || offsetHas(allowed, a) || a == "bool" && offsetHas(allowed, "int") {
+		// PHP casts bool and float keys to int (custos refinement).
+		if a == "null" || a == "void" || offsetHas(allowed, a) || (a == "bool" || a == "float") && offsetHas(allowed, "int") {
 			continue
 		}
 		if offsetHas(allowed, "object") && strings.HasPrefix(a, `\`) {

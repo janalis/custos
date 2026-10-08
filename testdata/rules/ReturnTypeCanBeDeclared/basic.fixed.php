@@ -15,7 +15,7 @@ namespace Shop {
         }
 
         /** @param float $p */
-        public function price($p): float { return $p; }
+        public function price($p) { return $p; }
 
         public function clear(): void { $this->n = 0; }
 

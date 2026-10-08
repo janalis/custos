@@ -137,3 +137,9 @@ None.
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **String and bool operands (custos diverges).** When the operand's
+  inferred type includes `string` or `bool`, `T + 1` is not `++T`: for a
+  string `+ 1` is arithmetic (TypeError for `"abc"`) while `++` increments
+  alphanumerically (`"abc"` → `"abd"`, `""` → `"1"`); for a bool `+ 1`
+  gives an int while `++` leaves it unchanged. Such candidates are not
+  reported. Unknown types are still reported (upstream behaviour).

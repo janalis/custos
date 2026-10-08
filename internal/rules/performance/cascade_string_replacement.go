@@ -96,6 +96,7 @@ func (cascadeStringReplacement) Check(ctx *analysis.Context, n syntax.Node) {
 	if inner, ok := csrMatch(c.ctx, f.args[2]); ok && c.mergeable(inner, f) {
 		span := f.call.Span()
 		strip, fixable := csrKeyMode([]csrCall{f, inner})
+		fixable = fixable && c.spreadAligned([]csrCall{f, inner})
 		nestedFix = &analysis.Fix{
 			Title: "Merge the str_replace() calls",
 			Edits: func() []analysis.TextEdit {
@@ -248,7 +249,7 @@ func (c *csrCtx) reportCascade(f csrCall, stmt syntax.Stmt) {
 	const msg = "Fold this str_replace() into the preceding one on the same variable."
 	stmts, calls := c.chain(stmt)
 	strip, fixable := csrKeyMode(calls)
-	if !fixable || len(calls) > csrMaxFixChain {
+	if !fixable || len(calls) > csrMaxFixChain || !c.spreadAligned(calls) {
 		ctx.Report(f.call.Span(), msg)
 		return
 	}
@@ -270,6 +271,31 @@ func (c *csrCtx) reportCascade(f csrCall, stmt syntax.Stmt) {
 			return edits
 		},
 	})
+}
+
+// spreadAligned reports whether the merged replace list stays aligned with
+// the merged search list (custos). Merged lists hold the earliest call's
+// elements first. A search spread from an array of unknown length
+// (`...array_values($from)`) stays aligned when it is the latest call's
+// (calls[0]) and pairs with an array replace, or when every call replaces
+// with the same string literal (kept as one scalar); a spread search with a
+// scalar replace otherwise lost its replacements (EspoCRM's sheet-name
+// cleanup turned ':' and '/' into ” instead of ' ').
+func (c *csrCtx) spreadAligned(calls []csrCall) bool {
+	sameLiteral := true
+	first := csrUnbox(calls[0].args[1])
+	for _, x := range calls {
+		r := csrUnbox(x.args[1])
+		if !isStringLit(r) || r.Kind() != first.Kind() || c.ctx.Text(r) != c.ctx.Text(first) {
+			sameLiteral = false
+		}
+	}
+	for i, x := range calls {
+		if c.arrayOnly(x.args[0]) && !sameLiteral && (i > 0 || !c.arrayOnly(x.args[1])) {
+			return false
+		}
+	}
+	return true
 }
 
 // csrMaxFixChain bounds the chains the merge fix folds: each finding of a

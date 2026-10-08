@@ -211,3 +211,11 @@ becomes `0 === strpos($uri, $base)`.
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Loose comparisons need a non-numeric literal for the fix (custos
+  diverges).** `==` / `!=` compare two numeric strings as numbers:
+  `substr($n, 0, 2) == '00'` is true for `"0 555 1234"` (`"0 " == "00"`)
+  while `strpos($n, '00') === 0` is false (SuiteCRM `skype_formatted()`).
+  A loose comparison is still reported, but the quick-fix is offered only
+  when the other operand is a string literal that is not numeric; against
+  a variable or call (which may hold a numeric string) or a numeric literal
+  there is no fix. Strict comparisons are unchanged.

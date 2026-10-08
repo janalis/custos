@@ -283,3 +283,7 @@ foreach ($rows as $row) {
   - Two statements writing the same variable are connected
     (`$level = 1; if (isset($p['d'])) { $level = $p['d'] + 1; }`): moving
     either out of the loop changes what the other sees.
+- **Callbacks (custos diverges).** A statement calling a callback held in
+  a variable or other expression (`$progress && $progress(['type' =>
+  'progress']);`, `$log('step');`) is not reported: like a progress tick
+  it is meant to run once per item (Grav's archivers and security scans).

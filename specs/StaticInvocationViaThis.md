@@ -177,3 +177,8 @@ namespace PHPUnit\Framework {
   are declared static, but called on an instance they open that instance
   (`$this->reader->open($file)`, MediaWiki dump readers, PhpSpreadsheet);
   the static form would leave the reader unopened. They are not reported.
+- **Magic `@method static` tags (custos diverges).** A static method known
+  only from a class `@method static` tag is a magic method: `$x->where()`
+  reaches `__call()`, `X::where()` `__callStatic()` (Eloquent models,
+  Laravel/October facades). Such calls are not reported; the `static::`
+  fix would also switch to a fresh instance.

@@ -37,7 +37,9 @@ func (staticInvocationViaThis) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	m := sivtResolve(ctx, call.Var, id.Value) // D4
-	if m == nil || !m.Static {
+	// A `@method static` tag documents a magic method: through -> it goes
+	// to __call(), through :: to __callStatic() (custos diverges).
+	if m == nil || !m.Static || m.Magic {
 		return
 	}
 	if sivtExcluded(ctx, m) { // D5

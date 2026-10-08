@@ -145,3 +145,34 @@ func TestLoadWithoutMarkers(t *testing.T) {
 		t.Fatalf("got root=%s src=%s", c.Root, c.PHPSource)
 	}
 }
+
+func TestComposerPHPUnit(t *testing.T) {
+	for body, want := range map[string]int{
+		`{"require-dev": {"phpunit/phpunit": "^11.5"}}`:                        100,
+		`{"require-dev": {"phpunit/phpunit": "^8.5.21 || ^9.3"}}`:              85,
+		`{"require": {"phpunit/phpunit": "~9.1"}}`:                             91,
+		`{"require-dev": {"phpunit/phpunit": "7"}}`:                            70,
+		`{"require-dev": {"phpunit/phpunit": "^9.12"}}`:                        99,
+		`{"require-dev": {"phpunit/phpunit": "dev-main"}}`:                     0,
+		`{"require-dev": {"phpunit/phpunit": ""}, "require": {"x/y": "^1.0"}}`: 0,
+		`not json`: 0,
+	} {
+		dir := t.TempDir()
+		if err := os.WriteFile(filepath.Join(dir, "composer.json"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if got := composerPHPUnit(dir); got != want {
+			t.Errorf("%s: got %d want %d", body, got, want)
+		}
+		c, err := Resolve(dir, File{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, _ := c.Rules["PhpUnitTests"].Options["@composerPHPUnit"].(int); got != want {
+			t.Errorf("%s: option %d want %d", body, got, want)
+		}
+	}
+	if composerPHPUnit(t.TempDir()) != 0 {
+		t.Error("no composer.json")
+	}
+}

@@ -62,6 +62,18 @@ func (incrementDecrementOperationEquivalent) Check(ctx *analysis.Context, n synt
 	if op == "" {
 		return
 	}
+	// `+ 1` on a string or bool is arithmetic (or a TypeError), `++` on a
+	// string is alphanumeric and on a bool a no-op (custos diverges).
+	operand := a.Var
+	if b, ok := a.Value.(*syntax.Binary); ok && a.Op.Kind == syntax.TEqual {
+		operand = b.Left
+		if incDecIsOne(b.Left) && b.Op.Kind == syntax.TPlus {
+			operand = b.Right
+		}
+	}
+	if t := ctx.TypeOf(operand); t.Has("string") || t.Has("bool") || t.Has("true") || t.Has("false") {
+		return
+	}
 	if dim, ok := a.Var.(*syntax.ArrayDimFetch); ok { // D5
 		t := ctx.TypeOf(dim.Var)
 		if t.IsUnknown() || t.Has("string") {

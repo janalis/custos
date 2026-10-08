@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
+	"custos/internal/stubs"
 	"custos/internal/syntax"
 )
 
@@ -32,7 +33,7 @@ func (preloadingUsageCorrectness) Check(ctx *analysis.Context, n syntax.Node) {
 	if _, ok := inc.Parent().(*syntax.ExprStmt); !ok { // D3
 		return
 	}
-	if preloadRunsScript(inc.Expr) { // E3
+	if preloadRunsScript(inc.Expr) || preloadRunsCodeAfter(ctx, inc) { // E3, E4
 		return
 	}
 	keyword := strings.ToLower(ctx.SpanText(inc.Keyword.Span))
@@ -70,4 +71,35 @@ func preloadRunsScript(arg syntax.Expr) bool {
 		return !found
 	})
 	return found
+}
+
+// preloadRunsCodeAfter reports an inclusion followed, in its statement list,
+// by code that may need it to have run (E4): `new`, a method or static call,
+// or a call to a function that is not a PHP builtin (EspoCRM's preload.php
+// includes bootstrap.php, which registers the autoloader, then runs
+// `(new Application())->run(Preload::class)`). Declarations are skipped.
+func preloadRunsCodeAfter(ctx *analysis.Context, inc *syntax.Include) bool {
+	list, i, ok := util.StmtList(ctx.File, inc.Parent().(*syntax.ExprStmt))
+	if !ok {
+		return false
+	}
+	found := false
+	for _, s := range list[i+1:] {
+		syntax.Inspect(s, func(n syntax.Node) bool {
+			switch x := n.(type) {
+			case *syntax.Function, *syntax.ClassLike:
+				return false
+			case *syntax.New, *syntax.MethodCall, *syntax.StaticCall:
+				found = true
+			case *syntax.FuncCall:
+				name := ctx.GlobalFunctionName(x)
+				found = name == "" || stubs.Index().Function(name, ctx.PHP) == nil
+			}
+			return !found
+		})
+		if found {
+			return true
+		}
+	}
+	return false
 }

@@ -157,3 +157,10 @@ function route($req, $list) {
   `if ($a) {…}`.
 - Comments between `}` and `else`/`elseif`: upstream behaviour unverified
   (no fixture). Recommendation: preserve them (keep them before the moved code).
+- **Code that cannot move (custos diverges).** No quick-fix when the `if`
+  is the unbraced body of another `if` or a loop (the moved code would run
+  unconditionally, or attach to the outer statement), or when the `else`
+  block declares a function or class directly (PHP hoists an
+  unconditional top-level declaration: `if (function_exists('f')) {
+  return; } else { function f() {} }` would become "Cannot redeclare").
+  The finding is still reported.

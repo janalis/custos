@@ -34,3 +34,12 @@ function g($rows) {
 }
 
 $fn = fn($rows) => array_map(function () { return 1; }, $rows);
+
+function remember(array $groups) {
+    foreach ($groups as $g) {
+        foreach ($g as $f) {
+            $_SESSION['seen'][] = $f;
+            $GLOBALS['all'][] = $f;
+        }
+    }
+}

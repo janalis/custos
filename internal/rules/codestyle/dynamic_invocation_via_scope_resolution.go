@@ -115,5 +115,8 @@ func boundCallSafe(ctx *analysis.Context, fqn string, m, own *index.Method) bool
 	if c != nil && c.Kind == syntax.KindTrait { // self is the using class
 		return false
 	}
-	return !util.OverriddenBelow(ix, fqn, strings.ToLower(m.Name), ctx.PHP)
+	below := ctx.Memo("descendant-methods\x00"+strings.ToLower(fqn), func() any {
+		return util.DescendantMethods(ix, fqn, ctx.PHP)
+	}).(map[string]bool)
+	return !below[strings.ToLower(m.Name)]
 }

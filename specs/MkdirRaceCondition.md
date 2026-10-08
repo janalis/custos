@@ -263,3 +263,11 @@ inverted.)
   function (or top-level code) also calls `rmdir()` on the same directory
   expression is not reported; an ignored `mkdir($scratch); …
   rmdir($scratch);` temporary directory still is.
+- **Retry loops (custos).** A `mkdir()` in the condition of a `while` /
+  `do … while` loop whose condition also tests `is_dir()` of the same
+  directory (`while (!is_dir($d) && !@mkdir($d, 0755, true)) { usleep(…); }`)
+  re-checks on the next iteration: not reported (October CMS's
+  `CodeParser`).
+- **Unbraced bodies (custos).** When the ignored `mkdir()` statement is the
+  unbraced body of an `if`/`else`/loop, the D4 replacement is wrapped in
+  braces: a bare `if (…) { throw … }` would capture the outer `else`.

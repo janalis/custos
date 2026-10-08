@@ -8,7 +8,7 @@ import (
 	"custos/internal/syntax"
 )
 
-func TestOverriddenBelow(t *testing.T) {
+func TestDescendantMethods(t *testing.T) {
 	src := `<?php
 namespace N;
 interface I { public function run(); }
@@ -30,8 +30,17 @@ class G implements I, K {}
 		{`N\A`, "name", true}, {`N\A`, "run", true}, {`\N\I`, "run", true}, {`N\A`, "only", false},
 		{`N\B`, "name", false}, {`N\D`, "run", false}, {`N\Missing`, "run", false}, {`N\I`, "absent", false},
 	} {
-		if got := OverriddenBelow(ix, c.fqn, c.name, 0); got != c.want {
-			t.Errorf("OverriddenBelow(%s, %s) = %v", c.fqn, c.name, got)
+		if got := DescendantMethods(ix, c.fqn, 0)[c.name]; got != c.want {
+			t.Errorf("DescendantMethods(%s, %s) = %v", c.fqn, c.name, got)
 		}
+	}
+}
+
+func TestDescendantMethodsCycle(t *testing.T) {
+	f := syntax.Parse("x.php", []byte(`<?php class A extends B { function m() {} } class B extends A {}`), syntax.Options{})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	if !DescendantMethods(ix, "A", 0)["m"] {
+		t.Error("a class in a cycle is its own descendant")
 	}
 }

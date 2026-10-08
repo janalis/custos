@@ -239,3 +239,14 @@ After fix (only changed lines shown):
   (safe) and the closure reported although it gets bound to an object.
   PHP keywords and method names are case-insensitive; custos compares them
   case-insensitively.
+- **Keyed array values at file level; facades (custos diverges).** A
+  closure stored as a keyed array value is not reported at file level
+  either: such arrays are often returned to the including code, which may
+  bind the closure (Grav's `updates/*.php` return `['postflight' =>
+  function () {…}]`, run with `$closure->call($this)`; a static closure
+  would only warn and never run). A static call reaches the closure's
+  consumer as a static method only when the method is declared static: a
+  magic `@method static` or a class with `__callStatic()` and no such
+  method (Laravel/October facades: `Cache::extend('x', fn …)` binds the
+  closure to the cache manager) counts as an unknown target (E6).
+  Unknown classes keep upstream's behaviour.

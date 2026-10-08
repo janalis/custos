@@ -98,12 +98,26 @@ func (subStrUsedAsStrPos) Check(ctx *analysis.Context, n syntax.Node) {
 		repl = "0 " + op + " " + call
 	}
 	span := b.Span()
-	ctx.Report(span, "Use '"+repl+"' instead.", analysis.Fix{
+	msg := "Use '" + repl + "' instead."
+	if loose := b.Op.Kind == syntax.TIsEqual || b.Op.Kind == syntax.TIsNotEqual; loose && !nonNumericLiteral(other) {
+		// `==` compares numeric strings as numbers ("0 " == "00"), strpos()
+		// matches bytes: no fix (custos diverges).
+		ctx.Report(span, msg)
+		return
+	}
+	ctx.Report(span, msg, analysis.Fix{
 		Title: "Use '" + fn + "'",
 		Edits: func() []analysis.TextEdit {
 			return []analysis.TextEdit{{Span: span, NewText: repl}}
 		},
 	})
+}
+
+// nonNumericLiteral reports whether e is a string literal that is not a
+// numeric string: comparing it loosely with a string is a byte comparison.
+func nonNumericLiteral(e syntax.Expr) bool {
+	v, ok := util.QuotedStringValue(e)
+	return ok && !util.IsNumericString(v)
 }
 
 // prefixLengthMatches reports whether the substr length is the length of the

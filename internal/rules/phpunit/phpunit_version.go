@@ -10,12 +10,17 @@ import "custos/internal/analysis"
 //   - assertIsInt without assertInternalType (9.0)      → 90
 //   - assertIsInt (7.5 / 8.x)                           → 80
 //   - neither                                           → 70
+//
+// When PHPUnit is not indexed (no vendor directory, or one installed
+// without dev dependencies) the CLI passes the lowest version allowed by
+// composer.json's phpunit/phpunit constraint as the internal option
+// "@composerPHPUnit" (custos).
 func detectedPHPUnitVersion(ctx *analysis.Context) (int, bool) {
 	v := ctx.Memo("phpunit.detectedVersion", func() any {
 		ix := ctx.Index()
 		const assert = `PHPUnit\Framework\Assert`
 		if ix.Class(assert, ctx.PHP) == nil {
-			return 0
+			return ctx.Int("@composerPHPUnit")
 		}
 		has := func(m string) bool { return ix.FindMethod(assert, m, ctx.PHP) != nil }
 		switch {

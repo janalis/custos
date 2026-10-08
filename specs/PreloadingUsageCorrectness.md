@@ -94,3 +94,11 @@ None.
   `Preloader::preload()`). Replacing those with `opcache_compile_file()`
   silently disables preloading (and autoloading). custos skips inclusions
   whose path literal mentions `autoload` or `preload` (E3).
+- **E4 — inclusions whose effects later code needs (custos).** An
+  inclusion followed, in the same statement list, by `new`, a method or
+  static call, or a call to a function that is not a PHP builtin (also a
+  dynamic `$fn()`) is not reported: the included file may set up what that
+  code needs (EspoCRM's `preload.php`: `include "bootstrap.php";` registers
+  the autoloader, then `(new Application())->run(Preload::class);` —
+  compiling bootstrap.php instead breaks the script). Function and class
+  declarations after the inclusion are skipped.

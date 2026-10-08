@@ -125,3 +125,7 @@ function payload($id, $tag, $note) {
   `compact(`, which a namespaced or imported function of that name captures
   (it would not even see the local variables). custos writes `\compact(`
   in that case (F1).
+- **Arrow functions (custos diverges).** An arrow function captures only
+  the outer variables its body names; `fn () => compact('a')` names none,
+  so `$a` is undefined there. An array inside an arrow function is
+  reported only when every variable is a parameter of that arrow function.

@@ -1,0 +1,23 @@
+<?php
+// The clause's code cannot move: the if is an unbraced body, or the clause
+// declares a function (PHP would hoist it).
+function nested($a, $b) {
+    if ($a)
+        if ($b) {
+            return 1;
+        } <warning descr="Drop the 'else' and move its code after the 'if'.">else</warning> {
+            echo 'x';
+        }
+    return 2;
+}
+
+if (function_exists('polyfill')) {
+    return;
+} <warning descr="Drop the 'else' and move its code after the 'if'.">else</warning> {
+    function polyfill() {}
+}
+if (PHP_VERSION_ID > 80000) {
+    return;
+} <warning descr="Drop the 'else' and move its code after the 'if'.">else</warning> {
+    echo 'old';
+}

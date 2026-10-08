@@ -95,6 +95,8 @@ func isNullCheck(c syntax.Node) bool {
 		return true
 	case *syntax.Instanceof: // C2
 		return true
+	case *syntax.MethodCall: // custos: an earlier $x->m() throws on null
+		return p.Var == c && !p.NullSafe
 	case *syntax.Arg: // custos: is_object($x), is_a($x, …) type guards
 		if call, ok := p.Parent().Parent().(*syntax.FuncCall); ok {
 			switch strings.ToLower(util.CallLastName(call)) {

@@ -324,3 +324,13 @@ function swap(array $from, array $to, $text) {
   while the merged call would evaluate them on the original value. A call
   whose search or replace argument mentions the subject variable is not
   linked to the previous one.
+- **Spread searches keep their pairing (custos diverges).** A search
+  argument holding an array of unknown length is spread
+  (`...array_values($bad)`), so the position of the following elements is
+  unknown. The fix is offered only when the replacement list stays aligned:
+  every call replaces with the same string literal (kept as one scalar),
+  or the spread search belongs to the latest call and pairs with an array
+  replace. Otherwise the cascade is reported without a fix: EspoCRM's
+  `str_replace($badCharList, ' ', $n)` followed by `str_replace('\'', '',
+  $n)` became `str_replace([...$bad, '\''], [' ', ''], $n)`, which deletes
+  the bad characters instead of turning them into spaces.

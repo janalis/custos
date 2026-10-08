@@ -198,7 +198,8 @@ function ok($m, $c, $n) {
   `string` or `callable` is a failure marker (`array|false` from a lookup,
   `Db::getRow(): array|bool|object|null`) and is dropped like `null`.
   (3) In D7 a `bool` index is accepted where `int` is: PHP casts `true`/
-  `false` keys to 1/0. A variable read before its first assignment is no
+  `false` keys to 1/0. A `float` index is accepted there too: PHP truncates it
+  to int (8.1 deprecates fractional values; pChart's `$Units[floor($v)]`). A variable read before its first assignment is no
   longer typed by that later assignment.
 - **Native offset classes (custos diverges).** `DOMNodeList`,
   `DOMNamedNodeMap`, `ResourceBundle`, `Dom\NodeList`, `Dom\NamedNodeMap`,

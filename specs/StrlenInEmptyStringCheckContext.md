@@ -210,3 +210,10 @@ Regular style (default), same input lines `$c`, `$d`, `$a` become
   where the namespace declares one) was reported and replaced by a string
   comparison that no longer calls it. custos matches case-insensitively and
   only calls resolving to the global functions (D1).
+- **Cast decision uses native types only (custos diverges).** A subject
+  known as `string` only through PHPDoc (`@return string` on an untyped
+  method returning a `null` default, `@param string` on an untyped
+  parameter) keeps the `(string)` cast: at run time it may be null, which
+  `strlen()` counts as empty and `=== ''` does not (October CMS
+  `Table::init()`, `!strlen($this->getConfig('dataSource'))`). Same policy
+  as UnnecessaryCasting's PHPDoc-only types.

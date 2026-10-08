@@ -76,3 +76,25 @@ func TestTemplateDefaults(t *testing.T) {
 		}
 	}
 }
+
+func TestProseIsNoType(t *testing.T) {
+	d := Parse(`/**
+ * @param $a The extension name
+ * @param $b User the owner
+ * @param $c An
+ * @param $d value to use
+ * @return The item unserialized
+ */`)
+	want := []Param{{"", "a"}, {"User", "b"}, {"An", "c"}, {"", "d"}}
+	for i, p := range d.Params() {
+		if p != want[i] {
+			t.Errorf("param %d: got %+v, want %+v", i, p, want[i])
+		}
+	}
+	if r := d.ReturnType(); r != "" {
+		t.Errorf("return type %q", r)
+	}
+	if r := Parse("/** @return The */").ReturnType(); r != "The" {
+		t.Errorf("single word return type %q", r)
+	}
+}

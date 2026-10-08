@@ -33,6 +33,12 @@ func (r hostnameSubstitution) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || attr != "SERVER_NAME" && attr != "HTTP_HOST" { // D1
 		return
 	}
+	// custos: `!empty($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : …`
+	// tests the value; only the read flows anywhere (one report, not two).
+	switch s.Parent().(type) {
+	case *syntax.Isset, *syntax.Empty:
+		return
+	}
 	for p := s.Parent(); p != nil; p = p.Parent() { // D2
 		if syntax.IsFuncLike(p) {
 			return

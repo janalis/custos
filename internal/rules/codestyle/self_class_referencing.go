@@ -31,7 +31,7 @@ func (r selfClassReferencing) Check(ctx *analysis.Context, n syntax.Node) {
 	if m.Body == nil || m.Modifiers.Has(syntax.TAbstract) { // S2
 		return
 	}
-	c := selfRefCheck{ctx: ctx, name: cls.Name.Value, reverse: ctx.Bool("PREFER_CLASS_NAMES")}
+	c := selfRefCheck{ctx: ctx, name: cls.Name.Value, reverse: ctx.Bool("PREFER_CLASS_NAMES"), final: cls.Modifiers.Has(syntax.TFinal) || cls.ClassKind == syntax.KindEnum}
 	if ns := ctx.Names().Namespace(cls.Span().Start); ns != "" {
 		c.fqn = ns + `\` + c.name
 	} else {
@@ -56,6 +56,7 @@ type selfRefCheck struct {
 	name    string // class short name
 	fqn     string // class FQN without leading backslash
 	reverse bool
+	final   bool // final class or enum: no subclass can rebind static::
 }
 
 // walk visits n's subtree, skipping nested function-likes (S3), attributes
@@ -113,7 +114,15 @@ func (c *selfRefCheck) ref(n *syntax.Name) {
 		}
 	}
 	span := n.Span() // D3
-	ctx.Report(span, "Refer to the class as 'self' instead of '"+c.name+"'.", selfRefFix("Use self", span, "self"))
+	msg := "Refer to the class as 'self' instead of '" + c.name + "'."
+	if _, call := n.Parent().(*syntax.StaticCall); call && !c.final && len(ctx.Index().ChildrenAll(c.fqn)) > 0 {
+		// custos: self::m() forwards the late static binding, Name::m()
+		// resets it: inside m(), static:: and `new static` would name the
+		// calling subclass.
+		ctx.Report(span, msg)
+		return
+	}
+	ctx.Report(span, msg, selfRefFix("Use self", span, "self"))
 }
 
 func (c *selfRefCheck) magic(n *syntax.MagicConst) {

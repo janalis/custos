@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"custos/internal/analysis"
+	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -27,6 +28,7 @@ func (switchContinuationInLoop) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	switches := 0
+	var inner syntax.Node                           // innermost switch
 	for p := c.Parent(); p != nil; p = p.Parent() { // D2
 		if syntax.IsFuncLike(p) {
 			return
@@ -34,11 +36,20 @@ func (switchContinuationInLoop) Check(ctx *analysis.Context, n syntax.Node) {
 		switch p.(type) {
 		case *syntax.Switch:
 			switches++
+			if inner == nil {
+				inner = p
+			}
 		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
 			if switches == 0 {
 				return
 			}
 			span := c.Span()
+			if switchFollowed(ctx, inner, p) {
+				// custos: `continue N` would also skip the statements
+				// after the switch (`++$i;` keeping a position in step).
+				ctx.Report(span, switchContinuationInLoopMsg)
+				return
+			}
 			// Divergence: count nested switches so the fix reaches the loop.
 			repl := "continue " + strconv.Itoa(switches+1) + ";"
 			ctx.Report(span, switchContinuationInLoopMsg, analysis.Fix{
@@ -50,4 +61,18 @@ func (switchContinuationInLoop) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
+}
+
+// switchFollowed reports whether a statement follows the switch sw, or any
+// statement enclosing it, inside loop: `continue` leaves the switch and runs
+// it, `continue 2` skips it.
+func switchFollowed(ctx *analysis.Context, sw, loop syntax.Node) bool {
+	for n := sw; n != loop; n = n.Parent() {
+		if st, ok := n.(syntax.Stmt); ok {
+			if list, i, ok := util.StmtList(ctx.File, st); ok && i < len(list)-1 {
+				return true
+			}
+		}
+	}
+	return false
 }

@@ -707,3 +707,10 @@ class LegacyTest
   global function name in `@covers` (`@covers \clean_param`, Moodle); a
   bare name that resolves to a function satisfies the target instead of
   being reported as an unresolvable class.
+- **PHPUnit version from composer.json (custos).** When PHPUnit itself is
+  not indexed (no vendor directory, or one installed without dev
+  dependencies) and `PHP_UNIT_VERSION` is not configured, the version is
+  the lowest one allowed by composer.json's `phpunit/phpunit` constraint
+  (`require-dev`, else `require`) before falling back to the option
+  default: EspoCRM (`^11.5`) was told to use `assertContains()` (strict
+  from 9.0, unlike `in_array()`) and Grav `assertRegExp()` (removed in 10).

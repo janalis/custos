@@ -87,11 +87,17 @@ func (classConstantUsageCorrectness) Check(ctx *analysis.Context, n syntax.Node)
 		return
 	}
 	ix := ctx.Index()
-	c := ix.Class(ctx.Names().Class(t, x.Span().Start), ctx.PHP) // D4
+	resolved := ctx.Names().Class(t, x.Span().Start)
+	c := ix.Class(resolved, ctx.PHP) // D4
 	if c == nil {
 		return
 	}
 	cfqn := strings.TrimPrefix(c.FQN, `\`)
+	// custos: a class_alias() name resolves to the original class, whose
+	// name differs by more than case.
+	if !strings.EqualFold(strings.TrimPrefix(resolved, `\`), cfqn) {
+		return
+	}
 	var list []string // D5
 	ns, uses := ccScope(ctx.File, fetch)
 	switch {

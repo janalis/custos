@@ -199,3 +199,10 @@ __CLASS__;                          // not inside a class method
 - custos diverges: class names inside an intersection type (`Crate&Other`,
   also within a DNF type) are not reported — `self` cannot be part of an
   intersection type (compile error); found on a Magento test sample.
+- **Static calls and late static binding (custos diverges).** `self::m()`
+  forwards the late static binding while `Name::m()` resets it: inside a
+  static `m()`, `static::` and `new static` name the calling subclass after
+  the rewrite (`Model::make()` returns a `Model`, `self::make()` called
+  from `User::build()` a `User`). In a class that is neither final nor an
+  enum and has indexed subclasses, a static call `Name::m()` is reported
+  without a fix.

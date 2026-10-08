@@ -134,6 +134,11 @@ locate:
 			thrown = "$concurrentDirectory"
 		}
 		repl := "if (" + andForm + ") { throw new \\RuntimeException(" + util.QualifiedBuiltin(ctx, "sprintf", call.Span().Start) + "('Directory \"%s\" was not created', " + thrown + ")); }"
+		if _, _, ok := util.StmtList(ctx.File, c); !ok {
+			// custos: an unbraced body (`if ($c) mkdir($d); else …`): a
+			// bare if would capture the outer else.
+			repl = "{ " + repl + " }"
+		}
 		ctx.ReportNode(c, "mkdir() outcome is ignored; use 'if (!mkdir("+args+") && !is_dir(...)) { ... }'.",
 			analysis.Fix{Title: "Throw when the directory was not created", Edits: func() []analysis.TextEdit {
 				return []analysis.TextEdit{{Span: c.Span(), NewText: repl}}
@@ -161,7 +166,7 @@ locate:
 				outer = pb
 			}
 		}
-		if hasIsDirCall(ctx, outer.Right, mkdirDirKeys(ctx, call)) {
+		if hasIsDirCall(ctx, outer.Right, mkdirDirKeys(ctx, call)) || mkdirRetryLoop(ctx, c, mkdirDirKeys(ctx, call)) {
 			return
 		}
 		// custos: the re-check form follows the call's polarity, not the
@@ -185,6 +190,26 @@ locate:
 		ctx.ReportNode(target, msg, analysis.Fix{Title: "Re-check with is_dir()", Edits: func() []analysis.TextEdit {
 			return []analysis.TextEdit{{Span: c.Span(), NewText: repl}}
 		}})
+	}
+}
+
+// mkdirRetryLoop reports whether the condition containing c is a loop's
+// whose is_dir() test of the same directory runs again on the next
+// iteration (`while (!is_dir($d) && !@mkdir($d)) { usleep(…); }`): the race
+// is already handled (custos).
+func mkdirRetryLoop(ctx *analysis.Context, c syntax.Node, keys []string) bool {
+	cond := c
+	for {
+		switch p := cond.Parent().(type) {
+		case *syntax.Binary, *syntax.Unary, *syntax.Paren:
+			cond = p
+			continue
+		case *syntax.While:
+			return p.Cond == cond && hasIsDirCall(ctx, cond, keys)
+		case *syntax.DoWhile:
+			return p.Cond == cond && hasIsDirCall(ctx, cond, keys)
+		}
+		return false
 	}
 }
 

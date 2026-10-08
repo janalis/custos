@@ -13,6 +13,6 @@ namespace Search {
 
 namespace {
     function find(string $text, string $term) {
-        return <weak_warning descr="Use 'mb_strripos($text, $term)' instead of changing the case.">MB_StrRPos(Mb_StrToUpper($text), strtoupper($term))</weak_warning>;
+        return <weak_warning descr="Use 'mb_strripos($text, $term)' instead of changing the case.">MB_StrRPos(Mb_StrToUpper($text), MB_STRTOUPPER($term))</weak_warning>;
     }
 }

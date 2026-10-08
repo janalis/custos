@@ -7,12 +7,17 @@ import (
 	"custos/internal/phpver"
 )
 
-// OverriddenBelow reports whether a class-like extending or implementing
-// fqn, at any depth, declares the method lname (lower-case): a call bound
-// to fqn's version (`self::m()`) then differs from a dynamic `$this->m()`
-// for instances of that descendant. Only indexed descendants are seen.
-func OverriddenBelow(ix *index.Index, fqn, lname string, ver phpver.Version) bool {
-	seen := map[string]bool{strings.ToLower(strings.TrimPrefix(fqn, `\`)): true}
+// DescendantMethods returns the lower-case names of the methods declared by
+// any indexed class-like extending or implementing fqn, at any depth: a call
+// bound to fqn's version of such a method (`self::m()`) differs from a
+// dynamic `$this->m()` for instances of that descendant. The walk visits
+// every descendant once, so callers checking several methods of one class
+// should compute it once (ctx.Memo): a base class with thousands of
+// generated subclasses (Google API models) made a per-method walk
+// quadratic. In an (invalid) inheritance cycle fqn is its own descendant.
+func DescendantMethods(ix *index.Index, fqn string, ver phpver.Version) map[string]bool {
+	out := map[string]bool{}
+	seen := map[string]bool{} // fqn itself is reached only through a cycle, then it overrides itself
 	queue := []string{fqn}
 	for len(queue) > 0 {
 		cur := queue[0]
@@ -24,12 +29,12 @@ func OverriddenBelow(ix *index.Index, fqn, lname string, ver phpver.Version) boo
 			}
 			seen[k] = true
 			if c := ix.Class(ch, ver); c != nil {
-				if _, ok := c.Methods[lname]; ok {
-					return true
+				for m := range c.Methods {
+					out[m] = true
 				}
 			}
 			queue = append(queue, ch)
 		}
 	}
-	return false
+	return out
 }

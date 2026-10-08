@@ -6,6 +6,7 @@ import (
 	"custos/internal/analysis"
 	"custos/internal/analysis/util"
 	"custos/internal/index"
+	"custos/internal/infer"
 	"custos/internal/phpdoc"
 	"custos/internal/phpver"
 	"custos/internal/syntax"
@@ -94,9 +95,14 @@ func rtdFirstReturn(body syntax.Node) *syntax.Return {
 // rtdExprType is the inferred type of a returned expression, with `$this`
 // and `new static` typed as static.
 func rtdExprType(ctx *analysis.Context, e syntax.Expr) types.Type {
+	return rtdExprTypeIn(ctx.Types(), e)
+}
+
+// rtdExprTypeIn is rtdExprType in env (the native env ignores PHPDoc).
+func rtdExprTypeIn(env *infer.Env, e syntax.Expr) types.Type {
 	switch x := e.(type) {
 	case *syntax.Paren:
-		return rtdExprType(ctx, x.Expr)
+		return rtdExprTypeIn(env, x.Expr)
 	case *syntax.Variable:
 		if x.Name == "this" {
 			return types.Of("static")
@@ -106,7 +112,7 @@ func rtdExprType(ctx *analysis.Context, e syntax.Expr) types.Type {
 			return types.Of("static")
 		}
 	}
-	return ctx.TypeOf(e)
+	return env.TypeOf(e)
 }
 
 func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
@@ -166,6 +172,7 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 		})
 	}
 	unknownReturn := false                  // a `return expr;` of unknown type
+	docReturn := false                      // a `return expr;` typed through PHPDoc
 	bareReturn, valueReturn := false, false // own `return;` / `return expr;`
 	if !abstract {
 		rtdWalkOwn(m.Body, func(x syntax.Node) {
@@ -199,6 +206,10 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 					}
 					if t.IsUnknown() {
 						unknownReturn = true
+					} else if !rtdExprTypeIn(ctx.Types().Native(), x.Expr).Equal(t) {
+						// custos: the type rests on PHPDoc somewhere (a
+						// callee's @return, a @param, a property's @var).
+						docReturn = true
 					}
 					add(t)
 				}
@@ -281,6 +292,8 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 			s = r.compact(ctx, class, doc, docRet, t)
 		}
 		switch {
+		case rtdTrait(ctx, t):
+			return
 		case strings.HasPrefix(t, `\`) || rtdScalarOK[t] || s == "self" || s == "static":
 		case l71 && s == "void":
 		default:
@@ -321,6 +334,8 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 			s = r.compact(ctx, class, doc, docRet, t)
 		}
 		switch {
+		case rtdTrait(ctx, t):
+			return
 		case strings.HasPrefix(t, `\`) || rtdScalarOK[t] || s == "self":
 			suggestion = "?" + s
 		case s == "void":
@@ -344,7 +359,7 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	pos, ok := rtdParamsEnd(ctx, m)
-	if !ok || unknownReturn {
+	if !ok || unknownReturn || docReturn {
 		// custos: a returned value of unknown type means the suggestion
 		// rests on the @return tag alone; a wrong doc would make the added
 		// native type throw, so it is reported without a fix.
@@ -427,6 +442,17 @@ func (returnTypeCanBeDeclared) compact(ctx *analysis.Context, class *syntax.Clas
 	return t
 }
 
+// rtdTrait reports whether t names a trait: no value is ever an instance
+// of a trait, so `: Singleton` always throws (custos; `new static` and
+// `clone $this` inside a trait are typed as the trait).
+func rtdTrait(ctx *analysis.Context, t string) bool {
+	if !strings.HasPrefix(t, `\`) {
+		return false
+	}
+	c := ctx.Index().Class(t, ctx.PHP)
+	return c != nil && c.Kind == syntax.KindTrait
+}
+
 // rtdOverridden implements D13.
 func rtdOverridden(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Method) bool {
 	if class.Modifiers.Has(syntax.TFinal) || m.Modifiers.Has(syntax.TFinal) || m.Modifiers.Has(syntax.TPrivate) {
@@ -447,26 +473,10 @@ func rtdOverridden(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Met
 			return true
 		}
 	}
-	seen := map[string]bool{self: true}
-	queue := []string{fqn}
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		for _, ch := range ix.ChildrenAll(cur) {
-			k := strings.ToLower(strings.TrimPrefix(ch, `\`))
-			if seen[k] {
-				continue
-			}
-			seen[k] = true
-			if c := ix.Class(ch, ctx.PHP); c != nil {
-				if _, ok := c.Methods[name]; ok {
-					return true
-				}
-			}
-			queue = append(queue, ch)
-		}
-	}
-	return false
+	below := ctx.Memo("descendant-methods\x00"+self, func() any {
+		return util.DescendantMethods(ix, fqn, ctx.PHP)
+	}).(map[string]bool)
+	return below[name]
 }
 
 // rtdParamsEnd returns the offset right after the `)` closing the parameter

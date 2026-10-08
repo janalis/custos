@@ -86,6 +86,11 @@ func (typeUnsafeComparison) Check(ctx *analysis.Context, n syntax.Node) {
 	if tucComparableObject(ctx, b.Left) || tucComparableObject(ctx, b.Right) { // D5
 		return
 	}
+	// Two objects: == compares their properties, === their identity — a
+	// different question, not type juggling (custos diverges).
+	if tucObjectsOnly(ctx, b.Left) && tucObjectsOnly(ctx, b.Right) {
+		return
+	}
 	ctx.ReportSeverity(span, meta.SeverityInfo, "Prefer '"+strict+"' to avoid implicit type juggling.") // D6
 }
 
@@ -240,6 +245,17 @@ func tucObjectWithoutToString(ctx *analysis.Context, e syntax.Expr) (cls string,
 		}
 	}
 	return "", true
+}
+
+// tucObjectsOnly reports whether e is known to hold only objects.
+func tucObjectsOnly(ctx *analysis.Context, e syntax.Expr) bool {
+	parts := tucNormalizedParts(ctx, e)
+	for _, p := range parts {
+		if p != "object" && !strings.HasPrefix(p, `\`) {
+			return false
+		}
+	}
+	return len(parts) > 0
 }
 
 // tucComparableObject implements D5.

@@ -125,3 +125,10 @@ function audit() {
   `PhpNamedArgumentsWithChangedOrderInspection`,
   `AdditionOperationOnArraysInspection`, … — Craft CMS), so suppressions
   of real PhpStorm inspections are not reported as unknown.
+- **Round 7 additions (custos).** Real code (SuiteCRM, EspoCRM) suppresses
+  further IDE inspections (`SpellCheckingInspection`, PhpStorm's naming,
+  plural-mixed and condition inspections) and inspections of the wider
+  Php Inspections family that custos does not port
+  (`UnusedFunctionResultInspection`, `ForeachSourceInspection`,
+  `MoreThanThreeArgumentsInspection`); all 33 findings there named such
+  inspections. They are in the embedded list.

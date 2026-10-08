@@ -104,3 +104,9 @@ function dispatch(array $events) {
   the outer `switch`. Recommendation: count the `switch` levels passed and use
   `continue {switches + 1}` in the fix (message unchanged); for a single
   switch this equals upstream. Not covered by upstream fixtures.
+- **No fix when statements follow the switch (custos diverges).** `continue`
+  in a switch runs the statements after the switch; `continue 2` skips
+  them. When the switch (or a statement enclosing it inside the loop) is
+  followed by further statements in the loop body, the finding has no
+  quick-fix (SuiteCRM's SQL parser keeps `++$i;` after the switch in step
+  with the foreach position).

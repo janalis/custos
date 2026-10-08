@@ -336,6 +336,12 @@ func (nullCoalescingOperatorCanBeUsed) checkIf(ctx *analysis.Context, n *syntax.
 		if reads || util.MayHaveSideEffects(pa.Value) { // the fallback is not always evaluated
 			return
 		}
+		// custos: the probe must not read the target, which the merged
+		// form no longer assigns first (`$t = $p[1]; if (isset($m[$t]))
+		// $t = $m[$t];`).
+		if ncoMentions(ctx, n.Cond, pa.Var) || ncoMentions(ctx, asg.Value, pa.Var) {
+			return
+		}
 		t, f = asg.Value, pa.Value
 		replace.Start = prev.Span().Start
 	default: // isRet
@@ -394,4 +400,16 @@ func ncoReturnsByRef(n syntax.Node) bool {
 		return f.ByRef
 	}
 	return false
+}
+
+// ncoMentions reports whether e contains an expression equivalent to target.
+func ncoMentions(ctx *analysis.Context, e, target syntax.Expr) bool {
+	found := false
+	syntax.Inspect(e, func(x syntax.Node) bool {
+		if xe, ok := x.(syntax.Expr); ok && xe.Kind() == target.Kind() && util.EquivalentFoldNames(ctx.File, xe, target) {
+			found = true
+		}
+		return !found
+	})
+	return found
 }

@@ -138,3 +138,10 @@ function lookup(string $text, string $term, array $row) {
   offered only when both sides are converted the same way, or when the
   unconverted side is a string literal without letters of the opposite case
   (`strpos(strtolower($t), 'abc-1')`). Listed upstream divergence.
+- **Conversion and search of different families (custos diverges).**
+  `mb_strtolower()` / `mb_strtoupper()` fold non-ASCII letters (and can
+  change byte offsets) where `stripos()` does not, and `mb_stripos()` folds
+  letters that `strtolower()` leaves alone. The fix is offered only when
+  every conversion belongs to the search function's family (both `mb_` or
+  both byte functions); `strpos(mb_strtolower($s), 'é')` is reported
+  without a fix.

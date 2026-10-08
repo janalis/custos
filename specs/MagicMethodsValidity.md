@@ -351,3 +351,9 @@ interface Printable { public function __toString(); }
   values the child overwrites or sets itself (Dolibarr's `$this->db = $db`
   pattern, ~280 reports). A parent constructor doing anything else, or a
   child leaving one of its properties unset, is still reported.
+- **Parent call through a callable (custos).** A constructor (or other
+  magic method) that calls `call_user_func()` / `call_user_func_array()`
+  with a callable whose string part ends in `::<method>`
+  (`'Base::__construct'`, `[$this, 'parent::__construct']`,
+  `parent::class . '::__construct'`) calls the parent method: not
+  reported (Swiftmailer, bundled by Kanboard, 10 findings).

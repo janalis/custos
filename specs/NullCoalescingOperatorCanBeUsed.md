@@ -374,3 +374,9 @@ is negated K-null with `===`, so the true branch is the "set" branch.
   yields a value, so later writes through `$item` would no longer reach the
   array (Matomo `MenuAbstract`). Neither is the if/return form inside a
   function declared to return by reference (`function &get()`).
+- **S3 needs a probe independent of the target (custos diverges).** The
+  merged form `T = V ?? X` no longer assigns `X` to `T` before the probe
+  runs, so S3 does not apply when the condition or the assigned value
+  reads `T`: `$type = $parts[1]; if (isset($mimeMap[$type])) { $type =
+  $mimeMap[$type]; }` became `$type = $mimeMap[$type] ?? $parts[1]`, which
+  looks up the previous `$type` (SuiteCRM `get_file_mime_type()`).

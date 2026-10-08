@@ -29,3 +29,26 @@ namespace Warm {
 namespace Broken {
     require;
 }
+
+namespace Espo {
+    // A bootstrap whose effects the following code needs must run.
+    include "bootstrap.php";
+    use Espo\Core\Application;
+    (new Application())->run();
+}
+
+namespace Calls {
+    require 'a.php';
+    helper();
+    require 'b.php';
+    Registry::warm();
+    require 'c.php';
+    $warmer->warm();
+    require 'd.php';
+    $fn();
+    <warning descr="Use opcache_compile_file() in a preload script instead of require.">require 'e.php'</warning>;
+    strlen('x');
+    function helper() { return new \ArrayObject(); }
+    class Registry { public static function warm() { helper(); } }
+    if ($ready) <warning descr="Use opcache_compile_file() in a preload script instead of require.">require 'f.php'</warning>;
+}

@@ -215,20 +215,10 @@ func roInHierarchy(ctx *analysis.Context, m *syntax.Method) bool {
 			}
 		}
 	}
-	// Descendants form a tree (a cycle makes the class its own ancestor and
-	// was caught above); the step cap bounds huge hierarchies.
-	queue := []string{fqn}
-	for steps := 0; len(queue) > 0 && steps < 1000; steps++ {
-		k := queue[0]
-		queue = queue[1:]
-		for _, ch := range ix.ChildrenAll(k) {
-			if c := ix.Class(ch, ctx.PHP); c != nil && c.Methods[lname] != nil {
-				return true
-			}
-			queue = append(queue, ch)
-		}
-	}
-	return false
+	below := ctx.Memo("descendant-methods\x00"+strings.ToLower(fqn), func() any {
+		return util.DescendantMethods(ix, fqn, ctx.PHP)
+	}).(map[string]bool)
+	return below[lname]
 }
 
 // usedAsReference reports whether the parameter is assigned to or used as a

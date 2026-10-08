@@ -72,6 +72,44 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
+- Unsafe quick-fixes (SuiteCRM / EspoCRM / Kanboard / Grav / October CMS /
+  Koel review): StaticClosureCanBeUsed made closures static that the
+  including code or a facade binds (Grav's update `postflight` hooks
+  would silently stop running; `Cache::extend()`); PhpUnitTests rewrote
+  for PHPUnit 8 when PHPUnit is not indexed (`assertContains()` is strict
+  from 9.0, `assertRegExp()` gone in 10) — the version now comes from
+  composer.json; ReturnTypeCanBeDeclared declared a trait as the return
+  type (`new static`/`clone $this` in a trait: every call throws) and
+  offers its fix only when the type does not rest on PHPDoc (callee
+  `@return`, `@param`, `@var`); PreloadingUsageCorrectness compiled a
+  bootstrap the next statements need; SwitchContinuationInLoop's
+  `continue 2` skipped statements after the switch;
+  StrlenInEmptyStringCheckContext dropped `(string)` for a PHPDoc-only
+  string (null passed the check); NullCoalescingOperatorCanBeUsed merged an
+  assignment the probe reads; CascadeStringReplacement misaligned
+  replacements after a spread search; SubStrUsedAsStrPos rewrote loose
+  `== '00'` (numeric strings compare as numbers); ArgumentUnpackingCanBeUsed
+  unpacked into by-reference parameters; SelfClassReferencing rewrote
+  `Name::m()` to `self::m()` (late static binding) in classes with
+  subclasses; RedundantElseClause moved code out of an unbraced `if` body
+  or hoisted a declaration; MkdirRaceCondition's `if` captured an outer
+  `else`; CompactCanBeUsed in arrow functions; StringCaseManipulation
+  across `mb_`/byte families; IncrementDecrementOperationEquivalent on
+  string and bool operands.
+- False positives (same review): UnknownInspection (PhpStorm and other
+  inspection names; 33 → 0), CallableParameterUseCaseInTypeContext
+  (unresolvable parameter classes, replacements on unknown subjects),
+  OffsetOperations (float keys), StaticInvocationViaThis (magic
+  `@method static`), MagicMethodsValidity (parent constructor through
+  `call_user_func_array()`), MissingArrayInitialization (superglobals),
+  GetClassUsage (after a method call on the value), ClassConstantUsageCorrectness
+  (`class_alias()` names), HostnameSubstitution (duplicate report),
+  MkdirRaceCondition (retry loops), DisconnectedForeachInstruction
+  (callbacks), TypeUnsafeComparison (object == object), and legacy
+  `@param $x The name` / `@return The item` docs read as class `\The`.
+- Rules asking whether a subclass overrides a method walked every
+  descendant per method (SuiteCRM's Google API `Model.php`: 0.34 s next to
+  thousands of generated models; now linear).
 - Type engine (review round 6): MagicMethodsValidity no longer asks for
   `parent::__construct()` when the parent only stores its parameters and
   the child sets them; IV wrappers in other files are recognised;

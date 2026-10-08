@@ -91,8 +91,9 @@ the correct behaviour are in the rule spec's *Divergences* section.
 | ReturnTypeCanBeDeclared | `return-type-hints.php` | no suggestion when the declaration would be a compile error (": void" with return $x where $x is null/void-documented, "?T" with a bare return) |
 | SenselessProxyMethod | `senseless-proxy-signature.php` | an override that calls the parent without return, where the parent returns a value, is not reported (removing it would change return values) |
 | SlowArrayOperationsInLoop | `slow-array-operations.for-termination.php` | the generated limit variable avoids names already used in the scope ($iMax1 instead of overwriting $iMax) |
+| StaticClosureCanBeUsed | `static-closure-use.php`, `static-closure-use.php74.php` | keyed array values are not reported at file level either (the including code may bind them) |
 | SubStrUsedAsArrayAccess | `substr-used-as-index-access.php` | no fix below PHP 7.0 (?? does not parse); ?? '' guard from 7.0; negative offsets other than -1 skipped (strlen($s) - n can go negative) |
-| SubStrUsedAsStrPos | `substr-used-as-strpos.php` | 4-argument mb_substr fix emits mb_strpos($h, $n, 0, $enc); case-folded comparisons only against literals already in folded case |
+| SubStrUsedAsStrPos | `substr-used-as-strpos.php` | 4-argument mb_substr fix emits mb_strpos($h, $n, 0, $enc); case-folded comparisons only against literals already in folded case; loose ==/!= comparisons get a fix only against non-numeric string literals |
 | TraitsPropertiesConflicts | `traits-properties-conflicts.php` | an own property incompatible with the trait's (different default, visibility, static, readonly or type) is reported as an error: PHP refuses to compose such a class |
 | UnnecessaryCasting | `unnecessary-casting.php`, `unnecessary-casting.php8.php` | an untyped private property without default (not set by the constructor) holds null: casting it is not redundant |
 | UnnecessaryAssertion | `unnecessary-assertion.php` | assertInternalType is reported only when the declared return type always satisfies the named type; unknown/contradicting type names are not reported (that call fails, it is not redundant) |
@@ -725,6 +726,138 @@ absent key* — `$r = ['count' => 0]; $r[$id] ??= []; $r[$id]['a'] = 1;`:
 `\Translate` (TypeUnsafeComparison error); *optional regex groups* —
 `preg_match('/(a)(.+)*?(b)?/', $s, $m)`: `$m[3]` expected `string|null`
 (may be missing), actual `string` (UnnecessaryCasting on PHPMailer).
+
+**SuiteCRM / EspoCRM / Kanboard / Grav / October CMS / Koel review
+(2026-10-08).** Seventh run on code custos had never seen: a very large
+legacy SugarCRM descendant, two CRMs/project tools with bundled libraries,
+a flat-file CMS and two Laravel applications, shallow clones plus
+`composer install --no-scripts --no-plugins --no-dev` (vendor indexed, not
+analysed; Kanboard commits its vendor), only read: salesagility/SuiteCRM
+(4,653 files, PHP 8.1 — its composer platform; the 7.x line now requires
+8.1), espocrm/espocrm (3,395, 8.3), kanboard/kanboard (1,671, 8.1),
+getgrav/grav (705, 8.3), octobercms/october (1,682, 8.2) plus its vendored
+october/rain library analysed as a project of its own (438, 8.2, October's
+vendor indexed) and koel/koel (1,573, 8.3), `analyse --all`. Robustness:
+no internal finding except the 10,000-findings cap on SuiteCRM's
+`install/demoData.en_us.php` (UnNecessaryDoubleQuotes, by design); the
+only syntax errors are SuiteCRM's two code-generator templates
+(`class <module_name>Dashlet …`), which `php -l` rejects too; `php -l` of
+the target version on every analysed file reports nothing else. One
+super-linear file: SuiteCRM's vendored `google/apiclient/src/Model.php`
+(10 KB) took 0.34 s — ReturnTypeCanBeDeclared, DynamicInvocationViaScopeResolution
+and ReferencingObjects walked all descendants of the class once per
+method, and the Google API services hold thousands of generated
+subclasses; a per-class memo of descendant methods
+(`util.DescendantMethods`) makes it linear (complexity test added;
+ReferencingObjects also loses its 1,000-step cap, which answered "not
+overridden" on large hierarchies). The other large files (tcpdf.php 0.25 s,
+1.6 MB CJK font tables 0.13 s, nusoap, pChart) scale linearly. Timing and
+peak RSS (`/usr/bin/time -l`, vendor index included): SuiteCRM 2.4 s /
+1.6 GB (77,500 findings), EspoCRM 1.2 s / 400 MB, Kanboard 0.4 s / 140 MB,
+Grav 0.4 s / 155 MB, October 1.0 s / 280 MB, rain 0.75 s / 215 MB, Koel
+1.35 s / 375 MB. About 1,700 findings were sampled over 150 rules (five
+parallel reviews: error rules all or 15–20, warning rules in two halves,
+never-sampled info rules 10–15, the other info rules 10–15; verdicts on
+the target versions, no suggestion needs a newer PHP), and the fix diffs of
+all 91 fixable rules were read for semantic changes (a sixth review: all
+hunks when few, else 15–60 plus pattern scans; UnNecessaryDoubleQuotes'
+56,748 changed literals decoded and compared). Fix safety: `custos fix
+--all` on copies (102,200 edits in 6,290 files), then `php -l` of the
+target version on every changed file: none broken, before and after the
+fixes below; every fix was also applied alone and re-parsed on each
+project including its vendor (`TestFixesKeepCodeParsable`, `php -l`
+samples; 0 broken). Fourteen fixes changed behaviour (ten on the corpus).
+
+| Rule / area | Was | Now |
+|---|---|---|
+| Descendant walks (ReturnTypeCanBeDeclared, DynamicInvocationViaScopeResolution, ReferencingObjects) | One walk over all indexed descendants per method: n methods × n subclasses (Google API `Model.php` 0.34 s). | `util.DescendantMethods`, memoised per class and file; linear (test at 4× size: ×4 instead of ×16). |
+| StaticClosureCanBeUsed (fix) | Keyed closures in file-level arrays made static: Grav's `updates/*.php` return `['postflight' => function () {…}]`, run with `$closure->call($this)` (a static closure only warns: 21 migrations would silently stop); closures passed to facades (`Cache::extend('x', fn …)` binds them). | Keyed array values unsafe at any level; a static call is safe only for a declared static method (magic `@method static` or a class with `__callStatic()` count as unknown targets). 580 → 326 (listed divergence: two EA fixtures). |
+| PhpUnitTests / PhpUnitDeprecations (fix) | Without an indexed PHPUnit the version fell back to 8.0: EspoCRM (^11.5) got `assertContains()` for `in_array()` (strict from 9.0), Grav `assertRegExp()` (removed in 10); 29 fixes. | The CLI passes the lowest version allowed by composer.json's `phpunit/phpunit` (require-dev, else require) as a fallback. |
+| ReturnTypeCanBeDeclared (fix) | `new static` / `clone $this` in a trait typed as the trait: `instance(): Singleton` on October's Singleton trait (every call throws; 9 fixes); fixes resting on a callee's `@return`, a `@param` or a property's `@var` (Kanboard `getProgress(): int` over `round(…, 1)`; `/** @param string $v */ f($v = null)`). | Traits are never suggested; the fix is offered only when the native typing (PHPDoc ignored) gives the same type for every returned value — the 2026-10-08 "@return alone" policy extended to every PHPDoc source. Reports unchanged; fixable 2,515 fewer on the corpus, corpus C 1,569 → 1,091. |
+| PreloadingUsageCorrectness (fix) | EspoCRM `preload.php`: `include "bootstrap.php";` (registers the autoloader) → `opcache_compile_file()`, then `(new Application())->run(…)` fails. | E4: inclusions followed by `new`, method/static calls or non-builtin function calls are not reported. |
+| SwitchContinuationInLoop (fix) | `continue` → `continue 2` also skipped `++$i;` after the switch (SuiteCRM's SQL parser position counter; 4). | No fix when statements follow the switch inside the loop. |
+| StrlenInEmptyStringCheckContext (fix) | `!strlen($this->originalFileName)` → `=== ''` for an untyped `@var string` property without default (null on a new object: October deleted the file just saved; 6). | The cast is dropped only for a natively known string. |
+| NullCoalescingOperatorCanBeUsed (fix) | `$type = $parts[1]; if (isset($mimeMap[$type])) $type = $mimeMap[$type];` → `$type = $mimeMap[$type] ?? $parts[1]` (looks up the old `$type`; SuiteCRM SVG uploads). | S3 requires a probe and value that do not read the target. |
+| CascadeStringReplacement (fix) | `str_replace($bad, ' ', $n); str_replace('\'', '', $n)` → `[...array_values($bad), '\'']` / `[' ', '']` (EspoCRM sheet names lost the spaces). | Spread searches need aligned replacements (same literal everywhere, or the latest call's array pair). |
+| SubStrUsedAsStrPos (fix) | `substr($n, 0, 2) == '00'` → `strpos(…) === 0` (`"0 " == "00"`; SuiteCRM `skype_formatted()`). | Loose comparisons fixed only against non-numeric literals (listed divergence updated). |
+| ArgumentUnpackingCanBeUsed (fix) | `call_user_func_array('array_multisort', $p)` → `array_multisort(...$p)` (now really sorts). | No fix for callees with by-reference parameters. |
+| SelfClassReferencing (fix) | `Model::make()` → `self::make()` changes late static binding (Grav `Uri`). | Static calls in non-final classes with indexed subclasses reported without a fix (39 fewer fixes). |
+| RedundantElseClause, MkdirRaceCondition, CompactCanBeUsed, StringCaseManipulation, IncrementDecrementOperationEquivalent (fix; reproduced on own code, not seen in the corpus) | Code moved out of an unbraced `if` body / a hoisted `function` in the moved `else`; the thrown re-check `if` capturing an outer `else`; `fn () => compact('a')` (arrow functions capture only named variables); `strpos(mb_strtolower($s), 'é')` → `stripos()`; `$s = $s + 1` → `++$s` for strings and bools. | No fix / braced replacement / arrow functions need their own parameters / same `mb_`/byte family / string and bool operands skipped. |
+| UnknownInspection | `SpellCheckingInspection`, PhpStorm naming/plural/condition inspections and unported Php Inspections names reported (33 of 33). | Added to the embedded list. |
+| CallableParameterUseCaseInTypeContext | `@param unknown_type $x` / misspelt classes made every assignment incompatible; `$w = preg_replace(…, $w)` on a subject of unknown type typed `array|string` (SuiteCRM `SugarBean` after a `require`). | Parameters naming an unresolvable class skipped; replacements on unknown subjects not checked. 141 → 106. |
+| OffsetOperations | Float keys (`$units[floor($v)]`, `$a[$i / 2]`; pChart, 19 errors). | Accepted where int is, like bool. |
+| StaticInvocationViaThis | Magic `@method static` (Eloquent, facades) reported, fix to `static::` (a fresh instance). | Magic methods skipped. |
+| MagicMethodsValidity | Swiftmailer's `call_user_func_array('Swift_Mime_SimpleMimeEntity::__construct', …)` not seen as a parent call (10 errors). | Callables ending in `::<method>` count. |
+| PHPDoc (`internal/phpdoc`, table entry) | `@param $x The extension name` / `@return The item unserialized` read as class `\The` (about 60 SuiteCRM tags: OffsetOperations, IsEmptyFunctionUsage `!== null` advice, CallableParameterUseCaseInTypeContext). | Determiners and similar words followed by more text are a description. |
+| MissingArrayInitialization, GetClassUsage, ClassConstantUsageCorrectness, HostnameSubstitution, MkdirRaceCondition, DisconnectedForeachInstruction, TypeUnsafeComparison | `$_SESSION['k'][] =` reported; `get_class($m)` after `$m->methodExists()`; `class_alias()` names; `!empty($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : …` reported twice; `while (!is_dir($d) && !@mkdir($d))` retry loops; `$progress && $progress([…])` ticks; `Money == Money` told to use `===`. | Superglobals skipped; an earlier method call counts as a null check; alias names skipped; fetches inside isset/empty ignored; retry loops skipped; callbacks are per-iteration; object pairs not reported. |
+
+Deltas on the local corpora (HEAD 1efe7fd → this tree, default /
+`--all`): corpus A `src/` 0 / −2 (CompactCanBeUsed in arrow functions),
+corpus B 0 / 0, corpus C 0 / 0 findings, 478 ReturnTypeCanBeDeclared fixes
+withheld (doc-typed getters and callee chains such as
+`getRessourceRapport()->getType()`, whose documented non-null return can
+be null).
+
+Declined: UntrustedInclusion, MultipleReturnStatements,
+UnSafeIsSetOverArray, AutoloadingIssues, NullPointerException,
+LongInheritanceChain, NotOptimalIfConditions, ClassOverridesFieldOfSuperClass,
+AlterInForeach, FixedTimeStartWith, NestedTernaryOperator, SlowArrayOperationsInLoop,
+NonSecureUniqidUsage, ForgottenDebugOutput (`error_log`, debug views),
+UnserializeExploits (also October's `tests/benchmarks/`, outside the spec's
+test paths), UnnecessaryAssertion (`expects($this->any())`),
+UsingInclusionReturnValue on config includes, PackedHashtableOptimization
+`'0' =>` keys, UnnecessaryCasting `$_SERVER` typing, PropertyCanBeStatic,
+SecurityAdvisories on runtime `filp/whoops` / `composer/composer`,
+StaticInvocationViaThis and OffsetOperations following wrong project
+PHPDoc — decided earlier or noise by design; SuspiciousSemicolon on an
+intended empty loop; DisconnectedForeachInstruction on `fseek()` before a
+connected `fread()` (needs effect analysis, as decided in round 6);
+CallableParameterUseCaseInTypeContext null leaking through `$f = @realpath($f) ?: $f`
+after a `preg_replace()` (needs failure markers to flow through
+variables); SubStrUsedAsArrayAccess's message for `int|string` subjects
+(no fix, never seen); MagicMethodsValidity "`__get` needs `__set`" on
+read-only getters (spec, error severity upstream);
+UnsupportedStringOffsetOperations one report per line (pChart, correct);
+ReturnTypeCanBeDeclared fixes on public methods of a library (October's
+rain) overridden outside the project (no project-type option);
+NestedAssignmentsUsage evaluation order against an outer target
+(`$l[$v.''] = $v = trim($v)`), UselessReturn on reference-bound variables,
+IfReturnReturnSimplification for NAN/array operands, ObGetCleanCanBeUsed
+with other output in the statement, CompactCanBeUsed on possibly undefined
+variables and PhpUnitTests `assertTrue(!$x)` → `assertNotTrue($x)` (exact
+only for bools) — reproduced on own code only, never seen; message
+wording (multi-line expressions in IfReturnReturnSimplification /
+ArrayPushMissUse messages, StringCaseManipulation and ArrayIsListCanBeUsed
+message text, EmptyClass on traits); MissingIssetImplementation on
+`\OAuthProvider` (stub gap, below). Engine-level causes found by the
+review (not fixed here): *`.=` keeps the old type* — `$h =
+file_get_contents($f); $h .= 'x';`: expected `string`, actual
+`false|string`; `$n = null; $n .= 'x';`: expected `string`, actual
+`null|string` (MagicMethodsValidity "`__toString` must return string",
+SuiteCRM `DotListWizardMenu`); *`$this` in a trait* — `trait T { function
+f() { $this; new static(); clone $this; } }`: expected `static` (or
+unknown), actual `\T` (OffsetOperations on rain's `Sluggable`,
+ReturnTypeCanBeDeclared, worked around in the rule); *negated
+`is_numeric()` on a native string* — `function e(string $v) { if
+(is_numeric($v)) { return $v; } $v; }`: expected `string`, actual unknown;
+*destructuring in the casting typer* — `list($h, $m) = explode(':', $t);
+if (!$h) { $h = 0; } (int) $h`: T-rules type expected `int|string` (or
+unknown), actual `int` (UnnecessaryCasting removed `(int)` before
+`setTime()` in EspoCRM `ClosestType`, a TypeError for `"9:30pm"`); *property
+read after an unknown write* — `/** @var string */ protected $p; …
+$this->p = isset($o['k']) ? $o['k'] : null; return $this->p;`: expected
+`?unknown` (or `mixed|null`), actual `string` (ReturnTypeCanBeDeclared
+`: ?string`; no longer fixable with the native-type policy); *`@return
+void` over a body returning a value* — `/** @return void */ function
+pair($t) { return [$t, 1]; }`: call typed `void`, expected the body's
+`array` (4 SuspiciousAssignments errors on rain's `FieldParser`); *stub
+gap* — `\OAuthProvider` declares none of the properties the extension
+sets (`nonce`, `timestamp`, `consumer_key`, …; 2 MissingIssetImplementation
+errors). PHPDoc contradicted by every `return` of an untyped body
+(`@var EmailAddress[]` holding arrays, `@return self` returning arrays)
+accounts for most remaining OffsetOperations errors on SuiteCRM; an engine
+rule ignoring such docs would remove them (earlier rounds decided to
+trust the doc).
 
 **Coverage audit (2026-10-07).** Own fixtures were extended until every
 statement of `internal/rules` is executed by `TestOwnFixtures` (90.3% →
@@ -1802,6 +1935,13 @@ split into `decode`/`must` so a corrupt embed panics through tested code.
   43 corpus C suggestions but added ~14.5k on Moodle (mostly a generated
   API client); applying them blindly would turn any wrong doc into a
   TypeError. Same policy as UnnecessaryCasting's PHPDoc-only types.
+  Extended in review round 7 (2026-10-08, user decision to keep it):
+  the fix is offered only when the native typing (PHPDoc
+  ignored, `Env.Native`) gives the same type for every returned value, so
+  a callee's `@return`, a `@param` or a property's `@var` no longer
+  suffices either (Kanboard `getProgress(): int` over a `round(…, 1)`
+  documented `@return integer`). Reports are unchanged; corpus C keeps
+  1,091 of 1,569 fixes.
 - No on-disk index cache (planned in the migration, declined 2026-10-07):
   a cold project index takes 0.37 s for a 7.6k-source project (incl. vendor)
   and 0.48 s for a 10k-source project; a cache would still stat/hash every

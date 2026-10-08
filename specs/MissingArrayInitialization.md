@@ -118,3 +118,6 @@ foreach ($a as $x) {
 - Whether a variable inside a `list()`/`[...]` destructuring target counts as
   an assignment operand upstream is unverified. Recommendation: treat it as
   an assignment (no report).
+- **Superglobals (custos).** `$_SESSION['k'][] = $v`, `$GLOBALS['x'][] = $v`
+  and the other superglobals hold state from outside the function; they
+  are never reported (SuiteCRM's upgrade wizard).

@@ -413,15 +413,18 @@ var dfiPerIterationFuncs = func() map[string]bool {
 	return m
 }()
 
-// dfiPerIteration reports whether s outputs (echo, print) or calls one of
-// the functions above: running it once instead of on every iteration would
+// dfiPerIteration reports whether s outputs (echo, print), calls one of
+// the functions above or a callback held in a variable: running it once instead of on every iteration would
 // change the program (custos, see Divergences).
 func dfiPerIteration(ctx *analysis.Context, s syntax.Stmt) bool {
 	found := false
 	syntax.Inspect(s, func(x syntax.Node) bool {
 		switch c := x.(type) {
 		case *syntax.FuncCall:
-			found = dfiPerIterationFuncs[ctx.GlobalFunctionName(c)]
+			// A callback (`$progress(…)`, `$progress && $progress(…)`) is
+			// called once per item, like a progress tick.
+			_, named := c.Name.(*syntax.Name)
+			found = !named || dfiPerIterationFuncs[ctx.GlobalFunctionName(c)]
 		case *syntax.Echo, *syntax.Print:
 			found = true
 		}

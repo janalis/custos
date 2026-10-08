@@ -2,6 +2,7 @@ package probablebugs
 
 import (
 	"custos/internal/analysis"
+	"custos/internal/analysis/util"
 	"custos/internal/syntax"
 )
 
@@ -48,7 +49,7 @@ func (missingArrayInitialization) Check(ctx *analysis.Context, n syntax.Node) {
 		base = d.Var
 	}
 	v, ok := base.(*syntax.Variable)
-	if !ok || v.Name == "" {
+	if !ok || v.Name == "" || util.IsSuperglobal(v.Name) { // superglobals live outside the function (custos)
 		return
 	}
 	name := v.Name

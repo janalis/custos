@@ -220,3 +220,8 @@ is acceptable next to the alias `Bag`.)
   import (`use Catalog\product;` for `Catalog\Product`) gives the wrong
   string, so only that is reported (listed EA divergence;
   ~12 Magento/Yii findings were false).
+- **`class_alias()` names (custos).** The index resolves an alias created
+  by `class_alias()` to the original class; when the written name and the
+  resolved class differ by more than letter case (`\App\Old\Resp::class`
+  for an alias of `\App\Http\Resp`), there is no case mismatch to report
+  (Grav's `GPM\Response` compatibility alias).

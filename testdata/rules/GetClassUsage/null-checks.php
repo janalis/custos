@@ -66,3 +66,14 @@ $untyped = fn($o) => get_class($o);
 get_class($unknown);
 strlen($unknown);
 $fn($unknown);
+// An earlier method call on the argument throws on null (custos).
+function viaMethodCall(?Order $o, $m) {
+    if (!$o->has($m)) {
+        return get_class($o);
+    }
+    return '';
+}
+function viaNullsafe(?Order $o) {
+    $o?->has('x');
+    return <warning descr="get_class() rejects null on PHP 7.2+; guard the argument.">get_class($o)</warning>;
+}

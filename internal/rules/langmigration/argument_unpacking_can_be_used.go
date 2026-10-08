@@ -54,7 +54,7 @@ func (argumentUnpackingCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	repl := util.StringCallableFunction(ctx, fn, call.Span().Start) + "(..." + ctx.Text(args[1]) + ")" // D7
 	span := call.Span()
 	msg := "Call '" + repl + "' directly using argument unpacking (wrap with array_values() when keys are not sequential)."
-	if keys == keysUnknown { // F2
+	if keys == keysUnknown || unpackByRef(ctx, fn) { // F2
 		ctx.Report(span, msg)
 		return
 	}
@@ -64,6 +64,23 @@ func (argumentUnpackingCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 			return []analysis.TextEdit{{Span: span, NewText: repl}}
 		},
 	})
+}
+
+// unpackByRef reports whether the named function takes a parameter by
+// reference: call_user_func_array() passes its elements by value (a
+// warning), unpacking binds them (`array_multisort(...$p)` really sorts
+// the array elements) — custos diverges: no fix.
+func unpackByRef(ctx *analysis.Context, fn string) bool {
+	f := ctx.Index().Function(strings.TrimPrefix(fn, `\`), ctx.PHP)
+	if f == nil {
+		return false
+	}
+	for _, p := range f.Params {
+		if p.ByRef {
+			return true
+		}
+	}
+	return false
 }
 
 type unpackKeys int

@@ -35,8 +35,11 @@ func (strlenInEmptyStringCheckContext) Check(ctx *analysis.Context, n syntax.Nod
 	}
 	// F1: parenthesise A when it would not bind as a single operand of the
 	// cast or of the comparison (custos diverges).
+	// The cast is dropped only for a natively known string: a PHPDoc-only
+	// `string` may be null at run time, which strlen() counts as empty
+	// and `=== ''` does not (custos diverges).
 	v := ctx.Text(arg)
-	if t := ctx.TypeOf(arg); !(len(t.Atoms()) == 1 && t.Atoms()[0] == "string") {
+	if t := ctx.Types().Native().TypeOf(arg); !(len(t.Atoms()) == 1 && t.Atoms()[0] == "string") {
 		if util.NeedsParensAsUnaryOperand(arg) {
 			v = "(" + v + ")"
 		}

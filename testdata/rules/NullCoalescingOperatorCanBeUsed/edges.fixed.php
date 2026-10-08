@@ -89,4 +89,17 @@ function akeAtEnd($m, $k) {
 function nullAtEnd($x) {
     if ($x !== null) { return $x; }
 }
+// The probe reads the target the previous statement assigned.
+function mimeOf(array $parts, array $mimeMap) {
+    $type = $parts[1];
+    if (isset($mimeMap[$type])) {
+        $type = $mimeMap[$type];
+    }
+    $key = $parts[0];
+    if (isset($mimeMap['x'])) {
+        $key = $mimeMap['x'] . $key;
+    }
+    return [$type, $key];
+}
+
 if (isset($top)) { return $top; }

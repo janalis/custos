@@ -28,31 +28,31 @@ final class Invoice
     }
 
     /** @return int */
-    public function getNumber(): ?int
+    public function getNumber()
     {
         return $this->number;
     }
 
     /** @return string */
-    public function getLabel(): string
+    public function getLabel()
     {
         return $this->label;
     }
 
     /** @return Order */
-    public function getOrder(): ?\Order
+    public function getOrder()
     {
         return $this->order;
     }
 
     /** @return array */
-    public function getLines(): array
+    public function getLines()
     {
         return $this->lines;
     }
 
     /** @return Order */
-    public function getParent(): ?\Order
+    public function getParent()
     {
         return $this->parent;
     }
@@ -63,7 +63,7 @@ final class Invoice
     }
 
     /** @return Order */
-    public function getOwner(): ?\Order
+    public function getOwner()
     {
         return $this->owner;
     }

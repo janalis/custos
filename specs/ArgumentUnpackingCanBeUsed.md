@@ -183,3 +183,8 @@ class Report {
   string callable into a relative one: `'Util\fmt'` becomes a call to
   `Shop\Util\fmt`, and `'max'` is captured by a `Shop\max` function or a
   `use function` import. custos adds a leading `\` in those cases (D7).
+- **By-reference callees (custos diverges).** When the named function
+  takes a parameter by reference, the finding has no quick-fix:
+  `call_user_func_array()` passes the elements by value (PHP warns and the
+  arrays stay untouched), while `array_multisort(...$params)` binds them
+  and really sorts (SuiteCRM `include/utils.php`).

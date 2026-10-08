@@ -45,7 +45,26 @@ final class Runner extends Base {
 }
 
 $routes = [
-    'home' => static function () { return 'index'; },
+    'home' => function () { return 'index'; },
     'about' => static function () { return 'about'; },
 ];
 $plain = [function () { return 0; }];
+
+final class Registry
+{
+    public static function push(callable $job): void {}
+}
+
+/** @method static void listen(callable $cb) */
+final class Events
+{
+    public static function __callStatic($name, $args) {}
+}
+Events::listen(function () { return 1; });
+
+final class Bus
+{
+    public static function __callStatic($name, $args) {}
+}
+Bus::dispatch(function () { return 2; });
+Unknown::run(static function () { return 3; });

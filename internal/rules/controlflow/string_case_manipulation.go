@@ -48,6 +48,7 @@ func (stringCaseManipulation) Check(ctx *analysis.Context, n syntax.Node) {
 	var parts [2]string
 	var dirs [2]byte // 'l' lower-cased, 'u' upper-cased, 0 kept
 	found := false
+	mixed := false           // a conversion of the other family (mb_ / byte) than the search
 	for i, a := range args { // D3
 		parts[i] = ctx.Text(a)
 		inner, ok := a.(*syntax.FuncCall)
@@ -63,6 +64,7 @@ func (stringCaseManipulation) Check(ctx *analysis.Context, n syntax.Node) {
 			continue
 		}
 		parts[i] = ctx.Text(iargs[0])
+		mixed = mixed || strings.HasPrefix(conv, "mb_") != strings.HasPrefix(variant, "mb_")
 		dirs[i] = 'l'
 		if strings.HasSuffix(conv, "upper") {
 			dirs[i] = 'u'
@@ -76,7 +78,10 @@ func (stringCaseManipulation) Check(ctx *analysis.Context, n syntax.Node) {
 	repl := util.QualifiedBuiltin(ctx, variant, call.Span().Start) + "(" + parts[0] + ", " + parts[1] + ")"
 	span := call.Span()
 	msg := "Use '" + repl + "' instead of changing the case."
-	if !caseSearchEquivalent(args, dirs) {
+	// custos: mb_strtolower() folds non-ASCII letters (and changes byte
+	// offsets) where stripos() does not, and the reverse for mb_stripos()
+	// over strtolower(): only a conversion of the search's family matches.
+	if mixed || !caseSearchEquivalent(args, dirs) {
 		ctx.Report(span, msg)
 		return
 	}

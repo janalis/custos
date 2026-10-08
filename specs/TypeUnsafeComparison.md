@@ -238,3 +238,7 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, $v
   Stringable object; the string is not numeric.` EA case affected:
   `type-unsafe-comparison.php` (listed divergence: untyped operands get no
   fix).
+- **Two objects (custos diverges).** When both operands are known to hold
+  only objects, `==` compares their properties and `===` their identity:
+  a different question, not type juggling. Kind H is not reported
+  (`function same(Money $a, Money $b) { return $a == $b; }`).
