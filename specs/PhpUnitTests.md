@@ -174,6 +174,14 @@ integer/float literal, optionally with a unary minus.
   `args[0]` with parens stripped is a logical-not `!X`. `X'` = `X` with parens
   stripped. Suggest `assertNotTrue` (for `assertTrue`) / `assertNotFalse`
   (for `assertFalse`). Other unary operators do not match.
+  - **D15a Inverted empty.** When `X'` is an `empty(Y)` construct with
+    exactly one argument and `Y` satisfies the D18 type condition, the call
+    is reported with the assertion D18 would pick for the inverted method
+    instead: `assertTrue(!empty(Y))` → `assertNotEmpty`,
+    `assertFalse(!empty(Y))` → `assertEmpty` (fix F4a). When `Y` does not
+    satisfy it, plain D15 applies (`assertNotTrue(empty(Y))`), and D18 then
+    leaves that result alone, so the message always names the method the
+    fix writes (custos diverges, see Divergences).
 - **D16 Boolean of comparison.** `M` ∈ {`assertTrue`, `assertNotTrue`,
   `assertFalse`, `assertNotFalse`}, `n ≥ 1`, `args[0]` with parens stripped
   is a binary `L op R` with `op` ∈ {`==`, `!=`, `<>`, `===`, `!==`}.
@@ -191,7 +199,15 @@ integer/float literal, optionally with a unary minus.
   qualify; untyped variables, arrays (`[]`, `array $p`) and objects don't.
 - **D18 Empty.** `M` ∈ {`assertTrue`, `assertNotFalse` → `assertEmpty`;
   `assertFalse`, `assertNotTrue` → `assertNotEmpty`}, `n ≥ 1`, `args[0]` is
-  directly (no parens) an `empty(X)` construct with exactly one argument.
+  directly (no parens) an `empty(X)` construct with exactly one argument,
+  and `X` has a **fully known** inferred type whose members are all among
+  `null`, `bool`/`true`/`false`, `int`, `float`, `string` and `array` (no
+  class/interface/object, `iterable`, `callable`, `resource`, `mixed` or
+  unknown part). `assertEmpty()`/`assertNotEmpty()` count a `Countable`
+  object (and `count()` can throw, e.g. on a lazily loaded collection) and
+  treat other objects differently from `empty()`, which only tests for a
+  falsy value; on the listed types the two agree (custos diverges, see
+  Divergences).
 - **D19 Constant.** `M` ∈ {`assertSame` → `assert<C>`, `assertNotSame` →
   `assertNot<C>`}, `n ≥ 2`. Scan **all** arguments in order (including a 3rd
   message argument) for the first that is a bare constant `null`, `true` or
@@ -319,6 +335,9 @@ integer/float literal, optionally with a unary minus.
   function named `assertFileEquals` or `assertStringEqualsFile` (a custom
   helper implementing the assertion itself).
 - **E9** D25 when the configured PHPUnit version is ≥ 9.0.
+- **E9a** D18 (and the D15a shortcut) when the `empty()` operand's type is
+  unknown or may be an object: `assertTrue(empty($store))` with a
+  `\SplObjectStorage $store`, or with an untyped `$store`.
 - **E10** D17 when either operand's type is unknown, or contains a class or
   `array`.
 - **E11** Disabled option groups (see Options): with `PROMOTE_PHPUNIT_API`
@@ -378,6 +397,8 @@ filled, in order, with the original arguments that follow the message
   joined by `, `: `assertEquals(4, 2+2, 'x')` → `assertSame(4, 2+2, 'x')`.
 - **F4 (D18)** `(X[, args[1]])`, `len = n`.
   `assertFalse(empty($rows), 'm')` → `assertNotEmpty($rows, 'm')`.
+- **F4a (D15a)** As F4, with `Y` in place of `X`:
+  `self::assertTrue(!empty($ids), 'm')` → `self::assertNotEmpty($ids, 'm')`.
 - **F5 (D19)** `(other[, args[2]])`, `len = n − 1`.
   `assertNotSame(FALSE, $ok)` → `assertNotFalse($ok)`;
   `assertSame($id, null, 'm')` → `assertNull($id, 'm')`.
@@ -525,7 +546,7 @@ Assertions (defaults: PHPUnit 8.0, `PROMOTE_PHPUNIT_API` on; language level ≥ 
 <?php
 class CartTest
 {
-    public function testThings($rows, $bag, $cart, $path, $body, $slug)
+    public function testThings(array $rows, $bag, $cart, $path, $body, $slug)
     {
         <weak_warning descr="Use 'assertNotTrue()' instead.">$this->assertTrue(!($cart->open && $rows))</weak_warning>;
         <weak_warning descr="Use 'assertSame()' instead.">self::assertFalse($cart->size !== 4, 'size')</weak_warning>;
@@ -570,7 +591,7 @@ class CartTest
 <?php
 class CartTest
 {
-    public function testThings($rows, $bag, $cart, $path, $body, $slug)
+    public function testThings(array $rows, $bag, $cart, $path, $body, $slug)
     {
         $this->assertNotTrue($cart->open && $rows);
         self::assertSame($cart->size, 4, 'size');
@@ -647,7 +668,59 @@ class LegacyTest
 }
 ```
 
+Empty checks need a scalar or array operand (D15a, D18):
+
+```php
+<?php
+class ArchiveTest
+{
+    public function testEmpty(array $ids, ?string $name, \SplObjectStorage $zip, \Countable $bag, $any)
+    {
+        <weak_warning descr="Use 'assertNotEmpty()' instead.">self::assertTrue(!empty($ids))</weak_warning>;
+        <weak_warning descr="Use 'assertEmpty()' instead.">$this->assertFalse(!empty($name), 'name')</weak_warning>;
+        <weak_warning descr="Use 'assertEmpty()' instead.">$this->assertTrue(empty($name))</weak_warning>;
+        <weak_warning descr="Use 'assertNotTrue()' instead.">self::assertTrue(!empty($zip))</weak_warning>;
+        $this->assertNotTrue(empty($zip));
+        $this->assertFalse(empty($bag));
+        $this->assertTrue(empty($any));
+    }
+}
+```
+
+```php
+<?php
+class ArchiveTest
+{
+    public function testEmpty(array $ids, ?string $name, \SplObjectStorage $zip, \Countable $bag, $any)
+    {
+        self::assertNotEmpty($ids);
+        $this->assertEmpty($name, 'name');
+        $this->assertEmpty($name);
+        self::assertNotTrue(empty($zip));
+        $this->assertNotTrue(empty($zip));
+        $this->assertFalse(empty($bag));
+        $this->assertTrue(empty($any));
+    }
+}
+```
+
 ## Divergences
+
+- **`empty()` on objects (custos diverges, D18).** Upstream turns any
+  `assertTrue(empty($x))` into `assertEmpty($x)` (and the negated forms
+  into `assertNotEmpty()`). For an object the two disagree: `empty()` is
+  false for every object, while PHPUnit's emptiness check counts a
+  `Countable` — `count()` on a lazily loaded collection can throw a
+  `ValueError` — so the rewrite changed a passing test into an erroring one
+  (found on real code). custos rewrites only operands whose type is known
+  to be scalar, array or null; an untyped operand is left alone too, so
+  upstream's fixture (untyped `$x`) is a conformance divergence.
+- **Inverted `empty()` (custos diverges, D15a).** Upstream reports
+  `assertTrue(!empty($x))` as an inverted boolean (suggesting
+  `assertNotTrue()`), and custos's fix loop then applied the empty rewrite
+  on top, so the message named one method and the result used another.
+  custos reports the final assertion directly when the empty rewrite is
+  safe, and stops at `assertNotTrue(empty(…))` otherwise.
 
 - **Name matching in Part B (custos diverges from upstream).** Upstream
   compares the assertion and mock method names case-sensitively (so
