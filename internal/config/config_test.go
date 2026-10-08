@@ -103,11 +103,10 @@ func TestComposerWithoutUsableVersion(t *testing.T) {
 }
 
 // TestLoadWithoutWorkingDirectory: a relative start directory cannot be
-// resolved when the working directory is unreadable and $PWD is unset.
+// resolved when the working directory is gone and $PWD is unset. getcwd
+// fails on macOS for an unreadable directory and on Linux (even as root)
+// for a removed one, so the test does both.
 func TestLoadWithoutWorkingDirectory(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root bypasses directory permissions")
-	}
 	sub := filepath.Join(t.TempDir(), "cwd")
 	if err := os.Mkdir(sub, 0o755); err != nil {
 		t.Fatal(err)
@@ -117,7 +116,9 @@ func TestLoadWithoutWorkingDirectory(t *testing.T) {
 	if err := os.Chmod(sub, 0); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chmod(sub, 0o755)
+	if err := os.Remove(sub); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := Load("."); err == nil {
 		t.Fatal("load with no working directory succeeded")
 	}

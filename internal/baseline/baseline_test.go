@@ -118,12 +118,11 @@ func TestEmptyFiltersNothing(t *testing.T) {
 }
 
 // TestNoWorkingDirectory: when the working directory cannot be resolved
-// (unreadable, $PWD unset) relative paths cannot be made absolute: Write
-// reports it, and Filter keys on the path as given.
+// (unreadable and removed, $PWD unset) relative paths cannot be made
+// absolute: Write reports it, and Filter keys on the path as given. getcwd
+// fails on macOS for an unreadable directory and on Linux (even as root)
+// for a removed one, so the test does both.
 func TestNoWorkingDirectory(t *testing.T) {
-	if os.Geteuid() == 0 {
-		t.Skip("root bypasses directory permissions")
-	}
 	sub := filepath.Join(t.TempDir(), "cwd")
 	if err := os.Mkdir(sub, 0o755); err != nil {
 		t.Fatal(err)
@@ -133,7 +132,9 @@ func TestNoWorkingDirectory(t *testing.T) {
 	if err := os.Chmod(sub, 0); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chmod(sub, 0o755)
+	if err := os.Remove(sub); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := Write("bl.json", nil); err == nil {
 		t.Fatal("write with no working directory succeeded")
 	}
