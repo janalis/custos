@@ -10,6 +10,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      # The syntax tests compare the lexer and parser with the newest PHP
+      # (token_get_all, php -l): keep it at phpver.Max.
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.5"
+          coverage: none
       - run: make verify
 
   # Release packaging: goreleaser config, composer.json and the Composer
