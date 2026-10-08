@@ -376,21 +376,24 @@ func npeMemberName(n syntax.Expr) string {
 	return ""
 }
 
-// argCall returns the call having v directly as an argument value, and its
-// positional index.
-func npeArgCall(v syntax.Expr) (syntax.Node, int) {
+// npeArgCall returns the call having v directly as an argument value, its
+// positional index and, for a named argument, the parameter name.
+func npeArgCall(v syntax.Expr) (call syntax.Node, idx int, name string) {
 	arg, ok := v.Parent().(*syntax.Arg)
 	if !ok || arg.Value != v {
-		return nil, -1
+		return nil, -1, ""
+	}
+	if arg.Name != nil {
+		name = arg.Name.Value
 	}
 	list := arg.Parent().(*syntax.ArgList) // arguments only live in argument lists
-	idx := -1
+	idx = -1
 	for i, a := range list.Args {
 		if a == syntax.Expr(arg) {
 			idx = i
 		}
 	}
-	return list.Parent(), idx
+	return list.Parent(), idx, name
 }
 
 func (u *npeUnit) evaluate(v *syntax.Variable, name string, decl *syntax.Assign) (stop, report bool) {
@@ -421,7 +424,7 @@ func (u *npeUnit) evaluate(v *syntax.Variable, name string, decl *syntax.Assign)
 	if npeLogicalOperand(v, true) { // U3
 		return true, false
 	}
-	call, idx := npeArgCall(v)
+	call, idx, argName := npeArgCall(v)
 	if call != nil { // U5
 		var nm string
 		switch c := call.(type) {
@@ -496,7 +499,7 @@ func (u *npeUnit) evaluate(v *syntax.Variable, name string, decl *syntax.Assign)
 		return false, p.Expr == syntax.Expr(v)
 	}
 	if call != nil && idx >= 0 { // U11
-		if prm := u.calleeParam(call, idx); prm != nil {
+		if prm := u.calleeParam(call, idx, argName); prm != nil {
 			t := types.FromDoc(prm.Type, nil)
 			if !t.Has("null") && !strings.EqualFold(strings.TrimPrefix(prm.Default, `\`), "null") && npeObjectOnly(t) {
 				return false, true
@@ -530,9 +533,22 @@ func npeChainedNotNull(call syntax.Node) bool {
 	}
 }
 
-func (u *npeUnit) calleeParam(call syntax.Node, idx int) *index.Param {
+// calleeParam returns the parameter of the resolved callee receiving the
+// argument at position idx, or the one called name for a named argument.
+func (u *npeUnit) calleeParam(call syntax.Node, idx int, name string) *index.Param {
 	c, ok := resolveCallee(u.ctx, call)
-	if !ok || idx >= len(c.params) {
+	if !ok {
+		return nil
+	}
+	if name != "" {
+		for i := range c.params {
+			if c.params[i].Name == name {
+				return &c.params[i]
+			}
+		}
+		return nil
+	}
+	if idx >= len(c.params) {
 		return nil
 	}
 	return &c.params[idx]
@@ -593,14 +609,35 @@ func (u *npeUnit) guardedByCondition(v *syntax.Variable, name string) bool {
 					conds, wants = append(conds, x.Left), append(wants, false)
 				}
 			}
+		case *syntax.MatchArm:
+			// match (true) { c => v }: the arm runs only when c === true.
+			if m, ok := x.Parent().(*syntax.Match); ok && cur == syntax.Node(x.Body) && len(x.Conds) == 1 && npeIsTrueConst(m.Cond) {
+				conds, wants = append(conds, x.Conds[0]), append(wants, true)
+			}
+		default:
+			// An earlier `if (c) { …exit… }` in the same statement list: the
+			// statements after it run only when c was false.
+			if list, ok := syntax.StmtListOf(p); ok {
+				for _, st := range list[:max(syntax.StmtIndex(list, cur), 0)] {
+					if ifs, ok := st.(*syntax.If); ok && syntax.Terminates(ifs.Body) {
+						conds, wants = append(conds, ifs.Cond), append(wants, false)
+					}
+				}
+			}
 		}
 		for i, c := range conds {
-			if c != nil && u.implies(c, name, wants[i]) {
-				return !u.assignedBetween(name, c.Span().End, v.Span().Start)
+			if c != nil && u.implies(c, name, wants[i]) && !u.assignedBetween(name, c, v) {
+				return true
 			}
 		}
 	}
 	return false
+}
+
+// npeIsTrueConst reports whether e is the constant true (any case).
+func npeIsTrueConst(e syntax.Expr) bool {
+	c, ok := syntax.UnwrapParens(e).(*syntax.ConstFetch)
+	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "true")
 }
 
 // implies reports whether e evaluating to want guarantees $name is not null.
@@ -730,8 +767,12 @@ func (u *npeUnit) impliesWhenFalse(e syntax.Expr, name string) bool {
 
 // assignedBetween reports whether $name is the target of an assignment (any
 // operator, by reference, destructuring, or a foreach/catch variable)
-// completed between from and to in the unit body.
-func (u *npeUnit) assignedBetween(name string, from, to uint32) bool {
+// completed between the end of condition c and usage v in the unit body.
+// An assignment in a statement list that then leaves for good (return,
+// throw, exit) or jumps back through c (continue or break out of a loop
+// holding c) never reaches v and does not count.
+func (u *npeUnit) assignedBetween(name string, c syntax.Expr, v syntax.Node) bool {
+	from, to := c.Span().End, v.Span().Start
 	found := false
 	syntax.Inspect(u.body, func(n syntax.Node) bool {
 		if found {
@@ -743,8 +784,14 @@ func (u *npeUnit) assignedBetween(name string, from, to uint32) bool {
 		}
 		switch x := n.(type) {
 		case *syntax.Assign:
-			if x.Span().Start >= from && x.Span().End <= to { // completed before v
+			if x.Span().Start >= from && x.Span().End <= to && !npeDiverted(x, c, v) { // completed before v
+				// The variable itself or a destructuring slot: writing
+				// `$n->p` or `$n['k']` leaves $n as it was.
 				syntax.Inspect(x.Var, func(t syntax.Node) bool {
+					switch t.(type) {
+					case *syntax.PropertyFetch, *syntax.StaticPropertyFetch, *syntax.ArrayDimFetch:
+						return false
+					}
 					if npeIsVar(util.AsExpr(t), name) {
 						found = true
 					}
@@ -759,4 +806,60 @@ func (u *npeUnit) assignedBetween(name string, from, to uint32) bool {
 		return !found
 	})
 	return found
+}
+
+// npeDiverted reports whether control cannot flow from assignment a to v
+// without re-evaluating c: a statement list holding a but not v ends, after
+// a, in a return, throw or exit, or in a continue or break whose nearest
+// loop holds c (and so v, which c guards): whatever the level, v runs again
+// only after the loop is re-entered, which re-checks c first.
+func npeDiverted(a *syntax.Assign, c syntax.Expr, v syntax.Node) bool {
+	var cur syntax.Node = a
+	for p := a.Parent(); p != nil && !syntax.IsFuncLike(p); cur, p = p, p.Parent() {
+		if util.NodeContains(p, v) {
+			return false
+		}
+		list, ok := syntax.StmtListOf(p)
+		if !ok {
+			continue
+		}
+		t := syntax.FirstTerminating(p)
+		if t == len(list) || syntax.StmtIndex(list, cur) > t {
+			continue
+		}
+		switch x := list[t].(type) {
+		case *syntax.Return:
+			return true
+		case *syntax.ExprStmt:
+			switch syntax.UnwrapParens(x.Expr).(type) {
+			case *syntax.Throw, *syntax.Exit:
+				return true
+			}
+		case *syntax.Continue, *syntax.Break:
+			return npeLoopHolds(x, c)
+		}
+		return false
+	}
+	return false
+}
+
+// npeLoopHolds reports whether the nearest loop a continue/break jump leaves
+// holds c (a switch in between: no, the jump may only leave the switch).
+func npeLoopHolds(jump syntax.Node, c syntax.Expr) bool {
+	p := jump.Parent()
+	for p != nil && !npeJumpTarget(p) {
+		p = p.Parent()
+	}
+	_, sw := p.(*syntax.Switch)
+	return p != nil && !sw && util.NodeContains(p, c)
+}
+
+// npeJumpTarget reports whether a continue/break may leave n: a loop or a
+// switch.
+func npeJumpTarget(n syntax.Node) bool {
+	switch n.(type) {
+	case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile, *syntax.Switch:
+		return true
+	}
+	return false
 }
