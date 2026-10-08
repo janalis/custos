@@ -64,7 +64,11 @@ not `null`):
   scalar type (`$id ?? 'new'`, `$count ?? '?'`) is a deliberate display or
   serialisation choice, not a bug. Applies under both values of
   `ALLOW_OVERLAPPING_TYPES`. A side holding a scalar *and* a non-scalar
-  (`int|Engine`) is not covered by D5a.
+  (`int|Engine`) is not covered by D5a. Nor is a left operand that can
+  never be null because it is a comparison (`<`, `==`, `===`, `<=>`, …), a
+  `&&`/`||` expression, an `instanceof` test or a `!` negation:
+  `0 < $data['n'] ?? 0` parses as `(0 < $data['n']) ?? 0`, a precedence
+  mistake rather than a placeholder, and stays reported.
 - D5b: iterable family (custos diverges). A type belongs to the iterable
   family when it is `array`, `\Traversable`, or a class/interface whose
   inheritance closure (as in D5) contains `\Traversable` (`\Iterator`,
@@ -89,7 +93,8 @@ not `null`):
   implementing a shared interface).
 - E6: code outside any function body (for Case B).
 - E7: both sides scalar-only after removing `null` (D5a), e.g.
-  `sprintf('#%s', $row->id ?? 'new')` with `?int $id`.
+  `sprintf('#%s', $row->id ?? 'new')` with `?int $id`. Not when the left
+  operand is a comparison, `&&`/`||`, `instanceof` or `!` expression.
 - E8: both sides in the iterable family (D5b), e.g.
   `iterator_to_array($el->attributes ?? [])` with `?\DOMNamedNodeMap`, or
   `foreach ($order->lines ?? [] as $l)` where `$order` is nullable and
@@ -220,7 +225,9 @@ class Inventory {
   placeholder. That fallback is ordinary code (labels, log lines, array rows
   for `implode()`), and custos's own `NullCoalescingOperatorCanBeUsed` fix
   produces it from `null === $x ? 'none' : $x`; custos stays silent when
-  both sides are scalar-only.
+  both sides are scalar-only, unless the left operand is an operator
+  expression that is never null (`0 < $r['n'] ?? 0`), where the mismatch
+  reveals a precedence mistake.
 - **Iterable family (custos diverges, D5b).** Upstream compares an
   object type with `array` as unrelated, so `$node->attributes ?? []` on a
   `?DOMNamedNodeMap`, or `$owner->items ?? []` on a `Collection`, is
