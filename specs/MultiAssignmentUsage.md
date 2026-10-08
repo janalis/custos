@@ -100,6 +100,10 @@ Two patterns where destructuring would be clearer:
   (`$row = $row[0]; $b = $row[1];`, `$cfg[1] = $cfg[0]; $x = $cfg[2];`).
 - **E7** Both statements read the same key (`$a = $r[1]; $b = $r[1];`,
   `$a = $r[1]; $b = $r[1.0];`).
+- **E8** The base may be a string (its inferred type includes `string`: a
+  `string` parameter, an `explode()` item, a `foreach` value over
+  `list<string>`): `$a = $s[0]; $b = $s[1];` reads two characters, while
+  `[$a, $b] = $s;` assigns `null` to both.
 
 ## Report
 
@@ -188,6 +192,11 @@ foreach ($records as $record) <weak_warning descr="Destructure directly in the f
   cannot express it. custos requires distinct keys (D7a). Non-consecutive
   distinct indexes are still reported (`list()` can skip positions, keyed
   destructuring takes any keys).
+- **String bases (custos diverges, E8).** Upstream suggests destructuring
+  for any base, but destructuring a string yields `null` for every target
+  (string offsets are not destructured), so the suggestion breaks
+  `$index = $token[0]; $worktree = $token[1];` when `$token` is a string.
+  custos skips a base whose inferred type includes `string`.
 - **Base changed or re-evaluated (custos diverges).** Upstream only compares
   the two base texts. When the first statement overwrites the base
   (`$row = $row[0]; $b = $row[1];`) the second read sees a different array,

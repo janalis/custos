@@ -44,3 +44,19 @@ function refs($matches) {
     $other =& $matches[2];
     return $quote . $title . $plain . $other;
 }
+
+// String offsets: destructuring a string assigns null (E8).
+/** @param list<string> $lines */
+function strings(string $token, array $lines, string $csv) {
+    $index = $token[0];
+    $worktree = $token[1];
+    foreach ($lines as $line) {
+        $first = $line[0];
+        $second = $line[1];
+    }
+    foreach (explode(',', $csv) as $cell) {
+        $head = $cell[0];
+        $next = $cell[1];
+    }
+    return $index . $worktree . $first . $second . $head . $next;
+}

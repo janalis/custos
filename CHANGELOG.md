@@ -13,6 +13,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - SlowArrayOperationsInLoop: a `for` condition measuring a value the loop
   body visibly writes (element assignment, `[] =`, `array_push()`, `unset()`,
   reassignment) is no longer reported: its length changes on purpose.
+- MultiAssignmentUsage: consecutive offset reads from a string
+  (`$a = $s[0]; $b = $s[1];`) are no longer told to destructure, which
+  would assign `null` from a string.
 
 ## [0.1.0] - 2026-10-08
 
