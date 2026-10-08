@@ -291,6 +291,7 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 					Name: p.Var.Name, Class: fqn, Visibility: visibility(m.Modifiers), Static: m.Modifiers.Has(syntax.TStatic),
 					Readonly: m.Modifiers.Has(syntax.TReadonly) || c.Readonly, Type: x.typeStr(m.Type, at), HasDefault: p.Default != nil,
 					Default: x.text(p.Default), Span: p.Span(), ReadsRunCode: readsRunCode(p.Var.Name, m.Modifiers, m.Hooks),
+					Hooked: len(m.Hooks) > 0, Attributed: len(m.Attrs) > 0,
 				}
 				if d != nil {
 					prop.DocType = x.docTypeStr(d.VarType(p.Var.Name), at)
@@ -773,6 +774,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 				Readonly: p.Modifiers.Has(syntax.TReadonly) || c.Readonly, Type: x.typeStr(p.Type, at), Promoted: true,
 				DocType: meth.Params[i].DocType, HasDefault: p.Default != nil, Default: x.text(p.Default), Span: p.Span(),
 				ReadsRunCode: readsRunCode(p.Var.Name, p.Modifiers, p.Hooks),
+				Hooked:       len(p.Hooks) > 0, Attributed: len(p.Attrs) > 0,
 			}
 		}
 	}

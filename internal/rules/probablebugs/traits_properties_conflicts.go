@@ -94,7 +94,11 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 		if t == nil {
 			return
 		}
-		switch tpcCompare(own, tp) {
+		cmp := tpcCompare(own, tp)
+		if own.Hooked || tp.Hooked { // PHP refuses to compose a hooked property
+			cmp = tpcDiffers
+		}
+		switch cmp {
 		case tpcSame:
 			if attributed { // re-declared to attach attributes (mapping metadata)
 				return
@@ -119,7 +123,7 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 				own := &index.Property{
 					Name: it.Var.Name, Visibility: tpcVisibility(m.Modifiers),
 					Static: m.Modifiers.Has(syntax.TStatic), Readonly: classReadonly || m.Modifiers.Has(syntax.TReadonly),
-					Type: typ, HasDefault: it.Default != nil,
+					Type: typ, HasDefault: it.Default != nil, Hooked: len(m.Hooks) > 0,
 				}
 				if it.Default != nil {
 					own.Default = ctx.Text(it.Default)
@@ -138,6 +142,7 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 				reportOwn(p.Var, &index.Property{
 					Name: p.Var.Name, Visibility: tpcVisibility(p.Modifiers),
 					Readonly: classReadonly || p.Modifiers.Has(syntax.TReadonly), Type: tpcTypeString(ctx, p.Type), Promoted: true,
+					Hooked: len(p.Hooks) > 0,
 				}, len(p.Attrs) > 0)
 			}
 		}
@@ -165,8 +170,13 @@ func (traitsPropertiesConflicts) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		// every trait in traits was registered in refs when collected
 		ref := refs[strings.ToLower(strings.TrimPrefix(t.FQN, `\`))]
+		// Hooks are ignored here: PHP accepts the re-declaration and keeps
+		// the parent's hooks.
 		sev := meta.SeverityError
 		if tpcSameDefault(tpcHasDefault(q), q.Default, tp) && tpcCompare(q, tp) != tpcDiffers {
+			if tp.Attributed { // re-declared to attach attributes (mapping metadata)
+				continue
+			}
 			sev = meta.SeverityInfo
 		}
 		ctx.ReportSeverity(ref.Span(), sev, msg(t, q.Name))

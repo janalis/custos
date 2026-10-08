@@ -164,6 +164,8 @@ type Property struct {
 	// ReadsRunCode marks a declaration whose reads may run code: a `get`
 	// hook, a virtual property or an abstract (hook-only) one (PHP 8.4).
 	ReadsRunCode bool `json:"rcode,omitempty"`
+	Hooked       bool `json:"hooked,omitempty"`     // declares property hooks (PHP 8.4)
+	Attributed   bool `json:"attributed,omitempty"` // carries a PHP attribute
 	// Inferred is the type derived at index time from the values the class
 	// assigns to an untyped private property (see infer.AnnotateReturns).
 	Inferred string      `json:"iret,omitempty"`
