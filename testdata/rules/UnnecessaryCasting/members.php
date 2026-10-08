@@ -15,7 +15,7 @@ class Gauge extends Base {
     public function read(string $m, string $p, Gauge|Base $either) {
         return [
             <weak_warning descr="Operand already has the target type; remove the cast.">(int)</weak_warning> $this->typed,
-            <weak_warning descr="Operand already has the target type; remove the cast.">(int)</weak_warning> $this->docInt,
+            (int) $this->docInt,
             (string) $this->plain,
             (int) $this->$p,
             (int) $either->typed,

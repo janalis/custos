@@ -109,7 +109,7 @@ function run(Manager $m, string $name, array $plain) {
 		"getVar":       `\Lib\User`,
 		"getNamed":     `\Lib\User`,
 		"getDynamic":   "null|object",
-		"stub":         `\Lib\Stub|\Lib\User`,
+		"stub":         `\Lib\Stub&\Lib\User`,
 		"identity":     "int",
 		"orDefault":    "string",
 		"firstOf":      `\Lib\User`,

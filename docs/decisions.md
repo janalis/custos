@@ -282,17 +282,19 @@ timestamp-copying pattern the rule targets); RandomApiMigration's
 `random_int()` ignores `mt_srand()` seeds (fixtures mix seeding and calls;
 `SUGGEST_USING_RANDOM_INT` can be turned off); MagicMethodsValidity
 "does not call parent::__construct()" for empty parent constructors (the
-index records no body facts — engine request below); AmbiguousMethodsCallsInArrayMapping
+index records no body facts — engine request below, since addressed); AmbiguousMethodsCallsInArrayMapping
 on stateful calls (`$map[$this->read($s)] = $this->read($s)`, not
 detectable); UnnecessaryCasting removing `(int)` casts trusted from PHPDoc
 (`@param array<int, int>`) in SQL-building code — the engine does not
-record whether a type is native or documented (engine request below);
+record whether a type is native or documented (engine request below,
+since addressed);
 SuspiciousBinaryOperation D10, OneTimeUseVariables, SlowArrayOperationsInLoop,
 SuspiciousLoop, UntrustedInclusion, DynamicInvocationViaScopeResolution,
 SenselessProxyMethod, ClassOverridesFieldOfSuperClass, AlterInForeach,
 UnnecessaryAssertion, ReturnTypeCanBeDeclared, JsonEncodingApiUsage and
 ThrowRawException fixes (deliberate behaviour changes) — by design.
-Engine-level causes left to the type-engine work: `preg_replace()` with a
+Engine-level causes left to the type-engine work (all addressed in the
+Engine section, "Review round 2 engine causes"): `preg_replace()` with a
 string subject typed `string|array|null`; `abs(int)` typed `int|float`;
 PHPDoc intersections `A&B` read as unions; an early `return` after
 `$this->p === false` not narrowing the property; writing `$a[1] = explode()`
@@ -892,6 +894,78 @@ rejected) is fixed; see the close-tag note above.
     corpus B +1 / +1 UnnecessaryCasting (`(int) $workEditionId` where the
     id comes from `match (true) { $e instanceof WorkEdition => $e->id, …}`
     after a null check: true positive).
+- **Review round 2 engine causes (2026-10-08):** the engine requests of
+  the phpMyAdmin/Matomo/PrestaShop/Composer/PHPUnit/Doctrine review.
+  - *Replacement functions:* `str_replace()`, `str_ireplace()`,
+    `preg_replace()`, `preg_replace_callback[_array]()`, `preg_filter()`,
+    `substr_replace()` follow the subject member by member (`replaceResult`):
+    scalar and object members give string (converted), arrays give array,
+    plus null for `preg_*`; mixed/iterable subjects keep the stub type. The
+    T-rules typer does the same; in SpecOnly mode a subject the T-rules
+    leave unknown falls back to the engine's type (the review's
+    `string|array|null` came from such subjects). An int subject is now a
+    string (was unknown in the T-rules).
+  - *max()/min():* the union of the arguments (two or more), or the element
+    type of a single `T[]` / sealed-shape argument (`|false` before 8.0
+    unless non-empty); unknown/mixed members keep `mixed`. `abs(int)`,
+    `round/floor/ceil` (float) and `intdiv` (int) were already right in
+    both typers; the review's `int|float` came from untyped operands.
+  - *Intersections:* `A&B` (PHPDoc, native, `(A&B)|null`) keeps its atoms
+    and records them as one intersection (`types.Type.Intersection`, an
+    8-byte pointer field). A union keeps it only while no member brings
+    another class or a different intersection, `Without` drops it when a
+    side goes; `String`/`DocString` print `\A&\B`, `(\A&\B)|null`, which
+    round-trip. Method/property lookups (`memberClasses`: method calls,
+    property fetches, assertions) use the first side declaring the member,
+    and iteration the side that binds Traversable (Doctrine
+    `matching()`: `AbstractLazyCollection<K, V>&Selectable<K, V>`).
+  - *Property guards:* `if ($this->keyStore === false) { return; }` already
+    narrowed the property (`string|true`), also on the Matomo file; the
+    review's type came from an older engine. Regression test added.
+  - *Per-key writes:* a read of literal key k on a `T[]` array only widens
+    by writes to k, to computed keys, and appends when k is an integer
+    (`writesForKey`): `$row[1] = explode(…)` no longer types `$row[0]`
+    (phpMyAdmin `fetchRow()` loops; `$row['privs'] = …` / `$row['User']`).
+  - *Pre-8.0 failure returns:* phpstorm-stubs give `hash()` & co. only their
+    8.0 type (no LanguageLevelTypeAware map). `stubs.pre80Failure` adds the
+    member below 8.0 for the builtins that returned false/null on invalid
+    arguments and throw since 8.0: hash, hash_hmac, hash_pbkdf2, array_fill,
+    chunk_split, wordwrap, substr_count, count_chars, str_word_count (false),
+    array_chunk, array_rand (null). Audit of the others: hash_hkdf,
+    mb_strlen, mb_str_split, password_hash, str_split, array_combine already
+    vary in the stubs. A version-resolved declaration also adds the older
+    declared members to its doc return (`docAt`), so `array_chunk()`'s doc
+    `array` no longer hides null on 7.x.
+  - *Index facts:* `Method.EmptyBody` (no statement, no promoted parameter;
+    never for stubs) and `Builtin` on stub functions, methods and
+    properties (set when the stubs load). Native-vs-PHPDoc provenance was
+    already in the index (`Return`/`DocReturn`, `Type`/`DocType`); the
+    engine side is `Env.Native()`: a twin Env (cached) whose types ignore
+    user PHPDoc (param/property/return docs, inline `@var`, templates,
+    conditional returns, assertions, `@param-out`, closure `@return`,
+    index-time inferred types) but keep builtin stub docs; the T-rules typer
+    over it drops them too. Wired: MagicMethodsValidity no longer asks for
+    `parent::__construct()` (or `__clone`, `__destruct`) when the parent's
+    body is empty; UnnecessaryCasting requires the target type without
+    PHPDoc as well (listed EA divergences for the two MagicMethodsValidity
+    cases; spec Divergences in both rules).
+  - *Coverage without fuzz seeds:* `go test -skip '^Fuzz'` left 21
+    statements of infer/types covered only by FuzzRules/FuzzFromDoc seeds
+    (including the `brokenBy` ternary branch of shapes.go); unit tests now
+    cover them (`TestInferEdgesUnitOnly`, `TestDocEdgesUnitOnly`): the six
+    engine packages are at 100% with and without the fuzz seeds.
+  - *Deltas* (old = HEAD 337502b, default / `--all`): corpus A src −2 / −2,
+    Symfony −1 / 0, corpus B −55 / −55, corpus C −3 / −3. Removed: 63
+    UnnecessaryCasting whose operand is typed only by PHPDoc (inline `@var`
+    shapes, `@return int[]|null`, `@var` on ORM properties, doc array
+    shapes, `callable(): list<string>` docs; sampled, all doc-only — by
+    design). Added: 2 UnnecessaryCasting on Symfony `(int) max(0, $a - $b)`
+    with native ints (true positives, max() now typed) and, in `--all`, 1
+    OffsetOperations on `$units[$power]` with `$power = min(floor(…), 3)`
+    (float key, reported like the others).
+  - *Cost:* infer benchmarks within ±2 % allocations, +3 % bytes (the
+    pointer field); corpus A vendor `analyse --all` user time unchanged
+    (12 alternating runs, medians 5.9 s / 6.0 s on a loaded machine).
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.

@@ -67,7 +67,36 @@ type Env struct {
 	// conds caches parsedCond; builtinCalls caches isBuiltinCall.
 	conds        map[string]*types.Cond
 	builtinCalls map[*syntax.FuncCall]bool
+
+	// native: types come from native declarations only (see Native);
+	// nativeTwin caches the native Env of this one.
+	native     bool
+	nativeTwin *Env
 }
+
+// Native returns an Env over the same file and index whose types ignore
+// user PHPDoc: parameter, property and return docs, inline @var, templates,
+// conditional returns, assertions and @param-out of project declarations
+// (builtin stub docs still count, they describe PHP), and the index-time
+// inferred types (computed with docs). A rule can thus tell whether a
+// type rests on PHPDoc only (UnnecessaryCasting). Cached per Env.
+func (e *Env) Native() *Env {
+	if e.native {
+		return e
+	}
+	if e.nativeTwin == nil {
+		e.nativeTwin = NewEnv(e.File, e.Names, e.Index, e.PHP)
+		e.nativeTwin.native = true
+	}
+	return e.nativeTwin
+}
+
+// IsNative reports whether e is a native Env (see Native).
+func (e *Env) IsNative() bool { return e.native }
+
+// userDoc reports whether documented facts of a declaration (builtin: from
+// the stubs) are ignored by this Env (see Native).
+func (e *Env) userDoc(builtin bool) bool { return e.native && !builtin }
 
 // docScope holds the @template names and type aliases declared on a
 // declaration and its enclosing ones.
@@ -597,6 +626,9 @@ func strictSuperset(doc, declared types.Type) bool {
 }
 
 func (e *Env) propType(p *index.Property, receiver string) types.Type {
+	if e.userDoc(p.Builtin) {
+		return bindStatic(types.FromDoc(p.Type, nil), receiver)
+	}
 	if p.Type == "" && p.DocType == "" {
 		return bindStatic(e.inferredProp(p), receiver)
 	}
@@ -609,7 +641,7 @@ func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types
 		return types.Unknown
 	}
 	var ts []types.Type
-	for _, cls := range recv.Classes() {
+	for _, cls := range e.memberClasses(recv, func(c string) bool { return e.Index.FindProperty(c, id.Value, e.PHP) != nil }) {
 		c := strings.TrimPrefix(cls, `\`)
 		p := e.Index.FindProperty(c, id.Value, e.PHP)
 		if p == nil {
@@ -623,6 +655,23 @@ func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types
 	return types.Union(ts...)
 }
 
+// memberClasses lists the classes of receiver type recv whose member a
+// lookup must use: each class of a union (all must have it), but for an
+// intersection (`A&B`) only the first class that has the member (has),
+// none when no side has it.
+func (e *Env) memberClasses(recv types.Type, has func(cls string) bool) []string {
+	in := recv.Intersection()
+	if in == nil {
+		return recv.Classes()
+	}
+	for _, c := range in {
+		if has(strings.TrimPrefix(c, `\`)) {
+			return []string{c}
+		}
+	}
+	return nil
+}
+
 // methodReturn is the return type of method name called on class cls;
 // virtual reports a call that may dispatch to an override (see
 // methodBodyReturn). Class templates in the documented return type are
@@ -632,6 +681,9 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 	m := e.Index.FindMethod(cls, name, e.PHP)
 	if m == nil {
 		return types.Unknown
+	}
+	if e.userDoc(m.Builtin) {
+		return bindStatic(types.FromDoc(m.Return, nil), cls)
 	}
 	if m.Tpl != nil {
 		var classB tplBindings
@@ -667,7 +719,7 @@ func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
 		return types.Unknown
 	}
 	var ts []types.Type
-	for _, cls := range recv.Classes() {
+	for _, cls := range e.memberClasses(recv, func(c string) bool { return e.Index.FindMethod(c, id.Value, e.PHP) != nil }) {
 		c := strings.TrimPrefix(cls, `\`)
 		t := e.methodReturn(c, id.Value, true, c, recv.TypeArgs(cls), n.Args)
 		if t.IsUnknown() {
@@ -784,6 +836,9 @@ const maxFuncDecls = 16
 
 // declCallType types call n to function declaration f.
 func (e *Env) declCallType(f *index.Function, n *syntax.FuncCall) types.Type {
+	if e.userDoc(f.Builtin) {
+		return types.FromDoc(f.Return, nil)
+	}
 	if f.Tpl != nil {
 		if t, ok := e.tplReturn(f.Tpl, f.Params, n.Args, f.Return, nil, nil); ok {
 			return t
@@ -829,25 +884,23 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 		return nil
 	}
 	switch strings.ToLower(fqn) {
-	case "str_replace", "str_ireplace", "preg_replace", "preg_replace_callback", "substr_replace":
+	case "str_replace", "str_ireplace", "preg_replace", "preg_replace_callback", "substr_replace", "preg_filter",
+		"preg_replace_callback_array":
 		subjectIdx := 2
-		if strings.HasPrefix(strings.ToLower(fqn), "preg_replace_callback") || strings.ToLower(fqn) == "substr_replace" {
+		switch strings.ToLower(fqn) {
+		case "substr_replace":
 			subjectIdx = 0
-			if strings.HasPrefix(strings.ToLower(fqn), "preg_replace_callback") {
-				subjectIdx = 2
-			}
+		case "preg_replace_callback_array":
+			subjectIdx = 1
 		}
 		if s := arg(subjectIdx); s != nil {
-			st := e.TypeOf(s)
-			if st.OnlyOf("string", "int", "float", "bool", "true", "false", "null") { // scalar subjects are converted to string
-				if strings.HasPrefix(strings.ToLower(fqn), "preg_") {
-					return types.Of("string", "null"), true
-				}
-				return types.String, true
+			if t, ok := replaceResult(e.TypeOf(s), strings.HasPrefix(strings.ToLower(fqn), "preg_")); ok {
+				return t, true
 			}
-			if st.IsArrayLike() {
-				return types.Array, true
-			}
+		}
+	case "max", "min":
+		if t, ok := e.maxMinType(n); ok {
+			return t, true
 		}
 	case "mb_convert_encoding":
 		// An array only for an array input.
@@ -986,6 +1039,61 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 	return types.Unknown, false
 }
 
+// replaceResult is the result of str_replace()/preg_replace() & co. for a
+// subject of type st: a string for scalar or object members (converted),
+// an array for array members, plus null for the preg_ functions (a PCRE
+// failure). ok is false when st is unknown or holds mixed/iterable.
+func replaceResult(st types.Type, preg bool) (types.Type, bool) {
+	if st.IsUnknown() || st.HasAny("mixed", "iterable") {
+		return types.Unknown, false
+	}
+	var res []string
+	for _, a := range st.Atoms() {
+		if a == "array" || strings.HasSuffix(a, "[]") {
+			res = append(res, "array")
+		} else {
+			res = append(res, "string")
+		}
+	}
+	if preg {
+		res = append(res, "null")
+	}
+	return types.Of(res...), true
+}
+
+// maxMinType is the type of max()/min(): one of the arguments (two or more
+// of them), or an element of the single array argument (false too before
+// PHP 8.0 unless the array is known non-empty).
+func (e *Env) maxMinType(n *syntax.FuncCall) (types.Type, bool) {
+	var ts []types.Type
+	for _, x := range n.Args.Args {
+		a, ok := x.(*syntax.Arg)
+		if !ok || a.Unpack || a.Name != nil {
+			return types.Unknown, false
+		}
+		ts = append(ts, e.TypeOf(a.Value))
+	}
+	switch len(ts) {
+	case 0:
+		return types.Unknown, false
+	case 1:
+		at := ts[0]
+		el := iterElem(at)
+		if !at.IsArrayLike() || el.IsUnknown() || el.Has("mixed") {
+			return types.Unknown, false
+		}
+		if e.PHP < phpver.PHP80 && !at.IsNonEmptyArray() {
+			el = types.Union(el, types.Of("false"))
+		}
+		return el.WithoutArrayInfo(), true
+	}
+	u := types.Union(ts...)
+	if u.IsUnknown() || u.Has("mixed") {
+		return types.Unknown, false
+	}
+	return u.WithoutArrayInfo(), true
+}
+
 // ---- variables ------------------------------------------------------------------------
 
 type varDef struct {
@@ -1028,7 +1136,34 @@ func (e *Env) widenElem(el types.Type, n *syntax.ArrayDimFetch) types.Type {
 	if !ok || v.Name == "" || v.Name == "this" {
 		return el
 	}
-	return e.widenVarElem(el, v)
+	ws, back := e.reachingWrites(v)
+	if k, ok := literalKey(n.Dim); n.Dim != nil && ok {
+		ws, back = writesForKey(ws, back, k)
+	}
+	return e.widenWrites(el, ws, back)
+}
+
+// writesForKey keeps the element writes that may store into literal key k:
+// writes to k itself, to a computed key, appends when k is an integer, and
+// the nested and unknown writes widenWrites judges itself. `$a[1] =
+// explode(…)` does not change `$a[0]`.
+func writesForKey(ws []*elemWrite, back []bool, k string) ([]*elemWrite, []bool) {
+	var kw []*elemWrite
+	var kb []bool
+	for i, w := range ws {
+		if !w.nested && w.a != nil {
+			d := w.dim()
+			if d == nil && !types.IsIntKey(k) {
+				continue // appends add integer keys
+			}
+			if wk, ok := literalKey(d); d != nil && ok && wk != k {
+				continue
+			}
+		}
+		kw = append(kw, w)
+		kb = append(kb, back[i])
+	}
+	return kw, kb
 }
 
 // widenVarElem unions el with every value written into the elements of
@@ -1400,9 +1535,11 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 		})
 	}
 	// Inline `/** @var Type $name */` comments.
-	e.inlineVarDocs(scope, func(name string, pos, end uint32, t func() types.Type) {
-		sv.defs[name] = append(sv.defs[name], varDef{pos: pos, docEnd: end, typ: t, doc: true})
-	})
+	if !e.native {
+		e.inlineVarDocs(scope, func(name string, pos, end uint32, t func() types.Type) {
+			sv.defs[name] = append(sv.defs[name], varDef{pos: pos, docEnd: end, typ: t, doc: true})
+		})
+	}
 	for name, defs := range sv.defs {
 		sortDefs(defs)
 		sv.defs[name] = defs
@@ -1542,7 +1679,7 @@ func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
 		declared = types.Union(declared, types.Null)
 	}
 	doc := ""
-	if d := e.DocOf(scope); d != nil {
+	if d := e.DocOf(scope); d != nil && !e.native {
 		for _, dp := range d.Params() {
 			if dp.Name == p.Var.Name {
 				doc = dp.Type

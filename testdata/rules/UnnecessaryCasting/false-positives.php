@@ -30,3 +30,13 @@ class Boolean {}
 function aliasClasses(Integer $i, Boolean $b) {
     return [(int) $i, (bool) $b];
 }
+
+function coalesced(?int $y) {
+    $x = $y ?? 5;
+    return (int) $x;
+}
+
+function reassignedParam($v) {
+    $v = trim($v);
+    return (string) $v;
+}

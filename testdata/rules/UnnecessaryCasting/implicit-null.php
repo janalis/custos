@@ -21,13 +21,13 @@ final class Ledger
     {
         return [
             (float) $this->cost,
-            <weak_warning descr="Operand already has the target type; remove the cast.">(float)</weak_warning> $this->rate,
-            <weak_warning descr="Operand already has the target type; remove the cast.">(string)</weak_warning> $this->code,
+            (float) $this->rate,
+            (string) $this->code,
             (float) ($cell * 100),
             (int) ($cell * 100),
             (float) ($n * 2),
             <weak_warning descr="Operand already has the target type; remove the cast.">(int)</weak_warning> ($n * 2),
-            <weak_warning descr="Operand already has the target type; remove the cast.">(float)</weak_warning> ($cell * $f),
+            (float) ($cell * $f),
             (int) ($n ** $n),
             (float) ($unknown * 2),
         ];

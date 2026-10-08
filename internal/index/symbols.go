@@ -91,8 +91,11 @@ type Function struct {
 	ByRef      bool        `json:"byRef,omitempty"`
 	Deprecated bool        `json:"dep,omitempty"`
 	Avail      Avail       `json:"a,omitempty"`
-	File       string      `json:"-"`
-	Span       syntax.Span `json:"-"`
+	// Builtin marks a declaration of the embedded stubs (set when they are
+	// loaded): its documented types describe PHP itself, not user PHPDoc.
+	Builtin bool        `json:"-"`
+	File    string      `json:"-"`
+	Span    syntax.Span `json:"-"`
 }
 
 // Method is a class member function.
@@ -120,8 +123,14 @@ type Method struct {
 	// Asserts are the @phpstan-assert / @psalm-assert annotations.
 	Asserts    []Assertion `json:"as,omitempty"`
 	Deprecated bool        `json:"dep,omitempty"`
-	Avail      Avail       `json:"a,omitempty"`
-	Span       syntax.Span `json:"-"`
+	// EmptyBody is set for a project method whose body holds no statement
+	// and that promotes no constructor parameter (`public function
+	// __construct() {}`): calling it does nothing. Never set for builtins
+	// (stub bodies are empty placeholders).
+	EmptyBody bool        `json:"empty,omitempty"`
+	Builtin   bool        `json:"-"` // a stub declaration (see Function.Builtin)
+	Avail     Avail       `json:"a,omitempty"`
+	Span      syntax.Span `json:"-"`
 }
 
 // Property is a class property (declared, promoted or @property).
@@ -140,6 +149,7 @@ type Property struct {
 	// Inferred is the type derived at index time from the values the class
 	// assigns to an untyped private property (see infer.AnnotateReturns).
 	Inferred string      `json:"iret,omitempty"`
+	Builtin  bool        `json:"-"` // a stub declaration (see Function.Builtin)
 	Span     syntax.Span `json:"-"`
 }
 

@@ -35,7 +35,7 @@ class Meter {
 
     public function read(?Meter $other) {
         return [
-            $this->hidden,
+            (int) $this->hidden,
             (int) $this->shown,
             $this->size(),
             (int) $this->legacy(),

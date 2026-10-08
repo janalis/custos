@@ -328,3 +328,8 @@ interface Printable { public function __toString(); }
   abstract cache class's `_get()` hook, 8 reports on PrestaShop), not a
   misspelt magic method. The declaring ancestor is reported as before
   unless it is abstract (E1).
+- **Empty parent methods (custos diverges).** C-parent does not report a
+  method whose parent version has an empty body and promotes no
+  constructor parameter (`public function __construct() {}`): calling it
+  would do nothing (Doctrine/PrestaShop base classes). Builtin parents are
+  always checked (their stub bodies say nothing).

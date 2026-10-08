@@ -23,7 +23,7 @@ func TestFromDoc(t *testing.T) {
 		"array<int, Foo>":                `\App\Foo[]`,
 		"list<string>":                   "string[]",
 		"array{a: int, b?: string}":      "array",
-		"\\Traversable&\\Countable":      `\Countable|\Traversable`,
+		"\\Traversable&\\Countable":      `\Countable&\Traversable`,
 		"positive-int|false":             "false|int",
 		"class-string<Foo>":              "string",
 		"callable(int): void":            "callable",

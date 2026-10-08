@@ -61,6 +61,13 @@ func (r unnecessaryCasting) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(ts) != 1 || ts[0] != target { // D3 / E1
 		return
 	}
+	// custos: the type must hold without user PHPDoc (`@param array<int,
+	// int> $ids` does not make `(int) $id` redundant: nothing enforces it).
+	nt := infer.NewTRules(ctx.Types().Native())
+	nt.DivisionIntOrFloat, nt.SoundArithmetic = true, true
+	if nts := castStrictTypes(ctx, nt, a); len(nts) != 1 || nts[0] != target {
+		return
+	}
 	if v, ok := a.(*syntax.Variable); ok && v.NameExpr == nil { // D3a
 		for _, p := range syntax.FuncLikeParams(syntax.EnclosingFuncLike(a)) {
 			if p.Var != nil && p.Var.Name == v.Name && p.Type == nil {
@@ -196,6 +203,9 @@ func castPrivatePropertyType(ctx *analysis.Context, env *infer.Env, x *syntax.Pr
 	}
 	if p.Type != "" {
 		return types.FromDoc(p.Type, nil)
+	}
+	if env.IsNative() {
+		return types.Unknown // documented only
 	}
 	var def types.Type
 	switch {

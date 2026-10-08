@@ -21,13 +21,13 @@ final class Ledger
     {
         return [
             (float) $this->cost,
-            $this->rate,
-            $this->code,
+            (float) $this->rate,
+            (string) $this->code,
             (float) ($cell * 100),
             (int) ($cell * 100),
             (float) ($n * 2),
             ($n * 2),
-            ($cell * $f),
+            (float) ($cell * $f),
             (int) ($n ** $n),
             (float) ($unknown * 2),
         ];

@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"slices"
 	"strings"
 
 	"custos/internal/index"
@@ -179,7 +180,21 @@ func (e *Env) iterTypes(t types.Type) (key, val types.Type) {
 		return types.Unknown, types.Unknown
 	}
 	var ks, vs []types.Type
+	in := t.Intersection()
+	if in != nil {
+		// An intersection iterates as the side that binds Traversable.
+		k, v := types.Unknown, types.Unknown
+		for _, a := range in {
+			if k, v = e.traversal(a, t.TypeArgs(a)); !v.IsUnknown() {
+				break
+			}
+		}
+		ks, vs = append(ks, k), append(vs, v)
+	}
 	for _, a := range t.Atoms() {
+		if slices.Contains(in, a) {
+			continue
+		}
 		var k, v types.Type
 		switch {
 		case strings.HasSuffix(a, "[]"):

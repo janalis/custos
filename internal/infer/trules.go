@@ -183,7 +183,7 @@ func (r *TRules) infer(x syntax.Expr) types.Type {
 				}
 				return types.Unknown
 			}
-			ts = append(ts, DeclaredAndDoc(m.Return, m.DocReturn))
+			ts = append(ts, r.declaredAndDoc(m.Return, m.DocReturn, m.Builtin))
 		}
 		return KnownUnion(ts...)
 	case *syntax.StaticCall:
@@ -199,7 +199,7 @@ func (r *TRules) infer(x syntax.Expr) types.Type {
 		if m == nil {
 			return types.Unknown
 		}
-		return DeclaredAndDoc(m.Return, m.DocReturn)
+		return r.declaredAndDoc(m.Return, m.DocReturn, m.Builtin)
 	case *syntax.Variable:
 		return r.variable(n)
 	}
@@ -301,7 +301,16 @@ func (r *TRules) funcCall(n *syntax.FuncCall) types.Type {
 	if t, ok := r.override(n, f); ok {
 		return t
 	}
-	return DeclaredAndDoc(f.Return, f.DocReturn)
+	return r.declaredAndDoc(f.Return, f.DocReturn, f.Builtin)
+}
+
+// declaredAndDoc is DeclaredAndDoc, without the doc type of a project
+// declaration over a native Env (see Env.Native).
+func (r *TRules) declaredAndDoc(declared, doc string, builtin bool) types.Type {
+	if r.Env.userDoc(builtin) {
+		return types.FromDoc(declared, nil)
+	}
+	return DeclaredAndDoc(declared, doc)
 }
 
 // arg returns the argument of n (a call of f) for f's parameter i, positional
@@ -344,31 +353,20 @@ func (r *TRules) override(n *syntax.FuncCall, f *index.Function) (types.Type, bo
 		case "preg_replace_callback_array":
 			idx = 1
 		}
-		res := []string{"string", "array"}
 		if s := r.arg(n, f, idx); s != nil {
 			st := r.Env.TypeOf(s)
 			if r.SpecOnly {
-				st = r.TypeOf(s)
+				// The spec types the subject by T-rules; what they leave
+				// unknown the engine may still know (custos).
+				if tt := r.TypeOf(s); !tt.IsUnknown() {
+					st = tt
+				}
 			}
-			if !st.IsUnknown() {
-				hasArr := false
-				for _, a := range st.Atoms() {
-					if a == "array" || strings.HasSuffix(a, "[]") {
-						hasArr = true
-					}
-				}
-				res = res[:0]
-				if st.Has("string") {
-					res = append(res, "string")
-				}
-				if hasArr {
-					res = append(res, "array")
-				}
-				if len(res) == 0 {
-					return types.Unknown, true
-				}
+			if t, ok := replaceResult(st, strings.HasPrefix(name, "preg_")); ok {
+				return t, true
 			}
 		}
+		res := []string{"string", "array"}
 		if strings.HasPrefix(name, "preg_") { // null on a PCRE failure
 			res = append(res, "null")
 		}
@@ -420,6 +418,20 @@ func (r *TRules) override(n *syntax.FuncCall, f *index.Function) (types.Type, bo
 			}
 		}
 		return types.Int, true
+	case "max", "min":
+		if r.argCount(n) >= 2 {
+			var ts []types.Type
+			for i := range r.argCount(n) {
+				a, ok := n.Args.Args[i].(*syntax.Arg)
+				if !ok || a.Unpack || a.Name != nil {
+					return types.Unknown, false
+				}
+				ts = append(ts, r.TypeOf(a.Value))
+			}
+			if u := types.Union(ts...); !u.IsUnknown() && !u.Has("mixed") {
+				return u.WithoutArrayInfo(), true
+			}
+		}
 	case "abs":
 		if r.argCount(n) == 1 {
 			if a := r.arg(n, f, 0); a != nil {
@@ -615,7 +627,7 @@ func (r *TRules) ParamTypes(scope syntax.Node, p *syntax.Param) types.Type {
 	res := r.Env.resolver(at)
 	declared := types.FromNode(p.Type, res)
 	var doc types.Type
-	if d := r.Env.DocOf(scope); d != nil && p.Var != nil {
+	if d := r.Env.DocOf(scope); d != nil && p.Var != nil && !r.Env.native {
 		for _, dp := range d.Params() {
 			if dp.Name == p.Var.Name {
 				doc = types.FromDoc(dp.Type, res)

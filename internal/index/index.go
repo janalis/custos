@@ -227,6 +227,7 @@ func (f *Function) at(ver phpver.Version) *Function {
 	}
 	cp := *f
 	cp.Return, cp.RetVer = r, nil
+	cp.DocReturn = docAt(f.DocReturn, f.Return, r)
 	c, _ := verCopies.LoadOrStore(k, &cp)
 	return c.(*Function)
 }
@@ -246,8 +247,32 @@ func (m *Method) at(ver phpver.Version) *Method {
 	}
 	cp := *m
 	cp.Return, cp.RetVer = r, nil
+	cp.DocReturn = docAt(m.DocReturn, m.Return, r)
 	c, _ := verCopies.LoadOrStore(k, &cp)
 	return c.(*Method)
+}
+
+// docAt adds to the documented return type doc the members an older
+// version's declared type old has beyond the newest one (newest): a doc
+// `array` would otherwise hide `array_chunk()`'s pre-8.0 null.
+func docAt(doc, newest, old string) string {
+	if doc == "" {
+		return doc
+	}
+	have := map[string]bool{}
+	for _, a := range strings.Split(doc, "|") {
+		have[strings.ToLower(a)] = true
+	}
+	for _, a := range strings.Split(newest, "|") {
+		have[strings.ToLower(a)] = true
+	}
+	for _, a := range strings.Split(old, "|") {
+		if !have[strings.ToLower(a)] {
+			doc += "|" + a
+			have[strings.ToLower(a)] = true
+		}
+	}
+	return doc
 }
 
 // builtinFunction looks fqn up in the bottom layer (the embedded stubs),

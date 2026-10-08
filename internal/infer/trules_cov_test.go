@@ -109,7 +109,7 @@ function g($o, $m, $name, int $i, $doc) {
 		"prop": "int", "propUntyped": "", "this": "\\A", "interp": "string", "compound": "string",
 		"dynMethod": "", "dynStatic": "", "envRecv": "string",
 		"argv": "array", "rtf": "float", "srvOther": "string",
-		"substr": "string", "pcba": "array|null", "replInt": "", "replNoSubject": "array|string",
+		"substr": "string", "pcba": "array|null", "replInt": "string", "replNoSubject": "array|string",
 		"mbUnknown": "array|false|string", "mbArray": "array|bool", "mbObject": "array|false|string",
 		"getClass": "string", "explode1": "array|bool", "explodeVar": "array|bool",
 		"purlHost": "null|string", "purl1": "array|bool", "varvar": "", "narrowOutside": "",

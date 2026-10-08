@@ -338,3 +338,11 @@ After fix (changed lines):
   `(int) new Integer()` is reported (the fix drops a cast that converts an
   object). custos resolves scalar aliases when parsing types; a remaining
   `\Integer` or `\Boolean` is a class and never matches a scalar target.
+- **PHPDoc-only types (custos diverges).** A cast is reported only when the
+  operand has the target type without user PHPDoc: the operand is typed a
+  second time ignoring the project's `@param`, `@var` (inline and on
+  properties), `@return`, templates and assertions (builtin stub types
+  still count). `foreach ($ids as $id) { (int) $id; }` with `@param
+  array<int, int> $ids`, or `(float) $this->rate` on a `@var float`
+  property, is not reported: nothing enforces the docblock, and such casts
+  guard SQL and output building (phpMyAdmin, PrestaShop review).

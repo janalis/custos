@@ -589,13 +589,24 @@ func mentionsAny(text string, names map[string]bool) bool {
 	return false
 }
 
+// promotes reports whether a constructor parameter list promotes a
+// property (a modifier on a parameter).
+func promotes(ps []*syntax.Param) bool {
+	for _, p := range ps {
+		if len(p.Modifiers) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	at := m.Span().Start
 	meth := &Method{
 		Name: m.Name.Value, Class: c.FQN, Visibility: visibility(m.Modifiers), Static: m.Modifiers.Has(syntax.TStatic),
 		Abstract: m.Modifiers.Has(syntax.TAbstract) || c.Kind == syntax.KindInterface, Final: m.Modifiers.Has(syntax.TFinal),
 		ByRef: m.ByRef, Params: x.params(m.Params, d, at), Span: m.Span(),
-		Avail: x.avail(m.Attrs, d),
+		Avail: x.avail(m.Attrs, d), EmptyBody: m.Body != nil && len(m.Body.Stmts) == 0 && !promotes(m.Params),
 	}
 	meth.Return, meth.RetVer = x.returnType(m.ReturnType, m.Attrs, at)
 	if d != nil {

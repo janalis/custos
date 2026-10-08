@@ -75,10 +75,11 @@ func (p *docParser) union(text string, resolve Resolver, depth int) Type {
 		return p.part(parts[0], resolve, depth)
 	}
 	var atoms []string
-	var infos []Type
+	var infos, pts []Type
 	var gens [][]genEntry
 	for _, part := range parts {
 		pt := p.part(part, resolve, depth)
+		pts = append(pts, pt)
 		atoms = append(atoms, pt.atoms...)
 		if pt.hasArrayAtom() {
 			infos = append(infos, pt)
@@ -97,7 +98,7 @@ func (p *docParser) union(text string, resolve Resolver, depth int) Type {
 	if len(gens) > 0 {
 		t = t.withGen(mergeGen(gens...))
 	}
-	return t
+	return t.withInter(unionInter(pts))
 }
 
 // plus returns a new slice holding a followed by extra.
@@ -130,14 +131,21 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		return p.union(s[1:len(s)-1], resolve, depth+1)
 	}
 	if parts := splitTop(s, '&'); len(parts) > 1 {
-		var out []string
+		var out, classes []string
 		var gens [][]genEntry
 		for _, x := range parts {
 			pt := p.part(x, resolve, depth+1)
 			out = append(out, pt.atoms...)
 			gens = append(gens, pt.gen)
+			if cs := pt.Classes(); len(cs) == 1 && len(pt.atoms) == 1 {
+				classes = append(classes, cs[0])
+			}
 		}
-		return ofAtoms(out).withGen(mergeGen(gens...))
+		t := ofAtoms(out).withGen(mergeGen(gens...))
+		if len(classes) == len(parts) {
+			t = t.withInter(classes)
+		}
+		return t
 	}
 	// Literal types: 'foo', 1, 1.5
 	if s[0] == '\'' || s[0] == '"' {
@@ -460,7 +468,7 @@ func FromNode(n syntax.Expr, resolve Resolver) Type {
 	if n == nil {
 		return Unknown
 	}
-	return Of(nodeAtoms(n, resolve)...)
+	return Of(nodeAtoms(n, resolve)...).withInter(nodeInter(n, resolve))
 }
 
 func nodeAtoms(n syntax.Expr, resolve Resolver) []string {

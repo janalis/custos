@@ -1,7 +1,7 @@
 <?php
 class Base
 {
-    public function __construct($id = 0) {}
+    public function __construct($id = 0) { $this->id = $id; }
     public function __clone() {}
     private function __destruct() {}
 }

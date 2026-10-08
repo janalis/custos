@@ -64,7 +64,7 @@ func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 			return nil
 		}
 		f := e.ResolveFunction(n)
-		if f == nil || len(f.Asserts) == 0 {
+		if f == nil || len(f.Asserts) == 0 || e.userDoc(f.Builtin) {
 			return nil
 		}
 		return &callAsserts{asserts: f.Asserts, params: f.Params, ft: f.Tpl, args: n.Args}
@@ -76,7 +76,7 @@ func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 		recv := e.TypeOf(n.Var)
 		var m *index.Method
 		var origin string
-		for _, cls := range recv.Classes() {
+		for _, cls := range e.memberClasses(recv, func(c string) bool { return e.Index.FindMethod(c, id.Value, e.PHP) != nil }) {
 			c := strings.TrimPrefix(cls, `\`)
 			cm := e.Index.FindMethod(c, id.Value, e.PHP)
 			if cm == nil || (m != nil && cm != m) {
@@ -84,7 +84,7 @@ func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 			}
 			m, origin = cm, c
 		}
-		if m == nil || len(m.Asserts) == 0 {
+		if m == nil || len(m.Asserts) == 0 || e.userDoc(m.Builtin) {
 			return nil
 		}
 		return &callAsserts{asserts: m.Asserts, params: m.Params, ft: m.Tpl, cls: e.Index.Class(m.Class, e.PHP),
@@ -100,7 +100,7 @@ func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 		return nil
 	}
 	m := e.Index.FindMethod(cls, id.Value, e.PHP)
-	if m == nil || len(m.Asserts) == 0 {
+	if m == nil || len(m.Asserts) == 0 || e.userDoc(m.Builtin) {
 		return nil
 	}
 	ca := &callAsserts{asserts: m.Asserts, params: m.Params, ft: m.Tpl, cls: e.Index.Class(m.Class, e.PHP), args: n.Args, origin: cls}

@@ -39,6 +39,8 @@ func decode(b []byte) (*index.Index, error) {
 	if err := gob.NewDecoder(zr).Decode(&files); err != nil {
 		return nil, err
 	}
+	addPre80Failures(files)
+	markBuiltin(files)
 	out := index.New(nil)
 	for _, f := range files {
 		out.Add(f)

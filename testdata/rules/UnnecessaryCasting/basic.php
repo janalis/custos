@@ -35,7 +35,7 @@ class Meter {
 
     public function read(?Meter $other) {
         return [
-            <weak_warning descr="Operand already has the target type; remove the cast.">(int)</weak_warning> $this->hidden,
+            (int) $this->hidden,
             (int) $this->shown,
             <weak_warning descr="Operand already has the target type; remove the cast.">(int)</weak_warning> $this->size(),
             (int) $this->legacy(),

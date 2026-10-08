@@ -72,6 +72,19 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `make fixcheck` also applies all fixes of each file together.
 
 ### Fixed
+- Type engine (review round 2): `str_replace()`/`preg_replace()` & co.
+  follow the subject's members (a string subject is `string|null` for
+  `preg_*`, never `array`); `max()`/`min()` return their arguments' type;
+  PHPDoc and native intersections (`A&B`, `(A&B)|null`) stay intersections
+  and find members on either side (Doctrine `matching()`); writing
+  `$a[1] = …` no longer changes the type of `$a[0]`; `hash()`,
+  `hash_hmac()`, `array_chunk()` and other builtins that failed with
+  false/null before PHP 8.0 are typed so on 7.x.
+- MagicMethodsValidity: no "does not call parent::__construct()" when the
+  parent method's body is empty.
+- UnnecessaryCasting: a cast is not removed when the operand's type comes
+  only from PHPDoc (`@param array<int, int>`, `@var` properties, inline
+  `@var`).
 - Unsafe quick-fixes (phpMyAdmin / Matomo / PrestaShop / Composer /
   PHPUnit / Doctrine ORM review): NestedAssignmentsUsage split
   `$t = $list[] = x` into a read of `$list[]` (fatal);

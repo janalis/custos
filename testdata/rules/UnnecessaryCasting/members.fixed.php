@@ -15,7 +15,7 @@ class Gauge extends Base {
     public function read(string $m, string $p, Gauge|Base $either) {
         return [
             $this->typed,
-            $this->docInt,
+            (int) $this->docInt,
             (string) $this->plain,
             (int) $this->$p,
             (int) $either->typed,

@@ -282,7 +282,7 @@ func (t Type) ShapeString() string {
 				parts[i] = genString(a, args)
 			}
 		}
-		base = strings.Join(parts, "|")
+		base = t.joinParts(parts)
 	}
 	if t.arr == nil {
 		return base
@@ -347,7 +347,7 @@ func (t Type) DocString() string {
 		}
 		parts[i] = docAtom(a, t.arr)
 	}
-	return strings.Join(parts, "|")
+	return t.joinParts(parts)
 }
 
 func docAtom(atom string, a *arrayInfo) string {

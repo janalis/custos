@@ -109,7 +109,7 @@ func (e *Env) collectOutArgs(call syntax.Expr, sv *scopeVars) {
 			if kind := builtin[paramIndex(params, p)]; kind != 0 {
 				typ = e.builtinOutType(kind, al, v)
 			}
-		} else if p.Out != "" {
+		} else if p.Out != "" && !e.native {
 			out := p.Out
 			typ = func() types.Type {
 				if t := types.FromDoc(out, nil); !t.Has("mixed") {

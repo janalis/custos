@@ -300,7 +300,7 @@ func (c *magicCheck) callsParent() {
 		return
 	}
 	pm := ix.FindMethod(parent, c.name, c.ctx.PHP)
-	if pm == nil || pm.Abstract || pm.Visibility == index.Private {
+	if pm == nil || pm.Abstract || pm.Visibility == index.Private || pm.EmptyBody {
 		return
 	}
 	called := false

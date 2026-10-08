@@ -23,6 +23,7 @@ type Type struct {
 	atoms []string   // sorted, unique; nil = unknown
 	arr   *arrayInfo // optional array facts; nil when none
 	gen   []genEntry // generic arguments of class atoms (see gen.go); nil when none
+	inter *[]string  // class atoms forming one intersection (see inter.go); nil when none
 }
 
 // Common types.
@@ -129,7 +130,7 @@ func Union(ts ...Type) Type {
 	if info {
 		u = u.withInfo(unionInfo(ts))
 	}
-	return u.withGen(unionGen(u, ts))
+	return u.withGen(unionGen(u, ts)).withInter(unionInter(ts))
 }
 
 // Without removes atoms.
@@ -149,7 +150,7 @@ func (t Type) Without(atoms ...string) Type {
 			out = append(out, a)
 		}
 	}
-	return Type{atoms: out}.withInfo(t.arr).withGen(t.gen)
+	return Type{atoms: out}.withInfo(t.arr).withGen(t.gen).withInter(t.Intersection())
 }
 
 // Classes returns class atoms (with leading backslash, excluding T[] forms).
@@ -201,12 +202,12 @@ func (t Type) String() string {
 	if len(t.atoms) == 0 { // as IsUnknown: Without may leave an empty set
 		return "?unknown"
 	}
-	return strings.Join(t.atoms, "|")
+	return t.joinParts(t.atoms)
 }
 
 // Equal reports atom-set equality.
 func (t Type) Equal(o Type) bool {
-	if len(t.atoms) != len(o.atoms) || (t.atoms == nil) != (o.atoms == nil) {
+	if len(t.atoms) != len(o.atoms) || (t.atoms == nil) != (o.atoms == nil) || !slices.Equal(t.Intersection(), o.Intersection()) {
 		return false
 	}
 	for i := range t.atoms {

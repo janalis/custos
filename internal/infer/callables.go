@@ -34,7 +34,7 @@ func (e *Env) closureReturn(n syntax.Expr) types.Type {
 	}
 	at := n.Span().Start
 	t := types.FromNode(retNode, e.resolver(at))
-	if d := e.DocOf(n); d != nil {
+	if d := e.DocOf(n); d != nil && !e.native {
 		if doc := d.ReturnType(); doc != "" {
 			t = pickMemberType(t, types.FromDoc(doc, e.resolverFor(n, at)))
 		}
@@ -118,6 +118,9 @@ func (e *Env) callbackReturn(x syntax.Expr) types.Type {
 		f := e.Index.Function(strings.TrimPrefix(name, `\`), e.PHP)
 		if f == nil || f.Tpl != nil {
 			return types.Unknown
+		}
+		if e.userDoc(f.Builtin) {
+			return voidAsNull(types.FromDoc(f.Return, nil))
 		}
 		if f.Return == "" && f.DocReturn == "" {
 			return voidAsNull(e.BodyReturnType(f))
