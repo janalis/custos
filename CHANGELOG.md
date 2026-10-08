@@ -5,6 +5,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- NotOptimalRegularExpressions: an escaped backslash before `.` or `$`
+  (`\\\\.` in a single-quoted pattern) no longer hides the metacharacter,
+  so `/s` and `/D` are not called pointless when they matter.
+
 ## [0.1.0] - 2026-10-08
 
 First public release.
