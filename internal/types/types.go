@@ -7,6 +7,7 @@
 package types
 
 import (
+	"slices"
 	"sort"
 	"strings"
 )
@@ -136,20 +137,19 @@ func (t Type) Without(atoms ...string) Type {
 	if t.IsUnknown() {
 		return t
 	}
-	var out []string
+	// Normalize the dropped atoms once (not once per member).
+	var buf [8]string
+	drop := buf[:0]
+	for _, b := range atoms {
+		drop = append(drop, normalizeAtom(b))
+	}
+	out := make([]string, 0, len(t.atoms))
 	for _, a := range t.atoms {
-		drop := false
-		for _, b := range atoms {
-			if a == normalizeAtom(b) {
-				drop = true
-				break
-			}
-		}
-		if !drop {
+		if !slices.Contains(drop, a) {
 			out = append(out, a)
 		}
 	}
-	return Type{atoms: append([]string{}, out...)}.withInfo(t.arr).withGen(t.gen)
+	return Type{atoms: out}.withInfo(t.arr).withGen(t.gen)
 }
 
 // Classes returns class atoms (with leading backslash, excluding T[] forms).
@@ -228,20 +228,48 @@ func normalizeAtom(a string) string {
 		return ""
 	}
 	if strings.HasPrefix(a, `\`) {
-		low := strings.ToLower(a[1:])
-		if isBuiltinAtom(low) {
-			return low
+		if foldIn(builtinAtoms, a[1:]) {
+			return strings.ToLower(a[1:])
 		}
 		return a
 	}
-	low := strings.ToLower(a)
-	if r, ok := scalarAliases[low]; ok {
+	if r, ok := foldLookup(scalarAliases, a); ok {
 		return r
 	}
-	if isBuiltinAtom(strings.TrimSuffix(low, "[]")) {
-		return low
+	if foldIn(builtinAtoms, strings.TrimSuffix(a, "[]")) {
+		return strings.ToLower(a)
 	}
 	return a
+}
+
+// foldLookup looks s up in m (lower-case keys) ignoring case, without
+// allocating: normalizeAtom runs for every Of/Has/Without on class names,
+// and lower-casing them each time dominated the allocations of narrowing.
+// Non-ASCII text goes through strings.ToLower (the Kelvin sign folds to k).
+func foldLookup[V any](m map[string]V, s string) (V, bool) {
+	var buf [16]byte
+	if len(s) > len(buf) {
+		var zero V
+		return zero, false // longer than any key
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 0x80 {
+			v, ok := m[strings.ToLower(s)]
+			return v, ok
+		}
+		if 'A' <= c && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		buf[i] = c
+	}
+	v, ok := m[string(buf[:len(s)])]
+	return v, ok
+}
+
+func foldIn(m map[string]bool, s string) bool {
+	v, _ := foldLookup(m, s)
+	return v
 }
 
 var builtinAtoms = map[string]bool{

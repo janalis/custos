@@ -229,7 +229,7 @@ func assertNot(t, a types.Type) types.Type {
 		if a.Has("true") {
 			other = "false"
 		}
-		out = types.Union(out.Without("bool"), types.Of(other))
+		out = replaceAtom(out, "bool", other)
 	}
 	if len(out.Atoms()) == 0 {
 		return t

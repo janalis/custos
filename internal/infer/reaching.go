@@ -67,6 +67,7 @@ func (e *Env) reaching(defs []varDef, use, scope syntax.Node) (fwd, back []varDe
 			}
 		}
 	}
+	fwd = dropOtherCases(fwd, use, scope)
 	if len(fwd) == 0 {
 		return nil, nil, 0
 	}
@@ -202,4 +203,61 @@ func (e *Env) writeDominates(v *syntax.Variable) bool {
 		}
 	}
 	return false
+}
+
+// dropOtherCases removes from fwd the definitions made in an earlier case
+// of a switch enclosing use that cannot fall through to use's case: a
+// case between them (the defining one included) ends by leaving the
+// switch (`case 1: $d = []; break; case 2: use($d);`). An enclosing loop
+// still brings them back through the back edge (see reaching).
+func dropOtherCases(fwd []varDef, use, scope syntax.Node) []varDef {
+	var child syntax.Node = use
+	for p := use.Parent(); p != nil && p != scope && len(fwd) > 0; child, p = p, p.Parent() {
+		c, ok := p.(*syntax.Case)
+		if !ok || child == syntax.Node(c.Cond) {
+			continue
+		}
+		sw := c.Parent().(*syntax.Switch)
+		j := nodeIndex(sw.Cases, c)
+		last := -1 // last case before j that leaves the switch
+		for k := j - 1; k >= 0 && k >= j-maxBranchScan; k-- {
+			if caseExits(sw.Cases[k]) {
+				last = k
+				break
+			}
+		}
+		if last < 0 {
+			continue
+		}
+		lo, hi := sw.Cases[0].Span().Start, sw.Cases[last].Span().End
+		kept := fwd[:0]
+		for _, d := range fwd {
+			if d.pos >= lo && d.pos < hi {
+				continue
+			}
+			kept = append(kept, d)
+		}
+		fwd = kept
+	}
+	return fwd
+}
+
+// caseExits reports whether case c ends with break, continue, return,
+// throw or exit (not goto, which may jump into a later case).
+func caseExits(c *syntax.Case) bool {
+	if len(c.Stmts) == 0 {
+		return false
+	}
+	s := c.Stmts[len(c.Stmts)-1]
+	for {
+		b, ok := s.(*syntax.Block)
+		if !ok || len(b.Stmts) == 0 {
+			break
+		}
+		s = b.Stmts[len(b.Stmts)-1]
+	}
+	if _, ok := s.(*syntax.Goto); ok {
+		return false
+	}
+	return terminates(s)
 }

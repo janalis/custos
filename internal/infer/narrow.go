@@ -105,21 +105,43 @@ func (e *Env) narrowExprAfter(t types.Type, x syntax.Expr, key string, scope syn
 		case *syntax.If:
 			if child == syntax.Node(n.Body) {
 				t = cond(x, scope, t, n.Cond, key, true)
-			} else if n.Else != nil && child == syntax.Node(n.Else) && len(n.ElseIfs) == 0 {
+			} else if n.Else != nil && child == syntax.Node(n.Else) && len(n.ElseIfs) < maxBranchScan {
+				// else: every condition of the chain was false.
 				t = cond(x, scope, t, n.Cond, key, false)
+				for _, ei := range n.ElseIfs {
+					t = cond(x, scope, t, ei.Cond, key, false)
+				}
 			}
 		case *syntax.While:
 			if child == syntax.Node(n.Body) {
 				t = cond(x, scope, t, n.Cond, key, true)
 			}
+		case *syntax.For:
+			// The last condition expression decides each iteration.
+			if child == syntax.Node(n.Body) && len(n.Cond) > 0 {
+				t = cond(x, scope, t, n.Cond[len(n.Cond)-1], key, true)
+			}
 		case *syntax.ElseIf:
 			if child == syntax.Node(n.Body) {
+				// The conditions before it in the chain were false.
+				ifn := n.Parent().(*syntax.If)
+				if i := nodeIndex(ifn.ElseIfs, n); i < len(ifn.ElseIfs) && i < maxBranchScan {
+					t = cond(x, scope, t, ifn.Cond, key, false)
+					for _, ei := range ifn.ElseIfs[:i] {
+						t = cond(x, scope, t, ei.Cond, key, false)
+					}
+				}
 				t = cond(x, scope, t, n.Cond, key, true)
 			}
+		case *syntax.MatchArm:
+			t = e.matchArm(x, scope, t, n, child, key, after)
 		case *syntax.Block:
 			t = e.guards(x, scope, t, n, n.Stmts, child, key)
 		case *syntax.Case:
 			t = e.guards(x, scope, t, n, n.Stmts, child, key)
+			if child != syntax.Node(n.Cond) {
+				t = e.switchCase(x, scope, t, n, key, after)
+			}
 		case *syntax.Namespace:
 			t = e.guards(x, scope, t, n, n.Stmts, child, key)
 		}
@@ -593,123 +615,127 @@ var typeChecks = map[string][]string{
 	"is_resource": {"resource"},
 }
 
+// maxCondSteps caps the condition nodes one applyCond call examines. The
+// negation of `A && B` (and the truth of `A || B`) narrows A both ways, so
+// alternating nestings would otherwise cost 3^depth; beyond the budget the
+// remaining sub-conditions narrow nothing (sound: the type is kept).
+const maxCondSteps = 1024
+
 // applyCond narrows t assuming cond evaluates to `truthy`.
 func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool) types.Type {
+	steps := maxCondSteps
+	return e.applyCondB(t, cond, name, truthy, &steps)
+}
+
+// unionNarrowed is the union of two alternative narrowings of one type; an
+// emptied (unknown) side is an impossible path and adds nothing.
+func unionNarrowed(a, b types.Type) types.Type {
+	switch {
+	case a.IsUnknown():
+		return b
+	case b.IsUnknown():
+		return a
+	}
+	return types.Union(a, b)
+}
+
+func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy bool, steps *int) types.Type {
+	if t.IsUnknown() || *steps <= 0 {
+		return t
+	}
+	*steps--
 	switch c := syntax.UnwrapParens(cond).(type) {
 	case *syntax.Unary:
 		if c.Op.Kind == syntax.TExclaim {
-			return e.applyCond(t, c.Expr, name, !truthy)
+			return e.applyCondB(t, c.Expr, name, !truthy, steps)
 		}
 	case *syntax.Binary:
 		switch c.Op.Kind {
 		case syntax.TBooleanAnd, syntax.TAnd:
+			lt := e.applyCondB(t, c.Left, name, true, steps)
 			if truthy {
-				return e.applyCond(e.applyCond(t, c.Left, name, true), c.Right, name, true)
+				return e.applyCondB(lt, c.Right, name, true, steps)
 			}
+			// !(A && B): A is false, or A is true and B false.
+			return unionNarrowed(e.applyCondB(t, c.Left, name, false, steps), e.applyCondB(lt, c.Right, name, false, steps))
 		case syntax.TBooleanOr, syntax.TOr:
+			lf := e.applyCondB(t, c.Left, name, false, steps)
 			if !truthy {
-				return e.applyCond(e.applyCond(t, c.Left, name, false), c.Right, name, false)
+				return e.applyCondB(lf, c.Right, name, false, steps)
 			}
-		case syntax.TIsIdentical, syntax.TIsNotIdentical:
-			if isEmptyArrayComparison(c, name) {
-				if (c.Op.Kind == syntax.TIsNotIdentical) == truthy {
-					return t.WithNonEmpty(true)
-				}
-				return t
-			}
-			if n, ok := countComparison(c, name); ok {
-				return nonEmptyIf(t, countNonEmpty(c.Op.Kind, n, truthy))
-			}
-			lit := ""
-			switch {
-			case isVar(c.Left, name):
-				lit = constLiteral(c.Right)
-			case isVar(c.Right, name):
-				lit = constLiteral(c.Left)
-			}
-			if lit == "" {
-				return t
-			}
-			if (c.Op.Kind == syntax.TIsIdentical) == truthy {
-				if t.Has(lit) || (lit != "null" && t.Has("bool")) {
-					return types.Of(lit)
-				}
-				return t
-			}
-			out := t.Without(lit)
-			if lit != "null" && out.Has("bool") {
-				other := map[string]string{"true": "false", "false": "true"}[lit]
-				out = types.Union(out.Without("bool"), types.Of(other))
-			}
-			return out
+			// A || B: A is true, or A is false and B true.
+			return unionNarrowed(e.applyCondB(t, c.Left, name, true, steps), e.applyCondB(lf, c.Right, name, true, steps))
+		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+			return e.eqCond(t, c, name, truthy, steps)
 		case syntax.TLess, syntax.TIsSmallerOrEqual, syntax.TGreater, syntax.TIsGreaterOrEqual:
 			if n, ok := countComparison(c, name); ok {
 				return nonEmptyIf(t, countNonEmpty(c.Op.Kind, n, truthy))
 			}
-		case syntax.TIsEqual, syntax.TIsNotEqual:
-			if isEmptyArrayComparison(c, name) {
-				// `$x != []`: neither null, false nor an empty array.
-				if (c.Op.Kind == syntax.TIsNotEqual) == truthy {
-					return t.Without("null", "false").WithNonEmpty(true)
-				}
-				return t
-			}
-			if n, ok := countComparison(c, name); ok {
-				return nonEmptyIf(t, countNonEmpty(c.Op.Kind, n, truthy))
-			}
-			isNull := (isVar(c.Left, name) && syntax.IsNullConst(syntax.UnwrapParens(c.Right))) || (isVar(c.Right, name) && syntax.IsNullConst(syntax.UnwrapParens(c.Left)))
-			if !isNull {
-				return t
-			}
-			if (c.Op.Kind == syntax.TIsEqual) != truthy {
-				return t.Without("null")
-			}
 		}
 	case *syntax.Empty:
-		if !truthy && isVar(c.Expr, name) {
-			return t.Without("null", "false").WithNonEmpty(true)
+		if isVar(c.Expr, name) {
+			if truthy {
+				return falsyType(t)
+			}
+			return truthyType(t)
+		}
+		if !truthy {
+			return chainBaseNonNull(t, c.Expr, name)
 		}
 	case *syntax.Instanceof:
 		if !isVar(c.Expr, name) {
+			if truthy {
+				return chainBaseNonNull(t, c.Expr, name)
+			}
+			return t
+		}
+		cls := e.classRef(c.Class)
+		if cls == "" {
 			return t
 		}
 		if truthy {
-			if cls := e.classRef(c.Class); cls != "" {
-				atom := `\` + cls
-				// Keep the generic arguments the type already had for it.
-				return types.Of(atom).WithTypeArgs(atom, t.TypeArgs(atom))
-			}
+			return instanceType(t, cls)
+		}
+		return e.notInstance(t, cls, true)
+	case *syntax.Isset:
+		if !truthy {
 			return t
 		}
-		if cls := e.classRef(c.Class); cls != "" {
-			// Not an instance of cls: neither cls nor any of its subtypes
-			// (`string|PropertyPath` minus `instanceof PropertyPathInterface`).
-			drop := []string{`\` + cls}
-			for _, a := range t.Classes() {
-				if !strings.HasSuffix(a, "[]") && !strings.EqualFold(a, `\`+cls) &&
-					e.Index.IsSubtype(strings.TrimPrefix(a, `\`), cls, e.PHP) {
-					drop = append(drop, a)
-				}
-			}
-			return t.Without(drop...)
-		}
-	case *syntax.Isset:
 		for _, x := range c.Vars {
-			if isVar(x, name) && truthy {
+			if isVar(x, name) {
 				return t.Without("null")
 			}
 		}
-	case *syntax.Variable, *syntax.PropertyFetch, *syntax.ArrayDimFetch:
-		if narrowKey(c) == name && truthy {
-			return t.Without("null", "false").WithNonEmpty(true)
+		for _, x := range c.Vars {
+			// `isset($x->p)`, `isset($x['a']['b'])`: the base is set too.
+			if r, ok := chainBase(t, x, name); ok {
+				return r
+			}
+		}
+	case *syntax.Variable, *syntax.PropertyFetch, *syntax.ArrayDimFetch, *syntax.MethodCall:
+		if narrowKey(c) == name {
+			if truthy {
+				return truthyType(t)
+			}
+			return falsyType(t)
+		}
+		if mc, ok := c.(*syntax.MethodCall); ok {
+			if r, ok := e.condAsserts(mc, name, truthy, t); ok {
+				return r
+			}
+		}
+		if truthy {
+			// `$x?->isReady()`, `$x->items[0]`: a null (or, for an element,
+			// false) base would make the whole chain null.
+			return chainBaseNonNull(t, c, name)
 		}
 	case *syntax.Assign:
 		// `while ($job = $q->next())`, `if (!$x = f())`: the assigned
 		// variable's truthiness.
 		if c.Op.Kind == syntax.TEqual && !c.ByRef && narrowKey(c.Var) == name {
-			return e.applyCond(t, c.Var, name, truthy)
+			return e.applyCondB(t, c.Var, name, truthy, steps)
 		}
-	case *syntax.MethodCall, *syntax.StaticCall:
+	case *syntax.StaticCall:
 		if r, ok := e.condAsserts(c, name, truthy, t); ok {
 			return r
 		}
@@ -726,8 +752,13 @@ func (e *Env) applyCond(t types.Type, cond syntax.Expr, name string, truthy bool
 			return t
 		}
 		fn := strings.ToLower(strings.TrimPrefix(nm.Value, `\`))
-		if (fn == "count" || fn == "sizeof") && truthy {
-			return t.WithNonEmpty(true)
+		switch fn {
+		case "count", "sizeof":
+			return nonEmptyIf(t, truthy)
+		case "is_a", "is_subclass_of":
+			return e.isACond(t, c, fn, truthy)
+		case "in_array":
+			return e.inArrayCond(t, c, truthy)
 		}
 		atoms, ok := typeChecks[fn]
 		if !ok {
@@ -902,10 +933,15 @@ func countNonEmpty(op syntax.TokenKind, c countCmp, truthy bool) bool {
 	return false
 }
 
-// nonEmptyIf marks t's array members non-empty when cond holds.
+// nonEmptyIf marks t's array members non-empty when cond (count($x) >= 1)
+// holds; null is gone too (count(null) is 0 before PHP 8, a TypeError
+// since).
 func nonEmptyIf(t types.Type, cond bool) types.Type {
-	if cond {
-		return t.WithNonEmpty(true)
+	if !cond {
+		return t
 	}
-	return t
+	if nt := t.Without("null"); len(nt.Atoms()) > 0 {
+		t = nt
+	}
+	return t.WithNonEmpty(true)
 }

@@ -156,3 +156,41 @@ final class Subject {
 		})
 	}
 }
+
+// BenchmarkTypeOfConditions types every variable of functions narrowed by
+// compound guards, elseif chains, match arms and switch cases.
+func BenchmarkTypeOfConditions(b *testing.B) {
+	var sb strings.Builder
+	sb.WriteString("<?php\nclass Foo { public ?Foo $next = null; public function ok(): bool { return true; } }\n")
+	for i := 0; i < 200; i++ {
+		fmt.Fprintf(&sb, `function f%d(int|string|array|null $x, ?Foo $o, $c) {
+    if (!is_scalar($x) && !$x instanceof \Stringable) { return; }
+    if ($x === null || is_string($x)) { $a = $x; } elseif (is_int($x)) { $a = $x; } else { $a = $x; }
+    $m = match (true) { is_string($x) => $x, $x === null => $x, default => $x };
+    switch (true) {
+        case is_int($x): $y = $x; break;
+        case $o?->ok(): $y = $o; break;
+        default: $y = $x;
+    }
+    if (gettype($x) === 'string' || in_array($x, [1, 2], true)) { $z = $x; }
+    return $o !== null && $o->next !== null ? $o->next : $x;
+}
+`, i)
+	}
+	src := []byte(sb.String())
+	opt := syntax.Options{Version: phpver.PHP84}
+	b.ReportAllocs()
+	for b.Loop() {
+		f := syntax.Parse("t.php", src, opt)
+		ix := index.New(stubs.Index())
+		ix.Add(index.Extract(f))
+		env := infer.NewEnv(f, names.New(f), ix, phpver.PHP84)
+		syntax.InspectFile(f, func(n syntax.Node) bool {
+			switch n.(type) {
+			case *syntax.Variable, *syntax.PropertyFetch:
+				env.TypeOf(n.(syntax.Expr))
+			}
+			return true
+		})
+	}
+}
