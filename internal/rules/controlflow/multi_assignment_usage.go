@@ -71,6 +71,11 @@ func (multiAssignmentUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		if baseHasSideEffects(base) || writesIntoBase(ctx, pa.Var, base) {
 			return
 		}
+		// E8 (custos): `[$a, $b] = $s` assigns null from a string, where
+		// `$s[0]` reads its first byte.
+		if ctx.TypeOf(base).Has("string") {
+			return
+		}
 		ctx.ReportNode(as, "Use one destructuring assignment from '"+ctx.Text(base)+"' instead.") // D8
 	}
 }
