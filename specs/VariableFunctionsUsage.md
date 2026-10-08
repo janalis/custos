@@ -79,6 +79,19 @@ one imported from another namespace, or a qualified non-global name such as
       there is no `second` and that value starts with `parent::`
       (case-insensitive) → **no report** (same rule as the method part);
     - simple variable → its verbatim text.
+- **D7a** When the target is a function name taken from a string literal
+  (no `second`, or the D7 override — a name without `::`) and that name has
+  no namespace separator other than an optional leading `\`
+  (`'disk_free_space'`, `'\disk_free_space'`), → **no report** if, at the
+  call's position, an unqualified call of that name would not reach the
+  global function: the enclosing namespace declares a function with the
+  same short name (case-insensitive, anywhere in the file or the project
+  index), or a `use function` import binds that short name to another
+  function. In that situation the string is the deliberate way to reach the
+  global function (typically a namespaced override that wraps the
+  builtin), and the only direct spelling, `\name(...)`, is undone by
+  formatters that strip the `\` of native calls — turning the wrapper into
+  infinite recursion (custos diverges, see Divergences).
 - **D8** Arguments text: the call's arguments from the 2nd onward, each as
   verbatim text, prefixed with `...` when it is an argument unpacking (and
   with `name: ` for a named argument); joined by `, `.
@@ -104,6 +117,10 @@ lists, as upstream fixtures contain it.)
 - **E4** Part B: a callable string starting with `parent::`
   (case-insensitive), whether it is the method part of an array callable
   (`[$m, 'parent::send']`) or the whole callable (`'parent::send'`).
+- **E4a** Part B: a global function name in a string while a same-named
+  namespace function or function import shadows it at the call (D7a), e.g.
+  `call_user_func('disk_free_space', $dir)` inside a namespace that
+  declares its own `disk_free_space()`.
 - **E5** Part B: class/function part that is not a non-interpolated string or
   a simple variable (`$list[$i]`, `$o->p`, `"$cls::m"`, `make()`), even when
   the method part contains `::` (`[$list[$i], 'Base::m']`), or an empty
@@ -140,11 +157,10 @@ lists, as upstream fixtures contain it.)
   the call. Names taken from string literals are therefore written with a
   leading `\` when, written as-is at the reported position, they would
   resolve elsewhere:
-  - a function name (no `::`): unqualified names get `\` when an
-    unqualified call would not reach the global function (a `use function`
-    import under that name, or a same-named function declared in the
-    namespace); qualified names (`Pkg\run`) get `\` when they would resolve
-    relative to the namespace or through a class import;
+  - a function name (no `::`): unqualified names are never shadowed at
+    this point (D7a skips those calls) and are written as-is; qualified
+    names (`Pkg\run`) get `\` when they would resolve relative to the
+    namespace or through a class import;
   - a class name (array callable `['Repo', 'm']`, or the part before `::`
     in `'Repo::m'`, including the D7 override string): `\` when the class
     name would resolve to another class (namespace-relative or imported
@@ -236,7 +252,51 @@ Level 7.4: `call_user_func_array($hook, ['to' => $to, $body])` →
 Level 5.3: `call_user_func($hook, 1)` is not reported; `call_user_func('trim', $s)`
 → `trim($s)` still is.
 
+Shadowed global function (any level):
+
+```php
+<?php
+namespace Probe;
+
+function disk_free_space(string $dir): float|false
+{
+    $real = call_user_func('disk_free_space', $dir);
+    return Fake::$free ?? $real;
+}
+
+function sample(string $dir)
+{
+    return <weak_warning descr="Call it directly: 'is_dir($dir)'.">call_user_func('is_dir', $dir)</weak_warning>;
+}
+```
+
+```php
+<?php
+namespace Probe;
+
+function disk_free_space(string $dir): float|false
+{
+    $real = call_user_func('disk_free_space', $dir);
+    return Fake::$free ?? $real;
+}
+
+function sample(string $dir)
+{
+    return is_dir($dir);
+}
+```
+
 ## Divergences
+
+- **Shadowed global functions (custos diverges, D7a).** A namespaced
+  function that wraps the builtin of the same name (a test seam for
+  `disk_free_space()`, `time()`, …) reaches the builtin with
+  `call_user_func('name', …)`, because a callable string is always
+  absolute. Upstream rewrites it to `name(...)`, which calls the wrapper
+  itself; custos's spelling rule produced `\name(...)`, correct but undone
+  by formatters that unqualify native calls (php-cs-fixer's
+  `native_function_invocation`), which turned a real wrapper into infinite
+  recursion. custos does not report these calls.
 
 - **Keys in Part A (custos diverges):** upstream always drops the keys of
   the argument array. From PHP 8 on, string keys are named arguments, so the
