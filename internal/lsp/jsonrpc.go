@@ -66,7 +66,7 @@ func (c *conn) read() (*message, error) {
 	length := -1
 	for {
 		raw, err := c.r.ReadSlice('\n')
-		if err == bufio.ErrBufferFull {
+		if errors.Is(err, bufio.ErrBufferFull) {
 			return nil, fmt.Errorf("lsp: header line longer than %d bytes", maxHeaderLine)
 		}
 		if err != nil {

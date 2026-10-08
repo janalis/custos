@@ -94,8 +94,10 @@ func Parse(path string, src []byte, opt Options) *File {
 	f.Stmts = p.parseTopStmts()
 	if len(p.errs) > MaxErrors {
 		// Garbage input yields an error per token: keep the report bounded.
-		p.errs = append(p.errs[:MaxErrors:MaxErrors], Error{Span: p.errs[MaxErrors].Span,
-			Msg: fmt.Sprintf("more than %d syntax errors; the rest are not reported", MaxErrors)})
+		p.errs = append(p.errs[:MaxErrors:MaxErrors], Error{
+			Span: p.errs[MaxErrors].Span,
+			Msg:  fmt.Sprintf("more than %d syntax errors; the rest are not reported", MaxErrors),
+		})
 	}
 	if p.tooDeep || TreeDepth(f.Stmts) > MaxDepth {
 		// Pathologically nested input (generated or hostile): recursive

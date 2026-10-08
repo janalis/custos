@@ -84,7 +84,7 @@ func TestDiscoverErrors(t *testing.T) {
 	if err := os.Chmod(locked, 0); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chmod(locked, 0o755)
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
 	if _, err := Discover([]string{dir}, nil); !errors.Is(err, os.ErrPermission) {
 		t.Fatalf("unreadable directory: %v", err)
 	}

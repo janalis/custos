@@ -6,7 +6,7 @@ title: TypeUnsafeArraySearch
 
 # TypeUnsafeArraySearch
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" />
 
 Group: [Type compatibility](/rules/#type-compatibility) · PhpStorm name: `TypeUnsafeArraySearchInspection`
 

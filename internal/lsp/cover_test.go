@@ -3,6 +3,7 @@ package lsp
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -152,7 +153,7 @@ func TestServeEndings(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := Serve(ctx, strings.NewReader(frame(`{"jsonrpc":"2.0","method":"$/setTrace"}`)+initReq), io.Discard); err != context.Canceled {
+	if err := Serve(ctx, strings.NewReader(frame(`{"jsonrpc":"2.0","method":"$/setTrace"}`)+initReq), io.Discard); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled: %v", err)
 	}
 }

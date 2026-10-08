@@ -12,7 +12,7 @@ func Terminates(s syntax.Stmt) bool { return syntax.Terminates(s) }
 // guarded by constant conditions are considered reachable. scope may be nil
 // (file level).
 func Reachable(n, scope syntax.Node) bool {
-	var child syntax.Node = n
+	child := n
 	for p := n.Parent(); p != nil && child != scope; p = p.Parent() {
 		if list, ok := syntax.StmtListOf(p); ok {
 			// Statements before child (all of them when child is not in the

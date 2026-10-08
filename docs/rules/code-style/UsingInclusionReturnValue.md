@@ -6,7 +6,7 @@ title: UsingInclusionReturnValue
 
 # UsingInclusionReturnValue
 
-<Badge type="info" text="info" /> <Badge type="info" text="off by default" /> 
+<Badge type="info" text="info" /> <Badge type="info" text="off by default" />
 
 Group: [Code style](/rules/#code-style) · PhpStorm name: `UsingInclusionReturnValueInspection`
 

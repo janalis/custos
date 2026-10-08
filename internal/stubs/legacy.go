@@ -57,8 +57,10 @@ func markBuiltin(files []*index.FileSymbols) {
 // it checks; rules reading the stubs (MissingIssetImplementation) took
 // them for undeclared.
 var missingProps = map[string][]string{
-	"oauthprovider": {"consumer_key", "consumer_secret", "signature", "signature_method", "token",
-		"token_secret", "nonce", "timestamp", "version", "callback", "verifier"},
+	"oauthprovider": {
+		"consumer_key", "consumer_secret", "signature", "signature_method", "token",
+		"token_secret", "nonce", "timestamp", "version", "callback", "verifier",
+	},
 }
 
 // addMissingProps declares the properties of missingProps on their stub

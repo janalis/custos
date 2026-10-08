@@ -6,7 +6,7 @@ title: DegradedSwitch
 
 # DegradedSwitch
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" />
 
 Group: [Control flow](/rules/#control-flow) · PhpStorm name: `DegradedSwitchInspection`
 

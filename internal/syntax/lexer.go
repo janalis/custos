@@ -2,6 +2,7 @@ package syntax
 
 import (
 	"bytes"
+	"errors"
 	"strconv"
 	"strings"
 
@@ -686,7 +687,7 @@ func (l *lexer) intOrFloat(start, base int) TokenKind {
 		}
 	}
 	if _, err := strconv.ParseInt(s, base, 64); err != nil {
-		if ne, ok := err.(*strconv.NumError); ok && ne.Err == strconv.ErrRange {
+		if errors.Is(err, strconv.ErrRange) {
 			return TDNumber
 		}
 	}
@@ -993,16 +994,56 @@ type opEntry struct {
 // operators sorted longest first within each leading byte.
 var operators = func() map[byte][]opEntry {
 	list := []opEntry{
-		{"<<=", TSlEqual}, {">>=", TSrEqual}, {"**=", TPowEqual}, {"...", TEllipsis}, {"<=>", TSpaceship},
-		{"===", TIsIdentical}, {"!==", TIsNotIdentical},
-		{"->", TObjectOperator}, {"=>", TDoubleArrow}, {"::", TPaamayimNekudotayim}, {"++", TInc},
-		{"--", TDec}, {"==", TIsEqual}, {"!=", TIsNotEqual}, {"<>", TIsNotEqual}, {"<=", TIsSmallerOrEqual},
-		{">=", TIsGreaterOrEqual}, {"+=", TPlusEqual}, {"-=", TMinusEqual}, {"*=", TMulEqual},
-		{".=", TConcatEqual}, {"%=", TModEqual}, {"&=", TAndEqual}, {"|=", TOrEqual}, {"^=", TXorEqual},
-		{"<<", TSl}, {">>", TSr}, {"||", TBooleanOr}, {"&&", TBooleanAnd}, {"**", TPow}, {"|>", TPipe},
-		{";", TSemicolon}, {",", TComma}, {".", TDot}, {"[", TLBracket}, {"]", TRBracket}, {")", TRParen},
-		{"+", TPlus}, {"-", TMinus}, {"*", TMul}, {"%", TMod}, {"=", TEqual}, {"<", TLess}, {">", TGreater},
-		{"!", TExclaim}, {":", TColon}, {"&", TAmpersand}, {"|", TBar}, {"^", TCaret}, {"~", TTilde},
+		{"<<=", TSlEqual},
+		{">>=", TSrEqual},
+		{"**=", TPowEqual},
+		{"...", TEllipsis},
+		{"<=>", TSpaceship},
+		{"===", TIsIdentical},
+		{"!==", TIsNotIdentical},
+		{"->", TObjectOperator},
+		{"=>", TDoubleArrow},
+		{"::", TPaamayimNekudotayim},
+		{"++", TInc},
+		{"--", TDec},
+		{"==", TIsEqual},
+		{"!=", TIsNotEqual},
+		{"<>", TIsNotEqual},
+		{"<=", TIsSmallerOrEqual},
+		{">=", TIsGreaterOrEqual},
+		{"+=", TPlusEqual},
+		{"-=", TMinusEqual},
+		{"*=", TMulEqual},
+		{".=", TConcatEqual},
+		{"%=", TModEqual},
+		{"&=", TAndEqual},
+		{"|=", TOrEqual},
+		{"^=", TXorEqual},
+		{"<<", TSl},
+		{">>", TSr},
+		{"||", TBooleanOr},
+		{"&&", TBooleanAnd},
+		{"**", TPow},
+		{"|>", TPipe},
+		{";", TSemicolon},
+		{",", TComma},
+		{".", TDot},
+		{"[", TLBracket},
+		{"]", TRBracket},
+		{")", TRParen},
+		{"+", TPlus},
+		{"-", TMinus},
+		{"*", TMul},
+		{"%", TMod},
+		{"=", TEqual},
+		{"<", TLess},
+		{">", TGreater},
+		{"!", TExclaim},
+		{":", TColon},
+		{"&", TAmpersand},
+		{"|", TBar},
+		{"^", TCaret},
+		{"~", TTilde},
 		{"@", TAt},
 	}
 	m := map[byte][]opEntry{}

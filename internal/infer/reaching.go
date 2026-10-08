@@ -235,7 +235,7 @@ func (e *Env) writeDominates(v *syntax.Variable) bool {
 // switch (`case 1: $d = []; break; case 2: use($d);`). An enclosing loop
 // still brings them back through the back edge (see reaching).
 func dropOtherCases(fwd []varDef, use, scope syntax.Node) []varDef {
-	var child syntax.Node = use
+	child := use
 	for p := use.Parent(); p != nil && p != scope && len(fwd) > 0; child, p = p, p.Parent() {
 		c, ok := p.(*syntax.Case)
 		if !ok || child == syntax.Node(c.Cond) {
@@ -296,7 +296,7 @@ func caseExits(c *syntax.Case) bool {
 // inside a loop the other branch runs on an earlier iteration.
 func dropExclusive(fwd []varDef, use, scope syntax.Node) []varDef {
 	var excl []syntax.Span
-	var child syntax.Node = use
+	child := use
 	for p := use.Parent(); p != nil && p != scope && len(fwd) > 0; child, p = p, p.Parent() {
 		switch n := p.(type) {
 		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
@@ -642,7 +642,7 @@ func dropDominated(fwd []varDef, use, scope syntax.Node) []varDef {
 	if len(fwd) < 2 {
 		return fwd
 	}
-	var child syntax.Node = use
+	child := use
 	for p := use.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
 		var cond syntax.Expr
 		switch n := p.(type) {

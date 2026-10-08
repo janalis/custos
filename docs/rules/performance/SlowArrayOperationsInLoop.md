@@ -6,11 +6,12 @@ title: SlowArrayOperationsInLoop
 
 # SlowArrayOperationsInLoop
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Performance](/rules/#performance) · PhpStorm name: `SlowArrayOperationsInLoopInspection`
 
 Two loop anti-patterns:
+
 - **Accumulating merges**: `$acc = array_merge($acc, $chunk)` inside a loop
   copies the whole accumulator on every iteration (quadratic cost). Collect
   the chunks and merge once after the loop.

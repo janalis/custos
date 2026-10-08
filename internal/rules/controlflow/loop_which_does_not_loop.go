@@ -108,7 +108,7 @@ func loopNoLoopIsLoop(n syntax.Node) bool {
 }
 
 // continuesLoop reports whether a `continue` inside body targets loop.
-func continuesLoop(body syntax.Node, loop syntax.Node) bool {
+func continuesLoop(body, loop syntax.Node) bool {
 	found := false
 	syntax.Inspect(body, func(x syntax.Node) bool {
 		if found {

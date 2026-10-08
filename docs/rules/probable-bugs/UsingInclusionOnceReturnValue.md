@@ -6,7 +6,7 @@ title: UsingInclusionOnceReturnValue
 
 # UsingInclusionOnceReturnValue
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> 
+<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs) · PhpStorm name: `UsingInclusionOnceReturnValueInspection`
 

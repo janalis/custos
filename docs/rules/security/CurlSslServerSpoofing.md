@@ -6,7 +6,7 @@ title: CurlSslServerSpoofing
 
 # CurlSslServerSpoofing
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> 
+<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
 
 Group: [Security](/rules/#security) · PhpStorm name: `CurlSslServerSpoofingInspection`
 

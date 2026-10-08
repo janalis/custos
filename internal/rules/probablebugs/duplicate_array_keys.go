@@ -93,7 +93,7 @@ func arrayKeyValue(e syntax.Expr) (string, bool) {
 // that fits a 64-bit int ("-0" stays a string).
 func canonicalIntString(s string) bool {
 	d := s
-	if len(d) > 0 && d[0] == '-' {
+	if d != "" && d[0] == '-' {
 		d = d[1:]
 		if d == "0" {
 			return false

@@ -180,8 +180,10 @@ func (e *Engine) Analyze(f *syntax.File) []Finding {
 			disabled = map[int]bool{}
 		}
 		disabled[crashed] = true
-		internal = append(internal, Finding{Rule: "internal", Severity: meta.SeverityError,
-			Message: fmt.Sprintf("custos rule %s crashed on this file and was skipped: %s", e.rules[crashed].meta.ID, msg)})
+		internal = append(internal, Finding{
+			Rule: "internal", Severity: meta.SeverityError,
+			Message: fmt.Sprintf("custos rule %s crashed on this file and was skipped: %s", e.rules[crashed].meta.ID, msg),
+		})
 	}
 }
 
@@ -232,8 +234,10 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool) (out []Findi
 	}
 	sortFindings(out)
 	if ctx.truncated {
-		out = append(out, Finding{Rule: "internal", Severity: meta.SeverityWarning,
-			Message: fmt.Sprintf("more than %d findings in this file; the rest are not reported", MaxFindingsPerFile)})
+		out = append(out, Finding{
+			Rule: "internal", Severity: meta.SeverityWarning,
+			Message: fmt.Sprintf("more than %d findings in this file; the rest are not reported", MaxFindingsPerFile),
+		})
 	}
 	return out, -1, ""
 }

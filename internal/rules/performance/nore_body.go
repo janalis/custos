@@ -11,10 +11,14 @@ import (
 
 // noreShortClasses lists the D14 keys and their shorthand, in report order.
 var noreShortClasses = [][2]string{
-	{`[0-9]`, `\d`}, {`[:digit:]`, `\d`},
-	{`[^0-9]`, `\D`}, {`[^\d]`, `\D`},
-	{`[:word:]`, `\w`}, {`[A-Za-z0-9_]`, `\w`},
-	{`[^\w]`, `\W`}, {`[^A-Za-z0-9_]`, `\W`},
+	{`[0-9]`, `\d`},
+	{`[:digit:]`, `\d`},
+	{`[^0-9]`, `\D`},
+	{`[^\d]`, `\D`},
+	{`[:word:]`, `\w`},
+	{`[A-Za-z0-9_]`, `\w`},
+	{`[^\w]`, `\W`},
+	{`[^A-Za-z0-9_]`, `\W`},
 	{`[^\s]`, `\S`},
 }
 

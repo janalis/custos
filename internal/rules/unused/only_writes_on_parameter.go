@@ -189,7 +189,7 @@ func (s *owpScope) accesses(name string) []owpAccess {
 	return out
 }
 
-func owpInArrow(v syntax.Node, scope syntax.Node) bool {
+func owpInArrow(v, scope syntax.Node) bool {
 	for p := v.Parent(); p != nil && p != scope; p = p.Parent() {
 		if _, ok := p.(*syntax.ArrowFunction); ok {
 			return true
@@ -411,7 +411,7 @@ func owpIsWriteNature(x *syntax.Variable) bool {
 		// target or the foreach value) writes; an array literal used as a
 		// value merely reads its elements.
 		prev := syntax.Node(p)
-		for c := syntax.Node(p.Parent()); c != nil; prev, c = c, c.Parent() {
+		for c := p.Parent(); c != nil; prev, c = c, c.Parent() {
 			switch q := c.(type) {
 			case *syntax.List, *syntax.Array:
 				continue

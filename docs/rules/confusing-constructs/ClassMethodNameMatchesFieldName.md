@@ -6,7 +6,7 @@ title: ClassMethodNameMatchesFieldName
 
 # ClassMethodNameMatchesFieldName
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" />
 
 Group: [Confusing constructs](/rules/#confusing-constructs) · PhpStorm name: `ClassMethodNameMatchesFieldNameInspection`
 

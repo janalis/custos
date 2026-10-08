@@ -59,8 +59,10 @@ func (ix *Index) generation() uint64 {
 
 // New returns an empty index layered over base (may be nil).
 func New(base *Index) *Index {
-	return &Index{base: base, classes: map[string][]*Class{}, functions: map[string][]*Function{},
-		constants: map[string][]*Constant{}, files: map[string]*FileSymbols{}}
+	return &Index{
+		base: base, classes: map[string][]*Class{}, functions: map[string][]*Function{},
+		constants: map[string][]*Constant{}, files: map[string]*FileSymbols{},
+	}
 }
 
 func key(fqn string) string { return strings.ToLower(strings.TrimPrefix(fqn, `\`)) }

@@ -116,10 +116,10 @@ func TestErrors(t *testing.T) {
 			args: []string{"-bump", "patch", "-notes", filepath.Join("missing", "dir", "notes.md")}, want: "notes.md",
 		},
 		"changelog unwritable": {
-			setup: func(d string) { os.Chmod(filepath.Join(d, "CHANGELOG.md"), 0o444) }, args: []string{"-bump", "patch"}, want: "CHANGELOG.md",
+			setup: func(d string) { _ = os.Chmod(filepath.Join(d, "CHANGELOG.md"), 0o444) }, args: []string{"-bump", "patch"}, want: "CHANGELOG.md",
 		},
 		"launcher unwritable": {
-			setup: func(d string) { os.Chmod(filepath.Join(d, "custos"), 0o444) }, args: []string{"-bump", "patch"}, want: "custos",
+			setup: func(d string) { _ = os.Chmod(filepath.Join(d, "custos"), 0o444) }, args: []string{"-bump", "patch"}, want: "custos",
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

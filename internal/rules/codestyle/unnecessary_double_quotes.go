@@ -30,7 +30,7 @@ func (unNecessaryDoubleQuotes) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	raw := lit.Raw
 	prefix := ""
-	if len(raw) > 0 && (raw[0] == 'b' || raw[0] == 'B') { // binary prefix kept
+	if raw != "" && (raw[0] == 'b' || raw[0] == 'B') { // binary prefix kept
 		prefix, raw = raw[:1], raw[1:]
 	}
 	if len(raw) < 2 || raw[0] != '"' || raw[len(raw)-1] != '"' { // D1

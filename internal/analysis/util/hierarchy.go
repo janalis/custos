@@ -1,9 +1,9 @@
 package util
 
 import (
-	"custos/internal/analysis"
 	"strings"
 
+	"custos/internal/analysis"
 	"custos/internal/index"
 	"custos/internal/phpdoc"
 	"custos/internal/phpver"

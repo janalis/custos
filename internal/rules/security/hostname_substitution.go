@@ -210,7 +210,7 @@ func whitelisted(ctx *analysis.Context, s *syntax.ArrayDimFetch) bool {
 	if fn == nil {
 		return false
 	}
-	var scope syntax.Node = fn
+	scope := fn
 	if body := syntax.FuncLikeBody(fn); body != nil {
 		scope = body
 	}

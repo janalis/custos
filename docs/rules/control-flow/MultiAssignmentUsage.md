@@ -6,11 +6,12 @@ title: MultiAssignmentUsage
 
 # MultiAssignmentUsage
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" />
 
 Group: [Control flow](/rules/#control-flow) · PhpStorm name: `MultiAssignmentUsageInspection`
 
 Two patterns where destructuring would be clearer:
+
 1. unpacking the `foreach` value variable with `list(...) = $value` as a
    separate statement, when `foreach (... as list(...))` can do it directly
    (PHP 5.5+);

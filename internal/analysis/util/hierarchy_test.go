@@ -1,9 +1,9 @@
 package util
 
 import (
-	"custos/internal/analysis"
 	"testing"
 
+	"custos/internal/analysis"
 	"custos/internal/index"
 	"custos/internal/names"
 	"custos/internal/stubs"

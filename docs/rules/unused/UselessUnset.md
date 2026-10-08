@@ -6,7 +6,7 @@ title: UselessUnset
 
 # UselessUnset
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" />
 
 Group: [Unused](/rules/#unused) · PhpStorm name: `UselessUnsetInspection`
 

@@ -142,7 +142,7 @@ func debugCheckMethod(ctx *analysis.Context, call syntax.Node, name, recv syntax
 
 // debugOutputBuffered implements E2: `ob_start(); <call>;`.
 func debugOutputBuffered(f *syntax.File, call *syntax.FuncCall) bool {
-	var p syntax.Node = call.Parent()
+	p := call.Parent()
 	if u, ok := p.(*syntax.Unary); ok && u.Op.Kind == syntax.TAt {
 		p = u.Parent()
 	}

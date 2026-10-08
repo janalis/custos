@@ -6,7 +6,7 @@ title: NestedTernaryOperator
 
 # NestedTernaryOperator
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
 
 Group: [Confusing constructs](/rules/#confusing-constructs) · PhpStorm name: `NestedTernaryOperatorInspection`
 

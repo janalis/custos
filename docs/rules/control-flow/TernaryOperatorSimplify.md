@@ -6,7 +6,7 @@ title: TernaryOperatorSimplify
 
 # TernaryOperatorSimplify
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Control flow](/rules/#control-flow) · PhpStorm name: `TernaryOperatorSimplifyInspection`
 

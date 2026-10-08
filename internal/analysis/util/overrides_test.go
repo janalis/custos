@@ -27,8 +27,14 @@ class G implements I, K {}
 		fqn, name string
 		want      bool
 	}{
-		{`N\A`, "name", true}, {`N\A`, "run", true}, {`\N\I`, "run", true}, {`N\A`, "only", false},
-		{`N\B`, "name", false}, {`N\D`, "run", false}, {`N\Missing`, "run", false}, {`N\I`, "absent", false},
+		{`N\A`, "name", true},
+		{`N\A`, "run", true},
+		{`\N\I`, "run", true},
+		{`N\A`, "only", false},
+		{`N\B`, "name", false},
+		{`N\D`, "run", false},
+		{`N\Missing`, "run", false},
+		{`N\I`, "absent", false},
 	} {
 		if got := DescendantMethods(ix, c.fqn, 0)[c.name]; got != c.want {
 			t.Errorf("DescendantMethods(%s, %s) = %v", c.fqn, c.name, got)

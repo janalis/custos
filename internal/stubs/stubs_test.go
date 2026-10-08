@@ -33,7 +33,7 @@ func TestBuiltins(t *testing.T) {
 
 func BenchmarkDecode(b *testing.B) {
 	for b.Loop() {
-		once = *new(sync.Once)
+		once = sync.Once{}
 		Index()
 	}
 }
@@ -44,8 +44,8 @@ func TestDecodeErrors(t *testing.T) {
 	}
 	var buf bytes.Buffer
 	zw := gzip.NewWriter(&buf)
-	zw.Write([]byte("not gob"))
-	zw.Close()
+	_, _ = zw.Write([]byte("not gob"))
+	_ = zw.Close()
 	if _, err := decode(buf.Bytes()); err == nil {
 		t.Error("non-gob payload must fail")
 	}

@@ -59,18 +59,23 @@ func TestLexVersionGating(t *testing.T) {
 		{"interpolation", `<?php "a $b[0] {$c->d} ${e}"`, phpver.PHP84, []TokenKind{
 			TOpenTag, TDoubleQuote, TEncapsedAndWhitespace, TVariable, TLBracket, TNumString, TRBracket,
 			TEncapsedAndWhitespace, TCurlyOpen, TVariable, TObjectOperator, TString, TRBrace,
-			TEncapsedAndWhitespace, TDollarOpenCurlyBraces, TStringVarname, TRBrace, TDoubleQuote}},
+			TEncapsedAndWhitespace, TDollarOpenCurlyBraces, TStringVarname, TRBrace, TDoubleQuote,
+		}},
 		{"plain double quoted", `<?php "a {b} \$c"`, phpver.PHP84, []TokenKind{TOpenTag, TConstantEncapsedString}},
 		{"heredoc flexible", "<?php <<<EOT\n  a $b\n  EOT;\n", phpver.PHP73, []TokenKind{
-			TOpenTag, TStartHeredoc, TEncapsedAndWhitespace, TVariable, TEncapsedAndWhitespace, TEndHeredoc, TSemicolon}},
+			TOpenTag, TStartHeredoc, TEncapsedAndWhitespace, TVariable, TEncapsedAndWhitespace, TEndHeredoc, TSemicolon,
+		}},
 		{"heredoc legacy", "<?php <<<EOT\n  EOT\nEOT;\n", phpver.PHP72, []TokenKind{
-			TOpenTag, TStartHeredoc, TEncapsedAndWhitespace, TEndHeredoc, TSemicolon}},
+			TOpenTag, TStartHeredoc, TEncapsedAndWhitespace, TEndHeredoc, TSemicolon,
+		}},
 		{"nowdoc", "<?php <<<'X'\n$a\nX;\n", phpver.PHP84, []TokenKind{TOpenTag, TStartHeredoc, TEncapsedAndWhitespace, TEndHeredoc, TSemicolon}},
 		{"halt compiler", "<?php __halt_compiler(); <?php junk", phpver.PHP84, []TokenKind{
-			TOpenTag, THaltCompiler, TLParen, TRParen, TSemicolon, THaltCompilerData}},
+			TOpenTag, THaltCompiler, TLParen, TRParen, TSemicolon, THaltCompilerData,
+		}},
 		{"close tag", "<?php echo 1 ?>\nhtml", phpver.PHP84, []TokenKind{TOpenTag, TEcho, TLNumber, TCloseTag, TInlineHTML}},
 		{"numbers", "<?php 0x1F 0b11 0o17 1_000 1.5e3 .5 9223372036854775808", phpver.PHP84, []TokenKind{
-			TOpenTag, TLNumber, TLNumber, TLNumber, TLNumber, TDNumber, TDNumber, TDNumber}},
+			TOpenTag, TLNumber, TLNumber, TLNumber, TLNumber, TDNumber, TDNumber, TDNumber,
+		}},
 	}
 	for _, c := range cases {
 		if got := kinds(c.src, c.ver); !eqKinds(got, c.want) {

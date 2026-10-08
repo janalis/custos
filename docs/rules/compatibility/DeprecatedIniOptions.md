@@ -6,7 +6,7 @@ title: DeprecatedIniOptions
 
 # DeprecatedIniOptions
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
 
 Group: [Compatibility](/rules/#compatibility) · PhpStorm name: `DeprecatedIniOptionsInspection`
 

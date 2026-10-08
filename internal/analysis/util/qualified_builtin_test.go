@@ -29,8 +29,12 @@ namespace { dirname($x); }
 		return true
 	})
 	want := []struct{ name, got string }{
-		{"dirname", `\dirname`}, {"is_dir", `\is_dir`}, {"mkdir", `\mkdir`}, {"mkdir", "mkdir"},
-		{"is_dir", "is_dir"}, {"dirname", "dirname"},
+		{"dirname", `\dirname`},
+		{"is_dir", `\is_dir`},
+		{"mkdir", `\mkdir`},
+		{"mkdir", "mkdir"},
+		{"is_dir", "is_dir"},
+		{"dirname", "dirname"},
 	}
 	if len(calls) != len(want) {
 		t.Fatalf("got %d calls", len(calls))

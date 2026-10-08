@@ -6,7 +6,7 @@ title: OffsetOperations
 
 # OffsetOperations
 
-<Badge type="danger" text="error" /> <Badge type="info" text="off by default" /> 
+<Badge type="danger" text="error" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs) · PhpStorm name: `OffsetOperationsInspection`
 

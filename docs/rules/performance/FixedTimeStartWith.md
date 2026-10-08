@@ -6,7 +6,7 @@ title: FixedTimeStartWith
 
 # FixedTimeStartWith
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Performance](/rules/#performance) · PhpStorm name: `FixedTimeStartWithInspection`
 

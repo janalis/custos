@@ -21,7 +21,7 @@ func (dateIntervalSpecification) Kinds() []syntax.NodeKind { return []syntax.Nod
 var (
 	// R1 without the `T(?=\d)` lookahead, checked separately.
 	dateIntervalR1 = regexp.MustCompile(`^P(([0-9]+Y)?([0-9]+M)?([0-9]+D)?([0-9]+W)?)?(T([0-9]+H)?([0-9]+M)?([0-9]+S)?)?$`)
-	dateIntervalR2 = regexp.MustCompile(`^P[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}$`)
+	dateIntervalR2 = regexp.MustCompile(`^P\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$`)
 )
 
 func validDateIntervalSpec(s string) bool {

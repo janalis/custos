@@ -8,13 +8,12 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/types"
-
 	"custos/internal/index"
 	"custos/internal/names"
 	"custos/internal/phpdoc"
 	"custos/internal/phpver"
 	"custos/internal/syntax"
+	"custos/internal/types"
 )
 
 // Env infers expression types within one file. Not safe for concurrent use.
@@ -176,8 +175,10 @@ func (e *Env) scopeDocs(n syntax.Node) *docScope {
 
 // NewEnv creates an inference environment.
 func NewEnv(f *syntax.File, r *names.Resolver, ix *index.Index, php phpver.Version) *Env {
-	return &Env{File: f, Names: r, Index: ix, PHP: php, cache: map[syntax.Expr]types.Type{}, scopes: map[syntax.Node]*scopeVars{}, busy: map[syntax.Expr]bool{},
-		bodies: map[syntax.Span]types.Type{}, bodyBusy: map[syntax.Span]bool{}}
+	return &Env{
+		File: f, Names: r, Index: ix, PHP: php, cache: map[syntax.Expr]types.Type{}, scopes: map[syntax.Node]*scopeVars{}, busy: map[syntax.Expr]bool{},
+		bodies: map[syntax.Span]types.Type{}, bodyBusy: map[syntax.Span]bool{},
+	}
 }
 
 func (e *Env) resolver(at uint32) types.Resolver {
@@ -516,7 +517,7 @@ func (e *Env) numeric(a, b syntax.Expr) types.Type {
 	switch {
 	case ta.OnlyOf("int") && tb.OnlyOf("int"):
 		return types.Int
-	case (ta.OnlyOf("int", "float")) && (tb.OnlyOf("int", "float")):
+	case ta.OnlyOf("int", "float") && tb.OnlyOf("int", "float"):
 		return types.Float
 	}
 	return types.Unknown
@@ -1763,7 +1764,6 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 	case *syntax.Closure:
 		params, body = s.Params, []syntax.Node{s.Body}
 		for _, u := range s.Uses {
-			u := u
 			add(u.Var.Name, u.Span().Start, func() types.Type {
 				outer := e.scopeVars(syntax.EnclosingFuncLike(scope))
 				var ts []types.Type
@@ -1786,7 +1786,6 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 		}
 	}
 	for _, p := range params {
-		p := p
 		add(p.Var.Name, p.Span().Start, func() types.Type { return e.paramType(scope, p) })
 	}
 	// body holds no nil node: the parser always builds function and closure
@@ -2008,6 +2007,7 @@ func (e *Env) collectDimWrites(outer, a *syntax.Assign, target syntax.Expr, sv *
 		}
 	}
 }
+
 func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
 	at := p.Span().Start
 	declared := types.FromNode(p.Type, e.resolver(at))

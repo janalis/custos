@@ -6,7 +6,7 @@ title: EmptyClass
 
 # EmptyClass
 
-<Badge type="info" text="info" /> <Badge type="info" text="off by default" /> 
+<Badge type="info" text="info" /> <Badge type="info" text="off by default" />
 
 Group: [Architecture](/rules/#architecture) · PhpStorm name: `EmptyClassInspection`
 

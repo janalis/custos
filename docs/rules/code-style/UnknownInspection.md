@@ -6,7 +6,7 @@ title: UnknownInspection
 
 # UnknownInspection
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" />
 
 Group: [Code style](/rules/#code-style) · PhpStorm name: `UnknownInspectionInspection`
 

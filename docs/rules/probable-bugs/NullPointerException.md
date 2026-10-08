@@ -6,7 +6,7 @@ title: NullPointerException
 
 # NullPointerException
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="warning" text="experimental" /> 
+<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="warning" text="experimental" />
 
 Group: [Probable bugs](/rules/#probable-bugs) · PhpStorm name: `NullPointerExceptionInspection`
 

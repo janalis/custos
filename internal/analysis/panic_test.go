@@ -13,7 +13,7 @@ func (crashRule) ID() string               { return "UnnecessarySemicolon" }
 func (crashRule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KNop} }
 func (crashRule) Check(*Context, syntax.Node) {
 	var p *int
-	_ = *p
+	_ = *p //nolint:govet // the panic is the point: the engine must recover from it
 }
 
 type okRule struct{}

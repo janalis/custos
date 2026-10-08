@@ -211,7 +211,7 @@ func TestFixEdgeCases(t *testing.T) {
 	if err := os.Chmod(locked, 0); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chmod(locked, 0o644)
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o644) })
 	code, _, stderr := runCLI(t, "fix", "--rule", "UnnecessarySemicolon", dir)
 	if code != 2 || !strings.Contains(stderr, "2 file(s) could not be fixed") || !strings.Contains(stderr, "fixed 1 file(s)") ||
 		strings.Count(stderr, "permission denied") != 2 {

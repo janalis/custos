@@ -217,8 +217,10 @@ func spmStatements(b *syntax.Block) []syntax.Stmt {
 }
 
 // spmMagic are magic constants evaluating differently in the child.
-var spmMagic = map[string]bool{"__LINE__": true, "__FILE__": true, "__DIR__": true, "__FUNCTION__": true,
-	"__CLASS__": true, "__TRAIT__": true, "__METHOD__": true, "__NAMESPACE__": true}
+var spmMagic = map[string]bool{
+	"__LINE__": true, "__FILE__": true, "__DIR__": true, "__FUNCTION__": true,
+	"__CLASS__": true, "__TRAIT__": true, "__METHOD__": true, "__NAMESPACE__": true,
+}
 
 // spmParamType is the comparable native type of an indexed parameter.
 func spmParamType(p index.Param) string {

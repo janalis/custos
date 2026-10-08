@@ -151,8 +151,10 @@ function g(array|bool $a, ?Foo $f, int|string $u) {
     if (null === $f) { return; }
     t('guard', $f);
 }
-`, map[string]string{"tern": "array|null", "ifand": "array", "ifnn": `\Foo`, "elsenull": "null",
-		"notstr": "int", "fcc": `\Closure`, "mfcc": `\Closure`, "guard": `\Foo`})
+`, map[string]string{
+		"tern": "array|null", "ifand": "array", "ifnn": `\Foo`, "elsenull": "null",
+		"notstr": "int", "fcc": `\Closure`, "mfcc": `\Closure`, "guard": `\Foo`,
+	})
 }
 
 func TestAliasesAndFalse(t *testing.T) {

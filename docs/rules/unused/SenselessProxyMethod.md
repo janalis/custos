@@ -6,7 +6,7 @@ title: SenselessProxyMethod
 
 # SenselessProxyMethod
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Unused](/rules/#unused) · PhpStorm name: `SenselessProxyMethodInspection`
 

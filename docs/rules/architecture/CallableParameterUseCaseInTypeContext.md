@@ -6,7 +6,7 @@ title: CallableParameterUseCaseInTypeContext
 
 # CallableParameterUseCaseInTypeContext
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> 
+<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
 
 Group: [Architecture](/rules/#architecture) · PhpStorm name: `CallableParameterUseCaseInTypeContextInspection`
 

@@ -6,7 +6,7 @@ title: InvertedIfElseConstructs
 
 # InvertedIfElseConstructs
 
-<Badge type="info" text="info" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="info" text="info" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Control flow](/rules/#control-flow) · PhpStorm name: `InvertedIfElseConstructsInspection`
 

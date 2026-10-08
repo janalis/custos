@@ -6,7 +6,7 @@ title: NonSecureUniqidUsage
 
 # NonSecureUniqidUsage
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Security](/rules/#security) · PhpStorm name: `NonSecureUniqidUsageInspection`
 

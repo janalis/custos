@@ -273,8 +273,10 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 // whose objects support `$o[…]` natively without declaring offsetGet() in
 // the stubs (custos refinement).
 func offsetNativeAccess(ctx *analysis.Context, cls string) bool {
-	for _, b := range []string{"DOMNodeList", "DOMNamedNodeMap", "ResourceBundle", `Dom\NodeList`,
-		`Dom\NamedNodeMap`, `Dom\HTMLCollection`, `FFI\CData`} {
+	for _, b := range []string{
+		"DOMNodeList", "DOMNamedNodeMap", "ResourceBundle", `Dom\NodeList`,
+		`Dom\NamedNodeMap`, `Dom\HTMLCollection`, `FFI\CData`,
+	} {
 		if strings.EqualFold(cls, b) || ctx.Index().IsSubtype(cls, b, ctx.PHP) {
 			return true
 		}

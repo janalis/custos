@@ -340,8 +340,10 @@ function h($o, $x) {
     if ($x instanceof \Countable) { return; } elseif ($x === '') { throw new \Exception(); }
     t('leaves', $x);
 }
-`, map[string]string{"elseifCond": "int", "switchIn": "int", "matchIn": "int", "rhs": "int", "ternaryIn": "int",
-		"args": `\ArrayIterator<int, string>`, "leaves": "string", "afterFor": "int", "caseCond": "int|null"})
+`, map[string]string{
+		"elseifCond": "int", "switchIn": "int", "matchIn": "int", "rhs": "int", "ternaryIn": "int",
+		"args": `\ArrayIterator<int, string>`, "leaves": "string", "afterFor": "int", "caseCond": "int|null",
+	})
 	src := `<?php
 function k($x) {
     t('later', $u);

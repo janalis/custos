@@ -6,11 +6,12 @@ title: StringNormalization
 
 # StringNormalization
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> 
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Control flow](/rules/#control-flow) · PhpStorm name: `StringNormalizationInspection`
 
 Two smells when chaining string normalisation calls:
+
 1. Changing the case of a string and *then* trimming / cutting it converts
    characters that are thrown away right after; cut first, convert the case
    of the (shorter) result.

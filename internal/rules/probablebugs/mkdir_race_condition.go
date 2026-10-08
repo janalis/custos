@@ -259,7 +259,7 @@ func laterIsDirCall(ctx *analysis.Context, s syntax.Stmt, keys []string) bool {
 				}
 			}
 		}
-		var n syntax.Node = s.Parent()
+		n := s.Parent()
 		s = nil
 		for ; n != nil && !syntax.IsFuncLike(n); n = n.Parent() {
 			if st, ok := n.(syntax.Stmt); ok {

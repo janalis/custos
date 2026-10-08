@@ -28,7 +28,7 @@ const (
 )
 
 // binPrec returns the precedence of a binary operator token.
-func (p *parser) binPrec(k TokenKind) (prec int, right bool, ok bool) {
+func (p *parser) binPrec(k TokenKind) (prec int, right, ok bool) {
 	switch k {
 	case TOr:
 		return precLowest, false, true
