@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # ArraySearchUsedAsInArray
 
 ## Summary
+
 `array_search()` returns a key (which may be `0` or `''`) or `false`. When its
 result is only used as a yes/no answer, `in_array()` expresses the intent
 directly and avoids the classic "key 0 is falsy" trap. Comparing its result
 with `true` is always pointless, since the function never returns `true`.
 
 ## Detection
+
 D1. Node: a plain function call (not a method/static call) whose name part is
     `array_search`, compared case-insensitively as PHP compares function names
     (`ARRAY_SEARCH`, `Array_Search` match) that resolves to the global
@@ -48,6 +50,7 @@ D3. *Comparison case* — only evaluated when D2 does not apply. The call's
       severity *error*, no fix.
 
 ## Exceptions (no report)
+
 E1. Fewer than two arguments (`array_search($needle)`, `array_search(...$args)`).
 E2. Short ternary / null-coalescing: `array_search(...) ?: $d`,
     `$a ?: array_search(...)`, `$a ?? array_search(...)`, and the call used as
@@ -62,6 +65,7 @@ E5. `for (...; array_search(...); ...)` conditions, assignments, arguments,
 E6. Methods and static methods named `array_search`.
 
 ## Report
+
 - D2: range = the function call, from the start of its name (including a
   leading `\` / namespace qualifier) to its closing `)`. Severity: warning.
   Message: `Use 'in_array(...)' to test membership.`
@@ -71,6 +75,7 @@ E6. Methods and static methods named `array_search`.
   `<error>`). Message: `array_search() cannot return true; this comparison never changes.`
 
 ## Fix
+
 F1. (D2) Rename the call: replace only the function-name identifier
     `array_search` with `in_array`. Namespace qualifier, argument list (all
     arguments, including a third "strict" argument), surrounding parentheses
@@ -94,9 +99,11 @@ In `namespace Acl; function in_array() {…}`, `array_search($k, $m) !== false`
 → `\in_array($k, $m)`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -144,6 +151,7 @@ function audit(array $roles, $who, $flag) {
 ```
 
 ## Divergences
+
 - custos diverges: upstream matches the function name case-sensitively, so
   `ARRAY_SEARCH(...)` is missed. PHP function names are case-insensitive;
   custos matches any casing (D1).

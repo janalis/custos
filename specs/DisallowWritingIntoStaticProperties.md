@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # DisallowWritingIntoStaticProperties
 
 ## Summary
+
 Static properties are global mutable state. This opt-in rule flags assignments
 to static properties: by default only writes performed outside the class that
 declares the property; optionally every write.
 
 ## Detection
+
 D1. Node: an assignment expression whose target (left-hand side) is directly a
     static property access `X::$name` (the `::` form), with a statically known
     property name. Plain `=`, by-reference `= &`, and compound assignments
@@ -44,6 +46,7 @@ D3. Option `ALLOW_WRITE_FROM_SOURCE_CLASS = true` (default): the class part
       scope (`self`/`static` resolve to it).
 
 ## Exceptions (no report)
+
 E1. Reads of static properties (`echo X::$p;`).
 E2. Writes that are not assignments: `X::$p++`, `--X::$p`, `unset(X::$p)`,
     writes into an element `X::$p[] = 1` / `X::$p['k'] = 1` (target is an
@@ -58,6 +61,7 @@ E5. With the default option:
       through any spelling (`static::`, the class's own name, an alias of it).
 
 ## Report
+
 - Range: the whole assignment expression, from the start of the target to the
   end of the assigned value (the trailing `;` excluded).
 - Severity: info (fixtures tag it `weak_warning`).
@@ -65,17 +69,21 @@ E5. With the default option:
 - Message (all-writes mode): `Avoid modifying static properties.`
 
 ## Fix
+
 None.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | ALLOW_WRITE_FROM_SOURCE_CLASS | bool | true | true: only writes from outside the declaring class are reported (D3). false: every static property assignment is reported (D2). |
 
 ## PHP versions
+
 None.
 
 ## Examples
+
 Default option (`ALLOW_WRITE_FROM_SOURCE_CLASS = true`):
 
 ```php
@@ -146,6 +154,7 @@ class Counter
 ```
 
 ## Divergences
+
 - Properties brought in by a trait used by the method's class are resolved
   upstream to the trait, so a write like `static::$p = 1` from the using class
   would be reported. Recommendation: treat properties imported from traits the

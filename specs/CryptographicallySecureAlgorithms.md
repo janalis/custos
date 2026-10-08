@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # CryptographicallySecureAlgorithms
 
 ## Summary
+
 Some cipher/hash selector constants of mcrypt, OpenSSL and `crypt()` pick
 algorithms that are broken or weak (DES, 3DES, RC2, RC4, MD5) or that are
 commonly mistaken for AES (Rijndael with 192/256-bit blocks). Point at each
 use so a stronger algorithm can be chosen.
 
 ## Detection
+
 - **D1** A constant reference (not a class constant `X::C`, not a string)
   that resolves to a **global** constant whose name, compared
   case-sensitively, is one of the names in the table below. It resolves to
@@ -52,6 +54,7 @@ comparison, array element, default value…) is reported. The constant does
 not need to be resolvable.
 
 ## Exceptions (no report)
+
 - **E1** Test contexts (D2).
 - **E2** Other constants, including `OPENSSL_ALGO_MD5`/`OPENSSL_ALGO_SHA1`
   and friends, `MCRYPT_RIJNDAEL_128`, `CRYPT_BLOWFISH`.
@@ -61,6 +64,7 @@ not need to be resolvable.
 - **E4** References that do not resolve to the global constant (D1).
 
 ## Report
+
 - Range: the constant reference node as written, including a leading `\`
   or namespace qualifier if present (`\MCRYPT_DES` → the whole
   `\MCRYPT_DES`).
@@ -69,12 +73,15 @@ not need to be resolvable.
   (values from the table).
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating (mcrypt constants are reported even on PHP versions where the
 extension no longer exists).
 
@@ -107,6 +114,7 @@ class CipherMatrixTest
 ```
 
 ## Divergences
+
 - **Name resolution (custos diverges):** upstream matches only the last
   segment of the constant name, so `Other\MCRYPT_DES` (or an unqualified
   reference to a namespace's own `MCRYPT_DES`) is reported although it is a

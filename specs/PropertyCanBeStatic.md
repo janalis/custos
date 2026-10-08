@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # PropertyCanBeStatic
 
 ## Summary
+
 A non-public instance property initialised with a sizeable array literal
 (several nested arrays or strings) is copied into every object. When such data
 is really per-class configuration it is cheaper as a static property — or, on
 PHP 5.6+, as a class constant.
 
 ## Detection
+
 - **D1** A property declaration in a class body (each property of a
   multi-property declaration `private $a = …, $b = …;` is checked on its own).
   Promoted constructor parameters are not property declarations here.
@@ -36,6 +38,7 @@ PHP 5.6+, as a class constant.
   count. Report once the count reaches **3**.
 
 ## Exceptions (no report)
+
 - **E1** Public, `var` and static properties; constants.
 - **E2** Defaults that are not array literals.
 - **E3** Fewer than 3 array/string values among the top-level elements
@@ -46,6 +49,7 @@ PHP 5.6+, as a class constant.
   on the declaration) are handled by the generic suppression mechanism.
 
 ## Report
+
 - Range: the property name including `$` (e.g. `$labels`), not the default
   value.
 - Severity: info.
@@ -54,12 +58,15 @@ PHP 5.6+, as a class constant.
   consider a static property or a class constant.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - No gating of the detection itself.
 - Only the message depends on the configured level: the "class constant"
   suggestion appears from PHP 5.6 (array constants). The upstream positive
@@ -67,6 +74,7 @@ None.
   (between 5.6 and 7.0) — messages are not compared.
 
 ## Examples
+
 At PHP 8.x:
 
 ```php
@@ -94,7 +102,9 @@ TXT, 3, ['three']];
 ```
 
 ## Divergences
+
 None known.
+
 - **Per-instance state (custos diverges).** A property the class writes
   through `$this` (`$this->p = …`, `$this->p['k'] = …`, `$this->p[] = …`,
   compound assignments, `++`/`--`, `unset($this->p['k'])`) holds state

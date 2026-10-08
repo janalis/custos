@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # StringCaseManipulation
 
 ## Summary
+
 Lower- or upper-casing the haystack and/or needle only to make a substring
 search case-insensitive costs extra string copies; PHP already ships
 case-insensitive variants of the position functions (`stripos`, `strripos`,
 `mb_stripos`, `mb_strripos`). Use them on the raw strings instead.
 
 ## Detection
+
 - **D1** A plain function call (not a method or static call) that resolves
   to one of the global "search" functions below, the name compared
   case-insensitively as PHP compares function names (`STRPOS`, `\StrRPos`
@@ -43,6 +45,7 @@ case-insensitive variants of the position functions (`stripos`, `strripos`,
   upper-cased still qualifies; only one side being wrapped also qualifies.
 
 ## Exceptions (no report)
+
 - **E1** Search calls with one, three or more arguments (e.g. an explicit
   offset as third argument).
 - **E2** Case-conversion wrappers with more than one argument (e.g. an
@@ -55,6 +58,7 @@ case-insensitive variants of the position functions (`stripos`, `strripos`,
 - **E5** Names in a different letter case (`STRPOS`) are not matched.
 
 ## Report
+
 - Range: the whole outer search call, from the start of its name (including
   any leading `\` / namespace qualifier) to its closing `)`.
 - Severity: info (weak warning).
@@ -62,6 +66,7 @@ case-insensitive variants of the position functions (`stripos`, `strripos`,
   `{replacement}` is the F1 text.
 
 ## Fix
+
 - **F1** Replace the whole outer call with
   `{variant}({first}, {second})`, where `{variant}` is the unqualified
   case-insensitive function name from the D1 table (any namespace qualifier
@@ -77,9 +82,11 @@ case-insensitive variants of the position functions (`stripos`, `strripos`,
   `\stripos($t, $n)`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. (Upstream fixture runs at the IDE test default level, below 7.1;
 nothing in the rule is version-dependent.)
 
@@ -120,6 +127,7 @@ function lookup(string $text, string $term, array $row) {
 ```
 
 ## Divergences
+
 - **Function names (custos diverges):** upstream matches the bare name
   case-sensitively and ignores namespaces, so `STRPOS(strtolower($t), $n)`
   was missed while a namespaced user `strpos`/`strtolower` (`\App\strpos(...)`,

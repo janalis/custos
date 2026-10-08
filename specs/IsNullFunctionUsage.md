@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # IsNullFunctionUsage
 
 ## Summary
+
 `is_null($v)` is a function call doing what the `=== null` comparison does
 natively. This opt-in rule rewrites `is_null()` calls (including negations and
 comparisons of the result against `true`/`false`) into an identity comparison
 with `null`.
 
 ## Detection
+
 D1. Node: a plain function call with exactly one argument that resolves to
     the global function `is_null`: the name is compared case-insensitively
     (`IS_NULL`, `Is_Null` count) and may be written `\is_null`; a qualified
@@ -43,6 +45,7 @@ D2. Determine the *target* expression and the *polarity* (checks "is null"
 D3. Every call matching D1 is reported (on its D2 target).
 
 ## Exceptions (no report)
+
 E1. `is_null()` with zero or two-plus arguments.
 E2. Calls that resolve to a user function named `is_null` (see D1);
     method/static calls named `is_null`.
@@ -50,6 +53,7 @@ E3. A parenthesized negation `!(is_null($v))` is not treated as negation: the
     inner call is the target with positive polarity.
 
 ## Report
+
 - Range: the D2 target — the call (`is_null` through `)`, including any leading
   namespace qualifier), or the whole `!is_null(...)`, or the whole binary
   comparison with the boolean (from its left operand's start to its right
@@ -58,6 +62,7 @@ E3. A parenthesized negation `!(is_null($v))` is not treated as negation: the
 - Message: `Replace with '{replacement}'.`
 
 ## Fix
+
 F1. Replace the target with the replacement built as:
     - `{a}` = verbatim text of *A*, wrapped in parentheses `({A})` when *A* is
       an assignment (plain or compound), a ternary (including `?:`), or any
@@ -70,14 +75,17 @@ F1. Replace the target with the replacement built as:
     Single spaces around `{op}`; nothing else is added (no outer parentheses).
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | (none) | | | Operand order follows the global comparison style (`regular` default / `yoda`). |
 
 ## PHP versions
+
 None.
 
 ## Examples
+
 Regular style:
 
 ```php
@@ -129,6 +137,7 @@ $y = null === ($m ?: $n);
 ```
 
 ## Divergences
+
 - **Letter case and name resolution (custos diverges).** Upstream checks
   only the last name segment, case-sensitively: `IS_NULL($v)` is missed, while
   namespaced calls like `App\is_null($v)` (a user function) are reported and

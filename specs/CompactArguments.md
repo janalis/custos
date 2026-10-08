@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # CompactArguments
 
 ## Summary
+
 `compact('name')` silently skips (or, since PHP 7.3, warns about) variables
 that do not exist at that point. A name that never appeared earlier in the
 function is usually a typo or a variable assigned too late.
 
 ## Detection
+
 Visit every function call.
 
 - **D1** The call resolves to the global function `compact` (name compared
@@ -50,6 +52,7 @@ Visit every function call.
 - **D6** Report each candidate name that is not in the known set.
 
 ## Exceptions (no report)
+
 - **E1** `compact()` at file top level.
 - **E2** Names of parameters, or of variables mentioned anywhere earlier in the
   scope (no flow analysis: a variable assigned in a branch that is not taken,
@@ -59,6 +62,7 @@ Visit every function call.
   highlighted).
 
 ## Report
+
 - Range: the string literal argument (including its quotes) of the last
   occurrence of the name.
 - Severity: error.
@@ -66,12 +70,15 @@ Visit every function call.
   `{name}` is the raw literal content (so `'$total'` yields `'$$total'`).
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -116,6 +123,7 @@ $top = compact('nothing');
 ```
 
 ## Divergences
+
 - **Arrow functions (custos diverges):** upstream treats an arrow function
   as a separate scope, so `fn() => compact('total')` reports `total` even
   when the enclosing function defines `$total`, which the arrow function

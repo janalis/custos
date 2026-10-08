@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # StringsFirstCharactersCompare
 
 ## Summary
+
 `strncmp()`/`strncasecmp()` with a literal prefix and a hard-coded length that
 does not match the literal's length compares too few (or too many)
 characters — usually a leftover after editing the literal.
 
 ## Detection
+
 - **D1** A function call (not a method call) that resolves to the global
   function `strncmp` or `strncasecmp`: names compared case-insensitively, as
   PHP does (`StrNCmp(...)` matches); `\strncmp(...)` and an unqualified call
@@ -44,6 +46,7 @@ characters — usually a leftover after editing the literal.
 - **D7** Report when `L > 0` and `L != N`.
 
 ## Exceptions (no report)
+
 - **E1** Length already equal to the literal length.
 - **E2** Empty literal (`L == 0`).
 - **E3** Third argument not a number literal (variable, constant,
@@ -52,6 +55,7 @@ characters — usually a leftover after editing the literal.
 - **E5** Two or four+ arguments.
 
 ## Report
+
 - Range: the third argument exactly as written (the number, or the whole
   `-N` unary expression).
 - Severity: error.
@@ -59,13 +63,16 @@ characters — usually a leftover after editing the literal.
   is the third argument's source text as written (`010`, `-3`).
 
 ## Fix
+
 - **F1** Replace the third argument with the decimal text of `L`
   (`strncmp($s, 'abc', 5)` → `strncmp($s, 'abc', 3)`).
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -103,6 +110,7 @@ function route(string $uri) {
 ```
 
 ## Divergences
+
 - **Function name (custos diverges).** Upstream matches the written name
   case-sensitively and accepts any namespace qualifier without resolution,
   so `STRNCMP($s, 'abc', 2)` is missed while a namespaced user function

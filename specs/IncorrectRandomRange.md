@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # IncorrectRandomRange
 
 ## Summary
+
 `rand()`, `mt_rand()` and `random_int()` expect `(min, max)`. Passing a
 minimum greater than the maximum is an error (`random_int()` throws,
 `mt_rand()` warns/returns false on older versions, `rand()` silently swaps).
 Flag calls whose bounds are known numbers in the wrong order.
 
 ## Detection
+
 Visit every function call.
 
 - **D1** The call resolves to the global function `rand`, `mt_rand` or
@@ -49,6 +51,7 @@ resolvable to numbers, so `random_int(PHP_INT_MAX, PHP_INT_MIN)` is
 reported). `T == F` is not reported.
 
 ## Exceptions (no report)
+
 - **E1** Other argument counts (`rand()`, `mt_rand(5)`).
 - **E2** Bounds that are not a single discoverable number (unknown variables,
   function calls, expressions such as `10 - 1`, ternaries with two different
@@ -60,18 +63,22 @@ reported). `T == F` is not reported.
 - **E4** Correctly ordered or equal bounds.
 
 ## Report
+
 - Range: the whole call expression, from the function name (including any
   leading `\`) to the closing `)`.
 - Severity: error.
 - Message: `Minimum is greater than maximum in this random range.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -104,6 +111,7 @@ function roll($bonus = 10)
 ```
 
 ## Divergences
+
 - **Function name (custos diverges).** Upstream matches the written name
   case-sensitively and without resolving it, so `MT_RAND(10, 1)` is missed while
   a namespaced user function of the same name (declared in the namespace,

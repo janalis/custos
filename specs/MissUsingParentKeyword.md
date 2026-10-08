@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # MissUsingParentKeyword
 
 ## Summary
+
 `parent::m()` is meant for calling the overridden implementation of the
 current method. When it calls some *other* inherited method that nobody in the
 hierarchy overrides, it is equivalent to `$this->m()` / `self::m()`, and using
@@ -16,6 +17,7 @@ hierarchy overrides, it is equivalent to `$this->m()` / `self::m()`, and using
 overrides).
 
 ## Detection
+
 D1. Node: a method call `parent::name(...)` where the class part is written
     `parent` in any letter case (`Parent`, `PARENT`: PHP keywords are
     case-insensitive) and the method name is a plain identifier.
@@ -36,6 +38,7 @@ D6. The call resolves (through the parent class chain) to a method
 When D1–D6 hold, report.
 
 ## Exceptions (no report)
+
 E1. `parent::sameName()` from inside `sameName()` — the legitimate use.
 E2. The current class declares the method itself.
 E3. Some descendant class declares the method (the `parent::` call may be a
@@ -48,11 +51,13 @@ E6. Class part other than the `parent` keyword (an explicit
     class name).
 
 ## Report
+
 - Range: the whole call expression, from `parent` through the closing `)`.
 - Severity: info (fixtures tag it `weak_warning`).
 - Message: `Call it as '{replacement}' instead of through 'parent::'.`
 
 ## Fix
+
 F1. Replace the whole call with:
     - `self::{name}({args})` when the resolved method is declared `static`;
     - `$this->{name}({args})` otherwise;
@@ -61,13 +66,16 @@ F1. Replace the whole call with:
     arguments).
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 
 ## PHP versions
+
 None.
 
 ## Examples
+
 ```php
 <?php
 
@@ -139,6 +147,7 @@ class IconButton extends Button
 ```
 
 ## Divergences
+
 - D3 compares names case-sensitively upstream, so `parent::Layout()` inside
   `layout()` passes D3; it is always stopped by D4 instead (the enclosing
   method is an own declaration with that name). custos compares

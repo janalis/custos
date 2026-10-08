@@ -13,7 +13,7 @@ are skipped) against the PHP version your project targets, taken from
 `composer.json`. Each finding gives its position, severity, message and rule,
 and says when a quick-fix is available:
 
-```
+```text
 src/Invoice.php:3:5: warning: Variable $total is used only once; inline its value. [OneTimeUseVariables] (fixable)
 src/Invoice.php:6:7: info: Stray semicolon; remove it. [UnnecessarySemicolon] (fixable)
 src/Invoice.php:7:6: error: Restrict the classes unserialize() may create via its second argument. [UnserializeExploits]

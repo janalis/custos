@@ -9,12 +9,14 @@ php: { min: "7.2", max: "" }
 # ArrayUniqueCanBeUsed
 
 ## Summary
+
 Counting occurrences with `array_count_values()` just to take the keys or the
 number of keys is an indirect way of deduplicating. Since PHP 7.2
 `array_unique()` is fast and says what is meant: `array_values(array_unique($a))`
 or `count(array_unique($a))`.
 
 ## Detection
+
 D1. Only active when the configured PHP language level is **7.2 or higher**.
 
 D2. Node: a plain function call (not a method/static call) whose name part is
@@ -35,6 +37,7 @@ D3. The call is directly an argument of an enclosing call *O* (the call's
     argument list nor *O*'s argument count (see Divergences).
 
 ## Exceptions (no report)
+
 E1. PHP level below 7.2 (this includes the default level used by fixtures
     without an explicit version, which is below 7.1).
 E2. `array_count_values()` with zero or two-plus arguments.
@@ -47,6 +50,7 @@ E5. (removed: any casing matches, `Count(ARRAY_COUNT_VALUES($a))` is
     reported.)
 
 ## Report
+
 - Range: the enclosing call *O*, from the start of its name (including any
   namespace qualifier) to its closing `)`.
 - Severity: info (fixture markup `weak_warning`).
@@ -54,6 +58,7 @@ E5. (removed: any casing matches, `Count(ARRAY_COUNT_VALUES($a))` is
   `{replacement}` is the unqualified form from D3 (no leading `\`).
 
 ## Fix
+
 F1. Replace the whole enclosing call *O* with the replacement text from D3
     (exactly `array_values(array_unique(A))` or `count(array_unique(A))`, no
     spaces added, *A* verbatim, function names in lower case). A leading
@@ -68,12 +73,15 @@ F1. Replace the whole enclosing call *O* with the replacement text from D3
     `array_keys(array_count_values($v))` → `array_values(\array_unique($v))`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Requires language level ≥ 7.2. EA's fixture runs at 7.2.
 
 ## Examples
+
 (PHP level 7.2)
 
 ```php
@@ -105,6 +113,7 @@ function tally(array $votes, $batch) {
 ```
 
 ## Divergences
+
 - Upstream does not check that the inner call is the **first and only**
   argument of `array_keys`/`count`: `array_keys(array_count_values($a), 2)`
   (keys with value 2 — different semantics) and

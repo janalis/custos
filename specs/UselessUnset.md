@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # UselessUnset
 
 ## Summary
+
 Calling `unset()` on a function parameter only destroys the function's local
 binding: the caller's value (whether passed by value or by reference) is
 unaffected, and the local goes away at return anyway. Such an `unset()` is
 almost always pointless.
 
 ## Detection
+
 Visit every function declaration, method and closure that declares at least
 one parameter.
 
@@ -40,6 +42,7 @@ No other condition applies: the parameter may have been reassigned or
 modified earlier — the `unset()` is still reported.
 
 ## Exceptions (no report)
+
 - **E1** Unsetting an element or property of a parameter (`unset($p['k'])`,
   `unset($p->cache)`).
 - **E2** Unsetting non-parameter variables: locals, `static` or `global`
@@ -52,6 +55,7 @@ modified earlier — the `unset()` is still reported.
   the scope (`function f(&$p) { global $p; unset($p); }`) — D5.
 
 ## Report
+
 - Range:
   - if the `unset(...)` statement has exactly one argument: the whole
     statement, from `unset` through the closing `)` and the terminating `;`
@@ -64,12 +68,15 @@ modified earlier — the `unset()` is still reported.
 - Message: `Unsetting a parameter only drops the local variable; this unset() is pointless.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -113,6 +120,7 @@ class Pool
 ```
 
 ## Divergences
+
 - **D5 — custos diverges from upstream.** Upstream matches on the variable
   name only, so `function f(&$p) { global $p; unset($p); }` is reported as
   "unsetting a parameter" although `$p` has become a global (or static)

@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # InfinityLoop
 
 ## Summary
+
 A method whose only statement calls the very same method on `$this`,
 `self` or `static` recurses unconditionally until the stack overflows —
 typically a getter/proxy that was meant to call a property, a parent method
 or a differently named method.
 
 ## Detection
+
 Visit every method declaration (in classes, traits, enums; interface and
 abstract methods have no body and are skipped).
 
@@ -39,6 +41,7 @@ abstract methods have no body and are skipped).
   qualify. Arguments are irrelevant.
 
 ## Exceptions (no report)
+
 - **E1** Methods with more than one statement (even if the recursive call
   is guarded or not).
 - **E2** `parent::sameName()`, `ClassName::sameName()`, `$other->sameName()`.
@@ -48,18 +51,22 @@ abstract methods have no body and are skipped).
 - **E5** Plain functions and closures.
 
 ## Report
+
 - Range: the method call expression, from `$this`/`self`/`static` to the
   closing `)` (no `return` keyword, no `;`).
 - Severity: error.
 - Message: `Method calls itself unconditionally; this recursion never ends.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -116,6 +123,7 @@ class Settings
 ```
 
 ## Divergences
+
 - **Case-insensitive keywords and names (custos diverges):** upstream
   compares the receiver text and the method name literally, so
   `SELF::flush()`, `Static::boot()` or `$this->Save()` inside `save()` are

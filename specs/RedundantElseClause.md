@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # RedundantElseClause
 
 ## Summary
+
 When an `if` body always leaves the current flow (return, throw, break,
 continue, exit/die), the following `else`/`elseif` keyword is superfluous: its
 code can simply follow the `if`. Removing it flattens nesting.
 
 ## Detection
+
 Visit every `if` statement `I`.
 
 - **D1** `I` is not the nested `if` of an `else if` (i.e. its direct parent is
@@ -41,6 +43,7 @@ Visit every `if` statement `I`.
   block or `if` that itself returns) is not reported.
 
 ## Exceptions (no report)
+
 - **E1** The `if` inside `else if` (D1); its predecessor chain is judged only
   from the head `if`.
 - **E2** Non-braced or alternative-syntax `if` bodies.
@@ -50,6 +53,7 @@ Visit every `if` statement `I`.
   branches are not reported separately.
 
 ## Report
+
 - Range: the keyword token of `A`: `else` (also the `else` of `else if`) or
   `elseif`. Exactly that keyword, nothing else.
 - Severity: warning.
@@ -58,6 +62,7 @@ Visit every `if` statement `I`.
   - `elseif`: `Turn this 'elseif' into a separate 'if'.`
 
 ## Fix
+
 Let `I` be `if (COND1) BODY1 A …`.
 
 - **F1** `A` is `else { … }` (block body): remove `A` entirely together with
@@ -91,9 +96,11 @@ Let `I` be `if (COND1) BODY1 A …`.
   to be some whitespace, except for F1's `};` rule.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -147,6 +154,7 @@ function route($req, $list) {
 ```
 
 ## Divergences
+
 - F1 separator: upstream inserts a newline and then lets the IDE formatter
   adjust it, which removes the space before a leading `;`. Recommendation:
   newline separator, none when the moved content starts with `;` (needed to

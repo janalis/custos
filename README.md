@@ -59,7 +59,7 @@ custos explain OneTimeUseVariables        # what a rule does, its options
 custos lsp                                # language server over stdio
 ```
 
-```
+```text
 src/Invoice.php:3:5: warning: Variable $total is used only once; inline its value. [OneTimeUseVariables] (fixable)
 src/Invoice.php:7:6: error: Restrict the classes unserialize() may create via its second argument. [UnserializeExploits]
 ```

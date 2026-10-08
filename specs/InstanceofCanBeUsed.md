@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # InstanceofCanBeUsed
 
 ## Summary
+
 Testing an object's class through string comparisons or reflection-like
 helpers (`get_class($o) === 'Foo'`, `is_a($o, 'Foo')`,
 `in_array('Foo', class_parents($o))`, …) is slower and less readable than the
@@ -17,6 +18,7 @@ Suggest `instanceof` when the subject is known to be a non-string value and
 the named class exists.
 
 ## Detection
+
 All function names below are matched on the name part, case-insensitively
 (as PHP compares function names: `IS_A(...)` matches), and the call must resolve to the global PHP function of
 that name with PHP's runtime rules: `is_a(...)` and `\is_a(...)` match;
@@ -26,8 +28,10 @@ do not. The same holds for the inner `class_implements`/`class_parents`
 call of D3. Only plain function calls are considered (no method calls).
 
 ### Class-name literal (shared)
+
 A **class literal** is a string literal (single- or double-quoted) without
 any interpolation whose content:
+
 - has more than 3 characters, and
 - is not exactly `__PHP_Incomplete_Class`.
 Its **FQN** is `\` followed by the content with every doubled backslash
@@ -37,16 +41,19 @@ yields an FQN starting with two backslashes, which never matches a class
 (see E6).
 
 ### Non-string subject (shared)
+
 A subject expression `S` qualifies when it is not a string literal, its
 inferred type is fully known (no unknown component), and none of the type's
 components is `string`. Untyped variables or expressions with unknown type
 never qualify.
 
 ### Class existence (shared)
+
 The FQN must name at least one **class** in the project index/stubs
 (case-insensitive lookup). Interfaces and traits do not count.
 
 ### Patterns
+
 - **D1** `get_class(S)` or `get_parent_class(S)` with exactly one argument
   `S`, whose **direct** parent (no parentheses in between) is a comparison
   with `==`, `!=`, `<>`, `===` or `!==`; the other operand (left or right) is
@@ -70,6 +77,7 @@ The FQN must name at least one **class** in the project index/stubs
   replacement is negated. D2/D3 are never negated.
 
 ## Exceptions (no report)
+
 - **E1** `get_class($o) == 'Base'` when `Base` has at least one direct
   subclass.
 - **E2** Subject typed as `string` (or a union containing `string`), a
@@ -87,6 +95,7 @@ The FQN must name at least one **class** in the project index/stubs
   or compared with an operator other than equality/identity.
 
 ## Report
+
 - Range: the context node — for D1 the whole comparison (left operand start
   to right operand end), for D2/D3 the whole call including any leading
   namespace qualifier.
@@ -96,6 +105,7 @@ The FQN must name at least one **class** in the project index/stubs
 - Message otherwise: `Consider '{replacement}' (not an exact equivalent).`
 
 ## Fix
+
 - **F2** A fix is offered only when the rewrite is an exact equivalent:
   - D2 with `is_a` (`is_a($o, 'X')` on a non-string subject is exactly
     `$o instanceof X`);
@@ -121,12 +131,15 @@ The FQN must name at least one **class** in the project index/stubs
   as declared). No parentheses are added around the result.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating (upstream fixture runs at the harness default, below 7.1).
 
 ## Examples
+
 ```php
 <?php
 
@@ -188,6 +201,7 @@ function check(Invoice $doc, Document $base, string $name, $loose) {
 ```
 
 ## Divergences
+
 - **Interfaces with `class_implements` (custos diverges):** upstream requires
   the literal to name a class (E5), but `class_implements()` only ever
   returns interface names, so the realistic check

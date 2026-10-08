@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # UnusedConstructorDependencies
 
 ## Summary
+
 A private property that is assigned in the constructor but never touched by
 any other method of the class (or its traits) is dead state — typically a
 leftover injected dependency. Point at the constructor assignments.
 
 ## Detection
+
 Visit every class's own constructor.
 
 - **D1** The containing type is a class (not an interface or trait), it
@@ -52,6 +54,7 @@ Visit every class's own constructor.
     `++$this->p`, uses on the right-hand side) are not reported.
 
 ## Exceptions (no report)
+
 - **E1** Non-private or static properties; properties declared in parents or
   traits; annotated properties.
 - **E2** Properties referenced in any other method of the class or of a
@@ -64,18 +67,22 @@ Visit every class's own constructor.
 - **E4** Classes without their own constructor, interfaces, traits.
 
 ## Report
+
 - Range: the assigned property access expression (`$this->p`), from `$this`
   through the property name; not the whole assignment.
 - Severity: info (fixture markup `weak_warning`).
 - Message: `Private property is only used in the constructor; likely dead code.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -133,6 +140,7 @@ class Mailer
 ```
 
 ## Divergences
+
 - **D4/D4a — custos diverges from upstream.** Upstream counts references
   inside closures defined in the constructor as constructor references: a
   property written directly in the constructor and read by a closure or

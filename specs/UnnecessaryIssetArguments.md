@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # UnnecessaryIssetArguments
 
 ## Summary
+
 `isset($m['a']['b'])` already implies that `$m` and `$m['a']` are set, so
 listing those containers as extra `isset()` arguments next to the deeper
 access is redundant. Drop them.
 
 ## Detection
+
 Visit every `isset(...)` construct.
 
 - **D1** It has two or more arguments.
@@ -36,6 +38,7 @@ Visit every `isset(...)` construct.
 
 Each argument is reported at most once per `isset`, independent of how many
 deeper accesses imply it.
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -44,6 +47,7 @@ deeper accesses imply it.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Single-argument `isset`.
 - **E2** Arguments that are not a base of another argument's array-access
   chain: unrelated variables, deeper accesses (`$m['a']['b']` is never
@@ -53,12 +57,14 @@ deeper accesses imply it.
   argument is never its own base, so nothing is reported.
 
 ## Report
+
 - Range: the redundant argument expression exactly (e.g. `$m`, `$m['a']`).
 - Severity: info (rendered as an "unused" highlight; fixture markup
   `weak_warning`).
 - Message: `Redundant isset() argument: a deeper array access already covers it.`
 
 ## Fix
+
 All fixes are applied one after another on the same `isset`.
 
 - **F1** Argument is **not** the last argument: delete from the start of the
@@ -70,24 +76,29 @@ All fixes are applied one after another on the same `isset`.
   comma and the argument goes too; whitespace before the comma stays).
   `isset($m['a']['b'], $m['a'])` → `isset($m['a']['b'])`.
 - Multi-line layouts collapse naturally:
-  ```
+
+  ```text
   isset(
       $m,
       $m['a']['b'],
       $m['a']
   )
   ```
+
   becomes
-  ```
+
+  ```text
   isset(
       $m['a']['b']
   )
   ```
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -128,6 +139,7 @@ function has_city(array $order, $customer)
 ```
 
 ## Divergences
+
 - With a trailing comma after the last argument (PHP 7.3+), F2 leaves the
   trailing comma in place (`isset($m['a'], $m,)` → `isset($m['a'],)`).
   Recommendation: same behaviour; no fixture.

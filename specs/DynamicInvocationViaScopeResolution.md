@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # DynamicInvocationViaScopeResolution
 
 ## Summary
+
 Calling an instance (non-static) method through `::` (`self::run()`,
 `static::run()`, `$obj::run()`) hides that the call is really an instance call
 and breaks in static contexts. Such calls should use `->`.
 
 ## Detection
+
 D1. Node: a method call that uses the `::` operator, whose method name is a
     plain, non-empty identifier (no dynamic names like `X::$m()` or
     `X::{'m'}()`).
@@ -53,6 +55,7 @@ D4. **Expression form.** Otherwise (L does not match D3): report, with fix F2,
     This form does not depend on the enclosing scope.
 
 ## Exceptions (no report)
+
 E1. The target method is static, abstract, or declared in an interface.
 E2. `parent::run()` (and `parent::__construct()`) — never reported.
 E3. `OtherClass::run()` where `OtherClass` (as written) is not the short name of
@@ -67,6 +70,7 @@ E7. D4 form whose base is a call result: `make()::run()`, `$f->get()::run()`.
 E8. Unresolvable target (unknown class/type, undefined method).
 
 ## Report
+
 - Range: the whole method call expression, from the start of the left side of
   `::` through the closing `)` of the argument list.
 - Severity: warning (fixtures tag it `warning`).
@@ -75,6 +79,7 @@ E8. Unresolvable target (unknown class/type, undefined method).
   (`{name}` is the method name.)
 
 ## Fix
+
 F1. (D3a) Replace the left side of `::` (the `static`/`self`/class-name token)
     with `$this`, and the `::` token with `->`. Arguments and whitespace stay
     as they are: `self::render($a, $b)` → `$this->render($a, $b)`.
@@ -83,13 +88,16 @@ F2. (D4) Replace only the `::` token with `->`; the base expression is kept:
 No fix for D3b.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 
 ## PHP versions
+
 None.
 
 ## Examples
+
 ```php
 <?php
 
@@ -179,6 +187,7 @@ $car::build();
 ```
 
 ## Divergences
+
 - Upstream, D3 accepts `Foo::m()` written with the declaring class's short name
   even when `Foo` is unrelated to the enclosing class, as long as the enclosing
   class happens to have a method `m` too; the fix then rewrites it to

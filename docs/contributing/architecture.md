@@ -3,7 +3,7 @@
 custos is a single Go module (`custos`) with no runtime dependency outside
 the standard library. A file goes through this pipeline:
 
-```
+```text
 discover files ─► lex + parse ─► names ─► (lazy) index · types ─► one walk, rules by node kind ─► findings
    runner          syntax        names      index/stubs/infer       analysis + rules              report · fix · lsp
 ```

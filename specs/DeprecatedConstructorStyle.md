@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # DeprecatedConstructorStyle
 
 ## Summary
+
 A method named after its class used to act as the constructor (PHP 4 style).
 This form is deprecated since PHP 7.0 and no longer a constructor in PHP 8.0;
 the method should be called `__construct`.
 
 ## Detection
+
 Visit every method declaration `M` (class member `function name(...)`, with or
 without body — abstract methods count).
 
@@ -33,6 +35,7 @@ The namespace of the file is **not** considered: a matching method in a class
 declared inside a `namespace` is reported too (see Divergences).
 
 ## Exceptions (no report)
+
 - **E1** The method is `static` (`static public function Ledger()`).
 - **E2** The container is a trait.
 - **E3** The container is an interface.
@@ -42,6 +45,7 @@ declared inside a `namespace` is reported too (see Divergences).
 - **E6** Anonymous classes (they have no name to match).
 
 ## Report
+
 - Range: the method's name identifier token only (e.g. `Ledger` in
   `public function Ledger()`), not the modifiers, `function` keyword or
   parameter list.
@@ -49,15 +53,18 @@ declared inside a `namespace` is reported too (see Divergences).
 - Message: `Class '{class}' uses an old-style constructor; rename it to __construct.`
 
 ## Fix
+
 - **F1** Replace the method's name identifier token with `__construct`.
   Nothing else changes: modifiers, parameters, body, doc comments and
   whitespace stay as they are. Call sites of the old name (e.g.
   `parent::Ledger()` in subclasses or `$this->Ledger()`) are not touched.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Upstream does not gate the rule: it reports at every language level.
 
 ## Examples
@@ -151,6 +158,7 @@ interface Printer
 ```
 
 ## Divergences
+
 - **Namespaced classes**: since PHP 5.3.3 a method named after its class is
   *not* a constructor when the class lives in a namespace; upstream still
   reports it and the fix would turn a plain method into a constructor

@@ -9,14 +9,18 @@ php: { min: "", max: "" }
 # InArrayMissUse
 
 ## Summary
+
 Two wasteful `in_array()` shapes:
+
 - searching the keys list built by `array_keys($a)` — a direct key lookup
   (`array_key_exists`) avoids building the list;
 - searching a one-element array literal — that is just a comparison with the
   single element.
 
 ## Detection
+
 Common preconditions:
+
 - **D1** A function call (not a method/static call) that resolves to the
   global function (names compared case-insensitively, as PHP does; `\` and a
   global `use function` import are fine, but a same-named function declared in
@@ -26,6 +30,7 @@ Common preconditions:
   `H` = 2nd argument (haystack), `S` = optional 3rd argument.
 
 ### Pattern K — keys lookup
+
 - **D3** `H` is a function call (not a method call) that resolves to the
   global `array_keys` (case-insensitive, same resolution as D1) and which has **exactly 1**
   argument `A`. (`array_keys($a, $v)` with a search value does not qualify.)
@@ -33,8 +38,10 @@ Common preconditions:
 - Report kind K on the `in_array` call.
 
 ### Pattern C — single-element haystack
+
 Checked only when pattern K's first test fails (i.e. `H` is not a function
 call named `array_keys`).
+
 - **D4** `H` is an array literal (`[...]` or `array(...)`) with **exactly one**
   element. Let `V` be that element's value: for a `key => value` element the
   value part (the key is ignored), otherwise the element itself.
@@ -57,12 +64,14 @@ call named `array_keys`).
 - Report kind C on `T`.
 
 ## Exceptions (no report)
+
 - **E1** Haystack array literal with zero elements or two or more.
 - **E2** Haystack that is a variable, constant, method call, or a function
   call other than single-argument `array_keys`.
 - **E3** 0, 1 or 4+ arguments.
 
 ## Report
+
 - Range:
   - kind K: the `in_array(...)` call only (a surrounding `!` is outside the
     range and kept);
@@ -75,6 +84,7 @@ call named `array_keys`).
   - C: `Compare directly: '{replacement}'.`
 
 ## Fix
+
 - **F1 (kind K)** Replace the `in_array` call with
   `array_key_exists({N}, {A})` — verbatim texts of the needle and of the
   `array_keys` argument, separator `, `, bare function name (no qualifier) —
@@ -97,6 +107,7 @@ call named `array_keys`).
   `in_array($a ?? 0, [7]) !== true` → `($a ?? 0) != 7`.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `FORCE_STRICT_COMPARISON` | bool | `false` | When on, pattern C always produces `===`/`!==`, whatever the 3rd argument. The EA fixture runs with it off. |
@@ -104,6 +115,7 @@ call named `array_keys`).
 Comparison style (`regular`/`yoda`) is the global setting.
 
 ## PHP versions
+
 No gating. The EA test runs at the PhpStorm default level (between 5.6 and 7.0).
 
 ## Examples
@@ -163,6 +175,7 @@ function checks($role, $list, $map, $a, $b)
 Yoda style: `in_array($role, ['admin'], true)` → `'admin' === $role`.
 
 ## Divergences
+
 - **Precedence when `T` is the bare call inside an operator:** the call is
   replaced by an unparenthesised comparison. Fine under `&&`/`||`, but under
   a non-boolean binary parent (`in_array($x, [1]) == $y`, `$k . in_array(...)`)

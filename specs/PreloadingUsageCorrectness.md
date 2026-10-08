@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # PreloadingUsageCorrectness
 
 ## Summary
+
 In an opcache preload script, including files with `require`/`include`
 executes them, which can fail on unresolved dependencies (PHP bug #78918).
 `opcache_compile_file()` only compiles and caches the file, which is what a
 preload script usually wants.
 
 ## Detection
+
 - **D1** The file's base name is exactly `preload.php` (case-sensitive; any
   directory).
 - **D2** An inclusion expression: `require`, `require_once`, `include` or
@@ -24,6 +26,7 @@ preload script usually wants.
   parenthesised, part of a condition) are not reported.
 
 ## Exceptions (no report)
+
 - **E1** Any other file name (`Preload.php`, `preload.inc.php`, `boot.php`).
 - **E2** `$cfg = require 'config.php';`, `$cfg = (require 'config.php');`,
   `return include 'x.php';`, `if (include 'x.php') {}`.
@@ -35,6 +38,7 @@ preload script usually wants.
   preload list); compiling them does nothing useful.
 
 ## Report
+
 - Range: the inclusion expression, from the keyword through the end of its
   argument; the terminating `;` is not included.
 - Severity: warning.
@@ -42,6 +46,7 @@ preload script usually wants.
   (`{keyword}` = `require`, `require_once`, `include` or `include_once`.)
 
 ## Fix
+
 - **F1** Replace the inclusion expression with
   `opcache_compile_file(ARG)`, where `ARG` is the source text of the argument
   with any enclosing parentheses removed (`require('a.php')` →
@@ -54,9 +59,11 @@ preload script usually wants.
   namespace).
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None (preloading exists from PHP 7.4, but no gating is applied).
 
 ## Examples
@@ -82,7 +89,9 @@ return include 'tail.php';
 ```
 
 ## Divergences
+
 None.
+
 - **Builtin spelling (custos diverges).** Upstream inserts a bare `opcache_compile_file(`,
   which a function of that name declared in (or imported into) the current
   namespace captures, so the fix would call user code. custos writes

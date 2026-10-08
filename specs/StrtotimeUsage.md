@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # StrtotimeUsage
 
 ## Summary
+
 Two wasteful `strtotime()` idioms: parsing the literal `'now'` just to get the
 current timestamp (`time()` does that directly), and passing `time()` as the
 base timestamp, which is already the default.
 
 ## Detection
+
 - **D1** A plain function call whose name, as written in its last segment, is
   `strtotime` (compared case-insensitively, as PHP does), **and** that call resolves to the
   global function `\strtotime` with the same rules as the `time()` call in
@@ -39,6 +41,7 @@ base timestamp, which is already the default.
   `C` can be anything.
 
 ## Exceptions (no report)
+
 - **E1** `strtotime()` with 0 or ≥ 3 arguments.
 - **E2** Single argument that is not exactly `now` (case-insensitive), e.g.
   `'today'`, `'+1 day'`, `'now '`, a variable, a constant.
@@ -48,6 +51,7 @@ base timestamp, which is already the default.
 - **E4** Name with different case (`StrToTime`), method calls.
 
 ## Report
+
 - Range: the whole call `C` (from the start of its name, including any
   namespace qualifier, to its closing `)`).
 - Severity: warning for both cases (the D3 case is shown upstream with the
@@ -57,6 +61,7 @@ base timestamp, which is already the default.
   - D3: `The base timestamp already defaults to the current time; drop the time() argument.`
 
 ## Fix
+
 - **F1** (D2) Replace `C` with a call to the global `time()`:
   - `\time()` when `C`'s name is fully qualified (`\strtotime('now')` →
     `\time()`);
@@ -71,9 +76,11 @@ base timestamp, which is already the default.
 - No parentheses are added around the replacement.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. Upstream fixture runs at the test default level.
 
 ## Examples
@@ -130,6 +137,7 @@ $t = strtotime('+1 hour', time());
 ```
 
 ## Divergences
+
 - **Qualifier kept by the fix — custos diverges from upstream** (F1, F2).
   Upstream always emits a bare `time()` / `strtotime(...)`, dropping a
   leading `\`. Inside a namespace that declares (or imports) its own `time`

@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # PdoApiUsage
 
 ## Summary
+
 Preparing a statement with `PDO::prepare()` and immediately running it with an
 argument-less `execute()` gains nothing from the prepare step: no parameters
 are bound. A single `PDO::query()` call does the same job.
 
 ## Detection
+
 - **D1** A method call (`->`, also `?->`) whose method name is exactly
   `execute` (case-insensitive, as PHP compares method names) with **zero**
   arguments.
@@ -39,6 +41,7 @@ are bound. A single `PDO::query()` call does the same job.
   comments ignored).
 
 The type of the `execute` receiver is not checked beyond D6.
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -47,6 +50,7 @@ The type of the `execute` receiver is not checked beyond D6.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** `execute(...)` with any argument, even an empty array.
 - **E2** `execute()` not used as a standalone statement.
 - **E3** Any non-comment statement between the assignment and the
@@ -57,12 +61,14 @@ The type of the `execute` receiver is not checked beyond D6.
 - **E6** A bare `$pdo->query(...)` call is never reported.
 
 ## Report
+
 - Range: the `execute()` method call expression, from the start of its
   receiver to the closing `)` (without the `;`).
 - Severity: info (weak warning).
 - Message: `No parameters are bound; call query() instead of prepare() + execute().`
 
 ## Fix
+
 - **F1** Delete the whitespace run immediately preceding the `execute`
   statement (if the statement is preceded by whitespace), then delete the
   `execute` statement itself (including `;`). Comments between the two
@@ -74,9 +80,11 @@ Example: `$st = $db->prepare('SELECT 1');⏎    $st->execute();⏎` →
 `$st = $db->query('SELECT 1');⏎`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None. The upstream fixture runs at the IDE test default level (below 7.1).
 
 ## Examples
@@ -156,6 +164,7 @@ class Repo
 ```
 
 ## Divergences
+
 - The fix keeps all `prepare()` arguments; a second `prepare()` argument
   (driver options array) becomes `query()`'s fetch-mode argument, changing
   meaning. Recommendation: offer the fix only when `prepare()` has exactly one

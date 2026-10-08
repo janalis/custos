@@ -9,6 +9,7 @@ php: { min: "7.0", max: "" }
 # UnqualifiedReference
 
 ## Summary
+
 Inside a namespace, an unqualified call such as `strlen($s)` must be resolved
 at run time (namespace first, then global). Writing `\strlen($s)` lets the
 PHP 7+ compiler bind it at compile time and, for a set of special functions,
@@ -16,9 +17,11 @@ replace the call by a dedicated opcode. The same holds for global constants
 and for function names passed as string callbacks.
 
 ## Detection
+
 The whole rule is active only when the configured PHP level is **≥ 7.0**.
 
 ### Part A — function calls and constants
+
 - **D1** Candidate node, one of:
   - a plain function call (not method/static/`new`) whose name as written
     (last segment, compared case-insensitively, as PHP compares function
@@ -58,6 +61,7 @@ The whole rule is active only when the configured PHP level is **≥ 7.0**.
   statement itself are therefore never reported (they import themselves).
 
 ### Part B — string callbacks
+
 Checked on every plain function call (qualified or not) that resolves to one
 of these global functions (name compared case-insensitively; a same-named
 function declared in the current namespace or imported from another
@@ -85,6 +89,7 @@ namespace does not count), at the given callback position (0-based):
   diverges — see Divergences).
 
 ### Opcode list
+
 `array_slice`, `assert`, `boolval`, `call_user_func`, `call_user_func_array`,
 `chr`, `count`, `defined`, `doubleval`, `floatval`, `func_get_args`,
 `func_num_args`, `get_called_class`, `get_class`, `gettype`, `in_array`,
@@ -99,6 +104,7 @@ unqualified `call_user_func('is_int', $v)` in a namespace) can produce two
 reports: one on the call (Part A) and one on the callback string (Part B).
 
 ## Exceptions (no report)
+
 - **E1** PHP level below 7.0.
 - **E2** Qualified names (`\strlen()`, `Sub\strlen()`, `namespace\strlen()`).
 - **E3** File without any namespace declaration (Part A only).
@@ -113,6 +119,7 @@ reports: one on the call (Part A) and one on the callback string (Part B).
 - **E8** `true`/`false`/`null` and magic constants (D2).
 
 ## Report
+
 - Range: Part A — the whole call (from the name to the closing `)`) or the
   constant identifier; Part B — the callback string literal including its
   quotes.
@@ -122,6 +129,7 @@ reports: one on the call (Part A) and one on the callback string (Part B).
   constants, or the callback string contents (no `(...)`) for Part B.
 
 ## Fix
+
 - **F1** Part A: insert a single `\` immediately before the name
   (`strlen($s)` → `\strlen($s)`, `PHP_EOL` → `\PHP_EOL`). Nothing else changes.
 - **F2** Part B, single-quoted literal: `'name'` → `'\name'`.
@@ -129,6 +137,7 @@ reports: one on the call (Part A) and one on the callback string (Part B).
   backslash). Contents are otherwise kept verbatim.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `REPORT_ALL_FUNCTIONS` | bool | false | Report every unqualified global function call (and every callback name), not only those in the opcode list. |
@@ -137,10 +146,12 @@ reports: one on the call (Part A) and one on the callback string (Part B).
 The rule is disabled by default.
 
 ## PHP versions
+
 - Requires level ≥ 7.0 for everything (both parts). Upstream fixtures run at
   7.1.
 
 ## Examples
+
 With `REPORT_ALL_FUNCTIONS = true`, `REPORT_CONSTANTS = true`, level 7.1:
 
 ```php
@@ -207,6 +218,7 @@ define('LIMIT', 3);
 ```
 
 ## Divergences
+
 - **Part B honours D4 (custos diverges).** Upstream reports callback
   strings even in files without a namespace, where qualifying makes no
   difference (WordPress-style procedural code: `array_map('intval', $ids)`).

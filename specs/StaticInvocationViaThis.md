@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # StaticInvocationViaThis
 
 ## Summary
+
 Calling a static method through an object (`$this->make()` or `$obj->make()`)
 hides the fact that no instance is involved. Use `self::`/`ClassName::` so the
 call reads as what it is.
 
 ## Detection
+
 Visit every method call expression.
 
 - **D1** The call uses the object operator `->` (not `::`; the null-safe
@@ -40,6 +42,7 @@ Visit every method call expression.
     level (no scope) every variable receiver is eligible. Report variant B.
 
 ## Exceptions (no report)
+
 - **E1** `::` calls (`self::m()`, `static::m()`, `Foo::m()`), calls on call
   results, dynamic method names, method names beginning with `static`.
 - **E2** Non-static resolved method, or unresolved call.
@@ -62,6 +65,7 @@ Visit every method call expression.
   function-like scope (variant B only).
 
 ## Report
+
 - Variant A (D6): range = the `$this` variable token only. Severity: warning.
   Message: `Static method {name}() called through $this; use self::{name}().`
   where `{name}` is the declared name of the resolved method.
@@ -71,18 +75,21 @@ Visit every method call expression.
   where `{name}` is the name as written at the call site.
 
 ## Fix
+
 - **F1** Variant A only: replace `$this` with `self` and the `->` operator with
   `::`; everything else (method name, arguments, whitespace) is kept:
   `$this->build($x)` → `self::build($x)`.
 - Variant B has no fix (the class name to use is not always obvious).
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | EXCEPT_PHPUNIT_ASSERTIONS | bool | true | Skip static methods declared in PHPUnit framework classes and Symfony's test assertion traits (E3). |
 | EXCEPT_ELOQUENT_MODELS | bool | true | Skip static methods declared in Laravel's Eloquent base model (E4). |
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -123,6 +130,7 @@ After fix:
 <?php
         $a = self::shade(2);
 ```
+
 (variant B occurrences stay unchanged).
 
 With `EXCEPT_PHPUNIT_ASSERTIONS = true`, both of these stay silent:
@@ -138,6 +146,7 @@ namespace PHPUnit\Framework {
 ```
 
 ## Divergences
+
 - **Symfony test assertions (custos diverges):** upstream exempts only
   `\PHPUnit\Framework\…` assertions, so Symfony's `$this->assertResponseIsSuccessful()`,
   `$this->assertSelectorTextContains()` or `$this->getMailerMessages()` —

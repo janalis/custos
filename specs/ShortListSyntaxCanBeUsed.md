@@ -9,10 +9,12 @@ php: { min: "7.1", max: "" }
 # ShortListSyntaxCanBeUsed
 
 ## Summary
+
 From PHP 7.1 destructuring can use the short `[...]` form instead of
 `list(...)`, consistent with short array syntax.
 
 ## Detection
+
 - **D1 Assignment form**: a destructuring assignment whose left side starts
   with the `list` keyword (`list(...) = expr`), wherever the assignment
   appears: as a statement on its own or as a sub-expression (a `while`
@@ -26,6 +28,7 @@ From PHP 7.1 destructuring can use the short `[...]` form instead of
   header from left to right, stopping at the loop body).
 
 ## Exceptions (no report)
+
 - **E1** Language level below 7.1.
 - **E3** Already short syntax (`[$a, $b] = …`, `foreach ($x as [$a, $b])`).
 - **E4** `foreach` with no variable at all (e.g. an all-empty pattern — that is
@@ -34,12 +37,14 @@ From PHP 7.1 destructuring can use the short `[...]` form instead of
   (only the outermost `list` keyword of a statement / foreach).
 
 ## Report
+
 - Range: the `list` keyword token only (4 characters).
 - Severity: info (weak warning).
 - Message (D1): `Use short destructuring syntax '[...] = ...'.`
 - Message (D2): `Use short destructuring syntax in foreach ('as [...]').`
 
 ## Fix
+
 - **F1** Starting at the reported `list` keyword, find the `(` that opens its
   pattern and the matching `)` (balanced at the pattern's own level). Then:
   delete the whitespace run directly following `list` (if any), replace that
@@ -51,9 +56,11 @@ From PHP 7.1 destructuring can use the short `[...]` form instead of
   - `foreach ($rows as $i => list($u, $v))` → `foreach ($rows as $i => [$u, $v])`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Reported only at language level ≥ 7.1 (short destructuring exists since
 7.1). The upstream fixture runs at 7.1.
 
@@ -96,6 +103,7 @@ while ([$key, $item] = each($legacy)) {
 ```
 
 ## Divergences
+
 - Upstream converts only the outermost `list(...)`; a nested
   `list($a, list($b, $c)) = $v;` becomes `[$a, list($b, $c)] = $v;`, which
   PHP rejects (mixing `[]` and `list()` is a compile error). Recommendation:

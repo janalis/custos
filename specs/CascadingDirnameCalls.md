@@ -9,11 +9,13 @@ php: { min: "7.0", max: "" }
 # CascadingDirnameCalls
 
 ## Summary
+
 Since PHP 7.0 `dirname()` accepts a second "levels" argument, so a chain of
 nested `dirname()` calls can be collapsed into a single call with the summed
 level count: fewer calls, easier to read.
 
 ## Detection
+
 Terminology: a *dirname call* is a function call (not a method/static call)
 whose unqualified name is `dirname`, compared case-insensitively as PHP
 resolves function names (custos diverges, see Divergences; any namespace
@@ -62,6 +64,7 @@ another namespace, nor an unqualified call in a namespace declaring its own
   if the original was written `\dirname`.
 
 ## Exceptions (no report)
+
 - **E1** PHP language level below 7.0.
 - **E2** A single dirname call (no nested dirname call consumed), with any
   argument: `dirname($p)`, `dirname($p, 1)`, `dirname($p, 4)`,
@@ -72,12 +75,14 @@ another namespace, nor an unqualified call in a namespace declaring its own
 - **E5** Count of exactly 1 with no expression levels (D6).
 
 ## Report
+
 - Range: the whole top call `C`, from the start of its name (including any
   leading `\` / namespace qualifier) to its closing `)`.
 - Severity: warning.
 - Message: `Collapse the nested dirname() calls into '{R}'.`
 
 ## Fix
+
 - **F1** Replace the top call `C` with `R` (D7) verbatim. Path and level
   expressions keep their original source text; separators are exactly `, `
   and ` + `.
@@ -88,9 +93,11 @@ another namespace, nor an unqualified call in a namespace declaring its own
   - `dirname(dirname($root, $a), $b)` → `dirname($root, 0 + $b + $a)`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - Reported only when the configured PHP level is ≥ 7.0 (the version that
   introduced the `levels` parameter). The upstream fixture runs at 7.1.
 
@@ -137,6 +144,7 @@ $none = dirname();
 ```
 
 ## Divergences
+
 - **Function-name case (custos diverges):** upstream matches `dirname`
   case-sensitively, so `Dirname(dirname($p))` or `DIRNAME(DIRNAME($p))` is
   neither reported nor walked as a chain, although PHP calls the same

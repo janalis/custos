@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # SuspiciousReturn
 
 ## Summary
+
 A `return` inside a `finally` block discards whatever the `try` block was
 doing on its way out: its own return value is replaced and any exception in
 flight is swallowed. When the `try` block itself returns or throws, this is
 almost always a bug.
 
 ## Detection
+
 - **D1** A `return` statement (with or without a value).
 - **D2** Walking up its ancestors, the first ancestor that is either a
   `finally` clause, a function/method/closure/arrow function, or the file is
@@ -28,6 +30,7 @@ almost always a bug.
   `return`/`throw` do not leave the block.
 
 ## Exceptions (no report)
+
 - **E1** `return` in a `finally` whose `try` block neither returns nor
   throws (returns/throws only in `catch` blocks do not count).
 - **E2** `return` in `try` or `catch` blocks.
@@ -37,18 +40,22 @@ almost always a bug.
   (`try { $f = function () { return 1; }; } finally { return 2; }`).
 
 ## Report
+
 - Range: the whole `return` statement, from `return` through its terminating
   `;` inclusive.
 - Severity: error.
 - Message: `Returning from 'finally' discards the try block's return value or exception.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -88,6 +95,7 @@ function quiet() {
 ```
 
 ## Divergences
+
 - **D3 — custos diverges from upstream.** Upstream's search for
   `return`/`throw` in the `try` block also descends into closures, arrow
   functions and anonymous classes defined there, so

@@ -9,12 +9,14 @@ php: { min: "7.1", max: "" }
 # UnsupportedStringOffsetOperations
 
 ## Summary
+
 Writing through a string offset as if it were a nested array
 (`$str[0][1] = …`) or appending to a string with `[]` (`$str[] = …`) is a
 fatal error since PHP 7.1. When the written-to value is known to be a string,
 such writes are bugs.
 
 ## Detection
+
 Visit every array-access expression `E` (`base[index]` or `base[]`); let `C`
 be its base.
 
@@ -51,6 +53,7 @@ array access whose base is typed `X[]` is `X` (so `$names[0]` with
 appears, not an additional D4 report.
 
 ## Exceptions (no report)
+
 - **E1** Language level below 7.1.
 - **E2** Reads: `$v = $s[0][0];`, `$v = [$s[0][0]];`, `foo($s[0][0])`.
 - **E3** Single-level writes `$s[0] = 'x';` (valid on strings).
@@ -61,6 +64,7 @@ appears, not an additional D4 report.
   direct parent, so an append inside a destructuring pattern is not reported.
 
 ## Report
+
 - Range: `T` — the whole outermost array-access chain for D3 (e.g.
   `$s[0]['k']`, `$s[0][]`), or the `$s[]` expression for D4.
 - Severity: error.
@@ -69,12 +73,15 @@ appears, not an additional D4 report.
   - D4: `Appending with [] is not supported on strings (fatal error).`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Reported only at language level ≥ 7.1. The upstream fixture runs at 7.1.
 
 ## Examples
@@ -106,6 +113,7 @@ $str[0][0] = 'x';
 ```
 
 ## Divergences
+
 - Compound assignment counts as a write context; this matches how PHP treats
   it (still fatal). No upstream fixture; behaviour derived from upstream's
   assignment check, which covers compound assignments as well.

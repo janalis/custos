@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # SuspiciousAssignments
 
 ## Summary
+
 Groups six independent checks for assignments that are most likely mistakes:
 writes lost to a switch fall-through, compound operators that repeat their
 target (`$n += $n + 1`), parameters overwritten before ever being read,
@@ -16,6 +17,7 @@ target (`$n += $n + 1`), parameters overwritten before ever being read,
 of something that is not an array.
 
 ## Definitions
+
 - **Plain assignment**: an assignment whose operator token is `=` (by value
   `$a = x` or by reference `$a = &x` / `$a =& x`). Compound assignments
   (`+=`, `.=`, `??=`, …) and destructuring (`list(...) =`, `[...] =`) are not
@@ -35,8 +37,10 @@ of something that is not an array.
 ## Detection
 
 ### A. Switch fall-through overwrite
+
 For every `switch`, walk its `case`/`default` clauses in order keeping a set
 `W` of targets written by earlier clauses (initially empty).
+
 - **D1** Clauses with no statements are skipped entirely (they neither add to
   nor clear `W`).
 - **D2** For each direct statement of the clause, in order (statements nested
@@ -59,6 +63,7 @@ For every `switch`, walk its `case`/`default` clauses in order keeping a set
   clear `W`.
 
 ### B. Self-referencing compound assignment
+
 - **D5** A compound assignment with operator one of `+= -= *= /= %= .= &= |=
   ^= <<= >>=` (not `**=`, `??=`).
 - **D6** Its right-hand side is directly (not parenthesized) a binary
@@ -68,8 +73,10 @@ For every `switch`, walk its `case`/`default` clauses in order keeping a set
   of the outer `.` is `$s . 'a'`, which is not `≡ $s` → no report.
 
 ### C. Parameter overwritten before use
+
 Applies to every function, method and closure (not arrow functions) with a
 body, unless it is in a test context (E6).
+
 - **D7** The function has at least one parameter and its body has at least
   one statement.
 - **D8** For each parameter not passed by reference, list all accesses (reads
@@ -86,6 +93,7 @@ body, unless it is in a test context (E6).
 - Report the target variable.
 
 ### D. `=+`, `=-`, `=!` formatting typo
+
 - **D11** A plain assignment (anywhere) whose right-hand side is a unary
   expression with operator `+`, `-` or `!`, where
   - the `=` token is immediately followed by the unary operator (no whitespace
@@ -94,6 +102,7 @@ body, unless it is in a test context (E6).
   `$a =- $b` matches; `$a = -$b`, `$a=-$b`, `$a =-$b` do not.
 
 ### E. Value overwritten immediately
+
 - **D12** A plain assignment that is itself an expression statement; target `T`.
 - **D13** `T` is not an "unpredictable array write": walking down through
   array-access targets (`X[k]` → `X`), stop and skip the check if any level has
@@ -130,6 +139,7 @@ body, unless it is in a test context (E6).
   - otherwise report `T` only (case "general").
 
 ### F. Destructuring a non-array
+
 - **D18** A destructuring assignment (`list(...) = v` or `[...] = v`) that is
   itself an expression statement (not in `foreach`, not nested).
 - **D19** Resolve the type set of `v`, dropping unknown parts. If the set is
@@ -155,6 +165,7 @@ body, unless it is in a test context (E6).
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Switch: writes in clauses separated by a terminating statement (D4);
   self-dependent writes; appends `X[] = …`; writes in nested blocks; empty
   clauses in between do not break the chain.
@@ -182,6 +193,7 @@ body, unless it is in a test context (E6).
   `[$k, $v] = $maybeRow` with `array|false`, `?array`, `array|null|false`.
 
 ## Report
+
 Severity: error for all checks.
 
 | Check | Range | Message |
@@ -200,12 +212,15 @@ When several checks apply to the same assignment they are reported
 independently (D and E both run on plain assignments).
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. Upstream fixtures run at the test-default level (below 7.1); the
 destructuring fixture uses `[...] =` and a `mixed` parameter type anyway, so
 parse these regardless of level.
@@ -289,6 +304,7 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
 ```
 
 ## Divergences
+
 - Check C relies on control-flow ordering; if the implementation lacks a CFG,
   approximate with a source-order scan of the body where an assignment's RHS
   precedes its target, and nested closures are excluded from the scan (their

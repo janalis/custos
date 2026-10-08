@@ -9,11 +9,13 @@ php: { min: "7.0", max: "" }
 # UnsupportedEmptyListAssignments
 
 ## Summary
+
 Since PHP 7.0 destructuring into a pattern that has no target at all
 (`list()`, `list(, )`, `[]`, `[, ]`) is a compile-time fatal error. In a
 `foreach` value position this is easy to miss.
 
 ## Detection
+
 - **D1** A `foreach` statement that declares **no loop variable at all**: no
   key variable, no value variable, and no variable anywhere inside a
   destructuring pattern.
@@ -26,6 +28,7 @@ Plain destructuring assignments (`list(, ) = $x;`, `[, ] = $x;`) are **not**
 reported by this rule.
 
 ## Exceptions (no report)
+
 - **E1** Language level below 7.0.
 - **E2** The pattern contains at least one variable (`list($a, )`,
   `[, $b]`).
@@ -35,18 +38,22 @@ reported by this rule.
 - **E4** Destructuring assignments outside `foreach`.
 
 ## Report
+
 - Range: the `list` keyword (4 characters) or the single `[` character that
   opens the pattern.
 - Severity: error.
 - Message: `Empty destructuring pattern: PHP 7+ rejects this with a fatal error.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Reported only at language level ≥ 7.0 (earlier versions accepted it). The
 upstream fixture runs at 7.0.
 
@@ -70,6 +77,7 @@ list(, $only) = $queue;
 ```
 
 ## Divergences
+
 - Upstream decides "no variables" from the loop's variable list; a pattern
   whose only targets are property or array-element writes
   (`foreach ($rows as list($this->a))`) may be seen as variable-less and

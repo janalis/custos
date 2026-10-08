@@ -9,11 +9,13 @@ php: { min: "8.0", max: "" }
 # GetDebugTypeCanBeUsed
 
 ## Summary
+
 The hand-rolled idiom "class name for objects, `gettype()` otherwise",
 written as a ternary over `is_object()`, is what PHP 8.0's
 `get_debug_type()` provides in one call. Suggest the built-in.
 
 ## Detection
+
 - **D1** Node: a full ternary `C ? T : F` (the short form `C ?: F` is never
   considered).
 - **D2** `C` is directly a function call (not wrapped in parentheses, not
@@ -36,6 +38,7 @@ written as a ternary over `is_object()`, is what PHP 8.0's
 "Equivalent" means the same node kind and structurally identical (ignoring
 whitespace and comments) or identical source text; for plain variables, the
 same name.
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -44,6 +47,7 @@ same name.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Short ternary `?:`.
 - **E2** Any branch not of the exact shape above: a parenthesised branch or
   condition, `!is_object(...)`, swapped branches (`gettype` in the true
@@ -53,6 +57,7 @@ same name.
 - **E4** Calls bound to non-global functions (D6).
 
 ## Report
+
 - Range: the whole ternary expression, from the start of `C` to the end of
   `F` (enclosing parentheses, if any, are not included).
 - Severity: info (fixtures tag it `weak_warning`).
@@ -64,6 +69,7 @@ same name.
   - `{X}` is the verbatim source text of the `is_object` argument.
 
 ## Fix
+
 - **F1** No automatic fix. `get_debug_type()` does not return the same
   strings as the idiom: `int`/`integer`, `float`/`double`, `bool`/`boolean`,
   `null`/`NULL`, `resource (stream)`/`resource`, and a shortened name for
@@ -71,13 +77,16 @@ same name.
   change behaviour, so the rewrite is left to the developer.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Active only at language level >= 8.0. The upstream fixture runs at 8.0;
 tests without an explicit level would run below 7.1 and see no report.
 
 ## Examples
+
 Language level 8.1:
 
 ```php
@@ -105,6 +114,7 @@ $t = is_object($v) ? get_class($v) : gettype($v);
 ```
 
 ## Divergences
+
 - custos diverges from upstream on the fix (F1). Upstream replaces the
   ternary with `get_debug_type()`, but the two produce different strings
   for integers, floats, booleans, null, resources and anonymous classes

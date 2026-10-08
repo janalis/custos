@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # MisorderedModifiers
 
 ## Summary
+
 PSR-1/PSR-12 style expects method modifiers in a fixed order: `final` /
 `abstract` first, then the visibility, then `static`. Methods whose modifiers
 are written in another order are flagged and re-sorted.
 
 ## Detection
+
 D1. Node: a method declaration (in any class-like: class, abstract class,
     interface, trait, enum, anonymous class) that carries at least one of the
     modifiers `static`, `abstract`, `final`.
@@ -33,6 +35,7 @@ D4. Report when *original* ≠ *expected*.
     inside the modifier list always makes the strings differ (reported).
 
 ## Exceptions (no report)
+
 E1. Methods with none of `static`/`abstract`/`final` (e.g. only `public`).
 E2. Methods with a single modifier keyword.
 E3. Already-canonical order, regardless of spacing/line breaks/case:
@@ -42,24 +45,29 @@ E4. Properties, constants, class declarations, promoted parameters — only
     methods are inspected.
 
 ## Report
+
 - Range: the modifier list, from the start of its first keyword to the end of
   its last keyword (interior whitespace/newlines included).
 - Severity: info (fixtures tag it `weak_warning`).
 - Message: `Reorder modifiers as: {expected}.`
 
 ## Fix
+
 F1. Replace the reported range with *expected* (lowercase keywords separated by
     single spaces). Multi-line lists collapse to one line; comments inside the
     list are dropped; text after the list (` function name(...)`) is untouched.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 
 ## PHP versions
+
 None.
 
 ## Examples
+
 ```php
 <?php
 
@@ -112,6 +120,7 @@ abstract class Repository
 ```
 
 ## Divergences
+
 - A comment between modifiers (`static /* x */ public`) is reported upstream
   and the fix deletes the comment; even a correctly ordered list with a comment
   is reported. Recommendation: ignore comment tokens when building *original*

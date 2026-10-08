@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # StrlenInEmptyStringCheckContext
 
 ## Summary
+
 Measuring a string's length only to know whether it is empty
 (`strlen($s) > 0`, `!mb_strlen($s)`, `if (strlen($s))`) is indirect and
 slower than comparing with the empty string. Suggest an identity comparison
@@ -16,6 +17,7 @@ with `''` instead, casting to string when the value is not known to be a
 string.
 
 ## Detection
+
 - **D1** A plain function call that resolves to the global function
   `strlen` or `mb_strlen` — name compared case-insensitively as PHP does
   (`StrLen`, `\MB_STRLEN` match); written with a single leading `\`, or
@@ -35,6 +37,7 @@ Numeric comparisons — `L`'s **direct** parent (no parentheses in between) is
 a binary expression whose other operand is a number literal (integer/float
 token, or unary minus applied to one). The number is compared by its exact
 source text:
+
 - **D3** operator `>`, `L` is the left operand, number text `0`
   → target = binary, empty = false (`strlen($s) > 0`).
 - **D4** operator `<` or `>=`, `L` is the left operand, number text `1`
@@ -44,6 +47,7 @@ source text:
   `==`/`===`, false for `!=`/`<>`/`!==`.
 
 Boolean contexts — when D3–D5 did not match:
+
 - **D6** `L`, after skipping any wrapping parentheses, is used as a logical
   operand, i.e. the first non-parenthesis ancestor is:
   - the condition of an `if`, `elseif`, `while` or `do … while`;
@@ -66,6 +70,7 @@ is `string`. Anything else — unknown type, `?string` / `string|null`,
 `int`, `float`, unions — needs a cast.
 
 ## Exceptions (no report)
+
 - **E1** (none — top-level code is reported too, see D2.)
 - **E2** Yoda-ordered threshold comparisons `1 > strlen($s)`,
   `1 <= strlen($s)`, `0 < strlen($s)`: only the forms in D3/D4 with `L` on
@@ -83,6 +88,7 @@ is `string`. Anything else — unknown type, `?string` / `string|null`,
   arguments.
 
 ## Report
+
 - Range: the target node — the whole binary expression (D3–D5, from the
   start of the left operand to the end of the right operand, inner spacing
   included), the whole `!…` expression (D7 first case), or the call `L`
@@ -92,6 +98,7 @@ is `string`. Anything else — unknown type, `?string` / `string|null`,
   `{replacement}` is the F1 text.
 
 ## Fix
+
 - **F1** Replace the target with a comparison:
   - operator `{op}` = `===` when empty is true, `!==` otherwise;
   - operand `{v}` = `A`'s source text verbatim, prefixed with `(string)`
@@ -120,17 +127,20 @@ is `string`. Anything else — unknown type, `?string` / `string|null`,
   Examples (yoda): the same give `'' !== $name` and `'' === (string)$id`.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |--------|------|---------|--------|
 | (none) | | | Operand order follows the global comparison style (`regular` default / `yoda`). |
 
 ## PHP versions
+
 No gating. The upstream fixture has no explicit language level (IDE test
 default, below 7.1) yet uses nullable parameter types (`?string`); the parser
 must accept them and the type inference must treat `?T` as `T|null`
 regardless of the configured version.
 
 ## Examples
+
 Yoda style:
 
 ```php
@@ -191,6 +201,7 @@ Regular style (default), same input lines `$c`, `$d`, `$a` become
 `$name === ''`, `(string)$count !== ''`, `(string)$raw !== '' ? 'y' : 'n'`.
 
 ## Divergences
+
 - **Parenthesised argument (custos diverges).** Upstream inserts `A`'s
   text unparenthesised, so low-precedence arguments produce wrong code:
   `strlen($p ?: $q) > 0` → `'' !== $p ?: $q`; with a cast,

@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # FopenBinaryUnsafeUsage
 
 ## Summary
+
 The PHP manual recommends always opening files with the `b` (binary) flag
 for portability; the `t` (text translation) flag is Windows-only and
 mangles line endings. Also, `b` must come after the access letter (`rb`,
 `wb+`, `r+b`) — a leading or middle `b` (`bw`) is wrong.
 
 ## Detection
+
 Visit every plain function call.
 
 - **D1** The call resolves to the global function `fopen`: the name compares
@@ -43,6 +45,7 @@ Visit every plain function call.
 All character tests are case-sensitive (`B`, `T` are ordinary characters).
 
 ## Exceptions (no report)
+
 - **E1** Fewer than two arguments.
 - **E2** Mode not traceable to exactly one string literal (unknown variable,
   call result, two candidate literals, top-level variable).
@@ -51,6 +54,7 @@ All character tests are case-sensitive (`B`, `T` are ordinary characters).
 - **E5** K2/K3 when the option is off.
 
 ## Report
+
 - Range: the second argument `A` as written (the variable, the literal with
   its quotes, or whatever expression) — not the resolved literal.
 - Severity: K1 → error; K2, K3 → warning.
@@ -60,6 +64,7 @@ All character tests are case-sensitive (`B`, `T` are ordinary characters).
   - K3: `Add the 'b' flag to the mode for binary-safe file access.`
 
 ## Fix
+
 All three kinds share one fix, which rewrites the **resolved literal `L`**
 (possibly located elsewhere, e.g. in an earlier `$mode = 'w';` assignment),
 not the argument:
@@ -76,11 +81,13 @@ not the argument:
 - If `m` is empty the fix does nothing (cannot happen given D4).
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `ENFORCE_BINARY_MODIFIER_USAGE` | bool | `true` | When on, modes lacking `b` (with or without `t`) are reported; when off only misplaced `b` is reported. |
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -120,6 +127,7 @@ function open_files($path)
 ```
 
 ## Divergences
+
 - **`fopen` matching (custos diverges from upstream).** Upstream matches
   the written last segment case-sensitively without resolution, so
   `FOPEN($p, 'r')` is missed and a namespace's own `fopen()` is checked (and

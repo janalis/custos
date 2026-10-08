@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # PregQuoteUsage
 
 ## Summary
+
 `preg_quote()` only escapes the pattern delimiter when it is given as the
 second argument. Called with a single argument, a `/` or `#` inside the quoted
 text breaks the surrounding pattern.
 
 ## Detection
+
 - **D1** A plain function call (not a method or static call) whose name (last
   segment) is `preg_quote`, compared case-insensitively as PHP does
   (`Preg_Quote(...)` matches; custos diverges), and which resolves to the
@@ -26,10 +28,12 @@ text breaks the surrounding pattern.
   a spread `...$args`).
 
 ## Exceptions (no report)
+
 - **E1** Two or more arguments (`preg_quote($s, '/')`), or zero arguments.
 - **E2** Method calls named `preg_quote`.
 
 ## Report
+
 - Range: the function name token `preg_quote` only (not the argument list;
   whitespace between the name and `(` is not included). For a qualified call
   such as `\preg_quote(...)`, highlight only the trailing name identifier.
@@ -37,12 +41,15 @@ text breaks the surrounding pattern.
 - Message: `Pass the pattern delimiter to preg_quote() as its second argument.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -56,6 +63,7 @@ $re4 = $quoter->preg_quote($needle);
 ```
 
 ## Divergences
+
 - **Callee resolved — custos diverges from upstream** (D1). Upstream matches
   the callee by name only, so a user function `App\preg_quote($s)` with its
   own signature (e.g. a wrapper that supplies the delimiter itself) is

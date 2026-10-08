@@ -9,23 +9,28 @@ php: { min: "", max: "" }
 # PrintfScanfArguments
 
 ## Summary
+
 The `printf`/`scanf` family takes as many value arguments as the format string
 has conversions. A missing or extra argument silently produces wrong output
 (or an `ArgumentCountError` in PHP 8), and a stray `%` makes the format
 invalid.
 
 ## Detection
+
 - **D1** A plain function call (not a method call) that resolves to one of
   these global functions (names compared case-insensitively, as PHP does;
   an unqualified call in a namespace counts only when no function of that
   name is declared in the namespace, a `use function` import of another
   function or a namespace-qualified name does not count; custos diverges):
+
   | function | format argument position |
   |---|---|
   | `printf`, `sprintf` | 0 |
   | `fprintf`, `sscanf`, `fscanf` | 1 |
+
   Let `P` be that position. The call must have at least `P + 1` arguments.
   (`vprintf`, `vsprintf`, `vfprintf` are not checked.)
+
 - **D2** Determine every possible format (custos diverges, see
   Divergences): collect the candidate values of `A` with a *complete* value
   discovery — parentheses stripped; full ternary → both result branches;
@@ -91,6 +96,7 @@ invalid.
     (`.=`, `+=`, `??=`, …; not plain `=`).
 
 ## Exceptions (no report)
+
 - **E1** Possible formats not all known string literals (parameters, even
   with a default; `$message ?: 'fmt %s'`; heredoc/nowdoc alternatives;
   concatenations; calls), or several literals with different verdicts
@@ -105,6 +111,7 @@ invalid.
   D5/D6 (a `%*s` is not a match and not counted as a `%`).
 
 ## Report
+
 - Invalid format: range = the format argument expression `A` as written in
   the call (the literal, or the variable/constant/property expression that
   resolved to it). Severity: error. Message: `Malformed format string.`
@@ -113,12 +120,15 @@ invalid.
   `This call needs {expected} argument(s) in total.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -171,6 +181,7 @@ suppresses the report (D7c).
 A text like `'99% sure'` is *valid* for D5 (`% s` = space padding + `s`).
 
 ## Divergences
+
 - **Every possible format must be known (custos diverges).** Upstream
   keeps only the string-literal results of value discovery and checks the
   format when exactly one is found, ignoring every other candidate. So

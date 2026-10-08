@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # SubStrShortHandUsage
 
 ## Summary
+
 `substr()` / `mb_substr()` accept a negative length ("stop N characters before
 the end") and treat a missing length as "up to the end". Computing the length
 as `strlen($s) - something` is therefore either replaceable by a negative
 constant, or entirely unnecessary.
 
 ## Detection
+
 - **D1** A plain function call that resolves to the global function (names
   compared case-insensitively, as PHP does; `\` and a global `use function`
   import are fine, but a same-named function declared in the current
@@ -48,10 +50,12 @@ constant, or entirely unnecessary.
     equivalent to each other) → no report.
 
 ### Equivalence
+
 Two expressions are equivalent when they are of the same node kind and are
 structurally identical (same tokens, ignoring whitespace and comments), or
 have exactly the same source text. For two simple variables, compare names
 only (`$s` vs `$s`).
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -60,6 +64,7 @@ only (`$s` vs `$s`).
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** 2 or ≥ 5 arguments.
 - **E1b** `substr` called with 4 arguments (`substr($s, 0, strlen($s) - 1,
   'x')`): the call itself is broken (too many arguments), so no rewrite is
@@ -75,6 +80,7 @@ only (`$s` vs `$s`).
   `substr($s, 0, strlen($s) - strlen($p))`).
 
 ## Report
+
 - Range: the `length` argument (the whole `L - R` expression).
 - Severity: warning for both cases (Drop is shown upstream with the "unused
   symbol" look, severity still warning).
@@ -85,6 +91,7 @@ only (`$s` vs `$s`).
     the verbatim text of the 3rd argument).
 
 ## Fix
+
 - **F1** *Simplify*: replace `length` with the decimal text of `d`
   (e.g. `-3`).
 - **F2** *Drop*, 3 arguments: rewrite the argument list (the content between
@@ -97,14 +104,17 @@ only (`$s` vs `$s`).
   means "to the end").
 
 Examples:
+
 - `substr($s, 0, strlen($s) - 3)` → `substr($s, 0, -3)`
 - `substr($s, 2, strlen($s) - 2)` → `substr($s, 2)`
 - `mb_substr($s, $n, mb_strlen($s) - $n, 'UTF-8')` → `mb_substr($s, $n, null, 'UTF-8')`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating (passing `null` as length to `mb_substr` is valid on every version
 that has it; for plain `substr` the 4-argument form does not exist, but the
 rule does not care). Upstream fixture runs at the test default level.
@@ -157,6 +167,7 @@ function cut($name, $head, $k) {
 ```
 
 ## Divergences
+
 - **Byte vs character length mixing (custos diverges):** upstream accepts
   `strlen` and `mb_strlen` interchangeably for both `substr` and `mb_substr`,
   so `mb_substr($s, 0, strlen($s) - 2)` becomes `-2` and `substr($s, $k,

@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # SubStrUsedAsStrPos
 
 ## Summary
+
 Checking a prefix by cutting it out with `substr($s, 0, …)` and comparing the
 piece is the long way of asking "does `$s` start with this?". The idiomatic
 form is a position search compared strictly against `0`
@@ -16,6 +17,7 @@ form is a position search compared strictly against `0`
 piece was case-folded first.
 
 ## Detection
+
 - **D1** A function call (not method/static) that resolves to the global
   function `substr` or `mb_substr`. Throughout this rule, function names are
   compared case-insensitively as PHP does (`SubStr`, `\MB_SUBSTR` match), and
@@ -58,6 +60,7 @@ piece was case-folded first.
 If `S` is an argument of any other function call (e.g. `trim(substr(...))`)
 or of a method call, or is wrapped in parentheses, the parent check fails and
 nothing is reported.
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -66,6 +69,7 @@ nothing is reported.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** 2nd argument other than the literal `0`.
 - **E2** Length unrelated to `O` (D7): a call of another function, a
   length measuring another value, a literal that differs from the literal's
@@ -79,11 +83,13 @@ nothing is reported.
   already in the folded case (D8).
 
 ## Report
+
 - Range: the whole comparison `B` (left operand start to right operand end).
 - Severity: info (weak warning).
 - Message: `Use '{replacement}' instead.` with the F1 text.
 
 ## Fix
+
 - **F1** Replace `B` with `{replacement}`, built as follows:
   - `{fn}` = `{qualifier}` + (`mb_` if `S` is `mb_substr`) + (`stripos` in
     case-insensitive mode, else `strpos`). `{qualifier}` is `\` when `S`
@@ -115,11 +121,13 @@ nothing is reported.
   - `mb_substr($u, 0, mb_strlen($p, $e), $e) == $p` → `mb_strpos($u, $p, 0, $e) === 0`
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | (none) | | | Operand order of the fix follows the global comparison style (`regular` default / `yoda`). |
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -178,6 +186,7 @@ Yoda style (`comparisonStyle: yoda`): `substr($uri, 0, strlen($base)) == $base`
 becomes `0 === strpos($uri, $base)`.
 
 ## Divergences
+
 - **Encoding slot (custos diverges):** for a 4-argument `mb_substr` upstream
   passes the encoding as the 3rd argument of `mb_strpos`/`mb_stripos`, which
   is the offset parameter, so the produced call fails or searches from the

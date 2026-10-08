@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # PassingByReferenceCorrectness
 
 ## Summary
+
 A parameter declared by reference (`&$p`) needs a variable-like argument.
 Passing the result of a call that does not return by reference, or a `new`
 expression, makes PHP emit a notice ("only variables should be passed by
 reference") and the callee's writes are lost.
 
 ## Detection
+
 - **D1** Candidates: every plain function call `name(...)` and every method
   call (`$o->m(...)`, `A::m(...)`, `parent::m(...)`, …) with a non-empty
   static name.
@@ -41,6 +43,7 @@ reference") and the callee's writes are lost.
   literals, static properties) are never reported by this rule.
 
 ## Exceptions (no report)
+
 - **E1** All arguments plain variables (or, below PHP 7.0, variables/`new`).
 - **E2** Arguments returned by reference: inner callee declared
   `function &f()` / `public function &m()`.
@@ -49,6 +52,7 @@ reference") and the callee's writes are lost.
 - **E5** Arguments beyond the declared parameter list; by-value parameters.
 
 ## Report
+
 - Range: the offending argument expression, whole (e.g. `$repo->load()`,
   `Cfg::get()`, `array_merge(...$parts)`, `new Bag()`), without a trailing
   comma.
@@ -56,12 +60,15 @@ reference") and the callee's writes are lost.
 - Message: `Pass a variable here: this parameter is taken by reference.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - D3's treatment of `new` depends on the configured level (< 7.0 vs ≥ 7.0).
   The EA fixture runs at PHP 7.0, where `new` arguments are reported.
 
@@ -95,6 +102,7 @@ key($s->plain());
 ```
 
 ## Divergences
+
 - Upstream caches, by short name, global functions known to have no
   by-reference parameter and skips later calls with that name, even if a
   namespaced function of the same short name exists. Recommendation: key any

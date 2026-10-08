@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # ParameterDefaultValueIsNotNull
 
 ## Summary
+
 Optional parameters that may be "absent" are best expressed with a `null`
 default (and a nullable type) rather than a sentinel such as `0`, `''` or
 `[]`. This opt-in style rule flags non-null defaults where `null` could be used.
 
 ## Detection
+
 Applies to every function-like declaration: named functions, methods
 (including abstract and interface methods), closures and arrow functions.
 
@@ -27,6 +29,7 @@ Applies to every function-like declaration: named functions, methods
   function is reported separately.
 
 ## Exceptions (no report)
+
 - E1: the parameter has a native type that does not include `null`
   (`string $s = ''`, `int|float $n = 0`, `array $a = []`, `mixed $m = 1`):
   `null` cannot be used without changing the signature.
@@ -40,18 +43,22 @@ Applies to every function-like declaration: named functions, methods
 - E3: a private method in the parent does not trigger E2.
 
 ## Report
+
 - Range: the whole parameter declaration: from its first token (attributes,
   promotion modifiers, type, `&`, as present) to the end of its default value.
 - Severity: info (weak warning).
 - Message: "Prefer null as the default value for this parameter."
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating (the rule is disabled by default).
 
 ## Examples
@@ -83,5 +90,6 @@ $cb = function (<weak_warning descr="Prefer null as the default value for this p
 ```
 
 ## Divergences
+
 None known. `mixed` is treated as a type that does not include `null`
 (matching upstream, whose declared type for `mixed` does not list `null`).

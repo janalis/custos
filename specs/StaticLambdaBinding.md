@@ -9,11 +9,13 @@ php: { min: "5.4", max: "" }
 # StaticLambdaBinding
 
 ## Summary
+
 A `static` closure or arrow function has no bound object: using `$this` in it,
 or calling an instance method of the parent class through `parent::`, fails at
 runtime. Either drop `static` or stop relying on the object.
 
 ## Detection
+
 Visit every anonymous function: classic closures and arrow functions.
 
 - **D1** The configured PHP level is 5.4 or newer.
@@ -45,6 +47,7 @@ Visit every anonymous function: classic closures and arrow functions.
     methods do not match.
 
 ## Exceptions (no report)
+
 - **E1** Non-static closures / arrow functions.
 - **E2** `$this` / `parent::` that belongs to a nested classic closure (or a
   nested `static fn`, reported for itself) inside the static one.
@@ -53,6 +56,7 @@ Visit every anonymous function: classic closures and arrow functions.
 - **E4** PHP level below 5.4.
 
 ## Report
+
 - Range:
   - D4a: the `$this` variable token only (5 characters, `$this`);
   - D4b: the whole call, from `parent` to the closing `)` of its arguments.
@@ -62,15 +66,18 @@ Visit every anonymous function: classic closures and arrow functions.
   - D4b: `Calling an instance method of the parent class requires an object; this closure is static.`
 
 ## Fix
+
 - **F1** (both cases) Delete the `static` keyword of the inspected anonymous
   function. Removing the single whitespace run that followed it is
   recommended (`static function` → `function`, `static fn` → `fn`); the
   comparison is whitespace-collapsed so either form matches.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Requires PHP ≥ 5.4 (static closures). Arrow functions naturally require 7.4
 syntax but are inspected whenever they parse; upstream fixtures run at the
 test-default level (below 7.1) and still expect arrow functions to be reported,
@@ -131,6 +138,7 @@ class Widget extends Base {
 ```
 
 ## Divergences
+
 - **Keyword case (custos diverges).** Upstream recognises only the
   lower-case text `parent`, so `PARENT::render()` in a static closure is
   missed although PHP treats it as the same keyword and the call fails the

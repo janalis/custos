@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # MkdirRaceCondition
 
 ## Summary
+
 `mkdir()` fails when the directory already exists — including when another
 process created it a moment after our own `is_dir()` check. A failed
 `mkdir()` must therefore be followed by an `is_dir()` re-check before being
 treated as an error, and its result must not be ignored.
 
 ## Detection
+
 - **D1** A plain function call whose name is `mkdir`, compared case-insensitively as PHP
   does (`MkDir(...)` qualifies; custos diverges),
   with 1 to 3 arguments (positional or named), resolving to the global
@@ -65,6 +67,7 @@ treated as an error, and its result must not be ignored.
 - **D7** Any other `C` (e.g. assignment `$ok = mkdir(...)`) → no report.
 
 ## Exceptions (no report)
+
 - **E1** Result stored: `$ok = mkdir($d);` (also inside parentheses or after
   `!`/`@`).
 - **E2** `mkdir(...) or die(...)` / `or exit`.
@@ -77,6 +80,7 @@ treated as an error, and its result must not be ignored.
   passed as an argument, `elseif`/`while` conditions, ternaries, casts).
 
 ## Report
+
 - Range:
   - D4: the whole expression statement, including a leading `@`/`!` and the
     terminating `;`.
@@ -93,6 +97,7 @@ treated as an error, and its result must not be ignored.
   - or-form: `Re-check with is_dir() after a failed mkdir: 'mkdir({args}) || is_dir(...)'.`
 
 ## Fix
+
 Notation: `ARGS` = argument list text verbatim (e.g. `$path, 0755, true` or
 `$path, recursive: true`); `DIR` = text of the first argument. A *temp-var*
 form is used when the first argument is neither a plain variable nor a string
@@ -141,9 +146,11 @@ namespace declaring `function is_dir()`, F1 gives
   When `T` is the left operand, no fix is offered (see Divergences).
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None. Named arguments (PHP 8.0) appear in the upstream fixture, which runs at
 the test default level; parse them regardless of level.
 
@@ -193,6 +200,7 @@ in `is_dir` and in `THROW`).
 inverted.)
 
 ## Divergences
+
 - **Name case (custos diverges).** Upstream matches the written name `mkdir`
   case-sensitively, so `MKDIR($d)` used as a condition escapes the check
   although PHP calls the same builtin. custos compares it

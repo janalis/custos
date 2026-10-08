@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # EncryptionInitializationVectorRandomness
 
 ## Summary
+
 An encryption initialization vector must be unpredictable. When the IV passed
 to `openssl_encrypt()` / `mcrypt_encrypt()` can be traced to something other
 than a cryptographic random generator (a literal, `mt_rand()`, …), report it.
 
 ## Detection
+
 - **D1** A plain function call (not a method call) resolving to the global
   function `openssl_encrypt` (variant **O**) or `mcrypt_encrypt` (variant
   **M**); names compare case-insensitively and a same-named namespaced
@@ -40,6 +42,7 @@ than a cryptographic random generator (a literal, `mt_rand()`, …), report it.
 - **D6** Otherwise report `A`.
 
 ## Exceptions (no report)
+
 - **E1** Fewer than 5 arguments (the IV omitted).
 - **E2** All discovered values are calls to one of the secure functions.
 - **E3** IV produced by a single call to a resolvable user function/method
@@ -48,6 +51,7 @@ than a cryptographic random generator (a literal, `mt_rand()`, …), report it.
   unresolvable constant).
 
 ## Report
+
 - Range: the fifth argument `A` exactly as written (a variable, property
   fetch, class constant…), even when the offending values were found
   elsewhere.
@@ -58,12 +62,15 @@ than a cryptographic random generator (a literal, `mt_rand()`, …), report it.
   `, ` (so quoted literals such as `'abc'` sort before `mt_rand()`).
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -101,6 +108,7 @@ class Box
 ```
 
 ## Divergences
+
 - **Function-name matching (custos diverges from upstream).** Upstream
   matches the encryption functions and the secure generators by their
   written last segment, case-sensitively and without resolution. custos

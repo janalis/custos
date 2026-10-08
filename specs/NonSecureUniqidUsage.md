@@ -9,12 +9,15 @@ php: { min: "", max: "" }
 # NonSecureUniqidUsage
 
 ## Summary
+
 Without its `more_entropy` argument, `uniqid()` is based only on the current
 time in microseconds and collides easily. Pass `true` as second argument,
 also when `uniqid` is used as a callback.
 
 ## Detection
+
 ### Direct calls
+
 - **D1** A plain function call whose name (compared case-insensitively) is
   `uniqid` and which resolves to the global function `\uniqid` (an
   unqualified call in a namespace falls back to the global function unless
@@ -24,6 +27,7 @@ also when `uniqid` is used as a callback.
   argument at index 1 and no named argument `more_entropy:`.
 
 ### String callbacks
+
 - **D3** A plain function call resolving to one of the global functions
   below (names compare case-insensitively; a same-named namespaced function
   does not count) with **at least 2**
@@ -48,6 +52,7 @@ also when `uniqid` is used as a callback.
   compared case-insensitively (`'UNIQID'` calls the same function).
 
 ## Exceptions (no report)
+
 - **E1** `uniqid('', true)`, `uniqid($p, false)` (any second argument),
   `uniqid(more_entropy: true)`.
 - **E2** A namespaced call that resolves to a user-defined `uniqid` (not
@@ -57,6 +62,7 @@ also when `uniqid` is used as a callback.
   other names.
 
 ## Report
+
 - Range: D1 — the whole call, from the name (including a leading `\` if
   written) to the closing `)`; D3 — the callback argument `A` as written
   (a string literal including its quotes, or the variable that was
@@ -65,6 +71,7 @@ also when `uniqid` is used as a callback.
 - Message: `Pass more_entropy = true to uniqid() to reduce collisions.`
 
 ## Fix
+
 - **F1** Direct call: replace the argument list (from `(` to `)`
   inclusive) with a new list built from the template `('', true)`: each
   existing argument replaces the template argument at the same position
@@ -91,9 +98,11 @@ also when `uniqid` is used as a callback.
   with.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. (Named arguments are parsed regardless of the configured level.)
 
 ## Examples
@@ -129,6 +138,7 @@ namespace Shop {
 ```
 
 ## Divergences
+
 - **Name matching (custos diverges from upstream).** Upstream compares the
   direct call name, the callback-taking function name and the callback
   string case-sensitively, and does not resolve the callback-taking

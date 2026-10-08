@@ -9,11 +9,13 @@ php: { min: "8.0", max: "" }
 # ArrayIsListCanBeUsed
 
 ## Summary
+
 Hand-written "is this array a list?" checks — comparing `array_values($a)`
 with `$a`, or `array_keys($a)` with `range(0, count($a) - 1)` — are better
 expressed with the built-in `array_is_list($a)`.
 
 ## Detection
+
 Let `C` be a plain function call (not a method/static call) whose name, as
 compared case-insensitively, is `array_values` or `array_keys` and which
 resolves to that global function (unqualified or `\`-qualified; not a
@@ -55,6 +57,7 @@ with exactly one argument `A`.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** PHP level below 8.0.
 - **E2** Argument count of `C` other than 1 (`array_keys($m, 'x')`).
 - **E3** `C` wrapped in parentheses, or used in a loose or non-equality
@@ -67,12 +70,14 @@ with exactly one argument `A`.
   (`count([])`, `count($n)`), `count` with 2 arguments, `- 2`, `+ -1`.
 
 ## Report
+
 - Range: the whole binary expression `B` (from the start of its left operand
   to the end of its right operand).
 - Severity: info (weak warning).
 - Message: `Replace with '{replacement}'.`
 
 ## Fix
+
 - **F1** Replace `B` entirely with the D6 replacement text:
   - `array_values($cfg) === $cfg` → `array_is_list($cfg)`
   - `array_keys($cfg) !== range(0, count($cfg) - 1)` → `!array_is_list($cfg)`
@@ -80,9 +85,11 @@ with exactly one argument `A`.
   No parentheses are added around the replacement.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - Gated at ≥ 8.0 by upstream (even though `array_is_list` only exists from
   8.1). Upstream fixture runs at 8.1.
 
@@ -129,6 +136,7 @@ function inspect(array $cfg, array $other) {
 ```
 
 ## Divergences
+
 - Version threshold: upstream enables the rule from PHP 8.0, but
   `array_is_list()` is a PHP 8.1 function, so the fix breaks 8.0 code.
   Recommendation: gate at ≥ 8.1 (the upstream fixture runs at 8.1, so

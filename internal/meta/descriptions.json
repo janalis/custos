@@ -9,7 +9,7 @@
     "fix": true
   },
   "AlterInForeach": {
-    "summary": "Three related `foreach` value-variable pitfalls:\n1. a by-reference value (`as \u0026$v`) that stays alive after the loop, so a later\n   write to `$v` silently modifies the last array element;\n2. an `unset($v)` right after a loop whose `$v` was *not* a reference (the\n   unset is pointless, probably a leftover);\n3. (opt-in) writing back through `$array[$key] = …` inside\n   `foreach ($array as $key =\u003e $value)` where a by-reference value would do.",
+    "summary": "Three related `foreach` value-variable pitfalls:\n\n1. a by-reference value (`as \u0026$v`) that stays alive after the loop, so a later\n   write to `$v` silently modifies the last array element;\n2. an `unset($v)` right after a loop whose `$v` was *not* a reference (the\n   unset is pointless, probably a leftover);\n3. (opt-in) writing back through `$array[$key] = …` inside\n   `foreach ($array as $key =\u003e $value)` where a by-reference value would do.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_VALUE_BY_REF | bool | false | Enables part C (D7–D8). Parts A and B are always active. |"
   },
   "AmbiguousMethodsCallsInArrayMapping": {
@@ -183,7 +183,7 @@
     "fix": true
   },
   "ForeachInvariants": {
-    "summary": "Two loop shapes that are really array iterations in disguise:\n1. a counter-based `for` that walks `0 … count($a)` and reads `$a[$i]`;\n2. a `while (list($k, $v) = each($a))` loop (`each()` is slow, deprecated in\n   PHP 7.2 and removed in PHP 8).\nBoth are clearer (and faster) as `foreach`.",
+    "summary": "Two loop shapes that are really array iterations in disguise:\n\n1. a counter-based `for` that walks `0 … count($a)` and reads `$a[$i]`;\n2. a `while (list($k, $v) = each($a))` loop (`each()` is slow, deprecated in\n   PHP 7.2 and removed in PHP 8).\nBoth are clearer (and faster) as `foreach`.",
     "fix": true
   },
   "ForgottenDebugOutput": {
@@ -213,7 +213,7 @@
     "fix": true
   },
   "InArrayMissUse": {
-    "summary": "Two wasteful `in_array()` shapes:\n- searching the keys list built by `array_keys($a)` — a direct key lookup\n  (`array_key_exists`) avoids building the list;\n- searching a one-element array literal — that is just a comparison with the\n  single element.",
+    "summary": "Two wasteful `in_array()` shapes:\n\n- searching the keys list built by `array_keys($a)` — a direct key lookup\n  (`array_key_exists`) avoids building the list;\n- searching a one-element array literal — that is just a comparison with the\n  single element.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `FORCE_STRICT_COMPARISON` | bool | `false` | When on, pattern C always produces `===`/`!==`, whatever the 3rd argument. The EA fixture runs with it off. |\n\nComparison style (`regular`/`yoda`) is the global setting.",
     "fix": true
   },
@@ -309,7 +309,7 @@
     "fix": true
   },
   "MultiAssignmentUsage": {
-    "summary": "Two patterns where destructuring would be clearer:\n1. unpacking the `foreach` value variable with `list(...) = $value` as a\n   separate statement, when `foreach (... as list(...))` can do it directly\n   (PHP 5.5+);\n2. consecutive statements pulling numbered elements out of the same array\n   one at a time (`$a = $row[0]; $b = $row[1];`), which a single\n   `list(...) = $row` replaces."
+    "summary": "Two patterns where destructuring would be clearer:\n\n1. unpacking the `foreach` value variable with `list(...) = $value` as a\n   separate statement, when `foreach (... as list(...))` can do it directly\n   (PHP 5.5+);\n2. consecutive statements pulling numbered elements out of the same array\n   one at a time (`$a = $row[0]; $b = $row[1];`), which a single\n   `list(...) = $row` replaces."
   },
   "MultipleReturnStatements": {
     "summary": "A method with many exit points is harder to follow than one with a single\nresult path. The rule counts `return` statements per method and reports it\nabove two configurable thresholds (a normal one and a severe one).",
@@ -392,7 +392,7 @@
     "fix": true
   },
   "PhpUnitTests": {
-    "summary": "A grab-bag of PHPUnit hygiene checks. On test method docblocks it validates the\ntargets of `@covers`, `@depends` and `@dataProvider`, flags a redundant `@test`\nand (optionally) unnamed datasets. On assertion and mock-builder calls it\npoints at generic assertions that have a dedicated, more expressive PHPUnit\ncounterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,\n`assertSame(1, count($l))` → `assertCount(1, $l)`, `-\u003ewill($this-\u003ereturnValue(…))`\n→ `-\u003ewillReturn(…)`, …) and rewrites them.\n\nThe rule has two independent halves:\n- **Part A** — docblock tags on methods (D1–D12).\n- **Part B** — method calls whose name starts with `assert`, or is `expects`\n  or `will` (D13–D30).\n\nNeither half checks that the class extends a PHPUnit test case: every method\nof every class-like and every matching method call is examined.",
+    "summary": "A grab-bag of PHPUnit hygiene checks. On test method docblocks it validates the\ntargets of `@covers`, `@depends` and `@dataProvider`, flags a redundant `@test`\nand (optionally) unnamed datasets. On assertion and mock-builder calls it\npoints at generic assertions that have a dedicated, more expressive PHPUnit\ncounterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,\n`assertSame(1, count($l))` → `assertCount(1, $l)`, `-\u003ewill($this-\u003ereturnValue(…))`\n→ `-\u003ewillReturn(…)`, …) and rewrites them.\n\nThe rule has two independent halves:\n\n- **Part A** — docblock tags on methods (D1–D12).\n- **Part B** — method calls whose name starts with `assert`, or is `expects`\n  or `will` (D13–D30).\n\nNeither half checks that the class extends a PHPUnit test case: every method\nof every class-like and every matching method call is examined.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 D20 suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. D25 only runs below 9.0. D23 uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. D26/D27 use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Conformance passes it as `PhpUnitVersion.PHPUNIT75` style values; strip the prefix. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |\n| `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Enables D17. |\n| `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Enables D6. |\n| `PROMOTE_PHPUNIT_API` | bool | `true` | Enables D18–D28. |\n| `PROMOTE_MOCKING_ONCE` | bool | `true` | Enables D29. |\n| `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Enables D30. |",
     "fix": true
   },
@@ -449,7 +449,7 @@
     "fix": true
   },
   "SecurityAdvisories": {
-    "summary": "Works on a project's `composer.json` (not on PHP code). Two concerns:\ndevelopment-only packages (test frameworks, debuggers, static analysers…)\nlisted under `require` end up in production; and an application that pulls\nthird-party packages should also require the advisory \"firewall\" meta-package\nin `require-dev`, which blocks installing versions with known\nvulnerabilities.\n\nThroughout this spec:\n- **ADV** is the advisory meta-package: vendor `roave`, package\n  `security-advisories`; its full name is vendor, `/`, package.\n- **CHK** is the alternative checker package: vendor `sensiolabs`, package\n  `security-checker`.\n- **DEV** is the effective development-package list (option\n  `optionConfiguration`, see Options).",
+    "summary": "Works on a project's `composer.json` (not on PHP code). Two concerns:\ndevelopment-only packages (test frameworks, debuggers, static analysers…)\nlisted under `require` end up in production; and an application that pulls\nthird-party packages should also require the advisory \"firewall\" meta-package\nin `require-dev`, which blocks installing versions with known\nvulnerabilities.\n\nThroughout this spec:\n\n- **ADV** is the advisory meta-package: vendor `roave`, package\n  `security-advisories`; its full name is vendor, `/`, package.\n- **CHK** is the alternative checker package: vendor `sensiolabs`, package\n  `security-checker`.\n- **DEV** is the effective development-package list (option\n  `optionConfiguration`, see Options).",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_MISSING_ROAVE_ADVISORIES` | bool | false | Enables kinds A (missing advisory package, with fix) and L (advisory package not on `dev-latest`). |\n| `REPORT_MISPLACED_DEPENDENCIES` | bool | true | Enables kind M (development packages under `require`). |\n| `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for the owner skip (D2). |\n\nEffective DEV: upstream always merges the default list into whatever the\nuser configured (user entries ∪ defaults, deduplicated). Recommendation for\ncustos: DEV = defaults ∪ user entries. Entries may also be vendor prefixes\nending in `/` (only meaningful for the owner skip D2).\n\nConformance note: upstream test cases that do not add the defaults run with\nan *empty* DEV (the merge happens only when settings are loaded). With the\nupstream fixtures this makes no difference to the outcome, except that the\ntwo cases which explicitly add the defaults are the only ones where kind M\nor the owner skip can fire. Using the defaults always is safe.\n\nDefault list (vendor / package; the list entry is `vendor/package`, compared\ncase-insensitively — the entry is stored as `mikey179/vfsStream`):\n\n| Vendor | Package | | Vendor | Package |\n|---|---|---|---|---|\n| phpunit | phpunit | | phpspec | prophecy |\n| johnkary | phpunit-speedtrap | | phpspec | phpspec |\n| brianium | paratest | | humbug | humbug |\n| mybuilder | phpunit-accelerator | | infection | infection |\n| codedungeon | phpunit-result-printer | | mockery | mockery |\n| spatie | phpunit-watcher | | satooshi | php-coveralls |\n| symfony | phpunit-bridge | | mikey179 | vfsStream |\n| symfony | debug | | filp | whoops |\n| symfony | maker-bundle | | friendsofphp | php-cs-fixer |\n| zendframework | zend-test | | phpstan | phpstan |\n| zendframework | zend-debug | | vimeo | psalm |\n| yiisoft | yii2-gii | | jakub-onderka | php-parallel-lint |\n| yiisoft | yii2-debug | | squizlabs | php_codesniffer |\n| orchestra | testbench | | slevomat | coding-standard |\n| barryvdh | laravel-debugbar | | doctrine | coding-standard |\n| codeception | codeception | | phpcompatibility | php-compatibility |\n| behat | behat | | zendframework | zend-coding-standard |\n| yiisoft | yii2-coding-standards | | wp-coding-standards | wpcs |\n| phpmd | phpmd | | pdepend | pdepend |\n| sebastian | phpcpd | | povils | phpmnd |\n| phan | phan | | phpro | grumphp |\n| wimg | php-compatibility | | sstalle | php7cc |\n| phing | phing | | composer | composer |\n| roave | security-advisories | | kalessil | production-dependencies-guard |\n\n(48 entries.) ADV itself is in the list, so ADV under `require` is reported\nas kind M.",
     "fix": true
   },
@@ -488,7 +488,7 @@
     "fix": true
   },
   "SlowArrayOperationsInLoop": {
-    "summary": "Two loop anti-patterns:\n- **Accumulating merges**: `$acc = array_merge($acc, $chunk)` inside a loop\n  copies the whole accumulator on every iteration (quadratic cost). Collect\n  the chunks and merge once after the loop.\n- **Length in a `for` condition**: `$i \u003c count($items)` re-evaluates the\n  length on every iteration. Compute it once in the initialiser.",
+    "summary": "Two loop anti-patterns:\n\n- **Accumulating merges**: `$acc = array_merge($acc, $chunk)` inside a loop\n  copies the whole accumulator on every iteration (quadratic cost). Collect\n  the chunks and merge once after the loop.\n- **Length in a `for` condition**: `$i \u003c count($items)` re-evaluates the\n  length on every iteration. Compute it once in the initialiser.",
     "fix": true
   },
   "StaticClosureCanBeUsed": {
@@ -531,7 +531,7 @@
     "fix": true
   },
   "StringNormalization": {
-    "summary": "Two smells when chaining string normalisation calls:\n1. Changing the case of a string and *then* trimming / cutting it converts\n   characters that are thrown away right after; cut first, convert the case\n   of the (shorter) result.\n2. Wrapping a case conversion inside another case conversion is pointless\n   when the outer call overrides what the inner one did (or repeats it); the\n   inner call can be dropped.",
+    "summary": "Two smells when chaining string normalisation calls:\n\n1. Changing the case of a string and *then* trimming / cutting it converts\n   characters that are thrown away right after; cut first, convert the case\n   of the (shorter) result.\n2. Wrapping a case conversion inside another case conversion is pointless\n   when the outer call overrides what the inner one did (or repeats it); the\n   inner call can be dropped.",
     "fix": true
   },
   "StringsFirstCharactersCompare": {

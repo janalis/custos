@@ -9,15 +9,18 @@ php: { min: "5.5", max: "" }
 # ClassConstantCanBeUsed
 
 ## Summary
+
 Since PHP 5.5 a class name can be obtained with `Name::class`. Writing class
 names as string literals hides them from refactoring tools and static
 analysis, and `get_called_class()` / `get_parent_class()` without arguments
 have constant-expression equivalents (`static::class`, `parent::class`).
 
 ## Detection
+
 Everything is gated on PHP language level ≥ 5.5.
 
 ### Function calls
+
 - **D0** *Class scope* of a call: walk up from the call; a named function
   declaration (`function f() {}`, even one written inside a method) ends the
   walk with no class scope; otherwise the nearest enclosing class-like
@@ -34,6 +37,7 @@ Everything is gated on PHP language level ≥ 5.5.
   → suggest `parent::class`.
 
 ### String literals
+
 - **D3** A single- or double-quoted string literal (not heredoc/nowdoc) with
   no interpolation (no `$var`, `{$…}` parts).
 - **D4** Context filter on the literal's direct parent:
@@ -75,6 +79,7 @@ Everything is gated on PHP language level ≥ 5.5.
   report.
 
 ## Exceptions (no report)
+
 - **E1** PHP level below 5.5.
 - **E2** `get_called_class(...)` / `get_parent_class(...)` with any argument.
 - **E7** `get_called_class()` without a class scope (file level, plain
@@ -91,6 +96,7 @@ Everything is gated on PHP language level ≥ 5.5.
   or differ in case from the declaration.
 
 ## Report
+
 - Range:
   - D1/D2: the whole call, from the function name to `)`.
   - plain literal: the string literal including its quotes;
@@ -106,6 +112,7 @@ Everything is gated on PHP language level ≥ 5.5.
     `Sub\Item`).
 
 ## Fix
+
 - **F1** D1: replace the call with `static::class`.
 - **F2** D2: replace the call with `parent::class`.
 - **F3** Literals: the fix receives a name `Q` — the normalised FQN with
@@ -164,6 +171,7 @@ Everything is gated on PHP language level ≥ 5.5.
     `__NAMESPACE__ . '\Sub\Item'` → `Sub\Item::class`.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `IMPORT_CLASSES_ON_QF` | bool | true | Fix may add a `use` import for namespaced classes and reference them by short name. |
@@ -176,10 +184,12 @@ LOOK_ROOT_NS_UP=true`, except the no-namespace configuration case
 companion file (project index).
 
 ## PHP versions
+
 - Whole rule requires PHP ≥ 5.5. Upstream tests run at the test default
   level (below 7.1, ≥ 5.5).
 
 ## Examples
+
 Options: `IMPORT_CLASSES_ON_QF=true`, `USE_RELATIVE_QF=true`,
 `LOOK_ROOT_NS_UP=true`.
 
@@ -299,6 +309,7 @@ class Clerk {
 ```
 
 Walk-through of the less obvious results:
+
 - `"\\Shop\\Billing\\Ledger"`: the class lives directly in the file's first
   namespace, so the namespace-collision check (`Shop\Billing\Ledger` exists)
   finds the class itself → no import, stays fully qualified.
@@ -329,6 +340,7 @@ return [
     'Local',
 ];
 ```
+
 (with `Shop\Billing\Invoice` declared in another project file)
 
 ```php
@@ -350,6 +362,7 @@ return [
 ```
 
 ## Divergences
+
 - `__NAMESPACE__ . '\Name'` outside any class-like is resolved against the
   root namespace (the namespace prefix is not applied). Recommendation: use
   the enclosing namespace declaration instead of the enclosing class when

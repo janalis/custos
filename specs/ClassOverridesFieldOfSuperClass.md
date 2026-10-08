@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # ClassOverridesFieldOfSuperClass
 
 ## Summary
+
 Re-declaring a property that an ancestor already declares is usually
 accidental: for protected/public properties it merely duplicates the
 declaration (often with a diverging default), and for an ancestor's private
 property it creates a second, unrelated property with the same name.
 
 ## Detection
+
 - **D1** A property declaration in a class body (each property of a
   multi-property declaration is checked on its own), where:
   - the containing class is not in a test context (T below);
@@ -56,6 +58,7 @@ property it creates a second, unrelated property with the same name.
 contains `\Tests\` or `\Test\`.
 
 ## Exceptions (no report)
+
 - **E1** Static properties and constants.
 - **E2** Test classes (T).
 - **E3** Properties annotated with framework-style tags (uppercase letter in
@@ -67,6 +70,7 @@ contains `\Tests\` or `\Test\`.
 - **E7** Private redefinitions when `REPORT_PRIVATE_REDEFINITION` is false.
 
 ## Report
+
 - Range: the own property name including `$` (e.g. `$items`), not the
   modifiers or default value.
 - Severity: **info** (weak warning) for both cases. Upstream registers both
@@ -79,17 +83,21 @@ contains `\Tests\` or `\Test\`.
     different name.`
 
 ## Fix
+
 None.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `REPORT_PRIVATE_REDEFINITION` | bool | true | Also report re-declarations of an ancestor's (or ancestor trait's) private property (D5). |
 
 ## PHP versions
+
 No gating.
 
 ## Examples
+
 Default options:
 
 ```php
@@ -142,6 +150,7 @@ class Door extends Locked {
 ```
 
 ## Divergences
+
 - **Default overrides (custos diverges).** Upstream reports any
   re-declaration, including `protected $table = 'invoices';` over a parent's
   `protected $table;` (Eloquent models) or `protected bool $skipScalars =

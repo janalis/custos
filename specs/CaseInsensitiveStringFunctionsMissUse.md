@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # CaseInsensitiveStringFunctionsMissUse
 
 ## Summary
+
 Case-insensitive search functions (`stripos`, `strripos`, `stristr`) do extra
 case-folding work. When the needle has no letters at all (e.g. `'/'`, `'::'`,
 `'42'`), case does not matter and the plain case-sensitive counterpart gives
 the same result faster.
 
 ## Detection
+
 - **D1** A function call (not a method/static call) that resolves to the
   global function (names compared case-insensitively, as PHP does; `\` and a
   global `use function` import are fine, but a same-named function declared in
@@ -46,6 +48,7 @@ Thus `"\t"` (a tab) and `"\x2F"` (a slash) are reported, while `"\x41"`
 (`A`) and `'\t'` (backslash + `t`) are not.
 
 ## Exceptions (no report)
+
 - **E1** Needle containing any letter, ASCII or not (`'b'`, `'é'`, `'й'`).
 - **E2** Empty needle `''`.
 - **E3** Needle that cannot be traced to exactly one string literal (non-literal
@@ -56,6 +59,7 @@ Thus `"\t"` (a tab) and `"\x2F"` (a slash) are reported, while `"\x41"`
   (`STRIPOS($p, '/')` → `strpos($p, '/')`).
 
 ## Report
+
 - Range: the whole function call, from the start of its name (including any
   namespace qualifier) to the closing `)`.
 - Severity: **info (weak warning)**, regardless of the `warning` default listed
@@ -63,6 +67,7 @@ Thus `"\t"` (a tab) and `"\x2F"` (a slash) are reported, while `"\x41"`
 - Message: `Needle has no letters; use '{counterpart}(...)' instead.`
 
 ## Fix
+
 - **F1** Rename the function: replace only the last name segment with the
   counterpart (`stripos`→`strpos`, `strripos`→`strrpos`, `stristr`→`strstr`).
   Any namespace qualifier, the argument list and all whitespace/comments are
@@ -72,9 +77,11 @@ Thus `"\t"` (a tab) and `"\x2F"` (a slash) are reported, while `"\x41"`
   leading `\` (`stripos($p, '/')` → `\strpos($p, '/')`).
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. The EA test runs at the PhpStorm default level (between 5.6 and 7.0).
 
 ## Examples
@@ -120,6 +127,7 @@ function parts($path, $mode)
 ```
 
 ## Divergences
+
 - **Function-name case (custos diverges):** upstream matches the names
   case-sensitively, so `STRIPOS($p, '/')` or `\StrIPos(...)` is missed
   although PHP calls the same function; any namespace qualifier is accepted

@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # CompactCanBeUsed
 
 ## Summary
+
 An array literal whose every entry maps a string key to the variable of the
 same name (`['id' => $id, 'tag' => $tag]`) can be written as
 `compact('id', 'tag')`, which avoids repeating each name twice.
 
 ## Detection
+
 - **D1** An array literal, either `[...]` or `array(...)`.
 - **D2** It is **not** the target of an assignment: if its direct parent is an
   assignment expression (plain `=` or compound) and the array is not that
@@ -35,6 +37,7 @@ same name (`['id' => $id, 'tag' => $tag]`) can be written as
   empty array is not reported).
 
 ## Exceptions (no report)
+
 - **E1** Destructuring assignment targets: `['a' => $a, 'b' => $b] = $src;`.
 - **E2** One-element arrays.
 - **E3** Any key/name mismatch (`'a' => $b`), or any value that is an
@@ -42,6 +45,7 @@ same name (`['id' => $id, 'tag' => $tag]`) can be written as
 - **E4** Non-string keys (`0 => $a`, `KEY => $a`).
 
 ## Report
+
 - Range: the first token of the array literal only — the `[` of a short
   array, or the `array` keyword of a long array (not the whole literal).
 - Severity: info (weak warning). Rule disabled by default.
@@ -49,6 +53,7 @@ same name (`['id' => $id, 'tag' => $tag]`) can be written as
   `{replacement}` is the F1 text.
 
 ## Fix
+
 - **F1** Replace the whole array literal (from `[`/`array` to the closing
   `]`/`)`) with `compact(K1, K2, ...)`, where each `Ki` is the **source text
   of the key literal including its quotes** (so `"a"` stays double-quoted),
@@ -60,9 +65,11 @@ same name (`['id' => $id, 'tag' => $tag]`) can be written as
   function (a `use function` import under that name, or a same-named function declared in the current namespace).
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating (`compact()` and both array syntaxes exist in all supported
 versions; short syntax requires 5.4 only for parsing).
 
@@ -103,6 +110,7 @@ function payload($id, $tag, $note) {
 ```
 
 ## Divergences
+
 - **Other destructuring contexts (upstream false positive).** Upstream only
   excludes arrays that are the direct left side of an assignment. Keyed
   destructuring in `foreach ($rows as ['id' => $id, 'tag' => $tag])`, nested

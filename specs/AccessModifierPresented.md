@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # AccessModifierPresented
 
 ## Summary
+
 Class members that rely on PHP's implicit public visibility (methods declared
 with no visibility keyword, properties declared with `var`/`static`/`readonly`
 only, constants declared with a bare `const`) should spell out their visibility
 explicitly so intent is clear to readers.
 
 ## Detection
+
 The rule visits every class-like declaration: classes (named and anonymous),
 abstract classes, interfaces, traits and enums. Only members declared directly
 in that declaration are inspected (no inherited/used members).
@@ -49,6 +51,7 @@ D4. When option `ANALYZE_INTERFACES` is off, interfaces are skipped entirely
     any other class-like.
 
 ## Exceptions (no report)
+
 E1. A method/property whose modifier text contains `public` (D1) or any of
     `public`/`protected`/`private` (D2). Note D2 uses substring matching, so
     asymmetric-visibility property modifiers such as `public(set)`,
@@ -63,6 +66,7 @@ E6. Members without a name token (parse-error recovery).
 E7. Members of interfaces when `ANALYZE_INTERFACES` is off.
 
 ## Report
+
 - Range: the member's name token only:
   - method: the identifier after `function` (e.g. `run`);
   - property: the variable token including `$` (e.g. `$count`);
@@ -72,6 +76,7 @@ E7. Members of interfaces when `ANALYZE_INTERFACES` is off.
   the member name without `$`.
 
 ## Fix
+
 F1. **Methods and properties** (D1, D2): the declaration's modifier keyword
     list is rewritten as a canonical list built from the original keywords, in
     this exact order, separated by single spaces:
@@ -96,12 +101,14 @@ F2. **Constants** (D3): insert `public ` immediately before the `const`
     `final const X = 1;` → `final public const X = 1;`.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | ANALYZE_INTERFACES | bool | true | When false, interface declarations are not inspected at all. |
 | ANALYZE_CONSTANTS | bool | true | When false, class constants are never reported (D3 disabled). |
 
 ## PHP versions
+
 - D3/F2 only when the project PHP level is ≥ 7.1.
 - Methods/properties: no gating.
 - Conformance note: the upstream fixture run without an explicit PHP level
@@ -111,6 +118,7 @@ F2. **Constants** (D3): insert `public ` immediately before the `const`
   < 7.1 for this rule to pass (or the case must be treated as such).
 
 ## Examples
+
 ```php
 <?php
 
@@ -190,6 +198,7 @@ class Limits
 ```
 
 ## Divergences
+
 - Promoted constructor parameters are not covered upstream in a reliable way
   (they are not part of a property statement). Recommendation: do not report
   them.

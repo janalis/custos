@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # DateIntervalSpecification
 
 ## Summary
+
 `new DateInterval($spec)` throws for a malformed ISO-8601 duration string.
 Check literal specifications against the accepted shapes so the mistake is
 caught before runtime.
 
 ## Detection
+
 Visit every `new` expression.
 
 - **D1** Exactly one constructor argument is passed.
@@ -49,12 +51,14 @@ letters are rejected; fractions (`PT1.5S`) are rejected; `PT` followed by a
 digit but no unit (`PT5`) is rejected.
 
 ## Exceptions (no report)
+
 - **E1** Zero or 2+ arguments; other classes (`new DateTime('…')`).
 - **E2** Interpolated strings, non-literal values that cannot be traced to a
   single string literal.
 - **E3** Valid specifications per R1/R2.
 
 ## Report
+
 - Range: the string literal `L` including its quotes. When `L` was found via
   value discovery (e.g. a variable assigned earlier in the function), the
   highlighted range is that literal at its own location, not the `new`
@@ -63,12 +67,15 @@ digit but no unit (`PT5`) is rejected.
 - Message: `Malformed DateInterval specification.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -110,6 +117,7 @@ function later()
 ```
 
 ## Divergences
+
 - **Class name case (custos diverges):** upstream compares the resolved
   class name case-sensitively, so `new dateinterval('3M')` or an import
   written `use DATEINTERVAL;` escapes the check although PHP instantiates

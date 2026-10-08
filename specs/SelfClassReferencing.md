@@ -9,13 +9,16 @@ php: { min: "", max: "" }
 # SelfClassReferencing
 
 ## Summary
+
 Inside a class's own methods, refer to the class consistently: by default with
 `self` (and `__CLASS__` instead of `Name::class`), which survives renames; or,
 when `PREFER_CLASS_NAMES` is on, with the explicit class name instead of `self`
 / `__CLASS__`.
 
 ## Detection
+
 Scope (both modes):
+
 - S1: only methods of a named class (class, enum, or any non-anonymous,
   non-trait class-like). Methods of traits and anonymous classes are skipped.
 - S2: abstract methods are skipped (interface methods, having no body, are
@@ -30,6 +33,7 @@ Scope (both modes):
 
 Default mode (`PREFER_CLASS_NAMES` = false), with `Name` = the class's short
 name:
+
 - D1: a class-name reference whose last segment is `Name` in any letter case
   (class names are case-insensitive in PHP), which resolves (through namespace and imports) to this very
   class. Class-name references include: `new Name`, `Name::CONST`,
@@ -45,6 +49,7 @@ name:
 - D3: otherwise the reference itself is reported (replacement `self`).
 
 Reverse mode (`PREFER_CLASS_NAMES` = true):
+
 - D4: a class reference written `self` in any letter case (`SELF`) that resolves
   to this class is reported (replacement: the class's short name). This
   includes `self::class` (only `self` is reported/replaced), `new self`, type
@@ -53,6 +58,7 @@ Reverse mode (`PREFER_CLASS_NAMES` = true):
   (replacement `Name::class`).
 
 ## Exceptions (no report)
+
 - E1: references inside closures, arrow functions or nested functions (S3).
 - E2: traits, anonymous classes, abstract/interface methods (S1, S2).
 - E3: a reference whose direct parent is an `extends` clause (e.g.
@@ -67,6 +73,7 @@ Reverse mode (`PREFER_CLASS_NAMES` = true):
   resulting string. Not reported at all.
 
 ## Report
+
 - Range: the class reference node (full text including any namespace
   qualifier) for D1/D3/D4; the whole `Name::class` expression for D2; the
   `__CLASS__` token for D5.
@@ -75,17 +82,20 @@ Reverse mode (`PREFER_CLASS_NAMES` = true):
 - Message (reverse mode): "Spell the class reference '{found}' as '{replacement}'."
 
 ## Fix
+
 - F1 (D3): replace the reference with `self`.
 - F2 (D2): replace the whole `Name::class` with `__CLASS__`.
 - F3 (D4): replace `self` with the class's short name.
 - F4 (D5): replace `__CLASS__` with `Name::class`.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | PREFER_CLASS_NAMES | bool | false | Switches the preferred style: false = use `self`/`__CLASS__`; true = use the explicit class name / `Name::class`. |
 
 ## PHP versions
+
 No gating upstream (see Divergences for `::class` on PHP < 5.5).
 
 ## Examples
@@ -183,6 +193,7 @@ __CLASS__;                          // not inside a class method
 ```
 
 ## Divergences
+
 - Upstream also considers references inside an anonymous class declared in the
   method but outside that anonymous class's methods (e.g. its constant or
   property initialisers): `self` there would mean the anonymous class.

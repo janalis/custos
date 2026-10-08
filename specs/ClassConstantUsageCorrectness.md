@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # ClassConstantUsageCorrectness
 
 ## Summary
+
 `Foo::class` is resolved at compile time from the name *as written*, so a
 class name typed with the wrong letter case (or imported with the wrong case)
 produces a string that differs from the real class name. That string then
@@ -16,6 +17,7 @@ breaks case-sensitive comparisons, array keys, container ids and autoloaders
 on case-sensitive file systems.
 
 ## Detection
+
 Visit every class constant access `X::NAME`.
 
 - **D1** `NAME` is the `class` keyword, compared case-insensitively as PHP
@@ -39,12 +41,15 @@ Each import has a target name (as written, without leading `\`), an FQN and
 optionally an explicit alias (`as Alias`).
 
 ### L for a fully-qualified `T` (starts with `\`)
+
 - **L1** Look up classes by FQN `T` (case-insensitive) in the index; if one is
   found, add its declared FQN with leading `\` (e.g. `\stdClass`). So `\Foo`
   must match the declared spelling exactly.
 
 ### L for a qualified `T` (contains `\`, no leading `\`)
+
 Nothing is added when there is no `NS`.
+
 - **L2** If `NS` is a named namespace (not the global `namespace { }`) and
   either lower(FQN of `C`) starts with lower(FQN of `NS`), or lower(FQN of `C`)
   ends with `\` + lower(`T`): add the last `len(T)` characters of `C`'s
@@ -58,7 +63,9 @@ Nothing is added when there is no `NS`.
   `P\bolt` resolving to `\Shop\Deep\Parts\Bolt` yields `P\Bolt`.)
 
 ### L for an unqualified `T` (no `\` at all)
+
 For each import in `USES`:
+
 - **L4** If the import's FQN equals `C`'s FQN case-insensitively:
   - with an explicit alias → add the alias as written;
   - without alias → resolve the import's target to a class `R`; let
@@ -74,6 +81,7 @@ For each import in `USES`:
   case-insensitively → add that alias as written.
 
 Consequences worth testing:
+
 - An unqualified name that is not imported (class in the same namespace, or
   global class in a non-namespaced file without imports) gives an empty `L`
   → never reported, whatever its case.
@@ -85,24 +93,29 @@ Consequences worth testing:
 - Alias used with a different case than declared → reported.
 
 ## Exceptions (no report)
+
 - **E1** `self::class`, `static::class`, `parent::class`, `$var::class`.
 - **E2** Unresolvable class names.
 - **E3** Qualified names in files without a namespace statement.
 - **E4** Empty acceptable-spelling list (see consequences above).
 
 ## Report
+
 - Range: the class name part `X` only (e.g. `Sub\cart` in `Sub\cart::class`,
   `\stdclass` including the leading backslash), not `::class`.
 - Severity: error.
 - Message: `Letter case of the class name differs from its declaration; ::class will return the wrong string.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None (`::class` itself exists since 5.5; no gating).
 
 ## Examples
@@ -173,10 +186,12 @@ Bag::class;
 ArrayObject::class;
 <error descr="Letter case of the class name differs from its declaration; ::class will return the wrong string.">arrayObject</error>::class;
 ```
+
 (Not reported: the plain import is spelled as declared, so `ArrayObject`
 is acceptable next to the alias `Bag`.)
 
 ## Divergences
+
 - **Keyword case (custos diverges).** `SELF::class` / `Static::class`
   (keywords in another case) are not excluded by D3 upstream and are then
   resolved like class names; custos excludes `self`/`static`/`parent`

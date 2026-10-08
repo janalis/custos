@@ -9,13 +9,16 @@ php: { min: "", max: "" }
 # MissingIssetImplementation
 
 ## Summary
+
 `isset($obj->name)` / `empty($obj->name)` on a property the class does not
 declare can only answer correctly if the class implements `__isset()`. When it
 does not (typically classes with `__get` only), the check is always
 false/empty, which is a silent logic bug.
 
 ## Detection
+
 For every argument `A` of `isset(...)` and of `empty(...)`:
+
 - **D1** `A` is directly an instance property fetch `$base->name` using the
   plain `->` operator (nullsafe `?->` is not considered) with a **static
   identifier** name (not `$o->$n`, not `$o->{$expr}`).
@@ -34,6 +37,7 @@ For every argument `A` of `isset(...)` and of `empty(...)`:
     → report `A` and stop processing the remaining types of `A`.
 
 ## Exceptions (no report)
+
 - **E1** Properties declared on the class or its ancestors (any visibility).
 - **E2** Classes having `__isset` somewhere in their hierarchy.
 - **E3** Dynamic property names (`$o->{$k}`, `$o->$k`), static properties
@@ -46,18 +50,22 @@ For every argument `A` of `isset(...)` and of `empty(...)`:
   (`isset($a[$o->x])`) — only direct arguments are checked.
 
 ## Report
+
 - Range: the whole argument `A` (`$base->name`).
 - Severity: error.
 - Message: `{Type} has no __isset(); this isset/empty check is always false.`
   where `{Type}` is the normalised FQN as inferred (e.g. `\Acme\Bag`).
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -102,7 +110,9 @@ class Bag
 ```
 
 ## Divergences
+
 None known.
+
 - **Undecidable receivers (custos diverges).** Upstream reports as soon as
   one class of the receiver's type lacks `__isset()`, with severity error
   and "always false". That is wrong when another possible value can carry

@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # ReferencingObjects
 
 ## Summary
+
 Since PHP 5, object handles are passed and assigned by value of the handle:
 the callee already works on the same object. Taking objects by reference
 (`Foo &$x` parameters, `$x = &new Foo()`) is a PHP 4 leftover that only
@@ -18,6 +19,7 @@ caller's variable.
 ## Detection
 
 ### By-reference object parameters
+
 - **D1** A parameter of a named function or of a method (including abstract
   and interface methods, which have no body). Parameters of closures and
   arrow functions are not inspected.
@@ -60,12 +62,14 @@ caller's variable.
   signature makes it incompatible with the others (fatal error).
 
 ### By-reference instantiation
+
 - **D5** A `new` expression whose direct parent is an assignment by
   reference: `$x = &new Foo()`, `$x = & new Foo`, `$x =& new Foo(...)`
   (any whitespace between `=` and `&`). A parenthesised `new`
   (`$x = &(new Foo)`) is not matched.
 
 ## Exceptions (no report)
+
 - **E1** Parameters with a default value (`Foo &$x = null`).
 - **E2** Untyped or scalar/array/mixed/iterable/callable-typed reference
   parameters.
@@ -75,6 +79,7 @@ caller's variable.
 - **E5** Plain assignments `$x = new Foo()`.
 
 ## Report
+
 - D1–D4: range = the whole parameter, from the first character of its type
   (or of its attributes/modifiers, if any) to the end of the variable name,
   e.g. `Foo & $item`, `Foo &$item`, `Foo& $item`. Severity: warning.
@@ -85,6 +90,7 @@ caller's variable.
   by handle already; assign the new instance without '&'.`
 
 ## Fix
+
 - **F1** (parameter) Remove the `&` and make exactly one space separate the
   type from the variable name: replace the text between the end of the type
   and the start of `$name` with a single space.
@@ -96,9 +102,11 @@ caller's variable.
   `$x =& new Foo` → `$x = new Foo`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. `= &new` is a parse error since PHP 7.0, but it is parsed and
 reported at every level (upstream fixtures run at the test default, between
 5.6 and 7.0).
@@ -158,6 +166,7 @@ $fn = function (DOMNode &$node) {};
 ```
 
 ## Divergences
+
 - Upstream deletes "the token before the name (after skipping one whitespace
   run)"; for a by-reference variadic `Foo &...$rest` that token is `...`,
   so the fix would drop the variadic marker instead of `&`. Recommendation:

@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # CascadeStringReplacement
 
 ## Summary
+
 `str_replace()` accepts arrays of searches and replacements and applies them
 in order, so several consecutive replacements on the same subject — written
 as back-to-back assignments or as nested calls — can be one call. Also, a
 search array whose items are all the same string literal can be that string.
 
 ## Detection
+
 Terminology: a *str_replace call* is a plain function call (not a method or
 static call) that resolves to the global function (names compared
 case-insensitively, as PHP does; `\` and a global `use function` import are
@@ -25,6 +27,7 @@ imported from another namespace, or a qualified non-global name such as
 `[...]`.
 
 ### Entry points
+
 - **D1** A `return` statement whose returned expression, after stripping any
   parentheses, is a str_replace call `F`; or an assignment expression whose
   right side, after stripping parentheses, is a str_replace call `F`
@@ -39,6 +42,7 @@ imported from another namespace, or a qualified non-global name such as
   eliminated).
 
 ### Mergeability (shared by D3 and D6)
+
 - **D9** Two calls `A`, `B` *can be merged* unless one of the four arguments
   `A.search`, `A.replace`, `B.search`, `B.replace` that is **not** an array
   literal has an *array-only* inferred type — its known types (unknown
@@ -49,6 +53,7 @@ imported from another namespace, or a qualified non-global name such as
   (`string|string[]`) is not array-only.
 
 ### A. Cascading assignments
+
 - **D3** Find the *previous statement* `S`:
   - for a `return`: the nearest preceding sibling statement;
   - for an assignment: the nearest preceding sibling of the expression
@@ -66,6 +71,7 @@ imported from another namespace, or a qualified non-global name such as
   patch `F`, eliminate `G`.
 
 ### B. Nested call
+
 - **D6** `F.subject` is itself (no parentheses) a str_replace call `I`, and
   `I` and `F` can be merged (D9) → report `I` (nested report); fix: patch
   `F`, eliminate `I`. Only the subject of an `F` reached via D1 is checked:
@@ -73,6 +79,7 @@ imported from another namespace, or a qualified non-global name such as
   only the middle call is reported.
 
 ### C. Redundant search array
+
 - **D7** `F.replace` is a string literal, `F.search` is an array literal,
   and every element's value is a string literal (upstream takes the key
   for `k => v` elements; custos diverges, see Divergences); collect their
@@ -83,6 +90,7 @@ imported from another namespace, or a qualified non-global name such as
 D3/D5, D6 and D7/D8 are independent; one `F` can yield several reports.
 
 ## Exceptions (no report)
+
 - **E1** Previous assignment stores into a different variable than `F`'s
   subject/result (`$b = str_replace(.., $a)` after `$a = …`), or a property
   /array element is involved on either side.
@@ -98,6 +106,7 @@ D3/D5, D6 and D7/D8 are independent; one `F` can yield several reports.
   `F`, `G` or `I` has a 4th `$count` argument.
 
 ## Report
+
 - A (cascade): range = the whole call `F` (name through `)`); severity
   warning. Message: `Fold this str_replace() into the preceding one on the
   same variable.`
@@ -107,6 +116,7 @@ D3/D5, D6 and D7/D8 are independent; one `F` can yield several reports.
   Message: `All searched items are identical; pass the single string.`
 
 ## Fix
+
 Notation: patch call `P` (kept), eliminated call `E` (merged in). For a
 cascade `P = F`, `E = G`; for nesting `P = F`, `E = I`.
 
@@ -184,6 +194,7 @@ each fix pass).
   the shared string literal text (`array('x', 'x')` → `'x'`).
 
 Worked results (short syntax on):
+
 - `$s = str_replace('a', 'b', $s0); $s = str_replace('c', 'd', $s);` →
   `$s = str_replace(['a', 'c'], ['b', 'd'], $s0);`
 - `str_replace('k', '!', str_replace(['j'], ['!'], $in))` →
@@ -192,11 +203,13 @@ Worked results (short syntax on):
   `str_replace(['r', 'p', 'q'], ['w', 'z', 'z'], $in)` (expansion)
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax for arrays in the rebuilt call (F5): `[...]` when true, `array(...)` when false. Detection unaffected. Upstream fixtures run with `true`. |
 
 ## PHP versions
+
 - Merging when a non-literal search/replace argument is array-only requires
   PHP ≥ 7.4 (array spread `...array_values($x)`); below that those cases are not
   reported (D9). Other cases: no gating.
@@ -204,6 +217,7 @@ Worked results (short syntax on):
   fixture runs at 7.4 for the spread cases.
 
 ## Examples
+
 Short array syntax option on.
 
 ```php
@@ -269,6 +283,7 @@ function swap(array $from, array $to, $text) {
 ```
 
 ## Divergences
+
 - **Arity of the merged-in call not checked upstream:** `G`/`I` are not
   required to have 3 arguments (upstream would fail on fewer). Recommendation:
   require exactly 3 arguments for `G` and `I` as well.

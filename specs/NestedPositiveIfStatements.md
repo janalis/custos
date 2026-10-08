@@ -9,17 +9,20 @@ php: { min: "", max: "" }
 # NestedPositiveIfStatements
 
 ## Summary
+
 An `if` that is the only statement inside another `if` (without alternative
 branches) can be merged into its parent with `&&`; an `if` that is the only
 statement inside an `else` block can become `else if`. Both remove a nesting
 level.
 
 ## Detection
+
 Applies to an `if` statement `C` (the inner one) whose direct parent is a
 braced block `{ … }` (group statement). "Statement count" of a block ignores
 comments (line, block and doc comments); the empty statement `;` counts.
 
 ### Case A — inner if inside parent if
+
 - D1: the braced block is the body of the `if`-branch of an `if` statement `P`
   (not the body of an `elseif` or `else`).
 - D2: neither `P`'s condition nor `C`'s condition is, at top level, a binary
@@ -37,12 +40,14 @@ comments (line, block and doc comments); the empty statement `;` counts.
 - When D1–D5 hold, report `C`.
 
 ### Case B — inner if inside else
+
 - D6: the braced block is the body of an `else` branch.
 - D7: that block contains exactly one statement (namely `C`).
 - No condition, `elseif`, or `else` restrictions apply to `C` in this case.
 - Report `C`.
 
 ## Exceptions (no report)
+
 - E1: the parent `if`'s body is not braced, or the inner `if` sits in an
   `elseif` body.
 - E2: the parent body contains other statements besides `C` (comments do not
@@ -54,11 +59,13 @@ comments (line, block and doc comments); the empty statement `;` counts.
 - E6: alternative (colon) syntax — see Divergences.
 
 ## Report
+
 - Range: the inner `if` keyword token of `C` (just `if`).
 - Severity: info (weak warning).
 - Message: "Merge this if statement into its parent construct."
 
 ## Fix
+
 Comment preservation (both cases): comments located inside the parent block
 before `C` (between `{` and `C`) are moved into `C`'s body block, immediately
 after its opening `{`, keeping their original order, and before `C`'s existing
@@ -87,9 +94,11 @@ dropped.
   `{` is kept, giving `else if (…) …`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -193,6 +202,7 @@ function else_cases($u, $v) {
 ```
 
 ## Divergences
+
 - Upstream never wraps the child condition. When the child condition has lower
   precedence than `&&` (ternary, `??`, `xor`, `and` is harmless), the merged
   condition changes meaning (`$u && $a ? $b : $c`). Recommendation: wrap `CC`

@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # MissingArrayInitialization
 
 ## Summary
+
 Appending to a local array (`$list[] = …`) deep inside nested loops without
 ever initialising it means the variable is undefined (`null`) when nothing is
 appended, and its contents leak between outer iterations if it is meant to be
 reset. The array should be initialised explicitly at the right place.
 
 ## Detection
+
 - **D1** An array-push access: an array access expression whose index
   brackets are empty (`X[]`), in any context.
 - **D2** The innermost enclosing function-like `F` (function, method, closure,
@@ -44,6 +46,7 @@ reset. The array should be initialised explicitly at the right place.
 Each qualifying `X[]` access is reported independently.
 
 ## Exceptions (no report)
+
 - **E1** Fewer than two enclosing loops inside the function.
 - **E2** Global scope, arrow functions.
 - **E3** Parameters and closure `use` imports.
@@ -52,6 +55,7 @@ Each qualifying `X[]` access is reported independently.
 - **E5** Non-variable bases: `$this->items[]`, `self::$cache[]`, `f()[]`.
 
 ## Report
+
 - Range: the whole array-push access expression, from the start of the base
   variable to the closing `]` of the empty brackets (`$v[$i][]`). The
   assigned value is not included.
@@ -59,12 +63,15 @@ Each qualifying `X[]` access is reported independently.
 - Message: `Array '${name}' is never initialised; initialise it before the loops.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -111,6 +118,7 @@ foreach ($a as $x) {
 ```
 
 ## Divergences
+
 - `global $name;` and `static $name = [];` declarations do not suppress the
   report upstream (only direct assignments/foreach headers do), which gives
   false positives. Recommendation: also treat `global`/`static` declarations

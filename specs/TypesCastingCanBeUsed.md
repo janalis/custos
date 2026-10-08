@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # TypesCastingCanBeUsed
 
 ## Summary
+
 Conversion helpers (`intval()`, `floatval()`, `strval()`, `boolval()`,
 `settype()`), a string made of a single interpolated expression (`"$x"`), and
 explicit `->__toString()` calls all perform a plain type conversion. A cast
@@ -17,6 +18,7 @@ expresses the same thing directly and avoids a function call.
 ## Detection
 
 ### Conversion functions
+
 - **D1** A function call whose name (compared case-insensitively) is
   `intval`, `floatval`, `strval` or `boolval` and which resolves to that
   global function (unqualified or `\`-qualified; not `Foo\intval(...)`, a
@@ -31,6 +33,7 @@ expresses the same thing directly and avoids a function call.
   `?:`), otherwise A's text.
 
 ### settype()
+
 - **D4** A function call named `settype` (last segment, case-insensitive) that
   resolves to the built-in global function (unqualified calls in a namespace
   fall back to the global one unless a same-named function is declared in, or
@@ -47,6 +50,7 @@ expresses the same thing directly and avoids a function call.
   source text.
 
 ### Single-interpolation strings (option REPORT_INLINES)
+
 - **D8** A double-quoted string literal (not heredoc, nowdoc or single-quoted)
   whose content is exactly one interpolation and nothing else — no literal
   characters, no escape sequences, before or after it.
@@ -56,6 +60,7 @@ expresses the same thing directly and avoids a function call.
   text.
 
 ### __toString calls (option REPORT_TO_STRING_METHOD_CALLS)
+
 - **D10** A method call (instance `->` or static `::`) whose method name is
   `__toString` (case-insensitive, as PHP compares method names), unless the left side is the class
   reference `parent` (`parent::__toString()`).
@@ -63,6 +68,7 @@ expresses the same thing directly and avoids a function call.
   Arguments, if any, are dropped.
 
 ## Exceptions (no report)
+
 - **E1** Conversion functions with other argument counts; `intval` with a base
   other than literal `10`; `doubleval()` and other aliases are not covered.
 - **E2** `settype` with a non-literal type, an unmapped type (`null`,
@@ -73,6 +79,7 @@ expresses the same thing directly and avoids a function call.
 - **E4** `parent::__toString()`; calls to other methods; option off.
 
 ## Report
+
 - Range: the whole function call (D1–D7), the whole string literal including
   quotes (D8–D9), the whole method call including arguments (D10–D11).
 - Severity: info (weak warning). Upstream additionally renders the
@@ -84,6 +91,7 @@ expresses the same thing directly and avoids a function call.
   - D10–D11: `Use '{R}' instead of calling __toString() directly.`
 
 ## Fix
+
 - **F1** Replace the reported node with `R`. Casts are emitted **without**
   a space between `)` and the operand:
   - `intval($n)` → `(int)$n`; `boolval($a && $b)` → `(bool)($a && $b)`;
@@ -94,6 +102,7 @@ expresses the same thing directly and avoids a function call.
   - `$money->__toString()` → `(string)$money`
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | REPORT_INLINES | bool | true | Enables the single-interpolation string check (D8–D9). |
@@ -102,9 +111,11 @@ expresses the same thing directly and avoids a function call.
 The upstream fixture enables both.
 
 ## PHP versions
+
 No gating. The upstream fixture declares no level (test default, below 7.1).
 
 ## Examples
+
 Options: REPORT_INLINES = true, REPORT_TO_STRING_METHOD_CALLS = true.
 
 ```php
@@ -174,6 +185,7 @@ class Tag extends Base {
 ```
 
 ## Divergences
+
 - A cast binds more loosely than `**`, `[]` and `->`; replacing a call that is
   the operand of such an operator changes meaning (`intval($x) ** 2` →
   `(int)$x ** 2`, `strval($n)[0]` → `(string)$n[0]`). Upstream does not guard

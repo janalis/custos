@@ -9,10 +9,12 @@ php: { min: "5.6", max: "" }
 # PowerOperatorCanBeUsed
 
 ## Summary
+
 Since PHP 5.6 exponentiation has its own operator. `pow($a, $b)` can be
 written `$a ** $b`, which is shorter and avoids a function call.
 
 ## Detection
+
 - **D1** A function call whose name (last segment, case-insensitive: `POW`
   matches) is `pow`
   and which resolves to the global function `\pow` under PHP's runtime
@@ -33,16 +35,19 @@ written `$a ** $b`, which is shorter and avoids a function call.
 - **D4** Report the call.
 
 ## Exceptions (no report)
+
 - **E1** Language level below 5.6.
 - **E2** Argument count other than two (including a single spread argument
   `pow(...$pair)`).
 
 ## Report
+
 - Range: the whole call (`pow` through its closing parenthesis).
 - Severity: warning.
 - Message: `Use '{R}' (exponentiation operator) instead.`
 
 ## Fix
+
 - **F1** Replace the call with `R` verbatim. Argument texts are copied as
   written (comments/whitespace inside an argument are kept).
   - `pow($x, 3)` → `$x ** 3`
@@ -51,9 +56,11 @@ written `$a ** $b`, which is shorter and avoids a function call.
   - `10 * pow($x, 2)` → `10 * ($x ** 2)`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Reported only at language level ≥ 5.6. The upstream fixture declares no level
 and runs at the test default (below 7.1 but at least 5.6); the conformance
 harness default level must therefore be ≥ 5.6 for this rule.
@@ -83,6 +90,7 @@ $meth   = $calc->pow($side, 2);
 ```
 
 ## Divergences
+
 - Upstream does not wrap unary-operator or assignment arguments:
   `pow(-2, 2)` becomes `-2 ** 2`, which PHP evaluates as `-(2 ** 2)` = -4
   instead of 4; `pow($a = 2, 3)` becomes `$a = 2 ** 3`. Recommendation:

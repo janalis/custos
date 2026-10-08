@@ -9,16 +9,19 @@ php: { min: "", max: "" }
 # IssetArgumentExistence
 
 ## Summary
+
 `isset($v)`, `empty($v)` and `$v ?? …` silently accept a variable that is
 never defined in the current function. When the first mention of a plain
 variable inside a function body is such an existence check, the variable can
 never be set at that point — usually a typo or a leftover after a refactoring.
 
 ## Detection
+
 Only *plain* variables with a static name are examined (`$name`; not `$$n`,
 `${expr}`, `$a['k']`, `$o->p`, `A::$p`).
 
 Candidate positions:
+
 - **D1** The left operand of a `??` binary expression, when that operand is
   directly a variable (no parentheses: `($v) ?? 1` is not a candidate). Only
   the outermost left operand of each `??` node is considered; in
@@ -29,6 +32,7 @@ Candidate positions:
 - **D3** The argument(s) of `empty(...)` that are directly a variable.
 
 For each candidate variable `V` named `n`:
+
 - **D4** `n` is not empty and is not one of the special names: `this`,
   `_GET`, `_POST`, `_SESSION`, `_REQUEST`, `_FILES`, `_COOKIE`, `_ENV`,
   `_SERVER`, `GLOBALS`, `HTTP_RAW_POST_DATA`, `php_errormsg`,
@@ -74,6 +78,7 @@ can each be reported (e.g. `isset($q) && empty($q)` as first two mentions:
 only the first is the first mention, so only it is reported).
 
 ## Exceptions (no report)
+
 - **E1** Any earlier mention of the variable in the function's own scope (a
   read, `echo $n`, `global $n`, a `use ($n)` of a nested closure, a read in a
   nested arrow function, a `catch` variable…). Mentions inside a nested
@@ -89,20 +94,24 @@ only the first is the first mention, so only it is reported).
 - **E8** Non-plain arguments: `isset($a['k'])`, `isset($o->p)`, `empty(${$x})`.
 
 ## Report
+
 - Range: the candidate variable node `V` (from `$` to the end of its name).
 - Severity: **error** (fixtures tag it `error`, although the catalogue default
   is warning — upstream forces error-style highlighting).
 - Message: `Variable '${name}' is not defined in this scope.`
 
 ## Fix
+
 None.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `IGNORE_INCLUDES` | bool | `true` | When `true`, include/require statements in the function are disregarded (reports still happen). When `false`, a function containing any include/require is skipped entirely (the included file could define the variable). The EA fixture runs with `false`. |
 
 ## PHP versions
+
 `??` exists from PHP 7.0. The EA fixture runs at PHP 7.1; isset/empty
 detection has no version dependency.
 
@@ -163,6 +172,7 @@ With `IGNORE_INCLUDES = false` the `including()` case is not reported (as
 annotated above).
 
 ## Divergences
+
 - `static $n;` declarations: whether upstream sees the declared name as a
   plain variable mention is unverified. Recommendation: treat `static $n`
   as an earlier mention (no report afterwards).

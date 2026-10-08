@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # CallableParameterUseCaseInTypeContext
 
 ## Summary
+
 A parameter's declared/documented type is a contract. Testing it with an
 `is_*()` function that can never succeed (or never fail) for that type is dead
 logic, and re-assigning the parameter a value of an unrelated type breaks the
 contract for every later reader of the variable.
 
 ## Detection
+
 Applies to every named function and method (abstract/interface methods have
 no body and thus no uses). Closures and arrow functions are not inspected as
 owners of parameters.
@@ -24,7 +26,9 @@ owners of parameters.
   enclosing class FQN ends with `Test`, or contains `\Tests\` or `\Test\`.
 
 ### Parameter type set `P`
+
 For each parameter:
+
 - **D1** Raw types = union of: the declared type (signature), the `@param`
   docblock types for that parameter, and the type of the default value (if
   any; `= null` → null, `= []` → array, `= ''` → string, …). For a variadic
@@ -50,6 +54,7 @@ and is kept as its FQN with leading `\` and original case (e.g.
 `\App\User`).
 
 ### Uses of the parameter
+
 - **D5** Consider every access (read or write) to the parameter's variable
   that is reachable in the function body's control flow from the entry,
   in source order — **all** of them, not only the first one per path.
@@ -59,6 +64,7 @@ and is kept as its FQN with leading `\` and original case (e.g.
   exactly `\Closure`, or the entries `self`/`static`.
 
 ### D6 — `is_*` checks
+
 - **D6a** The access is directly an argument (any position, not wrapped in
   parentheses or other expressions) of a plain function call (not a method
   or static call) that resolves to one of the global functions in the table
@@ -66,6 +72,7 @@ and is kept as its FQN with leading `\` and original case (e.g.
   resolving to a same-named namespaced function (declared in the current
   namespace or imported with `use function`) does not count.
 - **D6b** The check is *plausible* when:
+
   | function | plausible if `P` contains |
   |---|---|
   | `is_array` | `array` or `iterable` |
@@ -78,13 +85,16 @@ and is kept as its FQN with leading `\` and original case (e.g.
   | `is_callable` | `callable`, `array`, `string` or `\Closure` |
   | `is_object` | `object`, `callable`, or any class name |
   | `is_a` | `object`, `string`, or any class name |
+
   Any other function (including aliases `is_integer`, `is_long`,
   `is_double`) → the access is ignored.
+
 - **D6c** Not plausible → report the call. The message depends on whether
   the call's direct parent is a `!` negation (no parentheses in between):
   negated → "always true" message, otherwise "always false" message.
 
 ### D7 — re-assignments
+
 - **D7a** The access is the target of a plain assignment `$p = value` (or
   `$p = &value`); compound assignments (`.=`, `+=`, `??=` …) and
   destructuring are not considered. The assignment's target must be the
@@ -129,6 +139,7 @@ and is kept as its FQN with leading `\` and original case (e.g.
   3. Incompatible → report `value` with the type `t` in the message; stop.
 
 ## Exceptions (no report)
+
 - **E1** Parameters typed or documented as `mixed` or `object`, untyped
   parameters without default value (empty `P`), and `= null` defaults with no
   other type.
@@ -147,6 +158,7 @@ and is kept as its FQN with leading `\` and original case (e.g.
 - **E7** Test contexts (D0).
 
 ## Report
+
 - D6: range = the whole function call (`is_int($p)`), without a preceding
   `!`. Severity: warning. Messages:
   - not negated: `This check is always false for the declared parameter
@@ -158,12 +170,15 @@ and is kept as its FQN with leading `\` and original case (e.g.
   not match the parameter's declared type.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. All syntax (nullable/union types, `??`, variadics) is parsed at
 every level; upstream fixtures run at the test default (between 5.6 and 7.0).
 
@@ -214,6 +229,7 @@ function untyped($flag = null) {
 ```
 
 ## Divergences
+
 - **Flow-aware variables and `?:` (custos diverges):** inherited from the
   shared T-rules (see UnnecessaryCasting): variable types are narrowed by
   the guards on the path (`if (null !== $next) { $p = $next; }` assigns a

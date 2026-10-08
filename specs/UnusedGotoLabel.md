@@ -9,10 +9,12 @@ php: { min: "", max: "" }
 # UnusedGotoLabel
 
 ## Summary
+
 A `goto` label that no `goto` statement targets is dead code; it only
 suggests control flow that does not exist. Remove it.
 
 ## Detection
+
 Visit every goto label statement (`name:`).
 
 - **D1** Find the nearest enclosing function-like scope of the label:
@@ -30,12 +32,14 @@ Visit every goto label statement (`name:`).
   label `end:`).
 
 ## Exceptions (no report)
+
 - **E1** Labels outside any function/method/closure.
 - **E2** Labels targeted by at least one `goto` in the same scope body
   (before or after the label, any nesting depth of blocks/loops, but not
   from a nested function-like).
 
 ## Report
+
 - Range: the label statement — the identifier and its colon (`unusedLabel:`),
   from the first character of the name to the `:` inclusive.
 - Severity: info (rendered deprecated/strikethrough; fixture markup
@@ -43,6 +47,7 @@ Visit every goto label statement (`name:`).
 - Message: `Label '{name}' is never targeted by a goto; remove it.`
 
 ## Fix
+
 - **F1** Delete the label statement (`name:`). Also delete the whitespace
   run immediately preceding it (so the line disappears rather than leaving
   an indented blank line); text after the label is untouched.
@@ -52,9 +57,11 @@ Visit every goto label statement (`name:`).
 or the following whitespace run is acceptable.)
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -104,6 +111,7 @@ echo "top level";
 ```
 
 ## Divergences
+
 - **Nested functions (custos diverges).** Upstream searches the whole
   function body, nested closures included, so an outer label counts as used
   when only a `goto` inside a closure names it — a jump PHP cannot perform

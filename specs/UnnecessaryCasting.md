@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # UnnecessaryCasting
 
 ## Summary
+
 A type cast whose operand already has exactly the target type, or a string cast
 used as an operand of concatenation (which converts to string anyway), is noise.
 Dropping it simplifies the expression.
 
 ## Detection
+
 Visit every cast expression `(T) operand`. Let *A* be the operand with all
 enclosing parentheses removed (`(int) (($x))` → `$x`).
 
@@ -30,6 +32,7 @@ Cast kinds and their target type:
 `(object)` and `(unset)` are never reported.
 
 ### Concatenation (string casts only)
+
 - **D1** A `(string)` cast whose direct parent is a binary `.` expression
   (either operand) → report (message M2). No type check.
 - **D2** A `(string)` cast whose direct parent is a `.=` compound assignment →
@@ -37,6 +40,7 @@ Cast kinds and their target type:
 - When D1/D2 fires, D3 is not evaluated for that cast.
 
 ### Already of the target type
+
 - **D3** The *strict type* of *A* (below) consists of exactly one type after
   normalisation, and that type equals the cast's target. Then:
   - **D3a** if *A* is a variable whose name matches a parameter of the nearest
@@ -48,6 +52,7 @@ Cast kinds and their target type:
   - otherwise report (message M1).
 
 ### Strict type of *A*
+
 - **T1** *A* is a property fetch (`$obj->p`, `$this->p`, `$obj?->p`): resolve
   the property; only a **private** property yields a type, namely the
   property's own type (declared type; if none, union of its `@var` docblock
@@ -68,6 +73,7 @@ Cast kinds and their target type:
   Count distinct normalised types.
 
 ### Expression type rules (T-rules)
+
 - String literal (any quoting, heredoc, interpolated) → string. Integer literal
   → int. Float literal (`0.0`, `.5`, `1e3`) → float. `true`/`false` → bool.
   `null` → null. Array literal → array.
@@ -151,8 +157,10 @@ Cast kinds and their target type:
   unknown otherwise.
 
 ### Possible-values set (for D3b)
+
 Collect candidate value expressions of *A*, recursively, each expression
 visited at most once, parentheses removed first:
+
 - ternary → values of both branches; `??` → values of both operands;
 - variable → the default value of a same-named parameter of the enclosing
   function-like scope (if any), plus, for every plain assignment to that variable
@@ -168,6 +176,7 @@ visited at most once, parentheses removed first:
 - anything else → the expression itself.
 
 ## Exceptions (no report)
+
 - **E1** More than one type, or zero types (unknown) for *A*.
 - **E2** Untyped-parameter variable (D3a), even if a docblock declares the type.
 - **E3** Non-private properties; functions/methods without a declared return
@@ -178,6 +187,7 @@ visited at most once, parentheses removed first:
 - **E6** `(object)` / `(unset)` casts.
 
 ## Report
+
 - Range: the cast token only, from `(` to `)` inclusive (e.g. `(int)`), not
   the operand.
 - Severity: info.
@@ -185,6 +195,7 @@ visited at most once, parentheses removed first:
   **M2** `Concatenation converts to string anyway; remove the cast.`
 
 ## Fix
+
 - **F1** (both messages) Replace the whole cast expression by its operand as
   written, keeping the operand's own parentheses and dropping the cast token
   and the whitespace between cast and operand:
@@ -192,9 +203,11 @@ visited at most once, parentheses removed first:
   `(float)-1.5` → `-1.5`.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None beyond syntax availability (`?->` from PHP 8.0).
 
 ## Examples
@@ -280,6 +293,7 @@ After fix (changed lines):
 ```
 
 ## Divergences
+
 - **`$_SERVER` ports are strings (custos diverges):** upstream types
   `$_SERVER['REMOTE_PORT']` and `['SERVER_PORT']` as int, so `(int)
   $_SERVER['SERVER_PORT']` is reported and the fix drops the cast. Web SAPIs

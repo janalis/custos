@@ -9,12 +9,14 @@ php: { min: "7.0", max: "" }
 # PackedHashtableOptimization
 
 ## Summary
+
 Since PHP 7 an array whose keys are integers inserted in ascending order can
 be stored in a compact "packed" layout. An array literal that lists integer
 keys out of order, or spells integer keys as numeric strings, misses that
 layout. Sorting the keys or writing them as integers lets the engine use it.
 
 ## Detection
+
 - **D1** Project PHP level is **7.0 or higher**.
 - **D2** An array creation expression (`[...]` or `array(...)`) with **at
   least 3** elements. (List/destructuring targets are not array creations.)
@@ -50,6 +52,7 @@ layout. Sorting the keys or writing them as integers lets the engine use it.
   - ascending without string keys → nothing.
 
 ## Exceptions (no report)
+
 - **E1** PHP level below 7.0.
 - **E2** Fewer than 3 elements.
 - **E3** Any element without a key, or with a non-literal key.
@@ -58,6 +61,7 @@ layout. Sorting the keys or writing them as integers lets the engine use it.
 - **E5** Test context (D3).
 
 ## Report
+
 - Range: the first token of the array creation only — the `[` of a short
   array, or the `array` keyword of a long one (not the parenthesis).
 - Severity: info (weak warning).
@@ -66,12 +70,15 @@ layout. Sorting the keys or writing them as integers lets the engine use it.
   - I: `Write the keys as integers so the array can be stored packed.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Reported only at PHP ≥ 7.0. The EA fixture runs at 7.1.
 
 ## Examples
@@ -107,6 +114,7 @@ $ids = <weak_warning descr="Sort the integer keys ascending so the array can be 
 ```
 
 ## Divergences
+
 - **Sign handling in string keys:** upstream's integer parse accepts a
   leading `+` (and `-0`), but PHP keeps `'+5'` and `'-0'` as string keys, so
   such arrays are mis-classified (e.g. `['+5' => …, 6 => …, 7 => …]` gets

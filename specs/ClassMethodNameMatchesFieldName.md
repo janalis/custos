@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # ClassMethodNameMatchesFieldName
 
 ## Summary
+
 When a method and a property share a name, `$obj->name()` and
 `($obj->name)()` mean different things. This is especially confusing when the
 property holds a callable, and when the property's type is unknown the reader
 cannot tell which one is meant.
 
 ## Detection
+
 - **D1** A method declared in a class, abstract class, trait or enum (any
   visibility, static or not). Methods of interfaces are skipped.
 - **D2** Look up a **property** (not a class constant) whose name equals the
@@ -36,12 +38,14 @@ cannot tell which one is meant.
   "callable" (D5 message). Any other known type → no report.
 
 ## Exceptions (no report)
+
 - **E1** Interface methods.
 - **E2** A same-named class constant (`const name`) is not a property.
 - **E3** A same-named property with a known, non-callable type
   (e.g. `@var int`, `= 'x'`, `?string`).
 
 ## Report
+
 - Range: the method name identifier.
 - Severity: info (both cases).
 - Messages:
@@ -51,12 +55,15 @@ cannot tell which one is meant.
     example with a get/is/has prefix).`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -96,6 +103,7 @@ interface Named {
 ```
 
 ## Divergences
+
 - Upstream takes the property type from the IDE's type engine; whether types
   inferred from `$this->prop = …` assignments inside the class also count is
   not observable in fixtures. Recommendation: use only D3 sources (declared

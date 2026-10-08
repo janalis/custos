@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # UnnecessaryFinalModifier
 
 ## Summary
+
 `final` on a method is redundant when the class itself is `final` (nothing can
 extend it) or when the method is `private` (it cannot be overridden anyway,
 constructors and other magic methods aside).
 
 ## Detection
+
 Visit every method declaration in a class-like body.
 
 - **D1** The method carries the `final` modifier.
@@ -27,6 +29,7 @@ Visit every method declaration in a class-like body.
     (two underscores, case-sensitive check on the literal prefix).
 
 ## Exceptions (no report)
+
 - **E1** `final public|protected` methods in a non-final class.
 - **E2** `final private` magic-named methods (`__construct`, `__clone`,
   `__destruct`, any `__name`) in a non-final class.
@@ -34,11 +37,13 @@ Visit every method declaration in a class-like body.
 - **E4** Methods without `final`.
 
 ## Report
+
 - Range: the method name identifier.
 - Severity: info.
 - Message: `Redundant final: the method cannot be overridden anyway.`
 
 ## Fix
+
 - **F1** Remove the `final` keyword together with the whitespace that follows
   it; keep all other modifiers in their original order:
   `final public function a()` → `public function a()`,
@@ -46,9 +51,11 @@ Visit every method declaration in a class-like body.
   Attributes and doc comments before the method are untouched.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None (property hooks exist from PHP 8.4; the EA fixture for them is run at 8.4
 and expects no report).
 
@@ -98,6 +105,7 @@ final class Turbine
 ```
 
 ## Divergences
+
 - Upstream rebuilds the whole modifier list from its internal representation
   (canonical order, and likely adds an explicit `public` when none was
   written), and replaces the method's first child, which drops attributes on

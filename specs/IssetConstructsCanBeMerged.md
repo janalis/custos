@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # IssetConstructsCanBeMerged
 
 ## Summary
+
 `isset()` accepts several arguments and is true only when all of them are set.
 A chain such as `isset($p) && isset($q)` is therefore the same as
 `isset($p, $q)`, and `!isset($p) || !isset($q)` the same as `!isset($p, $q)`.
 Merging keeps conditions short.
 
 ## Detection
+
 Only the operators `&&` and `||` are concerned (the word operators `and` /
 `or` are **not**).
 
@@ -59,6 +61,7 @@ more qualifying constructs; the remaining ones are only seen after the fix is
 applied and the file re-analysed.
 
 ## Exceptions (no report)
+
 - **E1** Mixed polarity: `isset($a) && !isset($b)`, `isset($a) || !isset($b)`,
   `!isset($a) && !isset($b)`, `isset($a) || isset($b)`.
 - **E2** A single qualifying construct in the chain.
@@ -69,6 +72,7 @@ applied and the file re-analysed.
   with side effects (`isset($a) && notify() && isset($b)`).
 
 ## Report
+
 - Range:
   - `&&` chain: the whole second `isset(...)` construct, from the `isset`
     keyword to its closing `)`.
@@ -80,6 +84,7 @@ applied and the file re-analysed.
   - `||`: `Merge this check into the preceding !isset() call.`
 
 ## Fix
+
 - **F1** Replace the **chain root** binary expression (D1 node, without any
   parentheses wrapping it) with new text built as follows:
   1. *Merged construct*: the arguments of the first hit followed by the
@@ -107,9 +112,11 @@ applied and the file re-analysed.
     operator; comments located between fragments are lost.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -149,6 +156,7 @@ function probe(array $cfg, $row, $extra) {
 ```
 
 ## Divergences
+
 - **Unary operator not checked (upstream bug).** In `||` chains upstream
   accepts any unary expression wrapping `isset` (e.g. a cast
   `(bool) isset($a)` or `@`-like wrappers the parser models as unary) and the

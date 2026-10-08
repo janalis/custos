@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # EmptyClass
 
 ## Summary
+
 A named class (or trait, or enum) that declares nothing at all — no
 properties, constants, methods, used traits or enum cases — is usually dead
 weight or an unfinished stub.
 
 ## Detection
+
 - **D1** A named class-like declaration: `class`, `trait` or `enum`
   (interfaces are never reported; anonymous classes are never reported).
 - **D2** It declares, in its own body:
@@ -36,6 +38,7 @@ weight or an unfinished stub.
   If the parent does not resolve, D4 does not apply (the class is reported).
 
 ## Exceptions (no report)
+
 - **E1** Interfaces, anonymous classes.
 - **E2** Classes with any member, trait use or enum case.
 - **E3** `@deprecated` classes.
@@ -45,6 +48,7 @@ weight or an unfinished stub.
   `\Exception` are reported.
 
 ## Report
+
 - Range: the name identifier of the class/trait/enum.
 - Severity: info.
 - Message (class or trait): `This class declares no members; remove it or
@@ -52,12 +56,15 @@ weight or an unfinished stub.
 - Message (enum): `This enum declares no cases or methods.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. Enums (8.1 syntax) are parsed and checked at every level.
 
 ## Examples
@@ -87,6 +94,7 @@ $x = new class {};
 ```
 
 ## Divergences
+
 - `#[\Deprecated]` attributes are not considered by upstream (docblock tag
   only). Recommendation: same.
 - **Attribute classes (custos diverges).** A class carrying `#[Attribute]`

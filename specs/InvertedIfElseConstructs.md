@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # InvertedIfElseConstructs
 
 ## Summary
+
 An `if`/`else` whose condition is a negation (`!expr`, or `false === expr`)
 reads backwards: swapping the two branches and dropping the negation makes the
 main path positive and easier to follow.
 
 ## Detection
+
 Visit every `else` branch `E` (the plain `else` keyword; an `else if (…)` is an
 `else` whose body is a nested `if`).
 
@@ -40,6 +42,7 @@ Visit every `else` branch `E` (the plain `else` keyword; an `else if (…)` is a
   `$x !== false` do not match.
 
 ## Exceptions (no report)
+
 - **E1** `if` without `else`.
 - **E2** Either body unbraced.
 - **E3** `!empty(...)` (D4a).
@@ -48,11 +51,13 @@ Visit every `else` branch `E` (the plain `else` keyword; an `else if (…)` is a
   comparisons.
 
 ## Report
+
 - Range: the `else` keyword token of `E` (4 characters).
 - Severity: info (weak warning).
 - Message: `Negated condition with an else branch; swap the branches and drop the negation.`
 
 ## Fix
+
 - **F1** New condition text `N`:
   - D4a: the verbatim source text of `X'` (parentheses that wrapped `X` are
     dropped: `!($a === $b)` → `$a === $b`);
@@ -76,9 +81,11 @@ Visit every `else` branch `E` (the plain `else` keyword; an `else if (…)` is a
   untouched.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating. The D4b type check relies on declared return types (PHP 7.0+
 syntax) or literal types; upstream fixtures use `: bool` / `: ?bool`
 functions.
@@ -140,6 +147,7 @@ if (!ready()) { a(); }
 ```
 
 ## Divergences
+
 - **Positive D4b result (custos diverges):** upstream rewrites
   `false === x()` to `false !== x()`, which still reads as a negation — the
   very thing the rule complains about. When `x()` is known to be `bool`,

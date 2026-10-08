@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # ElvisOperatorCanBeUsed
 
 ## Summary
+
 A full ternary whose "then" branch repeats its condition (`$a ? $a : $b`) can
 be written with the short ternary operator `$a ?: $b` (PHP 5.3+), which is
 shorter and evaluates the condition once.
 
 ## Detection
+
 - **D1** A ternary expression in its full form `C ? T : F` (a short ternary
   `C ?: F` is never reported).
 - **D2** Let `C'` and `T'` be `C` and `T` with all surrounding parentheses
@@ -39,6 +41,7 @@ shorter and evaluates the condition once.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** Short ternaries.
 - **E2** The repeated expression sits in the "else" branch (`$v ? 0 : $v`).
 - **E4** The condition has side effects (D3a): `f() ? f() : $x`,
@@ -48,6 +51,7 @@ shorter and evaluates the condition once.
   `isset($v) ? $v : 0` (the condition is `isset(...)`, not `$v`).
 
 ## Report
+
 - Range: the whole ternary expression, from the first character of `C`
   (including `C`'s own opening parentheses) to the last character of `F`
   (including `F`'s parentheses). Parentheses enclosing the ternary itself are
@@ -56,6 +60,7 @@ shorter and evaluates the condition once.
 - Message: `Use the short ternary: '{R}'.`
 
 ## Fix
+
 - **F1** Replace the reported ternary with `R` exactly: condition text, one
   space, `?:`, one space, else-branch text. No parentheses are added around the
   result.
@@ -65,9 +70,11 @@ shorter and evaluates the condition once.
   - `$p->q ? $p->q : ($d)` → `$p->q ?: ($d)`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 Upstream applies no gating (the short ternary exists since PHP 5.3, the
 minimum custos supports).
 
@@ -102,6 +109,7 @@ $keep5  = getTitle() ? getTitle() : DEFAULT_TITLE;
 ```
 
 ## Divergences
+
 - custos diverges from upstream on side effects (D3a, E4). Upstream also
   reports conditions with calls such as `f() ? f() : $x`; the short ternary
   evaluates `f()` once where the original evaluated it twice, which changes

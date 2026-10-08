@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # GetTypeMissUse
 
 ## Summary
+
 Comparing the result of `gettype($v)` with a type-name string is a roundabout
 (and typo-prone) way of calling the dedicated `is_*()` predicate. The rule
 suggests the predicate, and flags strings that `gettype()` can never return.
 
 ## Detection
+
 - **D1** A call to the global function `gettype` with exactly one argument:
   written unqualified or as `\gettype(...)`, name compared case-insensitively
   as PHP compares function names (`GetType`, `\GETTYPE` match). A call that
@@ -49,8 +51,10 @@ suggests the predicate, and flags strings that `gettype()` can never return.
     `float`, `Integer`.
 
 ### Value resolution (D3, non-literal operand)
+
 Parentheses around the expression are stripped first. Each expression is
 visited at most once (cycle guard).
+
 - Ternary `a ? b : c` (and short `a ?: c`): union of the possibilities of the
   true and false branches.
 - `a ?? b`: union of both operands.
@@ -71,6 +75,7 @@ visited at most once (cycle guard).
 Possibilities are resolved recursively with these same rules.
 
 ## Exceptions (no report)
+
 - **E1** `unknown type` and `resource (closed)` (valid `gettype()` results
   without an `is_*` counterpart).
 - **E2** `gettype()` with zero or several arguments.
@@ -80,6 +85,7 @@ Possibilities are resolved recursively with these same rules.
   literals (e.g. a ternary over two strings, a `switch (gettype(...))`).
 
 ## Report
+
 - **M1** (D4a)
   - Range: the whole binary comparison expression (both operands and the
     operator), excluding surrounding parentheses.
@@ -93,6 +99,7 @@ Possibilities are resolved recursively with these same rules.
   - Message (our wording): `gettype() never returns '{T}'.`
 
 ## Fix
+
 - **F1** (M1 only) Replace the binary expression with
   `[!]predicate(ARG)`: a leading `!` when the operator is `!=` or `!==`,
   the predicate from the D4 map, and `ARG` the verbatim source text of the
@@ -106,9 +113,11 @@ Possibilities are resolved recursively with these same rules.
 - M2 has no fix.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -152,6 +161,7 @@ function kinds($item, $mode = 'array') {
 ```
 
 ## Divergences
+
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
 - **Resolved values (upstream quirk).** When the compared operand is a
   variable/constant, the fix still replaces the comparison with a fixed

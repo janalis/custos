@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # UnSafeIsSetOverArray
 
 ## Summary
+
 `isset()` mixes two questions: "does the key/variable exist" and "is it not
 null". This rule points out single-argument `isset()` calls where a more
 explicit construct says what is meant: a plain `!== null` comparison for
@@ -16,9 +17,11 @@ variables and declared properties, `array_key_exists()` for array keys, and
 flags concatenated index expressions that should be computed beforehand.
 
 ## Detection
+
 Visit every `isset(...)` construct.
 
 ### Context gathering
+
 - **D1** The `isset` must have exactly one argument. `isset()` with two or more
   arguments is never reported.
 - **D2** Determine the *context node* `P` and the *inverted* flag:
@@ -39,6 +42,7 @@ Visit every `isset(...)` construct.
 - **D5** Let `A` be the single argument with surrounding parentheses removed.
 
 ### Variables and properties (A is not an array access)
+
 - **D6** If `A` is a plain variable (`$name`, also `$this` / variable-variables)
   and it is **not** inside any function, method, closure, arrow function or
   class body (i.e. it is in the global/template scope), nothing is reported.
@@ -63,6 +67,7 @@ Visit every `isset(...)` construct.
 - In all non-array-access cases, processing stops here (no other check applies).
 
 ### Array accesses (A is `container[index]`)
+
 - **D9** Concatenated index: when `REPORT_CONCATENATION_IN_INDEXES` is on and
   `stored` is false, and **any** index of the `[...]` chain of `A` (the
   last bracket, then the brackets of its container while that container is
@@ -90,6 +95,7 @@ Visit every `isset(...)` construct.
   gets the array_key_exists report.
 
 ## Exceptions (no report)
+
 - **E1** `isset` with zero or several arguments.
 - **E2** Ternary "isset-or-null" idiom: `isset($a[k]) ? $a[k] : null`,
   `!isset($a[k]) ? null : $a[k]` (D4).
@@ -104,6 +110,7 @@ Visit every `isset(...)` construct.
   is treated as non-inverted; the subject is just `isset(...)`.
 
 ## Report
+
 | Problem | Range | Severity |
 |---|---|---|
 | null-comparison (D8) | the subject: `isset(...)` or, when inverted, the whole `!isset(...)` from `!` to `)` | info (weak warning) |
@@ -111,11 +118,13 @@ Visit every `isset(...)` construct.
 | array_key_exists (D10) | the argument `A` | info (weak warning) |
 
 Messages (our wording):
+
 - null-comparison: `Compare with null instead: '{R}'.`
 - concatenation: `Compute the concatenated key in a variable before using it.`
 - array_key_exists: `Use array_key_exists() to check for the key itself.`
 
 ## Fix
+
 - **F1** null-comparison only: replace the subject (`isset(...)` or
   `!isset(...)`) with `R` verbatim (no parentheses added).
   `$ok = isset($node);` → `$ok = $node !== null;`;
@@ -123,6 +132,7 @@ Messages (our wording):
 - The concatenation and array_key_exists problems have no fix.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | SUGGEST_TO_USE_ARRAY_KEY_EXISTS | bool | false | Enables D10. |
@@ -133,9 +143,11 @@ All upstream fixtures run with all three options **on** and regular comparison
 style.
 
 ## PHP versions
+
 No gating. Fixtures run at the IDE test default (PHP below 7.1).
 
 ## Examples
+
 Options: all three `true`, regular comparison style.
 
 ```php
@@ -199,6 +211,7 @@ class Ledger {
 ```
 
 ## Divergences
+
 - **D9 every index level (custos diverges).** Upstream only inspects the
   last `[...]` of the access chain, so `$m['a' . $b]['c']` falls through to
   the array_key_exists check although the concatenated key is just as much

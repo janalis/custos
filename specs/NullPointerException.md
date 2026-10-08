@@ -9,6 +9,7 @@ php: { min: "", max: "" }
 # NullPointerException
 
 ## Summary
+
 A value that may be `null` (nullable object parameter, nullable local
 variable, call declared to return `?T`/`void`) is dereferenced — property or
 method access, array access, invocation, `clone`, or passed to a parameter
@@ -18,7 +19,9 @@ that rejects null — without a preceding null check. At runtime this is an
 Disabled by default (experimental upstream).
 
 ## Detection
+
 Analysed units:
+
 - every **method** that is not abstract and whose file/class is not a test
   context (path ends with `Test.php`, `Spec.php`, `.phpt`, or contains
   `/Fixtures/`; class FQN ends with `Test` or contains `\Tests\`/`\Test\`);
@@ -32,12 +35,14 @@ B (chained calls), C (local variables). Each of A and C keeps its own
 per strategy.
 
 Terminology:
+
 - *object-only type set*: after removing `null`, the set is non-empty and
   every remaining type is a class/interface name (FQN), `self`, `static` or
   `object`. (`?int`, `mixed`, `\Foo|false`, untyped → not object-only.)
 - *null check usage*: see U-rules below.
 
 ### Strategy A — nullable object parameters
+
 - **D1** `F` has a `{}` body.
 - **D2** For each parameter `$p`: its **declared** type (type hint only;
   docblocks are ignored) contains `null` (`?T`, `T|null`) **or** its default
@@ -46,6 +51,7 @@ Terminology:
   with no declaration.
 
 ### Strategy B — chained calls on nullable results
+
 - **D3** For every method call `X->m(...)` anywhere inside `F` (any depth,
   nested closures included, document/pre-order: an outer call is visited
   before the calls nested in it), using the plain `->` operator (not `?->`,
@@ -71,6 +77,7 @@ Terminology:
   unit, later identical chained calls are not reported.
 
 ### Strategy C — nullable local variables
+
 - **D4** `F` has a `{}` body. Collect, in document order over the whole body
   (nested closures included), assignment expressions that are directly an
   expression statement (`$v = …;`), whose left side is a plain variable not
@@ -107,8 +114,10 @@ Terminology:
 - **D6** If nullable, run the usage walk for the name with declaration `A`.
 
 ### Usage walk (shared by A and C)
+
 Build the ordered usage list for name `n` from the variables named `n` in
 `F`'s body whose innermost function-like is `F` itself (document order):
+
 - if the variable's parent is an assignment: append the variables named `n`
   found **inside** its right side (any depth, including inside nested
   closures, excluding the right side itself when it is that variable), then
@@ -122,6 +131,7 @@ When a declaration `A` is given (strategy C), skip usages until reaching a
 usage whose parent is `A` (that one is skipped too). Then evaluate each
 remaining usage `v` (parent `P`, grandparent `G`) in order; *stop* ends the
 walk for this name, *skip* goes to the next usage:
+
 - **U1** `P` is binary `instanceof` → stop.
 - **U2** `P` is binary `==`/`!=`/`===`/`!==`: other operand is `null` → stop;
   otherwise skip.
@@ -206,6 +216,7 @@ walk for this name, *skip* goes to the next usage:
   `X === null` / `X == null` with `X` being `$n` or a chain starting at it.
 
 ## Exceptions (no report)
+
 - **E1** Parameters without a type hint (docblocks never count), or nullable
   parameters whose type is scalar/mixed/union with non-class members.
 - **E2** Usages after a null check: `null !== $v`, `$v instanceof T`,
@@ -232,6 +243,7 @@ walk for this name, *skip* goes to the next usage:
 - **E9** Abstract methods; methods in test contexts.
 
 ## Report
+
 - Range: strategies A and C — the variable token `$name` (just the
   variable); strategy B — the `->` operator token between the nullable call
   and the next method name.
@@ -239,12 +251,15 @@ walk for this name, *skip* goes to the next usage:
 - Message: `Possible null dereference.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None as such; nullable types (`?T`) need PHP 7.1, union types PHP 8.0. The
 EA fixture runs at PHP 7.1.
 
@@ -341,6 +356,7 @@ function visit(?Node $item) {
 ```
 
 ## Divergences
+
 - Case-insensitive assertion names (custos diverges from upstream).
   Upstream compares the assertion method names (U5) and `is_null`
   case-sensitively, so `self::AssertNotNull($v)` or `IS_NULL($v)` — which

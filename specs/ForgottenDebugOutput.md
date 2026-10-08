@@ -9,25 +9,30 @@ php: { min: "", max: "" }
 # ForgottenDebugOutput
 
 ## Summary
+
 Dumping, tracing and profiler helpers (`var_dump()`, `print_r()`,
 framework dumpers, Xdebug functions, …) are typically added while debugging
 and forgotten afterwards. Flag their calls unless the context shows the
 output is intentional.
 
 ## Configuration model
+
 The rule works from a list of *debug entries* (strings). Each entry, after
 trimming surrounding whitespace, is either
+
 - a **function entry** (no `::`): a bare function name such as `var_dump`, or
 - a **method entry** `ClassFQN::method` (split at the first `::`; the class
   part is the FQN with leading `\`, e.g. `\Acme\Debug::dump`).
 
 Effective list:
+
 - when option `migratedIntoUserSpace` is `false` (default), the effective list
   is the built-in defaults (below) **plus** every entry of option
   `configuration`;
 - when `true`, the effective list is exactly `configuration`.
 
 Built-in defaults:
+
 - Method entries: `\Codeception\Util\Debug::pause`,
   `\Codeception\Util\Debug::debug`, `\Doctrine\Common\Util\Debug::dump`,
   `\Doctrine\Common\Util\Debug::export`,
@@ -64,6 +69,7 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
 ## Detection
 
 ### Function calls
+
 - **D1** A (non-method) function call whose name — last segment as written,
   compared case-insensitively as PHP compares function names (custos
   diverges), no namespace resolution — equals a function entry. So
@@ -80,6 +86,7 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
   wrapper* (E3) → report.
 
 ### Method calls
+
 - **D5** A method call (`->`, `?->` or `::`) whose name as written
   equals the method part of some method entry, compared case-insensitively
   as PHP compares method names (custos diverges).
@@ -94,6 +101,7 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
   calls.
 
 ## Exceptions (no report)
+
 - **E1** Allowed argument counts (D3): `print_r($x, true)`,
   `var_export($x, true)`, `phpinfo(INFO_MODULES)`.
 - **E2** Output buffering: the call is the expression of an expression
@@ -120,6 +128,7 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
 - **E4** `use function var_dump;` import lines.
 
 ## Report
+
 - Range: the whole call expression — for functions from the name (including
   any leading `\`/qualifier) to the closing `)`; for methods from the start of
   the receiver/class name to the closing `)` (e.g. `Tracer::dump($x)`,
@@ -128,9 +137,11 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
 - Message: `Debug output call; remove it if it was left over from debugging.`
 
 ## Fix
+
 None.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | configuration | list of strings | empty (see below) | Additional debug entries (`function_name` or `\Class::method`). |
@@ -141,9 +152,11 @@ Upstream persists the merged list into `configuration` once and flips
 semantics above.
 
 ## PHP versions
+
 None.
 
 ## Examples
+
 Effective list = defaults + `audit_dump` + `\Acme\Tracer::dump` +
 `\Acme\Probe::dump` (`migratedIntoUserSpace = false`).
 
@@ -186,6 +199,7 @@ function work($order, Probe $probe, Quiet $quiet) {
 ```
 
 ## Divergences
+
 - **Name case (custos diverges).** Upstream compares function names, method
   names, the declaring class and `ob_start` case-sensitively, so
   `VAR_DUMP($x)`, `Debug::Dump($x)` or a listed method whose class is

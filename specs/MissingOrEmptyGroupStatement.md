@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # MissingOrEmptyGroupStatement
 
 ## Summary
+
 Control structures should always use a braced block for their body. A body
 written as a bare statement is easy to break when a second line is added; a
 braced block that contains nothing is usually leftover or unfinished code.
 
 ## Detection
+
 Checked constructs: `if`, `elseif`, `else`, `foreach`, `for`, `while`,
 `do … while`. Each branch of an if-chain (`if`, every `elseif`, the `else`) is
 checked on its own.
@@ -33,6 +35,7 @@ to the `if`.
   is not empty — see Divergences).
 
 ## Exceptions (no report)
+
 - E1: `else` whose body is directly an `if` statement (the `else if` form),
   even when comments sit between `else` and `if`. The nested `if` itself is
   still checked normally (its own body may be reported by D1/D2).
@@ -44,6 +47,7 @@ to the `if`.
   are not reported by D1 (see Divergences).
 
 ## Report
+
 - Range: the construct's leading keyword token only — `if`, `elseif`, `else`,
   `foreach`, `for`, `while`, or `do` (for do-while, the `do` keyword, never the
   trailing `while`). For `else if`, the inner `if` keyword is the one that may
@@ -53,6 +57,7 @@ to the `if`.
 - Message (D2): "This construct has an empty body block."
 
 ## Fix
+
 - F1 (D1 only): replace the body statement (exactly its text range, including
   its trailing `;`) with a braced block containing that statement:
   `{` + newline + original statement text + newline + `}`. Text before the body
@@ -64,11 +69,13 @@ to the `if`.
 - D2 has no fix.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | REPORT_EMPTY_BODY | bool | true | Enables D2 (empty braced bodies). D1 is always on. |
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -138,6 +145,7 @@ if ($ready) { ; }            // not empty: contains an empty statement
 In `views/page.blade.php` nothing is reported (E2).
 
 ## Divergences
+
 - Alternative syntax (E4): upstream behaviour depends on how the IDE models the
   colon-syntax body; it is not covered by upstream fixtures. Recommendation:
   never report D1 for colon syntax (adding braces there is not the intended

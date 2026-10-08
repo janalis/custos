@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # CryptographicallySecureRandomness
 
 ## Summary
+
 `openssl_random_pseudo_bytes()` and `mcrypt_create_iv()` can silently fall
 back to weak sources or fail (returning `false`) and their strength depends on
 optional arguments. Point out missing strength arguments, unverified results
 and weak sources, and suggest `random_bytes()` on PHP 7+.
 
 ## Detection
+
 Applies to plain function calls resolving to the global function
 `openssl_random_pseudo_bytes` (variant **O**) or `mcrypt_create_iv` (variant
 **M**) — names compare case-insensitively; a call resolving to a same-named
@@ -52,6 +54,7 @@ produced for one call; checks are independent unless noted.
   false-check test → report the **second argument** (error).
 
 ### False-check test for an expression `S`
+
 1. Find the nearest enclosing function, method, closure or arrow function
    of `S`. If there is none (top-level code) or it has no `{ }` body, `S`
    is considered checked.
@@ -66,6 +69,7 @@ produced for one call; checks are independent unless noted.
    other expressions are equivalent when structurally identical or when
    their source texts are identical.
    `== false`, `!= false`, `empty()`, `is_bool()`, `if ($x)` do not count.
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -74,6 +78,7 @@ produced for one call; checks are independent unless noted.
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - **E1** 0 or 3+ arguments; other function names; method calls.
 - **E2** D3 is skipped from PHP 7.4 on.
 - **E3** D3: top-level code (no enclosing function) is always treated as
@@ -83,6 +88,7 @@ produced for one call; checks are independent unless noted.
   negated somewhere in the same function.
 
 ## Report
+
 - Range:
   - D1, D2, D3: the function **name identifier only** (e.g.
     `openssl_random_pseudo_bytes`), not the argument list; a leading `\` is
@@ -99,12 +105,15 @@ produced for one call; checks are independent unless noted.
   - D5: `The strength flag may be false; check it.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 - D1 needs `L ≥ 7.0`; D3 needs `L < 7.4`. Upstream fixtures run at 5.6 (D1
   off, D3 on) and 7.0 (D1 on, D3 on). The harness default level (used when a
   case gives none) is below 7.0.
@@ -151,6 +160,7 @@ name of each of the four calls, e.g.
 `<weak_warning descr="Use random_bytes() for cryptographically secure randomness.">mcrypt_create_iv</weak_warning>`.
 
 ## Divergences
+
 - **Function-name matching (custos diverges from upstream).** Upstream
   matches the written last name segment case-sensitively without
   resolution: `OpenSSL_Random_Pseudo_Bytes(16)` is missed and a namespace's

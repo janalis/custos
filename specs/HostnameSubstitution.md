@@ -9,19 +9,23 @@ php: { min: "", max: "" }
 # HostnameSubstitution
 
 ## Summary
+
 `$_SERVER['HTTP_HOST']` and `$_SERVER['SERVER_NAME']` can be controlled by the
 client (Host header). Using them to build e-mail addresses or storing them in
 domain/host/email-like variables or properties without a whitelist check lets
 an attacker inject their own domain.
 
 ## Detection
+
 ### Source
+
 - **D1** An array access `$_SERVER[KEY]` where the base is exactly the
   variable `$_SERVER` and `KEY` is a string literal (either quote style)
   whose content is exactly `SERVER_NAME` or `HTTP_HOST` (case-sensitive).
   Call this node `S` and the key content `ATTR`.
 
 ### Context search
+
 - **D2** Walk up the ancestors of `S`, one at a time, stopping at the file
   root or at the first function / method / closure / arrow function / class
   boundary (nothing found → no report). The **first** ancestor that is
@@ -32,6 +36,7 @@ an attacker inject their own domain.
   Either way the walk ends there.
 
 ### Concatenation check on a concatenation node `C`
+
 - **D3** `X` is the node being checked (the source `S`, or a variable
   occurrence in D5) and `C` the concatenation that holds it. Take the whole
   concatenation chain around `C`: climb from `C` through enclosing
@@ -44,6 +49,7 @@ an attacker inject their own domain.
   and `'user@' . trim(X)` are all reported, at `X`, `X` and `trim(X)`.
 
 ### Assignment check on an assignment `T = …`
+
 - **D4 (property target)** `T` is a property fetch (`$o->name`,
   `Cls::$name`) with a non-empty static name that contains `domain`,
   `email` or `host` (case-insensitive substring) and `S` is not whitelisted
@@ -74,6 +80,7 @@ an attacker inject their own domain.
   whitelisted (never whitelisted at top level, see D7).
 
 ### Whitelist
+
 - **D7** `S` is whitelisted when its nearest enclosing function/method/
   closure body contains (anywhere) a plain function call resolving to the
   global `in_array` (any case; a same-named namespaced function does not
@@ -82,6 +89,7 @@ an attacker inject their own domain.
   whitelisted.
 
 ## Exceptions (no report)
+
 - **E1** Other `$_SERVER` keys, non-literal keys, other superglobals.
 - **E2** No concatenation/assignment ancestor before the function/class
   boundary (`echo $_SERVER['HTTP_HOST'];`, `return $_SERVER['SERVER_NAME'];`).
@@ -95,6 +103,7 @@ an attacker inject their own domain.
 - **E5** Whitelisted via `in_array` (D7).
 
 ## Report
+
 - Range: kind E — the chain operand `O` that holds the host, parentheses
   stripped (for `'@' . strtolower($_SERVER['HTTP_HOST'])` the whole
   `strtolower(...)` call; for the variable flow D5, the later variable
@@ -105,12 +114,15 @@ an attacker inject their own domain.
   - N: `Client-controlled host name stored here; validate it against a whitelist.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -154,6 +166,7 @@ class Mailer
 ```
 
 ## Divergences
+
 - **Whitelist call matching (custos diverges from upstream).** Upstream
   accepts any call whose written last segment is exactly `in_array` (D7),
   so `In_Array(...)` does not whitelist while a namespace's own `in_array()`

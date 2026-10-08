@@ -9,10 +9,12 @@ php: { min: "", max: "" }
 # UnsetConstructsCanBeMerged
 
 ## Summary
+
 `unset()` accepts several arguments, so consecutive `unset(...)` statements can
 be collapsed into one call.
 
 ## Detection
+
 Visit every `unset(...)` statement.
 
 - **D1** Find the previous sibling statement in the same statement list,
@@ -24,6 +26,7 @@ Visit every `unset(...)` statement.
   reported.
 
 ## Exceptions (no report)
+
 - **E1** The first `unset` of a run.
 - **E2** Any other statement (even an empty `;` or an expression) between two
   `unset` statements breaks the run.
@@ -31,12 +34,14 @@ Visit every `unset(...)` statement.
   block and first statement after it).
 
 ## Report
+
 - Range: the whole reported `unset` statement, from the `unset` keyword through
   the terminating `;` inclusive.
 - Severity: info.
 - Message: `Consecutive unset() calls; merge them into one.`
 
 ## Fix
+
 - **F1** Replace the previous `unset` statement with
   `unset(<args>);` where `<args>` is the previous statement's arguments followed
   by the current statement's arguments, each in its original source text,
@@ -51,9 +56,11 @@ Visit every `unset(...)` statement.
   because the merged statement is regenerated.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -96,5 +103,6 @@ function release(array $cache, $tmp, $lock) {
 ```
 
 ## Divergences
+
 None. (Upstream skips plain comments implicitly and doc comments explicitly;
 custos skips all comments, which is the same observable behaviour.)

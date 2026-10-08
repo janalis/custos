@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # IncrementDecrementOperationEquivalent
 
 ## Summary
+
 Adding or subtracting the literal `1` to a variable and storing it back
 (`$n += 1`, `$n = $n - 1`, …) is more idiomatically written with the increment
 or decrement operator.
 
 ## Detection
+
 Let *T* be the assignment target (left-hand side) and "the literal `1`" mean an
 operand whose exact source text is `1` (not `1.0`, `0x1`, `(1)`, `+1`, `true`).
 
@@ -37,6 +39,7 @@ D5. Type guard — applies to every candidate: when *T* is an array element
     (container type unknown/empty, string, `ArrayAccess` object, mixed without
     array, …) array-element targets are skipped. Non-array-access targets
     (variables, properties, static properties) are not type-checked.
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -45,6 +48,7 @@ D5. Type guard — applies to every candidate: when *T* is an array element
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 E1. Step other than the literal `1`: `$n += 2`, `$n = $n + $step`.
 E2. `T = 1 - T`, `T = T - 2`, `T = 2 - T`, `T = T + 2`, `T = 2 + T`.
 E3. Right operand is not the same expression as the target: `$a = $b + 1`.
@@ -55,6 +59,7 @@ E6. Compound assignments are only checked by D1/D2 (`$n += $n + 1` is not a
     candidate).
 
 ## Report
+
 - Range: the whole assignment expression, from the start of the target to the
   end of the right-hand side (trailing `;` excluded).
 - Severity: info (fixtures tag it `weak_warning`).
@@ -62,6 +67,7 @@ E6. Compound assignments are only checked by D1/D2 (`$n += $n + 1` is not a
   below.
 
 ## Fix
+
 F1. Replace the entire assignment expression with the target's verbatim source
     text combined with `++` (increment) or `--` (decrement):
     - option `PREFER_PREFIX_STYLE = true` (default): `++{T}` / `--{T}`;
@@ -71,15 +77,18 @@ F1. Replace the entire assignment expression with the target's verbatim source
     Also applied inside `for (...)` headers and any other expression context.
 
 ## Options
+
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | PREFER_PREFIX_STYLE | bool | true | Fix produces `++$x` / `--$x`. |
 | PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` whenever `PREFER_PREFIX_STYLE` is false. |
 
 ## PHP versions
+
 None.
 
 ## Examples
+
 Options `PREFER_PREFIX_STYLE = false`, `PREFER_SUFFIX_STYLE = true`:
 
 ```php
@@ -131,7 +140,9 @@ $count = $count - 3;
 ```
 
 ## Divergences
+
 None.
+
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,

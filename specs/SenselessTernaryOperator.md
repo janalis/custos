@@ -9,12 +9,14 @@ php: { min: "", max: "" }
 # SenselessTernaryOperator
 
 ## Summary
+
 `$a === $b ? $a : $b` always evaluates to `$b`: when the two are identical it
 does not matter which one is returned. The same holds for `!==` with swapped
 branches. Such ternaries only add branching; replace them with the operand
 that is always the result.
 
 ## Detection
+
 - **D1** A full ternary `C ? T : F` (short ternaries `C ?: F` are never
   reported).
 - **D2** `C` with all surrounding parentheses removed is a binary `===` or
@@ -37,6 +39,7 @@ that is always the result.
   (including its own parentheses, if any).
 
 ## Exceptions (no report)
+
 - **E1** Loose comparisons (`==`, `!=`, `<>`), other operators, or a
   condition that is not a comparison (`$x ? $x : $y`).
 - **E2** Short ternaries.
@@ -45,6 +48,7 @@ that is always the result.
   different: `$x === $x ? $x : $y` (the result is `$x`, not `$y`).
 
 ## Report
+
 - Range: the whole ternary expression (from the start of `C` — including
   parentheses around `C` if written — to the end of `F`). Parentheses around
   the ternary itself are not included.
@@ -52,6 +56,7 @@ that is always the result.
 - Message: `This ternary always yields '{replacement}'; use it directly.`
 
 ## Fix
+
 - **F1** Replace the ternary expression (the reported range) with the
   replacement text from D6. Surrounding code (parentheses around the ternary,
   the statement's `;`) is left untouched.
@@ -61,9 +66,11 @@ that is always the result.
   - `$n !== 1 ? $n : 1` → `$n`;  `$n !== 1 ? 1 : $n` → `1`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -97,6 +104,7 @@ $j = $left === $right ? $left : $other;
 ```
 
 ## Divergences
+
 - **Case of names in the equivalence (custos diverges from upstream).**
   Upstream compares operands textually, so `count($a) === Count($b) ?
   count($a) : Count($b)` is not reported although both spellings call the

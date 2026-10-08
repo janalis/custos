@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # DateUsage
 
 ## Summary
+
 `date()` already formats the current moment when its timestamp argument is
 omitted, so passing `time()` explicitly is redundant noise (and costs an extra
 call). Drop the second argument.
 
 ## Detection
+
 Visit every function call (not method or static calls).
 
 - **D1** The call resolves to the global function (names compared
@@ -28,6 +30,7 @@ Visit every function call (not method or static calls).
 - **D4** That inner `time` call has zero arguments.
 
 ## Exceptions (no report)
+
 - **E1** `date()` with one or three-plus arguments.
 - **E2** Second argument `time(...)` with any argument (`time($x)`).
 - **E3** Second argument is a method/static call named `time`
@@ -35,6 +38,7 @@ Visit every function call (not method or static calls).
 - **E4** Calls to other functions (`gmdate($f, time())` is not reported).
 
 ## Report
+
 - Range: the inner `time()` call expression, from the first character of its
   name (including a leading `\` if written) to its closing `)`.
 - Severity: info (rendered as an "unused" highlight; fixture markup
@@ -42,6 +46,7 @@ Visit every function call (not method or static calls).
 - Message: `Redundant time() argument: date() uses the current time by default.`
 
 ## Fix
+
 - **F1** Delete everything after the end of the first argument up to and
   including the end of the second argument: the comma, any whitespace or
   comments around it, and the `time()` call. Text after the second argument
@@ -50,9 +55,11 @@ Visit every function call (not method or static calls).
   - `date($fmt ,  \time() )` → `date($fmt )`
 
 ## Options
+
 None.
 
 ## PHP versions
+
 None.
 
 ## Examples
@@ -86,6 +93,7 @@ function stamp($pattern, Clock $clock)
 ```
 
 ## Divergences
+
 - With a trailing comma (`date('Y', time(),)`), upstream's deletion stops at
   the second argument and leaves `date('Y',)`. Recommendation: same behaviour
   (still valid PHP 7.3+); not covered by fixtures.

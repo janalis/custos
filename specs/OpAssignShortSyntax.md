@@ -9,10 +9,12 @@ php: { min: "", max: "" }
 # OpAssignShortSyntax
 
 ## Summary
+
 `$total = $total + $step` repeats the target; the compound assignment
 `$total += $step` says the same thing more directly.
 
 ## Detection
+
 Applies to plain assignments `V = R` (operator `=`; compound assignments and
 destructuring are never inspected).
 
@@ -39,6 +41,7 @@ destructuring are never inspected).
 Fragments, in source order (left to right), form the suggested right-hand
 side: `F1 op F2 op …`. Suggested replacement: `B op= F1 op F2 …` (with single
 spaces, e.g. `$s .= 'a' . $t`).
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -47,6 +50,7 @@ spaces, e.g. `$s .= 'a' . $t`).
   property and constant names stay case-sensitive.
 
 ## Exceptions (no report)
+
 - E1: string offset writes: `V` is an array-access expression (`$s[i]`) whose
   base expression has a fully resolved type (no unknown component) that
   includes `string`. (Compound assignment on string offsets is a fatal error.)
@@ -60,20 +64,24 @@ spaces, e.g. `$s .= 'a' . $t`).
 - E4: compound assignments (`$n += $n + 1`) are not inspected.
 
 ## Report
+
 - Range: the whole assignment expression `V = R` (without trailing `;`).
 - Severity: info (weak warning).
 - Message: "Use the compound form '{replacement}'."
 
 ## Fix
+
 - F1: replace the assignment expression with the suggested replacement:
   `<B text> <op>= <F1 text> <op> <F2 text> …`, fragments copied verbatim (keeping
   their own parentheses), one space on each side of `op=` and of each joining
   `op`. Parentheses that wrapped `R` disappear.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -121,9 +129,11 @@ function tally(int $count, string $label, array $grid, $buf) {
 ```
 
 ## Divergences
+
 None known. Note: with PHP 8 precedence (`+`/`-` bind tighter than `.`),
 `$n = $n . 'a' + 1` parses as `$n . ('a' + 1)` whose single fragment is a binary
 expression → not reported, the same outcome as with the older precedence.
+
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,

@@ -9,11 +9,13 @@ php: { min: "", max: "" }
 # AmbiguousMethodsCallsInArrayMapping
 
 ## Summary
+
 When a loop builds a map like `$map[key($x)] = key($x);`, the same call is
 evaluated twice per iteration (once for the key, once for the value). Compute
 it once into a local variable.
 
 ## Detection
+
 - **D1** A `for` or `foreach` statement whose body is a statement block (the
   `{ ... }` block; the statement list of the alternative `: ... endfor;` /
   `endforeach;` syntax counts as a block too). A loop whose body is a single
@@ -48,6 +50,7 @@ it once into a local variable.
 `list`, `echo`, `print`, `include`) are not calls for this rule.
 
 ## Exceptions (no report)
+
 - **E1** Call only on one side (`$m[f($x)] = 'k';`, `$m['k'] = f($x);`).
 - **E2** Same name but different arguments/receiver (`$m[f($a)] = f($b);`,
   `$m[$a->id()] = $b->id();`).
@@ -75,6 +78,7 @@ it once into a local variable.
   bodies are unknown) and stay reportable.
 
 ## Report
+
 - Range: the full right-hand call node `r` (for a method call, from the
   start of its receiver expression to the closing `)`; for a function call,
   from the name to `)`).
@@ -83,12 +87,15 @@ it once into a local variable.
   variable.`
 
 ## Fix
+
 None.
 
 ## Options
+
 None.
 
 ## PHP versions
+
 No gating.
 
 ## Examples
@@ -125,6 +132,7 @@ foreach ($streams as $h) {
 ```
 
 ## Divergences
+
 - **Name case (custos diverges):** upstream compares the called names
   case-sensitively, so `$m[f($x)] = F($x);` or
   `$m[$u->getEmail()] = $u->GetEmail();` is missed although both sides
