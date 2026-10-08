@@ -183,6 +183,11 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, static bool) (s
 		} else if cls, m, ok := strings.Cut(target, "::"); ok {
 			target = util.StringCallableClass(ctx, cls, at) + "::" + m
 		} else {
+			// D7a: a global name shadowed at the call (namespace function or
+			// `use function`) is reached on purpose through the string.
+			if fn := strings.TrimPrefix(target, `\`); fn != "" && !strings.Contains(fn, `\`) && !util.BareReachesGlobal(ctx, fn, at) {
+				return "", false
+			}
 			target = util.StringCallableFunction(ctx, target, at)
 		}
 	}
