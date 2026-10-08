@@ -9,3 +9,5 @@
 *.out
 *.prof
 /testdata/fuzz/
+# binary cached by the Composer launcher
+/composer/.bin/

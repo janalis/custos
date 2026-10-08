@@ -11,3 +11,40 @@ jobs:
         with:
           go-version-file: go.mod
       - run: make verify
+
+  # Release packaging: goreleaser config, composer.json and the Composer
+  # launcher (download, checksum check, exit code passthrough).
+  dist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: check
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "7.4"
+          tools: composer
+      - run: composer validate --strict
+      - run: php -l composer/custos
+      - name: launcher smoke test
+        run: |
+          make build
+          assets="$RUNNER_TEMP/assets"
+          mkdir -p "$assets"
+          cp bin/custos "$assets/custos_linux_amd64"
+          (cd "$assets" && sha256sum custos_linux_amd64 > SHA256SUMS)
+          CUSTOS_DOWNLOAD_URL="$assets" php composer/custos version
+          set +e
+          php composer/custos analyse does-not-exist; code=$?
+          set -e
+          [ "$code" = 2 ] || { echo "exit code $code not passed through"; exit 1; }
+          rm -rf composer/.bin
+          echo "0000  custos_linux_amd64" > "$assets/SHA256SUMS"
+          if CUSTOS_DOWNLOAD_URL="$assets" php composer/custos version; then
+            echo "checksum mismatch not detected"; exit 1
+          fi

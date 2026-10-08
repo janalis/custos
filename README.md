@@ -12,9 +12,21 @@ existing `@noinspection XxxInspection` comments keep working. See `NOTICE`.
 
 ## Install
 
-Download the archive for your platform from the releases page (Linux, macOS
-and Windows, amd64/arm64; checksums in `SHA256SUMS`), extract `custos` and put
-it on your `PATH`. Or build from source (Go 1.27):
+```sh
+brew install janalis/tap/custos           # macOS / Linux (Homebrew cask)
+composer require --dev janalis/custos     # per project → vendor/bin/custos
+```
+
+The Composer package is a small PHP launcher: on first run it downloads the
+binary of its version for your platform from the GitHub release (checked
+against `SHA256SUMS`) and caches it in the package directory. Set
+`CUSTOS_DOWNLOAD_URL` to a mirror (URL or directory holding the release
+assets), or `CUSTOS_BINARY` to an existing binary to skip the download.
+
+Or download the archive for your platform from the
+[releases page](https://github.com/janalis/custos/releases) (Linux, macOS and
+Windows, amd64/arm64; checksums in `SHA256SUMS`), extract `custos` and put it
+on your `PATH`. Or build from source (Go 1.27):
 
 ```sh
 make build          # → bin/custos
@@ -87,9 +99,31 @@ Docs: `docs/usage.md` (CLI, configuration, CI, editors), `docs/rules-reference.m
 
 ## Releasing
 
-Update `CHANGELOG.md`, then tag: `git tag vX.Y.Z && git push --tags`. The
-`release` workflow runs `make verify` and goreleaser (`.goreleaser.yaml`).
-Locally: `go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean`.
+Write the changes under `## [Unreleased]` in `CHANGELOG.md` as you go, then
+run **Actions → release → Run workflow** on `main` with a version (`X.Y.Z`,
+or `patch` / `minor` / `major` to bump the latest tag; tick *dry run* to build
+without publishing). The workflow:
+
+1. runs `make verify`;
+2. `tools/relprep`: turns `[Unreleased]` into `[X.Y.Z] - <date>`, pins the
+   version in the Composer launcher (`composer/custos`), extracts the release
+   notes; commits `Release vX.Y.Z`, tags and pushes;
+3. goreleaser (`.goreleaser.yaml`): archives + bare binaries + `SHA256SUMS`
+   on the GitHub release, and the cask in `janalis/homebrew-tap`;
+4. Packagist picks up the tag (and is pinged when its secrets are set).
+
+A failed publish can be retried with *Re-run failed jobs* (the tag is kept).
+Locally: `go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean --skip=publish`.
+
+One-time setup:
+- create the empty `janalis/homebrew-tap` repository and the
+  `HOMEBREW_TAP_TOKEN` secret (fine-grained token, *Contents: read and write*
+  on that repository only);
+- submit `https://github.com/janalis/custos` on packagist.org (its GitHub
+  hook updates on every tag); optionally add `PACKAGIST_USERNAME` and
+  `PACKAGIST_TOKEN` secrets;
+- if `main` is protected, let GitHub Actions bypass it so the release commit
+  can be pushed.
 
 ## License
 

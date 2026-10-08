@@ -84,13 +84,14 @@ Rule options and defaults are listed in `docs/rules-reference.md` and by
 ### GitHub Actions (with code scanning)
 
 ```yaml
+# custos installed with `composer require --dev janalis/custos`
 - name: custos
-  run: ./bin/custos analyse --format=sarif > custos.sarif || true
+  run: vendor/bin/custos analyse --format=sarif > custos.sarif || true
 - uses: github/codeql-action/upload-sarif@v3
   with:
     sarif_file: custos.sarif
 - name: custos (gate)
-  run: ./bin/custos analyse --format=github --fail-on=warning
+  run: vendor/bin/custos analyse --format=github --fail-on=warning
 ```
 
 `--format=github` prints workflow annotations inline on the PR diff.

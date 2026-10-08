@@ -1,0 +1,102 @@
+#!/usr/bin/env php
+<?php
+// Composer launcher for custos: downloads the custos binary of this package's
+// version for the current platform on first run (verified against the
+// release's SHA256SUMS), caches it next to this file and runs it.
+//
+//   CUSTOS_BINARY        run this binary instead (no download)
+//   CUSTOS_DOWNLOAD_URL  base URL or directory holding the release assets
+
+namespace Custos\Launcher;
+
+const VERSION = '0.0.0';
+const RELEASES = 'https://github.com/janalis/custos/releases/download';
+
+function fail(string $msg): void
+{
+    fwrite(STDERR, "custos: $msg\n");
+    exit(2);
+}
+
+function asset(): string
+{
+    $os = ['Linux' => 'linux', 'Darwin' => 'darwin', 'Windows' => 'windows'][PHP_OS_FAMILY] ?? null;
+    $machine = strtolower(php_uname('m'));
+    $arch = ['x86_64' => 'amd64', 'amd64' => 'amd64', 'arm64' => 'arm64', 'aarch64' => 'arm64'][$machine] ?? null;
+    if ($os === null || $arch === null) {
+        fail('no prebuilt binary for ' . PHP_OS_FAMILY . "/$machine; build from source and set CUSTOS_BINARY");
+    }
+    return "custos_{$os}_{$arch}" . ($os === 'windows' ? '.exe' : '');
+}
+
+function fetch(string $url): string
+{
+    if (!preg_match('{^https?://}i', $url)) {
+        $data = @file_get_contents($url);
+        if ($data === false) {
+            fail("cannot read $url");
+        }
+        return $data;
+    }
+    $http = ['user_agent' => 'custos-composer/' . VERSION, 'follow_location' => 1, 'timeout' => 60];
+    $proxy = getenv('HTTPS_PROXY') ?: getenv('https_proxy');
+    if ($proxy && ($p = parse_url($proxy)) && isset($p['host'])) {
+        $http['proxy'] = 'tcp://' . $p['host'] . ':' . ($p['port'] ?? 80);
+        $http['request_fulluri'] = true;
+    }
+    $data = @file_get_contents($url, false, stream_context_create(['http' => $http]));
+    if ($data === false && function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_FAILONERROR => true, CURLOPT_USERAGENT => $http['user_agent']]);
+        $data = curl_exec($ch);
+    }
+    if (!is_string($data)) {
+        fail("cannot download $url (set CUSTOS_DOWNLOAD_URL to a mirror, or CUSTOS_BINARY to a local binary)");
+    }
+    return $data;
+}
+
+function install(string $target): void
+{
+    $name = asset();
+    $base = rtrim(getenv('CUSTOS_DOWNLOAD_URL') ?: RELEASES . '/v' . VERSION, '/');
+    $want = null;
+    foreach (explode("\n", fetch("$base/SHA256SUMS")) as $line) {
+        $f = preg_split('{\s+\*?}', trim($line));
+        if (count($f) === 2 && $f[1] === $name) {
+            $want = strtolower($f[0]);
+        }
+    }
+    if ($want === null) {
+        fail("$name is not listed in $base/SHA256SUMS");
+    }
+    fwrite(STDERR, "custos: downloading $name " . VERSION . "\n");
+    $bin = fetch("$base/$name");
+    if (!hash_equals($want, hash('sha256', $bin))) {
+        fail("checksum mismatch for $base/$name");
+    }
+    $dir = dirname($target);
+    if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+        fail("cannot create $dir (set CUSTOS_BINARY to a local binary)");
+    }
+    $tmp = $target . '.' . getmypid() . '.tmp';
+    if (@file_put_contents($tmp, $bin) !== strlen($bin) || !@chmod($tmp, 0755) || !@rename($tmp, $target)) {
+        @unlink($tmp);
+        fail("cannot write $target (set CUSTOS_BINARY to a local binary)");
+    }
+}
+
+// Composer's bin proxy includes this file through a stream wrapper.
+$here = preg_replace('{^phpvfscomposer://}', '', __DIR__);
+$bin = getenv('CUSTOS_BINARY');
+if (!$bin) {
+    $bin = $here . '/.bin/custos-' . VERSION . (PHP_OS_FAMILY === 'Windows' ? '.exe' : '');
+    if (!is_file($bin)) {
+        install($bin);
+    }
+}
+$proc = proc_open(array_merge([$bin], array_slice($_SERVER['argv'], 1)), [STDIN, STDOUT, STDERR], $pipes);
+if (!is_resource($proc)) {
+    fail("cannot run $bin");
+}
+exit(proc_close($proc));

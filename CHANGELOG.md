@@ -20,6 +20,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   rules) so large legal files stay fast.
 
 ### Added
+- Distribution: Homebrew cask (`brew install janalis/tap/custos`) and
+  Composer package (`composer require --dev janalis/custos`, a launcher that
+  downloads the checksum-verified binary for its version on first run).
+- One-click release workflow (Actions → release): verify, changelog cut,
+  tag, GitHub release, Homebrew cask and Packagist update.
 - 178 PHP inspections (probable bugs, performance, security, code style,
   control flow, language-level migration 5.3 → 8.5, PHPUnit, …) with 111
   quick-fixes; rule IDs compatible with Php Inspections (EA Extended), so

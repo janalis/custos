@@ -1,0 +1,16 @@
+# Packagist installs the GitHub source archive: keep only what the Composer
+# launcher needs (composer.json, composer/, licence and docs at the root).
+/.claude          export-ignore
+/.github          export-ignore
+/.gitattributes   export-ignore
+/.gitignore       export-ignore
+/.goreleaser.yaml export-ignore
+/CLAUDE.md        export-ignore
+/Makefile         export-ignore
+/cmd              export-ignore
+/docs             export-ignore
+/go.mod           export-ignore
+/internal         export-ignore
+/specs            export-ignore
+/testdata         export-ignore
+/tools            export-ignore

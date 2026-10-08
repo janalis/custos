@@ -1,12 +1,29 @@
 name: release
+# Actions → release → Run workflow (on main). Verifies, moves CHANGELOG's
+# [Unreleased] section to the new version, commits and tags it, then publishes
+# the GitHub release (goreleaser), the Homebrew cask (janalis/homebrew-tap) and
+# the Packagist version (janalis/custos, from the tag).
 on:
-  push:
-    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "X.Y.Z, or patch | minor | major (bump of the latest tag)"
+        required: true
+        default: patch
+      dry_run:
+        description: "Build everything, publish nothing"
+        type: boolean
+        default: false
+concurrency: release
 permissions:
   contents: write
 jobs:
-  goreleaser:
+  prepare:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.relprep.outputs.version }}
+      tag: ${{ steps.relprep.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -15,9 +32,65 @@ jobs:
         with:
           go-version-file: go.mod
       - run: make verify STATICCHECK=
+      - id: relprep
+        env:
+          BUMP: ${{ inputs.version }}
+        run: go run ./tools/relprep -bump "$BUMP" -notes "$RUNNER_TEMP/notes.md" | tee -a "$GITHUB_OUTPUT"
+      - run: git diff
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}/notes.md
+      - if: ${{ !inputs.dry_run }}
+        env:
+          TAG: ${{ steps.relprep.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Release $TAG"
+          git tag -a "$TAG" -m "custos $TAG"
+          git push --atomic origin HEAD:main "$TAG"
+
+  # Separate job so a failed publish can be retried ("Re-run failed jobs")
+  # without cutting the release again.
+  publish:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.dry_run && github.sha || needs.prepare.outputs.tag }}
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-notes
+          path: ${{ runner.temp }}
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"
-          args: release --clean
+          args: release --clean --release-notes=${{ runner.temp }}/notes.md ${{ inputs.dry_run && '--snapshot --skip=publish' || '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      # Packagist's GitHub hook already picks up the tag; this makes it immediate.
+      - if: ${{ !inputs.dry_run }}
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+        run: |
+          if [ -z "$PACKAGIST_USERNAME" ] || [ -z "$PACKAGIST_TOKEN" ]; then
+            echo "Packagist secrets not set; relying on the GitHub hook"
+            exit 0
+          fi
+          curl -fsS -X POST -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer $PACKAGIST_USERNAME:$PACKAGIST_TOKEN" \
+            -d '{"repository":{"url":"https://github.com/janalis/custos"}}' \
+            https://packagist.org/api/update-package
+      - if: ${{ inputs.dry_run }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/

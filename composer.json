@@ -1,0 +1,16 @@
+{
+    "name": "janalis/custos",
+    "description": "Fast PHP inspector and fixer (178 inspections with quick-fixes), shipped as a prebuilt binary.",
+    "type": "library",
+    "keywords": ["static analysis", "inspections", "code quality", "linter", "fixer", "lsp", "dev"],
+    "homepage": "https://github.com/janalis/custos",
+    "license": "MIT",
+    "support": {
+        "issues": "https://github.com/janalis/custos/issues",
+        "source": "https://github.com/janalis/custos"
+    },
+    "require": {
+        "php": ">=7.4"
+    },
+    "bin": ["composer/custos"]
+}

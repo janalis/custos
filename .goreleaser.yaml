@@ -8,10 +8,41 @@ builds:
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
 archives:
-  - formats: [tar.gz]
+  - id: default
+    formats: [tar.gz]
     format_overrides:
       - goos: windows
         formats: [zip]
     files: [LICENSE, NOTICE, README.md]
+  # Bare binaries downloaded by the Composer launcher (composer/custos).
+  - id: raw
+    formats: [binary]
+    name_template: "custos_{{ .Os }}_{{ .Arch }}"
 checksum:
   name_template: SHA256SUMS
+# Release notes come from CHANGELOG.md (tools/relprep, --release-notes).
+changelog:
+  disable: true
+release:
+  github:
+    owner: janalis
+    name: custos
+homebrew_casks:
+  - name: custos
+    ids: [default]
+    binaries: [custos]
+    homepage: https://github.com/janalis/custos
+    description: Fast PHP inspector and fixer
+    repository:
+      owner: janalis
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    commit_msg_template: "custos {{ .Tag }}"
+    skip_upload: auto
+    # The binary is not notarized.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/custos"]
+          end
