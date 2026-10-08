@@ -45,9 +45,10 @@ class Meter {
     }
 }
 
-function joins($a, $b) {
+function joins(string $a, int $b, ?string $c, $d, \Stringable $e, string|false $f) {
     $a .= <weak_warning descr="Concatenation converts to string anyway; remove the cast.">(string)</weak_warning> $b;
-    return 'n=' . <weak_warning descr="Concatenation converts to string anyway; remove the cast.">(string)</weak_warning>$b;
+    $a .= (string) $c . (string) $d . (string) $e . (string) $f . (string) true;
+    return 'n=' . <weak_warning descr="Concatenation converts to string anyway; remove the cast.">(string)</weak_warning>$b . <weak_warning descr="Concatenation converts to string anyway; remove the cast.">(string)</weak_warning> 2.5;
 }
 
 function stamps() {
