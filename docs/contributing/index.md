@@ -18,13 +18,14 @@ touch a rule.
 
 ## Setup
 
-You need Go 1.27 or later, `make` and `git`. Node 20+ is only needed for the
-documentation site.
+You need Go 1.27 or later, `make`, `git` and Node 20+ (for the
+documentation site and the Markdown linter).
 
 ```sh
 git clone https://github.com/janalis/custos
 cd custos
-make build          # → bin/custos
+npm ci --prefix docs  # markdownlint, VitePress
+make build            # → bin/custos
 make test
 ```
 
@@ -39,7 +40,8 @@ code compiles.
 | `make verify` | **Definition of done**: lint, tests, own fixtures, 100 % coverage gates and the clean-room scan. CI runs it. |
 | `make build` | Build `bin/custos`. |
 | `make test` | `go test ./...` |
-| `make lint` | `go vet`, `gofmt` check and a pinned `staticcheck` (`STATICCHECK=` skips it offline). |
+| `make lint` | golangci-lint, actionlint, editorconfig-checker and markdownlint (see [Code style](#code-style)). |
+| `make fmt` | Apply the Go formatters and markdownlint's automatic fixes. |
 | `make fixtures RULE=<ID>` | Run the own fixtures in `testdata/rules/`, optionally for one rule. |
 | `make conformance RULE=<ID>` | Compare against the upstream fixtures of a local Php Inspections checkout (`EA_PATH`, default `~/Sites/phpinspectionsea`). Skipped when absent. |
 | `make coverage` | 100 % statement coverage gates (see below). |
@@ -48,6 +50,32 @@ code compiles.
 | `make bench` / `make fuzz` | Benchmarks (`-benchmem`) and a short fuzz run of every fuzz target. |
 | `make fixcheck` | Apply every quick-fix on the projects in `CUSTOS_CORPUS` and require the result to still parse. |
 | `make stubs` | Rebuild the embedded PHP builtin symbol index from phpstorm-stubs. |
+
+## Code style
+
+`make lint` (part of `make verify`, run by CI) checks every file; `make fmt`
+fixes most findings for you. Run it before committing. Tool versions are pinned
+in the `Makefile` and the Go ones are built with your Go toolchain on first
+use; set a tool's variable empty to skip it offline (`make lint MDLINT=`).
+
+| Files | Tool | Rules |
+|---|---|---|
+| Go | [golangci-lint](https://golangci-lint.run) | `.golangci.yml`: `gofumpt` and `goimports` formatting (standard library, then `custos/...` imports), `govet`, `staticcheck`, `errcheck`, `errorlint`, `revive`, `gocritic`, `misspell` and a few more. |
+| GitHub workflows | [actionlint](https://github.com/rhysd/actionlint) | Workflow syntax and expressions; `run:` scripts through `shellcheck` when it is installed. |
+| All text files | [editorconfig-checker](https://github.com/editorconfig-checker/editorconfig-checker) | `.editorconfig`: UTF-8, LF, final newline, no trailing whitespace, tabs in Go and the `Makefile`, spaces elsewhere. |
+| Markdown | [markdownlint](https://github.com/DavidAnson/markdownlint) | `.markdownlint-cli2.jsonc`: the default rules, without line length, inline HTML and code-span spacing checks. |
+
+- Fix findings rather than silencing them. When a finding is wrong, silence
+  that one line with `//nolint:<linter> // <reason>`; a bare or unexplained
+  `//nolint` is itself an error.
+- PHP fixtures and other `testdata/` files are byte-exact test inputs: no
+  formatter or checker touches them.
+- Prose is British English (`analyse`, `behaviour`); identifiers from PHP and
+  the LSP protocol keep their own spelling.
+- Generated files (`docs/rules/`, `docs/internals/rules.md`, the `explain`
+  texts) are fixed in their generator or their spec, then `make rules-doc`.
+- Editors: enable EditorConfig support, and gofumpt in gopls
+  (`"gopls": {"formatting.gofumpt": true}`).
 
 ## Ground rules
 

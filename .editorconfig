@@ -1,0 +1,27 @@
+# Editor settings, checked by `make lint` (editorconfig-checker).
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[{*.go,Makefile,go.mod}]
+indent_style = tab
+indent_size = 4
+
+[*.md]
+# Go code blocks are tab-indented; markdownlint checks indentation outside them.
+indent_style = unset
+
+# PHP fixtures and test inputs are byte-exact: whitespace is part of the test.
+[{testdata/**,**/testdata/**,*.php,*.inc}]
+charset = unset
+end_of_line = unset
+insert_final_newline = unset
+trim_trailing_whitespace = unset
+indent_style = unset
+indent_size = unset

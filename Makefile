@@ -19,24 +19,35 @@ build:
 test:
 	$(GO) test ./...
 
-vet:
-	$(GO) vet ./...
+# Linters are pinned and run through `go run` (built once with the local Go,
+# then cached); markdownlint comes from docs/package.json (`npm ci --prefix
+# docs`). Set any of them empty to skip it, e.g. `make lint MDLINT=` offline.
+GOLANGCI   ?= $(GO) run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+ACTIONLINT ?= $(GO) run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+ECCHECK    ?= $(GO) run github.com/editorconfig-checker/editorconfig-checker/v3/cmd/editorconfig-checker@v3.11.3
+MDLINT     ?= docs/node_modules/.bin/markdownlint-cli2
 
-# Go sources, leaving out the docs site's installed packages.
-GOFILES = $$(find . -name node_modules -prune -o -name '*.go' -print)
+# Rules: .golangci.yml, .editorconfig (+ .editorconfig-checker.json),
+# .markdownlint-cli2.jsonc. See docs/contributing/index.md.
+lint:
+	@if [ -n "$(GOLANGCI)" ]; then $(GOLANGCI) run ./...; else echo "golangci-lint skipped"; fi
+	@if [ -n "$(ACTIONLINT)" ]; then $(ACTIONLINT); else echo "actionlint skipped"; fi
+	@if [ -n "$(ECCHECK)" ]; then $(ECCHECK); else echo "editorconfig-checker skipped"; fi
+	@if [ -z "$(MDLINT)" ]; then echo "markdownlint skipped"; \
+	elif [ ! -x "$(MDLINT)" ]; then echo "markdownlint missing: run npm ci --prefix docs (or MDLINT= to skip)"; exit 1; \
+	else $(MDLINT); fi
 
+# Apply the formatters (gofumpt, goimports) and markdownlint's fixes.
 fmt:
-	gofmt -w -s $(GOFILES)
+	$(GOLANGCI) fmt
+	@if [ -n "$(MDLINT)" ]; then $(MDLINT) --fix; fi
+
+# Kept as shortcuts: both are part of `make lint`.
+vet:
+	$(GOLANGCI) run --enable-only govet ./...
 
 fmt-check:
-	@out=$$(gofmt -l -s $(GOFILES)); if [ -n "$$out" ]; then echo "gofmt needed:"; echo "$$out"; exit 1; fi
-
-# staticcheck is pinned and run through `go run` (downloaded once into the
-# module cache); set STATICCHECK= to skip it offline.
-STATICCHECK ?= $(GO) run honnef.co/go/tools/cmd/staticcheck@v0.8.1
-
-lint: vet fmt-check
-	@if [ -n "$(STATICCHECK)" ]; then $(STATICCHECK) ./...; else echo "staticcheck skipped"; fi
+	$(GOLANGCI) fmt --diff
 
 # Benchmarks on a real file need CUSTOS_BENCH_FILE (a large PHP source).
 bench:
