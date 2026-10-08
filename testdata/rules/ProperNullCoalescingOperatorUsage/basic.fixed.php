@@ -16,7 +16,7 @@ class Garage {
             $this->lookup(),
             strrev($label),
             $this->engine ?? 'none',
-            $n ?? 'n/a',
+            $n ?? 'n/a',                    // scalar placeholder (D5a)
             $this->engine ?? null,
             $label ?? null,
             $t ?? $e,
