@@ -282,9 +282,12 @@ func putConstant(ctx *analysis.Context, c puCall, args []syntax.Expr) (putSugges
 	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 2, len(args)-1, other, putOpt(ctx, args, 2))}, true
 }
 
+// putInternalTypes maps the is_* checks to PHPUnit's type names. custos:
+// is_resource() is left out, since PHPUnit's "resource" type also accepts a
+// closed resource, for which is_resource() is false.
 var putInternalTypes = map[string]string{
 	"is_array": "array", "is_bool": "bool", "is_float": "float", "is_int": "int", "is_null": "null",
-	"is_numeric": "numeric", "is_object": "object", "is_resource": "resource", "is_string": "string",
+	"is_numeric": "numeric", "is_object": "object", "is_string": "string",
 	"is_scalar": "scalar", "is_callable": "callable", "is_iterable": "iterable",
 }
 

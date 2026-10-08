@@ -203,9 +203,10 @@ integer/float literal, optionally with a unary minus.
   function call with **at least one** argument to one of:
   `is_array`→`array`, `is_bool`→`bool`, `is_float`→`float`, `is_int`→`int`,
   `is_null`→`null`, `is_numeric`→`numeric`, `is_object`→`object`,
-  `is_resource`→`resource`, `is_string`→`string`, `is_scalar`→`scalar`,
+  `is_string`→`string`, `is_scalar`→`scalar`,
   `is_callable`→`callable`, `is_iterable`→`iterable`.
-  (Aliases such as `is_integer`, `is_long`, `is_double` are not mapped.)
+  (Aliases such as `is_integer`, `is_long`, `is_double` are not mapped, nor
+  is `is_resource`: see Divergences.)
   - PHPUnit version **< 8.0**: suggest `assertInternalType` (positive) /
     `assertNotInternalType` (negative) with the type name.
   - PHPUnit version **≥ 8.0**: suggest `assertIs<Type>` (positive) /
@@ -665,6 +666,14 @@ class LegacyTest
   "fix" introduces deprecation warnings. custos suggests
   `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from
   9.1 and the old names below.
+- **No `is_resource` mapping** (D20; custos diverges from upstream).
+  PHPUnit's `resource` type check (`assertIsResource()`,
+  `assertIsNotResource()`, `assertInternalType('resource', …)`) also
+  accepts a closed resource, for which `is_resource()` returns false. After
+  `fclose($h)`, `assertFalse(is_resource($h))` passes but
+  `assertIsNotResource($h)` fails, and `assertTrue(is_resource($h))` fails
+  but `assertIsResource($h)` passes, so either suggestion changes what the
+  test checks. custos suggests nothing for `is_resource()`.
 - **Resource exists below 9.1** (D23; custos diverges from upstream).
   Upstream always suggests `assertFileDoesNotExist` /
   `assertDirectoryDoesNotExist`, but PHPUnit only added those names in 9.1;
