@@ -5,7 +5,7 @@ use Shop\Cart as Basket;
 
 class MoreTest
 {
-    public function testMore($a, $b, $e, $f, $s, $list)
+    public function testMore($a, $b, $e, $f, $s, $list, ?string $str)
     {
         static::assertFalse($a);
         $this->assertNotTrue($a, 'm');
@@ -20,7 +20,7 @@ class MoreTest
         $this->assertNotRegExp('/a/', $s);
         $this->assertRegExp('/a/', $s);
         $this->assertFileEquals($a, $b, 'm');
-        $this->assertEmpty($a, 'm', 3);
+        $this->assertEmpty($str, 'm', 3);
         $this->assertNotEquals($a, $b);
         $this->assertNotSame($a, $b, 'm');
 
