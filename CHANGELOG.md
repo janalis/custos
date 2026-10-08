@@ -24,6 +24,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   arm guarded by a nullsafe check, and a loop condition re-checked after a
   `continue` now narrow the variable; a property write no longer undoes a
   null check.
+- StaticInvocationViaThis: with `EXCEPT_PHPUNIT_ASSERTIONS`, an abstract
+  restatement of a PHPUnit assertion (a trait's
+  `abstract public static function assertIsResource(…)`) called through
+  `$this` is exempt like PHPUnit's own assertions.
 
 ## [0.1.0] - 2026-10-08
 

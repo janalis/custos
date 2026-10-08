@@ -55,6 +55,9 @@ Visit every method call expression.
   with `\Symfony\Bundle\FrameworkBundle\Test\` (Symfony's PHPUnit
   assertion traits such as `WebTestAssertionsTrait`, `MailerAssertionsTrait`;
   custos diverges, see Divergences).
+  It also skips an abstract method (typically a trait's requirement) when
+  `\PHPUnit\Framework\Assert`, as indexed, declares a static method of the
+  same name (custos diverges, see Divergences).
 - **E4** Option `EXCEPT_ELOQUENT_MODELS` (default true): the resolved method is
   declared directly in class `\Illuminate\Database\Eloquent\Model` (calls on
   subclasses that resolve to the inherited method are skipped too; static
@@ -146,6 +149,18 @@ namespace PHPUnit\Framework {
 ```
 
 ## Divergences
+
+- **Abstract restatements of PHPUnit assertions (custos diverges).** A
+  trait for test cases may restate an assertion abstractly
+  (`abstract public static function assertIsResource(mixed $actual, string $message = ''): void;`)
+  so that static analysers narrow through it, then call
+  `$this->assertIsResource($r)`. The test case using the trait satisfies the
+  requirement with PHPUnit's own `Assert::assertIsResource()`, so the call
+  follows PHPUnit's convention like any other assertion. With
+  `EXCEPT_PHPUNIT_ASSERTIONS`, custos skips an abstract method when the
+  indexed `\PHPUnit\Framework\Assert` declares a static method of that
+  name; an abstract static method of any other name is still reported, and
+  nothing changes when PHPUnit is not indexed.
 
 - **Symfony test assertions (custos diverges):** upstream exempts only
   `\PHPUnit\Framework\…` assertions, so Symfony's `$this->assertResponseIsSuccessful()`,
