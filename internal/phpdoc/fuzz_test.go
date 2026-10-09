@@ -21,6 +21,9 @@ func exercise(c string) {
 	for _, t := range d.Tags {
 		SplitType(t.Text)
 		_ = VarName(t.Text)
+		if t.Name == "method" {
+			ParseMethod(t.Text)
+		}
 	}
 }
 
@@ -30,6 +33,9 @@ func FuzzParse(f *testing.F) {
 		"/** @param int $x */", "/**\n * @return array<int, string> desc\n * @var $x Foo\n */",
 		"/** @template T of array{a: int} */", "/** @phpstan-type A = int|string */",
 		"/** @phpstan-import-type A from B as C */", "/** @param int |  null $x */", "/**", "*/",
+		"/** @method static self make(array<int, string> &$out = ['k' => 'a, b'], string &...$rest) */",
+		"/** @method callable(string): int callback(callable(int, string): bool $filter) */",
+		"/** @method void broken(array<int] $row) */",
 	} {
 		f.Add(s)
 	}

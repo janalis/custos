@@ -115,6 +115,8 @@ func FuzzLex(f *testing.F) {
 		"<?php echo 1;", `<?php "a $b[1] {$c} ${d}"`, "<?php <<<A\nx $y\nA;\n", "x<?= $a ?>y",
 		"<?php /** doc */ #[A] fn($x) => $x?->y", "<?php __halt_compiler();data",
 		"<?php `ls $dir` ?>", "<?php (int)(float)$x <=> $y ??= 1",
+		"<?php $s = <<<EOT\n  $a\n  EOT;\n", "<?php $s = <<<'EOT'\n x\n  EOT;\n",
+		"<?php $s = <<<EOT\n  \\\n x\n  EOT;\n",
 	} {
 		f.Add(s)
 	}

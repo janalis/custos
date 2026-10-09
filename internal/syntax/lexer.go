@@ -71,8 +71,17 @@ const (
 )
 
 type heredocInfo struct {
-	label  string
-	nowdoc bool
+	label        string
+	nowdoc       bool
+	line         int
+	spaces, tabs heredocIndent
+}
+
+// heredocIndent records the most restrictive literal line for one indent kind.
+// Blank lines may be shorter, but may not use the other kind before the cut.
+type heredocIndent struct {
+	count, pos int
+	mixed      bool
 }
 
 // LexError is a lexical problem (the token stream is still complete).
@@ -923,7 +932,10 @@ func (l *lexer) heredocStart() (TokenKind, bool) {
 		return 0, false
 	}
 	l.pos = p
-	l.heredocs = append(l.heredocs, heredocInfo{label: label, nowdoc: quote == '\''})
+	l.heredocs = append(l.heredocs, heredocInfo{
+		label: label, nowdoc: quote == '\'', line: -1,
+		spaces: heredocIndent{count: len(l.src) + 1}, tabs: heredocIndent{count: len(l.src) + 1},
+	})
 	l.push(stHeredoc)
 	return TStartHeredoc, true
 }
@@ -957,15 +969,17 @@ func (l *lexer) closingLabelAt(p int, label string) (int, bool) {
 }
 
 func (l *lexer) lexHeredoc() TokenKind {
-	h := l.heredocs[len(l.heredocs)-1]
+	h := &l.heredocs[len(l.heredocs)-1]
 	atLineStart := l.pos == 0 || l.src[l.pos-1] == '\n' || l.src[l.pos-1] == '\r'
 	if atLineStart {
 		if e, ok := l.closingLabelAt(l.pos, h.label); ok {
+			l.checkHeredocIndent(h, e-len(h.label))
 			l.pos = e
 			l.heredocs = l.heredocs[:len(l.heredocs)-1]
 			l.pop()
 			return TEndHeredoc
 		}
+		l.noteHeredocLine(h)
 	}
 	if !h.nowdoc {
 		if k, ok := l.interpolationStart(); ok {
@@ -974,7 +988,7 @@ func (l *lexer) lexHeredoc() TokenKind {
 	}
 	for l.pos < len(l.src) {
 		c := l.src[l.pos]
-		if c == '\\' && !h.nowdoc {
+		if c == '\\' && !h.nowdoc && l.peek(1) != '\n' && l.peek(1) != '\r' {
 			l.pos += 2
 			continue
 		}
@@ -986,6 +1000,7 @@ func (l *lexer) lexHeredoc() TokenKind {
 			if _, ok := l.closingLabelAt(l.pos, h.label); ok {
 				break
 			}
+			l.noteHeredocLine(h)
 			continue
 		}
 		if !h.nowdoc && l.atInterpolation() {
@@ -1000,6 +1015,55 @@ func (l *lexer) lexHeredoc() TokenKind {
 		}
 	}
 	return TEncapsedAndWhitespace
+}
+
+// noteHeredocLine observes only literal lines, not PHP code inside interpolation.
+// Each line is inspected once, keeping nested heredocs linear in source size.
+func (l *lexer) noteHeredocLine(h *heredocInfo) {
+	if h.line == l.pos {
+		return
+	}
+	h.line = l.pos
+	for _, indent := range []struct {
+		kind  byte
+		bound *heredocIndent
+	}{{' ', &h.spaces}, {'\t', &h.tabs}} {
+		end := l.pos
+		for end < len(l.src) && l.src[end] == indent.kind {
+			end++
+		}
+		if end == len(l.src) || l.src[end] == '\r' || l.src[end] == '\n' {
+			continue
+		}
+		if count := end - l.pos; count < indent.bound.count {
+			*indent.bound = heredocIndent{count: count, pos: end, mixed: l.src[end] == ' ' || l.src[end] == '\t'}
+		}
+	}
+}
+
+func (l *lexer) checkHeredocIndent(h *heredocInfo, labelStart int) {
+	count := labelStart - l.pos
+	if count == 0 {
+		return
+	}
+	kind := l.src[l.pos]
+	for pos := l.pos + 1; pos < labelStart; pos++ {
+		if l.src[pos] != kind {
+			l.errorAt(pos, "use one whitespace kind for heredoc indentation")
+			return
+		}
+	}
+	bound := h.spaces
+	if kind == '\t' {
+		bound = h.tabs
+	}
+	if bound.count < count {
+		message := "indent heredoc body at least as far as its closing label"
+		if bound.mixed {
+			message = "use the closing label's whitespace kind for heredoc indentation"
+		}
+		l.errorAt(bound.pos, message)
+	}
 }
 
 // ---- operators -----------------------------------------------------------------

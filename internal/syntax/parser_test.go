@@ -300,6 +300,8 @@ func FuzzParse(f *testing.F) {
 		"<?php $a = 1 + 2 * 3;", "<?php class A { function b() { return $this?->c; } }",
 		"<?php if ($a): elseif: endif;", "<?php fn($x) => match($x) { 1, 2 => 3, default => 4 };",
 		"<?php \"$a[0] {$b} ${c}\";", "<?php #[A] enum E: int { case X = 1; }",
+		"<?php $$a[0]; $o->$a[0](); C::$a[0][1](); C::$a[0][1];",
+		"<?php $s = <<<EOT\n  $a\n  EOT;\n", "<?php $s = <<<'EOT'\n x\n  EOT;\n",
 	} {
 		f.Add(s)
 	}

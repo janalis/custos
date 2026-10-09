@@ -337,7 +337,7 @@ func (p *parser) parseMemberName() Expr {
 		p.advance()
 		return spanOf(put(&p.slabs.sIdentifier, Identifier{Value: p.text(t)}), Span{t.Start, t.End})
 	case t.Kind == TVariable:
-		return p.parseVariableToken()
+		return p.parseLegacyNameOffsets(p.parseVariableToken())
 	case t.Kind == TDollar:
 		return p.parseSimpleVariable()
 	case t.Kind == TLBrace:
@@ -356,10 +356,25 @@ func (p *parser) parseStaticMember(class Expr, start uint32) Expr {
 	switch {
 	case t.Kind == TVariable || t.Kind == TDollar:
 		v := p.parseSimpleVariable()
+		name := p.parseLegacyNameOffsets(v)
 		if p.at(TLParen) {
-			return fin(p, put(&p.slabs.sStaticCall, StaticCall{Class: class, Name: v, Args: p.parseArgs()}), start)
+			return fin(p, put(&p.slabs.sStaticCall, StaticCall{Class: class, Name: name, Args: p.parseArgs()}), start)
 		}
-		return fin(p, &StaticPropertyFetch{Class: class, Name: v}, start)
+		property := spanOf(&StaticPropertyFetch{Class: class, Name: v}, Span{start, v.Span().End})
+		if name == v {
+			return property
+		}
+		// Without a call, C::$name[0] still indexes the static property.
+		// Rebase the offsets already parsed while deciding whether this calls.
+		for offset := name.(*ArrayDimFetch); ; {
+			offset.base().span.Start = start
+			if offset.Var == v {
+				offset.Var = property
+				break
+			}
+			offset = offset.Var.(*ArrayDimFetch)
+		}
+		return name
 	case t.Kind == TString || t.Kind.IsKeyword():
 		p.advance()
 		id := spanOf(put(&p.slabs.sIdentifier, Identifier{Value: p.text(t)}), Span{t.Start, t.End})
@@ -382,6 +397,10 @@ func (p *parser) parseStaticMember(class Expr, start uint32) Expr {
 
 // parseSimpleVariable parses $name, $$var, ${expr}.
 func (p *parser) parseSimpleVariable() Expr {
+	defer p.leave()
+	if !p.enter() {
+		return spanOf(&BadExpr{}, p.missing())
+	}
 	t := p.tok()
 	switch t.Kind {
 	case TVariable:
@@ -394,11 +413,35 @@ func (p *parser) parseSimpleVariable() Expr {
 			p.expect(TRBrace)
 			return fin(p, put(&p.slabs.sVariable, Variable{NameExpr: e}), t.Start)
 		}
-		inner := p.parseSimpleVariable()
+		inner := p.parseLegacyNameOffsets(p.parseSimpleVariable())
 		return fin(p, put(&p.slabs.sVariable, Variable{NameExpr: inner}), t.Start)
 	}
 	p.errorAt(t, "expected variable, found "+p.describe(t))
 	return spanOf(&BadExpr{}, p.missing())
+}
+
+// Before PHP 7, unbraced dynamic names bind their offsets inside the name:
+// $$a[0] is ${$a[0]}, and $o->$a[0] is $o->{$a[0]}.
+// https://www.php.net/manual/en/migration70.incompatible.php
+func (p *parser) parseLegacyNameOffsets(e Expr) Expr {
+	if p.ver.AtLeast(phpver.PHP70) {
+		return e
+	}
+	start := e.Span().Start
+	for p.at(TLBracket) || (p.at(TLBrace) && p.legacyCurlyOffsets()) {
+		curly := p.advance().Kind == TLBrace
+		end := TRBracket
+		if curly {
+			end = TRBrace
+		}
+		d := put(&p.slabs.sArrayDimFetch, ArrayDimFetch{Var: e, Curly: curly})
+		if !p.at(end) {
+			d.Dim = p.parseExpr(precLowest)
+		}
+		p.expect(end)
+		e = fin(p, d, start)
+	}
+	return e
 }
 
 func (p *parser) parseArgs() *ArgList {

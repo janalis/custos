@@ -394,26 +394,23 @@ func (x *extractor) magicMembers(c *Class, d *phpdoc.Doc, at uint32) {
 		}
 	}
 	for _, t := range d.All("method") {
-		text := strings.TrimSpace(t.Text)
-		static := false
-		if strings.HasPrefix(text, "static ") {
-			static, text = true, strings.TrimSpace(text[7:])
-		}
-		open := strings.IndexByte(text, '(')
-		if open < 0 {
+		sig, ok := phpdoc.ParseMethod(t.Text)
+		if !ok {
 			continue
 		}
-		head := strings.TrimSpace(text[:open])
-		ret, name := "", head
-		if i := strings.LastIndexAny(head, " \t"); i >= 0 {
-			ret, name = head[:i], head[i+1:]
-		}
-		if name == "" {
-			continue
-		}
-		key := strings.ToLower(name)
+		key := strings.ToLower(sig.Name)
 		if _, exists := c.Methods[key]; !exists {
-			c.Methods[key] = &Method{Name: name, Class: c.FQN, Static: static, DocReturn: x.docTypeStr(ret, at), Magic: true}
+			var params []Param
+			for _, p := range sig.Params {
+				params = append(params, Param{
+					Name: p.Name, DocType: x.docTypeStr(p.Type, at), Default: p.Default,
+					Optional: p.Optional, ByRef: p.ByRef, Variadic: p.Variadic,
+				})
+			}
+			c.Methods[key] = &Method{
+				Name: sig.Name, Class: c.FQN, Static: sig.Static,
+				DocReturn: x.docTypeStr(sig.Return, at), Params: params, Magic: true,
+			}
 		}
 	}
 }

@@ -53,6 +53,24 @@ type Rule interface {
 }
 ```
 
+### PHP semantics
+
+The parser preserves version-dependent binding of indirect variables and
+members: PHP 5.x offsets can belong to a dynamic name, while PHP 7+ binds
+indirect access from left to right. Flexible heredoc and nowdoc indentation
+is validated without changing the source text or token offsets.
+
+Array inference tracks bounded shapes through `+`, `+=` and literal spreads.
+Union keeps the left value for an existing key; spreads renumber integer
+keys and, from PHP 8.1, overwrite earlier string keys. Unknown operands and
+arrays beyond the 32-key shape limit keep only conservative element and
+emptiness information.
+
+Class PHPDoc `@method` signatures contribute parameter names, documented
+types, defaults, references and variadics to the symbol index. Real methods
+take precedence. Reference parameters use the same mutation analysis as
+native signatures, so a magic call can invalidate array-shape facts.
+
 ## Fixing
 
 `custos fix` runs the analysis, applies the non-overlapping edits of every

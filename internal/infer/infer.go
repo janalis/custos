@@ -536,8 +536,8 @@ func (e *Env) binaryType(n *syntax.Binary) types.Type {
 	case syntax.TDot:
 		return types.String
 	case syntax.TPlus:
-		if e.TypeOf(n.Left).IsArrayLike() && e.TypeOf(n.Right).IsArrayLike() {
-			return types.Array
+		if a, b := e.TypeOf(n.Left), e.TypeOf(n.Right); a.IsArrayLike() && b.IsArrayLike() {
+			return arrayUnion(a, b)
 		}
 		return e.numeric(n.Left, n.Right)
 	case syntax.TMinus, syntax.TMul, syntax.TPow:
@@ -562,7 +562,12 @@ func (e *Env) compoundType(n *syntax.Assign) types.Type {
 	switch n.Op.Kind {
 	case syntax.TConcatEqual:
 		return types.String
-	case syntax.TPlusEqual, syntax.TMinusEqual, syntax.TMulEqual, syntax.TPowEqual:
+	case syntax.TPlusEqual:
+		if a, b := e.TypeOf(n.Var), e.TypeOf(n.Value); a.IsArrayLike() && b.IsArrayLike() {
+			return arrayUnion(a, b)
+		}
+		return e.numeric(n.Var, n.Value)
+	case syntax.TMinusEqual, syntax.TMulEqual, syntax.TPowEqual:
 		return e.numeric(n.Var, n.Value)
 	case syntax.TDivEqual: // as `/`
 		if t := e.numeric(n.Var, n.Value); !t.IsUnknown() {

@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"custos/internal/index"
-	"custos/internal/phpver"
 	"custos/internal/stubs"
 	"custos/internal/syntax"
 	"custos/internal/types"
@@ -77,72 +76,6 @@ func plainString(raw string) (string, bool) {
 		}
 	}
 	return "", false
-}
-
-// arrayType types an array literal: the atoms are those of its values (a
-// single `T[]` when uniform, `array` otherwise), plus a shape when every key
-// is a literal (or implicit) and non-emptiness when it has an element.
-func (e *Env) arrayType(n *syntax.Array) types.Type {
-	if len(n.Items) == 0 {
-		return types.Array.WithShape(nil, true)
-	}
-	elems := make([]types.Type, 0, len(n.Items))
-	nonEmpty, plain := false, true
-	for _, it := range n.Items {
-		if it == nil || it.Value == nil || it.Unpack {
-			plain = false
-			continue
-		}
-		nonEmpty = true
-		elems = append(elems, e.TypeOf(it.Value))
-	}
-	if !plain {
-		return types.Array.WithNonEmpty(nonEmpty)
-	}
-	var t types.Type
-	u := types.Union(elems...)
-	if u.IsUnknown() || len(u.Atoms()) != 1 || strings.HasSuffix(u.Atoms()[0], "[]") {
-		t = types.Array
-	} else {
-		t = types.Of(u.Atoms()[0] + "[]").WithElem(u)
-	}
-	if len(n.Items) > types.MaxShapeKeys {
-		return t.WithNonEmpty(true)
-	}
-	keys := make([]types.ShapeKey, 0, len(n.Items))
-	next, hasInt := int64(0), false
-	for i, it := range n.Items {
-		name := ""
-		if it.Key == nil {
-			name = strconv.FormatInt(next, 10)
-		} else {
-			k, ok := literalKey(it.Key)
-			if !ok {
-				return t.WithNonEmpty(true)
-			}
-			name = k
-		}
-		if v, err := strconv.ParseInt(name, 10, 64); err == nil && strconv.FormatInt(v, 10) == name {
-			switch {
-			case !hasInt && v < 0 && e.PHP.Below(phpver.PHP83):
-				next = 0 // before 8.3 a negative first key is followed by 0
-			case !hasInt || v >= next:
-				next = v + 1
-			}
-			hasInt = true
-		}
-		ty := elems[i]
-		replaced := false
-		for j := range keys {
-			if keys[j].Name == name {
-				keys[j].Type, replaced = ty, true
-			}
-		}
-		if !replaced {
-			keys = append(keys, types.ShapeKey{Name: name, Type: ty})
-		}
-	}
-	return t.WithShape(keys, true)
 }
 
 // shapeDim types `$a['key']` from the shape of $a when the key is a literal
