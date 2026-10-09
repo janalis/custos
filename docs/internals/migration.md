@@ -224,3 +224,32 @@ Execute Phase 0 (init repo, CLAUDE.md, skill, docs/internals/migration.md with t
 - Three parallel owners implemented anonymous identity/index tests, array
   metadata/inference, and annotation selection. The coordinator integrated
   shared files, downstream rule fixtures and repository verification.
+
+## PHP postfix and callback wave (2026-10-09)
+
+- Three parallel owners cover postfix grammar, array-key template binding,
+  and literal method callbacks. The coordinator owns downstream fixtures,
+  documentation and repository verification.
+- Postfix grammar distinguishes bare closures and numeric literals from
+  parenthesized receivers. Invalid operations retain their children and
+  following statements for editor recovery.
+- Direct array-key template markers survive PHPDoc/index serialization
+  separately from runtime integer/string key domains. Generic calls bind
+  keys and values independently; unknown keys retain conservative returns.
+- Literal static and object method callbacks use indexed public contracts,
+  including inheritance, traits and receiver generics. Class-name callbacks
+  require static methods; unresolved or argument-dependent contracts remain
+  conservative.
+- Full DNF semantic alternatives and compound symbolic array-key expressions
+  remain separate follow-up work. This wave adds no inspection rules or
+  index schema changes.
+- Corpus checks: 12,974 Symfony source files produced no unexpected syntax
+  failures; all rules on Symfony source and EasyAdminBundle (21,510 files)
+  produced no internal errors. EasyAdmin source fix checks applied 1,001
+  individual fixes and fixed 157 files with combined fixes, with no broken
+  output, including PHP lint samples. The broader vendor-inclusive corpus
+  retains the previously documented generated Huffman table finding limit.
+- Verification: `make verify`, conformance and `make bench` pass. Parsing the
+  458 KB Symfony Emoji data file measured 260.50 MB/s; the LSP latency gate
+  measured 2.99 ms p95. Ordinary array-key metadata retains its baseline
+  allocation counts and bytes.

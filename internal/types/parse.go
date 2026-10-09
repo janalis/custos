@@ -305,7 +305,7 @@ func (p *docParser) arrayPart(low, args string, resolve Resolver, depth int) Typ
 		}
 		if closed {
 			if len(gen) == 2 && (low == "array" || low == "non-empty-array") {
-				a.key = Array.WithArrayKey(p.union(gen[0], resolve, depth+1)).arr.keyMask()
+				a.setKey(p.union(gen[0], resolve, depth+1))
 			}
 			if low == "list" || low == "non-empty-list" {
 				a.key = 1
@@ -322,7 +322,7 @@ func (p *docParser) arrayPart(low, args string, resolve Resolver, depth int) Typ
 		if strings.HasPrefix(body, "...<") && matchingClose(body[3:]) == len(body)-4 {
 			parts := splitTop(body[4:len(body)-1], ',')
 			if len(parts) == 2 && strings.TrimSpace(parts[1]) == "mixed" {
-				a.key = Array.WithArrayKey(p.union(parts[0], resolve, depth+1)).arr.keyMask()
+				a.setKey(p.union(parts[0], resolve, depth+1))
 				return Array.withInfo(&a)
 			}
 		}

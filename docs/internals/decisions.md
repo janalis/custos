@@ -1081,6 +1081,26 @@ rejected) is fixed; see the close-tag note above.
   grammar and declaration clauses disallowed for the class-like kind. Invalid
   clauses retain names and bodies for editor recovery; compile-time restrictions
   such as unsetting call results remain outside syntax validation.
+- **PHP postfix and callback wave (2026-10-09):** bare closures and numeric
+  literals require parentheses before postfix calls, offsets or member access.
+  Diagnostics point at the postfix operator; recovery still constructs the
+  operation and retains its children and subsequent statements. Parenthesized
+  operands and PHP-valid string, array and constant receivers remain accepted;
+  grammar checks do not enforce runtime receiver types.
+  Direct symbolic array-key templates are stored separately from the runtime
+  integer/string key mask and survive PHPDoc/index round-trips. Generic calls
+  bind their key template from the argument's key domain independently of value
+  binding; unknown and empty inputs leave it unbound. Compatible unions retain
+  the marker, conflicts and invalidated array metadata discard it. Class return
+  templates use the same serialization when substituting receiver arguments.
+  Literal public method callbacks reuse indexed contracts for static class
+  callbacks and object callbacks, including inherited and trait methods and
+  receiver generics. Runtime string class names use absolute lookup; class
+  expressions retain normal name resolution. Class-name callbacks require
+  static methods. Dynamic names, inaccessible methods and argument-dependent
+  contracts remain conservative. Existing callback consumers, including array
+  builtins, indirect calls and pipes, share this behavior. Full DNF alternatives
+  and compound symbolic array-key expressions remain separate follow-up work.
 - **Parsing:** version-aware lexer/parser (5.3–8.5); `syntax.ParseBest`
   parses at the target version and falls back to the newest grammar
   (permissive) when that yields errors (e.g. 8.4 fixtures in an 8.1 project);

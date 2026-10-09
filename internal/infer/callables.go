@@ -115,8 +115,11 @@ func (e *Env) invokeType(t types.Type) types.Type {
 
 // callbackReturn is the type a callback argument x returns when called:
 // see invokeType, plus a string literal naming a global function
-// (`array_map('trim', $xs)`).
+// (`array_map('trim', $xs)`) and literal method callbacks.
 func (e *Env) callbackReturn(x syntax.Expr) types.Type {
+	if t, ok := e.literalMethodCallback(x); ok {
+		return t
+	}
 	if lit, ok := syntax.UnwrapParens(x).(*syntax.Literal); ok && lit.LitKind == syntax.LitString {
 		name, ok := plainString(lit.Raw)
 		if !ok || name == "" || strings.Contains(name, ":") {

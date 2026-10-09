@@ -141,6 +141,9 @@ func (e *Env) bindPattern(pat, at types.Type, arg syntax.Expr, found map[string]
 	if pat.IsUnknown() || at.IsUnknown() {
 		return
 	}
+	if key := pat.ArrayKeyTemplate(); strings.HasPrefix(key, `\~~`) {
+		e.bindSingle(types.Of(key), at.ArrayKey(), found)
+	}
 	tpl := func(a string) (string, bool) {
 		if strings.HasPrefix(a, `\~~`) && !strings.HasSuffix(a, "[]") {
 			return a[3:], true

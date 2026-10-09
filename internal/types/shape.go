@@ -14,12 +14,13 @@ const MaxShapeKeys = 32
 // the same facts about the elements of `T[]` members. It is immutable and
 // shared between types.
 type arrayInfo struct {
-	shape    bool       // keys describe the array's keys
-	sealed   bool       // the array has no keys beyond keys (literal arrays, doc shapes)
-	nonEmpty bool       // the array has at least one element
-	keys     []ShapeKey // in declaration order; at most MaxShapeKeys
-	key      uint8      // bit 1: integer keys; bit 2: string keys; zero: unspecified
-	elem     *arrayInfo // array facts of the elements of `T[]` members
+	shape       bool       // keys describe the array's keys
+	sealed      bool       // the array has no keys beyond keys
+	nonEmpty    bool       // the array has at least one element
+	key         uint8      // bit 1: integer keys; bit 2: string keys; zero: unspecified
+	keys        []ShapeKey // in declaration order; at most MaxShapeKeys
+	keyTemplate *string    // direct symbolic key, separate from the runtime domain
+	elem        *arrayInfo // array facts of the elements of T[] members
 }
 
 // ShapeKey is one key of an array shape. Name is the key as PHP stores it:
@@ -31,7 +32,7 @@ type ShapeKey struct {
 }
 
 func (a *arrayInfo) empty() bool {
-	return a == nil || (!a.shape && !a.nonEmpty && a.elem == nil && a.key == 0)
+	return a == nil || (!a.shape && !a.nonEmpty && a.elem == nil && a.key == 0 && a.keyTemplate == nil)
 }
 
 func (a *arrayInfo) isNonEmpty() bool {
@@ -114,11 +115,38 @@ func (a *arrayInfo) keyMask() uint8 {
 	return a.key
 }
 
+// ArrayKeyTemplate returns the internal direct template marker of an array's
+// documented key, or an empty string. It never contributes runtime key atoms.
+func (t Type) ArrayKeyTemplate() string {
+	if t.arr == nil || t.arr.keyTemplate == nil {
+		return ""
+	}
+	return *t.arr.keyTemplate
+}
+
+// setKey retains only direct template markers; ordinary unknown and compound
+// keys remain unspecified.
+func (a *arrayInfo) setKey(t Type) {
+	a.key = Array.WithArrayKey(t).arr.keyMask()
+	if len(t.atoms) == 1 && strings.HasPrefix(t.atoms[0], `\~`) && !strings.ContainsAny(t.atoms[0], "[]") && t.gen == nil {
+		marker := t.atoms[0]
+		a.keyTemplate = &marker
+	}
+}
+
+func (a *arrayInfo) keyDoc() string {
+	if a.keyTemplate != nil {
+		return *a.keyTemplate
+	}
+	return keyDoc(a.key)
+}
+
 // WithArrayKey sets an array's key domain, or clears it for an unknown or
 // unsupported type. It does not change the atoms or a shape's listed keys.
 func (t Type) WithArrayKey(key Type) Type {
 	a := t.cloneInfo()
 	a.key = 0
+	a.keyTemplate = nil
 	if !key.IsUnknown() && key.OnlyOf("int", "string") {
 		if key.Has("int") {
 			a.key |= 1
@@ -136,6 +164,7 @@ func (t Type) WithArrayKey(key Type) Type {
 func (t Type) WithShape(keys []ShapeKey, sealed bool) Type {
 	a := t.cloneInfo()
 	a.key = 0
+	a.keyTemplate = nil
 	if len(keys) > MaxShapeKeys {
 		a.shape, a.sealed, a.keys = false, false, nil
 		for _, k := range keys {
@@ -266,6 +295,9 @@ func mergeInfo(a, b *arrayInfo) *arrayInfo {
 	out := &arrayInfo{nonEmpty: a.isNonEmpty() && b.isNonEmpty(), elem: mergeInfo(a.elem, b.elem)}
 	if ak, bk := a.keyMask(), b.keyMask(); ak != 0 && bk != 0 {
 		out.key = ak | bk
+	}
+	if a.keyTemplate != nil && b.keyTemplate != nil && *a.keyTemplate == *b.keyTemplate {
+		out.keyTemplate = a.keyTemplate
 	}
 	if a.shape && b.shape {
 		out.shape, out.sealed = true, a.sealed && b.sealed
@@ -413,12 +445,12 @@ func docAtom(atom string, a *arrayInfo) string {
 	}
 	if atom == "array" {
 		if !a.shape {
-			if a.key != 0 {
+			if a.key != 0 || a.keyTemplate != nil {
 				prefix := "array"
 				if a.nonEmpty {
 					prefix = "non-empty-array"
 				}
-				return prefix + "{...<" + keyDoc(a.key) + ",mixed>}"
+				return prefix + "{...<" + a.keyDoc() + ",mixed>}"
 			}
 			if a.nonEmpty {
 				return "non-empty-array"
@@ -461,12 +493,12 @@ func docAtom(atom string, a *arrayInfo) string {
 	if a.elem != nil && (el == "array" || strings.HasSuffix(el, "[]")) {
 		el = docAtom(el, a.elem)
 	}
-	if a.key != 0 {
+	if a.key != 0 || a.keyTemplate != nil {
 		prefix := "array"
 		if a.nonEmpty {
 			prefix = "non-empty-array"
 		}
-		return prefix + "<" + keyDoc(a.key) + "," + el + ">"
+		return prefix + "<" + a.keyDoc() + "," + el + ">"
 	}
 	if a.nonEmpty {
 		return "non-empty-array<" + el + ">"

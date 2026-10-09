@@ -276,11 +276,30 @@ func isDereferenceable(e Expr) bool {
 	return true
 }
 
+// requiresPostfixParentheses distinguishes grammar restrictions from runtime
+// receiver validity: strings, arrays and constants may have postfix operations.
+func requiresPostfixParentheses(e Expr) bool {
+	switch n := e.(type) {
+	case *Closure:
+		return true
+	case *Literal:
+		return n.LitKind == LitInt || n.LitKind == LitFloat
+	}
+	return false
+}
+
 // parsePostfix parses member access, calls, offsets, postfix ++/-- and
 // assignment after a primary expression.
 func (p *parser) parsePostfix(e Expr, start uint32) Expr {
 	for {
 		t := p.tok()
+		switch t.Kind {
+		case TLBracket, TLParen, TObjectOperator, TNullsafeObjectOperator, TPaamayimNekudotayim:
+			if requiresPostfixParentheses(e) {
+				// Keep parsing the operation so recovery retains its children.
+				p.errorAt(t, "parenthesize this expression before a postfix operation")
+			}
+		}
 		switch t.Kind {
 		case TLBracket:
 			if !isDereferenceable(e) {
