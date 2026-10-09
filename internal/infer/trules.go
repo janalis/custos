@@ -477,14 +477,17 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 	if v.Name == "this" {
 		return r.Env.TypeOf(v)
 	}
-	scope := syntax.EnclosingFuncLike(v)
+	scope := syntax.EnclosingVariableScope(v)
+	if h, ok := scope.(*syntax.PropertyHook); ok && len(h.Params) == 0 && strings.EqualFold(h.Name.Value, "set") && v.Name == "value" {
+		return r.Env.TypeOf(v)
+	}
 	pos := v.Span().Start
 	// Outside SpecOnly, only the definitions reaching v count: an
 	// unconditional reassignment (`$s = undeclared($s);`, of unknown type)
 	// hides earlier ones instead of leaving their types in the union.
 	reach, docs := r.reachingDefs(scope, v)
 	ts := docs
-	for _, p := range syntax.FuncLikeParams(scope) {
+	for _, p := range syntax.VariableScopeParams(scope) {
 		if p.Var == nil || p.Var.Name != v.Name {
 			continue
 		}
@@ -585,7 +588,7 @@ func (r *TRules) unmodelled(scope syntax.Node, v *syntax.Variable, reach map[uin
 		return false
 	}
 	modelled := make(map[uint32]bool, len(as)+4)
-	for _, p := range syntax.FuncLikeParams(scope) {
+	for _, p := range syntax.VariableScopeParams(scope) {
 		modelled[p.Span().Start] = true
 	}
 	for _, d := range as {
@@ -693,7 +696,7 @@ func (r *TRules) assignments(scope syntax.Node, name string) []*syntax.Assign {
 	visit := func(root syntax.Node) {
 		syntax.Inspect(root, func(n syntax.Node) bool {
 			switch n := n.(type) {
-			case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+			case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.PropertyHook, *syntax.ClassLike:
 				return n == scope
 			case *syntax.Assign:
 				if t, ok := n.Var.(*syntax.Variable); ok && t.NameExpr == nil {

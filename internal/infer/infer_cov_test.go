@@ -221,7 +221,7 @@ function f($u, P $p, iterable $raw, $it, string $s) {
 }
 `, map[string]string{
 		"assertunknown": "?unknown", "assertnone": "?unknown", "first": "int", "second": "mixed", "traitself": "?unknown",
-		"bare": "int|null", "abstract": "?unknown", "rec": "?unknown", "deep": "?unknown", "closure": "int", "gen": `\Generator<int, int>`,
+		"bare": "int|null", "abstract": "?unknown", "rec": "?unknown", "deep": "?unknown", "closure": "int", "gen": `\Generator<int, int, mixed, int>`,
 		"iterv": `\Pair`, "m": "?unknown", "strdestruct": "?unknown",
 	})
 	// Without stubs no Traversable class is known: iterating an object is unknown.

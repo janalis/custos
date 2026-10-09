@@ -973,6 +973,17 @@ rejected) is fixed; see the close-tag note above.
   Undocumented trait bodies remain conservative. The code-style benchmark
   uses nonempty braced loop bodies to keep its no-findings assertion valid;
   `make bench` propagates latency-test failures without a filtering pipe.
+- **PHP scope and callable follow-up (2026-10-09):** property hooks own
+  separate variable scopes, including promoted-property hooks. Explicit setter
+  parameters use their declarations; an omitted setter signature binds
+  implicit `$value` to the property type with ordinary documentation refinement.
+  Hook bodies retain class context, narrowing, mutation tracking and normal
+  nested closure captures. Promoted-hook annotations stay out of constructor
+  locals. Existing function-navigation helpers remain unchanged for rule callers.
+  First-class `exit(...)` and `die(...)` expressions produce closures with a
+  `never` callable return type. Creating them does not terminate a statement
+  list, narrow a guard as an early exit or discard reaching definitions;
+  actual invocations retain their terminating behavior.
 - **Parsing:** version-aware lexer/parser (5.3–8.5); `syntax.ParseBest`
   parses at the target version and falls back to the newest grammar
   (permissive) when that yields errors (e.g. 8.4 fixtures in an 8.1 project);
@@ -1863,8 +1874,16 @@ rejected) is fixed; see the close-tag note above.
   unreachable yield still identifies a generator. Empty array delegation adds
   no values. Unknown components become `mixed` without losing generator
   identity or independently known components. Existing declaration precedence,
-  cross-file annotation and dispatch limits apply. Completion returns and
-  values sent into a generator remain outside this inference.
+  cross-file annotation and dispatch limits apply.
+  A follow-up (2026-10-09) adds completion returns as the fourth generic
+  argument, with `mixed` send input as the third. Bare returns and reachable
+  fallthrough complete with `null`; unknown completion stays `mixed` and no
+  normal completion is `never`. `yield from` expressions use a delegated
+  generator's completion type, or `null` for arrays and known non-generator
+  Traversables; uncertain delegation stays unknown. Documented send inputs
+  type `yield` results conservatively with `null` for ordinary resumption.
+  Call sites do not infer send contracts. Native mode ignores project docs,
+  and existing declared/documented return precedence is retained.
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.

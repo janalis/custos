@@ -203,8 +203,10 @@ func (e *Env) stmtAssignsUncached(s syntax.Stmt, name string) bool {
 	case *syntax.Return:
 		return true
 	case *syntax.ExprStmt:
-		switch n.Expr.(type) {
-		case *syntax.Throw, *syntax.Exit:
+		if _, ok := syntax.UnwrapParens(n.Expr).(*syntax.Throw); ok {
+			return true
+		}
+		if syntax.ExitInvocation(n.Expr) {
 			return true
 		}
 		return e.exprAssigns(n.Expr, name)
@@ -324,7 +326,7 @@ func (e *Env) dynamicRead(v *syntax.Variable) (clob, undef bool) {
 	if f, ok := e.dynReads[v]; ok {
 		return f&1 != 0, f&2 != 0
 	}
-	scope := syntax.EnclosingFuncLike(v)
+	scope := syntax.EnclosingVariableScope(v)
 	sv := e.scopeVars(scope)
 	defs := sv.defs[v.Name]
 	if len(defs) == 0 || len(defs) > maxVarDefs {

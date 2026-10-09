@@ -835,10 +835,10 @@ func npeDiverted(a *syntax.Assign, c syntax.Expr, v syntax.Node) bool {
 		case *syntax.Return:
 			return true
 		case *syntax.ExprStmt:
-			switch syntax.UnwrapParens(x.Expr).(type) {
-			case *syntax.Throw, *syntax.Exit:
+			if _, ok := syntax.UnwrapParens(x.Expr).(*syntax.Throw); ok {
 				return true
 			}
+			return syntax.ExitInvocation(x.Expr)
 		case *syntax.Continue, *syntax.Break:
 			return npeLoopHolds(x, c)
 		}

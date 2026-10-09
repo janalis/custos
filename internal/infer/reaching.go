@@ -134,11 +134,11 @@ func (w *elemWrite) dim() syntax.Expr {
 // (same kill rules as variables), plus the writes later in an enclosing loop
 // (back edge). back flags the latter.
 func (e *Env) reachingWrites(v *syntax.Variable) (ws []*elemWrite, back []bool) {
-	scope := syntax.EnclosingFuncLike(v)
+	scope := syntax.EnclosingVariableScope(v)
 	sv := e.scopeVars(scope)
 	if _, ok := scope.(*syntax.ArrowFunction); ok && len(sv.defs[v.Name]) == 0 {
 		// Arrow functions capture the enclosing scope by value.
-		scope = syntax.EnclosingFuncLike(scope)
+		scope = syntax.EnclosingVariableScope(scope)
 		sv = e.scopeVars(scope)
 	}
 	defs := sv.elemDefs(v.Name)
@@ -192,10 +192,10 @@ func (sv *scopeVars) elemDefs(name string) []varDef {
 // block enclosing v, with no mutation of the variable (assignment,
 // reference, by-reference argument) in between.
 func (e *Env) writeDominates(v *syntax.Variable) bool {
-	scope := syntax.EnclosingFuncLike(v)
+	scope := syntax.EnclosingVariableScope(v)
 	sv := e.scopeVars(scope)
 	if _, ok := scope.(*syntax.ArrowFunction); ok && len(sv.defs[v.Name]) == 0 {
-		scope = syntax.EnclosingFuncLike(scope)
+		scope = syntax.EnclosingVariableScope(scope)
 		sv = e.scopeVars(scope)
 	}
 	defs := sv.elemDefs(v.Name)
@@ -390,8 +390,10 @@ func exitKind(s syntax.Stmt) int {
 			return exitContinue
 		}
 	case *syntax.ExprStmt:
-		switch n.Expr.(type) {
-		case *syntax.Exit, *syntax.Throw:
+		if _, ok := syntax.UnwrapParens(n.Expr).(*syntax.Throw); ok {
+			return exitFunc
+		}
+		if syntax.ExitInvocation(n.Expr) {
 			return exitFunc
 		}
 	case *syntax.Block:
@@ -485,7 +487,7 @@ func (e *Env) exitRegions(scope syntax.Node) []exitRegion {
 	}
 	visit := func(n syntax.Node) bool {
 		switch n := n.(type) {
-		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.Method, *syntax.ClassLike:
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.Method, *syntax.PropertyHook, *syntax.ClassLike:
 			return false
 		case *syntax.Block:
 			list(n.Span(), n.Stmts)
@@ -499,7 +501,7 @@ func (e *Env) exitRegions(scope syntax.Node) []exitRegion {
 		for _, st := range e.File.Stmts {
 			syntax.Inspect(st, visit)
 		}
-	} else if body := syntax.FuncLikeBody(scope); body != nil {
+	} else if body := syntax.VariableScopeBody(scope); body != nil {
 		syntax.Inspect(body, visit)
 	}
 	// Statement lists start at distinct positions (their `{` or `case`).

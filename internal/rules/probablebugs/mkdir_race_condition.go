@@ -157,7 +157,7 @@ locate:
 			return []analysis.TextEdit{{Span: target.Span(), NewText: repl}}
 		}})
 	case *syntax.Binary: // D6
-		if _, ok := syntax.UnwrapParens(c.Right).(*syntax.Exit); ok {
+		if syntax.ExitInvocation(c.Right) {
 			return
 		}
 		outer := c

@@ -121,7 +121,7 @@ function run() {
  foreach(emptyDelegation() as $v) { t('emptyThenValue', $v); }
 }
 `, map[string]string{"arrayValue": "int", "key": "int", "value": "int", "documentedKey": "string", "documentedValue": "float", "nested": "string", "declared": `\Generator`, "empty": `\Generator`, "emptyThenValue": "int"})
-	checkVer(t, phpver.PHP55, false, `<?php function old() { yield 1; } t('old', old());`, map[string]string{"old": `\Generator<int, int>`})
+	checkVer(t, phpver.PHP55, false, `<?php function old() { yield 1; } t('old', old());`, map[string]string{"old": `\Generator<int, int, mixed, null>`})
 }
 
 func TestPipePreservesSourceTree(t *testing.T) {

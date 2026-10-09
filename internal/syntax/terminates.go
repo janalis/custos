@@ -20,11 +20,10 @@ func Terminates(s Stmt) bool {
 	case *Return, *Break, *Continue, *Goto:
 		return true
 	case *ExprStmt:
-		switch UnwrapParens(x.Expr).(type) {
-		case *Throw, *Exit:
+		if _, ok := UnwrapParens(x.Expr).(*Throw); ok {
 			return true
 		}
-		return false
+		return ExitInvocation(x.Expr)
 	case *Block:
 		return FirstTerminating(x) < len(x.Stmts)
 	case *If:

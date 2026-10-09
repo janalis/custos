@@ -197,10 +197,10 @@ func cpTerminates(s syntax.Stmt) bool {
 	case *syntax.Return, *syntax.Break, *syntax.Continue, *syntax.Goto:
 		return true
 	case *syntax.ExprStmt:
-		switch x.Expr.(type) {
-		case *syntax.Throw, *syntax.Exit:
+		if _, ok := x.Expr.(*syntax.Throw); ok {
 			return true
 		}
+		return syntax.ExitInvocation(x.Expr)
 	case *syntax.Block:
 		for _, st := range x.Stmts {
 			if cpTerminates(st) {

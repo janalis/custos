@@ -128,7 +128,7 @@ func (e *Env) narrowExpr(t types.Type, x syntax.Expr, key string, scope syntax.N
 // narrowExprAfter is narrowExpr ignoring the enclosing conditions that end
 // before after (the end of the last definition reaching x): a value
 // assigned inside `if (null === $x) { $x = f(); }` is not narrowed by that
-// condition. scope is syntax.EnclosingFuncLike(x) (every caller passes it),
+// condition. scope is syntax.EnclosingVariableScope(x) (every caller passes it),
 // so the walk up to it never crosses another function boundary.
 func (e *Env) narrowExprAfter(t types.Type, x syntax.Expr, key string, scope syntax.Node, after uint32) types.Type {
 	if t.IsUnknown() || key == "" {
@@ -764,10 +764,10 @@ func terminates(s syntax.Stmt) bool {
 	case *syntax.Return, *syntax.Break, *syntax.Continue, *syntax.Goto:
 		return true
 	case *syntax.ExprStmt:
-		switch n.Expr.(type) {
-		case *syntax.Throw, *syntax.Exit:
+		if _, ok := syntax.UnwrapParens(n.Expr).(*syntax.Throw); ok {
 			return true
 		}
+		return syntax.ExitInvocation(n.Expr)
 	case *syntax.Block:
 		if len(n.Stmts) > 0 {
 			return terminates(n.Stmts[len(n.Stmts)-1])
@@ -1172,7 +1172,7 @@ func (e *Env) aliasCond(v *syntax.Variable, name string) syntax.Expr {
 	if v.NameExpr != nil || v.Name == "" || v.Name == "this" || strings.ContainsAny(name, ">:"+dimSep) {
 		return nil
 	}
-	scope := syntax.EnclosingFuncLike(v)
+	scope := syntax.EnclosingVariableScope(v)
 	defs := e.scopeVars(scope).defs[v.Name]
 	if len(defs) == 0 || len(defs) > maxVarDefs {
 		return nil

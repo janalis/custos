@@ -494,21 +494,12 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 		}
 	}
 	var body []syntax.Node
-	switch s := scope.(type) {
-	case *syntax.Function:
-		body = []syntax.Node{s.Body}
-	case *syntax.Method:
-		if s.Body != nil {
-			body = []syntax.Node{s.Body}
-		}
-	case *syntax.Closure:
-		body = []syntax.Node{s.Body}
-	case *syntax.ArrowFunction:
-		body = []syntax.Node{s.Expr}
-	case nil:
+	if scope == nil {
 		for _, st := range e.File.Stmts {
 			body = append(body, st)
 		}
+	} else if b := syntax.VariableScopeBody(scope); b != nil {
+		body = []syntax.Node{b}
 	}
 	for _, b := range body {
 		syntax.Inspect(b, func(n syntax.Node) bool {
@@ -522,7 +513,7 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 					}
 				}
 				return n == scope
-			case *syntax.Function, *syntax.Method, *syntax.ArrowFunction, *syntax.ClassLike:
+			case *syntax.Function, *syntax.Method, *syntax.ArrowFunction, *syntax.PropertyHook, *syntax.ClassLike:
 				return n == scope
 			case *syntax.Assign:
 				kind := mutAssign

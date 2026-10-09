@@ -83,10 +83,10 @@ func saTerminates(s syntax.Stmt, withGoto bool) bool {
 	case *syntax.Goto:
 		return withGoto
 	case *syntax.ExprStmt:
-		switch s.Expr.(type) {
-		case *syntax.Throw, *syntax.Exit:
+		if _, ok := s.Expr.(*syntax.Throw); ok {
 			return true
 		}
+		return syntax.ExitInvocation(s.Expr)
 	}
 	return false
 }

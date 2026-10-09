@@ -537,8 +537,12 @@ func dfiMayLeave(s syntax.Stmt) bool {
 			switch x := x.(type) {
 			case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
 				return false
-			case *syntax.Return, *syntax.Throw, *syntax.Exit:
+			case *syntax.Return, *syntax.Throw:
 				found = true
+			case *syntax.Exit:
+				found = syntax.ExitInvokes(x)
+			case *syntax.FuncCall:
+				found = syntax.ExitInvocation(x)
 			case *syntax.Break, *syntax.Continue:
 				if !inner || dfiJumpLevels(x) > 1 {
 					found = true

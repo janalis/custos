@@ -131,7 +131,7 @@ func (e *Env) DocOf(n syntax.Node) *phpdoc.Doc {
 func (e *Env) scopeDocs(n syntax.Node) *docScope {
 	for n != nil {
 		switch n.(type) {
-		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ClassLike:
+		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.PropertyHook, *syntax.ClassLike:
 		default:
 			n = n.Parent()
 			continue
@@ -305,7 +305,13 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 		return types.Bool
 	case *syntax.Print:
 		return types.Int
-	case *syntax.Exit, *syntax.Throw:
+	case *syntax.Yield:
+		return e.yieldType(n)
+	case *syntax.YieldFrom:
+		return e.yieldFromType(n)
+	case *syntax.Exit:
+		return e.exitType(n)
+	case *syntax.Throw:
 		return types.Of("never")
 	case *syntax.Clone:
 		return e.cloneType(n)
@@ -335,7 +341,7 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.PropertyFetch:
 		t := e.propertyType(e.TypeOf(n.Var), n.Name, false)
 		if key := narrowKey(n); key != "" {
-			t = e.narrowExpr(t, n, key, syntax.EnclosingFuncLike(n))
+			t = e.narrowExpr(t, n, key, syntax.EnclosingVariableScope(n))
 		}
 		return t
 	case *syntax.StaticPropertyFetch:
@@ -350,7 +356,7 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 		if p := e.Index.FindProperty(cls, v.Name, e.PHP); p != nil {
 			t := e.propType(p, cls)
 			if key := narrowKey(n); key != "" {
-				t = e.narrowExpr(t, n, key, syntax.EnclosingFuncLike(n))
+				t = e.narrowExpr(t, n, key, syntax.EnclosingVariableScope(n))
 			}
 			return t
 		}
@@ -360,7 +366,7 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.ArrayDimFetch:
 		t := e.dimType(n)
 		if key := narrowKey(n); key != "" && !t.IsUnknown() {
-			t = e.narrowExpr(t, n, key, syntax.EnclosingFuncLike(n))
+			t = e.narrowExpr(t, n, key, syntax.EnclosingVariableScope(n))
 		}
 		return t
 	}
@@ -1197,7 +1203,7 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 					case "reset", "end", "array_pop", "array_shift":
 						return el, true
 					case "current":
-						if v, ok := syntax.UnwrapParens(a).(*syntax.Variable); ok && v.Name != "" && !e.pointerMoved(syntax.EnclosingFuncLike(v), v.Name) {
+						if v, ok := syntax.UnwrapParens(a).(*syntax.Variable); ok && v.Name != "" && !e.pointerMoved(syntax.EnclosingVariableScope(v), v.Name) {
 							return el, true
 						}
 					}
@@ -1621,12 +1627,12 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		}
 		return types.Unknown
 	}
-	scope := syntax.EnclosingFuncLike(v)
+	scope := syntax.EnclosingVariableScope(v)
 	sv := e.scopeVars(scope)
 	defs := sv.defs[v.Name]
 	if _, ok := scope.(*syntax.ArrowFunction); ok && len(defs) == 0 {
 		// Arrow functions capture the enclosing scope by value.
-		outer := e.scopeVars(syntax.EnclosingFuncLike(scope))
+		outer := e.scopeVars(syntax.EnclosingVariableScope(scope))
 		defs = outer.defs[v.Name]
 	}
 	if len(defs) > maxVarDefs {
@@ -1671,7 +1677,7 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 	if t.HasShape() || t.IsNonEmptyArray() {
 		ms := scope
 		if _, ok := scope.(*syntax.ArrowFunction); ok && len(sv.defs[v.Name]) == 0 {
-			ms = syntax.EnclosingFuncLike(scope)
+			ms = syntax.EnclosingVariableScope(scope)
 		}
 		if t.HasShape() && e.shapeClobbered(ms, v.Name) {
 			t = t.WithoutShape()
@@ -1771,6 +1777,14 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 	switch s := scope.(type) {
 	case *syntax.Function:
 		params, body = s.Params, []syntax.Node{s.Body}
+	case *syntax.PropertyHook:
+		params = s.Params
+		if s.Body != nil {
+			body = []syntax.Node{s.Body}
+		}
+		if strings.EqualFold(s.Name.Value, "set") && len(s.Params) == 0 {
+			add("value", s.Span().Start, func() types.Type { return e.hookValueType(s) })
+		}
 	case *syntax.Method:
 		params = s.Params
 		if s.Body != nil {
@@ -1780,7 +1794,7 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 		params, body = s.Params, []syntax.Node{s.Body}
 		for _, u := range s.Uses {
 			add(u.Var.Name, u.Span().Start, func() types.Type {
-				outer := e.scopeVars(syntax.EnclosingFuncLike(scope))
+				outer := e.scopeVars(syntax.EnclosingVariableScope(scope))
 				var ts []types.Type
 				for _, d := range outer.defs[u.Var.Name] {
 					if d.pos < scope.Span().Start && !d.barrier {
@@ -1821,7 +1835,7 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 					}
 				}
 				return n == scope
-			case *syntax.Function, *syntax.Method, *syntax.ArrowFunction, *syntax.ClassLike:
+			case *syntax.Function, *syntax.Method, *syntax.ArrowFunction, *syntax.PropertyHook, *syntax.ClassLike:
 				return n == scope // do not descend into nested scopes
 			case *syntax.Assign:
 				e.collectDimWrites(n, n, n.Var, sv)
@@ -2063,9 +2077,17 @@ func (e *Env) inlineVarDocs(scope syntax.Node, addDoc func(string, uint32, uint3
 	}
 	toks := e.File.Tokens
 	first := sort.Search(len(toks), func(i int) bool { return toks[i].Start >= span.Start })
+	excluded := promotedHookDocSpans(scope)
+	hook := 0
 	for _, t := range toks[first:] {
 		if t.Start >= span.End {
 			break
+		}
+		for hook < len(excluded) && excluded[hook].End <= t.Start {
+			hook++
+		}
+		if hook < len(excluded) && excluded[hook].Start <= t.Start {
+			continue
 		}
 		if t.Kind != syntax.TDocComment && t.Kind != syntax.TComment {
 			continue
