@@ -951,6 +951,28 @@ rejected) is fixed; see the close-tag note above.
 
 ## Engine
 
+- **PHP support pass (2026-10-09):** PHP 8.5 function-style clone nodes
+  retain their complete argument list, including names, unpacking and
+  callable placeholders. Compatibility operand fields point into that
+  list; walking visits each subtree once. Reordered named arguments bind
+  by parameter name, unpacking stays unknown, and `clone(...)` produces a
+  closure. Single positional `clone($object)->member` keeps PHP's legacy
+  operand precedence; named and multi-argument forms require enclosing
+  parentheses before member access. Nullable cloned arguments remain
+  visible to NullPointerException through their argument parents.
+  Enums supply their runtime interfaces, readonly name/value properties,
+  and concrete `cases`/`from`/`tryFrom` return types, including in native
+  inference. Availability metadata begins at 8.1; the index retains its
+  existing permissive fallback for declarations outside the PHP target.
+  Declared class-constant types survive indexing and take precedence over
+  literal-only inference. Trait method lookup applies conflict selection,
+  aliases and modifier adaptations before inherited methods, without
+  mutating shared declarations; ambiguous composition stays unknown and
+  lookup work is bounded. Version-specific signatures are resolved before
+  adaptation so temporary method copies never enter the version cache.
+  Undocumented trait bodies remain conservative. The code-style benchmark
+  uses nonempty braced loop bodies to keep its no-findings assertion valid;
+  `make bench` propagates latency-test failures without a filtering pipe.
 - **Parsing:** version-aware lexer/parser (5.3–8.5); `syntax.ParseBest`
   parses at the target version and falls back to the newest grammar
   (permissive) when that yields errors (e.g. 8.4 fixtures in an 8.1 project);

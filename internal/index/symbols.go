@@ -180,25 +180,37 @@ type ClassConst struct {
 	Visibility Visibility  `json:"vis,omitempty"`
 	Final      bool        `json:"final,omitempty"`
 	Case       bool        `json:"case,omitempty"`
+	Type       string      `json:"t,omitempty"` // declared, namespace-resolved type
 	Value      string      `json:"v,omitempty"` // source text
 	Span       syntax.Span `json:"-"`
 }
 
+// TraitAdaptation describes method selection or adaptation in a trait use.
+type TraitAdaptation struct {
+	Trait      string      `json:"trait,omitempty"`
+	Method     string      `json:"method"`
+	Insteadof  []string    `json:"instead,omitempty"`
+	Alias      string      `json:"alias,omitempty"`
+	Visibility *Visibility `json:"vis,omitempty"`
+	Final      bool        `json:"final,omitempty"`
+}
+
 // Class is a class, interface, trait or enum.
 type Class struct {
-	FQN        string                 `json:"fqn"`
-	Kind       syntax.ClassKind       `json:"kind,omitempty"`
-	Abstract   bool                   `json:"abstract,omitempty"`
-	Final      bool                   `json:"final,omitempty"`
-	Readonly   bool                   `json:"readonly,omitempty"`
-	Parent     string                 `json:"parent,omitempty"`
-	Interfaces []string               `json:"ifaces,omitempty"`
-	Traits     []string               `json:"traits,omitempty"`
-	Methods    map[string]*Method     `json:"methods,omitempty"` // key: lower-case name
-	Props      map[string]*Property   `json:"props,omitempty"`
-	Consts     map[string]*ClassConst `json:"consts,omitempty"`
-	Deprecated bool                   `json:"dep,omitempty"`
-	Avail      Avail                  `json:"a,omitempty"`
+	FQN              string                 `json:"fqn"`
+	Kind             syntax.ClassKind       `json:"kind,omitempty"`
+	Abstract         bool                   `json:"abstract,omitempty"`
+	Final            bool                   `json:"final,omitempty"`
+	Readonly         bool                   `json:"readonly,omitempty"`
+	Parent           string                 `json:"parent,omitempty"`
+	Interfaces       []string               `json:"ifaces,omitempty"`
+	Traits           []string               `json:"traits,omitempty"`
+	TraitAdaptations []TraitAdaptation      `json:"adaptations,omitempty"`
+	Methods          map[string]*Method     `json:"methods,omitempty"` // key: lower-case name
+	Props            map[string]*Property   `json:"props,omitempty"`
+	Consts           map[string]*ClassConst `json:"consts,omitempty"`
+	Deprecated       bool                   `json:"dep,omitempty"`
+	Avail            Avail                  `json:"a,omitempty"`
 	// Templates are the class-level @template parameters, in order.
 	Templates []Template `json:"tpl,omitempty"`
 	// Supers lists the generic arguments given to parents, interfaces and

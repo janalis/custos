@@ -247,8 +247,9 @@ type Eval struct {
 
 type Clone struct {
 	exprBase
-	Expr Expr
-	With Expr // PHP 8.5 `clone($obj, [...])` property overrides, or nil
+	Args *ArgList // PHP 8.5 function-like form; nil for legacy unary syntax
+	Expr Expr     // statically bound object argument
+	With Expr     // PHP 8.5 `clone($obj, [...])` property overrides, or nil
 }
 
 type Throw struct {

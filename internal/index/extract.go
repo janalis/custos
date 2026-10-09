@@ -302,6 +302,7 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 			for _, k := range m.Consts {
 				c.Consts[k.Name.Value] = &ClassConst{
 					Name: k.Name.Value, Class: fqn, Visibility: visibility(m.Modifiers),
+					Type:  x.typeStr(m.Type, at),
 					Final: m.Modifiers.Has(syntax.TFinal), Value: x.text(k.Value), Span: k.Span(),
 				}
 			}
@@ -311,7 +312,32 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 			for _, t := range m.Traits {
 				c.Traits = append(c.Traits, x.r.Class(t.Value, m.Span().Start))
 			}
+			for _, a := range m.Adaptations {
+				adapt := TraitAdaptation{Method: a.Method.Value}
+				if a.Trait != nil {
+					adapt.Trait = x.r.Class(a.Trait.Value, a.Span().Start)
+				}
+				for _, excluded := range a.Insteadof {
+					adapt.Insteadof = append(adapt.Insteadof, x.r.Class(excluded.Value, a.Span().Start))
+				}
+				if a.Alias != nil {
+					adapt.Alias = a.Alias.Value
+				}
+				if a.Modifier != nil {
+					switch a.Modifier.Kind {
+					case syntax.TPublic, syntax.TProtected, syntax.TPrivate:
+						v := visibility(syntax.Modifiers{*a.Modifier})
+						adapt.Visibility = &v
+					case syntax.TFinal:
+						adapt.Final = true
+					}
+				}
+				c.TraitAdaptations = append(c.TraitAdaptations, adapt)
+			}
 		}
+	}
+	if n.ClassKind == syntax.KindEnum {
+		addEnumMembers(c, x.typeStr(n.EnumType, at))
 	}
 	x.out.Classes = append(x.out.Classes, c)
 }

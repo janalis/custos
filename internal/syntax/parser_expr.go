@@ -150,21 +150,20 @@ func (p *parser) parseUnary() Expr {
 		if p.at(TLParen) && p.ver.AtLeast(phpver.PHP85) {
 			// PHP 8.5: clone is function-like, `clone($obj, $withProperties)`.
 			args := p.parseArgs()
-			n := &Clone{}
-			for i, a := range args.Args {
-				if arg, ok := a.(*Arg); ok {
-					switch i {
-					case 0:
-						n.Expr = arg.Value
-					case 1:
-						n.With = arg.Value
+			n := &Clone{Args: args}
+			bindCloneArgs(n)
+			// One ordinary argument also permits the legacy unary grammar:
+			// clone($object)->member clones the member, not the object.
+			if len(args.Args) == 1 && p.peek(-2).Kind != TComma {
+				if arg, ok := args.Args[0].(*Arg); ok && arg.Name == nil && !arg.Unpack && !arg.ByRef {
+					operand := spanOf(&Paren{Expr: arg.Value}, args.Span())
+					postfix := p.parsePostfix(operand, args.Span().Start)
+					if postfix != operand {
+						return fin(p, &Clone{Expr: postfix}, start)
 					}
 				}
 			}
-			if n.Expr == nil {
-				n.Expr = spanOf(&BadExpr{}, p.missing())
-			}
-			return p.parsePostfix(fin(p, n, start), start)
+			return fin(p, n, start)
 		}
 		return fin(p, &Clone{Expr: p.parseUnary()}, start)
 	case TPrint:
@@ -820,4 +819,38 @@ func (p *parser) parseEncapsVar() Expr {
 		e = fin(p, put(&p.slabs.sPropertyFetch, PropertyFetch{Var: e, Name: id, NullSafe: ns}), start)
 	}
 	return e
+}
+
+// bindCloneArgs keeps compatibility aliases without losing argument metadata.
+// Unpacking prevents a reliable static binding, including preceding arguments.
+func bindCloneArgs(n *Clone) {
+	position := 0
+	for _, value := range n.Args.Args {
+		arg, ok := value.(*Arg)
+		if !ok {
+			continue
+		}
+		if arg.Unpack {
+			n.Expr, n.With = nil, nil
+			return
+		}
+		name := ""
+		if arg.Name != nil {
+			name = arg.Name.Value
+		} else {
+			switch position {
+			case 0:
+				name = "object"
+			case 1:
+				name = "withProperties"
+			}
+			position++
+		}
+		switch name {
+		case "object":
+			n.Expr = arg.Value
+		case "withProperties":
+			n.With = arg.Value
+		}
+	}
 }

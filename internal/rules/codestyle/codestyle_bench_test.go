@@ -13,7 +13,7 @@ import (
 var benchSrc = "<?php\n" + strings.Repeat(`
 class C {
     final public function a() { if (!$x && !($y)) { return !f(); } }
-    private function b() { for (;;) ; while (g()) ; }
+    private function b() { for (;;) { f(); } while (g()) { f(); } }
 }
 ?><p><?= $t ?></p><?php
 `, 200)

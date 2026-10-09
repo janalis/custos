@@ -50,7 +50,7 @@ fmt-check:
 # Benchmarks on a real file need CUSTOS_BENCH_FILE (a large PHP source).
 bench:
 	$(GO) test -run '^$$' -bench . -benchmem ./...
-	CUSTOS_PERF=1 $(GO) test -count=1 -run TestEditLatency -v ./internal/lsp | grep -E 'p95|FAIL|SKIP|ok'
+	CUSTOS_PERF=1 $(GO) test -count=1 -run TestEditLatency -v ./internal/lsp
 
 # Short fuzz smoke over every Fuzz* target (parser/lexer once they exist).
 fuzz:

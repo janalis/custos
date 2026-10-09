@@ -308,7 +308,7 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.Exit, *syntax.Throw:
 		return types.Of("never")
 	case *syntax.Clone:
-		return e.TypeOf(n.Expr)
+		return e.cloneType(n)
 	case *syntax.Closure, *syntax.ArrowFunction:
 		return e.closureType(n)
 	case *syntax.IncDec:
@@ -944,6 +944,22 @@ func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
 	}
 	if k.Case {
 		return types.Of(`\` + k.Class)
+	}
+	if k.Type != "" {
+		t := types.FromDoc(k.Type, nil)
+		if t.HasAny("self", "parent") {
+			c := e.Index.Class(k.Class, e.PHP)
+			if c == nil || c.Kind == syntax.KindTrait {
+				return types.Unknown
+			}
+			if t.Has("parent") {
+				if c.Parent == "" {
+					return types.Unknown
+				}
+				t = types.Union(t.Without("parent"), types.Of(`\`+c.Parent))
+			}
+		}
+		return bindStatic(t, k.Class)
 	}
 	return literalTextType(k.Value)
 }

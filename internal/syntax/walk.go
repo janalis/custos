@@ -120,8 +120,12 @@ func Children(n Node, fn func(Node)) {
 	case *Eval:
 		e(n.Expr)
 	case *Clone:
-		e(n.Expr)
-		e(n.With)
+		if n.Args != nil {
+			args(n.Args)
+		} else {
+			e(n.Expr)
+			e(n.With)
+		}
 	case *Throw:
 		e(n.Expr)
 	case *Yield:

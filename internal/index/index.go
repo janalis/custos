@@ -462,21 +462,25 @@ func (ix *Index) IsSubtype(child, parent string, ver phpver.Version) bool {
 // interfaces. Returns nil when not found.
 func (ix *Index) FindMethod(class, name string, ver phpver.Version) *Method {
 	lname := strings.ToLower(name)
-	var magic *Method
-	for _, c := range ix.Ancestors(class, ver) {
-		if m, ok := c.Methods[lname]; ok && (ver == 0 || m.Avail.In(ver)) {
-			if !m.Magic {
-				return m.at(ver)
-			}
-			if magic == nil {
-				magic = m
-			}
+	if c := ix.Class(class, ver); c != nil {
+		if m := c.Methods[lname]; m != nil && !m.Magic && (ver == 0 || m.Avail.In(ver)) {
+			return m.at(ver)
 		}
 	}
-	// A `@method` tag only describes what no real declaration provides
-	// (`@method static foo()` on a child must not hide the parent's foo()).
-	if magic != nil {
-		return magic.at(ver)
+	return ix.findComposedMethod(class, lname, ver)
+}
+
+func (ix *Index) findComposedMethod(class, name string, ver phpver.Version) *Method {
+	lookup := methodLookup{ix: ix, ver: ver}
+	m, conflict := lookup.find(class, name, true)
+	if conflict {
+		return nil
+	}
+	if m == nil {
+		m = lookup.magic
+	}
+	if m != nil {
+		return m.at(ver)
 	}
 	return nil
 }

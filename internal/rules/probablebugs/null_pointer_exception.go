@@ -428,6 +428,10 @@ func (u *npeUnit) evaluate(v *syntax.Variable, name string, decl *syntax.Assign)
 	if call != nil { // U5
 		var nm string
 		switch c := call.(type) {
+		case *syntax.Clone:
+			if c.Expr == syntax.Expr(v) {
+				return false, true
+			}
 		case *syntax.MethodCall: // ->, ?->
 			nm = npeMemberName(c.Name)
 		case *syntax.StaticCall: // ::
