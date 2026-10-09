@@ -328,12 +328,15 @@ type SuperArgs struct {
 
 // Constant is a global constant (define() or const).
 type Constant struct {
-	Builtin bool        `json:"-"` // a stub declaration (see Function.Builtin)
-	FQN     string      `json:"fqn"`
-	Value   string      `json:"v,omitempty"`
-	Avail   Avail       `json:"a,omitempty"`
-	File    string      `json:"-"`
-	Span    syntax.Span `json:"-"`
+	// DeclarationFallback is the namespaced function candidate of an unqualified
+	// define call. The constant exists only while that function is absent.
+	DeclarationFallback string      `json:"fallback,omitempty"`
+	Builtin             bool        `json:"-"` // a stub declaration (see Function.Builtin)
+	FQN                 string      `json:"fqn"`
+	Value               string      `json:"v,omitempty"`
+	Avail               Avail       `json:"a,omitempty"`
+	File                string      `json:"-"`
+	Span                syntax.Span `json:"-"`
 }
 
 // FileSymbols is everything one file declares.
@@ -350,4 +353,7 @@ type FileSymbols struct {
 	// ClassAliases lists the class_alias(original, alias) calls of the
 	// file with literal names: [alias FQN, original FQN].
 	ClassAliases [][2]string `json:"aliases,omitempty"`
+	// ClassAliasFallbacks records the namespaced function candidate for each
+	// provisional alias, keyed by its position in ClassAliases.
+	ClassAliasFallbacks map[int]string `json:"aliasFallbacks,omitempty"`
 }

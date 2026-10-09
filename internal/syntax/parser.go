@@ -398,9 +398,17 @@ func (p *parser) parseStmt(top bool) Stmt {
 		p.advance()
 		n := &Unset{}
 		p.expect(TLParen)
+		if p.at(TRParen) {
+			p.errorAt(p.tok(), "unset requires at least one variable")
+		}
 		for !p.at(TRParen) && !p.at(TEOF) {
 			before := p.pos
-			n.Vars = append(n.Vars, p.parseExpr(precLowest))
+			target := p.tok()
+			v := p.parseExpr(precLowest)
+			if !isIncrementVariable(v) {
+				p.errorAt(target, "unset requires a variable")
+			}
+			n.Vars = append(n.Vars, v)
 			if _, ok := p.accept(TComma); !ok || p.pos == before {
 				break
 			}

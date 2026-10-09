@@ -269,16 +269,7 @@ func (p *parser) parseClassLike(attrs []*AttributeGroup, start uint32) Stmt {
 		p.advance()
 		n.EnumType = p.parseType()
 	}
-	if _, ok := p.accept(TExtends); ok {
-		if n.ClassKind == KindInterface {
-			n.Extends = p.parseNameList()
-		} else {
-			n.Extends = []*Name{p.parseName()}
-		}
-	}
-	if _, ok := p.accept(TImplements); ok {
-		n.Implements = p.parseNameList()
-	}
+	p.parseClassClauses(n)
 	p.parseClassBody(n)
 	return fin(p, n, start)
 }
@@ -296,14 +287,33 @@ func (p *parser) parseAnonymousClass(attrs []*AttributeGroup) *ClassLike {
 	if p.at(TLParen) {
 		n.Args = p.parseArgs()
 	}
-	if _, ok := p.accept(TExtends); ok {
-		n.Extends = []*Name{p.parseName()}
-	}
-	if _, ok := p.accept(TImplements); ok {
-		n.Implements = p.parseNameList()
-	}
+	p.parseClassClauses(n)
 	p.parseClassBody(n)
 	return fin(p, n, start)
+}
+
+// parseClassClauses retains invalid clauses for recovery, including their
+// names, so the declaration body and following statements remain available.
+func (p *parser) parseClassClauses(n *ClassLike) {
+	if clause, ok := p.accept(TExtends); ok {
+		if n.ClassKind != KindClass && n.ClassKind != KindInterface {
+			p.errorAt(clause, "extends is not allowed in this declaration")
+		}
+		n.Extends = []*Name{p.parseName()}
+		if p.at(TComma) {
+			if n.ClassKind == KindClass {
+				p.errorAt(p.tok(), "classes may extend only one parent")
+			}
+			p.advance()
+			n.Extends = append(n.Extends, p.parseNameList()...)
+		}
+	}
+	if clause, ok := p.accept(TImplements); ok {
+		if n.ClassKind != KindClass && n.ClassKind != KindEnum {
+			p.errorAt(clause, "implements is not allowed in this declaration")
+		}
+		n.Implements = p.parseNameList()
+	}
 }
 
 func (p *parser) parseClassBody(n *ClassLike) {

@@ -1046,7 +1046,26 @@ rejected) is fixed; see the close-tag note above.
   parameter name. Project indexing retains alias-only files, including
   aliases targeting classes declared in another file. Unresolved bindings
   produce no symbols. Cross-file namespace shadows for these declaration
-  calls remain outside this pass.
+  calls were handled in the follow-up below.
+- **PHP declaration and quoted-type follow-up (2026-10-09):** declaration
+  builtin candidates carry their preferred namespaced function when they
+  depend on global fallback. Lookup checks project function declarations,
+  including base layers, so adding a shadow disables the candidate and
+  removing it restores the original declaration. Constant and alias candidates
+  retain their existing duplicate precedence. Explicit global calls and
+  imports of global builtins do not depend on namespace fallback.
+  Index-time inference uses only unconditional declaration symbols to avoid
+  storing return/property contracts derived from calls another file may
+  shadow. This is conservative for cross-file unannotated contracts; same-file
+  body inference has the complete project index available.
+  PHPDoc type splitting and normalization preserve quoted bytes and ignore
+  escaped quotes and quoted brackets/separators. Unterminated literals remain
+  bounded and do not supply complete literal or shape metadata. Shape-key
+  escape decoding retains its existing behavior.
+  Parser validation rejects empty unset/isset lists, invalid unset variable
+  grammar and declaration clauses disallowed for the class-like kind. Invalid
+  clauses retain names and bodies for editor recovery; compile-time restrictions
+  such as unsetting call results remain outside syntax validation.
 - **Parsing:** version-aware lexer/parser (5.3–8.5); `syntax.ParseBest`
   parses at the target version and falls back to the newest grammar
   (permissive) when that yields errors (e.g. 8.4 fixtures in an 8.1 project);

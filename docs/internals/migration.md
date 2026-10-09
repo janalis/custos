@@ -186,3 +186,23 @@ Execute Phase 0 (init repo, CLAUDE.md, skill, docs/internals/migration.md with t
   owners; the coordinator integrates constant typing and downstream fixtures.
   Anonymous classes, full DNF types, and broader method callbacks remain
   separate follow-up work.
+
+## PHP correctness follow-up (2026-10-09)
+
+- Three parallel owners cover operand/declaration grammar, quoted PHPDoc
+  scanning, and cross-file declaration builtin resolution. The coordinator
+  owns inference regressions and repository verification.
+- Empty unset/isset lists and invalid unset operands produce syntax errors.
+  Declaration clauses respect class, interface, trait and enum grammar;
+  recovery retains clause names, declaration bodies and following statements.
+  Compile-time restrictions remain separate from parser validation.
+- PHPDoc scanning preserves whitespace and escaped bytes inside quoted keys
+  and literals. Quoted delimiters do not affect nesting or type splitting;
+  unfinished literals cannot claim complete type metadata.
+- Namespace-fallback define/class_alias candidates retain their provenance.
+  Index lookups check the complete project, including layered indexes and
+  incremental additions/removals, before using those declarations. Index-time
+  body inference excludes provisional declarations because other project
+  files may shadow their calls; ordinary analysis uses the complete index.
+- Anonymous-class identities, generic array key metadata and broader
+  PHPStan/Psalm annotation selection remain separate follow-up work.

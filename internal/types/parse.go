@@ -136,6 +136,9 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 	}
 	// Literal types: 'foo', 1, 1.5
 	if s[0] == '\'' || s[0] == '"' {
+		if end := quotedEnd(s, 0); end != len(s)-1 || end < 0 {
+			return Unknown
+		}
 		return String
 	}
 	if s[0] >= '0' && s[0] <= '9' || s[0] == '-' {
@@ -429,18 +432,15 @@ func conditionalBranches(s string) (string, string, bool) {
 func splitTop(s string, sep byte) []string {
 	var out []string
 	depth, start := 0, 0
-	inStr := byte(0)
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if inStr != 0 {
-			if c == inStr {
-				inStr = 0
-			}
-			continue
-		}
 		switch c {
 		case '\'', '"':
-			inStr = c
+			end := quotedEnd(s, i)
+			if end < 0 {
+				return append(out, s[start:])
+			}
+			i = end
 		case '<', '(', '{', '[':
 			depth++
 		case '>', ')', '}', ']':
@@ -502,6 +502,11 @@ func matchingClose(s string) int {
 	depth := 0
 	for i := 0; i < len(s); i++ {
 		switch s[i] {
+		case '\'', '"':
+			i = quotedEnd(s, i)
+			if i < 0 {
+				return -1
+			}
 		case '<', '{', '(', '[':
 			depth++
 		case '>', '}', ')', ']':
@@ -509,6 +514,20 @@ func matchingClose(s string) int {
 			if depth == 0 {
 				return i
 			}
+		}
+	}
+	return -1
+}
+
+// quotedEnd returns the closing quote, ignoring escaped bytes. An
+// unfinished literal has no closing quote and cannot close a type bracket.
+func quotedEnd(s string, start int) int {
+	for i := start + 1; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			i++
+		case s[start]:
+			return i
 		}
 	}
 	return -1

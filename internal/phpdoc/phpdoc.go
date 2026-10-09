@@ -3,6 +3,8 @@ package phpdoc
 
 import (
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // Tag is one `@name rest` entry.
@@ -97,6 +99,8 @@ func SplitType(text string) (typ, rest string) {
 	runEnd := 0 // end of the last scanned blank run (rescanning it per blank was quadratic)
 	for i := 0; i < len(text); i++ {
 		switch c := text[i]; c {
+		case '\'', '"':
+			i = quotedEnd(text, i)
 		case '<', '(', '{', '[':
 			depth++
 		case '>', ')', '}', ']':
@@ -133,10 +137,63 @@ func SplitType(text string) (typ, rest string) {
 // types (`(T is null ? A : B)`), where they separate words: there runs of
 // whitespace collapse to one space.
 func squashType(t string) string {
-	if strings.Contains(t, "(") && strings.Contains(t, " is ") {
-		return strings.Join(strings.Fields(t), " ")
+	return normalizeType(t, strings.Contains(t, "(") && strings.Contains(t, " is "))
+}
+
+// normalizeType removes outside whitespace or collapses it to single spaces;
+// quoted text is copied verbatim in either mode.
+func normalizeType(t string, conditional bool) string {
+	if !strings.ContainsAny(t, " \t\r\n\v\f") && (!conditional || strings.IndexFunc(t, unicode.IsSpace) < 0) {
+		return t
 	}
-	return strings.ReplaceAll(t, " ", "")
+	var out strings.Builder
+	out.Grow(len(t))
+	blank := false
+	for i := 0; i < len(t); i++ {
+		c := t[i]
+		size := 1
+		space := strings.ContainsRune(" \t\r\n\v\f", rune(c))
+		if conditional && c >= utf8.RuneSelf {
+			var r rune
+			r, size = utf8.DecodeRuneInString(t[i:])
+			space = unicode.IsSpace(r)
+		}
+		if space {
+			blank = conditional
+			i += size - 1
+			continue
+		}
+		if blank && out.Len() > 0 {
+			out.WriteByte(' ')
+		}
+		blank = false
+		if c == '\'' || c == '"' {
+			end := quotedEnd(t, i)
+			out.WriteString(t[i : end+1])
+			i = end
+		} else if size == 1 {
+			out.WriteByte(c)
+		} else {
+			out.WriteString(t[i : i+size])
+			i += size - 1
+		}
+	}
+	return out.String()
+}
+
+// quotedEnd scans one literal without interpreting its bytes. Backslashes
+// escape the following byte; an unfinished literal consumes the remaining
+// text, so its spaces and delimiters never become tag syntax.
+func quotedEnd(text string, start int) int {
+	for i := start + 1; i < len(text); i++ {
+		switch text[i] {
+		case '\\':
+			i++
+		case text[start]:
+			return i
+		}
+	}
+	return len(text) - 1
 }
 
 // VarName extracts a leading `$name` (without '$') from text.
@@ -329,7 +386,7 @@ func (d *Doc) TypeAliases() map[string]string {
 				name, def = text[:i], strings.TrimSpace(strings.TrimLeft(text[i:], " \t="))
 			}
 			if name != "" {
-				if def = strings.Join(strings.Fields(def), " "); len(def) > MaxAliasLen {
+				if def = normalizeType(def, true); len(def) > MaxAliasLen {
 					def = ""
 				}
 				add(name, def)

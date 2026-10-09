@@ -108,7 +108,7 @@ func AnnotateReturns(f *syntax.File, fs *index.FileSymbols, base *index.Index, p
 	// cache and depth limit make results order-dependent at the margins).
 	sort.Slice(todo, func(i, j int) bool { return todo[i].span.Start < todo[j].span.Start })
 	ix := index.New(base)
-	ix.Add(fs)
+	ix.Add(fs.WithoutProvisionalDeclarations())
 	e := NewEnv(f, names.New(f), ix, php)
 	e.annotating = true
 	for _, t := range todo {

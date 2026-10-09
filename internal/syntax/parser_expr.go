@@ -661,6 +661,9 @@ func (p *parser) parsePrimary() Expr {
 		p.advance()
 		n := &Isset{}
 		p.expect(TLParen)
+		if p.at(TRParen) {
+			p.errorAt(p.tok(), "isset requires at least one expression")
+		}
 		for !p.at(TRParen) && !p.at(TEOF) {
 			before := p.pos
 			n.Vars = append(n.Vars, p.parseExpr(precLowest))

@@ -20,8 +20,8 @@ type Index struct {
 	functions map[string][]*Function
 	constants map[string][]*Constant
 	files     map[string]*FileSymbols
-	aliases   map[string]string   // lower class_alias() alias -> original FQN
-	children  map[string][]string // lower parent/interface FQN -> child FQNs (lazy)
+	aliases   map[string][]classAlias // lower alias -> declarations, in insertion order
+	children  map[string][]string     // lower parent/interface FQN -> child FQNs (lazy)
 
 	// gen counts the changes (Add/Remove) of this layer; ancestors caches
 	// Ancestors per class and version, valid while the generation of this
@@ -86,11 +86,11 @@ func (ix *Index) Add(fs *FileSymbols) {
 		k := strings.TrimPrefix(c.FQN, `\`)
 		ix.constants[k] = append(ix.constants[k], c)
 	}
-	for _, a := range fs.ClassAliases {
+	for pos, a := range fs.ClassAliases {
 		if ix.aliases == nil {
-			ix.aliases = map[string]string{}
+			ix.aliases = map[string][]classAlias{}
 		}
-		ix.aliases[key(a[0])] = a[1]
+		ix.aliases[key(a[0])] = append(ix.aliases[key(a[0])], classAlias{original: a[1], file: fs.Path, fallback: fs.ClassAliasFallbacks[pos]})
 	}
 	ix.children = nil
 	ix.gen.Add(1)
@@ -117,13 +117,7 @@ func (ix *Index) removeLocked(path string) {
 	for _, f := range old.Functions {
 		ix.functions[key(f.FQN)] = without(ix.functions[key(f.FQN)], f)
 	}
-	for _, c := range old.Constants {
-		k := strings.TrimPrefix(c.FQN, `\`)
-		ix.constants[k] = without(ix.constants[k], c)
-	}
-	for _, a := range old.ClassAliases {
-		delete(ix.aliases, key(a[0]))
-	}
+	ix.removeDeclarationCandidatesLocked(old)
 }
 
 func without[T comparable](list []T, x T) []T {
@@ -175,10 +169,15 @@ func (ix *Index) Class(fqn string, ver phpver.Version) *Class {
 func (ix *Index) aliasOf(fqn string) string {
 	for l := ix; l != nil; l = l.base {
 		l.mu.RLock()
-		t := l.aliases[key(fqn)]
+		cands := l.aliases[key(fqn)]
 		l.mu.RUnlock()
-		if t != "" {
-			return t
+		// The most recently added alias wins, as before. Keep every candidate so
+		// suppressing or removing that declaration reveals its predecessor.
+		for i := len(cands) - 1; i >= 0; i-- {
+			a := cands[i]
+			if !shadowedAbove(ix, l, a.file) && !ix.declarationShadowed(a.fallback) {
+				return a.original
+			}
 		}
 	}
 	return ""
@@ -342,14 +341,25 @@ func (ix *Index) builtinFunction(fqn string, ver phpver.Version) *Function {
 // for the namespace part).
 func (ix *Index) Constant(fqn string, ver phpver.Version) *Constant {
 	fqn = strings.TrimPrefix(fqn, `\`)
-	ix.mu.RLock()
-	c, ok := pick(ix.constants[fqn], func(c *Constant) Avail { return c.Avail }, ver)
-	ix.mu.RUnlock()
-	if ok {
-		return c
-	}
-	if ix.base != nil {
-		return ix.base.Constant(fqn, ver)
+	for l := ix; l != nil; l = l.base {
+		l.mu.RLock()
+		cands := l.constants[fqn]
+		l.mu.RUnlock()
+		var first *Constant
+		for _, c := range cands {
+			if shadowedAbove(ix, l, c.File) || ix.declarationShadowed(c.DeclarationFallback) {
+				continue
+			}
+			if first == nil {
+				first = c
+			}
+			if ver == 0 || c.Avail.In(ver) {
+				return c
+			}
+		}
+		if first != nil {
+			return first // preserve permissive availability fallback for this layer
+		}
 	}
 	return nil
 }

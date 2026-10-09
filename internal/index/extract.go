@@ -1105,7 +1105,7 @@ func (x *extractor) define(call *syntax.FuncCall) {
 	if !ok || lit.LitKind != syntax.LitString {
 		return
 	}
-	x.out.Constants = append(x.out.Constants, &Constant{FQN: strings.TrimPrefix(unquote(lit.Raw), `\`), Value: x.text(args[1].Value), File: x.f.Path, Span: call.Span()})
+	x.out.Constants = append(x.out.Constants, &Constant{FQN: strings.TrimPrefix(unquote(lit.Raw), `\`), Value: x.text(args[1].Value), File: x.f.Path, Span: call.Span(), DeclarationFallback: x.declarationFallback(call)})
 }
 
 // classAlias records `class_alias(Original::class, 'Alias')` (class
@@ -1137,5 +1137,22 @@ func (x *extractor) classAlias(call *syntax.FuncCall) {
 			return
 		}
 	}
+	if fallback := x.declarationFallback(call); fallback != "" {
+		if x.out.ClassAliasFallbacks == nil {
+			x.out.ClassAliasFallbacks = map[int]string{}
+		}
+		x.out.ClassAliasFallbacks[len(x.out.ClassAliases)] = fallback
+	}
 	x.out.ClassAliases = append(x.out.ClassAliases, [2]string{fqns[1], fqns[0]})
+}
+
+// declarationFallback retains the preferred namespace candidate so a project
+// function discovered later can suppress and subsequently restore the symbol.
+func (x *extractor) declarationFallback(call *syntax.FuncCall) string {
+	name := call.Name.(*syntax.Name) // declarationBuiltin accepted a named call
+	fqn, fallback := x.r.Function(name.Value, name.Span().Start)
+	if fallback != "" {
+		return key(fqn)
+	}
+	return ""
 }

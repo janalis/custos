@@ -36,6 +36,10 @@ func FuzzParse(f *testing.F) {
 		"/** @method static self make(array<int, string> &$out = ['k' => 'a, b'], string &...$rest) */",
 		"/** @method callable(string): int callback(callable(int, string): bool $filter) */",
 		"/** @method void broken(array<int] $row) */",
+		`/** @param array{'first  name': int, 'a\' },b': string} $row */`,
+		`/** @return (T is 'a ? b' ? array{'x}y': int} : null) */`,
+		`/** @phpstan-type Row array{'tab key': int} */`,
+		`/** @param 'unfinished\ */`,
 	} {
 		f.Add(s)
 	}

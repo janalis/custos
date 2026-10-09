@@ -249,18 +249,15 @@ func splitConditional(s string) (test, a, b string, ok bool) {
 // from that stands between blanks, or -1.
 func topSep(s string, sep byte, from int) int {
 	depth := 0
-	inStr := byte(0)
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if inStr != 0 {
-			if c == inStr {
-				inStr = 0
-			}
-			continue
-		}
 		switch c {
 		case '\'', '"':
-			inStr = c
+			end := quotedEnd(s, i)
+			if end < 0 {
+				return -1
+			}
+			i = end
 		case '<', '(', '{', '[':
 			depth++
 		case '>', ')', '}', ']':
