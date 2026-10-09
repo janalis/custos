@@ -8,6 +8,9 @@ func (p *parser) parseAttributes() []*AttributeGroup {
 		gs := p.start()
 		p.advance()
 		g := &AttributeGroup{}
+		if p.at(TRBracket) {
+			p.errorAt(p.tok(), "attribute groups require an attribute")
+		}
 		for !p.at(TRBracket) && !p.at(TEOF) {
 			before := p.pos
 			as := p.start()
@@ -206,6 +209,9 @@ func (p *parser) parseClosureLike(attrs []*AttributeGroup, start uint32) Expr {
 		n.Params = p.parseParams()
 		if _, ok := p.accept(TUse); ok {
 			p.expect(TLParen)
+			if p.at(TRParen) {
+				p.errorAt(p.tok(), "closure captures require a variable")
+			}
 			for !p.at(TRParen) && !p.at(TEOF) {
 				before := p.pos
 				us := p.start()

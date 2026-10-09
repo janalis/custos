@@ -14,13 +14,13 @@ const MaxShapeKeys = 32
 // the same facts about the elements of `T[]` members. It is immutable and
 // shared between types.
 type arrayInfo struct {
-	shape       bool       // keys describe the array's keys
-	sealed      bool       // the array has no keys beyond keys
-	nonEmpty    bool       // the array has at least one element
-	key         uint8      // bit 1: integer keys; bit 2: string keys; zero: unspecified
-	keys        []ShapeKey // in declaration order; at most MaxShapeKeys
-	keyTemplate *string    // direct symbolic key, separate from the runtime domain
-	elem        *arrayInfo // array facts of the elements of T[] members
+	shape      bool       // keys describe the array's keys
+	sealed     bool       // the array has no keys beyond keys
+	nonEmpty   bool       // the array has at least one element
+	key        uint8      // bit 1: integer keys; bit 2: string keys; zero: unspecified
+	keys       []ShapeKey // in declaration order; at most MaxShapeKeys
+	keyPattern *Type      // symbolic key pattern, separate from the runtime domain
+	elem       *arrayInfo // array facts of the elements of T[] members
 }
 
 // ShapeKey is one key of an array shape. Name is the key as PHP stores it:
@@ -32,7 +32,7 @@ type ShapeKey struct {
 }
 
 func (a *arrayInfo) empty() bool {
-	return a == nil || (!a.shape && !a.nonEmpty && a.elem == nil && a.key == 0 && a.keyTemplate == nil)
+	return a == nil || (!a.shape && !a.nonEmpty && a.elem == nil && a.key == 0 && a.keyPattern == nil)
 }
 
 func (a *arrayInfo) isNonEmpty() bool {
@@ -118,25 +118,49 @@ func (a *arrayInfo) keyMask() uint8 {
 // ArrayKeyTemplate returns the internal direct template marker of an array's
 // documented key, or an empty string. It never contributes runtime key atoms.
 func (t Type) ArrayKeyTemplate() string {
-	if t.arr == nil || t.arr.keyTemplate == nil {
-		return ""
+	if p := t.ArrayKeyPattern(); len(p.atoms) == 1 {
+		return p.atoms[0]
 	}
-	return *t.arr.keyTemplate
+	return ""
 }
 
-// setKey retains only direct template markers; ordinary unknown and compound
-// keys remain unspecified.
+// ArrayKeyPattern returns the documented symbolic key pattern, or Unknown.
+// A pattern contains one template marker and optional int/string alternatives;
+// its atoms never contribute to the array's runtime key domain.
+func (t Type) ArrayKeyPattern() Type {
+	if t.arr == nil || t.arr.keyPattern == nil {
+		return Unknown
+	}
+	return *t.arr.keyPattern
+}
+
+// setKey retains one template marker with optional int/string alternatives.
+// Other unsupported keys remain unspecified.
 func (a *arrayInfo) setKey(t Type) {
 	a.key = Array.WithArrayKey(t).arr.keyMask()
-	if len(t.atoms) == 1 && strings.HasPrefix(t.atoms[0], `\~`) && !strings.ContainsAny(t.atoms[0], "[]") && t.gen == nil {
-		marker := t.atoms[0]
-		a.keyTemplate = &marker
+	a.keyPattern = nil
+	if t.gen != nil || t.inter != nil {
+		return
+	}
+	marker := false
+	for _, atom := range t.atoms {
+		if atom == "int" || atom == "string" {
+			continue
+		}
+		if marker || !strings.HasPrefix(atom, `\~`) || strings.ContainsAny(atom, "[]") {
+			return
+		}
+		marker = true
+	}
+	if marker {
+		pattern := t
+		a.keyPattern = &pattern
 	}
 }
 
 func (a *arrayInfo) keyDoc() string {
-	if a.keyTemplate != nil {
-		return *a.keyTemplate
+	if a.keyPattern != nil {
+		return a.keyPattern.String()
 	}
 	return keyDoc(a.key)
 }
@@ -146,7 +170,7 @@ func (a *arrayInfo) keyDoc() string {
 func (t Type) WithArrayKey(key Type) Type {
 	a := t.cloneInfo()
 	a.key = 0
-	a.keyTemplate = nil
+	a.keyPattern = nil
 	if !key.IsUnknown() && key.OnlyOf("int", "string") {
 		if key.Has("int") {
 			a.key |= 1
@@ -164,7 +188,7 @@ func (t Type) WithArrayKey(key Type) Type {
 func (t Type) WithShape(keys []ShapeKey, sealed bool) Type {
 	a := t.cloneInfo()
 	a.key = 0
-	a.keyTemplate = nil
+	a.keyPattern = nil
 	if len(keys) > MaxShapeKeys {
 		a.shape, a.sealed, a.keys = false, false, nil
 		for _, k := range keys {
@@ -296,8 +320,8 @@ func mergeInfo(a, b *arrayInfo) *arrayInfo {
 	if ak, bk := a.keyMask(), b.keyMask(); ak != 0 && bk != 0 {
 		out.key = ak | bk
 	}
-	if a.keyTemplate != nil && b.keyTemplate != nil && *a.keyTemplate == *b.keyTemplate {
-		out.keyTemplate = a.keyTemplate
+	if a.keyPattern != nil && b.keyPattern != nil && a.keyPattern.Equal(*b.keyPattern) {
+		out.keyPattern = a.keyPattern
 	}
 	if a.shape && b.shape {
 		out.shape, out.sealed = true, a.sealed && b.sealed
@@ -445,7 +469,7 @@ func docAtom(atom string, a *arrayInfo) string {
 	}
 	if atom == "array" {
 		if !a.shape {
-			if a.key != 0 || a.keyTemplate != nil {
+			if a.key != 0 || a.keyPattern != nil {
 				prefix := "array"
 				if a.nonEmpty {
 					prefix = "non-empty-array"
@@ -493,7 +517,7 @@ func docAtom(atom string, a *arrayInfo) string {
 	if a.elem != nil && (el == "array" || strings.HasSuffix(el, "[]")) {
 		el = docAtom(el, a.elem)
 	}
-	if a.key != 0 || a.keyTemplate != nil {
+	if a.key != 0 || a.keyPattern != nil {
 		prefix := "array"
 		if a.nonEmpty {
 			prefix = "non-empty-array"

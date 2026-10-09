@@ -19,6 +19,9 @@ func BenchmarkTypeOfCapturesAndMutations(b *testing.B) {
             if ($object !== null) { $f = fn() => $object; $f(); }
             $f = function () use ($x, $a) { return [$x, $a]; };
             $g = fn() => fn() => $x; $f(); ($g())();`},
+		{"elementMutations", `$a = ['x' => null, 'count' => 1];
+            $before = $a['x']++; ++$a['count']; $stored = $a['x'];
+            $copy = $a; $read = $copy['count']; $f = fn() => $a['x']; $f();`},
 		{"mutations", `$x = null; $y = ++$x; $z = $x++;
             if ($c) { unset($x); } $result = $x;
             $text = '99'; ++$text; $last = $text;`},

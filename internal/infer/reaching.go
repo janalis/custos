@@ -112,10 +112,11 @@ func (e *Env) reaching(defs []varDef, use, scope syntax.Node) (fwd, back []varDe
 
 // elemWrite is a write into an element of a variable: `$x[k] = v`,
 // `$x[] = v`, `$x[k] ??= v` (a set, dim non-nil unless appending), a
-// destructuring target `[$x[k]] = …` (a nil: unknown value), or a nested
-// write `$x[k][…] = v` (nested set, key = k).
+// destructuring target `[$x[k]] = …` (no source: unknown value), an
+// increment/decrement, or a nested write `$x[k][…] = v` (key = k).
 type elemWrite struct {
 	a      *syntax.Assign
+	inc    *syntax.IncDec
 	nested bool
 	key    syntax.Expr // nested writes: the first-level key (nil: `$x[][…]`)
 }
@@ -123,11 +124,18 @@ type elemWrite struct {
 // dim returns the key expression of a direct write (nil for appends and
 // unknown writes).
 func (w *elemWrite) dim() syntax.Expr {
-	if w.a == nil || w.nested {
+	if !w.known() || w.nested {
 		return nil
 	}
-	return w.a.Var.(*syntax.ArrayDimFetch).Dim
+	if w.inc != nil {
+		return syntax.UnwrapParens(w.inc.Var).(*syntax.ArrayDimFetch).Dim
+	}
+	return syntax.UnwrapParens(w.a.Var).(*syntax.ArrayDimFetch).Dim
 }
+
+// known distinguishes writes with a stored value from destructuring and
+// other writes whose value cannot be tracked.
+func (w *elemWrite) known() bool { return w.a != nil || w.inc != nil }
 
 // reachingWrites returns the element writes into variable v that can reach
 // the read at v: those after the last whole-variable definition hiding them

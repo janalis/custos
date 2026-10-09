@@ -1461,7 +1461,7 @@ func writesForKey(ws []*elemWrite, back []bool, k string) ([]*elemWrite, []bool)
 	var kw []*elemWrite
 	var kb []bool
 	for i, w := range ws {
-		if !w.nested && w.a != nil {
+		if !w.nested && w.known() {
 			d := w.dim()
 			if d == nil && !types.IsIntKey(k) {
 				continue // appends add integer keys
@@ -1494,10 +1494,10 @@ func (e *Env) widenWrites(el types.Type, ws []*elemWrite, back []bool) types.Typ
 		if w.nested {
 			continue // changes an element already counted; see widenKey
 		}
-		if w.a == nil {
+		if !w.known() {
 			return types.Unknown
 		}
-		t := e.writtenType(w.a)
+		t := e.elementStoredType(w)
 		if t.IsUnknown() && back[i] {
 			continue // a back-edge cycle adds nothing (as for variables)
 		}
@@ -1512,6 +1512,15 @@ func (e *Env) writtenType(a *syntax.Assign) types.Type {
 		return e.TypeOf(a.Value)
 	}
 	return e.TypeOf(a)
+}
+
+// elementStoredType separates the value stored by a mutation from its
+// expression result: a postfix increment returns the previous value.
+func (e *Env) elementStoredType(w *elemWrite) types.Type {
+	if w.inc != nil {
+		return e.incDecStored(w.inc)
+	}
+	return e.writtenType(w.a)
 }
 
 // variableType is the type of a variable read: its reaching definitions
@@ -1881,6 +1890,7 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 					}
 				})
 			case *syntax.IncDec:
+				e.collectDimMutation(n, n.Var, sv)
 				if v := asVariable(n.Var); v != nil {
 					sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: n.Span().Start, end: n.Span().End, kill: e.statementKill(n), typ: func() types.Type { return e.incDecStored(n) }})
 				}
@@ -1947,6 +1957,27 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 		sv.defs[name] = defs
 	}
 	return sv
+}
+
+// collectDimMutation records ++/-- on array elements. Nested mutations use
+// the same conservative first-level invalidation as nested assignments.
+func (e *Env) collectDimMutation(n *syntax.IncDec, target syntax.Expr, sv *scopeVars) {
+	d, ok := syntax.UnwrapParens(target).(*syntax.ArrayDimFetch)
+	if !ok {
+		return
+	}
+	inner := d
+	for {
+		parent, ok := syntax.UnwrapParens(inner.Var).(*syntax.ArrayDimFetch)
+		if !ok {
+			break
+		}
+		inner = parent
+	}
+	if v := asVariable(inner.Var); v != nil {
+		w := &elemWrite{inc: n, nested: inner != d, key: inner.Dim}
+		sv.elemWrites[v.Name] = append(sv.elemWrites[v.Name], varDef{pos: n.Span().Start, end: n.Span().End, w: w})
+	}
 }
 
 func sortDefs(d []varDef) {

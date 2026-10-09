@@ -797,6 +797,9 @@ func (p *parser) parseNamespace() Stmt {
 		p.expect(TRBrace)
 		return fin(p, n, start)
 	}
+	if n.Name == nil {
+		p.errorAt(p.tok(), "unnamed namespaces require braces")
+	}
 	p.endStmt()
 	// Unbraced: the namespace extends to the next namespace declaration.
 	for !p.at(TEOF) {

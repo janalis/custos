@@ -2489,6 +2489,28 @@ an editor), so hostile input must not crash or hang it.
   the class-reference resolvers that differ (`puResolveClassName`,
   `staticCallClass`, `semClassesOf`).
 
+## PHP declaration and element-mutation follow-up (2026-10-09)
+
+- Empty attribute groups and explicit closure capture lists are grammar
+  errors, as are nameless semicolon namespaces. Parser diagnostics target
+  the closing delimiter and preserve the declaration body for editor use;
+  permissive and adaptive parsing retain these errors.
+- Array-key template patterns retain exactly one symbolic marker with
+  optional integer/string alternatives. Binding subtracts fixed alternatives
+  from the argument's runtime domain. An empty residual cannot determine the
+  template, so the existing conservative fallback applies. Multiple markers
+  and other compound expressions remain unsupported. Serialization uses the
+  existing PHPDoc strings; index schemas do not change.
+- Array-element increment/decrement now participates in reaching writes.
+  Element types retain the prior type alongside the stored value under the
+  existing conservative shape model; an integer mutation includes possible
+  floating-point overflow. Prefix expressions expose the stored value while
+  postfix expressions expose the old value. Nested writes invalidate the
+  affected first-level element; unrelated known keys keep their precision.
+- Fresh UnnecessaryCasting fixtures cover compound key returns and keeping
+  integer casts after element mutations, including copied arrays. The full
+  DNF type model and broader destructuring grammar remain follow-up work.
+
 ## Clean-room incidents
 
 - The conformance runner's "missing:" lines printed upstream's expected

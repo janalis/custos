@@ -253,3 +253,37 @@ Execute Phase 0 (init repo, CLAUDE.md, skill, docs/internals/migration.md with t
   458 KB Symfony Emoji data file measured 260.50 MB/s; the LSP latency gate
   measured 2.99 ms p95. Ordinary array-key metadata retains its baseline
   allocation counts and bytes.
+
+## PHP declaration and element-mutation wave (2026-10-09)
+
+- Three parallel owners cover declaration grammar, compound array-key
+  templates, and array-element increment/decrement inference. The coordinator
+  owns downstream rule fixtures, documentation and repository verification.
+- Attribute groups and explicit closure capture lists require a member;
+  semicolon namespaces require a name. Invalid declarations retain their
+  bodies and following statements across strict, permissive and adaptive
+  parsing.
+- Symbolic array keys preserve one template combined with integer/string
+  alternatives through PHPDoc serialization. Calls bind the template from
+  actual key domains after removing fixed alternatives; empty or unknown
+  residuals remain unbound. Runtime key domains stay separate from symbolic
+  patterns, with no index schema change.
+- Array-element increments and decrements join stored values into reaching
+  element writes. Prefix and postfix results remain distinct; computed keys
+  widen possible aliases and nested mutations invalidate affected elements.
+  Existing conservative unions and assignment dominance remain unchanged.
+- Full DNF representation and broader destructuring grammar remain separate
+  follow-up work. This wave adds no inspection rules or dependencies.
+- Verification: `make verify` passes both 100% coverage gates and the
+  clean-room scan; conformance and `make bench` pass. Symfony source has
+  12,974 files with no lexer mismatches or unexpected parse failures;
+  Symfony and EasyAdmin source analysis covers 13,281 files with no internal
+  errors. EasyAdmin fix checks apply 1,001 individual fixes and combined
+  fixes on 157 files without broken output, including PHP lint samples.
+  Parser and PHPDoc fuzz smoke tests pass.
+- Ordinary key metadata retains baseline allocation counts and bytes.
+  Tracking element mutations adds approximately 7% bytes and 11% allocations
+  in the existing element-write workload; timing samples on the shared
+  machine are not treated as a speed comparison. The LSP latency gate on
+  Symfony Console's 60 KB Application file measures 11.90 ms p95, below
+  its 30 ms budget.

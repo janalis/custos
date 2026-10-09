@@ -140,7 +140,7 @@ func (e *Env) mayWriteKey(v *syntax.Variable, key string) bool {
 		}
 		d := w.dim()
 		switch k, ok := literalKey(d); {
-		case w.a == nil, d == nil && types.IsIntKey(key):
+		case !w.known(), d == nil && types.IsIntKey(key):
 			return false
 		case d == nil || (ok && k != key):
 		default:
@@ -167,7 +167,7 @@ func (e *Env) widenKey(kt types.Type, v *syntax.Variable, key string) types.Type
 			}
 			continue
 		}
-		if w.a == nil {
+		if !w.known() {
 			return types.Unknown
 		}
 		d := w.dim()
@@ -177,10 +177,10 @@ func (e *Env) widenKey(kt types.Type, v *syntax.Variable, key string) types.Type
 		if k, ok := literalKey(d); ok && k != key {
 			continue
 		}
-		if w.a.ByRef {
+		if w.a != nil && w.a.ByRef {
 			return types.Unknown
 		}
-		t := e.writtenType(w.a)
+		t := e.elementStoredType(w)
 		if t.IsUnknown() && back[i] {
 			continue // a back-edge cycle adds nothing (as for variables)
 		}
@@ -286,7 +286,7 @@ func (e *Env) arrayKeyAt(t types.Type, name string, use, scope syntax.Node) type
 		switch {
 		case w.nested:
 			d = w.key
-		case w.a == nil:
+		case !w.known():
 			return types.Unknown
 		default:
 			d = w.dim()

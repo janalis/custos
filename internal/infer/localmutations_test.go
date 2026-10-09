@@ -56,11 +56,47 @@ function ordered(array $a) {
     $integerString = '99'; ++$integerString; t('integerString', $integerString);
     $decimalString = '1.5'; --$decimalString; t('decimalString', $decimalString);
 }
+
 $top = null; ++$top; t('topIncrement', $top);
 unset($top); t('topUnset', $top);
 `, map[string]string{
 		"laterUnset": "null", "laterIncrement": "int", "max": "float|int", "min": "float|int",
 		"integerString": "float|int|string", "decimalString": "float|int|string",
 		"topIncrement": "int", "topUnset": "null",
+	})
+}
+
+func TestArrayElementIncrementDecrement(t *testing.T) {
+	checkAnywhere(t, `<?php
+function elementMutations(bool $condition, string $key, $unknown) {
+    $a = ['x' => null, 'sibling' => 's'];
+    t('prefix', ++$a['x']); t('stored', $a['x']); t('sibling', $a['sibling']);
+    $copy = $a; t('copy', $copy['x']);
+    $capture = fn() => $a['x']; t('capture', $capture());
+    t('array', $a);
+    foreach ($a as $k => $v) { t('key', $k); t('element', $v); }
+    $b = ['x' => null]; t('postfix', $b['x']++); t('postfixStored', $b['x']);
+    $c = ['x' => null]; t('decrement', --$c['x']); t('decrementStored', $c['x']);
+    $d = ['x' => null]; if ($condition) { ++$d['x']; } t('conditional', $d['x']);
+    $e = ['x' => null]; $condition && ++$e['x']; t('optional', $e['x']);
+    $computed = ['x' => null, 'other' => false]; ++$computed[$key]; t('computed', $computed['x']);
+    $nested = ['x' => ['y' => null], 'sibling' => 's']; ++$nested['x']['y'];
+    t('nested', $nested['x']); t('nestedSibling', $nested['sibling']); t('nestedArray', $nested);
+    $nestedMissing = ['x' => []]; ++$nestedMissing['x']['y']; t('nestedAbsent', $nestedMissing['other']);
+    $nestedComputed = ['x' => ['y' => null]]; ++$nestedComputed[$key]['y']; t('nestedComputed', $nestedComputed['x']);
+    $invalid = ['x' => []]; ++$invalid['x']; t('invalid', $invalid['x']);
+    $untracked = ['x' => $unknown]; ++$untracked['x']; t('unknown', $untracked['x']);
+    $reset = ['x' => null]; ++$reset['x']; $reset = ['x' => 's']; t('reset', $reset['x']);
+    $loop = ['x' => null]; while ($condition) { t('loop', $loop['x']); ++$loop['x']; }
+    $paren = ['x' => null]; ++($paren)['x']; t('paren', $paren['x']);
+}
+`, map[string]string{
+		"prefix": "int", "stored": "int|null", "sibling": "string", "copy": "int|null|string",
+		"capture": "int|null|string", "array": "non-empty int[]|null[]|string[]", "key": "string", "element": "int|null|string",
+		"postfix": "null", "postfixStored": "int|null", "decrement": "null", "decrementStored": "null",
+		"conditional": "int|null", "optional": "int|null", "computed": "?unknown",
+		"nested": "?unknown", "nestedSibling": "string", "nestedArray": "non-empty array",
+		"nestedAbsent": "?unknown", "nestedComputed": "?unknown",
+		"invalid": "?unknown", "unknown": "?unknown", "reset": "string", "loop": "int|null", "paren": "int|null",
 	})
 }
