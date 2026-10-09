@@ -109,6 +109,13 @@ func (p *parser) parseBinaryRHS(left Expr, min int, start uint32) Expr {
 				c := p.expect(TColon)
 				n.Colon = Span{c.Start, c.End}
 			}
+			// Only shorthand chains remain associative in PHP 8. Parentheses
+			// and ternaries inside the middle operand have separate subtrees.
+			if p.ver.AtLeast(phpver.PHP80) {
+				if previous, ok := left.(*Ternary); ok && (previous.Then != nil || n.Then != nil) {
+					p.errorAt(op, "ternary operators require parentheses when chained")
+				}
+			}
 			n.Else = p.parseExpr(precTernary + 1)
 			left = fin(p, n, start)
 		case TInstanceof:

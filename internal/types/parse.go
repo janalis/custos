@@ -76,16 +76,12 @@ func (p *docParser) union(text string, resolve Resolver, depth int) Type {
 	}
 	var atoms []string
 	var infos, pts []Type
-	var gens [][]genEntry
 	for _, part := range parts {
 		pt := p.part(part, resolve, depth)
 		pts = append(pts, pt)
 		atoms = append(atoms, pt.atoms...)
 		if pt.hasArrayAtom() {
 			infos = append(infos, pt)
-		}
-		if pt.gen != nil {
-			gens = append(gens, pt.gen)
 		}
 	}
 	if len(atoms) == 0 {
@@ -95,10 +91,7 @@ func (p *docParser) union(text string, resolve Resolver, depth int) Type {
 	if len(infos) > 0 {
 		t = t.withInfo(unionInfo(infos))
 	}
-	if len(gens) > 0 {
-		t = t.withGen(mergeGen(gens...))
-	}
-	return t.withInter(unionInter(pts))
+	return t.withGen(unionGen(t, pts)).withInter(unionInter(pts))
 }
 
 // part parses one union member: its atoms and array facts (shapes

@@ -24,6 +24,7 @@ type extractor struct {
 // Extract collects the symbols declared in f.
 func Extract(f *syntax.File) *FileSymbols {
 	x := &extractor{f: f, r: names.New(f), out: &FileSymbols{Path: f.Path}}
+	var calls []*syntax.FuncCall
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		switch n := n.(type) {
 		case *syntax.ClassLike:
@@ -41,11 +42,31 @@ func Extract(f *syntax.File) *FileSymbols {
 				x.out.Constants = append(x.out.Constants, &Constant{FQN: fqn, Value: x.text(c.Value), File: f.Path, Span: c.Span()})
 			}
 		case *syntax.FuncCall:
-			x.define(n)
-			x.classAlias(n)
+			if x.declarationBuiltin(n, nil) != "" {
+				calls = append(calls, n)
+			}
 		}
 		return true
 	})
+	if len(calls) > 0 {
+		declared := make(map[string]bool, len(x.out.Functions))
+		for _, fn := range x.out.Functions {
+			declared[key(fn.FQN)] = true
+		}
+		for _, call := range calls {
+			switch x.declarationBuiltin(call, declared) {
+			case "define":
+				x.define(call)
+			case "class_alias":
+				x.classAlias(call)
+			}
+		}
+		// Deferred define calls must retain source order relative to const
+		// declarations: duplicate declarations use the first indexed symbol.
+		sort.SliceStable(x.out.Constants, func(i, j int) bool {
+			return x.out.Constants[i].Span.Start < x.out.Constants[j].Span.Start
+		})
+	}
 	return x.out
 }
 
@@ -974,38 +995,89 @@ func firstWord(s string) string {
 	return s
 }
 
+// declarationBuiltin identifies the global declaration builtins, allowing
+// namespace fallback only when this file does not declare its preferred target.
+func (x *extractor) declarationBuiltin(call *syntax.FuncCall, declared map[string]bool) string {
+	name, ok := call.Name.(*syntax.Name)
+	if !ok {
+		return ""
+	}
+	fqn, fallback := x.r.Function(name.Value, name.Span().Start)
+	if fallback != "" {
+		if declared[key(fqn)] {
+			return ""
+		}
+		fqn = fallback
+	}
+	switch strings.ToLower(fqn) {
+	case "define":
+		return "define"
+	case "class_alias":
+		return "class_alias"
+	}
+	return ""
+}
+
+// declarationArgs binds the two required and one optional builtin parameters.
+// Unpacking and malformed calls cannot safely declare statically known symbols.
+func (x *extractor) declarationArgs(call *syntax.FuncCall, params [3]string) ([3]*syntax.Arg, bool) {
+	var bound [3]*syntax.Arg
+	if call.Args == nil {
+		return bound, false
+	}
+	named := false
+	for i, expr := range call.Args.Args {
+		a, ok := expr.(*syntax.Arg)
+		if !ok || a.Unpack || a.ByRef || a.Value == nil {
+			return bound, false
+		}
+		pos := i
+		if a.Name != nil {
+			if x.f.Version != 0 && x.f.Version < phpver.PHP80 {
+				return bound, false
+			}
+			named = true
+			pos = -1
+			for j, name := range params {
+				if a.Name.Value == name {
+					pos = j
+					break
+				}
+			}
+		} else if named {
+			return bound, false
+		}
+		if pos < 0 || pos >= len(bound) || bound[pos] != nil {
+			return bound, false
+		}
+		bound[pos] = a
+	}
+	return bound, bound[0] != nil && bound[1] != nil
+}
+
 // define() calls with a literal name declare global constants.
 func (x *extractor) define(call *syntax.FuncCall) {
-	name, ok := call.Name.(*syntax.Name)
-	if !ok || !strings.EqualFold(strings.TrimPrefix(name.Value, `\`), "define") || call.Args == nil || len(call.Args.Args) < 2 {
+	args, ok := x.declarationArgs(call, [3]string{"constant_name", "value", "case_insensitive"})
+	if !ok {
 		return
 	}
-	a0, ok0 := call.Args.Args[0].(*syntax.Arg)
-	a1, ok1 := call.Args.Args[1].(*syntax.Arg)
-	if !ok0 || !ok1 {
-		return
-	}
-	lit, ok := a0.Value.(*syntax.Literal)
+	lit, ok := syntax.UnwrapParens(args[0].Value).(*syntax.Literal)
 	if !ok || lit.LitKind != syntax.LitString {
 		return
 	}
-	x.out.Constants = append(x.out.Constants, &Constant{FQN: strings.TrimPrefix(unquote(lit.Raw), `\`), Value: x.text(a1.Value), File: x.f.Path, Span: call.Span()})
+	x.out.Constants = append(x.out.Constants, &Constant{FQN: strings.TrimPrefix(unquote(lit.Raw), `\`), Value: x.text(args[1].Value), File: x.f.Path, Span: call.Span()})
 }
 
 // classAlias records `class_alias(Original::class, 'Alias')` (class
 // constants or string literals for both names).
 func (x *extractor) classAlias(call *syntax.FuncCall) {
-	name, ok := call.Name.(*syntax.Name)
-	if !ok || !strings.EqualFold(strings.TrimPrefix(name.Value, `\`), "class_alias") || len(call.Args.Args) < 2 {
+	args, ok := x.declarationArgs(call, [3]string{"class", "alias", "autoload"})
+	if !ok {
 		return
 	}
 	var fqns [2]string
 	for i := range fqns {
-		a, ok := call.Args.Args[i].(*syntax.Arg)
-		if !ok || a.Name != nil || a.Unpack {
-			return
-		}
-		switch v := syntax.UnwrapParens(a.Value).(type) {
+		switch v := syntax.UnwrapParens(args[i].Value).(type) {
 		case *syntax.ClassConstFetch:
 			id, ok := v.Name.(*syntax.Identifier)
 			nm, ok2 := v.Class.(*syntax.Name)

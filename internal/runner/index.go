@@ -83,7 +83,7 @@ func BuildIndexKeep(files []string, keep int, opt syntax.Options) (*index.Index,
 	close(jobs)
 	wg.Wait()
 	for _, fs := range results {
-		if fs != nil && len(fs.Classes)+len(fs.Functions)+len(fs.Constants) > 0 {
+		if fs != nil && len(fs.Classes)+len(fs.Functions)+len(fs.Constants)+len(fs.ClassAliases) > 0 {
 			ix.Add(fs)
 		}
 	}

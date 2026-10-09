@@ -1034,6 +1034,19 @@ rejected) is fixed; see the close-tag note above.
   `never` callable return type. Creating them does not terminate a statement
   list, narrow a guard as an early exit or discard reaching definitions;
   actual invocations retain their terminating behavior.
+- **PHP engine correctness wave (2026-10-09):** unparenthesized full or
+  mixed ternary chains produce syntax errors from PHP 8.0, including in
+  permissive and adaptive parsing. Shorthand-only chains, middle-operand
+  nesting and explicit parentheses remain valid; older targets retain
+  left association. PHPDoc unions discard generic arguments when the same
+  atom also appears without arguments, avoiding a definite class inferred
+  from `class-string<Foo>|string`. Runtime declaration indexing resolves
+  `define` and `class_alias` imports and same-file namespace shadows after
+  collecting declarations, and binds positional and named arguments by
+  parameter name. Project indexing retains alias-only files, including
+  aliases targeting classes declared in another file. Unresolved bindings
+  produce no symbols. Cross-file namespace shadows for these declaration
+  calls remain outside this pass.
 - **Parsing:** version-aware lexer/parser (5.3–8.5); `syntax.ParseBest`
   parses at the target version and falls back to the newest grammar
   (permissive) when that yields errors (e.g. 8.4 fixtures in an 8.1 project);

@@ -72,3 +72,79 @@ func TestPHPDocMetadataUnknown(t *testing.T) {
 		}
 	}
 }
+
+func TestPHPDocUnionGenericAlternatives(t *testing.T) {
+	cases := []struct {
+		left, right, atom string
+		args              []string
+	}{
+		{"Collection<int>", "Collection", `\Collection`, nil},
+		{"iterable<string, int>", "iterable", "iterable", nil},
+		{"class-string<Foo>", "string", "string", nil},
+		{"(callable(): int)", "callable", "callable", nil},
+		{"(Closure(): int)", "Closure", `\Closure`, nil},
+		{"Collection<int>", "Collection<int>", `\Collection`, []string{"int"}},
+		{"iterable<string, int>", "iterable<string, int>", "iterable", []string{"string", "int"}},
+		{"class-string<Foo>", "class-string<Foo>", "string", []string{`\Foo`}},
+		{"(callable(): int)", "(callable(): int)", "callable", []string{"int"}},
+		{"Collection<int>", "Collection<string>", `\Collection`, nil},
+		{"iterable<string, int>", "iterable<int, int>", "iterable", nil},
+		{"class-string<Foo>", "class-string<Bar>", "string", nil},
+		{"(callable(): int)", "(callable(): string)", "callable", nil},
+		{"Collection<array{id: int}>", "null", `\Collection`, []string{"array{id:int}"}},
+		{"(callable(): array{id: int})", "null", "callable", []string{"array{id:int}"}},
+		{"Collection<int>", "Other", `\Collection`, []string{"int"}},
+		{"Collection<int>", "{invalid}", `\Collection`, []string{"int"}},
+	}
+	for _, c := range cases {
+		for _, doc := range []string{c.left + "|" + c.right, c.right + "|" + c.left} {
+			t.Run(doc, func(t *testing.T) {
+				got := FromDoc(doc, nil)
+				if !got.Has(c.atom) {
+					t.Fatalf("missing atom %s: %s", c.atom, got)
+				}
+				var args []string
+				for _, arg := range got.TypeArgs(c.atom) {
+					args = append(args, arg.DocString())
+				}
+				if !slices.Equal(args, c.args) {
+					t.Errorf("arguments %v; want %v", args, c.args)
+				}
+			})
+		}
+	}
+}
+
+func TestPHPDocUnionMetadataControls(t *testing.T) {
+	for _, doc := range []string{"array{id: int}|null", "null|array{id: int}"} {
+		got := FromDoc(doc, nil)
+		id, ok := got.ShapeKey("id")
+		if !got.Has("null") || !got.IsSealedShape() || !ok || !id.Equal(Int) {
+			t.Errorf("%s: shape %s", doc, got.ShapeString())
+		}
+	}
+	for _, doc := range []string{"(Reader&Writer)|null", "null|(Reader&Writer)"} {
+		got := FromDoc(doc, nil)
+		if !got.Has("null") || !slices.Equal(got.Intersection(), []string{`\Reader`, `\Writer`}) {
+			t.Errorf("%s: intersection %v", doc, got.Intersection())
+		}
+	}
+	for _, doc := range []string{"int|{invalid}", "{invalid}|int"} {
+		if got := FromDoc(doc, nil); !got.Equal(Int) {
+			t.Errorf("%s: existing partial-union atoms changed to %s", doc, got)
+		}
+	}
+}
+
+func TestPHPDocIntersectionGenericControls(t *testing.T) {
+	if got := FromDoc("Collection<int>&Collection<int>", nil).TypeArgs(`\Collection`); len(got) != 1 || !got[0].Equal(Int) {
+		t.Errorf("matching intersection arguments: %v", got)
+	}
+	got := FromDoc("Collection<int>&Collection<string>&Other<bool>", nil)
+	if args := got.TypeArgs(`\Collection`); args != nil {
+		t.Errorf("conflicting intersection arguments: %v", args)
+	}
+	if args := got.TypeArgs(`\Other`); len(args) != 1 || !args[0].Equal(Bool) {
+		t.Errorf("unrelated intersection arguments: %v", args)
+	}
+}
