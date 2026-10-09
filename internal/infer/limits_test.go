@@ -60,8 +60,8 @@ func TestGenericChainBounded(t *testing.T) {
 			t.Errorf("binding grew to %d bytes", len(r))
 		}
 	}
-	if last := got[len(got)-1]; last != "int[]" {
-		t.Errorf("short chain: got %s, want int[]", last)
+	if last := got[len(got)-1]; last != "array<int,int>" {
+		t.Errorf("short chain: got %s, want array<int,int>", last)
 	}
 }
 

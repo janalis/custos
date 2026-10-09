@@ -18,6 +18,7 @@ type arrayInfo struct {
 	sealed   bool       // the array has no keys beyond keys (literal arrays, doc shapes)
 	nonEmpty bool       // the array has at least one element
 	keys     []ShapeKey // in declaration order; at most MaxShapeKeys
+	key      uint8      // bit 1: integer keys; bit 2: string keys; zero: unspecified
 	elem     *arrayInfo // array facts of the elements of `T[]` members
 }
 
@@ -30,7 +31,7 @@ type ShapeKey struct {
 }
 
 func (a *arrayInfo) empty() bool {
-	return a == nil || (!a.shape && !a.nonEmpty && a.elem == nil)
+	return a == nil || (!a.shape && !a.nonEmpty && a.elem == nil && a.key == 0)
 }
 
 func (a *arrayInfo) isNonEmpty() bool {
@@ -78,11 +79,63 @@ func (t Type) withInfo(a *arrayInfo) Type {
 	return t
 }
 
+// ArrayKey returns the known integer/string key domain of the array members.
+// Unspecified domains and empty shapes return Unknown.
+func (t Type) ArrayKey() Type {
+	if !t.hasArrayAtom() {
+		return Unknown
+	}
+	switch t.arr.keyMask() {
+	case 1:
+		return Int
+	case 2:
+		return String
+	case 3:
+		return Of("int", "string")
+	}
+	return Unknown
+}
+
+func (a *arrayInfo) keyMask() uint8 {
+	if a == nil {
+		return 0
+	}
+	if a.shape && a.sealed {
+		var key uint8
+		for _, k := range a.keys {
+			if IsIntKey(k.Name) {
+				key |= 1
+			} else {
+				key |= 2
+			}
+		}
+		return key
+	}
+	return a.key
+}
+
+// WithArrayKey sets an array's key domain, or clears it for an unknown or
+// unsupported type. It does not change the atoms or a shape's listed keys.
+func (t Type) WithArrayKey(key Type) Type {
+	a := t.cloneInfo()
+	a.key = 0
+	if !key.IsUnknown() && key.OnlyOf("int", "string") {
+		if key.Has("int") {
+			a.key |= 1
+		}
+		if key.Has("string") {
+			a.key |= 2
+		}
+	}
+	return t.withInfo(a)
+}
+
 // WithShape returns t (which must have an array member) with per-key types.
 // sealed states that the array has no other keys (a literal array). More
 // than MaxShapeKeys keys keep only the emptiness fact.
 func (t Type) WithShape(keys []ShapeKey, sealed bool) Type {
 	a := t.cloneInfo()
+	a.key = 0
 	if len(keys) > MaxShapeKeys {
 		a.shape, a.sealed, a.keys = false, false, nil
 		for _, k := range keys {
@@ -179,6 +232,7 @@ func (t Type) WithoutShape() Type {
 	}
 	a := t.cloneInfo()
 	a.nonEmpty = a.isNonEmpty()
+	a.key = a.keyMask()
 	a.shape, a.sealed, a.keys = false, false, nil
 	return t.withInfo(a)
 }
@@ -210,6 +264,9 @@ func mergeInfo(a, b *arrayInfo) *arrayInfo {
 		return a
 	}
 	out := &arrayInfo{nonEmpty: a.isNonEmpty() && b.isNonEmpty(), elem: mergeInfo(a.elem, b.elem)}
+	if ak, bk := a.keyMask(), b.keyMask(); ak != 0 && bk != 0 {
+		out.key = ak | bk
+	}
 	if a.shape && b.shape {
 		out.shape, out.sealed = true, a.sealed && b.sealed
 		keys := make([]ShapeKey, 0, len(a.keys)+len(b.keys))
@@ -356,6 +413,13 @@ func docAtom(atom string, a *arrayInfo) string {
 	}
 	if atom == "array" {
 		if !a.shape {
+			if a.key != 0 {
+				prefix := "array"
+				if a.nonEmpty {
+					prefix = "non-empty-array"
+				}
+				return prefix + "{...<" + keyDoc(a.key) + ",mixed>}"
+			}
 			if a.nonEmpty {
 				return "non-empty-array"
 			}
@@ -397,6 +461,13 @@ func docAtom(atom string, a *arrayInfo) string {
 	if a.elem != nil && (el == "array" || strings.HasSuffix(el, "[]")) {
 		el = docAtom(el, a.elem)
 	}
+	if a.key != 0 {
+		prefix := "array"
+		if a.nonEmpty {
+			prefix = "non-empty-array"
+		}
+		return prefix + "<" + keyDoc(a.key) + "," + el + ">"
+	}
 	if a.nonEmpty {
 		return "non-empty-array<" + el + ">"
 	}
@@ -429,4 +500,15 @@ func docKey(k string) string {
 func IsIntKey(s string) bool {
 	n, err := strconv.ParseInt(s, 10, 64)
 	return err == nil && strconv.FormatInt(n, 10) == s
+}
+
+func keyDoc(key uint8) string {
+	switch key {
+	case 1:
+		return "int"
+	case 2:
+		return "string"
+	default:
+		return "int|string"
+	}
 }

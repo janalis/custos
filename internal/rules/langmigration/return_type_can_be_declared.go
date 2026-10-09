@@ -7,6 +7,7 @@ import (
 	"custos/internal/analysis/util"
 	"custos/internal/index"
 	"custos/internal/infer"
+	"custos/internal/names"
 	"custos/internal/phpdoc"
 	"custos/internal/phpver"
 	"custos/internal/syntax"
@@ -224,6 +225,10 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	set := map[string]bool{} // D7
 	for a := range known {
+		// An anonymous identity supports lookup, but cannot be written in PHP.
+		if names.IsAnonymousClassName(a) {
+			return
+		}
 		set[rtdNormalize(a)] = true
 		// custos: Doctrine hydrates mapped collections as
 		// PersistentCollection and matching() returns a lazy collection;
@@ -458,9 +463,6 @@ func rtdOverridden(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Met
 		return false
 	}
 	fqn := ctx.Types().ClassFQN(class)
-	if fqn == "" {
-		return false
-	}
 	ix := ctx.Index()
 	name := strings.ToLower(m.Name.Value)
 	self := strings.ToLower(strings.TrimPrefix(fqn, `\`))
@@ -533,9 +535,6 @@ func rtdInheritedParamType(ctx *analysis.Context, class *syntax.ClassLike, m *sy
 		return types.Unknown
 	}
 	fqn := ctx.Types().ClassFQN(class)
-	if fqn == "" {
-		return types.Unknown
-	}
 	self := strings.ToLower(strings.TrimPrefix(fqn, `\`))
 	name := strings.ToLower(m.Name.Value)
 	for _, c := range ctx.Index().Ancestors(fqn, ctx.PHP) {
@@ -574,9 +573,6 @@ func rtdImplicitNullProp(ctx *analysis.Context, class *syntax.ClassLike, e synta
 		return false
 	}
 	fqn := strings.TrimPrefix(ctx.Types().ClassFQN(class), `\`)
-	if fqn == "" {
-		return false
-	}
 	p := ctx.Index().FindProperty(fqn, id.Value, ctx.PHP)
 	if p == nil || p.Type != "" || p.Static || p.Promoted || p.Magic {
 		return false

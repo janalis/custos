@@ -261,50 +261,54 @@ func (e *Env) foreachKey(x syntax.Expr) types.Type {
 		}
 		return anyKey
 	}
-	if !t.IsSealedShape() {
-		return anyKey
-	}
-	hasInt, hasStr := false, false
-	kind := func(k string) {
-		if types.IsIntKey(k) {
-			hasInt = true
-		} else {
-			hasStr = true
-		}
-	}
-	for _, k := range t.ShapeKeys() {
-		kind(k.Name)
-	}
+	key := t.ArrayKey()
 	if v, ok := syntax.UnwrapParens(x).(*syntax.Variable); ok && v.Name != "" && v.Name != "this" {
-		ws, _ := e.reachingWrites(v)
-		for _, w := range ws {
-			var d syntax.Expr
-			switch {
-			case w.nested:
-				d = w.key
-			case w.a == nil:
-				return anyKey
-			default:
-				d = w.dim()
-				if d == nil {
-					hasInt = true // `$x[] = v` appends an integer key
-					continue
-				}
-			}
-			k, ok := literalKey(d)
-			if !ok {
-				return anyKey
-			}
-			kind(k)
-		}
+		key = e.arrayKeyAt(t, v.Name, v, syntax.EnclosingVariableScope(v))
 	}
-	switch {
-	case hasInt && hasStr, !hasInt && !hasStr:
+	if key.IsUnknown() {
 		return anyKey
-	case hasInt:
-		return types.Int
 	}
-	return types.String
+	return key
+}
+
+// arrayKeyAt widens an array key domain by the element writes reaching use.
+func (e *Env) arrayKeyAt(t types.Type, name string, use, scope syntax.Node) types.Type {
+	key := t.ArrayKey()
+	if t.IsSealedShape() && len(t.ShapeKeys()) == 0 {
+		key = types.Of("never")
+	}
+	if key.IsUnknown() || e.shapeClobbered(scope, name) {
+		return types.Unknown
+	}
+	ws, _ := e.reachingWritesAt(name, use, scope)
+	for _, w := range ws {
+		var d syntax.Expr
+		switch {
+		case w.nested:
+			d = w.key
+		case w.a == nil:
+			return types.Unknown
+		default:
+			d = w.dim()
+			if d == nil {
+				key = types.Union(key, types.Int)
+				continue
+			}
+		}
+		k, ok := literalKey(d)
+		if !ok {
+			return types.Unknown
+		}
+		kt := types.String
+		if types.IsIntKey(k) {
+			kt = types.Int
+		}
+		key = types.Union(key, kt)
+	}
+	if key.OnlyOf("never") {
+		return types.Unknown
+	}
+	return key
 }
 
 // shapeTarget types a destructuring target item from the shape of the

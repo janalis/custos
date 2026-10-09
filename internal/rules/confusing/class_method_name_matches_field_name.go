@@ -39,7 +39,7 @@ func (r classMethodNameMatchesFieldName) Check(ctx *analysis.Context, n syntax.N
 	if !ok || cls.ClassKind == syntax.KindInterface { // D1 / E1
 		return
 	}
-	fqn := ctx.Types().ClassFQN(cls)
+	fqn := ctx.Names().DeclFQN(cls)
 	var prop *index.Property
 	if fqn != "" {
 		prop = ctx.Index().FindProperty(fqn, m.Name.Value, ctx.PHP)

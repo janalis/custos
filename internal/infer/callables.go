@@ -42,7 +42,7 @@ func (e *Env) closureReturn(n syntax.Expr) types.Type {
 	at := n.Span().Start
 	t := types.FromNode(retNode, e.resolver(at))
 	if d := e.DocOf(n); d != nil && !e.native {
-		if doc := d.ReturnType(); doc != "" {
+		if doc := d.EffectiveReturnType(); doc != "" {
 			t = pickMemberType(t, types.FromDoc(doc, e.resolverFor(n, at)))
 		}
 	}
@@ -201,8 +201,9 @@ func (e *Env) arrayMapType(cb, first syntax.Expr, args *syntax.ArgList) (types.T
 			}
 			return result.WithShape(keys, true).WithNonEmpty(inputs[0].IsNonEmptyArray()), true
 		}
-		return result.WithNonEmpty(inputs[0].IsNonEmptyArray()), true
+		return result.WithArrayKey(inputs[0].ArrayKey()).WithNonEmpty(inputs[0].IsNonEmptyArray()), true
 	}
+	result = result.WithArrayKey(types.Int)
 	for _, input := range inputs {
 		if input.IsNonEmptyArray() {
 			return result.WithNonEmpty(true), true
@@ -225,7 +226,7 @@ func arrayMapZip(inputs []types.Type) types.Type {
 		count = max(count, len(input.ShapeKeys()))
 	}
 	if !precise {
-		return arrayOf(types.Array).WithNonEmpty(nonEmpty)
+		return arrayOf(types.Array).WithArrayKey(types.Int).WithNonEmpty(nonEmpty)
 	}
 	keys := make([]types.ShapeKey, count)
 	for i := range count {
@@ -260,5 +261,5 @@ func (e *Env) arrayFilterType(arr syntax.Expr, at types.Type, cb syntax.Expr) ty
 			return types.Array.WithShape(nil, true)
 		}
 	}
-	return arrayOf(el)
+	return arrayOf(el).WithArrayKey(at.ArrayKey())
 }

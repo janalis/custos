@@ -773,7 +773,7 @@ func (r *TRules) ParamTypes(scope syntax.Node, p *syntax.Param) types.Type {
 	declared := types.FromNode(p.Type, res)
 	var doc types.Type
 	if d := r.Env.DocOf(scope); d != nil && p.Var != nil && !r.Env.native {
-		for _, dp := range d.Params() {
+		for _, dp := range d.EffectiveParams() {
 			if dp.Name == p.Var.Name {
 				doc = types.FromDoc(dp.Type, res)
 			}

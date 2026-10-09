@@ -38,7 +38,10 @@ func (e *Env) generatorType(body syntax.Node) (types.Type, bool) {
 		case *syntax.YieldFrom:
 			t := e.TypeOf(n.Expr)
 			if t.IsArrayLike() {
-				k, v = types.Of("int", "string"), t.Elem()
+				k, v = t.ArrayKey(), t.Elem()
+				if k.IsUnknown() {
+					k = types.Of("int", "string")
+				}
 				if t.IsSealedShape() {
 					if len(t.ShapeKeys()) == 0 {
 						continue // an empty delegation contributes no keys or values
@@ -137,7 +140,7 @@ func (e *Env) yieldType(n *syntax.Yield) types.Type {
 	if d == nil {
 		return types.Unknown
 	}
-	t := types.FromDoc(d.ReturnType(), e.resolverFor(scope, scope.Span().Start))
+	t := types.FromDoc(d.EffectiveReturnType(), e.resolverFor(scope, scope.Span().Start))
 	args := t.TypeArgs(`\Generator`)
 	if len(args) < 3 || args[2].IsUnknown() || args[2].Has("mixed") {
 		return types.Unknown

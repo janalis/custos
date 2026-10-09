@@ -223,9 +223,6 @@ func putResolveMember(ctx *analysis.Context, ref, classFQN string, at uint32) (s
 		}
 		fqn = putClassRef(ctx, cls, at)
 	}
-	if fqn == "" {
-		return "", nil
-	}
 	m := ctx.Index().FindMethod(fqn, member, ctx.PHP)
 	if m == nil {
 		return "", nil

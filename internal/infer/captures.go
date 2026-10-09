@@ -68,6 +68,9 @@ func (e *Env) captureSnapshot(closure syntax.Expr, name string) types.Type {
 	if t.HasShape() && (e.shapeClobbered(scope, name) || e.nonEmptyBroken(scope, name, from, closure)) {
 		t = t.WithoutShape()
 	}
+	if !t.ArrayKey().IsUnknown() && e.shapeClobbered(scope, name) {
+		t = t.WithArrayKey(types.Unknown)
+	}
 	if t.IsNonEmptyArray() && e.nonEmptyBroken(scope, name, from, closure) {
 		t = t.WithNonEmpty(false)
 	}

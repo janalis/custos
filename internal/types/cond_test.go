@@ -73,7 +73,7 @@ func TestParseCond(t *testing.T) {
 		"( $x is 'a' ? int : ($x is 2 ? float : string) )": "($x is 'a' ? int : ($x is 2 ? float : string))",
 		"($m is Foo::BAR ? array<string> : false)":         `($m is \App\Foo::BAR ? string[] : false)`,
 		"($x is non-empty-string ? int : float)":           "($x is ~string ? int : float)",
-		"(T is array ? list<string> : string)":             "($v is array ? string[] : string)",
+		"(T is array ? list<string> : string)":             "($v is array ? array<int,string> : string)",
 		"($x is scalar|array-key|?Foo ? int : float)":      `($x is \App\Foo|bool|float|int|null|string ? int : float)`,
 		"($x is T ? int : float)":                          "($x is ~mixed ? int : float)",
 		"($x is Alias ? int : float)":                      "($x is ~int|string ? int : float)",

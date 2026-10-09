@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 
+	"custos/internal/names"
 	"custos/internal/syntax"
 )
 
@@ -303,6 +304,12 @@ func (p *docParser) arrayPart(low, args string, resolve Resolver, depth int) Typ
 			out = append(out, "array")
 		}
 		if closed {
+			if len(gen) == 2 && (low == "array" || low == "non-empty-array") {
+				a.key = Array.WithArrayKey(p.union(gen[0], resolve, depth+1)).arr.keyMask()
+			}
+			if low == "list" || low == "non-empty-list" {
+				a.key = 1
+			}
 			a.elem = el.arr
 		}
 		return Of(out...).withInfo(&a)
@@ -311,7 +318,15 @@ func (p *docParser) arrayPart(low, args string, resolve Resolver, depth int) Typ
 		return Of("iterable")
 	}
 	if closed && args[0] == '{' {
-		keys, sealed, ok := p.shape(args[1:end], resolve, depth+1)
+		body := args[1:end]
+		if strings.HasPrefix(body, "...<") && matchingClose(body[3:]) == len(body)-4 {
+			parts := splitTop(body[4:len(body)-1], ',')
+			if len(parts) == 2 && strings.TrimSpace(parts[1]) == "mixed" {
+				a.key = Array.WithArrayKey(p.union(parts[0], resolve, depth+1)).arr.keyMask()
+				return Array.withInfo(&a)
+			}
+		}
+		keys, sealed, ok := p.shape(body, resolve, depth+1)
 		switch {
 		case !ok:
 		case len(keys) > MaxShapeKeys:
@@ -321,6 +336,9 @@ func (p *docParser) arrayPart(low, args string, resolve Resolver, depth int) Typ
 		default:
 			a.shape, a.sealed, a.keys = true, sealed, keys
 		}
+	}
+	if args == "" && (low == "list" || low == "non-empty-list") {
+		a.key = 1
 	}
 	return Array.withInfo(&a)
 }
@@ -537,6 +555,9 @@ func quotedEnd(s string, start int) int {
 // qualified) class name: `{array}`, `foo-bar` or `a\\b` in a doc tag are not
 // types.
 func validClassName(s string) bool {
+	if names.IsAnonymousClassName(s) {
+		return true
+	}
 	s = strings.TrimPrefix(s, `\`)
 	// The index marks template parameters `~T` (class) and `~~T` (method).
 	s = strings.TrimPrefix(strings.TrimPrefix(s, "~"), "~")

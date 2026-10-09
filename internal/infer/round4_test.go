@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"custos/internal/names"
+	"custos/internal/phpver"
+	"custos/internal/syntax"
 	"custos/internal/testbudget"
 )
 
@@ -223,7 +226,7 @@ function f(int $x, string $k) {
 // interfaces: members of either side are found; their own extra methods
 // are not (no name could be written for the class).
 func TestAnonymousClassMembers(t *testing.T) {
-	checkAnywhere(t, `<?php
+	src := `<?php
 interface I { public function i(): string; }
 abstract class P { public function p(): float { return 1.0; } }
 function f() {
@@ -239,9 +242,19 @@ function f() {
     t('ifaceOnly', new class implements I { public function i(): string { return ''; } });
     t('plain', new class {});
 }
-`, map[string]string{
-		"a": `\I&\P`, "i": "string", "p": "float", "own": "?unknown",
-		"parentOnly": `\P`, "ifaceOnly": `\I`, "plain": "object",
+`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpver.PHP84})
+	r := names.New(f)
+	var identities []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.ClassLike); ok && c.Name == nil {
+			identities = append(identities, `\`+r.SymbolFQN(c))
+		}
+		return true
+	})
+	checkAnywhere(t, src, map[string]string{
+		"a": identities[0], "i": "string", "p": "float", "own": "int",
+		"parentOnly": identities[1], "ifaceOnly": identities[2], "plain": identities[3],
 	})
 }
 

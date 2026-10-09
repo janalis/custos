@@ -28,9 +28,7 @@ func Extract(f *syntax.File) *FileSymbols {
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		switch n := n.(type) {
 		case *syntax.ClassLike:
-			if n.Name != nil {
-				x.class(n)
-			}
+			x.class(n)
 		case *syntax.Function:
 			x.function(n)
 		case *syntax.ConstStmt:
@@ -252,28 +250,18 @@ func (x *extractor) genReturn(d *phpdoc.Doc, at uint32) string {
 	if len(x.classTpl) == 0 {
 		return ""
 	}
-	for _, tag := range []string{"phpstan-return", "psalm-return", "return"} {
-		t, ok := d.Tag(tag)
-		if !ok {
-			continue
-		}
-		typ, _ := phpdoc.SplitType(t.Text)
-		if ds := types.FromDoc(typ, x.genResolver(at)).DocString(); strings.Contains(ds, `\~`) {
-			return ds
-		}
+	if ds := types.FromDoc(d.EffectiveReturnType(), x.genResolver(at)).DocString(); strings.Contains(ds, `\~`) {
+		return ds
 	}
 	return ""
 }
 
 func (x *extractor) classBody(n *syntax.ClassLike) {
 	at := n.Span().Start
-	ns := x.r.Namespace(at)
-	fqn := n.Name.Value
-	if ns != "" {
-		fqn = ns + `\` + fqn
-	}
+	fqn := x.r.SymbolFQN(n)
 	c := &Class{
-		FQN: fqn, Kind: n.ClassKind, Abstract: n.Modifiers.Has(syntax.TAbstract), Final: n.Modifiers.Has(syntax.TFinal),
+		Anonymous: n.Name == nil,
+		FQN:       fqn, Kind: n.ClassKind, Abstract: n.Modifiers.Has(syntax.TAbstract), Final: n.Modifiers.Has(syntax.TFinal),
 		Readonly: n.Modifiers.Has(syntax.TReadonly), Methods: map[string]*Method{}, Props: map[string]*Property{},
 		Consts: map[string]*ClassConst{}, File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, nil),
 	}
@@ -317,7 +305,7 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 					Hooked:        len(m.Hooks) > 0, Attributed: len(m.Attrs) > 0,
 				}
 				if d != nil {
-					prop.DocType = x.docTypeStr(d.VarType(p.Var.Name), at)
+					prop.DocType = x.docTypeStr(d.EffectiveVarType(p.Var.Name), at)
 				}
 				c.Props[prop.Name] = prop
 			}
@@ -488,7 +476,7 @@ func (x *extractor) params(ps []*syntax.Param, d *phpdoc.Doc, at uint32) []Param
 	docTypes := map[string]string{}
 	outTypes := map[string]string{}
 	if d != nil {
-		for _, p := range d.Params() {
+		for _, p := range d.EffectiveParams() {
 			docTypes[p.Name] = p.Type
 		}
 		for _, tag := range []string{"param-out", "psalm-param-out", "phpstan-param-out"} { // later wins
@@ -619,16 +607,8 @@ func (x *extractor) funcTemplates(d *phpdoc.Doc, ps []*syntax.Param, asserts []A
 		need = need || strings.Contains(a.Type, `\~~`)
 	}
 	ret := ""
-	for _, tag := range []string{"phpstan-return", "psalm-return", "return"} {
-		t, ok := d.Tag(tag)
-		if !ok {
-			continue
-		}
-		typ, _ := phpdoc.SplitType(t.Text)
-		if ds := types.FromDoc(typ, res).DocString(); strings.Contains(ds, `\~~`) {
-			ret = ds
-			break
-		}
+	if ds := types.FromDoc(d.EffectiveReturnType(), res).DocString(); strings.Contains(ds, `\~~`) {
+		ret = ds
 	}
 	if ret == "" && !need {
 		return nil
@@ -640,12 +620,8 @@ func (x *extractor) funcTemplates(d *phpdoc.Doc, ps []*syntax.Param, asserts []A
 		}
 	}
 	docs := map[string]string{}
-	for _, tag := range []string{"param", "psalm-param", "phpstan-param"} { // later wins
-		for _, p := range d.ParamsOf(tag) {
-			if p.Name != "" && p.Type != "" {
-				docs[p.Name] = p.Type
-			}
-		}
+	for _, p := range d.EffectiveParams() {
+		docs[p.Name] = p.Type
 	}
 	for i, p := range ps {
 		text := docs[p.Var.Name]
@@ -668,24 +644,15 @@ func (x *extractor) funcTemplates(d *phpdoc.Doc, ps []*syntax.Param, asserts []A
 // stands for the parameter documented as exactly T.
 func (x *extractor) condReturn(d *phpdoc.Doc, at uint32) string {
 	subject := func(name string) string {
-		for _, tag := range []string{"phpstan-param", "psalm-param", "param"} {
-			for _, p := range d.ParamsOf(tag) {
-				if p.Type == name && p.Name != "" {
-					return p.Name
-				}
+		for _, p := range d.EffectiveParams() {
+			if p.Type == name && p.Name != "" {
+				return p.Name
 			}
 		}
 		return ""
 	}
-	for _, tag := range []string{"phpstan-return", "psalm-return", "return"} {
-		t, ok := d.Tag(tag)
-		if !ok {
-			continue
-		}
-		typ, _ := phpdoc.SplitType(t.Text)
-		if !strings.HasPrefix(typ, "(") || !strings.Contains(typ, " is ") {
-			continue
-		}
+	typ := d.EffectiveReturnType()
+	if strings.HasPrefix(typ, "(") && strings.Contains(typ, " is ") {
 		if c, ok := types.ParseCond(typ, x.resolver(at), subject); ok {
 			if s := c.String(); len(s) <= types.MaxDocTypeLen {
 				return s
@@ -836,7 +803,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	}
 	meth.Return, meth.RetVer = x.returnType(m.ReturnType, m.Attrs, at)
 	if d != nil {
-		meth.DocReturn = voidDoc(x.docTypeStr(d.ReturnType(), at), m.Body)
+		meth.DocReturn = voidDoc(x.docTypeStr(d.EffectiveReturnType(), at), m.Body)
 		meth.GenReturn = x.genReturn(d, at)
 		meth.CondReturn = x.condReturn(d, at)
 		meth.Asserts = x.assertions(d, m.Params, !meth.Static, at)
@@ -893,7 +860,7 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 	}
 	fn.Return, fn.RetVer = x.returnType(n.ReturnType, n.Attrs, at)
 	if d != nil {
-		fn.DocReturn = voidDoc(x.docTypeStr(d.ReturnType(), at), n.Body)
+		fn.DocReturn = voidDoc(x.docTypeStr(d.EffectiveReturnType(), at), n.Body)
 		fn.CondReturn = x.condReturn(d, at)
 		fn.Asserts = x.assertions(d, n.Params, false, at)
 		fn.Tpl = x.funcTemplates(d, n.Params, fn.Asserts, at)

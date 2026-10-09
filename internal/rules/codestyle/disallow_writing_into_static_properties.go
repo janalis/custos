@@ -56,7 +56,7 @@ func (disallowWritingIntoStaticProperties) Check(ctx *analysis.Context, n syntax
 		return
 	}
 	owner, _ := meth.Parent().(*syntax.ClassLike) // methods only live in class-likes
-	ownerFQN := ctx.Types().ClassFQN(owner)       // "" for an anonymous class
+	ownerFQN := ctx.Names().DeclFQN(owner)        // "" for an anonymous class
 	var target string
 	switch strings.ToLower(cls.Value) {
 	case "self", "static":

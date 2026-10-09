@@ -129,7 +129,7 @@ final class Box {
 	if m.Params[0].DocType != "mixed" || m.DocReturn != "mixed" {
 		t.Fatalf("put: %+v", m)
 	}
-	if w := ix.FindMethod(`Lib\Box`, "wrap", 0); w.DocReturn != "mixed[]" {
+	if w := ix.FindMethod(`Lib\Box`, "wrap", 0); w.DocReturn != "array<int,mixed>" {
 		t.Fatalf("wrap: %+v", w)
 	}
 }

@@ -951,6 +951,21 @@ rejected) is fixed; see the close-tag note above.
 
 ## Engine
 
+- **PHP semantic coverage wave (2026-10-09):** anonymous-class semantic
+  identities use a cached hash of the file path and the declaration byte
+  offset. Named-declaration resolution keeps its existing contract. Anonymous
+  members and inherited contracts now use the ordinary index; return-type
+  suggestions never emit internal identities. Indexing anonymous subclasses
+  also makes late-static-binding fixes respect those known descendants.
+  Arrays carry immutable integer/string key domains, including nested
+  PHPDoc/index round-trips. Iteration and generator delegation consume them;
+  reaching writes widen them and uncertain mutation discards precision.
+  Semantic annotation selectors prefer PHPStan over Psalm over ordinary
+  tags per target, ignore empty types, and select the same return annotation
+  for ordinary, generic and conditional typing. Lexical rule helpers remain
+  separate so documentation-derived types do not silently authorize unsafe
+  fixes. Native-only typing continues to ignore user PHPDoc.
+
 - **PHP correctness pass (2026-10-09):** declaration parsing checks the
   structure of parenthesized DNF intersections; prefix increment/decrement
   operands follow PHP's variable grammar. These checks distinguish syntax

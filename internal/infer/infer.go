@@ -604,8 +604,8 @@ func mayBeString(t types.Type) bool { return t.IsUnknown() || t.HasAny("string",
 
 // ---- classes -------------------------------------------------------------------------
 
-// ClassFQN returns the FQN of a class declaration ("" for anonymous classes).
-func (e *Env) ClassFQN(c *syntax.ClassLike) string { return e.Names.DeclFQN(c) }
+// ClassFQN returns the semantic identity of a class declaration.
+func (e *Env) ClassFQN(c *syntax.ClassLike) string { return e.Names.SymbolFQN(c) }
 
 // selfClass is the class `$this`, `self`, `static` and `new static` denote
 // inside class-like c: its FQN, but "" (unknown) in a trait, whose methods
@@ -621,6 +621,8 @@ func (e *Env) selfClass(c *syntax.ClassLike) string {
 // classRef resolves a class reference expression (Name or expression) to a FQN.
 func (e *Env) classRef(x syntax.Expr) string {
 	switch n := x.(type) {
+	case *syntax.ClassLike:
+		return e.ClassFQN(n)
 	case *syntax.Name:
 		low := strings.ToLower(n.Value)
 		switch low {
@@ -639,23 +641,10 @@ func (e *Env) classRef(x syntax.Expr) string {
 	return ""
 }
 
-// anonClassType types an instance of anonymous class cl as the
-// intersection of its parent and interfaces (`new class extends P
-// implements I {}` is `\P&\I`), a valid declared type whose members are
-// found on either side; object without any. Its own extra methods are not
-// known (no name could be written for it).
+// anonClassType retains the declaration identity so its own members and
+// inherited contracts use the same indexed lookup as named classes.
 func (e *Env) anonClassType(cl *syntax.ClassLike) types.Type {
-	var cs []string
-	if p := e.Names.ParentFQN(cl); p != "" {
-		cs = append(cs, `\`+p)
-	}
-	for _, i := range cl.Implements {
-		cs = append(cs, `\`+e.Names.Class(i.Value, i.Span().Start))
-	}
-	if len(cs) == 0 {
-		return types.Of("object")
-	}
-	return types.Intersect(cs...)
+	return types.Of(`\` + e.ClassFQN(cl))
 }
 
 func (e *Env) newType(n *syntax.New) types.Type {
@@ -1283,8 +1272,12 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 						}
 					}
 					return e.arrayFilterType(a, t, cb), true
+				case "array_values":
+					return t.WithoutShape().WithArrayKey(types.Int), true
 				case "array_slice":
-					return t.WithoutShape().WithNonEmpty(false), true
+					return t.WithoutShape().WithNonEmpty(false).WithArrayKey(types.Of("int", "string")), true
+				case "array_reverse":
+					return t.WithoutShape().WithArrayKey(types.Of("int", "string")), true
 				}
 				return t.WithoutShape(), true
 			}
@@ -1638,7 +1631,7 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 			arr = append(arr, a+"[]")
 		}
 	}
-	return types.Of(append(other, arr...)...).WithNonEmpty(t.IsNonEmptyArray()), true
+	return types.Of(append(other, arr...)...).WithNonEmpty(t.IsNonEmptyArray()).WithArrayKey(e.arrayKeyAt(t, name, use, scope)), true
 }
 
 func (e *Env) variableBase(v *syntax.Variable) types.Type {
@@ -1693,9 +1686,9 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		ts = append(ts, types.Null) // read before any assignment on some path
 	}
 	t := types.Union(ts...)
-	if t.HasShape() || t.IsNonEmptyArray() {
-		if t.HasShape() && e.shapeClobbered(scope, v.Name) {
-			t = t.WithoutShape()
+	if t.HasShape() || !t.ArrayKey().IsUnknown() || t.IsNonEmptyArray() {
+		if (t.HasShape() || !t.ArrayKey().IsUnknown()) && e.shapeClobbered(scope, v.Name) {
+			t = t.WithoutShape().WithArrayKey(types.Unknown)
 		}
 		if t.IsNonEmptyArray() && e.nonEmptyBroken(scope, v.Name, from, v) {
 			t = t.WithNonEmpty(false)
@@ -2090,7 +2083,7 @@ func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
 	}
 	doc := ""
 	if d := e.DocOf(scope); d != nil && !e.native {
-		for _, dp := range d.Params() {
+		for _, dp := range d.EffectiveParams() {
 			if dp.Name == p.Var.Name {
 				doc = dp.Type
 			}
@@ -2131,17 +2124,12 @@ func (e *Env) inlineVarDocs(scope syntax.Node, addDoc func(string, uint32, uint3
 			continue
 		}
 		text := string(e.File.Src[t.Start:t.End])
-		if !strings.Contains(text, "@var") {
+		if !strings.Contains(text, "@var") && !strings.Contains(text, "@phpstan-var") && !strings.Contains(text, "@psalm-var") {
 			continue
 		}
 		d := phpdoc.Parse(text)
-		for _, tag := range d.All("var") {
-			typ, rest := phpdoc.SplitType(tag.Text)
-			name := phpdoc.VarName(rest)
-			if strings.HasPrefix(typ, "$") {
-				name = phpdoc.VarName(typ)
-				typ, _ = phpdoc.SplitType(rest)
-			}
+		for _, hint := range d.EffectiveVars() {
+			typ, name := hint.Type, hint.Name
 			if name == "" {
 				continue
 			}

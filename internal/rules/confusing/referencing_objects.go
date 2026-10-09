@@ -191,15 +191,11 @@ func roIdent(e syntax.Expr) string {
 // signatures incompatible.
 func roInHierarchy(ctx *analysis.Context, m *syntax.Method) bool {
 	cl := m.Parent().(*syntax.ClassLike) // methods only live in class-likes
-	if cl.ClassKind == syntax.KindTrait {
+	if cl.ClassKind == syntax.KindTrait || cl.Name == nil {
 		return true
 	}
 	ix := ctx.Index()
 	fqn := ctx.Types().ClassFQN(cl)
-	own := ix.Class(fqn, ctx.PHP)
-	if fqn == "" || own == nil {
-		return true
-	}
 	lname := strings.ToLower(m.Name.Value)
 	ancestors := ix.Ancestors(fqn, ctx.PHP)
 	if !ix.AncestorsComplete(fqn, ctx.PHP) {

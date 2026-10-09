@@ -3,7 +3,10 @@
 package names
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"custos/internal/syntax"
@@ -20,12 +23,13 @@ type Scope struct {
 
 // Resolver resolves names in one file.
 type Resolver struct {
-	scopes []*Scope // ordered by Span.Start
+	scopes          []*Scope // ordered by Span.Start
+	anonymousPrefix string
 }
 
 // New builds a resolver for f.
 func New(f *syntax.File) *Resolver {
-	r := &Resolver{}
+	r := &Resolver{anonymousPrefix: fmt.Sprintf("@anonymous:%x:", sha256.Sum256([]byte(f.Path)))}
 	global := newScope(syntax.Span{Start: 0, End: uint32(len(f.Src))}, "")
 	braced := map[*Scope]bool{}
 	r.scopes = append(r.scopes, global)
@@ -238,6 +242,37 @@ func (r *Resolver) DeclFQN(c *syntax.ClassLike) string {
 		return ns + `\` + c.Name.Value
 	}
 	return c.Name.Value
+}
+
+// SymbolFQN returns a semantic identity for named and anonymous declarations.
+// Anonymous identities are internal and cannot be emitted as PHP class names.
+func (r *Resolver) SymbolFQN(c *syntax.ClassLike) string {
+	if c == nil || c.Name != nil {
+		return r.DeclFQN(c)
+	}
+	return r.anonymousPrefix + strconv.FormatUint(uint64(c.Span().Start), 10)
+}
+
+// IsAnonymousClassName reports whether name denotes an internal anonymous class.
+func IsAnonymousClassName(name string) bool {
+	name = strings.TrimPrefix(name, `\`)
+	const prefix = "@anonymous:"
+	if !strings.HasPrefix(name, prefix) || len(name) <= len(prefix)+65 || name[len(prefix)+64] != ':' {
+		return false
+	}
+	for _, c := range name[len(prefix) : len(prefix)+64] {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	offset := name[len(prefix)+65:]
+	for _, c := range offset {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	_, err := strconv.ParseUint(offset, 10, 32)
+	return err == nil
 }
 
 // ParentFQN resolves the `extends` clause of a class (not interface)

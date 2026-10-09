@@ -314,6 +314,11 @@ abstract class Node {
 
 ## Divergences
 
+- **Anonymous results have no declaration suggestion.** Their internal
+  identities support member lookup but cannot be written as PHP type names.
+  Skip suggestions whose inferred result contains an anonymous class,
+  including nullable results and classes with named parents.
+
 - **Doc-only suggestions have no fix (custos diverges from upstream).** When
   a returned value's type is unknown (or `mixed`) and the suggestion
   therefore rests on the `@return` tag alone, the finding is reported

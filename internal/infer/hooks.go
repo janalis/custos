@@ -28,7 +28,7 @@ func (e *Env) hookValueType(h *syntax.PropertyHook) types.Type {
 		t = types.FromNode(p.Type, e.resolver(at))
 		if !e.native {
 			if d := e.DocOf(p); d != nil {
-				if doc := d.VarType(""); doc != "" {
+				if doc := d.EffectiveVarType(""); doc != "" {
 					t = pickMemberType(t, types.FromDoc(doc, e.resolverFor(p, at)))
 				}
 			}

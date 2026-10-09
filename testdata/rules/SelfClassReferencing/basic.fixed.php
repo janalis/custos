@@ -13,7 +13,7 @@ class Basket
         $copy2 = new self;
         $max  = self::LIMIT;
         self::$count++;
-        self::create();
+        Basket::create();
         if ($other instanceof self) {}
         log_event(__CLASS__);
         try {} catch (self | \Exception $e) {}

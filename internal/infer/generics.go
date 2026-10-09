@@ -230,7 +230,10 @@ func (e *Env) iterTypes(t types.Type) (key, val types.Type) {
 		var k, v types.Type
 		switch {
 		case strings.HasSuffix(a, "[]"):
-			k, v = types.Of("int", "string"), types.Of(strings.TrimSuffix(a, "[]"))
+			k, v = t.ArrayKey(), types.Of(strings.TrimSuffix(a, "[]"))
+			if k.IsUnknown() {
+				k = types.Of("int", "string")
+			}
 		case a == "iterable":
 			switch args := t.TypeArgs(a); len(args) {
 			case 1:

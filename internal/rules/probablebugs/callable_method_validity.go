@@ -131,13 +131,7 @@ func callableVisibleFromScope(ctx *analysis.Context, call syntax.Node, m *index.
 	ix := ctx.Index()
 	decl := strings.TrimPrefix(m.Class, `\`)
 	scope := strings.TrimPrefix(ctx.Types().ClassFQN(cl), `\`)
-	if scope == "" { // anonymous class: only its parent can relate it to decl
-		if m.Visibility != index.Protected || len(cl.Extends) == 0 {
-			return false
-		}
-		parent := ctx.Names().Class(cl.Extends[0].Value, cl.Extends[0].Span().Start)
-		return ix.IsSubtype(parent, decl, ctx.PHP)
-	}
+
 	if strings.EqualFold(scope, decl) {
 		return true
 	}

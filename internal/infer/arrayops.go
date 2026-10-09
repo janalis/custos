@@ -50,8 +50,12 @@ func elementArray(elem types.Type, nonEmpty bool) types.Type {
 func arrayUnion(a, b types.Type) types.Type {
 	elem := types.Union(arrayElements(a), arrayElements(b))
 	nonEmpty := a.IsNonEmptyArray() || b.IsNonEmptyArray()
+	key := types.Unknown
+	if ak, bk := a.ArrayKey(), b.ArrayKey(); !ak.IsUnknown() && !bk.IsUnknown() {
+		key = types.Union(ak, bk)
+	}
 	if !requiredShape(a) || !requiredShape(b) {
-		return elementArray(elem, nonEmpty)
+		return elementArray(elem, nonEmpty).WithArrayKey(key)
 	}
 	keys := append([]types.ShapeKey(nil), a.ShapeKeys()...)
 	for _, k := range b.ShapeKeys() {
@@ -64,7 +68,7 @@ func arrayUnion(a, b types.Type) types.Type {
 		}
 		if !found {
 			if len(keys) == types.MaxShapeKeys {
-				return elementArray(elem, nonEmpty)
+				return elementArray(elem, nonEmpty).WithArrayKey(key)
 			}
 			keys = append(keys, k)
 		}

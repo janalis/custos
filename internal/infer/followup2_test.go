@@ -329,7 +329,7 @@ function g() { out($r); t('out', $r); return $r; }
 
 // Statements once covered only by FuzzRules/FuzzFromDoc seeds.
 func TestInferEdgesUnitOnly(t *testing.T) {
-	checkVer(t, phpver.PHP84, false, `<?php
+	src := `<?php
 namespace N {
     const LOCAL = 'x';
     function f(array $a, string $s, $o) {
@@ -368,9 +368,19 @@ namespace N {
 namespace {
     const GLOBAL_INT = 5;
 }
-`, map[string]string{
+`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpver.PHP84})
+	r := names.New(f)
+	var identity string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.ClassLike); ok && c.Name == nil {
+			identity = `\` + r.SymbolFQN(c)
+		}
+		return true
+	})
+	checkVer(t, phpver.PHP84, false, src, map[string]string{
 		"values": "array", "isset": "bool", "clone": "?unknown", "offset": "string", "fallbackConst": "?unknown",
-		"globalConst": "int", "missingConst": "?unknown", "anon": "object", "dynStatic": "?unknown", "magic": "int",
+		"globalConst": "int", "missingConst": "?unknown", "anon": identity, "dynStatic": "?unknown", "magic": "int",
 		"yield": "?unknown", "intConst": "int", "dynName": "?unknown", "bare": "?unknown", "staticProp": "?unknown", "unknownClass": "?unknown", "destructCall": "?unknown",
 		"dup": "array{a: string}", "destructString": "?unknown", "dq": "int", "ternaryOther": "non-empty array",
 	})

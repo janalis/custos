@@ -25,7 +25,7 @@ class C {
 }
 `)
 	f := fs.Functions[0]
-	if f.Params[0].Out != "int" || f.Params[1].Out != `\App\Foo[]` || f.Params[2].Out != "" || f.Params[3].Out != "" {
+	if f.Params[0].Out != "int" || f.Params[1].Out != `array<int,\App\Foo>` || f.Params[2].Out != "" || f.Params[3].Out != "" {
 		t.Errorf("param-out: %+v", f.Params)
 	}
 	if f.CondReturn != `($a is string ? \App\Foo : null)` {

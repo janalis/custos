@@ -206,3 +206,21 @@ Execute Phase 0 (init repo, CLAUDE.md, skill, docs/internals/migration.md with t
   files may shadow their calls; ordinary analysis uses the complete index.
 - Anonymous-class identities, generic array key metadata and broader
   PHPStan/Psalm annotation selection remain separate follow-up work.
+
+## PHP semantic coverage wave (2026-10-09)
+
+- Anonymous classes have internal identities derived from file path and
+  declaration offset. Their own members, traits, parents and interfaces use
+  ordinary index lookup, including relative contracts and cross-file inferred
+  returns. Generated return declarations skip these unwritable identities.
+- Generic arrays retain integer/string key domains through PHPDoc/index
+  round-trips, iteration, generator delegation and supported array builtins.
+  Reaching writes widen domains; aliases and unresolved writes discard
+  precision. Array-key template inference remains a follow-up.
+- Semantic PHPDoc selection uses PHPStan, then Psalm, then ordinary tags,
+  independently per parameter or variable. Ordinary, generic and conditional
+  returns use the same selected annotation. Lexical rule helpers and
+  native-only inference retain their separate policies.
+- Three parallel owners implemented anonymous identity/index tests, array
+  metadata/inference, and annotation selection. The coordinator integrated
+  shared files, downstream rule fixtures and repository verification.

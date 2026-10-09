@@ -232,6 +232,7 @@ type TraitAdaptation struct {
 // Class is a class, interface, trait or enum.
 type Class struct {
 	FQN              string                 `json:"fqn"`
+	Anonymous        bool                   `json:"anonymous,omitempty"`
 	Kind             syntax.ClassKind       `json:"kind,omitempty"`
 	Abstract         bool                   `json:"abstract,omitempty"`
 	Final            bool                   `json:"final,omitempty"`
