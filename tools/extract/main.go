@@ -1,11 +1,11 @@
 // Command extract reads a local Php Inspections (EA Extended) checkout and
 // produces:
 //
-//   - internal/meta/rules.json — rule FACTS only (ids, groups, severities,
+//   - internal/inspection/meta/rules.json — rule FACTS only (ids, groups, severities,
 //     option names/defaults, fix availability). Committed.
 //   - .cache/ea/index.json — a local-only index pointing into the EA checkout
 //     (inspection sources, test cases, fixture paths) used by the spec writers
-//     and the conformance runner. Never committed: it only references files,
+//     and the conformance project. Never committed: it only references files,
 //     it never copies them.
 package main
 
@@ -26,7 +26,8 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/meta"
+	"custos/internal/diagnostic"
+	"custos/internal/inspection/meta"
 )
 
 const (
@@ -35,7 +36,7 @@ const (
 	javaMain    = "src/main/java"
 	javaTest    = "src/test/java"
 	descrDir    = "src/main/resources/inspectionDescriptions"
-	metaOut     = "internal/meta/rules.json"
+	metaOut     = "internal/inspection/meta/rules.json"
 	indexOut    = ".cache/ea/index.json"
 	shortSuffix = "Inspection"
 )
@@ -77,7 +78,7 @@ var abs = filepath.Abs
 
 func main() { os.Exit(run(".", os.Args[1:], os.Stdout, os.Stderr)) }
 
-// run extracts from the checkout given by -ea into root/internal/meta and
+// run extracts from the checkout given by -ea into root/internal/inspection/meta and
 // root/.cache/ea.
 func run(root string, args []string, stdout, stderr io.Writer) int {
 	fl := flag.NewFlagSet("extract", flag.ContinueOnError)
@@ -255,14 +256,14 @@ var (
 	declRe    = regexp.MustCompile(`(?s)<localInspection\b.*?/>`)
 )
 
-func severity(level string) (meta.Severity, error) {
+func severity(level string) (diagnostic.Severity, error) {
 	switch level {
 	case "ERROR":
-		return meta.SeverityError, nil
+		return diagnostic.SeverityError, nil
 	case "WARNING":
-		return meta.SeverityWarning, nil
+		return diagnostic.SeverityWarning, nil
 	case "WEAK WARNING", "INFO", "INFORMATION", "TYPO":
-		return meta.SeverityInfo, nil
+		return diagnostic.SeverityInfo, nil
 	}
 	return "", fmt.Errorf("unknown level %q", level)
 }

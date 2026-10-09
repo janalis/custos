@@ -28,13 +28,13 @@ For a behaviour change, update the spec first, in the same pull request.
 
 ## 2. The implementation
 
-Rules live in `internal/rules/<group>/<rule_snake>.go` and register
-themselves:
+Rules live in `internal/inspection/rules/<lowercase-ID>/`. The implementation
+type stays private; `New()` constructs it:
 
 ```go
 type unnecessarySemicolon struct{}
 
-func init() { register(unnecessarySemicolon{}) }
+func New() analysis.Rule { return unnecessarySemicolon{} }
 
 func (unnecessarySemicolon) ID() string { return "UnnecessarySemicolon" }
 
@@ -50,10 +50,13 @@ func (r unnecessarySemicolon) Check(ctx *analysis.Context, n syntax.Node) {
 - List only the node kinds the rule needs; the engine dispatches by kind.
 - Use `ctx.Names()`, `ctx.Index()` and `ctx.TypeOf()` for semantic
   information; they are computed lazily.
-- Look in `internal/analysis/util` before writing a helper. Put a new generic
-  helper in its own file there (with tests); keep rule-specific helpers in the
-  rule file.
-- A fix is a `analysis.Fix{Title, Edits}` whose `Edits` function returns text
+- Keep rule-specific helpers and companion tests in the inspection package.
+  Shared lexical, flow and resolved helpers belong in `inspection/astquery`,
+  `inspection/flowquery` and `inspection/semanticquery`, respectively.
+- Add one constructor to `inspection/catalogue/catalogue.go`. Preserve group
+  execution order and ID sorting within each group; `make architecture` checks
+  complete and unique registration.
+- A fix is a `diagnostic.Fix{Title, Edits}` whose `Edits` function returns text
   edits on exact byte ranges. A fix must never change behaviour or produce
   invalid PHP; when that cannot be guaranteed, do not offer it.
 - Messages are short and imperative: *"Stray semicolon; remove it."*

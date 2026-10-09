@@ -1,6 +1,6 @@
 // Command genexplain extracts the "Summary" and "Options" sections of every
 // spec (specs/<ID>.md, our own clean-room text) into
-// internal/meta/descriptions.json for `custos explain`.
+// internal/inspection/meta/descriptions.json for `custos explain`.
 package main
 
 import (
@@ -24,7 +24,7 @@ type desc struct {
 func main() { os.Exit(run(".", os.Stdout, os.Stderr)) }
 
 // run reads root/specs and root/testdata/rules and writes
-// root/internal/meta/descriptions.json.
+// root/internal/inspection/meta/descriptions.json.
 func run(root string, stdout, stderr io.Writer) int {
 	files, _ := filepath.Glob(filepath.Join(root, "specs", "*.md"))
 	out := map[string]desc{}
@@ -47,7 +47,7 @@ func run(root string, stdout, stderr io.Writer) int {
 	}
 	// encoding/json sorts map keys: the output is deterministic.
 	b, _ := json.MarshalIndent(out, "", "  ")
-	if err := os.WriteFile(filepath.Join(root, "internal", "meta", "descriptions.json"), append(b, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "internal", "inspection", "meta", "descriptions.json"), append(b, '\n'), 0o644); err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
@@ -59,7 +59,7 @@ var tagRe = regexp.MustCompile(`</?(?:error|warning|weak_warning|info)(?:\s[^>]*
 
 // hasRealFix reports whether some own fixture's expected fix output
 // (*.fixed.*) differs from its source once markup and whitespace are
-// ignored — "no change" expectations do not count as a quick-fix.
+// ignored — "no change" expectations do not count as a quick-fixing.
 func hasRealFix(root, id string) bool {
 	var fixed []string
 	for _, pat := range []string{"*.fixed.*", "*/*.fixed.*"} {

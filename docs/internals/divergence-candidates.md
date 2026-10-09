@@ -27,7 +27,7 @@ upstream" entries, recommendations adopted because no fixture covers the
 case, and PhpUnitDeprecations' corrected names. Items the spec describes as
 correct, equivalent or "no action" are left out too.
 
-A spot-check of `internal/rules/**` confirms that the items the spec left open
+A spot-check of `internal/inspection/rules/**` confirms that the items the spec left open
 are implemented the upstream way. These are MkdirRaceCondition `|| !is_dir`,
 SubStrUsedAsArrayAccess's inverted `??` gate, SubStrUsedAsStrPos's encoding
 in the offset slot, VariableFunctionsUsage's call-time `&`, and

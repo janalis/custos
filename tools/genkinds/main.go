@@ -1,5 +1,5 @@
-// Command genkinds regenerates internal/syntax/kinds.go from the node types
-// declared in internal/syntax/ast.go (run via `go generate ./internal/syntax`).
+// Command genkinds regenerates internal/php/syntax/kinds.go from the node types
+// declared in internal/php/syntax/ast.go (run via `go generate ./internal/php/syntax`).
 package main
 
 import (

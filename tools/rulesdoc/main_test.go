@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/meta"
+	"custos/internal/diagnostic"
+	"custos/internal/inspection/meta"
 )
 
 func write(t *testing.T, path, body string) {
@@ -30,11 +31,11 @@ func fake(t *testing.T, rules []meta.Rule, err error) {
 
 func TestRun(t *testing.T) {
 	fake(t, []meta.Rule{
-		{ID: "Kettle", Group: "Kitchen", Severity: meta.SeverityWarning, EnabledByDefault: true, HasFix: true},
-		{ID: "Toaster", Group: "Kitchen", Severity: meta.SeverityError, Experimental: true},
-		{ID: "Lamp", Group: "Bedroom", Severity: meta.SeverityInfo},
-		{ID: "Clock", Group: "Bedroom", Severity: meta.SeverityInfo},
-		{ID: "Shelf", Group: "Attic", Severity: meta.SeverityWarning, EnabledByDefault: true},
+		{ID: "Kettle", Group: "Kitchen", Severity: diagnostic.SeverityWarning, EnabledByDefault: true, HasFix: true},
+		{ID: "Toaster", Group: "Kitchen", Severity: diagnostic.SeverityError, Experimental: true},
+		{ID: "Lamp", Group: "Bedroom", Severity: diagnostic.SeverityInfo},
+		{ID: "Clock", Group: "Bedroom", Severity: diagnostic.SeverityInfo},
+		{ID: "Shelf", Group: "Attic", Severity: diagnostic.SeverityWarning, EnabledByDefault: true},
 	}, nil)
 	root := t.TempDir()
 	write(t, filepath.Join(root, "specs/Kettle.md"), "# Kettle\n")
@@ -101,7 +102,7 @@ Conformance: ` + "`pass` / `fail` / `pending` (not implemented) / `—` (not run
 }
 
 func TestRunNoHistory(t *testing.T) {
-	fake(t, []meta.Rule{{ID: "Vase", Group: "Hall", Severity: meta.SeverityInfo}}, nil)
+	fake(t, []meta.Rule{{ID: "Vase", Group: "Hall", Severity: diagnostic.SeverityInfo}}, nil)
 	root := t.TempDir()
 	write(t, filepath.Join(root, "docs/internals/.keep"), "")
 	var stdout, stderr bytes.Buffer

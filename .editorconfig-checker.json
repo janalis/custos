@@ -3,6 +3,7 @@
     "IndentSize": true
   },
   "Exclude": [
+    "^ARCHITECTURE-PLAN\\.md$",
     "^\\.cache/",
     "^bin/",
     "^dist/",

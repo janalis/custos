@@ -33,7 +33,7 @@ Details: [Clean-room process](https://janalis.github.io/custos/contributing/clea
 ```sh
 npm ci --prefix docs  # once: markdownlint (and the docs site)
 make fmt              # gofumpt, goimports, markdownlint fixes
-make verify           # lint, tests, own fixtures, 100 % coverage, clean-room scan
+make verify           # architecture, lint, tests, own fixtures, 100 % coverage, clean-room scan
 make rules-doc        # if you changed a spec or a rule's fixtures
 ```
 

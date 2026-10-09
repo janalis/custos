@@ -7,7 +7,7 @@ goes through a two-step **clean-room** process. This page explains it.
 
 ## What may be reused
 
-Only **facts**, all of them already captured in `internal/meta/rules.json` by
+Only **facts**, all of them already captured in `internal/inspection/meta/rules.json` by
 `make extract`:
 
 - rule IDs (the upstream short name without `Inspection`), kept so that

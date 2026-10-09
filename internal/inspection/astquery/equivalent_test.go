@@ -1,0 +1,46 @@
+package astquery
+
+import (
+	"testing"
+
+	"custos/internal/php/syntax"
+)
+
+func TestEquivalent(t *testing.T) {
+	cases := []struct {
+		src  string
+		want bool
+	}{
+		{`<?php f($a, $a);`, true},
+		{`<?php f($a['x'], $a[ /* c */ 'x' ]);`, true},
+		{`<?php f($a, ($a));`, false},
+		{`<?php f($a, $b);`, false},
+		{`<?php f($a->b, $a->bc);`, false},
+	}
+	for _, c := range cases {
+		f := Parse(t, c.src)
+		call := FirstExpr(t, f).(*syntax.FuncCall)
+		a := call.Args.Args[0].(*syntax.Arg).Value
+		b := call.Args.Args[1].(*syntax.Arg).Value
+		if got := Equivalent(f, a, b); got != c.want {
+			t.Errorf("%s: got %v", c.src, got)
+		}
+	}
+}
+
+func TestFunctionLike(t *testing.T) {
+	f := Parse(t, `<?php function g($p) { $x = fn($q) => $q; }`)
+	var arrow syntax.Node
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if _, ok := n.(*syntax.Variable); ok && arrow == nil {
+			if v := n.(*syntax.Variable); v.Name == "x" {
+				arrow = n
+			}
+		}
+		return true
+	})
+	fn := syntax.EnclosingFuncLike(arrow)
+	if fn == nil || len(syntax.FuncLikeParams(fn)) != 1 || syntax.FuncLikeParams(fn)[0].Var.Name != "p" {
+		t.Fatalf("unexpected enclosing function %v", fn)
+	}
+}

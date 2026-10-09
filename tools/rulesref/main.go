@@ -1,7 +1,7 @@
 // Command rulesref generates the rule reference of the documentation site:
 // docs/rules/index.md, one page per rule (docs/rules/<group>/<ID>.md) and
 // the VitePress sidebar (docs/.vitepress/rules-sidebar.json), from
-// internal/meta and the specs' own text and examples.
+// internal/inspection/meta and the specs' own text and examples.
 package main
 
 import (
@@ -15,8 +15,9 @@ import (
 	"sort"
 	"strings"
 
-	"custos/internal/conformance"
-	"custos/internal/meta"
+	"custos/internal/diagnostic"
+	"custos/internal/inspection/meta"
+	"custos/internal/testing/conformance"
 	"custos/tools/internal/specmd"
 )
 
@@ -114,10 +115,10 @@ func readSpec(root, id string) string {
 	return string(b)
 }
 
-var severityBadge = map[meta.Severity]string{
-	meta.SeverityError:   "danger",
-	meta.SeverityWarning: "warning",
-	meta.SeverityInfo:    "info",
+var severityBadge = map[diagnostic.Severity]string{
+	diagnostic.SeverityError:   "danger",
+	diagnostic.SeverityWarning: "warning",
+	diagnostic.SeverityInfo:    "info",
 }
 
 func page(r meta.Rule, slug string, d meta.Description, md string) string {

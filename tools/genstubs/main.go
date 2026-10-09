@@ -1,5 +1,5 @@
 // Command genstubs compiles JetBrains phpstorm-stubs (Apache-2.0) into the
-// embedded builtin symbol index (internal/stubs/stubs.gob.gz).
+// embedded builtin symbol index (internal/semantic/stubs/stubs.gob.gz).
 //
 //	go run ./tools/genstubs -src .cache/stubs-src/JetBrains-phpstorm-stubs-<rev>
 package main
@@ -17,10 +17,10 @@ import (
 	"sort"
 	"strings"
 
-	"custos/internal/index"
-	"custos/internal/phpver"
-	"custos/internal/syntax"
-	"custos/internal/types"
+	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/index"
+	"custos/internal/semantic/types"
 )
 
 // defaultSrc locates the stubs checkout when -src is not given (`make stubs`).
@@ -32,8 +32,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fl := flag.NewFlagSet("genstubs", flag.ContinueOnError)
 	fl.SetOutput(stderr)
 	src := fl.String("src", "", "phpstorm-stubs checkout")
-	out := fl.String("out", "internal/stubs/stubs.gob.gz", "output file")
-	rev := fl.String("rev", "", "stubs revision recorded in internal/stubs/VERSION")
+	out := fl.String("out", "internal/semantic/stubs/stubs.gob.gz", "output file")
+	rev := fl.String("rev", "", "stubs revision recorded in internal/semantic/stubs/VERSION")
 	if err := fl.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return 0
@@ -76,7 +76,7 @@ func generate(src, out, rev string, stdout io.Writer) error {
 		if err != nil {
 			return err
 		}
-		f := syntax.Parse(filepath.ToSlash(rel), b, syntax.Options{Version: phpver.Max})
+		f := syntax.Parse(filepath.ToSlash(rel), b, syntax.Options{Version: phpversion.Max})
 		files++
 		if len(f.Errors) > 0 {
 			errs++

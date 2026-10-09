@@ -11,7 +11,7 @@ jobs:
         with:
           go-version-file: go.mod
       # The syntax tests compare the lexer and parser with the newest PHP
-      # (token_get_all, php -l): keep it at phpver.Max.
+      # (token_get_all, php -l): keep it at version.Max.
       - uses: shivammathur/setup-php@v2
         with:
           php-version: "8.5"

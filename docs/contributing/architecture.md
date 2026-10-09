@@ -1,98 +1,109 @@
 # Architecture
 
-custos is a single Go module (`custos`) with no runtime dependency outside
-the standard library. A file goes through this pipeline:
+Custos is one Go module with standard-library runtime dependencies. Feature
+roots separate language processing, semantics, inspections, project operations
+and adapters. `cmd/custos` only passes process arguments and streams to the CLI.
 
-```text
-discover files ─► lex + parse ─► names ─► (lazy) index · types ─► one walk, rules by node kind ─► findings
-   runner          syntax        names      index/stubs/infer       analysis + rules              report · fix · lsp
-```
+## Ownership
 
-## Packages
-
-| Package | Role |
+| Root | Responsibilities |
 |---|---|
-| `cmd/custos` | The CLI: `analyse`, `fix`, `rules`, `explain`, `lsp`, `version`. |
-| `internal/syntax` | Lexer, version-aware parser with error recovery, AST, walker and line index. Nodes are arena-allocated; positions are `uint32` byte offsets. |
-| `internal/phpver` | The PHP version model (5.3 to 8.5). |
-| `internal/names` | Namespace and `use` resolution. |
-| `internal/phpdoc`, `internal/types` | PHPDoc tags and types (`@template`, aliases), and the type model (sets of atoms). |
-| `internal/index` | Project symbol index: classes, members, functions, constants and inheritance. |
-| `internal/stubs` | Embedded index of PHP builtins, generated from JetBrains phpstorm-stubs (`make stubs`). |
-| `internal/infer` | Expression type inference and narrowing. |
-| `internal/analysis` | The `Rule` interface, the engine, the per-file `Context` and suppressions. `analysis/util` holds shared AST helpers (calls, values, variable use, reachability, hierarchy…). |
-| `internal/rules/<group>` | One file per rule, registered from its own `init()`. |
-| `internal/fix` | Applies text edits and runs the fix loop. |
-| `internal/runner` | File discovery, parallel analysis, project index build. |
-| `internal/report` | Output formats: text, JSON, Checkstyle, GitHub, SARIF. |
-| `internal/lsp` | The language server. |
-| `internal/config` | `custos.json` and `composer.json` reading. |
-| `internal/meta` | Rule facts (`rules.json`) and descriptions generated from the specs. |
-| `internal/conformance` | Fixture markup parser and the own-fixture and upstream conformance runners. |
-| `tools/` | Generators and checks: `extract`, `rulesdoc`, `rulesref`, `genexplain`, `genkinds`, `genstubs`, `cleanroom`, `covercheck`, `relprep`. |
+| `internal/php` | `syntax`: lexer, parser, arena AST, traversal and positions; `version`: PHP 5.3–8.5; `phpdoc`: doc tags and type expressions. |
+| `internal/semantic` | `names`, `types`, `index`, `infer` and embedded `stubs`: resolution, declarations, inheritance, inference and narrowing. |
+| `internal/inspection` | `analysis`: dispatch, context and suppressions; `meta`: independent rule facts and descriptions; `catalogue`: explicit constructors; `rules`: one package per lowercase inspection ID. |
+| `internal/inspection/astquery` | Lexical queries over nodes and tokens, plus exact source-edit builders. Written names do not imply resolved symbols. |
+| `internal/inspection/flowquery` | Local reachability, assignments, side effects and possible values. |
+| `internal/inspection/semanticquery` | Resolved calls, classes, hierarchies, types and inspection fix decisions. |
+| `internal/inspection/phpunit` | Shared assertion-call shapes, method spelling and PHPUnit version detection. |
+| `internal/diagnostic` | Severity, findings, lazy fixes, edits, file results and positioned items. |
+| `internal/fixing` | Conflict detection, edit application and bounded iterative fixing. |
+| `internal/project` | Discovery, bounded reading, indexing, buffer analysis, project reporting and prepared file fixes; `config` and `baseline` subpackages. |
+| `internal/output` | `report` renders text, JSON, Checkstyle, GitHub and SARIF; `diff` renders changes. |
+| `internal/cli` | Arguments, configuration precedence, profiling, output, exit codes and file writes. |
+| `internal/editor/lsp` | Transport dispatch, settings, workspace indexing, documents, diagnostics and code actions. |
+| `internal/platform/safeio` | Bounded filesystem primitives. |
+| `internal/testing` | Conformance harness and load-scaled test budgets. |
+| `tools` | Generators, architecture enforcement, coverage and clean-room checks. |
 
-## The engine
-
-- Each rule declares the node kinds it wants (`Kinds()`). The engine builds
-  a dispatch table and walks each file's syntax tree **once**, calling only
-  the rules registered for each node kind.
-- Semantic data (name resolution, the project index, types) is computed
-  **lazily**, the first time a rule asks the `Context` for it, so syntax-only
-  rules stay cheap.
-- Files are analysed in parallel. The project index is built first, so that
-  rules can resolve classes and members declared in other files.
-- Rules report a span, a message and optional fixes. A fix is a function
-  returning text edits on exact byte ranges, so a fix is only built when it
-  is needed (`custos fix`, or an LSP code action).
-
-```go
-type Rule interface {
-	ID() string                       // e.g. "UnnecessarySemicolon"
-	Kinds() []syntax.NodeKind         // node kinds to visit
-	Check(ctx *Context, n syntax.Node)
-}
+```mermaid
+flowchart TD
+    CLI[CLI adapter] --> Project[Project operations]
+    LSP[LSP adapter] --> Project
+    CLI --> Output[Report and diff adapters]
+    CLI --> Catalogue[Explicit inspection catalogue]
+    LSP --> Catalogue
+    Catalogue --> Rules[Individual inspections]
+    Project --> Analysis[Analysis engine]
+    Project --> Fixing[Fixing]
+    Rules --> Analysis
+    Rules --> Queries[Inspection queries]
+    Queries --> Semantic[Semantic services]
+    Queries --> Diagnostic[Diagnostic contracts]
+    Analysis --> Semantic
+    Semantic --> PHP[PHP language]
+    Analysis --> Diagnostic
+    Fixing --> Diagnostic
+    Output --> Diagnostic
+    Diagnostic --> PHP
 ```
 
-### PHP semantics
+## Execution and contracts
 
-The parser preserves version-dependent binding of indirect variables and
-members: PHP 5.x offsets can belong to a dynamic name, while PHP 7+ binds
-indirect access from left to right. Flexible heredoc and nowdoc indentation
-is validated without changing the source text or token offsets.
+`project.Open` receives resolved options and an explicit inspection list. It
+builds an engine and discovers PHP files plus enabled inspections' file patterns.
+`AnalyzeReport` indexes project and vendor declarations when needed, reuses
+source bytes and removes edit closures while retaining fix titles.
+`PrepareFixes` computes deterministic outcomes without writing files. CLI owns
+diffs, writes and exit decisions. `AnalyzeBuffer` processes supplied editor
+bytes without filesystem reads.
 
-Array inference tracks bounded shapes through `+`, `+=` and literal spreads.
-Union keeps the left value for an existing key; spreads renumber integer
-keys and, from PHP 8.1, overwrite earlier string keys. Unknown operands and
-arrays beyond the 32-key shape limit keep only conservative element and
-emptiness information.
+Each inspection exposes `New() analysis.Rule`; implementation types and private
+helpers stay in its package. `catalogue.All` constructs inspections in the
+original group order, sorted by ID within each group. Categories are metadata.
+The engine subscribes inspections by node kind and walks each parsed file once.
+Names, symbols, types and memoized queries are lazy per-file context data.
 
-Class PHPDoc `@method` signatures contribute parameter names, documented
-types, defaults, references and variadics to the symbol index. Real methods
-take precedence. Reference parameters use the same mutation analysis as
-native signatures, so a magic call can invalidate array-shape facts.
+`Engine.WithIndex` returns a configured copy. Published engines are never
+reconfigured in place. LSP publishes replacement engines while holding its
+workspace mutex. Source positions remain `uint32` byte offsets; diagnostic
+items use rune columns and LSP uses UTF-16 columns.
 
-## Fixing
+A `diagnostic.Fix` builds exact edits lazily. Fixing depends on an `Analyzer`
+interface returning findings for a parsed file. It selects one fix per finding,
+keeps multi-edit fixes together, rejects ambiguous insertion conflicts and
+iterates at most ten times. Single-pass mode preserves editor/conformance
+semantics. Rule implementations decide whether a proposed fix is safe.
 
-`custos fix` runs the analysis, applies the non-overlapping edits of every
-finding, and runs again until nothing changes (at most 10 rounds), since a
-fix can reveal or remove other findings. `make fixcheck` applies every fix
-offered on a corpus of real projects and checks that the output still
-parses.
+## Dependency enforcement
 
-## Language server
+`make architecture`, included in `make verify`, checks production imports,
+forbids cross-inspection dependencies and validates catalogue completeness,
+unique registration, lowercase ID directories, constructors, specs and fixtures.
+PHP, semantic, diagnostic, analysis and fixing packages cannot depend on CLI,
+LSP, reporting, project orchestration or filesystem adapters. Test imports may
+cross boundaries to exercise complete execution paths.
 
-`custos lsp` keeps the project index in memory, re-analyses open documents
-as they change, and updates the index when a file is saved. Quick-fixes are
-offered as code actions and resolved lazily when the client supports it.
+Keep a helper in its inspection until another inspection needs it. Then choose
+its owner by behavior: lexical AST, local flow or resolved semantics. Preserve
+the difference between a written call name and its actual runtime target,
+especially when deciding whether a fix is safe.
+
+## Extending features
+
+- Add an inspection in its ID package, with spec and fixtures at their stable
+  locations; add one constructor to the catalogue. Follow the clean-room process.
+- Improve inference in `semantic/infer`, with tests there. Environment,
+  expressions, operators, calls, members, variables, conditions, guards and
+  invalidation have separate files in the same package and share existing caches.
+- Add a fix to its inspection using diagnostic edits. Generic conflict/application
+  changes belong in `fixing`; project preparation and adapter writes stay separate.
+- Add an output adapter in `output/report` using positioned diagnostic items.
+  Core analysis and baselines do not depend on reporting.
+- Extend syntax in `php/syntax`, then regenerate node kinds and verify all PHP
+  versions. Keep arena ownership, parser recovery and exact spans intact.
 
 ## Generated files
 
-Run `make rules-doc` after changing a spec or a rule's fixtures. It rewrites:
-
-- `internal/meta/descriptions.json` (`custos explain`), from the specs'
-  *Summary* and *Options* sections;
-- `docs/rules/**` and `docs/.vitepress/rules-sidebar.json` (this site's rule
-  reference);
-- `docs/internals/rules.md` (per-rule status).
-
-CI checks that the committed files are up to date.
+`make rules-doc` regenerates `inspection/meta/descriptions.json`, the public
+rule reference, sidebar and internal status table. `make stubs` rebuilds embedded
+semantic assets. Specifications and inspection fixtures remain ID-based.

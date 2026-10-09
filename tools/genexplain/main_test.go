@@ -29,7 +29,7 @@ func TestRun(t *testing.T) {
 	write(t, filepath.Join(root, "specs/Mug.md"), "# Mug\n## Summary\nMugs.\n")
 	write(t, filepath.Join(root, "specs/_template.md"), "## Summary\nignored\n")
 	write(t, filepath.Join(root, "specs/README.md"), "## Summary\nignored\n")
-	write(t, filepath.Join(root, "internal/meta/.keep"), "")
+	write(t, filepath.Join(root, "internal/inspection/meta/.keep"), "")
 
 	// Teapot: a real fix (content changes) in a subdirectory.
 	write(t, filepath.Join(root, "testdata/rules/Teapot/sub/a.php"), "<?php <warning descr=\"x\">brew()</warning>;\n")
@@ -52,7 +52,7 @@ func TestRun(t *testing.T) {
 	if got := stdout.String(); got != "descriptions: 6 rules\n" {
 		t.Errorf("stdout = %q", got)
 	}
-	raw, err := os.ReadFile(filepath.Join(root, "internal/meta/descriptions.json"))
+	raw, err := os.ReadFile(filepath.Join(root, "internal/inspection/meta/descriptions.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

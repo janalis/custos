@@ -15,7 +15,7 @@ into this repo.
   descriptions, docs or fixtures into custos. No EA file is ever copied.
 - Allowed facts: rule IDs (EA short name minus `Inspection`), groups, default
   severity/enabled flags, option names/defaults, PHP-version thresholds — all
-  already captured in `internal/meta/rules.json` by `make extract`.
+  already captured in `internal/inspection/meta/rules.json` by `make extract`.
 - Per rule, two separate steps done by separate agents/sessions:
   1. `spec-rule` skill: read EA, write `specs/<ID>.md` in our own words with
      new examples.
@@ -28,31 +28,30 @@ into this repo.
 ## Layout
 
 ```text
-cmd/custos/            CLI (analyse | fix | rules | explain | lsp | version)
-internal/syntax/       lexer, parser (version-aware, permissive mode), AST, walk, line index
-internal/phpver/       PHP version model
-internal/names/        namespace / use resolution
-internal/phpdoc/       doc tags, types, @template, type aliases
-internal/types/        type model (atom sets) + doc/declared type parsing
-internal/index/        symbol index (classes, members, functions, constants), inheritance
-internal/stubs/        embedded phpstorm-stubs index (tools/genstubs)
-internal/infer/        expression type inference, narrowing, T-rules typer
-internal/analysis/     Rule interface, engine, Context (Names/Index/Types), suppressions
-internal/analysis/util/ shared AST helpers (calls, values, varuse, reach, hierarchy…)
-internal/rules/<group>/ one file per rule, registered via init()
-internal/fix/          edit application, fix loop
-internal/runner/       file discovery, parallel analysis, project index build
-internal/report/       text, json, checkstyle, github, sarif
-internal/lsp/          language server
-internal/config/       custos.json / composer.json
-internal/meta/         rule facts (rules.json) + descriptions (from specs)
-internal/conformance/  fixture markup, own-fixture + EA conformance runners
-tools/                 extract, rulesdoc, rulesref, cleanroom, genkinds, genstubs, genexplain
-tools/internal/specmd/ spec section/front-matter/example parsing shared by the generators
-specs/                 clean-room behavioural spec per rule
-docs/                  VitePress site (guide/, contributing/, generated rules/), deployed to GitHub Pages
-docs/internals/        working notes, not published: migration plan, decisions, divergences, rule status
-testdata/rules/<ID>/   own fixtures: *.php (markup), *.fixed.php, *.json (options)
+cmd/custos/                       executable entry point
+internal/php/{syntax,version,phpdoc}/ language, AST, traversal and source positions
+internal/semantic/{names,types,index,infer,stubs}/ resolution and semantic computation
+internal/inspection/analysis/     engine, context, semantic access and suppressions
+internal/inspection/meta/         independent rule facts and generated descriptions
+internal/inspection/catalogue/    explicit ordered inspection constructors
+internal/inspection/rules/<lowercase-ID>/ private implementation, New(), companion tests
+internal/inspection/{astquery,flowquery,semanticquery}/ focused shared inspection queries
+internal/inspection/phpunit/      shared PHPUnit call/version behavior
+internal/diagnostic/              findings, severity, lazy fixes, edits and positioned results
+internal/fixing/                  edit conflicts, application and bounded fix loop
+internal/project/                discovery, reading, indexing, analysis and prepared fixes
+internal/project/{config,baseline}/ resolved settings and diagnostic baselines
+internal/output/{report,diff}/    rendering adapters
+internal/cli/                     commands, profiling, output, exit codes and file writes
+internal/editor/lsp/              protocol, settings, workspace, documents and actions
+internal/platform/safeio/         bounded filesystem primitives
+internal/testing/{conformance,testbudget}/ fixture harness and test timing
+tools/                          generators, architecture, coverage and clean-room checks
+tools/internal/specmd/          spec section/front-matter/example parsing
+specs/                           clean-room behavioral specification per stable rule ID
+testdata/rules/<ID>/             own PHP fixtures, fixed bytes and option sidecars
+docs/                           VitePress guide, contributing docs and generated rules
+docs/internals/                 audit, decisions, migration and rule status
 ```
 
 ## Commands
@@ -69,8 +68,9 @@ make conformance    # EA fixtures from local checkout   RULE=<ID> to filter
 make bench / fuzz
 make cleanroom      # scan repo for verbatim EA text (local)
 make docs / docs-dev # build / serve the docs site (Node 20+, docs/package.json)
-make coverage       # 100% gates: internal/rules from own fixtures + rule tests; cmd/ + internal/ + tools/ from the whole suite
-make verify         # definition of done: lint + test + fixtures + coverage + cleanroom
+make coverage       # 100% gates: internal/inspection/rules from own fixtures + rule tests; cmd/ + internal/ + tools/ from the whole suite
+make architecture   # package boundaries and complete inspection catalogue
+make verify         # definition of done: architecture + lint + test + fixtures + coverage + cleanroom
 make stubs          # rebuild embedded PHP stubs index
 make fixcheck       # apply every quick-fix on CUSTOS_CORPUS, require parsable output (FIXCHECK=php adds php -l samples; ~1-4 min)
 ```
@@ -107,3 +107,17 @@ make fixcheck       # apply every quick-fix on CUSTOS_CORPUS, require parsable o
 - User docs live in `docs/guide/` (check claims against the real binary);
   never put `<Tag>`-like text or `{{` in prose outside code (Vue compiles
   the pages).
+
+## Architecture boundaries
+
+`make architecture` enforces production dependency direction and catalogue
+completeness. Each inspection exposes `New() analysis.Rule`; never import
+another inspection or add registration through `init()`. Keep implementation
+helpers local until shared; choose `astquery`, `flowquery` or `semanticquery`
+by lexical, local-flow or resolved behavior. Keep PHPUnit support inspection-owned.
+
+Project operations receive resolved options and explicit inspection lists.
+Adapters own protocol/argument conversion, rendering and file writes. Publish
+engine copies from `WithIndex` under the existing LSP synchronization boundary.
+Diagnostic contracts are independent of inspections and reporting. See
+`docs/contributing/architecture.md` and `docs/internals/architecture-audit.md`.

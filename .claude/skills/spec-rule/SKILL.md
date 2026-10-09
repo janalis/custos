@@ -17,7 +17,7 @@ reproduce the behaviour **without** ever opening EA.
   - `rules.<ID>.description`, `rules.<ID>.tests`
   - `cases[]` with `rules` containing the ID — fixture path, `.fixed` path,
     PHP level, options, comparison style
-- Facts: `internal/meta/rules.json` entry for the ID.
+- Facts: `internal/inspection/meta/rules.json` entry for the ID.
 
 ## Steps
 

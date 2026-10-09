@@ -9,7 +9,7 @@ STUBS_REPO ?= https://github.com/JetBrains/phpstorm-stubs
 
 FIXCHECK ?= 1
 
-.PHONY: coverage fixcheck stubs build test vet fmt fmt-check lint bench fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
+.PHONY: architecture coverage fixcheck stubs build test vet fmt fmt-check lint bench fuzz extract rules-doc fixtures conformance cleanroom verify clean docs docs-dev
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
@@ -50,7 +50,7 @@ fmt-check:
 # Benchmarks on a real file need CUSTOS_BENCH_FILE (a large PHP source).
 bench:
 	$(GO) test -run '^$$' -bench . -benchmem ./...
-	CUSTOS_PERF=1 $(GO) test -count=1 -run TestEditLatency -v ./internal/lsp
+	CUSTOS_PERF=1 $(GO) test -count=1 -run TestEditLatency -v ./internal/editor/lsp
 
 # Short fuzz smoke over every Fuzz* target (parser/lexer once they exist).
 fuzz:
@@ -88,11 +88,11 @@ docs-dev: rules-doc
 
 # custos' own fixtures (CI gate).
 fixtures:
-	$(GO) test ./internal/conformance -run 'TestOwnFixtures' -rule "$(RULE)"
+	$(GO) test ./internal/testing/conformance -run 'TestOwnFixtures' -rule "$(RULE)"
 
 # EA fixtures read from a local checkout; never copied into this repo.
 conformance:
-	EA_PATH="$(EA_PATH)" $(GO) test ./internal/conformance -run 'TestEA' -v -rule "$(RULE)"
+	EA_PATH="$(EA_PATH)" $(GO) test ./internal/testing/conformance -run 'TestEA' -v -rule "$(RULE)"
 
 # Verbatim-text scan against the local EA checkout (skipped when absent).
 cleanroom:
@@ -102,25 +102,29 @@ cleanroom:
 # of directories) and require the result to still parse (FIXCHECK=php
 # additionally runs php -l on samples).
 fixcheck:
-	CUSTOS_FIXCHECK=$(FIXCHECK) $(GO) test ./internal/rules -run TestFixesKeepCodeParsable -v -timeout 30m
+	CUSTOS_FIXCHECK=$(FIXCHECK) $(GO) test ./internal/inspection/catalogue -run TestFixesKeepCodeParsable -v -timeout 30m
 
-verify: lint test fixtures coverage cleanroom
+architecture:
+	$(GO) run ./tools/architecture
+
+verify: architecture lint test fixtures coverage cleanroom
 
 # Coverage gates (the EA run and local corpora do not count):
-# - every statement of internal/rules is covered by own fixtures and the rule
+# - every statement of internal/inspection/rules is covered by own fixtures and the rule
 #   packages' tests;
 # - every statement of cmd/, internal/ and tools/ is covered by the whole test
 #   suite. tools/covercheck exempts only the body of a one-statement
 #   `func main()` in package main (each command's os.Exit(run(...)) wrapper),
 #   found from the source, so nothing has to be listed or kept in sync.
+# Bound coverage test processes: each binary instruments the complete module.
 COVER_SKIP := TestEA|TestNoCrashOnCorpus|TestFixesKeepCodeParsable
 coverage:
 	@mkdir -p .cache
-	go test ./internal/conformance ./internal/rules/... -skip '$(COVER_SKIP)' \
-		-coverpkg=./internal/rules/... -coverprofile=.cache/rules-cover.out >.cache/rules-cover.log 2>&1 \
+	go test -p 4 ./internal/testing/conformance ./internal/inspection/catalogue ./internal/inspection/rules/... -skip '$(COVER_SKIP)' \
+		-coverpkg=./internal/inspection/rules/... -coverprofile=.cache/rules-cover.out >.cache/rules-cover.log 2>&1 \
 		|| { grep -E -B2 -A20 '^(--- FAIL|FAIL|panic:)' .cache/rules-cover.log; exit 1; }
-	@$(GO) run ./tools/covercheck -what internal/rules .cache/rules-cover.out
-	go test ./... -skip '$(COVER_SKIP)' -coverpkg=./cmd/...,./internal/...,./tools/... -coverprofile=.cache/all-cover.out >.cache/all-cover.log 2>&1 \
+	@$(GO) run ./tools/covercheck -what internal/inspection/rules .cache/rules-cover.out
+	go test -p 4 ./... -skip '$(COVER_SKIP)' -coverpkg=./cmd/...,./internal/...,./tools/... -coverprofile=.cache/all-cover.out >.cache/all-cover.log 2>&1 \
 		|| { grep -E -B2 -A20 '^(--- FAIL|FAIL|panic:)' .cache/all-cover.log; exit 1; }
 	@$(GO) run ./tools/covercheck -what "cmd/, internal/ and tools/" .cache/all-cover.out
 

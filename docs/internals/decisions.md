@@ -178,7 +178,7 @@ redeclare builtins and fail before fixing too).
 
 | Rule / area | Was | Now |
 |---|---|---|
-| Fix engine (`internal/fix`) | An insertion at the start or end of another fix's replacement was not an overlap: `\` (UnqualifiedReference) landed before a rewritten call (`\$x === null`, `\$f($a)`, `\static::$i`), sometimes eating a `;`. 566 broken files. | An insertion touching another edit conflicts; the next iteration re-analyses. `make fixcheck` also applies all fixes of each file together. |
+| Fix engine (`internal/fixing`) | An insertion at the start or end of another fix's replacement was not an overlap: `\` (UnqualifiedReference) landed before a rewritten call (`\$x === null`, `\$f($a)`, `\static::$i`), sometimes eating a `;`. 566 broken files. | An insertion touching another edit conflicts; the next iteration re-analyses. `make fixcheck` also applies all fixes of each file together. |
 | Parser | `$b = &f() && $c` parsed as `$b = &(f() && $c)` (PHP: `($b = &f()) && $c`); a parenthesising fix then broke the code. | The by-reference value is a single operand. |
 | `custos fix` | Files fixed one after another (WordPress 7.1 s). | One worker per CPU, output in input order (1.6 s). `--stats` labels a `--php` version "flag". |
 | MagicMethodsValidity | `_set($n)` renamed to `__set($n)` (fatal: must take 2 arguments; callers break); `: never` reported as "got 'never'". | Reported without a fix; `never` accepted (listed divergence). |
@@ -655,7 +655,7 @@ below. Four fixes changed behaviour and one dropped a type annotation
 
 | Rule / area | Was | Now |
 |---|---|---|
-| `custos analyse` memory (`internal/runner`) | Quick-fix closures of every finding retained each file's tree until the report: Dolibarr `--all` 3.0 GB. | Report mode drops the edit closures per file: 1.4 GB, same output. |
+| `custos analyse` memory (`internal/project`) | Quick-fix closures of every finding retained each file's tree until the report: Dolibarr `--all` 3.0 GB. | Report mode drops the edit closures per file: 1.4 GB, same output. |
 | DynamicInvocationViaScopeResolution (fix) | `self::_initTags()` in printipp's `BasicIPP` constructor → `$this->_initTags()`, which runs `CupsPrintIPP`'s override (also `Ancestor::m()` while the class overrides `m`). | Fix only when the name resolves to the called method and no subclass can override it (private/final method, final class or enum, no indexed descendant declaring it); traits never; otherwise reported without fix (listed divergence). |
 | NotOptimalRegularExpressions (fix, D22d) | `preg_replace('/__HANDLER__/i', "'" . $db->escape($h) . "'", $sql)` → `str_ireplace(…)`: preg_replace() collapses `\\` and expands `$0`/`\0` in the replacement, str_replace() does not (Dolibarr SQL templates). | Only for literal replacements without `\` and `$`, numbers and int/float casts. 1,340 → 1,259 fixable. |
 | MkdirRaceCondition (fix) | `if (!@mkdir($lock_path)) { return true; } … rmdir($lock_path);` (FreshRSS migrator lock) → `&& !is_dir($lock_path)`: every process takes the lock. | A tested mkdir() whose function also rmdir()s the same path is a lock: not reported (an ignored `mkdir($scratch)` still is). |
@@ -788,7 +788,7 @@ samples; 0 broken). Fourteen fixes changed behaviour (ten on the corpus).
 | OffsetOperations | Float keys (`$units[floor($v)]`, `$a[$i / 2]`; pChart, 19 errors). | Accepted where int is, like bool. |
 | StaticInvocationViaThis | Magic `@method static` (Eloquent, facades) reported, fix to `static::` (a fresh instance). | Magic methods skipped. |
 | MagicMethodsValidity | Swiftmailer's `call_user_func_array('Swift_Mime_SimpleMimeEntity::__construct', …)` not seen as a parent call (10 errors). | Callables ending in `::<method>` count. |
-| PHPDoc (`internal/phpdoc`, table entry) | `@param $x The extension name` / `@return The item unserialized` read as class `\The` (about 60 SuiteCRM tags: OffsetOperations, IsEmptyFunctionUsage `!== null` advice, CallableParameterUseCaseInTypeContext). | Determiners and similar words followed by more text are a description. |
+| PHPDoc (`internal/php/phpdoc`, table entry) | `@param $x The extension name` / `@return The item unserialized` read as class `\The` (about 60 SuiteCRM tags: OffsetOperations, IsEmptyFunctionUsage `!== null` advice, CallableParameterUseCaseInTypeContext). | Determiners and similar words followed by more text are a description. |
 | MissingArrayInitialization, GetClassUsage, ClassConstantUsageCorrectness, HostnameSubstitution, MkdirRaceCondition, DisconnectedForeachInstruction, TypeUnsafeComparison | `$_SESSION['k'][] =` reported; `get_class($m)` after `$m->methodExists()`; `class_alias()` names; `!empty($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : …` reported twice; `while (!is_dir($d) && !@mkdir($d))` retry loops; `$progress && $progress([…])` ticks; `Money == Money` told to use `===`. | Superglobals skipped; an earlier method call counts as a null check; alias names skipped; fetches inside isset/empty ignored; retry loops skipped; callbacks are per-iteration; object pairs not reported. |
 
 Deltas on the local corpora (HEAD 1efe7fd → this tree, default /
@@ -862,7 +862,7 @@ rule ignoring such docs would remove them (earlier rounds decided to
 trust the doc).
 
 **Coverage audit (2026-10-07).** Own fixtures were extended until every
-statement of `internal/rules` is executed by `TestOwnFixtures` (90.3% →
+statement of `internal/inspection/rules` is executed by `TestOwnFixtures` (90.3% →
 99.99%; the single remaining statement, SecurityAdvisories'
 `FilePatterns()`, is called only by the CLI and is covered by a unit test).
 Unreachable branches were removed (nil/zero-span guards on nodes the parser
@@ -898,7 +898,7 @@ findings on corpus A `src/` and corpus B unchanged):
 | NotOptimalRegularExpressions | D22 recommendations unimplemented: numeric comparisons misread (`1 > C`, `C <= 0`, `== 2`), calls inside arithmetic/casts/`@` rewritten, missing parentheses, D22d replaced the enclosing comparison, `A`/anchored-`m` patterns, unsafe explode/trim characters. | Implemented as specified. |
 
 Coverage is kept at 100%: `make coverage` (part of `make verify`) fails on any
-statement of `internal/rules` not executed by own fixtures or the rule
+statement of `internal/inspection/rules` not executed by own fixtures or the rule
 packages' tests, and on any statement of `cmd/`, `internal/` and `tools/` not
 executed by the whole test suite (the EA run and local corpora do not count;
 the only exemption is the body of a one-statement `func main()` in package
@@ -2043,7 +2043,7 @@ rejected) is fixed; see the close-tag note above.
   runs every rule over corpus A vendor + Symfony src (17,841 files), and
   `FuzzRules` (in `make fuzz`) runs every rule and fix on fuzzed sources
   (6.6M executions clean after fixing one crash; the crashing input is kept
-  in `internal/rules/testdata/fuzz/` as a regression case).
+  in `internal/inspection/rules/testdata/fuzz/` as a regression case).
   `ctx.Text`/`ctx.SpanText` return "" for empty, inverted or out-of-range
   spans.
 

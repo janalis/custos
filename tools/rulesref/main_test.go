@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/meta"
+	"custos/internal/diagnostic"
+	"custos/internal/inspection/meta"
 )
 
 func fake(t *testing.T, rules []meta.Rule, err error, descs map[string]meta.Description) {
@@ -54,14 +55,14 @@ const kettleSpec = "---\nid: Kettle\nphp: { min: \"7.1\", max: \"\" }\n---\n\n# 
 func TestRun(t *testing.T) {
 	fake(t, []meta.Rule{
 		{
-			ID: "Kettle", LegacyID: "KettleInspection", Group: "Hot Drinks", Severity: meta.SeverityWarning, EnabledByDefault: true,
+			ID: "Kettle", LegacyID: "KettleInspection", Group: "Hot Drinks", Severity: diagnostic.SeverityWarning, EnabledByDefault: true,
 			Options: []meta.Option{{Name: "PITCH", Type: "int", Default: 3}, {Name: "TUNES", Type: "list"}, {Name: "MODE", Type: "enum"}},
 		},
-		{ID: "Toaster", LegacyID: "ToasterInspection", Group: "Hot Drinks", Severity: meta.SeverityError, Experimental: true},
-		{ID: "Lamp", LegacyID: "LampInspection", Group: "Bedroom", Severity: meta.SeverityInfo},
-		{ID: "Clock", LegacyID: "ClockInspection", Group: "Bedroom", Severity: meta.SeverityInfo, EnabledByDefault: true},
-		{ID: "Rug", LegacyID: "RugInspection", Group: "Bedroom", Severity: meta.SeverityInfo},
-		{ID: "Bed", LegacyID: "BedInspection", Group: "Bedroom", Severity: meta.SeverityInfo},
+		{ID: "Toaster", LegacyID: "ToasterInspection", Group: "Hot Drinks", Severity: diagnostic.SeverityError, Experimental: true},
+		{ID: "Lamp", LegacyID: "LampInspection", Group: "Bedroom", Severity: diagnostic.SeverityInfo},
+		{ID: "Clock", LegacyID: "ClockInspection", Group: "Bedroom", Severity: diagnostic.SeverityInfo, EnabledByDefault: true},
+		{ID: "Rug", LegacyID: "RugInspection", Group: "Bedroom", Severity: diagnostic.SeverityInfo},
+		{ID: "Bed", LegacyID: "BedInspection", Group: "Bedroom", Severity: diagnostic.SeverityInfo},
 	}, nil, map[string]meta.Description{
 		"Kettle":  {Summary: "Kettles should whistle once.", Options: "- `PITCH` (int, default 3)", Fix: true},
 		"Toaster": {Summary: "Toast evenly.", Fix: true},

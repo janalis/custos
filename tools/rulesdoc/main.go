@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"custos/internal/meta"
+	"custos/internal/inspection/meta"
 )
 
 const (

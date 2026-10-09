@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/index"
-	"custos/internal/types"
+	"custos/internal/semantic/index"
+	"custos/internal/semantic/types"
 )
 
 func writeFile(t *testing.T, path, body string) {

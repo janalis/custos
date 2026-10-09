@@ -7,7 +7,7 @@ description: Implement one or more custos rules in Go from their clean-room spec
 
 ## Hard rule
 
-Work **only** from `specs/<ID>.md`, `internal/meta/rules.json` and custos'
+Work **only** from `specs/<ID>.md`, `internal/inspection/meta/rules.json` and custos'
 own code. Do **not** open any file under the EA checkout
 (`~/Sites/phpinspectionsea`) — not the Java sources, not the fixtures. The
 conformance runner reads EA fixtures for you and only reports
@@ -21,19 +21,16 @@ report which prerequisite blocks the rule.
 
 ## Steps
 
-1. Read the spec and the rule's facts (`internal/meta/rules.json`).
-2. Create `internal/rules/<group-slug>/<rule_snake>.go` implementing the
-   `analysis.Rule` interface: `Meta()` from the catalogue, `Kinds()` listing
-   only the node kinds it needs, `Check(ctx, node)` following D/E items in
-   order. Fixes as text edits per F items. Register it with
-   `func init() { register(myRule{}) }` in the rule's own file (never edit a
-   shared list).
-3. Reuse helpers in `internal/analysis/util` before writing new ones. New
-   generic helpers go in a NEW file `internal/analysis/util/<topic>.go`
-   (+ `_test.go`); rule-specific helpers stay in the rule file. Other agents
-   work in parallel: never modify files you did not create in this task
-   (except to fix a genuine bug, which you must report). If the build breaks
-   because of someone else's in-progress file, wait a minute and retry.
+1. Read the spec and the rule's facts (`internal/inspection/meta/rules.json`).
+2. Create `internal/inspection/rules/<lowercase-ID>/<rule_snake>.go` implementing
+   `analysis.Rule`: `ID()`, kind subscriptions and `Check` following the spec.
+   Keep the implementation type private and expose `New() analysis.Rule`.
+   Add exactly one constructor to `internal/inspection/catalogue/catalogue.go`,
+   preserving group execution order and ID sorting within each group.
+3. Keep rule-specific helpers local. Reuse `inspection/astquery`,
+   `inspection/flowquery` or `inspection/semanticquery` according to lexical,
+   local-flow or resolved behavior. New shared helpers need focused tests.
+   Run `make architecture` to check dependencies and catalogue completeness.
 4. Write own fixtures in `testdata/rules/<ID>/`: `basic.php` (positives),
    `false-positives.php`, `basic.fixed.php` if fixable, `<name>.json` for
    options/PHP version. Use the spec's examples as a starting point.
@@ -59,14 +56,14 @@ current directory. To only check compilation use `go build ./...`.
 
 ## API cheat sheet
 
-- AST: `internal/syntax` (`ast.go` node types, `walk.go` `Children`/`Inspect`,
+- AST: `internal/php/syntax` (`ast.go` node types, `walk.go` `Children`/`Inspect`,
   every node has `Span()`, `Parent()`, `Kind()`; `Paren` nodes are kept;
   `ExprStmt`, `Block{Alt}`, `Nop` for empty `;`). Tokens (incl. comments) in
   `File.Tokens`; find tokens inside a span with a binary search on `Start`.
 - Rule: implement `analysis.Rule` — `ID() string`, `Kinds() []syntax.NodeKind`,
   `Check(ctx *analysis.Context, n syntax.Node)`; whole-file rules also
-  implement `analysis.FileRule`. Register via `init()` + `register(...)`.
-  Conventions: see `internal/rules/codestyle/unnecessary_semicolon.go`.
+  implement `analysis.FileRule`. Register via `New()` + `register(...)`.
+  Conventions: see `internal/inspection/rules/unnecessarysemicolon/unnecessary_semicolon.go`.
 - Names: `ctx.Names()` (namespace/use resolution: `Class`, `Function`,
   `Const`), `ctx.IsGlobalFunctionCall(call, "strlen")`, `ctx.FunctionName(call)`
   (lower-case resolved name). No type inference / symbol index yet — rules
@@ -96,7 +93,7 @@ current directory. To only check compilation use `go build ./...`.
   (EA list-option calls arrive as `ctx.List("@calls")`), `ctx.IsTestFile()`,
   `ctx.Memo(key, fn)` to compute per-file derived data (parsed option lists,
   lookup tables) once instead of on every node.
-- Fix: `analysis.Fix{Title: "...", Edits: func() []analysis.TextEdit {...}}`
+- Fix: `diagnostic.Fix{Title: "...", Edits: func() []diagnostic.TextEdit {...}}`
   — edits are byte-range replacements on the original source; build them lazily.
 - Fixtures: `testdata/rules/<ID>/*.php` use `<warning descr="msg">code</warning>`
   (`<error>`, `<weak_warning>` = info); optional `<name>.fixed.php` and
@@ -108,25 +105,25 @@ current directory. To only check compilation use `go build ./...`.
 ## Semantic API (Phase 6)
 
 - `ctx.Index()` — symbols of this file layered over the project index and the
-  embedded PHP stubs (`internal/index`): `Class(fqn, ver)`, `Function`,
+  embedded PHP stubs (`internal/semantic/index`): `Class(fqn, ver)`, `Function`,
   `Constant`, `ResolveFunction(fqn, fallback, ver)`, `Ancestors`,
   `ParentChain`, `IsSubtype`, `FindMethod/FindProperty/FindConst` (inheritance
   aware), `Children`. Use `ctx.PHP` as the version argument.
-- `ctx.Types()` / `ctx.TypeOf(expr)` — type inference (`internal/infer`,
-  types in `internal/types`): `types.Type` is a set of atoms (`int`, `string`,
+- `ctx.Types()` / `ctx.TypeOf(expr)` — type inference (`internal/semantic/infer`,
+  types in `internal/semantic/types`): `types.Type` is a set of atoms (`int`, `string`,
   `null`, `\Foo\Bar`, `\Foo[]`…); `IsUnknown()`, `Has`, `OnlyOf`, `Classes()`,
   `Elem()`, `IsArrayLike()`. Unknown means "no information": rules must stay
   silent on unknown unless the spec says otherwise. Helpers on the env:
   `ResolveFunction(call)`, `ClassFQN(classLike)`, `ClassRef(classExpr)`.
-- `index.DocComment(file, node)` + `internal/phpdoc` (`Parse`, `Tag`, `Params`,
+- `index.DocComment(file, node)` + `internal/php/phpdoc` (`Parse`, `Tag`, `Params`,
   `ReturnType`, `VarType`) for doc tags.
 - Rules needing symbols from OTHER files must implement the marker
   `Semantic()` (interface `analysis.SemanticRule`) so the CLI builds the
   project index first. EA conformance runs single-file (file + stubs).
 - The inference engine is young: when a rule needs a missing capability
   (a builtin return override, a construct not inferred), add it to
-  `internal/infer` with a test in `infer_test.go` — small, focused edits only,
-  since other agents may edit it too; run `go test ./internal/infer` after.
+  `internal/semantic/infer` with a test in `infer_test.go` — small, focused edits only,
+  since other agents may edit it too; run `go test ./internal/semantic/infer` after.
 - Flow-type needs (reads/writes of variables in order, "used later") are
   implemented per rule on the AST unless a shared helper already exists in
-  `internal/analysis/util`.
+  `internal/inspection/flowquery`.

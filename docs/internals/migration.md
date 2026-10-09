@@ -30,28 +30,8 @@ Key facts from exploration:
 
 ## Architecture (Go module `custos`, Go 1.27)
 
-```text
-cmd/custos/            main: analyse | fix | lsp | rules | explain | version
-internal/syntax/       token, lexer, parser, ast, visitor, printer (lossless)
-internal/phpdoc/       PHPDoc tag + type-expression parser
-internal/names/        namespace/use resolution, FQN of every name
-internal/index/        project symbol index (classes, members, functions, consts), on-disk cache
-internal/stubs/        phpstorm-stubs compiled to a binary index, go:embed
-internal/types/        Type model (interned unions), expression inference, builtin return overrides
-internal/flow/         local CFG, possible-values discovery, variable usage
-internal/analysis/     Rule interface, registry, dispatcher, Context, suppressions
-internal/analysis/util/ ports of OpenapiTypesUtil, ExpressionSemanticUtil, OpenapiEquivalenceUtil, PhpLanguageUtil…
-internal/fix/          TextEdit, conflict resolution, apply-until-fixpoint
-internal/rules/<group>/ one file per inspection + _test.go (groups mirror EA groupName)
-internal/config/       custos.json loader, PHP version from composer.json, per-rule options
-internal/report/       text, json, checkstyle, sarif, github annotations
-internal/lsp/          JSON-RPC 2.0 stdio server (own minimal impl, no heavy deps)
-internal/conformance/  fixture markup parser + runner against extracted manifest
-tools/extract/         reads an EA checkout → rule facts (meta.json) + local-only conformance case list
-specs/                 one clean-room behavioural spec per rule (our own words)
-testdata/rules/<ID>/   custos' own fixtures (*.php with expectation markup, *.fixed.php)
-docs/                  migration.md, rules.md (generated status table), architecture.md
-```
+The current ownership map is maintained in [Architecture](../contributing/architecture.md).
+The historical phases below describe the original clean-room implementation.
 
 ### Parser (performance-critical)
 
@@ -107,15 +87,15 @@ docs/                  migration.md, rules.md (generated status table), architec
 
 ### Phase 1 — Extraction & conformance harness
 
-- `tools/extract`: parse `plugin.xml` (real XML parser — one displayName contains `>`), `RULES.md`, and the Java tests (regex over `configureByFile`, `setLanguageLevel`/`PhpLanguageLevel.set`, option field assignments, `checkResultByFile`) → `internal/rules/meta.json` (facts only: ID, group, level, enabledByDefault, option names/defaults, has-fix) + local-only `.cache/ea-cases.json` (fixture path in EA checkout, rule, options, PHP level, fixed file). Hand-patch the few tests regex can't read.
-- `internal/conformance`: one markup parser for both EA fixtures (`<warning descr=…>`) and custos fixtures; run rule; compare rule/range/severity; apply all fixes and diff against `.fixed.php`. `make conformance` (EA, local) and `make fixtures` (own, CI) print pass/fail per rule and update `docs/internals/rules.md`.
+- `tools/extract`: parse `plugin.xml` (real XML parser — one displayName contains `>`), `RULES.md`, and the Java tests (regex over `configureByFile`, `setLanguageLevel`/`PhpLanguageLevel.set`, option field assignments, `checkResultByFile`) → `internal/inspection/rules/meta.json` (facts only: ID, group, level, enabledByDefault, option names/defaults, has-fix) + local-only `.cache/ea-cases.json` (fixture path in EA checkout, rule, options, PHP level, fixed file). Hand-patch the few tests regex can't read.
+- `internal/testing/conformance`: one markup parser for both EA fixtures (`<warning descr=…>`) and custos fixtures; run rule; compare rule/range/severity; apply all fixes and diff against `.fixed.php`. `make conformance` (EA, local) and `make fixtures` (own, CI) print pass/fail per rule and update `docs/internals/rules.md`.
 - Write specs for the first batch of rules (Phase 5 runs spec → implement as a pipeline).
 
 **Phase 2 — Syntax layer**: lexer, parser, AST, visitor, printer, fuzz + corpus tests, benchmarks (`BenchmarkParse` on large vendor files). Exit: zero false syntax errors on corpus, round-trip exact.
 
 **Phase 3 — Engine, fixer, CLI, reporters**: dispatcher, Context, suppressions, config, fix loop, `analyse`/`fix`/`rules`/`explain`, reporters. Write our own analysis helpers covering the same needs as EA's utils (node-kind predicates, paren unwrapping, condition flattening, enclosing scope, structural equivalence, literal checks, test-context detection, "resolves to global builtin function" via names + builtin list). First end-to-end rule: `UnnecessarySemicolon`.
 
-**Phase 4 — LSP** (can run in parallel with Phase 5): `internal/lsp`.
+**Phase 4 — LSP** (can run in parallel with Phase 5): `internal/editor/lsp`.
 
 **Phase 5 — Wave A: ~110 syntax-only rules**, group by group (Code style, Control flow, Language level migration, Performance, Confusing constructs, Unused, Security, PHPUnit-syntactic…). Each rule = spec → Go file + own fixtures + fix test + EA conformance green. Parallelizable with the `spec-rule` / `implement-rule` skills (separate agents per step).
 
@@ -287,3 +267,8 @@ Execute Phase 0 (init repo, CLAUDE.md, skill, docs/internals/migration.md with t
   machine are not treated as a speed comparison. The LSP latency gate on
   Symfony Console's 60 KB Application file measures 11.90 ms p95, below
   its 30 ms budget.
+
+## Architecture overhaul
+
+The feature-root migration, explicit per-inspection catalogue and enforced
+dependency direction are recorded in [the architecture audit](architecture-audit.md).

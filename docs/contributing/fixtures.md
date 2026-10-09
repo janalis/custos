@@ -78,5 +78,5 @@ Rules that read a manifest instead of PHP (such as `SecurityAdvisories` on
 
 ```sh
 make fixtures RULE=OneTimeUseVariables
-make coverage            # lists uncovered blocks of internal/rules
+make coverage            # lists uncovered blocks of internal/inspection/rules
 ```

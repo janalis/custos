@@ -86,7 +86,7 @@ ordered `PHPUNIT70 < 71 < 72 < 73 < 74 < 75 < 80 < 81 < 82 < 83 < 84 < 85 <
   (These are the real PHPUnit ≥ 9.1 names. Upstream produces a different,
   non-existent name — see Divergences.)
 
-`internal/meta/rules.json` lists `hasFix: false` for this rule although the
+`internal/inspection/meta/rules.json` lists `hasFix: false` for this rule although the
 upstream inspection offers F1; treat the rule as fixable.
 
 ## Options

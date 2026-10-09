@@ -37,6 +37,7 @@ code compiles.
 
 | Target | What it does |
 |---|---|
+| `make architecture` | Check production dependencies and inspection catalogue completeness. |
 | `make verify` | **Definition of done**: lint, tests, own fixtures, 100 % coverage gates and the clean-room scan. CI runs it. |
 | `make build` | Build `bin/custos`. |
 | `make test` | `go test ./...` |
@@ -79,7 +80,7 @@ use; set a tool's variable empty to skip it offline (`make lint MDLINT=`).
 
 ## Ground rules
 
-- **Coverage is 100 %.** Every statement of `internal/rules` must be covered
+- **Coverage is 100 %.** Every statement of `internal/inspection/rules` must be covered
   by the rules' own fixtures and tests, and every statement of `cmd/`,
   `internal/` and `tools/` by the whole suite. Remove unreachable code rather
   than exempting it.

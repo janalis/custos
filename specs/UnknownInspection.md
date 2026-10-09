@@ -31,7 +31,7 @@ corrected or deleted.
   `explanation`, …) are ignored.
 - **D5** A relevant candidate is *unknown* if neither the candidate itself nor
   the candidate followed by `Inspection` is in the known-inspection set:
-  - every `legacyId` from `internal/meta/rules.json` (e.g.
+  - every `legacyId` from `internal/inspection/meta/rules.json` (e.g.
     `UnknownInspectionInspection`) and every custos rule ID;
   - a bundled list of JetBrains PhpStorm inspection short names (names of the
     IDE's own inspections, which users legitimately suppress). It must at least

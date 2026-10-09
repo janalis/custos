@@ -10,7 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"custos/internal/meta"
+	"custos/internal/diagnostic"
+	"custos/internal/inspection/meta"
 )
 
 // Everything below is an invented plugin layout with made-up rule names.
@@ -170,7 +171,7 @@ func TestRun(t *testing.T) {
 	var rules []meta.Rule
 	readJSON(t, filepath.Join(root, metaOut), &rules)
 	wantRules := []meta.Rule{
-		{ID: "Alpha", LegacyID: "AlphaInspection", Group: "Garden", Severity: meta.SeverityWarning, EnabledByDefault: true, HasFix: true, Options: []meta.Option{
+		{ID: "Alpha", LegacyID: "AlphaInspection", Group: "Garden", Severity: diagnostic.SeverityWarning, EnabledByDefault: true, HasFix: true, Options: []meta.Option{
 			{Name: "LOUD", Type: "bool", Default: true},
 			{Name: "LIMIT", Type: "int", Default: float64(5)},
 			{Name: "ODD", Type: "int"},
@@ -178,9 +179,9 @@ func TestRun(t *testing.T) {
 			{Name: "FLAVOUR", Type: "enum", Default: "PHPUNIT42"},
 			{Name: "WORDS", Type: "list"},
 		}},
-		{ID: "Beta", LegacyID: "BetaInspection", Group: "Shed", Severity: meta.SeverityError, HasFix: true},
-		{ID: "Delta", LegacyID: "DeltaInspection", Group: "Shed", Severity: meta.SeverityInfo, Experimental: true},
-		{ID: "Gamma", LegacyID: "GammaInspection", Group: "Garden", Severity: meta.SeverityInfo, EnabledByDefault: true},
+		{ID: "Beta", LegacyID: "BetaInspection", Group: "Shed", Severity: diagnostic.SeverityError, HasFix: true},
+		{ID: "Delta", LegacyID: "DeltaInspection", Group: "Shed", Severity: diagnostic.SeverityInfo, Experimental: true},
+		{ID: "Gamma", LegacyID: "GammaInspection", Group: "Garden", Severity: diagnostic.SeverityInfo, EnabledByDefault: true},
 	}
 	if !reflect.DeepEqual(rules, wantRules) {
 		t.Errorf("rules:\n%+v\nwant:\n%+v", rules, wantRules)
@@ -303,9 +304,9 @@ func TestAbsError(t *testing.T) {
 }
 
 func TestSeverity(t *testing.T) {
-	for level, want := range map[string]meta.Severity{
-		"ERROR": meta.SeverityError, "WARNING": meta.SeverityWarning,
-		"WEAK WARNING": meta.SeverityInfo, "INFO": meta.SeverityInfo, "INFORMATION": meta.SeverityInfo, "TYPO": meta.SeverityInfo,
+	for level, want := range map[string]diagnostic.Severity{
+		"ERROR": diagnostic.SeverityError, "WARNING": diagnostic.SeverityWarning,
+		"WEAK WARNING": diagnostic.SeverityInfo, "INFO": diagnostic.SeverityInfo, "INFORMATION": diagnostic.SeverityInfo, "TYPO": diagnostic.SeverityInfo,
 	} {
 		if got, err := severity(level); err != nil || got != want {
 			t.Errorf("severity(%q) = %q, %v", level, got, err)
