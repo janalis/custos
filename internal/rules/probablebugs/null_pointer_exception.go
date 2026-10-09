@@ -148,22 +148,11 @@ func (u *npeUnit) strategyChains() {
 }
 
 // chainBaseType is the return type of call x as seen by a chained `->`. The
-// null added by a nullsafe `?->` call does not count: PHP short-circuits the
-// rest of the chain, so only the callee's own declared null/void does.
+// null added by nullsafe short-circuiting does not count, even through
+// intervening ordinary accesses; only the evaluated result's null/void does.
 func (u *npeUnit) chainBaseType(x syntax.Expr) types.Type {
-	t := u.ctx.TypeOf(x)
-	mc, ok := x.(*syntax.MethodCall)
-	if !ok || !mc.NullSafe || !t.Has("null") {
-		return t
-	}
-	name := npeMemberName(mc.Name) // "" (no method) for a dynamic name
-	for _, cls := range u.ctx.TypeOf(mc.Var).Classes() {
-		m := u.ctx.Index().FindMethod(strings.TrimPrefix(cls, `\`), name, u.ctx.PHP)
-		if m == nil || types.FromDoc(m.Return, nil).HasAny("null", "void") || types.FromDoc(m.DocReturn, nil).HasAny("null", "void") {
-			return t
-		}
-	}
-	return t.Without("null")
+	t, _ := u.ctx.Types().ChainTypeOf(x)
+	return t
 }
 
 // npeNullTested reports whether call is used as a null test.

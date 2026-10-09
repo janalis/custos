@@ -23,6 +23,7 @@ type Env struct {
 	Index *index.Index // project index layered over the stubs
 	PHP   phpver.Version
 
+	chains map[syntax.Expr]nullsafeFact
 	cache  map[syntax.Expr]types.Type
 	scopes map[syntax.Node]*scopeVars
 	busy   map[syntax.Expr]bool
@@ -231,7 +232,7 @@ func (e *Env) TypeOf(x syntax.Expr) types.Type {
 		return types.Unknown // recursion (e.g. $a = $a + 1)
 	}
 	e.busy[x] = true
-	t := e.infer(x)
+	t := e.inferNullsafe(x)
 	delete(e.busy, x)
 	e.cache[x] = t
 	return t
@@ -281,7 +282,7 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 		}
 		return types.String
 	case *syntax.Paren:
-		return e.TypeOf(n.Expr)
+		return e.chainReceiver(n.Expr, false)
 	case *syntax.ConstFetch:
 		return e.constType(n)
 	case *syntax.Array:
@@ -339,7 +340,7 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.StaticCall:
 		return e.staticCallType(n)
 	case *syntax.PropertyFetch:
-		t := e.propertyType(e.TypeOf(n.Var), n.Name, false)
+		t := e.propertyType(e.chainReceiver(n.Var, n.NullSafe), n.Name, false)
 		if key := narrowKey(n); key != "" {
 			t = e.narrowExpr(t, n, key, syntax.EnclosingVariableScope(n))
 		}
@@ -408,6 +409,9 @@ func asVariable(x syntax.Expr) *syntax.Variable {
 // dimType is the type of element read n before narrowing.
 func (e *Env) dimType(n *syntax.ArrayDimFetch) types.Type {
 	ct := e.baseType(n.Var)
+	if fact, ok := e.chains[n.Var]; ok {
+		ct = fact.evaluated
+	}
 	if ct.IsUnknown() {
 		return types.Unknown
 	}
@@ -888,7 +892,7 @@ func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
 	if !ok {
 		return types.Unknown
 	}
-	recv := e.TypeOf(n.Var)
+	recv := e.chainReceiver(n.Var, n.NullSafe)
 	if recv.IsUnknown() {
 		return types.Unknown
 	}
@@ -905,9 +909,6 @@ func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
 		return types.Unknown
 	}
 	t := types.Union(ts...)
-	if n.NullSafe && recv.IsNullable() {
-		t = types.Union(t, types.Null)
-	}
 	return t
 }
 

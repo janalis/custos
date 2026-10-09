@@ -19,11 +19,14 @@ import (
 func (e *Env) noteDynamic(n syntax.Node, sv *scopeVars) {
 	switch n := n.(type) {
 	case *syntax.FuncCall:
-		nm, ok := n.Name.(*syntax.Name)
-		if !ok {
+		if isFirstClassCallable(n.Args) {
 			return
 		}
-		switch strings.ToLower(strings.TrimPrefix(nm.Value, `\`)) {
+		f := e.ResolveFunction(n)
+		if f == nil || !f.Builtin {
+			return
+		}
+		switch strings.ToLower(strings.TrimPrefix(f.FQN, `\`)) {
 		case "extract":
 		case "parse_str":
 			if len(n.Args.Args) != 1 {

@@ -88,6 +88,19 @@ func (r *TRules) TypeOf(x syntax.Expr) types.Type {
 	}
 	r.busy[x] = true
 	t := r.infer(x)
+	if !r.SpecOnly {
+		switch x.(type) {
+		case *syntax.MethodCall, *syntax.StaticCall:
+			r.Env.TypeOf(x)
+			if fact, ok := r.Env.chains[x]; ok {
+				if fact.halted {
+					t = types.Null
+				} else {
+					t = types.Union(t, types.Null)
+				}
+			}
+		}
+	}
 	delete(r.busy, x)
 	r.cache[x] = t
 	return t

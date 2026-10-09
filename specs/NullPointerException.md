@@ -58,8 +58,11 @@ Terminology:
   not `::`):
   - if `X` is itself a call (function call, method call or static method
     call — not `new`, not a parenthesised expression), infer `X`'s return
-    type (declared return type or `@return`, stubs for built-ins). Drop
-    unknown parts. If any part is `null` or `void`, and no *null-tested*
+    type (declared return type or `@return`, stubs for built-ins). Exclude
+    null introduced solely by short-circuiting an earlier nullsafe access in
+    this chain; keep null from the evaluated member's own result. A chain
+    that certainly short-circuits has no evaluated result to dereference.
+    Drop unknown parts. If any part is `null` or `void`, and no *null-tested*
     entry (below) has the same method/function name as `X` **and** is
     structurally identical to `X` (same text modulo whitespace) → report the
     `->` token of `X->m`.

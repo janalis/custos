@@ -951,6 +951,23 @@ rejected) is fixed; see the close-tag note above.
 
 ## Engine
 
+- **Semantic support follow-up (2026-10-09):** nullsafe property reads and
+  subsequent accesses in the same chain retain short-circuit null. Memoized
+  chain facts distinguish the evaluated member result from skipped evaluation;
+  arguments, computed names and offsets have independent chains, while an
+  assignment stores the ordinary nullable value. `Env.ChainTypeOf` exposes the
+  evaluated result for NullPointerException, so intervening ordinary calls do
+  not produce false positives, and genuine nullable member returns still do.
+  Native inference and the non-spec-only T-rules preserve the same chain
+  behavior. Nullable and unresolved conditional PHPDoc types use the existing
+  union operation to retain compatible intersections, shapes, generic arguments
+  and callable returns; conflicting or unknown members follow its normal rules.
+  Dynamic local writes resolve `extract` and one-argument `parse_str` through
+  the names resolver and symbol index: builtin aliases clobber locals, custom
+  namespaced functions and callable acquisition do not. The existing conservative
+  treatment of legacy one-argument `parse_str` remains unchanged. Engine tests
+  cover these behaviors; own UnnecessaryCasting and NullPointerException fixtures
+  cover the resulting diagnostic and fix behavior.
 - **PHP engine correctness follow-up (2026-10-09):** comparison and equality
   operators reject unparenthesized chains within their non-associative groups;
   explicitly grouped and mixed-precedence comparisons remain valid. Numeric

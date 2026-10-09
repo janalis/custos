@@ -101,12 +101,6 @@ func (p *docParser) union(text string, resolve Resolver, depth int) Type {
 	return t.withInter(unionInter(pts))
 }
 
-// plus returns a new slice holding a followed by extra.
-func plus(a []string, extra ...string) []string {
-	out := make([]string, 0, len(a)+len(extra))
-	return append(append(out, a...), extra...)
-}
-
 // part parses one union member: its atoms and array facts (shapes
 // `array{k: T, k2?: U}` / `list{T, U}`, `non-empty-*` arrays, the facts of
 // element types `array<K, array{...}>` / `array{...}[]`).
@@ -121,12 +115,12 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 	}
 	if s[0] == '?' {
 		in := p.part(s[1:], resolve, depth+1)
-		return Of(plus(in.atoms, "null")...).withInfo(in.arr).withGen(in.gen)
+		return Union(in, Null)
 	}
 	if s[0] == '(' && s[len(s)-1] == ')' && matchingClose(s) == len(s)-1 {
 		if a, b, ok := conditionalBranches(s[1 : len(s)-1]); ok {
 			ta, tb := p.union(a, resolve, depth+1), p.union(b, resolve, depth+1)
-			return ofAtoms(plus(ta.atoms, tb.atoms...))
+			return Union(ta, tb)
 		}
 		return p.union(s[1:len(s)-1], resolve, depth+1)
 	}

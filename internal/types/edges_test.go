@@ -10,11 +10,11 @@ import (
 
 func TestFromDocEdges(t *testing.T) {
 	cases := map[string]string{
-		"{a}|$x":                   "?",    // no member is a type
-		"int|":                     "int",  // empty member
-		"?":                        "null", // nullable of nothing
-		"{a}[]":                    "?",    // element of an unknown type
-		"(A ? B : C)":              "?",    // not a conditional type
+		"{a}|$x":                   "?",   // no member is a type
+		"int|":                     "int", // empty member
+		"?":                        "?",   // nullable of an unknown type
+		"{a}[]":                    "?",   // element of an unknown type
+		"(A ? B : C)":              "?",   // not a conditional type
 		"(T is int ? A)":           "?",
 		"(T is int ? : B)":         "?",
 		`Foo\1x`:                   "?",     // segment starting with a digit
