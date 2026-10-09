@@ -182,7 +182,13 @@ func asciiEqualFold(b []byte, s string) bool {
 	return true
 }
 
-func (l *lexer) errorf(msg string) { l.errs = append(l.errs, LexError{Pos: uint32(l.pos), Msg: msg}) }
+func (l *lexer) errorf(msg string) { l.errorAt(l.pos, msg) }
+
+func (l *lexer) errorAt(pos int, msg string) {
+	if len(l.errs) <= MaxErrors {
+		l.errs = append(l.errs, LexError{Pos: uint32(pos), Msg: msg})
+	}
+}
 
 func isLabelStart(c byte) bool {
 	return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0x80
@@ -618,21 +624,24 @@ func (l *lexer) number() TokenKind {
 	c := l.src[l.pos]
 	if c == '0' && (l.peek(1) == 'x' || l.peek(1) == 'X') && isHex(l.peek(2)) {
 		l.pos += 2
-		for l.pos < len(l.src) && (isHex(l.src[l.pos]) || l.src[l.pos] == '_') {
+		for l.pos < len(l.src) && (isHex(l.src[l.pos]) ||
+			(l.src[l.pos] == '_' && l.ver.AtLeast(phpver.PHP74) && isHex(l.peek(1)))) {
 			l.pos++
 		}
 		return l.intOrFloat(start, 16)
 	}
 	if c == '0' && (l.peek(1) == 'b' || l.peek(1) == 'B') && (l.peek(2) == '0' || l.peek(2) == '1') {
 		l.pos += 2
-		for l.pos < len(l.src) && (l.src[l.pos] == '0' || l.src[l.pos] == '1' || l.src[l.pos] == '_') {
+		for l.pos < len(l.src) && (l.src[l.pos] == '0' || l.src[l.pos] == '1' ||
+			(l.src[l.pos] == '_' && l.ver.AtLeast(phpver.PHP74) && (l.peek(1) == '0' || l.peek(1) == '1'))) {
 			l.pos++
 		}
 		return l.intOrFloat(start, 2)
 	}
-	if c == '0' && (l.peek(1) == 'o' || l.peek(1) == 'O') && l.peek(2) >= '0' && l.peek(2) <= '7' {
+	if c == '0' && (l.peek(1) == 'o' || l.peek(1) == 'O') && l.ver.AtLeast(phpver.PHP81) && l.peek(2) >= '0' && l.peek(2) <= '7' {
 		l.pos += 2
-		for l.pos < len(l.src) && ((l.src[l.pos] >= '0' && l.src[l.pos] <= '7') || l.src[l.pos] == '_') {
+		for l.pos < len(l.src) && ((l.src[l.pos] >= '0' && l.src[l.pos] <= '7') ||
+			(l.src[l.pos] == '_' && l.peek(1) >= '0' && l.peek(1) <= '7')) {
 			l.pos++
 		}
 		return l.intOrFloat(start, 8)
@@ -660,12 +669,21 @@ func (l *lexer) number() TokenKind {
 	base := 10
 	if c == '0' && l.pos-start > 1 {
 		base = 8
+		if l.ver.AtLeast(phpver.PHP70) {
+			for _, digit := range l.src[start:l.pos] {
+				if digit == '8' || digit == '9' {
+					l.errorAt(start, "invalid octal literal")
+					break
+				}
+			}
+		}
 	}
 	return l.intOrFloat(start, base)
 }
 
 func (l *lexer) digits() {
-	for l.pos < len(l.src) && (isDigit(l.src[l.pos]) || (l.src[l.pos] == '_' && isDigit(l.peek(1)))) {
+	for l.pos < len(l.src) && (isDigit(l.src[l.pos]) ||
+		(l.src[l.pos] == '_' && l.ver.AtLeast(phpver.PHP74) && isDigit(l.peek(1)))) {
 		l.pos++
 	}
 }

@@ -91,6 +91,13 @@ func (p *parser) parseBinaryRHS(left Expr, min int, start uint32) Expr {
 		if !ok || prec < min {
 			return left
 		}
+		if prec == precEquality || prec == precCompare {
+			if binary, ok := left.(*Binary); ok {
+				if previous, _, _ := p.binPrec(binary.Op.Kind); previous == prec {
+					p.errorAt(op, "comparison operators require parentheses when chained")
+				}
+			}
+		}
 		p.advance()
 		switch op.Kind {
 		case TQuestion:

@@ -250,15 +250,15 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	switch n := x.(type) {
 	case *syntax.FuncCall:
 		if isFirstClassCallable(n.Args) {
-			return types.Of(`\Closure`)
+			return e.firstClassCallableType(n)
 		}
 	case *syntax.MethodCall:
 		if isFirstClassCallable(n.Args) {
-			return types.Of(`\Closure`)
+			return e.firstClassCallableType(n)
 		}
 	case *syntax.StaticCall:
 		if isFirstClassCallable(n.Args) {
-			return types.Of(`\Closure`)
+			return e.firstClassCallableType(n)
 		}
 	}
 	switch n := x.(type) {
@@ -425,7 +425,7 @@ func (e *Env) dimType(n *syntax.ArrayDimFetch) types.Type {
 	if ct.Without("null", "false").OnlyOf("string") {
 		return types.String
 	}
-	return types.Unknown
+	return e.arrayAccessDimType(n, ct)
 }
 
 func (e *Env) constType(n *syntax.ConstFetch) types.Type {

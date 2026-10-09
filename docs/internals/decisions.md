@@ -951,6 +951,21 @@ rejected) is fixed; see the close-tag note above.
 
 ## Engine
 
+- **PHP engine correctness follow-up (2026-10-09):** comparison and equality
+  operators reject unparenthesized chains within their non-associative groups;
+  explicitly grouped and mixed-precedence comparisons remain valid. Numeric
+  scanning checks separator placement and its PHP 7.4 introduction, explicit
+  octal prefixes from PHP 8.1, and invalid legacy octal digits from PHP 7.0.
+  Lexical errors stay bounded, with byte offsets and following statements
+  preserved. `ParseBest` retains its existing newest-grammar fallback.
+  Ordinary first-class function, method and invokable-value callables retain
+  known return contracts on their Closure types. Acquisition does not apply
+  argument-sensitive builtin overrides or bind templates from future arguments.
+  ArrayAccess reads use inherited `offsetGet` return contracts, including
+  generic receiver bindings and argument-dependent method returns. Unresolved
+  receiver alternatives remain unknown, and ordinary arrays and strings keep
+  their existing offset behavior. Both inference paths preserve the source AST
+  and native/documented type precedence.
 - **PHP support pass (2026-10-09):** PHP 8.5 function-style clone nodes
   retain their complete argument list, including names, unpacking and
   callable placeholders. Compatibility operand fields point into that

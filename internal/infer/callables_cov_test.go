@@ -106,7 +106,7 @@ function run($r, callable $c, iterable $it, object $o, array $a, E $e, mixed $m)
 		"resource": "float", "callable": "float|int", "iterable": "float", "object": "float", "array": "float",
 		"never": "float",
 		"float": "float", "list": "float", "mixedArg": "float|int", "litConst": "int", "litInt": "float", "litArray": "float",
-		"enumCase": "int", "enumOther": "float|int", "variadic": "float|int", "fcc": `\Closure`,
+		"enumCase": "int", "enumOther": "float|int", "variadic": "float|int", "fcc": `\Closure(): (float|int)`,
 	})
 	// A conditional that does not parse (a stale or hand-written index) is
 	// ignored.
