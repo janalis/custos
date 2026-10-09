@@ -29,7 +29,7 @@ final class Box {
     }
 }
 `, map[string]string{
-		"f": `\App\Foo`, "g": "int", "h": `\App\Foo|null`, "v": "null", "gen": "?unknown",
+		"f": `\App\Foo`, "g": "int", "h": `\App\Foo|null`, "v": "null", "gen": `\Generator`,
 		"iife": "float", "cb": "string", "maybe": "?unknown", "prop": `\App\Foo`, "invoke": "float",
 		"cuf": `\App\Foo`, "cufa": "int", "map": `\App\Foo[]`, "mapstr": "string[]", "mapint": "int[]",
 		"mapcb": "string[]", "mapnull": "array", "mapunknown": "array", "nested": "int", "closure": `\Closure`,

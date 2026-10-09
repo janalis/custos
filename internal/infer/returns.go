@@ -135,9 +135,10 @@ func AnnotateReturns(f *syntax.File, fs *index.FileSymbols, base *index.Index, p
 // span in this file from its `return` statements (nested closures/classes
 // excluded): the union of the returned expressions' types, plus null for a
 // bare `return;` or when the end of the body is reachable. Unknown for
-// generators, bodies that never return normally, when any returned
-// expression's type is unknown, on recursion (the body is being inferred)
-// and beyond maxBodyDepth nested inferences. Results are cached.
+// bodies that never return normally, when any returned expression's type
+// is unknown, on recursion (the body is being inferred) and beyond
+// maxBodyDepth nested inferences. Generators carry their yielded key/value
+// types instead of their completion return type. Results are cached.
 func (e *Env) bodyReturn(span syntax.Span) types.Type {
 	if t, ok := e.bodies[span]; ok {
 		return t
@@ -165,6 +166,9 @@ func (e *Env) bodyReturn(span syntax.Span) types.Type {
 }
 
 func (e *Env) inferBody(body *syntax.Block) types.Type {
+	if t, ok := e.generatorType(body); ok {
+		return t
+	}
 	var ts []types.Type
 	ok := true
 	syntax.Inspect(body, func(n syntax.Node) bool {
@@ -174,8 +178,6 @@ func (e *Env) inferBody(body *syntax.Block) types.Type {
 		switch n := n.(type) {
 		case *syntax.Function, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
 			return false
-		case *syntax.Yield, *syntax.YieldFrom:
-			ok = false
 		case *syntax.Return:
 			if n.Expr == nil {
 				ts = append(ts, types.Null)

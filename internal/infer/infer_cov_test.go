@@ -87,7 +87,7 @@ function f(string $s, $u) {
     t('pipe', $s |> strlen(...));
     t('void', (void) $u);
 }
-`, map[string]string{"pipe": "?unknown", "void": "void"})
+`, map[string]string{"pipe": "int", "void": "void"})
 	checkVer(t, phpver.PHP74, false, `<?php
 function f($u) { t('unset', (unset) $u); }
 `, map[string]string{"unset": "null"})
@@ -221,7 +221,7 @@ function f($u, P $p, iterable $raw, $it, string $s) {
 }
 `, map[string]string{
 		"assertunknown": "?unknown", "assertnone": "?unknown", "first": "int", "second": "mixed", "traitself": "?unknown",
-		"bare": "int|null", "abstract": "?unknown", "rec": "?unknown", "deep": "?unknown", "closure": "int", "gen": "?unknown",
+		"bare": "int|null", "abstract": "?unknown", "rec": "?unknown", "deep": "?unknown", "closure": "int", "gen": `\Generator<int, int>`,
 		"iterv": `\Pair`, "m": "?unknown", "strdestruct": "?unknown",
 	})
 	// Without stubs no Traversable class is known: iterating an object is unknown.

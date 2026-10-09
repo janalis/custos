@@ -1829,6 +1829,20 @@ rejected) is fixed; see the close-tag note above.
     results or `null`; true positive).
   - *Cost:* corpus A vendor `analyse --all` unchanged (medians 1.13 s real,
     6.47 s / 6.50 s user); infer benchmarks unchanged.
+- **Pipes and generators (2026-10-09):** pipe inference invokes first-class
+  function and method callables with the left operand, sharing ordinary call
+  resolution, argument-sensitive builtin returns and template binding. Detached
+  shallow call copies preserve source context without modifying the AST.
+  Other callbacks use existing callable return inference; untyped closure
+  parameters are not inferred from pipe inputs.
+  Unannotated generator functions, eligible methods, closures and arrow
+  functions carry inferred key/value arguments on `Generator`, including
+  delegated arrays and iterables. Nested declarations are excluded; an
+  unreachable yield still identifies a generator. Empty array delegation adds
+  no values. Unknown components become `mixed` without losing generator
+  identity or independently known components. Existing declaration precedence,
+  cross-file annotation and dispatch limits apply. Completion returns and
+  values sent into a generator remain outside this inference.
 - **T-rules typer** (`infer/trules.go`): shared by UnnecessaryCasting and
   CallableParameterUseCaseInTypeContext; `SpecOnly` mode follows the spec
   text literally.

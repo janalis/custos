@@ -194,3 +194,29 @@ func BenchmarkTypeOfConditions(b *testing.B) {
 		})
 	}
 }
+
+// BenchmarkTypeOfPipesAndGenerators includes parsing and index-time annotations.
+func BenchmarkTypeOfPipesAndGenerators(b *testing.B) {
+	var sb strings.Builder
+	sb.WriteString("<?php\nfunction source() { yield 'x' => 1; yield from [2, 3]; }\n")
+	for i := 0; i < 200; i++ {
+		fmt.Fprintf(&sb, "function f%d() { $n = 'abc' |> strlen(...) |> (fn(int $n): int => $n + 1); foreach (source() as $k => $v) { useValue($v); } return $n; }\n", i)
+	}
+	src := []byte(sb.String())
+	opt := syntax.Options{Version: phpver.PHP85}
+	b.ReportAllocs()
+	for b.Loop() {
+		f := syntax.Parse("t.php", src, opt)
+		ix := index.New(stubs.Index())
+		fs := index.Extract(f)
+		infer.AnnotateReturns(f, fs, stubs.Index(), phpver.PHP85)
+		ix.Add(fs)
+		env := infer.NewEnv(f, names.New(f), ix, phpver.PHP85)
+		syntax.InspectFile(f, func(n syntax.Node) bool {
+			if x, ok := n.(syntax.Expr); ok {
+				env.TypeOf(x)
+			}
+			return true
+		})
+	}
+}

@@ -21,7 +21,7 @@ func (e *Env) closureType(n syntax.Expr) types.Type {
 
 // closureReturn is the type a call to closure or arrow function n returns:
 // its declared return type (refined by an `@return` doc), else the type
-// inferred from its body (unknown for generators, on recursion and beyond
+// inferred from its body (unknown on recursion and beyond
 // maxBodyDepth nested inferences). `void` reads as null (the call's value).
 func (e *Env) closureReturn(n syntax.Expr) types.Type {
 	var retNode syntax.Expr
@@ -30,7 +30,12 @@ func (e *Env) closureReturn(n syntax.Expr) types.Type {
 	case *syntax.Closure:
 		retNode, body = c.ReturnType, func() types.Type { return e.inferBody(c.Body) }
 	case *syntax.ArrowFunction:
-		retNode, body = c.ReturnType, func() types.Type { return e.TypeOf(c.Expr) }
+		retNode, body = c.ReturnType, func() types.Type {
+			if t, ok := e.generatorType(c.Expr); ok {
+				return t
+			}
+			return e.TypeOf(c.Expr)
+		}
 	}
 	at := n.Span().Start
 	t := types.FromNode(retNode, e.resolver(at))

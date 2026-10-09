@@ -525,6 +525,8 @@ func (e *Env) numeric(a, b syntax.Expr) types.Type {
 
 func (e *Env) binaryType(n *syntax.Binary) types.Type {
 	switch n.Op.Kind {
+	case syntax.TPipe:
+		return e.pipeType(n.Left, n.Right)
 	case syntax.TDot:
 		return types.String
 	case syntax.TPlus:
@@ -543,14 +545,11 @@ func (e *Env) binaryType(n *syntax.Binary) types.Type {
 		return e.bitwise(n.Left, n.Right)
 	case syntax.TMod, syntax.TSl, syntax.TSr, syntax.TSpaceship:
 		return types.Int
-	case syntax.TIsEqual, syntax.TIsNotEqual, syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TLess,
-		syntax.TIsSmallerOrEqual, syntax.TGreater, syntax.TIsGreaterOrEqual, syntax.TBooleanAnd,
-		syntax.TBooleanOr, syntax.TAnd, syntax.TOr, syntax.TXor:
-		return types.Bool
 	case syntax.TCoalesce:
 		return types.Union(e.TypeOf(n.Left).Without("null"), e.TypeOf(n.Right))
+	default: // All remaining parser binary operators are comparisons or boolean operators.
+		return types.Bool
 	}
-	return types.Unknown
 }
 
 func (e *Env) compoundType(n *syntax.Assign) types.Type {

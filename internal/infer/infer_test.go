@@ -89,7 +89,7 @@ a(); b(); c(); d(1); g();
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
 	env := infer.NewEnv(f, names.New(f), ix, phpver.PHP84)
-	want := map[string]string{"a": "int|null", "b": "int|string", "c": "?unknown", "d": "?unknown", "g": "?unknown"}
+	want := map[string]string{"a": "int|null", "b": "int|string", "c": "?unknown", "d": "?unknown", "g": `\Generator`}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {
 			name := c.Name.(*syntax.Name).Value
@@ -740,7 +740,7 @@ function calls() {
 }
 `, map[string]string{
 		"plain": "int", "maybe": "null|string", "viaOther": "int", "rec": "?unknown",
-		"gen": "?unknown", "thrower": "?unknown", "unknownRet": "?unknown", "documented": "string",
+		"gen": `\Generator`, "thrower": "?unknown", "unknownRet": "?unknown", "documented": "string",
 		"cycle": "?unknown", "leaf": "true", "trait": "?unknown", "strlen": "int",
 		"virtual": "?unknown", "private": "string", "final": "float",
 		"self": `\Base`, "static": "?unknown", "named": `\Base`,
