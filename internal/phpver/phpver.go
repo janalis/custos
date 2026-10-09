@@ -56,7 +56,7 @@ func Parse(s string) (Version, error) {
 		return 0, fmt.Errorf("phpver: invalid version %q", s)
 	}
 	v := Version(maj*100 + min)
-	if v < Min || v > Max {
+	if v < Min || v > Max || (maj == 5 && min > 6) || maj == 6 || (maj == 7 && min > 4) {
 		return 0, fmt.Errorf("phpver: unsupported version %s (supported %s–%s)", v, Min, Max)
 	}
 	return v, nil

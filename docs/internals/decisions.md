@@ -1925,6 +1925,32 @@ rejected) is fixed; see the close-tag note above.
     results or `null`; true positive).
   - *Cost:* corpus A vendor `analyse --all` unchanged (medians 1.13 s real,
     6.47 s / 6.50 s user); infer benchmarks unchanged.
+- **PHP correctness wave (2026-10-09):** three parallel owners cover
+  grammar/version validation, local mutation/capture inference, and indexed
+  property semantics plus PropertyInitializationFlaws safety.
+  - Complex string interpolation accepts PHP's variable grammar rather than
+    unrestricted expressions. Destructuring supports plain assignment, not
+    increment/decrement or compound assignment; reference assignments require
+    variable-grammar operands. Permissive parsing retains legacy references
+    to newly constructed objects. PHP version configuration rejects missing
+    release families (5.7+, 6.x and 7.5+ within the previous numeric range).
+  - By-value closures and arrows snapshot reaching definitions and narrowing
+    in their enclosing scope at construction, including dynamic-write
+    invalidation and array-element writes. Reference captures remain unknown
+    until assigned locally. Whole-variable unset contributes null; increment
+    and decrement record the stored value separately from prefix/postfix
+    expression results. Incrementing null stores int; decrementing null keeps
+    null. An unconstrained int may overflow to float, and an unconstrained
+    string may remain string or become int/float. Invalid or unknown operands
+    remain unknown; native-only analysis keeps its existing PHPDoc boundary.
+  - Indexed properties retain explicit asymmetric setter visibility separately
+    from read visibility. Effective write visibility is computed for the
+    target version, including readonly's change from private to protected
+    writes in PHP 8.4. Existing serialized stubs without setter metadata keep
+    their visibility. Property finality includes implicit private(set)
+    finality; write effects identify hooks, abstract and virtual properties.
+    Constructor redundant-store and overwritten-default checks exclude hooked
+    properties: writing the same value can still execute a setter.
 - **Pipes and generators (2026-10-09):** pipe inference invokes first-class
   function and method callables with the left operand, sharing ordinary call
   resolution, argument-sensitive builtin returns and template binding. Detached

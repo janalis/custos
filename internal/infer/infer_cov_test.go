@@ -72,7 +72,7 @@ function f(int $i, float $fl, string $s, $u, array $a) {
 		"constf": "float", "constb": "bool", "constn": "null", "consts": "string", "consth": "int",
 		"arrcast": "array", "boolcast": "bool", "objcast": "object",
 		"tilde": "int", "tildes": "string", "tildeu": "?unknown",
-		"at": "int", "neg": "float", "negs": "?unknown",
+		"at": "float|int", "neg": "float", "negs": "?unknown",
 		"addf": "float", "arrplus": "array", "divs": "?unknown",
 		"mod": "int", "and": "int", "ands": "string", "andu": "?unknown", "xor": "int",
 		"coaleq": "?unknown", "modeq": "int", "diveq": "float|int", "divequ": "?unknown",

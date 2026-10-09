@@ -247,6 +247,15 @@ func isAssignable(e Expr) bool {
 	return false
 }
 
+// isWritable excludes destructuring, which supports only plain assignment.
+func isWritable(e Expr) bool {
+	switch e.(type) {
+	case *Variable, *ArrayDimFetch, *PropertyFetch, *StaticPropertyFetch:
+		return true
+	}
+	return false
+}
+
 // isIncrementVariable follows the variable grammar, including calls that PHP
 // rejects later at compile time. Destructuring and bare parentheses are not
 // variables, even though they may be usable in other write contexts.
@@ -310,6 +319,9 @@ func (p *parser) parsePostfix(e Expr, start uint32) Expr {
 			if !isAssignable(e) {
 				return e
 			}
+			if !isWritable(e) {
+				p.errorAt(t, "increment and decrement require a variable")
+			}
 			p.advance()
 			e = fin(p, &IncDec{Var: e, Op: p.ref(t)}, start)
 		case TEqual:
@@ -323,13 +335,21 @@ func (p *parser) parsePostfix(e Expr, start uint32) Expr {
 				// operators after it apply to the whole assignment —
 				// `$a = &f() && $b` is `($a = &f()) && $b`.
 				n.ByRef = true
+				operand := p.tok()
 				n.Value = p.parseUnary()
+				_, legacyNew := n.Value.(*New)
+				if !isIncrementVariable(n.Value) && !(legacyNew && (p.ver.Below(phpver.PHP70) || p.permissive)) {
+					p.errorAt(operand, "reference assignment requires a variable")
+				}
 				return fin(p, n, start)
 			}
 			n.Value = p.parseExpr(precAssign)
 			return fin(p, n, start)
 		default:
 			if t.Kind.IsAssignOp() && isAssignable(e) {
+				if !isWritable(e) {
+					p.errorAt(t, "compound assignment requires a variable")
+				}
 				p.advance()
 				n := put(&p.slabs.sAssign, Assign{Var: e, Op: p.ref(t), Value: p.parseExpr(precAssign)})
 				return fin(p, n, start)
@@ -814,7 +834,11 @@ func (p *parser) parseInterpolated(end TokenKind, heredoc, backtick bool) Expr {
 			n.Parts = append(n.Parts, p.parseEncapsVar())
 		case TCurlyOpen:
 			p.advance()
-			n.Parts = append(n.Parts, p.parseExpr(precLowest))
+			part := p.parseExpr(precLowest)
+			if !isIncrementVariable(part) {
+				p.errorAt(t, "string interpolation requires a variable")
+			}
+			n.Parts = append(n.Parts, part)
 			p.expect(TRBrace)
 		case TDollarOpenCurlyBraces:
 			ds := t.Start

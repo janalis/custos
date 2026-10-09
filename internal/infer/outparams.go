@@ -123,6 +123,9 @@ func (e *Env) collectOutArgs(call syntax.Expr, sv *scopeVars) {
 		}
 		if !killSet {
 			kill, killSet = unconditionalBlock(call), true
+			if arrow := e.arrowDefinitionSpan(call); arrow.Len() > 0 {
+				kill = arrow
+			}
 		}
 		sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: call.Span().Start, end: call.Span().End, kill: kill, typ: typ})
 	}

@@ -109,6 +109,7 @@ func TestAnalyseOptions(t *testing.T) {
 		{"file argument", []string{"--rule", "UnnecessarySemicolon", file}, 0, "a.php:2:"},
 		{"php", []string{"--php", "7.4", "--stats", "--rule", "UnnecessarySemicolon", dir}, 0, "PHP 7.4 (flag)"},
 		{"bad php", []string{"--php", "nine", dir}, 2, "invalid version"},
+		{"nonexistent php", []string{"--php", "6.0", dir}, 2, "unsupported version"},
 		{"regular", []string{"--comparison-style", "regular", "--rule", "UnnecessarySemicolon", dir}, 0, "1 file(s) analysed"},
 		{"yoda", []string{"--comparison-style", "yoda", "--rule", "UnnecessarySemicolon", dir}, 0, "1 file(s) analysed"},
 		{"bad style", []string{"--comparison-style", "sideways", dir}, 2, "--comparison-style must be"},

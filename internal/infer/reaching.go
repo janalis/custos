@@ -80,7 +80,7 @@ func (e *Env) reaching(defs []varDef, use, scope syntax.Node) (fwd, back []varDe
 			}
 		}
 	}
-	fwd = dropDominated(fwd, use, scope)
+	fwd = e.dropDominated(fwd, use, scope)
 	fwd = dropOtherCases(fwd, use, scope)
 	fwd = dropExclusive(fwd, use, scope)
 	fwd, via, loops := e.dropExited(fwd, use, scope, false)
@@ -135,13 +135,12 @@ func (w *elemWrite) dim() syntax.Expr {
 // (back edge). back flags the latter.
 func (e *Env) reachingWrites(v *syntax.Variable) (ws []*elemWrite, back []bool) {
 	scope := syntax.EnclosingVariableScope(v)
+	return e.reachingWritesAt(v.Name, v, scope)
+}
+
+func (e *Env) reachingWritesAt(name string, use, scope syntax.Node) (ws []*elemWrite, back []bool) {
 	sv := e.scopeVars(scope)
-	if _, ok := scope.(*syntax.ArrowFunction); ok && len(sv.defs[v.Name]) == 0 {
-		// Arrow functions capture the enclosing scope by value.
-		scope = syntax.EnclosingVariableScope(scope)
-		sv = e.scopeVars(scope)
-	}
-	defs := sv.elemDefs(v.Name)
+	defs := sv.elemDefs(name)
 	if defs == nil {
 		return nil, nil
 	}
@@ -149,7 +148,7 @@ func (e *Env) reachingWrites(v *syntax.Variable) (ws []*elemWrite, back []bool) 
 		// Too many to walk per read (see maxVarDefs): one unknown write.
 		return []*elemWrite{{}}, []bool{false}
 	}
-	fwd, bk, _ := e.reaching(defs, v, scope)
+	fwd, bk, _ := e.reaching(defs, use, scope)
 	for _, d := range fwd {
 		if d.w != nil {
 			ws = append(ws, d.w)
@@ -191,25 +190,20 @@ func (sv *scopeVars) elemDefs(name string) []varDef {
 // `$v[k] = x;` statement after every definition reaching v, directly in a
 // block enclosing v, with no mutation of the variable (assignment,
 // reference, by-reference argument) in between.
-func (e *Env) writeDominates(v *syntax.Variable) bool {
-	scope := syntax.EnclosingVariableScope(v)
+func (e *Env) writeDominatesAt(name string, use, scope syntax.Node) bool {
 	sv := e.scopeVars(scope)
-	if _, ok := scope.(*syntax.ArrowFunction); ok && len(sv.defs[v.Name]) == 0 {
-		scope = syntax.EnclosingVariableScope(scope)
-		sv = e.scopeVars(scope)
-	}
-	defs := sv.elemDefs(v.Name)
+	defs := sv.elemDefs(name)
 	if len(defs) > maxVarDefs {
 		return false
 	}
-	fwd, _, _ := e.reaching(defs, v, scope)
+	fwd, _, _ := e.reaching(defs, use, scope)
 	last := uint32(0)
 	for _, d := range fwd {
 		if d.w == nil {
 			last = max(last, d.pos, d.end)
 		}
 	}
-	at := v.Span().Start
+	at := use.Span().Start
 	for _, d := range fwd {
 		if d.w == nil || d.w.a == nil || d.pos < last {
 			continue
@@ -222,7 +216,7 @@ func (e *Env) writeDominates(v *syntax.Variable) bool {
 		if !ok || at < blk.Span().Start || at >= blk.Span().End {
 			continue
 		}
-		if !e.nonEmptyBroken(scope, v.Name, d.w.a.Span().End, v) {
+		if !e.nonEmptyBroken(scope, name, d.w.a.Span().End, use) {
 			return true
 		}
 	}
@@ -640,7 +634,7 @@ func (e *Env) docFits(d varDef, fwd []varDef) bool {
 // whose body holds use) outside any conditional part of it (`preg_match(…,
 // $m) && $m[1]`, `while ($row = f()) { … $row … }`) hides the definitions
 // made before that condition.
-func dropDominated(fwd []varDef, use, scope syntax.Node) []varDef {
+func (e *Env) dropDominated(fwd []varDef, use, scope syntax.Node) []varDef {
 	if len(fwd) < 2 {
 		return fwd
 	}
@@ -674,7 +668,7 @@ func dropDominated(fwd []varDef, use, scope syntax.Node) []varDef {
 		}
 		for i := len(fwd) - 1; i > 0; i-- {
 			d := fwd[i]
-			if d.w == nil && !d.doc && d.pos >= sp.Start && d.pos < sp.End && !condPart(cond, d.pos, known) {
+			if d.w == nil && !d.doc && d.pos >= sp.Start && d.pos < sp.End && !e.condPart(cond, d.pos, known) {
 				return fwd[i:]
 			}
 		}
@@ -687,7 +681,7 @@ func dropDominated(fwd []varDef, use, scope syntax.Node) []varDef {
 // 0 unknown): when x is true all operands of its && run, when false all
 // of its ||; a ?? right side, a ternary branch, a match arm or a nested
 // function may not run.
-func condPart(x syntax.Expr, p uint32, k int) bool {
+func (e *Env) condPart(x syntax.Expr, p uint32, k int) bool {
 	in := func(n syntax.Node) bool {
 		sp := n.Span()
 		return p >= sp.Start && p < sp.End
@@ -697,24 +691,28 @@ func condPart(x syntax.Expr, p uint32, k int) bool {
 		switch n.Op.Kind {
 		case syntax.TBooleanAnd, syntax.TAnd:
 			if in(n.Left) {
-				return condPart(n.Left, p, max(k, 0))
+				return e.condPart(n.Left, p, max(k, 0))
 			}
-			return k != 1 || condPart(n.Right, p, 1)
+			return k != 1 || e.condPart(n.Right, p, 1)
 		case syntax.TBooleanOr, syntax.TOr:
 			if in(n.Left) {
-				return condPart(n.Left, p, min(k, 0))
+				return e.condPart(n.Left, p, min(k, 0))
 			}
-			return k != -1 || condPart(n.Right, p, -1)
+			return k != -1 || e.condPart(n.Right, p, -1)
 		}
 	case *syntax.Unary:
 		if n.Op.Kind == syntax.TExclaim {
-			return condPart(n.Expr, p, -k)
+			return e.condPart(n.Expr, p, -k)
 		}
 	}
 	// Elsewhere: any conditional construct around p.
 	found := false
 	syntax.Inspect(x, func(n syntax.Node) bool {
 		if found || !in(n) {
+			return false
+		}
+		if e.skippedExpressionAt(n, p) {
+			found = true
 			return false
 		}
 		switch n := n.(type) {

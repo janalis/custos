@@ -29,7 +29,7 @@ optional.
 
 | Key | Meaning |
 |---|---|
-| `php` | Target PHP version (`"5.3"` to `"8.5"`). Rules that depend on the language level use it. |
+| `php` | Target PHP version: 5.3–5.6, 7.0–7.4, or 8.0–8.5. Rules that depend on the language level use it. |
 | `comparisonStyle` | `"regular"` (`$x === null`, default) or `"yoda"` (`null === $x`): the operand order that comparison rules expect and that fixes write. |
 | `shortOpenTag` | Treat `<?` as an opening tag, as with PHP's `short_open_tag` setting. Default `false`. |
 | `paths` | What `custos analyse` and `custos fix` check when no path is given. Relative to the root; must stay inside it. |

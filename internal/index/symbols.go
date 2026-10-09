@@ -157,24 +157,53 @@ type Property struct {
 	Class      string     `json:"-"`
 	TypeClass  string     `json:"-"` // effective trait-import owner; lookup copies only
 	Visibility Visibility `json:"vis,omitempty"`
-	Static     bool       `json:"static,omitempty"`
-	Readonly   bool       `json:"ro,omitempty"`
-	Type       string     `json:"t,omitempty"`
-	DocType    string     `json:"d,omitempty"`
-	HasDefault bool       `json:"hasDef,omitempty"`
-	Default    string     `json:"def,omitempty"`
-	Promoted   bool       `json:"promoted,omitempty"`
-	Magic      bool       `json:"magic,omitempty"` // @property doc tag
+	// SetVisibility is the explicit asymmetric write visibility; nil means
+	// the declaration uses its read visibility (subject to readonly rules).
+	SetVisibility *Visibility `json:"setVis,omitempty"`
+	// Final includes the implicit finality of private(set) declarations.
+	Final      bool   `json:"final,omitempty"`
+	Static     bool   `json:"static,omitempty"`
+	Readonly   bool   `json:"ro,omitempty"`
+	Type       string `json:"t,omitempty"`
+	DocType    string `json:"d,omitempty"`
+	HasDefault bool   `json:"hasDef,omitempty"`
+	Default    string `json:"def,omitempty"`
+	Promoted   bool   `json:"promoted,omitempty"`
+	Magic      bool   `json:"magic,omitempty"` // @property doc tag
 	// ReadsRunCode marks a declaration whose reads may run code: a `get`
 	// hook, a virtual property or an abstract (hook-only) one (PHP 8.4).
 	ReadsRunCode bool `json:"rcode,omitempty"`
-	Hooked       bool `json:"hooked,omitempty"`     // declares property hooks (PHP 8.4)
-	Attributed   bool `json:"attributed,omitempty"` // carries a PHP attribute
+	// WritesRunCode marks writes that may invoke a set hook, or a virtual
+	// or abstract property whose backing storage cannot be assumed.
+	WritesRunCode bool `json:"wcode,omitempty"`
+	Hooked        bool `json:"hooked,omitempty"`     // declares property hooks (PHP 8.4)
+	Attributed    bool `json:"attributed,omitempty"` // carries a PHP attribute
 	// Inferred is the type derived at index time from the values the class
 	// assigns to an untyped private property (see infer.AnnotateReturns).
 	Inferred string      `json:"iret,omitempty"`
 	Builtin  bool        `json:"-"` // a stub declaration (see Function.Builtin)
 	Span     syntax.Span `json:"-"`
+}
+
+// WriteVisibility returns the effective write visibility at ver. Readonly
+// properties implicitly use private(set) before PHP 8.4 and protected(set)
+// from PHP 8.4, unless an explicit modifier overrides it. A zero version
+// uses current PHP semantics. Older stub JSON has no SetVisibility field.
+func (p *Property) WriteVisibility(ver phpver.Version) Visibility {
+	if p.SetVisibility != nil {
+		return *p.SetVisibility
+	}
+	vis := p.Visibility
+	if p.Readonly {
+		implicit := Protected
+		if ver != 0 && ver < phpver.PHP84 {
+			implicit = Private
+		}
+		if implicit > vis {
+			vis = implicit
+		}
+	}
+	return vis
 }
 
 // ClassConst is a class constant or enum case.

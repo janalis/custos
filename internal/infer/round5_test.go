@@ -119,7 +119,7 @@ function f($t, $c, array $xs) {
 `, map[string]string{
 		"maybe": "null|string", "ifElse": "int", "switchDefault": "string", "switchNoDefault": "null|string",
 		"tryCatch": "int", "doWhile": "int", "condAssign": "int", "elseReturns": "int", "afterLoop": "int|null",
-		"rhsAssign": "int|null", "isset": "string", "whileCond": "string", "forInit": "int", "echo": "string",
+		"rhsAssign": "int|null", "isset": "string", "whileCond": "string", "forInit": "float|int", "echo": "string",
 		"ternary": "int|null", "chain": "int", "chainGap": "int|null", "finally": "int", "tryBody": "int",
 		"catchGap": "int|null", "block": "int", "whileBody": "int|null", "foreachExpr": "array", "switchCond": "?unknown",
 		"matchCond": "?unknown", "fallthrough": "int", "emptyDefault": "int|null", "continueList": "int|null",
@@ -342,7 +342,7 @@ function h($o, $x) {
 }
 `, map[string]string{
 		"elseifCond": "int", "switchIn": "int", "matchIn": "int", "rhs": "int", "ternaryIn": "int",
-		"args": `\ArrayIterator<int, string>`, "leaves": "string", "afterFor": "int", "caseCond": "int|null",
+		"args": `\ArrayIterator<int, string>`, "leaves": "string", "afterFor": "float|int", "caseCond": "int|null",
 	})
 	src := `<?php
 function k($x) {

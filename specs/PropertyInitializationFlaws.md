@@ -55,8 +55,8 @@ least one statement.
 
 - **D3** Build the candidate map from the class's **own** declared
   properties (not inherited, not from traits) that are `private` and not
-  `static`: name → default `D`, where a missing default and a `null` default
-  are both recorded as "no default". If the map is empty, stop.
+  `static` and have no property hooks: name → default `D`, where a missing
+  default and a `null` default are both recorded as "no default". If the map is empty, stop.
 - **D4** For each statement that is a **direct** child of the constructor
   body and is an expression statement whose expression is a plain `=`
   assignment (by-reference `= &` included; compound `.=` etc. excluded;
@@ -113,6 +113,8 @@ least one statement.
   parameter without default, with a different default, or an expression
   built from the parameter (`(bool) $strict`, `$strict ?? false`) does not
   qualify.
+- **E7** Properties with hooks in Check 2: writes can execute a setter,
+  and hooks can observe the original backing value.
 
 ## Report
 
@@ -398,3 +400,7 @@ final class Job
   read the default (Composer's `Pool::__construct()` calls
   `$this->setPackages()` before assigning the other properties), so
   removing it could change behaviour.
+
+- **Property hooks (custos safety extension).** Constructor checks skip
+  hooked properties. Assigning the existing default can execute a setter,
+  and removing a default can change the backing value observed by hooks.

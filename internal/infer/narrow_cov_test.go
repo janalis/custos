@@ -59,7 +59,7 @@ function f($x, $c) {
 		"elseif":   "int",
 		"case":     "string",
 		"caseCond": "int|null|string", // a case expression: no guard applies
-		"arrow":    "int|null|string", // the outer if does not narrow an arrow function body
+		"arrow":    "int",             // the arrow captures the narrowed value at construction
 	})
 }
 

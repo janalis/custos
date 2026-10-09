@@ -23,6 +23,16 @@ func TestLowestVersion(t *testing.T) {
 	}
 }
 
+func TestNonexistentPHPVersions(t *testing.T) {
+	for _, version := range []string{"5.7", "5.99", "6.0", "7.5"} {
+		t.Run(version, func(t *testing.T) {
+			if _, err := Resolve(t.TempDir(), File{PHP: version}); err == nil {
+				t.Fatal("nonexistent PHP version accepted")
+			}
+		})
+	}
+}
+
 func TestLoad(t *testing.T) {
 	dir := t.TempDir()
 	write := func(name, body string) {

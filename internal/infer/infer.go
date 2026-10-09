@@ -70,8 +70,12 @@ type Env struct {
 
 	// dynReads caches dynamicRead per variable read (computed by
 	// variableBase); assignsMemo caches stmtAssigns.
-	dynReads    map[*syntax.Variable]uint8
-	assignsMemo map[assignKey]bool
+	dynReads          map[*syntax.Variable]uint8
+	assignsMemo       map[assignKey]bool
+	captures          map[captureKey]types.Type
+	captureBusy       map[captureKey]bool
+	captureDepth      int
+	conditionalChains map[syntax.Expr]bool
 
 	// native: types come from native declarations only (see Native);
 	// nativeTwin caches the native Env of this one.
@@ -319,6 +323,9 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.Closure, *syntax.ArrowFunction:
 		return e.closureType(n)
 	case *syntax.IncDec:
+		if n.Prefix {
+			return e.incDecStored(n)
+		}
 		return e.TypeOf(n.Var)
 	case *syntax.Match:
 		var ts []types.Type
@@ -1556,6 +1563,10 @@ func (e *Env) baseType(x syntax.Expr) types.Type {
 // (strings, ArrayAccess objects) are unchanged.
 // changed is false when t is returned as is.
 func (e *Env) withElemWrites(t types.Type, v *syntax.Variable) (types.Type, bool) {
+	return e.withElemWritesAt(t, v.Name, v, syntax.EnclosingVariableScope(v))
+}
+
+func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node) (types.Type, bool) {
 	if t.IsUnknown() {
 		return t, false
 	}
@@ -1572,11 +1583,11 @@ func (e *Env) withElemWrites(t types.Type, v *syntax.Variable) (types.Type, bool
 	if len(arr) == 0 && !nullOnly {
 		return t, false
 	}
-	ws, back := e.reachingWrites(v)
+	ws, back := e.reachingWritesAt(name, use, scope)
 	if len(ws) == 0 {
 		return t, false
 	}
-	if nullOnly && e.writeDominates(v) {
+	if nullOnly && e.writeDominatesAt(name, use, scope) {
 		other = nil // every path to v writes into the array: no longer null
 	}
 	el := t.Elem()
@@ -1627,11 +1638,6 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 	scope := syntax.EnclosingVariableScope(v)
 	sv := e.scopeVars(scope)
 	defs := sv.defs[v.Name]
-	if _, ok := scope.(*syntax.ArrowFunction); ok && len(defs) == 0 {
-		// Arrow functions capture the enclosing scope by value.
-		outer := e.scopeVars(syntax.EnclosingVariableScope(scope))
-		defs = outer.defs[v.Name]
-	}
 	if len(defs) > maxVarDefs {
 		return types.Unknown
 	}
@@ -1672,14 +1678,10 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 	}
 	t := types.Union(ts...)
 	if t.HasShape() || t.IsNonEmptyArray() {
-		ms := scope
-		if _, ok := scope.(*syntax.ArrowFunction); ok && len(sv.defs[v.Name]) == 0 {
-			ms = syntax.EnclosingVariableScope(scope)
-		}
-		if t.HasShape() && e.shapeClobbered(ms, v.Name) {
+		if t.HasShape() && e.shapeClobbered(scope, v.Name) {
 			t = t.WithoutShape()
 		}
-		if t.IsNonEmptyArray() && e.nonEmptyBroken(ms, v.Name, from, v) {
+		if t.IsNonEmptyArray() && e.nonEmptyBroken(scope, v.Name, from, v) {
 			t = t.WithNonEmpty(false)
 		}
 	}
@@ -1791,21 +1793,31 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 		params, body = s.Params, []syntax.Node{s.Body}
 		for _, u := range s.Uses {
 			add(u.Var.Name, u.Span().Start, func() types.Type {
-				outer := e.scopeVars(syntax.EnclosingVariableScope(scope))
-				var ts []types.Type
-				for _, d := range outer.defs[u.Var.Name] {
-					if d.pos < scope.Span().Start && !d.barrier {
-						ts = append(ts, d.typ())
-					}
-				}
-				if len(ts) == 0 {
+				if u.ByRef {
 					return types.Unknown
 				}
-				return types.Union(ts...)
+				return e.captureType(s, u.Var.Name)
 			})
 		}
 	case *syntax.ArrowFunction:
 		params, body = s.Params, []syntax.Node{s.Expr}
+		captured := map[string]bool{}
+		for _, p := range s.Params {
+			captured[p.Var.Name] = true // parameters shadow implicit imports
+		}
+		syntax.Inspect(s.Expr, func(n syntax.Node) bool {
+			switch n := n.(type) {
+			case *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+				return false
+			case *syntax.Variable:
+				if n.Name != "" && n.Name != "this" && !captured[n.Name] {
+					name := n.Name
+					captured[name] = true
+					add(name, s.Span().Start, func() types.Type { return e.captureType(s, name) })
+				}
+			}
+			return true
+		})
 	case nil:
 		for _, st := range e.File.Stmts {
 			body = append(body, st)
@@ -1841,9 +1853,12 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 				// Any assignment replaces the value (`.=` is a string, `+=` a
 				// number), not only `=` (by reference: not a kill).
 				if _, plain := n.Var.(*syntax.Variable); plain && !n.ByRef {
+					kill = e.arrowDefinitionSpan(n)
 					if es, ok := n.Parent().(*syntax.ExprStmt); ok {
 						if blk, ok := es.Parent().(*syntax.Block); ok {
 							kill = blk.Span()
+						} else if es.Parent() == nil {
+							kill = syntax.Span{End: uint32(len(e.File.Src))}
 						}
 					}
 				}
@@ -1856,6 +1871,16 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 						sv.defs[name] = append(sv.defs[name], varDef{pos: pos, end: end, kill: kill, typ: t, asg: asg})
 					}
 				})
+			case *syntax.IncDec:
+				if v := asVariable(n.Var); v != nil {
+					sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: n.Span().Start, end: n.Span().End, kill: e.statementKill(n), typ: func() types.Type { return e.incDecStored(n) }})
+				}
+			case *syntax.Unset:
+				for _, x := range n.Vars {
+					if v := asVariable(x); v != nil {
+						sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: x.Span().Start, end: x.Span().End, kill: e.statementKill(n), typ: func() types.Type { return types.Null }})
+					}
+				}
 			case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
 				e.collectOutArgs(n.(syntax.Expr), sv)
 			case *syntax.If:

@@ -9,7 +9,7 @@ func TestParse(t *testing.T) {
 			t.Errorf("Parse(%q) = %v, %v; want %v", s, v, err, want)
 		}
 	}
-	for _, s := range []string{"8", "x.1", "8.x", "4.4", "9.0", "8.-1", "8.100", "5.2", "8.6"} {
+	for _, s := range []string{"8", "x.1", "8.x", "4.4", "9.0", "8.-1", "8.100", "5.2", "8.6", "5.7", "5.99", "6.0", "6.99", "7.5", "7.99"} {
 		if _, err := Parse(s); err == nil {
 			t.Errorf("Parse(%q) accepted", s)
 		}

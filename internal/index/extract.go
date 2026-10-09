@@ -310,9 +310,11 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 			for _, p := range m.Props {
 				prop := &Property{
 					Name: p.Var.Name, Class: fqn, Visibility: visibility(m.Modifiers), Static: m.Modifiers.Has(syntax.TStatic),
+					SetVisibility: setVisibility(m.Modifiers), Final: m.Modifiers.Has(syntax.TFinal) || m.Modifiers.Has(syntax.TPrivateSet),
 					Readonly: m.Modifiers.Has(syntax.TReadonly) || c.Readonly, Type: x.typeStr(m.Type, at), HasDefault: p.Default != nil,
 					Default: x.text(p.Default), Span: p.Span(), ReadsRunCode: readsRunCode(p.Var.Name, m.Modifiers, m.Hooks),
-					Hooked: len(m.Hooks) > 0, Attributed: len(m.Attrs) > 0,
+					WritesRunCode: writesRunCode(p.Var.Name, m.Modifiers, m.Hooks),
+					Hooked:        len(m.Hooks) > 0, Attributed: len(m.Attrs) > 0,
 				}
 				if d != nil {
 					prop.DocType = x.docTypeStr(d.VarType(p.Var.Name), at)
@@ -383,6 +385,42 @@ func readsRunCode(name string, mods syntax.Modifiers, hooks []*syntax.PropertyHo
 		}
 	}
 	return !backed
+}
+
+// writesRunCode is conservative for abstract and virtual properties, and
+// records any set hook even when its body only assigns the backing store.
+func writesRunCode(name string, mods syntax.Modifiers, hooks []*syntax.PropertyHook) bool {
+	if mods.Has(syntax.TAbstract) {
+		return true
+	}
+	if len(hooks) == 0 {
+		return false
+	}
+	backed := false
+	for _, h := range hooks {
+		if h.Body == nil || strings.EqualFold(h.Name.Value, "set") {
+			return true
+		}
+		if refsBackingStore(h.Body, name) {
+			backed = true
+		}
+	}
+	return !backed
+}
+
+func setVisibility(mods syntax.Modifiers) *Visibility {
+	var vis Visibility
+	switch {
+	case mods.Has(syntax.TPrivateSet):
+		vis = Private
+	case mods.Has(syntax.TProtectedSet):
+		vis = Protected
+	case mods.Has(syntax.TPublicSet):
+		vis = Public
+	default:
+		return nil
+	}
+	return &vis
 }
 
 // refsBackingStore reports whether body reads or writes `$this->name`.
@@ -815,10 +853,12 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 			// promoted property too (as PhpStorm and PHPStan read it).
 			c.Props[p.Var.Name] = &Property{
 				Name: p.Var.Name, Class: c.FQN, Visibility: visibility(p.Modifiers),
+				SetVisibility: setVisibility(p.Modifiers), Final: p.Modifiers.Has(syntax.TFinal) || p.Modifiers.Has(syntax.TPrivateSet),
 				Readonly: p.Modifiers.Has(syntax.TReadonly) || c.Readonly, Type: x.typeStr(p.Type, at), Promoted: true,
 				DocType: meth.Params[i].DocType, HasDefault: p.Default != nil, Default: x.text(p.Default), Span: p.Span(),
-				ReadsRunCode: readsRunCode(p.Var.Name, p.Modifiers, p.Hooks),
-				Hooked:       len(p.Hooks) > 0, Attributed: len(p.Attrs) > 0,
+				ReadsRunCode:  readsRunCode(p.Var.Name, p.Modifiers, p.Hooks),
+				WritesRunCode: writesRunCode(p.Var.Name, p.Modifiers, p.Hooks),
+				Hooked:        len(p.Hooks) > 0, Attributed: len(p.Attrs) > 0,
 			}
 		}
 	}

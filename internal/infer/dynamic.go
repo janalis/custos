@@ -52,7 +52,7 @@ func (e *Env) noteDynamic(n syntax.Node, sv *scopeVars) {
 // clobbered reports whether a dynamic write of the scope may have replaced
 // the value of v: one lies after a definition reaching v and before v, or
 // in a loop around v.
-func (e *Env) clobbered(sv *scopeVars, fwd, back []varDef, v *syntax.Variable, scope syntax.Node) bool {
+func (e *Env) clobbered(sv *scopeVars, fwd, back []varDef, v, scope syntax.Node) bool {
 	if len(sv.clobbers) == 0 || (len(fwd) == 0 && len(back) == 0) {
 		return false
 	}
@@ -85,7 +85,11 @@ const maxAssignScan = 64
 // in a block before v, and no statement or condition on the way to v
 // always assigns it (if/else, switch with default, try/catch, do-while…).
 func (e *Env) maybeUndefined(sv *scopeVars, defs, fwd []varDef, v *syntax.Variable, scope syntax.Node) bool {
-	if sv.dynamic || len(sv.elemWrites[v.Name]) > 0 {
+	return e.maybeUndefinedAt(sv, defs, fwd, v.Name, v, scope)
+}
+
+func (e *Env) maybeUndefinedAt(sv *scopeVars, defs, fwd []varDef, name string, use, scope syntax.Node) bool {
+	if sv.dynamic || len(sv.elemWrites[name]) > 0 {
 		return false
 	}
 	if _, arrow := scope.(*syntax.ArrowFunction); arrow {
@@ -96,13 +100,13 @@ func (e *Env) maybeUndefined(sv *scopeVars, defs, fwd []varDef, v *syntax.Variab
 			return false
 		}
 	}
-	at := v.Span().Start
+	at := use.Span().Start
 	for _, d := range fwd {
 		if d.kill.Len() > 0 && d.kill.Start <= at && at < d.kill.End {
 			return false
 		}
 	}
-	return !e.definitelyAssigned(v, v.Name, scope)
+	return !e.definitelyAssigned(use, name, scope)
 }
 
 // definitelyAssigned reports whether every path from the start of scope to

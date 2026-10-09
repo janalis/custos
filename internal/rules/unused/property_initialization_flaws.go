@@ -212,7 +212,7 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 	cands := map[string]pifCandidate{} // D3
 	for _, mem := range cl.Members {
 		pr, ok := mem.(*syntax.Property)
-		if !ok || !pr.Modifiers.Has(syntax.TPrivate) || pr.Modifiers.Has(syntax.TStatic) {
+		if !ok || !pr.Modifiers.Has(syntax.TPrivate) || pr.Modifiers.Has(syntax.TStatic) || len(pr.Hooks) > 0 {
 			continue
 		}
 		for _, it := range pr.Props {
