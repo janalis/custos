@@ -1,8 +1,10 @@
 package infer
 
 import (
+	"strconv"
 	"strings"
 
+	"custos/internal/phpver"
 	"custos/internal/syntax"
 	"custos/internal/types"
 )
@@ -148,30 +150,114 @@ func arrayOf(el types.Type) types.Type {
 	return types.Of(atoms...).WithElem(el)
 }
 
-// arrayMapType types `array_map($cb, $xs, …)`: an array of the callback's
-// return type (keys are kept or renumbered, the count is not changed, but
-// neither fact is recorded); ok is false when that type is unknown or
-// mixed, or the callback is null (array_map then zips the arrays).
-func (e *Env) arrayMapType(cb syntax.Expr) (types.Type, bool) {
+// arrayMapType retains single-input keys and models null callbacks as identity
+// or, for bounded required shapes, a positional zip with null padding.
+func (e *Env) arrayMapType(cb, first syntax.Expr, args *syntax.ArgList) (types.Type, bool) {
+	inputs := []types.Type{e.TypeOf(first)}
+	precise := true
+	for _, x := range args.Args {
+		a, ok := x.(*syntax.Arg)
+		if !ok {
+			precise = false
+			break
+		}
+		if a.Value == cb || a.Value == first {
+			continue
+		}
+		if a.Unpack || a.Name != nil || len(inputs) == types.MaxShapeKeys {
+			precise = false
+			break
+		}
+		inputs = append(inputs, e.TypeOf(a.Value))
+	}
+	if constLiteral(cb) == "null" {
+		if precise && len(inputs) == 1 && inputs[0].IsArrayLike() {
+			return inputs[0], true
+		}
+		if !precise {
+			return types.Array, true
+		}
+		return arrayMapZip(inputs), true
+	}
 	r := e.callbackReturn(cb)
 	if r.IsUnknown() || r.Has("mixed") || r.Has("void") {
 		return types.Unknown, false
 	}
-	return arrayOf(r), true
+	result := arrayOf(r)
+	if !precise {
+		return result, true
+	}
+	for _, input := range inputs {
+		if !input.IsArrayLike() {
+			return result, true
+		}
+	}
+	if len(inputs) == 1 {
+		if inputs[0].IsSealedShape() {
+			keys := make([]types.ShapeKey, len(inputs[0].ShapeKeys()))
+			for i, k := range inputs[0].ShapeKeys() {
+				k.Type = r
+				keys[i] = k
+			}
+			return result.WithShape(keys, true).WithNonEmpty(inputs[0].IsNonEmptyArray()), true
+		}
+		return result.WithNonEmpty(inputs[0].IsNonEmptyArray()), true
+	}
+	for _, input := range inputs {
+		if input.IsNonEmptyArray() {
+			return result.WithNonEmpty(true), true
+		}
+	}
+	return result, true
+}
+
+func arrayMapZip(inputs []types.Type) types.Type {
+	count := 0
+	precise, nonEmpty := true, false
+	for _, input := range inputs {
+		if !input.IsArrayLike() {
+			return types.Array
+		}
+		if !requiredShape(input) {
+			precise = false
+		}
+		nonEmpty = nonEmpty || input.IsNonEmptyArray()
+		count = max(count, len(input.ShapeKeys()))
+	}
+	if !precise {
+		return arrayOf(types.Array).WithNonEmpty(nonEmpty)
+	}
+	keys := make([]types.ShapeKey, count)
+	for i := range count {
+		row := make([]types.ShapeKey, len(inputs))
+		for j, input := range inputs {
+			t := types.Null
+			if i < len(input.ShapeKeys()) {
+				t = input.ShapeKeys()[i].Type
+			}
+			row[j] = types.ShapeKey{Name: strconv.Itoa(j), Type: t}
+		}
+		keys[i] = types.ShapeKey{Name: strconv.Itoa(i), Type: types.Array.WithShape(row, true)}
+	}
+	return types.Array.WithShape(keys, true)
 }
 
 // arrayFilterType types `array_filter($xs[, $cb])`: the elements of $xs
 // (a sealed shape's values) and, without a callback, minus null and false
 // (array_filter() then drops the falsy values). Keys are kept but gaps may
 // appear and the result may be empty: no shape and no non-empty fact.
-func (e *Env) arrayFilterType(arr syntax.Expr, at types.Type, withCallback bool) types.Type {
+func (e *Env) arrayFilterType(arr syntax.Expr, at types.Type, cb syntax.Expr) types.Type {
+	if at.IsSealedShape() && len(at.ShapeKeys()) == 0 {
+		return at
+	}
 	el := e.elemOf(at, arr)
 	if el.IsUnknown() || el.Has("mixed") {
 		return at.WithoutShape().WithNonEmpty(false)
 	}
-	if !withCallback {
-		if kept := el.Without("null", "false"); len(kept.Atoms()) > 0 {
-			el = kept
+	if cb == nil || (e.PHP.AtLeast(phpver.PHP80) && constLiteral(cb) == "null") {
+		el = el.Without("null", "false")
+		if len(el.Atoms()) == 0 {
+			return types.Array.WithShape(nil, true)
 		}
 	}
 	return arrayOf(el)

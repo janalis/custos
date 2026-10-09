@@ -75,7 +75,36 @@ class Broken { public const parent|null VALUE = null; }
 `}, `<?php
 t('self', Model\Child::SELF); t('parent', Model\Child::PARENT);
 t('trait', Model\UsesRelativeTrait::VALUE); t('broken', Model\Broken::VALUE);
-`, map[string]string{"self": `\Model\Base|null`, "parent": `\Model\Root|null`, "trait": "?unknown", "broken": "?unknown"})
+`, map[string]string{"self": `\Model\Base|null`, "parent": `\Model\Root|null`, "trait": `\Model\UsesRelativeTrait|null`, "broken": "?unknown"})
+}
+
+func TestTypedTraitConstantOwnersAcrossFiles(t *testing.T) {
+	checkWith(t, map[string]string{"traits.php": `<?php namespace Model;
+trait Relative {
+ public const self|null SELF = null;
+ public const parent|null PARENT = null;
+ public const int SIZE = UNKNOWN_SIZE;
+}
+trait Nested { use Relative; }
+class Root {}
+class OtherRoot {}
+class First extends Root { use Nested; }
+class Second extends OtherRoot { use Relative; }
+class Child extends First {}
+class Orphan { use Relative; }
+`}, `<?php
+t('first', Model\First::SELF); t('firstParent', Model\First::PARENT);
+t('second', Model\Second::SELF); t('secondParent', Model\Second::PARENT);
+t('child', Model\Child::SELF); t('childParent', Model\Child::PARENT);
+t('orphan', Model\Orphan::SELF); t('orphanParent', Model\Orphan::PARENT);
+t('rawTrait', Model\Relative::SELF); t('size', Model\Child::SIZE);
+`, map[string]string{
+		"first": `\Model\First|null`, "firstParent": `\Model\Root|null`,
+		"second": `\Model\Second|null`, "secondParent": `\Model\OtherRoot|null`,
+		"child": `\Model\First|null`, "childParent": `\Model\Root|null`,
+		"orphan": `\Model\Orphan|null`, "orphanParent": "?unknown",
+		"rawTrait": "?unknown", "size": "int",
+	})
 }
 
 func BenchmarkTypedConstantInference(b *testing.B) {

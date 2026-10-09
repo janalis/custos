@@ -497,6 +497,9 @@ func (p *parser) parseArgs() *ArgList {
 		as := p.start()
 		switch {
 		case p.at(TEllipsis) && p.peekKind(1) == TRParen:
+			if len(n.Args) != 0 {
+				p.errorAt(p.tok(), "callable placeholders require an otherwise empty argument list")
+			}
 			p.advance()
 			n.Args = append(n.Args, fin(p, &VariadicPlaceholder{}, as))
 		case p.at(TEllipsis):

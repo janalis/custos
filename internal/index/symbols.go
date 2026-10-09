@@ -210,6 +210,7 @@ func (p *Property) WriteVisibility(ver phpver.Version) Visibility {
 type ClassConst struct {
 	Name       string      `json:"name"`
 	Class      string      `json:"-"`
+	TypeClass  string      `json:"-"` // effective trait-import owner; lookup copies only
 	Visibility Visibility  `json:"vis,omitempty"`
 	Final      bool        `json:"final,omitempty"`
 	Case       bool        `json:"case,omitempty"`

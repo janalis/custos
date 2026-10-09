@@ -646,10 +646,22 @@ func (p *parser) parseForeach() Stmt {
 }
 
 func (p *parser) parseForeachTarget() (Expr, bool) {
-	if _, ok := p.accept(TAmpersand); ok {
-		return p.parseUnary(), true
+	_, byRef := p.accept(TAmpersand)
+	t := p.tok()
+	target := p.parseUnary()
+	valid := isIncrementVariable(target)
+	if !byRef {
+		switch n := target.(type) {
+		case *List:
+			valid = true
+		case *Array:
+			valid = n.Short
+		}
 	}
-	return p.parseUnary(), false
+	if !valid {
+		p.errorAt(t, "foreach targets require a variable or destructuring pattern")
+	}
+	return target, byRef
 }
 
 func (p *parser) parseSwitch() Stmt {

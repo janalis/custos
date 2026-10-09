@@ -46,7 +46,7 @@ function run(array $xs, Inv $inv, NoInvoke $ni) {
 		"doc": `\App\Foo`, "orVoid": "int|null", "plainName": "int[]", "staticName": "array",
 		"missingName": "array", "tplName": "array", "interp": "array",
 		"noInvoke": "?unknown", "invokeCond": "float|int", "array": "mixed",
-		"filterNull": `\App\Foo[]`, "filterCb": `\App\Foo[]|null[]`, "allNull": "null[]", "filterPlain": "array",
+		"filterNull": `\App\Foo[]`, "filterCb": `\App\Foo[]|null[]`, "allNull": "array{}", "filterPlain": "array",
 		"filterMixed": "array",
 	})
 }

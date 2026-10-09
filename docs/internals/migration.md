@@ -170,3 +170,19 @@ Execute Phase 0 (init repo, CLAUDE.md, skill, docs/internals/migration.md with t
 - Index disk cache declined (cold index 0.4–0.5 s on 8–10k sources; see docs/internals/decisions.md).
 - Security: syntax nesting cap, linear doc-type parsing, whole-tool hostile-input audit (LSP framing, file size/IO caps, linear mini-parsers, quadratic paths removed), see the Security section of docs/internals/decisions.md.
 - Engine: generics (class and method templates), assertions, array shapes, inferred returns and properties.
+
+## PHP engine support wave (2026-10-09)
+
+- Parser: reject mixed first-class callable placeholders and invalid foreach
+  targets while preserving recovery and the boundary between grammar errors
+  and compile-time restrictions.
+- Index: typed trait constants retain their importing class through nested
+  traits and inheritance; relative types bind against that owner. Lookup is
+  bounded, cycle-safe, and conservative for conflicting trait declarations.
+- Inference: array filtering resolves named arguments and nullable callbacks;
+  array mapping preserves single-input keys and models bounded null-callback
+  zips with padding. Unknown inputs retain conservative array types.
+- Work split: parser, constant indexing, and array inference have independent
+  owners; the coordinator integrates constant typing and downstream fixtures.
+  Anonymous classes, full DNF types, and broader method callbacks remain
+  separate follow-up work.

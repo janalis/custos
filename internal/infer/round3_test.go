@@ -182,7 +182,7 @@ function f(string $s) {
     t('cb', array_map('substr', [$s], [1]));
 }
 `
-	checkVer(t, phpver.PHP81, false, src, map[string]string{"substr": "string", "split": "string[]", "explode": "string[]", "cb": "string[]"})
+	checkVer(t, phpver.PHP81, false, src, map[string]string{"substr": "string", "split": "string[]", "explode": "string[]", "cb": "non-empty string[]"})
 	checkVer(t, phpver.PHP74, false, src, map[string]string{"substr": "false|string", "split": "false|string[]"})
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpver.PHP81})
 	ix := index.New(stubs.Index())
@@ -250,5 +250,5 @@ func TestUserDocVsDeclared(t *testing.T) {
 /** @return string|false */
 function u(): string { return ''; }
 function f() { t('user', u()); t('cb', array_map('u', [1])); t('strlen', strlen('x')); t('ob', ob_get_clean()); }
-`, map[string]string{"user": "string", "cb": "string[]", "strlen": "int", "ob": "false|string"})
+`, map[string]string{"user": "string", "cb": "string[]{0: string}", "strlen": "int", "ob": "false|string"})
 }

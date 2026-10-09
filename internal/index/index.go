@@ -500,14 +500,18 @@ func (ix *Index) FindProperty(class, name string, ver phpver.Version) *Property 
 	return nil
 }
 
-// FindConst looks a class constant (or enum case) up through the hierarchy.
+// FindConst looks a class constant (or enum case) up through declarations,
+// traits, parents and interfaces, in that order. Imported trait constants
+// carry TypeClass on transient copies. Ambiguous trait composition returns nil.
 func (ix *Index) FindConst(class, name string, ver phpver.Version) *ClassConst {
-	for _, c := range ix.Ancestors(class, ver) {
-		if k, ok := c.Consts[name]; ok {
+	if c := ix.Class(class, ver); c != nil {
+		if k := c.Consts[name]; k != nil {
 			return k
 		}
 	}
-	return nil
+	l := constantLookup{ix: ix, ver: ver}
+	k, _ := l.find(class, name, "")
+	return k
 }
 
 // Children returns the FQNs of classes directly extending/implementing fqn

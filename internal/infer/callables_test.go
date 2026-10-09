@@ -32,7 +32,7 @@ final class Box {
 		"f": `\App\Foo`, "g": "int", "h": `\App\Foo|null`, "v": "null", "gen": `\Generator`,
 		"iife": "float", "cb": "string", "maybe": "?unknown", "prop": `\App\Foo`, "invoke": "float",
 		"cuf": `\App\Foo`, "cufa": "int", "map": `\App\Foo[]`, "mapstr": "string[]", "mapint": "int[]",
-		"mapcb": "string[]", "mapnull": "array", "mapunknown": "array", "nested": "int", "closure": `\Closure`,
+		"mapcb": "string[]", "mapnull": "array[]", "mapunknown": "array", "nested": "int", "closure": `\Closure`,
 	})
 }
 

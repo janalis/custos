@@ -957,8 +957,12 @@ func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
 	}
 	if k.Type != "" {
 		t := types.FromDoc(k.Type, nil)
+		owner := k.Class
+		if k.TypeClass != "" {
+			owner = k.TypeClass
+		}
 		if t.HasAny("self", "parent") {
-			c := e.Index.Class(k.Class, e.PHP)
+			c := e.Index.Class(owner, e.PHP)
 			if c == nil || c.Kind == syntax.KindTrait {
 				return types.Unknown
 			}
@@ -969,7 +973,7 @@ func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
 				t = types.Union(t.Without("parent"), types.Of(`\`+c.Parent))
 			}
 		}
-		return bindStatic(t, k.Class)
+		return bindStatic(t, owner)
 	}
 	return literalTextType(k.Value)
 }
@@ -1266,7 +1270,19 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 				// array_slice()/array_filter() may be empty.
 				switch strings.ToLower(fqn) {
 				case "array_filter":
-					return e.arrayFilterType(a, t, len(n.Args.Args) > 1), true
+					cb := arg(1)
+					if cb == nil {
+						for _, x := range n.Args.Args {
+							a, ok := x.(*syntax.Arg)
+							if !ok {
+								return t.WithoutShape().WithNonEmpty(false), true
+							}
+							if a.Unpack {
+								cb = a.Value
+							}
+						}
+					}
+					return e.arrayFilterType(a, t, cb), true
 				case "array_slice":
 					return t.WithoutShape().WithNonEmpty(false), true
 				}
@@ -1274,8 +1290,8 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 			}
 		}
 	case "array_map":
-		if cb := arg(0); cb != nil && len(n.Args.Args) > 1 {
-			if t, ok := e.arrayMapType(cb); ok {
+		if cb, first := arg(0), arg(1); cb != nil && first != nil {
+			if t, ok := e.arrayMapType(cb, first, n.Args); ok {
 				return t, true
 			}
 		}
