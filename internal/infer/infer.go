@@ -433,27 +433,7 @@ func (e *Env) dimType(n *syntax.ArrayDimFetch) types.Type {
 }
 
 func (e *Env) constType(n *syntax.ConstFetch) types.Type {
-	switch v := strings.ToLower(strings.TrimPrefix(n.Name.Value, `\`)); v {
-	case "true", "false":
-		return types.Of(v)
-	case "null":
-		return types.Null
-	case "php_int_max", "php_int_min", "php_int_size", "php_version_id", "php_major_version", "php_minor_version", "e_all", "e_error", "e_warning", "e_notice", "e_strict", "e_deprecated":
-		return types.Int
-	case "php_eol", "php_version", "php_os", "php_os_family", "directory_separator", "path_separator":
-		return types.String
-	case "php_float_epsilon", "php_float_max", "php_float_min", "m_pi", "nan", "inf":
-		return types.Float
-	}
-	fqn, fb := e.Names.Const(n.Name.Value, n.Span().Start)
-	c := e.Index.Constant(fqn, e.PHP)
-	if c == nil && fb != "" {
-		c = e.Index.Constant(fb, e.PHP)
-	}
-	if c == nil {
-		return types.Unknown
-	}
-	return literalTextType(c.Value)
+	return e.resolvedConstType(n)
 }
 
 // literalTextType infers the type of a constant initialiser from its source text.
@@ -681,23 +661,31 @@ func (e *Env) newType(n *syntax.New) types.Type {
 	return types.Unknown
 }
 
-// bindStatic replaces static/self in a member type by the receiver class.
+// bindStatic binds types whose declaration and receiver share a class context.
 func bindStatic(t types.Type, receiver string) types.Type {
-	if t.IsUnknown() || receiver == "" || !t.HasAny("static", "self", "static[]", "self[]") {
+	return t.BindRelative(receiver, "", receiver)
+}
+
+// bindMember distinguishes a declaration's self/parent from late static binding.
+func (e *Env) bindMember(t types.Type, declaration, effective, receiver string) types.Type {
+	if !t.HasRelative() {
 		return t
 	}
-	atoms := make([]string, 0, len(t.Atoms()))
-	for _, a := range t.Atoms() {
-		switch a {
-		case "static", "self":
-			atoms = append(atoms, `\`+receiver)
-		case "static[]", "self[]":
-			atoms = append(atoms, `\`+receiver+"[]")
-		default:
-			atoms = append(atoms, a)
-		}
+	owner := declaration
+	if effective != "" {
+		owner = effective
 	}
-	return types.Of(atoms...).WithTypeArgsFrom(t)
+	parent := ""
+	if c := e.Index.Class(owner, e.PHP); c != nil {
+		if c.Kind == syntax.KindTrait {
+			owner = ""
+		} else {
+			parent = c.Parent
+		}
+	} else {
+		owner = ""
+	}
+	return t.BindRelative(owner, parent, receiver)
 }
 
 // memberType picks the declared type, falling back to the doc type; when
@@ -779,12 +767,12 @@ func strictSuperset(doc, declared types.Type) bool {
 
 func (e *Env) propType(p *index.Property, receiver string) types.Type {
 	if e.userDoc(p.Builtin) {
-		return bindStatic(types.FromDoc(p.Type, nil), receiver)
+		return e.bindMember(types.FromDoc(p.Type, nil), p.Class, p.TypeClass, receiver)
 	}
 	if p.Type == "" && p.DocType == "" {
-		return bindStatic(e.inferredProp(p), receiver)
+		return e.bindMember(e.inferredProp(p), p.Class, p.TypeClass, receiver)
 	}
-	return bindStatic(memberType(p.Type, p.DocType), receiver)
+	return e.bindMember(memberType(p.Type, p.DocType), p.Class, p.TypeClass, receiver)
 }
 
 func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types.Type {
@@ -834,8 +822,11 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 	if m == nil {
 		return types.Unknown
 	}
+	bind := func(t types.Type) types.Type {
+		return e.bindMember(t, m.Class, m.TypeClass, origin)
+	}
 	if e.userDoc(m.Builtin) {
-		return bindStatic(types.FromDoc(m.Return, nil), cls)
+		return bind(types.FromDoc(m.Return, nil))
 	}
 	if m.Tpl != nil {
 		var classB tplBindings
@@ -844,15 +835,15 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 			classB = e.genBindings(origin, args)[strings.ToLower(strings.TrimPrefix(m.Class, `\`))]
 		}
 		if t, ok := e.tplReturn(m.Tpl, m.Params, call, m.Return, classB, c); ok {
-			return bindStatic(t, cls)
+			return bind(t)
 		}
 	}
 	if t, ok := e.genMethodReturn(m, origin, args); ok {
-		return bindStatic(t, cls)
+		return bind(t)
 	}
 	if m.CondReturn != "" {
 		if t, ok := e.condCall(m.CondReturn, m.Params, call, m.Return, m.DocReturn); ok {
-			return bindStatic(t, cls)
+			return bind(t)
 		}
 	}
 	if m.Return == "" && m.DocReturn == "" {
@@ -861,16 +852,16 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 		// only consulted when no ancestor declares one.
 		if pm := e.inheritedSignature(m); pm != nil {
 			if pm.Builtin {
-				return bindStatic(builtinMemberType(pm.Return, pm.DocReturn), cls)
+				return e.bindMember(builtinMemberType(pm.Return, pm.DocReturn), pm.Class, pm.TypeClass, origin)
 			}
-			return bindStatic(memberType(pm.Return, pm.DocReturn), cls)
+			return e.bindMember(memberType(pm.Return, pm.DocReturn), pm.Class, pm.TypeClass, origin)
 		}
 		return e.methodBodyReturn(m, virtual)
 	}
 	if m.Builtin {
-		return bindStatic(builtinMemberType(m.Return, m.DocReturn), cls)
+		return bind(builtinMemberType(m.Return, m.DocReturn))
 	}
-	return bindStatic(memberType(m.Return, m.DocReturn), cls)
+	return bind(memberType(m.Return, m.DocReturn))
 }
 
 // inheritedSignature returns the nearest method m overrides (in the parents

@@ -37,6 +37,9 @@ func addPre80Failures(files []*index.FileSymbols) {
 // (stub bodies are placeholders).
 func markBuiltin(files []*index.FileSymbols) {
 	for _, f := range files {
+		for _, c := range f.Constants {
+			c.Builtin = true
+		}
 		for _, fn := range f.Functions {
 			fn.Builtin = true
 		}

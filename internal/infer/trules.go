@@ -15,8 +15,9 @@ import (
 //
 // Results are type sets with unknown parts dropped: types.Unknown (no atoms)
 // means "empty". Atoms are raw (not normalised by any rule-specific scheme):
-// class names keep their leading backslash, `self`/`static` returned by
-// methods are kept as written, `T[]` forms are kept.
+// class names keep their leading backslash and `T[]` forms are kept.
+// SpecOnly retains self/static/parent member contracts as written for the
+// consuming rule's translation; ordinary mode binds their class contexts.
 //
 // It is kept separate from Env on purpose: its rules come from the specs
 // (partial sets, spec-defined arithmetic and overrides, optional SpecOnly
@@ -109,6 +110,20 @@ func (r *TRules) TypeOf(x syntax.Expr) types.Type {
 func (r *TRules) infer(x syntax.Expr) types.Type {
 	e := r.Env
 	switch n := x.(type) {
+	case *syntax.FuncCall:
+		if isFirstClassCallable(n.Args) {
+			return e.TypeOf(n)
+		}
+	case *syntax.MethodCall:
+		if isFirstClassCallable(n.Args) {
+			return e.TypeOf(n)
+		}
+	case *syntax.StaticCall:
+		if isFirstClassCallable(n.Args) {
+			return e.TypeOf(n)
+		}
+	}
+	switch n := x.(type) {
 	case *syntax.Literal:
 		return e.TypeOf(n)
 	case *syntax.InterpolatedString:
@@ -170,7 +185,7 @@ func (r *TRules) infer(x syntax.Expr) types.Type {
 			if id, ok := n.Name.(*syntax.Identifier); ok {
 				if cls := e.selfClass(syntax.EnclosingClass(n)); cls != "" {
 					if p := e.Index.FindProperty(cls, id.Value, e.PHP); p != nil && p.Type != "" {
-						return types.FromDoc(p.Type, nil)
+						return r.bindMember(types.FromDoc(p.Type, nil), p.Class, p.TypeClass, cls)
 					}
 				}
 			}
@@ -196,7 +211,7 @@ func (r *TRules) infer(x syntax.Expr) types.Type {
 				}
 				return types.Unknown
 			}
-			ts = append(ts, r.declaredAndDoc(m.Return, m.DocReturn, m.Builtin))
+			ts = append(ts, r.bindMember(r.declaredAndDoc(m.Return, m.DocReturn, m.Builtin), m.Class, m.TypeClass, strings.TrimPrefix(cls, `\`)))
 		}
 		return KnownUnion(ts...)
 	case *syntax.StaticCall:
@@ -212,11 +227,26 @@ func (r *TRules) infer(x syntax.Expr) types.Type {
 		if m == nil {
 			return types.Unknown
 		}
-		return r.declaredAndDoc(m.Return, m.DocReturn, m.Builtin)
+		receiver := cls
+		if !r.SpecOnly {
+			if nm, ok := n.Class.(*syntax.Name); ok && strings.EqualFold(nm.Value, "parent") {
+				if caller := e.selfClass(syntax.EnclosingClass(n)); caller != "" {
+					receiver = caller
+				}
+			}
+		}
+		return r.bindMember(r.declaredAndDoc(m.Return, m.DocReturn, m.Builtin), m.Class, m.TypeClass, receiver)
 	case *syntax.Variable:
 		return r.variable(n)
 	}
 	return e.TypeOf(x)
+}
+
+func (r *TRules) bindMember(t types.Type, declaration, effective, receiver string) types.Type {
+	if r.SpecOnly {
+		return t
+	}
+	return r.Env.bindMember(t, declaration, effective, receiver)
 }
 
 // DeclaredAndDoc unions a declared type string and a doc type string (both

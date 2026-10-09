@@ -142,7 +142,12 @@ func (p *parser) parseUnary() Expr {
 		return fin(p, &Unary{Op: p.ref(t), Expr: p.parseExpr(precPow)}, start)
 	case TInc, TDec:
 		p.advance()
-		return fin(p, &IncDec{Op: p.ref(t), Prefix: true, Var: p.parseUnary()}, start)
+		operand := p.tok()
+		v := p.parseUnary()
+		if !isIncrementVariable(v) {
+			p.errorAt(operand, "increment and decrement require a variable")
+		}
+		return fin(p, &IncDec{Op: p.ref(t), Prefix: true, Var: v}, start)
 	case TNew:
 		n := p.parseNew()
 		if n.Args == nil {
@@ -230,6 +235,18 @@ func (p *parser) atExprEnd() bool {
 func isAssignable(e Expr) bool {
 	switch e.(type) {
 	case *Variable, *ArrayDimFetch, *PropertyFetch, *StaticPropertyFetch, *List, *Array:
+		return true
+	}
+	return false
+}
+
+// isIncrementVariable follows the variable grammar, including calls that PHP
+// rejects later at compile time. Destructuring and bare parentheses are not
+// variables, even though they may be usable in other write contexts.
+func isIncrementVariable(e Expr) bool {
+	switch e.(type) {
+	case *Variable, *ArrayDimFetch, *PropertyFetch, *StaticPropertyFetch,
+		*FuncCall, *MethodCall, *StaticCall:
 		return true
 	}
 	return false

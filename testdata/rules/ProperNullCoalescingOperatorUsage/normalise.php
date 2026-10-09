@@ -34,3 +34,9 @@ class NoParent
         return $this->up() ?? 'none';
     }
 }
+
+/** @param self|null $value */
+function unresolvedRelativeContract($value)
+{
+    return $value ?? 'none';
+}

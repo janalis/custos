@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"custos/internal/phpver"
+	"custos/internal/syntax"
 )
 
 // methodLookup bounds both recursion and total work on incomplete or cyclic
@@ -40,11 +41,28 @@ func (l *methodLookup) find(class, name string, inherited bool) (*Method, bool) 
 		}
 		if l.magic == nil {
 			l.magic = m
+			if c.Kind == syntax.KindTrait {
+				for i := l.depth - 2; i >= 0; i-- {
+					if owner := l.ix.Class(l.path[i], l.ver); owner != nil && owner.Kind != syntax.KindTrait {
+						copy := *m.at(l.ver)
+						copy.TypeClass = owner.FQN
+						l.magic = &copy
+						break
+					}
+				}
+			}
 		}
 	}
 	// A trait requirement provides a contract only after inherited concrete
 	// implementations have had a chance to fulfill it.
 	fallback, conflict := l.compose(c, name)
+	if fallback != nil && c.Kind != syntax.KindTrait && fallback.TypeClass == "" {
+		if source := l.ix.Class(fallback.Class, l.ver); source != nil && source.Kind == syntax.KindTrait {
+			copy := *fallback.at(l.ver)
+			copy.TypeClass = c.FQN
+			fallback = &copy
+		}
+	}
 	if conflict || (fallback != nil && !fallback.Abstract) {
 		return fallback, conflict
 	}

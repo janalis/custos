@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"custos/internal/phpver"
+	"custos/internal/syntax"
 )
 
 // Index holds symbols keyed by lower-case FQN (constants: exact case, with
@@ -488,7 +489,11 @@ func (ix *Index) findComposedMethod(class, name string, ver phpver.Version) *Met
 // FindProperty looks a property up through the class hierarchy.
 func (ix *Index) FindProperty(class, name string, ver phpver.Version) *Property {
 	for _, c := range ix.Ancestors(class, ver) {
-		if p, ok := c.Props[name]; ok {
+		if c.Kind == syntax.KindTrait && key(c.FQN) != key(class) {
+			l := propertyLookup{ix: ix, ver: ver}
+			return l.find(class, name, "")
+		}
+		if p := c.Props[name]; p != nil {
 			return p
 		}
 	}

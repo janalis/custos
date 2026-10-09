@@ -951,6 +951,24 @@ rejected) is fixed; see the close-tag note above.
 
 ## Engine
 
+- **PHP correctness pass (2026-10-09):** declaration parsing checks the
+  structure of parenthesized DNF intersections; prefix increment/decrement
+  operands follow PHP's variable grammar. These checks distinguish syntax
+  failures from compile-time restrictions and preserve adaptive parsing and
+  recovery. Member contracts bind `self` and `parent` in the effective
+  declaration context, including trait imports, while `static` follows the
+  receiver. Lookup context is transient and does not change shared
+  declarations or their source owner. Spec-only T-rules keep their raw
+  relative contracts for rule-specific compatibility checks. Constant inference
+  resolves namespace and import candidates before global fallback and builtin typing; ordinary
+  constant names remain case-sensitive. Builtin availability gates distinguish
+  embedded constants from project polyfills with a decode-time marker. The
+  pass adds no inspection rules;
+  increment/decrement reaching-definition inference remains a separate task.
+  Parsing 20,000 Symfony corpus files produced no unexpected syntax failures.
+  Running all rules over Symfony and EasyAdminBundle (33,661 files) produced
+  one finding-limit diagnostic in the generated amphp Huffman lookup table;
+  the unchanged baseline reproduces it on that file. No rule panic occurred.
 - **Semantic support follow-up (2026-10-09):** nullsafe property reads and
   subsequent accesses in the same chain retain short-circuit null. Memoized
   chain facts distinguish the evaluated member result from skipped evaluation;

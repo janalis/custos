@@ -104,8 +104,11 @@ type Function struct {
 
 // Method is a class member function.
 type Method struct {
-	Name       string     `json:"name"`
-	Class      string     `json:"-"` // declaring class FQN
+	Name  string `json:"name"`
+	Class string `json:"-"` // declaring class FQN
+	// TypeClass is the effective trait-import owner on transient lookup copies.
+	// Class remains the original declaration for templates and body analysis.
+	TypeClass  string     `json:"-"`
 	Visibility Visibility `json:"vis,omitempty"`
 	Static     bool       `json:"static,omitempty"`
 	Abstract   bool       `json:"abstract,omitempty"`
@@ -152,6 +155,7 @@ type Method struct {
 type Property struct {
 	Name       string     `json:"name"` // without '$'
 	Class      string     `json:"-"`
+	TypeClass  string     `json:"-"` // effective trait-import owner; lookup copies only
 	Visibility Visibility `json:"vis,omitempty"`
 	Static     bool       `json:"static,omitempty"`
 	Readonly   bool       `json:"ro,omitempty"`
@@ -294,11 +298,12 @@ type SuperArgs struct {
 
 // Constant is a global constant (define() or const).
 type Constant struct {
-	FQN   string      `json:"fqn"`
-	Value string      `json:"v,omitempty"`
-	Avail Avail       `json:"a,omitempty"`
-	File  string      `json:"-"`
-	Span  syntax.Span `json:"-"`
+	Builtin bool        `json:"-"` // a stub declaration (see Function.Builtin)
+	FQN     string      `json:"fqn"`
+	Value   string      `json:"v,omitempty"`
+	Avail   Avail       `json:"a,omitempty"`
+	File    string      `json:"-"`
+	Span    syntax.Span `json:"-"`
 }
 
 // FileSymbols is everything one file declares.

@@ -42,9 +42,18 @@ func (p *parser) canStartType() bool {
 func (p *parser) parseType() Expr {
 	start := p.start()
 	if _, ok := p.accept(TQuestion); ok {
-		return fin(p, &NullableType{Type: p.parseTypeAtom()}, start)
+		t := p.tok()
+		typ := p.parseTypeAtom()
+		if _, grouped := typ.(*IntersectionType); grouped {
+			p.errorAt(t, "nullable types require a single type name")
+		}
+		return fin(p, &NullableType{Type: typ}, start)
 	}
+	firstToken := p.tok()
 	first := p.parseTypeAtom()
+	if _, grouped := first.(*IntersectionType); grouped && !p.at(TBar) {
+		p.errorAt(firstToken, "parenthesized intersection types require a union")
+	}
 	switch {
 	case p.at(TBar):
 		n := &UnionType{Types: []Expr{first}}
@@ -57,7 +66,12 @@ func (p *parser) parseType() Expr {
 		n := &IntersectionType{Types: []Expr{first}}
 		for p.at(TAmpersand) && p.isIntersectionAmp() {
 			p.advance()
-			n.Types = append(n.Types, p.parseTypeAtom())
+			t := p.tok()
+			typ := p.parseTypeAtom()
+			if _, grouped := typ.(*IntersectionType); grouped {
+				p.errorAt(t, "intersection members require type names")
+			}
+			n.Types = append(n.Types, typ)
 		}
 		return fin(p, n, start)
 	}
@@ -71,9 +85,14 @@ func (p *parser) isIntersectionAmp() bool {
 }
 
 func (p *parser) parseTypeAtom() Expr {
+	defer p.leave()
+	if !p.enter() {
+		return spanOf(&BadExpr{}, p.missing())
+	}
 	start := p.start()
 	if p.at(TLParen) {
 		// DNF group (A&B)
+		opening := p.tok()
 		p.advance()
 		n := &IntersectionType{Types: []Expr{p.parseTypeAtom()}}
 		for p.at(TAmpersand) {
@@ -81,6 +100,14 @@ func (p *parser) parseTypeAtom() Expr {
 			n.Types = append(n.Types, p.parseTypeAtom())
 		}
 		p.expect(TRParen)
+		if len(n.Types) < 2 {
+			p.errorAt(opening, "parenthesized types require an intersection")
+		}
+		for _, typ := range n.Types {
+			if _, grouped := typ.(*IntersectionType); grouped {
+				p.errorAt(opening, "intersection members require type names")
+			}
+		}
 		return fin(p, n, start)
 	}
 	return p.parseName()

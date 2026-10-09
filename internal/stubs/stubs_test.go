@@ -26,8 +26,8 @@ func TestBuiltins(t *testing.T) {
 	if m := ix.FindMethod("DateTime", "format", phpver.PHP84); m == nil {
 		t.Fatal("DateTime::format missing")
 	}
-	if c := ix.Constant("PHP_INT_MAX", 0); c == nil {
-		t.Fatal("PHP_INT_MAX missing")
+	if c := ix.Constant("PHP_INT_MAX", 0); c == nil || !c.Builtin {
+		t.Fatalf("PHP_INT_MAX missing builtin marker: %+v", c)
 	}
 }
 
