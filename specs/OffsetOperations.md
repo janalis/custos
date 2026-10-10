@@ -184,7 +184,7 @@ function ok($m, $c, $n) {
 
 ## Divergences
 
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (`S` empty, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (`S` empty, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - Built-in return types are stub-dependent. Upstream's fixture expects no
   report for `explode(...)[0]`-style containers whose stub type is
   `string[]|false` (normalised {`array`, `bool`}), which the algorithm above

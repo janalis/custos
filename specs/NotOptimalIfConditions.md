@@ -422,8 +422,7 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   only because an upstream fixture expects `$obj->count() > 0 || isset($b)`
   to be reported; a method may persist, log or mutate state just like a
   function, and nothing in the call identifies a side-effect-free subset, so
-  that upstream case is now an intentional divergence. Recorded in
-  `docs/internals/decisions.md` ("Spec-level false positives").
+  that upstream case is now an intentional divergence.
 - **Redundant check under `&&` (custos diverges from upstream).** Upstream's
   D4 always reports the more specific `instanceof`, which is right for `||`
   but backwards for `&&`: in `$s instanceof Circle && $s instanceof Shape`

@@ -69,9 +69,10 @@ func TestRunHits(t *testing.T) {
 	want := strings.Join([]string{
 		`specs/Giraffe.md: verbatim EA text "` + sentence + `"`,
 		`cmd/tool/main.go: forbidden token "PsiWobbleNode"`,
+		`docs/internals/migration.md: forbidden token "[EA]"`,
 		`docs/notes.md: verbatim EA text "` + longLine[:70] + `…"`,
 		`docs/otters.md: verbatim EA text "` + prefixed + ` ."`,
-		"cleanroom: 4 hit(s)",
+		"cleanroom: 5 hit(s)",
 		"",
 	}, "\n")
 	if code != 1 || stdout.String() != want {

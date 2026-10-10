@@ -47,6 +47,11 @@ text is never compared or stored. The repository's own fixtures
 strings that appear verbatim in the local upstream checkout and fails on any
 hit.
 
+Conformance failures must not expose upstream messages or expected fixed source
+to implementers. Missing expectations are reported by severity and range; fix
+mismatches show the divergence offset and custos' own output. Keep raw upstream
+fixtures and locally extracted case data outside version control.
+
 ## Divergences
 
 custos fixes upstream bugs instead of reproducing them. Each intentional

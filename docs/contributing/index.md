@@ -106,6 +106,8 @@ use; set a tool's variable empty to skip it offline (`make lint MDLINT=`).
 - [Fixtures](./fixtures): the test file format.
 - [Releasing](./releasing): cutting a version.
 
-The working notes of the port (plan, design decisions, divergence candidates,
-per-rule status) are in
-[`docs/internals/`](https://github.com/janalis/custos/tree/main/docs/internals).
+Generated [rule status](https://github.com/janalis/custos/blob/main/docs/internals/rules.md)
+tracks specifications and upstream conformance. Rule-specific decisions belong
+in the specifications and divergence manifest. Documentation should describe
+current behavior and durable practices; keep session plans, progress logs and
+local verification reports in ignored `.cache/`.

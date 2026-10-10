@@ -323,7 +323,7 @@ so step 4 deletes `$total = count($rows);`.
 
 ## Divergences
 
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - **Loop condition (custos diverges).** Upstream's D5 accepts any binary
   operator between counter and limit (`<=`, `>`, `!=`, even `+`), so
   `for ($i = 0; $i <= count($a); $i++)` is reported and fixed although it
@@ -354,8 +354,7 @@ so step 4 deletes `$total = count($rows);`.
   loop whose counter or limit is written anywhere except its standard init
   and step. No upstream fixture writes the counter or limit inside a
   reported loop (the only writes in reported loops are the limit's own init
-  assignment, which stays allowed), so conformance is unaffected. Recorded in
-  `docs/internals/decisions.md` ("Spec-level false positives").
+  assignment, which stays allowed), so conformance is unaffected.
 - **Use after the loop (D8c/E9) — custos refinement, not upstream.**
   Upstream ignores what happens after the loop, so a search loop whose
   counter is tested after a `break`, or a header limit read afterwards, is

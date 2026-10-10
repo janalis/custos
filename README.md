@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Fast PHP inspector and fixer.</strong><br>
-  578 inspections with quick-fixes · one static binary · CLI, CI and LSP
+  PHP inspections with quick-fixes · one static binary · CLI, CI and LSP
 </p>
 
 <p align="center">
@@ -32,8 +32,8 @@ many of them for you. It is written in Go with its own PHP parser and type
 inference, so it needs no PHP runtime. It runs from the command line, in CI,
 and in any editor as a language server.
 
-The catalogue includes 178 rules modelled on *Php Inspections (EA Extended)*
-and 400 independently designed native inspections. Existing
+The catalogue includes rules modelled on *Php Inspections (EA Extended)*
+and independently designed native inspections. Existing
 `@noinspection XxxInspection` comments keep working for the modelled rules.
 custos is an independent clean-room implementation (see [NOTICE](NOTICE)).
 
@@ -67,10 +67,10 @@ src/Invoice.php:7:6: error: Restrict the classes unserialize() may create via it
 
 ## Highlights
 
-- **578 rules**, including 400 native inspections, in 12 groups: probable bugs, performance, security, control
+- **PHP inspections** for probable bugs, performance, security, control
   flow, code style, unused code, PHPUnit, language-level migration…
   ([reference](https://janalis.github.io/custos/rules/))
-- **Quick-fixes** for over a hundred rules, applied by `custos fix` or as
+- **Quick-fixes**, applied by `custos fix` or as
   editor code actions.
 - **Version-aware**: rules follow the target PHP version from `custos.json`
   or `composer.json`.

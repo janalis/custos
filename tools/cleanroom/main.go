@@ -67,9 +67,8 @@ func run(root string, args []string, stdout, stderr io.Writer) int {
 			if strings.HasSuffix(p, "rules.json") {
 				return
 			}
-			// The migration plan names upstream internals on purpose (facts,
-			// not code); the conformance harness parses the "[EA]" prefix.
-			exempt := p == "docs/internals/migration.md" || strings.HasPrefix(p, "internal/testing/conformance/")
+			// The conformance harness parses the "[EA]" prefix.
+			exempt := strings.HasPrefix(p, "internal/testing/conformance/")
 			if m := forbidden.FindString(text); m != "" && !exempt {
 				fmt.Fprintf(stdout, "%s: forbidden token %q\n", p, m)
 				hits++

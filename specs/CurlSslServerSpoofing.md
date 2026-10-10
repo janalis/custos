@@ -138,7 +138,7 @@ function fetch($handle, $insecure)
   accepts any call whose written last segment is exactly `curl_setopt`, so a
   namespace's own `curl_setopt()` is checked while `\Curl_SetOpt()` is not.
   custos resolves the call to the global function, in any case (D1).
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - D1 accepts `K` in any argument position of `curl_setopt`
   (`curl_setopt($h, $opt, CURLOPT_SSL_VERIFYPEER)` would evaluate the
   constant itself as the value; that resolves to a multi-digit number and is

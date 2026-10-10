@@ -74,6 +74,39 @@ keeps multi-edit fixes together, rejects ambiguous insertion conflicts and
 iterates at most ten times. Single-pass mode preserves editor/conformance
 semantics. Rule implementations decide whether a proposed fix is safe.
 
+## Semantic evidence and fix safety
+
+A written name is not enough to identify a builtin. Use the analysis context's
+resolved global-function queries so namespace functions and imports retain
+PHP's runtime behavior. Function, method and class names are case-insensitive;
+variables, properties and ordinary constants are case-sensitive.
+
+PHPDoc supplies useful analysis evidence, but it does not enforce runtime types.
+When a fix requires native type evidence, use `Env.Native()` to exclude user
+PHPDoc. Unsupported operations, escaped values and exhausted analysis budgets
+must discard definite facts rather than authorize a finding or fix.
+
+Project indexes are built in memory. The LSP builds its workspace index in the
+background and publishes replacement engines under its workspace mutex. Keep
+shared declarations immutable during context-dependent member lookup.
+
+## Bounded analysis and input
+
+Repository content and editor buffers are untrusted input. Preserve bounds on
+source size, syntax nesting, findings, PHPDoc parsing and expansion, hierarchy
+traversal and local-flow work. When adding a traversal, account for cycles and
+repeated queries as well as recursion depth; cache reusable scope queries and
+fall back conservatively when a budget is exhausted.
+
+Filesystem reads belong to bounded `safeio` operations, which require regular
+files and check the opened descriptor as well as the path. Adapters retain
+responsibility for writes, path validation and protocol framing. Malformed or
+oversized input must produce a controlled error rather than hang or panic.
+
+Use hostile-input regression tests and fuzz targets for these contracts.
+Measure hot-path changes with `make bench` and allocation counts; retain local
+corpus comparisons and timing logs in ignored `.cache/`, not in documentation.
+
 ## Dependency enforcement
 
 `make architecture`, included in `make verify`, checks production imports,

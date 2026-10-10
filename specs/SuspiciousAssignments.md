@@ -327,8 +327,7 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
   value is an array whenever destructuring can succeed (found on real code).
   custos ignores `null` and `false` when at least one supporting type is
   present. The upstream fixtures report `string` and `stdClass` values only,
-  so conformance is unaffected. Recorded in `docs/internals/decisions.md`
-  ("Spec-level false positives"). Note: a stub union that also carries other
+  so conformance is unaffected. Note: a stub union that also carries other
   scalars (e.g. `array|int|float|false`) is still reported; silencing such
   calls needs argument-aware return types, not this rule.
 - Check A for property/array targets uses the same equivalence, so

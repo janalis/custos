@@ -284,7 +284,7 @@ abstract class CartTest
   compares the assertion, `expects` and `any` names case-sensitively, so
   `$this->AssertNull($this->clear())` is not reported although PHP calls the
   same method. custos compares them case-insensitively.
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - `assertInstanceOf` whose argument 0 is not a resolvable `X::class`
   (e.g. `'Shop\Cart'`, `$class`, an unknown class): upstream falls back to
   "no expected type" and reports whenever D2–D5 hold, regardless of the

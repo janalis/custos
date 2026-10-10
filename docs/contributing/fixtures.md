@@ -80,3 +80,18 @@ Rules that read a manifest instead of PHP (such as `SecurityAdvisories` on
 make fixtures RULE=OneTimeUseVariables
 make coverage            # lists uncovered blocks of internal/inspection/rules
 ```
+
+## Upstream conformance
+
+`make conformance` reads fixtures from the local upstream checkout at test time.
+Cases without an explicit target run at PHP 5.6. The harness parses with the
+latest supported syntax in permissive mode, while inspections use the case's
+PHP target. Companion files configured by the same test are indexed together.
+IDE syntax-error markers are excluded from inspection expectations.
+
+Fix comparison applies the first analysis's fixes in one pass, resolving edit
+conflicts together, and collapses whitespace for comparison. This checks
+single-pass editor behavior separately from the CLI's iterative fix loop.
+Intentional differences belong in the rule specification's *Divergences*
+section and `testdata/ea-divergences.json`. See the
+[clean-room process](./clean-room) for restrictions on failure output.

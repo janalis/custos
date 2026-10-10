@@ -228,8 +228,7 @@ function check() {
   NotOptimalRegularExpressions, PrintfScanfArguments). No upstream fixture of
   any of these rules relies on a variable that is also incremented or
   compound-assigned (PrintfScanfArguments' only such fixture expects no
-  report), so conformance is unaffected. Recorded in `docs/internals/decisions.md`
-  ("Spec-level false positives").
+  report), so conformance is unaffected.
 - Interpolated double-quoted strings (`"$cls::open"`) are string literals but
   cannot describe a fixed callback; upstream behaviour unverified.
   Recommendation: skip strings containing interpolation.

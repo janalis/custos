@@ -193,7 +193,7 @@ A text like `'99% sure'` is *valid* for D5 (`% s` = space padding + `s`).
   reports only when the complete set of possible formats is known
   literals that all agree (D2): with several agreeing literals it reports
   too (`$c ? 'Field %s: %s' : '%s => %s'` with one value argument).
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (stop: neither the format-validity nor the arity check runs, which subsumes D7c for plain variables), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (stop: neither the format-validity nor the arity check runs, which subsumes D7c for plain variables), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - **Positional formats and `$` text (custos diverges from upstream).**
   Upstream stops whenever the raw format contains `$` followed by a letter
   or digit, to avoid interpolated strings. That also skips every format

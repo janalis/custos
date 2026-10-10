@@ -611,7 +611,7 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
 
 ## Divergences
 
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no candidate, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable; recorded in `docs/internals/decisions.md` ("Spec-level false positives").
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no candidate, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - **D21 range.** The upstream fixture highlights only the function name of
   the `preg_match_all` call although the finding is attached to the whole
   call (the `preg_quote` finding, attached the same way, covers the whole

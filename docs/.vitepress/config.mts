@@ -18,7 +18,7 @@ function version(): string {
 
 export default withMermaid(defineConfig({
   title: 'custos',
-  description: 'Fast PHP inspector and fixer: 378 inspections with quick-fixes, a single static binary, CLI and LSP.',
+  description: 'Fast PHP inspector and fixer: PHP inspections with quick-fixes, a single static binary, CLI and LSP.',
   lang: 'en-US',
   base,
   cleanUrls: true,

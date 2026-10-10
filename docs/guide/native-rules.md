@@ -1,14 +1,14 @@
 # Native inspections
 
-The catalogue includes 400 inspections designed for custos. Each has a
+Native inspections are designed for custos. Each has a
 [rule reference page](/rules/) with detection conditions, examples, PHP version
 requirements and available fixes. Native rules use their stable custos ID for
 configuration and suppression.
 
 ## Choosing rules
 
-292 native inspections are enabled by default. The remaining 108 depend on the
-intended meaning of values, keys, dates or text, so enable them when their
+Some native inspections depend on the intended meaning of values, keys, dates
+or text and are disabled by default. Enable them when their
 contracts fit your project. For example, preserving numeric keys matters for
 record maps, while reindexing may be appropriate for lists.
 
@@ -30,29 +30,23 @@ custos analyse --rule FilteredListJsonShape src/
 
 ## Additional PHP and extension contracts
 
-An earlier 100-rule expansion covers reference aliases, generators and fibers,
-array shapes, serialization, encryption, sessions and cookies, cURL,
-database bindings and transactions, process pipes, encodings, ZIP, XML,
-images and sodium. They report concrete misuse such as resuming an unstarted
-fiber, mismatched binding counts, an image MIME type that conflicts with its
-encoder, or accepting a ZIP error code as successful opening.
+Native inspections check language behavior and extension APIs, including:
 
-A further 100 inspections add language and reflection contracts, SPL iterator
-behavior, stream modes and CSV records, HTTP response framing, BCMath and GMP,
-binary formats, DOM and XML ownership, SQLite and PostgreSQL results,
-internationalization, compression, archive budgets and process status.
-Examples include constructing an abstract class, moving a DOM node between
-documents without importing it, consuming a SQLite result after finalization,
-and declaring a response length that differs from the proven emitted bytes.
+- **Language and values:** reference aliases, generators and fibers, array
+  shapes, reflection, numeric bounds, regex captures and JSON values.
+- **Security and HTTP:** serialization, encryption, sodium state and nonces,
+  sessions and cookies, cURL callbacks, response framing and TLS handshakes.
+- **Data and resources:** database bindings, transactions and result lifetimes,
+  SPL iterators, filesystem failure results, streams, CSV records, process
+  pipes and shared memory.
+- **Text, documents and images:** encodings, internationalization, BCMath and
+  GMP, binary formats, ZIP and compression, DOM and XML, GD and Imagick.
 
-The latest 100 inspections cover additional language and extension contracts:
-fallthrough returns, fiber and generator state, numeric argument bounds, regex
-captures and JSON values, filesystem failure results, sodium state and nonce
-reuse, cURL callbacks, database result modes, XML writers, GD and Imagick,
-process pipes and shared-memory operations. Examples include a zero range
-step, reversed password verification arguments, XML attributes written after
-content, and a TLS handshake treated as complete while it still needs I/O.
-These inspections report findings without automatic fixes.
+Examples include resuming an unstarted fiber, mismatched database binding
+counts, consuming a SQLite result after finalization, moving a DOM node between
+documents without importing it, or accepting a ZIP error code as successful
+opening. Each rule page describes the evidence required for a finding and
+whether a fix is available.
 
 Intent-sensitive findings are off by default. Examples include intentional
 shared references, GET bodies, accumulated command output, permission policy,
@@ -122,7 +116,7 @@ treated as proof of a bug.
 
 ## Explicit application contracts
 
-Three security inspections accept application documentation to establish intent.
+Security inspections can use application documentation to establish intent.
 `RedirectContinuesProtectedExecution` and `UntrustedForwardedClientAddress`
 recognize a resolved callable annotated with `@custos-protected` as protected
 work. The forwarded-address rule requires an address comparison that controls
@@ -147,19 +141,17 @@ precise scope.
 
 ## Fixes
 
-Fixes are available for 41 native inspections. A fix requires the rule's
-specific prerequisites and preserves source comments and argument evaluation
-order. Some repair a proven bug, such as adding an omitted callback return or
-preserving a large JSON integer as a string. Rules requiring a choice of
-error-handling or application policy report a finding without an automatic fix.
+A fix requires the rule's specific prerequisites and preserves source comments
+and argument evaluation order. Some repair a proven bug, such as adding an
+omitted callback return or preserving a large JSON integer as a string. Rules
+requiring a choice of error-handling or application policy report a finding without an automatic fix.
 
-The new fixes replace NaN equality tests with `is_nan()` when numeric types
+Available fixes replace NaN equality tests with `is_nan()` when numeric types
 are proven, require ZIP opening to return exactly `true`, and require OpenSSL
 signature verification to return exactly `1`. Additional narrowly gated fixes
 remove pattern escaping from literal replacement text, normalize parsed query
 keys, and correct a directly constructed sodium nonce length. Missing error
-handling, encryption
-key derivation and authentication policy require a project decision and have
-no automatic correction.
+handling, encryption key derivation and authentication policy require a project
+decision and have no automatic correction.
 
 Use the normal [fix command](./cli) to review and apply available edits.

@@ -1,10 +1,15 @@
 # custos
 
-Fast PHP inspector + fixer written in Go. Its rule catalogue (178 rules) is
-modelled on Php Inspections (EA Extended); it is an **independent clean-room
-implementation** released under MIT. Also runs as an LSP server (`custos lsp`) for editors.
+Fast PHP inspector + fixer written in Go. Its rule catalogue includes native
+inspections and rules modelled on Php Inspections (EA Extended); it is an
+**independent clean-room implementation** released under MIT. Also runs as an LSP server (`custos lsp`) for editors.
 
-Full plan and phases: `docs/internals/migration.md`. Per-rule status: `docs/internals/rules.md`.
+Architecture and contributor practices: `docs/contributing/`. Per-rule status: `docs/internals/rules.md`.
+
+Documentation describes current behavior and durable contributor practices.
+Keep agent plans, progress logs and local verification reports in ignored
+`.cache/`; never commit them as documentation. Keep catalogue totals in the
+generated rule reference and status table, not in marketing or usage prose.
 
 ## Clean-room rules (MANDATORY)
 
@@ -51,7 +56,7 @@ tools/internal/specmd/          spec section/front-matter/example parsing
 specs/                           clean-room behavioral specification per stable rule ID
 testdata/rules/<ID>/             own PHP fixtures, fixed bytes and option sidecars
 docs/                           VitePress guide, contributing docs and generated rules
-docs/internals/                 audit, decisions, migration and rule status
+docs/internals/                 generated rule status
 ```
 
 ## Commands

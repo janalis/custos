@@ -15,7 +15,8 @@ and fixes many of them for you. It looks for:
 - **language-level migration**: constructs that newer PHP versions replace,
   deprecate or remove, checked against the PHP version your project targets.
 
-There are 578 rules in all, including 400 native custos inspections; see the [rule reference](/rules/).
+See the [rule reference](/rules/) for detection conditions, examples and
+available fixes.
 
 ## Why custos
 
@@ -24,8 +25,8 @@ There are 578 rules in all, including 400 native custos inspections; see the [ru
   it with Homebrew or Composer, or download a release archive.
 - **Fast.** Files are analysed in parallel, each in a single pass over its
   syntax tree, with every rule dispatched by node kind.
-- **Fixes, not just reports.** Over a hundred rules have a quick-fix. Use
-  `custos fix` on the command line, or apply them one at a time from your
+- **Fixes, not just reports.** Rules offer quick-fixes when a safe correction
+  can be established. Use `custos fix` on the command line, or apply them one at a time from your
   editor.
 - **Same diagnostics everywhere.** The CLI, CI and the language server share
   one engine and one configuration file (`custos.json`).
@@ -34,9 +35,10 @@ There are 578 rules in all, including 400 native custos inspections; see the [ru
 
 ## Relation to Php Inspections (EA Extended)
 
-178 rules are modelled on the PhpStorm plugin
+The catalogue includes rules modelled on the PhpStorm plugin
 [Php Inspections (EA Extended)](https://github.com/kalessil/phpinspectionsea).
-The catalogue also includes 400 independently designed [native inspections](./native-rules).
+The catalogue also includes independently designed
+[native inspections](./native-rules).
 custos is an **independent, clean-room implementation** released under the
 MIT license. None of that project's code, messages, descriptions or test
 fixtures are included. Every rule was independently specified before it
