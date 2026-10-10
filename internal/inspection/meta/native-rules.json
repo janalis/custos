@@ -1,5 +1,26 @@
 [
   {
+    "id": "AeadAuthenticationTagDiscarded",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "AeadDecryptionTagLengthUnchecked",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "tagLength",
+        "type": "int",
+        "default": 16
+      }
+    ]
+  },
+  {
     "id": "AmbiguousReplacementBackreference",
     "group": "Probable bugs",
     "severity": "warning",
@@ -10,6 +31,13 @@
     "id": "ArrayChunkInvalidSize",
     "group": "Probable bugs",
     "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ArrayColumnDuplicateIndexLoss",
+    "group": "Probable bugs",
+    "severity": "warning",
     "enabledByDefault": true,
     "hasFix": false
   },
@@ -25,6 +53,27 @@
     "group": "Probable bugs",
     "severity": "error",
     "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ArrayCopyRetainsReferences",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "ArrayDiffOnNestedArrays",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ArrayFillSharesObject",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
     "hasFix": false
   },
   {
@@ -63,6 +112,20 @@
     "hasFix": false
   },
   {
+    "id": "ArrayMultisortLengthMismatch",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ArrayRandKeyUsedAsValue",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "ArrayReduceMissingInitialValue",
     "group": "Probable bugs",
     "severity": "warning",
@@ -70,10 +133,82 @@
     "hasFix": true
   },
   {
+    "id": "ArraySliceDiscardsRequiredKeys",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "ArraySpliceDiscardsReplacementKeys",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "ArrayUnionDropsRightValues",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "ArrayUniqueOnNonStringableObjects",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ArrayWalkCallbackReturnIgnored",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "ArrowFunctionCapturedCounter",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "AuthenticationCookieAllowsScriptAccess",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "authenticationCookies",
+        "type": "list",
+        "default": [
+          "auth_token"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "Base64ValidationWithoutStrictMode",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "BasicAuthenticationOverPlainHttp",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "BcryptPasswordTruncation",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
     "hasFix": false
   },
   {
@@ -98,7 +233,21 @@
     "hasFix": false
   },
   {
+    "id": "CatchVariableOverwritesLocal",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "ClosureCapturedValueWrite",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "CodePointSliceSplitsGrapheme",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": false,
@@ -112,6 +261,90 @@
     "hasFix": true
   },
   {
+    "id": "CookieDeletionScopeMismatch",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "CredentialedCorsUsesWildcardOrigin",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "CtypeIntegerInterpretedAsCharacterCode",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "CurlCustomGetRetainsPostBody",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "CurlCustomHeadWithoutNoBody",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "CurlExplicitInfiniteTimeout",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "CurlHeaderListOverwritten",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "CurlHeadersIncludedInDecodedBody",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "CurlMethodOptionOrderConflict",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "CurlMultiSuccessAssumedPerTransfer",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "CurlMultipartBodyWithJsonContentType",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "CurlRedirectForwardsCredentials",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "CurlResponseBodyWithoutReturnTransfer",
     "group": "Probable bugs",
     "severity": "warning",
@@ -123,6 +356,13 @@
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "CurlWriteCallbackMissingByteCount",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
     "hasFix": false
   },
   {
@@ -154,6 +394,13 @@
     "hasFix": false
   },
   {
+    "id": "DecryptionFailureUsedAsPlaintext",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "DirectoryIteratorDotEntries",
     "group": "Probable bugs",
     "severity": "warning",
@@ -175,7 +422,35 @@
     "hasFix": true
   },
   {
+    "id": "DynamicCorsOriginWithoutVary",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "EncodingConversionArgumentsReversed",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "EnumFromUncheckedExternalValue",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "ExceptionConstructedNotThrown",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ExecOutputArrayAccumulates",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": false,
@@ -203,6 +478,13 @@
     "hasFix": false
   },
   {
+    "id": "FiberResumeBeforeStart",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "FileLockFailureUnchecked",
     "group": "Probable bugs",
     "severity": "warning",
@@ -214,6 +496,13 @@
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "FileStatCacheAfterExternalMutation",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
     "hasFix": false
   },
   {
@@ -238,10 +527,52 @@
     "hasFix": true
   },
   {
+    "id": "FinallyThrowMasksException",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "ForeachReferenceSurvivesLoop",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "FormEncodingUsedForRfc3986Signature",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "signatureFunctions",
+        "type": "list",
+        "default": []
+      }
+    ]
+  },
+  {
+    "id": "FractionalArrayKeyTruncation",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "GeneratorCallNeverConsumed",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "GeneratorReturnBeforeCompletion",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
     "hasFix": false
   },
   {
@@ -252,7 +583,52 @@
     "hasFix": false
   },
   {
+    "id": "HardcodedCredentialAtKnownSink",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "excludedPaths",
+        "type": "list",
+        "default": [
+          "**/testdata/**",
+          "**/tests/**"
+        ]
+      }
+    ]
+  },
+  {
     "id": "HeadersAfterCommittedOutput",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "HexDecodeOddLengthLiteral",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "HostCookiePrefixContractViolation",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ImageDecodeFailureUnchecked",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ImageEncoderContentTypeMismatch",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": true,
@@ -266,11 +642,25 @@
     "hasFix": false
   },
   {
+    "id": "IntegerCastOutOfRangeLiteral",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "IntervalDayComponentAsTotal",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": false,
     "hasFix": true
+  },
+  {
+    "id": "IntlFormattingFailureUnchecked",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
   },
   {
     "id": "IsoWeekCalendarYearMismatch",
@@ -287,11 +677,53 @@
     "hasFix": false
   },
   {
+    "id": "JsonEncodeFlagPassedToDecode",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "JsonForceObjectChangesNestedLists",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "JsonIntegerPrecisionLoss",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": false,
     "hasFix": true
+  },
+  {
+    "id": "JsonNumericCheckChangesIdentifiers",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "JsonPartialOutputOverridesThrow",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "LibxmlErrorBufferNeverCleared",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "LoopClosureCapturesReference",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
   },
   {
     "id": "MillisecondsUsedAsUnixSeconds",
@@ -308,7 +740,77 @@
     "hasFix": false
   },
   {
+    "id": "MultibytePositionUsedAsByteOffset",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "MysqlDdlImplicitlyCommitsTransaction",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "MysqliBindingTypeCountMismatch",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "MysqliBoundArrayReassigned",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "MysqliInvalidBindingType",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "MysqliPlaceholderBindingMismatch",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "MysqliUnbufferedResultBlocksNextQuery",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "NanCheckedWithEquality",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "NestedPdoTransactionWithoutSavepoint",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "NoContentResponseWithBody",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "NonBlockingEmptyReadTreatedAsEof",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": true,
@@ -322,10 +824,52 @@
     "hasFix": false
   },
   {
+    "id": "OpenSslKeyLengthMismatch",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "OpenSslRawCiphertextOptionMismatch",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "OpenSslVerifyTruthyResult",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "OptionalRegexCaptureReadWithoutNullFlag",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "OwnedStreamNotClosed",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "ParseStrKeyNormalizationMismatch",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "ParsedQueryValueDecodedTwice",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
     "hasFix": false
   },
   {
@@ -343,7 +887,31 @@
     "hasFix": true
   },
   {
+    "id": "PasswordUsedDirectlyAsEncryptionKey",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "passwordKeys",
+        "type": "list",
+        "default": [
+          "password",
+          "passphrase"
+        ]
+      }
+    ]
+  },
+  {
     "id": "PathContainmentPrefixBoundary",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "PdoArrayBoundToSinglePlaceholder",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": true,
@@ -355,6 +923,13 @@
     "severity": "warning",
     "enabledByDefault": true,
     "hasFix": true
+  },
+  {
+    "id": "PdoFetchBothLeaksDuplicateColumns",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
   },
   {
     "id": "PdoFetchColumnFalsyValueLoss",
@@ -406,11 +981,32 @@
     "hasFix": false
   },
   {
+    "id": "PermissionModeWrittenInDecimal",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "PregMatchAllLayoutMismatch",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "PregMatchFailureAsNonMatch",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": false,
     "hasFix": false
+  },
+  {
+    "id": "PregQuoteUsedOnReplacement",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
   },
   {
     "id": "PregReplaceFailureUnchecked",
@@ -427,6 +1023,27 @@
     "hasFix": true
   },
   {
+    "id": "ProcessClosedBeforeOwnedPipes",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ProcessPipesDrainedSequentially",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "ReadLoopProcessesEofFailure",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "ReadModifyWriteLockTooLate",
     "group": "Probable bugs",
     "severity": "warning",
@@ -438,6 +1055,13 @@
     "group": "Probable bugs",
     "severity": "error",
     "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "RecursiveReplaceRetainsListTail",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
     "hasFix": false
   },
   {
@@ -455,6 +1079,13 @@
     "hasFix": false
   },
   {
+    "id": "RenameFailureUnchecked",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
     "id": "RepeatedCookieHeaderReplacement",
     "group": "Probable bugs",
     "severity": "warning",
@@ -469,6 +1100,13 @@
     "hasFix": false
   },
   {
+    "id": "RequestControlledSessionId",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "SameSiteNoneWithoutSecure",
     "group": "Probable bugs",
     "severity": "warning",
@@ -477,6 +1115,13 @@
   },
   {
     "id": "SessionCookieOptionsSetAfterStart",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "SessionDestroyLeavesLocalAuthentication",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": true,
@@ -497,10 +1142,40 @@
     "hasFix": false
   },
   {
+    "id": "SessionNameChangedWhileActive",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "SessionRegenerationFailureUnchecked",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "authenticationKeys",
+        "type": "list",
+        "default": [
+          "authenticated"
+        ]
+      }
+    ]
+  },
+  {
     "id": "ShallowCloneNestedMutation",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "SharedLockUsedForWriting",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
     "hasFix": false
   },
   {
@@ -509,6 +1184,13 @@
     "severity": "warning",
     "enabledByDefault": true,
     "hasFix": false
+  },
+  {
+    "id": "SodiumNonceLengthMismatch",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
   },
   {
     "id": "SortComparatorReturnsBoolean",
@@ -526,6 +1208,13 @@
   },
   {
     "id": "SortResultUsedAsArray",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "SqlNullComparedWithEquality",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": true,
@@ -623,6 +1312,20 @@
     "hasFix": false
   },
   {
+    "id": "UnreachableCatchClause",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "UnserializeFalseAmbiguity",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "UntrustedFilesystemPath",
     "group": "Security",
     "severity": "error",
@@ -644,6 +1347,13 @@
     "hasFix": false
   },
   {
+    "id": "UntrustedLdapFilter",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
     "id": "UntrustedNetworkDestination",
     "group": "Security",
     "severity": "error",
@@ -661,6 +1371,13 @@
     "id": "UntrustedSqlConstruction",
     "group": "Security",
     "severity": "error",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "UntrustedXmlExternalEntityExpansion",
+    "group": "Security",
+    "severity": "warning",
     "enabledByDefault": true,
     "hasFix": false
   },
@@ -694,6 +1411,52 @@
   },
   {
     "id": "ValidatedIntegerZeroRejected",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": true
+  },
+  {
+    "id": "WorldWritablePermission",
+    "group": "Security",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false,
+    "options": [
+      {
+        "name": "sensitivePaths",
+        "type": "list",
+        "default": [
+          "**/*.pem",
+          "**/.env",
+          "**/config.php"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "XPathIgnoresDefaultNamespace",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ZipCloseFailureUnchecked",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": false,
+    "hasFix": false
+  },
+  {
+    "id": "ZipEntryStreamUsedAfterArchiveClose",
+    "group": "Probable bugs",
+    "severity": "warning",
+    "enabledByDefault": true,
+    "hasFix": false
+  },
+  {
+    "id": "ZipOpenTruthyResult",
     "group": "Probable bugs",
     "severity": "warning",
     "enabledByDefault": true,

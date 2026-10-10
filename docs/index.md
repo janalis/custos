@@ -4,7 +4,7 @@ layout: home
 hero:
   name: custos
   text: Fast PHP inspector and fixer
-  tagline: 278 inspections with quick-fixes, from probable bugs to PHP 8.5 migration. One static binary for the command line, CI and your editor.
+  tagline: 378 inspections with quick-fixes, from probable bugs to PHP 8.5 migration. One static binary for the command line, CI and your editor.
   image:
     src: /logo.png
     alt: custos, an elephant in a police uniform
@@ -21,7 +21,7 @@ hero:
 
 features:
   - icon: 🔎
-    title: 278 inspections
+    title: 378 inspections
     details: Probable bugs, performance, security, control flow, code style, unused code, PHPUnit and language-level migration from PHP 5.3 to 8.5.
     link: /rules/
     linkText: Rule reference

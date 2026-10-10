@@ -1,0 +1,67 @@
+---
+id: OptionalRegexCaptureReadWithoutNullFlag
+group: Probable bugs
+kind: semantic
+needs: [names, types, flow]
+php: { min: "", max: "" }
+---
+
+# OptionalRegexCaptureReadWithoutNullFlag
+
+## Summary
+
+An unmatched optional regex capture can be absent from the results. Guard the access or request null placeholders for unmatched captures.
+
+## Detection
+
+- D1. Resolved preg_match literal pattern has a trailing optional capture and known literal subject proves that capture unmatched. Subsequent unconditional literal-index access reads the absent capture, without isset/array_key_exists/coalesce guard or PREG_UNMATCHED_AS_NULL.
+- D1a. Regex proof supports ordinary ASCII patterns compatible with RE2, no modifiers, lookarounds, backreferences, or unsupported PCRE extensions. Unknown matching behavior is excluded.
+- D1b. Regex proof requires an ASCII subject and an ordinary compatible PCRE subset without modifiers or whitespace escapes \s or \S. Reject patterns matching an empty string and subjects larger than 32768 bytes.
+- D1d. Require an actual value read of the absent capture. Exclude writes, unset, by-reference uses and unknown argument uses, and exclude statements that also mutate the result array. The regex offset must be omitted or statically known zero; nonzero or unknown offsets are unsupported.
+- D1e. All argument uses are excluded because they can involve reference passing. Also exclude increment/decrement, unset and write contexts. Any same-statement mutation or call receiving the result array discards the actual-read proof.
+- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+
+## Exceptions (no report)
+
+- E1. Required captures, unknown match outcomes, guarded reads, and unsupported regex syntax are excluded.
+- E2. Both standard suppression forms suppress this native ID.
+
+## Report
+
+- Range: the violating expression or call, unless D1 specifies a narrower range.
+- Severity: warning.
+- Enabled by default: true.
+- Message: Guard the unmatched optional capture or request null placeholders.
+
+## Fix
+
+None. Choosing a repair requires intent or additional runtime information.
+
+## Options
+
+None.
+
+## PHP versions
+
+Available throughout supported PHP 5.3–8.5 where the referenced builtin/extension is available. Respect syntax/version-specific receiver contracts; unavailable APIs are not this rule’s concern.
+
+See the [PHP regex capture and offset contract](https://www.php.net/manual/en/function.preg-match.php) for the relevant builtin behavior.
+
+## Examples
+
+```php
+<?php
+preg_match("/^(a)?b$/","b",$m);echo <warning descr="Guard the unmatched optional capture or request null placeholders.">$m[1]</warning>;
+```
+
+Valid case:
+
+```php
+<?php
+preg_match("/^(a)?b$/","b",$m,PREG_UNMATCHED_AS_NULL);echo $m[1];
+```
+
+## Divergences
+
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

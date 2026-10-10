@@ -1,0 +1,63 @@
+---
+id: AuthenticationCookieAllowsScriptAccess
+group: Security
+kind: semantic
+needs: [names, types, flow]
+php: { min: "", max: "" }
+---
+
+# AuthenticationCookieAllowsScriptAccess
+
+## Summary
+
+An authentication cookie without HttpOnly is available to scripts. Enable HttpOnly when the configured authentication policy requires it. This inspection is disabled by default because the intended policy or use can vary.
+
+## Detection
+
+- D1. Resolved setcookie/setrawcookie has a configured authentication cookie name (default auth_token) and explicit false httponly in literal options or positional argument. Missing httponly is excluded in initial contract to avoid policy ambiguity.
+- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+
+## Exceptions (no report)
+
+- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- E2. Both standard suppression forms suppress this native ID.
+
+## Report
+
+- Range: the violating expression or call, unless D1 specifies a narrower range.
+- Severity: warning.
+- Enabled by default: false.
+- Message: Enable HttpOnly for the authentication cookie.
+
+## Fix
+
+None. Choosing a repair requires intent or additional runtime information.
+
+## Options
+
+| Option | Type | Default | Effect |
+| --- | --- | --- | --- |
+| authenticationCookies | list | `["auth_token"]` | Configure the explicit policy evidence described in D1. |
+
+## PHP versions
+
+Available throughout supported PHP 5.3–8.5 where the referenced builtin/extension is available. Respect syntax/version-specific receiver contracts; unavailable APIs are not this rule’s concern.
+
+## Examples
+
+```php
+<?php
+setcookie("auth_token",$token,["secure"=>true,"httponly"=><warning descr="Enable HttpOnly for the authentication cookie.">false</warning>]);
+```
+
+Valid case:
+
+```php
+<?php
+setcookie("auth_token",$token,["secure"=>true,"httponly"=>true]);
+```
+
+## Divergences
+
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

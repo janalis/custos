@@ -1,13 +1,13 @@
 # Native inspections
 
-The catalogue includes 100 inspections designed for custos. Each has a
+The catalogue includes 200 inspections designed for custos. Each has a
 [rule reference page](/rules/) with detection conditions, examples, PHP version
 requirements and available fixes. Native rules use their stable custos ID for
 configuration and suppression.
 
 ## Choosing rules
 
-66 native inspections are enabled by default. The remaining 34 depend on the
+131 native inspections are enabled by default. The remaining 69 depend on the
 intended meaning of values, keys, dates or text, so enable them when their
 contracts fit your project. For example, preserving numeric keys matters for
 record maps, while reindexing may be appropriate for lists.
@@ -27,6 +27,49 @@ contract. To inspect one rule in isolation:
 ```sh
 custos analyse --rule FilteredListJsonShape src/
 ```
+
+## Additional PHP and extension contracts
+
+The latest 100 inspections cover reference aliases, generators and fibers,
+array shapes, serialization, encryption, sessions and cookies, cURL,
+database bindings and transactions, process pipes, encodings, ZIP, XML,
+images and sodium. They report concrete misuse such as resuming an unstarted
+fiber, mismatched binding counts, an image MIME type that conflicts with its
+encoder, or accepting a ZIP error code as successful opening.
+
+Intent-sensitive findings are off by default. Examples include intentional
+shared references, GET bodies, accumulated command output, permission policy,
+and signature canonicalization. Local-flow findings require the operations
+and downstream use described by their rule page; unknown data and escaped
+handles cannot establish those facts.
+
+Several optional rules accept explicit project policy. Configure the option
+values explicitly; the signature-function list is empty by default and needs
+your project’s actual function names:
+
+```json
+{
+  "rules": {
+    "AuthenticationCookieAllowsScriptAccess": {
+      "enabled": true,
+      "options": { "authenticationCookies": ["auth_token"] }
+    },
+    "WorldWritablePermission": {
+      "enabled": true,
+      "options": { "sensitivePaths": ["**/*.pem", "**/.env", "**/config.php"] }
+    },
+    "FormEncodingUsedForRfc3986Signature": {
+      "enabled": true,
+      "options": { "signatureFunctions": ["signRfc3986"] }
+    }
+  }
+}
+```
+
+These lists establish specific policy: a cookie name identifies a configured
+authentication cookie, a path glob identifies a sensitive file, and an exact
+function name identifies a signature requiring RFC3986 query encoding.
+Ordinary variable or function names do not establish these contracts.
 
 ## Flow and project calls
 
@@ -69,10 +112,19 @@ precise scope.
 
 ## Fixes
 
-Fixes are available for 19 native inspections. A fix requires the rule's
+Fixes are available for 25 native inspections. A fix requires the rule's
 specific prerequisites and preserves source comments and argument evaluation
 order. Some repair a proven bug, such as adding an omitted callback return or
 preserving a large JSON integer as a string. Rules requiring a choice of
 error-handling or application policy report a finding without an automatic fix.
+
+The new fixes replace NaN equality tests with `is_nan()` when numeric types
+are proven, require ZIP opening to return exactly `true`, and require OpenSSL
+signature verification to return exactly `1`. Additional narrowly gated fixes
+remove pattern escaping from literal replacement text, normalize parsed query
+keys, and correct a directly constructed sodium nonce length. Missing error
+handling, encryption
+key derivation and authentication policy require a project decision and have
+no automatic correction.
 
 Use the normal [fix command](./cli) to review and apply available edits.
