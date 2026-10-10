@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-10
+
 ### Fixed
 
 - More accurate PHP parsing and recovery from invalid syntax.
