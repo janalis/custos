@@ -80,3 +80,13 @@
 .VPSidebarItem .text {
   overflow-wrap: anywhere;
 }
+
+/* Wide diagrams remain readable without overflowing the page. */
+.vp-doc .mermaid {
+  overflow-x: auto;
+}
+
+.vp-doc .mermaid svg {
+  min-width: 640px;
+  max-width: none !important;
+}

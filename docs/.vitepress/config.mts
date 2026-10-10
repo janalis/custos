@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 import rulesSidebar from './rules-sidebar.json'
 
 const repo = 'https://github.com/janalis/custos'
@@ -15,7 +16,7 @@ function version(): string {
   }
 }
 
-export default defineConfig({
+export default withMermaid(defineConfig({
   title: 'custos',
   description: 'Fast PHP inspector and fixer: 178 inspections with quick-fixes, a single static binary, CLI and LSP.',
   lang: 'en-US',
@@ -102,4 +103,4 @@ export default defineConfig({
       copyright: 'Builtin symbol data from JetBrains phpstorm-stubs (Apache-2.0).',
     },
   },
-})
+}))
