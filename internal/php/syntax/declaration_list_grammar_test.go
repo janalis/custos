@@ -81,10 +81,12 @@ func TestDeclarationListGrammar(t *testing.T) {
 			if php != "" {
 				// TOKEN_PARSE checks grammar without imposing compile-time
 				// restrictions on code outside a braced namespace.
-				cmd := exec.Command(php, "-n", "-r", `try { token_get_all(stream_get_contents(STDIN), TOKEN_PARSE); } catch (ParseError $e) { exit(1); }`)
+				// Keep php.ini: some distributions load tokenizer as an extension.
+				cmd := exec.Command(php, "-r", `try { token_get_all(stream_get_contents(STDIN), TOKEN_PARSE); } catch (ParseError $e) { exit(1); }`)
 				cmd.Stdin = strings.NewReader(src)
-				if valid := cmd.Run() == nil; valid != (tc.errorToken == "") {
-					t.Fatalf("PHP TOKEN_PARSE valid = %v, want %v", valid, tc.errorToken == "")
+				out, err := cmd.CombinedOutput()
+				if valid := err == nil; valid != (tc.errorToken == "") {
+					t.Fatalf("PHP TOKEN_PARSE valid = %v, want %v: %s", valid, tc.errorToken == "", out)
 				}
 			}
 		})
