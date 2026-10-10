@@ -120,4 +120,4 @@ Project operations receive resolved options and explicit inspection lists.
 Adapters own protocol/argument conversion, rendering and file writes. Publish
 engine copies from `WithIndex` under the existing LSP synchronization boundary.
 Diagnostic contracts are independent of inspections and reporting. See
-`docs/contributing/architecture.md` and `docs/internals/architecture-audit.md`.
+`docs/contributing/architecture.md`.

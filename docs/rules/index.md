@@ -6,7 +6,7 @@ title: Rules
 
 # Rules
 
-custos ships **478 rules** in 12 groups. Rules marked *off* only run when enabled in
+custos ships **578 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
 and offered as code actions by the language server. Rules originating from EA also answer to their PhpStorm
 inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `custos.json`.
@@ -182,6 +182,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ArrayCombineLengthMismatch](./probable-bugs/ArrayCombineLengthMismatch) | error | on |  | any |
 | [ArrayCopyRetainsReferences](./probable-bugs/ArrayCopyRetainsReferences) | warning | off |  | any |
 | [ArrayDiffOnNestedArrays](./probable-bugs/ArrayDiffOnNestedArrays) | warning | on |  | any |
+| [ArrayFillNegativeCount](./probable-bugs/ArrayFillNegativeCount) | error | on |  | any |
 | [ArrayFillSharesObject](./probable-bugs/ArrayFillSharesObject) | warning | off |  | any |
 | [ArrayFilterDropsZero](./probable-bugs/ArrayFilterDropsZero) | warning | off |  | any |
 | [ArrayFlipDuplicateValueLoss](./probable-bugs/ArrayFlipDuplicateValueLoss) | warning | off |  | any |
@@ -189,6 +190,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ArrayMapMissingCallbackReturn](./probable-bugs/ArrayMapMissingCallbackReturn) | warning | on | ✓ | any |
 | [ArrayMergeNumericKeyLoss](./probable-bugs/ArrayMergeNumericKeyLoss) | warning | off |  | any |
 | [ArrayMultisortLengthMismatch](./probable-bugs/ArrayMultisortLengthMismatch) | warning | on |  | any |
+| [ArrayRandInvalidCount](./probable-bugs/ArrayRandInvalidCount) | error | on |  | any |
 | [ArrayRandKeyUsedAsValue](./probable-bugs/ArrayRandKeyUsedAsValue) | warning | off |  | any |
 | [ArrayReduceMissingInitialValue](./probable-bugs/ArrayReduceMissingInitialValue) | warning | off | ✓ | any |
 | [ArraySliceDiscardsRequiredKeys](./probable-bugs/ArraySliceDiscardsRequiredKeys) | warning | off |  | any |
@@ -197,6 +199,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ArrayUniqueOnNonStringableObjects](./probable-bugs/ArrayUniqueOnNonStringableObjects) | warning | on |  | any |
 | [ArrayWalkCallbackReturnIgnored](./probable-bugs/ArrayWalkCallbackReturnIgnored) | warning | on |  | any |
 | [ArrowFunctionCapturedCounter](./probable-bugs/ArrowFunctionCapturedCounter) | warning | off |  | PHP ≥ 7.4 |
+| [AssertionContainsRequiredSideEffect](./probable-bugs/AssertionContainsRequiredSideEffect) | warning | on |  | any |
 | [AsyncSignalSetterReturnMisread](./probable-bugs/AsyncSignalSetterReturnMisread) | warning | off | ✓ | PHP ≥ 7.1 |
 | [AttributeTargetMismatch](./probable-bugs/AttributeTargetMismatch) | error | on |  | PHP ≥ 8.0 |
 | [AutoloadingIssues](./probable-bugs/AutoloadingIssues) | warning | on |  | any |
@@ -204,10 +207,12 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [BcMathExponentNotation](./probable-bugs/BcMathExponentNotation) | error | on |  | any |
 | [BcMathFloatOperand](./probable-bugs/BcMathFloatOperand) | warning | off |  | any |
 | [BcMathScaleDiscardsRequiredFraction](./probable-bugs/BcMathScaleDiscardsRequiredFraction) | warning | off |  | any |
+| [BufferedWriteFlushedAfterUnlock](./probable-bugs/BufferedWriteFlushedAfterUnlock) | warning | on |  | any |
 | [ByteLengthUsedAsCharacterCount](./probable-bugs/ByteLengthUsedAsCharacterCount) | warning | off |  | any |
 | [BytePaddingUsedForUnicodeWidth](./probable-bugs/BytePaddingUsedForUnicodeWidth) | warning | off |  | any |
 | [CallableMethodValidity](./probable-bugs/CallableMethodValidity) | warning | on |  | any |
 | [CallbackRequiredArgumentMismatch](./probable-bugs/CallbackRequiredArgumentMismatch) | error | on |  | any |
+| [CatchCannotHandleKnownThrowable](./probable-bugs/CatchCannotHandleKnownThrowable) | warning | off |  | any |
 | [CatchVariableOverwritesLocal](./probable-bugs/CatchVariableOverwritesLocal) | warning | off |  | any |
 | [ClassConstantUsageCorrectness](./probable-bugs/ClassConstantUsageCorrectness) | error | on |  | any |
 | [ClassMockingCorrectness](./probable-bugs/ClassMockingCorrectness) | error | on |  | any |
@@ -226,22 +231,30 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ContentLengthUsesCharacterCount](./probable-bugs/ContentLengthUsesCharacterCount) | warning | on | ✓ | any |
 | [ContentRangeLengthMismatch](./probable-bugs/ContentRangeLengthMismatch) | warning | on |  | any |
 | [CookieDeletionScopeMismatch](./probable-bugs/CookieDeletionScopeMismatch) | warning | on |  | any |
+| [CopyFailureReportedAsSuccess](./probable-bugs/CopyFailureReportedAsSuccess) | warning | on |  | any |
 | [CorsOriginListInvalid](./probable-bugs/CorsOriginListInvalid) | warning | on |  | any |
 | [CorsSubdomainWildcardInvalid](./probable-bugs/CorsSubdomainWildcardInvalid) | warning | on |  | any |
 | [CsvBlankRecordShapeMismatch](./probable-bugs/CsvBlankRecordShapeMismatch) | warning | on |  | any |
 | [CsvDelimiterInvalidByteLength](./probable-bugs/CsvDelimiterInvalidByteLength) | error | on |  | any |
 | [CsvEscapeDefaultDependency](./probable-bugs/CsvEscapeDefaultDependency) | warning | on | ✓ | PHP ≥ 8.4 |
+| [CsvReadLengthSplitsKnownRecord](./probable-bugs/CsvReadLengthSplitsKnownRecord) | warning | on |  | any |
 | [CtypeIntegerInterpretedAsCharacterCode](./probable-bugs/CtypeIntegerInterpretedAsCharacterCode) | warning | off |  | any |
 | [CurlCustomGetRetainsPostBody](./probable-bugs/CurlCustomGetRetainsPostBody) | warning | off |  | any |
 | [CurlCustomHeadWithoutNoBody](./probable-bugs/CurlCustomHeadWithoutNoBody) | warning | on |  | any |
 | [CurlExplicitInfiniteTimeout](./probable-bugs/CurlExplicitInfiniteTimeout) | warning | off |  | any |
+| [CurlHeaderCallbackMissingByteCount](./probable-bugs/CurlHeaderCallbackMissingByteCount) | warning | on |  | any |
 | [CurlHeaderListOverwritten](./probable-bugs/CurlHeaderListOverwritten) | warning | off |  | any |
+| [CurlHeaderOptionRequiresArray](./probable-bugs/CurlHeaderOptionRequiresArray) | error | on |  | any |
 | [CurlHeadersIncludedInDecodedBody](./probable-bugs/CurlHeadersIncludedInDecodedBody) | warning | on |  | any |
 | [CurlMethodOptionOrderConflict](./probable-bugs/CurlMethodOptionOrderConflict) | warning | on |  | any |
 | [CurlMultiSuccessAssumedPerTransfer](./probable-bugs/CurlMultiSuccessAssumedPerTransfer) | warning | on |  | any |
 | [CurlMultipartBodyWithJsonContentType](./probable-bugs/CurlMultipartBodyWithJsonContentType) | warning | on |  | any |
+| [CurlReadCallbackExceedsRequestedSize](./probable-bugs/CurlReadCallbackExceedsRequestedSize) | warning | on |  | any |
 | [CurlResponseBodyWithoutReturnTransfer](./probable-bugs/CurlResponseBodyWithoutReturnTransfer) | warning | on |  | any |
+| [CurlResponseZeroRejected](./probable-bugs/CurlResponseZeroRejected) | warning | on |  | any |
 | [CurlTransportSuccessAsHttpSuccess](./probable-bugs/CurlTransportSuccessAsHttpSuccess) | warning | off |  | any |
+| [CurlUploadDeclaredSizeMismatch](./probable-bugs/CurlUploadDeclaredSizeMismatch) | warning | on |  | any |
+| [CurlWholeUrlEscapedAsComponent](./probable-bugs/CurlWholeUrlEscapedAsComponent) | warning | on |  | any |
 | [CurlWriteCallbackMissingByteCount](./probable-bugs/CurlWriteCallbackMissingByteCount) | warning | on |  | any |
 | [DateIntervalSpecification](./probable-bugs/DateIntervalSpecification) | error | on |  | any |
 | [DateLastErrorsFalseUnchecked](./probable-bugs/DateLastErrorsFalseUnchecked) | warning | on |  | PHP ≥ 8.2 |
@@ -275,7 +288,12 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ExplodeEmptySeparator](./probable-bugs/ExplodeEmptySeparator) | error | on |  | any |
 | [FailedClosureBindingInvoked](./probable-bugs/FailedClosureBindingInvoked) | error | on |  | PHP ≥ 5.4 |
 | [FiberResumeBeforeStart](./probable-bugs/FiberResumeBeforeStart) | warning | on |  | PHP ≥ 8.1 |
+| [FiberResumedAfterTermination](./probable-bugs/FiberResumedAfterTermination) | error | on |  | PHP ≥ 8.1 |
+| [FiberReturnBeforeTermination](./probable-bugs/FiberReturnBeforeTermination) | error | on |  | PHP ≥ 8.1 |
+| [FiberStartedTwice](./probable-bugs/FiberStartedTwice) | error | on |  | PHP ≥ 8.1 |
+| [FiberSuspendOutsideFiber](./probable-bugs/FiberSuspendOutsideFiber) | error | on |  | PHP ≥ 8.1 |
 | [FileLockFailureUnchecked](./probable-bugs/FileLockFailureUnchecked) | warning | on |  | any |
+| [FilePermissionFailurePassesPolicy](./probable-bugs/FilePermissionFailurePassesPolicy) | warning | on |  | any |
 | [FileReadFailureUnchecked](./probable-bugs/FileReadFailureUnchecked) | warning | on |  | any |
 | [FileStatCacheAfterExternalMutation](./probable-bugs/FileStatCacheAfterExternalMutation) | warning | off |  | any |
 | [FileTruncatedBeforeLock](./probable-bugs/FileTruncatedBeforeLock) | warning | on |  | any |
@@ -288,8 +306,19 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ForkFailureTreatedAsParent](./probable-bugs/ForkFailureTreatedAsParent) | warning | on |  | PHP ≥ 5.3 |
 | [FormEncodingUsedForRfc3986Signature](./probable-bugs/FormEncodingUsedForRfc3986Signature) | warning | off |  | PHP ≥ 5.4 |
 | [FractionalArrayKeyTruncation](./probable-bugs/FractionalArrayKeyTruncation) | warning | on |  | any |
+| [FractionalModuloOperand](./probable-bugs/FractionalModuloOperand) | error | on |  | any |
+| [FtpPendingTransferAcceptedAsComplete](./probable-bugs/FtpPendingTransferAcceptedAsComplete) | warning | on |  | any |
+| [GdAlphaOutsideSupportedRange](./probable-bugs/GdAlphaOutsideSupportedRange) | error | on |  | any |
+| [GdColorZeroRejectedAsFailure](./probable-bugs/GdColorZeroRejectedAsFailure) | warning | on |  | any |
+| [GdImageDimensionsNotPositive](./probable-bugs/GdImageDimensionsNotPositive) | error | on |  | any |
+| [GdJpegQualityOutsideSupportedRange](./probable-bugs/GdJpegQualityOutsideSupportedRange) | error | on |  | any |
+| [GdPaletteIndexDecodedAsRgb](./probable-bugs/GdPaletteIndexDecodedAsRgb) | warning | on |  | any |
+| [GdPngCompressionOutsideSupportedRange](./probable-bugs/GdPngCompressionOutsideSupportedRange) | error | on |  | any |
+| [GdTransformationResultIgnored](./probable-bugs/GdTransformationResultIgnored) | warning | on |  | PHP ≥ 5.5 |
 | [GeneratorCallNeverConsumed](./probable-bugs/GeneratorCallNeverConsumed) | warning | off |  | PHP ≥ 5.5 |
 | [GeneratorReturnBeforeCompletion](./probable-bugs/GeneratorReturnBeforeCompletion) | warning | on |  | PHP ≥ 7.0 |
+| [GeneratorRewindAfterAdvance](./probable-bugs/GeneratorRewindAfterAdvance) | error | on |  | PHP ≥ 5.5 |
+| [GlobBraceExpansionMissingFlag](./probable-bugs/GlobBraceExpansionMissingFlag) | warning | off |  | any |
 | [GlobFailureUnchecked](./probable-bugs/GlobFailureUnchecked) | warning | on |  | any |
 | [GmpAutomaticBaseChangesDecimalInput](./probable-bugs/GmpAutomaticBaseChangesDecimalInput) | warning | off | ✓ | any |
 | [GmpDivisionByKnownZero](./probable-bugs/GmpDivisionByKnownZero) | error | on |  | any |
@@ -300,11 +329,17 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [HttpErrorBodyReadWithoutIgnoreErrors](./probable-bugs/HttpErrorBodyReadWithoutIgnoreErrors) | warning | off |  | any |
 | [ImageDecodeFailureUnchecked](./probable-bugs/ImageDecodeFailureUnchecked) | warning | on |  | any |
 | [ImageEncoderContentTypeMismatch](./probable-bugs/ImageEncoderContentTypeMismatch) | warning | on |  | any |
+| [ImagickFrameIndexPastEnd](./probable-bugs/ImagickFrameIndexPastEnd) | error | on |  | any |
+| [ImagickResizeStatusUsedAsImage](./probable-bugs/ImagickResizeStatusUsedAsImage) | warning | on |  | any |
+| [ImagickSingleBlobDropsRequiredFrames](./probable-bugs/ImagickSingleBlobDropsRequiredFrames) | warning | off |  | any |
 | [ImmutableDateResultIgnored](./probable-bugs/ImmutableDateResultIgnored) | warning | on |  | PHP ≥ 5.5 |
 | [IncorrectRandomRange](./probable-bugs/IncorrectRandomRange) | error | on |  | any |
 | [IncrementalInflateEncodingMismatch](./probable-bugs/IncrementalInflateEncodingMismatch) | warning | on |  | PHP ≥ 7.0 |
 | [InfinityLoop](./probable-bugs/InfinityLoop) | error | on |  | any |
+| [IntdivMinimumIntegerOverflow](./probable-bugs/IntdivMinimumIntegerOverflow) | error | on |  | PHP ≥ 7.0 |
+| [IntdivZeroDivisor](./probable-bugs/IntdivZeroDivisor) | error | on |  | PHP ≥ 7.0 |
 | [IntegerCastOutOfRangeLiteral](./probable-bugs/IntegerCastOutOfRangeLiteral) | warning | on |  | any |
+| [InterfaceInstantiation](./probable-bugs/InterfaceInstantiation) | error | on |  | any |
 | [IntervalDayComponentAsTotal](./probable-bugs/IntervalDayComponentAsTotal) | warning | off | ✓ | any |
 | [IntlCalendarSecondsPassedAsMilliseconds](./probable-bugs/IntlCalendarSecondsPassedAsMilliseconds) | warning | on | ✓ | PHP ≥ 5.5 |
 | [IntlFormattingFailureUnchecked](./probable-bugs/IntlFormattingFailureUnchecked) | warning | on |  | any |
@@ -314,10 +349,15 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [InverseTrigInvalidRealDomain](./probable-bugs/InverseTrigInvalidRealDomain) | warning | on |  | any |
 | [IsoWeekCalendarYearMismatch](./probable-bugs/IsoWeekCalendarYearMismatch) | warning | on | ✓ | any |
 | [IssetArgumentExistence](./probable-bugs/IssetArgumentExistence) | warning | on |  | any |
+| [IteratorCountChangesRequiredPosition](./probable-bugs/IteratorCountChangesRequiredPosition) | warning | off |  | any |
 | [IteratorMaterializationKeyCollision](./probable-bugs/IteratorMaterializationKeyCollision) | warning | off |  | PHP ≥ 5.5 |
+| [JsonDecodeKnownInvalidUtf8](./probable-bugs/JsonDecodeKnownInvalidUtf8) | error | on |  | any |
 | [JsonEncodeFlagPassedToDecode](./probable-bugs/JsonEncodeFlagPassedToDecode) | warning | on |  | PHP ≥ 5.4 |
+| [JsonEncodeKnownRecursiveValue](./probable-bugs/JsonEncodeKnownRecursiveValue) | error | on |  | any |
+| [JsonEncodeNonFiniteNumber](./probable-bugs/JsonEncodeNonFiniteNumber) | error | on |  | any |
 | [JsonForceObjectChangesNestedLists](./probable-bugs/JsonForceObjectChangesNestedLists) | warning | off |  | any |
 | [JsonIntegerPrecisionLoss](./probable-bugs/JsonIntegerPrecisionLoss) | warning | off | ✓ | any |
+| [JsonInvalidDepth](./probable-bugs/JsonInvalidDepth) | error | on |  | any |
 | [JsonNumericCheckChangesIdentifiers](./probable-bugs/JsonNumericCheckChangesIdentifiers) | warning | off |  | any |
 | [JsonPartialOutputOverridesThrow](./probable-bugs/JsonPartialOutputOverridesThrow) | warning | on |  | PHP ≥ 7.3 |
 | [LibxmlErrorBufferNeverCleared](./probable-bugs/LibxmlErrorBufferNeverCleared) | warning | off |  | any |
@@ -335,16 +375,21 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [MysqlDdlImplicitlyCommitsTransaction](./probable-bugs/MysqlDdlImplicitlyCommitsTransaction) | warning | on |  | any |
 | [MysqliBindingTypeCountMismatch](./probable-bugs/MysqliBindingTypeCountMismatch) | warning | on |  | any |
 | [MysqliBoundArrayReassigned](./probable-bugs/MysqliBoundArrayReassigned) | warning | on |  | any |
+| [MysqliEscapedValueSurvivesCharsetChange](./probable-bugs/MysqliEscapedValueSurvivesCharsetChange) | warning | on |  | any |
 | [MysqliInvalidBindingType](./probable-bugs/MysqliInvalidBindingType) | warning | on |  | any |
+| [MysqliMultiQueryResultsNotDrained](./probable-bugs/MysqliMultiQueryResultsNotDrained) | warning | on |  | any |
 | [MysqliPlaceholderBindingMismatch](./probable-bugs/MysqliPlaceholderBindingMismatch) | warning | on |  | any |
 | [MysqliUnbufferedResultBlocksNextQuery](./probable-bugs/MysqliUnbufferedResultBlocksNextQuery) | warning | on |  | any |
 | [NanCheckedWithEquality](./probable-bugs/NanCheckedWithEquality) | warning | on | ✓ | any |
+| [NegativeBitShiftCount](./probable-bugs/NegativeBitShiftCount) | error | on |  | any |
 | [NestedPdoTransactionWithoutSavepoint](./probable-bugs/NestedPdoTransactionWithoutSavepoint) | warning | on |  | any |
 | [NeverFunctionFallsThrough](./probable-bugs/NeverFunctionFallsThrough) | error | on |  | PHP ≥ 8.1 |
 | [NoContentResponseWithBody](./probable-bugs/NoContentResponseWithBody) | warning | on |  | any |
 | [NonBlockingEmptyReadTreatedAsEof](./probable-bugs/NonBlockingEmptyReadTreatedAsEof) | warning | on |  | any |
 | [NonExhaustiveEnumMatch](./probable-bugs/NonExhaustiveEnumMatch) | error | on |  | PHP ≥ 8.1 |
 | [NonRepeatableAttributeRepeated](./probable-bugs/NonRepeatableAttributeRepeated) | error | on |  | PHP ≥ 8.0 |
+| [NonVoidFunctionFallsThrough](./probable-bugs/NonVoidFunctionFallsThrough) | error | on |  | PHP ≥ 7.0 |
+| [NonblockingSocketConnectPendingRejected](./probable-bugs/NonblockingSocketConnectPendingRejected) | warning | on |  | any |
 | [NonblockingWaitZeroTreatedAsReaped](./probable-bugs/NonblockingWaitZeroTreatedAsReaped) | warning | on |  | PHP ≥ 5.3 |
 | [NullPointerException](./probable-bugs/NullPointerException) | warning | off, experimental |  | any |
 | [NumberParseUsesCurrencyType](./probable-bugs/NumberParseUsesCurrencyType) | error | on |  | PHP ≥ 5.3 |
@@ -354,19 +399,25 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [OwnedStreamNotClosed](./probable-bugs/OwnedStreamNotClosed) | warning | off |  | any |
 | [PackFormatArgumentMismatch](./probable-bugs/PackFormatArgumentMismatch) | warning | on |  | any |
 | [ParseStrKeyNormalizationMismatch](./probable-bugs/ParseStrKeyNormalizationMismatch) | warning | on | ✓ | any |
+| [ParseUrlFailureDereferenced](./probable-bugs/ParseUrlFailureDereferenced) | warning | on |  | any |
 | [ParsedQueryValueDecodedTwice](./probable-bugs/ParsedQueryValueDecodedTwice) | warning | on |  | any |
 | [PartialStreamWriteUnchecked](./probable-bugs/PartialStreamWriteUnchecked) | warning | on |  | any |
 | [PassingByReferenceCorrectness](./probable-bugs/PassingByReferenceCorrectness) | warning | on |  | any |
 | [PathContainmentPrefixBoundary](./probable-bugs/PathContainmentPrefixBoundary) | warning | on |  | any |
 | [PdoArrayBoundToSinglePlaceholder](./probable-bugs/PdoArrayBoundToSinglePlaceholder) | warning | on |  | any |
+| [PdoBoundValueAssumedLive](./probable-bugs/PdoBoundValueAssumedLive) | warning | off |  | any |
+| [PdoExecZeroRejectedAsFailure](./probable-bugs/PdoExecZeroRejectedAsFailure) | warning | on |  | any |
 | [PdoExecuteArrayReplacesBindings](./probable-bugs/PdoExecuteArrayReplacesBindings) | warning | on | ✓ | any |
 | [PdoFetchBothLeaksDuplicateColumns](./probable-bugs/PdoFetchBothLeaksDuplicateColumns) | warning | off |  | any |
 | [PdoFetchColumnFalsyValueLoss](./probable-bugs/PdoFetchColumnFalsyValueLoss) | warning | on |  | any |
+| [PdoFetchIntoRetainsSharedRows](./probable-bugs/PdoFetchIntoRetainsSharedRows) | warning | off |  | any |
+| [PdoGroupedFetchReadsRemovedColumn](./probable-bugs/PdoGroupedFetchReadsRemovedColumn) | warning | on |  | any |
 | [PdoIdentifierPlaceholder](./probable-bugs/PdoIdentifierPlaceholder) | error | on |  | any |
 | [PdoMixedPlaceholderStyles](./probable-bugs/PdoMixedPlaceholderStyles) | error | on |  | any |
 | [PdoPlaceholderBindingMismatch](./probable-bugs/PdoPlaceholderBindingMismatch) | error | on |  | any |
 | [PdoQuotedPlaceholder](./probable-bugs/PdoQuotedPlaceholder) | warning | on |  | any |
 | [PdoReferenceBindingVariableReuse](./probable-bugs/PdoReferenceBindingVariableReuse) | warning | on |  | any |
+| [PdoRepeatedNamedMarkerWithoutEmulation](./probable-bugs/PdoRepeatedNamedMarkerWithoutEmulation) | warning | on |  | any |
 | [PdoSelectRowCountAssumption](./probable-bugs/PdoSelectRowCountAssumption) | warning | off |  | any |
 | [PermissionModeWrittenInDecimal](./probable-bugs/PermissionModeWrittenInDecimal) | warning | off |  | any |
 | [PgAsyncDispatchAssumedQuerySuccess](./probable-bugs/PgAsyncDispatchAssumedQuerySuccess) | warning | off |  | any |
@@ -374,6 +425,8 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [PgEscapedLiteralQuotedAgain](./probable-bugs/PgEscapedLiteralQuotedAgain) | warning | on |  | PHP ≥ 5.4 |
 | [PgFetchedZeroRejected](./probable-bugs/PgFetchedZeroRejected) | warning | on | ✓ | any |
 | [PgIdentifierEscapedAsLiteral](./probable-bugs/PgIdentifierEscapedAsLiteral) | warning | on | ✓ | PHP ≥ 5.4 |
+| [PgReturnedRowsUsedAsAffectedRows](./probable-bugs/PgReturnedRowsUsedAsAffectedRows) | warning | on |  | any |
+| [PosixAccountLookupFailureDereferenced](./probable-bugs/PosixAccountLookupFailureDereferenced) | warning | on |  | any |
 | [PregMatchAllLayoutMismatch](./probable-bugs/PregMatchAllLayoutMismatch) | warning | on |  | any |
 | [PregMatchFailureAsNonMatch](./probable-bugs/PregMatchFailureAsNonMatch) | warning | off |  | any |
 | [PregQuoteUsage](./probable-bugs/PregQuoteUsage) | error | on |  | any |
@@ -385,26 +438,38 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [PriorityQueueExtractionShapeMismatch](./probable-bugs/PriorityQueueExtractionShapeMismatch) | warning | on |  | PHP ≥ 5.3 |
 | [PriorityQueueMinOrderAssumption](./probable-bugs/PriorityQueueMinOrderAssumption) | warning | off |  | PHP ≥ 5.3 |
 | [ProcessClosedBeforeOwnedPipes](./probable-bugs/ProcessClosedBeforeOwnedPipes) | warning | on |  | any |
+| [ProcessExecFailureReportedAsSuccess](./probable-bugs/ProcessExecFailureReportedAsSuccess) | warning | on |  | any |
+| [ProcessExitCodeLostByRepeatedStatusRead](./probable-bugs/ProcessExitCodeLostByRepeatedStatusRead) | warning | on |  | PHP ≤ 8.2 |
+| [ProcessPipeDirectionMisinterpreted](./probable-bugs/ProcessPipeDirectionMisinterpreted) | warning | on |  | any |
 | [ProcessPipesDrainedSequentially](./probable-bugs/ProcessPipesDrainedSequentially) | warning | off |  | any |
+| [RangeZeroStep](./probable-bugs/RangeZeroStep) | error | on |  | any |
 | [ReadFromWriteOnlyStream](./probable-bugs/ReadFromWriteOnlyStream) | error | on |  | any |
 | [ReadLoopProcessesEofFailure](./probable-bugs/ReadLoopProcessesEofFailure) | warning | on |  | PHP ≥ 7.0 |
 | [ReadModifyWriteLockTooLate](./probable-bugs/ReadModifyWriteLockTooLate) | warning | on |  | any |
 | [ReaddirFalsyFilenameLoss](./probable-bugs/ReaddirFalsyFilenameLoss) | warning | on | ✓ | any |
 | [ReadonlyPropertyReassignment](./probable-bugs/ReadonlyPropertyReassignment) | error | on |  | PHP ≥ 8.1 |
+| [RealpathFailureUsedAsPath](./probable-bugs/RealpathFailureUsedAsPath) | warning | on |  | any |
 | [RealpathInStreamContext](./probable-bugs/RealpathInStreamContext) | warning | on | ✓ | any |
 | [RecursiveReplaceRetainsListTail](./probable-bugs/RecursiveReplaceRetainsListTail) | warning | off |  | any |
 | [RecursiveTraversalOmitsDirectories](./probable-bugs/RecursiveTraversalOmitsDirectories) | warning | off |  | PHP ≥ 5.3 |
 | [RedirectContinuesProtectedExecution](./probable-bugs/RedirectContinuesProtectedExecution) | warning | on |  | any |
 | [ReflectionCompositeTypeAssumedNamed](./probable-bugs/ReflectionCompositeTypeAssumedNamed) | error | on |  | PHP ≥ 8.0 |
 | [ReflectionNamedArgumentMismatch](./probable-bugs/ReflectionNamedArgumentMismatch) | error | on |  | PHP ≥ 8.0 |
+| [RegexBodyDoesNotCompile](./probable-bugs/RegexBodyDoesNotCompile) | error | on |  | any |
 | [RegexByteOffsetAsCharacterOffset](./probable-bugs/RegexByteOffsetAsCharacterOffset) | warning | on |  | any |
+| [RegexReplacementCallbackFallsThrough](./probable-bugs/RegexReplacementCallbackFallsThrough) | warning | on |  | any |
+| [RegexReplacementReferencesMissingGroup](./probable-bugs/RegexReplacementReferencesMissingGroup) | error | on |  | any |
+| [RegexUtf8SubjectKnownInvalid](./probable-bugs/RegexUtf8SubjectKnownInvalid) | error | on |  | any |
+| [RelativeSymlinkTargetUsesWrongBase](./probable-bugs/RelativeSymlinkTargetUsesWrongBase) | warning | on |  | any |
 | [RenameFailureUnchecked](./probable-bugs/RenameFailureUnchecked) | warning | off |  | any |
 | [RepeatedCookieHeaderReplacement](./probable-bugs/RepeatedCookieHeaderReplacement) | warning | on | ✓ | any |
 | [RepeatedHtmlEntityEncoding](./probable-bugs/RepeatedHtmlEntityEncoding) | warning | off |  | any |
 | [SameSiteNoneWithoutSecure](./probable-bugs/SameSiteNoneWithoutSecure) | warning | on |  | PHP ≥ 7.3 |
+| [ScandirFailureIterated](./probable-bugs/ScandirFailureIterated) | warning | on |  | any |
 | [SeekSuccessCheckedAsTruthy](./probable-bugs/SeekSuccessCheckedAsTruthy) | warning | off |  | any |
 | [SelectFailureTreatedAsReadiness](./probable-bugs/SelectFailureTreatedAsReadiness) | warning | on |  | PHP ≥ 5.3 |
 | [SelectWatchArraysNotRestored](./probable-bugs/SelectWatchArraysNotRestored) | warning | off |  | PHP ≥ 5.3 |
+| [SemaphoreFailureEntersCriticalSection](./probable-bugs/SemaphoreFailureEntersCriticalSection) | warning | on |  | any |
 | [SessionCookieOptionsSetAfterStart](./probable-bugs/SessionCookieOptionsSetAfterStart) | warning | on |  | any |
 | [SessionDestroyLeavesLocalAuthentication](./probable-bugs/SessionDestroyLeavesLocalAuthentication) | warning | on |  | any |
 | [SessionLockHeldDuringBlockingCall](./probable-bugs/SessionLockHeldDuringBlockingCall) | warning | off |  | any |
@@ -412,9 +477,18 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [SessionNameChangedWhileActive](./probable-bugs/SessionNameChangedWhileActive) | warning | on |  | any |
 | [ShallowCloneNestedMutation](./probable-bugs/ShallowCloneNestedMutation) | warning | off |  | any |
 | [SharedLockUsedForWriting](./probable-bugs/SharedLockUsedForWriting) | warning | on |  | any |
+| [SharedMemoryWriteCapacityExceeded](./probable-bugs/SharedMemoryWriteCapacityExceeded) | error | on |  | any |
 | [ShortStreamReadUnchecked](./probable-bugs/ShortStreamReadUnchecked) | warning | on |  | any |
 | [SignalHandlerHasNoDispatchMechanism](./probable-bugs/SignalHandlerHasNoDispatchMechanism) | warning | on |  | PHP ≥ 7.1 |
+| [SignalRegistrationFailureReportedAsSuccess](./probable-bugs/SignalRegistrationFailureReportedAsSuccess) | warning | on |  | any |
+| [SignalWaitFailureAcceptedAsSignal](./probable-bugs/SignalWaitFailureAcceptedAsSignal) | warning | on |  | any |
+| [SimpleXmlChildValueContainsBareAmpersand](./probable-bugs/SimpleXmlChildValueContainsBareAmpersand) | warning | on |  | any |
 | [SimpleXmlLoadFileUsage](./probable-bugs/SimpleXmlLoadFileUsage) | error | on | ✓ | any |
+| [SimpleXmlMissingNodeCheckedAsNull](./probable-bugs/SimpleXmlMissingNodeCheckedAsNull) | warning | on |  | any |
+| [SimpleXmlTextCastAsBoolean](./probable-bugs/SimpleXmlTextCastAsBoolean) | warning | off |  | any |
+| [SoapLastRequestWithoutTracing](./probable-bugs/SoapLastRequestWithoutTracing) | warning | on |  | any |
+| [SoapNonWsdlRequiredOptionsMissing](./probable-bugs/SoapNonWsdlRequiredOptionsMissing) | warning | on |  | any |
+| [SocketReadZeroRejected](./probable-bugs/SocketReadZeroRejected) | warning | on |  | any |
 | [SodiumNonceLengthMismatch](./probable-bugs/SodiumNonceLengthMismatch) | warning | on | ✓ | PHP ≥ 7.2 |
 | [SortComparatorReturnsBoolean](./probable-bugs/SortComparatorReturnsBoolean) | warning | on | ✓ | any |
 | [SortComparatorReturnsFloat](./probable-bugs/SortComparatorReturnsFloat) | warning | on | ✓ | any |
@@ -426,12 +500,17 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [SqliteBindingIndexZero](./probable-bugs/SqliteBindingIndexZero) | error | on |  | any |
 | [SqliteClearWithoutRequiredReset](./probable-bugs/SqliteClearWithoutRequiredReset) | warning | on |  | PHP 5.3–7.1 |
 | [SqliteFetchBothLeaksDuplicateColumns](./probable-bugs/SqliteFetchBothLeaksDuplicateColumns) | warning | off | ✓ | any |
+| [SqliteForeignKeySettingInsideTransaction](./probable-bugs/SqliteForeignKeySettingInsideTransaction) | warning | on |  | any |
+| [SqliteNondeterministicFunctionDeclaredDeterministic](./probable-bugs/SqliteNondeterministicFunctionDeclaredDeterministic) | warning | on |  | PHP ≥ 7.1 |
 | [SqliteNullBindingDiscardsValue](./probable-bugs/SqliteNullBindingDiscardsValue) | warning | on |  | any |
 | [SqliteResultUsedAfterFinalize](./probable-bugs/SqliteResultUsedAfterFinalize) | error | on |  | any |
 | [StaticLambdaBinding](./probable-bugs/StaticLambdaBinding) | error | on | ✓ | PHP ≥ 5.4 |
 | [StreamOpenFailureUnchecked](./probable-bugs/StreamOpenFailureUnchecked) | warning | on |  | any |
 | [StreamOutputReturnUsedAsContent](./probable-bugs/StreamOutputReturnUsedAsContent) | warning | on | ✓ | any |
 | [StreamUseAfterClose](./probable-bugs/StreamUseAfterClose) | error | on |  | any |
+| [StringOffsetWriteTruncatesValue](./probable-bugs/StringOffsetWriteTruncatesValue) | error | on |  | any |
+| [StringPadEmptyPadding](./probable-bugs/StringPadEmptyPadding) | error | on |  | any |
+| [StringRepeatNegativeCount](./probable-bugs/StringRepeatNegativeCount) | error | on |  | any |
 | [StringsFirstCharactersCompare](./probable-bugs/StringsFirstCharactersCompare) | error | on | ✓ | any |
 | [StrtokStateClobbered](./probable-bugs/StrtokStateClobbered) | warning | on |  | any |
 | [SuspiciousAssignments](./probable-bugs/SuspiciousAssignments) | error | on |  | any |
@@ -441,7 +520,10 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [SuspiciousReturn](./probable-bugs/SuspiciousReturn) | error | on |  | any |
 | [SuspiciousSemicolon](./probable-bugs/SuspiciousSemicolon) | error | on |  | any |
 | [SwitchContinuationInLoop](./probable-bugs/SwitchContinuationInLoop) | error | on | ✓ | any |
+| [SysvMessageExceedsReceiveCapacity](./probable-bugs/SysvMessageExceedsReceiveCapacity) | warning | on |  | any |
+| [SysvMessageSerializationMismatch](./probable-bugs/SysvMessageSerializationMismatch) | warning | on |  | any |
 | [TempnamDirectoryFallbackUnchecked](./probable-bugs/TempnamDirectoryFallbackUnchecked) | warning | off |  | any |
+| [TlsHandshakePendingAccepted](./probable-bugs/TlsHandshakePendingAccepted) | warning | on |  | any |
 | [TraitInstantiation](./probable-bugs/TraitInstantiation) | error | on |  | PHP ≥ 5.4 |
 | [TraitsPropertiesConflicts](./probable-bugs/TraitsPropertiesConflicts) | error | on |  | any |
 | [TransactionEarlyReturn](./probable-bugs/TransactionEarlyReturn) | warning | on |  | any |
@@ -450,11 +532,13 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [TransliterationFailureConsumed](./probable-bugs/TransliterationFailureConsumed) | warning | on |  | PHP ≥ 5.4 |
 | [TrimMaskUsedAsSuffix](./probable-bugs/TrimMaskUsedAsSuffix) | warning | off |  | any |
 | [TruncationAssumedToRewind](./probable-bugs/TruncationAssumedToRewind) | warning | on |  | any |
+| [UmaskSetterReturnMisread](./probable-bugs/UmaskSetterReturnMisread) | warning | off |  | any |
 | [UndeclaredDynamicProperty](./probable-bugs/UndeclaredDynamicProperty) | warning | on |  | PHP ≥ 8.2 |
 | [UnicodeNormalizationFailureConsumed](./probable-bugs/UnicodeNormalizationFailureConsumed) | warning | on |  | PHP ≥ 5.3 |
 | [UninitializedTypedPropertyRead](./probable-bugs/UninitializedTypedPropertyRead) | error | on |  | PHP ≥ 7.4 |
 | [UnitEnumJsonEncoding](./probable-bugs/UnitEnumJsonEncoding) | error | on |  | PHP ≥ 8.1 |
 | [UnknownNamedArgument](./probable-bugs/UnknownNamedArgument) | error | on |  | PHP ≥ 8.0 |
+| [UnlinkFailureReportedAsSuccess](./probable-bugs/UnlinkFailureReportedAsSuccess) | warning | on |  | any |
 | [UnpackBufferTooShort](./probable-bugs/UnpackBufferTooShort) | warning | on |  | any |
 | [UnpackedNamedArgumentCollision](./probable-bugs/UnpackedNamedArgumentCollision) | error | on |  | PHP ≥ 8.0 |
 | [UnreachableCatchClause](./probable-bugs/UnreachableCatchClause) | warning | on |  | any |
@@ -463,6 +547,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [UsingInclusionOnceReturnValue](./probable-bugs/UsingInclusionOnceReturnValue) | error | on |  | any |
 | [UsortDiscardsRequiredKeys](./probable-bugs/UsortDiscardsRequiredKeys) | warning | off | ✓ | any |
 | [Utf8ByteTruncation](./probable-bugs/Utf8ByteTruncation) | warning | off |  | any |
+| [ValidatedBooleanFalseRejectedAsInvalid](./probable-bugs/ValidatedBooleanFalseRejectedAsInvalid) | warning | off |  | any |
 | [ValidatedIntegerZeroRejected](./probable-bugs/ValidatedIntegerZeroRejected) | warning | on | ✓ | any |
 | [VaryHeaderOverwritesEarlierDimensions](./probable-bugs/VaryHeaderOverwritesEarlierDimensions) | warning | off |  | any |
 | [WaitStatusUsedAsExitCode](./probable-bugs/WaitStatusUsedAsExitCode) | warning | off |  | PHP ≥ 5.3 |
@@ -470,7 +555,12 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [WriteToReadOnlyStream](./probable-bugs/WriteToReadOnlyStream) | error | on |  | any |
 | [XPathIgnoresDefaultNamespace](./probable-bugs/XPathIgnoresDefaultNamespace) | warning | on |  | any |
 | [XPathQueryFailureDereferenced](./probable-bugs/XPathQueryFailureDereferenced) | warning | on |  | any |
+| [XmlParseZeroComparedWithFalse](./probable-bugs/XmlParseZeroComparedWithFalse) | warning | on |  | any |
+| [XmlParserNeverReceivesFinalChunk](./probable-bugs/XmlParserNeverReceivesFinalChunk) | warning | on |  | any |
 | [XmlReaderAttributeCursorNotRestored](./probable-bugs/XmlReaderAttributeCursorNotRestored) | warning | off |  | any |
+| [XmlWriterAttributeAfterContent](./probable-bugs/XmlWriterAttributeAfterContent) | warning | on |  | any |
+| [XmlWriterMemoryOutputInUriMode](./probable-bugs/XmlWriterMemoryOutputInUriMode) | warning | on |  | any |
+| [XslTransformationFailureConsumed](./probable-bugs/XslTransformationFailureConsumed) | warning | on |  | any |
 | [ZipCloseFailureUnchecked](./probable-bugs/ZipCloseFailureUnchecked) | warning | off |  | any |
 | [ZipEntryIndexPastEnd](./probable-bugs/ZipEntryIndexPastEnd) | warning | on |  | PHP ≥ 5.3 |
 | [ZipEntryNameCollision](./probable-bugs/ZipEntryNameCollision) | warning | off |  | PHP ≥ 5.3 |
@@ -496,22 +586,32 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [CurlRedirectForwardsCredentials](./security/CurlRedirectForwardsCredentials) | warning | off |  | any |
 | [CurlSslServerSpoofing](./security/CurlSslServerSpoofing) | error | on |  | any |
 | [DecryptionFailureUsedAsPlaintext](./security/DecryptionFailureUsedAsPlaintext) | warning | on |  | any |
+| [DetachedSignaturePassedToCombinedVerifier](./security/DetachedSignaturePassedToCombinedVerifier) | warning | on |  | PHP ≥ 7.2 |
 | [EncryptionInitializationVectorRandomness](./security/EncryptionInitializationVectorRandomness) | error | on |  | any |
 | [FastDigestUsedForPasswordStorage](./security/FastDigestUsedForPasswordStorage) | warning | on |  | any |
 | [HardcodedCredentialAtKnownSink](./security/HardcodedCredentialAtKnownSink) | warning | off |  | any |
+| [HashContextUsedAfterFinalization](./security/HashContextUsedAfterFinalization) | error | on |  | any |
+| [HashFileFailureUsedAsDigest](./security/HashFileFailureUsedAsDigest) | warning | on |  | any |
 | [HostCookiePrefixContractViolation](./security/HostCookiePrefixContractViolation) | warning | on |  | any |
 | [HostnameSubstitution](./security/HostnameSubstitution) | error | on |  | any |
 | [NonSecureParseStrUsage](./security/NonSecureParseStrUsage) | error | on |  | any |
 | [NonSecureUniqidUsage](./security/NonSecureUniqidUsage) | error | on | ✓ | any |
+| [OpenSslEncryptionStatusUsedAsCiphertext](./security/OpenSslEncryptionStatusUsedAsCiphertext) | warning | on |  | any |
 | [OpenSslKeyLengthMismatch](./security/OpenSslKeyLengthMismatch) | warning | on |  | any |
 | [OpenSslRawCiphertextOptionMismatch](./security/OpenSslRawCiphertextOptionMismatch) | warning | on |  | any |
+| [OpenSslSigningFailureIgnored](./security/OpenSslSigningFailureIgnored) | warning | on |  | any |
 | [OpenSslVerifyTruthyResult](./security/OpenSslVerifyTruthyResult) | warning | on | ✓ | any |
 | [PasswordComparedWithFreshHash](./security/PasswordComparedWithFreshHash) | warning | on | ✓ | PHP ≥ 5.5 |
 | [PasswordUsedDirectlyAsEncryptionKey](./security/PasswordUsedDirectlyAsEncryptionKey) | warning | off |  | any |
+| [PasswordVerifyArgumentsReversed](./security/PasswordVerifyArgumentsReversed) | error | on |  | PHP ≥ 5.5 |
 | [PotentialMalware](./security/PotentialMalware) | error | on |  | any |
 | [RequestControlledSessionId](./security/RequestControlledSessionId) | warning | on |  | any |
+| [SecretstreamPushAfterFinalTag](./security/SecretstreamPushAfterFinalTag) | error | on |  | PHP ≥ 7.2 |
 | [SecurityAdvisories](./security/SecurityAdvisories) | warning | on | ✓ | any |
 | [SessionRegenerationFailureUnchecked](./security/SessionRegenerationFailureUnchecked) | warning | off |  | any |
+| [SodiumKdfContextLengthMismatch](./security/SodiumKdfContextLengthMismatch) | error | on |  | PHP ≥ 7.2 |
+| [SodiumSecretboxKeyLengthMismatch](./security/SodiumSecretboxKeyLengthMismatch) | error | on |  | PHP ≥ 7.2 |
+| [SodiumSecretboxNonceReused](./security/SodiumSecretboxNonceReused) | warning | on |  | PHP ≥ 7.2 |
 | [UnescapedHtmlOutput](./security/UnescapedHtmlOutput) | error | on |  | any |
 | [UnserializeExploits](./security/UnserializeExploits) | error | on |  | any |
 | [UntrustedFilesystemPath](./security/UntrustedFilesystemPath) | error | on |  | any |

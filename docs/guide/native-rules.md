@@ -1,13 +1,13 @@
 # Native inspections
 
-The catalogue includes 300 inspections designed for custos. Each has a
+The catalogue includes 400 inspections designed for custos. Each has a
 [rule reference page](/rules/) with detection conditions, examples, PHP version
 requirements and available fixes. Native rules use their stable custos ID for
 configuration and suppression.
 
 ## Choosing rules
 
-201 native inspections are enabled by default. The remaining 99 depend on the
+292 native inspections are enabled by default. The remaining 108 depend on the
 intended meaning of values, keys, dates or text, so enable them when their
 contracts fit your project. For example, preserving numeric keys matters for
 record maps, while reindexing may be appropriate for lists.
@@ -45,6 +45,15 @@ Examples include constructing an abstract class, moving a DOM node between
 documents without importing it, consuming a SQLite result after finalization,
 and declaring a response length that differs from the proven emitted bytes.
 
+The latest 100 inspections cover additional language and extension contracts:
+fallthrough returns, fiber and generator state, numeric argument bounds, regex
+captures and JSON values, filesystem failure results, sodium state and nonce
+reuse, cURL callbacks, database result modes, XML writers, GD and Imagick,
+process pipes and shared-memory operations. Examples include a zero range
+step, reversed password verification arguments, XML attributes written after
+content, and a TLS handshake treated as complete while it still needs I/O.
+These inspections report findings without automatic fixes.
+
 Intent-sensitive findings are off by default. Examples include intentional
 shared references, GET bodies, accumulated command output, permission policy,
 and signature canonicalization. Local-flow findings require the operations
@@ -78,6 +87,24 @@ These lists establish specific policy: a cookie name identifies a configured
 authentication cookie, a path glob identifies a sensitive file, and an exact
 function name identifies a signature requiring RFC3986 query encoding.
 Ordinary variable or function names do not establish these contracts.
+
+`ImagickSingleBlobDropsRequiredFrames` requires an explicit frame-preservation
+policy as well as proof that an image contains multiple frames. Enable both
+the rule and its option when exporting every frame is part of your contract:
+
+```json
+{
+  "rules": {
+    "ImagickSingleBlobDropsRequiredFrames": {
+      "enabled": true,
+      "options": { "preserveFrames": true }
+    }
+  }
+}
+```
+
+The option defaults to `false`. A filename or variable name does not establish
+frame count or preservation policy.
 
 ## Flow and project calls
 

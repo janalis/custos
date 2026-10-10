@@ -271,4 +271,4 @@ Execute Phase 0 (init repo, CLAUDE.md, skill, docs/internals/migration.md with t
 ## Architecture overhaul
 
 The feature-root migration, explicit per-inspection catalogue and enforced
-dependency direction are recorded in [the architecture audit](architecture-audit.md).
+dependency direction are recorded in [the architecture guide](../contributing/architecture.md).

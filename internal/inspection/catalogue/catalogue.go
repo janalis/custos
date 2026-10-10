@@ -19,6 +19,7 @@ import (
 	"custos/internal/inspection/rules/arraycombinelengthmismatch"
 	"custos/internal/inspection/rules/arraycopyretainsreferences"
 	"custos/internal/inspection/rules/arraydiffonnestedarrays"
+	"custos/internal/inspection/rules/arrayfillnegativecount"
 	"custos/internal/inspection/rules/arrayfillsharesobject"
 	"custos/internal/inspection/rules/arrayfilterdropszero"
 	"custos/internal/inspection/rules/arrayflipduplicatevalueloss"
@@ -28,6 +29,7 @@ import (
 	"custos/internal/inspection/rules/arraymergenumerickeyloss"
 	"custos/internal/inspection/rules/arraymultisortlengthmismatch"
 	"custos/internal/inspection/rules/arraypushmissuse"
+	"custos/internal/inspection/rules/arrayrandinvalidcount"
 	"custos/internal/inspection/rules/arrayrandkeyusedasvalue"
 	"custos/internal/inspection/rules/arrayreducemissinginitialvalue"
 	"custos/internal/inspection/rules/arraysearchusedasinarray"
@@ -38,6 +40,7 @@ import (
 	"custos/internal/inspection/rules/arrayuniqueonnonstringableobjects"
 	"custos/internal/inspection/rules/arraywalkcallbackreturnignored"
 	"custos/internal/inspection/rules/arrowfunctioncapturedcounter"
+	"custos/internal/inspection/rules/assertioncontainsrequiredsideeffect"
 	"custos/internal/inspection/rules/asyncsignalsetterreturnmisread"
 	"custos/internal/inspection/rules/attributetargetmismatch"
 	"custos/internal/inspection/rules/authenticationcookieallowsscriptaccess"
@@ -50,6 +53,7 @@ import (
 	"custos/internal/inspection/rules/bcmathfloatoperand"
 	"custos/internal/inspection/rules/bcmathscalediscardsrequiredfraction"
 	"custos/internal/inspection/rules/bcryptpasswordtruncation"
+	"custos/internal/inspection/rules/bufferedwriteflushedafterunlock"
 	"custos/internal/inspection/rules/bytelengthusedascharactercount"
 	"custos/internal/inspection/rules/bytepaddingusedforunicodewidth"
 	"custos/internal/inspection/rules/callablemethodvalidity"
@@ -58,6 +62,7 @@ import (
 	"custos/internal/inspection/rules/cascadestringreplacement"
 	"custos/internal/inspection/rules/cascadingdirnamecalls"
 	"custos/internal/inspection/rules/caseinsensitivestringfunctionsmissuse"
+	"custos/internal/inspection/rules/catchcannothandleknownthrowable"
 	"custos/internal/inspection/rules/catchvariableoverwriteslocal"
 	"custos/internal/inspection/rules/classconstantcanbeused"
 	"custos/internal/inspection/rules/classconstantusagecorrectness"
@@ -83,6 +88,7 @@ import (
 	"custos/internal/inspection/rules/contentlengthusescharactercount"
 	"custos/internal/inspection/rules/contentrangelengthmismatch"
 	"custos/internal/inspection/rules/cookiedeletionscopemismatch"
+	"custos/internal/inspection/rules/copyfailurereportedassuccess"
 	"custos/internal/inspection/rules/corsoriginlistinvalid"
 	"custos/internal/inspection/rules/corssubdomainwildcardinvalid"
 	"custos/internal/inspection/rules/credentialedcorsuseswildcardorigin"
@@ -91,19 +97,26 @@ import (
 	"custos/internal/inspection/rules/csvblankrecordshapemismatch"
 	"custos/internal/inspection/rules/csvdelimiterinvalidbytelength"
 	"custos/internal/inspection/rules/csvescapedefaultdependency"
+	"custos/internal/inspection/rules/csvreadlengthsplitsknownrecord"
 	"custos/internal/inspection/rules/ctypeintegerinterpretedascharactercode"
 	"custos/internal/inspection/rules/curlcustomgetretainspostbody"
 	"custos/internal/inspection/rules/curlcustomheadwithoutnobody"
 	"custos/internal/inspection/rules/curlexplicitinfinitetimeout"
+	"custos/internal/inspection/rules/curlheadercallbackmissingbytecount"
 	"custos/internal/inspection/rules/curlheaderlistoverwritten"
+	"custos/internal/inspection/rules/curlheaderoptionrequiresarray"
 	"custos/internal/inspection/rules/curlheadersincludedindecodedbody"
 	"custos/internal/inspection/rules/curlmethodoptionorderconflict"
 	"custos/internal/inspection/rules/curlmultipartbodywithjsoncontenttype"
 	"custos/internal/inspection/rules/curlmultisuccessassumedpertransfer"
+	"custos/internal/inspection/rules/curlreadcallbackexceedsrequestedsize"
 	"custos/internal/inspection/rules/curlredirectforwardscredentials"
 	"custos/internal/inspection/rules/curlresponsebodywithoutreturntransfer"
+	"custos/internal/inspection/rules/curlresponsezerorejected"
 	"custos/internal/inspection/rules/curlsslserverspoofing"
 	"custos/internal/inspection/rules/curltransportsuccessashttpsuccess"
+	"custos/internal/inspection/rules/curluploaddeclaredsizemismatch"
+	"custos/internal/inspection/rules/curlwholeurlescapedascomponent"
 	"custos/internal/inspection/rules/curlwritecallbackmissingbytecount"
 	"custos/internal/inspection/rules/dateintervalspecification"
 	"custos/internal/inspection/rules/datelasterrorsfalseunchecked"
@@ -119,6 +132,7 @@ import (
 	"custos/internal/inspection/rules/degradedswitch"
 	"custos/internal/inspection/rules/deprecatedconstructorstyle"
 	"custos/internal/inspection/rules/deprecatedinioptions"
+	"custos/internal/inspection/rules/detachedsignaturepassedtocombinedverifier"
 	"custos/internal/inspection/rules/directoryconstantcanbeused"
 	"custos/internal/inspection/rules/directoryiteratordotentries"
 	"custos/internal/inspection/rules/disallowwritingintostaticproperties"
@@ -152,7 +166,12 @@ import (
 	"custos/internal/inspection/rules/failedclosurebindinginvoked"
 	"custos/internal/inspection/rules/fastdigestusedforpasswordstorage"
 	"custos/internal/inspection/rules/fiberresumebeforestart"
+	"custos/internal/inspection/rules/fiberresumedaftertermination"
+	"custos/internal/inspection/rules/fiberreturnbeforetermination"
+	"custos/internal/inspection/rules/fiberstartedtwice"
+	"custos/internal/inspection/rules/fibersuspendoutsidefiber"
 	"custos/internal/inspection/rules/filelockfailureunchecked"
+	"custos/internal/inspection/rules/filepermissionfailurepassespolicy"
 	"custos/internal/inspection/rules/filereadfailureunchecked"
 	"custos/internal/inspection/rules/filestatcacheafterexternalmutation"
 	"custos/internal/inspection/rules/filetruncatedbeforelock"
@@ -168,16 +187,29 @@ import (
 	"custos/internal/inspection/rules/forkfailuretreatedasparent"
 	"custos/internal/inspection/rules/formencodingusedforrfc3986signature"
 	"custos/internal/inspection/rules/fractionalarraykeytruncation"
+	"custos/internal/inspection/rules/fractionalmodulooperand"
+	"custos/internal/inspection/rules/ftppendingtransferacceptedascomplete"
+	"custos/internal/inspection/rules/gdalphaoutsidesupportedrange"
+	"custos/internal/inspection/rules/gdcolorzerorejectedasfailure"
+	"custos/internal/inspection/rules/gdimagedimensionsnotpositive"
+	"custos/internal/inspection/rules/gdjpegqualityoutsidesupportedrange"
+	"custos/internal/inspection/rules/gdpaletteindexdecodedasrgb"
+	"custos/internal/inspection/rules/gdpngcompressionoutsidesupportedrange"
+	"custos/internal/inspection/rules/gdtransformationresultignored"
 	"custos/internal/inspection/rules/generatorcallneverconsumed"
 	"custos/internal/inspection/rules/generatorreturnbeforecompletion"
+	"custos/internal/inspection/rules/generatorrewindafteradvance"
 	"custos/internal/inspection/rules/getclassusage"
 	"custos/internal/inspection/rules/getdebugtypecanbeused"
 	"custos/internal/inspection/rules/gettypemissuse"
+	"custos/internal/inspection/rules/globbraceexpansionmissingflag"
 	"custos/internal/inspection/rules/globfailureunchecked"
 	"custos/internal/inspection/rules/gmpautomaticbasechangesdecimalinput"
 	"custos/internal/inspection/rules/gmpdivisionbyknownzero"
 	"custos/internal/inspection/rules/gmpdivisionpairusedasnumber"
 	"custos/internal/inspection/rules/hardcodedcredentialatknownsink"
+	"custos/internal/inspection/rules/hashcontextusedafterfinalization"
+	"custos/internal/inspection/rules/hashfilefailureusedasdigest"
 	"custos/internal/inspection/rules/headersaftercommittedoutput"
 	"custos/internal/inspection/rules/heapiterationconsumescollection"
 	"custos/internal/inspection/rules/hexdecodeoddlengthliteral"
@@ -187,6 +219,9 @@ import (
 	"custos/internal/inspection/rules/ifreturnreturnsimplification"
 	"custos/internal/inspection/rules/imagedecodefailureunchecked"
 	"custos/internal/inspection/rules/imageencodercontenttypemismatch"
+	"custos/internal/inspection/rules/imagickframeindexpastend"
+	"custos/internal/inspection/rules/imagickresizestatususedasimage"
+	"custos/internal/inspection/rules/imagicksingleblobdropsrequiredframes"
 	"custos/internal/inspection/rules/immutabledateresultignored"
 	"custos/internal/inspection/rules/implodeargumentsorder"
 	"custos/internal/inspection/rules/inarraymissuse"
@@ -195,7 +230,10 @@ import (
 	"custos/internal/inspection/rules/incrementdecrementoperationequivalent"
 	"custos/internal/inspection/rules/infinityloop"
 	"custos/internal/inspection/rules/instanceofcanbeused"
+	"custos/internal/inspection/rules/intdivminimumintegeroverflow"
+	"custos/internal/inspection/rules/intdivzerodivisor"
 	"custos/internal/inspection/rules/integercastoutofrangeliteral"
+	"custos/internal/inspection/rules/interfaceinstantiation"
 	"custos/internal/inspection/rules/intervaldaycomponentastotal"
 	"custos/internal/inspection/rules/intlcalendarsecondspassedasmilliseconds"
 	"custos/internal/inspection/rules/intlformattingfailureunchecked"
@@ -211,11 +249,16 @@ import (
 	"custos/internal/inspection/rules/isoweekcalendaryearmismatch"
 	"custos/internal/inspection/rules/issetargumentexistence"
 	"custos/internal/inspection/rules/issetconstructscanbemerged"
+	"custos/internal/inspection/rules/iteratorcountchangesrequiredposition"
 	"custos/internal/inspection/rules/iteratormaterializationkeycollision"
+	"custos/internal/inspection/rules/jsondecodeknowninvalidutf8"
 	"custos/internal/inspection/rules/jsonencodeflagpassedtodecode"
+	"custos/internal/inspection/rules/jsonencodeknownrecursivevalue"
+	"custos/internal/inspection/rules/jsonencodenonfinitenumber"
 	"custos/internal/inspection/rules/jsonencodingapiusage"
 	"custos/internal/inspection/rules/jsonforceobjectchangesnestedlists"
 	"custos/internal/inspection/rules/jsonintegerprecisionloss"
+	"custos/internal/inspection/rules/jsoninvaliddepth"
 	"custos/internal/inspection/rules/jsonnumericcheckchangesidentifiers"
 	"custos/internal/inspection/rules/jsonpartialoutputoverridesthrow"
 	"custos/internal/inspection/rules/libxmlerrorbuffernevercleared"
@@ -242,10 +285,13 @@ import (
 	"custos/internal/inspection/rules/mysqlddlimplicitlycommitstransaction"
 	"custos/internal/inspection/rules/mysqlibindingtypecountmismatch"
 	"custos/internal/inspection/rules/mysqliboundarrayreassigned"
+	"custos/internal/inspection/rules/mysqliescapedvaluesurvivescharsetchange"
 	"custos/internal/inspection/rules/mysqliinvalidbindingtype"
+	"custos/internal/inspection/rules/mysqlimultiqueryresultsnotdrained"
 	"custos/internal/inspection/rules/mysqliplaceholderbindingmismatch"
 	"custos/internal/inspection/rules/mysqliunbufferedresultblocksnextquery"
 	"custos/internal/inspection/rules/nancheckedwithequality"
+	"custos/internal/inspection/rules/negativebitshiftcount"
 	"custos/internal/inspection/rules/nestedassignmentsusage"
 	"custos/internal/inspection/rules/nestednotoperators"
 	"custos/internal/inspection/rules/nestedpdotransactionwithoutsavepoint"
@@ -254,11 +300,13 @@ import (
 	"custos/internal/inspection/rules/neverfunctionfallsthrough"
 	"custos/internal/inspection/rules/nocontentresponsewithbody"
 	"custos/internal/inspection/rules/nonblockingemptyreadtreatedaseof"
+	"custos/internal/inspection/rules/nonblockingsocketconnectpendingrejected"
 	"custos/internal/inspection/rules/nonblockingwaitzerotreatedasreaped"
 	"custos/internal/inspection/rules/nonexhaustiveenummatch"
 	"custos/internal/inspection/rules/nonrepeatableattributerepeated"
 	"custos/internal/inspection/rules/nonsecureparsestrusage"
 	"custos/internal/inspection/rules/nonsecureuniqidusage"
+	"custos/internal/inspection/rules/nonvoidfunctionfallsthrough"
 	"custos/internal/inspection/rules/notoptimalifconditions"
 	"custos/internal/inspection/rules/notoptimalregularexpressions"
 	"custos/internal/inspection/rules/nullcoalescingoperatorcanbeused"
@@ -269,8 +317,10 @@ import (
 	"custos/internal/inspection/rules/onetimeusevariables"
 	"custos/internal/inspection/rules/onlywritesonparameter"
 	"custos/internal/inspection/rules/opassignshortsyntax"
+	"custos/internal/inspection/rules/opensslencryptionstatususedasciphertext"
 	"custos/internal/inspection/rules/opensslkeylengthmismatch"
 	"custos/internal/inspection/rules/opensslrawciphertextoptionmismatch"
+	"custos/internal/inspection/rules/opensslsigningfailureignored"
 	"custos/internal/inspection/rules/opensslverifytruthyresult"
 	"custos/internal/inspection/rules/optionalregexcapturereadwithoutnullflag"
 	"custos/internal/inspection/rules/overrideattributewithouttarget"
@@ -280,21 +330,28 @@ import (
 	"custos/internal/inspection/rules/parameterdefaultvalueisnotnull"
 	"custos/internal/inspection/rules/parsedqueryvaluedecodedtwice"
 	"custos/internal/inspection/rules/parsestrkeynormalizationmismatch"
+	"custos/internal/inspection/rules/parseurlfailuredereferenced"
 	"custos/internal/inspection/rules/partialstreamwriteunchecked"
 	"custos/internal/inspection/rules/passingbyreferencecorrectness"
 	"custos/internal/inspection/rules/passwordcomparedwithfreshhash"
 	"custos/internal/inspection/rules/passworduseddirectlyasencryptionkey"
+	"custos/internal/inspection/rules/passwordverifyargumentsreversed"
 	"custos/internal/inspection/rules/pathcontainmentprefixboundary"
 	"custos/internal/inspection/rules/pdoapiusage"
 	"custos/internal/inspection/rules/pdoarrayboundtosingleplaceholder"
+	"custos/internal/inspection/rules/pdoboundvalueassumedlive"
 	"custos/internal/inspection/rules/pdoexecutearrayreplacesbindings"
+	"custos/internal/inspection/rules/pdoexeczerorejectedasfailure"
 	"custos/internal/inspection/rules/pdofetchbothleaksduplicatecolumns"
 	"custos/internal/inspection/rules/pdofetchcolumnfalsyvalueloss"
+	"custos/internal/inspection/rules/pdofetchintoretainssharedrows"
+	"custos/internal/inspection/rules/pdogroupedfetchreadsremovedcolumn"
 	"custos/internal/inspection/rules/pdoidentifierplaceholder"
 	"custos/internal/inspection/rules/pdomixedplaceholderstyles"
 	"custos/internal/inspection/rules/pdoplaceholderbindingmismatch"
 	"custos/internal/inspection/rules/pdoquotedplaceholder"
 	"custos/internal/inspection/rules/pdoreferencebindingvariablereuse"
+	"custos/internal/inspection/rules/pdorepeatednamedmarkerwithoutemulation"
 	"custos/internal/inspection/rules/pdoselectrowcountassumption"
 	"custos/internal/inspection/rules/permissionmodewrittenindecimal"
 	"custos/internal/inspection/rules/pgasyncdispatchassumedquerysuccess"
@@ -302,8 +359,10 @@ import (
 	"custos/internal/inspection/rules/pgescapedliteralquotedagain"
 	"custos/internal/inspection/rules/pgfetchedzerorejected"
 	"custos/internal/inspection/rules/pgidentifierescapedasliteral"
+	"custos/internal/inspection/rules/pgreturnedrowsusedasaffectedrows"
 	"custos/internal/inspection/rules/phpunitdeprecations"
 	"custos/internal/inspection/rules/phpunittests"
+	"custos/internal/inspection/rules/posixaccountlookupfailuredereferenced"
 	"custos/internal/inspection/rules/potentialmalware"
 	"custos/internal/inspection/rules/poweroperatorcanbeused"
 	"custos/internal/inspection/rules/pregmatchalllayoutmismatch"
@@ -317,16 +376,21 @@ import (
 	"custos/internal/inspection/rules/priorityqueueextractionshapemismatch"
 	"custos/internal/inspection/rules/priorityqueueminorderassumption"
 	"custos/internal/inspection/rules/processclosedbeforeownedpipes"
+	"custos/internal/inspection/rules/processexecfailurereportedassuccess"
+	"custos/internal/inspection/rules/processexitcodelostbyrepeatedstatusread"
+	"custos/internal/inspection/rules/processpipedirectionmisinterpreted"
 	"custos/internal/inspection/rules/processpipesdrainedsequentially"
 	"custos/internal/inspection/rules/propernullcoalescingoperatorusage"
 	"custos/internal/inspection/rules/propertycanbestatic"
 	"custos/internal/inspection/rules/propertyinitializationflaws"
 	"custos/internal/inspection/rules/randomapimigration"
+	"custos/internal/inspection/rules/rangezerostep"
 	"custos/internal/inspection/rules/readdirfalsyfilenameloss"
 	"custos/internal/inspection/rules/readfromwriteonlystream"
 	"custos/internal/inspection/rules/readloopprocesseseoffailure"
 	"custos/internal/inspection/rules/readmodifywritelocktoolate"
 	"custos/internal/inspection/rules/readonlypropertyreassignment"
+	"custos/internal/inspection/rules/realpathfailureusedaspath"
 	"custos/internal/inspection/rules/realpathinstreamcontext"
 	"custos/internal/inspection/rules/recursivereplaceretainslisttail"
 	"custos/internal/inspection/rules/recursivetraversalomitsdirectories"
@@ -335,18 +399,26 @@ import (
 	"custos/internal/inspection/rules/referencingobjects"
 	"custos/internal/inspection/rules/reflectioncompositetypeassumednamed"
 	"custos/internal/inspection/rules/reflectionnamedargumentmismatch"
+	"custos/internal/inspection/rules/regexbodydoesnotcompile"
 	"custos/internal/inspection/rules/regexbyteoffsetascharacteroffset"
+	"custos/internal/inspection/rules/regexreplacementcallbackfallsthrough"
+	"custos/internal/inspection/rules/regexreplacementreferencesmissinggroup"
+	"custos/internal/inspection/rules/regexutf8subjectknowninvalid"
+	"custos/internal/inspection/rules/relativesymlinktargetuseswrongbase"
 	"custos/internal/inspection/rules/renamefailureunchecked"
 	"custos/internal/inspection/rules/repeatedcookieheaderreplacement"
 	"custos/internal/inspection/rules/repeatedhtmlentityencoding"
 	"custos/internal/inspection/rules/requestcontrolledsessionid"
 	"custos/internal/inspection/rules/returntypecanbedeclared"
 	"custos/internal/inspection/rules/samesitenonewithoutsecure"
+	"custos/internal/inspection/rules/scandirfailureiterated"
+	"custos/internal/inspection/rules/secretstreampushafterfinaltag"
 	"custos/internal/inspection/rules/securityadvisories"
 	"custos/internal/inspection/rules/seeksuccesscheckedastruthy"
 	"custos/internal/inspection/rules/selectfailuretreatedasreadiness"
 	"custos/internal/inspection/rules/selectwatcharraysnotrestored"
 	"custos/internal/inspection/rules/selfclassreferencing"
+	"custos/internal/inspection/rules/semaphorefailureenterscriticalsection"
 	"custos/internal/inspection/rules/senselessmethodduplication"
 	"custos/internal/inspection/rules/senselessproxymethod"
 	"custos/internal/inspection/rules/senselessternaryoperator"
@@ -358,14 +430,26 @@ import (
 	"custos/internal/inspection/rules/sessionregenerationfailureunchecked"
 	"custos/internal/inspection/rules/shallowclonenestedmutation"
 	"custos/internal/inspection/rules/sharedlockusedforwriting"
+	"custos/internal/inspection/rules/sharedmemorywritecapacityexceeded"
 	"custos/internal/inspection/rules/shortechotagcanbeused"
 	"custos/internal/inspection/rules/shortlistsyntaxcanbeused"
 	"custos/internal/inspection/rules/shortopentagusage"
 	"custos/internal/inspection/rules/shortstreamreadunchecked"
 	"custos/internal/inspection/rules/signalhandlerhasnodispatchmechanism"
+	"custos/internal/inspection/rules/signalregistrationfailurereportedassuccess"
+	"custos/internal/inspection/rules/signalwaitfailureacceptedassignal"
+	"custos/internal/inspection/rules/simplexmlchildvaluecontainsbareampersand"
 	"custos/internal/inspection/rules/simplexmlloadfileusage"
+	"custos/internal/inspection/rules/simplexmlmissingnodecheckedasnull"
+	"custos/internal/inspection/rules/simplexmltextcastasboolean"
 	"custos/internal/inspection/rules/slowarrayoperationsinloop"
+	"custos/internal/inspection/rules/soaplastrequestwithouttracing"
+	"custos/internal/inspection/rules/soapnonwsdlrequiredoptionsmissing"
+	"custos/internal/inspection/rules/socketreadzerorejected"
+	"custos/internal/inspection/rules/sodiumkdfcontextlengthmismatch"
 	"custos/internal/inspection/rules/sodiumnoncelengthmismatch"
+	"custos/internal/inspection/rules/sodiumsecretboxkeylengthmismatch"
+	"custos/internal/inspection/rules/sodiumsecretboxnoncereused"
 	"custos/internal/inspection/rules/sortcomparatorreturnsboolean"
 	"custos/internal/inspection/rules/sortcomparatorreturnsfloat"
 	"custos/internal/inspection/rules/sortresultusedasarray"
@@ -375,6 +459,8 @@ import (
 	"custos/internal/inspection/rules/sqlitebindingindexzero"
 	"custos/internal/inspection/rules/sqliteclearwithoutrequiredreset"
 	"custos/internal/inspection/rules/sqlitefetchbothleaksduplicatecolumns"
+	"custos/internal/inspection/rules/sqliteforeignkeysettinginsidetransaction"
+	"custos/internal/inspection/rules/sqlitenondeterministicfunctiondeclareddeterministic"
 	"custos/internal/inspection/rules/sqlitenullbindingdiscardsvalue"
 	"custos/internal/inspection/rules/sqliteresultusedafterfinalize"
 	"custos/internal/inspection/rules/sqlnullcomparedwithequality"
@@ -388,6 +474,9 @@ import (
 	"custos/internal/inspection/rules/strendswithcanbeused"
 	"custos/internal/inspection/rules/stringcasemanipulation"
 	"custos/internal/inspection/rules/stringnormalization"
+	"custos/internal/inspection/rules/stringoffsetwritetruncatesvalue"
+	"custos/internal/inspection/rules/stringpademptypadding"
+	"custos/internal/inspection/rules/stringrepeatnegativecount"
 	"custos/internal/inspection/rules/stringsfirstcharacterscompare"
 	"custos/internal/inspection/rules/strleninemptystringcheckcontext"
 	"custos/internal/inspection/rules/strstartswithcanbeused"
@@ -405,9 +494,12 @@ import (
 	"custos/internal/inspection/rules/suspiciousreturn"
 	"custos/internal/inspection/rules/suspicioussemicolon"
 	"custos/internal/inspection/rules/switchcontinuationinloop"
+	"custos/internal/inspection/rules/sysvmessageexceedsreceivecapacity"
+	"custos/internal/inspection/rules/sysvmessageserializationmismatch"
 	"custos/internal/inspection/rules/tempnamdirectoryfallbackunchecked"
 	"custos/internal/inspection/rules/ternaryoperatorsimplify"
 	"custos/internal/inspection/rules/throwrawexception"
+	"custos/internal/inspection/rules/tlshandshakependingaccepted"
 	"custos/internal/inspection/rules/traitinstantiation"
 	"custos/internal/inspection/rules/traitspropertiesconflicts"
 	"custos/internal/inspection/rules/transactionearlyreturn"
@@ -419,6 +511,7 @@ import (
 	"custos/internal/inspection/rules/typescastingcanbeused"
 	"custos/internal/inspection/rules/typeunsafearraysearch"
 	"custos/internal/inspection/rules/typeunsafecomparison"
+	"custos/internal/inspection/rules/umasksetterreturnmisread"
 	"custos/internal/inspection/rules/undeclareddynamicproperty"
 	"custos/internal/inspection/rules/unescapedhtmloutput"
 	"custos/internal/inspection/rules/unicodenormalizationfailureconsumed"
@@ -426,6 +519,7 @@ import (
 	"custos/internal/inspection/rules/unitenumjsonencoding"
 	"custos/internal/inspection/rules/unknowninspection"
 	"custos/internal/inspection/rules/unknownnamedargument"
+	"custos/internal/inspection/rules/unlinkfailurereportedassuccess"
 	"custos/internal/inspection/rules/unnecessaryassertion"
 	"custos/internal/inspection/rules/unnecessarycasting"
 	"custos/internal/inspection/rules/unnecessarydoublequotes"
@@ -463,6 +557,7 @@ import (
 	"custos/internal/inspection/rules/usinginclusionreturnvalue"
 	"custos/internal/inspection/rules/usortdiscardsrequiredkeys"
 	"custos/internal/inspection/rules/utf8bytetruncation"
+	"custos/internal/inspection/rules/validatedbooleanfalserejectedasinvalid"
 	"custos/internal/inspection/rules/validatedintegerzerorejected"
 	"custos/internal/inspection/rules/variablefunctionsusage"
 	"custos/internal/inspection/rules/varyheaderoverwritesearlierdimensions"
@@ -470,9 +565,14 @@ import (
 	"custos/internal/inspection/rules/weakmapvalueretainskey"
 	"custos/internal/inspection/rules/worldwritablepermission"
 	"custos/internal/inspection/rules/writetoreadonlystream"
+	"custos/internal/inspection/rules/xmlparserneverreceivesfinalchunk"
+	"custos/internal/inspection/rules/xmlparsezerocomparedwithfalse"
 	"custos/internal/inspection/rules/xmlreaderattributecursornotrestored"
+	"custos/internal/inspection/rules/xmlwriterattributeaftercontent"
+	"custos/internal/inspection/rules/xmlwritermemoryoutputinurimode"
 	"custos/internal/inspection/rules/xpathignoresdefaultnamespace"
 	"custos/internal/inspection/rules/xpathqueryfailuredereferenced"
+	"custos/internal/inspection/rules/xsltransformationfailureconsumed"
 	"custos/internal/inspection/rules/zipclosefailureunchecked"
 	"custos/internal/inspection/rules/zipentryindexpastend"
 	"custos/internal/inspection/rules/zipentrynamecollision"
@@ -483,7 +583,7 @@ import (
 	"custos/internal/inspection/rules/zipsourceremovedbeforearchiveclose"
 )
 
-// All constructs every inspection in stable group and identifier order.
+// All returns inspections in stable group and identifier order.
 func All() []analysis.Rule {
 	return []analysis.Rule{
 		badexceptionsprocessing.New(),
@@ -613,6 +713,7 @@ func All() []analysis.Rule {
 		arraycombinelengthmismatch.New(),
 		arraycopyretainsreferences.New(),
 		arraydiffonnestedarrays.New(),
+		arrayfillnegativecount.New(),
 		arrayfillsharesobject.New(),
 		arrayfilterdropszero.New(),
 		arrayflipduplicatevalueloss.New(),
@@ -620,6 +721,7 @@ func All() []analysis.Rule {
 		arraymapmissingcallbackreturn.New(),
 		arraymergenumerickeyloss.New(),
 		arraymultisortlengthmismatch.New(),
+		arrayrandinvalidcount.New(),
 		arrayrandkeyusedasvalue.New(),
 		arrayreducemissinginitialvalue.New(),
 		arrayslicediscardsrequiredkeys.New(),
@@ -628,6 +730,7 @@ func All() []analysis.Rule {
 		arrayuniqueonnonstringableobjects.New(),
 		arraywalkcallbackreturnignored.New(),
 		arrowfunctioncapturedcounter.New(),
+		assertioncontainsrequiredsideeffect.New(),
 		asyncsignalsetterreturnmisread.New(),
 		attributetargetmismatch.New(),
 		autoloadingissues.New(),
@@ -635,10 +738,12 @@ func All() []analysis.Rule {
 		bcmathexponentnotation.New(),
 		bcmathfloatoperand.New(),
 		bcmathscalediscardsrequiredfraction.New(),
+		bufferedwriteflushedafterunlock.New(),
 		bytelengthusedascharactercount.New(),
 		bytepaddingusedforunicodewidth.New(),
 		callablemethodvalidity.New(),
 		callbackrequiredargumentmismatch.New(),
+		catchcannothandleknownthrowable.New(),
 		catchvariableoverwriteslocal.New(),
 		classconstantusagecorrectness.New(),
 		classmockingcorrectness.New(),
@@ -657,22 +762,30 @@ func All() []analysis.Rule {
 		contentlengthusescharactercount.New(),
 		contentrangelengthmismatch.New(),
 		cookiedeletionscopemismatch.New(),
+		copyfailurereportedassuccess.New(),
 		corsoriginlistinvalid.New(),
 		corssubdomainwildcardinvalid.New(),
 		csvblankrecordshapemismatch.New(),
 		csvdelimiterinvalidbytelength.New(),
 		csvescapedefaultdependency.New(),
+		csvreadlengthsplitsknownrecord.New(),
 		ctypeintegerinterpretedascharactercode.New(),
 		curlcustomgetretainspostbody.New(),
 		curlcustomheadwithoutnobody.New(),
 		curlexplicitinfinitetimeout.New(),
+		curlheadercallbackmissingbytecount.New(),
 		curlheaderlistoverwritten.New(),
+		curlheaderoptionrequiresarray.New(),
 		curlheadersincludedindecodedbody.New(),
 		curlmethodoptionorderconflict.New(),
 		curlmultisuccessassumedpertransfer.New(),
 		curlmultipartbodywithjsoncontenttype.New(),
+		curlreadcallbackexceedsrequestedsize.New(),
 		curlresponsebodywithoutreturntransfer.New(),
+		curlresponsezerorejected.New(),
 		curltransportsuccessashttpsuccess.New(),
+		curluploaddeclaredsizemismatch.New(),
+		curlwholeurlescapedascomponent.New(),
 		curlwritecallbackmissingbytecount.New(),
 		dateintervalspecification.New(),
 		datelasterrorsfalseunchecked.New(),
@@ -706,7 +819,12 @@ func All() []analysis.Rule {
 		explodeemptyseparator.New(),
 		failedclosurebindinginvoked.New(),
 		fiberresumebeforestart.New(),
+		fiberresumedaftertermination.New(),
+		fiberreturnbeforetermination.New(),
+		fiberstartedtwice.New(),
+		fibersuspendoutsidefiber.New(),
 		filelockfailureunchecked.New(),
+		filepermissionfailurepassespolicy.New(),
 		filereadfailureunchecked.New(),
 		filestatcacheafterexternalmutation.New(),
 		filetruncatedbeforelock.New(),
@@ -719,8 +837,19 @@ func All() []analysis.Rule {
 		forkfailuretreatedasparent.New(),
 		formencodingusedforrfc3986signature.New(),
 		fractionalarraykeytruncation.New(),
+		fractionalmodulooperand.New(),
+		ftppendingtransferacceptedascomplete.New(),
+		gdalphaoutsidesupportedrange.New(),
+		gdcolorzerorejectedasfailure.New(),
+		gdimagedimensionsnotpositive.New(),
+		gdjpegqualityoutsidesupportedrange.New(),
+		gdpaletteindexdecodedasrgb.New(),
+		gdpngcompressionoutsidesupportedrange.New(),
+		gdtransformationresultignored.New(),
 		generatorcallneverconsumed.New(),
 		generatorreturnbeforecompletion.New(),
+		generatorrewindafteradvance.New(),
+		globbraceexpansionmissingflag.New(),
 		globfailureunchecked.New(),
 		gmpautomaticbasechangesdecimalinput.New(),
 		gmpdivisionbyknownzero.New(),
@@ -731,11 +860,17 @@ func All() []analysis.Rule {
 		httperrorbodyreadwithoutignoreerrors.New(),
 		imagedecodefailureunchecked.New(),
 		imageencodercontenttypemismatch.New(),
+		imagickframeindexpastend.New(),
+		imagickresizestatususedasimage.New(),
+		imagicksingleblobdropsrequiredframes.New(),
 		immutabledateresultignored.New(),
 		incorrectrandomrange.New(),
 		incrementalinflateencodingmismatch.New(),
 		infinityloop.New(),
+		intdivminimumintegeroverflow.New(),
+		intdivzerodivisor.New(),
 		integercastoutofrangeliteral.New(),
+		interfaceinstantiation.New(),
 		intervaldaycomponentastotal.New(),
 		intlcalendarsecondspassedasmilliseconds.New(),
 		intlformattingfailureunchecked.New(),
@@ -745,10 +880,15 @@ func All() []analysis.Rule {
 		inversetriginvalidrealdomain.New(),
 		isoweekcalendaryearmismatch.New(),
 		issetargumentexistence.New(),
+		iteratorcountchangesrequiredposition.New(),
 		iteratormaterializationkeycollision.New(),
+		jsondecodeknowninvalidutf8.New(),
 		jsonencodeflagpassedtodecode.New(),
+		jsonencodeknownrecursivevalue.New(),
+		jsonencodenonfinitenumber.New(),
 		jsonforceobjectchangesnestedlists.New(),
 		jsonintegerprecisionloss.New(),
+		jsoninvaliddepth.New(),
 		jsonnumericcheckchangesidentifiers.New(),
 		jsonpartialoutputoverridesthrow.New(),
 		libxmlerrorbuffernevercleared.New(),
@@ -766,16 +906,21 @@ func All() []analysis.Rule {
 		mysqlddlimplicitlycommitstransaction.New(),
 		mysqlibindingtypecountmismatch.New(),
 		mysqliboundarrayreassigned.New(),
+		mysqliescapedvaluesurvivescharsetchange.New(),
 		mysqliinvalidbindingtype.New(),
+		mysqlimultiqueryresultsnotdrained.New(),
 		mysqliplaceholderbindingmismatch.New(),
 		mysqliunbufferedresultblocksnextquery.New(),
 		nancheckedwithequality.New(),
+		negativebitshiftcount.New(),
 		nestedpdotransactionwithoutsavepoint.New(),
 		neverfunctionfallsthrough.New(),
 		nocontentresponsewithbody.New(),
 		nonblockingemptyreadtreatedaseof.New(),
 		nonexhaustiveenummatch.New(),
 		nonrepeatableattributerepeated.New(),
+		nonvoidfunctionfallsthrough.New(),
+		nonblockingsocketconnectpendingrejected.New(),
 		nonblockingwaitzerotreatedasreaped.New(),
 		nullpointerexception.New(),
 		numberparseusescurrencytype.New(),
@@ -785,19 +930,25 @@ func All() []analysis.Rule {
 		ownedstreamnotclosed.New(),
 		packformatargumentmismatch.New(),
 		parsestrkeynormalizationmismatch.New(),
+		parseurlfailuredereferenced.New(),
 		parsedqueryvaluedecodedtwice.New(),
 		partialstreamwriteunchecked.New(),
 		passingbyreferencecorrectness.New(),
 		pathcontainmentprefixboundary.New(),
 		pdoarrayboundtosingleplaceholder.New(),
+		pdoboundvalueassumedlive.New(),
+		pdoexeczerorejectedasfailure.New(),
 		pdoexecutearrayreplacesbindings.New(),
 		pdofetchbothleaksduplicatecolumns.New(),
 		pdofetchcolumnfalsyvalueloss.New(),
+		pdofetchintoretainssharedrows.New(),
+		pdogroupedfetchreadsremovedcolumn.New(),
 		pdoidentifierplaceholder.New(),
 		pdomixedplaceholderstyles.New(),
 		pdoplaceholderbindingmismatch.New(),
 		pdoquotedplaceholder.New(),
 		pdoreferencebindingvariablereuse.New(),
+		pdorepeatednamedmarkerwithoutemulation.New(),
 		pdoselectrowcountassumption.New(),
 		permissionmodewrittenindecimal.New(),
 		pgasyncdispatchassumedquerysuccess.New(),
@@ -805,6 +956,8 @@ func All() []analysis.Rule {
 		pgescapedliteralquotedagain.New(),
 		pgfetchedzerorejected.New(),
 		pgidentifierescapedasliteral.New(),
+		pgreturnedrowsusedasaffectedrows.New(),
+		posixaccountlookupfailuredereferenced.New(),
 		pregmatchalllayoutmismatch.New(),
 		pregmatchfailureasnonmatch.New(),
 		pregquoteusage.New(),
@@ -816,26 +969,38 @@ func All() []analysis.Rule {
 		priorityqueueextractionshapemismatch.New(),
 		priorityqueueminorderassumption.New(),
 		processclosedbeforeownedpipes.New(),
+		processexecfailurereportedassuccess.New(),
+		processexitcodelostbyrepeatedstatusread.New(),
+		processpipedirectionmisinterpreted.New(),
 		processpipesdrainedsequentially.New(),
+		rangezerostep.New(),
 		readfromwriteonlystream.New(),
 		readloopprocesseseoffailure.New(),
 		readmodifywritelocktoolate.New(),
 		readdirfalsyfilenameloss.New(),
 		readonlypropertyreassignment.New(),
+		realpathfailureusedaspath.New(),
 		realpathinstreamcontext.New(),
 		recursivereplaceretainslisttail.New(),
 		recursivetraversalomitsdirectories.New(),
 		redirectcontinuesprotectedexecution.New(),
 		reflectioncompositetypeassumednamed.New(),
 		reflectionnamedargumentmismatch.New(),
+		regexbodydoesnotcompile.New(),
 		regexbyteoffsetascharacteroffset.New(),
+		regexreplacementcallbackfallsthrough.New(),
+		regexreplacementreferencesmissinggroup.New(),
+		regexutf8subjectknowninvalid.New(),
+		relativesymlinktargetuseswrongbase.New(),
 		renamefailureunchecked.New(),
 		repeatedcookieheaderreplacement.New(),
 		repeatedhtmlentityencoding.New(),
 		samesitenonewithoutsecure.New(),
+		scandirfailureiterated.New(),
 		seeksuccesscheckedastruthy.New(),
 		selectfailuretreatedasreadiness.New(),
 		selectwatcharraysnotrestored.New(),
+		semaphorefailureenterscriticalsection.New(),
 		sessioncookieoptionssetafterstart.New(),
 		sessiondestroyleaveslocalauthentication.New(),
 		sessionlockheldduringblockingcall.New(),
@@ -843,9 +1008,18 @@ func All() []analysis.Rule {
 		sessionnamechangedwhileactive.New(),
 		shallowclonenestedmutation.New(),
 		sharedlockusedforwriting.New(),
+		sharedmemorywritecapacityexceeded.New(),
 		shortstreamreadunchecked.New(),
 		signalhandlerhasnodispatchmechanism.New(),
+		signalregistrationfailurereportedassuccess.New(),
+		signalwaitfailureacceptedassignal.New(),
+		simplexmlchildvaluecontainsbareampersand.New(),
 		simplexmlloadfileusage.New(),
+		simplexmlmissingnodecheckedasnull.New(),
+		simplexmltextcastasboolean.New(),
+		soaplastrequestwithouttracing.New(),
+		soapnonwsdlrequiredoptionsmissing.New(),
+		socketreadzerorejected.New(),
 		sodiumnoncelengthmismatch.New(),
 		sortcomparatorreturnsboolean.New(),
 		sortcomparatorreturnsfloat.New(),
@@ -857,12 +1031,17 @@ func All() []analysis.Rule {
 		sqlitebindingindexzero.New(),
 		sqliteclearwithoutrequiredreset.New(),
 		sqlitefetchbothleaksduplicatecolumns.New(),
+		sqliteforeignkeysettinginsidetransaction.New(),
+		sqlitenondeterministicfunctiondeclareddeterministic.New(),
 		sqlitenullbindingdiscardsvalue.New(),
 		sqliteresultusedafterfinalize.New(),
 		staticlambdabinding.New(),
 		streamopenfailureunchecked.New(),
 		streamoutputreturnusedascontent.New(),
 		streamuseafterclose.New(),
+		stringoffsetwritetruncatesvalue.New(),
+		stringpademptypadding.New(),
+		stringrepeatnegativecount.New(),
 		stringsfirstcharacterscompare.New(),
 		strtokstateclobbered.New(),
 		suspiciousassignments.New(),
@@ -872,7 +1051,10 @@ func All() []analysis.Rule {
 		suspiciousreturn.New(),
 		suspicioussemicolon.New(),
 		switchcontinuationinloop.New(),
+		sysvmessageexceedsreceivecapacity.New(),
+		sysvmessageserializationmismatch.New(),
 		tempnamdirectoryfallbackunchecked.New(),
+		tlshandshakependingaccepted.New(),
 		traitinstantiation.New(),
 		traitspropertiesconflicts.New(),
 		transactionearlyreturn.New(),
@@ -881,11 +1063,13 @@ func All() []analysis.Rule {
 		transliterationfailureconsumed.New(),
 		trimmaskusedassuffix.New(),
 		truncationassumedtorewind.New(),
+		umasksetterreturnmisread.New(),
 		undeclareddynamicproperty.New(),
 		unicodenormalizationfailureconsumed.New(),
 		uninitializedtypedpropertyread.New(),
 		unitenumjsonencoding.New(),
 		unknownnamedargument.New(),
+		unlinkfailurereportedassuccess.New(),
 		unpackbuffertooshort.New(),
 		unpackednamedargumentcollision.New(),
 		unreachablecatchclause.New(),
@@ -894,6 +1078,7 @@ func All() []analysis.Rule {
 		usinginclusiononcereturnvalue.New(),
 		usortdiscardsrequiredkeys.New(),
 		utf8bytetruncation.New(),
+		validatedbooleanfalserejectedasinvalid.New(),
 		validatedintegerzerorejected.New(),
 		varyheaderoverwritesearlierdimensions.New(),
 		waitstatususedasexitcode.New(),
@@ -901,7 +1086,12 @@ func All() []analysis.Rule {
 		writetoreadonlystream.New(),
 		xpathignoresdefaultnamespace.New(),
 		xpathqueryfailuredereferenced.New(),
+		xmlparsezerocomparedwithfalse.New(),
+		xmlparserneverreceivesfinalchunk.New(),
 		xmlreaderattributecursornotrestored.New(),
+		xmlwriterattributeaftercontent.New(),
+		xmlwritermemoryoutputinurimode.New(),
+		xsltransformationfailureconsumed.New(),
 		zipclosefailureunchecked.New(),
 		zipentryindexpastend.New(),
 		zipentrynamecollision.New(),
@@ -922,22 +1112,32 @@ func All() []analysis.Rule {
 		curlredirectforwardscredentials.New(),
 		curlsslserverspoofing.New(),
 		decryptionfailureusedasplaintext.New(),
+		detachedsignaturepassedtocombinedverifier.New(),
 		encryptioninitializationvectorrandomness.New(),
 		fastdigestusedforpasswordstorage.New(),
 		hardcodedcredentialatknownsink.New(),
+		hashcontextusedafterfinalization.New(),
+		hashfilefailureusedasdigest.New(),
 		hostcookieprefixcontractviolation.New(),
 		hostnamesubstitution.New(),
 		nonsecureparsestrusage.New(),
 		nonsecureuniqidusage.New(),
+		opensslencryptionstatususedasciphertext.New(),
 		opensslkeylengthmismatch.New(),
 		opensslrawciphertextoptionmismatch.New(),
+		opensslsigningfailureignored.New(),
 		opensslverifytruthyresult.New(),
 		passwordcomparedwithfreshhash.New(),
 		passworduseddirectlyasencryptionkey.New(),
+		passwordverifyargumentsreversed.New(),
 		potentialmalware.New(),
 		requestcontrolledsessionid.New(),
+		secretstreampushafterfinaltag.New(),
 		securityadvisories.New(),
 		sessionregenerationfailureunchecked.New(),
+		sodiumkdfcontextlengthmismatch.New(),
+		sodiumsecretboxkeylengthmismatch.New(),
+		sodiumsecretboxnoncereused.New(),
 		unescapedhtmloutput.New(),
 		unserializeexploits.New(),
 		untrustedfilesystempath.New(),

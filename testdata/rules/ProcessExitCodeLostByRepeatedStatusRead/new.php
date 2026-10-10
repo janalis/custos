@@ -1,0 +1,1 @@
+<?php $p=proc_open("cat",[],$pipes);$a=proc_get_status($p);if(!$a["running"]){proc_get_status($p)["exitcode"];}

@@ -123,7 +123,5 @@ reproduce it in a detached baseline checkout with the migrated feature trees
 copied alongside the original packages. It is measurement tooling, not a
 production dependency or a retained compatibility layer.
 
-The ownership map, audit of every original production package, helper consumer
-inventory, migration rationale and extension scenarios A–G are in
-[the architecture audit](architecture-audit.md). Contributor instructions and
-the dependency diagram are in [the architecture guide](../contributing/architecture.md).
+Contributor instructions and the dependency diagram are in
+[the architecture guide](../contributing/architecture.md).

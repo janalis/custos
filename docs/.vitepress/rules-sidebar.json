@@ -560,6 +560,10 @@
         "link": "/rules/probable-bugs/ArrayDiffOnNestedArrays"
       },
       {
+        "text": "ArrayFillNegativeCount",
+        "link": "/rules/probable-bugs/ArrayFillNegativeCount"
+      },
+      {
         "text": "ArrayFillSharesObject",
         "link": "/rules/probable-bugs/ArrayFillSharesObject"
       },
@@ -586,6 +590,10 @@
       {
         "text": "ArrayMultisortLengthMismatch",
         "link": "/rules/probable-bugs/ArrayMultisortLengthMismatch"
+      },
+      {
+        "text": "ArrayRandInvalidCount",
+        "link": "/rules/probable-bugs/ArrayRandInvalidCount"
       },
       {
         "text": "ArrayRandKeyUsedAsValue",
@@ -620,6 +628,10 @@
         "link": "/rules/probable-bugs/ArrowFunctionCapturedCounter"
       },
       {
+        "text": "AssertionContainsRequiredSideEffect",
+        "link": "/rules/probable-bugs/AssertionContainsRequiredSideEffect"
+      },
+      {
         "text": "AsyncSignalSetterReturnMisread",
         "link": "/rules/probable-bugs/AsyncSignalSetterReturnMisread"
       },
@@ -648,6 +660,10 @@
         "link": "/rules/probable-bugs/BcMathScaleDiscardsRequiredFraction"
       },
       {
+        "text": "BufferedWriteFlushedAfterUnlock",
+        "link": "/rules/probable-bugs/BufferedWriteFlushedAfterUnlock"
+      },
+      {
         "text": "ByteLengthUsedAsCharacterCount",
         "link": "/rules/probable-bugs/ByteLengthUsedAsCharacterCount"
       },
@@ -662,6 +678,10 @@
       {
         "text": "CallbackRequiredArgumentMismatch",
         "link": "/rules/probable-bugs/CallbackRequiredArgumentMismatch"
+      },
+      {
+        "text": "CatchCannotHandleKnownThrowable",
+        "link": "/rules/probable-bugs/CatchCannotHandleKnownThrowable"
       },
       {
         "text": "CatchVariableOverwritesLocal",
@@ -736,6 +756,10 @@
         "link": "/rules/probable-bugs/CookieDeletionScopeMismatch"
       },
       {
+        "text": "CopyFailureReportedAsSuccess",
+        "link": "/rules/probable-bugs/CopyFailureReportedAsSuccess"
+      },
+      {
         "text": "CorsOriginListInvalid",
         "link": "/rules/probable-bugs/CorsOriginListInvalid"
       },
@@ -756,6 +780,10 @@
         "link": "/rules/probable-bugs/CsvEscapeDefaultDependency"
       },
       {
+        "text": "CsvReadLengthSplitsKnownRecord",
+        "link": "/rules/probable-bugs/CsvReadLengthSplitsKnownRecord"
+      },
+      {
         "text": "CtypeIntegerInterpretedAsCharacterCode",
         "link": "/rules/probable-bugs/CtypeIntegerInterpretedAsCharacterCode"
       },
@@ -772,8 +800,16 @@
         "link": "/rules/probable-bugs/CurlExplicitInfiniteTimeout"
       },
       {
+        "text": "CurlHeaderCallbackMissingByteCount",
+        "link": "/rules/probable-bugs/CurlHeaderCallbackMissingByteCount"
+      },
+      {
         "text": "CurlHeaderListOverwritten",
         "link": "/rules/probable-bugs/CurlHeaderListOverwritten"
+      },
+      {
+        "text": "CurlHeaderOptionRequiresArray",
+        "link": "/rules/probable-bugs/CurlHeaderOptionRequiresArray"
       },
       {
         "text": "CurlHeadersIncludedInDecodedBody",
@@ -792,12 +828,28 @@
         "link": "/rules/probable-bugs/CurlMultipartBodyWithJsonContentType"
       },
       {
+        "text": "CurlReadCallbackExceedsRequestedSize",
+        "link": "/rules/probable-bugs/CurlReadCallbackExceedsRequestedSize"
+      },
+      {
         "text": "CurlResponseBodyWithoutReturnTransfer",
         "link": "/rules/probable-bugs/CurlResponseBodyWithoutReturnTransfer"
       },
       {
+        "text": "CurlResponseZeroRejected",
+        "link": "/rules/probable-bugs/CurlResponseZeroRejected"
+      },
+      {
         "text": "CurlTransportSuccessAsHttpSuccess",
         "link": "/rules/probable-bugs/CurlTransportSuccessAsHttpSuccess"
+      },
+      {
+        "text": "CurlUploadDeclaredSizeMismatch",
+        "link": "/rules/probable-bugs/CurlUploadDeclaredSizeMismatch"
+      },
+      {
+        "text": "CurlWholeUrlEscapedAsComponent",
+        "link": "/rules/probable-bugs/CurlWholeUrlEscapedAsComponent"
       },
       {
         "text": "CurlWriteCallbackMissingByteCount",
@@ -932,8 +984,28 @@
         "link": "/rules/probable-bugs/FiberResumeBeforeStart"
       },
       {
+        "text": "FiberResumedAfterTermination",
+        "link": "/rules/probable-bugs/FiberResumedAfterTermination"
+      },
+      {
+        "text": "FiberReturnBeforeTermination",
+        "link": "/rules/probable-bugs/FiberReturnBeforeTermination"
+      },
+      {
+        "text": "FiberStartedTwice",
+        "link": "/rules/probable-bugs/FiberStartedTwice"
+      },
+      {
+        "text": "FiberSuspendOutsideFiber",
+        "link": "/rules/probable-bugs/FiberSuspendOutsideFiber"
+      },
+      {
         "text": "FileLockFailureUnchecked",
         "link": "/rules/probable-bugs/FileLockFailureUnchecked"
+      },
+      {
+        "text": "FilePermissionFailurePassesPolicy",
+        "link": "/rules/probable-bugs/FilePermissionFailurePassesPolicy"
       },
       {
         "text": "FileReadFailureUnchecked",
@@ -984,12 +1056,56 @@
         "link": "/rules/probable-bugs/FractionalArrayKeyTruncation"
       },
       {
+        "text": "FractionalModuloOperand",
+        "link": "/rules/probable-bugs/FractionalModuloOperand"
+      },
+      {
+        "text": "FtpPendingTransferAcceptedAsComplete",
+        "link": "/rules/probable-bugs/FtpPendingTransferAcceptedAsComplete"
+      },
+      {
+        "text": "GdAlphaOutsideSupportedRange",
+        "link": "/rules/probable-bugs/GdAlphaOutsideSupportedRange"
+      },
+      {
+        "text": "GdColorZeroRejectedAsFailure",
+        "link": "/rules/probable-bugs/GdColorZeroRejectedAsFailure"
+      },
+      {
+        "text": "GdImageDimensionsNotPositive",
+        "link": "/rules/probable-bugs/GdImageDimensionsNotPositive"
+      },
+      {
+        "text": "GdJpegQualityOutsideSupportedRange",
+        "link": "/rules/probable-bugs/GdJpegQualityOutsideSupportedRange"
+      },
+      {
+        "text": "GdPaletteIndexDecodedAsRgb",
+        "link": "/rules/probable-bugs/GdPaletteIndexDecodedAsRgb"
+      },
+      {
+        "text": "GdPngCompressionOutsideSupportedRange",
+        "link": "/rules/probable-bugs/GdPngCompressionOutsideSupportedRange"
+      },
+      {
+        "text": "GdTransformationResultIgnored",
+        "link": "/rules/probable-bugs/GdTransformationResultIgnored"
+      },
+      {
         "text": "GeneratorCallNeverConsumed",
         "link": "/rules/probable-bugs/GeneratorCallNeverConsumed"
       },
       {
         "text": "GeneratorReturnBeforeCompletion",
         "link": "/rules/probable-bugs/GeneratorReturnBeforeCompletion"
+      },
+      {
+        "text": "GeneratorRewindAfterAdvance",
+        "link": "/rules/probable-bugs/GeneratorRewindAfterAdvance"
+      },
+      {
+        "text": "GlobBraceExpansionMissingFlag",
+        "link": "/rules/probable-bugs/GlobBraceExpansionMissingFlag"
       },
       {
         "text": "GlobFailureUnchecked",
@@ -1032,6 +1148,18 @@
         "link": "/rules/probable-bugs/ImageEncoderContentTypeMismatch"
       },
       {
+        "text": "ImagickFrameIndexPastEnd",
+        "link": "/rules/probable-bugs/ImagickFrameIndexPastEnd"
+      },
+      {
+        "text": "ImagickResizeStatusUsedAsImage",
+        "link": "/rules/probable-bugs/ImagickResizeStatusUsedAsImage"
+      },
+      {
+        "text": "ImagickSingleBlobDropsRequiredFrames",
+        "link": "/rules/probable-bugs/ImagickSingleBlobDropsRequiredFrames"
+      },
+      {
         "text": "ImmutableDateResultIgnored",
         "link": "/rules/probable-bugs/ImmutableDateResultIgnored"
       },
@@ -1048,8 +1176,20 @@
         "link": "/rules/probable-bugs/InfinityLoop"
       },
       {
+        "text": "IntdivMinimumIntegerOverflow",
+        "link": "/rules/probable-bugs/IntdivMinimumIntegerOverflow"
+      },
+      {
+        "text": "IntdivZeroDivisor",
+        "link": "/rules/probable-bugs/IntdivZeroDivisor"
+      },
+      {
         "text": "IntegerCastOutOfRangeLiteral",
         "link": "/rules/probable-bugs/IntegerCastOutOfRangeLiteral"
+      },
+      {
+        "text": "InterfaceInstantiation",
+        "link": "/rules/probable-bugs/InterfaceInstantiation"
       },
       {
         "text": "IntervalDayComponentAsTotal",
@@ -1088,12 +1228,28 @@
         "link": "/rules/probable-bugs/IssetArgumentExistence"
       },
       {
+        "text": "IteratorCountChangesRequiredPosition",
+        "link": "/rules/probable-bugs/IteratorCountChangesRequiredPosition"
+      },
+      {
         "text": "IteratorMaterializationKeyCollision",
         "link": "/rules/probable-bugs/IteratorMaterializationKeyCollision"
       },
       {
+        "text": "JsonDecodeKnownInvalidUtf8",
+        "link": "/rules/probable-bugs/JsonDecodeKnownInvalidUtf8"
+      },
+      {
         "text": "JsonEncodeFlagPassedToDecode",
         "link": "/rules/probable-bugs/JsonEncodeFlagPassedToDecode"
+      },
+      {
+        "text": "JsonEncodeKnownRecursiveValue",
+        "link": "/rules/probable-bugs/JsonEncodeKnownRecursiveValue"
+      },
+      {
+        "text": "JsonEncodeNonFiniteNumber",
+        "link": "/rules/probable-bugs/JsonEncodeNonFiniteNumber"
       },
       {
         "text": "JsonForceObjectChangesNestedLists",
@@ -1102,6 +1258,10 @@
       {
         "text": "JsonIntegerPrecisionLoss",
         "link": "/rules/probable-bugs/JsonIntegerPrecisionLoss"
+      },
+      {
+        "text": "JsonInvalidDepth",
+        "link": "/rules/probable-bugs/JsonInvalidDepth"
       },
       {
         "text": "JsonNumericCheckChangesIdentifiers",
@@ -1172,8 +1332,16 @@
         "link": "/rules/probable-bugs/MysqliBoundArrayReassigned"
       },
       {
+        "text": "MysqliEscapedValueSurvivesCharsetChange",
+        "link": "/rules/probable-bugs/MysqliEscapedValueSurvivesCharsetChange"
+      },
+      {
         "text": "MysqliInvalidBindingType",
         "link": "/rules/probable-bugs/MysqliInvalidBindingType"
+      },
+      {
+        "text": "MysqliMultiQueryResultsNotDrained",
+        "link": "/rules/probable-bugs/MysqliMultiQueryResultsNotDrained"
       },
       {
         "text": "MysqliPlaceholderBindingMismatch",
@@ -1186,6 +1354,10 @@
       {
         "text": "NanCheckedWithEquality",
         "link": "/rules/probable-bugs/NanCheckedWithEquality"
+      },
+      {
+        "text": "NegativeBitShiftCount",
+        "link": "/rules/probable-bugs/NegativeBitShiftCount"
       },
       {
         "text": "NestedPdoTransactionWithoutSavepoint",
@@ -1210,6 +1382,14 @@
       {
         "text": "NonRepeatableAttributeRepeated",
         "link": "/rules/probable-bugs/NonRepeatableAttributeRepeated"
+      },
+      {
+        "text": "NonVoidFunctionFallsThrough",
+        "link": "/rules/probable-bugs/NonVoidFunctionFallsThrough"
+      },
+      {
+        "text": "NonblockingSocketConnectPendingRejected",
+        "link": "/rules/probable-bugs/NonblockingSocketConnectPendingRejected"
       },
       {
         "text": "NonblockingWaitZeroTreatedAsReaped",
@@ -1248,6 +1428,10 @@
         "link": "/rules/probable-bugs/ParseStrKeyNormalizationMismatch"
       },
       {
+        "text": "ParseUrlFailureDereferenced",
+        "link": "/rules/probable-bugs/ParseUrlFailureDereferenced"
+      },
+      {
         "text": "ParsedQueryValueDecodedTwice",
         "link": "/rules/probable-bugs/ParsedQueryValueDecodedTwice"
       },
@@ -1268,6 +1452,14 @@
         "link": "/rules/probable-bugs/PdoArrayBoundToSinglePlaceholder"
       },
       {
+        "text": "PdoBoundValueAssumedLive",
+        "link": "/rules/probable-bugs/PdoBoundValueAssumedLive"
+      },
+      {
+        "text": "PdoExecZeroRejectedAsFailure",
+        "link": "/rules/probable-bugs/PdoExecZeroRejectedAsFailure"
+      },
+      {
         "text": "PdoExecuteArrayReplacesBindings",
         "link": "/rules/probable-bugs/PdoExecuteArrayReplacesBindings"
       },
@@ -1278,6 +1470,14 @@
       {
         "text": "PdoFetchColumnFalsyValueLoss",
         "link": "/rules/probable-bugs/PdoFetchColumnFalsyValueLoss"
+      },
+      {
+        "text": "PdoFetchIntoRetainsSharedRows",
+        "link": "/rules/probable-bugs/PdoFetchIntoRetainsSharedRows"
+      },
+      {
+        "text": "PdoGroupedFetchReadsRemovedColumn",
+        "link": "/rules/probable-bugs/PdoGroupedFetchReadsRemovedColumn"
       },
       {
         "text": "PdoIdentifierPlaceholder",
@@ -1298,6 +1498,10 @@
       {
         "text": "PdoReferenceBindingVariableReuse",
         "link": "/rules/probable-bugs/PdoReferenceBindingVariableReuse"
+      },
+      {
+        "text": "PdoRepeatedNamedMarkerWithoutEmulation",
+        "link": "/rules/probable-bugs/PdoRepeatedNamedMarkerWithoutEmulation"
       },
       {
         "text": "PdoSelectRowCountAssumption",
@@ -1326,6 +1530,14 @@
       {
         "text": "PgIdentifierEscapedAsLiteral",
         "link": "/rules/probable-bugs/PgIdentifierEscapedAsLiteral"
+      },
+      {
+        "text": "PgReturnedRowsUsedAsAffectedRows",
+        "link": "/rules/probable-bugs/PgReturnedRowsUsedAsAffectedRows"
+      },
+      {
+        "text": "PosixAccountLookupFailureDereferenced",
+        "link": "/rules/probable-bugs/PosixAccountLookupFailureDereferenced"
       },
       {
         "text": "PregMatchAllLayoutMismatch",
@@ -1372,8 +1584,24 @@
         "link": "/rules/probable-bugs/ProcessClosedBeforeOwnedPipes"
       },
       {
+        "text": "ProcessExecFailureReportedAsSuccess",
+        "link": "/rules/probable-bugs/ProcessExecFailureReportedAsSuccess"
+      },
+      {
+        "text": "ProcessExitCodeLostByRepeatedStatusRead",
+        "link": "/rules/probable-bugs/ProcessExitCodeLostByRepeatedStatusRead"
+      },
+      {
+        "text": "ProcessPipeDirectionMisinterpreted",
+        "link": "/rules/probable-bugs/ProcessPipeDirectionMisinterpreted"
+      },
+      {
         "text": "ProcessPipesDrainedSequentially",
         "link": "/rules/probable-bugs/ProcessPipesDrainedSequentially"
+      },
+      {
+        "text": "RangeZeroStep",
+        "link": "/rules/probable-bugs/RangeZeroStep"
       },
       {
         "text": "ReadFromWriteOnlyStream",
@@ -1394,6 +1622,10 @@
       {
         "text": "ReadonlyPropertyReassignment",
         "link": "/rules/probable-bugs/ReadonlyPropertyReassignment"
+      },
+      {
+        "text": "RealpathFailureUsedAsPath",
+        "link": "/rules/probable-bugs/RealpathFailureUsedAsPath"
       },
       {
         "text": "RealpathInStreamContext",
@@ -1420,8 +1652,28 @@
         "link": "/rules/probable-bugs/ReflectionNamedArgumentMismatch"
       },
       {
+        "text": "RegexBodyDoesNotCompile",
+        "link": "/rules/probable-bugs/RegexBodyDoesNotCompile"
+      },
+      {
         "text": "RegexByteOffsetAsCharacterOffset",
         "link": "/rules/probable-bugs/RegexByteOffsetAsCharacterOffset"
+      },
+      {
+        "text": "RegexReplacementCallbackFallsThrough",
+        "link": "/rules/probable-bugs/RegexReplacementCallbackFallsThrough"
+      },
+      {
+        "text": "RegexReplacementReferencesMissingGroup",
+        "link": "/rules/probable-bugs/RegexReplacementReferencesMissingGroup"
+      },
+      {
+        "text": "RegexUtf8SubjectKnownInvalid",
+        "link": "/rules/probable-bugs/RegexUtf8SubjectKnownInvalid"
+      },
+      {
+        "text": "RelativeSymlinkTargetUsesWrongBase",
+        "link": "/rules/probable-bugs/RelativeSymlinkTargetUsesWrongBase"
       },
       {
         "text": "RenameFailureUnchecked",
@@ -1440,6 +1692,10 @@
         "link": "/rules/probable-bugs/SameSiteNoneWithoutSecure"
       },
       {
+        "text": "ScandirFailureIterated",
+        "link": "/rules/probable-bugs/ScandirFailureIterated"
+      },
+      {
         "text": "SeekSuccessCheckedAsTruthy",
         "link": "/rules/probable-bugs/SeekSuccessCheckedAsTruthy"
       },
@@ -1450,6 +1706,10 @@
       {
         "text": "SelectWatchArraysNotRestored",
         "link": "/rules/probable-bugs/SelectWatchArraysNotRestored"
+      },
+      {
+        "text": "SemaphoreFailureEntersCriticalSection",
+        "link": "/rules/probable-bugs/SemaphoreFailureEntersCriticalSection"
       },
       {
         "text": "SessionCookieOptionsSetAfterStart",
@@ -1480,6 +1740,10 @@
         "link": "/rules/probable-bugs/SharedLockUsedForWriting"
       },
       {
+        "text": "SharedMemoryWriteCapacityExceeded",
+        "link": "/rules/probable-bugs/SharedMemoryWriteCapacityExceeded"
+      },
+      {
         "text": "ShortStreamReadUnchecked",
         "link": "/rules/probable-bugs/ShortStreamReadUnchecked"
       },
@@ -1488,8 +1752,40 @@
         "link": "/rules/probable-bugs/SignalHandlerHasNoDispatchMechanism"
       },
       {
+        "text": "SignalRegistrationFailureReportedAsSuccess",
+        "link": "/rules/probable-bugs/SignalRegistrationFailureReportedAsSuccess"
+      },
+      {
+        "text": "SignalWaitFailureAcceptedAsSignal",
+        "link": "/rules/probable-bugs/SignalWaitFailureAcceptedAsSignal"
+      },
+      {
+        "text": "SimpleXmlChildValueContainsBareAmpersand",
+        "link": "/rules/probable-bugs/SimpleXmlChildValueContainsBareAmpersand"
+      },
+      {
         "text": "SimpleXmlLoadFileUsage",
         "link": "/rules/probable-bugs/SimpleXmlLoadFileUsage"
+      },
+      {
+        "text": "SimpleXmlMissingNodeCheckedAsNull",
+        "link": "/rules/probable-bugs/SimpleXmlMissingNodeCheckedAsNull"
+      },
+      {
+        "text": "SimpleXmlTextCastAsBoolean",
+        "link": "/rules/probable-bugs/SimpleXmlTextCastAsBoolean"
+      },
+      {
+        "text": "SoapLastRequestWithoutTracing",
+        "link": "/rules/probable-bugs/SoapLastRequestWithoutTracing"
+      },
+      {
+        "text": "SoapNonWsdlRequiredOptionsMissing",
+        "link": "/rules/probable-bugs/SoapNonWsdlRequiredOptionsMissing"
+      },
+      {
+        "text": "SocketReadZeroRejected",
+        "link": "/rules/probable-bugs/SocketReadZeroRejected"
       },
       {
         "text": "SodiumNonceLengthMismatch",
@@ -1536,6 +1832,14 @@
         "link": "/rules/probable-bugs/SqliteFetchBothLeaksDuplicateColumns"
       },
       {
+        "text": "SqliteForeignKeySettingInsideTransaction",
+        "link": "/rules/probable-bugs/SqliteForeignKeySettingInsideTransaction"
+      },
+      {
+        "text": "SqliteNondeterministicFunctionDeclaredDeterministic",
+        "link": "/rules/probable-bugs/SqliteNondeterministicFunctionDeclaredDeterministic"
+      },
+      {
         "text": "SqliteNullBindingDiscardsValue",
         "link": "/rules/probable-bugs/SqliteNullBindingDiscardsValue"
       },
@@ -1558,6 +1862,18 @@
       {
         "text": "StreamUseAfterClose",
         "link": "/rules/probable-bugs/StreamUseAfterClose"
+      },
+      {
+        "text": "StringOffsetWriteTruncatesValue",
+        "link": "/rules/probable-bugs/StringOffsetWriteTruncatesValue"
+      },
+      {
+        "text": "StringPadEmptyPadding",
+        "link": "/rules/probable-bugs/StringPadEmptyPadding"
+      },
+      {
+        "text": "StringRepeatNegativeCount",
+        "link": "/rules/probable-bugs/StringRepeatNegativeCount"
       },
       {
         "text": "StringsFirstCharactersCompare",
@@ -1596,8 +1912,20 @@
         "link": "/rules/probable-bugs/SwitchContinuationInLoop"
       },
       {
+        "text": "SysvMessageExceedsReceiveCapacity",
+        "link": "/rules/probable-bugs/SysvMessageExceedsReceiveCapacity"
+      },
+      {
+        "text": "SysvMessageSerializationMismatch",
+        "link": "/rules/probable-bugs/SysvMessageSerializationMismatch"
+      },
+      {
         "text": "TempnamDirectoryFallbackUnchecked",
         "link": "/rules/probable-bugs/TempnamDirectoryFallbackUnchecked"
+      },
+      {
+        "text": "TlsHandshakePendingAccepted",
+        "link": "/rules/probable-bugs/TlsHandshakePendingAccepted"
       },
       {
         "text": "TraitInstantiation",
@@ -1632,6 +1960,10 @@
         "link": "/rules/probable-bugs/TruncationAssumedToRewind"
       },
       {
+        "text": "UmaskSetterReturnMisread",
+        "link": "/rules/probable-bugs/UmaskSetterReturnMisread"
+      },
+      {
         "text": "UndeclaredDynamicProperty",
         "link": "/rules/probable-bugs/UndeclaredDynamicProperty"
       },
@@ -1650,6 +1982,10 @@
       {
         "text": "UnknownNamedArgument",
         "link": "/rules/probable-bugs/UnknownNamedArgument"
+      },
+      {
+        "text": "UnlinkFailureReportedAsSuccess",
+        "link": "/rules/probable-bugs/UnlinkFailureReportedAsSuccess"
       },
       {
         "text": "UnpackBufferTooShort",
@@ -1684,6 +2020,10 @@
         "link": "/rules/probable-bugs/Utf8ByteTruncation"
       },
       {
+        "text": "ValidatedBooleanFalseRejectedAsInvalid",
+        "link": "/rules/probable-bugs/ValidatedBooleanFalseRejectedAsInvalid"
+      },
+      {
         "text": "ValidatedIntegerZeroRejected",
         "link": "/rules/probable-bugs/ValidatedIntegerZeroRejected"
       },
@@ -1712,8 +2052,28 @@
         "link": "/rules/probable-bugs/XPathQueryFailureDereferenced"
       },
       {
+        "text": "XmlParseZeroComparedWithFalse",
+        "link": "/rules/probable-bugs/XmlParseZeroComparedWithFalse"
+      },
+      {
+        "text": "XmlParserNeverReceivesFinalChunk",
+        "link": "/rules/probable-bugs/XmlParserNeverReceivesFinalChunk"
+      },
+      {
         "text": "XmlReaderAttributeCursorNotRestored",
         "link": "/rules/probable-bugs/XmlReaderAttributeCursorNotRestored"
+      },
+      {
+        "text": "XmlWriterAttributeAfterContent",
+        "link": "/rules/probable-bugs/XmlWriterAttributeAfterContent"
+      },
+      {
+        "text": "XmlWriterMemoryOutputInUriMode",
+        "link": "/rules/probable-bugs/XmlWriterMemoryOutputInUriMode"
+      },
+      {
+        "text": "XslTransformationFailureConsumed",
+        "link": "/rules/probable-bugs/XslTransformationFailureConsumed"
       },
       {
         "text": "ZipCloseFailureUnchecked",
@@ -1802,6 +2162,10 @@
         "link": "/rules/security/DecryptionFailureUsedAsPlaintext"
       },
       {
+        "text": "DetachedSignaturePassedToCombinedVerifier",
+        "link": "/rules/security/DetachedSignaturePassedToCombinedVerifier"
+      },
+      {
         "text": "EncryptionInitializationVectorRandomness",
         "link": "/rules/security/EncryptionInitializationVectorRandomness"
       },
@@ -1812,6 +2176,14 @@
       {
         "text": "HardcodedCredentialAtKnownSink",
         "link": "/rules/security/HardcodedCredentialAtKnownSink"
+      },
+      {
+        "text": "HashContextUsedAfterFinalization",
+        "link": "/rules/security/HashContextUsedAfterFinalization"
+      },
+      {
+        "text": "HashFileFailureUsedAsDigest",
+        "link": "/rules/security/HashFileFailureUsedAsDigest"
       },
       {
         "text": "HostCookiePrefixContractViolation",
@@ -1830,12 +2202,20 @@
         "link": "/rules/security/NonSecureUniqidUsage"
       },
       {
+        "text": "OpenSslEncryptionStatusUsedAsCiphertext",
+        "link": "/rules/security/OpenSslEncryptionStatusUsedAsCiphertext"
+      },
+      {
         "text": "OpenSslKeyLengthMismatch",
         "link": "/rules/security/OpenSslKeyLengthMismatch"
       },
       {
         "text": "OpenSslRawCiphertextOptionMismatch",
         "link": "/rules/security/OpenSslRawCiphertextOptionMismatch"
+      },
+      {
+        "text": "OpenSslSigningFailureIgnored",
+        "link": "/rules/security/OpenSslSigningFailureIgnored"
       },
       {
         "text": "OpenSslVerifyTruthyResult",
@@ -1850,6 +2230,10 @@
         "link": "/rules/security/PasswordUsedDirectlyAsEncryptionKey"
       },
       {
+        "text": "PasswordVerifyArgumentsReversed",
+        "link": "/rules/security/PasswordVerifyArgumentsReversed"
+      },
+      {
         "text": "PotentialMalware",
         "link": "/rules/security/PotentialMalware"
       },
@@ -1858,12 +2242,28 @@
         "link": "/rules/security/RequestControlledSessionId"
       },
       {
+        "text": "SecretstreamPushAfterFinalTag",
+        "link": "/rules/security/SecretstreamPushAfterFinalTag"
+      },
+      {
         "text": "SecurityAdvisories",
         "link": "/rules/security/SecurityAdvisories"
       },
       {
         "text": "SessionRegenerationFailureUnchecked",
         "link": "/rules/security/SessionRegenerationFailureUnchecked"
+      },
+      {
+        "text": "SodiumKdfContextLengthMismatch",
+        "link": "/rules/security/SodiumKdfContextLengthMismatch"
+      },
+      {
+        "text": "SodiumSecretboxKeyLengthMismatch",
+        "link": "/rules/security/SodiumSecretboxKeyLengthMismatch"
+      },
+      {
+        "text": "SodiumSecretboxNonceReused",
+        "link": "/rules/security/SodiumSecretboxNonceReused"
       },
       {
         "text": "UnescapedHtmlOutput",

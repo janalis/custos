@@ -1,0 +1,2 @@
+<?php
+$c=new SoapClient($wsdl,["trace"=>false]);<warning descr="Enable SOAP tracing before retrieving the request.">$c->__getLastRequest()</warning>;$d=new SoapClient($wsdl,[]);<warning descr="Enable SOAP tracing before retrieving the request.">$d->__getLastRequest()</warning>;$e=new SoapClient($wsdl);<warning descr="Enable SOAP tracing before retrieving the request.">$e->__getLastRequest()</warning>;
