@@ -1,4 +1,8 @@
 {
+  "AbstractClassInstantiation": {
+    "summary": "Instantiate a concrete class.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
   "AccessModifierPresented": {
     "summary": "Class members that rely on PHP's implicit public visibility (methods declared\nwith no visibility keyword, properties declared with `var`/`static`/`readonly`\nonly, constants declared with a bare `const`) should spell out their visibility\nexplicitly so intent is clear to readers.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| ANALYZE_INTERFACES | bool | true | When false, interface declarations are not inspected at all. |\n| ANALYZE_CONSTANTS | bool | true | When false, class constants are never reported (D3 disabled). |",
@@ -26,6 +30,10 @@
     "summary": "Detect preg_replace with a literal replacement containing a numeric backreference followed immediately by a digit where the parsed larger capture number does not exist but the shorter one does.",
     "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
+  },
+  "AppendModeSeekUsedForOverwrite": {
+    "summary": "Use an overwrite-capable stream mode.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
   },
   "ArgumentUnpackingCanBeUsed": {
     "summary": "Since PHP 5.6, `call_user_func_array('fn', $args)` with a literal function\nname can be written as a direct call with argument unpacking, `fn(...$args)`,\nwhich is faster and easier to read and analyse.",
@@ -123,6 +131,14 @@
     "summary": "Detect an arrow function updating a captured scalar counter when the same callable is invoked at least twice without reassignment.",
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
+  "AsyncSignalSetterReturnMisread": {
+    "summary": "Query the signal state after changing it.",
+    "fix": true
+  },
+  "AttributeTargetMismatch": {
+    "summary": "Use the attribute on a permitted target.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
   "AuthenticationCookieAllowsScriptAccess": {
     "summary": "An authentication cookie without HttpOnly is available to scripts. Enable HttpOnly when the configured authentication policy requires it. This inspection is disabled by default because the intended policy or use can vary.",
     "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| authenticationCookies | list | `[\"auth_token\"]` | Configure the explicit policy evidence described in D1. |"
@@ -142,6 +158,18 @@
   },
   "BasicAuthenticationOverPlainHttp": {
     "summary": "Basic authentication credentials sent over plain HTTP are exposed in transit. Use HTTPS for the configured request."
+  },
+  "BcMathExponentNotation": {
+    "summary": "Use ordinary decimal notation for BCMath operands.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "BcMathFloatOperand": {
+    "summary": "Supply decimal strings before BCMath arithmetic. This inspection is disabled by default; enabling it selects the stated policy.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "BcMathScaleDiscardsRequiredFraction": {
+    "summary": "Retain fractional digits in decimal arithmetic. This inspection is disabled by default; enabling it selects the stated policy.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
   },
   "BcryptPasswordTruncation": {
     "summary": "bcrypt supports only a limited password byte length. Apply an explicit supported password-length policy before hashing."
@@ -209,6 +237,13 @@
   "CodePointSliceSplitsGrapheme": {
     "summary": "A visible character can contain several Unicode code points. Slice display text at grapheme boundaries to preserve the complete character. This inspection is disabled by default because the intended policy or use can vary."
   },
+  "CollatorComparisonTruthinessReversed": {
+    "summary": "Compare collation results explicitly."
+  },
+  "CollatorSortDiscardsRequiredKeys": {
+    "summary": "Preserve keys during collation sorting. Disabled by default. Explicit enablement establishes the policy described in Detection; names, comments and example labels never establish intent.",
+    "fix": true
+  },
   "CompactArguments": {
     "summary": "`compact('name')` silently skips (or, since PHP 7.3, warns about) variables\nthat do not exist at that point. A name that never appeared earlier in the\nfunction is usually a typo or a variable assigned too late."
   },
@@ -221,17 +256,56 @@
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| (none) | | | Driven by the global comparison style setting (`comparisonStyle`: `regular` default, or `yoda`). |",
     "fix": true
   },
+  "CompressionDecoderFormatMismatch": {
+    "summary": "Match the decoder to the compression format.",
+    "fix": true
+  },
+  "CompressionLevelOutsideSupportedRange": {
+    "summary": "Use a supported compression level. Enabled by default; require positive semantic or local-flow proof."
+  },
+  "ConflictingContentLengthHeaders": {
+    "summary": "Send one consistent Content-Length value.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
+  "ConnectTimeoutAssumedToBoundReads": {
+    "summary": "Set a separate timeout for stream reads. This opt-in rule applies the policy described in Detection."
+  },
   "ConstantCanBeUsed": {
     "summary": "Some function calls only return a value that PHP already exposes as a\nconstant (`PHP_VERSION`, `PHP_SAPI`, `M_PI`, …), and comparisons of\n`PHP_VERSION` via `version_compare()` or OS sniffing on `PHP_OS` have cheaper,\nclearer constant-based equivalents (`PHP_VERSION_ID`, `PHP_OS_FAMILY`).",
     "fix": true
+  },
+  "ContentDispositionFilenameNeedsQuoting": {
+    "summary": "Quote the Content-Disposition filename.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection.",
+    "fix": true
+  },
+  "ContentEncodingBodyMismatch": {
+    "summary": "Encode the body using the declared content coding.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
+  "ContentLengthKnownBodyMismatch": {
+    "summary": "Match Content-Length to the emitted bytes.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
   },
   "ContentLengthUsesCharacterCount": {
     "summary": "Detect Content-Length built from mb_strlen/grapheme_strlen of the exact response body later emitted without transformation.",
     "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
+  "ContentRangeLengthMismatch": {
+    "summary": "Match the body to the inclusive byte range.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
   "CookieDeletionScopeMismatch": {
     "summary": "Cookie deletion must target the same path and domain as creation. Use the original scope when expiring the cookie."
+  },
+  "CorsOriginListInvalid": {
+    "summary": "Send one allowed origin in the CORS header.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
+  "CorsSubdomainWildcardInvalid": {
+    "summary": "Send a concrete CORS origin.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
   },
   "CredentialedCorsUsesWildcardOrigin": {
     "summary": "Browsers reject a wildcard CORS origin for credentialed requests. Return an explicit allowed origin instead."
@@ -241,6 +315,19 @@
   },
   "CryptographicallySecureRandomness": {
     "summary": "`openssl_random_pseudo_bytes()` and `mcrypt_create_iv()` can silently fall\nback to weak sources or fail (returning `false`) and their strength depends on\noptional arguments. Point out missing strength arguments, unverified results\nand weak sources, and suggest `random_bytes()` on PHP 7+."
+  },
+  "CsvBlankRecordShapeMismatch": {
+    "summary": "Recognize a blank CSV record as a null field.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
+  "CsvDelimiterInvalidByteLength": {
+    "summary": "Use a one-byte CSV separator.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
+  "CsvEscapeDefaultDependency": {
+    "summary": "Pass the CSV escape character explicitly.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection.",
+    "fix": true
   },
   "CtypeIntegerInterpretedAsCharacterCode": {
     "summary": "An integer ctype argument can be interpreted as a character code. Pass a string when testing the characters of its decimal representation. This inspection is disabled by default because the intended policy or use can vary."
@@ -318,8 +405,14 @@
     "summary": "`date()` already formats the current moment when its timestamp argument is\nomitted, so passing `time()` explicitly is redundant noise (and costs an extra\ncall). Drop the second argument.",
     "fix": true
   },
+  "DecompressionFailureConsumed": {
+    "summary": "Check decompression before consuming data."
+  },
   "DecryptionFailureUsedAsPlaintext": {
     "summary": "Decryption can fail and return false. Check success before treating the result as plaintext."
+  },
+  "DeflateStreamNeverFinished": {
+    "summary": "Finish the compressed stream before publishing it. This opt-in rule applies the policy described in Detection."
   },
   "DegradedSwitch": {
     "summary": "A `switch` with only a `default` branch, or with a single `case` (optionally\nplus `default`), is just an `if` / `if-else` (or plain code) in disguise and\nreads better rewritten that way."
@@ -346,6 +439,35 @@
   "DisconnectedForeachInstruction": {
     "summary": "A statement inside a `foreach` body that uses no loop variable and nothing the\nloop body changes produces the same effect on every iteration; it most likely\nbelongs before or after the loop. Optionally (off by default) the rule also\npoints at objects instantiated on every iteration that could be built once and\ncloned.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). The upstream test suite runs with it enabled. |"
+  },
+  "DomAppendMovesNodeUnexpectedly": {
+    "summary": "Clone the node when preserving its existing parent. This inspection is disabled by default; enabling it selects the stated policy.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "DomCrossDocumentAppend": {
+    "summary": "Import the node into the destination document.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "DomElementValueContainsBareAmpersand": {
+    "summary": "Append a text node for literal ampersand text.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "DomLiveNodeListRemovalSkipsNodes": {
+    "summary": "Remove live DOM matches without skipping shifted nodes.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "DomMissingAttributeCheckedAsNull": {
+    "summary": "Use hasAttribute to test whether an attribute exists.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "DomShallowImportDropsDescendants": {
+    "summary": "Import descendants when copying an element subtree. This inspection is disabled by default; enabling it selects the stated policy.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection.",
+    "fix": true
+  },
+  "DomTextAssignmentDestroysChildren": {
+    "summary": "Preserve child nodes when adding element text. This inspection is disabled by default; enabling it selects the stated policy.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
   },
   "DstUnsafeCalendarDayArithmetic": {
     "summary": "Detect addition of literal 86400 to a timestamp derived from local midnight in a resolved DST-observing timezone under a daily-calendar scheduling contract.",
@@ -381,6 +503,10 @@
   "EmptyClass": {
     "summary": "A named class (or trait, or enum) that declares nothing at all — no\nproperties, constants, methods, used traits or enum cases — is usually dead\nweight or an unfinished stub."
   },
+  "EmptySplCollectionExtraction": {
+    "summary": "Check that the collection contains an element.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
   "EncodingConversionArgumentsReversed": {
     "summary": "Converting text away from the output consumer's required encoding can make it invalid input. Convert to the encoding required by the consumer. This inspection is disabled by default because the intended policy or use can vary."
   },
@@ -390,6 +516,10 @@
   "EnumFromUncheckedExternalValue": {
     "summary": "Detect a resolved backed enum from call with a request-derived backing value not proven within its declared case set and without handling ValueError.",
     "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "EnumInstantiation": {
+    "summary": "Use an enum case instead of instantiation.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
   },
   "ExceptionConstructedNotThrown": {
     "summary": "Constructing an exception and discarding it does not interrupt execution. Throw the exception when the failure should stop the operation."
@@ -401,9 +531,16 @@
     "summary": "Detect a resolved Generator identity traversed again after a proven complete iterator_to_array call or complete foreach.",
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
+  "ExitStatusReadWithoutNormalExitCheck": {
+    "summary": "Check normal termination before decoding the exit code."
+  },
   "ExplodeEmptySeparator": {
     "summary": "Detect explode with a separator statically equal to the empty string.",
     "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "FailedClosureBindingInvoked": {
+    "summary": "Check closure binding before invoking it.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
   },
   "FastDigestUsedForPasswordStorage": {
     "summary": "Detect a password input positively established by an HTML password-field mapping or explicit annotated password parameter reaching md5/sha1/hash and then a persisted credential field.",
@@ -459,6 +596,12 @@
     "summary": "Dumping, tracing and profiler helpers (`var_dump()`, `print_r()`,\nframework dumpers, Xdebug functions, …) are typically added while debugging\nand forgotten afterwards. Flag their calls unless the context shows the\noutput is intentional.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| configuration | list of strings | empty (see below) | Additional debug entries (`function_name` or `\\Class::method`). |\n| migratedIntoUserSpace | bool | false | When false, the built-in defaults are merged into `configuration`; when true, only `configuration` is used. |\n\nUpstream persists the merged list into `configuration` once and flips\n`migratedIntoUserSpace` to true; custos only needs the \"effective list\"\nsemantics above."
   },
+  "ForkChildFallsIntoParentWork": {
+    "summary": "Terminate or separate the fork child branch. This opt-in rule applies the policy described in Detection."
+  },
+  "ForkFailureTreatedAsParent": {
+    "summary": "Handle fork failure separately."
+  },
   "FormEncodingUsedForRfc3986Signature": {
     "summary": "Form-style query encoding differs from RFC3986 encoding for spaces. Select RFC3986 encoding when the configured signature protocol requires it. This inspection is disabled by default because the intended policy or use can vary.",
     "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| signatureFunctions | list | `[]` | Configure the explicit policy evidence described in D1. |"
@@ -487,6 +630,19 @@
     "summary": "Detect glob result directly or through a proven alias consumed by foreach or array-only operations without excluding false.",
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
+  "GmpAutomaticBaseChangesDecimalInput": {
+    "summary": "Specify decimal base for zero-prefixed GMP input. This inspection is disabled by default; enabling it selects the stated policy.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection.",
+    "fix": true
+  },
+  "GmpDivisionByKnownZero": {
+    "summary": "Use a nonzero GMP divisor.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "GmpDivisionPairUsedAsNumber": {
+    "summary": "Select a quotient or remainder before using the GMP result.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
   "HardcodedCredentialAtKnownSink": {
     "summary": "Literal credentials embedded in connection setup are difficult to rotate and protect. Load them from the application's external configuration. This inspection is disabled by default because the intended policy or use can vary.",
     "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| excludedPaths | list | `[\"**/testdata/**\", \"**/tests/**\"]` | Configure the explicit policy evidence described in D1. |"
@@ -494,6 +650,10 @@
   "HeadersAfterCommittedOutput": {
     "summary": "Detect header or setcookie after demonstrably committed output on every incoming path, such as output plus flush with no active buffering.",
     "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "HeapIterationConsumesCollection": {
+    "summary": "Iterate a clone to preserve the heap. This opt-in inspection applies the policy stated in Detection.",
+    "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
   },
   "HexDecodeOddLengthLiteral": {
     "summary": "Hexadecimal decoding requires complete pairs of digits. Supply an even number of hexadecimal characters."
@@ -503,6 +663,10 @@
   },
   "HostnameSubstitution": {
     "summary": "`$_SERVER['HTTP_HOST']` and `$_SERVER['SERVER_NAME']` can be controlled by the\nclient (Host header). Using them to build e-mail addresses or storing them in\ndomain/host/email-like variables or properties without a whitelist check lets\nan attacker inject their own domain."
+  },
+  "HttpErrorBodyReadWithoutIgnoreErrors": {
+    "summary": "Enable reading HTTP error response bodies. This opt-in inspection applies the policy stated in Detection.",
+    "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
   },
   "IfReturnReturnSimplification": {
     "summary": "An `if` whose only job is to return `true` in one branch and `false` in the\nother is a long-winded way of returning the condition itself (or its\nnegation). Return the expression directly.",
@@ -536,6 +700,9 @@
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| PREFER_PREFIX_STYLE | bool | true | Fix produces `++$x` / `--$x`. |\n| PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` whenever `PREFER_PREFIX_STYLE` is false. |",
     "fix": true
   },
+  "IncrementalInflateEncodingMismatch": {
+    "summary": "Match the inflate encoding to the input."
+  },
   "InfinityLoop": {
     "summary": "A method whose only statement calls the very same method on `$this`,\n`self` or `static` recurses unconditionally until the stack overflows —\ntypically a getter/proxy that was meant to call a property, a parent method\nor a differently named method."
   },
@@ -551,8 +718,27 @@
     "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
+  "IntlCalendarSecondsPassedAsMilliseconds": {
+    "summary": "Convert seconds to calendar milliseconds.",
+    "fix": true
+  },
   "IntlFormattingFailureUnchecked": {
     "summary": "Internationalization formatting can fail and return false. Check success before consuming the formatted string."
+  },
+  "IntlGregorianMonthOffByOne": {
+    "summary": "Use zero-based Gregorian month numbers. This opt-in rule applies the policy described in Detection."
+  },
+  "IntlTimezoneOffsetMillisecondsUsedAsSeconds": {
+    "summary": "Convert timezone offsets to seconds.",
+    "fix": true
+  },
+  "IntlTwelveHourFieldUsedForTwentyFourHourTime": {
+    "summary": "Use the 24-hour calendar field.",
+    "fix": true
+  },
+  "InverseTrigInvalidRealDomain": {
+    "summary": "Keep the inverse trigonometric argument within minus one and one.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
   },
   "InvertedIfElseConstructs": {
     "summary": "An `if`/`else` whose condition is a negation (`!expr`, or `false === expr`)\nreads backwards: swapping the two branches and dropping the negation makes the\nmain path positive and easier to follow.",
@@ -615,6 +801,17 @@
   },
   "LibxmlErrorBufferNeverCleared": {
     "summary": "Repeated XML parsing can accumulate internally collected errors. Retrieve and clear the error buffer during the parsing loop. This inspection is disabled by default because the intended policy or use can vary."
+  },
+  "LinkedListDeleteIterationUnexpected": {
+    "summary": "Preserve linked-list elements during iteration. This opt-in inspection applies the policy stated in Detection.",
+    "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
+  },
+  "LocalizedNumberTrailingInputAccepted": {
+    "summary": "Reject unparsed number suffixes. This opt-in rule applies the policy described in Detection."
+  },
+  "LogarithmInvalidRealDomain": {
+    "summary": "Use a positive logarithm argument.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
   },
   "LongInheritanceChain": {
     "summary": "Deep `extends` chains spread behaviour over many levels and make a class hard\nto understand. The rule counts the ancestors of a class and complains when the\nchain reaches a threshold, with carve-outs for exception hierarchies, test\ncases and well-known framework base classes.",
@@ -720,6 +917,10 @@
   "NestedTernaryOperator": {
     "summary": "A ternary inside another ternary is hard to read and, without parentheses,\nits associativity is a classic PHP trap. Chains of short ternaries\n(`$a ?: $b ?: $c`) read naturally and are accepted."
   },
+  "NeverFunctionFallsThrough": {
+    "summary": "Terminate every path in the never function.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
   "NoContentResponseWithBody": {
     "summary": "Detect nonempty output after response status is proven 204 and before any status change.",
     "options": "None. Enable or disable this rule through normal rule configuration."
@@ -731,12 +932,19 @@
     "summary": "Detect match over a resolved enum when reachable enum cases are missing and there is no default arm.",
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
+  "NonRepeatableAttributeRepeated": {
+    "summary": "Remove the repeated attribute.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
   "NonSecureParseStrUsage": {
     "summary": "Called with a single argument, `parse_str()` / `mb_parse_str()` create\nvariables in the current scope from user-supplied query strings, which can\noverwrite existing variables. Always pass the result array as second\nargument."
   },
   "NonSecureUniqidUsage": {
     "summary": "Without its `more_entropy` argument, `uniqid()` is based only on the current\ntime in microseconds and collides easily. Pass `true` as second argument,\nalso when `uniqid` is used as a callback.",
     "fix": true
+  },
+  "NonblockingWaitZeroTreatedAsReaped": {
+    "summary": "Require a positive PID from nonblocking wait."
   },
   "NotOptimalIfConditions": {
     "summary": "Looks at the conditions of `if`/`elseif` statements and flags four kinds of\nproblems: a cheap operand evaluated after an expensive one in an `\u0026\u0026`/`||`\nchain (short-circuiting would save work if swapped), `and`/`or` keyword\noperators (low precedence, error-prone), an equality comparison on a value\nthat the same `\u0026\u0026` chain also tests with `instanceof` (likely a logic bug),\nand an `instanceof` check made redundant by another `instanceof` on the same\nsubject against a related type.",
@@ -753,6 +961,9 @@
   },
   "NullPointerException": {
     "summary": "A value that may be `null` (nullable object parameter, nullable local\nvariable, call declared to return `?T`/`void`) is dereferenced — property or\nmethod access, array access, invocation, `clone`, or passed to a parameter\nthat rejects null — without a preceding null check. At runtime this is an\n\"call to a member function on null\"-style error.\n\nDisabled by default (experimental upstream)."
+  },
+  "NumberParseUsesCurrencyType": {
+    "summary": "Parse currency with parseCurrency. Enabled by default; require positive semantic or local-flow proof."
   },
   "ObGetCleanCanBeUsed": {
     "summary": "Reading the output buffer with `ob_get_contents()` and then discarding it with\n`ob_end_clean()` in the next statement is exactly what the single built-in\n`ob_get_clean()` does. Merge the two calls.",
@@ -787,9 +998,17 @@
   "OptionalRegexCaptureReadWithoutNullFlag": {
     "summary": "An unmatched optional regex capture can be absent from the results. Guard the access or request null placeholders for unmatched captures."
   },
+  "OverrideAttributeWithoutTarget": {
+    "summary": "Apply Override to an inherited member.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
   "OwnedStreamNotClosed": {
     "summary": "Detect an owned successfully opened stream leaving its local scope without close, return or ownership transfer.",
     "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "PackFormatArgumentMismatch": {
+    "summary": "Match pack values to the format.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
   },
   "PackedHashtableOptimization": {
     "summary": "Since PHP 7 an array whose keys are integers inserted in ascending order can\nbe stored in a compact \"packed\" layout. An array literal that lists integer\nkeys out of order, or spells integer keys as numeric strings, misses that\nlayout. Sorting the keys or writing them as integers lets the engine use it."
@@ -870,6 +1089,28 @@
   "PermissionModeWrittenInDecimal": {
     "summary": "A decimal permission literal can represent a different bitmask from the intended octal notation. Write Unix permission masks with an explicit octal prefix. This inspection is disabled by default because the intended policy or use can vary."
   },
+  "PgAsyncDispatchAssumedQuerySuccess": {
+    "summary": "Inspect the asynchronous PostgreSQL result status.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "PgAsyncResultsNotDrained": {
+    "summary": "Drain all pending PostgreSQL results before another asynchronous query.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "PgEscapedLiteralQuotedAgain": {
+    "summary": "Use the already quoted PostgreSQL literal directly.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "PgFetchedZeroRejected": {
+    "summary": "Distinguish PostgreSQL fetch failure from a zero value.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection.",
+    "fix": true
+  },
+  "PgIdentifierEscapedAsLiteral": {
+    "summary": "Escape PostgreSQL identifiers with the identifier API.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection.",
+    "fix": true
+  },
   "PhpUnitDeprecations": {
     "summary": "Flags PHPUnit assertion APIs deprecated in the configured PHPUnit version:\nthe optional trailing parameters of `assertEquals()` / `assertNotEquals()`\n(deprecated in 8.0 in favour of dedicated assertions) and the\n`assertFileNotExists()` / `assertDirectoryNotExists()` assertions (deprecated\nin 9.1 in favour of their `...DoesNotExist()` counterparts).",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `PHP_UNIT_VERSION` | enum (`PHPUNIT70` … `PHPUNIT95`, see ordering above) | `PHPUNIT80` | PHPUnit version targeted by the project. D1/D2 need ≥ `PHPUNIT80`; D3 needs ≥ `PHPUNIT91`. Unset → inferred from the indexed PHPUnit (see Divergences). |",
@@ -917,6 +1158,14 @@
   "PrintfScanfArguments": {
     "summary": "The `printf`/`scanf` family takes as many value arguments as the format string\nhas conversions. A missing or extra argument silently produces wrong output\n(or an `ArgumentCountError` in PHP 8), and a stray `%` makes the format\ninvalid."
   },
+  "PriorityQueueExtractionShapeMismatch": {
+    "summary": "Match the priority queue extraction mode.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
+  "PriorityQueueMinOrderAssumption": {
+    "summary": "Reverse priorities for smallest-first extraction. This opt-in inspection applies the policy stated in Detection.",
+    "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
+  },
   "ProcessClosedBeforeOwnedPipes": {
     "summary": "Waiting for a child process while its owned pipes remain open can deadlock. Close or drain the pipes before waiting for process exit."
   },
@@ -941,12 +1190,21 @@
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `SUGGEST_USING_RANDOM_INT` | bool | `true` | When on and the level is 7.0+, `rand`/`mt_rand` with two arguments are pointed at `random_int`; when off, the classic table is used at every level. |",
     "fix": true
   },
+  "ReadFromWriteOnlyStream": {
+    "summary": "Open the stream with read access.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
   "ReadLoopProcessesEofFailure": {
     "summary": "An EOF-tested loop can pass a failed read to a strict string consumer. Loop on the successful read result before processing a line."
   },
   "ReadModifyWriteLockTooLate": {
     "summary": "Detect file_get_contents of a path feeding a transformed value into file_put_contents on the same proven path with LOCK_EX but no enclosing lock spanning the read.",
     "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "ReaddirFalsyFilenameLoss": {
+    "summary": "Compare the directory entry with false.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection.",
+    "fix": true
   },
   "ReadonlyPropertyReassignment": {
     "summary": "Detect assignment to a resolved readonly instance property already initialized on every reachable incoming path.",
@@ -959,6 +1217,10 @@
   "RecursiveReplaceRetainsListTail": {
     "summary": "Recursive array replacement can leave entries from the end of an older list. Replace the list explicitly when the shorter list should remove that tail. This inspection is disabled by default because the intended policy or use can vary."
   },
+  "RecursiveTraversalOmitsDirectories": {
+    "summary": "Include parent nodes when traversing directories. This opt-in inspection applies the policy stated in Detection.",
+    "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
+  },
   "RedirectContinuesProtectedExecution": {
     "summary": "Detect a conditional unauthorized branch emitting a Location header and falling through to an operation marked protected by the same authorization predicate.",
     "options": "None. Enable or disable this rule through normal rule configuration."
@@ -970,6 +1232,14 @@
   "ReferencingObjects": {
     "summary": "Since PHP 5, object handles are passed and assigned by value of the handle:\nthe callee already works on the same object. Taking objects by reference\n(`Foo \u0026$x` parameters, `$x = \u0026new Foo()`) is a PHP 4 leftover that only\nconfuses readers — unless the reference is really used to replace the\ncaller's variable.",
     "fix": true
+  },
+  "ReflectionCompositeTypeAssumedNamed": {
+    "summary": "Inspect the composite reflection type members.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
+  "ReflectionNamedArgumentMismatch": {
+    "summary": "Use a declared reflection parameter name.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
   },
   "RegexByteOffsetAsCharacterOffset": {
     "summary": "Detect a PREG_OFFSET_CAPTURE byte offset flowing into the start argument of mb_substr or grapheme_substr for the same proven string value.",
@@ -1003,6 +1273,16 @@
     "summary": "Works on a project's `composer.json` (not on PHP code). Two concerns:\ndevelopment-only packages (test frameworks, debuggers, static analysers…)\nlisted under `require` end up in production; and an application that pulls\nthird-party packages should also require the advisory \"firewall\" meta-package\nin `require-dev`, which blocks installing versions with known\nvulnerabilities.\n\nThroughout this spec:\n\n- **ADV** is the advisory meta-package: vendor `roave`, package\n  `security-advisories`; its full name is vendor, `/`, package.\n- **CHK** is the alternative checker package: vendor `sensiolabs`, package\n  `security-checker`.\n- **DEV** is the effective development-package list (option\n  `optionConfiguration`, see Options).",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_MISSING_ROAVE_ADVISORIES` | bool | false | Enables kinds A (missing advisory package, with fix) and L (advisory package not on `dev-latest`). |\n| `REPORT_MISPLACED_DEPENDENCIES` | bool | true | Enables kind M (development packages under `require`). |\n| `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for the owner skip (D2). |\n\nEffective DEV: upstream always merges the default list into whatever the\nuser configured (user entries ∪ defaults, deduplicated). Recommendation for\ncustos: DEV = defaults ∪ user entries. Entries may also be vendor prefixes\nending in `/` (only meaningful for the owner skip D2).\n\nConformance note: upstream test cases that do not add the defaults run with\nan *empty* DEV (the merge happens only when settings are loaded). With the\nupstream fixtures this makes no difference to the outcome, except that the\ntwo cases which explicitly add the defaults are the only ones where kind M\nor the owner skip can fire. Using the defaults always is safe.\n\nDefault list (vendor / package; the list entry is `vendor/package`, compared\ncase-insensitively — the entry is stored as `mikey179/vfsStream`):\n\n| Vendor | Package | | Vendor | Package |\n|---|---|---|---|---|\n| phpunit | phpunit | | phpspec | prophecy |\n| johnkary | phpunit-speedtrap | | phpspec | phpspec |\n| brianium | paratest | | humbug | humbug |\n| mybuilder | phpunit-accelerator | | infection | infection |\n| codedungeon | phpunit-result-printer | | mockery | mockery |\n| spatie | phpunit-watcher | | satooshi | php-coveralls |\n| symfony | phpunit-bridge | | mikey179 | vfsStream |\n| symfony | debug | | filp | whoops |\n| symfony | maker-bundle | | friendsofphp | php-cs-fixer |\n| zendframework | zend-test | | phpstan | phpstan |\n| zendframework | zend-debug | | vimeo | psalm |\n| yiisoft | yii2-gii | | jakub-onderka | php-parallel-lint |\n| yiisoft | yii2-debug | | squizlabs | php_codesniffer |\n| orchestra | testbench | | slevomat | coding-standard |\n| barryvdh | laravel-debugbar | | doctrine | coding-standard |\n| codeception | codeception | | phpcompatibility | php-compatibility |\n| behat | behat | | zendframework | zend-coding-standard |\n| yiisoft | yii2-coding-standards | | wp-coding-standards | wpcs |\n| phpmd | phpmd | | pdepend | pdepend |\n| sebastian | phpcpd | | povils | phpmnd |\n| phan | phan | | phpro | grumphp |\n| wimg | php-compatibility | | sstalle | php7cc |\n| phing | phing | | composer | composer |\n| roave | security-advisories | | kalessil | production-dependencies-guard |\n\n(48 entries.) ADV itself is in the list, so ADV under `require` is reported\nas kind M.",
     "fix": true
+  },
+  "SeekSuccessCheckedAsTruthy": {
+    "summary": "Compare the seek result with zero.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
+  "SelectFailureTreatedAsReadiness": {
+    "summary": "Handle selection failure before processing ready streams."
+  },
+  "SelectWatchArraysNotRestored": {
+    "summary": "Restore stream watch arrays before each selection. This opt-in rule applies the policy described in Detection."
   },
   "SelfClassReferencing": {
     "summary": "Inside a class's own methods, refer to the class consistently: by default with\n`self` (and `__CLASS__` instead of `Name::class`), which survives renames; or,\nwhen `PREFER_CLASS_NAMES` is on, with the explicit class name instead of `self`\n/ `__CLASS__`.",
@@ -1067,6 +1347,9 @@
     "summary": "Detect fread with a fixed positive byte count whose result reaches unpack requiring that exact length without a length check.",
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
+  "SignalHandlerHasNoDispatchMechanism": {
+    "summary": "Dispatch signals when asynchronous handling is disabled."
+  },
   "SimpleXmlLoadFileUsage": {
     "summary": "`simplexml_load_file()` is affected by a long-standing PHP bug (#62577) where\nloading fails depending on the libxml entity-loader state. Reading the file\nyourself and passing its contents to `simplexml_load_string()` avoids it.",
     "fix": true
@@ -1093,8 +1376,41 @@
     "summary": "Detect the boolean result of sort, rsort, asort, arsort, ksort, krsort, usort, uasort, or uksort when consumed directly or through a proven alias by foreach or an array-only builtin.",
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
+  "SplFixedArrayIndexOutOfBounds": {
+    "summary": "Use an index within the fixed array size.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
+  "SplFixedArrayShrinkDiscardsValues": {
+    "summary": "Preserve populated entries before shrinking. This opt-in inspection applies the policy stated in Detection.",
+    "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
+  },
+  "SplObjectStorageIndirectArrayMutation": {
+    "summary": "Assign the modified storage value back.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
   "SqlNullComparedWithEquality": {
     "summary": "SQL equality comparisons do not test whether a value is null. Use IS NULL or IS NOT NULL instead."
+  },
+  "SqliteBindingIndexZero": {
+    "summary": "Start SQLite binding positions at one.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "SqliteClearWithoutRequiredReset": {
+    "summary": "Reset the SQLite statement before rebinding cleared parameters.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "SqliteFetchBothLeaksDuplicateColumns": {
+    "summary": "Fetch named SQLite columns before JSON serialization. This inspection is disabled by default; enabling it selects the stated policy.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection.",
+    "fix": true
+  },
+  "SqliteNullBindingDiscardsValue": {
+    "summary": "Pass null when using the SQLite null binding type.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "SqliteResultUsedAfterFinalize": {
+    "summary": "Read the SQLite result before finalizing it.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
   },
   "StaticClosureCanBeUsed": {
     "summary": "A closure (or arrow function) that never touches the object it was created in\ncan be declared `static`. That prevents an implicit `$this` binding, makes the\nscope explicit and avoids keeping the surrounding object alive.",
@@ -1134,6 +1450,11 @@
   "StreamOpenFailureUnchecked": {
     "summary": "Detect fopen result passed to a stream-only operation without excluding false.",
     "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "StreamOutputReturnUsedAsContent": {
+    "summary": "Output the stream without printing its byte count.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection.",
+    "fix": true
   },
   "StreamUseAfterClose": {
     "summary": "Detect a stream operation requiring an open resource on an identity closed by a successful fclose on every incoming path.",
@@ -1215,6 +1536,10 @@
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_MISSING_ARGUMENTS | bool | true | Enables D3 (exceptions created without any argument). |",
     "fix": true
   },
+  "TraitInstantiation": {
+    "summary": "Instantiate a class using the trait.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
   "TraitsPropertiesConflicts": {
     "summary": "When a class and one of its traits (or its parent class and one of its\ntraits) declare the same property, PHP only accepts it if both declarations\nare compatible, and even then the duplication is fragile. Point out these\noverlaps; when the two declarations are incompatible (PHP refuses to compose\nthe class), it is a real conflict."
   },
@@ -1226,9 +1551,20 @@
     "summary": "Detect a caught exceptional path after an owned PDO transaction begins when the catch continues or returns with the transaction active.",
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
+  "TransferEncodingWithContentLength": {
+    "summary": "Choose a single HTTP message framing mechanism.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
+  "TransliterationFailureConsumed": {
+    "summary": "Check transliteration before consuming text."
+  },
   "TrimMaskUsedAsSuffix": {
     "summary": "Detect trim, ltrim or rtrim using a literal extension-like mask beginning with a dot and containing at least two alphabetic characters.",
     "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "TruncationAssumedToRewind": {
+    "summary": "Rewind after truncating the stream.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
   },
   "TypeUnsafeArraySearch": {
     "summary": "`in_array()` and `array_search()` compare loosely unless their third argument\nis `true`, so `'1abc'`, `1`, `true` and `'1'` can all \"match\". Asking for the\nthird argument forces the author to decide whether loose matching is really\nwanted."
@@ -1258,6 +1594,9 @@
   "UnescapedHtmlOutput": {
     "summary": "Detect request-derived text emitted inside a proven HTML text-node context without context-appropriate escaping.",
     "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "UnicodeNormalizationFailureConsumed": {
+    "summary": "Check normalization before consuming text."
   },
   "UninitializedTypedPropertyRead": {
     "summary": "Detect reading a resolved typed instance property when every incoming path proves it remains uninitialized.",
@@ -1297,6 +1636,10 @@
   "UnnecessaryUseAlias": {
     "summary": "An import alias identical to the last segment of the imported name\n(`use App\\Mail\\Sender as Sender;`) changes nothing. Drop the `as` clause.",
     "fix": true
+  },
+  "UnpackBufferTooShort": {
+    "summary": "Provide enough bytes for the unpack format.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
   },
   "UnpackedNamedArgumentCollision": {
     "summary": "Detect an explicit or unpacked argument binding a parameter already certainly bound by a literal unpacked array on the same call.",
@@ -1359,6 +1702,10 @@
   "UntrustedXmlExternalEntityExpansion": {
     "summary": "Expanding external entities in request-controlled XML can expose external resources. Disable that capability for untrusted documents."
   },
+  "UntrustedXmlWriterRawContent": {
+    "summary": "Write untrusted XML content as escaped text.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
   "UnusedConstructorDependencies": {
     "summary": "A private property that is assigned in the constructor but never touched by\nany other method of the class (or its traits) is dead state — typically a\nleftover injected dependency. Point at the constructor assignments."
   },
@@ -1405,21 +1752,61 @@
     "summary": "`call_user_func()` / `forward_static_call()` with a callable that is known at\nthe call site can be written as a direct call (`$fn(...)`, `Cls::m(...)`,\n`$obj-\u003em(...)`), which is faster and analysable. Likewise\n`call_user_func_array()` / `forward_static_call_array()` with a literal\nargument array can pass the arguments inline.",
     "fix": true
   },
+  "VaryHeaderOverwritesEarlierDimensions": {
+    "summary": "Retain the earlier Vary dimensions. This opt-in inspection applies the policy stated in Detection.",
+    "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
+  },
+  "WaitStatusUsedAsExitCode": {
+    "summary": "Decode the child wait status."
+  },
+  "WeakMapValueRetainsKey": {
+    "summary": "Store a value that does not retain the WeakMap key. This opt-in inspection applies the policy stated in Detection.",
+    "options": "None. Enabling the rule declares the policy stated in Detection; the rule is disabled by default."
+  },
   "WorldWritablePermission": {
     "summary": "World-write permission lets other users modify a configured sensitive file. Remove that permission when the project's file policy forbids it. This inspection is disabled by default because the intended policy or use can vary.",
     "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| sensitivePaths | list | `[\"**/*.pem\", \"**/.env\", \"**/config.php\"]` | Configure the explicit policy evidence described in D1. |"
   },
+  "WriteToReadOnlyStream": {
+    "summary": "Open the stream with write access.",
+    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+  },
   "XPathIgnoresDefaultNamespace": {
     "summary": "Unprefixed XPath names do not select elements in a nonempty default namespace. Register and use a prefix for that namespace."
+  },
+  "XPathQueryFailureDereferenced": {
+    "summary": "Check the XPath query result before accessing its nodes.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
+  },
+  "XmlReaderAttributeCursorNotRestored": {
+    "summary": "Restore the XMLReader element cursor before element operations. This inspection is disabled by default; enabling it selects the stated policy.",
+    "options": "None. Use normal rule configuration to enable or disable the inspection."
   },
   "ZipCloseFailureUnchecked": {
     "summary": "Writing an archive is not complete until finalization succeeds. Check the close result before returning success. This inspection is disabled by default because the intended policy or use can vary."
   },
+  "ZipEntryIndexPastEnd": {
+    "summary": "Use an existing ZIP entry index."
+  },
+  "ZipEntryNameCollision": {
+    "summary": "Make ZIP entry replacement explicit. This opt-in rule applies the policy described in Detection."
+  },
   "ZipEntryStreamUsedAfterArchiveClose": {
     "summary": "An entry stream depends on its containing ZIP archive remaining open. Consume the stream before closing the archive."
+  },
+  "ZipExtractionExceedsConfiguredBudget": {
+    "summary": "Validate ZIP extraction against configured limits. This opt-in rule applies the policy described in Detection.",
+    "options": "- `maxExpandedBytes`: positive integer; default `20971520`.\n- `maxEntries`: positive integer; default `1000`."
+  },
+  "ZipFirstEntryTreatedAsMissing": {
+    "summary": "Distinguish a missing ZIP entry from index zero.",
+    "fix": true
   },
   "ZipOpenTruthyResult": {
     "summary": "ZIP opening returns true for success and integer codes for errors. Check for true explicitly instead of using truthiness.",
     "fix": true
+  },
+  "ZipSourceRemovedBeforeArchiveClose": {
+    "summary": "Keep ZIP source files until the archive closes."
   }
 }

@@ -524,8 +524,16 @@
     "collapsed": true,
     "items": [
       {
+        "text": "AbstractClassInstantiation",
+        "link": "/rules/probable-bugs/AbstractClassInstantiation"
+      },
+      {
         "text": "AmbiguousReplacementBackreference",
         "link": "/rules/probable-bugs/AmbiguousReplacementBackreference"
+      },
+      {
+        "text": "AppendModeSeekUsedForOverwrite",
+        "link": "/rules/probable-bugs/AppendModeSeekUsedForOverwrite"
       },
       {
         "text": "ArrayChunkInvalidSize",
@@ -612,12 +620,32 @@
         "link": "/rules/probable-bugs/ArrowFunctionCapturedCounter"
       },
       {
+        "text": "AsyncSignalSetterReturnMisread",
+        "link": "/rules/probable-bugs/AsyncSignalSetterReturnMisread"
+      },
+      {
+        "text": "AttributeTargetMismatch",
+        "link": "/rules/probable-bugs/AttributeTargetMismatch"
+      },
+      {
         "text": "AutoloadingIssues",
         "link": "/rules/probable-bugs/AutoloadingIssues"
       },
       {
         "text": "Base64ValidationWithoutStrictMode",
         "link": "/rules/probable-bugs/Base64ValidationWithoutStrictMode"
+      },
+      {
+        "text": "BcMathExponentNotation",
+        "link": "/rules/probable-bugs/BcMathExponentNotation"
+      },
+      {
+        "text": "BcMathFloatOperand",
+        "link": "/rules/probable-bugs/BcMathFloatOperand"
+      },
+      {
+        "text": "BcMathScaleDiscardsRequiredFraction",
+        "link": "/rules/probable-bugs/BcMathScaleDiscardsRequiredFraction"
       },
       {
         "text": "ByteLengthUsedAsCharacterCount",
@@ -656,16 +684,76 @@
         "link": "/rules/probable-bugs/CodePointSliceSplitsGrapheme"
       },
       {
+        "text": "CollatorComparisonTruthinessReversed",
+        "link": "/rules/probable-bugs/CollatorComparisonTruthinessReversed"
+      },
+      {
+        "text": "CollatorSortDiscardsRequiredKeys",
+        "link": "/rules/probable-bugs/CollatorSortDiscardsRequiredKeys"
+      },
+      {
         "text": "CompactArguments",
         "link": "/rules/probable-bugs/CompactArguments"
+      },
+      {
+        "text": "CompressionDecoderFormatMismatch",
+        "link": "/rules/probable-bugs/CompressionDecoderFormatMismatch"
+      },
+      {
+        "text": "CompressionLevelOutsideSupportedRange",
+        "link": "/rules/probable-bugs/CompressionLevelOutsideSupportedRange"
+      },
+      {
+        "text": "ConflictingContentLengthHeaders",
+        "link": "/rules/probable-bugs/ConflictingContentLengthHeaders"
+      },
+      {
+        "text": "ConnectTimeoutAssumedToBoundReads",
+        "link": "/rules/probable-bugs/ConnectTimeoutAssumedToBoundReads"
+      },
+      {
+        "text": "ContentDispositionFilenameNeedsQuoting",
+        "link": "/rules/probable-bugs/ContentDispositionFilenameNeedsQuoting"
+      },
+      {
+        "text": "ContentEncodingBodyMismatch",
+        "link": "/rules/probable-bugs/ContentEncodingBodyMismatch"
+      },
+      {
+        "text": "ContentLengthKnownBodyMismatch",
+        "link": "/rules/probable-bugs/ContentLengthKnownBodyMismatch"
       },
       {
         "text": "ContentLengthUsesCharacterCount",
         "link": "/rules/probable-bugs/ContentLengthUsesCharacterCount"
       },
       {
+        "text": "ContentRangeLengthMismatch",
+        "link": "/rules/probable-bugs/ContentRangeLengthMismatch"
+      },
+      {
         "text": "CookieDeletionScopeMismatch",
         "link": "/rules/probable-bugs/CookieDeletionScopeMismatch"
+      },
+      {
+        "text": "CorsOriginListInvalid",
+        "link": "/rules/probable-bugs/CorsOriginListInvalid"
+      },
+      {
+        "text": "CorsSubdomainWildcardInvalid",
+        "link": "/rules/probable-bugs/CorsSubdomainWildcardInvalid"
+      },
+      {
+        "text": "CsvBlankRecordShapeMismatch",
+        "link": "/rules/probable-bugs/CsvBlankRecordShapeMismatch"
+      },
+      {
+        "text": "CsvDelimiterInvalidByteLength",
+        "link": "/rules/probable-bugs/CsvDelimiterInvalidByteLength"
+      },
+      {
+        "text": "CsvEscapeDefaultDependency",
+        "link": "/rules/probable-bugs/CsvEscapeDefaultDependency"
       },
       {
         "text": "CtypeIntegerInterpretedAsCharacterCode",
@@ -744,8 +832,44 @@
         "link": "/rules/probable-bugs/DateTimeSetTimeUsage"
       },
       {
+        "text": "DecompressionFailureConsumed",
+        "link": "/rules/probable-bugs/DecompressionFailureConsumed"
+      },
+      {
+        "text": "DeflateStreamNeverFinished",
+        "link": "/rules/probable-bugs/DeflateStreamNeverFinished"
+      },
+      {
         "text": "DirectoryIteratorDotEntries",
         "link": "/rules/probable-bugs/DirectoryIteratorDotEntries"
+      },
+      {
+        "text": "DomAppendMovesNodeUnexpectedly",
+        "link": "/rules/probable-bugs/DomAppendMovesNodeUnexpectedly"
+      },
+      {
+        "text": "DomCrossDocumentAppend",
+        "link": "/rules/probable-bugs/DomCrossDocumentAppend"
+      },
+      {
+        "text": "DomElementValueContainsBareAmpersand",
+        "link": "/rules/probable-bugs/DomElementValueContainsBareAmpersand"
+      },
+      {
+        "text": "DomLiveNodeListRemovalSkipsNodes",
+        "link": "/rules/probable-bugs/DomLiveNodeListRemovalSkipsNodes"
+      },
+      {
+        "text": "DomMissingAttributeCheckedAsNull",
+        "link": "/rules/probable-bugs/DomMissingAttributeCheckedAsNull"
+      },
+      {
+        "text": "DomShallowImportDropsDescendants",
+        "link": "/rules/probable-bugs/DomShallowImportDropsDescendants"
+      },
+      {
+        "text": "DomTextAssignmentDestroysChildren",
+        "link": "/rules/probable-bugs/DomTextAssignmentDestroysChildren"
       },
       {
         "text": "DstUnsafeCalendarDayArithmetic",
@@ -764,12 +888,20 @@
         "link": "/rules/probable-bugs/DynamicCorsOriginWithoutVary"
       },
       {
+        "text": "EmptySplCollectionExtraction",
+        "link": "/rules/probable-bugs/EmptySplCollectionExtraction"
+      },
+      {
         "text": "EncodingConversionArgumentsReversed",
         "link": "/rules/probable-bugs/EncodingConversionArgumentsReversed"
       },
       {
         "text": "EnumFromUncheckedExternalValue",
         "link": "/rules/probable-bugs/EnumFromUncheckedExternalValue"
+      },
+      {
+        "text": "EnumInstantiation",
+        "link": "/rules/probable-bugs/EnumInstantiation"
       },
       {
         "text": "ExceptionConstructedNotThrown",
@@ -784,8 +916,16 @@
         "link": "/rules/probable-bugs/ExhaustedGeneratorReused"
       },
       {
+        "text": "ExitStatusReadWithoutNormalExitCheck",
+        "link": "/rules/probable-bugs/ExitStatusReadWithoutNormalExitCheck"
+      },
+      {
         "text": "ExplodeEmptySeparator",
         "link": "/rules/probable-bugs/ExplodeEmptySeparator"
+      },
+      {
+        "text": "FailedClosureBindingInvoked",
+        "link": "/rules/probable-bugs/FailedClosureBindingInvoked"
       },
       {
         "text": "FiberResumeBeforeStart",
@@ -828,6 +968,14 @@
         "link": "/rules/probable-bugs/ForgottenDebugOutput"
       },
       {
+        "text": "ForkChildFallsIntoParentWork",
+        "link": "/rules/probable-bugs/ForkChildFallsIntoParentWork"
+      },
+      {
+        "text": "ForkFailureTreatedAsParent",
+        "link": "/rules/probable-bugs/ForkFailureTreatedAsParent"
+      },
+      {
         "text": "FormEncodingUsedForRfc3986Signature",
         "link": "/rules/probable-bugs/FormEncodingUsedForRfc3986Signature"
       },
@@ -848,12 +996,32 @@
         "link": "/rules/probable-bugs/GlobFailureUnchecked"
       },
       {
+        "text": "GmpAutomaticBaseChangesDecimalInput",
+        "link": "/rules/probable-bugs/GmpAutomaticBaseChangesDecimalInput"
+      },
+      {
+        "text": "GmpDivisionByKnownZero",
+        "link": "/rules/probable-bugs/GmpDivisionByKnownZero"
+      },
+      {
+        "text": "GmpDivisionPairUsedAsNumber",
+        "link": "/rules/probable-bugs/GmpDivisionPairUsedAsNumber"
+      },
+      {
         "text": "HeadersAfterCommittedOutput",
         "link": "/rules/probable-bugs/HeadersAfterCommittedOutput"
       },
       {
+        "text": "HeapIterationConsumesCollection",
+        "link": "/rules/probable-bugs/HeapIterationConsumesCollection"
+      },
+      {
         "text": "HexDecodeOddLengthLiteral",
         "link": "/rules/probable-bugs/HexDecodeOddLengthLiteral"
+      },
+      {
+        "text": "HttpErrorBodyReadWithoutIgnoreErrors",
+        "link": "/rules/probable-bugs/HttpErrorBodyReadWithoutIgnoreErrors"
       },
       {
         "text": "ImageDecodeFailureUnchecked",
@@ -872,6 +1040,10 @@
         "link": "/rules/probable-bugs/IncorrectRandomRange"
       },
       {
+        "text": "IncrementalInflateEncodingMismatch",
+        "link": "/rules/probable-bugs/IncrementalInflateEncodingMismatch"
+      },
+      {
         "text": "InfinityLoop",
         "link": "/rules/probable-bugs/InfinityLoop"
       },
@@ -884,8 +1056,28 @@
         "link": "/rules/probable-bugs/IntervalDayComponentAsTotal"
       },
       {
+        "text": "IntlCalendarSecondsPassedAsMilliseconds",
+        "link": "/rules/probable-bugs/IntlCalendarSecondsPassedAsMilliseconds"
+      },
+      {
         "text": "IntlFormattingFailureUnchecked",
         "link": "/rules/probable-bugs/IntlFormattingFailureUnchecked"
+      },
+      {
+        "text": "IntlGregorianMonthOffByOne",
+        "link": "/rules/probable-bugs/IntlGregorianMonthOffByOne"
+      },
+      {
+        "text": "IntlTimezoneOffsetMillisecondsUsedAsSeconds",
+        "link": "/rules/probable-bugs/IntlTimezoneOffsetMillisecondsUsedAsSeconds"
+      },
+      {
+        "text": "IntlTwelveHourFieldUsedForTwentyFourHourTime",
+        "link": "/rules/probable-bugs/IntlTwelveHourFieldUsedForTwentyFourHourTime"
+      },
+      {
+        "text": "InverseTrigInvalidRealDomain",
+        "link": "/rules/probable-bugs/InverseTrigInvalidRealDomain"
       },
       {
         "text": "IsoWeekCalendarYearMismatch",
@@ -922,6 +1114,18 @@
       {
         "text": "LibxmlErrorBufferNeverCleared",
         "link": "/rules/probable-bugs/LibxmlErrorBufferNeverCleared"
+      },
+      {
+        "text": "LinkedListDeleteIterationUnexpected",
+        "link": "/rules/probable-bugs/LinkedListDeleteIterationUnexpected"
+      },
+      {
+        "text": "LocalizedNumberTrailingInputAccepted",
+        "link": "/rules/probable-bugs/LocalizedNumberTrailingInputAccepted"
+      },
+      {
+        "text": "LogarithmInvalidRealDomain",
+        "link": "/rules/probable-bugs/LogarithmInvalidRealDomain"
       },
       {
         "text": "LoopClosureCapturesReference",
@@ -988,6 +1192,10 @@
         "link": "/rules/probable-bugs/NestedPdoTransactionWithoutSavepoint"
       },
       {
+        "text": "NeverFunctionFallsThrough",
+        "link": "/rules/probable-bugs/NeverFunctionFallsThrough"
+      },
+      {
         "text": "NoContentResponseWithBody",
         "link": "/rules/probable-bugs/NoContentResponseWithBody"
       },
@@ -1000,8 +1208,20 @@
         "link": "/rules/probable-bugs/NonExhaustiveEnumMatch"
       },
       {
+        "text": "NonRepeatableAttributeRepeated",
+        "link": "/rules/probable-bugs/NonRepeatableAttributeRepeated"
+      },
+      {
+        "text": "NonblockingWaitZeroTreatedAsReaped",
+        "link": "/rules/probable-bugs/NonblockingWaitZeroTreatedAsReaped"
+      },
+      {
         "text": "NullPointerException",
         "link": "/rules/probable-bugs/NullPointerException"
+      },
+      {
+        "text": "NumberParseUsesCurrencyType",
+        "link": "/rules/probable-bugs/NumberParseUsesCurrencyType"
       },
       {
         "text": "OffsetOperations",
@@ -1012,8 +1232,16 @@
         "link": "/rules/probable-bugs/OptionalRegexCaptureReadWithoutNullFlag"
       },
       {
+        "text": "OverrideAttributeWithoutTarget",
+        "link": "/rules/probable-bugs/OverrideAttributeWithoutTarget"
+      },
+      {
         "text": "OwnedStreamNotClosed",
         "link": "/rules/probable-bugs/OwnedStreamNotClosed"
+      },
+      {
+        "text": "PackFormatArgumentMismatch",
+        "link": "/rules/probable-bugs/PackFormatArgumentMismatch"
       },
       {
         "text": "ParseStrKeyNormalizationMismatch",
@@ -1080,6 +1308,26 @@
         "link": "/rules/probable-bugs/PermissionModeWrittenInDecimal"
       },
       {
+        "text": "PgAsyncDispatchAssumedQuerySuccess",
+        "link": "/rules/probable-bugs/PgAsyncDispatchAssumedQuerySuccess"
+      },
+      {
+        "text": "PgAsyncResultsNotDrained",
+        "link": "/rules/probable-bugs/PgAsyncResultsNotDrained"
+      },
+      {
+        "text": "PgEscapedLiteralQuotedAgain",
+        "link": "/rules/probable-bugs/PgEscapedLiteralQuotedAgain"
+      },
+      {
+        "text": "PgFetchedZeroRejected",
+        "link": "/rules/probable-bugs/PgFetchedZeroRejected"
+      },
+      {
+        "text": "PgIdentifierEscapedAsLiteral",
+        "link": "/rules/probable-bugs/PgIdentifierEscapedAsLiteral"
+      },
+      {
         "text": "PregMatchAllLayoutMismatch",
         "link": "/rules/probable-bugs/PregMatchAllLayoutMismatch"
       },
@@ -1112,6 +1360,14 @@
         "link": "/rules/probable-bugs/PrintfScanfArguments"
       },
       {
+        "text": "PriorityQueueExtractionShapeMismatch",
+        "link": "/rules/probable-bugs/PriorityQueueExtractionShapeMismatch"
+      },
+      {
+        "text": "PriorityQueueMinOrderAssumption",
+        "link": "/rules/probable-bugs/PriorityQueueMinOrderAssumption"
+      },
+      {
         "text": "ProcessClosedBeforeOwnedPipes",
         "link": "/rules/probable-bugs/ProcessClosedBeforeOwnedPipes"
       },
@@ -1120,12 +1376,20 @@
         "link": "/rules/probable-bugs/ProcessPipesDrainedSequentially"
       },
       {
+        "text": "ReadFromWriteOnlyStream",
+        "link": "/rules/probable-bugs/ReadFromWriteOnlyStream"
+      },
+      {
         "text": "ReadLoopProcessesEofFailure",
         "link": "/rules/probable-bugs/ReadLoopProcessesEofFailure"
       },
       {
         "text": "ReadModifyWriteLockTooLate",
         "link": "/rules/probable-bugs/ReadModifyWriteLockTooLate"
+      },
+      {
+        "text": "ReaddirFalsyFilenameLoss",
+        "link": "/rules/probable-bugs/ReaddirFalsyFilenameLoss"
       },
       {
         "text": "ReadonlyPropertyReassignment",
@@ -1140,8 +1404,20 @@
         "link": "/rules/probable-bugs/RecursiveReplaceRetainsListTail"
       },
       {
+        "text": "RecursiveTraversalOmitsDirectories",
+        "link": "/rules/probable-bugs/RecursiveTraversalOmitsDirectories"
+      },
+      {
         "text": "RedirectContinuesProtectedExecution",
         "link": "/rules/probable-bugs/RedirectContinuesProtectedExecution"
+      },
+      {
+        "text": "ReflectionCompositeTypeAssumedNamed",
+        "link": "/rules/probable-bugs/ReflectionCompositeTypeAssumedNamed"
+      },
+      {
+        "text": "ReflectionNamedArgumentMismatch",
+        "link": "/rules/probable-bugs/ReflectionNamedArgumentMismatch"
       },
       {
         "text": "RegexByteOffsetAsCharacterOffset",
@@ -1162,6 +1438,18 @@
       {
         "text": "SameSiteNoneWithoutSecure",
         "link": "/rules/probable-bugs/SameSiteNoneWithoutSecure"
+      },
+      {
+        "text": "SeekSuccessCheckedAsTruthy",
+        "link": "/rules/probable-bugs/SeekSuccessCheckedAsTruthy"
+      },
+      {
+        "text": "SelectFailureTreatedAsReadiness",
+        "link": "/rules/probable-bugs/SelectFailureTreatedAsReadiness"
+      },
+      {
+        "text": "SelectWatchArraysNotRestored",
+        "link": "/rules/probable-bugs/SelectWatchArraysNotRestored"
       },
       {
         "text": "SessionCookieOptionsSetAfterStart",
@@ -1196,6 +1484,10 @@
         "link": "/rules/probable-bugs/ShortStreamReadUnchecked"
       },
       {
+        "text": "SignalHandlerHasNoDispatchMechanism",
+        "link": "/rules/probable-bugs/SignalHandlerHasNoDispatchMechanism"
+      },
+      {
         "text": "SimpleXmlLoadFileUsage",
         "link": "/rules/probable-bugs/SimpleXmlLoadFileUsage"
       },
@@ -1216,8 +1508,40 @@
         "link": "/rules/probable-bugs/SortResultUsedAsArray"
       },
       {
+        "text": "SplFixedArrayIndexOutOfBounds",
+        "link": "/rules/probable-bugs/SplFixedArrayIndexOutOfBounds"
+      },
+      {
+        "text": "SplFixedArrayShrinkDiscardsValues",
+        "link": "/rules/probable-bugs/SplFixedArrayShrinkDiscardsValues"
+      },
+      {
+        "text": "SplObjectStorageIndirectArrayMutation",
+        "link": "/rules/probable-bugs/SplObjectStorageIndirectArrayMutation"
+      },
+      {
         "text": "SqlNullComparedWithEquality",
         "link": "/rules/probable-bugs/SqlNullComparedWithEquality"
+      },
+      {
+        "text": "SqliteBindingIndexZero",
+        "link": "/rules/probable-bugs/SqliteBindingIndexZero"
+      },
+      {
+        "text": "SqliteClearWithoutRequiredReset",
+        "link": "/rules/probable-bugs/SqliteClearWithoutRequiredReset"
+      },
+      {
+        "text": "SqliteFetchBothLeaksDuplicateColumns",
+        "link": "/rules/probable-bugs/SqliteFetchBothLeaksDuplicateColumns"
+      },
+      {
+        "text": "SqliteNullBindingDiscardsValue",
+        "link": "/rules/probable-bugs/SqliteNullBindingDiscardsValue"
+      },
+      {
+        "text": "SqliteResultUsedAfterFinalize",
+        "link": "/rules/probable-bugs/SqliteResultUsedAfterFinalize"
       },
       {
         "text": "StaticLambdaBinding",
@@ -1226,6 +1550,10 @@
       {
         "text": "StreamOpenFailureUnchecked",
         "link": "/rules/probable-bugs/StreamOpenFailureUnchecked"
+      },
+      {
+        "text": "StreamOutputReturnUsedAsContent",
+        "link": "/rules/probable-bugs/StreamOutputReturnUsedAsContent"
       },
       {
         "text": "StreamUseAfterClose",
@@ -1272,6 +1600,10 @@
         "link": "/rules/probable-bugs/TempnamDirectoryFallbackUnchecked"
       },
       {
+        "text": "TraitInstantiation",
+        "link": "/rules/probable-bugs/TraitInstantiation"
+      },
+      {
         "text": "TraitsPropertiesConflicts",
         "link": "/rules/probable-bugs/TraitsPropertiesConflicts"
       },
@@ -1284,12 +1616,28 @@
         "link": "/rules/probable-bugs/TransactionExceptionWithoutRollback"
       },
       {
+        "text": "TransferEncodingWithContentLength",
+        "link": "/rules/probable-bugs/TransferEncodingWithContentLength"
+      },
+      {
+        "text": "TransliterationFailureConsumed",
+        "link": "/rules/probable-bugs/TransliterationFailureConsumed"
+      },
+      {
         "text": "TrimMaskUsedAsSuffix",
         "link": "/rules/probable-bugs/TrimMaskUsedAsSuffix"
       },
       {
+        "text": "TruncationAssumedToRewind",
+        "link": "/rules/probable-bugs/TruncationAssumedToRewind"
+      },
+      {
         "text": "UndeclaredDynamicProperty",
         "link": "/rules/probable-bugs/UndeclaredDynamicProperty"
+      },
+      {
+        "text": "UnicodeNormalizationFailureConsumed",
+        "link": "/rules/probable-bugs/UnicodeNormalizationFailureConsumed"
       },
       {
         "text": "UninitializedTypedPropertyRead",
@@ -1302,6 +1650,10 @@
       {
         "text": "UnknownNamedArgument",
         "link": "/rules/probable-bugs/UnknownNamedArgument"
+      },
+      {
+        "text": "UnpackBufferTooShort",
+        "link": "/rules/probable-bugs/UnpackBufferTooShort"
       },
       {
         "text": "UnpackedNamedArgumentCollision",
@@ -1336,20 +1688,64 @@
         "link": "/rules/probable-bugs/ValidatedIntegerZeroRejected"
       },
       {
+        "text": "VaryHeaderOverwritesEarlierDimensions",
+        "link": "/rules/probable-bugs/VaryHeaderOverwritesEarlierDimensions"
+      },
+      {
+        "text": "WaitStatusUsedAsExitCode",
+        "link": "/rules/probable-bugs/WaitStatusUsedAsExitCode"
+      },
+      {
+        "text": "WeakMapValueRetainsKey",
+        "link": "/rules/probable-bugs/WeakMapValueRetainsKey"
+      },
+      {
+        "text": "WriteToReadOnlyStream",
+        "link": "/rules/probable-bugs/WriteToReadOnlyStream"
+      },
+      {
         "text": "XPathIgnoresDefaultNamespace",
         "link": "/rules/probable-bugs/XPathIgnoresDefaultNamespace"
+      },
+      {
+        "text": "XPathQueryFailureDereferenced",
+        "link": "/rules/probable-bugs/XPathQueryFailureDereferenced"
+      },
+      {
+        "text": "XmlReaderAttributeCursorNotRestored",
+        "link": "/rules/probable-bugs/XmlReaderAttributeCursorNotRestored"
       },
       {
         "text": "ZipCloseFailureUnchecked",
         "link": "/rules/probable-bugs/ZipCloseFailureUnchecked"
       },
       {
+        "text": "ZipEntryIndexPastEnd",
+        "link": "/rules/probable-bugs/ZipEntryIndexPastEnd"
+      },
+      {
+        "text": "ZipEntryNameCollision",
+        "link": "/rules/probable-bugs/ZipEntryNameCollision"
+      },
+      {
         "text": "ZipEntryStreamUsedAfterArchiveClose",
         "link": "/rules/probable-bugs/ZipEntryStreamUsedAfterArchiveClose"
       },
       {
+        "text": "ZipExtractionExceedsConfiguredBudget",
+        "link": "/rules/probable-bugs/ZipExtractionExceedsConfiguredBudget"
+      },
+      {
+        "text": "ZipFirstEntryTreatedAsMissing",
+        "link": "/rules/probable-bugs/ZipFirstEntryTreatedAsMissing"
+      },
+      {
         "text": "ZipOpenTruthyResult",
         "link": "/rules/probable-bugs/ZipOpenTruthyResult"
+      },
+      {
+        "text": "ZipSourceRemovedBeforeArchiveClose",
+        "link": "/rules/probable-bugs/ZipSourceRemovedBeforeArchiveClose"
       }
     ]
   },
@@ -1508,6 +1904,10 @@
       {
         "text": "UntrustedXmlExternalEntityExpansion",
         "link": "/rules/security/UntrustedXmlExternalEntityExpansion"
+      },
+      {
+        "text": "UntrustedXmlWriterRawContent",
+        "link": "/rules/security/UntrustedXmlWriterRawContent"
       },
       {
         "text": "UnvalidatedRedirectTarget",

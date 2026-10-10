@@ -1,0 +1,2 @@
+<?php
+$unknown->locateName("x");

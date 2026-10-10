@@ -11,8 +11,12 @@ func TestLookup(t *testing.T) {
 	if !ok || r.ID != all[0].ID {
 		t.Fatal("lookup by ID")
 	}
-	if r2, ok := Lookup(all[0].LegacyID); !ok || r2 != r {
-		t.Fatal("lookup by legacy ID")
+	for _, fact := range all {
+		if fact.LegacyID != "" {
+			if r2, ok := Lookup(fact.LegacyID); !ok || r2.ID != fact.ID {
+				t.Fatal("lookup by legacy ID")
+			}
+		}
 	}
 	if _, ok := Lookup("NoSuchRule"); ok {
 		t.Fatal("unknown rule found")

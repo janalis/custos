@@ -15,7 +15,7 @@ and fixes many of them for you. It looks for:
 - **language-level migration**: constructs that newer PHP versions replace,
   deprecate or remove, checked against the PHP version your project targets.
 
-There are 378 rules in all, including 200 native custos inspections; see the [rule reference](/rules/).
+There are 478 rules in all, including 300 native custos inspections; see the [rule reference](/rules/).
 
 ## Why custos
 
@@ -36,7 +36,7 @@ There are 378 rules in all, including 200 native custos inspections; see the [ru
 
 178 rules are modelled on the PhpStorm plugin
 [Php Inspections (EA Extended)](https://github.com/kalessil/phpinspectionsea).
-The catalogue also includes 200 independently designed [native inspections](./native-rules).
+The catalogue also includes 300 independently designed [native inspections](./native-rules).
 custos is an **independent, clean-room implementation** released under the
 MIT license. None of that project's code, messages, descriptions or test
 fixtures are included. Every rule was independently specified before it

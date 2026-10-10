@@ -1,0 +1,65 @@
+---
+id: ConflictingContentLengthHeaders
+group: Probable bugs
+kind: semantic
+needs: [names, types, flow]
+php: { min: "", max: "" }
+---
+
+# ConflictingContentLengthHeaders
+
+## Summary
+
+Send one consistent Content-Length value.
+
+## Detection
+
+- D1. Track header calls with constant Content-Length values and replacement flag. Report a call appending a different valid decimal value while an earlier effective Content-Length remains. Header names are case insensitive; trim optional whitespace. Numerically equal decimal lengths are consistent.
+- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+
+## Exceptions (no report)
+
+- E1. Replacement calls, header_remove, equal values, unknown header values and branch-dependent state are excluded.
+- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore ConflictingContentLengthHeaders` and `@noinspection ConflictingContentLengthHeaders` suppress this inspection.
+
+## Report
+
+- Range: the complete violating call/expression unless Detection specifies an attribute, return type, header or iterable expression.
+- Severity: warning.
+- Enabled by default: true.
+- Message: `Send one consistent Content-Length value.`
+
+## Fix
+
+No automatic fix. Choosing a repair requires runtime information, error-handling policy or a semantic decision.
+
+All edits use exact byte ranges, preserve comments and evaluation order, and require syntax supported by the target PHP version. A fix must never add an evaluation or silently change unrelated arguments.
+
+## Options
+
+None. Use ordinary rule configuration to enable or disable this inspection.
+
+## PHP versions
+
+Available throughout PHP 5.3–8.5. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
+
+## Examples
+
+Finding:
+
+```php
+<?php
+header("Content-Length: 4"); <warning descr="Send one consistent Content-Length value.">header("Content-Length: 8", false)</warning>;
+```
+
+Valid case:
+
+```php
+<?php
+header("Content-Length: 4"); header("Content-Length: 8");
+```
+
+## Divergences
+
+Native custos inspection, independently specified. No EA counterpart or EA conformance requirement applies. Unknown intent and unproven state are deliberately excluded.

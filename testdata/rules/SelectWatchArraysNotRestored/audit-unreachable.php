@@ -1,0 +1,3 @@
+<?php function audit(){return;
+$read=[$a,$b]; $write=null; $except=null; while ($running) { stream_select($read,$write,$except,1); }
+}

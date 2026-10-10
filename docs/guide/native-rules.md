@@ -1,13 +1,13 @@
 # Native inspections
 
-The catalogue includes 200 inspections designed for custos. Each has a
+The catalogue includes 300 inspections designed for custos. Each has a
 [rule reference page](/rules/) with detection conditions, examples, PHP version
 requirements and available fixes. Native rules use their stable custos ID for
 configuration and suppression.
 
 ## Choosing rules
 
-131 native inspections are enabled by default. The remaining 69 depend on the
+201 native inspections are enabled by default. The remaining 99 depend on the
 intended meaning of values, keys, dates or text, so enable them when their
 contracts fit your project. For example, preserving numeric keys matters for
 record maps, while reindexing may be appropriate for lists.
@@ -30,12 +30,20 @@ custos analyse --rule FilteredListJsonShape src/
 
 ## Additional PHP and extension contracts
 
-The latest 100 inspections cover reference aliases, generators and fibers,
+An earlier 100-rule expansion covers reference aliases, generators and fibers,
 array shapes, serialization, encryption, sessions and cookies, cURL,
 database bindings and transactions, process pipes, encodings, ZIP, XML,
 images and sodium. They report concrete misuse such as resuming an unstarted
 fiber, mismatched binding counts, an image MIME type that conflicts with its
 encoder, or accepting a ZIP error code as successful opening.
+
+A further 100 inspections add language and reflection contracts, SPL iterator
+behavior, stream modes and CSV records, HTTP response framing, BCMath and GMP,
+binary formats, DOM and XML ownership, SQLite and PostgreSQL results,
+internationalization, compression, archive budgets and process status.
+Examples include constructing an abstract class, moving a DOM node between
+documents without importing it, consuming a SQLite result after finalization,
+and declaring a response length that differs from the proven emitted bytes.
 
 Intent-sensitive findings are off by default. Examples include intentional
 shared references, GET bodies, accumulated command output, permission policy,
@@ -112,7 +120,7 @@ precise scope.
 
 ## Fixes
 
-Fixes are available for 25 native inspections. A fix requires the rule's
+Fixes are available for 41 native inspections. A fix requires the rule's
 specific prerequisites and preserves source comments and argument evaluation
 order. Some repair a proven bug, such as adding an omitted callback return or
 preserving a large JSON integer as a string. Rules requiring a choice of
