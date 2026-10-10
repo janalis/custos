@@ -1,6 +1,8 @@
 package arrayuniquecanbeused
 
 import (
+	"strings"
+
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
@@ -53,6 +55,9 @@ func (arrayUniqueCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return
 	}
+	if !aucSafe(ctx, args[0], ctx.GlobalFunctionName(outer) == "array_keys") {
+		return
+	}
 	span := outer.Span()
 	ctx.Report(span, "Use '"+repl+"' instead (array_unique() is fast since PHP 7.2).", diagnostic.Fix{
 		Title: "Use array_unique()",
@@ -60,4 +65,26 @@ func (arrayUniqueCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 			return []diagnostic.TextEdit{{Span: span, NewText: fixed}}
 		},
 	})
+}
+
+// The key form also needs to preserve PHP's numeric-string key coercion.
+func aucSafe(ctx *analysis.Context, arg syntax.Expr, keys bool) bool {
+	t := ctx.Types().Native().TypeOf(arg)
+	if t.IsArrayLike() && !t.Has("array") && (t.Elem().OnlyOf("int") || (!keys && t.Elem().OnlyOf("int", "string"))) {
+		return true
+	}
+	arr := semanticquery.NativeArray(ctx, arg)
+	if arr == nil {
+		return false
+	}
+	for _, item := range arr.Items {
+		if _, ok := semanticquery.NativeInt(ctx, item.Value); ok {
+			continue
+		}
+		key, ok := semanticquery.NativeArrayKey(ctx, item.Value)
+		if !ok || (keys && !strings.HasPrefix(key, "s:")) {
+			return false
+		}
+	}
+	return true
 }

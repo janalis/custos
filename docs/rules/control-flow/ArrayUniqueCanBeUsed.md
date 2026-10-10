@@ -17,35 +17,23 @@ or `count(array_unique($a))`.
 
 ## Example
 
-(PHP level 7.2)
-
 ::: code-group
 
 ```php{3,4} [Before]
 <?php
 function tally(array $votes, $batch) {
-    $names = array_keys(array_count_values($votes['names']));
-    $total = \count(\array_count_values(load($batch)));
-
-    $flip  = array_flip(array_count_values($votes['names']));
-    $pair  = count(array_count_values($votes['names'], $batch));
-    $wrap  = count((array_count_values($votes['names'])));
-    $obj   = $batch->count(array_count_values($votes['names']));
-    return [$names, $total, $flip, $pair, $wrap, $obj];
+    $names = array_keys(array_count_values(['alpha', 'beta']));
+    $total = \count(\array_count_values([1, 2, 1]));
+    return [$names, $total];
 }
 ```
 
 ```php [After fix]
 <?php
 function tally(array $votes, $batch) {
-    $names = array_values(array_unique($votes['names']));
-    $total = \count(\array_unique(load($batch)));
-
-    $flip  = array_flip(array_count_values($votes['names']));
-    $pair  = count(array_count_values($votes['names'], $batch));
-    $wrap  = count((array_count_values($votes['names'])));
-    $obj   = $batch->count(array_count_values($votes['names']));
-    return [$names, $total, $flip, $pair, $wrap, $obj];
+    $names = array_values(array_unique(['alpha', 'beta']));
+    $total = \count(\array_unique([1, 2, 1]));
+    return [$names, $total];
 }
 ```
 
@@ -54,8 +42,8 @@ function tally(array $votes, $batch) {
 Reported:
 
 <ul>
-<li>line 3: Use &#39;array_values(array_unique($votes[&#39;names&#39;]))&#39; instead (array_unique() is fast since PHP 7.2).</li>
-<li>line 4: Use &#39;count(array_unique(load($batch)))&#39; instead (array_unique() is fast since PHP 7.2).</li>
+<li>line 3: Use &#39;array_values(array_unique([&#39;alpha&#39;, &#39;beta&#39;]))&#39; instead (array_unique() is fast since PHP 7.2).</li>
+<li>line 4: Use &#39;count(array_unique([1, 2, 1]))&#39; instead (array_unique() is fast since PHP 7.2).</li>
 </ul>
 
 ## Configure

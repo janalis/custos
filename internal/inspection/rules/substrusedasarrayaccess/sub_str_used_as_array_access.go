@@ -1,8 +1,6 @@
 package substrusedasarrayaccess
 
 import (
-	"strings"
-
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
@@ -42,22 +40,25 @@ func (subStrUsedAsArrayAccess) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	src, off := ctx.Text(args[0]), ctx.Text(args[1])
+	// A type alone says nothing about whether a negative offset clamps.
+	offset, known := semanticquery.NativeInt(ctx, args[1])
+	if !known || offset < -1 {
+		return
+	}
 	var access string
-	if strings.HasPrefix(off, "-") { // R1: only `-1` keeps substr's result
-		if !isMinusOne(args[1]) {
+	if offset == -1 { // R1: only -1 keeps negative-offset behavior
+		v, stable := args[0].(*syntax.Variable)
+		if !stable || v.NameExpr != nil {
 			return
 		}
 		access = src + "[" + semanticquery.QualifiedBuiltin(ctx, "strlen", call.Span().Start) + "(" + src + ") - 1]"
-	} else { // R2: the offset must be known to be an int
-		if !ctx.TypeOf(args[1]).OnlyOf("int") {
-			return
-		}
+	} else { // R2: a proven nonnegative integer
 		access = src + "[" + off + "]"
 	}
 	span := call.Span()
-	// R3: `??` does not parse below 7.0, no fix; custos: nor when the
-	// source may be another scalar (an int's offset is null, not a digit).
-	if ctx.PHP < phpversion.PHP70 || !ctx.TypeOf(args[0]).OnlyOf("string", "null") {
+	// R3: before PHP 8, out-of-range substr can return false. Nor fix
+	// another scalar: an int's offset is null rather than a digit.
+	if ctx.PHP < phpversion.PHP80 || !ctx.TypeOf(args[0]).OnlyOf("string", "null") {
 		ctx.Report(span, "Use '"+access+"' (string offset access) instead.")
 		return
 	}
@@ -66,14 +67,4 @@ func (subStrUsedAsArrayAccess) Check(ctx *analysis.Context, n syntax.Node) {
 		Title: "Replace with '" + repl + "'",
 		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: repl}} },
 	})
-}
-
-// isMinusOne reports whether e is the literal `-1` (unary minus on `1`).
-func isMinusOne(e syntax.Expr) bool {
-	u, ok := e.(*syntax.Unary)
-	if !ok || u.Op.Kind != syntax.TMinus {
-		return false
-	}
-	lit, ok := u.Expr.(*syntax.Literal)
-	return ok && lit.LitKind == syntax.LitInt && lit.Raw == "1"
 }

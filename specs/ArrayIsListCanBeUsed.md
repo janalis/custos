@@ -56,6 +56,12 @@ with exactly one argument `A`.
   matches `cache::$map['k']`, `$o->Name()` matches `$o->name()`); variable,
   property and constant names stay case-sensitive.
 
+### Safety requirements
+
+The compared array expression must be a plain variable with a fixed name.
+Calls, variable variables, property reads and indexed expressions are skipped:
+removing their repeated evaluation may change values or side effects.
+
 ## Exceptions (no report)
 
 - **E1** PHP level below 8.0.
@@ -102,16 +108,16 @@ function inspect(array $cfg, array $other) {
         <weak_warning descr="Replace with 'array_is_list($cfg)'.">array_values($cfg) === $cfg</weak_warning>,
         <weak_warning descr="Replace with '!array_is_list($cfg)'.">$cfg !== array_values($cfg)</weak_warning>,
         <weak_warning descr="Replace with '!\array_is_list($cfg)'.">\array_values($cfg) !== $cfg</weak_warning>,
-        <weak_warning descr="Replace with 'array_is_list($cfg)'.">array_keys($cfg) === range(0, count($cfg) - 1)</weak_warning>,
-        <weak_warning descr="Replace with '!array_is_list($cfg)'.">range(0, count($cfg) - 1) !== array_keys($cfg)</weak_warning>,
-
-        array_values($cfg) === $other,
-        array_keys($cfg) === range(1, count($cfg)),
-        array_keys($cfg) === range(0, count($other) - 1),
-        array_keys($cfg, 'on') === range(0, count($cfg) - 1),
-        (array_values($cfg)) === $cfg,
-        array_values($cfg) == $cfg,
+        <weak_warning descr="Replace with '$cfg !== [] &amp;&amp; array_is_list($cfg)'.">array_keys($cfg) === range(0, count($cfg) - 1)</weak_warning>,
+        <weak_warning descr="Replace with '$cfg === [] || !array_is_list($cfg)'.">range(0, count($cfg) - 1) !== array_keys($cfg)</weak_warning>,
+        array_values($this->rows['a']) === $this->rows[ 'a' ],
     ];
+}
+
+function wrapped(array $cfg): bool
+{
+    return $cfg && !(<weak_warning descr="Replace with '$cfg !== [] &amp;&amp; array_is_list($cfg)'.">array_keys($cfg) === range(0, count($cfg) - 1)</weak_warning>)
+        || <weak_warning descr="Replace with '$cfg === [] || !array_is_list($cfg)'.">array_keys($cfg) !== range(0, count($cfg) - 1)</weak_warning> === false;
 }
 ```
 
@@ -122,20 +128,23 @@ function inspect(array $cfg, array $other) {
         array_is_list($cfg),
         !array_is_list($cfg),
         !\array_is_list($cfg),
-        array_is_list($cfg),
-        !array_is_list($cfg),
-
-        array_values($cfg) === $other,
-        array_keys($cfg) === range(1, count($cfg)),
-        array_keys($cfg) === range(0, count($other) - 1),
-        array_keys($cfg, 'on') === range(0, count($cfg) - 1),
-        (array_values($cfg)) === $cfg,
-        array_values($cfg) == $cfg,
+        $cfg !== [] && array_is_list($cfg),
+        $cfg === [] || !array_is_list($cfg),
+        array_values($this->rows['a']) === $this->rows[ 'a' ],
     ];
+}
+
+function wrapped(array $cfg): bool
+{
+    return $cfg && !($cfg !== [] && array_is_list($cfg))
+        || ($cfg === [] || !array_is_list($cfg)) === false;
 }
 ```
 
 ## Divergences
+
+- **Audit safety (custos diverges).** Only fixed-name variables qualify. Structural equivalence of calls or
+  property/index reads does not establish stable repeated evaluation.
 
 - Version threshold: upstream enables the rule from PHP 8.0, but
   `array_is_list()` is a PHP 8.1 function, so the fix breaks 8.0 code.

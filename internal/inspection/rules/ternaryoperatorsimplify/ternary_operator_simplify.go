@@ -34,8 +34,8 @@ func (ternaryOperatorSimplify) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	// D2
 	thenV, ok1 := astquery.BoolConst(syntax.UnwrapParens(t.Then))
-	_, ok2 := astquery.BoolConst(syntax.UnwrapParens(t.Else))
-	if !ok1 || !ok2 {
+	elseV, ok2 := astquery.BoolConst(syntax.UnwrapParens(t.Else))
+	if !ok1 || !ok2 || thenV == elseV {
 		return
 	}
 	inverted := !thenV // D3

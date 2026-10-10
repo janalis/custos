@@ -21,7 +21,7 @@ Two wasteful `in_array()` shapes:
 
 ::: code-group
 
-```php{5,6,7,8,9,10,11,12,13,14,15,16} [Before]
+```php{5,6,7,8,9,10,11,12,13,14,15,16,17,18} [Before]
 <?php
 function checks($role, $list, $map, $a, $b)
 {
@@ -36,13 +36,10 @@ function checks($role, $list, $map, $a, $b)
     $r[] = $b || in_array($role, ['admin']);
     $r[] = in_array($a . $b, ['ab']);
     $r[] = in_array($a ? $b : 0, [3], true);
+    $r[] = in_array($a ?? 0, [7]) !== true;
+    $r[] = in_array($a, [1]) . 'x';
     $r[] = !in_array($role, array_keys($map), true);
     $r[] = \in_array('id', array_keys($map));
-
-    $r[] = in_array($role, []);
-    $r[] = in_array($role, ['admin', 'owner']);
-    $r[] = in_array($role, $list);
-    $r[] = in_array($role, array_keys($map, 1));
     return $r;
 }
 ```
@@ -62,13 +59,10 @@ function checks($role, $list, $map, $a, $b)
     $r[] = $b || $role == 'admin';
     $r[] = ($a . $b) == 'ab';
     $r[] = ($a ? $b : 0) === 3;
-    $r[] = !array_key_exists($role, $map);
+    $r[] = ($a ?? 0) != 7;
+    $r[] = ($a == 1) . 'x';
+    $r[] = !in_array($role, array_keys($map), true);
     $r[] = array_key_exists('id', $map);
-
-    $r[] = in_array($role, []);
-    $r[] = in_array($role, ['admin', 'owner']);
-    $r[] = in_array($role, $list);
-    $r[] = in_array($role, array_keys($map, 1));
     return $r;
 }
 ```
@@ -87,9 +81,11 @@ Reported:
 <li>line 11: Compare directly: &#39;$role != &#39;admin&#39;&#39;.</li>
 <li>line 12: Compare directly: &#39;$role == &#39;admin&#39;&#39;.</li>
 <li>line 13: Compare directly: &#39;($a . $b) == &#39;ab&#39;&#39;.</li>
-<li>line 14: Compare directly: &#39;($a ? $b : 0) === 3&#39;&#39;.</li>
-<li>line 15: Look the key up directly with &#39;array_key_exists($role, $map)&#39;.</li>
-<li>line 16: Look the key up directly with &#39;array_key_exists(&#39;id&#39;, $map)&#39;.</li>
+<li>line 14: Compare directly: &#39;($a ? $b : 0) === 3&#39;.</li>
+<li>line 15: Compare directly: &#39;($a ?? 0) != 7&#39;.</li>
+<li>line 16: Compare directly: &#39;$a == 1&#39;.</li>
+<li>line 17: Look the key up directly with &#39;array_key_exists($role, $map)&#39;.</li>
+<li>line 18: Look the key up directly with &#39;array_key_exists(&#39;id&#39;, $map)&#39;.</li>
 </ul>
 
 ## Options

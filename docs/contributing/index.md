@@ -97,6 +97,8 @@ use; set a tool's variable empty to skip it offline (`make lint MDLINT=`).
   target version.
 - Write user-visible changes under `## [Unreleased]` in `CHANGELOG.md` as you
   go.
+- Before committing, review the staged diff for user-visible changes and confirm
+  that each is covered by an entry under `## [Unreleased]` in `CHANGELOG.md`.
 
 ## Where to go next
 

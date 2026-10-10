@@ -10,7 +10,7 @@ title: StrContainsCanBeUsed
 
 Group: [Language level migration](/rules/#language-level-migration) · PhpStorm name: `StrContainsCanBeUsedInspection`
 
-Comparing a `strpos()`/`mb_strpos()` result strictly against `false` is the
+Comparing a `strpos()` result strictly against `false` is the
 pre-PHP 8 idiom for "does the string contain this substring". PHP 8 has
 `str_contains()` for exactly that.
 
@@ -18,17 +18,13 @@ pre-PHP 8 idiom for "does the string contain this substring". PHP 8 has
 
 ::: code-group
 
-```php{3,4,5} [Before]
+```php{3,5} [Before]
 <?php
 function scan(string $line, string $tag) {
     $hit  = strpos($line, $tag) !== false;
     $hit2 = FALSE !== mb_strpos($line, '#');
     $miss = \strpos(trim($line), $tag) === false;
-    $from = strpos($line, $tag, 3) !== false;
-    $loose = strpos($line, $tag) != false;
-    $zero = strpos($line, $tag) === 0;
-    $wrapped = (strpos($line, $tag)) !== false;
-    return [$hit, $hit2, $miss, $from, $loose, $zero, $wrapped];
+    return [$hit, $hit2, $miss];
 }
 ```
 
@@ -36,13 +32,9 @@ function scan(string $line, string $tag) {
 <?php
 function scan(string $line, string $tag) {
     $hit  = str_contains($line, $tag);
-    $hit2 = str_contains($line, '#');
+    $hit2 = FALSE !== mb_strpos($line, '#');
     $miss = !\str_contains(trim($line), $tag);
-    $from = strpos($line, $tag, 3) !== false;
-    $loose = strpos($line, $tag) != false;
-    $zero = strpos($line, $tag) === 0;
-    $wrapped = (strpos($line, $tag)) !== false;
-    return [$hit, $hit2, $miss, $from, $loose, $zero, $wrapped];
+    return [$hit, $hit2, $miss];
 }
 ```
 
@@ -52,7 +44,6 @@ Reported:
 
 <ul>
 <li>line 3: Replace with &#39;str_contains($line, $tag)&#39;.</li>
-<li>line 4: Replace with &#39;str_contains($line, &#39;#&#39;)&#39;.</li>
 <li>line 5: Replace with &#39;!\str_contains(trim($line), $tag)&#39;.</li>
 </ul>
 

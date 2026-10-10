@@ -36,6 +36,15 @@ D3. The call is directly an argument of an enclosing call *O* (the call's
     Upstream checks neither the position of the inner call inside *O*'s
     argument list nor *O*'s argument count (see Divergences).
 
+### Safety requirements
+
+The input must have proven integer/string elements. Native integer-element
+arrays qualify for both forms; native integer/string-element arrays qualify
+for the count form. Otherwise a resolved, non-spread, non-reference array
+literal must contain only known integers or strings. For the keys form,
+strings that PHP converts to integer keys are excluded. Unknown element
+values, floats, booleans and objects are not reported.
+
 ## Exceptions (no report)
 
 E1. PHP level below 7.2 (this includes the default level used by fixtures
@@ -82,37 +91,30 @@ Requires language level ≥ 7.2. EA's fixture runs at 7.2.
 
 ## Examples
 
-(PHP level 7.2)
-
 ```php
 <?php
 function tally(array $votes, $batch) {
-    $names = <weak_warning descr="Use 'array_values(array_unique($votes['names']))' instead (array_unique() is fast since PHP 7.2).">array_keys(array_count_values($votes['names']))</weak_warning>;
-    $total = <weak_warning descr="Use 'count(array_unique(load($batch)))' instead (array_unique() is fast since PHP 7.2).">\count(\array_count_values(load($batch)))</weak_warning>;
-
-    $flip  = array_flip(array_count_values($votes['names']));
-    $pair  = count(array_count_values($votes['names'], $batch));
-    $wrap  = count((array_count_values($votes['names'])));
-    $obj   = $batch->count(array_count_values($votes['names']));
-    return [$names, $total, $flip, $pair, $wrap, $obj];
+    $names = <weak_warning descr="Use 'array_values(array_unique(['alpha', 'beta']))' instead (array_unique() is fast since PHP 7.2).">array_keys(array_count_values(['alpha', 'beta']))</weak_warning>;
+    $total = <weak_warning descr="Use 'count(array_unique([1, 2, 1]))' instead (array_unique() is fast since PHP 7.2).">\count(\array_count_values([1, 2, 1]))</weak_warning>;
+    return [$names, $total];
 }
 ```
 
 ```php
 <?php
 function tally(array $votes, $batch) {
-    $names = array_values(array_unique($votes['names']));
-    $total = \count(\array_unique(load($batch)));
-
-    $flip  = array_flip(array_count_values($votes['names']));
-    $pair  = count(array_count_values($votes['names'], $batch));
-    $wrap  = count((array_count_values($votes['names'])));
-    $obj   = $batch->count(array_count_values($votes['names']));
-    return [$names, $total, $flip, $pair, $wrap, $obj];
+    $names = array_values(array_unique(['alpha', 'beta']));
+    $total = \count(\array_unique([1, 2, 1]));
+    return [$names, $total];
 }
 ```
 
 ## Divergences
+
+- **Audit safety (custos diverges).** Deduplication rewrites require equivalent element domains and key coercion.
+  Numeric-string keys change value types under the array_values form, and
+  array_count_values skips unsupported values that array_unique retains.
+  Unproven inputs are therefore skipped rather than offered an unsafe fix.
 
 - Upstream does not check that the inner call is the **first and only**
   argument of `array_keys`/`count`: `array_keys(array_count_values($a), 2)`

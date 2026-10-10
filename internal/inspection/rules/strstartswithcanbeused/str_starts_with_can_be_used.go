@@ -23,7 +23,7 @@ func (strStartsWithCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if ctx.PHP < phpversion.PHP80 { // E1
 		return
 	}
-	m, ok := semanticquery.MatchStrCallCompare(ctx, n.(*syntax.FuncCall), 2, "strpos", "mb_strpos") // D1-D3
+	m, ok := semanticquery.MatchStrCallCompare(ctx, n.(*syntax.FuncCall), 2, "strpos") // D1-D3
 	if !ok {
 		return
 	}

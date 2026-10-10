@@ -11,60 +11,34 @@ title: SubStrUsedAsArrayAccess
 Group: [Performance](/rules/#performance) · PhpStorm name: `SubStrUsedAsArrayAccessInspection`
 
 Extracting a single character with `substr($str, $i, 1)` costs a function call;
-string offset access (`$str[$i]`) reads the same byte directly. Negative
-positions are translated to `strlen($str) - n`.
+string offset access (`$str[$i]`) reads the same byte directly. The proven negative
+position `-1` is translated to `strlen($str) - 1`.
 
 ## Example
 
-At PHP 7.0+:
-
 ::: code-group
 
-```php{8,9,10} [Before]
+```php{5,6,7} [Before]
 <?php
-class Token {
-    /** @var string */
-    public $raw = '';
-}
-function peek(string $buf, int $at, int $back, string $key, Token $t, $any)
+function peek(string $buf, ?string $maybe, string|int $mixed, array $rows, int $at)
 {
     $a = substr($buf, $at, 1);
-    $b = \substr($buf, -1, 1);
-    $c = substr($t->raw, 0, 1);
-
-    $d = mb_substr($buf, $at, 1);
-    $e = substr($buf, $at, 2);
-    $f = substr(strrev($buf), 0, 1);
-    $g = substr($at, 0, 1);
-    $h = substr($any, 0, 1);
-    $i = substr($buf, -3, 1);
-    $j = substr($buf, -$back, 1);
-    $k = substr($buf, $key, 1);
-    return [$a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k];
+    $b = substr($buf, -1, 1);
+    $c = substr($maybe, 0, 1);
+    $d = substr($mixed, 2, 1);
+    return [$a, $b, $c, $d];
 }
 ```
 
 ```php [After fix]
 <?php
-class Token {
-    /** @var string */
-    public $raw = '';
-}
-function peek(string $buf, int $at, int $back, string $key, Token $t, $any)
+function peek(string $buf, ?string $maybe, string|int $mixed, array $rows, int $at)
 {
-    $a = ($buf[$at] ?? '');
+    $a = substr($buf, $at, 1);
     $b = ($buf[strlen($buf) - 1] ?? '');
-    $c = ($t->raw[0] ?? '');
-
-    $d = mb_substr($buf, $at, 1);
-    $e = substr($buf, $at, 2);
-    $f = substr(strrev($buf), 0, 1);
-    $g = substr($at, 0, 1);
-    $h = substr($any, 0, 1);
-    $i = substr($buf, -3, 1);
-    $j = substr($buf, -$back, 1);
-    $k = substr($buf, $key, 1);
-    return [$a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k];
+    $c = ($maybe[0] ?? '');
+    $d = substr($mixed, 2, 1);
+    return [$a, $b, $c, $d];
 }
 ```
 
@@ -73,9 +47,9 @@ function peek(string $buf, int $at, int $back, string $key, Token $t, $any)
 Reported:
 
 <ul>
-<li>line 8: Use &#39;($buf[$at] ?? &#39;&#39;)&#39; (string offset access) instead.</li>
-<li>line 9: Use &#39;($buf[strlen($buf) - 1] ?? &#39;&#39;)&#39; (string offset access) instead.</li>
-<li>line 10: Use &#39;($t-&gt;raw[0] ?? &#39;&#39;)&#39; (string offset access) instead.</li>
+<li>line 5: Use &#39;($buf[strlen($buf) - 1] ?? &#39;&#39;)&#39; (string offset access) instead.</li>
+<li>line 6: Use &#39;($maybe[0] ?? &#39;&#39;)&#39; (string offset access) instead.</li>
+<li>line 7: Use &#39;$mixed[2]&#39; (string offset access) instead.</li>
 </ul>
 
 ## Configure

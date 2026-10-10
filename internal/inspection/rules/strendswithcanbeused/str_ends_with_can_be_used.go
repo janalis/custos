@@ -25,7 +25,7 @@ func (strEndsWithCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if ctx.PHP < phpversion.PHP80 { // E1
 		return
 	}
-	m, ok := semanticquery.MatchStrCallCompare(ctx, n.(*syntax.FuncCall), 2, "substr", "mb_substr") // D1-D3
+	m, ok := semanticquery.MatchStrCallCompare(ctx, n.(*syntax.FuncCall), 2, "substr") // D1-D3
 	if !ok {
 		return
 	}
@@ -37,7 +37,7 @@ func (strEndsWithCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
-	if name := ctx.GlobalFunctionName(lenCall); name != "strlen" && name != "mb_strlen" {
+	if name := ctx.GlobalFunctionName(lenCall); name != "strlen" {
 		return
 	}
 	largs, ok := astquery.CallArgValues(lenCall)

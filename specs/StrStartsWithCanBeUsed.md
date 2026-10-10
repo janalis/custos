@@ -18,7 +18,7 @@ scan the whole haystack.
 
 - **D1** A function call `P` whose name (last segment, case-insensitive, as
   PHP compares function names: `StrPos` matches) is
-  `strpos` or `mb_strpos` and which resolves to that global
+  `strpos` and which resolves to that global
   function under PHP's runtime rules: `\strpos(...)` and an unqualified call in
   the global namespace match; an unqualified call inside a namespace matches
   only when no function of that name is declared in the namespace or
@@ -35,6 +35,11 @@ scan the whole haystack.
     imported into, the current namespace); empty otherwise.
   - core = `ns` + `str_starts_with(` + H text + `, ` + N text + `)`.
   - `===` → `R = core`; `!==` → `R = !core` (negated).
+
+### Safety requirements
+
+Only the byte-based built-in `strpos` qualifies. `mb_strpos` is skipped
+because its mutable default encoding does not establish byte equivalence.
 
 ## Exceptions (no report)
 
@@ -56,7 +61,7 @@ scan the whole haystack.
   (`!str_starts_with(H, N)`). Arguments are copied verbatim, separated by
   `, `.
   - `0 === strpos($path, '/')` → `str_starts_with($path, '/')`
-  - `mb_strpos($s, $p) !== 0` → `!str_starts_with($s, $p)`
+  - `strpos($s, $p) !== 0` → `!str_starts_with($s, $p)`
 
 ## Options
 
@@ -73,12 +78,8 @@ Reported only at language level ≥ 8.0. The upstream fixture runs at 8.0.
 function route(string $uri, string $prefix): array {
     return [
         <weak_warning descr="Replace with 'str_starts_with($uri, $prefix)'.">strpos($uri, $prefix) === 0</weak_warning>,
-        <weak_warning descr="Replace with 'str_starts_with($uri, '/api')'.">0 === mb_strpos($uri, '/api')</weak_warning>,
+        0 === mb_strpos($uri, '/api'),
         <weak_warning descr="Replace with '!\str_starts_with(strtolower($uri), $prefix)'.">\strpos(strtolower($uri), $prefix) !== 0</weak_warning>,
-        strpos($uri, $prefix, 1) === 0,
-        strpos($uri, $prefix) == 0,
-        strpos($uri, $prefix) === 00,
-        strpos($uri, $prefix) === false,
     ];
 }
 ```
@@ -88,17 +89,16 @@ function route(string $uri, string $prefix): array {
 function route(string $uri, string $prefix): array {
     return [
         str_starts_with($uri, $prefix),
-        str_starts_with($uri, '/api'),
+        0 === mb_strpos($uri, '/api'),
         !\str_starts_with(strtolower($uri), $prefix),
-        strpos($uri, $prefix, 1) === 0,
-        strpos($uri, $prefix) == 0,
-        strpos($uri, $prefix) === 00,
-        strpos($uri, $prefix) === false,
     ];
 }
 ```
 
 ## Divergences
+
+- **Audit safety (custos diverges).** Multibyte search is not rewritten to byte search. The default encoding
+  can make mb_strpos disagree with str_starts_with.
 
 - **Callee resolved — custos diverges from upstream** (D1, D5). Upstream
   ignores namespaces: a user `App\strpos()` is reported, and the generated

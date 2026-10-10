@@ -109,6 +109,8 @@ make fixcheck       # apply every quick-fix on CUSTOS_CORPUS, require parsable o
   performance budgets live in `make bench`.
 - Run `make verify` before declaring work done; run `make rules-doc` when a
   spec, a rule's fixtures or rule status changes (CI fails on stale rule pages).
+- Before committing, check the staged diff for user-visible changes and ensure
+  they are recorded under `## [Unreleased]` in `CHANGELOG.md`.
 - User docs live in `docs/guide/` (check claims against the real binary);
   never put `<Tag>`-like text or `{{` in prose outside code (Vue compiles
   the pages).

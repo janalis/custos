@@ -19,48 +19,48 @@ would produce anyway (for list-shaped arrays).
 
 ::: code-group
 
-```php{4,5,13,14} [Before]
+```php{3,11,12,13} [Before]
 <?php
 $queue = [];
-$log = [];
 array_push($queue, $job);
-\array_push($log, [1, 2]);
-array_push($unknown, $job);
 
-array_push($queue, $a, $b);
-array_push($queue, ... $more);
-$size = array_push($queue, $job);
-while (array_push($queue, $job) < 10) {}
+class Log {
+    /** @var string[] */
+    private $lines = [];
+    private array $rows = [];
+
+    public function add(array $items, string $line) {
+        \array_push($this->lines, $line);
+        array_push($this->rows, [1, 2]);
+        array_push($items, $line);
+    }
+}
 
 $queue[count($queue)] = $job;
 $this->items[count($this->items)] = $job;
-
-$queue[count($queue) - 1] = $job;
-$queue[count($other)] = $job;
-$last = $queue[count($queue)];
-$queue[count($queue)] .= 'x';
+$queue[\count($queue)] = &$job;
 ```
 
 ```php [After fix]
 <?php
 $queue = [];
-$log = [];
 $queue[] = $job;
-$log[] = [1, 2];
-array_push($unknown, $job);
 
-array_push($queue, $a, $b);
-array_push($queue, ... $more);
-$size = array_push($queue, $job);
-while (array_push($queue, $job) < 10) {}
+class Log {
+    /** @var string[] */
+    private $lines = [];
+    private array $rows = [];
+
+    public function add(array $items, string $line) {
+        $this->lines[] = $line;
+        $this->rows[] = [1, 2];
+        $items[] = $line;
+    }
+}
 
 $queue[count($queue)] = $job;
 $this->items[count($this->items)] = $job;
-
-$queue[count($queue) - 1] = $job;
-$queue[count($other)] = $job;
-$last = $queue[count($queue)];
-$queue[count($queue)] .= 'x';
+$queue[\count($queue)] = &$job;
 ```
 
 :::
@@ -68,10 +68,10 @@ $queue[count($queue)] .= 'x';
 Reported:
 
 <ul>
-<li>line 4: Use &#39;$queue[] = $job&#39; instead; it avoids a function call.</li>
-<li>line 5: Use &#39;$log[] = [1, 2]&#39; instead; it avoids a function call.</li>
-<li>line 13: The index is redundant here; use &#39;[]&#39; to append.</li>
-<li>line 14: The index is redundant here; use &#39;[]&#39; to append.</li>
+<li>line 3: Use &#39;$queue[] = $job&#39; instead; it avoids a function call.</li>
+<li>line 11: Use &#39;$this-&gt;lines[] = $line&#39; instead; it avoids a function call.</li>
+<li>line 12: Use &#39;$this-&gt;rows[] = [1, 2]&#39; instead; it avoids a function call.</li>
+<li>line 13: Use &#39;$items[] = $line&#39; instead; it avoids a function call.</li>
 </ul>
 
 ## Options

@@ -11,69 +11,47 @@ title: StrlenInEmptyStringCheckContext
 Group: [Control flow](/rules/#control-flow) · PhpStorm name: `StrlenInEmptyStringCheckContextInspection`
 
 Measuring a string's length only to know whether it is empty
-(`strlen($s) > 0`, `!mb_strlen($s)`, `if (strlen($s))`) is indirect and
+(`strlen($s) > 0`, `!strlen($s)`, `if (strlen($s))`) is indirect and
 slower than comparing with the empty string. Suggest an identity comparison
 with `''` instead, casting to string when the value is not known to be a
 string.
 
 ## Example
 
-Yoda style:
-
 ::: code-group
 
-```php{4,5,6,7,8,10,11,12,13,14,15,24} [Before]
+```php{6,8,9,10,11} [Before]
 <?php
-function probe(string $name, ?string $alias, int $count, $raw, array $bag)
+class Form
 {
-    if (strlen($name)) {}
-    while (!mb_strlen($name, 'UTF-8')) {}
-    if (!(strlen($alias))) {}
-    $a = mb_strlen($raw) ? 'y' : 'n';
-    $b = $count > 2 and strlen(trim($raw));
-
-    $c = 0 === mb_strlen($name);
-    $d = strlen($count) <> 0;
-    $e = strlen($alias)  ==  0;
-    $f = mb_strlen($name) > 0;
-    $g = strlen($bag['k']) >= 1;
-    $h = strlen($name) < 1;
-
-    $i = 0 < strlen($name);
-    $j = strlen($name) > 1;
-    $k = (strlen($name)) > 0;
-    $l = strlen($name) ?: 5;
-    return strlen($name);
+    public function check(string $name, $id, int $n)
+    {
+        $a = strlen($name) > 0;
+        $b = !mb_strlen($id);
+        $c = strlen($n) != 0;
+        $d = $a || \strlen($name);
+        do {} while (strlen($name) == 0);
+        $f = fn($s) => strlen($s) !== 0;
+        return [$a, $b, $c, $d, $f];
+    }
 }
-
-if (strlen($argv[1])) {}
 ```
 
 ```php [After fix]
 <?php
-function probe(string $name, ?string $alias, int $count, $raw, array $bag)
+class Form
 {
-    if ('' !== $name) {}
-    while ('' === $name) {}
-    if (!('' !== (string)$alias)) {}
-    $a = '' !== (string)$raw ? 'y' : 'n';
-    $b = $count > 2 and '' !== trim($raw);
-
-    $c = '' === $name;
-    $d = '' !== (string)$count;
-    $e = '' === (string)$alias;
-    $f = '' !== $name;
-    $g = '' !== (string)$bag['k'];
-    $h = '' === $name;
-
-    $i = 0 < strlen($name);
-    $j = strlen($name) > 1;
-    $k = (strlen($name)) > 0;
-    $l = strlen($name) ?: 5;
-    return strlen($name);
+    public function check(string $name, $id, int $n)
+    {
+        $a = $name !== '';
+        $b = !mb_strlen($id);
+        $c = (string)$n !== '';
+        $d = $a || $name !== '';
+        do {} while ($name === '');
+        $f = fn($s) => (string)$s !== '';
+        return [$a, $b, $c, $d, $f];
+    }
 }
-
-if ('' !== (string)$argv[1]) {}
 ```
 
 :::
@@ -81,18 +59,11 @@ if ('' !== (string)$argv[1]) {}
 Reported:
 
 <ul>
-<li>line 4: Compare with an empty string instead: &#39;&#39;&#39; !== $name&#39;.</li>
-<li>line 5: Compare with an empty string instead: &#39;&#39;&#39; === $name&#39;.</li>
-<li>line 6: Compare with an empty string instead: &#39;&#39;&#39; !== (string)$alias&#39;.</li>
-<li>line 7: Compare with an empty string instead: &#39;&#39;&#39; !== (string)$raw&#39;.</li>
-<li>line 8: Compare with an empty string instead: &#39;&#39;&#39; !== trim($raw)&#39;.</li>
-<li>line 10: Compare with an empty string instead: &#39;&#39;&#39; === $name&#39;.</li>
-<li>line 11: Compare with an empty string instead: &#39;&#39;&#39; !== (string)$count&#39;.</li>
-<li>line 12: Compare with an empty string instead: &#39;&#39;&#39; === (string)$alias&#39;.</li>
-<li>line 13: Compare with an empty string instead: &#39;&#39;&#39; !== $name&#39;.</li>
-<li>line 14: Compare with an empty string instead: &#39;&#39;&#39; !== (string)$bag[&#39;k&#39;]&#39;.</li>
-<li>line 15: Compare with an empty string instead: &#39;&#39;&#39; === $name&#39;.</li>
-<li>line 24: Compare with an empty string instead: &#39;&#39;&#39; !== (string)$argv[1]&#39;.</li>
+<li>line 6: Compare with an empty string instead: &#39;$name !== &#39;&#39;&#39;.</li>
+<li>line 8: Compare with an empty string instead: &#39;(string)$n !== &#39;&#39;&#39;.</li>
+<li>line 9: Compare with an empty string instead: &#39;$name !== &#39;&#39;&#39;.</li>
+<li>line 10: Compare with an empty string instead: &#39;$name === &#39;&#39;&#39;.</li>
+<li>line 11: Compare with an empty string instead: &#39;(string)$s !== &#39;&#39;&#39;.</li>
 </ul>
 
 ## Options

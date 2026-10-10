@@ -26,7 +26,7 @@ func (strContainsCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	call := n.(*syntax.FuncCall)
-	m, ok := semanticquery.MatchStrCallCompare(ctx, call, 2, "strpos", "mb_strpos") // D1-D3
+	m, ok := semanticquery.MatchStrCallCompare(ctx, call, 2, "strpos") // D1-D3
 	if !ok {
 		return
 	}

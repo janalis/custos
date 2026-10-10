@@ -1,3 +1,3 @@
 <?php
 $r = 'admin' !== $role;
-$s = 'x' === $role;
+$s = in_array($role, ['x'], $flag);

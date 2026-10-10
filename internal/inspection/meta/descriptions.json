@@ -786,7 +786,8 @@
   },
   "ImmutableDateResultIgnored": {
     "summary": "Detect discarded return from modify, add, sub, setDate, setTime, setTimestamp or setTimezone on a receiver proven DateTimeImmutable.",
-    "options": "None. Enable or disable this rule through normal rule configuration."
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
   },
   "ImplodeArgumentsOrder": {
     "summary": "`implode()` historically accepted its separator in either position; passing the\npieces first and the separator second is deprecated (7.4) and removed (8.0).\nWhen the second argument is clearly the separator (a string literal), the\narguments are swapped.",
@@ -1686,7 +1687,7 @@
     "fix": true
   },
   "StrContainsCanBeUsed": {
-    "summary": "Comparing a `strpos()`/`mb_strpos()` result strictly against `false` is the\npre-PHP 8 idiom for \"does the string contain this substring\". PHP 8 has\n`str_contains()` for exactly that.",
+    "summary": "Comparing a `strpos()` result strictly against `false` is the\npre-PHP 8 idiom for \"does the string contain this substring\". PHP 8 has\n`str_contains()` for exactly that.",
     "fix": true
   },
   "StrEndsWithCanBeUsed": {
@@ -1741,7 +1742,7 @@
     "fix": true
   },
   "StrlenInEmptyStringCheckContext": {
-    "summary": "Measuring a string's length only to know whether it is empty\n(`strlen($s) \u003e 0`, `!mb_strlen($s)`, `if (strlen($s))`) is indirect and\nslower than comparing with the empty string. Suggest an identity comparison\nwith `''` instead, casting to string when the value is not known to be a\nstring.",
+    "summary": "Measuring a string's length only to know whether it is empty\n(`strlen($s) \u003e 0`, `!strlen($s)`, `if (strlen($s))`) is indirect and\nslower than comparing with the empty string. Suggest an identity comparison\nwith `''` instead, casting to string when the value is not known to be a\nstring.",
     "options": "| Option | Type | Default | Effect |\n|--------|------|---------|--------|\n| (none) | | | Operand order follows the global comparison style (`regular` default / `yoda`). |",
     "fix": true
   },
@@ -1758,7 +1759,7 @@
     "fix": true
   },
   "SubStrUsedAsArrayAccess": {
-    "summary": "Extracting a single character with `substr($str, $i, 1)` costs a function call;\nstring offset access (`$str[$i]`) reads the same byte directly. Negative\npositions are translated to `strlen($str) - n`.",
+    "summary": "Extracting a single character with `substr($str, $i, 1)` costs a function call;\nstring offset access (`$str[$i]`) reads the same byte directly. The proven negative\nposition `-1` is translated to `strlen($str) - 1`.",
     "fix": true
   },
   "SubStrUsedAsStrPos": {

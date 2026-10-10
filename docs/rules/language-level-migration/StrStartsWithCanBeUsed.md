@@ -18,17 +18,13 @@ scan the whole haystack.
 
 ::: code-group
 
-```php{4,5,6} [Before]
+```php{4,6} [Before]
 <?php
 function route(string $uri, string $prefix): array {
     return [
         strpos($uri, $prefix) === 0,
         0 === mb_strpos($uri, '/api'),
         \strpos(strtolower($uri), $prefix) !== 0,
-        strpos($uri, $prefix, 1) === 0,
-        strpos($uri, $prefix) == 0,
-        strpos($uri, $prefix) === 00,
-        strpos($uri, $prefix) === false,
     ];
 }
 ```
@@ -38,12 +34,8 @@ function route(string $uri, string $prefix): array {
 function route(string $uri, string $prefix): array {
     return [
         str_starts_with($uri, $prefix),
-        str_starts_with($uri, '/api'),
+        0 === mb_strpos($uri, '/api'),
         !\str_starts_with(strtolower($uri), $prefix),
-        strpos($uri, $prefix, 1) === 0,
-        strpos($uri, $prefix) == 0,
-        strpos($uri, $prefix) === 00,
-        strpos($uri, $prefix) === false,
     ];
 }
 ```
@@ -54,7 +46,6 @@ Reported:
 
 <ul>
 <li>line 4: Replace with &#39;str_starts_with($uri, $prefix)&#39;.</li>
-<li>line 5: Replace with &#39;str_starts_with($uri, &#39;/api&#39;)&#39;.</li>
 <li>line 6: Replace with &#39;!\str_starts_with(strtolower($uri), $prefix)&#39;.</li>
 </ul>
 

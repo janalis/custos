@@ -56,6 +56,15 @@ would produce anyway (for list-shaped arrays).
   matches `cache::$map['k']`, `$o->Name()` matches `$o->name()`); variable,
   property and constant names stay case-sensitive.
 
+### Safety requirements
+
+Part B additionally requires a fixed-name variable in a standalone
+assignment, immediately preceded in the same statement list by a plain,
+non-reference assignment of an array literal with no keys, spreads or
+referenced items to that variable. The value being added must have no
+side effects. This establishes a freshly packed array without prior index
+history; unknown, sparse and previously mutated arrays are skipped.
+
 ## Exceptions (no report)
 
 - **E1** `array_push` with 1 or ≥ 3 arguments, or with an unpacked 2nd
@@ -106,48 +115,52 @@ as an exclusion.)
 ```php
 <?php
 $queue = [];
-$log = [];
 <warning descr="Use '$queue[] = $job' instead; it avoids a function call.">array_push($queue, $job)</warning>;
-<warning descr="Use '$log[] = [1, 2]' instead; it avoids a function call.">\array_push($log, [1, 2])</warning>;
-array_push($unknown, $job);
 
-array_push($queue, $a, $b);
-array_push($queue, ... $more);
-$size = array_push($queue, $job);
-while (array_push($queue, $job) < 10) {}
+class Log {
+    /** @var string[] */
+    private $lines = [];
+    private array $rows = [];
 
-$queue[<warning descr="The index is redundant here; use '[]' to append.">count</warning>($queue)] = $job;
-$this->items[<warning descr="The index is redundant here; use '[]' to append.">count</warning>($this->items)] = $job;
+    public function add(array $items, string $line) {
+        <warning descr="Use '$this->lines[] = $line' instead; it avoids a function call.">\array_push($this->lines, $line)</warning>;
+        <warning descr="Use '$this->rows[] = [1, 2]' instead; it avoids a function call.">array_push($this->rows, [1, 2])</warning>;
+        <warning descr="Use '$items[] = $line' instead; it avoids a function call.">array_push($items, $line)</warning>;
+    }
+}
 
-$queue[count($queue) - 1] = $job;
-$queue[count($other)] = $job;
-$last = $queue[count($queue)];
-$queue[count($queue)] .= 'x';
+$queue[count($queue)] = $job;
+$this->items[count($this->items)] = $job;
+$queue[\count($queue)] = &$job;
 ```
 
 ```php
 <?php
 $queue = [];
-$log = [];
 $queue[] = $job;
-$log[] = [1, 2];
-array_push($unknown, $job);
 
-array_push($queue, $a, $b);
-array_push($queue, ... $more);
-$size = array_push($queue, $job);
-while (array_push($queue, $job) < 10) {}
+class Log {
+    /** @var string[] */
+    private $lines = [];
+    private array $rows = [];
+
+    public function add(array $items, string $line) {
+        $this->lines[] = $line;
+        $this->rows[] = [1, 2];
+        $items[] = $line;
+    }
+}
 
 $queue[count($queue)] = $job;
 $this->items[count($this->items)] = $job;
-
-$queue[count($queue) - 1] = $job;
-$queue[count($other)] = $job;
-$last = $queue[count($queue)];
-$queue[count($queue)] .= 'x';
+$queue[\count($queue)] = &$job;
 ```
 
 ## Divergences
+
+- **Audit safety (custos diverges).** Count-based indexing is not generally append-equivalent: sparse keys and
+  unsetting a prior highest index change the next automatic index. Part B
+  only reports immediately after a fresh unkeyed literal assignment.
 
 - custos diverges from upstream on the target type (D8, E6). Upstream
   reports every single-element `array_push` statement, but `$a[] = $b` is

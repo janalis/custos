@@ -18,40 +18,38 @@ replaced by the condition itself, its negation, or a boolean cast.
 
 ::: code-group
 
-```php{3,4,5,6,7,8,9,10,11} [Before]
+```php{3,4,5,6,7,8,9,10,11,12,13} [Before]
 <?php
-function probe($n, $m, $a, $b, $obj, int $k) {
+function probe($n, $m, $a, $b, $obj) {
     $r = $n !== 7 ? true : false;
     $r = $n <= 7 ? false : true;
-    $r = $k <= 7 ? false : true;
     $r = $m % 2 ? TRUE : FALSE;
     $r = $m | 4 ? false : true;
     $r = $a || $b ? true : false;
     $r = $a || $b ? false : true;
     $r = $obj instanceof Countable ? true : false;
     $r = ($n == $m) ? (true) : (false);
-    $r = $n == $m ? true : 0;
-    $r = in_array($n, $b) ? false : true;
-    $r = $n ?: false;
+    $r = $n<>$m ? \false : \true;
+    $r = ($a and $b) ? false : true;
+    $r = ($a < $b ? true : false);
     return $r;
 }
 ```
 
 ```php [After fix]
 <?php
-function probe($n, $m, $a, $b, $obj, int $k) {
+function probe($n, $m, $a, $b, $obj) {
     $r = $n !== 7;
     $r = !($n <= 7);
-    $r = $k > 7;
     $r = (bool)($m % 2);
     $r = !($m | 4);
     $r = ($a || $b);
     $r = !($a || $b);
     $r = (bool)($obj instanceof Countable);
     $r = $n == $m;
-    $r = $n == $m ? true : 0;
-    $r = in_array($n, $b) ? false : true;
-    $r = $n ?: false;
+    $r = $n == $m;
+    $r = !($a and $b);
+    $r = ($a < $b);
     return $r;
 }
 ```
@@ -63,13 +61,15 @@ Reported:
 <ul>
 <li>line 3: Replace the ternary with &#39;$n !== 7&#39;.</li>
 <li>line 4: Replace the ternary with &#39;!($n &lt;= 7)&#39;.</li>
-<li>line 5: Replace the ternary with &#39;$k &gt; 7&#39;.</li>
-<li>line 6: Replace the ternary with &#39;(bool)($m % 2)&#39;.</li>
-<li>line 7: Replace the ternary with &#39;!($m | 4)&#39;.</li>
-<li>line 8: Replace the ternary with &#39;($a || $b)&#39;.</li>
-<li>line 9: Replace the ternary with &#39;!($a || $b)&#39;.</li>
-<li>line 10: Replace the ternary with &#39;(bool)($obj instanceof Countable)&#39;.</li>
+<li>line 5: Replace the ternary with &#39;(bool)($m % 2)&#39;.</li>
+<li>line 6: Replace the ternary with &#39;!($m | 4)&#39;.</li>
+<li>line 7: Replace the ternary with &#39;($a || $b)&#39;.</li>
+<li>line 8: Replace the ternary with &#39;!($a || $b)&#39;.</li>
+<li>line 9: Replace the ternary with &#39;(bool)($obj instanceof Countable)&#39;.</li>
+<li>line 10: Replace the ternary with &#39;$n == $m&#39;.</li>
 <li>line 11: Replace the ternary with &#39;$n == $m&#39;.</li>
+<li>line 12: Replace the ternary with &#39;!($a and $b)&#39;.</li>
+<li>line 13: Replace the ternary with &#39;$a &lt; $b&#39;.</li>
 </ul>
 
 ## Configure

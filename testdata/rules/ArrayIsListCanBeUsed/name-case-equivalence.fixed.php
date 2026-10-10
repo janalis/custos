@@ -1,4 +1,4 @@
 <?php
 function sequential($o) {
-    return array_is_list($o->Data());
+    return array_values($o->Data()) === $o->data();
 }

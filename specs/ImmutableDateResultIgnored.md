@@ -31,7 +31,11 @@ Detect discarded return from modify, add, sub, setDate, setTime, setTimestamp or
 
 ## Fix
 
-Assign the result back to a simple local receiver only when subsequent reads establish that updated receiver is intended and no aliases escape; preserve the original call.
+Assign the result back to a fresh simple receiver whose immediately following statement echoes its literal `format` call; preserve the original modification call and its comments.
+
+The supported proof is deliberately narrow. The receiver must be initialized by the first statement of a file, namespace, function or method body with a builtin `new DateTimeImmutable` and no constructor arguments or one literal string argument. The discarded modification must be the second statement. It must call `modify` with one positional literal containing a decimal integer between -9999 and 9999, one space, and one of `day`, `hour`, `minute`, `second`, `month` or `year` (singular or plural). The following echo must have exactly one expression: the same receiver's `format` call with one positional literal string argument.
+
+Withhold the fix for parameter receivers, closure captures, conditional or loop bodies, aliases or extra intervening statements, unknown argument evaluation, other modification methods, invalid or unsupported modifier strings, and global/superglobal receiver names. These shapes cannot establish the local assignment contract.
 
 A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 
@@ -48,6 +52,11 @@ Available from PHP 5.5. Builtin behavior and argument contracts follow the confi
 ```php
 <?php
 $day=new DateTimeImmutable('2025-03-10'); <warning descr="Assign the returned immutable date.">$day->modify('+1 day')</warning>; echo $day->format('c');
+```
+
+```php
+<?php
+$day=new DateTimeImmutable('2025-03-10'); $day = $day->modify('+1 day'); echo $day->format('c');
 ```
 
 ## Divergences

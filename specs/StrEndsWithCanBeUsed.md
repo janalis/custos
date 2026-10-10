@@ -18,7 +18,7 @@ which is clearer and avoids building a temporary string.
 
 - **D1** A function call `S` whose name (last segment, case-insensitive, as
   PHP compares function names: `SubStr` matches) is
-  `substr` or `mb_substr` and which resolves to that global
+  `substr` and which resolves to that global
   function under PHP's runtime rules: `\substr(...)` and an unqualified call in
   the global namespace match; an unqualified call inside a namespace matches
   only when no function of that name is declared in the namespace or
@@ -26,11 +26,10 @@ which is clearer and avoids building a temporary string.
 - **D2** `S` has exactly two arguments, haystack `H` and start `X`.
 - **D3** `S`'s **direct** parent is a binary `===` or `!==` expression `B`.
 - **D4** `X` is a unary minus whose operand is **directly** (no parentheses) a
-  function call named (last segment, case-insensitive) `strlen` or `mb_strlen`
+  function call named (last segment, case-insensitive) `strlen`
   that resolves to that global function (same rules as D1), with exactly one
   argument `L`. Whitespace between `-` and the call is
-  allowed (`- strlen($n)`). The two functions need not "match"
-  (`substr` + `mb_strlen` is accepted).
+  allowed (`- strlen($n)`). Both operations must use byte units.
 - **D5** The other operand of `B` (call it `N`) is structurally equivalent to
   `L` (same node kind and token sequence ignoring whitespace/comments, or
   identical text; plain variables compare by name).
@@ -50,6 +49,12 @@ which is clearer and avoids building a temporary string.
   accesses, and keywords — compare case-insensitively (`Cache::$map['k']`
   matches `cache::$map['k']`, `$o->Name()` matches `$o->name()`); variable,
   property and constant names stay case-sensitive.
+
+### Safety requirements
+
+Only byte-based `substr` measured with byte-based `strlen` qualifies.
+Multibyte substring calls and multibyte length calls are skipped, including
+mixed pairs whose lengths use different units.
 
 ## Exceptions (no report)
 
@@ -73,7 +78,7 @@ which is clearer and avoids building a temporary string.
 - **F1** Replace `B` with `R`; the negated form has no space after `!`
   (`!str_ends_with(H, N)`). Arguments are copied verbatim, separated by `, `.
   - `substr($file, -strlen('.php')) === '.php'` → `str_ends_with($file, '.php')`
-  - `$ext !== mb_substr($name, - mb_strlen($ext))` → `!str_ends_with($name, $ext)`
+  - `$ext !== substr($name, - strlen($ext))` → `!str_ends_with($name, $ext)`
 
 ## Options
 
@@ -90,12 +95,8 @@ Reported only at language level ≥ 8.0. The upstream fixture runs at 8.0.
 function isType(string $file, string $ext): array {
     return [
         <weak_warning descr="Replace with 'str_ends_with($file, $ext)'.">substr($file, -strlen($ext)) === $ext</weak_warning>,
-        <weak_warning descr="Replace with 'str_ends_with($file, '.gz')'.">'.gz' === mb_substr($file, - mb_strlen('.gz'))</weak_warning>,
-        <weak_warning descr="Replace with '!str_ends_with(basename($file), $ext)'.">substr(basename($file), -mb_strlen($ext)) !== $ext</weak_warning>,
-        substr($file, -strlen($ext)) === '.txt',
-        substr($file, -strlen($ext), 2) === $ext,
-        substr($file, -3) === $ext,
-        mb_substr($file, -mb_strlen($ext, 'UTF-8')) === $ext,
+        '.gz' === mb_substr($file, - mb_strlen('.gz')),
+        substr(basename($file), -mb_strlen($ext)) !== $ext,
     ];
 }
 ```
@@ -104,18 +105,19 @@ function isType(string $file, string $ext): array {
 <?php
 function isType(string $file, string $ext): array {
     return [
-        str_ends_with($file, $ext),
-        str_ends_with($file, '.gz'),
-        !str_ends_with(basename($file), $ext),
-        substr($file, -strlen($ext)) === '.txt',
-        substr($file, -strlen($ext), 2) === $ext,
-        substr($file, -3) === $ext,
-        mb_substr($file, -mb_strlen($ext, 'UTF-8')) === $ext,
+        substr($file, -strlen($ext)) === $ext,
+        '.gz' === mb_substr($file, - mb_strlen('.gz')),
+        substr(basename($file), -mb_strlen($ext)) !== $ext,
     ];
 }
 ```
 
 ## Divergences
+
+- **Audit safety (custos diverges).** Suffix rewriting requires byte lengths with byte substrings. Mixed
+  substr/mb_strlen or mb_substr/strlen pairs can produce different results;
+  multibyte defaults do not prove byte-equivalent behavior, so these cases
+  are not reported.
 
 - **Empty needle — custos diverges from upstream** (D7). With `''` as the
   needle, `-strlen('')` is `0`, so `substr($h, 0)` is the whole haystack and

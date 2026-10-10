@@ -11,7 +11,7 @@ php: { min: "", max: "" }
 ## Summary
 
 Measuring a string's length only to know whether it is empty
-(`strlen($s) > 0`, `!mb_strlen($s)`, `if (strlen($s))`) is indirect and
+(`strlen($s) > 0`, `!strlen($s)`, `if (strlen($s))`) is indirect and
 slower than comparing with the empty string. Suggest an identity comparison
 with `''` instead, casting to string when the value is not known to be a
 string.
@@ -19,12 +19,11 @@ string.
 ## Detection
 
 - **D1** A plain function call that resolves to the global function
-  `strlen` or `mb_strlen` — name compared case-insensitively as PHP does
-  (`StrLen`, `\MB_STRLEN` match); written with a single leading `\`, or
+  `strlen` — name compared case-insensitively as PHP does
+  (`StrLen`, `\STRLEN` match); written with a single leading `\`, or
   unqualified with no function of that name declared or imported in the
   current namespace (`Ns\strlen(...)` and shadowing user functions are not
-  matched) — with at least one argument
-  (extra arguments such as an encoding are allowed and ignored). Call it
+  matched) — with exactly one argument. Call it
   `L`, its first argument `A`.
 - **D2** `L` may be located anywhere: inside a function-like or class body,
   or in top-level file code (custos diverges, see Divergences).
@@ -68,6 +67,12 @@ Boolean contexts — when D3–D5 did not match:
 e.g. `trim()` returns `string`) contains **exactly one** type and that type
 is `string`. Anything else — unknown type, `?string` / `string|null`,
 `int`, `float`, unions — needs a cast.
+
+### Safety requirements
+
+Only the byte-based built-in `strlen` with exactly one plain argument
+qualifies. Multibyte length calls are not reported, regardless of whether
+an encoding argument is explicit.
 
 ## Exceptions (no report)
 
@@ -123,7 +128,7 @@ is `string`. Anything else — unknown type, `?string` / `string|null`,
   fixture runs in **yoda** style, so conformance expects `'' === $s`,
   `'' !== (string)$n`.
 - Examples (regular): `strlen($name) > 0` → `$name !== ''`;
-  `!mb_strlen($id)` with unknown `$id` → `(string)$id === ''`.
+  `!strlen($id)` with unknown `$id` → `(string)$id === ''`.
   Examples (yoda): the same give `'' !== $name` and `'' === (string)$id`.
 
 ## Options
@@ -141,66 +146,45 @@ regardless of the configured version.
 
 ## Examples
 
-Yoda style:
-
 ```php
 <?php
-function probe(string $name, ?string $alias, int $count, $raw, array $bag)
+class Form
 {
-    if (<weak_warning descr="Compare with an empty string instead: ''' !== $name'.">strlen($name)</weak_warning>) {}
-    while (<weak_warning descr="Compare with an empty string instead: ''' === $name'.">!mb_strlen($name, 'UTF-8')</weak_warning>) {}
-    if (!(<weak_warning descr="Compare with an empty string instead: ''' !== (string)$alias'.">strlen($alias)</weak_warning>)) {}
-    $a = <weak_warning descr="Compare with an empty string instead: ''' !== (string)$raw'.">mb_strlen($raw)</weak_warning> ? 'y' : 'n';
-    $b = $count > 2 and <weak_warning descr="Compare with an empty string instead: ''' !== trim($raw)'.">strlen(trim($raw))</weak_warning>;
-
-    $c = <weak_warning descr="Compare with an empty string instead: ''' === $name'.">0 === mb_strlen($name)</weak_warning>;
-    $d = <weak_warning descr="Compare with an empty string instead: ''' !== (string)$count'.">strlen($count) <> 0</weak_warning>;
-    $e = <weak_warning descr="Compare with an empty string instead: ''' === (string)$alias'.">strlen($alias)  ==  0</weak_warning>;
-    $f = <weak_warning descr="Compare with an empty string instead: ''' !== $name'.">mb_strlen($name) > 0</weak_warning>;
-    $g = <weak_warning descr="Compare with an empty string instead: ''' !== (string)$bag['k']'.">strlen($bag['k']) >= 1</weak_warning>;
-    $h = <weak_warning descr="Compare with an empty string instead: ''' === $name'.">strlen($name) < 1</weak_warning>;
-
-    $i = 0 < strlen($name);
-    $j = strlen($name) > 1;
-    $k = (strlen($name)) > 0;
-    $l = strlen($name) ?: 5;
-    return strlen($name);
+    public function check(string $name, $id, int $n)
+    {
+        $a = <weak_warning descr="Compare with an empty string instead: '$name !== '''.">strlen($name) > 0</weak_warning>;
+        $b = !mb_strlen($id);
+        $c = <weak_warning descr="Compare with an empty string instead: '(string)$n !== '''.">strlen($n) != 0</weak_warning>;
+        $d = $a || <weak_warning descr="Compare with an empty string instead: '$name !== '''.">\strlen($name)</weak_warning>;
+        do {} while (<weak_warning descr="Compare with an empty string instead: '$name === '''.">strlen($name) == 0</weak_warning>);
+        $f = fn($s) => <weak_warning descr="Compare with an empty string instead: '(string)$s !== '''.">strlen($s) !== 0</weak_warning>;
+        return [$a, $b, $c, $d, $f];
+    }
 }
-
-if (<weak_warning descr="Compare with an empty string instead: ''' !== (string)$argv[1]'.">strlen($argv[1])</weak_warning>) {}
 ```
 
 ```php
 <?php
-function probe(string $name, ?string $alias, int $count, $raw, array $bag)
+class Form
 {
-    if ('' !== $name) {}
-    while ('' === $name) {}
-    if (!('' !== (string)$alias)) {}
-    $a = '' !== (string)$raw ? 'y' : 'n';
-    $b = $count > 2 and '' !== trim($raw);
-
-    $c = '' === $name;
-    $d = '' !== (string)$count;
-    $e = '' === (string)$alias;
-    $f = '' !== $name;
-    $g = '' !== (string)$bag['k'];
-    $h = '' === $name;
-
-    $i = 0 < strlen($name);
-    $j = strlen($name) > 1;
-    $k = (strlen($name)) > 0;
-    $l = strlen($name) ?: 5;
-    return strlen($name);
+    public function check(string $name, $id, int $n)
+    {
+        $a = $name !== '';
+        $b = !mb_strlen($id);
+        $c = (string)$n !== '';
+        $d = $a || $name !== '';
+        do {} while ($name === '');
+        $f = fn($s) => (string)$s !== '';
+        return [$a, $b, $c, $d, $f];
+    }
 }
-
-if ('' !== (string)$argv[1]) {}
 ```
-
-Regular style (default), same input lines `$c`, `$d`, `$a` become
-`$name === ''`, `(string)$count !== ''`, `(string)$raw !== '' ? 'y' : 'n'`.
 
 ## Divergences
+
+- **Audit safety (custos diverges).** Multibyte length checks are skipped: some encodings represent zero
+  characters with nonempty bytes, and removing an encoding argument can
+  discard side effects. Extra strlen arguments are also not discarded.
 
 - **Parenthesised argument (custos diverges).** Upstream inserts `A`'s
   text unparenthesised, so low-precedence arguments produce wrong code:

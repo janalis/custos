@@ -12,6 +12,6 @@ namespace Check {
 
 namespace {
     function probe(string $s) {
-        return $s !== '';
+        return MB_STRLEN($s) > 0;
     }
 }

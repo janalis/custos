@@ -16,46 +16,21 @@ which is clearer and avoids building a temporary string.
 
 ## Example
 
-::: code-group
-
-```php{4,5,6} [Before]
+```php{4}
 <?php
 function isType(string $file, string $ext): array {
     return [
         substr($file, -strlen($ext)) === $ext,
         '.gz' === mb_substr($file, - mb_strlen('.gz')),
         substr(basename($file), -mb_strlen($ext)) !== $ext,
-        substr($file, -strlen($ext)) === '.txt',
-        substr($file, -strlen($ext), 2) === $ext,
-        substr($file, -3) === $ext,
-        mb_substr($file, -mb_strlen($ext, 'UTF-8')) === $ext,
     ];
 }
 ```
-
-```php [After fix]
-<?php
-function isType(string $file, string $ext): array {
-    return [
-        str_ends_with($file, $ext),
-        str_ends_with($file, '.gz'),
-        !str_ends_with(basename($file), $ext),
-        substr($file, -strlen($ext)) === '.txt',
-        substr($file, -strlen($ext), 2) === $ext,
-        substr($file, -3) === $ext,
-        mb_substr($file, -mb_strlen($ext, 'UTF-8')) === $ext,
-    ];
-}
-```
-
-:::
 
 Reported:
 
 <ul>
 <li>line 4: Replace with &#39;str_ends_with($file, $ext)&#39;.</li>
-<li>line 5: Replace with &#39;str_ends_with($file, &#39;.gz&#39;)&#39;.</li>
-<li>line 6: Replace with &#39;!str_ends_with(basename($file), $ext)&#39;.</li>
 </ul>
 
 ## Configure

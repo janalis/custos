@@ -2,15 +2,15 @@
 function probe(string $name, ?string $alias, int $count, $raw, array $bag)
 {
     if ('' !== $name) {}
-    while ('' === $name) {}
+    while (!mb_strlen($name, 'UTF-8')) {}
     if (!('' !== (string)$alias)) {}
-    $a = '' !== (string)$raw ? 'y' : 'n';
+    $a = mb_strlen($raw) ? 'y' : 'n';
     $b = $count > 2 and '' !== trim($raw);
 
-    $c = '' === $name;
+    $c = 0 === mb_strlen($name);
     $d = '' !== (string)$count;
     $e = '' === (string)$alias;
-    $f = '' !== $name;
+    $f = mb_strlen($name) > 0;
     $g = '' !== (string)$bag['k'];
     $h = '' === $name;
 

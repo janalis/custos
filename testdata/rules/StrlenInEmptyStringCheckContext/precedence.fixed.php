@@ -3,7 +3,7 @@ function pick(string $p, string $q, $raw, ?string $alt, string $tail)
 {
     $a = ($p ?: $q) !== '';
     $b = (string)($raw ?? $alt) === '';
-    $c = (string)($raw + 1) !== '';
+    $c = mb_strlen($raw + 1) != 0;
     $d = $p . $tail !== '';
     $e = ($p ? $q : $tail) === '';
     $f = trim((string) $raw) !== '';

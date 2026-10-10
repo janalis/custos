@@ -4,7 +4,7 @@ class Form
     public function check(string $name, $id, int $n)
     {
         $a = $name !== '';
-        $b = (string)$id === '';
+        $b = !mb_strlen($id);
         $c = (string)$n !== '';
         $d = $a || $name !== '';
         do {} while ($name === '');

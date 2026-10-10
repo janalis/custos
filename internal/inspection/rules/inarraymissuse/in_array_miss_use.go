@@ -26,6 +26,15 @@ func (inArrayMissUse) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	needle, hay := args[0], args[1]
+	// Removing the mode expression must preserve both its value and effects.
+	strictMode := false
+	if len(args) == 3 {
+		var known bool
+		strictMode, known = astquery.BoolConst(syntax.UnwrapParens(args[2]))
+		if !known {
+			return
+		}
+	}
 
 	// Pattern K.
 	if keys, _ := semanticquery.GlobalCall(ctx, hay, "array_keys"); keys != nil { // D3
@@ -36,7 +45,7 @@ func (inArrayMissUse) Check(ctx *analysis.Context, n syntax.Node) {
 		repl := semanticquery.QualifiedBuiltin(ctx, "array_key_exists", call.Span().Start) + "(" + ctx.Text(needle) + ", " + ctx.Text(kargs[0]) + ")"
 		span := call.Span()
 		msg := "Look the key up directly with '" + repl + "'."
-		if !iamKeyLookupSafe(ctx, needle, len(args) == 3) {
+		if !iamKeyLookupSafe(ctx, needle, strictMode) {
 			ctx.Report(span, msg)
 			return
 		}
@@ -50,7 +59,7 @@ func (inArrayMissUse) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	item := arr.Items[0]
-	if item.Unpack || item.ByRef || item.Value == nil { // spec Divergences
+	if item.Unpack || item.ByRef || item.Value == nil || (item.Key != nil && !iamLiteralKey(item.Key)) { // spec Divergences
 		return
 	}
 	value := item.Value
@@ -77,12 +86,7 @@ func (inArrayMissUse) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 
-	strict := ctx.Bool("FORCE_STRICT_COMPARISON") // D6
-	if len(args) == 3 {
-		if v, isBool := astquery.BoolConst(args[2]); isBool && v {
-			strict = true
-		}
-	}
+	strict := ctx.Bool("FORCE_STRICT_COMPARISON") || strictMode // D6
 	op := "=="
 	if !exists {
 		op = "!="
@@ -159,4 +163,10 @@ func bindsTighterThanEquality(k syntax.TokenKind) bool {
 		return true
 	}
 	return false
+}
+
+// Literal keys can be removed without evaluating user code or coercing objects.
+func iamLiteralKey(e syntax.Expr) bool {
+	lit, ok := syntax.UnwrapParens(e).(*syntax.Literal)
+	return ok && (lit.LitKind == syntax.LitString || lit.LitKind == syntax.LitInt)
 }

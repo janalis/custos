@@ -5,6 +5,21 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Boolean ternary simplification now requires opposite arms, and array membership
+  rewrites preserve strictness and key evaluation.
+- Array deduplication and list checks require compatible values and stable
+  evaluation; indexed append checks avoid sparse-array false positives.
+- Substring-to-array-access fixes require safe offsets, preserve source
+  evaluation, and respect PHP-version differences.
+- String checks and PHP 8 string-function rewrites preserve byte semantics by
+  excluding multibyte operations and mixed string units.
+- Ignored immutable date results now offer an assignment fix when receiver
+  ownership and the modification can be proven safe.
+- Replacement backreference fixes handle all supported references in one pass
+  while preserving string quoting and escaping.
+
 ## [0.1.3] - 2026-10-10
 
 ### Added

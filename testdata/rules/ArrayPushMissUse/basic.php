@@ -14,6 +14,6 @@ class Log {
     }
 }
 
-$queue[<warning descr="The index is redundant here; use '[]' to append.">count</warning>($queue)] = $job;
-$this->items[<warning descr="The index is redundant here; use '[]' to append.">count</warning>($this->items)] = $job;
-$queue[\<warning descr="The index is redundant here; use '[]' to append.">count</warning>($queue)] = &$job;
+$queue[count($queue)] = $job;
+$this->items[count($this->items)] = $job;
+$queue[\count($queue)] = &$job;

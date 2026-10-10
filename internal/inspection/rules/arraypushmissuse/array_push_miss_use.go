@@ -3,6 +3,7 @@ package arraypushmissuse
 import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -66,6 +67,38 @@ func (arrayPushMissUse) checkCount(ctx *analysis.Context, a *syntax.Assign) {
 	if !ok || len(args) != 1 || !astquery.EquivalentFoldNames(ctx.File, dim.Var, args[0]) { // D7
 		return
 	}
+	if !apmFreshList(ctx, a, dim.Var) {
+		return
+	}
 	name := call.Name.(*syntax.Name)
 	ctx.Report(astquery.NamePartSpan(name), "The index is redundant here; use '[]' to append.")
+}
+
+// A newly assigned unkeyed literal has no sparse keys or hidden next-index
+// history. Mere list-shaped types cannot establish that after unset().
+func apmFreshList(ctx *analysis.Context, a *syntax.Assign, target syntax.Expr) bool {
+	v, ok := target.(*syntax.Variable)
+	stmt, standalone := a.Parent().(*syntax.ExprStmt)
+	if !ok || v.NameExpr != nil || !standalone || flowquery.MayHaveSideEffects(a.Value) {
+		return false
+	}
+	prev, _ := astquery.PrevStmt(ctx.File, stmt)
+	es, ok := prev.(*syntax.ExprStmt)
+	if !ok {
+		return false
+	}
+	assign, ok := es.Expr.(*syntax.Assign)
+	if !ok || assign.Op.Kind != syntax.TEqual || assign.ByRef || !astquery.Equivalent(ctx.File, assign.Var, target) {
+		return false
+	}
+	arr, ok := syntax.UnwrapParens(assign.Value).(*syntax.Array)
+	if !ok {
+		return false
+	}
+	for _, item := range arr.Items {
+		if item == nil || item.Key != nil || item.Unpack || item.ByRef {
+			return false
+		}
+	}
+	return true
 }

@@ -10,7 +10,7 @@ php: { min: "8.0", max: "" }
 
 ## Summary
 
-Comparing a `strpos()`/`mb_strpos()` result strictly against `false` is the
+Comparing a `strpos()` result strictly against `false` is the
 pre-PHP 8 idiom for "does the string contain this substring". PHP 8 has
 `str_contains()` for exactly that.
 
@@ -18,7 +18,7 @@ pre-PHP 8 idiom for "does the string contain this substring". PHP 8 has
 
 - **D1** A function call `P` whose name (last segment, case-insensitive, as
   PHP compares function names: `StrPos` matches) is
-  `strpos` or `mb_strpos` and which resolves to that global
+  `strpos` and which resolves to that global
   function under PHP's runtime rules: `\strpos(...)` and an unqualified call in
   the global namespace match; an unqualified call inside a namespace matches
   only when no function of that name is declared in the namespace or
@@ -35,6 +35,11 @@ pre-PHP 8 idiom for "does the string contain this substring". PHP 8 has
     imported into, the current namespace); empty otherwise.
   - core = `ns` + `str_contains(` + H text + `, ` + N text + `)`.
   - `!==` → `R = core`; `===` → `R = !core` (negated).
+
+### Safety requirements
+
+Only the byte-based built-in `strpos` qualifies. `mb_strpos` is skipped
+because its mutable default encoding does not establish byte equivalence.
 
 ## Exceptions (no report)
 
@@ -60,7 +65,7 @@ pre-PHP 8 idiom for "does the string contain this substring". PHP 8 has
   after `!`: `!str_contains(H, N)`. Arguments are separated by `, ` and copied
   verbatim.
   - `strpos($s, 'x') !== false` → `str_contains($s, 'x')`
-  - `false === \mb_strpos($s, $t)` → `!\str_contains($s, $t)`
+  - `false === \strpos($s, $t)` → `!\str_contains($s, $t)`
 
 ## Options
 
@@ -76,13 +81,9 @@ Reported only at language level ≥ 8.0. The upstream fixture runs at 8.0.
 <?php
 function scan(string $line, string $tag) {
     $hit  = <weak_warning descr="Replace with 'str_contains($line, $tag)'.">strpos($line, $tag) !== false</weak_warning>;
-    $hit2 = <weak_warning descr="Replace with 'str_contains($line, '#')'.">FALSE !== mb_strpos($line, '#')</weak_warning>;
+    $hit2 = FALSE !== mb_strpos($line, '#');
     $miss = <weak_warning descr="Replace with '!\str_contains(trim($line), $tag)'.">\strpos(trim($line), $tag) === false</weak_warning>;
-    $from = strpos($line, $tag, 3) !== false;
-    $loose = strpos($line, $tag) != false;
-    $zero = strpos($line, $tag) === 0;
-    $wrapped = (strpos($line, $tag)) !== false;
-    return [$hit, $hit2, $miss, $from, $loose, $zero, $wrapped];
+    return [$hit, $hit2, $miss];
 }
 ```
 
@@ -90,17 +91,17 @@ function scan(string $line, string $tag) {
 <?php
 function scan(string $line, string $tag) {
     $hit  = str_contains($line, $tag);
-    $hit2 = str_contains($line, '#');
+    $hit2 = FALSE !== mb_strpos($line, '#');
     $miss = !\str_contains(trim($line), $tag);
-    $from = strpos($line, $tag, 3) !== false;
-    $loose = strpos($line, $tag) != false;
-    $zero = strpos($line, $tag) === 0;
-    $wrapped = (strpos($line, $tag)) !== false;
-    return [$hit, $hit2, $miss, $from, $loose, $zero, $wrapped];
+    return [$hit, $hit2, $miss];
 }
 ```
 
 ## Divergences
+
+- **Audit safety (custos diverges).** Multibyte search is not rewritten to byte search. A default such as
+  UTF-16LE can make mb_strpos disagree with str_contains even on short
+  literal byte strings.
 
 - **Callee resolved — custos diverges from upstream** (D1, D5). Upstream
   ignores namespaces: a user `App\strpos()` (with its own semantics) is
@@ -109,8 +110,7 @@ function scan(string $line, string $tag) {
   custos reports only calls that reach the built-in, and qualifies the
   generated `str_contains` with `\` when a bare name would not reach the
   built-in.
-- Replacing `mb_strpos` by `str_contains` is byte-based; equivalent for
-  containment checks with valid encodings. Kept.
+- Multibyte operations are excluded by the safety requirements above.
 - **Function-name case (custos diverges):** upstream compares `strpos` /
   `mb_strpos` case-sensitively, missing `StrPos(...)` or `MB_STRPOS(...)`,
   which call the same built-ins. custos matches any case (D1).

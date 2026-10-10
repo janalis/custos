@@ -1,7 +1,7 @@
 <?php
 function peek(string $buf, ?string $maybe, string|int $mixed, array $rows, int $at)
 {
-    $a = ($buf[$at] ?? '');
+    $a = substr($buf, $at, 1);
     $b = ($buf[strlen($buf) - 1] ?? '');
     $c = ($maybe[0] ?? '');
     $d = substr($mixed, 2, 1);

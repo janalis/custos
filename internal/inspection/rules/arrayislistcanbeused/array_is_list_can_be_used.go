@@ -49,6 +49,10 @@ func (arrayIsListCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 		other = bin.Left
 	}
 	arg := args[0]
+	v, stable := arg.(*syntax.Variable)
+	if !stable || v.NameExpr != nil {
+		return
+	}
 	if name == "array_values" {
 		if !astquery.EquivalentFoldNames(ctx.File, other, arg) { // D3
 			return

@@ -34,7 +34,7 @@ Common preconditions:
 - **D3** `H` is a function call (not a method call) that resolves to the
   global `array_keys` (case-insensitive, same resolution as D1) and which has **exactly 1**
   argument `A`. (`array_keys($a, $v)` with a search value does not qualify.)
-- `S` is ignored entirely (strict or not, present or not).
+- `S`, when present, is a known boolean; its value controls fix safety.
 - Report kind K on the `in_array` call.
 
 ### Pattern C — single-element haystack
@@ -60,8 +60,16 @@ call named `array_keys`).
     default (`T` = the call, *exists*).
 - **D6** Strictness: strict when the option `FORCE_STRICT_COMPARISON` is on,
   or when `S` is present and is the constant `true` (any case). Otherwise
-  loose (including `S` = `false`, `1`, a variable…).
+  loose when `S` is absent or is literal `false`. Unknown modes are skipped.
 - Report kind C on `T`.
+
+### Safety requirements
+
+An optional strictness argument must be a literal boolean (parentheses
+allowed). Its actual value controls key-lookup safety; the mere presence
+of a third argument does not imply strict comparison. Unknown modes and
+mode expressions with side effects are not reported. A keyed single-element
+array is eligible only with a literal integer or string key.
 
 ## Exceptions (no report)
 
@@ -134,14 +142,11 @@ function checks($role, $list, $map, $a, $b)
     $r[] = <warning descr="Compare directly: '$role != 'admin''.">true != in_array($role, ['admin'])</warning>;
     $r[] = $b || <warning descr="Compare directly: '$role == 'admin''.">in_array($role, ['admin'])</warning>;
     $r[] = <warning descr="Compare directly: '($a . $b) == 'ab''.">in_array($a . $b, ['ab'])</warning>;
-    $r[] = <warning descr="Compare directly: '($a ? $b : 0) === 3''.">in_array($a ? $b : 0, [3], true)</warning>;
+    $r[] = <warning descr="Compare directly: '($a ? $b : 0) === 3'.">in_array($a ? $b : 0, [3], true)</warning>;
+    $r[] = <warning descr="Compare directly: '($a ?? 0) != 7'.">in_array($a ?? 0, [7]) !== true</warning>;
+    $r[] = <warning descr="Compare directly: '$a == 1'.">in_array($a, [1])</warning> . 'x';
     $r[] = !<warning descr="Look the key up directly with 'array_key_exists($role, $map)'.">in_array($role, array_keys($map), true)</warning>;
     $r[] = <warning descr="Look the key up directly with 'array_key_exists('id', $map)'.">\in_array('id', array_keys($map))</warning>;
-
-    $r[] = in_array($role, []);
-    $r[] = in_array($role, ['admin', 'owner']);
-    $r[] = in_array($role, $list);
-    $r[] = in_array($role, array_keys($map, 1));
     return $r;
 }
 ```
@@ -161,20 +166,19 @@ function checks($role, $list, $map, $a, $b)
     $r[] = $b || $role == 'admin';
     $r[] = ($a . $b) == 'ab';
     $r[] = ($a ? $b : 0) === 3;
-    $r[] = !array_key_exists($role, $map);
+    $r[] = ($a ?? 0) != 7;
+    $r[] = ($a == 1) . 'x';
+    $r[] = !in_array($role, array_keys($map), true);
     $r[] = array_key_exists('id', $map);
-
-    $r[] = in_array($role, []);
-    $r[] = in_array($role, ['admin', 'owner']);
-    $r[] = in_array($role, $list);
-    $r[] = in_array($role, array_keys($map, 1));
     return $r;
 }
 ```
 
-Yoda style: `in_array($role, ['admin'], true)` → `'admin' === $role`.
-
 ## Divergences
+
+- **Audit safety (custos diverges).** Dynamic strictness arguments are not discarded or guessed. Literal false
+  uses loose key-lookup safety. Nonliteral keys are skipped because replacing
+  the haystack with its value would remove key evaluation.
 
 - **Precedence when `T` is the bare call inside an operator:** the call is
   replaced by an unparenthesised comparison. Fine under `&&`/`||`, but under

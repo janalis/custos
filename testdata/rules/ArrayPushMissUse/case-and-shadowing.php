@@ -11,5 +11,5 @@ namespace App {
 namespace {
     $list = [];
     <warning descr="Use '$list[] = 1' instead; it avoids a function call.">Array_Push($list, 1)</warning>;
-    $list[<warning descr="The index is redundant here; use '[]' to append.">COUNT</warning>($list)] = 2;
+    $list[COUNT($list)] = 2;
 }

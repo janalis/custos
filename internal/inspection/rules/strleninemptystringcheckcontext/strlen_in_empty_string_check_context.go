@@ -18,11 +18,11 @@ func (strlenInEmptyStringCheckContext) Kinds() []syntax.NodeKind {
 
 func (strlenInEmptyStringCheckContext) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
-	if name := ctx.GlobalFunctionName(call); name != "strlen" && name != "mb_strlen" { // D1
+	if name := ctx.GlobalFunctionName(call); name != "strlen" { // D1
 		return
 	}
 	args, ok := astquery.CallArgValues(call)
-	if !ok || len(args) == 0 || args[0] == nil {
+	if !ok || len(args) != 1 || args[0] == nil {
 		return
 	}
 	arg := args[0]

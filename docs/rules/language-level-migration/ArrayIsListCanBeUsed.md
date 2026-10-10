@@ -18,7 +18,7 @@ expressed with the built-in `array_is_list($a)`.
 
 ::: code-group
 
-```php{4,5,6,7,8} [Before]
+```php{4,5,6,7,8,15,16} [Before]
 <?php
 function inspect(array $cfg, array $other) {
     return [
@@ -27,14 +27,14 @@ function inspect(array $cfg, array $other) {
         \array_values($cfg) !== $cfg,
         array_keys($cfg) === range(0, count($cfg) - 1),
         range(0, count($cfg) - 1) !== array_keys($cfg),
-
-        array_values($cfg) === $other,
-        array_keys($cfg) === range(1, count($cfg)),
-        array_keys($cfg) === range(0, count($other) - 1),
-        array_keys($cfg, 'on') === range(0, count($cfg) - 1),
-        (array_values($cfg)) === $cfg,
-        array_values($cfg) == $cfg,
+        array_values($this->rows['a']) === $this->rows[ 'a' ],
     ];
+}
+
+function wrapped(array $cfg): bool
+{
+    return $cfg && !(array_keys($cfg) === range(0, count($cfg) - 1))
+        || array_keys($cfg) !== range(0, count($cfg) - 1) === false;
 }
 ```
 
@@ -45,16 +45,16 @@ function inspect(array $cfg, array $other) {
         array_is_list($cfg),
         !array_is_list($cfg),
         !\array_is_list($cfg),
-        array_is_list($cfg),
-        !array_is_list($cfg),
-
-        array_values($cfg) === $other,
-        array_keys($cfg) === range(1, count($cfg)),
-        array_keys($cfg) === range(0, count($other) - 1),
-        array_keys($cfg, 'on') === range(0, count($cfg) - 1),
-        (array_values($cfg)) === $cfg,
-        array_values($cfg) == $cfg,
+        $cfg !== [] && array_is_list($cfg),
+        $cfg === [] || !array_is_list($cfg),
+        array_values($this->rows['a']) === $this->rows[ 'a' ],
     ];
+}
+
+function wrapped(array $cfg): bool
+{
+    return $cfg && !($cfg !== [] && array_is_list($cfg))
+        || ($cfg === [] || !array_is_list($cfg)) === false;
 }
 ```
 
@@ -66,8 +66,10 @@ Reported:
 <li>line 4: Replace with &#39;array_is_list($cfg)&#39;.</li>
 <li>line 5: Replace with &#39;!array_is_list($cfg)&#39;.</li>
 <li>line 6: Replace with &#39;!\array_is_list($cfg)&#39;.</li>
-<li>line 7: Replace with &#39;array_is_list($cfg)&#39;.</li>
-<li>line 8: Replace with &#39;!array_is_list($cfg)&#39;.</li>
+<li>line 7: Replace with &#39;$cfg !== [] &amp;&amp; array_is_list($cfg)&#39;.</li>
+<li>line 8: Replace with &#39;$cfg === [] || !array_is_list($cfg)&#39;.</li>
+<li>line 15: Replace with &#39;$cfg !== [] &amp;&amp; array_is_list($cfg)&#39;.</li>
+<li>line 16: Replace with &#39;$cfg === [] || !array_is_list($cfg)&#39;.</li>
 </ul>
 
 ## Configure

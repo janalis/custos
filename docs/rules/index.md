@@ -332,7 +332,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [ImagickFrameIndexPastEnd](./probable-bugs/ImagickFrameIndexPastEnd) | error | on |  | any |
 | [ImagickResizeStatusUsedAsImage](./probable-bugs/ImagickResizeStatusUsedAsImage) | warning | on |  | any |
 | [ImagickSingleBlobDropsRequiredFrames](./probable-bugs/ImagickSingleBlobDropsRequiredFrames) | warning | off |  | any |
-| [ImmutableDateResultIgnored](./probable-bugs/ImmutableDateResultIgnored) | warning | on |  | PHP ≥ 5.5 |
+| [ImmutableDateResultIgnored](./probable-bugs/ImmutableDateResultIgnored) | warning | on | ✓ | PHP ≥ 5.5 |
 | [IncorrectRandomRange](./probable-bugs/IncorrectRandomRange) | error | on |  | any |
 | [IncrementalInflateEncodingMismatch](./probable-bugs/IncrementalInflateEncodingMismatch) | warning | on |  | PHP ≥ 7.0 |
 | [InfinityLoop](./probable-bugs/InfinityLoop) | error | on |  | any |

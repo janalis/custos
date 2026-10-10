@@ -31,7 +31,9 @@ Detect preg_replace with a literal replacement containing a numeric backreferenc
 
 ## Fix
 
-Rewrite the reference as ${1}1 when the pattern proves only capture 1 exists; preserve replacement quoting and escaping.
+Rewrite every ambiguous reference in the replacement in one edit, bracing its shorter existing capture number. For example, when only capture 1 exists, `$11 and $12` becomes `${1}1 and ${1}2`. Preserve the literal quote style, binary-string prefix, surrounding bytes and existing escaping. In double-quoted strings, escape a previously unescaped dollar when introducing braces to prevent PHP interpolation.
+
+Only fix ordinary single- or double-quoted literals when decoding the proposed raw edit proves the exact intended replacement value. References assembled through hexadecimal, octal or Unicode escapes, heredoc/nowdoc values, computed replacement expressions and any unproven raw-to-decoded correspondence remain report-only.
 
 A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 

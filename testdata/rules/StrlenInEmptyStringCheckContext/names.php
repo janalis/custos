@@ -12,6 +12,6 @@ namespace Check {
 
 namespace {
     function probe(string $s) {
-        return <weak_warning descr="Compare with an empty string instead: '$s !== '''.">MB_STRLEN($s) > 0</weak_warning>;
+        return MB_STRLEN($s) > 0;
     }
 }

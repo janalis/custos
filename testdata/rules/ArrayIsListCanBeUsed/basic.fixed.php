@@ -6,7 +6,7 @@ function inspect(array $cfg, array $other) {
         !\array_is_list($cfg),
         $cfg !== [] && array_is_list($cfg),
         $cfg === [] || !array_is_list($cfg),
-        array_is_list($this->rows['a']),
+        array_values($this->rows['a']) === $this->rows[ 'a' ],
     ];
 }
 
