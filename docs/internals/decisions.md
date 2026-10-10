@@ -1817,8 +1817,8 @@ rejected) is fixed; see the close-tag note above.
   - *Cost:* corpus A vendor `analyse --all` unchanged (10 alternating runs on
     a loaded machine, medians 1.7 s / 1.8 s real, 7.1 s user both); infer
     benchmarks within 1 % allocations except `BenchmarkTypeOfConditions`
-    (+4 %). Probe `TestRound4Bounded` (20k variable-property guards and
-    boolean aliases): 1.1 s.
+    (+4 %). Probe `TestPropertyGuardsAndBooleanAliasesBounded` (20k
+    variable-property guards and boolean aliases): 1.1 s.
 - **Review round 5 engine causes (2026-10-08):** the nine engine requests
   of the TYPO3/MediaWiki/Moodle/phpBB/Flarum/Pimcore review.
   - *Dynamic writes:* `extract()` (any flags, conservatively),

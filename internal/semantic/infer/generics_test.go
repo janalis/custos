@@ -139,3 +139,56 @@ class Holder {
 		"dom":       `\DOMElement`,
 	})
 }
+
+// Fewer generic arguments than templates bind the templates without bound
+// or default (Shopware's `@template TElement` / `@template TKey of
+// array-key = array-key`); unbound ones take their default.
+func TestPartialGenericArguments(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Item {}
+/**
+ * @template TElement
+ * @template TKey of array-key = array-key
+ * @implements \IteratorAggregate<TKey, TElement>
+ */
+class Collection implements \IteratorAggregate {
+    /** @return \Traversable<TKey, TElement> */
+    public function getIterator(): \Traversable {}
+    /** @return TKey */
+    public function key() {}
+}
+/** @extends Collection<Item> */
+class ItemCollection extends Collection {}
+/**
+ * @template TKey of array-key
+ * @template TValue
+ */
+class Map { /** @return TValue */ public function get() {} /** @return TKey */ public function k() {} }
+/**
+ * @template K of array-key
+ * @template V of object
+ */
+class Bounded { /** @return V */ public function v() {} }
+/**
+ * @template A
+ * @template B = int
+ */
+class Pair { /** @return B */ public function second() {} }
+/**
+ * @param Map<Item> $m
+ * @param Pair<string> $p
+ * @param \Generator<Item> $g
+ * @param Bounded<Item> $bd
+ */
+function f(ItemCollection $c, Map $m, Pair $p, \Generator $g, Bounded $bd) {
+    t('bounded', $bd->v());
+    foreach ($c as $key => $v) { t('key', $key); t('val', $v); }
+    t('mapGet', $m->get());
+    t('mapKey', $m->k());
+    t('pairDefault', $p->second());
+    foreach ($g as $x) { t('gen', $x); }
+}
+`, map[string]string{
+		"key": "int|string", "val": `\Item`, "mapGet": `\Item`, "mapKey": "mixed", "pairDefault": "int", "gen": `\Item`, "bounded": `\Item`,
+	})
+}

@@ -70,3 +70,39 @@ func TestAnonymousClassConstructorReference(t *testing.T) {
 		return true
 	})
 }
+
+// Anonymous classes are typed as the intersection of their parent and
+// interfaces: members of either side are found; their own extra methods
+// are not (no name could be written for the class).
+func TestAnonymousClassMembers(t *testing.T) {
+	src := `<?php
+interface I { public function i(): string; }
+abstract class P { public function p(): float { return 1.0; } }
+function f() {
+    $a = new class extends P implements I {
+        public function i(): string { return ''; }
+        public function own(): int { return 1; }
+    };
+    t('a', $a);
+    t('i', $a->i());
+    t('p', $a->p());
+    t('own', $a->own());
+    t('parentOnly', new class extends P {});
+    t('ifaceOnly', new class implements I { public function i(): string { return ''; } });
+    t('plain', new class {});
+}
+`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	r := names.New(f)
+	var identities []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.ClassLike); ok && c.Name == nil {
+			identities = append(identities, `\`+r.SymbolFQN(c))
+		}
+		return true
+	})
+	checkAnywhere(t, src, map[string]string{
+		"a": identities[0], "i": "string", "p": "float", "own": "int",
+		"parentOnly": identities[1], "ifaceOnly": identities[2], "plain": identities[3],
+	})
+}

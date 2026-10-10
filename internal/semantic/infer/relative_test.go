@@ -122,3 +122,20 @@ class Child extends \Library\Base {}
 function run(Child $c) { t('self', $c->same()); t('alias', $c->alias()); t('parent', $c->above()); t('static', $c->next()); t('property', $c->owner); }
 `, map[string]string{"self": `\Library\Base`, "alias": `\Library\Base`, "parent": `\Library\Root`, "static": `\Child`, "property": `\Library\Base`})
 }
+
+// `$this`, `self`, `static` inside a trait are the unknown using class.
+func TestTraitSelfUnknown(t *testing.T) {
+	checkAnywhere(t, `<?php
+trait T {
+    public function f() {
+        t('this', $this);
+        t('new', new static());
+        t('newSelf', new self());
+        t('clone', clone $this);
+        t('call', self::g());
+    }
+    public static function g(): static {}
+}
+class C { use T; public function h() { t('class', $this); } }
+`, map[string]string{"this": "?unknown", "new": "?unknown", "newSelf": "?unknown", "clone": "?unknown", "call": "?unknown", "class": `\C`})
+}

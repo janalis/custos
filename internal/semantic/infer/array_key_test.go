@@ -107,3 +107,75 @@ func TestGenericArrayKeysCrossFile(t *testing.T) {
 		return true
 	})
 }
+
+// Keys absent from a literal get no type from the other elements, also
+// after writes to other keys or nested writes.
+func TestAbsentKeysAfterWrites(t *testing.T) {
+	checkAnywhere(t, `<?php
+function f(int $x, string $k) {
+    $rows = ['total' => $x];
+    $rows['meta']['s'] = 1;
+    t('nested', $rows['meta']);
+    $w = ['a' => 1];
+    $w['b'] = 'x';
+    t('otherKey', $w['c']);
+    t('written', $w['b']);
+    $l = [1, 2];
+    $l[] = 3;
+    t('append', $l[7]);
+    $l2 = ['a' => 1];
+    $l2[] = 3;
+    t('appendStr', $l2['z']);
+    $c = ['a' => 1];
+    $c[$k] = 'v';
+    t('computed', $c['q']);
+    $d = ['a' => 1];
+    [$d['b']] = [2];
+    t('destructured', $d['b']);
+}
+`, map[string]string{
+		"nested": "?unknown", "otherKey": "?unknown", "written": "string", "append": "?unknown",
+		"appendStr": "?unknown", "computed": "string", "destructured": "?unknown",
+	})
+}
+
+func TestComputedArrayKeysAndCoalescingAssignments(t *testing.T) {
+	checkAnywhere(t, `<?php
+function f($id, array $rows) {
+    $r = [];
+    $r[$id] ??= [];
+    t('coal', $r[$id]);
+    $q = [];
+    t('expr', $q[$id] ??= []);
+    $w = ['a' => 1];
+    t('expr2', $w[$id] ??= 'x');
+    $by = [];
+    foreach ($rows as $row) { $by[$row['k']] ??= []; $by[$row['k']][] = $row; t('nested', $by[$row['k']]); }
+    $lit = ['a' => 1, 'b' => 'x'];
+    t('computed', $lit[$id]);
+    $u = [];
+    t('emptyComputed', $u[$id]);
+    $z = rand() ? ['a' => 1] : 'x';
+    t('mixedBase', $z[$id]);
+    t('literalBase', ['a' => 1, 'b' => 2][$id]);
+    $x = [];
+    [$x[$id]] = [1];
+    t('unknownWrite', $x[$id]);
+    $obj = (object) [];
+    t('objDim', $obj->{'a'} ??= 1);
+    t('propCoalesce', $obj->list[$id] ??= 1);
+}
+`, map[string]string{
+		"coal":          "array{}",
+		"expr":          "array{}",
+		"expr2":         "int|string",
+		"nested":        "array",
+		"computed":      "?unknown",
+		"emptyComputed": "?unknown",
+		"mixedBase":     "?unknown",
+		"literalBase":   "int",
+		"unknownWrite":  "?unknown",
+		"objDim":        "?unknown",
+		"propCoalesce":  "?unknown",
+	})
+}

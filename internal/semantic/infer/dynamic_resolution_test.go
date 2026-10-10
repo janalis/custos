@@ -95,3 +95,38 @@ func BenchmarkDynamicBuiltinResolution(b *testing.B) {
 		}
 	}
 }
+
+// class_alias() names resolve to the original class.
+func TestClassAlias(t *testing.T) {
+	checkAnywhere(t, `<?php
+namespace X;
+class user { public function id(): int { return 1; } }
+class_alias(user::class, \core_user::class);
+class_alias('X\user', 'legacy_user');
+class_alias('legacy_user', 'older_user');
+class_alias('loop_a', 'loop_b');
+class_alias('loop_b', 'loop_a');
+class_alias($dyn, 'never');
+class_alias(static::class, 'never2');
+class_alias(1, 'never3');
+class_alias(user::class);
+class_alias(class: 'X\user', alias: 'named');
+class_alias('', 'empty');
+function f() {
+    t('const', (new \core_user)->id());
+    t('string', (new \legacy_user)->id());
+    t('chain', (new \older_user)->id());
+    t('cycle', (new \loop_a)->id());
+}
+`, map[string]string{"const": "int", "string": "int", "chain": "int", "cycle": "?unknown"})
+	ix := index.New(nil)
+	f := syntax.Parse("a.php", []byte("<?php class A {} class_alias('A', 'B');"), syntax.Options{Version: phpversion.PHP84})
+	ix.Add(index.Extract(f))
+	if ix.Class("B", 0) == nil {
+		t.Fatal("alias not found")
+	}
+	ix.Remove("a.php")
+	if ix.Class("B", 0) != nil {
+		t.Fatal("alias kept after Remove")
+	}
+}

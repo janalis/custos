@@ -90,3 +90,22 @@ class T extends \Lib\Base {
 		"unknown":    "?unknown",
 	})
 }
+
+// assert(cond) narrows the code after it like a guard.
+func TestAssertNarrows(t *testing.T) {
+	checkAnywhere(t, `<?php
+namespace N;
+class Code {}
+function assert($x) {}
+function f(?object $b, ?object $c) {
+    \assert($b instanceof Code);
+    t('assert', $b);
+    assert($c instanceof Code);
+    t('shadowed', $c);
+}
+function g(?object $d) { assert($d !== null); t('fallback', $d); }
+`, map[string]string{"assert": `\N\Code`, "shadowed": "null|object", "fallback": "null|object"})
+	checkAnywhere(t, `<?php
+function g(?object $d, $x) { assert(); assert(...[$d]); assert(value: $d); $x->assert($d); assert($d !== null); t('global', $d); }
+`, map[string]string{"global": "object"})
+}

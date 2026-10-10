@@ -82,3 +82,35 @@ class Svc {
 		"afterThisCall": `\App\Foo|null`, "loop": `\App\Foo|null`, "reset": `\App\Foo|null`, "unknownValue": `\App\Foo|null`,
 	})
 }
+
+// A property read right after storing an unknown value is unknown unless
+// its native type is enforced.
+func TestPropertyAfterUnknownWrite(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Foo {}
+class C {
+    /** @var string */
+    protected $p;
+    private ?Foo $n = null;
+    public $pub;
+    /** @var int */
+    private static $s = 0;
+    public function h($o, Foo $f) {
+        $this->p = isset($o['k']) ? $o['k'] : null;
+        t('doc', $this->p);
+        $this->n = $o;
+        t('native', $this->n);
+        $this->p = 'x';
+        t('known', $this->p);
+        $this->p .= 'y';
+        t('compound', $this->p);
+        self::$s = $o;
+        t('static', self::$s);
+        $this->{'dyn'} = $o;
+        $x = new C();
+        $x->pub = $o;
+        t('other', $x->pub);
+    }
+}
+`, map[string]string{"doc": "?unknown", "native": `\Foo|null`, "known": "string", "compound": "string", "static": "?unknown", "other": "?unknown"})
+}

@@ -180,3 +180,80 @@ func TestManyDefinitions(t *testing.T) {
 		t.Errorf("many: got %v", got)
 	}
 }
+
+// Many exit regions and branches stay linear.
+func TestExitRegionsBounded(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("<?php\nfunction f($c, $x) {\n")
+	for i := 0; i < 20000; i++ {
+		fmt.Fprintf(&b, " $x = %d; if ($c === %d) { $x = 'a'; return; } if (is_int($x)) { $x = 1; } else { $y = $x; }\n", i, i)
+	}
+	b.WriteString(" return $x;\n}\n")
+	if d := typeAll(t, b.String()); d > testbudget.Of(2*time.Second) && !raceEnabled {
+		t.Errorf("took %v", d)
+	}
+}
+
+// Many variable-property guards and alias reads stay linear.
+func TestPropertyGuardsAndBooleanAliasesBounded(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("<?php\nclass R { public ?R $n = null; }\nfunction f(R $r, ?int $x) {\n")
+	for i := 0; i < 20000; i++ {
+		fmt.Fprintf(&b, " if ($r->n === null) { return; } $y = $r->n; $ok%d = $x !== null; if ($ok%d) { $z = $x; }\n", i%50, i%50)
+	}
+	b.WriteString("}\n")
+	if d := typeAll(t, b.String()); d > testbudget.Of(2*time.Second) && !raceEnabled {
+		t.Errorf("took %v", d)
+	}
+}
+
+// Many possibly-undefined reads and dynamic writes stay bounded.
+func TestPossiblyUndefinedBounded(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("<?php\nfunction f($c, array $v) {\n if ($c) { $r = 1; }\n")
+	for i := 0; i < 20000; i++ {
+		fmt.Fprintf(&b, " if ($c === %d) { $z = 1; } $y = $r;\n", i)
+	}
+	b.WriteString("}\nfunction g($c, array $v) {\n $r = 1;\n")
+	for i := 0; i < 20000; i++ {
+		b.WriteString(" extract($v); $y = $r;\n")
+	}
+	b.WriteString("}\n")
+	if d := typeAll(t, b.String()); d > testbudget.Of(2*time.Second) && !raceEnabled {
+		t.Errorf("took %v", d)
+	}
+}
+
+// Reaching definitions stay linear in the reads for a fixed number of
+// definitions per variable: 4x the reads costs about 4x (the kill filter
+// was quadratic in the reaching definitions: 400 definitions read 20k
+// times took 10 s).
+func TestReachingScales(t *testing.T) {
+	if raceEnabled {
+		t.Skip("timing")
+	}
+	small, large := reachingProbe(2000, 200), reachingProbe(8000, 200)
+	best := func(src string) float64 {
+		d := typeAll(t, src)
+		if d2 := typeAll(t, src); d2 < d {
+			d = d2
+		}
+		return float64(d)
+	}
+	if r := best(large) / best(small); r > 8 {
+		t.Errorf("4x the reads took %.1fx the time", r)
+	}
+}
+
+// reachingProbe reads, n times, variables that each have about perVar
+// conditional definitions (read after every one of them).
+func reachingProbe(n, perVar int) string {
+	var b strings.Builder
+	b.WriteString("<?php\nfunction f($c) {\n")
+	vars := max(1, n/perVar)
+	for i := 0; i < n; i++ {
+		fmt.Fprintf(&b, " if ($c === %d) { $r%d = %d; } $y = $r%d;\n", i, i%vars, i, i%vars)
+	}
+	b.WriteString("}\n")
+	return b.String()
+}

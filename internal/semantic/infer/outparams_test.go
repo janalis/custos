@@ -41,3 +41,32 @@ class Svc {
 		"y": "int|string[]",
 	})
 }
+
+func TestPregMatchOutputTypes(t *testing.T) {
+	checkAnywhere(t, `<?php
+function f(string $s, $flags) {
+    preg_match('/(a)(b)?/', $s, $m);
+    t('m', $m);
+    preg_match('/(a)(b)?/', $s, $m2, PREG_UNMATCHED_AS_NULL);
+    t('m2', $m2);
+    preg_match_all('/(a)(b)?/', $s, $m3, PREG_UNMATCHED_AS_NULL);
+    t('m3', $m3);
+    preg_match('/(a)/', $s, $m4, 0);
+    t('m4', $m4);
+    preg_match('/(a)/', $s, $m5, PREG_OFFSET_CAPTURE);
+    t('m5', $m5);
+    preg_match('/(a)/', $s, $m6, $flags);
+    t('m6', $m6);
+    preg_match('/(a)/', $s, $m7, ...[0]);
+    t('m7', $m7);
+}
+`, map[string]string{
+		"m":  "string[]",
+		"m2": "null[]|string[]",
+		"m3": "null[][]|string[][]",
+		"m4": "string[]",
+		"m5": "array",
+		"m6": "array",
+		"m7": "array",
+	})
+}

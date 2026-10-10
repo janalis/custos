@@ -3,7 +3,9 @@ package infer_test
 import (
 	"testing"
 
+	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/index"
 )
 
 // Magic signatures must reach the same mutation analysis as real methods.
@@ -42,4 +44,31 @@ function run(Service $service) {
 		"static":   "int[]",
 		"variadic": "int[]",
 	})
+}
+
+// `@method` tags describe only what no real declaration provides.
+func TestMagicMethodTags(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Base { public function find(): ?object { return null; } }
+/**
+ * @method static int foo()
+ * @method string bar()
+ * @method \Base find()
+ */
+class M extends Base { public function foo(): string { return ''; } }
+function f(M $m) {
+    t('own', $m->foo());
+    t('magic', $m->bar());
+    t('inherited', $m->find());
+}
+`, map[string]string{"own": "string", "magic": "string", "inherited": "null|object"})
+	f := syntax.Parse("t.php", []byte(`<?php
+/** @method static self make() */
+class F {}
+`), syntax.Options{Version: phpversion.PHP84})
+	fs := index.Extract(f)
+	m := fs.Classes[0].Methods["make"]
+	if m == nil || !m.Magic || !m.Static {
+		t.Fatalf("make: %+v", m)
+	}
 }
