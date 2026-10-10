@@ -14,6 +14,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	"custos/internal/project/config"
+	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
 )
 
@@ -54,6 +55,7 @@ type Server struct {
 	indexing bool
 	pending  []fileChange
 	index    *index.Index
+	flow     *flow.Snapshot
 	shutdown bool
 	// sem bounds concurrent analyses.
 	sem chan struct{}

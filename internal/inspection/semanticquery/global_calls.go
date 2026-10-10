@@ -18,10 +18,30 @@ func GlobalCall(ctx *analysis.Context, e syntax.Node, names ...string) (*syntax.
 	if g == "" {
 		return nil, ""
 	}
+	if declaration := ctx.Types().ResolveFunction(call); declaration != nil && !declaration.Builtin {
+		return nil, ""
+	}
 	for _, n := range names {
 		if g == n {
 			return call, n
 		}
 	}
 	return nil, ""
+}
+
+// NativeBuiltinName returns a resolved available builtin's canonical name.
+// Unlike lexical name matching, this excludes application declarations and
+// APIs unavailable at the selected language version.
+func NativeBuiltinName(ctx *analysis.Context, call *syntax.FuncCall) string {
+	name := ctx.GlobalFunctionName(call)
+	declaration := ctx.Types().ResolveFunction(call)
+	if declaration == nil || !declaration.Builtin || !declaration.Avail.In(ctx.PHP) {
+		return ""
+	}
+	return name
+}
+
+// NativeBuiltin proves that a call targets the available named builtin.
+func NativeBuiltin(ctx *analysis.Context, call *syntax.FuncCall, name string) bool {
+	return NativeBuiltinName(ctx, call) == name
 }

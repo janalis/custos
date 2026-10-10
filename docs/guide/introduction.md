@@ -15,7 +15,7 @@ and fixes many of them for you. It looks for:
 - **language-level migration**: constructs that newer PHP versions replace,
   deprecate or remove, checked against the PHP version your project targets.
 
-There are 178 rules in all; see the [rule reference](/rules/).
+There are 278 rules in all, including 100 native custos inspections; see the [rule reference](/rules/).
 
 ## Why custos
 

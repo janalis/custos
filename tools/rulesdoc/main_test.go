@@ -128,3 +128,23 @@ func TestRunErrors(t *testing.T) {
 		t.Fatalf("write error: exit %d, %q", code, stderr.String())
 	}
 }
+
+func TestNativeConformance(t *testing.T) {
+	fake(t, []meta.Rule{{ID: "Original", Native: true, Group: "Native", Severity: diagnostic.SeverityWarning}, {ID: "Ported", Group: "Native", Severity: diagnostic.SeverityWarning}}, nil)
+	root := t.TempDir()
+	write(t, filepath.Join(root, out), "")
+	write(t, filepath.Join(root, statusFile), `{"Original":"pass","Ported":"pass"}`)
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 0 {
+		t.Fatal(stderr.String())
+	}
+	body, err := os.ReadFile(filepath.Join(root, out))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"EA conformance passing: **1/1**", "| `Original` | warning |  |  |  | N/A |", "no upstream counterpart"} {
+		if !strings.Contains(string(body), want) {
+			t.Errorf("missing %q in %s", want, body)
+		}
+	}
+}

@@ -46,7 +46,8 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	e = e.WithIndex(project.BuildIndex(files, opt))
+	ix := project.BuildIndex(files, opt)
+	e = e.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(files, nil, opt, ix))
 
 	broken := map[string][]string{} // rule -> examples
 	applied := 0

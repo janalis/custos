@@ -5,6 +5,16 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- 100 native PHP inspections, independently documented with own fixtures and
+  quick-fixes where a safe correction can be determined.
+- Separate native rule metadata that survives upstream fact extraction; native
+  rules use custos IDs and have no upstream conformance requirement.
+- Bounded flow analysis with project function and method summaries, resource
+  state tracking and context-specific validation; editor summaries include
+  unsaved document changes.
+
 ## [0.1.2] - 2026-10-10
 
 ### Fixed

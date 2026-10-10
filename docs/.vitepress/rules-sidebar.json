@@ -524,12 +524,68 @@
     "collapsed": true,
     "items": [
       {
+        "text": "AmbiguousReplacementBackreference",
+        "link": "/rules/probable-bugs/AmbiguousReplacementBackreference"
+      },
+      {
+        "text": "ArrayChunkInvalidSize",
+        "link": "/rules/probable-bugs/ArrayChunkInvalidSize"
+      },
+      {
+        "text": "ArrayColumnMissingField",
+        "link": "/rules/probable-bugs/ArrayColumnMissingField"
+      },
+      {
+        "text": "ArrayCombineLengthMismatch",
+        "link": "/rules/probable-bugs/ArrayCombineLengthMismatch"
+      },
+      {
+        "text": "ArrayFilterDropsZero",
+        "link": "/rules/probable-bugs/ArrayFilterDropsZero"
+      },
+      {
+        "text": "ArrayFlipDuplicateValueLoss",
+        "link": "/rules/probable-bugs/ArrayFlipDuplicateValueLoss"
+      },
+      {
+        "text": "ArrayFlipInvalidValueType",
+        "link": "/rules/probable-bugs/ArrayFlipInvalidValueType"
+      },
+      {
+        "text": "ArrayMapMissingCallbackReturn",
+        "link": "/rules/probable-bugs/ArrayMapMissingCallbackReturn"
+      },
+      {
+        "text": "ArrayMergeNumericKeyLoss",
+        "link": "/rules/probable-bugs/ArrayMergeNumericKeyLoss"
+      },
+      {
+        "text": "ArrayReduceMissingInitialValue",
+        "link": "/rules/probable-bugs/ArrayReduceMissingInitialValue"
+      },
+      {
+        "text": "ArrowFunctionCapturedCounter",
+        "link": "/rules/probable-bugs/ArrowFunctionCapturedCounter"
+      },
+      {
         "text": "AutoloadingIssues",
         "link": "/rules/probable-bugs/AutoloadingIssues"
       },
       {
+        "text": "ByteLengthUsedAsCharacterCount",
+        "link": "/rules/probable-bugs/ByteLengthUsedAsCharacterCount"
+      },
+      {
+        "text": "BytePaddingUsedForUnicodeWidth",
+        "link": "/rules/probable-bugs/BytePaddingUsedForUnicodeWidth"
+      },
+      {
         "text": "CallableMethodValidity",
         "link": "/rules/probable-bugs/CallableMethodValidity"
+      },
+      {
+        "text": "CallbackRequiredArgumentMismatch",
+        "link": "/rules/probable-bugs/CallbackRequiredArgumentMismatch"
       },
       {
         "text": "ClassConstantUsageCorrectness",
@@ -540,12 +596,44 @@
         "link": "/rules/probable-bugs/ClassMockingCorrectness"
       },
       {
+        "text": "ClosureCapturedValueWrite",
+        "link": "/rules/probable-bugs/ClosureCapturedValueWrite"
+      },
+      {
         "text": "CompactArguments",
         "link": "/rules/probable-bugs/CompactArguments"
       },
       {
+        "text": "ContentLengthUsesCharacterCount",
+        "link": "/rules/probable-bugs/ContentLengthUsesCharacterCount"
+      },
+      {
+        "text": "CurlResponseBodyWithoutReturnTransfer",
+        "link": "/rules/probable-bugs/CurlResponseBodyWithoutReturnTransfer"
+      },
+      {
+        "text": "CurlTransportSuccessAsHttpSuccess",
+        "link": "/rules/probable-bugs/CurlTransportSuccessAsHttpSuccess"
+      },
+      {
         "text": "DateIntervalSpecification",
         "link": "/rules/probable-bugs/DateIntervalSpecification"
+      },
+      {
+        "text": "DateLastErrorsFalseUnchecked",
+        "link": "/rules/probable-bugs/DateLastErrorsFalseUnchecked"
+      },
+      {
+        "text": "DateMinutesMonthTokenConfusion",
+        "link": "/rules/probable-bugs/DateMinutesMonthTokenConfusion"
+      },
+      {
+        "text": "DateOnlyParseRetainsCurrentTime",
+        "link": "/rules/probable-bugs/DateOnlyParseRetainsCurrentTime"
+      },
+      {
+        "text": "DateParseNormalizationUnchecked",
+        "link": "/rules/probable-bugs/DateParseNormalizationUnchecked"
       },
       {
         "text": "DateTimeConstantsUsage",
@@ -556,12 +644,72 @@
         "link": "/rules/probable-bugs/DateTimeSetTimeUsage"
       },
       {
+        "text": "DirectoryIteratorDotEntries",
+        "link": "/rules/probable-bugs/DirectoryIteratorDotEntries"
+      },
+      {
+        "text": "DstUnsafeCalendarDayArithmetic",
+        "link": "/rules/probable-bugs/DstUnsafeCalendarDayArithmetic"
+      },
+      {
         "text": "DuplicateArrayKeys",
         "link": "/rules/probable-bugs/DuplicateArrayKeys"
       },
       {
+        "text": "DuplicateMatchCondition",
+        "link": "/rules/probable-bugs/DuplicateMatchCondition"
+      },
+      {
+        "text": "EnumFromUncheckedExternalValue",
+        "link": "/rules/probable-bugs/EnumFromUncheckedExternalValue"
+      },
+      {
+        "text": "ExhaustedGeneratorReused",
+        "link": "/rules/probable-bugs/ExhaustedGeneratorReused"
+      },
+      {
+        "text": "ExplodeEmptySeparator",
+        "link": "/rules/probable-bugs/ExplodeEmptySeparator"
+      },
+      {
+        "text": "FileLockFailureUnchecked",
+        "link": "/rules/probable-bugs/FileLockFailureUnchecked"
+      },
+      {
+        "text": "FileReadFailureUnchecked",
+        "link": "/rules/probable-bugs/FileReadFailureUnchecked"
+      },
+      {
+        "text": "FileTruncatedBeforeLock",
+        "link": "/rules/probable-bugs/FileTruncatedBeforeLock"
+      },
+      {
+        "text": "FileWriteResultUnchecked",
+        "link": "/rules/probable-bugs/FileWriteResultUnchecked"
+      },
+      {
+        "text": "FilteredListJsonShape",
+        "link": "/rules/probable-bugs/FilteredListJsonShape"
+      },
+      {
         "text": "ForgottenDebugOutput",
         "link": "/rules/probable-bugs/ForgottenDebugOutput"
+      },
+      {
+        "text": "GeneratorCallNeverConsumed",
+        "link": "/rules/probable-bugs/GeneratorCallNeverConsumed"
+      },
+      {
+        "text": "GlobFailureUnchecked",
+        "link": "/rules/probable-bugs/GlobFailureUnchecked"
+      },
+      {
+        "text": "HeadersAfterCommittedOutput",
+        "link": "/rules/probable-bugs/HeadersAfterCommittedOutput"
+      },
+      {
+        "text": "ImmutableDateResultIgnored",
+        "link": "/rules/probable-bugs/ImmutableDateResultIgnored"
       },
       {
         "text": "IncorrectRandomRange",
@@ -572,12 +720,32 @@
         "link": "/rules/probable-bugs/InfinityLoop"
       },
       {
+        "text": "IntervalDayComponentAsTotal",
+        "link": "/rules/probable-bugs/IntervalDayComponentAsTotal"
+      },
+      {
+        "text": "IsoWeekCalendarYearMismatch",
+        "link": "/rules/probable-bugs/IsoWeekCalendarYearMismatch"
+      },
+      {
         "text": "IssetArgumentExistence",
         "link": "/rules/probable-bugs/IssetArgumentExistence"
       },
       {
+        "text": "IteratorMaterializationKeyCollision",
+        "link": "/rules/probable-bugs/IteratorMaterializationKeyCollision"
+      },
+      {
+        "text": "JsonIntegerPrecisionLoss",
+        "link": "/rules/probable-bugs/JsonIntegerPrecisionLoss"
+      },
+      {
         "text": "MagicMethodsValidity",
         "link": "/rules/probable-bugs/MagicMethodsValidity"
+      },
+      {
+        "text": "MillisecondsUsedAsUnixSeconds",
+        "link": "/rules/probable-bugs/MillisecondsUsedAsUnixSeconds"
       },
       {
         "text": "MissingArrayInitialization",
@@ -592,6 +760,18 @@
         "link": "/rules/probable-bugs/MkdirRaceCondition"
       },
       {
+        "text": "MonthAdditionDateOverflow",
+        "link": "/rules/probable-bugs/MonthAdditionDateOverflow"
+      },
+      {
+        "text": "NoContentResponseWithBody",
+        "link": "/rules/probable-bugs/NoContentResponseWithBody"
+      },
+      {
+        "text": "NonExhaustiveEnumMatch",
+        "link": "/rules/probable-bugs/NonExhaustiveEnumMatch"
+      },
+      {
         "text": "NullPointerException",
         "link": "/rules/probable-bugs/NullPointerException"
       },
@@ -600,12 +780,68 @@
         "link": "/rules/probable-bugs/OffsetOperations"
       },
       {
+        "text": "OwnedStreamNotClosed",
+        "link": "/rules/probable-bugs/OwnedStreamNotClosed"
+      },
+      {
+        "text": "PartialStreamWriteUnchecked",
+        "link": "/rules/probable-bugs/PartialStreamWriteUnchecked"
+      },
+      {
         "text": "PassingByReferenceCorrectness",
         "link": "/rules/probable-bugs/PassingByReferenceCorrectness"
       },
       {
+        "text": "PathContainmentPrefixBoundary",
+        "link": "/rules/probable-bugs/PathContainmentPrefixBoundary"
+      },
+      {
+        "text": "PdoExecuteArrayReplacesBindings",
+        "link": "/rules/probable-bugs/PdoExecuteArrayReplacesBindings"
+      },
+      {
+        "text": "PdoFetchColumnFalsyValueLoss",
+        "link": "/rules/probable-bugs/PdoFetchColumnFalsyValueLoss"
+      },
+      {
+        "text": "PdoIdentifierPlaceholder",
+        "link": "/rules/probable-bugs/PdoIdentifierPlaceholder"
+      },
+      {
+        "text": "PdoMixedPlaceholderStyles",
+        "link": "/rules/probable-bugs/PdoMixedPlaceholderStyles"
+      },
+      {
+        "text": "PdoPlaceholderBindingMismatch",
+        "link": "/rules/probable-bugs/PdoPlaceholderBindingMismatch"
+      },
+      {
+        "text": "PdoQuotedPlaceholder",
+        "link": "/rules/probable-bugs/PdoQuotedPlaceholder"
+      },
+      {
+        "text": "PdoReferenceBindingVariableReuse",
+        "link": "/rules/probable-bugs/PdoReferenceBindingVariableReuse"
+      },
+      {
+        "text": "PdoSelectRowCountAssumption",
+        "link": "/rules/probable-bugs/PdoSelectRowCountAssumption"
+      },
+      {
+        "text": "PregMatchFailureAsNonMatch",
+        "link": "/rules/probable-bugs/PregMatchFailureAsNonMatch"
+      },
+      {
         "text": "PregQuoteUsage",
         "link": "/rules/probable-bugs/PregQuoteUsage"
+      },
+      {
+        "text": "PregReplaceFailureUnchecked",
+        "link": "/rules/probable-bugs/PregReplaceFailureUnchecked"
+      },
+      {
+        "text": "PregSplitCaptureFlagWithoutGroups",
+        "link": "/rules/probable-bugs/PregSplitCaptureFlagWithoutGroups"
       },
       {
         "text": "PreloadingUsageCorrectness",
@@ -616,20 +852,92 @@
         "link": "/rules/probable-bugs/PrintfScanfArguments"
       },
       {
+        "text": "ReadModifyWriteLockTooLate",
+        "link": "/rules/probable-bugs/ReadModifyWriteLockTooLate"
+      },
+      {
+        "text": "ReadonlyPropertyReassignment",
+        "link": "/rules/probable-bugs/ReadonlyPropertyReassignment"
+      },
+      {
         "text": "RealpathInStreamContext",
         "link": "/rules/probable-bugs/RealpathInStreamContext"
+      },
+      {
+        "text": "RedirectContinuesProtectedExecution",
+        "link": "/rules/probable-bugs/RedirectContinuesProtectedExecution"
+      },
+      {
+        "text": "RegexByteOffsetAsCharacterOffset",
+        "link": "/rules/probable-bugs/RegexByteOffsetAsCharacterOffset"
+      },
+      {
+        "text": "RepeatedCookieHeaderReplacement",
+        "link": "/rules/probable-bugs/RepeatedCookieHeaderReplacement"
+      },
+      {
+        "text": "RepeatedHtmlEntityEncoding",
+        "link": "/rules/probable-bugs/RepeatedHtmlEntityEncoding"
+      },
+      {
+        "text": "SameSiteNoneWithoutSecure",
+        "link": "/rules/probable-bugs/SameSiteNoneWithoutSecure"
+      },
+      {
+        "text": "SessionCookieOptionsSetAfterStart",
+        "link": "/rules/probable-bugs/SessionCookieOptionsSetAfterStart"
+      },
+      {
+        "text": "SessionLockHeldDuringBlockingCall",
+        "link": "/rules/probable-bugs/SessionLockHeldDuringBlockingCall"
+      },
+      {
+        "text": "SessionMutationAfterClose",
+        "link": "/rules/probable-bugs/SessionMutationAfterClose"
+      },
+      {
+        "text": "ShallowCloneNestedMutation",
+        "link": "/rules/probable-bugs/ShallowCloneNestedMutation"
+      },
+      {
+        "text": "ShortStreamReadUnchecked",
+        "link": "/rules/probable-bugs/ShortStreamReadUnchecked"
       },
       {
         "text": "SimpleXmlLoadFileUsage",
         "link": "/rules/probable-bugs/SimpleXmlLoadFileUsage"
       },
       {
+        "text": "SortComparatorReturnsBoolean",
+        "link": "/rules/probable-bugs/SortComparatorReturnsBoolean"
+      },
+      {
+        "text": "SortComparatorReturnsFloat",
+        "link": "/rules/probable-bugs/SortComparatorReturnsFloat"
+      },
+      {
+        "text": "SortResultUsedAsArray",
+        "link": "/rules/probable-bugs/SortResultUsedAsArray"
+      },
+      {
         "text": "StaticLambdaBinding",
         "link": "/rules/probable-bugs/StaticLambdaBinding"
       },
       {
+        "text": "StreamOpenFailureUnchecked",
+        "link": "/rules/probable-bugs/StreamOpenFailureUnchecked"
+      },
+      {
+        "text": "StreamUseAfterClose",
+        "link": "/rules/probable-bugs/StreamUseAfterClose"
+      },
+      {
         "text": "StringsFirstCharactersCompare",
         "link": "/rules/probable-bugs/StringsFirstCharactersCompare"
+      },
+      {
+        "text": "StrtokStateClobbered",
+        "link": "/rules/probable-bugs/StrtokStateClobbered"
       },
       {
         "text": "SuspiciousAssignments",
@@ -660,12 +968,64 @@
         "link": "/rules/probable-bugs/SwitchContinuationInLoop"
       },
       {
+        "text": "TempnamDirectoryFallbackUnchecked",
+        "link": "/rules/probable-bugs/TempnamDirectoryFallbackUnchecked"
+      },
+      {
         "text": "TraitsPropertiesConflicts",
         "link": "/rules/probable-bugs/TraitsPropertiesConflicts"
       },
       {
+        "text": "TransactionEarlyReturn",
+        "link": "/rules/probable-bugs/TransactionEarlyReturn"
+      },
+      {
+        "text": "TransactionExceptionWithoutRollback",
+        "link": "/rules/probable-bugs/TransactionExceptionWithoutRollback"
+      },
+      {
+        "text": "TrimMaskUsedAsSuffix",
+        "link": "/rules/probable-bugs/TrimMaskUsedAsSuffix"
+      },
+      {
+        "text": "UndeclaredDynamicProperty",
+        "link": "/rules/probable-bugs/UndeclaredDynamicProperty"
+      },
+      {
+        "text": "UninitializedTypedPropertyRead",
+        "link": "/rules/probable-bugs/UninitializedTypedPropertyRead"
+      },
+      {
+        "text": "UnitEnumJsonEncoding",
+        "link": "/rules/probable-bugs/UnitEnumJsonEncoding"
+      },
+      {
+        "text": "UnknownNamedArgument",
+        "link": "/rules/probable-bugs/UnknownNamedArgument"
+      },
+      {
+        "text": "UnpackedNamedArgumentCollision",
+        "link": "/rules/probable-bugs/UnpackedNamedArgumentCollision"
+      },
+      {
+        "text": "UntrustedForwardedClientAddress",
+        "link": "/rules/probable-bugs/UntrustedForwardedClientAddress"
+      },
+      {
         "text": "UsingInclusionOnceReturnValue",
         "link": "/rules/probable-bugs/UsingInclusionOnceReturnValue"
+      },
+      {
+        "text": "UsortDiscardsRequiredKeys",
+        "link": "/rules/probable-bugs/UsortDiscardsRequiredKeys"
+      },
+      {
+        "text": "Utf8ByteTruncation",
+        "link": "/rules/probable-bugs/Utf8ByteTruncation"
+      },
+      {
+        "text": "ValidatedIntegerZeroRejected",
+        "link": "/rules/probable-bugs/ValidatedIntegerZeroRejected"
       }
     ]
   },
@@ -694,6 +1054,10 @@
         "link": "/rules/security/EncryptionInitializationVectorRandomness"
       },
       {
+        "text": "FastDigestUsedForPasswordStorage",
+        "link": "/rules/security/FastDigestUsedForPasswordStorage"
+      },
+      {
         "text": "HostnameSubstitution",
         "link": "/rules/security/HostnameSubstitution"
       },
@@ -706,6 +1070,10 @@
         "link": "/rules/security/NonSecureUniqidUsage"
       },
       {
+        "text": "PasswordComparedWithFreshHash",
+        "link": "/rules/security/PasswordComparedWithFreshHash"
+      },
+      {
         "text": "PotentialMalware",
         "link": "/rules/security/PotentialMalware"
       },
@@ -714,12 +1082,44 @@
         "link": "/rules/security/SecurityAdvisories"
       },
       {
+        "text": "UnescapedHtmlOutput",
+        "link": "/rules/security/UnescapedHtmlOutput"
+      },
+      {
         "text": "UnserializeExploits",
         "link": "/rules/security/UnserializeExploits"
       },
       {
+        "text": "UntrustedFilesystemPath",
+        "link": "/rules/security/UntrustedFilesystemPath"
+      },
+      {
+        "text": "UntrustedHeaderValue",
+        "link": "/rules/security/UntrustedHeaderValue"
+      },
+      {
         "text": "UntrustedInclusion",
         "link": "/rules/security/UntrustedInclusion"
+      },
+      {
+        "text": "UntrustedNetworkDestination",
+        "link": "/rules/security/UntrustedNetworkDestination"
+      },
+      {
+        "text": "UntrustedShellCommand",
+        "link": "/rules/security/UntrustedShellCommand"
+      },
+      {
+        "text": "UntrustedSqlConstruction",
+        "link": "/rules/security/UntrustedSqlConstruction"
+      },
+      {
+        "text": "UnvalidatedRedirectTarget",
+        "link": "/rules/security/UnvalidatedRedirectTarget"
+      },
+      {
+        "text": "UploadClientMimeTrusted",
+        "link": "/rules/security/UploadClientMimeTrusted"
       }
     ]
   },

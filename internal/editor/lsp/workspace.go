@@ -7,6 +7,7 @@ import (
 
 	"custos/internal/php/syntax"
 	"custos/internal/project"
+	"custos/internal/semantic/flow"
 )
 
 // beginIndexing reports whether an enabled rule needs cross-file symbols
@@ -42,9 +43,17 @@ func (s *Server) buildIndex() {
 		return
 	}
 	ix := project.BuildIndex(project.IndexSources(cfg.Root, files), syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+	var snapshot *flow.Snapshot
+	if e.NeedsFlow() {
+		snapshot = project.BuildFlowSnapshot(files, nil, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, ix)
+	}
 	s.mu.Lock()
 	if s.engine == e {
 		s.engine = e.WithIndex(ix)
+		if snapshot != nil {
+			s.engine = s.engine.WithFlow(snapshot)
+			s.flow = snapshot
+		}
 		s.index = ix
 	}
 	s.indexing = false
@@ -53,6 +62,9 @@ func (s *Server) buildIndex() {
 	s.mu.Unlock()
 	if len(queued) > 0 {
 		s.watchedFilesChanged(queued) // replays and re-analyses
+	}
+	if e.NeedsFlow() {
+		s.refreshFlow()
 	}
 	n, _, _, _ := ix.Stats()
 	s.logf("indexed %d files in %v", n, time.Since(start).Round(time.Millisecond))
@@ -101,11 +113,11 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 		ix.Add(fs)
 	}
 	if touched {
+		s.refreshFlow()
 		s.reanalyzeAll()
 	}
 }
 
-// reindexDoc refreshes the saved document's symbols in the project index.
 // reindexDoc refreshes the index entry of an open document from its buffer;
 // it reports whether the index changed.
 func (s *Server) reindexDoc(uri string) bool {
@@ -124,5 +136,51 @@ func (s *Server) reindexDoc(uri string) bool {
 	fs := project.ExtractSymbols(path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
 	ix.DropStaleInferred(fs)
 	ix.Add(fs)
+	s.refreshFlow()
 	return true
+}
+
+// refreshFlow rebuilds only project-local summaries and overlays open buffers.
+// Publish the immutable snapshot through an engine copy under the server lock.
+func (s *Server) refreshFlow() {
+	s.mu.Lock()
+	e, ix, cfg := s.engine, s.index, s.cfg
+	if e == nil || !e.NeedsFlow() || ix == nil {
+		s.mu.Unlock()
+		return
+	}
+	type buffer struct {
+		path string
+		src  []byte
+	}
+	buffers := []buffer{}
+	for _, d := range s.docs {
+		buffers = append(buffers, buffer{d.path, d.text})
+	}
+	s.mu.Unlock()
+	for _, b := range buffers {
+		symbols := project.ExtractSymbols(b.path, b.src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+		ix.DropStaleInferred(symbols)
+		ix.Add(symbols)
+	}
+	paths := []string{}
+	for _, p := range cfg.Paths {
+		paths = append(paths, filepath.Join(cfg.Root, p))
+	}
+	files, err := project.Discover(paths, cfg.Exclude)
+	if err != nil {
+		return
+	}
+	opt := syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}
+	snapshot := project.BuildFlowSnapshot(files, nil, opt, ix)
+	for _, b := range buffers {
+		f := syntax.ParseBest(b.path, b.src, opt)
+		snapshot = snapshot.WithFile(flow.Extract(f, ix, cfg.PHP, snapshot))
+	}
+	s.mu.Lock()
+	if s.engine == e {
+		s.flow = snapshot
+		s.engine = e.WithFlow(snapshot)
+	}
+	s.mu.Unlock()
 }

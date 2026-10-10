@@ -1,0 +1,9 @@
+<?php
+array_merge(["a"=>1],["b"=>2]);
+array_merge([0=>"a",1=>"b"]);
+array_merge($unknown);
+array_merge([...$unknown]);
+array_merge(...$unknown);
+array_merge(["042"=>"a"]);
+array_merge([$key=>"a"]);
+array_merge(["a"]);

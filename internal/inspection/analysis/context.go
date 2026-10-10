@@ -9,6 +9,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
 	"custos/internal/semantic/names"
@@ -27,6 +28,7 @@ type Context struct {
 	names    *names.Resolver
 	index    *index.Index
 	types    *infer.Env
+	flow     *flow.Env
 	memo     map[string]any
 	// truncated is set once MaxFindingsPerFile findings were collected.
 	truncated bool

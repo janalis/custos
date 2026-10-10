@@ -42,19 +42,24 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func check(root string) ([]string, error) {
-	raw, err := os.ReadFile(filepath.Join(root, "internal/inspection/meta/rules.json"))
-	if err != nil {
-		return nil, err
-	}
-	var facts []struct {
-		ID string `json:"id"`
-	}
-	if err := json.Unmarshal(raw, &facts); err != nil {
-		return nil, err
-	}
 	expected := map[string]bool{}
-	for _, fact := range facts {
-		expected[fact.ID] = true
+	for _, name := range []string{"rules.json", "native-rules.json"} {
+		raw, err := os.ReadFile(filepath.Join(root, "internal/inspection/meta", name))
+		if err != nil {
+			return nil, err
+		}
+		var facts []struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(raw, &facts); err != nil {
+			return nil, err
+		}
+		for _, fact := range facts {
+			if expected[fact.ID] {
+				return nil, fmt.Errorf("duplicate catalogue ID %s", fact.ID)
+			}
+			expected[fact.ID] = true
+		}
 	}
 	var problems []string
 	report := func(format string, args ...any) { problems = append(problems, fmt.Sprintf(format, args...)) }

@@ -155,3 +155,16 @@ func TestRunErrors(t *testing.T) {
 		t.Fatalf("write error: exit %d, %q", code, stderr.String())
 	}
 }
+
+func TestNativePage(t *testing.T) {
+	body := page(meta.Rule{ID: "NativeExample", Native: true, Group: "Correctness", Severity: diagnostic.SeverityWarning}, "correctness", meta.Description{}, "")
+	contains(t, "native page", body, "@custos-ignore NativeExample", "Group: [Correctness]")
+	for _, unwanted := range []string{"PhpStorm name", "@noinspection"} {
+		if strings.Contains(body, unwanted) {
+			t.Errorf("native page contains %q", unwanted)
+		}
+	}
+	md := "# NativeExample\n\n## Detection\n\nProven value.\n\n## Exceptions (no report)\n\nUnknown values.\n\n## Fix\n\nPreserve behavior.\n\n## PHP versions\n\nPHP 5.4 and later.\n"
+	body = page(meta.Rule{ID: "NativeExample", Native: true}, "correctness", meta.Description{}, md)
+	contains(t, "native contracts", body, "Proven value.", "Unknown values.", "Preserve behavior.", "PHP 5.4 and later.")
+}

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"custos/internal/inspection/meta"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 )
@@ -42,6 +43,9 @@ func wanted(rules []string) bool {
 // TestEA checks every EA fixture case from the local checkout. Rules the
 // engine does not implement yet are reported as pending, not failed.
 func TestEA(t *testing.T) {
+	if m, ok := meta.Lookup(*ruleFilter); ok && m.Native {
+		t.Skip("N/A: native custos rule has no EA counterpart; use make fixtures")
+	}
 	idx, err := LoadEAIndex(eaIndexPath)
 	if err != nil {
 		t.Skipf("no EA index (run `make extract`): %v", err)

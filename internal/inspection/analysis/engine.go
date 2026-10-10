@@ -7,6 +7,7 @@ import (
 	"custos/internal/inspection/meta"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
 )
 
@@ -25,6 +26,7 @@ type Engine struct {
 	byKind [syntax.NumNodeKinds][]int32
 	files  []int32 // indices of FileRule implementations
 	index  *index.Index
+	flow   *flow.Snapshot
 }
 
 // NewEngine builds an engine from the registered rules and cfg.

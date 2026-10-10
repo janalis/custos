@@ -1,9 +1,14 @@
 # Adding or changing a rule
 
-Every one of the 178 rules is implemented. Most rule work is now fixing a
+The catalogue contains EA-modelled rules and native custos rules. Rule work includes fixing a
 false positive, a missed case or a fix. The workflow is the same either
 way: **spec first, then code**, done separately (see the
 [clean-room process](./clean-room)).
+
+Native rules have independently authored facts in
+`internal/inspection/meta/native-rules.json`; `make extract` only regenerates
+the EA-modelled facts in `rules.json`. Native rules have no legacy PhpStorm
+name and no EA conformance requirement. Their own fixtures remain mandatory.
 
 ## 1. The spec
 
@@ -68,7 +73,7 @@ func (r unnecessarySemicolon) Check(ctx *analysis.Context, n syntax.Node) {
    positives, false positives, `.fixed.php` for fixes, a sidecar per option
    or PHP version.
 2. `make fixtures RULE=<ID>`.
-3. `make conformance RULE=<ID>` when you have the upstream checkout. A
+3. For EA-modelled rules, `make conformance RULE=<ID>` when you have the upstream checkout. A
    mismatch means the spec is wrong or incomplete, or the difference is an
    intentional divergence to document.
 4. Touching a hot path? Add or extend a benchmark (`make bench`).

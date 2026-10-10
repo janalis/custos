@@ -37,7 +37,8 @@ func TestNoCrashOnCorpus(t *testing.T) {
 		t.Fatal(err)
 	}
 	opt := syntax.Options{Version: phpversion.PHP85}
-	e = e.WithIndex(project.BuildIndex(files, opt))
+	ix := project.BuildIndex(files, opt)
+	e = e.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(files, nil, opt, ix))
 	crashes := 0
 	for _, r := range project.Run(e, files, opt) {
 		for _, f := range r.Findings {

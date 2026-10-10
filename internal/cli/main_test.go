@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"custos/internal/inspection/meta"
 )
 
 func writeProject(t *testing.T) string {
@@ -75,7 +77,11 @@ func TestMiscCommands(t *testing.T) {
 	if code, out, _ := runCLI(t, "explain", "UnnecessarySemicolonInspection"); code != 0 || !strings.Contains(out, "UnnecessarySemicolon") {
 		t.Fatalf("explain: %d %s", code, out)
 	}
-	if code, out, _ := runCLI(t, "rules"); code != 0 || strings.Count(out, "\n") != 178 {
+	rules, err := meta.All()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if code, out, _ := runCLI(t, "rules"); code != 0 || strings.Count(out, "\n") != len(rules) {
 		t.Fatalf("rules: %d lines", strings.Count(out, "\n"))
 	}
 	if code, _, _ := runCLI(t, "analyse", "--rule", "Nope", "."); code != 2 {

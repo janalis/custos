@@ -222,3 +222,11 @@ func TestFixEdgeCases(t *testing.T) {
 		t.Fatalf("a.php not fixed: %q", b)
 	}
 }
+
+func TestExplainNativeRule(t *testing.T) {
+	var out bytes.Buffer
+	explainRule(&out, &meta.Rule{ID: "NativeExample", Native: true, Group: "Correctness"})
+	if !strings.Contains(out.String(), "@custos-ignore NativeExample") || strings.Contains(out.String(), "@noinspection") || strings.Contains(out.String(), "()") {
+		t.Fatalf("native explanation: %s", out.String())
+	}
+}

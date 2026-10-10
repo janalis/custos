@@ -6,9 +6,9 @@ title: Rules
 
 # Rules
 
-custos ships **178 rules** in 12 groups. Rules marked *off* only run when enabled in
+custos ships **278 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
-and offered as code actions by the language server. Every rule also answers to its PhpStorm
+and offered as code actions by the language server. Rules originating from EA also answer to their PhpStorm
 inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `custos.json`.
 
 ## Architecture
@@ -173,33 +173,110 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 
 | Rule | Severity | Default | Quick-fix | PHP |
 | :--- | :--- | :---: | :---: | :--- |
+| [AmbiguousReplacementBackreference](./probable-bugs/AmbiguousReplacementBackreference) | warning | off | ✓ | any |
+| [ArrayChunkInvalidSize](./probable-bugs/ArrayChunkInvalidSize) | error | on |  | any |
+| [ArrayColumnMissingField](./probable-bugs/ArrayColumnMissingField) | warning | off |  | any |
+| [ArrayCombineLengthMismatch](./probable-bugs/ArrayCombineLengthMismatch) | error | on |  | any |
+| [ArrayFilterDropsZero](./probable-bugs/ArrayFilterDropsZero) | warning | off |  | any |
+| [ArrayFlipDuplicateValueLoss](./probable-bugs/ArrayFlipDuplicateValueLoss) | warning | off |  | any |
+| [ArrayFlipInvalidValueType](./probable-bugs/ArrayFlipInvalidValueType) | warning | on |  | any |
+| [ArrayMapMissingCallbackReturn](./probable-bugs/ArrayMapMissingCallbackReturn) | warning | on | ✓ | any |
+| [ArrayMergeNumericKeyLoss](./probable-bugs/ArrayMergeNumericKeyLoss) | warning | off |  | any |
+| [ArrayReduceMissingInitialValue](./probable-bugs/ArrayReduceMissingInitialValue) | warning | off | ✓ | any |
+| [ArrowFunctionCapturedCounter](./probable-bugs/ArrowFunctionCapturedCounter) | warning | off |  | PHP ≥ 7.4 |
 | [AutoloadingIssues](./probable-bugs/AutoloadingIssues) | warning | on |  | any |
+| [ByteLengthUsedAsCharacterCount](./probable-bugs/ByteLengthUsedAsCharacterCount) | warning | off |  | any |
+| [BytePaddingUsedForUnicodeWidth](./probable-bugs/BytePaddingUsedForUnicodeWidth) | warning | off |  | any |
 | [CallableMethodValidity](./probable-bugs/CallableMethodValidity) | warning | on |  | any |
+| [CallbackRequiredArgumentMismatch](./probable-bugs/CallbackRequiredArgumentMismatch) | error | on |  | any |
 | [ClassConstantUsageCorrectness](./probable-bugs/ClassConstantUsageCorrectness) | error | on |  | any |
 | [ClassMockingCorrectness](./probable-bugs/ClassMockingCorrectness) | error | on |  | any |
+| [ClosureCapturedValueWrite](./probable-bugs/ClosureCapturedValueWrite) | warning | off |  | any |
 | [CompactArguments](./probable-bugs/CompactArguments) | error | on |  | any |
+| [ContentLengthUsesCharacterCount](./probable-bugs/ContentLengthUsesCharacterCount) | warning | on | ✓ | any |
+| [CurlResponseBodyWithoutReturnTransfer](./probable-bugs/CurlResponseBodyWithoutReturnTransfer) | warning | on |  | any |
+| [CurlTransportSuccessAsHttpSuccess](./probable-bugs/CurlTransportSuccessAsHttpSuccess) | warning | off |  | any |
 | [DateIntervalSpecification](./probable-bugs/DateIntervalSpecification) | error | on |  | any |
+| [DateLastErrorsFalseUnchecked](./probable-bugs/DateLastErrorsFalseUnchecked) | warning | on |  | PHP ≥ 8.2 |
+| [DateMinutesMonthTokenConfusion](./probable-bugs/DateMinutesMonthTokenConfusion) | warning | off | ✓ | any |
+| [DateOnlyParseRetainsCurrentTime](./probable-bugs/DateOnlyParseRetainsCurrentTime) | warning | off | ✓ | any |
+| [DateParseNormalizationUnchecked](./probable-bugs/DateParseNormalizationUnchecked) | warning | off |  | any |
 | [DateTimeConstantsUsage](./probable-bugs/DateTimeConstantsUsage) | error | on | ✓ | any |
 | [DateTimeSetTimeUsage](./probable-bugs/DateTimeSetTimeUsage) | error | on |  | PHP ≤ 7.0 |
+| [DirectoryIteratorDotEntries](./probable-bugs/DirectoryIteratorDotEntries) | warning | on |  | any |
+| [DstUnsafeCalendarDayArithmetic](./probable-bugs/DstUnsafeCalendarDayArithmetic) | warning | off |  | any |
 | [DuplicateArrayKeys](./probable-bugs/DuplicateArrayKeys) | warning | on |  | any |
+| [DuplicateMatchCondition](./probable-bugs/DuplicateMatchCondition) | warning | on | ✓ | PHP ≥ 8.0 |
+| [EnumFromUncheckedExternalValue](./probable-bugs/EnumFromUncheckedExternalValue) | warning | off |  | PHP ≥ 8.1 |
+| [ExhaustedGeneratorReused](./probable-bugs/ExhaustedGeneratorReused) | error | on |  | PHP ≥ 5.5 |
+| [ExplodeEmptySeparator](./probable-bugs/ExplodeEmptySeparator) | error | on |  | any |
+| [FileLockFailureUnchecked](./probable-bugs/FileLockFailureUnchecked) | warning | on |  | any |
+| [FileReadFailureUnchecked](./probable-bugs/FileReadFailureUnchecked) | warning | on |  | any |
+| [FileTruncatedBeforeLock](./probable-bugs/FileTruncatedBeforeLock) | warning | on |  | any |
+| [FileWriteResultUnchecked](./probable-bugs/FileWriteResultUnchecked) | warning | on |  | any |
+| [FilteredListJsonShape](./probable-bugs/FilteredListJsonShape) | warning | off | ✓ | any |
 | [ForgottenDebugOutput](./probable-bugs/ForgottenDebugOutput) | error | on |  | any |
+| [GeneratorCallNeverConsumed](./probable-bugs/GeneratorCallNeverConsumed) | warning | off |  | PHP ≥ 5.5 |
+| [GlobFailureUnchecked](./probable-bugs/GlobFailureUnchecked) | warning | on |  | any |
+| [HeadersAfterCommittedOutput](./probable-bugs/HeadersAfterCommittedOutput) | warning | on |  | any |
+| [ImmutableDateResultIgnored](./probable-bugs/ImmutableDateResultIgnored) | warning | on |  | PHP ≥ 5.5 |
 | [IncorrectRandomRange](./probable-bugs/IncorrectRandomRange) | error | on |  | any |
 | [InfinityLoop](./probable-bugs/InfinityLoop) | error | on |  | any |
+| [IntervalDayComponentAsTotal](./probable-bugs/IntervalDayComponentAsTotal) | warning | off | ✓ | any |
+| [IsoWeekCalendarYearMismatch](./probable-bugs/IsoWeekCalendarYearMismatch) | warning | on | ✓ | any |
 | [IssetArgumentExistence](./probable-bugs/IssetArgumentExistence) | warning | on |  | any |
+| [IteratorMaterializationKeyCollision](./probable-bugs/IteratorMaterializationKeyCollision) | warning | off |  | PHP ≥ 5.5 |
+| [JsonIntegerPrecisionLoss](./probable-bugs/JsonIntegerPrecisionLoss) | warning | off | ✓ | any |
 | [MagicMethodsValidity](./probable-bugs/MagicMethodsValidity) | error | on |  | any |
+| [MillisecondsUsedAsUnixSeconds](./probable-bugs/MillisecondsUsedAsUnixSeconds) | warning | off |  | any |
 | [MissingArrayInitialization](./probable-bugs/MissingArrayInitialization) | warning | on |  | any |
 | [MissingIssetImplementation](./probable-bugs/MissingIssetImplementation) | error | on |  | any |
 | [MkdirRaceCondition](./probable-bugs/MkdirRaceCondition) | error | on | ✓ | any |
+| [MonthAdditionDateOverflow](./probable-bugs/MonthAdditionDateOverflow) | warning | off |  | any |
+| [NoContentResponseWithBody](./probable-bugs/NoContentResponseWithBody) | warning | on |  | any |
+| [NonExhaustiveEnumMatch](./probable-bugs/NonExhaustiveEnumMatch) | error | on |  | PHP ≥ 8.1 |
 | [NullPointerException](./probable-bugs/NullPointerException) | warning | off, experimental |  | any |
 | [OffsetOperations](./probable-bugs/OffsetOperations) | error | off |  | any |
+| [OwnedStreamNotClosed](./probable-bugs/OwnedStreamNotClosed) | warning | off |  | any |
+| [PartialStreamWriteUnchecked](./probable-bugs/PartialStreamWriteUnchecked) | warning | on |  | any |
 | [PassingByReferenceCorrectness](./probable-bugs/PassingByReferenceCorrectness) | warning | on |  | any |
+| [PathContainmentPrefixBoundary](./probable-bugs/PathContainmentPrefixBoundary) | warning | on |  | any |
+| [PdoExecuteArrayReplacesBindings](./probable-bugs/PdoExecuteArrayReplacesBindings) | warning | on | ✓ | any |
+| [PdoFetchColumnFalsyValueLoss](./probable-bugs/PdoFetchColumnFalsyValueLoss) | warning | on |  | any |
+| [PdoIdentifierPlaceholder](./probable-bugs/PdoIdentifierPlaceholder) | error | on |  | any |
+| [PdoMixedPlaceholderStyles](./probable-bugs/PdoMixedPlaceholderStyles) | error | on |  | any |
+| [PdoPlaceholderBindingMismatch](./probable-bugs/PdoPlaceholderBindingMismatch) | error | on |  | any |
+| [PdoQuotedPlaceholder](./probable-bugs/PdoQuotedPlaceholder) | warning | on |  | any |
+| [PdoReferenceBindingVariableReuse](./probable-bugs/PdoReferenceBindingVariableReuse) | warning | on |  | any |
+| [PdoSelectRowCountAssumption](./probable-bugs/PdoSelectRowCountAssumption) | warning | off |  | any |
+| [PregMatchFailureAsNonMatch](./probable-bugs/PregMatchFailureAsNonMatch) | warning | off |  | any |
 | [PregQuoteUsage](./probable-bugs/PregQuoteUsage) | error | on |  | any |
+| [PregReplaceFailureUnchecked](./probable-bugs/PregReplaceFailureUnchecked) | warning | on |  | any |
+| [PregSplitCaptureFlagWithoutGroups](./probable-bugs/PregSplitCaptureFlagWithoutGroups) | info | on | ✓ | any |
 | [PreloadingUsageCorrectness](./probable-bugs/PreloadingUsageCorrectness) | warning | on | ✓ | any |
 | [PrintfScanfArguments](./probable-bugs/PrintfScanfArguments) | error | on |  | any |
+| [ReadModifyWriteLockTooLate](./probable-bugs/ReadModifyWriteLockTooLate) | warning | on |  | any |
+| [ReadonlyPropertyReassignment](./probable-bugs/ReadonlyPropertyReassignment) | error | on |  | PHP ≥ 8.1 |
 | [RealpathInStreamContext](./probable-bugs/RealpathInStreamContext) | warning | on | ✓ | any |
+| [RedirectContinuesProtectedExecution](./probable-bugs/RedirectContinuesProtectedExecution) | warning | on |  | any |
+| [RegexByteOffsetAsCharacterOffset](./probable-bugs/RegexByteOffsetAsCharacterOffset) | warning | on |  | any |
+| [RepeatedCookieHeaderReplacement](./probable-bugs/RepeatedCookieHeaderReplacement) | warning | on | ✓ | any |
+| [RepeatedHtmlEntityEncoding](./probable-bugs/RepeatedHtmlEntityEncoding) | warning | off |  | any |
+| [SameSiteNoneWithoutSecure](./probable-bugs/SameSiteNoneWithoutSecure) | warning | on |  | PHP ≥ 7.3 |
+| [SessionCookieOptionsSetAfterStart](./probable-bugs/SessionCookieOptionsSetAfterStart) | warning | on |  | any |
+| [SessionLockHeldDuringBlockingCall](./probable-bugs/SessionLockHeldDuringBlockingCall) | warning | off |  | any |
+| [SessionMutationAfterClose](./probable-bugs/SessionMutationAfterClose) | warning | on |  | any |
+| [ShallowCloneNestedMutation](./probable-bugs/ShallowCloneNestedMutation) | warning | off |  | any |
+| [ShortStreamReadUnchecked](./probable-bugs/ShortStreamReadUnchecked) | warning | on |  | any |
 | [SimpleXmlLoadFileUsage](./probable-bugs/SimpleXmlLoadFileUsage) | error | on | ✓ | any |
+| [SortComparatorReturnsBoolean](./probable-bugs/SortComparatorReturnsBoolean) | warning | on | ✓ | any |
+| [SortComparatorReturnsFloat](./probable-bugs/SortComparatorReturnsFloat) | warning | on | ✓ | any |
+| [SortResultUsedAsArray](./probable-bugs/SortResultUsedAsArray) | warning | on |  | any |
 | [StaticLambdaBinding](./probable-bugs/StaticLambdaBinding) | error | on | ✓ | PHP ≥ 5.4 |
+| [StreamOpenFailureUnchecked](./probable-bugs/StreamOpenFailureUnchecked) | warning | on |  | any |
+| [StreamUseAfterClose](./probable-bugs/StreamUseAfterClose) | error | on |  | any |
 | [StringsFirstCharactersCompare](./probable-bugs/StringsFirstCharactersCompare) | error | on | ✓ | any |
+| [StrtokStateClobbered](./probable-bugs/StrtokStateClobbered) | warning | on |  | any |
 | [SuspiciousAssignments](./probable-bugs/SuspiciousAssignments) | error | on |  | any |
 | [SuspiciousBinaryOperation](./probable-bugs/SuspiciousBinaryOperation) | error | on | ✓ | any |
 | [SuspiciousFunctionCalls](./probable-bugs/SuspiciousFunctionCalls) | error | on |  | any |
@@ -207,8 +284,21 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [SuspiciousReturn](./probable-bugs/SuspiciousReturn) | error | on |  | any |
 | [SuspiciousSemicolon](./probable-bugs/SuspiciousSemicolon) | error | on |  | any |
 | [SwitchContinuationInLoop](./probable-bugs/SwitchContinuationInLoop) | error | on | ✓ | any |
+| [TempnamDirectoryFallbackUnchecked](./probable-bugs/TempnamDirectoryFallbackUnchecked) | warning | off |  | any |
 | [TraitsPropertiesConflicts](./probable-bugs/TraitsPropertiesConflicts) | error | on |  | any |
+| [TransactionEarlyReturn](./probable-bugs/TransactionEarlyReturn) | warning | on |  | any |
+| [TransactionExceptionWithoutRollback](./probable-bugs/TransactionExceptionWithoutRollback) | warning | on |  | any |
+| [TrimMaskUsedAsSuffix](./probable-bugs/TrimMaskUsedAsSuffix) | warning | off |  | any |
+| [UndeclaredDynamicProperty](./probable-bugs/UndeclaredDynamicProperty) | warning | on |  | PHP ≥ 8.2 |
+| [UninitializedTypedPropertyRead](./probable-bugs/UninitializedTypedPropertyRead) | error | on |  | PHP ≥ 7.4 |
+| [UnitEnumJsonEncoding](./probable-bugs/UnitEnumJsonEncoding) | error | on |  | PHP ≥ 8.1 |
+| [UnknownNamedArgument](./probable-bugs/UnknownNamedArgument) | error | on |  | PHP ≥ 8.0 |
+| [UnpackedNamedArgumentCollision](./probable-bugs/UnpackedNamedArgumentCollision) | error | on |  | PHP ≥ 8.0 |
+| [UntrustedForwardedClientAddress](./probable-bugs/UntrustedForwardedClientAddress) | warning | off |  | any |
 | [UsingInclusionOnceReturnValue](./probable-bugs/UsingInclusionOnceReturnValue) | error | on |  | any |
+| [UsortDiscardsRequiredKeys](./probable-bugs/UsortDiscardsRequiredKeys) | warning | off | ✓ | any |
+| [Utf8ByteTruncation](./probable-bugs/Utf8ByteTruncation) | warning | off |  | any |
+| [ValidatedIntegerZeroRejected](./probable-bugs/ValidatedIntegerZeroRejected) | warning | on | ✓ | any |
 
 ## Security
 
@@ -219,13 +309,23 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [CryptographicallySecureRandomness](./security/CryptographicallySecureRandomness) | error | on |  | any |
 | [CurlSslServerSpoofing](./security/CurlSslServerSpoofing) | error | on |  | any |
 | [EncryptionInitializationVectorRandomness](./security/EncryptionInitializationVectorRandomness) | error | on |  | any |
+| [FastDigestUsedForPasswordStorage](./security/FastDigestUsedForPasswordStorage) | warning | on |  | any |
 | [HostnameSubstitution](./security/HostnameSubstitution) | error | on |  | any |
 | [NonSecureParseStrUsage](./security/NonSecureParseStrUsage) | error | on |  | any |
 | [NonSecureUniqidUsage](./security/NonSecureUniqidUsage) | error | on | ✓ | any |
+| [PasswordComparedWithFreshHash](./security/PasswordComparedWithFreshHash) | warning | on | ✓ | PHP ≥ 5.5 |
 | [PotentialMalware](./security/PotentialMalware) | error | on |  | any |
 | [SecurityAdvisories](./security/SecurityAdvisories) | warning | on | ✓ | any |
+| [UnescapedHtmlOutput](./security/UnescapedHtmlOutput) | error | on |  | any |
 | [UnserializeExploits](./security/UnserializeExploits) | error | on |  | any |
+| [UntrustedFilesystemPath](./security/UntrustedFilesystemPath) | error | on |  | any |
+| [UntrustedHeaderValue](./security/UntrustedHeaderValue) | error | on |  | any |
 | [UntrustedInclusion](./security/UntrustedInclusion) | error | off |  | any |
+| [UntrustedNetworkDestination](./security/UntrustedNetworkDestination) | error | on |  | any |
+| [UntrustedShellCommand](./security/UntrustedShellCommand) | error | on |  | any |
+| [UntrustedSqlConstruction](./security/UntrustedSqlConstruction) | error | on |  | any |
+| [UnvalidatedRedirectTarget](./security/UnvalidatedRedirectTarget) | error | on |  | any |
+| [UploadClientMimeTrusted](./security/UploadClientMimeTrusted) | warning | on |  | any |
 
 ## Type compatibility
 

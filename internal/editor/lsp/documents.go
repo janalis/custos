@@ -16,7 +16,7 @@ func (s *Server) open(p didOpenParams) {
 	s.mu.Lock()
 	s.docs[d.uri] = d
 	s.mu.Unlock()
-	s.analyzeNow(d.uri)
+	s.analyzeChanged(d.uri)
 }
 
 func isPHP(td textDocumentItem) bool {
@@ -52,7 +52,7 @@ func (s *Server) change(p didChangeParams) {
 		d.timer.Stop()
 	}
 	uri := d.uri
-	d.timer = time.AfterFunc(Debounce, func() { s.analyzeNow(uri) })
+	d.timer = time.AfterFunc(Debounce, func() { s.analyzeChanged(uri) })
 	s.mu.Unlock()
 }
 
@@ -64,4 +64,23 @@ func (s *Server) close(uri string) {
 	delete(s.docs, uri)
 	s.mu.Unlock()
 	_ = s.c.notify("textDocument/publishDiagnostics", publishDiagnosticsParams{URI: uri, Diagnostics: []protocolDiagnostic{}})
+	if s.flowEnabled() {
+		s.watchedFilesChanged([]fileChange{{URI: uri, Type: 2}})
+	}
+}
+
+// flowEnabled reads the enabled rule contract under the server lock.
+func (s *Server) flowEnabled() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.engine != nil && s.engine.NeedsFlow()
+}
+
+// analyzeChanged republishes buffer summaries before checking dependent documents.
+func (s *Server) analyzeChanged(uri string) {
+	if s.flowEnabled() && s.reindexDoc(uri) {
+		s.reanalyzeAll()
+		return
+	}
+	s.analyzeNow(uri)
 }

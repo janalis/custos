@@ -63,6 +63,7 @@ export default withMermaid(defineConfig({
           items: [
             { text: 'Command line', link: '/guide/cli' },
             { text: 'Configuration', link: '/guide/configuration' },
+            { text: 'Native inspections', link: '/guide/native-rules' },
             { text: 'Suppressing findings', link: '/guide/suppressing' },
             { text: 'Continuous integration', link: '/guide/ci' },
             { text: 'Editors (LSP)', link: '/guide/editors' },

@@ -15,17 +15,60 @@
   "AmbiguousMethodsCallsInArrayMapping": {
     "summary": "When a loop builds a map like `$map[key($x)] = key($x);`, the same call is\nevaluated twice per iteration (once for the key, once for the value). Compute\nit once into a local variable."
   },
+  "AmbiguousReplacementBackreference": {
+    "summary": "Detect preg_replace with a literal replacement containing a numeric backreference followed immediately by a digit where the parsed larger capture number does not exist but the shorter one does.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
   "ArgumentUnpackingCanBeUsed": {
     "summary": "Since PHP 5.6, `call_user_func_array('fn', $args)` with a literal function\nname can be written as a direct call with argument unpacking, `fn(...$args)`,\nwhich is faster and easier to read and analyse.",
     "fix": true
+  },
+  "ArrayChunkInvalidSize": {
+    "summary": "Detect array_chunk with a size proven an integer less than one.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "ArrayColumnMissingField": {
+    "summary": "Detect array_column on a literal array of literal rows when at least one row has the requested literal field and at least one lacks it.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "ArrayCombineLengthMismatch": {
+    "summary": "Detect array_combine when both input arrays have statically known, unequal element counts; use PHP array overwrite semantics when counting.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "ArrayFilterDropsZero": {
+    "summary": "Detect builtin array_filter with its callback omitted or explicitly null, when the effective entries of a literal array contain integer zero or string zero and another nonempty scalar value. Later entries replacing the same key determine the effective value.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "ArrayFlipDuplicateValueLoss": {
+    "summary": "Detect array_flip of a literal array with two statically equal string or integer values after PHP key conversion.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "ArrayFlipInvalidValueType": {
+    "summary": "Detect array_flip of a literal array containing a value proven neither string nor integer.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "ArrayIsListCanBeUsed": {
     "summary": "Hand-written \"is this array a list?\" checks — comparing `array_values($a)`\nwith `$a`, or `array_keys($a)` with `range(0, count($a) - 1)` — are better\nexpressed with the built-in `array_is_list($a)`.",
     "fix": true
   },
+  "ArrayMapMissingCallbackReturn": {
+    "summary": "Detect array_map with a locally defined callback whose reachable normal exits all return no value and whose body evaluates a discarded expression with a non-void result.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
+  "ArrayMergeNumericKeyLoss": {
+    "summary": "Detect array_merge with a literal input containing a nonsequential integer key; report the input merge call.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "ArrayPushMissUse": {
     "summary": "Appending a single element with `array_push($list, $item);` costs a function\ncall; the append operator `$list[] = $item;` does the same faster. Likewise,\n`$list[count($list)] = $item;` computes an index that the append operator\nwould produce anyway (for list-shaped arrays).",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_EXCESSIVE_COUNT_CALLS | bool | true | Enables part B (`C[count(C)] = …`). |",
+    "fix": true
+  },
+  "ArrayReduceMissingInitialValue": {
+    "summary": "Detect array_reduce without an initial argument when a local callback passes its accumulator to a builtin requiring an array on the first iteration.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "ArraySearchUsedAsInArray": {
@@ -35,6 +78,10 @@
   "ArrayUniqueCanBeUsed": {
     "summary": "Counting occurrences with `array_count_values()` just to take the keys or the\nnumber of keys is an indirect way of deduplicating. Since PHP 7.2\n`array_unique()` is fast and says what is meant: `array_values(array_unique($a))`\nor `count(array_unique($a))`.",
     "fix": true
+  },
+  "ArrowFunctionCapturedCounter": {
+    "summary": "Detect an arrow function updating a captured scalar counter when the same callable is invoked at least twice without reassignment.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "AutoloadingIssues": {
     "summary": "PSR-0/PSR-4 autoloaders locate a class by its name, so a file that declares a\nsingle class whose name does not match the file name will not be found by the\nautoloader. Point at the class name when file and class names disagree."
@@ -46,11 +93,23 @@
   "BadExceptionsProcessing": {
     "summary": "Two smells around `try`/`catch`: a `try` block that wraps too many statements\n(hard to tell which one is expected to throw), and a `catch` clause that\nbinds the exception to a variable but never looks at it (the error is\nswallowed or its cause is lost)."
   },
+  "ByteLengthUsedAsCharacterCount": {
+    "summary": "Detect strlen of a literal non-ASCII valid UTF-8 string under an explicitly enabled Unicode character-count contract.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "BytePaddingUsedForUnicodeWidth": {
+    "summary": "Detect str_pad with literal non-ASCII valid UTF-8 input under an explicitly enabled character-width contract.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "CallableMethodValidity": {
     "summary": "`is_callable()` on a method callback that names a non-public method, or a\nnon-static method without an object, describes a callback that cannot really\nbe invoked from the outside (or will break when invoked statically). Flag the\nargument so the method's visibility/static-ness gets fixed."
   },
   "CallableParameterUseCaseInTypeContext": {
     "summary": "A parameter's declared/documented type is a contract. Testing it with an\n`is_*()` function that can never succeed (or never fail) for that type is dead\nlogic, and re-assigning the parameter a value of an unrelated type breaks the\ncontract for every later reader of the variable."
+  },
+  "CallbackRequiredArgumentMismatch": {
+    "summary": "Detect array_map with N supplied input arrays and a resolved callback requiring more than N positional parameters.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "CascadeStringReplacement": {
     "summary": "`str_replace()` accepts arrays of searches and replacements and applies them\nin order, so several consecutive replacements on the same subject — written\nas back-to-back assignments or as nested calls — can be one call. Also, a\nsearch array whose items are all the same string literal can be that string.",
@@ -87,6 +146,10 @@
     "summary": "Listing an interface in `implements` when the parent class already implements\nit (directly or through its own ancestors) is redundant noise. Remove the\nentry.",
     "fix": true
   },
+  "ClosureCapturedValueWrite": {
+    "summary": "Detect a closure writing a scalar captured by value when that closure is invoked and the outer variable is subsequently read without an intervening assignment.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "CompactArguments": {
     "summary": "`compact('name')` silently skips (or, since PHP 7.3, warns about) variables\nthat do not exist at that point. A name that never appeared earlier in the\nfunction is usually a typo or a variable assigned too late."
   },
@@ -103,17 +166,48 @@
     "summary": "Some function calls only return a value that PHP already exposes as a\nconstant (`PHP_VERSION`, `PHP_SAPI`, `M_PI`, …), and comparisons of\n`PHP_VERSION` via `version_compare()` or OS sniffing on `PHP_OS` have cheaper,\nclearer constant-based equivalents (`PHP_VERSION_ID`, `PHP_OS_FAMILY`).",
     "fix": true
   },
+  "ContentLengthUsesCharacterCount": {
+    "summary": "Detect Content-Length built from mb_strlen/grapheme_strlen of the exact response body later emitted without transformation.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
   "CryptographicallySecureAlgorithms": {
     "summary": "Some cipher/hash selector constants of mcrypt, OpenSSL and `crypt()` pick\nalgorithms that are broken or weak (DES, 3DES, RC2, RC4, MD5) or that are\ncommonly mistaken for AES (Rijndael with 192/256-bit blocks). Point at each\nuse so a stronger algorithm can be chosen."
   },
   "CryptographicallySecureRandomness": {
     "summary": "`openssl_random_pseudo_bytes()` and `mcrypt_create_iv()` can silently fall\nback to weak sources or fail (returning `false`) and their strength depends on\noptional arguments. Point out missing strength arguments, unverified results\nand weak sources, and suggest `random_bytes()` on PHP 7+."
   },
+  "CurlResponseBodyWithoutReturnTransfer": {
+    "summary": "Detect curl_exec result used as a string or JSON document when a locally created handle is proven never configured with CURLOPT_RETURNTRANSFER true.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "CurlSslServerSpoofing": {
     "summary": "Turning off cURL's TLS peer or host-name verification\n(`CURLOPT_SSL_VERIFYPEER`, `CURLOPT_SSL_VERIFYHOST`) lets anyone in the\nmiddle impersonate the server. Report places where these options are set to a\ndisabling value."
   },
+  "CurlTransportSuccessAsHttpSuccess": {
+    "summary": "Detect curl_exec success used as the sole condition for a literal successful return when no HTTP response-code validation occurs for that handle.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "DateIntervalSpecification": {
     "summary": "`new DateInterval($spec)` throws for a malformed ISO-8601 duration string.\nCheck literal specifications against the accepted shapes so the mistake is\ncaught before runtime."
+  },
+  "DateLastErrorsFalseUnchecked": {
+    "summary": "Detect direct array access on getLastErrors result or a proven alias without excluding false on PHP 8.2+.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "DateMinutesMonthTokenConfusion": {
+    "summary": "Detect a date format literal with unescaped hour token H, G, h or g followed by colon and m and optionally seconds.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
+  "DateOnlyParseRetainsCurrentTime": {
+    "summary": "Detect DateTime or DateTimeImmutable createFromFormat with a format containing calendar-date tokens but no time tokens or reset modifiers.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
+  "DateParseNormalizationUnchecked": {
+    "summary": "Detect createFromFormat on a literal calendar date whose fields require normalization or whose parsing diagnostics are not checked before accepting the parsed value.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "DateTimeConstantsUsage": {
     "summary": "The `ISO8601` date format constants do not actually produce ISO-8601 output\n(the offset lacks a colon). The `ATOM` variants produce the compliant format\nand should be used instead.",
@@ -140,6 +234,10 @@
     "summary": "`dirname(__FILE__)` computes at runtime what the magic constant `__DIR__`\n(PHP 5.3+) already provides. Use the constant.",
     "fix": true
   },
+  "DirectoryIteratorDotEntries": {
+    "summary": "Detect a filesystem mutation on DirectoryIterator entry paths inside foreach without a dominating isDot exclusion.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "DisallowWritingIntoStaticProperties": {
     "summary": "Static properties are global mutable state. This opt-in rule flags assignments\nto static properties: by default only writes performed outside the class that\ndeclares the property; optionally every write.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| ALLOW_WRITE_FROM_SOURCE_CLASS | bool | true | true: only writes from outside the declaring class are reported (D3). false: every static property assignment is reported (D2). |"
@@ -148,8 +246,17 @@
     "summary": "A statement inside a `foreach` body that uses no loop variable and nothing the\nloop body changes produces the same effect on every iteration; it most likely\nbelongs before or after the loop. Optionally (off by default) the rule also\npoints at objects instantiated on every iteration that could be built once and\ncloned.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). The upstream test suite runs with it enabled. |"
   },
+  "DstUnsafeCalendarDayArithmetic": {
+    "summary": "Detect addition of literal 86400 to a timestamp derived from local midnight in a resolved DST-observing timezone under a daily-calendar scheduling contract.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "DuplicateArrayKeys": {
     "summary": "In an array literal a repeated string key silently overwrites the earlier\nentry. Either the earlier entry is dead (different value) or the whole entry\nis a redundant copy (same value)."
+  },
+  "DuplicateMatchCondition": {
+    "summary": "Detect a later match arm condition statically strictly identical to an earlier condition, including resolved references to the same enum case.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
   },
   "DynamicCallsToScopeIntrospection": {
     "summary": "Since PHP 7.1, functions that read or write the caller's local scope\n(`compact`, `extract`, `func_get_args`, …) refuse to run when invoked\nindirectly — through a variable holding their name or as a callback string.\nSuch calls only produce a warning and do nothing useful."
@@ -173,6 +280,43 @@
   "EncryptionInitializationVectorRandomness": {
     "summary": "An encryption initialization vector must be unpredictable. When the IV passed\nto `openssl_encrypt()` / `mcrypt_encrypt()` can be traced to something other\nthan a cryptographic random generator (a literal, `mt_rand()`, …), report it."
   },
+  "EnumFromUncheckedExternalValue": {
+    "summary": "Detect a resolved backed enum from call with a request-derived backing value not proven within its declared case set and without handling ValueError.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "ExhaustedGeneratorReused": {
+    "summary": "Detect a resolved Generator identity traversed again after a proven complete iterator_to_array call or complete foreach.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "ExplodeEmptySeparator": {
+    "summary": "Detect explode with a separator statically equal to the empty string.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "FastDigestUsedForPasswordStorage": {
+    "summary": "Detect a password input positively established by an HTML password-field mapping or explicit annotated password parameter reaching md5/sha1/hash and then a persisted credential field.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "FileLockFailureUnchecked": {
+    "summary": "Detect a write following flock requiring an exclusive lock where acquisition success is not established.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "FileReadFailureUnchecked": {
+    "summary": "Detect file_get_contents or stream_get_contents result consumed as a string without excluding false.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "FileTruncatedBeforeLock": {
+    "summary": "Detect fopen in w/w+ variants followed by exclusive flock on the same identity.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "FileWriteResultUnchecked": {
+    "summary": "Detect discarded file_put_contents followed on the same path by a resolved success marker: an unconditional return true or literal success response.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "FilteredListJsonShape": {
+    "summary": "Detect builtin json_encode consuming array_filter on a literal sequential array when default filtering certainly removes an interior element and leaves a later numeric key.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
   "FixedTimeStartWith": {
     "summary": "`strpos($s, 'lit') === 0` scans the whole haystack when the prefix is absent,\nso its cost grows with the length of `$s`. Comparing only the first N bytes\nwith `strncmp`/`strncasecmp` answers the same \"starts with\" question in time\nbounded by the needle length.",
     "fix": true
@@ -190,6 +334,10 @@
     "summary": "Dumping, tracing and profiler helpers (`var_dump()`, `print_r()`,\nframework dumpers, Xdebug functions, …) are typically added while debugging\nand forgotten afterwards. Flag their calls unless the context shows the\noutput is intentional.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| configuration | list of strings | empty (see below) | Additional debug entries (`function_name` or `\\Class::method`). |\n| migratedIntoUserSpace | bool | false | When false, the built-in defaults are merged into `configuration`; when true, only `configuration` is used. |\n\nUpstream persists the merged list into `configuration` once and flips\n`migratedIntoUserSpace` to true; custos only needs the \"effective list\"\nsemantics above."
   },
+  "GeneratorCallNeverConsumed": {
+    "summary": "Detect a standalone discarded call to a resolved project callable containing yield and at least one deferred side-effect operation.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "GetClassUsage": {
     "summary": "Since PHP 7.2, passing `null` to `get_class()` is an error-level misuse (it no\nlonger silently falls back to the calling class). This rule flags\n`get_class(x)` calls whose single argument may be `null` and that are not\npreceded by any null check of that same expression in the enclosing function."
   },
@@ -200,12 +348,24 @@
     "summary": "Comparing the result of `gettype($v)` with a type-name string is a roundabout\n(and typo-prone) way of calling the dedicated `is_*()` predicate. The rule\nsuggests the predicate, and flags strings that `gettype()` can never return.",
     "fix": true
   },
+  "GlobFailureUnchecked": {
+    "summary": "Detect glob result directly or through a proven alias consumed by foreach or array-only operations without excluding false.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "HeadersAfterCommittedOutput": {
+    "summary": "Detect header or setcookie after demonstrably committed output on every incoming path, such as output plus flush with no active buffering.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "HostnameSubstitution": {
     "summary": "`$_SERVER['HTTP_HOST']` and `$_SERVER['SERVER_NAME']` can be controlled by the\nclient (Host header). Using them to build e-mail addresses or storing them in\ndomain/host/email-like variables or properties without a whitelist check lets\nan attacker inject their own domain."
   },
   "IfReturnReturnSimplification": {
     "summary": "An `if` whose only job is to return `true` in one branch and `false` in the\nother is a long-winded way of returning the condition itself (or its\nnegation). Return the expression directly.",
     "fix": true
+  },
+  "ImmutableDateResultIgnored": {
+    "summary": "Detect discarded return from modify, add, sub, setDate, setTime, setTimestamp or setTimezone on a receiver proven DateTimeImmutable.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "ImplodeArgumentsOrder": {
     "summary": "`implode()` historically accepted its separator in either position; passing the\npieces first and the separator second is deprecated (7.4) and removed (8.0).\nWhen the second argument is clearly the separator (a string literal), the\narguments are swapped.",
@@ -232,6 +392,11 @@
     "summary": "Testing an object's class through string comparisons or reflection-like\nhelpers (`get_class($o) === 'Foo'`, `is_a($o, 'Foo')`,\n`in_array('Foo', class_parents($o))`, …) is slower and less readable than the\n`instanceof` operator, and hides the class name from refactoring tools.\nSuggest `instanceof` when the subject is known to be a non-string value and\nthe named class exists.",
     "fix": true
   },
+  "IntervalDayComponentAsTotal": {
+    "summary": "Detect a DateInterval produced by diff whose format consists solely of %d when the opt-in contract requires total elapsed days.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
   "InvertedIfElseConstructs": {
     "summary": "An `if`/`else` whose condition is a negation (`!expr`, or `false === expr`)\nreads backwards: swapping the two branches and dropping the negation makes the\nmain path positive and easier to follow.",
     "fix": true
@@ -252,6 +417,11 @@
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| (none) | | | Operand order follows the global comparison style (`regular` default / `yoda`). |",
     "fix": true
   },
+  "IsoWeekCalendarYearMismatch": {
+    "summary": "Detect a date format literal containing unescaped Y and W in the same year-week label.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
   "IssetArgumentExistence": {
     "summary": "`isset($v)`, `empty($v)` and `$v ?? …` silently accept a variable that is\nnever defined in the current function. When the first mention of a plain\nvariable inside a function body is such an existence check, the variable can\nnever be set at that point — usually a typo or a leftover after a refactoring.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `IGNORE_INCLUDES` | bool | `true` | When `true`, include/require statements in the function are disregarded (reports still happen). When `false`, a function containing any include/require is skipped entirely (the included file could define the variable). The EA fixture runs with `false`. |"
@@ -260,9 +430,18 @@
     "summary": "`isset()` accepts several arguments and is true only when all of them are set.\nA chain such as `isset($p) \u0026\u0026 isset($q)` is therefore the same as\n`isset($p, $q)`, and `!isset($p) || !isset($q)` the same as `!isset($p, $q)`.\nMerging keeps conditions short.",
     "fix": true
   },
+  "IteratorMaterializationKeyCollision": {
+    "summary": "Detect iterator_to_array with key preservation enabled/default on a resolved generator yielding two certainly equal keys on the same execution path.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "JsonEncodingApiUsage": {
     "summary": "`json_decode()` without its second argument silently returns `stdClass`\nobjects, which readers often confuse with arrays; and both `json_decode()` and\n`json_encode()` report failures only through `json_last_error()` unless the\n`JSON_THROW_ON_ERROR` flag (PHP 7.3+) is passed. This rule asks for an explicit\ndecoding target and for exception-based error handling.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| HARDEN_DECODING_RESULT_TYPE | bool | true | Enables kind T (D1). Also affects `\u003cassoc\u003e` in F2. |\n| DECODE_AS_ARRAY | bool | false | Fixes insert `true` (decode to arrays) instead of `false`. |\n| DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |\n| HARDEN_ERRORS_HANDLING | bool | true | Enables kind E (D2–D5). |\n\nUpstream fixture configurations: (a) T only — HARDEN_DECODING_RESULT_TYPE on,\nDECODE_AS_ARRAY on, HARDEN_ERRORS_HANDLING off, default PHP level;\n(b) E only — HARDEN_DECODING_RESULT_TYPE off, HARDEN_ERRORS_HANDLING on, PHP 7.3.",
+    "fix": true
+  },
+  "JsonIntegerPrecisionLoss": {
+    "summary": "Detect json_decode on literal JSON containing an integer outside the portable signed 64-bit range without JSON_BIGINT_AS_STRING.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
     "fix": true
   },
   "LongInheritanceChain": {
@@ -274,6 +453,10 @@
   },
   "MagicMethodsValidity": {
     "summary": "PHP's magic methods (`__get`, `__toString`, `__clone`, …) have fixed contracts:\nstatic-ness, visibility, number of parameters, return value. Violations are\nfatal errors, silently ignored methods or subtle bugs. This rule validates\neach magic method declared in a class-like, flags `__`-prefixed methods that\nare not magic, and catches magic names typed with a single underscore."
+  },
+  "MillisecondsUsedAsUnixSeconds": {
+    "summary": "Detect date, gmdate or DateTime setTimestamp consuming a positive literal timestamp between 100000000000 and 9999999999999 under an explicit millisecond-input contract.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "MisorderedModifiers": {
     "summary": "PSR-1/PSR-12 style expects method modifiers in a fixed order: `final` /\n`abstract` first, then the visibility, then `static`. Methods whose modifiers\nare written in another order are flagged and re-sorted.",
@@ -308,6 +491,10 @@
     "summary": "Two classes of PHPUnit mock-configuration mistakes inside tests:\npassing a stub *object* (`$this-\u003ereturnValue(...)`, `$this-\u003ereturnCallback(...)`)\nto `willReturn()` — which then returns the stub object itself instead of\nrunning it — and configuring (`-\u003emethod('name')`) a method that the mocked\nclass does not have, or that is `final` and therefore cannot be overridden by\nthe generated double.",
     "fix": true
   },
+  "MonthAdditionDateOverflow": {
+    "summary": "Detect modify with literal +1 month or -1 month on a resolved literal date when the target month cannot contain the original day number.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "MultiAssignmentUsage": {
     "summary": "Two patterns where destructuring would be clearer:\n\n1. unpacking the `foreach` value variable with `list(...) = $value` as a\n   separate statement, when `foreach (... as list(...))` can do it directly\n   (PHP 5.5+);\n2. consecutive statements pulling numbered elements out of the same array\n   one at a time (`$a = $row[0]; $b = $row[1];`), which a single\n   `list(...) = $row` replaces."
   },
@@ -329,6 +516,14 @@
   },
   "NestedTernaryOperator": {
     "summary": "A ternary inside another ternary is hard to read and, without parentheses,\nits associativity is a classic PHP trap. Chains of short ternaries\n(`$a ?: $b ?: $c`) read naturally and are accepted."
+  },
+  "NoContentResponseWithBody": {
+    "summary": "Detect nonempty output after response status is proven 204 and before any status change.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "NonExhaustiveEnumMatch": {
+    "summary": "Detect match over a resolved enum when reachable enum cases are missing and there is no default arm.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "NonSecureParseStrUsage": {
     "summary": "Called with a single argument, `parse_str()` / `mb_parse_str()` create\nvariables in the current scope from user-supplied query strings, which can\noverwrite existing variables. Always pass the result array as second\nargument."
@@ -373,18 +568,68 @@
     "summary": "`$total = $total + $step` repeats the target; the compound assignment\n`$total += $step` says the same thing more directly.",
     "fix": true
   },
+  "OwnedStreamNotClosed": {
+    "summary": "Detect an owned successfully opened stream leaving its local scope without close, return or ownership transfer.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "PackedHashtableOptimization": {
     "summary": "Since PHP 7 an array whose keys are integers inserted in ascending order can\nbe stored in a compact \"packed\" layout. An array literal that lists integer\nkeys out of order, or spells integer keys as numeric strings, misses that\nlayout. Sorting the keys or writing them as integers lets the engine use it."
   },
   "ParameterDefaultValueIsNotNull": {
     "summary": "Optional parameters that may be \"absent\" are best expressed with a `null`\ndefault (and a nullable type) rather than a sentinel such as `0`, `''` or\n`[]`. This opt-in style rule flags non-null defaults where `null` could be used."
   },
+  "PartialStreamWriteUnchecked": {
+    "summary": "Detect fwrite whose result is ignored or checked only against false when the complete payload is then claimed sent via unconditional return true.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "PassingByReferenceCorrectness": {
     "summary": "A parameter declared by reference (`\u0026$p`) needs a variable-like argument.\nPassing the result of a call that does not return by reference, or a `new`\nexpression, makes PHP emit a notice (\"only variables should be passed by\nreference\") and the callee's writes are lost."
+  },
+  "PasswordComparedWithFreshHash": {
+    "summary": "Detect password_hash result compared for equality with a stored string hash to decide password acceptance.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
+  "PathContainmentPrefixBoundary": {
+    "summary": "Detect canonical-path containment accepted through str_starts_with or equivalent prefix comparison against a literal non-root directory prefix without a directory-separator boundary.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "PdoApiUsage": {
     "summary": "Preparing a statement with `PDO::prepare()` and immediately running it with an\nargument-less `execute()` gains nothing from the prepare step: no parameters\nare bound. A single `PDO::query()` call does the same job.",
     "fix": true
+  },
+  "PdoExecuteArrayReplacesBindings": {
+    "summary": "Detect execute with a literal empty parameter array on a statement with previously established required bindValue/bindParam bindings.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
+  "PdoFetchColumnFalsyValueLoss": {
+    "summary": "Detect fetchColumn result used as a truthiness condition that skips successful zero or empty-string results.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "PdoIdentifierPlaceholder": {
+    "summary": "Detect PDO prepare with a parameter marker in a table-name position following FROM, JOIN, UPDATE or INTO in parsed literal SQL.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "PdoMixedPlaceholderStyles": {
+    "summary": "Detect PDO prepare with literal SQL containing both named and positional parameter markers outside quoted literals/comments.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "PdoPlaceholderBindingMismatch": {
+    "summary": "Detect execute on a resolved PDOStatement whose literal prepared SQL requires markers absent from the complete effective binding set, or whose binding set has extra markers.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "PdoQuotedPlaceholder": {
+    "summary": "Detect execution supplying a named binding occurring only as a quoted SQL string literal rather than an actual marker.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "PdoReferenceBindingVariableReuse": {
+    "summary": "Detect two distinct PDO markers bound through bindParam to the same scalar local identity, with its value changed between bindings and before execute.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "PdoSelectRowCountAssumption": {
+    "summary": "Detect rowCount on a PDOStatement prepared from a SELECT and used as a total result count under an explicitly enabled portable-count contract.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "PhpUnitDeprecations": {
     "summary": "Flags PHPUnit assertion APIs deprecated in the configured PHPUnit version:\nthe optional trailing parameters of `assertEquals()` / `assertNotEquals()`\n(deprecated in 8.0 in favour of dedicated assertions) and the\n`assertFileNotExists()` / `assertDirectoryNotExists()` assertions (deprecated\nin 9.1 in favour of their `...DoesNotExist()` counterparts).",
@@ -403,8 +648,21 @@
     "summary": "Since PHP 5.6 exponentiation has its own operator. `pow($a, $b)` can be\nwritten `$a ** $b`, which is shorter and avoids a function call.",
     "fix": true
   },
+  "PregMatchFailureAsNonMatch": {
+    "summary": "Detect preg_match or preg_match_all tested with boolean negation or a falsy branch that handles input rejection without distinguishing false from zero.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "PregQuoteUsage": {
     "summary": "`preg_quote()` only escapes the pattern delimiter when it is given as the\nsecond argument. Called with a single argument, a `/` or `#` inside the quoted\ntext breaks the surrounding pattern."
+  },
+  "PregReplaceFailureUnchecked": {
+    "summary": "Detect a nullable result of preg_replace or preg_replace_callback flowing into a non-null string parameter or dereference without a successful null guard.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "PregSplitCaptureFlagWithoutGroups": {
+    "summary": "Detect preg_split with PREG_SPLIT_DELIM_CAPTURE on a parsed literal regex containing no capturing groups.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
   },
   "PreloadingUsageCorrectness": {
     "summary": "In an opcache preload script, including files with `require`/`include`\nexecutes them, which can fail on unresolved dependencies (PHP bug #78918).\n`opcache_compile_file()` only compiles and caches the file, which is what a\npreload script usually wants.",
@@ -431,9 +689,21 @@
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `SUGGEST_USING_RANDOM_INT` | bool | `true` | When on and the level is 7.0+, `rand`/`mt_rand` with two arguments are pointed at `random_int`; when off, the classic table is used at every level. |",
     "fix": true
   },
+  "ReadModifyWriteLockTooLate": {
+    "summary": "Detect file_get_contents of a path feeding a transformed value into file_put_contents on the same proven path with LOCK_EX but no enclosing lock spanning the read.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "ReadonlyPropertyReassignment": {
+    "summary": "Detect assignment to a resolved readonly instance property already initialized on every reachable incoming path.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "RealpathInStreamContext": {
     "summary": "`realpath()` returns `false` for paths inside stream wrappers such as\n`phar://`, so code that works on disk breaks once packaged. Climbing\ndirectories with `realpath(__DIR__ . '/../')` or wrapping include paths in\n`realpath()` should use `dirname()` / the plain path instead.",
     "fix": true
+  },
+  "RedirectContinuesProtectedExecution": {
+    "summary": "Detect a conditional unauthorized branch emitting a Location header and falling through to an operation marked protected by the same authorization predicate.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "RedundantElseClause": {
     "summary": "When an `if` body always leaves the current flow (return, throw, break,\ncontinue, exit/die), the following `else`/`elseif` keyword is superfluous: its\ncode can simply follow the `if`. Removing it flattens nesting.",
@@ -443,10 +713,27 @@
     "summary": "Since PHP 5, object handles are passed and assigned by value of the handle:\nthe callee already works on the same object. Taking objects by reference\n(`Foo \u0026$x` parameters, `$x = \u0026new Foo()`) is a PHP 4 leftover that only\nconfuses readers — unless the reference is really used to replace the\ncaller's variable.",
     "fix": true
   },
+  "RegexByteOffsetAsCharacterOffset": {
+    "summary": "Detect a PREG_OFFSET_CAPTURE byte offset flowing into the start argument of mb_substr or grapheme_substr for the same proven string value.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "RepeatedCookieHeaderReplacement": {
+    "summary": "Detect a second header call with a Set-Cookie literal and default/true replace flag on a path with an earlier Set-Cookie header.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
+  "RepeatedHtmlEntityEncoding": {
+    "summary": "Detect htmlspecialchars or htmlentities directly nesting an equivalent encoding call with matching flags/encoding and default or true double_encode.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "ReturnTypeCanBeDeclared": {
     "summary": "A method without a declared return type whose returned values (and `@return`\ndocumentation) all agree on one type — optionally nullable, or nothing at all\n(`void`) — can carry a native return type declaration. Declaring it lets the\nengine enforce the contract and documents it in the signature.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| LOOKUP_PHPDOC_RETURN_DECLARATIONS | bool | true | Lets `@return self` / `@return $this` turn a class-typed suggestion into `self` (compact step 1). |",
     "fix": true
+  },
+  "SameSiteNoneWithoutSecure": {
+    "summary": "Detect setcookie with literal options selecting SameSite None and secure absent or false.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "SecurityAdvisories": {
     "summary": "Works on a project's `composer.json` (not on PHP code). Two concerns:\ndevelopment-only packages (test frameworks, debuggers, static analysers…)\nlisted under `require` end up in production; and an application that pulls\nthird-party packages should also require the advisory \"firewall\" meta-package\nin `require-dev`, which blocks installing versions with known\nvulnerabilities.\n\nThroughout this spec:\n\n- **ADV** is the advisory meta-package: vendor `roave`, package\n  `security-advisories`; its full name is vendor, `/`, package.\n- **CHK** is the alternative checker package: vendor `sensiolabs`, package\n  `security-checker`.\n- **DEV** is the effective development-package list (option\n  `optionConfiguration`, see Options).",
@@ -471,6 +758,22 @@
     "summary": "`$a === $b ? $a : $b` always evaluates to `$b`: when the two are identical it\ndoes not matter which one is returned. The same holds for `!==` with swapped\nbranches. Such ternaries only add branching; replace them with the operand\nthat is always the result.",
     "fix": true
   },
+  "SessionCookieOptionsSetAfterStart": {
+    "summary": "Detect session_set_cookie_params after a successfully active session_start with no intervening close/destroy.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "SessionLockHeldDuringBlockingCall": {
+    "summary": "Detect a known blocking sleep/usleep or network operation while an active session with a known locking handler remains owned by the scope.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "SessionMutationAfterClose": {
+    "summary": "Detect a write to $_SESSION after successful session_write_close and before a proven session_start reopening.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "ShallowCloneNestedMutation": {
+    "summary": "Detect cloning an object followed by mutation of a nested object member where the nested identity is proven shared with the original.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "ShortEchoTagCanBeUsed": {
     "summary": "In templates, a PHP block that only outputs something — `\u003c?php echo $x ?\u003e` —\nreads better as the short echo tag `\u003c?= $x ?\u003e`.",
     "fix": true
@@ -483,6 +786,10 @@
     "summary": "The short open tag `\u003c?` depends on the `short_open_tag` ini setting; code using\nit breaks (prints source code) where that setting is off. Use `\u003c?php`.",
     "fix": true
   },
+  "ShortStreamReadUnchecked": {
+    "summary": "Detect fread with a fixed positive byte count whose result reaches unpack requiring that exact length without a length check.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "SimpleXmlLoadFileUsage": {
     "summary": "`simplexml_load_file()` is affected by a long-standing PHP bug (#62577) where\nloading fails depending on the libxml entity-loader state. Reading the file\nyourself and passing its contents to `simplexml_load_string()` avoids it.",
     "fix": true
@@ -490,6 +797,20 @@
   "SlowArrayOperationsInLoop": {
     "summary": "Two loop anti-patterns:\n\n- **Accumulating merges**: `$acc = array_merge($acc, $chunk)` inside a loop\n  copies the whole accumulator on every iteration (quadratic cost). Collect\n  the chunks and merge once after the loop.\n- **Length in a `for` condition**: `$i \u003c count($items)` re-evaluates the\n  length on every iteration. Compute it once in the initialiser.",
     "fix": true
+  },
+  "SortComparatorReturnsBoolean": {
+    "summary": "Detect usort, uasort, or uksort with a local comparator whose every returned value is boolean and at least one return is an ordering comparison.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
+  "SortComparatorReturnsFloat": {
+    "summary": "Detect a builtin sort comparator returning a subtraction whose operands are proven floats.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
+  "SortResultUsedAsArray": {
+    "summary": "Detect the boolean result of sort, rsort, asort, arsort, ksort, krsort, usort, uasort, or uksort when consumed directly or through a proven alias by foreach or an array-only builtin.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "StaticClosureCanBeUsed": {
     "summary": "A closure (or arrow function) that never touches the object it was created in\ncan be declared `static`. That prevents an implicit `$this` binding, makes the\nscope explicit and avoids keeping the surrounding object alive.",
@@ -526,6 +847,14 @@
     "summary": "`strtr($subject, $from, $to)` with single-character `$from` and `$to` is really\na plain character replacement; `str_replace($from, $to, $subject)` states that intent\nmore clearly.",
     "fix": true
   },
+  "StreamOpenFailureUnchecked": {
+    "summary": "Detect fopen result passed to a stream-only operation without excluding false.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "StreamUseAfterClose": {
+    "summary": "Detect a stream operation requiring an open resource on an identity closed by a successful fclose on every incoming path.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "StringCaseManipulation": {
     "summary": "Lower- or upper-casing the haystack and/or needle only to make a substring\nsearch case-insensitive costs extra string copies; PHP already ships\ncase-insensitive variants of the position functions (`stripos`, `strripos`,\n`mb_stripos`, `mb_strripos`). Use them on the raw strings instead.",
     "fix": true
@@ -542,6 +871,10 @@
     "summary": "Measuring a string's length only to know whether it is empty\n(`strlen($s) \u003e 0`, `!mb_strlen($s)`, `if (strlen($s))`) is indirect and\nslower than comparing with the empty string. Suggest an identity comparison\nwith `''` instead, casting to string when the value is not known to be a\nstring.",
     "options": "| Option | Type | Default | Effect |\n|--------|------|---------|--------|\n| (none) | | | Operand order follows the global comparison style (`regular` default / `yoda`). |",
     "fix": true
+  },
+  "StrtokStateClobbered": {
+    "summary": "Detect starting a second two-argument strtok sequence between an initial sequence call and its one-argument continuation on the same reachable path.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "StrtotimeUsage": {
     "summary": "Two wasteful `strtotime()` idioms: parsing the literal `'now'` just to get the\ncurrent timestamp (`time()` does that directly), and passing `time()` as the\nbase timestamp, which is already the default.",
@@ -585,6 +918,10 @@
     "summary": "PHP treats `switch` as a loop structure for `continue`, so a bare `continue`\ninside a `switch` only leaves the `switch` (like `break`) instead of starting\nthe next iteration of the surrounding loop. `continue 2` is what was meant.",
     "fix": true
   },
+  "TempnamDirectoryFallbackUnchecked": {
+    "summary": "Detect tempnam result used for sensitive content under an explicitly enabled required-directory contract without verifying its parent directory.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "TernaryOperatorSimplify": {
     "summary": "A ternary whose branches are the literals `true` and `false` merely restates\nits condition. When the condition is a binary expression, the ternary can be\nreplaced by the condition itself, its negation, or a boolean cast.",
     "fix": true
@@ -596,6 +933,18 @@
   },
   "TraitsPropertiesConflicts": {
     "summary": "When a class and one of its traits (or its parent class and one of its\ntraits) declare the same property, PHP only accepts it if both declarations\nare compatible, and even then the duplication is fragile. Point out these\noverlaps; when the two declarations are incompatible (PHP refuses to compose\nthe class), it is a real conflict."
+  },
+  "TransactionEarlyReturn": {
+    "summary": "Detect a reachable normal return from a scope owning a successfully begun PDO transaction where neither commit nor rollback occurs on the exit path.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "TransactionExceptionWithoutRollback": {
+    "summary": "Detect a caught exceptional path after an owned PDO transaction begins when the catch continues or returns with the transaction active.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "TrimMaskUsedAsSuffix": {
+    "summary": "Detect trim, ltrim or rtrim using a literal extension-like mask beginning with a dot and containing at least two alphabetic characters.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "TypeUnsafeArraySearch": {
     "summary": "`in_array()` and `array_search()` compare loosely unless their third argument\nis `true`, so `'1abc'`, `1`, `true` and `'1'` can all \"match\". Asking for the\nthird argument forces the author to decide whether loose matching is really\nwanted."
@@ -618,8 +967,28 @@
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_TO_USE_ARRAY_KEY_EXISTS | bool | false | Enables D10. |\n| SUGGEST_TO_USE_NULL_COMPARISON | bool | false | Enables D8 and its fix. |\n| REPORT_CONCATENATION_IN_INDEXES | bool | true | Enables D9. When off, such accesses go straight to D10. |\n\nAll upstream fixtures run with all three options **on** and regular comparison\nstyle.",
     "fix": true
   },
+  "UndeclaredDynamicProperty": {
+    "summary": "Detect assigning a missing instance property on a resolved PHP 8.2+ class with a complete known hierarchy.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "UnescapedHtmlOutput": {
+    "summary": "Detect request-derived text emitted inside a proven HTML text-node context without context-appropriate escaping.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "UninitializedTypedPropertyRead": {
+    "summary": "Detect reading a resolved typed instance property when every incoming path proves it remains uninitialized.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "UnitEnumJsonEncoding": {
+    "summary": "Detect json_encode receiving a resolved unit enum value without a JsonSerializable implementation.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "UnknownInspection": {
     "summary": "A `@noinspection` suppression naming an inspection that does not exist (typo,\nrenamed or removed rule) silently suppresses nothing. Point it out so it can be\ncorrected or deleted."
+  },
+  "UnknownNamedArgument": {
+    "summary": "Detect a named argument absent from every resolved target parameter list where no target has a variadic parameter.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "UnnecessaryAssertion": {
     "summary": "Some PHPUnit assertions verify something the language already guarantees:\nasserting `null`/emptiness on the result of a `void` function, or the class\nor type of a value returned by a function with a declared return type. Also,\n`-\u003eexpects($this-\u003eany())` on a mock asserts nothing and can be dropped.",
@@ -645,6 +1014,10 @@
     "summary": "An import alias identical to the last segment of the imported name\n(`use App\\Mail\\Sender as Sender;`) changes nothing. Drop the `as` clause.",
     "fix": true
   },
+  "UnpackedNamedArgumentCollision": {
+    "summary": "Detect an explicit or unpacked argument binding a parameter already certainly bound by a literal unpacked array on the same call.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "UnqualifiedReference": {
     "summary": "Inside a namespace, an unqualified call such as `strlen($s)` must be resolved\nat run time (namespace first, then global). Writing `\\strlen($s)` lets the\nPHP 7+ compiler bind it at compile time and, for a set of special functions,\nreplace the call by a dedicated opcode. The same holds for global constants\nand for function names passed as string callbacks.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_ALL_FUNCTIONS` | bool | false | Report every unqualified global function call (and every callback name), not only those in the opcode list. |\n| `REPORT_CONSTANTS` | bool | false | Also report unqualified references to global constants. |\n\nThe rule is disabled by default.",
@@ -663,8 +1036,32 @@
   "UnsupportedStringOffsetOperations": {
     "summary": "Writing through a string offset as if it were a nested array\n(`$str[0][1] = …`) or appending to a string with `[]` (`$str[] = …`) is a\nfatal error since PHP 7.1. When the written-to value is known to be a string,\nsuch writes are bugs."
   },
+  "UntrustedFilesystemPath": {
+    "summary": "Detect request-derived path components reaching file read/write/delete or include sinks without established canonical containment or finite filename selection.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "UntrustedForwardedClientAddress": {
+    "summary": "Detect HTTP_X_FORWARDED_FOR-derived address used in an access-control comparison without established trusted-proxy validation.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "UntrustedHeaderValue": {
+    "summary": "Detect request-derived data reaching a response-header value without a dominating CR/LF rejection or safe construction summary.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
   "UntrustedInclusion": {
     "summary": "Including a file by a relative path makes PHP search `include_path` (and the\ncurrent working directory), so a different file than intended can be loaded.\nAnchor paths with `__DIR__` (or rely on autoloading)."
+  },
+  "UntrustedNetworkDestination": {
+    "summary": "Detect request-derived destination reaching curl, URL stream reads or equivalent network sinks without a proven outbound destination policy.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "UntrustedShellCommand": {
+    "summary": "Detect request-derived data reaching a shell-command sink in syntax-capable position without proven appropriate argument escaping or strict validation.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "UntrustedSqlConstruction": {
+    "summary": "Detect request-derived data reaching a resolved SQL execution sink as SQL syntax without parameter binding or proven context-appropriate validation.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "UnusedConstructorDependencies": {
     "summary": "A private property that is assigned in the constructor but never touched by\nany other method of the class (or its traits) is dead state — typically a\nleftover injected dependency. Point at the constructor assignments."
@@ -672,6 +1069,14 @@
   "UnusedGotoLabel": {
     "summary": "A `goto` label that no `goto` statement targets is dead code; it only\nsuggests control flow that does not exist. Remove it.",
     "fix": true
+  },
+  "UnvalidatedRedirectTarget": {
+    "summary": "Detect request-derived data reaching a Location header without a proven permitted-local-target or finite destination policy.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "UploadClientMimeTrusted": {
+    "summary": "Detect acceptance of an upload based solely on $_FILES entry type compared to an allowed MIME string without server-side content inspection.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "UselessReturn": {
     "summary": "Two pointless `return` forms: a bare `return;` as the very last statement of a\nfunction body (the function ends there anyway), and `return $local = expr;`\nwhere the assignment to a local variable can never be observed after the\nfunction has returned.",
@@ -685,6 +1090,20 @@
   },
   "UsingInclusionReturnValue": {
     "summary": "Using the value produced by `include`/`require` (a file that `return`s\nsomething) couples code to file layout and hides dependencies. Prefer explicit\nobjects or functions; inclusion should be a standalone statement."
+  },
+  "UsortDiscardsRequiredKeys": {
+    "summary": "Detect usort on a statically keyed array followed by access through an original nonsequential integer or string key that cannot exist after reindexing.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
+  },
+  "Utf8ByteTruncation": {
+    "summary": "Detect substr on a literal valid UTF-8 string with statically known offsets selecting an incomplete code-point byte sequence.",
+    "options": "None. Enable or disable this rule through normal rule configuration."
+  },
+  "ValidatedIntegerZeroRejected": {
+    "summary": "Detect FILTER_VALIDATE_INT result tested for falsiness when zero is permitted by configured min/max bounds.",
+    "options": "None. Enable or disable this rule through normal rule configuration.",
+    "fix": true
   },
   "VariableFunctionsUsage": {
     "summary": "`call_user_func()` / `forward_static_call()` with a callable that is known at\nthe call site can be written as a direct call (`$fn(...)`, `Cls::m(...)`,\n`$obj-\u003em(...)`), which is faster and analysable. Likewise\n`call_user_func_array()` / `forward_static_call_array()` with a literal\nargument array can pass the arguments inline.",

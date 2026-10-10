@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
 	"custos/internal/semantic/names"
@@ -18,8 +19,47 @@ type SemanticRule interface {
 	Semantic()
 }
 
+// FlowRule marks inspections requiring project-local callable summaries.
+// Local Context.Flow queries remain available without implementing it.
+type FlowRule interface{ Flow() }
+
+// NeedsFlow reports whether an enabled inspection requires wrapper summaries.
+func (e *Engine) NeedsFlow() bool {
+	for _, r := range e.rules {
+		if _, ok := r.rule.(FlowRule); ok {
+			return true
+		}
+	}
+	return false
+}
+
+// WithFlow returns an engine copy using an immutable summary snapshot.
+func (e *Engine) WithFlow(snapshot *flow.Snapshot) *Engine {
+	configured := *e
+	configured.flow = snapshot
+	return &configured
+}
+
+// Flow returns the shared lazy, file-local control-flow environment.
+func (c *Context) Flow() *flow.Env {
+	if c.flow == nil {
+		snapshot := c.engine.flow
+		// The buffer's declarations shadow the indexed copy of its path.
+		// Only files with callable declarations need a local summary overlay.
+		own := flow.Extract(c.File, c.Index(), c.PHP, snapshot)
+		if len(own.Summaries) > 0 {
+			snapshot = snapshot.WithFile(own)
+		}
+		c.flow = flow.New(c.File, c.Types(), snapshot)
+	}
+	return c.flow
+}
+
 // NeedsIndex reports whether an enabled rule requires the project index.
 func (e *Engine) NeedsIndex() bool {
+	if e.NeedsFlow() {
+		return true
+	}
 	for _, r := range e.rules {
 		if _, ok := r.rule.(SemanticRule); ok {
 			return true

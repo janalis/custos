@@ -26,7 +26,8 @@ func layout(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	for path, src := range map[string]string{
-		"internal/inspection/meta/rules.json": `[{"id":"Example"}]`,
+		"internal/inspection/meta/rules.json":        `[{"id":"Example"}]`,
+		"internal/inspection/meta/native-rules.json": `[]`,
 		"internal/inspection/rules/example/rule.go": `package example
 import "custos/internal/inspection/analysis"
 type rule struct{}
@@ -189,5 +190,28 @@ func TestOrphanRuleDirectory(t *testing.T) {
 	problems, err := check(root)
 	if err != nil || !strings.Contains(strings.Join(problems, "\n"), "rule directory has no inspection ID") {
 		t.Fatalf("%v: %v", problems, err)
+	}
+}
+
+func TestNativeCatalogue(t *testing.T) {
+	root := layout(t)
+	write(t, root, "internal/inspection/meta/rules.json", `[]`)
+	write(t, root, "internal/inspection/meta/native-rules.json", `[{"id":"Example"}]`)
+	if problems, err := check(root); err != nil || len(problems) != 0 {
+		t.Fatalf("native catalogue: %v, %v", problems, err)
+	}
+	write(t, root, "internal/inspection/meta/rules.json", `[{"id":"Example"}]`)
+	if _, err := check(root); err == nil {
+		t.Fatal("duplicate catalogue ID accepted")
+	}
+	write(t, root, "internal/inspection/meta/native-rules.json", `{`)
+	if _, err := check(root); err == nil {
+		t.Fatal("malformed native catalogue accepted")
+	}
+	if err := os.Remove(filepath.Join(root, "internal/inspection/meta/native-rules.json")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := check(root); err == nil {
+		t.Fatal("missing native catalogue accepted")
 	}
 }

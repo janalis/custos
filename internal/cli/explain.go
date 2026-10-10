@@ -16,6 +16,11 @@ func cmdExplain(args []string, stdout io.Writer) error {
 	if !ok {
 		return fmt.Errorf("unknown rule %q", args[0])
 	}
+	explainRule(stdout, m)
+	return nil
+}
+
+func explainRule(stdout io.Writer, m *meta.Rule) {
 	def := "enabled by default"
 	if !m.EnabledByDefault {
 		def = "disabled by default"
@@ -27,12 +32,16 @@ func cmdExplain(args []string, stdout io.Writer) error {
 	if d, ok := meta.Describe(m.ID); ok && d.Fix {
 		fix = ", has a quick-fix"
 	}
-	fmt.Fprintf(stdout, "%s (%s)\n  group: %s, severity: %s, %s%s\n  suppress with: @noinspection %s\n\n", m.ID, m.LegacyID, m.Group, m.Severity, def, fix, m.LegacyID)
+	name, suppression := m.ID, "@custos-ignore "+m.ID
+	if m.LegacyID != "" {
+		name += " (" + m.LegacyID + ")"
+		suppression = "@noinspection " + m.LegacyID
+	}
+	fmt.Fprintf(stdout, "%s\n  group: %s, severity: %s, %s%s\n  suppress with: %s\n\n", name, m.Group, m.Severity, def, fix, suppression)
 	if d, ok := meta.Describe(m.ID); ok {
 		fmt.Fprintln(stdout, d.Summary)
 		if d.Options != "" {
 			fmt.Fprintf(stdout, "\nOptions:\n%s\n", d.Options)
 		}
 	}
-	return nil
 }

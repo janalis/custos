@@ -31,3 +31,27 @@ func TestLoadBadCatalogue(t *testing.T) {
 		t.Fatal("corrupt catalogue must report an error")
 	}
 }
+
+func TestDecodeCatalogues(t *testing.T) {
+	all, lookup, err := decodeCatalogues([]byte(`[{"id":"Zulu","legacyId":"ZuluInspection"}]`), []byte(`[{"id":"Alpha"}]`))
+	if err != nil || len(all) != 2 || all[0].ID != "Alpha" || !all[0].Native || all[1].Native {
+		t.Fatalf("merged catalogue: %+v, %v", all, err)
+	}
+	if lookup["ZuluInspection"] != lookup["Zulu"] || lookup["Alpha"] != &all[0] {
+		t.Fatal("aliases or native lookup lost")
+	}
+	if _, ok := lookup[""]; ok {
+		t.Fatal("empty legacy ID registered")
+	}
+	for _, tc := range []struct{ extracted, native string }{
+		{`{`, `[]`},
+		{`[]`, `{`},
+		{`[{"id":""}]`, `[]`},
+		{`[{"id":"Alpha"}]`, `[{"id":"Alpha"}]`},
+		{`[{"id":"Alpha","legacyId":"Beta"}]`, `[{"id":"Beta"}]`},
+	} {
+		if _, _, err := decodeCatalogues([]byte(tc.extracted), []byte(tc.native)); err == nil {
+			t.Errorf("invalid catalogues accepted: %+v", tc)
+		}
+	}
+}
