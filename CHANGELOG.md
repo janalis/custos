@@ -7,11 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- 200 native PHP inspections, independently documented with own fixtures and
-  quick-fixes where a safe correction can be determined.
-- An additional 100 rules cover references, execution state, arrays, JSON,
-  cryptography, HTTP, cURL, databases, processes and extension contracts;
-  intent-sensitive policies remain opt-in.
+- Native PHP inspections covering references, generators and fibers, arrays,
+  JSON, cryptography, HTTP, cURL, databases, processes, streams, text, images
+  and extension contracts. Each has an independent specification and own
+  fixtures; intent-sensitive policies remain opt-in.
 - Safe fixes for NaN comparisons, ZIP opening, OpenSSL verification, literal
   regex replacements, normalized query keys and sodium nonce lengths.
 - Separate native rule metadata that survives upstream fact extraction; native
@@ -19,6 +18,16 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Bounded flow analysis with project function and method summaries, resource
   state tracking and context-specific validation; editor summaries include
   unsaved document changes.
+
+### Changed
+
+- Documentation diagrams now render with Mermaid.
+
+### Fixed
+
+- Native inspections handle branch reachability, mutation, callbacks,
+  namespace resolution and PHP-version constraints more accurately, reducing
+  false positives and withholding fixes when their safety cannot be proven.
 
 ## [0.1.2] - 2026-10-10
 

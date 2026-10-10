@@ -1,6 +1,6 @@
 {
     "name": "janalis/custos",
-    "description": "Fast PHP inspector and fixer (178 inspections with quick-fixes), shipped as a prebuilt binary.",
+    "description": "Fast PHP inspector and fixer with quick-fixes, shipped as a prebuilt binary.",
     "type": "library",
     "keywords": ["static analysis", "inspections", "code quality", "linter", "fixer", "lsp", "dev"],
     "homepage": "https://janalis.github.io/custos/",
