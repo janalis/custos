@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-10
+
 ### Added
 
 - Native PHP inspections covering references, generators and fibers, arrays,
