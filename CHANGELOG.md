@@ -5,6 +5,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- More accurate PHP parsing and recovery from invalid syntax.
+- Better type inference for generics, arrays, callbacks, generators and
+  nullsafe expressions.
+- More accurate declaration and property resolution, reducing false positives.
+- GitHub releases now include the release notes from this changelog.
+
 ## [0.1.1] - 2026-10-08
 
 ### Changed
