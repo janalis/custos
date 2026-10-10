@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-10
+
 ### Fixed
 
 - Boolean ternary simplification now requires opposite arms, and array membership
