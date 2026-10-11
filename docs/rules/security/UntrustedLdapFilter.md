@@ -27,7 +27,9 @@ Reported:
 
 ## Detection
 
-- D1. Resolved ldap_search/list/read filter contains direct request-superglobal value by concatenation or interpolation, not wrapped in resolved ldap_escape with LDAP_ESCAPE_FILTER. Limit propagation to unmodified locals and concatenation.
+- D1. Resolved ldap_search/list/read filter contains a direct request-superglobal value by concatenation or interpolation, not wrapped in a resolved ldap_escape call that escapes for the filter context. Limit propagation to unmodified locals, concatenation and the parts of a double-quoted or heredoc string.
+- D1a. A request value is an element of `$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE` or `$_SERVER` read with a statically known key: a quoted string, a literal, or the bare word or number of simple interpolation such as `"$_GET[user]"`.
+- D1b. ldap_escape protects the filter when its flags argument is omitted or is the integer zero (every byte is escaped), or when the flags provably include LDAP_ESCAPE_FILTER. When the flags are a known constant, integer or bitwise-or tree without that bit (for example LDAP_ESCAPE_DN alone, which leaves `*`, `(` and `)` intact), the escaped argument is examined as if the call were absent. Positional and named arguments are both read.
 - D1e. Source provenance additionally requires an untouched lexical superglobal prefix. Exclude earlier explicit writes to or reference escapes of that superglobal and any earlier write or reference target involving GLOBALS. Reject all earlier object construction and unknown calls, including calls with no arguments, method calls and static calls; only resolved strlen, is_string, ctype_alnum, ctype_digit or in_array are supported pure-call exceptions. Traverse at most 4096 AST nodes, excluding nested variable scopes; exhaustion or unsupported source mutation discards the request-origin proof.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
@@ -35,7 +37,10 @@ Reported:
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- E2. `$_SERVER` entries produced by the SAPI or by server configuration carry no client-chosen text and are not request values: REQUEST_TIME, REQUEST_TIME_FLOAT, SERVER_ADDR, SERVER_PORT, REMOTE_PORT, SERVER_SOFTWARE, GATEWAY_INTERFACE, SERVER_PROTOCOL, DOCUMENT_ROOT, SCRIPT_FILENAME and argc. Every other known key stays a request value, because many non-`HTTP_` entries (SERVER_NAME, REQUEST_METHOD, CONTENT_TYPE, REMOTE_USER, argv) can be influenced by the client.
+- E3. ldap_escape with flags that cannot be evaluated, any other call wrapping the value, and a superglobal read with a dynamic key are unproven and not reported.
+- E4. A backtick command passes its interpolated parts to the shell, not to the filter; it is not reported here.
+- E5. Both standard suppression forms suppress this native ID.
 
 ## Fix
 

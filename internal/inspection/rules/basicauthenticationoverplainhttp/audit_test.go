@@ -23,6 +23,17 @@ func TestAuditRegressions(t *testing.T) {
 		{"$h=curl_init(\"http://host/\");curl_setopt_array($h,[CURLOPT_HTTPAUTH=>CURLAUTH_DIGEST]);curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);", 0, -1},
 		{"$h=curl_init(\"http://host/\");curl_setopt_array($h,$options);curl_setopt($h,CURLOPT_URL,\"http://host/\");curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);", 0, -1},
 		{"$h=curl_init(\"http://host/\");curl_setopt($h,CURLOPT_WRITEFUNCTION,$callback);curl_setopt($h,CURLOPT_URL,\"http://host/\");curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);", 0, -1},
+		// The URL may come from CURLOPT_URL alone, or override a curl_init argument.
+		{"$h=curl_init();curl_setopt($h,CURLOPT_URL,\"http://host/\");curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);", 1, 0},
+		{"function f($u){$h=curl_init($u);curl_setopt($h,CURLOPT_URL,\"http://host/\");curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);}", 1, 0},
+		{"$h=curl_init(null);curl_setopt($h,CURLOPT_URL,\"HTTP://host/\");curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);", 1, 0},
+		{"$h=curl_init(\"https://host/\");curl_setopt($h,CURLOPT_URL,\"http://host/\");curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);", 1, 0},
+		{"$h=curl_init();curl_setopt($h,CURLOPT_URL,\"https://host/\");curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);", 0, -1},
+		{"$h=curl_init();curl_setopt($h,CURLOPT_URL,$unknown);curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);", 0, -1},
+		{"$h=curl_init();curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);", 0, -1},
+		{"$h=curl_init($u);curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);", 0, -1},
+		{"$h=curl_init();curl_setopt($h,CURLOPT_URL,\"http://host/\");curl_setopt($h,CURLOPT_URL,\"https://host/\");curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);", 0, -1},
+		{"$h=curl_init();curl_setopt_array($h,$options);curl_setopt($h,CURLOPT_USERPWD,\"u:p\");curl_exec($h);", 0, -1},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{New().ID()}})

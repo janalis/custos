@@ -2,6 +2,8 @@
 package authenticationcookieallowsscriptaccess
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -46,20 +48,38 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 }
 
+// setting returns the expression that decides the option, or nil when the
+// call leaves it at its default. The second result is false when a literal
+// options array cannot be read completely.
 func setting(ctx *analysis.Context, c *syntax.FuncCall, pos int, name string) (syntax.Expr, bool) {
-	value := semanticquery.CallArgument(c.Args, 2, "expires_or_options")
-	if value == nil {
+	a := semanticquery.NativeArray(ctx, semanticquery.CallArgument(c.Args, 2, "expires_or_options"))
+	if a == nil {
+		// PHP rejects an options array combined with the legacy arguments, so
+		// an explicit legacy argument decides whatever the expiry expression is.
 		return semanticquery.CallArgument(c.Args, pos, name), true
 	}
-	if a := semanticquery.NativeArray(ctx, value); a != nil {
-		entries, ok := semanticquery.NativeArrayEntries(ctx, value)
+	// PHP matches option names case-insensitively while walking the array,
+	// so the last matching element in array order wins.
+	var order []string
+	values := map[string]syntax.Expr{}
+	for _, item := range a.Items {
+		if item.Key == nil {
+			continue
+		}
+		key, ok := semanticquery.NativeArrayKey(ctx, item.Key)
 		if !ok {
 			return nil, false
 		}
-		return entries["s:"+name], true
+		if !strings.EqualFold(key, "s:"+name) {
+			continue
+		}
+		if _, seen := values[key]; !seen {
+			order = append(order, key)
+		}
+		values[key] = item.Value
 	}
-	if _, ok := semanticquery.NativeInt(ctx, value); ok {
-		return semanticquery.CallArgument(c.Args, pos, name), true
+	if len(order) == 0 {
+		return nil, true
 	}
-	return nil, false
+	return values[order[len(order)-1]], true
 }

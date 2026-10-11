@@ -22,13 +22,19 @@ argument.
   case-insensitively (`Parse_Str`); a qualified non-global name
   (`Ns\parse_str`), a non-global `use function` import or a same-named
   function declared in the current namespace does not count.
-- **D2** The call has exactly **one** argument.
+- **D2** The call has exactly **one** argument, written as an ordinary
+  argument expression.
 
 ## Exceptions (no report)
 
 - **E1** Two (or more) arguments, or zero arguments.
 - **E2** Calls resolving to a non-global function; method calls
   (`$q->parse_str($s)`).
+- **E3** The first-class callable form `parse_str(...)`: it only builds a
+  closure, nothing is parsed and no variable is created at that point.
+- **E4** A single unpacked argument (`parse_str(...$args)`): the number of
+  arguments passed is only known at run time, so the call cannot be shown to
+  be the one-argument form.
 
 ## Report
 
@@ -74,3 +80,6 @@ function readQuery($raw)
   `Parse_Str($s)` is missed while `Ns\parse_str($s)` or a namespace's own
   `parse_str()` is reported. custos resolves the call to the global function,
   in any case (D1).
+- **Closure and unpacking forms (custos diverges from upstream).** custos
+  does not report `parse_str(...)` or `parse_str(...$args)` (E3, E4): the
+  first is not a call and the second may well pass the result array.

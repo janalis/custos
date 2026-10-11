@@ -47,12 +47,47 @@ func setting(ctx *analysis.Context, c *syntax.FuncCall, pos int, name string) (s
 		if !ok {
 			return nil, false
 		}
-		return entries["s:"+name], true
+		return option(entries, name)
 	}
 	if _, ok := semanticquery.NativeInt(ctx, value); ok {
 		return semanticquery.CallArgument(c.Args, pos, name), true
 	}
 	return nil, false
+}
+
+// option reads one options-array entry the way setcookie() does: key names
+// are matched without regard to ASCII case. Several spellings of one name
+// leave the effective value unproven.
+func option(entries map[string]syntax.Expr, name string) (syntax.Expr, bool) {
+	var found syntax.Expr
+	seen := false
+	for key, value := range entries {
+		if !asciiEqualFold(key, "s:"+name) {
+			continue
+		}
+		if seen {
+			return nil, false
+		}
+		found, seen = value, true
+	}
+	return found, true
+}
+
+// asciiEqualFold compares against an already lower-case ASCII name.
+func asciiEqualFold(s, lower string) bool {
+	if len(s) != len(lower) {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		if c != lower[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func stringSetting(ctx *analysis.Context, c *syntax.FuncCall, pos int, name string) (string, bool) {

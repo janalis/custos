@@ -34,6 +34,18 @@ an attacker inject their own domain.
   - concatenation → **concatenation check** on that node (D3);
   - plain assignment → **assignment check** (D4–D6).
   Either way the walk ends there.
+- **D2a (non-string values are not stored host names)** When the walk
+  reaches a plain assignment after crossing a node whose value is a
+  boolean or a number whatever the host is, nothing is reported and no
+  variable is followed: the assigned value is not the host name. Such
+  nodes are a comparison (`==`, `!=`, `===`, `!==`, `<`, `>`, `<=`, `>=`,
+  `<=>`), `&&` / `||`, a logical not, a cast to int, float or bool,
+  `isset()` / `empty()`, and a call resolving to a global builtin that
+  returns a boolean or a number (`strlen`, `in_array`, `strcmp`, `strpos`,
+  `str_contains`, `preg_match`, `intval`, `is_string`, `ctype_*`, …).
+  String-returning and unknown calls (`trim`, `strtolower`, a user
+  function) are passed through. The concatenation check is not affected:
+  `'user@' . strlen(X)` is still decided by D3.
 
 ### Concatenation check on a concatenation node `C`
 
@@ -82,11 +94,18 @@ an attacker inject their own domain.
 ### Whitelist
 
 - **D7** `S` is whitelisted when its nearest enclosing function/method/
-  closure body contains (anywhere) a plain function call resolving to the
+  closure contains (anywhere) a plain function call resolving to the
   global `in_array` (any case; a same-named namespaced function does not
   whitelist) whose first argument is an array access equivalent to `S` (same text,
   e.g. `in_array($_SERVER['HTTP_HOST'], $allowed)`). Top-level code is never
   whitelisted.
+- **D7a (validated variable)** In the variable flow D5 nothing is reported
+  when the function `F` itself (not a closure nested in it, whose
+  variables are its own) contains, after the source assignment, a call
+  resolving to the global `in_array` whose first argument is the target
+  variable, parentheses aside: `$host = $_SERVER['HTTP_HOST'];
+  if (!in_array($host, $allowed, true)) { throw …; }`. A test written
+  before the assignment, or on another variable, does not count.
 
 ## Exceptions (no report)
 
@@ -100,7 +119,10 @@ an attacker inject their own domain.
   whose name does not match (D4/D6); inside functions, variables never used
   later directly inside a concatenation, or used only after being
   overwritten with an unrelated value (D5a).
-- **E5** Whitelisted via `in_array` (D7).
+- **E5** Whitelisted via `in_array` (D7, D7a).
+- **E6** The assigned value is a boolean or a number derived from the host
+  (D2a): `$isLocalhost = $_SERVER['HTTP_HOST'] === 'localhost';`,
+  `$hostLength = strlen($_SERVER['SERVER_NAME']);`.
 
 ## Report
 
@@ -141,6 +163,17 @@ function contact()
     $base = str_replace('www.', '', $base);
     return 'help@' . <error descr="E-mail address built from client-controlled $_SERVER['HTTP_HOST']; validate it against a whitelist.">$base</error>;
 }
+
+function checked(array $allowed)
+{
+    $base = $_SERVER['HTTP_HOST'];
+    if (!in_array($base, $allowed, true)) {
+        return null;
+    }
+    return 'help@' . $base;
+}
+
+$isLocalHost = $_SERVER['HTTP_HOST'] === 'localhost';
 
 function fallback()
 {
@@ -191,3 +224,15 @@ class Mailer
   that is only tested (`!empty($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : …`)
   is not a source: only the read flows into the address, so the finding is
   reported once instead of twice (Swiftmailer's message ids).
+- **Validated variable (custos diverges from upstream).** Upstream only
+  recognises an `in_array` test written on the `$_SERVER[...]` access
+  itself, so the usual store-then-validate form
+  (`$host = $_SERVER['HTTP_HOST']; if (!in_array($host, $allowed)) …`) is
+  reported although it does what the message asks. custos also accepts
+  the test on the tracked variable (D7a).
+- **Boolean and numeric values (custos diverges from upstream).** Upstream
+  takes the first assignment above the access whatever lies in between, so
+  `$isLocalhost = $_SERVER['HTTP_HOST'] === 'localhost';` and
+  `$hostLength = strlen($_SERVER['SERVER_NAME']);` are reported as stored
+  host names. custos does not report an assignment whose value is provably
+  a boolean or a number (D2a).

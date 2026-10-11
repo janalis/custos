@@ -34,7 +34,7 @@ func (backtickOperatorUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.Report(span, backtickOperatorUsageMsg, diagnostic.Fix{
 		Title: "Replace with shell_exec()",
 		Edits: func() []diagnostic.TextEdit {
-			repl := fn + "(\"" + backtickContent(string(src[span.Start+1:span.End-1])) + "\")"
+			repl := fn + "(\"" + backtickContent(src, s) + "\")"
 			if span.Start > 0 && isIdentByte(src[span.Start-1]) {
 				repl = " " + repl
 			}
@@ -43,17 +43,41 @@ func (backtickOperatorUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	})
 }
 
-// backtickContent converts raw backtick content to double-quoted string
-// content: `\“ becomes a plain backtick, an unescaped `"` becomes `\"`.
-func backtickContent(raw string) string {
+// backtickContent converts the text between the backticks to double-quoted
+// string content. Only literal parts are rewritten: interpolated expressions
+// (and the braces around them) are PHP code and are copied untouched.
+func backtickContent(src []byte, s *syntax.InterpolatedString) string {
 	var b strings.Builder
+	span := s.Span()
+	pos := span.Start + 1
+	for _, p := range s.Parts {
+		if _, ok := p.(*syntax.StringPart); !ok {
+			continue
+		}
+		ps := p.Span()
+		b.Write(src[pos:ps.Start])
+		writeLiteral(&b, src[ps.Start:ps.End])
+		pos = ps.End
+	}
+	b.Write(src[pos : span.End-1])
+	return b.String()
+}
+
+// writeLiteral re-escapes literal backtick text for a double-quoted string:
+// an escaped backtick loses its backslash and a bare double quote gains one.
+// Backticks do not treat backslash-quote as an escape, so that pair keeps its
+// backslash: both characters are escaped.
+func writeLiteral(b *strings.Builder, raw []byte) {
 	for i := 0; i < len(raw); i++ {
 		c := raw[i]
 		switch {
 		case c == '\\' && i+1 < len(raw):
-			if raw[i+1] == '`' {
+			switch raw[i+1] {
+			case '`':
 				b.WriteByte('`')
-			} else {
+			case '"':
+				b.WriteString(`\\\"`)
+			default:
 				b.WriteByte(c)
 				b.WriteByte(raw[i+1])
 			}
@@ -64,7 +88,6 @@ func backtickContent(raw string) string {
 			b.WriteByte(c)
 		}
 	}
-	return b.String()
 }
 
 func isIdentByte(c byte) bool {

@@ -17,11 +17,13 @@ Identify sodium_crypto_secretbox or open when key byte length is proven other th
 - D1. Report sodium_crypto_secretbox or open when key byte length is proven other than SODIUM_CRYPTO_SECRETBOX_KEYBYTES; unknown length excludes.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D4. A key held in a local variable keeps its proven length only while plain assignments are the sole writes before the call. Any earlier indirect write in the same scope makes the length unknown: a reference taken to the variable (`$r = &$k`, `[&$k]`, legacy call-time `&$k`), the variable as a `list()`/`[...]` destructuring target or `foreach` key/value target, a closure importing it with `use (&$k)`, a `global` import, the variable passed directly to a method, constructor, unresolved function or a builtin that declares a by-reference parameter, an `extract()` call, or any variable variable.
 
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
 - E2. Both `@custos-ignore SodiumSecretboxKeyLengthMismatch` and `@noinspection SodiumSecretboxKeyLengthMismatch` suppress this native rule.
+- E3. Indirect writes listed in D4 that occur before the call suppress the finding; the same constructs after the call, plain reads, by-value closure imports and arrow functions do not.
 
 ## Fix
 

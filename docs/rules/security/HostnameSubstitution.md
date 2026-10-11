@@ -17,7 +17,7 @@ an attacker inject their own domain.
 
 ## Example
 
-```php{2,3,4,12,26}
+```php{2,3,4,12,37}
 <?php
 $sender  = 'noreply@' . $_SERVER['HTTP_HOST'];
 $bounce  = 'x' . 'bounce@' . trim($_SERVER["SERVER_NAME"]) . '.local';
@@ -31,6 +31,17 @@ function contact()
     $base = str_replace('www.', '', $base);
     return 'help@' . $base;
 }
+
+function checked(array $allowed)
+{
+    $base = $_SERVER['HTTP_HOST'];
+    if (!in_array($base, $allowed, true)) {
+        return null;
+    }
+    return 'help@' . $base;
+}
+
+$isLocalHost = $_SERVER['HTTP_HOST'] === 'localhost';
 
 function fallback()
 {
@@ -62,7 +73,7 @@ Reported:
 <li>line 3: E-mail address built from client-controlled $_SERVER[&#39;SERVER_NAME&#39;]; validate it against a whitelist.</li>
 <li>line 4: Client-controlled host name stored here; validate it against a whitelist.</li>
 <li>line 12: E-mail address built from client-controlled $_SERVER[&#39;HTTP_HOST&#39;]; validate it against a whitelist.</li>
-<li>line 26: Client-controlled host name stored here; validate it against a whitelist.</li>
+<li>line 37: Client-controlled host name stored here; validate it against a whitelist.</li>
 </ul>
 
 ## Configure

@@ -39,14 +39,14 @@ func (untrustedInclusion) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	content, ok := inclusionLiteral(inc.Expr) // D2
 	if !ok {
-		count := 0
-		for _, v := range semanticquery.DiscoverValues(ctx.Types(), inc.Expr) {
-			if c, isLit := inclusionLiteral(v); isLit {
-				content = c
-				count++
-			}
+		// Discovery is flow-insensitive: any other discovered value (a second
+		// literal, a `__DIR__ . '/' . $f` re-anchoring, a call) may be the one
+		// that is included, so the path is only known when the literal is alone.
+		values := semanticquery.DiscoverValues(ctx.Types(), inc.Expr)
+		if len(values) != 1 {
+			return
 		}
-		if count != 1 {
+		if content, ok = inclusionLiteral(values[0]); !ok {
 			return
 		}
 	}

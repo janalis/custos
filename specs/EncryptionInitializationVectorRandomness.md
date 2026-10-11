@@ -21,18 +21,26 @@ than a cryptographic random generator (a literal, `mt_rand()`, …), report it.
   **M**); names compare case-insensitively and a same-named namespaced
   function (declared in the current namespace, imported or written
   qualified) does not count.
-- **D2** The call has at least **5** arguments (PHP 7.1+ `openssl_encrypt`
-  takes up to 8: tag, AAD and tag length follow the IV), and the fifth
-  argument `A` (index 4, the IV) has non-empty source text.
+- **D2** The call passes the IV argument `A`: the fifth positional argument
+  (index 4; PHP 7.1+ `openssl_encrypt` takes up to 8: tag, AAD and tag
+  length follow the IV) or the named argument `iv:`, with non-empty source
+  text. A call containing an unpacked argument (`...$rest`) has no known
+  binding and is not analysed.
 - **D3** Run *value discovery* (as defined in the `CallableMethodValidity`
   spec) on `A`. If it yields nothing, stop.
 - **D4** For each discovered value `v`: it is *secure* when `v` is a plain
   function call (not a method or static call) resolving to the global
   `random_bytes`, `openssl_random_pseudo_bytes` or `mcrypt_create_iv` (any
-  case; a same-named namespaced function is not secure). In D5 the method
-  and static call names are compared case-insensitively too. Every non-secure value contributes its source text to
-  the list `R` (one entry per discovered node; identical texts from
-  different nodes appear twice).
+  case; a same-named namespaced function is not secure), or when it is a
+  `getBytes()` method call whose receiver is typed exactly
+  `Random\Randomizer` (PHP 8.2; its default engine is the system CSPRNG).
+  The receiver is traced when it is written as a `new` expression or is a
+  local variable with reaching `new` assignments: a construction passing an
+  engine argument other than a direct `new Random\Engine\Secure` makes the
+  call non-secure. In D5 the method and static call names are compared
+  case-insensitively too. Every non-secure value contributes its source
+  text to the list `R` (one entry per discovered node; identical texts from
+  different nodes appear twice), except the values dropped by E5 and E6.
 - **D5 (wrapper exception)** If `R` is empty, stop. Otherwise, if value
   discovery produced exactly **one** value, and that value is a call of any
   kind (function, method or static call) that resolves to a declaration
@@ -49,10 +57,33 @@ than a cryptographic random generator (a literal, `mt_rand()`, …), report it.
   whose body calls a secure generator (D5).
 - **E4** Value discovery finds nothing (e.g. a variable at top level, an
   unresolvable constant).
+- **E5 (no-IV mode)** When the cipher argument of `openssl_encrypt` (second
+  positional, or `cipher_algo:`) is a string literal ending in `-ecb`, or
+  the mode argument of `mcrypt_encrypt` (fourth positional, or `mode:`) is
+  the literal `'ecb'` or the constant `MCRYPT_MODE_ECB` (letter case of the
+  strings ignored), an empty string literal value is not listed: ECB takes
+  no IV and `''` is the only value PHP accepts silently. Any other value,
+  and an empty IV with another or a non-literal cipher, is still reported.
+- **E6 (replaced placeholder)** For a local variable argument, a directly
+  assigned value (or the parameter default) written before a statement `S`
+  is not listed when `S` sits in a statement list enclosing the call, ends
+  before it, and always replaces the variable:
+  - `S` is a `try` whose body has a top-level plain assignment to the
+    variable and whose every `catch` either has one too or never completes
+    normally;
+  - `S` is a `do … while` whose body has such an assignment;
+  - `S` is an `if` whose first branch has such an assignment or never
+    completes normally, and whose condition necessarily holds for that
+    value: `$v === null`, `$v == null` (either operand order) or
+    `is_null($v)` for a `null` value; `!$v` or `empty($v)` for `null` or
+    the empty string literal.
+
+  A top-level assignment only counts when no earlier statement of the same
+  list contains `break`, `continue` or `goto`.
 
 ## Report
 
-- Range: the fifth argument `A` exactly as written (a variable, property
+- Range: the IV argument `A` exactly as written (a variable, property
   fetch, class constant…), even when the offending values were found
   elsewhere.
 - Severity: error.
@@ -126,6 +157,20 @@ class Box
   `openssl_encrypt($m, 'aes-256-gcm', $k, 0, 'fixed-nonce', $tag)` — where a
   repeated nonce is catastrophic — goes unreported. custos checks the fifth
   argument whenever there are at least 5 (D2).
+- **Named and unpacked arguments (custos diverges).** The IV is bound the
+  way PHP binds it, so `openssl_encrypt($m, $c, $k, 0, tag: $t, iv: $iv)`
+  checks `$iv` rather than the fifth written argument, a weak `iv:` in a
+  shorter call is reported, and a call with `...$rest` is left alone.
+- **`Random\Randomizer::getBytes()` is secure (custos diverges).** The
+  PHP 8.2 randomizer draws from the system CSPRNG unless another engine is
+  injected, so it is accepted like `random_bytes()`; when the receiver's
+  construction cannot be seen (a parameter, a property) the default engine
+  is assumed (D4).
+- **ECB and replaced placeholders (custos diverges).** The empty IV of an
+  ECB cipher (E5) and an initial `null` / `''` that a guard, `try` or
+  `do … while` always overwrites before the call (E6) are not listed: the
+  first has no better value (a generated IV triggers a PHP warning and is
+  truncated away), the second never reaches the call.
 - **Only reaching assignments (custos diverges).** Upstream discovers every
   assignment of an IV variable in the function, so
   `$iv = random_bytes(16); openssl_encrypt(…, $iv); $iv = base64_encode($iv);`

@@ -15,6 +15,7 @@ Basic authentication credentials sent over plain HTTP are exposed in transit. Us
 ## Detection
 
 - D1. Resolved curl_init/curl_setopt URL is literal http:// and same curl handle configures CURLOPT_USERPWD with a known nonempty credential string before curl_exec, without known secure URL replacement. Highlight credentials option.
+- D1b. The effective URL is the last CURLOPT_URL set on the handle through curl_setopt; only when that option is still at its default does the curl_init argument count. So curl_init() without a URL, or with a non-literal one, followed by a literal http:// CURLOPT_URL is reported, and a literal http:// curl_init argument later replaced by an https:// or unknown CURLOPT_URL is not. With neither a literal curl_init URL nor a literal CURLOPT_URL there is no report.
 - D1c. The initial supported execution proof is an immediately following curl_exec on the same owned handle, with known prior URL replacements.
 - D1d. Require CURLOPT_USERPWD to be a statically known nonempty credential string. Authentication must remain at its Basic default or be explicitly configured to exactly CURLAUTH_BASIC; Digest, Negotiate, NTLM, mixed masks and unknown policies do not establish Basic credentials on the wire. Unknown setters, bulk curl_setopt_array configuration, handle escapes and unknown same-handle operations invalidate the final request proof.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
@@ -49,6 +50,14 @@ Available throughout supported PHP 5.3–8.5 where the referenced builtin/extens
 ```php
 <?php
 $ch=curl_init("http://api.example.test"); <warning descr="Protect basic authentication with HTTPS.">curl_setopt($ch,CURLOPT_USERPWD,"user:secret")</warning>; curl_exec($ch);
+```
+
+```php
+<?php
+$request = curl_init();
+curl_setopt($request, CURLOPT_URL, "http://intranet.example.test/report");
+<warning descr="Protect basic authentication with HTTPS.">curl_setopt($request, CURLOPT_USERPWD, "reader:hunter2")</warning>;
+curl_exec($request);
 ```
 
 Valid case:

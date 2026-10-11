@@ -21,6 +21,11 @@ func (nonSecureParseStrUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || call.Args == nil || len(call.Args.Args) != 1 {
 		return
 	}
+	// `parse_str(...)` builds a closure and `parse_str(...$args)` has an
+	// unknown argument count: neither is the one-argument call.
+	if arg, ok := call.Args.Args[0].(*syntax.Arg); !ok || arg.Unpack {
+		return
+	}
 	if fn := ctx.GlobalFunctionName(call); fn != "parse_str" && fn != "mb_parse_str" {
 		return
 	}

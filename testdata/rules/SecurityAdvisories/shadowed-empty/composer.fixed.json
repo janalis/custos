@@ -1,0 +1,4 @@
+{
+  "require": {"monolog/monolog": "^3.0"},
+  "require-dev": {"bakery/fixtures": "*", "Roave/Security-Advisories": ""}
+}

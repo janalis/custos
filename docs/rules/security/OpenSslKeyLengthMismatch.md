@@ -34,7 +34,13 @@ Reported:
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- E2. A variable key is not reported when its proven value can be replaced by code that local flow does not follow:
+  - a closure in the same scope captures the variable by reference, or an array item stores a reference to it;
+  - the scope calls builtin `extract()`, which can define any local variable (`include`/`require` and `eval` already make local flow incomplete, D2);
+  - the variable shares storage with other code — a file-level variable, one bound with `global`, a by-reference parameter, or a by-reference capture of the enclosing closure — and a call that may run user code (a method or static call, an object creation, or a function call other than a builtin whose signature has no `callable` parameter) or a `$GLOBALS` access follows the proving assignment (arguments of the checked call included), or the `global` binding itself follows that assignment. Builtins such as `random_bytes()` or `base64_encode()` do not weaken the proof.
+
+  By-value captures, arrow functions and bindings of other variables do not weaken the proof.
+- E3. Both standard suppression forms suppress this native ID.
 
 ## Fix
 

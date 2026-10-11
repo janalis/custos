@@ -16,12 +16,14 @@ Decryption can fail and return false. Check success before treating the result a
 
 - D1. Resolved openssl_decrypt result is passed to a known string sink file_put_contents data argument or strlen without a false-result guard. Track direct nesting or unmodified locals; arbitrary named consumers are excluded.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. A false-result guard is a condition on the same local, still holding the same decryption call, whose outcome on the path to the sink rules out false. Accepted tests, also negated with `!`, parenthesised, or combined (any operand of a true `&&`/`and`, any operand of a false `||`/`or`): strict or loose comparison with `false` on either side, plain truthiness, `empty()`, a resolved builtin `is_string()`, and the assignment of the call written inside the condition. Accepted positions: the matching branch of an enclosing `if`/`elseif`/`else` (later arms count every earlier condition as failed), the matching arm of a ternary, the right operand of a short-circuit operator, and code following an earlier `if` without alternatives whose body always exits, in the same or an enclosing statement list.
+- D4. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
 
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- E2. A test of another variable, of an earlier or later value of the local, a `null` comparison, `isset()`, or a guard whose failing branch falls through to the sink is not a guard; the sink is still reported.
+- E3. Both standard suppression forms suppress this native ID.
 
 ## Report
 
@@ -54,6 +56,16 @@ Valid case:
 ```php
 <?php
 $p=openssl_decrypt($c,"aes-256-gcm",$key,OPENSSL_RAW_DATA,$iv,$tag);if($p!==false){file_put_contents($path,$p);}
+```
+
+Guards written in other forms are also accepted:
+
+```php
+<?php
+if (($text = openssl_decrypt($blob, "aes-256-cbc", $secret, 0, $nonce)) === false) { throw new RuntimeException("bad blob"); }
+echo strlen($text);
+$size = !$text ? 0 : strlen($text);
+$long = is_string($text) && strlen($text) > 16;
 ```
 
 ## Divergences

@@ -23,3 +23,10 @@ function reuse_after_increment($nonce, $key) {
     sodium_crypto_secretbox('second', $nonce, $key);
     <warning descr="Use a fresh nonce for each distinct message.">sodium_crypto_secretbox('third', $nonce, $key)</warning>;
 }
+
+function reuse_after_add($nonce, $key, $step) {
+    sodium_crypto_secretbox('first', $nonce, $key);
+    sodium_add($nonce, $step);
+    sodium_crypto_secretbox('second', $nonce, $key);
+    <warning descr="Use a fresh nonce for each distinct message.">sodium_crypto_secretbox('third', $nonce, $key)</warning>;
+}

@@ -14,7 +14,7 @@ import (
 )
 
 func TestNativeFixtureRangesAndFixes(t *testing.T) {
-	for _, name := range []string{"basic", "negative"} {
+	for _, name := range []string{"basic", "negative", "guards", "toplevel"} {
 		t.Run(name, func(t *testing.T) {
 			base := filepath.Join("../../../../testdata/rules", "UploadClientMimeTrusted", name)
 			marked, err := os.ReadFile(base + ".php")

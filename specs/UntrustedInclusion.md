@@ -22,8 +22,10 @@ Anchor paths with `__DIR__` (or rely on autoloading).
 - **D2** The argument resolves to a single string literal: the argument
   itself if it is a string literal; otherwise run *value discovery* (as
   defined in the `CallableMethodValidity` spec — parentheses are stripped
-  first) and keep the discovered string literals; there must be exactly
-  one.
+  first): discovery must yield exactly one value and that value must be a
+  string literal. Discovery collects every value assigned to a variable in
+  its scope regardless of order, so any additional value, literal or not,
+  leaves the included path unknown (E2).
 - **D3** The literal's raw content (between the quotes, escapes not
   decoded) is non-empty and does **not** start with `/`, with a backslash `\` (a UNC
   path `\\host\share\x.php` or a Windows drive-root path), with a single
@@ -36,7 +38,11 @@ Anchor paths with `__DIR__` (or rely on autoloading).
 - **E1** Absolute paths: `'/etc/app.php'`, `'C:\app\x.php'`, `'c://x.php'`.
 - **E2** Arguments that do not resolve to exactly one string literal:
   concatenations (`__DIR__ . '/x.php'`), constants, function calls,
-  variables at top level, variables with several possible literal values.
+  variables at top level, variables with several possible values. This
+  includes a variable first given a relative literal and then reassigned
+  from something else before the include (`$f = 'x.php'; $f = __DIR__ .
+  '/' . $f;`, `$f = realpath($f);`): the included path is the reassigned
+  one.
 - **E3** Empty string `''`.
 - **E4** Stream-wrapper paths: the content starts with a scheme of two or
   more characters (an ASCII letter, then letters, digits, `+`, `-` or `.`)
@@ -95,6 +101,11 @@ include '\\\\fileserver\\shared\\boot.php';
   `include_path`, and anchoring them with `__DIR__` would break them, so
   custos does not report them. `./x.php` / `../x.php` stay reported (they
   are relative to the working directory, same as upstream).
+- **D2/E2 — custos diverges from upstream.** A variable holding one
+  relative literal plus any other discovered value (typically the literal
+  re-anchored with `__DIR__` or passed through `realpath()` before the
+  include) is not reported: the non-literal value is as likely to be the
+  included one, and the advice in the message is already applied.
 - Double-quoted strings with interpolation (`"$base/x.php"`) are string
   literals whose raw content does not start with `/`, so upstream reports
   them although the real path is unknown. Recommendation: do not report a

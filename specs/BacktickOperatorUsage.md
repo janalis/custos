@@ -39,15 +39,24 @@ Calling `shell_exec()` explicitly makes command execution visible.
 
 - **F1** Replace the whole backtick expression with
   `shell_exec("` + `C` + `")`, where `C` is computed from the raw text
-  between the backticks:
-  1. every escaped backtick `` \` `` becomes a plain backtick `` ` ``;
-  2. every double quote `"` becomes `\"`.
-  The rest of the content (spaces, variables, `{$...}` interpolations,
-  other backslash sequences) is copied verbatim — see Divergences.
+  between the backticks. Only the literal text is rewritten, pair by pair
+  (a backslash and the character after it form one pair):
+  1. an escaped backtick `` \` `` becomes a plain backtick `` ` ``;
+  2. a bare double quote `"` becomes `\"`;
+  3. the pair `\"` becomes `\\\"`: backticks do not treat `\"` as an
+     escape, so the command contains both the backslash and the quote, and
+     both must be escaped to survive in a double-quoted string;
+  4. every other pair or character (spaces, `\\`, `\$`, `\n`, …) is copied
+     verbatim.
+  Interpolations (`$var`, `$a[0]`, `$o->p`, `{$...}`, `${...}`), including
+  their braces, are PHP code rather than string text and are copied
+  untouched: a `"` inside `{$a["k"]}` is never escaped.
   Examples:
   - `` `uptime` `` → `shell_exec("uptime")`
   - `` `grep "needle" log.txt` `` → `shell_exec("grep \"needle\" log.txt")`
   - `` `echo \`date\`` `` → ``shell_exec("echo `date`")``
+  - `` `echo {$a["k"]}` `` → `shell_exec("echo {$a["k"]}")`
+  - `` `echo \"hi\"` `` → `shell_exec("echo \\\"hi\\\"")`
 - The fix is offered for every report. Only the expression range is
   replaced; surrounding code is untouched. PHP accepts a keyword directly
   followed by a backtick (`` return`ls`; ``); to keep such code valid,
@@ -98,10 +107,12 @@ $text = 'uses `backticks` in a plain string';
   fixtures. That helper may additionally double backslashes, escape `$`
   and turn raw newlines/tabs into `\n`/`\t`; doing so would change the
   meaning of backtick content (which already follows double-quoted string
-  rules: `\n` is a newline, `$var` interpolates). Recommendation: copy all
-  other characters verbatim (semantics-preserving), escape only a `"` that
-  is not already escaped (preceded by an even number of backslashes,
-  including zero). Not covered by fixtures beyond `"`.
+  rules: `\n` is a newline, `$var` interpolates). custos copies all other
+  characters verbatim and re-escapes only what differs between the two
+  syntaxes: a bare `"`, the pair `\"` (a literal backslash plus quote in
+  backticks, see F1.3) and `` \` ``. Quotes inside an interpolated
+  expression are code and stay as written; escaping them would produce
+  invalid PHP. Not covered by upstream fixtures beyond the bare `"`.
 - The identifier-boundary space in F1 is our addition (upstream's
   replacement is a PSI node so the question does not arise); the fixture
   case has `return` followed by a space.

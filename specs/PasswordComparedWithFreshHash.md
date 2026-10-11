@@ -22,6 +22,7 @@ Detect password_hash result compared for equality with a stored string hash to d
 
 - E1. password_verify, hashes used only for storage, explicit non-password comparison and unknown builtin targets are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. A comparison whose other operand is known to be `false`, `null`, `true`, an integer or float literal, an array literal or the empty string is a hashing-failure or sanity check, not a comparison with a stored hash. This holds for the operand as written and for a local variable resolved to such a value, and whether the fresh hash is written inline or read from a variable. No report, hence no fix.
 
 ## Report
 

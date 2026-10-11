@@ -43,3 +43,29 @@ function overwrittenOuter($flag)
     $base = getenv('MAIL_DOMAIN');
     return 'help@' . $base;
 }
+
+// The assigned value is a boolean or a number, not the host name.
+$isLocalhost = $_SERVER['HTTP_HOST'] === 'localhost';
+$hostLength  = strlen($_SERVER['SERVER_NAME']);
+$hostMissing = empty(trim($_SERVER['HTTP_HOST']));
+$hostBlank   = !$_SERVER['HTTP_HOST'];
+$hostNumber  = (int) $_SERVER['HTTP_HOST'];
+$hostKnown   = $_SERVER['HTTP_HOST'] && $current;
+
+function scalars($o)
+{
+    $o->hostname = $_SERVER['HTTP_HOST'] !== 'a.example';
+    $o->hostSize = mb_strlen(trim($_SERVER['SERVER_NAME']));
+    $size = strlen($_SERVER['HTTP_HOST']);
+    return 'part@' . $size;
+}
+
+// The variable holding the host is checked against a list.
+function validatedVariable(array $allowed)
+{
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if (!in_array(($host), $allowed, true)) {
+        throw new RuntimeException('unexpected host');
+    }
+    return 'noreply@' . $host;
+}

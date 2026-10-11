@@ -21,7 +21,13 @@ Identify openssl_sign whose status is discarded and whose output signature is su
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore OpenSslSigningFailureIgnored` and `@noinspection OpenSslSigningFailureIgnored` suppress this native rule.
+- E2. No report when every later mention of a plain signature variable is either part of a success test or reached only after one. A failed `openssl_sign` leaves the variable untouched, so the test must match what the variable could hold before the call:
+  - `isset($signature)` proves success when the variable was unset or null: it is assigned `null` by the immediately preceding statement, or it is a local of a function-like scope with no earlier mention (not a parameter, `global`, `static` or captured variable), the call is not inside a loop, and the scope has no label, `include`/`require` or `eval`.
+  - `empty($signature)`, `!$signature` and plain truthiness additionally prove success when the immediately preceding statement assigns `''`.
+  - `openssl_verify(..., $signature, ...)` (optionally through a `(string)` cast) compared with `=== 1` / `!== 1` proves success whatever the variable held.
+  - A test protects a mention located in the branch it selects (`if` body, `else` without `elseif`, ternary arm, right operand of `&&`), or located after an `if` without `else`/`elseif` whose body always leaves the path when the test fails. Tests combine through `!`, `&&` (success) and `||` (failure). The test must be evaluated after the signing call.
+  - Mentions that are the direct operand of `isset`, `empty`, `!` or a truthiness condition (parentheses and `&&`/`||` aside), or that sit in the arguments of `openssl_verify`, are part of a test; a value computed from the signature (`!deliver(base64_encode($signature))`) is a use, not a test. Any other unprotected mention, a stale or unknown earlier value (file scope, loop iteration, earlier write), or a signature target that is not a plain variable keeps D1.
+- E3. Both `@custos-ignore OpenSslSigningFailureIgnored` and `@noinspection OpenSslSigningFailureIgnored` suppress this native rule.
 
 ## Report
 

@@ -27,13 +27,13 @@ Reported:
 
 ## Detection
 
-- D1. Resolved setcookie/setrawcookie name is literal beginning __Host- and proven options violate Secure=true, Path=/, or omit Domain. Missing path/secure uses their builtin defaults; dynamic options excluded.
+- D1. Resolved setcookie/setrawcookie name is literal beginning __Host- and proven options violate Secure=true, Path=/, or omit Domain. Missing path/secure uses their builtin defaults; dynamic options excluded. Options-array keys are matched without regard to ASCII case, as the builtin does (`Secure`, `PATH`).
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding. An options array spelling the same attribute more than once with different letter case (`"path"` and `"Path"`) leaves that attribute unproven.
 - E2. Both standard suppression forms suppress this native ID.
 
 ## Fix

@@ -144,6 +144,15 @@ the colon).
   `,`. The original content (including its leading whitespace) follows
   unchanged. Recommended exact insertion: `\n    PAIR\n    ,`.
   Whitespace-collapsed: `"require-dev": { PAIR , <first existing member> …`.
+- **F3 (shadowed insertion, no fix)** JSON decoders keep the last of
+  several members sharing a key, so an inserted pair can be overridden by
+  what follows it. Kind A is still reported, but without a fix, when:
+  - the manifest has more than one top-level `require-dev` property (F2
+    would edit the first one, the last one is the effective one); or
+  - the `require-dev` object already has a member whose key is ADV
+    (compared lower-cased) — only reachable when D7 ignored that member
+    because its value is empty or not a string, e.g. `"ADV": ""` or
+    `"ADV": null`. The existing entry has to be repaired by hand.
 - The conformance comparison collapses whitespace runs to one space, so a
   whitespace run is required at every place listed above (between `}` and
   `,`, between `,` and the next token, after `{`, before `}`, between
@@ -300,6 +309,12 @@ full, `vendor/package`, exactly as the fix must produce it.)
 - F1 when a `require-dev` property exists but is not an object
   (e.g. `[]`) adds a second `require-dev` key upstream. Recommendation:
   offer no fix in that case.
+- **No fix when the inserted pair would be shadowed (custos diverges,
+  F3).** With a duplicated top-level `require-dev` key, or an ADV key
+  already present in `require-dev` with an empty or non-string value, the
+  upstream edit adds a pair that the later duplicate overrides: the decoded
+  manifest is unchanged while the warning goes away. custos keeps the
+  report and offers no fix.
 - **Owner prefix compared case-insensitively — custos diverges from
   upstream** (D5). Upstream compares the lower-cased package key with the
   owner prefix as written, so a mixed-case `name` (`Bakery/oven`) makes the

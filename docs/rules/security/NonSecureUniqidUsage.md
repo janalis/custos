@@ -38,8 +38,8 @@ namespace Shop {
 namespace Shop {
     $id   = uniqid('', true);
     $ref  = \uniqid('ord_', true);
-    $tags = array_map(function ($value) { return uniqid($value, true); }, ['a', 'b']);
-    $one  = call_user_func_array(function ($value) { return uniqid($value, true); }, ['x']);
+    $tags = array_map(function ($value = '') { return uniqid((string) $value, true); }, ['a', 'b']);
+    $one  = call_user_func_array(function ($value = '') { return uniqid((string) $value, true); }, ['x']);
 
     $ok1 = uniqid('', true);
     $ok2 = uniqid(more_entropy: true, prefix: 'z');

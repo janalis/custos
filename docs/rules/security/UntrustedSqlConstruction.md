@@ -30,6 +30,8 @@ Reported:
 - D1. Report request-derived data reaching a resolved SQL execution sink as SQL syntax without parameter binding or proven context-appropriate validation.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D4. The sinks are the builtin `PDO::query`, `PDO::exec` and `PDO::prepare` (first argument), called on a receiver whose single resolved class is `PDO` or a subclass that does not override the method, plus project wrappers whose summary forwards an argument to one of them. The three methods exist on every supported PHP version, so they are sinks on every target version even when the stub signature in use was introduced later.
+- D5. The statement text is injectable only when a part that contributes characters to it is. Concatenation, interpolation, `??`, both ternary branches (the condition for `?:`), every `match` arm result, array literal items, a variable with a single reaching definition, the separator and pieces of `implode`/`join`, the fill value of `array_fill` and the repeated text of `str_repeat` are followed part by part. A `match` subject and a ternary condition only select a result and contribute nothing themselves. Any other shape keeps the flow verdict. A variable is followed to its reaching assignment only when its scope cannot rebind it behind that assignment; a reference alias, a by-reference closure capture, `foreach` or argument, a `catch` binding or `static` declaration of the same name, `extract()`, an assignment through a variable variable, a `global` declaration of it or a `$GLOBALS` access that is not a different literal entry keeps the report.
 
 ## Exceptions (no report)
 
@@ -37,6 +39,7 @@ Reported:
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 - E3. Known boolean or numeric scalar output and resolved builtin `md5`, `sha1`, `hash` or `hash_hmac` hexadecimal output cannot inject the target text syntax. Raw binary or unknown output modes retain source taint. These narrow text proofs do not establish URL or filesystem-path authorization.
+- E4. Numeric results are never reported: unary `+`/`-`, the arithmetic operators `-`, `*`, `/`, `%`, `**` (they yield a number or throw, whatever the operands hold), and resolved counting, measuring, comparing and testing builtins such as `count`, `sizeof`, `strlen`, `mb_strlen`, `substr_count`, `strcmp`, `strpos`, `ord`, `crc32`, `in_array`, `is_numeric` or `ctype_digit`, which return only a number or a boolean. `+` is numeric only when one operand is itself provably a number (numeric literal, cast, arithmetic, or a number-returning builtin); two arrays form a union that keeps request text, so that stays reported. A placeholder list such as `implode(',', array_fill(0, count($ids), '?'))` is therefore constant text.
 
 ## Fix
 
@@ -46,7 +49,7 @@ A fix is offered only when the concrete prerequisites above are proven. Edits us
 
 ## PHP versions
 
-Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
+Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). The PDO sinks of D4 apply on all of them. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
 
 ## Options
 

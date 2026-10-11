@@ -14,14 +14,15 @@ World-write permission lets other users modify a configured sensitive file. Remo
 
 ## Detection
 
-- D1. Resolved chmod/mkdir mode is a constant mask with other-write bit 0002. Require path matched against configured sensitive path globs (default `**/*.pem`, `**/.env`, `**/config.php`) and a statically known literal path. Unknown paths excluded.
+- D1. Resolved chmod/mkdir mode is a constant mask with other-write bit 0002. The mask may be one integer or a parenthesised or bit-or (`|`) combination of constant integers, e.g. `0644 | 0002`; every operand must be known. Require path matched against configured sensitive path globs (default `**/*.pem`, `**/.env`, `**/config.php`) and a statically known literal path. Unknown paths excluded.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
 
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- E2. A bit-or mode with any non-constant operand is unknown and is not reported, even when another operand carries bit 0002; other operators are not folded. A known combination without bit 0002 (`0640 | 0004`) is valid.
+- E3. Both standard suppression forms suppress this native ID.
 
 ## Report
 
@@ -51,6 +52,8 @@ Available throughout supported PHP 5.3–8.5 where the referenced builtin/extens
 <warning descr="Remove world-write permission from sensitive files.">chmod("/srv/app/config.php",0777)</warning>;
 
 <warning descr="Remove world-write permission from sensitive files.">mkdir(directory:"/srv/app/.env", permissions:0777)</warning>;
+
+<warning descr="Remove world-write permission from sensitive files.">chmod("/srv/app/server.pem", 0644 | 0002)</warning>;
 ```
 
 Valid case:
@@ -58,6 +61,8 @@ Valid case:
 ```php
 <?php
 chmod("/srv/app/config.php",0640);
+chmod("/srv/app/config.php", 0640 | 0004);
+chmod("/srv/app/config.php", 0002 | $extra);
 ```
 
 ## Divergences

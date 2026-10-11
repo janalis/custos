@@ -16,11 +16,13 @@ Literal credentials embedded in connection setup are difficult to rotate and pro
 
 - D1. Resolved PDO constructor password or mysqli connection password is a nonempty literal string. Inspection is disabled by default and excludes configured example/test path glob list, default **/testdata/** and **/tests/**; no arbitrary password variable naming heuristics.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- D1a. The excluded-path globs are matched against the file path relative to its project root, with forward slashes. The project root is the nearest ancestor directory holding `custos.json`; without one, the outermost ancestor holding `composer.json`, so that a package or fixture application nested in the project (`tests/fixtures/app/composer.json`) stays part of it; without either, the working directory. A file outside that root is matched by its absolute path. The outcome therefore does not depend on the directory custos is started from, and a directory named `tests` or `testdata` above the project root does not exclude the project.
 - D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
 
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- E1a. Do not report a file whose project-relative path (D1a) matches an `excludedPaths` glob. `**` matches any number of path segments; other segments use shell-style matching. Invalid globs and paths or patterns beyond the segment budget match nothing.
 - E2. Both standard suppression forms suppress this native ID.
 
 ## Report
@@ -38,7 +40,7 @@ None. Choosing a repair requires intent or additional runtime information.
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| excludedPaths | list | `["**/testdata/**", "**/tests/**"]` | Configure the explicit policy evidence described in D1. |
+| excludedPaths | list | `["**/testdata/**", "**/tests/**"]` | Project-relative path globs (D1a) for files that are never reported. |
 
 ## PHP versions
 

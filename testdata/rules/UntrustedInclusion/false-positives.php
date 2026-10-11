@@ -19,3 +19,24 @@ require "file:///srv/app/x.php";
 include 'compress.zlib://data.php.gz';
 include '\\\\fileserver\\shared\\boot.php';
 include "\\\\fileserver\\shared\\boot.php";
+
+function anchored()
+{
+    $entry = 'main.php';
+    $entry = __DIR__ . '/' . $entry;
+    return include $entry;
+}
+
+function legacyAnchored()
+{
+    $f = 'a.php';
+    $f = dirname(__FILE__) . DIRECTORY_SEPARATOR . $f;
+    require_once $f;
+}
+
+function resolved()
+{
+    $entry = 'main.php';
+    $entry = realpath($entry);
+    include $entry;
+}

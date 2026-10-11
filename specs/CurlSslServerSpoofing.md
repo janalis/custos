@@ -43,8 +43,31 @@ Then decide from `V` using *value discovery* (as defined in the
 condition is ignored), `??` (both sides), variables (parameter defaults and
 plain assignments within the enclosing function; nothing at top level),
 properties, class constants and global constants (resolved to their
-`define()` value; `true`/`false`/`null` stay as themselves). Each discovered
-value is classified:
+`define()` value; `true`/`false`/`null` stay as themselves) — with two
+custos refinements (see Divergences):
+
+- **Local variables are flow-sensitive.** A variable contributes only the
+  plain assignments that can reach its use (and its parameter default only
+  when the value it had on entry can still reach it). An assignment
+  statement executed on every path to the use hides everything written
+  before it; an assignment in a branch or a loop is one more alternative.
+- **Overwritten properties.** The discovery result is unknown when the last
+  word on the property is an unclassifiable value — one in which nothing
+  can be classified as "enable" or "disable": a parameter without default,
+  a call result, an unstable variable. Two places are read, each in source
+  order: the current function up to the place the property is read, and
+  the constructor of the class declaring it (there through `$this->name`
+  or a static reference to the name). An unclassifiable assignment counts
+  only when it is a statement that always runs: in the current function, a
+  statement of a block enclosing the read; in the constructor, a statement
+  of its body. A classifiable assignment written after it makes the
+  property decidable again, an assignment written after the read is
+  ignored, and an assignment in a branch, or one where the unknown is only
+  one alternative next to a classifiable value
+  (`$opts['verify'] ?? false`, `$dev ? 0 : $cfg`), does not make the
+  result unknown.
+
+Each discovered value is classified:
 
 - **D4 (kind H)** — "enable" when the value is a string literal whose raw
   content is exactly `2`, or any other expression whose source text is
@@ -61,7 +84,8 @@ value is classified:
 - **D6** Report when at least one value is "disable" and none is "enable".
   Nothing discovered → no report. Unknown discovery result (a variable on
   the path is also incremented/decremented or compound-assigned in its
-  scope; custos refinement, see Divergences) → no report.
+  scope, or a property is overwritten with an unclassifiable value; custos
+  refinements, see Divergences) → no report.
 
 ## Exceptions (no report)
 
@@ -79,6 +103,13 @@ value is classified:
   `$dev ? 0 : true` (P) contain an "enable" → not reported.
 - **E4** Values that cannot be classified (`getenv('VERIFY')`, `10`).
 - **E5** Other `CURLOPT_*` constants.
+- **E6** A disabling value that cannot be the one set: a local variable's
+  earlier value replaced on every path before the use
+  (`$verify = false; $verify = resolve($config);`), or a property default
+  replaced by an unclassifiable value (`private $verifyPeer = false;` with
+  a constructor doing `$this->verifyPeer = $verifyPeer;`). A property
+  disabled, used and then restored (`$this->peer = false;`, the
+  `curl_setopt` call, `$this->peer = $previous;`) is still reported.
 
 ## Report
 
@@ -139,6 +170,13 @@ function fetch($handle, $insecure)
   namespace's own `curl_setopt()` is checked while `\Curl_SetOpt()` is not.
   custos resolves the call to the global function, in any case (D1).
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
+- **Dead initial values (custos diverges).** Upstream collects every
+  assignment of a variable or property regardless of order, so a disabling
+  initial value is reported even when it is always replaced by something
+  unknown before the option is set. custos only takes the assignments
+  reaching a local variable's use and stays silent for a property
+  overwritten with an unclassifiable value (Detection, E6). A disabling
+  value that remains one possible alternative is still reported.
 - D1 accepts `K` in any argument position of `curl_setopt`
   (`curl_setopt($h, $opt, CURLOPT_SSL_VERIFYPEER)` would evaluate the
   constant itself as the value; that resolves to a multi-digit number and is

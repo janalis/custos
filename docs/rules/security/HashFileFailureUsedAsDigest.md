@@ -17,6 +17,11 @@ Identify unchecked hash_file result consumed as file contents or as an expected 
 - D1. Report unchecked hash_file result consumed as file contents or as an expected digest in strict comparison; exclude result propagation and guarded false rejection.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D4. A use is guarded when false cannot reach it for the same reaching value (no reassignment or invalidation between guard and use). Recognised guards:
+  - an earlier statement of any enclosing block that is an `if` without `elseif`/`else` whose body always leaves the path (return, throw, exit, break, continue) and whose condition holds whenever the value is false; unrelated statements may sit between the guard and the use;
+  - an enclosing `if` body or ternary arm selected by a condition that excludes false, or the `else` body/arm when the condition holds for false;
+  - the right operand of `&&`/`and` whose left operand excludes false, or of `||`/`or` whose left operand holds for false.
+- D5. A condition excludes false when it is `$v !== false`, `$v != false`, plain truthiness of `$v`, or `!empty($v)`; it holds for false when it is `$v === false`, `$v == false`, `!$v` or `empty($v)` (operands in either order, parentheses ignored). `!` swaps the two. A conjunction excludes false when either operand does and holds for false only when both do; a disjunction holds for false when either operand does and excludes false only when both do. Truthiness counts because the digest sink never needs an empty string distinguished from failure to be safe: every falsy value is rejected along with false.
 
 ## Exceptions (no report)
 

@@ -9,3 +9,19 @@ function readQuery($raw, $q)
     Ns\parse_str($raw);
     return [$fields, $more];
 }
+
+function viaClosure($raw)
+{
+    $parse = parse_str(...);
+    $parse($raw, $fields);
+    return $fields;
+}
+
+function viaSpread($raw)
+{
+    $fields = [];
+    $args = [$raw, &$fields];
+    parse_str(...$args);
+    \mb_parse_str(...$args);
+    return $fields;
+}

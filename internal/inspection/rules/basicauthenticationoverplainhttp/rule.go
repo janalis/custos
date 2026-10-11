@@ -34,10 +34,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || !semanticquery.NativeBuiltin(ctx, creation, "curl_init") {
 		return
 	}
-	url, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(creation.Args, 0, "url"))
-	if !known {
-		return
-	}
 	stmt, ok := call.Parent().(*syntax.ExprStmt)
 	if !ok {
 		return
@@ -63,12 +59,16 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known || credentials == "" {
 		return
 	}
+	// An explicit CURLOPT_URL replaces whatever curl_init received; the
+	// curl_init argument only matters while the option keeps its default.
+	target := semanticquery.CallArgument(creation.Args, 0, "url")
 	if configured, explicit := semanticquery.NativeCurlOption(ctx, exec, handle, "CURLOPT_URL"); explicit {
-		url, known = semanticquery.NativeString(ctx, configured)
-		if !known {
-			return
-		}
+		target = configured
 	} else if !semanticquery.NativeCurlDefault(ctx, exec, handle, "CURLOPT_URL") {
+		return
+	}
+	url, known := semanticquery.NativeString(ctx, target)
+	if !known {
 		return
 	}
 	if !strings.HasPrefix(strings.ToLower(url), "http://") {

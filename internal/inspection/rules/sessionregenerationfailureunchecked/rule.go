@@ -23,7 +23,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.NativeBuiltin(ctx, call, "session_regenerate_id") {
 		return
 	}
-	stmt, ok := call.Parent().(*syntax.ExprStmt)
+	stmt, ok := discardingStmt(call)
 	if !ok {
 		return
 	}
@@ -61,4 +61,20 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
+}
+
+// discardingStmt returns the expression statement that throws away the result
+// of call. Parentheses and the @ operator are transparent: silencing the
+// warning still ignores the false result.
+func discardingStmt(call *syntax.FuncCall) (*syntax.ExprStmt, bool) {
+	parent, _ := astquery.ParentSkipParens(call)
+	for {
+		u, ok := parent.(*syntax.Unary)
+		if !ok || u.Op.Kind != syntax.TAt {
+			break
+		}
+		parent, _ = astquery.ParentSkipParens(u)
+	}
+	stmt, ok := parent.(*syntax.ExprStmt)
+	return stmt, ok
 }

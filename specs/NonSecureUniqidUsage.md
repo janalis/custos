@@ -31,7 +31,8 @@ also when `uniqid` is used as a callback.
 - **D3** A plain function call resolving to one of the global functions
   below (names compare case-insensitively; a same-named namespaced function
   does not count) with **at least 2**
-  arguments; the callback argument `A` is taken at the listed index:
+  arguments; the callback argument `A` is the positional argument at the
+  listed index, or the argument named `callback:`:
 
   | Function | Callback index |
   |---|---|
@@ -60,6 +61,12 @@ also when `uniqid` is used as a callback.
 - **E3** Callback functions called with fewer than 2 arguments
   (`call_user_func('uniqid')`); callbacks given as closures, arrays or
   other names.
+- **E4** Callbacks through which `more_entropy` is already forwarded (the
+  counterpart of E1): `call_user_func` with three or more positional
+  arguments or a named `more_entropy:`; `array_map` with two or more arrays
+  (the second array's values are the second argument); `call_user_func_array`
+  whose argument array is a literal with two or more non-spread elements or
+  with a `'more_entropy'` string key.
 
 ## Report
 
@@ -72,30 +79,49 @@ also when `uniqid` is used as a callback.
 
 ## Fix
 
-- **F1** Direct call: replace the argument list (from `(` to `)`
-  inclusive) with a new list built from the template `('', true)`: each
-  existing argument replaces the template argument at the same position
-  (source text copied verbatim). Name and qualifier are kept.
+- **F1** Direct call: insert the missing arguments and leave everything
+  else between the parentheses untouched (comments, spacing, trailing
+  comma). An empty list gets `'', true` right after `(`; otherwise `, true`
+  is inserted right after the last argument, or `, more_entropy: true` when
+  an argument is named. No fix when an argument is unpacked (`...$args`).
   - `uniqid()` → `uniqid('', true)`
   - `uniqid('ord_')` → `uniqid('ord_', true)`
   - `\uniqid($p)` → `\uniqid($p, true)`
-- **F2** Callback, only for the callback-index-0 functions
-  (`call_user_func`, `call_user_func_array`, `array_map`), where the
-  callback's first parameter is what `uniqid()` would receive as its prefix:
-  replace `A` with the closure
-  `function ($value) { return uniqid($value, true); }`. (Upstream's
-  formatter outputs it on three lines; comparison is whitespace-collapsed,
-  so keep exactly one space between `function` and `(`, between `)` and
-  `{`, after `{` and before `}`.)
+  - `uniqid(prefix: 'q')` → `uniqid(prefix: 'q', more_entropy: true)`
+  - `uniqid('a' /* why */ ,)` → `uniqid('a', true /* why */ ,)`
+- **F2** Callback: replace `A` with the closure
+  `function ($value = '') { return uniqid((string) $value, true); }`.
+  The default keeps a call without arguments working, and the cast keeps
+  non-string prefixes working under `declare(strict_types=1)`, where the
+  call inside the closure is type-checked strictly while the engine's own
+  call of the string callable was not.
+  The fix is offered only when all of these hold; otherwise the report is
+  made without a fix:
+  - the function is `call_user_func`, `call_user_func_array` or `array_map`
+    (callback index 0), where the callback's first parameter is what
+    `uniqid()` would receive as its prefix. `array_filter`, `array_reduce`,
+    `array_walk` and `array_walk_recursive` pass other arguments
+    (`$carry, $item`, `$value, $key`, …), so a one-parameter closure would
+    change the values `uniqid()` is called with;
+  - `A` is itself a string literal. A variable that value discovery resolves
+    to `'uniqid'` may hold another callable on a path discovery does not see
+    (a parameter default, a fallback, a conditional reassignment), and the
+    closure would silently replace it;
+  - the call has exactly two arguments, both positional and neither
+    unpacked: a named or unpacked argument could reach the closure under a
+    name it does not declare;
+  - for `call_user_func_array`, the second argument is an array literal with
+    exactly one element that has no key, is not unpacked and is not taken by
+    reference. Any other array (a variable, an empty or keyed literal) may
+    forward zero, named or several values.
+
   Builtin spelling: `uniqid` is written `\uniqid` when an unqualified call at
   that position would not reach the global function (a `use function`
   import under that name, or a same-named function declared in the current
-  namespace) inside the closure: in `namespace Ids; function uniqid() {…}`, `array_map('uniqid', $l)` → `array_map(function ($value) { return \uniqid($value, true); }, $l)` (the string callable always names the global function).
-  For `array_filter`, `array_reduce`, `array_walk` and
-  `array_walk_recursive` the report is made without a fix: these pass other
-  arguments (`$carry, $item`, `$value, $key`, …), so replacing the callback
-  with a one-parameter closure would change the values `uniqid()` is called
-  with.
+  namespace) inside the closure: in `namespace Ids; function uniqid() {…}`,
+  `array_map('uniqid', $l)` →
+  `array_map(function ($value = '') { return \uniqid((string) $value, true); }, $l)`
+  (the string callable always names the global function).
 
 ## Options
 
@@ -127,8 +153,8 @@ namespace Shop {
 namespace Shop {
     $id   = uniqid('', true);
     $ref  = \uniqid('ord_', true);
-    $tags = array_map(function ($value) { return uniqid($value, true); }, ['a', 'b']);
-    $one  = call_user_func_array(function ($value) { return uniqid($value, true); }, ['x']);
+    $tags = array_map(function ($value = '') { return uniqid((string) $value, true); }, ['a', 'b']);
+    $one  = call_user_func_array(function ($value = '') { return uniqid((string) $value, true); }, ['x']);
 
     $ok1 = uniqid('', true);
     $ok2 = uniqid(more_entropy: true, prefix: 'z');
@@ -146,11 +172,23 @@ namespace Shop {
   function names and string callables) and requires the callback-taking
   call to resolve to the global function, so `Array_Map('UNIQID', $l)` is
   reported and a namespace's own `array_map('uniqid', $l)` is not.
-- F1 with a named or spread argument (`uniqid(prefix: 'q')`,
-  `uniqid(...$args)`) would yield `uniqid(prefix: 'q', true)` /
-  `uniqid(...$args, true)`, which is invalid. Recommendation: still report,
-  but for named arguments append `more_entropy: true`, and offer no fix for
-  spread arguments. Not covered by fixtures.
+- **F1 (custos diverges).** A named argument gets `more_entropy: true`
+  appended and an unpacked argument gets no fix, because appending a
+  positional `true` after either is invalid PHP. The fix is an insertion,
+  so comments inside the argument list are kept instead of being dropped by
+  a rebuilt list.
+- **Forwarded `more_entropy` (custos diverges).** Upstream reports a string
+  callback whenever the callback-taking call has two arguments or more.
+  custos does not report when the call already forwards a second argument
+  to `uniqid()` (E4), for the same reason E1 exempts a direct call.
+- **F2 closure and its conditions (custos diverges).** Upstream replaces
+  the callback with a closure that has one required, uncast parameter, for
+  any resolved callback and any argument list. That closure throws where
+  the string callable worked: no forwarded value, a forwarded named or
+  unpacked value, a non-string value under `declare(strict_types=1)`; and
+  replacing a variable discards whatever other callable it may hold. custos
+  emits a closure with a defaulted, cast parameter and withholds the fix
+  outside the conditions listed in F2.
 - F2: custos diverges from upstream for the callback-index-1 functions.
   Upstream replaces the string callback with the one-parameter closure for
   every listed function, but `array_reduce` calls its callback with

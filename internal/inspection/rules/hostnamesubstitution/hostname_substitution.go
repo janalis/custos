@@ -36,6 +36,7 @@ func (r hostnameSubstitution) Check(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.Isset, *syntax.Empty:
 		return
 	}
+	scalar := false                                 // D2a: the walk crossed a bool/int/float-valued node
 	for p := s.Parent(); p != nil; p = p.Parent() { // D2
 		if syntax.IsFuncLike(p) {
 			return
@@ -43,18 +44,58 @@ func (r hostnameSubstitution) Check(ctx *analysis.Context, n syntax.Node) {
 		switch x := p.(type) {
 		case *syntax.ClassLike:
 			return
+		case *syntax.Isset, *syntax.Empty:
+			scalar = true
+		case *syntax.Unary:
+			switch x.Op.Kind {
+			case syntax.TExclaim, syntax.TIntCast, syntax.TDoubleCast, syntax.TBoolCast:
+				scalar = true
+			}
+		case *syntax.FuncCall:
+			if nonStringBuiltins[ctx.GlobalFunctionName(x)] {
+				scalar = true
+			}
 		case *syntax.Binary:
-			if x.Op.Kind == syntax.TDot {
+			switch x.Op.Kind {
+			case syntax.TDot:
 				r.checkConcat(ctx, x, s, s, attr)
 				return
+			case syntax.TIsEqual, syntax.TIsNotEqual, syntax.TIsIdentical, syntax.TIsNotIdentical,
+				syntax.TLess, syntax.TGreater, syntax.TIsSmallerOrEqual, syntax.TIsGreaterOrEqual,
+				syntax.TSpaceship, syntax.TBooleanAnd, syntax.TBooleanOr:
+				scalar = true
 			}
 		case *syntax.Assign:
 			if x.Op.Kind == syntax.TEqual {
-				r.checkAssign(ctx, x, s, attr)
+				if !scalar {
+					r.checkAssign(ctx, x, s, attr)
+				}
 				return
 			}
 		}
 	}
+}
+
+// nonStringBuiltins lists global functions whose result is a bool, an int
+// or a float whatever their arguments: a host name passed to one of them
+// does not reach the assigned value (D2a).
+var nonStringBuiltins = map[string]bool{
+	"strlen": true, "mb_strlen": true, "iconv_strlen": true, "count": true, "sizeof": true,
+	"in_array": true, "array_key_exists": true, "key_exists": true,
+	"strcmp": true, "strcasecmp": true, "strncmp": true, "strncasecmp": true,
+	"strnatcmp": true, "strnatcasecmp": true, "strcoll": true, "substr_compare": true,
+	"strpos": true, "stripos": true, "strrpos": true, "strripos": true,
+	"mb_strpos": true, "mb_stripos": true, "mb_strrpos": true, "mb_strripos": true,
+	"str_contains": true, "str_starts_with": true, "str_ends_with": true,
+	"substr_count": true, "mb_substr_count": true, "hash_equals": true,
+	"preg_match": true, "preg_match_all": true, "fnmatch": true,
+	"levenshtein": true, "similar_text": true, "crc32": true, "ord": true, "ip2long": true,
+	"intval": true, "boolval": true, "floatval": true, "doubleval": true,
+	"is_string": true, "is_numeric": true, "is_null": true, "is_scalar": true,
+	"is_int": true, "is_bool": true, "is_array": true,
+	"ctype_alnum": true, "ctype_alpha": true, "ctype_digit": true, "ctype_lower": true,
+	"ctype_punct": true, "ctype_space": true, "ctype_upper": true, "ctype_xdigit": true,
+	"checkdnsrr": true, "dns_check_record": true,
 }
 
 // checkConcat implements D3: x (the source or a variable occurrence) lies in
@@ -131,6 +172,9 @@ func (r hostnameSubstitution) checkAssign(ctx *analysis.Context, a *syntax.Assig
 			}
 			return
 		}
+		if validated(ctx, fn, a, t.Name) { // D7
+			return
+		}
 		passed, killed := false, false // D5
 		syntax.Inspect(fn, func(n syntax.Node) bool {
 			if killed {
@@ -201,19 +245,35 @@ func hostLikeName(name string) bool {
 	return strings.Contains(l, "domain") || strings.Contains(l, "email") || strings.Contains(l, "host")
 }
 
-// whitelisted implements D7.
+// whitelisted implements D7 for the source access itself.
 func whitelisted(ctx *analysis.Context, s *syntax.ArrayDimFetch) bool {
 	fn := syntax.EnclosingFuncLike(s)
 	if fn == nil {
 		return false
 	}
-	scope := fn
-	if body := syntax.FuncLikeBody(fn); body != nil {
-		scope = body
-	}
 	want := ctx.Text(s)
+	return hasInArray(ctx, fn, func(_ *syntax.FuncCall, first syntax.Expr) bool {
+		d, ok := first.(*syntax.ArrayDimFetch)
+		return ok && ctx.Text(d) == want
+	})
+}
+
+// validated implements the variable form of D7: fn itself (not a nested
+// closure, which has its own variables) tests the variable name with
+// in_array() after the source assignment src.
+func validated(ctx *analysis.Context, fn syntax.Node, src *syntax.Assign, name string) bool {
+	return hasInArray(ctx, fn, func(call *syntax.FuncCall, first syntax.Expr) bool {
+		v, ok := first.(*syntax.Variable)
+		return ok && v.NameExpr == nil && v.Name == name &&
+			call.Span().Start >= src.Span().End && syntax.EnclosingFuncLike(call) == fn
+	})
+}
+
+// hasInArray reports whether fn contains a call to the global in_array()
+// whose first argument satisfies match.
+func hasInArray(ctx *analysis.Context, fn syntax.Node, match func(call *syntax.FuncCall, first syntax.Expr) bool) bool {
 	found := false
-	syntax.Inspect(scope, func(n syntax.Node) bool {
+	syntax.Inspect(fn, func(n syntax.Node) bool {
 		if found {
 			return false
 		}
@@ -224,9 +284,7 @@ func whitelisted(ctx *analysis.Context, s *syntax.ArrayDimFetch) bool {
 		if !ctx.IsGlobalFunctionCall(call, "in_array") {
 			return true
 		}
-		if first, ok := astquery.ArgValue(call.Args.Args[0]).(*syntax.ArrayDimFetch); ok && ctx.Text(first) == want {
-			found = true
-		}
+		found = match(call, syntax.UnwrapParens(astquery.ArgValue(call.Args.Args[0])))
 		return !found
 	})
 	return found

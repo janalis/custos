@@ -30,8 +30,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		pathName = "directory"
 	}
 	path, pk := semanticquery.NativeString(ctx, semanticquery.CallArgument(c.Args, 0, pathName))
-	mode, mk := semanticquery.NativeInt(ctx, semanticquery.CallArgument(c.Args, 1, "permissions"))
-	if !pk || !mk || mode&0o002 == 0 {
+	// NativeFlag folds `|` chains; any unknown operand leaves the bit unproven.
+	writable, mk := semanticquery.NativeFlag(ctx, semanticquery.CallArgument(c.Args, 1, "permissions"), 0o002)
+	if !pk || !mk || !writable {
 		return
 	}
 	for _, pattern := range ctx.List("sensitivePaths") {

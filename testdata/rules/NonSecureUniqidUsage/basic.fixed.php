@@ -3,8 +3,8 @@ namespace Shop {
     $id   = uniqid('', true);
     $ref  = \uniqid('ord_', true);
     $nam  = uniqid(prefix: 'q', more_entropy: true);
-    $tags = array_map(function ($value) { return uniqid($value, true); }, ['a', 'b']);
-    $one  = call_user_func_array(function ($value) { return uniqid($value, true); }, ['x']);
+    $tags = array_map(function ($value = '') { return uniqid((string) $value, true); }, ['a', 'b']);
+    $one  = call_user_func_array(function ($value = '') { return uniqid((string) $value, true); }, ['x']);
 
     function make($items)
     {
@@ -16,5 +16,5 @@ namespace Shop {
 namespace Callbacks {
     $a = array_reduce([1, 2], 'uniqid', '');
     $b = array_walk($list, 'uniqid');
-    $c = call_user_func(function ($value) { return uniqid($value, true); }, 'p_');
+    $c = call_user_func(function ($value = '') { return uniqid((string) $value, true); }, 'p_');
 }

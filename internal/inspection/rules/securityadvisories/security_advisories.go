@@ -103,12 +103,22 @@ func (securityAdvisories) CheckFile(ctx *analysis.Context) {
 		return
 	}
 	devMember := root.member("require-dev") // D7
+	// Decoders keep the last duplicate key: an insertion into an earlier
+	// `require-dev`, or before an existing advisory key, has no effect.
+	shadowed := false
+	for i := range root.members {
+		shadowed = shadowed || (root.members[i].key == "require-dev" && &root.members[i] != devMember)
+	}
 	if devMember != nil && devMember.value.kind == jsonObject {
 		for _, m := range devMember.value.members {
+			p := strings.ToLower(m.key)
+			// An advisory key whose value is ignored below (empty or not
+			// a string) would shadow the pair F2 inserts before it.
+			shadowed = shadowed || p == advisoryPackage
 			if m.value.kind != jsonString {
 				continue
 			}
-			p, v := strings.ToLower(m.key), strings.ToLower(m.value.str)
+			v := strings.ToLower(m.value.str)
 			if p == "" || v == "" {
 				continue
 			}
@@ -130,6 +140,7 @@ func (securityAdvisories) CheckFile(ctx *analysis.Context) {
 	pair := strconv.Quote(advisoryPackage) + `: "dev-latest"`
 	var fixes []diagnostic.Fix
 	switch {
+	case shadowed: // F3: no fix
 	case devMember == nil: // F1
 		at := rqMember.value.span.End
 		text := "\n  ,\n  \"require-dev\": {\n    " + pair + "\n  }"

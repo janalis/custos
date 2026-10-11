@@ -68,7 +68,8 @@ func (cryptographicallySecureRandomness) Check(ctx *analysis.Context, n syntax.N
 }
 
 // resultVerified implements D3: the call result is assigned to a target
-// that is false-checked (or to no recognisable target).
+// that is false-checked (or to no recognisable target), or the assignment
+// itself is strictly compared with false (custos diverges).
 func resultVerified(ctx *analysis.Context, call *syntax.FuncCall) bool {
 	p := call.Parent()
 	if u, ok := p.(*syntax.Unary); ok && u.Op.Kind == syntax.TAt {
@@ -78,11 +79,27 @@ func resultVerified(ctx *analysis.Context, call *syntax.FuncCall) bool {
 	if !ok {
 		return false
 	}
+	if outer, inner := astquery.ParentSkipParens(a); comparesWithFalse(outer, inner) {
+		return true
+	}
 	switch a.Var.(type) {
 	case nil, *syntax.Array, *syntax.List:
 		return true
 	}
 	return falseChecked(ctx.File, a.Var)
+}
+
+// comparesWithFalse reports whether operand is one side of a `===`/`!==`
+// comparison b whose other side is the constant false.
+func comparesWithFalse(b, operand syntax.Node) bool {
+	x, ok := b.(*syntax.Binary)
+	if !ok || x.Op.Kind != syntax.TIsIdentical && x.Op.Kind != syntax.TIsNotIdentical {
+		return false
+	}
+	if x.Left == operand {
+		return isFalse(x.Right)
+	}
+	return isFalse(x.Left)
 }
 
 // falseChecked reports whether s is compared with `=== false`/`!== false`
@@ -120,8 +137,8 @@ func falseChecked(f *syntax.File, s syntax.Node) bool {
 
 // flagChecked is falseChecked for the D5 strength flag, a plain bool: a
 // truthiness test (a condition or logical operand, `$strong ? … : …`) or a
-// loose `==`/`!=` comparison with true or false checks it as well
-// (custos diverges).
+// loose `==`/`!=` or strict `===`/`!==` comparison with true or false
+// checks it as well (custos diverges).
 func flagChecked(f *syntax.File, s syntax.Node) bool {
 	if falseChecked(f, s) {
 		return true
@@ -135,7 +152,7 @@ func flagChecked(f *syntax.File, s syntax.Node) bool {
 		if found {
 			return false
 		}
-		if x, ok := n.(*syntax.Binary); ok && (x.Op.Kind == syntax.TIsEqual || x.Op.Kind == syntax.TIsNotEqual) {
+		if x, ok := n.(*syntax.Binary); ok && isEquality(x.Op.Kind) {
 			if isBoolConst(x.Left) && astquery.EquivalentFoldNames(f, x.Right, s) || isBoolConst(x.Right) && astquery.EquivalentFoldNames(f, x.Left, s) {
 				found = true
 			}
@@ -146,6 +163,10 @@ func flagChecked(f *syntax.File, s syntax.Node) bool {
 		return !found
 	})
 	return found
+}
+
+func isEquality(k syntax.TokenKind) bool {
+	return k == syntax.TIsEqual || k == syntax.TIsNotEqual || k == syntax.TIsIdentical || k == syntax.TIsNotIdentical
 }
 
 func isBoolConst(e syntax.Expr) bool {

@@ -15,12 +15,17 @@ Detect request-derived data reaching a Location header without a proven permitte
 ## Detection
 
 - D1. Report request-derived data reaching a Location header without a proven permitted-local-target or finite destination policy.
+- D1a. The first argument of `header()` is read as the ordered operands of its concatenation chain and of any interpolated string (double-quoted or heredoc) inside it, ignoring grouping parentheses. The leading operands whose text is statically known form the written prefix; the call is a redirect when that prefix starts with `Location:` in any letter case. Every operand after the prefix is checked, so request data followed by a suffix (`'Location: ' . $_GET['return'] . '?saved=1'`) or embedded in an interpolated string is reported exactly like a trailing operand.
+- D1b. A `match` expression, written in place or reached through a variable with one agreeing definition, contributes only the request data of its arm results. The subject chooses an arm but is never part of the produced value. An arm that yields request data is still reported. Selections nested more than eight levels deep are treated as request-derived. A variable is followed to its reaching assignment only when its scope cannot rebind it behind that assignment; a reference alias, a by-reference closure capture, `foreach` or argument, a `catch` binding or `static` declaration of the same name, `extract()`, an assignment through a variable variable, a `global` declaration of it or a `$GLOBALS` access that is not a different literal entry keeps the report.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
 - E1. Literal destinations, configured allowlisted origin/path validation and unknown taint flows are excluded.
+- E1a. A `match` over request data whose arms all produce values free of request data is a finite destination policy.
+- E1b. Fixed local path with encoded query values: when the written prefix after `Location:` starts with a single `/` (the next character is neither `/` nor `\`) and already contains `?`, an operand produced by the builtin `urlencode()`, `rawurlencode()` or `http_build_query()` (directly, or through a variable with one agreeing definition) is not reported. Such a value can only be query data on the current origin. Any other request-derived operand in the same header is still reported, as is an encoded value without that prefix, in a path segment, or after a `//` or `/\` prefix.
+- E1c. A backtick command as the header argument is shell output, not written header text; it has no written prefix and is not reported by this rule.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report
@@ -48,6 +53,12 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 ```php
 <?php
 <error descr="Validate the redirect target against the permitted destination policy.">header('Location: ' . $_GET['next'])</error>;
+<error descr="Validate the redirect target against the permitted destination policy.">header("Location: {$_GET['next']}#top")</error>;
+
+// Not reported: finite selection, and encoded query data on a fixed local path.
+$page = match ($_GET['tab']) { 'billing' => '/account/billing', default => '/account' };
+header('Location: ' . $page);
+header('Location: /find?term=' . rawurlencode($_GET['term']));
 ```
 
 ## Divergences

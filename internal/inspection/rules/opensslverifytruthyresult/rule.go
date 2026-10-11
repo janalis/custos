@@ -25,21 +25,26 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.NativeBuiltin(ctx, call, "openssl_verify") {
 		return
 	}
+	// Parentheses never change the tested value, so look through them on both
+	// sides of an optional negation.
 	var condition syntax.Expr = call
+	condition = outermostParen(condition)
 	negated := false
-	if u, ok := call.Parent().(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
-		condition = u
+	fixNode := syntax.Expr(call)
+	if u, ok := condition.Parent().(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
+		condition = outermostParen(u)
 		negated = true
-	}
-	fixNode := condition
-	for p, ok := condition.Parent().(*syntax.Paren); ok; p, ok = condition.Parent().(*syntax.Paren) {
-		condition = p
+		fixNode = u
 	}
 	used := false
 	switch parent := condition.Parent().(type) {
 	case *syntax.If:
 		used = parent.Cond == condition
+	case *syntax.ElseIf:
+		used = parent.Cond == condition
 	case *syntax.While:
+		used = parent.Cond == condition
+	case *syntax.DoWhile:
 		used = parent.Cond == condition
 	}
 	if !used {
@@ -55,4 +60,12 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	ctx.ReportNode(call, message, fix)
+}
+
+// outermostParen returns the outermost parenthesized expression wrapping e, or e itself.
+func outermostParen(e syntax.Expr) syntax.Expr {
+	for p, ok := e.Parent().(*syntax.Paren); ok; p, ok = e.Parent().(*syntax.Paren) {
+		e = p
+	}
+	return e
 }
