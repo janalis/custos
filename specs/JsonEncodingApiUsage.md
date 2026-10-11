@@ -178,10 +178,6 @@ F4 and F5 edit the call in place instead of replacing it.
 | DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |
 | HARDEN_ERRORS_HANDLING | bool | true | Enables kind E (D2–D5). |
 
-Upstream fixture configurations: (a) T only — HARDEN_DECODING_RESULT_TYPE on,
-DECODE_AS_ARRAY on, HARDEN_ERRORS_HANDLING off, default PHP level;
-(b) E only — HARDEN_DECODING_RESULT_TYPE off, HARDEN_ERRORS_HANDLING on, PHP 7.3.
-
 ## PHP versions
 
 - Kind T: no gating.
@@ -333,5 +329,9 @@ class Exporter {
   custos accepts the names `JSON_THROW_ON_ERROR` and
   `JSON_PARTIAL_OUTPUT_ON_ERROR` directly, as well as their values 4194304
   and 512.
+- Conformance note: upstream fixture configurations are (a) T only —
+  HARDEN_DECODING_RESULT_TYPE on, DECODE_AS_ARRAY on, HARDEN_ERRORS_HANDLING
+  off, default PHP level; (b) E only — HARDEN_DECODING_RESULT_TYPE off,
+  HARDEN_ERRORS_HANDLING on, PHP 7.3.
 
 Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

@@ -249,7 +249,7 @@ Worked results (short syntax on):
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax for arrays in the rebuilt call (F5): `[...]` when true, `array(...)` when false. Detection unaffected. Upstream fixtures run with `true`. |
+| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax for arrays in the rebuilt call (F5): `[...]` when true, `array(...)` when false. Detection unaffected. |
 
 ## PHP versions
 
@@ -418,3 +418,5 @@ function swap(array $from, array $to, $text) {
   replacement only. The same holds for `global`, `static` and
   reference-bound variables, and for a `finally` block. custos does not
   report these (D4, E7).
+- Conformance note: upstream fixtures run with `USE_SHORT_ARRAYS_SYNTAX` set to
+  `true`.

@@ -132,8 +132,6 @@ expresses the same thing directly and avoids a function call.
 | REPORT_INLINES | bool | true | Enables the single-interpolation string check (D8–D9). |
 | REPORT_TO_STRING_METHOD_CALLS | bool | false | Enables the `__toString()` call check (D10–D11). |
 
-The upstream fixture enables both.
-
 ## PHP versions
 
 No gating. The upstream fixture declares no level (test default, below 7.1).
@@ -249,3 +247,4 @@ class Tag extends Base {
   into the integer `1`. custos quotes such keys in `R` (D9).
 - **First-class callable (custos diverges):** `$o->__toString(...)` is not a
   call and is not reported (D10).
+- Conformance note: the upstream fixture enables both options.

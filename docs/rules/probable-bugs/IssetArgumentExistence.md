@@ -80,7 +80,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `IGNORE_INCLUDES` | bool | `true` | When `true`, include/require statements in the function are disregarded (reports still happen). When `false`, a function containing any include/require is skipped entirely (the included file could define the variable). The EA fixture runs with `false`. |
+| `IGNORE_INCLUDES` | bool | `true` | When `true`, include/require statements in the function are disregarded (reports still happen). When `false`, a function containing any include/require is skipped entirely (the included file could define the variable). |
 
 ## Configure
 

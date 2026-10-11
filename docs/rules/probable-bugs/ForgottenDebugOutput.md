@@ -79,10 +79,6 @@ Reported:
 | configuration | list of strings | empty (see below) | Additional debug entries (`function_name` or `\Class::method`). |
 | migratedIntoUserSpace | bool | false | When false, the built-in defaults are merged into `configuration`; when true, only `configuration` is used. |
 
-Upstream persists the merged list into `configuration` once and flips
-`migratedIntoUserSpace` to true; custos only needs the "effective list"
-semantics above.
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

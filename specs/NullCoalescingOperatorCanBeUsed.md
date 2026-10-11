@@ -237,9 +237,6 @@ Separator in `R` is exactly ` ?? ` (one space each side).
 | SUGGEST_SIMPLIFYING_TERNARIES | bool | true | Enables Form A (ternaries). |
 | SUGGEST_SIMPLIFYING_IFS | bool | true | Enables Form B (`if` statements). |
 
-Both upstream fixtures set only one option explicitly, but the other one keeps
-its default `true`, so both forms are active in both runs.
-
 ## PHP versions
 
 Nothing is reported below PHP 7.0. Upstream fixtures run at 7.1.
@@ -408,3 +405,6 @@ is negated K-null with `===`, so the true branch is the "set" branch.
   reads `T`: `$type = $parts[1]; if (isset($mimeMap[$type])) { $type =
   $mimeMap[$type]; }` became `$type = $mimeMap[$type] ?? $parts[1]`, which
   looks up the previous `$type` (SuiteCRM `get_file_mime_type()`).
+- Conformance note: both upstream fixtures set only one option explicitly, but
+  the other one keeps its default `true`, so both forms are active in both
+  runs.

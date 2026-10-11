@@ -348,9 +348,6 @@ None.
 | REPORT_INSTANCE_OF_FLAWS | bool | true | enables D3 and D4 |
 | SUGGEST_OPTIMIZING_CONDITIONS | bool | true | enables D1 |
 
-Upstream tests set one option to `true` without disabling the others, so each
-fixture is effectively evaluated with all checks on.
-
 ## PHP versions
 
 - D4: `\DateTimeInterface` as ancestor is ignored below PHP 5.5. Upstream
@@ -518,5 +515,7 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   or class name (`Repo::$node` vs `repo::$node`), which PHP treats as the
   same, are not recognised as equivalent. custos folds the case of those
   names (Detection, "Name case").
+- Conformance note: upstream tests set one option to `true` without disabling
+  the others, so each fixture is effectively evaluated with all checks on.
 
 Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

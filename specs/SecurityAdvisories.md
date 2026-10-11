@@ -167,16 +167,9 @@ the colon).
 | `REPORT_MISPLACED_DEPENDENCIES` | bool | true | Enables kind M (development packages under `require`). |
 | `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for the owner skip (D2). |
 
-Effective DEV: upstream always merges the default list into whatever the
-user configured (user entries ∪ defaults, deduplicated). custos does the
-same: DEV = defaults ∪ user entries. Entries may also be vendor prefixes
-ending in `/` (only meaningful for the owner skip D2).
-
-Conformance note: upstream test cases that do not add the defaults run with
-an *empty* DEV (the merge happens only when settings are loaded). With the
-upstream fixtures this makes no difference to the outcome, except that the
-two cases which explicitly add the defaults are the only ones where kind M
-or the owner skip can fire. Using the defaults always is safe.
+Effective DEV: the default list is always merged with the configured entries
+(configured entries ∪ defaults, deduplicated). Entries may also be vendor
+prefixes ending in `/` (only meaningful for the owner skip D2).
 
 Default list (vendor / package; the list entry is `vendor/package`, compared
 case-insensitively — the entry is stored as `mikey179/vfsStream`):
@@ -327,3 +320,10 @@ full, `vendor/package`, exactly as the fix must produce it.)
   "dev tools" bundle). Reporting development packages in its `require`, or
   a missing advisories package, is wrong. custos skips metapackages like
   libraries (D1).
+- Conformance note: upstream always merges the default development-package list
+  into whatever the user configured, but only when settings are loaded, so
+  upstream test cases that do not add the defaults run with an *empty* list.
+  With the upstream fixtures this makes no difference to the outcome, except
+  that the two cases which explicitly add the defaults are the only ones where
+  kind M or the owner skip can fire. custos always uses defaults ∪ configured
+  entries, which is safe.

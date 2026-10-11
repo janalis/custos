@@ -244,7 +244,10 @@ func TestBaselineUnicodeAndAmbiguity(t *testing.T) {
 	if ev.Column != 12 || ev.Start != 12 {
 		t.Fatal("rune/byte position", ev)
 	}
-	result := invoke(ctx, t, s, "symbols", Input{CheckpointID: id})
+	if scoped := invoke(ctx, t, s, "symbols", Input{CheckpointID: id}); scoped["scope"] != "project" || scoped["total"] != 5 {
+		t.Fatal(scoped)
+	}
+	result := invoke(ctx, t, s, "symbols", Input{CheckpointID: id, Scope: "all"})
 	ambiguous := 0
 	vendor := false
 	for _, raw := range result["items"].([]any) {
@@ -260,7 +263,11 @@ func TestBaselineUnicodeAndAmbiguity(t *testing.T) {
 		t.Fatal(result)
 	}
 	invoke(ctx, t, s, "symbols", Input{CheckpointID: id, Path: "a.php", Query: "A"})
-	invoke(ctx, t, s, "findings", Input{CheckpointID: id, Rule: "wrong"})
+	rejected(ctx, t, s, "findings", Input{CheckpointID: id, Rule: "wrong"})
+	rejected(ctx, t, s, "findings", Input{CheckpointID: id, Rule: "no-such-rule"})
+	if out := invoke(ctx, t, s, "findings", Input{CheckpointID: id, Rule: "unnecessaryassertion"}); out["total"] != 0 {
+		t.Fatal(out)
+	}
 	invoke(ctx, t, s, "rules", Input{Query: "no rule matches this"})
 	unresolved := invoke(ctx, t, s, "type", Input{CheckpointID: id, Path: "a.php", Offset: 1})
 	if unresolved["resolved"] != false {
@@ -362,8 +369,15 @@ func TestPaginationTamperingAndBusy(t *testing.T) {
 	a := invoke(ctx, t, s, "analyze", Input{})
 	id := a["checkpointId"].(string)
 	rejected(ctx, t, s, "unknown", Input{CheckpointID: id})
+	// A held operation slot makes callers wait until their context ends;
+	// beyond the queue bound they are turned away at once.
 	s.active <- struct{}{}
+	waiting, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
+	rejected(waiting, t, s, "workspace", Input{})
+	cancel()
+	s.queued.Store(maxQueued)
 	rejected(ctx, t, s, "workspace", Input{})
+	s.queued.Store(0)
 	<-s.active
 	pageInput := Input{}
 	filters, _ := json.Marshal([]any{identity(ctx), "scope", pageInput})
@@ -455,8 +469,9 @@ func TestPreparedFixValidationAndBudgets(t *testing.T) {
 	if _, err := s.prepare(ctx, w, &altered, snap, Input{Choices: []Choice{{FindingID: "0"}}}); err == nil {
 		t.Fatal("unreproducible finding")
 	}
-	invoke(ctx, t, s, "prepare_fixes", Input{CheckpointID: id, Iterative: true, Rule: "wrong", Path: "missing.php"})
-	invoke(ctx, t, s, "prepare_fixes", Input{CheckpointID: id, Iterative: true, Rule: "wrong"})
+	invoke(ctx, t, s, "prepare_fixes", Input{CheckpointID: id, Iterative: true, Rule: "unnecessaryassertion", Path: "missing.php"})
+	invoke(ctx, t, s, "prepare_fixes", Input{CheckpointID: id, Iterative: true, Rule: "UnnecessaryAssertion"})
+	rejected(ctx, t, s, "prepare_fixes", Input{CheckpointID: id, Iterative: true, Rule: "wrong"})
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
 	if _, err := s.prepare(cancelled, w, cp, snap, Input{Iterative: true}); err == nil {
@@ -552,11 +567,11 @@ func TestCheckpointBudgetsAndCancelledPublication(t *testing.T) {
 	cp := s.checkpoints[a["checkpointId"].(string)]
 	w := s.workspaces["default"]
 	counter := &validationContext{Context: ctx}
-	if _, err := project.CaptureSnapshot(counter, w.root, s.rules, cp.Paths); err != nil {
+	if _, err := project.CaptureSnapshot(counter, w.root, s.rules, cp.Paths, nil); err != nil {
 		t.Fatal(err)
 	}
 	delete(s.snapshots, cp.ID)
-	if err := s.validate(&validationContext{Context: ctx, stop: counter.steps + 1}, w, cp); err == nil || s.snapshots[cp.ID] != nil {
+	if err := s.validate(&validationContext{Context: ctx, stop: counter.steps + 1}, w, cp, true); err == nil || s.snapshots[cp.ID] != nil {
 		t.Fatal("cancelled rebuild published", err)
 	}
 	saved := ruleCatalogue
@@ -711,7 +726,7 @@ func TestPlanCursorAfterCreationAndCorruptManifest(t *testing.T) {
 	}
 	writeFile(t, filepath.Join(root, "custos.json"), `{"php":"8.2","baseline":"baseline.json"}`)
 	writeFile(t, filepath.Join(root, "baseline.json"), "invalid")
-	captured, err := project.CaptureSnapshot(ctx, s.workspaces["default"].root, s.rules, nil)
+	captured, err := project.CaptureSnapshot(ctx, s.workspaces["default"].root, s.rules, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -779,7 +794,7 @@ func TestBufferDeclarationsAndOverlayFailure(t *testing.T) {
 	// partially indexed supplied buffer.
 	root := s.workspaces["default"].root
 	counter := &validationContext{Context: ctx}
-	if _, err := project.CaptureSnapshot(counter, root, s.rules, nil); err != nil {
+	if _, err := project.CaptureSnapshot(counter, root, s.rules, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	_, err := s.analyze(&validationContext{Context: ctx, stop: counter.steps + 1}, s.workspaces["default"], Input{Path: "unsaved.php", Buffer: &buffer})

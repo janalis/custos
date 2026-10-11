@@ -102,10 +102,12 @@ func TestWorkflow(t *testing.T) {
 		t.Fatal(string(src), err)
 	}
 	rejected(ctx, t, s, "apply_fixes", Input{PlanID: id})
+	// The applied plan's checkpoint is superseded by the returned analysis.
 	rejected(ctx, t, s, "findings", Input{CheckpointID: cp})
+	next := applied["analysis"].(Output)["checkpointId"].(string)
 	invoke(ctx, t, s, "checkpoints", Input{})
-	invoke(ctx, t, s, "checkpoints", Input{CheckpointID: cp, Action: "resume"})
-	invoke(ctx, t, s, "checkpoints", Input{CheckpointID: cp, Action: "delete"})
+	invoke(ctx, t, s, "checkpoints", Input{CheckpointID: next, Action: "resume"})
+	invoke(ctx, t, s, "checkpoints", Input{CheckpointID: next, Action: "delete"})
 }
 
 func TestRecoveryAndInputs(t *testing.T) {
@@ -353,7 +355,7 @@ func TestCancelledValidationKeepsCheckpoint(t *testing.T) {
 	}
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
-	if err := s.validate(cancelled, s.workspaces["default"], cp); err == nil || cp.Stale {
+	if err := s.validate(cancelled, s.workspaces["default"], cp, true); err == nil || cp.Stale {
 		t.Fatal("cancellation invalidated the checkpoint", err)
 	}
 	if out := invoke(ctx, t, s, "findings", Input{CheckpointID: id}); out["total"] != 1 {

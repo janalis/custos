@@ -68,10 +68,6 @@ Reported:
 | DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |
 | HARDEN_ERRORS_HANDLING | bool | true | Enables kind E (D2–D5). |
 
-Upstream fixture configurations: (a) T only — HARDEN_DECODING_RESULT_TYPE on,
-DECODE_AS_ARRAY on, HARDEN_ERRORS_HANDLING off, default PHP level;
-(b) E only — HARDEN_DECODING_RESULT_TYPE off, HARDEN_ERRORS_HANDLING on, PHP 7.3.
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

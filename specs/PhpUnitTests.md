@@ -509,7 +509,7 @@ filled, in order, with the original arguments that follow the message
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 D20 suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. D25 only runs below 9.0. D23 uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. D26/D27 use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Conformance passes it as `PhpUnitVersion.PHPUNIT75` style values; strip the prefix. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |
+| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 D20 suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. D25 only runs below 9.0. D23 uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. D26/D27 use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |
 | `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Enables D17. |
 | `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Enables D6. |
 | `PROMOTE_PHPUNIT_API` | bool | `true` | Enables D18–D28. |
@@ -912,5 +912,7 @@ class ArchiveTest
   (`require-dev`, else `require`) before falling back to the option
   default: EspoCRM (`^11.5`) was told to use `assertContains()` (strict
   from 9.0, unlike `in_array()`) and Grav `assertRegExp()` (removed in 10).
+- Conformance note: the harness passes `PHP_UNIT_VERSION` as
+  `PhpUnitVersion.PHPUNIT75` style values; strip the prefix.
 
 Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

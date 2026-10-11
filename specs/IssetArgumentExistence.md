@@ -133,7 +133,7 @@ None.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `IGNORE_INCLUDES` | bool | `true` | When `true`, include/require statements in the function are disregarded (reports still happen). When `false`, a function containing any include/require is skipped entirely (the included file could define the variable). The EA fixture runs with `false`. |
+| `IGNORE_INCLUDES` | bool | `true` | When `true`, include/require statements in the function are disregarded (reports still happen). When `false`, a function containing any include/require is skipped entirely (the included file could define the variable). |
 
 ## PHP versions
 
@@ -236,3 +236,5 @@ annotated above).
   the argument is assumed to be possibly by reference. In return, the guard
   stays in the function's scope: an assignment inside a nested closure body
   no longer hides the report.
+- Conformance note: the upstream fixture runs with `IGNORE_INCLUDES` set to
+  `false`.

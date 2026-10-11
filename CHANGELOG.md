@@ -12,6 +12,17 @@ versions follow [Semantic Versioning](https://semver.org/).
   Streamable HTTP. Workspace roots and identity permissions constrain access.
 - Composer's launcher supplies the consuming project as the MCP default,
   including custom vendor/bin directories and symlinked package installations.
+- MCP analysis handles large dependency trees: vendor files are indexed without
+  being retained (up to 100,000 files), vendor symlinks are skipped and
+  reported instead of failing, and unchanged dependencies are not parsed again.
+- MCP findings filter by directory and case-insensitive rule ID and summarize
+  counts by severity, rule and file; symbol search ranks exact names first and
+  returns PHP-style signatures; types can be queried by line and column.
+
+### Changed
+
+- Rule option descriptions in `custos explain` and the rule reference no longer
+  include notes about upstream test configurations.
 
 ### Security
 

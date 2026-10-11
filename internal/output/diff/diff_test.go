@@ -1,6 +1,9 @@
 package diff
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestUnified(t *testing.T) {
 	old := "a\nb\nc\nd\ne\nf\ng\n"
@@ -54,5 +57,33 @@ func TestUnifiedAbsolutePath(t *testing.T) {
 	want := "--- a/tmp/p/x.php\n+++ b/tmp/p/x.php\n@@ -1,1 +1,1 @@\n-a\n+b\n"
 	if got != want {
 		t.Fatalf("got:\n%q\nwant:\n%q", got, want)
+	}
+}
+
+func applyEdits(text string, edits []Edit) string {
+	for i := len(edits) - 1; i >= 0; i-- {
+		text = text[:edits[i].Start] + edits[i].Text + text[edits[i].End:]
+	}
+	return text
+}
+
+func TestEdits(t *testing.T) {
+	long := strings.Repeat("x\n", maxEditLines)
+	for _, tc := range []struct {
+		old, new string
+		edits    int
+	}{
+		{"a\nb\nc\n", "a\nb\nc\n", 0},
+		{"", "a\n", 1},
+		{"a\n", "", 1},
+		{"a\nb\nc\nd\ne\n", "a\nB\nc\nD\ne\n", 2},
+		{"a\nb\nc\n", "a\nc\n", 1},
+		{"a\nc", "a\nb\nc", 1},
+		{"a\n" + long + "z\n", "a\n" + strings.Repeat("y\n", maxEditLines) + "z\n", 1},
+	} {
+		edits := Edits(tc.old, tc.new)
+		if len(edits) != tc.edits || applyEdits(tc.old, edits) != tc.new {
+			t.Fatalf("%q -> %q: %+v", tc.old, tc.new, edits)
+		}
 	}
 }

@@ -102,9 +102,6 @@ Reported:
 | SUGGEST_TO_USE_NULL_COMPARISON | bool | false | Enables D8 and its fix. |
 | REPORT_CONCATENATION_IN_INDEXES | bool | true | Enables D9. When off, such accesses go straight to D10. |
 
-All upstream fixtures run with all three options **on** and regular comparison
-style.
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

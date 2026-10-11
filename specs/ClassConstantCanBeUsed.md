@@ -191,11 +191,6 @@ Everything is gated on PHP language level ≥ 5.5.
 | `USE_RELATIVE_QF` | bool | false | When importing is otherwise possible, a class below the enclosing namespace is written as a namespace-relative name instead of being imported. |
 | `LOOK_ROOT_NS_UP` | bool | false | Also consider unqualified strings (no backslash), looked up as root-namespace classes (`'Thing'` → `\Thing`). |
 
-Upstream fixtures run with `IMPORT_CLASSES_ON_QF=true, USE_RELATIVE_QF=true,
-LOOK_ROOT_NS_UP=true`, except the no-namespace configuration case
-(`true, false, false`). Some upstream cases rely on classes declared in a
-companion file (project index).
-
 ## PHP versions
 
 - Whole rule requires PHP ≥ 5.5. Upstream tests run at the test default
@@ -436,3 +431,7 @@ return [
   leading backslash (and `__NAMESPACE__ . '\X'` in a named namespace, whose
   value has none) keep the fix. EA cases affected: `class-name-constant-collisions.php`,
   `configuration-class-reference.php` (listed divergences).
+- Conformance note: upstream fixtures run with `IMPORT_CLASSES_ON_QF=true,
+  USE_RELATIVE_QF=true, LOOK_ROOT_NS_UP=true`, except the no-namespace
+  configuration case (`true, false, false`). Some upstream cases rely on
+  classes declared in a companion file (project index).

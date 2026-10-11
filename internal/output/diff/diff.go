@@ -177,3 +177,54 @@ func hunkStart(start, n int) int {
 	}
 	return start + 1
 }
+
+// Edit replaces the bytes [Start, End) of the old text with Text.
+type Edit struct {
+	Start, End int
+	Text       string
+}
+
+// maxEditLines bounds the lines handed to the O(ND) script once the common
+// head and tail are set aside; a larger difference becomes one replacement.
+const maxEditLines = 4000
+
+// Edits returns the line-granular replacements that turn oldText into
+// newText, in order and without overlap (none when equal).
+func Edits(oldText, newText string) []Edit {
+	a, b := splitLines(oldText), splitLines(newText)
+	offset := 0
+	for len(a) > 0 && len(b) > 0 && a[0] == b[0] {
+		offset += len(a[0])
+		a, b = a[1:], b[1:]
+	}
+	for len(a) > 0 && len(b) > 0 && a[len(a)-1] == b[len(b)-1] {
+		a, b = a[:len(a)-1], b[:len(b)-1]
+	}
+	if len(a)+len(b) == 0 {
+		return nil
+	}
+	if len(a)+len(b) > maxEditLines {
+		return []Edit{{Start: offset, End: offset + len(strings.Join(a, "")), Text: strings.Join(b, "")}}
+	}
+	var out []Edit
+	open := false
+	for _, o := range script(a, b) {
+		if o.kind == opEqual {
+			offset += len(a[o.a])
+			open = false
+			continue
+		}
+		if !open {
+			out = append(out, Edit{Start: offset, End: offset})
+			open = true
+		}
+		e := &out[len(out)-1]
+		if o.kind == opDel {
+			offset += len(a[o.a])
+			e.End = offset
+		} else {
+			e.Text += b[o.b]
+		}
+	}
+	return out
+}
