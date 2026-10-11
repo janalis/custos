@@ -3,6 +3,7 @@ package flow
 import (
 	"reflect"
 	"strings"
+	"sync"
 
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
@@ -34,15 +35,26 @@ type File struct {
 }
 
 // Snapshot is an immutable project-local summary collection. WithFile and
-// WithoutFile return copies; readers never observe mutations or need locks.
+// WithoutFile return new snapshots; readers never observe mutations or need
+// locks.
 type Snapshot struct {
 	files     map[string]*File
 	summaries map[string]Summary
+	// shared lists the files of every name declared more than once; such a
+	// name has no summary.
+	shared map[string][]*File
+
+	// An overlay replaces one file of base without copying base, so that
+	// analysing a file costs its own declarations, not the project's.
+	base *Snapshot
+	over *File
+	once sync.Once
+	flat *Snapshot
 }
 
 // NewSnapshot creates an empty summary collection.
 func NewSnapshot(files ...*File) *Snapshot {
-	s := &Snapshot{files: map[string]*File{}, summaries: map[string]Summary{}}
+	s := &Snapshot{files: map[string]*File{}, summaries: map[string]Summary{}, shared: map[string][]*File{}}
 	for _, f := range files {
 		if f != nil {
 			s.files[f.Path] = f
@@ -54,24 +66,18 @@ func NewSnapshot(files ...*File) *Snapshot {
 
 // WithFile replaces all summaries of a file in a new snapshot.
 func (s *Snapshot) WithFile(f *File) *Snapshot {
-	n := NewSnapshot()
-	if s != nil {
-		for path, file := range s.files {
-			if path != f.Path {
-				n.files[path] = file
-			}
-		}
+	base := s.flattened()
+	if base == nil {
+		base = NewSnapshot()
 	}
-	n.files[f.Path] = f
-	n.rebuild()
-	return n
+	return &Snapshot{base: base, over: f}
 }
 
 // WithoutFile removes all summaries of a file in a new snapshot.
 func (s *Snapshot) WithoutFile(path string) *Snapshot {
 	n := NewSnapshot()
 	if s != nil {
-		for p, f := range s.files {
+		for p, f := range s.flattened().files {
 			if p != path {
 				n.files[p] = f
 			}
@@ -79,6 +85,23 @@ func (s *Snapshot) WithoutFile(path string) *Snapshot {
 	}
 	n.rebuild()
 	return n
+}
+
+// flattened returns the snapshot as one collection, merging an overlay into
+// a copy of its base once.
+func (s *Snapshot) flattened() *Snapshot {
+	if s == nil || s.base == nil {
+		return s
+	}
+	s.once.Do(func() {
+		s.flat = NewSnapshot()
+		for path, file := range s.base.files {
+			s.flat.files[path] = file
+		}
+		s.flat.files[s.over.Path] = s.over
+		s.flat.rebuild()
+	})
+	return s.flat
 }
 
 func (s *Snapshot) rebuild() {
@@ -91,8 +114,16 @@ func (s *Snapshot) rebuild() {
 			s.summaries[name] = summary
 		}
 	}
-	for name := range duplicates {
-		delete(s.summaries, name)
+	if len(duplicates) == 0 {
+		return
+	}
+	for _, f := range s.files {
+		for name := range f.Summaries {
+			if duplicates[name] {
+				s.shared[name] = append(s.shared[name], f)
+				delete(s.summaries, name)
+			}
+		}
 	}
 }
 
@@ -100,8 +131,41 @@ func (s *Snapshot) lookup(name string) (Summary, bool) {
 	if s == nil {
 		return Summary{}, false
 	}
-	v, ok := s.summaries[strings.ToLower(name)]
-	return v, ok
+	name = strings.ToLower(name)
+	if s.base == nil {
+		v, ok := s.summaries[name]
+		return v, ok
+	}
+	// Count the files declaring the name once the overlaid file has replaced
+	// its indexed copy: exactly one declaration has a summary.
+	replaced := s.base.files[s.over.Path]
+	owners := s.base.shared[name]
+	other, found := s.base.summaries[name]
+	count := len(owners)
+	if found {
+		count = 1
+	}
+	if replaced != nil {
+		if _, ok := replaced.Summaries[name]; ok {
+			count--
+		}
+	}
+	own, declared := s.over.Summaries[name]
+	if declared {
+		count++
+	}
+	if count != 1 {
+		return Summary{}, false
+	}
+	if declared {
+		return own, true
+	}
+	for _, f := range owners {
+		if f != replaced {
+			other = f.Summaries[name]
+		}
+	}
+	return other, true
 }
 
 // Equal reports whether two immutable snapshots expose the same contracts.
@@ -109,7 +173,7 @@ func (s *Snapshot) Equal(other *Snapshot) bool {
 	if s == nil || other == nil {
 		return s == other
 	}
-	return reflect.DeepEqual(s.summaries, other.summaries)
+	return reflect.DeepEqual(s.flattened().summaries, other.flattened().summaries)
 }
 
 // Extract computes compact summaries while the project's parser tree is

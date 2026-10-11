@@ -302,3 +302,50 @@ func TestArgumentOriginWalkSharesExecutionBudget(t *testing.T) {
 		t.Fatal("argument-origin walk escaped execution budget")
 	}
 }
+
+// An overlay must answer every lookup like the collection rebuilt from the
+// same files.
+func TestSnapshotOverlayMatchesRebuild(t *testing.T) {
+	marker := uint32(0)
+	file := func(path string, names ...string) *File {
+		f := &File{Path: path, Summaries: map[string]Summary{}}
+		for _, name := range names {
+			marker++
+			f.Summaries[name] = Summary{Return: Value{Identity: marker}}
+		}
+		return f
+	}
+	all := []string{"a", "b", "ab", "abc", "bc", "c", "new", "none"}
+	base := NewSnapshot(file("a.php", "a", "ab", "abc"), file("b.php", "b", "ab", "abc", "bc"), file("c.php", "c", "abc", "bc"))
+	overlays := []*File{
+		file("a.php"), file("a.php", "a", "ab", "abc"), file("a.php", "new", "b", "bc"),
+		file("b.php", "ab"), file("c.php", "a", "new"), file("d.php"), file("d.php", "a", "ab", "new"),
+	}
+	for i, over := range overlays {
+		for _, from := range []*Snapshot{base, base.WithFile(file("c.php", "c", "ab")), nil} {
+			overlay := from.WithFile(over)
+			files := []*File{over}
+			if from != nil {
+				for path, f := range from.flattened().files {
+					if path != over.Path {
+						files = append(files, f)
+					}
+				}
+			}
+			rebuilt := NewSnapshot(files...)
+			for _, name := range all {
+				got, ok := overlay.lookup(strings.ToUpper(name))
+				want, found := rebuilt.lookup(name)
+				if ok != found || got.Return.Identity != want.Return.Identity {
+					t.Fatal(i, name, got, ok, want, found)
+				}
+			}
+			if flat := overlay.flattened(); !overlay.Equal(rebuilt) || !rebuilt.Equal(overlay) || overlay.flattened() != flat {
+				t.Fatal(i)
+			}
+			if _, ok := overlay.WithoutFile(over.Path).lookup("new"); ok {
+				t.Fatal(i)
+			}
+		}
+	}
+}
