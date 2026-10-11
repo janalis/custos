@@ -241,6 +241,8 @@ func allowed(from, to string) bool {
 		return within("internal/inspection/analysis") || within("internal/inspection/rules")
 	case strings.HasPrefix(from, "internal/inspection/"):
 		return within("internal/php") || within("internal/semantic") || within("internal/diagnostic") || within("internal/inspection/analysis") || within("internal/inspection/meta") || within("internal/inspection/astquery") || within("internal/inspection/flowquery")
+	case from == "internal/editor/mcp":
+		return within("internal/platform/safeio") || within("internal/php") || within("internal/semantic") || within("internal/diagnostic") || within("internal/fixing") || within("internal/project") || within("internal/output/diff") || within("internal/inspection/analysis") || within("internal/inspection/meta")
 	case strings.HasPrefix(from, "internal/project"):
 		return !within("internal/cli") && !within("internal/editor") && !within("internal/output")
 	case strings.HasPrefix(from, "internal/output/"):

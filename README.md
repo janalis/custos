@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Fast PHP inspector and fixer.</strong><br>
-  PHP inspections with quick-fixes · one static binary · CLI, CI and LSP
+  PHP inspections with quick-fixes · one static binary · CLI, CI, LSP and MCP
 </p>
 
 <p align="center">
@@ -21,7 +21,8 @@
   <a href="https://janalis.github.io/custos/"><strong>Documentation</strong></a> ·
   <a href="https://janalis.github.io/custos/guide/getting-started">Getting started</a> ·
   <a href="https://janalis.github.io/custos/rules/">Rules</a> ·
-  <a href="https://janalis.github.io/custos/guide/editors">Editors</a>
+  <a href="https://janalis.github.io/custos/guide/editors">Editors</a> ·
+  <a href="https://janalis.github.io/custos/guide/mcp">AI agents</a>
 </p>
 
 ---
@@ -30,7 +31,7 @@ custos finds probable bugs, performance and security issues, needless
 complexity and outdated constructs in PHP code (PHP 5.3 to 8.5), and fixes
 many of them for you. It is written in Go with its own PHP parser and type
 inference, so it needs no PHP runtime. It runs from the command line, in CI,
-and in any editor as a language server.
+in editors as a language server, and with AI agents through MCP.
 
 The catalogue includes rules modelled on *Php Inspections (EA Extended)*
 and independently designed native inspections. Existing
@@ -58,6 +59,7 @@ custos fix src                            # apply them
 custos analyse --generate-baseline custos-baseline.json   # adopt on legacy code
 custos explain OneTimeUseVariables        # what a rule does, its options
 custos lsp                                # language server over stdio
+custos mcp --root /path/to/project         # MCP server over stdio
 ```
 
 ```text
@@ -78,6 +80,10 @@ src/Invoice.php:7:6: error: Restrict the classes unserialize() may create via it
   baselines for legacy code. ([CI recipes](https://janalis.github.io/custos/guide/ci))
 - **Editor integration** through LSP: Neovim, Helix, VS Code, PhpStorm,
   Sublime Text, Emacs. ([setup](https://janalis.github.io/custos/guide/editors))
+- **AI agent integration** through MCP: analysis, semantic navigation, rule
+  explanations, resumable checkpoints and prepared fixes over stdio or
+  authenticated HTTP. Composer's `vendor/bin/custos mcp` automatically selects
+  the consuming project. ([setup](https://janalis.github.io/custos/guide/mcp))
 
 ## Configuration
 

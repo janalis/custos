@@ -215,3 +215,16 @@ func TestNativeCatalogue(t *testing.T) {
 		t.Fatal("missing native catalogue accepted")
 	}
 }
+
+func TestMCPAdapterBoundaries(t *testing.T) {
+	for _, to := range []string{"internal/php/syntax", "internal/semantic/infer", "internal/diagnostic", "internal/fixing", "internal/project/config", "internal/output/diff", "internal/inspection/analysis", "internal/inspection/meta", "internal/platform/safeio"} {
+		if !allowed("internal/editor/mcp", to) {
+			t.Errorf("MCP adapter cannot use %s", to)
+		}
+	}
+	for _, to := range []string{"internal/cli", "internal/editor/lsp", "internal/inspection/catalogue", "internal/inspection/rules/example", "internal/output/report"} {
+		if allowed("internal/editor/mcp", to) {
+			t.Errorf("MCP adapter can import %s", to)
+		}
+	}
+}

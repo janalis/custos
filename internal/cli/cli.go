@@ -15,6 +15,7 @@ const usage = `custos — PHP inspections and fixes
 Usage:
   custos analyse [flags] [paths...]   report problems
   custos fix [flags] [paths...]       apply quick-fixes
+  custos mcp [flags]                  run the MCP server (stdio or HTTP)
   custos lsp                          run the language server (stdio)
   custos rules [--json]               list rules
   custos explain <rule>               describe a rule
@@ -47,6 +48,8 @@ func Run(version string, args []string, stdin io.Reader, stdout, stderr io.Write
 		err = cmdRules(args[1:], stdout, stderr)
 	case "explain":
 		err = cmdExplain(args[1:], stdout)
+	case "mcp":
+		err = cmdMCP(version, args[1:], stdin, stdout, stderr)
 	case "lsp":
 		err = cmdLSP(version, args[1:], stdin, stdout, stderr)
 	case "version", "--version":

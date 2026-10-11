@@ -25,3 +25,5 @@ func open(path string) (*os.File, int64, error) {
 	}
 	return f, st.Size(), nil
 }
+
+const rootReadFlags = 0

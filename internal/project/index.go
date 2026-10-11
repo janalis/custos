@@ -35,6 +35,10 @@ func vendorDir(root string) string {
 	if err != nil {
 		return "vendor"
 	}
+	return vendorDirBytes(b)
+}
+
+func vendorDirBytes(b []byte) string {
 	var c struct {
 		Config struct {
 			VendorDir string `json:"vendor-dir"`
