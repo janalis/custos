@@ -103,6 +103,14 @@ The argument list is irrelevant (any number of arguments, including none).
 - **E3** Method calls (`$x->join()`), static calls (`A::sizeof()`), function
   declarations, and string callables (`'join'`).
 - **E4** Names not in either table.
+- **E5** The call resolves to a global function the project itself
+  declares, for a name PHP does not provide at the analysed level (`close`
+  is not a PHP function, `recode` left with its extension after 7.3). PHP
+  refuses to redeclare a built-in, so such a declaration can only load
+  where the built-in is absent: the call runs project code, which is not an
+  alias of anything. This covers plain declarations and polyfills guarded
+  by `function_exists`. When the built-in does exist at the analysed level,
+  a guarded polyfill never loads and the call is reported as usual.
 
 ## Report
 
@@ -129,6 +137,14 @@ The argument list is irrelevant (any number of arguments, including none).
   (`namespace App; function count($x) {…} sizeof($l)` → `\count($l)`); the
   message names that spelling too.
 - **F2** Table B: no fix offered.
+- **F3** Table A, alias absent from PHP at the analysed level: report
+  without a fix. This is the case for `close` at every level, `recode` from
+  7.4 and `is_real` from 8.0. A call that works there necessarily reaches a
+  function custos cannot see (declared outside the analysed files, or a
+  polyfill hidden behind the stub declaration), and renaming the call would
+  swap that function for a different one; for `recode` the canonical
+  function is gone as well. At a level where the alias still exists the fix
+  is offered as in F1.
 
 ## Options
 
@@ -136,7 +152,8 @@ None.
 
 ## PHP versions
 
-No gating. (Removed functions in Table B are still reported at any level.)
+No gating of the report. (Removed functions in Table B are still reported
+at any level.) The Table A fix depends on the level through F3.
 
 ## Examples
 
@@ -158,6 +175,27 @@ $ok    = is_int($port) && is_writable($dir);
 magic_quotes_runtime(0);
 $n = count($rows);
 $s = $builder->join(',');  // E3
+```
+
+Project functions that merely share an alias name (E5) and aliases PHP
+lacks at the analysed level (F3), analysed at PHP 8.x:
+
+```php
+<?php
+function close($handle) { return $handle->release(); }
+
+close($connection);       // E5: project function, not PHP's alias
+$f = <warning descr="Use 'is_float(...)' instead of the alias 'is_real(...)'.">is_real</warning>($ratio); // F3: reported, not rewritten
+$n = <warning descr="Use 'count(...)' instead of the alias 'sizeof(...)'.">sizeof</warning>($rows);
+```
+
+```php
+<?php
+function close($handle) { return $handle->release(); }
+
+close($connection);       // E5: project function, not PHP's alias
+$f = is_real($ratio); // F3: reported, not rewritten
+$n = count($rows);
 ```
 
 Namespace handling:
@@ -194,3 +232,10 @@ namespace Shop\Web {
   canonical name, which a same-named function declared in or imported into
   the namespace captures (the fixed call then runs user code). custos
   writes `\canonical` in that case (F1).
+- **Project functions named like an alias (custos diverges).** Upstream
+  goes by the name alone, so a call to a project's own global `close()` or
+  `recode()` is reported and rewritten to an unrelated built-in, breaking
+  the call. custos does not report a call whose target is a project
+  declaration of a name PHP lacks at the analysed level (E5), and keeps the
+  report but withholds the rewrite when PHP lacks the alias and no
+  declaration is visible (F3).

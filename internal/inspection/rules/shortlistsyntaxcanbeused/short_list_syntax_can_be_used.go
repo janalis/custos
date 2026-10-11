@@ -69,8 +69,14 @@ func shortListEdits(f *syntax.File, l *syntax.List) []diagnostic.TextEdit {
 		if !ok || f.Src[s.End-1] != ')' {
 			return true
 		}
+		// Drop the keyword and the blanks right after it; a comment placed
+		// before the parenthesis stays.
+		end := s.Start + 4
+		for end < lp.Start && isBlank(f.Src[end]) {
+			end++
+		}
 		edits = append(edits,
-			diagnostic.TextEdit{Span: syntax.Span{Start: s.Start, End: lp.Start}},
+			diagnostic.TextEdit{Span: syntax.Span{Start: s.Start, End: end}},
 			diagnostic.TextEdit{Span: syntax.Span{Start: lp.Start, End: lp.End}, NewText: "["},
 			diagnostic.TextEdit{Span: syntax.Span{Start: s.End - 1, End: s.End}, NewText: "]"},
 		)
@@ -78,3 +84,5 @@ func shortListEdits(f *syntax.File, l *syntax.List) []diagnostic.TextEdit {
 	})
 	return edits
 }
+
+func isBlank(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }

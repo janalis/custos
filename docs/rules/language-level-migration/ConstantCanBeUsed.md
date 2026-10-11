@@ -64,8 +64,8 @@ $host = php_uname('n');
 
 $a = PHP_VERSION_ID < 80000;
 $b = PHP_VERSION_ID >= 70433;
-$c = PHP_VERSION_ID === 80200;
-$d = PHP_VERSION_ID !== 50604;
+$c = version_compare(PHP_VERSION, '8.2.0', 'eq');
+$d = version_compare(PHP_VERSION, '5.6.4', '<>');
 
 $e = version_compare(PHP_VERSION, '8.2.0-RC1', '>=');
 $f = version_compare(PHP_VERSION, '10.1', '>=');
@@ -91,8 +91,8 @@ Reported:
 <li>line 7: Use the M_PI constant instead of this call.</li>
 <li>line 12: Replace with &#39;PHP_VERSION_ID &lt; 80000&#39;.</li>
 <li>line 13: Replace with &#39;PHP_VERSION_ID &gt;= 70433&#39;.</li>
-<li>line 14: Replace with &#39;PHP_VERSION_ID === 80200&#39;.</li>
-<li>line 15: Replace with &#39;PHP_VERSION_ID !== 50604&#39;.</li>
+<li>line 14: Compare PHP_VERSION_ID instead: &#39;PHP_VERSION_ID === 80200&#39; ignores build suffixes.</li>
+<li>line 15: Compare PHP_VERSION_ID instead: &#39;PHP_VERSION_ID !== 50604&#39; ignores build suffixes.</li>
 <li>line 26: Use the __CLASS__ constant instead of this call.</li>
 </ul>
 

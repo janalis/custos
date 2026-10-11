@@ -82,9 +82,19 @@ appearing inside a `use function …;` import is not a call.
   `version_compare(PHP_VERSION, '7.1', '>')` → `PHP_VERSION_ID >= 70100`,
   `version_compare(PHP_VERSION, '7.1', '<=')` → `PHP_VERSION_ID < 70100`.
   `version_compare()` sorts a short version below its `.0` release
-  (`'7.1'` < `'7.1.0'`), and `PHP_VERSION` always has three parts, so
-  `PHP_VERSION > '7.1'` already holds on 7.1.0. Full `M.m.p` versions keep
-  the operator from the table.
+  (`'7.1'` < `'7.1.0'`), and `PHP_VERSION` always starts with three numeric
+  parts (possibly followed by a build suffix such as `-1ubuntu2.14`, `RC1`
+  or `-dev`), so `PHP_VERSION > '7.1'` already holds on 7.1.0 and on every
+  suffixed 7.1.0 build. Full `M.m.p` versions keep the operator from the
+  table.
+- **D4d** Exactness. `E` is *exact* (same result as the call on release and
+  distribution-suffixed builds) when the version is short, or when the
+  version is full and `<op>` is `<` or `>=`. For a full version with `>`,
+  `<=`, `===` or `!==` it is not: `PHP_VERSION` may carry a suffix that
+  `version_compare()` orders above the bare patch release
+  (`'8.1.2-1ubuntu2.14'` > `'8.1.2'`, and not equal to it), while
+  `PHP_VERSION_ID` is `80102` on both. Those comparisons are still reported,
+  with the second D2 message and no fix.
 - **D4a** For the equality operators (`==`, `=`, `eq`, `!=`, `<>`, `ne`)
   the version must have all three parts (`M.m.p`); `'8.1'` or `'8'` with an
   equality operator is not reported.
@@ -134,16 +144,20 @@ appearing inside a `use function …;` import is not a call.
 - Severity: info (weak warning).
 - Message:
   - D1: `Use the {CONST} constant instead of this call.`
-  - D2: `Replace with '{E}'.`
+  - D2, exact (D4d): `Replace with '{E}'.`
+  - D2, not exact (D4d): `Compare PHP_VERSION_ID instead: '{E}' ignores build suffixes.`
   - D5: `Compare PHP_OS_FAMILY instead of sniffing PHP_OS.`
 
 ## Fix
 
 - **F1** D1: replace the call with the constant name (`PHP_VERSION`,
   `PHP_SAPI`, `__CLASS__`, `M_PI`).
-- **F2** D2: replace the whole `version_compare(...)` call with `E`, e.g.
+- **F2** D2, exact comparisons only (D4d): replace the whole
+  `version_compare(...)` call with `E`, e.g.
   `version_compare(PHP_VERSION, '7.3', '<')` → `PHP_VERSION_ID < 70300`.
   Upstream inserts `E` without parentheses (see Divergences).
+- D2, not exact (full version with `>`, `<=`, `==`, `!=` and their
+  aliases): no fix.
 - D5: no fix.
 
 ## Options
@@ -172,8 +186,8 @@ $host = php_uname('n');
 
 $a = <weak_warning descr="Replace with 'PHP_VERSION_ID < 80000'.">version_compare(PHP_VERSION, '8', 'lt')</weak_warning>;
 $b = <weak_warning descr="Replace with 'PHP_VERSION_ID >= 70433'.">version_compare(PHP_VERSION, "7.4.33", 'ge')</weak_warning>;
-$c = <weak_warning descr="Replace with 'PHP_VERSION_ID === 80200'.">version_compare(PHP_VERSION, '8.2.0', 'eq')</weak_warning>;
-$d = <weak_warning descr="Replace with 'PHP_VERSION_ID !== 50604'.">version_compare(PHP_VERSION, '5.6.4', '<>')</weak_warning>;
+$c = <weak_warning descr="Compare PHP_VERSION_ID instead: 'PHP_VERSION_ID === 80200' ignores build suffixes.">version_compare(PHP_VERSION, '8.2.0', 'eq')</weak_warning>;
+$d = <weak_warning descr="Compare PHP_VERSION_ID instead: 'PHP_VERSION_ID !== 50604' ignores build suffixes.">version_compare(PHP_VERSION, '5.6.4', '<>')</weak_warning>;
 
 $e = version_compare(PHP_VERSION, '8.2.0-RC1', '>=');
 $f = version_compare(PHP_VERSION, '10.1', '>=');
@@ -203,8 +217,8 @@ $host = php_uname('n');
 
 $a = PHP_VERSION_ID < 80000;
 $b = PHP_VERSION_ID >= 70433;
-$c = PHP_VERSION_ID === 80200;
-$d = PHP_VERSION_ID !== 50604;
+$c = version_compare(PHP_VERSION, '8.2.0', 'eq');
+$d = version_compare(PHP_VERSION, '5.6.4', '<>');
 
 $e = version_compare(PHP_VERSION, '8.2.0-RC1', '>=');
 $f = version_compare(PHP_VERSION, '10.1', '>=');
@@ -254,8 +268,19 @@ function os_checks() {
   `version_compare()` orders `8.1` before `8.1.0`, so
   `version_compare(PHP_VERSION, '8.1', '==')` is false on every real PHP
   version, while upstream's `PHP_VERSION_ID === 80100` is true on 8.1.0.
-  custos rewrites equality comparisons only for full `M.m.p` versions,
-  where both forms agree.
+  custos reports equality comparisons only for full `M.m.p` versions.
+- custos diverges from upstream on full-version comparisons other than
+  `<` / `>=` (D4d). Upstream rewrites them all. On a build whose
+  `PHP_VERSION` has a suffix (Debian/Ubuntu packages report e.g.
+  `8.1.2-1ubuntu2.14`), `version_compare(PHP_VERSION, '8.1.2', '>')` is
+  true and `'=='` / `'<='` are false, while `PHP_VERSION_ID > 80102` is
+  false and `=== 80102` / `<= 80102` are true. custos reports these without
+  a fix. `<` / `>=` keep their fix: they agree on release and
+  distribution-suffixed builds. Known residual difference: on a pre-release
+  build of exactly that patch version (`8.1.2RC1`, `8.1.2-dev`),
+  `version_compare()` orders `PHP_VERSION` below `'8.1.2'`, so `>=` is
+  false there while `PHP_VERSION_ID >= 80102` is true (and `<` the
+  reverse). Short versions have no such gap.
 - custos diverges from upstream on `get_class()` scope (D1, E4). Outside a
   class `__CLASS__` is the empty string, so the rewrite would change the
   value; custos reports `get_class()` only where it has a class scope.

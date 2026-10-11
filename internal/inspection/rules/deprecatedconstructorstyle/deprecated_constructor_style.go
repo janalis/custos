@@ -7,16 +7,21 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 )
 
 // deprecatedConstructorStyle reports PHP 4 style constructors (a method named
-// after its class).
+// after its class). From PHP 8.0 such a method is an ordinary method, so the
+// rule only applies to older targets.
 type deprecatedConstructorStyle struct{}
 
 func (deprecatedConstructorStyle) ID() string               { return "DeprecatedConstructorStyle" }
 func (deprecatedConstructorStyle) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethod} }
 
 func (deprecatedConstructorStyle) Check(ctx *analysis.Context, n syntax.Node) {
+	if ctx.PHP >= phpversion.PHP80 { // E7: a plain method there, renaming would remove it from callers
+		return
+	}
 	m := n.(*syntax.Method)
 	if m.Name == nil || m.Name.Span().Len() == 0 || m.Modifiers.Has(syntax.TStatic) { // D1
 		return
@@ -37,7 +42,12 @@ func (deprecatedConstructorStyle) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	span := m.Name.Span()
-	ctx.Report(span, "Class '"+cls.Name.Value+"' uses an old-style constructor; rename it to __construct.", diagnostic.Fix{
+	msg := "Class '" + cls.Name.Value + "' uses an old-style constructor; rename it to __construct."
+	if m.ReturnType != nil { // F2: a constructor cannot declare a return type
+		ctx.Report(span, msg)
+		return
+	}
+	ctx.Report(span, msg, diagnostic.Fix{
 		Title: "Rename to __construct",
 		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: "__construct"}} },
 	})

@@ -1,11 +1,13 @@
 package typescastingcanbeused
 
 import (
+	"strconv"
 	"strings"
 
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
 )
 
@@ -66,8 +68,16 @@ func (typesCastingCanBeUsed) checkCall(ctx *analysis.Context, call *syntax.FuncC
 		if _, ok := call.Parent().(*syntax.ExprStmt); !ok { // D6
 			return
 		}
+		if !reReadable(args[0]) { // D7: the target is written twice in R
+			return
+		}
 		v := ctx.Text(args[0])
-		reportCast(ctx, call.Span(), v+" = ("+typ+")"+v, " instead (a cast is clearer and faster).") // D7
+		r, tail := v+" = ("+typ+")"+v, " instead (a cast is clearer and faster)."
+		if name, ok := astquery.PlainVariableName(args[0]); ok && definitelyDefined(ctx, call, name) {
+			reportCast(ctx, call.Span(), r, tail)
+			return
+		}
+		ctx.Report(call.Span(), "Use '"+r+"'"+tail) // F2: reading a missing target would warn
 		return
 	}
 	typ, ok := castByConversionFunc[name] // D1
@@ -101,7 +111,7 @@ func (typesCastingCanBeUsed) checkString(ctx *analysis.Context, s *syntax.Interp
 	case ps.Start > 0 && ctx.Src[ps.Start-1] == '{': // D9, braced
 		r = "(string)(" + ctx.Text(part) + ")"
 	default:
-		r = "(string)" + ctx.Text(part)
+		r = "(string)" + simpleInterpolation(ctx, part)
 	}
 	reportCast(ctx, sp, guardCastResult(s, r), " to make the string conversion explicit.")
 }
@@ -109,6 +119,9 @@ func (typesCastingCanBeUsed) checkString(ctx *analysis.Context, s *syntax.Interp
 func (typesCastingCanBeUsed) checkToString(ctx *analysis.Context, m *syntax.MethodCall) {
 	id, ok := m.Name.(*syntax.Identifier)
 	if !ok || !strings.EqualFold(id.Value, "__toString") || m.NullSafe { // D10; nullsafe keeps its null-safety
+		return
+	}
+	if _, ok := astquery.ArgValues(m.Args); !ok { // `->__toString(...)` creates a closure
 		return
 	}
 	r := "(string)" + castOperand(ctx, m.Var) // D11
@@ -132,26 +145,113 @@ func castOperand(ctx *analysis.Context, e syntax.Expr) string {
 	return ctx.Text(e)
 }
 
+// simpleInterpolation renders an unbraced interpolation as code. An
+// unquoted in-string key is a string unless it is a canonical decimal
+// integer; written as is it would name a constant or another number.
+func simpleInterpolation(ctx *analysis.Context, part syntax.Expr) string {
+	d, ok := part.(*syntax.ArrayDimFetch)
+	if !ok {
+		return ctx.Text(part)
+	}
+	key, ok := d.Dim.(*syntax.Literal)
+	if !ok || canonicalInt(key.Raw) {
+		return ctx.Text(part)
+	}
+	return ctx.Text(d.Var) + "['" + key.Raw + "']"
+}
+
+// canonicalInt reports whether an in-string key is an integer key: decimal,
+// within the int range, without a leading zero and not `-0`.
+func canonicalInt(raw string) bool {
+	n, err := strconv.ParseInt(raw, 10, 64)
+	return err == nil && strconv.FormatInt(n, 10) == raw
+}
+
+// reReadable reports whether a settype() target can be evaluated a second
+// time and read: no side effects and no `[]` append.
+func reReadable(e syntax.Expr) bool {
+	appends := false
+	syntax.Inspect(e, func(n syntax.Node) bool {
+		if d, ok := n.(*syntax.ArrayDimFetch); ok && d.Dim == nil {
+			appends = true
+		}
+		return !appends
+	})
+	return !appends && !flowquery.MayHaveSideEffects(e)
+}
+
+// definitelyDefined reports whether the local variable $name holds a value
+// at the statement at: it is a parameter of the enclosing scope or assigned
+// by an earlier statement of a statement list enclosing at, and the scope
+// never unsets it.
+func definitelyDefined(ctx *analysis.Context, at syntax.Node, name string) bool {
+	scope := syntax.EnclosingVariableScope(at)
+	defined := false
+	for _, p := range syntax.VariableScopeParams(scope) {
+		defined = defined || p.Var.Name == name
+	}
+	for n := at.Parent(); !defined && n != nil && n != scope; n = n.Parent() {
+		if s, ok := n.(syntax.Stmt); ok {
+			list, idx, _ := astquery.StmtList(ctx.File, s)
+			for _, prev := range list[:max(idx, 0)] {
+				if es, ok := prev.(*syntax.ExprStmt); ok {
+					if a, ok := es.Expr.(*syntax.Assign); ok && isVariableNamed(a.Var, name) {
+						defined = true
+					}
+				}
+			}
+		}
+	}
+	if !defined {
+		return false
+	}
+	unsets := false
+	find := func(n syntax.Node) bool {
+		if u, ok := n.(*syntax.Unset); ok {
+			for _, v := range u.Vars {
+				unsets = unsets || isVariableNamed(v, name)
+			}
+		}
+		return !unsets
+	}
+	if scope == nil {
+		syntax.InspectFile(ctx.File, find)
+	} else {
+		syntax.Inspect(scope, find)
+	}
+	return !unsets
+}
+
+func isVariableNamed(e syntax.Expr, name string) bool {
+	got, ok := astquery.PlainVariableName(e)
+	return ok && got == name
+}
+
 // guardCastResult parenthesises a cast replacing n when n is the base of an
-// array/member access or an operand of `**`, which bind tighter than a cast.
+// array/member access, a callee, the class operand of `::` or an operand of
+// `**`, which bind tighter than a cast.
 func guardCastResult(n syntax.Expr, r string) string {
+	tighter := false
 	switch p := n.Parent().(type) {
 	case *syntax.ArrayDimFetch:
-		if p.Var == n {
-			return "(" + r + ")"
-		}
+		tighter = p.Var == n
 	case *syntax.PropertyFetch:
-		if p.Var == n {
-			return "(" + r + ")"
-		}
+		tighter = p.Var == n
 	case *syntax.MethodCall:
-		if p.Var == n {
-			return "(" + r + ")"
-		}
+		tighter = p.Var == n
+	case *syntax.FuncCall:
+		tighter = p.Name == n
+	case *syntax.StaticCall:
+		tighter = p.Class == n
+	case *syntax.ClassConstFetch:
+		tighter = p.Class == n
+	case *syntax.StaticPropertyFetch:
+		tighter = p.Class == n
 	case *syntax.Binary:
-		if p.Op.Kind == syntax.TPow {
-			return "(" + r + ")"
-		}
+		tighter = p.Op.Kind == syntax.TPow
+	}
+	if tighter {
+		return "(" + r + ")"
 	}
 	return r
 }

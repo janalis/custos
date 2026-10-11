@@ -1,9 +1,13 @@
 package unsupportedstringoffsetoperations
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/index"
 	"custos/internal/semantic/types"
 )
 
@@ -66,15 +70,9 @@ func (unsupportedStringOffsetOperations) Check(ctx *analysis.Context, n syntax.N
 	default:
 		return
 	}
-	root := c // D2
-	for {
-		d, ok := root.(*syntax.ArrayDimFetch)
-		if !ok {
-			break
-		}
-		root = d.Var
-	}
-	if v, ok := root.(*syntax.Variable); ok && v.NameExpr == nil && superglobals[v.Name] {
+	root := usoRoot(c) // D2
+	rootVar, _ := root.(*syntax.Variable)
+	if rootVar != nil && rootVar.NameExpr == nil && superglobals[rootVar.Name] {
 		return
 	}
 	var target syntax.Expr
@@ -93,7 +91,8 @@ func (unsupportedStringOffsetOperations) Check(ctx *analysis.Context, n syntax.N
 	} else {
 		return
 	}
-	if syntax.EnclosingFuncLike(target) == nil { // D5
+	fn := syntax.EnclosingFuncLike(target)
+	if fn == nil { // D5
 		return
 	}
 	if t := usoType(ctx, c); !t.Equal(types.String) { // D6
@@ -102,7 +101,69 @@ func (unsupportedStringOffsetOperations) Check(ctx *analysis.Context, n syntax.N
 	if _, ok := c.(*syntax.ArrayDimFetch); ok && !usoDeclaredRoot(root, target) {
 		return
 	}
+	if rootVar != nil && usoReferenced(ctx, fn, rootVar.Name) { // D7
+		return
+	}
 	ctx.ReportNode(target, msg)
+}
+
+// usoRoot descends through nested array-access bases to the accessed root.
+func usoRoot(e syntax.Expr) syntax.Expr {
+	for {
+		d, ok := e.(*syntax.ArrayDimFetch)
+		if !ok {
+			return e
+		}
+		e = d.Var
+	}
+}
+
+// usoReferenced reports whether $name (or one of its offsets) is bound to a
+// reference somewhere in fn: a reference assignment, a by-reference array
+// item, or an argument of a by-reference parameter such as
+// `settype($s, 'array')`. Whoever holds the reference can replace the string
+// with an array, so the declared type no longer proves anything.
+func usoReferenced(ctx *analysis.Context, fn syntax.Node, name string) bool {
+	is := func(e syntax.Expr) bool {
+		v, ok := usoRoot(e).(*syntax.Variable)
+		return ok && v.NameExpr == nil && v.Name == name
+	}
+	found := false
+	syntax.Inspect(fn, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Assign:
+			found = found || x.ByRef && (is(x.Var) || is(x.Value))
+		case *syntax.ArrayItem:
+			found = found || x.ByRef && is(x.Value)
+		case *syntax.ArgList:
+			callee, _ := semanticquery.ResolveCallee(ctx, x.Parent())
+			for i, a := range x.Args {
+				if arg, ok := a.(*syntax.Arg); ok && is(arg.Value) && (arg.ByRef || usoByRefParam(callee.Params, arg, i)) {
+					found = true
+				}
+			}
+		}
+		return !found
+	})
+	return found
+}
+
+// usoByRefParam reports whether the argument at position i binds a
+// by-reference parameter of params (by name, by position, or through a
+// variadic last parameter).
+func usoByRefParam(params []index.Param, arg *syntax.Arg, i int) bool {
+	if arg.Name != nil {
+		for _, p := range params {
+			if strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
+				return p.ByRef
+			}
+		}
+		return false
+	}
+	if n := len(params); i >= n && n > 0 && params[n-1].Variadic {
+		i = n - 1
+	}
+	return i < len(params) && params[i].ByRef
 }
 
 // usoDeclaredRoot reports whether the root of an offset chain has a declared

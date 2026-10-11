@@ -1,16 +1,14 @@
 <?php
 
-namespace App;
-
-use Exception;
-
-class Kit {}
-
 namespace Lib\Tools;
 class Hammer {}
 class Saw {}
 
 namespace App;
+
+use Exception;
+
+class Kit {}
 
 $list = [
     <weak_warning descr="Use \Lib\Tools\Hammer::class instead of the class name string.">'Lib\Tools\Hammer'</weak_warning>,

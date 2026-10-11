@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 )
 
 // aliasFunctionsUsage reports calls to built-in alias functions (`sizeof`,
@@ -81,7 +82,14 @@ func (aliasFunctionsUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !replaceable && !legacy {
 		return
 	}
-	if !semanticquery.CallsGlobalFunction(ctx, call, false) { // D2, E1
+	global := ctx.GlobalFunctionName(call)
+	if global == "" { // D2, E1
+		return
+	}
+	// E5: PHP cannot redeclare a built-in, so a project declaration the index
+	// resolves at this level is the function that runs, not the alias.
+	fn := ctx.Index().Function(global, ctx.PHP)
+	if fn != nil && !fn.Builtin {
 		return
 	}
 	span := astquery.NamePartSpan(name)
@@ -89,13 +97,33 @@ func (aliasFunctionsUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		ctx.Report(span, "'"+part+"(...)' is a legacy alias ("+status+"); stop relying on it.")
 		return
 	}
+	message := "Use '" + canonical + "(...)' instead of the alias '" + part + "(...)'."
+	// F3: where PHP lacks the alias, the call can only reach a function the
+	// index does not see; renaming it would change what runs.
+	if fn == nil || !fn.Avail.In(ctx.PHP) || removedBy(key, ctx.PHP) {
+		ctx.Report(span, message)
+		return
+	}
 	if !strings.Contains(name.Value, `\`) { // a namespaced function of the canonical name would capture a bare call
 		canonical = semanticquery.QualifiedBuiltin(ctx, canonical, call.Span().Start)
+		message = "Use '" + canonical + "(...)' instead of the alias '" + part + "(...)'."
 	}
-	ctx.Report(span, "Use '"+canonical+"(...)' instead of the alias '"+part+"(...)'.", diagnostic.Fix{
+	ctx.Report(span, message, diagnostic.Fix{
 		Title: "Use '" + canonical + "(...)'",
 		Edits: func() []diagnostic.TextEdit {
 			return []diagnostic.TextEdit{{Span: span, NewText: canonical}}
 		},
 	})
+}
+
+// aliasRemoved lists table A aliases PHP dropped while the stubs still
+// declare them for every version, with the first version lacking them.
+var aliasRemoved = map[string]phpversion.Version{
+	"is_real": phpversion.PHP80,
+}
+
+// removedBy reports whether PHP no longer provides the alias at ver.
+func removedBy(alias string, ver phpversion.Version) bool {
+	since, ok := aliasRemoved[alias]
+	return ok && ver >= since
 }

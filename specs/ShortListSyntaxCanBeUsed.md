@@ -50,10 +50,13 @@ From PHP 7.1 destructuring can use the short `[...]` form instead of
   delete the whitespace run directly following `list` (if any), replace that
   `(` with `[`, replace the matching `)` with `]`, and delete the `list`
   keyword. Everything between the parentheses (items, keys `'k' => $v`, empty
-  slots, comments, inner whitespace) is kept verbatim.
+  slots, comments, inner whitespace) is kept verbatim, and so is a comment
+  written between the keyword and its `(` (only the blanks before that comment
+  go away).
   - `list($a, $b) = $pair;` → `[$a, $b] = $pair;`
   - `list ( 'x' => $x ) = $p;` → `[ 'x' => $x ] = $p;`
   - `foreach ($rows as $i => list($u, $v))` → `foreach ($rows as $i => [$u, $v])`
+  - `list /* pair */ ($a, $b) = $p;` → `/* pair */ [$a, $b] = $p;`
 
 ## Options
 

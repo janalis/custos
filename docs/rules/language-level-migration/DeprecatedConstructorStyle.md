@@ -6,7 +6,7 @@ title: DeprecatedConstructorStyle
 
 # DeprecatedConstructorStyle
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≤ 7.4" />
 
 Group: [Language level migration](/rules/#language-level-migration) · PhpStorm name: `DeprecatedConstructorStyleInspection`
 

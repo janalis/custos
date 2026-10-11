@@ -47,7 +47,9 @@ expresses the same thing directly and avoids a function call.
 - **D6** The call is used as a statement on its own (it is the whole
   expression of an expression statement; its return value is unused).
 - **D7** Replacement `R` = `V = (type)V` where `V` is the first argument's
-  source text.
+  source text. `R` evaluates `V` twice and reads it, so `V` must be free of
+  side effects (no call, assignment, increment, `new`, ...) and must not
+  contain an append `[]`.
 
 ### Single-interpolation strings (option REPORT_INLINES)
 
@@ -57,13 +59,19 @@ expresses the same thing directly and avoids a function call.
 - **D9** If the interpolation is a braced `{$expr}` form, `R` =
   `(string)(` + text of `$expr` (inside the braces) + `)`; for a simple
   interpolation (`$var`, `$var[key]`, `$var->prop`) `R` = `(string)` + its
-  text.
+  text, except that an unquoted key is written with the meaning it has inside
+  the string: a variable key or a canonical decimal integer (optional `-`, no
+  leading zero, not `-0`, within the integer range) is kept, any other key
+  (`key`, `01`, `0x1A`, an out-of-range number) is single-quoted
+  (`"$a[key]"` → `(string)$a['key']`).
 
 ### __toString calls (option REPORT_TO_STRING_METHOD_CALLS)
 
 - **D10** A method call (instance `->` or static `::`) whose method name is
   `__toString` (case-insensitive, as PHP compares method names), unless the left side is the class
-  reference `parent` (`parent::__toString()`).
+  reference `parent` (`parent::__toString()`). The call has a plain argument
+  list: the first-class callable form `$o->__toString(...)` builds a closure
+  and is not a conversion.
 - **D11** `R` = `(string)` + text of the left side (the part before `->`/`::`).
   Arguments, if any, are dropped.
 
@@ -73,10 +81,13 @@ expresses the same thing directly and avoids a function call.
   other than literal `10`; `doubleval()` and other aliases are not covered.
 - **E2** `settype` with a non-literal type, an unmapped type (`null`,
   `object`, `INT`, `whatever`), not used as a statement
-  (`if (settype($v, 'int'))`), or not resolving to the built-in.
+  (`if (settype($v, 'int'))`), or not resolving to the built-in; a target
+  that cannot be evaluated twice (`settype($rows[$i++], 'int')`,
+  `settype($rows[next()], 'int')`, `settype($list[], 'int')`).
 - **E3** Strings with surrounding text (`" $x"`, `"$x "`), two
   interpolations (`"{$a}{$b}"`), heredocs, single-quoted strings.
-- **E4** `parent::__toString()`; calls to other methods; option off.
+- **E4** `parent::__toString()`; `$o->__toString(...)`; calls to other
+  methods; option off.
 
 ## Report
 
@@ -100,6 +111,19 @@ expresses the same thing directly and avoids a function call.
     kept)
   - `"$name"` → `(string)$name`; `"{$o->title}"` → `(string)($o->title)`
   - `$money->__toString()` → `(string)$money`
+- **F2** The `settype()` report carries the fix only when the target is a
+  plain local variable known to hold a value: a parameter of the enclosing
+  function, or a variable assigned by an earlier statement of a statement
+  list enclosing the call, and never passed to `unset()` in that function (or
+  file, for top-level code). `settype()` silently creates a missing variable,
+  key or property, whereas `V = (type)V` reads it first and raises a warning;
+  array elements, properties and variables not proven assigned are reported
+  without a fix.
+- **F3** `R` is wrapped in parentheses when the replaced node is the base of
+  an array or member access, the callee of a call (`"$fn"()` →
+  `((string)$fn)()`), the class operand of `::` (`"$cls"::create()` →
+  `((string)$cls)::create()`) or an operand of `**`: those bind tighter than
+  a cast. The reported `R` includes the parentheses.
 
 ## Options
 
@@ -132,6 +156,7 @@ function normalize($qty, $ratio, $label, $item, $price) {
 
     <weak_warning descr="Use '$qty = (int)$qty' instead (a cast is clearer and faster).">settype($qty, 'integer')</weak_warning>;
     <weak_warning descr="Use '$item['tags'] = (array)$item['tags']' instead (a cast is clearer and faster).">settype($item['tags'], "array")</weak_warning>;
+    settype($item['ids'][], 'int');
     settype($ratio, 'null');
     $ok = settype($ratio, 'int');
 
@@ -164,7 +189,8 @@ function normalize($qty, $ratio, $label, $item, $price) {
     $f = (string)$price;
 
     $qty = (int)$qty;
-    $item['tags'] = (array)$item['tags'];
+    settype($item['tags'], "array");
+    settype($item['ids'][], 'int');
     settype($ratio, 'null');
     $ok = settype($ratio, 'int');
 
@@ -191,7 +217,8 @@ class Tag extends Base {
   `(int)$x ** 2`, `strval($n)[0]` → `(string)$n[0]`). Upstream does not guard
   this. Recommendation: wrap `R` in parentheses when the call is the base of an
   array access / member access or an operand of `**`. Not covered by upstream
-  fixtures.
+  fixtures. custos also parenthesises a callee and the class operand of `::`
+  (F3).
 - Spread arguments (`intval(...$xs)`) count as one argument upstream and give
   broken code. Recommendation: skip calls with a spread argument.
 - D10 with a static call on `self`/`static`/a class name yields
@@ -210,3 +237,15 @@ class Tag extends Base {
   string case-sensitively, missing `settype($v, 'INT')` although PHP accepts
   type names in any case. custos compares it case-insensitively (D5); the
   cast is written in lower case.
+- **`settype` target safety (custos diverges):** upstream rewrites every
+  `settype(V, 'type');` to `V = (type)V`. That runs the side effects of `V`
+  twice (`$rows[$i++]`), does not compile for an append (`$list[]`), and
+  turns the silent creation of a missing variable, key or property into a
+  warning. custos does not report targets that cannot be evaluated twice
+  (D7) and withholds the fix unless the target is a local variable known to
+  be assigned (F2).
+- **Unquoted in-string keys (custos diverges):** copying `"$a[key]"` as
+  `(string)$a[key]` turns the string key into a constant, and `"$a[01]"`
+  into the integer `1`. custos quotes such keys in `R` (D9).
+- **First-class callable (custos diverges):** `$o->__toString(...)` is not a
+  call and is not reported (D10).

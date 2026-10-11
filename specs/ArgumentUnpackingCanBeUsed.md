@@ -108,10 +108,21 @@ No check is made that `F` is a valid function name; `'Cls::m'` would yield
     `call_user_func_array('max', $a)` → `\max(...$a)`; and
     `call_user_func_array('Util\fmt', $a)` → `\Util\fmt(...$a)`
   The second argument's text is copied verbatim (inner whitespace kept).
-  Offered only when D8 classifies the argument as *safe*.
+  Offered only when D8 classifies the argument as *safe* and F3 does not
+  apply.
 - **F2** Below PHP 8.0, when the argument *may have string keys* (D8), the
   report carries no fix: the rewrite would throw at run time if the array
   turned out to be string-keyed.
+- **F3** No fix when the file declares `strict_types` with a value other
+  than a literal `0` and the reported call is written unqualified inside a
+  named namespace without a `use function` import (the form PHP only binds
+  to the global function at run time). There the callback is invoked by
+  the engine, which always coerces scalar arguments, whereas the direct
+  call would follow the file's strict typing and could throw a `TypeError`
+  (`call_user_func_array('strlen', [12345])` returns 5, `strlen(...[12345])`
+  throws). In global code, with a leading `\`, or through
+  `use function call_user_func_array`, PHP compiles the call as a direct
+  callback invocation that is already strict, so the fix stays.
 
 ## Options
 
@@ -196,3 +207,8 @@ class Report {
   `call_user_func_array()` passes the elements by value (PHP warns and the
   arrays stay untouched), while `array_multisort(...$params)` binds them
   and really sorts (SuiteCRM `include/utils.php`).
+- **Strict typing (custos diverges).** Upstream rewrites the call
+  regardless of `declare(strict_types=1)`. An unqualified
+  `call_user_func_array` in a namespaced strict file coerces scalar
+  arguments while the direct call does not, so custos reports it without a
+  quick-fix (F3).

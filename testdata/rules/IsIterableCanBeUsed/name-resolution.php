@@ -15,3 +15,11 @@ namespace Feed {
         $d = <weak_warning descr="Use 'is_iterable($src)' instead of the is_array()/instanceof Traversable pair.">\is_array($src)</weak_warning> || $src instanceof Walkable;
     }
 }
+
+namespace Plain {
+    function probe($src)
+    {
+        // A Plain\is_iterable() declared elsewhere would win over the built-in.
+        return <weak_warning descr="Use 'is_iterable($src)' instead of the is_array()/instanceof Traversable pair.">is_array($src)</weak_warning> || $src instanceof \Traversable;
+    }
+}

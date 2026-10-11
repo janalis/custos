@@ -99,6 +99,7 @@ func (constantCanBeUsed) checkCall(ctx *analysis.Context, call *syntax.FuncCall)
 	}
 	// D4b: a short version sorts below its `.0` release, so PHP_VERSION is
 	// never equal to it: `>` means `>= V`, `<=` means `< V`.
+	exact := op == "<" || op == ">="
 	if strings.Count(ver, ".") != 2 {
 		switch op {
 		case ">":
@@ -106,8 +107,15 @@ func (constantCanBeUsed) checkCall(ctx *analysis.Context, call *syntax.FuncCall)
 		case "<=":
 			op = "<"
 		}
+		exact = true
 	}
 	expr := semanticquery.QualifiedGlobalConst(ctx, "PHP_VERSION_ID", span.Start) + " " + op + " " + v // D4
+	if !exact {
+		// D4d: a build suffix ("8.1.2-1ubuntu2") sorts PHP_VERSION above the
+		// bare patch release, which PHP_VERSION_ID cannot express.
+		ctx.Report(span, "Compare PHP_VERSION_ID instead: '"+expr+"' ignores build suffixes.")
+		return
+	}
 	repl := expr
 	if bindsTighterThanComparison(call) { // spec Divergences
 		repl = "(" + expr + ")"

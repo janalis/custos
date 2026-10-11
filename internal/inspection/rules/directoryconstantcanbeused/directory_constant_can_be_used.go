@@ -15,6 +15,10 @@ func (directoryConstantCanBeUsed) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KFuncCall}
 }
 
+// Semantic: D1 needs the project index to see a namespaced dirname() declared
+// in another file.
+func (directoryConstantCanBeUsed) Semantic() {}
+
 func (directoryConstantCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
 	qual, _, ok := astquery.CallName(call)

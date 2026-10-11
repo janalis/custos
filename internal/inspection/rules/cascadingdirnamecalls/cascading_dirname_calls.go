@@ -1,6 +1,7 @@
 package cascadingdirnamecalls
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -71,9 +72,10 @@ func (cascadingDirnameCalls) Check(ctx *analysis.Context, n syntax.Node) {
 	if path == args[0] { // D4
 		return
 	}
-	// D5
+	// D5: levels were collected outer-to-inner; emit them inner-to-outer, the
+	// order PHP evaluates them in the nested form.
 	var exprs []string
-	for _, l := range levels {
+	for _, l := range slices.Backward(levels) {
 		if v, ok := parseLevel(ctx.Text(l)); ok {
 			count += v
 			continue

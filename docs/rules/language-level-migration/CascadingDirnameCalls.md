@@ -44,7 +44,7 @@ $base = dirname($root, 3);
 $app  = dirname(getcwd(), 4);
 $var  = dirname($root, 1 + $up);
 $sum  = dirname($root, 5);
-$two  = dirname($root, 0 + $b + $a);
+$two  = dirname($root, 0 + $a + $b);
 $fq   = dirname($root, 2);
 
 // not reported
@@ -67,7 +67,7 @@ Reported:
 <li>line 3: Collapse the nested dirname() calls into &#39;dirname(getcwd(), 4)&#39;.</li>
 <li>line 4: Collapse the nested dirname() calls into &#39;dirname($root, 1 + $up)&#39;.</li>
 <li>line 5: Collapse the nested dirname() calls into &#39;dirname($root, 5)&#39;.</li>
-<li>line 6: Collapse the nested dirname() calls into &#39;dirname($root, 0 + $b + $a)&#39;.</li>
+<li>line 6: Collapse the nested dirname() calls into &#39;dirname($root, 0 + $a + $b)&#39;.</li>
 <li>line 7: Collapse the nested dirname() calls into &#39;dirname($root, 2)&#39;.</li>
 </ul>
 

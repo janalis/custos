@@ -11,7 +11,7 @@ function normalize($qty, $ratio, $label, $item, $price) {
     $first = ((string)$price)[0];
 
     $qty = (int)$qty;
-    $item['tags'] = (array)$item['tags'];
+    settype($item['tags'], "array");
     $ratio = (float)$ratio;
     settype($ratio, 'null');
     $ok = settype($ratio, 'int');

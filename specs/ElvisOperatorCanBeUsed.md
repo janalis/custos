@@ -38,7 +38,11 @@ shorter and evaluates the condition once.
   method names, class names in calls, `new`, `instanceof` and `::`
   accesses, and keywords — compare case-insensitively (`Cache::$map['k']`
   matches `cache::$map['k']`, `$o->Name()` matches `$o->name()`); variable,
-  property and constant names stay case-sensitive.
+  property and constant names stay case-sensitive. That includes class
+  constants and enum cases spelled like a keyword: `Kind::List` and
+  `Kind::LIST` are two different constants, so
+  `Kind::List ? Kind::LIST : 1` is not reported. The `::class`
+  pseudo-constant is the only member name after `::` that folds.
 
 ## Exceptions (no report)
 
@@ -49,6 +53,9 @@ shorter and evaluates the condition once.
 - **E3** Condition and "then" branch differ in any way other than wrapping
   parentheses/whitespace, e.g. a negated condition (`!$v ? $v : 0`), or
   `isset($v) ? $v : 0` (the condition is `isset(...)`, not `$v`).
+- **E5** The two operands name class constants that differ in case, even
+  when the name is a reserved word (`Kind::List ? Kind::LIST : 1`,
+  `Kind::Print ? Kind::PRINT : 1`).
 
 ## Report
 

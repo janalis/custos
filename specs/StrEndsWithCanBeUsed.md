@@ -49,6 +49,10 @@ which is clearer and avoids building a temporary string.
   accesses, and keywords — compare case-insensitively (`Cache::$map['k']`
   matches `cache::$map['k']`, `$o->Name()` matches `$o->name()`); variable,
   property and constant names stay case-sensitive.
+  A class constant name or a named-argument label spelled like a keyword
+  is still such a name, not a keyword: `Foo::Array` and `Foo::ARRAY` are
+  two constants and never match (E4). The magic `::class` matches in any
+  case.
 
 ### Safety requirements
 
@@ -63,7 +67,9 @@ mixed pairs whose lengths use different units.
 - **E3** Start argument not of the form `-strlen(x)` / `-mb_strlen(x)`
   (a literal offset, `-(strlen($n))`, `strlen($n) * -1`, `mb_strlen` with an
   encoding argument).
-- **E4** The compared value differs from the measured needle.
+- **E4** The compared value differs from the measured needle, including
+  operands that differ only in the case of a constant name or named-argument
+  label (`substr($h, -strlen(Foo::Array)) === Foo::ARRAY`).
 - **E5** Loose comparison or the call wrapped in parentheses.
 - **E6** Empty literal needle: `substr($h, -strlen('')) === ''`.
 

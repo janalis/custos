@@ -67,6 +67,17 @@ nested parentheses of the same `||` chain.
   not named `Traversable` (e.g. `Countable`, `Iterator`), or the instanceof sits in a
   fragment that is not directly part of the `||` chain (e.g. inside an `&&`
   sub-expression).
+- **E5** Evaluating the shared operand twice provably differs from evaluating
+  it once, so one `is_iterable()` call is not equivalent to the pair. This is
+  the case when the argument contains an assignment (plain or compound), an
+  increment or decrement, an argument bound to a by-reference parameter of a
+  function the project index resolves, or a call to a built-in that changes
+  state or answers differently on each call: array pointer and queue
+  functions (`next`, `reset`, `array_shift`, `array_pop`, …), random sources
+  (`rand`, `random_int`, `uniqid`, …), clocks (`time`, `microtime`, `hrtime`)
+  and stream readers/writers (`fgets`, `fread`, `fwrite`, …). Ordinary
+  function and method calls (`$o->rows()`, `load($x)`) stay reported: nothing
+  shows they are unstable, and the report has no fix for them.
 
 ## Report
 
@@ -78,7 +89,50 @@ nested parentheses of the same `||` chain.
 
 ## Fix
 
-None.
+- **F1** Replace the pair by a single `is_iterable($v)` call when all of the
+  following hold; otherwise the finding is report-only.
+  - The argument is a plain variable `$v` (not `$$v`, not a property, offset
+    or call: those may run magic or user code, and running it once instead of
+    twice is not provably equivalent).
+  - The matching `instanceof` (subject the same plain variable, class
+    resolving to `\Traversable`, optionally parenthesised) is the direct
+    neighbour of the call in the `||` chain, in either order:
+    `is_array($v) || $v instanceof T`, `$v instanceof T || is_array($v)`,
+    and the same two as the tail or middle of a longer unparenthesised chain
+    (`$x || is_array($v) || $v instanceof T`,
+    `$x || $v instanceof T || is_array($v)`). The edit spans exactly from the
+    first of the two operands to the last, including parentheses around the
+    `instanceof`; other operands of the chain are untouched.
+  - No comment lies inside that span.
+- The replacement is written `is_iterable($v)` only when the call was written
+  unqualified in the global namespace and no `use function` import binds
+  `is_iterable` to another function. In every other case (inside a namespace,
+  with such an import, or when `is_array` was written `\is_array`) it is
+  written `\is_iterable($v)`, so a namespaced or imported function of that
+  name can never be picked instead of the built-in.
+- When the two halves are separated by another operand
+  (`is_array($v) || $x || $v instanceof T`) or by parentheses
+  (`($x || is_array($v)) || $v instanceof T`), no fix is offered.
+
+```php
+<?php
+namespace Feed;
+
+function ready($rows, $skip) {
+    return $skip || is_array($rows) || ($rows instanceof \Traversable);
+}
+```
+
+becomes
+
+```php
+<?php
+namespace Feed;
+
+function ready($rows, $skip) {
+    return $skip || \is_iterable($rows);
+}
+```
 
 ## Options
 
@@ -125,3 +179,10 @@ function walkAll($bag, $other) {
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Unstable operands (custos diverges).** Upstream only compares the two
+  operands for equivalence. custos does not report when the operand cannot
+  be evaluated once instead of twice without changing the result (E5), for
+  example `is_array($x[$i++]) || $x[$i++] instanceof Traversable` or
+  `is_array(next($x)) || next($x) instanceof Traversable`.
+- **Fix (custos addition).** Upstream is report-only; custos offers the
+  rewrite under the syntactic guards of F1.

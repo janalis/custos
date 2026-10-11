@@ -159,10 +159,64 @@ func ncoObjectsOnly(ctx *analysis.Context, probe syntax.Expr, allowNull bool) bo
 	return true
 }
 
-// ncoGenerate implements G1–G5. f may be nil (absent).
-func ncoGenerate(ctx *analysis.Context, c ncoCond, t, f syntax.Expr) (string, bool) {
+// ncoEquivalent is astquery.EquivalentFoldNames with the names PHP keeps
+// case-sensitive compared exactly even when they are spelled like a keyword
+// (`Foo::ARRAY` and `Foo::Array` are two constants), which the shared helper
+// folds as keyword tokens.
+func ncoEquivalent(ctx *analysis.Context, a, b syntax.Node) bool {
+	if !astquery.EquivalentFoldNames(ctx.File, a, b) {
+		return false
+	}
+	if ctx.Text(a) == ctx.Text(b) {
+		return true
+	}
+	// Token-equivalent trees list their names in the same order.
+	na, nb := ncoExactNames(ctx, a), ncoExactNames(ctx, b)
+	for i := range min(len(na), len(nb)) {
+		if na[i] != nb[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// ncoExactNames lists, in source order, the constant, property and named
+// argument names under root. `::class` is the keyword, not a constant.
+func ncoExactNames(ctx *analysis.Context, root syntax.Node) []string {
+	var out []string
+	add := func(e syntax.Expr, skipClass bool) {
+		if id, ok := e.(*syntax.Identifier); ok {
+			if name := ctx.Text(id); !skipClass || !strings.EqualFold(name, "class") {
+				out = append(out, name)
+			}
+		}
+	}
+	syntax.Inspect(root, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.ClassConstFetch:
+			add(x.Name, true)
+		case *syntax.PropertyFetch:
+			add(x.Name, false)
+		case *syntax.Arg:
+			add(x.Name, false)
+		}
+		return true
+	})
+	return out
+}
+
+// ncoGenerate implements G1–G5. f may be nil (absent). safe is false when the
+// probed expression may have side effects: the original evaluated it twice
+// (probe, then value), `??` evaluates it once, so the report carries no fix.
+func ncoGenerate(ctx *analysis.Context, c ncoCond, t, f syntax.Expr) (r string, safe, ok bool) {
+	r, cand, ok := ncoBuild(ctx, c, t, f)
+	return r, ok && !flowquery.MayHaveSideEffects(cand), ok
+}
+
+// ncoBuild returns the replacement and the candidate it probes.
+func ncoBuild(ctx *analysis.Context, c ncoCond, t, f syntax.Expr) (string, syntax.Expr, bool) {
 	eq := func(a, b syntax.Expr) bool {
-		return a != nil && b != nil && astquery.EquivalentFoldNames(ctx.File, a, b)
+		return a != nil && b != nil && ncoEquivalent(ctx, a, b)
 	}
 	pick := func(trueIsCand bool) (cand, alt syntax.Expr) {
 		if trueIsCand {
@@ -174,66 +228,66 @@ func ncoGenerate(ctx *analysis.Context, c ncoCond, t, f syntax.Expr) (string, bo
 	case 'i': // G1
 		cand, alt := pick(!c.negated)
 		if cand == nil || !eq(cand, c.subject) {
-			return "", false
+			return "", nil, false
 		}
-		return ncoWrap(ctx, cand) + " ?? " + ncoAlt(ctx, alt), true
+		return ncoWrap(ctx, cand) + " ?? " + ncoAlt(ctx, alt), cand, true
 	case 'e': // G2
 		cand, alt := pick(c.negated)
 		if cand == nil {
-			return "", false
+			return "", nil, false
 		}
 		base, ok := ncoPropBase(cand, true)
 		if !ok || !eq(base, c.subject) {
-			return "", false
+			return "", nil, false
 		}
 		_, static := cand.(*syntax.StaticPropertyFetch)
 		// `$c::$p ?? x` throws when $c is '' or null (?? does not guard the
 		// class lookup), where `!empty($c)` skipped it: objects only (spec
 		// Divergences).
 		if static && !ncoObjectsOnly(ctx, c.subject, false) {
-			return "", false
+			return "", nil, false
 		}
 		if !ncoSafeFallback(ctx, c.subject, !static, cand, alt) { // G6
-			return "", false
+			return "", nil, false
 		}
-		return ctx.Text(cand) + " ?? " + ncoAlt(ctx, alt), true
+		return ctx.Text(cand) + " ?? " + ncoAlt(ctx, alt), cand, true
 	case 't': // G3
 		cand, alt := pick(!c.negated)
 		if cand == nil {
-			return "", false
+			return "", nil, false
 		}
 		base, ok := ncoPropBase(cand, false)
 		if !ok || !eq(base, c.k) {
-			return "", false
+			return "", nil, false
 		}
 		if ctx.TypeOf(cand).IsUnknown() || !ncoSafeFallback(ctx, c.k, true, cand, alt) { // G6
-			return "", false
+			return "", nil, false
 		}
-		return ctx.Text(cand) + " ?? " + ncoAlt(ctx, alt), true
+		return ctx.Text(cand) + " ?? " + ncoAlt(ctx, alt), cand, true
 	case 'a': // G4
 		if f == nil {
-			return "", false
+			return "", nil, false
 		}
 		args, ok := astquery.CallArgValues(c.call)
 		if !ok || len(args) != 2 {
-			return "", false
+			return "", nil, false
 		}
 		cand, alt := pick(!c.negated)
 		dim, ok := cand.(*syntax.ArrayDimFetch)
 		if !ok || dim.Dim == nil || !eq(dim.Var, args[1]) || !eq(dim.Dim, args[0]) || !syntax.IsNullConst(alt) {
-			return "", false
+			return "", nil, false
 		}
-		return ncoWrap(ctx, cand) + " ?? " + ncoWrap(ctx, alt), true
+		return ncoWrap(ctx, cand) + " ?? " + ncoWrap(ctx, alt), cand, true
 	default: // 'n', G5
 		if f == nil {
-			return "", false
+			return "", nil, false
 		}
 		set := (c.op == syntax.TIsNotIdentical) != c.negated
 		cand, alt := pick(set)
 		if !eq(cand, c.subject) {
-			return "", false
+			return "", nil, false
 		}
-		return ncoWrap(ctx, cand) + " ?? " + ncoWrap(ctx, alt), true
+		return ncoWrap(ctx, cand) + " ?? " + ncoWrap(ctx, alt), cand, true
 	}
 }
 
@@ -245,14 +299,24 @@ func (nullCoalescingOperatorCanBeUsed) checkTernary(ctx *analysis.Context, t *sy
 	if !ok {
 		return
 	}
-	r, ok := ncoGenerate(ctx, c, t.Then, t.Else)
+	r, safe, ok := ncoGenerate(ctx, c, t.Then, t.Else)
 	if !ok {
 		return
 	}
-	span := t.Span()
-	ctx.Report(span, "Simplify to '"+r+"' using the null coalescing operator.", diagnostic.Fix{
+	ncoReport(ctx, t.Span(), r, safe, t.Span(), r)
+}
+
+// ncoReport reports shown as the simplified form; the fix replacing span
+// with text is only offered when safe.
+func ncoReport(ctx *analysis.Context, at syntax.Span, shown string, safe bool, span syntax.Span, text string) {
+	msg := "Simplify to '" + shown + "' using the null coalescing operator."
+	if !safe {
+		ctx.Report(at, msg)
+		return
+	}
+	ctx.Report(at, msg, diagnostic.Fix{
 		Title: "Use '??'",
-		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: r}} },
+		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: text}} },
 	})
 }
 
@@ -310,7 +374,7 @@ func (nullCoalescingOperatorCanBeUsed) checkIf(ctx *analysis.Context, n *syntax.
 		}
 		if r2, ok := other.(*syntax.Return); ok && isRet { // S1
 			t, f = ret.Expr, r2.Expr
-		} else if a2, ok := ncoAssign(other); ok && isAsg && astquery.EquivalentFoldNames(ctx.File, asg.Var, a2.Var) { // S2
+		} else if a2, ok := ncoAssign(other); ok && isAsg && ncoEquivalent(ctx, asg.Var, a2.Var) { // S2
 			t, f = asg.Value, a2.Value
 		} else {
 			return
@@ -321,7 +385,7 @@ func (nullCoalescingOperatorCanBeUsed) checkIf(ctx *analysis.Context, n *syntax.
 			return
 		}
 		pa, ok := ncoAssign(prev)
-		if !ok || !astquery.EquivalentFoldNames(ctx.File, pa.Var, asg.Var) || pa.ByRef {
+		if !ok || !ncoEquivalent(ctx, pa.Var, asg.Var) || pa.ByRef {
 			return
 		}
 		if _, ok := syntax.UnwrapParens(pa.Value).(*syntax.Assign); ok {
@@ -370,7 +434,7 @@ func (nullCoalescingOperatorCanBeUsed) checkIf(ctx *analysis.Context, n *syntax.
 	if t == nil { // D7
 		return
 	}
-	r, ok := ncoGenerate(ctx, c, t, f)
+	r, safe, ok := ncoGenerate(ctx, c, t, f)
 	if !ok {
 		return
 	}
@@ -382,10 +446,7 @@ func (nullCoalescingOperatorCanBeUsed) checkIf(ctx *analysis.Context, n *syntax.
 	if _, ok := n.Parent().(*syntax.Else); ok {
 		text = "{ " + q + "; }"
 	}
-	ctx.Report(syntax.Span{Start: n.Span().Start, End: n.Span().Start + 2}, "Simplify to '"+q+"' using the null coalescing operator.", diagnostic.Fix{
-		Title: "Use '??'",
-		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: replace, NewText: text}} },
-	})
+	ncoReport(ctx, syntax.Span{Start: n.Span().Start, End: n.Span().Start + 2}, q, safe, replace, text)
 }
 
 // ncoReturnsByRef reports whether n is inside a function-like declared to

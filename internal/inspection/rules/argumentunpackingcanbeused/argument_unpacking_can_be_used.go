@@ -53,7 +53,7 @@ func (argumentUnpackingCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	repl := semanticquery.StringCallableFunction(ctx, fn, call.Span().Start) + "(..." + ctx.Text(args[1]) + ")" // D7
 	span := call.Span()
 	msg := "Call '" + repl + "' directly using argument unpacking (wrap with array_values() when keys are not sequential)."
-	if keys == keysUnknown || unpackByRef(ctx, fn) { // F2
+	if keys == keysUnknown || unpackByRef(ctx, fn) || coercedCallback(ctx, call) { // F2, F3
 		ctx.Report(span, msg)
 		return
 	}
@@ -77,6 +77,31 @@ func unpackByRef(ctx *analysis.Context, fn string) bool {
 	for _, p := range f.Params {
 		if p.ByRef {
 			return true
+		}
+	}
+	return false
+}
+
+// coercedCallback reports whether the call keeps coercive argument typing
+// that a direct call would lose (F3): in a strict_types file, an unqualified
+// call_user_func_array inside a named namespace is only bound at run time,
+// so the callback is invoked by the engine and scalar arguments are still
+// coerced. Calls PHP binds at compile time (global code, `\`-qualified,
+// `use function`) are already strict, like the rewritten call.
+func coercedCallback(ctx *analysis.Context, call *syntax.FuncCall) bool {
+	name := call.Name.(*syntax.Name)
+	if _, fallback := ctx.Names().Function(name.Value, name.Span().Start); fallback == "" {
+		return false
+	}
+	for _, st := range ctx.File.Stmts {
+		decl, ok := st.(*syntax.Declare)
+		if !ok {
+			continue
+		}
+		for _, item := range decl.Items {
+			if strings.EqualFold(item.Key.Value, "strict_types") {
+				return ctx.Text(item.Value) != "0"
+			}
 		}
 	}
 	return false

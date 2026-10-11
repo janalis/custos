@@ -114,7 +114,8 @@ class Finder
         return $r;
     }
 
-    public function <weak_warning descr="Declare ': string' as the return type.">byRefAssign</weak_warning>($t, string $s)
+    // A reference alias may be written through its other name: unknown.
+    public function byRefAssign($t, string $s)
     {
         if ($t) {
             $r = 'X';

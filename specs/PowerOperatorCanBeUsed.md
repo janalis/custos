@@ -27,11 +27,25 @@ written `$a ** $b`, which is shorter and avoids a function call.
 - **D3** Build the replacement:
   - `b` = `(` + B text + `)` when `B` is a binary expression (any binary
     operator, including `??`, `.`, comparisons, logical operators,
-    `instanceof`) or a ternary (full or short `?:`); otherwise B's text.
-  - `e` = same rule applied to `E`.
+    `instanceof`), a ternary (full or short `?:`), an assignment, a
+    low-precedence keyword expression (`yield`, `yield from`, `print`,
+    `include`/`require` and their `_once` forms, `throw`, an arrow function),
+    a unary expression (negation, cast, `!`, `~`, `@`) or a prefix `++`/`--`;
+    otherwise B's text.
+  - `e` = same rule applied to `E`, except that unary expressions and prefix
+    `++`/`--` are left bare (`2 ** -$n` already means what the call meant).
   - `R0` = `b ** e` (single spaces around `**`).
-  - If the call's direct parent is a binary expression (any operator), `R` =
-    `(` + `R0` + `)`; otherwise `R` = `R0`.
+  - `R` = `(` + `R0` + `)` when the call is:
+    - a direct operand of a binary expression (any operator);
+    - the subject of `instanceof`;
+    - the subject of a postfix access or call: array access, property fetch,
+      method call (plain or null-safe), call of the result, static call,
+      static property fetch or class constant fetch (`pow(2, 3)[0]`,
+      `pow($g, 2)->num`);
+    - the operand of the `clone` keyword.
+
+    Otherwise `R` = `R0`. A call that is merely the index of an array access
+    or an argument of another call is not wrapped.
 - **D4** Report the call.
 
 ## Exceptions (no report)
@@ -54,6 +68,13 @@ written `$a ** $b`, which is shorter and avoids a function call.
   - `pow($x - 1, $n)` → `($x - 1) ** $n`
   - `pow($x, $n ?: 2)` → `$x ** ($n ?: 2)`
   - `10 * pow($x, 2)` → `10 * ($x ** 2)`
+  - `pow(yield 3, 2)` → `(yield 3) ** 2`
+  - `pow(2, 3)[0]` → `(2 ** 3)[0]`
+- **F2** No fix (the report stays) when a comment sits inside the call but
+  outside both argument expressions: between the name and `(`, before or
+  after the base, before or after the exponent. The operator form has no
+  place for it, and a line comment could swallow the operator.
+  - `pow(/* base */ $x, 3)` → reported, left as written
 
 ## Options
 
@@ -91,12 +112,22 @@ $meth   = $calc->pow($side, 2);
 
 ## Divergences
 
-- Upstream does not wrap unary-operator or assignment arguments:
-  `pow(-2, 2)` becomes `-2 ** 2`, which PHP evaluates as `-(2 ** 2)` = -4
-  instead of 4; `pow($a = 2, 3)` becomes `$a = 2 ** 3`. Recommendation:
-  also parenthesise a base that is a unary expression (negation, cast, `!`,
-  `@`, `++`/`--` prefix) or an assignment, and an exponent that is an
-  assignment. Not covered by upstream fixtures, so conformance is unaffected.
+- **Operand parentheses (custos diverges)** (D3). Upstream wraps only binary
+  and ternary arguments: `pow(-2, 2)` becomes `-2 ** 2`, which PHP evaluates
+  as `-(2 ** 2)` = -4 instead of 4; `pow($a = 2, 3)` becomes `$a = 2 ** 3`;
+  `pow(yield 3, 2)` becomes `yield 3 ** 2`, which yields 9 instead of 3.
+  custos also parenthesises assignments and low-precedence keyword
+  expressions in either position, and unary or prefix `++`/`--` expressions
+  in base position. Not covered by upstream fixtures, so conformance is
+  unaffected.
+- **Outer parentheses (custos diverges)** (D3). Upstream wraps the result
+  only under a binary parent, so `pow(2, 3)[0]` becomes the invalid
+  `2 ** 3[0]` and `pow($n, !$f) instanceof T` regroups as
+  `$n ** !($f instanceof T)`. custos also wraps under `instanceof`, postfix
+  accesses and calls, and `clone`.
+- **Comments around arguments (custos diverges)** (F2). Upstream rebuilds the
+  call from the argument texts and silently drops any comment placed around
+  them. custos keeps the report and offers no fix.
 - Upstream builds the text with placeholder substitution; an argument whose
   text happens to contain the placeholder token could be garbled. Our
   implementation must simply concatenate.

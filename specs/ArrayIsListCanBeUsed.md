@@ -3,7 +3,7 @@ id: ArrayIsListCanBeUsed
 group: Language level migration
 kind: syntax
 needs: []
-php: { min: "8.0", max: "" }
+php: { min: "8.1", max: "" }
 ---
 
 # ArrayIsListCanBeUsed
@@ -23,7 +23,8 @@ qualified `Foo\array_values(...)`, a `use function` import from another
 namespace, or an unqualified call in a namespace declaring that function),
 with exactly one argument `A`.
 
-- **D1** Project PHP level ≥ 8.0 (upstream threshold; see Divergences).
+- **D1** Project PHP level ≥ 8.1, where `array_is_list()` exists (custos
+  diverges from the upstream threshold; see Divergences).
 - **D2** `C`'s **direct** parent is a binary expression `B` (no parentheses
   in between) whose operator is the strict `===` or `!==`. Loose `==`,
   `!=` and `<>` are not reported (see Divergences). `C` may be either operand of `B`; let `O` be the other
@@ -64,7 +65,7 @@ removing their repeated evaluation may change values or side effects.
 
 ## Exceptions (no report)
 
-- **E1** PHP level below 8.0.
+- **E1** PHP level below 8.1.
 - **E2** Argument count of `C` other than 1 (`array_keys($m, 'x')`).
 - **E3** `C` wrapped in parentheses, or used in a loose or non-equality
   comparison (`==`, `!=`, `<>`, `<`, `<=>`), or not inside a binary
@@ -96,8 +97,8 @@ None.
 
 ## PHP versions
 
-- Gated at ≥ 8.0 by upstream (even though `array_is_list` only exists from
-  8.1). Upstream fixture runs at 8.1.
+- Gated at ≥ 8.1, the first version providing `array_is_list()`. Upstream
+  gates at ≥ 8.0; its fixture runs at 8.1.
 
 ## Examples
 
@@ -146,10 +147,10 @@ function wrapped(array $cfg): bool
 - **Audit safety (custos diverges).** Only fixed-name variables qualify. Structural equivalence of calls or
   property/index reads does not establish stable repeated evaluation.
 
-- Version threshold: upstream enables the rule from PHP 8.0, but
-  `array_is_list()` is a PHP 8.1 function, so the fix breaks 8.0 code.
-  Recommendation: gate at ≥ 8.1 (the upstream fixture runs at 8.1, so
-  conformance is unaffected).
+- Version threshold (custos diverges): upstream enables the rule from
+  PHP 8.0, but `array_is_list()` is a PHP 8.1 function, so the fix would
+  break 8.0 code. custos gates at ≥ 8.1 (the upstream fixture runs at 8.1,
+  so conformance is unaffected).
 - Inserting `!array_is_list(...)` where `B` was an operand of a
   higher-precedence operator is safe (function call binds tighter); no
   precedence issue expected.
@@ -182,4 +183,15 @@ function wrapped(array $cfg): bool
   keeps the meaning: the replacement (message and fix) is
   `$a !== [] && array_is_list($a)`, negated `$a === [] || !array_is_list($a)`,
   parenthesized when the comparison is an operand of another operator.
-  The `array_values()` form is exact and unchanged.
+  The `array_values()` form needs no such guard.
+- **`NAN` in a hash-backed list (accepted, fix kept).** The
+  `array_values()` form is not strictly identical to `array_is_list()` in
+  one corner: when the array is a list by its keys but is not stored packed
+  (for instance `[1 => 1, 0 => NAN]` after `unset($a[1])`), `array_values()`
+  builds a copy, the strict comparison then compares the elements one by
+  one, and `NAN !== NAN` makes the hand-written check false although
+  `array_is_list()` answers true. A packed `[NAN]` is returned as is and
+  compares true, so only such re-packed lists holding `NAN` differ. The
+  hand-written result is the accidental one there (the array is a list),
+  and withholding the fix whenever an element might be a float would drop
+  nearly every useful fix, so the report and the fix are kept.

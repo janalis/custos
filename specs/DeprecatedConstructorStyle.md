@@ -3,7 +3,7 @@ id: DeprecatedConstructorStyle
 group: Language level migration
 kind: syntax
 needs: []
-php: { min: "", max: "" }
+php: { min: "", max: "7.4" }
 ---
 
 # DeprecatedConstructorStyle
@@ -15,6 +15,8 @@ This form is deprecated since PHP 7.0 and no longer a constructor in PHP 8.0;
 the method should be called `__construct`.
 
 ## Detection
+
+The rule only runs when the target PHP version is below 8.0 (see E7).
 
 Visit every method declaration `M` (class member `function name(...)`, with or
 without body — abstract methods count).
@@ -43,6 +45,9 @@ declared inside a `namespace` is reported too (see Divergences).
   method is then a legacy alias, kept for backward compatibility).
 - **E5** (removed: names are compared case-insensitively, see D3.)
 - **E6** Anonymous classes (they have no name to match).
+- **E7** The target PHP version is 8.0 or later. There a method named after
+  its class is an ordinary method that callers invoke by name
+  (`class Query { function query() {} }`), not a constructor.
 
 ## Report
 
@@ -58,6 +63,9 @@ declared inside a `namespace` is reported too (see Divergences).
   Nothing else changes: modifiers, parameters, body, doc comments and
   whitespace stay as they are. Call sites of the old name (e.g.
   `parent::Ledger()` in subclasses or `$this->Ledger()`) are not touched.
+- **F2** No fix is offered when the method declares a return type: a
+  constructor cannot have one, so the rename alone would not give valid PHP.
+  The report is kept.
 
 ## Options
 
@@ -65,7 +73,8 @@ None.
 
 ## PHP versions
 
-Upstream does not gate the rule: it reports at every language level.
+Reported only for targets below PHP 8.0 (E7). Upstream does not gate the
+rule (see Divergences).
 
 ## Examples
 
@@ -159,6 +168,14 @@ interface Printer
 
 ## Divergences
 
+- **PHP 8.0 and later (custos diverges)**: upstream reports at every language
+  level. From PHP 8.0 a same-named method is no longer a constructor, so the
+  report would be wrong and the rename would take a regular method away from
+  its callers (and fail to compile when it declares a return type). custos
+  stays silent there (E7); analyse with a target below 8.0 to find legacy
+  constructors before migrating.
+- **Return type (custos diverges)**: the rename is withheld for a method that
+  declares a return type (F2).
 - **Namespaced classes**: since PHP 5.3.3 a method named after its class is
   *not* a constructor when the class lives in a namespace; upstream still
   reports it and the fix would turn a plain method into a constructor

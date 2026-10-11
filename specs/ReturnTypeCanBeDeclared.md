@@ -54,6 +54,37 @@ engine enforce the contract and documents it in the signature.
   describes the written values).
   A doc type that is not a valid type or class name (`@return {array}`,
   `@return self::KIND_*`) contributes nothing (unknown).
+- **D5c** (custos) A returned expression is *unknown*, whatever inference
+  says, when one of its type-carrying operands is unstable. The operands
+  are the expression itself and, recursively, the content of parentheses,
+  the result branches of `?:` and `match`, both sides of `??` and of the
+  arithmetic operators (`+ - * / % **`), the operand of unary `+ - ~ @`, the
+  right-hand side of a plain `=`, and the array an element is read from.
+  Unstable operands:
+  - a variable that the method's own body (nested closures, functions and
+    classes excluded) binds by reference: either side of `=&`, `&$v` in an
+    array or list, a by-reference `foreach` value, a closure `use (&$v)`,
+    `global $v`, `static $v`; a call-time `&$v` argument; an argument
+    (the variable, or an element of it) of a user function, method, static
+    method or constructor whose matching parameter is by-reference
+    (by-reference variadics and named arguments included); the first
+    argument of `settype()`;
+  - a variable holding anything but objects (or null) that is an argument
+    of a call whose callee cannot be resolved (dynamic callee, unknown
+    function, receiver of unknown type, unknown class or one with an
+    unresolved ancestor). An object handed to an unknown callee is still
+    trusted: callees fill scalars and arrays, they do not swap objects;
+  - a class constant read through `static::` or `$this::` (not `::class`)
+    that a known subclass redeclares, unless the constant is `final` or
+    has a declared type; inside a trait, any such read.
+  Other builtin functions are left to inference, which knows their output
+  parameters (`preg_match()`, `exec()`, …).
+- **D5d** (custos) A returned expression with an operand (as in D5c) that is
+  an integer `**` whose exponent is not a non-negative integer literal also
+  contributes `float`: a negative exponent yields a float. So does an
+  operand that is a variable the method's own body assigns such a power
+  (`$v = $a ** $b;`, with the power among the operands of the assigned
+  value) or raises with `**=` and a non-literal exponent.
 - **D6** If `R0` contains any unknown member, stop — unless `R0` has exactly
   two members, exactly one of which is known (a contribution from an
   unresolvable parent/interface declaration must not block the report; in our
@@ -138,6 +169,14 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
   transitively), or any known subclass/implementor anywhere in the project.
   Overridden methods are still reported, but without a fix and with a message
   that recommends changing the whole hierarchy.
+- **D13b** (custos) Trait methods. An abstract trait method always counts
+  as overridden (every class using the trait declares it). Another trait
+  method that is neither `final` nor `private` counts as overridden when a
+  class-like of the same file that composes the trait (directly, through
+  another trait or through a parent) declares a method with that name, or
+  with an alias a `use … { m as alias; }` block gives it. Classes using the
+  trait from other files are not known, so such a method never gets a fix
+  (F1), with the plain message when no override is seen.
 
 ## Exceptions (no report)
 
@@ -162,7 +201,8 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
 
 ## Fix
 
-- **F1** (not offered for overridden methods) Insert `: {type}` right after
+- **F1** (not offered for overridden methods, nor for trait methods that
+  are neither `final` nor `private`, D13b) Insert `: {type}` right after
   the closing `)` of the parameter list, i.e. `)` + `: ` + type.
   - Non-abstract: `function f($x) { … }` → `function f($x): T { … }`. If there
     was no whitespace between `)` and `{` (`f($x){`), a separating whitespace
@@ -419,3 +459,26 @@ abstract class Node {
   an unknown one: it is treated as unknown, so the method's own `@return`
   tag decides (`@return Item[]` → `: array`), and without a tag nothing is
   suggested. The `ArrayCollection` exclusion above still applies to the tag.
+- **Values replaced behind the inference (custos diverges).** Upstream
+  types `$r = ''; fill($r); return $r;` from the initialiser even when
+  `fill(&$target)` stores an array, and likewise after `settype()`, a
+  `=&` alias, `[&$x]`, a closure `use (&$x)` or a call that cannot be
+  resolved; the added type then throws or coerces. custos treats such a
+  returned value as unknown (D5c): nothing without a `@return` tag, a
+  report without fix with one. Objects passed to unresolved callees stay
+  trusted, to keep the common "build, hand over, return" methods.
+- **Late-bound constants (custos diverges).** `return static::SIDES;` (or
+  `$this::SIDES`) is not typed from this class's constant when a known
+  subclass redeclares it, since an untyped constant may change type there
+  (D5c). Subclasses outside the analysed project remain unseen, as for
+  D13.
+- **Integer powers (custos diverges).** `int ** int` is a float for a
+  negative exponent, so it is not suggested as `: int` (D5d). Overflow of
+  `+`, `-`, `*` and of `**` with a literal exponent into float is an
+  accepted limitation: those stay `int`.
+- **Trait methods (custos diverges).** A return type added to a trait
+  method binds every subclass of every class using the trait, and an
+  abstract one binds the using classes themselves; upstream only looks at
+  the trait's own ancestors and offers the fix. custos reports abstract
+  trait methods as overridden and withholds the fix from trait methods
+  that are neither `final` nor `private` (D13b).

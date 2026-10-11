@@ -1,14 +1,5 @@
 <?php
 
-namespace Shop\Billing;
-
-use Shop\Billing\Invoice as Bill;
-use \ArrayObject as Bag;
-use Vendor\Kit\Meter;
-
-class Invoice {}
-class Ledger {}
-
 namespace Shop\Billing\Tax;
 class Rate {}
 
@@ -17,6 +8,13 @@ class Ledger {}
 class Meter {}
 
 namespace Shop\Billing;
+
+use Shop\Billing\Invoice as Bill;
+use \ArrayObject as Bag;
+use Vendor\Kit\Meter;
+
+class Invoice {}
+class Ledger {}
 
 class Clerk {
     public function names() {

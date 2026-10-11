@@ -174,6 +174,7 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 	unknownReturn := false                  // a `return expr;` of unknown type
 	docReturn := false                      // a `return expr;` typed through PHPDoc
 	bareReturn, valueReturn := false, false // own `return;` / `return expr;`
+	var vars *rtdVars                       // computed on the first `return expr;`
 	if !abstract {
 		rtdWalkOwn(m.Body, func(x syntax.Node) {
 			if x, ok := x.(*syntax.Return); ok {
@@ -188,13 +189,22 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 				} else {
 					valueReturn = true
 					t := rtdExprType(ctx, x.Expr)
-					if t.Has("mixed") {
+					if vars == nil {
+						vars = rtdScanVars(ctx, class, m)
+					}
+					// custos: a value that a reference or a subclass constant
+					// may replace is unknown, whatever its initialiser says.
+					unstable, power := rtdOperandFacts(ctx, class, vars, x.Expr)
+					if t.Has("mixed") || unstable {
 						// custos: `mixed` (Doctrine's getResult()) says no more
 						// than an unknown value: the @return tag decides.
 						t = types.Type{}
 					}
-					if t.IsUnknown() {
+					if t.IsUnknown() && !unstable {
 						t = rtdInheritedParamType(ctx, class, m, x.Expr)
+					}
+					if power {
+						add(types.Of("float")) // custos: int ** int may be a float
 					}
 					if rtdImplicitNullProp(ctx, class, x.Expr) { // D5b
 						if t.IsUnknown() {
@@ -362,10 +372,12 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	pos, ok := rtdParamsEnd(ctx, m)
-	if !ok || unknownReturn || docReturn {
+	if !ok || unknownReturn || docReturn || rtdTraitExposed(class, m) {
 		// custos: a returned value of unknown type means the suggestion
 		// rests on the @return tag alone; a wrong doc would make the added
-		// native type throw, so it is reported without a fixing.
+		// native type throw, so it is reported without a fixing. Nor is a
+		// trait method fixed when the subclasses of the classes using the
+		// trait (not enumerable) may override it.
 		ctx.Report(span, "Declare ': "+suggestion+"' as the return type.")
 		return
 	}
@@ -458,6 +470,9 @@ func rtdTrait(ctx *analysis.Context, t string) bool {
 
 // rtdOverridden implements D13.
 func rtdOverridden(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Method) bool {
+	if class.ClassKind == syntax.KindTrait && m.Body == nil {
+		return true // every class using the trait declares the method
+	}
 	if class.Modifiers.Has(syntax.TFinal) || m.Modifiers.Has(syntax.TFinal) || m.Modifiers.Has(syntax.TPrivate) {
 		return false
 	}
@@ -473,10 +488,336 @@ func rtdOverridden(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Met
 			return true
 		}
 	}
+	if class.ClassKind == syntax.KindTrait {
+		return rtdTraitUserDeclares(ctx, self, name)
+	}
 	below := ctx.Memo("descendant-methods\x00"+self, func() any {
 		return semanticquery.DescendantMethods(ix, fqn, ctx.PHP)
 	}).(map[string]bool)
 	return below[name]
+}
+
+// rtdTraitExposed reports whether trait method m is composed into classes
+// whose subclasses may override it: the index does not list the classes
+// using a trait, so such a method never gets a fix.
+func rtdTraitExposed(class *syntax.ClassLike, m *syntax.Method) bool {
+	return class.ClassKind == syntax.KindTrait && !m.Modifiers.Has(syntax.TFinal) && !m.Modifiers.Has(syntax.TPrivate)
+}
+
+// rtdTraitUserDeclares reports whether a class-like of the current file
+// that composes trait (lower-case FQN, no leading backslash), or inherits
+// from one that does, declares method name itself, or a method named like
+// an alias a `use` block gives to name.
+func rtdTraitUserDeclares(ctx *analysis.Context, trait, name string) bool {
+	ix := ctx.Index()
+	var users []*index.Class
+	wanted := map[string]bool{name: true}
+	syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
+		cl, ok := n.(*syntax.ClassLike)
+		if !ok {
+			return true
+		}
+		fqn := ctx.Types().ClassFQN(cl)
+		c := ix.Class(fqn, ctx.PHP)
+		if c == nil || strings.ToLower(strings.TrimPrefix(c.FQN, `\`)) == trait {
+			return true
+		}
+		for _, a := range ix.Ancestors(fqn, ctx.PHP) {
+			if strings.ToLower(strings.TrimPrefix(a.FQN, `\`)) != trait {
+				continue
+			}
+			users = append(users, c)
+			for _, ad := range c.TraitAdaptations {
+				if ad.Alias != "" && strings.ToLower(ad.Method) == name {
+					wanted[strings.ToLower(ad.Alias)] = true
+				}
+			}
+			break
+		}
+		return true
+	})
+	for _, c := range users {
+		for w := range wanted {
+			if _, ok := c.Methods[w]; ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Levels of rtdVars.refs.
+const (
+	rtdMaybeRef uint8 = iota + 1 // passed to a callee that cannot be resolved
+	rtdRef                       // bound by reference
+)
+
+// rtdVars describes the variables of a method whose inferred type cannot
+// be taken at face value.
+type rtdVars struct {
+	refs   map[string]uint8 // may be written by something else than a tracked assignment
+	powers map[string]bool  // assigned an integer power (D5d)
+}
+
+// rtdScanVars collects the rtdVars of m. refs: variables bound by reference
+// (`=&`, `[&$v]`, by-reference foreach value, closure `use (&$v)`,
+// `global`, `static`), passed to a by-reference parameter of a user callee
+// or to settype(), or passed to a callee that cannot be resolved. Builtin
+// functions are left to the type inference, which knows their output
+// parameters.
+func rtdScanVars(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Method) *rtdVars {
+	out := map[string]uint8{}
+	powers := map[string]bool{}
+	mark := func(e syntax.Expr, level uint8) {
+		for {
+			d, ok := e.(*syntax.ArrayDimFetch)
+			if !ok {
+				break
+			}
+			e = d.Var // `f($v['k'])` may turn a null $v into an array
+		}
+		if v, ok := e.(*syntax.Variable); ok && v.Name != "" && out[v.Name] < level {
+			out[v.Name] = level
+		}
+	}
+	syntax.Inspect(m.Body, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Function, *syntax.ArrowFunction, *syntax.ClassLike:
+			return false
+		case *syntax.Closure:
+			for _, u := range x.Uses {
+				if u.ByRef {
+					mark(u.Var, rtdRef)
+				}
+			}
+			return false
+		case *syntax.Assign:
+			if x.ByRef {
+				mark(x.Var, rtdRef)
+				mark(x.Value, rtdRef)
+			}
+			if v, ok := x.Var.(*syntax.Variable); ok && rtdAssignsPower(ctx, class, x) {
+				powers[v.Name] = true
+			}
+		case *syntax.ArrayItem:
+			if x.ByRef {
+				mark(x.Value, rtdRef)
+			}
+		case *syntax.Foreach:
+			if x.ByRef {
+				mark(x.Value, rtdRef)
+			}
+		case *syntax.Global:
+			for _, v := range x.Vars {
+				mark(v, rtdRef)
+			}
+		case *syntax.StaticVar:
+			mark(x.Var, rtdRef)
+		case *syntax.FuncCall:
+			if f := ctx.Types().ResolveFunction(x); f == nil {
+				rtdMarkArgs(x.Args, nil, false, mark)
+			} else if !f.Builtin {
+				rtdMarkArgs(x.Args, f.Params, true, mark)
+			} else if strings.EqualFold(strings.TrimPrefix(f.FQN, `\`), "settype") {
+				rtdMarkArgs(x.Args, f.Params, true, mark)
+			}
+		case *syntax.MethodCall:
+			c, ok := semanticquery.ResolveCallee(ctx, x)
+			rtdMarkArgs(x.Args, c.Params, ok, mark)
+		case *syntax.StaticCall:
+			c, ok := semanticquery.ResolveCallee(ctx, x)
+			rtdMarkArgs(x.Args, c.Params, ok, mark)
+		case *syntax.New:
+			if x.Args != nil {
+				params, ok := rtdCtorParams(ctx, x)
+				rtdMarkArgs(x.Args, params, ok, mark)
+			}
+		}
+		return true
+	})
+	return &rtdVars{refs: out, powers: powers}
+}
+
+// rtdAssignsPower reports whether a stores an integer power: `**=`, or a
+// plain assignment of an expression with such an operand.
+func rtdAssignsPower(ctx *analysis.Context, class *syntax.ClassLike, a *syntax.Assign) bool {
+	switch a.Op.Kind {
+	case syntax.TPowEqual:
+		return !rtdNaturalLiteral(a.Value)
+	case syntax.TEqual:
+		_, power := rtdOperandFacts(ctx, class, &rtdVars{}, a.Value)
+		return power
+	}
+	return false
+}
+
+// rtdNaturalLiteral reports whether e is a non-negative integer literal (a
+// negative one is a unary minus).
+func rtdNaturalLiteral(e syntax.Expr) bool {
+	lit, ok := e.(*syntax.Literal)
+	return ok && lit.LitKind == syntax.LitInt
+}
+
+// rtdCtorParams resolves the constructor parameters of a `new` expression;
+// false when the class or part of its hierarchy is unknown.
+func rtdCtorParams(ctx *analysis.Context, n *syntax.New) ([]index.Param, bool) {
+	cls := semanticquery.StaticCallClass(ctx, n.Class)
+	if cls == "" || ctx.Index().Class(cls, ctx.PHP) == nil || !semanticquery.HierarchyResolved(ctx.Index(), cls, ctx.PHP) {
+		return nil, false
+	}
+	if c := ctx.Index().FindMethod(cls, "__construct", ctx.PHP); c != nil {
+		return c.Params, true
+	}
+	return nil, true
+}
+
+// rtdMarkArgs marks the arguments of a call bound by reference (all of
+// them, one level lower, when the callee is not resolved).
+func rtdMarkArgs(al *syntax.ArgList, params []index.Param, resolved bool, mark func(syntax.Expr, uint8)) {
+	for i, x := range al.Args {
+		a, ok := x.(*syntax.Arg)
+		if !ok || a.Unpack {
+			continue
+		}
+		switch {
+		case a.ByRef:
+			mark(a.Value, rtdRef)
+		case !resolved:
+			mark(a.Value, rtdMaybeRef)
+		case rtdParamByRef(params, a, i):
+			mark(a.Value, rtdRef)
+		}
+	}
+}
+
+// rtdParamByRef reports whether argument a (at position i) binds a
+// by-reference parameter.
+func rtdParamByRef(params []index.Param, a *syntax.Arg, i int) bool {
+	if a.Name != nil {
+		for _, p := range params {
+			if strings.EqualFold(strings.TrimPrefix(p.Name, "$"), a.Name.Value) {
+				return p.ByRef
+			}
+		}
+		return false
+	}
+	if i >= len(params) {
+		i = len(params) - 1 // a variadic takes the remaining arguments
+		if i < 0 || !params[i].Variadic {
+			return false
+		}
+	}
+	return params[i].ByRef
+}
+
+// rtdOperands calls fn on e and on every sub-expression whose type decides
+// the type of e (the branches of a conditional, arithmetic operands, the
+// assigned value, the array an element is read from).
+func rtdOperands(e syntax.Expr, fn func(syntax.Expr)) {
+	fn(e)
+	switch x := e.(type) {
+	case *syntax.Paren:
+		rtdOperands(x.Expr, fn)
+	case *syntax.Ternary:
+		if x.Then != nil {
+			rtdOperands(x.Then, fn)
+		} else {
+			rtdOperands(x.Cond, fn)
+		}
+		rtdOperands(x.Else, fn)
+	case *syntax.Binary:
+		switch x.Op.Kind {
+		case syntax.TCoalesce, syntax.TPlus, syntax.TMinus, syntax.TMul, syntax.TDiv, syntax.TMod, syntax.TPow:
+			rtdOperands(x.Left, fn)
+			rtdOperands(x.Right, fn)
+		}
+	case *syntax.Unary:
+		switch x.Op.Kind {
+		case syntax.TPlus, syntax.TMinus, syntax.TTilde, syntax.TAt:
+			rtdOperands(x.Expr, fn)
+		}
+	case *syntax.Assign:
+		if x.Op.Kind == syntax.TEqual {
+			rtdOperands(x.Value, fn)
+		}
+	case *syntax.ArrayDimFetch:
+		rtdOperands(x.Var, fn)
+	case *syntax.Match:
+		for _, arm := range x.Arms {
+			rtdOperands(arm.Body, fn)
+		}
+	}
+}
+
+// rtdOperandFacts inspects the operands of expression e. unstable: one of
+// them is a variable of vars.refs whose value may have been replaced, or a
+// late-bound class constant a subclass redeclares. power: one of them is
+// an integer `**` (or a variable assigned one), which gives a float for a
+// negative exponent.
+func rtdOperandFacts(ctx *analysis.Context, class *syntax.ClassLike, vars *rtdVars, e syntax.Expr) (unstable, power bool) {
+	rtdOperands(e, func(o syntax.Expr) {
+		switch x := o.(type) {
+		case *syntax.Variable:
+			power = power || vars.powers[x.Name]
+			switch vars.refs[x.Name] {
+			case rtdRef:
+				unstable = true
+			case rtdMaybeRef:
+				// An object handed to an unknown callee stays that object
+				// in practice; scalars and arrays are what callees fill.
+				t := ctx.TypeOf(x)
+				if len(t.Classes()) == 0 || len(t.Classes()) != len(t.Without("null").Atoms()) {
+					unstable = true
+				}
+			}
+		case *syntax.ClassConstFetch:
+			if rtdLateConst(ctx, class, x) {
+				unstable = true
+			}
+		case *syntax.Binary:
+			if x.Op.Kind == syntax.TPow && ctx.TypeOf(x).OnlyOf("int") && !rtdNaturalLiteral(x.Right) {
+				power = true
+			}
+		}
+	})
+	return unstable, power
+}
+
+// rtdLateConst reports whether c reads a constant through `static::` or
+// `$this::` that a known subclass redeclares (always in a trait, whose
+// using classes are not known): the value is then not the one declared
+// here. A final or typed constant keeps its type.
+func rtdLateConst(ctx *analysis.Context, class *syntax.ClassLike, c *syntax.ClassConstFetch) bool {
+	id, ok := c.Name.(*syntax.Identifier)
+	if !ok || strings.EqualFold(id.Value, "class") {
+		return false
+	}
+	switch x := c.Class.(type) {
+	case *syntax.Name:
+		if !strings.EqualFold(x.Value, "static") {
+			return false
+		}
+	case *syntax.Variable:
+		if x.Name != "this" {
+			return false
+		}
+	default:
+		return false
+	}
+	if class.ClassKind == syntax.KindTrait {
+		return true
+	}
+	fqn := ctx.Types().ClassFQN(class)
+	ix := ctx.Index()
+	if k := ix.FindConst(fqn, id.Value, ctx.PHP); k != nil && (k.Final || k.Type != "") {
+		return false
+	}
+	for _, sub := range ix.Subclasses(fqn) {
+		if sc := ix.Class(sub, ctx.PHP); sc != nil && sc.Consts[id.Value] != nil {
+			return true
+		}
+	}
+	return false
 }
 
 // rtdParamsEnd returns the offset right after the `)` closing the parameter

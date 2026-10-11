@@ -52,15 +52,16 @@ another namespace, nor an unqualified call in a namespace declaring its own
   leading `+`/`-`, decimal digits only; leading zeros allowed and read as
   decimal). Parsed values are added to the count; entries that do not parse
   (variables, expressions, hex/octal/binary literals, literals with `_`,
-  out-of-range numbers) are kept, in order, as an *expression list* (their
-  source text).
+  out-of-range numbers) are kept as an *expression list* (their source
+  text), ordered inner-to-outer, i.e. the reverse of the level list (custos
+  diverges, see Divergences).
 - **D6** If the resulting count is exactly 1 and the expression list is empty,
   do not report (nothing to collapse, e.g. `dirname(dirname($p, 0))`).
 - **D7** Replacement text `R`:
   `dirname(` + path source text + `, ` + levels + `)`, where levels is the
   count (decimal, may be `0` or negative) followed by each expression-list
-  entry, all joined with ` + `. The count is always emitted first, even when
-  it is 0 (`0 + $a + $b`). The function name is always plain `dirname`, even
+  entry (innermost call's level first), all joined with ` + `. The count is
+  always emitted first, even when it is 0 (`0 + $a + $b`). The function name is always plain `dirname`, even
   if the original was written `\dirname`.
 
 ## Exceptions (no report)
@@ -90,7 +91,7 @@ another namespace, nor an unqualified call in a namespace declaring its own
   - `dirname(dirname(dirname(dirname(getcwd()))))` → `dirname(getcwd(), 4)`
   - `dirname(dirname($root, $up))` → `dirname($root, 1 + $up)`
   - `dirname(dirname($root, 2), 3)` → `dirname($root, 5)`
-  - `dirname(dirname($root, $a), $b)` → `dirname($root, 0 + $b + $a)`
+  - `dirname(dirname($root, $a), $b)` → `dirname($root, 0 + $a + $b)`
 
 ## Options
 
@@ -109,7 +110,7 @@ $base = <warning descr="Collapse the nested dirname() calls into 'dirname($root,
 $app  = <warning descr="Collapse the nested dirname() calls into 'dirname(getcwd(), 4)'.">dirname(dirname(dirname(dirname(getcwd()))))</warning>;
 $var  = <warning descr="Collapse the nested dirname() calls into 'dirname($root, 1 + $up)'.">dirname(dirname($root, $up))</warning>;
 $sum  = <warning descr="Collapse the nested dirname() calls into 'dirname($root, 5)'.">dirname(dirname($root, 2), 3)</warning>;
-$two  = <warning descr="Collapse the nested dirname() calls into 'dirname($root, 0 + $b + $a)'.">dirname(dirname($root, $a), $b)</warning>;
+$two  = <warning descr="Collapse the nested dirname() calls into 'dirname($root, 0 + $a + $b)'.">dirname(dirname($root, $a), $b)</warning>;
 $fq   = <warning descr="Collapse the nested dirname() calls into 'dirname($root, 2)'.">\dirname(\dirname($root))</warning>;
 
 // not reported
@@ -129,7 +130,7 @@ $base = dirname($root, 3);
 $app  = dirname(getcwd(), 4);
 $var  = dirname($root, 1 + $up);
 $sum  = dirname($root, 5);
-$two  = dirname($root, 0 + $b + $a);
+$two  = dirname($root, 0 + $a + $b);
 $fq   = dirname($root, 2);
 
 // not reported
@@ -164,6 +165,13 @@ $none = dirname();
   PHP reads them as octal (8). Recommendation: treat a literal with a leading
   `0` followed by more digits as a non-parsable expression (kept as text).
   Not covered by fixtures.
+- **Level evaluation order (custos diverges):** upstream writes the kept
+  level expressions outer call first (`dirname(dirname($p, $a), $b)` gives
+  `0 + $b + $a`). PHP evaluates the nested form inner level first, so that
+  order swaps the evaluation of levels with side effects
+  (`dirname(dirname($p, $i = 1), $i + 1)` would read `$i` before assigning
+  it). custos emits them inner call first (`0 + $a + $b`); the sum is the
+  same and the evaluation order is preserved.
 - **Levels-argument chains (custos diverges):** upstream also skips a
   dirname call that is the *second* argument of an outer dirname call, so
   `dirname($p, dirname(dirname($q)))` misses the collapsible inner chain.

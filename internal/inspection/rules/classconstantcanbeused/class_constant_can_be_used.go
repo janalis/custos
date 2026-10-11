@@ -24,37 +24,79 @@ func (classConstantCanBeUsed) Kinds() []syntax.NodeKind             { return nil
 func (classConstantCanBeUsed) Semantic()                            {}
 func (classConstantCanBeUsed) Check(*analysis.Context, syntax.Node) {}
 
-// cccImport is one `use` import item (existing or added by a fix).
+// cccImport is one class `use` import item (existing or added by a fix).
 type cccImport struct {
 	fqn   string // with leading `\`
 	local string
 }
 
-// cccState is shared by the fixes of one file.
-type cccState struct {
-	ctx     *analysis.Context
-	imports []cccImport // existing imports, document order
+// cccBlock is one namespace block of the file: imports are only visible
+// inside the block that declares them, so each block has its own fix state.
+type cccBlock struct {
+	name    string // namespace name without leading `\`; "" for global code
+	global  bool   // file without any namespace declaration
+	stmts   []syntax.Stmt
+	imports []cccImport // class imports, document order, then added ones
 	marker  syntax.Stmt // last existing `use` statement
-	firstNS *syntax.Namespace
-	added   []cccImport
+	// Lower-cased class-likes declared in the block and first segments of
+	// the names it references (including names written by earlier fixes):
+	// a new import of such a name would redeclare or capture them.
+	taken map[string]bool
 
 	// Insertion point of the first import added by a fix, and whether it
 	// was inserted after the marker (true) or before it.
+	added      bool
 	anchor     uint32
 	chainAfter bool
 	chained    bool
+}
+
+// cccState is shared by the fixes of one file.
+type cccState struct {
+	ctx *analysis.Context
+	cur *cccBlock // block enclosing the node being visited
+}
+
+// firstSegment returns the lower-cased first segment of a written name.
+func firstSegment(name string) string {
+	if i := strings.IndexByte(name, '\\'); i >= 0 {
+		name = name[:i]
+	}
+	return strings.ToLower(name)
+}
+
+// captured reports whether a class import of the block gives the first
+// segment of the relative name rel another meaning.
+func (b *cccBlock) captured(rel string) bool {
+	seg := firstSegment(rel)
+	for _, imp := range b.imports {
+		if strings.ToLower(imp.local) == seg {
+			return true
+		}
+	}
+	return false
 }
 
 func (classConstantCanBeUsed) CheckFile(ctx *analysis.Context) {
 	if ctx.PHP < phpversion.PHP55 { // E1
 		return
 	}
-	st := &cccState{ctx: ctx}
+	st := &cccState{ctx: ctx, cur: &cccBlock{global: true, stmts: ctx.File.Stmts, taken: map[string]bool{}}}
 	syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
 		switch n := n.(type) {
+		case *syntax.Namespace:
+			st.cur = &cccBlock{stmts: n.Stmts, taken: map[string]bool{}}
+			if n.Name != nil {
+				st.cur.name = strings.TrimPrefix(n.Name.Value, `\`)
+			}
 		case *syntax.Use:
-			st.marker = n
+			b := st.cur
+			b.marker = n
 			for _, it := range n.Items {
+				// Function and constant imports live in other symbol tables.
+				if n.Type != syntax.UseNormal || it.Type != syntax.UseNormal {
+					continue
+				}
 				name := it.Name.Value
 				if n.Prefix != nil {
 					name = strings.TrimSuffix(n.Prefix.Value, `\`) + `\` + strings.TrimPrefix(name, `\`)
@@ -64,11 +106,16 @@ func (classConstantCanBeUsed) CheckFile(ctx *analysis.Context) {
 				if it.Alias != nil {
 					local = it.Alias.Value
 				}
-				st.imports = append(st.imports, cccImport{fqn: name, local: local})
+				b.imports = append(b.imports, cccImport{fqn: name, local: local})
 			}
-		case *syntax.Namespace:
-			if st.firstNS == nil && n.Name != nil {
-				st.firstNS = n
+			return false
+		case *syntax.ClassLike:
+			if n.Name != nil {
+				st.cur.taken[strings.ToLower(n.Name.Value)] = true
+			}
+		case *syntax.Name:
+			if n.NameKind == syntax.NameUnqualified || n.NameKind == syntax.NameQualified {
+				st.cur.taken[firstSegment(n.Value)] = true
 			}
 		case *syntax.FuncCall:
 			st.checkCall(n)
@@ -119,6 +166,12 @@ func (st *cccState) checkLiteral(lit *syntax.Literal) {
 		return
 	}
 	raw := lit.Raw[1 : len(lit.Raw)-1]
+	if lit.Raw[0] == '"' && hasEscape(raw) {
+		// custos: the runtime string is not the written text ("app\events"
+		// with a single backslash holds an ESC byte).
+		return
+	}
+	b := st.cur
 	nsConcat := false
 	report := syntax.Node(lit)
 	switch p := lit.Parent().(type) { // D4
@@ -143,12 +196,13 @@ func (st *cccState) checkLiteral(lit *syntax.Literal) {
 	}
 	candidate := raw // D5
 	if nsConcat {
-		if cl := syntax.EnclosingClass(lit); cl != nil {
-			ns := ctx.Names().Namespace(cl.Span().Start)
-			candidate = `\` + ns + `\` + strings.TrimPrefix(raw, `\`)
-			if ns == "" {
-				candidate = `\` + strings.TrimPrefix(raw, `\`)
-			}
+		// custos: without the separating backslash the runtime value is
+		// `NsName`, not a class of the namespace.
+		if !strings.HasPrefix(raw, `\`) {
+			return
+		}
+		if b.name != "" {
+			candidate = `\` + b.name + raw
 		}
 	}
 	if len(candidate) <= 3 { // D6
@@ -186,82 +240,90 @@ func (st *cccState) checkLiteral(lit *syntax.Literal) {
 		name = strings.TrimPrefix(strings.ReplaceAll(raw, `\\`, `\`), `\`)
 	}
 	span := report.Span()
-	if !nsConcat && strings.HasPrefix(raw, `\`) {
+	if strings.HasPrefix(raw, `\`) && (!nsConcat || b.name == "") {
 		// custos: `::class` never has a leading backslash, so the fix
-		// would change the string's value ('\A\B' !== 'A\B').
+		// would change the string's value ('\A\B' !== 'A\B'). The same holds
+		// for `__NAMESPACE__ . '\A'` when the namespace is empty.
 		ctx.Report(span, "Use "+name+"::class instead of the class name string (::class has no leading backslash).")
 		return
 	}
+	edits := func() []diagnostic.TextEdit { return st.edits(b, span, name) }
+	if nsConcat {
+		edits = func() []diagnostic.TextEdit { return b.relativeEdits(span, name) }
+	}
 	ctx.Report(span, "Use "+name+"::class instead of the class name string.", diagnostic.Fix{
 		Title: "Use " + name + "::class",
-		Edits: func() []diagnostic.TextEdit { return st.edits(span, name) },
+		Edits: edits,
 	})
 }
 
-// edits implements F3 for the class reference q (see the spec).
-func (st *cccState) edits(span syntax.Span, q string) []diagnostic.TextEdit {
+// hasEscape reports whether the contents of a double-quoted literal hold an
+// escape sequence that PHP decodes to something else than the written
+// characters. `\\` is a plain backslash and is skipped as a pair.
+func hasEscape(raw string) bool {
+	for i := 0; i+1 < len(raw); i++ {
+		if raw[i] != '\\' {
+			continue
+		}
+		i++
+		switch c := raw[i]; {
+		case strings.IndexByte("ntrvef01234567", c) >= 0:
+			return true
+		case c == 'x' && i+1 < len(raw) && isHex(raw[i+1]):
+			return true
+		}
+	}
+	return false
+}
+
+func isHex(c byte) bool {
+	return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F'
+}
+
+// relativeEdits rewrites `__NAMESPACE__ . '\rel'`. The name is never
+// imported; when an import of the block would capture its first segment the
+// explicit `namespace\` form is written.
+func (b *cccBlock) relativeEdits(span syntax.Span, rel string) []diagnostic.TextEdit {
+	if b.captured(rel) {
+		rel = `namespace\` + rel
+	} else {
+		b.taken[firstSegment(rel)] = true
+	}
+	return []diagnostic.TextEdit{{Span: span, NewText: rel + "::class"}}
+}
+
+// edits implements F3 for the fully qualified class reference q of a literal
+// in block b (see the spec).
+func (st *cccState) edits(b *cccBlock, span syntax.Span, q string) []diagnostic.TextEdit {
 	ctx := st.ctx
 	short := astquery.LastNamePart(q)
 	t := q
-	imported, collision := false, false
-	for _, imp := range append(append([]cccImport(nil), st.imports...), st.added...) { // step 1
-		// Class names and import aliases are case-insensitive in PHP.
-		if strings.EqualFold(imp.fqn, q) {
-			t, imported = imp.local, true
-		} else if strings.EqualFold(imp.local, short) {
-			collision = true
+	canImport := ctx.Bool("IMPORT_CLASSES_ON_QF") && strings.Count(q, `\`) >= 2
+	for _, imp := range b.imports { // step 1
+		switch {
+		case imp.fqn == q:
+			t, canImport = imp.local, false
+		case strings.EqualFold(imp.fqn, q), strings.EqualFold(imp.local, short):
+			// `X::class` returns the spelling of the import, and import
+			// aliases are case-insensitive: neither reuse nor add.
+			canImport = false
 		}
 	}
 	out := []diagnostic.TextEdit{}
-	if ctx.Bool("IMPORT_CLASSES_ON_QF") && !imported && !collision && strings.Count(q, `\`) >= 2 { // step 3
-		var marker syntax.Stmt
-		after := false
-		if st.marker != nil {
-			marker, after = st.marker, true
-		}
-		add := true
-		if ns := st.firstNS; ns != nil {
-			nsName := strings.TrimPrefix(ns.Name.Value, `\`)
-			if c := ctx.Index().Class(nsName+`\`+short, ctx.PHP); c != nil && c.Kind == syntax.KindClass {
-				add = false
-			} else {
-				if marker == nil && len(st.added) == 0 && len(ns.Stmts) > 0 {
-					marker, after = ns.Stmts[0], false
-				}
-				if ctx.Bool("USE_RELATIVE_QF") && strings.HasPrefix(q, `\`+nsName+`\`) {
-					t = q[len(nsName)+2:]
-					add = false
-				}
+	inNS := short
+	if b.name != "" {
+		inNS = b.name + `\` + short
+	}
+	if canImport && ctx.Index().Class(inNS, ctx.PHP) == nil { // step 3
+		if ctx.Bool("USE_RELATIVE_QF") && b.name != "" && strings.HasPrefix(q, `\`+b.name+`\`) {
+			if rel := q[len(b.name)+2:]; !b.captured(rel) {
+				t = rel
+				b.taken[firstSegment(rel)] = true
 			}
-		} else if len(st.added) == 0 {
-			marker, after = firstStmt(ctx.File.Stmts), false
-			st.marker = nil
-		}
-		if add && (marker != nil || len(st.added) > 0) {
-			if len(st.added) > 0 {
-				// A previous fix already inserted an import: chain after it.
-				if e, ok := st.chainImport(q); ok {
-					out = append(out, e)
-				}
-			} else {
-				if d, ok := marker.(*syntax.Declare); ok && !after {
-					marker, _ = astquery.NextStmt(ctx.File, d)
-				}
-				if marker != nil {
-					text := "use " + strings.TrimPrefix(q, `\`) + ";"
-					if after {
-						st.anchor = marker.Span().End
-						out = append(out, diagnostic.TextEdit{Span: syntax.Span{Start: st.anchor, End: st.anchor}, NewText: "\n" + text})
-						st.chainAfter = true
-					} else {
-						st.anchor = marker.Span().Start
-						out = append(out, diagnostic.TextEdit{Span: syntax.Span{Start: st.anchor, End: st.anchor}, NewText: text + "\n\n"})
-						st.chainAfter = false
-					}
-				}
-			}
-			if len(out) > 0 {
-				st.added = append(st.added, cccImport{fqn: q, local: short})
+		} else if !b.taken[strings.ToLower(short)] {
+			if e, ok := st.importEdit(b, q); ok {
+				out = append(out, e)
+				b.imports = append(b.imports, cccImport{fqn: q, local: short})
 				t = short
 			}
 		}
@@ -269,21 +331,49 @@ func (st *cccState) edits(span syntax.Span, q string) []diagnostic.TextEdit {
 	return append(out, diagnostic.TextEdit{Span: span, NewText: t + "::class"})
 }
 
+// importEdit inserts `use q;` into block b: after its last `use` statement,
+// else before its first statement. A file without namespace declaration
+// always gets it before its first statement.
+func (st *cccState) importEdit(b *cccBlock, q string) (diagnostic.TextEdit, bool) {
+	if b.added {
+		// A previous fix already inserted an import: chain after it.
+		return st.chainImport(b, q)
+	}
+	marker, after := b.marker, true
+	if marker == nil || b.global {
+		marker, after = firstStmt(b.stmts), false
+		if d, ok := marker.(*syntax.Declare); ok {
+			marker, _ = astquery.NextStmt(st.ctx.File, d)
+		}
+	}
+	if marker == nil {
+		return diagnostic.TextEdit{}, false
+	}
+	b.added = true
+	text := "use " + strings.TrimPrefix(q, `\`) + ";"
+	if after {
+		b.anchor, b.chainAfter = marker.Span().End, true
+		return diagnostic.TextEdit{Span: syntax.Span{Start: b.anchor, End: b.anchor}, NewText: "\n" + text}, true
+	}
+	b.anchor = marker.Span().Start
+	return diagnostic.TextEdit{Span: syntax.Span{Start: b.anchor, End: b.anchor}, NewText: text + "\n\n"}, true
+}
+
 // chainImport adds a second import right after the one a previous fix
 // inserted after the marker. Edits touching that insertion would conflict,
 // so the import is inserted one byte further, after the character that
 // follows the anchor.
-func (st *cccState) chainImport(q string) (diagnostic.TextEdit, bool) {
+func (st *cccState) chainImport(b *cccBlock, q string) (diagnostic.TextEdit, bool) {
 	src := st.ctx.Src
-	if !st.chainAfter || st.chained || int(st.anchor) >= len(src) {
+	if !b.chainAfter || b.chained || int(b.anchor) >= len(src) {
 		return diagnostic.TextEdit{}, false
 	}
-	st.chained = true
+	b.chained = true
 	text := "\nuse " + strings.TrimPrefix(q, `\`) + ";"
-	if src[st.anchor] == '\n' {
+	if src[b.anchor] == '\n' {
 		text = "use " + strings.TrimPrefix(q, `\`) + ";\n"
 	}
-	return diagnostic.TextEdit{Span: syntax.Span{Start: st.anchor + 1, End: st.anchor + 1}, NewText: text}, true
+	return diagnostic.TextEdit{Span: syntax.Span{Start: b.anchor + 1, End: b.anchor + 1}, NewText: text}, true
 }
 
 // firstStmt returns the first statement that is not inline HTML. The file

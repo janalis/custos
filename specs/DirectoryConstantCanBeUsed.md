@@ -1,8 +1,8 @@
 ---
 id: DirectoryConstantCanBeUsed
 group: Language level migration
-kind: syntax
-needs: []
+kind: semantic
+needs: [names, index]
 php: { min: "", max: "" }
 ---
 
@@ -22,6 +22,9 @@ php: { min: "", max: "" }
   test, so `\dirname(...)` matches. The call must also resolve to the global
   `dirname()`: an unqualified call inside a namespace that declares its own
   `dirname` function, or imports one with `use function`, is not reported.
+  The declaration is looked up in the whole analysed project, not only in the
+  current file: a `dirname` declared for the namespace in any indexed file
+  shadows the built-in.
 - **D2** The call has exactly one argument.
 - **D3** That argument is, directly (no parentheses around it), the magic
   constant `__FILE__` in any case (`__file__` is the same constant).
@@ -105,4 +108,5 @@ function bootstrap()
 - **Shadowing namespaced function (custos diverges):** an unqualified
   `dirname(__FILE__)` inside a namespace that declares (or imports) its own
   `dirname` calls that user function, not the built-in, so custos does not
-  report it (D1).
+  report it (D1). This holds wherever in the project the function is
+  declared, so the rule needs the project index.

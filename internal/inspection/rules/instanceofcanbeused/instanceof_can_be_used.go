@@ -102,6 +102,35 @@ func iocFinalExact(ctx *analysis.Context, fqn string) bool {
 	return false
 }
 
+// iocLooseSubject reports whether s binds more loosely than instanceof and
+// so needs parentheses as its left operand (F1): binary operations,
+// ternaries, assignments, the low-precedence keyword expressions and `!`.
+func iocLooseSubject(s syntax.Expr) bool {
+	if u, ok := s.(*syntax.Unary); ok {
+		return u.Op.Kind == syntax.TExclaim
+	}
+	return astquery.NeedsParensAsUnaryOperand(s)
+}
+
+// iocTightParent reports whether n is an operand of something binding
+// tighter than instanceof, so the replacement must be parenthesised (F1):
+// casts and prefix operators other than `!`, `clone`, `**`, and postfix
+// constructs applied to n (`n[0]`, `n->p`, `n()`, `n instanceof X`, ...).
+func iocTightParent(n syntax.Node) bool {
+	switch p := n.Parent().(type) {
+	case *syntax.Unary:
+		return p.Op.Kind != syntax.TExclaim
+	case *syntax.Binary:
+		return p.Op.Kind == syntax.TPow
+	case *syntax.Clone:
+		return true
+	case *syntax.ArrayDimFetch, *syntax.PropertyFetch, *syntax.MethodCall, *syntax.FuncCall,
+		*syntax.StaticCall, *syntax.ClassConstFetch, *syntax.StaticPropertyFetch, *syntax.Instanceof:
+		return p.Span().Start == n.Span().Start
+	}
+	return false
+}
+
 func (instanceofCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
 	_, part, ok := astquery.FuncNamePart(call)
@@ -204,7 +233,11 @@ func (instanceofCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return
 	}
-	repl := ctx.Text(subject) + " instanceof " + fqn
+	subj := ctx.Text(subject)
+	if iocLooseSubject(subject) {
+		subj = "(" + subj + ")"
+	}
+	repl := subj + " instanceof " + fqn
 	if negated {
 		repl = "!" + repl
 	}
@@ -215,6 +248,12 @@ func (instanceofCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	ctx.Report(span, "Prefer '"+repl+"'.", diagnostic.Fix{
 		Title: "Use instanceof",
-		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: repl}} },
+		Edits: func() []diagnostic.TextEdit {
+			text := repl // the closure may run more than once: never grow repl
+			if iocTightParent(ctxNode) {
+				text = "(" + text + ")"
+			}
+			return []diagnostic.TextEdit{{Span: span, NewText: text}}
+		},
 	})
 }

@@ -22,16 +22,8 @@ Options: `IMPORT_CLASSES_ON_QF=true`, `USE_RELATIVE_QF=true`,
 
 ::: code-group
 
-```php{23,25,26,27,28,29,30,31,32,33} [Before]
+```php{21,23,24,25,26,27,28,29,30,31} [Before]
 <?php
-
-namespace Shop\Billing;
-
-use Shop\Billing\Invoice as Bill;
-use \ArrayObject as Bag;
-
-class Invoice {}
-class Ledger {}
 
 namespace Shop\Billing\Tax;
 class Rate {}
@@ -42,6 +34,12 @@ class Meter {}
 
 namespace Shop\Billing;
 
+use Shop\Billing\Invoice as Bill;
+use \ArrayObject as Bag;
+
+class Invoice {}
+class Ledger {}
+
 class Clerk {
     public function names() {
         return [
@@ -50,7 +48,7 @@ class Clerk {
             '\ArrayObject',
             'ArrayObject',
             'Shop\Billing\Invoice',
-            "\\Shop\\Billing\\Ledger",
+            "Shop\\Billing\\Ledger",
             __NAMESPACE__ . '\Ledger',
             'Shop\Billing\Tax\Rate',
             'Vendor\Kit\Ledger',
@@ -82,15 +80,6 @@ class Clerk {
 ```php [After fix]
 <?php
 
-namespace Shop\Billing;
-
-use Shop\Billing\Invoice as Bill;
-use \ArrayObject as Bag;
-use Vendor\Kit\Meter;
-
-class Invoice {}
-class Ledger {}
-
 namespace Shop\Billing\Tax;
 class Rate {}
 
@@ -100,12 +89,19 @@ class Meter {}
 
 namespace Shop\Billing;
 
+use Shop\Billing\Invoice as Bill;
+use \ArrayObject as Bag;
+use Vendor\Kit\Meter;
+
+class Invoice {}
+class Ledger {}
+
 class Clerk {
     public function names() {
         return [
             static::class,
             get_parent_class(),
-            Bag::class,
+            '\ArrayObject',
             Bag::class,
             Bill::class,
             \Shop\Billing\Ledger::class,
@@ -113,7 +109,7 @@ class Clerk {
             Tax\Rate::class,
             \Vendor\Kit\Ledger::class,
             Meter::class,
-            Meter::class,
+            '\Vendor\Kit\Meter',
         ];
     }
 
@@ -142,16 +138,16 @@ class Clerk {
 Reported:
 
 <ul>
-<li>line 23: Use static::class instead.</li>
-<li>line 25: Use \ArrayObject::class instead of the class name string.</li>
-<li>line 26: Use \ArrayObject::class instead of the class name string.</li>
-<li>line 27: Use \Shop\Billing\Invoice::class instead of the class name string.</li>
-<li>line 28: Use \Shop\Billing\Ledger::class instead of the class name string.</li>
-<li>line 29: Use Ledger::class instead of the class name string.</li>
-<li>line 30: Use \Shop\Billing\Tax\Rate::class instead of the class name string.</li>
-<li>line 31: Use \Vendor\Kit\Ledger::class instead of the class name string.</li>
-<li>line 32: Use \Vendor\Kit\Meter::class instead of the class name string.</li>
-<li>line 33: Use \Vendor\Kit\Meter::class instead of the class name string.</li>
+<li>line 21: Use static::class instead.</li>
+<li>line 23: Use \ArrayObject::class instead of the class name string (::class has no leading backslash).</li>
+<li>line 24: Use \ArrayObject::class instead of the class name string.</li>
+<li>line 25: Use \Shop\Billing\Invoice::class instead of the class name string.</li>
+<li>line 26: Use \Shop\Billing\Ledger::class instead of the class name string.</li>
+<li>line 27: Use Ledger::class instead of the class name string.</li>
+<li>line 28: Use \Shop\Billing\Tax\Rate::class instead of the class name string.</li>
+<li>line 29: Use \Vendor\Kit\Ledger::class instead of the class name string.</li>
+<li>line 30: Use \Vendor\Kit\Meter::class instead of the class name string.</li>
+<li>line 31: Use \Vendor\Kit\Meter::class instead of the class name string (::class has no leading backslash).</li>
 </ul>
 
 ## Options
@@ -159,7 +155,7 @@ Reported:
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `IMPORT_CLASSES_ON_QF` | bool | true | Fix may add a `use` import for namespaced classes and reference them by short name. |
-| `USE_RELATIVE_QF` | bool | false | When importing is otherwise possible, a class below the file's (first) namespace is written as a namespace-relative name instead of being imported. |
+| `USE_RELATIVE_QF` | bool | false | When importing is otherwise possible, a class below the enclosing namespace is written as a namespace-relative name instead of being imported. |
 | `LOOK_ROOT_NS_UP` | bool | false | Also consider unqualified strings (no backslash), looked up as root-namespace classes (`'Thing'` → `\Thing`). |
 
 Upstream fixtures run with `IMPORT_CLASSES_ON_QF=true, USE_RELATIVE_QF=true,

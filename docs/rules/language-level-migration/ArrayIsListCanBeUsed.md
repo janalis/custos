@@ -6,7 +6,7 @@ title: ArrayIsListCanBeUsed
 
 # ArrayIsListCanBeUsed
 
-<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 8.0" />
+<Badge type="info" text="info" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 8.1" />
 
 Group: [Language level migration](/rules/#language-level-migration) · PhpStorm name: `ArrayIsListCanBeUsedInspection`
 

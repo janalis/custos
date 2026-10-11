@@ -21,7 +21,7 @@ Options: REPORT_INLINES = true, REPORT_TO_STRING_METHOD_CALLS = true.
 
 ::: code-group
 
-```php{5,6,7,8,10,12,13,17,18,21} [Before]
+```php{5,6,7,8,10,12,13,18,19,22} [Before]
 <?php
 namespace Store;
 
@@ -35,6 +35,7 @@ function normalize($qty, $ratio, $label, $item, $price) {
 
     settype($qty, 'integer');
     settype($item['tags'], "array");
+    settype($item['ids'][], 'int');
     settype($ratio, 'null');
     $ok = settype($ratio, 'int');
 
@@ -67,7 +68,8 @@ function normalize($qty, $ratio, $label, $item, $price) {
     $f = (string)$price;
 
     $qty = (int)$qty;
-    $item['tags'] = (array)$item['tags'];
+    settype($item['tags'], "array");
+    settype($item['ids'][], 'int');
     settype($ratio, 'null');
     $ok = settype($ratio, 'int');
 
@@ -99,9 +101,9 @@ Reported:
 <li>line 10: Use &#39;(string)$price&#39; instead (a cast is clearer and faster).</li>
 <li>line 12: Use &#39;$qty = (int)$qty&#39; instead (a cast is clearer and faster).</li>
 <li>line 13: Use &#39;$item[&#39;tags&#39;] = (array)$item[&#39;tags&#39;]&#39; instead (a cast is clearer and faster).</li>
-<li>line 17: Use &#39;(string)$label&#39; to make the string conversion explicit.</li>
-<li>line 18: Use &#39;(string)($item-&gt;name)&#39; to make the string conversion explicit.</li>
-<li>line 21: Use &#39;(string)$price&#39; instead of calling __toString() directly.</li>
+<li>line 18: Use &#39;(string)$label&#39; to make the string conversion explicit.</li>
+<li>line 19: Use &#39;(string)($item-&gt;name)&#39; to make the string conversion explicit.</li>
+<li>line 22: Use &#39;(string)$price&#39; instead of calling __toString() directly.</li>
 </ul>
 
 ## Options

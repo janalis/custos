@@ -126,9 +126,19 @@ The FQN must name at least one **class** in the project index/stubs
   - `{S} instanceof {FQN}` normally;
   - `!{S} instanceof {FQN}` for negated D1 (no space after `!`; `!` binds
     looser than `instanceof`, so this is the negation of the whole check).
-  `{S}` is the verbatim source text of the subject; `{FQN}` is the computed
-  fully-qualified name with its leading `\` (spelled as in the literal, not
-  as declared). No parentheses are added around the result.
+  `{S}` is the verbatim source text of the subject, wrapped in parentheses
+  when it binds more loosely than `instanceof`: a binary operation
+  (including `??`), a ternary, an assignment, a `!` negation, another
+  `instanceof`, or a low-precedence keyword expression (`print`, `yield`,
+  `include`, `throw`, arrow function). The same `{S}` appears in both
+  messages. `{FQN}` is the computed fully-qualified name with its leading
+  `\` (spelled as in the literal, not as declared).
+- **F3** The fix (not the message) wraps the whole replacement in
+  parentheses when the context node is an operand of something binding
+  tighter than `instanceof`: a cast or a prefix operator other than `!`
+  (`-`, `+`, `~`, `@`), `clone`, the `**` operator, or a postfix construct
+  applied to it (array access, member access, call, `instanceof`). So
+  `(int) is_a($o, 'X')` becomes `(int) ($o instanceof \X)`.
 
 ## Options
 
@@ -221,10 +231,13 @@ function check(Invoice $doc, Document $base, string $name, $loose) {
   `App\get_class()` — whose semantics are unknown — is reported and
   rewritten to `instanceof`. custos only matches calls that resolve to the
   global PHP functions.
-- A subject with lower precedence than `instanceof` (e.g. an assignment or
-  ternary passed directly as argument) would need parentheses in the
-  replacement; upstream never adds them. Recommendation: wrap such subjects
-  in parentheses (not covered by fixtures).
+- **Parentheses in the replacement (custos diverges):** upstream copies the
+  subject and drops the result in place without parentheses. A subject
+  binding more loosely than `instanceof` (`$a ?: $b`, `$a ?? $b`, a ternary,
+  an assignment, `!$a`) then captures only its last operand, and a result
+  under a cast, a prefix operator or `**` is split so the operator applies
+  to the subject alone; both change the value or fail at run time. custos
+  parenthesises the subject (F1) and the result (F3) in those positions.
 - **Function-name case (custos diverges):** upstream matches `get_class`,
   `is_a`, `in_array`, `class_implements` & co. case-sensitively, missing
   `Get_Class($o) === 'Final'` or `IS_A($o, 'X')`. custos matches any case.

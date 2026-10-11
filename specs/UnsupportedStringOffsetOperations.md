@@ -42,7 +42,22 @@ be its base.
   top level is not examined).
 - **D6** The inferred type of `C` must consist of exactly one type (unknowns
   count; `string|null` is two), and that type is `string`.
-- **D7** Report `T` with the D3 or D4 meaning.
+- **D7** Reference guard: when the root of `C` (see D2) is a plain variable,
+  it must not be bound to a reference anywhere in the enclosing function.
+  A binding is any of the following, where the bound expression is the
+  variable itself or one of its offsets:
+  - either side of a reference assignment (`$alias = &$text;`);
+  - a by-reference array item (`['slot' => &$text]`);
+  - an argument that binds a by-reference parameter of the resolved callee
+    (by position, by name, or through a variadic last parameter), e.g.
+    `settype($text, 'array')` or `preg_match($re, $in, $text)`; a legacy
+    call-time `&$text` argument counts too.
+
+  Whoever holds the reference can replace the string with an array, so the
+  declared type proves nothing. The check ignores statement order (the
+  write may sit in a loop) and the callee's behaviour. Arguments of calls
+  whose callee cannot be resolved are taken as passed by value.
+- **D8** Report `T` with the D3 or D4 meaning.
 
 Type inference needed for D6: declared parameter types and `@param` types,
 property types, `@var` annotations, assignments. Element type of an
@@ -62,6 +77,8 @@ appears, not an additional D4 report.
 - **E6** Base type unknown, mixed, union, or not `string`.
 - **E7** `list($s[]) = …`: the append form requires the assignment to be the
   direct parent, so an append inside a destructuring pattern is not reported.
+- **E8** The written variable is bound to a reference in the same function
+  (D7): `settype($s, 'array'); $s[] = 'x';`, `$r = &$s; $r = []; $s[] = 'x';`.
 
 ## Report
 
@@ -128,3 +145,9 @@ $str[0][0] = 'x';
   ...` — an absent key that PHP autovivifies as an array — was reported as
   a fatal error. Locals are no longer trusted there; the rare real fatal
   on a present string key of a local literal is missed.
+- **Variables bound to a reference (custos diverges).** A string-typed
+  variable that is passed to a by-reference parameter, aliased with `=&` or
+  stored by reference in an array is not reported (D7): the declared type
+  no longer describes its value, and `settype($s, 'array'); $s[] = 'x';`
+  runs without error. A write that stays fatal because the reference never
+  changes the type (`settype($s, 'string')`) is missed.

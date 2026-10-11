@@ -163,7 +163,9 @@ Separator in `R` is exactly ` ?? ` (one space each side).
   method names, class names in calls, `new`, `instanceof` and `::`
   accesses, and keywords — compare case-insensitively (`Cache::$map['k']`
   matches `cache::$map['k']`, `$o->Name()` matches `$o->name()`); variable,
-  property and constant names stay case-sensitive.
+  property, constant and named-argument names stay case-sensitive, also
+  when they are spelled like a keyword (`Limits::ARRAY` and `Limits::Array`
+  are two constants; `X::class` is the keyword and matches `X::CLASS`).
 
 ## Exceptions (no report)
 
@@ -183,6 +185,8 @@ Separator in `R` is exactly ` ?? ` (one space each side).
   unknown or scalar type.
 - **E10** S3 when the previous value has side effects:
   `$v = load(); if (isset($w)) { $v = $w; }`.
+- **E11** Operands differing in the case of a constant, property or
+  named-argument name: `Limits::ARRAY !== null ? Limits::Array : 1`.
 - **E7** `if` shapes: `elseif` present; bodies not braced or with more than one
   statement; container mismatch; compound or by-reference previous assignment;
   chained previous assignment; previous value reading the container; inverted
@@ -214,6 +218,16 @@ Separator in `R` is exactly ` ?? ` (one space each side).
 - **F4 Form B, S4**: replace the text range from the start of the `if` through
   the end of the following `return` statement (including the `;`) with `Q;`.
 - Whitespace before the replaced range and after it is kept untouched.
+- **F5 No fix when the probe has side effects.** The original evaluates the
+  probed expression twice (once in the condition, once as the value) and `R`
+  evaluates it once. When cand contains a function/method/static call, `|>`,
+  `new`, `clone`, an assignment, `++`/`--`, `include`/`require`, `eval`,
+  `exit`, `print`, `throw`, `yield` or a backtick command (closure bodies
+  are not inspected), the finding is still reported, since the call is
+  often a pure getter, but no fix is offered:
+  `isset($rows[nextId()]) ? $rows[nextId()] : 'none'`. This applies to every
+  form (G1-G5; for G2/G3 the base is part of cand) and both Form A and
+  Form B. Side effects in alt do not matter: it runs at most once either way.
 
 ## Options
 
@@ -382,6 +396,15 @@ is negated K-null with `===`, so the true branch is the "set" branch.
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Probe side effects (custos diverges).** Upstream offers the rewrite
+  whatever the probed expression contains, so
+  `next_id() !== null ? next_id() : 'none'` becomes a single call and both
+  the result and the number of calls change. custos keeps the report and
+  withholds the fix (F5).
+- **Keyword-spelled names (custos diverges).** Names that PHP compares
+  case-sensitively are compared exactly even when they read like a keyword
+  (Detection, "Name case"), so two distinct constants such as `X::DEFAULT`
+  and `X::Default` are never merged.
 - **References (custos diverges).** An if/else (or S3) whose assignment
   binds a reference (`$item = &$this->menu[$k];`) is not rewritten: `??`
   yields a value, so later writes through `$item` would no longer reach the
