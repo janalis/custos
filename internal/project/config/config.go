@@ -89,6 +89,10 @@ func Load(dir string) (*Config, error) {
 
 // Resolve turns a File into a Config rooted at root.
 func Resolve(root string, f File) (*Config, error) {
+	return resolve(root, f, func(name string) ([]byte, error) { return safeio.ReadFile(filepath.Join(root, name), MaxFileSize) })
+}
+
+func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, error) {
 	c := &Config{Root: root, Paths: f.Paths, Baseline: f.Baseline, Exclude: append(append([]string{}, DefaultExclude...), f.Exclude...), Rules: map[string]analysis.RuleConfig{}}
 	// The configuration comes with the analysed code: it must not point
 	// custos (and `custos fix`) at files outside the project.
@@ -108,7 +112,7 @@ func Resolve(root string, f File) (*Config, error) {
 		}
 		c.PHP, c.PHPSource = v, "config"
 	default:
-		if v, ok := composerPHP(root); ok {
+		if v, ok := composerPHPRead(read); ok {
 			c.PHP, c.PHPSource = v, "composer"
 		} else {
 			c.PHP, c.PHPSource = phpversion.Default, "default"
@@ -142,7 +146,7 @@ func Resolve(root string, f File) (*Config, error) {
 		}
 		c.Rules[m.ID] = rc
 	}
-	if v := composerPHPUnit(root); v > 0 {
+	if v := composerPHPUnitRead(read); v > 0 {
 		// Fallback for the PHPUnit rules when PHPUnit itself is not
 		// indexed (see rules/phpunit detectedPHPUnitVersion).
 		for _, id := range []string{"PhpUnitTests", "PhpUnitDeprecations"} {
@@ -164,7 +168,11 @@ func Resolve(root string, f File) (*Config, error) {
 // (require-dev, else require), as the PHPUnit rules number versions
 // (9.1 → 91; 10 and later → 100); 0 when none is declared.
 func composerPHPUnit(root string) int {
-	b, err := safeio.ReadFile(filepath.Join(root, "composer.json"), MaxFileSize)
+	return composerPHPUnitRead(func(name string) ([]byte, error) { return safeio.ReadFile(filepath.Join(root, name), MaxFileSize) })
+}
+
+func composerPHPUnitRead(read func(string) ([]byte, error)) int {
+	b, err := read("composer.json")
 	if err != nil {
 		return 0
 	}
@@ -230,9 +238,9 @@ func findRoot(dir string) (string, error) {
 
 var versionRe = regexp.MustCompile(`(\d+)\.(\d+)`)
 
-// composerPHP reads config.platform.php, else the lowest version in require.php.
-func composerPHP(root string) (phpversion.Version, bool) {
-	b, err := safeio.ReadFile(filepath.Join(root, "composer.json"), MaxFileSize)
+// composerPHPRead reads config.platform.php, else the lowest version in require.php.
+func composerPHPRead(read func(string) ([]byte, error)) (phpversion.Version, bool) {
+	b, err := read("composer.json")
 	if err != nil {
 		return 0, false
 	}

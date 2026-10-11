@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Fast PHP inspector and fixer.</strong><br>
-  Rules with quick-fixes · one static binary · CLI, CI and LSP
+  Rules with quick-fixes · one static binary · CLI, CI, LSP and MCP
 </p>
 
 <p align="center">
@@ -21,7 +21,8 @@
   <a href="https://janalis.github.io/custos/"><strong>Documentation</strong></a> ·
   <a href="https://janalis.github.io/custos/guide/getting-started">Getting started</a> ·
   <a href="https://janalis.github.io/custos/rules/">Rules</a> ·
-  <a href="https://janalis.github.io/custos/guide/editors">Editors</a>
+  <a href="https://janalis.github.io/custos/guide/editors">Editors</a> ·
+  <a href="https://janalis.github.io/custos/guide/mcp">AI agents</a>
 </p>
 
 ---
@@ -30,7 +31,7 @@ custos finds probable bugs, performance and security issues, needless
 complexity and outdated constructs in PHP code (PHP 5.3 to 8.5), and fixes
 many of them for you. It is written in Go with its own PHP parser and type
 inference, so it needs no PHP runtime. It runs from the command line, in CI,
-and in any editor as a language server.
+in editors as a language server, and with AI agents through MCP.
 
 The catalogue mixes rules modelled on *Php Inspections (EA Extended)*, whose
 existing `@noinspection XxxInspection` comments keep working, and native rules
@@ -56,6 +57,7 @@ custos analyse                            # report problems in the project
 custos fix --dry-run --diff src           # preview quick-fixes
 custos fix src                            # apply them
 custos explain OneTimeUseVariables        # what a rule does, its options
+custos mcp --root /path/to/project        # MCP server for AI agents
 ```
 
 ```text
@@ -66,7 +68,8 @@ src/Invoice.php:7:6: error: Restrict the classes unserialize() may create via it
 More in the guide: [command line](https://janalis.github.io/custos/guide/cli),
 [baseline for legacy code](https://janalis.github.io/custos/guide/suppressing#baseline),
 [CI recipes](https://janalis.github.io/custos/guide/ci),
-[editor setup](https://janalis.github.io/custos/guide/editors) and the
+[editor setup](https://janalis.github.io/custos/guide/editors),
+[MCP setup](https://janalis.github.io/custos/guide/mcp) and the
 [rule reference](https://janalis.github.io/custos/rules/).
 
 ## Configuration

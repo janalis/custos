@@ -39,3 +39,5 @@ func open(path string) (*os.File, int64, error) {
 // beforeOpen, when set (tests only), runs between the check and the open so
 // a test can swap the path the way a concurrent writer could.
 var beforeOpen func(path string)
+
+const rootReadFlags = syscall.O_NONBLOCK | syscall.O_NOCTTY

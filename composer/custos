@@ -86,6 +86,65 @@ function install(string $target): void
     }
 }
 
+function absolutePath(string $path): bool
+{
+    return $path !== '' && ($path[0] === '/' || $path[0] === '\\'
+        || (strlen($path) > 2 && preg_match('{^[A-Za-z]:}', $path)
+            && ($path[2] === '/' || $path[2] === '\\')));
+}
+
+// Find the consuming project through Composer's proxy metadata or the invoked
+// bin path. Verify its manifest and installed package target; never derive a
+// workspace from the downloaded binary or this package's own composer.json.
+function consumingRoot(string $package): ?string
+{
+    $candidates = [$_SERVER['argv'][0] ?? ''];
+    if (isset($GLOBALS['_composer_autoload_path'])) {
+        $candidates[] = $GLOBALS['_composer_autoload_path'];
+    }
+    if (isset($GLOBALS['_composer_bin_dir'])) {
+        $candidates[] = $GLOBALS['_composer_bin_dir'];
+    }
+    foreach ($candidates as $candidate) {
+        if ($candidate === '') {
+            continue;
+        }
+        // Keep the lexical proxy path: realpath would lose symlinked installs.
+        if (!absolutePath($candidate)) {
+            $candidate = getcwd() . '/' . $candidate;
+        }
+        for ($dir = is_dir($candidate) ? $candidate : dirname($candidate); ; $dir = dirname($dir)) {
+            $manifest = $dir . '/composer.json';
+            if (is_file($manifest) && filesize($manifest) <= 8 * 1024 * 1024) {
+                $project = json_decode(file_get_contents($manifest), true);
+                if (is_array($project) && ($project['name'] ?? '') !== 'janalis/custos'
+                    && (isset($project['require']['janalis/custos']) || isset($project['require-dev']['janalis/custos']))) {
+                    $vendor = $project['config']['vendor-dir'] ?? 'vendor';
+                    // An unusable vendor-dir keeps walking up; `continue` here
+                    // would skip the filesystem-root check below.
+                    $target = false;
+                    if (is_string($vendor) && $vendor !== '' && strpos($vendor, "\0") === false) {
+                        $vendorPath = absolutePath($vendor) ? $vendor : $dir . '/' . $vendor;
+                        $target = realpath($vendorPath . '/janalis/custos/composer/custos');
+                    }
+                    if ($target !== false && $target === $package) {
+                        // Composer's global home is not a consuming workspace.
+                        $home = getenv('COMPOSER_HOME');
+                        $globalHomes = array_filter([$home, getenv('HOME') . '/.composer', getenv('HOME') . '/.config/composer', getenv('HOME') . '/Library/Application Support/composer', getenv('XDG_CONFIG_HOME') ? getenv('XDG_CONFIG_HOME') . '/composer' : null, getenv('APPDATA') ? getenv('APPDATA') . '/Composer' : null]);
+                        if (!in_array(realpath($dir), array_map('realpath', $globalHomes), true)) {
+                            return realpath($dir) ?: null;
+                        }
+                    }
+                }
+            }
+            if (dirname($dir) === $dir) {
+                break;
+            }
+        }
+    }
+    return null;
+}
+
 // Composer's bin proxy includes this file through a stream wrapper.
 $here = preg_replace('{^phpvfscomposer://}', '', __DIR__);
 $bin = getenv('CUSTOS_BINARY');
@@ -94,6 +153,11 @@ if (!$bin) {
     if (!is_file($bin)) {
         install($bin);
     }
+}
+// Only MCP consumes this hint; preserve cwd and all other command behavior.
+if (($_SERVER['argv'][1] ?? '') === 'mcp') {
+    $projectRoot = consumingRoot(realpath(preg_replace('{^phpvfscomposer://}', '', __FILE__)) ?: __FILE__);
+    putenv($projectRoot === null ? 'CUSTOS_COMPOSER_ROOT' : 'CUSTOS_COMPOSER_ROOT=' . $projectRoot);
 }
 $proc = proc_open(array_merge([$bin], array_slice($_SERVER['argv'], 1)), [STDIN, STDOUT, STDERR], $pipes);
 if (!is_resource($proc)) {

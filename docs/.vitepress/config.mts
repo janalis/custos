@@ -66,6 +66,7 @@ export default withMermaid(defineConfig({
             { text: 'Suppressing findings', link: '/guide/suppressing' },
             { text: 'Continuous integration', link: '/guide/ci' },
             { text: 'Editors (LSP)', link: '/guide/editors' },
+            { text: 'AI agents (MCP)', link: '/guide/mcp' },
           ],
         },
         {

@@ -8,6 +8,8 @@ import (
 
 // Description is the human documentation of a rule (from its spec).
 type Description struct {
+	PHPMin  string `json:"phpMin,omitempty"`
+	PHPMax  string `json:"phpMax,omitempty"` // supported version range from the clean-room spec
 	Summary string `json:"summary"`
 	Options string `json:"options,omitempty"`
 	Fix     bool   `json:"fix,omitempty"` // custos offers a quick-fix

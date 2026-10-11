@@ -1,6 +1,7 @@
 # Architecture
 
-Custos is one Go module with standard-library runtime dependencies. Feature
+Custos is one Go module. Core analysis uses the standard library. The MCP adapter uses the official Go
+MCP SDK pinned in `go.mod`; Windows storage ACL checks use `golang.org/x/sys`. Feature
 roots separate language processing, semantics, inspections, project operations
 and adapters. `cmd/custos` only passes process arguments and streams to the CLI.
 
@@ -24,6 +25,7 @@ summarize the same responsibilities.
 | `internal/project` | Discovery, bounded reading, indexing and flow snapshots, buffer analysis, project reporting and prepared file fixes; `config` and `baseline` subpackages. |
 | `internal/output` | `report` renders text, JSON, Checkstyle, GitHub and SARIF; `diff` renders changes. |
 | `internal/cli` | Arguments, configuration precedence, profiling, output, exit codes and file writes. |
+| `internal/editor/mcp` | MCP tools, transports, authorization, checkpoints, prepared plan lifecycle and confined writes. |
 | `internal/editor/lsp` | Transport dispatch, settings, workspace indexing, documents, diagnostics and code actions. |
 | `internal/platform/safeio` | Bounded filesystem primitives. |
 | `internal/testing` | Conformance harness and load-scaled test budgets. |

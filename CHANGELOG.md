@@ -5,6 +5,18 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `custos mcp` exposes project analysis, rule knowledge, semantic navigation,
+  resumable checkpoints and prepared fixes over stdio and authenticated
+  Streamable HTTP. Workspace roots and identity permissions constrain access.
+- Composer's launcher supplies the consuming project as the MCP default,
+  including custom vendor/bin directories and symlinked package installations.
+
+### Security
+
+- Require Go 1.27.2 to include current HTTP, TLS and root-confinement fixes.
+
 ## [0.1.6] - 2026-10-19
 
 ### Added
