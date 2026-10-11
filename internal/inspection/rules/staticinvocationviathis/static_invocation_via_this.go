@@ -53,7 +53,13 @@ func (staticInvocationViaThis) Check(ctx *analysis.Context, n syntax.Node) {
 		thisSpan := v.Span()
 		arrow, _ := astquery.FindToken(ctx.File, syntax.Span{Start: thisSpan.End, End: id.Span().Start}, syntax.TObjectOperator) // not ?-> (D1)
 		kw := sivtKeyword(meth, m)
-		ctx.Report(thisSpan, "Static method "+m.Name+"() called through $this; use "+kw+"::"+m.Name+"().", diagnostic.Fix{
+		msg := "Static method " + m.Name + "() called through $this; use " + kw + "::" + m.Name + "()."
+		if sivtOpensInterpolation(v) {
+			// `{static::m()}` is literal text: no fix inside a string.
+			ctx.Report(thisSpan, msg)
+			return
+		}
+		ctx.Report(thisSpan, msg, diagnostic.Fix{
 			Title: "Use " + kw + "::",
 			Edits: func() []diagnostic.TextEdit {
 				return []diagnostic.TextEdit{
@@ -68,6 +74,23 @@ func (staticInvocationViaThis) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	ctx.Report(call.Span(), "Static method "+id.Value+"() called on an instance; call it with ::.")
+}
+
+// sivtOpensInterpolation reports whether `$this` is the leftmost token of
+// a `{$…}` part of a double-quoted string, heredoc or backtick command:
+// interpolation needs the leading `$`, so `{static::m()}` would be text.
+// A `$this` nested deeper (`{$rows[$this->m()]}`) is an ordinary expression.
+func sivtOpensInterpolation(v *syntax.Variable) bool {
+	start := v.Span().Start
+	// The enclosing method starts before `$this`, so the climb always ends.
+	for p := v.Parent(); ; p = p.Parent() {
+		if _, ok := p.(*syntax.InterpolatedString); ok {
+			return true
+		}
+		if p.Span().Start < start {
+			return false
+		}
+	}
 }
 
 // sivtResolve resolves `recv->name()` to a method declaration via the

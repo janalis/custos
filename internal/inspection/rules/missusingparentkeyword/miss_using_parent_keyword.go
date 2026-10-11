@@ -6,6 +6,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/index"
 )
 
 // missUsingParentKeyword flags `parent::m()` calls to an inherited method
@@ -47,10 +48,8 @@ func (missUsingParentKeyword) Check(ctx *analysis.Context, n syntax.Node) {
 	if ownerFQN != "" && !owner.Modifiers.Has(syntax.TFinal) { // D5
 		lname := strings.ToLower(id.Value)
 		for _, sub := range ix.Subclasses(ownerFQN) {
-			if c := ix.Class(sub, ctx.PHP); c != nil {
-				if _, ok := c.Methods[lname]; ok {
-					return
-				}
+			if c := ix.Class(sub, ctx.PHP); c != nil && mupkDescendantDeclares(ctx, c, lname) {
+				return
 			}
 		}
 	}
@@ -96,6 +95,26 @@ func mupkDeclaresMethod(ctx *analysis.Context, owner *syntax.ClassLike, name str
 					return true
 				}
 			}
+		}
+	}
+	return false
+}
+
+// mupkDescendantDeclares is the D5 counterpart of mupkDeclaresMethod for an
+// indexed descendant: a method in its body, one imported from a trait it
+// uses, or a trait method aliased to that name. lname is lower-case.
+func mupkDescendantDeclares(ctx *analysis.Context, c *index.Class, lname string) bool {
+	if _, ok := c.Methods[lname]; ok {
+		return true
+	}
+	for _, t := range c.Traits {
+		if ctx.Index().FindMethod(t, lname, ctx.PHP) != nil {
+			return true
+		}
+	}
+	for _, ad := range c.TraitAdaptations {
+		if strings.EqualFold(ad.Alias, lname) {
+			return true
 		}
 	}
 	return false

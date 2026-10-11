@@ -59,7 +59,39 @@ Cast kinds and their target type:
     do not report;
   - **D3b** if the *possible-values* set of *A* (below) has exactly one element
     and that element is a direct operand of a `??` expression, do not report;
+  - **D3c** if *A* is a variable, or an element of one (`$v['k'][0]`), whose
+    storage is *aliased* (below), do not report (custos, see Divergences);
   - otherwise report (message M1).
+
+### Aliased storage (for D3c)
+
+The assignments of a variable only bound its type while nothing else can
+write to it. Let `$v` be the variable *A* is, or is an element of, and
+*scope* the function-like body it belongs to (for an arrow function, the
+nearest enclosing non-arrow scope; top-level code otherwise). Nested
+functions, closures and classes are not part of the scope; arrow functions
+are. `$v` is aliased when the scope contains any of:
+
+- a reference assignment with `$v` or one of its elements on either side
+  (`$r = &$v`, `$r = &$v['k']`, `$v = &$other`);
+- an array item taking it by reference (`[&$v]`, `[&$v['k']]`, also in a
+  destructuring target);
+- a `foreach` by reference that iterates it or binds it as the loop value
+  (`foreach ($v as &$item)`, `foreach ($list as &$v)`), or a `foreach` over
+  it whose destructuring pattern has a by-reference item
+  (`foreach ($v as [&$item])`);
+- `global $v;`
+- a function, method or static-method call, or a `new` expression, with `$v`
+  or one of its elements as an argument, unless the callee resolves (for a
+  method: the receiver has exactly one known class; for `new`: the class has
+  a constructor) and the parameter that argument binds to (by position, by
+  name, or the variadic tail) is by-value. A spread argument (`...$v`)
+  always counts. An unresolved or dynamic callee (`$f($v)`,
+  `not_declared($v)`, `$unknown->m($v)`) may take anything by reference.
+
+A top-level `$v` is additionally aliased when anywhere in the file (function
+and method bodies included) a `global` statement names it, or an element of
+`$GLOBALS` is accessed with the literal key `'v'` or with a non-literal key.
 
 ### Strict type of *A*
 
@@ -203,6 +235,10 @@ visited at most once, parentheses removed first:
   `(string) new Markup($s)`). The result is the same at run time,
   but the cast states a deliberate conversion and strict analysers require
   it.
+- **E8** Aliased storage (D3c): `$n = 0; readInto($n); (int) $n` with
+  `function readInto(&$out)`, `$r = &$n`, `foreach ($row as &$cell)` before
+  `(int) $row['qty']`, a top-level variable named by a `global` statement.
+  Only M1 is affected.
 
 ## Report
 
@@ -219,6 +255,12 @@ visited at most once, parentheses removed first:
   and the whitespace between cast and operand:
   `(int) ($n + 1)` → `($n + 1)`; `(string)$s . 'x'` → `$s . 'x'`;
   `(float)-1.5` → `-1.5`.
+- **F2** The cast may be the only thing separating two tokens. One space
+  replaces it unless the character just before the cast is whitespace or
+  one of `(` `[` `,` `=` `{` `!` `;` `:` `?` `>` `&` `|` `*` `/` `%` `^`
+  `~` `@`, after which no operand can merge into another token:
+  `return(int)count($a)` → `return count($a)`; `10 -(int)-$b` →
+  `10 - -$b`; `$s.(string)2` → `$s. 2`; `[(int)$n]` → `[$n]`.
 
 ## Options
 
@@ -388,6 +430,18 @@ After fix (changed lines):
   array<int, int> $ids`, or `(float) $this->rate` on a `@var float`
   property, is not reported: nothing enforces the docblock, and such casts
   guard SQL and output building (phpMyAdmin, PrestaShop review).
+- **Aliased storage (custos diverges, D3c).** Upstream types a variable
+  from its assignments only, so a variable handed to a by-reference
+  parameter (`readInto($n)`, `sscanf(…, $n)`, `settype($n, …)`,
+  `array_unshift($a, $x)` before `(int) $a[0]`), bound to a reference
+  (`$r = &$n`, `foreach ($row as &$cell)`) or shared through `global` /
+  `$GLOBALS` keeps its initial literal type, the cast is reported and the
+  fix lets the other type through. custos does not report M1 for such a
+  variable, nor when the callee receiving it cannot be resolved.
+- **Separator kept by the fix (custos diverges, F2).** Deleting the cast
+  alone can merge its neighbours into another token (`-(int)-$b` → `--$b`,
+  `.(string)2` → `.2`, `return(int)count()` → `returncount()`); custos
+  leaves one space in its place when needed.
 - **Unknown reaching definitions (custos diverges, T4).** Outside the
   spec-only typer, a variable with a reaching definition of unknown type
   (`$f = $o->x; if ($c) { $f = 'x'; } return (string) $f;`) is unknown

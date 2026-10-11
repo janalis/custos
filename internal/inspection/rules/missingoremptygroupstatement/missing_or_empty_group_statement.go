@@ -66,6 +66,11 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 		ctx.Report(kwSpan, "Use a braced block for the body of this construct.", diagnostic.Fix{
 			Title: "Wrap the body in braces",
 			Edits: func() []diagnostic.TextEdit {
+				// custos: after a line comment (`for (…) # note ?>`) the
+				// block would be commented out; it goes before the comment.
+				if at, ok := braceBeforeComment(ctx.File, bs.Start); ok {
+					return []diagnostic.TextEdit{{Span: syntax.Span{Start: at, End: at}, NewText: " {}"}}
+				}
 				return []diagnostic.TextEdit{{Span: syntax.Span{Start: bs.Start, End: bs.Start}, NewText: "{} "}}
 			},
 		})
@@ -78,6 +83,17 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 			// The brace joins the header line: whitespace before the body
 			// (a line break for `if ($a)\n    stmt;`) is replaced.
 			indent := astquery.LineIndent(ctx.Src, kwSpan.Start)
+			// custos: a statement ended by a close tag (`if ($h) echo "x" ?>`)
+			// gets a `;` and the brace before the tag, not after it in the
+			// HTML; both go before any comment that precedes the tag.
+			stmt, tail := text, ""
+			if at, ok := closeTagSplit(ctx.File, bs); ok {
+				stmt, tail = text[:at-bs.Start]+";", text[at-bs.Start:]
+				if strings.HasPrefix(tail, "?>") {
+					tail = " " + tail
+				}
+			}
+			closing := "\n" + indent + "}" + tail
 			// custos: a comment between the header and the body (`for (…)
 			// // note`) would swallow a brace placed after it; open the
 			// block right after the header instead and keep the body
@@ -85,23 +101,30 @@ func (missingOrEmptyGroupStatement) Check(ctx *analysis.Context, n syntax.Node) 
 			if at, ok := braceBeforeComment(ctx.File, bs.Start); ok {
 				return []diagnostic.TextEdit{
 					{Span: syntax.Span{Start: at, End: at}, NewText: " {"},
-					{Span: bs, NewText: text + "\n" + indent + "}"},
+					{Span: bs, NewText: stmt + closing},
 				}
 			}
 			span, open := bs, "{\n"
 			if ws, ok := astquery.TokenBefore(ctx.File, bs.Start); ok && ws.Kind == syntax.TWhitespace {
 				span.Start, open = ws.Start, " {\n"
 			}
-			// custos: a statement ended by a close tag (`if ($h) echo "x" ?>`)
-			// gets a `;` and the brace before the tag, not after it in the
-			// HTML.
-			if i := strings.LastIndex(text, "?>"); i > 0 && strings.TrimSpace(text[i+2:]) == "" {
-				stmt := strings.TrimRight(text[:i], " \t\r\n")
-				return []diagnostic.TextEdit{{Span: span, NewText: open + indent + "    " + stmt + ";\n" + indent + "} " + text[i:]}}
-			}
-			return []diagnostic.TextEdit{{Span: span, NewText: open + indent + "    " + text + "\n" + indent + "}"}}
+			return []diagnostic.TextEdit{{Span: span, NewText: open + indent + "    " + stmt + closing}}
 		},
 	})
+}
+
+// closeTagSplit returns the end of the body's last significant token when a
+// close tag, not a `;`, ends the body.
+func closeTagSplit(f *syntax.File, body syntax.Span) (uint32, bool) {
+	// The body is not empty and does not start with the tag, so the walk
+	// stops on one of its own tokens.
+	i := astquery.TokenIndex(f, body.End) - 1
+	if f.Tokens[i].Kind != syntax.TCloseTag {
+		return 0, false
+	}
+	for i--; f.Tokens[i].Kind == syntax.TWhitespace || f.Tokens[i].Kind == syntax.TComment || f.Tokens[i].Kind == syntax.TDocComment; i-- {
+	}
+	return f.Tokens[i].End, true
 }
 
 // braceBeforeComment returns the end of the last significant token before

@@ -16,7 +16,7 @@ class Basket
         <weak_warning descr="Refer to the class as &apos;self&apos; instead of &apos;Basket&apos;.">Basket</weak_warning>::create();
         if ($other instanceof <weak_warning descr="Refer to the class as &apos;self&apos; instead of &apos;Basket&apos;.">Basket</weak_warning>) {}
         log_event(<weak_warning descr="Refer to the class as &apos;__CLASS__&apos; instead of &apos;Basket::class&apos;.">Basket::class</weak_warning>);
-        try {} catch (<weak_warning descr="Refer to the class as &apos;self&apos; instead of &apos;Basket&apos;.">Basket</weak_warning> | \Exception $e) {}
+        try {} catch (Basket | \Exception $e) {}
 
         $make = fn() => new Basket();
         $fn   = function (Basket $b): Basket { return new Basket(); };

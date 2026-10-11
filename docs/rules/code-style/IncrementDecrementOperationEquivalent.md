@@ -73,7 +73,7 @@ Reported:
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | PREFER_PREFIX_STYLE | bool | true | Fix produces `++$x` / `--$x`. |
-| PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` whenever `PREFER_PREFIX_STYLE` is false. |
+| PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` when `PREFER_PREFIX_STYLE` is false and the value is discarded (F2). |
 
 ## Configure
 

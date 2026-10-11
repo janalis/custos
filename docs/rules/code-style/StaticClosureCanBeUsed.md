@@ -16,7 +16,7 @@ scope explicit and avoids keeping the surrounding object alive.
 
 ## Example
 
-```php{11,13,15,17,22,31,46}
+```php{11,13,15,17,22,31}
 <?php
 abstract class Base {
     public function work() {}
@@ -77,7 +77,6 @@ Reported:
 <li>line 17: Closure does not use $this; declare it static.</li>
 <li>line 22: Closure does not use $this; declare it static.</li>
 <li>line 31: Closure does not use $this; declare it static.</li>
-<li>line 46: Closure does not use $this; declare it static.</li>
 </ul>
 
 ## Options

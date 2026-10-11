@@ -34,6 +34,18 @@ Case A — useless null fallback:
   function call, method call (instance, nullsafe, or static) or a call on a
   callable variable (`$fn()`), report. If `R` is `null` and `L` is anything
   else, nothing is reported and Case B is not evaluated.
+- D1a: undefined receiver (custos diverges). A nullsafe method call made
+  directly on a local variable (`$v?->m() ?? null`) is reported only when
+  the variable is certainly set at that point: it is `$this`, a parameter
+  of the enclosing function, a variable the enclosing closure imports with
+  `use`, or assigned (or bound by an enclosing `foreach`) on every path
+  leading to the expression. Otherwise `??` is
+  what keeps an unset `$v` silent, and the call alone would add an
+  "Undefined variable" warning. This covers a variable assigned in one
+  branch only, a variable variable, an arrow function reading an outer
+  variable, and code outside any function. Other receivers (property,
+  array element, static property, longer chains, non-nullsafe calls) behave
+  the same with and without the fallback and are reported.
 
 Case B — non-complementary types (only when `ANALYZE_TYPES` is true and `R` is
 not `null`):
@@ -78,7 +90,22 @@ not `null`):
   of the family, the sides are related → no report. The typical case is an
   empty-array fallback for an iterable: `$node->attributes ?? []`,
   `$owner->items ?? []` with `Collection $items`.
-- D6: not complementary, not related, and neither D5a nor D5b applies →
+- D5c: array-like and string-like interfaces (custos diverges). When one
+  side contains `array` and the other a type whose inheritance closure
+  contains `\Countable` or `\ArrayAccess`, the sides are related → no
+  report (`count($items ?? [])`, `$bag ?? []`). When one side contains
+  `string` and the other the interface `\Stringable` itself, likewise
+  (`'Hi ' . ($name ?? '')`). A concrete class that merely implements
+  `\Stringable` (or declares `__toString()`) next to a string is still
+  reported.
+- D5d: callable values (custos diverges). When one operand's declared type
+  includes `callable` and the other side's set contains `string` or
+  `array`, the sides are related → no report: a function name and a
+  `[$object, 'method']` pair are callable values (`$filter ?? 'is_string'`,
+  `$map ?? [$this, 'identity']`). An operand typed `\Closure` is not
+  covered, since only an object satisfies that type; it is still reported
+  with a string or array fallback.
+- D6: not complementary, not related, and none of D5a–D5d applies →
   report.
 
 ## Exceptions (no report)
@@ -99,6 +126,10 @@ not `null`):
   `iterator_to_array($el->attributes ?? [])` with `?\DOMNamedNodeMap`, or
   `foreach ($order->lines ?? [] as $l)` where `$order` is nullable and
   `lines` is a `Collection`.
+- E9: an array next to a `\Countable`/`\ArrayAccess` type, or a string next
+  to `\Stringable` (D5c).
+- E10: a `callable` operand next to a string or array (D5d).
+- E11: `$v?->m() ?? null` when `$v` is not certainly set (D1a).
 
 ## Report
 
@@ -238,7 +269,22 @@ class Inventory {
   (`$engine ?? 'none'`) remain reported: the ternary that a
   `NullCoalescingOperatorCanBeUsed` fix would turn into one mixes the same
   types, so the finding is about the original code, not the rewrite.
-
+- **Array-like and string-like interfaces (custos diverges, D5c).** By the
+  same reasoning, an empty-array fallback for a `\Countable` or
+  `\ArrayAccess` value and an empty-string fallback for a value typed as
+  the `\Stringable` interface are used through one operation (`count()`,
+  offset access, string conversion), so custos does not report them.
+  Upstream does. The string case is limited to the interface itself so that
+  class-vs-scalar pairs stay reported, as stated above.
+- **Callable strings and arrays (custos diverges, D5d).** Upstream reports
+  `?callable $f ... $f ?? 'trim'` and `$f ?? [$this, 'run']` as
+  `callable` against `string`/`array`. Both fallbacks are valid callables,
+  so custos stays silent; a `\Closure`-typed operand is still reported.
+- **Unset nullsafe receiver (custos diverges, D1a).** Upstream reports
+  every `call() ?? null`. For `$v?->m() ?? null` with `$v` possibly unset
+  the fallback is not redundant: `??` reads `$v` silently, while the call
+  alone raises an "Undefined variable" warning. custos reports (and fixes)
+  that shape only when `$v` is certainly set.
 - **`iterable` (custos diverges):** upstream compares `iterable` as an
   opaque type name, so `$this->rows() ?? []` on an `iterable`-returning
   method is reported although an array is an iterable. custos expands

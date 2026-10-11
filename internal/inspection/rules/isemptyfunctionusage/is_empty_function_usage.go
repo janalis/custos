@@ -65,6 +65,10 @@ func (r isEmptyFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		// empty() does not: only the generic report remains.
 		ts = nil
 	}
+	if len(ts) > 0 && isEmptySubjectAliased(ctx.File, s) {
+		// A write through `$r = &$v` changes $v behind its declared type.
+		ts = nil
+	}
 
 	// D1
 	if ctx.Bool("SUGGEST_TO_USE_COUNT_CHECK") && len(ts) > 0 {
@@ -107,8 +111,9 @@ func (r isEmptyFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 					continue
 				}
 				cnt++
-				// custos: SimpleXMLElement and GMP objects can be empty
-				// (`empty(gmp_init(0))`), so `=== null` would differ.
+				// custos: SimpleXMLElement, GMP and BcMath\Number objects
+				// can be empty (`empty(gmp_init(0))`), so `=== null` would
+				// differ; so would it for an interface one of them fulfils.
 				if !strings.HasPrefix(t, `\`) || isEmptyFalsyObject(ctx, t) {
 					all = false
 				}
@@ -179,6 +184,12 @@ func (isEmptyFunctionUsage) suggest(ctx *analysis.Context, e *syntax.Empty, inv 
 		repl = "(" + repl + ")"
 	}
 	span := target.Span()
+	if span.Start > 0 && isEmptyWordByte(ctx.Src[span.Start-1]) && (isEmptyWordByte(repl[0]) || repl[0] == '\\') {
+		repl = " " + repl // `return!empty(f())` must not become `returnf() ...`
+	}
+	if int(span.End) < len(ctx.Src) && isEmptyWordByte(ctx.Src[span.End]) && isEmptyWordByte(repl[len(repl)-1]) {
+		repl += " " // nor `empty($x)and $y` become `$x === nulland $y`
+	}
 	// custos: the rewrite is only offered when native declarations alone
 	// give the same types; a PHPDoc-only type (`@return stdClass` over a
 	// lookup returning false) would turn a failure into "not empty".
@@ -279,12 +290,70 @@ func isEmptyVarNamed(e syntax.Node, name string) bool {
 	return ok && v.Name == name
 }
 
-// isEmptyFalsyObject reports whether objects of class t (or of an
-// unresolvable class) may convert to false.
+// isEmptyWordByte reports whether c can be part of a PHP identifier.
+func isEmptyWordByte(c byte) bool {
+	return c == '_' || c >= 0x80 || c >= '0' && c <= '9' || c|0x20 >= 'a' && c|0x20 <= 'z'
+}
+
+// isEmptySubjectAliased reports whether a variable subject takes part in a
+// reference binding (`$r = &$v`, `$v = &$r`, `[&$v]`) anywhere in its
+// function (or, at file scope, in the file): its value can then change
+// through the other name, whatever its declaration says.
+func isEmptySubjectAliased(f *syntax.File, s syntax.Expr) bool {
+	v, ok := s.(*syntax.Variable)
+	if !ok {
+		return false
+	}
+	aliased := false
+	visit := func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.Assign:
+			aliased = aliased || n.ByRef && (isEmptyVarNamed(n.Var, v.Name) || isEmptyVarNamed(n.Value, v.Name))
+		case *syntax.ArrayItem:
+			aliased = aliased || n.ByRef && isEmptyVarNamed(n.Value, v.Name)
+		}
+		return !aliased
+	}
+	if fn := syntax.EnclosingFuncLike(v); fn != nil {
+		syntax.Inspect(fn, visit)
+	} else {
+		syntax.InspectFile(f, visit)
+	}
+	return aliased
+}
+
+// isEmptyFalsyClasses are the internal classes whose objects may convert to
+// false (an element without content, zero).
+var isEmptyFalsyClasses = [...]string{"SimpleXMLElement", "GMP", `BcMath\Number`}
+
+// isEmptyFalsyObject reports whether objects typed t may convert to false:
+// t is one of the falsy classes, extends one, or is an interface that one of
+// them (or an indexed class extending one) implements. An unresolvable
+// class never does.
 func isEmptyFalsyObject(ctx *analysis.Context, t string) bool {
 	cls := strings.TrimPrefix(t, `\`)
-	if ctx.Index().Class(cls, ctx.PHP) == nil {
+	for _, falsy := range isEmptyFalsyClasses {
+		if strings.EqualFold(cls, falsy) {
+			return true
+		}
+	}
+	c := ctx.Index().Class(cls, ctx.PHP)
+	if c == nil {
 		return false // unresolvable: as before (D2b)
 	}
-	return ctx.Index().IsSubtype(cls, "SimpleXMLElement", ctx.PHP) || ctx.Index().IsSubtype(cls, "GMP", ctx.PHP)
+	for _, falsy := range isEmptyFalsyClasses {
+		if ctx.Index().IsSubtype(cls, falsy, ctx.PHP) || ctx.Index().IsSubtype(falsy, cls, ctx.PHP) {
+			return true
+		}
+	}
+	if c.Kind != syntax.KindInterface {
+		return false
+	}
+	// GMP and BcMath\Number are final: only SimpleXMLElement has descendants.
+	for _, sub := range ctx.Index().Subclasses("SimpleXMLElement") {
+		if ctx.Index().IsSubtype(sub, cls, ctx.PHP) {
+			return true
+		}
+	}
+	return false
 }

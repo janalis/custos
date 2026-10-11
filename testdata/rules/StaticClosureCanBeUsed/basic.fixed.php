@@ -30,7 +30,7 @@ final class Runner extends Base {
     }
 
     public function dispatching($queue) {
-        $job = static function () { return 'ok'; };
+        $job = function () { return 'ok'; };
         Registry::push($job);
 
         $task = function () { return 'later'; };
@@ -67,4 +67,4 @@ final class Bus
     public static function __callStatic($name, $args) {}
 }
 Bus::dispatch(function () { return 2; });
-Unknown::run(static function () { return 3; });
+Unknown::run(function () { return 3; });

@@ -40,6 +40,25 @@ D5. Type guard — applies to every candidate: when *T* is an array element
     array, …) array-element targets are skipped. Non-array-access targets
     (variables, properties, static properties) are not type-checked.
 
+D6. Pure target — applies to D3/D4 only: the plain form evaluates *T* twice
+    (once to read, once to write) while `++T` evaluates it once, so *T* must
+    be free of side effects: no call, `new`, `clone`, assignment, `++`/`--`
+    or similar inside it. D1/D2 evaluate *T* once already and are not
+    restricted.
+
+D7. Operand type — applies to every candidate, on the inferred type of the
+    operand being read (*T*, or its equivalent on the right-hand side):
+    - contains `string` or `bool` → not a candidate (increment and
+      decrement);
+    - contains `null` → not a decrement candidate (`null - 1` is `-1`, `--`
+      leaves `null` as it is). Increment candidates are unaffected (`++` on
+      `null` gives `1`).
+    Unknown types pass.
+
+D8. A decrement candidate that is the direct operand of the error-control
+    operator (`@$n -= 1`) is not a candidate: the suppression signals an
+    operand that may be unset, which reads as `null`.
+
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
   method names, class names in calls, `new`, `instanceof` and `::`
@@ -57,6 +76,11 @@ E4. Array element writes whose container is not provably an array (string
 E5. Other compound operators (`*=`, `.=`, `|=`, …).
 E6. Compound assignments are only checked by D1/D2 (`$n += $n + 1` is not a
     candidate).
+E7. `T = T + 1` / `T = T - 1` whose target has side effects:
+    `$a[$i++] = $a[$i++] + 1`, `$r->cur()->n = $r->cur()->n + 1` (D6).
+E8. String or bool operands; nullable operands of a decrement:
+    `function f(?int $n) { $n -= 1; }` (D7).
+E9. A decrement under `@` (D8).
 
 ## Report
 
@@ -74,14 +98,29 @@ F1. Replace the entire assignment expression with the target's verbatim source
     - otherwise: `{T}++` / `{T}--`.
     Only `PREFER_PREFIX_STYLE` decides; `PREFER_SUFFIX_STYLE` is the UI
     counterpart and is implied by `PREFER_PREFIX_STYLE = false`.
-    Also applied inside `for (...)` headers and any other expression context.
+F2. The postfix form yields the value *before* the change while the
+    assignment yields the value after it, so the postfix form is used only
+    where the assignment's value is discarded: the assignment (possibly
+    parenthesized) is a whole expression statement, or an init or step
+    expression of a `for` header. Everywhere else (`return`, right-hand
+    side, condition, argument, …) the prefix form is used for both the
+    message and the fix, whatever the option says.
+F3. No fix (report only) for a decrement whose target is `$this->p`,
+    `self::$p` or `static::$p` when the enclosing class declares `p` without
+    a type and without a default (or with a `null` default), its inferred
+    type is unknown and, for an instance property, the class's own
+    constructor does not assign it: the property starts out as `null`, on
+    which `--` has no effect.
+F4. When the prefix operator would directly follow the same sign
+    (`$a-$b-=1`), a space is inserted before it (`$a- --$b`) so that the
+    lexer does not read `$a-- - $b`.
 
 ## Options
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | PREFER_PREFIX_STYLE | bool | true | Fix produces `++$x` / `--$x`. |
-| PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` whenever `PREFER_PREFIX_STYLE` is false. |
+| PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` when `PREFER_PREFIX_STYLE` is false and the value is discarded (F2). |
 
 ## PHP versions
 
@@ -141,8 +180,6 @@ $count = $count - 3;
 
 ## Divergences
 
-None.
-
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
@@ -154,3 +191,19 @@ None.
   alphanumerically (`"abc"` → `"abd"`, `""` → `"1"`); for a bool `+ 1`
   gives an int while `++` leaves it unchanged. Such candidates are not
   reported. Unknown types are still reported (upstream behaviour).
+- **Null operands of a decrement (custos diverges).** `null - 1` is `-1`
+  but `--` does nothing to `null`, so the upstream suggestion changes the
+  result. custos does not report a decrement whose operand type includes
+  `null` or that sits directly under `@` (D7, D8), and reports without a
+  fix when the target is a property that starts out as `null` (F3).
+- **Postfix form where the value is used (custos diverges).** The upstream
+  model replaces the assignment with `T++` / `T--` in every context under
+  the suffix style, which changes the result of `$b = $a += 1` or
+  `return $this->n += 1`. custos falls back to the prefix form there (F2).
+- **Targets with side effects (custos diverges).** The upstream model only
+  compares the two operands structurally, so `$a[$i++] = $a[$i++] + 1`
+  would become a single increment that runs the side effect once instead
+  of twice. custos does not report these (D6).
+- **Adjacent sign (custos diverges).** A plain replacement turns
+  `$a-$b-=1` into `$a---$b`, which PHP reads as `$a-- - $b`. custos
+  separates the operator from the preceding sign with a space (F4).

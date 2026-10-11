@@ -19,3 +19,10 @@ $count += 1.0;
 $count += 0x1;
 $count += (1);
 $count += true;
+// A target with side effects is evaluated twice by `T = T + 1`.
+function twice(array $a, $r, $i) {
+    $a[$i++] = $a[$i++] + 1;
+    $r->cur()->n = $r->cur()->n + 1;
+    $a[next_key()] = $a[next_key()] - 1;
+    $a[$i = 2] = 1 + $a[$i = 2];
+}

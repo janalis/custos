@@ -17,7 +17,7 @@ Group: [Code style](/rules/#code-style) · PhpStorm name: `OpAssignShortSyntaxIn
 
 ::: code-group
 
-```php{3,4,5,6,7,8,9,10,11} [Before]
+```php{3,4,5,6,7,8,9,10,11,12} [Before]
 <?php
 function tally(int $count, string $label, array $grid, $buf) {
     $count = $count + 5;
@@ -29,6 +29,7 @@ function tally(int $count, string $label, array $grid, $buf) {
     $count = $count + ($k * 2);
     $grid[1] = $grid[1] | 4;
     $buf[0] = $buf[0] . 'z';
+    $grid[2] = $grid[2] + next_id(); // no fix
 
     $count = 5 + $count;          // reversed operands
     $count = $count - $a - $b;    // '-' cannot be regrouped
@@ -46,10 +47,11 @@ function tally(int $count, string $label, array $grid, $buf) {
     $count %= 7;
     $count <<= 1;
     $label .= '-' . $count . '!';
-    $count *= 3 * $k;
+    $count = $count * 3 * $k;
     $count += ($k * 2);
     $grid[1] |= 4;
     $buf[0] .= 'z';
+    $grid[2] = $grid[2] + next_id(); // no fix
 
     $count = 5 + $count;          // reversed operands
     $count = $count - $a - $b;    // '-' cannot be regrouped
@@ -73,6 +75,7 @@ Reported:
 <li>line 9: Use the compound form &#39;$count += ($k * 2)&#39;.</li>
 <li>line 10: Use the compound form &#39;$grid[1] |= 4&#39;.</li>
 <li>line 11: Use the compound form &#39;$buf[0] .= &#39;z&#39;&#39;.</li>
+<li>line 12: Use the compound form &#39;$grid[2] += next_id()&#39;.</li>
 </ul>
 
 ## Configure

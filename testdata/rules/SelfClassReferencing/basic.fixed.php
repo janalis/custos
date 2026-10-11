@@ -16,7 +16,7 @@ class Basket
         Basket::create();
         if ($other instanceof self) {}
         log_event(__CLASS__);
-        try {} catch (self | \Exception $e) {}
+        try {} catch (Basket | \Exception $e) {}
 
         $make = fn() => new Basket();
         $fn   = function (Basket $b): Basket { return new Basket(); };

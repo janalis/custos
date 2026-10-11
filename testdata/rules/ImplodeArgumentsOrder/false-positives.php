@@ -16,3 +16,8 @@ TXT);
 
 $join = 'implode';
 echo $join($parts, ',');
+
+$ok12  = implode(array: $labels, separator: ', ');
+$ok13  = implode(separator: ', ', array: $labels);
+$ok14  = implode($labels, separator: ', ');
+$ok15  = implode(...$args, ...['-']);

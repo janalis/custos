@@ -78,6 +78,8 @@ E3. Everything when all four options are off.
 E4. `?string`, `string|null`, `int|bool|null` (three members), `array|null`,
     `mixed`, `object`, `callable` do not qualify for D1/D2 (they may still get
     D3).
+E5. Subjects whose D2b type can hold an empty object, and reference-bound
+    variable subjects (see Divergences); they may still get D3.
 
 ## Report
 
@@ -104,6 +106,13 @@ Builtin spelling: `count` is written `\count` when an unqualified call at
 that position would not reach the global function (a `use function`
 import under that name, or a same-named function declared in the current
 namespace) (F1, message included): `\count($rows) === 0`.
+Spacing: when the byte before the replaced range is an identifier character
+and the replacement starts with one (or with `\`), a space is inserted so
+the two do not fuse: `return!empty(make())` → `return make() !== null`,
+yoda `return!empty($x)` → `return null !== $x`. Likewise a space is appended
+when the replacement ends with an identifier character and the byte after
+the replaced range is one: `empty($x)and $y` → `$x === null and $y`. The
+message is unchanged.
 D3 has no fix.
 
 ## Options
@@ -261,9 +270,19 @@ Yoda style, default options: `empty($ratio)` → `null === $ratio`;
   Dolibarr templates' `/** @var Conf $conf */ if (empty($conf) || …) exit;`
   guards, about 120 reports, whose variable only the including page sets).
 - **Objects that can be empty (custos diverges).** `SimpleXMLElement`
-  (empty elements) and `GMP` (zero) objects convert to false, so
-  `empty($x)` is not `$x === null` for them: classes that are or extend
-  them do not qualify for D2b.
+  (empty elements), `GMP` and `BcMath\Number` (zero) objects convert to
+  false, so `empty($x)` is not `$x === null` for them: classes that are or
+  extend them do not qualify for D2b. Neither does an interface that such
+  an object can satisfy: one implemented by a falsy class (`Stringable`,
+  `Countable`, `Traversable`, `Iterator`, …) or by an indexed class
+  extending `SimpleXMLElement` (`class Feed extends SimpleXMLElement
+  implements Named` disqualifies `?Named`). Other interfaces still qualify.
+- **Reference-bound variables (custos diverges).** A declared type says
+  nothing once the variable shares its storage: after `$r = &$x; $r = '';`
+  a `?DateTime $x` parameter holds a string. A bare variable subject that
+  appears on either side of a reference assignment, or as a by-reference
+  array element (`[&$x]`), anywhere in its function (at file scope, in the
+  file) is treated as untyped and falls through to D3.
 - **PHPDoc-only types (custos diverges).** A subject typed only by PHPDoc
   (`@return stdClass` on a wrapper of a lookup that returns `false` on
   failure — Moodle's `get_record()` helpers) would turn the failure into

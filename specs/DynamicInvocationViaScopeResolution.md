@@ -44,7 +44,8 @@ D3. **Keyword/name form.** Let *L* be the exact source text left of `::`.
       (own, inherited, or from traits); if the enclosing method has no
       containing class this check passes.
     Then:
-    - D3a. enclosing method is **non-static** → report, with fix F1;
+    - D3a. enclosing method is **non-static** → report, with fix F1 unless
+      the rewrite could run another method (see Divergences);
     - D3b. enclosing method is **static** → report, without fix.
 
 D4. **Expression form.** Otherwise (L does not match D3): report, with fix F2,
@@ -52,7 +53,7 @@ D4. **Expression form.** Otherwise (L does not match D3): report, with fix F2,
     reference (so not a name, not `parent`, not a non-matching class name)
     and **not** a function or method call result. Typical triggers:
     `$obj::run()`, `$this::run()`, `$this->dep::run()`, `$list[0]::run()`.
-    This form does not depend on the enclosing scope.
+    The report does not depend on the enclosing scope; the fix does (F2).
 
 ## Exceptions (no report)
 
@@ -83,8 +84,12 @@ E8. Unresolvable target (unknown class/type, undefined method).
 F1. (D3a) Replace the left side of `::` (the `static`/`self`/class-name token)
     with `$this`, and the `::` token with `->`. Arguments and whitespace stay
     as they are: `self::render($a, $b)` → `$this->render($a, $b)`.
+    Withheld when the bound-call or private-`static::` conditions in
+    Divergences do not hold.
 F2. (D4) Replace only the `::` token with `->`; the base expression is kept:
-    `$job::run()` → `$job->run()`.
+    `$job::run()` → `$job->run()`. Withheld when the base is not `$this`
+    (parentheses ignored) and the call may run with a compatible `$this`
+    (see Divergences, "Receiver of expression calls").
 No fix for D3b.
 
 ## Options
@@ -207,7 +212,28 @@ $car::build();
   `parent::m()`), and no subclass can override it — the method is private
   or final, the class is final or an enum, or no indexed descendant
   declares it. Traits never get the fix (`self` is the using class).
-  `static::m()` keeps the fix. Otherwise the call is reported without a
+  Descendants count the methods they take from traits, including `as`
+  aliases. Otherwise the call is reported without a
   fix (Dolibarr's printipp: `BasicIPP`'s constructor calls
   `self::_initTags()`, which `CupsPrintIPP` overrides). Listed divergence
   `dynamic-method-invocation-via-scope-resolution.php`.
+- **Private methods through `static::` (custos diverges).** `static::m()`
+  looks `m` up on the runtime class, while `$this->m()` written in a class
+  that has a private `m` always runs that private method. When the called
+  method is private, D3a's fix is offered only if no subclass can redeclare
+  the name: the enclosing class is final or an enum, or it is not a trait
+  and no indexed descendant declares (or takes from a trait) a method of
+  that name. Non-private methods keep the fix. Upstream always rewrites.
+- **Receiver of expression calls (custos diverges).** When `$other::m()`
+  runs inside an instance context whose `$this` is an instance of the class
+  declaring `m`, PHP executes `m` on that `$this`, not on `$other`;
+  `$other->m()` would switch the receiver. F2 is therefore withheld when
+  the base is not `$this` and the call sits in a non-static method or a
+  property hook, directly or through non-static closures and arrow
+  functions, of a class that is the declaring class, one of its
+  descendants or one of its ancestors. A trait on either side (enclosing
+  trait, or method declared in a trait) counts as related. The fix stays in
+  static methods, static closures and arrow functions, plain functions
+  (also when declared inside a method), top-level code and unrelated
+  classes, where the original call cannot succeed on another receiver.
+  Upstream always rewrites.

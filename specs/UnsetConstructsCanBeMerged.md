@@ -36,7 +36,8 @@ Visit every `unset(...)` statement.
 ## Report
 
 - Range: the whole reported `unset` statement, from the `unset` keyword through
-  the terminating `;` inclusive.
+  its terminator inclusive (`;`, or the closing tag when the statement is ended
+  by `?>` in template code).
 - Severity: info.
 - Message: `Consecutive unset() calls; merge them into one.`
 
@@ -54,6 +55,17 @@ Visit every `unset(...)` statement.
   `unset($a); unset($b); unset($c);` → `unset($a, $b, $c);`.
 - Spacing quirks of the original (`unset ($x)`) are normalised to `unset(`
   because the merged statement is regenerated.
+
+- **F3** The fix is withheld (the report stays) for every statement of a run
+  when any statement of that run
+  - is not terminated by `;` — a statement ended by a closing tag owns that
+    tag, so regenerating or deleting it would drop the tag and leave the
+    following opening tag or inline HTML inside PHP code; or
+  - contains a comment anywhere inside it (typically within the parentheses):
+    regeneration keeps only the argument texts and would lose the comment.
+
+  The decision is taken for the run as a whole so that a partial merge never
+  reorders the arguments around a statement left in place.
 
 ## Options
 
@@ -104,5 +116,9 @@ function release(array $cache, $tmp, $lock) {
 
 ## Divergences
 
-None. (Upstream skips plain comments implicitly and doc comments explicitly;
-custos skips all comments, which is the same observable behaviour.)
+- Upstream skips plain comments implicitly and doc comments explicitly;
+  custos skips all comments, which is the same observable behaviour.
+- **F3** is custos-only: upstream offers the merge regardless of how the
+  statements are terminated and of comments inside them, which can produce
+  unparsable template code or silently drop comments. custos keeps the report
+  and offers no fix in those runs.

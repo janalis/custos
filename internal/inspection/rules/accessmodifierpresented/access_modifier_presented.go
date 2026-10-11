@@ -34,7 +34,7 @@ func (r accessModifierPresented) Check(ctx *analysis.Context, n syntax.Node) {
 			if m.Modifiers.Has(syntax.TPrivate) || m.Modifiers.Has(syntax.TProtected) || m.Modifiers.Has(syntax.TPublic) {
 				continue
 			}
-			r.report(ctx, m.Name.Span(), m.Name.Value, r.modifierFix(ctx, m.Modifiers, m.Span(), m.Name.Span().Start, syntax.TFunction))
+			r.report(ctx, m.Name.Span(), m.Name.Value, r.modifierFix(ctx, m.Modifiers, m.Name.Span().Start, syntax.TFunction))
 		case *syntax.Property: // D2
 			if ampHasVisibility(m.Modifiers) {
 				continue
@@ -46,7 +46,7 @@ func (r accessModifierPresented) Check(ctx *analysis.Context, n syntax.Node) {
 			if m.Type != nil {
 				limit = m.Type.Span().Start
 			}
-			fix := r.modifierFix(ctx, m.Modifiers, m.Span(), limit, 0)
+			fix := r.modifierFix(ctx, m.Modifiers, limit, 0)
 			for _, it := range m.Props {
 				if it.Var == nil || it.Var.Span().Len() == 0 || it.Var.Name == "" {
 					continue
@@ -61,7 +61,7 @@ func (r accessModifierPresented) Check(ctx *analysis.Context, n syntax.Node) {
 			if name == nil || name.Span().Len() == 0 {
 				continue
 			}
-			r.report(ctx, name.Span(), name.Value, r.modifierFix(ctx, m.Modifiers, m.Span(), name.Span().Start, syntax.TConst))
+			r.report(ctx, name.Span(), name.Value, r.modifierFix(ctx, m.Modifiers, name.Span().Start, syntax.TConst))
 		}
 	}
 }
@@ -79,17 +79,30 @@ func ampHasVisibility(m syntax.Modifiers) bool {
 
 // modifierFix rewrites the modifier list canonically (F1). With an empty
 // list, `public ` is inserted before the kw token (or at limit when kw is 0).
-func (accessModifierPresented) modifierFix(ctx *analysis.Context, mods syntax.Modifiers, decl syntax.Span, limit uint32, kw syntax.TokenKind) diagnostic.Fix {
+// No fix is offered when a comment sits between the modifiers: the rewrite
+// would drop it.
+func (accessModifierPresented) modifierFix(ctx *analysis.Context, mods syntax.Modifiers, limit uint32, kw syntax.TokenKind) []diagnostic.Fix {
 	f := ctx.File
-	return diagnostic.Fix{
+	var span syntax.Span
+	if len(mods) > 0 {
+		span = syntax.Span{Start: mods[0].Span.Start, End: mods[len(mods)-1].Span.End}
+		if astquery.HasComment(f, span) {
+			return nil
+		}
+	}
+	return []diagnostic.Fix{{
 		Title: "Declare 'public'",
 		Edits: func() []diagnostic.TextEdit {
 			if len(mods) == 0 {
 				at := limit
 				if kw != 0 {
-					// The parser builds a method/constant only after reading
-					// its keyword, which follows the attributes and modifiers.
-					t, _ := astquery.FindToken(f, syntax.Span{Start: decl.Start, End: limit}, kw)
+					// The keyword is the nearest one before the name: only `&`
+					// or a constant type can sit in between, whereas attribute
+					// arguments ahead of it may hold closures of their own.
+					t, ok := astquery.TokenBefore(f, limit)
+					for ok && t.Kind != kw {
+						t, ok = astquery.TokenBefore(f, t.Start)
+					}
 					at = t.Start
 				}
 				return []diagnostic.TextEdit{{Span: syntax.Span{Start: at, End: at}, NewText: "public "}}
@@ -108,12 +121,11 @@ func (accessModifierPresented) modifierFix(ctx *analysis.Context, mods syntax.Mo
 			if mods.Has(syntax.TReadonly) {
 				parts = append(parts, "readonly")
 			}
-			span := syntax.Span{Start: mods[0].Span.Start, End: mods[len(mods)-1].Span.End}
 			return []diagnostic.TextEdit{{Span: span, NewText: strings.Join(parts, " ")}}
 		},
-	}
+	}}
 }
 
-func (accessModifierPresented) report(ctx *analysis.Context, span syntax.Span, name string, fix diagnostic.Fix) {
-	ctx.Report(span, "Declare the visibility of '"+name+"' explicitly.", fix)
+func (accessModifierPresented) report(ctx *analysis.Context, span syntax.Span, name string, fixes []diagnostic.Fix) {
+	ctx.Report(span, "Declare the visibility of '"+name+"' explicitly.", fixes...)
 }

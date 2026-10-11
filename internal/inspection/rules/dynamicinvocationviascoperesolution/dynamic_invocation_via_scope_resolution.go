@@ -61,6 +61,11 @@ func (dynamicInvocationViaScopeResolution) Check(ctx *analysis.Context, n syntax
 				}
 				if bound {
 					safe = boundCallSafe(ctx, fqn, m, own)
+				} else {
+					// custos: from this scope `$this->m()` prefers the
+					// class's private m(); `static::m()` runs the runtime
+					// class's redeclaration.
+					safe = own.Visibility != index.Private || !overridable(ctx, fqn, own.Name)
 				}
 				// Spec Divergences: the enclosing class must be the declaring
 				// class or one of its descendants.
@@ -92,6 +97,12 @@ func (dynamicInvocationViaScopeResolution) Check(ctx *analysis.Context, n syntax
 	case *syntax.Name, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
 		return
 	}
+	if !isThis(call.Class) && mayBindThis(ctx, call, m.Class) {
+		// custos: PHP runs `$other::m()` on the caller's compatible `$this`,
+		// not on `$other`, so `->` would change the receiver.
+		ctx.Report(call.Span(), instanceMsg)
+		return
+	}
 	ctx.Report(call.Span(), instanceMsg, diagnostic.Fix{
 		Title: "Use ->",
 		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: colonsSpan, NewText: "->"}} },
@@ -107,19 +118,107 @@ func boundCallSafe(ctx *analysis.Context, fqn string, m, own *index.Method) bool
 	if !strings.EqualFold(own.Class, m.Class) {
 		return false // `Ancestor::m()` while fqn overrides m: like parent::m()
 	}
-	if m.Visibility == index.Private || m.Final {
-		return true
-	}
+	return m.Visibility == index.Private || m.Final || !overridable(ctx, fqn, m.Name)
+}
+
+// overridable reports whether an instance of fqn can carry another
+// declaration of method name than the one fqn sees: fqn is a trait (its
+// methods belong to the unknown using class), or it is neither final nor
+// an enum and an indexed descendant declares the name.
+func overridable(ctx *analysis.Context, fqn, name string) bool {
 	ix := ctx.Index()
-	c := ix.Class(fqn, ctx.PHP)
-	if c != nil && (c.Final || c.Kind == syntax.KindEnum) {
-		return true
-	}
-	if c != nil && c.Kind == syntax.KindTrait { // self is the using class
-		return false
+	if c := ix.Class(fqn, ctx.PHP); c != nil {
+		if c.Final || c.Kind == syntax.KindEnum {
+			return false
+		}
+		if c.Kind == syntax.KindTrait {
+			return true
+		}
 	}
 	below := ctx.Memo("descendant-methods\x00"+strings.ToLower(fqn), func() any {
-		return semanticquery.DescendantMethods(ix, fqn, ctx.PHP)
+		return descendantMethods(ctx, fqn)
 	}).(map[string]bool)
-	return !below[strings.ToLower(m.Name)]
+	return below[strings.ToLower(name)]
+}
+
+// descendantMethods extends semanticquery.DescendantMethods with the
+// methods descendants take from traits (declared there or aliased by an
+// `as` adaptation), which the shared walk does not see.
+func descendantMethods(ctx *analysis.Context, fqn string) map[string]bool {
+	ix := ctx.Index()
+	out := semanticquery.DescendantMethods(ix, fqn, ctx.PHP)
+	seen := map[string]bool{}
+	queue := []string{fqn}
+	for len(queue) > 0 {
+		cur := queue[0]
+		queue = queue[1:]
+		for _, ch := range ix.ChildrenAll(cur) {
+			k := strings.ToLower(strings.TrimPrefix(ch, `\`))
+			if seen[k] {
+				continue
+			}
+			seen[k] = true
+			queue = append(queue, ch)
+			for _, a := range ix.Ancestors(ch, ctx.PHP) {
+				if a.Kind == syntax.KindTrait {
+					for name := range a.Methods {
+						out[name] = true
+					}
+				}
+				for _, ad := range a.TraitAdaptations {
+					if ad.Alias != "" {
+						out[strings.ToLower(ad.Alias)] = true
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
+// isThis reports whether e is `$this`, possibly parenthesized.
+func isThis(e syntax.Expr) bool {
+	v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
+	return ok && v.Name == "this"
+}
+
+// mayBindThis reports whether call can run with a `$this` that is an
+// instance of the class declaring the called method: it sits in a
+// non-static method or property hook (directly or through non-static
+// closures and arrow functions) of a class related to that class. PHP then
+// passes that `$this` to a `::` call of an instance method.
+func mayBindThis(ctx *analysis.Context, call syntax.Node, declaring string) bool {
+	for p := call.Parent(); p != nil; p = p.Parent() {
+		switch f := p.(type) {
+		case *syntax.Function:
+			return false
+		case *syntax.Closure:
+			if f.Static {
+				return false
+			}
+		case *syntax.ArrowFunction:
+			if f.Static {
+				return false
+			}
+		case *syntax.Method:
+			return !f.Modifiers.Has(syntax.TStatic) && related(ctx, syntax.EnclosingClass(f), declaring)
+		case *syntax.PropertyHook:
+			return related(ctx, syntax.EnclosingClass(f), declaring)
+		}
+	}
+	return false
+}
+
+// related reports whether an instance of owner (or of a class using or
+// extending it) can be an instance of the class declaring the method:
+// one is a subtype of the other. Traits and anonymous classes on either
+// side are not tracked, so they count as related.
+func related(ctx *analysis.Context, owner *syntax.ClassLike, declaring string) bool {
+	ix := ctx.Index()
+	fqn := ctx.Types().ClassFQN(owner)
+	d := ix.Class(declaring, ctx.PHP)
+	if fqn == "" || owner.ClassKind == syntax.KindTrait || d == nil || d.Kind == syntax.KindTrait {
+		return true
+	}
+	return ix.IsSubtype(fqn, declaring, ctx.PHP) || ix.IsSubtype(declaring, fqn, ctx.PHP)
 }

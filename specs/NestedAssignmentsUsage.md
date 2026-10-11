@@ -51,8 +51,9 @@ expression statement (its parent is a statement `…;`). In any other context
 
 Let the chain be `V1 = V2 = … = Vn = E` (n ≥ 2 targets, `E` the innermost value).
 
-- F1: decide whether `E` is "simple": a variable, a constant reference
-  (`FOO`, `true`, `null`, …), a class constant reference (`A::B`, `A::class`),
+- F1: decide whether `E` is "simple": a plain variable (not `$$name` or
+  `${expr}`), a constant reference (`FOO`, `true`, `null`, …), a class constant
+  reference on a class name (`A::B`, `A::class`; not `make()::B` or `$o::B`),
   a number literal (optionally negated: `-3`), or a string literal without
   interpolation (single-quoted, or double-quoted/heredoc without embedded
   variables/expressions).
@@ -67,8 +68,19 @@ Let the chain be `V1 = V2 = … = Vn = E` (n ≥ 2 targets, `E` the innermost va
   `=`) and is placed on its own line at the original statement's position and
   indentation; the original statement is removed. Target and value texts are
   copied verbatim.
+- When the statement is closed by `?>` instead of `;`, only the expression is
+  replaced: the closing tag and what follows it stay as they are.
 - F4: no fix when any link of the chain is compound or by-reference, or the
   chain contains a destructuring assignment (see Divergences).
+- F5: no fix unless the split is provably equivalent (see Divergences):
+  - the outermost target `V1` is a plain variable, or a chain of
+    property/element/static-property accesses on one (or on a class name) with
+    identifier member names and literal, constant or plain-variable keys,
+    optionally ending in an append `[]`;
+  - every target between the outermost and the innermost is a plain variable;
+  - the innermost target `Vn` is, for F2, a plain variable or a direct element
+    of a superglobal (`$_SESSION['k']`) — any target when `E` is `null`; for
+    F3, a target that can be read back (same shape as `V1`, without `[]`).
 
 ## Options
 
@@ -135,6 +147,29 @@ function setup() {
   (`$t = $list[] = f()`, `$a = $m[$i++] = f()`, `$m[g()]`, dynamic names,
   method-call receivers) the report has no fix (Composer: the fix produced
   `$target = $this->filesToCleanup[];`, a fatal error).
+- **Converting inner targets (custos diverges).** An assignment expression
+  yields what its target ended up holding, which is not always the value
+  written: a typed property converts it (`$shown = $this->ratio = 0` gives
+  `0.0` for a `float` property) and a string offset keeps one character
+  (`$t = $s[0] = 'xyz'` gives `'x'`). Copying a simple value to every target
+  would hand the outer targets the unconverted value, so with a simple value
+  the fix needs a plain-variable innermost target (or a superglobal element,
+  or the value `null`, which is never converted), and in every chain the
+  targets between the outermost and the innermost must be plain variables.
+  Other chains are reported without a fix.
+- **Evaluation order of the outermost target (custos diverges).** PHP
+  evaluates a non-trivial key or receiver of an outer target before the inner
+  assignments, while the split statements run it after them
+  (`$x[$i++] = $y[$i++] = 0`, `$a[$o->p] = $o->p = 5`). The fix is offered
+  only when the outermost target is built from plain variables, identifier
+  member names and literal, constant or plain-variable keys, which PHP reads
+  after the inner assignments anyway.
+- **Values evaluated once (custos diverges).** `${name()}` and `make()::N`
+  are not simple values: repeating them per target would run the call again.
+  They use the copy-from-innermost form (F3).
+- **Close-tag terminated statements (custos diverges).** `<?php $a = $b = 1 ?>`
+  keeps its `?>`; replacing the whole statement would drop it and turn the
+  following markup into PHP code.
 - **Brace-less bodies (custos).** When the chained assignment is the whole
   body of a brace-less `if`/`elseif`/`else`/loop/`declare`
   (`if ($c) $n = $_SESSION['k'] = 10; else …`, adodb), the split

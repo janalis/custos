@@ -39,6 +39,10 @@ E4. Method/static calls named `implode` (`$s->implode([], ',')`).
 E5. Both arguments are string literals (`implode(',', 'a')`): nothing
     identifies the second one as the separator, and swapping would not make
     the call valid (the pieces must be an array).
+E6. Either argument is named or unpacked
+    (`implode(array: $parts, separator: ', ')`): a named separator is already
+    bound to the right parameter whatever its position, and positions say
+    nothing about what an unpacked argument fills.
 
 ## Report
 
@@ -56,6 +60,11 @@ F1. Replace the whole call with
     are the verbatim source texts of the second and first arguments, joined by
     `, ` (comma + one space). Any whitespace/comments originally inside the
     parentheses outside the argument texts are not preserved.
+F2. No fix (the report is kept) when the target PHP version is below 7.3 and
+    either argument contains a heredoc or nowdoc (the separator itself, or a
+    first argument such as `$head + <<<A … A`): until 7.3 the closing marker
+    must be the last thing on its line, so neither `, ` nor `)` can be
+    written after it.
 
 ## Options
 
@@ -64,7 +73,8 @@ F1. Replace the whole call with
 
 ## PHP versions
 
-None (reported at every level).
+Reported at every level. Below 7.3 the fix is withheld when an argument
+contains a heredoc/nowdoc (F2).
 
 ## Examples
 
@@ -103,3 +113,11 @@ $ok4   = join($labels, '-');
   names are case-insensitive and a namespaced function is a different
   function; custos matches calls that resolve to the global `implode` in any
   letter case (D1).
+- **Named arguments (custos diverges).** Upstream looks at argument
+  positions only, so a call that names its arguments in "pieces, separator"
+  order is reported and rewritten positionally. Such a call is valid and
+  not deprecated; custos does not report it (E6).
+- **Heredoc separator below PHP 7.3 (custos diverges).** Upstream always
+  offers the swap. Moving a heredoc/nowdoc in front of another argument
+  or of the closing parenthesis is a parse error before 7.3, so custos
+  keeps the report but offers no fix there (F2).

@@ -6,6 +6,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
 )
 
@@ -85,10 +86,41 @@ func (opAssignShortSyntax) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	repl := sb.String()
 	span := a.Span()
-	ctx.Report(span, "Use the compound form '"+repl+"'.", diagnostic.Fix{
+	msg := "Use the compound form '" + repl + "'."
+	if !opAssignFixable(a.Var, op, frags) {
+		ctx.Report(span, msg)
+		return
+	}
+	ctx.Report(span, msg, diagnostic.Fix{
 		Title: "Use the compound assignment",
 		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: repl}} },
 	})
+}
+
+// opAssignFixable reports whether the compound form provably computes the
+// same value. frags holds the fragments right to left.
+func opAssignFixable(target syntax.Expr, op string, frags []syntax.Expr) bool {
+	// `($v + a) + b` is not `$v + (a + b)` for floats or when an integer
+	// intermediate overflows; only concatenation regroups freely.
+	if len(frags) > 1 && op != "." {
+		return false
+	}
+	// The long form reads a property, element or variable-variable target
+	// before evaluating the fragment, the compound form after: a fragment
+	// that may write the target changes the result. A plain variable is
+	// read late in both forms, so only the fragments after the first matter:
+	// the long form has already combined the target with the first one when
+	// they run.
+	checked := frags
+	if _, plain := astquery.PlainVariableName(target); plain {
+		checked = frags[:len(frags)-1]
+	}
+	for _, f := range checked {
+		if flowquery.MayHaveSideEffects(f) {
+			return false
+		}
+	}
+	return true
 }
 
 // opAssignTargetWrites reports whether evaluating the target writes

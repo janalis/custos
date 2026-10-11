@@ -140,3 +140,14 @@ function audit() {
   (`UnusedFunctionResultInspection`, `ForeachSourceInspection`,
   `MoreThanThreeArgumentsInspection`); all 33 findings there named such
   inspections. They are in the embedded list.
+- **Rule-review additions (custos).** The embedded list was a small
+  hand-picked subset, so everyday PhpStorm suppressions
+  (`PhpDocMissingReturnTagInspection`,
+  `PhpSignatureMismatchDuringInheritanceInspection`,
+  `PhpDynamicFieldDeclarationInspection`, `PhpDuplicateArrayKeysInspection`,
+  `PhpNoReturnAttributeCanBeAddedInspection`, …) were reported. The list now
+  covers the bulk of PhpStorm's PHP inspections plus its external-tool and
+  PHPUnit ones. It is still best-effort: the names are not exported from an
+  IDE install, and the list errs on the side of accepting, because an
+  over-accepted name only hides a typo while a missing one flags a valid
+  suppression in a default-on rule.

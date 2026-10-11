@@ -1,5 +1,5 @@
 <?php
-// '+ 1' on a string or a bool is not what '++' does.
+// '+ 1' on a string or a bool is not what '++' does, nor '- 1' on null what '--' does.
 function counters(string $s, bool $flag, int $n, ?int $m, string $t, string $u) {
     $s = $s + 1;
     $t += 1;
@@ -7,6 +7,7 @@ function counters(string $s, bool $flag, int $n, ?int $m, string $t, string $u) 
     $flag = $flag + 1;
     ++$n;
     ++$n;
-    --$m;
+    $m -= 1;
+    ++$m;
     return [$s, $t, $u, $flag, $n, $m];
 }

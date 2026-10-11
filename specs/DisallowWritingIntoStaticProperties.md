@@ -44,6 +44,11 @@ D3. Option `ALLOW_WRITE_FROM_SOURCE_CLASS = true` (default): the class part
     - D3c. (custos, see Divergences) A closure or arrow function nested in a
       method is checked as that method (D3a): it has the method's class
       scope (`self`/`static` resolve to it).
+    - D3d. (custos, see Divergences) The body of a property hook (PHP 8.4
+      `get`/`set`, on a declared property or on a promoted constructor
+      parameter) runs in the scope of the class that declares the property,
+      so a write in it — or in a closure or arrow function nested in it — is
+      checked like a write in a method of that class (D3a).
 
 ## Exceptions (no report)
 
@@ -59,6 +64,7 @@ E5. With the default option:
     - in a method, the property cannot be resolved (unknown class or property);
     - in a method, the property is declared by the method's own class, reached
       through any spelling (`static::`, the class's own name, an alias of it).
+    - in a property hook, the same two cases as in a method (D3d).
 
 ## Report
 
@@ -178,3 +184,8 @@ class Counter
   Closures have the class scope of the method that defines them, so custos
   checks them like the method. One upstream case expects the old reports
   (listed in `testdata/ea-divergences.json`).
+- **custos diverges — property hooks (D3d).** A hook body is not a method,
+  so treating it as "outside any class" would report `static::$count = 1`
+  written in a `set` hook of the very class that declares `$count`, while
+  the same statement in a method of that class is accepted. Hooks execute
+  with their class's scope; custos checks them like a method of that class.

@@ -10,6 +10,14 @@ function audit() {
     /** @noinspection ALL */
     /** @noinspection SpellCheckingInspection */
     /** @noinspection PhpPluralMixedCanBeReplacedWithArrayInspection, ForeachSourceInspection */
+    /** @noinspection PhpDocMissingReturnTagInspection, PhpSignatureMismatchDuringInheritanceInspection */
+    /** @noinspection PhpDynamicFieldDeclarationInspection, PhpUndefinedCallbackInspection */
+    /** @noinspection PhpWrongStringConcatenationInspection, PhpToStringImplementationInspection */
+    /** @noinspection PhpNonStrictObjectEqualityInspection, PhpDuplicateArrayKeysInspection */
+    /** @noinspection PhpWrongForeachArgumentTypeInspection, PhpOptionalBeforeRequiredParametersInspection */
+    /** @noinspection PhpInappropriateInheritDocUsageInspection, PhpNoReturnAttributeCanBeAddedInspection */
+    /** @noinspection PhpTraitsUseListInspection, PhpDocSignatureIsNotCompleteInspection */
+    /** @noinspection PhpDynamicFieldDeclaration, PhpUnnecessarySemicolonInspection */
     /** @NoInspection PhpWhatever */
     // @noinspection PhpWhatever
     # @noinspection PhpWhatever

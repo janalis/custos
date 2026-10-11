@@ -72,7 +72,16 @@ F1. Replace the target with the replacement built as:
     - `{op}` = `===` for positive polarity, `!==` for negative.
     - regular comparison style (default): `{a} {op} null`;
       yoda style: `null {op} {a}`.
-    Single spaces around `{op}`; nothing else is added (no outer parentheses).
+    Single spaces around `{op}`; see Divergences for the outer parentheses.
+
+F2. The edit never fuses with a neighbouring token. When the byte just
+    before the target is a word byte (letter, digit, `_`, byte >= 0x80) and
+    the fix text starts with a word byte or a backslash, one space is
+    inserted before it: `return!is_null(load())` → `return load() !== null`,
+    and in yoda style `return!is_null($v)` → `return null !== $v`. Likewise,
+    when the fix text ends with a word byte and the byte just after the
+    target is a word byte, one space is appended: `is_null($v)and $w` →
+    `$v === null and $w`. The message keeps the unpadded replacement.
 
 ## Options
 
@@ -151,3 +160,8 @@ $y = null === ($m ?: $n);
   unary operator or of `instanceof`. *A* is also wrapped when it is a
   low-precedence keyword expression (`include`, `print`, `yield`, `throw`,
   arrow function): `is_null(include 'x.php')` → `(include 'x.php') === null`.
+- **Token separation (custos diverges):** in whitespace-free code the
+  replacement can start or end next to a keyword (`return!is_null(f())`,
+  `is_null($v)and $w`); pasting it there verbatim would create a different
+  identifier (`returnf()`, `nulland`). custos pads the fix text with a
+  space on the affected side (F2).

@@ -38,6 +38,9 @@ func (nestedPositiveIfStatements) Check(ctx *analysis.Context, n syntax.Node) {
 		if !npiElseCompatible(f, p.Else, c.Else) { // D5, E4
 			return
 		}
+		if body, ok := c.Body.(*syntax.Block); ok && body.Alt { // E6: the body text has no endif
+			return
+		}
 		ctx.Report(kwSpan, nestedPositiveIfMsg, diagnostic.Fix{
 			Title: "Merge into the parent if",
 			Edits: func() []diagnostic.TextEdit {
@@ -46,6 +49,9 @@ func (nestedPositiveIfStatements) Check(ctx *analysis.Context, n syntax.Node) {
 					pc = "(" + pc + ")"
 				}
 				cc := string(f.Src[c.Cond.Span().Start:c.Cond.Span().End])
+				if npiWrapChild(c.Cond) {
+					cc = "(" + cc + ")"
+				}
 				body := npiWithComments(f, block, c, c.Body)
 				return []diagnostic.TextEdit{
 					{Span: p.Cond.Span(), NewText: pc + " && " + cc},
@@ -68,12 +74,33 @@ func npiIsOr(e syntax.Expr) bool {
 	return ok && (b.Op.Kind == syntax.TBooleanOr || b.Op.Kind == syntax.TOr)
 }
 
+// npiWrapParent reports whether a parent condition must be parenthesised
+// before `&& CC` is appended: its right edge is open and binds looser than
+// `&&`, so it would absorb the appended operand.
 func npiWrapParent(e syntax.Expr) bool {
 	switch e := e.(type) {
-	case *syntax.Assign, *syntax.Ternary, *syntax.Instanceof:
+	case *syntax.Assign, *syntax.Ternary, *syntax.Instanceof, *syntax.Print, *syntax.Include,
+		*syntax.Throw, *syntax.Yield, *syntax.YieldFrom, *syntax.ArrowFunction:
 		return true
 	case *syntax.Binary:
-		return e.Op.Kind != syntax.TBooleanAnd
+		return e.Op.Kind != syntax.TBooleanAnd || npiWrapParent(e.Right)
+	case *syntax.Unary: // `!$row = load()`, `@$u = $v`, `(bool) $u = $v`
+		return npiWrapParent(e.Expr)
+	case *syntax.Clone:
+		return e.Args == nil && npiWrapParent(e.Expr)
+	}
+	return false
+}
+
+// npiWrapChild reports whether a child condition binds looser than the `&&`
+// it becomes the right operand of (`||`/`or` never reach the fix, `and`
+// keeps its meaning unwrapped).
+func npiWrapChild(e syntax.Expr) bool {
+	switch e := e.(type) {
+	case *syntax.Ternary:
+		return true
+	case *syntax.Binary:
+		return e.Op.Kind == syntax.TCoalesce || e.Op.Kind == syntax.TXor
 	}
 	return false
 }

@@ -45,22 +45,33 @@ func (unsetConstructsCanBeMerged) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		firstIdx--
 	}
+	// End of the run (exclusive).
+	end := i + 1
+	for end < len(list) {
+		if u, ok := list[end].(*syntax.Unset); !ok || len(u.Vars) == 0 {
+			break
+		}
+		end++
+	}
+	f := ctx.File
+	// F3: the merge regenerates one statement and deletes the others, so it
+	// is offered only when every statement of the run ends with `;` (a
+	// statement closed by `?>` owns the tag) and holds no comment.
+	for _, st := range list[firstIdx:end] {
+		sp := st.Span()
+		if f.Src[sp.End-1] != ';' || astquery.HasComment(f, sp) {
+			ctx.Report(cur.Span(), unsetConstructsCanBeMergedMsg)
+			return
+		}
+	}
 	// Merged statements: just this one, or — for the second statement of a
 	// run — the whole run, so that applying every fix of the run at once
 	// (single pass, non-overlapping edits) accumulates everything (F2).
 	merged := list[i : i+1]
 	if firstIdx == i-1 {
-		j := i + 1
-		for j < len(list) {
-			if u, ok := list[j].(*syntax.Unset); !ok || len(u.Vars) == 0 {
-				break
-			}
-			j++
-		}
-		merged = list[i:j]
+		merged = list[i:end]
 	}
 	first := list[firstIdx].(*syntax.Unset)
-	f := ctx.File
 	ctx.Report(cur.Span(), unsetConstructsCanBeMergedMsg, diagnostic.Fix{
 		Title: "Merge the unset() calls",
 		Edits: func() []diagnostic.TextEdit {

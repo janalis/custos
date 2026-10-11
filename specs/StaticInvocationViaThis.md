@@ -82,6 +82,13 @@ Visit every method call expression.
 - **F1** Variant A only: replace `$this` with `self` and the `->` operator with
   `::`; everything else (method name, arguments, whitespace) is kept:
   `$this->build($x)` → `self::build($x)`.
+- **F2** No fix (the report stays) when `$this` is the first token of a
+  `{$…}` interpolation part of a double-quoted string, heredoc or backtick
+  command, whether the call is the whole part (`"{$this->build(1)}"`) or the
+  head of a longer chain (`"{$this->build(1)->name}"`,
+  `"{$this->build(1)[0]}"`). Interpolation is triggered by the `$` right
+  after the brace, so `{static::build(1)}` would be plain text. A call
+  nested deeper in the part (`"{$rows[$this->index()]}"`) is fixed as usual.
 - Variant B has no fix (the class name to use is not always obvious).
 
 ## Options
@@ -206,3 +213,7 @@ namespace PHPUnit\Framework {
   reaches `__call()`, `X::where()` `__callStatic()` (Eloquent models,
   Laravel/October facades). Such calls are not reported; the `static::`
   fix would also switch to a fresh instance.
+- **Interpolated calls keep their `$this` (custos diverges).** Rewriting
+  `"{$this->m()}"` to `"{static::m()}"` turns the call into literal text,
+  because a brace only starts an interpolation when a `$` follows it.
+  custos still reports such calls but offers no fix (F2).

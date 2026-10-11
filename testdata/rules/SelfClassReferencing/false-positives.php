@@ -30,3 +30,19 @@ class Shelf
 {
     public function get(): \Shop\Basket { return new Basket(); }
 }
+
+namespace Faults;
+
+class Boom extends \Exception
+{
+    public static function attempt()
+    {
+        try {
+            throw new static('x');
+        } catch (Boom $e) {
+            return 'caught';
+        } catch (\Faults\Boom | \LogicException $e) {
+            return 'multi';
+        }
+    }
+}

@@ -37,22 +37,12 @@ func (disallowWritingIntoStaticProperties) Check(ctx *analysis.Context, n syntax
 		return
 	}
 	const msg = "Modify this static property only from the class that declares it."
-	scope := syntax.EnclosingFuncLike(a)
-	for { // D3c: closures and arrow functions take the class scope of their method
-		switch scope.(type) {
-		case *syntax.Closure, *syntax.ArrowFunction:
-			scope = syntax.EnclosingFuncLike(scope)
-			continue
-		}
-		break
-	}
-	meth, ok := scope.(*syntax.Method)
-	if !ok { // D3b
+	owner := dwspScopeClass(a)
+	if owner == nil { // D3b
 		ctx.Report(span, msg)
 		return
 	}
-	owner, _ := meth.Parent().(*syntax.ClassLike) // methods only live in class-likes
-	ownerFQN := ctx.Names().DeclFQN(owner)        // "" for an anonymous class
+	ownerFQN := ctx.Names().DeclFQN(owner) // "" for an anonymous class
 	var target string
 	switch strings.ToLower(cls.Value) {
 	case "self", "static":
@@ -86,6 +76,31 @@ func (disallowWritingIntoStaticProperties) Check(ctx *analysis.Context, n syntax
 		return
 	}
 	ctx.Report(span, msg)
+}
+
+// dwspScopeClass returns the class whose scope the code at n runs in: the
+// class of the enclosing method or property hook (D3a, D3d), looking through
+// closures and arrow functions (D3c). It is nil in top-level code and in
+// plain functions (D3b).
+func dwspScopeClass(n syntax.Node) *syntax.ClassLike {
+	hook := false
+	for p := n.Parent(); p != nil; p = p.Parent() {
+		switch p := p.(type) {
+		case *syntax.Function:
+			return nil
+		case *syntax.Method:
+			return syntax.EnclosingClass(p)
+		case *syntax.PropertyHook:
+			hook = true
+		case *syntax.ClassLike:
+			// Constructor arguments of an anonymous class belong to the
+			// surrounding scope; only a hook body is inside the class.
+			if hook {
+				return p
+			}
+		}
+	}
+	return nil
 }
 
 func dwspSameClass(a, b string) bool {

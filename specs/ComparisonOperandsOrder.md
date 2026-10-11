@@ -59,6 +59,24 @@ F1. Swap the two operands' source text. The operator and all whitespace and
     were: `$total   != -1` → `-1   != $total`.
     Available for both styles.
 
+F2. No fix (the report stays) when the constant-like operand is a string with
+    interpolation and either operand may have side effects (assignment,
+    increment/decrement, call, object creation, include, `yield`, …). Such a
+    string reads its variables at the moment it is evaluated, so exchanging
+    the operands would change the result: `"v{$i}" == 'v' . $i++`.
+
+F3. No fix (the report stays) when the target PHP version is below 7.3 and
+    either operand contains a heredoc or nowdoc: there the closing marker must
+    remain alone on its line, which a moved operand cannot guarantee.
+
+F4. A moved operand never fuses with a neighbouring word. A space is added
+    before the new left operand when the comparison is written directly
+    against a preceding identifier character and the operand starts with an
+    identifier character or a backslash (`return'a'==foo()` →
+    `return foo()=='a'`), and after the new right operand when it ends with
+    an identifier character and one follows directly
+    (`null==$a[0]and$b` → `$a[0]==null and$b`).
+
 ## Options
 
 | Option | Type | Default | Effect |
@@ -67,7 +85,8 @@ F1. Swap the two operands' source text. The operator and all whitespace and
 
 ## PHP versions
 
-None.
+Detection is the same on every version. The fix is withheld for heredoc and
+nowdoc operands when the target is below PHP 7.3 (F3).
 
 ## Examples
 
@@ -125,8 +144,6 @@ if ($answer == 'no') {}
 
 ## Divergences
 
-None.
-
 - **Parenthesized operands (custos diverges).** Upstream swaps the operand
   texts verbatim, so `while (false !== $r = $r->next())` became
   `while ($r = $r->next() !== false)`, which assigns the comparison's bool.
@@ -134,3 +151,8 @@ None.
   operator (assignment, `??`, `?:`/ternary, logical and bitwise operators,
   another comparison, `print`, `yield`, include/require, `throw`, arrow
   functions): `($r = $r->next()) !== false`.
+- **Fix safety (custos diverges).** A verbatim swap can change evaluation
+  order against an interpolated string, break a heredoc closing marker on
+  targets below PHP 7.3, or glue an operand onto an adjacent keyword in code
+  written without whitespace. custos withholds the fix in the first two
+  cases (F2, F3) and inserts a separating space in the third (F4).

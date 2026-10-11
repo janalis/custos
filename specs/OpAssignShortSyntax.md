@@ -31,8 +31,8 @@ destructuring are never inspected).
   whitespace and comments; for simple variables, the same name). If the walk
   stopped on a binary expression with a different operator, there is no match.
 - D4: if more than one fragment was collected, `op` must be one of `+`, `.`,
-  `*` (operators whose chain can be regrouped). With exactly one fragment any
-  eligible operator is accepted.
+  `*`. With exactly one fragment any eligible operator is accepted. (Of the
+  three, only a `.` chain is rewritten automatically, see F2.)
 - D5: no collected fragment may itself be a binary expression (fragments are
   inspected as written: a parenthesised fragment such as `($a - 1)` is not a
   binary expression and is accepted).
@@ -75,6 +75,25 @@ spaces, e.g. `$s .= 'a' . $t`).
   `<B text> <op>= <F1 text> <op> <F2 text> …`, fragments copied verbatim (keeping
   their own parentheses), one space on each side of `op=` and of each joining
   `op`. Parentheses that wrapped `R` disappear.
+- F2: the report carries no fix when the compound form is not provably the
+  same computation. "May have an effect" below means the fragment contains,
+  outside closure and arrow-function bodies, a call of any kind, `new`,
+  `clone`, an assignment, `++`/`--`, `include`/`require`, `eval`, `exit`,
+  `print`, `throw`, `yield`, a pipe or a backtick string.
+  - Several fragments joined by `+` or `*`: `$x = $x + 1 + 1` computes
+    `($x + 1) + 1`, the compound form `$x + (1 + 1)`. The two differ for
+    floats near their precision limit and when an integer intermediate
+    overflows. A `.` chain regroups freely and keeps its fix.
+  - `V` is not a plain `$name` variable (property, static property, element,
+    variable variable) and a fragment may have an effect: the long form reads
+    `V` before the fragment runs, the compound form after it, so a fragment
+    that writes `V` (`$this->out = $this->out . $this->child()`) gives another
+    result.
+  - `V` is a plain variable, there are several fragments and one after the
+    first may have an effect: the long form has already combined `V` with the
+    first fragment when the later ones run (`$s = $s . 'a' . ($s = 'b')`). A
+    plain variable is otherwise read after the fragment in both forms, so a
+    single fragment, or the first of a chain, may contain calls.
 
 ## Options
 
@@ -98,6 +117,7 @@ function tally(int $count, string $label, array $grid, $buf) {
     <weak_warning descr="Use the compound form '$count += ($k * 2)'.">$count = $count + ($k * 2)</weak_warning>;
     <weak_warning descr="Use the compound form '$grid[1] |= 4'.">$grid[1] = $grid[1] | 4</weak_warning>;
     <weak_warning descr="Use the compound form '$buf[0] .= 'z''.">$buf[0] = $buf[0] . 'z'</weak_warning>;
+    <weak_warning descr="Use the compound form '$grid[2] += next_id()'.">$grid[2] = $grid[2] + next_id()</weak_warning>; // no fix
 
     $count = 5 + $count;          // reversed operands
     $count = $count - $a - $b;    // '-' cannot be regrouped
@@ -115,10 +135,11 @@ function tally(int $count, string $label, array $grid, $buf) {
     $count %= 7;
     $count <<= 1;
     $label .= '-' . $count . '!';
-    $count *= 3 * $k;
+    $count = $count * 3 * $k;
     $count += ($k * 2);
     $grid[1] |= 4;
     $buf[0] .= 'z';
+    $grid[2] = $grid[2] + next_id(); // no fix
 
     $count = 5 + $count;          // reversed operands
     $count = $count - $a - $b;    // '-' cannot be regrouped
@@ -130,7 +151,7 @@ function tally(int $count, string $label, array $grid, $buf) {
 
 ## Divergences
 
-None known. Note: with PHP 8 precedence (`+`/`-` bind tighter than `.`),
+Note: with PHP 8 precedence (`+`/`-` bind tighter than `.`),
 `$n = $n . 'a' + 1` parses as `$n . ('a' + 1)` whose single fragment is a binary
 expression → not reported, the same outcome as with the older precedence.
 
@@ -144,3 +165,11 @@ expression → not reported, the same outcome as with the older precedence.
   `$m[$i++] += 1` evaluates it once. custos does not report a target
   containing an assignment or `++`/`--` (outside closures). Calls in the
   target are still reported: there they are almost always getters.
+- **Chains of `+` and `*` (custos diverges).** Upstream rewrites
+  `$x = $x + 1 + 1` to `$x += 1 + 1`, which regroups the operation and can
+  change a float result or turn an integer into a float on overflow. custos
+  still reports the chain but offers no fix (F2).
+- **Fragments that may write the target (custos diverges).** Upstream
+  rewrites whatever the fragments contain. custos withholds the fix when the
+  moment the target is read differs between the two forms and a fragment may
+  have an effect (F2); the report stays.

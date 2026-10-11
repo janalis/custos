@@ -73,6 +73,9 @@ func (r unnecessaryCasting) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
+	if castAliased(ctx, a) { // D3c
+		return
+	}
 	r.report(ctx, u, unnecessaryCastingTypeMsg)
 }
 
@@ -116,9 +119,15 @@ func castPlainOperand(ctx *analysis.Context, a syntax.Expr) bool {
 
 func (unnecessaryCasting) report(ctx *analysis.Context, u *syntax.Unary, msg string) {
 	del := syntax.Span{Start: u.Span().Start, End: u.Expr.Span().Start}
+	// F1: the cast may be the only separator between two tokens
+	// (`return(int)$n`, `-(int)-$n`, `.(string)2`); keep one space then.
+	sep := " "
+	if del.Start == 0 || strings.IndexByte(" \t\r\n([,={!;:?>&|*/%^~@", ctx.File.Src[del.Start-1]) >= 0 {
+		sep = ""
+	}
 	ctx.Report(u.Op.Span, msg, diagnostic.Fix{
 		Title: "Remove the cast",
-		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: del}} },
+		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: del, NewText: sep}} },
 	})
 }
 
@@ -141,7 +150,7 @@ func castStrictTypes(ctx *analysis.Context, tr *infer.TRules, a syntax.Expr) []s
 			t = tr.TypeOf(x)
 		}
 	case *syntax.StaticCall:
-		if m := castStaticMethod(ctx, env, x); m != nil && m.Return != "" {
+		if m := castStaticMethod(ctx, env, x.Class, x.Name); m != nil && m.Return != "" {
 			t = tr.TypeOf(x)
 		}
 	default: // T3
@@ -186,14 +195,24 @@ func castMethod(env *infer.Env, recv, name syntax.Expr, _ bool) *index.Method {
 	return env.Index.FindMethod(strings.TrimPrefix(cs[0], `\`), id.Value, env.PHP)
 }
 
-func castStaticMethod(ctx *analysis.Context, env *infer.Env, x *syntax.StaticCall) *index.Method {
-	id, ok := x.Name.(*syntax.Identifier)
+func castStaticMethod(ctx *analysis.Context, env *infer.Env, class, name syntax.Expr) *index.Method {
+	id, ok := name.(*syntax.Identifier)
 	if !ok {
 		return nil
 	}
-	nm, ok := x.Class.(*syntax.Name)
-	if !ok {
+	cls := castClassName(ctx, env, class)
+	if cls == "" {
 		return nil
+	}
+	return env.Index.FindMethod(cls, id.Value, env.PHP)
+}
+
+// castClassName resolves the class part of a static call or `new`; "" when
+// dynamic or unresolvable.
+func castClassName(ctx *analysis.Context, env *infer.Env, x syntax.Expr) string {
+	nm, ok := x.(*syntax.Name)
+	if !ok {
+		return ""
 	}
 	var cls string
 	switch strings.ToLower(nm.Value) {
@@ -206,10 +225,186 @@ func castStaticMethod(ctx *analysis.Context, env *infer.Env, x *syntax.StaticCal
 	default:
 		cls = ctx.Names().Class(nm.Value, nm.Span().Start)
 	}
-	if cls == "" {
-		return nil
+	return cls
+}
+
+// castRootName returns the name of the plain variable e is, or is an
+// element of (`$v`, `$v['k'][0]`); "" otherwise.
+func castRootName(e syntax.Expr) string {
+	for {
+		d, ok := e.(*syntax.ArrayDimFetch)
+		if !ok {
+			break
+		}
+		e = d.Var
 	}
-	return env.Index.FindMethod(cls, id.Value, env.PHP)
+	if v, ok := e.(*syntax.Variable); ok && v.NameExpr == nil {
+		return v.Name
+	}
+	return ""
+}
+
+// castAliased implements D3c: the variable behind a (a itself or the array
+// a is an element of) can be written under another name, so its assignments
+// do not bound its type. That is the case when its scope binds it by
+// reference (`=&`, `[&$v]`, by-reference foreach), declares it `global`,
+// or passes it to a parameter that is not known to be by-value; at top
+// level also when the file names it in a `global` statement or may
+// reach it through an element of `$GLOBALS`.
+func castAliased(ctx *analysis.Context, a syntax.Expr) bool {
+	name := castRootName(a)
+	if name == "" {
+		return false
+	}
+	// An arrow function reads its parent's variables.
+	scope := syntax.EnclosingVariableScope(a)
+	for {
+		arrow, ok := scope.(*syntax.ArrowFunction)
+		if !ok {
+			break
+		}
+		scope = syntax.EnclosingVariableScope(arrow)
+	}
+	env := ctx.Types()
+	found := false
+	visit := func(n syntax.Node) bool {
+		if found { // pruning a subtree does not stop the walk of its siblings
+			return false
+		}
+		switch x := n.(type) {
+		case *syntax.Assign:
+			found = x.ByRef && (castRootName(x.Var) == name || castRootName(x.Value) == name)
+		case *syntax.ArrayItem:
+			found = x.ByRef && castRootName(x.Value) == name
+		case *syntax.Foreach:
+			found = castForeachBinds(x, name)
+		case *syntax.Global:
+			for _, v := range x.Vars {
+				found = found || castRootName(v) == name
+			}
+		case *syntax.FuncCall:
+			found = castPassedByRef(x.Args, name, func() ([]index.Param, bool) {
+				if f := env.ResolveFunction(x); f != nil {
+					return f.Params, true
+				}
+				return nil, false
+			})
+		case *syntax.MethodCall:
+			found = castPassedByRef(x.Args, name, func() ([]index.Param, bool) {
+				if m := castMethod(env, x.Var, x.Name, false); m != nil {
+					return m.Params, true
+				}
+				return nil, false
+			})
+		case *syntax.StaticCall:
+			found = castPassedByRef(x.Args, name, func() ([]index.Param, bool) {
+				if m := castStaticMethod(ctx, env, x.Class, x.Name); m != nil {
+					return m.Params, true
+				}
+				return nil, false
+			})
+		case *syntax.New:
+			found = castPassedByRef(x.Args, name, func() ([]index.Param, bool) {
+				cls := castClassName(ctx, env, x.Class)
+				if m := env.Index.FindMethod(cls, "__construct", env.PHP); m != nil {
+					return m.Params, true
+				}
+				return nil, false
+			})
+		}
+		// Nested functions and classes have their own variables; an arrow
+		// function shares its parent's.
+		switch n.(type) {
+		case *syntax.ArrowFunction:
+			return !found
+		case *syntax.ClassLike:
+			return false
+		}
+		return !found && (n == scope || !syntax.IsVariableScope(n))
+	}
+	if scope != nil {
+		syntax.Inspect(scope, visit)
+		return found
+	}
+	syntax.InspectFile(ctx.File, visit)
+	// A top-level variable is a global: any function of the file may bind it.
+	syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Global:
+			for _, v := range x.Vars {
+				found = found || castRootName(v) == name
+			}
+		case *syntax.ArrayDimFetch: // `$GLOBALS['v']`, `$GLOBALS[$key]`
+			if g, ok := x.Var.(*syntax.Variable); ok && g.Name == "GLOBALS" {
+				key, lit := astquery.QuotedStringValue(x.Dim)
+				found = found || !lit || key == name
+			}
+		}
+		return !found
+	})
+	return found
+}
+
+// castForeachBinds reports whether the loop iterates the variable `name`
+// (or one of its elements) by reference, or rebinds it as its by-reference
+// value.
+func castForeachBinds(x *syntax.Foreach, name string) bool {
+	if x.ByRef {
+		return castRootName(x.Expr) == name || castRootName(x.Value) == name
+	}
+	if castRootName(x.Expr) != name {
+		return false
+	}
+	ref := false // `foreach ($v as [&$item])`
+	syntax.Inspect(x.Value, func(n syntax.Node) bool {
+		if it, ok := n.(*syntax.ArrayItem); ok && it.ByRef {
+			ref = true
+		}
+		return !ref
+	})
+	return ref
+}
+
+// castPassedByRef reports whether the variable `name` (or one of its
+// elements) is an argument that may bind to a by-reference parameter:
+// spread, or bound to a parameter of the resolved callee
+// that is by-reference. An unresolved callee may take anything by
+// reference.
+func castPassedByRef(args *syntax.ArgList, name string, resolve func() ([]index.Param, bool)) bool {
+	if args == nil {
+		return false
+	}
+	var params []index.Param
+	resolved := false
+	for i, e := range args.Args {
+		arg, ok := e.(*syntax.Arg)
+		if !ok || castRootName(arg.Value) != name {
+			continue
+		}
+		if !resolved {
+			if params, resolved = resolve(); !resolved {
+				return true
+			}
+		}
+		if arg.Unpack {
+			return true
+		}
+		if arg.Name != nil {
+			i = len(params) // unknown names are collected by a variadic
+			for j, p := range params {
+				if strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
+					i = j
+				}
+			}
+		}
+		if n := len(params); i >= n && n > 0 && params[n-1].Variadic {
+			i = n - 1
+		}
+		if i < len(params) && params[i].ByRef {
+			return true
+		}
+	}
+	return false
 }
 
 // castPrivatePropertyType: only private properties yield their own type

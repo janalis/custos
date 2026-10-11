@@ -74,12 +74,27 @@ func (isNullFunctionUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if astquery.IsEmptyNeedsParens(target) { // `'v=' . $x === null` would compare the concatenation
 		repl = "(" + repl + ")"
 	}
+	title := "Replace with '" + repl + "'"
+	// `return!is_null(foo())` must not become `returnfoo() !== null`, nor
+	// `is_null($x)and $y` become `$x === nulland $y`.
+	if span.Start > 0 && isWordByte(ctx.Src[span.Start-1]) && (isWordByte(repl[0]) || repl[0] == '\\') {
+		repl = " " + repl
+	}
+	if int(span.End) < len(ctx.Src) && isWordByte(ctx.Src[span.End]) && isWordByte(repl[len(repl)-1]) {
+		repl += " "
+	}
 	ctx.Report(span, msg, diagnostic.Fix{
-		Title: "Replace with '" + repl + "'",
+		Title: title,
 		Edits: func() []diagnostic.TextEdit {
 			return []diagnostic.TextEdit{{Span: span, NewText: repl}}
 		},
 	})
+}
+
+// isWordByte reports whether b can be part of a PHP identifier or number, so
+// that two such bytes written side by side lex as a single token.
+func isWordByte(b byte) bool {
+	return b == '_' || b >= 0x80 || b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z'
 }
 
 // inBoolConst reports whether e is the constant true/false (any case,

@@ -167,3 +167,13 @@ In `views/page.blade.php` nothing is reported (E2).
   no `;`: the close tag ends the statement. The braced body gets a `;` and
   the closing brace goes before the tag (`{ echo "x"; } ?>`); placed after
   it, the brace landed in the HTML (phpxmlrpc debugger, Moodle vendor).
+  Comments between the statement and the tag stay after the closing brace
+  (`echo "x" // why ?>` → `echo "x"; } // why ?>`): a `;` or brace written
+  after a line comment would be commented out. The same holds when a line
+  comment follows the header (`if ($h) // note` + `echo "x" ?>` →
+  `if ($h) { // note` + `echo "x"; } ?>`).
+- **Close tag as the body, after a line comment (custos, F1).** In
+  `for (…) # note ?>` the close tag is the empty body. The empty block is
+  written right after the header (`for (…) {} # note ?>`); placed before
+  the tag it sat inside the comment, so the report never cleared and each
+  fix pass added another block.

@@ -6,6 +6,7 @@ import (
 
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 )
@@ -39,8 +40,11 @@ func (r properNullCoalescingOperatorUsage) Check(ctx *analysis.Context, n syntax
 		}
 	}
 	if syntax.IsNullConst(b.Right) { // Case A
-		switch b.Left.(type) {
+		switch x := b.Left.(type) {
 		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+			if m, ok := x.(*syntax.MethodCall); ok && m.NullSafe && !pncoDefined(m.Var, b) {
+				return // `??` also silences the undefined-variable warning
+			}
 			left := ctx.Text(b.Left)
 			span := b.Span()
 			ctx.Report(span, "'"+left+"' alone is equivalent; drop the '?? null' fallback.", diagnostic.Fix{
@@ -78,7 +82,8 @@ func (r properNullCoalescingOperatorUsage) Check(ctx *analysis.Context, n syntax
 			}
 		}
 	}
-	if complementary || pncoScalarOnly(lt) && pncoScalarOnly(rt) && !pncoNeverNull(b.Left) || r.related(ctx, lt, rt) || r.iterable(ctx, lt) && r.iterable(ctx, rt) {
+	if complementary || pncoScalarOnly(lt) && pncoScalarOnly(rt) && !pncoNeverNull(b.Left) || r.related(ctx, lt, rt) || r.sameFamily(ctx, lt, rt) ||
+		pncoCallableValue(ctx, b.Left, rt) || pncoCallableValue(ctx, b.Right, lt) {
 		return
 	}
 	ctx.Report(b.Span(), "Operand types of '??' do not match ("+pncoSetString(lt)+" vs "+pncoSetString(rt)+").")
@@ -167,6 +172,40 @@ func (properNullCoalescingOperatorUsage) related(ctx *analysis.Context, lt, rt m
 	return lt["callable"] && invokable(rt) || rt["callable"] && invokable(lt)
 }
 
+// pncoCallableValue reports whether e is declared `callable` (not
+// \Closure, which only an object satisfies) while the other side may be a
+// callable string (`'trim'`) or a callable array (`[$this, 'm']`).
+func pncoCallableValue(ctx *analysis.Context, e syntax.Expr, other map[string]bool) bool {
+	return (other["string"] || other["array"]) && ctx.TypeOf(e).HasAny("callable")
+}
+
+// pncoDefined reports whether the receiver of a nullsafe call is certainly
+// set at the `??` expression at: anything but a local variable (those warn
+// with or without `??`), `$this`, a parameter, or a variable assigned on
+// every path before at. A variable a closure imports with `use` is set
+// inside it (to null when the outer one was not).
+func pncoDefined(recv syntax.Expr, at syntax.Node) bool {
+	v, ok := syntax.UnwrapParens(recv).(*syntax.Variable)
+	if !ok || v.Name == "this" {
+		return true
+	}
+	scope := syntax.EnclosingFuncLike(at)
+	if c, ok := scope.(*syntax.Closure); ok {
+		for _, u := range c.Uses {
+			if v.Name != "" && u.Var != nil && u.Var.Name == v.Name {
+				return true
+			}
+		}
+	}
+	for _, p := range syntax.FuncLikeParams(scope) {
+		if p.Var != nil && p.Var.Name == v.Name {
+			return true
+		}
+	}
+	_, entry := flowquery.ReachingAssignments(scope, at, v.Name)
+	return !entry
+}
+
 // pncoScalarOnly reports whether every type of the set is a scalar (D5a).
 func pncoScalarOnly(set map[string]bool) bool {
 	for t := range set {
@@ -199,12 +238,33 @@ func pncoNeverNull(e syntax.Expr) bool {
 	return false
 }
 
-// iterable reports whether the set holds a member of the iterable family:
-// array, \Traversable or one of its implementors (D5b).
-func (properNullCoalescingOperatorUsage) iterable(ctx *analysis.Context, set map[string]bool) bool {
-	for t := range set {
-		if t == "array" || strings.HasPrefix(t, `\`) && ctx.Index().IsSubtype(t, `\Traversable`, ctx.PHP) {
+// sameFamily reports whether both sides are used through the same
+// operation: both iterable (array, \Traversable or an implementor), an array
+// next to a \Countable or \ArrayAccess implementor, or a string next to the
+// bare \Stringable interface (D5b, D5c).
+func (r properNullCoalescingOperatorUsage) sameFamily(ctx *analysis.Context, lt, rt map[string]bool) bool {
+	if r.family(ctx, lt, "array", `\Traversable`) && r.family(ctx, rt, "array", `\Traversable`) {
+		return true
+	}
+	for _, p := range [][2]map[string]bool{{lt, rt}, {rt, lt}} {
+		if p[0]["array"] && r.family(ctx, p[1], "", `\Countable`, `\ArrayAccess`) || p[0]["string"] && r.family(ctx, p[1], `\Stringable`) {
 			return true
+		}
+	}
+	return false
+}
+
+// family reports whether the set holds the type exact (compared
+// case-insensitively) or a subtype of one of the bases.
+func (properNullCoalescingOperatorUsage) family(ctx *analysis.Context, set map[string]bool, exact string, bases ...string) bool {
+	for t := range set {
+		if strings.EqualFold(t, exact) {
+			return true
+		}
+		for _, base := range bases {
+			if strings.HasPrefix(t, `\`) && ctx.Index().IsSubtype(t, base, ctx.PHP) {
+				return true
+			}
 		}
 	}
 	return false

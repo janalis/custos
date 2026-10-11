@@ -37,7 +37,8 @@ comments (line, block and doc comments); the empty statement `;` counts.
     must be braced blocks, they must have the same statement count, and they
     must be structurally equivalent (same token sequence ignoring whitespace
     and comments). (An `else if` branch has no braced block → not mergeable.)
-- When D1–D5 hold, report `C`.
+- D5b: `C`'s own body is not an alternative-syntax (colon) block.
+- When D1–D5b hold, report `C`.
 
 ### Case B — inner if inside else
 
@@ -56,7 +57,11 @@ comments (line, block and doc comments); the empty statement `;` counts.
 - E4: Case A where the parent has an `else` but the inner `if` does not, or
   vice versa, or both have `else` branches that differ.
 - E5: Case A where either `if` has an `elseif`.
-- E6: alternative (colon) syntax — see Divergences.
+- E6: alternative (colon) syntax — a colon-syntax block is never the parent
+  body, and in Case A a colon-syntax inner `if` is not reported either (its
+  body has no closing keyword of its own, so it cannot replace the parent's
+  braced block). Case B still reports a colon-syntax inner `if`: the whole
+  statement, `endif;` included, moves after `else`. See Divergences.
 
 ## Report
 
@@ -75,19 +80,30 @@ dropped.
 
 - F1 (Case A): with `PC` = parent condition text and `CC` = child condition
   text (both the expression inside the `if ( … )` parentheses):
-  - `PC` is wrapped as `(PC)` when the parent condition is an assignment, a
-    ternary (including the short `?:` form), or a binary expression whose
-    operator is anything other than `&&` (e.g. `??`, `and`, `==`, `.`, …).
-    Otherwise (`&&` binary, variable, call, parenthesised expression, …) it is
-    used as is.
-  - The parent condition is replaced by `PC && CC` (single spaces around `&&`);
-    `CC` is never wrapped.
+  - `PC` is wrapped as `(PC)` whenever its right edge would absorb the
+    appended `&& CC`: the parent condition is an assignment, a ternary
+    (including the short `?:` form), an `instanceof`, a binary expression
+    whose operator is anything other than `&&` (e.g. `??`, `and`, `==`, `.`,
+    …), a `print`, `include`/`require`, `throw`, `yield`/`yield from` or
+    arrow function, or it ends in one of those: a prefix operator (`!`, `-`,
+    `@`, a cast, legacy `clone`) applied to such an operand
+    (`!$row = load()`), or a `&&` chain whose rightmost operand is one
+    (`$a && $row = load()`). Otherwise (plain `&&` chain, variable, call,
+    `!$a`, parenthesised expression, …) it is used as is.
+  - `CC` is wrapped as `(CC)` when it binds looser than `&&`: a ternary
+    (either form) or a binary `??` or `xor`. An `and` child keeps its meaning
+    unwrapped and an assignment child is already the whole right operand, so
+    both are used as is.
+  - The parent condition is replaced by `PC && CC` (single spaces around
+    `&&`).
   - The parent's body block is replaced by `C`'s body (the statement after
     `C`'s condition: its braced block, with preserved comments, or its single
     statement). `C`'s `else` (if any) is discarded; `P`'s `else` (if any) is
     kept unchanged.
   - Example: `if ($u) { if ($v) { go(); } }` → `if ($u && $v) { go(); }`;
-    `if ($u = load()) { if ($v) {} }` → `if (($u = load()) && $v) {}`.
+    `if ($u = load()) { if ($v) {} }` → `if (($u = load()) && $v) {}`;
+    `if (!$r = load()) { if ($v) {} }` → `if ((!$r = load()) && $v) {}`;
+    `if ($u) { if ($a ?? $b) {} }` → `if ($u && ($a ?? $b)) {}`.
 - F2 (Case B): the `else` branch's braced block (from `{` to `}`) is replaced
   by the full text of `C` (including `C`'s own `elseif`/`else` branches), with
   preserved comments inserted into `C`'s body. The text between `else` and
@@ -203,11 +219,16 @@ function else_cases($u, $v) {
 
 ## Divergences
 
-- Upstream never wraps the child condition. When the child condition has lower
-  precedence than `&&` (ternary, `??`, `xor`, `and` is harmless), the merged
-  condition changes meaning (`$u && $a ? $b : $c`). Recommendation: wrap `CC`
-  in parentheses when it is a ternary or a binary `??`/`xor`/`and` expression.
+- Upstream never wraps the child condition. When the child condition binds
+  looser than `&&` (ternary, `??`, `xor`), the merged condition changes
+  meaning (`$u && $a ? $b : $c`), so the fix parenthesises such a child.
   Not covered by upstream fixtures.
-- Alternative (colon) syntax: not covered by upstream fixtures. Recommendation:
-  only braced blocks qualify as the parent body (colon-syntax `if`/`else`
-  bodies are never reported).
+- Upstream only parenthesises a parent condition whose top-level node is an
+  assignment, ternary or non-`&&` binary. A parent that merely ends in such
+  an expression (`!$row = load()`, `@$u = $v`, `$a && $row = load()`,
+  `print "p"`) would swallow the appended `&& CC`; the fix parenthesises
+  those parents as well. Not covered by upstream fixtures.
+- Alternative (colon) syntax: not covered by upstream fixtures. Only braced
+  blocks qualify as the parent body (colon-syntax `if`/`else` bodies are
+  never reported), and a colon-syntax inner `if` directly inside a parent
+  `if` is not reported because merging it would drop its `endif`.

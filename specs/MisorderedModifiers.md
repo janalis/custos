@@ -19,20 +19,16 @@ are written in another order are flagged and re-sorted.
 D1. Node: a method declaration (in any class-like: class, abstract class,
     interface, trait, enum, anonymous class) that carries at least one of the
     modifiers `static`, `abstract`, `final`.
-D2. The method's modifier list consists of at least **two** non-whitespace
-    tokens (keywords; a comment placed between keywords also counts as a
-    token).
-D3. Build *original*: the modifier list's non-whitespace tokens, in source
-    order, joined by single spaces, lowercased.
-    Build *expected*: walk the canonical sequence
-    `final`, `abstract`, `public`, `protected`, `private`, `static` and keep
-    each keyword that occurs as a substring of *original*; join the kept ones
-    with single spaces.
-D4. Report when *original* ≠ *expected*.
-    Consequences: line breaks / extra spaces between correctly ordered
-    keywords are **not** reported (whitespace is normalised in *original*);
-    upper/mixed-case keywords in the correct order are not reported; a comment
-    inside the modifier list always makes the strings differ (reported).
+D2. The method's modifier list holds at least **two** modifier keywords.
+    Only keyword tokens count: whitespace and comments between keywords are
+    never read as modifiers, whatever words a comment contains.
+D3. Build *expected* by stably sorting the keywords as written: `final`
+    first, then `abstract`, then the visibility keyword, then `static`.
+    Sorting only moves keywords; it never adds or removes one.
+D4. Report when the keyword sequence differs from *expected*.
+    Consequences: line breaks, extra spaces and comments between correctly
+    ordered keywords are **not** reported; upper/mixed-case keywords in the
+    correct order are not reported.
 
 ## Exceptions (no report)
 
@@ -40,7 +36,8 @@ E1. Methods with none of `static`/`abstract`/`final` (e.g. only `public`).
 E2. Methods with a single modifier keyword.
 E3. Already-canonical order, regardless of spacing/line breaks/case:
     `final public static`, `abstract protected`, `final static`,
-    `public\n    static`, `PUBLIC STATIC`.
+    `public\n    static`, `PUBLIC STATIC`,
+    `public /* not final */ static`.
 E4. Properties, constants, class declarations, promoted parameters — only
     methods are inspected.
 
@@ -49,13 +46,20 @@ E4. Properties, constants, class declarations, promoted parameters — only
 - Range: the modifier list, from the start of its first keyword to the end of
   its last keyword (interior whitespace/newlines included).
 - Severity: info (fixtures tag it `weak_warning`).
-- Message: `Reorder modifiers as: {expected}.`
+- Message: `Reorder modifiers as: {expected}.` with the sorted keywords
+  lowercased and joined by single spaces.
 
 ## Fix
 
-F1. Replace the reported range with *expected* (lowercase keywords separated by
-    single spaces). Multi-line lists collapse to one line; comments inside the
-    list are dropped; text after the list (` function name(...)`) is untouched.
+F1. Without a comment in the list: replace the reported range with the
+    lowercased sorted keywords separated by single spaces. Multi-line lists
+    collapse to one line; text after the list (` function name(...)`) is
+    untouched.
+F2. With a comment between keywords: write the lowercased sorted keywords into
+    the keyword positions and keep everything between them (comments, spaces,
+    line breaks) byte for byte, so
+    `static /* was protected */ public` becomes
+    `public /* was protected */ static`.
 
 ## Options
 
@@ -121,7 +125,9 @@ abstract class Repository
 
 ## Divergences
 
-- A comment between modifiers (`static /* x */ public`) is reported upstream
-  and the fix deletes the comment; even a correctly ordered list with a comment
-  is reported. Recommendation: ignore comment tokens when building *original*
-  and preserve them otherwise (no fixture covers comments).
+- Comments between modifiers are ignored when deciding the order, and the fix
+  keeps them in place. Upstream compares the raw text of the list, so it
+  reports a correctly ordered list that merely contains a comment, treats
+  keyword-like words inside a comment as modifiers, and its fix deletes the
+  comment. Following that would let the fix add `final` or a second visibility
+  the method never had (no upstream fixture covers comments).

@@ -6,6 +6,7 @@ function probe($ratio, ?\DateTime $when, array $rows, ?string $s, int|bool|null 
     return [
         empty($ratio),
         null !== $when,
+        static function () use ($when) { return null !== $when; },
         empty($rows),
         empty($s),
         empty($x),

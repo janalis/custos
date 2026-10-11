@@ -37,7 +37,7 @@ name:
 - D1: a class-name reference whose last segment is `Name` in any letter case
   (class names are case-insensitive in PHP), which resolves (through namespace and imports) to this very
   class. Class-name references include: `new Name`, `Name::CONST`,
-  `Name::method()`, `Name::$prop`, `instanceof Name`, `catch (Name $e)`,
+  `Name::method()`, `Name::$prop`, `instanceof Name`,
   parameter/return/property types (including inside nullable/union types).
   Qualified forms (`\Ns\Name`, `namespace\Name`) count when they resolve to the
   class. Docblock types are not references.
@@ -71,6 +71,9 @@ Reverse mode (`PREFER_CLASS_NAMES` = true):
   declaration (`basket::class`, `\shop\Basket::class`): `::class` yields the
   name as written, so `__CLASS__` (or `self::class`) would change the
   resulting string. Not reported at all.
+- E7: the class name in a `catch` clause (`catch (Name $e)`, also as one
+  alternative of a multi-catch): PHP rejects `self` there at compile time, so
+  the explicit name is the only valid spelling.
 
 ## Report
 
@@ -87,6 +90,9 @@ Reverse mode (`PREFER_CLASS_NAMES` = true):
 - F2 (D2): replace the whole `Name::class` with `__CLASS__`.
 - F3 (D4): replace `self` with the class's short name.
 - F4 (D5): replace `__CLASS__` with `Name::class`.
+- F1 and F3 are withheld (the report stays) on the class part of a static
+  call when a subclass could observe the difference; see Divergences, "Static
+  calls and late static binding".
 
 ## Options
 
@@ -216,4 +222,9 @@ __CLASS__;                          // not inside a class method
   the rewrite (`Model::make()` returns a `Model`, `self::make()` called
   from `User::build()` a `User`). In a class that is neither final nor an
   enum and has indexed subclasses, a static call `Name::m()` is reported
-  without a fix.
+  without a fix. The hazard is symmetric, so reverse mode likewise reports
+  `self::m()` without a fix in such a class.
+- **Catch clauses (custos diverges).** Upstream treats the class name of a
+  `catch` clause as a reference to rewrite. `catch (self $e)` does not
+  compile ("Bad class name in the catch statement"), so custos never reports
+  a catch type (E7).

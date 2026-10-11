@@ -88,7 +88,12 @@ func (c *selfRefCheck) ref(n *syntax.Name) {
 			return
 		}
 		span := n.Span()
-		ctx.Report(span, "Spell the class reference '"+n.Value+"' as '"+c.name+"'.", selfRefFix("Use the class name", span, c.name))
+		msg := "Spell the class reference '" + n.Value + "' as '" + c.name + "'."
+		if c.rebinds(n) {
+			ctx.Report(span, msg)
+			return
+		}
+		ctx.Report(span, msg, selfRefFix("Use the class name", span, c.name))
 		return
 	}
 	v := n.Value
@@ -113,14 +118,20 @@ func (c *selfRefCheck) ref(n *syntax.Name) {
 	}
 	span := n.Span() // D3
 	msg := "Refer to the class as 'self' instead of '" + c.name + "'."
-	if _, call := n.Parent().(*syntax.StaticCall); call && !c.final && len(ctx.Index().ChildrenAll(c.fqn)) > 0 {
-		// custos: self::m() forwards the late static binding, Name::m()
-		// resets it: inside m(), static:: and `new static` would name the
-		// calling subclass.
+	if c.rebinds(n) {
 		ctx.Report(span, msg)
 		return
 	}
 	ctx.Report(span, msg, selfRefFix("Use self", span, "self"))
+}
+
+// rebinds reports whether swapping `self` and the class name at n could change
+// behaviour. custos: self::m() forwards the late static binding, Name::m()
+// resets it: inside m(), static:: and `new static` name the calling subclass
+// in one spelling and this class in the other.
+func (c *selfRefCheck) rebinds(n *syntax.Name) bool {
+	_, call := n.Parent().(*syntax.StaticCall)
+	return call && !c.final && len(c.ctx.Index().ChildrenAll(c.fqn)) > 0
 }
 
 func (c *selfRefCheck) magic(n *syntax.MagicConst) {
@@ -133,7 +144,8 @@ func (c *selfRefCheck) magic(n *syntax.MagicConst) {
 }
 
 // selfRefPosition reports whether name n is used as a class reference:
-// new, static access, instanceof, catch and type declarations.
+// new, static access, instanceof and type declarations. A catch clause is
+// not one: PHP rejects self there at compile time.
 func selfRefPosition(n *syntax.Name) bool {
 	e := syntax.Expr(n)
 	switch p := n.Parent().(type) {
@@ -147,8 +159,6 @@ func selfRefPosition(n *syntax.Name) bool {
 		return p.Class == e
 	case *syntax.Instanceof:
 		return p.Class == e
-	case *syntax.Catch:
-		return true
 	case *syntax.Param:
 		return p.Type == e
 	case *syntax.Method:
@@ -156,7 +166,8 @@ func selfRefPosition(n *syntax.Name) bool {
 	case *syntax.NullableType, *syntax.UnionType:
 		return true
 	}
-	// An intersection type cannot contain self (compile error).
+	// Neither an intersection type nor a catch clause can contain self
+	// (compile error).
 	return false
 }
 

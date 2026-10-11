@@ -50,11 +50,13 @@ func (nestedAssignmentsUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	src := ctx.Src
 	span := stmt.Span()
+	// custos: a statement closed by `?>` keeps its terminator; only the
+	// expression is replaced.
+	if src[span.End-1] != ';' {
+		span.End = a.Span().End
+	}
 	simple := naSimpleValue(e)
-	// custos: the outer targets read the innermost one back; that is only
-	// equivalent when reading it has no side effect and yields the stored
-	// value (`$t = $list[] = f()` cannot read `$list[]`).
-	if !simple && !naRereadable(targets[len(targets)-1]) {
+	if !naSplittable(targets, e, simple) {
 		ctx.ReportNode(a, nestedAssignmentsMsg)
 		return
 	}
@@ -104,11 +106,64 @@ func naDestructuring(e syntax.Expr) bool {
 	return false
 }
 
+// naSplittable reports whether the split statements are provably
+// equivalent to the chain (custos, see the spec's Divergences).
+func naSplittable(targets []syntax.Expr, value syntax.Expr, simple bool) bool {
+	last := len(targets) - 1
+	// The split runs the outermost target after the inner writes, while
+	// PHP evaluates a non-trivial key or receiver of it before them.
+	outer := targets[0]
+	if d, ok := outer.(*syntax.ArrayDimFetch); ok && d.Dim == nil {
+		outer = d.Var
+	}
+	if !naRereadable(outer) {
+		return false
+	}
+	// A middle target both stores and forwards the value: only a plain
+	// variable forwards it unchanged.
+	for _, t := range targets[1:last] {
+		if _, ok := astquery.PlainVariableName(t); !ok {
+			return false
+		}
+	}
+	inner := targets[last]
+	if !simple {
+		// The outer targets read the innermost one back (`$t = $list[] =
+		// f()` cannot read `$list[]`).
+		return naRereadable(inner)
+	}
+	// The value is copied to every target: a typed property or a string
+	// offset would have handed a converted value to the outer targets.
+	if _, ok := astquery.PlainVariableName(inner); ok || syntax.IsNullConst(value) {
+		return true
+	}
+	return naSuperglobalElement(inner)
+}
+
+// naSuperglobalElement matches `$_SESSION['k']`: a direct element of a
+// superglobal array stores the value as is.
+func naSuperglobalElement(e syntax.Expr) bool {
+	d, ok := e.(*syntax.ArrayDimFetch)
+	if !ok {
+		return false
+	}
+	switch name, _ := astquery.PlainVariableName(d.Var); name {
+	case "_SESSION", "_GET", "_POST", "_COOKIE", "_SERVER", "_ENV", "_FILES", "_REQUEST", "GLOBALS":
+		return true
+	}
+	return false
+}
+
 // naSimpleValue implements F1.
 func naSimpleValue(e syntax.Expr) bool {
 	switch e := e.(type) {
-	case *syntax.Variable, *syntax.ConstFetch, *syntax.ClassConstFetch, *syntax.Literal:
+	case *syntax.ConstFetch, *syntax.Literal:
 		return true
+	case *syntax.Variable:
+		return e.NameExpr == nil
+	case *syntax.ClassConstFetch:
+		_, ok := e.Class.(*syntax.Name)
+		return ok
 	case *syntax.Unary:
 		l, ok := e.Expr.(*syntax.Literal)
 		return e.Op.Kind == syntax.TMinus && ok && l.LitKind != syntax.LitString

@@ -87,7 +87,10 @@ F1. **Methods and properties** (D1, D2): the declaration's modifier keyword
     keywords is replaced; the type, the `function` keyword, the name and the
     whitespace that followed the original modifier list are kept untouched.
     - empty modifier list (method with no keywords): insert `public ` right
-      before the `function` keyword (after attributes / doc comment);
+      before the method's own `function` keyword (after attributes / doc
+      comment). That keyword is the last `function` before the method name;
+      a closure written inside an attribute argument (PHP 8.5) is never the
+      insertion point;
     - `static function f()` → `public static function f()`;
     - `final function f()` → `final public function f()`;
     - `abstract function f();` → `abstract public function f();`;
@@ -96,9 +99,13 @@ F1. **Methods and properties** (D1, D2): the declaration's modifier keyword
       after the list is preserved).
     For a statement declaring several properties, every reported property
     yields the same edit; apply it once.
+    When a comment sits between two modifier keywords
+    (`static /* note */ final function f()`), the rewrite would delete it:
+    the member is still reported but no fix is offered.
 F2. **Constants** (D3): insert `public ` immediately before the `const`
     keyword of the statement: `const A = 1, B = 2;` → `public const A = 1, B = 2;`;
-    `final const X = 1;` → `final public const X = 1;`.
+    `final const X = 1;` → `final public const X = 1;`. The `const` keyword
+    is the one nearest before the constant name, after any attributes.
 
 ## Options
 
@@ -210,3 +217,6 @@ class Limits
   any modifier before `const` as explicit visibility, but `final` says nothing
   about visibility, which stays implicitly public. The fix inserts `public`
   before `const`, giving `final public const X`.
+- custos diverges: no fix is offered when a comment lies between the modifier
+  keywords, because rewriting the list would silently remove the comment. The
+  finding itself is kept.

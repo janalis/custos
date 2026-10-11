@@ -32,7 +32,9 @@ D4. The enclosing class does **not** declare a method with the called name
     matching).
 D5. The method is not overridden below: unless the enclosing class is `final`,
     no class anywhere in the project that (directly or transitively) extends
-    the enclosing class declares its own method with that name.
+    the enclosing class declares its own method with that name. A method a
+    descendant imports from a trait it uses, or a trait method it aliases to
+    that name (`use T { other as name; }`), counts as its own declaration.
 D6. The call resolves (through the parent class chain) to a method
     declaration. Unresolvable calls are not reported.
 When D1–D6 hold, report.
@@ -41,9 +43,10 @@ When D1–D6 hold, report.
 
 E1. `parent::sameName()` from inside `sameName()` — the legitimate use.
 E2. The current class declares the method itself.
-E3. Some descendant class declares the method (the `parent::` call may be a
-    deliberate bypass of those overrides). Skipped when the current class is
-    `final` (no descendants possible).
+E3. Some descendant class declares the method, in its body or through a
+    trait or trait alias (the `parent::` call may be a deliberate bypass of
+    those overrides, and `$this->m()` would dispatch to them). Skipped when
+    the current class is `final` (no descendants possible).
 E4. Calls inside static methods, closures/arrow functions, functions, or
     trait methods.
 E5. Unresolvable target method.
@@ -160,3 +163,8 @@ class IconButton extends Button
   own declarations in D4 upstream. Recommendation: treat trait-imported
   methods as own (no report), since `$this->m()` would then call the trait
   method rather than the parent one. Not covered by fixtures.
+- **Trait-supplied overrides in descendants (custos diverges).** A descendant
+  that gets the called method from a trait, directly or under an alias,
+  overrides it just like a body declaration does. custos counts those in D5
+  and stays silent, because rewriting to `$this->m()` would start calling the
+  trait method.
