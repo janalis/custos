@@ -272,6 +272,19 @@ func nativeGuardSameValue(ctx *analysis.Context, a, b syntax.Expr) bool {
 	if av.Expr != nil || bv.Expr != nil {
 		return av.Expr == bv.Expr && av.Invalidated == bv.Invalidated
 	}
-	// Without a reaching producer only a plain read is the same value twice.
-	return !flowquery.MayHaveSideEffects(a)
+	// Without a reaching producer only a plain read is the same value twice,
+	// and a variable only while nothing writes it between the two reads.
+	if flowquery.MayHaveSideEffects(a) {
+		return false
+	}
+	variable, ok := syntax.UnwrapParens(a).(*syntax.Variable)
+	if !ok || variable.NameExpr != nil {
+		return true
+	}
+	scope := syntax.EnclosingVariableScope(a)
+	after, before := a.Span().End, b.Span().Start
+	if after > before {
+		after, before = b.Span().End, a.Span().Start
+	}
+	return !nativeContractScope(ctx, scope).localWrites(ctx, scope).written(variable.Name, after, before)
 }

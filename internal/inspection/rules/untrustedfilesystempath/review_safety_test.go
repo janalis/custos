@@ -49,7 +49,7 @@ func TestReviewSafety(t *testing.T) {
 		{"no call operand", canonical + "if ($p !== 0) { exit; } readfile($p);", 0}, // the flow proves $p is 0
 		{"other function", canonical + "if (!str_contains($p, '/srv/d/')) { exit; } readfile($p);", 1},
 		{"compared starts_with", canonical + "if (str_starts_with($p, '/srv/d/') !== 0) { exit; } readfile($p);", 1},
-		{"user function", canonical + "if (!inside($p, '/srv/d/')) { exit; } readfile($p);", 0}, // unknown callee: unknown flow
+		{"user function", canonical + "if (!inside($p, '/srv/d/')) { exit; } readfile($p);", 1}, // an unresolved helper proves nothing, declared or not
 		{"other subject", canonical + "$o = realpath('/srv/d/x'); if (!str_starts_with($o, '/srv/d/')) { exit; } readfile($p);", 1},
 		{"subject expression", canonical + "if (!str_starts_with($p . '', '/srv/d/')) { exit; } readfile($p);", 1},
 		{"root prefix", canonical + "if (!str_starts_with($p, '/')) { exit; } readfile($p);", 1},
@@ -69,7 +69,7 @@ func TestReviewSafety(t *testing.T) {
 		{"later guard", canonical + "readfile($p); if (!str_starts_with($p, '/srv/d/')) { exit; }", 1},
 		{"loop rebinding", checked + "while ($_GET['more']) { readfile($p); $p = realpath($_GET['next']); }", 1},
 		{"extract", checked + "extract($_GET); readfile($p);", 1},
-		{"catch binding", checked + "try { work(); } catch (Exception $p) { } readfile($p);", 0},
+		{"catch binding", checked + "try { work(); } catch (Exception $p) { } readfile($p);", 1},
 		{"superseded write", "$p = $_GET['f']; $p = realpath('/srv/d/' . $p); if (!str_starts_with($p, '/srv/d/')) { exit; } readfile($p);", 0},
 		{"surplus argument", checked + "readfile($p); preg_match('/x/', 'x', $m, 0, 0, $p);", 0},
 		{"unresolved callee", checked + "readfile($p); $_GET['o']->m($p);", 0},

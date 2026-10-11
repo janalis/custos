@@ -115,6 +115,18 @@ func TestSharedLocalValueSeesEveryWrite(t *testing.T) {
 		{"static declaration", `function f(){$n=5; work(); static $n; probe($n);}`, ""},
 		{"unset", `function f(){$n=5; work(); unset($n); probe($n);}`, ""},
 		{"reference alias", `function f(){$n=5; work(); $r=&$n; $r=1; probe($n);}`, ""},
+		{"written through an earlier alias", `function f($a){$r=&$n; $n=5; $r=1; probe($n);}`, ""},
+		{"earlier alias, nothing in between", `function f($a){$r=&$n; $n=5; probe($n);}`, "5"},
+		{"earlier capture then call", `function f($a){$g=function() use (&$n){$n=1;}; $n=5; $g(); probe($n);}`, ""},
+		{"earlier capture then builtin call", `function f($a){$g=function() use (&$n){$n=1;}; $n=5; strlen($a); probe($n);}`, "5"},
+		{"earlier capture then method call", `function f($o){$g=function() use (&$n){$n=1;}; $n=5; $o->run(); probe($n);}`, ""},
+		{"earlier capture then static call", `function f($o){$g=function() use (&$n){$n=1;}; $n=5; Runner::run(); probe($n);}`, ""},
+		{"earlier capture then construction", `function f($o){$g=function() use (&$n){$n=1;}; $n=5; new Runner(); probe($n);}`, ""},
+		{"global then call", `function f($o){global $n; $n=5; work(); probe($n);}`, ""},
+		{"reference item then call", `function f($o){$n=5; $w=[&$n]; work(); probe($n);}`, ""},
+		{"reference loop then write of the other name", `function f($o){$n=[5]; foreach($n as &$v){} $n=[6]; $v=1; probe($n);}`, ""},
+		{"string offset write", `function f(){$n='abc'; work(); $n[0]='x'; probe($n);}`, ""},
+		{"interpolated string offset write", `function f($a){$n="a$a"; work(); $n[0]='x'; probe($n);}`, ""},
 		{"reference alias after read", `function f(){$n=5; work(); probe($n); $r=&$n;}`, "5"},
 		{"reference item", `function f(){$n=5; work(); $w=[&$n]; probe($n);}`, ""},
 		{"reference capture", `function f(){$n=5; work(); $g=function() use (&$n){$n=1;}; probe($n);}`, ""},
@@ -178,6 +190,25 @@ func TestSharedLocalWriteBudget(t *testing.T) {
 	src.WriteString("probe($n, $n);}")
 	if got := sharedDefectResults(t, "origin", src.String(), ""); got != "" {
 		t.Fatalf("origin beyond budget: %q", got)
+	}
+	// Calls that can run project code are budgeted like writes.
+	src.Reset()
+	src.WriteString("function f($o){$n=5; work();")
+	for range nativeLocalWriteBudget + 1 {
+		src.WriteString("new R;")
+	}
+	src.WriteString("probe($n);}")
+	if got := sharedDefectResults(t, "origin", src.String(), ""); got != "" {
+		t.Fatalf("origin beyond call budget: %q", got)
+	}
+	src.Reset()
+	src.WriteString("function f($o){$t=$o->p; if($t !== false){")
+	for range nativeLocalWriteBudget + 1 {
+		src.WriteString("$u++;")
+	}
+	src.WriteString("probe($t);}}")
+	if got := sharedDefectResults(t, "false", src.String(), ""); got != "false" {
+		t.Fatalf("guard beyond budget: %q", got)
 	}
 	// A variable without a reaching value is identified by name alone.
 	src.Reset()
@@ -320,6 +351,13 @@ func TestSharedFailureGuardPositions(t *testing.T) {
 		{"false", "property preceding exit", `function f($o){if($o->h === false){return 0;} probe($o->h);}`, "true"},
 		{"false", "property other value", `function f($o){if($o->g === false){return 0;} probe($o->h);}`, "false"},
 		{"false", "repeated call", `function f($o){if($o->h() === false){return 0;} probe($o->h());}`, "false"},
+		// A parameter has no reaching producer: the guard holds only while
+		// nothing writes the variable between the test and the read.
+		{"false", "untracked variable branch", `function f($s, $o){$t=$o->p; if($t !== false){probe($t);}}`, "true"},
+		{"false", "untracked variable rewritten in the branch", `function f($s, $o){$t=$o->p; if($t !== false){$t=$o->q; probe($t);}}`, "false"},
+		{"false", "untracked variable stepped in the branch", `function f($s, $o){$t=$o->p; if($t !== false){$t++; probe($t);}}`, "false"},
+		{"false", "untracked variable variable", `function f($s, $o){if($$s !== false){probe($$s);}}`, "true"},
+		{"false", "stepping operand", `function f($i){if($i++ !== false){probe($i++);}}`, "false"},
 		{"false", "closure boundary", `function f($o){if($o->h === false){return 0;} $g=function() use ($o){probe($o->h);};}`, "false"},
 		{"local-false", "property branch", `function f($o){if(\FALSE !== ($o->h)){probe($o->h);}}`, "false"},
 		{"local-false", "callable branch", `function f($o){$g=$o->pick(); if(\FALSE !== ($g)){probe($g);}}`, "true"},
@@ -364,6 +402,27 @@ func TestSharedSelfInstantiation(t *testing.T) {
 
 func TestSharedIntegerConstants(t *testing.T) {
 	for _, tc := range []struct{ src, want string }{
+		// A known integer stepped on the only path to the read.
+		{`$n=-1; $n--; probe($n);`, "-2/true"},
+		{`$n=-1; ++$n; probe($n);`, "0/true"},
+		{`$n=5; $n++; $n++; $n--; probe($n);`, "6/true"},
+		{`$n=5; $n+=3; probe($n);`, "8/true"},
+		{`$n=5; $n-=7; probe($n);`, "-2/true"},
+		{`$n=5; $m=2; $n+=$m; $n++; probe($n);`, "8/true"},
+		{`$n=5; $n*=2; probe($n);`, "0/false"},
+		{`$n=5; $n+=$u; probe($n);`, "0/false"},
+		{`$n=5; $n-=$u; probe($n);`, "0/false"},
+		{`$n='a'; $n++; probe($n);`, "0/false"},
+		{`$n=5; if($c){$n++;} probe($n);`, "0/false"},
+		{`$n=5; while($c){probe($n); $n++;}`, "0/false"},
+		{`function f($n){$n++; probe($n);}`, "0/false"},
+		{`$n=9223372036854775807; $n++; probe($n);`, "0/false"},
+		{`$n=-9223372036854775807; $n-=5; probe($n);`, "0/false"},
+		{`$n=5; $n-=PHP_INT_MIN; probe($n);`, "0/false"},
+		{`$n=5; probe($n++);`, "0/false"},
+		{`$n=5; probe(++$n);`, "0/false"},
+		{`$n=0;` + strings.Repeat(`$n++;`, nativeStepBudget) + `probe($n);`, "16/true"},
+		{`$n=0;` + strings.Repeat(`$n++;`, nativeStepBudget+1) + `probe($n);`, "0/false"},
 		{`probe(ZLIB_ENCODING_RAW);`, "-15/true"},
 		{`probe(ZLIB_ENCODING_GZIP);`, "31/true"},
 		{`probe(PHP_EOL);`, "0/false"},

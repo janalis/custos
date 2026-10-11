@@ -65,12 +65,16 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			n = &copy
 		}
 		if (truth && (n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd)) || (!truth && (n.Op.Kind == syntax.TBooleanOr || n.Op.Kind == syntax.TOr)) {
-			e.refine(n.Left, f, truth)
+			// The frame already holds what the right operand wrote: a fact
+			// about the left operand describes a value that may be gone.
+			if !rebinds(n.Right) {
+				e.refine(n.Left, f, truth)
+			}
 			e.refine(n.Right, f, truth)
 		}
 		flag := constantName(n.Right)
 		if (truth && n.Op.Kind == syntax.TIsIdentical) || (!truth && n.Op.Kind == syntax.TIsNotIdentical) {
-			if variable, ok := syntax.UnwrapParens(n.Left).(*syntax.Variable); ok && !mirrored {
+			if variable, ok := syntax.UnwrapParens(n.Left).(*syntax.Variable); ok && variable.NameExpr == nil && !mirrored {
 				if _, literal := literalText(n.Right); literal {
 					f.vars[variable.Name] = Value{Complete: true, Expr: n.Right}
 				}
@@ -276,4 +280,18 @@ func constantName(x syntax.Expr) string {
 		}
 	}
 	return ""
+}
+
+// rebinds reports an expression that writes a variable or runs a call when
+// evaluated, after which an earlier test may describe a replaced value.
+func rebinds(x syntax.Expr) bool {
+	found := false
+	syntax.Inspect(x, func(n syntax.Node) bool {
+		switch n.(type) {
+		case *syntax.Assign, *syntax.IncDec:
+			found = true
+		}
+		return !found
+	})
+	return found
 }

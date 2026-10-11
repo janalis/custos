@@ -251,6 +251,9 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 			propagate(b.exceptional, exceptional)
 		}
 	}
+	// What each variable may hold when the scope ends is what a holder of a
+	// reference to it has written.
+	r.exit = inputs[exit].vars
 	r.complete = r.complete && g.complete && len(queue) == 0
 	sort.Slice(r.calls, func(i, j int) bool { return r.calls[i].Node.Span().Start < r.calls[j].Node.Span().Start })
 	return r

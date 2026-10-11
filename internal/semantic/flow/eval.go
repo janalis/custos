@@ -16,16 +16,21 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 	case *syntax.ExprStmt:
 		e.eval(n.Expr, f, r, 0)
 	case *syntax.Foreach:
-		e.eval(n.Expr, f, r, 0)
+		iterated := e.eval(n.Expr, f, r, 0)
 		if n.ByRef || referenceTarget(n.Value, f) {
 			// The loop variable stays bound to an element after the loop.
 			f.alias(rootVariable(n.Value), true)
 			f.alias(rootVariable(n.Expr), true)
 		}
-		kill(n.Key, f)
-		kill(n.Value, f)
+		kill(n.Key, f, r)
+		kill(n.Value, f, r)
+		// The keys and elements of request data are request data.
+		if tainted(iterated) {
+			spread(n.Key, iterated, f)
+			spread(n.Value, iterated, f)
+		}
 	case *syntax.Catch:
-		kill(n.Var, f)
+		kill(n.Var, f, r)
 	case *syntax.Echo:
 		for _, x := range n.Exprs {
 			e.eval(x, f, r, 0)
@@ -33,13 +38,23 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 		f.states[outputID] = State{Operation: "echo", Span: n.Span()}
 	case *syntax.Global:
 		for _, x := range n.Vars {
-			f.alias(rootVariable(x), false)
+			if name := rootVariable(x); name != "" {
+				f.alias(name, false)
+				if r.globalNames == nil {
+					r.globalNames = map[string]bool{}
+				}
+				r.globalNames[name] = true
+			}
+			kill(x, f, r)
 		}
-		f.vars = map[string]Value{}
-		f.states = map[uint32]State{}
-	case *syntax.Unset, *syntax.StaticStmt:
-		f.vars = map[string]Value{}
-		f.states = map[uint32]State{}
+	case *syntax.Unset:
+		for _, x := range n.Vars {
+			kill(x, f, r)
+		}
+	case *syntax.StaticStmt:
+		for _, x := range n.Vars {
+			kill(x.Var, f, r)
+		}
 	default:
 		syntax.Children(n, func(child syntax.Node) {
 			if x, ok := child.(syntax.Expr); ok {
@@ -91,21 +106,44 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		} else if strings.HasPrefix(n.Name, "_") && external(n.Name) {
 			v.Sources = []Source{{Kind: n.Name, Path: e.file.Path, Span: n.Span(), Parameter: -1}}
 		} else {
-			v = f.vars[n.Name]
+			var tracked bool
+			if v, tracked = f.vars[n.Name]; !tracked {
+				// An import of request data may have created the variable.
+				if spread := f.vars[imported]; tainted(spread) {
+					v = Value{Sources: spread.Sources, Safe: spread.Safe}
+				}
+			}
 		}
 	case *syntax.Paren:
 		v = e.eval(n.Expr, f, r, depth+1)
 	case *syntax.Assign:
+		target, plain := n.Var.(*syntax.Variable)
+		plain = plain && target.NameExpr == nil && !n.ByRef
+		if plain && n.Op.Kind != syntax.TEqual && !external(target.Name) {
+			// A compound assignment combines the variable with the operand.
+			old := e.eval(n.Var, f, r, depth+1)
+			v = compound(n, old, e.eval(n.Value, f, r, depth+1))
+			f.write(r, target.Name, v)
+			break
+		}
 		v = e.eval(n.Value, f, r, depth+1)
-		if target, ok := n.Var.(*syntax.Variable); ok && target.NameExpr == nil && !n.ByRef && n.Op.Kind == syntax.TEqual {
-			f.write(target.Name, v)
+		if plain && n.Op.Kind == syntax.TEqual {
+			f.write(r, target.Name, v)
 		} else {
 			if n.ByRef {
 				f.alias(rootVariable(n.Var), true)
 				f.alias(rootVariable(n.Value), true)
 			}
-			f.vars = map[string]Value{}
-			f.states = map[uint32]State{}
+			// Only the written targets change: an element write alters its
+			// array, a destructuring its slots, a property write no local
+			// binding at all. What is written may carry request data there.
+			kill(n.Var, f, r)
+			if tainted(v) {
+				if rootVariable(n.Var) == "GLOBALS" {
+					e.globalWrite(n.Var, v, r)
+				}
+				spread(n.Var, v, f)
+			}
 			v.Complete = false
 		}
 	case *syntax.FuncCall:
@@ -127,7 +165,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			}
 		}
 		e.invalidateEscaped(n, values, f, r)
-		e.invalidateReferences(n, n.Args, f)
+		e.invalidateReferences(n, n.Args, f, r)
 		if e.exposed(f, r) && !e.nativeClass(n) {
 			e.invalidateShared(f, r)
 		}
@@ -140,7 +178,8 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	case *syntax.Arg:
 		v = e.eval(n.Value, f, r, depth+1)
 		if n.ByRef || n.Unpack {
-			v.Complete = false
+			// The values such an argument binds are not followed.
+			v = Value{Expr: v.Expr}
 		}
 	case *syntax.Binary:
 		left := e.eval(n.Left, f, r, depth+1)
@@ -181,15 +220,19 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	case *syntax.IncDec:
 		v = e.eval(n.Var, f, r, depth+1)
 		if target, ok := n.Var.(*syntax.Variable); ok && target.NameExpr == nil {
-			// The stepped variable no longer holds its assigned expression.
+			// The stepped variable holds the step applied to a known value,
+			// which a reader can evaluate, and nothing provable otherwise.
 			next := Value{Complete: v.Complete, Sources: v.Sources, Safe: v.Safe}
-			f.write(target.Name, next)
+			if v.Expr != nil {
+				next.Expr = x
+			}
+			f.write(r, target.Name, next)
 			if n.Prefix {
 				v = next
 				v.Expr = x
 			}
 		} else {
-			kill(n.Var, f)
+			kill(n.Var, f, r)
 			v = Value{}
 		}
 	case *syntax.Ternary:
@@ -252,7 +295,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 					v = Value{Expr: x, Complete: true}
 				case "name", "type", "full_path":
 				default:
-					v.Complete = false
+					v = Value{Expr: x}
 				}
 			}
 		}
@@ -394,7 +437,9 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
 		}
 	} else if !builtin {
-		v.Complete = false
+		// Nothing is known about what an unresolved callee returns: it may
+		// well validate or escape its arguments.
+		v = Value{Expr: v.Expr}
 	}
 	if builtin {
 		if len(v.Sources) > 0 && scalarResult(result) {
@@ -402,14 +447,19 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 		switch name {
 		case "extract", "parse_str":
-			// Each key of the array may replace a local binding of that name.
+			// Each key of the array may replace a local binding of that
+			// name, or create one, with an element of the array.
 			if len(values) > 0 && (name == "extract" || len(values) == 1) {
+				r.operations += len(f.vars)
 				for other, old := range f.vars {
-					imported := merge(old, values[0])
-					imported.Expr, imported.Identity = nil, 0
-					f.vars[other] = imported
+					f.vars[other] = unsettled(old, values[0])
 				}
+				f.importing(values[0])
 			}
+		}
+		// Invoking a closure object runs project code like calling it.
+		if e.exposed(f, r) && (name == "__invoke" || name == "call") {
+			e.invalidateShared(f, r)
 		}
 		if e.exposed(f, r) && callbackParameter(e, n) {
 			e.invalidateShared(f, r)
@@ -499,14 +549,13 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	}
 	for i, a := range written {
 		if a.ByRef || a.Unpack {
-			f.vars = map[string]Value{}
-			f.states = map[uint32]State{}
+			f.forget(r)
 		}
 		if i < len(values) && !builtin && values[i].Identity != 0 {
 			delete(f.states, values[i].Identity)
 		}
 	}
-	e.invalidateReferences(n, args, f)
+	e.invalidateReferences(n, args, f, r)
 	return v
 }
 
@@ -588,23 +637,68 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 	}
 }
 
+// compound is the value a compound assignment leaves in its variable: the
+// concatenation for `.=`, a number for the arithmetic operators, either
+// operand's content otherwise. Its expression stays readable only when the
+// previous value was known.
+func compound(n *syntax.Assign, old, operand Value) Value {
+	v := merge(old, operand)
+	switch n.Op.Kind {
+	case syntax.TMinusEqual, syntax.TMulEqual, syntax.TDivEqual, syntax.TModEqual, syntax.TPowEqual, syntax.TSlEqual, syntax.TSrEqual:
+		v.Safe |= HTML | SQL | Shell | Header
+	}
+	v = Value{Complete: v.Complete, Sources: v.Sources, Safe: v.Safe}
+	if old.Expr != nil && n.Op.Kind != syntax.TCoalesceEqual {
+		v.Expr = n
+	}
+	return v
+}
+
 // kill discards the values a write target replaces. A property or static
-// property target changes no local binding.
-func kill(target syntax.Expr, f *frame) {
+// property target changes no local binding; an element target changes part
+// of its array, which keeps the request data it held.
+func kill(target syntax.Expr, f *frame, r *scopeResult) {
 	switch n := syntax.UnwrapParens(target).(type) {
 	case *syntax.Variable:
 		if n.NameExpr != nil {
-			f.vars = map[string]Value{}
+			f.forget(r)
 		} else {
-			f.write(n.Name, Value{})
+			f.write(r, n.Name, Value{})
 		}
 	case *syntax.ArrayDimFetch:
-		kill(n.Var, f)
+		if name := rootVariable(n); name != "" {
+			f.write(r, name, unsettled(f.vars[name], Value{}))
+			// The slot may be a reference to a variable (`$a = [&$v]`).
+			if !f.aliased[name] && len(f.aliased) > 0 {
+				r.operations += len(f.aliased)
+				for other, local := range f.aliased {
+					if local {
+						f.vars[other] = unsettled(f.vars[other], Value{})
+					}
+				}
+			}
+		} else {
+			kill(n.Var, f, r)
+		}
 	default:
 		for _, item := range targetItems(target) {
 			if item != nil {
-				kill(item.Value, f)
+				kill(item.Value, f, r)
 			}
+		}
+	}
+}
+
+// spread adds the request data of a written value to the bindings a target
+// stores it in.
+func spread(target syntax.Expr, v Value, f *frame) {
+	if name := rootVariable(target); name != "" {
+		f.vars[name] = unsettled(f.vars[name], v)
+		return
+	}
+	for _, item := range targetItems(target) {
+		if item != nil {
+			spread(item.Value, v, f)
 		}
 	}
 }
@@ -619,20 +713,25 @@ func (e *Env) exposed(f *frame, r *scopeResult) bool {
 // while a callee with unknown effects, or a callback, runs.
 func (e *Env) invalidateShared(f *frame, r *scopeResult) {
 	if r.global && e.globalsTable() {
+		r.operations += len(f.vars)
 		for name, old := range f.vars {
 			f.vars[name] = unsettled(old, e.held(name, r))
 		}
 		return
 	}
+	r.operations += len(f.aliased)
 	for name := range f.aliased {
 		f.vars[name] = unsettled(f.vars[name], e.held(name, r))
 	}
 }
 
-// held is the request data a reference holder of name writes to it.
+// held is the request data a reference holder of name writes to it: a
+// closure of the scope capturing it by reference, or a function of the file
+// that binds the same global variable.
 func (e *Env) held(name string, r *scopeResult) Value {
 	written := r.holders[name]
-	if r.global {
+	if r.global || r.globalNames[name] {
+		e.globals()
 		if other, ok := e.globalTaint[name]; ok {
 			written = merge(Value{Complete: true, Sources: written.Sources, Safe: written.Safe}, other)
 		}
@@ -640,35 +739,35 @@ func (e *Env) held(name string, r *scopeResult) Value {
 	return written
 }
 
-// holderWrites joins the request data that plain assignments inside scope
-// give to name, a variable the scope shares with its creator or the file.
-// The globals table entry of that name counts as the variable itself.
+// holderWrites is the request data a scope may leave in name, a variable it
+// shares with its creator or the file: what the variable holds when the scope
+// ends, and what the scope stores in the globals table entry of that name.
 func (e *Env) holderWrites(scope syntax.Node, name string) Value {
 	r := e.scope(scope)
 	written := Value{Complete: true}
-	syntax.Inspect(scope, func(n syntax.Node) bool {
-		if n != scope && syntax.IsVariableScope(n) {
-			return false
+	for _, v := range []Value{r.exit[name], r.globalWrites[name]} {
+		if tainted(v) {
+			written = merge(written, Value{Complete: true, Sources: v.Sources, Safe: v.Safe})
 		}
-		if a, ok := n.(*syntax.Assign); ok && assigned(a.Var) == name {
-			if v := r.values[a.Value]; tainted(v) {
-				written = merge(written, Value{Complete: true, Sources: v.Sources, Safe: v.Safe})
-			}
-		}
-		return true
-	})
+	}
 	return written
 }
 
-// assigned names the variable a plain target or a literal globals table
-// entry stands for.
+// globalWrite records request data stored in a literal globals table entry.
+func (e *Env) globalWrite(target syntax.Expr, v Value, r *scopeResult) {
+	name := assigned(target)
+	if name == "" {
+		return
+	}
+	if r.globalWrites == nil {
+		r.globalWrites = map[string]Value{}
+	}
+	r.globalWrites[name] = merge(Value{Complete: true, Sources: r.globalWrites[name].Sources, Safe: r.globalWrites[name].Safe}, Value{Complete: true, Sources: v.Sources, Safe: v.Safe})
+}
+
+// assigned names the variable a literal globals table entry stands for.
 func assigned(target syntax.Expr) string {
-	switch t := syntax.UnwrapParens(target).(type) {
-	case *syntax.Variable:
-		if t.NameExpr == nil {
-			return t.Name
-		}
-	case *syntax.ArrayDimFetch:
+	if t, ok := syntax.UnwrapParens(target).(*syntax.ArrayDimFetch); ok {
 		if table, ok := t.Var.(*syntax.Variable); ok && table.Name == "GLOBALS" && table.NameExpr == nil {
 			if key, known := literalText(t.Dim); known {
 				return key
@@ -676,17 +775,6 @@ func assigned(target syntax.Expr) string {
 		}
 	}
 	return ""
-}
-
-// nativeClass reports the construction of a class PHP itself declares, whose
-// constructor runs no project code.
-func (e *Env) nativeClass(n *syntax.New) bool {
-	name, ok := n.Class.(*syntax.Name)
-	if !ok {
-		return false
-	}
-	class := e.types.Index.Class(e.types.Names.Class(name.Value, name.Span().Start), e.types.PHP)
-	return class != nil && strings.HasPrefix(class.File, "stubs/")
 }
 
 // callbackParameter reports a resolved builtin that may invoke user code.
@@ -716,4 +804,15 @@ func scalarResult(declared string) bool {
 		}
 	}
 	return true
+}
+
+// nativeClass reports the construction of a class PHP itself declares, whose
+// constructor runs no project code.
+func (e *Env) nativeClass(n *syntax.New) bool {
+	name, ok := n.Class.(*syntax.Name)
+	if !ok {
+		return false
+	}
+	class := e.types.Index.Class(e.types.Names.Class(name.Value, name.Span().Start), e.types.PHP)
+	return class != nil && strings.HasPrefix(class.File, "stubs/")
 }

@@ -34,7 +34,7 @@ func TestReviewAliasedOrigin(t *testing.T) {
 		{"reference capture", origin + "$f = function () use (&$n) { $n = $_GET['b']; }; $f(); " + sink, 1},
 		{"capture beside a call", origin + "$x = (function () use (&$n) { $n = $_GET['b']; })() . strlen('a'); " + sink, 1},
 		{"extract", origin + "extract($_GET); " + sink, 1},
-		{"catch binding", origin + "try { run(); } catch (Exception $n) { } " + sink, 0},
+		{"catch binding", origin + "try { run(); } catch (Exception $n) { } " + sink, 1},
 		{"reference alias", origin + sink + "$m = &$n;", 1},
 		{"element alias", origin + sink + "$m = &$n['k'];", 1},
 		{"reference loop", origin + sink + "foreach ($n as &$m) { }", 1},

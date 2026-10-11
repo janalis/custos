@@ -71,14 +71,21 @@ versions follow [Semantic Versioning](https://semver.org/).
   containment) and no longer report numeric, boolean or `match`-selected
   constant values as tainted.
 - Value-based inspections no longer trust a variable's assigned value after
-  `++`/`--`, a `foreach`, `list()` or `catch` target, `extract()`, a write
+  a `foreach`, `list()` or `catch` target, `extract()`, a write
   through a reference alias, or a call that can run code holding a reference
   to it (by-reference closure capture, `global`, by-reference parameter);
   copies taken afterwards are unknown too. Request data the variable held, or
-  that the reference holder writes to it, is still reported.
+  that the reference holder writes to it, is still reported. A known integer
+  stepped with `++`, `--`, `+=` or `-=` on the only path to its use has the
+  stepped value; an unrelated property, element or compound assignment no
+  longer discards what is known about other variables.
 - Request-data inspections no longer treat a `match` subject, arithmetic
   results or number- and boolean-returning builtins as carrying request text;
-  the short ternary `$a ?: $b` now keeps the request data of `$a`.
+  the short ternary `$a ?: $b` now keeps the request data of `$a`. Request
+  data is now reported when it is combined with a value of unknown origin
+  (`$this->bin . $_GET['a']`), appended with `.=`, stored in an array element,
+  iterated with `foreach`, imported by `extract($_GET)`, or passed to a
+  function that cannot be resolved before it reaches the sink.
 - Failure-value inspections accept more guards: truthiness, `!empty()`, loose
   comparison with `false`/`null`, type predicates, constant-first comparisons,
   an assignment tested in place, `elseif`/`else` arms, short-circuit operands,

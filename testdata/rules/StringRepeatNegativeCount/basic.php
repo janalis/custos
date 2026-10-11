@@ -5,7 +5,7 @@ function countdown(): string
 {
     $pad = -1;
     $pad--;
-    return str_repeat('-', $pad);
+    return <error descr="Supply a nonnegative repetition count.">str_repeat('-', $pad)</error>;
 }
 
 function steppedLater(): string

@@ -78,6 +78,18 @@ type frame struct {
 	aliased map[string]bool
 }
 
+// imported is the reserved binding, under a name no variable has, for
+// request data an import (`extract`, one-argument `parse_str`) may have put
+// in any variable, tracked or not. It joins and clones like any binding.
+const imported = ""
+
+// importing joins request data an import may have spread over the scope.
+func (f *frame) importing(v Value) {
+	if tainted(v) {
+		f.vars[imported] = unsettled(f.vars[imported], v)
+	}
+}
+
 // Env shares one bounded analysis per variable scope among all inspections.
 type Env struct {
 	file     *syntax.File
@@ -88,6 +100,7 @@ type Env struct {
 	// globalTaint the request data those functions write to them.
 	global       map[string]bool
 	globalTaint  map[string]Value
+	writers      map[globalWriter]bool
 	globalsKnown bool
 }
 
@@ -106,6 +119,12 @@ type scopeResult struct {
 	// holders is the request data closures of the scope write to the names
 	// they capture by reference.
 	holders map[string]Value
+	// exit is the request data each variable may hold when the scope ends,
+	// and globalWrites what the scope stores in literal globals table entries.
+	exit         map[string]Value
+	globalWrites map[string]Value
+	// globalNames are the names the scope binds with `global`.
+	globalNames map[string]bool
 }
 
 // New creates an environment without computing scope flow eagerly.
@@ -154,22 +173,17 @@ func (e *Env) ExactLength(x syntax.Expr) (int64, bool) {
 	return v.Length, v.Complete && v.LengthKnown
 }
 
-// Tainted reports a retained external source without a context-specific escape.
-// Incomplete results may retain known unsafe flows, but never prove safety.
+// Tainted reports a retained external source without a context-specific
+// escape. Request data is a may-property: an operand of unknown value adds
+// none and erases none, so the value need not be completely known. A scope
+// the analysis could not follow to its end proves nothing either way.
 func (e *Env) Tainted(x syntax.Expr, context Context) bool {
-	v := e.Value(x)
-	if !v.Complete {
+	if x == nil {
 		return false
 	}
-	if v.Safe&context != 0 {
-		return false
-	}
-	for _, s := range v.Sources {
-		if s.Parameter < 0 {
-			return true
-		}
-	}
-	return false
+	r := e.scope(syntax.EnclosingVariableScope(x))
+	v := r.values[x]
+	return r.complete && v.Safe&context == 0 && tainted(v)
 }
 
 // Calls returns reached calls in a scope, excluding nested scopes. Returned
@@ -239,11 +253,13 @@ func (e *Env) GlobalStateBefore(at syntax.Node, domain string) (State, bool) {
 }
 
 func merge(a, b Value) Value {
+	// A value without request data has nothing to escape: it is neutral for
+	// the escaping proof of the other operand, whether or not it is known.
 	sa, sb := a.Safe, b.Safe
-	if len(a.Sources) == 0 && a.Complete {
+	if len(a.Sources) == 0 {
 		sa = HTML | SQL | Shell | Header | URL | Path
 	}
-	if len(b.Sources) == 0 && b.Complete {
+	if len(b.Sources) == 0 {
 		sb = HTML | SQL | Shell | Header | URL | Path
 	}
 	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, headerMask: a.headerMask & b.headerMask, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull, LengthKnown: a.LengthKnown && b.LengthKnown && a.Length == b.Length, Length: a.Length}
@@ -305,16 +321,29 @@ func (f *frame) alias(name string, local bool) {
 }
 
 // write binds a plain variable. A write through a reference taken in the
-// scope replaces the value seen under every other such name.
-func (f *frame) write(name string, v Value) {
+// scope reaches every other such name: its previous value is gone, and the
+// request data written may now be read under it. The walk over the aliases is
+// charged to the scope's budget.
+func (f *frame) write(r *scopeResult, name string, v Value) {
 	if f.aliased[name] {
+		r.operations += len(f.aliased)
 		for other, local := range f.aliased {
 			if local {
-				f.vars[other] = unsettled(f.vars[other], Value{})
+				f.vars[other] = unsettled(f.vars[other], v)
 			}
 		}
 	}
 	f.vars[name] = v
+}
+
+// forget discards what is known about every binding and operation, as after
+// a write whose target the analysis does not follow. Request data stays.
+func (f *frame) forget(r *scopeResult) {
+	r.operations += len(f.vars)
+	for name, old := range f.vars {
+		f.vars[name] = unsettled(old, Value{})
+	}
+	f.states = map[uint32]State{}
 }
 
 // unsettled is the value of a binding that code the analysis does not follow
@@ -323,7 +352,7 @@ func (f *frame) write(name string, v Value) {
 // unknown must not read as untainted.
 func unsettled(old, written Value) Value {
 	v := Value{}
-	if old.Complete && tainted(old) {
+	if tainted(old) {
 		v = Value{Complete: true, Sources: old.Sources, Safe: old.Safe}
 	}
 	if tainted(written) {

@@ -30,6 +30,33 @@ type nativeLocalWrite struct {
 type nativeLocalWrites struct {
 	known  bool
 	writes []nativeLocalWrite
+	// shared names are bound, from the recorded offset on, to storage another
+	// name, a closure or the globals table also reaches; calls are the
+	// offsets after which a call that can run project code has returned.
+	shared map[string]uint32
+	calls  []uint32
+}
+
+// share records a name whose storage is reachable without naming it. The
+// scope is walked in source order, so the first record is the earliest.
+func (w *nativeLocalWrites) share(x syntax.Expr, at uint32) {
+	if v := nativeRootVariable(x); v != nil && v.NameExpr == nil {
+		if w.shared == nil {
+			w.shared = map[string]uint32{}
+		}
+		if _, known := w.shared[v.Name]; !known {
+			w.shared[v.Name] = at
+		}
+	}
+}
+
+// call records a call that can run project code.
+func (w *nativeLocalWrites) call(n syntax.Node) {
+	if len(w.calls) == nativeLocalWriteBudget {
+		w.known = false
+		return
+	}
+	w.calls = append(w.calls, n.Span().End)
 }
 
 const nativeLocalWriteBudget = 1024
@@ -44,6 +71,7 @@ func (w *nativeLocalWrites) index(ctx *analysis.Context, scope syntax.Node) {
 				for _, use := range closure.Uses {
 					if use.ByRef {
 						w.target(use.Var, nativeLocalWrite{at: n.Span().Start})
+						w.share(use.Var, n.Span().Start)
 					}
 				}
 			}
@@ -103,12 +131,15 @@ func nativeTargetItems(x syntax.Expr) []*syntax.ArrayItem {
 }
 
 func (w *nativeLocalWrites) record(ctx *analysis.Context, n syntax.Node) {
-	write := nativeLocalWrite{at: n.Span().Start}
+	start := n.Span().Start
+	write := nativeLocalWrite{at: start}
 	switch x := n.(type) {
 	case *syntax.Assign:
 		if x.ByRef {
 			// The source is shared once the reference exists.
 			w.target(x.Value, nativeLocalWrite{at: x.Span().End})
+			w.share(x.Value, start)
+			w.share(x.Var, start)
 		}
 		write.plain = !x.ByRef && x.Op.Kind == syntax.TEqual
 		w.target(x.Var, write)
@@ -119,6 +150,8 @@ func (w *nativeLocalWrites) record(ctx *analysis.Context, n syntax.Node) {
 		w.target(x.Value, write)
 		if x.ByRef || nativeReferenceTarget(x.Value) {
 			w.target(x.Expr, nativeLocalWrite{at: x.Expr.Span().End})
+			w.share(x.Expr, start)
+			w.share(x.Value, start)
 		}
 	case *syntax.Catch:
 		if x.Var != nil {
@@ -127,6 +160,7 @@ func (w *nativeLocalWrites) record(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.Global:
 		for _, v := range x.Vars {
 			w.target(v, write)
+			w.share(v, start)
 		}
 	case *syntax.StaticStmt:
 		for _, v := range x.Vars {
@@ -139,6 +173,7 @@ func (w *nativeLocalWrites) record(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.ArrayItem:
 		if x.ByRef {
 			w.target(x.Value, nativeLocalWrite{at: x.Span().End})
+			w.share(x.Value, start)
 		}
 	case *syntax.Include, *syntax.Eval:
 		w.add("", write)
@@ -155,12 +190,18 @@ func (w *nativeLocalWrites) record(ctx *analysis.Context, n syntax.Node) {
 				}
 			}
 		}
+		if NativeBuiltinName(ctx, x) == "" {
+			w.call(x)
+		}
 		w.arguments(ctx, x, x.Args)
 	case *syntax.MethodCall:
+		w.call(x)
 		w.arguments(ctx, x, x.Args)
 	case *syntax.StaticCall:
+		w.call(x)
 		w.arguments(ctx, x, x.Args)
 	case *syntax.New:
+		w.call(x)
 		w.arguments(ctx, x, x.Args)
 	}
 }
@@ -287,7 +328,41 @@ func (w *nativeLocalWrites) rewritten(name string, from, read uint32, content bo
 			return true
 		}
 	}
+	return w.reached(name, from, read)
+}
+
+// reached reports that storage shared under name may have been written
+// between two offsets without naming it: through another shared name, or by a
+// call that can run code holding a reference.
+func (w *nativeLocalWrites) reached(name string, after, before uint32) bool {
+	since, shared := w.shared[name]
+	if !shared || since >= before {
+		return false
+	}
+	for _, write := range w.writes {
+		if _, other := w.shared[write.name]; other && write.name != name && !write.builtin && write.at > after && write.at < before {
+			return true
+		}
+	}
+	for _, at := range w.calls {
+		if at > after && at < before {
+			return true
+		}
+	}
 	return false
+}
+
+// written reports any write of name strictly between two offsets.
+func (w *nativeLocalWrites) written(name string, after, before uint32) bool {
+	if !w.known {
+		return true
+	}
+	for _, write := range w.writes {
+		if (write.name == name || write.name == "") && write.at > after && write.at < before {
+			return true
+		}
+	}
+	return w.reached(name, after, before)
 }
 
 // rebound reports a write strictly between two offsets after which
@@ -302,5 +377,5 @@ func (w *nativeLocalWrites) rebound(name string, after, before uint32) bool {
 			return true
 		}
 	}
-	return false
+	return w.reached(name, after, before)
 }

@@ -587,7 +587,12 @@ func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 	}
 	// The scan reads plain assignments only; any other write of the variable
 	// after the selected one leaves its value unknown.
-	_, content := value.(*syntax.Array)
+	// Element writes change an array or a string, not the object a variable holds.
+	content := false
+	switch value.(type) {
+	case *syntax.Array, *syntax.Literal, *syntax.InterpolatedString:
+		content = true
+	}
 	if value == nil || facts.localWrites(ctx, scope).rewritten(variable.Name, from, e.Span().Start, content) {
 		return nil
 	}

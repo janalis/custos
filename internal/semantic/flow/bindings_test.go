@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
+
+	"custos/internal/testing/testbudget"
 )
 
 // A value stays resolved only while no write the transfer functions cannot
@@ -14,9 +17,29 @@ func TestIndirectWritesDiscardResolvedValues(t *testing.T) {
 		resolved  bool
 	}{
 		{"plain", `$x=1; probe($x);`, true},
-		{"post increment", `$x=1; $x++; probe($x);`, false},
-		{"pre decrement", `$x=1; --$x; probe($x);`, false},
-		{"increment before copy", `$x=1; $x++; $y=$x; probe($y);`, false},
+		// A step of a known value resolves to the step itself, which a reader
+		// evaluates; a step of an unknown value resolves to nothing.
+		{"post increment", `$x=1; $x++; probe($x);`, true},
+		{"pre decrement", `$x=1; --$x; probe($x);`, true},
+		{"increment before copy", `$x=1; $x++; $y=$x; probe($y);`, true},
+		{"increment of a parameter", `function f($x){$x++; probe($x);}`, false},
+		{"increment in one branch", `$x=1; if($c){$x++;} probe($x);`, false},
+		{"compound assignment", `$x=1; $x+=2; probe($x);`, true},
+		{"compound assignment of a parameter", `function f($x){$x.='a'; probe($x);}`, false},
+		{"coalescing assignment", `$x=1; $x??=2; probe($x);`, false},
+		{"compound assignment of another variable", `$x=1; $y='a'; $y.='b'; probe($x);`, true},
+		{"compound assignment of an element", `$x=1; $y=[]; $y['k'].='b'; probe($x);`, true},
+		{"element assignment of the array itself", `$x=[1]; $x['k']='b'; probe($x);`, false},
+		{"property assignment", `$x=1; $this->p=2; probe($x);`, true},
+		{"dynamic globals entry written in a function", `function f($k){$x=1; $GLOBALS[$k]=$_GET['b']; probe($x);}`, true},
+		{"destructuring of other variables", `$x=1; [$a, $b]=$r; probe($x);`, true},
+		{"destructuring", `$x=1; [$a, $x]=$r; probe($x);`, false},
+		{"variable variable assignment", `$x=1; $$n=2; probe($x);`, false},
+		{"other variable unset", `$x=1; unset($y); probe($x);`, true},
+		{"other variable declared static", `function f(){$x=1; static $y; probe($x);}`, true},
+		{"other variable declared global", `function f(){$x=1; global $y; probe($x);}`, true},
+		{"compound assignment in a loop", `$x=1; while($c){probe($x); $x+=1;}`, false},
+		{"compound assignment through an alias", `$r=&$x; $x=1; $r+=1; probe($x);`, false},
 		{"copy before increment", `$x=1; $y=$x; $x++; probe($y);`, true},
 		{"post increment yields old value", `$x=1; $y=$x++; probe($y);`, true},
 		{"pre increment yields itself", `$x=1; $y=++$x; probe($y);`, true},
@@ -38,6 +61,8 @@ func TestIndirectWritesDiscardResolvedValues(t *testing.T) {
 		{"value capture", `$x=1; $f=function() use ($x){}; $f(); probe($x);`, true},
 		{"arrow function", `$x=1; $f=fn() => $x + 1; $f(); probe($x);`, true},
 		{"reference item then call", `$x=1; $w=['k'=>&$x]; unknown($w); probe($x);`, false},
+		{"reference item written through its array", `$x=1; $w=[&$x]; $w[0]=2; probe($x);`, false},
+		{"element write beside a reference alias", `$r=&$x; $x=1; $w=[]; $w[0]=2; probe($x);`, false},
 		{"reference item without call", `$x=1; $w=['k'=>&$x]; probe($x);`, true},
 		{"reference alias written", `$x=1; $r=&$x; $x=1; $r=2; probe($x);`, false},
 		{"reference alias rebound", `$r=&$x; $x=1; probe($x);`, true},
@@ -122,6 +147,49 @@ func TestTaintFollowsValuesNotSelectors(t *testing.T) {
 		{"string method result", `$d=new DateTime(); $y=$d->format($_GET['a']); probe($y);`, true},
 		{"scalar static result", `$y=IntlChar::ord($_GET['a']); probe($y);`, false},
 		{"string static result", `$y=Normalizer::normalize($_GET['a']); probe($y);`, true},
+		{"appended in a loop", `$n=$_GET['a']; foreach($x as $k){$n.=$k;} probe($n);`, true},
+		{"rebuilt in a loop", `$n=$_GET['a']; foreach($x as $k){$n=$n . $k;} probe($n);`, true},
+		{"request data appended in a branch", `$n='ls'; if($c){$n.=$_GET['a'];} probe($n);`, true},
+		{"request data appended in a loop", `$n='ls'; foreach($_GET['a'] as $k){$n.=$k;} probe($n);`, true},
+		{"request data keys appended in a loop", `$n='ls'; foreach($_GET as $k=>$v){$n.=$k;} probe($n);`, true},
+		{"escaped elements appended in a loop", `$n='ls'; foreach($_GET['a'] as $k){$n.=htmlspecialchars($k);} probe($n);`, false},
+		{"elements of a clean list appended in a loop", `$n='ls'; foreach(['a','b'] as $k){$n.=$k;} probe($n);`, false},
+		{"clean text appended", `$n='ls'; $n.=' -l'; probe($n);`, false},
+		{"unknown text appended to clean text", `$n='ls'; $n.=$this->flag; probe($n);`, false},
+		{"unknown text appended to escaped data", `$n=htmlspecialchars($_GET['a']); $n.=$this->flag; probe($n);`, false},
+		{"request data beside unknown text", `$y=$this->table . $_GET['a']; probe($y);`, true},
+		{"request data interpolated beside unknown text", `$y="{$this->table} {$_GET['a']}"; probe($y);`, true},
+		{"unknown call result beside unknown text", `$y=$this->table . unknown($_GET['a']); probe($y);`, false},
+		{"number subtracted in place", `$n=$_GET['a']; $n-=1; probe($n);`, false},
+		{"number added in place may unite arrays", `$n=$_GET['a']; $n+=1; probe($n);`, true},
+		{"request data coalesced in place", `$n=null; $n??=$_GET['a']; probe($n);`, true},
+		{"superglobal appended in place", `$_GET['a'].='x'; $n=1; probe($n);`, false},
+		{"passed to an unresolved function", `$n=$_GET['a']; other($n); probe($n);`, true},
+		{"passed to an unresolved method", `$n=$_GET['a']; $o->other($n); probe($n);`, true},
+		{"clean value passed to an unresolved function", `$n=1; other($n); probe($n);`, false},
+		{"passed to a declared reference parameter", `function clean(&$v){$v='safe';} $n=$_GET['a']; clean($n); probe($n);`, false},
+		{"passed to a builtin output parameter", `$n=$_GET['a']; preg_match('/a/', 'a', $n); probe($n);`, false},
+		{"request data imported into the scope", `extract($_GET); probe($cmd);`, true},
+		{"query string imported into the scope", `parse_str($_SERVER['QUERY_STRING']); probe($cmd);`, true},
+		{"query string parsed into an array", `parse_str($_SERVER['QUERY_STRING'], $q); probe($cmd);`, false},
+		{"clean array imported into the scope", `extract(['cmd'=>'ls']); probe($cmd);`, false},
+		{"unknown array imported into the scope", `$x=$_GET['a']; extract(foo()); probe($x);`, true},
+		{"unknown array imported over a clean value", `$x='ls'; extract(foo()); probe($x);`, false},
+		{"request data imported in one branch", `if($c){extract($_GET);} probe($cmd);`, true},
+		{"request data imported in both branches", `if($c){extract($_GET);}else{extract($_POST);} probe($cmd);`, true},
+		{"request data imported, variable reassigned", `extract($_GET); $cmd='ls'; probe($cmd);`, false},
+		{"element stepped", `$x=$_GET; $x['n']++; probe($x['c']);`, true},
+		{"element used as a loop target", `$x=$_GET; foreach([1] as $x['k']){} probe($x['c']);`, true},
+		{"property element used as a loop target", `$x=$_GET['a']; foreach([1] as $this->p['k']){} probe($x);`, true},
+		{"variable variable stepped", `$x=$_GET['a']; $$n++; probe($x);`, true},
+		{"request data stored in an element", `$x=[]; $x['k']=$_GET['a']; probe($x['k']);`, true},
+		{"request data destructured", `[$a, [$b]]=$_GET['a']; probe($b);`, true},
+		{"clean data destructured", `$b=$_GET['a']; [$a, $b]=[1, 2]; probe($b);`, false},
+		{"property written beside request data", `$x=$_GET['a']; $this->p=1; probe($x);`, true},
+		{"reference alias written with request data", `$x='ls'; $r=&$x; $r=$_GET['a']; probe($x);`, true},
+		{"unknown call result", `$y=conf('bin') . ' ' . $_GET['a']; probe($y);`, true},
+		{"unknown call on request data", `$y=valid($_GET['a']); probe($y);`, false},
+		{"unpacked request data argument", `$y=sprintf(...$_GET['a']); probe($y);`, false},
 		{"short ternary keeps its condition", `$y=$_GET['a'] ?: 'd'; probe($y);`, true},
 		{"short ternary of clean condition", `$y=$k ?: 'd'; probe($y);`, false},
 		{"long ternary ignores its condition", `$y=$_GET['a'] ? 'x' : 'd'; probe($y);`, false},
@@ -173,6 +241,16 @@ func TestInvalidationKeepsRequestData(t *testing.T) {
 		{"other globals entry written", `function swap(){$GLOBALS['m']=$_GET['b'];} $n=1; swap(); probe($n);`, false},
 		{"dynamic globals entry written", `function swap($k){$GLOBALS[$k]=$_GET['b'];} $n=1; swap('n'); probe($n);`, false},
 		{"globals table read", `function peek(){return count($GLOBALS);} $n=$_GET['a']; peek(); probe($n);`, true},
+		{"holder invoked as an object", `$n=1; $f=function() use (&$n){$n=$_GET['b'];}; $f->__invoke(); probe($n);`, true},
+		{"holder bound and called", `$n=1; $f=function() use (&$n){$n=$_GET['b'];}; $f->call(new stdClass); probe($n);`, true},
+		{"holder destructures request data", `$n=1; $f=function() use (&$n){[$n]=$_GET['b'];}; $f(); probe($n);`, true},
+		{"holder stores request data in an element", `$n=[]; $f=function() use (&$n){$n['k']=$_GET['b'];}; $f(); probe($n['k']);`, true},
+		{"holder appends request data", `$n='ls'; $f=function() use (&$n){$n.=$_GET['b'];}; $f(); probe($n);`, true},
+		{"holder overwrites request data before it ends", `$n=1; $f=function() use (&$n){$n=$_GET['b']; $n=2;}; $f(); probe($n);`, false},
+		{"nested holder", `$n=1; $f=function() use (&$n){$g=function() use (&$n){$n=$_GET['b'];}; $g();}; $f(); probe($n);`, true},
+		{"function-level global", `function setcmd(){global $cmd; $cmd=$_GET['c'];} function run(){global $cmd; setcmd(); probe($cmd);}`, true},
+		{"function-level global, clean writer", `function setcmd(){global $cmd; $cmd='ls';} function run(){global $cmd; setcmd(); probe($cmd);}`, false},
+		{"dynamic globals entry written with request data", `function swap($k){$GLOBALS[$k]=$_GET['b'];} $n=1; swap('n'); probe($n);`, false},
 		{"closure and global holder", `function swap(){global $n; $n=$_GET['b'];} $n=1; $f=function() use (&$n){$n=$_POST['c'];}; $f(); probe($n);`, true},
 		{"alias write keeps earlier request data", `$q=&$n; $r=&$w; $n=$_GET['a']; $r=1; probe($n);`, true},
 		{"alias write of a clean value", `$r=&$n; $n=1; $r=2; probe($n);`, false},
@@ -192,6 +270,50 @@ func TestInvalidationDropsEverythingButRequestData(t *testing.T) {
 	x := argument(callsNamed(f, "probe")[0])
 	if _, resolved := e.Resolve(x); resolved || e.Excludes(x, "false") || !e.Tainted(x, HTML) {
 		t.Fatalf("value=%+v", e.Value(x))
+	}
+}
+
+// Shared bindings are walked on every write and call: the work is charged to
+// the scope budget, and each writer function is analysed once.
+func TestSharedBindingsStayBounded(t *testing.T) {
+	for name, build := range map[string]func(*strings.Builder){
+		"global statements": func(src *strings.Builder) {
+			src.WriteString("function w(){")
+			for i := range 5000 {
+				fmt.Fprintf(src, "global $g%d;", i)
+			}
+			src.WriteString("} $x=1; w(); probe($x);")
+		},
+		"reference aliases": func(src *strings.Builder) {
+			for i := range 2000 {
+				fmt.Fprintf(src, "$r%d=&$v%d; $v%d=%d;", i, i, i, i)
+			}
+			src.WriteString("probe($v0);")
+		},
+		"imports": func(src *strings.Builder) {
+			for i := range 2000 {
+				fmt.Fprintf(src, "$v%d=%d; extract($a%d);", i, i, i)
+			}
+			src.WriteString("probe($v0);")
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var src strings.Builder
+			build(&src)
+			e, f := environment(t, src.String(), nil)
+			start := time.Now()
+			e.Value(argument(callsNamed(f, "probe")[0]))
+			if d := time.Since(start); d > testbudget.Of(2*time.Second) {
+				t.Fatalf("flow took %s", d)
+			}
+		})
+	}
+}
+
+func TestTaintOfNothing(t *testing.T) {
+	e, _ := environment(t, `probe(1);`, nil)
+	if e.Tainted(nil, HTML) {
+		t.Fatal("absent expression")
 	}
 }
 
@@ -261,6 +383,8 @@ func TestGuardsExcludeFailureSentinels(t *testing.T) {
 		{"short ternary arm", `$x=fopen('a','r'); $y = $x === false ?: probe($x);`, true, false},
 		{"after ternary", `$x=fopen('a','r'); $y = $x ? 1 : 0; probe($x);`, false, false},
 		{"loop condition", `function f($h){while(($x=fgets($h)) !== false){probe($x);}}`, true, false},
+		{"reassigned inside the condition", `function f($b){$s=gzdecode($b); if($s !== false && ($s=gzdecode($b)) === false){probe($s);}}`, false, false},
+		{"tested inside the condition", `function f($b){$s=gzdecode($b); if($s !== false && strlen($s) > 1){probe($s);}}`, true, false},
 		{"reassigned after guard", `$x=fopen('a','r'); if(!$x){return;} $x=fopen('b','r'); probe($x);`, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

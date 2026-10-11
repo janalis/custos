@@ -36,11 +36,6 @@ func (e *Env) globals() map[string]bool {
 		return e.global
 	}
 	e.globalsKnown = true
-	type binding struct {
-		scope syntax.Node
-		name  string
-	}
-	var writers []binding
 	syntax.InspectFile(e.file, func(n syntax.Node) bool {
 		switch n := n.(type) {
 		case *syntax.Global:
@@ -48,7 +43,7 @@ func (e *Env) globals() map[string]bool {
 				for _, v := range n.Vars {
 					name := rootVariable(v)
 					e.bindGlobal(name, false)
-					writers = append(writers, binding{scope, name})
+					e.addWriter(scope, name)
 				}
 			}
 		case *syntax.Variable:
@@ -60,16 +55,14 @@ func (e *Env) globals() map[string]bool {
 					name = assigned(entry)
 				}
 				e.bindGlobal(name, name == "")
-				writers = append(writers, binding{scope, name})
+				e.addWriter(scope, name)
 			}
 		}
 		return true
 	})
 	// The request data those functions write reaches the file-level variable.
-	for _, w := range writers {
-		if w.name == "" {
-			continue
-		}
+	// Each writer scope is analysed once, however many names it binds.
+	for w := range e.writers {
 		if written := e.holderWrites(w.scope, w.name); tainted(written) {
 			if e.globalTaint == nil {
 				e.globalTaint = map[string]Value{}
@@ -80,7 +73,24 @@ func (e *Env) globals() map[string]bool {
 			e.globalTaint[w.name] = written
 		}
 	}
+	e.writers = nil
 	return e.global
+}
+
+// globalWriter is a function scope bound to a global variable.
+type globalWriter struct {
+	scope syntax.Node
+	name  string
+}
+
+func (e *Env) addWriter(scope syntax.Node, name string) {
+	if name == "" {
+		return
+	}
+	if e.writers == nil {
+		e.writers = map[globalWriter]bool{}
+	}
+	e.writers[globalWriter{scope, name}] = true
 }
 
 func (e *Env) bindGlobal(name string, table bool) {

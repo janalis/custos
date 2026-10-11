@@ -11,10 +11,7 @@ func TestReferenceCallsCannotRetainPriorValueProof(t *testing.T) {
 		`function clean(&$value){$value='safe';}$x=$_GET['x'];clean($x);probe($x);`,
 		`function clean(&$value){$value='safe';}$x=$_GET['x'];clean(value:$x);probe($x);`,
 		`function clean(&$value){$value='safe';}$x=[$_GET['x']];clean($x[0]);probe($x);`,
-		`$x=$_GET['x'];unknown($x);probe($x);`,
-		`$x=$_GET['x'];unknown(value:$x);probe($x);`,
 		`class Replace{function __construct(&$value){$value='safe';}}$x=$_GET['x'];new Replace(value:$x);probe($x);`,
-		`$x=$_GET['x'];new $class($x);probe($x);`,
 		`$x=$_GET['x'];preg_match('/a/','a',matches:$x);probe($x);`,
 	} {
 		t.Run(source, func(t *testing.T) {
@@ -24,6 +21,20 @@ func TestReferenceCallsCannotRetainPriorValueProof(t *testing.T) {
 				t.Fatalf("reference call retained stale value: %+v", e.Value(x))
 			}
 		})
+	}
+	// An unresolved callee may take the argument by reference, so its value
+	// is no longer known; it may also leave it alone, so the request data
+	// stays possible.
+	for _, source := range []string{
+		`$x=$_GET['x'];unknown($x);probe($x);`,
+		`$x=$_GET['x'];unknown(value:$x);probe($x);`,
+		`$x=$_GET['x'];new $class($x);probe($x);`,
+	} {
+		e, f := environment(t, source, nil)
+		x := argument(callsNamed(f, "probe")[0])
+		if _, resolved := e.Resolve(x); resolved || !e.Tainted(x, HTML) {
+			t.Fatalf("%s: value %+v", source, e.Value(x))
+		}
 	}
 	for _, source := range []string{
 		`function read($value){}$x=$_GET['x'];read($x);probe($x);`,
@@ -59,7 +70,7 @@ func TestMalformedReferenceArgumentsDoNotInventWrites(t *testing.T) {
 	e, _ := environment(t, "", nil)
 	f := frame{vars: map[string]Value{"x": {Complete: true}}}
 	list := &syntax.ArgList{Args: []syntax.Expr{&syntax.Literal{Raw: "1"}, &syntax.Arg{Value: &syntax.Literal{Raw: "2"}}}}
-	e.invalidateReferences(&syntax.FuncCall{}, list, &f)
+	e.invalidateReferences(&syntax.FuncCall{}, list, &f, &scopeResult{})
 	if !f.vars["x"].Complete {
 		t.Fatal("malformed independent arguments invalidated unrelated variable")
 	}

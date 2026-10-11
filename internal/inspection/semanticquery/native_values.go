@@ -125,9 +125,52 @@ func NativeString(ctx *analysis.Context, e syntax.Expr) (string, bool) {
 	return astquery.QuotedStringValue(NativeValue(ctx, e))
 }
 
-// NativeInt returns a known integer literal, including its unary sign.
+// nativeStepBudget bounds the chain of steps followed back to a literal.
+const nativeStepBudget = 16
+
+// NativeInt returns a known integer literal, including its unary sign. A
+// variable that held a known integer and was then stepped with `++`/`--` or
+// `+=`/`-=` a known integer, on the only path to the read, has the stepped
+// value.
 func NativeInt(ctx *analysis.Context, e syntax.Expr) (int64, bool) {
+	return nativeInt(ctx, e, nativeStepBudget)
+}
+
+func nativeInt(ctx *analysis.Context, e syntax.Expr, budget int) (int64, bool) {
+	_, variable := syntax.UnwrapParens(e).(*syntax.Variable)
 	e = NativeValue(ctx, e)
+	if variable && budget > 0 {
+		// The flow value of a stepped variable is the step itself; the
+		// operand it reads still holds the value before the step.
+		var before syntax.Expr
+		delta, stepped := int64(0), false
+		switch step := e.(type) {
+		case *syntax.IncDec:
+			before, delta, stepped = step.Var, 1, true
+			if step.Op.Kind == syntax.TDec {
+				delta = -1
+			}
+		case *syntax.Assign:
+			if step.Op.Kind == syntax.TPlusEqual || step.Op.Kind == syntax.TMinusEqual {
+				before = step.Var
+				// A known operand is never the minimum integer, which PHP
+				// reads as a float, so its negation cannot overflow.
+				delta, stepped = nativeInt(ctx, step.Value, budget-1)
+				if step.Op.Kind == syntax.TMinusEqual {
+					delta = -delta
+				}
+			}
+		}
+		if stepped {
+			base, known := nativeInt(ctx, before, budget-1)
+			sum := base + delta
+			// An overflowing sum is a float in PHP.
+			if !known || (delta > 0) != (sum > base) && delta != 0 {
+				return 0, false
+			}
+			return sum, true
+		}
+	}
 	if constant, ok := e.(*syntax.ConstFetch); ok {
 		if resolved := ResolveConstant(ctx.Types(), constant); resolved != nil {
 			// A declared value carries its sign, which the literal parser rejects.

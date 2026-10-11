@@ -60,7 +60,7 @@ func (e *Env) declaration(at syntax.Node) ([]index.Param, string, bool) {
 
 // invalidateReferences discards values a callee may replace through reference
 // parameters. Unresolved callees cannot establish a by-value parameter contract.
-func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *frame) {
+func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *frame, r *scopeResult) {
 	if list == nil {
 		return
 	}
@@ -95,7 +95,14 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 			target = syntax.UnwrapParens(dim.Var)
 		}
 		if variable, ok := target.(*syntax.Variable); ok && variable.NameExpr == nil {
-			f.vars[variable.Name] = Value{}
+			// A declared reference parameter replaces the value. An unresolved
+			// callee may not write at all: request data stays possible.
+			// The write reaches the names aliased with the argument too.
+			if known {
+				f.write(r, variable.Name, Value{})
+			} else {
+				f.write(r, variable.Name, unsettled(f.vars[variable.Name], Value{}))
+			}
 		}
 	}
 }
