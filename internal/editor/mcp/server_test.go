@@ -360,3 +360,31 @@ func TestCancelledValidationKeepsCheckpoint(t *testing.T) {
 		t.Fatal(out)
 	}
 }
+
+func TestStartupExpiresForeignStorageFiles(t *testing.T) {
+	s, ctx, _ := fixture(t)
+	current := invoke(ctx, t, s, "analyze", Input{})["checkpointId"].(string)
+	old := time.Now().Add(-8 * 24 * time.Hour)
+	foreign, leftover := randomID()+".json", randomID()+"-"+randomID()+".tmp"
+	names := []string{foreign, leftover, "notes.json", "short-" + randomID() + ".tmp", strings.Repeat("z", 48) + "-" + randomID() + ".tmp"}
+	for _, name := range append(names, "recent-"+foreign) {
+		if err := s.storage.WriteFile(name, []byte(`{"root":"/elsewhere"}`), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.storage.Chtimes(name, old, old); err != nil {
+			t.Fatal(err)
+		}
+	}
+	recent := randomID() + ".json"
+	if err := s.storage.WriteFile(recent, []byte(`{"root":"/elsewhere"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.load(); err != nil {
+		t.Fatal(err)
+	}
+	for name, kept := range map[string]bool{foreign: false, leftover: false, "notes.json": true, names[3]: true, names[4]: true, recent: true, current + ".json": true} {
+		if _, err := s.storage.Lstat(name); (err == nil) != kept {
+			t.Fatal(name, kept, err)
+		}
+	}
+}

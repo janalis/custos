@@ -587,6 +587,7 @@ func TestCheckpointBudgetsAndCancelledPublication(t *testing.T) {
 		copy.Identity = owner
 		copy.Created = time.Now()
 		copy.Findings = []evidence{{Item: diagnostic.Item{Message: block}}}
+		copy.size = 0
 		s.checkpoints[copy.ID] = &copy
 	}
 	s.prune()
