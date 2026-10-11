@@ -164,8 +164,9 @@ func (s *Server) HTTPHandler(version string) (http.Handler, error) {
 			http.NotFound(w, r)
 			return
 		}
-		token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
-		if !ok || token == "" || len(token) > 8192 || strings.ContainsAny(token, " \t\r\n") {
+		// The authorization scheme is case-insensitive (RFC 9110).
+		scheme, token, _ := strings.Cut(r.Header.Get("Authorization"), " ")
+		if !strings.EqualFold(scheme, "Bearer") || token == "" || len(token) > 8192 || strings.ContainsAny(token, " \t\r\n") {
 			unauthorized(w, s.options.PublicURL)
 			return
 		}

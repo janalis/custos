@@ -28,7 +28,8 @@ func TestHTTPBudgetsAndLocalIdentityScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	request := httptest.NewRequest(http.MethodPost, "http://localhost:8765/mcp", strings.NewReader(strings.Repeat("x", requestLimit+1)))
-	request.Header.Set("Authorization", "Bearer "+token)
+	// The scheme matches case-insensitively: reaching the body budget proves it.
+	request.Header.Set("Authorization", "bearer "+token)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json, text/event-stream")
 	rr := httptest.NewRecorder()

@@ -38,13 +38,48 @@ type checkpoint struct {
 	Buffer    bool              `json:"buffer"`
 	Complete  bool              `json:"complete"`
 	Stale     bool              `json:"stale"`
+	size      int
 }
+
+// bytes is the serialized size, measured once: evidence never changes after
+// collection and budgets do not depend on the stale flag.
+func (cp *checkpoint) bytes() int {
+	if cp.size == 0 {
+		b, _ := json.Marshal(cp)
+		cp.size = len(b)
+	}
+	return cp.size
+}
+
+// expired reports storage files this server wrote that outlived retention.
+// Other projects share the default directory, so age decides, not ownership.
+func expired(entry fs.DirEntry, now time.Time) bool {
+	name := entry.Name()
+	id, isCheckpoint := strings.CutSuffix(name, ".json")
+	if tmp, ok := strings.CutSuffix(name, ".tmp"); ok && len(tmp) == 97 && tmp[48] == '-' {
+		isCheckpoint = validID(tmp[49:])
+		id = tmp[:48]
+	}
+	info, err := entry.Info()
+	return isCheckpoint && validID(id) && err == nil && info.Mode().IsRegular() && now.Sub(info.ModTime()) > retention
+}
+
+const retention = 7 * 24 * time.Hour
 
 func (s *Server) load() error {
 	entries, err := fs.ReadDir(s.storage.FS(), ".")
 	if err != nil {
 		return err
 	}
+	kept := entries[:0]
+	for _, entry := range entries {
+		if expired(entry, time.Now()) {
+			_ = s.storage.Remove(entry.Name())
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	entries = kept
 	if len(entries) > 1000 {
 		return errors.New("checkpoint directory exceeds file budget")
 	}
@@ -140,7 +175,7 @@ func (s *Server) prune() {
 	type owner struct{ identity, workspace string }
 	groups := map[owner][]*checkpoint{}
 	for id, cp := range s.checkpoints {
-		if now.Sub(cp.Created) > 7*24*time.Hour {
+		if now.Sub(cp.Created) > retention {
 			s.remove(id)
 			continue
 		}
@@ -151,8 +186,7 @@ func (s *Server) prune() {
 		sort.Slice(cps, func(i, j int) bool { return cps[i].Created.After(cps[j].Created) })
 		size := 0
 		for i, cp := range cps {
-			b, _ := json.Marshal(cp)
-			size += len(b)
+			size += cp.bytes()
 			if i >= 20 || size > 64<<20 {
 				s.remove(cp.ID)
 			}
@@ -165,8 +199,7 @@ func (s *Server) prune() {
 	sort.Slice(all, func(i, j int) bool { return all[i].Created.After(all[j].Created) })
 	evidenceBytes := 0
 	for i, cp := range all {
-		data, _ := json.Marshal(cp)
-		evidenceBytes += len(data)
+		evidenceBytes += cp.bytes()
 		if i >= 1000 || evidenceBytes > 64<<20 {
 			s.remove(cp.ID)
 		}

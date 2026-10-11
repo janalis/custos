@@ -104,7 +104,8 @@ be private and outside workspace roots. Evidence includes findings,
 fingerprints, input hashes and manifests. ASTs, supplied buffers, credentials
 and fix closures are not persisted.
 
-Retention is seven days, at most 20 checkpoints and 64 MiB of serialized
+Retention is seven days, including checkpoints written for other workspace
+roots that share the directory, which are removed at startup. At most 20 checkpoints and 64 MiB of serialized
 evidence per identity/workspace, with global bounds of 1,000 checkpoints and 64 MiB of evidence, and up to 64
 configured workspaces. At most two source snapshots, totaling
 64 MiB, remain in memory. Evicted disk snapshots can be reconstructed; evicted
