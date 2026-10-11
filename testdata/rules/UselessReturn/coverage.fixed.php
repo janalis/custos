@@ -29,3 +29,20 @@ function closingTag()
     return 5 ?>
 <?php
 }
+
+function nearMisses(array $xs, $o)
+{
+    foreach ($xs as $n) {
+        $copy = &$o->p;
+        $pair = [&$copy, $n];
+        try {
+            try {
+                return 3;
+            } finally {
+                echo $copy;
+            }
+        } finally {
+            echo $pair[0];
+        }
+    }
+}

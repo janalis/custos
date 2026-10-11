@@ -13,7 +13,9 @@ Group: [Confusing constructs](/rules/#confusing-constructs) · PhpStorm name: `S
 `$a === $b ? $a : $b` always evaluates to `$b`: when the two are identical it
 does not matter which one is returned. The same holds for `!==` with swapped
 branches. Such ternaries only add branching; replace them with the operand
-that is always the result.
+that is always the result. This only holds when writing an operand twice
+denotes the same value twice, so operands with side effects and float zero
+literals are left alone.
 
 ## Example
 
@@ -31,6 +33,8 @@ $g = $left == $right ? $left : $right;
 $h = $left === $right ?: $right;
 $i = $left === $right ? ($left) : $right;
 $j = $left === $right ? $left : $other;
+$k = next($list) === false ? false : next($list);
+$l = $ratio === 0.0 ? 0.0 : $ratio;
 ```
 
 ```php [After fix]
@@ -45,6 +49,8 @@ $g = $left == $right ? $left : $right;
 $h = $left === $right ?: $right;
 $i = $left === $right ? ($left) : $right;
 $j = $left === $right ? $left : $other;
+$k = next($list) === false ? false : next($list);
+$l = $ratio === 0.0 ? 0.0 : $ratio;
 ```
 
 :::

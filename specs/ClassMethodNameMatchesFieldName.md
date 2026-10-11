@@ -43,6 +43,11 @@ cannot tell which one is meant.
 - **E2** A same-named class constant (`const name`) is not a property.
 - **E3** A same-named property with a known, non-callable type
   (e.g. `@var int`, `= 'x'`, `?string`).
+- **E4** A same-named property inherited from a built-in (PHP core or
+  extension) class when no type is known for it, e.g. `file()` or `line()`
+  on an `\Exception` subclass. The "type unknown" report (D4) is withheld:
+  the type of such a property is fixed by PHP, not missing, and the user
+  cannot type it.
 
 ## Report
 
@@ -114,3 +119,8 @@ interface Named {
   $isFinal)`): the doc comment of the constructor is where such a property
   is documented. Upstream (no promotion support) has no type and reports
   "type unknown" (three Mautic DTOs).
+- **Built-in properties (custos diverges, E4).** A method named like an
+  untyped-looking property of a built-in ancestor (`\Exception::$file`,
+  `$line`, `$code`) is not reported as "type unknown": these properties are
+  typed or documented by PHP itself and the advice to type the property
+  cannot be followed.

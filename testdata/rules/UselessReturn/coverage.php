@@ -29,3 +29,20 @@ function closingTag()
     <weak_warning descr="The assigned variable is never used after returning; return the value directly.">return $z = 5 ?>
 </weak_warning><?php
 }
+
+function nearMisses(array $xs, $o)
+{
+    foreach ($xs as $n) {
+        $copy = &$o->p;
+        $pair = [&$copy, $n];
+        try {
+            try {
+                <weak_warning descr="The assigned variable is never used after returning; return the value directly.">return $n = 3;</weak_warning>
+            } finally {
+                echo $copy;
+            }
+        } finally {
+            echo $pair[0];
+        }
+    }
+}

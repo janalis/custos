@@ -32,15 +32,19 @@ func (r referencingObjects) Check(ctx *analysis.Context, n syntax.Node) {
 func (referencingObjects) checkParam(ctx *analysis.Context, p *syntax.Param) {
 	var body *syntax.Block
 	var meth *syntax.Method
+	var refReturn bool
 	switch fn := p.Parent().(type) { // D1
 	case *syntax.Function:
-		body = fn.Body
+		body, refReturn = fn.Body, fn.ByRef
 	case *syntax.Method:
-		body, meth = fn.Body, fn
+		body, meth, refReturn = fn.Body, fn, fn.ByRef
 	default:
 		return
 	}
 	if !p.ByRef || p.Default != nil || p.Var.NameExpr != nil || p.Type == nil { // D2/D3
+		return
+	}
+	if len(p.Modifiers) > 0 { // D2a: a promoted property stays bound to the caller's variable
 		return
 	}
 	if hasScalarMember(p.Type) { // D3, D3a
@@ -49,7 +53,10 @@ func (referencingObjects) checkParam(ctx *analysis.Context, p *syntax.Param) {
 	if body == nil { // D6: abstract/interface methods fix the contract of implementations
 		return
 	}
-	if usedAsReference(body, p.Var.Name) || forwardedByRef(ctx, body, p.Var.Name) { // D4, D4a
+	if usedAsReference(body, p.Var.Name, p.Variadic, refReturn, roNullable(p.Type)) || forwardedByRef(ctx, body, p.Var.Name) { // D4, D4a, D4b
+		return
+	}
+	if roWritesByName(ctx, body) { // D4c
 		return
 	}
 	if meth != nil && roInHierarchy(ctx, meth) { // D6
@@ -216,9 +223,11 @@ func roInHierarchy(ctx *analysis.Context, m *syntax.Method) bool {
 	return below[lname]
 }
 
-// usedAsReference reports whether the parameter is assigned to or used as a
-// logical operand somewhere in body.
-func usedAsReference(body *syntax.Block, name string) bool {
+// usedAsReference reports whether the parameter is written to, captured by
+// reference or used as a logical operand somewhere in body (D4, D4b). For a
+// by-reference variadic every mention counts: its elements are references
+// that survive array copies.
+func usedAsReference(body *syntax.Block, name string, anyUse, refReturn, nullable bool) bool {
 	found := false
 	syntax.Inspect(body, func(n syntax.Node) bool {
 		if found {
@@ -228,11 +237,72 @@ func usedAsReference(body *syntax.Block, name string) bool {
 		if !ok || v.NameExpr != nil || v.Name != name {
 			return true
 		}
-		if a, ok := v.Parent().(*syntax.Assign); ok && a.Var == syntax.Expr(v) {
-			found = true
+		found = anyUse || roWritten(v, refReturn, nullable) || astquery.IsLogicalOperand(v)
+		return !found
+	})
+	return found
+}
+
+// roWritten reports whether v is an assignment target (directly, through a
+// destructuring pattern, as a foreach or catch variable, or by ++/--), is
+// captured by reference (`$r = &$v`, `[&$v]`, `use (&$v)`), is returned
+// from a function that returns by reference, or (nullable type) is the base
+// of an element access: `$v[] = 1` turns a null into an array in place.
+func roWritten(v *syntax.Variable, refReturn, nullable bool) bool {
+	for cur := syntax.Node(v); ; {
+		switch p := cur.Parent().(type) {
+		case *syntax.Assign:
+			return p.Var == cur || p.ByRef && cur == syntax.Node(v)
+		case *syntax.Foreach:
+			return p.Value == cur || p.Key == cur
+		case *syntax.ArrayItem:
+			if p.Value != cur {
+				return false // a key is only read
+			}
+			if p.ByRef && cur == syntax.Node(v) {
+				return true
+			}
+			cur = p.Parent() // the pattern (or literal) holding the item
+		case *syntax.Catch, *syntax.IncDec:
+			return true
+		case *syntax.ClosureUse:
+			return p.ByRef
+		case *syntax.Return:
+			return refReturn
+		case *syntax.ArrayDimFetch:
+			return nullable && p.Var == cur && cur == syntax.Node(v)
+		default:
 			return false
 		}
-		found = astquery.IsLogicalOperand(v)
+	}
+}
+
+// roNullable reports whether the declared type admits null.
+func roNullable(t syntax.Expr) bool {
+	if u, ok := t.(*syntax.UnionType); ok {
+		for _, m := range u.Types {
+			if n, ok := m.(*syntax.Name); ok && strings.EqualFold(n.Value, "null") {
+				return true
+			}
+		}
+	}
+	_, ok := t.(*syntax.NullableType)
+	return ok
+}
+
+// roWritesByName reports whether body may write a local variable without
+// naming it (D4c): a variable variable, extract(), include or eval.
+func roWritesByName(ctx *analysis.Context, body *syntax.Block) bool {
+	found := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Variable:
+			found = x.NameExpr != nil
+		case *syntax.Include, *syntax.Eval:
+			found = true
+		case *syntax.FuncCall:
+			found = ctx.IsGlobalFunctionCall(x, "extract")
+		}
 		return !found
 	})
 	return found

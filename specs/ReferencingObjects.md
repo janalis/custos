@@ -50,6 +50,37 @@ caller's variable.
 - **D3a** (custos, see Divergences) The type has no member other than
   `null` from the D3 list (`array|\ArrayAccess`, `Foo|string`,
   `Foo|int` fail): for such values the reference matters.
+- **D2a** (custos, see Divergences) The parameter is not a promoted
+  constructor property (no visibility or `readonly` modifier): a promoted
+  by-reference parameter binds the property to the caller's variable.
+- **D4b** (custos, see Divergences) Further uses that make the reference
+  matter → no report. The parameter variable is:
+  - a target inside a destructuring pattern at any nesting depth
+    (`list($p, $q) = …`, `[[$p]] = …`, `foreach ($rows as [$p, $x])`);
+    a variable that is only a pattern *key* is a read;
+  - the key or value variable of a `foreach`;
+  - the variable of a `catch` clause;
+  - the operand of `++`/`--`;
+  - captured by reference: the value of a reference assignment
+    (`$alias = &$p`), a by-reference array item (`[&$p]`, `array(&$p)`),
+    or a by-reference closure import (`use (&$p)`);
+  - returned (`return $p;`) from a function or method that itself returns
+    by reference (`function &pick(Foo &$p)`);
+  - the base of an element access (`$p[] = 1`, `$p['k']['j'] = 1`,
+    `$p['k']`) while its type admits `null` (`?Foo`, `Foo|null`): writing
+    an element of a null turns the caller's variable into an array.
+
+  For a by-reference **variadic** parameter (`Foo &...$rest`) any mention
+  of the variable in the body is enough: its elements are references that
+  survive array copies, so a write through any copy reaches the caller.
+  Only a variadic that the body never mentions is reported.
+
+  `unset($p)`, `global $p` and `static $p` are *not* such uses: they only
+  re-bind the local name and never touch the caller's variable.
+- **D4c** (custos, see Divergences) The body may write local variables
+  without naming them → no report: it contains a variable variable
+  (`$$name`), a call to the global `extract()`, an `include`/`require` or
+  an `eval`.
 - **D4a** (custos, see Divergences) The parameter is passed directly as an
   argument whose matching parameter is by reference (positional, variadic
   tail or named), or to a function, method or constructor that cannot be
@@ -73,8 +104,12 @@ caller's variable.
 - **E1** Parameters with a default value (`Foo &$x = null`).
 - **E2** Untyped or scalar/array/mixed/iterable/callable-typed reference
   parameters.
-- **E3** Reference parameters that are assigned to (`$x = new Foo;`) or
-  tested in a boolean context in the body.
+- **E3** Reference parameters that are assigned to (`$x = new Foo;`,
+  destructuring, `foreach`/`catch` variable, `++`), captured by reference,
+  or tested in a boolean context in the body; by-reference variadics the
+  body mentions at all; nullable parameters used as the base of an element
+  access; bodies that write variables by name (D4c).
+- **E6** Promoted constructor parameters (`public Foo &$x`).
 - **E4** Closures / arrow functions.
 - **E5** Plain assignments `$x = new Foo()`.
 
@@ -191,3 +226,13 @@ $fn = function (DOMNode &$node) {};
   custos skips types with a scalar/array member, parameters forwarded by
   reference (or to unresolved callees), and methods that take part in an
   override relation, have no body, or live in traits or anonymous classes.
+- **custos diverges — indirect writes and promoted properties (D2a, D4b).**
+  Upstream only recognises a plain assignment whose target is the parameter
+  itself. A swap helper (`list($a, $b) = array($b, $a)`), a `foreach` or
+  `catch` variable, an alias (`$r = &$a; $r = new Node`), an element write
+  on a by-reference variadic, and a promoted `public Node &$node` all rely
+  on the reference; removing the `&` there silently changes what the caller
+  observes. custos does not report them. The same goes for an element
+  write on a nullable parameter (`?Node &$a` with `$a[] = 1`) and for
+  bodies that write variables by name (D4c: `extract()`, `$$name`,
+  `include`, `eval`).

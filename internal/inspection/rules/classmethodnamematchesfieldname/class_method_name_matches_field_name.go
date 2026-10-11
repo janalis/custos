@@ -47,6 +47,9 @@ func (r classMethodNameMatchesFieldName) Check(ctx *analysis.Context, n syntax.N
 	}
 	atoms := r.propertyTypes(ctx, prop)
 	if len(atoms) == 0 { // D4
+		if prop.Builtin { // E4: the stubs carry no property types
+			return
+		}
 		ctx.Report(m.Name.Span(), cmnUnknownMsg)
 		return
 	}

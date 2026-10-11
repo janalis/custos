@@ -41,7 +41,9 @@ func (uselessReturn) checkTrailing(ctx *analysis.Context, ret *syntax.Return) {
 // checkAssign implements D3–D5.
 func (uselessReturn) checkAssign(ctx *analysis.Context, ret *syntax.Return) {
 	a, ok := ret.Expr.(*syntax.Assign)
-	if !ok || a.Op.Kind != syntax.TEqual || a.Value == nil { // D3 (plain `=` only, see spec Divergences)
+	// D3: plain by-value `=` only. Compound operators and `= &` are not
+	// equivalent to returning the right-hand side (see spec Divergences).
+	if !ok || a.Op.Kind != syntax.TEqual || a.ByRef || a.Value == nil {
 		return
 	}
 	v, ok := a.Var.(*syntax.Variable)
@@ -82,6 +84,12 @@ func (uselessReturn) checkAssign(ctx *analysis.Context, ret *syntax.Return) {
 					observable = true
 				}
 			}
+		case *syntax.Foreach: // D5e
+			observable = s.ByRef && isVar(s.Value, name)
+		case *syntax.Assign: // D5e
+			observable = s.ByRef && (isVar(s.Var, name) || isVar(s.Value, name))
+		case *syntax.ArrayItem: // D5e
+			observable = s.ByRef && isVar(s.Value, name)
 		}
 		return !observable
 	})
@@ -89,11 +97,8 @@ func (uselessReturn) checkAssign(ctx *analysis.Context, ret *syntax.Return) {
 		return
 	}
 	for p := ret.Parent(); p != nil && p != scope; p = p.Parent() { // D5d
-		if t, ok := p.(*syntax.Try); ok {
-			if t.Finally != nil && t.Finally.Body != nil && astquery.MentionsVariable(t.Finally.Body, name) {
-				return
-			}
-			break
+		if t, ok := p.(*syntax.Try); ok && t.Finally != nil && t.Finally.Body != nil && astquery.MentionsVariable(t.Finally.Body, name) {
+			return
 		}
 	}
 	span := ret.Span()
@@ -111,6 +116,12 @@ func (uselessReturn) checkAssign(ctx *analysis.Context, ret *syntax.Return) {
 			return []diagnostic.TextEdit{{Span: span, NewText: text}}
 		},
 	})
+}
+
+// isVar reports whether e is the plain variable `$name`.
+func isVar(e syntax.Expr, name string) bool {
+	v, ok := e.(*syntax.Variable)
+	return ok && v.NameExpr == nil && v.Name == name
 }
 
 func byRefUse(c *syntax.Closure, name string) bool {

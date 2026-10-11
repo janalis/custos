@@ -1,8 +1,8 @@
 ---
 id: SenselessTernaryOperator
 group: Confusing constructs
-kind: syntax
-needs: []
+kind: semantic
+needs: [names, types]
 php: { min: "", max: "" }
 ---
 
@@ -13,7 +13,9 @@ php: { min: "", max: "" }
 `$a === $b ? $a : $b` always evaluates to `$b`: when the two are identical it
 does not matter which one is returned. The same holds for `!==` with swapped
 branches. Such ternaries only add branching; replace them with the operand
-that is always the result.
+that is always the result. This only holds when writing an operand twice
+denotes the same value twice, so operands with side effects and float zero
+literals are left alone.
 
 ## Detection
 
@@ -46,6 +48,24 @@ that is always the result.
 - **E3** Operands that differ (e.g. `$x === $y ? $x : $z`).
 - **E4** Both operands matching the same branch while the other branch is
   different: `$x === $x ? $x : $y` (the result is `$x`, not `$y`).
+- **E5** `L` or `R` may have a side effect: the ternary evaluates the
+  repeated operand twice and the two evaluations need not agree
+  (`next($a) === false ? false : next($a)` advances twice and returns the
+  second result). An operand counts as impure when it contains, outside a
+  closure or arrow function body: a method or static call, `new`, `clone`,
+  an assignment, `++`/`--`, `include`/`require`, `eval`, `exit`, `print`,
+  `throw`, `yield`, a backtick command, the pipe operator, or a function
+  call that does not resolve to a native function from a fixed list of
+  value-only builtins (`count`, `strlen`, `trim`, `abs`, `min`, `max`,
+  `in_array`, `array_keys`, ...). Dynamic calls, user functions and a
+  namespaced function shadowing a builtin are therefore impure.
+- **E6** `L` or `R` contains a float literal whose value is zero (`0.0`,
+  `.0`, `0e0`, also under a unary sign or nested in an array literal).
+  `-0.0 === 0.0` holds although the two values behave differently
+  (`fdiv(1, $x)`, printing), so `$x === 0.0 ? 0.0 : $x` is the usual way to
+  drop the sign of a zero and is not senseless. Two non-literal operands
+  that could hold zeros of opposite sign cannot be told apart and are still
+  reported.
 
 ## Report
 
@@ -64,6 +84,13 @@ that is always the result.
   - `$p !== $q ? $p : $q` → `$p`
   - `$n === 1 ? 1 : $n` → `$n`;  `$n === 1 ? $n : 1` → `1`
   - `$n !== 1 ? $n : 1` → `$n`;  `$n !== 1 ? 1 : $n` → `1`
+- **F2** A single space is added before the replacement when the character
+  just before the ternary is a word character (letter, digit, `_`, non-ASCII
+  byte) and the replacement starts with a word character or a backslash, and
+  after it when the replacement ends with a word character and one follows
+  directly. The ternary can start with `(` or end with a quote or bracket
+  right against a keyword, where a bare name would fuse with it:
+  `return($v === null) ? $v : null;` → `return null;`.
 
 ## Options
 
@@ -87,6 +114,8 @@ $g = $left == $right ? $left : $right;
 $h = $left === $right ?: $right;
 $i = $left === $right ? ($left) : $right;
 $j = $left === $right ? $left : $other;
+$k = next($list) === false ? false : next($list);
+$l = $ratio === 0.0 ? 0.0 : $ratio;
 ```
 
 ```php
@@ -101,6 +130,8 @@ $g = $left == $right ? $left : $right;
 $h = $left === $right ?: $right;
 $i = $left === $right ? ($left) : $right;
 $j = $left === $right ? $left : $other;
+$k = next($list) === false ? false : next($list);
+$l = $ratio === 0.0 ? 0.0 : $ratio;
 ```
 
 ## Divergences
@@ -116,3 +147,9 @@ $j = $left === $right ? $left : $other;
   condition is always true and the expression always yields `$x`. custos
   requires the two operands to match the two different branches, which is
   exactly the case where the ternary always yields its "no" branch.
+- **custos diverges from upstream** on operands that are not stable values
+  (E5/E6). Upstream compares the operands as text only, so a repeated call
+  with side effects or a negative-zero guard is reported and its fix changes
+  the result. custos does not report either shape.
+- **Fix spacing (F2).** custos separates the replacement from an adjacent
+  keyword instead of producing a fused name such as `returnnull`.
