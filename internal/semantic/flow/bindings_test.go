@@ -35,11 +35,40 @@ func TestIndirectWritesDiscardResolvedValues(t *testing.T) {
 		{"destructuring of other variables", `$x=1; [$a, $b]=$r; probe($x);`, true},
 		{"destructuring", `$x=1; [$a, $x]=$r; probe($x);`, false},
 		{"variable variable assignment", `$x=1; $$n=2; probe($x);`, false},
+		// A reference stored where the analysis does not follow it.
+		{"reference kept in a property, property written", `$x=1; $o->p=&$x; $o->p=5; probe($x);`, false},
+		{"reference kept in a property, other name written", `$x=1; $o->p=&$x; $y=2; probe($x);`, true},
+		{"reference kept in a static property", `$x=1; Reg::$p=&$x; Reg::$p=5; probe($x);`, false},
+		{"reference kept in a property element", `$x=1; $o->a[0]=&$x; $o->a[0]=5; probe($x);`, false},
+		{"reference kept in a property, compound write", `$x=1; $o->p=&$x; $o->p+=6; probe($x);`, false},
+		{"reference kept in a property, step", `$x=1; $o->p=&$x; $o->p--; probe($x);`, false},
+		{"reference kept in a property, unset", `$x=1; $o->p=&$x; unset($o->p); probe($x);`, false},
+		{"reference kept in an array slot", `$x=1; $a[0]=&$x; $a[0]=5; probe($x);`, false},
+		{"reference kept in a variable variable", `$x=1; $$n=&$x; $o->p=5; probe($x);`, false},
+		{"property written without a kept reference", `$x=1; $r=&$y; $o->p=5; probe($x);`, true},
+		{"definite alias then kept reference", `$x=1; $r=&$x; $o->p=&$r; $o->p=5; probe($x);`, false},
+		{"two definite aliases", `$x=1; $r=&$x; $q=&$r; $q=2; probe($x);`, true},
+		{"alias rebound to another variable", `$x=1; $r=&$x; $r=&$y; $r=2; probe($x);`, true},
+		{"alias of an element", `$x=[1]; $r=&$x[0]; $r=2; probe($x);`, false},
+		{"alias of a call result", `$x=1; $r=&f(); $r=2; probe($x);`, true},
+		{"aliases joined from two branches", `$x=1; if($c){$r=&$x;}else{$r=&$y;} $r=2; probe($x);`, false},
+		{"alias bound in one branch only", `$x=1; if($c){$r=&$x;} $r=2; probe($x);`, false},
+		// The globals table is the file-level scope.
+		{"globals entry assigned at file level", `$x=1; $GLOBALS['x']=5; probe($x);`, true},
+		{"globals entry appended at file level", `$x=1; $GLOBALS['x'].='a'; probe($x);`, false},
+		{"globals entry element at file level", `$x=[1]; $GLOBALS['x']['k']=5; probe($x);`, false},
+		{"other globals entry at file level", `$x=1; $GLOBALS['y']=5; probe($x);`, true},
+		{"dynamic globals entry at file level", `$x=1; $GLOBALS[$k]=5; probe($x);`, false},
+		{"globals entry stepped at file level", `$x=1; $GLOBALS['x']++; probe($x);`, false},
+		{"globals entry of a bound name", `function f(){global $x; $x=1; $GLOBALS['x']=5; probe($x);}`, true},
+		{"globals entry of an unbound name", `function f(){$x=1; $GLOBALS['x']=5; probe($x);}`, true},
+		{"dynamic globals entry, bound name", `function f($k){global $x; $x=1; $GLOBALS[$k]=5; probe($x);}`, false},
+		{"dynamic globals entry, unbound name", `function f($k){global $y; $x=1; $GLOBALS[$k]=5; probe($x);}`, true},
 		{"other variable unset", `$x=1; unset($y); probe($x);`, true},
 		{"other variable declared static", `function f(){$x=1; static $y; probe($x);}`, true},
 		{"other variable declared global", `function f(){$x=1; global $y; probe($x);}`, true},
 		{"compound assignment in a loop", `$x=1; while($c){probe($x); $x+=1;}`, false},
-		{"compound assignment through an alias", `$r=&$x; $x=1; $r+=1; probe($x);`, false},
+		{"compound assignment through an alias", `$r=&$x; $x=1; $r+=1; probe($x);`, true},
 		{"copy before increment", `$x=1; $y=$x; $x++; probe($y);`, true},
 		{"post increment yields old value", `$x=1; $y=$x++; probe($y);`, true},
 		{"pre increment yields itself", `$x=1; $y=++$x; probe($y);`, true},
@@ -62,11 +91,11 @@ func TestIndirectWritesDiscardResolvedValues(t *testing.T) {
 		{"arrow function", `$x=1; $f=fn() => $x + 1; $f(); probe($x);`, true},
 		{"reference item then call", `$x=1; $w=['k'=>&$x]; unknown($w); probe($x);`, false},
 		{"reference item written through its array", `$x=1; $w=[&$x]; $w[0]=2; probe($x);`, false},
-		{"element write beside a reference alias", `$r=&$x; $x=1; $w=[]; $w[0]=2; probe($x);`, false},
+		{"element write beside a reference alias", `$r=&$x; $x=1; $w=[]; $w[0]=2; probe($x);`, true},
 		{"reference item without call", `$x=1; $w=['k'=>&$x]; probe($x);`, true},
-		{"reference alias written", `$x=1; $r=&$x; $x=1; $r=2; probe($x);`, false},
+		{"reference alias written", `$x=1; $r=&$x; $x=1; $r=2; probe($x);`, true},
 		{"reference alias rebound", `$r=&$x; $x=1; probe($x);`, true},
-		{"reference alias stepped", `$r=&$x; $x=1; $r++; probe($x);`, false},
+		{"reference alias stepped", `$r=&$x; $x=1; $r++; probe($x);`, true},
 		{"reference element alias", `$x=[1]; $r=&$x[0]; $x=[1]; $r=2; probe($x);`, false},
 		{"reference loop", `$x=[1]; foreach($x as &$q){$q=3;} probe($x);`, false},
 		{"reference loop in target", `$x=[[1]]; foreach($x as [&$q]){$q=3;} probe($x);`, false},
@@ -190,6 +219,88 @@ func TestTaintFollowsValuesNotSelectors(t *testing.T) {
 		{"unknown call result", `$y=conf('bin') . ' ' . $_GET['a']; probe($y);`, true},
 		{"unknown call on request data", `$y=valid($_GET['a']); probe($y);`, false},
 		{"unpacked request data argument", `$y=sprintf(...$_GET['a']); probe($y);`, false},
+		// Elements with a literal key are read from their own last write.
+		{"clean element beside a request element", `$a=[]; $a['k']=$_GET['x']; $a['c']='ls'; probe($a['c']);`, false},
+		{"request element", `$a=[]; $a['k']=$_GET['x']; $a['c']='ls'; probe($a['k']);`, true},
+		{"unknown element", `$a=[]; $a['k']=$_GET['x']; $a['c']='ls'; probe($a[$i]);`, true},
+		{"whole array", `$a=[]; $a['k']=$_GET['x']; $a['c']='ls'; probe($a);`, true},
+		{"untracked element", `$a=[]; $a['k']=$_GET['x']; probe($a['z']);`, true},
+		{"element overwritten with clean data", `$a=[]; $a['k']=$_GET['x']; $a['k']='ls'; probe($a['k']);`, false},
+		{"element after an unknown key write", `$a=[]; $a['c']='ls'; $a[$i]=$_GET['x']; probe($a['c']);`, true},
+		{"element after an appended write", `$a=[]; $a['c']='ls'; $a[]=$_GET['x']; probe($a['c']);`, true},
+		{"element after the array is replaced", `$a=[]; $a['c']='ls'; $a=$_GET; probe($a['c']);`, true},
+		{"element after the array is passed on", `$a=[]; $a['c']='ls'; fill($a); $a['k']=$_GET['x']; probe($a['c']);`, true},
+		{"element appended in place", `$a=[]; $a['c']='ls '; $a['c'].=$_GET['x']; probe($a['c']);`, true},
+		{"other element appended in place", `$a=[]; $a['c']='ls'; $a['k']='x'; $a['k'].=$_GET['x']; probe($a['c']);`, false},
+		{"nested element", `$a=[]; $a['c']='ls'; $a['k']['j']=$_GET['x']; probe($a['c']);`, false},
+		{"nested request element", `$a=[]; $a['k']=[]; $a['k']['j']=$_GET['x']; probe($a['k']['j']);`, true},
+		{"element written on one path", `$a=[]; $a['c']=$_GET['x']; if($f){$a['c']='ls';} probe($a['c']);`, true},
+		{"element written on both paths", `$a=[]; $a['k']=$_GET['x']; if($f){$a['c']='ls';}else{$a['c']='pwd';} probe($a['c']);`, false},
+		{"element tracked on one path only", `$a=[]; $a['k']=$_GET['x']; if($f){$a['c']='ls';} probe($a['c']);`, true},
+		{"element stepped", `$a=[]; $a['k']=$_GET['x']; $a['c']='ls'; $a['c']++; probe($a['c']);`, true},
+		{"literal array element", `$a=['k'=>$_GET['x'], 'c'=>'ls']; probe($a['c']);`, false},
+		{"literal array request element", `$a=['k'=>$_GET['x'], 'c'=>'ls']; probe($a['k']);`, true},
+		{"literal list element", `$a=['ls', $_GET['x']]; probe($a[0]);`, false},
+		{"literal list request element", `$a=['ls', $_GET['x']]; probe($a[1]);`, true},
+		{"literal array with mixed keys", `$a=['k'=>'ls', $_GET['x']]; probe($a['k']);`, true},
+		{"literal array with a dynamic key", `$a=[$i=>$_GET['x'], 'c'=>'ls']; probe($a['c']);`, true},
+		{"literal array with a spread", `$a=[...$_GET, 'c'=>'ls']; probe($a['c']);`, true},
+		{"long literal array", `$a=[` + strings.Repeat(`'x', `, MaxSources) + `$_GET['x']]; probe($a[0]);`, true},
+		{"empty literal array", `$a=[]; probe($a['c']);`, false},
+		{"superglobal element written", `$_GET['a']='ls'; probe($_GET['a']);`, true},
+		{"element after a holder call", `$a=[]; $a['c']='ls'; $f=function() use (&$a){$a['c']=$_GET['x'];}; $f(); probe($a['c']);`, true},
+		{"element after an import", `$a=[]; $a['c']='ls'; extract($_GET); probe($a['c']);`, true},
+		{"element after a globals table writer", `function w(){$GLOBALS[$k]=$_GET['x'];} $a=[]; $a['c']='ls'; w(); probe($a['c']);`, false},
+		{"element of an aliased array", `$a=[]; $r=&$a; $a['c']='ls'; $a['k']=$_GET['x']; probe($a['c']);`, false},
+		// Adding in place to a value that is not an array is arithmetic.
+		{"number added to a literal", `$t=0; $t+=$_GET['q']; probe($t);`, false},
+		{"number added twice", `$t=0; $t+=$_GET['q']; $t+=$_GET['r']; probe($t);`, false},
+		{"number added to a string", `$t="a$b"; $t+=$_GET['q']; probe($t);`, false},
+		{"number added after a step", `$t=0; $t++; $t+=$_GET['q']; probe($t);`, false},
+		{"number added after a product", `$t=2; $t*=3; $t+=$_GET['q']; probe($t);`, false},
+		{"array united with an array literal", `$t=[]; $t+=$_GET['q']; probe($t);`, true},
+		{"array united after a union", `$t=[]; $t+=$u; $t+=$_GET['q']; probe($t);`, true},
+		{"number added to an unknown value", `$t=$u; $t+=$_GET['q']; probe($t);`, true},
+		{"number added after a long chain", `$t=0; $t+=1; $t+=1; $t+=1; $t+=1; $t+=1; $t+=1; $t+=1; $t+=1; $t+=1; $t+=1; $t+=$_GET['q']; probe($t);`, true},
+		// What an import cannot create or replace.
+		{"session after an import", `extract($_GET); probe($_SESSION['user']);`, false},
+		{"environment after an import", `extract($_GET); probe($_ENV['BIN']);`, false},
+		{"globals table after an import", `extract($_GET); probe($GLOBALS['bin']);`, false},
+		{"object after an import", `extract($_GET); probe($this);`, false},
+		{"import skipping existing variables", `$cmd='ls'; extract($_GET, EXTR_SKIP); probe($cmd);`, false},
+		{"import prefixing every variable", `$cmd='ls'; extract($_GET, \EXTR_PREFIX_ALL, 'p'); probe($cmd);`, false},
+		{"import skipping, new variable", `extract($_GET, EXTR_SKIP); probe($cmd);`, true},
+		{"import overwriting", `$cmd='ls'; extract($_GET, EXTR_OVERWRITE); probe($cmd);`, true},
+		{"import with dynamic flags", `$cmd='ls'; extract($_GET, $flags); probe($cmd);`, true},
+		// Definite aliases share one value.
+		{"clean write through an alias", `$x=$_GET['a']; $r=&$x; $r='ls'; probe($x);`, false},
+		{"clean write through the aliased name", `$x=$_GET['a']; $r=&$x; $x='ls'; probe($r);`, false},
+		{"escaped through an alias", `$x=$_GET['a']; $y=&$x; $y=htmlspecialchars($y); probe($x);`, false},
+		{"request data through an alias", `$x='ls'; $r=&$x; $r=$_GET['a']; probe($x);`, true},
+		{"alias reads the shared value", `$x=$_GET['a']; $r=&$x; probe($r);`, true},
+		// Loops over request data.
+		{"upload size in a loop", `foreach($_FILES as $f){probe($f['size']);}`, false},
+		{"upload name in a loop", `foreach($_FILES as $f){probe($f['name']);}`, true},
+		{"upload entry in a loop", `foreach($_FILES as $f){probe($f);}`, true},
+		{"size key of other request data", `foreach($_GET as $f){probe($f['size']);}`, true},
+		{"mapped to integers", `foreach(array_map('intval', $_GET['ids']) as $id){probe($id);}`, false},
+		{"mapped to integers, joined", `$y=implode(',', array_map('\intval', $_GET['ids'])); probe($y);`, false},
+		{"mapped to strings", `foreach(array_map('trim', $_GET['ids']) as $id){probe($id);}`, true},
+		{"mapped by a closure", `foreach(array_map(fn($v) => $v, $_GET['ids']) as $id){probe($id);}`, true},
+		{"mapped by an unknown function", `foreach(array_map('cleanup', $_GET['ids']) as $id){probe($id);}`, true},
+		// PHP functions working on a reference argument.
+		{"sorted in place", `$a=$_GET['args']; sort($a); probe($a);`, true},
+		{"shifted in place", `$a=$_GET['args']; $first=array_shift($a); probe($a);`, true},
+		{"clean data sorted in place", `$a=[2, 1]; sort($a); probe($a);`, false},
+		{"converted to an integer in place", `$a=$_GET['id']; settype($a, 'integer'); probe($a);`, false},
+		{"converted to a string in place", `$a=$_GET['id']; settype($a, 'string'); probe($a);`, true},
+		{"converted to a dynamic type in place", `$a=$_GET['id']; settype($a, $t); probe($a);`, true},
+		{"converted with a spread", `$a=$_GET['id']; settype($a, ...$t); probe($a);`, true},
+		{"converted without a type", `$a=$_GET['id']; settype($a); probe($a);`, true},
+		{"match groups of request data", `preg_match('/(.*)/', $_GET['a'], $m); probe($m[1]);`, true},
+		{"match groups of clean data", `$m=$_GET['a']; preg_match('/(.*)/', 'abc', $m); probe($m);`, false},
+		{"query string parsed into an array, element", `parse_str($_SERVER['QUERY_STRING'], $q); probe($q['c']);`, true},
+		{"scanned values", `sscanf($_GET['a'], '%s %s', $x, $y); probe($y);`, true},
 		{"short ternary keeps its condition", `$y=$_GET['a'] ?: 'd'; probe($y);`, true},
 		{"short ternary of clean condition", `$y=$k ?: 'd'; probe($y);`, false},
 		{"long ternary ignores its condition", `$y=$_GET['a'] ? 'x' : 'd'; probe($y);`, false},
@@ -310,10 +421,141 @@ func TestSharedBindingsStayBounded(t *testing.T) {
 	}
 }
 
+// A function of ordinary length keeps its flow facts: a hundred locals carried
+// through a few hundred blocks stay far below the budgets.
+func longFunction(locals, blocks int) string {
+	var src strings.Builder
+	src.WriteString("function f($cfg, $rows){ $html=''; $out=[];")
+	for i := range locals {
+		fmt.Fprintf(&src, "$v%d=%d;", i, i)
+	}
+	for i := range blocks {
+		switch i % 3 {
+		case 0:
+			fmt.Fprintf(&src, "if($v%d > %d){$out['k%d']=$v%d; $html.='<p>' . $v%d;}else{$v%d=%d;}", i%locals, i, i, (i+1)%locals, (i+2)%locals, (i+3)%locals, i)
+		case 1:
+			fmt.Fprintf(&src, "foreach($rows as $row){$html.=$row . $v%d; $out['n']+=1;}", i%locals)
+		default:
+			fmt.Fprintf(&src, "while($v%d < %d){$v%d++; $out[]=$v%d;}", i%locals, i, i%locals, (i+1)%locals)
+		}
+	}
+	src.WriteString("$z=$_GET['z']; probe('tool ' . $z); $s=gzdecode($cfg['blob']); check($s); return $html;}")
+	return src.String()
+}
+
+func TestLongFunctionsKeepTheirFacts(t *testing.T) {
+	for _, size := range [][2]int{{100, 80}, {120, 150}, {200, 200}} {
+		e, f := environment(t, longFunction(size[0], size[1]), nil)
+		start := time.Now()
+		if !e.Tainted(argument(callsNamed(f, "probe")[0]), Shell) {
+			t.Fatalf("%d locals, %d blocks: request data lost", size[0], size[1])
+		}
+		if _, resolved := e.Resolve(argument(callsNamed(f, "check")[0])); !resolved {
+			t.Fatalf("%d locals, %d blocks: producer lost", size[0], size[1])
+		}
+		if d := time.Since(start); d > testbudget.Of(2*time.Second) {
+			t.Fatalf("%d locals, %d blocks: flow took %s", size[0], size[1], d)
+		}
+	}
+}
+
+func BenchmarkLongFunction(b *testing.B) {
+	e, f := environment(b, longFunction(100, 80), nil)
+	x := argument(callsNamed(f, "probe")[0])
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		if !New(f, e.types, nil).Tainted(x, Shell) {
+			b.Fatal("request data lost")
+		}
+	}
+}
+
+// Overlaying one file answers every lookup like the rebuilt collection.
+func TestSnapshotOverlayMatchesRebuild(t *testing.T) {
+	file := func(path string, names ...string) *File {
+		f := &File{Path: path, Summaries: map[string]Summary{}}
+		for _, name := range names {
+			f.Summaries[name] = Summary{Return: Value{Sources: []Source{{Kind: path + ":" + name}}}}
+		}
+		return f
+	}
+	base := NewSnapshot(file("a.php", "only_a", "a_and_b", "all", "moved"), file("b.php", "only_b", "a_and_b", "all"), file("c.php", "all", "only_c"))
+	names := []string{"only_a", "only_b", "only_c", "a_and_b", "all", "moved", "fresh", "Only_C", "missing"}
+	for _, own := range []*File{
+		file("a.php", "only_a", "a_and_b", "all", "moved"),
+		file("a.php", "fresh"),
+		file("a.php", "only_b", "only_a"),
+		file("a.php"),
+		file("d.php", "fresh", "only_c", "all"),
+		file("b.php", "moved", "only_b"),
+	} {
+		overlay := base.WithFile(own)
+		rebuilt := NewSnapshot(append([]*File{own}, files(base, own.Path)...)...)
+		for _, name := range names {
+			got, found := overlay.lookup(name)
+			want, expected := rebuilt.lookup(name)
+			if found != expected || len(got.Return.Sources) != len(want.Return.Sources) || found && got.Return.Sources[0] != want.Return.Sources[0] {
+				t.Errorf("%s over %v: %s = %+v/%v, want %+v/%v", own.Path, own.Summaries, name, got, found, want, expected)
+			}
+		}
+		if !overlay.Equal(rebuilt) || !rebuilt.Equal(overlay) {
+			t.Errorf("%s: overlay differs from the rebuilt collection", own.Path)
+		}
+		// An overlay is a snapshot like any other.
+		again := overlay.WithFile(file("e.php", "only_e"))
+		if _, ok := again.lookup("only_e"); !ok {
+			t.Errorf("%s: second overlay lost its file", own.Path)
+		}
+		if v, ok := again.lookup("fresh"); ok != (len(own.Summaries) > 0 && has(own, "fresh")) || ok && v.Return.Sources[0].Kind != own.Path+":fresh" {
+			t.Errorf("%s: second overlay lost the first", own.Path)
+		}
+		if _, ok := overlay.WithoutFile(own.Path).lookup("fresh"); ok {
+			t.Errorf("%s: removed file kept its contract", own.Path)
+		}
+	}
+	if _, ok := (*Snapshot)(nil).WithFile(file("a.php", "only_a")).lookup("only_a"); !ok {
+		t.Error("file added to no snapshot")
+	}
+}
+
+func files(s *Snapshot, except string) []*File {
+	var out []*File
+	for path, f := range s.files {
+		if path != except {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func has(f *File, name string) bool { _, ok := f.Summaries[name]; return ok }
+
+func BenchmarkSnapshotOverlay(b *testing.B) {
+	var all []*File
+	for i := range 2000 {
+		f := &File{Path: fmt.Sprintf("f%d.php", i), Summaries: map[string]Summary{}}
+		for j := range 10 {
+			f.Summaries[fmt.Sprintf("f%d_%d", i, j)] = Summary{}
+		}
+		all = append(all, f)
+	}
+	base := NewSnapshot(all...)
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, ok := base.WithFile(all[7]).lookup("f7_3"); !ok {
+			b.Fatal("contract lost")
+		}
+	}
+}
+
 func TestTaintOfNothing(t *testing.T) {
 	e, _ := environment(t, `probe(1);`, nil)
 	if e.Tainted(nil, HTML) {
 		t.Fatal("absent expression")
+	}
+	if _, resolved := e.Resolve(nil); resolved {
+		t.Fatal("absent expression resolved")
 	}
 }
 
@@ -383,6 +625,12 @@ func TestGuardsExcludeFailureSentinels(t *testing.T) {
 		{"short ternary arm", `$x=fopen('a','r'); $y = $x === false ?: probe($x);`, true, false},
 		{"after ternary", `$x=fopen('a','r'); $y = $x ? 1 : 0; probe($x);`, false, false},
 		{"loop condition", `function f($h){while(($x=fgets($h)) !== false){probe($x);}}`, true, false},
+		{"another variable assigned inside the condition", `function f($b){$s=gzdecode($b); if($s !== false && ($t=strlen($s)) > 1){probe($s);}}`, true, false},
+		{"passed by reference inside the condition", `function f($b){$s=gzdecode($b); if($s !== false && settype($s, 'bool')){probe($s);}}`, false, false},
+		{"passed to an unknown function inside the condition", `function f($b){$s=gzdecode($b); if($s !== false && check($s)){probe($s);}}`, false, false},
+		{"passed by named value inside the condition", `function f($b){$s=gzdecode($b); if($s !== false && strlen(string: $s) > 1){probe($s);}}`, true, false},
+		{"callable created inside the condition", `function f($b){$s=gzdecode($b); if($s !== false && strlen(...)){probe($s);}}`, true, false},
+		{"stepped inside the condition", `function f($b){$s=gzdecode($b); if($s !== false && $s++){probe($s);}}`, false, false},
 		{"reassigned inside the condition", `function f($b){$s=gzdecode($b); if($s !== false && ($s=gzdecode($b)) === false){probe($s);}}`, false, false},
 		{"tested inside the condition", `function f($b){$s=gzdecode($b); if($s !== false && strlen($s) > 1){probe($s);}}`, true, false},
 		{"reassigned after guard", `$x=fopen('a','r'); if(!$x){return;} $x=fopen('b','r'); probe($x);`, false, false},
@@ -437,6 +685,8 @@ func TestStatesSurviveDisagreeingSuccess(t *testing.T) {
 		{`$h=fopen('a','r'); if($h){echo 1;} fread($h,1);`, true, false},
 		{`$h=fopen('a','r'); $h && work(); fread($h,1);`, true, false},
 		{`$h=fopen('a','r'); $h && work($h); fread($h,1);`, false, false},
+		{`$h=fopen('a','r'); $box['h']=$h; fread($h,1);`, false, false},
+		{`$h=fopen('a','r'); $box['n']=1; fread($h,1);`, true, false},
 		{`$h=fopen('a','r'); $ok = $h ? 1 : 0; fread($h,1);`, true, false},
 		{`$h=fopen('a','r'); while($c){ if($h){ echo 1; } } fread($h,1);`, true, false},
 		{`$h=fopen('a','r'); while($c){ fread($h,1); fclose($h); }`, false, false},

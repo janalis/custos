@@ -21,10 +21,15 @@ const (
 	Path
 )
 
-// Limits bound hostile scopes and recursive wrapper queries.
+// Limits bound hostile scopes and recursive wrapper queries. MaxRetained
+// bounds the bindings and states kept as block inputs of one scope (memory);
+// MaxCopied the bindings copied while iterating to a fixed point (time). An ordinary long function carries a hundred locals through a few
+// hundred blocks, far below both.
 const (
 	MaxBlocks    = 8192
 	MaxTransfers = 100000
+	MaxRetained  = 4 * MaxTransfers
+	MaxCopied    = 64 * MaxTransfers
 	MaxSources   = 64
 	MaxDepth     = 8
 )
@@ -48,6 +53,9 @@ type Value struct {
 	Invalidated uint32
 	NonFalse    bool
 	NonNull     bool
+	// elements marks an array variable some of whose literal-keyed elements
+	// are tracked as bindings of their own.
+	elements    bool
 	Length      int64
 	LengthKnown bool
 	headerMask  uint8
@@ -72,11 +80,19 @@ type frame struct {
 	vars   map[string]Value
 	states map[uint32]State
 	// aliased names are bound to storage that code outside the tracked
-	// bindings can write: true for a reference taken in this scope, whose
-	// other names write it too; false for storage only a callee can reach.
-	// nil for the common scope without such bindings.
-	aliased map[string]bool
+	// bindings can write: aliasHeld for storage only a callee can reach,
+	// aliasAny for a reference kept where the analysis does not follow it (a
+	// property, an array slot, a loop variable), and a larger number for the
+	// names one `$a = &$b` binds together, which a write through either
+	// replaces for both. nil for the common scope without such bindings.
+	aliased map[string]uint32
 }
+
+const (
+	aliasHeld uint32 = iota
+	aliasAny
+	aliasGroup // first identifier of a definite group
+)
 
 // imported is the reserved binding, under a name no variable has, for
 // request data an import (`extract`, one-argument `parse_str`) may have put
@@ -113,6 +129,8 @@ type scopeResult struct {
 	complete   bool
 	operations int
 	facts      int
+	retained   int
+	copies     int
 	// global marks a file-level scope whose variables a function of the file
 	// can replace through the globals table.
 	global bool
@@ -148,6 +166,9 @@ func (e *Env) Value(x syntax.Expr) Value {
 
 // Resolve returns a single reaching expression only when every path agrees.
 func (e *Env) Resolve(x syntax.Expr) (syntax.Expr, bool) {
+	if x == nil {
+		return nil, false
+	}
 	v := e.Value(x)
 	return v.Expr, e.scope(syntax.EnclosingVariableScope(x)).complete && v.Expr != nil
 }
@@ -263,6 +284,7 @@ func merge(a, b Value) Value {
 		sb = HTML | SQL | Shell | Header | URL | Path
 	}
 	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, headerMask: a.headerMask & b.headerMask, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull, LengthKnown: a.LengthKnown && b.LengthKnown && a.Length == b.Length, Length: a.Length}
+	v.elements = a.elements && b.elements
 	if a.Expr == b.Expr {
 		v.Expr = a.Expr
 	}
@@ -303,47 +325,129 @@ func clone(f frame) frame {
 	for k, v := range f.states {
 		n.states[k] = v
 	}
-	for k, local := range f.aliased {
-		n.alias(k, local)
+	if len(f.aliased) > 0 {
+		n.aliased = make(map[string]uint32, len(f.aliased))
+		for k, group := range f.aliased {
+			n.aliased[k] = group
+		}
 	}
 	return n
 }
 
 // alias records a name whose storage is shared outside the tracked bindings.
-func (f *frame) alias(name string, local bool) {
+// Two different bindings of one name leave only that it is shared somewhere,
+// which then holds for every name bound together with it.
+func (f *frame) alias(name string, group uint32) {
 	if name == "" {
 		return
 	}
 	if f.aliased == nil {
-		f.aliased = map[string]bool{}
+		f.aliased = map[string]uint32{}
 	}
-	f.aliased[name] = f.aliased[name] || local
+	old, known := f.aliased[name]
+	switch {
+	case !known || old == aliasHeld:
+		f.aliased[name] = group
+	case group == aliasHeld || group == old:
+	default:
+		for other, g := range f.aliased {
+			if g >= aliasGroup && (g == old || g == group) {
+				f.aliased[other] = aliasAny
+			}
+		}
+		f.aliased[name] = aliasAny
+	}
 }
 
-// write binds a plain variable. A write through a reference taken in the
-// scope reaches every other such name: its previous value is gone, and the
-// request data written may now be read under it. The walk over the aliases is
-// charged to the scope's budget.
-func (f *frame) write(r *scopeResult, name string, v Value) {
-	if f.aliased[name] {
-		r.operations += len(f.aliased)
-		for other, local := range f.aliased {
-			if local {
-				f.vars[other] = unsettled(f.vars[other], v)
+// bind makes target a reference to source, as `$target = &$source` does: the
+// two names, and the names already bound with source, now share one value.
+func (f *frame) bind(target, source string, site uint32) {
+	group, known := f.aliased[source]
+	if !known || group == aliasHeld {
+		group = site + aliasGroup
+	}
+	if f.aliased == nil {
+		f.aliased = map[string]uint32{}
+	}
+	f.aliased[source] = group
+	f.aliased[target] = group
+}
+
+// set stores a binding. An array whose value is replaced or no longer known
+// loses the elements tracked for it.
+func (f *frame) set(name string, v Value) {
+	if f.vars[name].elements && !v.elements {
+		for k := range f.vars {
+			if element(k, name) {
+				delete(f.vars, k)
 			}
 		}
 	}
 	f.vars[name] = v
 }
 
+// elementKey names the binding of a literal-keyed element of an array variable.
+func elementKey(name, key string) string { return name + "\x00" + key }
+
+// element reports the binding of an element; of array name when name is given.
+func element(key, name string) bool {
+	i := strings.IndexByte(key, 0)
+	return i >= 0 && (name == "" || key[:i] == name)
+}
+
+// write binds a plain variable. A write through a name bound by `=&` gives
+// the same value to the names bound with it. A write through a name whose
+// reference is kept somewhere the analysis does not follow may reach every
+// other such name: what they held is gone, and the request data written may
+// now be read under them. The walk is charged to the scope's budget.
+func (f *frame) write(r *scopeResult, name string, v Value) {
+	if group, shared := f.aliased[name]; shared && group != aliasHeld {
+		r.operations += len(f.aliased)
+		for other, g := range f.aliased {
+			switch {
+			case other == name || g != group:
+			case group == aliasAny:
+				f.set(other, unsettled(f.vars[other], v))
+			default:
+				f.set(other, v)
+			}
+		}
+	}
+	f.set(name, v)
+}
+
+// through is a write to storage the analysis does not follow (a property, an
+// array slot): it may reach any variable whose reference is kept there.
+func (f *frame) through(r *scopeResult, v Value) {
+	if len(f.aliased) == 0 {
+		return
+	}
+	r.operations += len(f.aliased)
+	for other, g := range f.aliased {
+		if g == aliasAny {
+			f.set(other, unsettled(f.vars[other], v))
+		}
+	}
+}
+
 // forget discards what is known about every binding and operation, as after
 // a write whose target the analysis does not follow. Request data stays.
 func (f *frame) forget(r *scopeResult) {
+	f.unsettle(r, Value{})
+	f.states = map[uint32]State{}
+}
+
+// unsettle makes every binding unknown, keeping its request data and adding
+// what was written. Tracked array elements are dropped with their arrays.
+func (f *frame) unsettle(r *scopeResult, written Value) {
 	r.operations += len(f.vars)
 	for name, old := range f.vars {
-		f.vars[name] = unsettled(old, Value{})
+		if element(name, "") {
+			delete(f.vars, name)
+		} else {
+			f.vars[name] = unsettled(old, written)
+		}
 	}
-	f.states = map[uint32]State{}
 }
 
 // unsettled is the value of a binding that code the analysis does not follow
@@ -388,12 +492,17 @@ func join(a, b frame) frame {
 	for k, v := range n.vars {
 		w, ok := b.vars[k]
 		if !ok {
+			// An element tracked on one path only is read from its array.
+			if element(k, "") {
+				delete(n.vars, k)
+				continue
+			}
 			w = Value{}
 		}
 		n.vars[k] = merge(v, w)
 	}
 	for k, v := range b.vars {
-		if _, ok := n.vars[k]; !ok {
+		if _, ok := n.vars[k]; !ok && !element(k, "") {
 			n.vars[k] = merge(Value{}, v)
 		}
 	}
@@ -404,8 +513,17 @@ func join(a, b frame) frame {
 			delete(n.states, k)
 		}
 	}
-	for k, local := range b.aliased {
-		n.alias(k, local)
+	// A definite binding made on one path only may not hold.
+	for k, group := range n.aliased {
+		if _, both := b.aliased[k]; !both && group >= aliasGroup {
+			n.alias(k, aliasAny)
+		}
+	}
+	for k, group := range b.aliased {
+		if _, both := a.aliased[k]; !both && group >= aliasGroup {
+			group = aliasAny
+		}
+		n.alias(k, group)
 	}
 	return n
 }
@@ -414,14 +532,14 @@ func same(a, b frame) bool {
 	if len(a.vars) != len(b.vars) || len(a.states) != len(b.states) || len(a.aliased) != len(b.aliased) {
 		return false
 	}
-	for k, local := range a.aliased {
-		if other, ok := b.aliased[k]; !ok || other != local {
+	for k, group := range a.aliased {
+		if other, ok := b.aliased[k]; !ok || other != group {
 			return false
 		}
 	}
 	for k, v := range a.vars {
 		w, ok := b.vars[k]
-		if !ok || v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
+		if !ok || v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
 			return false
 		}
 		for i, s := range v.Sources {
@@ -438,12 +556,22 @@ func same(a, b frame) bool {
 	return true
 }
 
-// reserve bounds copied and retained frame cells as well as execution work.
+// reserve bounds the operation states remembered per node.
 func reserve(r *scopeResult, cells int) bool {
 	if cells > MaxTransfers-r.facts {
 		r.complete = false
 		return false
 	}
 	r.facts += cells
+	return true
+}
+
+// retain bounds the frame cells kept as block inputs.
+func retain(r *scopeResult, cells int) bool {
+	if cells > MaxRetained-r.retained {
+		r.complete = false
+		return false
+	}
+	r.retained += cells
 	return true
 }

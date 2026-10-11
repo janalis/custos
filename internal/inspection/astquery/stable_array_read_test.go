@@ -27,6 +27,7 @@ func TestStableArrayRead(t *testing.T) {
 		{`foreach($x as $a[0]) {}`, false},
 		{`foreach($x as $a[0]=>$v) {}`, false},
 		{`echo function() {$a=[];},$a[0];`, true},
+		{`echo new C, $a[0];`, true},
 		{`$r = &$a[0];`, false},
 		{`$r = &$a[0][1];`, false},
 		{`$r = [&$a[0]];`, false},

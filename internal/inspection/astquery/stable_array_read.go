@@ -79,6 +79,10 @@ func StableArrayRead(f *syntax.File, fetch *syntax.ArrayDimFetch) bool {
 							names[v.Name] = true
 						}
 					}
+					// A call without an argument list holds a nil list.
+					if list, ok := target.(*syntax.ArgList); ok && list == nil {
+						target = nil
+					}
 					if target != nil {
 						syntax.Inspect(target, func(n syntax.Node) bool {
 							if variable, ok := n.(*syntax.Variable); ok {

@@ -67,7 +67,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		if (truth && (n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd)) || (!truth && (n.Op.Kind == syntax.TBooleanOr || n.Op.Kind == syntax.TOr)) {
 			// The frame already holds what the right operand wrote: a fact
 			// about the left operand describes a value that may be gone.
-			if !rebinds(n.Right) {
+			if !e.rebinds(n.Right, n.Left) {
 				e.refine(n.Left, f, truth)
 			}
 			e.refine(n.Right, f, truth)
@@ -282,14 +282,50 @@ func constantName(x syntax.Expr) string {
 	return ""
 }
 
-// rebinds reports an expression that writes a variable or runs a call when
-// evaluated, after which an earlier test may describe a replaced value.
-func rebinds(x syntax.Expr) bool {
+// rebinds reports that evaluating x may write a variable tested reads: the
+// target of an assignment or a step, or an argument a callee may take by
+// reference. An earlier fact about that variable then describes a value that
+// may be gone.
+func (e *Env) rebinds(x, tested syntax.Expr) bool {
 	found := false
+	mentions := func(written syntax.Expr) {
+		if name := rootVariable(written); name != "" {
+			syntax.Inspect(tested, func(read syntax.Node) bool {
+				if v, ok := read.(*syntax.Variable); ok && v.NameExpr == nil && v.Name == name {
+					found = true
+				}
+				return !found
+			})
+		}
+	}
 	syntax.Inspect(x, func(n syntax.Node) bool {
-		switch n.(type) {
-		case *syntax.Assign, *syntax.IncDec:
-			found = true
+		switch n := n.(type) {
+		case *syntax.Assign:
+			mentions(n.Var)
+		case *syntax.IncDec:
+			mentions(n.Var)
+		case *syntax.ArgList:
+			params, _, known := e.declaration(n.Parent())
+			position := 0
+			for _, x := range n.Args {
+				a, ok := x.(*syntax.Arg)
+				if !ok {
+					continue
+				}
+				// Only a resolved by-value parameter proves a read.
+				read := false
+				for i, param := range params {
+					if a.Name == nil && i == position || a.Name != nil && param.Name == a.Name.Value {
+						read = known && !param.ByRef && !a.Unpack && !a.ByRef
+					}
+				}
+				if a.Name == nil {
+					position++
+				}
+				if !read {
+					mentions(a.Value)
+				}
+			}
 		}
 		return !found
 	})

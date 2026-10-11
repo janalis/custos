@@ -47,7 +47,7 @@ func TestReviewSafety(t *testing.T) {
 		{"file scope ternary", "<?php " + sign + "echo isset($s) ? base64_encode($s) : '';", 1},
 		{"earlier assignment", fn("$s = 'old'; " + sign + "if (empty($s)) { return; } " + publish), 1},
 		{"earlier compound assignment", fn("$s .= ''; " + sign + "if (empty($s)) { return; } " + publish), 1},
-		{"earlier reference", fn("$s = &$d; " + sign + "if (empty($s)) { return; } " + publish), 1},
+		{"earlier reference", fn("$s = &$d; " + sign + "if (empty($s)) { return; } " + publish), 0}, // nothing writes either name after the test
 		{"earlier call", fn("prepare(); " + sign + "if (empty($s)) { return; } " + publish), 0},
 		{"earlier echo", fn("echo $s; " + sign + "if (empty($s)) { return; } " + publish), 1},
 		{"dynamic variable", fn("$$d = 'old'; " + sign + "if (empty($s)) { return; } " + publish), 1},

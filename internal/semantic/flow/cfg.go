@@ -194,15 +194,13 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 	queue := []int{entry}
 	queued := map[int]bool{entry: true}
 	steps := 0
-	for len(queue) > 0 && steps < MaxTransfers && r.operations <= MaxTransfers {
+	for len(queue) > 0 && steps < MaxTransfers && r.operations <= MaxTransfers && r.copies <= MaxCopied {
 		i := queue[0]
 		queue = queue[1:]
 		delete(queued, i)
 		steps++
 		in := inputs[i]
-		if !reserve(r, len(in.vars)+len(in.states)) {
-			break
-		}
+		r.copies += len(in.vars) + len(in.states)
 		out := clone(in)
 		b := g.blocks[i]
 		var exceptional frame
@@ -221,16 +219,22 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 				exceptional = join(exceptional, out)
 			}
 		}
+		// A block input is retained until the scope is done: only its
+		// growth is charged to the memory budget. The stored frame is a
+		// copy, which lets the working frame of the block stay on the stack.
 		propagate := func(target int, v frame) {
 			old, exists := inputs[target]
 			updated := v
+			grown := len(v.vars) + len(v.states)
 			if exists {
+				r.copies += grown
 				updated = join(old, v)
 				if same(old, updated) {
 					return
 				}
+				grown = max(0, len(updated.vars)+len(updated.states)-len(old.vars)-len(old.states))
 			}
-			if !reserve(r, len(updated.vars)+len(updated.states)) {
+			if !retain(r, grown) {
 				return
 			}
 			inputs[target] = clone(updated)

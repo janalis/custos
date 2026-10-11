@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
 )
@@ -107,6 +108,13 @@ func (w *nativeLocalWrites) target(x syntax.Expr, write nativeLocalWrite) {
 			w.add(n.Name, write)
 		}
 	case *syntax.ArrayDimFetch:
+		// An entry of the globals table is the variable of that name, or
+		// any variable when the key is not a literal.
+		if table, ok := n.Var.(*syntax.Variable); ok && table.Name == "GLOBALS" && table.NameExpr == nil {
+			name, _ := astquery.QuotedStringValue(syntax.UnwrapParens(n.Dim))
+			w.add(name, nativeLocalWrite{at: write.at})
+			return
+		}
 		write.plain, write.element = false, true
 		w.target(n.Var, write)
 	default:
@@ -190,7 +198,7 @@ func (w *nativeLocalWrites) record(ctx *analysis.Context, n syntax.Node) {
 				}
 			}
 		}
-		if NativeBuiltinName(ctx, x) == "" {
+		if NativeBuiltinName(ctx, x) == "" || nativeTakesCallback(ctx, x) {
 			w.call(x)
 		}
 		w.arguments(ctx, x, x.Args)
@@ -242,6 +250,18 @@ func (w *nativeLocalWrites) arguments(ctx *analysis.Context, call syntax.Node, l
 		}
 		w.target(arg.Value, nativeLocalWrite{at: call.Span().End, builtin: builtin && resolved})
 	}
+}
+
+// nativeTakesCallback reports a resolved function with a callable parameter:
+// it may run project code holding a reference.
+func nativeTakesCallback(ctx *analysis.Context, call *syntax.FuncCall) bool {
+	callee, _ := ResolveCallee(ctx, call)
+	for _, p := range callee.Params {
+		if strings.Contains(p.Type, "callable") {
+			return true
+		}
+	}
+	return false
 }
 
 // nativeCalleeParameters resolves the parameters a call binds its arguments

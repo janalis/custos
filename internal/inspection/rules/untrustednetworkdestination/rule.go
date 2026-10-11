@@ -178,6 +178,12 @@ func leading(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 				e = x.Left
 				continue
 			}
+		case *syntax.Assign:
+			// `$u .= x` leaves `$u . x`: its first bytes are those `$u` held.
+			if x.Op.Kind == syntax.TConcatEqual {
+				e = x.Var
+				continue
+			}
 		case *syntax.InterpolatedString:
 			if !x.Backtick && len(x.Parts) > 0 {
 				e = x.Parts[0]

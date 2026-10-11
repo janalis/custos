@@ -78,14 +78,27 @@ versions follow [Semantic Versioning](https://semver.org/).
   that the reference holder writes to it, is still reported. A known integer
   stepped with `++`, `--`, `+=` or `-=` on the only path to its use has the
   stepped value; an unrelated property, element or compound assignment no
-  longer discards what is known about other variables.
+  longer discards what is known about other variables. A write through
+  `$GLOBALS['name']`, or through a property, static property or array slot
+  holding a reference to a local, is seen as a write to that variable, and
+  `$a = &$b` makes both names read the same value. Long functions (hundreds
+  of locals and branches) no longer exhaust the analysis budget.
+- Project analysis no longer rebuilds the whole cross-file summary table for
+  every analysed file, which took about a third of the time on large projects.
+- Malformed input (`curl_exec(` at end of file, `new` without an argument
+  list inside an array access) no longer makes four inspections skip the file.
 - Request-data inspections no longer treat a `match` subject, arithmetic
   results or number- and boolean-returning builtins as carrying request text;
   the short ternary `$a ?: $b` now keeps the request data of `$a`. Request
   data is now reported when it is combined with a value of unknown origin
   (`$this->bin . $_GET['a']`), appended with `.=`, stored in an array element,
   iterated with `foreach`, imported by `extract($_GET)`, or passed to a
-  function that cannot be resolved before it reaches the sink.
+  function that cannot be resolved before it reaches the sink. Array elements
+  with a literal key are tracked individually, so a clean element next to a
+  request-derived one is not reported; `sort()`, `preg_match()` groups and
+  `parse_str()` results keep the request data they work on; `extract()` honours
+  `EXTR_SKIP` and cannot create superglobals; `array_map('intval', ...)`,
+  `settype($v, 'int')` and `$n += ...` on a number yield clean values.
 - Failure-value inspections accept more guards: truthiness, `!empty()`, loose
   comparison with `false`/`null`, type predicates, constant-first comparisons,
   an assignment tested in place, `elseif`/`else` arms, short-circuit operands,

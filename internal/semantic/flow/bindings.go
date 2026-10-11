@@ -9,19 +9,19 @@ func (e *Env) bindings(scope syntax.Node, r *scopeResult, initial *frame) {
 	if scope == nil {
 		r.global = true
 		for name := range e.globals() {
-			initial.alias(name, false)
+			initial.alias(name, aliasHeld)
 		}
 		return
 	}
 	for _, p := range syntax.VariableScopeParams(scope) {
 		if p.ByRef && p.Var != nil {
-			initial.alias(p.Var.Name, false)
+			initial.alias(p.Var.Name, aliasHeld)
 		}
 	}
 	if closure, ok := scope.(*syntax.Closure); ok {
 		for _, use := range closure.Uses {
 			if use.ByRef && use.Var != nil {
-				initial.alias(use.Var.Name, false)
+				initial.alias(use.Var.Name, aliasHeld)
 			}
 		}
 	}
@@ -131,7 +131,7 @@ func referenceTarget(x syntax.Expr, f *frame) bool {
 			continue
 		}
 		if item.ByRef {
-			f.alias(rootVariable(item.Value), true)
+			f.alias(rootVariable(item.Value), aliasAny)
 			found = true
 		}
 		if referenceTarget(item.Value, f) {

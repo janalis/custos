@@ -35,9 +35,20 @@ type File struct {
 
 // Snapshot is an immutable project-local summary collection. WithFile and
 // WithoutFile return copies; readers never observe mutations or need locks.
+//
+// Replacing one file is what every analysed file does to see its own buffer,
+// so it does not rebuild the collection: the result overlays the file on its
+// base and answers lookups from both.
 type Snapshot struct {
 	files     map[string]*File
 	summaries map[string]Summary
+	// shared counts the files declaring a name more than one file declares.
+	// Such a name is ambiguous and has no entry in summaries.
+	shared map[string]int
+	// base and own make an overlay: base with the summaries of own's path
+	// replaced by own. The maps above are then unused.
+	base *Snapshot
+	own  *File
 }
 
 // NewSnapshot creates an empty summary collection.
@@ -54,24 +65,17 @@ func NewSnapshot(files ...*File) *Snapshot {
 
 // WithFile replaces all summaries of a file in a new snapshot.
 func (s *Snapshot) WithFile(f *File) *Snapshot {
-	n := NewSnapshot()
-	if s != nil {
-		for path, file := range s.files {
-			if path != f.Path {
-				n.files[path] = file
-			}
-		}
+	if s == nil {
+		return NewSnapshot(f)
 	}
-	n.files[f.Path] = f
-	n.rebuild()
-	return n
+	return &Snapshot{base: s.flat(), own: f}
 }
 
 // WithoutFile removes all summaries of a file in a new snapshot.
 func (s *Snapshot) WithoutFile(path string) *Snapshot {
 	n := NewSnapshot()
 	if s != nil {
-		for p, f := range s.files {
+		for p, f := range s.flat().files {
 			if p != path {
 				n.files[p] = f
 			}
@@ -81,18 +85,36 @@ func (s *Snapshot) WithoutFile(path string) *Snapshot {
 	return n
 }
 
+// flat returns the snapshot with its own maps, merging an overlay.
+func (s *Snapshot) flat() *Snapshot {
+	if s.base == nil {
+		return s
+	}
+	n := NewSnapshot()
+	for path, file := range s.base.files {
+		n.files[path] = file
+	}
+	n.files[s.own.Path] = s.own
+	n.rebuild()
+	return n
+}
+
 func (s *Snapshot) rebuild() {
-	duplicates := map[string]bool{}
 	for _, f := range s.files {
 		for name, summary := range f.Summaries {
-			if _, exists := s.summaries[name]; exists {
-				duplicates[name] = true
+			if _, exists := s.summaries[name]; exists || s.shared[name] > 0 {
+				if s.shared == nil {
+					s.shared = map[string]int{}
+				}
+				if exists {
+					delete(s.summaries, name)
+					s.shared[name] = 1
+				}
+				s.shared[name]++
+				continue
 			}
 			s.summaries[name] = summary
 		}
-	}
-	for name := range duplicates {
-		delete(s.summaries, name)
 	}
 }
 
@@ -100,8 +122,43 @@ func (s *Snapshot) lookup(name string) (Summary, bool) {
 	if s == nil {
 		return Summary{}, false
 	}
-	v, ok := s.summaries[strings.ToLower(name)]
-	return v, ok
+	name = strings.ToLower(name)
+	if s.base == nil {
+		v, ok := s.summaries[name]
+		return v, ok
+	}
+	// A name has a contract when exactly one file declares it, counting the
+	// overlaid file instead of the one it replaces.
+	replaced := s.base.files[s.own.Path]
+	fresh, inOwn := s.own.Summaries[name]
+	declaring := s.base.shared[name]
+	if _, single := s.base.summaries[name]; single {
+		declaring = 1
+	}
+	inReplaced := false
+	if replaced != nil {
+		_, inReplaced = replaced.Summaries[name]
+	}
+	if inReplaced {
+		declaring--
+	}
+	switch {
+	case inOwn && declaring == 0:
+		return fresh, true
+	case inOwn || declaring != 1:
+		return Summary{}, false
+	case !inReplaced:
+		return s.base.summaries[name], true
+	}
+	// The replaced file shared the name with one other file, which now
+	// declares it alone.
+	var remaining Summary
+	for path, file := range s.base.files {
+		if v, ok := file.Summaries[name]; ok && path != s.own.Path {
+			remaining = v
+		}
+	}
+	return remaining, true
 }
 
 // Equal reports whether two immutable snapshots expose the same contracts.
@@ -109,7 +166,7 @@ func (s *Snapshot) Equal(other *Snapshot) bool {
 	if s == nil || other == nil {
 		return s == other
 	}
-	return reflect.DeepEqual(s.summaries, other.summaries)
+	return reflect.DeepEqual(s.flat().summaries, other.flat().summaries)
 }
 
 // Extract computes compact summaries while the project's parser tree is

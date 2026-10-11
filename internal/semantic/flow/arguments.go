@@ -98,13 +98,51 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 			// A declared reference parameter replaces the value. An unresolved
 			// callee may not write at all: request data stays possible.
 			// The write reaches the names aliased with the argument too.
+			next := unsettled(f.vars[variable.Name], Value{})
 			if known {
-				f.write(r, variable.Name, Value{})
-			} else {
-				f.write(r, variable.Name, unsettled(f.vars[variable.Name], Value{}))
+				next = Value{}
+				if name, builtin, _ := e.callee(at); builtin && !(name == "settype" && scalarType(list)) {
+					next = e.updated(a, list, p >= 0 && p < len(params) && !params[p].Optional, f.vars[variable.Name], r)
+				}
+			}
+			f.write(r, variable.Name, next)
+		}
+	}
+}
+
+// updated is what a PHP function leaves in a reference argument: the request
+// data of its other arguments may reach it, and a required reference
+// parameter is worked on in place, so it also keeps what it held. Nothing
+// else is known about the result.
+func (e *Env) updated(argument *syntax.Arg, list *syntax.ArgList, inPlace bool, old Value, r *scopeResult) Value {
+	inputs := Value{Complete: true}
+	for _, x := range list.Args {
+		if other, ok := x.(*syntax.Arg); ok && other != argument {
+			if in := r.values[other.Value]; tainted(in) {
+				inputs = merge(inputs, Value{Complete: true, Sources: in.Sources, Safe: in.Safe})
 			}
 		}
 	}
+	if !inPlace {
+		old = Value{}
+	}
+	return unsettled(old, inputs)
+}
+
+// scalarType reports a settype() call whose literal target type is a number,
+// a boolean or null: the converted variable holds no text.
+func scalarType(list *syntax.ArgList) bool {
+	if len(list.Args) != 2 {
+		return false
+	}
+	if target, ok := list.Args[1].(*syntax.Arg); ok {
+		name, _ := literalText(target.Value)
+		switch strings.ToLower(name) {
+		case "int", "integer", "float", "double", "bool", "boolean", "null":
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Env) summaryName(at syntax.Node) string { _, name, _ := e.declaration(at); return name }
