@@ -6,6 +6,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
 
@@ -176,18 +177,22 @@ func putCheckTags(ctx *analysis.Context, m *syntax.Method) {
 		}
 		switch t.name {
 		case "@dataProvider":
-			meth, decl := putResolveMember(ctx, t.value, classFQN, at)
+			meth, decl, known := putResolveMember(ctx, t.value, classFQN, at)
 			if meth == "" { // D5
-				ctx.ReportSeverity(m.Name.Span(), diagnostic.SeverityError, putProviderMsg)
+				if known {
+					ctx.ReportSeverity(m.Name.Span(), diagnostic.SeverityError, putProviderMsg)
+				}
 				continue
 			}
 			if ctx.Bool("SUGGEST_TO_USE_NAMED_DATASETS") && decl != nil && putUnnamedDatasets(decl) { // D6
 				ctx.ReportNode(m.Name, putNamedMsg)
 			}
 		case "@depends":
-			meth, decl := putResolveMember(ctx, t.value, classFQN, at)
+			meth, decl, known := putResolveMember(ctx, t.value, classFQN, at)
 			if meth == "" { // D7
-				ctx.ReportSeverity(m.Name.Span(), diagnostic.SeverityError, putDependsMsg)
+				if known {
+					ctx.ReportSeverity(m.Name.Span(), diagnostic.SeverityError, putDependsMsg)
+				}
 				continue
 			}
 			if !strings.HasPrefix(meth, "test") && decl != nil && !putHasTestTag(ctx, decl) { // D8
@@ -209,8 +214,10 @@ func putCheckTags(ctx *analysis.Context, m *syntax.Method) {
 
 // putResolveMember resolves a @dataProvider/@depends reference to a method:
 // it returns the method's declared name ("" when unresolved) and its
-// declaration when it lives in this file.
-func putResolveMember(ctx *analysis.Context, ref, classFQN string, at uint32) (string, *syntax.Method) {
+// declaration when it lives in this file. known is false when the method
+// was not found but the class has an ancestor or trait outside the index,
+// which may declare it.
+func putResolveMember(ctx *analysis.Context, ref, classFQN string, at uint32) (name string, decl *syntax.Method, known bool) {
 	ref = strings.TrimSuffix(ref, "()")
 	cls, member, hasClass := strings.Cut(ref, "::")
 	if !hasClass {
@@ -219,15 +226,15 @@ func putResolveMember(ctx *analysis.Context, ref, classFQN string, at uint32) (s
 	fqn := classFQN
 	if hasClass {
 		if cls == "" || member == "" || strings.HasPrefix(member, "<") {
-			return "", nil
+			return "", nil, true
 		}
 		fqn = putClassRef(ctx, cls, at)
 	}
 	m := ctx.Index().FindMethod(fqn, member, ctx.PHP)
 	if m == nil {
-		return "", nil
+		return "", nil, semanticquery.HierarchyResolved(ctx.Index(), fqn, ctx.PHP)
 	}
-	return m.Name, putFindMethodDecl(ctx, m.Class, m.Name)
+	return m.Name, putFindMethodDecl(ctx, m.Class, m.Name), true
 }
 
 // putFindMethodDecl returns the declaration of class::method when the class
@@ -323,7 +330,10 @@ func putCoversResolves(ctx *analysis.Context, ref string, at uint32) bool {
 		fqn := putClassRef(ctx, cls, at)
 		if ctx.Index().Class(fqn, ctx.PHP) != nil {
 			classOK = true
-			if member != "" && !strings.HasPrefix(member, "<") && ctx.Index().FindMethod(fqn, member, ctx.PHP) != nil {
+			// a method missing from a class with an unindexed ancestor or
+			// trait may be inherited from it
+			if member != "" && !strings.HasPrefix(member, "<") &&
+				(ctx.Index().FindMethod(fqn, member, ctx.PHP) != nil || !semanticquery.HierarchyResolved(ctx.Index(), fqn, ctx.PHP)) {
 				callableOK = true
 			}
 			if endsColons {
@@ -373,6 +383,10 @@ func putReportTest(ctx *analysis.Context, tok syntax.Token, t putTag) {
 			// value text on the same line, up to the newline or the closer
 			e := end
 			for e < tok.End && src[e] != '\n' && src[e] != '\r' && !(src[e] == '*' && e+1 < tok.End && src[e+1] == '/') {
+				if src[e] == '@' && (src[e-1] == ' ' || src[e-1] == '\t') {
+					// another tag shares the line: it now starts where @test did
+					return []diagnostic.TextEdit{{Span: syntax.Span{Start: t.start, End: e}}}
+				}
 				e++
 			}
 			for e > end && (src[e-1] == ' ' || src[e-1] == '\t') {

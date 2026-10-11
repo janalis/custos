@@ -40,13 +40,19 @@ resolved and there is no test-context check.
   There must be **exactly one** value `F`.
 - **D3** `F` is a function call or method call (`f()`, `$o->m()`,
   `Cls::m()`, `$this->m()`; not `new`, not a closure invocation of a
-  variable) that resolves to a function or method declaration.
+  variable, not a first-class callable `f(...)`, which yields a `Closure`)
+  that resolves to a function or method declaration.
 - **D4** That declaration has an explicit return type declaration (any
   type). Docblock-only `@return` does not qualify.
 - **D5** The inferred type of the call expression `F` (declared return type
   combined with any `@return` docblock types) consists of **exactly one**
   type and contains nothing unknown. So `?Foo` (= `Foo|null`), unions, or a
   declared `object` plus a docblock `@return Foo` (two types) disqualify.
+  For a method, `static` stands for the receiver's class and `self` for the
+  class that declares the method (not the receiver's: `Node::root(): self`
+  called on a `Leaf extends Node` returns a `Node`). When the declaring
+  class-like is a trait, `self` is the class importing the trait; if that
+  class is not known, `self` stays unresolved and matches no class.
 - **D6** Match against `T`:
   - `assertNull` / `assertEmpty`: report when that single type is `void`
     (compared case-insensitively, a leading `\` ignored).
@@ -96,6 +102,24 @@ parentheses stripped first):
   add the values of the assigned expression (for chains `$v = $w = e` the
   innermost `e`). Position relative to the assertion is irrelevant.
   **Unstable variable** (custos refinement, see Divergences): if `$v` is also the operand of `++`/`--` or the target of a compound assignment (`+=`, `.=`, `??=`, …) anywhere in that scope body, the whole result is *unknown* → no report.
+  **Rebound variable** (custos refinement, see Divergences): the result is
+  also *unknown* when the same scope (nested closures and functions
+  excluded) can give `$v` a value by another route:
+  - it is a `foreach` key/value target, a `catch` variable, a `global` or
+    `static` declaration, an `unset()` argument, or a slot of a `list()` /
+    `[...]` destructuring;
+  - an array element of it is written (`$v[] = 1`, `$v['k'] = 1`; a property
+    write `$v->p = 1` does not count);
+  - a reference to it is taken: `$w = &$v`, `[&$v]`, a closure `use (&$v)`;
+  - it is an argument of a call or `new` that takes any argument by
+    reference (declared `&$p` parameter or call-time `&`), or whose callee
+    cannot be resolved. Exception: an unresolved method whose name starts
+    with `assert` is taken as by-value (the assertion itself is never
+    resolved); a resolved class without a constructor takes nothing by
+    reference.
+
+  The check applies to every variable followed, including those reached
+  through another variable's assignment.
 - **V4** Property fetch: resolve the property; add the values of its default
   (unless the default's text ends with the property name); then apply the V3
   assignment scan for that fetch in the enclosing function and in the
@@ -126,6 +150,9 @@ parentheses stripped first):
 - **E4b** (custos) Calls reached through a nullsafe access anywhere in
   their chain (`$r->find()?->bag()`, `$r?->owner->bag()`): the chain
   yields `null` when it short-circuits, whatever the last call declares.
+- **E4c** (custos) Variables that are unstable or rebound (V3): overwritten
+  by `foreach`, `catch`, destructuring, `global`/`static`, `unset`, an
+  element write, a reference, or a by-reference / unresolvable call.
 - **E5** `assertNull`/`assertEmpty` on a non-`void` call;
   `assertInternalType` whose type name is not a literal, is not a PHPUnit
   internal type, or is not guaranteed by the declared type;
@@ -149,7 +176,8 @@ parentheses stripped first):
 ## Fix
 
 - TYPED: no fix.
-- **F1** ANY: replace the whole `expects(...)` call expression (receiver,
+- **F1** ANY, only when the `expects` call is a plain instance call
+  (`recv->expects(...)`): replace the whole `expects(...)` call expression (receiver,
   arrow/`::`, name and argument list) with the source text of its receiver
   expression. Whatever follows the `expects(...)` call (e.g.
   `->method('x')->willReturn(1)`) stays as it is, including the whitespace
@@ -161,6 +189,21 @@ parentheses stripped first):
     `$double\n    ->expects(self::any())\n    ->method('save');`
     → `$double\n    ->method('save');`
   - a bare statement `$double->expects($this->any());` → `$double;`
+- **F2** ANY is reported **without a fix** when the rewrite is not provably
+  equivalent:
+  - `Cls::expects(...)`, `static::expects(...)`, `$obj::expects(...)`: the
+    part before `::` is not an expression that `->method()` can follow;
+  - `$double?->expects(...)`: the following links are only skipped for a
+    `null` receiver while the nullsafe call is there (a `?->` deeper in the
+    receiver, `$a?->b->expects(...)`, is kept by F1 and is fine);
+  - a class the receiver may double declares a real method named `method`:
+    PHPUnit then does not generate its own `method()` and
+    `$double->method('x')` would call the original. The classes considered
+    are the receiver's inferred classes plus every `X::class` appearing in
+    the receiver's possible values (D2 rules), e.g.
+    `createMock(Request::class)` or
+    `getMockBuilder(Request::class)->getMock()`. Methods declared inside the
+    `PHPUnit\` namespace and `@method`-documented magic methods do not count.
 
 ## Options
 
@@ -285,6 +328,25 @@ abstract class CartTest
   `$this->AssertNull($this->clear())` is not reported although PHP calls the
   same method. custos compares them case-insensitively.
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
+- **Rebound variables — custos refinement, not upstream.** Upstream value
+  discovery only reads plain assignments, so
+  `$box = make(); foreach ($rows as $box) { assertInstanceOf(Box::class, $box); }`
+  or a variable later filled through a by-reference parameter is analysed
+  with its first value and called redundant. custos makes the result unknown
+  (V3). Calls it cannot resolve count as possibly by-reference, which can
+  hide a true positive when the variable is also passed to an unknown
+  callee.
+- **`self` return type (custos diverges).** `self` is resolved to the
+  declaring class (or the class importing the declaring trait), never to the
+  receiver's class, so `assertInstanceOf(Leaf::class, $leaf->root())` with
+  `Node::root(): self` is not reported.
+- **First-class callables (custos diverges).** `assertNull(flush(...))`
+  checks a `Closure`, not the result of a `void` call; not reported.
+- **Withheld fix (custos diverges, F2).** Upstream always offers the
+  replacement. custos keeps the report but offers no fix for `::` and
+  nullsafe `expects` calls (invalid PHP, lost null short-circuit) and when
+  the doubled class declares a method named `method` (the rewritten chain
+  would call it).
 - `assertInstanceOf` whose argument 0 is not a resolvable `X::class`
   (e.g. `'Shop\Cart'`, `$class`, an unknown class): upstream falls back to
   "no expected type" and reports whenever D2–D5 hold, regardless of the

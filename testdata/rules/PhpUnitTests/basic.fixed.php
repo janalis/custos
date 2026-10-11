@@ -5,12 +5,12 @@ class CartTest
     {
         $this->assertNotTrue($cart->open && $rows);
         self::assertSame($cart->size, 4, 'size');
-        $this->assertNotEquals($slug, 'home');
+        $this->assertTrue($slug <> 'home');
         $this->assertNotEmpty($rows);
         $this->assertNull($cart->coupon, 'coupon');
         $this->assertIsNotString($slug);
         $this->assertInstanceOf(\Shop\Cart::class, $cart, 'type');
-        $this->assertNotInstanceOf(\Shop\Order::class, $cart);
+        $this->assertNotEquals('Shop\\Order', get_class($cart));
         $this->assertDirectoryNotExists($path);
         $this->assertNotCount(3, $bag, 'bag');
         $this->assertContains($slug, $rows);
@@ -22,7 +22,7 @@ class CartTest
         $this->assertSame(count($bag), 3);
         $this->assertEquals($body, file_get_contents($path));
         $this->assertTrue(in_array($slug));
-        $this->assertNotTrue($rows);
+        $this->AssertTrue(!$rows);
         $this->assert(!$rows);
     }
 

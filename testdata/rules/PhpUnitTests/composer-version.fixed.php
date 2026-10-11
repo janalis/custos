@@ -4,10 +4,11 @@ use PHPUnit\Framework\TestCase;
 
 final class IdsTest extends TestCase
 {
-    public function testIds(): void
+    public function testIds($a, $b): void
     {
         $ids = ['1', '2'];
         $this->assertTrue(in_array(1, $ids));
+        $this->assertSame($a, $b);
         $this->assertMatchesRegularExpression('/a/', 'abc');
     }
 }

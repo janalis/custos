@@ -6,6 +6,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/phpunit"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
@@ -17,6 +18,7 @@ type putSuggestion struct {
 	name  string
 	slots []string
 	msg   string // overrides the default message when set
+	noFix bool   // the rewrite is not provably equivalent: report only
 }
 type putStrategy func(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (putSuggestion, bool)
 
@@ -50,14 +52,20 @@ func putCheckCall(ctx *analysis.Context, c phpunit.PuCall) {
 			putStringEqualsFile)
 	}
 	for _, s := range strategies {
-		if sug, ok := s(ctx, c, args); ok {
-			msg := sug.msg
-			if msg == "" {
-				msg = "Use '" + sug.name + "()' instead."
-			}
-			ctx.ReportNode(c.Node, msg, putRenameFix(ctx, c, sug.name, sug.slots))
-			return
+		sug, ok := s(ctx, c, args)
+		if !ok {
+			continue
 		}
+		msg := sug.msg
+		if msg == "" {
+			msg = "Use '" + sug.name + "()' instead."
+		}
+		var fixes []diagnostic.Fix
+		if !sug.noFix {
+			fixes = append(fixes, putRenameFix(ctx, c, sug.name, sug.slots))
+		}
+		ctx.ReportNode(c.Node, msg, fixes...)
+		return
 	}
 }
 
@@ -128,6 +136,36 @@ func putFunc(ctx *analysis.Context, e syntax.Expr, f string) ([]syntax.Expr, boo
 	return astquery.CallArgValues(call)
 }
 
+// putStrictTypes reports whether the file declares strict_types=1.
+func putStrictTypes(ctx *analysis.Context) bool {
+	for _, st := range ctx.File.Stmts {
+		if d, ok := st.(*syntax.Declare); ok {
+			for _, it := range d.Items {
+				if strings.EqualFold(it.Key.Value, "strict_types") && ctx.Text(it.Value) == "1" {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// putFits reports whether e may be moved into a PHPUnit parameter declared
+// with the given scalar type: its type is known to be exactly that, or it
+// is unknown and the file coerces scalar arguments (no strict_types).
+func putFits(ctx *analysis.Context, e syntax.Expr, atom string) bool {
+	t := ctx.TypeOf(e)
+	if t.IsUnknown() {
+		return !putStrictTypes(ctx)
+	}
+	return t.OnlyOf(atom)
+}
+
+// putIsBool reports whether x always evaluates to a bool.
+func putIsBool(ctx *analysis.Context, x syntax.Expr) bool {
+	return ctx.TypeOf(x).OnlyOf("bool", "true", "false")
+}
+
 // D15
 func putInvertedBool(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (putSuggestion, bool) {
 	m := c.Name
@@ -150,11 +188,19 @@ func putInvertedBool(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr
 	if m == "assertFalse" {
 		name = "assertNotFalse"
 	}
-	slots := []string{ctx.Text(syntax.UnwrapParens(u.Expr))}
+	x := syntax.UnwrapParens(u.Expr)
+	slots := []string{ctx.Text(x)}
 	if len(args) == 2 {
 		slots = append(slots, ctx.Text(args[1]))
 	}
-	return putSuggestion{name: name, slots: slots}, true
+	// assertNotTrue(X) accepts every X other than true, `!X` only falsy ones
+	return putSuggestion{name: name, slots: slots, noFix: !putIsBool(ctx, x)}, true
+}
+
+// putMayBeFloat reports whether e is not known to exclude float values.
+func putMayBeFloat(ctx *analysis.Context, e syntax.Expr) bool {
+	t := ctx.TypeOf(e)
+	return t.IsUnknown() || t.HasAny("float", "mixed")
 }
 
 // D16
@@ -193,7 +239,17 @@ func putBoolOfComparison(ctx *analysis.Context, c phpunit.PuCall, args []syntax.
 	if len(args) == 2 {
 		slots = append(slots, ctx.Text(args[1]))
 	}
-	return putSuggestion{name: name, slots: slots}, true
+	var noFix bool
+	if strict {
+		// PHPUnit below 10 compares two floats with a tolerance
+		noFix = putVersion(ctx) < 100 && putMayBeFloat(ctx, b.Left) && putMayBeFloat(ctx, b.Right)
+	} else {
+		// assertEquals() agrees with `==` on these types only (two numeric
+		// strings, arrays, objects and floats follow PHPUnit's own rules)
+		loose := []string{"int", "bool", "true", "false", "null"}
+		noFix = !ctx.TypeOf(b.Left).OnlyOf(loose...) || !ctx.TypeOf(b.Right).OnlyOf(loose...)
+	}
+	return putSuggestion{name: name, slots: slots, noFix: noFix}, true
 }
 
 // D17
@@ -249,10 +305,35 @@ func putEmpty(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (putS
 	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 1, len(args), ctx.Text(e.Expr), putOpt(ctx, args, 1))}, true
 }
 
+// putDefined reports whether the local variable v is certainly defined
+// where it is read: it is a parameter, or an assignment always precedes it.
+func putDefined(ctx *analysis.Context, v *syntax.Variable) bool {
+	scope := syntax.EnclosingFuncLike(v)
+	params, _ := astquery.ScopeParts(scope)
+	for _, p := range params {
+		if p.Var != nil && p.Var.Name == v.Name {
+			return true
+		}
+	}
+	_, entry := flowquery.ReachingAssignmentsIn(ctx.File, scope, v, v.Name)
+	return !entry
+}
+
 // putEmptyOperand reports whether x has a fully known type made only of
 // null, bool, int, float, string and array: there assertEmpty() agrees
-// with empty() (objects, Countable ones especially, do not).
+// with empty() (objects, Countable ones especially, do not). x must also be
+// a plain variable or a call: empty() tolerates a missing offset or an
+// uninitialized property, reading them as an argument does not.
 func putEmptyOperand(ctx *analysis.Context, x syntax.Expr) bool {
+	switch v := x.(type) {
+	case *syntax.Variable:
+		if !putDefined(ctx, v) {
+			return false
+		}
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+	default:
+		return false
+	}
 	t := ctx.TypeOf(x)
 	if t.IsUnknown() {
 		return false
@@ -276,7 +357,7 @@ func putConstant(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (p
 		return putSuggestion{}, false
 	}
 	idx, kind := -1, ""
-	for i, a := range args {
+	for i, a := range args[:2] { // a later argument is the message
 		cf, ok := a.(*syntax.ConstFetch)
 		if !ok {
 			continue
@@ -335,7 +416,7 @@ func putInternalType(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr
 		return putSuggestion{}, false
 	}
 	inner, ok := astquery.CallArgValues(call)
-	if !ok || len(inner) < 1 {
+	if !ok || len(inner) != 1 { // is_callable()'s extra arguments change its meaning
 		return putSuggestion{}, false
 	}
 	a0 := ctx.Text(inner[0])
@@ -377,6 +458,7 @@ func putInstanceof(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) 
 		return putSuggestion{}, false
 	}
 	var cd string
+	noFix := false
 	if nm, ok := io.Class.(*syntax.Name); ok {
 		if ctx.PHP >= phpversion.PHP55 {
 			cd = nm.Value + "::class"
@@ -389,12 +471,15 @@ func putInstanceof(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) 
 		}
 	} else {
 		cd = ctx.Text(io.Class)
+		// instanceof also takes an object, which no mode coerces to the
+		// string assertInstanceOf() declares
+		noFix = !ctx.TypeOf(io.Class).OnlyOf("string")
 	}
 	name := "assertNotInstanceOf"
 	if pos {
 		name = "assertInstanceOf"
 	}
-	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 1, len(args)+1, cd, ctx.Text(io.Expr), putOpt(ctx, args, 1))}, true
+	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 1, len(args)+1, cd, ctx.Text(io.Expr), putOpt(ctx, args, 1)), noFix: noFix}, true
 }
 
 // D22
@@ -415,7 +500,7 @@ func putGetClass(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (p
 	if _, _, ok := astquery.QuotedStringRaw(args[0]); ok {
 		litIdx = 0
 	}
-	content, _, ok := astquery.QuotedStringRaw(args[litIdx])
+	content, quote, ok := astquery.QuotedStringRaw(args[litIdx])
 	if !ok || len(content) <= 3 {
 		return putSuggestion{}, false
 	}
@@ -423,15 +508,24 @@ func putGetClass(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (p
 	if !ok || len(inner) != 1 {
 		return putSuggestion{}, false
 	}
-	fq := strings.ReplaceAll(content, `\\`, `\`)
-	fq = `\` + strings.TrimPrefix(fq, `\`) // divergence: no double leading backslash
+	// the literal must spell a class name (a lone backslash in double
+	// quotes may start an escape sequence)
+	lit := strings.ReplaceAll(content, `\\`, `\`)
+	if !putIsQualifiedName(lit) || quote == '"' && strings.Contains(strings.ReplaceAll(content, `\\`, ""), `\`) {
+		return putSuggestion{}, false
+	}
+	// get_class() names the exact class, instanceof accepts subclasses too:
+	// the two only agree for a final class spelled as declared
+	cls := ctx.Index().Class(lit, ctx.PHP)
+	exact := cls != nil && cls.FQN == lit && (cls.Final || cls.Kind == syntax.KindEnum)
+	fq := `\` + strings.TrimPrefix(lit, `\`) // divergence: no double leading backslash
 	var cd string
 	if ctx.PHP >= phpversion.PHP55 {
 		cd = fq + "::class"
 	} else {
 		cd = "'" + strings.ReplaceAll(fq, `\`, `\\`) + "'"
 	}
-	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 2, len(args), cd, ctx.Text(inner[0]), putOpt(ctx, args, 2))}, true
+	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 2, len(args), cd, ctx.Text(inner[0]), putOpt(ctx, args, 2)), noFix: !exact}, true
 }
 
 // D23
@@ -477,7 +571,8 @@ func putCount(ctx *analysis.Context, c phpunit.PuCall, args []syntax.Expr) (putS
 	if !ok || len(inner) != 1 {
 		return putSuggestion{}, false
 	}
-	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 2, len(args), ctx.Text(args[0]), ctx.Text(inner[0]), putOpt(ctx, args, 2))}, true
+	// assertCount() declares an int expected count
+	return putSuggestion{name: name, slots: putSlotsFrom(ctx, args, 2, len(args), ctx.Text(args[0]), ctx.Text(inner[0]), putOpt(ctx, args, 2)), noFix: !putFits(ctx, args[0], "int")}, true
 }
 
 // D25
@@ -616,7 +711,8 @@ func putStringEqualsFile(ctx *analysis.Context, c phpunit.PuCall, args []syntax.
 	if f == nil {
 		return putSuggestion{}, false
 	}
-	return putSuggestion{name: "assertStringEqualsFile", slots: putSlotsFrom(ctx, args, 2, len(args), ctx.Text(f), ctx.Text(args[1]), putOpt(ctx, args, 2))}, true
+	// assertStringEqualsFile() declares a string actual value
+	return putSuggestion{name: "assertStringEqualsFile", slots: putSlotsFrom(ctx, args, 2, len(args), ctx.Text(f), ctx.Text(args[1]), putOpt(ctx, args, 2)), noFix: !putFits(ctx, args[1], "string")}, true
 }
 
 // D29

@@ -19,9 +19,10 @@ in 9.1 in favour of their `...DoesNotExist()` counterparts).
 ## Detection
 
 Visit every method call (`->`, `?->` or `::`; any receiver — `$this`, `self`,
-`static`, `parent`, a variable). The call is **not** resolved: matching is by
-the method name, compared case-insensitively as PHP compares method names
-(`AssertEquals`, `assertfilenotexists` match). Messages and replacement names
+`static`, `parent`, a variable). Matching is by the method name, compared
+case-insensitively as PHP compares method names (`AssertEquals`,
+`assertfilenotexists` match); the receiver is only resolved to rule out
+methods that are not PHPUnit's (E5). Messages and replacement names
 use the declared spelling (`assertEquals…`, `assertFileDoesNotExist`). No
 test-context check.
 
@@ -60,6 +61,13 @@ ordered `PHPUNIT70 < 71 < 72 < 73 < 74 < 75 < 80 < 81 < 82 < 83 < 84 < 85 <
 - **E3** `assertEquals`/`assertNotEquals` with 3 or fewer arguments.
 - **E4** Plain function calls (`assertEquals(...)` without receiver), and other
   deprecated PHPUnit APIs (not covered by this rule).
+- **E5** Foreign methods, for every finding kind (D1–D3). The call is skipped
+  when the receiver's type (instance call) or the named class (static call,
+  `self`/`static`/`parent` included) resolves to classes that all declare or
+  inherit the matched method from outside the `PHPUnit\` namespace, and when
+  an instance call has a receiver other than `$this` whose type is unknown.
+  `$this`, an unresolvable static class, a class without such a method, and
+  receivers resolving to PHPUnit's own declaration are still checked.
 
 ## Report
 
@@ -194,6 +202,13 @@ final class ExportTest
   (PHPUnit assertions are called on the test case, or statically). `$this`,
   `self::`/`static::`, and receivers resolving to PHPUnit's declaration are
   still checked.
+- **Foreign `assertFileNotExists` / `assertDirectoryNotExists` methods
+  (custos diverges).** Upstream renames these calls on any receiver. A class
+  unrelated to PHPUnit may declare a method of that name (a storage or
+  filesystem helper asserting on its own state); it is neither deprecated
+  nor does it have a `...DoesNotExist()` twin, so the rename turns a working
+  call into a call to an undefined method. custos applies the same receiver
+  check as for `assertEquals` (E5) and reports nothing for such calls.
 - **PHPUnit version from composer.json (custos).** When PHPUnit itself is
   not indexed (no vendor directory, or one installed without dev
   dependencies) and `PHP_UNIT_VERSION` is not configured, the version is

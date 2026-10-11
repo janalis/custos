@@ -12,8 +12,8 @@ class MoreTest
         $this->assertNull($a);
         $this->assertIsNotArray($a, 'm');
         $this->assertInstanceOf(Basket::class, $e);
-        $this->assertNotInstanceOf($f, $e);
-        $this->assertInstanceOf(\Shop\Cart::class, $e);
+        $this->assertFalse($e instanceof $f);
+        $this->assertSame(get_class($e), 'Shop\\Cart');
         $this->assertFileExists($f, 'm');
         $this->assertCount(2, $list);
         $this->assertRegExp('/a/', $s);
@@ -21,8 +21,8 @@ class MoreTest
         $this->assertRegExp('/a/', $s);
         $this->assertFileEquals($a, $b, 'm');
         $this->assertEmpty($str, 'm', 3);
-        $this->assertNotEquals($a, $b);
-        $this->assertNotSame($a, $b, 'm');
+        $this->assertFalse(($a == $b));
+        $this->assertNotTrue($a === $b, 'm');
 
         $this->assertTrue(-$a);
         $this->assertTrue(is_integer($a));

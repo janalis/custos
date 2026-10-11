@@ -64,6 +64,12 @@ contain a class part and a member part separated by `::`.
 - `::name` (empty class part) in `@covers` names a global function, resolved
   against project functions and built-in stubs.
 - A trailing `()` after the member name is ignored for resolution.
+- **Unresolved hierarchy.** A method that is not found in a class is only
+  *proven* missing when every ancestor, interface and trait of that class
+  is indexed. When one of them is not (a base test case or a trait from a
+  vendor directory that is not analysed), the method may be inherited from
+  it: D5, D7 and the callable target of D10 then count as satisfied and
+  nothing is reported (custos diverges, see Divergences).
 
 #### `@dataProvider`
 
@@ -174,6 +180,11 @@ integer/float literal, optionally with a unary minus.
   `args[0]` with parens stripped is a logical-not `!X`. `X'` = `X` with parens
   stripped. Suggest `assertNotTrue` (for `assertTrue`) / `assertNotFalse`
   (for `assertFalse`). Other unary operators do not match.
+  The fix (F1) is only offered when `X'` is known to be a `bool` (a
+  comparison, a logical operation, `isset`, `instanceof`, a `bool`-typed
+  variable or call, …): `assertNotTrue(X)` accepts every value other than
+  `true`, whereas `assertTrue(!X)` accepts only falsy ones, so on any other
+  operand the two differ. Otherwise the call is reported without a fix.
   - **D15a Inverted empty.** When `X'` is an `empty(Y)` construct with
     exactly one argument and `Y` satisfies the D18 type condition, the call
     is reported with the assertion D18 would pick for the inverted method
@@ -190,6 +201,16 @@ integer/float literal, optionally with a unary minus.
   - strict = `op` ∈ {`===`, `!==`}.
   Suggest `assert` + (`Not` if exactly one of the two negates) + (`Same` if
   strict else `Equals`). `L` and `R` keep their original text (not stripped).
+  The fix (F2) is only offered when the assertion compares like the
+  operator; otherwise the call is reported without a fix:
+  - loose (`==`, `!=`, `<>`): both operands have a fully known type made
+    only of `int`, `bool`/`true`/`false` and `null`. On strings, floats,
+    arrays and objects `assertEquals()` follows PHPUnit's own comparison
+    rules (two numeric strings are compared as text, for instance).
+  - strict (`===`, `!==`): below PHPUnit 10, at least one operand has a
+    fully known type without `float` or `mixed` — those versions compare
+    two floats with a tolerance in `assertSame()`. From PHPUnit 10 the fix
+    is always offered.
 - **D17 Strict equality** (option). `M` ∈ {`assertEquals` → `assertSame`,
   `assertNotEquals` → `assertNotSame`}, `n ≥ 2`, and both `args[0]` and
   `args[1]` have a **fully known** inferred type (no unknown/mixed part) in
@@ -200,29 +221,37 @@ integer/float literal, optionally with a unary minus.
 - **D18 Empty.** `M` ∈ {`assertTrue`, `assertNotFalse` → `assertEmpty`;
   `assertFalse`, `assertNotTrue` → `assertNotEmpty`}, `n ≥ 1`, `args[0]` is
   directly (no parens) an `empty(X)` construct with exactly one argument,
-  and `X` has a **fully known** inferred type whose members are all among
+  `X` is a call (function, method or static method) or a local variable
+  that is certainly defined at that point (a parameter, or a variable every
+  path assigns first inside the same function), and `X` has a **fully
+  known** inferred type whose members are all among
   `null`, `bool`/`true`/`false`, `int`, `float`, `string` and `array` (no
   class/interface/object, `iterable`, `callable`, `resource`, `mixed` or
   unknown part). `assertEmpty()`/`assertNotEmpty()` count a `Countable`
   object (and `count()` can throw, e.g. on a lazily loaded collection) and
   treat other objects differently from `empty()`, which only tests for a
   falsy value; on the listed types the two agree (custos diverges, see
-  Divergences).
+  Divergences). Array and string offsets, property fetches and possibly
+  undefined variables are left alone: `empty()` silently accepts a missing
+  offset or an uninitialized typed property, while passing the same
+  expression as an argument warns or throws.
 - **D19 Constant.** `M` ∈ {`assertSame` → `assert<C>`, `assertNotSame` →
-  `assertNot<C>`}, `n ≥ 2`. Scan **all** arguments in order (including a 3rd
-  message argument) for the first that is a bare constant `null`, `true` or
+  `assertNot<C>`}, `n ≥ 2`. Scan the **first two** arguments in order (a
+  later argument is the message, see Divergences) for the first that is a
+  bare constant `null`, `true` or
   `false` (case-insensitive, e.g. `NULL`, `True`); `<C>` is `Null`, `True` or
   `False`. The *other* value is the first argument (in order) that is not that
   constant node. No match → strategy does not apply.
 - **D20 Internal type.** `M` ∈ {`assertTrue`, `assertNotFalse`} (positive) or
   {`assertFalse`, `assertNotTrue`} (negative), `n ≥ 1`, `args[0]` is a
-  function call with **at least one** argument to one of:
+  function call with **exactly one** argument to one of:
   `is_array`→`array`, `is_bool`→`bool`, `is_float`→`float`, `is_int`→`int`,
   `is_null`→`null`, `is_numeric`→`numeric`, `is_object`→`object`,
   `is_string`→`string`, `is_scalar`→`scalar`,
   `is_callable`→`callable`, `is_iterable`→`iterable`.
   (Aliases such as `is_integer`, `is_long`, `is_double` are not mapped, nor
-  is `is_resource`: see Divergences.)
+  is `is_resource`: see Divergences. A call with more arguments, such as
+  `is_callable($v, true)`, checks something else and is not matched.)
   - PHPUnit version **< 8.0**: suggest `assertInternalType` (positive) /
     `assertNotInternalType` (negative) with the type name.
   - PHPUnit version **≥ 8.0**: suggest `assertIs<Type>` (positive) /
@@ -239,7 +268,10 @@ integer/float literal, optionally with a unary minus.
     - level < 5.5 → a single-quoted string of `K`'s **fully qualified** name
       (leading `\`, resolved through namespace/imports) with every `\`
       doubled: `'\\Foo\\Bar'`;
-  - otherwise (`$cls`, expression) → `K`'s text as is.
+  - otherwise (`$cls`, expression) → `K`'s text as is. `instanceof` also
+    accepts an object there, `assertInstanceOf()` only a string: the fix is
+    withheld (report kept) unless `K`'s type is known to be exactly
+    `string` (an object is never coerced, with or without `strict_types`).
 - **D22 get_class comparison.** `M` ∈ {`assertSame`, `assertEquals` →
   `assertInstanceOf`; `assertNotSame`, `assertNotEquals` →
   `assertNotInstanceOf`}, `n ≥ 2`. The literal is `args[0]` if it is a string
@@ -249,6 +281,14 @@ integer/float literal, optionally with a unary minus.
   call `get_class` with exactly one argument `O`. `FQ` = `\` + contents with
   each `\\` pair collapsed to one `\`. `CD` = `FQ::class` at level ≥ 5.5, else
   `'` + `FQ` with each `\` doubled + `'`.
+  The collapsed contents must spell a qualified class name (identifier
+  segments separated by `\`); `'not a class'`, `'class@anonymous'` or a
+  double-quoted literal holding a lone backslash are not reported.
+  Comparing `get_class()` checks the exact class while `instanceof` also
+  accepts subclasses, so the fix (F8) is only offered when the contents
+  are, letter for letter, the declared name of an indexed class that is
+  `final` (or an enum); otherwise the call is reported without a fix
+  (custos diverges, see Divergences).
 - **D23 Resource exists.** `M` ∈ {`assertTrue`, `assertNotFalse`} (positive)
   or {`assertFalse`, `assertNotTrue`} (negative), `n ≥ 1`, `args[0]` is a
   function call with exactly one argument to `file_exists` (→ `File`) or
@@ -264,7 +304,10 @@ integer/float literal, optionally with a unary minus.
 - **D24 Count.** `M` ∈ {`assertSame`, `assertEquals` → `assertCount`;
   `assertNotSame`, `assertNotEquals` → `assertNotCount`}, `n ≥ 2`, `args[1]`
   (the actual value — position matters, `args[0]` is not checked) is a
-  function call `count` with exactly one argument `A`.
+  function call `count` with exactly one argument `A`. `assertCount()`
+  declares an `int` expected count: the fix is withheld (report kept) when
+  `args[0]`'s type is known and is not exactly `int`, or when it is unknown
+  and the file declares `strict_types=1`.
 - **D25 Contains.** Only when PHPUnit version **< 9.0**. `M` ∈
   {`assertTrue`, `assertNotFalse` → `assertContains`; `assertFalse`,
   `assertNotTrue` → `assertNotContains`}, `n ≥ 1`, `args[0]` is a function
@@ -303,7 +346,10 @@ integer/float literal, optionally with a unary minus.
   `F`, and the nearest enclosing function/method/closure is named neither
   `assertFileEquals` nor `assertStringEqualsFile`. Suggest
   `assertStringEqualsFile`. (`file_get_contents` in `args[1]` alone does not
-  match.)
+  match.) `assertStringEqualsFile()` declares a `string` actual value: the
+  fix is withheld (report kept) when `args[1]`'s type is known and is not
+  exactly `string`, or when it is unknown and the file declares
+  `strict_types=1`.
 - **D29 expects(exactly(1)).** Outer call `M` = `expects` with exactly one
   argument which is a method call (instance or static, any receiver) named
   `exactly` (any case) with exactly one argument that is a number whose
@@ -338,6 +384,11 @@ integer/float literal, optionally with a unary minus.
 - **E9a** D18 (and the D15a shortcut) when the `empty()` operand's type is
   unknown or may be an object: `assertTrue(empty($store))` with a
   `\SplObjectStorage $store`, or with an untyped `$store`.
+- **E9b** D5/D7/D10 when the method is not found but the class has an
+  ancestor, interface or trait that is not indexed.
+- **E9c** D19 when the constant is only the message argument; D20 when
+  the `is_*` call has more than one argument; D22 when the literal is not
+  a class name.
 - **E10** D17 when either operand's type is unknown, or contains a class or
   `array`.
 - **E11** Disabled option groups (see Options): with `PROMOTE_PHPUNIT_API`
@@ -379,6 +430,10 @@ called method** to the suggested name and **replace the whole argument list**
 other whitespace or comments kept from the old list. Text outside the call
 (e.g. a space before `;`) is untouched.
 
+A fix is only attached when the rewritten call accepts and rejects the same
+values as the original; D15, D16, D21, D22, D24 and D28b state when the
+report is issued without one.
+
 "msg" below is the original `args[1]` or `args[2]` text as indicated, added
 only when the call has that argument. Several strategies build an argument
 list whose length is derived from `n` (given as `len`); with superfluous
@@ -390,9 +445,11 @@ filled, in order, with the original arguments that follow the message
   `assertNotTrue|assertNotFalse(X', args[1])` when `n = 2`. (With `n ≥ 3`
   everything after `X'` is dropped.)
   `$this->assertTrue(!($a && $b), 'm')` → `$this->assertNotTrue($a && $b, 'm')`.
+  Only when `X'` is a `bool` (D15).
 - **F2 (D16)** `<suggested>(L, R)` when `n ≠ 2`; `<suggested>(L, R, args[1])`
   when `n = 2`. Operand order kept.
   `$this->assertFalse($q !== 0)` → `$this->assertSame($q, 0)`.
+  Only under the type conditions of D16.
 - **F3 (D17)** Only the name changes; all `n` argument texts are re-emitted
   joined by `, `: `assertEquals(4, 2+2, 'x')` → `assertSame(4, 2+2, 'x')`.
 - **F4 (D18)** `(X[, args[1]])`, `len = n`.
@@ -412,7 +469,8 @@ filled, in order, with the original arguments that follow the message
   `assertNotInstanceOf(\Shop\Cart::class, $e)`.
 - **F8 (D22)** `(CD, O[, args[2]])`, `len = n`.
   `assertEquals('Shop\\Cart', get_class($e))` →
-  `assertInstanceOf(\Shop\Cart::class, $e)`.
+  `assertInstanceOf(\Shop\Cart::class, $e)`, when `Shop\Cart` is a final
+  class (D22).
 - **F9 (D23)** `(A[, args[1]])`, `len = n`.
   `assertNotTrue(is_dir($cache))` → `assertDirectoryDoesNotExist($cache)` at
   PHPUnit ≥ 9.1, `assertDirectoryNotExists($cache)` below.
@@ -435,7 +493,10 @@ filled, in order, with the original arguments that follow the message
   becomes `()`: `$this->exactly(1)` → `$this->once()`.
 - **F16 (D30)** The outer call is renamed and its argument list becomes
   `(V)`: `->will($this->returnCallback($fn))` → `->willReturnCallback($fn)`.
-- **F17 (D11)** Delete the `@test` tag (the tag element, including any value
+- **F17 (D11)** When another tag follows on the same line (an `@` after
+  whitespace), delete only from `@test` up to that tag:
+  `/** @test @dataProvider rows */` → `/** @dataProvider rows */`.
+  Otherwise delete the `@test` tag (the tag element, including any value
   text on the same line belonging to it). Before that, if the tag is
   immediately preceded by whitespace, delete that whitespace; then, if what
   now immediately precedes is a leading `*` of the docblock line, delete it
@@ -595,12 +656,12 @@ class CartTest
     {
         $this->assertNotTrue($cart->open && $rows);
         self::assertSame($cart->size, 4, 'size');
-        $this->assertNotEquals($slug, 'home');
+        $this->assertTrue($slug <> 'home');
         $this->assertNotEmpty($rows);
         $this->assertNull($cart->coupon, 'coupon');
         $this->assertIsNotString($slug);
         $this->assertInstanceOf(\Shop\Cart::class, $cart, 'type');
-        $this->assertNotInstanceOf(\Shop\Order::class, $cart);
+        $this->assertNotEquals('Shop\\Order', get_class($cart));
         $this->assertDirectoryNotExists($path);
         $this->assertNotCount(3, $bag, 'bag');
         $this->assertContains($slug, $rows);
@@ -706,6 +767,42 @@ class ArchiveTest
 
 ## Divergences
 
+- **Fixes that changed what a test checks (custos diverges).** Upstream
+  attaches a rewrite to every Part B report. Several of them are not
+  equivalent, and custos keeps the report but withholds the fix:
+  - D15: `assertTrue(!$x)` fails for a truthy `$x` such as `1`, while
+    `assertNotTrue($x)` passes for everything but `true`; fixed only when
+    the operand is a `bool`.
+  - D16: `assertTrue('1e3' == '1000')` passes, `assertEquals('1e3', '1000')`
+    fails; and before PHPUnit 10 `assertSame()` compares two floats with a
+    tolerance that `===` does not have.
+  - D22: `assertNotSame('Animal', get_class($dog))` passes for a subclass
+    and `assertNotInstanceOf(Animal::class, $dog)` fails (the positive form
+    turns a failing test green); fixed only for a final class spelled as
+    declared. Literals that are not class names are not reported at all,
+    since `\not a class::class` is not PHP.
+  - D21, D24, D28b: the rewrite moves a value into a typed PHPUnit
+    parameter (`string` class name, `int` count, `string` contents) and
+    raised a `TypeError` for an object, a numeric string or an integer.
+- **`empty()` on offsets and properties (custos diverges, D18).** Upstream
+  rewrites `assertTrue(empty($s[7]))` and `assertTrue(empty($row->late))`;
+  `assertEmpty($s[7])` then warns about the missing offset and
+  `assertEmpty($row->late)` throws on an uninitialized typed property.
+  custos only rewrites calls and certainly defined local variables.
+- **Extra `is_*` arguments (custos diverges, D20).** Upstream keeps the
+  first argument of any `is_*` call, so `assertTrue(is_callable($f, true))`
+  (syntax check only) became `assertIsCallable($f)`. custos requires
+  exactly one argument.
+- **Tags sharing a line with `@test` (custos diverges, F17).** Removing the
+  tag "with its value" also removed a `@dataProvider` or `@depends` written
+  on the same line, detaching the provider. custos stops at the next tag.
+- **Members of unindexed ancestors (custos diverges, D5/D7/D10).** A
+  `@dataProvider`, `@depends` or `@covers C::m` member that is not found
+  is not reported when the class extends a class, implements an interface
+  or uses a trait that is not indexed: projects analysed without their
+  vendor directory got an error for every provider inherited from a base
+  test case.
+
 - **`empty()` on objects (custos diverges, D18).** Upstream turns any
   `assertTrue(empty($x))` into `assertEmpty($x)` (and the negated forms
   into `assertNotEmpty()`). For an object the two disagree: `empty()` is
@@ -761,9 +858,10 @@ class ArchiveTest
   `assertTrue(empty($x), 'm', 3)` becomes `assertEmpty($x, 'm', null)` and
   the original extra arguments are lost. custos copies the remaining
   original arguments into those slots (Fix section).
-- **D19 scans the message argument**: `assertSame($a, $b, true)` becomes
-  `assertTrue($a, true)`. Recommendation: only consider `args[0]`/`args[1]`
-  as the constant.
+- **D19 and the message argument (custos diverges)**: upstream also takes
+  a `true`/`false`/`null` message argument for the compared constant, so
+  `assertSame($a, $b, true)` becomes `assertTrue($a, true)`. custos only
+  considers `args[0]`/`args[1]`.
 - **D22 leading backslash**: a literal that already starts with `\`
   (`'\\Shop\\Cart'`) produces `\\Shop\Cart::class` (double leading backslash,
   invalid). Recommendation: strip a leading `\` from the contents before

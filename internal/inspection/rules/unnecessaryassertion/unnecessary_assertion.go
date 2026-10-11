@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/phpunit"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/types"
@@ -47,6 +48,14 @@ func (unnecessaryAssertion) Check(ctx *analysis.Context, n syntax.Node) {
 	if _, ok := phpunit.PuMethodCallNamed(args[0], "any"); !ok { // D8
 		return
 	}
+	// F1 needs a plain `->` call: a class reference is not an expression, a
+	// nullsafe receiver would lose its short-circuit, and a doubled class
+	// declaring its own method() makes the expects() form mandatory.
+	mc, ok := c.Node.(*syntax.MethodCall)
+	if !ok || mc.NullSafe || uaDeclaresMethod(ctx, c.Recv) {
+		ctx.ReportNode(args[0], uaAnyMsg)
+		return
+	}
 	call, recv := c.Node, c.Recv
 	f := ctx.File
 	ctx.ReportNode(args[0], uaAnyMsg, diagnostic.Fix{
@@ -56,6 +65,125 @@ func (unnecessaryAssertion) Check(ctx *analysis.Context, n syntax.Node) {
 			return []diagnostic.TextEdit{{Span: call.Span(), NewText: string(f.Src[rs.Start:rs.End])}}
 		},
 	})
+}
+
+// uaDeclaresMethod reports whether a class the receiver may double (its
+// inferred classes, plus every `X::class` named by the expressions it is
+// built from) declares a real method named `method` outside PHPUnit:
+// `$double->method(...)` would then call that method.
+func uaDeclaresMethod(ctx *analysis.Context, recv syntax.Expr) bool {
+	classes := ctx.TypeOf(recv).Classes()
+	for _, v := range flowquery.PossibleValues(ctx.File, recv) {
+		syntax.Inspect(v, func(n syntax.Node) bool {
+			if e, ok := n.(syntax.Expr); ok {
+				if cn, ok := phpunit.PuClassConstClass(e); ok {
+					classes = append(classes, phpunit.PuResolveClassName(ctx, cn))
+				}
+			}
+			return true
+		})
+	}
+	for _, cls := range classes {
+		m := ctx.Index().FindMethod(strings.TrimPrefix(cls, `\`), "method", ctx.PHP)
+		if m != nil && !m.Magic && !strings.HasPrefix(strings.ToLower(strings.TrimPrefix(m.Class, `\`)), `phpunit\`) {
+			return true
+		}
+	}
+	return false
+}
+
+// uaValues is flowquery.PossibleValues where a local variable that the
+// scope also rebinds other than by a plain assignment makes the result
+// unknown (nil).
+func uaValues(ctx *analysis.Context, e syntax.Expr) []syntax.Expr {
+	w := flowquery.NewValueWalk(ctx.File)
+	w.Resolve = func(e syntax.Expr) bool {
+		v, ok := e.(*syntax.Variable)
+		if !ok {
+			vals, known := flowquery.PossibleValuesKnown(ctx.File, e)
+			w.Stop = !known
+			w.Out = append(w.Out, vals...)
+			return true
+		}
+		if uaRebound(ctx, v) {
+			w.Stop = true
+			return true
+		}
+		w.LocalVar(v)
+		return true
+	}
+	w.Collect(e)
+	vals, _ := w.Result()
+	return vals
+}
+
+// uaRebound reports whether the scope of v may give it a value that the
+// plain-assignment scan does not see: foreach/catch/global/static/unset
+// targets, destructuring, array element writes, references taken to it and
+// by-reference (or unresolvable) argument positions.
+func uaRebound(ctx *analysis.Context, v *syntax.Variable) bool {
+	for _, a := range flowquery.VarAccesses(ctx.File, syntax.EnclosingFuncLike(v), v.Name) {
+		if a.Write {
+			// Compound assignments and ++/-- are left to the shared scan.
+			switch by := a.By.(type) {
+			case *syntax.Assign:
+				if by.Var != syntax.Expr(a.Var) {
+					return true
+				}
+			case *syntax.IncDec:
+			default:
+				return true
+			}
+			continue
+		}
+		if u, ok := a.By.(*syntax.ClosureUse); ok && u.ByRef {
+			return true
+		}
+		switch p := a.Var.Parent().(type) {
+		case *syntax.ArrayDimFetch:
+			if a.ElemWrite {
+				return true
+			}
+		case *syntax.Assign:
+			if p.ByRef && p.Value == syntax.Expr(a.Var) {
+				return true
+			}
+		case *syntax.ArrayItem:
+			if p.ByRef {
+				return true
+			}
+		case *syntax.Arg:
+			if uaArgMayBindByRef(ctx, p) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// uaArgMayBindByRef reports whether the call owning arg takes an argument
+// by reference, or cannot be resolved to tell. Unresolved `assert*` methods
+// are taken as by-value: the assertion itself is never resolved.
+func uaArgMayBindByRef(ctx *analysis.Context, arg *syntax.Arg) bool {
+	list := arg.Parent().(*syntax.ArgList)
+	call := list.Parent()
+	if n, ok := call.(*syntax.New); ok {
+		nm, ok := n.Class.(*syntax.Name)
+		if !ok {
+			return true
+		}
+		cls := phpunit.PuResolveClassName(ctx, nm)
+		if ctx.Index().Class(cls, ctx.PHP) == nil {
+			return true
+		}
+		ctor := ctx.Index().FindMethod(cls, "__construct", ctx.PHP)
+		return ctor != nil && semanticquery.ArgBindsByRef(list, ctor.Params, true)
+	}
+	if callee, ok := semanticquery.ResolveCallee(ctx, call); ok {
+		return semanticquery.ArgBindsByRef(list, callee.Params, true)
+	}
+	c, ok := phpunit.AsPuCall(call)
+	return !ok || !strings.HasPrefix(strings.ToLower(c.Name), "assert")
 }
 
 func uaCheckTyped(ctx *analysis.Context, c phpunit.PuCall) {
@@ -74,7 +202,7 @@ func uaCheckTyped(ctx *analysis.Context, c phpunit.PuCall) {
 	if !ok || len(args) < pos+1 {
 		return
 	}
-	vals := flowquery.PossibleValues(ctx.File, args[pos]) // D2
+	vals := uaValues(ctx, args[pos]) // D2
 	if len(vals) != 1 {
 		return
 	}
@@ -144,17 +272,17 @@ func uaNullSafeChain(e syntax.Expr) bool {
 // returns its declared return type merged with the @return doc type. ok is
 // false when the call does not resolve or has no native return type.
 func uaDeclaredReturn(ctx *analysis.Context, e syntax.Expr) (types.Type, bool) {
-	var ret, doc, cls string
+	var ret, doc, cls, self string
 	switch x := e.(type) {
 	case *syntax.FuncCall:
 		f := ctx.Types().ResolveFunction(x)
-		if f == nil {
+		if f == nil || uaFirstClassCallable(x.Args) {
 			return types.Unknown, false
 		}
 		ret, doc = f.Return, f.DocReturn
 	case *syntax.MethodCall, *syntax.StaticCall:
 		c, ok := phpunit.AsPuCall(x)
-		if !ok {
+		if !ok || uaFirstClassCallable(c.Args) {
 			return types.Unknown, false
 		}
 		if mc, ok := x.(*syntax.MethodCall); ok {
@@ -180,6 +308,15 @@ func uaDeclaredReturn(ctx *analysis.Context, e syntax.Expr) (types.Type, bool) {
 			return types.Unknown, false
 		}
 		ret, doc = m.Return, m.DocReturn
+		// `self` names the declaring class, or the class importing the
+		// declaring trait; a trait reached without an importing class
+		// leaves it unresolved.
+		self = strings.TrimPrefix(m.Class, `\`)
+		if m.TypeClass != "" {
+			self = strings.TrimPrefix(m.TypeClass, `\`)
+		} else if d := ctx.Index().Class(self, ctx.PHP); d != nil && d.Kind == syntax.KindTrait {
+			self = ""
+		}
 	default:
 		return types.Unknown, false
 	}
@@ -195,14 +332,27 @@ func uaDeclaredReturn(ctx *analysis.Context, e syntax.Expr) (types.Type, bool) {
 	if cls != "" {
 		atoms := make([]string, 0, len(t.Atoms()))
 		for _, a := range t.Atoms() {
-			if a == "static" || a == "self" {
+			switch {
+			case a == "static":
 				a = `\` + cls
+			case a == "self" && self != "":
+				a = `\` + self
 			}
 			atoms = append(atoms, a)
 		}
 		t = types.Of(atoms...)
 	}
 	return t, true
+}
+
+// uaFirstClassCallable reports whether list is the `(...)` of a first-class
+// callable: such an expression yields a Closure, not the call's result.
+func uaFirstClassCallable(list *syntax.ArgList) bool {
+	if list == nil || len(list.Args) != 1 {
+		return false
+	}
+	_, ok := list.Args[0].(*syntax.VariadicPlaceholder)
+	return ok
 }
 
 // uaInternalTypeMatches reports whether a value of the single declared type

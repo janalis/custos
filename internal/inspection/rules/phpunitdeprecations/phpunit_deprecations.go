@@ -60,11 +60,11 @@ func (phpUnitDeprecations) Check(ctx *analysis.Context, n syntax.Node) {
 	name := phpunit.PuName(id.Value) // method names are case-insensitive
 	switch name {
 	case "assertEquals", "assertNotEquals":
-		if args != nil && !puForeignAssertEquals(ctx, n, name) {
+		if args != nil && !puForeignAssertion(ctx, n, name) {
 			checkEqualsArgs(ctx, name, args.Args)
 		}
 	case "assertFileNotExists", "assertDirectoryNotExists":
-		if ver < 91 { // E2
+		if ver < 91 || puForeignAssertion(ctx, n, name) { // E2, E5
 			return
 		}
 		repl := renamedAssertions[name]
@@ -78,13 +78,14 @@ func (phpUnitDeprecations) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 }
 
-// puForeignAssertEquals reports whether the call may target another API
+// puForeignAssertion reports whether the call may target another API
 // than PHPUnit's assertions (custos): a receiver resolving to a class whose
 // method `name` is declared outside PHPUnit (e.g. a comparator library's own
-// assertEquals with another signature), or an instance call on a receiver
+// assertEquals with another signature, or a storage class's own
+// assertFileNotExists, which the rename would break), or an instance call on a receiver
 // other than `$this` that does not resolve to PHPUnit's declaration
 // (assertions are called on the test case itself).
-func puForeignAssertEquals(ctx *analysis.Context, n syntax.Node, name string) bool {
+func puForeignAssertion(ctx *analysis.Context, n syntax.Node, name string) bool {
 	var classes []string
 	switch c := n.(type) {
 	case *syntax.MethodCall:

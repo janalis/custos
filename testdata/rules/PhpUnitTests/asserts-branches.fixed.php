@@ -16,8 +16,8 @@ class WidgetTest
     public function testBranches($x, $s, array $list, $stub)
     {
         $this->assertTrue(...$list);
-        $this->assertNotFalse($x);
-        $this->assertNotTrue($x, 'message');
+        $this->assertFalse(!$x);
+        $this->assertTrue(!$x, 'message');
         $this->assertNull(PHP_EOL);
         $this->assertTrue(is_int());
         $this->assertSame(get_class($x));
