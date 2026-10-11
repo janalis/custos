@@ -30,6 +30,9 @@ func (typeUnsafeArraySearch) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok1 || !ok2 { // `...` placeholder (rejected by PHP after another argument)
 		return
 	}
+	if needle.Unpack || haystack.Unpack { // D2: a spread passes an unknown number of arguments, strict flag included
+		return
+	}
 	if literalStringHaystack(ctx, haystack.Value) { // E1
 		return
 	}

@@ -106,15 +106,76 @@ At most one report per expression (M, S or H).
   - **M** — severity **error**: `{class} has no __toString(), so it cannot be compared to a string.`
     where `{class}` is the class FQN with leading `\` (e.g. `\Invoice`).
   - **S** — severity **warning** (rule default): `Use '{op}' here; the string is not numeric, so strict comparison is safe.`
+    when the fix applies (F2), else `Use '{op}' here if the other operand is never a bool, a number or a Stringable object; the string is not numeric.`
   - **H** — severity **info** (weak warning): `Prefer '{op}' to avoid implicit type juggling.`
   `{op}` is the strict counterpart.
 
 ## Fix
 
-- **F1** Kind S only: replace the operator token with its strict counterpart
+- **F1** Kind S only, and only when the other operand `O` is *proven safe*
+  (F2): replace the operator token with its strict counterpart
   (`==` → `===`, `!=` → `!==`, `<>` → `!==`). Operands and the whitespace
   around the operator are kept unchanged: `$a <> 'x'` → `$a !== 'x'`,
-  `$a=='x'` → `$a==='x'`.
+  `$a=='x'` → `$a==='x'`. Otherwise kind S is reported with its no-fix
+  message.
+- **F2** `O` is proven safe when both hold:
+  - *Type.* Its type, inferred from native declarations only (PHPDoc
+    `@param`, `@var`, `@return`, `@property`, `@method` are ignored: PHP
+    does not enforce them), is known and holds nothing but `string`, `null`,
+    arrays, and `int`/`float` from PHP 8.0. A type holding `float` does not
+    qualify when the string is exactly `INF` or `-INF`: an infinite float
+    is compared through its string form, so `INF == 'INF'` holds while
+    `INF === 'INF'` does not.
+  - *Form.* `O` (parentheses ignored) is one of:
+    - a literal, an interpolated string, an array literal, a constant or a
+      magic constant;
+    - a `(string)`, `(int)`, `(float)` or `(array)` cast, or a `.`
+      concatenation, whatever their operands;
+    - a call to a named function whose resolved declaration (project or
+      stubs) has a native return type made only of the safe types above —
+      the arguments do not matter;
+    - a static call `Name::method()` (also `self`/`static`/`parent`) or a
+      method call whose method, on every class of the receiver, has such a
+      native return type; a property fetch whose property, on every class
+      of the receiver, has such a native type. Members that exist only as
+      `@method`/`@property` tags and dynamic member names do not qualify.
+      The receiver must itself be `$this`, a stable variable (F3, receiver
+      mode), `new`, or again a natively typed method call / property fetch
+      on such a receiver;
+    - a ternary, short ternary, `??` or `match` whose every alternative has
+      a known type and is itself of one of these forms;
+    - a *stable variable* (F3).
+    Anything else (array elements, class constants, dynamic calls,
+    arithmetic, assignments used as values, …) gets no fix.
+- **F3** A variable is *stable* when its value anywhere in the function is
+  accounted for by declarations PHP enforces. It must be a local of a
+  function, method, closure or arrow function (top-level code is never
+  stable: any called function can rebind a global; property hooks are not
+  analysed), and:
+  - it is a parameter with a native type, not taken by reference; or it is
+    not a parameter and starts undefined — a variable a closure imports
+    with `use`, one an arrow function captures, and superglobals are not
+    stable;
+  - every write to it in the function, wherever it is (so a write later in
+    a loop body counts), is a plain `$v = …` or `$v ??= …` whose value is
+    proven safe (F2), or `$v .= …`. Any other write — another compound
+    operator, `++`/`--`, destructuring, a `foreach` key/value, `global`,
+    `static`, `catch`, `unset` — makes it unstable;
+  - no reference to it can exist: it is never the operand of `=&` (itself
+    or as the base of an element/property), a by-reference array item, the
+    subject of a by-reference `foreach`, imported `use (&$v)` by a closure,
+    or passed (itself or as such a base) to a by-reference parameter.
+    A call whose callee does not resolve, a `new` on a class that does not
+    resolve (or whose hierarchy does not), an anonymous class constructor
+    and a `...$v` spread count as by-reference;
+  - the function contains no variable-variable, `extract()`,
+    `parse_str()`, `mb_parse_str()`, `include`/`require` or `eval`.
+  In *receiver mode* (the variable is the receiver of the compared member)
+  the variable must have exactly one definition — the typed parameter, or
+  one plain assignment whose value has a known type and an F2 form — or
+  none.
+  Assignments that depend on each other in a cycle (`$a = $b; $b = $a;`)
+  are not stable.
 - Kinds M and H have no fix.
 
 ## Options
@@ -137,7 +198,7 @@ class ChildTag extends Tag    {}
 class Invoice                 {}
 class Stamp extends DateTimeImmutable {}
 
-function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, $v, $w) {
+function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, string $v, $w) {
     return [
         $l == 'x',
         <error descr="\Plain has no __toString(), so it cannot be compared to a string.">$p != 'x'</error>,
@@ -176,7 +237,7 @@ class ChildTag extends Tag    {}
 class Invoice                 {}
 class Stamp extends DateTimeImmutable {}
 
-function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, $v, $w) {
+function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, string $v, $w) {
     return [
         $l == 'x',
         $p != 'x',
@@ -242,9 +303,15 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, $v
   changes when the other operand is a bool (`true == 'yes'` holds), a
   number before PHP 8.0 (`0 == 'yes'` holds on 7.x, e.g. an int array key
   compared with a string) or a Stringable object (compared by its string
-  form). custos offers the fix only when the other operand's type is known
-  and contains nothing but `string`, `null`, arrays — and `int`/`float`
-  from PHP 8.0. Otherwise kind S is still reported (warning, no fix) with
+  form). custos offers the fix only when the other operand is proven to
+  hold nothing but `string`, `null`, arrays — and `int`/`float` from
+  PHP 8.0 (F2, F3). The proof rests on native declarations only: a
+  `@param string $flag` parameter or `@var string` property can still
+  receive `true`, so PHPDoc-only types get no fix. It is also
+  flow-insensitive for variables: one reassigned later in a loop, aliased
+  by a reference, passed to a by-reference parameter (`settype($s, …)`,
+  `sscanf($in, $fmt, $m)`) or declared `global`/`static` gets no fix
+  either. Otherwise kind S is still reported (warning, no fix) with
   `Use '{op}' here if the other operand is never a bool, a number or a
   Stringable object; the string is not numeric.` EA case affected:
   `type-unsafe-comparison.php` (listed divergence: untyped operands get no

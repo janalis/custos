@@ -37,7 +37,18 @@ case-insensitively as PHP does) is `json_decode` or `json_encode`.
 - **D1** Option `HARDEN_DECODING_RESULT_TYPE` is on, the call has at least one
   argument, and there is no argument `associative` at position 1 (neither
   positional second argument nor `associative:` named argument). Report
-  kind T.
+  kind T, unless the flags already choose the target (D1a).
+- **D1a** (custos) With no `associative` argument the value is `null`, and
+  the `JSON_OBJECT_AS_ARRAY` flag then decides. The `flags` argument, when
+  present, is read syntactically: parentheses are looked through, a `|`
+  chain is *present* as soon as one operand is the global constant
+  `JSON_OBJECT_AS_ARRAY`, and *absent* when every operand is the literal `0`
+  or one of the other built-in decoding flags (`JSON_BIGINT_AS_STRING`,
+  `JSON_INVALID_UTF8_IGNORE`, `JSON_INVALID_UTF8_SUBSTITUTE`,
+  `JSON_PARTIAL_OUTPUT_ON_ERROR`, `JSON_THROW_ON_ERROR`) resolving to the
+  global constant. Anything else (variables, calls, other operators, other
+  constants or numbers) is *unknown*. *Present* → no kind T (E7);
+  *unknown* → kind T without a fix (F1c).
 
 ### Error handling (`json_decode` and `json_encode`)
 
@@ -88,6 +99,12 @@ own fix.
   carries a strict flag (D5).
 - **E5** Kind E: if `json`/`value` cannot be found (e.g. only named arguments
   with other names), nothing is reported.
+- **E6** (custos) Calls with an unpacked argument (`json_decode(...$args)`,
+  `json_encode($v, ...$rest)`) and first-class callable syntax
+  (`json_decode(...)`): the arguments actually bound are not visible, so
+  neither kind is reported.
+- **E7** (custos) `json_decode` whose flags provably set
+  `JSON_OBJECT_AS_ARRAY` (D1a) — no kind T.
 
 ## Report
 
@@ -115,6 +132,10 @@ F4 and F5 edit the call in place instead of replacing it.
   fix instead appends `, associative: <bool>` after the last argument and
   keeps every argument: `json_decode($raw, depth: 8)` →
   `json_decode($raw, depth: 8, associative: true)`.
+- **F1c** (kind T, custos) No fix when the flags are *unknown* under D1a:
+  an explicit boolean takes precedence over `JSON_OBJECT_AS_ARRAY`, so
+  writing one could switch the decoded type.
+  `json_decode($raw, flags: $mode)` is reported and left as written.
 - **F2** (kind E, `json_decode`) only when **no** argument is passed by
   name; result
   `NS json_decode(<json>, <assoc>, <depth>, <flags>)`:
@@ -278,6 +299,16 @@ class Exporter {
   and keep the remaining arguments when they are named; produce no fix when
   positional and named arguments make insertion ambiguous. No fixture covers
   it.
+- **Argument unpacking is left alone (custos diverges, E6).** A call that
+  spreads an array into its arguments may receive the result type and the
+  flags from that array, and a rebuilt call would lose the spread or pass
+  the array itself as the JSON text. custos reports nothing for such calls,
+  nor for a first-class callable.
+- **`JSON_OBJECT_AS_ARRAY` counts as a stated target (custos diverges, D1a,
+  E7, F1c).** Without an `associative` argument that flag selects arrays, so
+  the call is explicit already; appending `associative: false` would turn
+  the arrays into objects. custos stays silent when the flag is provably
+  there and withholds the fix when the flags cannot be read.
 - **Low-precedence flags are parenthesised (custos diverges, F2–F4).**
   Prepending `JSON_THROW_ON_ERROR | ` to `$pretty ? JSON_PRETTY_PRINT : 0`
   gives `(JSON_THROW_ON_ERROR | $pretty) ? JSON_PRETTY_PRINT : 0`, which

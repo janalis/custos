@@ -26,8 +26,10 @@ Visit every function call.
   or an unqualified `in_array(...)` inside `namespace App;` where
   `App\in_array` is declared, is not matched.
 - **D2** The call has exactly **two** arguments (named or positional; a third
-  argument of any value, `true` or `false`, ends the check). Let `N` be
-  argument 0 (needle) and `H` argument 1 (haystack), as written.
+  argument of any value, `true` or `false`, ends the check), neither of them
+  a spread (`...$args`): a spread supplies an unknown number of arguments and
+  may already carry the strict flag. Let `N` be argument 0 (needle) and `H`
+  argument 1 (haystack), as written.
 - **D3** Not excluded by E1/E2 → report.
 
 ## Exceptions (no report)
@@ -58,7 +60,9 @@ Visit every function call.
   - needle `@var int`, haystack `@var int[]` → skipped.
   - needle `@var int`, haystack `@var array` → reported.
   - needle `'1'` (`\string`), haystack `[]` (`\array`) → reported.
-- **E3** Calls with 0, 1 or 3+ arguments.
+- **E3** Calls with 0, 1 or 3+ arguments, and calls where a written argument
+  is a spread (`in_array($needle, ...$rest)`, `in_array(...$args)`,
+  `in_array(...$a, ...$b)`).
 - **E4** Calls resolving to a user function that is not the global one
   (`\App\in_array($a, $b)`).
 
@@ -155,6 +159,10 @@ function pick($code, array $allowed) {
   segment only, so a user function `App\in_array($a, $b)` with its own
   semantics is reported and "fixed" with a third argument it may not accept.
   custos resolves the call and matches only the global functions.
+- **Spread arguments (custos diverges from upstream).** Two written
+  arguments are not two passed arguments when one is `...$rest`:
+  `in_array($needle, ...$rest)` called with `[[1, 2], true]` is already
+  strict. custos does not report a call with a spread argument.
 - Named arguments: F1 drops labels and keeps written order, so
   `in_array(haystack: $h, needle: $n)` would become `in_array($h, $n, true)`
   (swapped). Recommendation: when any argument is named, emit the fix as

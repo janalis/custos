@@ -49,22 +49,35 @@ func (jsonEncodingAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.ResolvesToGlobalFunction(ctx.Names(), ctx.Index(), ctx.PHP, call, name) { // D0, E2
 		return
 	}
+	for _, a := range call.Args.Args { // E6: `...$args` and `f(...)` hide the bound arguments
+		if arg, ok := a.(*syntax.Arg); !ok || arg.Unpack {
+			return
+		}
+	}
 	decode := lname == "json_decode"
 	span := call.Span()
 	text := func(a *syntax.Arg) string { return ctx.Text(a.Value) }
 
 	if decode && ctx.Bool("HARDEN_DECODING_RESULT_TYPE") { // D1
-		if _, has := jsonArg(call, "associative", 1); !has {
+		_, has := jsonArg(call, "associative", 1)
+		arrayFlag := jsonFlagAbsent
+		if f, ok := jsonArg(call, "flags", 3); ok && !has {
+			arrayFlag = jsonObjectAsArray(ctx, f.Value)
+		}
+		if !has && arrayFlag != jsonFlagPresent { // E7
 			var fixes []diagnostic.Fix
 			b := "false"
 			if ctx.Bool("DECODE_AS_ARRAY") {
 				b = "true"
 			}
 			if jsonHasNamedArg(call) { // F1b: keep the named arguments
-				at := call.Args.Args[len(call.Args.Args)-1].Span().End
-				fixes = append(fixes, diagnostic.Fix{Title: "Pass the result type", Edits: func() []diagnostic.TextEdit {
-					return []diagnostic.TextEdit{{Span: syntax.Span{Start: at, End: at}, NewText: ", associative: " + b}}
-				}})
+				// F1c: no fix when the flags may hold JSON_OBJECT_AS_ARRAY,
+				// which an explicit boolean would override.
+				if at := call.Args.Args[len(call.Args.Args)-1].Span().End; arrayFlag == jsonFlagAbsent {
+					fixes = append(fixes, diagnostic.Fix{Title: "Pass the result type", Edits: func() []diagnostic.TextEdit {
+						return []diagnostic.TextEdit{{Span: syntax.Span{Start: at, End: at}, NewText: ", associative: " + b}}
+					}})
+				}
 			} else if first, ok := call.Args.Args[0].(*syntax.Arg); ok && first.Value != nil {
 				newText := qual + name + "(" + text(first) + ", " + b + ")"
 				fixes = append(fixes, diagnostic.Fix{Title: "Pass the result type", Edits: func() []diagnostic.TextEdit {
@@ -140,6 +153,57 @@ func (jsonEncodingAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.Report(span, jsonThrowMsg, diagnostic.Fix{Title: "Add JSON_THROW_ON_ERROR", Edits: func() []diagnostic.TextEdit {
 		return []diagnostic.TextEdit{{Span: span, NewText: newText}}
 	}})
+}
+
+// State of JSON_OBJECT_AS_ARRAY in a flags expression.
+const (
+	jsonFlagAbsent = iota
+	jsonFlagPresent
+	jsonFlagUnknown
+)
+
+// jsonDecodeFlags are the built-in flags json_decode() accepts besides
+// JSON_OBJECT_AS_ARRAY; none of them shares its bit.
+var jsonDecodeFlags = map[string]bool{
+	"JSON_BIGINT_AS_STRING":        true,
+	"JSON_INVALID_UTF8_IGNORE":     true,
+	"JSON_INVALID_UTF8_SUBSTITUTE": true,
+	"JSON_PARTIAL_OUTPUT_ON_ERROR": true,
+	"JSON_THROW_ON_ERROR":          true,
+}
+
+// jsonObjectAsArray tells whether a flags expression sets
+// JSON_OBJECT_AS_ARRAY, reading only `|` chains of built-in constants and
+// the literal 0; anything else is unknown.
+func jsonObjectAsArray(ctx *analysis.Context, e syntax.Expr) int {
+	switch x := e.(type) {
+	case *syntax.Paren:
+		return jsonObjectAsArray(ctx, x.Expr)
+	case *syntax.Binary:
+		if x.Op.Kind != syntax.TBar {
+			return jsonFlagUnknown
+		}
+		l, r := jsonObjectAsArray(ctx, x.Left), jsonObjectAsArray(ctx, x.Right)
+		switch {
+		case l == jsonFlagPresent || r == jsonFlagPresent:
+			return jsonFlagPresent
+		case l == jsonFlagAbsent && r == jsonFlagAbsent:
+			return jsonFlagAbsent
+		}
+	case *syntax.ConstFetch:
+		name := semanticquery.GlobalConstName(ctx, x)
+		if name == "JSON_OBJECT_AS_ARRAY" {
+			return jsonFlagPresent
+		}
+		if jsonDecodeFlags[name] {
+			return jsonFlagAbsent
+		}
+	case *syntax.Literal:
+		if x.LitKind == syntax.LitInt && x.Raw == "0" {
+			return jsonFlagAbsent
+		}
+	}
+	return jsonFlagUnknown
 }
 
 // jsonNeedsParens reports whether flags must be parenthesised as the right

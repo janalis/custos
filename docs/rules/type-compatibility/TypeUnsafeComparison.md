@@ -30,7 +30,7 @@ class ChildTag extends Tag    {}
 class Invoice                 {}
 class Stamp extends DateTimeImmutable {}
 
-function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, $v, $w) {
+function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, string $v, $w) {
     return [
         $l == 'x',
         $p != 'x',
@@ -69,7 +69,7 @@ class ChildTag extends Tag    {}
 class Invoice                 {}
 class Stamp extends DateTimeImmutable {}
 
-function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, $v, $w) {
+function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, string $v, $w) {
     return [
         $l == 'x',
         $p != 'x',
