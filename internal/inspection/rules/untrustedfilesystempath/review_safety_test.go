@@ -86,7 +86,7 @@ func TestReviewSafety(t *testing.T) {
 		{"named output argument", checked + "readfile($p); settype(var: $p, type: 'string');", 1},
 		{"variadic output argument", checked + "readfile($p); sscanf('a b', '%s %s', $x, $p);", 1},
 		{"static declaration", checked + "readfile($p); static $p;", 1},
-		{"capture beside a call", checked + "$x = (function () use (&$p) { })() . strlen('a'); readfile($p);", 0},
+		{"capture beside a call", checked + "$x = (function () use (&$p) { })() . strlen('a'); readfile($p);", 1},
 		{"base rebound", base + "if (!str_starts_with($p, $b . '/')) { exit; } readfile($p); $b .= 'x';", 1},
 		{"inline match", "readfile('/srv/d/' . match ($_GET['d']) { 'a' => 'a.txt', default => 'b.txt' });", 0},
 		{"rebound match", "$n = match ($_GET['d']) { 'a' => 'a.txt', default => 'b.txt' }; extract($_GET); readfile('/srv/d/' . $n);", 1},
@@ -113,9 +113,8 @@ func TestReviewGlobalRebinding(t *testing.T) {
 	}
 	const guarded = "$p = realpath('/srv/d/' . $_GET['f']); if (!str_starts_with($p, '/srv/d/')) { exit; } "
 	for source, findings := range map[string]int{
-		// The flow analysis sees the call that may rewrite the global: the
-		// value is unknown afterwards, not request-derived.
-		"<?php function swap() { global $p; $p = $_GET['g']; } " + guarded + "swap(); readfile($p);": 0,
+		// The called function writes request data to the global.
+		"<?php function swap() { global $p; $p = $_GET['g']; } " + guarded + "swap(); readfile($p);": 1,
 		// A declaring function that is never called leaves the rebinding to
 		// the local containment proof, which refuses it.
 		"<?php function swap() { global $p; $p = $_GET['g']; } " + guarded + "readfile($p);": 1,

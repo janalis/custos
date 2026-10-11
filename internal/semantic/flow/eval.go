@@ -280,6 +280,12 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		for _, use := range n.Uses {
 			if use.ByRef && use.Var != nil {
 				f.alias(use.Var.Name, false)
+				if written := e.holderWrites(n, use.Var.Name); tainted(written) {
+					if r.holders == nil {
+						r.holders = map[string]Value{}
+					}
+					r.holders[use.Var.Name] = written
+				}
 			}
 		}
 	case *syntax.ArrowFunction: // The body executes only on invocation.
@@ -613,12 +619,63 @@ func (e *Env) exposed(f *frame, r *scopeResult) bool {
 // while a callee with unknown effects, or a callback, runs.
 func (e *Env) invalidateShared(f *frame, r *scopeResult) {
 	if r.global && e.globalsTable() {
-		f.vars = map[string]Value{}
+		for name, old := range f.vars {
+			f.vars[name] = unsettled(old, e.held(name, r))
+		}
 		return
 	}
 	for name := range f.aliased {
-		f.vars[name] = Value{}
+		f.vars[name] = unsettled(f.vars[name], e.held(name, r))
 	}
+}
+
+// held is the request data a reference holder of name writes to it.
+func (e *Env) held(name string, r *scopeResult) Value {
+	written := r.holders[name]
+	if r.global {
+		if other, ok := e.globalTaint[name]; ok {
+			written = merge(Value{Complete: true, Sources: written.Sources, Safe: written.Safe}, other)
+		}
+	}
+	return written
+}
+
+// holderWrites joins the request data that plain assignments inside scope
+// give to name, a variable the scope shares with its creator or the file.
+// The globals table entry of that name counts as the variable itself.
+func (e *Env) holderWrites(scope syntax.Node, name string) Value {
+	r := e.scope(scope)
+	written := Value{Complete: true}
+	syntax.Inspect(scope, func(n syntax.Node) bool {
+		if n != scope && syntax.IsVariableScope(n) {
+			return false
+		}
+		if a, ok := n.(*syntax.Assign); ok && assigned(a.Var) == name {
+			if v := r.values[a.Value]; tainted(v) {
+				written = merge(written, Value{Complete: true, Sources: v.Sources, Safe: v.Safe})
+			}
+		}
+		return true
+	})
+	return written
+}
+
+// assigned names the variable a plain target or a literal globals table
+// entry stands for.
+func assigned(target syntax.Expr) string {
+	switch t := syntax.UnwrapParens(target).(type) {
+	case *syntax.Variable:
+		if t.NameExpr == nil {
+			return t.Name
+		}
+	case *syntax.ArrayDimFetch:
+		if table, ok := t.Var.(*syntax.Variable); ok && table.Name == "GLOBALS" && table.NameExpr == nil {
+			if key, known := literalText(t.Dim); known {
+				return key
+			}
+		}
+	}
+	return ""
 }
 
 // nativeClass reports the construction of a class PHP itself declares, whose

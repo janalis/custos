@@ -85,7 +85,7 @@ function capturedByReference()
         $path = $_GET['other'];
     };
     $swap();
-    readfile($path);
+    <error descr="Validate filesystem containment before using this path.">readfile($path)</error>;
 }
 
 function requestArm()

@@ -74,7 +74,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   `++`/`--`, a `foreach`, `list()` or `catch` target, `extract()`, a write
   through a reference alias, or a call that can run code holding a reference
   to it (by-reference closure capture, `global`, by-reference parameter);
-  copies taken afterwards are unknown too.
+  copies taken afterwards are unknown too. Request data the variable held, or
+  that the reference holder writes to it, is still reported.
 - Request-data inspections no longer treat a `match` subject, arithmetic
   results or number- and boolean-returning builtins as carrying request text;
   the short ternary `$a ?: $b` now keeps the request data of `$a`.

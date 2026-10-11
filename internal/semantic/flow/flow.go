@@ -84,8 +84,10 @@ type Env struct {
 	types    *infer.Env
 	snapshot *Snapshot
 	scopes   map[syntax.Node]*scopeResult
-	// global caches the file's function-bound global names once scanned.
+	// global caches the file's function-bound global names once scanned, and
+	// globalTaint the request data those functions write to them.
 	global       map[string]bool
+	globalTaint  map[string]Value
 	globalsKnown bool
 }
 
@@ -101,6 +103,9 @@ type scopeResult struct {
 	// global marks a file-level scope whose variables a function of the file
 	// can replace through the globals table.
 	global bool
+	// holders is the request data closures of the scope write to the names
+	// they capture by reference.
+	holders map[string]Value
 }
 
 // New creates an environment without computing scope flow eagerly.
@@ -305,11 +310,39 @@ func (f *frame) write(name string, v Value) {
 	if f.aliased[name] {
 		for other, local := range f.aliased {
 			if local {
-				f.vars[other] = Value{}
+				f.vars[other] = unsettled(f.vars[other], Value{})
 			}
 		}
 	}
 	f.vars[name] = v
+}
+
+// unsettled is the value of a binding that code the analysis does not follow
+// may have replaced. Nothing is known about it any more, except that request
+// data it held, or that such code writes (written), may still be there:
+// unknown must not read as untainted.
+func unsettled(old, written Value) Value {
+	v := Value{}
+	if old.Complete && tainted(old) {
+		v = Value{Complete: true, Sources: old.Sources, Safe: old.Safe}
+	}
+	if tainted(written) {
+		if !v.Complete {
+			v = Value{Complete: true}
+		}
+		v = merge(v, Value{Complete: true, Sources: written.Sources, Safe: written.Safe})
+	}
+	return v
+}
+
+// tainted reports a retained request source.
+func tainted(v Value) bool {
+	for _, s := range v.Sources {
+		if s.Parameter < 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // agree keeps an operation every path performed; its success must hold on each.

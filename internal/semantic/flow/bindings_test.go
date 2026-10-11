@@ -143,6 +143,58 @@ func TestTaintFollowsValuesNotSelectors(t *testing.T) {
 	}
 }
 
+// An unknown value is not an untainted one: request data a binding held, or
+// that a reference holder writes to it, survives the invalidation.
+func TestInvalidationKeepsRequestData(t *testing.T) {
+	for _, tc := range []struct {
+		name, src string
+		taint     bool
+	}{
+		{"tainted, holder writes a constant", `$n=$_GET['a']; $f=function() use (&$n){$n=1;}; $f(); probe($n);`, true},
+		{"sum, holder writes request data", `$n=$_GET['a'] + 1; $f=function() use (&$n){$n=$_GET['b'];}; $f(); probe($n);`, true},
+		{"length, holder writes request data", `$n=strlen($_GET['a']); $f=function() use (&$n){$n=$_GET['b'];}; $f(); probe($n);`, true},
+		{"length, holder writes a constant", `$n=strlen($_GET['a']); $f=function() use (&$n){$n=1;}; $f(); probe($n);`, false},
+		{"escaped, holder writes a constant", `$n=htmlspecialchars($_GET['a']); $f=function() use (&$n){$n=1;}; $f(); probe($n);`, false},
+		{"constant, holder writes request data", `$n=1; $f=function() use (&$n){$n=$_GET['b'];}; $f(); probe($n);`, true},
+		{"constant, holder writes escaped data", `$n=1; $f=function() use (&$n){$n=htmlspecialchars($_GET['b']);}; $f(); probe($n);`, false},
+		{"constant, holder writes a constant", `$n=1; $f=function() use (&$n){$n=2;}; $f(); probe($n);`, false},
+		{"constant, nested scope writes request data", `$n=1; $f=function() use (&$n){$g=function(){$n=$_GET['b'];};}; $f(); probe($n);`, false},
+		{"constant, holder never called", `$n=1; $f=function() use (&$n){$n=$_GET['b'];}; probe($n);`, false},
+		{"invoked holder literal", `$n=1; (function() use (&$n){$n=$_GET['b'];})(); probe($n);`, true},
+		{"holder created after the sink", `$n=$_GET['a']; probe($n); $f=function() use (&$n){$n=1;}; $f();`, true},
+		{"clean, holder created after the sink", `$n=1; probe($n); $f=function() use (&$n){$n=$_GET['b'];}; $f();`, false},
+		{"constant passed to an unknown function", `$n=1; other($n); probe($n);`, false},
+		{"global written with request data", `function swap(){global $n; $n=$_GET['b'];} $n=1; swap(); probe($n);`, true},
+		{"global written twice", `function a(){global $n; $n=$_GET['a'];} function b(){global $n; $n=$_POST['b'];} $n=1; a(); probe($n);`, true},
+		{"global written with a constant", `function swap(){global $n; $n=2;} $n=1; swap(); probe($n);`, false},
+		{"tainted global written with a constant", `function swap(){global $n; $n=2;} $n=$_GET['a']; swap(); probe($n);`, true},
+		{"other global written with request data", `function swap(){global $m; $m=$_GET['b'];} $n=1; swap(); probe($n);`, false},
+		{"globals entry written with request data", `function swap(){$GLOBALS['n']=$_GET['b'];} $n=1; swap(); probe($n);`, true},
+		{"other globals entry written", `function swap(){$GLOBALS['m']=$_GET['b'];} $n=1; swap(); probe($n);`, false},
+		{"dynamic globals entry written", `function swap($k){$GLOBALS[$k]=$_GET['b'];} $n=1; swap('n'); probe($n);`, false},
+		{"globals table read", `function peek(){return count($GLOBALS);} $n=$_GET['a']; peek(); probe($n);`, true},
+		{"closure and global holder", `function swap(){global $n; $n=$_GET['b'];} $n=1; $f=function() use (&$n){$n=$_POST['c'];}; $f(); probe($n);`, true},
+		{"alias write keeps earlier request data", `$q=&$n; $r=&$w; $n=$_GET['a']; $r=1; probe($n);`, true},
+		{"alias write of a clean value", `$r=&$n; $n=1; $r=2; probe($n);`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e, f := environment(t, tc.src, nil)
+			x := argument(callsNamed(f, "probe")[0])
+			if got := e.Tainted(x, HTML); got != tc.taint {
+				t.Fatalf("taint=%v value=%+v", got, e.Value(x))
+			}
+		})
+	}
+}
+
+func TestInvalidationDropsEverythingButRequestData(t *testing.T) {
+	e, f := environment(t, `$n=$_GET['a']; if(!$n){return;} $f=function() use (&$n){$n=1;}; $f(); probe($n);`, nil)
+	x := argument(callsNamed(f, "probe")[0])
+	if _, resolved := e.Resolve(x); resolved || e.Excludes(x, "false") || !e.Tainted(x, HTML) {
+		t.Fatalf("value=%+v", e.Value(x))
+	}
+}
+
 func TestScalarResult(t *testing.T) {
 	for declared, want := range map[string]bool{
 		"": false, "int": true, "INT|false": true, "?float": true, "bool|null": true, "void": true, "never": true,

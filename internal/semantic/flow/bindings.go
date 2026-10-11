@@ -27,29 +27,59 @@ func (e *Env) bindings(scope syntax.Node, r *scopeResult, initial *frame) {
 	}
 }
 
-// globals returns the names functions of the file bind with `global`. The
-// reserved empty name records a function that reads the globals table. The
+// globals returns the names functions of the file bind with `global` or
+// through a literal globals table entry. The reserved empty name records a
+// function that uses the table in any other way. The
 // result stays nil for the common file without either.
 func (e *Env) globals() map[string]bool {
 	if e.globalsKnown {
 		return e.global
 	}
 	e.globalsKnown = true
+	type binding struct {
+		scope syntax.Node
+		name  string
+	}
+	var writers []binding
 	syntax.InspectFile(e.file, func(n syntax.Node) bool {
 		switch n := n.(type) {
 		case *syntax.Global:
-			if syntax.EnclosingVariableScope(n) != nil {
+			if scope := syntax.EnclosingVariableScope(n); scope != nil {
 				for _, v := range n.Vars {
-					e.bindGlobal(rootVariable(v), false)
+					name := rootVariable(v)
+					e.bindGlobal(name, false)
+					writers = append(writers, binding{scope, name})
 				}
 			}
 		case *syntax.Variable:
-			if n.Name == "GLOBALS" && n.NameExpr == nil && syntax.EnclosingVariableScope(n) != nil {
-				e.bindGlobal("", true)
+			if scope := syntax.EnclosingVariableScope(n); n.Name == "GLOBALS" && n.NameExpr == nil && scope != nil {
+				// A literal entry is that one variable; any other use of the
+				// table can reach all of them.
+				name := ""
+				if entry, ok := n.Parent().(*syntax.ArrayDimFetch); ok && entry.Var == syntax.Expr(n) {
+					name = assigned(entry)
+				}
+				e.bindGlobal(name, name == "")
+				writers = append(writers, binding{scope, name})
 			}
 		}
 		return true
 	})
+	// The request data those functions write reaches the file-level variable.
+	for _, w := range writers {
+		if w.name == "" {
+			continue
+		}
+		if written := e.holderWrites(w.scope, w.name); tainted(written) {
+			if e.globalTaint == nil {
+				e.globalTaint = map[string]Value{}
+			}
+			if old, ok := e.globalTaint[w.name]; ok {
+				written = merge(old, written)
+			}
+			e.globalTaint[w.name] = written
+		}
+	}
 	return e.global
 }
 
