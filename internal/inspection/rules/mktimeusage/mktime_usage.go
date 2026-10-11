@@ -32,8 +32,14 @@ func (mktimeUsage) Check(ctx *analysis.Context, n syntax.Node) {
 			Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: repl}} },
 		})
 	case 7: // D5
-		if a, ok := call.Args.Args[6].(*syntax.Arg); ok && a.Value != nil {
-			ctx.ReportSeverity(a.Value.Span(), diagnostic.SeverityWarning, "The is_dst argument is deprecated and was removed in PHP 7.0.")
+		var last *syntax.Arg
+		for _, node := range call.Args.Args {
+			a, ok := node.(*syntax.Arg)
+			if !ok || a.Unpack || a.Value == nil { // a spread makes the argument count unknown
+				return
+			}
+			last = a
 		}
+		ctx.ReportSeverity(last.Value.Span(), diagnostic.SeverityWarning, "The is_dst argument is deprecated and was removed in PHP 7.0.")
 	}
 }

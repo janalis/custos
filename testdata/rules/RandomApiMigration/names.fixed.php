@@ -6,6 +6,6 @@ function srand() {}
 function draw($n)
 {
     srand();
-    $a = random_int(1, $n);
+    $a = RAND(1, $n);
     $b = \mt_srand();
 }

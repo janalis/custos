@@ -44,19 +44,53 @@ func (randomAPIMigration) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.ResolvesToGlobalFunction(ctx.Names(), ctx.Index(), ctx.PHP, call, name) { // D3
 		return
 	}
-	if suggested == "random_int" && astquery.ArgCount(call) != 2 { // D4
+	lo, hi, two := boundArgs(call)
+	if suggested == "random_int" && !two { // D4
 		if name != "rand" {
 			return
 		}
 		suggested = "mt_rand"
+	}
+	msg := "Prefer " + suggested + "() over " + name + "()."
+	// random_int() ignores srand()/mt_srand(), so renaming to it would break a
+	// seeded sequence; mt_rand() rejects the reversed bounds rand() accepts.
+	if suggested == "random_int" || two && name == "rand" && reversedBounds(ctx, lo, hi) {
+		ctx.Report(call.Span(), msg)
+		return
 	}
 	span := astquery.NamePartSpan(nameNode)
 	repl := suggested
 	if !strings.Contains(nameNode.Value, `\`) { // a namespaced or imported function would capture a bare call
 		repl = semanticquery.QualifiedBuiltin(ctx, suggested, call.Span().Start)
 	}
-	ctx.Report(call.Span(), "Prefer "+suggested+"() over "+name+"().", diagnostic.Fix{
+	ctx.Report(call.Span(), msg, diagnostic.Fix{
 		Title: "Use " + suggested + "()",
 		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: repl}} },
 	})
+}
+
+// boundArgs returns the two arguments of a call passing exactly two real
+// ones; an unpacking or a first-class-callable placeholder has no known
+// arity.
+func boundArgs(call *syntax.FuncCall) (first, second *syntax.Arg, ok bool) {
+	if astquery.ArgCount(call) != 2 {
+		return nil, nil, false
+	}
+	first, _ = call.Args.Args[0].(*syntax.Arg)
+	second, _ = call.Args.Args[1].(*syntax.Arg)
+	if first == nil || second == nil || first.Unpack || second.Unpack {
+		return nil, nil, false
+	}
+	return first, second, true
+}
+
+// reversedBounds reports whether both bounds are known integers with the
+// minimum above the maximum. Named arguments may be written max first.
+func reversedBounds(ctx *analysis.Context, lo, hi *syntax.Arg) bool {
+	if lo.Name != nil && lo.Name.Value == "max" {
+		lo, hi = hi, lo
+	}
+	a, aok := semanticquery.NativeInt(ctx, lo.Value)
+	b, bok := semanticquery.NativeInt(ctx, hi.Value)
+	return aok && bok && a > b
 }

@@ -40,13 +40,17 @@ Visit every plain function call (not method/static calls).
 
 - **D5** Exactly seven arguments: report the seventh argument (pattern B),
   whatever expression it is (literal, unary `-1`, variable, constant, call…).
+  None of the seven may be a spread (`...$rest`): an unpacked argument makes
+  the real argument count unknown, and the spread expression is not an
+  `is_dst` value.
 
 ## Exceptions (no report)
 
 - **E1** One to six arguments, or eight or more.
 - **E2** Calls not resolving to the global function (D2).
-- **E3** Other spellings (`MkTime()`), method calls `$x->mktime()`, static
-  calls `X::mktime()`.
+- **E3** Method calls `$x->mktime()`, static calls `X::mktime()`.
+- **E4** Seven written arguments of which at least one is a spread
+  (`mktime(1, 2, 3, 4, 5, 2001, ...$rest)`).
 
 ## Report
 
@@ -131,6 +135,10 @@ function epoch_values($flag)
 - The `is_dst` report could be gated on target `< 7.0` being irrelevant
   (on 7.0+ the call is a fatal arity error anyway); upstream reports at all
   levels. Recommendation: keep reporting at all levels (matches fixtures).
+- **Spread arguments (custos diverges).** Upstream counts written
+  arguments, so a spread in seventh position is reported as `is_dst`.
+  custos does not report a seven-argument call containing a spread (E4):
+  the call is valid on PHP 7.0+ whenever the spread is empty.
 - **Builtin spelling (custos diverges).** Upstream inserts a bare `time(`,
   which a function of that name declared in (or imported into) the current
   namespace captures, so the fix would call user code. custos writes

@@ -23,7 +23,13 @@ Visit every plain function call.
   case-insensitively (`FOpen`), and a call resolving to a same-named
   namespaced function (declared in the current namespace, imported with
   `use function`, or written with a non-global qualifier) does not count.
-- **D2** At least two arguments. Let `A` be the second argument.
+- **D2** At least two arguments. Let `A` be the argument bound to the
+  `mode` parameter: the one written with the name `mode` (`mode: 'r'`,
+  wherever it stands), otherwise the second argument when it is positional.
+  Stop when there is none (the second argument carries another name and no
+  argument is named `mode`), or when a spread (`...$args`) or a first-class
+  callable placeholder appears before `A` is found, since the binding is
+  then unknown.
 - **D3** Obtain the mode literal `L`:
   - if `A` is itself a string literal, `L` is `A`;
   - otherwise run *value discovery* (as defined in the
@@ -31,7 +37,10 @@ Visit every plain function call.
     only string literals; if exactly one remains it is `L`;
   - otherwise stop.
 - **D4** Let `m` be the raw content of `L` (between the quotes, escape
-  sequences not decoded). Stop when `m` is empty.
+  sequences not decoded). Stop when `m` is empty, when `m` contains a
+  backslash (the raw text is then not the effective mode, e.g. `"r\x62"`
+  is `rb`), or when `L` is double-quoted and `m` contains a single quote
+  (F2 could not re-quote it).
 - **D5** Classify, first match wins:
   - **K1 misplaced `b`**: `m` contains `b` and does **not** end with `b` and
     does **not** end with `b+`. Reported regardless of the option.
@@ -52,11 +61,17 @@ All character tests are case-sensitive (`B`, `T` are ordinary characters).
 - **E3** Empty mode `''`.
 - **E4** Correct binary modes: `b`, `rb`, `wb+`, `r+b`, `xtb`.
 - **E5** K2/K3 when the option is off.
+- **E6** No argument bound to `mode` can be determined: `fopen(mode: 'rb',
+  filename: $p)` is judged on `'rb'`, never on the filename;
+  `fopen($p, ...$rest)` and `fopen(...$all)` are skipped.
+- **E7** Mode literal with a backslash (`"r\x62"`, `'r\\'`) or a
+  double-quoted one holding a single quote (`"r'"`).
 
 ## Report
 
-- Range: the second argument `A` as written (the variable, the literal with
-  its quotes, or whatever expression) — not the resolved literal.
+- Range: the mode argument `A` as written (the variable, the literal with
+  its quotes, or whatever expression; for a named argument its value
+  without the `mode:` label) — not the resolved literal.
 - Severity: K1 → error; K2, K3 → warning.
 - Messages:
   - K1: `Move the 'b' flag to the end of the mode (e.g. 'rb', 'rb+').`
@@ -134,6 +149,14 @@ function open_files($path)
   "fixed"). custos resolves the call to the global function, in any case.
 - Interpolated double-quoted modes (`"{$m}"`) are processed on their raw
   text upstream. Recommendation: skip literals containing interpolation.
+- **Named arguments and spreads (custos diverges from upstream).** Upstream
+  always inspects the second written argument, so with named arguments in
+  another order it judges and rewrites the filename. custos follows the
+  `mode` name and skips calls whose binding a spread hides.
+- **Escapes and quotes (custos diverges from upstream).** Upstream rewrites
+  any literal from its raw text into single quotes, which changes the value
+  of a mode written with escape sequences and yields invalid PHP when a
+  double-quoted mode holds a single quote. custos does not report those.
 - When several `fopen()` calls share one resolved literal, upstream applies
   the rewrite once (later fixes find the literal already replaced).
   Recommendation: deduplicate edits on the same literal.

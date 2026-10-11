@@ -16,5 +16,7 @@ namespace App {
         $f = MkTime();
         $g = $o->mktime();
         $h = Clock::gmmktime();
+        $i = \mktime(1, 2, 3, 4, 5, 2001, ...$o);
+        $j = \gmmktime(1, 2, 3, 4, 5, ...$o, ...$o);
     }
 }

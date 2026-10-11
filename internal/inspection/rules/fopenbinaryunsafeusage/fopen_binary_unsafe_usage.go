@@ -22,16 +22,21 @@ func (fopenBinaryUnsafeUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ctx.IsGlobalFunctionCall(call, "fopen") || astquery.ArgCount(call) < 2 { // D1, D2
 		return
 	}
-	arg, ok := call.Args.Args[1].(*syntax.Arg)
-	if !ok || arg.Value == nil {
+	mode := fopenModeArgument(call)
+	if mode == nil {
 		return
 	}
-	lit := flowquery.SingleStringLiteral(ctx.File, arg.Value) // D3
+	lit := flowquery.SingleStringLiteral(ctx.File, mode) // D3
 	if lit == nil {
 		return
 	}
-	m, _, _ := astquery.QuotedStringRaw(lit)
+	m, quote, _ := astquery.QuotedStringRaw(lit)
 	if m == "" { // D4
+		return
+	}
+	// D4: the raw text is not the mode when it holds an escape, and a quote
+	// inside a double-quoted literal cannot be single-quoted as is.
+	if strings.IndexByte(m, '\\') >= 0 || (quote == '"' && strings.IndexByte(m, '\'') >= 0) {
 		return
 	}
 	var sev diagnostic.Severity
@@ -51,10 +56,32 @@ func (fopenBinaryUnsafeUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	litSpan := lit.Span()
 	repl := "'" + fopenFixMode(m) + "'"
-	ctx.ReportSeverity(arg.Value.Span(), sev, msg, diagnostic.Fix{
+	ctx.ReportSeverity(mode.Span(), sev, msg, diagnostic.Fix{
 		Title: "Use mode " + repl,
 		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: litSpan, NewText: repl}} },
 	})
+}
+
+// fopenModeArgument returns the expression bound to fopen()'s `mode`
+// parameter (D2): the argument named `mode`, else the second positional one.
+// nil when a spread or a placeholder makes the binding unknown.
+func fopenModeArgument(call *syntax.FuncCall) syntax.Expr {
+	for i, a := range call.Args.Args {
+		arg, ok := a.(*syntax.Arg)
+		if !ok || arg.Value == nil || arg.Unpack {
+			return nil
+		}
+		if arg.Name != nil {
+			if arg.Name.Value == "mode" {
+				return arg.Value
+			}
+			continue
+		}
+		if i == 1 {
+			return arg.Value
+		}
+	}
+	return nil
 }
 
 // fopenFixMode implements F1.

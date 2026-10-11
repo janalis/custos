@@ -1,14 +1,14 @@
 <?php
 namespace Dice {
-    function random_int($min, $max) { return $min; }
+    function mt_rand($min, $max) { return $min; }
 
-    $a = \random_int(1, 6);
-    $b = \random_int(1, 6);
+    $a = \mt_rand(1, 6);
+    $b = \mt_rand(1, 6);
 }
 
 namespace Seeded {
     use function Dice\mt_srand;
 
     \mt_srand();
-    $c = random_int(1, 6);
+    $c = mt_rand(1, 6);
 }

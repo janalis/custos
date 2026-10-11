@@ -46,15 +46,18 @@ Visit every plain function call (not method/static calls).
   calls, and the name inside a `use function` import line are not reported.
 - **D4** Arity adjustment when the suggestion is `random_int` (modern table
   only): `random_int()` requires exactly two arguments, so if the call does
-  **not** have exactly two arguments:
+  **not** pass exactly two real arguments (an argument unpacking `...$x` or
+  the first-class-callable placeholder `rand(...)` makes the arity unknown,
+  whatever the number of entries written):
   - for `rand` the suggestion falls back to `mt_rand`;
   - for `mt_rand` there is no report at all.
 - **D5** Report with the (possibly adjusted) suggestion.
 
 ## Exceptions (no report)
 
-- **E1** `mt_rand(...)` with an argument count other than 2 under the modern
-  table; `mt_rand` always under the classic table.
+- **E1** `mt_rand(...)` with an argument count other than 2, or with an
+  argument unpacking, under the modern table; `mt_rand` always under the
+  classic table.
 - **E2** `mt_srand`, `mt_getrandmax`, `random_int` themselves.
 - **E3** Calls not resolving to the global function; method/static calls.
 
@@ -68,17 +71,28 @@ Visit every plain function call (not method/static calls).
 
 ## Fix
 
-- **F1** Rename the function: replace only the name identifier (last segment)
-  with the suggested name; any leading `\` / qualifier and the argument list
-  are kept verbatim.
+- **F1** Rename to an `mt_*` function: replace only the name identifier (last
+  segment) with the suggested name; any leading `\` / qualifier and the
+  argument list are kept verbatim.
   - `srand(7)` → `mt_srand(7)`; `\rand()` → `\mt_rand()`;
-    `rand($lo, $hi)` → `random_int($lo, $hi)` (modern table);
+    `rand($lo, $hi)` → `mt_rand($lo, $hi)` (classic table);
     `rand(5)` → `mt_rand(5)` (modern table, D4 fallback).
+- **F2** No fix when the suggestion is `random_int`: the report is kept, the
+  code is left alone. `random_int()` draws from the system CSPRNG and ignores
+  `srand()` / `mt_srand()`, so a rename would silently break code relying on
+  a seeded, reproducible sequence — and the seeding call may live in another
+  file. It also rejects `min > max`, which `rand()` tolerates.
+- **F3** No fix for `rand(a, b)` → `mt_rand(a, b)` when both bounds are known
+  integers (literal, optionally signed, or a resolvable constant) and the
+  minimum is above the maximum: `rand(10, 1)` swaps the bounds, `mt_rand(10,
+  1)` throws a `ValueError` on PHP 8. Named arguments are matched by name
+  (`rand(max: 1, min: 10)`). With bounds that are not both known the rename
+  is offered and assumes `min <= max`.
   Builtin spelling: for an unqualified original call the suggested name
   gets a leading `\` when an unqualified call at that position would not reach the global function (a `use function`
   import under that name, or a same-named function declared in the current
-  namespace): `namespace Dice; function random_int($a, $b) {…}
-  rand(1, 6);` → `\random_int(1, 6)`.
+  namespace): `namespace Dice; function mt_rand($a, $b) {…}
+  rand(1, 6);` → `\mt_rand(1, 6)` (classic table).
 
 ## Options
 
@@ -140,8 +154,8 @@ namespace Dice;
 function throwDice($sides)
 {
     mt_srand();
-    $a = random_int(1, $sides);
-    $b = random_int(0, 9);
+    $a = rand(1, $sides);
+    $b = mt_rand(0, 9);
     $c = mt_rand();
     $d = mt_rand();
     $e = mt_rand(3);
@@ -155,8 +169,22 @@ function throwDice($sides)
   the written name case-sensitively, so `RAND(1, 6)` is not reported. custos
   matches any case; the message names the function in lower case and the fix
   replaces the written name.
-- `rand(...)` with an argument unpacking (`rand(...$bounds)`) counts as one
-  argument and is renamed to `mt_rand`; fine either way. No fixture.
+- **Argument unpacking (custos diverges).** Upstream counts the entries of
+  the argument list, so `mt_rand(...$a, ...$b)` is pointed at `random_int`
+  although its real arity is unknown. custos never treats a call containing
+  an unpacking as a two-argument call: `rand(...$bounds)` is renamed to
+  `mt_rand`, `mt_rand(...$a, ...$b)` is not reported.
+- **No automatic rename to `random_int` (custos diverges).** Upstream
+  rewrites `rand(a, b)` / `mt_rand(a, b)` to `random_int(a, b)`. That changes
+  behaviour for seeded generators (F2), so custos only reports.
+- **Reversed literal bounds (custos diverges).** Upstream renames
+  `rand(10, 1)` to `mt_rand(10, 1)`, which throws on PHP 8; custos reports
+  without a fix (F3).
+- **Seeded sequences below 7.1.** Before PHP 7.1 `rand()` and `mt_rand()`
+  were distinct generators, so renaming seeded `srand($s)` / `rand()` code
+  changes the numbers drawn for a given seed there (from 7.1 on they are
+  aliases and the sequence is identical). The `mt_*` renames are still
+  offered, as upstream does.
 - **Builtin spelling (custos diverges).** Upstream inserts the bare suggested
   name (`mt_srand`, `mt_rand`, `random_int`), which a function of that name declared in (or imported into) the current
   namespace captures, so the fix would call user code. custos writes
