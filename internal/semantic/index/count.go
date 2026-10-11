@@ -6,9 +6,9 @@ package index
 // same file must not count its classes twice.
 func (ix *Index) ClassCount(fqn string) int {
 	for l := ix; l != nil; l = l.base {
-		l.mu.RLock()
+		locked := l.rlock()
 		n := len(l.classes[key(fqn)])
-		l.mu.RUnlock()
+		l.runlock(locked)
 		if n > 0 {
 			return n
 		}

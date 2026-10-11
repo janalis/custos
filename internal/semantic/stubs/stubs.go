@@ -46,6 +46,7 @@ func decode(b []byte) (*index.Index, error) {
 	for _, f := range files {
 		out.Add(f)
 	}
+	out.Freeze()
 	return out, nil
 }
 

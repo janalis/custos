@@ -10,7 +10,7 @@ func (ix *Index) ClassDecls(fqn string, ver phpversion.Version) []*Class {
 	var out []*Class
 	k := key(fqn)
 	for l := ix; l != nil; l = l.base {
-		l.mu.RLock()
+		locked := l.rlock()
 		for _, c := range l.classes[k] {
 			if c.File != "" && shadowedAbove(ix, l, c.File) {
 				continue
@@ -19,7 +19,7 @@ func (ix *Index) ClassDecls(fqn string, ver phpversion.Version) []*Class {
 				out = append(out, c)
 			}
 		}
-		l.mu.RUnlock()
+		l.runlock(locked)
 	}
 	return out
 }
@@ -28,9 +28,9 @@ func (ix *Index) ClassDecls(fqn string, ver phpversion.Version) []*Class {
 // indexes path.
 func shadowedAbove(top, layer *Index, path string) bool {
 	for u := top; u != nil && u != layer; u = u.base {
-		u.mu.RLock()
+		locked := u.rlock()
 		_, ok := u.files[path]
-		u.mu.RUnlock()
+		u.runlock(locked)
 		if ok {
 			return true
 		}

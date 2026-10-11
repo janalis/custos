@@ -13,6 +13,7 @@ import (
 	"custos/internal/inspection/rules/securityadvisories"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/stubs"
 )
 
 // vendorProject writes a project whose inputs are old enough to be trusted
@@ -103,6 +104,7 @@ func TestVendorIsIndexedWithoutRetention(t *testing.T) {
 	}
 	s.Skipped = l.skipped
 	s.vendorSymbols = nil
+	s.Symbols, s.Index = nil, index.New(stubs.Index())
 	if _, err := AnalyzeSnapshot(ctx, s); err != nil || len(s.Skipped) != maxSkipped {
 		t.Fatal(s.Skipped, err)
 	}

@@ -22,8 +22,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - `custos analyse` builds data-flow summaries in parallel and no longer copies
-  the project's summaries for every analysed file, which shortens
-  whole-project runs.
+  the project's summaries for every analysed file, and symbol lookups no longer
+  contend on a lock once the index is built, which shortens whole-project runs.
 - Rule option descriptions in `custos explain` and the rule reference no longer
   include notes about upstream test configurations.
 
