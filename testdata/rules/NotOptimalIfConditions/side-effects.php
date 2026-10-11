@@ -26,6 +26,14 @@ if ($repo?->flush() && $ok) {}
 if (Cache::clear() || $quiet) {}
 if (new Lock($path) && $ok) {}
 
+// an assignment or ++/-- writes a variable read in the body or after the if
+if (($n = \count($rows)) === 0 || $force) { echo $n; }
+if (($pos = \strpos($line, '=')) !== false && $strict) {}
+if (\count($rows) > $i++ && $ok) {}
+if (\count($rows) > --$i && $ok) {}
+if (($sum += \count($rows)) > 9 && $ok) {}
+if (([$head, $tail] = \explode(',', $line)) && $ok) {}
+
 // pure built-ins stay reorderable
 if (\count($rows) > 0 && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$ready</weak_warning>) {}
 if (\ctype_digit($v) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$v</weak_warning>) {}

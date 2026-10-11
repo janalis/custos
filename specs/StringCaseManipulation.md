@@ -1,8 +1,8 @@
 ---
 id: StringCaseManipulation
 group: Control flow
-kind: syntax
-needs: []
+kind: semantic
+needs: [names, types]
 php: { min: "", max: "" }
 ---
 
@@ -81,24 +81,36 @@ case-insensitive variants of the position functions (`stripos`, `strripos`,
   in `namespace S; function stripos() {…}`, `strpos(strtolower($t), $n)` →
   `\stripos($t, $n)`.
 
+- **F2** The fix is withheld (the report stays) when the rewrite is not
+  proven to return the same value:
+  - the search or any unwrapped conversion is an `mb_` function (see
+    Divergences);
+  - the two sides are not converted alike and the kept side is not a
+    suitable literal (see Divergences);
+  - the target PHP version is below 8.0 and the needle, once unwrapped, is
+    not inferred to be exactly a `string`. The conversion turned an integer
+    needle into its decimal text (`65` → `"65"`); there `stripos()` reads a
+    non-string needle as a character code instead (`65` → `"A"`), with a
+    deprecation notice from 7.3.
+
 ## Options
 
 None.
 
 ## PHP versions
 
-No gating. (Upstream fixture runs at the IDE test default level, below 7.1;
-nothing in the rule is version-dependent.)
+Detection is not gated. Below PHP 8.0 the fix additionally requires a needle
+of type `string` (F2).
 
 ## Examples
 
 ```php
 <?php
 function lookup(string $text, string $term, array $row) {
-    $a = <weak_warning descr="Use 'stripos($text, $term)' instead of changing the case.">strpos(strtoupper($text), $term)</weak_warning>;
-    $b = <weak_warning descr="Use 'strripos($row['k'], 'abc')' instead of changing the case.">strrpos($row['k'], strtolower('abc'))</weak_warning>;
-    $c = <weak_warning descr="Use 'mb_stripos($text, $term)' instead of changing the case.">\mb_strpos(mb_strtolower($text), mb_strtoupper($term))</weak_warning>;
-    $d = <weak_warning descr="Use 'mb_strripos(trim($text), $term)' instead of changing the case.">mb_strrpos(strtoupper(trim($text)), mb_strtolower($term))</weak_warning>;
+    $a = <weak_warning descr="Use 'stripos($text, $term)' instead of changing the case.">strpos(strtoupper($text), strtoupper($term))</weak_warning>;
+    $b = <weak_warning descr="Use 'strripos($row['k'], 'abc')' instead of changing the case.">strrpos(strtolower($row['k']), 'abc')</weak_warning>;
+    $c = <weak_warning descr="Use 'stripos($text, $term)' instead of changing the case.">strpos(strtoupper($text), $term)</weak_warning>;
+    $d = <weak_warning descr="Use 'mb_stripos($text, $term)' instead of changing the case.">\mb_strpos(mb_strtolower($text), mb_strtolower($term))</weak_warning>;
 
     $e = strpos(strtolower($text), $term, 3);
     $f = mb_strpos(mb_strtolower($text, 'UTF-8'), $term);
@@ -109,13 +121,15 @@ function lookup(string $text, string $term, array $row) {
 }
 ```
 
+After the fix (`$c` and `$d` are reported only, see F2):
+
 ```php
 <?php
 function lookup(string $text, string $term, array $row) {
     $a = stripos($text, $term);
     $b = strripos($row['k'], 'abc');
-    $c = mb_stripos($text, $term);
-    $d = mb_strripos(trim($text), $term);
+    $c = strpos(strtoupper($text), $term);
+    $d = \mb_strpos(mb_strtolower($text), mb_strtolower($term));
 
     $e = strpos(strtolower($text), $term, 3);
     $f = mb_strpos(mb_strtolower($text, 'UTF-8'), $term);
@@ -146,10 +160,19 @@ function lookup(string $text, string $term, array $row) {
   offered only when both sides are converted the same way, or when the
   unconverted side is a string literal without letters of the opposite case
   (`strpos(strtolower($t), 'abc-1')`). Listed upstream divergence.
-- **Conversion and search of different families (custos diverges).**
-  `mb_strtolower()` / `mb_strtoupper()` fold non-ASCII letters (and can
-  change byte offsets) where `stripos()` does not, and `mb_stripos()` folds
-  letters that `strtolower()` leaves alone. The fix is offered only when
-  every conversion belongs to the search function's family (both `mb_` or
-  both byte functions); `strpos(mb_strtolower($s), 'é')` is reported
-  without a fix.
+- **Multibyte functions are not rewritten (custos diverges).**
+  `mb_strtolower()` / `mb_strtoupper()` apply full case mapping, which can
+  change the number of characters (`ß` upper-cases to `SS`, `İ` lower-cases
+  to two code points), whereas `mb_stripos()` / `mb_strripos()` fold
+  differently and answer with a position in the original string:
+  `mb_strpos(mb_strtoupper('ßx'), mb_strtoupper('x'))` is 2,
+  `mb_stripos('ßx', 'x')` is 1, and a needle `ss` matches `ß` only before
+  the rewrite. Mixing families is no better: `mb_strtolower()` folds
+  non-ASCII letters that `stripos()` compares byte for byte, and
+  `mb_stripos()` folds letters `strtolower()` leaves alone. The fix is
+  therefore offered only when the search and every conversion are byte
+  functions; anything involving an `mb_` function is reported without a
+  fix.
+- **Integer needles before PHP 8.0 (custos diverges).** Upstream rewrites
+  regardless of the needle's type. For targets below 8.0 custos withholds
+  the fix unless the unwrapped needle is known to be a string (F2).

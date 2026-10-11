@@ -1,5 +1,7 @@
 package substrusedasstrpos
 
+import "strings"
+
 // isNumericString reports whether s is a numeric string for PHP 8
 // (is_numeric): optional leading and trailing whitespace, an optional sign,
 // decimal digits with an optional fraction and exponent. Two numeric
@@ -41,4 +43,12 @@ func isNumericString(s string) bool {
 		}
 	}
 	return i == n
+}
+
+// isHexString reports whether s reads as a hexadecimal number ("0x1A",
+// optionally after whitespace and a sign), which PHP before 7.0 treats as a
+// numeric string too.
+func isHexString(s string) bool {
+	s = strings.TrimLeft(s, " \t\n\r\v\f+-")
+	return len(s) > 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X')
 }

@@ -43,6 +43,10 @@ same name (`['id' => $id, 'tag' => $tag]`) can be written as
 - **E3** Any key/name mismatch (`'a' => $b`), or any value that is an
   expression rather than a bare variable (`'a' => (int) $a`, `'a' => $a[0]`).
 - **E4** Non-string keys (`0 => $a`, `KEY => $a`).
+- **E5** Any value that is a superglobal (`$_GET`, `$_POST`, `$_COOKIE`,
+  `$_FILES`, `$_SERVER`, `$_ENV`, `$_REQUEST`, `$_SESSION`, `$GLOBALS`):
+  `compact()` looks names up in the current symbol table, where superglobals
+  never live, so the call would warn and omit the entry.
 
 ## Report
 
@@ -60,8 +64,11 @@ same name (`['id' => $id, 'tag' => $tag]`) can be written as
   in element order, joined with `", "`. Examples:
   `['id' => $id, 'tag' => $tag]` → `compact('id', 'tag')`;
   `array("n" => $n, 'm' => $m)` → `compact("n", 'm')`.
-  Comments inside the literal are dropped. `compact` is written `\compact`
-  when an unqualified call at that position would not reach the global
+  Comments inside the literal are dropped. When the byte just before the
+  literal can end a keyword or name (`return['a' => $a, 'b' => $b]`), a
+  space is inserted before the call so the two do not merge into
+  `returncompact(...)` or the qualified name `return\compact`. `compact` is
+  written `\compact` when an unqualified call at that position would not reach the global
   function (a `use function` import under that name, or a same-named function declared in the current namespace).
 
 ## Options
@@ -125,6 +132,13 @@ function payload($id, $tag, $note) {
   value is by-reference.
 - **`$this`.** `['this' => $this, 'x' => $x]` matches D3 upstream.
   Recommendation: keep (compact('this') works), no fixture covers it.
+- **Superglobals (custos diverges).** `['_GET' => $_GET, '_POST' => $_POST]`
+  satisfies the upstream name check, but `compact('_GET', '_POST')` yields
+  an empty array plus warnings. custos does not report (E5).
+- **Keyword directly before the literal (custos diverges).** Upstream
+  swaps the literal for the call text as is; after `return[` or `echo[`
+  that glues keyword and function name together. custos inserts the
+  separating space (F1).
 - **Escapes in keys (custos diverges).** Upstream compares the key text as
   written, so `"t\x61g" => $tag` is missed although the key is `tag`. custos
   decodes the literal before comparing (D3); `compact()` receives the same

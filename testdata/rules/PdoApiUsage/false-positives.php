@@ -33,6 +33,9 @@ function work(\PDO $conn, Other $other, $unknown)
     $ok = $conn->prepare('SELECT 7');
     $res = $ok->execute();
 
+    $fcc = $conn->prepare(...);
+    $fcc->execute();
+
     $conn->query('SELECT 8');
     return $res;
 }

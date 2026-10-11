@@ -260,9 +260,9 @@ func costUnknown(ctx *analysis.Context, e syntax.Expr) bool {
 	return unknown
 }
 
-// operandsCoupled implements scenarios S1–S5.
+// operandsCoupled implements scenarios S1–S6.
 func operandsCoupled(ctx *analysis.Context, prev, cur syntax.Expr) bool {
-	if operandsCoupledS123(ctx, prev, cur) || typeGuarded(ctx, prev, cur) {
+	if operandsCoupledS123(ctx, prev, cur) || typeGuarded(ctx, prev, cur) || operationGuarded(ctx, prev, cur) {
 		return true
 	}
 	// S4: side effects are never reordered.
@@ -455,6 +455,46 @@ func typeGuarded(ctx *analysis.Context, prev, cur syntax.Expr) bool {
 	return hit
 }
 
+// operationGuarded implements S6 (custos): cur holds an operation that can
+// fail on its own (an array access, a division or modulo, intdiv()) and a
+// variable of that access or of the divisor also occurs in prev, so prev may
+// be the check that makes the operation valid
+// (`in_array($k, $keys, true) && $map[$k]`, `abs($d) > 0 && $n % $d === 0`).
+func operationGuarded(ctx *analysis.Context, prev, cur syntax.Expr) bool {
+	risky := map[string]bool{}
+	collect := func(e syntax.Node) {
+		syntax.Inspect(e, func(x syntax.Node) bool {
+			if name, ok := astquery.PlainVariableName(x); ok {
+				risky[name] = true
+			}
+			return true
+		})
+	}
+	syntax.Inspect(cur, func(x syntax.Node) bool {
+		switch o := x.(type) {
+		case *syntax.ArrayDimFetch:
+			collect(o)
+		case *syntax.Binary:
+			if o.Op.Kind == syntax.TDiv || o.Op.Kind == syntax.TMod {
+				collect(o.Right)
+			}
+		case *syntax.FuncCall:
+			if args, ok := astquery.CallArgValues(o); ok && len(args) > 1 && ctx.GlobalFunctionName(o) == "intdiv" {
+				collect(args[1])
+			}
+		}
+		return true
+	})
+	hit := false
+	syntax.Inspect(prev, func(x syntax.Node) bool {
+		if name, ok := astquery.PlainVariableName(x); ok && risky[name] {
+			hit = true
+		}
+		return !hit
+	})
+	return hit
+}
+
 // notOptimalNullOrBool reports whether e is the constant null, true or
 // false (any case).
 func notOptimalNullOrBool(e syntax.Expr) bool {
@@ -522,8 +562,11 @@ func notOptimalImpure(ctx *analysis.Context, e syntax.Expr) bool {
 				return false
 			}
 		case *syntax.Include, *syntax.Eval, *syntax.Exit, *syntax.Print,
-			*syntax.MethodCall, *syntax.StaticCall, *syntax.New:
-			// Method, static and constructor calls run arbitrary code.
+			*syntax.MethodCall, *syntax.StaticCall, *syntax.New,
+			*syntax.Assign, *syntax.IncDec:
+			// Method, static and constructor calls run arbitrary code; an
+			// assignment or ++/-- writes a variable the body or the code
+			// after the if may read.
 			impure = true
 			return false
 		case *syntax.FuncCall:

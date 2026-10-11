@@ -6,7 +6,7 @@ class Repo {
 interface Shape {}
 // costs of the remaining expression kinds
 if (strlen("a{$x}") && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$y</weak_warning>) {}
-if (strlen($s) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$i++</weak_warning>) {}
+if (strlen($s) && $i++) {} // ++ writes $i: never reordered
 if (strlen($s) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">[1, 'k' => $v]</weak_warning>) {}
 if (strlen($s) && (<weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$c ? $d : $e</weak_warning>)) {}
 if (($c ? strlen($s) : $e) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$d</weak_warning>) {}

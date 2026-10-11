@@ -59,6 +59,8 @@ The type of the `execute` receiver is not checked beyond D6.
   argument) or `prepare` called on a non-PDO object.
 - **E5** Different target (`$a = $pdo->prepare(...); $b->execute();`).
 - **E6** A bare `$pdo->query(...)` call is never reported.
+- **E7** `prepare(...)` written as a first-class callable: the assignment
+  stores a closure, no statement is prepared.
 
 ## Report
 
@@ -75,6 +77,9 @@ The type of the `execute` receiver is not checked beyond D6.
   statements are kept.
 - **F2** Rename the `prepare` method name in the assignment to `query`,
   keeping the receiver, operator and all arguments exactly as written.
+- **F3** The fix is offered only when `prepare()` has exactly one argument
+  and that argument is not a spread (`...$args`); otherwise the report is
+  kept without a fix (see Divergences).
 
 Example: `$st = $db->prepare('SELECT 1');⏎    $st->execute();⏎` →
 `$st = $db->query('SELECT 1');⏎`
@@ -169,6 +174,11 @@ class Repo
   (driver options array) becomes `query()`'s fetch-mode argument, changing
   meaning. Recommendation: offer the fix only when `prepare()` has exactly one
   argument (still report). No upstream fixture has a second argument.
+  custos applies this (F3) and also withholds the fix for a single spread
+  argument (`prepare(...$args)`), whose array may carry the options too.
+- **First-class callable (custos diverges):** `$st = $pdo->prepare(...);`
+  creates a closure rather than a statement, so custos does not report the
+  following `$st->execute();` (E7).
 - Upstream accepts compound assignments in D4 (`$st .= $pdo->prepare(…)`),
   which is nonsensical; recommendation: accept only `=`. Not covered.
 - If the receiver's type cannot be resolved to PDO (D5), nothing is reported;

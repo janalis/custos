@@ -1,2 +1,2 @@
 <?php
-$r = 0 === strpos($uri, $base);
+$r = 0 === strpos($uri, '/api');

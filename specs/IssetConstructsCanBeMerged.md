@@ -100,6 +100,17 @@ applied and the file re-analysed.
      parentheses restored).
   3. Join the fragments with `" && "` (`&&`) or `" || "` (`||`).
   No extra parentheses are added around the result.
+- **F2 — guarded second check.** When at least one fragment sits between the
+  two hits, the fix is offered only if every argument of the second hit is a
+  plain named variable (`isset($b)`). Otherwise the report is kept without a
+  fix. The in-between fragments short-circuit the second check, so they may
+  be guarding it: hoisting `isset($map[$key])` in front of
+  `!($key instanceof stdClass)` turns a `false` result into a `TypeError`,
+  and hoisting `isset($b[key()])`, `isset($o->prop)` or an `ArrayAccess`
+  offset runs `key()`, `__isset()` or `offsetExists()` in cases where the
+  original skipped them. Testing a plain variable cannot throw and runs no
+  user code, so only that shape is moved. Adjacent hits are always fixable:
+  nothing is skipped over.
 - Consequences (must be reproduced):
   - `isset($a) && isset($b)` → `isset($a, $b)`.
   - `isset($a) && (isset($b) && isset($c))` → `isset($a, $b) && isset($c)`.
@@ -175,3 +186,8 @@ function probe(array $cfg, $row, $extra) {
   call or assignment between the hits could be skipped or could change what
   the moved check sees. custos keeps the merged construct at the first hit's
   position (F1) and never merges across a side-effecting fragment (D7).
+- **Guarded second check (custos diverges from upstream).** Upstream merges
+  non-adjacent hits whatever the second one tests. custos only reports in
+  that case unless the second hit tests plain variables (F2), because the
+  fragments in between may protect the second check from throwing or from
+  running user code (`isset($a) && !($k instanceof stdClass) && isset($m[$k])`).

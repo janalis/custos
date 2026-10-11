@@ -45,6 +45,26 @@ literal must contain only known integers or strings. For the keys form,
 strings that PHP converts to integer keys are excluded. Unknown element
 values, floats, booleans and objects are not reported.
 
+Neither proof follows writes made through a reference, so the report is
+withheld when a variable used in the argument may be written that way
+anywhere in its function (or in the file, for top-level code):
+
+- it, or one of its elements, is passed to a call other than the inspected
+  `array_count_values()` — function, method, static method or constructor —
+  unless the callee is resolved and binds no argument by reference
+  (`array_push($a, …)`, `array_walk($a, …)`, `settype($a[0], …)`, an unknown
+  `helper($a)`);
+- it is the source of a by-reference `foreach`, or appears in a `foreach`
+  key/value target (`foreach ($rows as $a[0])`);
+- it takes part in a reference assignment (`$r = &$a`, `$a[] = &$x`), is a
+  referenced array item (`[&$a]`), a closure's `use (&$a)` or a by-reference
+  parameter;
+- the scope calls `extract()` or contains `include`/`require`/`eval`, which
+  can rebind any local variable.
+
+Reading the variable (by-value `foreach`, `count($a)`, other resolved
+by-value calls) does not withhold the report.
+
 ## Exceptions (no report)
 
 E1. PHP level below 7.2 (this includes the default level used by fixtures
@@ -115,6 +135,9 @@ function tally(array $votes, $batch) {
   Numeric-string keys change value types under the array_values form, and
   array_count_values skips unsupported values that array_unique retains.
   Unproven inputs are therefore skipped rather than offered an unsafe fix.
+  The same holds for a variable that may be written through a reference
+  (see Safety requirements): `$ids = [1, 2]; array_push($ids, '7');` no
+  longer holds the integers of its literal.
 
 - Upstream does not check that the inner call is the **first and only**
   argument of `array_keys`/`count`: `array_keys(array_count_values($a), 2)`

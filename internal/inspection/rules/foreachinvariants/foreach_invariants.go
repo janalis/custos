@@ -138,7 +138,7 @@ func (foreachInvariants) counterLoop(ctx *analysis.Context, l *syntax.For) {
 		return
 	}
 	// D7/D8
-	vals := foreachInvLimitValues(ctx, l, limit)
+	vals, limitDefs := foreachInvLimitValues(ctx, l, limit)
 	if len(vals) != 1 {
 		return
 	}
@@ -164,7 +164,7 @@ func (foreachInvariants) counterLoop(ctx *analysis.Context, l *syntax.For) {
 		v, ok := astquery.PlainVariable(e)
 		return ok && v.Name == counter.Name
 	}
-	if foreachInvWritten(ctx, l, isCounter, skip) {
+	if foreachInvWritten(ctx, foreachInvLoopWalk(l), isCounter, skip) {
 		return
 	}
 	lim := syntax.UnwrapParens(limit)
@@ -188,30 +188,43 @@ func (foreachInvariants) counterLoop(ctx *analysis.Context, l *syntax.For) {
 				break
 			}
 		}
-		if foreachInvWritten(ctx, l, isLimit, lskip) {
+		if foreachInvWritten(ctx, foreachInvLoopWalk(l), isLimit, lskip) {
+			return
+		}
+		// custos: a limit computed ahead of the loop no longer stands for
+		// count($c) once the container (or the limit) changed in between.
+		if foreachInvStaleLimit(ctx, l, limitDefs, container, isLimit) {
 			return
 		}
 	}
 	// D8d: the container itself changes in the loop (reassigned, passed by
 	// reference as to sort()/array_splice(), unset, pushed to, or an element
 	// unset): foreach iterates a snapshot, the counter loop the live array.
-	if foreachInvContainerChanged(ctx, l, container) || foreachInvElementsChanged(ctx, l, container, counter.Name) {
+	if foreachInvContainerChanged(ctx, l, container) || foreachInvElementsChanged(ctx, l, container, counter.Name, false) {
 		return
 	}
-	// D8c: the counter, or a limit assigned in the header, read after the loop
-	// would see the foreach's leftovers instead of the final for values.
-	if foreachInvUsedAfter(ctx.File, l, counter.Name) {
+	// D8c: the counter, or a limit assigned in the header, read once the loop
+	// is done would see the foreach's leftovers instead of the final for values.
+	if foreachInvObservable(ctx, l, counter.Name) {
 		return
 	}
-	if lv, ok := astquery.PlainVariable(lim); ok && foreachInvHeaderAssigns(l, lv.Name) && foreachInvUsedAfter(ctx.File, l, lv.Name) {
+	if lv, ok := astquery.PlainVariable(lim); ok && foreachInvHeaderAssigns(l, lv.Name) && foreachInvObservable(ctx, l, lv.Name) {
 		return
 	}
-	ctx.Report(astquery.KeywordSpan(ctx.File, l), foreachInvCounterMsg, diagnostic.Fix{
-		Title: "Convert to foreach",
-		Edits: func() []diagnostic.TextEdit {
-			return counterLoopFix(ctx, l, body, counter, container, limit)
-		},
-	})
+	var fixes []diagnostic.Fix
+	// custos: no fix when the generated value variable already exists in the
+	// scope (the foreach would overwrite it), or when an element that may be
+	// written through a reference is read again (the copy would be stale).
+	if !foreachInvScopeMentions(ctx.File, l, counter.Name+"Value") &&
+		!foreachInvElementsChanged(ctx, l, container, counter.Name, true) {
+		fixes = append(fixes, diagnostic.Fix{
+			Title: "Convert to foreach",
+			Edits: func() []diagnostic.TextEdit {
+				return counterLoopFix(ctx, l, body, counter, container, limit)
+			},
+		})
+	}
+	ctx.Report(astquery.KeywordSpan(ctx.File, l), foreachInvCounterMsg, fixes...)
 }
 
 func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, counter *syntax.Variable,
@@ -227,6 +240,18 @@ func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, co
 	var repl []piece
 	var replaced []syntax.Node
 	syntax.Inspect(body, func(x syntax.Node) bool {
+		// custos: the value variable does not exist in another scope; only
+		// arrow functions capture it, unless a parameter shadows the access.
+		switch fn := x.(type) {
+		case *syntax.Closure, *syntax.Function, *syntax.ClassLike:
+			return false
+		case *syntax.ArrowFunction:
+			for _, p := range fn.Params {
+				if p.Var != nil && (p.Var.Name == counter.Name || astquery.MentionsVariable(container, p.Var.Name)) {
+					return false
+				}
+			}
+		}
 		d, ok := x.(*syntax.ArrayDimFetch)
 		if !ok || d.Dim == nil || d.Span().Len() == 0 {
 			return true
@@ -234,7 +259,7 @@ func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, co
 		if !astquery.EquivalentFoldNames(ctx.File, d.Var, container) || !astquery.EquivalentFoldNames(ctx.File, d.Dim, counter) {
 			return true
 		}
-		if !accessReplaceable(ctx, d) {
+		if !accessReplaceable(ctx, d, false) {
 			return true
 		}
 		sp, text := d.Span(), valName
@@ -286,7 +311,9 @@ func counterLoopFix(ctx *analysis.Context, l *syntax.For, body *syntax.Block, co
 	edits := []diagnostic.TextEdit{{Span: l.Span(), NewText: header + b.String()}}
 	// F1.4: limit cleanup.
 	// custos: only a variable's assignment; a property write is state.
-	if _, isVar := astquery.PlainVariable(limit); isVar {
+	// A by-reference parameter, or a variable read by name, stays observable.
+	if lv, isVar := astquery.PlainVariable(limit); isVar && !foreachInvAliased(ctx.File, l, lv.Name) &&
+		!foreachInvDynamicUse(ctx, l, lv.Name, 0) {
 		if del, ok := limitAssignment(ctx, l, limit); ok {
 			edits = append(edits, diagnostic.TextEdit{Span: astquery.WithLeadingWhitespace(ctx.File, del.Span())})
 		}
@@ -313,18 +340,18 @@ func interpolationContinues(rest []byte) bool {
 // flowquery.PossibleValuesReaching: the loop's own init assignment wins,
 // assignment chains stop at a by-reference assignment and arrow functions
 // yield nothing (the spec's D8).
-func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Expr) []syntax.Expr {
+func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Expr) (vals []syntax.Expr, defs []*syntax.Assign) {
 	v, ok := astquery.PlainVariable(limit)
 	if !ok {
 		if pf, ok := syntax.UnwrapParens(limit).(*syntax.PropertyFetch); ok {
 			return foreachInvPropertyLimitValues(ctx, l, pf)
 		}
-		return flowquery.PossibleValues(ctx.File, limit)
+		return flowquery.PossibleValues(ctx.File, limit), nil
 	}
 	scope := syntax.EnclosingFuncLike(l)
 	body := syntax.FuncLikeBody(scope)
 	if scope == nil || body == nil || flowquery.UnstableVariableIn(ctx.File, body, v.Name) {
-		return nil
+		return nil, nil
 	}
 	innermost := func(e syntax.Expr) syntax.Expr {
 		for {
@@ -338,23 +365,22 @@ func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Ex
 	for i := len(l.Init) - 1; i >= 0; i-- {
 		if a, ok := l.Init[i].(*syntax.Assign); ok && a.Op.Kind == syntax.TEqual && !a.ByRef {
 			if t, ok := astquery.PlainVariable(a.Var); ok && t.Name == v.Name {
-				return flowquery.PossibleValues(ctx.File, innermost(a.Value))
+				return flowquery.PossibleValues(ctx.File, innermost(a.Value)), nil
 			}
 		}
 	}
-	var out []syntax.Expr
 	defs, entry := flowquery.ReachingAssignmentsIn(ctx.File, scope, v, v.Name)
 	if entry {
 		for _, p := range syntax.FuncLikeParams(scope) {
 			if p.Var != nil && p.Var.Name == v.Name && p.Default != nil {
-				out = append(out, flowquery.PossibleValues(ctx.File, p.Default)...)
+				vals = append(vals, flowquery.PossibleValues(ctx.File, p.Default)...)
 			}
 		}
 	}
 	for _, d := range defs {
-		out = append(out, flowquery.PossibleValues(ctx.File, innermost(d.Value))...)
+		vals = append(vals, flowquery.PossibleValues(ctx.File, innermost(d.Value))...)
 	}
-	return out
+	return vals, defs
 }
 
 // foreachInvPropertyLimitValues discovers a property limit (custos): the
@@ -362,7 +388,7 @@ func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Ex
 // function. A write after the loop, or none before it (the value then
 // comes from another method or the default, which other code may change)
 // gives no value.
-func foreachInvPropertyLimitValues(ctx *analysis.Context, l *syntax.For, limit *syntax.PropertyFetch) []syntax.Expr {
+func foreachInvPropertyLimitValues(ctx *analysis.Context, l *syntax.For, limit *syntax.PropertyFetch) (vals []syntax.Expr, defs []*syntax.Assign) {
 	isLimit := func(e syntax.Expr) bool {
 		_, ok := syntax.UnwrapParens(e).(*syntax.PropertyFetch)
 		return ok && astquery.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(e), limit)
@@ -371,9 +397,8 @@ func foreachInvPropertyLimitValues(ctx *analysis.Context, l *syntax.For, limit *
 	// and a limit variable may be assigned in the init clause.
 	body := syntax.FuncLikeBody(syntax.EnclosingFuncLike(l))
 	if body == nil {
-		return nil
+		return nil, nil
 	}
-	var out []syntax.Expr
 	after := false
 	syntax.Inspect(body, func(n syntax.Node) bool {
 		switch x := n.(type) {
@@ -387,14 +412,15 @@ func foreachInvPropertyLimitValues(ctx *analysis.Context, l *syntax.For, limit *
 				after = true
 				return false
 			}
-			out = append(out, flowquery.PossibleValues(ctx.File, x.Value)...)
+			vals = append(vals, flowquery.PossibleValues(ctx.File, x.Value)...)
+			defs = append(defs, x)
 		}
 		return !after
 	})
 	if after {
-		return nil
+		return nil, nil
 	}
-	return out
+	return vals, defs
 }
 
 // limitAssignment returns the statement `$n = count(..);` to delete when the
@@ -426,11 +452,17 @@ func limitAssignment(ctx *analysis.Context, l *syntax.For, limit syntax.Expr) (s
 	if !ok || st.Span().End > l.Span().Start {
 		return nil, false // custos: never a write after the loop
 	}
+	// custos: not the brace-less body of an `if` or a loop, which the next
+	// statement would become.
+	if _, _, listed := astquery.StmtList(ctx.File, st); !listed {
+		return nil, false
+	}
 	return st, true
 }
 
-// accessReplaceable implements the parent contexts of F1.1.
-func accessReplaceable(ctx *analysis.Context, d *syntax.ArrayDimFetch) bool {
+// accessReplaceable implements the parent contexts of F1.1 for d, the
+// `$c[$i]` access or (chained) the outermost access of a chain built on it.
+func accessReplaceable(ctx *analysis.Context, d *syntax.ArrayDimFetch, chained bool) bool {
 	switch p := d.Parent().(type) {
 	case *syntax.PropertyFetch:
 		return p.Var == syntax.Expr(d)
@@ -444,18 +476,18 @@ func accessReplaceable(ctx *analysis.Context, d *syntax.ArrayDimFetch) bool {
 		if p.Dim == syntax.Expr(d) {
 			return true
 		}
-		// base of a further access: kept when the chain's outermost access
-		// sits directly in an assignment.
-		outer := syntax.Node(p)
+		// base of a further access: the chain's outermost access decides.
+		// custos: it must sit in a read position itself (`$c[$i]['n']++`,
+		// `unset($c[$i]['k'])`, `sort($c[$i]['t'])` write to the container).
+		outer := p
 		for {
 			pp, ok := outer.Parent().(*syntax.ArrayDimFetch)
-			if !ok || pp.Var != outer {
+			if !ok || pp.Var != syntax.Expr(outer) {
 				break
 			}
 			outer = pp
 		}
-		_, inAssign := outer.Parent().(*syntax.Assign)
-		return !inAssign
+		return accessReplaceable(ctx, outer, true)
 	case *syntax.If:
 		return p.Cond == syntax.Expr(d)
 	case *syntax.ElseIf:
@@ -471,9 +503,10 @@ func accessReplaceable(ctx *analysis.Context, d *syntax.ArrayDimFetch) bool {
 	case *syntax.DoWhile:
 		return p.Cond == syntax.Expr(d)
 	case *syntax.Foreach:
-		return p.Expr == syntax.Expr(d)
+		return p.Expr == syntax.Expr(d) && !p.ByRef // `as &$v` writes through
 	case *syntax.Assign:
-		return p.Value == syntax.Expr(d) && !p.ByRef
+		// a chain is kept on either side of an assignment
+		return !chained && p.Value == syntax.Expr(d) && !p.ByRef
 	case *syntax.Arg:
 		if p.ByRef || p.Unpack {
 			return false
@@ -564,10 +597,23 @@ func foreachInvByRefArg(ctx *analysis.Context, arg *syntax.Arg, pos int) bool {
 	return false
 }
 
+// foreachInvLoopWalk walks the loop's init, condition and body.
+func foreachInvLoopWalk(l *syntax.For) func(func(syntax.Node) bool) {
+	return func(visit func(syntax.Node) bool) {
+		for _, e := range l.Init {
+			syntax.Inspect(e, visit)
+		}
+		for _, e := range l.Cond {
+			syntax.Inspect(e, visit)
+		}
+		syntax.Inspect(l.Body, visit)
+	}
+}
+
 // foreachInvWritten implements the write guard D8b: it reports whether a
-// node matching target is written anywhere in the loop's init, condition
-// or body, other than by the nodes in skip.
-func foreachInvWritten(ctx *analysis.Context, l *syntax.For, match func(syntax.Expr) bool, skip map[syntax.Node]bool) bool {
+// node matching target is written anywhere in the nodes walk visits (the
+// loop's init, condition and body), other than by the nodes in skip.
+func foreachInvWritten(ctx *analysis.Context, walk func(func(syntax.Node) bool), match func(syntax.Expr) bool, skip map[syntax.Node]bool) bool {
 	found := false
 	var targetHit func(e syntax.Expr) bool
 	targetHit = func(e syntax.Expr) bool {
@@ -618,7 +664,8 @@ func foreachInvWritten(ctx *analysis.Context, l *syntax.For, match func(syntax.E
 				return false
 			}
 		case *syntax.Foreach:
-			if (x.Key != nil && targetHit(x.Key)) || (x.Value != nil && targetHit(x.Value)) {
+			if (x.Key != nil && targetHit(x.Key)) || (x.Value != nil && targetHit(x.Value)) ||
+				(x.ByRef && match(syntax.UnwrapParens(x.Expr))) { // `as &$v` writes through to the source
 				found = true
 				return false
 			}
@@ -658,39 +705,97 @@ func foreachInvWritten(ctx *analysis.Context, l *syntax.For, match func(syntax.E
 		}
 		return true
 	}
-	for _, e := range l.Init {
-		syntax.Inspect(e, visit)
-	}
-	for _, e := range l.Cond {
-		syntax.Inspect(e, visit)
-	}
-	syntax.Inspect(l.Body, visit)
+	walk(visit)
 	return found
+}
+
+// foreachInvContainerMatch matches a write target that changes the
+// container as a whole: the container itself, a push (`$c[] = …`) or an
+// unset element (`unset($c[$k])`).
+func foreachInvContainerMatch(ctx *analysis.Context, container syntax.Expr) func(syntax.Expr) bool {
+	return func(e syntax.Expr) bool {
+		if d, ok := e.(*syntax.ArrayDimFetch); ok {
+			if _, unset := e.Parent().(*syntax.Unset); unset || d.Dim == nil {
+				e = d.Var
+			}
+		}
+		return astquery.EquivalentFoldNames(ctx.File, e, container)
+	}
 }
 
 // foreachInvContainerChanged implements D8d.
 func foreachInvContainerChanged(ctx *analysis.Context, l *syntax.For, container syntax.Expr) bool {
-	isContainer := func(e syntax.Expr) bool {
-		if d, ok := e.(*syntax.ArrayDimFetch); ok && d.Dim == nil { // `$c[] = …`
-			e = d.Var
-		}
-		return astquery.EquivalentFoldNames(ctx.File, e, container)
-	}
-	if foreachInvWritten(ctx, l, isContainer, nil) {
+	return foreachInvWritten(ctx, foreachInvLoopWalk(l), foreachInvContainerMatch(ctx, container), nil)
+}
+
+// foreachInvIsLoop reports whether n is a loop statement.
+func foreachInvIsLoop(n syntax.Node) bool {
+	switch n.(type) {
+	case *syntax.For, *syntax.While, *syntax.DoWhile, *syntax.Foreach:
 		return true
 	}
-	found := false
-	syntax.Inspect(l.Body, func(n syntax.Node) bool {
-		if u, ok := n.(*syntax.Unset); ok {
-			for _, v := range u.Vars {
-				if d, ok := syntax.UnwrapParens(v).(*syntax.ArrayDimFetch); ok && astquery.EquivalentFoldNames(ctx.File, d.Var, container) {
-					found = true
-				}
+	return false
+}
+
+// foreachInvSameList reports whether stmt sits in the statement list that
+// holds at or one of at's enclosing statements: two statements sharing a
+// parent sit in one list (block, case, namespace or the file).
+func foreachInvSameList(stmt, at syntax.Node) bool {
+	for anc := at; anc != nil; anc = anc.Parent() {
+		if anc.Parent() == stmt.Parent() {
+			return true
+		}
+	}
+	return false
+}
+
+// foreachInvInspectScope walks the scope of at: the body of its enclosing
+// function, method or closure, or the file at top level. Nested named
+// functions and classes are other scopes.
+func foreachInvInspectScope(f *syntax.File, at syntax.Node, visit func(syntax.Node) bool) {
+	inner := func(x syntax.Node) bool {
+		switch x.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.ClassLike:
+			return false
+		}
+		return visit(x)
+	}
+	if body := syntax.FuncLikeBody(syntax.EnclosingFuncLike(at)); body != nil {
+		syntax.Inspect(body, inner)
+		return
+	}
+	for _, st := range f.Stmts {
+		syntax.Inspect(st, inner)
+	}
+}
+
+// foreachInvStaleLimit reports whether the container, or the limit itself,
+// is written between an assignment of the limit (defs, all located ahead of
+// the loop) and the loop: the limit then no longer stands for count($c).
+// The window ends at the loop, or at the end of an enclosing loop that does
+// not re-run the assignment before each pass (custos).
+func foreachInvStaleLimit(ctx *analysis.Context, l *syntax.For, defs []*syntax.Assign, container syntax.Expr,
+	isLimit func(syntax.Expr) bool,
+) bool {
+	isContainer := foreachInvContainerMatch(ctx, container)
+	walk := func(visit func(syntax.Node) bool) { foreachInvInspectScope(ctx.File, l, visit) }
+	for _, def := range defs {
+		from, to := def.Span().End, l.Span().Start
+		st, own := def.Parent().(*syntax.ExprStmt)
+		for p := l.Parent(); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
+			if foreachInvIsLoop(p) && (!own || !flowquery.NodeContains(p, st) || !foreachInvSameList(st, l)) {
+				to = p.Span().End
 			}
 		}
-		return !found
-	})
-	return found
+		match := func(e syntax.Expr) bool {
+			s := e.Span().Start
+			return s >= from && s < to && (isContainer(e) || isLimit(e))
+		}
+		if foreachInvWritten(ctx, walk, match, nil) {
+			return true
+		}
+	}
+	return false
 }
 
 // foreachInvElementsChanged reports whether the loop writes container
@@ -700,7 +805,12 @@ func foreachInvContainerChanged(ctx *analysis.Context, l *syntax.For, container 
 // path under `$c[$i]` followed in the body by a mention of an overlapping
 // path (`$c[$i] = trim($c[$i]); echo $c[$i];`: the fix would read the stale
 // `$iValue`). Taking a reference (`$r = &$c[$i]`) is not a write.
-func foreachInvElementsChanged(ctx *analysis.Context, l *syntax.For, container syntax.Expr, counter string) bool {
+//
+// With escapes, an element captured by reference (`$r = &$c[$i]`,
+// `[&$c[$i]]`) counts as written as well, since it may be written later
+// without being named. Such a loop is still reported; only its fix would
+// read a stale copy.
+func foreachInvElementsChanged(ctx *analysis.Context, l *syntax.For, container syntax.Expr, counter string, escapes bool) bool {
 	type write struct {
 		end  uint32
 		path []syntax.Expr
@@ -712,7 +822,7 @@ func foreachInvElementsChanged(ctx *analysis.Context, l *syntax.For, container s
 		if !ok {
 			return false
 		}
-		if a, ok := e.Parent().(*syntax.Assign); ok && a.ByRef && a.Value == e {
+		if a, ok := e.Parent().(*syntax.Assign); ok && a.ByRef && a.Value == e && !escapes {
 			return false
 		}
 		if v, ok := astquery.PlainVariable(path[0]); !ok || v.Name != counter {
@@ -728,10 +838,28 @@ func foreachInvElementsChanged(ctx *analysis.Context, l *syntax.For, container s
 			}
 			n = n.Parent()
 		}
-		writes = append(writes, write{n.Span().End, path})
+		end := n.Span().End
+		// A by-reference foreach over the element writes from its body on.
+		if fe, ok := n.(*syntax.Foreach); ok && fe.ByRef && e.Span().End <= fe.Body.Span().Start {
+			end = fe.Body.Span().Start
+		}
+		writes = append(writes, write{end, path})
 		return false
 	}
-	if foreachInvWritten(ctx, l, match, nil) || other {
+	if escapes {
+		syntax.Inspect(l.Body, func(n syntax.Node) bool {
+			switch x := n.(type) {
+			case *syntax.Function, *syntax.Method, *syntax.ClassLike, *syntax.Closure, *syntax.ArrowFunction:
+				return false
+			case *syntax.ArrayItem:
+				if x.ByRef && x.Value != nil {
+					match(syntax.UnwrapParens(x.Value))
+				}
+			}
+			return true
+		})
+	}
+	if foreachInvWritten(ctx, foreachInvLoopWalk(l), match, nil) || other {
 		return true
 	}
 	if len(writes) == 0 {
@@ -814,42 +942,64 @@ func foreachInvHeaderAssigns(l *syntax.For, name string) bool {
 	return false
 }
 
-// foreachInvUsedAfter implements D8c: whether $name is mentioned after the
-// loop's end in its scope (function body, or the file at top level; nested
-// named functions and classes are other scopes). A first later mention that
-// is a plain re-assignment dominating the rest — the target of `$x = …;` or
-// of a `for` header's `$x = …`, in the statement list holding the loop or
-// one of its enclosing statements, with a value not reading $x — does not
-// count.
-func foreachInvUsedAfter(f *syntax.File, l *syntax.For, name string) bool {
-	end := l.Span().End
-	var first *syntax.Variable
-	visit := func(x syntax.Node) bool {
-		if first != nil {
-			return false
-		}
-		switch x.(type) {
-		case *syntax.Function, *syntax.Method, *syntax.ClassLike:
-			return false
-		}
-		if v, ok := x.(*syntax.Variable); ok && v.Name == name && v.NameExpr == nil && v.Span().Start >= end {
-			first = v
-		}
+// foreachInvObservable implements D8c: whether the value $name holds once
+// loop is done can be seen by other code. That is the case when $name is
+// aliased, read by name, or mentioned after the loop's end in its scope
+// (function body, or the file at top level; nested named functions and
+// classes are other scopes) or, inside an enclosing loop, ahead of loop
+// (the next pass reads it). The first mention after the loop, and the first
+// one of each enclosing loop, do not count when they redefine the variable
+// (foreachInvRedefines).
+func foreachInvObservable(ctx *analysis.Context, loop syntax.Node, name string) bool {
+	if foreachInvAliased(ctx.File, loop, name) {
 		return true
 	}
-	if scope := syntax.FuncLikeBody(syntax.EnclosingFuncLike(l)); scope != nil {
-		syntax.Inspect(scope, visit)
-	} else {
-		for _, st := range f.Stmts {
-			syntax.Inspect(st, visit)
+	var mentions []*syntax.Variable
+	foreachInvInspectScope(ctx.File, loop, func(x syntax.Node) bool {
+		if v, ok := x.(*syntax.Variable); ok && v.Name == name && v.NameExpr == nil {
+			mentions = append(mentions, v)
+		}
+		return true
+	})
+	// seen reports whether the first mention in [from, to) reads $name.
+	seen := func(from, to uint32) bool {
+		var first *syntax.Variable
+		for _, v := range mentions {
+			if s := v.Span().Start; s >= from && s < to && (first == nil || s < first.Span().Start) {
+				first = v
+			}
+		}
+		return first != nil && !foreachInvRedefines(first, loop, name)
+	}
+	ls := loop.Span()
+	if seen(ls.End, ^uint32(0)) {
+		return true
+	}
+	from := ls.Start
+	for p := loop.Parent(); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
+		if foreachInvIsLoop(p) {
+			from = p.Span().Start
+			if seen(from, ls.Start) {
+				return true
+			}
 		}
 	}
-	if first == nil {
+	return foreachInvDynamicUse(ctx, loop, name, from)
+}
+
+// foreachInvRedefines reports whether the mention v is a plain
+// re-assignment of $name dominating the code that follows it: the target of
+// `$x = …;` (also as a destructuring item), of a `for` header's `$x = …` or
+// of a `while` condition, in the statement list holding loop or one of its
+// enclosing statements, with a value not reading $x.
+func foreachInvRedefines(v *syntax.Variable, loop syntax.Node, name string) bool {
+	var target syntax.Expr = v
+	if it, ok := v.Parent().(*syntax.ArrayItem); ok && it.Value == syntax.Expr(v) && !it.ByRef {
+		target = astquery.AsExpr(it.Parent())
+	}
+	a, ok := target.Parent().(*syntax.Assign)
+	if !ok || a.Var != target || a.Op.Kind != syntax.TEqual || a.ByRef || astquery.MentionsVariable(a.Value, name) {
 		return false
-	}
-	a, ok := first.Parent().(*syntax.Assign)
-	if !ok || a.Var != syntax.Expr(first) || a.Op.Kind != syntax.TEqual || a.ByRef || astquery.MentionsVariable(a.Value, name) {
-		return true
 	}
 	var stmt syntax.Node
 	switch p := a.Parent().(type) {
@@ -857,17 +1007,113 @@ func foreachInvUsedAfter(f *syntax.File, l *syntax.For, name string) bool {
 		stmt = p
 	case *syntax.For:
 		stmt = p
+	case *syntax.While: // an expression child of a while is its condition
+		stmt = p
 	default:
-		return true
+		return false
 	}
-	// Two statements sharing a parent sit in one statement list (block,
-	// case, namespace or the file), the later one after the loop.
-	for anc := syntax.Node(l); anc != nil; anc = anc.Parent() {
-		if anc.Parent() == stmt.Parent() {
-			return false
+	// A header of a loop around `loop` runs once, not before each pass.
+	return !flowquery.NodeContains(stmt, loop) && foreachInvSameList(stmt, loop)
+}
+
+// foreachInvAliased reports whether $name is shared with code outside the
+// scope of at, or with another variable of it: a by-reference parameter or
+// closure import, `global`, `static`, a by-reference assignment, or a
+// by-reference import into a nested closure.
+func foreachInvAliased(f *syntax.File, at syntax.Node, name string) bool {
+	scope := syntax.EnclosingFuncLike(at)
+	for _, p := range syntax.FuncLikeParams(scope) {
+		if p.ByRef && p.Var != nil && p.Var.Name == name {
+			return true
 		}
 	}
-	return true
+	byRefUse := func(c *syntax.Closure) bool {
+		for _, u := range c.Uses {
+			if u.ByRef && u.Var != nil && u.Var.Name == name {
+				return true
+			}
+		}
+		return false
+	}
+	if c, ok := scope.(*syntax.Closure); ok && byRefUse(c) {
+		return true
+	}
+	is := func(e syntax.Expr) bool {
+		v, ok := astquery.PlainVariable(syntax.UnwrapParens(e))
+		return ok && v.Name == name
+	}
+	found := false
+	foreachInvInspectScope(f, at, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Closure:
+			found = found || byRefUse(x)
+			return false
+		case *syntax.Global:
+			for _, v := range x.Vars {
+				found = found || is(v)
+			}
+		case *syntax.StaticVar:
+			found = found || (x.Var != nil && x.Var.Name == name)
+		case *syntax.Assign:
+			found = found || (x.ByRef && (is(x.Var) || is(x.Value)))
+		}
+		return !found
+	})
+	return found
+}
+
+// foreachInvScopeMentions reports whether a variable $name exists in the
+// scope of at (parameters and closure imports included).
+func foreachInvScopeMentions(f *syntax.File, at syntax.Node, name string) bool {
+	scope := syntax.EnclosingFuncLike(at)
+	for _, p := range syntax.FuncLikeParams(scope) {
+		if p.Var != nil && p.Var.Name == name {
+			return true
+		}
+	}
+	if c, ok := scope.(*syntax.Closure); ok {
+		for _, u := range c.Uses {
+			if u.Var != nil && u.Var.Name == name {
+				return true
+			}
+		}
+	}
+	found := false
+	foreachInvInspectScope(f, at, func(x syntax.Node) bool {
+		found = found || astquery.MentionsVariable(x, name)
+		return false
+	})
+	return found
+}
+
+// foreachInvDynamicUse reports whether the scope of at reads variables by
+// name from offset from on: `compact()` naming $name (or with an argument
+// that is not a plain string), `get_defined_vars()` or a variable variable.
+func foreachInvDynamicUse(ctx *analysis.Context, at syntax.Node, name string, from uint32) bool {
+	found := false
+	foreachInvInspectScope(ctx.File, at, func(n syntax.Node) bool {
+		if found || n.Span().End <= from {
+			return false
+		}
+		switch x := n.(type) {
+		case *syntax.Variable:
+			found = x.NameExpr != nil
+		case *syntax.FuncCall:
+			if ctx.IsGlobalFunctionCall(x, "get_defined_vars") {
+				found = true
+			} else if ctx.IsGlobalFunctionCall(x, "compact") {
+				args, ok := astquery.CallArgValues(x)
+				found = !ok
+				for _, a := range args {
+					if s, ok := astquery.QuotedStringValue(a); !ok || s == name {
+						found = true
+					}
+				}
+			}
+		}
+		return !found
+	})
+	return found
 }
 
 func (foreachInvariants) eachLoop(ctx *analysis.Context, a *syntax.Assign) {
@@ -928,7 +1174,9 @@ func (foreachInvariants) eachLoop(ctx *analysis.Context, a *syntax.Assign) {
 		items[0] != nil && items[1] != nil && items[0].Key == nil && items[1].Key == nil {
 		kv, ok1 := astquery.PlainVariable(items[0].Value)
 		vv, ok2 := astquery.PlainVariable(items[1].Value)
-		if ok1 && ok2 {
+		// custos: after the loop each() leaves null in both targets,
+		// foreach the last key and value: no fix when they stay observable.
+		if ok1 && ok2 && !foreachInvObservable(ctx, loop, kv.Name) && !foreachInvObservable(ctx, loop, vv.Name) {
 			fixes = append(fixes, diagnostic.Fix{
 				Title: "Convert to foreach",
 				Edits: func() []diagnostic.TextEdit {

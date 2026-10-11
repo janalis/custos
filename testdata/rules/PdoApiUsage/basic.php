@@ -25,6 +25,10 @@ class Repo
         $local = new PDO('sqlite::memory:');
         $q = $local->prepare('SELECT 6', []);
         <weak_warning descr="No parameters are bound; call query() instead of prepare() + execute().">$q->execute()</weak_warning>;
+
+        $args = ['SELECT 7', [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]];
+        $spread = $local->prepare(...$args);
+        <weak_warning descr="No parameters are bound; call query() instead of prepare() + execute().">$spread->execute()</weak_warning>;
         return [$ping, $sub, $q];
     }
 }

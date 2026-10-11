@@ -10,6 +10,6 @@ function codes($s, $sep = '--') {
     $h = str_replace('-', "\n", $s);
     $i = str_replace('/', '\\', $s);
     $one = '_';
-    $j = str_replace(' ', $one, $s);
+    $j = strtr($s, ' ', $one);
     return [$a, $b, $c, $d, $e, $f, $g, $h, $i, $j];
 }

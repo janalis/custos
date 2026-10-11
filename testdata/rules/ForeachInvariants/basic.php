@@ -5,8 +5,8 @@ function render(array $rows, $cap) {
         print $rows[$n];
         echo $rows[$n]->title, " ({$rows[$n]}) ";
         $label = strtoupper($rows[$n]);
-        $alias = &$rows[$n];
         if ($rows[$n] instanceof Stringable) {}
+        $alias = &$rows[$n];
     }
     <warning descr="Iterate with foreach instead of a counter loop.">for</warning> ($n = 0; count($rows) > $n; ++$n) {
         $rows[$n][1] = 'x';

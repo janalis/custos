@@ -1,5 +1,5 @@
 <?php
-function routes($uri, $base, $enc) {
+function routes($uri, string $base, $enc) {
     $r = [];
     $r[] = <weak_warning descr="Use 'strpos($uri, $base) === 0' instead.">substr($uri, 0, strlen($base)) == $base</weak_warning>;
     $r[] = <weak_warning descr="Use 'strpos($uri, '/api') !== 0' instead.">'/api' !== substr($uri, 0, 4)</weak_warning>;

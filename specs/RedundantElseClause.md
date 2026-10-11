@@ -73,6 +73,13 @@ Let `I` be `if (COND1) BODY1 A …`.
   empty statement `;`, no separator is inserted (upstream's formatter glues a
   `;` to the preceding `}`): `if ($c) { die; }  else { ; }` →
   `if ($c) { die; };`. An empty block (`else {}`) inserts nothing.
+  Trimming must not glue the code that follows the clause onto a line
+  comment: when the last kept text (the block's inner content, or a comment
+  kept from between `}` and `else` when the block is empty) ends with a `//`
+  or `#` comment, or with a PHP open tag, and the clause's closing `}` is not
+  the last thing on its line, a newline is added after the moved content.
+  `} else {` newline `log(); // done` newline `} tail();` keeps `tail();` on
+  its own line instead of inside the comment.
   Example: `if ($ok) { return 1; } else { log(); return 2; }` →
   `if ($ok) { return 1; }` + newline + `log(); return 2;`.
 - **F2** `A` is `else if (…) …` (else followed by an `if`): remove the `else`
@@ -165,6 +172,10 @@ function route($req, $list) {
   `if ($a) {…}`.
 - Comments between `}` and `else`/`elseif`: upstream behaviour unverified
   (no fixture). Recommendation: preserve them (keep them before the moved code).
+- **Trailing line comment (custos diverges).** When the moved content ends
+  with a `//`/`#` comment and more code follows the clause on the same line,
+  a line break is kept after the comment; gluing the two would comment out
+  the following code (possibly a closing brace).
 - **Code that cannot move (custos diverges).** No quick-fix when the `if`
   is the unbraced body of another `if` or a loop (the moved code would run
   unconditionally, or attach to the outer statement), or when the `else`

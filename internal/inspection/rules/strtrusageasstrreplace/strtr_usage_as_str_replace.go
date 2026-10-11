@@ -31,16 +31,20 @@ func (strTrUsageAsStrReplace) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || len(args) != 3 { // D2
 		return
 	}
-	from := strtrSingleLiteral(ctx, args[1])            // D3
-	if from == nil || !singleCharFrom(ctx.Text(from)) { // D4
+	from, fromProven := strtrSingleLiteral(ctx, args[1]) // D3
+	if from == nil || !singleCharFrom(ctx.Text(from)) {  // D4
 		return
 	}
-	to := strtrSingleLiteral(ctx, args[2]) // D5
+	to, toProven := strtrSingleLiteral(ctx, args[2]) // D5
 	if to == nil || !singleCharFrom(ctx.Text(to)) {
 		return
 	}
 	repl := semanticquery.QualifiedBuiltinFor(ctx, "str_replace", call) + "(" + ctx.Text(args[1]) + ", " + ctx.Text(args[2]) + ", " + ctx.Text(args[0]) + ")"
 	span := call.Span()
+	if !fromProven || !toProven { // F2: the runtime value may be longer
+		ctx.Report(span, "Use '"+repl+"' instead.")
+		return
+	}
 	ctx.Report(span, "Use '"+repl+"' instead.", diagnostic.Fix{
 		Title: "Use 'str_replace'",
 		Edits: func() []diagnostic.TextEdit {
@@ -50,22 +54,46 @@ func (strTrUsageAsStrReplace) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // strtrSingleLiteral resolves e to a single string literal: e itself, or the
-// only string literal among its possible values (D3); nil otherwise.
-func strtrSingleLiteral(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
+// only string literal among its possible values (D3); nil otherwise. proven
+// tells whether e always evaluates to that literal (F2).
+func strtrSingleLiteral(ctx *analysis.Context, e syntax.Expr) (lit syntax.Expr, proven bool) {
+	e = syntax.UnwrapParens(e)
 	if astquery.IsStringLiteral(e) {
-		return e
+		return e, true
 	}
-	var lit syntax.Expr
 	for _, v := range flowquery.PossibleValues(ctx.File, e) {
 		if !astquery.IsStringLiteral(v) {
 			continue
 		}
 		if lit != nil {
-			return nil // several candidates
+			return nil, false // several candidates
 		}
 		lit = v
 	}
-	return lit
+	return lit, isOwnLiteralConstant(e)
+}
+
+// isOwnLiteralConstant reports whether e is `self::NAME` written directly in
+// a method body, NAME being declared once in that class as a string literal:
+// the one non-literal spelling whose value cannot change at run time
+// (`static::` is late-bound, a closure can be rebound to another class, a
+// variable or property can be written from anywhere).
+func isOwnLiteralConstant(e syntax.Expr) bool {
+	c, ok := e.(*syntax.ClassConstFetch)
+	if !ok {
+		return false
+	}
+	cn, isName := c.Class.(*syntax.Name)
+	id, isID := c.Name.(*syntax.Identifier)
+	if !isName || !isID || !strings.EqualFold(cn.Value, "self") {
+		return false
+	}
+	m, inMethod := syntax.EnclosingFuncLike(c).(*syntax.Method)
+	if !inMethod {
+		return false
+	}
+	vals := astquery.ClassConstValues(syntax.EnclosingClass(m), id.Value)
+	return len(vals) == 1 && astquery.IsStringLiteral(vals[0])
 }
 
 // singleCharFrom implements D4 on the raw source of a string literal.

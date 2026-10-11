@@ -6,8 +6,10 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 )
 
 // subStrUsedAsStrPos reports prefix checks written as
@@ -98,9 +100,7 @@ func (subStrUsedAsStrPos) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	span := b.Span()
 	msg := "Use '" + repl + "' instead."
-	if loose := b.Op.Kind == syntax.TIsEqual || b.Op.Kind == syntax.TIsNotEqual; loose && !nonNumericLiteral(other) {
-		// `==` compares numeric strings as numbers ("0 " == "00"), strpos()
-		// matches bytes: no fix (custos diverges).
+	if loose := b.Op.Kind == syntax.TIsEqual || b.Op.Kind == syntax.TIsNotEqual; !fixPreservesResult(ctx, loose, other) {
 		ctx.Report(span, msg)
 		return
 	}
@@ -112,11 +112,28 @@ func (subStrUsedAsStrPos) Check(ctx *analysis.Context, n syntax.Node) {
 	})
 }
 
-// nonNumericLiteral reports whether e is a string literal that is not a
-// numeric string: comparing it loosely with a string is a byte comparison.
-func nonNumericLiteral(e syntax.Expr) bool {
-	v, ok := astquery.QuotedStringValue(e)
-	return ok && !isNumericString(v)
+// fixPreservesResult reports whether the position search answers exactly
+// what the comparison with other did (custos diverges):
+//   - other is written twice in the strlen() form and once in the fix, so
+//     it must have no side effects;
+//   - before PHP 8.0 an empty needle makes strpos() warn and return false,
+//     so other must be a non-empty literal;
+//   - `==` compares numeric strings as numbers ("0 " == "00") while strpos()
+//     matches bytes, so other must be a non-numeric literal;
+//   - `===` never matches a non-string, which strpos() would cast, so other
+//     must be a string by syntax or by its natively declared type.
+func fixPreservesResult(ctx *analysis.Context, loose bool, other syntax.Expr) bool {
+	if flowquery.MayHaveSideEffects(other) {
+		return false
+	}
+	val, literal := astquery.QuotedStringValue(other)
+	if ctx.PHP < phpversion.PHP80 && (!literal || val == "") {
+		return false
+	}
+	if loose {
+		return literal && !isNumericString(val) && (ctx.PHP >= phpversion.PHP70 || !isHexString(val))
+	}
+	return astquery.IsStringLiteral(other) || ctx.Types().Native().TypeOf(other).OnlyOf("string")
 }
 
 // prefixLengthMatches reports whether the substr length is the length of the

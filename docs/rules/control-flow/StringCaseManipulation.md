@@ -17,15 +17,13 @@ case-insensitive variants of the position functions (`stripos`, `strripos`,
 
 ## Example
 
-::: code-group
-
-```php{3,4,5,6} [Before]
+```php{3,4,5,6}
 <?php
 function lookup(string $text, string $term, array $row) {
-    $a = strpos(strtoupper($text), $term);
-    $b = strrpos($row['k'], strtolower('abc'));
-    $c = \mb_strpos(mb_strtolower($text), mb_strtoupper($term));
-    $d = mb_strrpos(strtoupper(trim($text)), mb_strtolower($term));
+    $a = strpos(strtoupper($text), strtoupper($term));
+    $b = strrpos(strtolower($row['k']), 'abc');
+    $c = strpos(strtoupper($text), $term);
+    $d = \mb_strpos(mb_strtolower($text), mb_strtolower($term));
 
     $e = strpos(strtolower($text), $term, 3);
     $f = mb_strpos(mb_strtolower($text, 'UTF-8'), $term);
@@ -35,33 +33,14 @@ function lookup(string $text, string $term, array $row) {
     return [$a, $b, $c, $d, $e, $f, $g, $h, $i];
 }
 ```
-
-```php [After fix]
-<?php
-function lookup(string $text, string $term, array $row) {
-    $a = stripos($text, $term);
-    $b = strripos($row['k'], 'abc');
-    $c = mb_stripos($text, $term);
-    $d = mb_strripos(trim($text), $term);
-
-    $e = strpos(strtolower($text), $term, 3);
-    $f = mb_strpos(mb_strtolower($text, 'UTF-8'), $term);
-    $g = strpos(ucfirst($text), $term);
-    $h = $row->strpos(strtolower($text), $term);
-    $i = strpos($text, $row->strtolower($term));
-    return [$a, $b, $c, $d, $e, $f, $g, $h, $i];
-}
-```
-
-:::
 
 Reported:
 
 <ul>
 <li>line 3: Use &#39;stripos($text, $term)&#39; instead of changing the case.</li>
 <li>line 4: Use &#39;strripos($row[&#39;k&#39;], &#39;abc&#39;)&#39; instead of changing the case.</li>
-<li>line 5: Use &#39;mb_stripos($text, $term)&#39; instead of changing the case.</li>
-<li>line 6: Use &#39;mb_strripos(trim($text), $term)&#39; instead of changing the case.</li>
+<li>line 5: Use &#39;stripos($text, $term)&#39; instead of changing the case.</li>
+<li>line 6: Use &#39;mb_stripos($text, $term)&#39; instead of changing the case.</li>
 </ul>
 
 ## Configure

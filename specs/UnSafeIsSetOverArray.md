@@ -54,6 +54,14 @@ Visit every `isset(...)` construct.
   `$this->$name`, unknown receiver type), or when it resolves only to a
   docblock `@property` tag. A constructor-promoted property counts as
   declared (see Divergences).
+  Also not reported (custos diverges, see Divergences) when a resolved
+  declaration is one a null comparison cannot stand in for:
+  - a property with a type declaration and no default value that is not
+    constructor-promoted (instance or static): it may be uninitialized, a
+    state only `isset()` can probe without an `Error`;
+  - a property that is not readable from where the `isset` is written:
+    `private` outside its declaring class (or the class importing it from a
+    trait), `protected` outside the declaring class and its subclasses.
 - **D8** For any remaining non-array-access `A` (variables in a function-like
   scope, resolved declared properties, anything else that passed D6/D7):
   when option `SUGGEST_TO_USE_NULL_COMPARISON` is on **and** the `isset` is not
@@ -64,6 +72,27 @@ Visit every `isset(...)` construct.
     (inverted);
   - yoda comparison style: `null !== A` / `null === A`.
   `A` is the argument's source text verbatim; parts are joined with one space.
+- **D8a** The null-comparison report carries its fix only when the comparison
+  is provably equivalent to the `isset`, including the diagnostics PHP
+  raises. Otherwise the report is kept without a fix.
+  - *Variable*: a plain `$name` (never a variable-variable, never `$this`)
+    that exists for sure at the `isset`: a parameter of the enclosing
+    function-like, a variable imported by the enclosing closure's `use`, or
+    a variable written by a statement that sits in a statement list
+    enclosing the `isset` and precedes it (an assignment statement, a
+    `global` or a `static` declaration). A variable captured implicitly by
+    an arrow function does not qualify. Any `unset($name)` in the same
+    function-like withholds the fix, and a preceding write does not count
+    when the function-like contains a `goto` (the jump may skip it).
+  - *Instance property* `recv->name`: the receiver is `$this`, or a variable
+    qualifying as above, and every resolved type of the receiver is a class
+    (no `null`, no scalar, not unknown) declaring the property; none of
+    those classes has `__isset()` or `__get()` in its hierarchy; and the
+    file contains no `unset()` of a property with that name (an
+    `unset($x->$dynamic)` counts for every name).
+  - *Static property*: the class is written as a name (`self`, `static`,
+    `parent` or a class name), not as an expression.
+  - Anything else: no fix.
 - In all non-array-access cases, processing stops here (no other check applies).
 
 ### Array accesses (A is `container[index]`)
@@ -108,6 +137,8 @@ Visit every `isset(...)` construct.
   any class/interface, the `object` pseudo-type) or `mixed`.
 - **E8** `!(isset(...))` — the `!` is not the direct parent, so the expression
   is treated as non-inverted; the subject is just `isset(...)`.
+- **E9** Declared properties that are typed without a default, or not
+  readable from the scope of the `isset` (D7).
 
 ## Report
 
@@ -125,10 +156,17 @@ Messages (our wording):
 
 ## Fix
 
-- **F1** null-comparison only: replace the subject (`isset(...)` or
-  `!isset(...)`) with `R` verbatim (no parentheses added).
+- **F1** null-comparison only, when D8a holds: replace the subject
+  (`isset(...)` or `!isset(...)`) with `R`.
   `$ok = isset($node);` → `$ok = $node !== null;`;
   `$ok = !isset($this->cache);` → `$ok = $this->cache === null;`.
+- **F2** `R` is wrapped in parentheses when the parent of the subject would
+  otherwise capture part of it: a unary operator or cast (`!`, `-`, `@`,
+  `(int)` …), `instanceof`, or any binary operator other than `&&`, `||`,
+  `and`, `or`, `xor` and `??` (arithmetic, concatenation, bitwise, and the
+  non-associative comparisons). `(int) isset($n)` → `(int) ($n !== null)`;
+  `isset($a) === isset($b)` → `($a !== null) === ($b !== null)`;
+  `!!isset($n)` → `!($n === null)`. The message keeps `R` unparenthesised.
 - The concatenation and array_key_exists problems have no fix.
 
 ## Options
@@ -216,9 +254,21 @@ class Ledger {
   last `[...]` of the access chain, so `$m['a' . $b]['c']` falls through to
   the array_key_exists check although the concatenated key is just as much
   worth precomputing. custos inspects every bracket of the chain.
-- D8 replacement has no parentheses: the fix of `!isset($a) && $b` is fine, but
-  an argument with lower-precedence parts cannot occur (isset only accepts
-  variables/properties/accesses), so no precedence issue is expected.
+- **Parenthesised replacement (custos diverges).** Upstream inserts the
+  comparison as is. That is fine for `!isset($a) && $b`, but next to a
+  tighter operator the result changes meaning (`(int) isset($a)` would
+  become `(int) $a !== null`) or no longer parses (`isset($a) === isset($b)`).
+  custos adds parentheses in those contexts (F2).
+- **Fix only when equivalent (custos diverges).** Upstream offers the
+  rewrite for every reported variable and property. `isset()` is silent
+  where a comparison is not: an undefined variable or a null receiver
+  raises a warning, an `unset()` property is routed to `__get()` instead of
+  `__isset()`. custos keeps the report but offers the fix only under D8a.
+- **Uninitialized and unreadable properties (custos diverges).** Upstream
+  suggests the comparison for any declared property. Reading a typed
+  property before initialization, or a private/protected one from outside,
+  throws an `Error` where `isset()` answers `false`, so the suggestion
+  itself is wrong and custos reports nothing (D7).
 - **Constructor-promoted properties (custos diverges).** Upstream resolves
   a promoted property (PHP 8.0+) to the constructor parameter rather than a
   class-body declaration, so `isset($this->promoted)` never gets the

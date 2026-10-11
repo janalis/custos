@@ -55,7 +55,7 @@ func (arrayUniqueCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return
 	}
-	if !aucSafe(ctx, args[0], ctx.GlobalFunctionName(outer) == "array_keys") {
+	if !aucSafe(ctx, args[0], ctx.GlobalFunctionName(outer) == "array_keys") || aucAliased(ctx, inner, args[0]) {
 		return
 	}
 	span := outer.Span()
@@ -87,4 +87,86 @@ func aucSafe(ctx *analysis.Context, arg syntax.Expr, keys bool) bool {
 		}
 	}
 	return true
+}
+
+// aucAliased reports whether a variable of the argument may be written
+// through a reference somewhere in its scope: neither the inferred element
+// types nor the resolved literal account for such writes, so the proof of
+// the element domain does not hold.
+func aucAliased(ctx *analysis.Context, inner *syntax.FuncCall, arg syntax.Expr) bool {
+	aliased := false
+	visit := func(name string) func(syntax.Node) bool {
+		return func(n syntax.Node) bool {
+			switch x := n.(type) {
+			case *syntax.Param:
+				aliased = aliased || (x.ByRef && x.Var.Name == name)
+			case *syntax.ClosureUse:
+				aliased = aliased || (x.ByRef && x.Var.Name == name)
+			case *syntax.Assign:
+				aliased = aliased || (x.ByRef && astquery.MentionsVariable(x, name))
+			case *syntax.ArrayItem:
+				aliased = aliased || (x.ByRef && astquery.MentionsVariable(x.Value, name))
+			case *syntax.Foreach:
+				// A by-value loop over the array is harmless; the array as a
+				// loop target, or iterated by reference, is not.
+				aliased = aliased || astquery.MentionsVariable(x.Key, name) || astquery.MentionsVariable(x.Value, name) ||
+					(x.ByRef && astquery.MentionsVariable(x.Expr, name))
+			case *syntax.Include, *syntax.Eval:
+				aliased = true // shares the local variables
+			case *syntax.FuncCall:
+				_, extract := astquery.IsFuncNamedFold(x, "extract")
+				aliased = aliased || extract || (x != inner && aucCallMayWrite(ctx, x, x.Args, name))
+			case *syntax.MethodCall:
+				aliased = aliased || aucCallMayWrite(ctx, x, x.Args, name)
+			case *syntax.StaticCall:
+				aliased = aliased || aucCallMayWrite(ctx, x, x.Args, name)
+			case *syntax.New:
+				aliased = aliased || aucCallMayWrite(ctx, x, x.Args, name)
+			}
+			return !aliased
+		}
+	}
+	scope := syntax.EnclosingVariableScope(inner)
+	syntax.Inspect(arg, func(n syntax.Node) bool {
+		if v, ok := n.(*syntax.Variable); ok && !aliased {
+			if scope == nil {
+				syntax.InspectFile(ctx.File, visit(v.Name))
+			} else {
+				syntax.Inspect(scope, visit(v.Name))
+			}
+		}
+		return !aliased
+	})
+	return aliased
+}
+
+// aucCallMayWrite reports whether a call receives $name, or one of its
+// elements, in a position that is not proven to be passed by value.
+func aucCallMayWrite(ctx *analysis.Context, call syntax.Node, list *syntax.ArgList, name string) bool {
+	if list == nil {
+		return false
+	}
+	passed := false
+	for _, a := range list.Args {
+		arg, ok := a.(*syntax.Arg)
+		if !ok {
+			continue
+		}
+		base := syntax.UnwrapParens(arg.Value)
+		for {
+			dim, ok := base.(*syntax.ArrayDimFetch)
+			if !ok {
+				break
+			}
+			base = syntax.UnwrapParens(dim.Var)
+		}
+		if v, ok := base.(*syntax.Variable); ok && v.NameExpr == nil && v.Name == name {
+			passed = true
+		}
+	}
+	if !passed {
+		return false
+	}
+	callee, ok := semanticquery.ResolveCallee(ctx, call)
+	return !ok || semanticquery.ArgBindsByRef(list, callee.Params, true)
 }

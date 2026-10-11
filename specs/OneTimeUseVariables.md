@@ -19,11 +19,13 @@ adding meaning. The value can be used directly at the consumption site.
 Three *consumer* statement shapes are inspected (each gated by an option):
 
 - **D1 (return)** — option `ANALYZE_RETURN_STATEMENTS`. A `return <arg>;`
-  statement. Skip it when the nearest enclosing *named* function or method is
-  declared to return by reference (`function &name()`, a `&` token right before
-  the name, whitespace allowed between). Closures (which have no name) are not
-  subject to this check, and a `return` at file level has no enclosing function
-  so the check does not apply.
+  statement. Skip it when the nearest enclosing function, method or closure is
+  declared to return by reference (`function &name()`, `function &() {…}`: a
+  `&` token right after `function`, whitespace allowed). Only the nearest one
+  counts: a plain closure inside a by-reference method is inspected, a
+  by-reference closure inside a plain function is not (see Divergences). A
+  `return` at file level has no enclosing function so the check does not
+  apply.
 - **D2 (throw)** — option `ANALYZE_THROW_STATEMENTS`. A `throw <arg>;`
   statement (the `throw` is the whole expression of the statement).
 - **D3 (destructuring)** — option `ANALYZE_ARRAY_DESTRUCTURING`. An expression
@@ -31,7 +33,9 @@ Three *consumer* statement shapes are inspected (each gated by an option):
   `list(...) = <arg>` or `[...] = <arg>`, and that assignment is the direct
   expression of the statement (`list($p, $q) = $pair;`, `[$p, $q] = $pair;`).
   Destructuring inside `foreach` or nested in another expression is not
-  inspected.
+  inspected. A pattern that binds any element by reference (`[&$p, $q]`,
+  `['k' => &$p]`, also inside a nested `list()`/`[...]` pattern) is not a
+  consumer: it needs a variable on the right-hand side.
 
 - **D4 (subject variable)** — after removing any parentheses around `<arg>`,
   the subject variable `V` is:
@@ -49,9 +53,9 @@ Three *consumer* statement shapes are inspected (each gated by an option):
   ordinary comments (`//`, `#`, `/* */`). If that sibling is a doc comment
   (`/** */`) or there is no previous sibling, stop. The previous statement
   must be an expression statement whose *first/top* expression is a plain
-  assignment using the `=` operator (by-reference `= &` counts too; compound
-  assignments such as `+=`, `.=`, `??=` do not; a destructuring assignment
-  does not). Its left-hand side must be a plain variable whose name equals
+  assignment using the `=` operator (a by-reference `= &` assignment does
+  not count; compound assignments such as `+=`, `.=`, `??=` do not; a
+  destructuring assignment does not). Its left-hand side must be a plain variable whose name equals
   `V`'s name (case-sensitive). Its value, with surrounding parentheses removed,
   is `VAL` (must exist).
 
@@ -87,15 +91,29 @@ Three *consumer* statement shapes are inspected (each gated by an option):
   read and the assignment itself counts as a write, so a match requires the
   assignment and the consumer to be the only reachable accesses.
 
+- **D8b (dynamic reads)** — stop when `S'` (nested functions and closures
+  excluded) contains a construct that can read `V` without naming it and
+  that may run once the assignment has bound `V`, i.e. it starts after the
+  assignment, or a loop (`while`, `do`, `for`, `foreach`) of `S'` encloses
+  both. Those constructs are: a variable-variable (`$$n`, `${expr}`),
+  `get_defined_vars()`, `include`/`require` (and `_once`), `eval`, and a
+  `compact()` call unless every argument is a plain string literal other
+  than `V`'s name (spread, named, array or computed arguments count as a
+  possible read). Function names are matched on their last segment,
+  case-insensitively. A construct inside the assigned value itself runs
+  before the binding and does not count outside a loop
+  (`$cfg = require 'cfg.php'; return $cfg;` is reported).
+
 - **D9 (version)** — if `VAL` is a `new` expression, report only when the
   configured PHP level is at least 5.4 (the fix may produce
   `(new X())->member`). Other values have no version requirement.
 
-When D1/D2/D3 + D4–D9 all hold, report.
+When D1/D2/D3 + D4–D9 (D8b included) all hold, report.
 
 ## Exceptions (no report)
 
-- **E1** The function/method returns by reference (return consumers only).
+- **E1** The nearest enclosing function, method or closure returns by
+  reference (return consumers only).
 - **E2** `V` is a by-reference parameter or a by-reference closure import of
   the consumer's scope.
 - **E3** Within a function-like scope or at file level, `V` is read or
@@ -113,6 +131,10 @@ When D1/D2/D3 + D4–D9 all hold, report.
 - **E8** Assignment text longer than 80 characters while
   `ALLOW_LONG_STATEMENTS` is off.
 - **E9** `new` value under PHP < 5.4.
+- **E10** The destructuring pattern binds an element by reference (D3).
+- **E11** The assignment is by reference (`$v = &$this->slots[$k];`).
+- **E12** `V` may be read dynamically after the assignment (D8b), e.g.
+  `compact('v')` or `get_defined_vars()` in a `finally` block.
 
 ## Report
 
@@ -130,11 +152,14 @@ When D1/D2/D3 + D4–D9 all hold, report.
   statement (so the consumer moves into the assignment's position).
 - **F3** Replace the subject variable occurrence in the consumer with the
   source text of `VAL` (parentheses around the original value already
-  stripped). When `VAL` is a `new` expression, a ternary (full or short
-  `?:`), a `clone` expression or a `??` expression **and** the subject is the
-  object of a `->` access (D4 second bullet), insert `(` + VAL + `)` instead.
-  Otherwise insert `VAL` unchanged — no parentheses are added in any other
-  case.
+  stripped). When the subject is the object of a `->` access (D4 second
+  bullet) **and** `VAL` cannot be written directly before `->` without
+  changing meaning or failing to parse, insert `(` + VAL + `)` instead:
+  `new`, `clone`, ternary (full or short `?:`), `??` and any other binary
+  expression, `instanceof`, assignment, unary operators and casts, `++`/`--`,
+  closures and arrow functions, `match`, `print`, `yield`, `include`,
+  `throw`, integer and float literals, heredoc and nowdoc strings.
+  Otherwise insert `VAL` unchanged.
 - **F4** Delete the assignment statement (including its `;`).
 
 Resulting shapes:
@@ -145,6 +170,8 @@ Resulting shapes:
 - `$o = clone $proto;⏎return $o->reset();` → `return (clone $proto)->reset();`
 - `$o = $a ?? $b;⏎return $o->id;` → `return ($a ?? $b)->id;`
 - `$o = $a ?: $b;⏎return $o->id;` → `return ($a ?: $b)->id;`
+- `$o = match ($k) { default => new Box };⏎return $o->size;` →
+  `return (match ($k) { default => new Box })->size;`
 - `$pair = [3, 4];⏎[$p, $q] = $pair;` → `[$p, $q] = [3, 4];`
 - `$m = (1 + 2);⏎return $m;` → `return 1 + 2;`
 
@@ -331,12 +358,32 @@ function refParam(&$out) {
   the statement-list approximation of D8 (an access is unreachable when a
   terminating statement precedes it in an enclosing list); it does not
   model constant conditions or loops.
-- Wrapping in F3 is limited to `new`/ternary/`clone`/`??` values. Other
-  low-precedence values used as the object of `->` (e.g. `$o = $a . $b;
-  return $o->x;`, assignments, `instanceof`, arithmetic) are inlined without
-  parentheses and change meaning. Recommendation: also wrap any value whose
-  precedence is lower than member access (binary/unary/assignment/`yield`/
-  `print`/`include`/closure); no upstream fixture covers this.
+- **Wrapping (custos diverges).** Upstream wraps only `new`/ternary/`clone`/
+  `??` values used as the object of `->`. Other values there change meaning
+  (`$o = $a . $b; return $o->x;`) or no longer parse (`match (…) {…}->x`,
+  `5->x`, a heredoc followed by `->`), so custos wraps every value listed in
+  F3; no upstream fixture covers this.
+- **By-reference closures (custos diverges).** Upstream applies the
+  returns-by-reference check to the nearest *named* function only, so a
+  closure is judged by the function around it. custos uses the nearest
+  function-like scope: `function &() { $x = 5; return $x; }` is not reported
+  (`return 5;` there raises "Only variable references should be returned by
+  reference"), while a plain closure inside a by-reference method is.
+- **By-reference destructuring (custos diverges).** `$pair = [1, 2];
+  [&$p, $q] = $pair;` is not reported: `[&$p, $q] = [1, 2];` is a compile
+  error (a reference needs a variable).
+- **By-reference assignment (custos diverges).** Upstream treats
+  `$v = &$this->slots[$k]; return $v;` like a plain assignment. Taking the
+  reference silently creates the missing element (or property, or variable)
+  as null, while `return $this->slots[$k];` leaves it absent and warns, so
+  custos does not report `= &` assignments.
+- **Dynamic reads (custos diverges).** Upstream counts named accesses only.
+  custos also stops on the constructs of D8b: after
+  `$parts = f(); [$a, $b] = $parts;` a later `compact('parts')`, `$$name`,
+  `get_defined_vars()`, `include` or `eval` may still read `$parts`, and so
+  may a `finally` block after `return $res;`. `extract()` only writes and is
+  not in the list. Dynamic function calls (`$fn('parts')`) and `$GLOBALS`
+  are not modelled.
 - A consumer such as `$v->m($v)` reads `V` twice, so D8 suppresses it at
   file level as well as in functions.
 - **Nameless `@var` (custos diverges).** `/** @var \Illuminate\Auth\RequestGuard */

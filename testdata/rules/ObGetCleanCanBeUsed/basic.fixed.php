@@ -12,8 +12,8 @@ function renderPanel($tpl) {
     
 
     ob_start();
-    process(ob_get_clean(), fn() => ob_get_contents());
-    
+    process(ob_get_contents(), fn() => ob_get_contents());
+    \ob_end_clean();
 
     return [$markup, $size];
 }

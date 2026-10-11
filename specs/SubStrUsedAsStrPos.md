@@ -1,8 +1,8 @@
 ---
 id: SubStrUsedAsStrPos
 group: Control flow
-kind: syntax
-needs: []
+kind: semantic
+needs: [names, types]
 php: { min: "", max: "" }
 ---
 
@@ -115,10 +115,28 @@ nothing is reported.
   The original operand order of `B` does not matter: the produced order is
   driven only by the comparison style.
   Examples (regular):
-  - `substr($u, 0, strlen($p)) == $p` → `strpos($u, $p) === 0`
-  - `$p !== substr($u, 0, 4)` → `strpos($u, $p) !== 0`
+  - `substr($u, 0, strlen($p)) === $p` → `strpos($u, $p) === 0`
+  - `'/api' !== substr($u, 0, 4)` → `strpos($u, '/api') !== 0`
   - `mb_strtolower(substr($u, 0, 4)) != 'get:'` → `stripos($u, 'get:') !== 0`
   - `mb_substr($u, 0, mb_strlen($p, $e), $e) == $p` → `mb_strpos($u, $p, 0, $e) === 0`
+
+- **F2** The replacement text always appears in the message, but the
+  quick-fix is offered only when the search provably gives the result of the
+  comparison. All of these must hold, otherwise the finding has no fix:
+  - `O` has no side effects (no call, object creation, assignment,
+    increment…): in the `strlen` form it is written twice and would be
+    evaluated only once afterwards.
+  - Target below PHP 8.0: `O` is a non-empty string literal without
+    interpolation. An empty needle makes the search functions warn and
+    return `false` there, while the comparison holds for an empty prefix.
+  - Loose operator (`==`, `!=`, `<>`): `O` is a string literal without
+    interpolation that is not a numeric string. Below PHP 7.0 a literal
+    starting like a hexadecimal number (`0x…`, after optional whitespace and
+    sign) counts as numeric too.
+  - Strict operator (`===`, `!==`): `O` is a string by syntax (any string
+    literal, interpolated or heredoc included) or its inferred type, taken
+    from native declarations only (PHPDoc ignored), is exactly `string`.
+    A nullable, union, documented-only or unknown type gets no fix.
 
 ## Options
 
@@ -128,13 +146,14 @@ nothing is reported.
 
 ## PHP versions
 
-No gating.
+No gating of the report. The quick-fix is stricter below PHP 8.0 (empty
+needles) and below PHP 7.0 (hexadecimal numeric strings), see F2.
 
 ## Examples
 
 ```php
 <?php
-function routes($uri, $base, $enc) {
+function routes($uri, string $base, $enc) {
     $r = [];
     $r[] = <weak_warning descr="Use 'strpos($uri, $base) === 0' instead.">substr($uri, 0, strlen($base)) == $base</weak_warning>;
     $r[] = <weak_warning descr="Use 'strpos($uri, '/api') !== 0' instead.">'/api' !== substr($uri, 0, 4)</weak_warning>;
@@ -159,12 +178,12 @@ function routes($uri, $base, $enc) {
 
 ```php
 <?php
-function routes($uri, $base, $enc) {
+function routes($uri, string $base, $enc) {
     $r = [];
-    $r[] = strpos($uri, $base) === 0;
+    $r[] = substr($uri, 0, strlen($base)) == $base;
     $r[] = strpos($uri, '/api') !== 0;
     $r[] = \mb_strpos($uri, $base) === 0;
-    $r[] = mb_strpos($uri, $base, 0, $enc) !== 0;
+    $r[] = mb_substr($uri, 0, mb_strlen($base, $enc), $enc) != $base;
     $r[] = stripos($uri, 'get:') === 0;
     $r[] = mb_stripos($uri, 'POST') === 0;
 
@@ -182,8 +201,10 @@ function routes($uri, $base, $enc) {
 }
 ```
 
-Yoda style (`comparisonStyle: yoda`): `substr($uri, 0, strlen($base)) == $base`
-becomes `0 === strpos($uri, $base)`.
+The two loose comparisons against `$base` are reported without a fix (F2).
+
+Yoda style (`comparisonStyle: yoda`): `substr($uri, 0, 4) === '/api'`
+becomes `0 === strpos($uri, '/api')`.
 
 ## Divergences
 
@@ -226,4 +247,20 @@ becomes `0 === strpos($uri, $base)`.
   A loose comparison is still reported, but the quick-fix is offered only
   when the other operand is a string literal that is not numeric; against
   a variable or call (which may hold a numeric string) or a numeric literal
-  there is no fix. Strict comparisons are unchanged.
+  there is no fix.
+- **Strict comparisons need a string operand for the fix (custos
+  diverges).** `substr(...) === $p` is false for every `$p` that is not a
+  string, whereas the search converts its needle: with `$p = 12` the
+  comparison of `'12345'` is false and `strpos('12345', 12) === 0` is true.
+  The fix is withheld unless the operand is a string literal or natively
+  typed `string` (F2); the report stays.
+- **Empty needle before PHP 8.0 (custos diverges).** An empty prefix
+  satisfies the comparison, but `strpos($s, '')` warns and yields `false`
+  on PHP 7 and older. For those targets only a non-empty literal is
+  rewritten (F2).
+- **Operand with side effects (custos diverges).**
+  `substr($s, 0, strlen(next())) === next()` evaluates `next()` twice, the
+  rewritten search once: reported without a fix (F2).
+- **Hexadecimal strings before PHP 7.0 (custos diverges).** PHP 5 compares
+  `'0x1a' == '0x1A'` numerically, so such literals join the numeric ones
+  that block the fix of a loose comparison (F2).

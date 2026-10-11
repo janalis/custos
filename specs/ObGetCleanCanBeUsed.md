@@ -29,7 +29,9 @@ Reading the output buffer with `ob_get_contents()` and then discarding it with
   static calls) in source order, at any depth (call arguments, nested
   expressions), but **not** inside closures, arrow functions or anonymous
   classes (D5). Take the **first** call whose name part is
-  `ob_get_contents` (case-insensitive). If there is none, stop.
+  `ob_get_contents` (case-insensitive). If there is none, stop. A first-class
+  callable (`ob_get_contents(...)`, likewise `ob_end_clean(...)` for D1) only
+  creates a closure; it is not a call and never matches.
 - **D4** Report only if both the `ob_end_clean` call (D1) and that
   `ob_get_contents` call (D3) resolve to the global built-in functions: an
   unqualified call (in or outside a namespace) whose namespaced counterpart is
@@ -46,6 +48,14 @@ Reading the output buffer with `ob_get_contents()` and then discarding it with
   (same scope rule): with two, the second would read a buffer that
   `ob_get_clean()` has already closed.
 
+- **D6** The `ob_get_contents()` call must be evaluated every time the
+  previous statement runs. Nothing is reported when it sits in a part that
+  may be skipped: a branch of a ternary (`?:` included; the condition is
+  fine), the right operand of `&&`, `||`, `and`, `or`, `??` or `??=`, a
+  `match` arm (its conditions or its result), or an argument, subscript or
+  dynamic member name of a chain that a nullsafe `?->` step can cut short.
+  Merging there would leave the buffer open whenever that part is skipped.
+
 ## Exceptions (no report)
 
 - **E1** `ob_end_clean()` used as a value or with a prefix operator.
@@ -57,6 +67,11 @@ Reading the output buffer with `ob_get_contents()` and then discarding it with
   closure, arrow function or anonymous class
   (`$read = fn() => ob_get_contents();`), or the statement calls
   `ob_get_contents()` more than once (`send(ob_get_contents(), ob_get_contents());`).
+
+- **E6** `ob_get_contents(...)` or `ob_end_clean(...)` written as a
+  first-class callable (D3).
+- **E7** The `ob_get_contents()` call is only conditionally evaluated (D6):
+  `$out = $keep ? ob_get_contents() : '';`, `$buf?->store(ob_get_contents());`.
 
 ## Report
 
@@ -75,8 +90,21 @@ Reading the output buffer with `ob_get_contents()` and then discarding it with
   its `;`). Surrounding whitespace is not touched (the line it was on becomes
   blank / the whitespace before and after remains).
 
+- **F3** The fix is offered only when nothing else of the statement can
+  write to or look at the buffer once the call has returned, because that
+  code would then run with the buffer already closed. Walking outwards from
+  the call up to the statement, only these wrappers are accepted:
+  parentheses, a cast, a call to the global `strlen`, `trim`, `ltrim` or
+  `rtrim` with the value as its single (not unpacked) argument, and a plain
+  `=` assignment to a simple `$name` variable. Anything else — `print`, an
+  operator with another operand, a user or other function call, a method
+  call, a compound assignment, a property, element, variable-variable or
+  destructuring target — keeps the report but withholds the fix.
+
 Examples:
 
+- `print ob_get_contents();⏎ob_end_clean();` → reported, not rewritten
+  (the printed text would no longer land in the discarded buffer).
 - `$html = ob_get_contents();⏎ob_end_clean();` → `$html = ob_get_clean();⏎`
 - `$len = strlen(\ob_get_contents());⏎ob_end_clean();` →
   `$len = strlen(\ob_get_clean());⏎`
@@ -173,6 +201,15 @@ function renderPanel($tpl) {
 - **Builtin spelling (custos diverges).** Upstream renames only the
   identifier, so a namespaced or imported `ob_get_clean` captures the
   rewritten call. custos writes `\ob_get_clean` in that case (F1).
+- **Conditional evaluation (custos diverges from upstream).** Upstream
+  merges an `ob_get_contents()` that only runs on some paths of the previous
+  statement, which leaves the buffer open on the others. custos does not
+  report those (D6).
+- **First-class callables (custos diverges).** `ob_get_contents(...)` and
+  `ob_end_clean(...)` are not calls; custos ignores them (D3).
+- **Fix safety (custos diverges).** Upstream rewrites whatever the previous
+  statement does with the value. custos keeps those reports but only offers
+  the rewrite when the rest of the statement is inert (F3).
 - **Formatting (custos).** The removed `ob_end_clean();` statement takes
   the whitespace before it along, so no blank line with trailing spaces is
   left.

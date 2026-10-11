@@ -1,12 +1,15 @@
 package gettypemissuse
 
 import (
+	"strings"
+
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/index"
 )
 
 // getTypeMissUse reports `gettype($x) === 'type'` comparisons replaceable by
@@ -78,9 +81,20 @@ func (getTypeMissUse) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.Report(bin.Span(), "Use '"+repl+"' instead.", diagnostic.Fix{
 		Title: "Use " + pred + "()",
 		Edits: func() []diagnostic.TextEdit {
-			return []diagnostic.TextEdit{{Span: bin.Span(), NewText: repl}}
+			text := repl
+			// `return'string'===gettype($x)`: the predicate (or its leading
+			// backslash) would fuse with the keyword before the literal.
+			if start := bin.Span().Start; repl[0] != '!' && start > 0 && gettypeNameByte(ctx.File.Src[start-1]) {
+				text = " " + repl
+			}
+			return []diagnostic.TextEdit{{Span: bin.Span(), NewText: text}}
 		},
 	})
+}
+
+// gettypeNameByte reports whether c can end a keyword or a name.
+func gettypeNameByte(c byte) bool {
+	return c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= 0x80
 }
 
 // gettypeOperandLiteral resolves e to a single string literal (D3).
@@ -113,5 +127,119 @@ func gettypeOnlyValue(ctx *analysis.Context, e syntax.Expr) bool {
 		return false
 	}
 	_, _, ok := astquery.QuotedStringRaw(vals[0])
-	return ok
+	return ok && !gettypeWrittenIndirectly(ctx, e)
+}
+
+// gettypeWrittenIndirectly reports whether a local variable the value of e
+// derives from may be written without an assignment naming it: it is bound
+// to a by-reference parameter (or passed to a callee that cannot be
+// resolved), aliased with `&`, or its scope writes variables by name
+// (extract(), `$$n`, include, eval). The shared value discovery calls such
+// a variable's assignments complete.
+func gettypeWrittenIndirectly(ctx *analysis.Context, e syntax.Expr) bool {
+	scope := syntax.EnclosingFuncLike(e)
+	if scope == nil {
+		return false // only constants and properties resolve at top level
+	}
+	pending := gettypeVariables(nil, e)
+	if len(pending) == 0 {
+		return false
+	}
+	escaped, deps, dynamic := map[string]bool{}, map[string][]string{}, false
+	escape := func(x syntax.Expr) {
+		if v, ok := syntax.UnwrapParens(x).(*syntax.Variable); ok {
+			escaped[v.Name] = true
+		}
+	}
+	arguments := func(list *syntax.ArgList, f *index.Function) {
+		if list == nil {
+			return
+		}
+		for i, a := range list.Args {
+			if arg, ok := a.(*syntax.Arg); ok && (f == nil || !gettypeBoundByValue(list, i, f.Params)) {
+				escape(arg.Value)
+			}
+		}
+	}
+	syntax.Inspect(scope, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Variable:
+			dynamic = dynamic || x.NameExpr != nil
+		case *syntax.Include, *syntax.Eval:
+			dynamic = true
+		case *syntax.Assign:
+			if x.ByRef {
+				escape(x.Value)
+			}
+			if v, ok := syntax.UnwrapParens(x.Var).(*syntax.Variable); ok {
+				deps[v.Name] = gettypeVariables(deps[v.Name], x.Value)
+			}
+		case *syntax.ArrayItem:
+			if x.ByRef {
+				escape(x.Value)
+			}
+		case *syntax.FuncCall:
+			switch ctx.FunctionName(x) {
+			case "extract", "parse_str":
+				dynamic = true
+			}
+			arguments(x.Args, ctx.Types().ResolveFunction(x))
+		case *syntax.MethodCall:
+			arguments(x.Args, nil)
+		case *syntax.StaticCall:
+			arguments(x.Args, nil)
+		case *syntax.New:
+			arguments(x.Args, nil)
+		}
+		return !dynamic
+	})
+	if dynamic {
+		return true
+	}
+	seen := map[string]bool{}
+	for len(pending) > 0 {
+		name := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if escaped[name] {
+			return true
+		}
+		if !seen[name] {
+			seen[name] = true
+			pending = append(pending, deps[name]...)
+		}
+	}
+	return false
+}
+
+// gettypeVariables appends the names of the variables read under e.
+func gettypeVariables(names []string, e syntax.Expr) []string {
+	syntax.Inspect(e, func(n syntax.Node) bool {
+		if v, ok := n.(*syntax.Variable); ok && v.NameExpr == nil {
+			names = append(names, v.Name)
+		}
+		return true
+	})
+	return names
+}
+
+// gettypeBoundByValue reports whether argument i of list provably binds to
+// a by-value parameter of params.
+func gettypeBoundByValue(list *syntax.ArgList, i int, params []index.Param) bool {
+	arg := list.Args[i].(*syntax.Arg)
+	if arg.ByRef {
+		return false
+	}
+	if arg.Name != nil {
+		for _, p := range params {
+			if strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
+				return !p.ByRef
+			}
+		}
+		return false
+	}
+	if i >= len(params) {
+		// Extra arguments bind to a variadic last parameter, or are ignored.
+		return len(params) == 0 || !params[len(params)-1].Variadic || !params[len(params)-1].ByRef
+	}
+	return !params[i].ByRef
 }

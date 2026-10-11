@@ -19,3 +19,6 @@ foreach ($pairs as $idx => $pair) {
     $copy[0] = $pair[1];
     $copy[1] = $pair[0];                  // E5
 }
+foreach ($pairs as $pair) {
+    list($left, $right) = $pair;          // E1: no header destructuring before PHP 5.5
+}

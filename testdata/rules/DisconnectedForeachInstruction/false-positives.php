@@ -28,3 +28,27 @@ final class Widths
         }
     }
 }
+function nested(array $rows) {
+    foreach ($rows as $row) {
+        [$id, [$first, $last]] = $row;
+        render($last);
+        ['meta' => ['tag' => $tag]] = $row;
+        render($tag);
+        list($a, list($b, list($c))) = $row;
+        render($c);
+        foreach ($row as [$k, [$deep]]) {
+            touch($k);
+        }
+        render($deep);
+    }
+}
+function joined(array $rows, string $sep, array $head) {
+    foreach ($rows as $row) {
+        yield $sep;
+        yield from $head;
+        if ($sep) {
+            yield $sep => $head;
+        }
+        yield $row;
+    }
+}

@@ -1,6 +1,8 @@
 package ifreturnreturnsimplification
 
 import (
+	"bytes"
+
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
@@ -91,13 +93,28 @@ func (ifReturnReturnSimplification) Check(ctx *analysis.Context, n syntax.Node) 
 	if s.Else == nil {
 		span.End = r2.Span().End
 	}
+	// A statement closed by `?>` instead of `;` keeps its closing tag (F4).
+	end := ";"
+	if tag := closeTagStart(ctx.Src, span); tag < span.End {
+		span.End, end = tag, " "
+	}
 	kw := syntax.Span{Start: s.Span().Start, End: s.Span().Start + 2}
 	ctx.Report(kw, "Return the condition directly: '"+repl+"'.", diagnostic.Fix{
 		Title: "Return the condition",
 		Edits: func() []diagnostic.TextEdit {
-			return []diagnostic.TextEdit{{Span: span, NewText: repl + ";"}}
+			return []diagnostic.TextEdit{{Span: span, NewText: repl + end}}
 		},
 	})
+}
+
+// closeTagStart returns the offset of the `?>` that terminates the statement
+// ending at span.End, or span.End when it ends with `;` or `}`.
+func closeTagStart(src []byte, span syntax.Span) uint32 {
+	text := src[span.Start:span.End]
+	if i := bytes.LastIndex(text, []byte("?>")); i >= 0 && len(bytes.TrimRight(text[i+2:], "\r\n")) == 0 {
+		return span.Start + uint32(i)
+	}
+	return span.End
 }
 
 // soleReturn returns the only statement of a block body when it is a return.

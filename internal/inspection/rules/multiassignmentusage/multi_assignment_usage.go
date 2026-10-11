@@ -35,7 +35,8 @@ func (multiAssignmentUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		if !ok || v.NameExpr != nil {
 			return
 		}
-		if fe := declaredByDirectForeach(stmt, v.Name); fe != nil && !mentionedBefore(fe.Body, v) { // D4, D4c
+		fe := declaredByDirectForeach(stmt, v.Name)                                  // D4
+		if fe != nil && targetsFitHeader(as.Var, fe) && !usedElsewhere(ctx, fe, v) { // D4b, D4c
 			ctx.ReportNode(as, "Destructure directly in the foreach header.")
 		}
 	case *syntax.Variable:
@@ -140,7 +141,8 @@ func sameTextIgnoringSpace(a, b string) bool {
 
 // declaredByDirectForeach reports whether stmt is a direct statement of a
 // foreach body (braced, alternative syntax or brace-less) whose header
-// declares $name.
+// declares $name as its by-value value (or inside a destructuring value):
+// the key cannot be a list, and a by-reference value cannot become one.
 func declaredByDirectForeach(stmt syntax.Stmt, name string) *syntax.Foreach {
 	var fe *syntax.Foreach
 	switch p := stmt.Parent().(type) {
@@ -153,24 +155,121 @@ func declaredByDirectForeach(stmt syntax.Stmt, name string) *syntax.Foreach {
 			fe = f
 		}
 	}
-	if fe != nil && (declaresVar(fe.Key, name) || declaresVar(fe.Value, name)) {
+	if fe != nil && !fe.ByRef && declaresVar(fe.Value, name) {
 		return fe
 	}
 	return nil
 }
 
-// mentionedBefore implements D4c: the loop body mentions the destructured
-// variable before the destructuring (`$m[2] ??= null;`), whose effect the
-// header form would skip.
-func mentionedBefore(body syntax.Stmt, v *syntax.Variable) bool {
+// targetsFitHeader implements D4b: the header assigns the value before the
+// key and its own targets left to right, so a target that mentions a
+// variable declared by the header (`[$out[$k], $b] = $row`) would read it
+// too early there; a by-reference target would turn the loop into a
+// by-reference iteration.
+func targetsFitHeader(target syntax.Expr, fe *syntax.Foreach) bool {
+	declared := map[string]bool{}
+	collect := func(n syntax.Node) bool {
+		if v, ok := n.(*syntax.Variable); ok {
+			declared[v.Name] = true
+		}
+		return true
+	}
+	if fe.Key != nil {
+		syntax.Inspect(fe.Key, collect)
+	}
+	syntax.Inspect(fe.Value, collect)
+	fits := true
+	syntax.Inspect(target, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.ArrayItem:
+			fits = fits && !n.ByRef
+		case *syntax.Variable:
+			fits = fits && n.NameExpr == nil && !declared[n.Name]
+		}
+		return fits
+	})
+	return fits
+}
+
+// usedElsewhere implements D4c: the header form no longer assigns $v, so
+// any other mention of it that could observe the loop's value blocks the
+// report. That is every mention in the loop body, every mention after the
+// loop, and, when the loop is nested in another loop, every mention in the
+// outermost of those loops; plus anything that makes the variable outlive
+// the function or reads variables by name.
+func usedElsewhere(ctx *analysis.Context, fe *syntax.Foreach, v *syntax.Variable) bool {
+	var scope syntax.Node
+	region := fe.Span().Start
+	for p := fe.Parent(); p != nil && scope == nil; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.Closure:
+			scope = p
+		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach:
+			region = p.Span().Start
+		}
+	}
 	found := false
-	syntax.Inspect(body, func(n syntax.Node) bool {
-		if o, ok := n.(*syntax.Variable); ok && o.Span().Start < v.Span().Start && o.NameExpr == nil && o.Name == v.Name {
-			found = true
+	var visit func(syntax.Node) bool
+	visit = func(n syntax.Node) bool {
+		if found {
+			return false
+		}
+		start := n.Span().Start
+		switch n := n.(type) {
+		case *syntax.Foreach:
+			// Another loop over the same name assigns it before its body
+			// runs: only its subject can see the earlier value.
+			if n != fe && !n.Span().Contains(fe.Span()) && (isVar(n.Value, v.Name) || isVar(n.Key, v.Name)) {
+				syntax.Inspect(n.Expr, visit)
+				return false
+			}
+		case *syntax.Variable:
+			switch {
+			case n.NameExpr != nil:
+				found = start >= region
+			case n.Name != v.Name || n == v:
+			case start >= region:
+				found = start < fe.Span().Start || start >= fe.Body.Span().Start
+			default:
+				found = outlivesScope(n.Parent())
+			}
+		case *syntax.FuncCall:
+			_, part, _ := astquery.FuncNamePart(n)
+			switch strings.ToLower(part) {
+			case "compact", "extract", "get_defined_vars":
+				found = start >= region
+			}
+		case *syntax.Eval, *syntax.Include:
+			found = start >= region
 		}
 		return !found
-	})
+	}
+	if scope != nil {
+		syntax.Inspect(scope, visit)
+	} else {
+		syntax.InspectFile(ctx.File, visit)
+	}
 	return found
+}
+
+func isVar(e syntax.Expr, name string) bool {
+	v, ok := e.(*syntax.Variable)
+	return ok && v.NameExpr == nil && v.Name == name
+}
+
+// outlivesScope reports a declaration that keeps the variable observable
+// after the function returns: `global`, `static`, a by-reference parameter
+// or a by-reference closure binding.
+func outlivesScope(decl syntax.Node) bool {
+	switch d := decl.(type) {
+	case *syntax.Global, *syntax.StaticVar:
+		return true
+	case *syntax.Param:
+		return d.ByRef
+	case *syntax.ClosureUse:
+		return d.ByRef
+	}
+	return false
 }
 
 func declaresVar(e syntax.Expr, name string) bool {

@@ -10,11 +10,14 @@ function lookup(string $text, string $term, array $row) {
     return [$e, $f, $g, $h, $i, $k, $l];
 }
 
-// Conversions of the other family: mb_strtolower() folds non-ASCII letters,
-// stripos() does not (and mb_stripos() does where strtolower() does not).
+// mb_ conversions and searches are reported without a fix: mb_strtoupper()
+// can change the number of characters ('ß' -> 'SS') and folds letters the
+// case-insensitive searches do not, so matches and offsets differ.
 function families(string $s, string $t) {
     $r = [];
     $r[] = <weak_warning descr="Use 'stripos($s, 'é')' instead of changing the case.">strpos(mb_strtolower($s), 'é')</weak_warning>;
     $r[] = <weak_warning descr="Use 'mb_stripos($s, $t)' instead of changing the case.">mb_strpos(strtolower($s), strtolower($t))</weak_warning>;
+    $r[] = <weak_warning descr="Use 'mb_stripos($s, $t)' instead of changing the case.">mb_strpos(mb_strtoupper($s), mb_strtoupper($t))</weak_warning>;
+    $r[] = <weak_warning descr="Use 'mb_strripos($s, $t)' instead of changing the case.">mb_strrpos(mb_strtolower($s), mb_strtolower($t))</weak_warning>;
     return $r;
 }

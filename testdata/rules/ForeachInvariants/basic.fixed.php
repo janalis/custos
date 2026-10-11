@@ -4,8 +4,8 @@ function render(array $rows, $cap) {
         print $rows[$n];
         echo $nValue->title, " ($nValue) ";
         $label = strtoupper($nValue);
-        $alias = &$rows[$n];
         if ($nValue instanceof Stringable) {}
+        $alias = &$rows[$n];
     }
     foreach ($rows as $n => $nValue) {
         $rows[$n][1] = 'x';

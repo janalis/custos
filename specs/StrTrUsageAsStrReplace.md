@@ -106,6 +106,25 @@ each expression at most once, with surrounding parentheses removed first:
   Examples:
   - `strtr($name, '-', '_')` → `str_replace('-', '_', $name)`
   - `\strtr($row, "\t", ';')` → `\str_replace("\t", ';', $row)`
+- **F2** The fix is offered only when both `from` and `to` are **proven** to
+  be the resolved literal on every execution. An argument is proven when,
+  with surrounding parentheses removed, it is:
+  - a string literal; or
+  - `self::NAME` (any case of `self`) written directly in a method body
+    (not inside a closure or arrow function, which can be rebound to another
+    class), where the enclosing class declares `NAME` exactly once and its
+    value is itself a string literal.
+
+  Everything else that D3 resolves through the possible-values set — a local
+  variable, a parameter with a default, a property, `static::NAME`,
+  `Other::NAME`, a constant aliasing another constant, a global constant, a
+  ternary or `??` — is reported **without a fix**. The set only lists values
+  visible in the source: a caller can pass another argument, a property can
+  be written elsewhere, and a variable can be rebound by `foreach`,
+  destructuring, a by-reference call or a value read from data. Whenever the
+  runtime string is longer than one byte `strtr` maps characters one by one
+  while `str_replace` looks for the whole substring, so the rewrite would
+  change the result.
 
 ## Options
 
@@ -144,7 +163,7 @@ function slug($title, $glue = '+') {
     $b = \str_replace("\t", ';', $title);
     $c = str_replace('\'', '`', $title);
     $d = str_replace("\$", 'S', $title);
-    $e = str_replace($glue, ' ', $title);
+    $e = strtr($title, $glue, ' ');
 
     $f = strtr($title, '--', '_');
     $k = strtr($title, '-', '');
@@ -159,6 +178,14 @@ function slug($title, $glue = '+') {
 
 ## Divergences
 
+- **Fix limited to proven values — custos diverges from upstream** (F2).
+  Upstream rewrites every reported call, including those whose `from`/`to`
+  was only guessed from a parameter default, a property default or one
+  assignment among other writes. `slug('a+b-ab', 'ab')` with
+  `function slug($title, $glue = '+') { return strtr($title, $glue, ' '); }`
+  gives `" +b- b"` before and `"a+b- "` after such a rewrite. custos keeps
+  the report but only offers the fix for literals and literal `self::`
+  constants.
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - **`to` length — custos diverges from upstream** (D5). Upstream reports and
   rewrites whatever `to` is. With a one-character `from`, `strtr` uses only

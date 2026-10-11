@@ -53,10 +53,17 @@ func (strlenInEmptyStringCheckContext) Check(ctx *analysis.Context, n syntax.Nod
 	if ctx.ComparisonStyle == analysis.StyleYoda {
 		repl = "'' " + op + " " + v
 	}
+	// F1b: the comparison replaces an operand of `!`, a cast, arithmetic,
+	// concatenation or another comparison; without parentheses it would
+	// regroup or chain non-associative operators (custos diverges).
+	text := repl
+	if astquery.NeedsParensAsComparison(target) {
+		text = "(" + repl + ")"
+	}
 	ctx.ReportNode(target, "Compare with an empty string instead: '"+repl+"'.", diagnostic.Fix{
 		Title: "Compare with an empty string",
 		Edits: func() []diagnostic.TextEdit {
-			return []diagnostic.TextEdit{{Span: target.Span(), NewText: repl}}
+			return []diagnostic.TextEdit{{Span: target.Span(), NewText: text}}
 		},
 	})
 }

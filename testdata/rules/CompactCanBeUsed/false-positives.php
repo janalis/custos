@@ -11,6 +11,8 @@ function payload($id, $tag, $note, $rows) {
     $k = ['id' => &$id, 'tag' => &$tag];
     $l = ['id' => $id, ...$rows];
     $m = [];
+    $n = ['_GET' => $_GET, '_SERVER' => $_SERVER];
+    $o = ['id' => $id, 'GLOBALS' => $GLOBALS];
     ['id' => $id, 'tag' => $tag] = load();
     [['id' => $id, 'tag' => $tag]] = load();
     foreach ($rows as ['id' => $id, 'tag' => $tag]) {}

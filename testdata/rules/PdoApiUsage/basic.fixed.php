@@ -22,6 +22,10 @@ class Repo
         $local = new PDO('sqlite::memory:');
         $q = $local->prepare('SELECT 6', []);
         $q->execute();
+
+        $args = ['SELECT 7', [\PDO::ATTR_CURSOR => \PDO::CURSOR_FWDONLY]];
+        $spread = $local->prepare(...$args);
+        $spread->execute();
         return [$ping, $sub, $q];
     }
 }

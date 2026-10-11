@@ -13,6 +13,6 @@ namespace Search {
 
 namespace {
     function find(string $text, string $term) {
-        return mb_strripos($text, $term);
+        return MB_StrRPos(Mb_StrToUpper($text), MB_STRTOUPPER($term));
     }
 }

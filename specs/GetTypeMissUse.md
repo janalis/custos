@@ -110,6 +110,11 @@ Possibilities are resolved recursively with these same rules.
   the reported position would not reach the global function (a `use function` import under that name, or a same-named function declared in the current namespace):
   with `use function Polyfill\is_int;`, `gettype($x) === 'integer'` →
   `\is_int($x)`.
+  When the comparison directly follows a keyword or name without whitespace
+  (possible when the string literal is the left operand:
+  `return'string'===gettype($x)`), one space is written before a replacement
+  that starts with the predicate or its backslash, so the two do not fuse:
+  `return is_string($x)`. A replacement starting with `!` needs none.
 - M2 has no fix.
 
 ## Options
@@ -190,3 +195,15 @@ function kinds($item, $mode = 'array') {
   redeclare (MediaWiki's `NumericDef::$valueType = 'integer'`, redeclared
   `'double'` by `FloatDef`) would make `is_int()` test the wrong type. The
   invalid-name report (D4b) keeps the spec's resolution.
+- **Indirect writes (custos diverges from D3).** The value set of a local
+  variable is not complete, so D4a stays silent, when the variable — or a
+  variable one of its plain assignments reads — may be written without an
+  assignment naming it anywhere in the enclosing function: it is passed
+  directly as an argument that binds to a by-reference parameter
+  (`sscanf($s, '%s', $t)`, a variadic by-reference tail, a call-time `&$t`)
+  or to a callee whose parameters are not known (method, static method,
+  constructor, dynamic or unresolved function, unknown named parameter); it
+  is aliased (`$r = &$t`, `[&$t]`); or the function contains `extract()`,
+  `parse_str()`, a variable-variable, `include`/`require` or `eval`.
+  Passing it to a resolved function's by-value parameter keeps the report.
+  D4b is unaffected.

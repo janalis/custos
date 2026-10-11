@@ -7,12 +7,12 @@ class Slugger {
         $b = \str_replace("\t", ';', $title);
         $c = str_replace('\'', '`', $title);
         $d = str_replace("\$", 'S', $title);
-        $e = str_replace($glue, ' ', $title);
+        $e = strtr($title, $glue, ' ');
         $f = str_replace(self::SEP, ' ', $title);
-        $g = str_replace($this->glue, ' ', $title);
-        $h = str_replace($flag ? '!' : null, ' ', $title);
+        $g = strtr($title, $this->glue, ' ');
+        $h = strtr($title, $flag ? '!' : null, ' ');
         $local = '#';
-        $i = str_replace($local, ' ', $title);
+        $i = strtr($title, $local, ' ');
         return [$a, $b, $c, $d, $e, $f, $g, $h, $i];
     }
 }

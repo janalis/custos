@@ -60,7 +60,9 @@ func (invertedIfElseConstructs) Check(ctx *analysis.Context, n syntax.Node) {
 		if len(atoms) != 1 {
 			return
 		}
-		if atoms[0] == "bool" { // F1: `false !== X` is just X for a bool
+		// F1: `false !== X` is just X for a bool, but only one PHP enforces:
+		// a documented bool may hold 0 or null, which are not `=== false`.
+		if native := ctx.Types().Native().TypeOf(x).Atoms(); atoms[0] == "bool" && len(native) == 1 && native[0] == "bool" {
 			newCond = ctx.Text(x)
 		} else {
 			newCond = ctx.Text(c.Left) + " !== " + ctx.Text(c.Right)

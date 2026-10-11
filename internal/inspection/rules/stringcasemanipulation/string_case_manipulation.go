@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 )
 
 // stringCaseManipulation reports position searches whose haystack/needle is
@@ -47,8 +48,9 @@ func (stringCaseManipulation) Check(ctx *analysis.Context, n syntax.Node) {
 	var parts [2]string
 	var dirs [2]byte // 'l' lower-cased, 'u' upper-cased, 0 kept
 	found := false
-	mixed := false           // a conversion of the other family (mb_ / byte) than the search
-	for i, a := range args { // D3
+	multibyte := strings.HasPrefix(variant, "mb_") // an mb_ search or conversion
+	needle := args[1]                              // without its conversion
+	for i, a := range args {                       // D3
 		parts[i] = ctx.Text(a)
 		inner, ok := a.(*syntax.FuncCall)
 		if !ok {
@@ -63,7 +65,10 @@ func (stringCaseManipulation) Check(ctx *analysis.Context, n syntax.Node) {
 			continue
 		}
 		parts[i] = ctx.Text(iargs[0])
-		mixed = mixed || strings.HasPrefix(conv, "mb_") != strings.HasPrefix(variant, "mb_")
+		multibyte = multibyte || strings.HasPrefix(conv, "mb_")
+		if i == 1 {
+			needle = iargs[0]
+		}
 		dirs[i] = 'l'
 		if strings.HasSuffix(conv, "upper") {
 			dirs[i] = 'u'
@@ -77,10 +82,13 @@ func (stringCaseManipulation) Check(ctx *analysis.Context, n syntax.Node) {
 	repl := semanticquery.QualifiedBuiltin(ctx, variant, call.Span().Start) + "(" + parts[0] + ", " + parts[1] + ")"
 	span := call.Span()
 	msg := "Use '" + repl + "' instead of changing the case."
-	// custos: mb_strtolower() folds non-ASCII letters (and changes byte
-	// offsets) where stripos() does not, and the reverse for mb_stripos()
-	// over strtolower(): only a conversion of the search's family matches.
-	if mixed || !caseSearchEquivalent(args, dirs) {
+	// custos: mb_strtolower()/mb_strtoupper() map some letters to a different
+	// number of characters ('ß' -> 'SS') and fold others than stripos() or
+	// mb_stripos() do, so matches and offsets differ: only the byte family
+	// is rewritten. Before PHP 8.0 stripos() reads a non-string needle as a
+	// character code, where the conversion made it a string.
+	if multibyte || !caseSearchEquivalent(args, dirs) ||
+		(ctx.PHP < phpversion.PHP80 && !ctx.TypeOf(needle).OnlyOf("string")) {
 		ctx.Report(span, msg)
 		return
 	}

@@ -3,7 +3,7 @@ namespace Routing {
     function substr($s, $o, $l) { return $s; }
     function strtoupper($s) { return $s; }
 
-    function match($uri, $base) {
+    function match($uri, string $base) {
         $r = [];
         $r[] = substr($uri, 0, \strlen($base)) == $base;
         $r[] = strtoupper(\substr($uri, 0, 3)) === 'GET';
@@ -14,7 +14,7 @@ namespace Routing {
 }
 
 namespace {
-    function match($uri, $base) {
+    function match($uri, string $base) {
         $r = [];
         $r[] = mb_strpos($uri, $base) !== 0;
         $r[] = stripos($uri, 'GET') === 0;

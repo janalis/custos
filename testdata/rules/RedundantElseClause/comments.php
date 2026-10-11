@@ -12,3 +12,6 @@ function f($a) {
         work();
     }
 }
+function g($a) { if ($a) { return 1; } <warning descr="Drop the 'else' and move its code after the 'if'.">else</warning> {
+    work(); // done
+} work(); return 2; }

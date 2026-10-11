@@ -102,6 +102,12 @@ text kept verbatim).
     everything from the start of `S` through the end of `R2` (including any
     whitespace and comments between them) is removed.
   The indentation before `S` is kept; text after `R2` is untouched.
+- **F4** Closing tag: when the replaced range ends with a `?>` closing tag
+  standing in for the statement terminator (`return false ?>`, or
+  `endif ?>` in the alternative syntax), the tag and everything after it are
+  kept: the range stops right before `?>` and the new statement is written
+  without its `;` (`return T ?>`), so the code following the tag is still
+  parsed as before.
 
 ## Options
 

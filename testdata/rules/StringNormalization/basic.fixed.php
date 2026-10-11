@@ -2,7 +2,7 @@
 function tidy($code) {
     $r = [];
     $r[] = strtoupper(ltrim($code));
-    $r[] = mb_strtolower(substr($code, 0, 3));
+    $r[] = substr(mb_strtolower($code), 0, 3);
     $r[] = mb_convert_case(rtrim($code, '-'), MB_CASE_TITLE);
     $r[] = mb_convert_case(trim($code), $code . 'x');
 

@@ -20,7 +20,7 @@ subject against a related type.
 
 ## Example
 
-```php{3,4,5,6,7,8,24,37,38,46,47,51,58,59}
+```php{3,4,5,6,7,8,28,41,42,50,51,55,62,63}
 <?php
 // D1 ordering
 if (strlen($name) > 3 && $enabled) {}
@@ -44,6 +44,10 @@ if (recompute($totals) > 0 && $dirty) {}       // user function: impure
 if (strlen(file_get_contents($path)) && $ok) {}
 if ($repo->find($id) || empty($cache)) {}       // method call: impure
 if (isset($rows[md5($k)]) && $rows) {}          // S3: $rows itself is guarded
+if (($n = count($rows)) === 0 || $force) {}     // S4: assignment
+if (strlen($name) > $i++ && $enabled) {}        // S4: ++ writes $i
+if (in_array($k, $keys, true) && $map[$k] > 1) {} // S6: guarded array access
+if (abs($step) > 0 && $total % $step === 0) {}  // S6: guarded divisor
 if (fetch($a) and $b) {} // one operand for D1
 
 // property fetches
@@ -92,14 +96,14 @@ Reported:
 <li>line 6: Cheaper check placed after a costlier one; evaluate it first.</li>
 <li>line 7: Cheaper check placed after a costlier one; evaluate it first.</li>
 <li>line 8: Cheaper check placed after a costlier one; evaluate it first.</li>
-<li>line 24: Use &#39;&amp;&amp;&#39; instead of &#39;and&#39;.</li>
-<li>line 37: Cheaper check placed after a costlier one; evaluate it first.</li>
-<li>line 38: Cheaper check placed after a costlier one; evaluate it first.</li>
-<li>line 46: Use &#39;&amp;&amp;&#39; instead of &#39;and&#39;.</li>
-<li>line 47: Use &#39;||&#39; instead of &#39;or&#39;.</li>
-<li>line 51: Equality check on a value also tested with instanceof; verify the logic.</li>
-<li>line 58: Redundant instanceof: another check on the same value already covers this type.</li>
-<li>line 59: Redundant instanceof: another check on the same value already covers this type.</li>
+<li>line 28: Use &#39;&amp;&amp;&#39; instead of &#39;and&#39;.</li>
+<li>line 41: Cheaper check placed after a costlier one; evaluate it first.</li>
+<li>line 42: Cheaper check placed after a costlier one; evaluate it first.</li>
+<li>line 50: Use &#39;&amp;&amp;&#39; instead of &#39;and&#39;.</li>
+<li>line 51: Use &#39;||&#39; instead of &#39;or&#39;.</li>
+<li>line 55: Equality check on a value also tested with instanceof; verify the logic.</li>
+<li>line 62: Redundant instanceof: another check on the same value already covers this type.</li>
+<li>line 63: Redundant instanceof: another check on the same value already covers this type.</li>
 </ul>
 
 ## Options

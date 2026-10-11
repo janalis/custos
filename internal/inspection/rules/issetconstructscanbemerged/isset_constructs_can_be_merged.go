@@ -73,6 +73,12 @@ func (issetConstructsCanBeMerged) Check(ctx *analysis.Context, n syntax.Node) {
 	if op == syntax.TBooleanOr {
 		prefix, sep, msg = "!isset(", " || ", "Merge this check into the preceding !isset() call."
 	}
+	// F2: fragments between the hits short-circuit the second check, so it
+	// only moves in front of them when evaluating it early is unobservable.
+	if second != first+1 && !plainVariables(hits[1]) {
+		ctx.Report(hits[1].Span(), msg)
+		return
+	}
 	span := root.Span()
 	ctx.Report(hits[1].Span(), msg, diagnostic.Fix{
 		Title: "Merge isset() calls",
@@ -126,4 +132,15 @@ func issetFragment(f syntax.Expr, negated bool) *syntax.Isset {
 		return nil
 	}
 	return is
+}
+
+// plainVariables reports whether every argument of is is a named variable:
+// testing it cannot throw, call a magic method or evaluate an offset.
+func plainVariables(is *syntax.Isset) bool {
+	for _, v := range is.Vars {
+		if va, ok := v.(*syntax.Variable); !ok || va.NameExpr != nil {
+			return false
+		}
+	}
+	return true
 }

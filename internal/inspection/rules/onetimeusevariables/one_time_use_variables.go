@@ -42,13 +42,21 @@ func (oneTimeUseVariables) Check(ctx *analysis.Context, n syntax.Node) {
 			if !ctx.Bool("ANALYZE_ARRAY_DESTRUCTURING") || e.Op.Kind != syntax.TEqual {
 				return
 			}
+			var items []*syntax.ArrayItem
 			switch t := e.Var.(type) {
 			case *syntax.List:
+				items = t.Items
 			case *syntax.Array:
 				if !t.Short {
 					return
 				}
+				items = t.Items
 			default:
+				return
+			}
+			// custos: a pattern binding by reference needs a variable to
+			// destructure, a value there is a compile error
+			if otuBindsByRef(items) {
 				return
 			}
 			arg = e.Value
@@ -72,7 +80,9 @@ func (oneTimeUseVariables) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	as, ok := ps.Expr.(*syntax.Assign)
-	if !ok || as.Op.Kind != syntax.TEqual || as.Value == nil {
+	// custos: `= &` is left alone, taking the reference creates a missing
+	// element or property that reading the value would only warn about
+	if !ok || as.Op.Kind != syntax.TEqual || as.Value == nil || as.ByRef {
 		return
 	}
 	lhs, ok := as.Var.(*syntax.Variable)
@@ -120,6 +130,12 @@ func (oneTimeUseVariables) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 
+	// custos: compact(), $$name, get_defined_vars(), include and eval read
+	// the variable without naming it
+	if otuReadDynamically(ctx.File, scope, as, name) {
+		return
+	}
+
 	if _, isNew := val.(*syntax.New); isNew && ctx.PHP < phpversion.PHP54 { // D9
 		return
 	}
@@ -141,6 +157,88 @@ func (oneTimeUseVariables) Check(ctx *analysis.Context, n syntax.Node) {
 			return append(edits, diagnostic.TextEdit{Span: subject.Span(), NewText: text}) // F3
 		},
 	})
+}
+
+// otuBindsByRef reports whether a destructuring pattern, nested patterns
+// included, binds an element by reference.
+func otuBindsByRef(items []*syntax.ArrayItem) bool {
+	for _, it := range items {
+		if it == nil {
+			continue
+		}
+		if it.ByRef {
+			return true
+		}
+		switch v := it.Value.(type) {
+		case *syntax.List:
+			if otuBindsByRef(v.Items) {
+				return true
+			}
+		case *syntax.Array:
+			if otuBindsByRef(v.Items) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// otuReadDynamically reports whether scope (nil = file level) holds a
+// construct that may read $name without naming it and that can run once as
+// has bound the variable: it follows the assignment, or shares a loop with
+// it. Nested functions and closures are separate scopes.
+func otuReadDynamically(f *syntax.File, scope syntax.Node, as *syntax.Assign, name string) bool {
+	from := as.Span().End
+	for p := as.Parent(); p != nil && p != scope; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach:
+			from = p.Span().Start
+		}
+	}
+	found := false
+	visit := func(n syntax.Node) bool {
+		if found || syntax.IsFuncLike(n) {
+			return false
+		}
+		if n.Span().Start < from {
+			return true
+		}
+		switch x := n.(type) {
+		case *syntax.Variable:
+			found = x.NameExpr != nil
+		case *syntax.Eval, *syntax.Include:
+			found = true
+		case *syntax.FuncCall:
+			found = otuReadsByName(x, name)
+		}
+		return !found
+	}
+	if scope == nil {
+		syntax.InspectFile(f, visit)
+	} else {
+		syntax.Inspect(syntax.FuncLikeBody(scope), visit)
+	}
+	return found
+}
+
+// otuReadsByName reports whether call is get_defined_vars(), or a compact()
+// that names $name or takes names that are not plain string literals.
+func otuReadsByName(call *syntax.FuncCall, name string) bool {
+	switch strings.ToLower(astquery.CallLastName(call)) {
+	case "get_defined_vars":
+		return true
+	case "compact":
+		args, ok := astquery.CallArgValues(call)
+		if !ok {
+			return true
+		}
+		for _, a := range args {
+			if s, lit := astquery.QuotedStringValue(a); !lit || s == name {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // otuReachable reports whether n can be reached from the entry of scope
@@ -167,14 +265,17 @@ func otuReachable(f *syntax.File, n, scope syntax.Node) bool {
 	return true
 }
 
-// otuReturnsByRef reports whether the nearest enclosing named function or
-// method returns by reference (closures are skipped).
+// otuReturnsByRef reports whether the nearest enclosing function, method or
+// closure returns by reference: returning a value there instead of the
+// variable raises a notice (custos: closures count too).
 func otuReturnsByRef(n syntax.Node) bool {
 	for p := n.Parent(); p != nil; p = p.Parent() {
 		switch f := p.(type) {
 		case *syntax.Function:
 			return f.ByRef
 		case *syntax.Method:
+			return f.ByRef
+		case *syntax.Closure:
 			return f.ByRef
 		}
 	}
@@ -240,9 +341,13 @@ func otuVarAnnotated(ctx *analysis.Context, as *syntax.Assign, name string) bool
 // otuNeedsParens reports whether val must be parenthesised to become the
 // object of a `->` access.
 func otuNeedsParens(val syntax.Expr) bool {
-	switch val.(type) {
-	case *syntax.New, *syntax.Clone, *syntax.Unary, *syntax.Closure, *syntax.IncDec:
+	switch v := val.(type) {
+	case *syntax.New, *syntax.Clone, *syntax.Unary, *syntax.Closure, *syntax.IncDec, *syntax.Match:
 		return true
+	case *syntax.Literal: // `5->a` and a heredoc followed by `->` do not parse
+		return v.LitKind != syntax.LitString || strings.HasPrefix(v.Raw, "<<<")
+	case *syntax.InterpolatedString:
+		return v.Heredoc
 	}
 	return astquery.NeedsParensAsUnaryOperand(val)
 }

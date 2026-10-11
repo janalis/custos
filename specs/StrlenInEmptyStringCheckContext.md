@@ -120,6 +120,16 @@ an encoding argument is explicit.
     (`==`, `!=`, `===`, `!==`, `<=>`), ternaries, assignments and the same
     keyword expressions — `($p ?: $q) !== ''`. Tighter-binding operands
     such as `$p . $tail` are left as is.
+  - **F1b** Parenthesise the whole replacement (custos diverges, see
+    Divergences) when the target is a direct operand of something binding
+    at least as tightly as `===`: a unary operator or cast (`!`, `-`, `+`,
+    `~`, `@`, `(int)`…), `instanceof`, or a binary operator other than the
+    logical (`&&`, `||`, `and`, `or`, `xor`), bitwise (`&`, `|`, `^`) and
+    `??` ones — so comparison, equality, `<=>`, `|>`, `.`, shift and
+    arithmetic parents all get `(…)`: `!!strlen($s)` → `!((string)$s === '')`,
+    `strlen($s) > 0 === $on` → `((string)$s !== '') === $on`. Both operand
+    orders are wrapped alike. The reported message keeps the bare
+    comparison text.
   - The operand order follows the global comparison style setting
     (`comparisonStyle`, default `regular`):
     - regular: `{v} {op} ''`
@@ -195,6 +205,14 @@ class Form
 - Replacing a bare `L` inside a `&&`/`||`/`and`/`or` operand keeps
   precedence correct for `===`/`!==` in all those contexts, so no change is
   needed there.
+- **Parenthesised replacement (custos diverges).** A target such as
+  `!strlen($s)` or `strlen($s) > 0` can itself be the operand of a
+  tighter-binding or non-associative operator. Dropping the comparison in
+  unparenthesised then regroups the expression (`!!strlen($s)` would become
+  `!(string)$s === ''`, negating the string first; `!strlen($s) . 'x'`
+  would compare with `'' . 'x'`) or chains two comparisons, which PHP
+  rejects (`!strlen($a) === !strlen($b)`). custos wraps the replacement in
+  parentheses in those positions (F1b). Not covered by upstream fixtures.
 - **Top-level code (custos diverges).** Upstream only reports calls that
   have a function-like or class ancestor, so the same `strlen($s) > 0` in a
   plain script file goes unreported. Nothing about the pattern depends on

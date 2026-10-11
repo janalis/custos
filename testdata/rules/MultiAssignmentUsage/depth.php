@@ -1,6 +1,6 @@
 <?php
 foreach ($records as $key => $record):
-    <weak_warning descr="Destructure directly in the foreach header.">list($id, $label) = $record</weak_warning>;
+    list($id, $label) = $record;          // D4c: $record is still read below
     try {
         [$first] = $record;               // E2b: inside try
     } catch (\Throwable $t) {}

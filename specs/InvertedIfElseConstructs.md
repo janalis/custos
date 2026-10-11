@@ -61,13 +61,20 @@ Visit every `else` branch `E` (the plain `else` keyword; an `else if (…)` is a
 - **F1** New condition text `N`:
   - D4a: the verbatim source text of `X'` (parentheses that wrapped `X` are
     dropped: `!($a === $b)` → `$a === $b`);
-  - D4b, when the single type of `X'` is `bool`: the verbatim source text of
-    `X'` (`false === check()` → `check()`), since `false !== b` and `b` are
-    the same test for a boolean;
-  - D4b otherwise (a single non-`bool` type such as `int`, `true`, `false`):
+  - D4b, when the single type of `X'` is `bool` **and PHP enforces it**: the
+    verbatim source text of `X'` (`false === check()` → `check()`), since
+    `false !== b` and `b` are the same test for a boolean. The type is
+    enforced when it still resolves to exactly `bool` with every user PHPDoc
+    ignored (`@return`, `@param`, `@var`, inline `@var`): a declared `: bool`
+    return type, a `bool` parameter or property type, a comparison, a
+    `(bool)` cast, a builtin declared to return `bool`;
+  - D4b otherwise (a single non-`bool` type such as `int`, `true`, `false`,
+    or a `bool` that only a docblock promises):
     `Ltext !== Rtext` — the verbatim texts of the original left and right
     operands (not parenthesis-stripped) joined by ` !== ` (single spaces),
-    keeping their order (the shorter form would change the meaning there).
+    keeping their order (the shorter form would change the meaning there:
+    a function documented `@return bool` may well return `0` or `null`,
+    which are not identical to `false` but are falsy).
 - **F2** The whole content between the condition's parentheses of `P`
   (including any padding whitespace, e.g. `( ! ready() )`) is replaced so that
   it reads `(N)` — no space after `(` or before `)`.
@@ -153,6 +160,9 @@ if (!ready()) { a(); }
   very thing the rule complains about. When `x()` is known to be `bool`,
   custos emits the plain positive condition `x()` (F1); other single types
   keep the `!==` form, where dropping `false` would change the meaning.
+  A `bool` known from PHPDoc only still satisfies D4b (the report is kept,
+  as upstream), but gets the `!==` form too: nothing forces the documented
+  type to hold at run time.
 - D4b's "exactly one resolved type" depends on the type engine: our engine may
   resolve more or fewer expressions than upstream. Recommendation: report only
   when the type is certain (declared non-nullable return type of a resolved

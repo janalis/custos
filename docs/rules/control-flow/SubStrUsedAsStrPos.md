@@ -22,7 +22,7 @@ piece was case-folded first.
 
 ```php{4,5,6,7,8,9} [Before]
 <?php
-function routes($uri, $base, $enc) {
+function routes($uri, string $base, $enc) {
     $r = [];
     $r[] = substr($uri, 0, strlen($base)) == $base;
     $r[] = '/api' !== substr($uri, 0, 4);
@@ -47,12 +47,12 @@ function routes($uri, $base, $enc) {
 
 ```php [After fix]
 <?php
-function routes($uri, $base, $enc) {
+function routes($uri, string $base, $enc) {
     $r = [];
-    $r[] = strpos($uri, $base) === 0;
+    $r[] = substr($uri, 0, strlen($base)) == $base;
     $r[] = strpos($uri, '/api') !== 0;
     $r[] = \mb_strpos($uri, $base) === 0;
-    $r[] = mb_strpos($uri, $base, 0, $enc) !== 0;
+    $r[] = mb_substr($uri, 0, mb_strlen($base, $enc), $enc) != $base;
     $r[] = stripos($uri, 'get:') === 0;
     $r[] = mb_stripos($uri, 'POST') === 0;
 

@@ -22,7 +22,7 @@ class Ledger {
         $p = $this->total !== null;
         $q = $tmp === null;
         $s = self::$shared !== null;
-        $o = $other->total !== null;
+        $o = isset($other->total);
         $n = !($field !== null);
         $z = isset($grid['a']) ? $grid['a'] : \null;
         $y = isset($grid['a']) ? $grid['a'] : (null);

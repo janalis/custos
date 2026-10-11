@@ -2,7 +2,7 @@
 function tidy($code) {
     $r = [];
     $r[] = <weak_warning descr="Cut first, then change the case: 'strtoupper(ltrim($code))'.">ltrim(strtoupper($code))</weak_warning>;
-    $r[] = <weak_warning descr="Cut first, then change the case: 'mb_strtolower(substr($code, 0, 3))'.">substr(mb_strtolower($code), 0, 3)</weak_warning>;
+    $r[] = <weak_warning descr="Cut first, then change the case (check multibyte input by hand).">substr(mb_strtolower($code), 0, 3)</weak_warning>;
     $r[] = <weak_warning descr="Cut first, then change the case: 'mb_convert_case(rtrim($code, '-'), MB_CASE_TITLE)'.">rtrim(mb_convert_case($code, MB_CASE_TITLE), '-')</weak_warning>;
     $r[] = <weak_warning descr="Cut first, then change the case: 'mb_convert_case(trim($code), $code . 'x')'.">trim(mb_convert_case($code, $code . 'x'))</weak_warning>;
 

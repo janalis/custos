@@ -45,11 +45,17 @@ func (pdoAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || !strings.EqualFold(pname.Value, "prepare") {
 		return
 	}
+	sole := soleArg(prep)
+	if _, ok := sole.(*syntax.VariadicPlaceholder); ok { // E7: a closure is created, nothing is prepared
+		return
+	}
 	if !astquery.EquivalentFoldNames(ctx.File, as.Var, exec.Var) || !pdoPrepareResolves(ctx, prep) { // D6, D5
 		return
 	}
 	var fixes []diagnostic.Fix
-	if prep.Args != nil && len(prep.Args.Args) == 1 {
+	// F3: a spread may also carry the driver options, which query() would
+	// read as a fetch mode.
+	if arg, ok := sole.(*syntax.Arg); ok && !arg.Unpack {
 		fixes = append(fixes, diagnostic.Fix{
 			Title: "Use query()",
 			Edits: func() []diagnostic.TextEdit {
@@ -65,6 +71,15 @@ func (pdoAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		})
 	}
 	ctx.ReportNode(exec, "No parameters are bound; call query() instead of prepare() + execute().", fixes...)
+}
+
+// soleArg returns the only argument of the call, or nil when it has none or
+// several.
+func soleArg(call *syntax.MethodCall) syntax.Expr {
+	if call.Args == nil || len(call.Args.Args) != 1 {
+		return nil
+	}
+	return call.Args.Args[0]
 }
 
 // pdoPrepareResolves reports whether the prepare() call resolves to a method

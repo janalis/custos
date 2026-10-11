@@ -13,3 +13,6 @@ function f($a) {
         work();
     }
 }
+function g($a) { if ($a) { return 1; }
+work(); // done
+ work(); return 2; }

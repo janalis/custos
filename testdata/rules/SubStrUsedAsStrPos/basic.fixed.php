@@ -1,5 +1,5 @@
 <?php
-function routes($uri, $base, $enc) {
+function routes($uri, string $base, $enc) {
     $r = [];
     $r[] = substr($uri, 0, strlen($base)) == $base;
     $r[] = strpos($uri, '/api') !== 0;

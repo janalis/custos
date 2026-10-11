@@ -34,14 +34,39 @@ Two patterns where destructuring would be clearer:
   statement of a `foreach` body (depth 1): its parent is the `foreach`'s
   braced block, its alternative-syntax statement list
   (`foreach (…): … endforeach;`), or it is the brace-less single body
-  statement. That `foreach` declares a variable named like `$v` (key, value,
-  or a variable inside a destructuring value). Statements nested in an `if`,
-  `switch`, `try`, inner loop, plain `{ … }` block, etc. inside the loop are
-  not reported.
-
-- **D4c** (custos refinement, see Divergences) The loop body does not
-  mention `$v` before the destructuring (e.g. `$v[2] ??= null;`): the
-  header form would destructure the unmodified value.
+  statement. That `foreach` iterates by value and `$v` is its value variable
+  or a variable inside its destructuring value. The key variable does not
+  count (PHP rejects a list in key position) and neither does a
+  by-reference value (`as &$v`, which cannot be replaced by a list).
+  Statements nested in an `if`, `switch`, `try`, inner loop, plain `{ … }`
+  block, etc. inside the loop are not reported.
+- **D4b** (custos refinement, see Divergences) The destructuring targets
+  can move into the header unchanged: no target mentions a variable the
+  header declares (key, value, or a variable of a destructuring value), is
+  a variable-variable, or is taken by reference (`[&$a] = $v`). The header
+  assigns the value before the key and its targets left to right, so
+  `[$out[$k], $b] = $v` under `as $k => $v` would index with the previous
+  iteration's key.
+- **D4c** (custos refinement, see Divergences) `$v` is used for nothing
+  else: the header form no longer assigns it. Within the enclosing
+  function, closure or method (or the file's top-level code) none of these
+  may occur:
+  - another mention of `$v` in the loop body, before or after the
+    destructuring, at any depth — including a closure `use` list, an arrow
+    function and string interpolation (`$v[2] ??= null;` before it,
+    `$seen[$a] = $v;` after it);
+  - a mention of `$v` after the loop, or, when the loop is nested in other
+    loops, anywhere in the outermost of them (a later iteration could read
+    it). A later `foreach` whose own key or value variable is `$v` assigns
+    it again: its header variable and body are not counted, its iterated
+    expression is;
+  - in that same stretch of code (from the loop, or the outermost enclosing
+    loop, to the end of the scope): a variable-variable, `compact()`,
+    `extract()`, `get_defined_vars()`, `eval` or `include`/`require`, which
+    can reach `$v` by name;
+  - a `global $v;` or `static $v;` declaration, a by-reference parameter
+    `&$v` or a by-reference closure binding `use (&$v)` anywhere in the
+    scope: the value outlives the function.
 
 ### Part B — consecutive numbered element reads
 
@@ -87,6 +112,12 @@ Two patterns where destructuring would be clearer:
 - **E2b** Destructuring nested deeper than the loop body's own statement
   list (`if (is_array($row)) { [$a, $b] = $row; }`): moving it into the
   header would drop the guard.
+- **E2c** Destructuring of the loop's key variable, or of the value of a
+  by-reference loop (D4).
+- **E2d** Targets that depend on the header's variables or bind by
+  reference (D4b).
+- **E2e** The destructured variable is used again in the loop, after it, or
+  can be reached by name or from outside the function (D4c).
 - **E3** Destructuring that is not a statement of its own
   (`while (list($a) = $v)`, `f(list($a) = $v)`).
 - **E4** String/variable/constant indexes (`$r['id']`, `$r[$k]`, `$r[ONE]`) or
@@ -136,8 +167,12 @@ None.
 
 ```php
 <?php
+foreach ($points as $idx => $point) {
+    <weak_warning descr="Destructure directly in the foreach header.">[$px, $py] = $point</weak_warning>;
+    echo $idx, $px, $py;
+}
 foreach ($pairs as $idx => $pair) {
-    <weak_warning descr="Destructure directly in the foreach header.">[$left, $right] = $pair</weak_warning>;
+    [$left, $right] = $pair;              // E2e: $pair is still read below
     if (is_array($pair)) {
         [$top, $bottom] = $pair;          // E2b: nested under a guard
     }
@@ -160,8 +195,11 @@ foreach ($pairs as $idx => $pair) {
 
 ```php
 <?php
+foreach ($lines as $number => $line):
+    <weak_warning descr="Destructure directly in the foreach header.">list($code, $text) = $line</weak_warning>;
+endforeach;
 foreach ($records as $key => $record):
-    <weak_warning descr="Destructure directly in the foreach header.">list($id, $label) = $record</weak_warning>;
+    list($id, $label) = $record;          // E2e: $record is still read below
     try {
         [$first] = $record;               // E2b: inside try
     } catch (\Throwable $t) {}
@@ -170,6 +208,26 @@ foreach ($records as $key => $record):
     }
 endforeach;
 foreach ($records as $record) <weak_warning descr="Destructure directly in the foreach header.">[$id, $label] = $record</weak_warning>;
+```
+
+```php
+<?php
+function summarise(iterable $map, array $rows, array $totals) {
+    foreach ($map as $compound => $amount) {
+        [$kind, $ref] = $compound;        // E2c: the key cannot be a list
+    }
+    foreach ($rows as &$entry) {
+        [$low, $high] = $entry;           // E2c: by-reference value
+        $entry[] = $high - $low;
+    }
+    foreach ($rows as $slot => $entry) {
+        [$totals[$slot], $rest] = $entry; // E2d: the header would index with the previous key
+    }
+    foreach ($rows as $last) {
+        [$low, $high] = $last;            // E2e: read after the loop
+    }
+    return [$totals, $last];
+}
 ```
 
 ## Divergences
@@ -206,8 +264,20 @@ foreach ($records as $record) <weak_warning descr="Destructure directly in the f
   upstream.** Upstream suggests destructuring in the header even when the
   body fills in a default first (`$m[2] ??= null; [$a, $b, $c] = $m;`, found
   on Nextcloud); moving the destructuring into the header would lose the
-  default. custos only reports when the destructuring is the first mention
-  of the variable in the body.
+  default. The same holds for any later use: the header form removes the
+  variable, so code that still reads the whole value in the loop, after
+  it, by name (`compact()`, variable-variables, …) or from outside the
+  function (`global`, `static`, by-reference parameter or binding) would
+  break. custos only reports when the destructuring is the variable's sole
+  use. One report of the upstream fixture falls under these guards
+  and is listed in `testdata/ea-divergences.json`.
+- **Key variable, by-reference value, header-dependent targets (D4/D4b) —
+  custos diverges.** Upstream also matches the loop's key variable, but
+  `foreach ($m as [$a, $b] => $x)` is a compile error. A by-reference value
+  cannot be written as a list either. Targets that mention the key (or
+  another header variable) are evaluated before that variable is assigned
+  once moved into the header, and a by-reference target changes how the
+  loop iterates. custos reports none of these.
 - **By-reference assignments (custos diverges from D5).** `$q =& $m[6];
   $t =& $m[7];` binds references (missing keys are created silently, writes
   go through to the array); destructuring would copy the values and warn on

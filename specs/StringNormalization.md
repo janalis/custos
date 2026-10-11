@@ -49,6 +49,22 @@ Pattern A — case conversion before cutting (checked first):
   character of the string or of each word, so cutting before or after them
   gives different results (`trim(ucfirst(' x'))` is `'x'`,
   `ucfirst(trim(' x'))` is `'X'`).
+- **D3a** When `O` is `substr` or `mb_substr` and `I` is `mb_convert_case`,
+  `I`'s second argument must be one of the constants `MB_CASE_UPPER`,
+  `MB_CASE_LOWER`, `MB_CASE_FOLD` or their `_SIMPLE` forms (optionally
+  written with a leading `\`). Title case depends on what precedes each
+  character, exactly like `ucfirst`/`ucwords`
+  (`substr(mb_convert_case('hello world', MB_CASE_TITLE), 1)` is
+  `'ello World'`, the swapped form `'Ello World'`), and a variable, a number
+  or any other expression may be title case: no report. The trim functions
+  are not restricted (they only remove characters at the ends, which leaves
+  word starts where they were).
+- **D3b** When `O` is `substr` or `mb_substr` and `I` is one of the `mb_`
+  functions, the report carries no fix and uses the second pattern A
+  message: a multibyte conversion can change the number of characters and
+  of bytes, and needs whole characters, so offsets taken before and after it
+  do not designate the same text. `strtolower`/`strtoupper` convert byte by
+  byte and keep every offset.
 - **D4** Additionally one of:
   - `O` is `substr` or `mb_substr` (any number of arguments); or
   - `O` is a trim function with exactly one argument; or
@@ -60,8 +76,12 @@ Pattern A — case conversion before cutting (checked first):
     — is not reported. A `b` prefix is ignored. A heredoc/nowdoc literal
     without interpolation is judged by its body (the lines between the
     opening and closing labels, multi-line allowed): reported only when it
-    contains no letter. A character range `x..y` whose span covers a letter
-    (`'@..Z'`, `'!..~'`) counts as containing letters. A non-literal second
+    contains no letter. A double-quoted or heredoc literal containing an
+    octal escape (a backslash that is not itself escaped, followed by a
+    digit `0`–`7`, e.g. `"\101"` for `A`) is not reported: the escape may
+    spell a letter. Single-quoted and nowdoc literals have no such escapes.
+    A character range `x..y` whose span covers a letter (`'@..Z'`, `'!..~'`)
+    counts as containing letters. A non-literal second
     argument (variable, constant, call, concatenation, string with
     interpolation, backtick command) is not reported.
 - Report `O` (pattern A).
@@ -70,12 +90,15 @@ Pattern B — redundant nested case conversion (only when `O` is not a length
 function):
 
 - **D5** `O` and `I` are both case functions, and either:
-  - **D5a** `O` and `I` have the same name (any argument counts, e.g.
-    `mb_convert_case(mb_convert_case($v, A), B)` or `ucwords(ucwords($v))`),
-    except that for `ucwords` an inner delimiter argument must be
-    equivalent to the outer one (`ucwords(ucwords($v, '-'), '-')` qualifies;
-    `ucwords(ucwords($v, '-'))` and `ucwords(ucwords($v, '-'), '_')` do
-    not); or
+  - **D5a** `O` and `I` have the same name, the same number of arguments,
+    and every argument after the first is equivalent at both levels (same
+    mode, encoding or delimiters): `ucwords(ucwords($v))`,
+    `ucwords(ucwords($v, '-'), '-')` and
+    `mb_convert_case(mb_convert_case($v, M), M)` qualify;
+    `ucwords(ucwords($v, '-'))`, `ucwords(ucwords($v), '-')`,
+    `ucwords(ucwords($v, '-'), '_')`,
+    `mb_convert_case(mb_convert_case($v, MB_CASE_UPPER), MB_CASE_LOWER)` and
+    `mb_strtolower(mb_strtolower($v, 'ISO-8859-1'))` do not; or
   - **D5b** the names differ, `O` is a **basic** case function, `I` is one
     of `ucfirst`, `lcfirst`, `ucwords`, and if `I` is `ucwords` it has
     exactly one argument. `ucfirst`/`lcfirst`/`ucwords` nested in a
@@ -115,8 +138,10 @@ report on the `trim(...)` call and a pattern B report on the inner
 - **E8** Pattern A with an inner `ucfirst`/`lcfirst`/`ucwords`
   (`trim(ucfirst($v))`, `substr(ucwords($v), 1)`).
 - **E9** `ucfirst`/`lcfirst`/`ucwords` nested in a different one of the three
-  (`ucfirst(lcfirst($v))`, `lcfirst(ucwords($v))`), and `ucwords` inside
-  `ucwords` with a different delimiter.
+  (`ucfirst(lcfirst($v))`, `lcfirst(ucwords($v))`), and a function nested in
+  itself with different extra arguments (D5a).
+- **E10** `substr`/`mb_substr` around `mb_convert_case` whose mode is not a
+  known upper/lower/fold constant (D3a).
 
 ## Report
 
@@ -124,7 +149,8 @@ report on the `trim(...)` call and a pattern B report on the inner
   - Range: the whole outer call `O` (name, including any namespace
     qualifier, through its closing `)`).
   - Message: `Cut first, then change the case: '{replacement}'.` with the
-    F1 text.
+    F1 text; for D3b, which has no fix,
+    `Cut first, then change the case (check multibyte input by hand).`
 - Pattern B
   - Range: the whole inner call `I` (name through its closing `)`); the outer
     call is not highlighted.
@@ -134,13 +160,14 @@ report on the `trim(...)` call and a pattern B report on the inner
 
 ## Fix
 
-- **F1** (pattern A) Swap the nesting: the outer call `O` is replaced with
+- **F1** (pattern A, except D3b which has no fix) Swap the nesting: the
+  outer call `O` is replaced with
   `I`'s source text in which `S` is replaced by `O`'s source text in which
   `I` (its first argument) is replaced by `S`. All other text — names as
   written (including `\` qualifiers), remaining arguments, original spacing
   inside each call — is kept verbatim.
   - `ltrim(strtoupper($code))` → `strtoupper(ltrim($code))`
-  - `substr(mb_strtolower($code), 0, 3)` → `mb_strtolower(substr($code, 0, 3))`
+  - `substr(strtolower($code), 0, 3)` → `strtolower(substr($code, 0, 3))`
   - `rtrim(mb_convert_case($code, MB_CASE_TITLE), '-')` →
     `mb_convert_case(rtrim($code, '-'), MB_CASE_TITLE)`
 - **F2** (pattern B) Replace the inner call `I` with the source text of `S`
@@ -163,7 +190,7 @@ nothing in the rule is version-dependent.)
 function tidy($code, $mask, $o) {
     $r = [];
     $r[] = <weak_warning descr="Cut first, then change the case: 'strtoupper(ltrim($code))'.">ltrim(strtoupper($code))</weak_warning>;
-    $r[] = <weak_warning descr="Cut first, then change the case: 'mb_strtolower(substr($code, 0, 3))'.">substr(mb_strtolower($code), 0, 3)</weak_warning>;
+    $r[] = <weak_warning descr="Cut first, then change the case (check multibyte input by hand).">substr(mb_strtolower($code), 0, 3)</weak_warning>;
     $r[] = <weak_warning descr="Cut first, then change the case: 'mb_convert_case(rtrim($code, '-'), MB_CASE_TITLE)'.">rtrim(mb_convert_case($code, MB_CASE_TITLE), '-')</weak_warning>;
     $r[] = \trim(lcfirst($code), '#/');
     $r[] = mb_substr(ucwords($code), -2);
@@ -194,7 +221,7 @@ function tidy($code, $mask, $o) {
 function tidy($code, $mask, $o) {
     $r = [];
     $r[] = strtoupper(ltrim($code));
-    $r[] = mb_strtolower(substr($code, 0, 3));
+    $r[] = substr(mb_strtolower($code), 0, 3);
     $r[] = mb_convert_case(rtrim($code, '-'), MB_CASE_TITLE);
     $r[] = \trim(lcfirst($code), '#/');
     $r[] = mb_substr(ucwords($code), -2);
@@ -240,10 +267,27 @@ function tidy($code, $mask, $o) {
   (`lcfirst(ucwords('a b'))` → `lcfirst('a b')`), changing the result from
   `'a B'` to `'a b'`. custos only drops them under a basic case function,
   which overrides every letter.
-- **Nested `ucwords` with different delimiters — custos diverges from
-  upstream** (D5a). `ucwords(ucwords($v, '-'))` capitalises after `-` and
-  after whitespace; dropping the inner call loses the `-` part. custos
-  requires the inner delimiter to match the outer one.
+- **Same function nested with different extra arguments — custos diverges
+  from upstream** (D5a). Upstream drops the inner call whenever the two
+  names match. `ucwords(ucwords($v, '-'))` capitalises after `-` and after
+  whitespace; dropping the inner call loses the `-` part.
+  `mb_convert_case(mb_convert_case('Straße', MB_CASE_UPPER), MB_CASE_LOWER)`
+  is `'strasse'`, without the inner call `'straße'`; an inner
+  `mb_strtolower($v, 'ISO-8859-1')` under a UTF-8 one is not a repetition
+  either. custos requires the extra arguments to be equivalent at both
+  levels.
+- **Cutting around a multibyte conversion — custos diverges from upstream**
+  (D3a, D3b). Upstream swaps `substr`/`mb_substr` with every `mb_` case
+  function. With title case the swap capitalises another character (D3a),
+  so custos does not report it. With the other modes the swap still differs
+  on non-ASCII input: `mb_substr(mb_strtoupper('Straße 12'), 0, 6)` is
+  `'STRASS'` but the swapped form `'STRASSE'`, and a byte `substr` applied
+  first can cut a character in half. custos keeps the report (the hint is
+  valid for ASCII data) but offers no fix.
+- **Octal escapes in trim character lists — custos diverges from upstream**
+  (D4). `"\101"` contains only digits in source but is the letter `A`:
+  `trim(strtolower('AxA'), "\101")` is `'axa'`, the swapped form `'x'`.
+  custos does not report such literals.
 - **Function names (custos diverges):** upstream matches the bare names
   case-sensitively and ignores namespaces, so `TRIM(strtolower($v))` was
   missed while namespaced user functions with these names were reported and

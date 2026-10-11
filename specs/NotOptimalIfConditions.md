@@ -156,6 +156,19 @@ always stored.
   `!==`, `==`, `!=`, either side), tests `$v instanceof …`, or passes `$v`
   as the first argument of a global `is_*` function; coupled if `cur`
   itself or any sub-expression of `cur` is a variable named `v`.
+- **S6 (guarded operation — custos divergence, see Divergences)**: `cur`
+  (itself or any sub-expression) contains an operation that can fail on its
+  own, and one of the variables that decide whether it fails also occurs
+  anywhere in `prev`, which may then be the check that makes the operation
+  valid. The operations and their deciding variables:
+  - an array access `b[i]`: every plain variable inside the access (base
+    and index);
+  - a division `l / r` or modulo `l % r`: every plain variable inside the
+    divisor `r`;
+  - a call to the global `intdiv()` with at least two arguments: every
+    plain variable inside the second argument.
+  Variables are compared by name. Property reads are not counted here: S5
+  covers the usual null and type guards on their receiver.
 - **S4 (side effects — custos divergence, see Divergences)**: coupled if
   `prev` or `cur` (itself or any sub-expression, not descending into closure
   / arrow-function bodies) contains an *impure* construct, because swapping
@@ -176,6 +189,10 @@ always stored.
     the resolved function, even when the function is in the purity list
     (`preg_match($re, $s, $m)` is impure, `preg_match($re, $s)` is pure);
   - `include` / `require` (`_once`), `eval`, `exit` / `die`, `print`;
+  - every assignment (plain, compound, by-reference, destructuring) and
+    every `++` / `--`: the written variable may be read in the body or after
+    the `if`, and reordering changes whether it is written at all. This
+    makes the assignment part of S1 a special case of S4;
   - every method call (`->`, `?->`), static method call (`A::m()`,
     `parent::m()`, …) and object creation (`new X(...)`, which runs a
     constructor): their targets run arbitrary user code (or magic
@@ -285,6 +302,11 @@ Applies when the operand list has ≥ 2 entries (chain operator `&&` or `||`).
   `Cache::clear() || $quiet` (method calls).
   Neighbours where `prev` narrows a variable `cur` uses (S5):
   `!(null === $o || strlen($o->name) === 0) && $o->id > 0`.
+  Neighbours where `prev` writes a variable (S4):
+  `($n = count($rows)) === 0 || $force`, `strlen($s) > $i++ && $ok`.
+  Neighbours where `cur` can fail on a variable `prev` mentions (S6):
+  `in_array($k, $keys, true) && $map[$k] > 1`,
+  `abs($step) > 0 && $n % $step === 0`.
 
 - **E2a** Neighbours where one side reads a property whose cost cannot be
   established (*unknown*: untyped receiver, dynamic name), and neighbours
@@ -361,6 +383,10 @@ if (recompute($totals) > 0 && $dirty) {}       // user function: impure
 if (strlen(file_get_contents($path)) && $ok) {}
 if ($repo->find($id) || empty($cache)) {}       // method call: impure
 if (isset($rows[md5($k)]) && $rows) {}          // S3: $rows itself is guarded
+if (($n = count($rows)) === 0 || $force) {}     // S4: assignment
+if (strlen($name) > $i++ && $enabled) {}        // S4: ++ writes $i
+if (in_array($k, $keys, true) && $map[$k] > 1) {} // S6: guarded array access
+if (abs($step) > 0 && $total % $step === 0) {}  // S6: guarded divisor
 if (fetch($a) <weak_warning descr="Use '&&' instead of 'and'.">and</weak_warning> $b) {} // one operand for D1
 
 // property fetches
@@ -442,6 +468,21 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   `cur` on the value the check excludes:
   `!(null === $o || strlen($o->name) === 0) && $o->id > 0` was told to read
   `$o->id` first. custos treats such neighbours as coupled.
+- **Assignments are side effects (custos diverges from upstream, S4).**
+  Upstream only keeps an assignment in place when the next operand reads
+  the assigned variable, so `($n = count($rows)) === 0 || $force` is told to
+  test `$force` first although the body prints `$n`; after the swap `$n` is
+  undefined whenever `$force` is true. The same holds for `++`/`--`. custos
+  never reorders across an operand that writes a variable.
+- **Guarded operations stay behind their guard (custos diverges from
+  upstream, S6).** Upstream recognises a guard only through the array base
+  (S2) or `isset()` (S3), so `in_array($type, [...], true) && LIMITS[$type] > 5`
+  and `abs($step) > 0 && $n % $step === 0` are told to run the array access
+  or the modulo first, which raises "Undefined array key" or
+  `DivisionByZeroError` on exactly the values the first operand filters
+  out. custos cannot tell a guard from an unrelated check, so it stays
+  silent whenever the costlier operand mentions a variable of the array
+  access or of the divisor.
 - **isset guard on the variable itself (custos diverges from upstream).**
   Upstream's S3 ignores `cur` when it is exactly the guarded variable, so
   `isset($x[f()]) && $x` is told to evaluate `$x` first, which raises

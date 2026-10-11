@@ -21,10 +21,14 @@ Two patterns where destructuring would be clearer:
 
 ## Example
 
-```php{3,13,14}
+```php{3,17,18}
 <?php
+foreach ($points as $idx => $point) {
+    [$px, $py] = $point;
+    echo $idx, $px, $py;
+}
 foreach ($pairs as $idx => $pair) {
-    [$left, $right] = $pair;
+    [$left, $right] = $pair;              // E2e: $pair is still read below
     if (is_array($pair)) {
         [$top, $bottom] = $pair;          // E2b: nested under a guard
     }
@@ -49,8 +53,8 @@ Reported:
 
 <ul>
 <li>line 3: Destructure directly in the foreach header.</li>
-<li>line 13: Use one destructuring assignment from &#39;$pair&#39; instead.</li>
-<li>line 14: Use one destructuring assignment from &#39;$pair&#39; instead.</li>
+<li>line 17: Use one destructuring assignment from &#39;$pair&#39; instead.</li>
+<li>line 18: Use one destructuring assignment from &#39;$pair&#39; instead.</li>
 </ul>
 
 ## Configure

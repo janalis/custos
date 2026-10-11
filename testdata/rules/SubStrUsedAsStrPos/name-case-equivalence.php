@@ -1,5 +1,5 @@
 <?php
-class Prefix { public static function get() { return 'x'; } }
+class Prefix { public static string $value = 'x'; }
 function starts($s) {
-    return <weak_warning descr="Use 'strpos($s, prefix::get()) === 0' instead.">substr($s, 0, strlen(Prefix::Get())) === prefix::get()</weak_warning>;
+    return <weak_warning descr="Use 'strpos($s, prefix::$value) === 0' instead.">substr($s, 0, strlen(Prefix::$value)) === prefix::$value</weak_warning>;
 }

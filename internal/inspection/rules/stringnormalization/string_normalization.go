@@ -72,6 +72,16 @@ func (stringNormalization) Check(ctx *analysis.Context, n syntax.Node) {
 		if !isBasicCaseFunc(iname) || !cutFirstApplies(oname, oargs) { // D3, D4
 			return
 		}
+		cut := oname == "substr" || oname == "mb_substr"
+		if cut && iname == "mb_convert_case" && !keepsPositions(ctx, iargs) { // D3a
+			return
+		}
+		if cut && strings.HasPrefix(iname, "mb_") {
+			// D3b: a multibyte conversion may change the length and needs
+			// whole characters, so the swap is left to the author.
+			ctx.Report(outer.Span(), "Cut first, then change the case (check multibyte input by hand).")
+			return
+		}
 		src := ctx.Src
 		os, is, ss := outer.Span(), inner.Span(), subject.Span()
 		swappedOuter := string(src[os.Start:is.Start]) + ctx.Text(subject) + string(src[is.End:os.End])
@@ -88,8 +98,15 @@ func (stringNormalization) Check(ctx *analysis.Context, n syntax.Node) {
 	// pattern B (D5)
 	switch {
 	case oname == iname: // D5a
-		if oname == "ucwords" && len(iargs) > 1 && (len(oargs) < 2 || !astquery.EquivalentFoldNames(ctx.File, iargs[1], oargs[1])) {
-			return // the inner call splits words on other delimiters
+		// Repeating a call is only a no-op with the same mode, encoding
+		// or delimiters at both levels.
+		if len(iargs) != len(oargs) {
+			return
+		}
+		for i := 1; i < len(iargs); i++ {
+			if !astquery.EquivalentFoldNames(ctx.File, iargs[i], oargs[i]) {
+				return
+			}
 		}
 	case isBasicCaseFunc(oname) && !isBasicCaseFunc(iname) && (iname != "ucwords" || len(iargs) == 1): // D5b
 	default:
@@ -103,6 +120,22 @@ func (stringNormalization) Check(ctx *analysis.Context, n syntax.Node) {
 			return []diagnostic.TextEdit{{Span: is, NewText: repl}}
 		},
 	})
+}
+
+// keepsPositions reports whether an mb_convert_case call converts every
+// character the same way wherever it stands: its mode is one of the
+// upper/lower/fold constants. Title case, like ucfirst, depends on what
+// precedes a character, and any other expression is unknown.
+func keepsPositions(ctx *analysis.Context, iargs []syntax.Expr) bool {
+	if len(iargs) < 2 {
+		return false
+	}
+	switch strings.TrimPrefix(ctx.Text(iargs[1]), `\`) {
+	case "MB_CASE_UPPER", "MB_CASE_LOWER", "MB_CASE_FOLD",
+		"MB_CASE_UPPER_SIMPLE", "MB_CASE_LOWER_SIMPLE", "MB_CASE_FOLD_SIMPLE":
+		return true
+	}
+	return false
 }
 
 // cutFirstApplies implements D4 for a length function with a case-converted
@@ -121,11 +154,25 @@ func cutFirstApplies(oname string, oargs []syntax.Expr) bool {
 		return false
 	}
 	raw := strings.TrimLeft(lit.Raw, "bB")
+	// single-quoted literals and nowdocs have no escape sequences
+	escapes := !strings.HasPrefix(strings.TrimLeft(raw, "< \t"), "'")
 	if strings.HasPrefix(raw, "<<<") {
 		// heredoc/nowdoc: the body, between the opening and closing lines
 		raw = raw[strings.IndexByte(raw, '\n') : strings.LastIndexByte(raw, '\n')+1]
 	} else if strings.ContainsAny(raw, "\r\n") {
 		return false
+	}
+	if escapes {
+		// double-quoted or heredoc: an octal escape such as "\101" spells a
+		// character the letter scan below cannot see
+		for i := 0; i+1 < len(raw); i++ {
+			if raw[i] == '\\' {
+				if raw[i+1] >= '0' && raw[i+1] <= '7' {
+					return false
+				}
+				i++ // `\\` is a backslash, not the start of an escape
+			}
+		}
 	}
 	for _, r := range raw {
 		if unicode.IsLetter(r) {

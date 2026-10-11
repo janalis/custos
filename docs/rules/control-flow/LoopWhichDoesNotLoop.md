@@ -61,6 +61,15 @@ while ($ok) {
 foreach ($cursor as $first) {
     break;
 }
+class Ledger {
+    public function entries() { yield 1; yield 2; }
+    public function firstEntry() {
+        foreach ($this->entries() as $entry) {   // generator method, no return type
+            return $entry;
+        }
+        return null;
+    }
+}
 while ($ok) break;
 ```
 

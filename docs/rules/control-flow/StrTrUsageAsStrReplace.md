@@ -45,7 +45,7 @@ function slug($title, $glue = '+') {
     $b = \str_replace("\t", ';', $title);
     $c = str_replace('\'', '`', $title);
     $d = str_replace("\$", 'S', $title);
-    $e = str_replace($glue, ' ', $title);
+    $e = strtr($title, $glue, ' ');
 
     $f = strtr($title, '--', '_');
     $k = strtr($title, '-', '');

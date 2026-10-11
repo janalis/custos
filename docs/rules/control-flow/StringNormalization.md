@@ -59,7 +59,7 @@ function tidy($code, $mask, $o) {
 function tidy($code, $mask, $o) {
     $r = [];
     $r[] = strtoupper(ltrim($code));
-    $r[] = mb_strtolower(substr($code, 0, 3));
+    $r[] = substr(mb_strtolower($code), 0, 3);
     $r[] = mb_convert_case(rtrim($code, '-'), MB_CASE_TITLE);
     $r[] = \trim(lcfirst($code), '#/');
     $r[] = mb_substr(ucwords($code), -2);
@@ -91,7 +91,7 @@ Reported:
 
 <ul>
 <li>line 4: Cut first, then change the case: &#39;strtoupper(ltrim($code))&#39;.</li>
-<li>line 5: Cut first, then change the case: &#39;mb_strtolower(substr($code, 0, 3))&#39;.</li>
+<li>line 5: Cut first, then change the case (check multibyte input by hand).</li>
 <li>line 6: Cut first, then change the case: &#39;mb_convert_case(rtrim($code, &#39;-&#39;), MB_CASE_TITLE)&#39;.</li>
 <li>line 17: The inner &#39;mb_strtoupper(...)&#39; call has no effect here.</li>
 <li>line 18: The inner &#39;lcfirst(...)&#39; call has no effect here.</li>

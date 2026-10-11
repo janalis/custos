@@ -96,3 +96,59 @@ function namelessAnnotation($auth) {
     $guard = $auth->guard('api');
     return $guard;
 }
+
+function refDestructuring() {
+    $pair = [1, 2];
+    [&$a, $b] = $pair;
+    $a = 9;
+    return $a + $b;
+}
+
+function nestedRefDestructuring() {
+    $rows = load();
+    list($first, list(&$cell)) = $rows;
+    return $cell;
+}
+
+class Slots {
+    public $items = [];
+    public function slot($k) {
+        $v = &$this->items[$k];
+        return $v;
+    }
+}
+
+function compacted() {
+    $parts = explode(':', 'a:b');
+    [$x, $y] = $parts;
+    return $x . $y . count(compact('parts'));
+}
+
+function variableVariable() {
+    $parts = explode(':', 'a:b');
+    [$x, $y] = $parts;
+    $n = 'parts';
+    return $x . $y . count($$n);
+}
+
+function definedVars() {
+    try {
+        $res = strtoupper('abc');
+        return $res;
+    } finally {
+        audit(get_defined_vars());
+    }
+}
+
+function template() {
+    $data = load();
+    [$title, $body] = $data;
+    include 'view.php';
+}
+
+function refClosure() {
+    return function &() {
+        $slot = 5;
+        return $slot;
+    };
+}

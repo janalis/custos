@@ -47,8 +47,17 @@ Applies to `foreach`, `for`, `while` and `do … while` loops `L`.
   (taking the first element of a lazy or stateful traversable is a
   legitimate idiom). Array-of types (`\Generator[]`) do not count.
   Empty-body `foreach` loops are not exempt.
+- **D5** `foreach` only, `last` is `break` or `return`: the iterated
+  expression (parentheses ignored) is a method call `recv->name()` with a
+  literal name, and for one of the receiver's known classes the method found
+  for `name` (own, inherited or imported from a trait) is a generator: its
+  body holds a `yield` / `yield from` of its own (nested closures, functions
+  and classes do not count). A method declared in another file is recognised
+  through the body-derived return type kept by the project index. Such a
+  call returns a `\Generator` even though inference leaves the type of an
+  overridable method without return type unknown → no report.
 
-When D1–D3 hold (and D4 does not exempt), report.
+When D1–D3 hold (and neither D4 nor D5 exempts), report.
 
 ## Exceptions (no report)
 
@@ -61,6 +70,8 @@ When D1–D3 hold (and D4 does not exempt), report.
 - **E3** `foreach` over a value typed `iterable` or any `\Traversable`
   type (`\Generator`, `\Iterator`, `\IteratorAggregate` implementations, …)
   ending with `break`/`return` (D4).
+  Likewise over a call to a method whose body yields, with or without a
+  declared return type (D5): `foreach ($this->rows() as $row) { return $row; }`.
 - **E4** Brace-less loops; `.blade.php` files.
 
 ## Report
@@ -128,6 +139,15 @@ while ($ok) {
 foreach ($cursor as $first) {
     break;
 }
+class Ledger {
+    public function entries() { yield 1; yield 2; }
+    public function firstEntry() {
+        foreach ($this->entries() as $entry) {   // generator method, no return type
+            return $entry;
+        }
+        return null;
+    }
+}
 while ($ok) break;
 ```
 
@@ -165,3 +185,9 @@ while ($ok) break;
   Traversable collection, CakePHP's `CollectionTrait::isEmpty()`) for
   emptiness; `$this` has no class type in a trait, so the Traversable
   exemption cannot apply: such loops are not reported.
+- **Generator methods without return type (custos diverges, D5).** Upstream
+  only looks at the resolved type of the iterated expression, which is
+  unknown for an untyped method that may be overridden. custos also looks at
+  the called method itself: when its body yields, the loop takes the first
+  element of a generator and is not reported. Limits: trait and private
+  generator methods are only recognised when declared in the analysed file.

@@ -1,6 +1,6 @@
 <?php
 foreach ($pairs as $idx => $pair) {
-    <weak_warning descr="Destructure directly in the foreach header.">[$left, $right] = $pair</weak_warning>;
+    [$left, $right] = $pair;             // D4c: $pair is still read below
     if ($idx > 0) {
         list($k) = $idx;                  // E2b: nested under a guard
     }

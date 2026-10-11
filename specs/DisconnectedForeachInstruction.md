@@ -48,10 +48,11 @@ inside `S` (deep, including nested closures, string interpolation, catch
 variables, inner loop headers). Let `C` be `$v`, extended outwards while its
 parent is a property access whose object is `C` (`$v->a->b` → `C` is
 `$v->a->b`). Let `P` be the parent of `C`. If `P` is an element of an array
-literal, replace `P` by the array literal, and if that literal is itself the
-child of something, by that something (so `[$a, $b] = …` and `f([$a])` see the
-assignment / argument list). Rules, applied in order (first that ends with
-"stop" wins):
+literal, replace `P` by the parent of that literal, and repeat while the
+result is again an element of an array literal (so `[$a, $b] = …`, the nested
+`[$id, [$first, $last]] = …`, the keyed `['meta' => ['tag' => $tag]] = …` and
+`f([$a])` all see the assignment / argument list). Rules, applied in order
+(first that ends with "stop" wins):
 
 - **D5** `P` is a destructuring assignment (`list(…) = …` or `[…] = …`) and
   `$v` is not its right-hand side: add `n` to `M` and `Dep(S)`; stop.
@@ -269,6 +270,16 @@ foreach ($rows as $row) {
   `debug_print_backtrace`, are not reported (Moodle prints
   `$OUTPUT->box_start()` per row, progress dots under `if ($display) {
   echo '.'; }`); listed upstream divergence.
+  A statement containing `yield` or `yield from` (outside nested
+  functions) is not reported either: `yield $separator;` hands one value to
+  the consumer per iteration, and yielding it once before the loop changes
+  the generated sequence.
+- **Nested destructuring (custos diverges).** Upstream looks one array
+  literal up from a variable, so the inner targets of
+  `[$id, [$first, $last]] = $row;` are plain reads and a later
+  `render($last);` is reported although `$last` is rebound on every
+  iteration. custos climbs through every enclosing literal (D5), for
+  assignments and for inner `foreach` targets (D6a) alike.
 - **Repeat loops (custos diverges).** A loop whose body never reads its
   own key or value variable (`foreach (range(1, 10) as $attempt) {
   post(…); }`, Bagisto's login-throttle test) exists to repeat the body:

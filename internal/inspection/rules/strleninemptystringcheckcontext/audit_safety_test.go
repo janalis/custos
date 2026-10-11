@@ -24,6 +24,12 @@ func TestAuditSafety(t *testing.T) {
 		{"mutable encoding", "<?php if (mb_strlen($s)) {}", 0, ""},
 		{"extra args", "<?php strlen('a', extra()) > 0;", 0, ""},
 		{"byte length", "<?php strlen('a') > 0;", 1, "<?php 'a' !== '';"},
+		{"negated target", "<?php $r = !!strlen($s);", 1, "<?php $r = !((string)$s === '');"},
+		{"cast target", "<?php $r = (int) !strlen($s);", 1, "<?php $r = (int) ((string)$s === '');"},
+		{"concat target", "<?php $r = !strlen($s) . 'x';", 1, "<?php $r = ((string)$s === '') . 'x';"},
+		{"chained equality", "<?php $r = !strlen($a) === !strlen($b);", 2, "<?php $r = ((string)$a === '') === ((string)$b === '');"},
+		{"comparison under equality", "<?php $r = strlen($a) > 0 === $f;", 1, "<?php $r = ((string)$a !== '') === $f;"},
+		{"logical parent", "<?php $r = $f || !strlen($a);", 1, "<?php $r = $f || (string)$a === '';"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			src := []byte(tc.source)

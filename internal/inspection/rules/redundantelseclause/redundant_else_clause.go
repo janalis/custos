@@ -96,18 +96,27 @@ func (redundantElseClause) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 			removed := syntax.Span{Start: bodyEnd, End: alt.Span().End}
 			var moved string
+			// tail is the end of the last source text the edit keeps.
+			tail := kw.Start
 			if nested, isIf := altBody.(*syntax.If); isIf { // F2
 				moved = nl + ctx.Text(nested)
+				tail = nested.Span().End
 			} else { // F1
 				bs := altBody.Span()
 				inner := strings.TrimSpace(text(syntax.Span{Start: bs.Start + 1, End: bs.End - 1}))
 				switch {
 				case inner == "":
 				case strings.HasPrefix(inner, ";") && gap == "":
-					moved = inner
+					moved, tail = inner, bs.End-1
 				default:
-					moved = nl + inner
+					moved, tail = nl+inner, bs.End-1
 				}
+			}
+			// The trimmed text lost the line break that closed a trailing
+			// `//`/`#` comment (or followed `<?php`): restore it when code
+			// continues on the clause's last line.
+			if endsLine(ctx.File, tail) && !atLineEnd(src, removed.End) {
+				moved += nl
 			}
 			return []diagnostic.TextEdit{{Span: removed, NewText: gap + moved}}
 		},
@@ -134,6 +143,25 @@ func redundantElseMovable(ctx *analysis.Context, ifs *syntax.If, altBody syntax.
 		}
 	}
 	return true
+}
+
+// endsLine reports whether the last non-whitespace token before off must be
+// followed by a line break or whitespace: a `//`/`#` comment, which would
+// swallow whatever is glued after it, or a PHP open tag.
+func endsLine(f *syntax.File, off uint32) bool {
+	// Token 0 is never whitespace: a file starts in HTML mode.
+	i := astquery.TokenIndex(f, off) - 1
+	for i > 0 && f.Tokens[i].Kind == syntax.TWhitespace {
+		i--
+	}
+	t := f.Tokens[i]
+	return t.Kind == syntax.TOpenTag ||
+		t.Kind == syntax.TComment && !strings.HasPrefix(string(f.Src[t.Start:t.End]), "/*")
+}
+
+// atLineEnd reports whether src has a line break (or ends) at off.
+func atLineEnd(src []byte, off uint32) bool {
+	return int(off) >= len(src) || src[off] == '\n' || src[off] == '\r'
 }
 
 // leavesFlow reports whether the block's last statement is return, throw,

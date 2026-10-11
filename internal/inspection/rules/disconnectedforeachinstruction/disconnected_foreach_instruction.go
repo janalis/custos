@@ -223,13 +223,14 @@ func dfiVariable(ctx *analysis.Context, v *syntax.Variable, m, dep map[string]bo
 		c = pf
 	}
 	p := dfiParent(c)
-	if item, ok := p.(*syntax.ArrayItem); ok {
-		if lit := item.Parent(); lit != nil {
-			p = lit
-			if pp := dfiParent(lit); pp != nil {
-				p = pp
-			}
+	// Climb out of every enclosing array / list literal, so that a nested
+	// pattern (`[$id, [$first, $last]] = $row`) reaches its assignment.
+	for {
+		item, ok := p.(*syntax.ArrayItem)
+		if !ok {
+			break
 		}
+		p = dfiParent(item.Parent())
 	}
 	// D5
 	if a, ok := p.(*syntax.Assign); ok {
@@ -410,9 +411,10 @@ var dfiPerIterationFuncs = func() map[string]bool {
 	return m
 }()
 
-// dfiPerIteration reports whether s outputs (echo, print), calls one of
-// the functions above or a callback held in a variable: running it once instead of on every iteration would
-// change the program (custos, see Divergences).
+// dfiPerIteration reports whether s outputs (echo, print), yields, calls one
+// of the functions above or a callback held in a variable: running it once
+// instead of on every iteration would change the program (custos, see
+// Divergences).
 func dfiPerIteration(ctx *analysis.Context, s syntax.Stmt) bool {
 	found := false
 	syntax.Inspect(s, func(x syntax.Node) bool {
@@ -426,6 +428,20 @@ func dfiPerIteration(ctx *analysis.Context, s syntax.Stmt) bool {
 			found = true
 		}
 		return !found
+	})
+	return found || dfiYields(s)
+}
+
+// dfiYields reports whether s yields from the enclosing generator (`yield`
+// or `yield from` outside nested functions): one value per iteration.
+func dfiYields(s syntax.Stmt) bool {
+	found := false
+	syntax.Inspect(s, func(x syntax.Node) bool {
+		switch x.(type) {
+		case *syntax.Yield, *syntax.YieldFrom:
+			found = true
+		}
+		return !found && !syntax.IsFuncLike(x)
 	})
 	return found
 }

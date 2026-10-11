@@ -4,10 +4,11 @@ import (
 	"strconv"
 	"strings"
 
-	"custos/internal/inspection/astquery"
-
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 // loopWhichDoesNotLoop reports braced loops whose body always leaves on the
@@ -17,6 +18,10 @@ type loopWhichDoesNotLoop struct{}
 const loopNoLoopMsg = "Loop body exits on the first iteration; the loop never repeats."
 
 func (loopWhichDoesNotLoop) ID() string { return "LoopWhichDoesNotLoop" }
+
+// Semantic: iterated types and generator methods may live in other files.
+func (loopWhichDoesNotLoop) Semantic() {}
+
 func (loopWhichDoesNotLoop) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KForeach, syntax.KFor, syntax.KWhile, syntax.KDoWhile}
 }
@@ -85,17 +90,58 @@ func (loopWhichDoesNotLoop) Check(ctx *analysis.Context, n syntax.Node) {
 				return
 			}
 		}
-		for _, a := range t.Atoms() {
-			switch strings.ToLower(a) {
-			case `\generator`, `\traversable`, `\iterator`, "iterable":
-				return
-			}
-			if strings.HasPrefix(a, `\`) && !strings.HasSuffix(a, "]") && ctx.Index().IsSubtype(a, `\Traversable`, ctx.PHP) {
-				return
-			}
+		if traversable(ctx, t) || (last != nil && callsGeneratorMethod(ctx, fe.Expr)) {
+			return
 		}
 	}
 	ctx.Report(astquery.KeywordSpan(ctx.File, n), loopNoLoopMsg)
+}
+
+// traversable reports whether one of t's known types is iterable or a
+// \Traversable subtype (array-of types do not count).
+func traversable(ctx *analysis.Context, t types.Type) bool {
+	for _, a := range t.Atoms() {
+		switch strings.ToLower(a) {
+		case `\generator`, `\traversable`, `\iterator`, "iterable":
+			return true
+		}
+		if strings.HasPrefix(a, `\`) && !strings.HasSuffix(a, "]") && ctx.Index().IsSubtype(a, `\Traversable`, ctx.PHP) {
+			return true
+		}
+	}
+	return false
+}
+
+// callsGeneratorMethod reports whether e calls a method that one of the
+// receiver's classes declares as a generator. Inference leaves an overridable
+// method without return type unknown, yet its own body yields: the loop takes
+// the first element of a \Generator.
+func callsGeneratorMethod(ctx *analysis.Context, e syntax.Expr) bool {
+	c, ok := syntax.UnwrapParens(e).(*syntax.MethodCall)
+	if !ok {
+		return false
+	}
+	id, ok := c.Name.(*syntax.Identifier)
+	if !ok {
+		return false
+	}
+	for _, cls := range ctx.TypeOf(c.Var).Classes() {
+		m := ctx.Index().FindMethod(strings.TrimPrefix(cls, `\`), id.Value, ctx.PHP)
+		if m == nil {
+			continue
+		}
+		if md := semanticquery.MethodDecl(ctx.File, ctx.Index(), m, ctx.PHP); md != nil {
+			if semanticquery.NativeGeneratorBody(md.Body) {
+				return true
+			}
+			continue
+		}
+		// Declared in another file: the index kept the body-derived type.
+		if traversable(ctx, types.FromDoc(m.Inferred, nil)) {
+			return true
+		}
+	}
+	return false
 }
 
 func loopNoLoopIsLoop(n syntax.Node) bool {
