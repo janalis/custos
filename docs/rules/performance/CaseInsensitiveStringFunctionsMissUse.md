@@ -35,6 +35,9 @@ function parts($path, $mode)
     $h = stripos($path, "\t");
     $i = stripos($path, $mode);
     $j = stripos($path);
+    foreach (['-', '_'] as $mark) {
+        $j = stripos($path, $mark);
+    }
     return [$a, $b, $c, $d, $e, $f, $g, $h, $i, $j];
 }
 ```
@@ -55,6 +58,9 @@ function parts($path, $mode)
     $h = strpos($path, "\t");
     $i = stripos($path, $mode);
     $j = stripos($path);
+    foreach (['-', '_'] as $mark) {
+        $j = stripos($path, $mark);
+    }
     return [$a, $b, $c, $d, $e, $f, $g, $h, $i, $j];
 }
 ```

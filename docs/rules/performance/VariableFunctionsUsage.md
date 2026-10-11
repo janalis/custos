@@ -22,7 +22,7 @@ Level 8.0+:
 
 ::: code-group
 
-```php{7,8,9,10,11,12,13,14} [Before]
+```php{7,8,9,10,11,12,13} [Before]
 <?php
 class Mailer {
     public static function send($to, $body) { return true; }
@@ -32,7 +32,6 @@ $m = new Mailer();
 call_user_func($hook, $to, $log);
 call_user_func(['Mailer', 'send'], $to, $body);
 call_user_func(array($m, 'send'), $to, $body);
-forward_static_call([$m, 'send'], ...$rest);
 call_user_func([$m, $verb]);
 \call_user_func('App\\Mailer::send', $to);
 call_user_func_array($hook, [0 => $to, 1 => $body]);
@@ -50,6 +49,8 @@ call_user_func("{$cls}::send", $to);
 call_user_func(build(), $to);
 $name = 'mailer';
 call_user_func([$name, 'send'], $to);
+forward_static_call([$m, 'send'], ...$rest);
+call_user_func('sort', $pool);
 ```
 
 ```php [After fix]
@@ -62,7 +63,6 @@ $m = new Mailer();
 $hook($to, $log);
 Mailer::send($to, $body);
 $m->send($to, $body);
-$m::send(...$rest);
 $m->$verb();
 App\Mailer::send($to);
 call_user_func($hook, $to, $body);
@@ -80,6 +80,8 @@ call_user_func("{$cls}::send", $to);
 call_user_func(build(), $to);
 $name = 'mailer';
 call_user_func([$name, 'send'], $to);
+forward_static_call([$m, 'send'], ...$rest);
+call_user_func('sort', $pool);
 ```
 
 :::
@@ -90,11 +92,10 @@ Reported:
 <li>line 7: Call it directly: &#39;$hook($to, $log)&#39;.</li>
 <li>line 8: Call it directly: &#39;Mailer::send($to, $body)&#39;.</li>
 <li>line 9: Call it directly: &#39;$m-&gt;send($to, $body)&#39;.</li>
-<li>line 10: Call it directly: &#39;$m::send(...$rest)&#39;.</li>
-<li>line 11: Call it directly: &#39;$m-&gt;$verb()&#39;.</li>
-<li>line 12: Call it directly: &#39;App\Mailer::send($to)&#39;.</li>
-<li>line 13: Pass the arguments inline: &#39;call_user_func($hook, $to, $body)&#39;.</li>
-<li>line 14: Pass the arguments inline: &#39;forward_static_call(&#39;Mailer::send&#39;, 1, 2)&#39;.</li>
+<li>line 10: Call it directly: &#39;$m-&gt;$verb()&#39;.</li>
+<li>line 11: Call it directly: &#39;App\Mailer::send($to)&#39;.</li>
+<li>line 12: Pass the arguments inline: &#39;call_user_func($hook, $to, $body)&#39;.</li>
+<li>line 13: Pass the arguments inline: &#39;forward_static_call(&#39;Mailer::send&#39;, 1, 2)&#39;.</li>
 </ul>
 
 ## Configure

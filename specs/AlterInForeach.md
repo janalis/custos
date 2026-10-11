@@ -32,7 +32,9 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
 - **D1** The foreach value variable `V` is preceded by `&` (whitespace allowed
   between `&` and `$v`: `& $v`).
 - **D2** Find the *follower* `N`:
-  - `N` = next sibling of the foreach statement.
+  - `N` = next sibling of the foreach statement. Empty statements (a stray
+    `;`, as in `foreach (...) { ... };`) are skipped at every step of the
+    search: they do nothing, so control reaches whatever comes after them.
   - An `elseif`/`else` clause is never a follower: when the next sibling
     found at any step is such a clause, treat it as "none" (control leaves
     the branch for the statement after the whole `if`).
@@ -50,6 +52,12 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
       statement;
     - last statement of a loop body → statement after that loop.
   - Then skip doc comments: while `N` is a doc comment, `N` = its next sibling.
+  - If `N` is a plain `break;` (no level argument), control leaves the
+    nearest loop or `switch` enclosing that `break` (within the same
+    function): restart the search from that construct, as if it were the
+    foreach, and repeat while the result is again such a `break`. A `break`
+    with a level (`break 2;`), a `continue`, or a stray `break` with no
+    enclosing loop/switch is an ordinary follower (reported).
 - **D3** No report when any of these holds:
   - `N` does not exist;
   - `N` is a `return` statement or a `throw` statement;
@@ -72,6 +80,24 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
   is reported (severity info), whatever the other arguments are
   (`unset($cache['x'], $v)` reports `$v`). Non-variable arguments
   (`$obj->v`, `$a['v']`) are never reported.
+- **D6a** No report when `V` can be a reference for another reason (E6):
+  the unset then does release something. Looking only at the enclosing
+  function, method or closure itself (nested functions, methods and arrow
+  functions are not searched), the name of `V` is considered bound by
+  reference when it is:
+  - a by-reference parameter, or a by-reference `use (&$v)` of the enclosing
+    closure;
+  - captured by reference by a closure created in that body
+    (`function () use (&$v) { ... }`);
+  - declared with `global` or `static`;
+  - either side of a reference assignment (`$v = &...`, `... = &$v`);
+  - a by-reference array item (`[&$v]`, also in destructuring);
+  - the by-reference value of another foreach (`as &$v`).
+
+  The check is purely positional, not flow-sensitive: a binding counts when
+  it is written before the unset; when the unset sits inside a loop, a
+  binding anywhere in the function counts (it precedes the unset on the next
+  iteration). An intervening `unset($v)` is not taken into account.
 
 ### C. Write-back through key (option `SUGGEST_USING_VALUE_BY_REF`, default off)
 
@@ -105,6 +131,11 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
   variable argument (`unset($obj->v)` does not count).
 - **E5** (custos, see Divergences) Part B: the loop is at file scope (no
   enclosing function, method or closure).
+- **E6** (custos, see Divergences) Part B: the variable is bound by
+  reference elsewhere in the enclosing function (D6a).
+- **E7** (custos, see Divergences) Part A: only empty statements, or a plain
+  `break;` out of the enclosing loop/switch, stand between the loop and the
+  `unset`/`return`/`throw`/end of body.
 - **E4** Part C: option off; append form `$a[] = …`; non-variable index
   (`$a[$k + 1]`, `$a['x']`); container/key not matching the foreach; the
   assignment inside a closure/function nested in the loop.
@@ -201,3 +232,18 @@ function tail(array $list) {
   scope (and into files included later, which WordPress's bootstrap files
   rely on — 17 findings). custos only reports part B inside functions,
   methods and closures.
+- **custos diverges — part B and other reference bindings (E6).** Upstream
+  only looks at the `&` of the loop being inspected. A variable iterated by
+  value can still be a reference — a by-reference parameter, a `global` or
+  `static`, the target or source of `= &`, a by-reference closure capture,
+  or the leftover of an earlier by-reference loop. The loop then writes
+  through that binding and the following `unset` is what detaches it, so
+  calling it unnecessary is wrong and removing it changes behaviour. custos
+  stays silent in those cases (D6a).
+- **custos diverges — part A, empty statements and `break` (E7).** Upstream
+  treats whatever node follows the loop as the follower, so a stray `;`
+  after the closing brace, or the `break;` that ends a `switch` case, makes
+  it report a loop whose variable is unset before any further use. custos
+  skips empty statements and follows a plain `break;` to the statement after
+  the loop or switch it leaves (D2), consistent with the branch-follower
+  rule above.

@@ -5,8 +5,8 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
     $r[] = <warning descr="Replace with 'false !== stripos($path, &quot;cache-dir&quot;)'.">preg_match('#cache-dir#i', $path)</warning> && $name;
     $r[] = <warning descr="Replace with '0 === strpos($path, &quot;.&quot;)'.">preg_match('/^\./', $path)</warning> && $name;
     $r[] = <warning descr="Replace with '0 === stripos($name, &quot;img_&quot;)'.">preg_match('/^img_/i', $name)</warning> && $name;
-    $r[] = <warning descr="Replace with '&quot;index&quot; === $name'.">preg_match('/^index$/D', $name)</warning> && $name;
-    $r[] = <warning descr="Replace with '&quot;index&quot; !== $name'.">!preg_match('/^index$/D', $name)</warning>;
+    $r[] = <warning descr="Replace with '&quot;index&quot; === (string) $name'.">preg_match('/^index$/D', $name)</warning> && $name;
+    $r[] = <warning descr="Replace with '&quot;index&quot; !== (string) $name'.">!preg_match('/^index$/D', $name)</warning>;
     $r[] = preg_match('/^index$/', $name); // also matches "index\n"
     $r[] = <warning descr="Replace with '0 !== strpos($path, &quot;tmp&quot;)'.">preg_match('/^tmp/', $path) == 0</warning>;
     $r[] = <warning descr="Replace with 'false === strpos($path, &quot;tmp&quot;)'.">0 === preg_match('/tmp/', $path)</warning>;

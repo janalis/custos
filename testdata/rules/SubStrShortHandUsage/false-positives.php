@@ -14,5 +14,10 @@ function cut($name, $head, $k) {
     $q = substr($name, 3, strlen($name) - 6);
     $r = substr($name, 0, strlen($name) - 4);
     $q = substr($name, 1_0, strlen($name) - 2);
-    return [$f, $g, $h, $i, $j, $l, $m, $n, $o, $p, $q, $s];
+    // mb_strlen($name) counts in the internal encoding, not in bytes or UTF-16 units.
+    $t = mb_substr($name, 0, mb_strlen($name) - 1, '8bit');
+    $u = mb_substr($name, $k, mb_strlen($name) - $k, "UTF-16LE");
+    // 'abcdef': substr($s, 1.5, 4.5) is 'bcde', substr($s, 1.5) is 'bcdef'
+    $v = substr($name, 1.5, strlen($name) - 1.5);
+    return [$f, $g, $h, $i, $j, $l, $m, $n, $o, $p, $q, $s, $t, $u, $v];
 }

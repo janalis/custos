@@ -1,6 +1,7 @@
 package variablefunctionsusage
 
 import (
+	"slices"
 	"strings"
 
 	"custos/internal/diagnostic"
@@ -9,6 +10,8 @@ import (
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/index"
+	"custos/internal/semantic/names"
 )
 
 // variableFunctionsUsage reports call_user_func()-style calls whose callable
@@ -98,8 +101,10 @@ func vfuInlineArgs(ctx *analysis.Context, call *syntax.FuncCall, target string) 
 	return target + "(" + strings.Join(parts, ", ") + ")", true
 }
 
-// vfuDirectCall implements Part B (D5–D8).
-func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, static bool) (string, bool) {
+// vfuDirectCall implements Part B (D5–D8). forward is set for
+// forward_static_call(), whose late static binding only a self::/static::/
+// parent:: call keeps (D7b).
+func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, forward bool) (string, bool) {
 	list := call.Args.Args
 	if len(list) == 0 {
 		return "", false
@@ -148,6 +153,10 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, static bool) (s
 	if !firstIsVar && !firstIsStr { // E5: covers the `:` override too
 		return "", false
 	}
+	if forward && firstIsVar { // D7b: `$fn()` and `$obj::m()` do not forward
+		return "", false
+	}
+	at := call.Span().Start
 	var method string
 	if second != nil { // D7
 		method = "{" + ctx.Text(second) + "}"
@@ -157,18 +166,25 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, static bool) (s
 				return "", false
 			}
 			if strings.Contains(c, ":") {
-				if cls, m, ok := strings.Cut(c, "::"); ok { // F2: absolute class name
-					c = semanticquery.StringCallableClass(ctx, cls, call.Span().Start) + "::" + m
+				cls, m, _ := strings.Cut(c, "::")
+				// self::/static:: here are relative to the class in first,
+				// and a named class never forwards (D7b).
+				if !vfuQualifiedName(cls) || !vfuIdentifier(m) || forward || names.IsSpecialClass(cls) ||
+					vfuBindsByRef(list[1:], vfuMethodParams(ctx, call, nil, cls, m)) {
+					return "", false
 				}
-				return c + "(" + args + ")", true
+				// F2: absolute class name
+				return semanticquery.StringCallableClass(ctx, cls, at) + "::" + m + "(" + args + ")", true
 			}
-			method = c
+			if vfuIdentifier(c) { // D7c: other names keep the `{…}` form
+				method = c
+			}
 		} else if _, isVar := astquery.PlainVariableName(second); isVar {
 			method = ctx.Text(second)
 		}
 	}
 	target := ctx.Text(first)
-	at := call.Span().Start
+	var params [][]index.Param // D5b: the callees, when they resolve
 	if firstIsStr {
 		target, _ = astquery.StringLiteralValue(first.(*syntax.Literal).Raw)
 		if second == nil && vfuParentCallable(target) { // E4 for a single string
@@ -177,10 +193,24 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, static bool) (s
 		// F2: string callables hold absolute names; spell them so the
 		// direct call reaches the same function or class.
 		if second != nil {
+			if !vfuQualifiedName(target) || forward && !names.IsSpecialClass(target) {
+				return "", false
+			}
+			params = vfuMethodParams(ctx, call, nil, target, vfuLiteralValue(second))
 			target = semanticquery.StringCallableClass(ctx, target, at)
 		} else if cls, m, ok := strings.Cut(target, "::"); ok {
+			if !vfuQualifiedName(cls) || !vfuIdentifier(m) || forward && !names.IsSpecialClass(cls) {
+				return "", false
+			}
+			params = vfuMethodParams(ctx, call, nil, cls, m)
 			target = semanticquery.StringCallableClass(ctx, cls, at) + "::" + m
 		} else {
+			if !vfuQualifiedName(target) {
+				return "", false
+			}
+			if f := ctx.Index().Function(strings.TrimPrefix(target, `\`), ctx.PHP); f != nil {
+				params = [][]index.Param{f.Params}
+			}
 			// D7a: a global name shadowed at the call (namespace function or
 			// `use function`) is reached on purpose through the string.
 			if fn := strings.TrimPrefix(target, `\`); fn != "" && !strings.Contains(fn, `\`) && !semanticquery.BareReachesGlobal(ctx, fn, at) {
@@ -189,11 +219,19 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, static bool) (s
 			target = semanticquery.StringCallableFunction(ctx, target, at)
 		}
 	}
+	if firstIsVar && second != nil {
+		params = vfuMethodParams(ctx, call, first, "", vfuLiteralValue(second))
+	} else if firstIsVar {
+		params = vfuVariableParams(ctx, first)
+	}
+	if vfuBindsByRef(list[1:], params) { // D5b
+		return "", false
+	}
 	if second == nil {
 		return target + "(" + args + ")", true
 	}
 	sep := "->"
-	if !firstIsVar || static {
+	if !firstIsVar {
 		sep = "::"
 	}
 	return target + sep + method + "(" + args + ")", true
@@ -222,4 +260,102 @@ func vfuArgsText(ctx *analysis.Context, list []syntax.Expr) string {
 // (`parent` is case-insensitive in PHP).
 func vfuParentCallable(s string) bool {
 	return len(s) >= 8 && strings.EqualFold(s[:8], "parent::")
+}
+
+// vfuIdentifier reports whether s can be written as a bare PHP name.
+func vfuIdentifier(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c != '_' && c < 0x80 && (c|0x20 < 'a' || c|0x20 > 'z') && (i == 0 || c < '0' || c > '9') {
+			return false
+		}
+	}
+	return s != ""
+}
+
+// vfuQualifiedName reports whether s is a class or function name: bare
+// names joined by `\`, with an optional leading one.
+func vfuQualifiedName(s string) bool {
+	for seg := range strings.SplitSeq(strings.TrimPrefix(s, `\`), `\`) {
+		if !vfuIdentifier(seg) {
+			return false
+		}
+	}
+	return true
+}
+
+// vfuLiteralValue is the value of a non-interpolated string literal, ""
+// for any other expression.
+func vfuLiteralValue(e syntax.Expr) string {
+	if _, _, ok := astquery.QuotedStringRaw(e); !ok {
+		return ""
+	}
+	v, _ := astquery.StringLiteralValue(e.(*syntax.Literal).Raw)
+	return v
+}
+
+// vfuMethodParams returns the parameter lists of the methods a callable may
+// name: on the inferred classes of obj, or on the class named in a string
+// (self/static/parent looked up from the enclosing class). Nil when unresolved.
+func vfuMethodParams(ctx *analysis.Context, call *syntax.FuncCall, obj syntax.Expr, class, method string) [][]index.Param {
+	var classes []string
+	switch {
+	case obj != nil:
+		classes = ctx.TypeOf(obj).Classes()
+	case names.IsSpecialClass(class):
+		// A parent method is found through the enclosing class as well.
+		classes = []string{ctx.Types().ClassFQN(syntax.EnclosingClass(call))}
+	default:
+		classes = []string{class}
+	}
+	var out [][]index.Param
+	for _, cls := range classes {
+		if m := ctx.Index().FindMethod(strings.TrimPrefix(cls, `\`), method, ctx.PHP); m != nil {
+			out = append(out, m.Params)
+		}
+	}
+	return out
+}
+
+// vfuVariableParams returns the parameter lists of the callees a plain
+// variable callable is assigned in its function: closures, arrow functions
+// and function names in strings. Other values contribute nothing.
+func vfuVariableParams(ctx *analysis.Context, v syntax.Expr) [][]index.Param {
+	var out [][]index.Param
+	for _, val := range semanticquery.DiscoverValues(ctx.Types(), v) {
+		var decl []*syntax.Param
+		switch x := val.(type) {
+		case *syntax.Closure:
+			decl = x.Params
+		case *syntax.ArrowFunction:
+			decl = x.Params
+		default:
+			if f := ctx.Index().Function(strings.TrimPrefix(vfuLiteralValue(val), `\`), ctx.PHP); f != nil {
+				out = append(out, f.Params)
+			}
+			continue
+		}
+		params := make([]index.Param, len(decl))
+		for i, d := range decl {
+			params[i] = index.Param{Name: d.Var.Name, ByRef: d.ByRef, Variadic: d.Variadic}
+		}
+		out = append(out, params)
+	}
+	return out
+}
+
+// vfuBindsByRef reports whether an argument would bind to a by-reference
+// parameter in the direct call (call_user_func() passes copies). A spread
+// may reach any parameter.
+func vfuBindsByRef(args []syntax.Expr, callees [][]index.Param) bool {
+	spread := slices.ContainsFunc(args, func(a syntax.Expr) bool {
+		return a.(*syntax.Arg).Unpack // placeholders are rejected earlier (D5a)
+	})
+	for _, params := range callees {
+		if semanticquery.ArgBindsByRef(&syntax.ArgList{Args: args}, params, false) ||
+			spread && slices.ContainsFunc(params, func(p index.Param) bool { return p.ByRef }) {
+			return true
+		}
+	}
+	return false
 }

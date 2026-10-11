@@ -1,7 +1,9 @@
 package slowarrayoperationsinloop
 
 import (
+	"slices"
 	"strconv"
+	"strings"
 
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
@@ -247,7 +249,7 @@ func (slowArrayOperationsInLoop) checkFor(ctx *analysis.Context, f *syntax.For) 
 			if names == nil {
 				names = newForNames(ctx, f)
 			}
-			switch forSubjectChange(ctx, f, call) {
+			switch forSubjectChange(ctx, f, call, name) {
 			case forSubjectWritten:
 				continue // custos: the loop changes the length on purpose
 			case forSubjectMayChange:
@@ -263,63 +265,138 @@ func (slowArrayOperationsInLoop) checkFor(ctx *analysis.Context, f *syntax.For) 
 // loop runs (custos), so computing its length once would change the number
 // of iterations.
 //
-// It is written when the body or step visibly changes it: assigns, pushes
-// to, increments or unsets it or one of its elements (or an offset of the
-// measured element), or passes it (or an element) to a by-reference
-// parameter of a resolved function. The loop then measures a length it
-// changes on purpose, and the condition is not reported.
+// It is written when the body, the step or the condition visibly changes it:
+// assigns (also through list()/[] destructuring or as a foreach key/value),
+// pushes to, increments or unsets the measured expression, one of its
+// elements, or an expression it is reached through (the root array, the
+// object holding a measured property, a variable of an offset), or passes
+// one of them to a by-reference parameter of a resolved function. The loop
+// then measures a length it changes on purpose, and the condition is not
+// reported.
 //
-// It may change when the subject is not a variable or property fetch, or
-// when the body iterates it by reference, binds a reference to it, passes it
-// to an unresolved callee or unpacks it into a call, or calls a method on
-// the object holding a measured property. The condition is reported
-// without a fixing.
-func forSubjectChange(ctx *analysis.Context, f *syntax.For, call *syntax.FuncCall) forChange {
+// It may change when the subject is not a variable or property fetch, when
+// the loop iterates it by reference, binds a reference to it, passes it to
+// an unresolved callee or unpacks it into a call, calls a method on it or on
+// an object it is reached through, hands such an object to user code, or
+// runs code that can reach a shared subject (a property, or a variable that
+// is not purely local: any call but a builtin without callable parameter),
+// and when a reference to it exists anywhere in the enclosing scope. The
+// condition is reported without a fix.
+func forSubjectChange(ctx *analysis.Context, f *syntax.For, call *syntax.FuncCall, name string) forChange {
 	args, ok := astquery.CallArgValues(call)
 	if !ok || len(args) == 0 {
 		return forSubjectMayChange
 	}
-	subj := syntax.UnwrapParens(args[0])
-	// An element (`count($grid[$r])`) is measured through its root array:
-	// any write into the root, or to an offset expression, counts.
-	var dims []syntax.Expr
+	full := syntax.UnwrapParens(args[0])
+	// An element (`count($grid[$r])`) is measured through its root array.
+	subj := full
 	for {
 		d, ok := subj.(*syntax.ArrayDimFetch)
 		if !ok || d.Dim == nil {
 			break
 		}
-		dims = append(dims, syntax.UnwrapParens(d.Dim))
 		subj = syntax.UnwrapParens(d.Var)
 	}
-	var holder syntax.Expr // object whose property is measured
+	var holders []syntax.Expr // objects the measured property is reached through
+	// shared: the measured value is reachable by code the loop calls (a
+	// property, or a variable that is not purely local).
+	shared, plain := true, false
 	switch x := subj.(type) {
 	case *syntax.Variable:
 		if x.NameExpr != nil {
 			return forSubjectMayChange
 		}
+		plain, shared = true, forSharedVariable(f, x.Name)
 	case *syntax.PropertyFetch:
-		holder = x.Var
+		for h := syntax.UnwrapParens(x.Var); h != nil; {
+			holders = append(holders, h)
+			switch p := h.(type) {
+			case *syntax.PropertyFetch:
+				h = syntax.UnwrapParens(p.Var)
+			case *syntax.ArrayDimFetch:
+				h = syntax.UnwrapParens(p.Var)
+			default:
+				h = nil
+			}
+		}
 	case *syntax.StaticPropertyFetch:
 	default:
 		return forSubjectMayChange
 	}
-	touches := func(e syntax.Expr) bool { // e is subj, one of its elements or an offset
-		for _, d := range dims {
-			if astquery.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(e), d) {
-				return true
-			}
-		}
+	parts := forMeasuredParts(full, nil)
+	// reach returns the part of the measured expression that e, or the array
+	// e is an element of, denotes, and whether e is that part itself.
+	reach := func(e syntax.Expr) (part syntax.Expr, exact bool) {
+		exact = true
 		for {
 			e = syntax.UnwrapParens(e)
-			if astquery.EquivalentFoldNames(ctx.File, e, subj) {
-				return true
+			for _, p := range parts {
+				if astquery.EquivalentFoldNames(ctx.File, e, p) {
+					return p, exact
+				}
 			}
 			d, ok := e.(*syntax.ArrayDimFetch)
 			if !ok {
-				return false
+				return nil, false
 			}
-			e = d.Var
+			e, exact = d.Var, false
 		}
+	}
+	touches := func(e syntax.Expr) bool {
+		p, _ := reach(e)
+		return p != nil
+	}
+	// sibling reports whether e is the measured property, or one of its
+	// elements, read through another object expression: `$me->rows` for
+	// `$this->rows`, the same array when `$me` is `$this`.
+	sibling := func(e syntax.Expr) bool {
+		p, ok := subj.(*syntax.PropertyFetch)
+		for ok {
+			e = syntax.UnwrapParens(e)
+			if q, isProp := e.(*syntax.PropertyFetch); isProp {
+				return astquery.EquivalentFoldNames(ctx.File, q.Name, p.Name)
+			}
+			var d *syntax.ArrayDimFetch
+			if d, ok = e.(*syntax.ArrayDimFetch); ok {
+				e = d.Var
+			}
+		}
+		return false
+	}
+	var assigns func(e syntax.Expr) bool // e as a write target, destructuring included
+	assigns = func(e syntax.Expr) bool {
+		var items []*syntax.ArrayItem
+		switch x := syntax.UnwrapParens(e).(type) {
+		case *syntax.Array:
+			items = x.Items
+		case *syntax.List:
+			items = x.Items
+		default:
+			return touches(e)
+		}
+		for _, it := range items {
+			if it != nil && it.Value != nil && assigns(it.Value) {
+				return true
+			}
+		}
+		return false
+	}
+	// object reports whether passing part by value may hand over an object
+	// the callee can change: a holder, or a subject not known to be an
+	// array or a string.
+	object := func(part syntax.Expr) bool {
+		for _, h := range holders {
+			if astquery.EquivalentFoldNames(ctx.File, part, h) {
+				return true
+			}
+		}
+		if part != full && part != subj {
+			return false
+		}
+		if part == full && (name == "strlen" || name == "mb_strlen") {
+			return false
+		}
+		return !ctx.TypeOf(subj).IsArrayLike()
 	}
 	state := forSubjectStable
 	mark := func(c forChange) {
@@ -329,13 +406,18 @@ func forSubjectChange(ctx *analysis.Context, f *syntax.For, call *syntax.FuncCal
 		if state == forSubjectWritten {
 			return false
 		}
+		var fn *index.Function
 		switch x := n.(type) {
-		case *syntax.Function, *syntax.Method, *syntax.ClassLike, *syntax.Closure, *syntax.ArrowFunction:
+		case *syntax.Function, *syntax.Method, *syntax.ClassLike:
 			return false
+		case *syntax.Closure, *syntax.ArrowFunction:
+			if plain { // captured by value; by-reference captures: see below
+				return false
+			}
 		case *syntax.Assign:
-			if touches(x.Var) {
+			if assigns(x.Var) {
 				mark(forSubjectWritten)
-			} else if x.ByRef && touches(x.Value) {
+			} else if x.ByRef && touches(x.Value) || sibling(x.Var) {
 				mark(forSubjectMayChange)
 			}
 		case *syntax.IncDec:
@@ -346,40 +428,54 @@ func forSubjectChange(ctx *analysis.Context, f *syntax.For, call *syntax.FuncCal
 			for _, v := range x.Vars {
 				if touches(v) {
 					mark(forSubjectWritten)
+				} else if sibling(v) {
+					mark(forSubjectMayChange)
 				}
 			}
 		case *syntax.Foreach:
-			if x.ByRef && touches(x.Expr) {
+			if assigns(x.Value) || x.Key != nil && assigns(x.Key) {
+				mark(forSubjectWritten)
+			} else if x.ByRef && touches(x.Expr) {
 				mark(forSubjectMayChange)
 			}
+		case *syntax.Variable:
+			if plain && x.NameExpr != nil { // `$$name` may be the measured variable
+				mark(forSubjectMayChange)
+			}
+		case *syntax.Include, *syntax.Eval:
+			mark(forSubjectMayChange) // runs in this scope
 		case *syntax.MethodCall:
-			if holder != nil && astquery.EquivalentFoldNames(ctx.File, syntax.UnwrapParens(x.Var), holder) {
+			if _, exact := reach(x.Var); exact || shared {
+				mark(forSubjectMayChange)
+			}
+		case *syntax.StaticCall, *syntax.New, *syntax.Yield, *syntax.YieldFrom:
+			if shared { // user code runs before the next length check
+				mark(forSubjectMayChange)
+			}
+		case *syntax.FuncCall:
+			fn = ctx.Types().ResolveFunction(x)
+			if shared && (fn == nil || !fn.Builtin || forCallsBack(fn)) || plain && forWritesScope(ctx, x) {
 				mark(forSubjectMayChange)
 			}
 		}
 		if list := callArgList(n); list != nil {
-			var params []index.Param
-			resolved := false
-			if fc, ok := n.(*syntax.FuncCall); ok {
-				if fn := ctx.Types().ResolveFunction(fc); fn != nil {
-					params, resolved = fn.Params, true
-				}
-			}
 			pos := 0
 			for _, a := range list.Args {
 				arg, ok := a.(*syntax.Arg)
 				if !ok {
 					continue
 				}
-				if touches(arg.Value) {
+				if part, exact := reach(arg.Value); part != nil {
 					switch {
-					case !resolved, arg.Unpack:
+					case fn == nil, arg.Unpack:
 						mark(forSubjectMayChange)
-					case pos < len(params) && params[pos].ByRef:
+					case forParamByRef(fn.Params, arg, pos):
 						mark(forSubjectWritten)
-					case len(params) > 0 && params[len(params)-1].Variadic && params[len(params)-1].ByRef && pos >= len(params)-1:
-						mark(forSubjectWritten)
+					case !fn.Builtin && exact && object(part):
+						mark(forSubjectMayChange)
 					}
+				} else if sibling(arg.Value) && (fn == nil || forParamByRef(fn.Params, arg, pos)) {
+					mark(forSubjectMayChange)
 				}
 				pos++
 			}
@@ -390,7 +486,148 @@ func forSubjectChange(ctx *analysis.Context, f *syntax.For, call *syntax.FuncCal
 	for _, e := range f.Loop {
 		syntax.Inspect(e, visit)
 	}
+	for _, e := range f.Cond {
+		syntax.Inspect(e, visit)
+	}
+	if state != forSubjectStable {
+		return state
+	}
+	// A reference made anywhere in the scope lets a write under another name
+	// change the measured value. A reference to an element of the measured
+	// value itself cannot change its length.
+	scope := syntax.EnclosingFuncLike(f)
+	aliased := func(e syntax.Expr) bool {
+		p, exact := reach(e)
+		return p != nil && (exact || p != full)
+	}
+	alias := func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.ClassLike, *syntax.ArrowFunction:
+			return n == scope
+		case *syntax.Closure:
+			if n != scope {
+				for _, u := range x.Uses {
+					if u.ByRef && touches(u.Var) {
+						mark(forSubjectMayChange)
+					}
+				}
+				return false
+			}
+		case *syntax.Assign:
+			if x.ByRef && (aliased(x.Var) || aliased(x.Value)) {
+				mark(forSubjectMayChange)
+			}
+		case *syntax.Foreach:
+			if p, exact := reach(x.Expr); x.ByRef && exact && p != full {
+				mark(forSubjectMayChange)
+			}
+		}
+		return state == forSubjectStable
+	}
+	if scope != nil {
+		syntax.Inspect(scope, alias)
+	} else {
+		for _, st := range ctx.File.Stmts {
+			syntax.Inspect(st, alias)
+		}
+	}
 	return state
+}
+
+// forMeasuredParts appends to out the expressions the measured expression e
+// is read through: e itself, the arrays and objects it is fetched from and
+// the variables of its offsets.
+func forMeasuredParts(e syntax.Expr, out []syntax.Expr) []syntax.Expr {
+	switch x := syntax.UnwrapParens(e).(type) {
+	case *syntax.Variable, *syntax.StaticPropertyFetch:
+		out = append(out, x)
+	case *syntax.PropertyFetch:
+		out = forMeasuredParts(x.Var, append(out, x))
+	case *syntax.ArrayDimFetch:
+		out = forMeasuredParts(x.Var, append(out, x))
+		if x.Dim != nil {
+			syntax.Inspect(x.Dim, func(n syntax.Node) bool {
+				switch v := n.(type) {
+				case *syntax.Variable, *syntax.StaticPropertyFetch:
+					out = append(out, v.(syntax.Expr))
+					return false
+				case *syntax.PropertyFetch:
+					out = append(out, v)
+				}
+				return true
+			})
+		}
+	}
+	return out
+}
+
+// forSuperglobals are the variables every scope shares.
+var forSuperglobals = []string{"GLOBALS", "_GET", "_POST", "_COOKIE", "_REQUEST", "_SERVER", "_SESSION", "_ENV", "_FILES"}
+
+// forSharedVariable reports whether code called from the loop f can write
+// the plain variable name: it lives outside the function (top-level code,
+// `global`, `static`, a superglobal) or is bound to a variable of the caller
+// (by-reference parameter or closure capture).
+func forSharedVariable(f *syntax.For, name string) bool {
+	scope := syntax.EnclosingFuncLike(f)
+	if scope == nil || slices.Contains(forSuperglobals, name) {
+		return true
+	}
+	shared := false
+	is := func(e syntax.Expr) bool {
+		v, ok := e.(*syntax.Variable)
+		return ok && v.Name == name
+	}
+	syntax.Inspect(scope, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.ClassLike, *syntax.Closure, *syntax.ArrowFunction:
+			if n != scope {
+				return false
+			}
+		case *syntax.Param:
+			shared = shared || x.ByRef && is(x.Var)
+		case *syntax.ClosureUse:
+			shared = shared || x.ByRef && is(x.Var)
+		case *syntax.Global:
+			shared = shared || slices.ContainsFunc(x.Vars, is)
+		case *syntax.StaticVar:
+			shared = shared || is(x.Var)
+		}
+		return !shared
+	})
+	return shared
+}
+
+// forCallsBack reports whether the builtin fn takes a callable, which runs
+// user code.
+func forCallsBack(fn *index.Function) bool {
+	return slices.ContainsFunc(fn.Params, func(p index.Param) bool {
+		return strings.Contains(strings.ToLower(p.Type+"|"+p.DocType), "callable")
+	})
+}
+
+// forWritesScope reports whether call reaches a builtin that creates or
+// overwrites variables of the calling scope.
+func forWritesScope(ctx *analysis.Context, call *syntax.FuncCall) bool {
+	c, _ := semanticquery.GlobalCall(ctx, call, "extract", "parse_str", "mb_parse_str")
+	return c != nil
+}
+
+// forParamByRef reports whether arg, the pos-th argument of a call, binds
+// to a by-reference parameter of params.
+func forParamByRef(params []index.Param, arg *syntax.Arg, pos int) bool {
+	if arg.Name != nil {
+		for _, p := range params {
+			if p.ByRef && strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
+				return true
+			}
+		}
+		return false
+	}
+	if pos < len(params) {
+		return params[pos].ByRef
+	}
+	return len(params) > 0 && params[len(params)-1].Variadic && params[len(params)-1].ByRef
 }
 
 // forChange grades how the measured value of a `for` condition may change

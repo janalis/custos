@@ -95,6 +95,9 @@ func (r unqualifiedReference) Check(ctx *analysis.Context, n syntax.Node) {
 		if c == nil || strings.TrimPrefix(c.FQN, `\`) != x.Name.Value { // D5
 			return
 		}
+		if uqRuntimeDefined(ctx, x.Name) { // D5: a define() the index cannot name
+			return
+		}
 		uqReport(ctx, x.Name.Span(), x.Name, x.Name.Value)
 	}
 }
@@ -163,11 +166,8 @@ func (unqualifiedReference) callback(ctx *analysis.Context, call *syntax.FuncCal
 	if uqGoverningNamespace(call) == nil { // D4 (custos: Part B too)
 		return
 	}
-	arg, ok := call.Args.Args[pos].(*syntax.Arg)
-	if !ok || arg.Value == nil {
-		return
-	}
-	content, quote, ok := astquery.QuotedStringRaw(arg.Value)                                       // D8
+	value := uqArgument(call, pos, "callback")                                                      // D8: the argument bound to the callback
+	content, quote, ok := astquery.QuotedStringRaw(value)                                           // D8
 	if !ok || content == "" || strings.HasPrefix(content, `\`) || strings.Contains(content, "::") { // D9
 		return
 	}
@@ -177,7 +177,7 @@ func (unqualifiedReference) callback(ctx *analysis.Context, call *syntax.FuncCal
 	if ctx.Index().Function(content, ctx.PHP) == nil { // D11: a known global function
 		return
 	}
-	span := arg.Value.Span()
+	span := value.Span()
 	open := span.End - uint32(len(content)) - 1 // position right after the opening quote
 	ins := `\`
 	if quote == '"' {
@@ -189,4 +189,99 @@ func (unqualifiedReference) callback(ctx *analysis.Context, call *syntax.FuncCal
 			return []diagnostic.TextEdit{{Span: syntax.Span{Start: open, End: open}, NewText: ins}}
 		},
 	})
+}
+
+// uqArgument returns the value bound to the parameter at pos, named param:
+// a named argument binds by its name whatever its position. Nil when the
+// parameter is not passed or an unpacked argument hides the positions.
+func uqArgument(call *syntax.FuncCall, pos int, param string) syntax.Expr {
+	i := 0
+	for _, n := range call.Args.Args {
+		arg, ok := n.(*syntax.Arg)
+		if !ok || arg.Unpack {
+			return nil
+		}
+		if arg.Name != nil {
+			if arg.Name.Value == param {
+				return arg.Value
+			}
+			continue
+		}
+		if i == pos {
+			return arg.Value
+		}
+		i++
+	}
+	return nil
+}
+
+// uqRuntimeDefined reports whether the file holds a define() call that
+// declares name in its governing namespace under a spelling the index does
+// not record (D5): a name built by concatenation (`__NAMESPACE__ . '\X'`)
+// or written with an escaped backslash.
+func uqRuntimeDefined(ctx *analysis.Context, name *syntax.Name) bool {
+	defined := ctx.Memo("defines", func() any {
+		set := map[string]bool{}
+		syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
+			call, ok := n.(*syntax.FuncCall)
+			if !ok || call.Args == nil {
+				return true
+			}
+			fn, ok := call.Name.(*syntax.Name)
+			if !ok || !strings.EqualFold(astquery.LastNamePart(fn.Value), "define") {
+				return true
+			}
+			full, exact := uqFoldName(ctx, uqArgument(call, 0, "constant_name"))
+			if exact {
+				full = strings.TrimPrefix(full, `\`)
+			}
+			if cut := strings.LastIndexByte(full, '\\'); cut >= 0 {
+				if !exact { // unknown prefix: any namespace may be meant
+					set[full[cut:]] = true
+				}
+				set[strings.ToLower(full[:cut])+full[cut:]] = true
+			} else if !exact && full != "" { // `$ns . 'X'`: the prefix may be a namespace
+				set[`\`+full] = true
+			}
+			return true
+		})
+		return set
+	}).(map[string]bool)
+	ns := ""
+	if decl := uqGoverningNamespace(name); decl.Name != nil {
+		ns = strings.ToLower(decl.Name.Value)
+	}
+	return defined[ns+`\`+name.Value] || defined[`\`+name.Value]
+}
+
+// uqFoldName evaluates the name argument of a define() call: string
+// literals, `__NAMESPACE__` and their concatenations. exact is false when
+// only the trailing literal of a concatenation is known; the text is then
+// that tail.
+func uqFoldName(ctx *analysis.Context, e syntax.Expr) (text string, exact bool) {
+	switch x := syntax.UnwrapParens(e).(type) {
+	case *syntax.Binary:
+		if x.Op.Kind != syntax.TDot {
+			return "", false
+		}
+		right, exact := uqFoldName(ctx, x.Right)
+		if !exact {
+			return right, false
+		}
+		left, exact := uqFoldName(ctx, x.Left)
+		return left + right, exact
+	case *syntax.MagicConst:
+		if !strings.EqualFold(ctx.Text(x), "__NAMESPACE__") {
+			return "", false
+		}
+		if ns := uqGoverningNamespace(x); ns != nil && ns.Name != nil {
+			return ns.Name.Value, true
+		}
+		return "", true // the global namespace
+	case *syntax.Literal:
+		if raw, _, ok := astquery.QuotedStringRaw(x); ok {
+			return strings.ReplaceAll(raw, `\\`, `\`), true
+		}
+	}
+	return "", false
 }

@@ -66,7 +66,15 @@ imported from another namespace, or a qualified non-global name such as
   variable with the same name, and
   - for an assignment entry: the left side of `F`'s assignment is
     equivalent to `$p` (a plain variable with the same name);
-  - for a `return` entry: no further condition.
+  - for a `return` entry: `$p` is a *plain local* of the enclosing
+    function (custos, see Divergences): the fix deletes the assignment, so
+    nothing may read `$p` once the function has returned. `$p` is not a
+    plain local when the `return` is at file level or inside a `try` that
+    has a `finally` block, when `$p` is a by-reference parameter, or when
+    anywhere in the function `$p` is declared `global` or `static`,
+    imported by reference into a closure (`use (&$p)`), part of a reference
+    assignment (`=&`), a by-reference array element (`[&$p]`) or the
+    by-reference value of a `foreach`.
 - **D5** `F` and `G` can be merged (D9) → report `F` (cascade report); fix:
   patch `F`, eliminate `G`.
 
@@ -104,6 +112,9 @@ D3/D5, D6 and D7/D8 are independent; one `F` can yield several reports.
   string literal (an array, a variable), for part C.
 - **E6** `F` with fewer than 3 or more than 4 arguments; parts A and B when
   `F`, `G` or `I` has a 4th `$count` argument.
+- **E7** A `return` entry whose variable is not a plain local (D4): by
+  reference parameter, `global`, `static`, reference-bound, or read by a
+  `finally` block.
 
 ## Report
 
@@ -126,9 +137,41 @@ last one (each fix merges with the already-merged previous call) — custos
 must reproduce this cumulative result (e.g. by re-running detection after
 each fix pass).
 
+- **F0 When the fix is offered.** A cascade or nested report always stands,
+  but the merge fix is offered only when all of the following hold for the
+  calls taking part (the whole cascade chain, or `F` and `I`); otherwise the
+  report carries no fix.
+  - *Known shape.* Each search and replace argument is an array literal, or
+    an expression known to be one string — a global constant with a single
+    string `define()`, or an inferred type made only of
+    `string`/`int`/`float`/`bool`/`null` — or an expression whose inferred
+    type is made only of arrays. An untyped variable, `mixed`,
+    `array|string` or `?array` could be either, and can be written neither
+    as one element nor as a spread.
+  - *Pairing.* When every call replaces with the same string literal
+    (F1 shortcut) nothing more is asked. Otherwise: a string search needs a
+    string replace; a string replace needs a search array literal without
+    spread element and with at least one element (it is copied once per
+    search element); and an array search with an array replace must be two
+    array literals without spread element and of equal length — except in
+    the latest call, whose elements end both merged lists, where PHP's own
+    padding (missing replacements are `''`, extra ones are ignored) keeps
+    working.
+  - *Evaluation order.* The merged call evaluates all searches, then all
+    replacements, then the first call's subject. At most one search/replace
+    argument may have side effects (any call, `new`, assignment, `++`/`--`,
+    …), and then no other search/replace argument may contain a variable;
+    if a cascade moves that argument in front of the first call's subject,
+    the subject must be free of side effects and share no variable with
+    it. When no argument has side effects but a cascade's first subject
+    has, the later calls' arguments must share no variable with that
+    subject.
+  - Explicit keys (F3) and a chain of at most 256 calls.
 - **F1 Replace merge.** Let `unbox(x)` = if `x` is an array literal with
   exactly one element that has no key and whose value is a string literal,
-  that string literal; else `x`. Let `const(x)` = if `x` is a global
+  and the call's search is an array literal of exactly one element, that
+  string literal; else `x` (with a longer search list the other elements
+  are replaced by `''`, which a bare string would not do). Let `const(x)` = if `x` is a global
   constant reference (not `true`/`false`/`null`) resolving to exactly one
   `define()`d value, that value; else `x`.
   - Shortcut: if `const(unbox(P.replace))` and `const(unbox(E.replace))` are
@@ -137,8 +180,8 @@ each fix pass).
     then `P.replace` becomes `unbox(P.replace)` (e.g. `['-']` → `'-'`) and
     replace lists are **not** merged.
   - Otherwise first *expand* each of `P` and `E`: if its `search` is an
-    array literal with ≥ 2 elements and `const(replace)` is not an array
-    literal, its `replace` becomes an array of `n` copies of the replace text
+    array literal with ≥ 2 elements and its replace is one string (F0), its
+    `replace` becomes an array of `n` copies of the replace text
     (`n` = number of search elements): `'x'` with 2 searches → `['x', 'x']`.
     Then `P.replace := merge(P.replace, E.replace)` (F3).
 - **F2 Search merge.** `P.search := merge(P.search, E.search)` (F3), using
@@ -349,3 +392,28 @@ function swap(array $from, array $to, $text) {
   `str_replace($badCharList, ' ', $n)` followed by `str_replace('\'', '',
   $n)` became `str_replace([...$bad, '\''], [' ', ''], $n)`, which deletes
   the bad characters instead of turning them into spaces.
+- **Arguments of unknown shape (custos diverges).** Upstream writes any
+  non-literal argument as one element of the merged list. `str_replace()`
+  takes arrays there, so `str_replace($search, $replace, $text)` followed
+  by `str_replace("\n", ' ', $text)` became a search list holding the
+  array `$search` as a single element: PHP warns about an array to string
+  conversion and the first replacements are lost. custos reports such
+  calls without a fix unless the argument is known to be a string or known
+  to be an array (F0); the affected upstream fixture is listed in
+  `testdata/ea-divergences.json`.
+- **Lists of different lengths (custos).** `str_replace(['a', 'b'], ['1'],
+  $s)` replaces `b` with `''`, and extra replacements are ignored. Joining
+  such lists with another call's shifts every following pair, so custos
+  offers the fix only when lengths match, or the uneven call is the latest
+  one (F0). For the same reason a one-element replace array is only
+  unboxed when its search has one element (F1).
+- **Evaluation order (custos).** `$s = str_replace('a', 'b', next_part($q));
+  $s = str_replace(next_part($q), 'x', $s);` reads the queue in the other
+  order once merged. custos keeps the report and withholds the fix when
+  operands with side effects would change places (F0).
+- **Return of a non-local variable (custos diverges).** `function trim_it(&$s)
+  { $s = str_replace('a', 'b', $s); return str_replace('c', 'd', $s); }`
+  cannot be one call: the caller still reads `$s` after the first
+  replacement only. The same holds for `global`, `static` and
+  reference-bound variables, and for a `finally` block. custos does not
+  report these (D4, E7).

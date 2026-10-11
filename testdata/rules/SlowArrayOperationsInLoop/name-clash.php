@@ -11,7 +11,7 @@ function nested(array $grid, $o)
     $loopsMax = 10;
     for ($o->r = 0; <error descr="'count(...)' is re-evaluated on every iteration; compute it once before the loop.">$o->r < count($grid)</error>; $o->r++) {
         for ($o->c = 0; <error descr="'count(...)' is re-evaluated on every iteration; compute it once before the loop.">$o->c < count($grid[$o->r])</error>; $o->c++) {
-            $o->cell($loopsMax);
+            echo $loopsMax;
         }
     }
 }

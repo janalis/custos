@@ -7,7 +7,6 @@ $m = new Mailer();
 $hook($to, $log);
 Mailer::send($to, $body);
 $m->send($to, $body);
-$m::send(...$rest);
 $m->$verb();
 $m->{"on{$evt}"}();
 App\Mailer::send($to);

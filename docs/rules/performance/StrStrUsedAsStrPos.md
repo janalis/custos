@@ -27,7 +27,7 @@ function scan($text, $word, $flag) {
     while ($flag and strstr($text, $word)) { $flag = false; }
     $a = strstr($text, $word) ? 1 : 2;
     $b = !(strstr($text, $word));
-    $c = FALSE == \strstr($text, $word, true);
+    $c = FALSE === \strstr($text, $word, true);
     $d = stristr($text, $word) != false;
 
     $e = strstr($text, $word);

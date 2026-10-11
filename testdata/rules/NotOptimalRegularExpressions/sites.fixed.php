@@ -23,7 +23,7 @@ function sites($p, $x)
     $r[] = preg_match('/^a$/', $p) + 1;
     $r[] = @preg_match('/tmp/', $p);
     $r[] = preg_match('/tmp/', $p) instanceof Countable;
-    $r[] = 'n' . ("a" !== $p);
+    $r[] = 'n' . ("a" !== (string) $p);
     $r[] = false !== strpos($p, "abc") && $p;
     $r[] = preg_match('/^a/m', $p);
     $r[] = preg_match('/abc/A', $p);

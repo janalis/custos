@@ -20,7 +20,6 @@ class Queue
         for ($i = 0; <error descr="'count(...)' is re-evaluated on every iteration; compute it once before the loop.">$i < count($a)</error>; $i++) { mystery($a); }
         for ($i = 0; <error descr="'count(...)' is re-evaluated on every iteration; compute it once before the loop.">$i < count($this->load())</error>; $i++) {}
         foreach ($a as &$v) {}
-        for ($i = 0; <error descr="'count(...)' is re-evaluated on every iteration; compute it once before the loop.">$i < count($a)</error>; $i++) { $x = &$a; foreach ($a as &$w) {} }
         for ($i = 0; <error descr="'count(...)' is re-evaluated on every iteration; compute it once before the loop.">$i < count($a)</error>; $i++) { echo in_array($i, $a); }
         for ($i = 0; <error descr="'count(...)' is re-evaluated on every iteration; compute it once before the loop.">$i < count($a)</error>; $i++) { sprintf('%d', ...$a); }
         for ($i = 0; $i < count($a); $i++) { sscanf('1', '%d', $a); }
@@ -35,6 +34,7 @@ class Queue
         for ($i = 0; $i < count($a); $i++) { $f = in_array(...); sscanf('1', '%d', $x, $a); }
         for ($i = 0; <error descr="'count(...)' is re-evaluated on every iteration; compute it once before the loop.">$i < count($a)</error>; $i++) { Box::take($a); }
         for ($i = 0; <error descr="'count(...)' is re-evaluated on every iteration; compute it once before the loop.">$i < count($a)</error>; $i++) { new Box($a); }
+        for ($i = 0; <error descr="'count(...)' is re-evaluated on every iteration; compute it once before the loop.">$i < count($a)</error>; $i++) { $x = &$a; foreach ($a as &$w) {} }
     }
 
     public function grow(array $a): void

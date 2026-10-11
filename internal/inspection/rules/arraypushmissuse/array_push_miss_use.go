@@ -46,9 +46,21 @@ func (arrayPushMissUse) checkPush(ctx *analysis.Context, n *syntax.FuncCall) {
 	if !ctx.TypeOf(args[0]).IsArrayLike() {
 		return
 	}
-	repl := ctx.Text(args[0]) + "[] = " + ctx.Text(args[1])
+	value := ctx.Text(args[1])
+	if apmBindsLooserThanAssign(args[1]) {
+		value = "(" + value + ")"
+	}
+	repl := ctx.Text(args[0]) + "[] = " + value
 	span := call.Span()
 	ctx.Report(span, "Use '"+repl+"' instead; it avoids a function call.", astquery.ReplaceFix(span, repl))
+}
+
+// apmBindsLooserThanAssign reports whether e is an `and`/`or`/`xor`
+// operation: the only expressions that would split apart as the right side
+// of `=` (`$a[] = $b or $c` parses as `($a[] = $b) or $c`).
+func apmBindsLooserThanAssign(e syntax.Expr) bool {
+	b, ok := e.(*syntax.Binary)
+	return ok && (b.Op.Kind == syntax.TAnd || b.Op.Kind == syntax.TOr || b.Op.Kind == syntax.TXor)
 }
 
 func (arrayPushMissUse) checkCount(ctx *analysis.Context, a *syntax.Assign) {

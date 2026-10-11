@@ -102,8 +102,10 @@ Two loop anti-patterns:
   (`for ($i = 0, $n = count($a); $i < $n; $i++)`), empty condition, length
   call nested deeper than a direct operand (`$i < count($a) - 1`,
   `$i < (count($a))`), method calls (`$i < $c->count()`).
-- **E6** (custos) Length of a value the loop body or step visibly writes
-  (see Divergences): `for ($i = 0; $i < count($a); $i++) { $a[] = 0; }`.
+- **E6** (custos) Length of a value the loop body, step or condition
+  visibly writes (see Divergences):
+  `for ($i = 0; $i < count($a); $i++) { $a[] = 0; }`,
+  `for ($i = 0; $i < strlen($s); $i++) { [$c, $s] = cut($s); }`.
 
 ## Report
 
@@ -288,15 +290,49 @@ function collect(array $batches, $repo)
   on WordPress, Laravel and Drupal). custos skips them (G7).
 - **Changing loop subjects (custos diverges, F1, E6).** The length is
   hoisted into the initialiser only when the measured value cannot change
-  while the loop runs. When the body or step visibly changes it — assigns,
-  pushes to, increments or unsets the measured variable or property, one of
-  its elements or an offset of the measured element, or passes one of them
-  to a by-reference parameter of a resolved function (`array_push()`,
-  `array_pop()`, `sscanf()`) — the loop measures a length it changes on
-  purpose (`$i < count($this->n)` with `$this->n['x'.$i] = 1;` in the
-  body), and the condition is not reported at all (E6). When the change is
-  only possible — the subject is not a variable or property fetch, or the
-  body iterates it by reference, binds a reference to it, passes it to an
-  unresolved callee or unpacks it, or calls a method on the object holding a
-  measured property — the finding is reported without a fix
-  (`$this->remove($i)` may shrink `$this->items`).
+  while the loop runs. The *parts* of the measured expression are the
+  expression itself and everything it is read through: the root array of a
+  measured element, the object (chain) holding a measured property, and the
+  variables and properties used in its offsets (`$nodes[$k]->children` has
+  the parts `$nodes[$k]->children`, `$nodes[$k]`, `$nodes` and `$k`).
+  - **Written, not reported (E6).** The body, the step or any condition
+    expression visibly changes a part or one of its elements: assigns it
+    (directly, as a `list()`/`[]` destructuring target at any depth, or as a
+    `foreach` key/value), pushes to it, increments or unsets it, or passes
+    it to a by-reference parameter (positional, named or variadic) of a
+    resolved function (`array_push()`, `array_pop()`, `sscanf()`). The loop
+    measures a length it changes on purpose (`$i < count($this->n)` with
+    `$this->n['x'.$i] = 1;`, `$i < count($n->children)` with
+    `$n = $n->next;`).
+  - **May change, reported without a fix.** The subject is not a variable
+    or property fetch; or the loop iterates a part by reference, binds a
+    reference to it, passes it to an unresolved callee or unpacks it;
+    calls a method on a part (`$queue->dequeue()` while measuring
+    `count($queue)`); passes the measured value or the object holding it by
+    value to a resolved user function, unless the value is known to be an
+    array or is measured as a string; runs `include`/`require` or `eval`
+    (both execute in the loop's scope); or, for a plain variable, uses a
+    variable variable (`$$name`) or calls `extract()`, `parse_str()` or
+    `mb_parse_str()`. Closures and arrow functions in the loop are looked
+    into, except for a plain local variable subject (captured by value).
+  - **Shared, reported without a fix when the loop runs other code.** A
+    *shared* subject can be reached by code the loop merely calls: an
+    instance or static property; a variable of top-level code; a variable
+    the enclosing function declares `global` or `static`, receives as a
+    by-reference parameter or captures by reference; a superglobal
+    (`$GLOBALS`, `$_SESSION`, …). For a shared subject any of the following
+    in the body, step or conditions withholds the fix: a method call, a
+    static call, `new`, `yield`/`yield from`, a call to a user function, an
+    unresolved or dynamic call (`$cb()`), and a call to a builtin that takes
+    a callable (`array_map()`, `usort()`). Calls to other builtins keep the
+    fix. For a measured property, a write to the same-named property through
+    another object expression (`$me->items[] = 1`, `unset($me->items[0])`,
+    `array_pop($me->items)` while measuring `$this->items`) withholds it as
+    well, since both expressions may denote one object.
+  - **Aliased, reported without a fix.** Anywhere in the enclosing scope
+    (nested functions excluded) a reference is bound to a part or to an
+    element of a part other than the measured value (`$r = &$a;`,
+    `$a = &$other;`), a part other than the measured value is iterated by
+    reference, or a closure captures a part by reference: a write under
+    another name could change the length. References to elements of the
+    measured value itself are harmless (they cannot change its length).

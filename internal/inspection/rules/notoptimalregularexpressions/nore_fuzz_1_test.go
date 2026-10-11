@@ -45,7 +45,7 @@ func noreRepeatedClassRef(s string) (run, class string, ok bool) {
 	}
 	for i := 0; i < len(s); i++ {
 		end, cl, ok := rep(i)
-		if !ok {
+		if !ok || noreEscaped(s, i) {
 			continue
 		}
 		for {

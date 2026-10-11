@@ -24,13 +24,7 @@ var noreCaseConversions = []string{"strtolower", "strtoupper", "mb_strtolower", 
 
 func (c *noreCase) checkCall() {
 	ctx, call := c.ctx, c.call
-	args, ok := astquery.ArgValues(call.Args)
-	if !ok {
-		args = nil
-		for _, a := range astquery.WrittenArguments(call.Args) {
-			args = append(args, a.Value)
-		}
-	}
+	written := astquery.WrittenArguments(call.Args)
 	argc := len(call.Args.Args)
 
 	if c.fn == "preg_quote" && argc == 1 { // D20
@@ -39,11 +33,11 @@ func (c *noreCase) checkCall() {
 	if c.fn == "preg_match_all" && argc == 2 && astquery.IsLogicalOperand(call) { // D21
 		ctx.ReportSeverity(call.Name.Span(), diagnostic.SeverityInfo, "Use preg_match() when only testing for a match.")
 	}
-	if argc >= 2 && len(args) == argc && c.body != "" { // D22
+	if args, ok := norePositional(c.fn, written); ok && c.proven && argc >= 2 && c.body != "" { // D22
 		c.plainAPI(args, argc)
 	}
-	if c.fn == "preg_match" && argc == 2 && len(args) == 2 { // D23
-		if inner, _ := semanticquery.GlobalCall(ctx, args[1], noreCaseConversions...); inner != nil {
+	if c.fn == "preg_match" && argc == 2 { // D23
+		if inner, _ := semanticquery.GlobalCall(ctx, written[1].Value, noreCaseConversions...); inner != nil {
 			msg := "Drop the case conversion and add the /i flag instead."
 			if strings.IndexByte(c.mods, 'i') >= 0 {
 				msg = "The case conversion is redundant: the pattern is already case-insensitive."
@@ -53,6 +47,49 @@ func (c *noreCase) checkCall() {
 	}
 }
 func noreUnescapeText(s string) string { return noreUnescape.ReplaceAllString(s, "$1") }
+
+// noreParams names the leading parameters of the functions D22 rewrites.
+var noreParams = map[string][]string{
+	"preg_match":   {"pattern", "subject"},
+	"preg_replace": {"pattern", "replacement", "subject"},
+	"preg_split":   {"pattern", "subject", "limit"},
+}
+
+// norePositional returns the argument values when each one sits at the
+// position of its parameter: no spread, and a named argument only where a
+// positional one would bind the same parameter (`subject: $s` second).
+// `preg_split($p, $s, flags: 1)` skips the limit and a reordered call
+// evaluates its arguments in another order, so neither is rewritten.
+func norePositional(fn string, written []*syntax.Arg) ([]syntax.Expr, bool) {
+	params := noreParams[fn]
+	out := make([]syntax.Expr, 0, len(written))
+	for i, a := range written {
+		if a.Unpack || a.Name != nil && (i >= len(params) || a.Name.Value != params[i]) {
+			return nil, false
+		}
+		out = append(out, a.Value)
+	}
+	return out, true
+}
+
+// noreStringOperand spells the subject e of preg_match() as the operand of
+// an identity comparison with a string (D22a): parenthesised when it binds
+// more loosely than the operator, and cast unless it is known to be a
+// string (preg_match() converts an int, float or Stringable subject, `===`
+// does not).
+func noreStringOperand(ctx *analysis.Context, e syntax.Expr) string {
+	text := ctx.Text(e)
+	if ctx.TypeOf(e).OnlyOf("string") {
+		if astquery.NeedsParensAsEqualityOperand(e) {
+			return "(" + text + ")"
+		}
+		return text
+	}
+	if astquery.NeedsParensAsUnaryOperand(e) {
+		text = "(" + text + ")"
+	}
+	return "(string) " + text
+}
 
 // noreLiteralReplacement reports whether a preg_replace() replacement is
 // inserted as is (custos, D22d): preg_replace() interprets `\0`–`\99`,
@@ -73,7 +110,9 @@ func noreLiteralReplacement(e syntax.Expr) bool {
 // plainAPI implements D22.
 func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 	ctx, call := c.ctx, c.call
-	norm := noreNormalize(c.body)
+	// The text a rewrite searches for is the body as written; the canonical
+	// class order of D14 would turn the literal text `a-zA-Z` into `A-Za-z`.
+	norm := c.body
 	ci := strings.IndexByte(c.mods, 'i') >= 0
 	// bi spells an inserted builtin so a namespaced or imported function of
 	// that name does not capture it.
@@ -106,7 +145,7 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 			if inverted {
 				op = "!=="
 			}
-			repl = `"` + t + `" ` + op + " " + x1
+			repl = `"` + t + `" ` + op + " " + noreStringOperand(ctx, args[1])
 		case c.fn == "preg_match" && argc == 2 && start && !end: // D22b
 			op := "==="
 			if inverted {
@@ -150,6 +189,11 @@ func (c *noreCase) plainAPI(args []syntax.Expr, argc int) {
 			}
 			if ok {
 				if !noreTrimModsOK(c.mods, ch) || noreMetaChars(ch) {
+					return
+				}
+				if ch != `\s` && (len(ch) != 1 || ch[0] >= 0x80) {
+					// trim()'s character list is a set of bytes: 'é' would
+					// strip the bytes C3 and A9 separately.
 					return
 				}
 				if strings.HasSuffix(c.body, "$") && ch != `\s` && strings.IndexByte(c.mods, 'D') < 0 {

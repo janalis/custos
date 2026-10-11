@@ -19,9 +19,18 @@ func (strStrUsedAsStrPos) Check(ctx *analysis.Context, n syntax.Node) {
 	if call == nil {
 		return
 	}
-	args := astquery.WrittenArguments(call.Args)
-	if len(args) < 2 || call.Args == nil || len(args) != len(call.Args.Args) { // D2
+	// Named or unpacked arguments have no fixed position: no report.
+	args, ok := astquery.ArgValues(call.Args)
+	if !ok || len(args) < 2 || len(args) > 3 { // D2
 		return
+	}
+	// D2a: a before_needle that is not a literal cannot be dropped; a literal
+	// true makes the result a prefix, whose truthiness is not "needle found".
+	prefix := false
+	if len(args) == 3 {
+		if prefix, ok = astquery.BoolConst(args[2]); !ok {
+			return
+		}
 	}
 	fn := "strpos"
 	if name == "stristr" {
@@ -34,6 +43,7 @@ func (strStrUsedAsStrPos) Check(ctx *analysis.Context, n syntax.Node) {
 
 	var target syntax.Node
 	var op string
+	parens := false
 	if b, ok := call.Parent().(*syntax.Binary); ok && isEqualityOp(b.Op.Kind) { // D3
 		other := b.Left
 		if other == syntax.Expr(call) {
@@ -43,33 +53,44 @@ func (strStrUsedAsStrPos) Check(ctx *analysis.Context, n syntax.Node) {
 			return // pattern B cannot match a comparison parent either
 		}
 		op = ctx.SpanText(b.Op.Span)
-		switch {
-		case op == "<>":
-			op = "!==" // see spec Divergences
-		case len(op) == 2:
-			op += "="
+		if len(op) == 2 {
+			if prefix { // '' == false although the needle was found
+				return
+			}
+			if op == "<>" {
+				op = "!==" // see spec Divergences
+			} else {
+				op += "="
+			}
 		}
 		target = b
 	} else {
-		if !astquery.IsLogicalOperand(n) { // D5
+		if prefix || !astquery.IsLogicalOperand(n) { // D5
 			return
 		}
 		target, op = call, "!=="
 		if u, ok := call.Parent().(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
 			target, op = u, "==="
+			// F2: '!' binds tighter than the comparison that replaces it.
+			_, isClone := u.Parent().(*syntax.Clone)
+			parens = isClone || astquery.NeedsParensAsComparison(u)
 		}
 	}
 
-	repl := qual + fn + "(" + ctx.Text(args[0].Value) + ", " + ctx.Text(args[1].Value) + ")"
+	repl := qual + fn + "(" + ctx.Text(args[0]) + ", " + ctx.Text(args[1]) + ")"
 	if ctx.ComparisonStyle == analysis.StyleYoda {
 		repl = "false " + op + " " + repl
 	} else {
 		repl = repl + " " + op + " false"
 	}
 	span := target.Span()
+	text := repl
+	if parens {
+		text = "(" + repl + ")"
+	}
 	ctx.Report(span, "Use '"+repl+"' instead; it avoids building a substring.", diagnostic.Fix{
 		Title: "Replace with '" + repl + "'",
-		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: repl}} },
+		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: text}} },
 	})
 }
 

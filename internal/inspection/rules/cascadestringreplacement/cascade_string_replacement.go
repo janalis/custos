@@ -7,6 +7,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
@@ -93,7 +94,7 @@ func (cascadeStringReplacement) Check(ctx *analysis.Context, n syntax.Node) {
 	if inner, ok := csrMatch(c.ctx, f.args[2]); ok && c.mergeable(inner, f) {
 		span := f.call.Span()
 		strip, fixable := csrKeyMode([]csrCall{f, inner})
-		fixable = fixable && c.spreadAligned([]csrCall{f, inner})
+		fixable = fixable && c.fixable([]csrCall{f, inner}, false)
 		nestedFix = &diagnostic.Fix{
 			Title: "Merge the str_replace() calls",
 			Edits: func() []diagnostic.TextEdit {
@@ -102,7 +103,7 @@ func (cascadeStringReplacement) Check(ctx *analysis.Context, n syntax.Node) {
 				if simplified != nil {
 					pm.search = exprVal(simplified)
 				}
-				return []diagnostic.TextEdit{{Span: span, NewText: c.rebuild(f, c.mergeInto(f, pm, c.model(inner)))}}
+				return []diagnostic.TextEdit{{Span: span, NewText: c.rebuild(f, c.mergeInto(pm, c.model(inner)))}}
 			},
 		}
 		if fixable {
@@ -241,7 +242,64 @@ func (c *csrCtx) link(s syntax.Stmt) (prev syntax.Stmt, g csrCall, ok bool) {
 	if !c.mergeable(f, g) {
 		return nil, csrCall{}, false
 	}
+	// custos: folding into a return drops the assignment, which is only
+	// unobservable for a variable nothing else can read afterwards.
+	if isReturn && !csrLocal(s, p) {
+		return nil, csrCall{}, false
+	}
 	return prev, g, true
+}
+
+// csrLocal reports whether a write to $name just before the return stmt
+// cannot be observed once the function has returned: stmt is in a function
+// body, outside any try with a finally block, and $name is neither a
+// by-reference parameter nor bound by `global`, `static`, a by-reference
+// closure import, a reference assignment, a by-reference array element or a
+// by-reference foreach anywhere in that function.
+func csrLocal(stmt syntax.Stmt, name string) bool {
+	fn := syntax.EnclosingFuncLike(stmt)
+	if fn == nil {
+		return false
+	}
+	for p := stmt.Parent(); p != fn; p = p.Parent() {
+		if t, ok := p.(*syntax.Try); ok && t.Finally != nil {
+			return false
+		}
+	}
+	for _, p := range syntax.FuncLikeParams(fn) {
+		if p.ByRef && p.Var != nil && p.Var.Name == name {
+			return false
+		}
+	}
+	local := true
+	syntax.Inspect(fn, func(n syntax.Node) bool {
+		var bound syntax.Node
+		switch x := n.(type) {
+		case *syntax.Global, *syntax.StaticVar:
+			bound = n
+		case *syntax.ClosureUse:
+			if x.ByRef {
+				bound = n
+			}
+		case *syntax.Assign:
+			if x.ByRef {
+				bound = n
+			}
+		case *syntax.ArrayItem:
+			if x.ByRef {
+				bound = n
+			}
+		case *syntax.Foreach:
+			if x.ByRef {
+				bound = x.Value
+			}
+		}
+		if bound != nil && astquery.MentionsVariable(bound, name) {
+			local = false
+		}
+		return local
+	})
+	return local
 }
 
 // reportCascade reports F (part A). The fix folds the whole chain of
@@ -250,12 +308,12 @@ func (c *csrCtx) link(s syntax.Stmt) (prev syntax.Stmt, g csrCall, ok bool) {
 func (c *csrCtx) reportCascade(f csrCall, stmt syntax.Stmt) {
 	ctx := c.ctx
 	const msg = "Fold this str_replace() into the preceding one on the same variable."
-	stmts, calls := c.chain(stmt)
-	strip, fixable := csrKeyMode(calls)
-	if !fixable || len(calls) > csrMaxFixChain || !c.spreadAligned(calls) {
+	ch := c.chain(stmt)
+	if !ch.fixable {
 		ctx.Report(f.call.Span(), msg)
 		return
 	}
+	stmts, calls, strip := ch.stmts, ch.calls, ch.strip
 	ctx.Report(f.call.Span(), msg, diagnostic.Fix{
 		Title: "Merge the str_replace() calls",
 		Edits: func() []diagnostic.TextEdit {
@@ -263,42 +321,167 @@ func (c *csrCtx) reportCascade(f csrCall, stmt syntax.Stmt) {
 			// calls[len-1] is the head; fold forward
 			acc := c.model(calls[len(calls)-1])
 			for i := len(calls) - 2; i > 0; i-- {
-				acc = c.mergeInto(calls[i], c.model(calls[i]), acc)
+				acc = c.mergeInto(c.model(calls[i]), acc)
 			}
 			final := calls[0]
 			edits := make([]diagnostic.TextEdit, 0, len(stmts))
 			for i := len(stmts) - 1; i > 0; i-- {
 				edits = append(edits, diagnostic.TextEdit{Span: astquery.WithTrailingWhitespace(ctx.File, stmts[i].Span())})
 			}
-			edits = append(edits, diagnostic.TextEdit{Span: final.call.Span(), NewText: c.rebuild(final, c.mergeInto(final, c.model(final), acc))})
+			edits = append(edits, diagnostic.TextEdit{Span: final.call.Span(), NewText: c.rebuild(final, c.mergeInto(c.model(final), acc))})
 			return edits
 		},
 	})
 }
 
-// spreadAligned reports whether the merged replace list stays aligned with
-// the merged search list (custos). Merged lists hold the earliest call's
-// elements first. A search spread from an array of unknown length
-// (`...array_values($from)`) stays aligned when it is the latest call's
-// (calls[0]) and pairs with an array replace, or when every call replaces
-// with the same string literal (kept as one scalar); a spread search with a
-// scalar replace otherwise lost its replacements (EspoCRM's sheet-name
-// cleanup turned ':' and '/' into ” instead of ' ').
-func (c *csrCtx) spreadAligned(calls []csrCall) bool {
-	sameLiteral := true
-	first := csrUnbox(calls[0].args[1])
+// csrKind says what a search or replace argument holds.
+type csrKind uint8
+
+const (
+	csrUnknown csrKind = iota // a string or an array: not known
+	csrScalar                 // one string (or a scalar str_replace() casts)
+	csrList                   // array literal with a known number of elements
+	csrOpen                   // array of unknown length (spread when merged)
+)
+
+// kind classifies a search or replace argument and counts the elements of
+// a csrList. An array literal with a spread element is csrOpen; any other
+// expression needs a known type made only of scalars or only of arrays.
+func (c *csrCtx) kind(e syntax.Expr) (csrKind, int) {
+	if arr, ok := e.(*syntax.Array); ok {
+		n := 0
+		for _, it := range arr.Items {
+			switch {
+			case it == nil: // dropped from a merge (elemTexts)
+			case it.Unpack:
+				return csrOpen, 0
+			default:
+				n++
+			}
+		}
+		return csrList, n
+	}
+	if isStringLit(c.constValue(e)) {
+		return csrScalar, 1
+	}
+	t := c.ctx.TypeOf(e)
+	if t.OnlyOf("string", "int", "float", "bool", "true", "false", "null") {
+		return csrScalar, 1
+	}
+	if t.IsUnknown() {
+		return csrUnknown, 0
+	}
+	for _, a := range t.Atoms() {
+		if a != "array" && !strings.HasSuffix(a, "[]") {
+			return csrUnknown, 0
+		}
+	}
+	return csrOpen, 0
+}
+
+// fixable reports whether merging calls (latest first) can be written
+// without changing the result (custos). Merged lists hold the earliest
+// call's elements first, so every call but the latest must contribute as
+// many replacements as searches:
+//   - an argument that may be a string or an array (untyped, `array|string`)
+//     cannot be written as one element nor spread;
+//   - a string search needs a string replace;
+//   - a string replace is copied once per search element, which needs their
+//     number (and at least one);
+//   - array search and replace must have the same known length, except in
+//     the latest call, whose elements end both lists (PHP pads a short
+//     replace list with ” and ignores extra entries).
+//
+// When every call replaces with the same string literal it stays one scalar
+// and only the searches are merged (EspoCRM's sheet-name cleanup otherwise
+// turned ':' and '/' into ” instead of ' ').
+func (c *csrCtx) fixable(calls []csrCall, cascade bool) bool {
+	same := true
+	first := c.unboxed(calls[0])
 	for _, x := range calls {
-		r := csrUnbox(x.args[1])
-		if !isStringLit(r) || r.Kind() != first.Kind() || c.ctx.Text(r) != c.ctx.Text(first) {
-			sameLiteral = false
+		if r := c.unboxed(x); !isStringLit(r) || c.ctx.Text(r) != c.ctx.Text(first) {
+			same = false
 		}
 	}
 	for i, x := range calls {
-		if c.arrayOnly(x.args[0]) && !sameLiteral && (i > 0 || !c.arrayOnly(x.args[1])) {
+		sk, sn := c.kind(x.args[0])
+		rk, rn := c.kind(x.args[1])
+		switch {
+		case sk == csrUnknown || rk == csrUnknown:
+			return false
+		case same:
+		case sk == csrScalar:
+			if rk != csrScalar {
+				return false
+			}
+		case rk == csrScalar:
+			if sk == csrOpen || sn == 0 {
+				return false
+			}
+		case i > 0 && (sk == csrOpen || rk == csrOpen || sn != rn):
 			return false
 		}
 	}
-	return true
+	return c.orderSafe(calls, cascade)
+}
+
+// orderSafe reports whether the merged call evaluates its operands in an
+// order nobody can tell from the original (custos). The merge interleaves
+// the calls' search and replace arguments and, for a cascade, moves the
+// later calls' arguments in front of the first call's subject. So at most
+// one argument may have side effects, and then no other argument may read
+// a variable; a cascade moving it in front of the subject also needs a
+// subject without side effects sharing no variable with it. Without such
+// an argument, a cascade whose first subject has side effects needs the
+// later calls' arguments to share no variable with that subject.
+func (c *csrCtx) orderSafe(calls []csrCall, cascade bool) bool {
+	head := len(calls) - 1
+	subject := calls[head].args[2]
+	var impure syntax.Expr
+	moved := false // the argument with side effects belongs to a later call
+	for i, x := range calls {
+		for _, a := range x.args[:2] {
+			if !flowquery.MayHaveSideEffects(a) {
+				continue
+			}
+			if impure != nil {
+				return false
+			}
+			impure, moved = a, i < head
+		}
+	}
+	if impure == nil {
+		if !cascade || !flowquery.MayHaveSideEffects(subject) {
+			return true
+		}
+		for _, x := range calls[:head] {
+			if !csrApart(x.args[0], subject) || !csrApart(x.args[1], subject) {
+				return false
+			}
+		}
+		return true
+	}
+	for _, x := range calls {
+		for _, a := range x.args[:2] {
+			if a != impure && !csrApart(a, nil) {
+				return false
+			}
+		}
+	}
+	return !cascade || !moved || (!flowquery.MayHaveSideEffects(subject) && csrApart(subject, impure))
+}
+
+// csrApart reports whether no variable under a occurs under b; with a nil
+// b, whether a holds no variable at all.
+func csrApart(a, b syntax.Node) bool {
+	apart := true
+	syntax.Inspect(a, func(n syntax.Node) bool {
+		if v, ok := n.(*syntax.Variable); ok && (b == nil || v.NameExpr != nil || astquery.MentionsVariable(b, v.Name)) {
+			apart = false
+		}
+		return apart
+	})
+	return apart
 }
 
 // csrMaxFixChain bounds the chains the merge fix folds: each finding of a
@@ -307,26 +490,31 @@ func (c *csrCtx) spreadAligned(calls []csrCall) bool {
 const csrMaxFixChain = 256
 
 type csrChain struct {
-	stmts []syntax.Stmt
-	calls []csrCall
+	stmts   []syntax.Stmt
+	calls   []csrCall
+	strip   bool // csrKeyMode of calls
+	fixable bool // the merge fix can be offered
 }
 
 // chain returns the whole chain of cascading statements around stmt, last
-// statement first, with their calls. Every statement of a chain shares it,
-// so it is computed once per chain and file (per statement it was
-// quadratic on long chains).
-func (c *csrCtx) chain(stmt syntax.Stmt) ([]syntax.Stmt, []csrCall) {
+// statement first, with their calls and whether it can be fixed. Every
+// statement of a chain shares it, so it is computed once per chain and file
+// (per statement it was quadratic on long chains).
+func (c *csrCtx) chain(stmt syntax.Stmt) *csrChain {
 	memo := c.ctx.Memo("chains", func() any { return map[syntax.Stmt]*csrChain{} }).(map[syntax.Stmt]*csrChain)
 	if ch, ok := memo[stmt]; ok {
-		return ch.stmts, ch.calls
+		return ch
 	}
 	stmts, calls := c.computeChain(stmt)
-	ch := &csrChain{stmts, calls}
+	ch := &csrChain{stmts: stmts, calls: calls}
+	var keys bool
+	ch.strip, keys = csrKeyMode(calls)
+	ch.fixable = keys && len(calls) <= csrMaxFixChain && c.fixable(calls, true)
 	for _, s := range stmts {
 		memo[s] = ch
 	}
 	memo[stmt] = ch
-	return stmts, calls
+	return ch
 }
 
 func (c *csrCtx) computeChain(stmt syntax.Stmt) ([]syntax.Stmt, []csrCall) {
@@ -487,22 +675,16 @@ type csrVal struct {
 }
 
 func exprVal(e syntax.Expr) csrVal { return csrVal{expr: e} }
-func (v csrVal) isArray() bool {
-	if v.expr != nil {
-		_, ok := v.expr.(*syntax.Array)
-		return ok
-	}
-	return true
-}
 
 // csrModel is a call reduced to its arguments, as merging goes on.
 type csrModel struct {
 	search, replace csrVal
+	unboxed         syntax.Expr // replace as one value (unboxed); nil once merged into a list
 	subject         string
 }
 
 func (c *csrCtx) model(x csrCall) csrModel {
-	return csrModel{search: exprVal(x.args[0]), replace: exprVal(x.args[1]), subject: c.ctx.Text(x.args[2])}
+	return csrModel{search: exprVal(x.args[0]), replace: exprVal(x.args[1]), unboxed: c.unboxed(x), subject: c.ctx.Text(x.args[2])}
 }
 
 func (c *csrCtx) elemTexts(arr *syntax.Array) []string {
@@ -615,18 +797,25 @@ func isStringLit(e syntax.Expr) bool {
 	return ok && lit.LitKind == syntax.LitString
 }
 
+// unboxed is csrUnbox of x's replace when x searches a one-element array
+// literal: a longer search list pairs its other elements with ”, which a
+// bare string would not.
+func (c *csrCtx) unboxed(x csrCall) syntax.Expr {
+	if k, n := c.kind(x.args[0]); k != csrList || n != 1 {
+		return x.args[1]
+	}
+	return csrUnbox(x.args[1])
+}
+
 // expand implements the F1 expansion of a replace argument.
 func (c *csrCtx) expand(m csrModel) csrVal {
-	if !m.search.isArray() || c.count(m.search) < 2 {
-		return m.replace
-	}
-	if m.replace.expr == nil {
-		return m.replace // already an array
-	}
-	if _, isArr := c.constValue(m.replace.expr).(*syntax.Array); isArr {
-		return m.replace
-	}
 	n := c.count(m.search)
+	if n < 2 || m.replace.expr == nil { // one search, or already a list
+		return m.replace
+	}
+	if k, _ := c.kind(m.replace.expr); k != csrScalar {
+		return m.replace
+	}
 	text := c.ctx.Text(m.replace.expr)
 	elems := make([]string, n)
 	for i := range elems {
@@ -636,16 +825,12 @@ func (c *csrCtx) expand(m csrModel) csrVal {
 }
 
 // mergeInto folds e (eliminated) into the call p (patched): F1, F2, F4.
-func (c *csrCtx) mergeInto(p csrCall, pm, e csrModel) csrModel {
+func (c *csrCtx) mergeInto(pm, e csrModel) csrModel {
 	out := csrModel{subject: e.subject}
-	pu := csrUnbox(p.args[1])
-	var eu syntax.Expr
-	if e.replace.expr != nil {
-		eu = csrUnbox(e.replace.expr)
-	}
+	pu, eu := pm.unboxed, e.unboxed
 	if eu != nil && isStringLit(c.constValue(pu)) && isStringLit(c.constValue(eu)) &&
 		pu.Kind() == eu.Kind() && c.ctx.Text(pu) == c.ctx.Text(eu) {
-		out.replace = exprVal(pu)
+		out.replace, out.unboxed = exprVal(pu), pu
 	} else {
 		out.replace = c.merge(c.expand(pm), c.expand(e))
 	}

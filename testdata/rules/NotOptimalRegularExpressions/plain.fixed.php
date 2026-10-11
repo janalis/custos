@@ -5,8 +5,8 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
     $r[] = false !== stripos($path, "cache-dir") && $name;
     $r[] = 0 === strpos($path, ".") && $name;
     $r[] = 0 === stripos($name, "img_") && $name;
-    $r[] = "index" === $name && $name;
-    $r[] = "index" !== $name;
+    $r[] = "index" === (string) $name && $name;
+    $r[] = "index" !== (string) $name;
     $r[] = preg_match('/^index$/', $name); // also matches "index\n"
     $r[] = 0 !== strpos($path, "tmp");
     $r[] = false === strpos($path, "tmp");

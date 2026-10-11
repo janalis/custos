@@ -49,7 +49,17 @@ The whole rule is active only when the configured PHP level is **≥ 7.0**.
     another namespace) wins → FQN is namespaced → no report;
   - unknown/unresolvable names → no report;
   - a call written with different casing (`StrLen()`) resolves to the global
-    `\strlen` → reported as `\StrLen(...)` (the fix keeps the written case).
+    `\strlen` → reported as `\StrLen(...)` (the fix keeps the written case);
+  - a constant that a `define()` call of the same file declares in the
+    governing namespace also wins, however the name argument (first
+    positional, or named `constant_name`) spells it: a string literal (an
+    escaped `\\` counts as one backslash), `__NAMESPACE__`, or a
+    concatenation of those (`define(__NAMESPACE__ . '\LIMIT', 3)`). When the
+    left part of a concatenation cannot be evaluated but its trailing
+    literal ends in `\` + the constant name (`$prefix . '\LIMIT'`) or is the
+    constant name itself (`$prefix . 'LIMIT'`, where the prefix may hold the
+    namespace), the namespace is unknown and the constant is not reported
+    in any namespace of the file.
 - **D6** The governing namespace has a statement body, and among the `use`
   statements placed directly in that body there is no `use function X` /
   `use const X` import whose bound name (the alias when one is given,
@@ -77,8 +87,13 @@ namespace does not count), at the given callback position (0-based):
 | `array_reduce` | 1 |
 
 - **D7** The call has **at least 2** arguments.
-- **D8** The argument at the callback position is a string literal (single or
-  double quoted) without interpolation.
+- **D8** The argument bound to the callback parameter is a string literal
+  (single or double quoted) without interpolation. That argument is the
+  positional one at the callback position, or the one named `callback`
+  wherever it stands; other named arguments are data
+  (`array_reduce($a, initial: 'strlen', callback: $f)` reports nothing).
+  When an unpacked argument (`...$args`) precedes it, the binding is unknown
+  and nothing is reported.
 - **D9** Its raw contents do not start with `\` and do not contain `::`.
 - **D10** `REPORT_ALL_FUNCTIONS` is on, or the contents are a name from the
   opcode list (compared case-insensitively).
@@ -230,6 +245,14 @@ define('LIMIT', 3);
   of functions that do not exist (typos, functions defined only at run
   time); the claimed compile-time binding cannot apply to them. custos
   looks the callback name up and reports only known global functions.
+- **Named arguments (custos diverges).** Part B follows the argument bound
+  to the callback parameter (D8) instead of the one written at the callback
+  position, so a string passed to another named parameter is never
+  rewritten.
+- **Runtime-declared constants (custos diverges).** A namespaced constant
+  declared in the same file by `define()` with a computed or
+  escaped name (D5) is not reported: qualifying the reference would rebind
+  it to the global constant of the same name.
 - **Empty callback strings** (`array_map('', $a)` with
   `REPORT_ALL_FUNCTIONS`) would be reported as `'\'`. Recommendation: skip
   empty contents.

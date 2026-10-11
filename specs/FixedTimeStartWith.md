@@ -66,7 +66,10 @@ bounded by the needle length.
   - `{n}`: decimal length of the needle's *decoded* value — the literal's
     content with PHP escape sequences of its quote style resolved
     (single-quoted: only `\\` and `\'`; double-quoted: `\n`, `\t`, `\\`, `\$`,
-    `\"`, `\x..`, octal, `\u{..}`, …). See Divergences about multibyte text.
+    `\"`, `\x..`, octal, `\u{..}`, …). The hex escape is recognised with
+    either letter case, as PHP does: `"\X41-"` is two bytes, exactly like
+    `"\x41-"`, while `"\\X41"` (an escaped backslash followed by plain text)
+    is four. See Divergences about multibyte text.
   - Separators are `, `.
   Examples: `strpos($u, 'http') === 0` → `strncmp($u, 'http', 4) === 0`;
   `0 !== \stripos($h, "x\ty")` → `0 !== \strncasecmp($h, "x\ty", 3)`.

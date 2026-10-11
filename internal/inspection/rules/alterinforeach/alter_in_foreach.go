@@ -1,6 +1,8 @@
 package alterinforeach
 
 import (
+	"slices"
+
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
@@ -38,13 +40,8 @@ func (r alterInForeach) Check(ctx *analysis.Context, n syntax.Node) {
 
 // checkByRef implements part A (D1-D3).
 func (alterInForeach) checkByRef(ctx *analysis.Context, f *syntax.Foreach, name string) {
-	next := statementFollower(ctx.File, f) // D2
-	for p := f.Parent(); next == nil && p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
-		if _, isBlock := p.(*syntax.Block); !isBlock {
-			next = statementFollower(ctx.File, p)
-		}
-	}
-	switch nx := next.(type) { // D3
+	next := byRefFollower(ctx.File, f) // D2
+	switch nx := next.(type) {         // D3
 	case nil, *syntax.Return:
 		return
 	case *syntax.ExprStmt:
@@ -86,6 +83,9 @@ func (alterInForeach) checkUnset(ctx *analysis.Context, f *syntax.Foreach, name 
 	u := next.(*syntax.Unset) // D6
 	for _, v := range u.Vars {
 		if vn, ok := astquery.PlainVariableName(v); ok && vn == name {
+			if boundByReference(syntax.EnclosingFuncLike(f), name, u) {
+				return // E6: the unset releases a reference made elsewhere
+			}
 			ctx.ReportSeverity(v.Span(), diagnostic.SeverityInfo, "'$"+name+"' is not a reference here; unsetting it is unnecessary.")
 		}
 	}
@@ -155,16 +155,112 @@ func nextSibling(f *syntax.File, n syntax.Node) syntax.Node {
 	return next
 }
 
-// statementFollower is nextSibling for part A, where an elseif/else clause
-// following a branch body is not a follower: control continues after the
-// whole if statement, so the climb goes on from there (D2).
+// statementFollower is nextSibling for part A, where empty statements are
+// skipped and an elseif/else clause following a branch body is not a
+// follower: control continues after the whole if statement, so the climb
+// goes on from there (D2).
 func statementFollower(f *syntax.File, n syntax.Node) syntax.Node {
-	switch next := nextSibling(f, n).(type) {
+	next := nextSibling(f, n)
+	for {
+		if _, empty := next.(*syntax.Nop); !empty {
+			break
+		}
+		next = nextSibling(f, next)
+	}
+	switch next.(type) {
 	case *syntax.ElseIf, *syntax.Else:
 		return nil
-	default:
-		return next
 	}
+	return next
+}
+
+// byRefFollower returns the statement control reaches after the by-reference
+// loop n (D2): the next statement, climbing out of enclosing constructs up
+// to the function boundary, and looking through a plain `break;` to what
+// follows the loop or switch it leaves.
+func byRefFollower(f *syntax.File, n syntax.Node) syntax.Node {
+	for {
+		next := statementFollower(f, n)
+		for p := n.Parent(); next == nil && p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
+			if _, isBlock := p.(*syntax.Block); !isBlock {
+				next = statementFollower(f, p)
+			}
+		}
+		br, ok := next.(*syntax.Break)
+		if !ok || br.Num != nil {
+			return next
+		}
+		left := enclosingBreakable(br, true)
+		if left == nil {
+			return next // stray break outside any loop or switch
+		}
+		n = left
+	}
+}
+
+// enclosingBreakable returns the nearest loop (or, with switches set, loop
+// or switch) around n within its function, nil when there is none.
+func enclosingBreakable(n syntax.Node, switches bool) syntax.Node {
+	for p := n.Parent(); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
+		switch p.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+			return p
+		case *syntax.Switch:
+			if switches {
+				return p
+			}
+		}
+	}
+	return nil
+}
+
+// boundByReference reports whether the variable name can be a reference
+// when the unset u runs, for a reason other than the loop under inspection
+// (E6): a by-reference parameter or closure use, `global`/`static`, a
+// reference assignment, a by-reference array item or another foreach
+// binding it by reference. Only bindings written before u count, unless u
+// sits in a loop (a later binding then precedes it on the next iteration).
+func boundByReference(fn syntax.Node, name string, u *syntax.Unset) bool {
+	limit := u.Span().Start
+	if enclosingBreakable(u, false) != nil {
+		limit = fn.Span().End
+	}
+	named := func(e syntax.Node) bool {
+		vn, ok := astquery.PlainVariableName(e)
+		return ok && vn == name
+	}
+	namedVar := func(v *syntax.Variable) bool { return v != nil && v.Name == name }
+	found := false
+	syntax.Inspect(fn, func(n syntax.Node) bool {
+		if found || n.Span().Start >= limit {
+			return false
+		}
+		switch x := n.(type) {
+		case *syntax.Param:
+			found = x.ByRef && namedVar(x.Var)
+		case *syntax.ClosureUse:
+			found = x.ByRef && namedVar(x.Var)
+		case *syntax.Global:
+			found = slices.ContainsFunc(x.Vars, func(e syntax.Expr) bool { return named(e) })
+		case *syntax.StaticVar:
+			found = namedVar(x.Var)
+		case *syntax.Assign:
+			found = x.ByRef && (named(x.Var) || named(x.Value))
+		case *syntax.ArrayItem:
+			found = x.ByRef && named(x.Value)
+		case *syntax.Foreach:
+			found = x.ByRef && named(x.Value)
+		case *syntax.Closure:
+			if n != fn { // nested closure: only its by-reference uses touch this scope
+				found = slices.ContainsFunc(x.Uses, func(c *syntax.ClosureUse) bool { return c.ByRef && namedVar(c.Var) })
+				return false
+			}
+		case *syntax.Function, *syntax.Method, *syntax.ArrowFunction:
+			return n == fn
+		}
+		return true
+	})
+	return found
 }
 
 // followerKeepingDocs is nextSibling for part B, where a doc comment between

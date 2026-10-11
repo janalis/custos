@@ -14,3 +14,50 @@ function grab(string $word, int $back, string $pos, $loose, int|string $either)
 function decremented(string $s, int $i) {
     return substr($s, --$i, 1);
 }
+
+// An assigned offset that other code can still change is not a known value.
+function viaReferenceCapture(string $s) {
+    $off = 0;
+    $dec = function () use (&$off) { $off -= 2; };
+    $dec();
+    return substr($s, $off, 1);
+}
+
+function viaGlobal(string $s) {
+    global $pos;
+    $pos = 0;
+    rewindPosition();
+    return substr($s, $pos, 1);
+}
+
+function viaStatic(string $s) {
+    static $cursor;
+    $cursor = 0;
+    moveCursor();
+    return substr($s, $cursor, 1);
+}
+
+function viaReferenceParameter(string $s, int &$shared) {
+    $shared = 0;
+    rewindPosition();
+    return substr($s, $shared, 1);
+}
+
+function viaReferenceItem(string $s) {
+    $slot = 0;
+    $box = ['k' => &$slot];
+    shiftBox($box);
+    return substr($s, $slot, 1);
+}
+
+function viaDecrement(string $s) {
+    $back = 0;
+    $back--;
+    --$back;
+    return substr($s, ($back), 1);
+}
+
+$topLevel = 'abc';
+$cursor = 0;
+rewindPosition();
+echo substr($topLevel, $cursor, 1);

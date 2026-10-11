@@ -29,7 +29,10 @@ faster. Only a few findings carry a fix (the plain-function replacements).
   `preg_filter`, `preg_grep`, `preg_match_all`, `preg_match`,
   `preg_replace_callback`, `preg_replace`, `preg_split`, `preg_quote`
   (`\preg_match` and `PREG_MATCH` qualify). Call it `C`, its (lower-case) name
-  `fn`. `C` must have at least one argument; let `A` be the first one.
+  `fn`. `C` must have at least one argument; let `A` be the first one when
+  it is positional, otherwise the argument named after the pattern
+  parameter (`pattern`; `str` for `preg_quote`). No such argument, or a
+  spread (`...$args`) before it → nothing for `C`.
 - **D2** Candidate literals:
   - if `A` is an array literal (`[...]` or `array(...)`), every element's
     value (the value part of `k => v` elements) is resolved with *literal
@@ -69,16 +72,24 @@ faster. Only a few findings carry a fix (the plain-function replacements).
   letter, an ASCII digit, `\` or NUL — delimiters PHP rejects — or nothing
   remains, parsing fails. Otherwise the first rule that matches wins:
   1. first character `δ` is anything except `{`, `<`, `(`, `[`; `R` ends with a later
-     occurrence of `δ` followed by zero or more ASCII letters only. The
-     closing `δ` is the **last** occurrence of `δ` such that only ASCII
-     letters follow it (`/a/b/c` → body `a/b`, modifiers `c`;
-     `/x/i/` → body `x/i`, no modifiers; `  #a#` → body `a`);
+     occurrence of `δ` followed by zero or more *modifier characters*
+     only: ASCII letters, and the space, `\n` and `\r` that PHP skips in
+     the modifier list (`'/abc/i '` is valid). The closing `δ` is the
+     **last** occurrence of `δ` such that only modifier characters follow it
+     (`/a/b/c` → body `a/b`, modifiers `c`; `/x/i/` → body `x/i`, no
+     modifiers; `  #a#` → body `a`);
   2. `{` … `}` + optional ASCII letters (closing `}` chosen the same way);
   3. `<` … `>` + optional letters;
   4. `(` … `)` + optional letters;
   5. `[` … `]` + optional letters.
   Line breaks inside `R` are allowed. On success: `body` = text between the
-  delimiters (may be empty), `mods` = the trailing letters (possibly none).
+  delimiters (may be empty), `mods` = the trailing letters (possibly none;
+  skipped spaces and line breaks are not part of it).
+  The same parsing is applied to the string *value* of `L` (escape
+  sequences decoded): when it succeeds, its body is the *decoded pattern*
+  used by D9–D11, D14 and D15; when `R` fails but the value parses
+  (`"/abc/i\n"`, `"\x2fabc\x2f"`), the pattern is valid for PHP and `L` is
+  left alone (no D6, no other check).
   Then run the pattern checks D6–D19 on (`fn`, `body`, `mods`, `L`) and, if
   `C` is **not** in array mode, the call checks D20–D23.
 - **D5** In array mode the call checks D20–D23 never run, even for elements
@@ -99,8 +110,8 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
 
 ### Missing delimiters
 
-- **D6** D4 fails (invalid delimiter, or no rule matches) and
-  `fn` ≠ `preg_quote` → report `L` (warning). No other check runs on that
+- **D6** D4 fails (invalid delimiter, or no rule matches) on `R` and on
+  the string value of `L`, and `fn` ≠ `preg_quote` → report `L` (warning). No other check runs on that
   literal: `'abca'` and `'1x1'` get only this report (PHP rejects them before
   compiling anything).
 
@@ -153,10 +164,12 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
 
 ### Body checks (run whenever D4 succeeded)
 
-- **D14** Short class spellings. `body` non-empty. Let `B'` = `body` with all
-  occurrences of `a-zA-Z` replaced by `A-Za-z`, then all `0-9A-Za-z` by
-  `A-Za-z0-9`. For **each** key below that `B'` contains, one report on `L`
-  (info), naming the key and its shorthand:
+- **D14** Short class spellings. `body` non-empty. Let `B'` = the decoded
+  pattern (D4) with all occurrences of `a-zA-Z` replaced by `A-Za-z`, then
+  all `0-9A-Za-z` by `A-Za-z0-9`. For **each** key below that `B'` contains
+  at a position not preceded by an odd number of backslashes (`\[0-9]` is
+  the text `[0-9]`, not a class), one report on `L` (info), naming the key
+  and its shorthand:
 
   | key | shorthand |
   |---|---|
@@ -169,9 +182,10 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
   The message carries a hint: "equivalent" when `mods` lacks `u`, "broader
   under /u" when it contains `u`. (`[0-9,]` matches no key; `[[:digit:]]`
   matches `[:digit:]`.)
-- **D15** Repeated identical classes. `body` contains `[`. Find the first
-  (leftmost) run of the shape: `[X]` `q?` `[X]` `q?`, repeated one or more
-  times greedily, where `X` is one or more characters other than `]`, both
+- **D15** Repeated identical classes. The decoded pattern (D4) contains
+  `[`. Find the first (leftmost) run, not starting at a `[` preceded by an
+  odd number of backslashes (`x\[ab][ab]` has none), of the shape: `[X]`
+  `q?` `[X]` `q?`, repeated one or more times greedily, where `X` is one or more characters other than `]`, both
   bracket groups in one repetition are textually identical, and `q` is one
   of `*`, `+`, `?`, `{…}` (`{`, one or more non-`}`, `}`). Report `L` once
   (info), naming the matched run and the class `[X]` of its last repetition.
@@ -225,7 +239,20 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
   `if`/`elseif`/`while`/`do-while` condition, a `!`, an operand of
   `&&`/`||`/`and`/`or`, or the condition of a full (non-`?:`) ternary.
 - **D22** Plain string API. `C` has ≥ 2 arguments and `body` non-empty.
-  `B'` as in D14.
+  A D22 rewrite drops the pattern expression and reads the arguments by
+  position, so two more conditions apply (custos, see Divergences):
+  - *proven pattern*: `A` (parentheses stripped) is `L` itself, or a class
+    constant fetch whose class is a name other than `static` (`self::RE`,
+    `Foo::RE`). A literal reached through a variable, a parameter default,
+    a property, `static::RE`, a global constant or a ternary is one
+    possible value only: its literal checks run, D22 does not;
+  - *positional arguments*: no spread, and every named argument sits where
+    a positional one would bind the same parameter (`pattern`, `subject`
+    for `preg_match`; `pattern`, `replacement`, `subject` for
+    `preg_replace`; `pattern`, `subject`, `limit` for `preg_split`).
+    `preg_split('/,/', $s, flags: 1)` and a reordered call are not
+    reported.
+  `B'` here is `body` as written (not the canonical class order of D14).
   *Text form*: `B'` is, in full: an optional `^`, then either one or more
   characters of `[A-Za-z0-9_-]` or a backslash followed by one of `. * + ?`,
   then an optional `$`. Let `start`/`end` = whether `^`/`$` is present,
@@ -233,8 +260,14 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
   `. + * ? -` ("unescape"), `ci` = `mods` contains `i`, `X1`/`X2` = verbatim
   source text of arguments 2/3.
   - **D22a** `fn` = `preg_match`, exactly 2 arguments, text form, `start`
-    and `end`, not `ci` → replacement `"T" OP X1` with `OP` = `!==` if
-    inverted else `===`.
+    and `end`, not `ci` → replacement `"T" OP S` with `OP` = `!==` if
+    inverted else `===`, and `S` the subject as an operand: `X1` when its
+    inferred type is exactly `string`, else `(string) X1`
+    (`preg_match()` converts an int, float or Stringable subject, `===`
+    does not); `X1` is parenthesised when it binds more loosely than the
+    operator in front of it (`??`, a ternary, a logical or equality
+    operation, an assignment… for `===`; any binary operation for the
+    cast).
   - **D22b** `fn` = `preg_match`, exactly 2 arguments, text form, `start`,
     not `end` (any `ci`) → `0 OP F(X1, "T")`, `OP` = `!==` if inverted else
     `===`, `F` = `stripos` if `ci` else `strpos`.
@@ -252,8 +285,9 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
     `""`), and `B'` is in full one of:
     (i) `^` c `q`; (ii) c `q` `$`; (iii) `^` c `q` `|` c `q` `$` with the
     same c on both sides — where c is either the two characters `\s` or any
-    single character other than `.`, and each `q` is `+` or `*`
-    (independently). If `mods` contains `m` or `u` → stop (no report).
+    single ASCII character other than `.` (`trim()` takes a list of bytes,
+    so a multi-byte character would be stripped byte by byte), and each `q`
+    is `+` or `*` (independently). If `mods` contains `m` or `u` → stop (no report).
     Otherwise: function `H` = `rtrim` if `body` does not start with `^`;
     else `ltrim` if `body` does not end with `$`; else `trim`. Replacement:
     `H(X2)` when c is `\s`, else `H(X2, 'c')` with c unescaped as above.
@@ -299,7 +333,8 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
 - **E4** Array-literal first argument: no D20–D23.
 - **E5** D16 with a third argument, with `^` before `.*`, or with a `\0`
   back-reference.
-- **E6** D22 with extra arguments (`preg_match` + `$matches`,
+- **E6** D22 with a pattern that is not proven, with a spread, a named
+  argument out of position, extra arguments (`preg_match` + `$matches`,
   `preg_replace` + limit, `preg_split` + flags), with any regex syntax in
   the body, D22a with `i`, D22e with a non-empty replacement or `m`/`u`,
   `.` as trim character, differing characters in the two trim halves,
@@ -348,9 +383,12 @@ Several findings on the same literal are independent and all reported
 ## Fix
 
 Only D22 has a fix. In every case the reported range is replaced by the
-replacement text, verbatim, with no added parentheses:
+replacement text (parenthesised when the context requires it, see
+Divergences):
 
-- **F1** (D22a) `"T" === X1` / `"T" !== X1`.
+- **F1** (D22a) `"T" === X1` / `"T" !== X1`; `"T" === (string) X1` when
+  `X1` is not known to be a string, with `X1` in parentheses when it is a
+  looser expression (`"a" === (string) ($q['k'] ?? 'a')`).
 - **F2** (D22b) `0 === strpos(X1, "T")`, `0 !== stripos(X1, "T")`, …
 - **F3** (D22c) `false !== strpos(X1, "T")` / `false === stripos(X1, "T")`.
 - **F4** (D22d) `str_replace("T", X1, X2)` / `str_ireplace("T", X1, X2)`.
@@ -641,7 +679,8 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
 - **Modifiers ignored by D22.** `m` (with `^`/`$`) and `x` change meaning
   but are not checked for D22a–d. Recommendation (implemented, see "D22 rewrites that keep the meaning" below): skip D22a/b when `mods`
   contains `m`. D22 also builds `T` from the normalised body, so a literal
-  `a-zA-Z` becomes `A-Za-z` in the suggestion; use the original text.
+  `a-zA-Z` becomes `A-Za-z` in the suggestion; custos uses the body as
+  written for `T`, the trim character and the explode delimiter.
 - **Line terminators.** Upstream's D13 and D19 tests fail on any body
   containing a line break (a multi-line pattern with non-ASCII text is not
   reported), and its D22/D22f end-anchors also accept a single trailing
@@ -718,13 +757,31 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
     parentheses when its context is the operand of a tighter operator
     (`'n' . !preg_match('/^a$/', $p)` → `'n' . ("a" !== $p)`); the message
     shows it without them.
+  - *Proven pattern:* value discovery (D2) keeps one literal and ignores
+    the other possible values, which is fine for a report on that literal
+    but not for replacing the call: a parameter default, a variable also
+    bound by `foreach` or by reference, a property with a setter or a
+    subclass override, and `static::RE` can all hold another pattern at
+    run time. D22 needs the literal itself or a `self::`/class-named
+    constant as the first argument.
+  - *Named arguments:* arguments are read by parameter, not by position:
+    `preg_split('/,/', $s, flags: 1)` has no limit and is not turned into
+    `explode(",", $s, 1)`; a call naming its arguments out of order is
+    left alone (a positional rewrite would reorder their evaluation).
+  - *Subject of D22a:* the subject is cast to string unless its type is
+    known to be `string` (`preg_match('/^1$/D', 1)` matches, `"1" === 1`
+    does not), and parenthesised when it binds more loosely than `===` or
+    the cast (`$q['k'] ?? 'a'`, a ternary).
   - *D22d* (`preg_replace` → `str_replace`) replaces the call only, never
     an enclosing comparison.
   - *Modifiers:* D22a–d are skipped when `mods` contains `A` (anchored at
     the start), and D22a/D22b (anchored forms) when it contains `m`.
   - *Trim (D22e):* not reported when the character is a regex
     metacharacter (`\ ^ $ . [ ] | ( ) ? * + {`) or a quote — `/^\+/` has no
-    quantifier and `ltrim($s, '\')` does not parse.
+    quantifier and `ltrim($s, '\')` does not parse — or when it is not a
+    single ASCII byte: `/^é+/` removes whole `é` sequences while
+    `ltrim($s, 'é')` removes any run of its two bytes and can cut another
+    character in half.
   - *Explode (D22f):* the delimiter is the literal string the pattern
     matches: the character of a one-character class `[c]` (`[.]` included;
     not `\`, `^`, `]`), a single character that is not a metacharacter, or
@@ -735,6 +792,14 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
     argument the call is rewritten only when it is a positive integer
     literal (`preg_split()` treats `0`/`-1` as "no limit", `explode()` does
     not).
+- **Modifier whitespace and escaped delimiters (custos diverges).** PHP
+  skips a space, `\n` or `\r` among the modifiers, and sees the decoded
+  string: `'/abc/i '`, `"/abc/i\n"` and `"\x2fabc\x2f"` are valid patterns
+  and get no "no valid delimiters" report (D4/D6).
+- **Escaped brackets in D14/D15 (custos diverges).** The class keys of D14
+  and the runs of D15 are substring tests upstream, so `'/\[0-9]/'` (the
+  literal text `[0-9]`) was told to use `\d`. custos looks at the decoded
+  pattern and skips a `[` preceded by an odd number of backslashes.
 - **D9–D11 count the pattern PHP passes to PCRE (custos diverges).**
   Upstream counts `$`, `.` and letters in the literal's source text, so
   `"/^[a-z]*\$/D"` and `"/^[0-9]*\x24/D"` (an anchor `$` written as a PHP

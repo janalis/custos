@@ -97,6 +97,12 @@ history; unknown, sparse and previously mutated arrays are skipped.
   each side of `=`). The trailing `;` of the statement stays.
   `array_push($queue, $job);` → `$queue[] = $job;`
   `array_push($log, [1, 2]);` → `$log[] = [1, 2];`
+- **F2** When the 2nd argument is an `and`, `or` or `xor` operation, it is
+  wrapped in parentheses (also in the message): these keyword operators bind
+  more loosely than `=`, so `$flags[] = $x or $y` would append `$x` alone.
+  `array_push($flags, $x or $y);` → `$flags[] = ($x or $y);`
+  Every other expression kind binds at least as tightly as an assignment's
+  right side and is copied verbatim.
 - Part B has no fix.
 
 ## Options
@@ -170,6 +176,9 @@ $queue[\count($queue)] = &$job;
   is an error of a different kind. custos therefore reports (and fixes)
   only when the first argument is known to be an array. The EA
   conformance case still passes.
+- **Low-precedence value (custos diverges).** A 2nd argument joined by
+  `and`/`or`/`xor` is parenthesised in the replacement (F2); pasting it
+  verbatim after `=` would change which value is appended.
 - Part B with a qualified call (`\count($a)`): whether upstream's range
   includes the leading `\` is unverified; recommendation: highlight the
   name identifier only (without the qualifier).

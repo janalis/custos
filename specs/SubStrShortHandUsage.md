@@ -69,6 +69,15 @@ only (`$s` vs `$s`).
 - **E1b** `substr` called with 4 arguments (`substr($s, 0, strlen($s) - 1,
   'x')`): the call itself is broken (too many arguments), so no rewrite is
   offered.
+- **E1c** `mb_substr` called with an `encoding` string literal that names an
+  encoding other than UTF-8 (`'8bit'`, `'ASCII'`, `'UTF-16LE'`,
+  `'ISO-8859-1'`, `'Windows-1252'`, `'SJIS'`, …; matched by name prefix, any
+  letter case): the one-argument `mb_strlen` of D4 counts in the internal
+  encoding (UTF-8 by default), so the computed length is not a count in the
+  unit `mb_substr` uses (`mb_substr($s, 0, mb_strlen($s) - 1, '8bit')` drops
+  more than one byte of a multibyte string). A UTF-8 literal, a non-literal
+  encoding and a name mbstring does not know are taken to be the internal
+  encoding and stay reported.
 - **E2** `length` wrapped in parentheses, or using another operator (`+`, `*`).
 - **E3** `L` measures something other than `subject` (`strlen($other) - 1`),
   or takes 2 arguments (`mb_strlen($s, 'UTF-8') - 1`).
@@ -78,6 +87,10 @@ only (`$s` vs `$s`).
 - **E4** `L - R` reversed (`2 - strlen($s)`).
 - **E5** Non-literal, non-equivalent `start`/`R` (`substr($s, $i, strlen($s) - 3)`,
   `substr($s, 0, strlen($s) - strlen($p))`).
+
+- **E5b** `start` is a float literal (`substr($s, 1.5, strlen($s) - 1.5)`):
+  PHP truncates `start` to 1 but the length `strlen($s) - 1.5` only after
+  the subtraction, so the original stops one character before the end.
 
 ## Report
 
@@ -102,6 +115,25 @@ only (`$s` vs `$s`).
 - **F3** *Drop*, 4 arguments (`mb_substr` only): rewrite the argument list as
   `{subject}, {start}, null, {encoding}` (the length becomes `null`, which
   means "to the end").
+
+- **F4** *No fix for operands that cannot be evaluated once instead of
+  twice.* Every rewrite removes one evaluation of `subject`, and *Drop* also
+  removes one evaluation of `start`. The fix is therefore offered only when
+  both `subject` and `start` are repeatable: they contain no assignment (plain,
+  compound or by reference), `++`/`--`, `new`, `clone`, method or static call,
+  `include`/`require`, `eval`, `exit`, `print`, `throw`, `yield`, pipe
+  operator, backtick shell string, and no function call other than one that
+  resolves (as in D1) to a builtin from this pure list: `strlen`, `mb_strlen`,
+  `count`, `sizeof`, `strtolower`, `strtoupper`, `mb_strtolower`,
+  `mb_strtoupper`, `trim`, `ltrim`, `rtrim`, `ucfirst`, `lcfirst`, `strrev`,
+  `str_repeat`, `substr`, `mb_substr`, `strpos`, `stripos`, `strrpos`,
+  `strripos`, `mb_strpos`, `mb_stripos`, `mb_strrpos`, `mb_strripos`, `abs`,
+  `min`, `max`, `intval`, `strval`, `basename`, `dirname`, `implode`, `join`.
+  Otherwise the report is kept (the duplicated call is usually an unknown but
+  harmless getter) and no fix is attached:
+  `substr($s, $i++, strlen($s) - $i++)` and
+  `substr(array_shift($q), 0, strlen(array_shift($q)) - 1)` would change both
+  the result and the program state.
 
 Examples:
 
@@ -175,6 +207,11 @@ function cut($name, $head, $k) {
   exceeds the character count, so both rewrites return a different string.
   custos requires the length function to match the variant (D4, E3b) and stays
   silent on mixed pairs.
+- **Explicit non-UTF-8 encoding (custos diverges):** upstream ignores the 4th
+  argument, so `mb_substr($s, 0, mb_strlen($s) - 1, '8bit')` becomes `-1`
+  although the original length was a character count applied to bytes. custos
+  stays silent when the encoding literal names another encoding (E1c). A
+  variable encoding is still assumed to be the internal one.
 - **Negative literal start:** `substr($s, -3, strlen($s) - 1)` gives
   `d = -2` → simplify to `-2`, which is not equivalent (original returns the
   last 3 characters). Recommendation: only apply D6 when `start` is
@@ -196,6 +233,11 @@ function cut($name, $head, $k) {
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Fix withheld for non-repeatable operands (custos diverges).** Upstream
+  rewrites whenever the operands match textually, even when they carry side
+  effects, so the rewritten call runs an increment, assignment or impure call
+  once instead of twice. custos keeps the report but attaches a fix only when
+  the de-duplicated operands are repeatable (F4).
 - **Simplify only when `d >= -2` (custos diverges).** For a string shorter
   than `R` the original length `strlen($s) - R` is negative and PHP still
   keeps characters up to `2·strlen($s) - R`, while the suggested constant

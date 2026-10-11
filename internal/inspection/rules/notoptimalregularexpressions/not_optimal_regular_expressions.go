@@ -40,6 +40,9 @@ type noreCase struct {
 	// for the checks that count pattern characters (D9–D11).
 	decoded string
 	array   bool // array mode (D5)
+	// proven: the pattern argument certainly evaluates to lit, so a D22
+	// rewrite may drop it.
+	proven bool
 
 	sink  *[]string       // dry run: collect literal findings instead of reporting
 	prior map[string]bool // literal findings already made by an earlier call
@@ -66,6 +69,7 @@ func (notOptimalRegularExpressions) Check(ctx *analysis.Context, n syntax.Node) 
 			// same literal already reported its literal findings.
 			c.prior = noreEarlierFindings(ctx, call, lit)
 		}
+		c.proven = noreProvenPattern(norePatternArg(call, fn).Value, lit)
 		if c.checkLiteral() && !array {
 			c.checkCall()
 		}
@@ -79,8 +83,8 @@ func noreCandidates(ctx *analysis.Context, n syntax.Node) (*syntax.FuncCall, str
 	if call == nil || astquery.ArgCount(call) == 0 {
 		return nil, "", nil, false
 	}
-	first, ok := call.Args.Args[0].(*syntax.Arg)
-	if !ok || first.Value == nil {
+	first := norePatternArg(call, fn)
+	if first == nil {
 		return nil, "", nil, false
 	}
 	var cands []syntax.Expr // D2
@@ -100,6 +104,44 @@ func noreCandidates(ctx *analysis.Context, n syntax.Node) (*syntax.FuncCall, str
 	return call, fn, cands, array
 }
 
+// norePatternArg returns the argument holding the pattern: the first one
+// when positional, else the one named after the parameter (`pattern`, or
+// `str` for preg_quote). nil when it cannot be told (spread, placeholder).
+func norePatternArg(call *syntax.FuncCall, fn string) *syntax.Arg {
+	name := "pattern"
+	if fn == "preg_quote" {
+		name = "str"
+	}
+	for i, a := range call.Args.Args {
+		arg, ok := a.(*syntax.Arg)
+		if !ok || arg.Value == nil || arg.Unpack {
+			return nil
+		}
+		if i == 0 && arg.Name == nil || arg.Name != nil && arg.Name.Value == name {
+			return arg
+		}
+	}
+	return nil
+}
+
+// noreProvenPattern reports whether the pattern argument a can only be lit:
+// the literal itself, or a class constant named without late static binding.
+// Value discovery through a variable, a property or `static::` picks one
+// possible value (a parameter default, an initial assignment), which is
+// enough to check that literal but not to replace the call (D22).
+func noreProvenPattern(a, lit syntax.Expr) bool {
+	a = syntax.UnwrapParens(a)
+	if a == lit {
+		return true
+	}
+	cc, ok := a.(*syntax.ClassConstFetch)
+	if !ok {
+		return false
+	}
+	class, ok := cc.Class.(*syntax.Name)
+	return ok && !strings.EqualFold(class.Value, "static")
+}
+
 // checkLiteral runs D3–D19 on the literal; it reports whether the pattern
 // parsed (so the call checks may run).
 func (c *noreCase) checkLiteral() bool {
@@ -108,8 +150,12 @@ func (c *noreCase) checkLiteral() bool {
 		return false
 	}
 	body, mods, ok := noreSplitDelimiters(raw) // D4
+	// The string value decides what PHP sees: "\x2fa\x2f" and "/a/i\n" are
+	// delimited although their source text is not.
+	v, _ := astquery.QuotedStringValue(c.lit)
+	vbody, _, vok := noreSplitDelimiters(v)
 	if !ok {
-		if c.fn != "preg_quote" { // D6
+		if c.fn != "preg_quote" && !vok { // D6
 			c.report(diagnostic.SeverityWarning, "Pattern has no valid delimiters.")
 		}
 		return false
@@ -119,11 +165,10 @@ func (c *noreCase) checkLiteral() bool {
 	}
 	c.body, c.mods = body, mods
 	c.decoded = body
-	if v, ok := astquery.QuotedStringValue(c.lit); ok {
-		// D9–D11 look at the pattern PCRE sees: "\$" and "\x24" are a `$`.
-		if b, _, ok := noreSplitDelimiters(v); ok {
-			c.decoded = b
-		}
+	if vok {
+		// D9–D11, D14 and D15 look at the pattern PCRE sees: "\$" and
+		// "\x24" are a `$`.
+		c.decoded = vbody
 	}
 	c.checkModifiers()
 	c.checkBody()
@@ -162,7 +207,7 @@ func noreEarlierFindings(ctx *analysis.Context, call *syntax.FuncCall, lit synta
 }
 
 // noreSplitDelimiters implements D4: it returns the pattern body and the
-// trailing modifier letters.
+// trailing modifier letters (PHP ignores spaces and line breaks among them).
 func noreSplitDelimiters(r string) (body, mods string, ok bool) {
 	// PHP skips leading whitespace, then rejects alphanumeric, backslash and
 	// NUL delimiters.
@@ -193,9 +238,9 @@ func noreSplitDelimiters(r string) (body, mods string, ok bool) {
 		}
 		close = r[:openLen]
 	}
-	// t = start of the maximal run of trailing ASCII letters
+	// t = start of the maximal run of trailing modifier characters
 	t := len(r)
-	for t > 0 && isASCIILetter(r[t-1]) {
+	for t > 0 && (isASCIILetter(r[t-1]) || noreModifierSpace(rune(r[t-1]))) {
 		t--
 	}
 	lo := t - len(close)
@@ -206,12 +251,46 @@ func noreSplitDelimiters(r string) (body, mods string, ok bool) {
 	// suffix lies in the trailing letter run (j+len(close) >= t)
 	for j := len(r) - len(close); j >= lo; j-- {
 		if r[j:j+len(close)] == close {
-			return r[openLen:j], r[j+len(close):], true
+			return r[openLen:j], strings.Map(noreDropModifierSpace, r[j+len(close):]), true
 		}
 	}
 	return "", "", false
 }
 func isASCIILetter(b byte) bool { return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' }
+
+// noreModifierSpace: the characters PHP skips in the modifier list.
+func noreModifierSpace(r rune) bool { return r == ' ' || r == '\n' || r == '\r' }
+
+func noreDropModifierSpace(r rune) rune {
+	if noreModifierSpace(r) {
+		return -1
+	}
+	return r
+}
+
+// noreEscaped reports whether s[i] follows an odd number of backslashes.
+func noreEscaped(s string, i int) bool {
+	n := 0
+	for i > n && s[i-n-1] == '\\' {
+		n++
+	}
+	return n%2 == 1
+}
+
+// noreHasUnescaped reports whether s contains key at a position that is
+// not escaped by a backslash.
+func noreHasUnescaped(s, key string) bool {
+	for from := 0; ; {
+		i := strings.Index(s[from:], key)
+		if i < 0 {
+			return false
+		}
+		if !noreEscaped(s, from+i) {
+			return true
+		}
+		from += i + 1
+	}
+}
 
 // noreHasLineTerminator reports whether s contains \n, \r, U+0085, U+2028
 // or U+2029.

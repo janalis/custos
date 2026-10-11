@@ -42,7 +42,7 @@ func (subStrUsedAsArrayAccess) Check(ctx *analysis.Context, n syntax.Node) {
 	src, off := ctx.Text(args[0]), ctx.Text(args[1])
 	// A type alone says nothing about whether a negative offset clamps.
 	offset, known := semanticquery.NativeInt(ctx, args[1])
-	if !known || offset < -1 {
+	if !known || offset < -1 || sharedOffset(args[1]) {
 		return
 	}
 	var access string
@@ -67,4 +67,43 @@ func (subStrUsedAsArrayAccess) Check(ctx *analysis.Context, n syntax.Node) {
 		Title: "Replace with '" + repl + "'",
 		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: repl}} },
 	})
+}
+
+// sharedOffset reports whether the offset is a variable whose assigned value
+// may be stale: storage reachable from other code (a global, a static, a
+// by-reference parameter, closure import or array item) or a `++`/`--`.
+func sharedOffset(e syntax.Expr) bool {
+	name, ok := astquery.PlainVariableName(syntax.UnwrapParens(e))
+	if !ok {
+		return false
+	}
+	scope := syntax.EnclosingVariableScope(e)
+	if scope == nil { // top-level variables are globals
+		return true
+	}
+	is := func(x syntax.Node) bool {
+		got, ok := astquery.PlainVariableName(x)
+		return ok && got == name
+	}
+	shared := false
+	syntax.Inspect(scope, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Param:
+			shared = shared || x.ByRef && x.Var != nil && is(x.Var)
+		case *syntax.ClosureUse:
+			shared = shared || x.ByRef && x.Var != nil && is(x.Var)
+		case *syntax.ArrayItem:
+			shared = shared || x.ByRef && x.Value != nil && is(syntax.UnwrapParens(x.Value))
+		case *syntax.StaticVar:
+			shared = shared || x.Var != nil && is(x.Var)
+		case *syntax.IncDec:
+			shared = shared || is(syntax.UnwrapParens(x.Var))
+		case *syntax.Global:
+			for _, v := range x.Vars {
+				shared = shared || is(v)
+			}
+		}
+		return !shared
+	})
+	return shared
 }

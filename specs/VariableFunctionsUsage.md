@@ -48,6 +48,21 @@ one imported from another namespace, or a qualified non-global name such as
 - **D5a** No argument after `A0` is written with a call-time by-reference
   `&` (`&$b`, `& $b`): the direct call would carry it, which is a fatal
   error since PHP 5.4.
+- **D5b** No argument after `A0` may bind to a by-reference parameter of
+  the callee. `call_user_func()` hands every argument over as a copy (with a
+  warning, or silently for the builtins that merely prefer a reference, such
+  as `array_multisort`), while the direct call binds the caller's variable
+  and lets the callee modify it. The callee is looked up when it can be
+  named: a function name in a string, a `Cls::m` string or `['Cls', 'm']`
+  pair (`self`/`static`/`parent` through the enclosing class), or
+  `[$obj, 'm']` on every class inferred for `$obj`. A plain variable callable
+  inside a function is resolved through the values assigned to it there
+  (value discovery, as in CallableMethodValidity): every closure, arrow
+  function and function-name string among them is a callee. Arguments bind
+  as PHP binds them (by position, by name, a by-reference variadic tail); a
+  spread argument may reach any parameter, so any by-reference parameter
+  then counts. An unresolved callee (a parameter or top-level variable
+  holding the callable, variable method name, unknown class) is not checked.
 - **D6** Determine the callable parts `(first, second)`:
   - **D6a** `A0` is an array literal: collect its element values (as in D3).
     If none → no report. If the first element is a simple variable (incl.
@@ -69,8 +84,12 @@ one imported from another namespace, or a qualified non-global name such as
       - `c` starts with `parent::` (case-insensitive) → **no report**;
       - `c` contains a `:` anywhere → the target is the plain function text
         `c` (it overrides `first`'s text; `first` must still pass the check
-        above);
-      - otherwise the method text is `c`;
+        above). `c` must then read `Class::method` with a well-formed class
+        name and method name (D7c), and the class must not be `self` or
+        `static` (in this position they are relative to the class named by
+        `first`, not to the calling class); otherwise → **no report**;
+      - otherwise the method text is `c` when `c` is an identifier (D7c);
+        a value that is not one keeps the `{…}` form;
     - if `second` is a simple variable → method text is its verbatim text
       (`$m`);
     - an interpolated string or any other expression keeps the `{…}` form.
@@ -79,6 +98,26 @@ one imported from another namespace, or a qualified non-global name such as
       there is no `second` and that value starts with `parent::`
       (case-insensitive) → **no report** (same rule as the method part);
     - simple variable → its verbatim text.
+- **D7b** `forward_static_call()` hands the caller's late-static-binding
+  class on to the callee. A direct call only does so when it is written
+  `self::`, `static::` or `parent::`, so for this function the callable
+  must be one of:
+  - a function name in a string (no `::`);
+  - a string `'self::m'` / `'static::m'`;
+  - an array whose class part is the string `self`, `static` or `parent`
+    and whose method part does not use the `:` override.
+
+  A named class (`'Base::make'`, `['Base', 'make']`), a variable
+  (`$fn`, `[$obj, 'm']`) or the override → **no report**.
+- **D7c** Names taken from string literals are only written bare when they
+  are valid PHP names: an identifier is a letter, `_` or a byte ≥ 0x80
+  followed by letters, digits, `_` or bytes ≥ 0x80; a class or function
+  name is one or more identifiers joined by `\`, with an optional leading
+  `\`. A method name that is not an identifier (reached through
+  `__call`/`__callStatic`: `'rows.list'`, `'find-all'`, `''`) keeps the
+  `{'…'}` form. A class or function name that is not well-formed, or a
+  `'Cls::m'` string whose method part is not an identifier → **no
+  report**.
 - **D7a** When the target is a function name taken from a string literal
   (no `second`, or the D7 override — a name without `::`) and that name has
   no namespace separator other than an optional leading `\`
@@ -98,8 +137,7 @@ one imported from another namespace, or a qualified non-global name such as
 - Replacement:
   - override case or no `second`: `{target}({args})`;
   - with `second`: `{class}{sep}{method}({args})` where `{sep}` is `::` if
-    `first` is **not** a simple variable or the outer call is
-    `forward_static_call`, and `->` otherwise.
+    `first` is **not** a simple variable, and `->` otherwise.
 
 (The parser must accept call-time pass-by-reference `&$x` inside argument
 lists, as upstream fixtures contain it.)
@@ -111,6 +149,8 @@ lists, as upstream fixtures contain it.)
 - **E1a** Part A at PHP ≥ 8.0: an element has a non-integer-literal key
   (`['to' => $to]`, `[$k => $v]`).
 - **E1b** Part B: an argument carries a call-time `&`.
+- **E1c** Part B: an argument binds to a by-reference parameter of the
+  resolved callee (D5b), e.g. `call_user_func('sort', $rows)`.
 - **E2** Part B: `A0` is a variable and the level is below 5.4.
 - **E3** Part B: array callable whose object element is a variable with an
   unknown or string-containing type.
@@ -121,6 +161,11 @@ lists, as upstream fixtures contain it.)
   namespace function or function import shadows it at the call (D7a), e.g.
   `call_user_func('filesize', $dir)` inside a namespace that
   declares its own `filesize()`.
+- **E4b** Part B, `forward_static_call()`: the callable names a class other
+  than `self`/`static`/`parent`, or is a variable (D7b).
+- **E4c** Part B: a class or function name in a string that is not a valid
+  PHP name, a `'Cls::m'` string with such a method part, or a `:` override
+  that is not `Class::method` or names `self`/`static` (D7, D7c).
 - **E5** Part B: class/function part that is not a non-interpolated string or
   a simple variable (`$list[$i]`, `$o->p`, `"$cls::m"`, `make()`), even when
   the method part contains `::` (`[$list[$i], 'Base::m']`), or an empty
@@ -148,7 +193,8 @@ lists, as upstream fixtures contain it.)
   - `call_user_func($fn, $a, $b)` → `$fn($a, $b)`
   - `call_user_func('Pkg\\Tool::run', $x)` → `Pkg\Tool::run($x)`
   - `call_user_func([$svc, 'handle'], 1)` → `$svc->handle(1)`
-  - `forward_static_call([$svc, 'handle'], 1)` → `$svc::handle(1)`
+  - `forward_static_call(['static', 'handle'], 1)` → `static::handle(1)`
+  - `call_user_func([$svc, 'rows.list'])` → `$svc->{'rows.list'}()`
   - `call_user_func([$svc, "on{$evt}"])` → `$svc->{"on{$evt}"}()`
   - `call_user_func(['Base', 'Other::make'])` → `Other::make()`
 - No parentheses are added around the replacement.
@@ -196,7 +242,6 @@ $m = new Mailer();
 <weak_warning descr="Call it directly: '$hook($to, $log)'.">call_user_func($hook, $to, $log)</weak_warning>;
 <weak_warning descr="Call it directly: 'Mailer::send($to, $body)'.">call_user_func(['Mailer', 'send'], $to, $body)</weak_warning>;
 <weak_warning descr="Call it directly: '$m->send($to, $body)'.">call_user_func(array($m, 'send'), $to, $body)</weak_warning>;
-<weak_warning descr="Call it directly: '$m::send(...$rest)'.">forward_static_call([$m, 'send'], ...$rest)</weak_warning>;
 <weak_warning descr="Call it directly: '$m->$verb()'.">call_user_func([$m, $verb])</weak_warning>;
 <weak_warning descr="Call it directly: 'App\Mailer::send($to)'.">\call_user_func('App\\Mailer::send', $to)</weak_warning>;
 <weak_warning descr="Pass the arguments inline: 'call_user_func($hook, $to, $body)'.">call_user_func_array($hook, [0 => $to, 1 => $body])</weak_warning>;
@@ -214,6 +259,8 @@ call_user_func("{$cls}::send", $to);
 call_user_func(build(), $to);
 $name = 'mailer';
 call_user_func([$name, 'send'], $to);
+forward_static_call([$m, 'send'], ...$rest);
+call_user_func('sort', $pool);
 ```
 
 ```php
@@ -226,7 +273,6 @@ $m = new Mailer();
 $hook($to, $log);
 Mailer::send($to, $body);
 $m->send($to, $body);
-$m::send(...$rest);
 $m->$verb();
 App\Mailer::send($to);
 call_user_func($hook, $to, $body);
@@ -244,6 +290,8 @@ call_user_func("{$cls}::send", $to);
 call_user_func(build(), $to);
 $name = 'mailer';
 call_user_func([$name, 'send'], $to);
+forward_static_call([$m, 'send'], ...$rest);
+call_user_func('sort', $pool);
 ```
 
 Level 7.4: `call_user_func_array($hook, ['to' => $to, $body])` →
@@ -317,6 +365,27 @@ function sample(string $dir)
   `[$list[$i], 'Base::m']` becomes `Base::m(...)` and the receiver (and its
   evaluation) disappears. custos requires `first` to be a string or simple
   variable in every case (D7, E5).
+- **`forward_static_call()` to a named class or variable (custos
+  diverges):** upstream rewrites `forward_static_call(['Base', 'make'])` to
+  `Base::make()` and `forward_static_call([$o, 'm'])` to `$o::m()`. Neither
+  forwards the calling class, so `static` inside the callee changes from
+  the caller's class to the named one. custos only reports the spellings
+  that keep forwarding (D7b).
+- **By-reference parameters (custos diverges):** upstream never looks at
+  the callee. `call_user_func('sort', $rows)` leaves `$rows` untouched
+  (the function receives a copy) while `sort($rows)` sorts it. custos does
+  not report a call whose arguments would bind to a by-reference parameter
+  of a callee it can resolve (D5b). Known limit: a callable variable whose
+  value is not assigned in the same function (a parameter, a top-level
+  variable) cannot be resolved and `call_user_func($fn, $rows)` is still
+  rewritten to `$fn($rows)`; PHP warns about the original in that shape.
+- **Names that are not identifiers (custos diverges):** upstream pastes the
+  content of a method string as-is, so `[$o, 'rows.list']` becomes
+  `$o->rows.list()` (another expression) and `[$o, '']` becomes `$o->()`
+  (a parse error). custos keeps the `{'…'}` form for such method names and
+  does not report malformed class or function names (D7c). It also does
+  not report `['Base', 'self::make']`, where upstream's `self::make()`
+  would resolve `self` against the calling class instead of `Base`.
 - **Leading `\` in a callable string** (`'\trim'`) is copied verbatim
   (`\trim(...)`), fine.
 - **Function-name matching — custos diverges from upstream.** Upstream matches

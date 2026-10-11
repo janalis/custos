@@ -16,3 +16,11 @@ foreach ($users as $user)
 while ($row = next($rows)) {
     $ids[key($row)] = key($row);
 }
+
+foreach ($items as $item) {
+    $lazy[$item->getId()] = fn () => $loader->load($item->getId());
+    $lazy[$item->getId()] = static fn () => $item->getId();
+    $lazy[strtolower($item->name)] = function () use ($item) { return strtolower($item->name); };
+    $lazy[$item->getId()] = new class { function m($item) { return $item->getId(); } };
+    $lazy[(function () use ($item) { return md5($item); })()] = 'x' . md5($item);
+}

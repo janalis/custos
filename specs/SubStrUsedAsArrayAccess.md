@@ -40,6 +40,8 @@ position `-1` is translated to `strlen($str) - 1`.
 - **D6** The offset resolves to a known integer at least `-1`. Positive
   and zero offsets retain their written expression; a proven `-1` uses
   `strlen(source) - 1` and requires a fixed-name source variable.
+- **D7** An offset written as a variable only counts as known when nothing
+  but the visible assignments of its own scope can change it. See E7.
 
 ### Safety requirements
 
@@ -64,6 +66,17 @@ without a fix.
 - **E6** Offset not known to be an `int` (untyped, `string`, `int|string`,
   float literal): a non-integer string offset makes `$s[$i]` behave
   differently from `substr`.
+- **E7** Offset variable whose assigned value may be stale at the call:
+  - a top-level (global-scope) variable,
+  - a variable declared `global` or `static` in the enclosing function,
+  - a by-reference parameter of the enclosing function,
+  - a variable imported by reference into a closure (`use (&$i)`), whether
+    the closure is the enclosing scope or nested in it,
+  - a variable stored by reference in an array item (`[&$i]`,
+    `['k' => &$i]`),
+  - a variable that is the operand of `++` or `--` anywhere in the scope.
+  A call between the assignment and the `substr` can then move the offset
+  below `-1`, so the value read at the assignment proves nothing.
 
 ## Report
 
@@ -138,6 +151,12 @@ function peek(string $buf, ?string $maybe, string|int $mixed, array $rows, int $
   The negative-one rewrite is restricted to plain variables because it reads
   the source twice. Before PHP 8.0, out-of-range substr returns false rather
   than an empty string, so the guarded offset rewrite has no automatic fix.
+
+- **Shared offset variables (custos diverges).** An offset variable that
+  other code can reach (global, static, by-reference parameter, closure
+  import or array item) or that is incremented/decremented is not treated
+  as a known value, even right after a literal assignment (E7); upstream
+  rewrites such calls regardless.
 
 - **Version gate (custos diverges):** upstream wraps the access in `?? ''`
   only below PHP 7.0, where `??` is a parse error, and emits the bare access

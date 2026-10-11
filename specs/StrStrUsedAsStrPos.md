@@ -23,8 +23,17 @@ against `false` answers the same question without allocating.
   in the current namespace, one imported from another namespace, or a
   qualified non-global name such as `Ns\strstr` does not count): `strstr` or
   `stristr`. Call it `C`. Map `strstr` → `strpos`, `stristr` → `stripos`.
-- **D2** `C` has **at least 2** arguments. Only the first two are used in the
-  replacement; a 3rd argument (`before_needle`) is dropped.
+- **D2** `C` has 2 or 3 arguments, all positional: no named argument and no
+  `...` unpacking (their position in the parameter list is not the written
+  one). Only the first two are used in the replacement.
+- **D2a** A 3rd argument (`before_needle`) must be the literal `false` or
+  `true` (any case, optionally `\`-qualified), so that dropping it loses no
+  evaluation:
+  - `false` is the default and changes nothing;
+  - `true` makes the call return the part *before* the needle, which is the
+    empty string when the needle starts the haystack. Its truthiness is then
+    not "needle found", so only the strict comparisons of pattern A (`===`,
+    `!==`) are reported; the loose ones and pattern B are not.
 - Then the two patterns below are tried in order; the first that matches
   produces the (single) report.
 
@@ -69,7 +78,12 @@ on that path (`C` itself or its outermost wrapping parenthesis).
 
 ## Exceptions (no report)
 
-- **E1** Fewer than 2 arguments.
+- **E1** Fewer than 2 or more than 3 arguments; a named or unpacked argument
+  (`strstr(needle: $n, haystack: $h)`, `strstr($h, ...$rest)`).
+- **E6** A 3rd argument that is not a literal boolean (`strstr($h, $n, $b)`),
+  or a literal `true` outside a strict comparison with `false`
+  (`strstr($mail, '@', true) ? … : …`, `!strstr($h, $n, true)`,
+  `strstr($h, $n, true) == false`).
 - **E2** Compared with anything other than `false` (`true`, `null`, `''`, a
   variable, …), or with a non-equality operator (`<`, `<=>`, …).
 - **E3** Wrapped in parentheses and then compared: `(strstr($a, $b)) === false`
@@ -101,11 +115,22 @@ on that path (`C` itself or its outermost wrapping parenthesis).
     Yoda style: `false {op} {call}`. `false` is always lower-case; single
     spaces around `{op}`. The produced operand order depends only on the
     comparison style, not on the original order in `B`.
-  - No parentheses are added around the replacement.
   Examples (regular):
   - `false == strstr($h, 'x')` → `strpos($h, 'x') === false`
   - `!stristr($h, $n)` → `stripos($h, $n) === false`
-  - `$ok && \strstr($h, $n, true)` → `$ok && \strpos($h, $n) !== false`
+  - `$ok && \strstr($h, $n, false)` → `$ok && \strpos($h, $n) !== false`
+- **F2** Parentheses. A comparison binds looser than the `!` it replaces, so
+  when the reported node is the `!` expression and that expression is itself
+  an operand of something binding at least as tight as a comparison, the
+  inserted text is `({replacement})`: any unary operator or cast (`!`, `-`,
+  `@`, `(int)`, …), `clone`, and every binary operator except `&&`, `||`,
+  `and`, `or`, `xor`, `??`, `&`, `|`, `^`. The message and the fix title keep
+  the unparenthesised `{replacement}`. In every other position (pattern A,
+  the bare call of pattern B, a `!` that is a condition, a ternary operand,
+  an assigned value, an argument, …) no parentheses are added.
+  - `!strstr($h, $n) == $flag` → `(strpos($h, $n) === false) == $flag`
+  - `!!strstr($h, $n)` → `!(strpos($h, $n) === false)`
+  - `(int) !strstr($h, $n)` → `(int) (strpos($h, $n) === false)`
 
 ## Options
 
@@ -127,7 +152,7 @@ function scan($text, $word, $flag) {
     while ($flag and <warning descr="Use 'strpos($text, $word) !== false' instead; it avoids building a substring.">strstr($text, $word)</warning>) { $flag = false; }
     $a = <warning descr="Use 'strpos($text, $word) !== false' instead; it avoids building a substring.">strstr($text, $word)</warning> ? 1 : 2;
     $b = !(<warning descr="Use 'strpos($text, $word) !== false' instead; it avoids building a substring.">strstr($text, $word)</warning>);
-    $c = <warning descr="Use '\strpos($text, $word) === false' instead; it avoids building a substring.">FALSE == \strstr($text, $word, true)</warning>;
+    $c = <warning descr="Use '\strpos($text, $word) === false' instead; it avoids building a substring.">FALSE === \strstr($text, $word, true)</warning>;
     $d = <warning descr="Use 'stripos($text, $word) !== false' instead; it avoids building a substring.">stristr($text, $word) != false</warning>;
 
     $e = strstr($text, $word);
@@ -168,6 +193,25 @@ Yoda style: `!strstr($text, $word)` becomes `false === strpos($text, $word)`.
   map `<>` to `!==`. Not covered by upstream fixtures.
 - **Needle `''` / non-string needles:** behaviour of `strstr` and `strpos`
   differs only in pathological cases; upstream ignores this. Keep.
+- **Tail `"0"` (kept, same as upstream).** A loose test of the substring is
+  false when the match runs to the end of the haystack and is exactly `"0"`
+  (`strstr('1.0', '0')` is the falsy `"0"`), whereas the position test says
+  "found". That is the bug-prone reading the rule replaces, and restricting
+  the rule to strict comparisons would leave nothing of pattern B, so the
+  report and the fix are kept; the fix changes the result for such inputs.
+- **`before_needle` (custos diverges).** Upstream drops any 3rd argument
+  whatever the pattern. With `true` the result is the prefix, empty when the
+  needle starts the haystack, so `strstr($mail, '@', true) ? … : …` does not
+  mean "contains `@`"; and a non-literal 3rd argument cannot be dropped
+  without losing its evaluation. custos reports only the cases of D2a.
+- **Named / unpacked arguments (custos diverges).** Upstream takes the
+  arguments in written order, so `strstr(needle: $n, haystack: $h)` would be
+  rewritten with haystack and needle swapped. custos does not report them.
+- **Parentheses (custos diverges).** Upstream inserts the bare comparison in
+  place of `!strstr(…)`, which is a parse error under a non-associative
+  comparison (`!strstr($h, $n) == $f`) and changes the result under a cast,
+  another unary operator, arithmetic or concatenation. custos parenthesises
+  the replacement there (F2).
 - **Function-name matching — custos diverges from upstream.** Upstream matches
   `strstr`/`stristr` by the name as written (case-sensitive, any namespace
   qualifier, no resolution), so a differently cased call such as `StrStr($t,

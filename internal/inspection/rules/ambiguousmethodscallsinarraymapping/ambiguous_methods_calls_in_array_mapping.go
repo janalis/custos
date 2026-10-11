@@ -75,15 +75,28 @@ func isCall(n syntax.Node) bool {
 }
 
 // collectCalls returns the function/method calls strictly below root (and
-// root itself when self is set), in pre-order.
+// root itself when self is set), in pre-order. Closure, arrow-function and
+// anonymous-class bodies are not entered: the statement does not run them.
+// The constructor arguments of an anonymous class are evaluated, so they are.
 func collectCalls(root syntax.Node, self bool) []syntax.Node {
 	var out []syntax.Node
-	syntax.Inspect(root, func(n syntax.Node) bool {
+	var visit func(n syntax.Node) bool
+	visit = func(n syntax.Node) bool {
+		switch c := n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction:
+			return false
+		case *syntax.ClassLike:
+			if c.Args != nil {
+				syntax.Inspect(c.Args, visit)
+			}
+			return false
+		}
 		if (n != root || self) && isCall(n) {
 			out = append(out, n)
 		}
 		return true
-	})
+	}
+	syntax.Inspect(root, visit)
 	return out
 }
 

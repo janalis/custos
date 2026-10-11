@@ -35,6 +35,12 @@ func TestAuditSafety(t *testing.T) {
 		{"different variable", "<?php $b = []; $a[count($a)] = 'new';", 0, ""},
 		{"compound previous", "<?php $a += []; $a[count($a)] = 'new';", 0, ""},
 		{"nonliteral", "<?php $a = source(); $a[count($a)] = 'new';", 0, ""},
+		{"or value", "<?php $a = []; array_push($a, $b or $c);", 1, "<?php $a = []; $a[] = ($b or $c);"},
+		{"and value", "<?php $a = []; array_push($a, $b and $c);", 1, "<?php $a = []; $a[] = ($b and $c);"},
+		{"xor value", "<?php $a = []; array_push($a, $b xor $c);", 1, "<?php $a = []; $a[] = ($b xor $c);"},
+		{"ternary value", "<?php $a = []; array_push($a, $b ? 1 : 2);", 1, "<?php $a = []; $a[] = $b ? 1 : 2;"},
+		{"boolean or value", "<?php $a = []; array_push($a, $b || $c);", 1, "<?php $a = []; $a[] = $b || $c;"},
+		{"parenthesised or value", "<?php $a = []; array_push($a, ($b or $c));", 1, "<?php $a = []; $a[] = ($b or $c);"},
 		{"variable variable", "<?php $$a[count($$a)] = 'new';", 0, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

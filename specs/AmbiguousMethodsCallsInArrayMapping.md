@@ -46,6 +46,12 @@ it once into a local variable.
   report `r` and stop processing this statement (at most one report per
   statement).
 
+In D3 and D4, calls written inside the body of a closure, an arrow function
+or an anonymous class are not collected: the assignment does not evaluate
+them (they run later, in another scope, any number of times). Expressions
+the statement does evaluate around them stay in scope, such as the
+constructor arguments of `new class(...) { ... }`.
+
 `new` expressions, language constructs (`isset`, `empty`, `array(...)`,
 `list`, `echo`, `print`, `include`) are not calls for this rule.
 
@@ -60,6 +66,10 @@ it once into a local variable.
 - **E4** Left side not an array access (`$x = f($v)`, property fetch).
 - **E5** Assignments outside any `for`/`foreach` body (including `while`,
   `do-while`).
+- **E7** The repeated call sits only in a closure, arrow-function or
+  anonymous-class body on either side
+  (`$m[$u->id()] = fn () => $u->id();`): it is not evaluated by the
+  assignment, so nothing is computed twice.
 - **E6** Unstable calls: `r` (itself or any sub-expression, closure bodies
   excluded) contains an assignment, an increment/decrement, a call-time
   `&` argument, an argument bound to a by-reference parameter of a resolved
@@ -146,3 +156,9 @@ foreach ($streams as $h) {
   assignment statement wrapped in parentheses (`($m[f()] = f());`) because
   the top-level expression is not an assignment. The parentheses change
   nothing, so custos looks through them (D2) and reports the repeated call.
+- **Deferred bodies (custos diverges):** upstream collects calls from the
+  whole right-hand subtree, including closure, arrow-function and
+  anonymous-class bodies, and reports
+  `$m[$u->id()] = fn () => $u->id();`. That call is not run by the
+  assignment, so hoisting it into a local would change when (and whether) it
+  runs; custos does not enter those bodies (E7).

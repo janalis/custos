@@ -24,3 +24,32 @@ function reads_subject($s)
     $s = str_replace(substr($s, 0, 1), 'y', $s);
     return $s;
 }
+
+// Folding into the return would drop a write the caller still sees.
+function by_reference(&$s)
+{
+    $s = str_replace('a', 'b', $s);
+    return str_replace('c', 'd', $s);
+}
+
+function via_global()
+{
+    global $shared;
+    $shared = str_replace('a', 'b', $shared);
+    return str_replace('c', 'd', $shared);
+}
+
+function via_static()
+{
+    static $acc = 'ac';
+    $acc = str_replace('a', 'b', $acc);
+    return str_replace('c', 'd', $acc);
+}
+
+function via_closure($v)
+{
+    return function () use (&$v) {
+        $v = str_replace('b', 'z', $v);
+        return str_replace('c', 'd', $v);
+    };
+}

@@ -2,6 +2,7 @@ package fixedtimestartwith
 
 import (
 	"strconv"
+	"strings"
 
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
@@ -33,7 +34,7 @@ func (fixedTimeStartWith) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
-	needle, ok := astquery.StringLiteralValue(lit.Raw)
+	needle, ok := astquery.StringLiteralValue(lowerHexEscapes(lit.Raw))
 	if !ok || needle == "" { // D4a: strpos() with '' was false before PHP 8
 		return
 	}
@@ -56,4 +57,29 @@ func (fixedTimeStartWith) Check(ctx *analysis.Context, n syntax.Node) {
 		Title: "Replace with '" + repl + "'",
 		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: repl}} },
 	})
+}
+
+// lowerHexEscapes rewrites the escape introducer `\X` as `\x` in a quoted
+// literal's source: PHP decodes both alike in double quotes, and neither in
+// single quotes, so the decoded length is unchanged while the decoder only
+// has to know the lowercase form. Backslashes are consumed in pairs, so the
+// `X` of `\\X41` is left alone.
+func lowerHexEscapes(raw string) string {
+	if !strings.Contains(raw, `\X`) {
+		return raw
+	}
+	var b strings.Builder
+	b.Grow(len(raw))
+	for i := 0; i < len(raw); i++ {
+		c := raw[i]
+		if c == '\\' && i+1 < len(raw) {
+			b.WriteByte(c)
+			i++
+			if c = raw[i]; c == 'X' {
+				c = 'x'
+			}
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
 }

@@ -43,7 +43,8 @@ function keyed($s, $t, $u, $v, $w, $x, $y, $z, array $more, &$ref) {
 
     $y = str_replace(array('p'), array('q'), $y);
 
-    $z = str_replace(array('p', 'o'), array($r = 'q', $r), $z);
+    $z = str_replace('p', [$r = 'q'], $z);
+    $z = str_replace('o', [$r], $z);
     return $s . $t . $u . $v . $w . $x . $y . $z;
 }
 
@@ -54,7 +55,8 @@ function constants($s, $t, $u, $v) {
 
     $u = str_replace(array('a', 'b'), array(true, true), $u);
 
-    $v = str_replace(array('a', 'b', 'c', 'd'), array(...array_values(PAIR), ODD, ODD), $v);
+    $v = str_replace(['a', 'b'], PAIR, $v);
+    $v = str_replace(['c', 'd'], ODD, $v);
     return $s . $t . $u . $v;
 }
 

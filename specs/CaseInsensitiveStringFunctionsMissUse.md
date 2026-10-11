@@ -26,15 +26,37 @@ the same result faster.
   - `stripos` → counterpart `strpos`
   - `strripos` → counterpart `strrpos`
   - `stristr` → counterpart `strstr`
-- **D2** The call has **2 or 3** arguments.
-- **D3** Obtain the needle literal `L` from the 2nd argument:
-  - if the argument is a string literal (single or double quoted), `L` is it;
-  - otherwise run *value discovery* (as defined in the `CallableMethodValidity`
-    spec) on the argument; among the discovered values keep only string
-    literals (other values are simply ignored); if exactly one string literal
-    remains, it is `L`; otherwise stop.
-  - `L` must be in the same file as the call (always true for in-file
-    discovery; a constant defined in another file does not qualify).
+- **D2** The call has **2 or 3** arguments, all positional (no named
+  argument, no `...` spread): the needle is then the 2nd written argument.
+- **D3** Obtain the needle literal `L` from the 2nd argument (surrounding
+  parentheses ignored). The needle must be *proven* to be that literal: when
+  any other value could reach the call, the case-sensitive counterpart may
+  give another result, so nothing is reported. `L` is:
+  - the argument itself when it is a string literal (single or double
+    quoted, no interpolation);
+  - for a **local variable** inside a function, method or closure: the
+    literal of its plain `=` assignment, provided that literal is the only
+    value that can reach the call. That requires every reaching assignment
+    to be accounted for and to yield the same single literal written
+    directly on the right-hand side (not through another variable), the
+    entry value not to reach the call (so not a parameter, even one with a
+    default, and not a variable imported into a closure or arrow function),
+    and no other kind of write to the variable in the function (compound
+    assignment, `++`/`--`, destructuring, `foreach` target, `catch`,
+    `global`, `static`, `unset`, by-reference closure import). In addition
+    the function body must contain nothing that can rebind the variable
+    out of sight: no variable-variable, `eval`, `include`/`require`,
+    `extract()`, `parse_str()` or `mb_parse_str()`; no reference taken to
+    the variable (`$r = &$v`, `[&$v]`), no `yield $v`; and the variable is
+    not an argument of a call whose callee cannot be resolved or that takes
+    an argument by reference;
+  - for a **global constant**: its value, when this file declares a
+    constant of that name exactly once (`const` or `define()`; a `define()`
+    with a non-literal name counts as a declaration of every name);
+  - for a **class constant** (`self::X`, `C::X` with `C` declared in this
+    file, `static::X` in a final class) declared in that class: its value.
+  - Anything else (property, ternary, concatenation, call, …) is not
+    traced. `L` is therefore always in the same file as the call.
 - **D4** Let `c` be the string value of `L`: the text between the quotes
   with escape sequences decoded according to the quote style (single quotes:
   only `\\` and `\'`; double quotes: `\n`, `\t`, `\x2F`, `\u{2014}`, octal,
@@ -51,8 +73,11 @@ Thus `"\t"` (a tab) and `"\x2F"` (a slash) are reported, while `"\x41"`
 
 - **E1** Needle containing any letter, ASCII or not (`'b'`, `'é'`, `'й'`).
 - **E2** Empty needle `''`.
-- **E3** Needle that cannot be traced to exactly one string literal (non-literal
-  argument with no or several literal candidates, top-level variables).
+- **E3** Needle not proven to be one string literal (D3): a parameter (with
+  or without default), a variable assigned more than one value, written by a
+  `foreach`, passed by reference or exposed to `extract()`, a property, a
+  top-level variable, a constant declared twice or in another file.
+- **E5** Named or unpacked arguments (D2).
 - **E4** Fewer than 2 or more than 3 arguments; other function names.
   A different letter case (`STRIPOS(...)`) is the same function and is
   reported; the fix writes the counterpart in lower case
@@ -102,6 +127,9 @@ function parts($path, $mode)
     $h = <weak_warning descr="Needle has no letters; use 'strpos(...)' instead.">stripos($path, "\t")</weak_warning>;
     $i = stripos($path, $mode);
     $j = stripos($path);
+    foreach (['-', '_'] as $mark) {
+        $j = stripos($path, $mark);
+    }
     return [$a, $b, $c, $d, $e, $f, $g, $h, $i, $j];
 }
 ```
@@ -122,6 +150,9 @@ function parts($path, $mode)
     $h = strpos($path, "\t");
     $i = stripos($path, $mode);
     $j = stripos($path);
+    foreach (['-', '_'] as $mark) {
+        $j = stripos($path, $mark);
+    }
     return [$a, $b, $c, $d, $e, $f, $g, $h, $i, $j];
 }
 ```
@@ -149,4 +180,12 @@ function parts($path, $mode)
   accident. custos decodes the literal first (D4) and tests the actual
   needle; non-UTF-8 byte values are skipped to avoid guessing their
   encoding.
+- **Needle tracing (custos diverges):** upstream accepts a non-literal
+  needle as soon as its value discovery yields exactly one string literal,
+  ignoring every other candidate. A parameter with a letter-free default, a
+  variable reassigned from a non-literal, a `foreach` target, a property
+  with a default or a variable later filled by reference is then reported
+  and renamed although callers or later writes can supply a needle with
+  letters. custos requires the literal to be the only possible value (D3)
+  and stays silent otherwise; named arguments are skipped as well (D2).
 - **Builtin spelling (custos diverges).** Upstream inserts a bare counterpart name in its fix, so a function of that name declared in (or imported into) the namespace captures the rewritten call. custos writes `\name(` in that case (F1).

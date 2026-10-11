@@ -35,16 +35,17 @@ func noreNormalize(body string) string {
 
 func (c *noreCase) checkBody() {
 	body, mods := c.body, c.mods
+	pat := c.decoded // D14 and D15 read the classes PCRE sees: `\[0-9]` is text
 	has := func(m byte) bool { return strings.IndexByte(mods, m) >= 0 }
 
 	if body != "" { // D14
-		norm := noreNormalize(body)
+		norm := noreNormalize(pat)
 		hint := "same result without /u"
 		if has('u') {
 			hint = "matches more under /u"
 		}
 		for _, kv := range noreShortClasses {
-			if strings.Contains(norm, kv[0]) {
+			if noreHasUnescaped(norm, kv[0]) {
 				h := hint
 				if strings.HasPrefix(kv[0], `[^\`) {
 					h = "same result" // a negated shorthand is its complement in every mode
@@ -53,8 +54,8 @@ func (c *noreCase) checkBody() {
 			}
 		}
 	}
-	if strings.IndexByte(body, '[') >= 0 { // D15
-		if run, class, ok := noreRepeatedClass(body); ok {
+	if strings.IndexByte(pat, '[') >= 0 { // D15
+		if run, class, ok := noreRepeatedClass(pat); ok {
 			c.report(diagnostic.SeverityInfo, "Collapse '"+run+"' into '"+class+"' with a counted quantifier.")
 		}
 	}
@@ -198,12 +199,13 @@ func (sc *noreScanner) repetition(i int) (end int, class string, ok bool) {
 }
 
 // noreRepeatedClass implements D15: the leftmost run of one or more
-// repetitions, and the class of its last repetition.
+// repetitions, and the class of its last repetition. A run cannot start at
+// an escaped bracket.
 func noreRepeatedClass(s string) (run, class string, ok bool) {
 	sc := newNoreScanner(s)
 	for i := 0; i < len(s); i++ {
 		end, cl, ok := sc.repetition(i)
-		if !ok {
+		if !ok || noreEscaped(s, i) {
 			continue
 		}
 		for {

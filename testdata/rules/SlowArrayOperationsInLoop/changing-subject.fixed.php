@@ -20,7 +20,6 @@ class Queue
         for ($i = 0; $i < count($a); $i++) { mystery($a); }
         for ($i = 0; $i < count($this->load()); $i++) {}
         foreach ($a as &$v) {}
-        for ($i = 0; $i < count($a); $i++) { $x = &$a; foreach ($a as &$w) {} }
         for ($i = 0, $iMax = count($a); $i < $iMax; $i++) { echo in_array($i, $a); }
         for ($i = 0; $i < count($a); $i++) { sprintf('%d', ...$a); }
         for ($i = 0; $i < count($a); $i++) { sscanf('1', '%d', $a); }
@@ -35,6 +34,7 @@ class Queue
         for ($i = 0; $i < count($a); $i++) { $f = in_array(...); sscanf('1', '%d', $x, $a); }
         for ($i = 0; $i < count($a); $i++) { Box::take($a); }
         for ($i = 0; $i < count($a); $i++) { new Box($a); }
+        for ($i = 0; $i < count($a); $i++) { $x = &$a; foreach ($a as &$w) {} }
     }
 
     public function grow(array $a): void
