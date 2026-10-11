@@ -183,14 +183,9 @@ func TestNativeChecksIgnoreUnrelatedSyntax(t *testing.T) {
 		{"UntrustedForwardedClientAddress", CheckUntrustedForwardedClientAddress},
 		{"ContentLengthUsesCharacterCount", CheckContentLengthUsesCharacterCount},
 		{"NoContentResponseWithBody", CheckNoContentResponseWithBody},
-		{"UntrustedSqlConstruction", CheckUntrustedSQLConstruction},
-		{"UntrustedShellCommand", CheckUntrustedShellCommand},
-		{"UnescapedHtmlOutput", CheckUnescapedHTMLOutput},
 		{"UntrustedHeaderValue", CheckUntrustedHeaderValue},
 		{"UnvalidatedRedirectTarget", CheckUnvalidatedRedirectTarget},
-		{"UntrustedNetworkDestination", CheckUntrustedNetworkDestination},
 		{"UntrustedFilesystemPath", CheckUntrustedFilesystemPath},
-		{"UploadClientMimeTrusted", CheckUploadClientMimeTrusted},
 		{"PasswordComparedWithFreshHash", CheckPasswordComparedWithFreshHash},
 		{"FastDigestUsedForPasswordStorage", CheckFastDigestUsedForPasswordStorage},
 	} {
@@ -217,15 +212,10 @@ func TestNativeWrapperSecurityContracts(t *testing.T) {
 	}{
 		{"UntrustedFilesystemPath", "function openPath($p){readfile($p);} openPath($_GET['file']);", CheckUntrustedFilesystemPath, 1},
 		{"UntrustedHeaderValue", "function emitHeader($s){header($s);} emitHeader($_GET['header']);", CheckUntrustedHeaderValue, 1},
-		{"UntrustedNetworkDestination", "function redirectTo($u){header('Location: '.$u);} redirectTo($_GET['next']);", CheckUntrustedNetworkDestination, 0},
 		{"UnvalidatedRedirectTarget", "function fetchURL($u){$h=curl_init($u);curl_exec($h);} fetchURL($_GET['url']);", CheckUnvalidatedRedirectTarget, 0},
-		{"UntrustedNetworkDestination", "function fetchURL($u){$h=curl_init($u);curl_exec($h);} fetchURL($_GET['url']);", CheckUntrustedNetworkDestination, 1},
 		{"UnvalidatedRedirectTarget", "function redirectTo($u){header('Location: '.$u);} redirectTo($_GET['next']);", CheckUnvalidatedRedirectTarget, 1},
-		{"UntrustedSqlConstruction", "function selectSQL(PDO $p,$q){$p->query($q);} function action(PDO $p){selectSQL($p,$_GET['sql']);}", CheckUntrustedSQLConstruction, 1},
 		{"UntrustedFilesystemPath", "function openPath($p){readfile($p);} openPath(unknownValidator($_GET['file']));", CheckUntrustedFilesystemPath, 0},
 		{"UntrustedFilesystemPath", "function openPath($p){readfile($p);} function outer($p){openPath($p);}", CheckUntrustedFilesystemPath, 0},
-		{"UntrustedSqlConstruction", "function action(PDO $p){$p->exec(statement:$_GET['sql']);}", CheckUntrustedSQLConstruction, 1},
-		{"UntrustedNetworkDestination", "$h=curl_init('https://example.invalid');curl_setopt($h,CURLOPT_URL,$_GET['url']);curl_exec($h);", CheckUntrustedNetworkDestination, 1},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			p := nativeCheckProbe{tc.id, tc.check}
@@ -327,7 +317,6 @@ func TestNativeConservativeOperationalBoundaries(t *testing.T) {
 		{"FastDigestUsedForPasswordStorage", "/** @custos-credential-store */ function store($v){} /** @param password-string $p */ function f($p){store(hash('sha256',$p));}", CheckFastDigestUsedForPasswordStorage, 1},
 		{"PasswordComparedWithFreshHash", "$v=password_hash($p,PASSWORD_DEFAULT)+1;", CheckPasswordComparedWithFreshHash, 0},
 		{"PasswordComparedWithFreshHash", "$v=password_hash()===$stored;", CheckPasswordComparedWithFreshHash, 0},
-		{"UploadClientMimeTrusted", "if($_FILES['u']['type']==='image/png' && getimagesize($_FILES['u']['tmp_name'])){move_uploaded_file($_FILES['u']['tmp_name'],'/safe');}", CheckUploadClientMimeTrusted, 0},
 		{"DirectoryIteratorDotEntries", "unlink('/safe'); unlink(makePath()->getPathname());", CheckDirectoryIteratorDotEntries, 0},
 		{"DirectoryIteratorDotEntries", "foreach($iterator as $entry){unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 0},
 		{"DirectoryIteratorDotEntries", "foreach(new ArrayIterator([]) as $entry){unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 0},

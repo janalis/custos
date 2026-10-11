@@ -25,11 +25,6 @@ func TestNativeAuditIntentAndIdentity(t *testing.T) {
 		check   func(*analysis.Context, syntax.Node, string)
 		want    int
 	}{
-		{"UploadClientMimeTrusted", "function f(){move_uploaded_file($_FILES['a']['tmp_name'],'upload');}", CheckUploadClientMimeTrusted, 0},
-		{"UploadClientMimeTrusted", "move_uploaded_file($_FILES['a']['name'],'upload');", CheckUploadClientMimeTrusted, 0},
-		{"UploadClientMimeTrusted", "move_uploaded_file($_FILES['tmp_name'],'upload');", CheckUploadClientMimeTrusted, 0},
-		{"UploadClientMimeTrusted", "move_uploaded_file($other['a']['tmp_name'],'upload');", CheckUploadClientMimeTrusted, 0},
-		{"UploadClientMimeTrusted", "if('image/png'===$_FILES['a']['type']){move_uploaded_file($_FILES['a']['tmp_name'],'upload');}", CheckUploadClientMimeTrusted, 1},
 		{"UntrustedForwardedClientAddress", "/** @custos-protected */ function access(){} if($_SERVER['HTTP_X_FORWARDED_FOR']==='127.0.0.1'){$f=fn()=>access();}", CheckUntrustedForwardedClientAddress, 0},
 		{"ContentLengthUsesCharacterCount", "function f($body){ini_set('zlib.output_compression',true);header('Content-Length: '.mb_strlen($body));echo $body;}", CheckContentLengthUsesCharacterCount, 0},
 		{"ContentLengthUsesCharacterCount", "header('Content-Length: '.mb_strlen('é'));echo 'é';", CheckContentLengthUsesCharacterCount, 1},
@@ -51,10 +46,6 @@ func TestNativeAuditIntentAndIdentity(t *testing.T) {
 		{"UntrustedForwardedClientAddress", "if($_SERVER['HTTP_X_FORWARDED_FOR']==='127.0.0.1'){grantAccess();}", CheckUntrustedForwardedClientAddress, 0},
 		{"UntrustedForwardedClientAddress", "/** @custos-protected */ function access(){} if($_SERVER['HTTP_X_FORWARDED_FOR']==='127.0.0.1'){access();}", CheckUntrustedForwardedClientAddress, 1},
 		{"UntrustedForwardedClientAddress", "/** @custos-protected */ function access(){} if(trustedProxy() && $_SERVER['HTTP_X_FORWARDED_FOR']==='127.0.0.1'){access();}", CheckUntrustedForwardedClientAddress, 0},
-		{"UploadClientMimeTrusted", "if($_FILES['a']['type']==='image/png'){move_uploaded_file($_FILES['a']['tmp_name'],'upload');}", CheckUploadClientMimeTrusted, 1},
-		{"UploadClientMimeTrusted", "if($_FILES['a']['type']==='image/png'){move_uploaded_file($_FILES['b']['tmp_name'],'upload');}", CheckUploadClientMimeTrusted, 0},
-		{"UploadClientMimeTrusted", "if($_FILES['a']['type']==='image/png'){echo 'rejected';}else{move_uploaded_file($_FILES['a']['tmp_name'],'upload');}", CheckUploadClientMimeTrusted, 0},
-		{"UploadClientMimeTrusted", "if($log){echo $_FILES['a']['type'];move_uploaded_file($_FILES['a']['tmp_name'],'upload');}", CheckUploadClientMimeTrusted, 0},
 		{"ContentLengthUsesCharacterCount", "function f($body){header('Content-Length: '.mb_strlen($body));echo $body;}", CheckContentLengthUsesCharacterCount, 1},
 		{"ContentLengthUsesCharacterCount", "function f($body){header('Content-Length: '.grapheme_strlen($body));echo $body;}", CheckContentLengthUsesCharacterCount, 1},
 		{"ContentLengthUsesCharacterCount", "function f($body){header('Content-Length: '.mb_strlen($body));echo 'different';}", CheckContentLengthUsesCharacterCount, 0},

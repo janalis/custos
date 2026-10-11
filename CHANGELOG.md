@@ -5,6 +5,53 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `IsIterableCanBeUsed` offers a quick fix for an adjacent
+  `is_array($v) || $v instanceof Traversable` pair on a plain variable.
+- Security inspections cover more sinks: interpolated, `print` and SVG/XHTML
+  output, the backtick operator and string-form `proc_open`, remote stream
+  reads and `curl_setopt_array` destinations, LDAP filters escaped for the wrong
+  context, bit-or permission modes and cURL basic authentication set through
+  `CURLOPT_URL`.
+
+### Fixed
+
+- Quick fixes no longer produce invalid PHP around adjacent keywords
+  (`return!is_null(...)`), closing `?>` tags, line comments, heredocs below
+  PHP 7.3 and attribute closures, and they keep comments inside the rewritten
+  range or are withheld.
+- Quick fixes add the parentheses needed to preserve operator precedence, and
+  are withheld (the finding is still reported) when the rewrite would duplicate,
+  drop or reorder side effects.
+- Code-style fixes no longer change behaviour: postfix increments where the
+  value is used, compound assignments over `+`/`*` chains, `self` in `catch`
+  clauses, `static::` inside string interpolation, modifier words read from
+  comments and `parent::` calls overridden through traits.
+- Control-flow and performance rewrites are withheld when the result could
+  differ: multibyte case conversions, non-literal `strtr`/`stripos` operands,
+  merged `isset`/`str_replace` calls, loop-length caching, reordered conditions
+  and `foreach` conversions whose counter stays observable.
+- Language-migration fixes handle namespace blocks and clashing imports,
+  case-sensitive class constants, version-suffixed `PHP_VERSION` comparisons,
+  return types that could throw at runtime and casts that need quoting or
+  parentheses; `rand()`/`mt_rand()` are reported without an automatic rename.
+- PHPUnit assertion rewrites no longer change what a test checks, and ignore
+  same-named methods of non-PHPUnit classes.
+- Calls using named arguments, argument unpacking or first-class callable
+  syntax are no longer misread by argument-position checks.
+- Variables that can change through references, by-reference arguments,
+  `global`, `extract()`, variable variables, destructuring or `foreach` targets
+  are no longer treated as stable by type, cast, unused-code and security
+  checks.
+- Architecture and unused-code inspections respect property hooks, abstract
+  and promoted properties, trait methods, `__sleep()` lists and PHP-version
+  differences of built-in classes.
+- Security inspections recognise more validation idioms (early exits,
+  combined conditions, allow-lists, server-side MIME inspection, `realpath`
+  containment) and no longer report numeric, boolean or `match`-selected
+  constant values as tainted.
+
 ## [0.1.4] - 2026-10-10
 
 ### Fixed

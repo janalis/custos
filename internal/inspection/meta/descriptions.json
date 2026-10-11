@@ -225,7 +225,7 @@
   },
   "ClassConstantCanBeUsed": {
     "summary": "Since PHP 5.5 a class name can be obtained with `Name::class`. Writing class\nnames as string literals hides them from refactoring tools and static\nanalysis, and `get_called_class()` / `get_parent_class()` without arguments\nhave constant-expression equivalents (`static::class`, `parent::class`).",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `IMPORT_CLASSES_ON_QF` | bool | true | Fix may add a `use` import for namespaced classes and reference them by short name. |\n| `USE_RELATIVE_QF` | bool | false | When importing is otherwise possible, a class below the file's (first) namespace is written as a namespace-relative name instead of being imported. |\n| `LOOK_ROOT_NS_UP` | bool | false | Also consider unqualified strings (no backslash), looked up as root-namespace classes (`'Thing'` → `\\Thing`). |\n\nUpstream fixtures run with `IMPORT_CLASSES_ON_QF=true, USE_RELATIVE_QF=true,\nLOOK_ROOT_NS_UP=true`, except the no-namespace configuration case\n(`true, false, false`). Some upstream cases rely on classes declared in a\ncompanion file (project index).",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `IMPORT_CLASSES_ON_QF` | bool | true | Fix may add a `use` import for namespaced classes and reference them by short name. |\n| `USE_RELATIVE_QF` | bool | false | When importing is otherwise possible, a class below the enclosing namespace is written as a namespace-relative name instead of being imported. |\n| `LOOK_ROOT_NS_UP` | bool | false | Also consider unqualified strings (no backslash), looked up as root-namespace classes (`'Thing'` → `\\Thing`). |\n\nUpstream fixtures run with `IMPORT_CLASSES_ON_QF=true, USE_RELATIVE_QF=true,\nLOOK_ROOT_NS_UP=true`, except the no-namespace configuration case\n(`true, false, false`). Some upstream cases rely on classes declared in a\ncompanion file (project index).",
     "fix": true
   },
   "ClassConstantUsageCorrectness": {
@@ -735,7 +735,7 @@
   },
   "HardcodedCredentialAtKnownSink": {
     "summary": "Literal credentials embedded in connection setup are difficult to rotate and protect. Load them from the application's external configuration. This inspection is disabled by default because the intended policy or use can vary.",
-    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| excludedPaths | list | `[\"**/testdata/**\", \"**/tests/**\"]` | Configure the explicit policy evidence described in D1. |"
+    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| excludedPaths | list | `[\"**/testdata/**\", \"**/tests/**\"]` | Project-relative path globs (D1a) for files that are never reported. |"
   },
   "HashContextUsedAfterFinalization": {
     "summary": "Identify hash_update, hash_copy or hash_final on the same local context after unconditional hash_final, with no replacement."
@@ -804,7 +804,7 @@
   },
   "IncrementDecrementOperationEquivalent": {
     "summary": "Adding or subtracting the literal `1` to a variable and storing it back\n(`$n += 1`, `$n = $n - 1`, …) is more idiomatically written with the increment\nor decrement operator.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| PREFER_PREFIX_STYLE | bool | true | Fix produces `++$x` / `--$x`. |\n| PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` whenever `PREFER_PREFIX_STYLE` is false. |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| PREFER_PREFIX_STYLE | bool | true | Fix produces `++$x` / `--$x`. |\n| PREFER_SUFFIX_STYLE | bool | false | Mutually exclusive with the above (radio choice); fix produces `$x++` / `$x--` when `PREFER_PREFIX_STYLE` is false and the value is discarded (F2). |",
     "fix": true
   },
   "IncrementalInflateEncodingMismatch": {
@@ -869,7 +869,8 @@
     "fix": true
   },
   "IsIterableCanBeUsed": {
-    "summary": "`is_array($v) || $v instanceof Traversable` is exactly what `is_iterable($v)`\nchecks. On a language level where `is_iterable()` is available, the one call\nis shorter and makes the intent obvious."
+    "summary": "`is_array($v) || $v instanceof Traversable` is exactly what `is_iterable($v)`\nchecks. On a language level where `is_iterable()` is available, the one call\nis shorter and makes the intent obvious.",
+    "fix": true
   },
   "IsNullFunctionUsage": {
     "summary": "`is_null($v)` is a function call doing what the `=== null` comparison does\nnatively. This opt-in rule rewrites `is_null()` calls (including negations and\ncomparisons of the result against `true`/`false`) into an identity comparison\nwith `null`.",
@@ -1517,7 +1518,7 @@
     "fix": true
   },
   "SenselessTernaryOperator": {
-    "summary": "`$a === $b ? $a : $b` always evaluates to `$b`: when the two are identical it\ndoes not matter which one is returned. The same holds for `!==` with swapped\nbranches. Such ternaries only add branching; replace them with the operand\nthat is always the result.",
+    "summary": "`$a === $b ? $a : $b` always evaluates to `$b`: when the two are identical it\ndoes not matter which one is returned. The same holds for `!==` with swapped\nbranches. Such ternaries only add branching; replace them with the operand\nthat is always the result. This only holds when writing an operand twice\ndenotes the same value twice, so operands with side effects and float zero\nliterals are left alone.",
     "fix": true
   },
   "SessionCookieOptionsSetAfterStart": {

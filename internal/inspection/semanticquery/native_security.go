@@ -40,137 +40,6 @@ func nativePasswordParameter(ctx *analysis.Context, at syntax.Node, input syntax
 	return false
 }
 
-func nativeUploadMimeBranch(ctx *analysis.Context, call *syntax.FuncCall) bool {
-	upload, known := nativeUploadEntry(ctx, CallArgument(call.Args, 0, "from"), "tmp_name")
-	if !known {
-		return false
-	}
-	for child, parent := syntax.Node(call), call.Parent(); parent != nil; child, parent = parent, parent.Parent() {
-		if syntax.IsVariableScope(parent) {
-			break
-		}
-		branch, ok := parent.(*syntax.If)
-		if !ok || child != branch.Body {
-			continue
-		}
-		comparison, ok := syntax.UnwrapParens(branch.Cond).(*syntax.Binary)
-		if !ok || (comparison.Op.Kind != syntax.TIsIdentical && comparison.Op.Kind != syntax.TIsEqual) {
-			continue
-		}
-		for i, operand := range []syntax.Expr{comparison.Left, comparison.Right} {
-			entry, known := nativeUploadEntry(ctx, operand, "type")
-			if !known || entry != upload {
-				continue
-			}
-			other := comparison.Right
-			if i == 1 {
-				other = comparison.Left
-			}
-			if mime, known := NativeString(ctx, other); known && strings.Contains(mime, "/") {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func nativeUploadEntry(ctx *analysis.Context, expr syntax.Expr, field string) (string, bool) {
-	fetch, ok := expr.(*syntax.ArrayDimFetch)
-	if !ok {
-		return "", false
-	}
-	key, known := NativeString(ctx, fetch.Dim)
-	if !known || key != field {
-		return "", false
-	}
-	entry, ok := fetch.Var.(*syntax.ArrayDimFetch)
-	if !ok {
-		return "", false
-	}
-	root, ok := entry.Var.(*syntax.Variable)
-	if !ok || root.Name != "_FILES" {
-		return "", false
-	}
-	return NativeString(ctx, entry.Dim)
-}
-
-func nativeHTMLText(ctx *analysis.Context, expr syntax.Expr) bool {
-	// Only prove a single interpolation preceded entirely by known bytes.
-	// Earlier dynamic output could open an attribute or raw-text element.
-	var prefix strings.Builder
-	var input syntax.Expr
-	var collect func(syntax.Expr) bool
-	collect = func(part syntax.Expr) bool {
-		if binary, ok := part.(*syntax.Binary); ok && binary.Op.Kind == syntax.TDot {
-			return collect(binary.Left) && collect(binary.Right)
-		}
-		if text, known := NativeString(ctx, part); known {
-			if input == nil {
-				prefix.WriteString(text)
-			}
-			return true
-		}
-		if input != nil {
-			return false
-		}
-		input = part
-		return true
-	}
-	return collect(expr) && input != nil && nativeHTMLTextPrefix(prefix.String()) && ctx.Flow().Tainted(input, flow.HTML)
-}
-
-func nativeHTMLTextPrefix(prefix string) bool {
-	lower := strings.ToLower(prefix)
-	if strings.Contains(lower, "<script") || strings.Contains(lower, "<style") {
-		return false
-	}
-	tag, text := false, false
-	var quote byte
-	for i := 0; i < len(prefix); i++ {
-		c := prefix[i]
-		if quote != 0 {
-			if c == quote {
-				quote = 0
-			}
-			continue
-		}
-		if tag {
-			switch c {
-			case '\'', '"':
-				quote = c
-			case '>':
-				tag, text = false, true
-			case '<':
-				return false
-			}
-			continue
-		}
-		if c == '<' {
-			start := i + 1
-			if start < len(prefix) && prefix[start] == '/' {
-				start++
-			}
-			// Comments, declarations and incomplete/unknown tags cannot
-			// establish text context. Only ordinary ASCII tag names do.
-			if start >= len(prefix) || lower[start] < 'a' || lower[start] > 'z' {
-				return false
-			}
-			tag = true
-		}
-	}
-	return text && !tag
-}
-
-func nativePlainResponse(ctx *analysis.Context, at syntax.Node) bool {
-	for _, header := range nativePriorGlobal(ctx, at, "header") {
-		value, known := NativeString(ctx, CallArgument(header.Args, 0, "header"))
-		if known && strings.HasPrefix(strings.ToLower(value), "content-type:") && !strings.Contains(strings.ToLower(value), "text/html") {
-			return true
-		}
-	}
-	return false
-}
-
 // CheckFastDigestUsedForPasswordStorage checks the independently specified contract.
 func CheckFastDigestUsedForPasswordStorage(ctx *analysis.Context, n syntax.Node, message string) {
 	c, ok := n.(*syntax.FuncCall)
@@ -252,23 +121,6 @@ func CheckPasswordComparedWithFreshHash(ctx *analysis.Context, n syntax.Node, me
 	}
 }
 
-// CheckUnescapedHTMLOutput checks the independently specified contract.
-func CheckUnescapedHTMLOutput(ctx *analysis.Context, n syntax.Node, message string) {
-	echo, ok := n.(*syntax.Echo)
-	if !ok {
-		return
-	}
-	if nativePlainResponse(ctx, echo) {
-		return
-	}
-	for _, expr := range echo.Exprs {
-		if nativeHTMLText(ctx, expr) && ctx.Flow().Tainted(expr, flow.HTML) {
-			ctx.ReportNode(echo, message)
-			return
-		}
-	}
-}
-
 // CheckUntrustedFilesystemPath checks the independently specified contract.
 func CheckUntrustedFilesystemPath(ctx *analysis.Context, n syntax.Node, message string) {
 	c, ok := n.(*syntax.FuncCall)
@@ -310,84 +162,6 @@ func CheckUntrustedHeaderValue(ctx *analysis.Context, n syntax.Node, message str
 	}
 }
 
-// CheckUntrustedNetworkDestination checks the independently specified contract.
-func CheckUntrustedNetworkDestination(ctx *analysis.Context, n syntax.Node, message string) {
-	c, ok := n.(*syntax.FuncCall)
-	if !ok {
-		return
-	}
-	name := NativeBuiltinName(ctx, c)
-	report := false
-
-	if name == "curl_exec" {
-		handle := CallArgument(c.Args, 0, "handle")
-		origin, ok := NativeValue(ctx, handle).(*syntax.FuncCall)
-		if ok && NativeBuiltinName(ctx, origin) == "curl_init" {
-			report = ctx.Flow().Tainted(CallArgument(origin.Args, 0, "url"), flow.URL)
-		}
-		for _, previous := range NativePriorCalls(ctx, c, handle, "curl_setopt") {
-			option := previous.(*syntax.FuncCall)
-			flag := CallArgument(option.Args, 1, "option")
-			constant, ok := flag.(*syntax.ConstFetch)
-			if ok && strings.EqualFold(constant.Name.Value, "CURLOPT_URL") {
-				report = ctx.Flow().Tainted(CallArgument(option.Args, 2, "value"), flow.URL)
-			}
-		}
-	}
-
-	report = report || nativeWrapperSink(ctx, c, flow.URL, "curl_init", "curl_setopt")
-	if report {
-		ctx.ReportNode(c, message)
-	}
-}
-
-// CheckUntrustedShellCommand checks the independently specified contract.
-func CheckUntrustedShellCommand(ctx *analysis.Context, n syntax.Node, message string) {
-	c, ok := n.(*syntax.FuncCall)
-	if !ok {
-		return
-	}
-	name := NativeBuiltinName(ctx, c)
-	report := false
-
-	switch name {
-	case "system", "exec", "shell_exec", "passthru", "popen":
-		report = ctx.Flow().Tainted(CallArgument(c.Args, 0, "command"), flow.Shell)
-	}
-
-	report = report || nativeWrapperSink(ctx, c, flow.Shell)
-	if report {
-		ctx.ReportNode(c, message)
-	}
-}
-
-// CheckUntrustedSQLConstruction checks the independently specified contract.
-func CheckUntrustedSQLConstruction(ctx *analysis.Context, n syntax.Node, message string) {
-	if method, ok := n.(*syntax.MethodCall); ok {
-		if NativeMethod(ctx, method, "PDO", "query") || NativeMethod(ctx, method, "PDO", "exec") || NativeMethod(ctx, method, "PDO", "prepare") {
-			sql := CallArgument(method.Args, 0, "query")
-			if sql == nil {
-				sql = CallArgument(method.Args, 0, "statement")
-			}
-			if ctx.Flow().Tainted(sql, flow.SQL) {
-				ctx.ReportNode(method, message)
-			}
-		}
-		return
-	}
-	c, ok := n.(*syntax.FuncCall)
-	if !ok {
-		return
-	}
-
-	report := false
-
-	report = report || nativeWrapperSink(ctx, c, flow.SQL)
-	if report {
-		ctx.ReportNode(c, message)
-	}
-}
-
 // CheckUnvalidatedRedirectTarget checks the independently specified contract.
 func CheckUnvalidatedRedirectTarget(ctx *analysis.Context, n syntax.Node, message string) {
 	c, ok := n.(*syntax.FuncCall)
@@ -410,22 +184,6 @@ func CheckUnvalidatedRedirectTarget(ctx *analysis.Context, n syntax.Node, messag
 	}
 
 	report = report || nativeWrapperSink(ctx, c, flow.URL, "header")
-	if report {
-		ctx.ReportNode(c, message)
-	}
-}
-
-// CheckUploadClientMimeTrusted checks the independently specified contract.
-func CheckUploadClientMimeTrusted(ctx *analysis.Context, n syntax.Node, message string) {
-	c, ok := n.(*syntax.FuncCall)
-	if !ok {
-		return
-	}
-	name := NativeBuiltinName(ctx, c)
-	report := false
-
-	report = name == "move_uploaded_file" && nativeUploadMimeBranch(ctx, c)
-
 	if report {
 		ctx.ReportNode(c, message)
 	}

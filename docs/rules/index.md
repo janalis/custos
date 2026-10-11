@@ -115,11 +115,11 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | :--- | :--- | :---: | :---: | :--- |
 | [AliasFunctionsUsage](./language-level-migration/AliasFunctionsUsage) | warning | on | ✓ | any |
 | [ArgumentUnpackingCanBeUsed](./language-level-migration/ArgumentUnpackingCanBeUsed) | warning | on | ✓ | PHP ≥ 5.6 |
-| [ArrayIsListCanBeUsed](./language-level-migration/ArrayIsListCanBeUsed) | info | on | ✓ | PHP ≥ 8.0 |
+| [ArrayIsListCanBeUsed](./language-level-migration/ArrayIsListCanBeUsed) | info | on | ✓ | PHP ≥ 8.1 |
 | [CascadingDirnameCalls](./language-level-migration/CascadingDirnameCalls) | warning | on | ✓ | PHP ≥ 7.0 |
 | [ClassConstantCanBeUsed](./language-level-migration/ClassConstantCanBeUsed) | info | on | ✓ | PHP ≥ 5.5 |
 | [ConstantCanBeUsed](./language-level-migration/ConstantCanBeUsed) | info | on | ✓ | any |
-| [DeprecatedConstructorStyle](./language-level-migration/DeprecatedConstructorStyle) | error | on | ✓ | any |
+| [DeprecatedConstructorStyle](./language-level-migration/DeprecatedConstructorStyle) | error | on | ✓ | PHP ≤ 7.4 |
 | [DirectoryConstantCanBeUsed](./language-level-migration/DirectoryConstantCanBeUsed) | warning | on | ✓ | any |
 | [DynamicCallsToScopeIntrospection](./language-level-migration/DynamicCallsToScopeIntrospection) | warning | on |  | PHP ≥ 7.1 |
 | [ElvisOperatorCanBeUsed](./language-level-migration/ElvisOperatorCanBeUsed) | info | on | ✓ | any |
@@ -127,7 +127,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [GetDebugTypeCanBeUsed](./language-level-migration/GetDebugTypeCanBeUsed) | info | on |  | PHP ≥ 8.0 |
 | [InstanceofCanBeUsed](./language-level-migration/InstanceofCanBeUsed) | warning | on | ✓ | any |
 | [IsCountableCanBeUsed](./language-level-migration/IsCountableCanBeUsed) | info | on |  | PHP ≥ 7.4 |
-| [IsIterableCanBeUsed](./language-level-migration/IsIterableCanBeUsed) | info | on |  | PHP ≥ 7.1 |
+| [IsIterableCanBeUsed](./language-level-migration/IsIterableCanBeUsed) | info | on | ✓ | PHP ≥ 7.1 |
 | [NullCoalescingOperatorCanBeUsed](./language-level-migration/NullCoalescingOperatorCanBeUsed) | info | on | ✓ | PHP ≥ 7.0 |
 | [PowerOperatorCanBeUsed](./language-level-migration/PowerOperatorCanBeUsed) | warning | on | ✓ | PHP ≥ 5.6 |
 | [ReturnTypeCanBeDeclared](./language-level-migration/ReturnTypeCanBeDeclared) | info | on | ✓ | PHP ≥ 7.0 |
