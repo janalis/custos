@@ -45,7 +45,9 @@ PHP 5.6+, as a class constant.
   (nested levels are not counted).
 - **E4** The property re-declares a property already present in the parent
   chain (D4).
-- **E5** Suppression comments (a doc comment carrying `@noinspection` with the legacy ID
+- **E5** The class modifies the property per instance, or the property has
+  hooks (see Divergences).
+- **E6** Suppression comments (a doc comment carrying `@noinspection` with the legacy ID
   on the declaration) are handled by the generic suppression mechanism.
 
 ## Report
@@ -103,11 +105,28 @@ TXT, 3, ['three']];
 
 ## Divergences
 
-None known.
+- **Per-instance state (custos diverges).** A property the class body can
+  modify through `$this` holds state of each instance; a static property
+  would share it between instances (Roundcube's `rcube_db::$options`, set per
+  connection; a step queue consumed with `array_shift($this->steps)`). Such
+  properties are not reported. `$this->p`, also behind any chain of `[...]`
+  subscripts, counts as modified when it is:
+  - the target of an assignment (`$this->p = …`, `$this->p['k'] = …`,
+    `$this->p[] = …`, compound assignments), of `++`/`--` or of `unset()`;
+  - an element of a `list()`/`[...]` destructuring target, at any nesting
+    depth, or the key or value target of a `foreach`;
+  - bound to a reference: the right-hand side of `=&`, an `&` element of an
+    array literal, the source of a destructuring or `foreach` that binds
+    elements by reference (`[&$x] = $this->p`, `foreach ($this->p as &$v)`),
+    or a value returned or yielded by a by-reference method, closure or arrow
+    function (`function &all() { return $this->p; }`);
+  - an argument of a call (function, method, static method, `new`) that binds
+    to a by-reference parameter of the resolved callee — positional, named,
+    variadic tail or spread — or a legacy call-time `&` argument. When the
+    callee cannot be resolved (dynamic name, receiver of unknown type,
+    unknown class) every argument is assumed to be taken by reference.
 
-- **Per-instance state (custos diverges).** A property the class writes
-  through `$this` (`$this->p = …`, `$this->p['k'] = …`, `$this->p[] = …`,
-  compound assignments, `++`/`--`, `unset($this->p['k'])`) holds state
-  of each instance; a static property would share it between instances
-  (Roundcube's `rcube_db::$options`, set per connection). Such properties
-  are not reported.
+  Writes through another object of the same class (`$other->p = …`), from
+  subclasses or from outside the class are not tracked.
+- **Hooked properties (custos diverges).** A property declared with hooks
+  can be neither static nor a constant, so it is not reported.

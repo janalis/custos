@@ -238,8 +238,18 @@ func (cp *cpState) checkIs(v *syntax.Variable, set map[string]bool) {
 	if !ok || arg.Value != syntax.Expr(v) || arg.Unpack {
 		return
 	}
-	call, ok := arg.Parent().Parent().(*syntax.FuncCall) // an Arg always sits in an ArgList
+	list := arg.Parent().(*syntax.ArgList) // an Arg always sits in an ArgList
+	call, ok := list.Parent().(*syntax.FuncCall)
 	if !ok {
+		return
+	}
+	// custos: only the tested value counts; the flags of is_a() and
+	// is_callable() are the function's own parameters.
+	if arg.Name == nil {
+		if list.Args[0] != syntax.Expr(arg) {
+			return
+		}
+	} else if arg.Name.Value != "value" && arg.Name.Value != "object_or_class" {
 		return
 	}
 	fn := cp.ctx.GlobalFunctionName(call) // any case; not a namespaced same-named function
@@ -255,11 +265,12 @@ func (cp *cpState) checkIs(v *syntax.Variable, set map[string]bool) {
 			return
 		}
 	}
-	if fn == "is_object" || fn == "is_a" {
-		for t := range set {
-			if cpIsClass(t) {
-				return
-			}
+	for t := range set {
+		if !cpIsClass(t) {
+			continue
+		}
+		if fn == "is_object" || fn == "is_a" || (fn == "is_callable" && cp.mayBeInvokable(t)) {
+			return
 		}
 	}
 	msg := cpMsgFalse
@@ -267,6 +278,21 @@ func (cp *cpState) checkIs(v *syntax.Variable, set map[string]bool) {
 		msg = cpMsgTrue
 	}
 	cp.ctx.ReportNode(call, msg)
+}
+
+// mayBeInvokable reports whether an instance accepted by the class entry t
+// of P can be callable (custos): the class declares or inherits __invoke(),
+// or it can be extended or implemented by a class that does.
+func (cp *cpState) mayBeInvokable(t string) bool {
+	if t == "self" || t == "static" {
+		t = cp.ctx.Names().DeclFQN(syntax.EnclosingClass(cp.fn))
+	}
+	name := strings.TrimPrefix(t, `\`)
+	c := cp.ctx.Index().Class(name, cp.ctx.PHP)
+	if c == nil || (!c.Final && c.Kind != syntax.KindEnum) {
+		return true
+	}
+	return cp.ctx.Index().FindMethod(name, "__invoke", cp.ctx.PHP) != nil
 }
 
 // checkAssign implements D7 (at most one finding per assignment).
@@ -286,8 +312,12 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 	if cp.unknownReplaceSubject(value) {
 		return
 	}
+	atoms := cp.typeOf(value) // D7b
+	if t, ok := cp.argDecided(value); ok {
+		atoms = t
+	}
 	r := map[string]bool{}
-	for _, a := range cp.typeOf(value) { // D7b
+	for _, a := range atoms {
 		r[cpNorm(a)] = true
 	}
 	// custos: method, static and nullsafe calls carry the same failure
@@ -300,6 +330,16 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 		}
 	}
 	if len(r) >= 2 { // D7c
+		if r["null"] {
+			// A nullable value next to a class-typed parameter, whatever
+			// produced it (custos: `\Closure` counts as a class here).
+			for t := range set {
+				if cpIsClass(t) || t == `\Closure` {
+					delete(r, "null")
+					break
+				}
+			}
+		}
 		if plainCall && others > 0 {
 			// custos: a call's false is a failure marker next to any other
 			// type (`filemtime()` int|false, `fopen()` resource|false), and
@@ -308,13 +348,6 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 			delete(r, "bool")
 			if r["string"] || r["array"] {
 				delete(r, "null")
-			}
-		} else if r["null"] {
-			for t := range set {
-				if cpIsClass(t) {
-					delete(r, "null")
-					break
-				}
 			}
 		}
 	}
@@ -407,6 +440,76 @@ func (cp *cpState) unknownReplaceSubject(value syntax.Expr) bool {
 		return false
 	}
 	return cp.ctx.TypeOf(args[idx]).IsUnknown() && cp.tr.TypeOf(args[idx]).IsUnknown()
+}
+
+// argDecided types calls to built-ins whose result type is decided by their
+// arguments, where the stub's union of every overload says nothing about
+// this call (custos). ok is false for any other value; a nil type with ok
+// means the arguments do not decide (unknown, no report).
+func (cp *cpState) argDecided(value syntax.Expr) (atoms []string, ok bool) {
+	call, isCall := syntax.UnwrapParens(value).(*syntax.FuncCall)
+	if !isCall {
+		return nil, false
+	}
+	fn := cp.ctx.GlobalFunctionName(call)
+	switch fn {
+	case "pow", "hrtime", "getenv", "version_compare", "microtime":
+	default:
+		return nil, false
+	}
+	args, plain := astquery.CallArgValues(call)
+	if !plain { // named arguments, spreads, `f(...)`
+		return nil, true
+	}
+	switch fn {
+	case "pow":
+		if len(args) == 2 {
+			base, exp := cp.tr.TypeOf(args[0]), cp.tr.TypeOf(args[1])
+			switch {
+			case base.OnlyOf("int") && exp.OnlyOf("int"):
+				// Like `**`: the float of an overflow or a negative exponent
+				// is not a reason to report an int parameter.
+				return []string{"int"}, true
+			case base.OnlyOf("int", "float") && exp.OnlyOf("int", "float"):
+				return []string{"float"}, true
+			}
+		}
+	case "hrtime":
+		switch {
+		case len(args) == 0 || cpIsConst(args[0], "false"):
+			return []string{"array"}, true
+		case cpIsConst(args[0], "true"):
+			return []string{"int"}, true
+		}
+	case "microtime":
+		// The shared T-rule types the string form as int; a float request
+		// keeps the shared typing.
+		if len(args) == 0 || cpIsConst(args[0], "false") {
+			return []string{"string"}, true
+		}
+		return nil, false
+	case "getenv":
+		switch {
+		case len(args) == 0 || syntax.IsNullConst(args[0]):
+			return []string{"array"}, true
+		case cp.tr.TypeOf(args[0]).OnlyOf("string"):
+			return []string{"string", "bool"}, true
+		}
+	case "version_compare":
+		switch {
+		case len(args) == 2:
+			return []string{"int"}, true
+		case len(args) == 3 && cp.tr.TypeOf(args[2]).OnlyOf("string"):
+			return []string{"bool"}, true
+		}
+	}
+	return nil, true
+}
+
+// cpIsConst reports whether e is the constant name (true/false, any case).
+func cpIsConst(e syntax.Expr, name string) bool {
+	c, ok := syntax.UnwrapParens(e).(*syntax.ConstFetch)
+	return ok && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), name)
 }
 
 // cpAllCalls reports whether e is a call, or a match/ternary whose every

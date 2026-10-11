@@ -65,10 +65,13 @@ and is kept as its FQN with leading `\` and original case (e.g.
 
 ### D6 — `is_*` checks
 
-- **D6a** The access is directly an argument (any position, not wrapped in
+- **D6a** The access is directly the *tested value* (not wrapped in
   parentheses or other expressions) of a plain function call (not a method
   or static call) that resolves to one of the global functions in the table
-  below. Names compare case-insensitively (`IS_INT`, `\Is_Int` count); a call
+  below. The tested value is the first positional argument, or the argument
+  named `value` (`object_or_class` for `is_a`); any other argument (the
+  class name and `$allow_string` of `is_a`, `$syntax_only` of
+  `is_callable`) is the function's own parameter and is ignored. Names compare case-insensitively (`IS_INT`, `\Is_Int` count); a call
   resolving to a same-named namespaced function (declared in the current
   namespace or imported with `use function`) does not count.
 - **D6b** The check is *plausible* when:
@@ -82,12 +85,17 @@ and is kept as its FQN with leading `\` and original case (e.g.
   | `is_float` | `float` or `number` |
   | `is_resource` | `resource` |
   | `is_numeric` | — if `P` contains `string` the access is skipped; otherwise plausible if `number`, `float` or `int` |
-  | `is_callable` | `callable`, `array`, `string` or `\Closure` |
+  | `is_callable` | `callable`, `array`, `string`, `\Closure`, or a class name whose instances may be invokable |
   | `is_object` | `object`, `callable`, or any class name |
   | `is_a` | `object`, `string`, or any class name |
 
   Any other function (including aliases `is_integer`, `is_long`,
   `is_double`) → the access is ignored.
+
+  Instances of a class name in `P` may be invokable unless the class is
+  final (or an enum) and neither declares nor inherits `__invoke()`: an
+  interface, an open class or `self` outside a class can always be
+  satisfied by an invokable object.
 
 - **D6c** Not plausible → report the call. The message depends on whether
   the call's direct parent is a `!` negation (no parentheses in between):
@@ -106,14 +114,28 @@ and is kept as its FQN with leading `\` and original case (e.g.
   `$this` has the enclosing class's FQN as type; a method call's type is its
   callee's declared return type ∪ `@return` types (`self`/`static`
   normalised to `self`/`static`); an unresolvable callee yields no type.
+  When `value` is a plain call to one of the following global functions
+  written with positional arguments only, its arguments decide `R` (any
+  other argument shape, including named arguments, leaves `R` unknown):
+
+  | call | `R` |
+  |---|---|
+  | `pow(a, b)`, both operands typed int | `int` (as `a ** b`; the float of an overflow or a negative exponent is ignored) |
+  | `pow(a, b)`, both operands typed int/float, one a float | `float` |
+  | `hrtime()`, `hrtime(false)` | `array` |
+  | `hrtime(true)` | `int` |
+  | `microtime()`, `microtime(false)` | `string` |
+  | `getenv()`, `getenv(null)` | `array` |
+  | `getenv(name)`, `name` typed string | `string`, `bool` |
+  | `version_compare(a, b)` | `int` |
+  | `version_compare(a, b, op)`, `op` typed string | `bool` |
+
 - **D7c** If `R` has 2 or more entries:
-  - if `R` contains `string` or `array`:
-    - if it contains `bool` and `value` is a plain function call → remove
-      `bool`;
-    - else if it contains `null` and `value` is a plain function call →
-      remove `null`;
-  - else if `R` contains `null` and `P` contains a class name → remove
-    `null`.
+  - if `R` contains `null` and `P` contains a class name or `\Closure` →
+    remove `null`, whatever kind of expression `value` is;
+  - then, if `value` is a call (see Divergences for the exact shapes) and
+    `R` has an entry other than `bool`/`null`: remove `bool`, and if `R`
+    contains `string` or `array` also remove `null`.
 - **D7d** Remove `mixed` from `R`.
 - **D7e** For each `t` in `R` (iteration order unspecified; stop at the first
   violation, so at most one report per assignment):
@@ -145,11 +167,17 @@ and is kept as its FQN with leading `\` and original case (e.g.
   other type.
 - **E2** `is_*` calls that agree with `P` (e.g. `is_array` on `iterable`,
   `is_object`/`is_string`/`is_array` on `callable`, `is_int` on `number`),
-  `is_numeric` on a string-capable parameter, unrelated functions.
+  `is_numeric` on a string-capable parameter, unrelated functions;
+  `is_callable` on an interface, an open class or a class with
+  `__invoke()`; the parameter passed as a flag or class-name argument of
+  `is_a`/`is_callable`.
 - **E3** Assignments whose value type is unknown, or `mixed` only.
 - **E4** Core functions returning `string|false`, `string|null`, `array|false`
   … (D7c) assigned to a string/array parameter; nullable object values
-  assigned to object-typed parameters.
+  (a property, or the result of a method, static or function call such as
+  `$node = $node->up()` or `Suit::tryFrom()`) assigned to object-typed
+  parameters; `?\Closure` results (`bindTo()`) assigned to a
+  `\Closure`/`callable` parameter.
 - **E5** Values whose class shares an ancestor or interface with the
   parameter's class (D7e.2); values whose class, or part of whose
   hierarchy, is unknown to the index (`new Unknown()`, a class extending an
@@ -318,3 +346,28 @@ function untyped($flag = null) {
   for a string, array for an array". Such an assignment is not checked
   (SuiteCRM `SugarBean`: `$where = preg_replace(…, $where)` after a
   `require`, which forgets local types; 8 findings).
+- **Tested value only (custos diverges, D6a).** Upstream analyses the
+  parameter at any argument position, so `is_a($value, $class,
+  $allowString)` and `is_callable($value, $syntaxOnly)` with a `bool`
+  flag parameter are reported as impossible checks although the flag is
+  not what is being tested. custos only looks at the tested value.
+- **Invokable objects (custos diverges, D6b).** `is_callable($job)` on a
+  class-typed parameter is true for any instance with `__invoke()`.
+  custos reports it only when no instance can be invokable (a final class
+  or an enum without `__invoke()`).
+- **Nullable call results next to a class (custos diverges, D7c).** The
+  `null` removal next to a class-typed parameter does not depend on the
+  value being a call or not: `while ($node = $node->up())` with
+  `up(): ?Node` is the same tree walk as `$node = $node->parent`. A
+  `\Closure` in `P` (a `\Closure` or `callable` parameter) counts as a
+  class for this purpose (`$fn = $fn->bindTo($o)`).
+- **Argument-decided built-ins (custos diverges, D7b).** The stub of an
+  overloaded built-in lists every result of every call form (`pow()`:
+  `int|float|object`; `hrtime()`: `array|int|float|false`; `getenv()`:
+  `string|array|false`; `version_compare()`: `int|bool`), which made
+  `$side = pow($side, 2)` an "object" and `$since = hrtime(true)` an
+  "array". custos types these calls from their arguments (table in D7b)
+  and stays silent when the arguments do not decide. For this rule
+  `microtime()` without a `true` argument is the string PHP returns, not
+  the `int` of the shared T-rules: a `string` parameter accepts it and an
+  `int` one does not.

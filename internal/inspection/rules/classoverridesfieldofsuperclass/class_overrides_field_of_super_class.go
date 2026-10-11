@@ -10,6 +10,7 @@ import (
 	"custos/internal/php/phpdoc"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/names"
 	"custos/internal/semantic/types"
 )
 
@@ -57,6 +58,17 @@ func (classOverridesFieldOfSuperClass) Check(ctx *analysis.Context, n syntax.Nod
 	case prop.Modifiers.Has(syntax.TProtected):
 		own = index.Protected
 	}
+	// Effective write visibility and finality of the own declaration:
+	// `private(set)` is implicitly final.
+	ownSet, ownFinal := own, prop.Modifiers.Has(syntax.TFinal)
+	switch {
+	case prop.Modifiers.Has(syntax.TPrivateSet):
+		ownSet, ownFinal = index.Private, true
+	case prop.Modifiers.Has(syntax.TProtectedSet):
+		ownSet = index.Protected
+	case prop.Modifiers.Has(syntax.TPublicSet):
+		ownSet = index.Public
+	}
 	for _, item := range prop.Props {
 		if item.Var.Name == "" { // recovered declaration without a variable
 			continue
@@ -75,6 +87,18 @@ func (classOverridesFieldOfSuperClass) Check(ctx *analysis.Context, n syntax.Nod
 		if own < found.Visibility { // D6: deliberately widened
 			continue
 		}
+		// D6c: attributes, hooks, `final` and asymmetric visibility are
+		// behaviour the inherited declaration does not have (or, for an
+		// abstract or hooked one, that this declaration implements or
+		// replaces).
+		foundSet := found.Visibility
+		if found.SetVisibility != nil {
+			foundSet = *found.SetVisibility
+		}
+		asymmetric := ownSet != own || foundSet != found.Visibility
+		if len(prop.Attrs) > 0 || len(prop.Hooks) > 0 || found.Hooked || ownFinal != found.Final || asymmetric && ownSet != foundSet {
+			continue
+		}
 		// D6b: a re-declaration that changes the default value is how a
 		// subclass overrides it; dropping it would change behaviour.
 		ownDef := ""
@@ -82,6 +106,9 @@ func (classOverridesFieldOfSuperClass) Check(ctx *analysis.Context, n syntax.Nod
 			ownDef = ctx.Text(item.Default)
 		}
 		if cofsDefault(ownDef, item.Default != nil, prop.Type != nil) != cofsDefault(found.Default, found.HasDefault, found.Type != "") {
+			continue
+		}
+		if item.Default != nil && !cofsSameContext(ctx, cl, item.Default, found) {
 			continue
 		}
 		// custos: a re-declaration whose @var narrows the documented type
@@ -109,6 +136,46 @@ func cofsDefault(text string, has, typed bool) string {
 		return "null"
 	}
 	return t
+}
+
+// cofsSameContext reports whether def, the own default whose text equals
+// the default of found, also evaluates to the same value there: magic
+// constants never do, `self::X` only when both classes reach the same
+// constant declaration, and names that are not fully qualified only when
+// both declarations share one namespace scope of this file.
+func cofsSameContext(ctx *analysis.Context, cl *syntax.ClassLike, def syntax.Expr, found *index.Property) bool {
+	ix, nr := ctx.Index(), ctx.Names()
+	holder := ix.Class(found.Class, ctx.PHP)
+	sameScope := holder != nil && holder.File == ctx.File.Path && nr.ScopeAt(holder.Span.Start) == nr.ScopeAt(def.Span().Start)
+	same := true
+	syntax.Inspect(def, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.MagicConst:
+			same = false
+		case *syntax.ConstFetch:
+			switch strings.ToLower(strings.TrimPrefix(n.Name.Value, `\`)) {
+			case "null", "true", "false":
+				return false
+			}
+		case *syntax.ClassConstFetch:
+			if c, ok := n.Class.(*syntax.Name); ok && names.IsSpecialClass(c.Value) {
+				id, _ := n.Name.(*syntax.Identifier)
+				same = same && id != nil && strings.EqualFold(c.Value, "self") && !strings.EqualFold(id.Value, "class") &&
+					cofsSameConst(ix.FindConst(nr.SymbolFQN(cl), id.Value, ctx.PHP), ix.FindConst(found.Class, id.Value, ctx.PHP))
+				return false
+			}
+		case *syntax.Name:
+			same = same && (n.NameKind == syntax.NameFullyQualified || sameScope)
+		}
+		return same
+	})
+	return same
+}
+
+// cofsSameConst reports whether two class-constant lookups reached the same
+// declaration.
+func cofsSameConst(a, b *index.ClassConst) bool {
+	return a != nil && b != nil && strings.EqualFold(a.Class, b.Class)
 }
 
 // cofsOwnDocType is the canonical @var type documented on the property

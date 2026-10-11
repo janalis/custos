@@ -16,7 +16,6 @@ function nodes(?Node $n, string $s, int $i) {
     $n = $n ?: new Node();
     $s = strstr($s, 'x');
     $i = abs($i);
-    $i = microtime();
     return;
     $s = 1;
 }

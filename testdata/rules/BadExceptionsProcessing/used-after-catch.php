@@ -64,3 +64,58 @@ try {
 } catch (\Exception $top) {                       // E2b: top-level code
 }
 echo $top;
+
+function nextIteration(callable $op) {
+    $attempt = 0;
+    while (true) {
+        if (isset($failure)) {
+            report($failure);
+            if (++$attempt >= 2) { return null; }
+        }
+        try {
+            return $op();
+        } catch (\RuntimeException $failure) {     // E2c: read at the top of the next iteration
+        }
+    }
+}
+
+function loopHeader(callable $op) {
+    $last = null;
+    do {
+        foreach ([1, 2] as $step) {
+            try {
+                $op($step);
+            } catch (\RuntimeException $last) {    // E2c: read in the outer loop condition
+                usleep(100);
+            }
+        }
+    } while ($last !== null && retry($last));
+    for ($i = 0; $i < 2; $i++) {
+        try {
+            $op($i);
+        } catch (\LogicException <weak_warning descr="Caught exception is silently discarded; at least log it.">$gone</weak_warning>) {
+        }
+    }
+}
+
+function beforeLoop(callable $op) {
+    $seen = $early ?? null;
+    while (more()) {
+        $cb = function () { return $early; };     // separate scope: ignored
+        try {
+            $op();
+        } catch (\Exception <weak_warning descr="Caught exception is dropped; log it or pass it on as the previous exception.">$early</weak_warning>) {
+            usleep(100);
+        }
+    }
+}
+
+while (more()) {
+    $run = function () {
+        try {
+            work();
+        } catch (\Exception <weak_warning descr="Caught exception is silently discarded; at least log it.">$outer</weak_warning>) {
+        }
+    };
+    echo $outer ?? '';                            // the loop is outside the closure: ignored
+}

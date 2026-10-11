@@ -38,6 +38,14 @@ entry.
   class implements `B extends A` → `B` is not reported.
 - **E3** Redundancy *within* the class's own list (`implements A, B` where
   `B extends A`, no parent involved) is not reported.
+- **E4** The parent only covers the entry through a built-in class whose
+  link to that interface does not exist at the target PHP version. When
+  building the inherited set, a link leaving a built-in class is followed
+  only if PHP itself declares the linked interface at the target version.
+  `class E extends \Exception implements \Stringable` is therefore silent
+  below 8.0 (exceptions became `Stringable` in 8.0; with a polyfilled
+  interface the entry is what makes the class `Stringable`) and reported
+  from 8.0 on. Links between project classes are never gated.
 
 ## Report
 
@@ -69,6 +77,13 @@ list as left by the previous ones.
   delete the entry and the comma preceding it (skipping at most one
   whitespace run between comma and entry); the whitespace before the comma
   stays. `implements A, B` → `implements A`.
+- **F4** No fix is offered when the text the fix would delete contains a
+  comment (`extends Base /* note */ implements A`,
+  `implements A /* why */, B`, `implements B, /* doc */ A`): the entry is
+  still reported and the code is left as written. Comments outside the
+  deleted text (after the entry in F1, after the comma in F2) do not
+  withhold the fix and are preserved.
+
 When every entry of a list is redundant, the successive fixes end with F1 and
 the whole `implements` clause disappears.
 
@@ -78,7 +93,8 @@ None.
 
 ## PHP versions
 
-No gating.
+The rule runs at every version. The target version only decides which
+built-in interface links count (E4).
 
 ## Examples
 
@@ -135,4 +151,10 @@ namespace Store {
 
 ## Divergences
 
-None known.
+- **Version-aware built-in hierarchy (E4).** A deliberate custos guard, not
+  taken from upstream: a built-in link to an interface PHP does not declare
+  at the configured target version is ignored, because removing the entry
+  would change `instanceof` results on that runtime.
+- **Comments withhold the fix (F4).** A deliberate custos guard, not taken
+  from upstream: the report is kept and no fix is offered when the deleted
+  text would take a comment with it.

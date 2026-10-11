@@ -58,10 +58,22 @@ func countStmts(stmts []syntax.Stmt) int {
 
 // usedAfterCatch reports whether the caught variable occurs after the catch
 // clause in the enclosing scope, outside other catch clauses rebinding the
-// same name (D4b).
+// same name (D4b). Inside a loop the next iteration runs after the catch
+// too, so an occurrence anywhere in the outermost enclosing loop counts.
 func usedAfterCatch(ctx *analysis.Context, c *syntax.Catch) bool {
-	last := lastFreeAccesses(ctx, syntax.EnclosingFuncLike(c))[c.Var.Name]
-	return last > 0 && last-1 >= c.Span().End
+	scope := syntax.EnclosingFuncLike(c)
+	last := lastFreeAccesses(ctx, scope)[c.Var.Name]
+	if last == 0 {
+		return false
+	}
+	from := c.Span().End
+	for p := c.Parent(); p != nil && p != scope; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach:
+			from = p.Span().Start
+		}
+	}
+	return last-1 >= from
 }
 
 // lastFreeAccesses returns, for scope, name -> 1 + the start offset of the

@@ -48,6 +48,14 @@ swallowed or its cause is lost).
   inside another catch clause that binds the **same** name (its variable and
   its body) do not count. Any remaining occurrence (`throw $err ?? …`,
   `return $err;`, `if ($err !== null)`, `"… $err"`) → no report.
+- **D4c** (custos refinement) When the `try` statement sits inside one or
+  more loops (`while`, `do … while`, `for`, `foreach`) of the same scope,
+  the next iteration also runs after the catch clause. The search of D4b
+  then starts at the beginning of the **outermost** such loop statement
+  instead of at the end of the catch clause, so an occurrence in the loop
+  header or earlier in the loop body counts as well. Loops outside the
+  enclosing function, method or closure are not considered. The same
+  exclusions as D4b apply (nested scopes, catch clauses rebinding the name).
 - **D5** Two flavours (same range, different message):
   - **D5a** the catch body contains **no** statements (empty, or only
     comments) → "swallowed" message;
@@ -61,6 +69,9 @@ swallowed or its cause is lost).
   (read, written, passed on, used inside a closure).
 - **E2b** A catch variable that is referenced later in the same scope
   (D4b), e.g. stored for a retry loop or rethrown after cleanup.
+- **E2c** A catch variable that is referenced earlier in an enclosing loop
+  of the same scope (D4c), e.g. inspected at the top of the next retry
+  iteration or in the loop condition.
 - **E3** Catch clauses without a variable, or incomplete/broken catch clauses
   whose variable has an empty name.
 
@@ -158,8 +169,12 @@ function cleanup($handle) {
   Upstream looks only inside the catch body, so a caught exception kept for
   later (`throw $e ?? new …` after a retry loop, inspected in `finally`) is
   reported as discarded although it is not (found on real code). custos also
-  searches the rest of the enclosing scope after the catch clause. The
-  upstream fixture's caught variables are never used afterwards, so
+  searches the rest of the enclosing scope after the catch clause, and the
+  whole outermost enclosing loop when the `try` is repeated (D4c/E2c): code
+  placed before the `try` in a loop runs after the catch on the next
+  iteration. The search is by occurrence, not by control flow, so a loop
+  that only overwrites the variable before the `try` is not reported either.
+  The upstream fixture's caught variables are never used afterwards, so
   conformance is unaffected.
 - Whether an empty statement `;` inside the block counts as a statement is
   unverified upstream. Recommendation: do not count empty statements.

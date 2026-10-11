@@ -27,7 +27,7 @@ property it creates a second, unrelated property with the same name.
 - **D2** The property's doc comment (the comment attached to the declaration
   statement) has no tag whose name contains an uppercase letter
   (e.g. `@ORM\Column`, `@Assert\NotBlank`, `@Inject`); lowercase tags such as
-  `@var`, `@internal` are fine. Attributes (`#[…]`) are not considered.
+  `@var`, `@internal` are fine. Attributes (`#[…]`) are handled by D6c.
 - **D3** Let `P` be the resolved direct parent class (`extends`). If `P` has
   a constructor — its own `__construct` or one it inherits — that is `final`
   or `private` → no report.
@@ -52,6 +52,28 @@ property it creates a second, unrelated property with the same name.
   (any case) and a missing default on an untyped property are the same;
   a missing default on a typed property (uninitialised) differs from any
   default.
+  Equal text is not enough when the default is evaluated relative to the
+  declaring class or file; such defaults count as different unless they
+  provably denote the same value:
+  - a magic constant (`__CLASS__`, `__NAMESPACE__`, `__FILE__`, `__DIR__`,
+    `__LINE__`, …) → different;
+  - `self::NAME` → the same only when the lookup from the own class and the
+    lookup from `H` reach the same constant declaration (the subclass, or a
+    class in between, may redefine it); `self::class`, `parent::…`,
+    `static::…` and a dynamic `self::{…}` → different;
+  - any other class or constant name that is not fully qualified
+    (`Limits::MAX`, `PREFIX`; not `true`/`false`/`null`) → the same only
+    when `H` is declared in the same file and the same namespace block, so
+    that both names resolve through the same namespace and imports.
+- **D6c** (custos, see Divergences) No "duplicate" report when the
+  re-declaration is not a plain repetition of the inherited one:
+  - the own declaration has property hooks, or the found property has hooks
+    or is abstract (the re-declaration adds, replaces or implements them);
+  - the own declaration carries an attribute (`#[…]`);
+  - finality differs (`final`, or the implicit finality of `private(set)`);
+  - either side has an asymmetric write visibility and the effective write
+    visibilities differ (`public private(set) $v` over `public $v`;
+    `public public(set) $v` over `public $v` is still a repetition).
 
 **T — test context**: the file path ends with `Test.php`, `Spec.php` or
 `.phpt`, or contains `/Fixtures/`; or the class FQN ends with `Test`, or
@@ -68,6 +90,9 @@ contains `\Tests\` or `\Test\`.
 - **E5** Widening protected → public.
 - **E6** `@property` virtual properties; promoted constructor properties.
 - **E7** Private redefinitions when `REPORT_PRIVATE_REDEFINITION` is false.
+- **E8** Re-declarations whose default may evaluate differently in the
+  subclass (D6b), or that add or implement hooks, attributes, finality or
+  a different write visibility (D6c).
 
 ## Report
 
@@ -157,6 +182,21 @@ class Door extends Locked {
   true;` over `false` (Symfony compiler passes). Re-declaring is the way to
   override a default; dropping it as advised changes behaviour. custos only
   reports re-declarations with the same default (D6b).
+- **Context-dependent defaults (custos diverges).** `protected $table =
+  self::TABLE;` in a subclass that redefines `TABLE`, `= __CLASS__`, or an
+  unqualified `Limits::MAX` in another namespace has the same text as the
+  parent's default but another value, so dropping the re-declaration
+  changes behaviour. custos resolves `self::` constants on both sides and
+  otherwise reports only when the names provably resolve identically
+  (fully qualified, or same file and namespace block); when that cannot be
+  shown (parent in another file, whose imports are unknown) it stays
+  silent (D6b).
+- **Hooks, attributes, finality, asymmetric visibility (custos diverges).**
+  A plain re-declaration is how a class implements an abstract property;
+  one with hooks, an attribute, `final` or a different write visibility
+  adds behaviour the inherited declaration lacks. Dropping any of them
+  breaks the class or changes behaviour, so custos does not report them
+  (D6c).
 - **Documented narrowing (custos diverges).** A re-declaration whose `@var`
   type differs from the inherited property's documented type (or, without
   one, its declared type) narrows the type for static analysis and
