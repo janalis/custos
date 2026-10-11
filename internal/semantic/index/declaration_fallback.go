@@ -58,7 +58,7 @@ func (ix *Index) declarationShadowed(fqn string) bool {
 	}
 	k := key(fqn)
 	for l := ix; l != nil; l = l.base {
-		l.mu.RLock()
+		locked := l.rlock()
 		found := false
 		for _, f := range l.functions[k] {
 			if !shadowedAbove(ix, l, f.File) {
@@ -66,7 +66,7 @@ func (ix *Index) declarationShadowed(fqn string) bool {
 				break
 			}
 		}
-		l.mu.RUnlock()
+		l.runlock(locked)
 		if found {
 			return true
 		}

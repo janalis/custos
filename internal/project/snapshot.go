@@ -652,6 +652,7 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 	for _, symbols := range s.Symbols {
 		s.Index.DropStaleInferred(symbols)
 	}
+	s.Index.Freeze()
 	s.Engine = s.Engine.WithIndex(s.Index)
 
 	if s.Engine.NeedsFlow() {

@@ -27,6 +27,7 @@ type Index struct {
 	// Ancestors per class and version, valid while the generation of this
 	// layer and of every base layer is unchanged (see generation).
 	gen              atomic.Uint64
+	frozen           atomic.Bool
 	ancMu            sync.RWMutex
 	ancestors        map[ancKey]ancEntry
 	methodGeneration uint64
@@ -119,12 +120,44 @@ func New(base *Index) *Index {
 	}
 }
 
+// Freeze declares that no file will be added or removed anymore. Lookups then
+// skip the read lock, which concurrent analyses of a large project otherwise
+// contend on; Add and Remove panic.
+func (ix *Index) Freeze() {
+	ix.mu.Lock()
+	ix.frozen.Store(true)
+	ix.mu.Unlock()
+}
+
+func (ix *Index) mutable() {
+	if ix.frozen.Load() {
+		panic("index: frozen")
+	}
+}
+
+// rlock takes the read lock unless the index is frozen and reports whether
+// runlock has to release it.
+func (ix *Index) rlock() bool {
+	if ix.frozen.Load() {
+		return false
+	}
+	ix.mu.RLock()
+	return true
+}
+
+func (ix *Index) runlock(locked bool) {
+	if locked {
+		ix.mu.RUnlock()
+	}
+}
+
 func key(fqn string) string { return strings.ToLower(strings.TrimPrefix(fqn, `\`)) }
 
 // Add inserts (or replaces) the symbols of one file.
 func (ix *Index) Add(fs *FileSymbols) {
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
+	ix.mutable()
 	ix.removeLocked(fs.Path)
 	ix.files[fs.Path] = fs
 	for _, c := range fs.Classes {
@@ -154,6 +187,7 @@ func (ix *Index) Add(fs *FileSymbols) {
 func (ix *Index) Remove(path string) {
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
+	ix.mutable()
 	ix.removeLocked(path)
 	ix.children = nil
 	ix.gen.Add(1)
@@ -233,9 +267,9 @@ func (ix *Index) Class(fqn string, ver phpversion.Version) *Class {
 // layer or a base ("" when the class key k is no alias).
 func (ix *Index) aliasOf(k string) string {
 	for l := ix; l != nil; l = l.base {
-		l.mu.RLock()
+		locked := l.rlock()
 		cands := l.aliases[k]
-		l.mu.RUnlock()
+		l.runlock(locked)
 		// The most recently added alias wins, as before. Keep every candidate so
 		// suppressing or removing that declaration reveals its predecessor.
 		for i := len(cands) - 1; i >= 0; i-- {
@@ -250,9 +284,9 @@ func (ix *Index) aliasOf(k string) string {
 
 // declared is Class without aliases, for the class key k.
 func (ix *Index) declared(k string, ver phpversion.Version) *Class {
-	ix.mu.RLock()
+	locked := ix.rlock()
 	c, ok := pick(ix.classes[k], func(c *Class) Avail { return c.Avail }, ver)
-	ix.mu.RUnlock()
+	ix.runlock(locked)
 	if ok {
 		return c.at(ver)
 	}
@@ -264,9 +298,9 @@ func (ix *Index) declared(k string, ver phpversion.Version) *Class {
 
 // Function returns the function with the given FQN available at ver.
 func (ix *Index) Function(fqn string, ver phpversion.Version) *Function {
-	ix.mu.RLock()
+	locked := ix.rlock()
 	f, ok := pick(ix.functions[key(fqn)], func(f *Function) Avail { return f.Avail }, ver)
-	ix.mu.RUnlock()
+	ix.runlock(locked)
 	if ok {
 		// PHP cannot redeclare a built-in function: a source declaration of
 		// a name the stubs know at this version is a polyfill (guarded by
@@ -289,7 +323,7 @@ func (ix *Index) Function(fqn string, ver phpversion.Version) *Function {
 // twice, e.g. a real and a no-op version loaded conditionally); nil when
 // a builtin of that name exists (see Function) or none is declared.
 func (ix *Index) FunctionDecls(fqn string, ver phpversion.Version) []*Function {
-	ix.mu.RLock()
+	locked := ix.rlock()
 	cands := ix.functions[key(fqn)]
 	var out []*Function
 	for _, f := range cands {
@@ -297,7 +331,7 @@ func (ix *Index) FunctionDecls(fqn string, ver phpversion.Version) []*Function {
 			out = append(out, f.at(ver))
 		}
 	}
-	ix.mu.RUnlock()
+	ix.runlock(locked)
 	if len(cands) > 0 {
 		if ix.base != nil && ix.builtinFunction(fqn, ver) != nil {
 			return nil
@@ -392,8 +426,7 @@ func (ix *Index) builtinFunction(fqn string, ver phpversion.Version) *Function {
 	for b.base != nil {
 		b = b.base
 	}
-	b.mu.RLock()
-	defer b.mu.RUnlock()
+	defer b.runlock(b.rlock())
 	for _, f := range b.functions[key(fqn)] {
 		if ver == 0 || f.Avail.In(ver) { // strictly available: else the polyfill runs
 			return f.at(ver)
@@ -407,9 +440,9 @@ func (ix *Index) builtinFunction(fqn string, ver phpversion.Version) *Function {
 func (ix *Index) Constant(fqn string, ver phpversion.Version) *Constant {
 	fqn = strings.TrimPrefix(fqn, `\`)
 	for l := ix; l != nil; l = l.base {
-		l.mu.RLock()
+		locked := l.rlock()
 		cands := l.constants[fqn]
-		l.mu.RUnlock()
+		l.runlock(locked)
 		var first *Constant
 		for _, c := range cands {
 			if shadowedAbove(ix, l, c.File) || ix.declarationShadowed(c.DeclarationFallback) {
@@ -650,8 +683,7 @@ func (ix *Index) Children(fqn string) []string {
 
 // Stats returns symbol counts (project layer only).
 func (ix *Index) Stats() (files, classes, functions, constants int) {
-	ix.mu.RLock()
-	defer ix.mu.RUnlock()
+	defer ix.runlock(ix.rlock())
 	for _, cs := range ix.classes {
 		classes += len(cs)
 	}
@@ -672,14 +704,14 @@ func (ix *Index) DropStaleInferred(fs *FileSymbols) {
 		return
 	}
 	stale := false
-	ix.mu.RLock()
+	locked := ix.rlock()
 	for _, d := range fs.ReturnDeps {
 		if len(ix.functions[key(d)]) > 0 {
 			stale = true
 			break
 		}
 	}
-	ix.mu.RUnlock()
+	ix.runlock(locked)
 	if !stale {
 		return
 	}

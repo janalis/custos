@@ -43,6 +43,7 @@ func (p *Project) AnalyzeReport() []diagnostic.FileResult {
 	var sources [][]byte
 	if engine.NeedsIndex() {
 		ix, srcs := BuildIndexKeep(IndexSources(p.Options.Root, p.Files), len(p.Files), p.Options.Parse, infer.Options{Assertions: p.Options.Analysis.Flow.Assertions})
+		ix.Freeze()
 		engine, sources = engine.WithIndex(ix), srcs
 		if engine.NeedsFlow() {
 			engine = engine.WithFlow(BuildFlowSnapshot(p.Files, srcs, p.Options.Parse, ix, p.Options.Analysis.Flow))
@@ -56,6 +57,7 @@ func (p *Project) PrepareFixes() []PreparedFix {
 	engine := p.Engine
 	if engine.NeedsIndex() {
 		ix := BuildIndex(IndexSources(p.Options.Root, p.Files), p.Options.Parse, infer.Options{Assertions: p.Options.Analysis.Flow.Assertions})
+		ix.Freeze()
 		engine = engine.WithIndex(ix)
 		if engine.NeedsFlow() {
 			engine = engine.WithFlow(BuildFlowSnapshot(p.Files, nil, p.Options.Parse, ix, p.Options.Analysis.Flow))

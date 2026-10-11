@@ -152,3 +152,22 @@ if (!function_exists('pad')) { function pad($s) { return $s; } }
 		t.Fatalf("8.0: the polyfill must be used: %+v", f)
 	}
 }
+
+func TestFrozenIndexReadsWithoutLockAndRejectsChanges(t *testing.T) {
+	ix := New(nil)
+	ix.Add(&FileSymbols{Path: "a.php", Classes: []*Class{{FQN: "A"}}})
+	ix.Freeze()
+	if ix.Class("a", 0) == nil || len(ix.Children("A")) != 0 {
+		t.Fatal("frozen lookup")
+	}
+	for _, change := range []func(){func() { ix.Add(&FileSymbols{Path: "b.php"}) }, func() { ix.Remove("a.php") }} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Fatal("frozen index changed")
+				}
+			}()
+			change()
+		}()
+	}
+}

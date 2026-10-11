@@ -21,6 +21,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Symbol lookups no longer contend on a lock once the project index is built,
+  which shortens whole-project runs.
 - Rule option descriptions in `custos explain` and the rule reference no longer
   include notes about upstream test configurations.
 

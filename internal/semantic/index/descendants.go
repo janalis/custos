@@ -34,8 +34,7 @@ func (ix *Index) Subclasses(fqn string) []string {
 func (ix *Index) directSubclasses(fqn string) []string {
 	var out []string
 	children := ix.Children(fqn)
-	ix.mu.RLock()
-	defer ix.mu.RUnlock()
+	defer ix.runlock(ix.rlock())
 	for _, c := range children {
 		if cs := ix.classes[key(c)]; len(cs) > 0 && cs[0].Parent != "" && key(cs[0].Parent) == key(fqn) {
 			out = append(out, c)
