@@ -146,12 +146,22 @@ func TestVendorBudgetAndFailures(t *testing.T) {
 	if err := os.Symlink(filepath.Join(dir, "a.php"), filepath.Join(dir, "link.php")); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"missing", "a.php/child", "link.php"} {
+	// A symlink below the levels that are listed one directory at a time.
+	if err := os.MkdirAll(filepath.Join(dir, "deep/a/b/c"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "a.php"), filepath.Join(dir, "deep/a/b/c/link.php")); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"missing", "a.php/child", "link.php", "deep"} {
 		if _, err := CaptureSnapshot(ctx, root, rules, []string{name}, nil); err == nil {
 			t.Fatal(name)
 		}
 	}
 	if err := os.Remove(filepath.Join(dir, "link.php")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(dir, "deep")); err != nil {
 		t.Fatal(err)
 	}
 	// A configuration file that a rule also inspects is captured once.

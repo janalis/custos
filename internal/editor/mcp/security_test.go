@@ -477,6 +477,9 @@ func TestPreparedFixValidationAndBudgets(t *testing.T) {
 	if _, err := s.prepare(cancelled, w, cp, snap, Input{Iterative: true}); err == nil {
 		t.Fatal("cancelled preparation")
 	}
+	if _, err := s.prepare(cancelled, w, cp, snap, Input{Choices: []Choice{{FindingID: "0"}}}); err == nil {
+		t.Fatal("cancelled selected preparation")
+	}
 	engine, err := analysis.NewEngine([]analysis.Rule{editRule{edit: "("}}, snap.Config.Analysis())
 	if err != nil {
 		t.Fatal(err)

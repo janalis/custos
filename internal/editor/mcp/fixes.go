@@ -69,19 +69,30 @@ func (s *Server) prepare(ctx context.Context, w *workspace, cp *checkpoint, snap
 			files = append(files, r.Path)
 		}
 	}
+	var names []string
 	for _, name := range files {
-		if err := ctx.Err(); err != nil {
+		if in.Path == "" || in.Path == name {
+			names = append(names, name)
+		}
+	}
+	fixed := make([][]byte, len(names))
+	if in.Iterative {
+		filter := func(fd diagnostic.Finding) bool { return rule == "" || fd.Rule == rule }
+		if err := project.Each(ctx, len(names), func(i int) {
+			fixed[i] = fixing.FixSource(snap.Engine, names[i], snap.Sources[names[i]], fixing.Options{Parse: parse, Filter: filter}).Source
+		}); err != nil {
 			return nil, err
 		}
-		if in.Path != "" && in.Path != name {
-			continue
+	}
+	for i, name := range names {
+		if err := ctx.Err(); err != nil {
+			return nil, err
 		}
 		src := snap.Sources[name]
 		var out []byte
 		edits := selected[name]
 		if in.Iterative {
-			fixed := fixing.FixSource(snap.Engine, name, src, fixing.Options{Parse: parse, Filter: func(fd diagnostic.Finding) bool { return rule == "" || fd.Rule == rule }})
-			out = fixed.Source
+			out = fixed[i]
 			// The loop may rewrite the same region several times: describe
 			// its net effect as minimal line replacements.
 			for _, e := range diff.Edits(string(src), string(out)) {
