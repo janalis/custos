@@ -41,7 +41,7 @@ func TestSnapshotConfinedAndReuse(t *testing.T) {
 	}
 	defer root.Close()
 	rules := []analysis.Rule{nestednotoperators.New(), securityadvisories.New()}
-	s, err := BuildSnapshot(context.Background(), root, rules, []string{"src/a.php"})
+	s, err := BuildSnapshot(context.Background(), root, rules, []string{"src/a.php"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,26 +51,26 @@ func TestSnapshotConfinedAndReuse(t *testing.T) {
 	if s.Hashes["composer.lock"] != "absent" || len(s.Results[0].Findings) != 1 {
 		t.Fatal(s.Hashes, s.Results)
 	}
-	inputs, err := CaptureSnapshot(context.Background(), root, rules, nil)
+	inputs, err := CaptureSnapshot(context.Background(), root, rules, nil, nil)
 	if err != nil || len(inputs.Results) != 0 {
 		t.Fatal(inputs, err)
 	}
-	if _, err := BuildSnapshot(context.Background(), root, rules, []string{"src", "../escape"}); err == nil {
+	if _, err := BuildSnapshot(context.Background(), root, rules, []string{"src", "../escape"}, nil); err == nil {
 		t.Fatal("escaped root")
 	}
-	if _, err := BuildSnapshot(context.Background(), root, rules, []string{"missing"}); err == nil {
+	if _, err := BuildSnapshot(context.Background(), root, rules, []string{"missing"}, nil); err == nil {
 		t.Fatal("missing input")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := BuildSnapshot(ctx, root, rules, nil); err == nil {
+	if _, err := BuildSnapshot(ctx, root, rules, nil, nil); err == nil {
 		t.Fatal("ignored cancellation")
 	}
 	if _, err := AnalyzeSnapshot(ctx, inputs); err == nil {
 		t.Fatal("ignored semantic cancellation")
 	}
 	write("custos.json", "bad")
-	if _, err := BuildSnapshot(context.Background(), root, rules, nil); err == nil {
+	if _, err := BuildSnapshot(context.Background(), root, rules, nil, nil); err == nil {
 		t.Fatal("invalid config")
 	}
 }
@@ -91,7 +91,7 @@ func TestSnapshotRejectsHostileInputs(t *testing.T) {
 				t.Fatal(err)
 			}
 			defer root.Close()
-			if _, err := BuildSnapshot(context.Background(), root, []analysis.Rule{nestednotoperators.New()}, nil); err == nil {
+			if _, err := BuildSnapshot(context.Background(), root, []analysis.Rule{nestednotoperators.New()}, nil, nil); err == nil {
 				t.Fatal("symlink escape allowed")
 			}
 		})
@@ -105,7 +105,7 @@ func TestSnapshotRejectsHostileInputs(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer root.Close()
-	if _, err := BuildSnapshot(context.Background(), root, []analysis.Rule{nestednotoperators.New()}, nil); err == nil {
+	if _, err := BuildSnapshot(context.Background(), root, []analysis.Rule{nestednotoperators.New()}, nil, nil); err == nil {
 		t.Fatal("missing baseline")
 	}
 	file, err := os.Create(filepath.Join(dir, "large.php"))
@@ -166,7 +166,7 @@ func TestSnapshotCancellationAndConfigurationChanges(t *testing.T) {
 	rules := []analysis.Rule{nestednotoperators.New()}
 	for stop := 1; stop < 15; stop++ {
 		ctx := &stepContext{Context: context.Background(), stop: stop}
-		_, _ = CaptureSnapshot(ctx, root, rules, []string{""})
+		_, _ = CaptureSnapshot(ctx, root, rules, []string{""}, nil)
 	}
 	// Configuration races are rejected before publishing mixed evidence.
 	for _, replacement := range []string{`{"php":"7.4"}`, "invalid"} {
@@ -176,16 +176,16 @@ func TestSnapshotCancellationAndConfigurationChanges(t *testing.T) {
 				writeFile(t, filepath.Join(dir, "custos.json"), replacement)
 			}
 		}}
-		if _, err := CaptureSnapshot(ctx, root, rules, nil); err == nil {
+		if _, err := CaptureSnapshot(ctx, root, rules, nil, nil); err == nil {
 			t.Fatal("mixed configuration snapshot")
 		}
 	}
 	_ = root.Remove("custos.json")
-	if _, err := CaptureSnapshot(context.Background(), root, []analysis.Rule{missingSnapshotRule{}}, nil); err == nil {
+	if _, err := CaptureSnapshot(context.Background(), root, []analysis.Rule{missingSnapshotRule{}}, nil, nil); err == nil {
 		t.Fatal("unknown inspection catalogue")
 	}
 	writeFile(t, filepath.Join(dir, "custos.json"), `{"paths":["missing"]}`)
-	if _, err := CaptureSnapshot(context.Background(), root, rules, []string{"a.php"}); err == nil {
+	if _, err := CaptureSnapshot(context.Background(), root, rules, []string{"a.php"}, nil); err == nil {
 		t.Fatal("missing semantic source path")
 	}
 	_ = root.Remove("custos.json")
@@ -195,8 +195,8 @@ func TestSnapshotCancellationAndConfigurationChanges(t *testing.T) {
 	if err := os.Symlink(filepath.Join(t.TempDir(), "outside"), filepath.Join(dir, "vendor", "link.php")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := CaptureSnapshot(context.Background(), root, rules, nil); err == nil {
-		t.Fatal("vendor symlink input")
+	if s, err := CaptureSnapshot(context.Background(), root, rules, nil, nil); err != nil || s.SkippedCount != 1 || s.Skipped[0] != "vendor/link.php (symlink)" {
+		t.Fatal("vendor symlink not skipped", s, err)
 	}
 	_ = root.Remove("vendor/link.php")
 	if err := root.MkdirAll("vendor/janalis", 0o700); err != nil {
@@ -205,7 +205,7 @@ func TestSnapshotCancellationAndConfigurationChanges(t *testing.T) {
 	if err := os.Symlink(t.TempDir(), filepath.Join(dir, "vendor/janalis/custos")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := BuildSnapshot(context.Background(), root, rules, nil); err != nil {
+	if _, err := BuildSnapshot(context.Background(), root, rules, nil, nil); err != nil {
 		t.Fatal("symlinked Composer package failed", err)
 	}
 	// Closed handles and oversized source files fail before analysis.
@@ -217,11 +217,11 @@ func TestSnapshotCancellationAndConfigurationChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = large.Close()
-	if _, err := CaptureSnapshot(context.Background(), root, rules, nil); err == nil {
+	if _, err := CaptureSnapshot(context.Background(), root, rules, nil, nil); err == nil {
 		t.Fatal("oversized discovered input")
 	}
 	_ = root.Remove("large.php")
-	snap, err := CaptureSnapshot(context.Background(), root, rules, nil)
+	snap, err := CaptureSnapshot(context.Background(), root, rules, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,7 +231,7 @@ func TestSnapshotCancellationAndConfigurationChanges(t *testing.T) {
 	original := extract
 	defer func() { extract = original }()
 	extract = func(string, []byte, syntax.Options) *index.FileSymbols { panic("broken extraction") }
-	if _, err := BuildSnapshot(context.Background(), root, rules, nil); err == nil {
+	if _, err := BuildSnapshot(context.Background(), root, rules, nil, nil); err == nil {
 		t.Fatal("extraction fault")
 	}
 }
@@ -248,7 +248,7 @@ func TestSnapshotInputBudgets(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := CaptureSnapshot(context.Background(), root, nil, nil); err == nil {
+	if _, err := CaptureSnapshot(context.Background(), root, nil, nil, nil); err == nil {
 		t.Fatal("file budget not enforced")
 	}
 }
@@ -263,7 +263,7 @@ func TestConfinedFlowSnapshot(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "wrapper.php"), "<?php function invoke($x){system($x);}")
 	writeFile(t, filepath.Join(dir, "a.php"), "<?php invoke($_GET['arg']);")
 	writeFile(t, filepath.Join(dir, "custos.json"), `{"rules":{"UntrustedShellCommand":{"enabled":true}}}`)
-	snapshot, err := BuildSnapshot(context.Background(), root, []analysis.Rule{untrustedshellcommand.New()}, []string{"a.php"})
+	snapshot, err := BuildSnapshot(context.Background(), root, []analysis.Rule{untrustedshellcommand.New()}, []string{"a.php"}, nil)
 	if err != nil || len(snapshot.Results) != 1 || len(snapshot.Results[0].Findings) == 0 {
 		t.Fatal(snapshot, err)
 	}
@@ -280,7 +280,7 @@ func TestVendorStatFailure(t *testing.T) {
 	// than being silently treated as absent semantic inputs.
 	writeFile(t, filepath.Join(dir, "composer.json"), `{"config":{"vendor-dir":"file/vendor"}}`)
 	writeFile(t, filepath.Join(dir, "file"), "not a directory")
-	if _, err := CaptureSnapshot(context.Background(), root, nil, nil); err == nil {
+	if _, err := CaptureSnapshot(context.Background(), root, nil, nil, nil); err == nil {
 		t.Fatal("invalid vendor parent ignored")
 	}
 }
@@ -293,7 +293,7 @@ func TestBufferSnapshotSemanticPublication(t *testing.T) {
 	}
 	defer root.Close()
 	writeFile(t, filepath.Join(dir, "a.php"), "<?php class Before {}")
-	snapshot, err := BuildSnapshot(context.Background(), root, []analysis.Rule{nestednotoperators.New()}, nil)
+	snapshot, err := BuildSnapshot(context.Background(), root, []analysis.Rule{nestednotoperators.New()}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -337,7 +337,7 @@ func TestSnapshotNormalizesConfiguredPaths(t *testing.T) {
 	defer root.Close()
 	rules := []analysis.Rule{nestednotoperators.New()}
 	for _, paths := range [][]string{nil, {"./src/"}, {"src/a.php"}} {
-		s, err := BuildSnapshot(context.Background(), root, rules, paths)
+		s, err := BuildSnapshot(context.Background(), root, rules, paths, nil)
 		if err != nil {
 			t.Fatal(paths, err)
 		}
@@ -345,7 +345,7 @@ func TestSnapshotNormalizesConfiguredPaths(t *testing.T) {
 			t.Fatal(paths, s.Files, s.Baseline)
 		}
 	}
-	if _, err := BuildSnapshot(context.Background(), root, rules, []string{"src/../.."}); err == nil {
+	if _, err := BuildSnapshot(context.Background(), root, rules, []string{"src/../.."}, nil); err == nil {
 		t.Fatal("escaped root")
 	}
 }

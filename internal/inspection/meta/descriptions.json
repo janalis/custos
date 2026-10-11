@@ -215,7 +215,7 @@
   },
   "CascadeStringReplacement": {
     "summary": "`str_replace()` accepts arrays of searches and replacements and applies them\nin order, so several consecutive replacements on the same subject — written\nas back-to-back assignments or as nested calls — can be one call. Also, a\nsearch array whose items are all the same string literal can be that string.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax for arrays in the rebuilt call (F5): `[...]` when true, `array(...)` when false. Detection unaffected. Upstream fixtures run with `true`. |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax for arrays in the rebuilt call (F5): `[...]` when true, `array(...)` when false. Detection unaffected. |",
     "fix": true
   },
   "CascadingDirnameCalls": {
@@ -236,7 +236,7 @@
   "ClassConstantCanBeUsed": {
     "phpMin": "5.5",
     "summary": "Since PHP 5.5 a class name can be obtained with `Name::class`. Writing class\nnames as string literals hides them from refactoring tools and static\nanalysis, and `get_called_class()` / `get_parent_class()` without arguments\nhave constant-expression equivalents (`static::class`, `parent::class`).",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `IMPORT_CLASSES_ON_QF` | bool | true | Fix may add a `use` import for namespaced classes and reference them by short name. |\n| `USE_RELATIVE_QF` | bool | false | When importing is otherwise possible, a class below the file's (first) namespace is written as a namespace-relative name instead of being imported. |\n| `LOOK_ROOT_NS_UP` | bool | false | Also consider unqualified strings (no backslash), looked up as root-namespace classes (`'Thing'` → `\\Thing`). |\n\nUpstream fixtures run with `IMPORT_CLASSES_ON_QF=true, USE_RELATIVE_QF=true,\nLOOK_ROOT_NS_UP=true`, except the no-namespace configuration case\n(`true, false, false`). Some upstream cases rely on classes declared in a\ncompanion file (project index).",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `IMPORT_CLASSES_ON_QF` | bool | true | Fix may add a `use` import for namespaced classes and reference them by short name. |\n| `USE_RELATIVE_QF` | bool | false | When importing is otherwise possible, a class below the file's (first) namespace is written as a namespace-relative name instead of being imported. |\n| `LOOK_ROOT_NS_UP` | bool | false | Also consider unqualified strings (no backslash), looked up as root-namespace classes (`'Thing'` → `\\Thing`). |",
     "fix": true
   },
   "ClassConstantUsageCorrectness": {
@@ -503,7 +503,7 @@
   },
   "DisconnectedForeachInstruction": {
     "summary": "A statement inside a `foreach` body that uses no loop variable and nothing the\nloop body changes produces the same effect on every iteration; it most likely\nbelongs before or after the loop. Optionally (off by default) the rule also\npoints at objects instantiated on every iteration that could be built once and\ncloned.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). The upstream test suite runs with it enabled. |"
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). |"
   },
   "DomAppendMovesNodeUnexpectedly": {
     "summary": "Clone the node when preserving its existing parent. This inspection is disabled by default; enabling it selects the stated policy.",
@@ -561,7 +561,7 @@
   },
   "EfferentObjectCoupling": {
     "summary": "A class that refers to many distinct other classes depends on too much of the\ncode base; it is hard to change and to test in isolation. The rule counts the\ndistinct class names a class mentions and flags it once the count reaches a\nlimit.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `optionCouplingLimit` | int | 20 | Minimum number of distinct referenced classes that triggers a report (inclusive). The upstream conformance case runs with `2`. |"
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `optionCouplingLimit` | int | 20 | Minimum number of distinct referenced classes that triggers a report (inclusive). |"
   },
   "ElvisOperatorCanBeUsed": {
     "summary": "A full ternary whose \"then\" branch repeats its condition (`$a ? $a : $b`) can\nbe written with the short ternary operator `$a ?: $b` (PHP 5.3+), which is\nshorter and evaluates the condition once.",
@@ -688,7 +688,7 @@
   },
   "ForgottenDebugOutput": {
     "summary": "Dumping, tracing and profiler helpers (`var_dump()`, `print_r()`,\nframework dumpers, Xdebug functions, …) are typically added while debugging\nand forgotten afterwards. Flag their calls unless the context shows the\noutput is intentional.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| configuration | list of strings | empty (see below) | Additional debug entries (`function_name` or `\\Class::method`). |\n| migratedIntoUserSpace | bool | false | When false, the built-in defaults are merged into `configuration`; when true, only `configuration` is used. |\n\nUpstream persists the merged list into `configuration` once and flips\n`migratedIntoUserSpace` to true; custos only needs the \"effective list\"\nsemantics above."
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| configuration | list of strings | empty (see below) | Additional debug entries (`function_name` or `\\Class::method`). |\n| migratedIntoUserSpace | bool | false | When false, the built-in defaults are merged into `configuration`; when true, only `configuration` is used. |"
   },
   "ForkChildFallsIntoParentWork": {
     "phpMin": "5.3",
@@ -845,7 +845,7 @@
   },
   "InArrayMissUse": {
     "summary": "Two wasteful `in_array()` shapes:\n\n- searching the keys list built by `array_keys($a)` — a direct key lookup\n  (`array_key_exists`) avoids building the list;\n- searching a one-element array literal — that is just a comparison with the\n  single element.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `FORCE_STRICT_COMPARISON` | bool | `false` | When on, pattern C always produces `===`/`!==`, whatever the 3rd argument. The EA fixture runs with it off. |\n\nComparison style (`regular`/`yoda`) is the global setting.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `FORCE_STRICT_COMPARISON` | bool | `false` | When on, pattern C always produces `===`/`!==`, whatever the 3rd argument. |\n\nComparison style (`regular`/`yoda`) is the global setting.",
     "fix": true
   },
   "IncorrectRandomRange": {
@@ -941,7 +941,7 @@
   },
   "IssetArgumentExistence": {
     "summary": "`isset($v)`, `empty($v)` and `$v ?? …` silently accept a variable that is\nnever defined in the current function. When the first mention of a plain\nvariable inside a function body is such an existence check, the variable can\nnever be set at that point — usually a typo or a leftover after a refactoring.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `IGNORE_INCLUDES` | bool | `true` | When `true`, include/require statements in the function are disregarded (reports still happen). When `false`, a function containing any include/require is skipped entirely (the included file could define the variable). The EA fixture runs with `false`. |"
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `IGNORE_INCLUDES` | bool | `true` | When `true`, include/require statements in the function are disregarded (reports still happen). When `false`, a function containing any include/require is skipped entirely (the included file could define the variable). |"
   },
   "IssetConstructsCanBeMerged": {
     "summary": "`isset()` accepts several arguments and is true only when all of them are set.\nA chain such as `isset($p) \u0026\u0026 isset($q)` is therefore the same as\n`isset($p, $q)`, and `!isset($p) || !isset($q)` the same as `!isset($p, $q)`.\nMerging keeps conditions short.",
@@ -970,7 +970,7 @@
   },
   "JsonEncodingApiUsage": {
     "summary": "`json_decode()` without its second argument silently returns `stdClass`\nobjects, which readers often confuse with arrays; and both `json_decode()` and\n`json_encode()` report failures only through `json_last_error()` unless the\n`JSON_THROW_ON_ERROR` flag (PHP 7.3+) is passed. This rule asks for an explicit\ndecoding target and for exception-based error handling.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| HARDEN_DECODING_RESULT_TYPE | bool | true | Enables kind T (D1). Also affects `\u003cassoc\u003e` in F2. |\n| DECODE_AS_ARRAY | bool | false | Fixes insert `true` (decode to arrays) instead of `false`. |\n| DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |\n| HARDEN_ERRORS_HANDLING | bool | true | Enables kind E (D2–D5). |\n\nUpstream fixture configurations: (a) T only — HARDEN_DECODING_RESULT_TYPE on,\nDECODE_AS_ARRAY on, HARDEN_ERRORS_HANDLING off, default PHP level;\n(b) E only — HARDEN_DECODING_RESULT_TYPE off, HARDEN_ERRORS_HANDLING on, PHP 7.3.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| HARDEN_DECODING_RESULT_TYPE | bool | true | Enables kind T (D1). Also affects `\u003cassoc\u003e` in F2. |\n| DECODE_AS_ARRAY | bool | false | Fixes insert `true` (decode to arrays) instead of `false`. |\n| DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |\n| HARDEN_ERRORS_HANDLING | bool | true | Enables kind E (D2–D5). |",
     "fix": true
   },
   "JsonForceObjectChangesNestedLists": {
@@ -1162,7 +1162,7 @@
   },
   "NotOptimalIfConditions": {
     "summary": "Looks at the conditions of `if`/`elseif` statements and flags four kinds of\nproblems: a cheap operand evaluated after an expensive one in an `\u0026\u0026`/`||`\nchain (short-circuiting would save work if swapped), `and`/`or` keyword\noperators (low precedence, error-prone), an equality comparison on a value\nthat the same `\u0026\u0026` chain also tests with `instanceof` (likely a logic bug),\nand an `instanceof` check made redundant by another `instanceof` on the same\nsubject against a related type.",
-    "options": "| Option | Type | Default | Effect |\n|--------|------|---------|--------|\n| REPORT_LITERAL_OPERATORS | bool | true | enables D2 |\n| REPORT_INSTANCE_OF_FLAWS | bool | true | enables D3 and D4 |\n| SUGGEST_OPTIMIZING_CONDITIONS | bool | true | enables D1 |\n\nUpstream tests set one option to `true` without disabling the others, so each\nfixture is effectively evaluated with all checks on."
+    "options": "| Option | Type | Default | Effect |\n|--------|------|---------|--------|\n| REPORT_LITERAL_OPERATORS | bool | true | enables D2 |\n| REPORT_INSTANCE_OF_FLAWS | bool | true | enables D3 and D4 |\n| SUGGEST_OPTIMIZING_CONDITIONS | bool | true | enables D1 |"
   },
   "NotOptimalRegularExpressions": {
     "summary": "A family of checks on PCRE patterns passed to the `preg_*` functions: broken\nor missing delimiters, invalid / pointless / missing modifiers, class\nspellings that have a shorter escape, redundant or backtracking-prone\nconstructs, and calls where a plain string function (`strpos`,\n`str_replace`, `trim`, `explode`, a `===` comparison) does the same job\nfaster. Only a few findings carry a fix (the plain-function replacements).",
@@ -1171,7 +1171,7 @@
   "NullCoalescingOperatorCanBeUsed": {
     "phpMin": "7.0",
     "summary": "Ternaries and small `if` constructs that pick a value when it \"exists\"\n(`isset`, `!== null`, `array_key_exists`, truthiness of the owning object) and a\nfallback otherwise can be collapsed into a single `??` expression, which is\nshorter and easier to read.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_SIMPLIFYING_TERNARIES | bool | true | Enables Form A (ternaries). |\n| SUGGEST_SIMPLIFYING_IFS | bool | true | Enables Form B (`if` statements). |\n\nBoth upstream fixtures set only one option explicitly, but the other one keeps\nits default `true`, so both forms are active in both runs.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_SIMPLIFYING_TERNARIES | bool | true | Enables Form A (ternaries). |\n| SUGGEST_SIMPLIFYING_IFS | bool | true | Enables Form B (`if` statements). |",
     "fix": true
   },
   "NullPointerException": {
@@ -1370,7 +1370,7 @@
   },
   "PhpUnitTests": {
     "summary": "A grab-bag of PHPUnit hygiene checks. On test method docblocks it validates the\ntargets of `@covers`, `@depends` and `@dataProvider`, flags a redundant `@test`\nand (optionally) unnamed datasets. On assertion and mock-builder calls it\npoints at generic assertions that have a dedicated, more expressive PHPUnit\ncounterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,\n`assertSame(1, count($l))` → `assertCount(1, $l)`, `-\u003ewill($this-\u003ereturnValue(…))`\n→ `-\u003ewillReturn(…)`, …) and rewrites them.\n\nThe rule has two independent halves:\n\n- **Part A** — docblock tags on methods (D1–D12).\n- **Part B** — method calls whose name starts with `assert`, or is `expects`\n  or `will` (D13–D30).\n\nNeither half checks that the class extends a PHPUnit test case: every method\nof every class-like and every matching method call is examined.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 D20 suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. D25 only runs below 9.0. D23 uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. D26/D27 use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Conformance passes it as `PhpUnitVersion.PHPUNIT75` style values; strip the prefix. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |\n| `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Enables D17. |\n| `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Enables D6. |\n| `PROMOTE_PHPUNIT_API` | bool | `true` | Enables D18–D28. |\n| `PROMOTE_MOCKING_ONCE` | bool | `true` | Enables D29. |\n| `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Enables D30. |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 D20 suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. D25 only runs below 9.0. D23 uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. D26/D27 use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |\n| `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Enables D17. |\n| `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Enables D6. |\n| `PROMOTE_PHPUNIT_API` | bool | `true` | Enables D18–D28. |\n| `PROMOTE_MOCKING_ONCE` | bool | `true` | Enables D29. |\n| `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Enables D30. |",
     "fix": true
   },
   "PosixAccountLookupFailureDereferenced": {
@@ -1443,7 +1443,7 @@
   "ProperNullCoalescingOperatorUsage": {
     "phpMin": "7.0",
     "summary": "Two misuses of `??`: (a) `call() ?? null` — a call result never triggers an\nundefined-index/variable notice, so `?? null` does nothing; (b) a fallback\nwhose type has nothing in common with the left operand's type, which usually\nsignals a bug or a confusing API.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| ANALYZE_TYPES | bool | true | Enables Case B (type complementarity). |\n| ALLOW_OVERLAPPING_TYPES | bool | true | When true, any shared type makes operands complementary; when false, the right operand's types must cover all of the left operand's types. |\n\nUpstream fixtures run with `ANALYZE_TYPES` = true and\n`ALLOW_OVERLAPPING_TYPES` = false.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| ANALYZE_TYPES | bool | true | Enables Case B (type complementarity). |\n| ALLOW_OVERLAPPING_TYPES | bool | true | When true, any shared type makes operands complementary; when false, the right operand's types must cover all of the left operand's types. |",
     "fix": true
   },
   "PropertyCanBeStatic": {
@@ -1575,7 +1575,7 @@
   },
   "SecurityAdvisories": {
     "summary": "Works on a project's `composer.json` (not on PHP code). Two concerns:\ndevelopment-only packages (test frameworks, debuggers, static analysers…)\nlisted under `require` end up in production; and an application that pulls\nthird-party packages should also require the advisory \"firewall\" meta-package\nin `require-dev`, which blocks installing versions with known\nvulnerabilities.\n\nThroughout this spec:\n\n- **ADV** is the advisory meta-package: vendor `roave`, package\n  `security-advisories`; its full name is vendor, `/`, package.\n- **CHK** is the alternative checker package: vendor `sensiolabs`, package\n  `security-checker`.\n- **DEV** is the effective development-package list (option\n  `optionConfiguration`, see Options).",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_MISSING_ROAVE_ADVISORIES` | bool | false | Enables kinds A (missing advisory package, with fix) and L (advisory package not on `dev-latest`). |\n| `REPORT_MISPLACED_DEPENDENCIES` | bool | true | Enables kind M (development packages under `require`). |\n| `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for the owner skip (D2). |\n\nEffective DEV: upstream always merges the default list into whatever the\nuser configured (user entries ∪ defaults, deduplicated). Recommendation for\ncustos: DEV = defaults ∪ user entries. Entries may also be vendor prefixes\nending in `/` (only meaningful for the owner skip D2).\n\nConformance note: upstream test cases that do not add the defaults run with\nan *empty* DEV (the merge happens only when settings are loaded). With the\nupstream fixtures this makes no difference to the outcome, except that the\ntwo cases which explicitly add the defaults are the only ones where kind M\nor the owner skip can fire. Using the defaults always is safe.\n\nDefault list (vendor / package; the list entry is `vendor/package`, compared\ncase-insensitively — the entry is stored as `mikey179/vfsStream`):\n\n| Vendor | Package | | Vendor | Package |\n|---|---|---|---|---|\n| phpunit | phpunit | | phpspec | prophecy |\n| johnkary | phpunit-speedtrap | | phpspec | phpspec |\n| brianium | paratest | | humbug | humbug |\n| mybuilder | phpunit-accelerator | | infection | infection |\n| codedungeon | phpunit-result-printer | | mockery | mockery |\n| spatie | phpunit-watcher | | satooshi | php-coveralls |\n| symfony | phpunit-bridge | | mikey179 | vfsStream |\n| symfony | debug | | filp | whoops |\n| symfony | maker-bundle | | friendsofphp | php-cs-fixer |\n| zendframework | zend-test | | phpstan | phpstan |\n| zendframework | zend-debug | | vimeo | psalm |\n| yiisoft | yii2-gii | | jakub-onderka | php-parallel-lint |\n| yiisoft | yii2-debug | | squizlabs | php_codesniffer |\n| orchestra | testbench | | slevomat | coding-standard |\n| barryvdh | laravel-debugbar | | doctrine | coding-standard |\n| codeception | codeception | | phpcompatibility | php-compatibility |\n| behat | behat | | zendframework | zend-coding-standard |\n| yiisoft | yii2-coding-standards | | wp-coding-standards | wpcs |\n| phpmd | phpmd | | pdepend | pdepend |\n| sebastian | phpcpd | | povils | phpmnd |\n| phan | phan | | phpro | grumphp |\n| wimg | php-compatibility | | sstalle | php7cc |\n| phing | phing | | composer | composer |\n| roave | security-advisories | | kalessil | production-dependencies-guard |\n\n(48 entries.) ADV itself is in the list, so ADV under `require` is reported\nas kind M.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_MISSING_ROAVE_ADVISORIES` | bool | false | Enables kinds A (missing advisory package, with fix) and L (advisory package not on `dev-latest`). |\n| `REPORT_MISPLACED_DEPENDENCIES` | bool | true | Enables kind M (development packages under `require`). |\n| `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for the owner skip (D2). |\n\nEffective DEV: the default list is always merged with the configured entries\n(configured entries ∪ defaults, deduplicated). Entries may also be vendor\nprefixes ending in `/` (only meaningful for the owner skip D2).\n\nDefault list (vendor / package; the list entry is `vendor/package`, compared\ncase-insensitively — the entry is stored as `mikey179/vfsStream`):\n\n| Vendor | Package | | Vendor | Package |\n|---|---|---|---|---|\n| phpunit | phpunit | | phpspec | prophecy |\n| johnkary | phpunit-speedtrap | | phpspec | phpspec |\n| brianium | paratest | | humbug | humbug |\n| mybuilder | phpunit-accelerator | | infection | infection |\n| codedungeon | phpunit-result-printer | | mockery | mockery |\n| spatie | phpunit-watcher | | satooshi | php-coveralls |\n| symfony | phpunit-bridge | | mikey179 | vfsStream |\n| symfony | debug | | filp | whoops |\n| symfony | maker-bundle | | friendsofphp | php-cs-fixer |\n| zendframework | zend-test | | phpstan | phpstan |\n| zendframework | zend-debug | | vimeo | psalm |\n| yiisoft | yii2-gii | | jakub-onderka | php-parallel-lint |\n| yiisoft | yii2-debug | | squizlabs | php_codesniffer |\n| orchestra | testbench | | slevomat | coding-standard |\n| barryvdh | laravel-debugbar | | doctrine | coding-standard |\n| codeception | codeception | | phpcompatibility | php-compatibility |\n| behat | behat | | zendframework | zend-coding-standard |\n| yiisoft | yii2-coding-standards | | wp-coding-standards | wpcs |\n| phpmd | phpmd | | pdepend | pdepend |\n| sebastian | phpcpd | | povils | phpmnd |\n| phan | phan | | phpro | grumphp |\n| wimg | php-compatibility | | sstalle | php7cc |\n| phing | phing | | composer | composer |\n| roave | security-advisories | | kalessil | production-dependencies-guard |\n\n(48 entries.) ADV itself is in the list, so ADV under `require` is reported\nas kind M.",
     "fix": true
   },
   "SeekSuccessCheckedAsTruthy": {
@@ -1963,7 +1963,7 @@
   },
   "TypesCastingCanBeUsed": {
     "summary": "Conversion helpers (`intval()`, `floatval()`, `strval()`, `boolval()`,\n`settype()`), a string made of a single interpolated expression (`\"$x\"`), and\nexplicit `-\u003e__toString()` calls all perform a plain type conversion. A cast\nexpresses the same thing directly and avoids a function call.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_INLINES | bool | true | Enables the single-interpolation string check (D8–D9). |\n| REPORT_TO_STRING_METHOD_CALLS | bool | false | Enables the `__toString()` call check (D10–D11). |\n\nThe upstream fixture enables both.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_INLINES | bool | true | Enables the single-interpolation string check (D8–D9). |\n| REPORT_TO_STRING_METHOD_CALLS | bool | false | Enables the `__toString()` call check (D10–D11). |",
     "fix": true
   },
   "UmaskSetterReturnMisread": {
@@ -1975,7 +1975,7 @@
   },
   "UnSafeIsSetOverArray": {
     "summary": "`isset()` mixes two questions: \"does the key/variable exist\" and \"is it not\nnull\". This rule points out single-argument `isset()` calls where a more\nexplicit construct says what is meant: a plain `!== null` comparison for\nvariables and declared properties, `array_key_exists()` for array keys, and\nflags concatenated index expressions that should be computed beforehand.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_TO_USE_ARRAY_KEY_EXISTS | bool | false | Enables D10. |\n| SUGGEST_TO_USE_NULL_COMPARISON | bool | false | Enables D8 and its fix. |\n| REPORT_CONCATENATION_IN_INDEXES | bool | true | Enables D9. When off, such accesses go straight to D10. |\n\nAll upstream fixtures run with all three options **on** and regular comparison\nstyle.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_TO_USE_ARRAY_KEY_EXISTS | bool | false | Enables D10. |\n| SUGGEST_TO_USE_NULL_COMPARISON | bool | false | Enables D8 and its fix. |\n| REPORT_CONCATENATION_IN_INDEXES | bool | true | Enables D9. When off, such accesses go straight to D10. |",
     "fix": true
   },
   "UndeclaredDynamicProperty": {

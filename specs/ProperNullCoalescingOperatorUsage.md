@@ -119,9 +119,6 @@ not `null`):
 | ANALYZE_TYPES | bool | true | Enables Case B (type complementarity). |
 | ALLOW_OVERLAPPING_TYPES | bool | true | When true, any shared type makes operands complementary; when false, the right operand's types must cover all of the left operand's types. |
 
-Upstream fixtures run with `ANALYZE_TYPES` = true and
-`ALLOW_OVERLAPPING_TYPES` = false.
-
 ## PHP versions
 
 The `??` operator exists since PHP 7.0; nothing to report before.
@@ -259,3 +256,5 @@ class Inventory {
   reported although `Dispatcher` declares `__invoke()` and is a valid
   callable. custos treats a class declaring (or inheriting) `__invoke()` as
   related to `callable` (D5).
+- Conformance note: upstream fixtures run with `ANALYZE_TYPES` = true and
+  `ALLOW_OVERLAPPING_TYPES` = false.

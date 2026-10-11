@@ -164,7 +164,7 @@ None.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). The upstream test suite runs with it enabled. |
+| SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). |
 
 ## PHP versions
 
@@ -299,3 +299,5 @@ foreach ($rows as $row) {
   a variable or other expression (`$progress && $progress(['type' =>
   'progress']);`, `$log('step');`) is not reported: like a progress tick
   it is meant to run once per item (Grav's archivers and security scans).
+- Conformance note: the upstream test suite runs with `SUGGEST_USING_CLONE`
+  enabled.

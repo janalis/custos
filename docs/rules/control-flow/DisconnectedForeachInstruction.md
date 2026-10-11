@@ -81,7 +81,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). The upstream test suite runs with it enabled. |
+| SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). |
 
 ## Configure
 

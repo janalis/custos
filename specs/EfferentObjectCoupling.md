@@ -63,7 +63,7 @@ None.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `optionCouplingLimit` | int | 20 | Minimum number of distinct referenced classes that triggers a report (inclusive). The upstream conformance case runs with `2`. |
+| `optionCouplingLimit` | int | 20 | Minimum number of distinct referenced classes that triggers a report (inclusive). |
 
 ## PHP versions
 
@@ -111,3 +111,5 @@ class Basket {
   distinct resolved texts, so `\Foo` and `\foo` (or `Money` and `money`)
   count as two dependencies and inflate the metric. They name the same
   class; custos compares FQNs case-insensitively (D3).
+- Conformance note: the upstream conformance case runs with
+  `optionCouplingLimit` set to `2`.

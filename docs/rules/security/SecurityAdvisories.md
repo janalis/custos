@@ -34,16 +34,9 @@ Throughout this spec:
 | `REPORT_MISPLACED_DEPENDENCIES` | bool | true | Enables kind M (development packages under `require`). |
 | `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for the owner skip (D2). |
 
-Effective DEV: upstream always merges the default list into whatever the
-user configured (user entries ∪ defaults, deduplicated). Recommendation for
-custos: DEV = defaults ∪ user entries. Entries may also be vendor prefixes
-ending in `/` (only meaningful for the owner skip D2).
-
-Conformance note: upstream test cases that do not add the defaults run with
-an *empty* DEV (the merge happens only when settings are loaded). With the
-upstream fixtures this makes no difference to the outcome, except that the
-two cases which explicitly add the defaults are the only ones where kind M
-or the owner skip can fire. Using the defaults always is safe.
+Effective DEV: the default list is always merged with the configured entries
+(configured entries ∪ defaults, deduplicated). Entries may also be vendor
+prefixes ending in `/` (only meaningful for the owner skip D2).
 
 Default list (vendor / package; the list entry is `vendor/package`, compared
 case-insensitively — the entry is stored as `mikey179/vfsStream`):

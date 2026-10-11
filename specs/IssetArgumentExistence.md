@@ -108,7 +108,7 @@ None.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `IGNORE_INCLUDES` | bool | `true` | When `true`, include/require statements in the function are disregarded (reports still happen). When `false`, a function containing any include/require is skipped entirely (the included file could define the variable). The EA fixture runs with `false`. |
+| `IGNORE_INCLUDES` | bool | `true` | When `true`, include/require statements in the function are disregarded (reports still happen). When `false`, a function containing any include/require is skipped entirely (the included file could define the variable). |
 
 ## PHP versions
 
@@ -200,3 +200,5 @@ annotated above).
   every loop enclosing the first mention up to `F`, not only the innermost:
   `foreach ($ids as $id) { foreach (… as $k) { if (isset($prev)) … }
   $prev = $id; }` sets `$prev` for the outer loop's next iteration (tcpdf).
+- Conformance note: the upstream fixture runs with `IGNORE_INCLUDES` set to
+  `false`.

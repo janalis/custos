@@ -102,9 +102,6 @@ Reported:
 | ANALYZE_TYPES | bool | true | Enables Case B (type complementarity). |
 | ALLOW_OVERLAPPING_TYPES | bool | true | When true, any shared type makes operands complementary; when false, the right operand's types must cover all of the left operand's types. |
 
-Upstream fixtures run with `ANALYZE_TYPES` = true and
-`ALLOW_OVERLAPPING_TYPES` = false.
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

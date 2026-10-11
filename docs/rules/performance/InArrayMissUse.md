@@ -92,7 +92,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `FORCE_STRICT_COMPARISON` | bool | `false` | When on, pattern C always produces `===`/`!==`, whatever the 3rd argument. The EA fixture runs with it off. |
+| `FORCE_STRICT_COMPARISON` | bool | `false` | When on, pattern C always produces `===`/`!==`, whatever the 3rd argument. |
 
 Comparison style (`regular`/`yoda`) is the global setting.
 

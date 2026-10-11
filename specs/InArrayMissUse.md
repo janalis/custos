@@ -118,7 +118,7 @@ array is eligible only with a literal integer or string key.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `FORCE_STRICT_COMPARISON` | bool | `false` | When on, pattern C always produces `===`/`!==`, whatever the 3rd argument. The EA fixture runs with it off. |
+| `FORCE_STRICT_COMPARISON` | bool | `false` | When on, pattern C always produces `===`/`!==`, whatever the 3rd argument. |
 
 Comparison style (`regular`/`yoda`) is the global setting.
 
@@ -215,3 +215,5 @@ function checks($role, $list, $map, $a, $b)
   canonical integer with strict comparison, or a non-numeric string
   literal with loose comparison on PHP 8+. EA case affected:
   `in-array-misuse.php` (listed divergence).
+- Conformance note: the upstream fixture runs with `FORCE_STRICT_COMPARISON`
+  off.

@@ -139,9 +139,6 @@ Messages (our wording):
 | SUGGEST_TO_USE_NULL_COMPARISON | bool | false | Enables D8 and its fix. |
 | REPORT_CONCATENATION_IN_INDEXES | bool | true | Enables D9. When off, such accesses go straight to D10. |
 
-All upstream fixtures run with all three options **on** and regular comparison
-style.
-
 ## PHP versions
 
 No gating. Fixtures run at the IDE test default (PHP below 7.1).
@@ -229,3 +226,5 @@ class Ledger {
   gets the array_key_exists suggestion, although `array_key_exists()` throws
   a TypeError on objects (PHP 8) and the access can only work through
   `ArrayAccess`. custos treats `object` like a class type (no report).
+- Conformance note: all upstream fixtures run with all three options **on** and
+  regular comparison style.

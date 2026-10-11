@@ -147,10 +147,6 @@ None.
 | configuration | list of strings | empty (see below) | Additional debug entries (`function_name` or `\Class::method`). |
 | migratedIntoUserSpace | bool | false | When false, the built-in defaults are merged into `configuration`; when true, only `configuration` is used. |
 
-Upstream persists the merged list into `configuration` once and flips
-`migratedIntoUserSpace` to true; custos only needs the "effective list"
-semantics above.
-
 ## PHP versions
 
 None.
@@ -228,3 +224,6 @@ function work($order, Probe $probe, Quiet $quiet) {
   entry (`dump()`, `dd()` of a `Dumpable` trait or a query builder) is the
   dumping helper itself, so calls inside it are not reported (E3), like
   named functions. No upstream fixture uses `wp_die` or such methods.
+- Conformance note: upstream persists the merged list into `configuration` once
+  and flips `migratedIntoUserSpace` to true; custos only needs the "effective
+  list" semantics described under Options.

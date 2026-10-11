@@ -147,9 +147,6 @@ Reported:
 | SUGGEST_SIMPLIFYING_TERNARIES | bool | true | Enables Form A (ternaries). |
 | SUGGEST_SIMPLIFYING_IFS | bool | true | Enables Form B (`if` statements). |
 
-Both upstream fixtures set only one option explicitly, but the other one keeps
-its default `true`, so both forms are active in both runs.
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

@@ -37,39 +37,21 @@ type plan struct {
 }
 
 func (s *Server) prepare(ctx context.Context, w *workspace, cp *checkpoint, snap *project.Snapshot, in Input) (Output, error) {
+	rule, err := s.checkPrepare(ctx, w, cp, in)
+	if err != nil {
+		return nil, err
+	}
 	if in.PlanID != "" {
-		p := s.plans[in.PlanID]
-		if p == nil || p.Identity != identity(ctx) || p.Workspace != w.ID || p.Checkpoint != cp.ID {
-			return nil, errors.New("plan unavailable")
-		}
-		return s.planPage(ctx, p, in)
-	}
-	if !in.Iterative && len(in.Choices) == 0 {
-		return nil, errors.New("select fix choices or iterative fixing")
-	}
-	if len(s.plans) >= 20 {
-		return nil, errors.New("plan capacity reached; apply a plan or wait for expiry")
+		return s.planPage(ctx, s.plans[in.PlanID], in)
 	}
 	selected := map[string][]diagnostic.TextEdit{}
 	parse := syntax.Options{Version: snap.Config.PHP, ShortOpenTag: snap.Config.ShortOpenTag}
 	for _, choice := range in.Choices {
-		var ev *evidence
-		for i := range cp.Findings {
-			if cp.Findings[i].ID == choice.FindingID {
-				ev = &cp.Findings[i]
-				break
-			}
-		}
-		if ev == nil {
-			return nil, errors.New("finding unavailable")
-		}
+		ev := cp.finding(choice.FindingID)
 		result := project.AnalyzeBuffer(snap.Engine, ev.Path, snap.Sources[ev.Path], parse)
 		found := false
 		for _, fd := range result.Findings {
-			if fd.Rule == ev.Rule && fd.Span.Start == ev.Start && fd.Span.End == ev.End {
-				if choice.Fix < 0 || choice.Fix >= len(fd.Fixes) {
-					return nil, errors.New("fix choice unavailable")
-				}
+			if fd.Rule == ev.Rule && fd.Span.Start == ev.Start && fd.Span.End == ev.End && choice.Fix < len(fd.Fixes) {
 				selected[ev.Path] = append(selected[ev.Path], fd.Fixes[choice.Fix].Edits()...)
 				found = true
 				break
@@ -98,10 +80,12 @@ func (s *Server) prepare(ctx context.Context, w *workspace, cp *checkpoint, snap
 		var out []byte
 		edits := selected[name]
 		if in.Iterative {
-			fixed := fixing.FixSource(snap.Engine, name, src, fixing.Options{Parse: parse, Filter: func(fd diagnostic.Finding) bool { return in.Rule == "" || fd.Rule == in.Rule }})
+			fixed := fixing.FixSource(snap.Engine, name, src, fixing.Options{Parse: parse, Filter: func(fd diagnostic.Finding) bool { return rule == "" || fd.Rule == rule }})
 			out = fixed.Source
-			if string(src) != string(out) {
-				edits = []diagnostic.TextEdit{{Span: syntax.Span{Start: 0, End: uint32(len(src))}, NewText: string(out)}}
+			// The loop may rewrite the same region several times: describe
+			// its net effect as minimal line replacements.
+			for _, e := range diff.Edits(string(src), string(out)) {
+				edits = append(edits, diagnostic.TextEdit{Span: syntax.Span{Start: uint32(e.Start), End: uint32(e.End)}, NewText: e.Text})
 			}
 		} else {
 			if err := validateEdits(src, edits); err != nil {
@@ -149,6 +133,46 @@ func (s *Server) prepare(ctx context.Context, w *workspace, cp *checkpoint, snap
 	}
 	s.plans[p.ID] = p
 	return s.planPage(ctx, p, in)
+}
+
+func (cp *checkpoint) finding(id string) *evidence {
+	for i := range cp.Findings {
+		if cp.Findings[i].ID == id {
+			return &cp.Findings[i]
+		}
+	}
+	return nil
+}
+
+// checkPrepare rejects a request from its arguments and the checkpoint alone,
+// before any snapshot is validated or rebuilt. It returns the canonical rule.
+func (s *Server) checkPrepare(ctx context.Context, w *workspace, cp *checkpoint, in Input) (string, error) {
+	if in.PlanID != "" {
+		p := s.plans[in.PlanID]
+		if p == nil || p.Identity != identity(ctx) || p.Workspace != w.ID || p.Checkpoint != cp.ID {
+			return "", errors.New("plan unavailable; prepare a new one")
+		}
+		return "", nil
+	}
+	if !in.Iterative && len(in.Choices) == 0 {
+		return "", errors.New("select fix choices or set iterative to true")
+	}
+	if len(s.plans) >= 20 {
+		return "", errors.New("plan capacity reached; apply a plan or wait for expiry")
+	}
+	for _, choice := range in.Choices {
+		ev := cp.finding(choice.FindingID)
+		if ev == nil {
+			return "", fmt.Errorf("finding %q is not in this checkpoint", choice.FindingID)
+		}
+		if choice.Fix < 0 || choice.Fix >= len(ev.Fixes) {
+			return "", fmt.Errorf("finding %s has %d fix choices", ev.ID, len(ev.Fixes))
+		}
+	}
+	if in.Rule == "" {
+		return "", nil
+	}
+	return canonicalRule(in.Rule)
 }
 
 func validateEdits(src []byte, edits []diagnostic.TextEdit) error {
@@ -229,7 +253,9 @@ func (s *Server) apply(ctx context.Context, w *workspace, in Input) (Output, err
 	if err != nil {
 		return nil, err
 	}
-	if err := s.validate(ctx, w, cp); err != nil {
+	// Targets are compared byte for byte before each replacement, so a
+	// missing snapshot is not analyzed again first.
+	if err := s.validate(ctx, w, cp, false); err != nil {
 		return nil, err
 	}
 	// Consume before the first write. A partially applied plan cannot replay.
@@ -248,9 +274,8 @@ func (s *Server) apply(ctx context.Context, w *workspace, in Input) (Output, err
 		}
 		outcomes = append(outcomes, outcome)
 	}
-	cp.Stale = true
-	_ = s.persist(cp)
-	delete(s.snapshots, cp.ID)
+	// The written files supersede this checkpoint.
+	s.remove(cp.ID)
 	out := Output{"outcomes": outcomes, "partialFailure": partial}
 	if ctx.Err() == nil {
 		next, err := s.analyze(ctx, w, Input{Paths: cp.Paths})

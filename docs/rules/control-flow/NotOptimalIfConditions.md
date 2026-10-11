@@ -110,9 +110,6 @@ Reported:
 | REPORT_INSTANCE_OF_FLAWS | bool | true | enables D3 and D4 |
 | SUGGEST_OPTIMIZING_CONDITIONS | bool | true | enables D1 |
 
-Upstream tests set one option to `true` without disabling the others, so each
-fixture is effectively evaluated with all checks on.
-
 ## Configure
 
 In [`custos.json`](/guide/configuration):

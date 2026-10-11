@@ -206,7 +206,7 @@ Worked results (short syntax on):
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax for arrays in the rebuilt call (F5): `[...]` when true, `array(...)` when false. Detection unaffected. Upstream fixtures run with `true`. |
+| USE_SHORT_ARRAYS_SYNTAX | bool | false | Array syntax for arrays in the rebuilt call (F5): `[...]` when true, `array(...)` when false. Detection unaffected. |
 
 ## PHP versions
 
@@ -349,3 +349,5 @@ function swap(array $from, array $to, $text) {
   `str_replace($badCharList, ' ', $n)` followed by `str_replace('\'', '',
   $n)` became `str_replace([...$bad, '\''], [' ', ''], $n)`, which deletes
   the bad characters instead of turning them into spaces.
+- Conformance note: upstream fixtures run with `USE_SHORT_ARRAYS_SYNTAX` set to
+  `true`.

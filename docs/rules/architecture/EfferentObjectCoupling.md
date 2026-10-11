@@ -53,7 +53,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `optionCouplingLimit` | int | 20 | Minimum number of distinct referenced classes that triggers a report (inclusive). The upstream conformance case runs with `2`. |
+| `optionCouplingLimit` | int | 20 | Minimum number of distinct referenced classes that triggers a report (inclusive). |
 
 ## Configure
 

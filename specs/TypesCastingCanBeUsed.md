@@ -108,8 +108,6 @@ expresses the same thing directly and avoids a function call.
 | REPORT_INLINES | bool | true | Enables the single-interpolation string check (D8–D9). |
 | REPORT_TO_STRING_METHOD_CALLS | bool | false | Enables the `__toString()` call check (D10–D11). |
 
-The upstream fixture enables both.
-
 ## PHP versions
 
 No gating. The upstream fixture declares no level (test default, below 7.1).
@@ -210,3 +208,4 @@ class Tag extends Base {
   string case-sensitively, missing `settype($v, 'INT')` although PHP accepts
   type names in any case. custos compares it case-insensitively (D5); the
   cast is written in lower case.
+- Conformance note: the upstream fixture enables both options.
