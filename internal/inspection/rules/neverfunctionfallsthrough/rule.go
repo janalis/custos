@@ -73,14 +73,17 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 				unknown = true
 			}
 		case *syntax.While:
-			if value, known := semanticquery.NativeTruth(ctx, x.Cond); known && value && !syntax.Terminates(x) {
+			if !syntax.Terminates(x) && neverFalse(ctx, x.Cond) {
+				unknown = true
+			}
+		case *syntax.DoWhile:
+			if !syntax.Terminates(x) && neverFalse(ctx, x.Cond) {
 				unknown = true
 			}
 		case *syntax.For:
-			if len(x.Cond) == 1 {
-				if value, known := semanticquery.NativeTruth(ctx, x.Cond[0]); known && value && !syntax.Terminates(x) {
-					unknown = true
-				}
+			// Only the last condition expression decides whether the loop continues.
+			if len(x.Cond) > 0 && !syntax.Terminates(x) && neverFalse(ctx, x.Cond[len(x.Cond)-1]) {
+				unknown = true
 			}
 		}
 		return true
@@ -94,6 +97,27 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !unknown && !explicit && !neverCall {
 		ctx.ReportNode(ret, message)
 	}
+}
+
+// neverFalse reports whether a loop condition cannot be shown to turn false:
+// it is a known truthy value, or an expression built only from literals,
+// constants and operators whose value is not evaluated here. Such a loop may
+// never be left through its condition, so it cannot prove a fall-through.
+func neverFalse(ctx *analysis.Context, cond syntax.Expr) bool {
+	if value, known := semanticquery.NativeTruth(ctx, cond); known {
+		return value
+	}
+	constant := true
+	syntax.Inspect(cond, func(n syntax.Node) bool {
+		switch n.(type) {
+		case *syntax.Literal, *syntax.ConstFetch, *syntax.ClassConstFetch, *syntax.Name, *syntax.Identifier,
+			*syntax.Unary, *syntax.Binary, *syntax.Ternary, *syntax.Paren:
+		default:
+			constant = false
+		}
+		return constant
+	})
+	return constant
 }
 
 func callReturn(ctx *analysis.Context, n syntax.Node) (string, bool) {

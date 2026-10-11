@@ -6,6 +6,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/index"
 )
 
 // missingIssetImplementation reports isset()/empty() on undeclared
@@ -23,6 +24,10 @@ func (missingIssetImplementation) Semantic() {}
 func issetExempt(fqn string) bool {
 	switch strings.ToLower(strings.TrimPrefix(fqn, `\`)) {
 	case "simplexmlelement", "stdclass", "domdocument":
+		return true
+	case "arrayobject", "arrayiterator":
+		// custos: with ARRAY_AS_PROPS their native handler answers
+		// isset($o->key) from the stored array.
 		return true
 	}
 	return false
@@ -95,7 +100,10 @@ func checkMissingIsset(ctx *analysis.Context, a syntax.Expr) {
 		// property, which isset() does see; skip it when the file writes
 		// properties of that name or by a computed name (an importer's
 		// `$entity->$field = $value`).
-		if ix.FindMethod(cls, "__set", ctx.PHP) == nil && misDynamicWrite(ctx, id.Value) {
+		// An indirect write (element access, reference) only creates the
+		// property when no __get() intercepts the fetch.
+		if ix.FindMethod(cls, "__set", ctx.PHP) == nil &&
+			misDynamicWrite(ctx, id.Value, ix.FindMethod(cls, "__get", ctx.PHP) == nil) {
 			return
 		}
 		if report == "" {
@@ -121,22 +129,29 @@ func misAllowsDynamic(ctx *analysis.Context, cls string) bool {
 	return false
 }
 
-// misDynamicWrite reports whether the file assigns a property named name on
-// a receiver other than $this, or assigns a property with a computed name.
-func misDynamicWrite(ctx *analysis.Context, name string) bool {
+// misDynamicWrite reports whether the file writes a property named name on
+// a receiver other than $this, or writes a property with a computed name.
+// Writes through an element access or a reference are recorded under
+// misIndirect+name and count only when indirect is set.
+func misDynamicWrite(ctx *analysis.Context, name string, indirect bool) bool {
 	w := ctx.Memo("writes", func() any {
 		names := map[string]bool{}
 		for _, st := range ctx.File.Stmts {
 			syntax.Inspect(st, func(n syntax.Node) bool {
-				as, ok := n.(*syntax.Assign)
-				if !ok {
-					return true
-				}
-				if pf, ok := as.Var.(*syntax.PropertyFetch); ok {
-					if id, ok := pf.Name.(*syntax.Identifier); !ok {
-						names[""] = true // computed name
-					} else if ctx.Text(pf.Var) != "$this" {
-						names[id.Value] = true
+				switch x := n.(type) {
+				case *syntax.Assign:
+					misNoteWrite(ctx, names, x.Var, false)
+					if x.ByRef { // $r = &$o->name
+						misNoteWrite(ctx, names, x.Value, true)
+					}
+				case *syntax.IncDec:
+					misNoteWrite(ctx, names, x.Var, false)
+				case *syntax.Foreach:
+					misNoteWrite(ctx, names, x.Key, false)
+					misNoteWrite(ctx, names, x.Value, false)
+				case *syntax.Arg:
+					if _, ok := misElementBase(x.Value).(*syntax.PropertyFetch); ok && misArgByRef(ctx, x) {
+						misNoteWrite(ctx, names, x.Value, true)
 					}
 				}
 				return true
@@ -144,7 +159,93 @@ func misDynamicWrite(ctx *analysis.Context, name string) bool {
 		}
 		return names
 	}).(map[string]bool)
-	return w[""] || w[name]
+	return w[""] || w[name] || indirect && w[misIndirect+name]
+}
+
+// misIndirect prefixes the recorded name of a property only written through
+// an element access or a reference; "$" cannot start a static property name.
+const misIndirect = "$"
+
+// misElementBase strips element accesses: writing `$o->name[] = 1` or
+// `$o->name['k'] = 1` creates the property too.
+func misElementBase(e syntax.Expr) syntax.Expr {
+	for {
+		d, ok := e.(*syntax.ArrayDimFetch)
+		if !ok {
+			return e
+		}
+		e = d.Var
+	}
+}
+
+// misNoteWrite records the properties a write target creates: the fetch
+// itself, the fetch under element accesses, or the slots of a destructuring
+// pattern. "" stands for a computed property name. indirect marks a write
+// through a reference; a write under an element access is indirect too.
+func misNoteWrite(ctx *analysis.Context, names map[string]bool, target syntax.Expr, indirect bool) {
+	var items []*syntax.ArrayItem
+	base := misElementBase(target)
+	prefix := ""
+	if indirect || base != target {
+		prefix = misIndirect
+	}
+	switch x := base.(type) {
+	case *syntax.PropertyFetch:
+		if id, ok := x.Name.(*syntax.Identifier); !ok {
+			names[""] = true // computed name
+		} else if ctx.Text(x.Var) != "$this" {
+			names[prefix+id.Value] = true
+		}
+	case *syntax.Array:
+		items = x.Items
+	case *syntax.List:
+		items = x.Items
+	}
+	for _, it := range items {
+		if it != nil {
+			misNoteWrite(ctx, names, it.Value, false)
+		}
+	}
+}
+
+// misArgByRef reports whether arg is passed by reference: call-time `&`, or
+// bound to a by-reference parameter of the resolved callee. An unresolved
+// callee is taken as by-value, the common reading of `f($o->name)`.
+func misArgByRef(ctx *analysis.Context, arg *syntax.Arg) bool {
+	if arg.ByRef {
+		return true
+	}
+	list := arg.Parent().(*syntax.ArgList)
+	var params []index.Param
+	if n, ok := list.Parent().(*syntax.New); ok {
+		ctor := ctx.Index().FindMethod(semanticquery.StaticCallClass(ctx, n.Class), "__construct", ctx.PHP)
+		if ctor == nil {
+			return false
+		}
+		params = ctor.Params
+	} else if callee, ok := semanticquery.ResolveCallee(ctx, list.Parent()); ok {
+		params = callee.Params
+	}
+	if arg.Name != nil {
+		for _, p := range params {
+			if strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
+				return p.ByRef
+			}
+		}
+		return false
+	}
+	pos := 0
+	for list.Args[pos] != syntax.Expr(arg) {
+		pos++
+	}
+	// Arguments past the last parameter bind to a variadic tail.
+	if n := len(params); pos >= n {
+		if n == 0 || !params[n-1].Variadic {
+			return false
+		}
+		pos = n - 1
+	}
+	return params[pos].ByRef
 }
 
 // misSubclassMayHave reports whether a descendant of cls declares the

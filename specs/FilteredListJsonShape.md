@@ -23,7 +23,8 @@ Detect builtin json_encode consuming array_filter on a literal sequential array 
 - An explicit JSON_FORCE_OBJECT flag establishes object output intent. Unknown flags cannot prove list output intent and suppress this check.
 
 - E1. Do not report a preserved contiguous list, explicit reindexing, or a deliberately keyed source array.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E2. Do not report when the literal is reached through a local variable (the filtered array itself, a variable item or key, or a variable one of those was copied from) that can receive another value without a plain assignment in the scope of the call: a closure capturing it by reference, a reference held by an array item, a reference assignment, a by-reference foreach over it, `++` or `--`, a catch, foreach, global, static or unset binding, or an extract() call. A by-value capture or copy does not suppress the report.
+- E3. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report
 
@@ -55,6 +56,16 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 ```php
 <?php
 json_encode(\array_values(array_filter([1, 0, 2])));
+```
+
+```php
+<?php
+function capturedRows() {
+    $rows = [1, 0, 2];
+    $load = function () use (&$rows) { $rows = [3, 4]; };
+    $load();
+    return json_encode(array_filter($rows)); // no report: $rows is no longer the literal
+}
 ```
 
 ## Divergences

@@ -27,7 +27,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.ExpansionGlobalConstant(ctx, t, "SQLITE3_NULL") {
 		return
 	}
-	v := semanticquery.NativeValue(ctx, semanticquery.CallArgument(c.Args, 1, "value"))
+	arg := semanticquery.CallArgument(c.Args, 1, "value")
+	if referenceEscapes(ctx, c, arg) {
+		return
+	}
+	v := semanticquery.NativeValue(ctx, arg)
 	switch x := v.(type) {
 	case *syntax.Literal:
 		if x.LitKind == syntax.LitString || x.LitKind == syntax.LitInt || x.LitKind == syntax.LitFloat {
@@ -38,4 +42,39 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			ctx.ReportNode(c, message)
 		}
 	}
+}
+
+// referenceEscapes reports whether the bound variable is captured by
+// reference by a closure, or stored by reference in an array, anywhere in the
+// lexical scope of the call. Such an alias can rewrite the variable without a
+// visible assignment, so its last literal no longer proves the bound value.
+func referenceEscapes(ctx *analysis.Context, at syntax.Node, arg syntax.Expr) bool {
+	v, ok := syntax.UnwrapParens(arg).(*syntax.Variable)
+	if !ok {
+		return false
+	}
+	name := ctx.Text(v)
+	scope := syntax.EnclosingFuncLike(at)
+	found := false
+	visit := func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Closure:
+			for _, u := range x.Uses {
+				found = found || u.ByRef && ctx.Text(u.Var) == name
+			}
+			// A nested closure body is another variable scope.
+			return n == scope
+		case *syntax.Function, *syntax.ClassLike:
+			return n == scope
+		case *syntax.ArrayItem:
+			found = found || x.ByRef && x.Value != nil && ctx.Text(syntax.UnwrapParens(x.Value)) == name
+		}
+		return !found
+	}
+	if scope == nil {
+		syntax.InspectFile(ctx.File, visit)
+	} else {
+		syntax.Inspect(scope, visit)
+	}
+	return found
 }

@@ -21,7 +21,8 @@ PDO's combined fetch mode exposes numeric and named copies of each field. Select
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- E2. Do not report a variable argument when a `foreach` in the same lexical scope iterates that variable binding its elements by reference (`as &$row`, `as $k => &$row`, or a destructuring target holding a `&` slot). Such a loop can replace every row in place, so the serialized shape is no longer proven. A by-reference loop inside a nested closure or function concerns another variable and does not count.
+- E3. Both standard suppression forms suppress this native ID.
 
 ## Report
 
@@ -54,6 +55,13 @@ Valid case:
 ```php
 <?php
 $p=new PDO($dsn);$s=$p->query("SELECT id FROM users");$a=$s->fetchAll(PDO::FETCH_ASSOC);echo json_encode($a);
+```
+
+Rows reshaped in place are not reported either:
+
+```php
+<?php
+function names(PDOStatement $s){$rows=$s->fetchAll(PDO::FETCH_BOTH);foreach($rows as &$row){$row=$row['name'];}unset($row);return json_encode($rows);}
 ```
 
 ## Divergences

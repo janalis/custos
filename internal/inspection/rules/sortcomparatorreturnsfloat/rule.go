@@ -26,7 +26,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return
 	}
-	_, body := semanticquery.NativeCallback(ctx, semanticquery.CallArgument(call.Args, 1, "callback"))
+	callback := semanticquery.CallArgument(call.Args, 1, "callback")
+	_, body := semanticquery.NativeCallback(ctx, callback)
 	values, complete := semanticquery.NativeReturns(body)
 	if !complete {
 		return
@@ -38,9 +39,21 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	var fixes []diagnostic.Fix
-	if len(values) == 1 && ctx.PHP >= phpversion.PHP70 {
+	// A named function or a closure held in a variable may be called elsewhere
+	// for its arithmetic result, so only an inline comparator is rewritten.
+	if len(values) == 1 && ctx.PHP >= phpversion.PHP70 && inlineCallback(callback) {
 		b := syntax.UnwrapParens(values[0]).(*syntax.Binary)
 		fixes = append(fixes, diagnostic.Fix{Title: "Compare without float truncation", Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: b.Op.Span, NewText: "<=>"}} }})
 	}
 	ctx.ReportNode(call, message, fixes...)
+}
+
+// inlineCallback reports whether the argument is itself an anonymous function,
+// which nothing but the sort call can invoke.
+func inlineCallback(e syntax.Expr) bool {
+	switch syntax.UnwrapParens(e).(type) {
+	case *syntax.Closure, *syntax.ArrowFunction:
+		return true
+	}
+	return false
 }

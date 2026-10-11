@@ -15,6 +15,7 @@ Identify query on same resolved mysqli after successful multi_query containing a
 ## Detection
 
 - D1. Report query on same resolved mysqli after successful multi_query containing at least two known statements, before a complete more_results/next_result drain loop. Unknown calls invalidate proof; first result alone does not drain subsequent results.
+- D1a. A complete drain is a `while` or `do`-`while` loop, placed after the `multi_query` and ending before the reported query, whose condition is decided by `more_results()` or `next_result()` on the same connection (the call alone, parenthesised, or as an operand of `&&`) and which calls `next_result()` on that connection in its condition or body. This covers `do { ... } while ($db->next_result());`, `do { ... } while ($db->more_results() && $db->next_result());`, `while ($db->next_result()) { ... }` and `while ($db->more_results()) { $db->next_result(); }`. A negated, compared or `||`-combined probe, a probe on another connection, a `for`/`if` condition, and a loop that still contains the reported query are not a drain.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
@@ -56,6 +57,20 @@ Valid case:
 ```php
 <?php
 $db = new mysqli(); $db->query('SELECT 7'); $db->query('SELECT 14');
+```
+
+Valid case, results drained first:
+
+```php
+<?php
+function totals(mysqli $db) {
+    if ($db->multi_query('SELECT 7; SELECT 11')) {
+        do {
+            if ($set = $db->store_result()) { $set->free(); }
+        } while ($db->next_result());
+        return $db->query('SELECT 14');
+    }
+}
 ```
 
 ## Divergences

@@ -43,7 +43,8 @@ Reported:
 ## Exceptions (no report)
 
 - E1. Unknown callbacks, explicit initial values, and callbacks guarding or replacing null are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E2. A callback whose first parameter is variadic is excluded: that parameter gathers the carry and the item into a list, so it is an array on every iteration and is not the accumulator itself.
+- E3. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

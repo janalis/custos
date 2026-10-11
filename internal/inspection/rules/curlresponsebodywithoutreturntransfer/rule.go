@@ -3,6 +3,7 @@ package curlresponsebodywithoutreturntransfer
 
 import (
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -36,7 +37,65 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !semanticquery.NativeCurlDefault(ctx, producer, handle, "CURLOPT_RETURNTRANSFER") {
 			continue
 		}
+		if sharedOutsideScope(ctx, producer, handle) {
+			continue
+		}
 		ctx.ReportNode(call, message)
 		return
 	}
+}
+
+// sharedOutsideScope reports whether another variable scope can reach the
+// handle: a closure capture, an arrow-function reference or a global binding.
+// Code in that scope may configure the handle without passing it to a call
+// the local proof sees, so the option state is unknown.
+func sharedOutsideScope(ctx *analysis.Context, at syntax.Node, handle syntax.Expr) bool {
+	id := ctx.Flow().Value(handle).Identity
+	scope := syntax.EnclosingVariableScope(at)
+	names := map[string]bool{}
+	visit := func(fn func(syntax.Node) bool) {
+		if scope != nil {
+			syntax.Inspect(scope, fn)
+			return
+		}
+		syntax.InspectFile(ctx.File, fn)
+	}
+	// Every local name holding the handle, so captured aliases count too.
+	visit(func(n syntax.Node) bool {
+		if n != scope && syntax.IsVariableScope(n) {
+			return false
+		}
+		switch n := n.(type) {
+		case *syntax.Variable:
+			if n.NameExpr == nil && ctx.Flow().Value(n).Identity == id {
+				names[n.Name] = true
+			}
+		case *syntax.Assign:
+			if v, ok := n.Var.(*syntax.Variable); ok && ctx.Flow().Value(n.Value).Identity == id {
+				names[v.Name] = true
+			}
+		}
+		return true
+	})
+	shared := false
+	visit(func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.Closure:
+			for _, use := range n.Uses {
+				shared = shared || n != scope && names[use.Var.Name]
+			}
+		case *syntax.ArrowFunction:
+			for name := range names {
+				shared = shared || n != scope && astquery.MentionsVariable(n.Expr, name)
+			}
+		case *syntax.Global:
+			for _, v := range n.Vars {
+				if v, ok := v.(*syntax.Variable); ok && names[v.Name] {
+					shared = true
+				}
+			}
+		}
+		return !shared
+	})
+	return shared
 }

@@ -3,6 +3,7 @@ package jsonencodenonfinitenumber
 
 import (
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -32,13 +33,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
-	if nonfinite(ctx, semanticquery.CallArgument(c.Args, 0, "value"), 0) {
+	if nonfinite(ctx, c, semanticquery.CallArgument(c.Args, 0, "value"), 0) {
 		ctx.ReportNode(c, message)
 	}
 }
 
-func nonfinite(ctx *analysis.Context, e syntax.Expr, depth int) bool {
-	if depth > 32 {
+func nonfinite(ctx *analysis.Context, call *syntax.FuncCall, e syntax.Expr, depth int) bool {
+	if depth > 32 || rewritten(ctx, call, e) {
 		return false
 	}
 	e = semanticquery.NativeValue(ctx, e)
@@ -47,14 +48,45 @@ func nonfinite(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 		return name == "INF" || name == "NAN"
 	}
 	if u, ok := e.(*syntax.Unary); ok && (u.Op.Kind == syntax.TMinus || u.Op.Kind == syntax.TPlus) {
-		return nonfinite(ctx, u.Expr, depth+1)
+		return nonfinite(ctx, call, u.Expr, depth+1)
 	}
 	if values, k := semanticquery.NativeArrayEntries(ctx, e); k {
 		for _, v := range values {
-			if nonfinite(ctx, v, depth+1) {
+			if nonfinite(ctx, call, v, depth+1) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+// rewritten reports whether e is a plain variable that its scope changes in
+// a way the tracked value does not follow: a foreach that iterates it by
+// reference or writes into it, a by-reference closure capture, or extract().
+// The scan ignores statement order.
+func rewritten(ctx *analysis.Context, call *syntax.FuncCall, e syntax.Expr) bool {
+	v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
+	if !ok || v.NameExpr != nil {
+		return false
+	}
+	found := false
+	visit := func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.Foreach:
+			found = found || n.ByRef && astquery.MentionsVariable(n.Expr, v.Name) ||
+				astquery.MentionsVariable(n.Key, v.Name) || astquery.MentionsVariable(n.Value, v.Name)
+		case *syntax.ClosureUse:
+			found = found || n.ByRef && n.Var.Name == v.Name
+		case *syntax.FuncCall:
+			_, extract := astquery.IsFuncNamedFold(n, "extract")
+			found = found || extract
+		}
+		return !found
+	}
+	if scope := syntax.EnclosingVariableScope(call); scope != nil {
+		syntax.Inspect(scope, visit)
+	} else {
+		syntax.InspectFile(ctx.File, visit)
+	}
+	return found
 }

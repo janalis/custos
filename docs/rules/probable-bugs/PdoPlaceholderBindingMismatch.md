@@ -35,6 +35,7 @@ Reported:
 
 - E1. Unknown SQL, unknown parameter spreads, unknown earlier bindings and driver-specific unresolved statements are excluded; parse quoted literals and comments before counting markers.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. When `execute()` receives no parameter array and the statement variable is captured by a closure (`use ($s)`, by value or by reference) or referenced inside an arrow function written before the call, that callable may bind markers out of sight, so the earlier bindings are unknown and nothing is reported. A callable written after the call does not hide the mismatch, and an explicit parameter array is still checked because it alone supplies the values.
 
 ## Fix
 

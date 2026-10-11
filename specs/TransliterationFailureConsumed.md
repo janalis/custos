@@ -17,11 +17,12 @@ Check transliteration before consuming text.
 - D1. Track results of resolved transliterator_transliterate or Transliterator::transliterate to strlen or strtoupper without a dominating strict false guard. Direct expressions and unchanged locals are supported; storage alone is excluded.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
 - D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D4. A guard dominates the consumer when the consumer is reached only after a condition that excludes false for the same unchanged value. Accepted conditions are a strict comparison with false (`$s !== false` holding, `$s === false` failing, either operand order), `is_string($s)` holding for the resolved builtin, a negation of these, and `&&`/`and`/`||`/`or` combinations whose outcome implies one of them. The compared operand may be the plain assignment that stores the result, as in `($s = transliterator_transliterate(...)) === false`. Accepted positions are: the matching branch of an `if`, `elseif` or `else`; the matching branch of a ternary; the right operand of `&&`/`and` (left held) or `||`/`or` (left failed); an arm of `match (true)` whose single condition holds or that follows an earlier arm whose condition failed; and the statement directly after an `if` without alternatives whose body always leaves.
 
 ## Exceptions (no report)
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E2. A dominating valid guard or repair described in Detection prevents the finding. Truthiness tests (`if (!$s)`, `empty($s)`, `$s ? … : …`), loose comparisons and other type predicates are not guards: they stay reported. Both legacy noinspection and custos-ignore forms suppress this ID.
 
 ## Report
 
@@ -56,6 +57,18 @@ Valid case:
 ```php
 <?php
 $s=transliterator_transliterate($transform,$input); if ($s !== false) { echo strlen($s); }
+```
+
+Guards written as expressions are valid too:
+
+```php
+<?php
+$s = transliterator_transliterate($transform, $input);
+echo $s === false ? 0 : strlen($s);
+echo $s !== false && strlen($s) > 3 ? 'long' : 'short';
+echo match (true) { $s === false => 0, default => strlen($s) };
+if (($u = transliterator_transliterate($transform, $input)) === false) { return; }
+echo strtoupper($u);
 ```
 
 ## Divergences

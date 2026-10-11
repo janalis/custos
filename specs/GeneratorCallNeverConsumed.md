@@ -15,12 +15,15 @@ Detect a standalone discarded call to a resolved project callable containing yie
 ## Detection
 
 - D1. Report a standalone discarded call to a resolved project callable containing yield and at least one deferred side-effect operation.
+- D1a. Deferred side-effect operations are those owned by the generator body itself (nested functions, closures and classes are skipped): function, method and static calls, object creation, `echo`, `print`, inline HTML, `include`/`require`, `eval`, `exit`/`die`, `throw`, and assignments or increments whose target is not a plain local variable (property, static property, `$GLOBALS`, dynamic variable or destructuring targets).
+- D1b. A write to a named local variable (`$x = ...`, `$x[...] = ...`, `$x++`) is not observable outside the generator and does not count on its own. It counts only when the body may alias a local to outer state: a by-reference parameter, a `global` or `static` declaration, a reference assignment, or a by-reference `foreach`.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
 - E1. Calls assigned, returned, iterated, delegated with yield from, or passed to another callable are excluded.
+- E1a. First-class callable syntax `f(...)` creates a Closure and calls nothing, so there is no generator to consume.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report
@@ -48,6 +51,16 @@ Available from PHP 5.5. Builtin behavior and argument contracts follow the confi
 ```php
 <?php
 function deliver() { yield sendPacket(); } <warning descr="Consume the generator to execute its body.">deliver()</warning>;
+```
+
+```php
+<?php
+function announce() { echo "started\n"; yield 1; }
+<warning descr="Consume the generator to execute its body.">announce()</warning>;
+
+function counted() { $n = 1; yield $n; }
+counted();      // only a local write: nothing observable is lost
+announce(...);  // builds a Closure, calls nothing
 ```
 
 ## Divergences

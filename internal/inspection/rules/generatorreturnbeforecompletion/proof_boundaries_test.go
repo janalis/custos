@@ -35,7 +35,7 @@ func TestProofBoundaries(t *testing.T) {
 	for _, tc := range []struct {
 		src  string
 		want int
-	}{{"$x->start();", 0}, {"$x->$name();", 0}, {"new stdClass(); $x->getReturn();", 0}, {"$x=1; $x->getReturn();", 0}, {"$x=function(){yield 1;}; $x->getReturn();", 0}, {"$x=(function(){return 1;})(); $x->getReturn();", 0}, {"$x=(function(){yield 1;})(); echo $x->getReturn();", 0}, {"if($a) $x->getReturn();", 0}, {"$g=&$other; $g->getReturn();", 0}, {"$g=(function(){yield 1;})(); $other->getReturn();", 0}, {"$obj->p=1; $obj->getReturn();", 0}, {"(new stdClass)->getReturn();", 0}, {"if($x){} $g->getReturn();", 0}} {
+	}{{"$x->start();", 0}, {"$x->$name();", 0}, {"new stdClass(); $x->getReturn();", 0}, {"$x=1; $x->getReturn();", 0}, {"$x=function(){yield 1;}; $x->getReturn();", 0}, {"$x=(function(){return 1;})(); $x->getReturn();", 0}, {"$x=(function(){yield 1;})(); echo $x->getReturn();", 1}, {"if($a) $x->getReturn();", 0}, {"$g=&$other; $g->getReturn();", 0}, {"$g=(function(){yield 1;})(); $other->getReturn();", 0}, {"$obj->p=1; $obj->getReturn();", 0}, {"(new stdClass)->getReturn();", 0}, {"if($x){} $g->getReturn();", 0}} {
 		e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"GeneratorReturnBeforeCompletion"}})
 		if err != nil {
 			t.Fatal(err)

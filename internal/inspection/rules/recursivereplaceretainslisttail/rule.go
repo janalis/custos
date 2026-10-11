@@ -24,9 +24,20 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	a, ak := semanticquery.NativeArrayEntries(ctx, semanticquery.CallArgument(call.Args, 0, "array"))
-	b, bk := semanticquery.NativeArrayEntries(ctx, semanticquery.CallArgument(call.Args, 1, "replacements"))
-	if !ak || !bk {
+	first := semanticquery.CallArgument(call.Args, 1, "replacements")
+	if !ak || first == nil {
 		return
+	}
+	// Later replacement arrays are applied in order and can overwrite the
+	// tail, so every one of them takes part in the proof. CallArgument has
+	// already rejected spreads and placeholders anywhere in the list.
+	replacements := []syntax.Expr{first}
+	for _, node := range call.Args.Args[min(2, len(call.Args.Args)):] {
+		arg := node.(*syntax.Arg)
+		if arg.Name != nil {
+			return
+		}
+		replacements = append(replacements, arg.Value)
 	}
 	assignment, ok := call.Parent().(*syntax.Assign)
 	if !ok || assignment.ByRef {
@@ -50,16 +61,30 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	left, lok := a[key]
-	right, rok := b[key]
-	if !lok || !rok {
+	if !lok {
 		return
 	}
 	l := semanticquery.NativeArray(ctx, left)
-	r := semanticquery.NativeArray(ctx, right)
-	if !list(l) || !list(r) {
+	if !list(l) || index >= int64(len(l.Items)) {
 		return
 	}
-	if index >= int64(len(r.Items)) && index < int64(len(l.Items)) {
+	shorter := false
+	for _, replacement := range replacements {
+		entries, ok := semanticquery.NativeArrayEntries(ctx, replacement)
+		if !ok {
+			return
+		}
+		right, ok := entries[key]
+		if !ok {
+			continue
+		}
+		r := semanticquery.NativeArray(ctx, right)
+		if !list(r) || index < int64(len(r.Items)) {
+			return
+		}
+		shorter = true
+	}
+	if shorter {
 		ctx.ReportNode(call, message)
 	}
 }

@@ -17,6 +17,8 @@ Detect a resolved backed enum from call with a request-derived backing value not
 - D1. Report a resolved backed enum from call with a request-derived backing value not proven within its declared case set and without handling ValueError.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D4. A ValueError handler counts only when the call sits in the try body of a statement whose catch clauses name ValueError, Error or Throwable. A call placed in a catch or finally block of that statement is not covered by it, though an outer try may still cover it.
+- D5. Guards and handlers are looked up inside the function-like body that contains the call. A closure or arrow function runs later, so a try block or membership check surrounding its creation proves nothing about the call inside it.
 
 ## Exceptions (no report)
 
@@ -54,4 +56,4 @@ enum Phase:string {case Ready='ready';} $p=<warning descr="Handle unknown enum b
 
 Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
 
-Audit constraint: an immediate first use in the positive body of a resolved strict in_array check is accepted when its literal allowed values match declared backing values. Unknown sets, non-strict comparison, unrelated inputs and intervening evaluation do not prove membership.
+Audit constraint: an immediate first use in the positive body of a resolved strict in_array check is accepted when its literal allowed values match declared backing values. String literals are compared by decoded value, so the quote style of the list entries and of the case declarations does not matter; other literals are compared by their source text. The check may be the whole condition or the last operand of an `&&`/`and` chain, because the earlier operands are evaluated before it. Unknown sets, non-strict comparison, unrelated inputs, a check followed by further operands, a check inside `||`, and intervening evaluation do not prove membership.

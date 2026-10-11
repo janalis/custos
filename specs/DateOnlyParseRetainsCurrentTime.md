@@ -22,6 +22,7 @@ Detect DateTime or DateTimeImmutable createFromFormat with a format containing c
 
 - E1. Formats containing ! or resetting unspecified fields with a trailing vertical-bar modifier, intentional current-time completion and unknown formats are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. No report when the createFromFormat call (optionally parenthesised) is the direct receiver of a `->setTime(...)` or `?->setTime(...)` call: that call overwrites every omitted time field, so the current time is never kept. Only the immediate receiver counts; a later `setTime` statement on a variable and a chained `format()` are not tracked.
 
 ## Report
 
@@ -32,6 +33,8 @@ Detect DateTime or DateTimeImmutable createFromFormat with a format containing c
 ## Fix
 
 Prefix the literal format with ! only under this opt-in midnight contract, preserving literal quoting and existing format bytes.
+
+The reset modifier sets every unparsed field to its Unix-epoch value, date fields included. The fix is therefore offered only when the unescaped format tokens supply a year (`Y` or `y`), a month (`m`, `n`, `M` or `F`) and a day of month (`d` or `j`). Partial formats such as `d/m`, `F Y` or `Y` take their missing date fields from today; prefixing them with ! would move the result to 1970 or to day 1, so they are reported without a fix. Day-of-year formats (`z`) are also reported without a fix. Formats that are not a plain single- or double-quoted literal argument are reported without a fix.
 
 A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 
@@ -58,5 +61,7 @@ $day=DateTimeImmutable::createFromFormat('!Y-m-d',$input);
 ## Divergences
 
 Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
+
+Audit constraint: the fix never changes the parsed calendar date; partial-date formats keep the report but get no edit. A value normalised by a directly chained `setTime` is not reported.
 
 Audit constraint: escaped calendar letters are literal text and do not establish a date-only parsing format.

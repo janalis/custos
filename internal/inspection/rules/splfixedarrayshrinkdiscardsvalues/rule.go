@@ -2,12 +2,28 @@
 package splfixedarrayshrinkdiscardsvalues
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
 
 const message = "Preserve populated entries before shrinking."
+
+// readers are the SplFixedArray methods that leave every slot untouched.
+var readers = map[string]bool{
+	"getsize": true, "offsetget": true, "offsetexists": true, "toarray": true, "count": true,
+	"current": true, "key": true, "next": true, "rewind": true, "valid": true,
+	"getiterator": true, "jsonserialize": true,
+}
+
+// inspectors are builtins that read an object argument without keeping it,
+// changing it or handing it to user code.
+var inspectors = map[string]bool{
+	"count": true, "sizeof": true, "iterator_count": true, "iterator_to_array": true,
+	"var_dump": true, "print_r": true, "var_export": true,
+}
 
 type rule struct{}
 
@@ -25,10 +41,118 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known || !ok || size < 0 || size >= old {
 		return
 	}
-	for key := range semanticquery.NativeFixedArraySlots(ctx, c.Var, c) {
+	slots := semanticquery.NativeFixedArraySlots(ctx, c.Var, c)
+	if v, ok := c.Var.(*syntax.Variable); ok && !replay(ctx, v, c, slots) {
+		return
+	}
+	for key := range slots {
 		if key >= size {
 			ctx.ReportNode(c, message)
 			return
 		}
 	}
+}
+
+// replay walks every earlier use of the receiver variable in source order,
+// applies the slot writes and releases to slots, and reports whether the
+// occupancy is still proven when the shrink runs.
+func replay(ctx *analysis.Context, recv *syntax.Variable, at *syntax.MethodCall, slots map[int64]bool) bool {
+	proven := true
+	visit := func(n syntax.Node) bool {
+		if n.Span().Start >= at.Span().Start {
+			return false
+		}
+		switch x := n.(type) {
+		case *syntax.Closure:
+			// A capturing closure may release slots whenever it runs.
+			for _, use := range x.Uses {
+				proven = proven && use.Var.Name != recv.Name
+			}
+		case *syntax.ArrowFunction:
+			syntax.Inspect(x.Expr, func(inner syntax.Node) bool {
+				v, ok := inner.(*syntax.Variable)
+				proven = proven && !(ok && v.Name == recv.Name)
+				return true
+			})
+		case *syntax.Variable:
+			if x.Name == recv.Name {
+				proven = proven && step(ctx, x, at, slots)
+			}
+		}
+		return !syntax.IsVariableScope(n)
+	}
+	if scope := syntax.EnclosingVariableScope(at); scope != nil {
+		syntax.Inspect(syntax.VariableScopeBody(scope), visit)
+	} else {
+		syntax.InspectFile(ctx.File, visit)
+	}
+	return proven
+}
+
+// step applies one use of the receiver variable; false means the use may
+// change the occupancy in a way that cannot be followed.
+func step(ctx *analysis.Context, v *syntax.Variable, at *syntax.MethodCall, slots map[int64]bool) bool {
+	same := semanticquery.NativeSameValue(ctx, v, at.Var)
+	switch p := v.Parent().(type) {
+	case *syntax.Assign:
+		return p.Var == v && !p.ByRef
+	case *syntax.Foreach:
+		return p.Expr == v
+	case *syntax.Clone:
+		return true
+	case *syntax.Arg:
+		call, ok := p.Parent().Parent().(*syntax.FuncCall)
+		return ok && !p.Unpack && !p.ByRef && inspectors[strings.ToLower(semanticquery.NativeBuiltinName(ctx, call))]
+	case *syntax.ArrayDimFetch:
+		if p.Var != v {
+			return false
+		}
+		slot, known := semanticquery.NativeInt(ctx, p.Dim)
+		switch owner := p.Parent().(type) {
+		case *syntax.Assign:
+			if owner.Var == p && known && same && semanticquery.NativeStateDominates(owner, at) {
+				slots[slot] = true
+			}
+		case *syntax.Unset:
+			if !known || !same {
+				return false
+			}
+			delete(slots, slot)
+		}
+		return true
+	case *syntax.MethodCall:
+		name, ok := p.Name.(*syntax.Identifier)
+		if !ok {
+			return false
+		}
+		arg, known := semanticquery.NativeInt(ctx, semanticquery.CallArgument(p.Args, 0, "index"))
+		switch method := strings.ToLower(name.Value); method {
+		case "setsize":
+			// Mirror the earlier resize: it already dropped the slots past its bound.
+			if !same || !semanticquery.NativeDominates(p, at) {
+				return false
+			}
+			size, known := semanticquery.NativeInt(ctx, semanticquery.CallArgument(p.Args, 0, "size"))
+			for key := range slots {
+				if !known || key >= size {
+					delete(slots, key)
+				}
+			}
+			return true
+		case "offsetunset":
+			if !known || !same {
+				return false
+			}
+			delete(slots, arg)
+			return true
+		case "offsetset":
+			if known && same && semanticquery.NativeDominates(p, at) {
+				slots[arg] = true
+			}
+			return true
+		default:
+			return readers[method]
+		}
+	}
+	return false
 }

@@ -28,12 +28,14 @@ Reported:
 ## Detection
 
 - D1. Report cloning an object followed by mutation of a nested object member where the nested identity is proven shared with the original.
+- D1a. The cloned object's runtime class must be exact: either its inferred class is declared `final`, or the cloned expression is a plain variable whose creation is visible in the same straight-line statement list: a plain assignment of a `new` expression naming the class statically (`new static` and computed class names do not qualify), separated from the nested store only by assignments of literals to properties of that same variable. A merely declared type, such as a parameter, property or return type naming a non-final class, admits subclasses and proves nothing.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
 - E1. Custom __clone that replaces the nested object, scalar members, unknown identities and escaped aliases are excluded.
+- E1a. A cloned value whose class is only known from a non-final declared type: a subclass may define a `__clone` that deep-copies the nested object.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix

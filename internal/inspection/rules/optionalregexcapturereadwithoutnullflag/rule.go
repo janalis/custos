@@ -24,7 +24,7 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KArrayDimFetch} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	fetch := n.(*syntax.ArrayDimFetch)
-	if guarded(fetch) || !astquery.StableArrayRead(ctx.File, fetch) {
+	if !astquery.StableArrayRead(ctx.File, fetch) {
 		return
 	}
 	variable, ok := fetch.Var.(*syntax.Variable)
@@ -32,7 +32,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	index, known := semanticquery.NativeInt(ctx, fetch.Dim)
-	if !known || index < 1 {
+	if !known || index < 1 || guarded(ctx, fetch, variable.Name, index) {
 		return
 	}
 	c := priorRegex(ctx, fetch, variable, "preg_match")
@@ -150,13 +150,40 @@ func priorRegex(ctx *analysis.Context, at syntax.Node, variable *syntax.Variable
 	return c
 }
 
-func guarded(at syntax.Node) bool {
-	for p := at.Parent(); p != nil; p = p.Parent() {
+// guarded reports reads that cannot observe the absent capture: existence
+// probes, by-reference binds, and operands that only evaluate once a guard in
+// the same expression has established the capture.
+func guarded(ctx *analysis.Context, fetch *syntax.ArrayDimFetch, name string, index int64) bool {
+	for child, p := syntax.Node(fetch), fetch.Parent(); p != nil; child, p = p, p.Parent() {
 		switch x := p.(type) {
 		case *syntax.Isset, *syntax.Empty:
 			return true
+		case *syntax.Assign:
+			if x.ByRef && x.Value == child {
+				return true
+			}
+		case *syntax.ArrayItem:
+			// Only the value is bound; a key is read as usual.
+			if x.ByRef && x.Value == child {
+				return true
+			}
 		case *syntax.Binary:
-			if x.Op.Kind == syntax.TCoalesce {
+			switch {
+			case x.Left == child:
+				if x.Op.Kind == syntax.TCoalesce {
+					return true
+				}
+			case x.Op.Kind == syntax.TBooleanAnd:
+				if proves(ctx, x.Left, name, index, true) {
+					return true
+				}
+			case x.Op.Kind == syntax.TBooleanOr:
+				if proves(ctx, x.Left, name, index, false) {
+					return true
+				}
+			}
+		case *syntax.Ternary:
+			if x.Cond != child && proves(ctx, x.Cond, name, index, x.Then == child) {
 				return true
 			}
 		}
@@ -165,4 +192,43 @@ func guarded(at syntax.Node) bool {
 		}
 	}
 	return false
+}
+
+// proves reports whether cond evaluating to outcome establishes that the
+// capture exists.
+func proves(ctx *analysis.Context, cond syntax.Expr, name string, index int64, outcome bool) bool {
+	switch x := cond.(type) {
+	case *syntax.Paren:
+		return proves(ctx, x.Expr, name, index, outcome)
+	case *syntax.Unary:
+		return x.Op.Kind == syntax.TExclaim && proves(ctx, x.Expr, name, index, !outcome)
+	case *syntax.Binary:
+		if x.Op.Kind == syntax.TBooleanAnd && outcome || x.Op.Kind == syntax.TBooleanOr && !outcome {
+			return proves(ctx, x.Left, name, index, outcome) || proves(ctx, x.Right, name, index, outcome)
+		}
+	case *syntax.Isset:
+		if outcome {
+			for _, v := range x.Vars {
+				if sameCapture(ctx, v, name, index) {
+					return true
+				}
+			}
+		}
+	case *syntax.Empty:
+		return !outcome && sameCapture(ctx, x.Expr, name, index)
+	}
+	return false
+}
+
+func sameCapture(ctx *analysis.Context, e syntax.Expr, name string, index int64) bool {
+	fetch, ok := e.(*syntax.ArrayDimFetch)
+	if !ok {
+		return false
+	}
+	variable, ok := fetch.Var.(*syntax.Variable)
+	if !ok || variable.Name != name {
+		return false
+	}
+	value, known := semanticquery.NativeInt(ctx, fetch.Dim)
+	return known && value == index
 }

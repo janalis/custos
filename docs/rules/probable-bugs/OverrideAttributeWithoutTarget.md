@@ -37,6 +37,8 @@ Reported:
 
 - E1. Unknown ancestors or inherited traits prevent a definite missing-target proof. Exclude shadowed custom Override attributes and inaccessible private declarations.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore OverrideAttributeWithoutTarget` and `@noinspection OverrideAttributeWithoutTarget` suppress this inspection.
+- E3. A member declared in a trait is never reported: PHP checks the attribute in each class that uses the trait, against that class's ancestors, so the trait alone proves nothing.
+- E4. A method named `__toString` (any case) is never reported: declaring it makes the type implicitly implement `Stringable`, whose `__toString` is the overridden method.
 
 ## Fix
 

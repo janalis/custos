@@ -63,6 +63,25 @@ For each candidate variable `V` named `n`:
   (innermost) loop matters: suppress the report when anywhere inside that loop
   (any depth) there is an assignment whose left-hand side is directly a plain
   variable named `n` (this includes the assignment of D7's second case).
+  custos widens this guard (see Divergences): every enclosing loop is
+  checked, and a loop suppresses the report when, in `F`'s own scope, it
+  holds any construct that can leave `n` defined for a later iteration:
+  - an assignment (plain, compound, by-reference) whose target is `$n`, an
+    element of it (`$n[] = …`, `$n['k']['j'] = …`) or a destructuring
+    pattern listing either; `$x = &$n` (taking a reference creates `$n`);
+  - `$n++`, `$n--` and their prefix forms;
+  - a `foreach` key or value binding (plain or destructured) and a `catch`
+    variable;
+  - a `global $n;` or `static $n;` declaration;
+  - a nested closure importing it by reference (`use (&$n)`);
+  - `$n` or one of its elements passed as a call argument that may bind by
+    reference: the resolved callee declares that parameter (positional,
+    named or variadic) by reference, or the binding cannot be established
+    (unresolved function, method or constructor, an argument after a
+    `...$spread`, legacy call-time `&$n`).
+  Property writes (`$n->p = …`), `unset($n)`, by-value arguments of a
+  resolved callee and code inside nested closure bodies, arrow functions,
+  named functions and classes do not define `n`.
 - **D9** Suppress when `F`'s body contains (any depth) a `goto` statement.
 - **D10** Suppress when option `IGNORE_INCLUDES` is `false` and `F`'s body
   contains (any depth) an `include`, `include_once`, `require` or
@@ -70,8 +89,9 @@ For each candidate variable `V` named `n`:
 - **D11** (custos, see Divergences) Suppress when `F`'s body defines
   variables dynamically: it calls the global `extract()`, the global
   `parse_str()` with a single argument, assigns a variable-variable
-  (`$$name = …`, `${expr} = …`), or contains an include/require placed before
-  `V` in the source (regardless of `IGNORE_INCLUDES`).
+  (`$$name = …`, `${expr} = …`), contains an `eval(...)`, or contains an
+  include/require placed before `V` in the source (regardless of
+  `IGNORE_INCLUDES`).
 
 Each candidate is checked independently; several candidates of the same name
 can each be reported (e.g. `isset($q) && empty($q)` as first two mentions:
@@ -86,8 +106,10 @@ only the first is the first mention, so only it is reported).
 - **E2** Parameters and closure `use` imports of the enclosing function.
 - **E3** Superglobals, `$this`, `$php_errormsg`, `$http_response_header`.
 - **E4** File/global scope and arrow-function bodies.
-- **E5** Variable assigned somewhere in the innermost loop that encloses the
-  first mention (value carried over from a previous iteration).
+- **E5** Variable defined somewhere in a loop that encloses the first
+  mention (value carried over from a previous iteration): assigned, appended
+  to, incremented, bound by a `foreach` or `catch`, declared `global` or
+  `static`, or handed to a by-reference parameter (D8).
 - **E6** Functions containing `goto`.
 - **E7** Functions containing include/require, only when
   `IGNORE_INCLUDES = false`.
@@ -189,7 +211,8 @@ annotated above).
   (WordPress's update screens and loaders) as undefined variables at error
   severity, although those statements define them. custos suppresses the
   report when the function calls `extract()` or one-argument `parse_str()`,
-  assigns a variable-variable, or includes a file before the check;
+  assigns a variable-variable, evaluates code with `eval()`, or includes a
+  file before the check;
   `IGNORE_INCLUDES = false` still skips functions with any include.
 - **Destructuring in the loop (custos diverges, D8).** A destructuring
   assignment listing the variable (`[$ts, $tz] = …`, `list(, list($x)) =
@@ -200,3 +223,13 @@ annotated above).
   every loop enclosing the first mention up to `F`, not only the innermost:
   `foreach ($ids as $id) { foreach (… as $k) { if (isset($prev)) … }
   $prev = $id; }` sets `$prev` for the outer loop's next iteration (tcpdf).
+- **Every defining construct in the loop (custos diverges from D8).**
+  Upstream's loop guard only recognises `$n = …`. A later statement of the
+  loop also defines the variable for the next iteration when it appends or
+  writes an element (`$seen[] = $row;`), increments it, binds it in an inner
+  `foreach` or a `catch`, declares it `global`/`static`, or passes it to a
+  by-reference parameter (`preg_match($re, $line, $m);`); reporting those as
+  undefined at error severity is wrong. When the callee cannot be resolved
+  the argument is assumed to be possibly by reference. In return, the guard
+  stays in the function's scope: an assignment inside a nested closure body
+  no longer hides the report.

@@ -21,6 +21,7 @@ Keep the inverse trigonometric argument within minus one and one.
 ## Exceptions (no report)
 
 - E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- E3. A variable argument is not proven when the same variable is stepped with `++` or `--` or captured by reference in a closure, or when `extract()` is called, anywhere before the call in its function or file scope. Code inside a nested function does not count, apart from that by-reference capture. Inside a loop, a step or capture placed after the call counts too, because it precedes the call on the next iteration. A step after a call outside any loop does not weaken the proof.
 - E2. Both @custos-ignore InverseTrigInvalidRealDomain and @noinspection InverseTrigInvalidRealDomain suppress this native rule.
 
 ## Report
@@ -54,6 +55,15 @@ Valid case:
 ```php
 <?php
 $n = asin(0.25);
+```
+
+A counter that only starts outside the domain is not reported:
+
+```php
+<?php
+$ratio = 2;
+$ratio--;
+$n = asin($ratio);
 ```
 
 ## Divergences

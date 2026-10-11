@@ -21,7 +21,8 @@ Use hasAttribute to test whether an attribute exists.
 ## Exceptions (no report)
 
 - E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore DomMissingAttributeCheckedAsNull and @noinspection DomMissingAttributeCheckedAsNull suppress this native rule.
+- E2. Do not report a call that a nullsafe operator can skip: either the getAttribute call itself uses `?->`, or an earlier property fetch or method call in the same unparenthesised member chain does. Such an expression yields null whenever the nullsafe receiver is null, so the null comparison is meaningful and hasAttribute is not an equivalent test. This also applies when the result reaches the comparison through a local binding.
+- E3. Both @custos-ignore DomMissingAttributeCheckedAsNull and @noinspection DomMissingAttributeCheckedAsNull suppress this native rule.
 
 ## Report
 
@@ -54,6 +55,13 @@ Valid case:
 ```php
 <?php
 function f(DOMElement $e) { if (!$e->hasAttribute('key')) {} }
+```
+
+Nullsafe receiver, where null is a real outcome:
+
+```php
+<?php
+function g(?DOMElement $e) { return $e?->getAttribute('key') === null; }
 ```
 
 ## Divergences

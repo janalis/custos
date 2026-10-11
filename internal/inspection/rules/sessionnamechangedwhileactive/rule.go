@@ -5,6 +5,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 )
 
 const message = "Set the session name before starting the session."
@@ -19,7 +20,16 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
-	if !semanticquery.NativeBuiltin(ctx, call, "session_name") || semanticquery.CallArgument(call.Args, 0, "name") == nil {
+	if !semanticquery.NativeBuiltin(ctx, call, "session_name") {
+		return
+	}
+	name := semanticquery.CallArgument(call.Args, 0, "name")
+	if name == nil {
+		return
+	}
+	// The parameter is nullable from PHP 8.0: null reads the name like the
+	// argument-less form. Older versions coerce it and take the setter path.
+	if ctx.PHP >= phpversion.PHP80 && syntax.IsNullConst(semanticquery.NativeValue(ctx, name)) {
 		return
 	}
 	state, known := ctx.Flow().GlobalStateBefore(call, "session")

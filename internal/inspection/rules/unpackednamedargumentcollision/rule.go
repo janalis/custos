@@ -43,7 +43,16 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	bound := map[string]bool{}
 	fromSpread := map[string]bool{}
+	// position is PHP's argument counter: a positional value always takes
+	// the slot after the highest one filled so far, named bindings included.
 	position := 0
+	bindNamed := func(name string) {
+		for i, param := range target.Params {
+			if param.Name == name && !param.Variadic && i >= position {
+				position = i + 1
+			}
+		}
+	}
 	for _, node := range args.Args {
 		arg, ok := node.(*syntax.Arg)
 		if !ok {
@@ -56,6 +65,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 			seenKeys := map[string]bool{}
 			nextIndex := int64(0)
+			named := false
 			for _, item := range array.Items {
 				key := ""
 				arrayKey := ""
@@ -91,11 +101,17 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 				}
 				seenKeys[arrayKey] = true
 				if arrayKey[0] == 'i' {
-					if position >= len(target.Params) {
+					// A positional element after a named one of the same
+					// array is a different runtime error; a variadic or
+					// surplus slot never collides with a name.
+					if named || position >= len(target.Params) || target.Params[position].Variadic {
 						return
 					}
 					key = target.Params[position].Name
 					position++
+				} else {
+					named = true
+					bindNamed(key)
 				}
 				if bound[key] {
 					ctx.ReportNode(arg, message)
@@ -107,8 +123,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			key := ""
 			if arg.Name != nil {
 				key = arg.Name.Value
+				bindNamed(key)
 			} else {
-				if position >= len(target.Params) {
+				if position >= len(target.Params) || target.Params[position].Variadic {
 					return
 				}
 				key = target.Params[position].Name

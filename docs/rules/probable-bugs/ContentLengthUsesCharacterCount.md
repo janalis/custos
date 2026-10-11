@@ -43,11 +43,13 @@ Reported:
 ## Exceptions (no report)
 
 - E1. ASCII-proven bodies, post-length compression/transformation making either length invalid, byte strlen and unknown body identity are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E2. An `mb_strlen` call whose encoding argument resolves to a byte-per-character encoding already measures bytes and is not reported. The name is compared case-insensitively against an explicit list: `8bit`, `binary`, `ASCII`, `US-ASCII`, `latin1`, `ISO-8859-1` to `ISO-8859-10`, `ISO-8859-13` to `ISO-8859-16`, `Windows-1251`, `Windows-1252`, `Windows-1254` and their `CP125x` spellings. Multibyte, unknown and non-constant encodings stay reported.
+- E3. The measured body must be the only output after the header: any further `echo`, `print` or non-empty inline template text in the same scope, or an `echo` nested in a loop of that scope, leaves the response length unproven and produces no report.
+- E4. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 
-Replace the character-length call with strlen of the same body, removing encoding arguments, only when arguments bind correctly, the encoding is omitted or a known supported encoding, and no later transformation occurs. Require one exact emitted body; multiple output chunks and intervening or subsequent calls leave body identity incomplete.
+Replace the character-length call with strlen of the same body, removing encoding arguments, only when arguments bind correctly, the encoding is omitted or a known multibyte Unicode encoding (UTF-8, UTF-16 or UTF-32 variants), and no later transformation occurs. Require one exact emitted body; multiple output chunks and intervening or subsequent calls leave body identity incomplete.
 
 A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 

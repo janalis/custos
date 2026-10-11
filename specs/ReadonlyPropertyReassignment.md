@@ -15,6 +15,7 @@ Detect assignment to a resolved readonly instance property already initialized o
 ## Detection
 
 - D1. Report assignment to a resolved readonly instance property already initialized on every reachable incoming path.
+- D1a. Every writing assignment operator counts as a repeated write: plain `=` and the compound operators (`+=`, `-=`, `.=`, ...) all fail on an initialized readonly property. The null-coalescing assignment `??=` is the exception, see E3.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
@@ -22,6 +23,8 @@ Detect assignment to a resolved readonly instance property already initialized o
 
 - E1. A first permitted initialization, version-permitted clone reinitialization, unknown initialization state and reflection operations are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+
+- E3. A `??=` assignment is never reported. It writes only when the stored value is null, and the adjacent-assignment proof establishes that the property is initialized, not that it holds null; on a non-null value the statement is a no-op and PHP raises nothing.
 
 ## Report
 
@@ -54,4 +57,4 @@ class Item { public readonly int $id; public function __construct() {$this->id=1
 
 Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
 
-Audit constraint: definite repeated initialization is currently proven only by adjacent assignments through the same direct variable receiver, with a literal or variable first value. Receiver replacement, unknown evaluation and intervening statements invalidate the proof.
+Audit constraint: definite repeated initialization is currently proven only by adjacent assignments through the same direct variable receiver, with a literal or variable first value. Receiver replacement, unknown evaluation and intervening statements invalidate the proof. A `??=` write is conditional on a null value that this proof does not establish, so it is left unreported.

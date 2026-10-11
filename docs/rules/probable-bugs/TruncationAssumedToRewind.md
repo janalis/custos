@@ -36,7 +36,9 @@ Reported:
 ## Exceptions (no report)
 
 - E1. Rewind/fseek to zero, unknown position, failed truncation branches and intentional sparse-file construction explicitly outside this rule through suppression are excluded.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore TruncationAssumedToRewind` and `@noinspection TruncationAssumedToRewind` suppress this inspection.
+- E2. A stream opened in an append mode (the mode string starts with `a`, with or without `+`, `b` or `t`) is never reported: every write goes to the end of the stream regardless of the stale position, so no zero-filled gap appears.
+- E3. A stream opened on `php://memory` is never reported: truncating it pulls a position past the new end back to that end. `php://temp` stays covered because it can spill to a real file.
+- E4. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore TruncationAssumedToRewind` and `@noinspection TruncationAssumedToRewind` suppress this inspection.
 
 ## Fix
 

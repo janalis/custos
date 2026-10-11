@@ -13,6 +13,12 @@ import (
 
 const message = "Match the response content type to the image encoder."
 
+// encoderTypes maps each response-capable encoder to its canonical MIME type.
+var encoderTypes = map[string]string{"imagepng": "image/png", "imagejpeg": "image/jpeg", "imagegif": "image/gif", "imagewebp": "image/webp", "imageavif": "image/avif", "imagebmp": "image/bmp"}
+
+// canonicalTypes is the closed set of header values the proof understands.
+var canonicalTypes = map[string]bool{"image/png": true, "image/jpeg": true, "image/gif": true, "image/webp": true, "image/avif": true, "image/bmp": true}
+
 type rule struct{}
 
 func New() analysis.Rule              { return rule{} }
@@ -23,9 +29,15 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCal
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	mime, known := map[string]string{"imagepng": "image/png", "imagejpeg": "image/jpeg", "imagegif": "image/gif", "imagewebp": "image/webp", "imageavif": "image/avif", "imagebmp": "image/bmp"}[name]
-	if !known {
+	mime, known := encoderTypes[name]
+	if !known || c.Args == nil {
 		return
+	}
+	// An unpacked argument may carry the output path.
+	for _, node := range c.Args.Args {
+		if arg, ok := node.(*syntax.Arg); !ok || arg.Unpack {
+			return
+		}
 	}
 	output := semanticquery.CallArgument(c.Args, 1, "file")
 	if output != nil {
@@ -81,7 +93,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		lower := strings.ToLower(strings.TrimSpace(header))
 		if strings.HasPrefix(lower, "content-type:") {
 			actual := strings.TrimSpace(strings.SplitN(strings.TrimPrefix(lower, "content-type:"), ";", 2)[0])
-			if strings.HasPrefix(actual, "image/") && actual != mime {
+			// Aliases and unlisted image types are not proven mismatches.
+			if canonicalTypes[actual] && actual != mime {
 				ctx.ReportNode(c, message)
 			}
 			return

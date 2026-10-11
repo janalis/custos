@@ -39,8 +39,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		bit = 16
 	case *syntax.Param:
 		bit = 32
-		param := a.Parent().Parent().(*syntax.Param)
-		if param.Modifiers.Has(syntax.TPublic) || param.Modifiers.Has(syntax.TProtected) || param.Modifiers.Has(syntax.TPrivate) {
+		if promoted(a.Parent().Parent().(*syntax.Param)) {
 			bit |= 8
 		}
 	default:
@@ -49,4 +48,18 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if flags&bit == 0 {
 		ctx.ReportNode(a.Parent(), message)
 	}
+}
+
+// promoted reports whether a parameter also declares a property: any
+// visibility, set-visibility, readonly or final modifier promotes it.
+func promoted(param *syntax.Param) bool {
+	for _, m := range param.Modifiers {
+		switch m.Kind {
+		case syntax.TPublic, syntax.TProtected, syntax.TPrivate,
+			syntax.TPublicSet, syntax.TProtectedSet, syntax.TPrivateSet,
+			syntax.TReadonly, syntax.TFinal:
+			return true
+		}
+	}
+	return false
 }

@@ -295,7 +295,7 @@ inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `c
 | [FileLockFailureUnchecked](./probable-bugs/FileLockFailureUnchecked) | warning | on |  | any |
 | [FilePermissionFailurePassesPolicy](./probable-bugs/FilePermissionFailurePassesPolicy) | warning | on |  | any |
 | [FileReadFailureUnchecked](./probable-bugs/FileReadFailureUnchecked) | warning | on |  | any |
-| [FileStatCacheAfterExternalMutation](./probable-bugs/FileStatCacheAfterExternalMutation) | warning | off |  | any |
+| [FileStatCacheAfterExternalMutation](./probable-bugs/FileStatCacheAfterExternalMutation) | warning | off |  | PHP 5.3–8.2 |
 | [FileTruncatedBeforeLock](./probable-bugs/FileTruncatedBeforeLock) | warning | on |  | any |
 | [FileWriteResultUnchecked](./probable-bugs/FileWriteResultUnchecked) | warning | on |  | any |
 | [FilteredListJsonShape](./probable-bugs/FilteredListJsonShape) | warning | off | ✓ | any |

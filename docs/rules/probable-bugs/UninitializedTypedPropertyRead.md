@@ -35,6 +35,8 @@ Reported:
 
 - E1. Nullable properties still require initialization; exclude isset/empty checks, explicit defaults, guarded initialization, unknown constructors and magic access.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. A guard applies to the whole access chain rooted at the property: when the read is the base of element accesses, property accesses or null-safe property accesses (parenthesized or not) and the outermost link of that chain is an `isset`/`empty` operand or the left operand of `??`, PHP never raises, so nothing is reported. A method or function call ends the chain, and a read used as an element index or as a dynamic member name is not part of the surrounding chain; those reads still raise and are reported.
+- E4. `new static` may instantiate a subclass whose constructor initializes the property, so it proves a fresh uninitialized instance only when the enclosing class is declared `final`. `new static` inside an anonymous class is not reported.
 
 ## Fix
 

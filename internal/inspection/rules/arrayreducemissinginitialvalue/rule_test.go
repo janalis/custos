@@ -23,6 +23,8 @@ func TestRule(t *testing.T) {
 		{"array_reduce(callback:fn($a,$v)=>array_merge($a,[$v]));", 0},
 		{"array_reduce(array:$parts,callback:fn($a,$v)=>array_merge($a,[$v]));", 1},
 		{"array_reduce($parts,function(){return array_merge([],[]);});", 0},
+		{"array_reduce($parts, fn(...$a)=>array_merge($a,[9]));", 0},
+		{"array_reduce($parts, function(...$a){return array_merge($a,[9]);});", 0},
 		{"namespace Custom; function other($a) {} other([1]);", 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {

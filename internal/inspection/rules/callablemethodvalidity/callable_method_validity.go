@@ -35,6 +35,7 @@ func (callableMethodValidity) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	var m *index.Method
+	class := ""     // the class the callback names
 	static := false // the callback is referenced without an object
 	switch v := vals[0].(type) {
 	case *syntax.Literal: // D4/D5 string form
@@ -49,7 +50,8 @@ func (callableMethodValidity) Check(ctx *analysis.Context, n syntax.Node) {
 		if !ok || cls == "" || meth == "" {
 			return
 		}
-		m = ctx.Index().FindMethod(strings.TrimPrefix(cls, `\`), meth, ctx.PHP)
+		class = strings.TrimPrefix(cls, `\`)
+		m = ctx.Index().FindMethod(class, meth, ctx.PHP)
 		static = true
 	case *syntax.Array: // D4/D5 array form
 		if len(v.Items) != 2 {
@@ -87,6 +89,7 @@ func (callableMethodValidity) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		for _, c := range classes {
 			if m = ctx.Index().FindMethod(c, meth, ctx.PHP); m != nil {
+				class = c
 				break
 			}
 		}
@@ -99,30 +102,64 @@ func (callableMethodValidity) Check(ctx *analysis.Context, n syntax.Node) {
 	if m == nil {
 		return
 	}
-	if m.Visibility != index.Public && !callableVisibleFromScope(ctx, call, m) { // D7
+	cl, hasThis := callScope(call)
+	// PHP binds the current $this to a callback written without an object when
+	// the calling class is the named class or one of its subclasses (D8).
+	bound := static && hasThis && scopeIsA(ctx, cl, class)
+	if m.Visibility != index.Public && !callableVisibleFromScope(ctx, cl, m) { // D7
+		// An inaccessible method is routed to the matching magic handler (E7):
+		// __call when an object is involved, __callStatic otherwise.
+		handler := "__call"
+		if static && !bound {
+			handler = "__callStatic"
+		}
+		if ctx.Index().FindMethod(class, handler, ctx.PHP) != nil {
+			return
+		}
 		ctx.ReportNode(a, "Method '"+m.Name+"' is not public, so the callback cannot be invoked from outside.")
 	}
-	if !m.Static && static { // D8
+	if !m.Static && static && !bound { // D8
 		ctx.ReportNode(a, "Method '"+m.Name+"' is not static but is referenced without an object.")
 	}
 }
 
-// callableVisibleFromScope reports whether the non-public method m is
-// accessible from the class scope the call is written in (D7): the declaring
-// class (or a class using the declaring trait) for a private method; a class
-// related to the declaring class by inheritance, in either direction, for a
-// protected one. Closures keep the scope of their class; a named function
-// declared inside a method has none.
-func callableVisibleFromScope(ctx *analysis.Context, call syntax.Node, m *index.Method) bool {
-	var cl *syntax.ClassLike
-	for p := call.Parent(); p != nil && cl == nil; p = p.Parent() {
+// callScope returns the class-like declaration the call is written in and
+// whether $this exists there: closures and arrow functions keep the scope of
+// their class but lose $this when static; a named function declared inside a
+// method has no class scope.
+func callScope(call syntax.Node) (cl *syntax.ClassLike, hasThis bool) {
+	static := false
+	for p := call.Parent(); p != nil; p = p.Parent() {
 		switch x := p.(type) {
 		case *syntax.Function:
-			return false
+			return nil, false
+		case *syntax.Closure:
+			static = static || x.Static
+		case *syntax.ArrowFunction:
+			static = static || x.Static
+		case *syntax.Method:
+			static = static || x.Modifiers.Has(syntax.TStatic)
 		case *syntax.ClassLike:
-			cl = x
+			return x, !static
 		}
 	}
+	return nil, false
+}
+
+// scopeIsA reports whether the scope class cl (never nil where $this exists)
+// is class or one of its subclasses. The class a trait ends up in is unknown, so a trait scope
+// counts as compatible.
+func scopeIsA(ctx *analysis.Context, cl *syntax.ClassLike, class string) bool {
+	scope := strings.TrimPrefix(ctx.Types().ClassFQN(cl), `\`)
+	return cl.ClassKind == syntax.KindTrait || strings.EqualFold(scope, class) || ctx.Index().IsSubtype(scope, class, ctx.PHP)
+}
+
+// callableVisibleFromScope reports whether the non-public method m is
+// accessible from the class scope cl the call is written in (D7): the
+// declaring class (or a class using the declaring trait) for a private
+// method; a class related to the declaring class by inheritance, in either
+// direction, for a protected one.
+func callableVisibleFromScope(ctx *analysis.Context, cl *syntax.ClassLike, m *index.Method) bool {
 	if cl == nil {
 		return false
 	}

@@ -24,6 +24,11 @@ class Settings
         /** @var int */
         return <error descr="Method calls itself unconditionally; this recursion never ends.">$this?->next(1, 2)</error>;
     }
+
+    public function forward(...$args)
+    {
+        return <error descr="Method calls itself unconditionally; this recursion never ends.">$this->forward(...$args)</error>;
+    }
 }
 
 trait Proxy

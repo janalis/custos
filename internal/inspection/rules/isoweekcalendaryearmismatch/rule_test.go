@@ -22,6 +22,12 @@ func TestContracts(t *testing.T) {
 		{"extra0", "<?php\ndate('Y-W \\\\x');\n", 1},
 		{"extra1", "<?php\n$fmt='Y-W';date($fmt);\n", 1},
 		{"escaped retained token", "<?php date('Y-W \\x');", 1},
+		{"month labelled by year", "<?php date('F Y, \\w\\e\\e\\k W'); date('Y-m W'); date('n Y W'); date('M Y W');", 0},
+		{"day labelled by year", "<?php date('Y/z W'); date('Y W d'); date('Y W j');", 0},
+		{"year facts", "<?php date('L Y W'); date('t Y W');", 0},
+		{"composite date", "<?php gmdate('c W Y'); gmdate('r W Y'); gmdate('Y W U');", 0},
+		{"escaped calendar tokens", "<?php date('\\m\\d\\c Y-W');", 1},
+		{"weekday and timezone", "<?php date('Y W N'); date('W Y D'); date('Y-W T e');", 3},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rule.New().(analysis.SemanticRule).Semantic()

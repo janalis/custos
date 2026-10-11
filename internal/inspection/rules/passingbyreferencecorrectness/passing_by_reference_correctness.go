@@ -75,21 +75,22 @@ func (passingByReferenceCorrectness) Check(ctx *analysis.Context, n syntax.Node)
 	if !ok {
 		return
 	}
+	params := declaredParams(cal.Params, ctx.PHP)
 	for i, a := range list.Args { // D5
 		arg := a.(*syntax.Arg)
 		pi := i
 		if arg.Name != nil {
 			pi = -1
-			for j, p := range cal.Params {
+			for j, p := range params {
 				if p.Name == arg.Name.Value {
 					pi = j
 				}
 			}
 		}
-		if pi < 0 || pi >= len(cal.Params) {
+		if pi < 0 || pi >= len(params) {
 			continue
 		}
-		if !cal.Params[pi].ByRef || arg.Value == nil {
+		if !params[pi].ByRef || arg.Value == nil {
 			continue
 		}
 		switch v := arg.Value.(type) {

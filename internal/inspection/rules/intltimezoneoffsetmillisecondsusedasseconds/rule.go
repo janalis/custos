@@ -57,7 +57,12 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		found = found || all
 	}
 	if found {
-		ctx.ReportNode(c, message, astquery.ReplaceFix(arg.Left.Span(), "("+ctx.Text(arg.Left)+" / 1000)"))
+		// A bare sum must be grouped first: division binds tighter than addition.
+		operand := ctx.Text(arg.Left)
+		if _, bare := arg.Left.(*syntax.Binary); bare {
+			operand = "(" + operand + ")"
+		}
+		ctx.ReportNode(c, message, astquery.ReplaceFix(arg.Left.Span(), "("+operand+" / 1000)"))
 	}
 }
 

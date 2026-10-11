@@ -7,16 +7,26 @@ import (
 	"custos/internal/php/syntax"
 )
 
-const message = "Handle glob failure before iterating its result."
+const (
+	message      = "Handle glob failure before iterating its result."
+	arrayMessage = "Handle glob failure before using its result as an array."
+)
 
 type rule struct{}
 
 // New constructs the stateless inspection.
-func New() analysis.Rule              { return rule{} }
-func (rule) ID() string               { return "GlobFailureUnchecked" }
-func (rule) Semantic()                {}
-func (rule) Flow()                    {}
-func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KForeach} }
+func New() analysis.Rule { return rule{} }
+func (rule) ID() string  { return "GlobFailureUnchecked" }
+func (rule) Semantic()   {}
+func (rule) Flow()       {}
+func (rule) Kinds() []syntax.NodeKind {
+	return []syntax.NodeKind{syntax.KForeach, syntax.KFuncCall}
+}
+
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	semanticquery.CheckGlobFailureUnchecked(ctx, n, message)
+	text := message
+	if _, ok := n.(*syntax.FuncCall); ok {
+		text = arrayMessage
+	}
+	semanticquery.CheckGlobFailureUnchecked(ctx, n, text)
 }

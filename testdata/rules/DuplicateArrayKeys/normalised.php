@@ -15,4 +15,7 @@ $codes = [
     <warning descr="Same key and value already present; remove this entry.">'-3' => 'neg'</warning>,
     0b11 => 'three',
     <warning descr="Key already used earlier; the earlier entry is overwritten.">3</warning> => 'drei',
+    "\u{41}b" => 1,
+    <warning descr="Key already used earlier; the earlier entry is overwritten.">'Ab'</warning> => 2,
+    '\u{41}b' => 3,
 ];

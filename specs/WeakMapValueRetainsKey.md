@@ -42,7 +42,7 @@ None. Enabling the rule declares the policy stated in Detection; the rule is dis
 
 ## PHP versions
 
-Minimum PHP 8.0. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
+Minimum PHP 8.0, the release that introduced `WeakMap`: with an older target version the rule reports nothing, even when the class name resolves. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
 
 ## Examples
 

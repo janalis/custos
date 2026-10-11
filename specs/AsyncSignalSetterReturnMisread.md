@@ -22,7 +22,7 @@ This is an opt-in policy. Truthiness, previous-state checks, raw wait-status com
 
 ## Exceptions (no report)
 
-Getter-mode null is resolved through unchanged locals and parentheses. A fix that inserts a statement requires a top-level or braced statement list; withhold it for an unbraced enclosing statement.
+Getter-mode null is resolved through unchanged locals and parentheses. A fix that inserts a statement requires a statement list: the file top level, a namespace body in either its semicolon or braced form, a braced or alternative-syntax block, or a switch case. Withhold it when the if is the unbraced body of another statement.
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
@@ -36,7 +36,7 @@ Getter-mode null is resolved through unchanged locals and parentheses. A fix tha
 
 ## Fix
 
-For standalone if conditions containing exactly !setter or setter === false/true, move the original setter to a preceding expression statement and test a zero-argument getter with the original polarity. No fix for elseif, nested short-circuit conditions, assignments, comments across moved ranges or expressions evaluated conditionally.
+For a standalone if condition that is exactly !setter, move the original setter to a preceding expression statement and test a zero-argument getter with the original polarity. Comparisons of the setter result against a boolean are previous-state checks that D1 does not report, so they are never rewritten. No fix for elseif, nested short-circuit conditions, assignments, comments across moved ranges or expressions evaluated conditionally.
 
 All edits use exact byte ranges and preserve comments and evaluation order. Offer no fix when its stated prerequisites cannot be proven or the replacement is unsupported by the configured PHP version.
 

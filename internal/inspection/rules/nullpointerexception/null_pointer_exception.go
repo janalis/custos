@@ -88,7 +88,8 @@ func (u *npeUnit) strategyParams() {
 		return
 	}
 	for _, p := range syntax.FuncLikeParams(u.fn) { // D2
-		if p.Var == nil || p.Var.Name == "" || p.Type == nil {
+		// A variadic parameter is always an array: only its elements are nullable.
+		if p.Var == nil || p.Var.Name == "" || p.Type == nil || p.Variadic {
 			continue
 		}
 		t := u.declaredType(p.Type)
@@ -538,6 +539,10 @@ func (u *npeUnit) guardedByCondition(v *syntax.Variable, name string) bool {
 			if cur == syntax.Node(x.Body) {
 				conds, wants = append(conds, x.Cond), append(wants, true)
 			}
+		case *syntax.For:
+			if u.guardedByFor(x, cur, v, name) {
+				return true
+			}
 		case *syntax.Ternary:
 			if x.Then != nil && cur == syntax.Node(x.Then) {
 				conds, wants = append(conds, x.Cond), append(wants, true)
@@ -555,8 +560,14 @@ func (u *npeUnit) guardedByCondition(v *syntax.Variable, name string) bool {
 			}
 		case *syntax.MatchArm:
 			// match (true) { c => v }: the arm runs only when c === true.
-			if m, ok := x.Parent().(*syntax.Match); ok && cur == syntax.Node(x.Body) && len(x.Conds) == 1 && npeIsTrueConst(m.Cond) {
-				conds, wants = append(conds, x.Conds[0]), append(wants, true)
+			if m, ok := x.Parent().(*syntax.Match); ok && cur == syntax.Node(x.Body) {
+				if len(x.Conds) == 1 && npeIsTrueConst(m.Cond) {
+					conds, wants = append(conds, x.Conds[0]), append(wants, true)
+				}
+				// match ($name) { … }: an arm that cannot be the null one.
+				if npeIsVar(m.Cond, name) && u.armExcludesNull(m, x) && !u.assignedBetween(name, m.Cond, v) {
+					return true
+				}
 			}
 		default:
 			// An earlier `if (c) { …exit… }` in the same statement list: the
@@ -576,6 +587,57 @@ func (u *npeUnit) guardedByCondition(v *syntax.Variable, name string) bool {
 		}
 	}
 	return false
+}
+
+// guardedByFor reports whether the last condition c of loop x proves $name
+// non-null for usage v, reached through child cur of x. The body runs right
+// after c. A loop expression runs after the whole body, so the body must not
+// assign $name at all (a `continue` reaches the expression without passing c
+// again), nor an earlier loop expression.
+func (u *npeUnit) guardedByFor(x *syntax.For, cur syntax.Node, v *syntax.Variable, name string) bool {
+	if len(x.Cond) == 0 {
+		return false
+	}
+	c := x.Cond[len(x.Cond)-1]
+	if !u.implies(c, name, true) {
+		return false
+	}
+	if cur == syntax.Node(x.Body) {
+		// The loop expressions sit between c and the body in the source but
+		// run after it, and c is evaluated again behind them.
+		return !u.assignedIn(name, x.Body.Span().Start, v.Span().Start, func(a *syntax.Assign) bool { return npeDiverted(a, c, v) })
+	}
+	for _, e := range x.Loop {
+		if cur == syntax.Node(e) {
+			body := x.Body.Span()
+			return !u.assignedBetween(name, c, v) &&
+				!u.assignedIn(name, body.Start, body.End, func(*syntax.Assign) bool { return false })
+		}
+	}
+	return false
+}
+
+// armExcludesNull reports whether arm of m, a match on the variable itself,
+// only runs for a non-null subject: the default arm when another arm lists
+// null, or an arm whose conditions (compared with ===) all have a known type
+// without null.
+func (u *npeUnit) armExcludesNull(m *syntax.Match, arm *syntax.MatchArm) bool {
+	if arm.Conds == nil {
+		for _, other := range m.Arms {
+			for _, c := range other.Conds {
+				if syntax.IsNullConst(syntax.UnwrapParens(c)) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	for _, c := range arm.Conds {
+		if t := u.ctx.TypeOf(c); t.IsUnknown() || t.HasAny("null", "void", "mixed") {
+			return false
+		}
+	}
+	return true
 }
 
 // npeIsTrueConst reports whether e is the constant true (any case).
@@ -716,7 +778,12 @@ func (u *npeUnit) impliesWhenFalse(e syntax.Expr, name string) bool {
 // throw, exit) or jumps back through c (continue or break out of a loop
 // holding c) never reaches v and does not count.
 func (u *npeUnit) assignedBetween(name string, c syntax.Expr, v syntax.Node) bool {
-	from, to := c.Span().End, v.Span().Start
+	return u.assignedIn(name, c.Span().End, v.Span().Start, func(a *syntax.Assign) bool { return npeDiverted(a, c, v) })
+}
+
+// assignedIn is assignedBetween over the source range [from, to); diverted
+// tells which assignments never reach the usage.
+func (u *npeUnit) assignedIn(name string, from, to uint32, diverted func(*syntax.Assign) bool) bool {
 	found := false
 	syntax.Inspect(u.body, func(n syntax.Node) bool {
 		if found {
@@ -728,7 +795,7 @@ func (u *npeUnit) assignedBetween(name string, c syntax.Expr, v syntax.Node) boo
 		}
 		switch x := n.(type) {
 		case *syntax.Assign:
-			if x.Span().Start >= from && x.Span().End <= to && !npeDiverted(x, c, v) { // completed before v
+			if x.Span().Start >= from && x.Span().End <= to && !diverted(x) { // completed before v
 				// The variable itself or a destructuring slot: writing
 				// `$n->p` or `$n['k']` leaves $n as it was.
 				syntax.Inspect(x.Var, func(t syntax.Node) bool {

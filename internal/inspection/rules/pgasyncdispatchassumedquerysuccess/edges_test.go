@@ -12,7 +12,18 @@ func TestEdges(t *testing.T) {
 		src  string
 		want int
 	}{
-		{"function f($c){if(pg_send_query($c,'SELECT 3')) echo 'ok';}", 0},
+		{"function f($c){if(pg_send_query($c,'SELECT 3')) echo 'ok';}", 1},
+		{"function f($c){if(pg_send_query($c,'SELECT 3')) return true; return false;}", 1},
+		{"function f($c){if(pg_send_query_params($c,'SELECT $1',array(3))) return true; return false;}", 1},
+		{"function f($c){if(pg_send_query($c,'SELECT 3')): return true; endif; return false;}", 1},
+		{"function f($c){if(pg_send_query($c,'SELECT 3')) return false; return true;}", 0},
+		{"function f($c){if(pg_send_query($c,'SELECT 3')) return pg_get_result($c); return false;}", 0},
+		{"function f($c){if(pg_send_query($c,'SELECT 3')) echo $c; return false;}", 0},
+		{"function f($c){if(pg_send_query($c,'SELECT 3')) echo 'a', 'b'; return false;}", 0},
+		{"function f($c){if(pg_send_query($c,'SELECT 3')) $c = null; return false;}", 0},
+		{"function f($c){if(pg_send_query($c,'SELECT 3')) { } return true;}", 0},
+		{"function f($c){if(pg_send_query($c,'SELECT 3')) ; return true;}", 0},
+		{"function f($c){if(!pg_send_query($c,'SELECT 3')) return true; return false;}", 0},
 		{"function f($c){if(pg_send_query($c,'SELECT 3')){echo 'ok';}}", 1},
 		{"function f($c){if(pg_send_query($c,'SELECT 3')){$r=pg_get_result($c);return true;}}", 0},
 		{"function f($c){if(pg_send_query($c,'SELECT 3')){return false;}}", 0},

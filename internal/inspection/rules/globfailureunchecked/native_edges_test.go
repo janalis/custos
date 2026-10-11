@@ -13,6 +13,10 @@ func TestIndependentNativeEdges(t *testing.T) {
 		want int
 	}{
 		{"$a=glob('*.txt');if($a!==false){foreach($a as $p){echo $p;}}", 0},
+		{"$a=glob('*.txt');if(!$a){return;}foreach($a as $p){echo $p;}", 0},
+		{"$a=glob('*.txt');if(is_array($a)){echo count($a);}", 0},
+		{"$a=glob('*.txt');echo count($a);", 1},
+		{"$a=glob('*.txt');if(!$a){return;}$a=glob('*.md');echo count($a);", 1},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"GlobFailureUnchecked"}})

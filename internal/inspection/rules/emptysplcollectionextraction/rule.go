@@ -44,10 +44,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return
 	}
-	if !semanticquery.NativeMethod(ctx, c, class, name.Value) || semanticquery.NativeConstruction(ctx, c.Var, class) == nil {
+	built := semanticquery.NativeConstruction(ctx, c.Var, class)
+	if !semanticquery.NativeMethod(ctx, c, class, name.Value) || built == nil {
 		return
 	}
-	if !knownHistory(ctx, c) {
+	if !knownHistory(ctx, c, built) {
 		return
 	}
 	size := 0
@@ -69,13 +70,61 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 }
 
+// guardedNonempty recognizes a size test on the receiver that controls whether
+// the call runs: a branch, a conditional operand or a loop condition.
 func guardedNonempty(ctx *analysis.Context, c *syntax.MethodCall) bool {
-	for p := c.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
-		if branch, ok := p.(*syntax.If); ok {
-			if branch.Body.Span().Contains(c.Span()) && nonemptyCondition(ctx, branch.Cond, c.Var, true) {
+	for child, p := syntax.Node(c), c.Parent(); p != nil && !syntax.IsVariableScope(p); child, p = p, p.Parent() {
+		switch branch := p.(type) {
+		case *syntax.If:
+			if child == branch.Cond {
+				break
+			}
+			if child == branch.Body {
+				if nonemptyCondition(ctx, branch.Cond, c.Var, true) {
+					return true
+				}
+				break
+			}
+			// An elseif or else body runs only after every earlier condition failed.
+			if nonemptyCondition(ctx, branch.Cond, c.Var, false) {
 				return true
 			}
-			if branch.Else != nil && branch.Else.Body.Span().Contains(c.Span()) && nonemptyCondition(ctx, branch.Cond, c.Var, false) {
+			for _, alt := range branch.ElseIfs {
+				if child == alt {
+					break
+				}
+				if nonemptyCondition(ctx, alt.Cond, c.Var, false) {
+					return true
+				}
+			}
+		case *syntax.ElseIf:
+			if child == branch.Body && nonemptyCondition(ctx, branch.Cond, c.Var, true) {
+				return true
+			}
+		case *syntax.Ternary:
+			if child != branch.Cond && nonemptyCondition(ctx, branch.Cond, c.Var, child == branch.Then) {
+				return true
+			}
+		case *syntax.Binary:
+			if child != branch.Right {
+				break
+			}
+			switch branch.Op.Kind {
+			case syntax.TBooleanAnd, syntax.TAnd:
+				if nonemptyCondition(ctx, branch.Left, c.Var, true) {
+					return true
+				}
+			case syntax.TBooleanOr, syntax.TOr:
+				if nonemptyCondition(ctx, branch.Left, c.Var, false) {
+					return true
+				}
+			}
+		case *syntax.While:
+			if child == branch.Body && nonemptyCondition(ctx, branch.Cond, c.Var, true) {
+				return true
+			}
+		case *syntax.For:
+			if child == branch.Body && len(branch.Cond) > 0 && nonemptyCondition(ctx, branch.Cond[len(branch.Cond)-1], c.Var, true) {
 				return true
 			}
 		}
@@ -98,6 +147,13 @@ func nonemptyCondition(ctx *analysis.Context, e, receiver syntax.Expr, truth boo
 		return !truth
 	}
 	if b, ok := e.(*syntax.Binary); ok {
+		// A true conjunction proves both operands; a false disjunction refutes both.
+		switch b.Op.Kind {
+		case syntax.TBooleanAnd, syntax.TAnd:
+			return truth && (nonemptyCondition(ctx, b.Left, receiver, true) || nonemptyCondition(ctx, b.Right, receiver, true))
+		case syntax.TBooleanOr, syntax.TOr:
+			return !truth && (nonemptyCondition(ctx, b.Left, receiver, false) || nonemptyCondition(ctx, b.Right, receiver, false))
+		}
 		call, ok := b.Left.(*syntax.MethodCall)
 		if !ok || !semanticquery.NativeSameValue(ctx, call.Var, receiver) || !(semanticquery.NativeMethod(ctx, call, "SplDoublyLinkedList", "count") || semanticquery.NativeMethod(ctx, call, "SplHeap", "count") || semanticquery.NativeMethod(ctx, call, "SplPriorityQueue", "count")) {
 			return false
@@ -115,58 +171,70 @@ func nonemptyCondition(ctx *analysis.Context, e, receiver syntax.Expr, truth boo
 }
 
 // Only an entirely modeled history can establish an empty collection.
-func knownHistory(ctx *analysis.Context, at *syntax.MethodCall) bool {
+func knownHistory(ctx *analysis.Context, at *syntax.MethodCall, built *syntax.New) bool {
 	valid, budget := true, 256
 	scope := syntax.EnclosingVariableScope(at)
+	// A loop that does not rebuild the collection replays its whole body before
+	// the call, so the history extends to the end of the outermost such loop.
+	limit := at.Span().Start
+	for p := at.Parent(); p != nil && p != scope; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach:
+			if !p.Span().Contains(built.Span()) {
+				limit = p.Span().End
+			}
+		}
+	}
 	visit := func(n syntax.Node) bool {
 		budget--
 		if budget < 0 {
 			valid = false
 			return false
 		}
-		if n.Span().Start >= at.Span().Start {
+		if n.Span().Start >= limit {
 			return false
 		}
 		if n != scope && syntax.IsVariableScope(n) {
 			valid = false
 			return false
 		}
-		var args *syntax.ArgList
-		switch call := n.(type) {
-		case *syntax.FuncCall:
-			args = call.Args
-		case *syntax.MethodCall:
-			args = call.Args
-		case *syntax.StaticCall:
-			args = call.Args
-		}
-		if args != nil {
-			syntax.Inspect(args, func(child syntax.Node) bool {
-				if variable, ok := child.(*syntax.Variable); ok && semanticquery.NativeSameValue(ctx, variable, at.Var) {
-					valid = false
-				}
-				return true
-			})
-		}
 		switch n := n.(type) {
-		case *syntax.Assign:
-			if n.ByRef {
-				valid = false
+		case *syntax.Label:
+			// A jump target can replay everything that follows it.
+			limit = ^uint32(0)
+		case *syntax.Variable:
+			if !semanticquery.NativeSameValue(ctx, n, at.Var) {
+				return true
 			}
-			if slot, ok := n.Var.(*syntax.ArrayDimFetch); ok && semanticquery.NativeSameValue(ctx, slot.Var, at.Var) {
+			// Any use other than a method receiver or a plain rebinding may
+			// hand the collection to code that fills it.
+			modeled := false
+			switch parent := n.Parent().(type) {
+			case *syntax.MethodCall:
+				modeled = parent.Var == n
+			case *syntax.Assign:
+				modeled = parent.Var == n && !parent.ByRef
+			}
+			if !modeled {
 				valid = false
 			}
 		case *syntax.MethodCall:
-			if !semanticquery.NativeSameValue(ctx, n.Var, at.Var) {
+			if n == at || !semanticquery.NativeSameValue(ctx, n.Var, at.Var) {
 				return true
 			}
 			name := ""
 			if id, ok := n.Name.(*syntax.Identifier); ok {
 				name = strings.ToLower(id.Value)
 			}
+			replayed := n.Span().Start >= at.Span().Start
 			switch name {
-			case "insert", "push", "unshift", "enqueue", "extract", "pop", "shift", "dequeue":
-				if !semanticquery.NativeDominates(n, at) {
+			case "insert", "push", "unshift", "enqueue":
+				if replayed || !semanticquery.NativeDominates(n, at) {
+					valid = false
+				}
+			case "extract", "pop", "shift", "dequeue":
+				// A later removal can only shrink the collection.
+				if !replayed && !semanticquery.NativeDominates(n, at) {
 					valid = false
 				}
 			case "count", "isempty", "top", "bottom":

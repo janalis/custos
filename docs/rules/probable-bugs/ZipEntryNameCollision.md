@@ -27,7 +27,9 @@ Reported:
 
 ## Detection
 
-- D1. Enabled policy forbids implicit ZIP entry replacement. Report resolved addFromString of a proven literal name in the successful true branch of an earlier addFromString on the same receiver with that identical name, unless close/deleteName invalidates the preceding entry. Explicit flags and unknown names are excluded; other insertion patterns remain outside this guarded subset.
+- D1. Enabled policy forbids implicit ZIP entry replacement. Report resolved addFromString of a proven literal name in the successful true branch of an earlier addFromString on the same archive object with that identical name. Explicit flags and unknown names are excluded; other insertion patterns remain outside this guarded subset.
+- D1a. The same archive object means the same proven flow identity, not the same variable spelling: an alias of the guarded archive still counts, while a receiver variable reassigned to another archive between the guard and the second insertion does not.
+- D1b. The guarded entry is considered gone when a call on that archive, located after the guard and always executed before the second insertion, is one of close, open, deleteName, deleteIndex, renameName, renameIndex, unchangeAll, unchangeArchive, unchangeName or unchangeIndex. Their arguments are not matched against the entry: any such call removes proof. A call that runs only on some paths, or that precedes the guard, does not.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
 - D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
 
@@ -37,6 +39,8 @@ Only the successful branch establishes the earlier entry; exclude fallback addit
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E3. An archive without a proven flow identity, such as a property or the result of a factory call, is matched by its receiver spelling (a variable, or a property chain rooted in a variable or a static property). It is reported only when nothing between the guard and the second insertion could rebind it or change its entries: any method call, static call, object creation, callback definition, call to a non-builtin function, or assignment to the receiver or to an object it is read from removes proof. Other receiver shapes without a proven identity are not reported.
+- E4. No report when the archive has a proven identity that became uncertain before the second insertion, for instance after it was passed to an unresolved call, nor when the second insertion is written inside a closure or arrow function nested in the guarded branch.
 
 ## Fix
 

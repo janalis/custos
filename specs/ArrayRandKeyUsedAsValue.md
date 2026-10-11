@@ -21,7 +21,8 @@ array_rand returns a key rather than the selected element. Read the element at t
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- E2. Do not report when every key the call can return (0 to n-1 for an n-element list) loosely equals one of the switch case literals, because the consumer then already works with the key. The comparison follows the target PHP version: a numeric string compares by value (`"0"`, `"1.0"`, `" 1"`); any other string never equals an integer from PHP 8.0 and compares by its leading numeric prefix (zero when it has none) before 8.0. One key without a matching case keeps the report.
+- E3. Both standard suppression forms suppress this native ID.
 
 ## Report
 
@@ -54,6 +55,13 @@ Valid case:
 ```php
 <?php
 $a=["red","blue"]; echo $a[array_rand($a)];
+```
+
+Valid case, the keys 0 and 1 select the intended cases under the loose switch comparison:
+
+```php
+<?php
+function digit($c){switch($c){case "0":return "zero";case "1":return "one";}} echo digit(array_rand(["0","1"]));
 ```
 
 ## Divergences

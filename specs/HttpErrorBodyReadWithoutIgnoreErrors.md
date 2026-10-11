@@ -14,7 +14,7 @@ Enable reading HTTP error response bodies. This opt-in inspection applies the po
 
 ## Detection
 
-- D1. Enabled policy requires obtaining HTTP error response bodies. Resolve file_get_contents/fopen over a proven http/https URL with a local stream_context_create HTTP context whose ignore_errors option is absent or false. Report the consuming call. The default option false also violates policy. Named arguments and literal contexts are supported.
+- D1. Enabled policy requires obtaining HTTP error response bodies. Resolve file_get_contents/fopen over a proven http/https URL with a local stream_context_create HTTP context whose ignore_errors option is absent or false. Report the consuming call. The default option false also violates policy. Named arguments and literal contexts are supported. A read that passes no context uses the default context and is reported too, unless E3 applies.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
 - D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
@@ -22,6 +22,7 @@ Enable reading HTTP error response bodies. This opt-in inspection applies the po
 
 - E1. ignore_errors=true, non-HTTP streams, unknown URL schemes and unknown contexts are excluded. Enabling the rule states the response-body policy; comments or variable names are not evidence.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore HttpErrorBodyReadWithoutIgnoreErrors` and `@noinspection HttpErrorBodyReadWithoutIgnoreErrors` suppress this inspection.
+- E3. The default stream context is process-wide state. When the analysed file calls the builtin stream_context_set_default or stream_context_get_default anywhere, a read without a context argument is not reported: the default may already enable ignore_errors. A stream_context_create call whose second (params) argument is not a proven array, or is an array holding an `options` entry, yields an unknown context, because those options are merged into the ones given first.
 
 ## Report
 

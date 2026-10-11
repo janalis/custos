@@ -27,8 +27,16 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return
 	}
-	level, ok := semanticquery.NativeInt(ctx, semanticquery.CallArgument(c.Args, 1, "level"))
-	if ok && (level < -1 || level > 9) {
-		ctx.ReportNode(c, message)
+	arg := semanticquery.CallArgument(c.Args, 1, "level")
+	level, ok := semanticquery.NativeInt(ctx, arg)
+	if !ok || level >= -1 && level <= 9 {
+		return
 	}
+	if v, ok := syntax.UnwrapParens(arg).(*syntax.Variable); ok {
+		scope := syntax.EnclosingFuncLike(n)
+		if !stableLocal(ctx, scope, v.Name, factsOf(ctx, scope), map[string]bool{}) {
+			return
+		}
+	}
+	ctx.ReportNode(c, message)
 }

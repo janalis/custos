@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"custos/internal/inspection/analysis"
-
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -49,6 +49,51 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !known || text == "N;" || strings.Contains(text, ":") {
 			return
 		}
+		for _, operand := range []syntax.Expr{
+			a, b,
+			semanticquery.CallArgument(send.Args, 1, "message_type"),
+			semanticquery.CallArgument(send.Args, 2, "message"),
+			semanticquery.CallArgument(c.Args, 1, "desired_message_type"),
+		} {
+			if variable, ok := syntax.UnwrapParens(operand).(*syntax.Variable); ok && steppedBefore(ctx, variable) {
+				return
+			}
+		}
 		ctx.ReportNode(n, message)
 	}
+}
+
+// steppedBefore reports whether use may observe an increment, a decrement or
+// a write through a by-reference closure capture. Local flow facts keep the
+// assigned literal across those constructs, so the value is no longer proven.
+// A later change still counts when a loop repeats the use.
+func steppedBefore(ctx *analysis.Context, use *syntax.Variable) bool {
+	for _, access := range flowquery.VarAccesses(ctx.File, syntax.EnclosingFuncLike(use), use.Name) {
+		switch by := access.By.(type) {
+		case *syntax.IncDec:
+		case *syntax.ClosureUse:
+			if !by.ByRef {
+				continue
+			}
+		default:
+			continue
+		}
+		if access.Var.Span().Start < use.Span().Start || sharesLoop(use, access.Var) {
+			return true
+		}
+	}
+	return false
+}
+
+// sharesLoop reports whether a loop around use also contains other.
+func sharesLoop(use, other syntax.Node) bool {
+	for p := use.Parent(); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
+		switch p.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+			if span := p.Span(); span.Start <= other.Span().Start && other.Span().End <= span.End {
+				return true
+			}
+		}
+	}
+	return false
 }

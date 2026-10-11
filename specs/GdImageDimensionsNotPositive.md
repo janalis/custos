@@ -21,7 +21,10 @@ Identify imagecreate or imagecreatetruecolor whose width or height is a known in
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore GdImageDimensionsNotPositive` and `@noinspection GdImageDimensionsNotPositive` suppress this native rule.
+- E2. A dimension read from a local variable is not proven when that variable, or any variable it was assigned from, is changed by `++` or `--`, bound by a `catch` clause or imported by reference into a closure anywhere in the enclosing scope. A counter initialised to zero and incremented in a loop is the typical case.
+- E3. No variable dimension is proven in a scope that writes variables by run-time name: `extract()`, `parse_str()`, `$$name++` or a compound assignment to `$$name`.
+- E4. A variable shared with other code (top-level code, `global`, `static`, a by-reference parameter or a by-reference closure import of the enclosing closure) is not proven when the scope also runs code that could rewrite it: a call to a user-defined or unresolved function, a method or static call, `new`, `include`/`require`, `eval`, or a closure or arrow function definition.
+- E5. Both `@custos-ignore GdImageDimensionsNotPositive` and `@noinspection GdImageDimensionsNotPositive` suppress this native rule.
 
 ## Report
 
@@ -56,6 +59,19 @@ Valid case:
 ```php
 <?php
 imagecreatetruecolor(80, 80);
+```
+
+Valid case, the counter is no longer the literal it started from:
+
+```php
+<?php
+function canvas(array $lines) {
+    $rows = 0;
+    foreach ($lines as $line) {
+        $rows++;
+    }
+    return imagecreatetruecolor(200, $rows);
+}
 ```
 
 ## Divergences

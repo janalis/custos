@@ -52,20 +52,50 @@ func (staticLambdaBinding) Check(ctx *analysis.Context, n syntax.Node) {
 		return []diagnostic.TextEdit{{Span: astquery.WithTrailingWhitespace(ctx.File, syntax.Span{Start: kw.Start, End: kw.End})}}
 	}}
 
-	// D3, D4: every matching candidate, in pre-order.
+	// D3, D4: every matching candidate, in pre-order. Reports are issued
+	// after the walk because F2 depends on the whole body.
+	type candidate struct {
+		span syntax.Span
+		msg  string
+	}
+	var found []candidate
+	probed := false
 	syntax.Inspect(root, func(c syntax.Node) bool {
 		switch c := c.(type) {
 		case *syntax.Variable:
-			if c.NameExpr == nil && c.Name == "this" && staticLambdaOwner(c) == n {
-				ctx.Report(c.Span(), "Static closures have no $this; remove 'static' or avoid $this.", fix)
+			if c.NameExpr != nil || c.Name != "this" {
+				break
+			}
+			if staticLambdaThisProbe(c) { // E5
+				probed = true
+			} else if staticLambdaOwner(c) == n {
+				found = append(found, candidate{c.Span(), "Static closures have no $this; remove 'static' or avoid $this."})
 			}
 		case *syntax.StaticCall:
 			if staticLambdaParentInstanceCall(ctx, c) && staticLambdaOwner(c) == n {
-				ctx.ReportNode(c, "Calling an instance method of the parent class requires an object; this closure is static.", fix)
+				found = append(found, candidate{c.Span(), "Calling an instance method of the parent class requires an object; this closure is static."})
 			}
 		}
 		return true
 	})
+	for _, c := range found {
+		if probed { // F2: binding an object would flip the probe
+			ctx.Report(c.span, c.msg)
+			continue
+		}
+		ctx.Report(c.span, c.msg, fix)
+	}
+}
+
+// staticLambdaThisProbe reports whether v is a bare `$this` tested by
+// isset() or empty(), which is legal without an object and yields "unset".
+func staticLambdaThisProbe(v *syntax.Variable) bool {
+	parent, _ := astquery.ParentSkipParens(v)
+	switch parent.(type) {
+	case *syntax.Isset, *syntax.Empty:
+		return true
+	}
+	return false
 }
 
 // staticLambdaOwner returns the function whose object binding n uses: the

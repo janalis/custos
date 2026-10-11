@@ -2,15 +2,17 @@
 package pgfetchedzerorejected
 
 import (
-	"strings"
-
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
 
-const message = "Distinguish PostgreSQL fetch failure from a zero value."
+const (
+	message = "Distinguish PostgreSQL fetch failure from a zero value."
+	title   = "Test the fetched value with is_string()"
+)
 
 type rule struct{}
 
@@ -21,27 +23,31 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
-	if !semanticquery.NativeBuiltin(ctx, c, "pg_fetch_result") {
-		return
+	if !semanticquery.NativeBuiltin(ctx, c, "pg_fetch_result") || c.Args == nil || astquery.WrittenArguments(c.Args) == nil {
+		return // not the builtin, or a first-class callable that fetches nothing
 	}
 	var expr syntax.Expr = c
-	if a, ok := c.Parent().(*syntax.Assign); ok && a.Value == c {
-		expr = a
+	// Only a plain by-value assignment to a simple variable yields the fetched
+	// value unchanged: compound operators, typed properties and destructuring
+	// test something else.
+	if a, ok := c.Parent().(*syntax.Assign); ok && a.Value == c && a.Op.Kind == syntax.TEqual && !a.ByRef {
+		if v, ok := a.Var.(*syntax.Variable); ok && v.Name != "" {
+			expr = a
+		}
 	}
-	p := expr.Parent()
-	switch p.(type) {
+	switch expr.Parent().(type) {
 	case *syntax.If, *syntax.While:
 	default:
 		return
 	}
-	var fixes []diagnostic.Fix
-	text := ctx.Text(expr)
-	if !strings.Contains(text, "/*") && !strings.Contains(text, "//") && !strings.Contains(text, "#") {
-		fixes = append(fixes, edit(expr.Span(), "("+text+")!==false"))
-	}
-	ctx.ReportNode(expr, message, fixes...)
-}
-
-func edit(span syntax.Span, text string) diagnostic.Fix {
-	return diagnostic.Fix{Title: message, Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: text}} }}
+	// is_string() admits "0" and "" while still rejecting both the false of a
+	// failed fetch and the null of an SQL NULL, as the truthiness test did.
+	span := expr.Span()
+	open := semanticquery.QualifiedBuiltin(ctx, "is_string", span.Start) + "("
+	ctx.ReportNode(expr, message, diagnostic.Fix{Title: title, Edits: func() []diagnostic.TextEdit {
+		return []diagnostic.TextEdit{
+			{Span: syntax.Span{Start: span.Start, End: span.Start}, NewText: open},
+			{Span: syntax.Span{Start: span.End, End: span.End}, NewText: ")"},
+		}
+	}})
 }

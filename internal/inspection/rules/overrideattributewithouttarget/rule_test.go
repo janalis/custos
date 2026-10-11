@@ -126,6 +126,14 @@ func TestEdges(t *testing.T) {
 		{"class A{use Missing;#[Override]function f(){}}", 0},
 		{"class A extends Missing{#[Override]function f(){}}", 0},
 		{"#[Override] function f(){}", 0},
+		{"trait T{#[Override]function f(){}}", 0},
+		{"trait T{#[Override]function f(){}}class A{function f(){}}class B extends A{use T;}", 0},
+		{"class A{#[Override]function __toString(){return '';}}", 0},
+		{"class A{#[Override]function __TOSTRING(){return '';}}", 0},
+		{"abstract class A{#[Override]abstract function __toString();}", 0},
+		{"interface I{#[Override]function __toString();}", 0},
+		{"interface I{#[Override]function f();}", 1},
+		{"class A{#[Override]function toString(){}}", 1},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"OverrideAttributeWithoutTarget"}})

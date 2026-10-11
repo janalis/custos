@@ -22,6 +22,9 @@ Detect file_get_contents or stream_get_contents result consumed as a string with
 
 - E1. Strict false guard, deliberate documented false coercion, termination, and result reassignment invalidate the report.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. A guard on the same read result that excludes false counts as handling, whether it selects the branch holding the use (`if`, `elseif`/`else`, ternary, the right operand of `&&`/`||`) or sits in an earlier sibling `if` without alternatives whose body leaves the path. Accepted conditions, possibly negated or combined with `&&`/`||` where the combination still proves the fact: truthiness, `empty()`, `is_string()`, strict comparison with `false`, and loose comparison with a constant that `false` equals (`false`, `null`, `0`, `''`, `'0'`). The guarded variable must hold only that earlier read, or be assigned it inside the condition.
+- E4. A guard body leaves the path when it terminates syntactically or contains, as a direct statement, a call whose resolved return type is `never`. Calls with unknown or returning targets do not qualify.
+- E5. `$text = read() or <alternative>` (also `||` around the parenthesized assignment) handles failure when the alternative is `exit`/`die`, a `throw` expression or a call resolved as `never`; uses inside the alternative itself stay reported.
 
 ## Report
 
@@ -48,6 +51,22 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 ```php
 <?php
 $text = <warning descr="Handle file reading failure before using its result.">trim(file_get_contents($path))</warning>;
+```
+
+Not reported:
+
+```php
+<?php
+function abort(): never { throw new RuntimeException('unreadable'); }
+
+$text = file_get_contents($path) or die('unreadable');
+$size = strlen($text);
+
+$other = file_get_contents($backup);
+if ($other == false) {
+    abort();
+}
+$size += strlen($other);
 ```
 
 ## Divergences

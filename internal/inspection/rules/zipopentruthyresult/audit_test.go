@@ -14,6 +14,10 @@ func TestAuditRegressions(t *testing.T) {
 		want, fixes int
 	}{
 		{"$z=new ZipArchive();if(! # retain\n $z->open(\"a.zip\")){}", 1, 0},
+		{"$z=new ZipArchive();if($x){}elseif($z->open(\"a.zip\")){}", 1, 1},
+		{"$z=new ZipArchive();if($x){}elseif(!$z->open(\"a.zip\")){}", 1, 1},
+		{"$z=new ZipArchive();if($x){}elseif(! /* keep */ $z->open(\"a.zip\")){}", 1, 0},
+		{"$z=new ZipArchive();if($x){}elseif($z->open(\"a.zip\")===true){}", 0, 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{New().ID()}})

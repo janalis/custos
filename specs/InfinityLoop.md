@@ -38,7 +38,9 @@ abstract methods have no body and are skipped).
   `self` or `static`; the keywords `self`/`static` are matched ignoring case
   (`SELF::`, `Static::`), `$this` exactly (variable names are
   case-sensitive). `parent`, other variables and class names do not
-  qualify. Arguments are irrelevant.
+  qualify. The arguments of an actual call are irrelevant.
+- **D6** The candidate really invokes the method: its argument list is not
+  the first-class callable placeholder `(...)` (see E6).
 
 ## Exceptions (no report)
 
@@ -49,6 +51,11 @@ abstract methods have no body and are skipped).
 - **E4** Recursive call nested in an expression (`return 1 + $this->m();`,
   `$x = $this->m();`, `return ($this->m());`).
 - **E5** Plain functions and closures.
+- **E6** First-class callable syntax (PHP 8.1+): `return $this->m(...);`,
+  `self::m(...)`, `static::m(...)`. The `(...)` placeholder creates a
+  `Closure` bound to the method without invoking it, so the method returns
+  normally. Argument unpacking (`$this->m(...$args)`) is a real call and is
+  still reported.
 
 ## Report
 
@@ -119,6 +126,16 @@ class Settings
             return $this->close($n - 1);
         }
     }
+
+    public function listener()
+    {
+        return $this->listener(...);
+    }
+
+    public function forward(...$args)
+    {
+        return <error descr="Method calls itself unconditionally; this recursion never ends.">$this->forward(...$args)</error>;
+    }
 }
 ```
 
@@ -130,3 +147,7 @@ class Settings
   not reported, although PHP resolves keywords and method names
   case-insensitively and each of these recurses forever. custos ignores case
   for the `self`/`static` keywords and the method name (D4, D5).
+- **First-class callable syntax (custos diverges):** upstream looks only at
+  the receiver and the method name, so `return $this->m(...);` inside `m()`
+  is treated as a recursive call. That expression only builds a closure and
+  the method terminates; custos does not report it (D6, E6).

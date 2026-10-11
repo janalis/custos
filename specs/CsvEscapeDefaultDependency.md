@@ -14,7 +14,7 @@ Pass the CSV escape character explicitly.
 
 ## Detection
 
-- D1. For resolved fgetcsv, fputcsv, str_getcsv and SplFileObject fgetcsv/fputcsv/setCsvControl, report omission of the escape argument. For SplFileObject reading/writing, a proven prior setCsvControl with explicit escape satisfies the contract if the call does not override it. Bind named arguments to their signature positions.
+- D1. For resolved fgetcsv, fputcsv, str_getcsv and SplFileObject fgetcsv/fputcsv/setCsvControl, report omission of the escape argument. For SplFileObject reading/writing, omitted arguments inherit the object's control values: when the latest setCsvControl call proven to run before the operation on the same object supplies an escape, the contract is satisfied, whether or not the operation passes its own separator or enclosure. Bind named arguments to their signature positions.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
 - D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
@@ -32,7 +32,7 @@ Pass the CSV escape character explicitly.
 
 ## Fix
 
-Add the explicit current default backslash escape, preserving behavior. On PHP 8.4 use a named escape argument when legal; otherwise fill only missing optional separator/enclosure/length defaults according to the exact API signature. Do not mix positional after named arguments or duplicate arguments. Empty escape is documented as an interoperability choice but is never silently introduced.
+Add the explicit current default backslash escape, preserving behavior. For SplFileObject fgetcsv/fputcsv the effective escape is the object's control value, so the fix is offered only when that value is provably still the backslash default: the receiver is a local variable assigned exactly once, by a plain assignment of a new `SplFileObject` or `SplTempFileObject` (not a subclass) that always runs before the call, and every other mention of that variable in the scope is the receiver of a named method call other than a setCsvControl that may supply an escape. A parameter, property, `$this`, returned object, alias, closure capture, argument pass, variable variable, `include` or `eval` leaves the control state unknown: the call is still reported, without a fix. setCsvControl itself always falls back to backslash when its escape is omitted, so its fix is unconditional. On PHP 8.4 use a named escape argument when legal; otherwise fill only missing optional separator/enclosure/length defaults according to the exact API signature. Do not mix positional after named arguments or duplicate arguments. Empty escape is documented as an interoperability choice but is never silently introduced.
 
 All edits use exact byte ranges, preserve comments and evaluation order, and require syntax supported by the target PHP version. A fix must never add an evaluation or silently change unrelated arguments.
 

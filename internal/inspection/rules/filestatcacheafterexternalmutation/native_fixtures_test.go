@@ -10,6 +10,7 @@ import (
 	"custos/internal/fixing"
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/testing/conformance"
 )
 
@@ -25,7 +26,7 @@ func TestNativeFixtureRangesAndFixes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"FileStatCacheAfterExternalMutation"}})
+			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"FileStatCacheAfterExternalMutation"}, PHP: phpversion.PHP82})
 			if err != nil {
 				t.Fatal(err)
 			}

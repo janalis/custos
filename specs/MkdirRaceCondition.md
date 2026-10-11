@@ -22,7 +22,11 @@ treated as an error, and its result must not be ignored.
   with 1 to 3 arguments (positional or named), resolving to the global
   built-in `mkdir` (no user function `mkdir` declared in the current
   namespace; an unqualified call in a namespace falls back to the global
-  one). Method calls and `new` are never considered.
+  one). Method calls and `new` are never considered. The *directory
+  argument* is the first positional argument or the one named `directory`,
+  wherever it is written; a call where it cannot be identified (an unpacked
+  `...$args` anywhere in the list, no directory argument, the same parameter
+  bound twice) is not considered.
 - **D2** Not a test context: the file path does not end with `Test.php`,
   `Spec.php` or `.phpt` and does not contain `/Fixtures/`, and the enclosing
   class (if any) FQN does not end with `Test` nor contain `\Tests\` or
@@ -38,10 +42,13 @@ treated as an error, and its result must not be ignored.
   - `P` is any other unary operator (cast, `-`, `~`, …) → no target; stop.
   - `P` is a logical binary (`&&`, `||`, `and`, `or`) → the target is `N`;
     stop.
-  - `P` is any other binary operator → if it is `===` or `!==` and the *other*
+  - `P` is a comparison `===`, `!==`, `==` or `!=`/`<>` whose *other*
     operand is a boolean literal (`true`/`false`, any case): flip `inverted`
-    when that literal is `false`, and flip again when the operator is `!==`.
-    (Other operators such as `==` do not flip.) Continue with `N = P`.
+    when that literal is `false`, and flip again when the operator is a
+    negated one (`!==`, `!=`, `<>`). Continue with `N = P`.
+  - `P` is any other binary expression (a comparison with something else
+    than a boolean literal, `xor`, `&`, `.`, `??`, …) → no target; stop, no
+    report.
   - Anything else (`elseif`/`while` condition, argument, `return`, `echo`,
     ternary, array element, …) → no target; stop, no report.
 - Let `T` be the target and `C` its parent.
@@ -59,7 +66,7 @@ treated as an error, and its result must not be ignored.
     any is a plain function call named `is_dir` (case-insensitive) whose
     first argument re-checks the same directory → no report. The first
     argument matches when its text (outer parentheses and whitespace
-    ignored) equals the text of `mkdir()`'s first argument, or, when that
+    ignored) equals the text of `mkdir()`'s directory argument, or, when that
     argument is an assignment `$v = expr`, equals `$v` or `expr`. An
     `is_dir()` on another path does not count;
   - otherwise report `T`; the suggested form is the *and*-form when `B'`'s
@@ -75,9 +82,12 @@ treated as an error, and its result must not be ignored.
   of the (outer) logical expression: `!is_dir($d) && !mkdir($d) && !is_dir($d)`,
   `mkdir($d) || is_dir($d)`, `!mkdir($d = $cfg->path()) && !is_dir($d)`.
 - **E4** Call with 0 or more than 3 arguments; non-global `mkdir`; test
-  context.
+  context; a call whose directory argument cannot be identified
+  (`mkdir(...$args)`, `mkdir($d, ...$rest)`).
 - **E5** Calls whose result flows anywhere other than D4–D6 (returned,
-  passed as an argument, `elseif`/`while` conditions, ternaries, casts).
+  passed as an argument, `elseif`/`while` conditions, ternaries, casts,
+  operands of non-logical operators such as `mkdir($d) xor $dry` or
+  `mkdir($d) === null`).
 
 ## Report
 
@@ -99,12 +109,18 @@ treated as an error, and its result must not be ignored.
 ## Fix
 
 Notation: `ARGS` = argument list text verbatim (e.g. `$path, 0755, true` or
-`$path, recursive: true`); `DIR` = text of the first argument. A *temp-var*
-form is used when the first argument is neither a plain variable nor a string
-literal (any kind of quoted string): then `ARGS` is used as
-`$concurrentDirectory = ARGS` inside the `mkdir(...)` call (which assigns only
-the first argument, since the comma ends the assignment) and
-`$concurrentDirectory` replaces `DIR` afterwards.
+`$path, recursive: true`); `DIR` = text of the directory argument (D1). The
+normal form repeats `DIR`, so it is only used when evaluating `DIR` again
+cannot run code or give another value: a plain variable, a single-quoted
+string, or a double-quoted string interpolating nothing but plain variables
+(`"$root/log"`, `"{$root}/$name"`). Everything else uses the *temp-var* form
+— including strings interpolating a property, an offset, a call or a
+variable variable, and heredocs/nowdocs: `$concurrentDirectory =` is inserted
+right in front of the directory value inside the `mkdir(...)` call, i.e.
+after a `directory:` label and after any argument written before it
+(`mkdir(recursive: true, directory: $concurrentDirectory = dirname($f))`),
+and `$concurrentDirectory` replaces `DIR` afterwards. Below,
+`$concurrentDirectory = ARGS` stands for that insertion.
 
 Builtin spelling: in every form below, `mkdir`, `is_dir` and `sprintf` are
 written with a leading `\` when an unqualified call at the reported
@@ -114,7 +130,9 @@ that name, or a same-named function declared in the current namespace);
 namespace declaring `function is_dir()`, F1 gives
 `if (!mkdir(ARGS) && !\is_dir(DIR)) { … }`.
 
-- **F1** (D4) Replace the whole statement with an `if` that throws. Let
+- **F1** (D4) Replace the whole statement with an `if` that throws (when the
+  statement is ended by a closing `?>` tag instead of `;`, only the
+  expression is replaced and the tag stays). Let
   `FMT` be the single-quoted PHP literal whose contents are
   `Directory "%s" was not created` (with the double quotes and the `%s`
   literally), and `THROW(X)` = `throw new \RuntimeException(sprintf(FMT, X));`
@@ -276,6 +294,31 @@ inverted.)
   directory (`while (!is_dir($d) && !@mkdir($d, 0755, true)) { usleep(…); }`)
   re-checks on the next iteration: not reported (October CMS's
   `CodeParser`).
+- **Named and unpacked arguments (custos diverges).** The directory is the
+  `directory` parameter, not whatever is written first:
+  `mkdir(permissions: $m, directory: $d)` is re-checked with `is_dir($d)`,
+  and the temp-var assignment is placed in front of the directory value,
+  after its label (placing it at the start of the list, as for a positional
+  call, gives `$concurrentDirectory = directory: …`, which does not parse).
+  With an unpacked argument the directory is not known syntactically, so
+  the call is not reported.
+- **Other operands (custos diverges).** The upward walk (D3) only passes
+  through a comparison with a boolean literal. A call that is an operand of
+  any other binary operator (`mkdir($d) xor $dry`, `mkdir($d) === null`,
+  `!mkdir($a) & !mkdir($b)`) is not reported: replacing that expression
+  would drop its other operand.
+- **Loose comparisons (custos diverges).** `mkdir($d) == false` and
+  `mkdir($d) != true` set the polarity like their strict counterparts
+  (`mkdir()` only returns booleans), so they get the and-form; without the
+  flip the or-form would run the failure branch on success.
+- **Interpolated directories (custos diverges).** A double-quoted directory
+  is only repeated when it interpolates plain variables. With a call, a
+  property or an offset in it (`"{$base}/job-{$seq->next()}"`) the normal
+  form would evaluate it again in `is_dir()` and in the message, possibly
+  naming another path; the temp-var form is used, as for heredocs.
+- **Closing tag as terminator (custos).** In `<?php mkdir($d) ?>` the
+  statement ends at the closing tag; F1 keeps the tag, which would otherwise
+  turn the following template text into PHP.
 - **Unbraced bodies (custos).** When the ignored `mkdir()` statement is the
   unbraced body of an `if`/`else`/loop, the D4 replacement is wrapped in
   braces: a bare `if (…) { throw … }` would capture the outer `else`.

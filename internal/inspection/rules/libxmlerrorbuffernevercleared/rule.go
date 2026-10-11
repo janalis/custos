@@ -120,19 +120,56 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
-	// A guaranteed immediate clear outside the loop also bounds the buffer's lifetime.
-	loop := n.(syntax.Stmt)
-	next, ok := astquery.NextStmt(ctx.File, loop)
-	if ok {
-		if s, yes := next.(*syntax.ExprStmt); yes {
-			if c, yes := s.Expr.(*syntax.FuncCall); yes && semanticquery.NativeBuiltin(ctx, c, "libxml_clear_errors") {
-				return
-			}
-		}
-	}
-	if parse {
+	// A guaranteed clear after the loop also bounds the buffer's lifetime: the
+	// usual sequence reads the collected errors first and clears them afterwards.
+	if parse && !clearedAfter(ctx, n.(syntax.Stmt)) {
 		ctx.ReportNode(n, message)
 	}
+}
+
+// clearedAfter reports whether straight-line statements following loop in its
+// statement list reach an unconditional libxml_clear_errors() call. A statement
+// that can leave the list first ends the search.
+func clearedAfter(ctx *analysis.Context, loop syntax.Stmt) bool {
+	list, at, _ := astquery.StmtList(ctx.File, loop)
+	for i := at + 1; i < len(list) && i-at <= 64; i++ {
+		if s, ok := list[i].(*syntax.ExprStmt); ok {
+			if c, ok := s.Expr.(*syntax.FuncCall); ok && semanticquery.NativeBuiltin(ctx, c, "libxml_clear_errors") {
+				return true
+			}
+		}
+		if leavesList(list[i], false) {
+			return false
+		}
+	}
+	return false
+}
+
+// leavesList reports whether root can transfer control out of the enclosing
+// statement list. A plain break or continue is local once inside a nested loop
+// or switch; a counted one is treated as escaping.
+func leavesList(root syntax.Node, nested bool) bool {
+	leaves := false
+	syntax.Inspect(root, func(n syntax.Node) bool {
+		switch t := n.(type) {
+		case *syntax.Return, *syntax.Throw, *syntax.Exit, *syntax.Goto, *syntax.Label,
+			*syntax.Yield, *syntax.YieldFrom, *syntax.HaltCompiler:
+			leaves = true
+		case *syntax.Break:
+			leaves = !nested || t.Num != nil
+		case *syntax.Continue:
+			leaves = !nested || t.Num != nil
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
+			return false
+		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach, *syntax.Switch:
+			if !nested {
+				leaves = leavesList(n, true)
+				return false
+			}
+		}
+		return !leaves
+	})
+	return leaves
 }
 
 func nestedCallChildren(root syntax.Node) bool {

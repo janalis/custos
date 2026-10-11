@@ -33,6 +33,8 @@ Detect a builtin sort comparator returning a subtraction whose operands are prov
 
 Replace the sole subtraction with the spaceship comparison on PHP 7.0+, preserving operand evaluation order.
 
+The rewrite is offered only when the comparator is an anonymous function or arrow function written directly as the callback argument. A comparator reached through a function name or through a variable holding a closure can also be called elsewhere for the numeric difference, so those shapes are reported without a fix.
+
 A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 
 ## Options

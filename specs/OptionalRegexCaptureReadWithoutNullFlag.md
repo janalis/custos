@@ -19,12 +19,14 @@ An unmatched optional regex capture can be absent from the results. Guard the ac
 - D1b. Regex proof requires an ASCII subject and an ordinary compatible PCRE subset without modifiers or whitespace escapes \s or \S. Reject patterns matching an empty string and subjects larger than 32768 bytes.
 - D1d. Require an actual value read of the absent capture. Exclude writes, unset, by-reference uses and unknown argument uses, and exclude statements that also mutate the result array. The regex offset must be omitted or statically known zero; nonzero or unknown offsets are unsupported.
 - D1e. All argument uses are excluded because they can involve reference passing. Also exclude increment/decrement, unset and write contexts. Any same-statement mutation or call receiving the result array discards the actual-read proof.
+- D1f. A read is guarded when it is the operand of isset/empty, the left operand of `??`, or when the same expression only evaluates it after an existence test of the same capture (same result variable, same literal index) succeeded: the right operand of `&&` whose left operand implies the test, the right operand of `||` whose left operand being false implies it, and the ternary branch selected by it. The test is `isset($m[i])` or `!empty($m[i])`, seen through parentheses, `!`, and `&&`/`||` combinations of the matching polarity. The right operand of `??` is not guarded by that operator. A statement calling array_key_exists on the result array is already excluded by D1e.
+- D1g. A by-reference bind of the capture (`$x = &$m[i]`, `[&$m[i]]`) creates the element instead of reading it and is not reported.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
 
 ## Exceptions (no report)
 
-- E1. Required captures, unknown match outcomes, guarded reads, and unsupported regex syntax are excluded.
+- E1. Required captures, unknown match outcomes, guarded reads (D1f), by-reference binds (D1g), and unsupported regex syntax are excluded.
 - E2. Both standard suppression forms suppress this native ID.
 
 ## Report

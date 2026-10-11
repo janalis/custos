@@ -35,7 +35,11 @@ A sentinel or length guard applies only to the same reaching value. Reassignment
 
 ## Exceptions (no report)
 
-- E1. Explicit null fallback, guard, termination, and known non-PCRE callees are excluded.
+- E1. Explicit null fallback, guard, termination, and known non-PCRE callees are excluded. The guard does not depend on the declared type of the subject; a result typed `string|array|null` is guarded the same way as `?string`. A use is guarded when a null test on the same reaching value dominates it:
+  - the test is `$v !== null` or `isset($v)` or `is_string($v)` holding true, or `$v === null` or `is_null($v)` holding false, with either operand order, optional parentheses, `!` negation, and the tested value optionally assigned in place (`null !== $v = preg_replace(...)`);
+  - a conjunction (`&&`, `and`) holding true proves what either operand proves; a disjunction (`||`, `or`) holding false proves what either operand proves;
+  - the test dominates the use as the condition of an enclosing `if`/`elseif` body, as a failed first `if` condition for its `elseif`/`else` arms, as the condition of an enclosing ternary arm, as the left operand of the short-circuit operator whose right operand contains the use, or as the condition of an earlier `if` in an enclosing statement list whose body always terminates.
+- E3. Loose comparisons (`== null`), general truthiness (`if ($v)`), tests of another variable, and guards followed by a reassignment or a new call prove nothing; the use is still reported.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix

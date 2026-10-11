@@ -136,7 +136,9 @@ func (magicMethodsValidity) Check(ctx *analysis.Context, n syntax.Node) {
 		c.mustStatic()
 		c.public()
 		if c.fqn != "" {
-			c.returns(`\`+c.fqn, "static")
+			// custos: `object` is the documented return type; PHP only
+			// rejects declared types that are not object types.
+			c.returns(`\`+c.fqn, "static", "object")
 		}
 	case "__invoke": // D10
 		c.notStatic()
@@ -182,16 +184,64 @@ func (magicMethodsValidity) Check(ctx *analysis.Context, n syntax.Node) {
 // declares the method too: the name is then imposed by the hierarchy (a
 // `_get()` hook of an abstract cache class), not a misspelt magic method.
 func (c *magicCheck) inherited() bool {
-	if c.fqn == "" {
+	return c.declaredAbove(c.name, false)
+}
+
+// declaredAbove reports whether a parent, interface or trait of the class
+// declares the method name; own also accepts a declaration in the class
+// itself. An anonymous class has no index entry: its supertypes are read
+// from the declaration.
+func (c *magicCheck) declaredAbove(name string, own bool) bool {
+	lname := strings.ToLower(name)
+	if c.fqn != "" {
+		for i, a := range c.ctx.Index().Ancestors(c.fqn, c.ctx.PHP) {
+			if _, ok := a.Methods[lname]; ok && (own || i > 0) {
+				return true
+			}
+		}
 		return false
 	}
-	lname := strings.ToLower(c.name)
-	for i, a := range c.ctx.Index().Ancestors(c.fqn, c.ctx.PHP) {
-		if _, ok := a.Methods[lname]; ok && i > 0 {
+	if own && c.declares(lname) {
+		return true
+	}
+	for _, r := range c.supertypes(true) {
+		if c.ctx.Index().FindMethod(r, name, c.ctx.PHP) != nil {
 			return true
 		}
 	}
 	return false
+}
+
+// declares reports whether the class body itself declares the method.
+func (c *magicCheck) declares(lname string) bool {
+	for _, mem := range c.cl.Members {
+		if m, ok := mem.(*syntax.Method); ok && m.Name != nil && strings.ToLower(m.Name.Value) == lname {
+			return true
+		}
+	}
+	return false
+}
+
+// supertypes lists the resolved parent class and used traits of the class
+// as written, plus its interfaces when asked.
+func (c *magicCheck) supertypes(interfaces bool) []string {
+	var refs []string
+	if p := c.ctx.Names().ParentFQN(c.cl); p != "" {
+		refs = append(refs, p)
+	}
+	if interfaces {
+		for _, i := range c.cl.Implements {
+			refs = append(refs, c.ctx.Names().Class(i.Value, i.Span().Start))
+		}
+	}
+	for _, mem := range c.cl.Members {
+		if tu, ok := mem.(*syntax.TraitUse); ok {
+			for _, t := range tu.Traits {
+				refs = append(refs, c.ctx.Names().Class(t.Value, t.Span().Start))
+			}
+		}
+	}
+	return refs
 }
 
 // deliberateHook reports whether a single-underscore name is an explicit
@@ -200,12 +250,8 @@ func (c *magicCheck) inherited() bool {
 // `$this->_construct()`), or the file calls the method by name.
 func (c *magicCheck) deliberateHook() bool {
 	lname := strings.ToLower(c.name)
-	if c.fqn != "" {
-		for _, a := range c.ctx.Index().Ancestors(c.fqn, c.ctx.PHP) {
-			if _, ok := a.Methods["_"+lname]; ok {
-				return true
-			}
-		}
+	if c.declaredAbove("_"+c.name, true) {
+		return true
 	}
 	called := c.ctx.Memo("called-methods", func() any {
 		names := map[string]bool{}
@@ -292,26 +338,11 @@ func (c *magicCheck) noReturn() {
 }
 
 func (c *magicCheck) pair(companion string) {
-	lc := strings.ToLower(companion)
-	for _, mem := range c.cl.Members {
-		if m, ok := mem.(*syntax.Method); ok && m.Name != nil && strings.ToLower(m.Name.Value) == lc {
-			return
-		}
+	if c.declares(strings.ToLower(companion)) {
+		return
 	}
-	ix := c.ctx.Index()
-	var refs []string
-	if p := c.ctx.Names().ParentFQN(c.cl); p != "" {
-		refs = append(refs, p)
-	}
-	for _, mem := range c.cl.Members {
-		if tu, ok := mem.(*syntax.TraitUse); ok {
-			for _, t := range tu.Traits {
-				refs = append(refs, c.ctx.Names().Class(t.Value, t.Span().Start))
-			}
-		}
-	}
-	for _, r := range refs {
-		if ix.FindMethod(r, companion, c.ctx.PHP) != nil {
+	for _, r := range c.supertypes(false) {
+		if c.ctx.Index().FindMethod(r, companion, c.ctx.PHP) != nil {
 			return
 		}
 	}
@@ -451,7 +482,7 @@ func (c *magicCheck) returns(allowed ...string) {
 	var shown []string
 	for _, a := range allowed {
 		ok[a] = true
-		if a != "static" {
+		if a != "static" && a != "object" {
 			shown = append(shown, a)
 		}
 	}

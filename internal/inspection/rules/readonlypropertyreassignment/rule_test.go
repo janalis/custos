@@ -32,6 +32,11 @@ func TestContracts(t *testing.T) {
 		{"intervening output", "<?php class P{public readonly int $p;function f(){$this->p=1;echo 'ok';$this->p=2;}}", 0},
 		{"different adjacent assignment", "<?php class P{public readonly int $p;function f(){$x=1;$this->p=2;}}", 0},
 		{"repeat parameter write", "<?php class P{public readonly int $p;function f($n){$this->p=$n;$this->p=2;}}", 1},
+		{"coalesce assignment after initialization", "<?php class P{public readonly int $p;function f($n){$this->p=$n;$this->p??=2;}}", 0},
+		{"coalesce assignment after literal", "<?php class P{public readonly ?int $p;function f(){$this->p=1;$this->p??=2;}}", 0},
+		{"compound assignment after initialization", "<?php class P{public readonly int $p;function f($n){$this->p=$n;$this->p+=2;}}", 1},
+		{"concat assignment after initialization", "<?php class P{public readonly string $p;function f(){$this->p='a';$this->p.='b';}}", 1},
+		{"plain write after coalesce initialization", "<?php class P{public readonly int $p;function f($n){$this->p??=$n;$this->p=2;}}", 1},
 		{"computed receiver", "<?php class P{public readonly int $p;static function make():self{return new self;}function f(){self::make()->p=1;self::make()->p=2;}}", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

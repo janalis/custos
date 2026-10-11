@@ -25,7 +25,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	name := semanticquery.NativeBuiltinName(ctx, c)
 	var positions []string
 	switch name {
-	case "gmp_strval", "gmp_abs", "gmp_neg", "gmp_sqrt", "gmp_intval":
+	case "gmp_strval", "gmp_intval", "gmp_abs", "gmp_neg", "gmp_sqrt", "gmp_pow":
+		// gmp_pow: only the base is a GMP operand; the exponent is a plain int.
 		positions = []string{"num"}
 	case "gmp_add", "gmp_sub", "gmp_mul", "gmp_cmp", "gmp_div_q", "gmp_div_r", "gmp_div_qr", "gmp_mod":
 		positions = []string{"num1", "num2"}

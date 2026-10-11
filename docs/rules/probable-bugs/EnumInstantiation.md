@@ -30,12 +30,14 @@ Reported:
 ## Detection
 
 - D1. Report new applied to a resolved backed or unbacked enum declaration.
+- D1a. Report `new self()` and `new static()` written lexically inside an enum body (a method or constant expression of the enum itself): both name the enclosing enum. The keywords are matched case-insensitively.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
 - D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
 - E1. Static case access and from/tryFrom calls are excluded.
+- E1a. `self`/`static` instantiation is not reported inside a closure or arrow function (it can be rebound to another class scope), inside an anonymous class or a trait (the keyword names that scope, or the class using the trait), or outside any class.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore EnumInstantiation` and `@noinspection EnumInstantiation` suppress this inspection.
 
 ## Fix

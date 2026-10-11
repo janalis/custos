@@ -30,7 +30,11 @@ func (mkdirRaceCondition) Check(ctx *analysis.Context, n syntax.Node) {
 	if c := len(call.Args.Args); c < 1 || c > 3 {
 		return
 	}
-	if _, ok := call.Args.Args[0].(*syntax.Arg); !ok { // mkdir(...) builds a closure
+	// The directory is the first positional or the `directory:` argument.
+	// mkdir(...) builds a closure and a spread hides the directory: neither
+	// is reported.
+	dirArg := semanticquery.CallArgument(call.Args, 0, "directory")
+	if dirArg == nil {
 		return
 	}
 	if f := ctx.Types().ResolveFunction(call); f != nil {
@@ -43,7 +47,8 @@ func (mkdirRaceCondition) Check(ctx *analysis.Context, n syntax.Node) {
 	if semanticquery.InTestContext(ctx, call) { // D2
 		return
 	}
-	if mkdirUsedAsLock(ctx, call) {
+	keys := mkdirDirKeys(ctx, dirArg)
+	if mkdirUsedAsLock(ctx, call, keys) {
 		return
 	}
 
@@ -78,28 +83,37 @@ locate:
 			case syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr:
 				target = cur
 				break locate
-			case syntax.TIsIdentical, syntax.TIsNotIdentical:
+			case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
 				other := p.Left
 				if other == cur {
 					other = p.Right
 				}
-				if v, ok := astquery.BoolConst(other); ok {
-					if !v {
-						inverted = !inverted
-					}
-					if p.Op.Kind == syntax.TIsNotIdentical {
-						inverted = !inverted
-					}
+				// mkdir() returns a boolean, so a loose comparison with a
+				// boolean literal means the same as the strict one.
+				v, ok := astquery.BoolConst(other)
+				if !ok {
+					return
 				}
+				if !v {
+					inverted = !inverted
+				}
+				if p.Op.Kind == syntax.TIsNotIdentical || p.Op.Kind == syntax.TIsNotEqual {
+					inverted = !inverted
+				}
+				cur = p
+			default:
+				// custos: any other operator (`xor`, `&`, `=== null`, …)
+				// has an operand a rewrite of the call would drop.
+				return
 			}
-			cur = p
 		default:
 			return
 		}
 	}
 
-	args := ctx.SpanText(argsInner(call.Args))
-	dir, tempVar := mkdirDir(ctx, call)
+	inner := argsInner(call.Args)
+	args := ctx.SpanText(inner)
+	dir, tempVar := mkdirDir(ctx, dirArg)
 	// Spell builtins so they reach the global functions even when the
 	// namespace declares or imports same-named functions.
 	mkdirFn := semanticquery.QualifiedBuiltinFor(ctx, "mkdir", call)
@@ -107,7 +121,10 @@ locate:
 	mk := mkdirFn + "(" + args + ")"
 	isDir := isDirFn + "(" + dir + ")"
 	if tempVar {
-		mk = mkdirFn + "($concurrentDirectory = " + args + ")"
+		// The assignment goes in front of the directory value, after a
+		// `directory:` label and after arguments written before it.
+		at := dirArg.Span().Start
+		mk = mkdirFn + "(" + ctx.SpanText(syntax.Span{Start: inner.Start, End: at}) + "$concurrentDirectory = " + ctx.SpanText(syntax.Span{Start: at, End: inner.End}) + ")"
 		isDir = isDirFn + "($concurrentDirectory)"
 	}
 	if silenced {
@@ -124,7 +141,7 @@ locate:
 	case *syntax.ExprStmt: // D4
 		// custos: `if (!is_dir($d)) { mkdir($d); } return is_dir($d);`
 		// re-checks in a later statement.
-		if laterIsDirCall(ctx, c, mkdirDirKeys(ctx, call)) {
+		if laterIsDirCall(ctx, c, keys) {
 			return
 		}
 		thrown := dir
@@ -139,12 +156,17 @@ locate:
 		}
 		ctx.ReportNode(c, "mkdir() outcome is ignored; use 'if (!mkdir("+args+") && !is_dir(...)) { ... }'.",
 			diagnostic.Fix{Title: "Throw when the directory was not created", Edits: func() []diagnostic.TextEdit {
-				return []diagnostic.TextEdit{{Span: c.Span(), NewText: repl}}
+				span := c.Span()
+				if !strings.HasSuffix(ctx.SpanText(span), ";") {
+					// The statement is ended by `?>`, which must stay.
+					span.End = c.Expr.Span().End
+				}
+				return []diagnostic.TextEdit{{Span: span, NewText: repl}}
 			}})
 	case *syntax.If: // D5
 		// custos: `if (!mkdir($d)) { …is_dir($d)… }` already re-checks in
 		// the failure branch.
-		if inverted && hasIsDirCall(ctx, c.Body, mkdirDirKeys(ctx, call)) {
+		if inverted && hasIsDirCall(ctx, c.Body, keys) {
 			return
 		}
 		msg, repl := orMsg, orForm
@@ -164,7 +186,7 @@ locate:
 				outer = pb
 			}
 		}
-		if hasIsDirCall(ctx, outer.Right, mkdirDirKeys(ctx, call)) || mkdirRetryLoop(ctx, c, mkdirDirKeys(ctx, call)) {
+		if hasIsDirCall(ctx, outer.Right, keys) || mkdirRetryLoop(ctx, c, keys) {
 			return
 		}
 		// custos: the re-check form follows the call's polarity, not the
@@ -216,7 +238,7 @@ func mkdirRetryLoop(ctx *analysis.Context, c syntax.Node, keys []string) bool {
 // directory with rmdir(): mkdir()
 // is then an atomic lock (`if (!@mkdir($lock)) return; …; rmdir($lock);`),
 // and its failure must not be overridden by an is_dir() re-check (custos).
-func mkdirUsedAsLock(ctx *analysis.Context, call *syntax.FuncCall) bool {
+func mkdirUsedAsLock(ctx *analysis.Context, call *syntax.FuncCall, keys []string) bool {
 	var n syntax.Node = call
 	for {
 		switch p := n.Parent().(type) {
@@ -228,7 +250,6 @@ func mkdirUsedAsLock(ctx *analysis.Context, call *syntax.FuncCall) bool {
 		}
 		break
 	}
-	keys := mkdirDirKeys(ctx, call)
 	if scope := syntax.EnclosingFuncLike(call); scope != nil {
 		return hasCheckCall(ctx, scope, keys, rmdirOnly)
 	}
@@ -294,25 +315,35 @@ func argsInner(l *syntax.ArgList) syntax.Span {
 	return syntax.Span{Start: l.Span().Start + 1, End: l.Args[len(l.Args)-1].Span().End}
 }
 
-// mkdirDir returns the first argument text and whether the temp-var form is
-// needed (first argument neither a plain variable nor a quoted string).
-func mkdirDir(ctx *analysis.Context, call *syntax.FuncCall) (string, bool) {
-	a := call.Args.Args[0].(*syntax.Arg) // checked by Check
-	switch v := a.Value.(type) {
+// mkdirDir returns the directory argument text and whether the temp-var form
+// is needed: the text is only repeated when evaluating it again is free of
+// side effects (a plain variable, or a quoted string interpolating nothing
+// but plain variables). Heredocs are never repeated.
+func mkdirDir(ctx *analysis.Context, dirArg syntax.Expr) (string, bool) {
+	text := ctx.Text(dirArg)
+	switch v := dirArg.(type) {
 	case *syntax.Variable:
-		if v.NameExpr == nil {
-			return ctx.Text(v), false
-		}
+		return text, v.NameExpr != nil
 	case *syntax.Literal:
-		if v.LitKind == syntax.LitString {
-			return ctx.Text(v), false
-		}
+		return text, v.LitKind != syntax.LitString || strings.HasPrefix(text, "<<<")
 	case *syntax.InterpolatedString:
-		if !v.Backtick {
-			return ctx.Text(v), false
+		if v.Backtick || v.Heredoc {
+			return text, true
 		}
+		for _, part := range v.Parts {
+			switch part := part.(type) {
+			case *syntax.StringPart:
+			case *syntax.Variable:
+				if part.NameExpr != nil {
+					return text, true
+				}
+			default: // property, offset or call: may run user code
+				return text, true
+			}
+		}
+		return text, false
 	}
-	return ctx.Text(a.Value), true
+	return text, true
 }
 
 // hasIsDirCall reports whether e contains an is_dir() call whose first
@@ -352,11 +383,10 @@ func hasCheckCall(ctx *analysis.Context, e syntax.Node, keys []string, names map
 }
 
 // mkdirDirKeys returns the normalised texts an is_dir() re-check may use for
-// mkdir's directory: the first argument itself and, when it is an assignment
-// (`mkdir($d = expr)`), the assigned variable and the assigned value.
-func mkdirDirKeys(ctx *analysis.Context, call *syntax.FuncCall) []string {
-	a := call.Args.Args[0].(*syntax.Arg) // checked by Check
-	v := syntax.UnwrapParens(a.Value)
+// mkdir's directory: the directory argument itself and, when it is an
+// assignment (`mkdir($d = expr)`), the assigned variable and the assigned value.
+func mkdirDirKeys(ctx *analysis.Context, dirArg syntax.Expr) []string {
+	v := syntax.UnwrapParens(dirArg)
 	keys := []string{mkdirNorm(ctx.Text(v))}
 	if as, ok := v.(*syntax.Assign); ok && as.Op.Kind == syntax.TEqual {
 		keys = append(keys, mkdirNorm(ctx.Text(syntax.UnwrapParens(as.Var))), mkdirNorm(ctx.Text(syntax.UnwrapParens(as.Value))))

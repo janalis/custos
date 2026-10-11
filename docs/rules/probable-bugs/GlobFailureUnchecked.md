@@ -14,26 +14,42 @@ Detect glob result directly or through a proven alias consumed by foreach or arr
 
 ## Example
 
-```php{2}
+```php{2,5}
 <?php
 function bad($pattern) { foreach (glob($pattern) as $path) { echo $path; } }
+function names($pattern) {
+    $paths = glob($pattern);
+    return array_map('basename', $paths);
+}
+function guarded($pattern) {
+    $paths = glob($pattern);
+    if (!$paths) {
+        return 0;
+    }
+    return count($paths);
+}
 ```
 
 Reported:
 
 <ul>
 <li>line 2: Handle glob failure before iterating its result.</li>
+<li>line 5: Handle glob failure before using its result as an array.</li>
 </ul>
 
 ## Detection
 
 - D1. Report glob result directly or through a proven alias consumed by foreach or array-only operations without excluding false.
+- D1a. Array-only operations are calls to these builtins with the glob result as their array argument, positionally or by name: `count`, `sizeof`, `array_map`, `array_filter`, `array_values`, `array_keys`, `array_reverse`, `array_slice`, `array_unique`, `array_flip`, `array_sum`, `array_product`, `array_column`, `array_chunk`, `array_key_first`, `array_key_last`, `array_is_list`, `array_rand`, `array_key_exists`, `in_array`, `array_search`, `implode`, `join`, `array_combine`, `array_fill_keys`, and the first array of `array_merge`, `array_diff` and `array_intersect`. They throw a `TypeError` for false since PHP 8.0 and warn with a meaningless result before. Each unguarded use is reported on its own.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
 - E1. Strict failure guards, explicit fallback and unknown wrapper contracts are excluded.
+- E1a. Because glob yields an array or false, any condition on the same reaching value that separates the two outcomes is a guard, not only a strict comparison. Recognised conditions: the bare variable (truthiness), `empty()`, `isset()` of one of its offsets, `is_array()`, `is_iterable()`, `is_countable()`, `is_bool()`, strict or loose comparison of any of these with a `true`/`false` literal, their negation with `!`, a conjunct of `&&`/`and` that holds, and a disjunct of `||`/`or` that fails. `isset()` of the variable itself only excludes null and is not a guard.
+- E1b. A guard applies when it dominates the use: the use is in the branch of an `if`/`elseif`/`else` or ternary the condition selects, in the right operand of a short-circuit operator whose left operand is the condition, or after an earlier statement of the same statement list that is either an `if` whose body always leaves (return, throw, exit, break, continue) or a `condition or exit`/`condition and throw` style expression statement. The guarded variable must still hold the same glob result at the use; a reassignment between guard and use voids the guard.
+- E1c. Not treated as guards: `assert()`, a comparison stored in another variable, loop conditions and a preceding array-only call on the same value. `implode`/`join` called with the array as their only argument are not inspected.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix

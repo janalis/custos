@@ -121,6 +121,19 @@ func TestEdges(t *testing.T) {
 		{"$f=fopen($path,'a+');if($f===false){return;}if(rewind($f)){fputs($f,'x');}", 1},
 		{"$f=fopen($path,'a');if($f===false){return;}if(fseek($f,0,SEEK_END)===0){fwrite($f,'x');}", 0},
 		{"$f=fopen($path,'a');if($f===false){return;}rewind($f);fwrite($f,'x');", 0},
+		// An emptied stream makes offset 0 the end of file.
+		{"$f=fopen($path,'a+');if($f===false){return;}ftruncate($f,0);if(fseek($f,0)!==0){return;}fwrite($f,'x');", 0},
+		{"function w($path,$d){$f=fopen($path,'a+');if($f===false){return;}ftruncate($f,0);if(fseek($f,0)!==0){return;}fwrite($f,$d);}", 0},
+		{"$f=fopen($path,'a+');if($f===false){return;}if($c){ftruncate($f,0);}if(fseek($f,0)!==0){return;}fwrite($f,'x');", 0},
+		{"$f=fopen($path,'a+');if($f===false){return;}ftruncate($f,$n);if(fseek($f,0)!==0){return;}fwrite($f,'x');", 0},
+		{"$f=fopen($path,'a+');if($f===false){return;}ftruncate($f,0);fwrite($f,$d);fwrite($f,'');if(fseek($f,0)!==0){return;}fwrite($f,'x');", 0},
+		// Truncation that leaves or is followed by content keeps the report.
+		{"$f=fopen($path,'a+');if($f===false){return;}ftruncate($f,5);if(fseek($f,0)!==0){return;}fwrite($f,'x');", 1},
+		{"$f=fopen($path,'a+');if($f===false){return;}ftruncate($f,0);fwrite($f,'body');if(fseek($f,0)!==0){return;}fwrite($f,'x');", 1},
+		{"$f=fopen($path,'a+');if($f===false){return;}fwrite($f,'body');ftruncate($f,0);if(fseek($f,0)!==0){return;}fwrite($f,'x');", 0},
+		{"$f=fopen($path,'a+');$g=fopen($o,'a+');if($f===false||$g===false){return;}ftruncate($g,0);if(fseek($f,0)!==0){return;}fwrite($f,'x');", 1},
+		{"$f=fopen($path,'a+');if($f===false){return;}$k=function($f){ftruncate($f,0);};if(fseek($f,0)!==0){return;}fwrite($f,'x');", 1},
+		{"$f=fopen($path,'a+');if($f===false){return;}if(fseek($f,0)!==0){return;}fwrite($f,'x');ftruncate($f,0);", 1},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"AppendModeSeekUsedForOverwrite"}})

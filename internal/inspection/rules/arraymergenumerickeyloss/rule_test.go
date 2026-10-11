@@ -22,6 +22,16 @@ func TestRule(t *testing.T) {
 		{"array_merge([\"042\"=>\"a\"]);", 0},
 		{"array_merge([$key=>\"a\"]);", 0},
 		{"array_merge([\"a\"]);", 0},
+		{"array_merge(['name' => 'x', 0 => 'y'], []);", 0},
+		{"array_merge(['name' => 'x', 1 => 'y'], []);", 1},
+		{"array_merge(['a', 'k' => 'b', 1 => 'c']);", 0},
+		{"array_merge([0 => 'a', 0 => 'b', 1 => 'c']);", 0},
+		{"array_merge(['x' => 1, 'y' => 2, 2 => 'z']);", 1},
+		{"array_merge(['a'], [0 => 'b']);", 0},
+		{"array_merge([-1 => 'a']);", 1},
+		{"array_merge([$key => 'a', 1 => 'b', 2 => 'c']);", 0},
+		{"array_merge([$key => 'a', 1 => 'b', 3 => 'c']);", 1},
+		{"array_merge([$key => 'a', 'b', 5 => 'c']);", 1},
 		{"namespace Custom; function other($a) {} other([1]);", 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {

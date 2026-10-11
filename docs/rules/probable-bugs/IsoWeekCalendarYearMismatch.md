@@ -36,18 +36,18 @@ Reported:
 
 ## Detection
 
-- D1. Report a date format literal containing unescaped Y and W in the same year-week label.
+- D1. Report a date format literal containing unescaped Y and W in the same year-week label. The Y counts as a week label only when the format has no other part that belongs to the calendar year (see E1); otherwise Y is the correct year for that part and the format is left alone.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Escaped tokens, ISO week-year o, and formats also expressing a complete calendar date are excluded.
+- E1. Escaped tokens and formats already using the ISO week-year o are excluded. So is any format with an unescaped calendar-dependent token: a month (`m`, `n`, `F`, `M`), a day of the month (`d`, `j`), the day of the year (`z`), the month length (`t`), the leap-year flag (`L`), or a composite date (`c`, `r`, `U`). There Y labels the month, day or full date, and swapping it for o would print that part with the wrong year, as in `F Y, \w\e\e\k W`, `Y-m W`, `Y/z W` or `c W Y`. Weekday tokens (`D`, `l`, `N`, `w`), time and timezone tokens do not exclude the format.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 
-Replace the unescaped Y token with o in the literal when it solely labels the ISO week; preserve all other format bytes.
+Replace every unescaped Y token with o in the literal; preserve all other format bytes. E1 guarantees that Y solely labels the ISO week in a reported format, so the replacement cannot change the year of a month, day or composite date. The fix is offered only when the format argument is a plain quoted literal whose source text equals its value; a format reached through a variable, constant, concatenation or a literal with escape sequences is reported without a fix.
 
 A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 

@@ -38,7 +38,7 @@ func TestContracts(t *testing.T) {
 }
 
 func TestFixtureRanges(t *testing.T) {
-	for _, name := range []string{"basic", "negative", "audit-negative-2"} {
+	for _, name := range []string{"basic", "negative", "audit-negative-2", "review-never"} {
 		marked, err := os.ReadFile("../../../../testdata/rules/RegexReplacementCallbackFallsThrough/" + name + ".php")
 		if err != nil {
 			t.Fatal(err)

@@ -139,11 +139,48 @@ func sboNegated(ctx *analysis.Context, b *syntax.Binary) bool {
 		op = " > "
 	}
 	r := ctx.Text(b.Left) + op + ctx.Text(b.Right)
-	ctx.ReportNode(not, "Null or false operands make this negated comparison misleading; use '"+r+"'.",
-		diagnostic.Fix{Title: "Use '" + r + "'", Edits: func() []diagnostic.TextEdit {
-			return []diagnostic.TextEdit{{Span: not.Span(), NewText: r}}
-		}})
+	msg := "Null or false operands make this negated comparison misleading; use '" + r + "'."
+	// `!(a < b)` and `a >= b` only agree when the two operands always
+	// compare one way or the other: NAN and uncomparable arrays or objects
+	// make both `<` and `>=` false.
+	if !t.OnlyOf(sboOrdered...) || !sboOrderedRight(ctx, b.Right) {
+		ctx.ReportNode(not, msg)
+		return true
+	}
+	// The `!(...)` group is replaced by a bare comparison, which binds
+	// looser than `!`: keep a pair of parentheses where that would regroup.
+	text := r
+	if astquery.NeedsParensAsComparison(not) || sboOpenEnded(b.Right) {
+		text = "(" + r + ")"
+	}
+	ctx.ReportNode(not, msg, diagnostic.Fix{Title: "Use '" + r + "'", Edits: func() []diagnostic.TextEdit {
+		return []diagnostic.TextEdit{{Span: not.Span(), NewText: text}}
+	}})
 	return true
+}
+
+// sboOrdered lists the type atoms whose values always compare one way or
+// the other with each other.
+var sboOrdered = []string{"int", "null", "bool", "true", "false"}
+
+// sboOrderedRight reports whether the right operand of a D4 comparison is a
+// number literal or has only ordered types.
+func sboOrderedRight(ctx *analysis.Context, e syntax.Expr) bool {
+	if l, ok := e.(*syntax.Literal); ok && (l.LitKind == syntax.LitInt || l.LitKind == syntax.LitFloat) {
+		return true
+	}
+	return ctx.TypeOf(e).OnlyOf(sboOrdered...)
+}
+
+// sboOpenEnded reports whether e, written last in an unparenthesised
+// expression, would absorb the operators that follow it.
+func sboOpenEnded(e syntax.Expr) bool {
+	switch e.(type) {
+	case *syntax.Assign, *syntax.Print, *syntax.Yield, *syntax.YieldFrom, *syntax.Include,
+		*syntax.Throw, *syntax.ArrowFunction:
+		return true
+	}
+	return false
 }
 
 // D5
@@ -218,7 +255,12 @@ func sboMisplaced(ctx *analysis.Context, b *syntax.Binary) bool {
 			cs, bs := call.Span(), b.Span()
 			inner := ctx.SpanText(syntax.Span{Start: cs.Start, End: bs.Start}) + ctx.Text(b.Left) +
 				ctx.SpanText(syntax.Span{Start: bs.End, End: cs.End})
-			return []diagnostic.TextEdit{{Span: cs, NewText: inner + " " + op + " " + ctx.Text(b.Right)}}
+			text := inner + " " + op + " " + ctx.Text(b.Right)
+			// directly under `!` the comparison would apply to the negation
+			if _, neg := call.Parent().(*syntax.Unary); neg || sboOpenEnded(b.Right) {
+				text = "(" + text + ")"
+			}
+			return []diagnostic.TextEdit{{Span: cs, NewText: text}}
 		}})
 	return true
 }
@@ -375,28 +417,47 @@ func sboIsWordLogical(k syntax.TokenKind) bool {
 }
 
 // sboVarying lists built-ins whose result differs between two identical
-// calls (randomness, clocks, cursors and streams).
+// calls (randomness, clocks, cursors, streams, buffers and processes).
 var sboVarying = map[string]bool{
 	"rand": true, "mt_rand": true, "random_int": true, "random_bytes": true, "lcg_value": true,
 	"uniqid": true, "microtime": true, "hrtime": true, "time": true, "array_rand": true,
+	"gettimeofday": true, "date": true, "gmdate": true, "idate": true, "getdate": true, "localtime": true,
+	"str_shuffle": true, "password_hash": true, "tempnam": true, "tmpfile": true,
 	"next": true, "prev": true, "each": true, "array_shift": true, "array_pop": true,
-	"fgets": true, "fgetc": true, "fread": true, "fgetcsv": true, "fscanf": true,
-	"readdir": true, "openssl_random_pseudo_bytes": true,
+	"fgets": true, "fgetc": true, "fread": true, "fgetcsv": true, "fscanf": true, "fgetss": true,
+	"fpassthru": true, "readdir": true, "openssl_random_pseudo_bytes": true,
+	"readline": true, "stream_get_contents": true, "stream_get_line": true,
+	"stream_socket_recvfrom": true, "stream_socket_accept": true,
+	"socket_read": true, "socket_recv": true, "socket_recvfrom": true, "socket_accept": true,
+	"gzgets": true, "gzgetc": true, "gzread": true, "gzpassthru": true, "bzread": true,
+	"ob_get_clean": true, "ob_get_flush": true, "curl_exec": true, "curl_multi_getcontent": true,
+	"shell_exec": true, "exec": true, "system": true, "passthru": true,
+}
+
+// sboVaries reports whether the built-in called name returns something else
+// on each call: the list above and the row-fetching database families
+// (`mysqli_fetch_assoc`, `pg_fetch_row`, `oci_fetch`, ...).
+func sboVaries(name string) bool {
+	return sboVarying[name] || strings.Contains(name, "_fetch")
 }
 
 // sboMayVary reports whether evaluating e twice may give two different
 // values (custos): method, static and nullsafe calls, `new`, calls to user
-// or unresolved functions, `++`/`--`, assignments and the built-ins above.
+// or unresolved functions, `++`/`--`, assignments, `yield`, `include`,
+// `eval`, backtick commands and the built-ins above.
 // `count($tags) > count($tags)` stays reported.
 func sboMayVary(ctx *analysis.Context, e syntax.Expr) bool {
 	vary := false
 	syntax.Inspect(e, func(x syntax.Node) bool {
 		switch c := x.(type) {
-		case *syntax.MethodCall, *syntax.StaticCall, *syntax.New, *syntax.IncDec, *syntax.Assign:
+		case *syntax.MethodCall, *syntax.StaticCall, *syntax.New, *syntax.IncDec, *syntax.Assign,
+			*syntax.Yield, *syntax.YieldFrom, *syntax.Include, *syntax.Eval:
 			vary = true
+		case *syntax.InterpolatedString:
+			vary = c.Backtick
 		case *syntax.FuncCall:
 			f := ctx.Types().ResolveFunction(c)
-			vary = f == nil || !f.Builtin || sboVarying[ctx.GlobalFunctionName(c)]
+			vary = f == nil || !f.Builtin || sboVaries(ctx.GlobalFunctionName(c))
 		}
 		return !vary
 	})

@@ -17,11 +17,13 @@ Identify fflush after proven fwrite on the same exclusively locked stream when L
 - D1. Report fflush after proven fwrite on the same exclusively locked stream when LOCK_UN occurs between write and flush and no intervening flush or close occurred.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D4. The stream must be a plain local variable whose only route to other code is the stream slot of the tracked builtin calls. The handle escapes, and nothing is reported, when a closure of the same scope lists it in `use`, when an arrow function of the same scope mentions it, or when it is passed before the flush as any other argument of a function, method, static or constructor call: such code can flush or close the stream while the lock is still held.
 
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore BufferedWriteFlushedAfterUnlock` and `@noinspection BufferedWriteFlushedAfterUnlock` suppress this native rule.
+- E2. No report when the handle escapes as described in D4, or when the stream is a variable variable (`$$name`), which identifies no single handle.
+- E3. Both `@custos-ignore BufferedWriteFlushedAfterUnlock` and `@noinspection BufferedWriteFlushedAfterUnlock` suppress this native rule.
 
 ## Report
 
@@ -56,6 +58,20 @@ Valid case:
 ```php
 <?php
 flock($h, LOCK_EX); fwrite($h, $data); fflush($h); flock($h, LOCK_UN);
+```
+
+Valid case, the captured handle is flushed inside the lock:
+
+```php
+<?php
+function save($h, string $data): void {
+    $flush = function () use ($h) { fflush($h); };
+    flock($h, LOCK_EX);
+    fwrite($h, $data);
+    $flush();
+    flock($h, LOCK_UN);
+    fflush($h);
+}
 ```
 
 ## Divergences

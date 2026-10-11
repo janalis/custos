@@ -16,6 +16,7 @@ A cacheable response whose CORS origin varies by request needs Vary: Origin. Inc
 
 - D1. Resolved header builds Access-Control-Allow-Origin from $_SERVER["HTTP_ORIGIN"] and same straight-line scope explicitly permits shared caching via Cache-Control public/max-age without Vary: Origin or Vary: *. Requires cacheability evidence; dynamic unrelated origins excluded.
 - D1c. The supported initial proof uses an origin header followed by a contiguous block of known header operations. Private, no-store or no-cache directives do not establish shared cacheability. Unknown later operations discard final header-state proof; explicit replacement and removal must be accounted for.
+- D1d. The header() statements directly before the origin header, with nothing else in between, belong to the same response. The nearest earlier Vary header naming Origin or `*` covers the origin, unless a later single-argument Vary header in the block replaces it. A Vary header passed a second argument may append rather than replace, so it neither removes existing coverage nor hides an older Vary header. An earlier header() call whose string is unknown discards the proof. Any other statement ends the backward scan.
 - D1e. Source provenance additionally requires an untouched lexical superglobal prefix. Exclude earlier explicit writes to or reference escapes of that superglobal and any earlier write or reference target involving GLOBALS. Reject all earlier object construction and unknown calls, including calls with no arguments, method calls and static calls; only resolved strlen, is_string, ctype_alnum, ctype_digit or in_array are supported pure-call exceptions. Traverse at most 4096 AST nodes, excluding nested variable scopes; exhaustion or unsupported source mutation discards the request-origin proof.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
@@ -56,6 +57,16 @@ Valid case:
 ```php
 <?php
 header("Access-Control-Allow-Origin: ".$_SERVER["HTTP_ORIGIN"]);header("Cache-Control: public, max-age=60");header("Vary: Origin");
+```
+
+Vary sent first:
+
+```php
+<?php
+$origin = $_SERVER["HTTP_ORIGIN"];
+header("Vary: Origin");
+header("Access-Control-Allow-Origin: ".$origin);
+header("Cache-Control: public, max-age=60");
 ```
 
 ## Divergences

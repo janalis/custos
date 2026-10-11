@@ -30,8 +30,8 @@ Visit every anonymous function: classic closures and arrow functions.
     followed by every variable and method-call node anywhere inside it.
 - **D4** Report **every** candidate that matches, in that order (each
   report carries the same fix):
-  - **D4a** a variable named exactly `this` whose *binding owner* is the
-    static function being inspected. The binding owner is the nearest
+  - **D4a** a variable named exactly `this`, other than an existence probe
+    (E5), whose *binding owner* is the static function being inspected. The binding owner is the nearest
     enclosing function (closure, arrow function, function or method),
     skipping non-static arrow functions: an arrow function inherits the
     object binding of the scope it is defined in, so `$this` in
@@ -54,6 +54,12 @@ Visit every anonymous function: classic closures and arrow functions.
 - **E3** `parent::m()` where `m` is static or cannot be resolved; `self::`,
   `static::`, `ClassName::` calls; `parent::CONST`, `parent::$prop`.
 - **E4** PHP level below 5.4.
+- **E5** Existence probes: a bare `$this` that is itself the operand of
+  `isset(...)` or `empty(...)` (parentheses around it ignored, any position
+  in a multi-operand `isset`). PHP evaluates these without an object and
+  simply answers "not set", so nothing fails. Only the bare variable is
+  exempt: `isset($this->x)`, `isset($this['k'])`, `empty($this->x)` and
+  `$this ?? $d` still throw and stay reported.
 
 ## Report
 
@@ -71,6 +77,11 @@ Visit every anonymous function: classic closures and arrow functions.
   function. Removing the single whitespace run that followed it is
   recommended (`static function` → `function`, `static fn` → `fn`); the
   comparison is whitespace-collapsed so either form matches.
+- **F2** No fix is offered when the body of the inspected function contains
+  an existence probe (E5) anywhere, nested functions included: giving the
+  closure an object would silently turn the probe's answer around
+  (`isset($this) ? $this->x : null` returns `null` today and the property
+  once `static` is gone). The reports are kept, without a fix.
 
 ## Options
 
@@ -162,3 +173,8 @@ class Widget extends Base {
   reported like the unattributed form (the attribute groups are not part of
   the check; the fix removes only `static`). An earlier custos version
   compared the function's first token, which is `#[` there, and missed it.
+- **Existence probes (custos diverges from upstream).** Upstream reports
+  every `$this` in a static closure, including `isset($this)` and
+  `empty($this)`, which run fine without an object; its fix then changes
+  what they return. custos does not report the probe (E5) and withholds the
+  fix for the other reports of a function that contains one (F2).

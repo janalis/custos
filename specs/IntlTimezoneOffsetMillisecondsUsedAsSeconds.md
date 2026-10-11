@@ -34,7 +34,7 @@ Reject offset-unit proof after an intervening use of the output local, a referen
 
 ## Fix
 
-For the exact proven offset expression concatenated with a seconds literal, wrap only the numeric expression in (original / 1000); preserve its single evaluation.
+For the exact proven offset expression concatenated with a seconds literal, wrap only the numeric expression in (original / 1000); preserve its single evaluation. A sum written without its own parentheses is grouped before the division, giving ((raw + dst) / 1000), so both offsets are converted rather than only the right one.
 
 All edits use exact byte ranges and preserve comments and evaluation order. Offer no fix when its stated prerequisites cannot be proven or the replacement is unsupported by the configured PHP version.
 

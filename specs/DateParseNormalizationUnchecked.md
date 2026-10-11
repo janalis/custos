@@ -20,7 +20,7 @@ Detect createFromFormat on a literal calendar date whose fields require normaliz
 
 ## Exceptions (no report)
 
-- E1. Explicit getLastErrors validation, intentional overflow, unknown format and input, or invalid parsing already rejected are excluded.
+- E1. Explicit diagnostics validation after the parse in the same function scope, through the static `getLastErrors()` method of `DateTime`/`DateTimeImmutable` or the resolved builtin function `date_get_last_errors()` (its procedural equivalent), intentional overflow, unknown format and input, or invalid parsing already rejected are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report

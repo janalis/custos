@@ -17,6 +17,13 @@ Identify ordinary unguarded reads of dynamic parse_url results, or literal resul
 - D1. Report ordinary unguarded reads of dynamic parse_url results, or literal results with a supported parsing-failure proof. Empty HTTP(S) authorities and ports above 65535 establish such a proof. Restrict to array-returning mode; missing keys are another concern.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D4. A read is guarded when a condition on the same variable, written after the producing call and before any reassignment, excludes `false` on every path to the read. Accepted condition shapes:
+  - strict or loose comparison with `false` (`$parts === false`, `false != $parts`);
+  - plain truthiness (`$parts`, `!$parts`) and `empty($parts)`;
+  - `is_array($parts)` and `array_key_exists($key, $parts)` resolved to the builtins;
+  - `isset` or `empty` on a key of the variable (`isset($parts['host'])`, `!empty($parts['path'])`); `isset($parts)` alone proves nothing because `false` is set.
+  - negation, and `&&`/`||` (also `and`/`or`) combinations: a true conjunction needs one proving operand, a false conjunction needs all of them, and symmetrically for disjunctions.
+- D5. A guard applies in these positions: the matching branch of an enclosing `if`/`elseif`/`else` (later branches also know the earlier conditions failed); the matching arm of an enclosing ternary; the right operand of `&&` or `||` whose left operand is the guard; and any statement after an earlier sibling `if` whose main body always exits, at every enclosing block level inside the same function scope.
 
 ## Exceptions (no report)
 
@@ -25,6 +32,10 @@ Identify ordinary unguarded reads of dynamic parse_url results, or literal resul
 - Literal URL shapes outside the supported failure proof receive no finding. This avoids requesting runtime failure guards for constants whose parsing outcome is unsupported.
 
 - Guarded probes with isset, empty or null coalescing, unsets and plain nested slot creation do not read a failed or missing value. Index expressions and the fallback operand of null coalescing still require normal reads.
+
+- Reads guarded as described by D4 and D5 never index the failure value.
+
+- `assert()` is not a guard: assertions are compiled out in production configurations, so the read stays reported. Indirect evidence (a null-coalesced copy tested later, `count()`, `switch (true)` cases, loop conditions) is not followed either.
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
 - E2. Both `@custos-ignore ParseUrlFailureDereferenced` and `@noinspection ParseUrlFailureDereferenced` suppress this native rule.

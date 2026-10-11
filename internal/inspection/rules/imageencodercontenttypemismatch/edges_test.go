@@ -27,6 +27,15 @@ func TestEdges(t *testing.T) {
 		{"header(\"Content-Type: text/plain\");imagepng($im);", 0, ""},
 		{"header(\"Content-Type: image/jpeg\");header(\"Content-Type: image/png\");imagepng($im);", 0, ""},
 		{"header(\"Content-Type: image/png\");imagejpeg($im);", 1, ""},
+		{"header('Content-Type: image/x-ms-bmp');imagebmp($im);", 0, ""},
+		{"header('Content-Type: image/x-png');imagepng($im);", 0, ""},
+		{"header('Content-Type: image/jpg');imagejpeg($im);", 0, ""},
+		{"header('Content-Type: image/pjpeg');imagejpeg($im);", 0, ""},
+		{"header('Content-Type: image/svg+xml');imagepng($im);", 0, ""},
+		{"header('Content-Type: image/jpeg');imagepng(...$args);", 0, ""},
+		{"header('Content-Type: image/jpeg');imagepng($im, ...$rest);", 0, ""},
+		{"header('Content-Type: image/jpeg');imagepng(...);", 0, ""},
+		{"header('Content-Type: IMAGE/BMP');imagegif($im);", 1, ""},
 	} {
 		t.Run(tc.source+tc.php, func(t *testing.T) {
 			cfg := analysis.Config{Only: []string{"ImageEncoderContentTypeMismatch"}, PHP: phpversion.MustParse(tc.php)}

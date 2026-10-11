@@ -58,16 +58,78 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			released = false
 		}
 	}
-	if released && dirty {
+	if released && dirty && !escapes(ctx, c, syntax.UnwrapParens(h).(*syntax.Variable)) {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// escapes reports whether code outside the straight-line stream calls can
+// reach the handle: a closure or arrow function of the scope captures it, or
+// it is handed to a call before the flush in any slot but a stream one. Such
+// code may flush or close the stream without a visible builtin call.
+func escapes(ctx *analysis.Context, at *syntax.FuncCall, variable *syntax.Variable) bool {
+	scope := syntax.EnclosingVariableScope(at)
+	escaped := false
+	visit := func(n syntax.Node) bool {
+		if escaped {
+			return false
+		}
+		if n != scope && syntax.IsVariableScope(n) {
+			escaped = captures(n, variable.Name)
+			return false
+		}
+		v, ok := n.(*syntax.Variable)
+		if !ok || v.Name != variable.Name || v.Span().Start >= at.Span().Start {
+			return true
+		}
+		var value syntax.Node = v
+		for paren, ok := value.Parent().(*syntax.Paren); ok; paren, ok = value.Parent().(*syntax.Paren) {
+			value = paren
+		}
+		arg, ok := value.Parent().(*syntax.Arg)
+		if !ok {
+			return true
+		}
+		call, direct := arg.Parent().Parent().(*syntax.FuncCall)
+		escaped = !direct || syntax.UnwrapParens(semanticquery.CallArgument(call.Args, 0, "stream")) != syntax.Expr(v)
+		return true
+	}
+	if scope == nil {
+		syntax.InspectFile(ctx.File, visit)
+	} else {
+		syntax.Inspect(scope, visit)
+	}
+	return escaped
+}
+
+// captures reports whether a nested scope shares the named variable: a
+// closure through its use list, an arrow function through any reference.
+func captures(scope syntax.Node, name string) bool {
+	switch fn := scope.(type) {
+	case *syntax.Closure:
+		for _, use := range fn.Uses {
+			if use.Var.Name == name {
+				return true
+			}
+		}
+	case *syntax.ArrowFunction:
+		found := false
+		syntax.Inspect(fn.Expr, func(n syntax.Node) bool {
+			if v, ok := n.(*syntax.Variable); ok && v.Name == name {
+				found = true
+			}
+			return !found
+		})
+		return found
+	}
+	return false
 }
 
 func priorCalls(ctx *analysis.Context, at syntax.Node, h syntax.Expr) []*syntax.FuncCall {
 	var calls []*syntax.FuncCall
 	variable, ok := syntax.UnwrapParens(h).(*syntax.Variable)
-	if !ok {
-		return nil
+	if !ok || variable.Name == "" {
+		return nil // A variable variable names no single handle.
 	}
 	for _, event := range semanticquery.ExpansionDLocalEvents(ctx, at) {
 		if event.Span().Start >= at.Span().Start {

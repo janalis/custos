@@ -21,7 +21,8 @@ Identify a color id from imagecolorallocate on a proven imagecreate palette imag
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore GdPaletteIndexDecodedAsRgb` and `@noinspection GdPaletteIndexDecodedAsRgb` suppress this native rule.
+- E2. Any `imagepalettetotruecolor` call on the same image located between its creation and the allocation removes the palette proof, even when the call sits in a branch or loop and does not run on every path: the image may be truecolor there and the shift is then valid. A conversion of another image, one preceding a new `imagecreate` assignment, or one following the allocation (the id is already a palette index) does not exclude.
+- E3. Both `@custos-ignore GdPaletteIndexDecodedAsRgb` and `@noinspection GdPaletteIndexDecodedAsRgb` suppress this native rule.
 
 ## Report
 

@@ -15,13 +15,16 @@ Identify a second start on the same locally allocated Fiber after a successful f
 ## Detection
 
 - D1. Report a second start on the same locally allocated Fiber after a successful first start on an unconditional straight-line path; no reset or reassignment may intervene.
+  Only a real invocation counts as a start, for the earlier call and for the reported one: the first-class callable form `$fiber->start(...)` merely builds a closure.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore FiberStartedTwice` and `@noinspection FiberStartedTwice` suppress this native rule.
+- E2. No report when the receiver variable is bound again between the two starts: any assignment whose target mentions it (plain, `[$f] = ...` or `list($f) = ...` destructuring), a `foreach` that uses it as key or value, or a `catch` clause that names it. The second call then acts on another value.
+- E3. No report when either call is a first-class callable creation (`$f->start(...)`).
+- E4. Both `@custos-ignore FiberStartedTwice` and `@noinspection FiberStartedTwice` suppress this native rule.
 
 ## Report
 
@@ -56,6 +59,20 @@ Valid case:
 ```php
 <?php
 $f = new Fiber(fn() => Fiber::suspend()); $f->start(); $f->resume();
+```
+
+Rebound receiver and callable creation, also valid:
+
+```php
+<?php
+$job = new Fiber(fn() => 1);
+$job->start();
+[$job] = [new Fiber(fn() => 2)];
+$job->start();
+
+$task = new Fiber(fn() => 3);
+$launch = $task->start(...);
+$task->start();
 ```
 
 ## Divergences

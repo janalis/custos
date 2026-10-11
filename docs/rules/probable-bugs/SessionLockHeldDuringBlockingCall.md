@@ -29,11 +29,16 @@ Reported:
 
 - D1. Report a known blocking sleep/usleep or network operation while an active session with a known locking handler remains owned by the scope.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- D4. The session is active when the last session operation reaching the blocking call is a `session_start` that keeps the session open: it has no options, or its options are a literal array with constant string keys whose `read_and_close` entry is absent or known to be falsy.
+- D5. The handler is known to lock only when the last handler selection written before that `session_start` is an unconditional `ini_set`/`ini_alter` of `session.save_handler` to the literal `'files'`. Only writes in the same scope are considered.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
 - E1. Nonlocking handlers, earlier successful session_write_close, required atomic session work and unknown handler configuration are excluded.
+- E3. `session_start` with `read_and_close` enabled, or with options that cannot be read statically (a non-literal value, a spread, an unpacked or non-string key, an unknown `read_and_close` value): the lock may already be released.
+- E4. After the `'files'` selection and before `session_start`: another or unknown value written to `session.save_handler`, an ini write whose option name is unknown, `ini_restore` of that option, `session_set_save_handler`, or `session_module_name` called with an argument, whether conditional or not. The handler in effect is then unknown.
+- E5. A handler selection written after `session_start` proves nothing about the session already open.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix

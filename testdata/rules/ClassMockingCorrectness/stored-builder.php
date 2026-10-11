@@ -10,6 +10,7 @@ namespace PHPUnit\Framework {
 namespace {
     abstract class Req { abstract public function name(): string; }
     trait Mixin {}
+    class Wired { public function __construct($dsn) {} }
 
     class ReqTest extends \PHPUnit\Framework\TestCase
     {
@@ -37,6 +38,15 @@ namespace {
             $mb->getMock();
             $mb->{'getMockForAbstractClass'}();
             $this->getMockBuilder(<error descr="Trait: build the double with getMockForTrait().">Mixin::class</error>);
+        }
+
+        public function testParenthesised(): void
+        {
+            ($this->getMockBuilder(Req::class))->getMockForAbstractClass();
+            (($this->getMockBuilder(Mixin::class)))->getMockForTrait();
+            ($this->getMockBuilder(Req::class))->setMethods([]);
+            ($this->getMockBuilder(<error descr="Mocked constructor needs arguments; pass them or disable the constructor.">Wired::class</error>))->getMock();
+            ($this->getMockBuilder(<error descr="Trait: build the double with getMockForTrait().">Mixin::class</error>));
         }
 
         private function helper($b) {}

@@ -18,6 +18,8 @@ Identify modulo when either operand is a proven finite fractional numeric value 
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
+- D4. A variable operand loses its proven value when the enclosing local scope lets it change outside the tracked assignments: a closure captures any variable by reference, `extract()` or single-argument `parse_str()` writes the local symbol table. In file scope the variable is a global, so a call to a function that is not a resolved builtin, a method or static call, or an object construction also drops the proof. Such code placed entirely after the modulo is ignored unless the modulo sits inside a loop of the same scope. A scope containing `goto` never yields a proven variable value.
+
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
@@ -56,6 +58,18 @@ Valid case:
 ```php
 <?php
 $r = fmod(9, 0.25);
+```
+
+No finding, because the closure may have replaced the fractional value:
+
+```php
+<?php
+function bucket(int $n): int {
+    $width = 1.5;
+    $widen = function () use (&$width) { $width = (int) ceil($width); };
+    $widen();
+    return $n % $width;
+}
 ```
 
 ## Divergences

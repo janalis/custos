@@ -30,10 +30,17 @@ Reported:
 - D1. Report a write following flock requiring an exclusive lock where acquisition success is not established.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D4. Acquisition is established when the write can only run after the last `flock` call on the handle returned true. The result may be tested directly or through a plain local that still holds it unchanged, and the test may be negated, error-suppressed (`@`), or compared strictly or loosely with `true` or `false`. Accepted tests are:
+  - an `if`, `elseif` or `while` condition whose guarded body contains the write, or the matching side of a conditional expression;
+  - the right operand of `&&`/`and` (result true) or `||`/`or` (result false) containing the write;
+  - an `if` whose failure branch always leaves (return, throw, exit, break, continue), with the write later in the statement list that owns the `if`;
+  - a statement of the form `flock(...) or exit` / `|| throw`, with the write later in the same statement list;
+  - a `while` or `do`-`while` retry loop repeating until the result is true and containing no `break`, with the write after the loop.
+- D5. A test proves nothing, and the write is still reported, when the local was reassigned or merged from another value, when the test sits on only one path to the write (a nested conditional, another closure or function, an earlier `case` label), when the failure branch can continue, or when the result is combined with an unrelated condition that can let the failing side through. `assert(flock(...))` is not a test: assertions may be compiled out.
 
 ## Exceptions (no report)
 
-- E1. Guarded acquisition, retry until success, explicit unlocked best-effort contracts and unrelated handles are excluded.
+- E1. Guarded acquisition and retry until success in any of the D4 forms, explicit unlocked best-effort contracts and unrelated handles are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix

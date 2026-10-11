@@ -43,7 +43,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	context := semanticquery.CallArgument(c.Args, slot, "context")
 	if context == nil {
-		ctx.ReportNode(c, message)
+		if !defaultContextTouched(ctx) {
+			ctx.ReportNode(c, message)
+		}
 		return
 	}
 	producer, ok := semanticquery.NativeValue(ctx, context).(*syntax.FuncCall)
@@ -52,6 +54,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, call := range ctx.Flow().Calls(syntax.EnclosingVariableScope(c)) {
 		if call.Node.Span().Start >= producer.Span().End && call.Node.Span().Start < c.Span().Start {
+			return
+		}
+	}
+	// The params array may carry its own "options" entry, merged into the context.
+	if params := semanticquery.CallArgument(producer.Args, 1, "params"); params != nil {
+		entries, known := semanticquery.NativeArrayEntries(ctx, params)
+		if !known || entries["s:options"] != nil {
 			return
 		}
 	}
@@ -82,4 +91,18 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if known && !enabled {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// defaultContextTouched reports whether the file configures or exposes the
+// process-wide default stream context, which a context-less read then uses.
+func defaultContextTouched(ctx *analysis.Context) bool {
+	touched := false
+	syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
+		if call, ok := n.(*syntax.FuncCall); ok {
+			name := semanticquery.NativeBuiltinName(ctx, call)
+			touched = touched || name == "stream_context_set_default" || name == "stream_context_get_default"
+		}
+		return !touched
+	})
+	return touched
 }

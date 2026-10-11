@@ -62,7 +62,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	zoneName, ok := semanticquery.NativeString(ctx, semanticquery.CallArgument(zone.Args, 0, "timezone"))
-	if !ok {
+	// Only Region/City identifiers name a DST-observing zone in PHP: bare
+	// abbreviations (CET, EST) are fixed offsets there, and names such as
+	// "Local" would resolve to the zone of the analysing machine.
+	if !ok || !strings.Contains(zoneName, "/") {
 		return
 	}
 	location, err := time.LoadLocation(zoneName)

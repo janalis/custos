@@ -20,7 +20,8 @@ Detect strlen of a literal non-ASCII valid UTF-8 string under an explicitly enab
 
 ## Exceptions (no report)
 
-- E1. ASCII, byte-length use in protocol/storage operations and unknown encoding are excluded.
+- E1. ASCII literals and operands of unknown encoding (anything that is not a known literal string, or a literal that is not valid UTF-8) are excluded.
+- E3. Byte-length use in protocol/storage operations is excluded: no report when the `strlen` result is passed as an argument to a resolved builtin whose offsets, lengths or sizes are counted in bytes. The recognised consumers are `substr`, `substr_replace`, `substr_count`, `substr_compare`, `mb_strcut`, `strpos`, `stripos`, `strrpos`, `strripos`, `strncmp`, `strncasecmp`, `str_pad`, `pack`, `fread`, `fwrite`, `fputs`, `fgets`, `fseek`, `ftruncate`, `stream_get_contents`, `stream_copy_to_stream`, `file_get_contents`, `socket_read`, `socket_write`, `socket_send` and `socket_recv`. The result may reach the argument through parentheses, unary minus and `+`, `-` or `*` arithmetic (`substr($s, -strlen('é'))`, `fseek($h, strlen('é') + 4)`). Any other route (a variable, concatenation, comparison, a user function or a same-named namespaced function) keeps the report.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report
@@ -48,6 +49,14 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 ```php
 <?php
 $count=<warning descr="Count Unicode characters with the intended counting model.">strlen('ñ')</warning>;
+```
+
+Not reported: the length is consumed as a byte quantity.
+
+```php
+<?php
+$amount = substr($price, strlen('€'));
+$frame = pack('N', strlen('héllo')) . 'héllo';
 ```
 
 ## Divergences

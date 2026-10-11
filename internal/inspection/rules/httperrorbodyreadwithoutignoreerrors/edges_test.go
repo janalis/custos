@@ -29,6 +29,13 @@ func TestEdges(t *testing.T) {
 		{"file_get_contents('https://a.test',false,stream_context_create(['http'=>['ignore_errors'=>false]]));", 1},
 		{"file_get_contents('https://a.test',false,stream_context_create(['http'=>['ignore_errors'=>true]]));", 0},
 		{"fopen('https://a.test','r',false,stream_context_create(['http'=>['ignore_errors'=>true]]));", 0},
+		{"function a(){stream_context_set_default(['http'=>['ignore_errors'=>true]]);} function b(){return file_get_contents('https://a.test');}", 0},
+		{"stream_context_set_option(stream_context_get_default(),'http','ignore_errors',true);fopen('https://a.test','r');", 0},
+		{"namespace N; function stream_context_set_default($o){} stream_context_set_default([]);\\file_get_contents('https://a.test');", 1},
+		{"file_get_contents('https://a.test',false,stream_context_create(['http'=>['method'=>'GET']],['options'=>['http'=>['ignore_errors'=>true]]]));", 0},
+		{"file_get_contents('https://a.test',false,stream_context_create(['http'=>['method'=>'GET']],$p));", 0},
+		{"file_get_contents('https://a.test',false,stream_context_create(['http'=>['method'=>'GET']],['notification'=>null]));", 1},
+		{"file_get_contents('https://a.test',false,stream_context_create(params:['options'=>$o],options:[]));", 0},
 	} {
 		t.Run(tc.source, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"HttpErrorBodyReadWithoutIgnoreErrors"}})

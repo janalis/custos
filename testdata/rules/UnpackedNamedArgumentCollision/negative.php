@@ -20,3 +20,16 @@ namespace Negative10 { function f($x){}f(1); }
 namespace Negative11 { class C{function f($x){}}(new C())->f(...['x'=>1]); }
 
 namespace AuditIndex {function f($x,$y,$z){}f(...[-2=>1,2,-1=>3],z:4);}
+
+namespace SlotCounter {
+function three($a = 'A', $b = 'B', $c = 'C') {}
+function rest(...$r) {}
+three(...['a' => 1], ...[2]);
+three(...['b' => 1], ...[2]);
+three(...['c' => 1], ...[2, 3]);
+three(...['a' => 1], ...[2, 3]);
+three(...['b' => 1], ...[7], a: 3);
+three(...['a' => 1, 5]);
+rest(...[1], r: 2);
+rest(1, r: 2);
+}

@@ -61,23 +61,75 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || !semanticquery.NativeBuiltin(ctx, origin, "curl_multi_init") {
 		return
 	}
-	hasTransfer := false
-	for _, call := range ctx.Flow().Calls(syntax.EnclosingVariableScope(result)) {
+	scope := syntax.EnclosingVariableScope(result)
+	variable, ok := syntax.UnwrapParens(handle).(*syntax.Variable)
+	if !ok || variable.Name == "" || handleEscapes(ctx, scope, variable.Name, branch.Span().Start) {
+		return
+	}
+	for _, call := range ctx.Flow().Calls(scope) {
 		if call.Node.Span().Start >= branch.Span().Start {
 			break
 		}
 		fc, ok := call.Node.(*syntax.FuncCall)
-		if !ok {
-			continue
-		}
-		if semanticquery.NativeBuiltin(ctx, fc, "curl_multi_add_handle") && semanticquery.NativeValue(ctx, semanticquery.CallArgument(fc.Args, 0, "multi_handle")) == origin && semanticquery.NativeDominates(fc, result) {
-			hasTransfer = true
-		}
-		if (semanticquery.NativeBuiltin(ctx, fc, "curl_multi_info_read") || semanticquery.NativeBuiltin(ctx, fc, "curl_multi_remove_handle")) && semanticquery.NativeValue(ctx, semanticquery.CallArgument(fc.Args, 0, "multi_handle")) == origin {
+		if ok && semanticquery.NativeBuiltin(ctx, fc, "curl_multi_add_handle") && semanticquery.NativeValue(ctx, semanticquery.CallArgument(fc.Args, 0, "multi_handle")) == origin && semanticquery.NativeDominates(fc, result) {
+			ctx.ReportNode(result, message)
 			return
 		}
 	}
-	if hasTransfer {
-		ctx.ReportNode(result, message)
+}
+
+// lifecycle lists the builtins that drive a multi handle without exposing
+// per-transfer results and without detaching transfers from it.
+var lifecycle = map[string]bool{
+	"curl_multi_add_handle": true,
+	"curl_multi_exec":       true,
+	"curl_multi_select":     true,
+	"curl_multi_setopt":     true,
+	"curl_multi_errno":      true,
+}
+
+// handleEscapes reports whether the named handle variable is used before
+// limit in any way other than being assigned or passed directly to a
+// lifecycle builtin. Every other use (a helper or method receiving it, an
+// alias, a capture, a stored copy, curl_multi_info_read itself) may inspect
+// or change the transfers, so the local proof no longer holds.
+func handleEscapes(ctx *analysis.Context, scope syntax.Node, name string, limit uint32) bool {
+	escapes := false
+	visit := func(n syntax.Node) bool {
+		if escapes || n.Span().Start >= limit {
+			return false
+		}
+		if call, ok := n.(*syntax.FuncCall); ok {
+			// These builtins read the scope's variables by name.
+			switch semanticquery.NativeBuiltinName(ctx, call) {
+			case "compact", "get_defined_vars":
+				escapes = true
+			}
+		}
+		v, ok := n.(*syntax.Variable)
+		if ok && v.NameExpr != nil {
+			// A variable variable may name the handle.
+			escapes = true
+		}
+		if !ok || v.Name != name {
+			return true
+		}
+		switch parent := v.Parent().(type) {
+		case *syntax.Assign:
+			escapes = parent.Var != v || parent.ByRef
+		case *syntax.Arg:
+			call, ok := parent.Parent().Parent().(*syntax.FuncCall)
+			escapes = !ok || parent.ByRef || parent.Unpack || !lifecycle[semanticquery.NativeBuiltinName(ctx, call)]
+		default:
+			escapes = true
+		}
+		return true
 	}
+	if scope == nil {
+		// Top-level code has no enclosing scope node.
+		syntax.InspectFile(ctx.File, visit)
+	} else {
+		syntax.Inspect(scope, visit)
+	}
+	return escapes
 }

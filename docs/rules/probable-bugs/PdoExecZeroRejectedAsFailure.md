@@ -15,13 +15,17 @@ Identify proven PDO::exec result negated or loosely compared with false in a fai
 ## Detection
 
 - D1. Report proven PDO::exec result negated or loosely compared with false in a failure branch throwing or returning false. Strict false excludes.
+  The failure branch is the body of the `if` whose condition is the negated or loosely compared result. It counts when it holds a reachable `throw` or `return false`, outside nested functions and classes, that satisfies one of:
+  - no `errorCode()` or `errorInfo()` call on the same receiver expression starts before it inside the branch (a call inside the thrown expression itself, such as an exception message built from `errorInfo()`, starts after the `throw` and does not count);
+  - it is a statement of the branch itself, not nested in another construct or a `throw` sub-expression, and every statement before it in the branch is a plain expression or `echo` statement, so nothing in the branch decides whether it runs.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore PdoExecZeroRejectedAsFailure` and `@noinspection PdoExecZeroRejectedAsFailure` suppress this native rule.
+- E2. No report when every `throw` and `return false` of the failure branch comes after an `errorCode()` or `errorInfo()` read on the same receiver and is either nested in another construct or preceded by a statement other than a plain expression or `echo`. Such a branch can tell zero affected rows from a failure before rejecting, for example by throwing only when `errorCode()` is not `'00000'`, or by returning early when it is. The receivers are compared textually; the error state held in a variable is covered because the read still precedes the guarded exit.
+- E3. Both `@custos-ignore PdoExecZeroRejectedAsFailure` and `@noinspection PdoExecZeroRejectedAsFailure` suppress this native rule.
 
 ## Fix
 

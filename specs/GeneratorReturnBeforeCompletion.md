@@ -17,12 +17,14 @@ A generator exposes its return value only after it finishes. Complete iteration 
 - D1. A local assigned a call to a literal closure containing yield is immediately used as receiver of getReturn before any resume/iteration/next/send/throw operation. Report the method call; unknown calls or escape discard proof.
 - D1d. Require an unconditional directly executed nondelegating yield in the generator body prefix before any terminating or ambiguous operation. Merely finding a yield somewhere is insufficient. Exclude dead or conditional yields, nested-scope yields, prior unconditional returns, and yield-from delegation, including delegation to an empty iterable.
 - D1e. The first statement of the literal closure body must be an expression statement whose expression is a direct nondelegating yield. Preceding assignments, conditionals or other statements do not establish this initial suspended state; yield-from is excluded.
+- D1f. The method name is matched case-insensitively, and the result does not have to be discarded. The call is reported when the statement directly after the assignment is an expression statement, a return or an echo that evaluates the call before anything else: the path from the call up to the statement may only pass through parentheses, unary operators and casts, the value of an assignment to a plain variable, the left operand of a binary operator, the condition of a ternary, the first argument of a call to a named function, and the first echo operand.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
 
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- E1b. Do not report a read that another part of the same statement may precede or skip: a later array element, argument or echo operand, a right operand, a ternary branch, an argument of a method or dynamic call, an assignment to a non-plain target, a closure or arrow function body, or the head of a control structure.
 - E2. Both standard suppression forms suppress this native ID.
 
 ## Report
@@ -51,11 +53,19 @@ Requires PHP 7.0 or later.
 $g=(function(){yield 1;return 2;})(); <warning descr="Finish the generator before reading its return value.">$g->getReturn()</warning>;
 ```
 
+The value being used does not change the outcome:
+
+```php
+<?php
+$g=(function(){yield 1;return 2;})(); $r = <warning descr="Finish the generator before reading its return value.">$g->getreturn()</warning>;
+```
+
 Valid case:
 
 ```php
 <?php
 $g=(function(){yield 1;return 2;})(); foreach($g as $v){} $v=$g->getReturn();
+$h=(function(){yield 1;return 2;})(); $pair=[$h->next(), $h->getReturn()];
 ```
 
 ## Divergences

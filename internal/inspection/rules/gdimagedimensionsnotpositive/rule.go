@@ -25,9 +25,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.NativeBuiltin(ctx, c, "imagecreate") && !semanticquery.NativeBuiltin(ctx, c, "imagecreatetruecolor") {
 		return
 	}
-	w, wk := semanticquery.NativeContractInt(ctx, semanticquery.CallArgument(c.Args, 0, "width"))
-	h, hk := semanticquery.NativeContractInt(ctx, semanticquery.CallArgument(c.Args, 1, "height"))
-	if (wk && w <= 0) || (hk && h <= 0) {
+	width := semanticquery.CallArgument(c.Args, 0, "width")
+	height := semanticquery.CallArgument(c.Args, 1, "height")
+	w, wk := semanticquery.NativeContractInt(ctx, width)
+	h, hk := semanticquery.NativeContractInt(ctx, height)
+	if (wk && w <= 0 && stableDimension(ctx, width)) || (hk && h <= 0 && stableDimension(ctx, height)) {
 		ctx.ReportNode(n, message)
 	}
 }

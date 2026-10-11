@@ -17,7 +17,7 @@ or a differently named method.
 
 ## Example
 
-```php{8,13,19,34}
+```php{8,13,19,34,56}
 <?php
 class Settings
 {
@@ -65,6 +65,16 @@ class Settings
             return $this->close($n - 1);
         }
     }
+
+    public function listener()
+    {
+        return $this->listener(...);
+    }
+
+    public function forward(...$args)
+    {
+        return $this->forward(...$args);
+    }
 }
 ```
 
@@ -75,6 +85,7 @@ Reported:
 <li>line 13: Method calls itself unconditionally; this recursion never ends.</li>
 <li>line 19: Method calls itself unconditionally; this recursion never ends.</li>
 <li>line 34: Method calls itself unconditionally; this recursion never ends.</li>
+<li>line 56: Method calls itself unconditionally; this recursion never ends.</li>
 </ul>
 
 ## Configure

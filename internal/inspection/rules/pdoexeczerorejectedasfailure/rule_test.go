@@ -11,7 +11,7 @@ import (
 )
 
 func TestFixtures(t *testing.T) {
-	for _, name := range []string{"basic", "negative"} {
+	for _, name := range []string{"basic", "negative", "error-state", "false-positives"} {
 		t.Run(name, func(t *testing.T) {
 			data, err := os.ReadFile(filepath.Join("../../../../testdata/rules", "PdoExecZeroRejectedAsFailure", name+".php"))
 			if err != nil {

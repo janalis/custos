@@ -14,7 +14,10 @@ Terminate or separate the fork child branch. This opt-in rule applies the policy
 
 ## Detection
 
-- D1. Enabled policy reserves the continuation after a strict result === 0 branch for the parent. Report that condition when its nonempty block falls through and another statement follows. Exclude else/elseif forms and blocks whose final statement is return, exit or throw. Single-statement branches and unknown termination summaries are excluded.
+- D1. Enabled policy reserves the continuation after a strict result === 0 branch for the parent. Report that condition when its nonempty block can fall through and another statement follows. Exclude else/elseif forms and single-statement (unbraced) branches.
+- D1a. The block does not fall through when control provably cannot reach the statement after it: it holds a return, throw or exit, a nested block or declare body that does, an if/else chain or try statement whose every path does (a finally that does is enough), a switch with a default whose cases all do, or an endless loop without break. Trailing empty statements are ignored.
+- D1b. A break, continue or goto that leaves the child block is not a termination: the child then runs loop iterations or later code the parent also runs, so the block is still reported. Jumps confined to a loop or switch opened inside the block, or to a nested closure, do not count; a jump with an explicit level is assumed to leave.
+- D1c. Unknown termination summaries are excluded. When the last effective statement of the block is a function, method or static call, report only when the callee resolves to a declaration that can return. No report when the callee cannot be resolved (undeclared or dynamic function, unresolved receiver or class, dynamic method name), when it resolves to an abstract or interface method, when its declared, documented or body-derived return type is `never`, or when its declaration lives in the analysed file and its body ends abruptly on every path without any return statement of its own. Builtins that normally return, including `pcntl_exec` (which returns on failure), are reported.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
 - D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
 
@@ -51,11 +54,21 @@ Requires PHP 5.3 or later and the referenced extension API. Respect method-speci
 $pid=pcntl_fork(); if (<warning descr="Terminate or separate the fork child branch.">$pid===0</warning>) { echo "child"; } echo "continuation";
 ```
 
-Valid case:
+Valid cases:
 
 ```php
 <?php
 $pid=pcntl_fork(); if ($pid===0) { echo "child"; exit; } echo "continuation";
+```
+
+```php
+<?php
+$pid=pcntl_fork(); if ($pid===0) { try { echo "child"; } finally { exit(0); } } echo "continuation";
+```
+
+```php
+<?php
+$pid=pcntl_fork(); if ($pid===0) { runQueueWorkerUntilShutdown(); } echo "continuation";
 ```
 
 ## Divergences

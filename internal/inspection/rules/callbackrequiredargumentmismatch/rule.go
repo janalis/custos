@@ -2,6 +2,8 @@
 package callbackrequiredargumentmismatch
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
@@ -28,7 +30,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	params, body := semanticquery.NativeCallback(ctx, args[0])
-	if body == nil {
+	if body == nil || !settledDeclaration(ctx.File, body) {
 		return
 	}
 	required := 0
@@ -40,4 +42,29 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if required > len(args)-1 {
 		ctx.ReportNode(call, message)
 	}
+}
+
+// settledDeclaration reports whether a callback body is the one definition
+// the call can reach. Closures and arrow functions always are; a named
+// function must be a direct statement of the file or of a namespace and the
+// only function of that name in the file, since a conditional or repeated
+// declaration leaves the signature bound at run time unknown.
+func settledDeclaration(f *syntax.File, body syntax.Node) bool {
+	decl, ok := body.Parent().(*syntax.Function)
+	if !ok {
+		return true
+	}
+	if parent := decl.Parent(); parent != nil {
+		if _, ok := parent.(*syntax.Namespace); !ok {
+			return false
+		}
+	}
+	count := 0
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if other, ok := n.(*syntax.Function); ok && strings.EqualFold(other.Name.Value, decl.Name.Value) {
+			count++
+		}
+		return true
+	})
+	return count == 1
 }

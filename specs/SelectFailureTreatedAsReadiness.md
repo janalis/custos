@@ -22,6 +22,7 @@ Handle selection failure before processing ready streams.
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E3. No report when a strict comparison of the same stored result with false has already ruled failure out on every path reaching the readiness test: an immediately preceding `if ($r === false)` whose body always exits, an enclosing `if ($r !== false)` body or the else branch of `if ($r === false)`, an elseif arm that follows a leading test or earlier arm `$r === false`, or the left operand of a short-circuit (`$r !== false && ...`, `$r === false || ...`, also with `and`/`or`). Inside such a guard condition, a conjunction counts when either operand excludes false on its true outcome and a disjunction when either operand does on its false outcome. The guard must read the same unchanged variable; a result compared directly from the call expression is never guarded, because a second call yields a different result.
 
 ## Report
 
@@ -56,6 +57,13 @@ Valid case:
 ```php
 <?php
 $r=stream_select($read,$write,$except,1); if ($r===false) { throw new RuntimeException(); } if ($r>0) { echo "ready"; }
+```
+
+Failure excluded first:
+
+```php
+<?php
+$r=stream_select($read,$write,$except,1); if ($r!==false && $r!==0) { echo "ready"; }
 ```
 
 ## Divergences

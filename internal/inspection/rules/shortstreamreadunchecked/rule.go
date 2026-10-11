@@ -52,7 +52,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if size == 0 || length != size || strings.ContainsAny(format, "/*0123456789") {
 		return
 	}
-	if semanticquery.NativeLengthGuard(ctx, input, size) {
+	if lengthChecked(ctx, input, size) {
 		return
 	}
 	ctx.ReportNode(call, message)

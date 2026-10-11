@@ -25,6 +25,16 @@ func TestContracts(t *testing.T) {
 		{"extra0", "<?php\n$e=DateTimeImmutable::getLastErrors();if($q){echo $e['warning_count'];}\n", 1},
 		{"extra1", "<?php\n$e=DateTimeImmutable::getLastErrors();if($q!==false){echo $e['warning_count'];}\n", 1},
 		{"extra2", "<?php\n$e=DateTimeImmutable::getLastErrors();if($q!==$r){echo $e['warning_count'];}\n", 1},
+		{"coalesce", "<?php\n$e=DateTime::getLastErrors();echo $e['warning_count']??0;\n", 0},
+		{"isset", "<?php\n$e=DateTime::getLastErrors();echo isset($e['warnings'])?1:0;\n", 0},
+		{"and", "<?php\n$e=DateTime::getLastErrors();echo $e&&$e['warning_count'];\n", 0},
+		{"strict or", "<?php\n$e=DateTime::getLastErrors();echo $e===false||$e['warning_count']===0;\n", 0},
+		{"ternary", "<?php\n$e=DateTime::getLastErrors();echo $e?$e['warning_count']:0;\n", 0},
+		{"early return", "<?php\nfunction f(){$e=DateTime::getLastErrors();if(!$e){return 0;}return $e['warning_count'];}\n", 0},
+		{"is_array", "<?php\n$e=DateTime::getLastErrors();if(is_array($e)){echo $e['warning_count'];}\n", 0},
+		{"reassigned after guard", "<?php\n$e=DateTime::getLastErrors();if($e){$e=DateTime::getLastErrors();echo $e['warning_count'];}\n", 1},
+		{"wrong ternary arm", "<?php\n$e=DateTime::getLastErrors();echo $e?0:$e['warning_count'];\n", 1},
+		{"index of a probe", "<?php\n$e=DateTime::getLastErrors();echo $e[$e['warning_count']]??0;\n", 1},
 		{"extra3", "<?php\n$e=DateTimeImmutable::getLastErrors();if($e!==false){echo $e['warning_count'];}\n", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

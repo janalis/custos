@@ -42,8 +42,16 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.NativeGeneratorBody(semanticquery.NativeFunctionBody(ctx, producer)) {
 		return
 	}
+	// Only a plain local variable carries one generator identity between
+	// two traversals: every other expression may yield a fresh generator.
+	v, ok := input.(*syntax.Variable)
+	if !ok || v.NameExpr != nil {
+		return
+	}
 	if _, known := ctx.Flow().StateBefore(input, input, "iterator_to_array"); known {
-		ctx.ReportNode(n, message)
+		if !reboundElsewhere(ctx.File, v) {
+			ctx.ReportNode(n, message)
+		}
 		return
 	}
 	f, ok := n.(*syntax.Foreach)
@@ -55,7 +63,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	first, ok := previous.(*syntax.Foreach)
-	if !ok || !astquery.Equivalent(ctx.File, first.Expr, input) {
+	if !ok || first.ByRef || !sameVariable(first.Expr, v) || sameVariable(first.Key, v) || sameVariable(first.Value, v) {
 		return
 	}
 	body, ok := first.Body.(*syntax.Block)
@@ -74,4 +82,50 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	ctx.ReportNode(n, message)
+}
+
+// sameVariable reports whether e is the plain variable v names.
+func sameVariable(e syntax.Expr, v *syntax.Variable) bool {
+	o, ok := e.(*syntax.Variable)
+	return ok && o.NameExpr == nil && o.Name == v.Name
+}
+
+// reboundElsewhere reports whether the scope of v lets code the flow facts do
+// not follow bind v to another generator: a closure capturing it by
+// reference, a `global` or `static` declaration, a symbol-table import
+// (extract, parse_str) or an included file. Top-level variables are also
+// reachable through a `global` declaration of any function of the file.
+func reboundElsewhere(f *syntax.File, v *syntax.Variable) bool {
+	scope := syntax.EnclosingFuncLike(v)
+	local := func(x syntax.Node) bool { return syntax.EnclosingFuncLike(x) == scope }
+	found := false
+	visit := func(x syntax.Node) bool {
+		switch x := x.(type) {
+		case *syntax.ClosureUse:
+			found = found || x.ByRef && sameVariable(x.Var, v)
+		case *syntax.Global:
+			if scope == nil || local(x) {
+				for _, g := range x.Vars {
+					found = found || sameVariable(g, v)
+				}
+			}
+		case *syntax.StaticVar:
+			found = found || local(x) && sameVariable(x.Var, v)
+		case *syntax.Include:
+			found = found || local(x)
+		case *syntax.FuncCall:
+			_, extract := astquery.IsFuncNamedFold(x, "extract")
+			_, parse := astquery.IsFuncNamedFold(x, "parse_str")
+			found = found || (extract || parse) && local(x)
+		}
+		return !found
+	}
+	if scope != nil {
+		syntax.Inspect(scope, visit)
+		return found
+	}
+	for _, st := range f.Stmts {
+		syntax.Inspect(st, visit)
+	}
+	return found
 }

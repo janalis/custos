@@ -14,7 +14,7 @@ Clone the node when preserving its existing parent. This inspection is disabled 
 
 ## Detection
 
-- D1. The same proven node is appended consecutively to distinct proven parents. Enabling establishes that both parents must retain a copy. A intervening explicit remove or clone excludes the finding; do not infer this policy from identifiers.
+- D1. The same proven node is appended consecutively to distinct proven parents. Enabling establishes that both parents must retain a copy. An intervening explicit detachment or clone excludes the finding (E3); do not infer this policy from identifiers.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
 - D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
 
@@ -22,6 +22,13 @@ Clone the node when preserving its existing parent. This inspection is disabled 
 
 - E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
 - E2. Both @custos-ignore DomAppendMovesNodeUnexpectedly and @noinspection DomAppendMovesNodeUnexpectedly suppress this native rule.
+- E3. A call that executes on every path between the two appends counts as an explicit detachment when it is one of:
+  - `remove()` or `replaceWith(...)` called on the node itself;
+  - `removeChild` or `replaceChild` naming the node, positionally or through the `child`/`node` named arguments, on any receiver;
+  - `replaceChildren(...)` called on the first parent;
+  - `removeChild` or `replaceChild` called on the first parent with a removed child that is not proven to be another node. The removed child is proven distinct only when it and the appended node both resolve to different local allocation calls (`DOMDocument::createElement`, `createElementNS`, `createTextNode`, `createComment`, `createCDATASection`, `createDocumentFragment`, or `cloneNode`); `$parent->firstChild` and similar navigations are never proven distinct.
+
+  The same calls on unrelated nodes or parents keep the finding, as does removing the first parent itself.
 
 ## Report
 
@@ -54,6 +61,13 @@ Valid case:
 ```php
 <?php
 $d=new DOMDocument(); $a=$d->createElement('a'); $b=$d->createElement('b'); $n=$d->createElement('n'); $a->appendChild($n); $b->appendChild($n->cloneNode(true));
+```
+
+Detached deliberately, no report:
+
+```php
+<?php
+$d=new DOMDocument(); $a=$d->createElement('a'); $b=$d->createElement('b'); $n=$d->createElement('n'); $a->appendChild($n); $n->remove(); $b->appendChild($n);
 ```
 
 ## Divergences

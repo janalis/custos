@@ -25,6 +25,7 @@ Detect array_map with a locally defined callback whose reachable normal exits al
 - An explicit void return declaration establishes that the callback intentionally supplies no mapped value.
 
 - E1. Explicit return null, any value-returning path, unknown callbacks, and purely side-effect callbacks are excluded.
+- E3. A `str_replace()` statement whose arguments can reach the by-reference replacement counter (a fourth positional argument, a named `count` argument, or argument unpacking that hides the binding) is a side effect, not a discarded mapped value. It neither triggers a report nor receives a `return`.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report

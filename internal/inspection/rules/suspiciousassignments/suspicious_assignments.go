@@ -114,13 +114,21 @@ func saSwitch(ctx *analysis.Context, sw *syntax.Switch) {
 			}
 			written = saDropRead(ctx, reads, written)
 			local = saDropRead(ctx, reads, local)
+			// Divergence: a call may read a target that is visible outside
+			// the local scope (`$this->mode = 'a'; $this->render();`).
+			if saHasCall(reads) {
+				written = saDropShared(ctx, written)
+				local = saDropShared(ctx, local)
+			}
 			if a == nil {
 				continue
 			}
 			if saIsDestructuring(a) { // D2a
 				for _, it := range saListItems(a.Var) {
 					if inW(it) {
-						ctx.ReportNode(it, saSwitchMsg)
+						if e, ok := it.(syntax.Expr); !ok || !saMagicWrite(ctx, e) {
+							ctx.ReportNode(it, saSwitchMsg)
+						}
 					} else {
 						local = append(local, it)
 					}
@@ -137,7 +145,9 @@ func saSwitch(ctx *analysis.Context, sw *syntax.Switch) {
 				continue
 			}
 			if inW(a.Var) {
-				ctx.ReportNode(a.Var, saSwitchMsg)
+				if !saMagicWrite(ctx, a.Var) {
+					ctx.ReportNode(a.Var, saSwitchMsg)
+				}
 			} else {
 				local = append(local, a.Var)
 			}
@@ -158,6 +168,17 @@ func saDropRead(ctx *analysis.Context, root syntax.Node, targets []syntax.Node) 
 	out := targets[:0]
 	for _, t := range targets {
 		if e, ok := t.(syntax.Expr); !ok || !saReads(ctx, root, e) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// saDropShared removes the targets visible outside the local scope.
+func saDropShared(ctx *analysis.Context, targets []syntax.Node) []syntax.Node {
+	out := targets[:0]
+	for _, t := range targets {
+		if e, ok := t.(syntax.Expr); !ok || !saSharedTarget(ctx, e) {
 			out = append(out, t)
 		}
 	}
@@ -233,6 +254,11 @@ func saParams(ctx *analysis.Context, fn syntax.Node) {
 	})
 	for _, p := range params {
 		if p.ByRef || p.Var == nil || p.Var.Name == "" {
+			continue
+		}
+		// Divergence: constructor promotion stored the passed value in the
+		// property before the body runs.
+		if len(p.Modifiers) > 0 {
 			continue
 		}
 		name := p.Var.Name
@@ -414,6 +440,9 @@ func saOverwrite(ctx *analysis.Context, a *syntax.Assign) {
 				return
 			}
 		}
+		if saMagicWrite(ctx, t) {
+			return
+		}
 		ctx.ReportNode(a, target+" is overwritten right after the 'if'; an 'else' may be missing.")
 		return
 	}
@@ -441,7 +470,49 @@ func saOverwrite(ctx *analysis.Context, a *syntax.Assign) {
 	if saSharedTarget(ctx, t) && saHasCall(a.Value) {
 		return
 	}
+	if saMagicWrite(ctx, t) {
+		return
+	}
 	ctx.ReportNode(t, target+" is overwritten right after being assigned.")
+}
+
+// saMagicWrite reports whether writing t runs project code, so that no
+// write is lost: an element of an object whose class declares offsetSet()
+// outside the built-in stubs, or a property the receiver's class does not
+// declare (or only documents with @property) while it has __set().
+func saMagicWrite(ctx *analysis.Context, t syntax.Expr) bool {
+	for e := t; ; {
+		switch x := e.(type) {
+		case *syntax.ArrayDimFetch:
+			if saAnyClass(ctx, x.Var, func(cls string) bool {
+				m := ctx.Index().FindMethod(cls, "offsetSet", ctx.PHP)
+				return m != nil && !m.Builtin
+			}) {
+				return true
+			}
+			e = x.Var
+		case *syntax.PropertyFetch:
+			if id, ok := x.Name.(*syntax.Identifier); ok && saAnyClass(ctx, x.Var, func(cls string) bool {
+				p := ctx.Index().FindProperty(cls, id.Value, ctx.PHP)
+				return (p == nil || p.Magic) && ctx.Index().FindMethod(cls, "__set", ctx.PHP) != nil
+			}) {
+				return true
+			}
+			e = x.Var
+		default:
+			return false
+		}
+	}
+}
+
+// saAnyClass reports whether ok holds for one of the classes e may be.
+func saAnyClass(ctx *analysis.Context, e syntax.Expr, ok func(cls string) bool) bool {
+	for _, at := range ctx.TypeOf(e).Atoms() {
+		if strings.HasPrefix(at, `\`) && ok(strings.TrimPrefix(at, `\`)) {
+			return true
+		}
+	}
+	return false
 }
 
 // saReads reports whether root contains t, or an array holding it used as

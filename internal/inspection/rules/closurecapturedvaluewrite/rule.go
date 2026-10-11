@@ -61,30 +61,52 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			continue
 		}
 		name := use.Var.Name
-		write, returns := false, false
+		write, returns, read := false, false, false
 		syntax.Inspect(cl.Body, func(x syntax.Node) bool {
 			if !semanticquery.NativeCallbackReachable(x) {
 				return false
 			}
 			switch z := x.(type) {
 			case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
+				// A nested scope that mentions the name consumes the copy.
+				read = read || astquery.MentionsVariable(z, name)
 				return false
 			case *syntax.Return:
 				returns = returns || z.Expr != nil
 			case *syntax.Assign:
-				if target, ok := z.Var.(*syntax.Variable); ok && target.Name == name {
+				if writesName(z.Var, name) {
 					write = true
+					read = read || !discarded(z)
+					return false
 				}
 			case *syntax.IncDec:
-				if target, ok := z.Var.(*syntax.Variable); ok && target.Name == name {
+				if writesName(z.Var, name) {
 					write = true
+					read = read || !discarded(z)
+					return false
 				}
+			case *syntax.Variable:
+				read = read || z.Name == name
 			}
 			return true
 		})
-		if write && !returns && astquery.MentionsVariable(echo, name) {
+		if write && !returns && !read && astquery.MentionsVariable(echo, name) {
 			ctx.ReportNode(cl, message)
 			return
 		}
 	}
+}
+
+// writesName reports whether target is the plain variable $name.
+func writesName(target syntax.Expr, name string) bool {
+	v, ok := target.(*syntax.Variable)
+	return ok && v.Name == name
+}
+
+// discarded reports whether the value of write is unused: the write is a
+// whole expression statement, so the closure does not consume its result.
+func discarded(write syntax.Node) bool {
+	parent, _ := astquery.ParentSkipParens(write)
+	_, ok := parent.(*syntax.ExprStmt)
+	return ok
 }

@@ -30,6 +30,7 @@ Reported:
 - D1. Resolved preg_match_all uses explicit PREG_PATTERN_ORDER with one capturing group and known literal subject containing at least two matches. Subsequent access reads `result[1][0]` while `result[0][1]` is explicitly compared to that value for equality, establishing mismatched group-versus-match indexing. More generally report only provably out-of-range literal capture/match indices with proven pattern shape and match count.
 - D1a. Regex proof supports ordinary ASCII patterns compatible with RE2, no modifiers, lookarounds, backreferences, or unsupported PCRE extensions. Unknown matching behavior is excluded.
 - D1b. Regex proof requires an ASCII subject and an ordinary compatible PCRE subset without modifiers or whitespace escapes \s or \S. Reject patterns matching an empty string, subjects larger than 32768 bytes, and results with 1024 or more matches.
+- D1c. A brace group is accepted only in the portable quantifier forms `{n}`, `{n,}` and `{n,m}`, or as plain literal text that no engine could read as a quantifier. An unescaped brace group made only of digits, commas and blanks in any other arrangement, such as `{,2}`, `{ 2 }` or `{1, 2}`, is a quantifier on recent PCRE2 releases and literal text on older ones, so the match count is not provable and nothing is reported.
 - D1d. Require an actual value read of the proven absent result dimension. Exclude writes, unset, by-reference uses and unknown argument uses, and exclude statements that also mutate the result array. The regex offset must be omitted or statically known zero; nonzero or unknown offsets are unsupported.
 - D1e. All argument uses are excluded because they can involve reference passing. Also exclude increment/decrement, unset and write contexts. Any same-statement mutation or call receiving the result array discards the actual-read proof.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
@@ -37,7 +38,7 @@ Reported:
 
 ## Exceptions (no report)
 
-- E1. Unknown pattern shape/count, complex regex constructs, intentionally grouped output, or mere `m[1][0]` access without incompatible use is excluded.
+- E1. Unknown pattern shape/count, complex regex constructs, version-dependent brace quantifiers (D1c), intentionally grouped output, or mere `m[1][0]` access without incompatible use is excluded.
 - E2. Both standard suppression forms suppress this native ID.
 
 ## Fix

@@ -27,14 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Resolved mysqli::prepare literal SQL produces statement whose bind_param binding argument count differs from SQL question-mark parameter count. Ignore question marks inside SQL quoted strings, backticks and comments. Exclude SQL parse ambiguity and unpacked bindings.
+- D1. Resolved mysqli::prepare literal SQL produces statement whose bind_param binding argument count differs from SQL question-mark parameter count. Ignore question marks inside SQL quoted strings, backticks and plain comments (`#`, `/* */`, and a double dash followed by whitespace or the end of the text). Exclude SQL parse ambiguity and unpacked bindings.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
 
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- E2. Do not report when the SQL text contains a comment form whose handling depends on the server: an executable or hint comment (opened by `/*!`, `/*M!` or `/*+`), or a double dash immediately followed by a non-whitespace character, which MySQL reads as operators rather than a comment. The test is textual, so the same characters inside quoted data also withhold the report.
+- E3. Both standard suppression forms suppress this native ID.
 
 ## Fix
 

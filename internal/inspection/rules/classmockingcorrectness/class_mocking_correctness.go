@@ -141,7 +141,9 @@ func checkMockCall(ctx *analysis.Context, call syntax.Node, name syntax.Expr, li
 		}
 	case "getmockbuilder":
 		chained := ""
-		if p, ok := call.Parent().(*syntax.MethodCall); ok && p.Var == call {
+		// Parentheses around the receiver do not change the chained call.
+		parent, child := astquery.ParentSkipParens(call)
+		if p, ok := parent.(*syntax.MethodCall); ok && p.Var == child {
 			if pid, ok := p.Name.(*syntax.Identifier); ok {
 				chained = pid.Value
 			} else {

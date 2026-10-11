@@ -17,11 +17,17 @@ Use a supported compression level. Enabled by default; require positive semantic
 - D1. Report gzencode, gzcompress or gzdeflate level argument proven integer less than -1 or greater than 9. Skip unknown levels, default omission, and bzip2 APIs with different contracts.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
 - D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D4. A level passed as a variable is proven only when that variable keeps its literal for the whole enclosing scope (function, method, closure or top-level code; nested function, closure and class bodies are not part of it). The same requirement applies to every variable it was copied from by a plain `$copy = $source` assignment.
 
 ## Exceptions (no report)
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E3. No report for a variable level when, anywhere in the enclosing scope:
+  - the variable is incremented or decremented (`$level--`, `++$level`), wherever that happens relative to the call;
+  - a closure imports it by reference (`use (&$level)`); an arrow function or a by-value import only works on a copy and keeps the proof;
+  - a write names its target at run time: `$$name--`, a compound assignment to `$$name`, `extract()`, or `parse_str()`;
+  - the variable is shared with another scope (top-level code, `global`, `static`, a by-reference parameter, a by-reference import of the enclosing closure) and the scope also holds code able to run application logic: a call that is not a resolved builtin function, a method or static call, `new`, `include`/`require`, `eval`, or a closure or arrow function expression.
 
 ## Report
 
@@ -56,6 +62,17 @@ Valid case:
 ```php
 <?php
 gzencode("sample",9);
+```
+
+Changed before the call, so the level is 9:
+
+```php
+<?php
+function pack_payload($payload) {
+    $level = 10;
+    $level--;
+    return gzencode($payload, $level);
+}
 ```
 
 ## Divergences

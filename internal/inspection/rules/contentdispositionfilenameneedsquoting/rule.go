@@ -31,12 +31,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known || key != "content-disposition" {
 		return
 	}
-	matches := filename.FindAllStringSubmatchIndex(value, -1)
-	if len(matches) != 1 {
+	start, end, ok := filenameParameter(value)
+	if !ok {
 		return
 	}
-	m := matches[0]
-	start, end := m[2], m[3]
 	text := strings.TrimSpace(value[start:end])
 	if text == "" || strings.HasPrefix(text, `"`) {
 		return
@@ -70,4 +68,30 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.ReportNode(c, message, fixes...)
 }
 
-var filename = regexp.MustCompile(`(?i)(?:^|;)\s*filename\s*=\s*([^;]*)`)
+// filenameParameter returns the value range of the only filename parameter.
+// Parameters are split on semicolons outside quoted-strings, so text inside
+// another parameter's quoted value is never taken for a parameter; an
+// unterminated quoted-string leaves the boundaries unknown.
+func filenameParameter(value string) (start, end int, ok bool) {
+	found, quoted, from := 0, false, 0
+	for i := 0; i <= len(value); i++ {
+		switch {
+		case i < len(value) && quoted && value[i] == '\\':
+			i++
+			continue
+		case i < len(value) && value[i] == '"':
+			quoted = !quoted
+			continue
+		case i < len(value) && (quoted || value[i] != ';'):
+			continue
+		}
+		if m := filename.FindStringIndex(value[from:i]); m != nil {
+			start, end = from+m[1], i
+			found++
+		}
+		from = i + 1
+	}
+	return start, end, found == 1 && !quoted
+}
+
+var filename = regexp.MustCompile(`(?i)^\s*filename\s*=\s*`)

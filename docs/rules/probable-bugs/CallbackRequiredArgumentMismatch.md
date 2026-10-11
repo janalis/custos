@@ -14,15 +14,27 @@ Detect array_map with N supplied input arrays and a resolved callback requiring 
 
 ## Example
 
-```php{2}
+```php{2,5}
 <?php
 array_map(fn($value, $key) => $key . $value, $items);
+
+function join_pair($left, $right) { return $left . $right; }
+array_map('join_pair', $items);
+
+// Not reported: which declaration runs depends on the branch taken.
+if (PHP_VERSION_ID < 80000) {
+    function label($item, $prefix) { return $prefix . $item; }
+} else {
+    function label($item) { return (string) $item; }
+}
+array_map('label', $items);
 ```
 
 Reported:
 
 <ul>
 <li>line 2: Match the callback parameters to the supplied arrays.</li>
+<li>line 5: Match the callback parameters to the supplied arrays.</li>
 </ul>
 
 ## Detection
@@ -30,11 +42,13 @@ Reported:
 - D1. Report array_map with N supplied input arrays and a resolved callback requiring more than N positional parameters.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D4. A string callback naming a project function is resolved only when that function is declared exactly once in the analysed file, as a direct statement of the file or of a namespace. Such a declaration is the signature every call reaches.
 
 ## Exceptions (no report)
 
 - E1. Optional parameters, variadics, unresolved callbacks, and array_map with null callback are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. A string callback whose function is declared inside a condition, loop, function body or any other nested statement, or declared more than once in the file (for example one signature per `if`/`else` branch, or a `function_exists` guarded fallback), is unresolved: the signature bound at run time is not known, so nothing is reported.
 
 ## Fix
 

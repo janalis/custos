@@ -82,6 +82,17 @@ a container `C`):
   least one array/string or one class with one of the four methods.
 - **D6** Not supported → report the whole access expression (message lists
   `S`); no index check for this node.
+- **D8** Rebound variable (custos refinement, see Divergences). Before a D6
+  or D7 report on a plain-variable container, look at every occurrence of
+  that variable in its scope (function-like body or top-level code). No
+  report when the variable is, anywhere there:
+  - a target of a destructuring assignment (`[$v, $w] = …`,
+    `list('k' => $v) = …`);
+  - bound by reference (`$v = &$other`) or aliased (`$alias = &$v`);
+  - written as a call-time `&$v` argument, or passed to a by-reference
+    parameter of a callee that resolves (positional, variadic tail or named:
+    `settype($v, 'array')`, `sscanf($s, '%s', $v)`). An unresolved callee
+    counts as by-value.
 
 ### Index type
 
@@ -107,6 +118,8 @@ a container `C`):
   accessors: allowed set empty → index not checked.
 - **E8** Index objects of a subclass (or implementation) of the accepted
   class/interface type.
+- **E9** Plain-variable containers rebound by destructuring or through a
+  reference in the same scope (D8).
 
 ## Report
 
@@ -214,7 +227,8 @@ function ok($m, $c, $n) {
   longer typed by that later assignment.
 - **Native offset classes (custos diverges).** `DOMNodeList`,
   `DOMNamedNodeMap`, `ResourceBundle`, `Dom\NodeList`, `Dom\NamedNodeMap`,
-  `Dom\HTMLCollection`, `FFI\CData` and their subclasses support `$o[…]`
+  `Dom\HTMLCollection`, `Dom\TokenList`, `Dom\DtdNamedNodeMap`, `PDORow`,
+  `FFI\CData` and their subclasses support `$o[…]`
   natively although the stubs declare no `offsetGet()`: supported, with
   `string|int` keys (Magento locale lists, Joomla DOM templates).
 - **Loose PHPDoc unions (custos diverges).** When `S` contains `array` or
@@ -244,6 +258,14 @@ function ok($m, $c, $n) {
   `SimpleXMLElement|false`; ten Moodle reports). D7 skips an index whose
   documented union admits an accepted type (`@return string[]|string`,
   depending on the input) unless native declarations type the index.
+- **Rebound variables (custos refinement, not upstream).** The inferred
+  type of a variable keeps its earlier scalar type when the variable is
+  later overwritten by a destructuring assignment
+  (`$n = 0; [$n, $m] = [['x'], 2]; $n[0]`), converted in place through a
+  by-reference parameter (`settype($n, 'array')`) or written through a
+  reference alias (`$r = &$n; $r = [1];`). D8 withholds both reports for
+  such a variable, anywhere in the scope: the check is not flow-sensitive,
+  so an access placed before the rebinding is skipped too.
 - **Unresolvable ancestors (custos diverges).** A class whose parent,
   interface or trait (at any depth) does not resolve is treated like an
   unresolvable class (D1): the missing ancestor may implement

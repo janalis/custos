@@ -50,10 +50,33 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !ok || !semanticquery.NativeBuiltin(ctx, creation, "imagecreate") {
 			continue
 		}
-		if len(semanticquery.NativeStreamCalls(ctx, c, e, "imagepalettetotruecolor")) > 0 {
+		if converted(ctx, creation, c) {
 			continue
 		}
 		ctx.ReportNode(n, message)
 		return
 	}
+}
+
+// converted reports whether any call between the creation and the allocation
+// may turn the palette image into a truecolor one. The call need not dominate
+// the allocation: a conversion on one path already removes the palette proof.
+func converted(ctx *analysis.Context, creation, alloc *syntax.FuncCall) bool {
+	found := false
+	visit := func(n syntax.Node) bool {
+		if found || n.Span().Start >= alloc.Span().Start {
+			return false
+		}
+		c, ok := n.(*syntax.FuncCall)
+		if ok && c.Span().Start > creation.Span().End && semanticquery.NativeBuiltin(ctx, c, "imagepalettetotruecolor") {
+			found = semanticquery.NativeLocalValue(ctx, semanticquery.CallArgument(c.Args, 0, "image")) == creation
+		}
+		return true
+	}
+	if scope := syntax.EnclosingVariableScope(alloc); scope != nil {
+		syntax.Inspect(scope, visit)
+	} else {
+		syntax.InspectFile(ctx.File, visit)
+	}
+	return found
 }

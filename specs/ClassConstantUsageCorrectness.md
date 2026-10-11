@@ -32,6 +32,8 @@ Visit every class constant access `X::NAME`.
 - **D5** Build a list of acceptable spellings `L` (rules below). If `L` is
   **empty** → no report. Otherwise report when `T` equals (case-sensitive)
   **none** of the entries of `L`.
+  A qualified `T` is decided directly from the string PHP produces (L2/L3)
+  instead of a list.
 
 Let `NS` be the nearest enclosing `namespace` declaration of the access
 (braced or unbraced; files without any namespace statement have none), and
@@ -46,21 +48,29 @@ optionally an explicit alias (`as Alias`).
   found, add its declared FQN with leading `\` (e.g. `\stdClass`). So `\Foo`
   must match the declared spelling exactly.
 
-### L for a qualified `T` (contains `\`, no leading `\`)
+### Qualified `T` (contains `\`, no leading `\`)
 
-Nothing is added when there is no `NS`.
+Nothing is reported when there is no `NS`.
 
-- **L2** If `NS` is a named namespace (not the global `namespace { }`) and
-  either lower(FQN of `C`) starts with lower(FQN of `NS`), or lower(FQN of `C`)
-  ends with `\` + lower(`T`): add the last `len(T)` characters of `C`'s
-  declared FQN. (E.g. in `namespace Shop`, `Sub\cart` resolving to
-  `\Shop\Sub\Cart` yields `Sub\Cart`.)
-- **L3** For each import in `USES` with an explicit alias `Al` where lower(`T`)
-  starts with lower(`Al`): add `C`'s declared FQN in which every
-  occurrence of the import's target text (as written) is replaced by `Al`
-  (plain, case-sensitive substring replacement), then with the leading `\`
-  removed. (E.g. `use Shop\Deep\Parts as P;` and
-  `P\bolt` resolving to `\Shop\Deep\Parts\Bolt` yields `P\Bolt`.)
+PHP substitutes only the *first* segment of a qualified name and keeps the
+remaining segments as written. Split `T` at its first `\` into `first` and
+`rest`, and work out the string `::class` produces:
+
+- **L3** For each class import in `USES` whose name in scope (the explicit
+  alias, or the last segment of the target when unaliased) equals `first`
+  case-insensitively, the produced string is the import's target as written,
+  then `\`, then `rest`. If it equals `C`'s declared FQN for one of them → no
+  report. If at least one import matched and none produced the declared FQN
+  → report. (E.g. `use Shop\Deep\Parts as P;`: `P\Bolt` and `p\Bolt` are
+  fine, `P\bolt` is reported.)
+- **L2** Otherwise (no import carries `first`), and only when `NS` is a named
+  namespace (not the global `namespace { }`): the name is relative to `NS`.
+  Let `tail` be `rest` when `first` is the `namespace` keyword (any case),
+  else `T`. Report unless `C`'s declared FQN ends with `\` + `tail`
+  (case-sensitive). (E.g. in `namespace Shop`, `Sub\cart` and
+  `namespace\Sub\cart` are reported for `\Shop\Sub\Cart`;
+  `namespace\Sub\Cart` is not.) The spelling of the `namespace` declaration
+  itself is not compared.
 
 ### L for an unqualified `T` (no `\` at all)
 
@@ -96,7 +106,9 @@ Consequences worth testing:
 
 - **E1** `self::class`, `static::class`, `parent::class`, `$var::class`.
 - **E2** Unresolvable class names.
-- **E3** Qualified names in files without a namespace statement.
+- **E3** Qualified names in files without a namespace statement, and
+  qualified names inside the global `namespace { }` block that do not go
+  through an import.
 - **E4** Empty acceptable-spelling list (see consequences above).
 
 ## Report
@@ -199,16 +211,24 @@ is acceptable next to the alias `Bag`.)
   case, so `product::CLASS` (which PHP evaluates exactly like
   `product::class`, returning the wrongly cased name) is missed; custos
   matches the keyword case-insensitively (D1).
-- L3 performs a plain textual replacement of the import target inside the
-  class FQN; if the import is written with a different letter case than the
-  declaration, the replacement does nothing and the entry is the full FQN
-  without leading `\` (forcing a report). This is correct, not a false
-  positive: `::class` builds its string from the import as written, so
-  `use Shop\deep\Parts as P; P\Bolt::class` yields `Shop\deep\Parts\Bolt`,
-  not the declared `Shop\Deep\Parts\Bolt` — the same outcome as an
-  unqualified access through a wrongly cased plain import (L4). Kept.
-- L2 adds a suffix of the FQN even when that suffix does not align with a
-  name segment boundary; harmless (it simply never matches).
+- **Wrongly cased import behind a qualified name.** `::class` builds its
+  string from the import as written, so `use Shop\deep\Parts as P;
+  P\Bolt::class` yields `Shop\deep\Parts\Bolt`, not the declared
+  `Shop\Deep\Parts\Bolt` — the same outcome as an unqualified access through
+  a wrongly cased plain import (L4). Reported (L3), not a false positive.
+- **First segment of a qualified name (custos diverges, L2/L3).** Upstream
+  derives the acceptable spelling textually: the last `len(T)` characters of
+  the FQN, or the FQN with every occurrence of an aliased import's target
+  text replaced by the alias. That reports accesses whose string is right:
+  `namespace\Kernel::class` (the keyword is not part of the FQN),
+  `models\User::class` after `use App\Models;` and `m\Tool::class` after
+  `use Lib as M;` (PHP matches the import case-insensitively and emits its
+  target as written), and `M\ModelFactory::class` after `use Model as M;`
+  (the replacement also rewrites the `Model` inside the class name). custos
+  computes the string PHP produces — import target or current namespace for
+  the first segment, the rest as written — and reports only when it differs
+  from the declared name; a wrongly cased rest (`namespace\kernel`,
+  `Models\user`) is still reported.
 - **Plain and aliased import of one class (custos diverges):** upstream
   adds nothing to `L` for a correct plain import, so when the same class is
   also imported under an alias, only the alias is acceptable and a

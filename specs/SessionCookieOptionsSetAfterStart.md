@@ -21,6 +21,9 @@ Detect session_set_cookie_params after a successfully active session_start with 
 ## Exceptions (no report)
 
 - E1. Configuration before start, later closed session, failed start and unknown state are excluded.
+- E1a. A session_start call whose options enable `read_and_close` closes the session again immediately and does not establish an active session. Options that are not a known array literal, a `read_and_close` value that is not a known scalar, and spread arguments discard active-state proof.
+- E1b. No report when the call sits on a path where the reaching session_start call itself is proven to have failed: the branch of an `if` taken when that call is falsy (directly, negated, compared with a boolean literal, or as an operand fixed by `&&`/`||`), or the statement right after an `if` that exits when the call succeeded.
+- E1c. No report when a session_status() comparison evaluated after the reaching start excludes the active state on that path (for example `!== PHP_SESSION_ACTIVE` or `=== PHP_SESSION_NONE`). A status test evaluated before the start proves nothing.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report
@@ -48,6 +51,17 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 ```php
 <?php
 session_start(); <warning descr="Configure session cookie parameters before starting the session.">session_set_cookie_params(['secure' => true])</warning>;
+```
+
+Not reported:
+
+```php
+<?php
+session_start(['read_and_close' => true]);
+session_set_cookie_params(['secure' => true]);
+if (!session_start()) {
+    session_set_cookie_params(['httponly' => true]);
+}
 ```
 
 ## Divergences

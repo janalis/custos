@@ -48,7 +48,12 @@ Visit every function call.
     variables, variables inside nested closures/functions) located inside
     `S` and appearing in source order **before** this `compact` call
     expression starts. Occurrences inside the `compact(...)` call itself or
-    after it do not count.
+    after it do not count;
+  - `this`, when `$this` exists at the call: every function-like between
+    the call and its class member is a non-static closure or arrow
+    function, and that member is a non-static method. A plain function, a
+    `static` closure or arrow function, a static method and a closure
+    outside any method do not provide it.
 - **D6** Report each candidate name that is not in the known set.
 
 ## Exceptions (no report)
@@ -60,6 +65,21 @@ Visit every function call.
 - **E3** Interpolated strings and non-literal arguments.
 - **E4** Earlier duplicates of a reported name (only the last occurrence is
   highlighted).
+- **E5** Scopes that can define variables whose names are not written in
+  the source. When one of these constructs belongs to `S` (arrow functions
+  are looked through as in D3; nested functions, methods and closures are
+  not searched, they have their own variables) and starts before the
+  `compact` call, nothing is reported for that call:
+  - a call that resolves to the global `extract()` (same resolution as D1);
+  - a call that resolves to the global `parse_str()` with exactly one
+    argument (the legacy form that writes into the local scope);
+  - `include`, `include_once`, `require`, `require_once` (the included
+    file runs in the caller's scope) and `eval`;
+  - a variable variable (`$$name`, `${expr}`), read or written, except the
+    member name of a static property access (`Foo::$$name`).
+
+  Like E2 this is positional, not flow-sensitive.
+- **E6** `'this'` where `$this` exists (D5).
 
 ## Report
 
@@ -119,6 +139,26 @@ class Report
     }
 }
 
+function render(array $data)
+{
+    $early = compact(<error descr="Variable '$title' may be undefined when compact() runs.">'title'</error>);
+    extract($data);
+    return $early + compact('title', 'body');
+}
+
+class Page
+{
+    public function export()
+    {
+        return compact('this');
+    }
+
+    public static function exportStatic()
+    {
+        return compact(<error descr="Variable '$this' may be undefined when compact() runs.">'this'</error>);
+    }
+}
+
 $top = compact('nothing');
 ```
 
@@ -133,3 +173,11 @@ $top = compact('nothing');
   is missed while a namespaced user function named `compact` (which does
   not read local variables) is checked. custos compares the name
   case-insensitively and requires the call to reach the builtin (D1).
+- **Dynamically defined variables (custos diverges):** upstream only looks
+  at the variable names written in the function, so a name supplied by
+  `extract()`, a variable variable, an included file or `eval` is reported
+  although it exists at run time. custos stays silent once such a construct
+  precedes the call (E5).
+- **`$this` (custos diverges):** upstream reports `compact('this')` in a
+  method that has not mentioned `$this` yet, although the variable always
+  exists there. custos treats it as known (D5, E6).

@@ -120,6 +120,8 @@ func TestNativeLocalQueries(t *testing.T) {
 		{"attributes", `#[Custom]#[Attribute]class Mark{}#[Mark]class A{}`, "0/false,0/false,127/true", "8.5"},
 		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());if($b===null){return;}probe($b);`, "true", ""},
 		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());if($b){probe($b);}`, "false", ""},
+		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());if($b!==null){probe($b);}`, "true", ""},
+		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());$c=$b;if($c!==null){probe($b);}`, "true", ""},
 		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());if($other!==null){probe($b);}`, "false", ""},
 		{"csv", `probe(1);probe(str_getcsv('a'));probe($unknown->fgetcsv());`, "0//false,1/separator/true,0//false", ""},
 		{"conditions", `$x=readdir($d);if(readdir($d)&&$x){} if((readdir($d))){} if($x=readdir($d)){} if(-readdir($d)){} if(1+readdir($d)){} if(readdir($d)==$unknown){} if(false==readdir($d)){} while(readdir($d)){} do{}while(readdir($d));`, "false,false,true,true,false,false,false,true,true,true", ""},

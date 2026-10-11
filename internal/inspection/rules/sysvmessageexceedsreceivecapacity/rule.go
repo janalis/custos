@@ -3,7 +3,7 @@ package sysvmessageexceedsreceivecapacity
 
 import (
 	"custos/internal/inspection/analysis"
-
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -29,6 +29,18 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if send == nil {
 		return
 	}
+	for _, arg := range []syntax.Expr{
+		semanticquery.CallArgument(c.Args, 1, "desired_message_type"),
+		semanticquery.CallArgument(c.Args, 3, "max_message_size"),
+		semanticquery.CallArgument(c.Args, 6, "flags"),
+		semanticquery.CallArgument(send.Args, 1, "message_type"),
+		semanticquery.CallArgument(send.Args, 2, "message"),
+		semanticquery.CallArgument(send.Args, 3, "serialize"),
+	} {
+		if arg != nil && stepped(ctx, arg) {
+			return
+		}
+	}
 	serialize, known := semanticquery.NativeTruth(ctx, semanticquery.CallArgument(send.Args, 3, "serialize"))
 	if !known || serialize {
 		return
@@ -49,4 +61,50 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	ctx.ReportNode(n, message)
+}
+
+// stepped reports whether a variable read by e may observe an increment, a
+// decrement or a write through a by-reference closure capture. Local flow
+// facts keep the assigned literal across those constructs, so the value is no
+// longer proven. A later change still counts when a loop repeats the read.
+func stepped(ctx *analysis.Context, e syntax.Expr) bool {
+	found := false
+	syntax.Inspect(e, func(n syntax.Node) bool {
+		if use, ok := n.(*syntax.Variable); ok && !found {
+			found = steppedBefore(ctx, use)
+		}
+		return !found
+	})
+	return found
+}
+
+func steppedBefore(ctx *analysis.Context, use *syntax.Variable) bool {
+	for _, access := range flowquery.VarAccesses(ctx.File, syntax.EnclosingFuncLike(use), use.Name) {
+		switch by := access.By.(type) {
+		case *syntax.IncDec:
+		case *syntax.ClosureUse:
+			if !by.ByRef {
+				continue
+			}
+		default:
+			continue
+		}
+		if access.Var.Span().Start < use.Span().Start || sharesLoop(use, access.Var) {
+			return true
+		}
+	}
+	return false
+}
+
+// sharesLoop reports whether a loop around use also contains other.
+func sharesLoop(use, other syntax.Node) bool {
+	for p := use.Parent(); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
+		switch p.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+			if span := p.Span(); span.Start <= other.Span().Start && other.Span().End <= span.End {
+				return true
+			}
+		}
+	}
+	return false
 }

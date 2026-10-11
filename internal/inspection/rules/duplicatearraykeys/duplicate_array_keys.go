@@ -2,10 +2,12 @@ package duplicatearraykeys
 
 import (
 	"strconv"
+	"strings"
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 )
 
 // duplicateArrayKeys reports repeated string keys in an array literal.
@@ -25,7 +27,7 @@ func (duplicateArrayKeys) Check(ctx *analysis.Context, n syntax.Node) {
 		if it == nil || it.Key == nil || it.Unpack || it.Value == nil {
 			continue
 		}
-		key, ok := arrayKeyValue(it.Key) // D1
+		key, ok := arrayKeyValue(it.Key, ctx.PHP) // D1
 		if !ok {
 			continue
 		}
@@ -47,8 +49,9 @@ func (duplicateArrayKeys) Check(ctx *analysis.Context, n syntax.Node) {
 // arrayKeyValue returns the key PHP actually stores for a literal key: string
 // literals are decoded, and canonical decimal integer strings ('7', '-3') as
 // well as integer literals in any base become integer keys. ok is false for
-// any other key expression.
-func arrayKeyValue(e syntax.Expr) (string, bool) {
+// any other key expression. Strings are decoded with the escapes the target
+// PHP version knows.
+func arrayKeyValue(e syntax.Expr, php phpversion.Version) (string, bool) {
 	e = syntax.UnwrapParens(e)
 	neg := false
 	if u, isUnary := e.(*syntax.Unary); isUnary && u.Op.Kind == syntax.TMinus {
@@ -72,7 +75,7 @@ func arrayKeyValue(e syntax.Expr) (string, bool) {
 		if neg {
 			return "", false
 		}
-		val, ok := astquery.StringLiteralValue(lit.Raw) // not ok for nowdoc
+		val, ok := stringKeyValue(lit.Raw, php) // not ok for nowdoc
 		if !ok {
 			return "", false
 		}
@@ -82,6 +85,42 @@ func arrayKeyValue(e syntax.Expr) (string, bool) {
 		return "s:" + val, true
 	}
 	return "", false
+}
+
+// stringKeyValue decodes a quoted string literal like
+// astquery.StringLiteralValue, except that escapes the target version does
+// not know stay as written: `\u{...}` before PHP 7.0 and `\e` before PHP 5.4
+// are a backslash followed by ordinary characters there.
+func stringKeyValue(raw string, php phpversion.Version) (string, bool) {
+	val, ok := astquery.StringLiteralValue(raw)
+	// Only a double-quoted literal has these escapes: the quote opens the
+	// literal, possibly after a binary prefix.
+	quote := strings.IndexByte(raw, '"')
+	if !ok || php >= phpversion.PHP70 || quote < 0 || quote > 1 || raw[0] == '\'' {
+		return val, ok
+	}
+	body := raw[quote+1 : len(raw)-1]
+	var b strings.Builder
+	start := 0
+	for i := 0; i+1 < len(body); i++ {
+		if body[i] != '\\' {
+			continue
+		}
+		if n := body[i+1]; n == 'u' || (n == 'e' && php < phpversion.PHP54) {
+			// Decode what precedes the escape, then keep its two bytes.
+			piece, _ := astquery.StringLiteralValue(`"` + body[start:i] + `"`)
+			b.WriteString(piece)
+			b.WriteString(body[i : i+2])
+			start = i + 2
+		}
+		i++ // the escaped byte never starts another escape
+	}
+	if start == 0 {
+		return val, true
+	}
+	piece, _ := astquery.StringLiteralValue(`"` + body[start:] + `"`)
+	b.WriteString(piece)
+	return b.String(), true
 }
 
 // canonicalIntString reports whether PHP converts the string array key s to

@@ -36,10 +36,57 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		if l, ok := v.(*syntax.Literal); ok && l.LitKind == syntax.LitFloat {
 			f, err := strconv.ParseFloat(strings.ReplaceAll(l.Raw, "_", ""), 64)
-			if err == nil && !math.IsInf(f, 0) && !math.IsNaN(f) && math.Trunc(f) != f {
+			if err == nil && !math.IsInf(f, 0) && !math.IsNaN(f) && math.Trunc(f) != f && !rewritable(ctx, b, e) {
 				ctx.ReportNode(b, message)
 				return
 			}
 		}
 	}
+}
+
+// rewritable reports whether a variable operand can change behind the local
+// value facts: through a closure holding a reference, a builtin that writes
+// the caller's symbol table, or, for a global, application code. The local
+// facts already give up on scopes containing goto.
+// Local facts may chain through other variables, so names are not compared.
+func rewritable(ctx *analysis.Context, at *syntax.Binary, operand syntax.Expr) bool {
+	if _, ok := syntax.UnwrapParens(operand).(*syntax.Variable); !ok {
+		return false
+	}
+	scope := syntax.EnclosingVariableScope(at)
+	// Code after the operation only matters when a loop runs it again.
+	limit := at.Span().End
+	for p := at.Parent(); p != nil && p != scope; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach:
+			limit = math.MaxUint32
+		}
+	}
+	found := false
+	visit := func(n syntax.Node) bool {
+		if found {
+			return false
+		}
+		switch n := n.(type) {
+		case *syntax.Closure:
+			for _, use := range n.Uses {
+				found = found || (use.ByRef && n.Span().Start < limit)
+			}
+		case *syntax.FuncCall:
+			if n.Span().Start < limit {
+				name := semanticquery.NativeBuiltinName(ctx, n)
+				found = name == "extract" || (name == "parse_str" && semanticquery.CallArgument(n.Args, 1, "result") == nil) ||
+					(scope == nil && name == "")
+			}
+		case *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
+			found = scope == nil && n.Span().Start < limit
+		}
+		return !syntax.IsVariableScope(n)
+	}
+	if scope == nil {
+		syntax.InspectFile(ctx.File, visit)
+	} else {
+		syntax.Inspect(syntax.VariableScopeBody(scope), visit)
+	}
+	return found
 }

@@ -7,3 +7,22 @@ json_encode(array_filter([0,1], fn($x)=>true));
 json_encode($x);
 
 json_encode(array_filter([0,1]),JSON_FORCE_OBJECT);
+
+function capturedByReference() {
+    $rows = [1, 0, 2];
+    $load = function () use (&$rows) { $rows = [3, 4]; };
+    $load();
+    return json_encode(array_filter($rows));
+}
+
+function rewrittenThroughForeachReference() {
+    $rows = [1, 0, 2];
+    foreach ($rows as &$row) { $row = 1; }
+    return json_encode(array_filter($rows));
+}
+
+function incrementedItem() {
+    $middle = 0;
+    $middle++;
+    return json_encode(array_filter([1, $middle, 2]));
+}

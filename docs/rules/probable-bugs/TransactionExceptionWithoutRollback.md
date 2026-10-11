@@ -34,7 +34,9 @@ Reported:
 ## Exceptions (no report)
 
 - E1. Finally rollback, catch rollback, proven transaction auto-termination, rethrow to established owner and unknown state are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E2. A catch-path return whose own expression always ends the transaction is a catch rollback: `commit()` or `rollBack()` on the transaction receiver as the returned expression, inside parentheses or a unary operator, as the condition of a ternary or the subject of a `match`, or in both arms of a full ternary or every arm of a `match`. A call in only one arm, in a short ternary fallback or behind a short-circuit operator is conditional and does not count.
+- E3. A finally rollback counts when the enclosing `finally` block calls `commit()` or `rollBack()` on the receiver as a top-level statement, or as a direct statement of a top-level `if` whose whole condition is `inTransaction()` on that same receiver. Other guards and deeper nesting do not count.
+- E4. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

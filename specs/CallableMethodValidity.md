@@ -56,7 +56,8 @@ Visit every function call.
   - `M` is protected and the scope class is the declaring class, a subclass
     of it, or one of its ancestors; for an anonymous class, its `extends`
     class must be a subclass of the declaring class.
-  Class names compare case-insensitively.
+  Class names compare case-insensitively. An inaccessible method is still
+  not reported when a magic handler takes the call (E7).
 - **D8 (static-ness)** If `M` is not `static`, report kind S when:
   - `V` is a string literal (`'Class::method'`), or
   - `V` is an array and element 0's inferred type contains `string` or
@@ -64,6 +65,16 @@ Visit every function call.
     a string), or element 0 is a `X::class` expression.
   Element 0 being an object (`new Shop()`, `$this`, a typed object variable)
   does not trigger S.
+
+  S is not reported when PHP binds the current `$this` to the callback
+  (custos diverges): the call has a `$this` and its class scope (as in D7)
+  is the class the callback names or one of its subclasses. A `$this`
+  exists inside a non-static method, including its closures and arrow
+  functions unless one of them (at any nesting level) is declared `static`.
+  The named class is the one written in the callback (`parent::class`,
+  `self::class`, `Base::class`, `'Base'`, `'Base::boot'`), not the class
+  declaring `M`. Inside a trait the final class is unknown, so a non-static
+  trait method is treated as compatible with any named class.
 
 Both P and S can be reported for the same argument (two findings on the same
 range), P first.
@@ -123,12 +134,25 @@ mt_rand(1, $n);` — `$n` is unknown, so nothing is reported.
   incremented/decremented or compound-assigned in its scope).
 - **E3** Arrays with one element (`['Shop::open']`) or 3+ elements; plain
   function-name strings.
-- **E4** Method not found (unknown class, magic `__call`/`__callStatic`
-  methods are not considered).
+- **E4** Method not found (unknown class; magic `__call`/`__callStatic`
+  handlers are not considered for a method that does not exist).
 - **E5** Public method + object receiver; public static method in any form.
 - **E6** Non-public method checked from a scope that may call it (D7), e.g.
   `is_callable([$this, 'helper'])` inside the declaring class or, for a
   protected method, inside a subclass.
+- **E7** The method exists but is not accessible from the call's scope (P
+  would be reported), and the named class declares or inherits the magic
+  handler PHP routes the call to: `__call` when an object is involved (an
+  object receiver, or a callback without an object to which `$this` is
+  bound as in D8), `__callStatic` for a callback without an object and
+  without a bound `$this`. Neither P nor S is reported. The handlers are
+  not interchangeable (`__callStatic` does not rescue `[$obj, 'hidden']`,
+  `__call` alone does not rescue `'Cls::hidden'` outside the class), and
+  an accessible non-static method referenced without an object is still
+  reported S even when `__callStatic` exists: PHP does not route it there.
+- **E8** Non-static method named through its class from a non-static
+  method of that class or of a subclass (D8), e.g.
+  `is_callable([parent::class, 'boot'])` before `parent::boot()`.
 
 ## Report
 
@@ -206,6 +230,45 @@ function check() {
 }
 ```
 
+Bound `$this` and magic handlers (no report unless marked):
+
+```php
+<?php
+class Engine
+{
+    public function start() {}
+    private function prime() {}
+}
+
+class Turbo extends Engine
+{
+    public function start()
+    {
+        $late = static fn() => is_callable(<warning descr="Method 'start' is not static but is referenced without an object.">[Engine::class, 'start']</warning>);
+        return [is_callable([parent::class, 'start']), is_callable('Engine::start'), $late];
+    }
+
+    public static function build()
+    {
+        return is_callable(<warning descr="Method 'start' is not static but is referenced without an object.">[parent::class, 'start']</warning>);
+    }
+}
+
+class Relay
+{
+    private function fetch() {}
+    public function __call($name, $args) {}
+}
+
+function relay(Relay $relay)
+{
+    return [
+        is_callable([$relay, 'fetch']),
+        is_callable(<warning descr="Method 'fetch' is not public, so the callback cannot be invoked from outside."><warning descr="Method 'fetch' is not static but is referenced without an object.">'Relay::fetch'</warning></warning>),
+    ];
+}
+```
+
 ## Divergences
 
 - **Function name (custos diverges).** Upstream matches the written name
@@ -242,3 +305,14 @@ function check() {
   method, inside the same hierarchy) `is_callable()` returns true and the
   callback is invokable there; reporting it is a false positive. custos
   checks the scope (D7, E6).
+- **Bound `$this` (custos diverges):** upstream reports every non-static
+  method referenced without an object. PHP attaches the current `$this` to
+  such a callback when the calling class is the named class or a subclass,
+  exactly as it does for `parent::method()`, so `is_callable()` is true and
+  the callback runs with the right object. custos stays silent there (D8,
+  E8) and keeps the report in static methods, static closures, unrelated
+  classes and plain functions, where the callback really fails.
+- **Magic handlers (custos diverges):** upstream reports a non-public
+  method even when the class routes inaccessible calls to `__call` /
+  `__callStatic`, which makes the callback invocable. custos stays silent
+  when the handler matching the callback form exists (E7).

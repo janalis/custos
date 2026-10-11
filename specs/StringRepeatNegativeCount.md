@@ -21,7 +21,8 @@ Identify str_repeat when times is a proven negative integer.
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore StringRepeatNegativeCount` and `@noinspection StringRepeatNegativeCount` suppress this native rule.
+- E2. A variable count is not proven negative when an increment (`++$n`, `$n++`) of that variable, a closure capturing it by reference, or an `extract()` call appears in the same scope before the call, or anywhere in a loop that also contains the call: a counter started at `-1` and stepped before each use is a common, valid idiom. The same holds for a variable the count was copied from (`$m = $n;`), judged at the point of the copy; a chain of more than eight copies is not followed and gives no report. Decrements keep a negative count negative and do not prevent the report, nor do changes inside a nested arrow function, which only alter its own copy.
+- E3. Both `@custos-ignore StringRepeatNegativeCount` and `@noinspection StringRepeatNegativeCount` suppress this native rule.
 
 ## Report
 
@@ -56,6 +57,12 @@ Valid case:
 ```php
 <?php
 str_repeat('cd', 3);
+
+$depth = -1;
+foreach ($nodes as $node) {
+    $depth++;
+    echo str_repeat('  ', $depth), $node, "\n";
+}
 ```
 
 ## Divergences

@@ -160,3 +160,39 @@ func TestVersionAndOtherEdges(t *testing.T) {
 		})
 	}
 }
+
+func TestReviewSafety(t *testing.T) {
+	const guard = "if($f===false){return;}if(fseek($f,10)!==0){return;}if(ftruncate($f,0)){fwrite($f,'x');}"
+	for _, tc := range []struct {
+		name, src string
+		want      int
+	}{
+		{"append", "$f=fopen($p,'a');" + guard, 0},
+		{"append read", "$f=fopen($p,'a+');" + guard, 0},
+		{"append binary", "$f=fopen($p,'ab');" + guard, 0},
+		{"append named", "$f=fopen(mode: 'a+b', filename: $p);" + guard, 0},
+		{"append after write", "$f=fopen($p,'a');if($f===false){return;}if(rewind($f)){if(fwrite($f,'abc')!==false){if(ftruncate($f,0)){fputs($f,'x');}}}", 0},
+		{"memory", "$f=fopen('php://memory','w+');" + guard, 0},
+		{"memory append", "$f=fopen('php://memory','a');" + guard, 0},
+		{"temp may spill to a file", "$f=fopen('php://temp','w+');" + guard, 1},
+		{"read write", "$f=fopen($p,'r+');" + guard, 1},
+		{"create", "$f=fopen($p,'c+');" + guard, 1},
+		{"exclusive", "$f=fopen($p,'x+');" + guard, 1},
+		{"literal file", "$f=fopen('/tmp/a.log','w');" + guard, 1},
+		{"unknown mode", "$f=fopen($p,$mode);" + guard, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"TruncationAssumedToRewind"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			f := syntax.Parse("review.php", []byte("<?php "+tc.src), syntax.Options{})
+			if len(f.Errors) > 0 {
+				t.Fatalf("parse: %+v", f.Errors)
+			}
+			if got := e.Analyze(f); len(got) != tc.want {
+				t.Fatalf("got %d want %d: %+v", len(got), tc.want, got)
+			}
+		})
+	}
+}

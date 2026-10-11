@@ -11,6 +11,10 @@ class Widget extends Base {
             static function () { return [parent::make(), parent::C, self::render(), parent::unknown()]; },
             static function () { return function () { parent::render(); }; },
             static function ($x) { return $x; },
+            static function () { return isset($this) ? 'bound' : 'unbound'; },
+            static function ($q) { return isset($q, ($this)) || !empty($this); },
+            static fn () => empty(($this)) ? fn () => isset($this) : null,
+            static function () { return function () { return isset($this); }; },
         ];
     }
 }

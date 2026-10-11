@@ -29,6 +29,17 @@ func TestContracts(t *testing.T) {
 		{"<?php if(filter_var('false',FILTER_VALIDATE_BOOLEAN)===0){return false;}", 0},
 		{"<?php if(filter_var('false',FILTER_VALIDATE_BOOLEAN)==false){return false;}", 0},
 		{"<?php if($v===false){return false;}", 0},
+		{"<?php if(filter_var(\" \\t\\n\\r\\voff \\t\\n\\r\\v\",FILTER_VALIDATE_BOOLEAN)===false){return false;}", 1},
+		{"<?php if(filter_var(' ',FILTER_VALIDATE_BOOLEAN)===false){return false;}", 1},
+		{"<?php if(filter_var('false',FILTER_VALIDATE_BOOLEAN,FILTER_REQUIRE_SCALAR)===false){return false;}", 1},
+		{"<?php if(filter_var(\"\\u{00A0}off\",FILTER_VALIDATE_BOOLEAN)===false){return false;}", 0},
+		{"<?php if(filter_var(\"no\\u{2003}\",FILTER_VALIDATE_BOOLEAN)===false){return false;}", 0},
+		{"<?php if(filter_var(\"\\u{0085}0\",FILTER_VALIDATE_BOOLEAN)===false){return false;}", 0},
+		{"<?php if(filter_var(\"\\foff\",FILTER_VALIDATE_BOOLEAN)===false){return false;}", 0},
+		{"<?php if(filter_var(\"off\\f\",FILTER_VALIDATE_BOOLEAN)===false){return false;}", 0},
+		{"<?php if(filter_var('false',FILTER_VALIDATE_BOOLEAN,FILTER_REQUIRE_ARRAY)===false){return false;}", 0},
+		{"<?php if(filter_var('false',FILTER_VALIDATE_BOOLEAN,FILTER_FORCE_ARRAY)===false){return false;}", 0},
+		{"<?php if(filter_var('false',FILTER_VALIDATE_BOOLEAN,FILTER_REQUIRE_SCALAR|FILTER_FORCE_ARRAY)===false){return false;}", 0},
 		{"<?php function unreachable(){return;\nif (filter_var('false', FILTER_VALIDATE_BOOLEAN) === false) { throw new InvalidArgumentException(); }\n}", 0},
 		{"<?php \nif (filter_var('false', FILTER_VALIDATE_BOOLEAN) === false) { throw new InvalidArgumentException(); }\n function broken(", 0},
 	} {
@@ -44,7 +55,7 @@ func TestContracts(t *testing.T) {
 }
 
 func TestFixtureRanges(t *testing.T) {
-	for _, name := range []string{"basic", "negative"} {
+	for _, name := range []string{"basic", "negative", "padding", "false-positives"} {
 		marked, err := os.ReadFile("../../../../testdata/rules/ValidatedBooleanFalseRejectedAsInvalid/" + name + ".php")
 		if err != nil {
 			t.Fatal(err)

@@ -36,9 +36,58 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 
-	if rejecting(branch.Body) {
+	if rejecting(branch.Body) && !payloadCompared(ctx, branch, call) {
 		ctx.ReportNode(call, message)
 	}
+}
+
+// payloadCompared reports whether the decoded variable is compared with the
+// serialized form of false in the same variable scope, no later than the end
+// of the rejecting branch: such code already tells the two outcomes apart.
+func payloadCompared(ctx *analysis.Context, branch *syntax.If, call *syntax.FuncCall) bool {
+	name, ok := astquery.PlainVariableName(syntax.UnwrapParens(semanticquery.CallArgument(call.Args, 0, "data")))
+	if !ok {
+		return false
+	}
+	scope, limit, found := syntax.EnclosingVariableScope(branch), branch.Body.Span().End, false
+	visit := func(n syntax.Node) bool {
+		if found || (n != scope && syntax.IsVariableScope(n)) {
+			return false
+		}
+		b, ok := n.(*syntax.Binary)
+		if !ok || b.Span().Start >= limit {
+			return true
+		}
+		switch b.Op.Kind {
+		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+			left, right := syntax.UnwrapParens(b.Left), syntax.UnwrapParens(b.Right)
+			found = payloadMarker(ctx, name, left, right) || payloadMarker(ctx, name, right, left)
+		}
+		return !found
+	}
+	if scope == nil {
+		syntax.InspectFile(ctx.File, visit)
+	} else {
+		syntax.Inspect(scope, visit)
+	}
+	return found
+}
+
+// payloadMarker reports whether payload is the named variable and marker is
+// the serialized false text, written literally or as serialize(false).
+func payloadMarker(ctx *analysis.Context, name string, payload, marker syntax.Expr) bool {
+	if written, ok := astquery.PlainVariableName(payload); !ok || written != name {
+		return false
+	}
+	if text, ok := astquery.QuotedStringValue(marker); ok {
+		return text == "b:0;"
+	}
+	c, ok := marker.(*syntax.FuncCall)
+	if !ok || !semanticquery.NativeBuiltin(ctx, c, "serialize") {
+		return false
+	}
+	truth, known := astquery.BoolConst(semanticquery.CallArgument(c.Args, 0, "value"))
+	return known && !truth
 }
 
 func rejecting(body syntax.Stmt) bool {

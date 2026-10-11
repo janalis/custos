@@ -1,6 +1,6 @@
 <?php
 // realpath() climbs from a symlink's target, dirname() from the link: only
-// bases PHP already resolved (__DIR__, __FILE__, dirname() of them) are
+// bases PHP already resolved (__DIR__, dirname() of it or of __FILE__) are
 // rewritten.
 class CoreUpdate
 {

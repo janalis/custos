@@ -11,6 +11,10 @@ import (
 
 const message = "Compare integer validation failure strictly with false."
 
+// arrayResultFlags is FILTER_REQUIRE_ARRAY | FILTER_FORCE_ARRAY: with either
+// flag the call yields an array, so negation tests emptiness, not zero.
+const arrayResultFlags = 16777216 | 67108864
+
 type rule struct{}
 
 // New constructs the stateless inspection.
@@ -29,7 +33,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	options := semanticquery.CallArgument(call.Args, 2, "options")
-	if !semanticquery.NativeIntegerAllowsZero(ctx, options) {
+	if !semanticquery.NativeIntegerAllowsZero(ctx, options) || !failsWithScalarFalse(ctx, options) {
 		return
 	}
 	p, _ := astquery.ParentSkipParens(call)
@@ -40,4 +44,27 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.ReportNode(call, message, diagnostic.Fix{Title: "Distinguish invalid integers from zero", Edits: func() []diagnostic.TextEdit {
 		return []diagnostic.TextEdit{{Span: u.Op.Span, NewText: "("}, {Span: syntax.Span{Start: u.Span().End, End: u.Span().End}, NewText: " === false)"}}
 	}})
+}
+
+// failsWithScalarFalse reports whether a rejected value still yields false:
+// array-shaping flags change the result type and a configured default replaces
+// the failure value. The options are already proven static by the caller.
+func failsWithScalarFalse(ctx *analysis.Context, options syntax.Expr) bool {
+	if options == nil {
+		return true
+	}
+	if flags, known := semanticquery.NativeInt(ctx, options); known {
+		return flags&arrayResultFlags == 0
+	}
+	entries, _ := semanticquery.NativeArrayEntries(ctx, options)
+	if shaped, _ := semanticquery.NativeFlag(ctx, entries["s:flags"], arrayResultFlags); shaped {
+		return false
+	}
+	if inner := entries["s:options"]; inner != nil {
+		values, _ := semanticquery.NativeArrayEntries(ctx, inner)
+		if _, replaced := values["s:default"]; replaced {
+			return false
+		}
+	}
+	return true
 }

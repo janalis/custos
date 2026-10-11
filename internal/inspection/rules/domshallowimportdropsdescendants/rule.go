@@ -31,7 +31,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
-	if !semanticquery.ExpansionDOMElementChildren(ctx, semanticquery.CallArgument(c.Args, 0, "node"), c) {
+	node := semanticquery.CallArgument(c.Args, 0, "node")
+	if !semanticquery.ExpansionDOMElementChildren(ctx, node, c) || stale(ctx, node, c) {
 		return
 	}
 	var fixes []diagnostic.Fix

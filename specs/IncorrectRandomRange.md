@@ -45,6 +45,35 @@ Visit every function call.
   its declared decimal value. If either fails (malformed literal, value out
   of the 64-bit range) → stop. Report when `T < F`.
 
+- **D7** Before reporting, both bounds must be *stable*: every way the
+  bound can receive a value is one that value discovery reads. Walking the
+  same expressions discovery expands (parentheses, ternary operands, `??`
+  operands):
+  - a **local variable** is stable when it lives in a function-like scope,
+    is not a parameter without default or a by-reference parameter, its
+    scope contains no variable-variable, `extract()`, `include`/`require`
+    or `eval`, and each of its occurrences in the scope (nested
+    function-likes included) is either a read or the target of a plain `=`
+    whose right-hand side is itself stable. Not a read: reference
+    assignment (either side), compound assignment, `++`/`--`, a
+    destructuring slot (`list()`/`[...]`, also in `foreach`), a `foreach`
+    key/value target, a by-reference array item or closure `use`, a
+    `global`/`static` declaration, a `catch` variable, `unset()`, the base
+    of an element or property access, and an argument of any call other
+    than a global function known to the index none of whose arguments binds
+    by reference;
+  - a **property** is stable only as `$this->p`, `self::$p` or `static::$p`
+    where the enclosing class declares `p` private and without hooks, uses
+    no trait, and every fetch of a property named `p` (or with a dynamic
+    name) in the class body is a read as above or a plain assignment to the
+    same fetch text located in the current scope or the class constructor,
+    with a stable right-hand side;
+  - a **class constant** written `static::C` is stable only when no subclass
+    can redeclare it: the enclosing class is final or anonymous, or declares
+    `C` as `final`. A constant fetched through an expression (`$obj::C`) is
+    never stable; `self::C` and `Name::C` always are;
+  - anything else (literals, global constants, calls) is stable.
+
 Built-in constants come from the stubs: `PHP_INT_MAX` =
 `9223372036854775807`, `PHP_INT_MIN` = `-9223372036854775808` (both
 resolvable to numbers, so `random_int(PHP_INT_MAX, PHP_INT_MIN)` is
@@ -58,6 +87,13 @@ reported). `T == F` is not reported.
   numbers, top-level variables), and variables that are also incremented,
   decremented or compound-assigned in their scope (unknown discovery result):
   `$hi = 0; foreach ($xs as $x) { $hi++; } mt_rand(1, $hi)`.
+- **E2b** Bounds that are not stable (D7): the literal discovery found is
+  not the only value the bound can hold.
+  `$max = 0; foreach ($limits as $max) { mt_rand(5, $max); }`,
+  `$max = 0; sscanf($spec, '%d', $max); mt_rand(5, $max)`,
+  `$max = 0; $max = $limit;` with `$limit` a parameter,
+  a `private $sides = 0;` that a setter assigns, a public or protected
+  property, `mt_rand(1, static::MAX)` in a class that can be extended.
 - **E3** Bounds that do not convert to a 64-bit integer (D6), and floats
   that truncate to an ordered or equal pair (`random_int(1.7, 1)`).
 - **E4** Correctly ordered or equal bounds.
@@ -119,6 +155,15 @@ function roll($bonus = 10)
   were the builtin. custos compares the name case-insensitively and
   requires the call to reach the global function (D1).
 - **Unstable variables — custos refinement, not upstream.** Upstream value discovery ignores `++`/`--` and compound assignments, so `$n = 0; … ++$n; mt_rand(1, $n)` is reported as min > max (found on real code). custos treats such a variable as unknown (no report), per the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on it.
+- **Stable bounds — custos refinement, not upstream.** Upstream reports as
+  soon as value discovery yields one number per bound, although discovery
+  only reads plain assignments, parameter and property defaults and the
+  lexically resolved constant. A variable rebound by `foreach`,
+  destructuring, a by-reference argument, a reference or an assignment
+  from an unknown value, a property written by a setter, a subclass or
+  outside code, and a late-bound `static::C` overridden in a subclass were
+  all reported with a stale literal on valid code. custos reports only
+  when both bounds are stable (D7); this removes reports and adds none.
 - **Non-decimal and float bounds (custos diverges):** upstream only parses
   plain decimal text, so `random_int(0x10, 1)`, `mt_rand(1_000, 1)`,
   `rand(2.5, 1)` or `random_int(- 5, -6)` are silently skipped. custos

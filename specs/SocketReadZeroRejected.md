@@ -15,12 +15,14 @@ Identify socket_read in PHP_BINARY_READ mode tested by negation or loose false e
 ## Detection
 
 - D1. Report socket_read in PHP_BINARY_READ mode tested by negation or loose false equality in a branch throwing or returning false. Strict false and explicit empty string checks exclude.
+- D1a. The mode is PHP_BINARY_READ when the builtin constant is passed as the third or `mode` argument, and also when no mode argument is passed at all, because that is the parameter default. Any other mode expression is unknown.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
+- E1a. No report when the call spreads arguments (`...$args`) or is a first-class callable (`socket_read(...)`): the mode binding cannot be established.
 - E2. Both `@custos-ignore SocketReadZeroRejected` and `@noinspection SocketReadZeroRejected` suppress this native rule.
 
 ## Report
@@ -49,6 +51,16 @@ Finding (enable the rule explicitly when disabled by default):
 ```php
 <?php
 if (!$data = socket_read($s, 1024, PHP_BINARY_READ)) { throw new RuntimeException(); }
+```
+
+Finding with the mode left to its binary default:
+
+```php
+<?php
+function readChunk($socket) {
+    if (!($chunk = socket_read($socket, 4096))) { return false; }
+    return $chunk;
+}
 ```
 
 Valid case:

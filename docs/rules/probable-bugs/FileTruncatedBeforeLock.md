@@ -17,6 +17,8 @@ Detect fopen in w/w+ variants followed by exclusive flock on the same identity.
 ```php{2}
 <?php
 function bad($path) { $h = fopen($path, 'wb'); if ($h !== false) { flock($h, LOCK_EX); fclose($h); } }
+function unlockOnly($path) { $h = fopen($path, 'w'); fwrite($h, 'x'); flock($h, LOCK_UN); fclose($h); }
+function sharedOnly($path) { $h = fopen($path, 'w'); flock($h, LOCK_SH); fclose($h); }
 ```
 
 Reported:
@@ -28,6 +30,7 @@ Reported:
 ## Detection
 
 - D1. Report fopen in w/w+ variants followed by exclusive flock on the same identity.
+  The lock is exclusive only when the `flock` operation (second argument, or named `operation`) is proven to be `LOCK_EX`, optionally combined with `LOCK_NB` through bitwise or. The operation may be written with the constants, with their integer values, or through a local holding such a value.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
@@ -35,6 +38,7 @@ Reported:
 
 - E1. Nontruncating modes, already-held established locks, unrelated handles and unknown modes are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. A later `flock` that only requests a shared lock (`LOCK_SH`) or releases one (`LOCK_UN`), with or without `LOCK_NB`, is not an exclusive lock and produces no report. The same holds when the operation is missing, dynamic or only partly known.
 
 ## Fix
 

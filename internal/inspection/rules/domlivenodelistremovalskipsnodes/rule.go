@@ -3,6 +3,7 @@ package domlivenodelistremovalskipsnodes
 
 import (
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -40,7 +41,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	property, ok := parent.Name.(*syntax.Identifier)
-	if !ok || property.Value != "parentNode" || !same(ctx, parent.Var, child) {
+	if !ok || property.Value != "parentNode" || (!same(ctx, parent.Var, child) && !sameItemCall(ctx, parent.Var, child, item)) {
 		return
 	}
 	for p := c.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
@@ -79,13 +80,15 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !ok {
 			return
 		}
-		for _, s := range body.Stmts {
+		for i, s := range body.Stmts {
 			statement, ok := s.(*syntax.ExprStmt)
 			if !ok {
 				return
 			}
 			if statement.Expr == c {
-				ctx.ReportNode(c, message)
+				if !compensated(body.Stmts[i+1:], variable.Name) {
+					ctx.ReportNode(c, message)
+				}
 				return
 			}
 			if assignment, ok := statement.Expr.(*syntax.Assign); !ok || assignment.Value != item {
@@ -98,6 +101,30 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 func sameVariable(a syntax.Expr, b *syntax.Variable) bool {
 	v, ok := a.(*syntax.Variable)
 	return ok && v.Name == b.Name
+}
+
+// sameItemCall accepts the unbound form, where the receiver of parentNode and
+// the removed child are two spellings of the same item(index) call.
+func sameItemCall(ctx *analysis.Context, receiver, child syntax.Expr, item *syntax.MethodCall) bool {
+	return child == syntax.Expr(item) && astquery.Equivalent(ctx.File, receiver, child)
+}
+
+// compensated reports whether the statements after the removal may undo the
+// shift: any later use of the index, or a jump that ends the iteration early.
+func compensated(rest []syntax.Stmt, index string) bool {
+	found := false
+	for _, s := range rest {
+		syntax.Inspect(s, func(x syntax.Node) bool {
+			switch v := x.(type) {
+			case *syntax.Variable:
+				found = found || v.NameExpr != nil || v.Name == index
+			case *syntax.Break, *syntax.Continue, *syntax.Return, *syntax.Goto, *syntax.Throw, *syntax.Exit:
+				found = true
+			}
+			return !found
+		})
+	}
+	return found
 }
 
 func same(ctx *analysis.Context, a, b syntax.Expr) bool {

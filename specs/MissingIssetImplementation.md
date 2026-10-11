@@ -45,6 +45,8 @@ For every argument `A` of `isset(...)` and of `empty(...)`:
 - **E4** `$this->prop`.
 - **E5** `stdClass`, `SimpleXMLElement`, `DOMDocument` (any letter case,
   e.g. `new \StdClass()`).
+- **E5b** `ArrayObject`, `ArrayIterator` and their subclasses (see
+  Divergences).
 - **E6** Unresolvable types/classes.
 - **E7** Property fetches nested deeper inside an argument
   (`isset($a[$o->x])`) — only direct arguments are checked.
@@ -131,6 +133,26 @@ None known.
   of that name on a receiver other than `$this`, or a property with a
   computed name (`$entity->$field = $value`, an importer), the check is not
   reported: it is not always false (PrestaShop: 63 → 1).
+  A write is any of the following on `$o->name`, directly or under element
+  accesses (`$o->name[] = …`, `$o->name['k']['j'] = …`, which create the
+  property as an array): a plain or compound assignment, a slot of a
+  `[...]`/`list(...)` destructuring pattern, `++`/`--`, the source of a
+  reference assignment (`$r = &$o->name`), a `foreach` key or value target,
+  and an argument passed by reference — call-time `&`, or bound
+  (positionally, by name or through a variadic tail) to a by-reference
+  parameter of the resolved function, method or constructor. An argument of
+  an unresolved callee is taken as a read, so `use($o->name)` next to the
+  check does not hide it.
+  When the class has `__get()`, a write under an element access, through a
+  reference assignment or through a by-reference argument reaches the value
+  `__get()` returned and creates no property ("Indirect modification of
+  overloaded property"), so those indirect forms count only for classes
+  without `__get()`; direct writes count either way.
+- **`ARRAY_AS_PROPS` containers (custos diverges).** `ArrayObject` and
+  `ArrayIterator` answer `isset($o->key)` from their stored array when the
+  `ARRAY_AS_PROPS` flag is set, at construction or later through
+  `setFlags()`. The flag cannot be ruled out statically, so these classes
+  and their subclasses are skipped like `SimpleXMLElement`.
 - **Dynamic and unresolvable ancestors (custos diverges).** Subclasses of
   `stdClass` (always dynamic, Joomla `Table`) and of `SimpleXMLElement`
   (native isset handler) are skipped like those classes themselves; so is

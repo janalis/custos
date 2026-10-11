@@ -3,7 +3,7 @@ package xmlparserneverreceivesfinalchunk
 
 import (
 	"custos/internal/inspection/analysis"
-
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -34,7 +34,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	calls := ctx.Flow().Calls(syntax.EnclosingVariableScope(n))
-	if len(calls) > 256 {
+	if len(calls) > 256 || handedOver(ctx, e, n) {
 		return
 	}
 	parsed := false
@@ -63,4 +63,49 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if parsed {
 		ctx.ReportNode(n, message)
 	}
+}
+
+// handedOver reports whether the parser is passed, before the free, to code
+// that may finish the parse: a method, static or constructor call. Unknown
+// function calls already invalidate the parser's local value. Arguments of
+// nested builtin calls only read the parser and are not a hand-over.
+func handedOver(ctx *analysis.Context, parser syntax.Expr, free syntax.Node) bool {
+	scope := syntax.EnclosingVariableScope(free)
+	found := false
+	visit := func(node syntax.Node) bool {
+		if found || node.Span().Start >= free.Span().Start {
+			return false
+		}
+		var args *syntax.ArgList
+		switch call := node.(type) {
+		case *syntax.MethodCall:
+			args = call.Args
+		case *syntax.StaticCall:
+			args = call.Args
+		case *syntax.New:
+			args = call.Args
+		default:
+			// Another function, method or closure has its own variables; an arrow
+			// function shares the enclosing ones.
+			if _, arrow := node.(*syntax.ArrowFunction); !arrow && node != scope && syntax.IsVariableScope(node) {
+				return false
+			}
+		}
+		if args != nil {
+			syntax.Inspect(args, func(inner syntax.Node) bool {
+				if nested, ok := inner.(*syntax.FuncCall); ok && semanticquery.NativeBuiltinName(ctx, nested) != "" {
+					return false
+				}
+				found = found || astquery.Equivalent(ctx.File, inner, parser)
+				return !found
+			})
+		}
+		return true
+	}
+	if scope == nil {
+		syntax.InspectFile(ctx.File, visit)
+	} else {
+		syntax.Inspect(scope, visit)
+	}
+	return found
 }

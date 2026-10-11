@@ -120,6 +120,11 @@ func TestEdges(t *testing.T) {
 	}{
 		{"$f=fopen($p,'r');fwrite($f,'x');", 0},
 		{"$f=fopen($p,'r');if($f===false){return;}fclose($f);fwrite($f,'x');", 0},
+		{"function f($f){fwrite($f,'x');}", 0},
+		{"$f=fopen('php://memory','rw');if($f===false){return;}fwrite($f,'x');", 0},
+		{"$f=fopen(mode:'ra',filename:'php://temp/maxmemory:64');if($f===false){return;}fwrite($f,'x');", 0},
+		{"$f=fopen($p,'rw');if($f===false){return;}fwrite($f,'x');", 1},
+		{"$f=fopen('file:///tmp/a','rw');if($f===false){return;}fwrite($f,'x');", 1},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"WriteToReadOnlyStream"}})
@@ -138,12 +143,12 @@ func TestEdges(t *testing.T) {
 }
 
 func TestTemporaryStreamModes(t *testing.T) {
-	for _, mode := range []string{"w", "a", "r", "r+", "x", "c", "x+", "c+"} {
+	for _, mode := range []string{"w", "a", "r", "r+", "x", "c", "x+", "c+", "rw", "rbw", "ra", "wr", "rb"} {
 		src := `<?php $f=fopen('php://temp','` + mode + `');if($f===false){return;}fwrite($f,'x');`
 		e, _ := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"WriteToReadOnlyStream"}})
 		got := e.Analyze(syntax.Parse("temp.php", []byte(src), syntax.Options{}))
 		want := 0
-		if mode == "r" || mode == "x" || mode == "c" {
+		if mode == "r" || mode == "x" || mode == "c" || mode == "rb" {
 			want = 1
 		}
 		if len(got) != want {

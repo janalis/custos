@@ -51,7 +51,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, st := range prior {
 		guard, ok := st.(*syntax.If)
-		if ok && guard.Else == nil && syntax.Terminates(guard.Body) {
+		if ok && guard.Else == nil && rejects(ctx, guard.Body, 0) {
 			b, ok := syntax.UnwrapParens(guard.Cond).(*syntax.Binary)
 			if ok && b.Op.Kind == syntax.TGreater {
 				limit, known := semanticquery.NativeInt(ctx, b.Right)
@@ -110,6 +110,43 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.ReportNode(c, message)
 }
 
+// rejects reports whether a guard body always abandons the extraction. A jump
+// counts only when it leaves more than the enclosing loops and switches that
+// end before the extraction: `continue` or `break` aimed at the validation
+// loop merely skips or truncates the accounting. goto and computed levels
+// prove nothing.
+func rejects(ctx *analysis.Context, body syntax.Stmt, enclosing int64) bool {
+	if !syntax.Terminates(body) {
+		return false
+	}
+	leaves := true
+	jump := func(num syntax.Expr, depth int64) {
+		level, known := int64(1), true
+		if num != nil {
+			level, known = semanticquery.NativeInt(ctx, num)
+		}
+		leaves = leaves && known && (level <= depth || level-depth > enclosing)
+	}
+	var walk func(n syntax.Node, depth int64)
+	walk = func(n syntax.Node, depth int64) {
+		switch x := n.(type) {
+		case *syntax.Function, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+			return
+		case *syntax.Goto:
+			leaves = false
+		case *syntax.Break:
+			jump(x.Num, depth)
+		case *syntax.Continue:
+			jump(x.Num, depth)
+		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach, *syntax.Switch:
+			depth++
+		}
+		syntax.Children(n, func(child syntax.Node) { walk(child, depth) })
+	}
+	walk(body, 0)
+	return leaves
+}
+
 // boundedSizes recognizes a full ascending index traversal with a remaining
 // budget check before every addition. This prevents both overflow and overshoot.
 func boundedSizes(ctx *analysis.Context, loop *syntax.For, archive syntax.Expr, maximum int) bool {
@@ -157,7 +194,7 @@ func boundedSizes(ctx *analysis.Context, loop *syntax.For, archive syntax.Expr, 
 		return false
 	}
 	fail, ok := body.Stmts[1].(*syntax.If)
-	if !ok || fail.Else != nil || !syntax.Terminates(fail.Body) {
+	if !ok || fail.Else != nil || !rejects(ctx, fail.Body, 1) {
 		return false
 	}
 	failCond, ok := fail.Cond.(*syntax.Binary)
@@ -169,7 +206,7 @@ func boundedSizes(ctx *analysis.Context, loop *syntax.For, archive syntax.Expr, 
 		return false
 	}
 	negative, ok := body.Stmts[2].(*syntax.If)
-	if !ok || negative.Else != nil || !syntax.Terminates(negative.Body) {
+	if !ok || negative.Else != nil || !rejects(ctx, negative.Body, 1) {
 		return false
 	}
 	negativeCond, ok := negative.Cond.(*syntax.Binary)
@@ -189,7 +226,7 @@ func boundedSizes(ctx *analysis.Context, loop *syntax.For, archive syntax.Expr, 
 		return false
 	}
 	budget, ok := body.Stmts[3].(*syntax.If)
-	if !ok || budget.Else != nil || !syntax.Terminates(budget.Body) {
+	if !ok || budget.Else != nil || !rejects(ctx, budget.Body, 1) {
 		return false
 	}
 	bound, ok := budget.Cond.(*syntax.Binary)

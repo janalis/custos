@@ -10,3 +10,8 @@ array_map($callback,$names);
 array_map(function($s):void{trim($s);},$names);
 
 array_map(function($s){if(false){trim($s);}},$names);
+
+array_map(function ($v) use (&$total) { str_replace('x', 'y', $v, $n); $total += $n; }, $names);
+array_map(function ($v) use (&$total) { str_replace('x', 'y', $v, $total); }, $names);
+array_map(function ($v) use (&$total) { str_replace('x', 'y', $v, count: $total); }, $names);
+array_map(function ($v) use ($args) { str_replace(...$args); }, $names);

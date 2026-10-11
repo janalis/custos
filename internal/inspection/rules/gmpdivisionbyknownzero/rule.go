@@ -31,7 +31,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	e := semanticquery.CallArgument(c.Args, 1, "num2")
-	if zero(ctx, e) {
+	if e != nil && stableDivisor(ctx, e) && zero(ctx, e) {
 		ctx.ReportNode(c, message)
 	}
 }

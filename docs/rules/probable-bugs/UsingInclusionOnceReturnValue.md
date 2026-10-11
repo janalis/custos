@@ -16,7 +16,7 @@ and then silently breaks. Use `include`/`require` when the result matters.
 
 ## Example
 
-```php{2,3,4,5,6}
+```php{2,3,4,6,24,29,34}
 <?php
 $routes = require_once __DIR__ . '/routes.php';
 $ok = include_once $first ||
@@ -27,6 +27,32 @@ while (include_once($plugin)) {
 require_once __DIR__ . '/bootstrap.php';
 include_once('helpers.php');
 $cfg = (require 'config.php');
+
+function loadTranslations(string $file)
+{
+    $loaded = @include_once $file;
+    if (!$loaded) {
+        return false;
+    }
+    return true;
+}
+
+function loadSettings(string $file)
+{
+    global $settings;
+    $settings = include_once $file;
+}
+
+function loadSettingsInto(string $file, array &$settings)
+{
+    $settings = require_once $file;
+}
+
+function renderPage(string $file)
+{
+    $page = include_once $file;
+    include __DIR__ . '/layout.php';
+}
 ```
 
 Reported:
@@ -34,9 +60,10 @@ Reported:
 <ul>
 <li>line 2: Only the first include_once/require_once returns the file&#39;s value; later ones return true.</li>
 <li>line 3: Only the first include_once/require_once returns the file&#39;s value; later ones return true.</li>
-<li>line 4: Only the first include_once/require_once returns the file&#39;s value; later ones return true.</li>
-<li>line 5: Only the first include_once/require_once returns the file&#39;s value; later ones return true.</li>
 <li>line 6: Only the first include_once/require_once returns the file&#39;s value; later ones return true.</li>
+<li>line 24: Only the first include_once/require_once returns the file&#39;s value; later ones return true.</li>
+<li>line 29: Only the first include_once/require_once returns the file&#39;s value; later ones return true.</li>
+<li>line 34: Only the first include_once/require_once returns the file&#39;s value; later ones return true.</li>
 </ul>
 
 ## Configure

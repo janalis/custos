@@ -32,7 +32,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if m, ok := origin.(*syntax.MethodCall); ok {
 		valid = semanticquery.NativeMethod(ctx, m, "Transliterator", "transliterate")
 	}
-	if valid && !ctx.Flow().Excludes(input, "false") && !semanticquery.NativeSentinelGuard(ctx, input, "false") {
-		ctx.ReportNode(c, message)
+	if !valid || ctx.Flow().Excludes(input, "false") {
+		return
 	}
+	if v, ok := syntax.UnwrapParens(input).(*syntax.Variable); ok && (guard{ctx, v}).dominates() {
+		return
+	}
+	ctx.ReportNode(c, message)
 }

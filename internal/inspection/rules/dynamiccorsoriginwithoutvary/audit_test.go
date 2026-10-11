@@ -14,6 +14,18 @@ func TestAuditRegressions(t *testing.T) {
 		want, fixes int
 	}{
 		{"$_SERVER[\"HTTP_ORIGIN\"]=\"trusted\";header(\"Access-Control-Allow-Origin: \".$_SERVER[\"HTTP_ORIGIN\"]);header(\"Cache-Control: public,max-age=60\");", 0, -1},
+		// A Vary header sent before the origin header covers the same response.
+		{"$o=$_SERVER['HTTP_ORIGIN'];header('Vary: Origin');header('Access-Control-Allow-Origin: '.$o);header('Cache-Control: public');", 0, -1},
+		{"$o=$_SERVER['HTTP_ORIGIN'];header('Vary: *');header('X-A: b');header('HTTP/1.1 200 OK');header('Access-Control-Allow-Origin: '.$o);header('Cache-Control: public');", 0, -1},
+		{"$o=$_SERVER['HTTP_ORIGIN'];header('Vary: Origin');header('Vary: Accept', false);header('Access-Control-Allow-Origin: '.$o);header('Cache-Control: public');", 0, -1},
+		{"$o=$_SERVER['HTTP_ORIGIN'];header('Vary: Origin');header('Access-Control-Allow-Origin: '.$o);header('Vary: Accept', false);header('Cache-Control: public');", 0, -1},
+		{"$o=$_SERVER['HTTP_ORIGIN'];header($line);header('Access-Control-Allow-Origin: '.$o);header('Cache-Control: public');", 0, -1},
+		// A replaced or removed earlier Vary header no longer covers it.
+		{"$o=$_SERVER['HTTP_ORIGIN'];header('Vary: Origin');header('Vary: Accept');header('Access-Control-Allow-Origin: '.$o);header('Cache-Control: public');", 1, 0},
+		{"$o=$_SERVER['HTTP_ORIGIN'];header('Vary: Origin');header('Access-Control-Allow-Origin: '.$o);header('Vary: Accept');header('Cache-Control: public');", 1, 0},
+		{"$o=$_SERVER['HTTP_ORIGIN'];header('Vary: Origin');header_remove('Vary');header('Access-Control-Allow-Origin: '.$o);header('Cache-Control: public');", 1, 0},
+		{"$o=$_SERVER['HTTP_ORIGIN'];header('Vary: Accept', false);header('Access-Control-Allow-Origin: '.$o);header('Cache-Control: public');", 1, 0},
+		{"$o=$_SERVER['HTTP_ORIGIN'];header('X-A: b');header('Access-Control-Allow-Origin: '.$o);header('Cache-Control: public');", 1, 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{New().ID()}})

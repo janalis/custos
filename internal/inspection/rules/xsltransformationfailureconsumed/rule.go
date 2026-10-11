@@ -33,7 +33,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, e := range inputs {
 		c, ok := semanticquery.NativeLocalValue(ctx, e).(*syntax.MethodCall)
-		if ok && semanticquery.NativeMethod(ctx, c, "XSLTProcessor", "transformToXML") && !ctx.Flow().Excludes(e, "false") && !semanticquery.NativeLocalSentinelGuard(ctx, e, "false") {
+		if ok && semanticquery.NativeMethod(ctx, c, "XSLTProcessor", "transformToXML") && !ctx.Flow().Excludes(e, "false") && !semanticquery.NativeLocalSentinelGuard(ctx, e, "false") && !(guard{ctx, e, c}).dominates() {
 			ctx.ReportNode(n, message)
 			return
 		}

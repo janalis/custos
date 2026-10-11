@@ -28,7 +28,11 @@ reference") and the callee's writes are lost.
   call whose arguments are all variables or `new` expressions is skipped).
 - **D4** Resolve the callee to its declaration (user code or stubs; for
   methods via the object's inferred type/class hierarchy). Unresolved → no
-  report.
+  report. The parameter list is the one the callee has at the configured
+  PHP level: built-in declarations that describe a parameter once per PHP
+  version range (for example the `$port` of `fsockopen()`, whose signature
+  changed in 7.1) contribute a single parameter for that position, so the
+  positions after it line up with the call's arguments.
 - **D5** For each position `i` from 0 to `min(#parameters, #arguments) - 1`
   (positional pairing; a variadic parameter only pairs with its own
   position), when parameter `i` is declared by reference:
@@ -103,6 +107,14 @@ key($s->plain());
 
 ## Divergences
 
+- **Version-variant built-in parameters.** This is a custos correctness
+  requirement, independent of upstream: a built-in whose stub repeats a parameter for several PHP
+  version ranges must not have its by-reference flags shifted by the
+  repeats. custos counts each such parameter once, so
+  `fsockopen($h, $p, $errno, $errstr, floatval($t))` is not reported (the
+  timeout is by value) while a call result in the `$error_code` or
+  `$error_message` position is; the same applies to `pfsockopen()`,
+  `openssl_seal()` (`$iv`) and `ldap_exop_passwd()` (`$controls`).
 - Upstream caches, by short name, global functions known to have no
   by-reference parameter and skips later calls with that name, even if a
   namespaced function of the same short name exists. Recommendation: key any

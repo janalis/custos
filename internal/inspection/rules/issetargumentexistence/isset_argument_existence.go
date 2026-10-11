@@ -1,9 +1,12 @@
 package issetargumentexistence
 
 import (
+	"strings"
+
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
 
@@ -76,6 +79,8 @@ func (issetArgumentExistence) candidate(ctx *analysis.Context, e syntax.Expr) {
 			if c.Span().Start < v.Span().Start { // D11: may define the variable
 				dynamic = true
 			}
+		case *syntax.Eval: // D11: the evaluated code runs in this scope
+			dynamic = true
 		case *syntax.FuncCall: // D11: extract(), parse_str($s) define variables
 			if ctx.IsGlobalFunctionCall(c, "extract") || (ctx.IsGlobalFunctionCall(c, "parse_str") && astquery.ArgCount(c) == 1) {
 				dynamic = true
@@ -103,11 +108,12 @@ func (issetArgumentExistence) candidate(ctx *analysis.Context, e syntax.Expr) {
 		return
 	}
 	// D8 (custos: every enclosing loop, not only the innermost — an outer
-	// loop's later statement sets the variable for the next iteration).
+	// loop's later statement sets the variable for the next iteration — and
+	// every construct that defines the variable, not only `$n = …`).
 	for p := first.Parent(); p != nil && p != fn; p = p.Parent() {
 		switch p.(type) {
 		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
-			if assignsPlainVar(p, name) {
+			if definesVar(ctx, p, name) {
 				return
 			}
 		}
@@ -124,26 +130,112 @@ func isAncestor(anc, n syntax.Node) bool {
 	return false
 }
 
-// assignsPlainVar reports whether root contains an assignment whose target
-// is the plain variable $name, directly or (custos) inside a destructuring
-// pattern (`[$ts, $tz] = …`).
-func assignsPlainVar(root syntax.Node, name string) bool {
+// definesVar reports whether root, staying in its function's scope, holds a
+// construct that can leave $name defined for a later iteration: an
+// assignment to it or to one of its elements (plain, compound, by
+// reference, destructuring), `++`/`--`, a foreach key/value or catch
+// binding, a `global`/`static` declaration, a closure importing it by
+// reference, or a call argument that may bind by reference.
+func definesVar(ctx *analysis.Context, root syntax.Node, name string) bool {
 	found := false
 	syntax.Inspect(root, func(c syntax.Node) bool {
-		if a, ok := c.(*syntax.Assign); ok && issetTargets(a.Var, name) {
-			found = true
+		if found {
+			return false
+		}
+		switch c := c.(type) {
+		case *syntax.Assign:
+			found = issetTargets(c.Var, name) || (c.ByRef && issetRoot(c.Value, name))
+		case *syntax.IncDec:
+			found = issetRoot(c.Var, name)
+		case *syntax.Foreach:
+			found = (c.Key != nil && issetTargets(c.Key, name)) || issetTargets(c.Value, name)
+		case *syntax.Catch:
+			found = c.Var != nil && c.Var.Name == name
+		case *syntax.Global:
+			for _, g := range c.Vars {
+				found = found || issetRoot(g, name)
+			}
+		case *syntax.StaticVar:
+			found = c.Var != nil && c.Var.Name == name
+		case *syntax.FuncCall:
+			found = passesByRef(ctx, c, c.Args, name)
+		case *syntax.MethodCall:
+			found = passesByRef(ctx, c, c.Args, name)
+		case *syntax.StaticCall:
+			found = passesByRef(ctx, c, c.Args, name)
+		case *syntax.New:
+			found = passesByRef(ctx, c, c.Args, name)
+		case *syntax.Closure:
+			for _, u := range c.Uses {
+				found = found || (u.ByRef && u.Var != nil && u.Var.Name == name)
+			}
+			return false
+		case *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
+			return false
 		}
 		return !found
 	})
 	return found
 }
 
-// issetTargets reports whether the assignment target e is $name or a
-// destructuring pattern listing it.
+// passesByRef reports whether call hands $name (or one of its elements) to
+// a by-reference parameter. A callee that cannot be resolved, and a
+// position hidden behind an unpacked argument, may take it by reference.
+func passesByRef(ctx *analysis.Context, call syntax.Node, list *syntax.ArgList, name string) bool {
+	if list == nil {
+		return false
+	}
+	callee, resolved := semanticquery.ResolveCallee(ctx, call)
+	unpacked := false
+	for i, a := range list.Args {
+		arg, ok := a.(*syntax.Arg)
+		if !ok {
+			continue
+		}
+		if arg.Unpack {
+			unpacked = true
+			continue
+		}
+		if !issetRoot(arg.Value, name) {
+			continue
+		}
+		if arg.ByRef || !resolved || unpacked {
+			return true
+		}
+		for j, p := range callee.Params {
+			if !p.ByRef {
+				continue
+			}
+			if arg.Name != nil {
+				if strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
+					return true
+				}
+			} else if j == i || (p.Variadic && j < i) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// issetRoot reports whether e is $name or an element of it (`$name[…]`).
+func issetRoot(e syntax.Expr, name string) bool {
+	for {
+		switch t := syntax.UnwrapParens(e).(type) {
+		case *syntax.Variable:
+			return t.NameExpr == nil && t.Name == name
+		case *syntax.ArrayDimFetch:
+			e = t.Var
+		default:
+			return false
+		}
+	}
+}
+
+// issetTargets reports whether the write target e is $name, one of its
+// elements, or a destructuring pattern listing either.
 func issetTargets(e syntax.Expr, name string) bool {
 	switch t := syntax.UnwrapParens(e).(type) {
-	case *syntax.Variable:
-		return t.NameExpr == nil && t.Name == name
 	case *syntax.List:
 		for _, it := range t.Items {
 			if it != nil && it.Value != nil && issetTargets(it.Value, name) {
@@ -157,7 +249,7 @@ func issetTargets(e syntax.Expr, name string) bool {
 			}
 		}
 	}
-	return false
+	return issetRoot(e, name)
 }
 
 // issetFirstMention returns the first plain variable named name in body, in

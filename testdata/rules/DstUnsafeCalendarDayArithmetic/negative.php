@@ -14,3 +14,9 @@ namespace Negative11 { $x=new \DateTimeImmutable();$x->format('c')+86400; }
 namespace Negative12 { $x=\DateTimeImmutable::createFromFormat('Y-m-d',$date);$x->getTimestamp()+86400; }
 
 namespace Audit0 { $d=new \DateTime('2025-03-30 00:00:00',new \DateTimeZone('Europe/Paris'));$d->setTimezone(new \DateTimeZone('UTC'));$next=$d->getTimestamp()+86400; }
+namespace Review0 { $d=new \DateTimeImmutable('2025-03-30 00:00:00',new \DateTimeZone('CET'));$next=$d->getTimestamp()+86400; }
+namespace Review1 { $d=new \DateTimeImmutable('2025-03-30 00:00:00',new \DateTimeZone('MET'));$next=$d->getTimestamp()+86400; }
+namespace Review2 { $d=new \DateTimeImmutable('2025-03-30 00:00:00',new \DateTimeZone('EST'));$next=$d->getTimestamp()+86400; }
+namespace Review3 { $d=new \DateTimeImmutable('2025-03-30 00:00:00',new \DateTimeZone('Local'));$next=$d->getTimestamp()+86400; }
+namespace Review4 { $d=new \DateTimeImmutable('2025-03-30 00:00:00',new \DateTimeZone('Etc/GMT-1'));$next=$d->getTimestamp()+86400; }
+namespace Review5 { $d=new \DateTimeImmutable('2025-03-30 00:00:00',new \DateTimeZone('Mars/Olympus'));$next=$d->getTimestamp()+86400; }

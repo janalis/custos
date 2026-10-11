@@ -34,7 +34,8 @@ Reported:
 ## Exceptions (no report)
 
 - E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore GmpDivisionByKnownZero and @noinspection GmpDivisionByKnownZero suppress this native rule.
+- E2. A divisor that reads a local variable is not a known zero when that local, or a local it was assigned from, is changed anywhere in the same scope by `++` or `--`, bound by a `catch` clause or imported by reference into a closure, or when the scope calls `extract()` or `parse_str()`. A counter initialised to zero and incremented in a loop is ordinary code.
+- E3. Both @custos-ignore GmpDivisionByKnownZero and @noinspection GmpDivisionByKnownZero suppress this native rule.
 
 ## Fix
 

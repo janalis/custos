@@ -21,7 +21,8 @@ Identify json_encode with proven NAN, INF or -INF reachable in a known value tre
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore JsonEncodeNonFiniteNumber` and `@noinspection JsonEncodeNonFiniteNumber` suppress this native rule.
+- E2. A tracked variable is not trusted when its scope, anywhere and regardless of statement order, iterates it with a by-reference `foreach`, uses it (or one of its offsets) as a `foreach` key or value target, captures it by reference in a closure, or calls `extract()`. Such code can replace every non-finite entry before the call, so the initial literal no longer proves the encoded value.
+- E3. Both `@custos-ignore JsonEncodeNonFiniteNumber` and `@noinspection JsonEncodeNonFiniteNumber` suppress this native rule.
 
 ## Fix
 

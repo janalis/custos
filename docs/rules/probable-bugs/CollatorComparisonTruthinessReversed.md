@@ -29,7 +29,7 @@ Reported:
 
 This is an opt-in policy. Truthiness, previous-state checks, raw wait-status comparisons and dispatch acknowledgements can be intentional; enabling this inspection requests explicit handling of the contract described below.
 
-- D1. Report direct truthiness, negation, assignment-in-condition, or equality against true of resolved Collator::compare. Highlight the complete comparison when the misuse is equality against true; otherwise highlight the call. Equality is zero; failure is false. Desired ordering is not inferred.
+- D1. Report direct truthiness, negation, assignment-in-condition, or equality against true of resolved Collator::compare. Loose and strict equality both count, with the true constant on either side of the operator. Highlight the complete comparison when the misuse is equality against true; otherwise highlight the call. Equality is zero; failure is false. Desired ordering is not inferred.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
 - D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
 

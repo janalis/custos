@@ -2,6 +2,8 @@
 package mysqliplaceholderbindingmismatch
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -27,7 +29,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	sql, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(producer.Args, 0, "query"))
-	if !known {
+	if !known || ambiguousComment(sql) {
 		return
 	}
 	count, known := semanticquery.NativeSQLPositionalCount(sql)
@@ -45,4 +47,27 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if count != args-1 {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// ambiguousComment reports comment-like text the server does not skip as a
+// plain comment: executable or hint comments, and a double dash that is not
+// followed by whitespace. The check is textual, so the same bytes inside
+// quoted data also leave the placeholder count unproven.
+func ambiguousComment(sql string) bool {
+	for _, opener := range []string{"/*!", "/*M!", "/*+"} {
+		if strings.Contains(sql, opener) {
+			return true
+		}
+	}
+	for i := strings.Index(sql, "--"); i >= 0; {
+		if i+2 < len(sql) && sql[i+2] > ' ' {
+			return true
+		}
+		next := strings.Index(sql[i+2:], "--")
+		if next < 0 {
+			break
+		}
+		i += 2 + next
+	}
+	return false
 }

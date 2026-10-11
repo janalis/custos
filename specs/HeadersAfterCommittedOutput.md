@@ -10,11 +10,12 @@ php: { min: "", max: "" }
 
 ## Summary
 
-Detect header or setcookie after demonstrably committed output on every incoming path, such as output plus flush with no active buffering.
+Detect a response-header write (header, setcookie, or http_response_code used as a setter) after demonstrably committed output on every incoming path, such as output plus flush with no active buffering.
 
 ## Detection
 
-- D1. Report header or setcookie after demonstrably committed output on every incoming path, such as output plus flush with no active buffering.
+- D1. Report `header`, `setcookie`, or `http_response_code` called as a setter, after demonstrably committed output on every incoming path, such as output plus flush with no active buffering.
+- D1a. `http_response_code` is a setter only when it receives a status argument (first positional or named `response_code`) that is not a known falsy value. A dynamic status counts as a setter.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
@@ -22,6 +23,14 @@ Detect header or setcookie after demonstrably committed output on every incoming
 
 - E1. Active output buffering, unknown server buffering, no preceding output and headers before commitment are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. `http_response_code()` without a status argument, with a known `0` or `null` status, or with an unpacked argument list: the first two only read the current status, the last is not provably a write.
+- E4. Calls that a `headers_sent()` test keeps off the committed path:
+  - inside the body of `if (!headers_sent())` or of an `elseif` with that condition, or inside the `else` of `if (headers_sent())`;
+  - directly after an `if (headers_sent())` statement without `else`/`elseif` whose body always leaves the block;
+  - as the right operand of `headers_sent() || ...` / `headers_sent() or ...` or of `!headers_sent() && ...` / `!headers_sent() and ...`;
+  - in the matching branch of a ternary on such a test.
+
+  The test may be parenthesised, negated, compared with `true`/`false` (`===`, `==`, `!==`, `!=`), one operand of a conjunction that must hold, or one operand of a disjunction that must fail. It must target the builtin and belong to the same function scope as the call. The exception does not apply when the committing flush sits between the test and the call, because the test result is then stale.
 
 ## Report
 
@@ -48,6 +57,17 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 ```php
 <?php
 echo 'started'; flush(); <warning descr="Set response headers before committing output.">header('X-State: ready')</warning>;
+```
+
+Not reported: the status is only read, and the header call is guarded.
+
+```php
+<?php
+echo 'started'; flush();
+$status = http_response_code();
+if (!headers_sent()) {
+    header('X-State: ready');
+}
 ```
 
 ## Divergences

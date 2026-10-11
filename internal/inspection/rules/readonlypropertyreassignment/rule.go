@@ -24,6 +24,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	assign := n.(*syntax.Assign)
+	// `??=` writes only when the stored value is null, which is never proven here.
+	if assign.Op.Kind == syntax.TCoalesceEqual {
+		return
+	}
 	fetch, ok := assign.Var.(*syntax.PropertyFetch)
 	if !ok {
 		return

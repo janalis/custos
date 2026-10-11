@@ -84,3 +84,21 @@ class Proxy
         return $this->dyn('x');
     }
 }
+
+class Listener
+{
+    public function handle()
+    {
+        return $this->handle(...);
+    }
+
+    public static function factory()
+    {
+        return static::factory(...);
+    }
+
+    public function attach()
+    {
+        self::attach(...);
+    }
+}

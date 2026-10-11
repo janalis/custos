@@ -17,11 +17,13 @@ Identify fgetcsv whose positive integer length is less than a fully known next p
 - D1. Report fgetcsv whose positive integer length is less than a fully known next physical record and splits outside a quoted field. Require local data:// source provenance and full dialect understanding; unknown files exclude.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D4. The handle must be a plain local variable, and that variable must not be mentioned anywhere between the `fopen` call and the `fgetcsv` call: no read, write, seek, copy, user call or reassignment, whether or not it is conditional. A variable whose name is computed at run time (`$$name`) in that stretch counts as a mention. Only then is the record at the stream position the one written in the source.
 
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore CsvReadLengthSplitsKnownRecord` and `@noinspection CsvReadLengthSplitsKnownRecord` suppress this native rule.
+- E2. Any use of the handle before the read, for example `stream_get_line($h, 6)`, `stream_copy_to_stream($h, $out)` or `consume($h)`: the position is no longer provably at the start of the known record.
+- E3. Both `@custos-ignore CsvReadLengthSplitsKnownRecord` and `@noinspection CsvReadLengthSplitsKnownRecord` suppress this native rule.
 
 ## Fix
 

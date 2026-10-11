@@ -102,8 +102,8 @@ Dispatch:
 - **D8** `__debugInfo`: C-static, C-noargs, C-public,
   C-returns({`array`, `null`}), C-version(5.6).
 - **D9** `__set_state`: C-argc(1), C-mstatic, C-public,
-  C-returns({the containing class FQN, `static`}); `static` is accepted but
-  not shown in the message.
+  C-returns({the containing class FQN, `static`, `object`}); `static` and
+  `object` are accepted but not shown in the message (see Divergences).
 - **D10** `__invoke`: C-static, C-public.
 - **D11** `__wakeup`: C-static, C-noargs, C-noreturn. (Visibility is **not**
   checked: a private `__wakeup` is fine.)
@@ -147,6 +147,9 @@ Dispatch:
   unresolvable parent, any same-named method call in the body, and
   `__construct` in test context.
 - **E6** Known non-magic `__` names (D15 list).
+- **E7** D15: a name that a parent, interface or trait of the class-like
+  declares too, for named and anonymous classes alike (see Divergences).
+- **E8** D9: a declared or inferred `object` return.
 
 ## Report
 
@@ -341,7 +344,14 @@ interface Printable { public function __toString(); }
   unless it is abstract (E1). The same holds for the reserved-prefix
   report: a `__`-prefixed method implementing an interface or overriding
   a parent (Restler's `iFilter::__isAllowed()`, 14 reports on Dolibarr)
-  cannot be renamed in the implementing class.
+  cannot be renamed in the implementing class. Anonymous classes are
+  treated the same way: their parent, interfaces and used traits are read
+  from the `new class extends … implements … { use …; }` declaration.
+- **`object` from `__set_state` (custos diverges).** `: object` is the
+  return type PHP documents for `__set_state`, and the engine only rejects
+  declared types that are not object types. A declared `object`, or a
+  returned value only known to be an `object`, satisfies D9; a declared
+  scalar or `array` type is still reported.
 - **Empty parent methods (custos diverges).** C-parent does not report a
   method whose parent version has an empty body and promotes no
   constructor parameter (`public function __construct() {}`): calling it
@@ -352,7 +362,8 @@ interface Printable { public function __toString(); }
   declares the real magic method (`__construct()` calling
   `$this->_construct()`, Magento models and blocks) or when the file calls
   the method by name (`$this->_get($k)`, `$this->_call($args)`): they are
-  deliberate hooks, not misspelt magic methods.
+  deliberate hooks, not misspelt magic methods. For an anonymous class the
+  hierarchy is its own body plus the parent, interfaces and traits it names.
 - **Parent constructors that only store their parameters (custos
   diverges).** C-parent does not report a constructor whose parent
   constructor only stores its parameters (every statement is `$this->p =

@@ -1,6 +1,7 @@
 package compactarguments
 
 import (
+	"math"
 	"strconv"
 
 	"custos/internal/inspection/analysis"
@@ -59,11 +60,14 @@ func (compactArguments) Check(ctx *analysis.Context, n syntax.Node) {
 
 	// D5: every `$name` token of the scope before the call (parameters
 	// included). The first offset of each name is indexed once per scope.
-	first := compactFirstUses(ctx, scope)
+	vars := compactScopeVars(ctx, scope)
 	callStart := call.Span().Start
+	if vars.dynamic < callStart { // E5
+		return
+	}
 	known := map[string]bool{}
 	for _, c := range cands {
-		if off, ok := first[c.name]; ok && off < callStart {
+		if off, ok := vars.first[c.name]; ok && off < callStart {
 			known[c.name] = true
 		}
 	}
@@ -71,6 +75,9 @@ func (compactArguments) Check(ctx *analysis.Context, n syntax.Node) {
 		if p.Var != nil && p.Var.Name != "" {
 			known[p.Var.Name] = true
 		}
+	}
+	if compactHasThis(call) {
+		known["this"] = true
 	}
 
 	for _, c := range cands { // D6
@@ -80,13 +87,19 @@ func (compactArguments) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 }
 
-// compactFirstUses maps each variable name of scope to the offset of its
-// first `$name` token in the scope (memoised per scope).
-func compactFirstUses(ctx *analysis.Context, scope syntax.Node) map[string]uint32 {
+// compactVars is the variable index of one scope.
+type compactVars struct {
+	first   map[string]uint32 // offset of the first `$name` token per name
+	dynamic uint32            // start of the first construct defining arbitrary variables
+}
+
+// compactScopeVars indexes the `$name` tokens of scope and its first
+// dynamic definer (memoised per scope).
+func compactScopeVars(ctx *analysis.Context, scope syntax.Node) *compactVars {
 	sp := scope.Span()
 	key := strconv.FormatUint(uint64(sp.Start), 10)
 	return ctx.Memo(key, func() any {
-		first := map[string]uint32{}
+		vars := &compactVars{first: map[string]uint32{}, dynamic: math.MaxUint32}
 		f := ctx.File
 		for i := astquery.TokenIndex(f, sp.Start); i < len(f.Tokens); i++ {
 			t := f.Tokens[i]
@@ -95,11 +108,66 @@ func compactFirstUses(ctx *analysis.Context, scope syntax.Node) map[string]uint3
 			}
 			if t.Kind == syntax.TVariable && t.End-t.Start > 1 {
 				name := string(ctx.Src[t.Start+1 : t.End])
-				if _, ok := first[name]; !ok {
-					first[name] = t.Start
+				if _, ok := vars.first[name]; !ok {
+					vars.first[name] = t.Start
 				}
 			}
 		}
-		return first
-	}).(map[string]uint32)
+		syntax.Inspect(scope, func(n syntax.Node) bool {
+			if n != scope && syntax.IsFuncLike(n) {
+				// Nested functions and closures fill their own symbol
+				// table; arrow functions are looked through like in D3.
+				_, arrow := n.(*syntax.ArrowFunction)
+				return arrow
+			}
+			if compactDefinesAnyVariable(ctx, n) {
+				vars.dynamic = min(vars.dynamic, n.Span().Start)
+			}
+			return true
+		})
+		return vars
+	}).(*compactVars)
+}
+
+// compactDefinesAnyVariable reports whether n can create variables whose
+// names are not written in the source: extract(), one-argument parse_str(),
+// include/require, eval and variable variables.
+func compactDefinesAnyVariable(ctx *analysis.Context, n syntax.Node) bool {
+	switch x := n.(type) {
+	case *syntax.Include, *syntax.Eval:
+		return true
+	case *syntax.Variable:
+		return x.NameExpr != nil && !astquery.IsStaticPropName(x)
+	case *syntax.FuncCall:
+		switch ctx.GlobalFunctionName(x) {
+		case "extract":
+			return true
+		case "parse_str":
+			return x.Args != nil && len(x.Args.Args) == 1
+		}
+	}
+	return false
+}
+
+// compactHasThis reports whether `$this` exists where call runs: in a
+// non-static method, or in non-static closures and arrow functions nested
+// in one.
+func compactHasThis(call *syntax.FuncCall) bool {
+	for p := call.Parent(); p != nil; p = p.Parent() {
+		switch f := p.(type) {
+		case *syntax.Closure:
+			if f.Static {
+				return false
+			}
+		case *syntax.ArrowFunction:
+			if f.Static {
+				return false
+			}
+		case *syntax.Method:
+			return !f.Modifiers.Has(syntax.TStatic)
+		case *syntax.Function:
+			return false
+		}
+	}
+	return false
 }

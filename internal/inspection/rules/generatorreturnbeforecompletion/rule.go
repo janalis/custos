@@ -2,6 +2,8 @@
 package generatorreturnbeforecompletion
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/php/syntax"
@@ -24,14 +26,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	call := n.(*syntax.MethodCall)
 	name, ok := call.Name.(*syntax.Identifier)
-	if !ok || name.Value != "getReturn" {
+	if !ok || !strings.EqualFold(name.Value, "getReturn") {
 		return
 	}
 	v, ok := call.Var.(*syntax.Variable)
 	if !ok || v.Name == "" {
 		return
 	}
-	st, ok := call.Parent().(*syntax.ExprStmt)
+	st, ok := consumingStatement(call)
 	if !ok {
 		return
 	}
@@ -67,4 +69,45 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	ctx.ReportNode(call, message)
+}
+
+// consumingStatement returns the statement whose evaluation starts with call:
+// every ancestor up to the statement evaluates the operand holding the call
+// first and unconditionally, so nothing can resume the generator before it.
+func consumingStatement(call *syntax.MethodCall) (syntax.Stmt, bool) {
+	child := syntax.Node(call)
+	for {
+		switch p := child.Parent().(type) {
+		case *syntax.Paren, *syntax.Unary, *syntax.Arg:
+		case *syntax.Assign:
+			if target, plain := p.Var.(*syntax.Variable); !plain || target.Name == "" || syntax.Node(p.Value) != child {
+				return nil, false
+			}
+		case *syntax.Binary:
+			if syntax.Node(p.Left) != child {
+				return nil, false
+			}
+		case *syntax.Ternary:
+			if syntax.Node(p.Cond) != child {
+				return nil, false
+			}
+		case *syntax.ArgList:
+			if syntax.Node(p.Args[0]) != child {
+				return nil, false
+			}
+		case *syntax.FuncCall:
+			if _, named := p.Name.(*syntax.Name); !named {
+				return nil, false
+			}
+		case *syntax.ExprStmt:
+			return p, true
+		case *syntax.Return:
+			return p, true
+		case *syntax.Echo:
+			return p, syntax.Node(p.Exprs[0]) == child
+		default:
+			return nil, false
+		}
+		child = child.Parent()
+	}
 }

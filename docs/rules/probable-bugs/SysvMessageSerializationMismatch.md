@@ -22,6 +22,8 @@ Identify msg_receive when local successful msg_send on same queue and exact posi
 
 - Receiving serialized bytes with decoding disabled is valid. Raw payloads with a possible PHP serialization prefix, or unknown payloads, cannot prove a decoding mismatch.
 
+- A flag, message type or payload read from a variable is not a known value once that variable may have been stepped with `++` or `--`, or captured by reference by a closure, before the call reads it. A step later in a loop that also encloses the read counts too, because the next iteration observes it. A step after the read outside any shared loop, or a by-value capture, leaves the value known.
+
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
 - E2. Both `@custos-ignore SysvMessageSerializationMismatch` and `@noinspection SysvMessageSerializationMismatch` suppress this native rule.
 

@@ -43,42 +43,92 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
+	// Headers sent just before the origin header belong to the same response:
+	// the nearest earlier Vary header decides whether the origin is covered.
+	covered := false
+backward:
+	for i := index - 1; i >= 0; i-- {
+		c := headerCall(ctx, list[i])
+		if c == nil {
+			break
+		}
+		key, v, known := headerLine(ctx, c)
+		switch {
+		case !known:
+			return
+		case key != "vary":
+		case variesByOrigin(v):
+			covered = true
+			break backward
+		case len(c.Args.Args) == 1:
+			break backward
+		}
+		// A possibly appended Vary keeps whatever was sent before it.
+	}
 	cached := false
 	for _, s := range list[index+1:] {
-		st, ok := s.(*syntax.ExprStmt)
-		if !ok {
+		c := headerCall(ctx, s)
+		if c == nil {
 			return
 		}
-		c, ok := st.Expr.(*syntax.FuncCall)
-		if !ok || !semanticquery.NativeBuiltin(ctx, c, "header") {
-			return
-		}
-		value, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(c.Args, 0, "header"))
+		key, v, known := headerLine(ctx, c)
 		if !known {
 			return
 		}
-		key, v, found := strings.Cut(value, ":")
-		if !found {
-			continue
-		}
-		key = strings.ToLower(strings.TrimSpace(key))
-		v = strings.ToLower(strings.TrimSpace(v))
 		switch key {
 		case "access-control-allow-origin":
 			return
 		case "vary":
-			for _, part := range strings.Split(v, ",") {
-				if p := strings.TrimSpace(part); p == "origin" || p == "*" {
-					return
-				}
+			if variesByOrigin(v) {
+				return
+			}
+			// A replacing Vary header discards the earlier one.
+			if len(c.Args.Args) == 1 {
+				covered = false
 			}
 		case "cache-control":
 			cached = cacheable(v)
 		}
 	}
-	if cached {
+	if cached && !covered {
 		ctx.ReportNode(call, message)
 	}
+}
+
+// headerCall returns the resolved header() call a statement consists of.
+func headerCall(ctx *analysis.Context, s syntax.Stmt) *syntax.FuncCall {
+	st, ok := s.(*syntax.ExprStmt)
+	if !ok {
+		return nil
+	}
+	c, ok := st.Expr.(*syntax.FuncCall)
+	if !ok || !semanticquery.NativeBuiltin(ctx, c, "header") {
+		return nil
+	}
+	return c
+}
+
+// headerLine splits a known header string into its lower-cased name and
+// value. The name is empty for lines without a colon, such as status lines.
+func headerLine(ctx *analysis.Context, c *syntax.FuncCall) (key, value string, known bool) {
+	line, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(c.Args, 0, "header"))
+	if !known {
+		return "", "", false
+	}
+	key, value, found := strings.Cut(line, ":")
+	if !found {
+		return "", "", true
+	}
+	return strings.ToLower(strings.TrimSpace(key)), strings.ToLower(strings.TrimSpace(value)), true
+}
+
+func variesByOrigin(value string) bool {
+	for _, part := range strings.Split(value, ",") {
+		if p := strings.TrimSpace(part); p == "origin" || p == "*" {
+			return true
+		}
+	}
+	return false
 }
 
 func request(ctx *analysis.Context, e syntax.Expr) (string, bool) {

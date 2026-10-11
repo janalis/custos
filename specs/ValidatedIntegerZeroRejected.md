@@ -21,7 +21,10 @@ Detect FILTER_VALIDATE_INT result tested for falsiness when zero is permitted by
 ## Exceptions (no report)
 
 - E1. FILTER_NULL_ON_FAILURE, bounds excluding zero, strict false checks, and explicit intended nonzero constraints are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E2. An options array whose `options` entry carries a `default` key: a rejected value then yields that default instead of false, so a strict false comparison could never observe the failure. No report and no fix.
+- E3. Flags containing FILTER_REQUIRE_ARRAY or FILTER_FORCE_ARRAY, given either as the integer third argument or as the `flags` entry of the options array: the call returns an array, negation is an emptiness test and the zero reasoning does not apply. No report and no fix.
+- E4. Flags, options or bounds that are not statically known (variables, spreads, non-literal keys or values) leave the failure value unproven and produce no report.
+- E5. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report
 
@@ -33,7 +36,7 @@ Detect FILTER_VALIDATE_INT result tested for falsiness when zero is permitted by
 
 Replace only the negation token and append the strict false comparison. Retain existing parentheses and comments between the negation and validation call.
 
-Replace direct negation with a strict false comparison, preserving one evaluation; suppress fix when flags or options make failure null.
+Replace direct negation with a strict false comparison, preserving one evaluation; the rule stays silent, and so offers no fix, whenever flags or options make the failure value something other than false (null on failure, a configured default) or make the result an array.
 
 A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 
@@ -55,6 +58,14 @@ if (!<warning descr="Compare integer validation failure strictly with false.">fi
 ```php
 <?php
 if ((filter_var($input, FILTER_VALIDATE_INT) === false)) { return false; }
+```
+
+Not reported, because failure is not reported as false or the result is not an integer:
+
+```php
+<?php
+if (!filter_var($page, FILTER_VALIDATE_INT, ['options' => ['default' => 1]])) { return; }
+if (!filter_var($ids, FILTER_VALIDATE_INT, FILTER_REQUIRE_ARRAY)) { return; }
 ```
 
 ## Divergences

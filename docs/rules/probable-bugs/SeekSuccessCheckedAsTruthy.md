@@ -31,7 +31,7 @@ Reported:
 
 This is an opt-in policy. Truthiness, previous-state checks, raw wait-status comparisons and dispatch acknowledgements can be intentional; enabling this inspection requests explicit handling of the contract described below.
 
-- D1. Report resolved fseek or rewind-result misuse only for fseek: direct condition, logical negation, loose boolean comparison or assignment-in-condition treating nonzero as success. Preserve no semantic claims for arbitrary branch bodies: flag truthiness tests because fseek uses zero success and minus-one failure. Include comparisons to true/false, not strict comparisons to integer zero.
+- D1. Report a resolved `fseek` call whose result is tested for truthiness as the condition of `if`, `elseif`, `else if`, `while`, `do … while` or `for` (only the last expression of a `for` condition list decides the loop). The result may reach the condition directly, through parentheses, through logical negation, through a loose or strict comparison with `true`/`false`, or through a plain `=` assignment whose assigned value is the call. These tests treat nonzero as success although fseek returns zero on success and minus one on failure. No claim is made about other positions such as ternary conditions, `&&`/`||` operands or branch bodies.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
 - D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
@@ -39,6 +39,8 @@ This is an opt-in policy. Truthiness, previous-state checks, raw wait-status com
 
 - E1. Strict result comparisons against 0 or -1 and merely storing the result are excluded. rewind returns boolean and must not be flagged.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore SeekSuccessCheckedAsTruthy` and `@noinspection SeekSuccessCheckedAsTruthy` suppress this inspection.
+- E3. A first-class callable `fseek(...)` creates a closure and performs no seek, so it is never reported.
+- E4. A compound assignment in the condition (`$x += fseek(…)`, `$x ??= fseek(…)`, …) tests the combined value rather than the seek result, and a call used inside the assignment target (`$a[fseek(…)] = 1`) is not the tested value; neither is reported.
 
 ## Fix
 

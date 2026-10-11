@@ -27,14 +27,35 @@ and then silently breaks. Use `include`/`require` when the result matters.
 
 Note the low precedence of inclusion: in `require_once $a && require_once $b`
 the operand of the first inclusion is `$a && require_once $b`, so the outer
-inclusion spans up to the end of `$b` and the inner one is reported as well
-(its parent is the `&&` expression).
+inclusion spans up to the end of `$b`. The inner one is a logical operand,
+which is a success test (E3): only the outer inclusion can be reported.
 
 ## Exceptions (no report)
 
 - **E1** `require_once 'x.php';` / `include_once('y.php');` as standalone
   statements.
 - **E2** `include`/`require` (non-`_once`) anywhere.
+- **E3** The result only says whether the file could be included (see
+  Divergences), looking through parentheses and `@`:
+  - *discarded*: `@include_once $f;`, `(@require_once $f);`;
+  - *success test*: an `if`/`elseif`/`while`/`do-while` or ternary
+    condition, an operand of `!`, `&&`, `||`, `and`, `or`, `xor`, a
+    comparison with `false` (`===`, `!==`, `==`, `!=`), or a `(bool)` cast;
+  - *success flag*: the right-hand side of a plain `=` to a simple variable,
+    the assignment being a statement or itself a success test, when every
+    read of that variable in the scope is a success test and the variable
+    is never extended (`$v[] =`, `$v['k'] =`, `$v->p =`, `.=`, `++`).
+    Inside a function a variable that is never read also qualifies, unless
+    the scope contains another inclusion (the included file shares the
+    scope's variables). At file scope a never-read variable is reported.
+
+  A variable is **not** a success flag when other code can reach it:
+  - it is declared `global` or `static` in the scope;
+  - it is a by-reference parameter of the scope, or a by-reference `use` of
+    the closure that is the scope;
+  - the scope (nested arrow functions included; nested functions, closures
+    and classes excluded) calls `compact()` or `get_defined_vars()`, uses a
+    variable-variable (`$$name`, `${expr}`) or `eval`.
 
 ## Report
 
@@ -46,16 +67,8 @@ inclusion spans up to the end of `$b` and the inner one is reported as well
 
 ## Fix
 
-- **F1** Replace the inclusion with `include {operand}` (for `include_once`)
-  or `require {operand}` (for `require_once`): the new keyword, one space,
-  then the operand's source text verbatim (whitespace/comments that were
-  between the keyword and the operand are dropped). A parenthesized operand
-  keeps its parentheses: `require_once($f)` → `require ($f)`.
-- **F2** Nested reports are all fixed: the outer replacement keeps the inner
-  inclusion's text, which is then replaced too
-  (`require_once $a && require_once $b` → `require $a && require $b`).
-  The new keyword is always lowercase: `INCLUDE_ONCE $f` becomes
-  `include $f`.
+None. Dropping `_once` would re-run the file on every evaluation (see
+Divergences).
 
 ## Options
 
@@ -71,26 +84,39 @@ No gating.
 <?php
 $routes = <error descr="Only the first include_once/require_once returns the file's value; later ones return true.">require_once __DIR__ . '/routes.php'</error>;
 $ok = <error descr="Only the first include_once/require_once returns the file's value; later ones return true.">include_once $first ||
-    <error descr="Only the first include_once/require_once returns the file's value; later ones return true.">include_once $second</error></error>;
-while (<error descr="Only the first include_once/require_once returns the file's value; later ones return true.">include_once($plugin)</error>) {
+    include_once $second</error>;
+while (include_once($plugin)) {
     register((<error descr="Only the first include_once/require_once returns the file's value; later ones return true.">require_once $plugin</error>));
 }
 require_once __DIR__ . '/bootstrap.php';
 include_once('helpers.php');
 $cfg = (require 'config.php');
-```
 
-```php
-<?php
-$routes = require __DIR__ . '/routes.php';
-$ok = include $first ||
-    include $second;
-while (include ($plugin)) {
-    register((require $plugin));
+function loadTranslations(string $file)
+{
+    $loaded = @include_once $file;
+    if (!$loaded) {
+        return false;
+    }
+    return true;
 }
-require_once __DIR__ . '/bootstrap.php';
-include_once('helpers.php');
-$cfg = (require 'config.php');
+
+function loadSettings(string $file)
+{
+    global $settings;
+    $settings = <error descr="Only the first include_once/require_once returns the file's value; later ones return true.">include_once $file</error>;
+}
+
+function loadSettingsInto(string $file, array &$settings)
+{
+    $settings = <error descr="Only the first include_once/require_once returns the file's value; later ones return true.">require_once $file</error>;
+}
+
+function renderPage(string $file)
+{
+    $page = <error descr="Only the first include_once/require_once returns the file's value; later ones return true.">include_once $file</error>;
+    include __DIR__ . '/layout.php';
+}
 ```
 
 ## Divergences
@@ -99,11 +125,6 @@ $cfg = (require 'config.php');
   end with lowercase `_once`, so `$cfg = REQUIRE_ONCE $f;` is not reported
   although PHP keywords are case-insensitive and the value is just as
   unreliable. custos matches the keyword in any case (D1).
-- Whether a parenthesized path is the inclusion's operand (`include_once($p)`
-  → `include ($p)`) or part of the keyword syntax depends on the parser; the
-  comparison is whitespace-collapsed, so `include ($p)` and `include($p)`
-  differ. Upstream fixtures only use unparenthesized operands in fixed
-  output. Recommendation: emit `include ($p)` (keyword, space, operand text).
 - **Success tests (custos diverges).** `include_once`/`require_once`
   return `false` only when the file cannot be included, so a result that is
   only tested for success is reliable: custos does not report an inclusion
@@ -130,3 +151,9 @@ $cfg = (require 'config.php');
   it is never extended with `[]`/`.=`): not reported. Inside a function a
   variable that is never read is not reported either; at file scope it
   is (the including file may read it). About 22 of 36 reports on Dolibarr.
+  The exemption stops where the variable is not private to the scope
+  (E3): a `global` or `static` variable, a by-reference parameter or
+  closure use, a scope that reads variables by name (`compact()`,
+  `get_defined_vars()`, `$$name`, `eval`) and, for a never-read variable,
+  a scope with another inclusion. There the stored value is observable
+  and turns into `true` on the second evaluation, so the report is kept.

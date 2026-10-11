@@ -23,6 +23,12 @@ Detect a closure writing a scalar captured by value when that closure is invoked
 - Ignore writes or transformations after unconditional termination or inside a literal false if branch; these statements cannot establish a missing update or mapped value.
 
 - E1. Unknown invocations, object member mutation, explicit references, and deliberate inner-local results are excluded.
+- E3. The closure uses its copy as a working local, so capturing by reference would change behaviour. No report when, in reachable closure code, any of these holds:
+  - the captured variable is mentioned anywhere other than as the target of a write to itself (for example echoed, interpolated, passed to a call, or captured or used by a nested function or class body);
+  - the value of a write to it is consumed rather than discarded, i.e. the assignment or increment/decrement is not a whole expression statement (`while ($n-- > 0)`, `echo $n = 4`, a `for` step);
+  - the closure returns a value.
+
+  A statement-level write whose right-hand side reads the same variable (`$n = $n + 1;`, `$s .= 'x';`) is still a lost update and stays reported when nothing else reads the copy. This deliberately gives up closures that update the copy and then also read it (`++$n; echo $n;`): intent cannot be told apart there.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report
@@ -50,6 +56,12 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 ```php
 <?php
 $n = 0; $f = <warning descr="Capture the scalar by reference when updating outer state.">function () use ($n) { ++$n; }</warning>; $f(); echo $n;
+```
+
+```php
+<?php
+// The copy is a working local consumed inside the closure: no report.
+$left = 3; $tick = function () use ($left) { while ($left-- > 0) { echo '.'; } }; $tick(); echo $left;
 ```
 
 ## Divergences

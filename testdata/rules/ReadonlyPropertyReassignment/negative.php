@@ -22,3 +22,7 @@ namespace Audit3 { class P{public readonly int $p;function f(){$this->p=1;echo '
 namespace Audit4 { class P{public readonly int $p;function f(){$x=1;$this->p=2;}} }
 
 namespace AuditSecond0 { class P{public readonly int $p;static function make():self{return new self;}function f(){self::make()->p=1;self::make()->p=2;}} }
+
+namespace Review0 { class P{public readonly int $p;function f(int $n){$this->p=$n;$this->p??=2;}} }
+
+namespace Review1 { class P{public readonly ?int $p;function f(){$this->p=1;$this->p??=2;}} }

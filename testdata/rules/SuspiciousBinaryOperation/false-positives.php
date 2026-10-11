@@ -33,3 +33,17 @@ function untypedRight($p, $limit) {
     if (strlen($p >= $limit)) {}
     if (strlen($p === undefinedCall())) {}
 }
+
+function receive() {
+    $same = (yield) === (yield);
+    $again = (yield from inner()) == (yield from inner());
+    return $same && $again;
+}
+
+function readTwice($handle, $result) {
+    if (readline() === readline()) {}
+    if (stream_get_contents($handle) == stream_get_contents($handle)) {}
+    if (mysqli_fetch_row($result) != mysqli_fetch_row($result)) {}
+    if ((include 'part.php') == (include 'part.php')) {}
+    if (`date +%N` == `date +%N`) {}
+}

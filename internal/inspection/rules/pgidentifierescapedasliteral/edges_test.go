@@ -42,7 +42,26 @@ func TestIdentifierBoundaries(t *testing.T) {
 		before, after string
 		want          bool
 	}{
-		{"SELECT * FROM ", "", true}, {"SELECT * FROM", "", false}, {"", "", false}, {"SELECT '\"quoted\"' FROM ", "", false}, {"SELECT ", "", false}, {"SELECT * FROM ", ".suffix", false},
+		{"SELECT * FROM ", "", true},
+		{"SELECT * FROM", "", false},
+		{"", "", false},
+		{"SELECT '\"quoted\"' FROM ", "", false},
+		{"SELECT ", "", false},
+		{"SELECT * FROM ", ".suffix", false},
+		{"SELECT a IS DISTINCT FROM ", "", false},
+		{"SELECT a IS NOT DISTINCT\nFROM ", "", false},
+		{"COPY stock FROM ", "", false},
+		{"COPY (SELECT * FROM ", ")", false},
+		{"SELECT substring(a FROM ", " )", false},
+		{"SELECT trim(both FROM ", " )", false},
+		{"SELECT a FROM t WHERE b IN ( ", " )", false},
+		{"SELECT 1) FROM ", "", false},
+		{"FROM ", "", true},
+		{"SELECT * FROM (SELECT * FROM ", " ) s", true},
+		{"SELECT * FROM (SELECT count(a) FROM ", " ) s", true},
+		{"SELECT substring(a FROM 2), b FROM ", "", true},
+		{"WITH k AS (SELECT 1) SELECT * FROM k JOIN ", " USING (id)", true},
+		{"INSERT INTO ", " (a) VALUES (1)", true},
 	} {
 		if got := identifierPosition(tc.before, tc.after); got != tc.want {
 			t.Errorf("%q %q: %v", tc.before, tc.after, got)
@@ -77,6 +96,14 @@ func TestFixSafety(t *testing.T) {
 		{`$v=pg_escape_literal($c,"x");pg_query($c,"SELECT * FROM $v");$v="later";echo $v;`, true},
 		{`$v=pg_escape_literal($c,"x");function unrelated(){echo "later";} pg_query($c,"SELECT * FROM $v");`, true},
 		{`$v=pg_escape_literal($c,"x");strlen($v);`, false},
+		{`$v=pg_escape_literal($c,"x");pg_query($c,"SELECT * FROM $v");return compact("v");`, false},
+		{`$v=pg_escape_literal($c,"x");pg_query($c,"SELECT * FROM $v");return get_defined_vars();`, false},
+		{`again: $v=pg_escape_literal($c,"x");pg_query($c,"SELECT * FROM $v");goto again;`, false},
+		{`while($n--){echo $v;$v=pg_escape_literal($c,"x");pg_query($c,"SELECT * FROM $v");}`, false},
+		{`echo $v;while($n--){$v=pg_escape_literal($c,"x");pg_query($c,"SELECT * FROM $v");}`, true},
+		{`do{$f=function($v){while($v){$v--;}};$v=pg_escape_literal($c,"x");}while($n--);`, false},
+		{`$v=pg_escape_literal($c,"a");if($n){$v=pg_escape_literal($c,"x");pg_query($c,"SELECT * FROM $v");}echo $v;`, false},
+		{`$v=pg_escape_literal($c,"a");while($n--){$v=pg_escape_literal($c,"x");pg_query($c,"SELECT * FROM $v");}echo $v;`, false},
 	} {
 		e, err := analysis.NewEngine([]analysis.Rule{safetyProbe{t, tc.want}}, analysis.Config{Only: []string{"PgIdentifierEscapedAsLiteral"}})
 		if err != nil {

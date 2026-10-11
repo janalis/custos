@@ -30,7 +30,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	owner := a.Parent().Parent()
 	decl := syntax.EnclosingClass(owner)
-	if decl == nil {
+	// A trait member is validated by PHP in each using class, never in the trait.
+	if decl == nil || decl.ClassKind == syntax.KindTrait {
 		return
 	}
 	fqn := ctx.Names().DeclFQN(decl)
@@ -43,6 +44,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	switch x := owner.(type) {
 	case *syntax.Method:
 		member = x.Name.Value
+		// Declaring __toString implicitly implements Stringable, which is the target.
+		if strings.EqualFold(member, "__toString") {
+			return
+		}
 	case *syntax.Property:
 		if ctx.PHP < phpversion.PHP85 || len(x.Props) != 1 {
 			return

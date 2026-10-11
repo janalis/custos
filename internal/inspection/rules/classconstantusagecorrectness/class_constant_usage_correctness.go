@@ -104,20 +104,39 @@ func (classConstantUsageCorrectness) Check(ctx *analysis.Context, n syntax.Node)
 		}
 	case strings.Contains(t, `\`):
 		if ns == nil {
-			break
+			return
 		}
-		if ns.Name != nil { // L2
-			nsFQN := strings.ToLower(strings.Trim(ns.Name.Value, `\`))
-			lc := strings.ToLower(cfqn)
-			if (strings.HasPrefix(lc, nsFQN) || strings.HasSuffix(lc, `\`+strings.ToLower(t))) && len(cfqn) >= len(t) {
-				list = append(list, cfqn[len(cfqn)-len(t):])
-			}
-		}
+		// custos: PHP substitutes only the first segment of a qualified
+		// name; `::class` is that substitution followed by the rest of T as
+		// written.
+		first, rest, _ := strings.Cut(t, `\`)
+		imported := false
 		for _, u := range uses { // L3
-			if u.alias != "" && strings.HasPrefix(strings.ToLower(t), strings.ToLower(u.alias)) {
-				list = append(list, strings.TrimPrefix(strings.ReplaceAll(`\`+cfqn, u.target, u.alias), `\`))
+			eff := u.alias
+			if eff == "" {
+				eff = astquery.LastNamePart(u.target)
+			}
+			if !strings.EqualFold(eff, first) {
+				continue
+			}
+			if u.target+`\`+rest == cfqn {
+				return
+			}
+			imported = true
+		}
+		if !imported { // L2
+			if ns.Name == nil {
+				return
+			}
+			tail := t
+			if strings.EqualFold(first, "namespace") {
+				tail = rest
+			}
+			if strings.HasSuffix(cfqn, `\`+tail) {
+				return
 			}
 		}
+		list = append(list, `\`+cfqn)
 	default:
 		for _, u := range uses {
 			// Only an import that resolves the written name (alias, or last

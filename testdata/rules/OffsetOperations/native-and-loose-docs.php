@@ -33,3 +33,8 @@ function wrongDoc($o): void
 {
     echo <error descr="'$o' does not support offset access (types: \stdClass).">$o['k']</error>;
 }
+
+function moreNative(Dom\TokenList $tokens, Dom\DtdNamedNodeMap $entities, PDORow $row)
+{
+    return [$tokens[0], $entities['copy'], $row['id']];
+}

@@ -2,6 +2,8 @@
 package truncationassumedtorewind
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -21,8 +23,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	h := semanticquery.CallArgument(c.Args, 0, "stream")
-	_, known := semanticquery.NativeStreamMode(ctx, h, c)
-	if !known {
+	mode, known := semanticquery.NativeStreamMode(ctx, h, c)
+	// Append-mode writes always land at the end of the stream, whatever the
+	// stale position is, and php://memory clamps its position on truncation.
+	if !known || mode[0] == 'a' || inMemory(ctx, h) {
 		return
 	}
 	position := int64(-1)
@@ -65,4 +69,12 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if truncated {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// inMemory reports whether the handle comes from fopen on php://memory, whose
+// truncation moves a position past the new end back to it.
+func inMemory(ctx *analysis.Context, h syntax.Expr) bool {
+	open, _ := semanticquery.NativeValue(ctx, h).(*syntax.FuncCall)
+	path, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(open.Args, 0, "filename"))
+	return known && strings.HasPrefix(path, "php://memory")
 }

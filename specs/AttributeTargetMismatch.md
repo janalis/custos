@@ -20,7 +20,7 @@ Use the attribute on a permitted target.
 
 ## Exceptions (no report)
 
-A constructor-promoted parameter is also a property declaration. Accept attributes permitting either parameter or property targets at that combined declaration.
+A constructor-promoted parameter is also a property declaration. Accept attributes permitting either parameter or property targets at that combined declaration. A parameter is promoted when it carries any promoting modifier: a visibility keyword (`public`, `protected`, `private`), `readonly` (PHP 8.1), an asymmetric set-visibility such as `private(set)` (PHP 8.4), or `final` (PHP 8.5). The modifier does not have to be a visibility keyword. A parameter carrying none of these is a plain parameter and needs the parameter target.
 
 - E1. Skip unresolved attribute declarations and unknown bitmasks. Attribute::IS_REPEATABLE is not a target bit.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore AttributeTargetMismatch` and `@noinspection AttributeTargetMismatch` suppress this inspection.

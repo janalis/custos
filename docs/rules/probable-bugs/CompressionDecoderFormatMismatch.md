@@ -33,7 +33,7 @@ Reported:
 
 ## Exceptions (no report)
 
-An explicit encoding argument stays unknown whether positional or named. The replacement decoder must exist in the target version; gzdecode is unavailable on PHP 5.3, so that finding has no automatic fix.
+An explicit encoding argument stays unknown whether positional or named. An encoder called with unpacked arguments (`gzencode(...$args)`) is unknown too, because the spread may carry the encoding. A local captured by reference by a closure of the same scope (`use (&$bytes)`), or by the closure the decoder itself sits in, is unknown: calling the closure may replace the bytes. The same holds for a local assigned from such a variable (`$copy = $bytes;`). The replacement decoder must exist in the target version; gzdecode is unavailable on PHP 5.3, so that finding has no automatic fix.
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.

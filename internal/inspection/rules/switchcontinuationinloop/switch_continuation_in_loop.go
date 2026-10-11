@@ -26,12 +26,15 @@ func (switchContinuationInLoop) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	switches := 0
+	finally := false                                // a finally block lies between the continue and the loop
 	var inner syntax.Node                           // innermost switch
 	for p := c.Parent(); p != nil; p = p.Parent() { // D2
 		if syntax.IsFuncLike(p) {
 			return
 		}
 		switch p.(type) {
+		case *syntax.Finally:
+			finally = true
 		case *syntax.Switch:
 			switches++
 			if inner == nil {
@@ -42,18 +45,22 @@ func (switchContinuationInLoop) Check(ctx *analysis.Context, n syntax.Node) {
 				return
 			}
 			span := c.Span()
-			if switchFollowed(ctx, inner, p) {
+			if finally || switchFollowed(ctx, inner, p) {
 				// custos: `continue N` would also skip the statements
-				// after the switch (`++$i;` keeping a position in step).
+				// after the switch (`++$i;` keeping a position in step),
+				// and PHP refuses to compile a jump out of `finally`.
 				ctx.Report(span, switchContinuationInLoopMsg)
 				return
 			}
 			// Divergence: count nested switches so the fix reaches the loop.
-			repl := "continue " + strconv.Itoa(switches+1) + ";"
+			// Only the level is inserted after the keyword, so the
+			// terminator (`;` or a closing tag) and comments stay as written.
+			level := " " + strconv.Itoa(switches+1)
+			at := span.Start + uint32(len("continue"))
 			ctx.Report(span, switchContinuationInLoopMsg, diagnostic.Fix{
-				Title: "Use '" + repl[:len(repl)-1] + "'",
+				Title: "Use 'continue" + level + "'",
 				Edits: func() []diagnostic.TextEdit {
-					return []diagnostic.TextEdit{{Span: span, NewText: repl}}
+					return []diagnostic.TextEdit{{Span: syntax.Span{Start: at, End: at}, NewText: level}}
 				},
 			})
 			return

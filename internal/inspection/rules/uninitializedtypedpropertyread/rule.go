@@ -2,6 +2,8 @@
 package uninitializedtypedpropertyread
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -28,12 +30,19 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if assign, ok := fetch.Parent().(*syntax.Assign); ok && assign.Var == fetch {
 		return
 	}
-	switch fetch.Parent().(type) {
+	// A guard covers the whole access chain rooted at the property: an element
+	// or sub-property read inside isset/empty/?? never throws. Calls end the chain.
+	var guarded syntax.Node = fetch
+	for chained(guarded) {
+		guarded = guarded.Parent()
+	}
+	switch parent := guarded.Parent().(type) {
 	case *syntax.Isset, *syntax.Empty:
 		return
-	}
-	if binary, ok := fetch.Parent().(*syntax.Binary); ok && binary.Left == fetch && binary.Op.Kind == syntax.TCoalesce {
-		return
+	case *syntax.Binary:
+		if parent.Left == guarded && parent.Op.Kind == syntax.TCoalesce {
+			return
+		}
 	}
 	receiver, ok := semanticquery.NativeValue(ctx, fetch.Var).(*syntax.New)
 	if !ok {
@@ -47,11 +56,32 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if property == nil || property.Type == "" || property.HasDefault || property.Magic || property.ReadsRunCode {
 		return
 	}
+	// `new static` may build a subclass whose constructor initializes the property.
+	if ref, ok := receiver.Class.(*syntax.Name); ok && strings.EqualFold(ref.Value, "static") {
+		if decl := ctx.Index().Class(cls, ctx.PHP); decl == nil || !decl.Final {
+			return
+		}
+	}
 	// Restrict proof to fresh object expressions: aliases may have been initialized.
 	if _, ok := syntax.UnwrapParens(fetch.Var).(*syntax.New); !ok {
 		return
 	}
 	ctx.ReportNode(fetch, message)
+}
+
+// chained reports whether n is the base of an enclosing element or property
+// access (or a parenthesized form of one), so a guard around the parent also
+// guards n. Method calls and index positions do not qualify.
+func chained(n syntax.Node) bool {
+	switch parent := n.Parent().(type) {
+	case *syntax.ArrayDimFetch:
+		return parent.Var == n
+	case *syntax.PropertyFetch:
+		return parent.Var == n
+	case *syntax.Paren:
+		return true
+	}
+	return false
 }
 
 func (rule) Semantic() {}

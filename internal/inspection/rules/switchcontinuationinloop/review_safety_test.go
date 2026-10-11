@@ -1,0 +1,89 @@
+package switchcontinuationinloop
+
+import (
+	"testing"
+
+	"custos/internal/fixing"
+	"custos/internal/inspection/analysis"
+	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
+)
+
+func TestReviewSafety(t *testing.T) {
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{PHP: phpversion.PHP85, EnableAll: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, source string
+		findings     int
+		fixed        string
+	}{
+		{
+			"closing tag terminator",
+			"<?php foreach ($a as $x) { switch ($x) { case 1: continue ?>\n<?php default: echo $x; } }",
+			1,
+			"<?php foreach ($a as $x) { switch ($x) { case 1: continue 2 ?>\n<?php default: echo $x; } }",
+		},
+		{
+			"comment before semicolon",
+			"<?php foreach ($a as $x) { switch ($x) { case 1: continue /* keep */ ; } }",
+			1,
+			"<?php foreach ($a as $x) { switch ($x) { case 1: continue 2 /* keep */ ; } }",
+		},
+		{
+			"comment glued to keyword",
+			"<?php foreach ($a as $x) { switch ($x) { case 1: continue/* keep */; } }",
+			1,
+			"<?php foreach ($a as $x) { switch ($x) { case 1: continue 2/* keep */; } }",
+		},
+		{
+			"finally between switch and loop",
+			"<?php foreach ($a as $x) { try { f(); } finally { switch ($x) { case 1: continue; } } }",
+			1,
+			"",
+		},
+		{
+			"finally between nested switches",
+			"<?php foreach ($a as $x) { switch ($x) { case 1: try { f(); } finally { switch ($x) { case 1: continue; } } } }",
+			1,
+			"",
+		},
+		{
+			"loop inside finally",
+			"<?php try { f(); } finally { foreach ($a as $x) { switch ($x) { case 1: continue; } } }",
+			1,
+			"<?php try { f(); } finally { foreach ($a as $x) { switch ($x) { case 1: continue 2; } } }",
+		},
+		{
+			"try body is not finally",
+			"<?php foreach ($a as $x) { try { switch ($x) { case 1: continue; } } finally { f(); } }",
+			1,
+			"<?php foreach ($a as $x) { try { switch ($x) { case 1: continue 2; } } finally { f(); } }",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			src := []byte(tc.source)
+			opt := syntax.Options{Version: phpversion.PHP85}
+			f := syntax.ParseBest("review.php", src, opt)
+			if len(f.Errors) != 0 {
+				t.Fatalf("invalid probe: %v", f.Errors)
+			}
+			got := e.Analyze(f)
+			if len(got) != tc.findings {
+				t.Fatalf("findings: got %v, want %d", got, tc.findings)
+			}
+			res := fixing.FixSource(e, "review.php", src, fixing.Options{Parse: opt, SinglePass: true})
+			want := tc.source
+			if tc.fixed != "" {
+				want = tc.fixed
+			}
+			if string(res.Source) != want {
+				t.Fatalf("fixed source: got %s, want %s", res.Source, want)
+			}
+			if len(syntax.ParseBest("review.php", res.Source, opt).Errors) != 0 {
+				t.Fatal("fix introduced syntax errors")
+			}
+		})
+	}
+}

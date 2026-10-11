@@ -24,7 +24,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	for _, operand := range semanticquery.ExpansionBcOperands(ctx, c) {
+	operands := semanticquery.ExpansionBcOperands(ctx, c)
+	// The shared operand list omits the exponent slot, which BCMath parses
+	// with the same well-formedness contract as the base.
+	switch semanticquery.NativeBuiltinName(ctx, c) {
+	case "bcpow", "bcpowmod":
+		operands = append(operands, semanticquery.CallArgument(c.Args, 1, "exponent"))
+	}
+	for _, operand := range operands {
 		if s, ok := semanticquery.NativeString(ctx, operand); ok && exponent.MatchString(s) {
 			ctx.ReportNode(c, message)
 			return

@@ -26,3 +26,7 @@ namespace AuditThird0 { class P extends Unknown{public object $child;}$o=new P;$
 namespace AuditThird1 { class P{public object $child;}$o=new P;$o->{$name}=new \stdClass;$c=clone $o;$c->{$name}->p=1; }
 
 namespace AuditThird2 { class P{public object $child{get{return new \stdClass;}set{}}}$o=new P;$o->child=new \stdClass;$c=clone $o;$c->child->p=1; }
+
+namespace ReviewOpen0 { class C{public $v;}class B{public $child;}class S extends B{function __clone(){$this->child=clone $this->child;}}function f(B $a){$a->child=new C;$b=clone $a;$b->child->v=1;} }
+
+namespace ReviewOpen1 { class C{public $v;}class B{public $child;static function f(){$a=new static;$a->child=new C;$b=clone $a;$b->child->v=1;}} }

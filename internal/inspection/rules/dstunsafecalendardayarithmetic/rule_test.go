@@ -27,6 +27,12 @@ func TestContracts(t *testing.T) {
 		{"negative10", "<?php\n$x=new DateTimeImmutable($date,new DateTimeZone('Europe/Paris'));$x->getTimestamp()+86400;\n", 0},
 		{"negative11", "<?php\n$x=new DateTimeImmutable();$x->format('c')+86400;\n", 0},
 		{"negative12", "<?php\n$x=DateTimeImmutable::createFromFormat('Y-m-d',$date);$x->getTimestamp()+86400;\n", 0},
+		{"abbreviation is a fixed offset", "<?php\n$d=new DateTimeImmutable('2025-03-30 00:00:00',new DateTimeZone('CET'));$d->getTimestamp()+86400;\n", 0},
+		{"host zone name", "<?php\n$d=new DateTimeImmutable('2025-03-30 00:00:00',new DateTimeZone('Local'));$d->getTimestamp()+86400;\n", 0},
+		{"empty zone name", "<?php\n$d=new DateTimeImmutable('2025-03-30 00:00:00',new DateTimeZone(''));$d->getTimestamp()+86400;\n", 0},
+		{"fixed offset with region prefix", "<?php\n$d=new DateTimeImmutable('2025-03-30 00:00:00',new DateTimeZone('Etc/GMT-1'));$d->getTimestamp()+86400;\n", 0},
+		{"second region zone", "<?php\n$d=new DateTimeImmutable('2025-03-09 00:00:00',new DateTimeZone('America/New_York'));$d->getTimestamp()+86400;\n", 1},
+		{"unknown region zone", "<?php\n$d=new DateTimeImmutable('2025-03-30 00:00:00',new DateTimeZone('Mars/Olympus'));$d->getTimestamp()+86400;\n", 0},
 		{"mutable date changed", "<?php $d=new DateTime('2025-03-30 00:00:00',new DateTimeZone('Europe/Paris'));$d->setTimezone(new DateTimeZone('UTC'));$next=$d->getTimestamp()+86400;", 0},
 		{"fresh mutable midnight", "<?php $next=(new DateTime('2025-03-30 00:00:00',new DateTimeZone('Europe/Paris')))->getTimestamp()+86400;", 1},
 	} {

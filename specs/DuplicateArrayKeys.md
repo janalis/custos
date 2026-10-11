@@ -27,6 +27,11 @@ without an explicit key and spread elements are skipped.
   - string literals (single- or double-quoted) **without interpolation** are
     decoded with PHP's escape rules for their quote style (`'id'`, `"id"`
     and `"\x69d"` are the same key; so are `'a\'b'` and `"a'b"`);
+    only the escapes the target PHP version knows are decoded: the
+    `\u{...}` code point escape exists from PHP 7.0 and `\e` from PHP 5.4, so
+    on an older target they stay a backslash followed by ordinary characters
+    (`"\u{41}"` is the key `A` from 7.0, and the same key as `'\u{41}'`
+    before);
   - a decoded string that is a canonical decimal integer (no leading zero,
     `+` or whitespace, fits a 64-bit integer, not `"-0"`) becomes that
     integer key (`'7'` and `7` are the same key; `'07'` and `'1.0'` stay
@@ -86,7 +91,8 @@ None.
 
 ## PHP versions
 
-None.
+The rule runs on every version. Only key decoding depends on the target
+(D1): `\u{...}` is an escape from PHP 7.0 and `\e` from PHP 5.4.
 
 ## Examples
 

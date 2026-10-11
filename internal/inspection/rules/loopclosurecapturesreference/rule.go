@@ -80,16 +80,37 @@ func readsCounter(body *syntax.Block, counter string) bool {
 		if syntax.IsVariableScope(n) {
 			return false
 		}
-		v, ok := n.(*syntax.Variable)
-		if ok && v.Name == counter {
-			assignment, assigned := v.Parent().(*syntax.Assign)
-			if !assigned || assignment.Var != v || assignment.Op.Kind != syntax.TEqual {
-				read = true
-			}
+		if v, ok := n.(*syntax.Variable); ok && v.Name == counter && !writeOnly(v) {
+			read = true
 		}
 		return true
 	})
 	return read
+}
+
+// writeOnly reports whether the occurrence only stores into or unbinds the
+// variable: a plain assignment target, a foreach key or value target, a value
+// slot of a destructuring pattern in either position, or an unset() operand.
+func writeOnly(v *syntax.Variable) bool {
+	var target syntax.Node = v
+	for {
+		switch parent := target.Parent().(type) {
+		case *syntax.ArrayItem:
+			if parent.Value != target || parent.Unpack {
+				return false
+			}
+			// The enclosing pattern must itself be a write target.
+			target = parent.Parent()
+		case *syntax.Assign:
+			return parent.Var == target && parent.Op.Kind == syntax.TEqual
+		case *syntax.Foreach:
+			return parent.Key == target || parent.Value == target
+		case *syntax.Unset:
+			return true
+		default:
+			return false
+		}
+	}
 }
 
 func variable(e syntax.Expr) string {

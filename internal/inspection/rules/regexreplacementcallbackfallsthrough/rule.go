@@ -30,9 +30,61 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || closure.Body == nil || semanticquery.NativeGeneratorBody(closure.Body) {
 		return
 	}
-	if !semanticquery.ExpansionDCallbackTerminates(ctx, closure.Body) && supported(closure.Body) {
+	if completes(ctx, closure.Body) && supported(closure.Body) {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// completes reports whether control provably reaches the end of body. Literal
+// conditions select their branch; a call that never returns, or whose callee
+// cannot be resolved, ends the path.
+func completes(ctx *analysis.Context, body syntax.Stmt) bool {
+	if syntax.Terminates(body) {
+		return false
+	}
+	switch b := body.(type) {
+	case *syntax.Block:
+		for _, stmt := range b.Stmts {
+			if !completes(ctx, stmt) {
+				return false
+			}
+		}
+	case *syntax.ExprStmt:
+		return returns(ctx, syntax.UnwrapParens(b.Expr))
+	case *syntax.If:
+		if truth, known := semanticquery.NativeTruth(ctx, b.Cond); known && len(b.ElseIfs) == 0 {
+			if truth {
+				return completes(ctx, b.Body)
+			}
+			return b.Else == nil || completes(ctx, b.Else.Body)
+		}
+		if b.Else == nil || completes(ctx, b.Body) || completes(ctx, b.Else.Body) {
+			return true
+		}
+		for _, branch := range b.ElseIfs {
+			if completes(ctx, branch.Body) {
+				return true
+			}
+		}
+		return false
+	}
+	return true
+}
+
+// returns reports whether evaluating a statement expression provably hands
+// control back: its type is not `never`, and a function callee or a method
+// receiver is known, since an unknown declaration may be declared never.
+func returns(ctx *analysis.Context, e syntax.Expr) bool {
+	if ctx.TypeOf(e).OnlyOf("never") {
+		return false
+	}
+	switch c := e.(type) {
+	case *syntax.FuncCall:
+		return ctx.Types().ResolveFunction(c) != nil
+	case *syntax.MethodCall:
+		return !ctx.TypeOf(c.Var).IsUnknown()
+	}
+	return true
 }
 
 func supported(body syntax.Node) bool {

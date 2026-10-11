@@ -38,7 +38,7 @@ func TestContracts(t *testing.T) {
 }
 
 func TestFixtureRanges(t *testing.T) {
-	for _, name := range []string{"basic", "negative", "audit-negative-2", "literal-urls"} {
+	for _, name := range []string{"basic", "negative", "audit-negative-2", "literal-urls", "guards", "false-positives"} {
 		marked, err := os.ReadFile("../../../../testdata/rules/ParseUrlFailureDereferenced/" + name + ".php")
 		if err != nil {
 			t.Fatal(err)

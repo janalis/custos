@@ -27,7 +27,7 @@ Reported:
 
 ## Detection
 
-- D1. Enabled policy requires preserving the initial watch set. Report stream_select inside a while loop when a nonempty literal read/write/except array assignment in the same scope precedes the loop and no assignment to that watch variable precedes selection in the loop. Null/empty watch sets and restored arrays are excluded.
+- D1. Enabled policy requires preserving the initial watch set. Report stream_select inside a while loop when a nonempty literal read/write/except array assignment in the same scope precedes the loop and nothing in the loop restores that watch variable between two selections. Null/empty watch sets and restored arrays are excluded.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
 - D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
 
@@ -37,6 +37,7 @@ Find the latest dominating assignment in the selection operation’s own variabl
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E3. The watch variable counts as restored when the loop condition or body, before or after the selection, assigns it (plainly or as a slot of a `[...]`/`list(...)` destructuring pattern), rebinds it as a foreach key or value target, or passes it as an argument to a method, constructor, or function that is not a proven builtin (such code may refill it by reference). Reading it, including through builtin calls, restores nothing.
 
 ## Fix
 

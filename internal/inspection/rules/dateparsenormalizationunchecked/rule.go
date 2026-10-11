@@ -45,7 +45,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	lastErrors := ctx.Memo("lastErrors", func() any {
 		latest := map[syntax.Node]uint32{}
 		syntax.InspectFile(ctx.File, func(node syntax.Node) bool {
-			if semanticquery.NativeDateStatic(ctx, node, "getLastErrors") != nil {
+			// date_get_last_errors() is the procedural alias of the static method.
+			fn, _ := semanticquery.GlobalCall(ctx, node, "date_get_last_errors")
+			if fn != nil || semanticquery.NativeDateStatic(ctx, node, "getLastErrors") != nil {
 				latest[syntax.EnclosingVariableScope(node)] = node.Span().Start
 			}
 			return true

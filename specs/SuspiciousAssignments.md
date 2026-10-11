@@ -191,6 +191,16 @@ body, unless it is in a test context (E6).
   value whose type is entirely unknown.
 - **E8** Supporting type plus only `null`/`false` failure markers (D20a):
   `[$k, $v] = $maybeRow` with `array|false`, `?array`, `array|null|false`.
+- **E9** Promoted constructor parameters (check C): a parameter carrying a
+  visibility or `readonly` modifier was already stored in its property
+  before the body runs, so overwriting the local copy loses nothing.
+- **E10** Writes that run code (checks A and E): the target is an element
+  `X[k]` of an object whose class has a project-declared `offsetSet()`, or
+  a property `X->p` that the class of `X` does not declare while it has
+  `__set()`. Each such write is a method call, so none is lost.
+- **E11** Switch, shared targets: a property, static property, superglobal
+  or other shared target (see Divergences) written in an earlier clause is
+  no longer tracked once a later statement makes a call.
 
 ## Report
 
@@ -379,3 +389,29 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
   the passed values without naming the parameter, so its parameters are
   not reported (`$b = func_num_args() > 1 ? func_get_arg(1) : null;`
   keeps a deprecated signature working).
+- **Check C promoted parameters (custos diverges).** In
+  `__construct(public string $name) { $name = 'x'; ... }` the argument was
+  copied to `$this->name` by promotion before the first statement, so the
+  passed value was used. Parameters with a promotion modifier (`public`,
+  `protected`, `private`, `readonly`, asymmetric visibility) are skipped.
+- **Magic writes (custos diverges).** `$r['event'] = 'start'; $r['event'] =
+  'stop';` on an object calls `offsetSet()` twice, and `$r->state = 'open';
+  $r->state = 'closed';` calls `__set()` twice when `state` is not a
+  declared property; both calls can have observable effects (a log, an
+  event). Checks A and E stay silent when the inferred type of the
+  receiver, at any level of the target, includes a class
+  - whose `offsetSet()` is declared in project code (for `X[k]`); built-in
+    containers such as `ArrayObject`, which simply store the value, are
+    still reported; or
+  - that has `__set()` and no declared property of that name (a property
+    only documented with `@property` counts as undeclared), for `X->p`
+    with a literal property name.
+  Receivers of unknown type, plain arrays and declared properties are
+  reported as before.
+- **Check A shared targets (custos diverges).** As in D16/D17, a target
+  visible outside the local scope may be read by any call: `case 'both':
+  $this->mode = 'header'; $this->render();` followed by `case 'body':
+  $this->mode = 'body';` is a deliberate fall-through. When a statement
+  after the write (for an assignment, its right-hand side) contains a call,
+  the shared targets are dropped from `W`. Local variables, and shared
+  targets with no call in between, are still reported.

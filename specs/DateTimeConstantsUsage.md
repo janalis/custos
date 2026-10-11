@@ -67,6 +67,10 @@ and should be used instead.
 - **F2** D2: replace only the constant name `ISO8601` by `ATOM`, keeping the
   class part and the `::` (and any whitespace around it) untouched:
   `DateTime::ISO8601` → `DateTime::ATOM`, `$when::ISO8601` → `$when::ATOM`.
+  The fix is withheld (the report stays) when `ATOM` on the same receiver
+  resolves to a constant declared by a user class — for instance a `DateTime`
+  subclass that redeclares `ATOM` — because the rewritten access would then
+  read that other format instead of the built-in one.
 
 ## Options
 
@@ -133,3 +137,7 @@ function formats(DateTimeImmutable $at)
   that may not exist. custos reports only references that resolve to the
   global constant (D1) and spells the replacement so it reaches the global
   `DATE_ATOM` (F1).
+- **Redeclared `ATOM` (custos diverges).** Upstream offers the `ATOM`
+  rewrite for every reported class constant access. custos keeps the report
+  but offers no fix when the receiver's `ATOM` is a user redeclaration, since
+  the rewrite would silently switch to an unrelated format.

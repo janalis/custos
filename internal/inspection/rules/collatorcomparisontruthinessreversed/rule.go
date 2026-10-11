@@ -32,8 +32,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	p, _ := astquery.ParentSkipParens(c)
 	if b, ok := p.(*syntax.Binary); ok && (b.Op.Kind == syntax.TIsEqual || b.Op.Kind == syntax.TIsIdentical) {
-		if truth, known := astquery.BoolConst(b.Right); known && truth {
+		// The call is one operand; the constant may sit on either side.
+		if isTrue(b.Left) || isTrue(b.Right) {
 			ctx.ReportNode(b, message)
 		}
 	}
+}
+
+func isTrue(e syntax.Node) bool {
+	truth, known := astquery.BoolConst(e)
+	return known && truth
 }

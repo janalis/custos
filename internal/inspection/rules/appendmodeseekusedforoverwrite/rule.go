@@ -41,7 +41,42 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		seek = k && wk && offset == 0 && w == 0 && semanticquery.NativeCallSucceeded(ctx, p, c)
 	}
-	if seek {
+	if seek && !emptied(ctx, c, h) {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// emptied reports whether an earlier ftruncate may have left the stream empty,
+// which makes offset 0 the end of file. Conditional truncations count too. A
+// later dominating write of a non-empty literal restores the proof.
+func emptied(ctx *analysis.Context, at *syntax.FuncCall, h syntax.Expr) bool {
+	cut, found := uint32(0), false
+	scope := syntax.EnclosingVariableScope(at)
+	visit := func(n syntax.Node) bool {
+		if n != scope && syntax.IsVariableScope(n) {
+			return false
+		}
+		t, ok := n.(*syntax.FuncCall)
+		if !ok || t.Span().End > at.Span().Start || !semanticquery.NativeBuiltin(ctx, t, "ftruncate") || !semanticquery.NativeSameValue(ctx, semanticquery.CallArgument(t.Args, 0, "stream"), h) {
+			return true
+		}
+		if size, known := semanticquery.NativeInt(ctx, semanticquery.CallArgument(t.Args, 1, "size")); !known || size == 0 {
+			cut, found = t.Span().Start, true
+		}
+		return true
+	}
+	if scope == nil {
+		syntax.InspectFile(ctx.File, visit)
+	} else {
+		syntax.Inspect(scope, visit)
+	}
+	if !found {
+		return false
+	}
+	for _, w := range semanticquery.NativeStreamCalls(ctx, at, h, "fwrite", "fputs") {
+		if data, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(w.Args, 1, "data")); known && data != "" && w.Span().Start > cut {
+			return false
+		}
+	}
+	return true
 }

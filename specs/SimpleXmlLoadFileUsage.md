@@ -54,6 +54,21 @@ yourself and passing its contents to `simplexml_load_string()` avoids it.
   `simplexml_load_string(file_get_contents($path))`;
   `simplexml_load_file($path,  Node::class,LIBXML_NOCDATA)` →
   `simplexml_load_string(file_get_contents($path), Node::class, LIBXML_NOCDATA)`.
+- **F2** No fix (the report is kept) when a third argument is present and is
+  not provably free of the options that make libxml fetch resources named
+  relative to the document: `LIBXML_NOENT`, `LIBXML_DTDLOAD`,
+  `LIBXML_DTDATTR`, `LIBXML_DTDVALID` and `LIBXML_XINCLUDE`. A document parsed
+  from a string has no base URI, so a relative external entity, DTD or
+  XInclude target would be looked up from the working directory instead of
+  the file's directory. The options are provably free of them when the
+  expression is, possibly parenthesised, an integer literal without those
+  bits (2, 4, 8, 16, 1024), one of the global constants `LIBXML_BIGLINES`,
+  `LIBXML_COMPACT`, `LIBXML_NOBLANKS`, `LIBXML_NOCDATA`, `LIBXML_NOEMPTYTAG`,
+  `LIBXML_NOERROR`, `LIBXML_NONET`, `LIBXML_NOWARNING`, `LIBXML_NOXMLDECL`,
+  `LIBXML_NSCLEAN`, `LIBXML_PARSEHUGE`, `LIBXML_PEDANTIC`, `LIBXML_RECOVER`,
+  or a `|` combination of those. Anything else (a variable, a call, another
+  constant, a constant of that name captured by the current namespace, other
+  operators) withholds the fix.
 
 ## Options
 
@@ -73,7 +88,8 @@ function feeds(string $dir, string $cls, int $flags, string $nsUri) {
     $b = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">\simplexml_load_file($dir . '/atom.xml', $cls)</error>;
     $c = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file(getenv('FEED'),  $cls,$flags, $nsUri, true)</error>;
     $d = $this->simplexml_load_file('x.xml');
-    return [$a, $b, $c, $d, $empty];
+    $e = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($dir . '/feed.xml', $cls, LIBXML_NOCDATA | LIBXML_NOBLANKS)</error>;
+    return [$a, $b, $c, $d, $e, $empty];
 }
 ```
 
@@ -83,9 +99,10 @@ function feeds(string $dir, string $cls, int $flags, string $nsUri) {
     $empty = simplexml_load_file();
     $a = simplexml_load_string(file_get_contents($dir . '/rss.xml'));
     $b = simplexml_load_string(file_get_contents($dir . '/atom.xml'), $cls);
-    $c = simplexml_load_string(file_get_contents(getenv('FEED')), $cls, $flags, $nsUri, true);
+    $c = simplexml_load_file(getenv('FEED'),  $cls,$flags, $nsUri, true);
     $d = $this->simplexml_load_file('x.xml');
-    return [$a, $b, $c, $d, $empty];
+    $e = simplexml_load_string(file_get_contents($dir . '/feed.xml'), $cls, LIBXML_NOCDATA | LIBXML_NOBLANKS);
+    return [$a, $b, $c, $d, $e, $empty];
 }
 ```
 
@@ -106,6 +123,16 @@ function feeds(string $dir, string $cls, int $flags, string $nsUri) {
   `file_get_contents(filename: $f)` (works by accident). Spread arguments
   (`...$args`) as first argument produce wrong code. Recommendation: skip the
   report when the first argument is a spread or any argument is named.
+- **Fix withheld for base-URI-dependent options (custos diverges)** (F2).
+  Upstream rewrites every reported call. With entity substitution, DTD
+  loading or XInclude enabled, the string-based load resolves relative
+  system identifiers against the working directory, so the rewritten code
+  can fail to load what the original loaded. custos keeps the report but
+  offers the fix only when the options argument is absent or a constant
+  expression that cannot enable those features.
+  One difference remains in every fixed call and is accepted: the parsed
+  document no longer records the file it came from (visible only through
+  `dom_import_simplexml(...)->ownerDocument->documentURI`).
 - **PHP 8.0 and later (custos diverges).** Bug #62577 needs the libxml
   entity loader disabled through `libxml_disable_entity_loader()`, which
   PHP 8.0 deprecated (it requires libxml 2.9, where external entities are

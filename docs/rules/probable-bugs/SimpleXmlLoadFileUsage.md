@@ -18,7 +18,7 @@ yourself and passing its contents to `simplexml_load_string()` avoids it.
 
 ::: code-group
 
-```php{4,5,6} [Before]
+```php{4,5,6,8} [Before]
 <?php
 function feeds(string $dir, string $cls, int $flags, string $nsUri) {
     $empty = simplexml_load_file();
@@ -26,7 +26,8 @@ function feeds(string $dir, string $cls, int $flags, string $nsUri) {
     $b = \simplexml_load_file($dir . '/atom.xml', $cls);
     $c = simplexml_load_file(getenv('FEED'),  $cls,$flags, $nsUri, true);
     $d = $this->simplexml_load_file('x.xml');
-    return [$a, $b, $c, $d, $empty];
+    $e = simplexml_load_file($dir . '/feed.xml', $cls, LIBXML_NOCDATA | LIBXML_NOBLANKS);
+    return [$a, $b, $c, $d, $e, $empty];
 }
 ```
 
@@ -36,9 +37,10 @@ function feeds(string $dir, string $cls, int $flags, string $nsUri) {
     $empty = simplexml_load_file();
     $a = simplexml_load_string(file_get_contents($dir . '/rss.xml'));
     $b = simplexml_load_string(file_get_contents($dir . '/atom.xml'), $cls);
-    $c = simplexml_load_string(file_get_contents(getenv('FEED')), $cls, $flags, $nsUri, true);
+    $c = simplexml_load_file(getenv('FEED'),  $cls,$flags, $nsUri, true);
     $d = $this->simplexml_load_file('x.xml');
-    return [$a, $b, $c, $d, $empty];
+    $e = simplexml_load_string(file_get_contents($dir . '/feed.xml'), $cls, LIBXML_NOCDATA | LIBXML_NOBLANKS);
+    return [$a, $b, $c, $d, $e, $empty];
 }
 ```
 
@@ -50,6 +52,7 @@ Reported:
 <li>line 4: simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().</li>
 <li>line 5: simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().</li>
 <li>line 6: simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().</li>
+<li>line 8: simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().</li>
 </ul>
 
 ## Configure

@@ -55,8 +55,9 @@ Common definitions:
    for `<`, `{left} > {right}` for `<=` (operand source texts verbatim, single
    spaces).
 5. **D5 identical operands.** Operator in `== != <> === !== > >= < <=
-   instanceof`; `strip(left) ≡ strip(right)`. Report the whole binary
-   expression (including parentheses that are inside it).
+   instanceof`; `strip(left) ≡ strip(right)`, and the operand is not one
+   whose two evaluations may differ (Exceptions, E5). Report the whole
+   binary expression (including parentheses that are inside it).
 6. **D6 comparison misplaced inside a call.** Operator in `== != === !== >
    >= < <=` (not `<>`, not `<=>`), and:
    - the expression is directly an argument of a function or method call
@@ -132,7 +133,17 @@ Common definitions:
   an array key or keyed value.
 - **E4** `!($v < 5)` when `$v`'s type is unknown/partially unknown or has no
   null/bool part; `!$v < 5` (the `!` is the operand, not the parent).
-- **E5** Different operands after paren stripping.
+- **E5** Different operands after paren stripping. Identical operands whose
+  two evaluations may give different values, because they contain: a
+  method, static or nullsafe call; `new`; `++`/`--`; an assignment; `yield`
+  or `yield from` (each one receives its own sent value); `include`/`require`
+  or `eval`; a backtick command; a call to a user-defined or unresolved
+  function; or a call to a built-in that reads a clock, a random source, a
+  cursor, a stream, a socket, an output buffer or a process
+  (`readline() === readline()`,
+  `stream_get_contents($h) == stream_get_contents($h)`), including the
+  row-fetching database functions (any built-in whose name contains
+  `_fetch`).
 - **E6** Call whose last parameter accepts `bool`; comparison that is not the
   last argument; right operand of unknown type (`f($x === $untyped)`); call not in a logical context; unresolved callee; more
   arguments than declared parameters (variadics).
@@ -164,11 +175,29 @@ with a strike-through style, but its severity is still error).
 
 - **F1 (D4)** Replace the whole `!(...)` expression with `R`
   (`!(($cnt <= 3))` → `$cnt > 3`).
+  - *Grouping.* `R` is written as `(R)` when dropping the `!(...)` group
+    would let a neighbour regroup it: the `!` expression is the operand of a
+    unary operator or cast, or of a binary operator other
+    than `&&`, `||`, `and`, `or`, `xor`, `??`, `&`, `|`, `^`
+    (`(int) !($n < 10)` → `(int) ($n >= 10)`, `!($n < 10) > $x` →
+    `($n >= 10) > $x`); or the right operand is an expression that extends
+    as far as it can (assignment, `print`, `yield`, `include`, `throw`,
+    arrow function).
+  - *No fix.* `!(a < b)` and `a >= b` differ when the operands cannot be
+    ordered (a `NAN` float, two arrays with different keys, uncomparable
+    objects): both comparisons are then false. The fix is offered only when
+    every type of the left operand is `int`, `null` or a boolean, and the
+    right operand is an integer or float literal or has only those types.
+    Otherwise the report is kept without a fix.
 - **F2 (D6)** Replace the whole call `C` with
   `{C'} {op} {right}` where `C'` is the call's source text in which the
   comparison's text is replaced by the left operand's text, `{op}` is the
   operator text and `{right}` the right operand text, separated by single
-  spaces (`strlen($s >= 2)` → `strlen($s) >= 2`).
+  spaces (`strlen($s >= 2)` → `strlen($s) >= 2`). The replacement is
+  wrapped in parentheses when `C` is directly the operand of `!`
+  (`!strlen($s >= 2)` → `!(strlen($s) >= 2)`; with a group already there,
+  `!(strlen($s >= 2))` → `!(strlen($s) >= 2)`), or when the right operand is
+  an expression that extends as far as it can (see F1).
 - **F3 (D10a, D10b)** Wrap the reported expression in parentheses, text kept
   verbatim (`$a && $b || $c` → `($a && $b) || $c`).
 - **F4 (D10c)** Replace the assignment with its own text in which the
@@ -321,8 +350,21 @@ if ((!$x) < $y) {}
 - **Operands that may vary (custos diverges from D5).** Two identical
   operands are not "the same" when evaluating them twice may give different
   values: method, static and nullsafe calls, `new`, `++`/`--`,
-  assignments, calls to user-defined or unresolved functions, and
-  built-ins with randomness, clocks or cursors (`mt_rand() == mt_rand()`,
-  MediaWiki's `wfRandom() == wfRandom()`, Pimcore's
-  `Asset::getById($id) === Asset::getById($id)`). Deterministic built-ins
-  (`count($tags) > count($tags)`) stay reported.
+  assignments, `yield`, `include`, `eval`, backtick commands, calls to
+  user-defined or unresolved functions, and built-ins with randomness,
+  clocks, cursors, streams, buffers or processes (`mt_rand() == mt_rand()`,
+  `readline() === readline()`, MediaWiki's `wfRandom() == wfRandom()`,
+  Pimcore's `Asset::getById($id) === Asset::getById($id)`). Deterministic
+  built-ins (`count($tags) > count($tags)`) stay reported. The full list is
+  in Exceptions, E5.
+- **F1 grouping and ordering (custos).** A bare `R` in place of the
+  `!(...)` group changes what is compared under a cast, a unary operator or
+  a tighter binary operator (`(int) !($n < 10)` would become
+  `(int) $n >= 10`) or no longer parses (`!($n < 10) > $x` →
+  `$n >= 10 > $x`); custos keeps one pair of parentheses there, and only
+  there, so the plain cases keep the bare form. For operands that cannot be
+  ordered (`?float` holding `NAN`, `?array`) the negated `<` is true while
+  `>=` is false; custos reports those without a fix.
+- **F2 under `!` (custos).** A bare replacement of `!f($x >= 2)` would read
+  `!f($x) >= 2`, which compares the negation with 2 (and is itself the D10d
+  pattern); custos writes `!(f($x) >= 2)`.

@@ -14,7 +14,7 @@ Use ordinary decimal notation for BCMath operands.
 
 ## Detection
 
-- D1. A numeric operand of bcadd, bcsub, bcmul, bcdiv, bcmod, bcpow, bcpowmod, bccomp or bcsqrt is a constant string containing exponent notation, with an otherwise valid signed decimal mantissa and integer exponent.
+- D1. A numeric operand of bcadd, bcsub, bcmul, bcdiv, bcmod, bcpow, bcpowmod, bccomp or bcsqrt is a constant string containing exponent notation, with an otherwise valid signed decimal mantissa and integer exponent. The exponent argument of bcpow and bcpowmod is a numeric operand like the base and the modulus, whether passed positionally or by name.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
 - D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
 
@@ -47,6 +47,11 @@ Apply throughout PHP 5.3–8.5 only where the extension API and syntax exist.  D
 ```php
 <?php
 $x = <error descr="Use ordinary decimal notation for BCMath operands.">bcadd('2e4', '3', 0)</error>;
+```
+
+```php
+<?php
+$y = <error descr="Use ordinary decimal notation for BCMath operands.">bcpow('2', '1e2')</error>;
 ```
 
 Valid case:

@@ -11,7 +11,7 @@ import (
 )
 
 func TestFixtures(t *testing.T) {
-	for _, name := range []string{"basic", "negative", "audit-negative-2"} {
+	for _, name := range []string{"basic", "negative", "audit-negative-2", "completion-guard", "false-positives"} {
 		t.Run(name, func(t *testing.T) {
 			data, err := os.ReadFile(filepath.Join("../../../../testdata/rules", "TlsHandshakePendingAccepted", name+".php"))
 			if err != nil {

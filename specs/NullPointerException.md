@@ -47,8 +47,9 @@ Terminology:
 - **D2** For each parameter `$p`: its **declared** type (type hint only;
   docblocks are ignored) contains `null` (`?T`, `T|null`) **or** its default
   value is the `null` constant (any case). The declared types minus `null`
-  must be an object-only type set. Then run the usage walk (below) for `p`
-  with no declaration.
+  must be an object-only type set. A variadic parameter (`?T ...$p`) is
+  skipped: `$p` is always an array, only its elements are nullable. Then run
+  the usage walk (below) for `p` with no declaration.
 
 ### Strategy B — chained calls on nullable results
 
@@ -213,6 +214,21 @@ walk for this name, *skip* goes to the next usage:
   the statements following, in the same statement list, an `if (c)` whose
   body always terminates (`return`, `throw`, `exit`, `continue`, `break`)
   (false).
+  `for (…; c; loop) body`, `c` being the last condition expression (true):
+  the body is such a region, the assignment window starting at the body
+  (the loop expressions are written before it but run after it, and `c` is
+  evaluated again behind them). A loop expression is such a region only
+  when, in addition, the body holds no assignment to `$n` or `foreach`
+  over it at all — a `continue` reaches the loop expressions without
+  passing `c` again — and no earlier loop expression assigns it. A read on
+  the right side of the loop expression's own assignment
+  (`$n = $n->next()`) happens before that write.
+  `match ($n) { … }` on the variable itself: the body of the `default` arm
+  when some arm lists `null` among its conditions; the body of an arm whose
+  conditions all have a known inferred type containing neither `null`,
+  `void` nor `mixed` (arms compare with `===`). An arm listing `null`, or
+  the `default` arm of a match without a `null` arm, is not such a region.
+  `$n` must not be assigned between the subject and `v`.
   `c` *guarantees non-null when true* if, after removing parentheses:
   `!x` guarantees it when `x` is false; `a && b` when `a` or `b` does;
   otherwise `c` is `$n` itself or an access chain starting at `$n`
@@ -240,8 +256,11 @@ walk for this name, *skip* goes to the next usage:
   non-null without being one of the checks above (U12):
   `if (is_object($v)) { $v->p; }`, `$v?->p !== null ? $v->p : 0`,
   `if ($v === $known) { $v->p; }`, `else` of `if (!is_object($v))`,
-  `match (true) { null !== $v?->m() => $v->m(), … }`, and statements after
-  `if (null === $v?->m()) { return; }`.
+  `match (true) { null !== $v?->m() => $v->m(), … }`, statements after
+  `if (null === $v?->m()) { return; }`,
+  `for (; $v; $v = $v->next()) { $v->p; }` and
+  `match ($v) { null => 0, default => $v->p }`.
+- **E10** Variadic parameters (`?T ...$v`): `$v[0]` indexes an array.
 - **E2c** A nullable value passed by name to a parameter that accepts null
   (`f(tint: $v)` with `?Tint $tint`), whatever its position.
 - **E3** `$v->prop ?? …`, `isset($v->prop)`, `isset($v->a['k'])`.
@@ -396,7 +415,13 @@ function visit(?Node $item) {
   (`if (null === $v?->m()) { return; }`), in a `match (true)` arm, and in a
   loop whose condition is re-checked after a branch that reassigns the
   variable and then `continue`s; writing a property of the variable
-  (`$v->p = 1`) does not undo the check.
+  (`$v->p = 1`) does not undo the check. A `for` condition guards the loop
+  body and, when the body never assigns the variable, the loop expressions;
+  a `match ($v)` with a `null` arm guards its `default` arm, and an arm
+  whose conditions are all known non-null values guards its own body.
+- Variadic parameters (custos diverges from upstream). `?T ...$v` declares
+  an array of nullable elements, never a nullable object, so `$v[0]` is not
+  a null dereference; custos does not walk such parameters.
 - **Named arguments (custos diverges, U11).** A named argument is matched
   to the parameter of that name, not to the parameter at its position:
   `Box::draw($on, tint: $v)` with

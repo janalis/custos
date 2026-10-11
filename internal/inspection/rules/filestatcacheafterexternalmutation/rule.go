@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 )
 
 const message = "Clear cached file metadata after external file changes."
@@ -21,6 +22,10 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
+	// exec and system drop the whole stat cache themselves from PHP 8.3 on.
+	if ctx.PHP >= phpversion.PHP83 {
+		return
+	}
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
 	if name != "filesize" && name != "filemtime" {

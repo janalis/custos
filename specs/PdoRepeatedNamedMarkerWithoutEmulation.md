@@ -15,12 +15,25 @@ Identify prepare on a proven PDO mysql native-preparation connection with EMULAT
 ## Detection
 
 - D1. Report prepare on a proven PDO mysql native-preparation connection with EMULATE_PREPARES false and SQL containing repeated same named marker outside literals/comments. Exclude drivers permitting repetition, unresolved driver, emulation true and SQL parser uncertainty.
+- D1a. Native preparation is proven by the last `ATTR_EMULATE_PREPARES` setting that runs on every path to the `prepare` call: the constructor option, or a later `setAttribute` call that dominates it. The value must be statically false.
+- D1b. Any other `setAttribute` call on the same connection variable that may run after that proof and before the `prepare` makes the state unknown and withholds the report. This covers a call in a conditional branch or short-circuit operand, a call inside a closure or arrow function written in the same scope, and a call placed after the `prepare` in a loop that repeats the `prepare` without repeating the proof. Such a call is harmless only when it names a different attribute constant, or sets emulation to a statically false value. The MySQL direct-query attribute controls the same driver switch as `ATTR_EMULATE_PREPARES`; an attribute that is not a named class constant may be either.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
+- E1a. Emulation possibly re-enabled before the `prepare` (D1b):
+
+  ```php
+  <?php
+  $pdo = new PDO('mysql:host=localhost;dbname=sample', 'u', 'p', [PDO::ATTR_EMULATE_PREPARES => false]);
+  if ($legacy) {
+      $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, true);
+  }
+  $pdo->prepare('SELECT :id + :id');
+  ```
+
 - E2. Both `@custos-ignore PdoRepeatedNamedMarkerWithoutEmulation` and `@noinspection PdoRepeatedNamedMarkerWithoutEmulation` suppress this native rule.
 
 ## Report

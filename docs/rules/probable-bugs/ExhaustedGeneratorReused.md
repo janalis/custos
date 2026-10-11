@@ -30,11 +30,14 @@ Reported:
 - D1. Report a resolved Generator identity traversed again after a proven complete iterator_to_array call or complete foreach.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D4. The traversed expression must be a plain local variable in both traversals. A call, property or other expression may hand back a different generator each time it is evaluated, so two textually identical calls are never one identity.
 
 ## Exceptions (no report)
 
 - E1. Early breaks, potentially exceptional completion, IteratorAggregate values, and creation of a fresh generator invalidate exhaustion proof.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. No report after a proven `iterator_to_array` when the variable can be rebound by code the local flow facts do not follow: a closure capturing it by reference, a `global` or `static` declaration of it in the same scope (for top-level code, a `global` declaration of it in any function of the file), an `extract` or `parse_str` call or an `include`/`require` in the same scope.
+- E4. The directly preceding empty `foreach` proves exhaustion only when it iterates by value and does not reuse the generator variable as its own key or value target.
 
 ## Fix
 

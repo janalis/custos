@@ -34,7 +34,8 @@ Reported:
 ## Exceptions (no report)
 
 - E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore DomTextAssignmentDestroysChildren and @noinspection DomTextAssignmentDestroysChildren suppress this native rule.
+- E2. A child proven through a variable appended to the element stops counting once a later statement could move or remove that node: passing the variable to any call (including appending it to another parent), calling a method on it other than attribute accessors, hasChildNodes or appendChild, or any use other than reading or writing one of its properties. Rebinding the variable to a new value leaves the appended node in place and keeps the proof.
+- E3. Both @custos-ignore DomTextAssignmentDestroysChildren and @noinspection DomTextAssignmentDestroysChildren suppress this native rule.
 
 ## Fix
 

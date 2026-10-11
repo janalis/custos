@@ -17,11 +17,14 @@ Check normalization before consuming text.
 - D1. Report a result of resolved Normalizer::normalize or normalizer_normalize reaching strlen or strtoupper without a dominating strict false guard. Follow direct expressions and unchanged local assignments; storage and testing alone are excluded.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
 - D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D4. A strict false guard is a condition that, on the path reaching the consumption, proves the value is not false. Accepted atoms: the value compared with `false` by `===` or `!==` (either operand order), and builtin `is_string()` applied to the value, alone or compared strictly with a boolean literal. The compared operand may be a plain assignment of the normalization result to the consumed variable written inside the condition. Atoms combine through `!`, through `&&`/`and` when the condition holds and through `||`/`or` when it fails.
+- D5. A guard dominates the consumption when the consumption is in: the guarded branch of an `if`/`elseif`/`else` chain (a later branch sees every earlier condition failed); the matching operand of a ternary; the right operand of a short-circuit `&&`, `and`, `||` or `or`; an arm of `match (true)` whose single condition proves the value, or any arm after a condition that fails only when the value is not false; an arm of a `match` on the value itself placed after a literal `false` condition; or any statement after an earlier sibling `if` without alternatives whose body always leaves the path, or after an expression statement that short-circuits into `exit` or `throw` when the value is false. The guard must test the same reaching normalization result, after it was produced, with no rebinding or invalidation in between.
 
 ## Exceptions (no report)
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E3. Truthiness tests (`if ($s)`, `!$s`, `empty()`, `?:`), loose comparisons and `assert()` are not strict guards: they never suppress the finding on their own.
 
 ## Report
 
@@ -56,6 +59,18 @@ Valid case:
 ```php
 <?php
 $s = Normalizer::normalize($input); if ($s !== false) { echo strlen($s); }
+```
+
+Guards written as expressions are valid too:
+
+```php
+<?php
+$s = normalizer_normalize($input);
+echo $s === false ? 0 : strlen($s);
+echo $s !== false && strlen($s) > 3 ? 'long' : 'short';
+echo match (true) { $s === false => '', default => strtoupper($s) };
+if (($t = normalizer_normalize($other)) === false) { return; }
+echo strlen($t);
 ```
 
 ## Divergences

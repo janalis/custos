@@ -19,6 +19,8 @@ func TestEdges(t *testing.T) {
 		{"$f=new IntlDateFormatter(\"en\",1,1);echo strlen($f->format($v));", 1, ""},
 		{"$f=new NumberFormatter(\"en\",1);$s=$f->format($v);if($s===false){return;}echo strlen($s);", 0, ""},
 		{"$f=new NumberFormatter(\"en\",1);$s=$f->format($v);$s=\"ok\";echo strlen($s);", 0, ""},
+		{"$f=new NumberFormatter(\"en\",1);$s=$f->format($v);echo is_string()?strlen($s):0;", 1, ""},
+		{"$f=new NumberFormatter(\"en\",1);$s=$f->format($v);echo $f->format($v)!==false?strlen($f->format($v)):0;", 1, ""},
 	} {
 		t.Run(tc.source+tc.php, func(t *testing.T) {
 			cfg := analysis.Config{Only: []string{"IntlFormattingFailureUnchecked"}, PHP: phpversion.MustParse(tc.php)}

@@ -29,13 +29,13 @@ Reported:
 
 ## Detection
 
-- D1. Parse a literal Content-Disposition header and identify an unquoted filename parameter containing characters outside HTTP token grammar, including whitespace. Report the full header call. Recognize quoted-string escaping and filename-star as separate syntax.
+- D1. Parse a literal Content-Disposition header and identify an unquoted filename parameter containing characters outside HTTP token grammar, including whitespace. Report the full header call. Split the header value into parameters only on semicolons outside double-quoted strings, honouring backslash escapes inside them, so `; filename=` text inside another parameter's quoted value is not a filename parameter. Recognize filename-star as separate syntax.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
 - D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
-- E1. Already quoted filenames, token-safe filenames, RFC extended filename parameters, unknown values and ambiguous multiple filename parameters are excluded.
+- E1. Already quoted filenames, token-safe filenames, RFC extended filename parameters, unknown values, ambiguous multiple filename parameters and header values with an unterminated quoted string (parameter boundaries unknown) are excluded.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore ContentDispositionFilenameNeedsQuoting` and `@noinspection ContentDispositionFilenameNeedsQuoting` suppress this inspection.
 
 ## Fix

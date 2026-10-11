@@ -48,6 +48,13 @@ func (simpleXMLLoadFileUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		args = append(args, arg)
 	}
+	// F2: parsing a string drops the document's base URI, so the rewrite is
+	// offered only when the options cannot make libxml load a relative
+	// external resource.
+	if len(args) > 2 && !optionsKeepBaseURIUnused(ctx, args[2].Value) {
+		ctx.ReportNode(call, simpleXMLLoadFileUsageMsg)
+		return
+	}
 	ctx.ReportNode(call, simpleXMLLoadFileUsageMsg, diagnostic.Fix{
 		Title: "Use simplexml_load_string(file_get_contents(...))",
 		Edits: func() []diagnostic.TextEdit {
@@ -66,4 +73,46 @@ func (simpleXMLLoadFileUsage) Check(ctx *analysis.Context, n syntax.Node) {
 			return []diagnostic.TextEdit{{Span: call.Span(), NewText: b.String()}}
 		},
 	})
+}
+
+// baseURIOptionBits are the libxml parser options that make the parser fetch
+// resources named relative to the document: LIBXML_NOENT (2), LIBXML_DTDLOAD
+// (4), LIBXML_DTDATTR (8), LIBXML_DTDVALID (16) and LIBXML_XINCLUDE (1024).
+const baseURIOptionBits = 2 | 4 | 8 | 16 | 1024
+
+// baseURIFreeOptions lists the libxml option constants that never make the
+// parser resolve a relative system identifier.
+var baseURIFreeOptions = map[string]bool{
+	"LIBXML_BIGLINES":   true,
+	"LIBXML_COMPACT":    true,
+	"LIBXML_NOBLANKS":   true,
+	"LIBXML_NOCDATA":    true,
+	"LIBXML_NOEMPTYTAG": true,
+	"LIBXML_NOERROR":    true,
+	"LIBXML_NONET":      true,
+	"LIBXML_NOWARNING":  true,
+	"LIBXML_NOXMLDECL":  true,
+	"LIBXML_NSCLEAN":    true,
+	"LIBXML_PARSEHUGE":  true,
+	"LIBXML_PEDANTIC":   true,
+	"LIBXML_RECOVER":    true,
+}
+
+// optionsKeepBaseURIUnused reports whether the options expression is a
+// constant provably free of every base-URI-dependent flag: an integer
+// literal without those bits, a listed global LIBXML_* constant, or a `|`
+// combination of such operands.
+func optionsKeepBaseURIUnused(ctx *analysis.Context, e syntax.Expr) bool {
+	switch v := e.(type) {
+	case *syntax.Paren:
+		return optionsKeepBaseURIUnused(ctx, v.Expr)
+	case *syntax.Binary:
+		return v.Op.Kind == syntax.TBar && optionsKeepBaseURIUnused(ctx, v.Left) && optionsKeepBaseURIUnused(ctx, v.Right)
+	case *syntax.Literal:
+		bits, ok := astquery.ParseIntLiteral(v.Raw)
+		return ok && v.LitKind == syntax.LitInt && bits&baseURIOptionBits == 0
+	case *syntax.ConstFetch:
+		return baseURIFreeOptions[semanticquery.GlobalConstName(ctx, v)]
+	}
+	return false
 }

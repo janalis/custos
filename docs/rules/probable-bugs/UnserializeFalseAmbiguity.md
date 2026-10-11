@@ -34,7 +34,8 @@ Reported:
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- E2. Do not report when the code already tells the two outcomes apart: the plain variable passed as the unserialize payload is compared (`===`, `!==`, `==`, `!=`, either operand order) with the serialized form of false, written as the string literal `'b:0;'` or as a call to the builtin `serialize(false)`. The comparison must sit in the same variable scope (nested functions and closures do not count) and start no later than the end of the rejecting branch, so both an early guard before decoding and a check inside the branch qualify. This is evidence of intent rather than a proof: writes to the variable between the comparison and the decode are not tracked. A payload that is not a plain variable never qualifies.
+- E3. Both standard suppression forms suppress this native ID.
 
 ## Fix
 

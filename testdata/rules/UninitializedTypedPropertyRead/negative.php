@@ -13,3 +13,17 @@ namespace Negative9 { class P{public int $p;}$p=new P();echo $p->p; }
 namespace Audit0 { class P{public int $p;}echo (new P)->p ?? 1; }
 
 namespace AuditThird0 { class P extends Unknown{public int $p;}echo (new P)->p; }
+
+namespace Review0 { class Conf{public array $opts;public ?Conf $next;public int $n;}
+    isset((new Conf)->opts['k']);
+    isset((new Conf)->next->n);
+    echo (new Conf)->opts['k'] ?? 'fallback';
+    echo (new Conf)->next->n ?? 'fallback';
+    echo empty((new Conf)->opts['k']);
+    echo (new Conf)->next?->n ?? 'fallback';
+    echo ((new Conf)->opts)['k'] ?? 'fallback';
+}
+namespace Review1 {
+    class Base{public int $v;public function peek(){return (new static)->v;}}
+    class Child extends Base{public function __construct(){$this->v=7;}}
+}

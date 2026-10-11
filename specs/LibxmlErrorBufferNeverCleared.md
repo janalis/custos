@@ -16,6 +16,7 @@ Repeated XML parsing can accumulate internally collected errors. Retrieve and cl
 
 - D1. A resolved libxml_use_internal_errors(true) precedes a loop containing a resolved DOMDocument::loadXML or simplexml_load_string; neither loop nor guaranteed cleanup calls libxml_clear_errors. Require definite enabled state and no unknown control escape.
 - D1d. Inspect loop initialization, condition, iterable and increment expressions as well as the body. A header that clears libxml errors or disables internal collection excludes the finding; unknown calls in the header discard collection-state proof. Exclude statically empty iterables and statically false conditions because the parse loop never runs.
+- D1e. Cleanup after the loop is guaranteed when a direct statement calling the resolved libxml_clear_errors follows the loop in the same statement list and every statement in between stays in that list. Reading the buffer first (assigning or iterating libxml_get_errors()) is the usual shape and is accepted. The search stops, and the finding is kept, at a statement that can leave the list: return, throw, exit, goto or a label, yield, or a break/continue that is not local to a nested loop or switch (a counted break/continue always counts as leaving). Nested function and class bodies are not searched. A clear nested in a conditional or loop is not guaranteed and does not exclude the finding. The search is bounded to 64 following statements.
 - D1f. Exclude parse operations with nested calls in their argument expressions, and DOMDocument construction with calls in constructor arguments. Those calls can clear errors or change error collection before parsing; unsupported argument side effects discard the accumulation proof.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
@@ -56,6 +57,16 @@ Valid case:
 ```php
 <?php
 libxml_use_internal_errors(true); $d=new DOMDocument(); foreach($docs as $xml){$d->loadXML($xml);libxml_clear_errors();}
+```
+
+Valid case, errors read and then cleared after the loop:
+
+```php
+<?php
+libxml_use_internal_errors(true);
+foreach ($docs as $xml) { simplexml_load_string($xml); }
+$errors = libxml_get_errors();
+libxml_clear_errors();
 ```
 
 ## Divergences

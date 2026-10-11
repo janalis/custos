@@ -30,6 +30,13 @@ func TestEdges(t *testing.T) {
 		{"$d=new DOMDocument();$d->loadXML('<root xmlns=\"urn:a\"><item/></root>');$x=new DOMXPath($d);$d->loadXML(\"<root><item/></root>\");$x->query(\"//item\");", 0, ""},
 		{"$d=new DOMDocument();$d->loadXML('<root xmlns=\"urn:a\"><item/></root>');$x=new DOMXPath($d);if($ok){}$x->query(\"//item\");", 0, ""},
 		{"(new DOMXPath($d))->query(\"//item\");", 0, ""},
+		{"$d=new DOMDocument();$d->loadXML('<root xmlns=\"urn:a\"><item/></root>');$d->documentElement->appendChild($d->createElement('item'));$x=new DOMXPath($d);$x->query(\"//item\");", 0, ""},
+		{"$d=new DOMDocument();$d->loadXML('<root xmlns=\"urn:a\"><item/></root>');$d->load('plain.xml');$x=new DOMXPath($d);$x->query(\"//item\");", 0, ""},
+		{"$d=new DOMDocument();$d->loadXML('<root xmlns=\"urn:a\"><item/></root>');$d->loadHTML('<item></item>');$x=new DOMXPath($d);$x->query(\"//item\");", 0, ""},
+		{"$d=new DOMDocument();$d->loadXML('<root xmlns=\"urn:a\"><item/></root>');$unrelated=1;$x=new DOMXPath($d);$x->query(\"//item\");", 0, ""},
+		{"$d=new DOMDocument();$d->loadXML('<root xmlns=\"urn:a\"><item/></root>');if($ok){}$x=new DOMXPath($d);$x->query(\"//item\");", 0, ""},
+		{"$d=new DOMDocument();$ok=$d->loadXML('<root xmlns=\"urn:a\"><item/></root>');$x=new DOMXPath($d);$x->query(\"//item\");", 0, ""},
+		{"$d=new DOMDocument();$e=new DOMDocument();$d->loadXML('<root xmlns=\"urn:a\"><item/></root>');$e->loadXML('<root><item/></root>');$x=new DOMXPath($d);$x->query(\"//item\");", 0, ""},
 		{"class Doc extends DOMDocument {public function loadXML(string $s,int $options=0):bool{return true;}}$d=new Doc();$d->loadXML('<root xmlns=\"urn:a\"><item/></root>');$x=new DOMXPath($d);$x->query(\"//item\");", 0, ""},
 	} {
 		t.Run(tc.source+tc.php, func(t *testing.T) {

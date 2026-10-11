@@ -21,7 +21,7 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.MethodCall)
-	if !semanticquery.NativeMethod(ctx, c, "PDO", "query") && !semanticquery.NativeMethod(ctx, c, "PDO", "exec") && !semanticquery.NativeMethod(ctx, c, "PDO", "prepare") && !semanticquery.NativeMethod(ctx, c, "mysqli", "query") && !semanticquery.NativeMethod(ctx, c, "mysqli", "prepare") {
+	if !sqlMethod(ctx, c) {
 		return
 	}
 	argument := semanticquery.CallArgument(c.Args, 0, "query")
@@ -33,22 +33,69 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known {
 		return
 	}
-	predicate := false
+	// One predicate flag per open parenthesis: a subquery's clauses only
+	// change their own level.
+	levels := []bool{false}
 	for i, token := range tokens {
+		top := len(levels) - 1
 		switch token {
+		case "(":
+			levels = append(levels, levels[top])
+		case ")":
+			if top > 0 {
+				levels = levels[:top]
+			}
 		case "WHERE", "HAVING", "ON":
-			predicate = true
-		case "SELECT", "SET", "VALUES", "FROM", "ORDER", "GROUP", "LIMIT", "UPDATE", "INSERT", "DELETE", "CREATE", "ALTER", "DROP":
-			predicate = false
+			levels[top] = true
+		case "FROM":
+			// IS [NOT] DISTINCT FROM is an operator, not a clause.
+			if i == 0 || tokens[i-1] != "DISTINCT" {
+				levels[top] = false
+			}
+		case "SELECT", "SET", "VALUES", "ORDER", "GROUP", "LIMIT", "UPDATE", "INSERT", "DELETE", "CREATE", "ALTER", "DROP":
+			levels[top] = false
 		}
-		if !predicate || token != "NULL" {
+		if token != "NULL" || !levels[top] {
 			continue
 		}
-		if i > 0 && (tokens[i-1] == "=" || tokens[i-1] == "!=" || tokens[i-1] == "<>") || i+1 < len(tokens) && tokens[i+1] == "=" {
+		if i > 0 && (tokens[i-1] == "=" || tokens[i-1] == "!=" || tokens[i-1] == "<>") || i+1 < len(tokens) && tokens[i+1] == "=" && !closesIsNull(tokens, i) {
 			ctx.ReportNode(argument, message)
 			return
 		}
 	}
+}
+
+// sqlMethod proves that c calls a builtin SQL-taking method of PDO or mysqli.
+// The method is looked up without a target version, because the PDO::query()
+// stub is not available below PHP 8.0; an override in a subclass is found
+// first and is not builtin.
+func sqlMethod(ctx *analysis.Context, c *syntax.MethodCall) bool {
+	id, ok := c.Name.(*syntax.Identifier)
+	if !ok {
+		return false
+	}
+	name := strings.ToLower(id.Value)
+	if name != "query" && name != "prepare" && name != "exec" {
+		return false
+	}
+	classes := ctx.Types().Native().TypeOf(c.Var).Classes()
+	if len(classes) != 1 {
+		return false
+	}
+	if !ctx.Index().IsSubtype(classes[0], "PDO", ctx.PHP) && (name == "exec" || !ctx.Index().IsSubtype(classes[0], "mysqli", ctx.PHP)) {
+		return false
+	}
+	m := ctx.Index().FindMethod(classes[0], name, 0)
+	return m != nil && m.Builtin
+}
+
+// closesIsNull reports whether the NULL at i ends an IS NULL or IS NOT NULL
+// operator, whose boolean result is what a following operator compares.
+func closesIsNull(tokens []string, i int) bool {
+	if i > 0 && tokens[i-1] == "NOT" {
+		i--
+	}
+	return i > 0 && tokens[i-1] == "IS"
 }
 
 func sqlTokens(sql string) ([]string, bool) {

@@ -47,6 +47,25 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Architecture and unused-code inspections respect property hooks, abstract
   and promoted properties, trait methods, `__sleep()` lists and PHP-version
   differences of built-in classes.
+- Probable-bug inspections that reason about a known value (sizes, counts,
+  indexes, nonces, handles, statements) no longer trust it after `++`/`--`,
+  a by-reference capture or argument, destructuring, a `foreach` target,
+  `extract()`, a variable variable or a possible replacement in a closure.
+- Failure-check inspections (files, streams, sockets, images, regexes, intl,
+  XML, databases, processes) accept more guard forms: early exits, `elseif`
+  chains, `&&`/`||` operands, ternaries, truthiness, `instanceof`, type
+  predicates and constant-first comparisons; nullsafe chains and
+  first-class callable syntax are no longer read as checked calls.
+- HTTP and cookie inspections compare option and header names
+  case-insensitively and ignore text inside quoted parameter values; PDO,
+  mysqli and SQLite inspections tolerate SQL comments, restored connection
+  state and statements bound elsewhere.
+- Several probable-bug inspections now report equivalent spellings they
+  missed: constant-first comparisons, brace-less and parenthesised forms,
+  `new self()` in abstract classes and guards that only `continue` or `break`.
+- Probable-bug quick fixes are withheld when the rewritten value may have
+  changed since it was assigned or when the matched text sits inside another
+  quoted value.
 - Security inspections recognise more validation idioms (early exits,
   combined conditions, allow-lists, server-side MIME inspection, `realpath`
   containment) and no longer report numeric, boolean or `match`-selected

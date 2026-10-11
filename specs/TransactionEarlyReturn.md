@@ -22,6 +22,8 @@ Detect a reachable normal return from a scope owning a successfully begun PDO tr
 
 - E1. Ownership transfer, exception unwinding into proven cleanup, surrounding finally cleanup, failure to begin and unknown transaction state are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. A return whose own expression closes the transaction is not reported: a `commit()` or `rollBack()` call on the connection that began it must be evaluated every time the expression is, either unconditionally (directly, parenthesised, under a unary operator or cast, as an assigned value, or as an operand that is always evaluated) or in both branches of a full ternary or in every arm of a `match`. A call that is only the right operand of `&&`, `||`, `and`, `or`, `??` or `??=`, or one branch of a short ternary, may be skipped and proves nothing, so `return $saved && $pdo->commit();` is still reported.
+- E4. Surrounding `finally` cleanup (E1) covers a direct `commit()`/`rollBack()` statement in the `finally` block and the guarded idiom `if ($pdo->inTransaction()) { $pdo->rollBack(); }` on the same connection, where the closing call is a direct statement of the guard body. A closing call under any other condition does not prove cleanup. A return written inside the `finally` block itself is not covered by the guarded idiom.
 
 ## Report
 
@@ -48,6 +50,13 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 ```php
 <?php
 function bad(PDO $pdo, bool $skip) { if (!$pdo->beginTransaction()) { return; } if ($skip) { <warning descr="Close the owned transaction before returning.">return;</warning> } $pdo->commit(); }
+```
+
+```php
+<?php
+// Not reported: every exit path closes the transaction.
+function commitInReturn(PDO $pdo) { if (!$pdo->beginTransaction()) { return false; } return $pdo->commit(); }
+function guardedCleanup(PDO $pdo, bool $skip) { if (!$pdo->beginTransaction()) { return; } try { if ($skip) { return; } $pdo->commit(); } finally { if ($pdo->inTransaction()) { $pdo->rollBack(); } } }
 ```
 
 ## Divergences

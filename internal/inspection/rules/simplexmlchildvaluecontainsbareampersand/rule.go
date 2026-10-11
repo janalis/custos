@@ -43,7 +43,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 		// Named entities can be defined by the document DTD. Their absence is unknown.
-		if reference := s[1:end]; reference != "" && reference[0] != '#' && !strings.ContainsAny(reference, "&< \t\r\n") {
+		// Only an XML Name can be declared, so any other run is never a reference.
+		if xmlName(s[1:end]) {
 			s = s[end+1:]
 			continue
 		}
@@ -54,4 +55,33 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		s = s[end+1:]
 	}
+}
+
+// xmlName reports whether s matches the XML 1.0 Name production. Bytes that
+// are not valid UTF-8 decode to U+FFFD, a name character, and stay unreported.
+func xmlName(s string) bool {
+	for i, r := range s {
+		if !nameRune(r, i == 0) {
+			return false
+		}
+	}
+	return s != ""
+}
+
+func nameRune(r rune, start bool) bool {
+	switch {
+	case r == ':' || r == '_' || r >= 'A' && r <= 'Z' || r >= 'a' && r <= 'z':
+		return true
+	case r == '-' || r == '.' || r >= '0' && r <= '9' || r == 0xB7 || r >= 0x300 && r <= 0x36F || r == 0x203F || r == 0x2040:
+		return !start
+	}
+	return r >= 0xC0 && r <= 0x2FF && r != 0xD7 && r != 0xF7 ||
+		r >= 0x370 && r <= 0x1FFF && r != 0x37E ||
+		r == 0x200C || r == 0x200D ||
+		r >= 0x2070 && r <= 0x218F ||
+		r >= 0x2C00 && r <= 0x2FEF ||
+		r >= 0x3001 && r <= 0xD7FF ||
+		r >= 0xF900 && r <= 0xFDCF ||
+		r >= 0xFDF0 && r <= 0xFFFD ||
+		r >= 0x10000 && r <= 0xEFFFF
 }

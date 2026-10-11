@@ -15,6 +15,8 @@ The response content type must describe the image bytes being written. Match it 
 ## Detection
 
 - D1. Resolved header writes a literal Content-Type of image/png, image/jpeg, image/gif, image/webp, image/avif or image/bmp, followed in straight-line scope by a different corresponding image encoder outputting to response (absent/null output path). No intervening content-type header.
+- D1a. The six listed MIME types are a closed set, compared case-insensitively after dropping parameters. Any other value, including other `image/*` types and legacy or vendor aliases such as image/jpg, image/pjpeg, image/x-png or image/x-ms-bmp, proves nothing and is not reported.
+- D1b. The output path is proven absent only when every argument of the encoder call is an ordinary positional or named argument. A call containing an unpacked argument (or written as a first-class callable) may carry the path and is not reported.
 - D1d. The response-output encoder statement must be the final statement in its lexical block. Account for preceding corrective Content-Type headers and removals; unknown response operations discard the MIME proof. Later statements, corrective headers or unknown calls prevent a finding rather than assuming the earlier MIME header remains final.
 - D1e. Restrict the initial proof to an encoder that is the final top-level statement in the file. Finality inside a function or nested block cannot establish that later execution leaves the MIME header unchanged, so those contexts are excluded.
 - D1f. Exclude earlier ob_start calls with any explicitly supplied callback: that callback can transform the eventual output bytes. Scan at most 4096 prior syntax nodes; exhausted scan cannot establish the response MIME proof.

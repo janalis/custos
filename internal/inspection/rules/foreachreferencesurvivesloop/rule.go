@@ -4,6 +4,7 @@ package foreachreferencesurvivesloop
 import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
 
@@ -15,6 +16,30 @@ type rule struct{}
 func New() analysis.Rule              { return rule{} }
 func (rule) ID() string               { return "ForeachReferenceSurvivesLoop" }
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KForeach} }
+
+// Semantic requests the project index: call iterables resolve across files.
+func (rule) Semantic() {}
+
+// unobservableArray reports whether the iterable is a fresh array value that
+// no other code can reach: a literal without reference or spread items, or a
+// call resolved to a declaration returning an array by value. Generators,
+// objects, by-reference returns and unresolved calls stay observable.
+func unobservableArray(ctx *analysis.Context, e syntax.Expr) bool {
+	switch x := e.(type) {
+	case *syntax.Array:
+		for _, item := range x.Items {
+			if item == nil || item.ByRef || item.Unpack {
+				return false
+			}
+		}
+		return true
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		callee, ok := semanticquery.ResolveCallee(ctx, x)
+		return ok && !callee.ByRef && ctx.TypeOf(x).IsArrayLike()
+	}
+	return false
+}
+
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	loop := n.(*syntax.Foreach)
 	v, ok := loop.Value.(*syntax.Variable)
@@ -22,6 +47,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	iterable := syntax.UnwrapParens(loop.Expr)
+	if unobservableArray(ctx, iterable) {
+		return
+	}
 	if local, ok := iterable.(*syntax.Variable); ok {
 		if prev, known := astquery.PrevStmtNoDoc(ctx.File, loop); known {
 			if st, ok := prev.(*syntax.ExprStmt); ok {

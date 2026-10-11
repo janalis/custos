@@ -1,0 +1,22 @@
+<?php
+// F2: the fix is withheld when the options may need the document's base URI.
+$r0 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, 'SimpleXMLElement', LIBXML_NOENT)</error>;
+$r1 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, LIBXML_NOCDATA | LIBXML_DTDLOAD)</error>;
+$r2 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, LIBXML_DTDATTR)</error>;
+$r3 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, LIBXML_DTDVALID | LIBXML_NOERROR)</error>;
+$r4 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, LIBXML_XINCLUDE)</error>;
+$r5 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, $flags)</error>;
+$r6 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, flags())</error>;
+$r7 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, Config::FLAGS)</error>;
+$r8 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, MY_FLAGS)</error>;
+$r9 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, 2)</error>;
+$r10 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, 0x4000 | 0x10)</error>;
+$r11 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, 1.0)</error>;
+$r12 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, '0')</error>;
+$r13 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, LIBXML_NOCDATA + LIBXML_NOBLANKS)</error>;
+$r14 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, ~LIBXML_NOENT)</error>;
+$r15 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, \Lib\LIBXML_NOCDATA)</error>;
+$r16 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, 0)</error>;
+$r17 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, 0x4000)</error>;
+$r18 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, (LIBXML_NOCDATA | LIBXML_NOBLANKS) | 32)</error>;
+$r19 = <error descr="simplexml_load_file() is affected by PHP bug #62577; load the contents with file_get_contents() and parse them with simplexml_load_string().">simplexml_load_file($p, null, \LIBXML_NONET, 'ns', true)</error>;

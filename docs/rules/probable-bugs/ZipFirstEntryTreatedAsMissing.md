@@ -27,9 +27,10 @@ Reported:
 
 ## Detection
 
-- D1. Report direct truthiness, negation or assignment-in-condition of resolved ZipArchive::locateName. Zero is a valid index. Highlight the truthiness expression containing an assignment or negation; strict false comparisons and later separate comparisons are excluded.
+- D1. Report a resolved ZipArchive::locateName call whose result is the whole condition of an `if`, `elseif`, `while` or `do`/`while`, either directly, negated once with `!`, or through a plain `=` assignment in that condition. Zero is a valid index. Highlight the negation when there is one, otherwise the condition expression (including the assignment).
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
 - D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D4. Report a loose comparison (`==`, `!=`, `<>`) of that call, or of a plain `=` assignment of it, with the `false` constant on either side, wherever the comparison appears. Highlight the whole comparison. Strict false comparisons, comparisons with other values and later separate comparisons are excluded.
 
 ## Exceptions (no report)
 
@@ -37,10 +38,17 @@ Preserve assignment precedence in negated conditions: the repaired comparison su
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E3. A compound assignment in the condition (`.=`, `??=`, `+=` and the like) is not reported: its value is the combined or pre-existing value, not the lookup result.
+- E4. A doubled negation, another unary operator, or a call that is only one operand of a larger condition is not reported.
 
 ## Fix
 
-Replace !call with call === false; positive call truthiness with call !== false; == false with === false and != false with !== false. Parenthesize as required, preserve evaluation count. Fix local-result conditions only when that local is proven unmodified.
+Replace `!call` with `call === false` and positive call truthiness with `call !== false`, wrapping an unparenthesized assignment in parentheses first. For a loose comparison replace only the operator: `==` becomes `===`, `!=` and `<>` become `!==`. The call is evaluated exactly once either way.
+
+Report without a fix when:
+
+- the call is nullsafe, or its receiver chain contains a nullsafe access: a short-circuited chain yields null, which the original condition treats as missing but a strict comparison with false does not;
+- a comment sits between the `!` and its operand, since the rewrite would drop it.
 
 All edits use exact byte ranges and preserve comments and evaluation order. Offer no fix when its stated prerequisites cannot be proven or the replacement is unsupported by the configured PHP version.
 

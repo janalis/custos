@@ -33,6 +33,11 @@ Detect usort, uasort, or uksort with a local comparator whose every returned val
 
 Replace a sole a > b expression with a <=> b, or a < b with b <=> a, on PHP 7.0+. Do not fix compound predicates or comparisons with extra side effects.
 
+The rewrite changes what the comparator returns, so it is offered only when the sort call provably owns the comparator and an integer result is acceptable:
+
+- F1. The callback argument is itself a closure or arrow function literal (parentheses allowed). A comparator reached through a function name string or a variable can have other callers that rely on its boolean result; report it without a fix.
+- F2. The literal declares no return type, or declares `int`. Under any other declared type (`bool`, a nullable or union type, `mixed`, ...) the integer would be coerced, so that both orderings become true, or rejected under strict types; report it without a fix.
+
 A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 
 ## Options
@@ -53,6 +58,15 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 ```php
 <?php
 usort($xs, fn($a, $b) => $a <=> $b);
+```
+
+Reported without a fix, because `newer()` is also called as a predicate:
+
+```php
+<?php
+function newer($a, $b) { return $a > $b; }
+<warning descr="Return a three-way integer comparison result.">usort($releases, 'newer')</warning>;
+if (newer($current, $latest)) { upgrade(); }
 ```
 
 ## Divergences

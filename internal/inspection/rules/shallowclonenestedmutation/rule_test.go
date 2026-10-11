@@ -37,6 +37,23 @@ func TestContracts(t *testing.T) {
 		{"unresolved inherited clone", "<?php class P extends Unknown{public object $child;}$o=new P;$o->child=new stdClass;$c=clone $o;$c->child->p=1;", 0},
 		{"dynamic child property", "<?php class P{public object $child;}$o=new P;$o->{$name}=new stdClass;$c=clone $o;$c->{$name}->p=1;", 0},
 		{"hooked child property", "<?php class P{public object $child{get{return new stdClass;}set{}}}$o=new P;$o->child=new stdClass;$c=clone $o;$c->child->p=1;", 0},
+		{"declared open type", "<?php class C{public $v;}class B{public $child;}class S extends B{function __clone(){$this->child=clone $this->child;}}function f(B $a){$a->child=new C;$b=clone $a;$b->child->v=1;}", 0},
+		{"declared final type", "<?php class C{public $v;}final class B{public $child;}function f(B $a){$a->child=new C;$b=clone $a;$b->child->v=1;}", 1},
+		{"constructed open type", "<?php class C{public $v;}class B{public $child;}function f(){$a=new B;$a->child=new C;$b=clone $a;$b->child->v=1;}", 1},
+		{"late static instance", "<?php class C{public $v;}class B{public $child;static function f(){$a=new static;$a->child=new C;$b=clone $a;$b->child->v=1;}}", 0},
+		{"dynamic class instance", "<?php class C{public $v;}class B{public $child;}function f(){$n='B';$a=new $n;$a->child=new C;$b=clone $a;$b->child->v=1;}", 0},
+		{"literal stores between", "<?php class C{public $v;}class B{public $child;public $id;}function f(){$a=new B;$a->id=7;$a->child=new C;$b=clone $a;$b->child->v=1;}", 1},
+		{"computed store between", "<?php class C{public $v;}class B{public $child;public $id;}function f(){$a=new B;$a->id=g();$a->child=new C;$b=clone $a;$b->child->v=1;}", 0},
+		{"foreign store between", "<?php class C{public $v;}class B{public $child;}function f($o){$a=new B;$o->id=7;$a->child=new C;$b=clone $a;$b->child->v=1;}", 0},
+		{"other variable between", "<?php class C{public $v;}class B{public $child;}function f(){$a=new B;$x=7;$a->child=new C;$b=clone $a;$b->child->v=1;}", 0},
+		{"call between", "<?php class C{public $v;}class B{public $child;}function f(){$a=new B;g($a);$a->child=new C;$b=clone $a;$b->child->v=1;}", 0},
+		{"branch between", "<?php class C{public $v;}class B{public $child;}function f($q){$a=new B;if($q){$a=h();}$a->child=new C;$b=clone $a;$b->child->v=1;}", 0},
+		{"reference binding", "<?php class C{public $v;}class B{public $child;}function f(B $o){$a=&$o;$a->child=new C;$b=clone $a;$b->child->v=1;}", 0},
+		{"coalescing creation", "<?php class C{public $v;}class B{public $child;}function f(B $a){$a??=new B;$a->child=new C;$b=clone $a;$b->child->v=1;}", 0},
+		{"factory result", "<?php class C{public $v;}class B{public $child;}function h():B{return new B;}function f(){$a=h();$a->child=new C;$b=clone $a;$b->child->v=1;}", 0},
+		{"property receiver", "<?php class C{public $v;}class B{public $child;}class H{public B $o;function f(){$this->o=new B;$this->o->child=new C;$b=clone $this->o;$b->child->v=1;}}", 0},
+		{"statement before store", "<?php class C{public $v;}class B{public $child;}function f(B $a){echo 1;$a->child=new C;$b=clone $a;$b->child->v=1;}", 0},
+		{"undeclared class", "<?php class C{public $v;}function f(){$a=new Missing;$a->child=new C;$b=clone $a;$b->child->v=1;}", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			rule.New().(analysis.SemanticRule).Semantic()

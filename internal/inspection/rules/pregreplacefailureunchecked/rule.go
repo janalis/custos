@@ -29,7 +29,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		default:
 			continue
 		}
-		if ctx.TypeOf(input).OnlyOf("string") || ctx.Flow().Excludes(input, "null") || semanticquery.NativeSentinelGuard(ctx, input, "null") {
+		if ctx.TypeOf(input).OnlyOf("string") || ctx.Flow().Excludes(input, "null") || nullGuarded(ctx, input) {
 			continue
 		}
 		ctx.ReportNode(call, message)

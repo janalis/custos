@@ -30,19 +30,40 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	for _, arg := range args {
-		a := semanticquery.NativeArray(ctx, arg)
-		if a == nil {
+		if a := semanticquery.NativeArray(ctx, arg); a != nil && renumbers(ctx, a) {
+			ctx.ReportNode(call, message)
+			return
+		}
+	}
+}
+
+// renumbers reports whether array_merge provably moves an integer key of the
+// literal to another index. Integer keys are renumbered from zero in entry
+// order, so string-keyed items and overwritten duplicates take no index.
+func renumbers(ctx *analysis.Context, a *syntax.Array) bool {
+	// Without unknown keys, the integer keys seen so far are exactly 0..index-1.
+	// Each unknown key may add one more integer entry before the next item.
+	index, unknown := int64(0), int64(0)
+	for _, item := range a.Items {
+		if item.Key == nil {
+			index++
 			continue
 		}
-		for i, item := range a.Items {
-			if item.Key == nil {
-				continue
-			}
-			key, known := semanticquery.NativeArrayKey(ctx, item.Key)
-			if known && strings.HasPrefix(key, "i:") && key != "i:"+strconv.Itoa(i) {
-				ctx.ReportNode(call, message)
-				return
+		key, known := semanticquery.NativeArrayKey(ctx, item.Key)
+		switch {
+		case !known:
+			unknown++
+		case strings.HasPrefix(key, "i:"):
+			n, _ := strconv.ParseInt(key[2:], 10, 64)
+			switch {
+			case n < 0 || n > index+unknown:
+				return true
+			case unknown > 0:
+				unknown++
+			case n == index:
+				index++
 			}
 		}
 	}
+	return false
 }

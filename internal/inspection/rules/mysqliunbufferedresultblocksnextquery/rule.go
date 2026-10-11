@@ -37,7 +37,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || assignment.ByRef || assignment.Op.Kind != syntax.TEqual {
 		return
 	}
-	if _, ok := assignment.Var.(*syntax.Variable); !ok {
+	result, ok := assignment.Var.(*syntax.Variable)
+	if !ok || result.NameExpr != nil || usedEarlierInStatement(c, result.Name) {
 		return
 	}
 	producer, ok := assignment.Value.(*syntax.MethodCall)
@@ -64,4 +65,29 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if ok && semanticquery.GlobalConstName(ctx, mode) == "MYSQLI_USE_RESULT" {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// usedEarlierInStatement reports whether the statement holding the query
+// touches the result variable before the query runs: such a use may consume
+// or free the result. Plain reassignment of the variable is not a use.
+func usedEarlierInStatement(c *syntax.MethodCall, name string) bool {
+	var statement syntax.Node = c
+	for {
+		if _, ok := statement.(syntax.Stmt); ok {
+			break
+		}
+		statement = statement.Parent()
+	}
+	end, used := c.Span().End, false
+	syntax.Inspect(statement, func(n syntax.Node) bool {
+		v, ok := n.(*syntax.Variable)
+		if !ok || v.Name != name || v.Span().Start >= end {
+			return !used
+		}
+		if target, ok := v.Parent().(*syntax.Assign); !ok || target.ByRef || target.Op.Kind != syntax.TEqual || target.Var != syntax.Expr(v) {
+			used = true
+		}
+		return !used
+	})
+	return used
 }

@@ -46,9 +46,11 @@ func inclusionOnceTestedForSuccess(inc *syntax.Include) bool {
 }
 
 // inclusionOnceFlagVariable reports whether the inclusion's result is
-// stored in a local variable (`$found = @include_once $f;`) that is never
-// read (in a function) or only tested for success (`if ($found) break;`, `if (!$res)
-// die();`): the variable is a success flag, which stays reliable.
+// stored in a plain local variable (`$found = @include_once $f;`) that is
+// never read (in a function) or only tested for success (`if ($found) break;`,
+// `if (!$res) die();`): the variable is a success flag, which stays reliable.
+// A variable other code can reach (global, static, by-reference parameter
+// or closure use, or read by name) is not a flag.
 func inclusionOnceFlagVariable(ctx *analysis.Context, inc *syntax.Include) bool {
 	n := skipAtParens(inc)
 	as, ok := n.Parent().(*syntax.Assign)
@@ -66,8 +68,15 @@ func inclusionOnceFlagVariable(ctx *analysis.Context, inc *syntax.Include) bool 
 		return false
 	}
 	scope := syntax.EnclosingFuncLike(inc)
+	if boundByReference(scope, target.Name) {
+		return false
+	}
 	reads := 0
 	for _, a := range flowquery.VarAccesses(ctx.File, scope, target.Name) {
+		switch a.By.(type) {
+		case *syntax.Global, *syntax.StaticVar: // the value outlives the call
+			return false
+		}
 		if a.ElemWrite || a.Compound || !a.Write && !testedForSuccess(a.Var) {
 			return false
 		}
@@ -75,9 +84,68 @@ func inclusionOnceFlagVariable(ctx *analysis.Context, inc *syntax.Include) bool 
 			reads++
 		}
 	}
-	// A file-scope variable never read here may be read by the file
-	// that includes this one.
-	return reads > 0 || scope != nil
+	byName, included := scopeReadsByName(ctx.File, scope, inc)
+	if byName {
+		return false
+	}
+	if reads > 0 {
+		return true
+	}
+	// A variable never read here may still be read by a file included in
+	// the same scope; at file scope, by the file that includes this one.
+	return scope != nil && !included
+}
+
+// boundByReference reports whether name is a by-reference parameter or
+// by-reference closure use of scope: a write to it is seen by the caller.
+func boundByReference(scope syntax.Node, name string) bool {
+	for _, p := range syntax.FuncLikeParams(scope) {
+		if p.ByRef && p.Var != nil && p.Var.Name == name {
+			return true
+		}
+	}
+	if cl, ok := scope.(*syntax.Closure); ok {
+		for _, u := range cl.Uses {
+			if u.ByRef && u.Var != nil && u.Var.Name == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// scopeReadsByName scans the code of scope (nil: the file's top-level
+// code), nested arrow functions included. byName is true when a local
+// variable can be read without being named: compact(),
+// get_defined_vars(), a variable-variable or eval. included is true when
+// the scope contains an inclusion other than self, whose file shares the
+// scope's variables.
+func scopeReadsByName(f *syntax.File, scope syntax.Node, self *syntax.Include) (byName, included bool) {
+	visit := func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.ClassLike, *syntax.Closure:
+			return false // separate scope
+		case *syntax.Eval:
+			byName = true
+		case *syntax.Variable:
+			byName = byName || x.NameExpr != nil
+		case *syntax.Include:
+			included = included || x != self
+		case *syntax.FuncCall:
+			switch strings.ToLower(astquery.CallLastName(x)) {
+			case "compact", "get_defined_vars":
+				byName = true
+			}
+		}
+		return true
+	}
+	if scope == nil {
+		syntax.InspectFile(f, visit)
+		return byName, included
+	}
+	_, body := astquery.ScopeParts(scope)
+	syntax.Inspect(body, visit)
+	return byName, included
 }
 
 // skipAtParens climbs from n through enclosing parentheses and `@`.

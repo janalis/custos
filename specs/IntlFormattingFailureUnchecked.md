@@ -21,7 +21,13 @@ Internationalization formatting can fail and return false. Check success before 
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- E2. Do not report a use that a success check on the same, unmodified format result dominates. The result is a string or false, so each of these proves success: the result is truthy (`$s`, `!empty($s)`), differs from false (`!== false`, `!= false`, either operand order), `is_string($s)` holds, or `is_bool($s)` does not. Negation and `&&`/`||`/`and`/`or` combine such tests, and the assignment that stores the result may be tested in place. A check dominates the use when:
+  - the use sits in the arm of an `if`/`elseif`/`else` chain that the check selects, including later arms once an earlier condition has ruled failure out;
+  - the use sits in the ternary arm, or the right operand of a short-circuit operator, that is only evaluated on success;
+  - an earlier statement of an enclosing statement list leaves the path on failure: an `if` whose failure arm always terminates, or a `check or throw/exit` (`failed and throw/exit`) statement.
+
+  A check on another variable, on a repeated format call, or made before the variable was reassigned proves nothing. `isset`, null comparisons and `assert` are not accepted.
+- E3. Both standard suppression forms suppress this native ID.
 
 ## Report
 
@@ -54,6 +60,17 @@ Valid case:
 ```php
 <?php
 $f=new NumberFormatter("en",NumberFormatter::DECIMAL);$s=$f->format($value);if($s!==false){echo strtoupper($s);}
+```
+
+```php
+<?php
+function width(NumberFormatter $f, $value): int {
+    $s = $f->format($value);
+    if (!$s) {
+        return 0;
+    }
+    return strlen($s);
+}
 ```
 
 ## Divergences

@@ -1,6 +1,7 @@
 package traitspropertiesconflicts
 
 import (
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -257,19 +258,23 @@ func tpcCompare(a, b *index.Property) tpcCompat {
 		return tpcDiffers
 	}
 	res := tpcSame
+	atoms := tpcTypeAtoms(a.Type)
 	switch {
 	case (a.Type == "") != (b.Type == ""):
 		return tpcDiffers
 	case tpcSelfLike(a.Type) || tpcSelfLike(b.Type):
 		res = tpcUnsure // self/static/parent depend on the composing class
-	case !strings.EqualFold(a.Type, b.Type):
+	case !slices.Equal(atoms, tpcTypeAtoms(b.Type)):
 		return tpcDiffers
 	}
 	if tpcSameDefault(tpcHasDefault(a), a.Default, b) {
 		return res
 	}
-	ka, okA := tpcDefaultValue(a)
-	kb, okB := tpcDefaultValue(b)
+	// A type accepting float but not int turns an integer literal into a
+	// float when the class is compiled.
+	asFloat := slices.Contains(atoms, "float") && !slices.Contains(atoms, "int")
+	ka, okA := tpcDefaultValue(a, asFloat)
+	kb, okB := tpcDefaultValue(b, asFloat)
 	if !okA || !okB {
 		return tpcUnsure
 	}
@@ -277,6 +282,22 @@ func tpcCompare(a, b *index.Property) tpcCompat {
 		return tpcDiffers
 	}
 	return res
+}
+
+// tpcTypeAtoms splits a declared type (rendered by the index, which already
+// spells `?T` as a union with null) into its sorted, lower-cased members,
+// with `iterable` expanded to Traversable|array.
+func tpcTypeAtoms(t string) []string {
+	var out []string
+	for _, a := range strings.Split(strings.ToLower(t), "|") {
+		if a == "iterable" {
+			out = append(out, `\traversable`, "array")
+			continue
+		}
+		out = append(out, a)
+	}
+	sort.Strings(out)
+	return slices.Compact(out)
 }
 
 // tpcSelfLike reports a type string mentioning self, static or parent.
@@ -292,8 +313,9 @@ func tpcSelfLike(t string) bool {
 
 // tpcDefaultValue canonicalises a property's initial value when it is a
 // scalar literal (or absent); ok is false for anything else (constants,
-// arrays, expressions), whose value is not compared.
-func tpcDefaultValue(p *index.Property) (string, bool) {
+// arrays, expressions), whose value is not compared. asFloat keys an integer
+// literal as the float the declared type coerces it to.
+func tpcDefaultValue(p *index.Property, asFloat bool) (string, bool) {
 	if !tpcHasDefault(p) {
 		if p.Type == "" {
 			return "null", true // untyped properties default to null
@@ -329,6 +351,9 @@ func tpcDefaultValue(p *index.Property) (string, bool) {
 		if neg {
 			v = -v
 		}
+		if asFloat {
+			return tpcFloatKey(float64(v)), true
+		}
 		return "i:" + strconv.FormatInt(v, 10), true
 	case syntax.TDNumber:
 		v, err := strconv.ParseFloat(strings.ReplaceAll(text(t), "_", ""), 64)
@@ -338,7 +363,7 @@ func tpcDefaultValue(p *index.Property) (string, bool) {
 		if neg {
 			v = -v
 		}
-		return "f:" + strconv.FormatFloat(v, 'g', -1, 64), true
+		return tpcFloatKey(v), true
 	case syntax.TConstantEncapsedString:
 		raw := text(t)
 		if neg || len(raw) < 2 || strings.ContainsAny(raw, `\$`) {
@@ -354,6 +379,14 @@ func tpcDefaultValue(p *index.Property) (string, bool) {
 		return w, true
 	}
 	return "", false
+}
+
+// tpcFloatKey keys a float value; 0.0 and -0.0 are the same value to PHP.
+func tpcFloatKey(v float64) string {
+	if v == 0 {
+		v = 0
+	}
+	return "f:" + strconv.FormatFloat(v, 'g', -1, 64)
 }
 
 func tpcVisibility(m syntax.Modifiers) index.Visibility {

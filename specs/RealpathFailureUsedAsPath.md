@@ -16,11 +16,18 @@ Identify concatenation of an unchecked realpath result followed by consumption b
 
 - D1. Report concatenation of an unchecked realpath result followed by consumption by a resolved filesystem path API; require local exact provenance.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- D4. A result counts as checked when a test on the same `realpath` value rejects `false` on every path to the consuming call. The test may be a strict or loose comparison with `false`, plain truthiness (`$root`, `!$root`), `empty($root)`, the builtin `is_string($root)`, or an assignment tested in place (`if (!($root = realpath($p)))`). It applies as:
+  - the branch of an `if`/`elseif`/`else`, `while` body or ternary arm that runs only for a non-false result;
+  - the right operand of `&&`/`and` (left proves non-false) or `||`/`or` (left being false proves non-false);
+  - an earlier statement of an enclosing block that leaves it on failure: an `if` whose first branch always terminates, or `test || throw …` (PHP 8.0+), `test or exit`/`die`, `failed && exit`.
+  - Composition is exact: inside a condition, a test protects the true branch only as a top-level `&&` conjunct and the false branch (or a terminating guard) only as a top-level `||` disjunct. `if ($root || $other)` and `if (!$root && $other) { return; }` prove nothing.
+  - The check may sit between the concatenation and the consuming call when the joined string was stored in a variable first.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
+- E3. `assert()` is not a check: assertions may be compiled out in production, so the finding stays. A test on a different variable, on a value reassigned since the test does not count either.
 - E2. Both `@custos-ignore RealpathFailureUsedAsPath` and `@noinspection RealpathFailureUsedAsPath` suppress this native rule.
 
 ## Report
@@ -56,6 +63,36 @@ Valid case:
 ```php
 <?php
 $root = realpath($path); if ($root === false) { throw new RuntimeException(); } file_get_contents($root . '/config.json');
+```
+
+Also valid, the failure is rejected by other test shapes:
+
+```php
+<?php
+function load(string $path) {
+    $root = realpath($path);
+    if (!$root || !is_dir($root)) {
+        return null;
+    }
+    return file_get_contents($root . '/config.json');
+}
+function probe(string $path) {
+    $root = realpath($path);
+    return is_string($root) ? is_file($root . '/config.json') : false;
+}
+```
+
+Still a finding, the test does not cover every path:
+
+```php
+<?php
+function load(string $path, bool $force) {
+    $root = realpath($path);
+    if ($root || $force) {
+        return file_get_contents($root . '/config.json');
+    }
+    return null;
+}
 ```
 
 ## Divergences

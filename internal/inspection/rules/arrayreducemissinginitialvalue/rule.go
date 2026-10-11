@@ -25,7 +25,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	callback := semanticquery.NativeValue(ctx, semanticquery.CallArgument(call.Args, 1, "callback"))
 	params, body := astquery.ScopeParts(callback)
-	if len(params) < 1 || params[0].Var == nil {
+	// A variadic first parameter collects [carry, item]: it is never null.
+	if len(params) < 1 || params[0].Var == nil || params[0].Variadic {
 		return
 	}
 	var result syntax.Expr

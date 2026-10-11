@@ -21,7 +21,8 @@ Identify imagepng quality argument known integer outside -1 through9; -1 is the 
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore GdPngCompressionOutsideSupportedRange` and `@noinspection GdPngCompressionOutsideSupportedRange` suppress this native rule.
+- E2. A level read from a local variable is not proven when that variable, or a variable it was assigned from, can change without a plain assignment anywhere in the scope of the call: it is incremented or decremented (`$level--`), captured by reference by a closure, stored by reference in an array item, passed directly to a call that is not a resolved function or that binds a by-reference parameter, or the scope calls `extract()`. Passing it by value to a resolved function keeps the proof.
+- E3. Both `@custos-ignore GdPngCompressionOutsideSupportedRange` and `@noinspection GdPngCompressionOutsideSupportedRange` suppress this native rule.
 
 ## Fix
 

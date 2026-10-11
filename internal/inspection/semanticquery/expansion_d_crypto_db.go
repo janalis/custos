@@ -588,25 +588,64 @@ func CheckCurlReadCallbackExceedsRequestedSize(ctx *analysis.Context, n syntax.N
 		if !ok || size.Name != params[2].Var.Name || !known || extra <= 0 {
 			return
 		}
-		// Any write to the requested-size parameter invalidates the contract proof.
-		changed := false
-		syntax.Inspect(body, func(event syntax.Node) bool {
-			if event.Span().Start >= r.Span().Start || syntax.IsVariableScope(event) && event != body {
-				return false
-			}
-			switch a := event.(type) {
-			case *syntax.Assign:
-				changed = changed || astquery.MentionsVariable(a.Var, size.Name)
-			case *syntax.IncDec:
-				changed = changed || astquery.MentionsVariable(a.Var, size.Name)
-			}
-			return true
-		})
-		if changed {
-			return
-		}
+	}
+	// Any possible write to the requested-size parameter, wherever it sits in
+	// the callback (a loop may run it before a return), invalidates the proof.
+	if expansionDCurlSizeRebound(ctx, body, params[2].Var.Name) {
+		return
 	}
 	ctx.ReportNode(c, message)
+}
+
+// expansionDCurlSizeRebound reports whether the callback body may give its
+// local variable $name another value: direct and destructuring assignments,
+// ++/--, foreach targets, global/static/catch/unset, references taken by
+// assignment, array item or closure capture, the variable passed as a call
+// argument (the parameter may be by-reference), and constructs that write
+// the local scope by name (variable-variables, extract, include, eval).
+func expansionDCurlSizeRebound(ctx *analysis.Context, body syntax.Node, name string) bool {
+	rebound := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		if rebound {
+			return false
+		}
+		if syntax.IsVariableScope(n) {
+			if closure, ok := n.(*syntax.Closure); ok {
+				for _, use := range closure.Uses {
+					rebound = rebound || use.ByRef && use.Var.Name == name
+				}
+			}
+			return false
+		}
+		switch x := n.(type) {
+		case *syntax.Variable:
+			rebound = x.NameExpr != nil
+		case *syntax.Assign:
+			rebound = astquery.MentionsVariable(x.Var, name) || x.ByRef && astquery.MentionsVariable(x.Value, name)
+		case *syntax.IncDec:
+			rebound = astquery.MentionsVariable(x.Var, name)
+		case *syntax.Foreach:
+			rebound = astquery.MentionsVariable(x.Key, name) || astquery.MentionsVariable(x.Value, name)
+		case *syntax.Global, *syntax.StaticVar, *syntax.Unset:
+			rebound = astquery.MentionsVariable(x, name)
+		case *syntax.Catch:
+			rebound = x.Var != nil && x.Var.Name == name
+		case *syntax.ArrayItem:
+			rebound = x.ByRef && astquery.MentionsVariable(x.Value, name)
+		case *syntax.Arg:
+			v, ok := syntax.UnwrapParens(x.Value).(*syntax.Variable)
+			rebound = ok && v.Name == name
+		case *syntax.Include, *syntax.Eval:
+			rebound = true
+		case *syntax.FuncCall:
+			switch ctx.GlobalFunctionName(x) {
+			case "extract", "parse_str", "mb_parse_str", "import_request_variables":
+				rebound = true
+			}
+		}
+		return !rebound
+	})
+	return rebound
 }
 
 func CheckCurlHeaderCallbackMissingByteCount(ctx *analysis.Context, n syntax.Node, message string) {
@@ -642,14 +681,80 @@ func CheckCurlResponseZeroRejected(ctx *analysis.Context, n syntax.Node, message
 	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
 		return
 	}
-	c := n.(*syntax.FuncCall)
-	if !NativeBuiltin(ctx, c, "curl_exec") || expansionDFailureBranch(ctx, c) == nil {
+	c, ok := n.(*syntax.FuncCall)
+	if !ok || !NativeBuiltin(ctx, c, "curl_exec") || expansionDFailureBranch(ctx, c) == nil || !curlResponseNegated(c) {
 		return
 	}
-	enabled, known := NativeTruth(ctx, expansionDCurlOption(ctx, c, CallArgument(c.Args, 0, "handle"), "CURLOPT_RETURNTRANSFER"))
-	if known && enabled {
+	if curlResponseReturned(ctx, c, CallArgument(c.Args, 0, "handle")) {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// curlResponseNegated requires an odd number of negations between the call and
+// the accepted failure condition: `!!curl_exec()` guards the success path.
+func curlResponseNegated(c *syntax.FuncCall) bool {
+	odd := false
+	for e := syntax.Node(c); ; e = e.Parent() {
+		switch e.Parent().(type) {
+		case *syntax.Unary, *syntax.Binary:
+			odd = !odd
+		case *syntax.If:
+			return odd
+		}
+	}
+}
+
+// curlResponseReturned replays every dominating option write on the handle in
+// source order. Only a state whose last relevant write is a truthy
+// RETURNTRANSFER proves that curl_exec() yields the body.
+func curlResponseReturned(ctx *analysis.Context, at syntax.Node, handle syntax.Expr) bool {
+	proven := false
+	for _, event := range expansionDCalls(ctx, at) {
+		c, ok := event.(*syntax.FuncCall)
+		if !ok || c.Span().End >= at.Span().Start || !expansionDSame(ctx, CallArgument(c.Args, 0, "handle"), handle) {
+			continue
+		}
+		if !NativeDominates(c, at) {
+			return false
+		}
+		switch NativeBuiltinName(ctx, c) {
+		case "curl_setopt":
+			proven = curlResponseWrite(ctx, proven, CallArgument(c.Args, 1, "option"), CallArgument(c.Args, 2, "value"))
+		case "curl_setopt_array":
+			options := NativeArray(ctx, CallArgument(c.Args, 1, "options"))
+			if options == nil {
+				proven = false
+				continue
+			}
+			for _, item := range options.Items {
+				proven = curlResponseWrite(ctx, proven, item.Key, item.Value)
+			}
+		default:
+			return false
+		}
+	}
+	return proven
+}
+
+// curlResponseWrite applies one option write. An option that is not a builtin
+// constant may be anything, and a replaced write sink makes curl_exec() return
+// a boolean again.
+func curlResponseWrite(ctx *analysis.Context, proven bool, option, value syntax.Expr) bool {
+	name := ""
+	if c, ok := syntax.UnwrapParens(option).(*syntax.ConstFetch); ok {
+		name = GlobalConstName(ctx, c)
+		if symbol := ctx.Index().Constant(name, ctx.PHP); symbol == nil || !symbol.Builtin {
+			name = ""
+		}
+	}
+	switch name {
+	case "CURLOPT_RETURNTRANSFER":
+		enabled, known := NativeTruth(ctx, value)
+		return known && enabled
+	case "", "CURLOPT_FILE", "CURLOPT_WRITEFUNCTION":
+		return false
+	}
+	return proven
 }
 
 func CheckCurlWholeURLEscapedAsComponent(ctx *analysis.Context, n syntax.Node, message string) {
@@ -676,33 +781,75 @@ func CheckNonblockingSocketConnectPendingRejected(ctx *analysis.Context, n synta
 	if !NativeBuiltin(ctx, c, "socket_connect") {
 		return
 	}
-	branch := expansionDFailureBranch(ctx, c)
-	if branch == nil {
-		return
+	// The silence operator does not change the tested result.
+	tested := syntax.Expr(c)
+	if u, ok := c.Parent().(*syntax.Unary); ok && u.Op.Kind == syntax.TAt {
+		tested = u
 	}
-	inspected := false
-	syntax.Inspect(branch.Body, func(n syntax.Node) bool {
-		if f, ok := n.(*syntax.FuncCall); ok && NativeBuiltin(ctx, f, "socket_last_error") {
-			inspected = true
-		}
-		return true
-	})
-	if inspected {
+	branch := expansionDFailureBranch(ctx, tested)
+	socket := CallArgument(c.Args, 0, "socket")
+	if branch == nil || nonblockingConnectInspected(ctx, branch.Body, socket) {
 		return
 	}
 	var latest *syntax.FuncCall
 	for _, event := range expansionDCalls(ctx, c) {
 		p, ok := event.(*syntax.FuncCall)
-		if !ok || p.Span().End >= c.Span().Start || !expansionDSame(ctx, CallArgument(p.Args, 0, "socket"), CallArgument(c.Args, 0, "socket")) {
+		if !ok || p.Span().End >= c.Span().Start || !expansionDSame(ctx, CallArgument(p.Args, 0, "socket"), socket) {
 			continue
 		}
 		if NativeBuiltin(ctx, p, "socket_set_block") || NativeBuiltin(ctx, p, "socket_set_nonblock") {
 			latest = p
 		}
 	}
-	if latest != nil && NativeBuiltin(ctx, latest, "socket_set_nonblock") && NativeCallSucceeded(ctx, latest, c) {
+	// The last mode switch must be the nonblocking one and must have run:
+	// either its success guards the connect or it is a dominating statement.
+	if latest != nil && NativeBuiltin(ctx, latest, "socket_set_nonblock") && (NativeCallSucceeded(ctx, latest, c) || NativeDominates(latest, c)) {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// nonblockingConnectInspected reports whether the failure branch may look at
+// the reason of the failure: a direct error query, or a call that is not a
+// builtin function and can reach the socket through its receiver or arguments.
+func nonblockingConnectInspected(ctx *analysis.Context, body syntax.Node, socket syntax.Expr) bool {
+	var names []string
+	syntax.Inspect(socket, func(n syntax.Node) bool {
+		if v, ok := n.(*syntax.Variable); ok && v.NameExpr == nil {
+			names = append(names, v.Name)
+		}
+		return true
+	})
+	reaches := func(parts ...syntax.Node) bool {
+		for _, part := range parts {
+			for _, name := range names {
+				if astquery.MentionsVariable(part, name) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	inspected := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		if syntax.IsVariableScope(n) {
+			return false
+		}
+		switch x := n.(type) {
+		case *syntax.FuncCall:
+			switch NativeBuiltinName(ctx, x) {
+			case "socket_last_error", "socket_get_option", "socket_getopt":
+				inspected = true
+			case "":
+				inspected = inspected || reaches(x.Name, x.Args)
+			}
+		case *syntax.MethodCall:
+			inspected = inspected || reaches(x.Var, x.Args)
+		case *syntax.StaticCall:
+			inspected = inspected || reaches(x.Class, x.Args)
+		}
+		return !inspected
+	})
+	return inspected
 }
 
 func CheckSocketReadZeroRejected(ctx *analysis.Context, n syntax.Node, message string) {
@@ -710,9 +857,31 @@ func CheckSocketReadZeroRejected(ctx *analysis.Context, n syntax.Node, message s
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	if NativeBuiltin(ctx, c, "socket_read") && expansionDConst(ctx, CallArgument(c.Args, 2, "mode"), "PHP_BINARY_READ") && expansionDFailureBranch(ctx, c) != nil {
+	if NativeBuiltin(ctx, c, "socket_read") && socketReadBinaryMode(ctx, c) && expansionDFailureBranch(ctx, c) != nil {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// socketReadBinaryMode proves the binary read mode: either the builtin constant
+// is passed, or the mode is left to its default, which is PHP_BINARY_READ. A
+// spread or a first-class callable placeholder may bind anything.
+func socketReadBinaryMode(ctx *analysis.Context, c *syntax.FuncCall) bool {
+	positional := 0
+	for _, node := range c.Args.Args {
+		arg, ok := node.(*syntax.Arg)
+		if !ok || arg.Unpack {
+			return false
+		}
+		if arg.Name == nil {
+			positional++
+		} else if arg.Name.Value == "mode" {
+			positional = 3
+		}
+	}
+	if positional < 3 {
+		return true
+	}
+	return expansionDConst(ctx, CallArgument(c.Args, 2, "mode"), "PHP_BINARY_READ")
 }
 
 func CheckTLSHandshakePendingAccepted(ctx *analysis.Context, n syntax.Node, message string) {
@@ -742,23 +911,66 @@ func CheckTLSHandshakePendingAccepted(ctx *analysis.Context, n syntax.Node, mess
 	if latest == nil || !expansionDFalse(CallArgument(latest.Args, 1, "enable")) || !NativeCallSucceeded(ctx, latest, c) {
 		return
 	}
+	stmts := []syntax.Stmt{branch.Body}
+	if block, ok := branch.Body.(*syntax.Block); ok {
+		stmts = block.Stmts
+	}
 	found := false
-	syntax.Inspect(branch.Body, func(n syntax.Node) bool {
-		if syntax.IsVariableScope(n) {
-			return false
+	for _, stmt := range stmts {
+		// Statements after a strict completion guard only run once a later
+		// handshake call returned true.
+		if tlsHandshakeCompletionGuard(ctx, stmt, stream) {
+			break
 		}
-		switch n.(type) {
-		case *syntax.If, *syntax.While, *syntax.For, *syntax.Foreach, *syntax.DoWhile, *syntax.Switch, *syntax.Try:
-			return false
-		}
-		if p, ok := n.(*syntax.FuncCall); ok && NativeBuiltin(ctx, p, "fwrite") && expansionDSame(ctx, stream, CallArgument(p.Args, 0, "stream")) {
-			found = true
-		}
-		return true
-	})
+		syntax.Inspect(stmt, func(n syntax.Node) bool {
+			if syntax.IsVariableScope(n) {
+				return false
+			}
+			switch n.(type) {
+			case *syntax.If, *syntax.While, *syntax.For, *syntax.Foreach, *syntax.DoWhile, *syntax.Switch, *syntax.Try:
+				return false
+			}
+			if p, ok := n.(*syntax.FuncCall); ok && NativeBuiltin(ctx, p, "fwrite") && expansionDSame(ctx, stream, CallArgument(p.Args, 0, "stream")) {
+				found = true
+			}
+			return true
+		})
+	}
 	if found {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// tlsHandshakeCompletionGuard recognizes `if (<handshake> !== true) { leave }`:
+// a terminating branch taken for every result of a further enabling handshake
+// call on the stream except true. `!`, `!= true` and `!== true` all reject
+// both false and the pending 0; the result may be assigned inside the test.
+func tlsHandshakeCompletionGuard(ctx *analysis.Context, stmt syntax.Stmt, stream syntax.Expr) bool {
+	guard, ok := stmt.(*syntax.If)
+	if !ok || !syntax.Terminates(guard.Body) {
+		return false
+	}
+	var tested syntax.Expr
+	switch cond := syntax.UnwrapParens(guard.Cond).(type) {
+	case *syntax.Unary:
+		if cond.Op.Kind == syntax.TExclaim {
+			tested = cond.Expr
+		}
+	case *syntax.Binary:
+		if value, known := astquery.BoolConst(syntax.UnwrapParens(cond.Right)); known && value && (cond.Op.Kind == syntax.TIsNotIdentical || cond.Op.Kind == syntax.TIsNotEqual) {
+			tested = cond.Left
+		}
+	}
+	tested = syntax.UnwrapParens(tested)
+	if a, ok := tested.(*syntax.Assign); ok && !a.ByRef && a.Op.Kind == syntax.TEqual {
+		tested = syntax.UnwrapParens(a.Value)
+	}
+	c, ok := tested.(*syntax.FuncCall)
+	if !ok || !NativeBuiltin(ctx, c, "stream_socket_enable_crypto") || !expansionDSame(ctx, stream, CallArgument(c.Args, 0, "stream")) {
+		return false
+	}
+	enabling, known := NativeTruth(ctx, CallArgument(c.Args, 1, "enable"))
+	return known && enabling
 }
 
 func CheckFtpPendingTransferAcceptedAsComplete(ctx *analysis.Context, n syntax.Node, message string) {
@@ -771,16 +983,27 @@ func CheckFtpPendingTransferAcceptedAsComplete(ctx *analysis.Context, n syntax.N
 	default:
 		return
 	}
-	e := NativeConditionUse(ctx, c, true)
-	if e == nil {
+	body := ftpPendingAcceptedBody(c)
+	if body == nil {
 		return
 	}
-	branch, ok := e.Parent().(*syntax.If)
-	if !ok {
+	// A branch that mentions FTP_FINISHED checks or drives the transfer to
+	// completion itself; whether it does so correctly is not provable here.
+	handled := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		if syntax.IsVariableScope(n) {
+			return false
+		}
+		if k, ok := n.(*syntax.ConstFetch); ok && strings.EqualFold(GlobalConstName(ctx, k), "FTP_FINISHED") {
+			handled = true
+		}
+		return !handled
+	})
+	if handled {
 		return
 	}
 	found := false
-	syntax.Inspect(branch.Body, func(n syntax.Node) bool {
+	syntax.Inspect(body, func(n syntax.Node) bool {
 		if syntax.IsVariableScope(n) {
 			return false
 		}
@@ -802,6 +1025,71 @@ func CheckFtpPendingTransferAcceptedAsComplete(ctx *analysis.Context, n syntax.N
 	})
 	if found {
 		ctx.ReportNode(c, message)
+	}
+}
+
+// ftpPendingAcceptedBody returns the statement an `if` runs when the status
+// returned by call is non-zero, so FTP_MOREDATA reaches it: the body of a
+// truthy test, the `else` of a negated one. It returns nil when the call is
+// not such a condition. Parentheses, assignments, `!` and comparisons with a
+// boolean literal are followed; the status is an int, so a strict comparison
+// of the status itself with a boolean has a fixed outcome and selects the
+// branch that always runs.
+func ftpPendingAcceptedBody(call *syntax.FuncCall) syntax.Stmt {
+	// `ftp_nb_get(...)` builds a closure and starts no transfer.
+	for _, arg := range call.Args.Args {
+		if _, ok := arg.(*syntax.VariadicPlaceholder); ok {
+			return nil
+		}
+	}
+	var e syntax.Expr = call
+	truthy, status := true, true
+	for {
+		switch p := e.Parent().(type) {
+		case *syntax.Paren:
+		case *syntax.Assign:
+			if p.Value != e || p.Op.Kind != syntax.TEqual || p.ByRef {
+				return nil
+			}
+		case *syntax.Unary:
+			if p.Op.Kind != syntax.TExclaim {
+				return nil
+			}
+			truthy, status = !truthy, false
+		case *syntax.Binary:
+			other := p.Right
+			if other == e {
+				other = p.Left
+			}
+			want, ok := astquery.BoolConst(other)
+			if !ok {
+				return nil
+			}
+			switch p.Op.Kind {
+			case syntax.TIsEqual:
+				truthy = truthy == want
+			case syntax.TIsNotEqual:
+				truthy = truthy != want
+			case syntax.TIsIdentical:
+				truthy = !status && truthy == want
+			case syntax.TIsNotIdentical:
+				truthy = status || truthy != want
+			default:
+				return nil
+			}
+			status = false
+		case *syntax.If:
+			switch {
+			case truthy:
+				return p.Body
+			case p.Else != nil:
+				return p.Else.Body
+			}
+			return nil
+		default:
+			return nil
+		}
+		e = e.Parent().(syntax.Expr)
 	}
 }
 
@@ -956,6 +1244,23 @@ func expansionDPdoDriver(ctx *analysis.Context, e syntax.Expr, driver string) bo
 	return known && strings.HasPrefix(strings.ToLower(dsn), driver+":")
 }
 
+// pdoBoundMayRebind reports whether a later binding can target the placeholder
+// of an earlier one. PDO accepts a named placeholder with or without its
+// leading colon; a name or position that is not statically known may match.
+func pdoBoundMayRebind(ctx *analysis.Context, a, b syntax.Expr) bool {
+	an, as := NativeString(ctx, a)
+	bn, bs := NativeString(ctx, b)
+	if as && bs {
+		return strings.TrimPrefix(an, ":") == strings.TrimPrefix(bn, ":")
+	}
+	ai, ak := NativeInt(ctx, a)
+	bi, bk := NativeInt(ctx, b)
+	if ak && bk {
+		return ai == bi
+	}
+	return (!as && !ak) || (!bs && !bk)
+}
+
 func CheckPdoBoundValueAssumedLive(ctx *analysis.Context, n syntax.Node, message string) {
 	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
 		return
@@ -979,7 +1284,7 @@ func CheckPdoBoundValueAssumedLive(ctx *analysis.Context, n syntax.Node, message
 		}
 		rebound := false
 		for _, later := range bindings[i+1:] {
-			if expansionDSame(ctx, CallArgument(binding.Args, 0, "param"), CallArgument(later.Args, 0, "param")) {
+			if pdoBoundMayRebind(ctx, CallArgument(binding.Args, 0, "param"), CallArgument(later.Args, 0, "param")) {
 				rebound = true
 			}
 		}
@@ -1000,6 +1305,68 @@ func CheckPdoBoundValueAssumedLive(ctx *analysis.Context, n syntax.Node, message
 	}
 }
 
+// pdoEmulationMayChange reports whether a setAttribute call on the connection
+// of prepare can turn statement emulation back on after offset proven, where
+// native preparation was last established on every path. Such a call counts
+// when it sits between that point and prepare, or after prepare inside a loop
+// that repeats both without repeating the proof. Closure bodies are included:
+// a captured connection is the same object. Only a call that names another
+// attribute constant, or keeps emulation provably off, leaves the proof alone.
+func pdoEmulationMayChange(ctx *analysis.Context, prepare *syntax.MethodCall, proven uint32) bool {
+	receiver, ok := syntax.UnwrapParens(prepare.Var).(*syntax.Variable)
+	if !ok {
+		return false
+	}
+	scope := syntax.EnclosingVariableScope(prepare)
+	changed := false
+	visit := func(n syntax.Node) bool {
+		switch n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction:
+		default:
+			if n != scope && syntax.IsVariableScope(n) {
+				return false
+			}
+		}
+		m, ok := n.(*syntax.MethodCall)
+		if changed || !ok || m == prepare || m.Span().Start < proven {
+			return !changed
+		}
+		id, named := m.Name.(*syntax.Identifier)
+		v, local := syntax.UnwrapParens(m.Var).(*syntax.Variable)
+		if !named || !local || !strings.EqualFold(id.Value, "setAttribute") || v.Name != receiver.Name {
+			return true
+		}
+		if cc, ok := CallArgument(m.Args, 0, "attribute").(*syntax.ClassConstFetch); ok {
+			if name, ok := cc.Name.(*syntax.Identifier); ok && name.Value != "ATTR_EMULATE_PREPARES" && !strings.HasSuffix(name.Value, "ATTR_DIRECT_QUERY") {
+				return true
+			}
+			if enabled, known := NativeTruth(ctx, CallArgument(m.Args, 1, "value")); known && !enabled {
+				return true
+			}
+		}
+		if m.Span().End <= prepare.Span().Start {
+			changed = true
+			return false
+		}
+		for p := m.Parent(); p != nil; p = p.Parent() {
+			switch p.(type) {
+			case *syntax.While, *syntax.For, *syntax.Foreach, *syntax.DoWhile:
+				if p.Span().Contains(prepare.Span()) && p.Span().Start >= proven {
+					changed = true
+					return false
+				}
+			}
+		}
+		return true
+	}
+	if scope == nil {
+		syntax.InspectFile(ctx.File, visit)
+	} else {
+		syntax.Inspect(scope, visit)
+	}
+	return changed
+}
+
 func CheckPdoRepeatedNamedMarkerWithoutEmulation(ctx *analysis.Context, n syntax.Node, message string) {
 	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
 		return
@@ -1010,6 +1377,7 @@ func CheckPdoRepeatedNamedMarkerWithoutEmulation(ctx *analysis.Context, n syntax
 	}
 	var emulation syntax.Expr
 	construct := NativeConstruction(ctx, c.Var, "PDO")
+	proven := construct.Span().End
 	if a := NativeArray(ctx, CallArgument(construct.Args, 3, "options")); a != nil {
 		for _, item := range a.Items {
 			if cc, ok := item.Key.(*syntax.ClassConstFetch); ok && ExpansionCConstant(ctx, cc, "PDO", "ATTR_EMULATE_PREPARES") {
@@ -1019,11 +1387,11 @@ func CheckPdoRepeatedNamedMarkerWithoutEmulation(ctx *analysis.Context, n syntax
 	}
 	for _, prior := range expansionDMethodCalls(ctx, c, c.Var, "PDO", "setAttribute") {
 		if cc, ok := CallArgument(prior.Args, 0, "attribute").(*syntax.ClassConstFetch); ok && ExpansionCConstant(ctx, cc, "PDO", "ATTR_EMULATE_PREPARES") {
-			emulation = CallArgument(prior.Args, 1, "value")
+			emulation, proven = CallArgument(prior.Args, 1, "value"), prior.Span().End
 		}
 	}
 	enabled, known := NativeTruth(ctx, emulation)
-	if !known || enabled {
+	if !known || enabled || pdoEmulationMayChange(ctx, c, proven) {
 		return
 	}
 	sql, known := NativeString(ctx, CallArgument(c.Args, 0, "query"))
@@ -1087,6 +1455,81 @@ func expansionDProjection(sql string) ([]string, bool) {
 	}
 }
 
+// pdoGroupedRoot names the plain variable an array element path starts from,
+// or "" when the path has another base.
+func pdoGroupedRoot(e syntax.Expr) string {
+	for {
+		switch x := syntax.UnwrapParens(e).(type) {
+		case *syntax.ArrayDimFetch:
+			e = x.Var
+		case *syntax.Variable:
+			return x.Name
+		default:
+			return ""
+		}
+	}
+}
+
+// pdoGroupedRowsRewritten reports whether the grouped rows may be changed
+// through a reference before at: a by-reference foreach over them, a
+// reference taken to them, or a call that receives them in a by-reference
+// parameter or whose signature is unknown. Such code can restore the column.
+func pdoGroupedRowsRewritten(ctx *analysis.Context, rows syntax.Expr, at syntax.Node) bool {
+	name := pdoGroupedRoot(rows)
+	if name == "" {
+		return false
+	}
+	scope := syntax.EnclosingVariableScope(at)
+	found := false
+	visit := func(n syntax.Node) bool {
+		if found || n.Span().Start >= at.Span().Start || (n != scope && syntax.IsVariableScope(n)) {
+			return false
+		}
+		switch x := n.(type) {
+		case *syntax.Foreach:
+			found = x.ByRef && pdoGroupedRoot(x.Expr) == name
+		case *syntax.Assign:
+			found = x.ByRef && pdoGroupedRoot(x.Value) == name
+		case *syntax.Arg:
+			if pdoGroupedRoot(x.Value) == name {
+				list := x.Parent().(*syntax.ArgList)
+				callee, known := ResolveCallee(ctx, list.Parent())
+				found = !known || ArgBindsByRef(list, callee.Params, true)
+			}
+		}
+		return !found
+	}
+	if scope == nil {
+		syntax.InspectFile(ctx.File, visit)
+	} else {
+		syntax.Inspect(scope, visit)
+	}
+	return found
+}
+
+// pdoGroupedLegacyQuery proves a PDO::query() call for targets below PHP 8.0.
+// The stub index keeps only the 8.0 declaration of that method, so there the
+// builtin is looked up without a version; a project override is not builtin.
+func pdoGroupedLegacyQuery(ctx *analysis.Context, c *syntax.MethodCall) bool {
+	id, ok := c.Name.(*syntax.Identifier)
+	if !ok || !strings.EqualFold(id.Value, "query") || !ctx.PHP.Below(phpversion.PHP80) {
+		return false
+	}
+	classes := ctx.Types().Native().TypeOf(c.Var).Classes()
+	if len(classes) != 1 || !ctx.Index().IsSubtype(classes[0], "PDO", ctx.PHP) {
+		return false
+	}
+	m := ctx.Index().FindMethod(classes[0], "query", 0)
+	return m != nil && m.Builtin
+}
+
+// pdoGroupedLegacyFetchAll accepts fetchAll() on the untyped result of a
+// proven legacy PDO::query() call, which is a PDOStatement when it is used.
+func pdoGroupedLegacyFetchAll(ctx *analysis.Context, c *syntax.MethodCall) bool {
+	id, ok := c.Name.(*syntax.Identifier)
+	return ok && strings.EqualFold(id.Value, "fetchAll") && len(ctx.Types().Native().TypeOf(c.Var).Classes()) == 0
+}
+
 func CheckPdoGroupedFetchReadsRemovedColumn(ctx *analysis.Context, n syntax.Node, message string) {
 	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
 		return
@@ -1107,11 +1550,22 @@ func CheckPdoGroupedFetchReadsRemovedColumn(ctx *analysis.Context, n syntax.Node
 	if !ok {
 		return
 	}
-	if !ExpansionDPristine(ctx, group.Var, fetch) {
+	if !ExpansionDPristine(ctx, group.Var, fetch) || pdoGroupedRowsRewritten(ctx, group.Var, fetch) {
 		return
 	}
 	all, ok := NativeLocalValue(ctx, group.Var).(*syntax.MethodCall)
-	if !ok || !NativeMethod(ctx, all, "PDOStatement", "fetchAll") {
+	if !ok {
+		return
+	}
+	statement, ok := NativeLocalValue(ctx, all.Var).(*syntax.MethodCall)
+	if !ok {
+		return
+	}
+	legacy := pdoGroupedLegacyQuery(ctx, statement)
+	if !legacy && !NativeMethod(ctx, statement, "PDO", "query") && !NativeMethod(ctx, statement, "PDO", "prepare") {
+		return
+	}
+	if !NativeMethod(ctx, all, "PDOStatement", "fetchAll") && !(legacy && pdoGroupedLegacyFetchAll(ctx, all)) {
 		return
 	}
 	modeExpr := CallArgument(all.Args, 0, "mode")
@@ -1128,10 +1582,6 @@ func CheckPdoGroupedFetchReadsRemovedColumn(ctx *analysis.Context, n syntax.Node
 	if !flagsByName && (!known || mode != 65538) {
 		return
 	}
-	statement, ok := NativeLocalValue(ctx, all.Var).(*syntax.MethodCall)
-	if !ok || (!NativeMethod(ctx, statement, "PDO", "query") && !NativeMethod(ctx, statement, "PDO", "prepare")) {
-		return
-	}
 	sql, known := NativeString(ctx, CallArgument(statement.Args, 0, "query"))
 	if !known {
 		return
@@ -1140,6 +1590,112 @@ func CheckPdoGroupedFetchReadsRemovedColumn(ctx *analysis.Context, n syntax.Node
 	if known && len(columns) > 0 && columns[0] == strings.ToUpper(column) {
 		ctx.ReportNode(fetch, message)
 	}
+}
+
+// pdoFetchIntoMethod proves a PDOStatement method call. Targets below PHP 8.0
+// declare no native return type for PDO::query(), so a receiver whose latest
+// local write is a dominating assignment of that builtin call is accepted too.
+func pdoFetchIntoMethod(ctx *analysis.Context, c *syntax.MethodCall, name string) bool {
+	if NativeMethod(ctx, c, "PDOStatement", name) {
+		return true
+	}
+	id, ok := c.Name.(*syntax.Identifier)
+	receiver, simple := c.Var.(*syntax.Variable)
+	if !ok || !simple || !strings.EqualFold(id.Value, name) || !ExpansionDUnaliased(ctx, receiver, c) {
+		return false
+	}
+	var origin *syntax.MethodCall
+	for _, event := range expansionDCalls(ctx, c) {
+		write, ok := event.(*syntax.Assign)
+		if !ok || write.Span().Start >= c.Span().Start || !astquery.MentionsVariable(write.Var, receiver.Name) {
+			continue
+		}
+		origin = nil
+		if target, ok := write.Var.(*syntax.Variable); ok && target.Name == receiver.Name && !write.ByRef && write.Op.Kind == syntax.TEqual && NativeDominates(write, c) {
+			origin, _ = write.Value.(*syntax.MethodCall)
+		}
+	}
+	if origin == nil {
+		return false
+	}
+	// The stub index lists PDO::query() from PHP 8.0 only: look the factory up
+	// without a target version and still reject user overrides.
+	factory, ok := origin.Name.(*syntax.Identifier)
+	classes := ctx.Types().Native().TypeOf(origin.Var).Classes()
+	if !ok || !strings.EqualFold(factory.Value, "query") || len(classes) != 1 || !ctx.Index().IsSubtype(classes[0], "PDO", ctx.PHP) {
+		return false
+	}
+	method := ctx.Index().FindMethod(classes[0], "query", 0)
+	return method != nil && method.Builtin
+}
+
+// pdoFetchIntoMode returns the setFetchMode call that governs every fetch of
+// the loop. Another call on the same statement that is conditional, or that
+// runs inside a loop around the fetch, leaves the mode and its target unproven.
+func pdoFetchIntoMode(ctx *analysis.Context, fetch *syntax.MethodCall, loop syntax.Node) *syntax.MethodCall {
+	end := loop.Span().End
+	for p := loop.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
+		switch p.(type) {
+		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach:
+			end = p.Span().End
+		}
+	}
+	var latest *syntax.MethodCall
+	for _, event := range expansionDCalls(ctx, fetch) {
+		c, ok := event.(*syntax.MethodCall)
+		if !ok || c.Span().Start >= end {
+			continue
+		}
+		id, ok := c.Name.(*syntax.Identifier)
+		if !ok || !strings.EqualFold(id.Value, "setFetchMode") || !astquery.Equivalent(ctx.File, c.Var, fetch.Var) {
+			continue
+		}
+		latest = nil
+		if c.Span().End < fetch.Span().Start && (NativeDominates(c, fetch) || expansionDMethodSucceeded(ctx, c, fetch)) && pdoFetchIntoMethod(ctx, c, "setFetchMode") && expansionDSame(ctx, c.Var, fetch.Var) {
+			latest = c
+		}
+	}
+	return latest
+}
+
+// pdoFetchIntoSingleRow reports whether the loop is left unconditionally after
+// the append, so at most one fetched row is ever retained.
+func pdoFetchIntoSingleRow(ctx *analysis.Context, assign syntax.Node, loop *syntax.While) bool {
+	for n := assign.Parent(); n != loop; n = n.Parent() {
+		st, ok := n.(syntax.Stmt)
+		if !ok {
+			continue
+		}
+		list, i, ok := astquery.StmtList(ctx.File, st)
+		if !ok {
+			continue
+		}
+		for _, next := range list[i+1:] {
+			switch x := next.(type) {
+			case *syntax.Return:
+				return true
+			case *syntax.Break:
+				if pdoFetchIntoBreaksLoop(x, loop) {
+					return true
+				}
+			case *syntax.ExprStmt:
+				if syntax.Terminates(x) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func pdoFetchIntoBreaksLoop(st *syntax.Break, loop *syntax.While) bool {
+	for p := st.Parent(); p != loop; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach, *syntax.Switch:
+			return false
+		}
+	}
+	return true
 }
 
 func CheckPdoFetchIntoRetainsSharedRows(ctx *analysis.Context, n syntax.Node, message string) {
@@ -1178,7 +1734,7 @@ func CheckPdoFetchIntoRetainsSharedRows(ctx *analysis.Context, n syntax.Node, me
 		}
 		return true
 	})
-	if source == nil || !NativeMethod(ctx, source, "PDOStatement", "fetch") || !expansionDSame(ctx, produced, assign.Value) {
+	if source == nil || !pdoFetchIntoMethod(ctx, source, "fetch") || !expansionDSame(ctx, produced, assign.Value) {
 		return
 	}
 	if override := CallArgument(source.Args, 0, "mode"); override != nil {
@@ -1187,11 +1743,10 @@ func CheckPdoFetchIntoRetainsSharedRows(ctx *analysis.Context, n syntax.Node, me
 			return
 		}
 	}
-	modes := expansionDMethodCalls(ctx, source, source.Var, "PDOStatement", "setFetchMode")
-	if len(modes) == 0 {
+	latest := pdoFetchIntoMode(ctx, source, while)
+	if latest == nil || pdoFetchIntoSingleRow(ctx, assign, while) {
 		return
 	}
-	latest := modes[len(modes)-1]
 	mode, known := NativeContractInt(ctx, CallArgument(latest.Args, 0, "mode"))
 	object := CallArgument(latest.Args, 1, "args")
 	if known && mode == 9 && object != nil && len(ctx.TypeOf(object).Classes()) > 0 {
@@ -1204,9 +1759,102 @@ func CheckPdoExecZeroRejectedAsFailure(ctx *analysis.Context, n syntax.Node, mes
 		return
 	}
 	c := n.(*syntax.MethodCall)
-	if NativeMethod(ctx, c, "PDO", "exec") && expansionDFailureBranch(ctx, c) != nil {
+	if NativeMethod(ctx, c, "PDO", "exec") && pdoExecRejectsZero(ctx, c) {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// pdoExecRejectsZero reports whether the falsy branch of a PDO::exec result
+// check throws or returns false without first consulting the connection's
+// error state, which is how code tells zero affected rows from a failure.
+func pdoExecRejectsZero(ctx *analysis.Context, c *syntax.MethodCall) bool {
+	var e syntax.Expr = c
+	for {
+		switch p := e.Parent().(type) {
+		case *syntax.Paren:
+			e = p
+		case *syntax.Assign:
+			e = p
+		case *syntax.Unary:
+			if p.Op.Kind != syntax.TExclaim {
+				return false
+			}
+			e = p
+		case *syntax.Binary:
+			if p.Op.Kind != syntax.TIsEqual || !expansionDFalse(p.Right) {
+				return false
+			}
+			e = p
+		case *syntax.If:
+			neg, ok := syntax.UnwrapParens(e).(*syntax.Unary)
+			loose, lok := syntax.UnwrapParens(e).(*syntax.Binary)
+			if (!ok || neg.Op.Kind != syntax.TExclaim) && (!lok || loose.Op.Kind != syntax.TIsEqual) {
+				return false
+			}
+			return pdoExecBranchRejects(ctx, p.Body, c.Var)
+		default:
+			return false
+		}
+	}
+}
+
+func pdoExecBranchRejects(ctx *analysis.Context, body syntax.Stmt, receiver syntax.Expr) bool {
+	// Start offset of the first errorCode()/errorInfo() read on the receiver.
+	consulted, seen := uint32(0), false
+	var exits []syntax.Node
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		if syntax.IsVariableScope(n) {
+			return false
+		}
+		switch x := n.(type) {
+		case *syntax.MethodCall:
+			id, ok := x.Name.(*syntax.Identifier)
+			if ok && !seen && (strings.EqualFold(id.Value, "errorCode") || strings.EqualFold(id.Value, "errorInfo")) && astquery.Equivalent(ctx.File, x.Var, receiver) {
+				consulted, seen = x.Span().Start, true
+			}
+		case *syntax.Throw:
+			if NativeCallbackReachable(x) {
+				exits = append(exits, x)
+			}
+		case *syntax.Return:
+			if expansionDFalse(x.Expr) && NativeCallbackReachable(x) {
+				exits = append(exits, x)
+			}
+		}
+		return true
+	})
+	for _, exit := range exits {
+		if !seen || consulted > exit.Span().Start || pdoExecStraightLine(body, exit) {
+			return true
+		}
+	}
+	return false
+}
+
+// pdoExecStraightLine reports whether exit is a statement of the branch block
+// preceded only by plain expression or output statements, so nothing in the
+// branch decides whether it runs. A braceless branch needs no case: an earlier
+// error-state read there always shares a construct with the exit.
+func pdoExecStraightLine(body syntax.Stmt, exit syntax.Node) bool {
+	stmt := exit
+	if _, ok := exit.(*syntax.Throw); ok {
+		stmt = exit.Parent()
+	}
+	block, ok := body.(*syntax.Block)
+	if !ok || stmt.Parent() != syntax.Node(block) {
+		return false
+	}
+	for _, s := range block.Stmts {
+		if syntax.Node(s) == stmt {
+			break
+		}
+		switch s.(type) {
+		case *syntax.ExprStmt, *syntax.Echo:
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func CheckMysqliEscapedValueSurvivesCharsetChange(ctx *analysis.Context, n syntax.Node, message string) {
@@ -1237,26 +1885,40 @@ func CheckMysqliEscapedValueSurvivesCharsetChange(ctx *analysis.Context, n synta
 		if !expansionDSame(ctx, c.Var, escape.Var) {
 			continue
 		}
-		prior := expansionDMethodCalls(ctx, escape, escape.Var, "mysqli", "set_charset")
-		if len(prior) == 0 {
+		// Only the last selection on each side decides: an earlier change that
+		// a later call overrides, restores or leaves unproven is not evidence.
+		prior := expansionDLastCharsetCall(ctx, escape, escape.Var, 0)
+		if prior == nil || (!NativeDominates(prior, escape) && !expansionDMethodSucceeded(ctx, prior, escape)) {
 			continue
 		}
-		before, known := NativeString(ctx, CallArgument(prior[len(prior)-1].Args, 0, "charset"))
+		before, known := NativeString(ctx, CallArgument(prior.Args, 0, "charset"))
 		if !known {
 			continue
 		}
-		changes := expansionDMethodCalls(ctx, c, c.Var, "mysqli", "set_charset")
-		for _, change := range changes {
-			if change.Span().Start <= escape.Span().End || !expansionDMethodSucceeded(ctx, change, c) {
-				continue
-			}
-			after, known := NativeString(ctx, CallArgument(change.Args, 0, "charset"))
-			if known && !strings.EqualFold(before, after) {
-				ctx.ReportNode(c, message)
-				return
-			}
+		change := expansionDLastCharsetCall(ctx, c, c.Var, escape.Span().End)
+		if change == nil || !expansionDMethodSucceeded(ctx, change, c) {
+			continue
+		}
+		after, known := NativeString(ctx, CallArgument(change.Args, 0, "charset"))
+		if known && !strings.EqualFold(before, after) {
+			ctx.ReportNode(c, message)
+			return
 		}
 	}
+}
+
+// expansionDLastCharsetCall returns the last mysqli::set_charset call on the
+// receiver written after offset from and before at, whether or not it is
+// proven to execute; callers decide what that call proves.
+func expansionDLastCharsetCall(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr, from uint32) *syntax.MethodCall {
+	var last *syntax.MethodCall
+	for _, event := range expansionDCalls(ctx, at) {
+		c, ok := event.(*syntax.MethodCall)
+		if ok && c.Span().Start > from && c.Span().End < at.Span().Start && NativeMethod(ctx, c, "mysqli", "set_charset") && expansionDSame(ctx, c.Var, receiver) {
+			last = c
+		}
+	}
+	return last
 }
 
 func CheckMysqliMultiQueryResultsNotDrained(ctx *analysis.Context, n syntax.Node, message string) {
@@ -1303,15 +1965,40 @@ func CheckMysqliMultiQueryResultsNotDrained(ctx *analysis.Context, n syntax.Node
 	}
 	for _, event := range expansionDCalls(ctx, c) {
 		check, ok := event.(*syntax.MethodCall)
-		if !ok || check.Span().Start < p.Span().End || check.Span().End >= c.Span().Start || !NativeMethod(ctx, check, "mysqli", "more_results") || !expansionDSame(ctx, check.Var, c.Var) {
+		if !ok || check.Span().Start < p.Span().End || check.Span().End >= c.Span().Start || (!NativeMethod(ctx, check, "mysqli", "more_results") && !NativeMethod(ctx, check, "mysqli", "next_result")) || !expansionDSame(ctx, check.Var, c.Var) {
 			continue
 		}
-		loop, ok := check.Parent().(*syntax.While)
-		if !ok || loop.Cond != check {
+		// The probe must decide the loop: alone or as an operand of `&&`.
+		cond := syntax.Node(check)
+		for {
+			parent := cond.Parent()
+			if b, ok := parent.(*syntax.Binary); ok && b.Op.Kind != syntax.TBooleanAnd {
+				break
+			}
+			if _, ok := parent.(*syntax.Binary); !ok {
+				if _, ok := parent.(*syntax.Paren); !ok {
+					break
+				}
+			}
+			cond = parent
+		}
+		var loop syntax.Node
+		switch l := cond.Parent().(type) {
+		case *syntax.While:
+			if l.Cond == cond {
+				loop = l
+			}
+		case *syntax.DoWhile:
+			if l.Cond == cond {
+				loop = l
+			}
+		}
+		// A query inside the loop runs before the drain completes.
+		if loop == nil || loop.Span().End > c.Span().Start {
 			continue
 		}
 		drained := false
-		syntax.Inspect(loop.Body, func(n syntax.Node) bool {
+		syntax.Inspect(loop, func(n syntax.Node) bool {
 			if next, ok := n.(*syntax.MethodCall); ok && NativeMethod(ctx, next, "mysqli", "next_result") && expansionDSame(ctx, next.Var, c.Var) {
 				drained = true
 			}
@@ -1433,31 +2120,48 @@ func CheckSqliteForeignKeySettingInsideTransaction(ctx *analysis.Context, n synt
 			return
 		}
 	}
+	// active is true only while an open transaction is proven; every unknown
+	// state is tracked as "not open" so it can never produce a report.
 	active := false
-	for _, prior := range expansionDMethodCalls(ctx, c, c.Var, class, "exec", "beginTransaction", "commit", "rollBack") {
-		if NativeMethod(ctx, prior, class, "beginTransaction") {
-			active = true
+	for _, event := range expansionDCalls(ctx, c) {
+		prior, ok := event.(*syntax.MethodCall)
+		if !ok || prior.Span().End >= c.Span().Start || !expansionDSame(ctx, prior.Var, c.Var) {
 			continue
 		}
-		if NativeMethod(ctx, prior, class, "commit") || NativeMethod(ctx, prior, class, "rollBack") {
+		// A call on another branch may or may not have run before the PRAGMA.
+		certain := NativeDominates(prior, c) || expansionDMethodSucceeded(ctx, prior, c)
+		if !certain && sqliteCallLeaves(prior, c) {
+			// The path through this call never reaches the PRAGMA.
+			continue
+		}
+		name := ""
+		if id, ok := prior.Name.(*syntax.Identifier); ok && NativeMethod(ctx, prior, class, id.Value) {
+			name = strings.ToLower(id.Value)
+		}
+		switch name {
+		case "":
+			// User-defined or dynamic method: it may run any SQL.
 			active = false
-			continue
+		case "begintransaction":
+			active = certain
+		case "commit", "rollback", "close", "open":
+			active = false
+		case "exec", "query", "querysingle", "prepare":
+			tokens, known := sqliteStatementTokens(ctx, prior, class, name)
+			if name == "prepare" {
+				// A prepared statement runs later, at a point not tracked here.
+				opened, _ := expansionDTransaction(tokens, false)
+				kept, _ := expansionDTransaction(tokens, true)
+				if !known || opened || !kept {
+					return
+				}
+				continue
+			}
+			next, _ := expansionDTransaction(tokens, active)
+			active = known && next && (certain || active)
 		}
-		sql, known := NativeString(ctx, CallArgument(prior.Args, 0, "statement"))
-		if !known {
-			return
-		}
-		tokens, known := expansionDSQL(sql)
-		if !known {
-			return
-		}
-		active, _ = expansionDTransaction(tokens, active)
 	}
-	sql, known := NativeString(ctx, CallArgument(c.Args, 0, "statement"))
-	if !known {
-		return
-	}
-	tokens, known := expansionDSQL(sql)
+	tokens, known := sqliteStatementTokens(ctx, c, class, "exec")
 	if !known {
 		return
 	}
@@ -1465,4 +2169,66 @@ func CheckSqliteForeignKeySettingInsideTransaction(ctx *analysis.Context, n synt
 	if bad {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// sqliteStatementTokens tokenizes the literal SQL passed to a SQLite3 or PDO
+// statement method. Only exec() is known to run a whole script: how much of a
+// multi-statement string the other methods run differs between the two
+// extensions, so such a string is unknown for them.
+func sqliteStatementTokens(ctx *analysis.Context, call *syntax.MethodCall, class, method string) ([]string, bool) {
+	param := "query"
+	if class == "PDO" && method == "exec" {
+		param = "statement"
+	}
+	sql, known := NativeString(ctx, CallArgument(call.Args, 0, param))
+	if !known {
+		return nil, false
+	}
+	tokens, known := expansionDSQL(sql)
+	if !known {
+		return nil, false
+	}
+	if method != "exec" {
+		for i, token := range tokens {
+			if token == ";" && i+1 < len(tokens) {
+				return nil, false
+			}
+		}
+	}
+	return tokens, true
+}
+
+// sqliteCallLeaves reports whether the statement holding prior is followed, in
+// a block that does not contain at, by plain expression statements and then a
+// return, throw or exit: control then leaves the function without reaching at.
+// A try statement on the way out could resume execution, so it proves nothing.
+func sqliteCallLeaves(prior, at syntax.Node) bool {
+	left := false
+	for node := prior; node != nil && !node.Span().Contains(at.Span()); node = node.Parent() {
+		if _, ok := node.(*syntax.Try); ok || syntax.IsFuncLike(node) {
+			return false
+		}
+		block, ok := node.Parent().(*syntax.Block)
+		if _, plain := node.(*syntax.ExprStmt); left || !ok || !plain || block.Span().Contains(at.Span()) {
+			continue
+		}
+		for _, st := range block.Stmts {
+			if st.Span().Start < node.Span().End {
+				continue
+			}
+			if _, ok := st.(*syntax.Return); ok {
+				left = true
+				break
+			}
+			next, ok := st.(*syntax.ExprStmt)
+			if !ok {
+				break
+			}
+			if _, throws := syntax.UnwrapParens(next.Expr).(*syntax.Throw); throws || syntax.ExitInvocation(next.Expr) {
+				left = true
+				break
+			}
+		}
+	}
+	return left
 }

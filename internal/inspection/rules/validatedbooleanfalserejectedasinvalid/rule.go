@@ -11,6 +11,18 @@ import (
 
 const message = "Distinguish valid false from invalid boolean input."
 
+const (
+	filterValidateBool = 258
+	// Flags that change the meaning or shape of the result: the array flags
+	// reject a scalar input or wrap the result, so false is not "valid false".
+	filterRequireArray  = 16777216
+	filterForceArray    = 67108864
+	filterNullOnFailure = 134217728
+	// The boolean filter strips these ASCII bytes only; any other leading or
+	// trailing whitespace (form feed, NBSP, ...) makes the input invalid.
+	filterTrimSet = " \t\n\r\v"
+)
+
 type rule struct{}
 
 // New constructs the stateless inspection.
@@ -36,13 +48,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	filter, known := semanticquery.NativeContractInt(ctx, semanticquery.CallArgument(c.Args, 1, "filter"))
-	if !known || filter != 258 {
+	if !known || filter != filterValidateBool {
 		return
 	}
 	flags := semanticquery.CallArgument(c.Args, 2, "options")
 	if flags != nil {
 		bits, fk := semanticquery.NativeContractInt(ctx, flags)
-		if !fk || bits&134217728 != 0 {
+		if !fk || bits&(filterNullOnFailure|filterRequireArray|filterForceArray) != 0 {
 			return
 		}
 	}
@@ -50,7 +62,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !vk {
 		return
 	}
-	switch strings.ToLower(strings.TrimSpace(value)) {
+	switch strings.ToLower(strings.Trim(value, filterTrimSet)) {
 	case "", "0", "false", "off", "no":
 	default:
 		return

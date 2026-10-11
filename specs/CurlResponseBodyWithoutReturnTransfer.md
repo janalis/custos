@@ -21,6 +21,7 @@ Detect curl_exec result used as a string or JSON document when a locally created
 ## Exceptions (no report)
 
 - E1. Unknown handle origins/options, enabled return transfer, custom write callbacks with separately consumed body, and success checks are excluded.
+- E3. A handle shared with another variable scope is not proven unconfigured, because that scope can set options without passing the handle to a call visible in the inspected scope. This covers a handle variable, or a local alias of it, listed in a closure `use` clause, referenced inside an arrow function, or bound by a `global` statement. Closures, arrow functions and `global` statements that do not name the handle leave the proof intact, as does a closure that merely declares its own variable of the same name.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report

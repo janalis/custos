@@ -2,7 +2,10 @@
 package contentencodingbodymismatch
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -34,34 +37,22 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return
 	}
-	if name == "gzencode" {
-		if e := semanticquery.CallArgument(c.Args, 2, "encoding"); e != nil {
-			v, ok := semanticquery.NativeInt(ctx, e)
-			if !ok {
-				return
-			}
-			if v == 15 {
-				coding = "deflate"
-			} else if v != 31 {
-				return
-			}
+	// All three functions take the same optional framing selector, which
+	// overrides the function's default framing.
+	if e := semanticquery.CallArgument(c.Args, 2, "encoding"); e != nil {
+		v, ok := framing(ctx, e)
+		if !ok {
+			return
 		}
-	}
-	if name == "gzcompress" {
-		if e := semanticquery.CallArgument(c.Args, 2, "encoding"); e != nil {
-			v, ok := semanticquery.NativeInt(ctx, e)
-			if !ok {
-				return
-			}
-			switch v {
-			case 31:
-				coding = "gzip"
-			case -15:
-				coding = "raw"
-			case 15:
-			default:
-				return
-			}
+		switch v {
+		case 31:
+			coding = "gzip"
+		case 15:
+			coding = "deflate"
+		case -15:
+			coding = "raw"
+		default:
+			return
 		}
 	}
 	var statement syntax.Stmt
@@ -118,4 +109,20 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if response.Final && response.Coding == value && (value == "gzip" || value == "deflate" || value == "identity") && coding != value {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// framing evaluates an encoding argument. Negative builtin constants such as
+// ZLIB_ENCODING_RAW are resolved here because the shared integer query only
+// understands unsigned constant values.
+func framing(ctx *analysis.Context, e syntax.Expr) (int64, bool) {
+	if v, ok := semanticquery.NativeInt(ctx, e); ok {
+		return v, true
+	}
+	if k, ok := syntax.UnwrapParens(e).(*syntax.ConstFetch); ok {
+		if resolved := semanticquery.ResolveConstant(ctx.Types(), k); resolved != nil {
+			v, ok := astquery.ParseIntLiteral(strings.TrimPrefix(resolved.Value, "-"))
+			return -v, ok
+		}
+	}
+	return 0, false
 }

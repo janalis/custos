@@ -34,20 +34,24 @@ func (realpathInStreamContext) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	parent, _ := astquery.ParentSkipParens(call)
-	if _, isInclude := parent.(*syntax.Include); !isInclude && !hasParentDirLiteral(call) { // D3, D4
+	_, isInclude := parent.(*syntax.Include)
+	if !isInclude && !hasParentDirLiteral(call) { // D3, D4
 		return
 	}
 
 	span := call.Span()
-	r, ok := realpathReplacement(ctx, arg.Value)
+	r, ok := realpathReplacement(ctx, arg.Value, isInclude)
 	if !ok {
 		ctx.Report(span, realpathGenericMsg)
 		return
 	}
 	msg := "Use '" + r + "' instead: realpath() fails inside stream wrappers."
-	if realpathResultTested(ctx, call) || !realpathResolvedBase(ctx, arg.Value) {
+	if realpathResultTested(ctx, call, map[*syntax.Assign]bool{}) || !realpathResolvedBase(ctx, arg.Value) ||
+		realpathTightlyBound(call) || astquery.HasComment(ctx.File, span) {
 		// custos: the failure check would go dead; dirname() of a path that
-		// may cross a symlink names another directory than realpath().
+		// may cross a symlink names another directory than realpath(); a
+		// tighter operator would capture part of the replacement; a comment
+		// inside the call would be lost.
 		ctx.Report(span, msg)
 		return
 	}
@@ -106,10 +110,12 @@ func hasParentDirLiteral(n syntax.Node) bool {
 }
 
 // realpathReplacement computes the replacement text R (R1-R3).
-func realpathReplacement(ctx *analysis.Context, s syntax.Expr) (string, bool) {
+func realpathReplacement(ctx *analysis.Context, s syntax.Expr, isInclude bool) (string, bool) {
 	switch s := s.(type) {
 	case *syntax.Literal: // R2
-		if s.LitKind == syntax.LitString {
+		// custos: outside an inclusion the literal holds `..` (D4), which
+		// realpath() would have resolved: the bare literal is another string.
+		if s.LitKind == syntax.LitString && isInclude {
 			if raw, _, ok := astquery.QuotedStringRaw(s); !ok || !isAbsolutePathLiteral(raw) {
 				return "", false // relative paths resolve differently once realpath() is gone
 			} else if len(raw) > 1 && strings.HasSuffix(raw, "/") {
@@ -140,6 +146,13 @@ func realpathReplacement(ctx *analysis.Context, s syntax.Expr) (string, bool) {
 		if rest == "" {
 			return left, true // no `. ''` tail
 		}
+		// custos: realpath() also resolves `.`, `..` and empty segments
+		// further down; the tail would keep them.
+		for seg := range strings.SplitSeq(strings.ReplaceAll(rest[1:], "\\", "/"), "/") {
+			if seg == "" || seg == "." || seg == ".." {
+				return "", false
+			}
+		}
 		q := string(quote)
 		return left + " . " + q + rest + q, true
 	}
@@ -166,11 +179,13 @@ func isConcat(e syntax.Expr) bool {
 }
 
 // realpathResultTested reports whether the value of e (a realpath() call,
-// or an assignment holding its result) is tested for failure: negated,
-// compared, used as a condition or a logical/elvis operand, or assigned to
-// a target that a later statement of the same list tests that way. The
-// replacement never returns false, so such a check would go dead.
-func realpathResultTested(ctx *analysis.Context, e syntax.Node) bool {
+// or an expression holding its result) is tested for failure: negated,
+// compared, used as a condition, a switch/match subject or arm, a logical
+// or elvis operand, passed to empty() or a type-testing builtin, or
+// assigned to a target that is tested that way anywhere in its scope. The
+// replacement never returns false, so such a check would go dead. seen
+// holds the assignments already followed (`$a = $b; $b = $a;`).
+func realpathResultTested(ctx *analysis.Context, e syntax.Node, seen map[*syntax.Assign]bool) bool {
 	p, child := astquery.ParentSkipParens(e)
 	switch x := p.(type) {
 	case *syntax.Unary:
@@ -178,62 +193,98 @@ func realpathResultTested(ctx *analysis.Context, e syntax.Node) bool {
 	case *syntax.Binary:
 		switch x.Op.Kind {
 		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual,
-			syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr:
+			syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr, syntax.TXor:
 			return true
 		}
 	case *syntax.Ternary:
 		return x.Cond == child
-	case *syntax.If:
-		return x.Cond == child
-	case *syntax.ElseIf:
-		return x.Cond == child
-	case *syntax.While:
-		return x.Cond == child
+	case *syntax.For:
+		for _, c := range x.Cond {
+			if c == child {
+				return true
+			}
+		}
+	case *syntax.If, *syntax.ElseIf, *syntax.While, *syntax.DoWhile,
+		*syntax.Switch, *syntax.Case, *syntax.Match, *syntax.Empty:
+		return true // an expression directly below these is their condition or subject
+	case *syntax.MatchArm:
+		return x.Body != child
+	case *syntax.Arg:
+		call, ok := x.Parent().Parent().(*syntax.FuncCall)
+		return ok && realpathTypeTest(ctx.GlobalFunctionName(call))
 	case *syntax.Assign:
-		if x.Value != child || x.Op.Kind != syntax.TEqual {
+		if x.Value != child || x.Op.Kind != syntax.TEqual || seen[x] {
 			return false
 		}
-		if realpathResultTested(ctx, x) {
+		seen[x] = true
+		if realpathResultTested(ctx, x, seen) {
 			return true
 		}
-		es, ok := x.Parent().(*syntax.ExprStmt)
-		if !ok {
-			return false
-		}
-		list, i, ok := astquery.StmtList(ctx.File, es)
-		if !ok {
-			return false
-		}
+		// A local is tested within its function, anything else (property,
+		// element, global code) anywhere in the file.
 		found := false
-		for _, next := range list[i+1:] {
-			syntax.Inspect(next, func(n syntax.Node) bool {
-				if !found && n.Kind() == x.Var.Kind() && astquery.EquivalentFoldNames(ctx.File, n, x.Var) && realpathResultTested(ctx, n) {
-					found = true
-				}
-				return !found
-			})
+		visit := func(n syntax.Node) bool {
+			if !found && n != x.Var && n.Kind() == x.Var.Kind() && astquery.EquivalentFoldNames(ctx.File, n, x.Var) && realpathResultTested(ctx, n, seen) {
+				found = true
+			}
+			return !found
+		}
+		fn := syntax.EnclosingFuncLike(x)
+		if _, local := x.Var.(*syntax.Variable); local && fn != nil {
+			syntax.Inspect(fn, visit)
+		} else {
+			syntax.InspectFile(ctx.File, visit)
 		}
 		return found
 	}
 	return false
 }
 
+// realpathTypeTest reports whether the global function name tells false
+// from a string: the is_*() family, boolval(), gettype(), get_debug_type()
+// and assert().
+func realpathTypeTest(name string) bool {
+	switch name {
+	case "boolval", "gettype", "get_debug_type", "assert":
+		return true
+	}
+	return strings.HasPrefix(name, "is_")
+}
+
+// realpathTightlyBound reports whether an operator binding tighter than
+// `.` applies directly to the call (`realpath(…)[0]`, `-realpath(…)`,
+// `1 + realpath(…)`): it would capture only part of a concatenation.
+func realpathTightlyBound(call *syntax.FuncCall) bool {
+	switch x := call.Parent().(type) {
+	case *syntax.ArrayDimFetch:
+		return true
+	case *syntax.Unary:
+		return x.Op.Kind != syntax.TAt
+	case *syntax.Binary:
+		return x.Op.Kind != syntax.TDot && x.Op.Kind != syntax.TCoalesce
+	}
+	return false
+}
+
 // realpathResolvedBase reports whether dropping realpath() keeps the same
-// directory: an R2 literal, or an R1 concatenation whose base is __DIR__,
-// __FILE__ or dirname() of them (PHP resolves symlinks in those). Any other
+// directory: an R2 literal, or an R1 concatenation whose base is __DIR__ or
+// dirname() of __DIR__/__FILE__ (PHP resolves symlinks in those). Any other
 // base may be a symlink: realpath() climbs from its target, dirname() from
-// the link (TYPO3's typo3_src).
+// the link (TYPO3's typo3_src). A bare __FILE__ is not a directory:
+// realpath() of `__FILE__ . '/..'` fails.
 func realpathResolvedBase(ctx *analysis.Context, s syntax.Expr) bool {
 	b, ok := s.(*syntax.Binary)
 	if !ok {
 		return true
 	}
 	e := syntax.UnwrapParens(b.Left)
+	dir := false
 	for {
 		call, ok := e.(*syntax.FuncCall)
 		if !ok || !ctx.IsGlobalFunctionCall(call, "dirname") {
 			break
 		}
+		dir = true
 		args, ok := astquery.CallArgValues(call)
 		if !ok || len(args) == 0 {
 			return false
@@ -241,5 +292,5 @@ func realpathResolvedBase(ctx *analysis.Context, s syntax.Expr) bool {
 		e = syntax.UnwrapParens(args[0])
 	}
 	m, ok := e.(*syntax.MagicConst)
-	return ok && (m.Token.Kind == syntax.TDir || m.Token.Kind == syntax.TFile)
+	return ok && (m.Token.Kind == syntax.TDir || dir && m.Token.Kind == syntax.TFile)
 }

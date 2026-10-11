@@ -16,7 +16,7 @@ function is usually a typo or a variable assigned too late.
 
 ## Example
 
-```php{10,11,19,30}
+```php{10,11,19,30,38,52}
 <?php
 function summary($net, $tax)
 {
@@ -52,6 +52,26 @@ class Report
     }
 }
 
+function render(array $data)
+{
+    $early = compact('title');
+    extract($data);
+    return $early + compact('title', 'body');
+}
+
+class Page
+{
+    public function export()
+    {
+        return compact('this');
+    }
+
+    public static function exportStatic()
+    {
+        return compact('this');
+    }
+}
+
 $top = compact('nothing');
 ```
 
@@ -62,6 +82,8 @@ Reported:
 <li>line 11: Variable &#39;$$gross&#39; may be undefined when compact() runs.</li>
 <li>line 19: Variable &#39;$count&#39; may be undefined when compact() runs.</li>
 <li>line 30: Variable &#39;$footer&#39; may be undefined when compact() runs.</li>
+<li>line 38: Variable &#39;$title&#39; may be undefined when compact() runs.</li>
+<li>line 52: Variable &#39;$this&#39; may be undefined when compact() runs.</li>
 </ul>
 
 ## Configure

@@ -37,6 +37,8 @@ The literal comparison subset is exactly != or !== minus one, and >= zero. Compa
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E3. No report when the same unchanged wait result is told apart from zero elsewhere, because the code then already handles the pending case. The separating test must start before the end of the statement that contains the comparison: an earlier statement (for example an early return on `=== 0`), another operand of the same condition, an enclosing condition, or a test inside the branch the comparison governs. A test placed after that statement cannot protect the guarded code and does not count.
+- E4. Separating tests are: a comparison with zero using `===`, `!==`, `==`, `!=`, `> 0` or `<= 0`; `>= 1` or `< 1`; the mirrored forms with the literal on the left; and truthiness of the variable as an `if`/`elseif`/ternary condition, a `!` operand, an `&&`/`||` operand, or a `switch`/`match` subject. `>= 0`, `< 0`, comparisons with other values and tests of a different wait result do not separate zero from a reaped PID.
 
 ## Fix
 

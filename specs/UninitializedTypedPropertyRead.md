@@ -22,6 +22,8 @@ Detect reading a resolved typed instance property when every incoming path prove
 
 - E1. Nullable properties still require initialization; exclude isset/empty checks, explicit defaults, guarded initialization, unknown constructors and magic access.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. A guard applies to the whole access chain rooted at the property: when the read is the base of element accesses, property accesses or null-safe property accesses (parenthesized or not) and the outermost link of that chain is an `isset`/`empty` operand or the left operand of `??`, PHP never raises, so nothing is reported. A method or function call ends the chain, and a read used as an element index or as a dynamic member name is not part of the surrounding chain; those reads still raise and are reported.
+- E4. `new static` may instantiate a subclass whose constructor initializes the property, so it proves a fresh uninitialized instance only when the enclosing class is declared `final`. `new static` inside an anonymous class is not reported.
 
 ## Report
 
@@ -54,4 +56,4 @@ class Meter {public int $value;} echo <error descr="Initialize this typed proper
 
 Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
 
-Audit constraint: null-coalescing on the left operand is a guarded read and is excluded. Every ancestor and trait must resolve before absence of constructor or magic initialization can establish an uninitialized fresh instance.
+Audit constraint: null-coalescing on the left operand is a guarded read and is excluded. The same guard covers element and sub-property reads chained on the property, up to the first call. Every ancestor and trait must resolve before absence of constructor or magic initialization can establish an uninitialized fresh instance.

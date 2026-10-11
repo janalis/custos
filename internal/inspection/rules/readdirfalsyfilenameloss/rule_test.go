@@ -204,3 +204,48 @@ func TestDirectoryFixEdges(t *testing.T) {
 		}
 	}
 }
+
+// TestReviewSafety pins the shapes where the tested value is not the raw
+// directory entry, and the comment handling of the rewrite.
+func TestReviewSafety(t *testing.T) {
+	for _, tc := range []struct{ src, want string }{
+		{`if($names.=readdir($d)){}`, ""},
+		{`if($cached??=readdir($d)){}`, ""},
+		{`if($e=&readdir($d)){}`, ""},
+		{`if(!(readdir($d)===false)){}`, ""},
+		{`if(readdir(...)){}`, ""},
+		{`if(!!readdir($d)){}`, `if((readdir($d)) !== false){}`},
+		{`if(!/*c*/readdir($d)){}`, `if(!/*c*/readdir($d)){}`},
+		{`if((/*c*/readdir($d))==false){}`, `if(((/*c*/readdir($d))) === false){}`},
+		{`if($a){}elseif($e=readdir($d)){}`, `if($a){}elseif(($e=readdir($d)) !== false){}`},
+		{`for(;$e=readdir($d);){}`, `for(;($e=readdir($d)) !== false;){}`},
+	} {
+		t.Run(tc.src, func(t *testing.T) {
+			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"ReaddirFalsyFilenameLoss"}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			raw := []byte("<?php " + tc.src)
+			got := e.Analyze(syntax.Parse("review.php", raw, syntax.Options{}))
+			if tc.want == "" {
+				if len(got) != 0 {
+					t.Fatalf("unexpected: %+v", got)
+				}
+				return
+			}
+			if len(got) != 1 {
+				t.Fatalf("got %+v", got)
+			}
+			fixed := raw
+			if len(got[0].Fixes) > 0 {
+				fixed, _ = fixing.Apply(raw, got[0].Fixes[0].Edits())
+			}
+			if string(fixed) != "<?php "+tc.want {
+				t.Fatalf("got %s want %s", fixed, tc.want)
+			}
+			if f := syntax.Parse("review.php", fixed, syntax.Options{}); len(f.Errors) > 0 {
+				t.Fatalf("invalid fix: %s", fixed)
+			}
+		})
+	}
+}

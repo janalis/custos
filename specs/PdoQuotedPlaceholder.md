@@ -31,9 +31,7 @@ Detect execution supplying a named binding occurring only as a quoted SQL string
 
 ## Fix
 
-Remove surrounding SQL single quotes only when the complete literal is exactly one marker and no escaping or interpolation changes its meaning; preserve the PHP string's quoting.
-
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
+No automatic fix. The report sits on the `execute()` call while the quoted text lives in the SQL passed to `prepare()`, which other executions may share. Unquoting is also only valid SQL when the quoted text stands in a value position: after `AS` it is a column alias, after a type or charset prefix it is a typed literal, and next to another string literal it is concatenated, so removing the quotes there yields a statement the driver rejects. Whether the author meant a marker or literal colon text cannot be proven syntactically, so the edit is left to the user.
 
 ## Options
 

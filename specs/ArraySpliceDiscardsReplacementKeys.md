@@ -16,12 +16,13 @@ Array splicing discards the keys supplied by its replacement array. Insert map e
 
 - D1. Resolved array_splice inserts a literal replacement with a string key absent from original literal array; a subsequent access on the modified array reads that string key. Require straight-line local mutation.
 - D1a. The initial supported downstream proof is a single immediately following echo of the discarded string replacement key.
+- D1b. The original array is proven in one of two ways. (1) A plain assignment of a literal array to the same variable in the statement directly before the splice: nothing can then run between the assignment and the call, so this also holds for a variable bound by `global`, captured by reference or aliased earlier. (2) Inside a function, method, closure or arrow function, the tracked literal assignment reaching the splice, provided the variable is private to that scope: it is not a parameter or a captured variable, and apart from the splice argument and the following read every occurrence of it in the scope is the target of a plain `$name = value` assignment. Unrelated statements, calls and enclosing branches between the assignment and the splice then cannot store the key. The scope must not call `extract()`, `eval` or include a file.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Unless the literal assignment directly precedes the splice, any other use of the variable in the scope withdraws the report (an element write, a compound or reference assignment, a read into an alias or a call argument, a by-reference capture, a `global`/`static` declaration, a `foreach` target, a later read), as does top-level code, where any call can change the global. A splice argument whose evaluation may have side effects always suppresses the report. Similar code outside the stated detection contract is not a finding.
 - E2. Both standard suppression forms suppress this native ID.
 
 ## Report
@@ -50,11 +51,20 @@ Available throughout supported PHP 5.3–8.5 where the referenced builtin/extens
 $a=[]; <warning descr="Preserve replacement keys before reading the inserted key.">array_splice($a,0,0,["name"=>"Ada"])</warning>; echo $a["name"];
 ```
 
-Valid case:
+Valid cases:
 
 ```php
 <?php
 $a=[]; $a["name"]="Ada"; echo $a["name"];
+```
+
+```php
+<?php
+$a = [];
+$set = function () use (&$a) { $a["name"] = "stored"; };
+$set();
+array_splice($a, 0, 0, ["name" => "Ada"]);
+echo $a["name"];
 ```
 
 ## Divergences

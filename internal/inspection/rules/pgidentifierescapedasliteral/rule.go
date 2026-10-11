@@ -69,12 +69,51 @@ func identifierPosition(before, after string) bool {
 	if strings.ContainsAny(before, `'\";$`) || strings.Contains(before, "--") || strings.Contains(before, "/*") {
 		return false
 	}
-	fields := strings.Fields(strings.ToUpper(before))
+	// Only the innermost open parenthesis group decides the clause: a group
+	// that is not a subquery is a function call or an expression list, where
+	// FROM introduces a value (substring, trim, extract, overlay).
+	clause, depth := before, 0
+	for i := 0; i < len(before); i++ {
+		switch before[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		}
+		if depth < 0 {
+			return false
+		}
+	}
+	for i, open := len(before)-1, 0; i >= 0 && depth > 0; i-- {
+		switch before[i] {
+		case ')':
+			open--
+		case '(':
+			open++
+		}
+		if open > 0 {
+			clause = before[i+1:]
+			break
+		}
+	}
+	fields := strings.Fields(strings.ToUpper(clause))
 	if len(fields) == 0 {
 		return false
 	}
+	switch first := fields[0]; {
+	case depth > 0 && first != "SELECT" && first != "WITH":
+		return false
+	case first == "COPY":
+		// COPY ... FROM names a file, a program or a stream, never a relation.
+		return false
+	}
 	switch fields[len(fields)-1] {
-	case "FROM", "JOIN", "UPDATE", "INTO", "TABLE":
+	case "FROM":
+		// IS [NOT] DISTINCT FROM compares values.
+		if len(fields) > 1 && fields[len(fields)-2] == "DISTINCT" {
+			return false
+		}
+	case "JOIN", "UPDATE", "INTO", "TABLE":
 	default:
 		return false
 	}
@@ -94,6 +133,15 @@ func safeUses(ctx *analysis.Context, c *syntax.FuncCall) bool {
 	if !ok {
 		return false
 	}
+	// A read placed before the call inside a loop that also contains the call
+	// receives this result on the next iteration.
+	var loop syntax.Node
+	for p, scope := c.Parent(), syntax.EnclosingVariableScope(c); p != nil && p != scope; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach:
+			loop = p
+		}
+	}
 	safe, budget := true, 256
 	visit := func(n syntax.Node) bool {
 		budget--
@@ -106,15 +154,41 @@ func safeUses(ctx *analysis.Context, c *syntax.FuncCall) bool {
 			safe = false
 			return false
 		}
+		// These builtins read local variables without naming them in the source.
+		if call, ok := n.(*syntax.FuncCall); ok && (semanticquery.NativeBuiltin(ctx, call, "compact") || semanticquery.NativeBuiltin(ctx, call, "get_defined_vars")) {
+			safe = false
+			return false
+		}
+		// A backward jump can carry the result to an earlier read as well.
+		if _, ok := n.(*syntax.Goto); ok {
+			safe = false
+			return false
+		}
 		v, ok := n.(*syntax.Variable)
 		if ok && v.Name == variable.Name && syntax.EnclosingVariableScope(v) != syntax.EnclosingVariableScope(c) {
 			safe = false
 			return false
 		}
-		if !ok || v.Name != variable.Name || v == variable || v.Span().Start < c.Span().End {
+		if !ok || v.Name != variable.Name || v == variable {
 			return true
 		}
+		if v.Span().Start < c.Span().End {
+			if loop != nil && loop.Span().Contains(v.Span()) {
+				safe = false
+				return false
+			}
+			return true
+		}
+		if write, ok := v.Parent().(*syntax.Assign); ok && write.Var == v && write.Op.Kind == syntax.TEqual {
+			return true // overwritten, not read
+		}
 		producer := semanticquery.NativeValue(ctx, v)
+		if producer == nil {
+			// A read reached by several definitions (after a branch or a loop)
+			// may still carry this result.
+			safe = false
+			return false
+		}
 		if producer != c {
 			return true
 		}

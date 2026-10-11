@@ -16,14 +16,15 @@ Inspect the asynchronous PostgreSQL result status.
 
 This is an opt-in policy. Truthiness, previous-state checks, raw wait-status comparisons and dispatch acknowledgements can be intentional; enabling this inspection requests explicit handling of the contract described below.
 
-- D1. A pg_send_query or pg_send_query_params boolean success condition directly returns true, a literal success string, or calls a success-output sink without retrieving pg_get_result and checking pg_result_status first. Initial sinks are return true and echo literal text. Ordinary queue bookkeeping is excluded.
+- D1. A pg_send_query or pg_send_query_params boolean success condition directly returns true, a literal success string, or calls a success-output sink without retrieving pg_get_result and checking pg_result_status first. Initial sinks are return true and echo literal text. Ordinary queue bookkeeping is excluded. The sink is the first statement the condition guards, whatever the branch syntax: a braced body, an alternative-syntax body (`if: ... endif;`) or a single statement without braces are equivalent.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
 - D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
 
 ## Exceptions (no report)
 
 - E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore PgAsyncDispatchAssumedQuerySuccess and @noinspection PgAsyncDispatchAssumedQuerySuccess suppress this native rule.
+- E2. An empty guarded body, or one whose first statement is anything other than an initial sink of D1, is not reported.
+- E3. Both @custos-ignore PgAsyncDispatchAssumedQuerySuccess and @noinspection PgAsyncDispatchAssumedQuerySuccess suppress this native rule.
 
 ## Report
 
@@ -49,6 +50,7 @@ Apply throughout PHP 5.3–8.5 only where the extension API and syntax exist.  D
 ```php
 <?php
 function f($c) { if(<warning descr="Inspect the asynchronous PostgreSQL result status.">pg_send_query($c,'SELECT 7')</warning>){ return true; } return false; }
+function g($c) { if (<warning descr="Inspect the asynchronous PostgreSQL result status.">pg_send_query($c, 'SELECT 8')</warning>) return true; return false; }
 ```
 
 Valid case:

@@ -17,6 +17,7 @@ Identify xml_parser_free on a locally created parser after at least one xml_pars
 - D1. Report xml_parser_free on a locally created parser after at least one xml_parse call, with no xml_parse true final argument and no xml_parse_into_struct completion. Unknown parser aliases or paths exclude.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D4. Handing the parser to other code before the free excludes the report, because the callee may send the final chunk itself. This covers the parser appearing anywhere in the arguments of a method call (including nullsafe), a static call, a constructor call or a function that is not an available builtin, also when the call sits in an arrow function of the same scope. Only the scope that contains the free is searched; other functions, methods and closures have their own variables. A builtin call nested in such arguments (for example reading the current line number for a log call) only reads the parser and does not exclude.
 
 ## Exceptions (no report)
 
@@ -56,6 +57,16 @@ Valid case:
 ```php
 <?php
 $p = xml_parser_create(); xml_parse($p, '<root/>', true); xml_parser_free($p);
+```
+
+Valid case, the parser is handed to a method that may finish the parse:
+
+```php
+<?php
+class Feed {
+    function run() { $p = xml_parser_create(); xml_parse($p, '<root>'); $this->finish($p); xml_parser_free($p); }
+    function finish($p) { xml_parse($p, '</root>', true); }
+}
 ```
 
 ## Divergences

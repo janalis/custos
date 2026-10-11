@@ -21,7 +21,8 @@ Identify imagecolorallocatealpha or imagecolorclosestalpha with known integer al
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore GdAlphaOutsideSupportedRange` and `@noinspection GdAlphaOutsideSupportedRange` suppress this native rule.
+- E2. Skip an alpha variable that an increment or decrement (`++`/`--`, prefix or postfix) touches earlier in the same scope, on any path, or that a closure captures by reference before the call. The same applies to a variable the alpha was copied from by plain assignment, and to any alpha variable when `extract()` runs earlier in the scope. The value recorded at the assignment is then no longer the value passed, so `$alpha = 128; --$alpha;` supplies a valid 127. A step placed after the call, or inside a nested function or arrow function with its own by-value copy, leaves the report in place.
+- E3. Both `@custos-ignore GdAlphaOutsideSupportedRange` and `@noinspection GdAlphaOutsideSupportedRange` suppress this native rule.
 
 ## Report
 
@@ -51,11 +52,15 @@ Finding (enable the rule explicitly when disabled by default):
 imagecolorallocatealpha($image, 30, 50, 70, 255);
 ```
 
-Valid case:
+Valid cases:
 
 ```php
 <?php
 imagecolorallocatealpha($image, 30, 50, 70, 100);
+
+$opacity = 128;
+--$opacity;
+imagecolorallocatealpha($image, 30, 50, 70, $opacity);
 ```
 
 ## Divergences

@@ -40,13 +40,38 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
+	if resetBySetTime(call) {
+		return
+	}
 	literal, ok := arg.(*syntax.Literal)
-	if ok && literal.LitKind == syntax.LitString && (strings.HasPrefix(literal.Raw, "'") || strings.HasPrefix(literal.Raw, `"`)) {
+	if ok && fullCalendarDate(tokens) && literal.LitKind == syntax.LitString && (strings.HasPrefix(literal.Raw, "'") || strings.HasPrefix(literal.Raw, `"`)) {
 		replacement := literal.Raw[:1] + "!" + literal.Raw[1:]
 		ctx.ReportNode(call, message, astquery.ReplaceFix(arg.Span(), replacement))
 		return
 	}
 	ctx.ReportNode(call, message)
+}
+
+// fullCalendarDate reports whether the format parses a year, a month and a
+// day. Only then does the reset modifier leave the calendar date untouched:
+// every date field the format omits would move from today to the Unix epoch.
+func fullCalendarDate(tokens map[byte]bool) bool {
+	year := tokens['Y'] || tokens['y']
+	month := tokens['m'] || tokens['n'] || tokens['M'] || tokens['F']
+	day := tokens['d'] || tokens['j']
+	return year && month && day
+}
+
+// resetBySetTime reports whether the parsed value is the direct receiver of
+// a setTime call, which overwrites every time field the format left out.
+func resetBySetTime(call *syntax.StaticCall) bool {
+	parent, child := astquery.ParentSkipParens(call)
+	method, ok := parent.(*syntax.MethodCall)
+	if !ok || method.Var != child {
+		return false
+	}
+	name, ok := method.Name.(*syntax.Identifier)
+	return ok && strings.EqualFold(name.Value, "setTime")
 }
 
 func (rule) Semantic() {}

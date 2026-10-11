@@ -11,6 +11,9 @@ import (
 
 const message = "Finish the compressed stream before publishing it."
 
+// fileAppend is the value of PHP's FILE_APPEND flag.
+const fileAppend = 8
+
 type rule struct{}
 
 func New() analysis.Rule              { return rule{} }
@@ -31,6 +34,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	mode := semanticquery.CallArgument(chunk.Args, 2, "flush_mode")
 	if !hasConstant(ctx, mode, "ZLIB_SYNC_FLUSH") && !hasConstant(ctx, mode, "ZLIB_NO_FLUSH") && !hasConstant(ctx, mode, "ZLIB_FULL_FLUSH") {
 		return
+	}
+	// An appending write publishes one piece of a file that a later write may
+	// finish, so only a provably truncating write is a standalone stream.
+	if flags := semanticquery.CallArgument(c.Args, 2, "flags"); flags != nil {
+		if bits, known := semanticquery.NativeContractInt(ctx, flags); !known || bits&fileAppend != 0 {
+			return
+		}
 	}
 	ctx.ReportNode(c, message)
 }

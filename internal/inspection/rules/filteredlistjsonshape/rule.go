@@ -4,6 +4,8 @@ package filteredlistjsonshape
 import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -36,7 +38,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if callback != nil && !ctx.TypeOf(callback).OnlyOf("null") {
 		return
 	}
-	a := semanticquery.NativeArray(ctx, semanticquery.CallArgument(inner.Args, 0, "array"))
+	source := semanticquery.CallArgument(inner.Args, 0, "array")
+	a := semanticquery.NativeArray(ctx, source)
 	if a == nil {
 		return
 	}
@@ -58,9 +61,67 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			broken = true
 		}
 	}
-	if broken {
+	scope := syntax.EnclosingFuncLike(call)
+	if broken && !reboundOutOfBand(ctx.File, scope, source, map[string]bool{}) && !importsVariables(ctx.File, scope) {
 		ctx.ReportNode(call, message, diagnostic.Fix{Title: "Reindex the filtered list", Edits: func() []diagnostic.TextEdit {
 			return []diagnostic.TextEdit{{Span: inner.Span(), NewText: "\\array_values(" + ctx.Text(inner) + ")"}}
 		}})
 	}
+}
+
+// reboundOutOfBand reports whether a local the filtered list is resolved
+// through (the array variable, a variable item or key, or a variable assigned
+// to one of those) can receive another value without a plain assignment in
+// the scope: through a reference to it (a by-reference closure capture, array
+// item, assignment source or foreach subject) or a binding that is not an
+// assignment (`++`, `--`, catch, foreach target, global, static, unset).
+// The resolved literal is then not proven to be what is filtered.
+func reboundOutOfBand(f *syntax.File, scope syntax.Node, e syntax.Expr, seen map[string]bool) bool {
+	rebound := false
+	syntax.Inspect(e, func(x syntax.Node) bool {
+		v, ok := x.(*syntax.Variable)
+		if !ok || rebound || seen[v.Name] {
+			return !rebound
+		}
+		seen[v.Name] = true
+		for _, access := range flowquery.VarAccesses(f, scope, v.Name) {
+			switch by := access.By.(type) {
+			case nil:
+				switch parent := access.Var.Parent().(type) {
+				case *syntax.ArrayItem:
+					rebound = rebound || parent.ByRef
+				case *syntax.Assign:
+					rebound = rebound || parent.ByRef
+				case *syntax.Foreach:
+					rebound = rebound || parent.ByRef
+				}
+			case *syntax.Assign:
+				rebound = rebound || by.ByRef || reboundOutOfBand(f, scope, by.Value, seen)
+			case *syntax.ClosureUse:
+				rebound = rebound || by.ByRef
+			default:
+				rebound = true
+			}
+		}
+		return false
+	})
+	return rebound
+}
+
+// importsVariables reports whether the scope calls extract(), which can bind
+// any local variable.
+func importsVariables(f *syntax.File, scope syntax.Node) bool {
+	found := false
+	visit := func(x syntax.Node) bool {
+		if _, ok := astquery.IsFuncNamedFold(x, "extract"); ok {
+			found = true
+		}
+		return !found
+	}
+	if scope == nil {
+		syntax.InspectFile(f, visit)
+	} else {
+		syntax.Inspect(scope, visit)
+	}
+	return found
 }

@@ -15,12 +15,14 @@ Detect setcookie with literal options selecting SameSite None and secure absent 
 ## Detection
 
 - D1. Report setcookie with literal options selecting SameSite None and secure absent or false.
+- D1a. Option names are compared without regard to letter case, as PHP does: `SameSite`, `SAMESITE`, `Secure` and `SECURE` name the same options as their lower-case spellings.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
 - E1. Secure true, other SameSite policies, unknown options and unrelated user functions are excluded.
+- E1a. An options array that spells one option name twice with different letter case is not reported: the effective value depends on entry order.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report

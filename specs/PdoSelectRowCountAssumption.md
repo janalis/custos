@@ -16,7 +16,8 @@ Detect rowCount on a PDOStatement prepared from a SELECT and used as a total res
 
 - D1. Report rowCount on a PDOStatement prepared from a SELECT and used as a total result count under an explicitly enabled portable-count contract.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. The receiver is a statement either when its resolved type is PDOStatement or when its value is proven to be the result of a builtin `PDO::query()` call. The second proof looks the method up independently of the target version and does not depend on a declared return type; a subclass that overrides `query()` is not a builtin call. Consequently `query()` and `prepare()` statements are reported alike for every supported target version.
+- D4. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
@@ -41,7 +42,7 @@ None. Enable or disable this rule through normal rule configuration.
 
 ## PHP versions
 
-Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
+Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). `PDO::query()`, `PDO::prepare()` and `PDOStatement::rowCount()` exist across that whole range, so the rule behaves the same for every target version. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.
 
 ## Examples
 

@@ -56,13 +56,23 @@ func NativeSameValue(ctx *analysis.Context, a, b syntax.Expr) bool {
 
 // NativeConditionUse returns the truthiness expression containing a call.
 // Integer sentinel comparisons are deliberately excluded.
+// A first-class callable creates a closure and has no result to test; only a
+// plain assignment of the result keeps its value as the tested operand.
 func NativeConditionUse(ctx *analysis.Context, call *syntax.FuncCall, booleanComparisons bool) syntax.Expr {
+	if call.Args != nil && len(call.Args.Args) == 1 {
+		if _, ok := call.Args.Args[0].(*syntax.VariadicPlaceholder); ok {
+			return nil
+		}
+	}
 	var e syntax.Expr = call
 	for {
 		switch p := e.Parent().(type) {
 		case *syntax.Paren:
 			e = p
 		case *syntax.Assign:
+			if p.Op.Kind != syntax.TEqual || p.Value != e {
+				return nil
+			}
 			e = p
 		case *syntax.Unary:
 			if p.Op.Kind != syntax.TExclaim {
@@ -85,11 +95,13 @@ func NativeConditionUse(ctx *analysis.Context, call *syntax.FuncCall, booleanCom
 				return nil
 			}
 			e = p
-		case *syntax.If:
+		case *syntax.If, *syntax.ElseIf, *syntax.While, *syntax.DoWhile:
 			return e
-		case *syntax.While:
-			return e
-		case *syntax.DoWhile:
+		case *syntax.For:
+			// Only the last condition expression decides the loop.
+			if n := len(p.Cond); n == 0 || p.Cond[n-1] != e {
+				return nil
+			}
 			return e
 		default:
 			return nil

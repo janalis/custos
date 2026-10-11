@@ -36,7 +36,11 @@ func (incorrectRandomRange) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
-	if to < from { // D6
+	if to >= from { // D6
+		return
+	}
+	st := stability{ctx: ctx, seen: map[any]bool{}}
+	if st.expr(args[0]) && st.expr(args[1]) { // D7
 		ctx.ReportNode(call, "Minimum is greater than maximum in this random range.")
 	}
 }

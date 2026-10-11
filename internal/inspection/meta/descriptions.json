@@ -88,7 +88,7 @@
     "fix": true
   },
   "ArrayMergeNumericKeyLoss": {
-    "summary": "Detect array_merge with a literal input containing a nonsequential integer key; report the input merge call.",
+    "summary": "Detect array_merge with a literal input whose integer key is renumbered by the merge; report the merge call.",
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "ArrayMultisortLengthMismatch": {
@@ -615,7 +615,7 @@
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "FileStatCacheAfterExternalMutation": {
-    "summary": "Cached file metadata can survive changes made by an external command. Clear the stat cache before reading that metadata again. This inspection is disabled by default because the intended policy or use can vary."
+    "summary": "On PHP 8.2 and earlier, cached file metadata can survive changes made by a command run through exec or system. Clear the stat cache before reading that metadata again. This inspection is disabled by default because the intended policy or use can vary."
   },
   "FileTruncatedBeforeLock": {
     "summary": "Detect fopen in w/w+ variants followed by exclusive flock on the same identity.",
@@ -744,7 +744,7 @@
     "summary": "Identify unchecked hash_file result consumed as file contents or as an expected digest in strict comparison; exclude result propagation and guarded false rejection."
   },
   "HeadersAfterCommittedOutput": {
-    "summary": "Detect header or setcookie after demonstrably committed output on every incoming path, such as output plus flush with no active buffering.",
+    "summary": "Detect a response-header write (header, setcookie, or http_response_code used as a setter) after demonstrably committed output on every incoming path, such as output plus flush with no active buffering.",
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "HeapIterationConsumesCollection": {
@@ -1088,7 +1088,7 @@
     "summary": "Identify the return type of an explicitly nonvoid nongenerator function when structural control flow proves a reachable normal exit without return or throw. Exclude mixed, void, never and untyped returns; a bare return is covered separately. Restrict proof to finite straight-line blocks and if/else branches; loops, switch, try, goto, parser recovery and all calls on a candidate exit path exclude because they may terminate, throw or exit."
   },
   "NonblockingSocketConnectPendingRejected": {
-    "summary": "Identify negated socket_connect failure branch throwing or returning false when socket_set_nonblock succeeded or unconditionally preceded it on same socket and branch contains no socket_last_error inspection. A checked nonblocking setup is preferred but unknown setup alone cannot prove state."
+    "summary": "Identify a `socket_connect` failure branch that throws or returns false although the same socket was switched to nonblocking mode and the branch never looks at the failure reason. A nonblocking connect normally reports failure while the connection is still being established, so the branch rejects a connection that may yet succeed."
   },
   "NonblockingWaitZeroTreatedAsReaped": {
     "summary": "Require a positive PID from nonblocking wait."
@@ -1234,7 +1234,7 @@
     "summary": "Identify read of first selected named column from a row in unchanged FETCH_GROUP combined with FETCH_ASSOC results. Require complete projection and mode knowledge; wildcard, duplicate names or ambiguous SQL exclude."
   },
   "PdoIdentifierPlaceholder": {
-    "summary": "Detect PDO prepare with a parameter marker in a table-name position following FROM, JOIN, UPDATE or INTO in parsed literal SQL.",
+    "summary": "Detect PDO prepare with a named or positional parameter marker in a table-name position following FROM, JOIN, UPDATE, INTO or TABLE in parsed literal SQL.",
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "PdoMixedPlaceholderStyles": {
@@ -1299,7 +1299,7 @@
     "fix": true
   },
   "PosixAccountLookupFailureDereferenced": {
-    "summary": "Identify array indexing on direct or unchanged posix_getpwnam/posix_getpwuid result without a dominating strict false rejection."
+    "summary": "Identify array indexing on a direct or unchanged posix_getpwnam/posix_getpwuid result that a failed lookup (`false`) can still reach."
   },
   "PotentialMalware": {
     "summary": "Flags code shapes typical of injected web-shells and backdoors: `eval()` of\ndecoded or fetched payloads, small decoder functions, timestamp forging\nwith `touch()`, and enumeration of all defined functions."

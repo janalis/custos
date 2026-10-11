@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -29,6 +30,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	h := semanticquery.CallArgument(c.Args, 0, "stream")
+	if _, plain := astquery.PlainVariableName(h); !plain {
+		return
+	}
 	if !semanticquery.ExpansionDUnaliased(ctx, h, c) {
 		return
 	}
@@ -67,10 +71,28 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 		}
 	}
-	if len(semanticquery.NativeStreamCalls(ctx, c, h, "fgetcsv", "fgets", "fread", "fgetc", "fscanf", "stream_get_contents", "fpassthru", "fwrite", "ftruncate", "fseek", "rewind", "fclose")) != 0 {
+	if handleUsedBetween(ctx.File, h, f, c) {
 		return
 	}
 	if length < int64(len(record)) {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// handleUsedBetween reports whether the handle variable, or a variable whose
+// name is computed at run time, appears between the opening call and the read.
+// Any such mention may move the stream position, so the record that the read
+// starts at is no longer the one spelled in the source. The scan is textual,
+// so a nested function declared in between that reuses the name also counts.
+func handleUsedBetween(file *syntax.File, h syntax.Expr, open, read *syntax.FuncCall) bool {
+	name, _ := astquery.PlainVariableName(h)
+	used := false
+	syntax.InspectFile(file, func(n syntax.Node) bool {
+		v, ok := n.(*syntax.Variable)
+		if ok && v.Span().Start >= open.Span().End && v.Span().Start < read.Span().Start && (v.NameExpr != nil || v.Name == name) {
+			used = true
+		}
+		return !used
+	})
+	return used
 }

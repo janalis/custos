@@ -28,17 +28,23 @@ func (infinityLoop) Check(ctx *analysis.Context, n syntax.Node) {
 		cand = s.Expr
 	}
 	var name, recv syntax.Expr
+	var args *syntax.ArgList
 	switch c := cand.(type) { // D4
 	case *syntax.MethodCall:
-		name, recv = c.Name, c.Var
+		name, recv, args = c.Name, c.Var, c.Args
 	case *syntax.StaticCall:
-		name, recv = c.Name, c.Class
+		name, recv, args = c.Name, c.Class, c.Args
 	default:
 		return
 	}
 	id, ok := name.(*syntax.Identifier)
 	if !ok || !strings.EqualFold(id.Value, m.Name.Value) {
 		return
+	}
+	for _, a := range args.Args { // E6: `m(...)` builds a closure, it calls nothing
+		if _, placeholder := a.(*syntax.VariadicPlaceholder); placeholder {
+			return
+		}
 	}
 	switch t := ctx.Text(recv); { // D5
 	case t == "$this", strings.EqualFold(t, "self"), strings.EqualFold(t, "static"):

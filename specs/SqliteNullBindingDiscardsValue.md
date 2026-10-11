@@ -22,6 +22,7 @@ Pass null when using the SQLite null binding type.
 
 - E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
 - E2. Both @custos-ignore SqliteNullBindingDiscardsValue and @noinspection SqliteNullBindingDiscardsValue suppress this native rule.
+- E3. A variable value is not trusted when the same lexical scope captures that variable by reference in a closure (`use (&$value)`) or stores it by reference in an array literal (`[&$value]`), wherever that happens in the scope: the alias can set it to null without a visible assignment. By-value captures and arrow functions do not count.
 
 ## Report
 
@@ -54,6 +55,18 @@ Valid case:
 ```php
 <?php
 function f(SQLite3Stmt $s) { $s->bindValue(1, null, SQLITE3_NULL); }
+```
+
+No report, because the closure may have cleared the captured variable:
+
+```php
+<?php
+function f(SQLite3Stmt $s) {
+    $value = 'draft';
+    $clear = function () use (&$value) { $value = null; };
+    $clear();
+    $s->bindValue(1, $value, SQLITE3_NULL);
+}
 ```
 
 ## Divergences

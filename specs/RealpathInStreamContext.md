@@ -52,8 +52,13 @@ directories with `realpath(__DIR__ . '/../')` or wrapping include paths in
     under that name, or a `dirname` function declared in the current
     namespace (`namespace App; function dirname($p) {…}` →
     `\dirname(__DIR__) . '/'`).
-- **R2** `S` is a single- or double-quoted string literal whose contents are
-  an absolute path → `R` = `S`'s full source text (quotes included). Absolute
+  - No `R` when the tail left after the climbs still holds a `.`, `..` or
+    empty segment (`'/../a/../b'`, `'/.././a'`, `'/../a//b'`; `\` counts as
+    a separator too): `realpath()` would resolve it, the tail would not.
+- **R2** Only in include context (D3): `S` is a single- or double-quoted
+  string literal whose contents are an absolute path → `R` = `S`'s full
+  source text (quotes included). Outside an inclusion a literal is reported
+  for its `..` (D4), which the bare literal would keep: no `R`. Absolute
   means: starts with `/` or `\`, starts with a drive letter followed by `:\`
   or `:/` (`C:\x`, `c:/x`), or contains `://` (stream or URL path).
 - **R3** Anything else → no `R`: relative literals (`'../x'`, `'cfg.php'`,
@@ -77,7 +82,10 @@ directories with `realpath(__DIR__ . '/../')` or wrapping include paths in
 
 ## Fix
 
-- **F1** Only when `R` exists: replace the whole call with `R`, verbatim.
+- **F1** Only when `R` exists and none of the withholding conditions listed
+  under Divergences applies (tested result, unresolved base, tighter
+  operator, comment inside the call): replace the whole call with `R`,
+  verbatim.
   Surrounding code (an `include` keyword, parentheses around the call, the
   statement's `;`) stays untouched: `include (realpath('/a.php'));` →
   `include ('/a.php');`.
@@ -128,9 +136,24 @@ $two  = realpath('/tmp', 'x');
   (`'/..hidden'` → `dirname(L) . 'hidden'`). Recommendation: only strip
   `/..` when followed by `/` or the end of the literal; no fixture covers
   this.
-- R1's result is a concatenation; inserting it where a tighter-binding
-  operator surrounds the call (`!realpath(...)`, `realpath(...)[0]`) changes
-  precedence. Recommendation: wrap `R` in parentheses in such contexts.
+- **Tighter operators (custos diverges, fix).** R1's result is a
+  concatenation; an operator binding tighter than `.` applied directly to
+  the call would capture only its first part (`realpath(…)[0]`,
+  `-realpath(…)`, `1 + realpath(…)`). When the call is the direct operand
+  of an array access, of a unary operator or cast other than `@`, or of a
+  binary operator other than `.` and `??`, the finding is reported without
+  a fix.
+- **Comments (custos diverges, fix).** A comment inside the call
+  (`realpath(__DIR__ /* root */ . '/..')`) would be dropped by the
+  replacement: reported without a fix.
+- **Normalised paths (custos diverges).** `realpath()` returns a canonical
+  path. A tail that still contains `.`, `..` or empty segments after the
+  leading climbs gives another string (prefix checks and comparisons with
+  other canonical paths then fail), so R1 yields no replacement for it.
+  For the same reason an absolute literal outside an inclusion — only
+  reported because it contains `..` — gets the generic message and no fix;
+  upstream replaces the call with the literal. Inside an inclusion the
+  literal names the same file, so R2 still applies.
 - **custos diverges from upstream** on relative literals. Upstream replaces
   `realpath('../x')` with `'../x'`. That is not equivalent: `realpath()`
   resolves against the current working directory, while the bare string is
@@ -156,15 +179,27 @@ $two  = realpath('/tmp', 'x');
 - **Tested results keep realpath() (custos diverges, fix).** `realpath()`
   returns `false` for a missing path; the `dirname()` replacement never
   does. When the call's value is tested for failure — negated, cast to
-  bool, compared, used as a condition, a logical or `?:` operand, or
-  assigned to a target that a later statement of the same list tests that
-  way (`$this->root = realpath($r . '/../public'); if (!$this->root) {
+  bool, compared (`==`, `!=`, `===`, `!==`), used as an `if`/`elseif`/
+  `while`/`do-while`/`for` condition, as a `switch` or `match` subject or
+  arm condition, as a logical (`&&`, `||`, `and`, `or`, `xor`) or `?:`
+  operand, passed to `empty()` or to a type-testing builtin (any global
+  `is_*()` function, `boolval()`, `gettype()`, `get_debug_type()`,
+  `assert()`), or assigned with `=` to a target that is tested that way
+  (`$this->root = realpath($r . '/../public'); if (!$this->root) {
   throw …; }`, Akeneo) — the finding is reported without a fix: the
-  existence check would silently go dead.
+  existence check would silently go dead. The assignment itself may sit
+  anywhere (`is_string($p = realpath(…))`, inside a `try` tested after
+  it). A local variable is looked up in its whole enclosing function,
+  before and after the assignment (loops); any other target (property,
+  array element, variable of global code) in the whole file. Copies are
+  followed (`$b = $p; if (!$b)`). Values that escape through a `return`
+  or an argument of another call are not tracked.
 - **Symlinked bases (custos diverges from F1).** `realpath($base . '/..')`
   resolves `$base` first, so through a symlink it names the parent of the
   link's *target*, while `dirname($base)` names the parent of the link
   (TYPO3's `typo3_src` symlink in `CoreUpdateService`). The R1 rewrite is
-  offered as a fix only when the base is `__DIR__`, `__FILE__` or
-  `dirname()` of them (PHP resolves symlinks in those); other bases are
-  reported without a fix.
+  offered as a fix only when the base is `__DIR__`, or `dirname()` of
+  `__DIR__` or `__FILE__` (PHP resolves symlinks in those); other bases are
+  reported without a fix. A bare `__FILE__` is one of them: it is not a
+  directory, so `realpath(__FILE__ . '/..')` fails where
+  `dirname(__FILE__)` succeeds.

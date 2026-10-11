@@ -222,6 +222,9 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 		if quietOffsetRead(access) && (offsetHas(s, "array") || offsetHas(s, "string")) {
 			return
 		}
+		if offsetRebound(ctx, access.Var) {
+			return
+		}
 		ctx.ReportNode(access, "'"+ctx.Text(access.Var)+"' does not support offset access (types: "+strings.Join(s, "|")+").")
 		return
 	}
@@ -260,13 +263,11 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(rest) > 0 && accepted > 0 && ctx.Types().Native().TypeOf(access.Dim).IsUnknown() {
 		return
 	}
-	if len(rest) > 0 {
+	if len(rest) > 0 && !offsetRebound(ctx, access.Var) {
 		ctx.ReportNode(access.Dim, "Index of type "+strings.Join(rest, "|")+" does not fit the accepted "+strings.Join(allowed, "|")+".")
 	}
 }
 
-// offsetSubtypeOfAllowed reports whether the class type a extends or
-// implements a class type of the allowed set.
 // offsetNativeAccess reports whether cls is (or extends) a builtin class
 // whose objects support `$o[…]` natively without declaring offsetGet() in
 // the stubs (custos refinement).
@@ -274,6 +275,7 @@ func offsetNativeAccess(ctx *analysis.Context, cls string) bool {
 	for _, b := range []string{
 		"DOMNodeList", "DOMNamedNodeMap", "ResourceBundle", `Dom\NodeList`,
 		`Dom\NamedNodeMap`, `Dom\HTMLCollection`, `FFI\CData`,
+		`Dom\TokenList`, `Dom\DtdNamedNodeMap`, "PDORow",
 	} {
 		if strings.EqualFold(cls, b) || ctx.Index().IsSubtype(cls, b, ctx.PHP) {
 			return true
@@ -282,6 +284,76 @@ func offsetNativeAccess(ctx *analysis.Context, cls string) bool {
 	return false
 }
 
+// offsetRebound reports whether the container variable e may hold a value
+// the inferred type does not describe (custos refinement): somewhere in its
+// scope it is a destructuring target, bound or aliased by reference
+// (`$v = &$w`, `$w = &$v`) or passed to a by-reference parameter. A
+// by-reference closure capture already makes the inferred type unknown.
+// Only consulted before a report: it walks the scope.
+func offsetRebound(ctx *analysis.Context, e syntax.Expr) bool {
+	v, ok := syntax.UnwrapParens(e).(*syntax.Variable)
+	if !ok {
+		return false
+	}
+	// Variable-variables have no accesses: never rebound here.
+	for _, acc := range flowquery.VarAccesses(ctx.File, syntax.EnclosingFuncLike(v), v.Name) {
+		switch by := acc.By.(type) {
+		case *syntax.Assign:
+			if acc.Write && (by.ByRef || syntax.UnwrapParens(by.Var) != syntax.Expr(acc.Var)) {
+				return true
+			}
+		case nil:
+			switch p, _ := astquery.ParentSkipParens(acc.Var); x := p.(type) {
+			case *syntax.Assign:
+				// A read under an assignment is its value.
+				if x.ByRef {
+					return true
+				}
+			case *syntax.Arg:
+				if offsetArgByRef(ctx, x) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// offsetArgByRef reports whether arg is a call-time `&$v` or binds to a
+// by-reference parameter of its resolved callee (positional, variadic tail
+// or named). An unresolved callee is taken as by-value.
+func offsetArgByRef(ctx *analysis.Context, arg *syntax.Arg) bool {
+	if arg.ByRef {
+		return true
+	}
+	list := arg.Parent().(*syntax.ArgList)
+	callee, ok := semanticquery.ResolveCallee(ctx, list.Parent())
+	if !ok {
+		return false
+	}
+	pos := 0
+	for pos < len(list.Args) && list.Args[pos] != syntax.Node(arg) {
+		pos++
+	}
+	for i, p := range callee.Params {
+		if !p.ByRef {
+			continue
+		}
+		if arg.Name != nil {
+			if strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
+				return true
+			}
+			continue
+		}
+		if i == pos || p.Variadic && pos > i {
+			return true
+		}
+	}
+	return false
+}
+
+// offsetSubtypeOfAllowed reports whether the class type a extends or
+// implements a class type of the allowed set.
 func offsetSubtypeOfAllowed(ctx *analysis.Context, a string, allowed []string) bool {
 	if !strings.HasPrefix(a, `\`) {
 		return false

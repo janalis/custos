@@ -34,6 +34,18 @@ func TestContracts(t *testing.T) {
 		{"implicit index after explicit", "<?php function f($x,$y){}f(...[2=>1,2],y:3);", 1},
 		{"unknown key", "<?php function f($x){}f(...[$key=>1],x:2);", 0},
 		{"version-dependent negative indices", "<?php function f($x,$y,$z){}f(...[-2=>1,2,-1=>3],z:4);", 0},
+		{"positional spread after named spread", "<?php function f($a,$b=0){}f(...['a'=>1],...[2]);", 0},
+		{"positional spread after later named slot", "<?php function f($a=0,$b=0,$c=0){}f(...['b'=>1],...[2]);", 0},
+		{"positional spread past named last slot", "<?php function f($a=0,$b=0,$c=0){}f(...['c'=>1],...[2,3]);", 0},
+		{"positional spread fills following slots", "<?php function f($a=0,$b=0,$c=0){}f(...['a'=>1],...[2,3]);", 0},
+		{"named after shifted positional spread", "<?php function f($a=0,$b=0,$c=0){}f(...['b'=>1],...[7],c:3);", 1},
+		{"named rebinding earlier named spread", "<?php function f($a=0,$b=0,$c=0){}f(...['a'=>1],...[7],a:3);", 1},
+		{"free slot after shifted positional spread", "<?php function f($a=0,$b=0,$c=0){}f(...['b'=>1],...[7],a:3);", 0},
+		{"collected name keeps counter", "<?php function f($a=0,...$r){}f(...['q'=>1],...[2],a:3);", 1},
+		{"positional after named in one array", "<?php function f($a=0,$b=0){}f(...['a'=>1,5]);", 0},
+		{"variadic slot shares no name", "<?php function f(...$r){}f(...[1],r:2);", 0},
+		{"explicit variadic slot shares no name", "<?php function f(...$r){}f(1,r:2);", 0},
+		{"collected name bound twice", "<?php function f(...$r){}f(...['r'=>1],r:2);", 1},
 		{"maximum integer array key", "<?php function f($x){}f(...[9223372036854775807=>1],x:2);", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

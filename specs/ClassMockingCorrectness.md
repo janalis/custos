@@ -52,7 +52,9 @@ Visit every method call (`->` or `::`).
     **FINAL**.
   - `getMockBuilder`: let `P` = the name of the method call chained directly
     on this call's result (`$t->getMockBuilder(K::class)->P(...)`), or none if
-    the call is not the receiver of another method call.
+    the call is not the receiver of another method call. Parentheses around
+    the call are transparent: `($t->getMockBuilder(K::class))->P(...)` is the
+    same chained call.
     - if `K` is abstract and not an interface: report **USE-ABSTRACT** when
       there is no `P`;
     - else if `K` is a trait: report **USE-TRAIT** when there is no `P`;
@@ -88,7 +90,8 @@ Visit every class declaration.
   a non-final class.
 - **E3** `getMockBuilder(Abstract::class)` / `getMockBuilder(Trait::class)`
   followed by any chained call (`->getMockForAbstractClass()`,
-  `->getMockForTrait()`, `->getMock()`, `->setMethods()`, …).
+  `->getMockForTrait()`, `->getMock()`, `->setMethods()`, …), with or
+  without parentheses around the `getMockBuilder()` call.
 - **E4** Interfaces passed to `getMockBuilder` (not abstract-class case).
 - **E5** `->getMock()` chained on `getMockBuilder` for a class whose
   constructor parameters all have defaults, or that has no constructor.
@@ -236,3 +239,8 @@ namespace {
   element may still build the right double (`$mb =
   $this->getMockBuilder(A::class); $mb->getMockForAbstractClass();`,
   Moodle).
+- **Parenthesised builder (custos diverges).** A `getMockBuilder()` call
+  wrapped in parentheses and then chained
+  (`($this->getMockBuilder(A::class))->getMockForAbstractClass()`) is the
+  same call as the unwrapped chain, so custos applies E3 and the CTOR check
+  to it exactly as it does without the parentheses.

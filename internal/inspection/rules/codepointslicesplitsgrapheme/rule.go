@@ -3,7 +3,6 @@ package codepointslicesplitsgrapheme
 
 import (
 	"strings"
-	"unicode"
 	"unicode/utf8"
 
 	"custos/internal/inspection/analysis"
@@ -13,6 +12,40 @@ import (
 )
 
 const message = "Slice display text at grapheme boundaries."
+
+// clusterBreakers lists the code points after which a combining mark starts
+// its own grapheme cluster (UAX #29 CR, LF and Control, Unicode 17). Format
+// characters that extend or prepend a cluster (ZWNJ, ZWJ, Arabic number signs,
+// emoji tag characters) are deliberately absent.
+var clusterBreakers = [...][2]rune{
+	{0x0000, 0x001f},
+	{0x007f, 0x009f},
+	{0x00ad, 0x00ad},
+	{0x061c, 0x061c},
+	{0x180e, 0x180e},
+	{0x200b, 0x200b},
+	{0x200e, 0x200f},
+	{0x2028, 0x202e},
+	{0x2060, 0x206f},
+	{0xfeff, 0xfeff},
+	{0xfff0, 0xfffb},
+	{0x13430, 0x1343f},
+	{0x1bca0, 0x1bca3},
+	{0x1d173, 0x1d17a},
+	{0xe0000, 0xe001f},
+	{0xe0080, 0xe00ff},
+	{0xe01f0, 0xe0fff},
+}
+
+// breaksCluster reports whether r ends its grapheme cluster unconditionally.
+func breaksCluster(r rune) bool {
+	for _, span := range clusterBreakers {
+		if r <= span[1] {
+			return r >= span[0]
+		}
+	}
+	return false
+}
 
 type rule struct{}
 
@@ -65,7 +98,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	boundary := func(i int64) bool {
-		return i > 0 && i < size && runes[i] >= 0x300 && runes[i] <= 0x36f && !unicode.IsControl(runes[i-1])
+		return i > 0 && i < size && runes[i] >= 0x300 && runes[i] <= 0x36f && !breaksCluster(runes[i-1])
 	}
 	if boundary(start) || boundary(end) {
 		ctx.ReportNode(c, message)

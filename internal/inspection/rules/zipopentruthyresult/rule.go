@@ -27,7 +27,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	parent, child := astquery.ParentSkipParens(c)
 	suffix := "===true"
 	switch p := parent.(type) {
-	case *syntax.If, *syntax.While:
+	case *syntax.If, *syntax.ElseIf, *syntax.While:
 	case *syntax.Unary:
 		if p.Op.Kind != syntax.TExclaim {
 			return
@@ -35,9 +35,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		suffix = "!==true"
 		written := ctx.Text(p)
 		condition, _ := astquery.ParentSkipParens(p)
-		_, isIf := condition.(*syntax.If)
-		_, isWhile := condition.(*syntax.While)
-		if (isIf || isWhile) && !strings.Contains(written, "/*") && !strings.Contains(written, "//") && !strings.Contains(written, "#") {
+		if branchCondition(condition) && !strings.Contains(written, "/*") && !strings.Contains(written, "//") && !strings.Contains(written, "#") {
 			ctx.ReportNode(c, message, astquery.ReplaceFix(p.Span(), "("+ctx.Text(c)+suffix+")"))
 		} else {
 			ctx.ReportNode(c, message)
@@ -47,4 +45,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	ctx.ReportNode(c, message, astquery.ReplaceFix(child.Span(), "("+ctx.Text(child)+suffix+")"))
+}
+
+// branchCondition reports whether n owns an if, elseif or while condition.
+func branchCondition(n syntax.Node) bool {
+	switch n.(type) {
+	case *syntax.If, *syntax.ElseIf, *syntax.While:
+		return true
+	}
+	return false
 }

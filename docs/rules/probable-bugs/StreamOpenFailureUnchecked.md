@@ -34,6 +34,9 @@ Reported:
 ## Exceptions (no report)
 
 - E1. Strict/truthy success guards, terminating error branches, proven wrappers and overwritten identities are excluded.
+- E1a. Because fopen yields a stream resource or false, any condition on the same reaching handle that separates the two outcomes is a guard, not only a strict comparison. Recognised conditions: the bare variable (truthiness), `empty()`, `is_resource()`, `is_bool()`, strict or loose comparison of any of these with a `true`/`false` literal on either side, their negation with `!`, a conjunct of `&&`/`and` that holds, a disjunct of `||`/`or` that fails, and a plain assignment of the fopen call itself used as the condition (`if ($h = fopen(...))`, `if (($h = fopen(...)) !== false)`).
+- E1b. A guard applies when it dominates the use: the use is in the branch of an `if`/`elseif`/`else` or ternary the condition selects, in the body of a `while` loop whose condition is the guard, in the right operand of a short-circuit operator whose left operand is the condition, or after an earlier statement of the same statement list that is either an `if` whose body always leaves (return, throw, exit, break, continue, goto) or an expression statement that only completes on success: `$h = fopen(...) or die();`, `$h === false and throw ...;`, `$h ?: throw ...;`. The guarded variable must still hold the same fopen result at the use; a reassignment between guard and use voids the guard.
+- E1c. Not treated as guards: `assert()` (it can be compiled out), a comparison stored in another variable, `switch (true)`/`match (true)` arms, an error branch that only calls a function or method without leaving syntactically, and a preceding stream call on the same handle.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix

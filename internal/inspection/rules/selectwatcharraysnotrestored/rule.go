@@ -76,17 +76,47 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !ok || len(value.Items) == 0 || value.Span().Start >= loop.Span().Start {
 			continue
 		}
-		// A pre-selection assignment in the loop restores the watched set.
+		// Any rewrite of the watch variable in the loop condition or body, before
+		// or after the selection, runs between two consecutive selections.
 		restored := false
-		syntax.Inspect(loop.Body, func(node syntax.Node) bool {
-			if a, ok := node.(*syntax.Assign); ok && a.Span().Start < c.Span().Start && semanticquery.ExpansionCSame(ctx, a.Var, arg) {
-				restored = true
+		syntax.Inspect(loop, func(node syntax.Node) bool {
+			switch x := node.(type) {
+			case *syntax.Assign:
+				restored = restored || writes(ctx, x.Var, arg)
+			case *syntax.Foreach:
+				restored = restored || writes(ctx, x.Key, arg) || writes(ctx, x.Value, arg)
+			case *syntax.Arg:
+				// Only a proven builtin is known not to refill the array it receives.
+				if semanticquery.ExpansionCSame(ctx, x.Value, arg) {
+					call, ok := x.Parent().Parent().(*syntax.FuncCall)
+					restored = restored || !ok || semanticquery.NativeBuiltinName(ctx, call) == ""
+				}
 			}
-			return true
+			return !restored
 		})
 		if !restored {
 			ctx.ReportNode(c, message)
 			return
 		}
 	}
+}
+
+// writes reports whether assigning to target rebinds watch, directly or as a
+// slot of a destructuring pattern.
+func writes(ctx *analysis.Context, target, watch syntax.Expr) bool {
+	var items []*syntax.ArrayItem
+	switch x := target.(type) {
+	case *syntax.Array:
+		items = x.Items
+	case *syntax.List:
+		items = x.Items
+	default:
+		return semanticquery.ExpansionCSame(ctx, target, watch)
+	}
+	for _, item := range items {
+		if item != nil && writes(ctx, item.Value, watch) {
+			return true
+		}
+	}
+	return false
 }

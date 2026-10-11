@@ -17,6 +17,7 @@ Identify discarded imagescale or imagecrop return followed by an image encoder r
 - D1. Report discarded imagescale or imagecrop return followed by an image encoder receiving same unchanged source image in straight-line scope. Standalone discard and unknown consumers exclude.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D4. The transformed image is the first positional argument or the argument named `image`, in any argument order; the encoder's image is located the same way. The transformation must be a statement of its own in the encoder's scope (nested closures and functions are separate scopes) and must run on every path reaching the encoder.
 
 ## Exceptions (no report)
 

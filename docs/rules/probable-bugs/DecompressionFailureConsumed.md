@@ -28,6 +28,8 @@ Reported:
 ## Detection
 
 - D1. Report results of gzdecode, gzuncompress, gzinflate or inflate_add reaching strlen/strtoupper without a dominating strict false guard. Follow direct expressions and unchanged locals. Exclude matching encoder/decoder roundtrips with default encoding and omitted or valid literal compression level.
+- D1a. Error suppression does not change the result: a decompression call wrapped in `@` (directly or through the assigned local) is followed like the bare call.
+- D1b. A strict false guard is a `=== false` / `!== false` comparison, with the constant on either side, whose other operand is the tracked local or the parenthesised plain assignment that stored the reaching result. It dominates the consumer when the consumer sits in: the `if`/`elseif` branch, `while` body or `for` body (last condition expression) selected by a passing test; a later `elseif`/`else` arm after a failure test; the matching ternary arm (the else arm of a short ternary after a failure test); the right operand of `&&`/`and` after a passing test or of `||`/`or` after a failure test; or the statements following an `if` without alternatives whose failure branch always terminates. Inside a condition, `!` inverts the test, a true conjunction establishes each of its operands and a false disjunction refutes each of its operands. The tested value must be the one that reaches the consumer: reassignment between test and use, or a repeated call, is a different value.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
 - D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
 
@@ -37,6 +39,7 @@ A nested encoder proves matching bytes only when its encoding argument is omitte
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E3. Truthiness, loose comparison, `is_string`, `assert`, `match (true)` arms and a statement-level `$s === false and exit;` are not guards under D1b; such code is still reported unless flow analysis independently excludes false.
 
 ## Fix
 

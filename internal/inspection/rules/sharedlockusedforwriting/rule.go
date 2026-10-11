@@ -31,10 +31,32 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	previous, ok := calls[len(calls)-1].(*syntax.FuncCall)
 	if ok && semanticquery.NativeBuiltin(ctx, previous, "flock") {
 		mode := semanticquery.CallArgument(previous.Args, 1, "operation")
-		if shared(ctx, mode) {
+		if shared(ctx, mode) && !relocked(ctx, previous, c, handle) {
 			ctx.ReportNode(c, message)
 		}
 	}
+}
+
+// relocked reports whether a flock call between the proven shared lock and
+// the write may have changed the lock mode. Checked upgrades sit in conditions
+// or guarded blocks, so every reached call counts, not only dominating ones.
+func relocked(ctx *analysis.Context, lock, write *syntax.FuncCall, handle syntax.Expr) bool {
+	id := ctx.Flow().Value(handle).Identity
+	for _, call := range ctx.Flow().Calls(syntax.EnclosingVariableScope(write)) {
+		later, ok := call.Node.(*syntax.FuncCall)
+		if !ok || later.Span().Start < lock.Span().End || later.Span().End > write.Span().Start || !semanticquery.NativeBuiltin(ctx, later, "flock") {
+			continue
+		}
+		// Only a handle proven to be another stream leaves the lock untouched.
+		other := ctx.Flow().Value(semanticquery.CallArgument(later.Args, 0, "stream"))
+		if other.Complete && other.Identity != 0 && other.Identity != id {
+			continue
+		}
+		if !shared(ctx, semanticquery.CallArgument(later.Args, 1, "operation")) {
+			return true
+		}
+	}
+	return false
 }
 
 func shared(ctx *analysis.Context, e syntax.Expr) bool {

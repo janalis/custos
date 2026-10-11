@@ -15,6 +15,7 @@ Restore the XMLReader element cursor before element operations. This inspection 
 ## Detection
 
 - D1. After a proven successful moveToAttribute or moveToFirstAttribute, with no moveToElement/read/next, compare nodeType to XMLReader::ELEMENT or perform element-only handling. Initial supported sink is strict equality with ELEMENT. Enabling establishes that this comparison intends to handle the containing element.
+- D1a. Only a moveToElement, read or next call on the same reader that runs after the guarding attribute move and on every path to the comparison restores the cursor. The same calls placed before the guard, such as the read that positions the reader on the element in the first place, do not suppress the report.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
 - D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
 
@@ -47,6 +48,13 @@ Apply throughout PHP 5.3–8.5 only where the extension API and syntax exist.  D
 ```php
 <?php
 function f(XMLReader $r) { if($r->moveToAttribute('key')){ if(<warning descr="Restore the XMLReader element cursor before element operations.">$r->nodeType === XMLReader::ELEMENT</warning>){} } }
+```
+
+Cursor moves before the guard do not help:
+
+```php
+<?php
+function g(XMLReader $r) { $r->read(); if($r->moveToFirstAttribute()){ if(<warning descr="Restore the XMLReader element cursor before element operations.">$r->nodeType === XMLReader::ELEMENT</warning>){} } }
 ```
 
 Valid case:

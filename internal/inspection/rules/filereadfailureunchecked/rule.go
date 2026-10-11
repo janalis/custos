@@ -38,7 +38,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		default:
 			continue
 		}
-		if ctx.TypeOf(input).OnlyOf("string") {
+		if ctx.TypeOf(input).OnlyOf("string") || guarded(ctx, input, inner) {
 			continue
 		}
 		ctx.ReportNode(n, message)

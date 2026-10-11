@@ -39,7 +39,8 @@ Helper predicates:
     the `static` flag or the `readonly` flag differs (a `readonly` class
     makes all its properties readonly), when exactly one side declares a
     type, when both declare types that differ (compared as resolved,
-    normalised type sets, case-insensitively; `?T` equals `T|null`), or when
+    normalised type sets, case-insensitively; `?T` equals `T|null`,
+    `iterable` equals `Traversable|array`, member order is irrelevant), or when
     the initial values are known to differ (below);
   - *compatible* when none of the above differs and the defaults are the
     *same* (or both evaluate to the same known value);
@@ -56,7 +57,10 @@ Helper predicates:
   Known initial values: no initializer (equals `null` for an untyped
   property, "uninitialized" for a typed one), integer and float literals
   with an optional leading minus (compared by value and kind, so `1` and
-  `1.0` differ), single- or double-quoted strings without backslashes or
+  `1.0` differ on an untyped or `int|float` property; when the shared
+  declared type accepts `float` but not `int` — `float`, `?float`,
+  `float|string` — PHP stores an integer literal as a float, so `1` equals
+  `1.0` there; `0.0` and `-0.0` are always the same value), single- or double-quoted strings without backslashes or
   `$` (compared by content, so `'a'` equals `"a"`), and `true`/`false`/`null`
   in any case. Constants, arrays and other expressions are unknown. A
   constructor-promoted property never has an initial value of its own.
@@ -248,4 +252,8 @@ final class Page extends Node {
   reports compatible duplicates (weak) and is silent on incompatible ones,
   which are the fatal case. custos reports them as errors, like check B;
   pairs it cannot decide (non-literal defaults with different text, types
-  using `self`/`static`/`parent`) stay silent.
+  using `self`/`static`/`parent`) stay silent. Pairs PHP composes are never
+  errors: equivalent spellings of a type (`iterable` and
+  `Traversable|array`) and literals that end up as the same stored value
+  (`1` and `1.0` on a `float` property, `0.0` and `-0.0`) are compatible
+  duplicates.

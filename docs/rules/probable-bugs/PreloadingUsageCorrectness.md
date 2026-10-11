@@ -21,20 +21,22 @@ File `preload.php`:
 
 ::: code-group
 
-```php{2,3,4} [Before]
+```php{3,4,5} [Before]
 <?php
+$base = __DIR__ . '/lib/';
 require __DIR__ . '/src/Kernel.php';
 include_once($base . 'helpers.php');
-require_once ( 'vendor/autoload.php' );
+require_once ( 'lib/functions.php' );
 $map = require 'classmap.php';
 return include 'tail.php';
 ```
 
 ```php [After fix]
 <?php
+$base = __DIR__ . '/lib/';
 opcache_compile_file(__DIR__ . '/src/Kernel.php');
 opcache_compile_file($base . 'helpers.php');
-opcache_compile_file('vendor/autoload.php');
+opcache_compile_file('lib/functions.php');
 $map = require 'classmap.php';
 return include 'tail.php';
 ```
@@ -44,9 +46,9 @@ return include 'tail.php';
 Reported:
 
 <ul>
-<li>line 2: Use opcache_compile_file() in a preload script instead of require.</li>
-<li>line 3: Use opcache_compile_file() in a preload script instead of include_once.</li>
-<li>line 4: Use opcache_compile_file() in a preload script instead of require_once.</li>
+<li>line 3: Use opcache_compile_file() in a preload script instead of require.</li>
+<li>line 4: Use opcache_compile_file() in a preload script instead of include_once.</li>
+<li>line 5: Use opcache_compile_file() in a preload script instead of require_once.</li>
 </ul>
 
 ## Configure

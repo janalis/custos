@@ -27,14 +27,17 @@ Reported:
 
 ## Detection
 
-- D1. When enabled, require whole-input number parsing. Report an echoed NumberFormatter::parse result for a proven ASCII numeric prefix followed by an alphabetic suffix (excluding exponent syntax), unless a surrounding true branch compares the returned offset strictly with strlen of the same input. Other locale-dependent inputs and UTF-16 offset checks remain outside this bounded detection subset.
+- D1. When enabled, require whole-input number parsing. Report an echoed NumberFormatter::parse result for a proven ASCII numeric prefix followed by an alphabetic suffix (excluding exponent syntax), unless a guard from D4 covers the echo. Other locale-dependent inputs and UTF-16 offset checks remain outside this bounded detection subset.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
 - D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D4. A guard compares the offset argument of the parse call strictly with strlen of the same input expression, with the operands in either order. It covers the echo in three positions: inside an if or elseif body whose condition can only hold when both are identical; inside the else of an if whose condition can only fail when both are identical; or after an earlier if statement of an enclosing statement list that follows the parse call, has no else or elseif, always leaves its body (return, throw, exit, break, continue) and whose condition can only fail when both are identical. Conditions are followed through parentheses, `!`, and conjunctions when truth is required or disjunctions when falsity is required.
+- D5. The receiver must be proven to be a formatter that stops at the suffix: a direct `new NumberFormatter` with exactly a locale and a style resolving to NumberFormatter::DECIMAL, with no pattern argument. When it is held in a variable, every earlier use of that variable in the scope (anywhere in an enclosing loop of the parse call) must be its assignment or a call to parse, parseCurrency, format, formatCurrency, getErrorCode, getErrorMessage, getLocale, getPattern, getAttribute, getTextAttribute or getSymbol.
 
 ## Exceptions (no report)
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E3. No report when the formatter may consume the suffix or cannot be proven plain: another style such as PATTERN_DECIMAL, an explicit pattern, an unknown style, a subclass, or a formatter that was reconfigured (setPattern, setTextAttribute, setSymbol, setAttribute), aliased, captured by a closure or passed to another call before the parse.
 
 ## Fix
 

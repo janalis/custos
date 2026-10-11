@@ -2,6 +2,7 @@
 package csvescapedefaultdependency
 
 import (
+	"slices"
 	"strings"
 
 	"custos/internal/diagnostic"
@@ -36,21 +37,31 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if semanticquery.CallArgument(args, escape, "escape") != nil {
 		return
 	}
+	fixable := true
 	if c, ok := n.(*syntax.MethodCall); ok {
 		if id := c.Name.(*syntax.Identifier); !strings.EqualFold(id.Value, "setCsvControl") {
+			// Omitted arguments inherit the object's control values, so the
+			// latest unconditional setCsvControl decides the effective escape.
+			var last *syntax.MethodCall
 			for _, p := range semanticquery.NativePriorCalls(ctx, c, c.Var, "setCsvControl") {
-				control := p.(*syntax.MethodCall)
-				if semanticquery.CallArgument(control.Args, 2, "escape") != nil && semanticquery.CallArgument(args, pos, "separator") == nil && semanticquery.CallArgument(args, pos+1, "enclosure") == nil {
-					return
+				if control := p.(*syntax.MethodCall); last == nil || control.Span().Start > last.Span().Start {
+					last = control
 				}
 			}
+			if last != nil && semanticquery.CallArgument(last.Args, 2, "escape") != nil {
+				return
+			}
+			fixable = defaultEscapeProven(ctx, c)
 		}
 	}
 	for _, a := range args.Args {
 		if arg, ok := a.(*syntax.Arg); !ok || arg.Unpack {
-			ctx.ReportNode(n, message)
-			return
+			fixable = false
 		}
+	}
+	if !fixable {
+		ctx.ReportNode(n, message)
+		return
 	}
 	point := syntax.Span{Start: args.Span().End - 1, End: args.Span().End - 1}
 	text := `escape: "\\"`
@@ -68,4 +79,71 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	fix := diagnostic.Fix{Title: "Pass the CSV escape explicitly", Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: point, NewText: text}} }}
 	ctx.ReportNode(n, message, fix)
+}
+
+// defaultEscapeProven reports whether the receiver's control escape is
+// certainly still the backslash default: a variable assigned once from a new
+// builtin file object and otherwise used only as the receiver of builtin
+// methods that leave the escape alone. Anything else may have configured it.
+func defaultEscapeProven(ctx *analysis.Context, call *syntax.MethodCall) bool {
+	receiver, ok := call.Var.(*syntax.Variable)
+	if !ok || receiver.Name == "" {
+		return false
+	}
+	assigned, safe := false, true
+	visit := func(n syntax.Node) bool {
+		if !safe {
+			return false
+		}
+		switch v := n.(type) {
+		case *syntax.Include, *syntax.Eval:
+			safe = false
+		case *syntax.Variable:
+			if v.Name != receiver.Name {
+				// A variable variable may alias the receiver.
+				safe = v.Name != ""
+				break
+			}
+			switch parent := v.Parent().(type) {
+			case *syntax.Assign:
+				created, isNew := parent.Value.(*syntax.New)
+				safe = parent.Var == v && parent.Op.Kind == syntax.TEqual && !parent.ByRef && isNew && !assigned && builtinFileObject(ctx, created) && semanticquery.NativeDominates(parent, call)
+				assigned = true
+			case *syntax.MethodCall:
+				id, named := parent.Name.(*syntax.Identifier)
+				safe = parent.Var == v && named && !(strings.EqualFold(id.Value, "setCsvControl") && setsEscape(parent.Args))
+			default:
+				safe = false
+			}
+		}
+		return safe
+	}
+	if scope := syntax.EnclosingVariableScope(call); scope != nil {
+		syntax.Inspect(scope, visit)
+	} else {
+		syntax.InspectFile(ctx.File, visit)
+	}
+	return safe && assigned
+}
+
+// builtinFileObject accepts only the exact builtin classes: a subclass may
+// configure the escape in its constructor or in an overridden method.
+func builtinFileObject(ctx *analysis.Context, n *syntax.New) bool {
+	classes := ctx.Types().Native().TypeOf(n).Classes()
+	return len(classes) == 1 && slices.ContainsFunc([]string{"SplFileObject", "SplTempFileObject"}, func(name string) bool {
+		return strings.EqualFold(strings.TrimPrefix(classes[0], `\`), name)
+	})
+}
+
+// setsEscape reports whether a setCsvControl call may supply an escape.
+func setsEscape(args *syntax.ArgList) bool {
+	if semanticquery.CallArgument(args, 2, "escape") != nil {
+		return true
+	}
+	for _, a := range args.Args {
+		if arg, ok := a.(*syntax.Arg); !ok || arg.Unpack {
+			return true
+		}
+	}
+	return false
 }

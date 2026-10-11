@@ -43,7 +43,13 @@ the next iteration of the surrounding loop. `continue 2` is what was meant.
 
 ## Fix
 
-- **F1** Replace the whole statement with `continue 2;`.
+- **F1** Insert the level right after the `continue` keyword
+  (`continue;` → `continue 2;`). Nothing else is rewritten, so the statement
+  terminator (`;` or a closing tag `?>`) and any comment before it are kept
+  as written.
+- **F2** No fix (report only) when a `finally` block lies between the
+  `continue` and the loop: PHP rejects `continue N` jumping out of `finally`
+  at compile time, while the bare `continue` is legal there.
 
 ## Options
 
@@ -118,3 +124,12 @@ function dispatch(array $events) {
   followed by further statements in the loop body, the finding has no
   quick-fix (SuiteCRM's SQL parser keeps `++$i;` after the switch in step
   with the foreach position).
+- **No fix out of a `finally` block (custos diverges).** A `continue` in a
+  switch inside `finally { }` whose loop is outside the `try` is reported
+  without a quick-fix: `continue 2` there is a compile-time fatal error
+  ("jump out of a finally block"), whereas the original code runs.
+- **The fix only inserts the level (custos diverges).** Rewriting the whole
+  statement as `continue 2;` breaks a statement terminated by a closing tag
+  (`continue ?>` would lose the tag and leave the following `<?php` inside
+  PHP code) and drops comments placed before the `;`. custos inserts ` 2`
+  after the keyword instead.

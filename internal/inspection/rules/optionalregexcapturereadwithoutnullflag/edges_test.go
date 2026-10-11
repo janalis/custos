@@ -16,7 +16,10 @@ func TestEdges(t *testing.T) {
 	}{
 		{"other(); $x->other(); echo $x[0];", 0, ""},
 		{"echo $m[1];", 0, ""},
+		{"preg_match(\"/^(a)?b$/\",\"b\",$m);echo $m[1][2];", 1, ""},
 		{"preg_match(\"/^(a)?b$/\",\"b\",$m);echo $m[1];", 1, ""},
+		{"preg_match(\"/^(a)?b$/\",\"b\",$m);$a=[$m[1]=>&$x];", 1, ""},
+		{"preg_match(\"/^(a)?b$/\",\"b\",$m);$a=[&$m[1]];", 0, ""},
 		{"if($ok){}echo $m[1];", 0, ""},
 		{"preg_match(\"/^(a)?b$/\",\"b\",$other);echo $m[1];", 0, ""},
 		{"preg_match(\"/^(a)?b$/\",\"b\",$m);echo isset($m[1]);", 0, ""},

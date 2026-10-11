@@ -109,6 +109,9 @@ func computeMatches(ctx *analysis.Context, c *syntax.FuncCall) ([][]int, int, bo
 		return nil, 0, false
 	}
 	for i := 0; i < len(body); i++ {
+		if body[i] == '{' && versionDependentBrace(body[i:]) {
+			return nil, 0, false
+		}
 		if body[i] == '\\' {
 			i++
 			if i == len(body) || !strings.ContainsRune("dDwW\\.[](){}?*+^$|-", rune(body[i])) {
@@ -137,6 +140,19 @@ func computeMatches(ctx *analysis.Context, c *syntax.FuncCall) ([][]int, int, bo
 		return nil, 0, false
 	}
 	return matches, count, true
+}
+
+var (
+	looseBrace  = regexp.MustCompile(`^\{[ \t\d,]*\}`)
+	strictBrace = regexp.MustCompile(`^\{\d+(,\d*)?\}$`)
+)
+
+// versionDependentBrace reports whether the unescaped brace opening rest is
+// read as a quantifier by some PCRE2 releases and as literal text by others
+// (and by RE2): a missing minimum such as {,2}, or blanks inside the braces.
+func versionDependentBrace(rest string) bool {
+	group := looseBrace.FindString(rest)
+	return group != "" && !strictBrace.MatchString(group)
 }
 
 func priorRegex(ctx *analysis.Context, at syntax.Node, variable *syntax.Variable, name string) *syntax.FuncCall {

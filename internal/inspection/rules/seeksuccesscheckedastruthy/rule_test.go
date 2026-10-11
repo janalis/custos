@@ -120,6 +120,8 @@ func TestEdges(t *testing.T) {
 	}{
 		{"if(!fseek($fp,0)){} if(fseek($fp,0)==true){} if(($r=fseek($fp,0))){}", 3},
 		{"if(fseek($fp,0)===0){} if(rewind($fp)){}", 0},
+		{"if($x){}elseif(fseek($fp,0)){} for(;fseek($fp,0);){}", 2},
+		{"if(fseek(...)){} if($x+=fseek($fp,0)){} if($x??=fseek($fp,0)){} for(;fseek($fp,0),$x;){}", 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"SeekSuccessCheckedAsTruthy"}})

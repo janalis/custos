@@ -15,12 +15,14 @@ Identify preg_match, preg_match_all, preg_replace or preg_split with known u mod
 ## Detection
 
 - D1. Report preg_match, preg_match_all, preg_replace or preg_split with known u modifier and a constant subject whose bytes fail strict UTF-8 validation; exclude byte-oriented patterns.
+- D1a. The u modifier is known only when the constant pattern has a usable delimiter layout: after optional leading whitespace, the delimiter is an ASCII character other than a letter, a digit, a backslash or NUL; the body ends at the first unescaped closing delimiter; for the bracket-style delimiters `(`, `[`, `{` and `<` the closing delimiter is the matching `)`, `]`, `}` or `>`, counted with nesting; everything after it consists only of modifier letters (plus spaces and newlines), one of which is `u`.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
+- E1a. A `u` that belongs to the pattern body is not a modifier: `'[a[u]]'`, `'{a{1}u}'` and `'(a(u))'` carry no modifiers and match bytewise. A pattern with no closing delimiter, an invalid delimiter or an unknown character in its modifier list does not compile, so its subject is never validated and nothing is reported.
 - E2. Both `@custos-ignore RegexUtf8SubjectKnownInvalid` and `@noinspection RegexUtf8SubjectKnownInvalid` suppress this native rule.
 
 ## Fix

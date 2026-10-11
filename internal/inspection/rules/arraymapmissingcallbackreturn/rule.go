@@ -48,8 +48,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		case *syntax.ExprStmt:
 			if fc, ok := z.Expr.(*syntax.FuncCall); ok {
 				switch semanticquery.NativeBuiltinName(ctx, fc) {
-				case "trim", "ltrim", "rtrim", "strtolower", "strtoupper", "substr", "str_replace", "mb_strtolower", "mb_strtoupper":
+				case "trim", "ltrim", "rtrim", "strtolower", "strtoupper", "substr", "mb_strtolower", "mb_strtoupper":
 					transformed = true
+				case "str_replace":
+					transformed = transformed || !mayBindCount(fc.Args)
 				}
 			}
 		}
@@ -67,4 +69,22 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	ctx.ReportNode(call, message, fixes...)
+}
+
+// mayBindCount reports whether a str_replace() argument list can reach the
+// by-reference count parameter, which makes the statement a side effect.
+func mayBindCount(list *syntax.ArgList) bool {
+	positional := 0
+	for _, node := range list.Args {
+		arg, ok := node.(*syntax.Arg)
+		if !ok || arg.Unpack {
+			return true
+		}
+		if arg.Name == nil {
+			positional++
+		} else if strings.EqualFold(arg.Name.Value, "count") {
+			return true
+		}
+	}
+	return positional > 3
 }

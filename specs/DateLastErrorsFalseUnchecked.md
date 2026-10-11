@@ -21,6 +21,13 @@ Detect direct array access on getLastErrors result or a proven alias without exc
 ## Exceptions (no report)
 
 - E1. Truthiness guards, strict false guards, null/false-aware normalization and PHP before 8.2 are excluded.
+- E3. Silent probes are not reads: an access that is the operand of `isset`, of `empty`, or the tested (left) side of `??` yields no diagnostic on false, including when further offsets are chained on it. An access used as the index of such a probe, or on the fallback side of `??`, is still an ordinary read.
+- E4. A guard counts when it must have held for the same value to reach the access:
+  - the access is the right operand of `&&` / `and` whose left operand proves the value, or of `||` / `or` whose left operand can only be false when the value is proven;
+  - the access is in the taken arm of a ternary, in the body of an `if` or `elseif`, or in a later `elseif` condition, `elseif` body or `else` body that is reached only after an earlier condition of the same statement failed;
+  - an earlier statement of an enclosing statement list is an `if` without `elseif`/`else` whose body never falls through (return, throw, exit, continue, break) and whose condition holds whenever the value is false.
+- E5. A condition proves the value when its being true (or, under `!`, false) implies it: the value itself (truthiness), `!empty(value)`, `isset(value[...])`, `is_array(value)` resolved to the builtin, a strict or loose comparison with the `false` constant in either operand order, a plain assignment of the producing call tested in place, any conjunct of a true `&&` chain and any disjunct of a false `||` chain. `isset(value)` alone, comparisons with other constants and guards on a different variable prove nothing.
+- E6. The guard and the access must observe the same value: the same expression text with the same reaching assignment. A reassignment between the guard and the access voids the guard, even when it calls the same method again.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report
@@ -48,6 +55,27 @@ Available from PHP 8.2. Builtin behavior and argument contracts follow the confi
 ```php
 <?php
 $errors=DateTimeImmutable::getLastErrors(); echo <warning descr="Handle the false result before reading parsing diagnostics.">$errors['warning_count']</warning>;
+```
+
+Not reported, because false never reaches an offset read:
+
+```php
+<?php
+function warningCount(): int {
+    $errors = DateTimeImmutable::getLastErrors();
+    return $errors['warning_count'] ?? 0;
+}
+function hasWarnings(): bool {
+    $errors = DateTimeImmutable::getLastErrors();
+    return $errors !== false && $errors['warning_count'] > 0;
+}
+function firstError(): string {
+    $errors = DateTimeImmutable::getLastErrors();
+    if (!$errors) {
+        return '';
+    }
+    return (string) reset($errors['errors']);
+}
 ```
 
 ## Divergences

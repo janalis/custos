@@ -35,7 +35,8 @@ Reported:
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- E2. Do not report when the statement directly before session_destroy already removed the local value: a plain assignment of an empty array (`[]` or `array()`) to $_SESSION, a resolved builtin session_unset() call, unset($_SESSION), or an unset of the same literal key as the one read (string keys compare by value, so quote style is irrelevant; a string key never matches a numeric literal). Any other preceding statement, a non-literal key, a different key, a non-empty array, a compound or by-reference assignment keeps the report.
+- E3. Both standard suppression forms suppress this native ID.
 
 ## Fix
 

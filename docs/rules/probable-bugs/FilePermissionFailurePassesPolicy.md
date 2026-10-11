@@ -21,7 +21,8 @@ Identify unchecked fileperms result masked with a nonzero permission bitmask, co
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore FilePermissionFailurePassesPolicy` and `@noinspection FilePermissionFailurePassesPolicy` suppress this native rule.
+- E2. No report when a test of the same reaching lookup result already keeps `false` away from the mask comparison. Accepted tests: truthiness (`$m`, `!$m`, `empty($m)`), `is_int`/`is_integer`/`is_long`, `is_bool`, and loose or strict comparison with `false` in either operand order, combined through `!`, `&&` and `||` when the combination still proves the result is not `false`. Accepted positions: the left operand of a short-circuit `&&`/`||` whose right operand holds the comparison, an enclosing `if`/`elseif` body, an `elseif`/`else` arm reached only after an earlier condition of the same `if` failed, and an earlier sibling `if` without `elseif`/`else` whose body always leaves the block. A test of another variable, of a value reassigned since, or one that only checks the path (`file_exists`) is not a guard.
+- E3. Both `@custos-ignore FilePermissionFailurePassesPolicy` and `@noinspection FilePermissionFailurePassesPolicy` suppress this native rule.
 
 ## Fix
 

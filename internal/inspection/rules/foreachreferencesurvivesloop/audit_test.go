@@ -17,6 +17,20 @@ func TestAuditRegressions(t *testing.T) {
 		{"$xs=[1];foreach($xs as &$x){unset($x);}$x=9;", 0, -1},
 		{"foreach($a as &$v){$f=function(){unset($v);};}$v=3;", 1, -1},
 		{"foreach($a as &$v){$v=&$other;}$v=3;", 0, -1},
+		// Fresh array values: nothing else can observe the leftover reference.
+		{"foreach([1,2] as &$v){}$v=3;", 0, -1},
+		{"function f(){return [1,2];}foreach(f() as &$v){}$v=3;", 0, -1},
+		{"foreach(array_keys($a) as &$v){}$v=3;", 0, -1},
+		// Reference or spread items, by-reference returns and unresolved or
+		// non-array calls keep the report.
+		{"foreach([&$p,&$q] as &$v){}$v=3;", 1, -1},
+		{"foreach([...$a] as &$v){}$v=3;", 1, -1},
+		{"function &f(){static $s=[1];return $s;}foreach(f() as &$v){}$v=3;", 1, -1},
+		{"function f(){yield 1;}foreach(f() as &$v){}$v=3;", 1, -1},
+		{"foreach(g() as &$v){}$v=3;", 1, -1},
+		{"foreach($o->$m() as &$v){}$v=3;", 1, -1},
+		{"foreach(K::$m() as &$v){}$v=3;", 1, -1},
+		{"$xs=[1,2];foreach($xs as &$v){}$v=3;", 1, -1},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{New().ID()}})

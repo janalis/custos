@@ -29,7 +29,7 @@ Reported:
 
 ## Detection
 
-- D1. Report a direct readfile or fpassthru return used as the sole operand of echo or print. These functions already output stream bytes; their numeric successful return is output again.
+- D1. Report a direct readfile or fpassthru return used as the sole operand of echo or print. These functions already output stream bytes; their numeric successful return is output again. Grouping parentheses around the call, as in `echo(readfile($f));` or `print (fpassthru($h));`, are looked through: they are not call syntax and the operand is still the stream call alone.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
 - D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
@@ -42,7 +42,7 @@ Remove only the output keyword and its separating whitespace. Preserve suffix co
 
 ## Fix
 
-Replace a standalone echo/print statement whose only operand is the resolved call with that call as an expression statement. Retain the complete original call bytes, arguments and trailing semicolon. Offer no fix when wrapper removal would drop comments or when print is used within a larger expression.
+Replace a standalone echo/print statement whose only operand is the resolved call with that call as an expression statement. Retain the complete original call bytes, arguments and trailing semicolon. When the operand is parenthesised, remove only the keyword and the whitespace before the opening parenthesis, leaving the parenthesised call as the statement. Offer no fix when wrapper removal would drop comments or when print is used within a larger expression.
 
 All edits use exact byte ranges, preserve comments and evaluation order, and require syntax supported by the target PHP version. A fix must never add an evaluation or silently change unrelated arguments.
 

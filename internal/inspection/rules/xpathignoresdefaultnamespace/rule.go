@@ -39,8 +39,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || !semanticquery.NamesGlobalClass(ctx, creation.Class, "DOMXPath") {
 		return
 	}
+	// The three evidence statements must be adjacent: anything between the
+	// load and the query could mutate or replace the document.
 	prior := flowquery.NativePriorStatements(ctx.File, c)
-	if len(prior) == 0 {
+	if len(prior) < 2 {
+		return
+	}
+	loading, ok := prior[len(prior)-2].(*syntax.ExprStmt)
+	if !ok {
 		return
 	}
 	st, ok := prior[len(prior)-1].(*syntax.ExprStmt)
@@ -56,7 +62,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(calls) == 0 {
 		return
 	}
-	if load, ok := calls[len(calls)-1].(*syntax.MethodCall); ok && semanticquery.NativeMethod(ctx, load, "DOMDocument", "loadXML") {
+	if load, ok := calls[len(calls)-1].(*syntax.MethodCall); ok && syntax.Node(load) == syntax.Node(loading.Expr) && semanticquery.NativeMethod(ctx, load, "DOMDocument", "loadXML") {
 		text, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(load.Args, 0, "source"))
 		if !known || len(text) > 65536 {
 			return

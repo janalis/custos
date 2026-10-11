@@ -5,10 +5,11 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 )
 
 func TestOperationalBoundaries(t *testing.T) {
-	engine, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"FileStatCacheAfterExternalMutation"}})
+	engine, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"FileStatCacheAfterExternalMutation"}, PHP: phpversion.PHP82})
 	if err != nil {
 		t.Fatal(err)
 	}

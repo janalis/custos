@@ -17,11 +17,21 @@ Detect explode with a separator statically equal to the empty string.
 - D1. Report explode with a separator statically equal to the empty string.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D4. A separator read from a variable is definite only when plain assignments are the sole way that variable can change in the scope of the call. See E3 for the writes that make it indefinite.
 
 ## Exceptions (no report)
 
 - E1. Unknown or nonempty separators and shadowed application functions are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. No report when a variable of the separator expression, or a variable whose value was copied into it by assignment, can be rewritten behind the tracked assignments:
+  - it is captured by reference in a closure `use` list in the scope (including the closure that is the scope itself);
+  - it is declared `global` in the scope;
+  - it is the operand of `++` or `--` (incrementing an empty string yields `"1"`);
+  - it is bound by reference as an array item (`['k' => &$sep]`);
+  - the scope calls the builtin `extract()`, or `parse_str()` with a single argument, either of which may define any local;
+  - the call is at file level, where locals are globals, and the file declares the variable `global` in any function or mentions `$GLOBALS` anywhere.
+
+  The check is lexical and deliberately conservative: it does not prove that the rewriting code runs between the assignment and the call.
 
 ## Report
 
@@ -48,6 +58,28 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 ```php
 <?php
 $parts=<error descr="Supply a nonempty separator.">explode('',$text)</error>;
+```
+
+A local that only plain assignments can change is still definite:
+
+```php
+<?php
+function cells(string $row) {
+    $glue = '';
+    return <error descr="Supply a nonempty separator.">explode($glue, $row)</error>;
+}
+```
+
+Not reported, because the closure may rewrite the captured variable before the call:
+
+```php
+<?php
+function cells(string $row) {
+    $glue = '';
+    $configure = function () use (&$glue) { $glue = '|'; };
+    $configure();
+    return explode($glue, $row);
+}
 ```
 
 ## Divergences

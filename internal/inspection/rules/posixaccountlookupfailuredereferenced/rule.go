@@ -33,7 +33,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || (!semanticquery.NativeBuiltin(ctx, c, "posix_getpwnam") && !semanticquery.NativeBuiltin(ctx, c, "posix_getpwuid")) {
 		return
 	}
-	if !ctx.Flow().Excludes(a.Var, "false") && !semanticquery.NativeLocalSentinelGuard(ctx, a.Var, "false") {
+	if ctx.Flow().Excludes(a.Var, "false") || semanticquery.NativeLocalSentinelGuard(ctx, a.Var, "false") {
+		return
+	}
+	if !(guard{ctx: ctx, target: a.Var, call: c}).covers() {
 		ctx.ReportNode(n, message)
 	}
 }

@@ -16,6 +16,7 @@ Identify resolved Imagick::setIteratorIndex whose argument is same unchanged rec
 
 - D1. Report resolved Imagick::setIteratorIndex whose argument is same unchanged receiver getNumberImages result, or a constant index proven at least known positive frame count. Negative indices may have documented special meaning and are excluded.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- D1a. When the argument is a local variable, it counts as the unchanged count only if the latest binding of that variable before the call is a plain `=` assignment of the `getNumberImages()` result, or of another variable that satisfies the same condition. Any other earlier rebind in between (`$n--`, `$n++`, a compound assignment, a `foreach` key or value target, `list()`/array destructuring, a reference assignment, `global`/`static`, a `catch` variable, `unset`) means the variable may hold a valid index, so nothing is reported.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)

@@ -32,10 +32,13 @@ Reported:
 - D1. Enabled policy requires non-destructive linked-list traversal. Track setIteratorMode flags for resolved builtin SplDoublyLinkedList (and inherited SplQueue/SplStack behavior); report foreach iterable when the current mode includes IT_MODE_DELETE.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
 - D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D4. The mode is the one set by the last `setIteratorMode` call that runs unconditionally before the loop on the same list. It only counts as proven when no other mode change can run between that call and the first execution of the loop. Mode changes placed after the loop do not alter that first execution and are ignored.
 
 ## Exceptions (no report)
 
 - E1. Exclude IT_MODE_KEEP, unknown modes, clones and custom iteration behavior. Direction bits alone do not imply deletion.
+- E3. No report when, after the last unconditional mode call and before the loop, a `setIteratorMode` call (or a method call with a dynamic name) sits where it is not guaranteed to run or cannot be tied to the list: inside an `if`/`else`/`switch` branch, a `try` block, a loop header or body, a ternary or short-circuit operand, or on a nullsafe or unproven receiver. The mode is then unknown rather than `IT_MODE_DELETE`.
+- E4. No report when, anywhere before the loop, a closure or arrow function contains a `setIteratorMode` call or refers to the list variable (including `use` captures), or the list variable is placed in an array literal such as a `[$list, 'setIteratorMode']` callable. The list has escaped and its mode can be changed out of sight.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore LinkedListDeleteIterationUnexpected` and `@noinspection LinkedListDeleteIterationUnexpected` suppress this inspection.
 
 ## Fix

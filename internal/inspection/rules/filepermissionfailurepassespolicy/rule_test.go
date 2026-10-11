@@ -41,7 +41,7 @@ func TestContracts(t *testing.T) {
 }
 
 func TestFixtureRanges(t *testing.T) {
-	for _, name := range []string{"basic", "negative"} {
+	for _, name := range []string{"basic", "negative", "guards", "false-positives"} {
 		marked, err := os.ReadFile("../../../../testdata/rules/FilePermissionFailurePassesPolicy/" + name + ".php")
 		if err != nil {
 			t.Fatal(err)
@@ -63,6 +63,46 @@ func TestFixtureRanges(t *testing.T) {
 			if int(g.Span.Start) != w.Start || int(g.Span.End) != w.End || g.Message != w.Message || g.Severity != w.Severity || len(g.Fixes) != 0 {
 				t.Fatalf("got %+v, want %+v", g, w)
 			}
+		}
+	}
+}
+
+func TestReviewGuards(t *testing.T) {
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"FilePermissionFailurePassesPolicy"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const use = " if (($p & 0222) === 0) { return true; } return false; }"
+	for _, tc := range []struct {
+		name, guard string
+		want        int
+	}{
+		{"none", "", 1},
+		{"falsy", "if (!$p) { return false; }", 0},
+		{"parenthesised", "if ((!($p))) { return false; }", 0},
+		{"empty", "if (empty($p)) { return false; }", 0},
+		{"not int", "if (!is_int($p)) { return false; }", 0},
+		{"not integer alias", "if (!\\is_integer($p)) { throw new Exception; }", 0},
+		{"bool", "if (is_bool($p)) { return false; }", 0},
+		{"loose", "if ($p == false) { return false; }", 0},
+		{"strict yoda", "if (false === $p) { return false; }", 0},
+		{"earlier sibling", "if (!$p) { return false; } echo $f;", 0},
+		{"non-terminating", "if (!$p) { echo $f; }", 1},
+		{"inverted", "if ($p) { return false; }", 1},
+		{"inverted type", "if (is_int($p)) { return false; }", 1},
+		{"other variable", "if (!$f) { return false; }", 1},
+		{"reassigned", "if (!$p) { return false; } $p = fileperms($f . 'x');", 1},
+		{"conjunction", "if (!$p && $f) { return false; }", 1},
+		{"named argument", "if (!is_int(value: $p)) { return false; }", 1},
+		{"null comparison", "if ($p === null) { return false; }", 1},
+	} {
+		src := "<?php function check($f) { $p = fileperms($f); " + tc.guard + use
+		f := syntax.Parse("test.php", []byte(src), syntax.Options{})
+		if len(f.Errors) != 0 {
+			t.Fatalf("%s: invalid probe: %v", tc.name, f.Errors)
+		}
+		if got := e.Analyze(f); len(got) != tc.want {
+			t.Errorf("%s: got %d findings, want %d: %+v", tc.name, len(got), tc.want, got)
 		}
 	}
 }

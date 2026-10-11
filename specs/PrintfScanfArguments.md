@@ -56,32 +56,53 @@ invalid.
 - **D3** If the literal contains interpolation (a double-quoted string with
   embedded variables or expressions, e.g. `"Hi $name %s"`), stop: the format
   is only known at run time. Otherwise let `content` be the format text the
-  call receives: for a single-quoted literal its raw contents between the
-  quotes; for a double-quoted literal its decoded value (escape sequences
-  processed, so `"%1\$s"` reads `%1$s` and `"\x25d"` reads `%d`). Trim
-  leading/trailing whitespace. Empty → stop.
-- **D4** Let `adapted` = `content` with every `%%` removed (left-to-right,
-  non-overlapping). A `$` in `adapted` is plain text: single-quoted strings
-  never interpolate, and double-quoted ones with interpolation stopped at D3.
-  Positional specifications (`%2$s`) are handled by D5.
-- **D5** Scan `adapted` from left to right for conversion specifications; after
-  each match scanning resumes right after it, and a `%` where no
-  specification matches is skipped. A specification is, in order:
+  call receives, i.e. the decoded value of the literal (escape sequences
+  processed, so `"%1\$s"` reads `%1$s`, `"\x25d"` reads `%d` and
+  `'%\'010d'` reads `%'010d`). Trim leading/trailing whitespace.
+  Empty → stop.
+- **D4** A `$` in `content` is plain text: single-quoted strings never
+  interpolate, and double-quoted ones with interpolation stopped at D3.
+  Positional specifications (`%2$s`) are handled by D5. `%%` is a literal
+  percent sign: for the printf family every `%%` is removed first
+  (left-to-right, non-overlapping); for the scanf family it is skipped
+  during the scan, so that a `%` inside a character set is not mistaken
+  for one.
+- **D5** Scan the format from left to right; every `%` must start a
+  conversion specification of the function's family (custos diverges, see
+  Divergences). An *argument number* is one or more digits followed by `$`.
+
+  **printf family** (`printf`, `sprintf`, `fprintf`), in order:
   1. `%`;
-  2. optionally an argument number: one or more digits, or `*`, followed by
-     `$` (group *argnum*);
-  3. optionally `+` or `-`;
-  4. optionally a padding spec: a space, or `0`, or `'` followed by any one
-     character, the `'` optionally preceded by a backslash;
-  5. optionally `-`;
-  6. zero or more digits (width);
-  7. optionally `.` followed by zero or more digits (precision);
-  8. one conversion character among `[ s d u c o x X b g G e E f F`.
-  Count `matches` (all), `plain` (matches without argnum) and `maxArg` (the
-  largest argnum seen, 0 if none).
-- **D6** Validity: `percents` = number of `%` characters in `content` after
-  removing all `%%` and then all `%*` sequences. If `matches != percents` →
-  report **invalid format** on `A` and stop.
+  2. optionally an argument number;
+  3. any number of flags, in any order: `-`, `+`, a space, `0`, or `'`
+     followed by any one padding character;
+  4. optionally a width: digits or, when the target is PHP 8.0 or later,
+     `*` optionally followed by an argument number (the width is read from
+     an argument);
+  5. optionally `.` followed by a precision: zero or more digits or, from
+     PHP 8.0, `*` optionally followed by an argument number;
+  6. optionally the length modifier `l`;
+  7. one conversion character among `s d u c o x X b g G e E f F`, plus
+     `h H` when the target is PHP 8.0 or later.
+
+  **scanf family** (`sscanf`, `fscanf`), in order:
+  1. `%`;
+  2. optionally `*` (the value is read but not assigned) or an argument
+     number;
+  3. optionally a width: digits;
+  4. optionally one size modifier among `h l L`;
+  5. one conversion character among `n d D i o u x X f e E g s c`, or a
+     character set: `[`, optionally `^`, optionally a `]` taken as a member,
+     then everything up to the next `]`. Text inside the set, `%` included,
+     is not scanned for specifications.
+
+  Count `plain` — specifications without argument number that take a value
+  (every one except a `*`-suppressed scanf conversion), plus one for each
+  `*` width or precision without argument number — and `maxArg`, the largest
+  argument number seen (0 if none).
+- **D6** Validity: if some `%` does not start a specification of the family
+  (unknown conversion character, misplaced flag, unterminated set, end of
+  the format) → report **invalid format** on `A` and stop.
 - **D7** Arity: `expected = P + 1 + max(plain, maxArg)`. If the call's
   argument count (a spread `...$x` counts as one) differs from `expected`,
   report **argument count**, unless one of:
@@ -108,7 +129,10 @@ invalid.
 - **E5** Spread as last argument.
 - **E6** Format variable later extended with a compound assignment.
 - **E7** `%*…` scanf suppressions and `%[...]` character sets are handled by
-  D5/D6 (a `%*s` is not a match and not counted as a `%`).
+  D5 (a `%*s` takes no argument; `'%[^%]%%%s'` holds two conversions).
+- **E8** Everything PHP itself accepts in a format: flags in any order
+  (`'%0+5d'`, `'%-+6d|'`), `'%h'`, `'%H'`, `'%*d'` and `'%.*f'` on PHP 8.0+,
+  and the scanf conversions `%i`, `%n`, `%D`, `%hd`, `%Lf`.
 
 ## Report
 
@@ -129,7 +153,9 @@ None.
 
 ## PHP versions
 
-None.
+The rule runs on every version. The printf conversions `h`/`H` and the `*`
+width and precision are accepted only when the target is PHP 8.0 or later;
+on older targets they are reported as malformed (D5).
 
 ## Examples
 
@@ -208,8 +234,6 @@ A text like `'99% sure'` is *valid* for D5 (`% s` = space padding + `s`).
   the namespace or imported with `use function`) is checked as if it were
   the builtin. custos compares the name case-insensitively and requires the
   call to reach the global function (D1).
-- An argnum of `*` followed by `$` would make upstream fail while parsing
-  the number. Recommendation: treat `*$` as a non-match.
 - **Redeclarable format properties (custos diverges).** `$this->p` is
   resolved only when the property is private or its class is final (or
   anonymous): a subclass may redeclare it with another format (adodb's
@@ -225,3 +249,15 @@ A text like `'99% sure'` is *valid* for D5 (`% s` = space padding + `s`).
   `l` before the conversion character (`%ld`, `%.0lf`, common in code
   ported from C: nusoap). D5 accepts an optional `l` after the precision;
   upstream reports such formats as malformed.
+- **Per-family grammar (custos diverges).** Upstream recognises one
+  specification shape for both families: a fixed flag order, no `h`/`H`
+  conversion, no `*` width or precision, and none of the scanf-only
+  conversions or size modifiers; it also drops every `%*` before counting
+  and counts a `%` inside a scanf character set. Formats PHP runs without
+  complaint (`'%0+5d'`, `'%*d'` and `'%h'` on PHP 8, `'%i %s%n'`, `'%hd'`,
+  `'%[^%]%%%s'`) are then reported as malformed or with a wrong count.
+  custos follows the grammar PHP applies to each family (D5), gating the
+  PHP 8.0 printf additions on the target version. The reverse also holds:
+  a specification only the other family knows (`sprintf('%[a-z]', …)`,
+  `sscanf($s, '%.2f', …)`, `sscanf($s, '%b', …)`) or an unterminated set
+  is rejected by PHP and reported as malformed, where upstream accepts it.

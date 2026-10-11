@@ -35,6 +35,7 @@ Reported:
 
 - E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
 - E2. Both @custos-ignore SqliteNullBindingDiscardsValue and @noinspection SqliteNullBindingDiscardsValue suppress this native rule.
+- E3. A variable value is not trusted when the same lexical scope captures that variable by reference in a closure (`use (&$value)`) or stores it by reference in an array literal (`[&$value]`), wherever that happens in the scope: the alias can set it to null without a visible assignment. By-value captures and arrow functions do not count.
 
 ## Fix
 

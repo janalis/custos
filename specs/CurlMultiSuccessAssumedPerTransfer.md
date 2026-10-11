@@ -15,13 +15,15 @@ Successful multi-transfer execution does not establish that each request succeed
 ## Detection
 
 - D1. A curl_multi_exec result compared to CURLM_OK and completed running count guards unconditional true return, with no curl_multi_info_read inspection on that handle. Match complete function-local transfer lifecycle, not arbitrary success-named consumers.
-- D1a. Require at least one resolved curl_multi_add_handle on the same locally initialized multi handle before execution. Empty multi handles are valid and excluded. Any intervening curl_multi_remove_handle on that same multi handle invalidates the nonempty-transfer proof.
+- D1a. Require at least one resolved curl_multi_add_handle on the same locally initialized multi handle before execution. Empty multi handles are valid and excluded. The handle must be held in a plain local variable.
+- D1b. Before the guarding `if`, every use of that variable must be either the target of a plain assignment or a direct argument of a resolved lifecycle builtin: curl_multi_add_handle, curl_multi_exec, curl_multi_select, curl_multi_setopt or curl_multi_errno. These drive the handle without exposing per-transfer results and without detaching transfers.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
 
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- E1a. Any other use of the handle variable before the guarding `if` drops the report, because the code receiving the handle may inspect or change the transfers: passing it to a user function, method, static method, constructor, dynamic callee or any builtin outside the D1b list (including curl_multi_info_read, curl_multi_remove_handle and curl_multi_close), spreading it, copying it to another variable, binding it by reference, storing it in a property or array, capturing it in a closure or arrow function, or reaching it by name through a variable variable, `compact()` or `get_defined_vars()`.
 - E2. Both standard suppression forms suppress this native ID.
 
 ## Report
@@ -50,7 +52,13 @@ Available throughout supported PHP 5.3–8.5 where the referenced builtin/extens
 function bad(){$h=curl_multi_init();curl_multi_add_handle($h,curl_init());if(<warning descr="Inspect each completed transfer result.">curl_multi_exec($h,$running)</warning>===CURLM_OK && !$running){return true;}}
 ```
 
-Valid case:
+Valid cases:
+
+```php
+<?php
+function failures($m){$n=0;while($info=curl_multi_info_read($m)){if($info["result"]!==CURLE_OK){$n++;}}return $n;}
+function viaHelper(){$h=curl_multi_init();curl_multi_add_handle($h,curl_init());if(failures($h)>0){return false;}if(curl_multi_exec($h,$running)===CURLM_OK && !$running){return true;}}
+```
 
 ```php
 <?php

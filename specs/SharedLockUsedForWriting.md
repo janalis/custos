@@ -21,7 +21,8 @@ A shared lock does not provide exclusive access for a write. Acquire an exclusiv
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- E2. Do not report when any flock call lies between the proven shared lock and the write, in any statement position (an `if` condition, a guard that throws, a conditional block, a short-circuit operand), unless that call's mode is itself provably LOCK_SH (optionally OR LOCK_NB) or its handle is proven to be a different stream. A checked upgrade such as `if (flock($h, LOCK_EX)) { fwrite($h, $data); }` is therefore valid.
+- E3. Both standard suppression forms suppress this native ID.
 
 ## Report
 
@@ -55,6 +56,7 @@ Valid case:
 ```php
 <?php
 flock($h,LOCK_EX);fwrite($h,$data);
+flock($g,LOCK_SH);if(!flock($g,LOCK_EX)){throw new RuntimeException('busy');}ftruncate($g,0);
 ```
 
 ## Divergences

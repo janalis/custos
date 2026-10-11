@@ -2,6 +2,8 @@
 package sortcomparatorreturnsboolean
 
 import (
+	"strings"
+
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/flowquery"
@@ -27,7 +29,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return
 	}
-	_, body := semanticquery.NativeCallback(ctx, semanticquery.CallArgument(call.Args, 1, "callback"))
+	callback := semanticquery.CallArgument(call.Args, 1, "callback")
+	_, body := semanticquery.NativeCallback(ctx, callback)
 	values, complete := semanticquery.NativeReturns(body)
 	if !complete {
 		return
@@ -44,7 +47,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	var fixes []diagnostic.Fix
-	if len(values) == 1 && ctx.PHP >= phpversion.PHP70 {
+	if len(values) == 1 && ctx.PHP >= phpversion.PHP70 && ownedIntComparator(ctx, callback) {
 		b := syntax.UnwrapParens(values[0]).(*syntax.Binary)
 		if (b.Op.Kind == syntax.TGreater || b.Op.Kind == syntax.TLess) && !flowquery.MayHaveSideEffects(b.Left) && !flowquery.MayHaveSideEffects(b.Right) {
 			edits := []diagnostic.TextEdit{{Span: b.Op.Span, NewText: "<=>"}}
@@ -58,4 +61,20 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	ctx.ReportNode(call, message, fixes...)
+}
+
+// ownedIntComparator reports whether the callback is written inline in the
+// sort call, so the call is its only caller, and may return an integer: a
+// declared return type other than int would coerce or reject the new result.
+func ownedIntComparator(ctx *analysis.Context, callback syntax.Expr) bool {
+	var returnType syntax.Expr
+	switch fn := syntax.UnwrapParens(callback).(type) {
+	case *syntax.Closure:
+		returnType = fn.ReturnType
+	case *syntax.ArrowFunction:
+		returnType = fn.ReturnType
+	default:
+		return false
+	}
+	return returnType == nil || strings.EqualFold(ctx.Text(returnType), "int")
 }

@@ -17,6 +17,26 @@ func TestAuditRegressions(t *testing.T) {
 		{"parse_str(\"a.b=x\",$out);unset($out[\"a.b\"]);", 0, -1},
 		{"parse_str(\"a.b=x\",$out);echo count($out=[\"a.b\"=>\"ok\"]),$out[\"a.b\"];", 0, -1},
 		{"parse_str(\"%20a.b=x\",$out);echo $out[\" a.b\"];", 0, -1},
+		{"parse_str(\"a.b=x\",$q);echo $q[\"n\"][\"a.b\"];", 0, -1},
+		// Review: a nested scope owns its own variable of the same name.
+		{"parse_str(\"a.b=x\",$q);$pick=fn($q)=>$q[\"a.b\"];", 0, -1},
+		{"parse_str(\"a.b=x\",$q);$pick=fn()=>$q[\"a.b\"];", 0, -1},
+		{"parse_str(\"a.b=x\",$q);$pick=function($q){return $q[\"a.b\"];};", 0, -1},
+		{"function f(){parse_str(\"a.b=x\",$q);return $q[\"a.b\"];}", 1, 1},
+		{"$f=fn($s)=>[parse_str(\"a.b=x\",$q),$q[\"a.b\"]];", 0, -1},
+		// Review: reference bindings create the dimension instead of reading it.
+		{"parse_str(\"a.b=x\",$q);$slot=&$q[\"a.b\"];", 0, -1},
+		{"parse_str(\"a.b=x\",$q);$refs=[&$q[\"a.b\"]];", 0, -1},
+		{"parse_str(\"a.b=x\",$q);foreach($q[\"a.b\"] as &$item){}", 0, -1},
+		{"parse_str(\"a.b=x\",$q);$copy=$q[\"a.b\"];", 1, 1},
+		{"parse_str(\"a.b=x\",$q);$map=[$q[\"a.b\"]=>&$other];", 1, 1},
+		{"parse_str(\"a.b=x\",$q);$list=[$q[\"a.b\"]];", 1, 1},
+		{"parse_str(\"a.b=x\",$q);foreach($q[\"a.b\"] as $item){}", 1, 1},
+		// Review: a fetch used as the key of a by-reference access is still read.
+		{"parse_str(\"a.b=x\",$q);$slot=&$cache[$q[\"a.b\"]];", 1, 1},
+		{"parse_str(\"a.b=x\",$q);$refs=[&$cache[$q[\"a.b\"]]];", 1, 1},
+		{"parse_str(\"a.b=x\",$q);foreach($cache[$q[\"a.b\"]] as &$item){}", 1, 1},
+		{"parse_str(\"a.b=x\",$q);$slot=&$q[\"a.b\"][\"c\"];", 0, -1},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{New().ID()}})

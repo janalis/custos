@@ -22,6 +22,7 @@ A session name must be configured before the session becomes active. Set the nam
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
 - E1a. A session_start call with read_and_close true does not establish an active session. Unknown option values discard active-state proof.
+- E1b. From PHP 8.0 the name parameter is nullable and a null argument only reads the current name, exactly like the argument-less call. A positional or named argument that resolves to the null constant (directly or through a locally proven variable) is therefore not a setter when the target version is 8.0 or later. Before 8.0 null is coerced to a string and takes the setter path, so the call is still reported.
 - E2. Both standard suppression forms suppress this native ID.
 
 ## Report
@@ -41,7 +42,7 @@ None.
 
 ## PHP versions
 
-Available throughout supported PHP 5.3–8.5 where the referenced builtin/extension is available. Respect syntax/version-specific receiver contracts; unavailable APIs are not this rule’s concern.
+Available throughout supported PHP 5.3–8.5 where the referenced builtin/extension is available. The null-argument getter form (E1b) is recognised from PHP 8.0 only. Respect syntax/version-specific receiver contracts; unavailable APIs are not this rule’s concern.
 
 ## Examples
 
@@ -55,6 +56,14 @@ Valid case:
 ```php
 <?php
 session_name("CUSTOM");session_start();
+```
+
+Reading the name through an explicit null (PHP 8.0+):
+
+```php
+<?php
+session_start();
+echo session_name(null);
 ```
 
 ## Divergences

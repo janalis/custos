@@ -14,7 +14,13 @@ Detect canonical-path containment accepted through str_starts_with or equivalent
 
 ## Detection
 
-- D1. Report canonical-path containment accepted through str_starts_with or equivalent prefix comparison against a literal non-root directory prefix without a directory-separator boundary.
+- D1. Report canonical-path containment accepted through str_starts_with or equivalent prefix comparison against a literal non-root directory prefix without a directory-separator boundary. The tested path is a `realpath()` result; the prefix is a single known string that is not empty and does not end in `/` or `\`.
+- D1a. The equivalent prefix comparisons, with operands in either order and optional parentheses around the call, are:
+  - `strpos($path, PREFIX) === 0` or `!== 0`, with no offset argument or an offset known to be 0;
+  - `strncmp($path, PREFIX, N)` (strings in either order) compared with integer 0 using `===`, `!==`, `==` or `!=`;
+  - `substr($path, 0, N)` compared with PREFIX using `===`, `!==`, `==` or `!=`.
+
+  N must be proven equal to the byte length of PREFIX: a known integer of that value, or `strlen()` of a known string identical to PREFIX. A negated comparison is reported as well, because it expresses the same boundary-less test on the rejection path.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
@@ -22,10 +28,11 @@ Detect canonical-path containment accepted through str_starts_with or equivalent
 
 - E1. Root prefixes, appended platform separators, exact-root plus child checks, unknown canonicalization and mere textual prefix use are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. Comparisons that are not an exact prefix test are left alone: `strpos(...) == 0` (it also accepts a missing prefix, a different defect), a non-zero or unknown offset, a comparison with anything other than 0 or the prefix, a length that is missing, unknown or different from the prefix length, and a bare or `!`-negated `strncmp` result.
 
 ## Report
 
-- Range: the complete violating call or expression identified by D1; for a declaration-state violation, the offending property access or assignment. Highlight the final unsafe use for source-to-use findings.
+- Range: the complete violating call or expression identified by D1 (the `str_starts_with` call, or the whole comparison for the D1a forms); for a declaration-state violation, the offending property access or assignment. Highlight the final unsafe use for source-to-use findings.
 - Severity: warning.
 - Message: `Require a directory boundary in the containment check.`
 
@@ -48,6 +55,8 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 ```php
 <?php
 function bad($path) { $resolved = realpath($path); if ($resolved === false) { return false; } if (<warning descr="Require a directory boundary in the containment check.">str_starts_with($resolved, '/srv/files')</warning>) { return true; } return false; }
+function alsoBad($path) { $resolved = realpath($path); return <warning descr="Require a directory boundary in the containment check.">strncmp($resolved, '/srv/files', 10) === 0</warning>; }
+function fine($path) { $resolved = realpath($path); return $resolved === '/srv/files' || strpos($resolved, '/srv/files/') === 0; }
 ```
 
 ## Divergences

@@ -25,27 +25,26 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || branch.Cond != c {
 		return
 	}
-	body, ok := branch.Body.(*syntax.Block)
-	if !ok {
-		return
+	// The guarded statement is the first one of a braced or alternative-syntax
+	// body, or the body itself when the branch has no block.
+	first := branch.Body
+	if body, ok := first.(*syntax.Block); ok {
+		if len(body.Stmts) == 0 {
+			return
+		}
+		first = body.Stmts[0]
 	}
-	for _, s := range body.Stmts {
-		switch st := s.(type) {
-		case *syntax.Return:
-			truth, known := semanticquery.NativeTruth(ctx, st.Expr)
-			if known && truth {
+	switch st := first.(type) {
+	case *syntax.Return:
+		truth, known := semanticquery.NativeTruth(ctx, st.Expr)
+		if known && truth {
+			ctx.ReportNode(c, message)
+		}
+	case *syntax.Echo:
+		if len(st.Exprs) == 1 {
+			if _, known := semanticquery.NativeString(ctx, st.Exprs[0]); known {
 				ctx.ReportNode(c, message)
 			}
-			return
-		case *syntax.Echo:
-			if len(st.Exprs) == 1 {
-				if _, known := semanticquery.NativeString(ctx, st.Exprs[0]); known {
-					ctx.ReportNode(c, message)
-				}
-			}
-			return
-		default:
-			return
 		}
 	}
 }

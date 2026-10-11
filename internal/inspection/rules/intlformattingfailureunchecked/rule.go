@@ -28,7 +28,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || !(semanticquery.NativeMethod(ctx, origin, "NumberFormatter", "format") || semanticquery.NativeMethod(ctx, origin, "IntlDateFormatter", "format")) {
 		return
 	}
-	if ctx.Flow().Excludes(input, "false") || semanticquery.NativeSentinelGuard(ctx, input, "false") {
+	if ctx.Flow().Excludes(input, "false") || (guard{ctx: ctx, input: input, origin: origin}).protects() {
 		return
 	}
 	ctx.ReportNode(input, message)
