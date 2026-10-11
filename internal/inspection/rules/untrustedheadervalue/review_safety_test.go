@@ -111,7 +111,8 @@ func TestReviewSafety(t *testing.T) {
 		{"coalesce", `header('X-V: ' . ($_GET['a'] ?? strlen($_GET['b'])));`, 1},
 		{"complement", `header('X-V: ' . ~$_GET['a'] . strlen($_GET['b']));`, 1},
 		{"string function", `header('X-V: ' . trim($_GET['a']) . strlen($_GET['b']));`, 1},
-		{"depth bound", `header(strlen($_GET['a'])` + strings.Repeat(" . 'x'", 40) + `);`, 1},
+		{"match numeric sum arm", `header('X-V: ' . match ($_GET['k']) { 'a' => $_GET['n'] + 1, default => 0 });`, 0},
+		{"depth bound", `header(($_GET['a'] + 1)` + strings.Repeat(" . 'x'", 40) + `);`, 1},
 		// Calls the local proofs do not apply to.
 		{"spread", `header(...$_GET['args']);`, 0},
 		{"wrapper", `function send($v) { header('X-L: ' . $v); } send($_GET['v']);`, 1},

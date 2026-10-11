@@ -40,6 +40,7 @@ Reported:
   - an earlier statement of an enclosing statement list leaves the path on failure: an `if` whose failure arm always terminates, or a `check or throw/exit` (`failed and throw/exit`) statement.
 
   A check on another variable, on a repeated format call, or made before the variable was reassigned proves nothing. `isset`, null comparisons and `assert` are not accepted.
+- E4. A value the shared flow analysis proves is not false at the use is never reported, whatever form the proof takes: a truthiness or `empty()` test, a loose comparison with `false` or `null`, a type predicate, or an early exit whose `if` also has an `else` branch that continues. This includes type predicates that false cannot pass, such as `is_numeric($s) ? strlen($s) : 0`.
 - E3. Both standard suppression forms suppress this native ID.
 
 ## Fix

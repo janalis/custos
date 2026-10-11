@@ -41,6 +41,10 @@ func TestReviewSafety(t *testing.T) {
 		{"top level without call", "<?php $n = 0; imagecreate($n, 5);", 1},
 		{"named arguments", "<?php function f() { $h = -1; return imagecreate(height: $h, width: 5); }", 1},
 		{"literal", "<?php imagecreatetruecolor(0, 80);", 1},
+		{"increment after call", "<?php function f() { $n = 0; $r = imagecreate($n, 5); $n++; return $r; }", 0},
+		{"reference capture never invoked", "<?php function f() { $n = 0; $g = function () use (&$n) { $n = 10; }; return imagecreate($n, 5); }", 0},
+		{"extract after call", "<?php function f(array $d) { $n = 0; $r = imagecreate($n, 5); extract($d); return $r; }", 0},
+		{"copy of later incremented", "<?php function f() { $n = 0; $m = $n; $r = imagecreate($m, 5); $n++; return $r; }", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			opt := syntax.Options{Version: phpversion.PHP85}

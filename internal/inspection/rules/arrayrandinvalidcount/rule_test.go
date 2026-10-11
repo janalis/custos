@@ -41,6 +41,8 @@ func TestContracts(t *testing.T) {
 		{"<?php function f($a) { $n = 0; $m = $n; $n = $m; return array_rand($a, $n); }", 1},
 		{"<?php function f() { $v = []; $w = $v; return array_rand($w); }", 1},
 		{"<?php function f($a) { $n = 0; foreach ([&$n] as &$slot) { $slot = 1; } return array_rand($a, $n); }", 0},
+		{"<?php function f($a) { $n = 0; $g = function () use (&$n) { $n = 1; }; return array_rand($a, $n); }", 0},
+		{"<?php function f($a) { $n = 0; $box = [&$n]; return array_rand($a, $n); }", 0},
 		{"<?php function unreachable(){return;\narray_rand(['oak', 'elm'], 4);\n}", 0},
 		{"<?php \narray_rand(['oak', 'elm'], 4);\n function broken(", 0},
 	} {

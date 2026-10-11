@@ -1,12 +1,12 @@
 <?php
 function silenced($b) { $s = @gzdecode($b); return <warning descr="Check decompression before consuming data.">strlen($s)</warning>; }
 function silencedDirect($b) { return <warning descr="Check decompression before consuming data.">strlen(@(gzdecode($b)))</warning>; }
-function truthiness($b) { $s = gzdecode($b); return $s ? <warning descr="Check decompression before consuming data.">strlen($s)</warning> : 0; }
+function truthiness($b) { $s = gzdecode($b); return $s ? strlen($s) : 0; }
 function wrongArm($b) { $s = gzdecode($b); return $s !== false ? 0 : <warning descr="Check decompression before consuming data.">strlen($s)</warning>; }
 function wrongShortArm($b) { $s = gzdecode($b); return $s !== false ?: <warning descr="Check decompression before consuming data.">strlen($s)</warning>; }
 function wrongOperator($b) { $s = gzdecode($b); return $s === false && <warning descr="Check decompression before consuming data.">strlen($s)</warning> > 3; }
 function leftOperand($b) { $s = gzdecode($b); return <warning descr="Check decompression before consuming data.">strlen($s)</warning> > 3 && $s !== false; }
-function looseTest($b) { $s = gzdecode($b); return $s != false && <warning descr="Check decompression before consuming data.">strlen($s)</warning> > 3; }
+function looseTest($b) { $s = gzdecode($b); return $s != false && strlen($s) > 3; }
 function otherValue($b, $t) { $s = gzdecode($b); return $t !== false && $s !== null && <warning descr="Check decompression before consuming data.">strlen($s)</warning> > 3; }
 function reassigned($b) { $s = gzdecode($b); if ($s !== false) { $s = gzdecode($b); return <warning descr="Check decompression before consuming data.">strlen($s)</warning>; } return 0; }
 function otherAssignment($b) { $s = gzdecode($b); if (($t = gzdecode($b)) !== false && ($s .= 'x') !== false) { return 1; } return 0; }

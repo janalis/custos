@@ -12,9 +12,6 @@ import (
 
 const message = "Validate the redirect target against the permitted destination policy."
 
-// maxSelectionDepth bounds nested match selections followed through variables.
-const maxSelectionDepth = 8
-
 type rule struct{}
 
 // New constructs the stateless inspection.
@@ -41,7 +38,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	fixed := fixedLocalQuery(prefix[len("location:"):])
 	for _, piece := range pieces[literals:] {
-		if !pieceTainted(ctx, piece, 0) || fixed && encodedQueryValue(ctx, piece) {
+		if !pieceTainted(ctx, piece) || fixed && encodedQueryValue(ctx, piece) {
 			continue
 		}
 		ctx.ReportNode(c, message)
@@ -111,28 +108,9 @@ func encodedQueryValue(ctx *analysis.Context, piece syntax.Expr) bool {
 	return false
 }
 
-// pieceTainted reports request data in one operand. A match expression only
-// carries the taint of its arm results: its subject selects, but is not part
-// of, the produced value.
-func pieceTainted(ctx *analysis.Context, piece syntax.Expr, depth int) bool {
-	if !ctx.Flow().Tainted(piece, flow.URL) {
-		return false
-	}
-	selection, ok := piece.(*syntax.Match)
-	if v, variable := piece.(*syntax.Variable); variable {
-		resolved, _ := ctx.Flow().Resolve(piece)
-		selection, ok = syntax.UnwrapParens(resolved).(*syntax.Match)
-		ok = ok && !aliased(ctx, v)
-	}
-	if !ok || depth == maxSelectionDepth {
-		return true
-	}
-	for _, arm := range selection.Arms {
-		for _, result := range appendPieces(nil, arm.Body) {
-			if pieceTainted(ctx, result, depth+1) {
-				return true
-			}
-		}
-	}
-	return false
+// pieceTainted reports request data in one operand. The flow analysis already
+// gives a match expression the taint of its arm results only: its subject
+// selects, but is not part of, the produced value.
+func pieceTainted(ctx *analysis.Context, piece syntax.Expr) bool {
+	return ctx.Flow().Tainted(piece, flow.URL)
 }

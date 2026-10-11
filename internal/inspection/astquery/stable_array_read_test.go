@@ -27,6 +27,15 @@ func TestStableArrayRead(t *testing.T) {
 		{`foreach($x as $a[0]) {}`, false},
 		{`foreach($x as $a[0]=>$v) {}`, false},
 		{`echo function() {$a=[];},$a[0];`, true},
+		{`$r = &$a[0];`, false},
+		{`$r = &$a[0][1];`, false},
+		{`$r = [&$a[0]];`, false},
+		{`$r = ['k' => &$a[0][1]];`, false},
+		{`foreach ($a[0] as &$v) {}`, false},
+		{`foreach ($a[0][1] as &$v) {}`, false},
+		{`foreach ($a[0] as $v) {}`, true},
+		{`$r = [$a[0]];`, true},
+		{`$r = &$b[$a[0]];`, false},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			f := Parse(t, "<?php "+tc.src)
@@ -48,6 +57,20 @@ func TestStableArrayRead(t *testing.T) {
 	f := Parse(t, "<?php echo $a[0];")
 	if StableArrayRead(f, &syntax.ArrayDimFetch{Var: &syntax.Variable{Name: "a"}}) {
 		t.Fatal("unattached fetch")
+	}
+	// An element used as the index of a referenced element is still read.
+	for _, src := range []string{`$r = &$b[$a[0]];`, `$r = [&$b[$a[0]]];`, `foreach ($b[$a[0]] as &$v) {}`} {
+		f := Parse(t, "<?php "+src)
+		var index *syntax.ArrayDimFetch
+		syntax.InspectFile(f, func(n syntax.Node) bool {
+			if x, ok := n.(*syntax.ArrayDimFetch); ok {
+				index = x
+			}
+			return true
+		})
+		if !StableArrayRead(f, index) {
+			t.Errorf("%s: index read rejected", src)
+		}
 	}
 }
 

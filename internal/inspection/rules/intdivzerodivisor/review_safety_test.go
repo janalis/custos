@@ -40,6 +40,8 @@ func TestReviewSafety(t *testing.T) {
 		{"top level", "<?php $d = 0; $d++; intdiv(6, $d);", 0},
 		{"arrow function", "<?php $d = 0; $d++; $f = fn () => intdiv(6, 0);", 1},
 		{"method", "<?php class C { function f() { $d = 0; $d++; return intdiv(6, $d); } }", 0},
+		{"unchanged in loop", "<?php function f($xs) { $d = 0; foreach ($xs as $x) { echo intdiv($x, $d); } }", 1},
+		{"reference capture before any call", "<?php function f() { $d = 0; $s = function () use (&$d) { $d = 2; }; return intdiv(6, $d); }", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			opt := syntax.Options{Version: phpversion.PHP85}

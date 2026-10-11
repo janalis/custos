@@ -2,6 +2,7 @@ package astquery
 
 import (
 	"bytes"
+	"strings"
 
 	"custos/internal/php/syntax"
 )
@@ -10,8 +11,9 @@ import (
 // tokens and the names PHP resolves case-insensitively — function names,
 // method names, and class names in calls, `new`, `instanceof` and `::`
 // accesses — compare case-insensitively (`Foo\Bar::Make($x)` matches
-// `foo\bar::make($x)`). Variables, properties and constants stay
-// case-sensitive.
+// `foo\bar::make($x)`). Variables, properties, constants and named-argument
+// labels stay case-sensitive, also when they are spelled like a keyword
+// (`Foo::Array`, `f(array: 1)`).
 func EquivalentFoldNames(f *syntax.File, a, b syntax.Node) bool {
 	if a == nil || b == nil || a.Kind() != b.Kind() {
 		return false
@@ -26,7 +28,9 @@ func EquivalentFoldNames(f *syntax.File, a, b syntax.Node) bool {
 	if bytes.Equal(f.Src[sa.Start:sa.End], f.Src[sb.Start:sb.End]) {
 		return true
 	}
-	var fold map[uint32]bool // start offsets of case-insensitive name tokens, built on first need
+	// Start offsets of name tokens, built on first need: true for a name PHP
+	// resolves case-insensitively, false for one it compares exactly.
+	var fold map[uint32]bool
 	i, j := TokenIndex(f, sa.Start), TokenIndex(f, sb.Start)
 	for {
 		i = skipTrivia(f, i, sa.End)
@@ -45,15 +49,21 @@ func EquivalentFoldNames(f *syntax.File, a, b syntax.Node) bool {
 			if !bytes.EqualFold(xa, xb) {
 				return false
 			}
-			// Keywords and casts are case-insensitive; other tokens only
-			// as the names PHP resolves case-insensitively.
-			if !ta.Kind.IsKeyword() && !ta.Kind.IsCast() {
+			// Casts are case-insensitive, and so are keywords unless one
+			// spells a case-sensitive name; other tokens only as the names
+			// PHP resolves case-insensitively.
+			if !ta.Kind.IsCast() {
 				if fold == nil {
 					fold = map[uint32]bool{}
 					foldNameSpans(a, fold)
 					foldNameSpans(b, fold)
 				}
-				if !fold[ta.Start] || !fold[tb.Start] {
+				foldA, nameA := fold[ta.Start]
+				foldB, nameB := fold[tb.Start]
+				if ta.Kind.IsKeyword() {
+					foldA, foldB = foldA || !nameA, foldB || !nameB
+				}
+				if !foldA || !foldB {
 					return false
 				}
 			}
@@ -63,8 +73,10 @@ func EquivalentFoldNames(f *syntax.File, a, b syntax.Node) bool {
 	}
 }
 
-// foldNameSpans records the start offsets of the name tokens under root
-// that PHP compares case-insensitively.
+// foldNameSpans records the start offsets of the name tokens under root:
+// true for those PHP compares case-insensitively, false for class constant
+// names (other than the magic `class`) and named-argument labels, which it
+// compares exactly even when the lexer reads them as a keyword.
 func foldNameSpans(root syntax.Node, out map[uint32]bool) {
 	add := func(e syntax.Expr) {
 		switch e.(type) {
@@ -87,6 +99,13 @@ func foldNameSpans(root syntax.Node, out map[uint32]bool) {
 			add(x.Class)
 		case *syntax.ClassConstFetch:
 			add(x.Class)
+			if id, ok := x.Name.(*syntax.Identifier); ok && !strings.EqualFold(id.Value, "class") {
+				out[id.Span().Start] = false
+			}
+		case *syntax.Arg:
+			if x.Name != nil {
+				out[x.Name.Span().Start] = false
+			}
 		case *syntax.StaticPropertyFetch:
 			add(x.Class)
 		}

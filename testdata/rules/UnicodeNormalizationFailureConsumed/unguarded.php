@@ -1,7 +1,7 @@
 <?php
-function truthy(string $i): int { $s = normalizer_normalize($i); if (!$s) { return 0; } return <warning descr="Check normalization before consuming text.">strlen($s)</warning>; }
-function loose(string $i): int { $s = normalizer_normalize($i); if ($s == false) { return 0; } return <warning descr="Check normalization before consuming text.">strlen($s)</warning>; }
-function truthyTernary(string $i): int { $s = normalizer_normalize($i); return $s ? <warning descr="Check normalization before consuming text.">strlen($s)</warning> : 0; }
+function truthy(string $i): int { $s = normalizer_normalize($i); if (!$s) { return 0; } return strlen($s); }
+function loose(string $i): int { $s = normalizer_normalize($i); if ($s == false) { return 0; } return strlen($s); }
+function truthyTernary(string $i): int { $s = normalizer_normalize($i); return $s ? strlen($s) : 0; }
 function shortTernary(string $i): int { $s = normalizer_normalize($i); return $i ?: <warning descr="Check normalization before consuming text.">strlen($s)</warning>; }
 function asserted(string $i): int { $s = normalizer_normalize($i); assert($s !== false); return <warning descr="Check normalization before consuming text.">strlen($s)</warning>; }
 function wrongBranch(string $i): int { $s = normalizer_normalize($i); return $s !== false ? 0 : <warning descr="Check normalization before consuming text.">strlen($s)</warning>; }
@@ -9,7 +9,7 @@ function wrongSide(string $i): bool { $s = normalizer_normalize($i); return <war
 function wrongOperator(string $i): bool { $s = normalizer_normalize($i); return $s !== false || <warning descr="Check normalization before consuming text.">strlen($s)</warning> > 3; }
 function otherOperator(string $i): int { $s = normalizer_normalize($i); return ($s !== false) + <warning descr="Check normalization before consuming text.">strlen($s)</warning>; }
 function otherVariable(string $i, $o): int { $s = normalizer_normalize($i); if ($o === false) { return 0; } return <warning descr="Check normalization before consuming text.">strlen($s)</warning>; }
-function otherTest(string $i, $o): int { $s = normalizer_normalize($i); if (!is_string($o) || !is_string() || !is_int($s) || $s === null || $s > false) { return 0; } return <warning descr="Check normalization before consuming text.">strlen($s)</warning>; }
+function otherTest(string $i, $o): int { $s = normalizer_normalize($i); if (!is_string($o) || !is_string() || !is_int($s) || $s === null || $s > false) { return 0; } return strlen($s); }
 function rebound(string $i): int { $s = normalizer_normalize($i); if ($s === false) { return 0; } $s = normalizer_normalize($i . 'a'); return <warning descr="Check normalization before consuming text.">strlen($s)</warning>; }
 function earlyCheck(string $i): int { $s = ''; if (($s = $i) === false) { return 0; } $s = normalizer_normalize($i); return <warning descr="Check normalization before consuming text.">strlen($s)</warning>; }
 function fallsThrough(string $i): int { $s = normalizer_normalize($i); if ($s === false) { $i = ''; } return <warning descr="Check normalization before consuming text.">strlen($s)</warning>; }

@@ -3,6 +3,8 @@ package semanticquery
 import (
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
@@ -33,10 +35,32 @@ func NativeConstruction(ctx *analysis.Context, e syntax.Expr, class string) *syn
 // or a proven constant class string. Dynamic and ambiguous names stay unknown.
 func NativeNewClass(ctx *analysis.Context, n *syntax.New) *index.Class {
 	if name, ok := n.Class.(*syntax.Name); ok {
+		if strings.EqualFold(name.Value, "self") {
+			return nativeSelfClass(ctx, n)
+		}
 		return ctx.Index().Class(ctx.Names().Class(name.Value, name.Span().Start), ctx.PHP)
 	}
 	if name, ok := astquery.QuotedStringValue(NativeLocalValue(ctx, n.Class)); ok {
 		return ctx.Index().Class(strings.TrimPrefix(name, `\`), ctx.PHP)
+	}
+	return nil
+}
+
+// nativeSelfClass resolves `self` written directly in a method body of a named
+// class, interface or enum. A closure can be rebound to another class, a
+// trait or anonymous class has no single declaration to instantiate, and a
+// parameter default or attribute argument is not evaluated where it stands.
+func nativeSelfClass(ctx *analysis.Context, at syntax.Node) *index.Class {
+	for p := at.Parent(); p != nil; p = p.Parent() {
+		switch p := p.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.Param, *syntax.Attribute:
+			return nil
+		case *syntax.ClassLike:
+			if p.Name == nil || p.ClassKind == syntax.KindTrait {
+				return nil
+			}
+			return ctx.Index().Class(ctx.Types().ClassFQN(p), ctx.PHP)
+		}
 	}
 	return nil
 }
@@ -507,14 +531,17 @@ func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 		return e
 	}
 	scope := syntax.EnclosingVariableScope(e)
+	facts := nativeContractScope(ctx, scope)
 	var value syntax.Expr
 	writes := 0
+	from := uint32(0)
 	scan := func(n syntax.Node) bool {
 		if a, ok := n.(*syntax.Assign); ok {
 			if v, ok := a.Var.(*syntax.Variable); ok && v.Name == variable.Name {
 				if a.Value.Span().End >= e.Span().Start {
 					return true
 				}
+				from = a.Span().End
 				if a.ByRef || a.Op.Kind != syntax.TEqual || !NativeDominates(a, e) {
 					value = nil
 					writes++
@@ -549,7 +576,7 @@ func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 		}
 		return true
 	}
-	for _, event := range nativeContractEvents(ctx, scope) {
+	for _, event := range facts.nodes {
 		if event.Span().Start >= e.Span().Start {
 			break
 		}
@@ -557,6 +584,12 @@ func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 	}
 	if writes == 0 {
 		return known
+	}
+	// The scan reads plain assignments only; any other write of the variable
+	// after the selected one leaves its value unknown.
+	_, content := value.(*syntax.Array)
+	if value == nil || facts.localWrites(ctx, scope).rewritten(variable.Name, from, e.Span().Start, content) {
+		return nil
 	}
 	if v, ok := value.(*syntax.Variable); ok {
 		return NativeLocalValue(ctx, v)
@@ -598,14 +631,14 @@ func NativeLocalSentinelGuard(ctx *analysis.Context, e syntax.Expr, sentinel str
 	if NativeSentinelGuard(ctx, e, sentinel) {
 		return true
 	}
-	return nativeGuard(ctx, e, func(cond syntax.Expr, truth bool) bool {
+	return nativePathGuard(ctx, e, func(cond syntax.Expr, truth bool) bool {
 		b, ok := syntax.UnwrapParens(cond).(*syntax.Binary)
 		if !ok || !((truth && b.Op.Kind == syntax.TIsNotIdentical) || (!truth && b.Op.Kind == syntax.TIsIdentical)) {
 			return false
 		}
 		for _, pair := range [][2]syntax.Expr{{b.Left, b.Right}, {b.Right, b.Left}} {
-			c, ok := pair[1].(*syntax.ConstFetch)
-			if ok && c.Name != nil && strings.EqualFold(c.Name.Value, sentinel) && NativeSameValue(ctx, e, pair[0]) {
+			c, ok := syntax.UnwrapParens(pair[1]).(*syntax.ConstFetch)
+			if ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), sentinel) && NativeSameValue(ctx, e, pair[0]) {
 				return true
 			}
 		}
@@ -615,18 +648,47 @@ func NativeLocalSentinelGuard(ctx *analysis.Context, e syntax.Expr, sentinel str
 
 type nativeContractEventKey struct{ scope syntax.Node }
 
+// nativeContractFacts are the lexical facts of one variable scope: its state
+// events in source order and, once a query needs them, every place a local
+// may be written.
+type nativeContractFacts struct {
+	nodes  []syntax.Node
+	mu     sync.Mutex
+	ready  atomic.Bool
+	writes nativeLocalWrites
+}
+
+// localWrites indexes the scope's writes on first use. Most scopes never ask,
+// and a later query reads the finished index without locking or allocating.
+func (f *nativeContractFacts) localWrites(ctx *analysis.Context, scope syntax.Node) *nativeLocalWrites {
+	if f.ready.Load() {
+		return &f.writes
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if !f.ready.Load() {
+		f.writes.index(ctx, scope)
+		f.ready.Store(true)
+	}
+	return &f.writes
+}
+
 // Cache lexical state events once per parsed scope; larger scopes deliberately
 // establish no additional local facts rather than repeatedly scanning them.
 func nativeContractEvents(ctx *analysis.Context, scope syntax.Node) []syntax.Node {
+	return nativeContractScope(ctx, scope).nodes
+}
+
+func nativeContractScope(ctx *analysis.Context, scope syntax.Node) *nativeContractFacts {
 	return ctx.File.Memo(nativeContractEventKey{scope}, func() any {
-		nodes := []syntax.Node{}
+		facts := &nativeContractFacts{nodes: []syntax.Node{}}
 		visit := func(n syntax.Node) bool {
 			if n != scope && syntax.IsVariableScope(n) {
 				return false
 			}
 			switch n.(type) {
 			case *syntax.Assign, *syntax.Unset, *syntax.FuncCall, *syntax.MethodCall:
-				nodes = append(nodes, n)
+				facts.nodes = append(facts.nodes, n)
 			}
 			return true
 		}
@@ -635,11 +697,11 @@ func nativeContractEvents(ctx *analysis.Context, scope syntax.Node) []syntax.Nod
 		} else {
 			syntax.Inspect(scope, visit)
 		}
-		if len(nodes) > 512 {
-			return []syntax.Node(nil)
+		if len(facts.nodes) > 512 {
+			facts.nodes = nil
 		}
-		return nodes
-	}).([]syntax.Node)
+		return facts
+	}).(*nativeContractFacts)
 }
 
 // NativeMethodStateCalls returns direct local method effects on the same

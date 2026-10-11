@@ -146,9 +146,6 @@ func tainted(ctx *analysis.Context, x syntax.Expr, depth int) bool {
 // taintedCall handles builtins whose result text comes from known arguments.
 func taintedCall(ctx *analysis.Context, c *syntax.FuncCall, depth int) bool {
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	if numberBuiltins[name] || scalarBuiltins[name] {
-		return false
-	}
 	var parts []syntax.Expr
 	switch name {
 	case "implode", "join":
@@ -199,16 +196,4 @@ var numberBuiltins = map[string]bool{
 	"strncmp": true, "strncasecmp": true, "strnatcmp": true, "strnatcasecmp": true,
 	"ord": true, "crc32": true, "levenshtein": true, "similar_text": true,
 	"strspn": true, "strcspn": true, "intdiv": true, "array_sum": true, "array_product": true,
-}
-
-// scalarBuiltins may also return a boolean: no argument text survives either.
-var scalarBuiltins = map[string]bool{
-	"strpos": true, "stripos": true, "strrpos": true, "strripos": true,
-	"mb_strpos": true, "mb_stripos": true, "mb_strrpos": true, "mb_strripos": true,
-	"strtotime": true, "in_array": true, "array_key_exists": true, "key_exists": true,
-	"str_contains": true, "str_starts_with": true, "str_ends_with": true,
-	"is_numeric": true, "is_int": true, "is_float": true, "is_string": true, "is_array": true,
-	"is_bool": true, "is_null": true, "is_scalar": true,
-	"ctype_digit": true, "ctype_alnum": true, "ctype_alpha": true, "ctype_xdigit": true,
-	"ctype_lower": true, "ctype_upper": true, "ctype_space": true, "ctype_punct": true,
 }

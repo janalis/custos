@@ -20,6 +20,19 @@ func TestEquivalentFoldNames(t *testing.T) {
 		`<?php [f(A::K), f(A::k)];`:             false,
 		`<?php [f('a'), f('A')];`:               false,
 		`<?php [f($x), g($x)];`:                 false,
+		// Keyword-spelled names keep the case rule of their position.
+		`<?php [A::Array, A::ARRAY];`:           false,
+		`<?php [A::Default, a::Default];`:       true,
+		`<?php [A::class, A::CLASS];`:           true,
+		`<?php [A::list($x), A::LIST($x)];`:     true,
+		`<?php [$o->print($x), $o->PRINT($x)];`: true,
+		`<?php [f(array: 1), f(ARRAY: 1)];`:     false,
+		`<?php [f(array: 1), F(array: 1)];`:     true,
+		`<?php [f(name: 1), f(Name: 1)];`:       false,
+		`<?php [A::{$k}, A::{$k}];`:             true,
+		`<?php [A::{f($k)}, A::{F($k)}];`:       true,
+		`<?php [fn() => new A, FN() => new a];`: true,
+		`<?php [f(array()), f(ARRAY())];`:       true,
 	} {
 		f := Parse(t, src)
 		arr := FirstExpr(t, f).(*syntax.Array)

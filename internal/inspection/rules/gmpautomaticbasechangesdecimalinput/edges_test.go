@@ -32,6 +32,10 @@ func TestEdges(t *testing.T) {
 		{"gmp_init(...['024']);", 0},
 		{"function f(){ $raw = '024'; $copy = $raw; $raw++; return gmp_init($copy); }", 0},
 		{"function f(){ $raw = '024'; $copy = $raw; return gmp_init($copy); }", 1},
+		{"function f(){ $raw = '024'; $r = gmp_init($raw); try { g(); } catch (\\Exception $raw) {} return $r; }", 0},
+		{"function f($o){ $raw = '024'; $r = gmp_init($raw); extract($o); return $r; }", 0},
+		{"function f($q){ $raw = '024'; $r = gmp_init($raw); parse_str($q); return $r; }", 0},
+		{"$raw = '024'; gmp_init($raw); function g(){ $GLOBALS['raw'] = '9'; }", 0},
 	} {
 		t.Run(tc.source, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"GmpAutomaticBaseChangesDecimalInput"}})

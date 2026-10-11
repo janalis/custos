@@ -72,7 +72,7 @@ func TestReviewGuards(t *testing.T) {
 		{"or success needs both", decode + "if($im||$c){imagepng($im);}", 1},
 		{"terminating else", decode + "if($im!==false){}else{return;}imagepng($im);", 0},
 		{"terminating else wrong sense", decode + "if(!$im){}else{return;}imagepng($im);", 1},
-		{"elseif guard statement", decode + "if(!$im){return;}elseif($c){return;}imagepng($im);", 1},
+		{"elseif guard statement", decode + "if(!$im){return;}elseif($c){return;}imagepng($im);", 0},
 		{"non-terminating guard", decode + "if(!$im){fail();}imagepng($im);", 1},
 		{"continue", decode + "foreach($l as $_){if(!$im){continue;}imagepng($im);}", 0},
 		{"guard after use in loop", decode + "foreach($l as $_){imagepng($im);if(!$im){return;}}", 1},

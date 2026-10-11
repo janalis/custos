@@ -3,7 +3,7 @@
 function otherValue($f) { $p = fileperms($f); if (!$p) { return false; } $p = fileperms($f . 'x'); if (<warning descr="Reject permission lookup failure before checking bits.">($p & 0222) === 0</warning>) { return true; } return false; }
 function otherVariable($f, $q) { $p = fileperms($f); if (!$q) { return false; } if (<warning descr="Reject permission lookup failure before checking bits.">($p & 0222) === 0</warning>) { return true; } return false; }
 function continues($f) { $p = fileperms($f); if (!$p) { error_log($f); } if (<warning descr="Reject permission lookup failure before checking bits.">($p & 0222) === 0</warning>) { return true; } return false; }
-function guardWithElse($f) { $p = fileperms($f); if (!$p) { return false; } else { echo $f; } if (<warning descr="Reject permission lookup failure before checking bits.">($p & 0222) === 0</warning>) { return true; } return false; }
+function guardWithElse($f) { $p = fileperms($f); if (!$p) { return false; } else { echo $f; } if (($p & 0222) === 0) { return true; } return false; }
 function falsyElse($f) { $p = fileperms($f); if ($p) { return 1; } else { if (<warning descr="Reject permission lookup failure before checking bits.">($p & 0222) === 0</warning>) { return true; } } return false; }
 function unrelatedBranch($f) { $p = fileperms($f); if (is_int($f)) { if (<warning descr="Reject permission lookup failure before checking bits.">($p & 0222) === 0</warning>) { return true; } } return false; }
 function partialGuard($f) { $p = fileperms($f); if (!$p && $f) { return false; } if (<warning descr="Reject permission lookup failure before checking bits.">($p & 0222) === 0</warning>) { return true; } return false; }

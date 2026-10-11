@@ -147,7 +147,12 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		if len(n.Catches) > 0 {
 			choices := []int{inside.thrown}
 			for _, c := range n.Catches {
-				choices = append(choices, g.stmt(c.Body, normal, inside))
+				body := g.stmt(c.Body, normal, inside)
+				if c.Var != nil {
+					// The clause rebinds its variable before the body runs.
+					body = g.atom(c, body, inside)
+				}
+				choices = append(choices, body)
 			}
 			inside.thrown = g.add(nil, choices...)
 		}
@@ -179,6 +184,7 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 		}
 	}
 	initial := frame{vars: map[string]Value{}, states: map[uint32]State{}}
+	e.bindings(scope, r, &initial)
 	for i, p := range syntax.VariableScopeParams(scope) {
 		if p.Var != nil {
 			initial.vars[p.Var.Name] = Value{Complete: true, Identity: p.Var.Span().Start + 1, Sources: []Source{{Kind: "parameter", Parameter: i}}}

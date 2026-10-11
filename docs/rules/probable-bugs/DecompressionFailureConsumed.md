@@ -39,7 +39,8 @@ A nested encoder proves matching bytes only when its encoding argument is omitte
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
-- E3. Truthiness, loose comparison, `is_string`, `assert`, `match (true)` arms and a statement-level `$s === false and exit;` are not guards under D1b; such code is still reported unless flow analysis independently excludes false.
+- E3. `assert`, `match (true)` arms and a statement-level `$s === false and exit;` are not guards under D1b; such code is still reported unless flow analysis independently excludes false.
+- E4. A value the shared flow analysis proves is not false at the use is never reported, whatever form the proof takes: a truthiness or `empty()` test, a loose comparison with `false` or `null`, a type predicate, or an early exit whose `if` also has an `else` branch that continues. So `$s ? strlen($s) : 0` and `$s != false && strlen($s) > 3` are not reported, while the wrong arm or operand of such a test still is.
 
 ## Fix
 

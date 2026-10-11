@@ -42,6 +42,7 @@ func TestReviewSafety(t *testing.T) {
 		{"captured item", "<?php function f() { $z = 0; $l = function () use (&$z) { $z = 5; }; $l();" + item, 0},
 		{"captured copy source", "<?php function f() { $y = 0; $l = function () use (&$y) { $y = 4; }; $l(); $z = $y;" + item, 0},
 		{"incremented key", "<?php function f() { $k = 1; $k++; return json_encode(array_filter([0 => 1, $k => 0, 2 => 2])); }", 0},
+		{"item incremented after encoding", "<?php function f() { $z = 0; $j = json_encode(array_filter([1, $z, 2])); $z++; return $j; }", 0},
 		{"repeated variable item", "<?php function f() { $z = 0; return json_encode(array_filter([$z, 1, $z])); }", 1},
 		{"mutually assigned locals", "<?php function f($n) { $a = [1, 0, 2]; $b = $a; if ($n) { $a = $b; } return json_encode(array_filter($b)); }", 1},
 	} {

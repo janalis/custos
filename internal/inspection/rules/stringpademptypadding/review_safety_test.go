@@ -24,6 +24,9 @@ func TestReviewStaleArguments(t *testing.T) {
 		{"extract before", "<?php function f() { $p = ''; extract(['p' => '*']); return str_pad('ab', 5, $p); }", 0},
 		{"top-level extract before", "<?php $p = ''; extract(['p' => '*']); echo str_pad('ab', 5, $p);", 0},
 		{"top-level decrement", "<?php $w = 3; $w--; $w--; echo str_pad('ab', $w, '');", 0},
+		{"reference capture before any call", "<?php function f() { $p = ''; $g = function () use (&$p) { $p = '*'; }; return str_pad('ab', 5, $p); }", 0},
+		{"step in another branch", "<?php function f($c) { if ($c) { $w = 3; $w--; return $w; } $w = 9; return str_pad('ab', $w, ''); }", 0},
+		{"extract in another branch", "<?php function f($c, $xs) { if ($c) { extract($xs); return $p; } $p = ''; return str_pad('ab', 5, $p); }", 0},
 		{"copy chain too long", "<?php function f() { $a = 9; $b = $a; $c = $b; $d = $c; $e = $d; $f = $e; $g = $f; $h = $g; $i = $h; $j = $i; return str_pad('ab', $j, ''); }", 0},
 
 		{"plain variables", "<?php function f() { $w = 9; $p = ''; $s = 'ab'; return str_pad($s, $w, $p); }", 1},

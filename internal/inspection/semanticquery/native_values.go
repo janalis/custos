@@ -2,6 +2,7 @@ package semanticquery
 
 import (
 	"strconv"
+	"strings"
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
@@ -129,7 +130,12 @@ func NativeInt(ctx *analysis.Context, e syntax.Expr) (int64, bool) {
 	e = NativeValue(ctx, e)
 	if constant, ok := e.(*syntax.ConstFetch); ok {
 		if resolved := ResolveConstant(ctx.Types(), constant); resolved != nil {
-			return astquery.ParseIntLiteral(resolved.Value)
+			// A declared value carries its sign, which the literal parser rejects.
+			n, ok := astquery.ParseIntLiteral(strings.TrimPrefix(resolved.Value, "-"))
+			if strings.HasPrefix(resolved.Value, "-") {
+				n = -n
+			}
+			return n, ok
 		}
 	}
 	negative := false

@@ -48,8 +48,6 @@ func inert(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 		switch x.Op.Kind {
 		case syntax.TDot:
 			return inert(ctx, x.Left, depth-1) && inert(ctx, x.Right, depth-1)
-		case syntax.TMinus, syntax.TMul, syntax.TDiv, syntax.TMod, syntax.TPow:
-			return true // a number, or an error for array operands
 		case syntax.TPlus: // array + array is a union keeping its elements
 			return scalar(ctx, x.Left) || scalar(ctx, x.Right)
 		}

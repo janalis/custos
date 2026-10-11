@@ -200,7 +200,7 @@ func (e *Env) nativeSinks(c Call) []Sink {
 			context = URL
 		case "curl_setopt":
 			if len(args) > 2 {
-				if constant, ok := args[1].Expr.(*syntax.ConstFetch); ok && strings.EqualFold(constant.Name.Value, "CURLOPT_URL") {
+				if constant, ok := args[1].Expr.(*syntax.ConstFetch); ok && strings.EqualFold(strings.TrimPrefix(constant.Name.Value, `\`), "CURLOPT_URL") {
 					context = URL
 					position = 2
 				}

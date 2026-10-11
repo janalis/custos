@@ -44,6 +44,24 @@ func NativeDominates(earlier, at syntax.Node) bool {
 			}
 		case *syntax.Closure, *syntax.ArrowFunction:
 			return false
+		case *syntax.MatchArm:
+			// Another arm, or code after the match, runs without this one.
+			if !parent.Span().Contains(at.Span()) {
+				return false
+			}
+		case *syntax.MethodCall:
+			// A null receiver skips the arguments of the whole chain.
+			if node != parent.Var && nativeNullsafeChain(parent) && !parent.Span().Contains(at.Span()) {
+				return false
+			}
+		case *syntax.PropertyFetch:
+			if node != parent.Var && nativeNullsafeChain(parent) && !parent.Span().Contains(at.Span()) {
+				return false
+			}
+		case *syntax.ArrayDimFetch:
+			if node != parent.Var && nativeNullsafeChain(parent.Var) && !parent.Span().Contains(at.Span()) {
+				return false
+			}
 		}
 	}
 	statement := earlier
@@ -69,6 +87,28 @@ func NativeDominates(earlier, at syntax.Node) bool {
 		}
 	}
 	return false
+}
+
+// nativeNullsafeChain reports a member chain that a null-safe access can cut.
+func nativeNullsafeChain(e syntax.Expr) bool {
+	for {
+		switch x := syntax.UnwrapParens(e).(type) {
+		case *syntax.MethodCall:
+			if x.NullSafe {
+				return true
+			}
+			e = x.Var
+		case *syntax.PropertyFetch:
+			if x.NullSafe {
+				return true
+			}
+			e = x.Var
+		case *syntax.ArrayDimFetch:
+			e = x.Var
+		default:
+			return false
+		}
+	}
 }
 
 // NativePriorCalls returns unconditionally preceding calls matching the same

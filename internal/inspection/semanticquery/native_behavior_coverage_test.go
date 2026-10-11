@@ -215,6 +215,8 @@ func TestNativeWrapperSecurityContracts(t *testing.T) {
 		{"UnvalidatedRedirectTarget", "function fetchURL($u){$h=curl_init($u);curl_exec($h);} fetchURL($_GET['url']);", CheckUnvalidatedRedirectTarget, 0},
 		{"UnvalidatedRedirectTarget", "function redirectTo($u){header('Location: '.$u);} redirectTo($_GET['next']);", CheckUnvalidatedRedirectTarget, 1},
 		{"UntrustedFilesystemPath", "function openPath($p){readfile($p);} openPath(unknownValidator($_GET['file']));", CheckUntrustedFilesystemPath, 0},
+		{"UntrustedFilesystemPath", "rmdir(directory: $_GET['dir']);", CheckUntrustedFilesystemPath, 1},
+		{"UntrustedFilesystemPath", "rmdir(context: $c, directory: '/tmp/x');", CheckUntrustedFilesystemPath, 0},
 		{"UntrustedFilesystemPath", "function openPath($p){readfile($p);} function outer($p){openPath($p);}", CheckUntrustedFilesystemPath, 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {

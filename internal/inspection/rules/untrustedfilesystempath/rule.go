@@ -49,23 +49,9 @@ func pathProven(ctx *analysis.Context, e syntax.Expr) bool {
 	if concat, ok := e.(*syntax.Binary); ok && concat.Op.Kind == syntax.TDot {
 		return pathProven(ctx, concat.Left) && pathProven(ctx, concat.Right)
 	}
-	switch origin := semanticquery.NativeValue(ctx, e).(type) {
-	case *syntax.Match:
-		// The request value only selects an arm; the result is one of the arm bodies.
-		if v, ok := e.(*syntax.Variable); ok && rebindable(ctx, v, origin) {
-			return false
-		}
-		for _, arm := range origin.Arms {
-			if ctx.Flow().Tainted(arm.Body, flow.Path) {
-				return false
-			}
-		}
-		return true
-	case *syntax.FuncCall:
-		path, ok := e.(*syntax.Variable)
-		return ok && semanticquery.NativeBuiltinName(ctx, origin) == "realpath" && contained(ctx, path, origin) && !rebindable(ctx, path, origin)
-	}
-	return false
+	origin, call := semanticquery.NativeValue(ctx, e).(*syntax.FuncCall)
+	path, ok := e.(*syntax.Variable)
+	return call && ok && semanticquery.NativeBuiltinName(ctx, origin) == "realpath" && contained(ctx, path, origin) && !rebindable(ctx, path, origin)
 }
 
 // rebindable reports a write that may change the variable after the

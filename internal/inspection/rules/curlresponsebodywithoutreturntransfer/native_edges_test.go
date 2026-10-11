@@ -16,6 +16,7 @@ func TestNativeEdges(t *testing.T) {
 		{"$h=new stdClass();json_decode(curl_exec($h));", 0},
 		{"$body=curl_exec($unknown);json_decode($body);", 0},
 		{"$h=curl_init('https://example.invalid');retain($h);$body=curl_exec($h);json_decode($body);", 0},
+		{"function f(){global $h;$h=curl_init('https://example.invalid');$body=curl_exec($h);json_decode($body);}", 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"CurlResponseBodyWithoutReturnTransfer"}})

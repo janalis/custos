@@ -131,8 +131,10 @@ func CheckUntrustedFilesystemPath(ctx *analysis.Context, n syntax.Node, message 
 	report := false
 
 	switch name {
-	case "readfile", "fopen", "file_get_contents", "file_put_contents", "unlink", "rmdir":
+	case "readfile", "fopen", "file_get_contents", "file_put_contents", "unlink":
 		report = ctx.Flow().Tainted(CallArgument(c.Args, 0, "filename"), flow.Path)
+	case "rmdir":
+		report = ctx.Flow().Tainted(CallArgument(c.Args, 0, "directory"), flow.Path)
 	}
 
 	report = report || nativeWrapperSink(ctx, c, flow.Path)

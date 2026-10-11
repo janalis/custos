@@ -25,6 +25,12 @@ func TestReviewSafety(t *testing.T) {
 		{"empty exit", "if (empty($fs)) { return; } foreach ($fs as $f) {}", 0},
 		{"either exit", "if (!$fs || $c) { return; } foreach ($fs as $f) {}", 0},
 		{"both branch", "if ($c && $fs) { foreach ($fs as $f) {} }", 0},
+		// A switch in the scope leaves the flow facts incomplete: the guard walk decides.
+		{"loose branch after switch", "switch ($c) { case 1: break; } if ($fs != false) { foreach ($fs as $f) {} }", 0},
+		{"loose elseif after switch", "switch ($c) { case 1: break; } if ($c) { echo 1; } elseif ($fs != false) { foreach ($fs as $f) {} }", 0},
+		{"else after loose elseif", "switch ($c) { case 1: break; } if ($c) { echo 1; } elseif ($fs == false) { echo 0; } else { foreach ($fs as $f) {} }", 0},
+		{"exiting else", "switch ($c) { case 1: break; } if ($fs != false) { echo 1; } else { return; } foreach ($fs as $f) {}", 0},
+		{"exclusive or", "if ($fs xor $c) { foreach ($fs as $f) {} }", 1},
 		{"conjunction exit", "if (!$fs && $c) { return; } foreach ($fs as $f) {}", 1},
 		{"disjunction branch", "if ($fs || $c) { foreach ($fs as $f) {} }", 1},
 		{"assertion", "assert($fs !== false); foreach ($fs as $f) {}", 1},

@@ -108,22 +108,15 @@ func aliased(ctx *analysis.Context, v *syntax.Variable) bool {
 	return found
 }
 
-// scalarCall proves a resolved builtin returns only an integer, a boolean or
-// text built from a literal format with numeric conversions.
+// scalarCall proves a resolved sprintf builds its text from a literal format
+// with numeric conversions only. Builtins that return a number or a boolean
+// carry no taint in the flow analysis and never reach this point.
 func scalarCall(ctx *analysis.Context, call *syntax.FuncCall) bool {
-	name := semanticquery.NativeBuiltinName(ctx, call)
-	if strings.HasPrefix(name, "is_") || strings.HasPrefix(name, "ctype_") {
-		return true
+	if semanticquery.NativeBuiltinName(ctx, call) != "sprintf" {
+		return false
 	}
-	switch name {
-	case "strlen", "mb_strlen", "count", "sizeof", "crc32", "ord", "strcmp", "strcasecmp", "strncmp", "strncasecmp",
-		"strpos", "stripos", "strrpos", "strripos", "mb_strpos", "levenshtein", "in_array", "array_key_exists", "strtotime":
-		return true
-	case "sprintf":
-		format, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(call.Args, 0, "format"))
-		return known && numericFormat(format)
-	}
-	return false
+	format, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(call.Args, 0, "format"))
+	return known && numericFormat(format)
 }
 
 // numericFormat accepts only literal percent signs and numeric conversions.

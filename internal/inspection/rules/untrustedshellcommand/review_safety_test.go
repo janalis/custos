@@ -41,6 +41,9 @@ func TestReviewSafety(t *testing.T) {
 		{"proc_open vector variable", "<?php $argv = ['convert', $_GET['file']]; proc_open($argv, [], $pipes);", 0},
 		{"wrapper constants", "<?php function run($c) { system($c); } $m = match ($_GET['m']) { 'a' => '-a', default => '-b' }; run('tool ' . $m);", 0},
 		{"wrapper tainted", "<?php function run($c) { system($c); } run('tool ' . $_GET['m']);", 1},
+		// `+` with a number is arithmetic: only the local walk knows that.
+		{"wrapper numeric sum", "<?php function run($c) { system($c); } run('tool ' . ($_GET['n'] + 1));", 0},
+		{"match numeric sum arm", "<?php system('nice -n ' . match ($_GET['m']) { 'a' => $_GET['n'] + 1, default => 0 });", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			opt := syntax.Options{Version: phpversion.PHP85}

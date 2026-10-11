@@ -19,6 +19,12 @@ func TestContracts(t *testing.T) {
 		{"<?php other();", 0},
 		{"<?php str_repeat(\"x\",$n);", 0},
 		{"<?php str_repeat(times:-2,string:\"x\");", 1},
+		{"<?php $n = -2; str_repeat('x', $n);", 1},
+		{"<?php function f($o) { extract($o); $n = -2; return str_repeat('x', $n); }", 0},
+		{"<?php function f() { $n = -5; $n++; $n = -2; return str_repeat('x', $n); }", 0},
+		{"<?php function f() { $n = -5; $n--; $n = -2; return str_repeat('x', $n); }", 1},
+		{"<?php function f() { $n = -2; $g = function () use (&$n) { $n = 3; }; return str_repeat('x', $n) . gettype($g); }", 0},
+		{"<?php function f($xs, $o) { $r = ''; foreach ($xs as $x) { $n = -2; $r = str_repeat('x', $n); extract($o); } return $r; }", 0},
 		{"<?php function unreachable(){return;\nstr_repeat('cd', -3);\n}", 0},
 		{"<?php \nstr_repeat('cd', -3);\n function broken(", 0},
 	} {

@@ -36,6 +36,9 @@ func TestReviewSafety(t *testing.T) {
 		{"globals array", "<?php $n = -1; g(); array_fill(0, $n, 0); function g() { $GLOBALS['n'] = 3; }", 0},
 		{"file scope literal", "<?php $n = -1; array_fill(0, $n, 0);", 1},
 		{"literal count", "<?php function f() { $n = 0; $n++; return array_fill(0, -1, $n); }", 1},
+		{"reference capture never invoked", "<?php function f() { $n = -1; $g = function () use (&$n) { $n = 3; }; return array_fill(0, $n, $g); }", 0},
+		{"extract after call", "<?php function f($a) { $n = -1; $r = array_fill(0, $n, 0); extract($a); return $r; }", 0},
+		{"globals array never called", "<?php $n = -1; array_fill(0, $n, 0); function g() { $GLOBALS['n'] = 3; }", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			opt := syntax.Options{Version: phpversion.PHP85}

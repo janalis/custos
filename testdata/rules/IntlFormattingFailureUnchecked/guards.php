@@ -46,7 +46,7 @@ function weakTests(NumberFormatter $f, $n): int
     $d = $s ?: strlen(<warning descr="Check formatting success before consuming the formatted text.">$s</warning>);
     $e = ($s || $n) ? strlen(<warning descr="Check formatting success before consuming the formatted text.">$s</warning>) : 0;
     $g = -$s ? strlen(<warning descr="Check formatting success before consuming the formatted text.">$s</warning>) : 0;
-    $h = is_numeric($s) ? strlen(<warning descr="Check formatting success before consuming the formatted text.">$s</warning>) : 0;
+    $h = is_numeric($s) ? strlen($s) : 0;
     $i = $s > false ? strlen(<warning descr="Check formatting success before consuming the formatted text.">$s</warning>) : 0;
     return $a + $b + $c + $d + $e + $g + $h + $i;
 }

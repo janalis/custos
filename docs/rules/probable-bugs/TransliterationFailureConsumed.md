@@ -35,7 +35,8 @@ Reported:
 ## Exceptions (no report)
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding. Truthiness tests (`if (!$s)`, `empty($s)`, `$s ? … : …`), loose comparisons and other type predicates are not guards: they stay reported. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E3. A value the shared flow analysis proves is not false at the use is never reported, whatever form the proof takes: a truthiness or `empty()` test, a loose comparison with `false` or `null`, a type predicate, or an early exit whose `if` also has an `else` branch that continues. The result is a string or false, so `if (!$s) { return; }`, `$s == false ? 0 : strlen($s)` and `$s ? strlen($s) : 0` leave nothing to report. A test that false can pass (`isset($s)`, `$s !== null`), the wrong branch of a test, and a test of another value prove nothing.
 
 ## Fix
 

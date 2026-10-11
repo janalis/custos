@@ -123,6 +123,7 @@ func TestEdges(t *testing.T) {
 		{"$a=new SplFixedArray(1);$a->setSize(4);echo $a[3];", 0},
 		{"$a=new SplFixedArray($unknown);echo $a[3];", 0},
 		{"$a=new SplFixedArray(1);echo $a[-1];", 1},
+		{"$a=new SplFixedArray(1);$held=[$a];echo $a[3];", 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"SplFixedArrayIndexOutOfBounds"}})

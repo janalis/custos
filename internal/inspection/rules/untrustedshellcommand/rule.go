@@ -138,8 +138,6 @@ func injectable(ctx *analysis.Context, x syntax.Expr, depth int) bool {
 		switch n.Op.Kind {
 		case syntax.TDot, syntax.TCoalesce:
 			return any(n.Left, n.Right)
-		case syntax.TMinus, syntax.TMul, syntax.TDiv, syntax.TMod, syntax.TPow:
-			return false // numeric result (E3)
 		case syntax.TPlus:
 			// Two arrays form a union that keeps their request-derived elements.
 			return !scalar(ctx, n.Left) && !scalar(ctx, n.Right)

@@ -16,7 +16,8 @@ func expansionDSame(ctx *analysis.Context, a, b syntax.Expr) bool {
 	if a == nil || b == nil {
 		return false
 	}
-	events := nativeContractEvents(ctx, syntax.EnclosingVariableScope(a))
+	facts := nativeContractScope(ctx, syntax.EnclosingVariableScope(a))
+	events := facts.nodes
 	if events == nil {
 		return false
 	}
@@ -49,19 +50,16 @@ func expansionDSame(ctx *analysis.Context, a, b syntax.Expr) bool {
 	if start > end {
 		start, end = b.Span().End, a.Span().Start
 	}
+	// Only a write of the variable itself separates the two reads; using it
+	// as an index or a property name of another target does not.
+	if facts.localWrites(ctx, syntax.EnclosingVariableScope(a)).rebound(av.Name, start, end) {
+		return false
+	}
 	for _, event := range events {
 		if event.Span().Start <= start || event.Span().End >= end {
 			continue
 		}
 		switch e := event.(type) {
-		case *syntax.Assign:
-			if astquery.MentionsVariable(e.Var, av.Name) || (e.ByRef && astquery.MentionsVariable(e.Value, av.Name)) {
-				return false
-			}
-		case *syntax.Unset:
-			if astquery.MentionsVariable(e, av.Name) {
-				return false
-			}
 		case *syntax.FuncCall:
 			if NativeBuiltinName(ctx, e) == "" && astquery.MentionsVariable(e.Args, av.Name) {
 				return false

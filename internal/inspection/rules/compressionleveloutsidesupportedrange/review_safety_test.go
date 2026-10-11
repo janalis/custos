@@ -36,6 +36,10 @@ func TestReviewSafety(t *testing.T) {
 		{"top level across call", "<?php $l = 20; g(); gzencode('x', $l);", 0},
 		{"top level across builtin", "<?php $l = 20; strlen('x'); gzencode('x', $l);", 1},
 		{"top level decrement", "<?php $l = 10; $l--; gzencode('x', $l);", 0},
+		{"decrement after call", "<?php function f($d) { $l = 10; $r = gzencode($d, $l); $l--; return $r; }", 0},
+		{"by-reference closure never invoked", "<?php function f($d) { $l = 20; $c = function () use (&$l) { $l = 9; }; return gzencode($d, $l); }", 0},
+		{"extract after call", "<?php function f($d) { $l = 20; $r = gzencode($d, $l); extract(['l' => 1]); return $r; }", 0},
+		{"copy of later decremented", "<?php function f($d) { $a = 10; $b = $a; $r = gzencode($d, $b); $a--; return $r; }", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			opt := syntax.Options{Version: phpversion.PHP85}

@@ -21,6 +21,8 @@ func TestEdges(t *testing.T) {
 		{"asin('2');", 0},
 		{"asin($x);", 0},
 		{"cos(2);", 0},
+		{"$v = 2; foreach ($xs as $x) { asin($v); }", 1},
+		{"$v = 2; $g = function () use (&$v) { $v = 0; }; asin($v);", 0},
 	} {
 		t.Run(tc.source, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"InverseTrigInvalidRealDomain"}})

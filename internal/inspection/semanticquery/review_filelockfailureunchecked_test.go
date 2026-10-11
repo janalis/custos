@@ -20,6 +20,7 @@ func TestReviewFileLockFailureUncheckedResultTests(t *testing.T) {
 		{"terminating alternative", "function f($h){flock($h,LOCK_EX) or exit(1);fwrite($h,'x');}", 0},
 		{"continuing alternative", "function f($h){flock($h,LOCK_EX) or print('x');fwrite($h,'x');}", 1},
 		{"retry", "function f($h){do{$ok=flock($h,LOCK_EX);}while($ok!==true);fwrite($h,'x');}", 0},
+		{"compared ternary", "function f($h){return flock($h,LOCK_EX)===true?fwrite($h,'x'):0;}", 0},
 		{"abandoned retry", "function f($h,$n){do{$ok=flock($h,LOCK_EX);if(!--$n){break;}}while($ok!==true);fwrite($h,'x');}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

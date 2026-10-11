@@ -17,17 +17,27 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 		e.eval(n.Expr, f, r, 0)
 	case *syntax.Foreach:
 		e.eval(n.Expr, f, r, 0)
-		for _, x := range []syntax.Expr{n.Key, n.Value} {
-			if v, ok := x.(*syntax.Variable); ok {
-				f.vars[v.Name] = Value{}
-			}
+		if n.ByRef || referenceTarget(n.Value, f) {
+			// The loop variable stays bound to an element after the loop.
+			f.alias(rootVariable(n.Value), true)
+			f.alias(rootVariable(n.Expr), true)
 		}
+		kill(n.Key, f)
+		kill(n.Value, f)
+	case *syntax.Catch:
+		kill(n.Var, f)
 	case *syntax.Echo:
 		for _, x := range n.Exprs {
 			e.eval(x, f, r, 0)
 		}
 		f.states[outputID] = State{Operation: "echo", Span: n.Span()}
-	case *syntax.Global, *syntax.Unset, *syntax.StaticStmt:
+	case *syntax.Global:
+		for _, x := range n.Vars {
+			f.alias(rootVariable(x), false)
+		}
+		f.vars = map[string]Value{}
+		f.states = map[uint32]State{}
+	case *syntax.Unset, *syntax.StaticStmt:
 		f.vars = map[string]Value{}
 		f.states = map[uint32]State{}
 	default:
@@ -42,7 +52,9 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 func remember(r *scopeResult, n syntax.Node, f frame) {
 	if old, ok := r.before[n]; ok {
 		for id, s := range old {
-			if f.states[id] != s {
+			if common, ok := agree(s, f.states[id]); ok {
+				old[id] = common
+			} else {
 				delete(old, id)
 			}
 		}
@@ -86,13 +98,22 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	case *syntax.Assign:
 		v = e.eval(n.Value, f, r, depth+1)
 		if target, ok := n.Var.(*syntax.Variable); ok && target.NameExpr == nil && !n.ByRef && n.Op.Kind == syntax.TEqual {
-			f.vars[target.Name] = v
+			f.write(target.Name, v)
 		} else {
+			if n.ByRef {
+				f.alias(rootVariable(n.Var), true)
+				f.alias(rootVariable(n.Value), true)
+			}
 			f.vars = map[string]Value{}
 			f.states = map[uint32]State{}
 			v.Complete = false
 		}
 	case *syntax.FuncCall:
+		if _, named := n.Name.(*syntax.Name); !named {
+			// A callee expression runs first: an invoked closure literal
+			// binds its reference captures before the call.
+			e.eval(n.Name, f, r, depth+1)
+		}
 		v = e.call(n, n.Args, nil, f, r, depth)
 	case *syntax.MethodCall:
 		v = e.call(n, n.Args, n.Var, f, r, depth)
@@ -107,6 +128,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 		e.invalidateEscaped(n, values, f, r)
 		e.invalidateReferences(n, n.Args, f)
+		if e.exposed(f, r) && !e.nativeClass(n) {
+			e.invalidateShared(f, r)
+		}
 		for id := range f.states {
 			if id >= bufferID {
 				delete(f.states, id)
@@ -120,10 +144,20 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 	case *syntax.Binary:
 		left := e.eval(n.Left, f, r, depth+1)
-		before := clone(*f)
-		right := e.eval(n.Right, f, r, depth+1)
-		if n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TBooleanOr || n.Op.Kind == syntax.TAnd || n.Op.Kind == syntax.TOr || n.Op.Kind == syntax.TCoalesce {
+		var right Value
+		switch n.Op.Kind {
+		case syntax.TBooleanAnd, syntax.TAnd, syntax.TBooleanOr, syntax.TOr:
+			// The right operand runs only on the left operand's deciding outcome.
+			before := clone(*f)
+			e.refine(n.Left, f, n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd)
+			right = e.eval(n.Right, f, r, depth+1)
 			*f = join(before, *f)
+		case syntax.TCoalesce:
+			before := clone(*f)
+			right = e.eval(n.Right, f, r, depth+1)
+			*f = join(before, *f)
+		default:
+			right = e.eval(n.Right, f, r, depth+1)
 		}
 		v = merge(left, right)
 		v.Expr = x
@@ -131,7 +165,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		switch n.Op.Kind {
 		case syntax.TIsEqual, syntax.TIsNotEqual, syntax.TIsIdentical, syntax.TIsNotIdentical,
 			syntax.TIsSmallerOrEqual, syntax.TIsGreaterOrEqual, syntax.TLess, syntax.TGreater,
-			syntax.TSpaceship, syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr, syntax.TXor:
+			syntax.TSpaceship, syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr, syntax.TXor,
+			// These operators yield a number or throw; `+` may also unite arrays.
+			syntax.TMinus, syntax.TMul, syntax.TDiv, syntax.TMod, syntax.TPow, syntax.TSl, syntax.TSr:
 			v.Safe |= HTML | SQL | Shell | Header
 		}
 	case *syntax.Unary:
@@ -139,16 +175,53 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		v.Expr = x
 		v.Identity = 0
 		switch n.Op.Kind {
-		case syntax.TExclaim, syntax.TIntCast, syntax.TDoubleCast, syntax.TBoolCast:
+		case syntax.TExclaim, syntax.TIntCast, syntax.TDoubleCast, syntax.TBoolCast, syntax.TMinus, syntax.TPlus:
 			v.Safe |= HTML | SQL | Shell | Header
 		}
+	case *syntax.IncDec:
+		v = e.eval(n.Var, f, r, depth+1)
+		if target, ok := n.Var.(*syntax.Variable); ok && target.NameExpr == nil {
+			// The stepped variable no longer holds its assigned expression.
+			next := Value{Complete: v.Complete, Sources: v.Sources, Safe: v.Safe}
+			f.write(target.Name, next)
+			if n.Prefix {
+				v = next
+				v.Expr = x
+			}
+		} else {
+			kill(n.Var, f)
+			v = Value{}
+		}
 	case *syntax.Ternary:
-		e.eval(n.Cond, f, r, depth+1)
+		cond := e.eval(n.Cond, f, r, depth+1)
 		other := clone(*f)
-		a := e.eval(n.Then, f, r, depth+1)
+		a := cond // The short form yields its condition.
+		if n.Then != nil {
+			e.refine(n.Cond, f, true)
+			a = e.eval(n.Then, f, r, depth+1)
+		}
+		e.refine(n.Cond, &other, false)
 		b := e.eval(n.Else, &other, r, depth+1)
 		*f = join(*f, other)
 		v = merge(a, b)
+	case *syntax.Match:
+		// Only an arm result becomes the value; the subject merely selects it.
+		e.eval(n.Cond, f, r, depth+1)
+		entry := clone(*f)
+		for i, arm := range n.Arms {
+			branch := clone(entry)
+			for _, c := range arm.Conds {
+				e.eval(c, &branch, r, depth+1)
+			}
+			body := e.eval(arm.Body, &branch, r, depth+1)
+			if i == 0 {
+				v, *f = body, branch
+			} else {
+				v, *f = merge(v, body), join(*f, branch)
+			}
+		}
+		v.Expr = x
+		v.Identity = 0
 	case *syntax.ArrayDimFetch:
 		v = e.eval(n.Var, f, r, depth+1)
 		e.eval(n.Dim, f, r, depth+1)
@@ -194,12 +267,22 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			if item.Unpack || item.ByRef {
 				v.Complete = false
 			}
+			if item.ByRef {
+				f.alias(rootVariable(item.Value), true)
+			}
 		}
 		v.Expr = x
 	case *syntax.PropertyFetch:
 		e.eval(n.Var, f, r, depth+1)
 		v = Value{}
-	case *syntax.Closure, *syntax.ArrowFunction: // Bodies execute only on invocation.
+	case *syntax.Closure:
+		// The body executes only on invocation, where it can write these names.
+		for _, use := range n.Uses {
+			if use.ByRef && use.Var != nil {
+				f.alias(use.Var.Name, false)
+			}
+		}
+	case *syntax.ArrowFunction: // The body executes only on invocation.
 	case *syntax.Yield, *syntax.YieldFrom:
 		v = Value{}
 		r.complete = false
@@ -258,7 +341,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			}
 		}
 	}
-	name, builtin := e.callName(n)
+	name, builtin, result := e.callee(n)
 	c := Call{Node: n, Name: name, Receiver: receiver, Arguments: values}
 	if i, ok := r.callIndex[n]; ok {
 		for j, v := range values {
@@ -308,6 +391,23 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		v.Complete = false
 	}
 	if builtin {
+		if len(v.Sources) > 0 && scalarResult(result) {
+			v.Safe |= HTML | SQL | Shell | Header
+		}
+		switch name {
+		case "extract", "parse_str":
+			// Each key of the array may replace a local binding of that name.
+			if len(values) > 0 && (name == "extract" || len(values) == 1) {
+				for other, old := range f.vars {
+					imported := merge(old, values[0])
+					imported.Expr, imported.Identity = nil, 0
+					f.vars[other] = imported
+				}
+			}
+		}
+		if e.exposed(f, r) && callbackParameter(e, n) {
+			e.invalidateShared(f, r)
+		}
 		switch name {
 		case "htmlspecialchars", "htmlentities":
 			v.Safe |= HTML
@@ -370,6 +470,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 	} else {
 		e.invalidateEscaped(n, append(values, rv), f, r)
+		e.invalidateShared(f, r)
 		for id := range f.states {
 			if id >= bufferID {
 				delete(f.states, id)
@@ -404,33 +505,40 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 }
 
 func (e *Env) callName(n syntax.Node) (string, bool) {
+	name, builtin, _ := e.callee(n)
+	return name, builtin
+}
+
+// callee resolves a call's folded name, whether PHP itself declares it and,
+// when it does, its declared native return type.
+func (e *Env) callee(n syntax.Node) (string, bool, string) {
 	switch n := n.(type) {
 	case *syntax.FuncCall:
 		if f := e.types.ResolveFunction(n); f != nil && f.Avail.In(e.types.PHP) {
-			return strings.ToLower(f.FQN), f.Builtin
+			return strings.ToLower(f.FQN), f.Builtin, f.Return
 		}
 	case *syntax.MethodCall:
 		if id, ok := n.Name.(*syntax.Identifier); ok {
 			classes := e.types.TypeOf(n.Var).Classes()
 			if len(classes) == 1 {
 				if m := e.types.Index.FindMethod(classes[0], id.Value, e.types.PHP); m != nil && m.Avail.In(e.types.PHP) {
-					return strings.ToLower(id.Value), m.Builtin
+					return strings.ToLower(id.Value), m.Builtin, m.Return
 				}
 			}
-			return strings.ToLower(id.Value), false
+			return strings.ToLower(id.Value), false, ""
 		}
 	case *syntax.StaticCall:
 		if id, ok := n.Name.(*syntax.Identifier); ok {
 			if class, ok := n.Class.(*syntax.Name); ok {
 				fqn := e.types.Names.Class(class.Value, class.Span().Start)
 				if m := e.types.Index.FindMethod(fqn, id.Value, e.types.PHP); m != nil && m.Avail.In(e.types.PHP) {
-					return strings.ToLower(id.Value), m.Builtin
+					return strings.ToLower(id.Value), m.Builtin, m.Return
 				}
 			}
-			return strings.ToLower(id.Value), false
+			return strings.ToLower(id.Value), false, ""
 		}
 	}
-	return "", false
+	return "", false, ""
 }
 
 // invalidateEscaped separates operation histories across calls with unknown effects.
@@ -472,4 +580,83 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 			delete(f.states, value.Identity)
 		}
 	}
+}
+
+// kill discards the values a write target replaces. A property or static
+// property target changes no local binding.
+func kill(target syntax.Expr, f *frame) {
+	switch n := syntax.UnwrapParens(target).(type) {
+	case *syntax.Variable:
+		if n.NameExpr != nil {
+			f.vars = map[string]Value{}
+		} else {
+			f.write(n.Name, Value{})
+		}
+	case *syntax.ArrayDimFetch:
+		kill(n.Var, f)
+	default:
+		for _, item := range targetItems(target) {
+			if item != nil {
+				kill(item.Value, f)
+			}
+		}
+	}
+}
+
+// exposed reports whether the frame holds any binding code outside the scope
+// can replace. Most frames do not, which spares resolving the callee.
+func (e *Env) exposed(f *frame, r *scopeResult) bool {
+	return len(f.aliased) > 0 || r.global && e.globalsTable()
+}
+
+// invalidateShared discards the bindings code outside the scope can replace
+// while a callee with unknown effects, or a callback, runs.
+func (e *Env) invalidateShared(f *frame, r *scopeResult) {
+	if r.global && e.globalsTable() {
+		f.vars = map[string]Value{}
+		return
+	}
+	for name := range f.aliased {
+		f.vars[name] = Value{}
+	}
+}
+
+// nativeClass reports the construction of a class PHP itself declares, whose
+// constructor runs no project code.
+func (e *Env) nativeClass(n *syntax.New) bool {
+	name, ok := n.Class.(*syntax.Name)
+	if !ok {
+		return false
+	}
+	class := e.types.Index.Class(e.types.Names.Class(name.Value, name.Span().Start), e.types.PHP)
+	return class != nil && strings.HasPrefix(class.File, "stubs/")
+}
+
+// callbackParameter reports a resolved builtin that may invoke user code.
+func callbackParameter(e *Env, n syntax.Node) bool {
+	params, _, _ := e.declaration(n)
+	for _, p := range params {
+		if strings.Contains(p.Type, "callable") {
+			return true
+		}
+	}
+	return false
+}
+
+// scalarResult reports a native type that only admits numbers, booleans and
+// null. Such a value cannot carry markup, a query fragment or a command.
+func scalarResult(declared string) bool {
+	if declared == "" {
+		return false
+	}
+	for declared != "" {
+		var part string
+		part, declared, _ = strings.Cut(declared, "|")
+		switch strings.ToLower(strings.TrimPrefix(part, "?")) {
+		case "int", "float", "bool", "false", "true", "null", "void", "never":
+		default:
+			return false
+		}
+	}
+	return true
 }

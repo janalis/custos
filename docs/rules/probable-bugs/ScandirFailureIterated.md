@@ -26,6 +26,7 @@ Identify foreach iterable directly produced by scandir or its unchanged local re
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
 - E1a. A guard located outside a loop that assigns the iterated local is ignored: later iterations may see a different value.
 - E1b. `assert()` is not a guard. Assertions can be compiled out, so the loop still receives false in production and the finding stays.
+- E1c. A value the shared flow analysis proves is not false at the use is never reported, whatever form the proof takes: a truthiness or `empty()` test, a loose comparison with `false` or `null`, a type predicate, or an early exit whose `if` also has an `else` branch that continues. For example `if ($entries == null) { return; }` leaves the path for a failed listing, since `false == null` holds.
 - E2. Both `@custos-ignore ScandirFailureIterated` and `@noinspection ScandirFailureIterated` suppress this native rule.
 
 ## Fix

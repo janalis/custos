@@ -39,7 +39,7 @@ func ExpansionCStatic(ctx *analysis.Context, e syntax.Expr, class, method string
 // ExpansionCTruthy identifies a direct boolean condition without assuming branch intent.
 func ExpansionCTruthy(e syntax.Expr) bool {
 	p, child := astquery.ParentSkipParens(e)
-	if a, ok := p.(*syntax.Assign); ok && a.Value == child {
+	if a, ok := p.(*syntax.Assign); ok && a.Value == child && a.Op.Kind == syntax.TEqual && !a.ByRef {
 		p, child = astquery.ParentSkipParens(a)
 	}
 	if u, ok := p.(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
@@ -47,6 +47,8 @@ func ExpansionCTruthy(e syntax.Expr) bool {
 	}
 	switch c := p.(type) {
 	case *syntax.If:
+		return c.Cond == child
+	case *syntax.ElseIf:
 		return c.Cond == child
 	case *syntax.While:
 		return c.Cond == child

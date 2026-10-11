@@ -4,8 +4,9 @@ import "custos/internal/php/syntax"
 
 type stableArrayReadKey struct{ statement syntax.Stmt }
 
-// StableArrayRead excludes writable accesses and statements that can replace
-// the array before a read. The memo contains syntax facts only.
+// StableArrayRead excludes writable accesses, accesses bound by reference and
+// statements that can replace the array before a read. The memo contains
+// syntax facts only.
 func StableArrayRead(f *syntax.File, fetch *syntax.ArrayDimFetch) bool {
 	var base syntax.Expr = fetch
 	for {
@@ -18,6 +19,30 @@ func StableArrayRead(f *syntax.File, fetch *syntax.ArrayDimFetch) bool {
 	v, ok := base.(*syntax.Variable)
 	if !ok {
 		return false
+	}
+	// A reference to the element, or to one nested in it, creates the
+	// element instead of reading it.
+	var referenced syntax.Node = fetch
+	for {
+		outer, ok := referenced.Parent().(*syntax.ArrayDimFetch)
+		if !ok || outer.Var != referenced {
+			break
+		}
+		referenced = outer
+	}
+	switch p := referenced.Parent().(type) {
+	case *syntax.Assign:
+		if p.ByRef && p.Value == referenced {
+			return false
+		}
+	case *syntax.ArrayItem:
+		if p.ByRef && p.Value == referenced {
+			return false
+		}
+	case *syntax.Foreach:
+		if p.ByRef && p.Expr == referenced {
+			return false
+		}
 	}
 	for child, parent := syntax.Node(fetch), fetch.Parent(); parent != nil; child, parent = parent, parent.Parent() {
 		switch p := parent.(type) {

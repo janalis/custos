@@ -47,6 +47,7 @@ func TestReviewSafety(t *testing.T) {
 		{"file scope builtin", "$key = 'unset'; $iv = random_bytes(16); echo base64_encode(openssl_encrypt($d, 'aes-256-cbc', $key, 0, substr($iv, 0, 16)));", 1},
 		{"file scope callback builtin", "$key = 'unset'; usort($list, 'load'); openssl_encrypt($d, 'aes-256-cbc', $key, 0, $iv);", 0},
 		{"global then builtin", "function f($d, $iv) { global $key; $key = 'unset'; trim($d);" + use, 1},
+		{"calls before the key", "function f($d, $iv, $o) { $o->load(); Keys::load(); new Loader(); $key = 'unset';" + use, 1},
 		{"file scope direct", "prepare(); $key = 'unset'; openssl_encrypt($d, 'aes-256-cbc', $key, 0, $iv);", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

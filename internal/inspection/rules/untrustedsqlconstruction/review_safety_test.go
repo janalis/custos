@@ -32,6 +32,10 @@ func TestReviewSinksAndProvenScalars(t *testing.T) {
 		{"array union", "7.4", "function f(PDO $p){$p->query('SELECT * FROM t WHERE id IN ('.implode(',', $_GET['a'] + $_POST['b']).')');}", 1},
 		{"shadowed count", "7.4", "namespace App; function count($v){return $v;} function f(\\PDO $p){$p->query('SELECT * FROM t LIMIT '.count($_GET['ids']));}", 1},
 		{"match keywords", "8.0", "function f(PDO $p){$d=match($_GET['s']){'desc'=>'DESC',default=>'ASC'};$p->query('SELECT * FROM t ORDER BY id '.$d);}", 0},
+		// `+` with a number is arithmetic: only the local walk knows that.
+		{"interpolated numeric sum", "8.0", "function f(PDO $p){$n=$_GET['n']+1;$p->query(\"SELECT * FROM t LIMIT {$n}\");}", 0},
+		{"match numeric sum arm", "8.0", "function f(PDO $p){$p->query('SELECT * FROM t LIMIT '.match($_GET['s']){'a'=>$_GET['n']+1,default=>10});}", 0},
+		{"joined numeric sums", "8.0", "function f(PDO $p){$p->query('SELECT * FROM t WHERE id IN ('.implode(',', [$_GET['a']+1, 2]).')');}", 0},
 		{"match passthrough", "8.0", "function f(PDO $p){$d=match(true){default=>$_GET['s']};$p->query('SELECT * FROM t ORDER BY id '.$d);}", 1},
 		{"walk budget", "8.0", "function f(PDO $p){$p->query(" + deep + ");}", 1},
 	} {

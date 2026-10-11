@@ -50,6 +50,14 @@ func TestReviewGuards(t *testing.T) {
 		{"earlier exit", "if (!$p) { return; } echo 1; echo $p['host'];", 0},
 		{"outer exit", "if (!$p) { return; } if ($o) { echo $p['host']; }", 0},
 		{"key exists", "if (array_key_exists('host', $p)) { echo $p['host']; }", 0},
+		// Key probes and an exit through an endless loop are proven by the guard walk only.
+		{"isset and chain", "return isset($p['host']) && $p['host'] === 'x';", 0},
+		{"isset or chain", "return !isset($p['host']) || $p['host'] === 'x';", 0},
+		{"isset else branch", "if (!isset($p['host'])) { echo 0; } else { echo $p['host']; }", 0},
+		{"after failed isset elseif", "if ($o) { echo 0; } elseif (!isset($p['host'])) { echo 1; } else { echo $p['host']; }", 0},
+		{"isset and branch", "if ($o && isset($p['host'])) { echo $p['host']; }", 0},
+		{"isset or exit", "if (!isset($p['host']) || $o) { return; } echo $p['host'];", 0},
+		{"loose exit through endless loop", "if ($p == false) { while (true) { sleep(1); } } echo $p['host'];", 0},
 		{"unbraced body", "if ($o) echo $p['host'];", 1},
 
 		{"unrelated truthy", "if ($o) { echo $p['host']; }", 1},

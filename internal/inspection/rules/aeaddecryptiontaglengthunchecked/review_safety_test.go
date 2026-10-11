@@ -24,6 +24,8 @@ func TestReviewSafety(t *testing.T) {
 		{"element measured, variable used", `$tag=$_POST["tag"];if(16!==strlen($_POST["tag"])){return;}` + open + `$tag);`, 0},
 		{"ternary true arm", `$tag=$_POST["tag"];$p=strlen($tag)===16?` + open + `$tag):false;`, 0},
 		{"ternary false arm", `$p=16!==strlen($_GET["t"])?false:` + open + `$_GET["t"]);`, 0},
+		{"ternary true arm, element measured", `$tag=$_POST["tag"];$p=strlen($_POST["tag"])===16?` + open + `$tag):false;`, 0},
+		{"earlier exit through endless loop", `$tag=$_POST["tag"];if(16!==strlen($tag)){while(true){sleep(1);}}$x=1;` + open + `$tag);`, 0},
 		{"if body", `if(16===strlen($_POST["tag"])){` + open + `$_POST["tag"]);}`, 0},
 		{"else body", `if(16!==strlen($_POST["tag"])){echo 1;}else{` + open + `$_POST["tag"]);}`, 0},
 		{"variable guard before loop", `$tag=$_POST["tag"];if(16!==strlen($tag)){return;}while($n--){` + open + `$tag);}`, 0},

@@ -51,6 +51,12 @@ func TestReviewGuards(t *testing.T) {
 		{"and die", "!$i and die('unknown'); return $i['dir'];", 0},
 		{"assigned or throw", "$j = posix_getpwuid($o) or throw new Exception(); return $j['dir'];", 0},
 		{"assigned exit", "if (!($j = posix_getpwuid($o))) { return; } return $j['dir'];", 0},
+		// Key probes are proven by the guard walk only.
+		{"isset ternary", "return isset($i['dir']) ? $i['dir'] : null;", 0},
+		{"isset else branch", "if (!isset($i['dir'])) { echo 0; } else { echo $i['dir']; }", 0},
+		{"after failed isset elseif", "if ($o) { echo 0; } elseif (!isset($i['dir'])) { echo 1; } else { echo $i['dir']; }", 0},
+		{"isset and branch", "if ($o && isset($i['dir'])) { echo $i['dir']; }", 0},
+		{"isset or exit", "if (!isset($i['dir']) || $o) { return; } echo $i['dir'];", 0},
 
 		{"unguarded", "return $i['dir'];", 1},
 		{"goto lands after guard", "if (!$i) { goto x; } echo 1; x: return $i['dir'];", 1},

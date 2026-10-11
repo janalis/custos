@@ -38,6 +38,10 @@ func TestReviewSafety(t *testing.T) {
 		{"cyclic copies", "<?php function f($a) { $s = 0; $t = $s; $s = $t; return array_chunk($a, $s); }", 1},
 		{"copied literal", "<?php function f($a) { $n = 0; $s = $n; return array_chunk($a, $s); }", 1},
 		{"compound assignment", "<?php function f($a) { $s = 0; $s += 3; return array_chunk($a, $s); }", 0},
+		{"increment after call", "<?php function f($a) { $s = 0; $r = array_chunk($a, $s); $s++; return $r; }", 0},
+		{"by-reference capture never invoked", "<?php function f($a) { $s = 0; $g = function () use (&$s) { $s = 3; }; return array_chunk($a, $s); }", 0},
+		{"referenced array item never written", "<?php function f($a) { $s = 0; $b = [&$s]; return array_chunk($a, $s); }", 0},
+		{"extract after call", "<?php function f($a, $o) { $s = 0; $r = array_chunk($a, $s); extract($o); return $r; }", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := syntax.ParseBest("review.php", []byte(tc.source), syntax.Options{Version: phpversion.PHP85})

@@ -65,13 +65,14 @@ func decodeDoubleQuoted(s string) string {
 			b.WriteByte('\f')
 		case '\\', '$', '"':
 			b.WriteByte(n)
-		case 'x':
+		case 'x', 'X': // PHP accepts both introducers
 			j := i + 2
 			for j < len(s) && j < i+4 && isHex(s[j]) {
 				j++
 			}
 			if j == i+2 {
-				b.WriteString(`\x`)
+				b.WriteByte('\\')
+				b.WriteByte(n)
 			} else {
 				v, _ := strconv.ParseUint(s[i+2:j], 16, 8)
 				b.WriteByte(byte(v))

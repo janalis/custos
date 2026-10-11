@@ -70,6 +70,25 @@ versions follow [Semantic Versioning](https://semver.org/).
   combined conditions, allow-lists, server-side MIME inspection, `realpath`
   containment) and no longer report numeric, boolean or `match`-selected
   constant values as tainted.
+- Value-based inspections no longer trust a variable's assigned value after
+  `++`/`--`, a `foreach`, `list()` or `catch` target, `extract()`, a write
+  through a reference alias, or a call that can run code holding a reference
+  to it (by-reference closure capture, `global`, by-reference parameter);
+  copies taken afterwards are unknown too.
+- Request-data inspections no longer treat a `match` subject, arithmetic
+  results or number- and boolean-returning builtins as carrying request text;
+  the short ternary `$a ?: $b` now keeps the request data of `$a`.
+- Failure-value inspections accept more guards: truthiness, `!empty()`, loose
+  comparison with `false`/`null`, type predicates, constant-first comparisons,
+  an assignment tested in place, `elseif`/`else` arms, short-circuit operands,
+  ternary arms and an early exit that also has an `else` branch.
+- Handle and object inspections notice when a tracked local is rebound by
+  destructuring, a loop target, a by-reference argument or `unset`, no longer
+  count a call in another `match` arm or behind a null-safe access as always
+  executed, and resolve `new self`.
+- Operand comparisons keep keyword-spelled constant names and named-argument
+  labels case-sensitive (`A::Array` is not `A::ARRAY`); `\X41` hex escapes are
+  decoded; `exit()` with empty parentheses ends a response with a known body.
 
 ## [0.1.4] - 2026-10-10
 

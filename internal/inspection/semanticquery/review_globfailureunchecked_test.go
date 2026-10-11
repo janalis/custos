@@ -98,6 +98,13 @@ func TestReviewGlobFailureUnchecked(t *testing.T) {
 		{"plain statement", get + "trim($q);" + loop, 1},
 
 		{"closure boundary", get + "if(!$p){return;}$f=function()use($p){" + loop + "};", 0},
+
+		// Tests the flow facts do not model reach the syntactic guard walk.
+		{"bool compared with true return", get + "if(is_bool($p)===true){return;}" + loop, 0},
+		{"offset set operand", get + "return isset($p[0])&&count($p)>1;", 0},
+		{"offset set ternary", get + "return isset($p[0])?count($p):0;", 0},
+		{"predicate compared ternary else", get + "return is_array($p)===false?0:count($p);", 0},
+		{"offset set elseif", get + "if($q){echo 1;}elseif(isset($p[0])){" + loop + "}", 0},
 		{"switch case list", get + "switch($q){case 1:if(!$p){break;}" + loop + "}", 0},
 		{"incomplete if", get + "if(count($p))", 1},
 		{"incomplete ternary", get + "return $q?count($p):", 1},

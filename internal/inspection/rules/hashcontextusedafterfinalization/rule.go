@@ -108,7 +108,7 @@ func finalizedBefore(ctx *analysis.Context, c *syntax.FuncCall) bool {
 		syntax.InspectFile(ctx.File, visit)
 	}
 	for _, p := range finals {
-		if p.Span().End > c.Span().Start || !semanticquery.NativeDominates(p, c) || conditional(p, c) {
+		if p.Span().End > c.Span().Start || !semanticquery.NativeDominates(p, c) {
 			continue
 		}
 		between := func(nodes []syntax.Node) bool {
@@ -124,45 +124,4 @@ func finalizedBefore(ctx *analysis.Context, c *syntax.FuncCall) bool {
 		}
 	}
 	return false
-}
-
-// conditional reports whether p sits in a match arm or in the short-circuited
-// part of a null-safe chain that does not also contain c. p has an enclosing
-// expression statement because it dominates c.
-func conditional(p, c syntax.Node) bool {
-	for node := p; ; node = node.Parent() {
-		if _, ok := node.(*syntax.ExprStmt); ok {
-			return false
-		}
-		skippable := false
-		switch parent := node.Parent().(type) {
-		case *syntax.MatchArm:
-			skippable = node == parent.Body
-		case *syntax.MethodCall:
-			skippable = node != parent.Var && nullSafe(parent)
-		}
-		if skippable && (c.Span().Start < node.Span().Start || c.Span().End > node.Span().End) {
-			return true
-		}
-	}
-}
-
-// nullSafe reports whether evaluating e can stop early at a `?->` link.
-func nullSafe(e syntax.Expr) bool {
-	for {
-		switch x := e.(type) {
-		case *syntax.MethodCall:
-			if x.NullSafe {
-				return true
-			}
-			e = x.Var
-		case *syntax.PropertyFetch:
-			if x.NullSafe {
-				return true
-			}
-			e = x.Var
-		default:
-			return false
-		}
-	}
 }

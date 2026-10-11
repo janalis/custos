@@ -28,6 +28,7 @@ func TestReviewSafety(t *testing.T) {
 		{"unrelated reference capture", `$g = function () use (&$o) { $o = 1; }; $c->sort($m); }`, 1},
 		{"capture in nested scope", `$g = function () { return function () use (&$m) { $m = []; }; }; $c->sort($m); }`, 1},
 		{"capture of arrow function copy", `$g = fn () => function () use (&$m) { $m = []; }; $c->sort($m); }`, 1},
+		{"catch binding of another variable", `try { g(); } catch (Exception $e) { } $c->sort($m); }`, 1},
 		{"untyped catch", `try { g(); } catch (Exception) { } $c->sort($m); }`, 1},
 		{"literal argument", `$c->sort(["k" => "b"]); }`, 1},
 	} {

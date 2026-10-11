@@ -11,7 +11,7 @@ function ternaryCondition() { $e = DateTime::getLastErrors(); return <warning de
 function weakAnd($x) { $e = DateTime::getLastErrors(); return ($e && $x) ? 1 : <warning descr="Handle the false result before reading parsing diagnostics.">$e['warning_count']</warning>; }
 function weakOr($x) { $e = DateTime::getLastErrors(); return ($e || $x) ? <warning descr="Handle the false result before reading parsing diagnostics.">$e['warning_count']</warning> : 0; }
 function fallsThrough() { $e = DateTime::getLastErrors(); if (!$e) { echo 1; } return <warning descr="Handle the false result before reading parsing diagnostics.">$e['warning_count']</warning>; }
-function exitWithElse() { $e = DateTime::getLastErrors(); if (!$e) { return 0; } else { echo 1; } echo 2; return <warning descr="Handle the false result before reading parsing diagnostics.">$e['warning_count']</warning>; }
+function exitWithElse() { $e = DateTime::getLastErrors(); if (!$e) { return 0; } else { echo 1; } echo 2; return $e['warning_count']; }
 function issetWhole() { $e = DateTime::getLastErrors(); if (isset($e)) { return <warning descr="Handle the false result before reading parsing diagnostics.">$e['warning_count']</warning>; } return 0; }
 function issetNegated() { $e = DateTime::getLastErrors(); if (!isset($e['errors'])) { return <warning descr="Handle the false result before reading parsing diagnostics.">$e['warning_count']</warning>; } return 0; }
 function emptyTrue() { $e = DateTime::getLastErrors(); if (empty($e)) { return <warning descr="Handle the false result before reading parsing diagnostics.">$e['warning_count']</warning>; } return 0; }

@@ -13,6 +13,8 @@ func TestStringLiteralValue(t *testing.T) {
 		`"\\Lib\\fmt"`:   `\Lib\fmt`,
 		`"\x41\101\$\q"`: `AA$\q`,
 		`"\u{48}i"`:      "Hi",
+		`"\X41-\x4a"`:    "A-J",
+		`"\Xg\xg"`:       `\Xg\xg`,
 	} {
 		got, ok := StringLiteralValue(raw)
 		if !ok || got != want {

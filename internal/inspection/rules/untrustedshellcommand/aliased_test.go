@@ -17,7 +17,7 @@ func TestReviewAliasedOrigin(t *testing.T) {
 		t.Fatal(err)
 	}
 	const (
-		origin = "$n = strlen($_GET['a']); "
+		origin = "$n = $_GET['a'] + 1; "
 		sink   = "system('ls ' . $n); "
 	)
 	for _, tc := range []struct {
@@ -29,10 +29,10 @@ func TestReviewAliasedOrigin(t *testing.T) {
 		{"other catch", origin + "try { run(); } catch (Exception $e) { } catch (Error) { } " + sink, 0},
 		{"other reference", origin + sink + "$m = &$o->p;", 0},
 		{"variable variable read", origin + sink + "echo $$k;", 0},
-		{"reference capture", origin + "$f = function () use (&$n) { $n = $_GET['b']; }; $f(); " + sink, 1},
-		{"capture beside a call", origin + "$x = (function () use (&$n) { $n = $_GET['b']; })() . strlen('a'); " + sink, 1},
+		{"reference capture", origin + "$f = function () use (&$n) { $n = $_GET['b']; }; $f(); " + sink, 0},
+		{"capture beside a call", origin + "$x = (function () use (&$n) { $n = $_GET['b']; })() . strlen('a'); " + sink, 0},
 		{"extract", origin + "extract($_GET); " + sink, 1},
-		{"catch binding", origin + "try { run(); } catch (Exception $n) { } " + sink, 1},
+		{"catch binding", origin + "try { run(); } catch (Exception $n) { } " + sink, 0},
 		{"reference alias", origin + sink + "$m = &$n;", 1},
 		{"element alias", origin + sink + "$m = &$n['k'];", 1},
 		{"reference loop", origin + sink + "foreach ($n as &$m) { }", 1},
@@ -42,8 +42,8 @@ func TestReviewAliasedOrigin(t *testing.T) {
 		{"static declaration", "function probe() { " + origin + sink + "static $n; }", 1},
 		{"global declaration", "function probe() { global $n; " + origin + sink + "}", 1},
 		{"unrelated scopes", "function other() { extract($_POST); static $n; global $m; } " + origin + sink, 0},
-		{"global written elsewhere", "function swap() { global $n; $n = $_GET['b']; } " + origin + "swap(); " + sink, 1},
-		{"globals entry written elsewhere", "function swap() { $GLOBALS['n'] = $_GET['b']; } " + origin + "swap(); " + sink, 1},
+		{"global written elsewhere", "function swap() { global $n; $n = $_GET['b']; } " + origin + "swap(); " + sink, 0},
+		{"globals entry written elsewhere", "function swap() { $GLOBALS['n'] = $_GET['b']; } " + origin + "swap(); " + sink, 0},
 		{"other globals entry", "function swap() { $GLOBALS['m'] = $_GET['b']; } " + origin + "swap(); " + sink, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -39,6 +39,7 @@ func TestReviewCurlResponseZeroRejected(t *testing.T) {
 		{"array dynamic key", on + "curl_setopt_array($c,[$opt=>false]);" + fail, 0},
 		{"array spread", on + "curl_setopt_array($c,[...$opts]);" + fail, 0},
 		{"unknown call on handle", on + "configure($c);" + fail, 0},
+		{"other builtin call on handle", on + "curl_reset($c);" + fail, 0},
 		{"conditional write", on + "if($f){curl_setopt($c,CURLOPT_FILE,$fp);}" + fail, 0},
 		{"other handle sink", on + "curl_setopt($d,CURLOPT_FILE,$fp);" + fail, 1},
 		{"double negation", on + "if(!!curl_exec($c)){throw new RuntimeException();}", 0},
@@ -68,6 +69,7 @@ func TestReviewCurlOptionLookupInvalidation(t *testing.T) {
 		{"proven upload", open + "curl_setopt($c,CURLOPT_UPLOAD,true);" + tail, 1},
 		{"conditional upload", open + "if($f){curl_setopt($c,CURLOPT_UPLOAD,true);}" + tail, 0},
 		{"unknown call on handle", open + "curl_setopt($c,CURLOPT_UPLOAD,true);configure($c);" + tail, 0},
+		{"other builtin call on handle", open + "curl_setopt($c,CURLOPT_UPLOAD,true);curl_reset($c);" + tail, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := reviewCurlCallProbe{nativeCheckProbe{"CurlUploadDeclaredSizeMismatch", CheckCurlUploadDeclaredSizeMismatch}}

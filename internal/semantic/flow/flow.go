@@ -71,6 +71,11 @@ type Call struct {
 type frame struct {
 	vars   map[string]Value
 	states map[uint32]State
+	// aliased names are bound to storage that code outside the tracked
+	// bindings can write: true for a reference taken in this scope, whose
+	// other names write it too; false for storage only a callee can reach.
+	// nil for the common scope without such bindings.
+	aliased map[string]bool
 }
 
 // Env shares one bounded analysis per variable scope among all inspections.
@@ -79,6 +84,9 @@ type Env struct {
 	types    *infer.Env
 	snapshot *Snapshot
 	scopes   map[syntax.Node]*scopeResult
+	// global caches the file's function-bound global names once scanned.
+	global       map[string]bool
+	globalsKnown bool
 }
 
 type scopeResult struct {
@@ -90,6 +98,9 @@ type scopeResult struct {
 	complete   bool
 	operations int
 	facts      int
+	// global marks a file-level scope whose variables a function of the file
+	// can replace through the globals table.
+	global bool
 }
 
 // New creates an environment without computing scope flow eagerly.
@@ -271,7 +282,43 @@ func clone(f frame) frame {
 	for k, v := range f.states {
 		n.states[k] = v
 	}
+	for k, local := range f.aliased {
+		n.alias(k, local)
+	}
 	return n
+}
+
+// alias records a name whose storage is shared outside the tracked bindings.
+func (f *frame) alias(name string, local bool) {
+	if name == "" {
+		return
+	}
+	if f.aliased == nil {
+		f.aliased = map[string]bool{}
+	}
+	f.aliased[name] = f.aliased[name] || local
+}
+
+// write binds a plain variable. A write through a reference taken in the
+// scope replaces the value seen under every other such name.
+func (f *frame) write(name string, v Value) {
+	if f.aliased[name] {
+		for other, local := range f.aliased {
+			if local {
+				f.vars[other] = Value{}
+			}
+		}
+	}
+	f.vars[name] = v
+}
+
+// agree keeps an operation every path performed; its success must hold on each.
+func agree(a, b State) (State, bool) {
+	if a.Operation != b.Operation || a.Span != b.Span {
+		return State{}, false
+	}
+	a.Successful = a.Successful && b.Successful
+	return a, true
 }
 
 func join(a, b frame) frame {
@@ -289,16 +336,26 @@ func join(a, b frame) frame {
 		}
 	}
 	for k, v := range n.states {
-		if b.states[k] != v {
+		if common, ok := agree(v, b.states[k]); ok {
+			n.states[k] = common
+		} else {
 			delete(n.states, k)
 		}
+	}
+	for k, local := range b.aliased {
+		n.alias(k, local)
 	}
 	return n
 }
 
 func same(a, b frame) bool {
-	if len(a.vars) != len(b.vars) || len(a.states) != len(b.states) {
+	if len(a.vars) != len(b.vars) || len(a.states) != len(b.states) || len(a.aliased) != len(b.aliased) {
 		return false
+	}
+	for k, local := range a.aliased {
+		if other, ok := b.aliased[k]; !ok || other != local {
+			return false
+		}
 	}
 	for k, v := range a.vars {
 		w, ok := b.vars[k]

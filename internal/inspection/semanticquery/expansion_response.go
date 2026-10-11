@@ -96,7 +96,7 @@ func expansionResponseList(ctx *analysis.Context, list []syntax.Stmt, top bool, 
 			case *syntax.Exit:
 				complete = true
 				terminated = true
-				if value.Args != nil {
+				if value.Args != nil && len(value.Args.Args) > 0 {
 					n, ok := expansionByteLength(ctx, CallArgument(value.Args, 0, "status"), 0)
 					bodyKnown = bodyKnown && ok
 					if ok {

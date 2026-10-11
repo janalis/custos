@@ -33,47 +33,55 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		return
 	}
 	switch n := syntax.UnwrapParens(expr).(type) {
+	case *syntax.Variable, *syntax.Assign:
+		if truth {
+			exclude(n, f, true, true)
+		}
+	case *syntax.Empty:
+		if !truth {
+			exclude(n.Expr, f, true, true)
+		}
+	case *syntax.Isset:
+		if truth {
+			for _, x := range n.Vars {
+				exclude(x, f, false, true)
+			}
+		}
+	case *syntax.Instanceof:
+		if truth {
+			exclude(n.Expr, f, true, true)
+		}
 	case *syntax.Unary:
 		if n.Op.Kind == syntax.TExclaim {
 			e.refine(n.Expr, f, !truth)
 		}
 	case *syntax.Binary:
-		if _, variable := syntax.UnwrapParens(n.Right).(*syntax.Variable); variable {
-			if _, constant := syntax.UnwrapParens(n.Left).(*syntax.ConstFetch); constant {
-				copy := *n
-				copy.Left, copy.Right = n.Right, n.Left
-				n = &copy
-			}
+		// A constant-first comparison states the same fact. It only pins the
+		// variable to a literal in the written order, as it always did.
+		mirrored := constantOperand(n.Left) && !constantOperand(n.Right)
+		if mirrored {
+			copy := *n
+			copy.Left, copy.Right = n.Right, n.Left
+			n = &copy
 		}
 		if (truth && (n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd)) || (!truth && (n.Op.Kind == syntax.TBooleanOr || n.Op.Kind == syntax.TOr)) {
 			e.refine(n.Left, f, truth)
 			e.refine(n.Right, f, truth)
 		}
+		flag := constantName(n.Right)
 		if (truth && n.Op.Kind == syntax.TIsIdentical) || (!truth && n.Op.Kind == syntax.TIsNotIdentical) {
-			variable, ok := syntax.UnwrapParens(n.Left).(*syntax.Variable)
-			if ok {
+			if variable, ok := syntax.UnwrapParens(n.Left).(*syntax.Variable); ok && !mirrored {
 				if _, literal := literalText(n.Right); literal {
 					f.vars[variable.Name] = Value{Complete: true, Expr: n.Right}
 				}
 			}
 		}
 		if (!truth && n.Op.Kind == syntax.TIsIdentical) || (truth && n.Op.Kind == syntax.TIsNotIdentical) {
-			variable, ok := syntax.UnwrapParens(n.Left).(*syntax.Variable)
-			flag, constant := syntax.UnwrapParens(n.Right).(*syntax.ConstFetch)
-			if ok && constant {
-				v := f.vars[variable.Name]
-				if strings.EqualFold(flag.Name.Value, "false") {
-					v.NonFalse = true
-					if s, exists := f.states[v.Identity]; exists {
-						s.Successful = true
-						f.states[v.Identity] = s
-					}
-				}
-				if strings.EqualFold(flag.Name.Value, "null") {
-					v.NonNull = true
-				}
-				f.vars[variable.Name] = v
-			}
+			exclude(n.Left, f, flag == "false", flag == "null")
+		}
+		// A value loosely different from false or null is neither of them.
+		if ((!truth && n.Op.Kind == syntax.TIsEqual) || (truth && n.Op.Kind == syntax.TIsNotEqual)) && (flag == "false" || flag == "null") {
+			exclude(n.Left, f, true, true)
 		}
 		if (truth && n.Op.Kind == syntax.TIsIdentical) || (!truth && n.Op.Kind == syntax.TIsNotIdentical) {
 			if call, ok := n.Left.(*syntax.FuncCall); ok {
@@ -146,6 +154,21 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		if !ok || variable.NameExpr != nil {
 			return
 		}
+		switch name {
+		case "is_string", "is_array", "is_int", "is_integer", "is_long", "is_float", "is_double", "is_numeric",
+			"is_object", "is_resource", "is_iterable", "is_countable", "is_callable":
+			if truth {
+				exclude(variable, f, true, true)
+			}
+		case "is_bool":
+			if !truth {
+				exclude(variable, f, true, false)
+			}
+		case "is_null":
+			if !truth {
+				exclude(variable, f, false, true)
+			}
+		}
 		v := f.vars[variable.Name]
 		if truth && (name == "ctype_digit" || name == "is_int" || name == "is_integer") {
 			v.Safe |= SQL
@@ -194,4 +217,63 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			f.vars[variable.Name] = v
 		}
 	}
+}
+
+// guarded names the variable a condition operand tests: the variable itself or
+// the target of a plain assignment written inside the condition.
+func guarded(x syntax.Expr) *syntax.Variable {
+	switch n := syntax.UnwrapParens(x).(type) {
+	case *syntax.Variable:
+		if n.NameExpr == nil {
+			return n
+		}
+	case *syntax.Assign:
+		if target, ok := n.Var.(*syntax.Variable); ok && target.NameExpr == nil && !n.ByRef && n.Op.Kind == syntax.TEqual {
+			return target
+		}
+	}
+	return nil
+}
+
+// exclude records that the tested variable is not false and/or not null.
+func exclude(x syntax.Expr, f *frame, nonFalse, nonNull bool) {
+	variable := guarded(x)
+	if variable == nil || !(nonFalse || nonNull) {
+		return
+	}
+	// A variable the frame does not track has no value to qualify.
+	v, tracked := f.vars[variable.Name]
+	if !tracked {
+		return
+	}
+	if nonFalse {
+		v.NonFalse = true
+		if s, exists := f.states[v.Identity]; exists {
+			s.Successful = true
+			f.states[v.Identity] = s
+		}
+	}
+	if nonNull {
+		v.NonNull = true
+	}
+	f.vars[variable.Name] = v
+}
+
+func constantOperand(x syntax.Expr) bool {
+	switch syntax.UnwrapParens(x).(type) {
+	case *syntax.ConstFetch, *syntax.Literal:
+		return true
+	}
+	return false
+}
+
+// constantName returns the folded name of false or null.
+func constantName(x syntax.Expr) string {
+	if c, ok := syntax.UnwrapParens(x).(*syntax.ConstFetch); ok && c.Name != nil {
+		switch name := strings.ToLower(strings.TrimPrefix(c.Name.Value, `\`)); name {
+		case "false", "null":
+			return name
+		}
+	}
+	return ""
 }

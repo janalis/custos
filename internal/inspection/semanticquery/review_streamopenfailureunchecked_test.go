@@ -78,6 +78,14 @@ func TestReviewStreamOpenFailureUnchecked(t *testing.T) {
 		{"left operand use", open + "return fread($h,1)&&$h;", 1},
 		{"wrong short-circuit polarity", open + "return $h||fread($h,1);", 1},
 		{"concatenated operand", open + "return 'x'.fread($h,1);", 1},
+
+		// Tests the flow facts do not model reach the syntactic guard walk.
+		{"bool compared with true return", open + "if(is_bool($h)===true){return;}" + read, 0},
+		{"compared predicate operand", open + "return is_resource($h)===true&&fwrite($h,'x');", 0},
+		{"true comparison ternary", open + "return $h==true?fread($h,1):'';", 0},
+		{"compared predicate ternary else", open + "return is_resource($h)===false?'':fread($h,1);", 0},
+		{"true comparison loop condition", open + "while($h==true&&!feof($h)){fgets($h);}", 0},
+		{"true comparison elseif", open + "if($q){echo 1;}elseif($h==true){" + read + "}", 0},
 		{"ternary then", open + "return $h?fread($h,1):null;", 0},
 		{"ternary else", open + "return $h===false?null:fread($h,1);", 0},
 		{"ternary wrong arm", open + "return $h?null:fread($h,1);", 1},

@@ -26,9 +26,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !astquery.StableArrayRead(ctx.File, fetch) {
 		return
 	}
-	if boundByReference(fetch) {
-		return
-	}
 	for p := fetch.Parent(); p != nil; p = p.Parent() {
 		switch x := p.(type) {
 		case *syntax.Isset, *syntax.Empty:
@@ -59,31 +56,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			ctx.ReportNode(fetch, message)
 		}
 	}
-}
-
-// boundByReference reports whether the fetch, or a deeper dimension reached
-// through it, is bound by reference: the value of a reference assignment, a
-// by-reference array item or the source of a by-reference foreach. Such a
-// binding creates the dimension instead of reading it. A fetch that is only
-// the key of another access (`$x = &$cache[$q["a.b"]]`) is still a read.
-func boundByReference(fetch *syntax.ArrayDimFetch) bool {
-	node := syntax.Node(fetch)
-	for {
-		outer, ok := node.Parent().(*syntax.ArrayDimFetch)
-		if !ok || outer.Var != node {
-			break
-		}
-		node = outer
-	}
-	switch x := node.Parent().(type) {
-	case *syntax.Assign:
-		return x.ByRef && x.Value == node
-	case *syntax.ArrayItem:
-		return x.ByRef && x.Value == node
-	case *syntax.Foreach:
-		return x.ByRef && x.Expr == node
-	}
-	return false
 }
 
 func querySource(ctx *analysis.Context, at syntax.Node, fetch *syntax.ArrayDimFetch) (string, string, bool) {

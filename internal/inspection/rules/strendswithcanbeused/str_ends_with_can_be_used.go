@@ -1,9 +1,6 @@
 package strendswithcanbeused
 
 import (
-	"slices"
-	"strings"
-
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
@@ -50,9 +47,6 @@ func (strEndsWithCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	if !astquery.EquivalentFoldNames(ctx.File, m.Other, largs[0]) { // D5
 		return
 	}
-	if !slices.Equal(sewCaseSensitiveNames(m.Other), sewCaseSensitiveNames(largs[0])) {
-		return // E4: keyword-named constants differing in case are two constants
-	}
 	if raw, _, ok := astquery.QuotedStringRaw(syntax.UnwrapParens(m.Other)); ok && raw == "" { // D7
 		return // empty needle: the original is false, str_ends_with() is true
 	}
@@ -86,26 +80,4 @@ func sewNonEmpty(ctx *analysis.Context, e syntax.Expr) bool {
 		return true
 	}
 	return false
-}
-
-// sewCaseSensitiveNames lists, in source order, the names under root that
-// PHP compares case-sensitively even when they are spelled like a keyword:
-// class constant names (`Foo::Array` is not `Foo::ARRAY`; the magic
-// `::class` is excluded) and named-argument labels.
-func sewCaseSensitiveNames(root syntax.Node) []string {
-	var out []string
-	syntax.Inspect(root, func(n syntax.Node) bool {
-		switch x := n.(type) {
-		case *syntax.ClassConstFetch:
-			if id, ok := x.Name.(*syntax.Identifier); ok && !strings.EqualFold(id.Value, "class") {
-				out = append(out, id.Value)
-			}
-		case *syntax.Arg:
-			if x.Name != nil {
-				out = append(out, x.Name.Value)
-			}
-		}
-		return true
-	})
-	return out
 }

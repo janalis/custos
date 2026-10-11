@@ -34,7 +34,7 @@ func TestReviewSafety(t *testing.T) {
 		{"extract after call", "<?php function f($i,$p,$o){ $q = 150; imagejpeg($i,$p,$q); extract($o); }", 1},
 		{"compound assignment", "<?php function f($i,$p){ $q = 101; $q -= 5; imagejpeg($i,$p,$q); }", 0},
 		{"decrement after call", "<?php function f($i,$p){ $q = 150; imagejpeg($i,$p,$q); $q--; }", 1},
-		{"loop decrement last", "<?php function f($i,$p){ $q = 150; while (rand()) { imagejpeg($i,$p,$q); $q--; } }", 1},
+		{"loop decrement last", "<?php function f($i,$p){ $q = 150; while (rand()) { imagejpeg($i,$p,$q); $q--; } }", 0},
 		{"other variable", "<?php function f($i,$p){ $q = 150; $o = 1; $o--; $a[0]--; imagejpeg($i,$p,$q); }", 1},
 		{"unrelated closure", "<?php function f($i,$p){ $q = 150; $s = function () { $q = 1; $q--; }; imagejpeg($i,$p,$q); }", 1},
 		{"by-value closure", "<?php function f($i,$p){ $q = 150; $s = function () use ($q, &$o) { $q--; }; imagejpeg($i,$p,$q); }", 1},

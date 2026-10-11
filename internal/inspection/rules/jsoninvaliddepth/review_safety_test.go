@@ -36,6 +36,8 @@ func TestReviewSafety(t *testing.T) {
 		{"stepped in another function", "<?php function g() { $d = 0; $d++; } function f($j) { $d = 0; return json_decode($j, true, $d); }", 1},
 		{"value capture", "<?php function f($j) { $d = 0; $g = function () use ($d, &$j) {}; return json_decode($j, true, $d); }", 1},
 		{"unrelated foreach and catch", "<?php function f($j) { $d = 0; foreach ($j as $k => $v) {} try { g(); } catch (E $x) {} catch (F) {} return json_decode('[]', true, $d); }", 1},
+		{"unchanged in loop", "<?php function f($js) { $d = 0; foreach ($js as $j) { json_decode($j, true, $d); } }", 1},
+		{"by-reference capture before any call", "<?php function f($j) { $d = 0; $g = function () use (&$d) { $d = 4; }; return json_decode($j, true, $d); }", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			opt := syntax.Options{Version: phpversion.PHP85}

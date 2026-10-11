@@ -20,6 +20,9 @@ func TestEdges(t *testing.T) {
 		{"preg_match(\"/^(a)?b$/\",\"b\",$m);echo $m[1];", 1, ""},
 		{"preg_match(\"/^(a)?b$/\",\"b\",$m);$a=[$m[1]=>&$x];", 1, ""},
 		{"preg_match(\"/^(a)?b$/\",\"b\",$m);$a=[&$m[1]];", 0, ""},
+		// A member of the capture bound by reference is not a plain read either.
+		{"preg_match(\"/^(a)?b$/\",\"b\",$m);$a=[&$m[1]->p];", 0, ""},
+		{"preg_match(\"/^(a)?b$/\",\"b\",$m);$a=&$m[1]->p;", 0, ""},
 		{"if($ok){}echo $m[1];", 0, ""},
 		{"preg_match(\"/^(a)?b$/\",\"b\",$other);echo $m[1];", 0, ""},
 		{"preg_match(\"/^(a)?b$/\",\"b\",$m);echo isset($m[1]);", 0, ""},

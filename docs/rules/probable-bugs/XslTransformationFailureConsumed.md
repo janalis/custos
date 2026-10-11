@@ -28,6 +28,7 @@ Identify transformToXML result on a resolved XSLTProcessor passed directly or un
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
 - E3. A guard on a different value, on an earlier transformation result that was since reassigned, or on a test that false can pass (`isset`, `!== null`, `is_string(...) || ...`) does not suppress the finding.
+- E4. A value the shared flow analysis proves is not false at the use is never reported, whatever form the proof takes: a truthiness or `empty()` test, a loose comparison with `false` or `null`, a type predicate, or an early exit whose `if` also has an `else` branch that continues. In particular `if (!$out) { return; } else { ... }` guards the statements after it.
 - E2. Both `@custos-ignore XslTransformationFailureConsumed` and `@noinspection XslTransformationFailureConsumed` suppress this native rule.
 
 ## Fix

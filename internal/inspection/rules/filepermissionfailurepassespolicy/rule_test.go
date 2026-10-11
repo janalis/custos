@@ -93,10 +93,45 @@ func TestReviewGuards(t *testing.T) {
 		{"other variable", "if (!$f) { return false; }", 1},
 		{"reassigned", "if (!$p) { return false; } $p = fileperms($f . 'x');", 1},
 		{"conjunction", "if (!$p && $f) { return false; }", 1},
-		{"named argument", "if (!is_int(value: $p)) { return false; }", 1},
+		{"named argument", "if (!is_int(value: $p)) { return false; }", 0},
 		{"null comparison", "if ($p === null) { return false; }", 1},
 	} {
 		src := "<?php function check($f) { $p = fileperms($f); " + tc.guard + use
+		f := syntax.Parse("test.php", []byte(src), syntax.Options{})
+		if len(f.Errors) != 0 {
+			t.Fatalf("%s: invalid probe: %v", tc.name, f.Errors)
+		}
+		if got := e.Analyze(f); len(got) != tc.want {
+			t.Errorf("%s: got %d findings, want %d: %+v", tc.name, len(got), tc.want, got)
+		}
+	}
+}
+
+// A switch in the scope leaves the flow facts incomplete, so only the guard
+// walk can relate a loose or truthiness test to the later mask check.
+func TestGuardsWithoutFlowFacts(t *testing.T) {
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"FilePermissionFailurePassesPolicy"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	const check = "if (($p & 0222) === 0) { return true; }"
+	for _, tc := range []struct {
+		name, body string
+		want       int
+	}{
+		{"none", check, 1},
+		{"and operand", "if ($p && ($p & 0222) === 0) { return true; }", 0},
+		{"branch", "if ($p) { " + check + " }", 0},
+		{"elseif", "if ($f === '') { return false; } elseif ($p) { " + check + " }", 0},
+		{"else", "if (!$p) { echo $f; } else { " + check + " }", 0},
+		{"else after elseif", "if ($f === '') { echo 1; } elseif (!$p) { echo 2; } else { " + check + " }", 0},
+		{"elseif after failed test", "if ($f === '') { echo 1; } elseif (!$p) { echo 2; } elseif ($f) { " + check + " }", 0},
+		{"earlier exit", "if (!$p) { return false; } " + check, 0},
+		{"loose exit", "if ($p == false) { return false; } " + check, 0},
+		{"wrong branch", "if (!$p) { " + check + " }", 1},
+		{"unrelated else", "if ($f === '') { echo 1; } elseif ($f) { echo 2; } else { " + check + " }", 1},
+	} {
+		src := "<?php function check($f) { $p = fileperms($f); switch ($f) { case '.': break; } " + tc.body + " return false; }"
 		f := syntax.Parse("test.php", []byte(src), syntax.Options{})
 		if len(f.Errors) != 0 {
 			t.Fatalf("%s: invalid probe: %v", tc.name, f.Errors)

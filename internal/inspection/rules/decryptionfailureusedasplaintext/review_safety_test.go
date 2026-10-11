@@ -24,6 +24,18 @@ func TestReviewSafety(t *testing.T) {
 		{"is_string", `if (is_string($p)) { return strlen($p); } }`, 0},
 		{"named is_string argument", `if (is_string(value: $p)) { return strlen($p); } }`, 0},
 		{"earlier exit", `if (false === $p) { throw new RuntimeException(); } $n = 1; return strlen($p) + $n; }`, 0},
+		// A predicate around the assignment and an exit through an endless loop
+		// are proven by the local walk only.
+		{"predicate assignment and operand", `return is_string($q = openssl_decrypt($c, "x", $k)) && strlen($q) > 3; }`, 0},
+		{"predicate assignment ternary", `return is_string($q = openssl_decrypt($c, "x", $k)) ? strlen($q) : 0; }`, 0},
+		{"predicate assignment elseif", `if ($path) { return 0; } elseif (is_string($q = openssl_decrypt($c, "x", $k))) { return strlen($q); } }`, 0},
+		{"predicate assignment branch", `if (is_string($q = openssl_decrypt($c, "x", $k))) { return strlen($q); } }`, 0},
+		{"predicate assignment else", `if (!is_string($q = openssl_decrypt($c, "x", $k))) { $n = 0; } else { $n = strlen($q); } }`, 0},
+		{"predicate assignment after elseif", `if ($path === "") { $n = 1; } elseif (!is_string($q = openssl_decrypt($c, "x", $k))) { $n = 0; } else { $n = strlen($q); } }`, 0},
+		{"predicate assignment exit", `if (!is_string($q = openssl_decrypt($c, "x", $k))) { return; } strlen($q); }`, 0},
+		{"empty exit through endless loop", `if (empty($p)) { while (true) { sleep(1); } } return strlen($p); }`, 0},
+		{"loose exit through endless loop", `if ($p == false) { while (true) { sleep(1); } } return strlen($p); }`, 0},
+		{"predicate assignment failed branch", `if (!is_string($q = openssl_decrypt($c, "x", $k))) { return strlen($q); } }`, 1},
 		{"other predicate", `if (is_scalar($p)) { return strlen($p); } }`, 1},
 		{"reference assignment", `if (($p = &$k) === false) { return; } $p = openssl_decrypt($c, "x", $k); strlen($p); }`, 1},
 		{"other local", `$q = $p; if ($q === false) { return; } strlen($p); }`, 1},

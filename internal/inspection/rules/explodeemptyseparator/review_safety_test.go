@@ -38,6 +38,9 @@ func TestReviewSafety(t *testing.T) {
 		{"copy cycle", "<?php function f($s) { $a = ''; $sep = $a; $sep = $sep; return explode($sep, $s); }", 1},
 		{"named argument", "<?php function f($s) { $sep = ''; $sep++; return explode(string: $s, separator: $sep); }", 0},
 		{"literal argument", "<?php function f($s, $o) { extract($o); return explode('', $s); }", 1},
+		{"extract after call", "<?php function f($s, $o) { $sep = ''; $r = explode($sep, $s); extract($o); return $r; }", 0},
+		{"by-reference capture never invoked", "<?php function f($s) { $sep = ''; $c = function () use (&$sep) { $sep = ','; }; return explode($sep, $s); }", 0},
+		{"file global never written before call", "<?php $sep = ''; function configure() { global $sep; $sep = ','; } explode($sep, $s);", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := syntax.ParseBest("review.php", []byte(tc.source), syntax.Options{Version: phpversion.PHP85})

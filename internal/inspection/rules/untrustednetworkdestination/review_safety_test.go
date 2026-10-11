@@ -46,7 +46,8 @@ func TestReviewSafety(t *testing.T) {
 		{"heredoc prefix", "<?php $ch = curl_init(<<<'U'\nhttps://api.example.com/\nU . $_GET['q']); curl_exec($ch);", 1},
 		{"match literals", "<?php $dir = match ($_GET['env']) { 'eu' => 'https://eu.example.com/', default => 'https://us.example.com/' }; $c = curl_init($dir); curl_exec($c);", 0},
 		{"match inline", "<?php $c = curl_init(match ($_GET['env']) { 'eu' => 'https://eu.example.com/', default => 'https://us.example.com/' }); curl_exec($c);", 0},
-		{"match variable arm", "<?php $safe = 'https://eu.example.com/'; $c = curl_init(match ($_GET['env']) { 'eu' => $safe, default => 'https://us.example.com/' }); curl_exec($c);", 1},
+		{"match variable arm", "<?php $safe = 'https://eu.example.com/'; $c = curl_init(match ($_GET['env']) { 'eu' => $safe, default => 'https://us.example.com/' }); curl_exec($c);", 0},
+		{"match fixed origin or throw", "<?php $c = curl_init(match ($_GET['env']) { 'eu' => 'https://eu.example.com/?q=' . $_GET['q'], default => throw new RuntimeException('env') }); curl_exec($c);", 0},
 		{"match request arm", "<?php $c = curl_init(match ($_GET['env']) { 'eu' => $_GET['u'], default => 'https://us.example.com/' }); curl_exec($c);", 1},
 		{"match with suffix", "<?php $c = curl_init(match ($_GET['env']) { default => 'https://us.example.com' } . $_GET['x']); curl_exec($c);", 1},
 	} {

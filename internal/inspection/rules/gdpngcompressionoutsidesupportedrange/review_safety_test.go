@@ -62,6 +62,10 @@ func TestReviewSafety(t *testing.T) {
 		{"copied twice after capture", "<?php function f($i, $p) { $b = 10; $g = function () use (&$b) { $b = 3; }; $g(); $m = $b; $l = $m; imagepng($i, $p, $l); }", 0},
 		{"copied plain", "<?php function f($i, $p) { $b = 10; $l = $b; $b = $l; imagepng($i, $p, $l); }", 1},
 		{"arrow function decrement", "<?php function f($i, $p) { $l = 10; $g = fn() => $l--; imagepng($i, $p, $l); }", 1},
+		{"decrement after call", "<?php function f($i, $p) { $l = 10; imagepng($i, $p, $l); $l--; }", 0},
+		{"by-reference capture never invoked", "<?php function f($i, $p) { $l = 10; $g = function () use (&$l) { $l = 3; }; imagepng($i, $p, $l); }", 0},
+		{"referenced array item never written", "<?php function f($i, $p) { $l = 10; $b = [&$l]; imagepng($i, $p, $l); }", 0},
+		{"extract after call", "<?php function f($i, $p, $o) { $l = 10; imagepng($i, $p, $l); extract($o); }", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := syntax.ParseBest("review.php", []byte(tc.source), syntax.Options{Version: phpversion.PHP85})

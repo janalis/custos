@@ -159,50 +159,12 @@ func ncoObjectsOnly(ctx *analysis.Context, probe syntax.Expr, allowNull bool) bo
 	return true
 }
 
-// ncoEquivalent is astquery.EquivalentFoldNames with the names PHP keeps
-// case-sensitive compared exactly even when they are spelled like a keyword
-// (`Foo::ARRAY` and `Foo::Array` are two constants), which the shared helper
-// folds as keyword tokens.
+// ncoEquivalent compares two expressions with PHP's case rules for names:
+// constant, property and named-argument names stay case-sensitive even when
+// they are spelled like a keyword (`Foo::ARRAY` and `Foo::Array` are two
+// constants).
 func ncoEquivalent(ctx *analysis.Context, a, b syntax.Node) bool {
-	if !astquery.EquivalentFoldNames(ctx.File, a, b) {
-		return false
-	}
-	if ctx.Text(a) == ctx.Text(b) {
-		return true
-	}
-	// Token-equivalent trees list their names in the same order.
-	na, nb := ncoExactNames(ctx, a), ncoExactNames(ctx, b)
-	for i := range min(len(na), len(nb)) {
-		if na[i] != nb[i] {
-			return false
-		}
-	}
-	return true
-}
-
-// ncoExactNames lists, in source order, the constant, property and named
-// argument names under root. `::class` is the keyword, not a constant.
-func ncoExactNames(ctx *analysis.Context, root syntax.Node) []string {
-	var out []string
-	add := func(e syntax.Expr, skipClass bool) {
-		if id, ok := e.(*syntax.Identifier); ok {
-			if name := ctx.Text(id); !skipClass || !strings.EqualFold(name, "class") {
-				out = append(out, name)
-			}
-		}
-	}
-	syntax.Inspect(root, func(n syntax.Node) bool {
-		switch x := n.(type) {
-		case *syntax.ClassConstFetch:
-			add(x.Name, true)
-		case *syntax.PropertyFetch:
-			add(x.Name, false)
-		case *syntax.Arg:
-			add(x.Name, false)
-		}
-		return true
-	})
-	return out
+	return astquery.EquivalentFoldNames(ctx.File, a, b)
 }
 
 // ncoGenerate implements G1–G5. f may be nil (absent). safe is false when the
