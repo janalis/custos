@@ -13,7 +13,7 @@ import (
 // Trees are retained only during bounded composition, then released.
 func BuildFlowSnapshot(files []string, srcs [][]byte, opt syntax.Options, ix *index.Index) *flow.Snapshot {
 	trees := make([]*syntax.File, len(files))
-	_ = each(context.Background(), len(files), func(i int) {
+	_ = Each(context.Background(), len(files), func(i int) {
 		var src []byte
 		if i < len(srcs) {
 			src = srcs[i]
@@ -31,7 +31,7 @@ func BuildFlowSnapshot(files []string, srcs [][]byte, opt syntax.Options, ix *in
 	for round := 0; round < flow.MaxDepth; round++ {
 		// Every file of a round reads the previous round's summaries only.
 		extracted := make([]*flow.File, len(trees))
-		_ = each(context.Background(), len(trees), func(i int) {
+		_ = Each(context.Background(), len(trees), func(i int) {
 			if trees[i] != nil {
 				extracted[i] = flow.Extract(trees[i], ix, opt.Version, snapshot)
 			}

@@ -205,6 +205,19 @@ type listing struct {
 	skippedCount               int
 }
 
+// found is what scanning one directory produced, in listing order.
+type found struct {
+	names []string
+	infos []fs.FileInfo
+	dirs  []string
+	links []string
+	err   error
+}
+
+// splitLevels is the depth at which a walk stops listing single directories
+// and descends into whole subtrees.
+const splitLevels = 2
+
 func (l *listing) skip(name, reason string) {
 	l.skippedCount++
 	if len(l.skipped) < maxSkipped {
@@ -256,44 +269,76 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 		}
 		// Each directory is opened once and its entries are reached by a
 		// single path component, which keeps confined traversal cheap.
-		var visit func(parent *os.Root, entry, name string) error
-		visit = func(parent *os.Root, entry, name string) error {
-			if err := ctx.Err(); err != nil {
-				return err
-			}
-			dir, err := parent.OpenRoot(entry)
-			if err != nil {
-				return err
-			}
-			defer dir.Close()
-			entries, err := fs.ReadDir(dir.FS(), ".")
-			for _, d := range entries {
-				child := path.Join(name, d.Name())
-				if child == packageToSkip || child == vendor {
-					continue
-				}
-				if d.Type()&os.ModeSymlink != 0 {
-					if inVendor {
-						l.skip(child, "symlink")
-						continue
-					}
-					return fmt.Errorf("symlink input is not supported: %s", child)
-				}
-				if !d.IsDir() {
-					// A file removed since the listing is simply not an input.
-					if info, err := d.Info(); err == nil {
-						file(child, info)
-					}
-					continue
-				}
-				if inVendor && (d.Name() == "tests" || d.Name() == "Tests" || d.Name() == "test") || excluded(cfg.Exclude, d.Name(), child) {
-					continue
-				}
-				if err := visit(dir, d.Name(), child); err != nil {
+		scan := func(base string, recurse bool) *found {
+			f := &found{}
+			var visit func(parent *os.Root, entry, name string) error
+			visit = func(parent *os.Root, entry, name string) error {
+				dir, err := parent.OpenRoot(entry)
+				if err != nil {
 					return err
 				}
+				defer dir.Close()
+				entries, err := fs.ReadDir(dir.FS(), ".")
+				for _, d := range entries {
+					child := path.Join(name, d.Name())
+					if child == packageToSkip || child == vendor {
+						continue
+					}
+					if d.Type()&os.ModeSymlink != 0 {
+						if inVendor {
+							f.links = append(f.links, child)
+							continue
+						}
+						return fmt.Errorf("symlink input is not supported: %s", child)
+					}
+					if !d.IsDir() {
+						// A file removed since the listing is simply not an input.
+						if info, err := d.Info(); err == nil {
+							f.names, f.infos = append(f.names, child), append(f.infos, info)
+						}
+						continue
+					}
+					if inVendor && (d.Name() == "tests" || d.Name() == "Tests" || d.Name() == "test") || excluded(cfg.Exclude, d.Name(), child) {
+						continue
+					}
+					if !recurse {
+						f.dirs = append(f.dirs, child)
+						continue
+					}
+					if err := visit(dir, d.Name(), child); err != nil {
+						return err
+					}
+				}
+				return err
 			}
-			return err
+			f.err = visit(root, base, base)
+			return f
+		}
+		// The top levels are listed one directory at a time so that the
+		// subtrees below them can be walked in parallel; results are merged
+		// in listing order.
+		tree := func() error {
+			dirs := []string{base}
+			for level := 0; len(dirs) > 0; level++ {
+				out := make([]*found, len(dirs))
+				if err := Each(ctx, len(dirs), func(i int) { out[i] = scan(dirs[i], level == splitLevels) }); err != nil {
+					return err
+				}
+				dirs = nil
+				for _, f := range out {
+					if f.err != nil {
+						return f.err
+					}
+					for i, name := range f.names {
+						file(name, f.infos[i])
+					}
+					for _, name := range f.links {
+						l.skip(name, "symlink")
+					}
+					dirs = append(dirs, f.dirs...)
+				}
+			}
+			return nil
 		}
 		info, err := root.Lstat(base)
 		switch {
@@ -307,7 +352,7 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 			file(base, info)
 			return nil
 		}
-		return visit(root, base, base)
+		return tree()
 	}
 	for _, p := range paths {
 		if err := walk(p, false); err != nil {
@@ -352,9 +397,9 @@ func sorted(set map[string]bool) []string {
 	return out
 }
 
-// each runs fn(i) for every i below n on one worker per CPU. Only the
+// Each runs fn(i) for every i below n on one worker per CPU. Only the
 // dispatcher observes cancellation, between items.
-func each(ctx context.Context, n int, fn func(int)) error {
+func Each(ctx context.Context, n int, fn func(int)) error {
 	jobs := make(chan int)
 	var wg sync.WaitGroup
 	for range min(n, runtime.GOMAXPROCS(0)) {
@@ -402,7 +447,7 @@ func (s *Snapshot) readVendor(ctx context.Context, extractSymbols bool) error {
 		}
 		runs[len(runs)-1][1] = i + 1
 	}
-	err := each(ctx, len(runs), func(r int) {
+	err := Each(ctx, len(runs), func(r int) {
 		var dir *os.Root
 		defer func() {
 			if dir != nil {
@@ -579,7 +624,7 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 	sort.Strings(semantic)
 	extracted := make([]*index.FileSymbols, len(semantic))
 	errs := make([]error, len(semantic))
-	if err := each(ctx, len(semantic), func(i int) {
+	if err := Each(ctx, len(semantic), func(i int) {
 		extracted[i], errs[i] = extractCaptured(semantic[i], s.Sources[semantic[i]], opt)
 	}); err != nil {
 		return nil, err
@@ -617,7 +662,7 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 		s.Engine = s.Engine.WithFlow(BuildFlowSnapshot(s.OwnFiles, srcs, opt, s.Index))
 	}
 	results := make([]diagnostic.FileResult, len(s.Files))
-	if err := each(ctx, len(s.Files), func(i int) {
+	if err := Each(ctx, len(s.Files), func(i int) {
 		results[i] = AnalyzeBuffer(s.Engine, s.Files[i], s.Sources[s.Files[i]], opt)
 		dropEdits(results[i].Findings)
 	}); err != nil {
