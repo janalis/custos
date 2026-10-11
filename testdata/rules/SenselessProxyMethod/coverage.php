@@ -7,6 +7,8 @@ class Local extends \Lib\Remote
 {
     public function <weak_warning descr="Method 'same' only forwards to its parent; remove it.">same</weak_warning>($a = [1,2]) { return parent::same($a); }
     public function other($a = 2) { return parent::other($a); }
+    public function <weak_warning descr="Method 'wide' only forwards to its parent; remove it.">wide</weak_warning>($a = \Lib\Remote::WIDTH) { return parent::wide($a); }
+    public function tall($a = HEIGHT) { return parent::tall($a); }
     public function <weak_warning descr="Method 'quiet' only forwards to its parent; remove it.">quiet</weak_warning>($a) { parent::quiet($a); }
     public function loud($a) { parent::loud($a); }
     /** @return mixed */

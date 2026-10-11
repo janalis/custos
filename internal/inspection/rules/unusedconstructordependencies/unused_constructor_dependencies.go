@@ -27,13 +27,11 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 		return
 	}
 	var ctor *syntax.Method
-	var methods []*syntax.Method
 	hasProps := false
 	var traits []*syntax.Name
 	for _, m := range cl.Members {
 		switch x := m.(type) {
 		case *syntax.Method:
-			methods = append(methods, x)
 			if x.Name != nil && strings.EqualFold(x.Name.Value, "__construct") {
 				ctor = x
 			}
@@ -49,8 +47,9 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 	candidates := map[string]bool{} // D2
 	for _, m := range cl.Members {
 		p, ok := m.(*syntax.Property)
-		// custos: attributes (`#[ORM\Column]`) mark mapped properties like annotations.
-		if !ok || !p.Modifiers.Has(syntax.TPrivate) || p.Modifiers.Has(syntax.TStatic) || semanticquery.DocHasAnnotation(ctx.File, p) || len(p.Attrs) > 0 {
+		// custos: attributes (`#[ORM\Column]`) mark mapped properties like
+		// annotations; assigning a hooked property runs its `set` hook.
+		if !ok || !p.Modifiers.Has(syntax.TPrivate) || p.Modifiers.Has(syntax.TStatic) || semanticquery.DocHasAnnotation(ctx.File, p) || len(p.Attrs) > 0 || len(p.Hooks) > 0 {
 			continue
 		}
 		for _, it := range p.Props {
@@ -80,14 +79,8 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 	if len(ctorRefs) == 0 {
 		return
 	}
-	mark := func(name string, _ syntax.Expr) { used[name] = true }
-	for _, m := range methods {
-		if m != ctor && m.Body != nil {
-			if ucdDynamicAccess(ctx, m.Body) {
-				return
-			}
-			collectPropRefs(ctx, m.Body, fqn, candidates, mark)
-		}
+	if ucdClosureDynamicAccess(ctx, ctor.Body) || !ucdScanMembers(ctx, cl, ctor, fqn, candidates, used) {
+		return
 	}
 	for _, t := range traits {
 		tfqn := ctx.Names().Class(t.Value, t.Span().Start)
@@ -98,13 +91,8 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 			}
 			continue
 		}
-		for _, m := range decl.Members {
-			if meth, ok := m.(*syntax.Method); ok && meth.Body != nil {
-				if ucdDynamicAccess(ctx, meth.Body) {
-					return
-				}
-				collectPropRefs(ctx, meth.Body, fqn, candidates, mark)
-			}
+		if !ucdScanMembers(ctx, decl, nil, fqn, candidates, used) {
+			return
 		}
 	}
 	for _, m := range cl.Members { // keep source order of findings stable
@@ -125,6 +113,78 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 			}
 		}
 	}
+}
+
+// ucdScanMembers marks the candidates used by the code of decl that runs
+// outside the constructor ctor: the other method bodies and the property
+// hooks (those of promoted constructor parameters included). It returns
+// false when one of these scopes reads properties dynamically.
+func ucdScanMembers(ctx *analysis.Context, decl *syntax.ClassLike, ctor *syntax.Method, fqn string, candidates, used map[string]bool) bool {
+	mark := func(name string, _ syntax.Expr) { used[name] = true }
+	scan := func(root syntax.Node) bool {
+		if ucdDynamicAccess(ctx, root) {
+			return false
+		}
+		collectPropRefs(ctx, root, fqn, candidates, mark)
+		return true
+	}
+	for _, m := range decl.Members {
+		var hooks []*syntax.PropertyHook
+		switch x := m.(type) {
+		case *syntax.Method:
+			for _, p := range x.Params {
+				hooks = append(hooks, p.Hooks...)
+			}
+			if x != ctor && x.Body != nil {
+				if !scan(x.Body) {
+					return false
+				}
+				if x.Name != nil && strings.EqualFold(x.Name.Value, "__sleep") {
+					ucdSleepNames(x.Body, candidates, used)
+				}
+			}
+		case *syntax.Property:
+			hooks = x.Hooks
+		}
+		for _, h := range hooks {
+			if !scan(h) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// ucdSleepNames marks the candidates named by a string literal in the body
+// of `__sleep()`: the properties it lists are serialised (custos). A private
+// property may be spelled `"\0Class\0name"`.
+func ucdSleepNames(body syntax.Node, candidates, used map[string]bool) {
+	syntax.Inspect(body, func(x syntax.Node) bool {
+		if e, ok := x.(syntax.Expr); ok {
+			if name, ok := astquery.QuotedStringValue(e); ok {
+				if name = name[strings.LastIndexByte(name, 0)+1:]; candidates[name] {
+					used[name] = true
+				}
+			}
+		}
+		return true
+	})
+}
+
+// ucdClosureDynamicAccess reports whether a closure or arrow function
+// defined in the constructor reads properties dynamically: it may run after
+// construction (D4a), unlike the constructor's own scope.
+func ucdClosureDynamicAccess(ctx *analysis.Context, body syntax.Node) bool {
+	found := false
+	syntax.Inspect(body, func(x syntax.Node) bool {
+		switch x.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction:
+			found = found || ucdDynamicAccess(ctx, x)
+			return false
+		}
+		return !found
+	})
+	return found
 }
 
 // ucdDynamicAccess reports whether body reads properties of `$this` by a

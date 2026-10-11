@@ -6,6 +6,7 @@ namespace App;
 class Local extends \Lib\Remote
 {
     public function other($a = 2) { return parent::other($a); }
+    public function tall($a = HEIGHT) { return parent::tall($a); }
     public function loud($a) { parent::loud($a); }
     /** @return mixed */
     public function documented($a) { return parent::documented($a); }

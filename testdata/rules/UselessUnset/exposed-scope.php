@@ -32,3 +32,36 @@ class Dispatcher
         $f = function () { include 'x.php'; };
     }
 }
+
+function allArgs($first)
+{
+    unset($first);
+    return func_get_args();
+}
+
+function oneArg($first)
+{
+    unset($first);
+    return func_get_arg(0);
+}
+
+function dynamicName($value)
+{
+    unset($value);
+    $name = 'value';
+    return isset($$name);
+}
+
+function exposedEarly($value, $path)
+{
+    include $path;
+    unset($value);
+    return $path;
+}
+
+// A static property fetched by a computed name does not read local variables.
+function staticByName($value, $name)
+{
+    <weak_warning descr="Unsetting a parameter only drops the local variable; this unset() is pointless.">unset($value);</weak_warning>
+    return Registry::$$name;
+}

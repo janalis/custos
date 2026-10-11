@@ -31,6 +31,12 @@ func (unusedGotoLabel) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.Report(span, "Label '"+l.Name.Value+"' is never targeted by a goto; remove it.", diagnostic.Fix{
 		Title: "Remove the label",
 		Edits: func() []diagnostic.TextEdit {
+			if _, _, ok := astquery.StmtList(f, l); !ok {
+				// F2: the label is the whole unbraced body of a control
+				// structure; deleting it would hand that role to the
+				// next statement, so keep an empty statement instead.
+				return []diagnostic.TextEdit{{Span: span, NewText: ";"}}
+			}
 			return []diagnostic.TextEdit{{Span: astquery.WithLeadingWhitespace(f, span)}}
 		},
 	})

@@ -43,20 +43,34 @@ relevant) and each method `M` declared directly in it.
   report).
 - **D6** `PM` has the same number of parameters as `M`, and both have
   identical: abstract-ness (so an abstract `PM` → no report), static-ness,
-  final-ness, and visibility (absent modifier = `public`).
+  final-ness, and visibility (absent modifier = `public`). Neither returns
+  by reference (`function &m()`): a forwarded call result is not a
+  reference to the parent's variable.
 - **D7** For each parameter position i:
   - default values: both absent, or both present and *equivalent* (same
     structure ignoring whitespace/comments, or identical text);
-  - `M`'s default is not one of the magic constants `__LINE__`, `__FILE__`,
-    `__DIR__`, `__FUNCTION__`, `__CLASS__`, `__TRAIT__`, `__METHOD__`,
-    `__NAMESPACE__` (they evaluate differently in the child);
-  - declared (native) parameter types are equal after name resolution (a
-    variadic parameter's type counts as `array`); untyped vs typed differs;
+  - `M`'s default must also *mean* the same in both classes, so it contains,
+    at any depth:
+    - no magic constant (`__CLASS__`, `__LINE__`, …);
+    - no `self`, `static` or `parent` (`self::LIMIT` reads the child's
+      constant in `M` and the parent's in `PM`);
+    - no other class or constant name, except when both declarations sit
+      in the same namespace block of the same file (same namespace, same
+      imports) or the name is fully qualified (`\Lib\Table::WIDTH`).
+      `null`, `true` and `false` are always fine;
+  - declared (native) parameter types are equal after name resolution;
+    untyped vs typed differs;
+  - neither parameter is variadic: `M` receives its variadic arguments
+    packed in one array, so passing that variable on (D4) hands the parent
+    a single array instead of the original arguments;
+  - both are by-reference or both are by-value;
   - `M`'s parameter carries no attributes;
   - for `__construct`: if either side's parameter is constructor-promoted,
-    both must be promoted with the same visibility.
-  Parameter names, by-reference markers and variadic markers are not
-  compared.
+    both must be promoted with the same visibility, that visibility is not
+    `private` (a private promoted property is the child's own and would
+    vanish with the constructor), and neither property has an asymmetric
+    write visibility or hooks.
+  Parameter names are not compared.
 - **D8** Return types: both absent, or both present and equivalent
   (structure or identical text; `\Exception` vs `\RuntimeException`,
   `string` vs none → differ).
@@ -82,7 +96,7 @@ relevant) and each method `M` declared directly in it.
   `void` doc return, → no report.
   `return parent::m($a);` qualifies regardless of what the parent returns.
 
-When D1–D10 all hold, report.
+When D1–D10 all hold and E7–E9 do not apply, report.
 
 - **Name case.** Wherever this rule compares two expressions for
   equivalence, the names PHP resolves case-insensitively — function and
@@ -99,16 +113,33 @@ When D1–D10 all hold, report.
 - **E3** Arguments modified, reordered, added or dropped.
 - **E4** Calling a different parent method (`parent::other($a)`), or
   `self::`/`static::`/`$this->` calls.
-- **E5** Visibility/static/final changes; different defaults (incl. added or
-  removed defaults); magic-constant defaults; type changes; parameter
-  attributes; promotion changes; return type changes; extra or different
-  doc tags on the child.
+- **E5** Visibility/static/final changes; by-reference returns; different
+  defaults (incl. added or removed defaults); defaults using magic
+  constants, `self`/`static`/`parent` or names that may resolve differently
+  in the parent's file; type changes; variadic parameters; by-reference
+  marker changes; parameter attributes; promotion changes, private
+  promotion, asymmetric or hooked promoted properties; return type changes;
+  extra or different doc tags on the child.
 - **E6** The child calls the parent without `return` while the parent
   returns a value, is a generator, declares a non-void return type, or
   cannot be shown to return nothing (D10).
 - **E7** (custos, see Divergences) Below PHP 8.0, a `__construct` proxy in a
   class outside any namespace that also declares a method named like the
   class (case-insensitively).
+
+- **E8** (custos, see Divergences) The class gets a method of the same
+  name from a trait: a trait it uses, or one used by such a trait,
+  declares it, or a `use … { x as name; }` adaptation of the class or of
+  one of those traits introduces it. A used trait that cannot be resolved
+  counts as declaring it. A trait method takes precedence over an inherited
+  one, so the override is what keeps the parent's implementation in
+  effect.
+
+- **E9** (custos, see Divergences) A parameter has a default value and the
+  parent method's body, when it is declared in the analysed file, calls
+  `func_num_args()`, `func_get_args()` or `func_get_arg()`. The proxy
+  passes every declared parameter, so the parent sees an argument the
+  caller left out; without the proxy it would not.
 
 ## Report
 
@@ -327,3 +358,21 @@ class DiskStore extends Store
   WordPress's `pomo` streams, where the legacy method calls
   `self::__construct()`: infinite recursion after the fix). custos does not
   report such proxies.
+- **custos diverges — signature details (D6, D7).** Upstream does not
+  compare by-reference and variadic markers and treats a variadic
+  parameter as an `array` one, and accepts any pair of textually equal
+  defaults and any pair of equally visible promoted parameters. Removing
+  such an override changes what the parent receives (one packed array
+  instead of the arguments, a copy instead of a reference), which constant
+  a default reads (`self::X`, or a name imported differently in the
+  parent's file) or drops the child's private promoted property. custos
+  does not report these.
+- **custos diverges — argument counting (E9).** `passed($a, $b = null)`
+  forwarding to a parent that returns `func_num_args()` answers 2 for
+  `passed(1)`, and 1 once the override is removed. custos does not report
+  a proxy with optional parameters over such a parent. A parent declared
+  in another file is not inspected.
+- **custos diverges — trait methods (E8).** With `use Loud;` in the class,
+  deleting `greet()` makes `Loud::greet()` the effective method instead of
+  the parent's. custos does not report an override shadowing a trait
+  method.

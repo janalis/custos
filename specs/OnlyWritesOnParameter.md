@@ -188,7 +188,14 @@ Notable consequences:
   type is an object (D4a).
 - **E5c** Unused-import findings in a closure whose body includes/requires a
   file (D4b), for both values of `IGNORE_INCLUDES`.
-- **E7** Unreachable code (after `return`, etc.) is not considered.
+- **E7** Unreachable code (after `return`, etc.) is not considered. Code is
+  only unreachable when that is certain: a statement that ends abruptly but
+  holds a `do … while` whose body has a `break` or `continue` does not cut
+  off what follows (the loop condition is evaluated and the loop can exit:
+  `do { if ($ok) { break; } return []; } while (false); return $v;`), and in
+  a scope that declares a `goto` label every access counts as reachable.
+  A `case` condition is evaluated before the statements of its case, so
+  `case count($v): return 1;` reads `$v`.
 - **E8** (custos refinement, see Divergences) Variables read by name: when
   the scope's body (nested functions, closures and classes excluded; arrow
   functions included) calls the global `compact()` with a string literal
@@ -198,7 +205,14 @@ Notable consequences:
   local assignments alike). A `compact()` argument that is not a string
   literal or an array of them (`compact($vars)`, `compact(...$names)`), and
   any variable variable (`$$name`, `${expr}`) in the body, count as reads of
-  every variable.
+  every variable. So does an `eval(...)` expression: the evaluated code runs
+  in the scope and may read any of its variables.
+- **E9** (custos refinement, see Divergences) Parameters read positionally:
+  when the target PHP version is 7.0 or later and the scope's body (nested
+  functions, closures, arrow functions and classes excluded) calls the
+  global `func_get_args()` or `func_get_arg()`, every parameter of the scope
+  counts as read. Before PHP 7.0 these functions return the values originally
+  passed, so a write to the parameter is still lost and is reported.
 
 ## Report
 
@@ -228,7 +242,8 @@ None.
 
 ## PHP versions
 
-None.
+- PHP 7.0+: `func_get_args()` / `func_get_arg()` return the current values
+  of the parameters and therefore read them (E9).
 
 ## Examples
 
@@ -326,6 +341,16 @@ function silenced(array $out)
   names (and every variable, after `get_defined_vars()`, `compact()` of a
   computed list — phpBB's `extract(trigger_event(…, compact($vars)))` idiom —
   or a variable variable) as read.
+- **eval(), func_get_args() (E8, E9) — custos refinement, not upstream.**
+  `function () use ($id) { return eval('return $id + 1;'); }` uses its
+  import, and `$label .= '!'; return func_get_args();` returns the modified
+  parameter on PHP 7.0+; neither is reported.
+- **Reachability after do-while and goto (E7) — custos refinement.** A read
+  placed after `do { if ($ok) { break; } return []; } while (false);`, or
+  after a label reached by `goto`, is executed, so the earlier writes are
+  not lost. custos is deliberately cautious here: any `break`/`continue`
+  inside such a do-while, and any label in the scope, keeps the following
+  code reachable.
 - **Object imports (D4a/E5b) — custos refinement, not upstream.** Upstream
   checks the native type only for parameters; a closure import has no type
   hint, so `use ($obj)` followed by `$obj['k'] = …` on an `ArrayObject` /

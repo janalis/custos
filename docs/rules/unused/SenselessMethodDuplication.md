@@ -62,7 +62,7 @@ class UserRepo extends MiddleRepo
     /**
      * Copied from Repo.
      */
-    protected function load($key)
+    protected function load($id)
     {
         // same code, different comments
         $row = ['id' => $id];

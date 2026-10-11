@@ -75,7 +75,15 @@ least one statement.
 - **D6** Else, if the map has "no default" → nothing.
 - **D7 (overridden default)** Else, if the assigned value contains (at any
   depth) a property fetch equivalent to the target (`$this->name`) → nothing
-  (the default is used to compute the new value). Also nothing when an
+  (the default is used to compute the new value). Also nothing when the
+  property was already read or modified in place earlier in the constructor
+  (custos, see Divergences): an earlier statement, at any depth and inside
+  closures too, holds a `$this->name` fetch that is not the target of a
+  plain `=` assignment (`$old = $this->name;`, `$this->name += 1;`,
+  `$this->name[] = …;`, `"{$this->name}"`), or uses `$this` other than as
+  the object of a statically named property fetch (`$this->{$key}`,
+  `(array) $this`, `$copy = $this`), which may observe any property. The
+  same uses of `$this` in the assigned value count. Also nothing when an
   earlier direct statement of the constructor body contains a `return`
   (nested functions/closures excluded): the constructor may leave before the
   assignment and keep the default (custos diverges, see Divergences).
@@ -107,6 +115,8 @@ least one statement.
 - **E4** Assignments not directly in the constructor body (D4), assignments
   in other methods.
 - **E5** Overrides that reuse the property (`$this->p = array_merge($this->p, …)`).
+  Likewise when an earlier constructor statement reads the property or
+  modifies it in place (`$old = $this->p; … $this->p = $new;`).
 - **E6** Overrides by a constructor parameter whose default equals the
   property default (D7), e.g. `private $strict = false;` with
   `__construct(bool $strict = false) { $this->strict = $strict; }`. A
@@ -400,6 +410,15 @@ final class Job
   read the default (Composer's `Pool::__construct()` calls
   `$this->setPackages()` before assigning the other properties), so
   removing it could change behaviour.
+- **Reads before the write (custos diverges).** Pattern O is also skipped
+  when the constructor has already looked at the property before the
+  assignment: a fetch of it in an earlier statement (copy to a local,
+  compound or element write, string interpolation, a closure body), or a
+  use of `$this` that can reach every property (dynamic property name,
+  array cast, alias). The default is then a value the constructor works
+  with, and removing it changes the result (`['core', 'x']` became
+  `['x']`). An earlier plain assignment to the property, even a
+  conditional one, reads nothing and does not prevent the report.
 
 - **Property hooks (custos safety extension).** Constructor checks skip
   hooked properties. Assigning the existing default can execute a setter,

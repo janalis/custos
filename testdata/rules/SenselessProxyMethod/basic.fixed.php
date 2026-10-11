@@ -68,4 +68,9 @@ class DiskStore extends Store
         parent::make();
     }
 
+    // Passing the packed array is not forwarding the arguments.
+    public function many(int ...$ids)
+    {
+        parent::many($ids);
     }
+}

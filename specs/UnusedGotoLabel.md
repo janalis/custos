@@ -53,6 +53,14 @@ Visit every goto label statement (`name:`).
   an indented blank line); text after the label is untouched.
   - `a:\n    b:\n\n    if …` (with `b` unused) → `a:\n\n    if …`.
 
+- **F2** When the label is not a member of a statement list — it is the
+  whole unbraced body of an `if`/`elseif`/`else`, a loop or a `declare` —
+  deleting it would turn the statement that follows into that body and
+  change what runs. Replace the label with an empty statement (`;`)
+  instead, leaving the surrounding whitespace alone.
+  - `if ($ready) pending: notify();` → `if ($ready) ; notify();`
+    (`notify()` keeps running unconditionally).
+
 (Output is compared whitespace-collapsed, so deleting either the preceding
 or the following whitespace run is acceptable.)
 
@@ -117,3 +125,8 @@ echo "top level";
   when only a `goto` inside a closure names it — a jump PHP cannot perform
   (it would fail to compile). custos stops the search at nested
   function-likes and classes, so such a label is reported (D3).
+
+- **Label as an unbraced body (custos diverges).** A label can be the only
+  statement of a brace-less control structure. custos never plainly deletes
+  such a label: it leaves an empty statement behind so the following
+  statement does not become the body (F2).

@@ -77,7 +77,8 @@ None.
 
 ## PHP versions
 
-None.
+No threshold for the rule itself. `func_get_args()` / `func_get_arg()` only
+count as exposing the scope from PHP 7.0 (see Divergences).
 
 ## Examples
 
@@ -132,7 +133,13 @@ class Pool
   functions and classes), unsetting a parameter keeps it out of the scope
   that code sees (Joomla module dispatchers: `extract($displayData);
   unset($displayData); include $path;`): nothing is reported in that
-  function.
+  function. The same holds when the body uses a variable variable (`$$n`,
+  `${'p'}`), which may read the parameter by name (a static property
+  fetched by a computed name, `Registry::$$n`, is not one), and, when the
+  target PHP version is 7.0 or later, when it calls `func_get_args()` or
+  `func_get_arg()`: since 7.0 these return the current value of each
+  parameter, so an unset one comes back as null. Before 7.0 they return the
+  values originally passed and do not exempt the function.
 - **Observed unsets (custos diverges from D5's "no other condition").**
   An `unset($p)` followed (in source order, or anywhere in a loop enclosing
   it) by a read of `$p` — including `isset`/`empty`, element and property
@@ -142,3 +149,13 @@ class Pool
   `!empty($userid)` is false; `unset($config)` in a loop restarts the array
   built by `$config[$k] = …`. Such unsets are not reported; rebinding writes
   (`=`, `global`, `static`, another `unset`) do not count as reads.
+- **Detached references (custos diverges).** For a name bound to a
+  reference — a by-reference parameter, or a parameter name that the body
+  aliases with `$p = &…`, `… = &$p`, `foreach (… as &$p)` or a closure
+  `use (&$p)` — `unset($p)` breaks that binding, so a later plain
+  assignment stays local instead of writing through to the caller
+  (`function f(array &$rows) { $copy = $rows; unset($rows); $rows =
+  array_reverse($copy); }`). Such an unset is not reported when any access
+  to `$p` other than another `unset`, `global` or `static` statement
+  follows it in source order or sits anywhere in a loop enclosing it. With
+  no later access it is still reported.

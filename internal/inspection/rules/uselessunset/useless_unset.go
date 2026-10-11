@@ -4,6 +4,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 )
 
 // uselessUnset reports `unset($param)` on a function parameter: it only
@@ -23,10 +24,15 @@ func (uselessUnset) Check(ctx *analysis.Context, n syntax.Node) {
 	if len(params) == 0 || body == nil {
 		return
 	}
-	names := map[string]bool{}
+	// refs holds the names bound to a reference the unset would break: a
+	// by-reference parameter, or a name aliased with `&` in the body.
+	names, refs := map[string]bool{}, map[string]bool{}
 	for _, p := range params { // D1
 		if p.Var.NameExpr == nil && p.Var.Name != "" {
 			names[p.Var.Name] = true
+			if p.ByRef {
+				refs[p.Var.Name] = true
+			}
 		}
 	}
 	if len(names) == 0 || uselessUnsetScopeExposed(ctx, body) {
@@ -43,10 +49,31 @@ func (uselessUnset) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 		}
 	}
+	alias := func(v syntax.Expr) {
+		if vr, ok := v.(*syntax.Variable); ok && vr.NameExpr == nil && names[vr.Name] {
+			refs[vr.Name] = true
+		}
+	}
 	syntax.Inspect(body, func(x syntax.Node) bool {
 		switch g := x.(type) {
-		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+		case *syntax.Function, *syntax.Method, *syntax.ArrowFunction, *syntax.ClassLike:
 			return false
+		case *syntax.Closure:
+			for _, use := range g.Uses {
+				if use.ByRef {
+					alias(use.Var)
+				}
+			}
+			return false
+		case *syntax.Assign:
+			if g.ByRef {
+				alias(g.Var)
+				alias(g.Value)
+			}
+		case *syntax.Foreach:
+			if g.ByRef {
+				alias(g.Value)
+			}
 		case *syntax.Global:
 			for _, v := range g.Vars {
 				rebind(v, g.Span().Start)
@@ -76,7 +103,7 @@ func (uselessUnset) Check(ctx *analysis.Context, n syntax.Node) {
 				if at, ok := rebound[vr.Name]; ok && at < vr.Span().Start { // E6
 					continue
 				}
-				if uselessUnsetObserved(ctx, n, u, vr.Name) {
+				if uselessUnsetObserved(ctx, n, u, vr.Name, refs[vr.Name]) {
 					continue
 				}
 				if len(u.Vars) == 1 {
@@ -94,8 +121,9 @@ func (uselessUnset) Check(ctx *analysis.Context, n syntax.Node) {
 // uselessUnsetScopeExposed reports whether the function body hands its
 // local variables to code that reads them by name (custos): an included
 // file (templates: `extract($data); unset($data); include $tpl;`), eval,
-// get_defined_vars() or compact(). Unsetting a parameter then keeps it out
-// of that scope.
+// get_defined_vars(), compact(), a variable variable (`$$n`) or, from PHP
+// 7.0 where they return the current values, func_get_args() and
+// func_get_arg(). Unsetting a parameter then keeps it out of that scope.
 func uselessUnsetScopeExposed(ctx *analysis.Context, body syntax.Node) bool {
 	found := false
 	syntax.Inspect(body, func(x syntax.Node) bool {
@@ -107,8 +135,14 @@ func uselessUnsetScopeExposed(ctx *analysis.Context, body syntax.Node) bool {
 			return false
 		case *syntax.Include, *syntax.Eval:
 			found = true
+		case *syntax.Variable:
+			// `Foo::$$n` names a static property, not a local variable.
+			sp, static := c.Parent().(*syntax.StaticPropertyFetch)
+			found = c.NameExpr != nil && !(static && sp.Name == syntax.Expr(c))
 		case *syntax.FuncCall:
-			found = ctx.IsGlobalFunctionCall(c, "get_defined_vars") || ctx.IsGlobalFunctionCall(c, "compact")
+			found = ctx.IsGlobalFunctionCall(c, "get_defined_vars") || ctx.IsGlobalFunctionCall(c, "compact") ||
+				ctx.PHP.AtLeast(phpversion.PHP70) &&
+					(ctx.IsGlobalFunctionCall(c, "func_get_args") || ctx.IsGlobalFunctionCall(c, "func_get_arg"))
 		}
 		return !found
 	})
@@ -120,8 +154,10 @@ func uselessUnsetScopeExposed(ctx *analysis.Context, body syntax.Node) bool {
 // anywhere in a loop enclosing it) that the parameter's value or an earlier
 // assignment may reach — `unset($userid); … if (!empty($userid))`, or an
 // unset in a loop followed by `$config[$k] = …` that starts a fresh array.
-// Rebinding writes (`=`, global, static, another unset) do not observe it.
-func uselessUnsetObserved(ctx *analysis.Context, scope syntax.Node, u *syntax.Unset, name string) bool {
+// Rebinding writes (`=`, global, static, another unset) do not observe it,
+// unless the name is bound to a reference (ref): the unset detaches it, so
+// any later access but another detaching statement behaves differently.
+func uselessUnsetObserved(ctx *analysis.Context, scope syntax.Node, u *syntax.Unset, name string, ref bool) bool {
 	var loops []syntax.Node
 	for p := u.Parent(); p != scope; p = p.Parent() {
 		switch p.(type) {
@@ -137,6 +173,13 @@ func uselessUnsetObserved(ctx *analysis.Context, scope syntax.Node, u *syntax.Un
 		}
 		if !after {
 			continue
+		}
+		if ref {
+			switch acc.By.(type) {
+			case *syntax.Unset, *syntax.Global, *syntax.StaticVar:
+				continue // detach the name themselves
+			}
+			return true // e.g. `$p = …` would write through to the caller
 		}
 		if acc.Write && !acc.Compound {
 			continue // rebinding: `=`, destructuring, foreach, global, static, unset, catch

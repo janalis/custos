@@ -6,5 +6,12 @@ function f(array $order, $o)
     $f = isset($order);
     $h = isset($o, $o->list[3]);
     $i = isset(($order), $order['x']);
-    return [$d, $e, $f, $h, $i];
+    $n = 0;
+    $j = isset($order[$n++], $order[$n++]['x']);
+    $k = isset($order[key($order)], $order[key($order)]['x']);
+    $l = isset($order[$n = 1]['x'], $order[$n = 1]);
+    $m = isset($o->load()->list, $o->load()->list[3]);
+    $p = isset($order, $order[$n++]['x']);
+    $q = isset($order['a'], $o->list[$n++], $order['a']['b']);
+    return [$d, $e, $f, $h, $i, $j, $k, $l, $m, $p, $q];
 }

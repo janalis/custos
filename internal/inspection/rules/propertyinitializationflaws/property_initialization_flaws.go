@@ -228,7 +228,11 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 	// `parent::__construct()`, `f($this)`) before the write may read the
 	// default.
 	escaped := false
+	// custos: properties read (or modified in place) so far, this statement
+	// included; the default of such a property is observed before the write.
+	read := pifReads{names: map[string]bool{}}
 	for _, st := range m.Body.Stmts { // D4
+		read.collect(st)
 		mayReturn := pifHasReturn(st)
 		before := escaped
 		escaped = escaped || pifReachesThis(st)
@@ -269,13 +273,7 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 		if d == nil { // D6
 			continue
 		}
-		reuses := false // D7
-		syntax.Inspect(as.Value, func(x syntax.Node) bool {
-			if p, ok := x.(*syntax.PropertyFetch); ok && astquery.EquivalentFoldNames(ctx.File, p, pf) {
-				reuses = true
-			}
-			return !reuses
-		})
+		reuses := read.all || read.names[id.Value] // D7
 		// A typed property without default is uninitialised: objects made
 		// without the constructor (unserialize, reflection, ORM hydration)
 		// would then throw on access, so its default is kept (custos).
@@ -287,6 +285,42 @@ func pifConstructor(ctx *analysis.Context, m *syntax.Method) {
 		reported[id.Value] = true
 		ctx.Report(d.Span(), pifMsgReplaced, pifRemoveDefault(c.item))
 	}
+}
+
+// pifReads accumulates what the constructor has observed of the object:
+// the properties named in a `$this->name` fetch other than the target of a
+// plain assignment, and whether `$this` was used in any other way (dynamic
+// property name, alias, cast, iteration...), which may observe all of them.
+// Closures are included: they can run before the write.
+type pifReads struct {
+	names map[string]bool
+	all   bool
+}
+
+func (r *pifReads) collect(st syntax.Node) {
+	written := map[*syntax.PropertyFetch]bool{}
+	owned := map[*syntax.Variable]bool{}
+	syntax.Inspect(st, func(x syntax.Node) bool {
+		switch n := x.(type) {
+		case *syntax.Assign:
+			if pf, ok := n.Var.(*syntax.PropertyFetch); ok && n.Op.Kind == syntax.TEqual {
+				written[pf] = true
+			}
+		case *syntax.PropertyFetch:
+			v, ok := n.Var.(*syntax.Variable)
+			id, static := n.Name.(*syntax.Identifier)
+			if !ok || v.Name != "this" || !static {
+				break
+			}
+			owned[v] = true
+			if !written[n] {
+				r.names[id.Value] = true
+			}
+		case *syntax.Variable:
+			r.all = r.all || (n.Name == "this" && !owned[n])
+		}
+		return true
+	})
 }
 
 // pifMirroredParam reports whether value is exactly a non-variadic

@@ -79,7 +79,10 @@ func (senselessProxyMethod) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	if len(pm.Params) != len(mine.Params) || pm.Abstract != mine.Abstract || pm.Static != mine.Static || // D6
-		pm.Final != mine.Final || pm.Visibility != mine.Visibility {
+		pm.Final != mine.Final || pm.Visibility != mine.Visibility || mine.ByRef || pm.ByRef {
+		return
+	}
+	if spmTraitProvides(ctx, own, strings.ToLower(m.Name.Value), map[string]bool{}) { // E8
 		return
 	}
 	pmDecl := semanticquery.MethodDecl(ctx.File, ix, pm, ctx.PHP)
@@ -90,13 +93,22 @@ func (senselessProxyMethod) Check(ctx *analysis.Context, n syntax.Node) {
 	if isCtor && spmLegacyCtor(ctx, cl, ownFQN) { // E7
 		return
 	}
+	countsArgs := spmReadsArguments(pmDecl)
 	for i, p := range m.Params { // D7
 		pp, mp := pm.Params[i], mine.Params[i]
 		if (p.Default == nil) != (pp.Default == "") {
 			return
 		}
+		if p.Default != nil && countsArgs { // E9: the proxy always passes the optional argument
+			return
+		}
+		if p.ByRef != pp.ByRef || p.Variadic || pp.Variadic {
+			return
+		}
 		if p.Default != nil {
-			if _, ok := p.Default.(*syntax.MagicConst); ok && spmMagic[strings.ToUpper(ctx.Text(p.Default))] {
+			sameScope := pmDecl != nil &&
+				ctx.Names().ScopeAt(p.Default.Span().Start) == ctx.Names().ScopeAt(pmDecl.Params[i].Default.Span().Start)
+			if !spmStableDefault(p.Default, sameScope) {
 				return
 			}
 			if pmDecl != nil {
@@ -116,6 +128,12 @@ func (senselessProxyMethod) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 			op, oo := own.Props[mp.Name], ix.Class(pm.Class, ctx.PHP)
 			if op == nil || oo == nil || oo.Props[pp.Name] == nil || op.Visibility != oo.Props[pp.Name].Visibility {
+				return
+			}
+			// A private promoted property belongs to the child alone; asymmetric
+			// visibility and hooks make the two declarations differ.
+			if pr := oo.Props[pp.Name]; op.Visibility == index.Private ||
+				op.SetVisibility != nil || pr.SetVisibility != nil || len(p.Hooks) > 0 {
 				return
 			}
 		}
@@ -186,6 +204,26 @@ func spmParentReturnsNothing(pm *index.Method, decl *syntax.Method) bool {
 	return !value
 }
 
+// spmReadsArguments implements E9: the parent body, when it can be read,
+// inspects the arguments actually passed, which differ once the proxy no
+// longer fills in the optional ones.
+func spmReadsArguments(decl *syntax.Method) bool {
+	if decl == nil || decl.Body == nil {
+		return false
+	}
+	found := false
+	syntax.Inspect(decl.Body, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			switch strings.ToLower(astquery.CallLastName(c)) {
+			case "func_num_args", "func_get_args", "func_get_arg":
+				found = true
+			}
+		}
+		return !found
+	})
+	return found
+}
+
 // spmLegacyCtor implements E7: below PHP 8.0 a class outside any namespace
 // with a method named like itself would make that method the constructor
 // once `__construct` is removed.
@@ -201,16 +239,57 @@ func spmLegacyCtor(ctx *analysis.Context, cl *syntax.ClassLike, fqn string) bool
 	return false
 }
 
-// spmMagic are magic constants evaluating differently in the child.
-var spmMagic = map[string]bool{
-	"__LINE__": true, "__FILE__": true, "__DIR__": true, "__FUNCTION__": true,
-	"__CLASS__": true, "__TRAIT__": true, "__METHOD__": true, "__NAMESPACE__": true,
+// spmStableDefault reports whether a default value evaluates to the same
+// value in the child and in the parent: no magic constant, no `self`,
+// `static` or `parent`, and, unless both declarations share one namespace
+// scope, no name that depends on the namespace or its imports.
+func spmStableDefault(def syntax.Expr, sameScope bool) bool {
+	stable := true
+	syntax.Inspect(def, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.MagicConst:
+			stable = false
+		case *syntax.Name:
+			switch strings.ToLower(n.Value) {
+			case "self", "static", "parent":
+				stable = false
+			case "null", "true", "false":
+			default:
+				if !sameScope && n.NameKind != syntax.NameFullyQualified {
+					stable = false
+				}
+			}
+		}
+		return stable
+	})
+	return stable
+}
+
+// spmTraitProvides implements E8: a trait used by the class (directly,
+// through another trait or under an alias) supplies a method called name
+// (lower case), which would replace the inherited one once the override is
+// gone. A trait that cannot be resolved counts as providing it.
+func spmTraitProvides(ctx *analysis.Context, c *index.Class, name string, seen map[string]bool) bool {
+	for _, a := range c.TraitAdaptations {
+		if strings.ToLower(a.Alias) == name {
+			return true
+		}
+	}
+	for _, fqn := range c.Traits {
+		key := strings.ToLower(fqn)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		t := ctx.Index().Class(fqn, ctx.PHP)
+		if t == nil || t.Methods[name] != nil || spmTraitProvides(ctx, t, name, seen) {
+			return true
+		}
+	}
+	return false
 }
 
 // spmParamType is the comparable native type of an indexed parameter.
 func spmParamType(p index.Param) string {
-	if p.Variadic {
-		return "array"
-	}
 	return strings.ToLower(p.Type)
 }

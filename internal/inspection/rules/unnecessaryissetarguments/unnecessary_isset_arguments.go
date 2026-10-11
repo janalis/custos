@@ -4,6 +4,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
 )
 
@@ -27,8 +28,18 @@ func (unnecessaryIssetArguments) Check(ctx *analysis.Context, n syntax.Node) {
 			continue
 		}
 		for base := access.Var; base != nil; {
+			// A base that does work when evaluated (call, `++`, assignment…)
+			// yields a separate value at each occurrence: nothing covers it.
+			effects := flowquery.MayHaveSideEffects(base)
 			for mi, m := range args {
-				if mi == ci || reported[mi] || !astquery.EquivalentFoldNames(ctx.File, base, m) {
+				if effects || mi == ci || reported[mi] || !astquery.EquivalentFoldNames(ctx.File, base, m) {
+					continue
+				}
+				// isset() stops at the first unset argument. Without an
+				// earlier `m`, the arguments up to the covering access are
+				// evaluated even when `m` is unset: their effects must not
+				// start running.
+				if mi < ci && anyEffect(args[mi+1:ci+1]) {
 					continue
 				}
 				reported[mi] = true
@@ -55,6 +66,15 @@ func (unnecessaryIssetArguments) Check(ctx *analysis.Context, n syntax.Node) {
 			reportIssetArg(ctx, m, trailing[i])
 		}
 	}
+}
+
+func anyEffect(args []syntax.Expr) bool {
+	for _, a := range args {
+		if flowquery.MayHaveSideEffects(a) {
+			return true
+		}
+	}
+	return false
 }
 
 func reportIssetArg(ctx *analysis.Context, m syntax.Expr, last bool) {

@@ -40,9 +40,19 @@ Visit every method `M` (in a class `C`).
 - **D7** Compare the bodies statement by statement in order (comments and doc
   comments skipped): every pair must be *equivalent* — same node structure
   ignoring whitespace and comments anywhere inside, or identical source text.
-  The parameter lists, return types, modifiers (other than visibility, see
-  D10) and attributes are **not** compared.
-- **D8** Symbol check: collect, inside `M`'s body, every class reference
+  Modifiers (other than visibility, see D10) and attributes are **not**
+  compared.
+- **D7a** Signature check. `M` and `PM` must declare the same number of
+  parameters and, position by position, the same parameter name, the same
+  by-reference and variadic markers and the same declared type (written
+  alike ignoring case and whitespace, with class names resolving to the same
+  class). Neither side may use constructor promotion. For kind I (D10) the
+  signatures must match in full: also equivalent default values (both absent,
+  or equivalent expressions as in D7), the same return type and the same
+  by-reference return marker. Kind X keeps its own declaration, so defaults,
+  return type and by-reference return may differ there. Stop on any mismatch.
+- **D8** Symbol check: collect, inside `M`'s body (and, for kind I, its
+  parameter defaults), every class reference
   (e.g. `Foo` in `new Foo`, `Foo::X`, `Foo::bar()`, `instanceof Foo`),
   constant reference (e.g. `SOME_CONST`, also `true`/`false`/`null`) and
   plain function call name (method calls excluded). For each: if it
@@ -58,7 +68,26 @@ Visit every method `M` (in a class `C`).
   (method call, property fetch, class constant or static member) whose
   object is `$this` or whose class part is literally `self`, and that
   access resolves to a **private** member → stop (the child cannot reach
-  it).
+  it). The same test is applied to `M`'s body seen from `C`: a `$this`
+  access (also inside a nested closure) resolving to a private member of the
+  child stops too, because the inherited method runs in the parent's scope
+  and cannot reach it.
+- **D11** Scope-bound code: stop when `M`'s body (or, for kind I, a
+  parameter default) contains
+  - `__CLASS__`, `__METHOD__`, `__NAMESPACE__` or `__LINE__` (`__FUNCTION__`,
+    `__FILE__` and `__DIR__` are fine: the two declarations share the name
+    and, being compared, the file);
+  - a `static $var` declaration belonging to the method itself (not to a
+    closure or function nested in it): an override owns its static
+    variables, an inherited method shares the parent's;
+  - a call to `get_class()` or `get_parent_class()` without arguments, or to
+    `get_object_vars()`, `get_class_vars()` or `get_class_methods()`, whose
+    result depends on the class the calling code is declared in.
+- **D12** Trait guard: stop when `C` uses a trait that supplies a method of
+  the same name (directly, through a nested trait, or through an `as` alias
+  in `C`'s `use` block), or a trait that cannot be resolved. `C`'s own
+  method is what keeps the trait's implementation from taking precedence
+  over the inherited one.
 - **D10** Report:
   - **I (identical)**: `M` and `PM` have the same visibility (absent
     modifier = `public`);
@@ -80,7 +109,16 @@ Visit every method `M` (in a class `C`).
   differing statement counts.
 - **E4** Any non-equivalent statement (`echo 1;` vs `echo 2;`).
 - **E5** Same text resolving to different symbols, or unresolved symbols
-  (D8); parent bodies touching private members via `$this`/`self` (D9).
+  (D8); parent bodies touching private members via `$this`/`self`, child
+  bodies touching the child's private members via `$this` (D9).
+- **E7** Differing signatures (D7a): another parameter count, name, order,
+  type, by-reference or variadic marker, promoted parameters; for kind I
+  also another default (`limit($n = 50)` over `limit($n = 10)`), return type
+  or by-reference return.
+- **E8** Scope-bound bodies (D11): `return __CLASS__;`,
+  `static $calls = 0;`, `get_object_vars($this)`.
+- **E9** The class uses a trait providing the method, or an unknown trait
+  (D12).
 - **E6** No parent method (methods only declared in the child; interface
   methods do not count as parents).
 
@@ -111,11 +149,16 @@ Visit every method `M` (in a class `C`).
     joined with `, ` (no `&`, no `...`, no defaults);
   - `RET` is `return ` (with trailing space) when `M` has a return type,
     otherwise empty. `M` has a return type when its declared return type is
-    present and not `void`, or (no declaration) its `@return` doc type is not
+    present and neither `void` nor `never`, or (no declaration) its `@return` doc type is not
     `void`, or its body contains a `return <expr>;` (outside nested closures
     /functions) or a `yield`.
   Output is compared whitespace-collapsed, so line layout of the new block
   is free; e.g. `{\n    return parent::save($row, $flag);\n}` is fine.
+  No fix is offered (the report stays) when the delegating call would not
+  be equivalent: `M` returns by reference (`function &m()`), or its body
+  calls `func_num_args()`, `func_get_args()` or `func_get_arg()` — the
+  call passes every declared parameter, including the ones the caller
+  omitted.
 
 ## Options
 
@@ -172,7 +215,7 @@ class UserRepo extends MiddleRepo
     /**
      * Copied from Repo.
      */
-    protected function <weak_warning descr="Method 'load' duplicates the inherited implementation; remove it.">load</weak_warning>($key)
+    protected function <weak_warning descr="Method 'load' duplicates the inherited implementation; remove it.">load</weak_warning>($id)
     {
         // same code, different comments
         $row = ['id' => $id];
@@ -279,3 +322,20 @@ class UserRepo extends MiddleRepo
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Signatures compared — custos diverges from upstream** (D7a). Upstream
+  compares bodies only, so an override that exists to change a default
+  value, a parameter name or order, a type or the return type is reported,
+  and removing it changes results. custos requires matching signatures;
+  the proxy kind, which keeps the declaration, tolerates other defaults and
+  another return type.
+- **Scope-bound bodies, traits and child-private members — custos
+  diverges** (D9, D11, D12). Textually identical bodies are not duplicates
+  when they read `__CLASS__`-like constants, own static variables, ask for
+  the calling scope's class or members, read a private member of the child,
+  or when a used trait would supply the method instead of the parent.
+  Upstream reports these; custos stays silent because both fixes would
+  change behaviour.
+- **Proxy fix — custos diverges** (F2). `never` is treated like `void`
+  (returning from a `never` method does not compile), and the fix is
+  withheld for by-reference returns and bodies reading the actual argument
+  list.

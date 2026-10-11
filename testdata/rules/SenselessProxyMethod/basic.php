@@ -88,7 +88,8 @@ class DiskStore extends Store
         parent::make();
     }
 
-    public function <weak_warning descr="Method 'many' only forwards to its parent; remove it.">many</weak_warning>(int ...$ids)
+    // Passing the packed array is not forwarding the arguments.
+    public function many(int ...$ids)
     {
         parent::many($ids);
     }

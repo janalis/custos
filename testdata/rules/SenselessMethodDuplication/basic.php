@@ -51,7 +51,7 @@ class UserRepo extends MiddleRepo
     /**
      * Copied from Repo.
      */
-    protected function <weak_warning descr="Method 'load' duplicates the inherited implementation; remove it.">load</weak_warning>($key)
+    protected function <weak_warning descr="Method 'load' duplicates the inherited implementation; remove it.">load</weak_warning>($id)
     {
         // same code, different comments
         $row = ['id' => $id];

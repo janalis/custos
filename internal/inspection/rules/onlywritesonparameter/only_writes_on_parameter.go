@@ -7,6 +7,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/types"
 )
 
@@ -37,6 +38,7 @@ type owpScope struct {
 	body     *syntax.Block
 	reported map[syntax.Span]bool
 	includes int8                             // -1 unknown, 0 no, 1 yes
+	labels   int8                             // -1 unknown, 0 no, 1 yes
 	byName   map[string][]flowquery.VarAccess // all accesses of the scope, computed once
 }
 
@@ -53,7 +55,7 @@ func (onlyWritesOnParameter) Check(ctx *analysis.Context, n syntax.Node) {
 	if body == nil || n.Span().Len() == 0 { // E2
 		return
 	}
-	s := &owpScope{ctx: ctx, scope: n, body: body, reported: map[syntax.Span]bool{}, includes: -1}
+	s := &owpScope{ctx: ctx, scope: n, body: body, reported: map[syntax.Span]bool{}, includes: -1, labels: -1}
 	excluded := map[string]bool{}
 	// Entry 1: parameters.
 	for _, p := range syntax.FuncLikeParams(n) {
@@ -173,7 +175,7 @@ func (s *owpScope) accesses(name string) []owpAccess {
 		s.byName = flowquery.VarAccessesByName(s.ctx.File, s.scope)
 	}
 	for _, a := range s.byName[name] {
-		if !flowquery.Reachable(a.Var, s.scope) {
+		if !s.reachable(a.Var) {
 			continue
 		}
 		acc := owpAccess{v: a.Var, arrow: owpInArrow(a.Var, s.scope)}
@@ -185,6 +187,73 @@ func (s *owpScope) accesses(name string) []owpAccess {
 		}
 	}
 	return out
+}
+
+// reachable is flowquery.Reachable with two corrections (E7): a statement
+// list is not cut by a terminating statement that holds a do-while with a
+// `break`/`continue` (its condition is then evaluated and the loop can
+// exit), nothing is unreachable in a scope with a goto label, and a case
+// condition is not cut off by the statements of its own case.
+func (s *owpScope) reachable(n syntax.Node) bool {
+	child := n
+	for p := n.Parent(); p != s.scope; p = p.Parent() {
+		if list, ok := syntax.StmtListOf(p); ok {
+			// A child outside the list (a case condition) is evaluated
+			// before the statements; the memoised index keeps the common
+			// case linear.
+			i := syntax.StmtIndex(list, child)
+			for j := syntax.FirstTerminating(p); j < i; j++ {
+				if s.hasLabels() {
+					return true
+				}
+				if syntax.Terminates(list[j]) && !owpEscapableDoWhile(list[j]) {
+					return false
+				}
+			}
+		}
+		child = p
+	}
+	return true
+}
+
+// owpEscapableDoWhile reports whether st holds, outside nested functions and
+// classes, a do-while whose body contains a `break` or `continue`.
+func owpEscapableDoWhile(st syntax.Node) bool {
+	found := false
+	syntax.Inspect(st, func(x syntax.Node) bool {
+		switch d := x.(type) {
+		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+			return false
+		case *syntax.DoWhile:
+			syntax.Inspect(d.Body, func(y syntax.Node) bool {
+				switch y.(type) {
+				case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+					return false
+				case *syntax.Break, *syntax.Continue:
+					found = true
+				}
+				return !found
+			})
+		}
+		return !found
+	})
+	return found
+}
+
+func (s *owpScope) hasLabels() bool {
+	if s.labels < 0 {
+		s.labels = 0
+		syntax.Inspect(s.body, func(x syntax.Node) bool {
+			switch x.(type) {
+			case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
+				return false
+			case *syntax.Label:
+				s.labels = 1
+			}
+			return s.labels == 0
+		})
+	}
+	return s.labels == 1
 }
 
 func owpInArrow(v, scope syntax.Node) bool {
@@ -344,9 +413,11 @@ func (s *owpScope) analyse(name string, dropWrites func(targets []syntax.Node) b
 }
 
 // dynamicReads returns the variables the scope reads by name: string
-// arguments of compact() (nested arrays included), or "*" when it calls
-// get_defined_vars(). Nested functions, closures and classes are separate
-// scopes; arrow functions capture the enclosing scope and are included.
+// arguments of compact() (nested arrays included), the parameters when it
+// calls func_get_args()/func_get_arg() (PHP 7.0+), or "*" when it calls
+// get_defined_vars() or eval(). Nested functions, closures and classes are
+// separate scopes; arrow functions capture the enclosing scope and are
+// included.
 func (s *owpScope) dynamicReads() map[string]bool {
 	if s.dynamic != nil {
 		return s.dynamic
@@ -384,7 +455,19 @@ func (s *owpScope) dynamicReads() map[string]bool {
 				}
 			case s.ctx.IsGlobalFunctionCall(c, "get_defined_vars"):
 				s.dynamic["*"] = true
+			case s.ctx.IsGlobalFunctionCall(c, "func_get_args"), s.ctx.IsGlobalFunctionCall(c, "func_get_arg"):
+				// Since PHP 7.0 these return the current parameter values;
+				// in an arrow function they see its own arguments.
+				if s.ctx.PHP >= phpversion.PHP70 && !owpInArrow(c, s.scope) {
+					for _, p := range syntax.FuncLikeParams(s.scope) {
+						if p.Var != nil {
+							s.dynamic[p.Var.Name] = true
+						}
+					}
+				}
 			}
+		case *syntax.Eval: // the evaluated code may read any variable
+			s.dynamic["*"] = true
 		case *syntax.Variable:
 			if c.NameExpr != nil { // $$name, ${expr}: any variable may be accessed
 				s.dynamic["*"] = true

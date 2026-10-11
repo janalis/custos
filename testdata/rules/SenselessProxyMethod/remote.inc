@@ -5,6 +5,9 @@ class Remote
 {
     public function same($a = [1, 2]) { return $a; }
     public function other($a = 1) { return $a; }
+    const WIDTH = 80;
+    public function wide($a = \Lib\Remote::WIDTH) { return $a; }
+    public function tall($a = HEIGHT) { return $a; }
     /** @return void */
     public function quiet($a) { echo $a; }
     public function loud($a) { echo $a; }

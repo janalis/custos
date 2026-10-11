@@ -23,7 +23,8 @@ Visit every class's own constructor.
   and it declares at least one property and at least one method (the
   constructor counts).
 - **D2** Candidate properties: the class's **own** declared properties that
-  are `private`, not `static`, and not *annotated*. A property is annotated
+  are `private`, not `static`, declare no property hooks (custos) and are
+  not *annotated*. A property is annotated
   when its doc comment contains at least one tag whose name (including the
   `@`) is not entirely lower-case — e.g. `@Id`, `@ORM\Column`,
   `@Inject` — while lower-case tags such as `@var`, `@internal` do not count.
@@ -43,6 +44,14 @@ Visit every class's own constructor.
   assignment is ignored (neither reported nor a use); any other reference
   (a read, a call on it, `++`, a compound assignment…) counts as a use, like
   a D5 reference.
+- **D4b** Code that runs after construction without being a method body is
+  scanned like a D5 method: the bodies of the property hooks (PHP 8.4)
+  declared in the class and in its directly used traits, including the
+  hooks of promoted constructor parameters.
+- **D5a** A string literal in the body of a `__sleep()` method of the class
+  or of a directly used trait that spells a candidate's name (plain, or in
+  the `"\0Class\0name"` form) is a use of that candidate: the property is
+  serialised.
 - **D5** Collect relevant references inside every other method declared in
   the class and in every method declared in the traits the class uses
   directly (`use T;`). (Methods of parent classes and of traits used by
@@ -65,6 +74,8 @@ Visit every class's own constructor.
   (`$this->cb = fn() => $this->logger->info('x');`); plain writes inside such
   closures are never reported.
 - **E4** Classes without their own constructor, interfaces, traits.
+- **E5** Properties read by a property hook, and properties named by
+  `__sleep()`.
 
 ## Report
 
@@ -157,7 +168,20 @@ class Mailer
   name (`$this->$name`, `$this->{expr}`) or all at once
   (`get_object_vars($this)`, `foreach ($this as …)`, `(array) $this`), any
   candidate may be read there: nothing is reported for the class (Moodle's
-  `cm_info::__get()` returning `$this->$name`).
+  `cm_info::__get()` returning `$this->$name`). The same holds for a
+  property hook and for a closure or arrow function defined in the
+  constructor, which can both run after construction. A dynamic read in the
+  constructor's own scope is not a later use and changes nothing, like any
+  other constructor read (D6).
+- **Property hooks (custos, D4b).** Hook bodies are scanned for uses and
+  for dynamic reads: `public string $full { get => $this->first; }` reads
+  `$first` on every access, long after the constructor returned. A private
+  property that declares hooks itself is not a candidate (D2): assigning it
+  in the constructor runs its `set` hook, which may do more than store the
+  value.
+- **`__sleep()` (custos, D5a).** A candidate named in `__sleep()` is
+  written to the serialised form, so its constructor assignment is not
+  dead. Names listed by any other method remain plain strings.
 - **Re-entered constructors (custos diverges).** A constructor that calls
   `$this->__construct(…)` (SimplePie's `File` follows a redirect by
   re-running itself) reads, in the second run, what the first one stored:

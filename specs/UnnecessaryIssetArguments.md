@@ -36,6 +36,21 @@ Visit every `isset(...)` construct.
     identical source text.
   Parentheses are not stripped (`($m)` is not equivalent to `$m`).
 
+- **D4** *Pure bases only*: a base whose evaluation may do more than read a
+  value — it contains a function, method or static call, `new`, `clone`, an
+  assignment, `++`/`--`, or a similar effectful construct anywhere inside
+  it — is skipped. Two occurrences of such an expression are evaluated
+  separately and may designate different elements, so neither covers the
+  other. The walk still continues to the outer, pure bases
+  (`isset($m[next()]['k'], $m)` reports `$m`).
+
+- **D5** *Evaluation order*: `isset` stops at its first unset argument. A
+  candidate `M` written **before** the covering access `C` is skipped when
+  any argument after `M` up to and including `C` is effectful in the sense
+  of D4: without `M`, those arguments are evaluated even when `M` is unset.
+  A candidate written after `C`, or covered by another access for which the
+  condition holds, is still reported.
+
 Each argument is reported at most once per `isset`, independent of how many
 deeper accesses imply it.
 
@@ -55,6 +70,16 @@ deeper accesses imply it.
   (`isset($o, $o->list[3])` does not report `$o`).
 - **E3** Duplicate identical arguments (`isset($m['a'], $m['a'])`): an
   argument is never its own base, so nothing is reported.
+
+- **E4** Arguments matching an effectful base (D4):
+  `isset($m[$i++], $m[$i++]['k'])` and `isset($m[key()], $m[key()]['k'])`
+  report nothing, since removing the shorter argument would drop one
+  evaluation of `$i++` / `key()` and may change the result.
+
+- **E5** A pure argument followed by an effectful covering access (D5):
+  `isset($m, $m[next()]['k'])` and `isset($m['a'], $m['a'][$i++])` report
+  nothing, since `next()` / `$i++` do not run today when `$m` / `$m['a']`
+  is unset. `isset($m['a'][$i++], $m['a'])` reports `$m['a']`.
 
 ## Report
 
@@ -148,3 +173,8 @@ function has_city(array $order, $customer)
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **Effectful bases (custos diverges).** Upstream treats two textually equal
+  accesses as the same value even when their index or container has side
+  effects, and its fix then removes one of the evaluations. custos does not
+  report such arguments (D4, E4), nor a pure argument whose removal would let
+  a later effectful argument run when it did not before (D5, E5).
