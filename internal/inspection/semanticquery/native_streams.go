@@ -1280,7 +1280,7 @@ func streamOpenExcluded(ctx *analysis.Context, use syntax.Expr, open *syntax.Fun
 		return truth && nativeGuardSameValue(ctx, use, c)
 	case *syntax.Assign:
 		// `if ($h = fopen(...))` tests the very call whose result reaches the use.
-		return truth && c.Op.Kind == syntax.TEqual && !c.ByRef && syntax.UnwrapParens(c.Value) == syntax.Expr(open) && astquery.Equivalent(ctx.File, use, c.Var)
+		return truth && c.Op.Kind == syntax.TEqual && !c.ByRef && NativeUnsilenced(c.Value) == syntax.Expr(open) && astquery.Equivalent(ctx.File, use, c.Var)
 	case *syntax.Empty:
 		return !truth && nativeGuardSameValue(ctx, use, c.Expr)
 	case *syntax.Unary:

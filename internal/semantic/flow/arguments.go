@@ -93,7 +93,9 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 				next = Value{}
 				name, builtin, _ := e.callee(at)
 				switch {
-				case !builtin || name == "settype" && scalarType(list):
+				case !builtin:
+					next = e.left(at, i, list, positions, f.vars[variable.Name], r)
+				case name == "settype" && scalarType(list):
 				case name == "mysqli_stmt_bind_result" || name == "bind_result" || name == "bindcolumn":
 					// The variable will receive what the database returns.
 				case name == "mysqli_stmt_bind_param" || name == "bind_param" || name == "bindparam":
@@ -116,6 +118,58 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 			f.write(r, variable.Name, next)
 		}
 	}
+}
+
+// left is what a function or method of the project leaves in the reference
+// argument at index at, from its summary: the request data it writes there
+// and the values of the arguments that may end up in it. Without a summary
+// the callee may not write at all. A body that may not be the one called (a
+// conditional declaration, a method a subclass can replace, a generator)
+// adds to what the argument held instead of replacing it.
+func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []int, old Value, r *scopeResult) Value {
+	// `new C` runs the constructor of C itself; a method may be replaced.
+	name, sealed := e.summaryName(call), true
+	switch call.(type) {
+	case *syntax.MethodCall, *syntax.StaticCall:
+		sealed = false
+		if m := e.method(call); m != nil {
+			name, sealed = strings.ToLower(m.Class+"::"+m.Name), m.Final || m.Visibility == index.Private
+		}
+	}
+	summary, ok := e.contract(name)
+	written, described := summary.ByRef[positions[at]]
+	if !ok || !described {
+		return unsettled(old, Value{})
+	}
+	v := Value{Complete: true, Safe: written.Safe}
+	for _, source := range written.Sources {
+		if source.Parameter < 0 {
+			v.Sources, _ = union(v.Sources, []Source{source})
+			continue
+		}
+		for i, position := range positions {
+			arg, isArg := list.Args[i].(*syntax.Arg)
+			if position != source.Parameter || !isArg {
+				continue
+			}
+			in := r.values[arg.Value]
+			if i == at {
+				in = old
+			}
+			if tainted(in) {
+				v = merge(v, Value{Complete: true, Sources: in.Sources, Safe: in.Safe})
+			}
+		}
+	}
+	v.Safe |= written.Safe
+	next := Value{}
+	if tainted(v) {
+		next = Value{Complete: true, Sources: v.Sources, Safe: v.Safe}
+	}
+	if !summary.Fixed || !sealed {
+		return unsettled(old, next)
+	}
+	return next
 }
 
 // boundElement returns the key of the element of a variable an argument

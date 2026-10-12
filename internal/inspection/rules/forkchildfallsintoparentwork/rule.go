@@ -2,6 +2,7 @@
 package forkchildfallsintoparentwork
 
 import (
+	"math"
 	"strings"
 
 	"custos/internal/inspection/analysis"
@@ -53,28 +54,42 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // the block ends abruptly and no break, continue or goto carries the child
 // out of it into code the parent also runs.
 func leaves(body *syntax.Block) bool {
-	return syntax.Terminates(body) && !jumpsOut(body, false)
+	return syntax.Terminates(body) && !jumpsOut(body, 0)
 }
 
 // jumpsOut reports whether n holds a goto, or a break/continue that reaches
-// past the loops and switches opened inside the child block. A jump with an
-// explicit level is assumed to reach past them.
-func jumpsOut(n syntax.Node, nested bool) bool {
+// past the loops and switches opened inside the child block: one for more
+// levels than depth counts. A level that is not a literal is assumed to.
+func jumpsOut(n syntax.Node, depth int64) bool {
 	switch x := n.(type) {
 	case *syntax.Function, *syntax.Closure, *syntax.ArrowFunction, *syntax.ClassLike:
 		return false
 	case *syntax.Goto:
 		return true
 	case *syntax.Break:
-		return x.Num != nil || !nested
+		return jumpLevels(x.Num) > depth
 	case *syntax.Continue:
-		return x.Num != nil || !nested
+		return jumpLevels(x.Num) > depth
 	case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach, *syntax.Switch:
-		nested = true
+		depth++
 	}
 	out := false
-	syntax.Children(n, func(c syntax.Node) { out = out || jumpsOut(c, nested) })
+	syntax.Children(n, func(c syntax.Node) { out = out || jumpsOut(c, depth) })
 	return out
+}
+
+// jumpLevels is the number of levels a break or continue leaves: one without
+// an operand, the literal operand, and more than any nesting otherwise.
+func jumpLevels(operand syntax.Expr) int64 {
+	if operand == nil {
+		return 1
+	}
+	if literal, ok := syntax.UnwrapParens(operand).(*syntax.Literal); ok {
+		if levels, known := astquery.ParseIntLiteral(literal.Raw); known && levels > 0 {
+			return levels
+		}
+	}
+	return math.MaxInt64
 }
 
 // unknownTail reports whether the last effective statement of body is a call

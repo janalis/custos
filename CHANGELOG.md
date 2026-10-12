@@ -152,6 +152,19 @@ versions follow [Semantic Versioning](https://semver.org/).
   no longer discards what is known about the array itself: an earlier failure
   check still holds, and request data in its other elements is still reported.
   Elements beside the one passed keep what was known of them.
+- Functions containing a `switch` are now followed by the flow analysis
+  (subject once, cases in order, fall-through, `default` anywhere, `break`
+  and `continue` with a level): value, failure-check and request-data
+  inspections report there as everywhere else. Only `goto` still leaves a
+  function unfollowed.
+- Request data a project function writes to a by-reference parameter
+  (`function fill(&$x) { $x = $_GET['a']; }`) reaches the caller's variable,
+  across files; a function that overwrites the parameter with clean data on
+  every path clears it, and one that may leave it alone keeps what it held.
+- A silenced call (`$s = @file_get_contents($f)`) is followed like the call
+  itself by the inspections that track a result back to its producer.
+- `ForkChildFallsIntoParentWork` counts the levels of `break 2`/`continue 2`
+  instead of assuming any level leaves the child block.
 - Statements written before a `do … while` loop are no longer analysed as
   part of its body: a read before the loop does not see values assigned in
   it, and a variable stepped in the loop is no longer taken for its value

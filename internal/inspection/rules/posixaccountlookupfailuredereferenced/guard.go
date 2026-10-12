@@ -131,7 +131,7 @@ func (g guard) proves(cond syntax.Expr, truth bool) bool {
 	case *syntax.Assign:
 		// `$info = posix_getpwnam(...)` used as a condition tests the result.
 		v, plain := x.Var.(*syntax.Variable)
-		return truth && plain && syntax.UnwrapParens(x.Value) == syntax.Expr(g.call) && astquery.Equivalent(g.ctx.File, v, g.target)
+		return truth && plain && semanticquery.NativeUnsilenced(x.Value) == syntax.Expr(g.call) && astquery.Equivalent(g.ctx.File, v, g.target)
 	case *syntax.Unary:
 		return x.Op.Kind == syntax.TExclaim && g.proves(x.Expr, !truth)
 	case *syntax.Binary:

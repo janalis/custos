@@ -58,7 +58,8 @@ func TestReachingProducers(t *testing.T) {
 		{"copied", `$u=parse_url($a); if($c){$u=scandir($n);} $v=$u; probe($v);`, "parse_url scandir", false},
 		{"too many", `$u=a(); if($c){$u=b();} if($c){$u=c();} if($c){$u=d();} if($c){$u=e();} if($c){$u=f();} probe($u);`, "", false},
 		{"too many, then one more path", `$u=a(); if($c){$u=b();} if($c){$u=c();} if($c){$u=d();} if($c){$u=e();} while($c--){probe($u); if($c){$u=f();}}`, "", false},
-		{"unsupported scope", `$u=parse_url($a); switch($c){case 1: $u=scandir($n);} probe($u);`, "", false},
+		{"switch case", `$u=parse_url($a); switch($c){case 1: $u=scandir($n);} probe($u);`, "parse_url scandir", false},
+		{"unsupported scope", `$u=parse_url($a); if($c){$u=scandir($n);} goto end; end: probe($u);`, "", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, f := environment(t, tc.src, nil)

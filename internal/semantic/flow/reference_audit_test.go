@@ -15,7 +15,7 @@ func TestReferenceCallsCannotRetainPriorValueProof(t *testing.T) {
 		`$x=$_GET['x'];preg_match('/a/','a',matches:$x);probe($x);`,
 	} {
 		t.Run(source, func(t *testing.T) {
-			e, f := environment(t, source, nil)
+			e, f := summarized(t, source)
 			x := argument(callsNamed(f, "probe")[0])
 			if e.Value(x).Complete || e.Tainted(x, HTML) {
 				t.Fatalf("reference call retained stale value: %+v", e.Value(x))
@@ -108,5 +108,61 @@ func TestMalformedReferenceArgumentsDoNotInventWrites(t *testing.T) {
 	e.invalidateReferences(&syntax.FuncCall{}, list, &f, &scopeResult{})
 	if !f.vars["x"].Complete {
 		t.Fatal("malformed independent arguments invalidated unrelated variable")
+	}
+}
+
+// summarized returns an environment that knows the summaries of its own file,
+// as every analysed file does.
+func summarized(t testing.TB, src string) (*Env, *syntax.File) {
+	t.Helper()
+	e, f := environment(t, src, nil)
+	snapshot := NewSnapshot()
+	for range 3 {
+		snapshot = NewSnapshot(Extract(f, e.types.Index, e.types.PHP, snapshot))
+	}
+	return New(f, e.types, snapshot), f
+}
+
+// What a function of the project leaves in a reference argument comes from
+// its summary: the request data it writes, the arguments it copies there,
+// or nothing when every path overwrites it with clean data.
+func TestReferenceParametersCarryWhatTheCalleeLeaves(t *testing.T) {
+	for _, tc := range []struct {
+		name, src string
+		taint     bool
+	}{
+		{"callee writes request data", `function fill(&$x){$x=$_GET['a'];} $v='ls'; fill($v); probe($v);`, true},
+		{"callee writes request data on one path", `function fill(&$x, $c){if($c){$x=$_GET['a'];}} $v='ls'; fill($v, 1); probe($v);`, true},
+		{"callee overwrites with clean data", `function clean(&$x){$x='safe';} $v=$_GET['a']; clean($v); probe($v);`, false},
+		{"callee overwrites on one path only", `function clean(&$x, $c){if($c){$x='safe';}} $v=$_GET['a']; clean($v, 1); probe($v);`, true},
+		{"callee never writes", `function look(&$x){return strlen($x);} $v=$_GET['a']; look($v); probe($v);`, true},
+		{"callee never writes a clean value", `function look(&$x){return strlen($x);} $v='ls'; look($v); probe($v);`, false},
+		{"callee escapes in place", `function esc(&$x){$x=htmlspecialchars($x);} $v=$_GET['a']; esc($v); probe($v);`, false},
+		{"callee copies another argument", `function put(&$x, $y){$x=$y;} $v='ls'; put($v, $_GET['a']); probe($v);`, true},
+		{"callee copies a clean argument", `function put(&$x, $y){$x=$y;} $v=$_GET['a']; put($v, 'ls'); probe($v);`, false},
+		{"callee writes an element", `function fill(&$x){$x['k']=$_GET['a'];} $v=[]; fill($v); probe($v);`, true},
+		{"element argument", `function fill(&$x){$x=$_GET['a'];} $v=['c'=>'ls', 'u'=>'x']; fill($v['c']); probe($v['c']);`, true},
+		{"element argument, sibling", `function fill(&$x){$x=$_GET['a'];} $v=['c'=>'ls', 'u'=>'x']; fill($v['u']); probe($v['c']);`, false},
+		{"callee passes it on", `function fill(&$x){$x=$_GET['a'];} function outer(&$y){fill($y);} $v='ls'; outer($v); probe($v);`, true},
+		{"recursive callee", `function rec(&$x, $n){if($n){rec($x, $n-1);} $x=$_GET['a'];} $v='ls'; rec($v, 2); probe($v);`, true},
+		{"callee throws before writing", `function fill(&$x){if(!$x){throw new E;} $x='safe';} $v=$_GET['a']; try{fill($v);}catch(E $e){} probe($v);`, true},
+		{"conditionally declared callee", `if(!function_exists('clean')){function clean(&$x){$x='safe';}} $v=$_GET['a']; clean($v); probe($v);`, true},
+		{"generator callee", `function gen(&$x){$x='safe'; yield 1;} $v=$_GET['a']; gen($v); probe($v);`, true},
+		{"replaceable method overwrites", `class C{function clean(&$x){$x='safe';}} function f(C $c){$v=$_GET['a']; $c->clean($v); probe($v);}`, true},
+		{"replaceable method writes request data", `class C{function fill(&$x){$x=$_GET['a'];}} function f(C $c){$v='ls'; $c->fill($v); probe($v);}`, true},
+		{"final method overwrites", `class C{final function clean(&$x){$x='safe';}} function f(C $c){$v=$_GET['a']; $c->clean($v); probe($v);}`, false},
+		{"private method overwrites", `class C{private function clean(&$x){$x='safe';} function f(){$v=$_GET['a']; $this->clean($v); probe($v);}}`, false},
+		{"static method through self is not resolved", `class C{private static function clean(&$x){$x='safe';} function f(){$v=$_GET['a']; self::clean($v); probe($v);}}`, true},
+		{"constructor overwrites", `class C{function __construct(&$x){$x='safe';}} $v=$_GET['a']; new C($v); probe($v);`, false},
+		{"named argument", `function fill($c, &$x){$x=$_GET['a'];} $v='ls'; fill(x: $v, c: 1); probe($v);`, true},
+		{"callee too large to summarise", `function big(&$x){` + strings.Repeat("$x=[$x,$x];", 2) + `eval('1;'); $x='safe';} $v=$_GET['a']; big($v); probe($v);`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e, f := summarized(t, tc.src)
+			calls := callsNamed(f, "probe")
+			if got := e.Tainted(argument(calls[len(calls)-1]), HTML); got != tc.taint {
+				t.Fatalf("taint=%v value=%+v", got, e.Value(argument(calls[len(calls)-1])))
+			}
+		})
 	}
 }

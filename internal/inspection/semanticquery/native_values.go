@@ -96,13 +96,26 @@ func NativeValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 		if !known {
 			return nil
 		}
-		return syntax.UnwrapParens(v)
+		return NativeUnsilenced(v)
 	}
 	values, known := DiscoverValuesKnown(ctx.Types(), e)
 	if !known || len(values) != 1 {
 		return nil
 	}
-	return syntax.UnwrapParens(values[0])
+	return NativeUnsilenced(values[0])
+}
+
+// NativeUnsilenced looks through parentheses and the `@` operator: silencing
+// a call hides its diagnostics, its result is the result of the call.
+func NativeUnsilenced(e syntax.Expr) syntax.Expr {
+	for {
+		e = syntax.UnwrapParens(e)
+		silenced, ok := e.(*syntax.Unary)
+		if !ok || silenced.Op.Kind != syntax.TAt {
+			return e
+		}
+		e = silenced.Expr
+	}
 }
 
 // NativeArray resolves a literal array with no spread or referenced items.

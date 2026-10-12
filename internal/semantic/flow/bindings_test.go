@@ -9,6 +9,56 @@ import (
 	"custos/internal/testing/testbudget"
 )
 
+// A switch runs its subject once, then the body of the first matching case
+// and the bodies below it until a break; without a match the default body,
+// wherever it is written, or nothing.
+func TestSwitchPaths(t *testing.T) {
+	for _, tc := range []struct {
+		name, src       string
+		resolved, taint bool
+	}{
+		{"unwritten variable", `$x=1; switch($c){case 1: echo 1; break; default: echo 2;} probe($x);`, true, false},
+		{"written in one case", `$x=1; switch($c){case 1: $x=2; break; case 2: echo 2;} probe($x);`, false, false},
+		{"written in every case and the default", `switch($c){case 1: $x=$_GET['a']; break; default: $x=$_GET['b'];} probe($x);`, false, true},
+		{"written in every case, no default", `$x='ls'; switch($c){case 1: $x=$_GET['a']; break; case 2: $x=$_GET['b']; break;} probe($x);`, false, true},
+		{"read in the case that wrote", `switch($c){case 1: $x=1; probe($x); break; default: $x=2;}`, true, false},
+		{"fallthrough keeps the earlier write", `switch($c){case 1: $x=$_GET['a']; case 2: probe($x);}`, false, true},
+		{"break stops the earlier write", `$x='ls'; switch($c){case 1: $x=$_GET['a']; break; case 2: probe($x);}`, true, false},
+		{"default written first runs last", `$x='ls'; switch($c){default: $x=$_GET['a']; break; case 1: probe($x);}`, true, false},
+		{"default falls into the case below", `$x='ls'; switch($c){default: $x=$_GET['a']; case 1: probe($x);}`, false, true},
+		{"empty cases share a body", `$x='ls'; switch($c){case 1: case 2: $x=$_GET['a']; break; case 3: $x='pwd';} probe($x);`, false, true},
+		{"subject written once", `$x=1; switch($x=2){case 1: break;} probe($x);`, true, false},
+		{"case expression evaluated", `$x=1; switch($c){case ($x=2): break;} probe($x);`, true, false},
+		{"later case expression may not run", `$x=1; switch($c){case 1: break; case ($x=2): break;} probe($x);`, false, false},
+		{"return in a case", `function f($c){$x=1; switch($c){case 1: $x=2; return; default: echo 1;} probe($x);}`, true, false},
+		{"throw in the default", `function f($c){switch($c){case 1: $x=1; break; default: throw new E;} probe($x);}`, true, false},
+		{"continue leaves the switch", `$x=1; switch($c){case 1: continue; $x=2;} probe($x);`, true, false},
+		{"continue 2 targets the loop", `function f($l,$c){$x=1; foreach($l as $v){switch($c){case 1: $x=$_GET['a']; continue 2;} $x='ls';} probe($x);}`, false, true},
+		{"break 2 leaves the loop", `function f($l,$c){$x='ls'; foreach($l as $v){switch($c){case 1: $x=$_GET['a']; break 2;} $x='pwd';} probe($x);}`, false, true},
+		{"break leaves the switch only", `function f($l,$c){foreach($l as $v){switch($c){case 1: $x=$_GET['a']; break;} $x='pwd';} probe($x);}`, false, false},
+		{"nested switch", `$x='ls'; switch($c){case 1: switch($d){case 2: $x=$_GET['a']; break; default: $x='pwd';} break; default: $x='id';} probe($x);`, false, true},
+		{"loop in a case", `$x='ls'; switch($c){case 1: while($d--){$x=$_GET['a']; break;} break;} probe($x);`, false, true},
+		{"too many levels", `function f($c){$x=1; while($c){break 3;} probe($x);}`, false, false},
+		{"no levels", `function f($c){$x=1; while($c){break 0;} probe($x);}`, false, false},
+		{"computed levels", `function f($c){$x=1; while($c){break $c;} probe($x);}`, false, false},
+		{"one level written out", `function f($c){$x=1; while($c){break 1;} probe($x);}`, true, false},
+		{"levels across a finally block", `function f($l,$c){$x=1; foreach($l as $v){while($c){try{break 2;}finally{echo 1;}}} probe($x);}`, false, false},
+		{"one level inside a finally block", `function f($l,$c){$x=1; while($c){try{break;}finally{echo 1;}} probe($x);}`, true, false},
+		{"jump", `function f($c){$x=1; goto end; end: probe($x);}`, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e, f := environment(t, tc.src, nil)
+			x := argument(callsNamed(f, "probe")[0])
+			if _, got := e.Resolve(x); got != tc.resolved {
+				t.Errorf("resolved=%v value=%+v", got, e.Value(x))
+			}
+			if got := e.Tainted(x, HTML); got != tc.taint {
+				t.Errorf("taint=%v value=%+v", got, e.Value(x))
+			}
+		})
+	}
+}
+
 // A value stays resolved only while no write the transfer functions cannot
 // attribute may have replaced it.
 func TestIndirectWritesDiscardResolvedValues(t *testing.T) {
@@ -198,7 +248,7 @@ func TestTaintFollowsValuesNotSelectors(t *testing.T) {
 		{"passed to an unresolved function", `$n=$_GET['a']; other($n); probe($n);`, true},
 		{"passed to an unresolved method", `$n=$_GET['a']; $o->other($n); probe($n);`, true},
 		{"clean value passed to an unresolved function", `$n=1; other($n); probe($n);`, false},
-		{"passed to a declared reference parameter", `function clean(&$v){$v='safe';} $n=$_GET['a']; clean($n); probe($n);`, false},
+		{"passed to a declared reference parameter, without its summary", `function clean(&$v){$v='safe';} $n=$_GET['a']; clean($n); probe($n);`, true},
 		{"passed to a builtin output parameter", `$n=$_GET['a']; preg_match('/a/', 'a', $n); probe($n);`, false},
 		{"request data imported into the scope", `extract($_GET); probe($cmd);`, true},
 		{"query string imported into the scope", `parse_str($_SERVER['QUERY_STRING']); probe($cmd);`, true},

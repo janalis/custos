@@ -91,7 +91,7 @@ func coversFailure(ctx *analysis.Context, subject syntax.Expr, op syntax.TokenKi
 			return false
 		}
 	case *syntax.Assign:
-		if tested.Op.Kind != syntax.TEqual || syntax.UnwrapParens(tested.Value) != syntax.Expr(fork) {
+		if tested.Op.Kind != syntax.TEqual || semanticquery.NativeUnsilenced(tested.Value) != syntax.Expr(fork) {
 			return false
 		}
 	default:

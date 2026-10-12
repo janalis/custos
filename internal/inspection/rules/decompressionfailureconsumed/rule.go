@@ -31,7 +31,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	input := semanticquery.CallArgument(c.Args, 0, "string")
-	origin, ok := unsilenced(semanticquery.NativeValue(ctx, input)).(*syntax.FuncCall)
+	origin, ok := semanticquery.NativeValue(ctx, input).(*syntax.FuncCall)
 	if !ok {
 		return
 	}
@@ -56,18 +56,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 
 	if !ctx.Flow().Excludes(input, "false") && !guarded(ctx, input) {
 		ctx.ReportNode(c, message)
-	}
-}
-
-// unsilenced strips error suppression, which hides the warning but leaves the
-// false result of a failed decompression untouched.
-func unsilenced(e syntax.Expr) syntax.Expr {
-	for {
-		u, ok := syntax.UnwrapParens(e).(*syntax.Unary)
-		if !ok || u.Op.Kind != syntax.TAt {
-			return syntax.UnwrapParens(e)
-		}
-		e = u.Expr
 	}
 }
 

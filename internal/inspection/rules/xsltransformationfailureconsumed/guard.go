@@ -125,7 +125,7 @@ func (g guard) comparesFalse(b *syntax.Binary) bool {
 func (g guard) same(e syntax.Expr) bool {
 	e = syntax.UnwrapParens(e)
 	if a, ok := e.(*syntax.Assign); ok {
-		return a.Op.Kind == syntax.TEqual && !a.ByRef && syntax.UnwrapParens(a.Value) == syntax.Expr(g.call)
+		return a.Op.Kind == syntax.TEqual && !a.ByRef && semanticquery.NativeUnsilenced(a.Value) == syntax.Expr(g.call)
 	}
 	return semanticquery.NativeSameValue(g.ctx, g.input, e)
 }

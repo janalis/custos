@@ -27,8 +27,8 @@ func nestedLoops(locals, depth int) string {
 	return src.String()
 }
 
-// switching is a long function the graph does not cover: a `switch` leaves
-// nothing provable, which must not cost more than a function without one.
+// switching is a long function with a `switch`, which costs no more than
+// the branches it stands for.
 func switching(locals, blocks int) string {
 	return strings.Replace(longFunction(locals, blocks), "$z=$_GET['z'];", "switch($cfg){case 1: $z=1; break; default: $z=$_GET['z'];}", 1)
 }
@@ -44,7 +44,7 @@ func TestDeepLoopsAndUncoveredScopesStayFast(t *testing.T) {
 	}{
 		{"nested loops", nestedLoops(150, 20), true, 900000, 5 * time.Second},
 		{"deeply nested loops", nestedLoops(150, 40), true, MaxCopied, 0},
-		{"long function with a switch", switching(200, 300), false, 500000, 5 * time.Second},
+		{"long function with a switch", switching(200, 300), true, 500000, 5 * time.Second},
 		{"wide arrays", wideArrays(20, 30, 300), true, 40000, 5 * time.Second},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -235,8 +235,8 @@ func BenchmarkSwitchFunction(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		if New(f, e.types, nil).Tainted(x, Shell) {
-			b.Fatal("uncovered scope proved a fact")
+		if !New(f, e.types, nil).Tainted(x, Shell) {
+			b.Fatal("request data lost")
 		}
 	}
 }

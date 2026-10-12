@@ -28,6 +28,14 @@ type Summary struct {
 	// Never marks a callable every path of which throws, exits or calls
 	// another such callable: a call to it does not return.
 	Never bool
+	// ByRef holds, per by-reference parameter index, what the callable may
+	// leave in the argument when it ends: request data it wrote, and a
+	// parameter source for each argument whose value may still be there
+	// (its own when some path does not overwrite it). Fixed tells that the
+	// body is the one every call runs to its end: declared unconditionally,
+	// outside a trait, and not a generator.
+	ByRef map[int]Value
+	Fixed bool
 }
 
 // File contains summaries from one indexed file. It retains no source or AST.
@@ -256,6 +264,16 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot) (*Env, *
 			}
 			sum.Return.Complete = sum.Return.Complete && r.complete
 			sum.Never = r.complete && r.leaves && !sum.Generator && body != nil && unconditional(n)
+			sum.Fixed = !sum.Generator && unconditional(n)
+			for i, p := range syntax.VariableScopeParams(n) {
+				if p.ByRef && p.Var != nil && r.complete {
+					left := r.exit[p.Var.Name]
+					if sum.ByRef == nil {
+						sum.ByRef = map[int]Value{}
+					}
+					sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe}
+				}
+			}
 			sum.Return.Expr = nil
 			sum.Return.origins = nil
 			sum.Return.Identity = 0

@@ -2,6 +2,7 @@ package flow
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -21,7 +22,12 @@ type (
 		complete bool
 		env      *Env
 	}
-	exits struct{ ret, thrown, brk, cont int }
+	exits struct {
+		ret, thrown, brk, cont int
+		// levels lists the break and continue targets of the enclosing
+		// loops and switches, innermost last, for `break 2`.
+		levels [][2]int
+	}
 )
 
 func (g *graph) add(n syntax.Node, next ...int) int {
@@ -78,15 +84,13 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 	case *syntax.While:
 		g.blocks[next].shared = true
 		test := g.add(n.Cond)
-		lx := x
-		lx.brk, lx.cont = next, test
+		lx := x.inside(next, test)
 		g.blocks[test].next = []int{g.stmt(n.Body, test, lx), next}
 		return test
 	case *syntax.DoWhile:
 		g.blocks[next].shared = true
 		test := g.add(n.Cond)
-		lx := x
-		lx.brk, lx.cont = next, test
+		lx := x.inside(next, test)
 		body := g.stmt(n.Body, test, lx)
 		g.blocks[test].next = []int{body, next}
 		// The body runs again: what is written before the loop is not part
@@ -100,8 +104,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		for i := len(n.Loop) - 1; i >= 0; i-- {
 			loop = g.atom(n.Loop[i], loop, x)
 		}
-		lx := x
-		lx.brk, lx.cont = next, loop
+		lx := x.inside(next, loop)
 		body := g.stmt(n.Body, loop, lx)
 		// The last expression of the condition decides, like a while test:
 		// it refines the body on its true outcome and the exit on its false
@@ -124,8 +127,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 	case *syntax.Foreach:
 		g.blocks[next].shared = true
 		test := g.add(n)
-		lx := x
-		lx.brk, lx.cont = next, test
+		lx := x.inside(next, test)
 		g.blocks[test].next = []int{g.stmt(n.Body, test, lx), next}
 		return test
 	case *syntax.Return:
@@ -156,20 +158,17 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 			}
 		}
 	case *syntax.Break:
-		if n.Num != nil {
-			g.complete = false
-		}
-		return x.brk
+		return g.leaveLevels(n.Num, x, 0)
 	case *syntax.Continue:
-		if n.Num != nil {
-			g.complete = false
-		}
-		return x.cont
+		return g.leaveLevels(n.Num, x, 1)
 	case *syntax.Try:
 		g.blocks[next].shared = true
 		inside := x
 		normal := next
 		if n.Finally != nil {
+			// A jump over several levels would run the finally block on
+			// its way: it is not followed.
+			inside.levels = nil
 			normal = g.stmt(n.Finally.Body, next, x)
 			inside.ret = g.stmt(n.Finally.Body, x.ret, x)
 			inside.thrown = g.stmt(n.Finally.Body, x.thrown, x)
@@ -189,10 +188,67 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 			inside.thrown = g.add(nil, choices...)
 		}
 		return g.stmt(n.Body, normal, inside)
-	case *syntax.Goto, *syntax.Switch:
+	case *syntax.Switch:
+		return g.choose(n, next, x)
+	case *syntax.Goto:
 		g.complete = false
 	}
 	return g.atom(s, next, x)
+}
+
+// inside returns the exits of a loop or switch body.
+func (x exits) inside(brk, cont int) exits {
+	x.brk, x.cont = brk, cont
+	x.levels = append(x.levels[:len(x.levels):len(x.levels)], [2]int{brk, cont})
+	return x
+}
+
+// leaveLevels returns the target of `break` (which 0) or `continue` (which 1),
+// over the number of levels a literal operand names.
+func (g *graph) leaveLevels(operand syntax.Expr, x exits, which int) int {
+	levels := int64(0)
+	if literal, ok := syntax.UnwrapParens(operand).(*syntax.Literal); ok {
+		levels, _ = strconv.ParseInt(literal.Raw, 10, 64)
+	}
+	switch {
+	case operand == nil || levels == 1:
+		return [2]int{x.brk, x.cont}[which]
+	case levels < 1 || levels > int64(len(x.levels)):
+		g.complete = false
+		return [2]int{x.brk, x.cont}[which]
+	}
+	return x.levels[len(x.levels)-int(levels)][which]
+}
+
+// choose builds a switch: the subject runs once, the case expressions are
+// compared with it in order until one matches, and a matching case runs into
+// the bodies below it until a break. `continue` leaves the switch like
+// `break`. Without a matching case the default body runs, wherever it is
+// written, or nothing does. A comparison is loose: its outcome establishes no
+// fact about the subject.
+func (g *graph) choose(n *syntax.Switch, next int, x exits) int {
+	g.blocks[next].shared = true
+	inner := x.inside(next, next)
+	bodies := make([]int, len(n.Cases))
+	below, unmatched := next, next
+	for i := len(n.Cases) - 1; i >= 0; i-- {
+		below = g.list(n.Cases[i].Stmts, below, inner)
+		g.blocks[below].shared = true
+		bodies[i] = below
+		if n.Cases[i].Cond == nil {
+			unmatched = below
+		}
+	}
+	test := unmatched
+	for i := len(n.Cases) - 1; i >= 0; i-- {
+		if label := n.Cases[i].Cond; label != nil {
+			test = g.add(nil, bodies[i], test)
+			g.blocks[test].exceptional = x.thrown
+			g.blocks[test].nodes = []syntax.Node{label}
+			g.blocks[test].shared = true
+		}
+	}
+	return g.atom(n.Cond, test, x)
 }
 
 // leave builds the block of an expression that never completes: a throw, an
@@ -298,7 +354,7 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 	g := graph{complete: true, env: e}
 	exit := g.add(nil)
 	done := g.add(nil, exit)
-	x := exits{done, exit, done, done}
+	x := exits{ret: done, thrown: exit, brk: done, cont: done}
 	entry := done
 	if scope == nil {
 		entry = g.list(e.file.Stmts, done, x)

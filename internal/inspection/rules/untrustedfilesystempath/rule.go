@@ -67,7 +67,7 @@ func rebindable(ctx *analysis.Context, v *syntax.Variable, origin syntax.Expr) b
 	visit := func(n syntax.Node) bool {
 		switch x := n.(type) {
 		case *syntax.Assign:
-			own := x.Op.Kind == syntax.TEqual && !x.ByRef && syntax.UnwrapParens(x.Value) == origin
+			own := x.Op.Kind == syntax.TEqual && !x.ByRef && semanticquery.NativeUnsilenced(x.Value) == origin
 			found = found || hit(x.Var) && !own || x.ByRef && writes(x.Value, v.Name)
 		case *syntax.IncDec:
 			found = found || hit(x.Var)

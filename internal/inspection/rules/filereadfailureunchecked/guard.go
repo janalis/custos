@@ -138,7 +138,7 @@ func (g guard) comparesFalse(b *syntax.Binary) bool {
 func (g guard) same(e syntax.Expr) bool {
 	switch x := syntax.UnwrapParens(e).(type) {
 	case *syntax.Assign:
-		return !x.ByRef && x.Op.Kind == syntax.TEqual && syntax.UnwrapParens(x.Value) == syntax.Expr(g.read)
+		return !x.ByRef && x.Op.Kind == syntax.TEqual && semanticquery.NativeUnsilenced(x.Value) == syntax.Expr(g.read)
 	case *syntax.Variable:
 		return g.read.Span().End <= x.Span().Start && semanticquery.NativeValue(g.ctx, x) == syntax.Expr(g.read)
 	}

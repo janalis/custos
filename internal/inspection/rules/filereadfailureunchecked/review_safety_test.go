@@ -47,6 +47,10 @@ func TestReviewSafety(t *testing.T) {
 		{"other read", "function f($f) { " + read + "if (($d = file_get_contents($f)) == false) { return 0; }" + use, 1},
 		{"read after guard", "function f($f) { " + read + "if ($c == false) { return 0; } $c = file_get_contents($f);" + use, 1},
 		{"guard does not exit", "function f($f) { " + read + "if ($c == false) { echo 1; }" + use, 1},
+		// Silencing the read hides its warning, not its failure.
+		{"silenced read", "function f($f) { $c = @file_get_contents($f);" + use, 1},
+		{"silenced read tested in place", "function f($f) { if (($c = @file_get_contents($f)) == '') { return 0; }" + use, 0},
+		{"silenced read tested later", "function f($f) { $c = @file_get_contents($f); if ($c === false) { return 0; }" + use, 0},
 		// A loose comparison with a falsy constant is read by the rule itself.
 		{"loose empty string branch", "function f($f) { " + read + "if ($c != '') {" + use + " }", 0},
 		{"loose empty string operand", "function f($f) { " + read + "return $c != '' && strlen($c); }", 0},

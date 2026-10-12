@@ -150,7 +150,7 @@ func (g guard) same(e syntax.Expr) bool {
 	}
 	e = syntax.UnwrapParens(e)
 	if a, ok := e.(*syntax.Assign); ok {
-		return astquery.Equivalent(g.ctx.File, a.Var, g.input) && syntax.UnwrapParens(a.Value) == syntax.Expr(g.origin)
+		return astquery.Equivalent(g.ctx.File, a.Var, g.input) && semanticquery.NativeUnsilenced(a.Value) == syntax.Expr(g.origin)
 	}
 	return astquery.Equivalent(g.ctx.File, e, g.input) && semanticquery.NativeValue(g.ctx, e) == syntax.Expr(g.origin)
 }

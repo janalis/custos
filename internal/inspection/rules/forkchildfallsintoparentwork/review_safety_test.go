@@ -70,6 +70,11 @@ func TestJumpsOut(t *testing.T) {
 		{"inner break", "foreach ($w as $x) { break; } exit;", false},
 		{"inner continue", "do { continue; } while ($n); exit;", false},
 		{"switch break", "switch ($n) { case 1: break; } exit;", false},
+		{"levels inside the block", "foreach ($w as $x) { switch ($n) { case 1: continue 2; } } exit;", false},
+		{"levels past the block", "foreach ($w as $x) { switch ($n) { case 1: break 3; } } exit;", true},
+		{"one level too many", "foreach ($w as $x) { continue 2; } exit;", true},
+		{"dynamic level", "foreach ($w as $x) { break $n; } exit;", true},
+		{"zero level", "foreach ($w as $x) { break 0; } exit;", true},
 		{"closure", "$f = function () { goto out; out: }; exit;", false},
 		{"exit", "exit;", false},
 	} {
@@ -79,7 +84,7 @@ func TestJumpsOut(t *testing.T) {
 				t.Fatalf("invalid probe: %v", f.Errors)
 			}
 			body := f.Stmts[0].(*syntax.While).Body.(*syntax.Block).Stmts[0].(*syntax.If).Body
-			if got := jumpsOut(body, false); got != tc.want {
+			if got := jumpsOut(body, 0); got != tc.want {
 				t.Fatalf("jumpsOut: got %v, want %v", got, tc.want)
 			}
 		})

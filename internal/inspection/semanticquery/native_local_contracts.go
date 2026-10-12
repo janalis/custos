@@ -614,7 +614,7 @@ func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string) synt
 	if v, ok := value.(*syntax.Variable); ok {
 		return nativeLocalValue(ctx, v, failure)
 	}
-	return value
+	return NativeUnsilenced(value)
 }
 
 // nativeUnguardedResult handles a variable several assignments reach: across
@@ -632,7 +632,7 @@ func nativeUnguardedResult(ctx *analysis.Context, e syntax.Expr, failure string)
 		return nil
 	}
 	for _, origin := range reaching {
-		result := syntax.UnwrapParens(origin.Expr)
+		result := NativeUnsilenced(origin.Expr)
 		fails, null := failure == "false", failure == "null"
 		switch call := result.(type) {
 		case *syntax.FuncCall:

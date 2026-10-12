@@ -154,7 +154,7 @@ func (g guard) same(e syntax.Expr) bool {
 	switch e := syntax.UnwrapParens(e).(type) {
 	case *syntax.Assign:
 		target, ok := syntax.UnwrapParens(e.Var).(*syntax.Variable)
-		return ok && target.Name == g.name && e.Op.Kind == syntax.TEqual && !e.ByRef && syntax.UnwrapParens(e.Value) == syntax.Expr(g.call)
+		return ok && target.Name == g.name && e.Op.Kind == syntax.TEqual && !e.ByRef && semanticquery.NativeUnsilenced(e.Value) == syntax.Expr(g.call)
 	case *syntax.Variable:
 		return e.Name == g.name && e.Span().Start >= g.call.Span().End && semanticquery.NativeValue(g.ctx, e) == syntax.Expr(g.call)
 	}

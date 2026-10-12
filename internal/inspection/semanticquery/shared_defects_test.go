@@ -146,6 +146,8 @@ func TestSharedLocalResultUsesTheStatedFailure(t *testing.T) {
 func TestSharedLocalValueSeesEveryWrite(t *testing.T) {
 	for _, tc := range []struct{ name, src, want string }{
 		{"plain", `$n=5; probe($n);`, "5"},
+		{"silenced call", `function f($a){$u=@parse_url($a); probe($u);}`, "parse_url($a)"},
+		{"silenced call in parentheses", `function f($a){$u=(@(parse_url($a))); probe($u);}`, "parse_url($a)"},
 		{"copy", `$m=5; $n=$m; probe($n);`, "5"},
 		{"post increment", `function f(){$n=5; work(); $n++; probe($n);}`, ""},
 		{"pre decrement", `function f(){$n=5; work(); --$n; probe($n);}`, ""},
