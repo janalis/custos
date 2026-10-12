@@ -312,6 +312,9 @@ type scopeResult struct {
 	returns   []Value
 	callIndex map[syntax.Node]int
 	complete  bool
+	// stale lists the assignments tested in place in a short-circuit
+	// operand whose earlier result can reach the path that skips them.
+	stale map[*syntax.Assign]bool
 	// leaves marks a scope no path of which completes normally.
 	leaves bool
 	// spent marks a scope that ran out of one of its memory budgets:

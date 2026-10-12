@@ -140,6 +140,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   boolean (`$ok = $v !== false; if (!$ok) { return; }`) while neither
   variable is written, and, for PHP 8.0 and later, a builtin that only accepts
   arrays or objects having returned (`count($v)` throws on `false`).
+  Positions PHP may skip (the right side of `??=`, arguments of a null-safe
+  call) prove nothing.
 - Functions of about two thousand lines and very long `elseif` chains no
   longer exhaust the flow analysis budget.
 - Statements written before a `do … while` loop are no longer analysed as

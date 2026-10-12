@@ -373,7 +373,7 @@ func (e *Env) rebinds(x, tested syntax.Expr) bool {
 // other producers of the variable reached the read without this test.
 func (e *Env) refineAssigned(cond syntax.Expr, f *frame, truth bool) {
 	stored := assignedInPlace(cond)
-	if stored == nil {
+	if stored == nil || e.scopes[syntax.EnclosingVariableScope(stored)].stale[stored] {
 		return
 	}
 	name := stored.Var.(*syntax.Variable).Name

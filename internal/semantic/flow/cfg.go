@@ -215,6 +215,23 @@ func (g *graph) leave(x syntax.Expr, out exits) (int, bool) {
 // or is a function, or a method no subclass can replace, every path of which
 // ends in a throw, an exit or such a call.
 func (e *Env) never(call syntax.Node) bool {
+	// A null-safe call may not happen, and `f(...)` only makes a closure.
+	var list *syntax.ArgList
+	switch n := call.(type) {
+	case *syntax.FuncCall:
+		list = n.Args
+	case *syntax.MethodCall:
+		if list = n.Args; conditional(n) {
+			return false
+		}
+	case *syntax.StaticCall:
+		list = n.Args
+	}
+	if list != nil && len(list.Args) == 1 {
+		if _, callable := list.Args[0].(*syntax.VariadicPlaceholder); callable {
+			return false
+		}
+	}
 	declared, name := "", ""
 	if fn, ok := call.(*syntax.FuncCall); ok {
 		if f := e.types.ResolveFunction(fn); f != nil {

@@ -134,33 +134,14 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	case *syntax.Paren:
 		v = e.eval(n.Expr, f, r, depth+1)
 	case *syntax.Assign:
-		target, plain := n.Var.(*syntax.Variable)
-		plain = plain && target.NameExpr == nil && !n.ByRef
-		if plain && n.Op.Kind != syntax.TEqual && !external(target.Name) {
-			// A compound assignment combines the variable with the operand.
-			old := e.eval(n.Var, f, r, depth+1)
-			v = compound(n, old, e.eval(n.Value, f, r, depth+1), scalar(r, old.Expr, MaxDepth))
-			f.write(r, target.Name, v)
+		if n.Op.Kind == syntax.TCoalesceEqual {
+			// The right side runs only when the target is null.
+			assigned := clone(*f)
+			v = e.assign(n, &assigned, r, depth)
+			*f = rejoin(*f, assigned, r)
 			break
 		}
-		v = e.eval(n.Value, f, r, depth+1)
-		switch {
-		case plain && n.Op.Kind == syntax.TEqual:
-			// The variable holds the array with the elements tracked for it.
-			bound := v
-			bound.elements = e.elements(n.Value, f, r)
-			f.write(r, target.Name, bound)
-			if source := plainVariable(n.Value); source != "" && f.aliased[source] == aliasAny {
-				// A copy of an array shares the slots references were taken of.
-				f.alias(target.Name, aliasAny)
-			}
-		case n.ByRef:
-			e.reference(n, v, f, r)
-			v.Complete = false
-		default:
-			e.store(n, v, f, r)
-			v.Complete = false
-		}
+		v = e.assign(n, f, r, depth)
 	case *syntax.FuncCall:
 		if _, named := n.Name.(*syntax.Name); !named {
 			// A callee expression runs first: an invoked closure literal
@@ -169,6 +150,13 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 		v = e.call(n, n.Args, nil, f, r, depth)
 	case *syntax.MethodCall:
+		if conditional(n) {
+			// The arguments are not evaluated when the receiver is null.
+			called := clone(*f)
+			v = e.call(n, n.Args, n.Var, &called, r, depth)
+			*f = rejoin(*f, called, r)
+			break
+		}
 		v = e.call(n, n.Args, n.Var, f, r, depth)
 	case *syntax.StaticCall:
 		v = e.call(n, n.Args, nil, f, r, depth)
@@ -215,6 +203,18 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			}
 			e.refine(n.Left, f, deciding)
 			right = e.eval(n.Right, f, r, depth+1)
+			if stored := assignedInPlace(n.Right); stored != nil {
+				// A value the same assignment produced earlier may arrive on
+				// the path that skips it: its test then says nothing of it.
+				reached := skipped.vars[stored.Var.(*syntax.Variable).Name]
+				produced := Value{Expr: syntax.UnwrapParens(stored.Value)}
+				if reached.Expr == produced.Expr || reached.Expr == nil && reached.origins != nil && (reached.origins.full || reached.origins.holds(&Value{Expr: produced.Expr, NonFalse: true, NonNull: true})) {
+					if r.stale == nil {
+						r.stale = map[*syntax.Assign]bool{}
+					}
+					r.stale[stored] = true
+				}
+			}
 			*f = rejoin(skipped, *f, r)
 		case syntax.TCoalesce:
 			before := clone(*f)
@@ -296,7 +296,13 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		v.Identity = 0
 	case *syntax.ArrayDimFetch:
 		v = e.eval(n.Var, f, r, depth+1)
-		e.eval(n.Dim, f, r, depth+1)
+		if conditional(n.Var) {
+			indexed := clone(*f)
+			e.eval(n.Dim, &indexed, r, depth+1)
+			*f = rejoin(*f, indexed, r)
+		} else {
+			e.eval(n.Dim, f, r, depth+1)
+		}
 		v.Expr = x
 		v.Identity = 0
 		root := n.Var
@@ -464,6 +470,62 @@ func rebind(target syntax.Expr, f *frame, r *scopeResult) {
 		return
 	}
 	kill(target, f, r)
+}
+
+// assign evaluates an assignment on the path that performs it.
+func (e *Env) assign(n *syntax.Assign, f *frame, r *scopeResult, depth int) Value {
+	var v Value
+	target, plain := n.Var.(*syntax.Variable)
+	plain = plain && target.NameExpr == nil && !n.ByRef
+	if plain && n.Op.Kind != syntax.TEqual && !external(target.Name) {
+		// A compound assignment combines the variable with the operand.
+		old := e.eval(n.Var, f, r, depth+1)
+		v = compound(n, old, e.eval(n.Value, f, r, depth+1), scalar(r, old.Expr, MaxDepth))
+		f.write(r, target.Name, v)
+		return v
+	}
+	v = e.eval(n.Value, f, r, depth+1)
+	switch {
+	case plain && n.Op.Kind == syntax.TEqual:
+		// The variable holds the array with the elements tracked for it.
+		bound := v
+		bound.elements = e.elements(n.Value, f, r)
+		f.write(r, target.Name, bound)
+		if source := plainVariable(n.Value); source != "" && f.aliased[source] == aliasAny {
+			// A copy of an array shares the slots references were taken of.
+			f.alias(target.Name, aliasAny)
+		}
+	case n.ByRef:
+		e.reference(n, v, f, r)
+		v.Complete = false
+	default:
+		e.store(n, v, f, r)
+		v.Complete = false
+	}
+	return v
+}
+
+// conditional reports a member access PHP may skip: a null-safe link, or
+// anything chained after one, is not evaluated when the receiver is null.
+func conditional(x syntax.Expr) bool {
+	for {
+		switch n := syntax.UnwrapParens(x).(type) {
+		case *syntax.MethodCall:
+			if n.NullSafe {
+				return true
+			}
+			x = n.Var
+		case *syntax.PropertyFetch:
+			if n.NullSafe {
+				return true
+			}
+			x = n.Var
+		case *syntax.ArrayDimFetch:
+			x = n.Var
+		default:
+			return false
+		}
+	}
 }
 
 func external(s string) bool {

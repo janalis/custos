@@ -81,6 +81,17 @@ func TestGuardsOutsideBranches(t *testing.T) {
 		{"array-only parameter in a try", `$u=scandir($a); try { $n = count($u); } catch (TypeError $e) { $n = 0; } probe($u);`, false, false},
 		{"array-only parameter in a try without catch", `$u=scandir($a); try { $n = count($u); } finally { echo 1; } probe($u);`, true, true},
 		{"unresolved callee", `$u=scandir($a); tally($u); probe($u);`, false, false},
+		// Positions PHP may skip prove nothing.
+		{"null coalescing assignment", `$u=scandir($a); $c ??= count($u); probe($u);`, false, false},
+		{"null-safe call argument", `$u=scandir($a); $o?->add(count($u)); probe($u);`, false, false},
+		{"call chained after a null-safe one", `$u=scandir($a); $o?->items(array_keys($u))->go(); probe($u);`, false, false},
+		{"call chained after a null-safe property", `$u=scandir($a); $o?->p->add(count($u)); probe($u);`, false, false},
+		{"offset of a null-safe property", `$u=scandir($a); $x = $o?->list[count($u)]; probe($u);`, false, false},
+		{"offset of a property", `$u=scandir($a); $x = $o->list[count($u)]; probe($u);`, true, true},
+		{"method call argument", `$u=scandir($a); $o->p->add(count($u)); probe($u);`, true, true},
+		{"null-safe never method", `class T { function fail(): never { throw new E; } } function f($a, ?T $b) { $u=fopen($a,'r'); if ($u === false) { $b?->fail(); } probe($u); }`, false, false},
+		{"never function made a closure", `function fail(): never { throw new E; } ` + u + `if ($u === false) { fail(...); } probe($u);`, false, false},
+		{"never method made a closure", `class H { static function fail(): never { throw new E; } } ` + u + `if ($u === false) { H::fail(...); } probe($u);`, false, false},
 		{"method call", `$u=scandir($a); $o->count($u); probe($u);`, false, false},
 		{"extra argument", `$u=scandir($a); $n = count([], 0, $u); probe($u);`, false, false},
 	} {
@@ -159,6 +170,39 @@ func TestCallablesThatAlwaysLeave(t *testing.T) {
 	for i, call := range callsNamed(f, "probe") {
 		if e.Excludes(argument(call), "false") {
 			t.Errorf("probe %d guarded without summaries", i)
+		}
+	}
+}
+
+// What a skipped position would have assigned is not known to be there.
+func TestSkippedPositionsAssignNothingForSure(t *testing.T) {
+	for _, src := range []string{
+		`function f($x){ $n=1; $x ??= ($n = $_GET['a']); probe($n); }`,
+		`function f($o){ $n=1; $o?->m($n = -1); probe($n); }`,
+	} {
+		e, f := environment(t, src, nil)
+		if _, resolved := e.Resolve(argument(callsNamed(f, "probe")[0])); resolved {
+			t.Errorf("%s: value resolved", src)
+		}
+	}
+	e, f := environment(t, `function f($x){ $n=1; $x ??= ($n = $_GET['a']); probe($n); }`, nil)
+	if !e.Tainted(argument(callsNamed(f, "probe")[0]), HTML) {
+		t.Error("request data of a skipped position lost")
+	}
+}
+
+// A body is only the one a call runs when the callable is declared
+// unconditionally and outside a trait.
+func TestBodiesThatMayNotBeTheOnesCalled(t *testing.T) {
+	e, f := environment(t, `namespace N { function nf() { throw new \E; }
+		if (!function_exists('N\\cond')) { function cond() { throw new \E; } }
+		trait Tr { private function tq() { throw new \E; } }
+		final class C { private function cq() { throw new \E; } }
+		if (PHP_VERSION_ID > 1) { final class D { private function dq() { throw new \E; } } } }`, nil)
+	sums := Extract(f, e.types.Index, e.types.PHP, nil).Summaries
+	for name, never := range map[string]bool{`n\nf`: true, `n\cond`: false, `n\tr::tq`: false, `n\c::cq`: true, `n\d::dq`: false} {
+		if sum, ok := sums[name]; !ok || sum.Never != never {
+			t.Errorf("%s never=%v declared=%v (%v)", name, sum.Never, ok, len(sums))
 		}
 	}
 }

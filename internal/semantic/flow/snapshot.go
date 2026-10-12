@@ -255,7 +255,7 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot) (*Env, *
 				}
 			}
 			sum.Return.Complete = sum.Return.Complete && r.complete
-			sum.Never = r.complete && r.leaves && !sum.Generator && body != nil
+			sum.Never = r.complete && r.leaves && !sum.Generator && body != nil && unconditional(n)
 			sum.Return.Expr = nil
 			sum.Return.origins = nil
 			sum.Return.Identity = 0
@@ -271,6 +271,26 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot) (*Env, *
 	})
 	out.consulted, e.consulted = e.consulted, nil
 	return e, out
+}
+
+// unconditional reports a callable whose body is the one every call of its
+// name runs: a function declared at the top level of the file or of a
+// namespace, or a method of a class declared there. A declaration inside a
+// condition may not be the one in effect, and a trait method runs in each
+// class that uses it, where the methods it calls can differ.
+func unconditional(n syntax.Node) bool {
+	if _, method := n.(*syntax.Method); method {
+		class := syntax.EnclosingClass(n)
+		if class == nil || class.ClassKind == syntax.KindTrait {
+			return false
+		}
+		n = class
+	}
+	switch n.Parent().(type) {
+	case nil, *syntax.Namespace:
+		return true
+	}
+	return false
 }
 
 // contract returns the summary of a project callable, recording the name
