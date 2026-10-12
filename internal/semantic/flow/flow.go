@@ -30,7 +30,7 @@ const (
 const (
 	MaxBlocks    = 8192
 	MaxTransfers = 100000
-	MaxRetained  = 4 * MaxTransfers
+	MaxRetained  = 8 * MaxTransfers
 	MaxCopied    = 64 * MaxTransfers
 	MaxSources   = 64
 	MaxDepth     = 8
@@ -312,6 +312,8 @@ type scopeResult struct {
 	returns   []Value
 	callIndex map[syntax.Node]int
 	complete  bool
+	// leaves marks a scope no path of which completes normally.
+	leaves bool
 	// spent marks a scope that ran out of one of its memory budgets:
 	// nothing more is worth computing for it.
 	spent      bool

@@ -98,6 +98,8 @@ func TestReviewGlobFailureUnchecked(t *testing.T) {
 		{"and throw", get + "$p===false and throw new RuntimeException();" + loop, 0},
 		{"and exit", get + "!$p&&exit;" + loop, 0},
 		{"exit with wrong polarity", get + "$p and exit;" + loop, 1},
+		{"true comparison or exit", get + "$p==true or exit(1);" + loop, 0},
+		{"true comparison and exit", get + "$p!=true and exit;" + loop, 0},
 		{"or without leaving", get + "$p or print('none');" + loop, 1},
 		{"coalesce exit", get + "$q ?? exit;" + loop, 1},
 		{"plain statement", get + "trim($q);" + loop, 1},

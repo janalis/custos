@@ -131,6 +131,17 @@ versions follow [Semantic Versioning](https://semver.org/).
   `!empty($v['key'])` and `array_key_exists('key', $v)` count as checks of
   `$v`, as do the condition of a `for` loop and a fallback chain tested in
   place (`($u = a()) === false && ($u = b()) === false`).
+- Failure-value and request-data inspections understand more ways of
+  ruling a failure out: a statement that leaves on failure
+  (`$h !== false or exit;`, `$h = fopen($f, 'r') or die();`,
+  `$v ?: throw …;`), a failing branch that ends in a call that never returns
+  (a callee declared `never` such as PHPUnit's `fail()`, or a project function
+  or final/private method that always throws or exits), a test stored in a
+  boolean (`$ok = $v !== false; if (!$ok) { return; }`) while neither
+  variable is written, and, for PHP 8.0 and later, a builtin that only accepts
+  arrays or objects having returned (`count($v)` throws on `false`).
+- Functions of about two thousand lines and very long `elseif` chains no
+  longer exhaust the flow analysis budget.
 - Statements written before a `do … while` loop are no longer analysed as
   part of its body: a read before the loop does not see values assigned in
   it, and a variable stepped in the loop is no longer taken for its value

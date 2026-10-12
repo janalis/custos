@@ -18,6 +18,11 @@ func TestReviewFileLockFailureUncheckedResultTests(t *testing.T) {
 		{"stored guard", "function f($h){$ok=flock($h,LOCK_EX);if(!$ok){return;}ftruncate($h,0);}", 0},
 		{"reassigned guard", "function f($h){$ok=flock($h,LOCK_EX);$ok=true;if(!$ok){return;}ftruncate($h,0);}", 1},
 		{"terminating alternative", "function f($h){flock($h,LOCK_EX) or exit(1);fwrite($h,'x');}", 0},
+		// A comparison with `true` is read from the statement alone.
+		{"terminating alternative of a comparison", "function f($h){flock($h,LOCK_EX)===true or exit(1);fwrite($h,'x');}", 0},
+		{"terminating alternative of a comparison at file level", "$h=fopen('f','c');flock($h,LOCK_EX)===true or exit(1);fwrite($h,'x');", 0},
+		{"stored result compared at file level", "$h=fopen('f','c');$ok=flock($h,LOCK_EX);if($ok===true){fwrite($h,'x');}", 0},
+		{"continuing alternative of a comparison", "function f($h){flock($h,LOCK_EX)===true or print('x');fwrite($h,'x');}", 1},
 		{"continuing alternative", "function f($h){flock($h,LOCK_EX) or print('x');fwrite($h,'x');}", 1},
 		{"retry", "function f($h){do{$ok=flock($h,LOCK_EX);}while($ok!==true);fwrite($h,'x');}", 0},
 		{"compared ternary", "function f($h){return flock($h,LOCK_EX)===true?fwrite($h,'x'):0;}", 0},

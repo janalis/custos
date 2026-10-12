@@ -92,7 +92,7 @@ func TestWideArraysKeepTheirElements(t *testing.T) {
 // A scope that ran out of budget stops there: it does not keep visiting
 // blocks whose facts nobody will read.
 func TestExhaustedScopesStopAtOnce(t *testing.T) {
-	e, _ := environment(t, switching(300, 600), nil)
+	e, _ := environment(t, switching(300, 1200), nil)
 	r := e.scope(e.file.Stmts[0].(*syntax.Function))
 	if r.complete || !r.spent || r.copies > MaxCopied/2 {
 		t.Fatalf("complete=%v spent=%v copies=%d", r.complete, r.spent, r.copies)

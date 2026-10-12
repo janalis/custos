@@ -25,6 +25,9 @@ type Summary struct {
 	Return    Value
 	Sinks     []Sink
 	Generator bool
+	// Never marks a callable every path of which throws, exits or calls
+	// another such callable: a call to it does not return.
+	Never bool
 }
 
 // File contains summaries from one indexed file. It retains no source or AST.
@@ -252,6 +255,7 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot) (*Env, *
 				}
 			}
 			sum.Return.Complete = sum.Return.Complete && r.complete
+			sum.Never = r.complete && r.leaves && !sum.Generator && body != nil
 			sum.Return.Expr = nil
 			sum.Return.origins = nil
 			sum.Return.Identity = 0

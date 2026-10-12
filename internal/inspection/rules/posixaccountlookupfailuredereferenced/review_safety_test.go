@@ -70,7 +70,7 @@ func TestReviewGuards(t *testing.T) {
 		{"empty branch", "if (empty($i)) { echo $i['dir']; }", 1},
 		{"negated array branch", "if (!is_array($i)) { echo $i['dir']; }", 1},
 		{"other array", "if (is_array($o)) { echo $i['dir']; }", 1},
-		{"other call", "if (count($i)) { echo $i['dir']; }", 1},
+		{"other call", "if (strlen($i)) { echo $i['dir']; }", 1},
 		{"null comparison", "if ($i !== null) { echo $i['dir']; }", 1},
 		{"true comparison", "if ($i === true) { echo $i['dir']; }", 1},
 		{"identical branch", "if ($i === false) { echo $i['dir']; }", 1},

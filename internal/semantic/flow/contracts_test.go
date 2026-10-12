@@ -257,7 +257,7 @@ func TestBranchFrameBudgetInvalidatesWideScopes(t *testing.T) {
 		source.WriteString(strconv.Itoa(i))
 		source.WriteString("=1;")
 	}
-	for i := 0; i < 20; i++ {
+	for i := 0; i < MaxRetained/10000; i++ {
 		source.WriteString("if($flag){$changed=1;}")
 	}
 	source.WriteString("probe($v_0);")

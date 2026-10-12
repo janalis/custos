@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 )
 
 func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
@@ -683,6 +684,9 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 	}
 	e.invalidateReferences(n, args, f, r)
+	if builtin && args != nil && e.types.PHP.AtLeast(phpversion.PHP80) {
+		e.accepted(n, args, f)
+	}
 	return v
 }
 

@@ -449,7 +449,7 @@ func longFunction(locals, blocks int) string {
 }
 
 func TestLongFunctionsKeepTheirFacts(t *testing.T) {
-	for _, size := range [][2]int{{100, 80}, {120, 150}, {200, 200}} {
+	for _, size := range [][2]int{{100, 80}, {120, 150}, {200, 200}, {300, 400}} {
 		e, f := environment(t, longFunction(size[0], size[1]), nil)
 		start := time.Now()
 		if !e.Tainted(argument(callsNamed(f, "probe")[0]), Shell) {

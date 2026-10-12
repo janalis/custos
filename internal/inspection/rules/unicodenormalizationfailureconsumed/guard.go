@@ -117,37 +117,20 @@ func (g guard) matched(arm *syntax.MatchArm, child syntax.Node) bool {
 }
 
 // exited looks for an earlier sibling of st that leaves the path whenever the
-// value is false: a terminating if without alternatives, or a short-circuit
-// expression statement ending in exit or throw.
+// value is false: a terminating if without alternatives. A short-circuit
+// statement ending in exit or throw is a fact of the shared flow analysis,
+// asked before this guard.
 func (g guard) exited(st syntax.Stmt) bool {
 	list, index, ok := astquery.StmtList(g.ctx.File, st)
 	if !ok {
 		return false
 	}
 	for _, previous := range list[:index] {
-		switch x := previous.(type) {
-		case *syntax.If:
-			if x.Else == nil && len(x.ElseIfs) == 0 && syntax.Terminates(x.Body) && g.holds(x.Cond, false) {
-				return true
-			}
-		case *syntax.ExprStmt:
-			b, ok := syntax.UnwrapParens(x.Expr).(*syntax.Binary)
-			if !ok {
-				continue
-			}
-			if truth, ok := shortCircuit(b); ok && leaves(b.Right) && g.holds(b.Left, !truth) {
-				return true
-			}
+		if x, ok := previous.(*syntax.If); ok && x.Else == nil && len(x.ElseIfs) == 0 && syntax.Terminates(x.Body) && g.holds(x.Cond, false) {
+			return true
 		}
 	}
 	return false
-}
-
-func leaves(e syntax.Expr) bool {
-	if _, ok := syntax.UnwrapParens(e).(*syntax.Throw); ok {
-		return true
-	}
-	return syntax.ExitInvocation(e)
 }
 
 // holds proves that cond evaluating to truth implies the value is not false.

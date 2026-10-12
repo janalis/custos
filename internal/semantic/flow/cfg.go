@@ -2,8 +2,10 @@ package flow
 
 import (
 	"sort"
+	"strings"
 
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/index"
 )
 
 type (
@@ -17,6 +19,7 @@ type (
 	graph struct {
 		blocks   []block
 		complete bool
+		env      *Env
 	}
 	exits struct{ ret, thrown, brk, cont int }
 )
@@ -128,11 +131,29 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 	case *syntax.Return:
 		return g.atom(n, x.ret, x)
 	case *syntax.ExprStmt:
-		switch syntax.UnwrapParens(n.Expr).(type) {
+		switch expr := syntax.UnwrapParens(n.Expr).(type) {
 		case *syntax.Throw:
 			return g.atom(n, x.thrown, x)
 		case *syntax.Exit:
-			return g.atom(n, x.ret, x)
+			return g.atom(n, 0, x)
+		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+			if g.env.never(expr) {
+				return g.atom(n, x.thrown, x)
+			}
+		case *syntax.Binary:
+			// `test or exit;` and `test and throw …;` continue on one
+			// outcome of the test only.
+			and := expr.Op.Kind == syntax.TBooleanAnd || expr.Op.Kind == syntax.TAnd
+			or := expr.Op.Kind == syntax.TBooleanOr || expr.Op.Kind == syntax.TOr
+			if leave, leaves := g.leave(expr.Right, x); leaves && and {
+				return g.add(expr.Left, leave, next)
+			} else if leaves && or {
+				return g.add(expr.Left, next, leave)
+			}
+		case *syntax.Ternary:
+			if leave, leaves := g.leave(expr.Else, x); leaves && expr.Then == nil {
+				return g.add(expr.Cond, next, leave)
+			}
 		}
 	case *syntax.Break:
 		if n.Num != nil {
@@ -174,24 +195,90 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 	return g.atom(s, next, x)
 }
 
+// leave builds the block of an expression that never completes: a throw, an
+// exit or a call that does not return.
+func (g *graph) leave(x syntax.Expr, out exits) (int, bool) {
+	switch n := syntax.UnwrapParens(x).(type) {
+	case *syntax.Exit:
+		return g.atom(n, 0, out), true
+	case *syntax.Throw:
+		return g.atom(n, out.thrown, out), true
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		if g.env.never(n) {
+			return g.atom(n, out.thrown, out), true
+		}
+	}
+	return 0, false
+}
+
+// never reports a call that does not return: its callee is declared `never`,
+// or is a function, or a method no subclass can replace, every path of which
+// ends in a throw, an exit or such a call.
+func (e *Env) never(call syntax.Node) bool {
+	declared, name := "", ""
+	if fn, ok := call.(*syntax.FuncCall); ok {
+		if f := e.types.ResolveFunction(fn); f != nil {
+			declared, name = f.Return, f.FQN
+		}
+	} else if m := e.method(call); m != nil {
+		declared = m.Return
+		if m.Final || m.Visibility == index.Private {
+			name = m.Class + "::" + m.Name
+		}
+	}
+	if strings.EqualFold(strings.TrimPrefix(declared, `\`), "never") {
+		return true
+	}
+	summary, ok := e.contract(strings.ToLower(name))
+	return ok && summary.Never
+}
+
+// method resolves the declaration a method call names through `$this` or a
+// typed receiver, or a static call through a class name, `self` or `static`.
+func (e *Env) method(call syntax.Node) *index.Method {
+	switch n := call.(type) {
+	case *syntax.MethodCall:
+		id, ok := n.Name.(*syntax.Identifier)
+		if classes := e.types.TypeOf(n.Var).Classes(); ok && len(classes) == 1 {
+			return e.types.Index.FindMethod(classes[0], id.Value, e.types.PHP)
+		}
+	case *syntax.StaticCall:
+		id, ok := n.Name.(*syntax.Identifier)
+		class, named := n.Class.(*syntax.Name)
+		if !ok || !named {
+			return nil
+		}
+		fqn := e.types.Names.Class(class.Value, class.Span().Start)
+		switch strings.ToLower(class.Value) {
+		case "self", "static":
+			fqn = e.types.ClassFQN(syntax.EnclosingClass(n))
+		}
+		return e.types.Index.FindMethod(fqn, id.Value, e.types.PHP)
+	}
+	return nil
+}
+
 func (e *Env) scope(scope syntax.Node) *scopeResult {
 	if r, ok := e.scopes[scope]; ok {
 		return r
 	}
 	r := &scopeResult{values: map[syntax.Expr]Value{}, before: map[syntax.Node]map[uint32]State{}, callIndex: map[syntax.Node]int{}, complete: true}
 	e.scopes[scope] = r
-	g := graph{complete: true}
+	// Block 0 ends the scope however it is left; a normal completion passes
+	// through the block before it, which tells whether the scope can return.
+	g := graph{complete: true, env: e}
 	exit := g.add(nil)
-	x := exits{exit, exit, exit, exit}
-	entry := exit
+	done := g.add(nil, exit)
+	x := exits{done, exit, done, done}
+	entry := done
 	if scope == nil {
-		entry = g.list(e.file.Stmts, exit, x)
+		entry = g.list(e.file.Stmts, done, x)
 	} else {
 		body := syntax.VariableScopeBody(scope)
 		if st, ok := body.(syntax.Stmt); ok {
-			entry = g.stmt(st, exit, x)
+			entry = g.stmt(st, done, x)
 		} else if body != nil {
-			entry = g.atom(body, exit, x)
+			entry = g.atom(body, done, x)
 		}
 	}
 	initial := frame{vars: map[string]Value{}, states: map[uint32]State{}}
@@ -286,6 +373,7 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 	// What each variable may hold when the scope ends is what a holder of a
 	// reference to it has written.
 	r.exit = inputs[exit].vars
+	r.leaves = inputs[done].vars == nil
 	r.complete = r.complete && g.complete && queued == 0
 	sort.Slice(r.calls, func(i, j int) bool { return r.calls[i].Node.Span().Start < r.calls[j].Node.Span().Start })
 	return r

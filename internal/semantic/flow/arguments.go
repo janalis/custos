@@ -274,3 +274,52 @@ func (e *Env) bind(at syntax.Node, values []Value) ([]Value, bool) {
 	}
 	return args, true
 }
+
+// accepted records what a PHP function proves by returning: since PHP 8 it
+// throws a TypeError for false or null given to a parameter that only takes
+// arrays, objects or callables (booleans and null still convert to scalar
+// parameters). The proof holds where that error cannot be caught: outside
+// any `try` with a `catch`.
+func (e *Env) accepted(call syntax.Node, list *syntax.ArgList, f *frame) {
+	if _, function := call.(*syntax.FuncCall); !function {
+		return
+	}
+	params, _, _ := e.declaration(call)
+	for p := call.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
+		if guarded, ok := p.(*syntax.Try); ok && len(guarded.Catches) > 0 {
+			return
+		}
+	}
+	var few [8]int
+	for i, at := range parameters(list, params, few[:0]) {
+		arg, ok := list.Args[i].(*syntax.Arg)
+		if !ok || at < 0 || arg.Unpack || params[at].ByRef || params[at].Variadic {
+			continue
+		}
+		if compound, nullable := compoundOnly(params[at].Type); compound {
+			exclude(arg.Value, f, true, !nullable)
+		}
+	}
+}
+
+// compoundOnly reports a declared parameter type made only of arrays,
+// iterables, callables, objects and classes, and whether it also takes null.
+func compoundOnly(declared string) (bool, bool) {
+	nullable := strings.HasPrefix(declared, "?")
+	declared = strings.TrimPrefix(declared, "?")
+	if declared == "" {
+		return false, false
+	}
+	for declared != "" {
+		var part string
+		part, declared, _ = strings.Cut(declared, "|")
+		switch strings.ToLower(strings.TrimPrefix(part, `\`)) {
+		case "null":
+			nullable = true
+		case "array", "iterable", "callable", "object", "countable", "traversable", "iterator", "arrayaccess", "closure":
+		default:
+			return false, false
+		}
+	}
+	return true, nullable
+}

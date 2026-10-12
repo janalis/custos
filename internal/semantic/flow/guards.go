@@ -37,6 +37,13 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		if truth {
 			exclude(n, f, true, true)
 		}
+		if flag, ok := n.(*syntax.Variable); ok && flag.NameExpr == nil {
+			// A boolean that stores a test stands for it while the values
+			// the test read are still the ones in place.
+			if test := e.stored(flag, f); test != nil {
+				e.refine(test, f, truth)
+			}
+		}
 	case *syntax.Empty:
 		if !truth {
 			exclude(n.Expr, f, true, true)
@@ -410,4 +417,33 @@ func assignedInPlace(cond syntax.Expr) *syntax.Assign {
 		}
 	}
 	return nil
+}
+
+// stored returns the test a flag variable holds (`$ok = $u !== false`) when
+// its outcome still describes the frame: every variable the test read has the
+// producer it had then. A test that assigns, or reads a value of unknown
+// origin, is not followed, nor is a flag that merely copies another one.
+func (e *Env) stored(flag *syntax.Variable, f *frame) syntax.Expr {
+	test := syntax.UnwrapParens(f.vars[flag.Name].Expr)
+	switch test.(type) {
+	case *syntax.Binary, *syntax.Unary, *syntax.FuncCall, *syntax.Isset, *syntax.Empty, *syntax.Instanceof:
+	default:
+		return nil
+	}
+	r := e.scopes[syntax.EnclosingVariableScope(flag)]
+	current := true
+	syntax.Inspect(test, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Assign, *syntax.IncDec, *syntax.Closure, *syntax.ArrowFunction:
+			current = false
+		case *syntax.Variable:
+			then, now := r.values[x], f.vars[x.Name]
+			current = current && x.NameExpr == nil && now.Expr != nil && then.Expr == now.Expr && then.Invalidated == now.Invalidated
+		}
+		return current
+	})
+	if !current {
+		return nil
+	}
+	return test
 }
