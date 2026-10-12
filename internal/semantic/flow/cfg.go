@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
 )
 
@@ -16,6 +17,10 @@ type (
 		next        []int
 		exceptional int
 		shared      bool
+		// pin names a variable that, on entry to the block, was just found
+		// loosely equal to a string literal no request text can equal
+		// without being that literal (see allowed).
+		pin string
 	}
 	graph struct {
 		blocks   []block
@@ -239,16 +244,65 @@ func (g *graph) choose(n *syntax.Switch, next int, x exits) int {
 			unmatched = below
 		}
 	}
+	// `switch (true)` tests each case expression for truth, like an
+	// if/elseif chain: a match establishes the condition, a miss its
+	// negation for the cases below and for the default.
+	conditions := false
+	if subject, ok := syntax.UnwrapParens(n.Cond).(*syntax.ConstFetch); ok && subject.Name != nil {
+		conditions = strings.EqualFold(strings.TrimPrefix(subject.Name.Value, `\`), "true")
+	}
+	// A plain variable compared with constant labels only is the value the
+	// labels were compared with: no label expression can have replaced it.
+	pinned := plainVariable(n.Cond)
+	for _, c := range n.Cases {
+		switch syntax.UnwrapParens(c.Cond).(type) {
+		case nil, *syntax.Literal, *syntax.ConstFetch, *syntax.ClassConstFetch:
+		default:
+			pinned = ""
+		}
+	}
 	test := unmatched
 	for i := len(n.Cases) - 1; i >= 0; i-- {
-		if label := n.Cases[i].Cond; label != nil {
-			test = g.add(nil, bodies[i], test)
+		label := n.Cases[i].Cond
+		switch {
+		case label == nil:
+		case conditions:
+			test = g.add(label, bodies[i], test)
+			g.blocks[test].shared = true
+		default:
+			matched := bodies[i]
+			if pinned != "" && allowed(label) {
+				matched = g.add(nil, bodies[i])
+				g.blocks[matched].pin = pinned
+				g.blocks[matched].shared = true
+			}
+			test = g.add(nil, matched, test)
 			g.blocks[test].exceptional = x.thrown
 			g.blocks[test].nodes = []syntax.Node{label}
 			g.blocks[test].shared = true
 		}
 	}
 	return g.atom(n.Cond, test, x)
+}
+
+// allowed reports a case label that request text can only match by being it:
+// a string literal that is not empty and does not start, after any leading
+// whitespace, like a number. PHP compares a string with a non-numeric string
+// byte for byte in every version, and an array never equals a string. Any
+// other label lets text through a loose comparison: an integer, a float or a
+// numeric string equals numeric strings with surrounding whitespace, signs
+// and exponents (and, before PHP 8, any text starting with the number, or
+// any non-numeric text for 0); `”`, `null`, `false` and `true` equal many
+// strings. The only other values that equal an allowed label are the boolean
+// true and, before PHP 8, the integer 0: neither holds text.
+func allowed(label syntax.Expr) bool {
+	literal, ok := syntax.UnwrapParens(label).(*syntax.Literal)
+	if !ok || literal.LitKind != syntax.LitString {
+		return false
+	}
+	text, known := literalText(literal)
+	text = strings.TrimLeft(text, " \t\n\r\v\f")
+	return known && text != "" && !strings.ContainsRune("0123456789+-.", rune(text[0]))
 }
 
 // leave builds the block of an expression that never completes: a throw, an
@@ -258,7 +312,10 @@ func (g *graph) leave(x syntax.Expr, out exits) (int, bool) {
 	case *syntax.Exit:
 		return g.atom(n, 0, out), true
 	case *syntax.Throw:
-		return g.atom(n, out.thrown, out), true
+		// A throw is an expression since PHP 8.0 only.
+		if g.env.types.PHP.AtLeast(phpversion.PHP80) {
+			return g.atom(n, out.thrown, out), true
+		}
 	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
 		if g.env.never(n) {
 			return g.atom(n, out.thrown, out), true
@@ -425,6 +482,10 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 		}
 		if b.node != nil {
 			e.transfer(b.node, &out, r)
+		}
+		if held := out.vars[b.pin]; b.pin != "" && tainted(held) {
+			// The request data was just compared equal to a fixed text.
+			out.write(r, b.pin, Value{Complete: true})
 		}
 		for j := len(b.nodes) - 1; j >= 0; j-- {
 			e.transfer(b.nodes[j], &out, r)

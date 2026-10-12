@@ -165,6 +165,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   itself by the inspections that track a result back to its producer.
 - `ForkChildFallsIntoParentWork` counts the levels of `break 2`/`continue 2`
   instead of assuming any level leaves the child block.
+- Request-data inspections accept a `switch` allow-list: inside an arm
+  reached only through non-numeric string labels, and after the switch when
+  the `default` arm replaces the value or leaves, the value is the matched
+  label. `switch (true)` cases are read as conditions, for request data and
+  for failure checks alike.
+- A by-reference sanitiser called as `Class::method($x)`, or on an object of
+  a `final` class, clears or escapes the argument again; an array of numbers
+  produced through a by-reference parameter keeps that property.
 - Statements written before a `do … while` loop are no longer analysed as
   part of its body: a read before the loop does not see values assigned in
   it, and a variable stepped in the loop is no longer taken for its value

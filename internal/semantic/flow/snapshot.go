@@ -271,7 +271,7 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot) (*Env, *
 					if sum.ByRef == nil {
 						sum.ByRef = map[int]Value{}
 					}
-					sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe}
+					sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe, scalars: left.scalars}
 				}
 			}
 			sum.Return.Expr = nil

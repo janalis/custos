@@ -59,6 +59,68 @@ func TestSwitchPaths(t *testing.T) {
 	}
 }
 
+// Request data that a switch compared equal to a fixed text is that text: a
+// string label that does not read as a number admits no other string. Any
+// other label, a fall-through from elsewhere or a default arm proves nothing.
+func TestSwitchAllowLists(t *testing.T) {
+	const a = `$a=$_GET['a']; `
+	for _, tc := range []struct {
+		name, src string
+		taint     bool
+	}{
+		{"labelled arm", a + `switch($a){case 'list': case 'show': probe($a); break;}`, false},
+		{"after the switch, default replaces", a + `switch($a){case 'name': case 'date': break; default: $a='name';} probe($a);`, false},
+		{"after the switch, default leaves", `function f(){` + a + `switch($a){case 'list': break; default: return;} probe($a);}`, false},
+		{"after the switch, default throws", `function f(){` + a + `switch($a){case 'list': break; default: throw new E;} probe($a);}`, false},
+		{"after the switch, default continues", a + `switch($a){case 'list': break; default: break;} probe($a);`, true},
+		{"after the switch, no default", a + `switch($a){case 'list': case 'show': break;} probe($a);`, true},
+		{"default arm", a + `switch($a){case 'list': break; default: probe($a);}`, true},
+		{"default falls into the arm", a + `switch($a){default: echo 1; case 'list': probe($a);}`, true},
+		{"arm reached from a reassigning arm", a + `switch($a){case 'list': $a=$_GET['b']; case 'show': probe($a);}`, true},
+		{"arm reached from a labelled arm", a + `switch($a){case 'list': echo 1; case 'show': probe($a);}`, false},
+		{"another variable is the subject", a + `switch($c){case 'list': probe($a);}`, true},
+		{"label with leading whitespace", a + `switch($a){case ' list': probe($a);}`, false},
+		{"numeric string label", a + `switch($a){case '1': probe($a);}`, true},
+		{"numeric string label after whitespace", a + `switch($a){case " \t1": probe($a);}`, true},
+		{"signed label", a + `switch($a){case '-x': probe($a);}`, true},
+		{"fraction label", a + `switch($a){case '.5': probe($a);}`, true},
+		{"empty label", a + `switch($a){case '': probe($a);}`, true},
+		{"blank label", a + `switch($a){case ' ': probe($a);}`, true},
+		{"integer label", a + `switch($a){case 0: probe($a);}`, true},
+		{"constant label", a + `switch($a){case LISTING: probe($a);}`, true},
+		{"class constant beside a string label", a + `switch($a){case K::A: break; case 'list': probe($a);}`, false},
+		{"label expression beside a string label", a + `switch($a){case $_GET['b']: break; case 'list': probe($a);}`, true},
+		{"label that writes the subject", a + `switch($a){case ($a=$_GET['b']): break; case 'list': probe($a);}`, true},
+		{"subject is an expression", a + `switch(strtolower($a)){case 'list': probe($a);}`, true},
+		{"subject is a superglobal element", `switch($_GET['a']){case 'list': probe($_GET['a']);}`, true},
+		{"bound name sees the match", a + `$r=&$a; switch($a){case 'list': probe($r);}`, false},
+		// `switch (true)` reads its cases as conditions.
+		{"condition case", a + `switch(true){case $a === 'home': case $a === 'about': probe($a); break;}`, false},
+		{"condition case leaves", `function f(){` + a + `switch(true){case !ctype_digit($a): return;} probe($a);}`, true},
+		{"condition case without a fact", a + `switch(TRUE){case strlen($a) > 3: probe($a); break;}`, true},
+		{"condition default after cases", a + `switch(true){case $a !== 'home': break; default: probe($a);}`, false},
+		{"subject false", a + `switch(false){case $a === 'home': probe($a); break;}`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			e, f := environment(t, tc.src, nil)
+			calls := callsNamed(f, "probe")
+			if got := e.Tainted(argument(calls[len(calls)-1]), HTML); got != tc.taint {
+				t.Fatalf("taint=%v value=%+v", got, e.Value(argument(calls[len(calls)-1])))
+			}
+		})
+	}
+	// A subject that holds no request data keeps what was known of it.
+	e, f := environment(t, `$a='list'; switch($a){case 'list': probe($a);}`, nil)
+	if _, resolved := e.Resolve(argument(callsNamed(f, "probe")[0])); !resolved {
+		t.Fatal("clean subject lost its value")
+	}
+	// A digit test makes the value safe for a query after the switch.
+	e, f = environment(t, `function f(){$a=$_GET['a']; switch(true){case !ctype_digit($a): return;} probe($a);}`, nil)
+	if e.Tainted(argument(callsNamed(f, "probe")[0]), SQL) {
+		t.Fatal("condition case that leaves proved nothing after the switch")
+	}
+}
+
 // A value stays resolved only while no write the transfer functions cannot
 // attribute may have replaced it.
 func TestIndirectWritesDiscardResolvedValues(t *testing.T) {

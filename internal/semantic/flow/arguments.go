@@ -128,12 +128,23 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 // adds to what the argument held instead of replacing it.
 func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []int, old Value, r *scopeResult) Value {
 	// `new C` runs the constructor of C itself; a method may be replaced.
+	// The summary is the one of the body that runs when the callee is exactly
+	// known: a final or private method, a method of a final class, or a
+	// static call that names its class (`static::` binds late; an instance
+	// method of an open class may be replaced by a subclass of the receiver).
 	name, sealed := e.summaryName(call), true
-	switch call.(type) {
+	switch n := call.(type) {
 	case *syntax.MethodCall, *syntax.StaticCall:
 		sealed = false
 		if m := e.method(call); m != nil {
 			name, sealed = strings.ToLower(m.Class+"::"+m.Name), m.Final || m.Visibility == index.Private
+			if static, ok := n.(*syntax.StaticCall); ok {
+				class, _ := static.Class.(*syntax.Name)
+				sealed = sealed || !strings.EqualFold(class.Value, "static")
+			} else if receiver := e.types.TypeOf(n.(*syntax.MethodCall).Var).Classes(); len(receiver) == 1 {
+				declared := e.types.Index.Class(receiver[0], e.types.PHP)
+				sealed = sealed || declared != nil && declared.Final
+			}
 		}
 	}
 	summary, ok := e.contract(name)
@@ -169,6 +180,8 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 	if !summary.Fixed || !sealed {
 		return unsettled(old, next)
 	}
+	// An array of numbers the callee left is one for the caller.
+	next.scalars = written.scalars
 	return next
 }
 
