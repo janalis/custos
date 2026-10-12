@@ -100,9 +100,17 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		lx := x
 		lx.brk, lx.cont = next, loop
 		body := g.stmt(n.Body, loop, lx)
-		cond := g.add(nil, body, next)
-		for i := len(n.Cond) - 1; i >= 0; i-- {
-			cond = g.atom(n.Cond[i], cond, x)
+		// The last expression of the condition decides, like a while test:
+		// it refines the body on its true outcome and the exit on its false
+		// one. No condition is a true one.
+		var deciding syntax.Node
+		earlier := n.Cond
+		if len(earlier) > 0 {
+			deciding, earlier = earlier[len(earlier)-1], earlier[:len(earlier)-1]
+		}
+		cond := g.add(deciding, body, next)
+		for i := len(earlier) - 1; i >= 0; i-- {
+			cond = g.atom(earlier[i], cond, x)
 		}
 		g.blocks[test].next = []int{cond}
 		start := test

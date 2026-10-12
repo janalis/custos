@@ -113,10 +113,6 @@ func guarded(ctx *analysis.Context, input syntax.Expr) bool {
 			if in(x.Body) {
 				cond = x.Cond
 			}
-		case *syntax.For:
-			if in(x.Body) && len(x.Cond) > 0 {
-				cond = x.Cond[len(x.Cond)-1]
-			}
 		}
 		if cond != nil && excludesFalse(ctx, input, cond, truth) {
 			return true

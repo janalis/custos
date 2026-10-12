@@ -129,7 +129,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   reassigned in a loop after an early-exit check, or on one branch only, is
   reported when that assignment is unchecked. `isset($v['key'])`,
   `!empty($v['key'])` and `array_key_exists('key', $v)` count as checks of
-  `$v`.
+  `$v`, as do the condition of a `for` loop and a fallback chain tested in
+  place (`($u = a()) === false && ($u = b()) === false`).
 - Statements written before a `do … while` loop are no longer analysed as
   part of its body: a read before the loop does not see values assigned in
   it, and a variable stepped in the loop is no longer taken for its value

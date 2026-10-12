@@ -74,6 +74,12 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			}
 			e.refine(n.Right, f, truth)
 		}
+		if (!truth && (n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd)) || (truth && (n.Op.Kind == syntax.TBooleanOr || n.Op.Kind == syntax.TOr)) {
+			// Either operand decided. The right one ran only once the left
+			// one had not: what it tests of a value it assigns in place is
+			// settled for that value, whichever operand decided.
+			e.refineAssigned(n.Right, f, truth)
+		}
 		flag := constantName(n.Right)
 		if (truth && n.Op.Kind == syntax.TIsIdentical) || (!truth && n.Op.Kind == syntax.TIsNotIdentical) {
 			if variable, ok := syntax.UnwrapParens(n.Left).(*syntax.Variable); ok && variable.NameExpr == nil && !mirrored {
@@ -353,4 +359,55 @@ func (e *Env) rebinds(x, tested syntax.Expr) bool {
 		return !found
 	})
 	return found
+}
+
+// refineAssigned applies what a condition with a known outcome says about a
+// value it assigns in place (`($u = f()) !== false`) to that producer alone:
+// other producers of the variable reached the read without this test.
+func (e *Env) refineAssigned(cond syntax.Expr, f *frame, truth bool) {
+	stored := assignedInPlace(cond)
+	if stored == nil {
+		return
+	}
+	name := stored.Var.(*syntax.Variable).Name
+	produced := syntax.UnwrapParens(stored.Value)
+	alone := frame{vars: map[string]Value{name: {Complete: true, Expr: produced}}, states: map[uint32]State{}}
+	e.refine(cond, &alone, truth)
+	fact := alone.vars[name]
+	v := f.vars[name]
+	if !(fact.NonFalse || fact.NonNull) || v.Expr != nil || v.origins == nil {
+		return
+	}
+	n := &originSet{items: append([]Origin(nil), v.origins.items...), full: v.origins.full}
+	for i, o := range n.items {
+		if syntax.UnwrapParens(o.Expr) == produced {
+			n.items[i] = Origin{o.Expr, o.NonFalse || fact.NonFalse, o.NonNull || fact.NonNull}
+		}
+	}
+	v.origins = n
+	f.vars[name] = v
+}
+
+// assignedInPlace finds the plain assignment a condition tests directly:
+// the condition itself, under negations, or an operand of a comparison.
+func assignedInPlace(cond syntax.Expr) *syntax.Assign {
+	switch n := syntax.UnwrapParens(cond).(type) {
+	case *syntax.Assign:
+		if guarded(n) != nil {
+			return n
+		}
+	case *syntax.Unary:
+		if n.Op.Kind == syntax.TExclaim {
+			return assignedInPlace(n.Expr)
+		}
+	case *syntax.Binary:
+		switch n.Op.Kind {
+		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+			if stored := assignedInPlace(n.Left); stored != nil {
+				return stored
+			}
+			return assignedInPlace(n.Right)
+		}
+	}
+	return nil
 }

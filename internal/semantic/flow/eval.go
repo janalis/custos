@@ -201,10 +201,20 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		switch n.Op.Kind {
 		case syntax.TBooleanAnd, syntax.TAnd, syntax.TBooleanOr, syntax.TOr:
 			// The right operand runs only on the left operand's deciding outcome.
-			before := clone(*f)
-			e.refine(n.Left, f, n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd)
+			// The path that skips it saw the left operand decide the other way.
+			deciding := n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd
+			skipped := clone(*f)
+			e.refine(n.Left, &skipped, !deciding)
+			for name, refined := range skipped.vars {
+				// Only what the outcome excludes is kept: a value pinned
+				// or cleared by the test is another value to later reads.
+				if held := f.vars[name]; refined.Expr != held.Expr || len(refined.Sources) != len(held.Sources) {
+					skipped.vars[name] = held
+				}
+			}
+			e.refine(n.Left, f, deciding)
 			right = e.eval(n.Right, f, r, depth+1)
-			*f = rejoin(before, *f, r)
+			*f = rejoin(skipped, *f, r)
 		case syntax.TCoalesce:
 			before := clone(*f)
 			right = e.eval(n.Right, f, r, depth+1)

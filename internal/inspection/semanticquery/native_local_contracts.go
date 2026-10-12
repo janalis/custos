@@ -618,7 +618,19 @@ func nativeUnguardedResult(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 	}
 	for _, origin := range reaching {
 		switch result := syntax.UnwrapParens(origin.Expr).(type) {
-		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		case *syntax.FuncCall:
+			// A guard vouches for the failure value the function returns:
+			// false when it can return false, null otherwise.
+			declared := ""
+			if callee := ctx.Types().ResolveFunction(result); callee != nil {
+				declared = "|" + strings.ToLower(callee.Return) + "|"
+			}
+			fails := strings.Contains(declared, "|false|")
+			null := strings.Contains(declared, "|null|") || strings.HasPrefix(declared, "|?")
+			if fails && !origin.NonFalse || !fails && null && !origin.NonNull || !fails && !null && !origin.NonFalse && !origin.NonNull {
+				return result
+			}
+		case *syntax.MethodCall, *syntax.StaticCall:
 			if !origin.NonFalse && !origin.NonNull {
 				return result
 			}

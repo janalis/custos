@@ -101,6 +101,10 @@ func TestSharedLocalValueAcrossPaths(t *testing.T) {
 		{"one path, method result", `function f($a, $c){$u=parse_url($a); if($u === false){return;} if($c){$u=$a->load();} probe($u);}`, "$a->load()"},
 		{"one path, static result", `function f($a, $c){$u=parse_url($a); if($u === false){return;} if($c){$u=Repo::load();} probe($u);}`, "Repo::load()"},
 		{"one path, both tested", `function f($a, $c){$u=parse_url($a); if($u === false){return;} if($c){$u=scandir($a);} if($u === false){return;} probe($u);}`, ""},
+		{"null excluded for a result that fails with false", `function f($a, $c){$u=parse_url($a); if($c){$u=scandir($a);} if(!isset($u)){return;} probe($u);}`, "parse_url($a)"},
+		{"null excluded for a result that fails with null", `function f($a, $c){$u=preg_replace('/a/', 'b', $a); if($c){$u=preg_replace('/c/', 'd', $a);} if($u === null){return;} probe($u);}`, ""},
+		{"false excluded for a result that fails with null", `function f($a, $c){$u=preg_replace('/a/', 'b', $a); if($c){$u=preg_replace('/c/', 'd', $a);} if($u === false){return;} probe($u);}`, "preg_replace('/a/', 'b', $a)"},
+		{"false excluded for a result of unknown type", `function f($a, $c){$u=load($a); if($c){$u=other($a);} if($u === false){return;} probe($u);}`, ""},
 		{"one path, literals", `function f($a, $c){$u=1; if($c){$u=2;} probe($u);}`, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
