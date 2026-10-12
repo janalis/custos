@@ -33,6 +33,10 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 		if v := NativeLocalValue(ctx, a); v != nil {
 			result = ctx.Text(v)
 		}
+	case "origin-false", "origin-null":
+		if v := NativeLocalResult(ctx, a, strings.TrimPrefix(p.query, "origin-")); v != nil {
+			result = ctx.Text(v)
+		}
 	case "same":
 		result = fmt.Sprint(NativeSameValue(ctx, a, b))
 	case "stable":
@@ -109,6 +113,28 @@ func TestSharedLocalValueAcrossPaths(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := sharedDefectResults(t, "origin", tc.src, ""); got != tc.want {
+				t.Fatalf("origin=%q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// An inspection that states the failure value it is about is not answered
+// from the declared return type of whatever call produced the value.
+func TestSharedLocalResultUsesTheStatedFailure(t *testing.T) {
+	const twoResults = `function f($a, $c){$u=parse_url($a); if($u === false){return;} if($c){$u=`
+	for _, tc := range []struct{ name, query, src, want string }{
+		{"method result, null excluded, declared type", "origin", twoResults + `$a->load();} if($u === null){return;} probe($u);}`, ""},
+		{"method result, null excluded, fails with false", "origin-false", twoResults + `$a->load();} if($u === null){return;} probe($u);}`, "$a->load()"},
+		{"method result, false excluded, fails with false", "origin-false", twoResults + `$a->load();} if($u === false){return;} probe($u);}`, ""},
+		{"method result, false excluded, fails with null", "origin-null", twoResults + `$a->load();} if($u === false){return;} probe($u);}`, "parse_url($a)"},
+		{"function result, null excluded, declared type", "origin", twoResults + `scandir($a);} if($u === null){return;} probe($u);}`, "scandir($a)"},
+		{"function result, null excluded, fails with null", "origin-null", twoResults + `scandir($a);} if($u === null){return;} probe($u);}`, ""},
+		{"function result, false excluded, fails with null", "origin-null", twoResults + `scandir($a);} if($u === false){return;} probe($u);}`, "parse_url($a)"},
+		{"single result", "origin-false", `function f($a){$u=parse_url($a); probe($u);}`, "parse_url($a)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := sharedDefectResults(t, tc.query, tc.src, ""); got != tc.want {
 				t.Fatalf("origin=%q, want %q", got, tc.want)
 			}
 		})

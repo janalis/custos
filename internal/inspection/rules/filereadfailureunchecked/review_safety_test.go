@@ -47,7 +47,16 @@ func TestReviewSafety(t *testing.T) {
 		{"other read", "function f($f) { " + read + "if (($d = file_get_contents($f)) == false) { return 0; }" + use, 1},
 		{"read after guard", "function f($f) { " + read + "if ($c == false) { return 0; } $c = file_get_contents($f);" + use, 1},
 		{"guard does not exit", "function f($f) { " + read + "if ($c == false) { echo 1; }" + use, 1},
-		{"guard with else", "function f($f) { " + read + "if ($c == false) { return 0; } else { echo 1; }" + use, 1},
+		// A loose comparison with a falsy constant is read by the rule itself.
+		{"loose empty string branch", "function f($f) { " + read + "if ($c != '') {" + use + " }", 0},
+		{"loose empty string operand", "function f($f) { " + read + "return $c != '' && strlen($c); }", 0},
+		{"loose empty string arm", "function f($f) { " + read + "return $c == '' ? 0 : strlen($c); }", 0},
+		{"loose empty string else", "function f($f) { " + read + "if ($c == '') { echo 1; } else {" + use + " }", 0},
+		{"loose empty string unbraced never", "function f($f) { " + read + "if ($c == '') stop();" + use, 0},
+		{"loose empty string wrong branch", "function f($f) { " + read + "if ($c == '') {" + use + " }", 1},
+		{"loose non-empty string", "function f($f) { " + read + "if ($c != 'x') {" + use + " }", 1},
+		// The use is only reached when the comparison failed, whatever the else branch does.
+		{"guard with else", "function f($f) { " + read + "if ($c == false) { return 0; } else { echo 1; }" + use, 0},
 		{"conjunction exit", "function f($f, $x) { " + read + "if ($c == false && $x) { return 0; }" + use, 1},
 		{"disjunction exit", "function f($f, $x) { " + read + "if ($x || $c == false) { return 0; }" + use, 0},
 		{"negated exit", "function f($f) { " + read + "if (!($c != false)) { return 0; }" + use, 0},
@@ -77,7 +86,8 @@ func TestReviewSafety(t *testing.T) {
 		{"never static", "function f($f) { " + read + "if ($c === false) { K::stop(); }" + use, 0},
 		{"never not string", "function f($f) { " + read + "if (!is_string($c)) { stop(); }" + use, 0},
 		{"never is string exits", "function f($f) { " + read + "if (is_string($c)) { stop(); }" + use, 1},
-		{"never other predicate", "function f($f) { " + read + "if (!is_array($c)) { stop(); }" + use, 1},
+		// Execution continues only for an array, which is not the failure value.
+		{"never other predicate", "function f($f) { " + read + "if (!is_array($c)) { stop(); }" + use, 0},
 		{"never empty", "function f($f) { " + read + "if (empty($c)) { stop(); }" + use, 0},
 		{"never not empty", "function f($f) { " + read + "if (!empty($c)) { stop(); }" + use, 1},
 		{"never truthy exits", "function f($f) { " + read + "if ($c) { stop(); }" + use, 1},

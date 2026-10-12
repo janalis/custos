@@ -7,9 +7,11 @@ import (
 	"custos/internal/php/syntax"
 )
 
-// guard proves failure handling that type narrowing does not model: loose
-// comparisons with a falsy constant, alternatives that never return and
-// branches ending in a call declared never.
+// guard proves failure handling that neither type narrowing nor the shared
+// flow analysis models: loose comparisons with a falsy constant other than
+// false and null, in the positions a test can hold for the use. Every other
+// form (strict and truthiness tests, alternatives that never return) is a
+// flow fact, asked before this guard.
 type guard struct {
 	ctx  *analysis.Context
 	read *syntax.FuncCall
@@ -18,9 +20,6 @@ type guard struct {
 // guarded reports whether every path from the read to use excludes false.
 func guarded(ctx *analysis.Context, use syntax.Expr, read *syntax.FuncCall) bool {
 	g := guard{ctx, read}
-	if g.alternativeNeverReturns(use) {
-		return true
-	}
 	var child syntax.Node = use
 	for p := use.Parent(); p != nil && !syntax.IsVariableScope(p); child, p = p, p.Parent() {
 		switch x := p.(type) {
@@ -55,30 +54,6 @@ func logicalAnd(b *syntax.Binary) bool {
 
 func logicalOr(b *syntax.Binary) bool {
 	return b.Op.Kind == syntax.TBooleanOr || b.Op.Kind == syntax.TOr
-}
-
-// alternativeNeverReturns recognizes `$text = read() or die()`: the tracked
-// assignment is the left operand of a disjunction whose other side never
-// returns, so any later use holds a truthy result.
-func (g guard) alternativeNeverReturns(use syntax.Expr) bool {
-	assign, ok := parentPastParens(g.read).(*syntax.Assign)
-	if !ok || assign.ByRef || assign.Op.Kind != syntax.TEqual || syntax.UnwrapParens(assign.Value) != syntax.Expr(g.read) {
-		return false
-	}
-	or, ok := parentPastParens(assign).(*syntax.Binary)
-	return ok && logicalOr(or) && syntax.UnwrapParens(or.Left) == syntax.Expr(assign) &&
-		!or.Span().Contains(use.Span()) && g.neverReturns(or.Right)
-}
-
-func parentPastParens(n syntax.Node) syntax.Node {
-	p := n.Parent()
-	for {
-		paren, ok := p.(*syntax.Paren)
-		if !ok {
-			return p
-		}
-		p = paren.Parent()
-	}
 }
 
 // earlierExit finds an earlier sibling `if` without alternatives whose body

@@ -522,6 +522,18 @@ func NativeContractInt(ctx *analysis.Context, e syntax.Expr) (int64, bool) {
 // callees omitted by the general value graph. It rejects ambiguous writes,
 // by-reference aliases and calls that may replace the tracked variable.
 func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
+	return nativeLocalValue(ctx, e, "")
+}
+
+// NativeLocalResult is NativeLocalValue for an inspection about results that
+// fail with one value, "false" or "null": when several assignments reach the
+// read, a call result counts as guarded only if that value is excluded on
+// its path, whatever the declared return type of the callee says.
+func NativeLocalResult(ctx *analysis.Context, e syntax.Expr, failure string) syntax.Expr {
+	return nativeLocalValue(ctx, e, failure)
+}
+
+func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string) syntax.Expr {
 	known := NativeValue(ctx, e)
 	variable, ok := syntax.UnwrapParens(e).(*syntax.Variable)
 	if !ok {
@@ -530,7 +542,7 @@ func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 		}
 		return e
 	}
-	if result := nativeUnguardedResult(ctx, e); result != nil {
+	if result := nativeUnguardedResult(ctx, e, failure); result != nil {
 		return result
 	}
 	scope := syntax.EnclosingVariableScope(e)
@@ -600,40 +612,41 @@ func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 		return nil
 	}
 	if v, ok := value.(*syntax.Variable); ok {
-		return NativeLocalValue(ctx, v)
+		return nativeLocalValue(ctx, v, failure)
 	}
 	return value
 }
 
 // nativeUnguardedResult handles a variable several assignments reach: across
 // a loop back-edge, or after a reassignment on some path only. It returns the
-// first reaching call result that no guard on its own path separates from the
-// false and null failure values; a guard written before another assignment
-// does not vouch for that assignment. nil when one assignment reaches the
-// read, or when every reaching call result is guarded on its path.
-func nativeUnguardedResult(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
+// first reaching call result that no guard on its own path separates from its
+// failure value; a guard written before another assignment does not vouch for
+// that assignment. nil when one assignment reaches the read, or when every
+// reaching call result is guarded on its path. failure names the value the
+// asking inspection is about; without one, a function result fails with false
+// when its declared type can be false, with null otherwise, and a result of
+// unknown type is guarded by either exclusion.
+func nativeUnguardedResult(ctx *analysis.Context, e syntax.Expr, failure string) syntax.Expr {
 	reaching, single := ctx.Flow().Reaching(e)
 	if single {
 		return nil
 	}
 	for _, origin := range reaching {
-		switch result := syntax.UnwrapParens(origin.Expr).(type) {
+		result := syntax.UnwrapParens(origin.Expr)
+		fails, null := failure == "false", failure == "null"
+		switch call := result.(type) {
 		case *syntax.FuncCall:
-			// A guard vouches for the failure value the function returns:
-			// false when it can return false, null otherwise.
-			declared := ""
-			if callee := ctx.Types().ResolveFunction(result); callee != nil {
-				declared = "|" + strings.ToLower(callee.Return) + "|"
-			}
-			fails := strings.Contains(declared, "|false|")
-			null := strings.Contains(declared, "|null|") || strings.HasPrefix(declared, "|?")
-			if fails && !origin.NonFalse || !fails && null && !origin.NonNull || !fails && !null && !origin.NonFalse && !origin.NonNull {
-				return result
+			if callee := ctx.Types().ResolveFunction(call); callee != nil && failure == "" {
+				declared := "|" + strings.ToLower(callee.Return) + "|"
+				fails = strings.Contains(declared, "|false|")
+				null = !fails && (strings.Contains(declared, "|null|") || strings.HasPrefix(declared, "|?"))
 			}
 		case *syntax.MethodCall, *syntax.StaticCall:
-			if !origin.NonFalse && !origin.NonNull {
-				return result
-			}
+		default:
+			continue
+		}
+		if fails && !origin.NonFalse || null && !origin.NonNull || !fails && !null && !origin.NonFalse && !origin.NonNull {
+			return result
 		}
 	}
 	return nil

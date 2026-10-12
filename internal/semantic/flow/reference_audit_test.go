@@ -37,6 +37,15 @@ func TestReferenceCallsCannotRetainPriorValueProof(t *testing.T) {
 		{`function f($o, $a){$u=fopen($a,'r'); if($u === false){return;} $o->m($u['host']->p); probe($u);}`, false, true},
 		{`function f($o, $a){$u=['k'=>'v']; preg_match('/a/', $_GET['s'], $u['m']); probe($u);}`, true, false},
 		{`function f($o, $a){$u=['k'=>'v', 'c'=>$_GET['c']]; $o->m($u['k']); probe($u['k']);}`, true, false},
+		// The elements beside the one passed keep what was known of them.
+		{`function f($o, $a){$u=['c'=>'ls', 'k'=>$_GET['c']]; $o->m($u['k']); probe($u['c']);}`, false, false},
+		{`function f($o, $a){$u=['c'=>'ls', 'k'=>['j'=>$_GET['c']]]; $o->m($u['k']['j']); probe($u['c']);}`, false, false},
+		{`function f($o, $a){$u=['c'=>'ls', 'k'=>$_GET['c']]; $o->m($u[$a]); probe($u['c']);}`, true, false},
+		{`function f($o, $a){$u=['c'=>'ls', 'k'=>['j'=>$_GET['c']]]; $o->m($u[$a]['j']); probe($u['c']);}`, true, false},
+		{`function f($o, $a){$u=['c'=>'ls', 'k'=>$_GET['c']]; $o->m($u['c']); probe($u['c']);}`, true, false},
+		{`function f($o, $a){$u=['c'=>'ls', 'k'=>$_GET['c']]; $o->m($u); probe($u['c']);}`, true, false},
+		{`function f($o, $a){$u=['k'=>$_GET['c']]; $o->m($u['k']); probe($u);}`, true, false},
+		{`function f($o, $a){$u=['c'=>'ls', 'k'=>$_GET['c']]; $r=&$u; $o->m($r['k']); probe($u['c']);}`, true, false},
 	} {
 		e, f := environment(t, tc.src, nil)
 		x := argument(callsNamed(f, "probe")[0])

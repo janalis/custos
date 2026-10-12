@@ -106,6 +106,9 @@ func TestOriginSetsCompareByContent(t *testing.T) {
 			t.Errorf("sameOrigins(%+v)=%v", tc.other, got)
 		}
 	}
+	if a.holds(&Value{origins: &originSet{full: true}}) || !a.holds(&Value{}) {
+		t.Error("a set holds more producers than are followed, or not an unknown value")
+	}
 	if (*originSet)(nil).excluding(true, true) != nil {
 		t.Error("no producers gained a guard")
 	}

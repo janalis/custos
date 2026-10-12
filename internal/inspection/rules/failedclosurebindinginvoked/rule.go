@@ -21,7 +21,7 @@ func (rule) Semantic()                {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
-	bound := semanticquery.NativeLocalValue(ctx, call.Name)
+	bound := semanticquery.NativeLocalResult(ctx, call.Name, "null")
 	var closure, object syntax.Expr
 	switch b := bound.(type) {
 	case *syntax.MethodCall:

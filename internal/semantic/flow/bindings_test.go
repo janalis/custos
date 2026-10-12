@@ -25,6 +25,8 @@ func TestIndirectWritesDiscardResolvedValues(t *testing.T) {
 		{"increment of a parameter", `function f($x){$x++; probe($x);}`, false},
 		{"increment in a do-while", `$x=1; do{$x++;}while($c); probe($x);`, false},
 		{"assignment before a do-while", `$x=1; do{$y=2;}while($c); probe($x);`, true},
+		{"static local across a call into the project", `function f(){static $x; $x=1; work(); probe($x);}`, false},
+		{"static local across a builtin call", `function f(){static $x; $x=1; strlen('a'); probe($x);}`, true},
 		{"increment in one branch", `$x=1; if($c){$x++;} probe($x);`, false},
 		{"compound assignment", `$x=1; $x+=2; probe($x);`, true},
 		{"compound assignment of a parameter", `function f($x){$x.='a'; probe($x);}`, false},

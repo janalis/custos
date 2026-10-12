@@ -28,7 +28,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.ExpansionDUnaliased(ctx, loop.Expr, n) {
 		return
 	}
-	c, ok := semanticquery.NativeLocalValue(ctx, loop.Expr).(*syntax.FuncCall)
+	c, ok := semanticquery.NativeLocalResult(ctx, loop.Expr, "false").(*syntax.FuncCall)
 	if ok && semanticquery.NativeBuiltin(ctx, c, "scandir") && !semanticquery.NativeLocalSentinelGuard(ctx, loop.Expr, "false") && !ctx.Flow().Excludes(loop.Expr, "false") && !guarded(ctx, loop.Expr) {
 		ctx.ReportNode(loop.Expr, message)
 	}

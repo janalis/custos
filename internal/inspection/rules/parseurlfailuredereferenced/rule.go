@@ -33,7 +33,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.ExpansionDPristine(ctx, a.Var, n) {
 		return
 	}
-	c, ok := semanticquery.NativeLocalValue(ctx, a.Var).(*syntax.FuncCall)
+	c, ok := semanticquery.NativeLocalResult(ctx, a.Var, "false").(*syntax.FuncCall)
 	if !ok || !semanticquery.NativeBuiltin(ctx, c, "parse_url") {
 		return
 	}

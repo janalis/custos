@@ -199,6 +199,24 @@ const (
 // one, which lets every copy of the array value share it.
 type elementSet struct{ items map[string]Value }
 
+// without returns the set less one element, which a callee holding a
+// reference to it may have rewritten; nothing when the element is not known.
+func (s *elementSet) without(key string, known bool) *elementSet {
+	if s == nil || !known {
+		return nil
+	}
+	n := &elementSet{items: map[string]Value{}}
+	for k, v := range s.items {
+		if k != key {
+			n.items[k] = v
+		}
+	}
+	if len(n.items) == 0 {
+		return nil
+	}
+	return n
+}
+
 // with returns the set with one more element written.
 func (s *elementSet) with(key string, v Value) *elementSet {
 	n := &elementSet{items: map[string]Value{key: v}}

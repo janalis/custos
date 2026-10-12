@@ -33,7 +33,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !semanticquery.ExpansionDUnaliased(ctx, input, c) {
 			continue
 		}
-		source, known := semanticquery.NativeLocalValue(ctx, input).(*syntax.FuncCall)
+		source, known := semanticquery.NativeLocalResult(ctx, input, "false").(*syntax.FuncCall)
 		if !known || !semanticquery.NativeBuiltin(ctx, source, "realpath") || semanticquery.NativeLocalSentinelGuard(ctx, input, "false") || ctx.Flow().Excludes(input, "false") {
 			continue
 		}

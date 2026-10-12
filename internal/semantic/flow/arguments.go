@@ -111,10 +111,26 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 				next = unsettled(old, next)
 				next.Complete = next.Complete || old.Complete
 				next.NonFalse, next.NonNull = old.NonFalse, old.NonNull
+				next.elements = old.elements.without(boundElement(a.Value))
 			}
 			f.write(r, variable.Name, next)
 		}
 	}
+}
+
+// boundElement returns the key of the element of a variable an argument
+// reaches when every offset on the way is constant, "" and false otherwise.
+func boundElement(argument syntax.Expr) (string, bool) {
+	key, known := "", true
+	for x := syntax.UnwrapParens(argument); known; {
+		fetch, ok := x.(*syntax.ArrayDimFetch)
+		if !ok {
+			break
+		}
+		key, known = arrayKey(fetch.Dim)
+		x = syntax.UnwrapParens(fetch.Var)
+	}
+	return key, known
 }
 
 // parameters maps each argument of a call to the index of the parameter it
