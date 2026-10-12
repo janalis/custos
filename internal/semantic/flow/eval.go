@@ -67,9 +67,6 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 	case *syntax.StaticStmt:
 		for _, x := range n.Vars {
 			rebind(x.Var, f, r)
-			// The storage outlives the call: a callee that enters the
-			// function again writes it.
-			f.alias(x.Var.Name, aliasHeld)
 		}
 	default:
 		syntax.Children(n, func(child syntax.Node) {
