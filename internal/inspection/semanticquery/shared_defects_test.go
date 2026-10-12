@@ -87,6 +87,30 @@ func sharedDefectResults(t testing.TB, query, src, php string) string {
 	return strings.Join(got, ",")
 }
 
+// A variable several assignments reach resolves to the first call result no
+// guard on its own path covers: the one a failure check has to worry about.
+func TestSharedLocalValueAcrossPaths(t *testing.T) {
+	for _, tc := range []struct{ name, src, want string }{
+		{"loop, first result tested", `function f($a, $c){$u=parse_url($a); if($u === false){return;} while($c--){probe($u); $u=scandir($a);}}`, "scandir($a)"},
+		{"loop, first result untested", `function f($a, $c){$u=parse_url($a); while($c--){probe($u); $u=scandir($a);}}`, "parse_url($a)"},
+		{"loop, tested inside", `function f($a, $c){$u=parse_url($a); while($c--){if(!$u){return;} probe($u); $u=scandir($a);}}`, "parse_url($a)"},
+		{"loop, literal first", `function f($a, $c){$u=['k'=>1]; while($c--){probe($u); $u=scandir($a);}}`, "scandir($a)"},
+		{"loop, literal later", `function f($a, $c){$u=parse_url($a); if($u === false){return;} while($c--){probe($u); $u=false;}}`, "parse_url($a)"},
+		{"loop, unassigned first", `function f($a, $c){while($c--){probe($u); $u=scandir($a);}}`, "scandir($a)"},
+		{"one path, first result tested", `function f($a, $c){$u=parse_url($a); if($u === false){return;} if($c){$u=scandir($a);} probe($u);}`, "scandir($a)"},
+		{"one path, method result", `function f($a, $c){$u=parse_url($a); if($u === false){return;} if($c){$u=$a->load();} probe($u);}`, "$a->load()"},
+		{"one path, static result", `function f($a, $c){$u=parse_url($a); if($u === false){return;} if($c){$u=Repo::load();} probe($u);}`, "Repo::load()"},
+		{"one path, both tested", `function f($a, $c){$u=parse_url($a); if($u === false){return;} if($c){$u=scandir($a);} if($u === false){return;} probe($u);}`, ""},
+		{"one path, literals", `function f($a, $c){$u=1; if($c){$u=2;} probe($u);}`, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := sharedDefectResults(t, "origin", tc.src, ""); got != tc.want {
+				t.Fatalf("origin=%q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 // A local resolves to its plain assignment only while no other write of the
 // variable lies between that assignment and the read.
 func TestSharedLocalValueSeesEveryWrite(t *testing.T) {

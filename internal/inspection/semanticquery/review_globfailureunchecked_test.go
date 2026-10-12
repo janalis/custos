@@ -62,6 +62,11 @@ func TestReviewGlobFailureUnchecked(t *testing.T) {
 		{"countable branch", get + "if(is_countable($p)){return count($p);}", 0},
 		{"loose not false branch", get + "if($p!=false){" + loop + "}", 0},
 		{"true comparison branch", get + "if($p==true){" + loop + "}", 0},
+		// Comparisons with `true` are read by the guard walk alone.
+		{"true comparison operand", get + "return $p==true&&count($p);", 0},
+		{"true comparison arm", get + "return $p==true?count($p):0;", 0},
+		{"true comparison elseif", get + "if($q){echo 1;}elseif($p==true){" + loop + "}", 0},
+		{"offset probe compared with true", get + "if(isset($p[0])==true){" + loop + "}", 0},
 		{"conjunction branch", get + "if($q&&$p){" + loop + "}", 0},
 		{"keyword conjunction branch", get + "if($q and !empty($p)){" + loop + "}", 0},
 		{"disjunction branch proves nothing", get + "if($q||$p){" + loop + "}", 1},

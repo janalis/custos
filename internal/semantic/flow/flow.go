@@ -47,19 +47,23 @@ type Source struct {
 // Value is a conservative union of possible inputs. Safe is the intersection
 // of proven escaping contexts. Expr and Identity require agreement on every path.
 type Value struct {
-	Sources     []Source
-	Safe        Context
-	Complete    bool
-	Expr        syntax.Expr
-	Identity    uint32
-	Invalidated uint32
-	NonFalse    bool
-	NonNull     bool
+	Sources []Source
+	Expr    syntax.Expr
 	// elements holds the literal-keyed elements of an array variable that
 	// are tracked on their own. Only a binding carries them: the value of an
 	// expression never does.
-	elements    *elementSet
+	elements *elementSet
+	// origins lists the expressions that may have produced a binding the
+	// paths disagree on (Expr is then nil), each with what its own paths
+	// established. It means nothing while Expr is set.
+	origins     *originSet
 	Length      int64
+	Identity    uint32
+	Invalidated uint32
+	Safe        Context
+	Complete    bool
+	NonFalse    bool
+	NonNull     bool
 	LengthKnown bool
 	headerMask  uint8
 	// upload marks the table of uploaded files or one of its entries as PHP
@@ -68,6 +72,122 @@ type Value struct {
 	// scalars marks an array whose values are numbers, booleans or null
 	// while its keys remain whatever the request sent.
 	scalars bool
+}
+
+// Origin is one expression that may have produced the value read, with the
+// failure values the guards on its paths exclude.
+type Origin struct {
+	Expr     syntax.Expr
+	NonFalse bool
+	NonNull  bool
+}
+
+// MaxOrigins bounds the producers followed for one binding.
+const MaxOrigins = 4
+
+// originSet is never modified once a binding holds it. A path that gave the
+// binding a value no expression accounts for adds nothing to it: a set of one
+// producer is a binding some other path left unknown. full records that
+// there were more producers than are followed, which no later join undoes.
+type originSet struct {
+	items []Origin
+	full  bool
+}
+
+// origins joins the producers of a binding two paths disagree on. It returns
+// the set one of them already holds when the other adds nothing to it, and a
+// full set past MaxOrigins.
+func origins(a, b Value) *originSet {
+	if a.Expr == b.Expr && (a.Expr != nil || a.origins == nil && b.origins == nil) {
+		return nil
+	}
+	if held := a.origins; a.Expr == nil && held != nil && (held.full || held.holds(&b)) {
+		return held
+	}
+	if held := b.origins; b.Expr == nil && held != nil && (held.full || held.holds(&a)) {
+		return held
+	}
+	n := &originSet{}
+	for _, v := range [2]*Value{&a, &b} {
+		switch {
+		case v.Expr != nil:
+			n.add(Origin{v.Expr, v.NonFalse, v.NonNull})
+		case v.origins != nil:
+			for _, o := range v.origins.items {
+				n.add(o)
+			}
+		}
+	}
+	if len(n.items) > MaxOrigins {
+		return &originSet{full: true}
+	}
+	return n
+}
+
+// add joins one producer into a set under construction.
+func (s *originSet) add(o Origin) {
+	for i, known := range s.items {
+		if known.Expr == o.Expr {
+			s.items[i] = Origin{o.Expr, known.NonFalse && o.NonFalse, known.NonNull && o.NonNull}
+			return
+		}
+	}
+	s.items = append(s.items, o)
+}
+
+// holds reports that joining v adds nothing to the set: each producer of v
+// is there with no more guards than v has.
+func (s *originSet) holds(v *Value) bool {
+	has := func(o Origin) bool {
+		for _, known := range s.items {
+			if known.Expr == o.Expr {
+				return (!known.NonFalse || o.NonFalse) && (!known.NonNull || o.NonNull)
+			}
+		}
+		return false
+	}
+	switch {
+	case v.Expr != nil:
+		return has(Origin{v.Expr, v.NonFalse, v.NonNull})
+	case v.origins == nil:
+		return true
+	case v.origins.full:
+		return false
+	}
+	for _, o := range v.origins.items {
+		if !has(o) {
+			return false
+		}
+	}
+	return true
+}
+
+// excluding returns the set with a failure value excluded for every producer.
+func (s *originSet) excluding(nonFalse, nonNull bool) *originSet {
+	if s == nil {
+		return nil
+	}
+	n := &originSet{items: make([]Origin, len(s.items)), full: s.full}
+	for i, o := range s.items {
+		n.items[i] = Origin{o.Expr, o.NonFalse || nonFalse, o.NonNull || nonNull}
+	}
+	return n
+}
+
+// sameOrigins compares two sets by content.
+func sameOrigins(a, b *originSet) bool {
+	if a == b {
+		return true
+	}
+	if a == nil || b == nil || a.full != b.full || len(a.items) != len(b.items) {
+		return false
+	}
+	for i, o := range a.items {
+		if o != b.items[i] {
+			return false
+		}
+	}
+	return true
 }
 
 const (
@@ -256,6 +376,29 @@ func (e *Env) Excludes(x syntax.Expr, literal string) bool {
 	return false
 }
 
+// Reaching returns the expressions that may have produced the value of a
+// plain variable read, in the order the paths were joined, each with the
+// failure values its paths exclude. The second result reports that the paths
+// agree on one producer. Otherwise the list may leave out paths on which the
+// variable is unassigned or holds a value the scope does not account for,
+// and it is empty when nothing is known or more than MaxOrigins reach.
+func (e *Env) Reaching(x syntax.Expr) ([]Origin, bool) {
+	if x == nil {
+		return nil, false
+	}
+	r := e.scope(syntax.EnclosingVariableScope(x))
+	v, ok := r.values[x]
+	switch {
+	case !ok || !r.complete:
+		return nil, false
+	case v.Expr != nil:
+		return []Origin{{v.Expr, v.NonFalse, v.NonNull}}, true
+	case v.origins != nil:
+		return v.origins.items, false
+	}
+	return nil, false
+}
+
 // ExactLength returns a byte length established by a strict strlen guard.
 func (e *Env) ExactLength(x syntax.Expr) (int64, bool) {
 	v := e.Value(x)
@@ -439,8 +582,11 @@ func before(a, b Source) bool {
 // equal reports two values that hold the same facts. Element sets are
 // compared by identity, which merge keeps when nothing changes.
 func equal(v, w Value) bool {
-	if v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || v.upload != w.upload || v.scalars != w.scalars || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
+	if v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || !sameOrigins(v.origins, w.origins) || v.upload != w.upload || v.scalars != w.scalars || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
 		return false
+	}
+	if len(v.Sources) > 0 && &v.Sources[0] == &w.Sources[0] {
+		return true
 	}
 	for i, s := range v.Sources {
 		if s != w.Sources[i] {
@@ -619,14 +765,16 @@ func (f *frame) absorb(b frame) (bool, int) {
 		if ok {
 			shared++
 		}
-		if len(v.Sources) > 0 && len(w.Sources) > 0 {
-			if &v.Sources[0] == &w.Sources[0] && equal(v, w) {
-				// Joining a value with itself leaves it as it is.
-				continue
-			}
+		if ok && equal(v, w) && (len(v.Sources) > 0 || v.Safe == HTML|SQL|Shell|Header|URL|Path && v.upload == 0 && !v.scalars) {
+			// Joining a value with itself leaves it as it is, once a value
+			// without request data has the form a join gives it.
+			continue
+		}
+		if len(v.Sources) > 0 && len(w.Sources) > 0 && &v.Sources[0] != &w.Sources[0] {
 			work += (len(v.Sources) + len(w.Sources)) / 2
 		}
-		if m := merge(v, w); !equal(m, v) {
+		m := merge(v, w)
+		if m.origins = origins(v, w); !equal(m, v) {
 			f.vars[k] = m
 			changed = true
 		}
@@ -635,7 +783,9 @@ func (f *frame) absorb(b frame) (bool, int) {
 		work += len(b.vars)
 		for k, v := range b.vars {
 			if _, ok := f.vars[k]; !ok {
-				f.vars[k] = merge(Value{}, v)
+				m := merge(Value{}, v)
+				m.origins = origins(Value{}, v)
+				f.vars[k] = m
 				changed = true
 			}
 		}

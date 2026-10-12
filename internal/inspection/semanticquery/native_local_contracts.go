@@ -530,6 +530,9 @@ func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 		}
 		return e
 	}
+	if result := nativeUnguardedResult(ctx, e); result != nil {
+		return result
+	}
 	scope := syntax.EnclosingVariableScope(e)
 	facts := nativeContractScope(ctx, scope)
 	var value syntax.Expr
@@ -600,6 +603,28 @@ func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 		return NativeLocalValue(ctx, v)
 	}
 	return value
+}
+
+// nativeUnguardedResult handles a variable several assignments reach: across
+// a loop back-edge, or after a reassignment on some path only. It returns the
+// first reaching call result that no guard on its own path separates from the
+// false and null failure values; a guard written before another assignment
+// does not vouch for that assignment. nil when one assignment reaches the
+// read, or when every reaching call result is guarded on its path.
+func nativeUnguardedResult(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
+	reaching, single := ctx.Flow().Reaching(e)
+	if single {
+		return nil
+	}
+	for _, origin := range reaching {
+		switch result := syntax.UnwrapParens(origin.Expr).(type) {
+		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+			if !origin.NonFalse && !origin.NonNull {
+				return result
+			}
+		}
+	}
+	return nil
 }
 
 // NativeStateDominates permits ordinary lifecycle statement effects such as

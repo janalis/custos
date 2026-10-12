@@ -86,6 +86,9 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		lx.brk, lx.cont = next, test
 		body := g.stmt(n.Body, test, lx)
 		g.blocks[test].next = []int{body, next}
+		// The body runs again: what is written before the loop is not part
+		// of its first block.
+		g.blocks[body].shared = true
 		return body
 	case *syntax.For:
 		g.blocks[next].shared = true

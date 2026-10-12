@@ -28,6 +28,7 @@ func TestReviewSafety(t *testing.T) {
 		{"qualified extract", "<?php namespace App; function f($a, $o) { $s = 0.5; \\extract($o); return $a % $s; }", 0},
 		{"extract after use", "<?php function f($a, $o) { $s = 0.5; $r = $a % $s; extract($o); return $r; }", 1},
 		{"extract after use in foreach", "<?php function f($a, $o) { $s = 0.5; foreach ($o as $x) { $r = $a % $s; extract($o); } }", 0},
+		{"repeated use, nothing written", "<?php function f($a) { $s = 0.5; while ($a) { $r = $a % $s; $a--; } }", 1},
 		{"extract after use in do", "<?php function f($a, $o) { $s = 0.5; do { $r = $a % $s; extract($o); } while ($a); }", 0},
 		{"user extract", "<?php namespace App; function extract($o) {} function f($a, $o) { $s = 0.5; extract($o); return $a % $s; }", 1},
 		{"parse_str into scope", "<?php function f($a, $q) { $s = 0.5; parse_str($q); return $a % $s; }", 0},

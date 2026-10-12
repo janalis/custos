@@ -95,17 +95,45 @@ func TestReviewGuards(t *testing.T) {
 		{"other assigned abort", "$j = $o or throw new Exception(); return $i['dir'];", 1},
 		{"compound assigned abort", "$j = posix_getpwuid($o); $j[0] = posix_getpwuid($o) or exit; return $i['dir'];", 1},
 		{"test before lookup", "if (!$i) { return; } $i = posix_getpwnam($o); return $i['dir'];", 1},
-		{"ambiguous reassignment", "if (!$i) { return; } if ($o) { $i = posix_getpwnam($o); } return $i['dir'];", 0},
 		{"reassigned after test", "if (!$i) { return; } $i = posix_getpwnam($o); return $i['dir'];", 1},
 		{"direct call", "if (posix_getpwuid(5)) { echo posix_getpwuid(5)['name']; }", 1},
 	} {
+		// A scope the flow analysis does not cover (here through a trailing
+		// `switch`) is judged by the guards written around the read alone.
+		for _, tail := range []string{" }", " switch ($o) { default: } }"} {
+			t.Run(tc.name+tail, func(t *testing.T) {
+				f := syntax.ParseBest("review.php", []byte(head+tc.body+tail), syntax.Options{Version: phpversion.PHP85})
+				if len(f.Errors) != 0 {
+					t.Fatalf("invalid probe: %v", f.Errors)
+				}
+				if got := e.Analyze(f); len(got) != tc.findings {
+					t.Fatalf("findings: got %v, want %d", got, tc.findings)
+				}
+			})
+		}
+	}
+}
+
+// Several lookups can reach one read: each needs a test on its own path.
+func TestReviewReassignedLookups(t *testing.T) {
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{PHP: phpversion.PHP85, EnableAll: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, body string
+		findings   int
+	}{
+		// The earlier test does not vouch for the lookup made on one path.
+		{"reassigned on one path after test", "if (!$i) { return; } if ($o) { $i = posix_getpwnam($o); } return $i['dir'];", 1},
+		{"reassigned on one path and tested again", "if (!$i) { return; } if ($o) { $i = posix_getpwnam($o); } if (!$i) { return; } return $i['dir'];", 0},
+		{"reassigned in a loop after test", "if (!$i) { return; } while ($o--) { echo $i['dir']; $i = posix_getpwnam($o); }", 1},
+		{"tested in the loop that reassigns", "while ($o--) { if (!$i) { return; } echo $i['dir']; $i = posix_getpwnam($o); }", 0},
+	} {
 		t.Run(tc.name, func(t *testing.T) {
-			f := syntax.ParseBest("review.php", []byte(head+tc.body+" }"), syntax.Options{Version: phpversion.PHP85})
-			if len(f.Errors) != 0 {
-				t.Fatalf("invalid probe: %v", f.Errors)
-			}
-			if got := e.Analyze(f); len(got) != tc.findings {
-				t.Fatalf("findings: got %v, want %d", got, tc.findings)
+			f := syntax.ParseBest("review.php", []byte("<?php function f($u, $o) { $i = posix_getpwnam($u); "+tc.body+" }"), syntax.Options{Version: phpversion.PHP85})
+			if got := e.Analyze(f); len(f.Errors) != 0 || len(got) != tc.findings {
+				t.Fatalf("findings: got %v, want %d (%v)", got, tc.findings, f.Errors)
 			}
 		})
 	}

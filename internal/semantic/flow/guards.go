@@ -40,11 +40,13 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 	case *syntax.Empty:
 		if !truth {
 			exclude(n.Expr, f, true, true)
+			exclude(indexed(n.Expr), f, true, true)
 		}
 	case *syntax.Isset:
 		if truth {
 			for _, x := range n.Vars {
 				exclude(x, f, false, true)
+				exclude(indexed(x), f, true, true)
 			}
 		}
 	case *syntax.Instanceof:
@@ -153,6 +155,10 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			}
 
 		}
+		if truth && (name == "array_key_exists" || name == "key_exists") && len(args) == 2 && args[1] != nil {
+			// Only an array (or an object) has keys.
+			exclude(args[1].Value, f, true, true)
+		}
 		arg := args[0]
 		variable, ok := syntax.UnwrapParens(arg.Value).(*syntax.Variable)
 		if !ok || variable.NameExpr != nil {
@@ -260,7 +266,24 @@ func exclude(x syntax.Expr, f *frame, nonFalse, nonNull bool) {
 	if nonNull {
 		v.NonNull = true
 	}
+	v.origins = v.origins.excluding(nonFalse, nonNull)
 	f.vars[variable.Name] = v
+}
+
+// indexed returns the array variable an element access reads, at any depth:
+// an element that is set, or a key that exists, proves it holds an array.
+func indexed(x syntax.Expr) syntax.Expr {
+	fetch, ok := syntax.UnwrapParens(x).(*syntax.ArrayDimFetch)
+	if !ok {
+		return nil
+	}
+	for {
+		inner, nested := syntax.UnwrapParens(fetch.Var).(*syntax.ArrayDimFetch)
+		if !nested {
+			return fetch.Var
+		}
+		fetch = inner
+	}
 }
 
 func constantOperand(x syntax.Expr) bool {

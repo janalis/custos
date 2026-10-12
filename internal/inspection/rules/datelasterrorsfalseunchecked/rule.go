@@ -63,59 +63,13 @@ type guard struct {
 	target syntax.Expr
 }
 
-// dominates walks outward from the use: short-circuit operands, conditional
-// branches and earlier sibling statements that leave the path on false.
+// dominates walks outward from the use to an earlier sibling statement that
+// leaves the path on false. Conditions that hold where the use runs
+// (branches, short-circuit operands, ternaries) are facts of the shared flow
+// analysis, asked before this guard.
 func (g guard) dominates(use syntax.Node) bool {
-	for child, parent := use, use.Parent(); parent != nil && !syntax.IsVariableScope(parent); child, parent = parent, parent.Parent() {
-		switch p := parent.(type) {
-		case *syntax.Binary:
-			if p.Right != child {
-				break
-			}
-			switch p.Op.Kind {
-			case syntax.TBooleanAnd, syntax.TAnd:
-				if g.implies(p.Left, true) {
-					return true
-				}
-			case syntax.TBooleanOr, syntax.TOr:
-				if g.implies(p.Left, false) {
-					return true
-				}
-			}
-		case *syntax.Ternary:
-			if (p.Then == child && g.implies(p.Cond, true)) || (p.Else == child && g.implies(p.Cond, false)) {
-				return true
-			}
-		case *syntax.ElseIf:
-			if p.Body == child && g.implies(p.Cond, true) {
-				return true
-			}
-		case *syntax.If:
-			if g.branch(p, child, use) {
-				return true
-			}
-		}
+	for parent := use.Parent(); parent != nil && !syntax.IsVariableScope(parent); parent = parent.Parent() {
 		if st, ok := parent.(syntax.Stmt); ok && g.exitedEarlier(st) {
-			return true
-		}
-	}
-	return false
-}
-
-// branch covers a use below an if statement: its own body, or a later
-// elseif/else that is only reached once the earlier conditions failed.
-func (g guard) branch(p *syntax.If, child, use syntax.Node) bool {
-	if p.Body == child {
-		return g.implies(p.Cond, true)
-	}
-	if syntax.Node(p.Cond) == child {
-		return false
-	}
-	if g.implies(p.Cond, false) {
-		return true
-	}
-	for _, alternative := range p.ElseIfs {
-		if alternative.Span().End <= use.Span().Start && g.implies(alternative.Cond, false) {
 			return true
 		}
 	}

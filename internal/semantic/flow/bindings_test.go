@@ -23,6 +23,8 @@ func TestIndirectWritesDiscardResolvedValues(t *testing.T) {
 		{"pre decrement", `$x=1; --$x; probe($x);`, true},
 		{"increment before copy", `$x=1; $x++; $y=$x; probe($y);`, true},
 		{"increment of a parameter", `function f($x){$x++; probe($x);}`, false},
+		{"increment in a do-while", `$x=1; do{$x++;}while($c); probe($x);`, false},
+		{"assignment before a do-while", `$x=1; do{$y=2;}while($c); probe($x);`, true},
 		{"increment in one branch", `$x=1; if($c){$x++;} probe($x);`, false},
 		{"compound assignment", `$x=1; $x+=2; probe($x);`, true},
 		{"compound assignment of a parameter", `function f($x){$x.='a'; probe($x);}`, false},

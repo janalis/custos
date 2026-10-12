@@ -9,6 +9,7 @@ import (
 	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/flow"
 )
 
 const message = "Escape untrusted text for its HTML output context."
@@ -36,12 +37,16 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.ReportNode(n, message)
 }
 
-// textNodeInput returns the first dynamic part of an output statement when
-// every byte emitted before it is known and leaves an HTML text node open.
-// Earlier dynamic output could open an attribute or raw-text element.
+// textNodeInput returns the first request-derived part of an output statement
+// that is emitted into an HTML text node. Every byte emitted before it must
+// be known, or come from a part that cannot hold markup: a number or a
+// boolean anywhere, text escaped for HTML inside a text node. Any other
+// dynamic part could open an attribute or a raw-text element, which ends the
+// search.
 func textNodeInput(ctx *analysis.Context, operands []syntax.Expr) syntax.Expr {
 	var prefix strings.Builder
 	var input syntax.Expr
+	open := true
 	var collect func(syntax.Expr) bool
 	collect = func(part syntax.Expr) bool {
 		part = syntax.UnwrapParens(part)
@@ -72,12 +77,19 @@ func textNodeInput(ctx *analysis.Context, operands []syntax.Expr) syntax.Expr {
 			}
 			return true
 		}
-		if input != nil {
+		switch {
+		case input != nil:
 			// The whole operand is evaluated before any of it is emitted, so
 			// a later part with effects could still change the response.
 			return !flowquery.MayHaveSideEffects(part)
+		case !open:
+		case tainted(ctx, part, 0):
+			input = part
+		case ctx.TypeOf(part).OnlyOf("int", "float", "bool"):
+		case textPrefix(prefix.String()) && escaped(ctx, part):
+		default:
+			open = false
 		}
-		input = part
 		return true
 	}
 	for _, operand := range operands {
@@ -92,6 +104,13 @@ func textNodeInput(ctx *analysis.Context, operands []syntax.Expr) syntax.Expr {
 		return nil
 	}
 	return input
+}
+
+// escaped reports a part whose value derives from tracked inputs and was
+// escaped for HTML on every path: it adds no markup to the text node.
+func escaped(ctx *analysis.Context, part syntax.Expr) bool {
+	v := ctx.Flow().Value(part)
+	return v.Complete && len(v.Sources) > 0 && v.Safe&flow.HTML != 0
 }
 
 // textPrefix proves that known markup ends inside an ordinary text node.

@@ -15,7 +15,9 @@ Detect request-derived text emitted inside a proven HTML text-node context witho
 ## Detection
 
 - D1. Report request-derived text emitted inside a proven HTML text-node context without context-appropriate escaping. Both `echo` and `print` are output statements.
-- D1a. The context is proven from the bytes one statement emits before its first dynamic part: concatenated literals, the literal fragments of a double-quoted string or heredoc (escape sequences decoded), and the earlier operands of a comma-separated `echo`. Those bytes must close an ordinary tag and leave no tag, attribute, comment, `script` or `style` element open. Only that first dynamic part is examined. Later parts of the same operand must be free of side effects, because the whole operand is evaluated before any of it is emitted; later `echo` operands are not restricted.
+- D1a. The context is proven from the bytes one statement emits before the request-derived part: concatenated literals, the literal fragments of a double-quoted string or heredoc (escape sequences decoded), and the earlier operands of a comma-separated `echo`. Those bytes must close an ordinary tag and leave no tag, attribute, comment, `script` or `style` element open.
+- D1b. Dynamic parts emitted before the request-derived one are passed over when they cannot hold markup: a value typed integer, float or boolean anywhere in the statement, and a value that derives from tracked inputs and is escaped for HTML on every path when it is emitted into a text node. Such a part adds nothing to the proven bytes. Any other dynamic part (an unknown value, a call result, escaped text inside a tag, a value escaped on some paths only) could open an attribute or a raw-text element: nothing after it is examined.
+- D1c. The first request-derived part found this way decides the statement; one finding is reported however many parts are unescaped. Later parts of the same operand must be free of side effects, because the whole operand is evaluated before any of it is emitted; later `echo` operands are not restricted.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
@@ -57,6 +59,14 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 <error descr="Escape untrusted text for its HTML output context.">echo "<li>{$_POST['title']}</li>";</error>
 <error descr="Escape untrusted text for its HTML output context.">echo '<td>', $_GET['cell'], '</td>';</error>
 <error descr="Escape untrusted text for its HTML output context.">print '<p>' . $_COOKIE['theme']</error>;
+
+function row()
+{
+    $name = $_GET['name'];
+    $page = (int) $_GET['page'];
+    <error descr="Escape untrusted text for its HTML output context.">echo '<i>' . htmlspecialchars($name) . '</i><b>' . $name . '</b>';</error>
+    <error descr="Escape untrusted text for its HTML output context.">echo "<a href=\"?page=$page\">$name</a>";</error>
+}
 ```
 
 Not reported:
@@ -67,6 +77,12 @@ $order = match ($_GET['sort']) { 'desc' => 'DESC', default => 'ASC' };
 echo '<p>' . $order . '</p>';
 echo '<p>' . strlen($_GET['q']) . ' characters</p>';
 echo '<p>' . ($_GET['page'] + 1) . '</p>';
+
+function listing($row)
+{
+    // The unknown title may have opened an attribute or a script element.
+    echo '<i>' . $row['title'] . '</i><b>' . $_GET['name'] . '</b>';
+}
 
 function export()
 {

@@ -114,6 +114,26 @@ versions follow [Semantic Versioning](https://semver.org/).
   upload entry itself, not on an array a client field was copied into. A value
   passed to a variadic PHP function (`sprintf`, `max`) keeps what was known
   about it.
+- `UnescapedHtmlOutput` no longer stops at the first dynamic part of an
+  output statement: request text emitted after an escaped value, a number or
+  a boolean (`echo '<i>' . htmlspecialchars($a) . '</i><b>' . $b . '</b>'`,
+  `"<i>$page</i><b>$name</b>"`) is reported.
+- Request-data inspections keep the request data of a variable bound to a
+  statement parameter (`mysqli_stmt::bind_param`, `PDOStatement::bindParam`),
+  report client-chosen upload fields at any depth
+  (`$_FILES['f']['name'][0]`), and see a write through a reference to an
+  array element in copies of that array.
+- Failure-value inspections that follow a local back to the call that
+  produced it (`parse_url`, `scandir`, `posix_getpwnam`, `realpath` and the
+  like) no longer let a guard vouch for a later assignment: a result
+  reassigned in a loop after an early-exit check, or on one branch only, is
+  reported when that assignment is unchecked. `isset($v['key'])`,
+  `!empty($v['key'])` and `array_key_exists('key', $v)` count as checks of
+  `$v`.
+- Statements written before a `do … while` loop are no longer analysed as
+  part of its body: a read before the loop does not see values assigned in
+  it, and a variable stepped in the loop is no longer taken for its value
+  after one iteration.
 - Failure-value inspections accept more guards: truthiness, `!empty()`, loose
   comparison with `false`/`null`, type predicates, constant-first comparisons,
   an assignment tested in place, `elseif`/`else` arms, short-circuit operands,

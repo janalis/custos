@@ -149,6 +149,10 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			bound := v
 			bound.elements = e.elements(n.Value, f, r)
 			f.write(r, target.Name, bound)
+			if source := plainVariable(n.Value); source != "" && f.aliased[source] == aliasAny {
+				// A copy of an array shares the slots references were taken of.
+				f.alias(target.Name, aliasAny)
+			}
 		case n.ByRef:
 			e.reference(n, v, f, r)
 			v.Complete = false
@@ -334,7 +338,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 					v = Value{Expr: x, Complete: true}
 				}
 			}
-			if variable.Name == "_FILES" && levels >= 2 && known {
+			// The fields of an entry are one level below it; deeper values
+			// are what their field holds (a list of names, of sizes).
+			if variable.Name == "_FILES" && levels == 2 && known {
 				switch key {
 				case "tmp_name", "error", "size":
 					v = Value{Expr: x, Complete: true}
@@ -418,7 +424,12 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 	}
 	if old, ok := r.values[x]; ok {
-		r.values[x] = merge(old, v)
+		seen := merge(old, v)
+		if _, read := x.(*syntax.Variable); read {
+			// Every visit of the read adds the producers that reach it.
+			seen.origins = origins(old, v)
+		}
+		r.values[x] = seen
 	} else {
 		r.values[x] = v
 	}
@@ -1171,7 +1182,7 @@ func (e *Env) invalidateShared(f *frame, r *scopeResult) {
 		return
 	}
 	// What a holder writes to one name is read under the names bound with it.
-	r.operations += 2 * len(f.aliased)
+	r.operations += len(f.aliased)
 	var groups map[uint32]Value
 	for name, group := range f.aliased {
 		if written := e.held(name, r); group >= aliasGroup && tainted(written) {

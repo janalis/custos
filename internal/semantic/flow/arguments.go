@@ -91,7 +91,16 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 			next := unsettled(f.vars[variable.Name], Value{})
 			if known {
 				next = Value{}
-				if name, builtin, _ := e.callee(at); builtin && !(name == "settype" && scalarType(list)) {
+				name, builtin, _ := e.callee(at)
+				switch {
+				case !builtin || name == "settype" && scalarType(list):
+				case name == "mysqli_stmt_bind_result" || name == "bind_result" || name == "bindcolumn":
+					// The variable will receive what the database returns.
+				case name == "mysqli_stmt_bind_param" || name == "bind_param" || name == "bindparam":
+					// Binding a statement parameter reads the variable when
+					// the statement runs; it never writes it.
+					continue
+				default:
 					next = e.updated(name, i, list, positions, params, f.vars[variable.Name], r)
 				}
 			}

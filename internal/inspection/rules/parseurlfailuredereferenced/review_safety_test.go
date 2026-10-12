@@ -89,15 +89,19 @@ func TestReviewGuards(t *testing.T) {
 		{"assert", "assert($p !== false); echo $p['host'];", 1},
 		{"closure boundary", "if (!$p) { return; } return function ($p) { return $p; };", 0},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			f := syntax.ParseBest("review.php", []byte(head+tc.body+" }"), syntax.Options{Version: phpversion.PHP85})
-			if len(f.Errors) != 0 {
-				t.Fatalf("invalid probe: %v", f.Errors)
-			}
-			if got := e.Analyze(f); len(got) != tc.findings {
-				t.Fatalf("findings: got %v, want %d", got, tc.findings)
-			}
-		})
+		// A scope the flow analysis does not cover (here through a trailing
+		// `switch`) is judged by the guards written around the read alone.
+		for _, tail := range []string{" }", " switch ($o) { default: } }"} {
+			t.Run(tc.name+tail, func(t *testing.T) {
+				f := syntax.ParseBest("review.php", []byte(head+tc.body+tail), syntax.Options{Version: phpversion.PHP85})
+				if len(f.Errors) != 0 {
+					t.Fatalf("invalid probe: %v", f.Errors)
+				}
+				if got := e.Analyze(f); len(got) != tc.findings {
+					t.Fatalf("findings: got %v, want %d", got, tc.findings)
+				}
+			})
+		}
 	}
 }
 
