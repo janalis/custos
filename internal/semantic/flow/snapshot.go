@@ -31,6 +31,23 @@ type Summary struct {
 type File struct {
 	Path      string
 	Summaries map[string]Summary
+	// consulted names the callables whose contracts the summaries were
+	// computed from: nothing else of a snapshot can change them.
+	consulted map[string]bool
+}
+
+// Current reports that the summaries, extracted under the earlier snapshot,
+// would come out the same under s: no contract they were computed from
+// differs between the two.
+func (f *File) Current(earlier, s *Snapshot) bool {
+	for name := range f.consulted {
+		before, had := earlier.lookup(name)
+		now, has := s.lookup(name)
+		if had != has || !reflect.DeepEqual(before, now) {
+			return false
+		}
+	}
+	return true
 }
 
 // Snapshot is an immutable project-local summary collection. WithFile and
@@ -69,6 +86,21 @@ func (s *Snapshot) WithFile(f *File) *Snapshot {
 		return NewSnapshot(f)
 	}
 	return &Snapshot{base: s.flat(), own: f}
+}
+
+// Holds reports that the snapshot already has exactly these summaries for
+// the file: overlaying them would change no lookup.
+func (s *Snapshot) Holds(f *File) bool {
+	if s == nil {
+		return false
+	}
+	held := s.files[f.Path]
+	if s.base != nil {
+		if held = s.base.files[f.Path]; s.own.Path == f.Path {
+			held = s.own
+		}
+	}
+	return held != nil && reflect.DeepEqual(held.Summaries, f.Summaries)
 }
 
 // WithoutFile removes all summaries of a file in a new snapshot.
@@ -173,8 +205,16 @@ func (s *Snapshot) Equal(other *Snapshot) bool {
 // available. It does not open any other files. A supplied snapshot permits
 // bounded composition with previously summarized project wrappers.
 func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot) *File {
-	types := infer.NewEnv(file, names.New(file), ix, php)
+	_, out := Summarize(file, infer.NewEnv(file, names.New(file), ix, php), snapshot)
+	return out
+}
+
+// Summarize computes the summaries of a file and returns them with the
+// environment that computed them, which answers for the file under the same
+// snapshot without analysing its scopes again.
+func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot) (*Env, *File) {
 	e := New(file, types, snapshot)
+	e.consulted = map[string]bool{}
 	out := &File{Path: file.Path, Summaries: map[string]Summary{}}
 	syntax.InspectFile(file, func(n syntax.Node) bool {
 		name := ""
@@ -224,7 +264,17 @@ func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapsho
 		}
 		return true
 	})
-	return out
+	out.consulted, e.consulted = e.consulted, nil
+	return e, out
+}
+
+// contract returns the summary of a project callable, recording the name
+// while the summaries of the file are being computed.
+func (e *Env) contract(name string) (Summary, bool) {
+	if e.consulted != nil && name != "" {
+		e.consulted[name] = true
+	}
+	return e.snapshot.lookup(name)
 }
 
 // nativeSinks recognizes resolved native sinks and binds named arguments.
@@ -285,7 +335,7 @@ func (e *Env) nativeSinks(c Call) []Sink {
 // The argument sources and escaping contexts come from this call's flow.
 func (e *Env) Sinks(at syntax.Node) []Sink {
 	name := e.summaryName(at)
-	summary, ok := e.snapshot.lookup(name)
+	summary, ok := e.contract(name)
 	if !ok {
 		return nil
 	}
@@ -304,7 +354,7 @@ func (e *Env) Sinks(at syntax.Node) []Sink {
 					v.Complete = false
 				}
 			} else {
-				v.Sources = append(v.Sources, source)
+				v.Sources, _ = union(v.Sources, []Source{source})
 			}
 		}
 		v.Safe |= s.Argument.Safe

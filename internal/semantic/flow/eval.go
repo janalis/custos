@@ -27,8 +27,18 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 		kill(n.Value, f, r)
 		// The keys and elements of request data are request data.
 		if tainted(iterated) {
-			spread(n.Key, iterated, f)
-			spread(n.Value, iterated, f)
+			spread(n.Key, Value{Complete: true, Sources: iterated.Sources, Safe: iterated.Safe}, f, r)
+			item := iterated
+			if item.scalars {
+				item.Safe |= HTML | SQL | Shell | Header
+			}
+			spread(n.Value, item, f, r)
+			if name := plainVariable(n.Value); name != "" && iterated.upload == uploadTable {
+				// Each element of the table is one uploaded file.
+				entry := f.vars[name]
+				entry.upload = uploadEntry
+				f.vars[name] = entry
+			}
 		}
 	case *syntax.Catch:
 		kill(n.Var, f, r)
@@ -39,6 +49,8 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 		f.states[outputID] = State{Operation: "echo", Span: n.Span()}
 	case *syntax.Global:
 		for _, x := range n.Vars {
+			// The name leaves what it was bound to for the global variable.
+			rebind(x, f, r)
 			if name := rootVariable(x); name != "" {
 				f.alias(name, aliasHeld)
 				if r.globalNames == nil {
@@ -46,15 +58,14 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 				}
 				r.globalNames[name] = true
 			}
-			kill(x, f, r)
 		}
 	case *syntax.Unset:
 		for _, x := range n.Vars {
-			kill(x, f, r)
+			rebind(x, f, r)
 		}
 	case *syntax.StaticStmt:
 		for _, x := range n.Vars {
-			kill(x.Var, f, r)
+			rebind(x.Var, f, r)
 		}
 	default:
 		syntax.Children(n, func(child syntax.Node) {
@@ -94,7 +105,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		return Value{}
 	}
 	r.operations++
-	if r.operations > MaxTransfers || depth >= MaxDepth*8 {
+	if r.operations > MaxTransfers || r.copies > MaxCopied || depth >= MaxDepth*8 {
 		r.complete = false
 		return Value{}
 	}
@@ -106,6 +117,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			v = Value{}
 		} else if strings.HasPrefix(n.Name, "_") && external(n.Name) {
 			v.Sources = []Source{{Kind: n.Name, Path: e.file.Path, Span: n.Span(), Parameter: -1}}
+			if n.Name == "_FILES" {
+				v.upload = uploadTable
+			}
 		} else {
 			var tracked bool
 			if v, tracked = f.vars[n.Name]; !tracked && importable(n.Name) {
@@ -114,6 +128,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 					v = Value{Sources: spread.Sources, Safe: spread.Safe}
 				}
 			}
+			v.elements = nil
 		}
 	case *syntax.Paren:
 		v = e.eval(n.Expr, f, r, depth+1)
@@ -130,8 +145,10 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		v = e.eval(n.Value, f, r, depth+1)
 		switch {
 		case plain && n.Op.Kind == syntax.TEqual:
-			f.write(r, target.Name, v)
-			e.elements(target.Name, n.Value, f, r)
+			// The variable holds the array with the elements tracked for it.
+			bound := v
+			bound.elements = e.elements(n.Value, f, r)
+			f.write(r, target.Name, bound)
 		case n.ByRef:
 			e.reference(n, v, f, r)
 			v.Complete = false
@@ -183,11 +200,11 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			before := clone(*f)
 			e.refine(n.Left, f, n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd)
 			right = e.eval(n.Right, f, r, depth+1)
-			*f = join(before, *f)
+			*f = rejoin(before, *f, r)
 		case syntax.TCoalesce:
 			before := clone(*f)
 			right = e.eval(n.Right, f, r, depth+1)
-			*f = join(before, *f)
+			*f = rejoin(before, *f, r)
 		default:
 			right = e.eval(n.Right, f, r, depth+1)
 		}
@@ -206,6 +223,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		v = e.eval(n.Expr, f, r, depth+1)
 		v.Expr = x
 		v.Identity = 0
+		if n.Op.Kind != syntax.TArrayCast {
+			v.upload, v.scalars = 0, false
+		}
 		switch n.Op.Kind {
 		case syntax.TExclaim, syntax.TIntCast, syntax.TDoubleCast, syntax.TBoolCast, syntax.TMinus, syntax.TPlus:
 			v.Safe |= HTML | SQL | Shell | Header
@@ -238,7 +258,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 		e.refine(n.Cond, &other, false)
 		b := e.eval(n.Else, &other, r, depth+1)
-		*f = join(*f, other)
+		*f = rejoin(*f, other, r)
 		v = merge(a, b)
 	case *syntax.Match:
 		// Only an arm result becomes the value; the subject merely selects it.
@@ -253,7 +273,8 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			if i == 0 {
 				v, *f = body, branch
 			} else {
-				v, *f = merge(v, body), join(*f, branch)
+				v = merge(v, body)
+				*f = rejoin(*f, branch, r)
 			}
 		}
 		v.Expr = x
@@ -273,20 +294,38 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			root = fetch.Var
 			levels++
 		}
+		// What an element of the uploads table is depends on how deep it sits.
+		whole := v.upload
+		v.upload = 0
+		if v.scalars {
+			// An element of such an array is one of its values.
+			v.scalars = false
+			v.Safe |= HTML | SQL | Shell | Header
+		}
 		if variable, ok := root.(*syntax.Variable); ok {
 			key, known := literalText(n.Dim)
-			if known && levels == 1 && variable.NameExpr == nil {
-				if array := f.vars[variable.Name]; array.elements {
+			if variable.NameExpr == nil && !external(variable.Name) {
+				own, tracked := Value{}, false
+				if slot, constant := arrayKey(n.Dim); constant && levels == 1 {
+					own, tracked = f.vars[variable.Name].elements.lookup(slot)
+				}
+				switch {
+				case tracked:
 					// The element's own last write decides what it holds.
-					if own, tracked := f.vars[elementKey(variable.Name, key)]; tracked {
-						v = Value{Complete: own.Complete, Sources: own.Sources, Safe: own.Safe, Expr: x}
-					}
-				}
-				// An uploaded file entry reached through a loop variable keeps
-				// the exemption of its server-chosen fields.
-				if !external(variable.Name) && uploadField(key) && uploaded(v) {
+					v = Value{Complete: own.Complete, Sources: own.Sources, Safe: own.Safe, Expr: x}
+				case whole == uploadEntry && known && uploadField(key):
+					// The server chooses these fields of an uploaded file.
 					v = Value{Expr: x, Complete: true}
+				case whole == uploadTable:
+					v.upload = uploadEntry
+				case variable.Name == "GLOBALS" && levels == 1 && known && (r.global || r.globalNames[key]):
+					// The entry is the variable of that name.
+					held := f.vars[key]
+					v = Value{Complete: held.Complete, Sources: held.Sources, Safe: held.Safe, Expr: x}
 				}
+			}
+			if variable.Name == "_FILES" && levels == 1 {
+				v.upload = uploadEntry
 			}
 			if variable.Name == "_SERVER" {
 				if !known {
@@ -365,12 +404,44 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			v.Safe |= HTML | SQL | Shell | Header
 		}
 	}
+	// Only an expression that hands its operand on unchanged yields the
+	// uploads table, one of its entries or an array of numbers.
+	if v.upload != 0 || v.scalars {
+		switch n := x.(type) {
+		case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.ArrayDimFetch, *syntax.Unary, *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.Arg:
+		case *syntax.Binary:
+			if n.Op.Kind != syntax.TCoalesce {
+				v.upload, v.scalars = 0, false
+			}
+		default:
+			v.upload, v.scalars = 0, false
+		}
+	}
 	if old, ok := r.values[x]; ok {
 		r.values[x] = merge(old, v)
 	} else {
 		r.values[x] = v
 	}
 	return v
+}
+
+// plainVariable names a target that is a variable written as such.
+func plainVariable(x syntax.Expr) string {
+	if v, ok := syntax.UnwrapParens(x).(*syntax.Variable); ok && v.NameExpr == nil {
+		return v.Name
+	}
+	return ""
+}
+
+// rebind handles a statement that makes a variable name stand for other
+// storage (`unset`, `static`, `global`). Anything but a plain variable is a
+// write to what the target names.
+func rebind(target syntax.Expr, f *frame, r *scopeResult) {
+	if name := plainVariable(target); name != "" {
+		f.detach(name)
+		return
+	}
+	kill(target, f, r)
 }
 
 func external(s string) bool {
@@ -410,10 +481,16 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	}
 	v := Value{Complete: true, Expr: n.(syntax.Expr)}
 	for _, a := range values {
+		if a.scalars && builtin && (yieldsElements(name) || name == "array_chunk" && len(values) == 2) {
+			// Only the numbers of the array reach the result.
+			a.Safe |= HTML | SQL | Shell | Header
+		}
 		v = merge(v, a)
 	}
 	v.Expr = n.(syntax.Expr)
 	v.Identity = 0
+	// Arrays of numbers put together make one; anything else does not.
+	v.upload, v.scalars = 0, v.scalars && builtin && (name == "array_merge" || name == "array_replace")
 	bound, boundOK := e.bind(n, values)
 	first := Value{}
 	if boundOK && len(bound) > 0 {
@@ -425,7 +502,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	} else if !builtin && len(values) > 0 {
 		first = values[0]
 	}
-	if s, ok := e.snapshot.lookup(e.summaryName(n)); ok {
+	if s, ok := e.contract(e.summaryName(n)); ok {
 		v = Value{Complete: s.Return.Complete, Expr: n.(syntax.Expr), Safe: s.Return.Safe}
 		for _, source := range s.Return.Sources {
 			if source.Parameter >= 0 {
@@ -435,10 +512,11 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 					v.Complete = false
 				}
 			} else {
-				v.Sources = append(v.Sources, source)
+				v.Sources, _ = union(v.Sources, []Source{source})
 			}
 		}
 		v.Safe |= s.Return.Safe
+		v.scalars = s.Return.scalars && len(v.Sources) > 0
 		if s.Generator {
 			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
 		}
@@ -455,18 +533,35 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		case "extract", "parse_str":
 			// Each key of the array may replace a local binding of that
 			// name, or create one, with an element of the array.
-			if len(values) > 0 && (name == "extract" || len(values) == 1) {
-				// With a skipping or prefixing flag existing variables stay.
-				if len(values) < 2 || !keepsExisting(values[1].Expr) {
-					f.unsettle(r, values[0])
+			if array, given := passed(args, values, "array", 0); given && name == "extract" || len(values) == 1 {
+				if !given {
+					array = values[0]
 				}
-				f.importing(values[0])
+				if array.scalars {
+					// The variables hold the numbers; the keys name them.
+					array.Safe |= HTML | SQL | Shell | Header
+				}
+				// With a skipping or prefixing flag existing variables stay.
+				if flags, chosen := passed(args, values, "flags", 1); !chosen || name != "extract" || !keepsExisting(flags.Expr) {
+					f.unsettle(r, array)
+				}
+				f.importing(array)
 			}
 		case "array_map":
-			// Each element is the callback's result.
-			if len(values) > 0 && e.scalarCallback(values[0].Expr) {
-				v.Safe |= HTML | SQL | Shell | Header
+			// Each element is the callback's result; one array keeps its keys.
+			// A list has the keys PHP numbered it with.
+			if len(values) > 0 && e.scalarCallback(values[0].Expr) && len(v.Sources) > 0 {
+				if len(values) == 2 && !e.list(values[1].Expr) {
+					v.scalars = true
+				} else {
+					v.Safe |= HTML | SQL | Shell | Header
+				}
 			}
+		}
+		if len(values) > 0 && values[0].scalars && keepsElements(name) {
+			// The result is that array with fewer elements: the other
+			// arguments only choose among them.
+			v = Value{Complete: v.Complete, Expr: v.Expr, Sources: values[0].Sources, Safe: values[0].Safe, scalars: true}
 		}
 		// Invoking a closure object runs project code like calling it.
 		if e.exposed(f, r) && (name == "__invoke" || name == "call") {
@@ -737,7 +832,7 @@ func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 		// The two names now read one value.
 		if direct, ok := syntax.UnwrapParens(n.Value).(*syntax.Variable); ok && direct.NameExpr == nil {
 			f.bind(target.Name, direct.Name, n.Span().Start)
-			f.set(target.Name, f.vars[direct.Name])
+			f.vars[target.Name] = f.vars[direct.Name]
 			return
 		}
 		f.alias(target.Name, aliasAny)
@@ -754,7 +849,7 @@ func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 	case *syntax.ArrayDimFetch:
 		if name := rootVariable(slot); name != "" {
 			f.alias(name, aliasAny)
-			f.set(name, unsettled(f.vars[name], v))
+			f.vars[name] = unsettled(f.vars[name], v)
 		}
 	}
 }
@@ -775,7 +870,7 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 		kill(n.Var, f, r)
 		f.through(r, v)
 		if tainted(v) {
-			spread(n.Var, v, f)
+			spread(n.Var, v, f, r)
 		}
 	case name == "GLOBALS":
 		if tainted(v) {
@@ -796,64 +891,201 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 			}
 			first = inner
 		}
-		if key, known := literalText(first.Dim); known && !external(name) {
+		if key, known := arrayKey(first.Dim); known && !external(name) && len(old.elements.all()) < MaxSources {
 			own := Value{Complete: v.Complete, Sources: v.Sources, Safe: v.Safe}
 			if first != fetch || n.Op.Kind != syntax.TEqual {
 				previous := old
-				if tracked, ok := f.vars[elementKey(name, key)]; ok && old.elements {
+				if tracked, ok := old.elements.lookup(key); ok {
 					previous = tracked
 				}
 				own = unsettled(previous, v)
 			}
-			array.elements = true
-			f.write(r, name, array)
-			f.vars[elementKey(name, key)] = own
-		} else {
-			f.write(r, name, array)
+			r.operations += len(old.elements.all())
+			array.elements = old.elements.with(key, own)
 		}
+		f.write(r, name, array)
 		f.through(r, v)
 	}
 }
 
-// elements tracks the literal-keyed items of an array literal just assigned
-// to a variable, so that reading one of them reads that item. A long literal
-// is read as a whole.
-func (e *Env) elements(name string, value syntax.Expr, f *frame, r *scopeResult) {
-	literal, ok := syntax.UnwrapParens(value).(*syntax.Array)
-	if !ok || len(literal.Items) == 0 || len(literal.Items) > MaxSources || external(name) {
-		return
-	}
-	next := 0
-	keys := make([]string, 0, len(literal.Items))
-	for _, item := range literal.Items {
-		if item == nil || item.Unpack || item.ByRef {
-			return
+// elements returns the tracked elements of the array a plain assignment
+// stores: those of the variable, array literal or choice of either it reads.
+// A long literal, or one with a key the analysis cannot name, is read as a
+// whole.
+func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet {
+	switch n := syntax.UnwrapParens(value).(type) {
+	case *syntax.Variable:
+		if n.NameExpr == nil && !external(n.Name) {
+			return f.vars[n.Name].elements
 		}
-		key, known := strconv.Itoa(next), next >= 0
-		if item.Key != nil {
-			key, known = literalText(item.Key)
-			next = -1 // PHP picks the next index from the keys seen so far
-		} else if known {
-			next++
+	case *syntax.Unary:
+		if n.Op.Kind == syntax.TArrayCast {
+			return e.elements(n.Expr, f, r)
 		}
-		if !known {
-			return
+	case *syntax.Ternary:
+		if n.Then != nil {
+			return common(e.elements(n.Then, f, r), e.elements(n.Else, f, r))
 		}
-		keys = append(keys, key)
+	case *syntax.Array:
+		if len(n.Items) == 0 || len(n.Items) > MaxSources {
+			return nil
+		}
+		next, counting := int64(0), true
+		set := &elementSet{items: make(map[string]Value, len(n.Items))}
+		for _, item := range n.Items {
+			if item == nil || item.Unpack || item.ByRef {
+				return nil
+			}
+			key, known := strconv.FormatInt(next, 10), counting
+			if item.Key != nil {
+				key, known = arrayKey(item.Key)
+			}
+			if !known {
+				return nil
+			}
+			// PHP numbers an item without a key after the largest integer
+			// key so far; what follows a negative one depends on its version.
+			if index, err := strconv.ParseInt(key, 10, 64); err == nil && index >= next {
+				next = index + 1
+			} else if err == nil && index < 0 {
+				counting = false
+			}
+			own := r.values[item.Value]
+			set.items[key] = Value{Complete: own.Complete, Sources: own.Sources, Safe: own.Safe}
+		}
+		r.operations += len(set.items)
+		return set
 	}
-	r.operations += len(keys)
-	array := f.vars[name]
-	array.elements = true
-	f.vars[name] = array
-	for i, item := range literal.Items {
-		own := r.values[item.Value]
-		f.vars[elementKey(name, keys[i])] = Value{Complete: own.Complete, Sources: own.Sources, Safe: own.Safe}
+	return nil
+}
+
+// arrayKey returns the key PHP uses for a constant array offset: a decimal
+// integer for an integer in any notation, a float (truncated), a boolean and
+// a string that spells an integer; the empty string for null.
+func arrayKey(x syntax.Expr) (string, bool) {
+	negative := false
+	x = syntax.UnwrapParens(x)
+	if sign, ok := x.(*syntax.Unary); ok && sign.Op.Kind == syntax.TMinus {
+		negative, x = true, syntax.UnwrapParens(sign.Expr)
 	}
+	switch n := x.(type) {
+	case *syntax.ConstFetch:
+		if n.Name == nil || negative {
+			break
+		}
+		switch strings.ToLower(strings.TrimPrefix(n.Name.Value, `\`)) {
+		case "true":
+			return "1", true
+		case "false":
+			return "0", true
+		case "null":
+			return "", true
+		}
+	case *syntax.Literal:
+		raw := strings.ReplaceAll(n.Raw, "_", "")
+		switch {
+		case n.LitKind == syntax.LitInt:
+			if index, err := strconv.ParseInt(raw, 0, 64); err == nil {
+				if negative {
+					index = -index
+				}
+				return strconv.FormatInt(index, 10), true
+			}
+		case n.LitKind == syntax.LitFloat:
+			if number, err := strconv.ParseFloat(raw, 64); err == nil && number < 1<<53 {
+				if negative {
+					number = -number
+				}
+				return strconv.FormatInt(int64(number), 10), true
+			}
+		case !negative:
+			text, known := literalText(n)
+			if index, err := strconv.ParseInt(text, 10, 64); err == nil && strconv.FormatInt(index, 10) == text {
+				return text, true
+			}
+			return text, known
+		}
+	}
+	return "", false
+}
+
+// lookup returns a tracked element.
+func (s *elementSet) lookup(key string) (Value, bool) {
+	if s == nil {
+		return Value{}, false
+	}
+	v, ok := s.items[key]
+	return v, ok
+}
+
+// all returns the tracked elements; none when nothing is tracked.
+func (s *elementSet) all() map[string]Value {
+	if s == nil {
+		return nil
+	}
+	return s.items
+}
+
+// list reports an array a PHP function built and numbered itself: none of
+// its keys comes from the data.
+func (e *Env) list(array syntax.Expr) bool {
+	call, ok := syntax.UnwrapParens(array).(*syntax.FuncCall)
+	if !ok {
+		return false
+	}
+	switch name, builtin := e.callName(call); {
+	case !builtin:
+	case name == "explode", name == "preg_split", name == "str_split", name == "mb_str_split", name == "array_values", name == "array_keys", name == "str_getcsv", name == "range":
+		return true
+	}
+	return false
+}
+
+// yieldsElements reports a PHP function whose result is made of the values
+// of the arrays it is given, without their keys.
+func yieldsElements(name string) bool {
+	switch name {
+	case "implode", "join", "array_values", "array_sum", "array_product", "max", "min", "count", "sizeof", "in_array", "reset", "end", "current", "array_pop", "array_shift":
+		return true
+	}
+	return false
+}
+
+// keepsElements reports a PHP function whose result is its first argument
+// with some elements left out or reordered, under the same keys.
+func keepsElements(name string) bool {
+	switch name {
+	case "array_unique", "array_filter", "array_slice", "array_reverse", "array_diff", "array_diff_key", "array_intersect", "array_intersect_key":
+		return true
+	}
+	return false
+}
+
+// passed returns the value given to the parameter of that name and position.
+func passed(list *syntax.ArgList, values []Value, name string, position int) (Value, bool) {
+	at := 0
+	for i, v := range values {
+		if a, ok := list.Args[i].(*syntax.Arg); ok && a.Name != nil {
+			if a.Name.Value == name {
+				return v, true
+			}
+			continue
+		}
+		if at == position {
+			return v, true
+		}
+		at++
+	}
+	return Value{}, false
 }
 
 // keepsExisting reports an extract() flag under which a variable that already
 // exists is not overwritten.
 func keepsExisting(flag syntax.Expr) bool {
+	if both, ok := syntax.UnwrapParens(flag).(*syntax.Binary); ok && both.Op.Kind == syntax.TBar {
+		// A modifier such as EXTR_REFS is combined with the mode.
+		return keepsExisting(both.Left) || keepsExisting(both.Right)
+	}
 	c, ok := syntax.UnwrapParens(flag).(*syntax.ConstFetch)
 	if !ok || c.Name == nil {
 		return false
@@ -891,16 +1123,6 @@ func uploadField(key string) bool {
 	return key == "tmp_name" || key == "error" || key == "size"
 }
 
-// uploaded reports a value that only holds upload metadata.
-func uploaded(v Value) bool {
-	for _, s := range v.Sources {
-		if s.Kind != "_FILES" {
-			return false
-		}
-	}
-	return len(v.Sources) > 0
-}
-
 // scalar reports an expression whose value is known not to be an array: a
 // literal, or a step or compound assignment that started from one.
 func scalar(r *scopeResult, x syntax.Expr, depth int) bool {
@@ -919,14 +1141,15 @@ func scalar(r *scopeResult, x syntax.Expr, depth int) bool {
 
 // spread adds the request data of a written value to the bindings a target
 // stores it in.
-func spread(target syntax.Expr, v Value, f *frame) {
+func spread(target syntax.Expr, v Value, f *frame, r *scopeResult) {
 	if name := rootVariable(target); name != "" {
-		f.set(name, unsettled(f.vars[name], v))
+		// The names bound with the target read what it was given.
+		f.write(r, name, unsettled(f.vars[name], v))
 		return
 	}
 	for _, item := range targetItems(target) {
 		if item != nil {
-			spread(item.Value, v, f)
+			spread(item.Value, v, f, r)
 		}
 	}
 }
@@ -943,17 +1166,27 @@ func (e *Env) invalidateShared(f *frame, r *scopeResult) {
 	if r.global && e.globalsTable() {
 		r.operations += len(f.vars)
 		for name, old := range f.vars {
-			if element(name, "") {
-				delete(f.vars, name)
-			} else {
-				f.vars[name] = unsettled(old, e.held(name, r))
-			}
+			f.vars[name] = unsettled(old, e.held(name, r))
 		}
 		return
 	}
-	r.operations += len(f.aliased)
-	for name := range f.aliased {
-		f.set(name, unsettled(f.vars[name], e.held(name, r)))
+	// What a holder writes to one name is read under the names bound with it.
+	r.operations += 2 * len(f.aliased)
+	var groups map[uint32]Value
+	for name, group := range f.aliased {
+		if written := e.held(name, r); group >= aliasGroup && tainted(written) {
+			if groups == nil {
+				groups = map[uint32]Value{}
+			}
+			groups[group] = unsettled(groups[group], written)
+		}
+	}
+	for name, group := range f.aliased {
+		written, shared := groups[group]
+		if !shared {
+			written = e.held(name, r)
+		}
+		f.vars[name] = unsettled(f.vars[name], written)
 	}
 }
 

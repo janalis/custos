@@ -46,11 +46,12 @@ func (c *Context) Flow() *flow.Env {
 		snapshot := c.engine.flow
 		// The buffer's declarations shadow the indexed copy of its path.
 		// Only files with callable declarations need a local summary overlay.
-		own := flow.Extract(c.File, c.Index(), c.PHP, snapshot)
-		if len(own.Summaries) > 0 {
-			snapshot = snapshot.WithFile(own)
+		// The environment that computed them serves when they change nothing.
+		env, own := flow.Summarize(c.File, c.Types(), snapshot)
+		if len(own.Summaries) > 0 && !snapshot.Holds(own) {
+			env = flow.New(c.File, c.Types(), snapshot.WithFile(own))
 		}
-		c.flow = flow.New(c.File, c.Types(), snapshot)
+		c.flow = env
 	}
 	return c.flow
 }

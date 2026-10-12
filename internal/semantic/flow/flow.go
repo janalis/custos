@@ -3,6 +3,7 @@
 package flow
 
 import (
+	"cmp"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -23,8 +24,9 @@ const (
 
 // Limits bound hostile scopes and recursive wrapper queries. MaxRetained
 // bounds the bindings and states kept as block inputs of one scope (memory);
-// MaxCopied the bindings copied while iterating to a fixed point (time). An ordinary long function carries a hundred locals through a few
-// hundred blocks, far below both.
+// MaxCopied the bindings copied, joined and compared while iterating to a
+// fixed point (time). An ordinary long function carries a hundred locals
+// through a few hundred blocks, far below both.
 const (
 	MaxBlocks    = 8192
 	MaxTransfers = 100000
@@ -53,12 +55,73 @@ type Value struct {
 	Invalidated uint32
 	NonFalse    bool
 	NonNull     bool
-	// elements marks an array variable some of whose literal-keyed elements
-	// are tracked as bindings of their own.
-	elements    bool
+	// elements holds the literal-keyed elements of an array variable that
+	// are tracked on their own. Only a binding carries them: the value of an
+	// expression never does.
+	elements    *elementSet
 	Length      int64
 	LengthKnown bool
 	headerMask  uint8
+	// upload marks the table of uploaded files or one of its entries as PHP
+	// built it: only there are the server-chosen fields what they claim.
+	upload uint8
+	// scalars marks an array whose values are numbers, booleans or null
+	// while its keys remain whatever the request sent.
+	scalars bool
+}
+
+const (
+	uploadEntry uint8 = iota + 1
+	uploadTable
+)
+
+// elementSet is never modified once a binding holds it: a write makes a new
+// one, which lets every copy of the array value share it.
+type elementSet struct{ items map[string]Value }
+
+// with returns the set with one more element written.
+func (s *elementSet) with(key string, v Value) *elementSet {
+	n := &elementSet{items: map[string]Value{key: v}}
+	if s != nil {
+		for k, old := range s.items {
+			if k != key {
+				n.items[k] = old
+			}
+		}
+	}
+	return n
+}
+
+// common keeps the elements tracked in both sets, each holding what either
+// may. It returns a itself when b adds nothing to it.
+func common(a, b *elementSet) *elementSet {
+	if a == b {
+		return a
+	}
+	if a == nil || b == nil {
+		return nil
+	}
+	kept := true
+	for k, v := range a.items {
+		w, ok := b.items[k]
+		if !ok || !equal(merge(v, w), v) {
+			kept = false
+			break
+		}
+	}
+	if kept {
+		return a
+	}
+	n := &elementSet{items: map[string]Value{}}
+	for k, v := range a.items {
+		if w, ok := b.items[k]; ok {
+			n.items[k] = merge(v, w)
+		}
+	}
+	if len(n.items) == 0 {
+		return nil
+	}
+	return n
 }
 
 // State is the most recent operation common to every reaching path.
@@ -111,7 +174,9 @@ type Env struct {
 	file     *syntax.File
 	types    *infer.Env
 	snapshot *Snapshot
-	scopes   map[syntax.Node]*scopeResult
+	// consulted records the contracts read while summaries are extracted.
+	consulted map[string]bool
+	scopes    map[syntax.Node]*scopeResult
 	// global caches the file's function-bound global names once scanned, and
 	// globalTaint the request data those functions write to them.
 	global       map[string]bool
@@ -121,12 +186,15 @@ type Env struct {
 }
 
 type scopeResult struct {
-	values     map[syntax.Expr]Value
-	before     map[syntax.Node]map[uint32]State
-	calls      []Call
-	returns    []Value
-	callIndex  map[syntax.Node]int
-	complete   bool
+	values    map[syntax.Expr]Value
+	before    map[syntax.Node]map[uint32]State
+	calls     []Call
+	returns   []Value
+	callIndex map[syntax.Node]int
+	complete  bool
+	// spent marks a scope that ran out of one of its memory budgets:
+	// nothing more is worth computing for it.
+	spent      bool
 	operations int
 	facts      int
 	retained   int
@@ -277,14 +345,22 @@ func merge(a, b Value) Value {
 	// A value without request data has nothing to escape: it is neutral for
 	// the escaping proof of the other operand, whether or not it is known.
 	sa, sb := a.Safe, b.Safe
-	if len(a.Sources) == 0 {
-		sa = HTML | SQL | Shell | Header | URL | Path
-	}
-	if len(b.Sources) == 0 {
-		sb = HTML | SQL | Shell | Header | URL | Path
+	ua, ub := a.upload, b.upload
+	ca, cb := a.scalars, b.scalars
+	switch {
+	case len(a.Sources) == 0 && len(b.Sources) == 0:
+		sa, sb, ua, ub, ca, cb = HTML|SQL|Shell|Header|URL|Path, HTML|SQL|Shell|Header|URL|Path, 0, 0, false, false
+	case len(a.Sources) == 0:
+		sa, ua, ca = HTML|SQL|Shell|Header|URL|Path, ub, cb
+	case len(b.Sources) == 0:
+		sb, ub, cb = HTML|SQL|Shell|Header|URL|Path, ua, ca
 	}
 	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, headerMask: a.headerMask & b.headerMask, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull, LengthKnown: a.LengthKnown && b.LengthKnown && a.Length == b.Length, Length: a.Length}
-	v.elements = a.elements && b.elements
+	v.elements = common(a.elements, b.elements)
+	v.scalars = ca && cb
+	if ua == ub {
+		v.upload = ua
+	}
 	if a.Expr == b.Expr {
 		v.Expr = a.Expr
 	}
@@ -296,29 +372,86 @@ func merge(a, b Value) Value {
 	if a.Identity == b.Identity {
 		v.Identity = a.Identity
 	}
-	for _, xs := range [][]Source{a.Sources, b.Sources} {
-		for _, s := range xs {
-			found := false
-			for _, t := range v.Sources {
-				if s == t {
-					found = true
-					break
-				}
-			}
-			if !found {
-				if len(v.Sources) == MaxSources {
-					v.Complete = false
-					continue
-				}
-				v.Sources = append(v.Sources, s)
-			}
-		}
+	var whole bool
+	if v.Sources, whole = union(a.Sources, b.Sources); !whole {
+		v.Complete = false
 	}
 	return v
 }
 
+// union joins two source lists, each in the order of before, without
+// repeating a source. It returns a itself when b adds nothing, so that a
+// value joined again with what it already holds stays recognisably the
+// same; the result never shares spare capacity a later append could write
+// to. Sources past MaxSources are dropped, which the second result reports.
+func union(a, b []Source) ([]Source, bool) {
+	switch {
+	case len(b) == 0 || len(a) == len(b) && &a[0] == &b[0]:
+		return a[:len(a):len(a)], true
+	case len(a) == 0:
+		return b[:len(b):len(b)], true
+	}
+	i, j := 0, 0
+	for ; j < len(b); j++ {
+		for i < len(a) && before(a[i], b[j]) {
+			i++
+		}
+		if i == len(a) || a[i] != b[j] {
+			break
+		}
+	}
+	if j == len(b) {
+		return a[:len(a):len(a)], true
+	}
+	out := make([]Source, 0, min(len(a)+len(b), MaxSources))
+	i, j = 0, 0
+	for i < len(a) || j < len(b) {
+		var next Source
+		switch {
+		case j == len(b) || i < len(a) && before(a[i], b[j]):
+			next = a[i]
+			i++
+		case i == len(a) || before(b[j], a[i]):
+			next = b[j]
+			j++
+		default:
+			next = a[i]
+			i++
+			j++
+		}
+		if len(out) == MaxSources {
+			return out, false
+		}
+		out = append(out, next)
+	}
+	return out, true
+}
+
+// before orders sources: by position, then by what distinguishes two sources
+// at one position (a parameter, another file).
+func before(a, b Source) bool {
+	if a.Span.Start != b.Span.Start {
+		return a.Span.Start < b.Span.Start
+	}
+	return cmp.Or(cmp.Compare(a.Span.End, b.Span.End), cmp.Compare(a.Parameter, b.Parameter), cmp.Compare(a.Path, b.Path), cmp.Compare(a.Kind, b.Kind)) < 0
+}
+
+// equal reports two values that hold the same facts. Element sets are
+// compared by identity, which merge keeps when nothing changes.
+func equal(v, w Value) bool {
+	if v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || v.upload != w.upload || v.scalars != w.scalars || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
+		return false
+	}
+	for i, s := range v.Sources {
+		if s != w.Sources[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func clone(f frame) frame {
-	n := frame{vars: map[string]Value{}, states: map[uint32]State{}}
+	n := frame{vars: make(map[string]Value, len(f.vars)), states: map[uint32]State{}}
 	for k, v := range f.vars {
 		n.vars[k] = v
 	}
@@ -373,28 +506,6 @@ func (f *frame) bind(target, source string, site uint32) {
 	f.aliased[target] = group
 }
 
-// set stores a binding. An array whose value is replaced or no longer known
-// loses the elements tracked for it.
-func (f *frame) set(name string, v Value) {
-	if f.vars[name].elements && !v.elements {
-		for k := range f.vars {
-			if element(k, name) {
-				delete(f.vars, k)
-			}
-		}
-	}
-	f.vars[name] = v
-}
-
-// elementKey names the binding of a literal-keyed element of an array variable.
-func elementKey(name, key string) string { return name + "\x00" + key }
-
-// element reports the binding of an element; of array name when name is given.
-func element(key, name string) bool {
-	i := strings.IndexByte(key, 0)
-	return i >= 0 && (name == "" || key[:i] == name)
-}
-
 // write binds a plain variable. A write through a name bound by `=&` gives
 // the same value to the names bound with it. A write through a name whose
 // reference is kept somewhere the analysis does not follow may reach every
@@ -407,13 +518,21 @@ func (f *frame) write(r *scopeResult, name string, v Value) {
 			switch {
 			case other == name || g != group:
 			case group == aliasAny:
-				f.set(other, unsettled(f.vars[other], v))
+				f.vars[other] = unsettled(f.vars[other], v)
 			default:
-				f.set(other, v)
+				f.vars[other] = v
 			}
 		}
 	}
-	f.set(name, v)
+	f.vars[name] = v
+}
+
+// detach makes name a variable of its own again, as `unset`, `static` and
+// `global` do: the storage it was bound to keeps its value for the other
+// names, and the name starts over with nothing known.
+func (f *frame) detach(name string) {
+	delete(f.aliased, name)
+	f.vars[name] = Value{}
 }
 
 // through is a write to storage the analysis does not follow (a property, an
@@ -425,7 +544,7 @@ func (f *frame) through(r *scopeResult, v Value) {
 	r.operations += len(f.aliased)
 	for other, g := range f.aliased {
 		if g == aliasAny {
-			f.set(other, unsettled(f.vars[other], v))
+			f.vars[other] = unsettled(f.vars[other], v)
 		}
 	}
 }
@@ -438,15 +557,11 @@ func (f *frame) forget(r *scopeResult) {
 }
 
 // unsettle makes every binding unknown, keeping its request data and adding
-// what was written. Tracked array elements are dropped with their arrays.
+// what was written.
 func (f *frame) unsettle(r *scopeResult, written Value) {
 	r.operations += len(f.vars)
 	for name, old := range f.vars {
-		if element(name, "") {
-			delete(f.vars, name)
-		} else {
-			f.vars[name] = unsettled(old, written)
-		}
+		f.vars[name] = unsettled(old, written)
 	}
 }
 
@@ -487,78 +602,75 @@ func agree(a, b State) (State, bool) {
 	return a, true
 }
 
-func join(a, b frame) frame {
-	n := clone(a)
-	for k, v := range n.vars {
+// rejoin joins a path that split off inside an expression into the first
+// one, charging the frame copied for it and the join to the scope's budget.
+func rejoin(first, second frame, r *scopeResult) frame {
+	_, work := first.absorb(second)
+	r.copies += work + len(second.vars) + len(second.states)
+	return first
+}
+
+// absorb joins another path into the frame in place. It reports whether the
+// frame changed and the work done, in bindings visited and sources compared.
+func (f *frame) absorb(b frame) (bool, int) {
+	changed, work, shared := false, len(f.vars)+len(f.states), 0
+	for k, v := range f.vars {
 		w, ok := b.vars[k]
-		if !ok {
-			// An element tracked on one path only is read from its array.
-			if element(k, "") {
-				delete(n.vars, k)
+		if ok {
+			shared++
+		}
+		if len(v.Sources) > 0 && len(w.Sources) > 0 {
+			if &v.Sources[0] == &w.Sources[0] && equal(v, w) {
+				// Joining a value with itself leaves it as it is.
 				continue
 			}
-			w = Value{}
+			work += (len(v.Sources) + len(w.Sources)) / 2
 		}
-		n.vars[k] = merge(v, w)
-	}
-	for k, v := range b.vars {
-		if _, ok := n.vars[k]; !ok && !element(k, "") {
-			n.vars[k] = merge(Value{}, v)
+		if m := merge(v, w); !equal(m, v) {
+			f.vars[k] = m
+			changed = true
 		}
 	}
-	for k, v := range n.states {
-		if common, ok := agree(v, b.states[k]); ok {
-			n.states[k] = common
-		} else {
-			delete(n.states, k)
+	if shared < len(b.vars) {
+		work += len(b.vars)
+		for k, v := range b.vars {
+			if _, ok := f.vars[k]; !ok {
+				f.vars[k] = merge(Value{}, v)
+				changed = true
+			}
 		}
 	}
-	// A definite binding made on one path only may not hold.
-	for k, group := range n.aliased {
-		if _, both := b.aliased[k]; !both && group >= aliasGroup {
-			n.alias(k, aliasAny)
+	for k, v := range f.states {
+		if common, ok := agree(v, b.states[k]); !ok {
+			delete(f.states, k)
+			changed = true
+		} else if common != v {
+			f.states[k] = common
+			changed = true
+		}
+	}
+	// A definite binding one path lacks, or holds otherwise, may not hold.
+	for k, group := range f.aliased {
+		if other, both := b.aliased[k]; group >= aliasGroup && (!both || other == aliasHeld) {
+			f.alias(k, aliasAny)
+			changed = true
 		}
 	}
 	for k, group := range b.aliased {
-		if _, both := a.aliased[k]; !both && group >= aliasGroup {
+		mine, both := f.aliased[k]
+		if group >= aliasGroup && (!both || mine == aliasHeld) {
 			group = aliasAny
 		}
-		n.alias(k, group)
+		f.alias(k, group)
+		changed = changed || !both || f.aliased[k] != mine
 	}
-	return n
-}
-
-func same(a, b frame) bool {
-	if len(a.vars) != len(b.vars) || len(a.states) != len(b.states) || len(a.aliased) != len(b.aliased) {
-		return false
-	}
-	for k, group := range a.aliased {
-		if other, ok := b.aliased[k]; !ok || other != group {
-			return false
-		}
-	}
-	for k, v := range a.vars {
-		w, ok := b.vars[k]
-		if !ok || v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
-			return false
-		}
-		for i, s := range v.Sources {
-			if s != w.Sources[i] {
-				return false
-			}
-		}
-	}
-	for k, v := range a.states {
-		if b.states[k] != v {
-			return false
-		}
-	}
-	return true
+	return changed, work
 }
 
 // reserve bounds the operation states remembered per node.
 func reserve(r *scopeResult, cells int) bool {
 	if cells > MaxTransfers-r.facts {
+		r.spent = true
 		r.complete = false
 		return false
 	}
@@ -569,6 +681,7 @@ func reserve(r *scopeResult, cells int) bool {
 // retain bounds the frame cells kept as block inputs.
 func retain(r *scopeResult, cells int) bool {
 	if cells > MaxRetained-r.retained {
+		r.spent = true
 		r.complete = false
 		return false
 	}

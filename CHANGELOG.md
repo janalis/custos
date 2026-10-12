@@ -81,10 +81,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   longer discards what is known about other variables. A write through
   `$GLOBALS['name']`, or through a property, static property or array slot
   holding a reference to a local, is seen as a write to that variable, and
-  `$a = &$b` makes both names read the same value. Long functions (hundreds
-  of locals and branches) no longer exhaust the analysis budget.
+  `$a = &$b` makes both names read the same value, until `unset`, `static` or
+  `global` gives one of them other storage. Long functions (hundreds of
+  locals and branches) no longer exhaust the analysis budget, and deeply
+  nested loops or a `switch` in such a function no longer make its analysis
+  take seconds.
 - Project analysis no longer rebuilds the whole cross-file summary table for
-  every analysed file, which took about a third of the time on large projects.
+  every analysed file, which took about a third of the time on large projects,
+  and no longer analyses a file again when nothing it calls changed.
 - Malformed input (`curl_exec(` at end of file, `new` without an argument
   list inside an array access) no longer makes four inspections skip the file.
 - Request-data inspections no longer treat a `match` subject, arithmetic
@@ -94,11 +98,22 @@ versions follow [Semantic Versioning](https://semver.org/).
   (`$this->bin . $_GET['a']`), appended with `.=`, stored in an array element,
   iterated with `foreach`, imported by `extract($_GET)`, or passed to a
   function that cannot be resolved before it reaches the sink. Array elements
-  with a literal key are tracked individually, so a clean element next to a
-  request-derived one is not reported; `sort()`, `preg_match()` groups and
-  `parse_str()` results keep the request data they work on; `extract()` honours
-  `EXTR_SKIP` and cannot create superglobals; `array_map('intval', ...)`,
+  with a constant key are tracked individually and follow the array into
+  another variable, so a clean element next to a request-derived one is not
+  reported; keys are compared as PHP folds them (`0x1`, `01`, `1.7`, `true`
+  and `'1'` are the key `1`). `sort()`, `preg_match()` groups and
+  `parse_str()` results keep the request data they work on, while counts,
+  exit statuses and other numeric results a function writes to a reference
+  argument, the output of `exec()` and an array sorted with a request-supplied
+  callback are clean. `extract()` honours `EXTR_SKIP`, also combined with
+  `EXTR_REFS` or passed as a named argument, and cannot create superglobals;
   `settype($v, 'int')` and `$n += ...` on a number yield clean values.
+  `array_map('intval', ...)` yields clean values but keeps the request's keys
+  (`array_keys()` of the result is still reported). The server-chosen fields
+  of an uploaded file (`size`, `tmp_name`, `error`) are trusted only on the
+  upload entry itself, not on an array a client field was copied into. A value
+  passed to a variadic PHP function (`sprintf`, `max`) keeps what was known
+  about it.
 - Failure-value inspections accept more guards: truthiness, `!empty()`, loose
   comparison with `false`/`null`, type predicates, constant-first comparisons,
   an assignment tested in place, `elseif`/`else` arms, short-circuit operands,

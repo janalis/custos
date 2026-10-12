@@ -25,19 +25,22 @@ func BuildFlowSnapshot(files []string, srcs [][]byte, opt syntax.Options, ix *in
 		}
 		trees[i] = syntax.ParseBest(path, src, opt)
 	}
+	// A file is summarized again only when a contract its summaries were
+	// computed from changed in the last round.
 	snapshot := flow.NewSnapshot()
+	var earlier *flow.Snapshot
+	results := make([]*flow.File, len(trees))
 	for round := 0; round < flow.MaxDepth; round++ {
-		results := []*flow.File{}
-		for _, file := range trees {
-			if file != nil {
-				results = append(results, flow.Extract(file, ix, opt.Version, snapshot))
+		for i, file := range trees {
+			if file != nil && (results[i] == nil || !results[i].Current(earlier, snapshot)) {
+				results[i] = flow.Extract(file, ix, opt.Version, snapshot)
 			}
 		}
 		next := flow.NewSnapshot(results...)
 		if snapshot.Equal(next) {
 			return next
 		}
-		snapshot = next
+		earlier, snapshot = snapshot, next
 	}
 	return snapshot
 }

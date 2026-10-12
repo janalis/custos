@@ -190,14 +190,47 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 			initial.vars[p.Var.Name] = Value{Complete: true, Identity: p.Var.Span().Start + 1, Sources: []Source{{Kind: "parameter", Parameter: i}}}
 		}
 	}
-	inputs := map[int]frame{entry: initial}
-	queue := []int{entry}
-	queued := map[int]bool{entry: true}
-	steps := 0
-	for len(queue) > 0 && steps < MaxTransfers && r.operations <= MaxTransfers && r.copies <= MaxCopied {
-		i := queue[0]
-		queue = queue[1:]
-		delete(queued, i)
+	// A block is visited when no block before it in the source waits: blocks
+	// are numbered from the end of the scope, a loop body above its test, so
+	// a loop settles before what follows it runs.
+	inputs := make([]frame, len(g.blocks))
+	waiting := make([]bool, len(g.blocks))
+	inputs[entry], waiting[entry] = initial, true
+	top, queued, steps := entry, 1, 0
+	// A block input is retained until the scope is done: only its growth is
+	// charged to the memory budget. owned marks a frame nothing else uses.
+	propagate := func(target int, v frame, owned bool) {
+		input := &inputs[target]
+		if input.vars == nil {
+			if !retain(r, len(v.vars)+len(v.states)) {
+				return
+			}
+			if !owned {
+				r.copies += len(v.vars) + len(v.states)
+				v = clone(v)
+			}
+			*input = v
+		} else {
+			before := len(input.vars) + len(input.states)
+			changed, work := input.absorb(v)
+			r.copies += work
+			if !changed || !retain(r, max(0, len(input.vars)+len(input.states)-before)) {
+				return
+			}
+		}
+		if !waiting[target] {
+			waiting[target] = true
+			queued++
+			top = max(top, target)
+		}
+	}
+	for queued > 0 && steps < MaxTransfers && !r.spent && r.operations <= MaxTransfers && r.copies <= MaxCopied {
+		for !waiting[top] {
+			top--
+		}
+		i := top
+		waiting[i] = false
+		queued--
 		steps++
 		in := inputs[i]
 		r.copies += len(in.vars) + len(in.states)
@@ -216,49 +249,33 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 				break
 			}
 			if b.exceptional > 0 {
-				exceptional = join(exceptional, out)
+				_, work := exceptional.absorb(out)
+				r.copies += work
 			}
 		}
-		// A block input is retained until the scope is done: only its
-		// growth is charged to the memory budget. The stored frame is a
-		// copy, which lets the working frame of the block stay on the stack.
-		propagate := func(target int, v frame) {
-			old, exists := inputs[target]
-			updated := v
-			grown := len(v.vars) + len(v.states)
-			if exists {
-				r.copies += grown
-				updated = join(old, v)
-				if same(old, updated) {
-					return
-				}
-				grown = max(0, len(updated.vars)+len(updated.states)-len(old.vars)-len(old.states))
-			}
-			if !retain(r, grown) {
-				return
-			}
-			inputs[target] = clone(updated)
-			if !queued[target] {
-				queue = append(queue, target)
-				queued[target] = true
-			}
-		}
+		condition, conditional := b.node.(syntax.Expr)
+		conditional = conditional && len(b.next) == 2
 		for j, target := range b.next {
+			// The last successor takes the working frame itself.
+			last := j == len(b.next)-1
 			branch := out
-			if condition, ok := b.node.(syntax.Expr); ok && len(b.next) == 2 {
-				branch = clone(out)
+			if conditional {
+				if !last {
+					r.copies += len(out.vars) + len(out.states)
+					branch = clone(out)
+				}
 				e.refine(condition, &branch, j == 0)
 			}
-			propagate(target, branch)
+			propagate(target, branch, conditional || last)
 		}
 		if b.exceptional > 0 {
-			propagate(b.exceptional, exceptional)
+			propagate(b.exceptional, exceptional, true)
 		}
 	}
 	// What each variable may hold when the scope ends is what a holder of a
 	// reference to it has written.
 	r.exit = inputs[exit].vars
-	r.complete = r.complete && g.complete && len(queue) == 0
+	r.complete = r.complete && g.complete && queued == 0
 	sort.Slice(r.calls, func(i, j int) bool { return r.calls[i].Node.Span().Start < r.calls[j].Node.Span().Start })
 	return r
 }
