@@ -104,6 +104,14 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 					next = e.updated(name, i, list, positions, params, f.vars[variable.Name], r)
 				}
 			}
+			if old := f.vars[variable.Name]; target != syntax.UnwrapParens(a.Value) {
+				// Only the element can be bound: the callee may change or
+				// create it, with what it writes, but the variable stays the
+				// array it was, with the request data its other elements hold.
+				next = unsettled(old, next)
+				next.Complete = next.Complete || old.Complete
+				next.NonFalse, next.NonNull = old.NonFalse, old.NonNull
+			}
 			f.write(r, variable.Name, next)
 		}
 	}

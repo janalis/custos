@@ -159,6 +159,13 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 		v = e.call(n, n.Args, n.Var, f, r, depth)
 	case *syntax.StaticCall:
+		if conditional(n.Class) {
+			// The call is not made when a null-safe link before it is null.
+			called := clone(*f)
+			v = e.call(n, n.Args, nil, &called, r, depth)
+			*f = rejoin(*f, called, r)
+			break
+		}
 		v = e.call(n, n.Args, nil, f, r, depth)
 	case *syntax.New:
 		values := []Value{}

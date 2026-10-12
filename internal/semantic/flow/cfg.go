@@ -225,7 +225,9 @@ func (e *Env) never(call syntax.Node) bool {
 			return false
 		}
 	case *syntax.StaticCall:
-		list = n.Args
+		if list = n.Args; conditional(n.Class) {
+			return false
+		}
 	}
 	if list != nil && len(list.Args) == 1 {
 		if _, callable := list.Args[0].(*syntax.VariadicPlaceholder); callable {
@@ -258,6 +260,10 @@ func (e *Env) method(call syntax.Node) *index.Method {
 		id, ok := n.Name.(*syntax.Identifier)
 		if classes := e.types.TypeOf(n.Var).Classes(); ok && len(classes) == 1 {
 			return e.types.Index.FindMethod(classes[0], id.Value, e.types.PHP)
+		}
+		if this, direct := n.Var.(*syntax.Variable); ok && direct && this.Name == "this" {
+			// Inside a trait `$this` has no class of its own yet.
+			return e.types.Index.FindMethod(e.types.ClassFQN(syntax.EnclosingClass(n)), id.Value, e.types.PHP)
 		}
 	case *syntax.StaticCall:
 		id, ok := n.Name.(*syntax.Identifier)

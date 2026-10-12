@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"strings"
 	"testing"
 
 	"custos/internal/php/syntax"
@@ -10,7 +11,6 @@ func TestReferenceCallsCannotRetainPriorValueProof(t *testing.T) {
 	for _, source := range []string{
 		`function clean(&$value){$value='safe';}$x=$_GET['x'];clean($x);probe($x);`,
 		`function clean(&$value){$value='safe';}$x=$_GET['x'];clean(value:$x);probe($x);`,
-		`function clean(&$value){$value='safe';}$x=[$_GET['x']];clean($x[0]);probe($x);`,
 		`class Replace{function __construct(&$value){$value='safe';}}$x=$_GET['x'];new Replace(value:$x);probe($x);`,
 		`$x=$_GET['x'];preg_match('/a/','a',matches:$x);probe($x);`,
 	} {
@@ -21,6 +21,32 @@ func TestReferenceCallsCannotRetainPriorValueProof(t *testing.T) {
 				t.Fatalf("reference call retained stale value: %+v", e.Value(x))
 			}
 		})
+	}
+	// A reference to one element replaces that element at most: the array
+	// keeps the request data its other elements may hold, and stays an array.
+	for _, tc := range []struct {
+		src               string
+		tainted, nonFalse bool
+	}{
+		{`function clean(&$value){$value='safe';}$x=[$_GET['x'], $_GET['y']];clean($x[0]);probe($x);`, true, false},
+		{`function f($o, $a){$u=fopen($a,'r'); if($u === false){return;} $o->m($u['host']); probe($u);}`, false, true},
+		{`function f($o, $a){$u=fopen($a,'r'); if($u === false){return;} $o->m($u['a']['b']); probe($u);}`, false, true},
+		{`function f($o, $a){$u=fopen($a,'r'); if($u === false){return;} lookup($u['host']); probe($u);}`, false, true},
+		{`function f($o, $a){$u=fopen($a,'r'); if($u === false){return;} preg_match('/a/', $a, $u['m']); probe($u);}`, false, true},
+		{`function f($o, $a){$u=fopen($a,'r'); if($u === false){return;} $o->m($u); probe($u);}`, false, false},
+		{`function f($o, $a){$u=fopen($a,'r'); if($u === false){return;} $o->m($u['host']->p); probe($u);}`, false, true},
+		{`function f($o, $a){$u=['k'=>'v']; preg_match('/a/', $_GET['s'], $u['m']); probe($u);}`, true, false},
+		{`function f($o, $a){$u=['k'=>'v', 'c'=>$_GET['c']]; $o->m($u['k']); probe($u['k']);}`, true, false},
+	} {
+		e, f := environment(t, tc.src, nil)
+		x := argument(callsNamed(f, "probe")[0])
+		if e.Tainted(x, HTML) != tc.tainted || e.Excludes(x, "false") != tc.nonFalse {
+			t.Errorf("%s: value=%+v", tc.src, e.Value(x))
+		}
+		// What the array held is no longer known once an element was bound.
+		if _, resolved := e.Resolve(x); resolved && strings.Contains(tc.src, "['host']); probe($u)") {
+			t.Errorf("%s: resolved", tc.src)
+		}
 	}
 	// An unresolved callee may take the argument by reference, so its value
 	// is no longer known; it may also leave it alone, so the request data

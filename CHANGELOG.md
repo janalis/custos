@@ -144,6 +144,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   call) prove nothing.
 - Functions of about two thousand lines and very long `elseif` chains no
   longer exhaust the flow analysis budget.
+- Passing an element of an array to a function or method (`$o->m($parts['host'])`)
+  no longer discards what is known about the array itself: an earlier failure
+  check still holds, and request data in its other elements is still reported.
 - Statements written before a `do … while` loop are no longer analysed as
   part of its body: a read before the loop does not see values assigned in
   it, and a variable stepped in the loop is no longer taken for its value
