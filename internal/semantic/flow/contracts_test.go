@@ -26,9 +26,15 @@ func TestRefinementRejectsUnprovedGuards(t *testing.T) {
 	if n, ok := e.ExactLength(argument(callsNamed(f, "probe")[0])); !ok || n != 4 {
 		t.Fatalf("length=%d/%v", n, ok)
 	}
+	// The guard is a fact of the path, whatever produced the value.
 	e, f = environment(t, `$x=unknown();if ($x===null){return;}probe($x);`, nil)
-	if e.Excludes(argument(callsNamed(f, "probe")[0]), "null") {
-		t.Fatal("unknown result became complete")
+	if x := argument(callsNamed(f, "probe")[0]); !e.Excludes(x, "null") || e.Excludes(x, "false") || e.Value(x).Complete {
+		t.Fatal("guard on an unknown result")
+	}
+	// A scope that is not followed to its end proves nothing.
+	e, f = environment(t, `function g(){$x=unknown();if ($x===null){return;}probe($x);yield 1;}`, nil)
+	if e.Excludes(argument(callsNamed(f, "probe")[0]), "null") || e.Excludes(nil, "null") {
+		t.Fatal("guard in a generator")
 	}
 	e, f = environment(t, `$x=preg_replace('/x/','y','z');if ($x===null){return;}probe($x);`, nil)
 	x := argument(callsNamed(f, "probe")[0])

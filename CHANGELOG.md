@@ -173,6 +173,79 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A by-reference sanitiser called as `Class::method($x)`, or on an object of
   a `final` class, clears or escapes the argument again; an array of numbers
   produced through a by-reference parameter keeps that property.
+- Failure checks hold for a result computed from a property, a loop variable
+  or a method call (`$s = gzdecode($this->data); $s !== false or exit;`):
+  every guard form the flow analysis reads is now honoured for such values,
+  not only for results whose inputs are all known.
+- A `switch` on the checked variable is a failure check: the cases after a
+  `false` or `null` label and the `default` arm hold a value that is neither
+  (`switch ($u) { case false: return; }`), as does a `true` case.
+- A `switch` allow-list also validates an element of a request superglobal
+  (`switch ($_GET['action']) { case 'list': echo $_GET['action']; }`), as long
+  as nothing that may run code (a call, an assignment, the use of a local
+  variable or property) comes between the match and the read.
+- In a `for` loop with a step expression, `continue` no longer runs the
+  statements that end the loop body: a guard such as
+  `if ($s === false) { continue; }` holds for what follows it, and a value
+  rewritten just before a `continue` no longer reaches the rest of the body.
+- A loop without a condition or with the constant `true` (`for (;;)`,
+  `while (true)`) is left only through `break`, `return`, a throw or an exit:
+  a failing branch that ends in such a loop is an early exit, and a function
+  that only loops never returns.
+- Passing a value to a required, typed parameter of a project function, or
+  of a static method named by its class and visible from the call, proves it
+  is not null afterwards, as PHP throws for null there.
+- A retry loop that stops on success or at the end of its input
+  (`while ($n !== false && ($u = parse_url($n)) === false)` followed by
+  `if ($n === false) return;`) is no longer reported: a later test of what
+  the left operand of `&&`/`||` read tells whether the assignment ran.
+- A project function that unsets or rebinds its by-reference parameter
+  (`unset($x)`, `$x = &$other`, `static $x`) is no longer taken to overwrite
+  the caller's variable, nor is one that replaces a by-reference variadic
+  array or rebinds the parameter through `[&$x] = …`; one that only calls
+  other project code no longer clears the request data the argument held. Request data a parameter
+  brings in is kept when the parameter is passed to an unresolved callee
+  before being returned or output.
+- `self::method()` and `parent::method()` resolve to the method that runs,
+  declared in the class or inherited: its return value, its sinks and what
+  it leaves in by-reference arguments are followed, and a by-reference
+  sanitiser called that way clears the argument.
+- A by-reference sanitiser called on an object (`$this->clean($x)`,
+  `$helper->clean($x)`) or through `static::` clears the argument when no
+  class among the analysed files extending the receiver's class (also
+  through a `class_alias()` name) replaces the method. A class extended
+  only outside the analysed paths is not seen.
+- A guard established on a `static` variable no longer holds after a call
+  that can run project code when the function assigns that variable and may
+  leave it false where it calls out or ends: a nested call of the function
+  may have replaced it. A static cache that never holds false stays
+  accepted. `FileReadFailureUnchecked`, `ScandirFailureIterated` and
+  `ImageDecodeFailureUnchecked` still accept such a guard.
+- Failure checks are read in more places: a guard whose body leaves inside
+  a `declare` block, a type predicate around an assignment
+  (`if (!is_string($s = f())) return;`), `switch (false)` cases, and a
+  variable that is only assigned, and checked, on some paths of a function
+  (it is null, not false, on the others).
+- An assignment written inside the target of another write
+  (`$this->seen[$id = $_GET['id']] = true;`), in a dynamic member name or in
+  a destructuring key is followed: the value it stores was not seen before.
+  A write through a reference to a variable variable (`$r = &$$name`) may
+  reach any variable.
+- A `break` or `continue` over several levels out of a `try` with a
+  `finally` block no longer leaves the function unanalysed.
+- A `do … while` loop left by `break`, or whose body ends in a `continue`,
+  is no longer taken for code that never falls through.
+- A result assigned inside a condition (`if (($u = parse_url($s)) === false)
+  { … } echo $u['host'];`), in an `else` branch, a `for` initialiser or a
+  `switch` subject is tracked to its producer by the failure-value
+  inspections that look for an earlier assignment.
+- `UnescapedHtmlOutput` keeps examining an output statement after a value a
+  `switch` matched, and reports request data read after a request
+  superglobal was overwritten with other request data.
+- `XslTransformationFailureConsumed` accepts a condition whose two operands
+  both exclude the failure value.
+- Project summaries are computed in parallel, which shortens the analysis
+  of large projects.
 - Statements written before a `do … while` loop are no longer analysed as
   part of its body: a read before the loop does not see values assigned in
   it, and a variable stepped in the loop is no longer taken for its value

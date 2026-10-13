@@ -32,7 +32,7 @@ func TestContracts(t *testing.T) {
 		{"ternary", "<?php\n$e=DateTime::getLastErrors();echo $e?$e['warning_count']:0;\n", 0},
 		{"early return", "<?php\nfunction f(){$e=DateTime::getLastErrors();if(!$e){return 0;}return $e['warning_count'];}\n", 0},
 		{"is_array", "<?php\n$e=DateTime::getLastErrors();if(is_array($e)){echo $e['warning_count'];}\n", 0},
-		// An offset probe and an exit through an endless loop are proven by the rule itself.
+		// The flow reads offset probes and follows a body that never ends.
 		{"isset or", "<?php\n$e=DateTime::getLastErrors();echo !isset($e['warnings'])||$e['warning_count'];\n", 0},
 		{"isset ternary", "<?php\n$e=DateTime::getLastErrors();echo isset($e['warnings'])?$e['warning_count']:0;\n", 0},
 		{"isset elseif", "<?php\n$e=DateTime::getLastErrors();if($q){echo 1;}elseif(isset($e['warnings'])){echo $e['warning_count'];}\n", 0},
@@ -54,6 +54,43 @@ func TestContracts(t *testing.T) {
 		{"assignment exit through endless loop", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(!($e=DateTime::getLastErrors())){while(true){sleep(1);}}return $e['warning_count'];}\n", 0},
 		{"another value exit through endless loop", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(!$q){while(true){sleep(1);}}return $e['warning_count'];}\n", 1},
 		{"wrong conjunction exit through endless loop", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(!$e&&$q){while(true){sleep(1);}}return $e['warning_count'];}\n", 1},
+		// The statements of a `declare` block are followed in place.
+		{"loose exit inside a declare block", "<?php\nfunction f(){$e=DateTime::getLastErrors();if($e==false){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 0},
+		{"isset exit inside a declare block", "<?php\nfunction f(){$e=DateTime::getLastErrors();if(!isset($e['warnings'])){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 0},
+		{"and exit inside a declare block", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(!($e&&$q)){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 0},
+		{"or exit inside a declare block", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(!$e||$q){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 0},
+		{"strict exit inside a declare block", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(!($e!==false)){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 0},
+		{"loose yoda exit inside a declare block", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(false==$e){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 0},
+		{"relational exit inside a declare block", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if($e>0){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 1},
+		{"empty exit inside a declare block", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(empty($e)){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 0},
+		{"isset held exit inside a declare block", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(isset($e['warnings'])){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 1},
+		{"isset of another value exit inside a declare block", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(!isset($q['warnings'])){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 1},
+		{"not array exit inside a declare block", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(!is_array($e)){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 0},
+		{"assignment exit inside a declare block", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(!($e=DateTime::getLastErrors())){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 0},
+		{"another value exit inside a declare block", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(!$q){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 1},
+		{"wrong conjunction exit inside a declare block", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(!$e&&$q){declare(ticks=1){return 0;}}return $e['warning_count'];}\n", 1},
+		{"declare block that falls through", "<?php\nfunction f($q){$e=DateTime::getLastErrors();if(!$e){declare(ticks=1){echo 1;}}return $e['warning_count'];}\n", 1},
+		// A predicate around the assignment tests the value assigned.
+		{"is_array of the assignment, early return", "<?php\nfunction f(){if(!is_array($e=DateTime::getLastErrors())){return 0;}return $e['warning_count'];}\n", 0},
+		// A property is not a variable of the flow: the rule's own walk reads the
+		// earlier exits that guard it.
+		{"property unguarded", "<?php\nclass C{private $e;private $o;function f($q){$this->e=DateTime::getLastErrors();return $this->e['warning_count'];}}\n", 1},
+		{"property strict early return", "<?php\nclass C{private $e;private $o;function f($q){$this->e=DateTime::getLastErrors();if($this->e===false){return 0;}return $this->e['warning_count'];}}\n", 0},
+		{"property either operand of or", "<?php\nclass C{private $e;private $o;function f($q){$this->e=DateTime::getLastErrors();if($this->e===false||$q){return 0;}return $this->e['warning_count'];}}\n", 0},
+		{"property negated strict test", "<?php\nclass C{private $e;private $o;function f($q){$this->e=DateTime::getLastErrors();if(!($this->e!==false)){return 0;}return $this->e['warning_count'];}}\n", 0},
+		{"property empty", "<?php\nclass C{private $e;private $o;function f($q){$this->e=DateTime::getLastErrors();if(empty($this->e)){return 0;}return $this->e['warning_count'];}}\n", 0},
+		{"property offset not set", "<?php\nclass C{private $e;private $o;function f($q){$this->e=DateTime::getLastErrors();if(!isset($this->e['warnings'])){return 0;}return $this->e['warning_count'];}}\n", 0},
+		{"property not an array", "<?php\nclass C{private $e;private $o;function f($q){$this->e=DateTime::getLastErrors();if(!is_array($this->e)){return 0;}return $this->e['warning_count'];}}\n", 0},
+		{"property falsy", "<?php\nclass C{private $e;private $o;function f($q){$this->e=DateTime::getLastErrors();if(!$this->e){return 0;}return $this->e['warning_count'];}}\n", 0},
+		{"property leaves on success", "<?php\nclass C{private $e;private $o;function f($q){$this->e=DateTime::getLastErrors();if($this->e!==false){return 0;}return $this->e['warning_count'];}}\n", 1},
+		{"property guard that falls through", "<?php\nclass C{private $e;private $o;function f($q){$this->e=DateTime::getLastErrors();if($this->e===false){echo 0;}return $this->e['warning_count'];}}\n", 1},
+		{"another property tested", "<?php\nclass C{private $e;private $o;function f($q){$this->e=DateTime::getLastErrors();if($this->o===false){return 0;}return $this->e['warning_count'];}}\n", 1},
+		{"same property of another object", "<?php\nclass C{private $e;private $o;function f($q){$this->e=DateTime::getLastErrors();if($q->e===false){return 0;}return $this->e['warning_count'];}}\n", 1},
+		// An assignment tested in place guards the variable it stores, not another one.
+		{"assignment of another variable exit", "<?php\nfunction f(){$e=DateTime::getLastErrors();if(!($m=DateTime::getLastErrors())){return 0;}return $e['warning_count'];}\n", 1},
+		// A statement that leaves on the failing outcome is a fact of the flow.
+		{"statement-level exit", "<?php\nfunction f(){$e=DateTime::getLastErrors();$e!==false or exit;return $e['warning_count'];}\n", 0},
+		{"statement-level exit on another value", "<?php\nfunction f($q){$e=DateTime::getLastErrors();$q!==false or exit;return $e['warning_count'];}\n", 1},
 		{"isset failed branch", "<?php\n$e=DateTime::getLastErrors();if(!isset($e['warnings'])){echo $e['warning_count'];}\n", 1},
 		{"reassigned after guard", "<?php\n$e=DateTime::getLastErrors();if($e){$e=DateTime::getLastErrors();echo $e['warning_count'];}\n", 1},
 		{"wrong ternary arm", "<?php\n$e=DateTime::getLastErrors();echo $e?0:$e['warning_count'];\n", 1},

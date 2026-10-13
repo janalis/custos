@@ -67,7 +67,12 @@ func Terminates(s Stmt) bool {
 	case *While:
 		return isTrueConst(x.Cond) && !containsBreak(x.Body)
 	case *DoWhile:
-		return Terminates(x.Body) || (isTrueConst(x.Cond) && !containsBreak(x.Body))
+		// A break leaves the loop, and a continue reaches a condition that
+		// may end it.
+		if containsBreak(x.Body) {
+			return false
+		}
+		return isTrueConst(x.Cond) || Terminates(x.Body) && !jumps(x.Body, true)
 	case *For:
 		return len(x.Cond) == 0 && !containsBreak(x.Body)
 	case *Declare:
@@ -87,7 +92,11 @@ func isTrueConst(e Expr) bool {
 // skipped), or — when n is a switch — a `continue` targeting n, which PHP
 // treats as `break`. A non-literal level (PHP 5.3 `break $n`) is assumed to
 // leave n.
-func containsBreak(n Node) bool {
+func containsBreak(n Node) bool { return jumps(n, false) }
+
+// jumps looks for a `break` leaving the construct rooted at n or, when
+// continues is set, for a `continue` that targets the loop n is the body of.
+func jumps(n Node, continues bool) bool {
 	if n == nil {
 		return false
 	}
@@ -102,10 +111,12 @@ func containsBreak(n Node) bool {
 		case *Function, *Method, *Closure, *ArrowFunction, *ClassLike:
 			return
 		case *Break:
-			found = jumpLevel(x.Num) > depth
+			found = !continues && jumpLevel(x.Num) > depth
 			return
 		case *Continue:
-			found = rootSwitch && jumpLevel(x.Num) == depth+1
+			// A computed level may be the one that targets n.
+			level := jumpLevel(x.Num)
+			found = (rootSwitch || continues) && (level == depth+1 || level == math.MaxInt32)
 			return
 		case *While, *DoWhile, *For, *Foreach, *Switch:
 			if m != n {

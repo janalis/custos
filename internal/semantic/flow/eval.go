@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/index"
 )
 
 func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
@@ -19,11 +19,18 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 		e.eval(n.Expr, f, r, 0)
 	case *syntax.Foreach:
 		iterated := e.eval(n.Expr, f, r, 0)
+		leaving(f, r)
 		if n.ByRef || referenceTarget(n.Value, f) {
 			// The loop variable stays bound to an element after the loop.
 			f.alias(rootVariable(n.Value), aliasAny)
 			f.alias(rootVariable(n.Expr), aliasAny)
 		}
+		// The targets are evaluated when there is an element only: what
+		// they compute is joined with the path that leaves the loop.
+		iterating := clone(*f)
+		e.operands(n.Key, &iterating, r, 0)
+		e.operands(n.Value, &iterating, r, 0)
+		*f = rejoin(*f, iterating, r)
 		kill(n.Key, f, r)
 		kill(n.Value, f, r)
 		// The keys and elements of request data are request data.
@@ -47,6 +54,7 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 		for _, x := range n.Exprs {
 			e.eval(x, f, r, 0)
 		}
+		leaving(f, r)
 		f.states[outputID] = State{Operation: "echo", Span: n.Span()}
 	case *syntax.Global:
 		for _, x := range n.Vars {
@@ -61,12 +69,31 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 			}
 		}
 	case *syntax.Unset:
+		f.unmatchAll(r)
+		leaving(f, r)
 		for _, x := range n.Vars {
+			e.operands(x, f, r, 0)
 			rebind(x, f, r)
 		}
 	case *syntax.StaticStmt:
 		for _, x := range n.Vars {
 			rebind(x.Var, f, r)
+			if _, seen := r.statics[x.Var.Name]; !seen {
+				if r.statics == nil {
+					r.statics = map[string]uint8{}
+				}
+				state := staticKept
+				if assigns(syntax.EnclosingVariableScope(n), x.Var.Name) {
+					state = staticLoose
+					if !r.distrust && startsNotFalse(x.Default) {
+						state = staticHeld
+					}
+				}
+				r.statics[x.Var.Name] = state
+			}
+			if r.statics[x.Var.Name] == staticHeld {
+				f.vars[x.Var.Name] = Value{NonFalse: true}
+			}
 		}
 	default:
 		syntax.Children(n, func(child syntax.Node) {
@@ -111,10 +138,23 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		return Value{}
 	}
 	remember(r, x, *f)
+	if rewrites(x) {
+		// Such an expression may run code of the project.
+		r.runs = true
+		f.unmatchAll(r)
+	}
+	if len(r.statics) > 0 && !calm(x) {
+		// It may also throw, which ends the function here.
+		leaving(f, r)
+	}
 	v := Value{Complete: true, Expr: x}
 	switch n := x.(type) {
 	case *syntax.Variable:
 		if n.NameExpr != nil {
+			// The name may be the one of any variable, which a reference
+			// to it or a callee given it can then write.
+			e.eval(n.NameExpr, f, r, depth+1)
+			f.definite = false
 			v = Value{}
 		} else if strings.HasPrefix(n.Name, "_") && external(n.Name) {
 			v.Sources = []Source{{Kind: n.Name, Path: e.file.Path, Span: n.Span(), Parameter: -1}}
@@ -130,6 +170,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 				}
 			}
 			v.elements = nil
+			v.tested, v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = nil, nil, false, false, false, false
 		}
 	case *syntax.Paren:
 		v = e.eval(n.Expr, f, r, depth+1)
@@ -139,9 +180,11 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			assigned := clone(*f)
 			v = e.assign(n, &assigned, r, depth)
 			*f = rejoin(*f, assigned, r)
+			f.unmatchAll(r)
 			break
 		}
 		v = e.assign(n, f, r, depth)
+		f.unmatchAll(r)
 	case *syntax.FuncCall:
 		if _, named := n.Name.(*syntax.Name); !named {
 			// A callee expression runs first: an invoked closure literal
@@ -151,33 +194,45 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		v = e.call(n, n.Args, nil, f, r, depth)
 	case *syntax.MethodCall:
 		if conditional(n) {
-			// The arguments are not evaluated when the receiver is null.
+			// The name and the arguments are not evaluated when the
+			// receiver is null.
 			called := clone(*f)
+			e.computed(n.Name, &called, r, depth)
 			v = e.call(n, n.Args, n.Var, &called, r, depth)
 			*f = rejoin(*f, called, r)
 			break
 		}
+		e.computed(n.Name, f, r, depth)
 		v = e.call(n, n.Args, n.Var, f, r, depth)
 	case *syntax.StaticCall:
+		e.computed(n.Class, f, r, depth)
 		if conditional(n.Class) {
 			// The call is not made when a null-safe link before it is null.
 			called := clone(*f)
+			e.computed(n.Name, &called, r, depth)
 			v = e.call(n, n.Args, nil, &called, r, depth)
 			*f = rejoin(*f, called, r)
 			break
 		}
+		e.computed(n.Name, f, r, depth)
 		v = e.call(n, n.Args, nil, f, r, depth)
 	case *syntax.New:
+		e.computed(n.Class, f, r, depth)
 		values := []Value{}
 		if n.Args != nil {
 			for _, a := range n.Args.Args {
 				values = append(values, e.eval(a, f, r, depth+1))
 			}
 		}
+		f.unmatchAll(r)
+		leaving(f, r)
 		e.invalidateEscaped(n, values, f, r)
 		e.invalidateReferences(n, n.Args, f, r)
-		if e.exposed(f, r) && !e.nativeClass(n) {
-			e.invalidateShared(f, r)
+		if !e.nativeClass(n) {
+			reenter(n, f, r)
+			if e.exposed(f, r) {
+				e.invalidateShared(f, r)
+			}
 		}
 		for id := range f.states {
 			if id >= bufferID {
@@ -209,6 +264,12 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 				}
 			}
 			e.refine(n.Left, f, deciding)
+			if assignedInPlace(n.Right) != nil {
+				// A later test of what the left operand read tells which
+				// path was taken, while the values it read are in place.
+				e.witness(n, &skipped)
+				e.witness(n, f)
+			}
 			right = e.eval(n.Right, f, r, depth+1)
 			if stored := assignedInPlace(n.Right); stored != nil {
 				// A value the same assignment produced earlier may arrive on
@@ -221,6 +282,20 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 					}
 					r.stale[stored] = true
 				}
+				// Where this operand is skipped the variable keeps what it
+				// held: a value that is not false or null there, joined with
+				// one this operand's test vouches for, is neither (see
+				// refineAssigned). A variable nothing assigned is null.
+				name := stored.Var.(*syntax.Variable).Name
+				kept, tracked := skipped.vars[name]
+				notFalse, notNull := kept.NonFalse || !tracked && skipped.definite, kept.NonNull
+				*f = rejoin(skipped, *f, r)
+				if joined := f.vars[name]; notFalse || notNull {
+					joined.unless, joined.unlessFalse, joined.unlessNull = n, false, false
+					joined.skippedFalse, joined.skippedNull = notFalse, notNull
+					f.vars[name] = joined
+				}
+				break
 			}
 			*f = rejoin(skipped, *f, r)
 		case syntax.TCoalesce:
@@ -312,6 +387,8 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 		v.Expr = x
 		v.Identity = 0
+		// What is known of the array says nothing of its element.
+		v.NonFalse, v.NonNull = false, false
 		root := n.Var
 		levels := 1
 		for {
@@ -351,6 +428,10 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 					held := f.vars[key]
 					v = Value{Complete: held.Complete, Sources: held.Sources, Safe: held.Safe, Expr: x}
 				}
+			}
+			if f.matched(requestElement(x)) {
+				// A switch found the element equal to a fixed text.
+				v = Value{Complete: true, Expr: x, matched: true}
 			}
 			if variable.Name == "_FILES" && levels == 1 {
 				v.upload = uploadEntry
@@ -392,6 +473,14 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		v.Expr = x
 	case *syntax.PropertyFetch:
 		e.eval(n.Var, f, r, depth+1)
+		if conditional(n) {
+			// The name is not evaluated when the object is null.
+			read := clone(*f)
+			e.computed(n.Name, &read, r, depth)
+			*f = rejoin(*f, read, r)
+		} else {
+			e.computed(n.Name, f, r, depth)
+		}
 		v = Value{}
 	case *syntax.Closure:
 		// The body executes only on invocation, where it can write these names.
@@ -411,6 +500,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		v = Value{}
 		r.complete = false
 	case *syntax.Eval, *syntax.Include:
+		f.definite = false
 		f.vars = map[string]Value{}
 		f.states = map[uint32]State{}
 		v = Value{}
@@ -460,6 +550,38 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	return v
 }
 
+// assigns reports that the code of a scope may write the variable of that
+// name, or one of its elements: it is the target of an assignment or a step,
+// an argument (a callee may take it by reference), a slot of an array or of
+// a destructuring, or named by `unset`, `catch` or `foreach`. Only an
+// invocation that does so changes a static variable for the others.
+func assigns(scope syntax.Node, name string) bool {
+	found := false
+	syntax.Inspect(syntax.VariableScopeBody(scope), func(n syntax.Node) bool {
+		v, ok := n.(*syntax.Variable)
+		if !ok || v.Name != name || v.NameExpr != nil {
+			return !found
+		}
+		var written syntax.Expr = v
+		parent := v.Parent()
+		for {
+			element, ok := parent.(*syntax.ArrayDimFetch)
+			if !ok || element.Var != written {
+				break
+			}
+			written, parent = element, element.Parent()
+		}
+		switch p := parent.(type) {
+		case *syntax.Assign:
+			found = p.Var == written || p.ByRef
+		case *syntax.IncDec, *syntax.Arg, *syntax.ArrayItem, *syntax.Unset, *syntax.Catch, *syntax.Foreach, *syntax.ClosureUse:
+			found = true
+		}
+		return !found
+	})
+	return found
+}
+
 // plainVariable names a target that is a variable written as such.
 func plainVariable(x syntax.Expr) string {
 	if v, ok := syntax.UnwrapParens(x).(*syntax.Variable); ok && v.NameExpr == nil {
@@ -473,6 +595,7 @@ func plainVariable(x syntax.Expr) string {
 // write to what the target names.
 func rebind(target syntax.Expr, f *frame, r *scopeResult) {
 	if name := plainVariable(target); name != "" {
+		f.unmatch(r, name)
 		f.detach(name)
 		return
 	}
@@ -491,11 +614,36 @@ func (e *Env) assign(n *syntax.Assign, f *frame, r *scopeResult, depth int) Valu
 		f.write(r, target.Name, v)
 		return v
 	}
+	if n.ByRef {
+		// A reference to a request table or one of its elements reads what
+		// the request sent, whatever a switch matched it with.
+		f.unmatch(r, rootVariable(n.Value))
+	}
+	// PHP evaluates the offsets of an element or property target before
+	// the value, and the keys of a destructuring after it.
+	_, slots := syntax.UnwrapParens(n.Var).(*syntax.Array)
+	if _, listed := syntax.UnwrapParens(n.Var).(*syntax.List); listed {
+		slots = true
+	}
+	if !plain && !slots {
+		e.operands(n.Var, f, r, depth+1)
+	}
 	v = e.eval(n.Value, f, r, depth+1)
+	if slots {
+		e.operands(n.Var, f, r, depth+1)
+	}
 	switch {
 	case plain && n.Op.Kind == syntax.TEqual:
 		// The variable holds the array with the elements tracked for it.
 		bound := v
+		if _, static := r.statics[target.Name]; static {
+			switch syntax.UnwrapParens(n.Value).(type) {
+			case *syntax.Literal, *syntax.Array, *syntax.InterpolatedString, *syntax.New, *syntax.Closure, *syntax.ArrowFunction:
+				// What a static variable is given here is neither false
+				// nor null (see leaving).
+				bound.NonFalse, bound.NonNull = true, true
+			}
+		}
 		bound.elements = e.elements(n.Value, f, r)
 		f.write(r, target.Name, bound)
 		if source := plainVariable(n.Value); source != "" && f.aliased[source] == aliasAny {
@@ -510,6 +658,48 @@ func (e *Env) assign(n *syntax.Assign, f *frame, r *scopeResult, depth int) Valu
 		v.Complete = false
 	}
 	return v
+}
+
+// operands evaluates what a write target computes before the write: its
+// offsets, the object and the name of a property, the keys of a
+// destructuring. The variable written is not read.
+func (e *Env) operands(target syntax.Expr, f *frame, r *scopeResult, depth int) {
+	switch n := syntax.UnwrapParens(target).(type) {
+	case *syntax.ArrayDimFetch:
+		e.operands(n.Var, f, r, depth+1)
+		e.computed(n.Dim, f, r, depth)
+	case *syntax.PropertyFetch:
+		e.eval(n.Var, f, r, depth+1)
+		e.computed(n.Name, f, r, depth)
+	case *syntax.StaticPropertyFetch:
+		e.computed(n.Class, f, r, depth)
+	case *syntax.Array, *syntax.List:
+		for _, item := range targetItems(target) {
+			if item != nil {
+				e.computed(item.Key, f, r, depth)
+				e.operands(item.Value, f, r, depth+1)
+			}
+		}
+	case *syntax.Variable:
+		if n.NameExpr != nil {
+			e.eval(n, f, r, depth+1)
+		}
+	default:
+		// The array or object written into is the result of an expression
+		// (`$o->list()[0] = 1`).
+		e.eval(target, f, r, depth+1)
+	}
+}
+
+// computed evaluates a member, method or class name, or an offset of a write
+// target, written as an expression.
+func (e *Env) computed(name syntax.Expr, f *frame, r *scopeResult, depth int) {
+	switch name.(type) {
+	case nil, *syntax.Identifier, *syntax.Name, *syntax.ClassLike, *syntax.Literal, *syntax.ConstFetch:
+		// Nothing is computed.
+	default:
+		e.eval(name, f, r, depth+1)
+	}
 }
 
 // conditional reports a member access PHP may skip: a null-safe link, or
@@ -554,6 +744,15 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	if receiver != nil {
 		rv = e.eval(receiver, f, r, depth+1)
 	}
+	if args != nil && len(args.Args) == 1 {
+		if _, callable := args.Args[0].(*syntax.VariadicPlaceholder); callable {
+			// `f(...)` only makes a closure: nothing is called.
+			return Value{Complete: true, Expr: n.(syntax.Expr)}
+		}
+	}
+	if receiver != nil {
+		untest(receiver, f)
+	}
 	values := []Value{}
 	written := []*syntax.Arg{}
 	if args != nil {
@@ -564,6 +763,8 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			}
 		}
 	}
+	f.unmatchAll(r)
+	leaving(f, r)
 	name, builtin, result := e.callee(n)
 	c := Call{Node: n, Name: name, Receiver: receiver, Arguments: values}
 	if i, ok := r.callIndex[n]; ok {
@@ -628,6 +829,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 		switch name {
 		case "extract", "parse_str":
+			f.definite = false
 			// Each key of the array may replace a local binding of that
 			// name, or create one, with an element of the array.
 			if array, given := passed(args, values, "array", 0); given && name == "extract" || len(values) == 1 {
@@ -661,11 +863,11 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			v = Value{Complete: v.Complete, Expr: v.Expr, Sources: values[0].Sources, Safe: values[0].Safe, scalars: true}
 		}
 		// Invoking a closure object runs project code like calling it.
-		if e.exposed(f, r) && (name == "__invoke" || name == "call") {
-			e.invalidateShared(f, r)
-		}
-		if e.exposed(f, r) && callbackParameter(e, n) {
-			e.invalidateShared(f, r)
+		if name == "__invoke" || name == "call" || callbackParameter(e, n) {
+			reenter(n, f, r)
+			if e.exposed(f, r) {
+				e.invalidateShared(f, r)
+			}
 		}
 		switch name {
 		case "htmlspecialchars", "htmlentities":
@@ -729,6 +931,9 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 	} else {
 		e.invalidateEscaped(n, append(values, rv), f, r)
+		if !e.quiet(n) {
+			reenter(n, f, r)
+		}
 		e.invalidateShared(f, r)
 		for id := range f.states {
 			if id >= bufferID {
@@ -759,8 +964,8 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 	}
 	e.invalidateReferences(n, args, f, r)
-	if builtin && args != nil && e.types.PHP.AtLeast(phpversion.PHP80) {
-		e.accepted(n, args, f)
+	if args != nil {
+		e.accepted(n, args, builtin, f)
 	}
 	return v
 }
@@ -791,8 +996,7 @@ func (e *Env) callee(n syntax.Node) (string, bool, string) {
 	case *syntax.StaticCall:
 		if id, ok := n.Name.(*syntax.Identifier); ok {
 			if class, ok := n.Class.(*syntax.Name); ok {
-				fqn := e.types.Names.Class(class.Value, class.Span().Start)
-				if m := e.types.Index.FindMethod(fqn, id.Value, e.types.PHP); m != nil && m.Avail.In(e.types.PHP) {
+				if m := e.types.Index.FindMethod(e.named(class), id.Value, e.types.PHP); m != nil && m.Avail.In(e.types.PHP) {
 					return strings.ToLower(id.Value), m.Builtin, m.Return
 				}
 			}
@@ -870,6 +1074,7 @@ func compound(n *syntax.Assign, old, operand Value, scalar bool) Value {
 // property, static property or slot of either may be a reference to a local
 // whose reference was stored there.
 func kill(target syntax.Expr, f *frame, r *scopeResult) {
+	untest(target, f)
 	switch n := syntax.UnwrapParens(target).(type) {
 	case nil:
 	case *syntax.Variable:
@@ -905,6 +1110,8 @@ func kill(target syntax.Expr, f *frame, r *scopeResult) {
 // function. definite marks a plain assignment of the whole entry. A dynamic
 // key may be any of them.
 func global(target *syntax.ArrayDimFetch, v Value, definite bool, f *frame, r *scopeResult) {
+	// The request tables are entries of the globals table in every scope.
+	f.unmatchAll(r)
 	name := assigned(target)
 	switch {
 	case name == "":
@@ -926,6 +1133,7 @@ func global(target *syntax.ArrayDimFetch, v Value, definite bool, f *frame, r *s
 
 // reference handles `target = &source`.
 func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
+	untest(n.Value, f)
 	target, plain := syntax.UnwrapParens(n.Var).(*syntax.Variable)
 	source := rootVariable(n.Value)
 	if plain && target.NameExpr == nil {
@@ -937,6 +1145,10 @@ func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 		}
 		f.alias(target.Name, aliasAny)
 		f.alias(source, aliasAny)
+		if dynamic, ok := syntax.UnwrapParens(n.Value).(*syntax.Variable); ok && dynamic.NameExpr != nil {
+			// The name stands for a variable chosen at run time.
+			f.wild = true
+		}
 		f.write(r, target.Name, unsettled(Value{}, v))
 		return
 	}
@@ -967,6 +1179,7 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 	name := rootVariable(n.Var)
 	switch {
 	case !element || name == "":
+		referenceTarget(n.Var, f)
 		kill(n.Var, f, r)
 		f.through(r, v)
 		if tainted(v) {
@@ -1242,6 +1455,12 @@ func scalar(r *scopeResult, x syntax.Expr, depth int) bool {
 // spread adds the request data of a written value to the bindings a target
 // stores it in.
 func spread(target syntax.Expr, v Value, f *frame, r *scopeResult) {
+	if dynamic, ok := syntax.UnwrapParens(target).(*syntax.Variable); ok && dynamic.NameExpr != nil {
+		// Any variable, tracked or not, may be the one written.
+		f.unsettle(r, v)
+		f.importing(v)
+		return
+	}
 	if name := rootVariable(target); name != "" {
 		// The names bound with the target read what it was given.
 		f.write(r, name, unsettled(f.vars[name], v))
@@ -1258,6 +1477,100 @@ func spread(target syntax.Expr, v Value, f *frame, r *scopeResult) {
 // can replace. Most frames do not, which spares resolving the callee.
 func (e *Env) exposed(f *frame, r *scopeResult) bool {
 	return len(f.aliased) > 0 || r.global && e.globalsTable()
+}
+
+// calm reports an expression that cannot end the function by throwing, its
+// operands aside: a variable read, a constant, a plain assignment to a
+// variable, an identity test or a boolean combination, an array literal, a
+// choice between two values.
+func calm(x syntax.Expr) bool {
+	switch n := x.(type) {
+	case *syntax.Literal, *syntax.ConstFetch, *syntax.Name, *syntax.Identifier, *syntax.Paren, *syntax.Array, *syntax.ArrayItem, *syntax.Ternary:
+		return true
+	case *syntax.Variable:
+		return n.NameExpr == nil
+	case *syntax.Assign:
+		return n.Op.Kind == syntax.TEqual && !n.ByRef && plainVariable(n.Var) != ""
+	case *syntax.Unary:
+		return n.Op.Kind == syntax.TExclaim
+	case *syntax.Binary:
+		switch n.Op.Kind {
+		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr:
+			return true
+		}
+	}
+	return false
+}
+
+// visible reports that a method is the one a call written here runs: a
+// method that is not public is only reached from its own class, anywhere
+// else the call goes to `__call` or `__callStatic`, or fails.
+func (e *Env) visible(call syntax.Node, m *index.Method) bool {
+	return m.Visibility == index.Public || strings.EqualFold(strings.TrimPrefix(e.types.ClassFQN(syntax.EnclosingClass(call)), `\`), strings.TrimPrefix(m.Class, `\`))
+}
+
+// startsNotFalse reports a static variable whose first value is not false:
+// null without an initializer, or a literal, an array, `null` or `true`.
+func startsNotFalse(initial syntax.Expr) bool {
+	switch n := syntax.UnwrapParens(initial).(type) {
+	case nil, *syntax.Literal, *syntax.Array:
+		return true
+	case *syntax.ConstFetch:
+		return constantName(n) == "null" || constantName(n) == "true"
+	}
+	return false
+}
+
+// leaving checks, where the function can be entered again or ends, what is
+// assumed of its static variables: each is not false, and nothing else is
+// bound to it.
+func leaving(f *frame, r *scopeResult) {
+	for name, state := range r.statics {
+		v, tracked := f.vars[name]
+		if _, shared := f.aliased[name]; state == staticHeld && (shared || tracked && !v.NonFalse) {
+			r.broken = true
+		}
+	}
+}
+
+// reenter applies a call that may enter the function again to its static
+// variables: an invocation assigns the ones the function assigns. What a
+// guard established of them is gone, but that they are not false where
+// that is assumed and checked (see leaving). The producer stays, as the
+// value such a call leaves is one the function itself assigned; the value
+// is marked as possibly another one.
+func reenter(at syntax.Node, f *frame, r *scopeResult) {
+	r.runs = true
+	for name, state := range r.statics {
+		v, tracked := f.vars[name]
+		if !tracked || state == staticKept {
+			continue
+		}
+		held := state == staticHeld && v.NonFalse
+		v.NonFalse, v.NonNull, v.origins = held, false, v.origins.unguarded().excluding(held, false)
+		v.tested, v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = nil, nil, false, false, false, false
+		v.Invalidated = at.Span().Start + 1
+		f.vars[name] = v
+	}
+}
+
+// quiet reports a call whose callee is exactly known and runs no code of the
+// project but its own.
+func (e *Env) quiet(call syntax.Node) bool {
+	summary, ok := e.contract(e.summaryName(call))
+	if !ok || !summary.Quiet {
+		return false
+	}
+	switch n := call.(type) {
+	case *syntax.FuncCall:
+		return true
+	case *syntax.StaticCall:
+		class, named := n.Class.(*syntax.Name)
+		m := e.method(call)
+		return named && m != nil && !strings.EqualFold(class.Value, "static") && e.visible(call, m)
+	}
+	m := e.method(call)
+	return m != nil && (m.Final || m.Visibility == index.Private) && e.visible(call, m)
 }
 
 // invalidateShared discards the bindings code outside the scope can replace
@@ -1310,7 +1623,11 @@ func (e *Env) held(name string, r *scopeResult) Value {
 func (e *Env) holderWrites(scope syntax.Node, name string) Value {
 	r := e.scope(scope)
 	written := Value{Complete: true}
-	for _, v := range []Value{r.exit[name], r.globalWrites[name]} {
+	left, captured := r.exit[received(name)]
+	if !captured {
+		left = r.exit[name]
+	}
+	for _, v := range []Value{left, r.globalWrites[name]} {
 		if tainted(v) {
 			written = merge(written, Value{Complete: true, Sources: v.Sources, Safe: v.Safe})
 		}

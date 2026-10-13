@@ -11,7 +11,9 @@ import (
 
 // nullGuarded proves that a null test on the same reaching value dominates
 // input: an enclosing branch, ternary arm or short-circuit operand, or an
-// earlier terminating guard in an enclosing statement list.
+// earlier terminating guard in an enclosing statement list. The flow analysis
+// answers every guard of a plain variable first. Left to this walk: a result
+// held in a property.
 func nullGuarded(ctx *analysis.Context, input syntax.Expr) bool {
 	for child, p := syntax.Node(input), input.Parent(); p != nil && !syntax.IsVariableScope(p); child, p = p, p.Parent() {
 		switch p := p.(type) {
@@ -60,7 +62,8 @@ func logicalOperator(b *syntax.Binary) (and, or bool) {
 }
 
 // excludesNull reports whether condition having the given truth proves that
-// input is not null. General truthiness and loose comparisons prove nothing.
+// input is not null. Only strict tests are read here; truthiness and loose
+// comparisons are proofs of the flow analysis.
 func excludesNull(ctx *analysis.Context, input, condition syntax.Expr, truth bool) bool {
 	switch c := syntax.UnwrapParens(condition).(type) {
 	case *syntax.Unary:

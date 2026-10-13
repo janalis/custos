@@ -62,6 +62,15 @@ func TestReviewSafety(t *testing.T) {
 		{"else branch both reject", "if (!$d && empty($d)) { echo 1; } else { file_put_contents($m, $d); } }", 0},
 		{"and branch both reject", "if ($o && ($d || !empty($d))) { file_put_contents($m, $d); } }", 0},
 		{"else branch one rejects", "if (!$d && $o) { echo 1; } else { file_put_contents($m, $d); } }", 1},
+		{"short circuit and both compare", "return ($d !== false || false != $d) && $d === 'abc'; }", 0},
+		{"short circuit or both compare", "return ($d === false && $d == false) || $d !== 'abc'; }", 0},
+		{"short circuit and one compares", "return ($d !== false || $o != false) && $d === 'abc'; }", 1},
+		// The digest of a property or of a project call result is guarded by the
+		// facts of the paths that reach the use, like any other local.
+		{"property path unguarded", "} function g($m) { $d = hash_file('sha256', $this->p); file_put_contents($m, $d); }", 1},
+		{"property path or exit", "} function g($m) { $d = hash_file('sha256', $this->p); $d !== false or exit; file_put_contents($m, $d); }", 0},
+		{"project call path unguarded", "} function g($p, $m) { $d = hash_file('sha256', locate($p)); file_put_contents($m, $d); }", 1},
+		{"project call path truthy exit", "} function g($p, $m) { $d = hash_file('sha256', locate($p)); if (!$d) { return; } file_put_contents($m, $d); }", 0},
 		{"inline call", "} function g($p, $m) { if ($m) { file_put_contents($m, hash_file('sha256', $p)); } }", 1},
 		{"closure boundary", "if (!$d) { return; } return function () use ($d, $m) { file_put_contents($m, $d); }; }", 0},
 		{"missing data", "file_put_contents($m); }", 0},

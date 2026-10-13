@@ -260,6 +260,8 @@ func TestRebindingDetachesTheName(t *testing.T) {
 		{"unset of a kept reference", `$x=1; $o->p=&$x; unset($x); $o->p=5; $x=2; probe($x);`, true, false},
 		{"bound on one path to a reference parameter", `function f(&$x, $c){$x=1; if($c){$r=&$x;} $r=2; probe($x);}`, false, false},
 		{"bound on the other path to a reference parameter", `function f(&$x, $c){$x=1; if($c){echo 1;}else{$r=&$x;} $r=2; probe($x);}`, false, false},
+		{"bound on one path to a bound name", `$x=1; $y=&$x; if($c){$r=&$x;} $r=2; probe($x);`, false, false},
+		{"bound on the other path to a bound name", `$x=1; $y=&$x; if($c){echo 1;}else{$r=&$x;} $r=2; probe($x);`, false, false},
 		{"reference parameter bound on both paths", `function f(&$x, $c){$r=&$x; $x=1; if($c){echo 1;} $r=2; probe($x);}`, true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -281,6 +283,12 @@ func TestRequestDataReachesBoundNames(t *testing.T) {
 		name, src string
 		taint     bool
 	}{
+		{"written through a dynamic name", `$x='ls'; $$n=$_GET['a']; probe($x);`, true},
+		{"written through a reference to a dynamic name", `$r=&$$n; $x='ls'; $r=$_GET['a']; probe($x);`, true},
+		{"assigned in a loop target, no element", `$x=$_GET['a']; foreach($l as $o->p[$x='ls']){} probe($x);`, true},
+		{"assigned inside a written offset", `$o->seen[$x=$_GET['a']]=true; probe($x);`, true},
+		{"overwritten inside a written offset", `$x=$_GET['a']; $o->seen[$x='ls']=true; probe($x);`, false},
+		{"assigned inside a dynamic property name", `$y=$o->{$x=$_GET['a']}; probe($x);`, true},
 		{"loop variable", `$x='ls'; $r=&$x; foreach($_GET as $r){} probe($x);`, true},
 		{"loop key", `$x='ls'; $r=&$x; foreach($_GET as $r=>$v){} probe($x);`, true},
 		{"destructuring", `$x='ls'; $r=&$x; [$r]=[$_GET['a']]; probe($x);`, true},

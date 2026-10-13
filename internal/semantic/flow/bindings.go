@@ -14,17 +14,39 @@ func (e *Env) bindings(scope syntax.Node, r *scopeResult, initial *frame) {
 		return
 	}
 	for _, p := range syntax.VariableScopeParams(scope) {
-		if p.ByRef && p.Var != nil {
+		switch {
+		case !p.ByRef || p.Var == nil:
+		case p.Variadic:
+			// The name holds an array of references: only a write to one of
+			// its elements reaches an argument (see Summarize).
+			initial.vars[received(p.Var.Name)] = initial.vars[p.Var.Name]
 			initial.alias(p.Var.Name, aliasHeld)
+		default:
+			initial.receive(p.Var)
 		}
 	}
 	if closure, ok := scope.(*syntax.Closure); ok {
 		for _, use := range closure.Uses {
 			if use.ByRef && use.Var != nil {
-				initial.alias(use.Var.Name, aliasHeld)
+				initial.receive(use.Var)
 			}
 		}
 	}
+}
+
+// received is the reserved binding, under a name no variable has, of the
+// variable a reference parameter or a reference capture stands for when the
+// scope starts.
+func received(name string) string { return "&" + name }
+
+// receive binds a name to the caller's variable it stands for. The two are
+// bound like the names of `$a = &$b`: a write through the name reaches the
+// variable until the name is made to stand for something else (`unset`,
+// `static`, `global`, `$name = &$other`), after which the variable keeps
+// what it held.
+func (f *frame) receive(name *syntax.Variable) {
+	f.bind(name.Name, received(name.Name), name.Span().Start)
+	f.vars[received(name.Name)] = f.vars[name.Name]
 }
 
 // globals returns the names functions of the file bind with `global` or
@@ -131,6 +153,10 @@ func referenceTarget(x syntax.Expr, f *frame) bool {
 			continue
 		}
 		if item.ByRef {
+			if name := plainVariable(item.Value); name != "" {
+				// The name leaves what it stood for, for the slot.
+				f.detach(name)
+			}
 			f.alias(rootVariable(item.Value), aliasAny)
 			found = true
 		}

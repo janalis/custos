@@ -53,3 +53,51 @@ function unrelatedWrites(array $counts, $item)
     <error descr="Escape untrusted text for its HTML output context.">echo '<p>' . $_GET['label'];</error>
     $_GET['label'] = 'safe';
 }
+
+// Writes that keep request text in the superglobal replace nothing.
+function wholeArrayFromRequest()
+{
+    $_GET = $_POST;
+    <error descr="Escape untrusted text for its HTML output context.">echo '<p>' . $_GET['v'] . '</p>';</error>
+}
+
+function wholeArrayMerged()
+{
+    $_GET += $_POST;
+    $_REQUEST = array_merge($_REQUEST, $_COOKIE);
+    <error descr="Escape untrusted text for its HTML output context.">echo '<p>' . $_GET['v'];</error>
+    <error descr="Escape untrusted text for its HTML output context.">echo '<p>' . $_REQUEST['v'];</error>
+}
+
+function dynamicElementFromRequest($key)
+{
+    $_GET[$key] = $_POST['v'];
+    <error descr="Escape untrusted text for its HTML output context.">echo '<p>' . $_GET['v'];</error>
+}
+
+function aliased()
+{
+    $alias = &$_COOKIE;
+    <error descr="Escape untrusted text for its HTML output context.">echo '<p>' . $_COOKIE['v'];</error>
+}
+
+function requestWrittenThroughAlias($item)
+{
+    $entry = &$_GET['v'];
+    $entry = $_POST['v'];
+    $item->entry = &$_GET['w'];
+    $item->entry = 'safe';
+    <error descr="Escape untrusted text for its HTML output context.">echo '<p>' . $_GET['v'];</error>
+}
+
+function filledFromRequest()
+{
+    parse_str($_SERVER['QUERY_STRING'], $_GET);
+    <error descr="Escape untrusted text for its HTML output context.">echo '<p>' . $_GET['v'];</error>
+}
+
+function passedToUnresolvedCode()
+{
+    fill_request($_GET, $_POST);
+    <error descr="Escape untrusted text for its HTML output context.">echo '<p>' . $_GET['v'];</error>
+}

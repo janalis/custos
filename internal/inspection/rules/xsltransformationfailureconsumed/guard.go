@@ -15,7 +15,8 @@ type guard struct {
 }
 
 // dominates reports whether a truthiness, loose or type test of the same
-// value cannot let false reach the input.
+// value cannot let false reach the input. The flow facts answer first; this
+// walk decides in a scope the flow does not follow (`goto`, a generator).
 func (g guard) dominates() bool {
 	at := g.input.Span()
 	for p := g.input.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
@@ -91,9 +92,16 @@ func (g guard) rejects(cond syntax.Expr, truth bool) bool {
 	case *syntax.Binary:
 		switch {
 		case conjunction(c):
-			return truth && (g.rejects(c.Left, true) || g.rejects(c.Right, true))
+			// A true conjunction held on both sides; a false one failed on either.
+			if truth {
+				return g.rejects(c.Left, true) || g.rejects(c.Right, true)
+			}
+			return g.rejects(c.Left, false) && g.rejects(c.Right, false)
 		case disjunction(c):
-			return !truth && (g.rejects(c.Left, false) || g.rejects(c.Right, false))
+			if truth {
+				return g.rejects(c.Left, true) && g.rejects(c.Right, true)
+			}
+			return g.rejects(c.Left, false) || g.rejects(c.Right, false)
 		case c.Op.Kind == syntax.TIsEqual, c.Op.Kind == syntax.TIsIdentical:
 			return !truth && g.comparesFalse(c)
 		case c.Op.Kind == syntax.TIsNotEqual, c.Op.Kind == syntax.TIsNotIdentical:

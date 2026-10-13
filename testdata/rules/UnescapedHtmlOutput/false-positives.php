@@ -62,10 +62,37 @@ function rewrittenByReference()
     echo '<p>' . $_GET['v'];
 }
 
-function aliased()
+function writtenThroughAlias()
 {
     $alias = &$_COOKIE;
+    $alias['v'] = 'safe';
     echo '<p>' . $_COOKIE['v'];
+}
+
+function writtenThroughSecondAlias()
+{
+    $entry = &$_GET['v'];
+    $other = &$entry;
+    $other = 'safe';
+    echo '<p>' . $_GET['v'];
+}
+
+function boundToLocal($clean)
+{
+    $_GET['v'] = &$clean;
+    echo '<p>' . $_GET['v'];
+}
+
+function filledFromLiteral()
+{
+    parse_str('v=1', $_GET);
+    echo '<p>' . $_GET['v'];
+}
+
+function wholeArrayCleared()
+{
+    $_GET = [];
+    echo '<p>' . $_GET['v'];
 }
 
 function counted()

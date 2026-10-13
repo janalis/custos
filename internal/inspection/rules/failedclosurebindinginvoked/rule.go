@@ -48,7 +48,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.ArrowFunction:
 		static = c.Static
 	}
-	if !static || object == nil || !provenObject(ctx, object) || guarded(ctx, call.Name) {
+	if !static || object == nil || !provenObject(ctx, object) || ctx.Flow().Excludes(call.Name, "null") || guarded(ctx, call.Name) {
 		return
 	}
 	ctx.ReportNode(call, message)

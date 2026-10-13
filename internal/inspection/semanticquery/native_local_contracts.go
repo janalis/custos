@@ -557,7 +557,9 @@ func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string) synt
 					return true
 				}
 				from = a.Span().End
-				if a.ByRef || a.Op.Kind != syntax.TEqual || !NativeDominates(a, e) {
+				// An assignment written inside a condition does not dominate
+				// syntactically; it does when the flow resolves the read to it.
+				if a.ByRef || a.Op.Kind != syntax.TEqual || !NativeDominates(a, e) && (known == nil || NativeUnsilenced(a.Value) != known) {
 					value = nil
 					writes++
 					return true

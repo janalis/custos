@@ -32,6 +32,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 	if expr == nil {
 		return
 	}
+	ran(expr, f, truth)
 	switch n := syntax.UnwrapParens(expr).(type) {
 	case *syntax.Variable, *syntax.Assign:
 		if truth {
@@ -67,6 +68,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 	case *syntax.Binary:
 		// A constant-first comparison states the same fact. It only pins the
 		// variable to a literal in the written order, as it always did.
+		written := n
 		mirrored := constantOperand(n.Left) && !constantOperand(n.Right)
 		if mirrored {
 			copy := *n
@@ -76,7 +78,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		if (truth && (n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd)) || (!truth && (n.Op.Kind == syntax.TBooleanOr || n.Op.Kind == syntax.TOr)) {
 			// The frame already holds what the right operand wrote: a fact
 			// about the left operand describes a value that may be gone.
-			if !e.rebinds(n.Right, n.Left) {
+			if !e.rebinds(n.Right, n.Left, f) {
 				e.refine(n.Left, f, truth)
 			}
 			e.refine(n.Right, f, truth)
@@ -85,7 +87,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			// Either operand decided. The right one ran only once the left
 			// one had not: what it tests of a value it assigns in place is
 			// settled for that value, whichever operand decided.
-			e.refineAssigned(n.Right, f, truth)
+			e.refineAssigned(written, f, truth)
 		}
 		flag := constantName(n.Right)
 		if (truth && n.Op.Kind == syntax.TIsIdentical) || (!truth && n.Op.Kind == syntax.TIsNotIdentical) {
@@ -172,9 +174,11 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			// Only an array (or an object) has keys.
 			exclude(args[1].Value, f, true, true)
 		}
+		// The predicate tests a variable or the assignment written in its
+		// place (`is_string($n = f())`).
 		arg := args[0]
-		variable, ok := syntax.UnwrapParens(arg.Value).(*syntax.Variable)
-		if !ok || variable.NameExpr != nil {
+		variable := guarded(arg.Value)
+		if variable == nil {
 			return
 		}
 		switch name {
@@ -265,10 +269,13 @@ func exclude(x syntax.Expr, f *frame, nonFalse, nonNull bool) {
 		return
 	}
 	// A variable the frame does not track has no value to qualify.
-	v, tracked := f.vars[variable.Name]
-	if !tracked {
-		return
+	if v, tracked := f.vars[variable.Name]; tracked {
+		f.excluding(variable.Name, v, nonFalse, nonNull)
 	}
+}
+
+// excluding records that the value a name holds is not false and/or not null.
+func (f *frame) excluding(name string, v Value, nonFalse, nonNull bool) {
 	if nonFalse {
 		v.NonFalse = true
 		if s, exists := f.states[v.Identity]; exists {
@@ -280,7 +287,155 @@ func exclude(x syntax.Expr, f *frame, nonFalse, nonNull bool) {
 		v.NonNull = true
 	}
 	v.origins = v.origins.excluding(nonFalse, nonNull)
-	f.vars[variable.Name] = v
+	f.vars[name] = v
+}
+
+// comparison is a test without effects that decides the same way again
+// while the variables it reads are not written: the truth of a variable, or
+// a strict comparison of two variables, constants or literals, under any
+// number of negations. A loose comparison is not one: it reads the
+// properties of the objects it compares.
+type comparison struct {
+	left, right syntax.Expr
+	negated     bool
+}
+
+// compares reads a test of that form.
+func compares(x syntax.Expr) (comparison, bool) {
+	var c comparison
+	for {
+		x = syntax.UnwrapParens(x)
+		not, ok := x.(*syntax.Unary)
+		if !ok || not.Op.Kind != syntax.TExclaim {
+			break
+		}
+		c.negated, x = !c.negated, not.Expr
+	}
+	switch n := x.(type) {
+	case *syntax.Variable:
+		c.left = n
+		return c, n.NameExpr == nil
+	case *syntax.Binary:
+		switch n.Op.Kind {
+		case syntax.TIsIdentical:
+		case syntax.TIsNotIdentical:
+			c.negated = !c.negated
+		default:
+			return c, false
+		}
+		c.left, c.right = syntax.UnwrapParens(n.Left), syntax.UnwrapParens(n.Right)
+		return c, plainVariable(c.left) != "" && constantOperand(c.right) || constantOperand(c.left) && plainVariable(c.right) != "" || plainVariable(c.left) != "" && plainVariable(c.right) != ""
+	}
+	return c, false
+}
+
+// sameOperand reports two operands of a comparison that read the same thing.
+func sameOperand(a, b syntax.Expr) bool {
+	switch a := a.(type) {
+	case nil:
+		return b == nil
+	case *syntax.Variable:
+		return plainVariable(b) == a.Name
+	case *syntax.Literal:
+		other, ok := b.(*syntax.Literal)
+		return ok && other.LitKind == a.LitKind && other.Raw == a.Raw
+	}
+	// Only true, false and null are spelled in any case.
+	constant, _ := a.(*syntax.ConstFetch)
+	other, ok := b.(*syntax.ConstFetch)
+	if !ok || constant.Name == nil || other.Name == nil {
+		return false
+	}
+	// A name written with a leading backslash is the global constant, which
+	// the same name without it need not be inside a namespace.
+	return constant.Name.Value == other.Name.Value || constantName(a) != "" && constantName(a) == constantName(b)
+}
+
+// untest forgets that a short-circuit operation tested the variable an
+// access is rooted in: a write to a property of it, a method called on it or
+// a reference taken inside it can change what it compares or converts to
+// (an object's content, a value PHP turns into an object or an array).
+func untest(x syntax.Expr, f *frame) {
+	for {
+		switch n := syntax.UnwrapParens(x).(type) {
+		case *syntax.PropertyFetch:
+			x = n.Var
+			continue
+		case *syntax.ArrayDimFetch:
+			x = n.Var
+			continue
+		case *syntax.MethodCall:
+			x = n.Var
+			continue
+		case *syntax.Variable:
+			if v, tracked := f.vars[n.Name]; tracked && v.tested != nil {
+				v.tested = nil
+				f.vars[n.Name] = v
+			}
+		}
+		return
+	}
+}
+
+// witness marks the variables the left operand of a short-circuit operation
+// reads as the ones it tested. Only an operand that is a comparison is
+// followed: with the same values it decides the same way again.
+func (e *Env) witness(n *syntax.Binary, f *frame) {
+	c, ok := compares(n.Left)
+	if !ok {
+		return
+	}
+	if c.right == nil && len(e.types.TypeOf(c.left).Classes()) > 0 {
+		// The truth of an object can follow its content.
+		return
+	}
+	for _, operand := range [2]syntax.Expr{c.left, c.right} {
+		if v, tracked := f.vars[plainVariable(operand)]; tracked {
+			v.tested = n
+			f.vars[plainVariable(operand)] = v
+		}
+	}
+}
+
+// ran applies what a test with a known outcome says of a short-circuit
+// operation evaluated before it: when the test is the left operand of that
+// operation, or its negation, read from the values that operand read, its
+// outcome tells whether the right operand ran. Where it did, what the right
+// operand established of the value it assigns in place holds.
+func ran(cond syntax.Expr, f *frame, truth bool) {
+	c, ok := compares(cond)
+	if !ok {
+		return
+	}
+	by := f.vars[plainVariable(c.left)].tested
+	if by == nil {
+		by = f.vars[plainVariable(c.right)].tested
+	}
+	if by == nil {
+		return
+	}
+	left, _ := compares(by.Left)
+	if !sameOperand(left.left, c.left) || !sameOperand(left.right, c.right) {
+		return
+	}
+	for _, operand := range [2]syntax.Expr{left.left, left.right} {
+		if name := plainVariable(operand); name != "" && f.vars[name].tested != by {
+			return
+		}
+	}
+	// The right operand of `&&` runs when the left one is true, of `||`
+	// when it is false.
+	and := by.Op.Kind == syntax.TBooleanAnd || by.Op.Kind == syntax.TAnd
+	if (truth == (left.negated == c.negated)) != and {
+		return
+	}
+	for name, v := range f.vars {
+		if v.unless == by {
+			nonFalse, nonNull := v.unlessFalse, v.unlessNull
+			v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = nil, false, false, false, false
+			f.excluding(name, v, nonFalse, nonNull)
+		}
+	}
 }
 
 // indexed returns the array variable an element access reads, at any depth:
@@ -307,11 +462,11 @@ func constantOperand(x syntax.Expr) bool {
 	return false
 }
 
-// constantName returns the folded name of false or null.
+// constantName returns the folded name of false, null or true.
 func constantName(x syntax.Expr) string {
 	if c, ok := syntax.UnwrapParens(x).(*syntax.ConstFetch); ok && c.Name != nil {
 		switch name := strings.ToLower(strings.TrimPrefix(c.Name.Value, `\`)); name {
-		case "false", "null":
+		case "false", "null", "true":
 			return name
 		}
 	}
@@ -322,8 +477,29 @@ func constantName(x syntax.Expr) string {
 // target of an assignment or a step, or an argument a callee may take by
 // reference. An earlier fact about that variable then describes a value that
 // may be gone.
-func (e *Env) rebinds(x, tested syntax.Expr) bool {
+//
+// A call written in x may also run code that writes a variable tested reads
+// when that variable is bound to storage such code reaches: a static
+// variable the function assigns, a global, a reference.
+func (e *Env) rebinds(x, tested syntax.Expr, f *frame) bool {
 	found := false
+	if r := e.scopes[syntax.EnclosingVariableScope(tested)]; r != nil {
+		reachable := false
+		syntax.Inspect(tested, func(read syntax.Node) bool {
+			if v, ok := read.(*syntax.Variable); ok && v.NameExpr == nil {
+				_, shared := f.aliased[v.Name]
+				reachable = reachable || shared || r.statics[v.Name] != staticKept
+			}
+			return !reachable
+		})
+		syntax.Inspect(x, func(n syntax.Node) bool {
+			switch n.(type) {
+			case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
+				found = reachable
+			}
+			return !found
+		})
+	}
 	mentions := func(written syntax.Expr) {
 		if name := rootVariable(written); name != "" {
 			syntax.Inspect(tested, func(read syntax.Node) bool {
@@ -371,9 +547,14 @@ func (e *Env) rebinds(x, tested syntax.Expr) bool {
 // refineAssigned applies what a condition with a known outcome says about a
 // value it assigns in place (`($u = f()) !== false`) to that producer alone:
 // other producers of the variable reached the read without this test.
-func (e *Env) refineAssigned(cond syntax.Expr, f *frame, truth bool) {
+//
+// Whatever reaches the read, the fact holds of it unless the operand was
+// skipped: the binding keeps it for a later test of the left operand to
+// settle (see ran).
+func (e *Env) refineAssigned(operation *syntax.Binary, f *frame, truth bool) {
+	cond := operation.Right
 	stored := assignedInPlace(cond)
-	if stored == nil || e.scopes[syntax.EnclosingVariableScope(stored)].stale[stored] {
+	if stored == nil {
 		return
 	}
 	name := stored.Var.(*syntax.Variable).Name
@@ -381,8 +562,18 @@ func (e *Env) refineAssigned(cond syntax.Expr, f *frame, truth bool) {
 	alone := frame{vars: map[string]Value{name: {Complete: true, Expr: produced}}, states: map[uint32]State{}}
 	e.refine(cond, &alone, truth)
 	fact := alone.vars[name]
-	v := f.vars[name]
-	if !(fact.NonFalse || fact.NonNull) || v.Expr != nil || v.origins == nil {
+	v, tracked := f.vars[name]
+	if !(fact.NonFalse || fact.NonNull) || !tracked {
+		return
+	}
+	if v.unless == operation && (fact.NonFalse && v.skippedFalse || fact.NonNull && v.skippedNull) {
+		// The value the skipped operand left in place passed the same test.
+		f.excluding(name, v, fact.NonFalse && v.skippedFalse, fact.NonNull && v.skippedNull)
+		v = f.vars[name]
+	}
+	v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = operation, fact.NonFalse, fact.NonNull, false, false
+	f.vars[name] = v
+	if e.scopes[syntax.EnclosingVariableScope(stored)].stale[stored] || v.Expr != nil || v.origins == nil {
 		return
 	}
 	n := &originSet{items: append([]Origin(nil), v.origins.items...), full: v.origins.full}

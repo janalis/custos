@@ -34,6 +34,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c, ok := semanticquery.NativeLocalResult(ctx, a.Var, "false").(*syntax.FuncCall)
+	if !ok {
+		// The lexical scan only reads assignments that are statements; the
+		// flow also knows a result assigned inside a condition.
+		c, ok = semanticquery.NativeValue(ctx, a.Var).(*syntax.FuncCall)
+	}
 	if !ok || !semanticquery.NativeBuiltin(ctx, c, "parse_url") {
 		return
 	}

@@ -218,6 +218,8 @@ func (s *owpScope) reachable(n syntax.Node) bool {
 
 // owpEscapableDoWhile reports whether st holds, outside nested functions and
 // classes, a do-while whose body contains a `break` or `continue`.
+// syntax.Terminates follows literal jump levels only, so a terminating
+// statement can still hold a do-while left through `continue $n`.
 func owpEscapableDoWhile(st syntax.Node) bool {
 	found := false
 	syntax.Inspect(st, func(x syntax.Node) bool {

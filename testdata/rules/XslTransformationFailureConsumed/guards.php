@@ -17,3 +17,7 @@ function notNull(XSLTProcessor $p, DOMDocument $d) { $out = $p->transformToXML($
 function ordered(XSLTProcessor $p, DOMDocument $d) { $out = $p->transformToXML($d); if ($out < 'a') { <warning descr="Reject transformation failure before using the XML.">echo $out;</warning> } }
 function otherAssignment(XSLTProcessor $p, DOMDocument $d) { if ($first = $p->transformToXML($d)) { <warning descr="Reject transformation failure before using the XML.">echo $p->transformToXML($d);</warning> } }
 function compound(XSLTProcessor $p, DOMDocument $d, $x) { $out = $p->transformToXML($d); if ($x .= 'a') { <warning descr="Reject transformation failure before using the XML.">echo $out;</warning> } }
+function bothOperandsReject(XSLTProcessor $p, DOMDocument $d) { $out = $p->transformToXML($d); if ($out || is_string($out)) { echo $out; } }
+function bothOperandsFail(XSLTProcessor $p, DOMDocument $d) { $out = $p->transformToXML($d); if ($out === false && !is_string($out)) { return; } echo $out; }
+function oneOperandRejects(XSLTProcessor $p, DOMDocument $d, $x) { $out = $p->transformToXML($d); if ($x || is_string($out)) { <warning descr="Reject transformation failure before using the XML.">echo $out;</warning> } }
+function oneOperandFails(XSLTProcessor $p, DOMDocument $d, $x) { $out = $p->transformToXML($d); if ($out === false && $x) { return; } <warning descr="Reject transformation failure before using the XML.">echo $out;</warning> }

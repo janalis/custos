@@ -36,6 +36,10 @@ type Summary struct {
 	// outside a trait, and not a generator.
 	ByRef map[int]Value
 	Fixed bool
+	// Quiet marks a callable whose body is the one every call runs and
+	// which runs no code of the project but its own: no call that may, no
+	// constructor, no callback. A call to it cannot enter its caller again.
+	Quiet bool
 }
 
 // File contains summaries from one indexed file. It retains no source or AST.
@@ -265,9 +269,17 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot) (*Env, *
 			sum.Return.Complete = sum.Return.Complete && r.complete
 			sum.Never = r.complete && r.leaves && !sum.Generator && body != nil && unconditional(n)
 			sum.Fixed = !sum.Generator && unconditional(n)
+			sum.Quiet = sum.Fixed && r.complete && !r.runs && body != nil
 			for i, p := range syntax.VariableScopeParams(n) {
 				if p.ByRef && p.Var != nil && r.complete {
-					left := r.exit[p.Var.Name]
+					// The argument holds what the name wrote to it while it
+					// stood for it.
+					left := r.exit[received(p.Var.Name)]
+					if p.Variadic {
+						// The arguments keep what they held, and may hold
+						// what was written to an element of the array.
+						left = merge(left, r.exit[p.Var.Name])
+					}
 					if sum.ByRef == nil {
 						sum.ByRef = map[int]Value{}
 					}

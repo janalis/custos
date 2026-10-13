@@ -75,6 +75,34 @@ func TestReviewSafety(t *testing.T) {
 		{"stale guard", "$r = realpath($d); if (!$r) { return; } $r = realpath($e); is_file($r . '/x');", phpversion.PHP85, 1},
 		{"join before guard", "$r = realpath($d); $p = $r . '/x'; if (!$r) { return; } is_file($p);", phpversion.PHP85, 0},
 		{"join before unrelated guard", "$r = realpath($d); $p = $r . '/x'; if (!$o) { return; } is_file($p);", phpversion.PHP85, 1},
+		// The flow facts are read where the result is joined; a check written
+		// after the join is found by the rule's own walk from the consuming call.
+		{"join before branch", "$r = realpath($d); $p = $r . '/x'; if ($r) { is_file($p); }", phpversion.PHP85, 0},
+		{"join before unrelated branch", "$r = realpath($d); $p = $r . '/x'; if ($o) { is_file($p); }", phpversion.PHP85, 1},
+		{"join before else", "$r = realpath($d); $p = $r . '/x'; if (!$r) { log_it(); } else { is_file($p); }", phpversion.PHP85, 0},
+		{"join before else of truthy", "$r = realpath($d); $p = $r . '/x'; if ($r) { log_it(); } else { is_file($p); }", phpversion.PHP85, 1},
+		{"join before failed elseif", "$r = realpath($d); $p = $r . '/x'; if ($o) { log_it(); } elseif (!$r) { log_it(); } elseif ($q) { is_file($p); }", phpversion.PHP85, 0},
+		{"join before later elseif", "$r = realpath($d); $p = $r . '/x'; if ($o) { is_file($p); } elseif (!$r) { log_it(); }", phpversion.PHP85, 1},
+		{"join before elseif body", "$r = realpath($d); $p = $r . '/x'; if ($o) { log_it(); } elseif ($r) { is_file($p); }", phpversion.PHP85, 0},
+		{"join before while body", "$r = realpath($d); $p = $r . '/x'; while ($r !== false) { return is_file($p); }", phpversion.PHP85, 0},
+		{"join before ternary then", "$r = realpath($d); $p = $r . '/x'; echo $r ? is_file($p) : 'no';", phpversion.PHP85, 0},
+		{"join before ternary else", "$r = realpath($d); $p = $r . '/x'; echo $r === false ? 'no' : is_file($p);", phpversion.PHP85, 0},
+		{"join before ternary wrong arm", "$r = realpath($d); $p = $r . '/x'; echo $r ? 'no' : is_file($p);", phpversion.PHP85, 1},
+		{"join before inline conjunction", "$r = realpath($d); $p = $r . '/x'; echo $r && is_file($p);", phpversion.PHP85, 0},
+		{"join before inline disjunction", "$r = realpath($d); $p = $r . '/x'; echo !$r || is_file($p);", phpversion.PHP85, 0},
+		{"join before inline wrong side", "$r = realpath($d); $p = $r . '/x'; echo $r || is_file($p);", phpversion.PHP85, 1},
+		{"join before or exit", "$r = realpath($d); $p = $r . '/x'; $r !== false || exit(1); is_file($p);", phpversion.PHP85, 0},
+		{"join before and exit", "$r = realpath($d); $p = $r . '/x'; $r === false && exit(1); is_file($p);", phpversion.PHP85, 0},
+		{"join before abort on success", "$r = realpath($d); $p = $r . '/x'; $r !== false && exit(1); is_file($p);", phpversion.PHP85, 1},
+		// The path comes from a project call or a property: the result is not
+		// completely known, the facts of its paths still hold.
+		{"project call path", "$r = realpath(load($d)); is_file($r . '/x');", phpversion.PHP85, 1},
+		{"project call path guarded", "$r = realpath(load($d)); if (!$r) { return; } is_file($r . '/x');", phpversion.PHP85, 0},
+		{"property path", "$r = realpath($o->dir); is_file($r . '/x');", phpversion.PHP85, 1},
+		{"property path guarded", "$r = realpath($o->dir); $r !== false or exit; is_file($r . '/x');", phpversion.PHP85, 0},
+		// A scope with `goto` is not followed by the flow: the walk alone decides.
+		{"unfollowed scope", "$r = realpath($d); is_file($r . '/x'); goto done; done: ;", phpversion.PHP85, 1},
+		{"unfollowed scope guarded", "$r = realpath($d); if (!$r) { return; } is_file($r . '/x'); goto done; done: ;", phpversion.PHP85, 0},
 		{"guard in closure scope", "$r = realpath($d); if (!$r) { return; } $f = function () use ($d) { $r = realpath($d); is_file($r . '/x'); };", phpversion.PHP85, 1},
 		{"direct call", "if ($o) { is_file(realpath($d) . '/x'); }", phpversion.PHP85, 1},
 	} {

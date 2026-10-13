@@ -1,6 +1,7 @@
 package unescapedhtmloutput
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -142,6 +143,8 @@ func numericFormat(format string) bool {
 // write may replace the request text, so the source-to-use path is unproven.
 // A write to another literal key than the ones read, or one that stores a
 // value still holding request text, replaces nothing the output depends on.
+// A reference bound to the superglobal replaces nothing either: writes to the
+// bound name are then read as writes to the superglobal.
 func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) bool {
 	names := map[string]bool{"GLOBALS": true}
 	spans := map[syntax.Span]bool{}
@@ -162,6 +165,17 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) 
 		replace bool // false when the stored value still holds request text
 	}
 	var writes []write
+	// alias maps a variable bound by reference to the superglobal it shares.
+	alias := map[string]string{}
+	bind := func(from, to syntax.Expr) {
+		name, target := rootVariable(from), rootVariable(to)
+		if shared, ok := alias[target]; ok {
+			target = shared
+		}
+		if name != "" && !names[name] && names[target] {
+			alias[name] = target
+		}
+	}
 	visit := func(n syntax.Node) bool {
 		if n != scope && syntax.IsVariableScope(n) {
 			return false
@@ -179,9 +193,10 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) 
 		}
 		switch x := n.(type) {
 		case *syntax.Assign:
-			writes = append(writes, write{x.Var, x.Op.Kind == syntax.TEqual && !ctx.Flow().Tainted(x.Value, flow.HTML)})
+			writes = append(writes, write{x.Var, x.Op.Kind == syntax.TEqual && (!ctx.Flow().Tainted(x.Value, flow.HTML) || callbackResult(ctx, x.Value))})
 			if x.ByRef {
-				writes = append(writes, write{x.Var, true}, write{x.Value, true})
+				bind(x.Var, x.Value)
+				bind(x.Value, x.Var)
 			}
 		case *syntax.IncDec:
 			writes = append(writes, write{x.Var, true})
@@ -195,8 +210,10 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) 
 				writes = append(writes, write{x.Expr, true})
 			}
 		case *syntax.FuncCall:
-			for _, target := range referenceArguments(ctx, x) {
-				writes = append(writes, write{target, true})
+			targets := referenceArguments(ctx, x)
+			fed := len(targets) > 0 && fedByRequest(ctx, x, targets)
+			for _, target := range targets {
+				writes = append(writes, write{target, !fed})
 			}
 		}
 		return true
@@ -210,20 +227,21 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) 
 	unknown := located != len(spans)
 	for _, w := range writes {
 		name := rootVariable(w.target)
-		if !names[name] {
+		shared, bound := alias[name]
+		if bound {
+			name = shared
+		}
+		if !names[name] || !w.replace {
 			continue
 		}
 		root, element := syntax.UnwrapParens(w.target).(*syntax.ArrayDimFetch)
 		key, known := "", false
-		if element {
+		if element && !bound {
 			if v, direct := syntax.UnwrapParens(root.Var).(*syntax.Variable); direct {
 				key, known = elementKey(ctx, v)
 			}
 		}
-		if !known {
-			return true
-		}
-		if w.replace && (unknown || whole[name] || keys[[2]string{name, key}]) {
+		if !known || unknown || whole[name] || keys[[2]string{name, key}] {
 			return true
 		}
 	}
@@ -265,6 +283,38 @@ func referenceArguments(ctx *analysis.Context, call *syntax.FuncCall) []syntax.E
 		}
 	}
 	return out
+}
+
+// callbackResult reports the result of a resolved function that applies a
+// callback: the taint cannot tell whether `array_map('htmlspecialchars', …)`
+// still holds request text.
+func callbackResult(ctx *analysis.Context, value syntax.Expr) bool {
+	call, ok := syntax.UnwrapParens(value).(*syntax.FuncCall)
+	if !ok {
+		return false
+	}
+	callee, _ := semanticquery.ResolveCallee(ctx, call)
+	for _, param := range callee.Params {
+		if strings.Contains(param.Type, "callable") {
+			return true
+		}
+	}
+	return false
+}
+
+// fedByRequest reports a builtin that receives request text in an argument
+// it does not write: what it stores in the referenced ones may derive from it
+// (`parse_str($_SERVER['QUERY_STRING'], $_GET)`).
+func fedByRequest(ctx *analysis.Context, call *syntax.FuncCall, written []syntax.Expr) bool {
+	if semanticquery.NativeBuiltinName(ctx, call) == "" {
+		return false
+	}
+	for _, node := range call.Args.Args {
+		if arg, ok := node.(*syntax.Arg); ok && !slices.Contains(written, arg.Value) && ctx.Flow().Tainted(arg.Value, flow.HTML) {
+			return true
+		}
+	}
+	return false
 }
 
 // rootVariable names the variable an element or whole-variable target writes.

@@ -42,7 +42,9 @@ func TestSwitchPaths(t *testing.T) {
 		{"no levels", `function f($c){$x=1; while($c){break 0;} probe($x);}`, false, false},
 		{"computed levels", `function f($c){$x=1; while($c){break $c;} probe($x);}`, false, false},
 		{"one level written out", `function f($c){$x=1; while($c){break 1;} probe($x);}`, true, false},
-		{"levels across a finally block", `function f($l,$c){$x=1; foreach($l as $v){while($c){try{break 2;}finally{echo 1;}}} probe($x);}`, false, false},
+		{"levels across a finally block", `function f($l,$c){$x=1; foreach($l as $v){while($c){try{break 2;}finally{echo 1;}}} probe($x);}`, true, false},
+		{"levels across a finally block that writes", `function f($l,$c){$x=1; foreach($l as $v){while($c){try{break 2;}finally{$x=$_GET['a'];}}} probe($x);}`, false, true},
+		{"too many levels across a finally block", `function f($l,$c){$x=1; while($c){try{break 3;}finally{echo 1;}} probe($x);}`, false, false},
 		{"one level inside a finally block", `function f($l,$c){$x=1; while($c){try{break;}finally{echo 1;}} probe($x);}`, true, false},
 		{"jump", `function f($c){$x=1; goto end; end: probe($x);}`, false, false},
 	} {
@@ -92,7 +94,54 @@ func TestSwitchAllowLists(t *testing.T) {
 		{"label expression beside a string label", a + `switch($a){case $_GET['b']: break; case 'list': probe($a);}`, true},
 		{"label that writes the subject", a + `switch($a){case ($a=$_GET['b']): break; case 'list': probe($a);}`, true},
 		{"subject is an expression", a + `switch(strtolower($a)){case 'list': probe($a);}`, true},
-		{"subject is a superglobal element", `switch($_GET['a']){case 'list': probe($_GET['a']);}`, true},
+		// An element of a request table has no binding: the match is recorded
+		// until the table can have been written.
+		{"subject is a superglobal element", `switch($_GET['a']){case 'list': probe($_GET['a']);}`, false},
+		{"superglobal element, parenthesised", `switch(($_POST["a"])){case 'list': case 'show': echo 'x' . 1; probe($_POST['a']);}`, false},
+		{"superglobal element, integer key", `switch($_GET[0]){case 'list': probe($_GET['0']);}`, false},
+		{"superglobal element, numeric label", `switch($_GET['a']){case '1': probe($_GET['a']);}`, true},
+		{"superglobal element, another key", `switch($_GET['a']){case 'list': probe($_GET['b']);}`, true},
+		{"superglobal element, another table", `switch($_GET['a']){case 'list': probe($_REQUEST['a']);}`, true},
+		{"superglobal element, whole table", `switch($_GET['a']){case 'list': probe($_GET);}`, true},
+		{"superglobal element, deeper element", `switch($_GET['a']['b']){case 'list': probe($_GET['a']['b']);}`, true},
+		{"superglobal element, dynamic key", `switch($_GET[$k]){case 'list': probe($_GET[$k]);}`, true},
+		{"superglobal element, dynamic table", `switch($$t['a']){case 'list': probe($_GET['a']);}`, true},
+		{"superglobal element, uploads table", `switch($_FILES['a']){case 'list': probe($_FILES['a']);}`, true},
+		{"superglobal element, label expression", `switch($_GET['a']){case $_GET['b']: break; case 'list': probe($_GET['a']);}`, true},
+		{"superglobal element, default arm", `switch($_GET['a']){case 'list': break; default: probe($_GET['a']);}`, true},
+		{"superglobal element, after the switch", `switch($_GET['a']){case 'list': break;} probe($_GET['a']);`, true},
+		{"superglobal element, after the switch in a function", `function f(){switch($_GET['a']){case 'list': break;} probe($_GET['a']);}`, true},
+		{"superglobal element, after a default that leaves", `function f(){switch($_GET['a']){case 'list': break; default: return;} probe($_GET['a']);}`, false},
+		{"superglobal element, call into the project", `switch($_GET['a']){case 'list': render(); probe($_GET['a']);}`, true},
+		{"superglobal element, constructor of the project", `switch($_GET['a']){case 'list': $o = new View(); probe($_GET['a']);}`, true},
+		{"superglobal element, callback", `switch($_GET['a']){case 'list': array_map($f, $l); probe($_GET['a']);}`, true},
+		{"superglobal element, element written", `switch($_GET['a']){case 'list': $_GET['a'] = $_POST['x']; probe($_GET['a']);}`, true},
+		{"superglobal element, sibling written", `switch($_GET['a']){case 'list': $_GET['b'] = 1; probe($_GET['a']);}`, true},
+		{"superglobal element, table replaced", `switch($_GET['a']){case 'list': $_GET = $_POST; probe($_GET['a']);}`, true},
+		{"superglobal element, table unset", `switch($_GET['a']){case 'list': unset($_GET); probe($_GET['a']);}`, true},
+		{"superglobal element, element unset", `switch($_GET['a']){case 'list': unset($_GET['a']); probe($_GET['a']);}`, true},
+		{"superglobal element, written by a PHP function", `switch($_GET['a']){case 'list': parse_str($_POST['q'], $_GET); probe($_GET['a']);}`, true},
+		{"superglobal element, element bound before", `$r = &$_GET['a']; switch($_GET['a']){case 'list': $r = $_POST['x']; probe($_GET['a']);}`, true},
+		{"superglobal element, table bound after", `switch($_GET['a']){case 'list': $r = &$_GET; $r['a'] = $_POST['x']; probe($_GET['a']);}`, true},
+		// Replacing a value may run a destructor.
+		{"superglobal element, another table written", `switch($_GET['a']){case 'list': $_POST['a'] = 1; probe($_GET['a']);}`, true},
+		{"superglobal element, local written", `switch($_GET['a']){case 'list': $x = $_POST['a']; probe($_GET['a']);}`, true},
+		{"superglobal element, local written when null", `switch($_GET['a']){case 'list': $x ??= 1; probe($_GET['a']);}`, true},
+		{"superglobal element, local unset", `switch($_GET['a']){case 'list': unset($x); probe($_GET['a']);}`, true},
+		// Operations on a value that may be an object run its methods.
+		{"superglobal element, local converted to text", `switch($_GET['a']){case 'list': echo $o; probe($_GET['a']);}`, true},
+		{"superglobal element, property read", `switch($_GET['a']){case 'list': echo $o->p; probe($_GET['a']);}`, true},
+		{"superglobal element, offset of a local", `switch($_GET['a']){case 'list': echo $o['i']; probe($_GET['a']);}`, true},
+		{"superglobal element, class constant", `switch($_GET['a']){case 'list': echo K::A; probe($_GET['a']);}`, true},
+		{"superglobal element, dynamic variable", `switch($_GET['a']){case 'list': echo $$n; probe($_GET['a']);}`, true},
+		{"superglobal element, copied in the call", `switch($_GET['a']){case 'list': probe('<p>' . $_GET['a'] . "</p>" . (true ? 1 : 2) . isset($_GET['b']));}`, false},
+		{"superglobal element, argument of a method", `switch($_GET['a']){case 'list': $o->show(probe($_GET['a']));}`, false},
+		{"superglobal element, PHP function called", `switch($_GET['a']){case 'list': echo strlen($o); probe($_GET['a']);}`, true},
+		{"superglobal element, native object made", `switch($_GET['a']){case 'list': $d = new DateTime($s); probe($_GET['a']);}`, true},
+		{"superglobal element, written through the globals table", `function f(){switch($_GET['a']){case 'list': $GLOBALS['_GET'] = $_POST; probe($_GET['a']);}}`, true},
+		{"superglobal element, element bound after", `function f(){switch($_GET['a']){case 'list': $x = &$_GET['a']; probe($x);}}`, true},
+		{"superglobal element, key with an escape", `switch($_GET["\a"]){case 'list': probe($_GET["\x07"]);}`, true},
+		{"superglobal element, import", `switch($_GET['a']){case 'list': extract($_POST); probe($_GET['a']);}`, true},
 		{"bound name sees the match", a + `$r=&$a; switch($a){case 'list': probe($r);}`, false},
 		// `switch (true)` reads its cases as conditions.
 		{"condition case", a + `switch(true){case $a === 'home': case $a === 'about': probe($a); break;}`, false},
@@ -118,6 +167,28 @@ func TestSwitchAllowLists(t *testing.T) {
 	e, f = environment(t, `function f(){$a=$_GET['a']; switch(true){case !ctype_digit($a): return;} probe($a);}`, nil)
 	if e.Tainted(argument(callsNamed(f, "probe")[0]), SQL) {
 		t.Fatal("condition case that leaves proved nothing after the switch")
+	}
+}
+
+// The value a switch matched is one of its labels: text the program wrote.
+func TestMatchedLabels(t *testing.T) {
+	for src, want := range map[string]bool{
+		`$a=$_GET['a']; switch($a){case 'list': probe($a);}`:                        true,
+		`$a=$_GET['a']; switch($a){case 'list': $b=$a; probe($b);}`:                 true,
+		`switch($_GET['a']){case 'list': probe($_GET['a']);}`:                       true,
+		`$a=$_GET['a']; switch($a){case 'list': probe($a . 'x');}`:                  false,
+		`$a=$_GET['a']; switch($a){case 'list': break;} probe($a);`:                 false,
+		`$a=$_GET['a']; switch($a){case 1: probe($a);}`:                             false,
+		`$a='list'; probe($a);`:                                                     false,
+		`function g(){$a=$_GET['a']; switch($a){case 'list': probe($a);} yield 1;}`: false,
+	} {
+		e, f := environment(t, src, nil)
+		if got := e.Matched(argument(callsNamed(f, "probe")[0])); got != want {
+			t.Errorf("matched=%v for %s", got, src)
+		}
+	}
+	if e, _ := environment(t, ``, nil); e.Matched(nil) {
+		t.Error("nothing is matched")
 	}
 }
 
@@ -247,7 +318,9 @@ func TestIndirectWritesDiscardResolvedValues(t *testing.T) {
 		{"own value capture then call", `$f=function() use ($x){$x=1; w(); probe($x);};`, true},
 		{"reference parameter aliased in a loop", `function f(&$x){$x=1; while($c){probe($x); $r=&$x; $x=1; $r=2;}}`, false},
 		{"reference parameters aliased in a loop", `function f(&$x, &$r){$x=1; while($c){probe($x); $r=&$x; $x=1; $r=2;}}`, false},
-		{"reference to a variable variable", `$x=1; $y=2; $r=&$$n; $x=1; $r=2; probe($x);`, true},
+		// The name may stand for any variable, assigned before or after.
+		{"reference to a variable variable", `$x=1; $y=2; $r=&$$n; $x=1; $r=2; probe($x);`, false},
+		{"reference to a variable variable, not written through", `$x=1; $y=2; $r=&$$n; $x=1; probe($x);`, true},
 		{"declared global variable variable", `function f(){$x=1; global $$n; $x=1; probe($x);}`, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -85,6 +85,9 @@ func textNodeInput(ctx *analysis.Context, operands []syntax.Expr) syntax.Expr {
 		case !open:
 		case tainted(ctx, part, 0):
 			input = part
+		case ctx.Flow().Matched(part):
+			// A switch label the request data was matched with is text of
+			// the program: the parts after it are still looked at.
 		case ctx.TypeOf(part).OnlyOf("int", "float", "bool"):
 		case textPrefix(prefix.String()) && escaped(ctx, part):
 		default:

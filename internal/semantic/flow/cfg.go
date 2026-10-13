@@ -19,13 +19,20 @@ type (
 		shared      bool
 		// pin names a variable that, on entry to the block, was just found
 		// loosely equal to a string literal no request text can equal
-		// without being that literal (see allowed).
+		// without being that literal (see allowed), or the request table
+		// element found so (see requestElement).
 		pin string
+		// differs holds a switch subject that, on entry to the block, was
+		// just found loosely different from false or null, or loosely equal
+		// to true: it is neither false nor null.
+		differs syntax.Expr
 	}
 	graph struct {
 		blocks   []block
 		complete bool
-		env      *Env
+		// full marks a graph that reached MaxBlocks.
+		full bool
+		env  *Env
 	}
 	exits struct {
 		ret, thrown, brk, cont int
@@ -37,7 +44,7 @@ type (
 
 func (g *graph) add(n syntax.Node, next ...int) int {
 	if len(g.blocks) >= MaxBlocks {
-		g.complete = false
+		g.complete, g.full = false, true
 		return 0
 	}
 	g.blocks = append(g.blocks, block{node: n, next: next, exceptional: -1})
@@ -65,7 +72,8 @@ func (g *graph) list(stmts []syntax.Stmt, next int, x exits) int {
 }
 
 func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
-	if s == nil {
+	// A graph past its size limit is not followed: nothing more is built.
+	if s == nil || g.full {
 		return next
 	}
 	switch n := s.(type) {
@@ -75,6 +83,11 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		return g.list(n.Stmts, next, x)
 	case *syntax.Function, *syntax.ClassLike:
 		return next
+	case *syntax.Declare:
+		// The statements of a declare block run in place.
+		if n.Body != nil {
+			return g.stmt(n.Body, next, x)
+		}
 	case *syntax.If:
 		g.blocks[next].shared = true
 		other := next
@@ -90,14 +103,14 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		g.blocks[next].shared = true
 		test := g.add(n.Cond)
 		lx := x.inside(next, test)
-		g.blocks[test].next = []int{g.stmt(n.Body, test, lx), next}
+		g.blocks[test].next = repeats(n.Cond, g.stmt(n.Body, test, lx), next)
 		return test
 	case *syntax.DoWhile:
 		g.blocks[next].shared = true
 		test := g.add(n.Cond)
 		lx := x.inside(next, test)
 		body := g.stmt(n.Body, test, lx)
-		g.blocks[test].next = []int{body, next}
+		g.blocks[test].next = repeats(n.Cond, body, next)
 		// The body runs again: what is written before the loop is not part
 		// of its first block.
 		g.blocks[body].shared = true
@@ -109,17 +122,19 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		for i := len(n.Loop) - 1; i >= 0; i-- {
 			loop = g.atom(n.Loop[i], loop, x)
 		}
+		// `continue` runs the step, not what the body ends with.
+		g.blocks[loop].shared = true
 		lx := x.inside(next, loop)
 		body := g.stmt(n.Body, loop, lx)
 		// The last expression of the condition decides, like a while test:
 		// it refines the body on its true outcome and the exit on its false
-		// one. No condition is a true one.
+		// one. No condition is a true one: only a `break` leaves the loop.
 		var deciding syntax.Node
 		earlier := n.Cond
 		if len(earlier) > 0 {
 			deciding, earlier = earlier[len(earlier)-1], earlier[:len(earlier)-1]
 		}
-		cond := g.add(deciding, body, next)
+		cond := g.add(deciding, repeats(deciding, body, next)...)
 		for i := len(earlier) - 1; i >= 0; i-- {
 			cond = g.atom(earlier[i], cond, x)
 		}
@@ -171,14 +186,21 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		inside := x
 		normal := next
 		if n.Finally != nil {
-			// A jump over several levels would run the finally block on
-			// its way: it is not followed.
-			inside.levels = nil
 			normal = g.stmt(n.Finally.Body, next, x)
 			inside.ret = g.stmt(n.Finally.Body, x.ret, x)
 			inside.thrown = g.stmt(n.Finally.Body, x.thrown, x)
 			inside.brk = g.stmt(n.Finally.Body, x.brk, x)
 			inside.cont = g.stmt(n.Finally.Body, x.cont, x)
+			// A jump over several levels runs the finally block on its way
+			// to each of them: the copies are built when one is written.
+			inside.levels = nil
+			if len(x.levels) > 0 && jumpsLevels(n) {
+				inside.levels = make([][2]int, len(x.levels))
+				inside.levels[len(x.levels)-1] = [2]int{inside.brk, inside.cont}
+				for i, outer := range x.levels[:len(x.levels)-1] {
+					inside.levels[i] = [2]int{g.stmt(n.Finally.Body, outer[0], x), g.stmt(n.Finally.Body, outer[1], x)}
+				}
+			}
 		}
 		if len(n.Catches) > 0 {
 			choices := []int{inside.thrown}
@@ -199,6 +221,37 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		g.complete = false
 	}
 	return g.atom(s, next, x)
+}
+
+// repeats returns the successors of a loop test: the body and, unless the
+// condition is absent or the constant true, what follows the loop. A loop
+// that always repeats is left through `break`, `return` or a throw only.
+func repeats(cond syntax.Node, body, next int) []int {
+	if cond == nil {
+		return []int{body}
+	}
+	if test, ok := cond.(syntax.Expr); ok && constantName(test) == "true" {
+		return []int{body}
+	}
+	return []int{body, next}
+}
+
+// jumpsLevels reports a `break` or `continue` written with a level inside a
+// try statement, outside the functions declared in it.
+func jumpsLevels(n *syntax.Try) bool {
+	found := false
+	syntax.Inspect(n, func(child syntax.Node) bool {
+		switch jump := child.(type) {
+		case *syntax.Function, *syntax.ClassLike, *syntax.Closure, *syntax.ArrowFunction:
+			return false
+		case *syntax.Break:
+			found = found || jump.Num != nil
+		case *syntax.Continue:
+			found = found || jump.Num != nil
+		}
+		return !found
+	})
+	return found
 }
 
 // inside returns the exits of a loop or switch body.
@@ -229,8 +282,8 @@ func (g *graph) leaveLevels(operand syntax.Expr, x exits, which int) int {
 // compared with it in order until one matches, and a matching case runs into
 // the bodies below it until a break. `continue` leaves the switch like
 // `break`. Without a matching case the default body runs, wherever it is
-// written, or nothing does. A comparison is loose: its outcome establishes no
-// fact about the subject.
+// written, or nothing does. A comparison is loose: the only facts its outcome
+// establishes about the subject are those of pin and differs.
 func (g *graph) choose(n *syntax.Switch, next int, x exits) int {
 	g.blocks[next].shared = true
 	inner := x.inside(next, next)
@@ -247,18 +300,19 @@ func (g *graph) choose(n *syntax.Switch, next int, x exits) int {
 	// `switch (true)` tests each case expression for truth, like an
 	// if/elseif chain: a match establishes the condition, a miss its
 	// negation for the cases below and for the default.
-	conditions := false
-	if subject, ok := syntax.UnwrapParens(n.Cond).(*syntax.ConstFetch); ok && subject.Name != nil {
-		conditions = strings.EqualFold(strings.TrimPrefix(subject.Name.Value, `\`), "true")
-	}
+	// `switch (false)` runs the first case whose expression is not true.
+	conditions := constantName(n.Cond)
 	// A plain variable compared with constant labels only is the value the
 	// labels were compared with: no label expression can have replaced it.
+	// An element of a request table read under a constant key is compared
+	// the same way; it has no binding, so the match is recorded for it.
 	pinned := plainVariable(n.Cond)
+	matching := requestElement(n.Cond)
 	for _, c := range n.Cases {
 		switch syntax.UnwrapParens(c.Cond).(type) {
 		case nil, *syntax.Literal, *syntax.ConstFetch, *syntax.ClassConstFetch:
 		default:
-			pinned = ""
+			pinned, matching = "", ""
 		}
 	}
 	test := unmatched
@@ -266,17 +320,36 @@ func (g *graph) choose(n *syntax.Switch, next int, x exits) int {
 		label := n.Cases[i].Cond
 		switch {
 		case label == nil:
-		case conditions:
+		case conditions == "true":
 			test = g.add(label, bodies[i], test)
 			g.blocks[test].shared = true
+		case conditions == "false":
+			test = g.add(label, test, bodies[i])
+			g.blocks[test].shared = true
 		default:
-			matched := bodies[i]
-			if pinned != "" && allowed(label) {
+			matched, missed := bodies[i], test
+			if pinned+matching != "" && allowed(label) {
 				matched = g.add(nil, bodies[i])
-				g.blocks[matched].pin = pinned
+				g.blocks[matched].pin = pinned + matching
 				g.blocks[matched].shared = true
 			}
-			test = g.add(nil, matched, test)
+			switch constantName(label) {
+			case "false", "null":
+				// Every falsy value equals both: the cases below and the
+				// default see a subject that is neither.
+				if pinned != "" {
+					missed = g.add(nil, test)
+					g.blocks[missed].differs = n.Cond
+					g.blocks[missed].shared = true
+				}
+			case "true":
+				if pinned != "" {
+					matched = g.add(nil, bodies[i])
+					g.blocks[matched].differs = n.Cond
+					g.blocks[matched].shared = true
+				}
+			}
+			test = g.add(nil, matched, missed)
 			g.blocks[test].exceptional = x.thrown
 			g.blocks[test].nodes = []syntax.Node{label}
 			g.blocks[test].shared = true
@@ -372,7 +445,8 @@ func (e *Env) never(call syntax.Node) bool {
 }
 
 // method resolves the declaration a method call names through `$this` or a
-// typed receiver, or a static call through a class name, `self` or `static`.
+// typed receiver, or a static call through a class name, `self`, `static` or
+// `parent`.
 func (e *Env) method(call syntax.Node) *index.Method {
 	switch n := call.(type) {
 	case *syntax.MethodCall:
@@ -390,21 +464,42 @@ func (e *Env) method(call syntax.Node) *index.Method {
 		if !ok || !named {
 			return nil
 		}
-		fqn := e.types.Names.Class(class.Value, class.Span().Start)
-		switch strings.ToLower(class.Value) {
-		case "self", "static":
-			fqn = e.types.ClassFQN(syntax.EnclosingClass(n))
-		}
-		return e.types.Index.FindMethod(fqn, id.Value, e.types.PHP)
+		return e.types.Index.FindMethod(e.named(class), id.Value, e.types.PHP)
 	}
 	return nil
+}
+
+// named resolves the class a static call names: the enclosing class for
+// `self` and `static`, the class it extends for `parent`. The method is then
+// looked up through the classes above it.
+func (e *Env) named(class *syntax.Name) string {
+	switch strings.ToLower(class.Value) {
+	case "self", "static":
+		return e.types.ClassFQN(syntax.EnclosingClass(class))
+	case "parent":
+		return e.types.Names.ParentFQN(syntax.EnclosingClass(class))
+	}
+	return e.types.Names.Class(class.Value, class.Span().Start)
 }
 
 func (e *Env) scope(scope syntax.Node) *scopeResult {
 	if r, ok := e.scopes[scope]; ok {
 		return r
 	}
-	r := &scopeResult{values: map[syntax.Expr]Value{}, before: map[syntax.Node]map[uint32]State{}, callIndex: map[syntax.Node]int{}, complete: true}
+	// A static variable the function assigns is first assumed never to be
+	// false where another invocation can read it: at its calls and where it
+	// ends. Then a guard on it holds across a call that enters the function
+	// again. When some path breaks the assumption the scope is analysed
+	// again without it.
+	r := e.follow(scope, false)
+	if r.broken {
+		r = e.follow(scope, true)
+	}
+	return r
+}
+
+func (e *Env) follow(scope syntax.Node, distrust bool) *scopeResult {
+	r := &scopeResult{values: map[syntax.Expr]Value{}, before: map[syntax.Node]map[uint32]State{}, callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust}
 	e.scopes[scope] = r
 	// Block 0 ends the scope however it is left; a normal completion passes
 	// through the block before it, which tells whether the scope can return.
@@ -423,13 +518,20 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 			entry = g.atom(body, done, x)
 		}
 	}
-	initial := frame{vars: map[string]Value{}, states: map[uint32]State{}}
-	e.bindings(scope, r, &initial)
+	initial := frame{vars: map[string]Value{}, states: map[uint32]State{}, definite: scope != nil}
+	switch captured := scope.(type) {
+	case *syntax.Closure:
+		// A captured variable holds a value without a binding.
+		initial.definite = len(captured.Uses) == 0
+	case *syntax.ArrowFunction:
+		initial.definite = false
+	}
 	for i, p := range syntax.VariableScopeParams(scope) {
 		if p.Var != nil {
 			initial.vars[p.Var.Name] = Value{Complete: true, Identity: p.Var.Span().Start + 1, Sources: []Source{{Kind: "parameter", Parameter: i}}}
 		}
 	}
+	e.bindings(scope, r, &initial)
 	// A block is visited when no block before it in the source waits: blocks
 	// are numbered from the end of the scope, a loop body above its test, so
 	// a loop settles before what follows it runs.
@@ -464,7 +566,9 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 			top = max(top, target)
 		}
 	}
-	for queued > 0 && steps < MaxTransfers && !r.spent && r.operations <= MaxTransfers && r.copies <= MaxCopied {
+	// A broken assumption about a static variable ends the first analysis:
+	// the scope is analysed again without it.
+	for queued > 0 && steps < MaxTransfers && !r.spent && !r.broken && r.operations <= MaxTransfers && r.copies <= MaxCopied {
 		for !waiting[top] {
 			top--
 		}
@@ -485,8 +589,11 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 		}
 		if held := out.vars[b.pin]; b.pin != "" && tainted(held) {
 			// The request data was just compared equal to a fixed text.
-			out.write(r, b.pin, Value{Complete: true})
+			out.write(r, b.pin, Value{Complete: true, matched: true})
+		} else if strings.Contains(b.pin, "\x00") {
+			out.match(r, b.pin)
 		}
+		exclude(b.differs, &out, true, true)
 		for j := len(b.nodes) - 1; j >= 0; j-- {
 			e.transfer(b.nodes[j], &out, r)
 			if !r.complete || r.operations > MaxTransfers {
@@ -519,6 +626,7 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 	// What each variable may hold when the scope ends is what a holder of a
 	// reference to it has written.
 	r.exit = inputs[exit].vars
+	leaving(&inputs[exit], r)
 	r.leaves = inputs[done].vars == nil
 	r.complete = r.complete && g.complete && queued == 0
 	sort.Slice(r.calls, func(i, j int) bool { return r.calls[i].Node.Span().Start < r.calls[j].Node.Span().Start })

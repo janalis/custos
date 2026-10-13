@@ -64,9 +64,9 @@ type guard struct {
 }
 
 // dominates walks outward from the use to an earlier sibling statement that
-// leaves the path on false. Conditions that hold where the use runs
-// (branches, short-circuit operands, ternaries) are facts of the shared flow
-// analysis, asked before this guard.
+// leaves the path on false. The shared flow analysis, asked before this
+// guard, answers every guard of a plain variable; the walk is left with a
+// value held in a property.
 func (g guard) dominates(use syntax.Node) bool {
 	for parent := use.Parent(); parent != nil && !syntax.IsVariableScope(parent); parent = parent.Parent() {
 		if st, ok := parent.(syntax.Stmt); ok && g.exitedEarlier(st) {

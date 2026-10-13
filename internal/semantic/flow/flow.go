@@ -56,22 +56,37 @@ type Value struct {
 	// origins lists the expressions that may have produced a binding the
 	// paths disagree on (Expr is then nil), each with what its own paths
 	// established. It means nothing while Expr is set.
-	origins     *originSet
-	Length      int64
-	Identity    uint32
-	Invalidated uint32
-	Safe        Context
-	Complete    bool
-	NonFalse    bool
-	NonNull     bool
-	LengthKnown bool
-	headerMask  uint8
+	origins *originSet
+	// tested and unless belong to a binding only, never to the value of an
+	// expression. tested is the short-circuit operation whose left operand
+	// last read the binding, which was not written since. unless is such an
+	// operation whose right operand assigns the binding and tests it in
+	// place: the binding is not false (unlessFalse) or not null (unlessNull)
+	// except where the last evaluation of the operation skipped that
+	// operand. Between the evaluation of the operation and the branch on its
+	// outcome, skippedFalse and skippedNull record that the value the
+	// skipped operand left in place was not false or not null.
+	tested, unless *syntax.Binary
+	Length         int64
+	Identity       uint32
+	Invalidated    uint32
+	Safe           Context
+	Complete       bool
+	NonFalse       bool
+	NonNull        bool
+	LengthKnown    bool
+	headerMask     uint8
 	// upload marks the table of uploaded files or one of its entries as PHP
 	// built it: only there are the server-chosen fields what they claim.
 	upload uint8
 	// scalars marks an array whose values are numbers, booleans or null
 	// while its keys remain whatever the request sent.
 	scalars bool
+	// matched marks request data a switch found equal to one of its string
+	// labels: the text of a label, not what the request sent.
+	matched bool
+	// unlessFalse, unlessNull, skippedFalse and skippedNull qualify unless.
+	unlessFalse, unlessNull, skippedFalse, skippedNull bool
 }
 
 // Origin is one expression that may have produced the value read, with the
@@ -287,6 +302,15 @@ type frame struct {
 	// names one `$a = &$b` binds together, which a write through either
 	// replaces for both. nil for the common scope without such bindings.
 	aliased map[string]uint32
+	// definite tells that a name without a binding is a variable nothing
+	// assigned: it is null, not false. It holds in a function that captures
+	// nothing, until a write the analysis cannot name (`$$n = …`, `extract`,
+	// an included file) may have created any variable.
+	definite bool
+	// wild tells that some name is bound to a variable the analysis cannot
+	// name (`$r = &$$n`): a write through a reference kept somewhere may
+	// reach any variable.
+	wild bool
 }
 
 const (
@@ -307,6 +331,106 @@ func (f *frame) importing(v Value) {
 	}
 }
 
+// reserved reports a binding that is not a variable: a record kept under a
+// name no variable has (see requestElement, received, imported).
+func reserved(name string) bool {
+	return name == imported || strings.ContainsAny(name, "\x00&")
+}
+
+// requestElement returns the reserved binding name, one no variable has, of
+// an element of a request table read under one constant key: the binding
+// records that a switch just found the element equal to a fixed text. The
+// uploads table is left out, its entries are arrays PHP built.
+func requestElement(x syntax.Expr) string {
+	fetch, ok := syntax.UnwrapParens(x).(*syntax.ArrayDimFetch)
+	if !ok {
+		return ""
+	}
+	table, ok := fetch.Var.(*syntax.Variable)
+	key, constant := arrayKey(fetch.Dim)
+	if !ok || !constant || table.NameExpr != nil || !external(table.Name) || table.Name == "_FILES" {
+		return ""
+	}
+	// An escape sequence may not spell the key it seems to.
+	if literal, written := syntax.UnwrapParens(fetch.Dim).(*syntax.Literal); written && strings.Contains(literal.Raw, `\`) {
+		return ""
+	}
+	return table.Name + "\x00" + key
+}
+
+// match records that the request table element of that reserved name holds
+// a fixed text on this path. Any code can rewrite the table: the record
+// does not outlive an expression that may run some (see rewrites).
+func (f *frame) match(r *scopeResult, element string) {
+	f.vars[element] = Value{Complete: true, NonFalse: true}
+	f.alias(element, aliasHeld)
+	r.matching = true
+}
+
+// rewrites reports an expression whose evaluation may run code of the
+// project before its operands are read: a magic or hooked property, an
+// offset of an object, a class that loads on first use, a local converted to
+// a string or iterated. Only literals, constants, the request tables, the
+// receiver of a method call and the operators that combine them run none.
+// What a call or an assignment runs comes after its operands (see
+// unmatchAll there).
+func rewrites(x syntax.Expr) bool {
+	switch n := x.(type) {
+	case *syntax.Literal, *syntax.ConstFetch, *syntax.Name, *syntax.Identifier, *syntax.ArrayDimFetch, *syntax.Binary, *syntax.Unary, *syntax.Paren, *syntax.Arg,
+		*syntax.InterpolatedString, *syntax.Ternary, *syntax.Isset, *syntax.Empty, *syntax.Assign,
+		*syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
+		return false
+	case *syntax.Variable:
+		if call, receiver := n.Parent().(*syntax.MethodCall); receiver && call.Var == x {
+			return false
+		}
+		return n.NameExpr != nil || !external(n.Name)
+	}
+	return true
+}
+
+// unmatchAll discards every recorded match: what is called, a PHP function
+// included, may run code that rewrites the request tables (a callback, a
+// conversion method of an argument, an error handler), and so may a
+// destructor when a value is replaced.
+func (f *frame) unmatchAll(r *scopeResult) {
+	if !r.matching {
+		return
+	}
+	r.operations += len(f.aliased)
+	for name := range f.aliased {
+		if strings.Contains(name, "\x00") {
+			delete(f.aliased, name)
+			delete(f.vars, name)
+		}
+	}
+}
+
+// matched reports that the element still holds the text it was matched with
+// on every path: no join with a path without the match, no call and no
+// write to the table came between, and no reference to the table or one of
+// its elements exists.
+func (f *frame) matched(element string) bool {
+	table, _, _ := strings.Cut(element, "\x00")
+	_, shared := f.aliased[table]
+	return element != "" && !shared && f.vars[element].NonFalse
+}
+
+// unmatch discards the matches recorded for the elements of a request table
+// that is written.
+func (f *frame) unmatch(r *scopeResult, table string) {
+	if !external(table) {
+		return
+	}
+	r.operations += len(f.aliased)
+	for name := range f.aliased {
+		if strings.HasPrefix(name, table+"\x00") {
+			delete(f.aliased, name)
+			delete(f.vars, name)
+		}
+	}
+}
+
 // Env shares one bounded analysis per variable scope among all inspections.
 type Env struct {
 	file     *syntax.File
@@ -321,6 +445,9 @@ type Env struct {
 	globalTaint  map[string]Value
 	writers      map[globalWriter]bool
 	globalsKnown bool
+	// overrides caches, per receiver class and method, whether a class of
+	// the project replaces the method (see replaced).
+	overrides map[[2]string]bool
 }
 
 type scopeResult struct {
@@ -333,6 +460,9 @@ type scopeResult struct {
 	// stale lists the assignments tested in place in a short-circuit
 	// operand whose earlier result can reach the path that skips them.
 	stale map[*syntax.Assign]bool
+	// matching marks a scope in which a switch matched a request table
+	// element with a fixed text (see frame.match).
+	matching bool
 	// leaves marks a scope no path of which completes normally.
 	leaves bool
 	// spent marks a scope that ran out of one of its memory budgets:
@@ -354,7 +484,28 @@ type scopeResult struct {
 	globalWrites map[string]Value
 	// globalNames are the names the scope binds with `global`.
 	globalNames map[string]bool
+	// statics are the names the scope binds with `static`, each with what a
+	// call that enters the function again can do to it (see staticKept).
+	statics map[string]uint8
+	// distrust marks the second analysis of a scope, made when the first
+	// one, which assumed that its static variables are never false where
+	// the function can be entered again, found one that may be (broken).
+	distrust, broken bool
+	// runs marks a scope that may run code of the project other than its
+	// own: a call that is not known to make none, a constructor, a callback.
+	runs bool
 }
+
+const (
+	// staticKept: the function never assigns the variable; another
+	// invocation leaves it as it is.
+	staticKept uint8 = iota
+	// staticHeld: the function assigns it, and it is assumed not to be
+	// false wherever the function calls out or ends, which is checked.
+	staticHeld
+	// staticLoose: the function assigns it and nothing is assumed.
+	staticLoose
+)
 
 // New creates an environment without computing scope flow eagerly.
 func New(file *syntax.File, types *infer.Env, snapshot *Snapshot) *Env {
@@ -385,9 +536,15 @@ func (e *Env) Resolve(x syntax.Expr) (syntax.Expr, bool) {
 }
 
 // Excludes proves that a checked variable cannot equal false or null here.
+// The exclusions are facts of the paths that reach the read: they hold of a
+// value whose inputs are not all known, in a scope followed to its end.
 func (e *Env) Excludes(x syntax.Expr, literal string) bool {
-	v := e.Value(x)
-	if !v.Complete {
+	if x == nil {
+		return false
+	}
+	r := e.scope(syntax.EnclosingVariableScope(x))
+	v := r.values[x]
+	if !r.complete {
 		return false
 	}
 	switch literal {
@@ -439,6 +596,16 @@ func (e *Env) Tainted(x syntax.Expr, context Context) bool {
 	r := e.scope(syntax.EnclosingVariableScope(x))
 	v := r.values[x]
 	return r.complete && v.Safe&context == 0 && tainted(v)
+}
+
+// Matched reports a value that is the text of a `switch` label the request
+// data it was read from was found equal to: text the program wrote.
+func (e *Env) Matched(x syntax.Expr) bool {
+	if x == nil {
+		return false
+	}
+	r := e.scope(syntax.EnclosingVariableScope(x))
+	return r.complete && r.values[x].matched
 }
 
 // Calls returns reached calls in a scope, excluding nested scopes. Returned
@@ -523,6 +690,7 @@ func merge(a, b Value) Value {
 	}
 	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, headerMask: a.headerMask & b.headerMask, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull, LengthKnown: a.LengthKnown && b.LengthKnown && a.Length == b.Length, Length: a.Length}
 	v.elements = common(a.elements, b.elements)
+	v.matched = a.matched && b.matched
 	v.scalars = ca && cb
 	if ua == ub {
 		v.upload = ua
@@ -605,6 +773,9 @@ func before(a, b Source) bool {
 // equal reports two values that hold the same facts. Element sets are
 // compared by identity, which merge keeps when nothing changes.
 func equal(v, w Value) bool {
+	if v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched {
+		return false
+	}
 	if v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || !sameOrigins(v.origins, w.origins) || v.upload != w.upload || v.scalars != w.scalars || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
 		return false
 	}
@@ -620,7 +791,7 @@ func equal(v, w Value) bool {
 }
 
 func clone(f frame) frame {
-	n := frame{vars: make(map[string]Value, len(f.vars)), states: map[uint32]State{}}
+	n := frame{vars: make(map[string]Value, len(f.vars)), states: map[uint32]State{}, definite: f.definite, wild: f.wild}
 	for k, v := range f.vars {
 		n.vars[k] = v
 	}
@@ -681,6 +852,10 @@ func (f *frame) bind(target, source string, site uint32) {
 // other such name: what they held is gone, and the request data written may
 // now be read under them. The walk is charged to the scope's budget.
 func (f *frame) write(r *scopeResult, name string, v Value) {
+	f.unmatch(r, name)
+	if group, shared := f.aliased[name]; shared && group == aliasAny && f.wild {
+		f.unsettle(r, v)
+	}
 	if group, shared := f.aliased[name]; shared && group != aliasHeld {
 		r.operations += len(f.aliased)
 		for other, g := range f.aliased {
@@ -721,6 +896,7 @@ func (f *frame) through(r *scopeResult, v Value) {
 // forget discards what is known about every binding and operation, as after
 // a write whose target the analysis does not follow. Request data stays.
 func (f *frame) forget(r *scopeResult) {
+	f.definite = false
 	f.unsettle(r, Value{})
 	f.states = map[uint32]State{}
 }
@@ -737,13 +913,14 @@ func (f *frame) unsettle(r *scopeResult, written Value) {
 // unsettled is the value of a binding that code the analysis does not follow
 // may have replaced. Nothing is known about it any more, except that request
 // data it held, or that such code writes (written), may still be there:
-// unknown must not read as untainted.
+// unknown must not read as untainted. The same goes for what a parameter
+// brought in, which is request data when a caller passes some.
 func unsettled(old, written Value) Value {
 	v := Value{}
-	if tainted(old) {
+	if len(old.Sources) > 0 {
 		v = Value{Complete: true, Sources: old.Sources, Safe: old.Safe}
 	}
-	if tainted(written) {
+	if len(written.Sources) > 0 {
 		if !v.Complete {
 			v = Value{Complete: true}
 		}
@@ -797,6 +974,11 @@ func (f *frame) absorb(b frame) (bool, int) {
 			work += (len(v.Sources) + len(w.Sources)) / 2
 		}
 		m := merge(v, w)
+		m.correlate(v, w)
+		if !ok && b.definite && !reserved(k) {
+			// The other path never assigned the variable.
+			m.NonFalse = v.NonFalse
+		}
 		if m.origins = origins(v, w); !equal(m, v) {
 			f.vars[k] = m
 			changed = true
@@ -805,12 +987,16 @@ func (f *frame) absorb(b frame) (bool, int) {
 	if shared < len(b.vars) {
 		work += len(b.vars)
 		for k, v := range b.vars {
-			if _, ok := f.vars[k]; !ok {
-				m := merge(Value{}, v)
-				m.origins = origins(Value{}, v)
-				f.vars[k] = m
-				changed = true
+			if _, ok := f.vars[k]; ok {
+				continue
 			}
+			m := merge(Value{}, v)
+			m.origins = origins(Value{}, v)
+			if f.definite && !reserved(k) {
+				m.NonFalse = v.NonFalse
+			}
+			f.vars[k] = m
+			changed = true
 		}
 	}
 	for k, v := range f.states {
@@ -822,6 +1008,10 @@ func (f *frame) absorb(b frame) (bool, int) {
 			changed = true
 		}
 	}
+	if f.definite && !b.definite || !f.wild && b.wild {
+		f.definite, f.wild = f.definite && b.definite, true && (f.wild || b.wild)
+		changed = true
+	}
 	// A definite binding one path lacks, or holds otherwise, may not hold.
 	for k, group := range f.aliased {
 		if other, both := b.aliased[k]; group >= aliasGroup && (!both || other == aliasHeld) {
@@ -832,12 +1022,39 @@ func (f *frame) absorb(b frame) (bool, int) {
 	for k, group := range b.aliased {
 		mine, both := f.aliased[k]
 		if group >= aliasGroup && (!both || mine == aliasHeld) {
+			// The names it is bound with on the other path may not be either.
+			f.alias(k, group)
 			group = aliasAny
 		}
 		f.alias(k, group)
 		changed = changed || !both || f.aliased[k] != mine
 	}
 	return changed, work
+}
+
+// correlate gives the join of two paths what both know of a binding through
+// a short-circuit operation: that its left operand read the binding last,
+// and what holds of the binding unless its right operand was skipped.
+func (v *Value) correlate(a, b Value) {
+	if a.tested == b.tested {
+		v.tested = a.tested
+	}
+	if a.unless == b.unless {
+		v.unless, v.unlessFalse, v.unlessNull = a.unless, a.unlessFalse && b.unlessFalse, a.unlessNull && b.unlessNull
+		v.skippedFalse, v.skippedNull = a.skippedFalse && b.skippedFalse, a.skippedNull && b.skippedNull
+	}
+}
+
+// unguarded returns the set without any exclusion.
+func (s *originSet) unguarded() *originSet {
+	if s == nil {
+		return nil
+	}
+	n := &originSet{items: make([]Origin, len(s.items)), full: s.full}
+	for i, o := range s.items {
+		n.items[i] = Origin{Expr: o.Expr}
+	}
+	return n
 }
 
 // reserve bounds the operation states remembered per node.

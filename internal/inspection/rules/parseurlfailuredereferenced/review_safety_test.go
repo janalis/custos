@@ -132,6 +132,23 @@ func TestReviewGuardValueIdentity(t *testing.T) {
 		{"unresolved helper", "<?php function f($u) { $p = parse_url($u); if ($p === false) { fail('bad'); } echo $p['host']; }", 1},
 		{"shadowed never helper", "<?php namespace App; function fail(string $m) { error_log($m); } function f($u) { $p = parse_url($u); if ($p === false) { fail('bad'); } echo $p['host']; }", 1},
 		{"file scope", "<?php $p = parse_url($u); if (!$p) { exit(1); } echo $p['host'];", 0},
+		// A result assigned inside a condition is still the value that is read.
+		{"assigned in an xor test", "<?php function f($u, $c) { if ($c xor ($p = parse_url($u)) === false) { return; } echo $p['host']; }", 1},
+		{"tested under xor", "<?php function f($u, $c) { $p = parse_url($u); if ($c xor $p === false) { return; } echo $p['host']; }", 1},
+		{"assigned in a bitwise and test", "<?php function f($u, $c) { if ($c & ($p = parse_url($u)) === false) { return; } echo $p['host']; }", 1},
+		{"assigned in a bitwise or test", "<?php function f($u, $c) { if ($c | ($p = parse_url($u)) === false) { return; } echo $p['host']; }", 1},
+		{"assigned in a compared test", "<?php function f($u, $c) { if ($c == (($p = parse_url($u)) === false)) { return; } echo $p['host']; }", 1},
+		{"assigned in a test that does not exit", "<?php function f($u) { if (($p = parse_url($u)) === false) { echo 'bad'; } echo $p['host']; }", 1},
+		{"assigned in a null test", "<?php function f($u) { if (($p = parse_url($u)) === null) { return; } echo $p['host']; }", 1},
+		{"assigned in a failing conjunction", "<?php function f($u, $c) { if (($p = parse_url($u)) === false && $c) { return; } echo $p['host']; }", 1},
+		{"assigned in an exiting test", "<?php function f($u) { if (($p = parse_url($u)) === false) { return; } echo $p['host']; }", 0},
+		{"assigned in a yoda exiting test", "<?php function f($u) { if (false === ($p = parse_url($u))) { throw new Exception(); } echo $p['host']; }", 0},
+		{"assigned in a falsy exit", "<?php function f($u) { if (!($p = parse_url($u))) { return; } echo $p['host']; }", 0},
+		{"assigned in a truthy branch", "<?php function f($u) { if ($p = parse_url($u)) { echo $p['host']; } }", 0},
+		{"assigned in an else of the failure test", "<?php function f($u) { if (($p = parse_url($u)) === false) { echo 'bad'; } else { echo $p['host']; } }", 0},
+		{"assigned in an exiting disjunction", "<?php function f($u, $c) { if ($c || ($p = parse_url($u)) === false) { return; } echo $p['host']; }", 0},
+		{"assigned in a passing conjunction", "<?php function f($u, $c) { if (($p = parse_url($u)) !== false && $c) { echo $p['host']; } }", 0},
+		{"other call assigned in a test", "<?php function f($u) { if (($p = explode('/', $u)) === false) { echo 'bad'; } echo $p['host']; }", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := syntax.ParseBest("review.php", []byte(tc.source), syntax.Options{Version: phpversion.PHP85})

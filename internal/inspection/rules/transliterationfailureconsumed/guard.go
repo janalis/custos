@@ -10,8 +10,10 @@ import (
 )
 
 // guard proves that a local holding a transliteration result cannot be false
-// where it is consumed. Only strict false comparisons and is_string() count;
-// general truthiness is never accepted as validation.
+// where it is consumed. The flow facts are asked first and read truthiness and
+// loose tests too; this walk only reads strict false comparisons and
+// is_string(), for the shapes the flow leaves open: match (true) arms and a
+// condition whose two operands both exclude false.
 type guard struct {
 	ctx   *analysis.Context
 	input *syntax.Variable

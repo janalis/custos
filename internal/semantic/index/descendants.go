@@ -1,5 +1,7 @@
 package index
 
+import "sort"
+
 // Subclasses returns the FQNs of all classes (in this index and its base
 // layers) that directly or transitively extend class fqn via `extends`.
 // Interface implementations are not followed. Cycle-safe; each FQN once.
@@ -36,5 +38,25 @@ func (ix *Index) directSubclasses(fqn string) []string {
 			out = append(out, c)
 		}
 	}
+	return out
+}
+
+// AliasesOf returns the names the project's class_alias() calls give the
+// class fqn, across all layers, sorted. A class declared under such a name
+// as its parent extends fqn.
+func (ix *Index) AliasesOf(fqn string) []string {
+	var out []string
+	for l := ix; l != nil; l = l.base {
+		l.mu.RLock()
+		for alias, targets := range l.aliases {
+			for _, target := range targets {
+				if key(target.original) == key(fqn) {
+					out = append(out, alias)
+				}
+			}
+		}
+		l.mu.RUnlock()
+	}
+	sort.Strings(out)
 	return out
 }
