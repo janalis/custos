@@ -30,7 +30,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		valid = semanticquery.NativeBuiltin(ctx, f, "normalizer_normalize")
 	}
 	valid = valid || semanticquery.ExpansionCStatic(ctx, origin, "Normalizer", "normalize")
-	if valid && !ctx.Flow().Excludes(input, "false") && !(guard{ctx: ctx, input: input, origin: origin}).dominated() {
+	if valid && !ctx.Flow().Excludes(input, "false") && (semanticquery.NativeLabelled(ctx, input) || !(guard{ctx: ctx, input: input, origin: origin}).dominated()) {
 		ctx.ReportNode(c, message)
 	}
 }

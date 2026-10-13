@@ -35,7 +35,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !valid || ctx.Flow().Excludes(input, "false") {
 		return
 	}
-	if v, ok := syntax.UnwrapParens(input).(*syntax.Variable); ok && (guard{ctx, v}).dominates() {
+	if v, ok := syntax.UnwrapParens(input).(*syntax.Variable); ok && !semanticquery.NativeLabelled(ctx, v) && (guard{ctx, v}).dominates() {
 		return
 	}
 	ctx.ReportNode(c, message)

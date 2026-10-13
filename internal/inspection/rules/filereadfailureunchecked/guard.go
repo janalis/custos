@@ -14,12 +14,13 @@ import (
 // flow fact, asked before this guard.
 type guard struct {
 	ctx  *analysis.Context
+	use  syntax.Expr
 	read *syntax.FuncCall
 }
 
 // guarded reports whether every path from the read to use excludes false.
 func guarded(ctx *analysis.Context, use syntax.Expr, read *syntax.FuncCall) bool {
-	g := guard{ctx, read}
+	g := guard{ctx, use, read}
 	var child syntax.Node = use
 	for p := use.Parent(); p != nil && !syntax.IsVariableScope(p); child, p = p, p.Parent() {
 		switch x := p.(type) {
@@ -134,13 +135,14 @@ func (g guard) comparesFalse(b *syntax.Binary) bool {
 }
 
 // same reports whether e holds the tracked read result: the assignment that
-// stores it, or a variable whose only reaching value is that earlier read.
+// stores it, or a variable whose only reaching value is that earlier read and
+// that nothing can have replaced before the use.
 func (g guard) same(e syntax.Expr) bool {
 	switch x := syntax.UnwrapParens(e).(type) {
 	case *syntax.Assign:
-		return !x.ByRef && x.Op.Kind == syntax.TEqual && semanticquery.NativeUnsilenced(x.Value) == syntax.Expr(g.read)
+		return !x.ByRef && x.Op.Kind == syntax.TEqual && semanticquery.NativeUnsilenced(x.Value) == syntax.Expr(g.read) && semanticquery.NativeUnreplaced(g.ctx, x.Var, g.use)
 	case *syntax.Variable:
-		return g.read.Span().End <= x.Span().Start && semanticquery.NativeValue(g.ctx, x) == syntax.Expr(g.read)
+		return g.read.Span().End <= x.Span().Start && semanticquery.NativeValue(g.ctx, x) == syntax.Expr(g.read) && semanticquery.NativeUnreplaced(g.ctx, x, g.use)
 	}
 	return false
 }

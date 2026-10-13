@@ -36,3 +36,9 @@ function userCall(int $n): int {
 }
 function helper(): void {
 }
+function viaGoto(int $n): int {
+    $width = 0.5;
+    goto done;
+    done:
+    return <error descr="Use fmod for fractional operands.">$n % $width</error>;
+}

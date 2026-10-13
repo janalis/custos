@@ -11,3 +11,20 @@ function emptyExit(string $dir) { $root = realpath($dir); if (empty($root)) { re
 function orDie(string $dir) { $root = realpath($dir) or die('missing'); return is_file($root . '/a.json'); }
 function inCondition(string $dir) { if (!($root = realpath($dir))) { return null; } return is_file($root . '/a.json'); }
 function lateCheck(string $dir) { $root = realpath($dir); $file = $root . '/a.json'; if ($root === false) { return null; } return is_file($file); }
+
+function retried_resolution($directory, $leaf) {
+    $attempts = 0;
+    again:
+    try {
+        $resolved = realpath($directory);
+        if (!is_string($resolved)) {
+            return null;
+        }
+        return file_get_contents($resolved . '/' . $leaf);
+    } catch (RuntimeException $failure) {
+        if (++$attempts < 3) {
+            goto again;
+        }
+        throw $failure;
+    }
+}

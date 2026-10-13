@@ -24,3 +24,21 @@ function bothRight(XSLTProcessor $p, DOMDocument $d, $x) { $out = $p->transformT
 function eitherLeft(XSLTProcessor $p, DOMDocument $d, $x) { $out = $p->transformToXML($d); if (!$out || $x) { return; } echo $out; }
 function eitherRight(XSLTProcessor $p, DOMDocument $d, $x) { $out = $p->transformToXML($d); if ($x || !$out) { return; } echo $out; }
 function assigned(XSLTProcessor $p, DOMDocument $d) { if (!($out = $p->transformToXML($d))) { return; } echo $out; }
+
+function retried_transformation(XSLTProcessor $processor, DOMDocument $document) {
+    $attempts = 0;
+    again:
+    try {
+        $markup = $processor->transformToXML($document);
+        if (!is_string($markup)) {
+            return 0;
+        }
+        echo $markup;
+    } catch (RuntimeException $failure) {
+        if (++$attempts < 3) {
+            goto again;
+        }
+        throw $failure;
+    }
+    return 1;
+}

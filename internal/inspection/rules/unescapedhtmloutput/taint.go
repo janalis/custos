@@ -1,6 +1,7 @@
 package unescapedhtmloutput
 
 import (
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -145,6 +146,14 @@ func numericFormat(format string) bool {
 // value still holding request text, replaces nothing the output depends on.
 // A reference bound to the superglobal replaces nothing either: writes to the
 // bound name are then read as writes to the superglobal.
+// The writes are read in source order: one that stores request text into the
+// whole table, into the element a replacement emptied, or into an element no
+// literal names (a computed or nested key, a reference to the table, an entry
+// of `$GLOBALS`), fills it again. So does code the scope does not show: a call
+// or a construction not known to spare the request tables (see
+// flow.Env.Spares) may store request text in any of them. In a loop
+// around the output, what fills a table after the output does so before its
+// next turn.
 func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) bool {
 	names := map[string]bool{"GLOBALS": true}
 	spans := map[syntax.Span]bool{}
@@ -163,16 +172,64 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) 
 	type write struct {
 		target  syntax.Expr
 		replace bool // false when the stored value still holds request text
+		refill  bool // the write stores request text
+		any     bool // code that may store request text in any table
 	}
 	var writes []write
-	// alias maps a variable bound by reference to the superglobal it shares.
-	alias := map[string]string{}
-	bind := func(from, to syntax.Expr) {
-		name, target := rootVariable(from), rootVariable(to)
-		if shared, ok := alias[target]; ok {
-			target = shared
+	// again is where the outermost loop around the output ends: what is
+	// written up to there may run before the output does once more.
+	again := limit
+	for p := at.Parent(); p != nil && p != scope; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach:
+			again = p.Span().End
 		}
-		if name != "" && !names[name] && names[target] {
+	}
+	late := false
+	add := func(w write) {
+		if late && !w.refill {
+			// A replacement made after the output says nothing of the
+			// first turn.
+			return
+		}
+		w.replace = w.replace && !late
+		writes = append(writes, w)
+	}
+	// called is the value of the assignment whose calls are already counted:
+	// they run before the assignment stores its result.
+	var called syntax.Span
+	foreign := func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
+			return !ctx.Flow().Spares(n)
+		case *syntax.FuncCall:
+			// What a PHP function is given by reference is read below.
+			return semanticquery.NativeBuiltinName(ctx, x) == "" && !ctx.Flow().Spares(n)
+		}
+		return false
+	}
+	// alias maps a variable bound by reference to the superglobal it shares,
+	// or to the element of it a literal key names.
+	type shared struct {
+		table, key string
+		// whole tells that the name stands for the table itself, and named
+		// that it stands for the element key names.
+		whole, named bool
+	}
+	alias := map[string]shared{}
+	bind := func(from, to syntax.Expr) {
+		name, target := rootVariable(from), shared{table: rootVariable(to), whole: true}
+		if fetch, ok := syntax.UnwrapParens(to).(*syntax.ArrayDimFetch); ok {
+			// Only an element directly in the table has a key to name.
+			target.whole = false
+			if v, direct := syntax.UnwrapParens(fetch.Var).(*syntax.Variable); direct {
+				target.key, target.named = elementKey(ctx, v)
+			}
+		}
+		if known, ok := alias[rootVariable(to)]; ok {
+			target = known
+		}
+		if name != "" && !names[name] && names[target.table] {
 			alias[name] = target
 		}
 	}
@@ -188,32 +245,52 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) 
 				whole[v.Name] = true
 			}
 		}
-		if n.Span().Start >= limit {
+		if late = n.Span().Start >= limit; n.Span().Start >= again {
 			return true
+		}
+		if foreign(n) && !called.Contains(n.Span()) {
+			add(write{any: true, refill: true})
 		}
 		switch x := n.(type) {
 		case *syntax.Assign:
-			writes = append(writes, write{x.Var, x.Op.Kind == syntax.TEqual && (!ctx.Flow().Tainted(x.Value, flow.HTML) || callbackResult(ctx, x.Value))})
+			if x.Value != nil && !called.Contains(x.Span()) {
+				called = x.Value.Span()
+				syntax.Inspect(x.Value, func(child syntax.Node) bool {
+					if foreign(child) {
+						add(write{any: true, refill: true})
+						return false
+					}
+					return !syntax.IsVariableScope(child)
+				})
+			}
+			clean := !ctx.Flow().Tainted(x.Value, flow.HTML) || callbackResult(ctx, x.Value)
+			for _, target := range slots(x.Var) {
+				add(write{target: target, replace: x.Op.Kind == syntax.TEqual && clean, refill: !clean})
+			}
 			if x.ByRef {
 				bind(x.Var, x.Value)
 				bind(x.Value, x.Var)
 			}
 		case *syntax.IncDec:
-			writes = append(writes, write{x.Var, true})
+			add(write{target: x.Var, replace: true})
 		case *syntax.Unset:
 			for _, target := range x.Vars {
-				writes = append(writes, write{target, true})
+				add(write{target: target, replace: true})
 			}
 		case *syntax.Foreach:
-			writes = append(writes, write{x.Key, true}, write{x.Value, true})
+			// The targets receive the keys and elements of what is iterated.
+			fed := ctx.Flow().Tainted(x.Expr, flow.HTML)
+			for _, target := range append(slots(x.Key), slots(x.Value)...) {
+				add(write{target: target, replace: !fed, refill: fed})
+			}
 			if x.ByRef {
-				writes = append(writes, write{x.Expr, true})
+				add(write{target: x.Expr, replace: true})
 			}
 		case *syntax.FuncCall:
 			targets := referenceArguments(ctx, x)
 			fed := len(targets) > 0 && fedByRequest(ctx, x, targets)
 			for _, target := range targets {
-				writes = append(writes, write{target, !fed})
+				add(write{target: target, replace: !fed, refill: fed})
 			}
 		}
 		return true
@@ -225,27 +302,65 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) 
 	}
 	// A source read in another scope (through a callee) has no known key.
 	unknown := located != len(spans)
+	// emptied holds the elements a replacement left without request text, and
+	// cleared the tables replaced as a whole or through an element no literal
+	// names; filled then lists the elements of such a table written since.
+	emptied, filled := map[[2]string]bool{}, map[[2]string]bool{}
+	cleared := map[string]bool{}
 	for _, w := range writes {
 		name := rootVariable(w.target)
-		shared, bound := alias[name]
+		through, bound := alias[name]
 		if bound {
-			name = shared
+			name = through.table
 		}
-		if !names[name] || !w.replace {
+		if w.any || w.refill && name == "GLOBALS" {
+			// Request text may now be in any element of any table.
+			clear(emptied)
+			clear(cleared)
+			continue
+		}
+		if !names[name] {
 			continue
 		}
 		root, element := syntax.UnwrapParens(w.target).(*syntax.ArrayDimFetch)
-		key, known := "", false
-		if element && !bound {
+		key, known := through.key, through.named
+		if element && (!bound || through.whole) {
 			if v, direct := syntax.UnwrapParens(root.Var).(*syntax.Variable); direct {
 				key, known = elementKey(ctx, v)
 			}
 		}
-		if !known || unknown || whole[name] || keys[[2]string{name, key}] {
-			return true
+		slot := [2]string{name, key}
+		switch {
+		case w.replace && !known:
+			cleared[name] = true
+			maps.DeleteFunc(filled, func(s [2]string, _ bool) bool { return s[0] == name })
+		case w.replace:
+			if unknown || whole[name] || keys[slot] {
+				emptied[slot] = true
+			}
+			delete(filled, slot)
+		case w.refill && known:
+			// Request text stored into one element reaches that element.
+			delete(emptied, slot)
+			filled[slot] = true
+		case w.refill:
+			// Stored into the whole table, it reaches every element; stored
+			// into an element no literal names, it may reach any of them.
+			delete(cleared, name)
+			maps.DeleteFunc(emptied, func(s [2]string, _ bool) bool { return s[0] == name })
 		}
 	}
-	return false
+	for name := range cleared {
+		if unknown || whole[name] {
+			return true
+		}
+		for slot := range keys {
+			if slot[0] == name && !filled[slot] {
+				return true
+			}
+		}
+	}
+	return len(emptied) > 0
 }
 
 // elementKey returns the literal key of the element access whose base is v.
@@ -315,6 +430,29 @@ func fedByRequest(ctx *analysis.Context, call *syntax.FuncCall, written []syntax
 		}
 	}
 	return false
+}
+
+// slots returns the targets a write target stands for: itself, or each slot
+// of a destructuring.
+func slots(target syntax.Expr) []syntax.Expr {
+	var items []*syntax.ArrayItem
+	switch x := syntax.UnwrapParens(target).(type) {
+	case nil:
+		return nil
+	case *syntax.Array:
+		items = x.Items
+	case *syntax.List:
+		items = x.Items
+	default:
+		return []syntax.Expr{target}
+	}
+	var out []syntax.Expr
+	for _, item := range items {
+		if item != nil {
+			out = append(out, slots(item.Value)...)
+		}
+	}
+	return out
 }
 
 // rootVariable names the variable an element or whole-variable target writes.

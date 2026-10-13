@@ -29,14 +29,20 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.ExpansionDPristine(ctx, a.Var, n) {
 		return
 	}
-	c, ok := semanticquery.NativeLocalResult(ctx, a.Var, "false").(*syntax.FuncCall)
-	if !ok || (!semanticquery.NativeBuiltin(ctx, c, "posix_getpwnam") && !semanticquery.NativeBuiltin(ctx, c, "posix_getpwuid")) {
+	// Among several reaching assignments only a lookup result counts: an
+	// unguarded result of another call does not stand in for it.
+	lookup := func(e syntax.Expr) bool {
+		call, ok := e.(*syntax.FuncCall)
+		return ok && (semanticquery.NativeBuiltin(ctx, call, "posix_getpwnam") || semanticquery.NativeBuiltin(ctx, call, "posix_getpwuid"))
+	}
+	c, ok := semanticquery.NativeLocalResultOf(ctx, a.Var, "false", lookup).(*syntax.FuncCall)
+	if !ok || !lookup(c) {
 		return
 	}
 	if ctx.Flow().Excludes(a.Var, "false") || semanticquery.NativeLocalSentinelGuard(ctx, a.Var, "false") {
 		return
 	}
-	if !(guard{ctx: ctx, target: a.Var, call: c}).covers() {
+	if semanticquery.NativeLabelled(ctx, a.Var) || !(guard{ctx: ctx, target: a.Var, call: c}).covers() {
 		ctx.ReportNode(n, message)
 	}
 }

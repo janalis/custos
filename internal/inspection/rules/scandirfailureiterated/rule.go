@@ -29,7 +29,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c, ok := semanticquery.NativeLocalResult(ctx, loop.Expr, "false").(*syntax.FuncCall)
-	if ok && semanticquery.NativeBuiltin(ctx, c, "scandir") && !semanticquery.NativeLocalSentinelGuard(ctx, loop.Expr, "false") && !ctx.Flow().Excludes(loop.Expr, "false") && !guarded(ctx, loop.Expr) {
+	if ok && semanticquery.NativeBuiltin(ctx, c, "scandir") && !semanticquery.NativeLocalSentinelGuard(ctx, loop.Expr, "false") && !ctx.Flow().Excludes(loop.Expr, "false") && (semanticquery.NativeLabelled(ctx, loop.Expr) || !guarded(ctx, loop.Expr)) {
 		ctx.ReportNode(loop.Expr, message)
 	}
 }

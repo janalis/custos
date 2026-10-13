@@ -33,7 +33,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.ExpansionDPristine(ctx, a.Var, n) {
 		return
 	}
-	c, ok := semanticquery.NativeLocalResult(ctx, a.Var, "false").(*syntax.FuncCall)
+	// Among several reaching assignments only a parse_url result counts:
+	// an unguarded result of another call does not stand in for it.
+	parsed := func(e syntax.Expr) bool {
+		call, ok := e.(*syntax.FuncCall)
+		return ok && semanticquery.NativeBuiltin(ctx, call, "parse_url")
+	}
+	c, ok := semanticquery.NativeLocalResultOf(ctx, a.Var, "false", parsed).(*syntax.FuncCall)
 	if !ok {
 		// The lexical scan only reads assignments that are statements; the
 		// flow also knows a result assigned inside a condition.
@@ -55,7 +61,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if semanticquery.NativeLocalSentinelGuard(ctx, a.Var, "false") || ctx.Flow().Excludes(a.Var, "false") {
 		return
 	}
-	if !(guard{ctx: ctx, target: a.Var, after: c.Span().End}).covers() {
+	if semanticquery.NativeLabelled(ctx, a.Var) || !(guard{ctx: ctx, target: a.Var, after: c.Span().End}).covers() {
 		ctx.ReportNode(a, message)
 	}
 }
@@ -205,7 +211,7 @@ func (g guard) same(e syntax.Expr) bool {
 		return false
 	}
 	tested, read := g.ctx.Flow().Value(e), g.ctx.Flow().Value(g.target)
-	return tested.Expr == read.Expr && tested.Invalidated == read.Invalidated
+	return tested.Expr == read.Expr && semanticquery.NativeUnreplaced(g.ctx, e, g.target)
 }
 
 // root strips array accesses down to the indexed expression.

@@ -7,6 +7,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/flow"
 )
 
 // NativeLengthGuard proves that an enclosing true branch requires an exact
@@ -88,6 +89,9 @@ func nativeGuard(ctx *analysis.Context, input syntax.Expr, accepts func(syntax.E
 // written directly before an enclosing statement. Negations, true conjunctions
 // and false disjunctions are decomposed before accepts sees an operand.
 func nativePathGuard(ctx *analysis.Context, input syntax.Expr, accepts func(syntax.Expr, bool) bool) bool {
+	if NativeLabelled(ctx, input) {
+		return false
+	}
 	var child syntax.Node = input
 	for p := input.Parent(); p != nil; child, p = p, p.Parent() {
 		if syntax.IsVariableScope(p) {
@@ -270,7 +274,7 @@ func nativeGuardSameValue(ctx *analysis.Context, a, b syntax.Expr) bool {
 	}
 	av, bv := ctx.Flow().Value(a), ctx.Flow().Value(b)
 	if av.Expr != nil || bv.Expr != nil {
-		return av.Expr == bv.Expr && av.Invalidated == bv.Invalidated
+		return av.Expr == bv.Expr && av.Invalidated == bv.Invalidated && !nativeStaticReplaced(ctx, a, b, av, bv)
 	}
 	// Without a reaching producer only a plain read is the same value twice,
 	// and a variable only while nothing writes it between the two reads.
@@ -287,4 +291,56 @@ func nativeGuardSameValue(ctx *analysis.Context, a, b syntax.Expr) bool {
 		after, before = b.Span().End, a.Span().Start
 	}
 	return !nativeContractScope(ctx, scope).localWrites(ctx, scope).written(variable.Name, after, before)
+}
+
+// NativeLabelled reports that a `goto` label is written before a node in its
+// variable scope. The node can then be reached by a jump, without the
+// conditions written before it or around it having been evaluated: a guard
+// proves nothing by where it is written, and only the facts the flow
+// analysis established on the paths that reach the node count.
+func NativeLabelled(ctx *analysis.Context, at syntax.Node) bool {
+	return ctx.Flow().Labelled(at)
+}
+
+// NativeUnreplaced reports that nothing which may have replaced what two
+// reads see ran between them. A call that can enter the function again
+// assigns its static locals, so a test made before such a call says nothing of
+// a read made after it. The caller compares the producers itself.
+func NativeUnreplaced(ctx *analysis.Context, a, b syntax.Expr) bool {
+	av, bv := ctx.Flow().Value(a), ctx.Flow().Value(b)
+	return av.Invalidated == bv.Invalidated && !nativeStaticReplaced(ctx, a, b, av, bv)
+}
+
+// nativeStaticReplaced reports what a static local held, read twice, with a
+// call that may have entered the function again and assigned it in between.
+// The flow stamps a binding with the last such call, and a copy keeps the
+// stamp; paths that disagree leave a mark that says nothing of the order of
+// the reads, which then proves nothing.
+func nativeStaticReplaced(ctx *analysis.Context, a, b syntax.Expr, av, bv flow.Value) bool {
+	if av.Invalidated == bv.Invalidated && av.Invalidated != ^uint32(0) {
+		return false
+	}
+	return nativeReentryStamp(ctx, a, av) || nativeReentryStamp(ctx, b, bv)
+}
+
+// nativeReentryStamp tells the stamp of a call that may have assigned a
+// static local from the one a value with an identity gets when it is handed
+// to unknown code, which leaves its variable bound to it: that one only
+// counts for a variable declared `static`.
+func nativeReentryStamp(ctx *analysis.Context, e syntax.Expr, v flow.Value) bool {
+	return v.Invalidated != 0 && (v.Identity == 0 || NativeStaticLocal(ctx, e))
+}
+
+// NativeStaticLocal reports a read of a variable declared `static` in its
+// scope. A name computed at run time may denote one. What a test or a
+// narrowed type established of such a variable holds until the next call
+// that can enter the function again, not until its next written assignment.
+func NativeStaticLocal(ctx *analysis.Context, e syntax.Expr) bool {
+	variable, ok := syntax.UnwrapParens(e).(*syntax.Variable)
+	if !ok {
+		return false
+	}
+	scope := syntax.EnclosingVariableScope(e)
+	writes := nativeContractScope(ctx, scope).localWrites(ctx, scope)
+	return variable.NameExpr != nil && len(writes.statics) > 0 || writes.static(variable.Name)
 }

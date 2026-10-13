@@ -47,6 +47,18 @@ func TestLocalGuardWalk(t *testing.T) {
 		{"disjunction with compared predicate", produce + "if($x||is_string($n)===true){strlen($n);}", 1},
 		{"exit on compared predicate", produce + "if(is_string($n)===false){return;}strlen($n);", 0},
 		{"compared predicate on earlier value", produce + "if(is_string($n)===false){return;}$n=normalizer_normalize($b);strlen($n);", 1},
+		// The flow reads the arms of match (true) with one plain test each; a
+		// compared predicate or an arm with several conditions is left to the walk.
+		{"match arm of compared predicate", produce + "return match(true){is_string($n)===true=>strlen($n),default=>0};", 0},
+		{"match arm of failed compared predicate", produce + "return match(true){is_string($n)===false=>strlen($n),default=>0};", 1},
+		{"match default after compared predicate", produce + "return match(true){is_string($n)===false=>0,default=>strlen($n)};", 0},
+		{"match default after two conditions", produce + "return match(true){$x,$n===false=>0,default=>strlen($n)};", 0},
+		{"match default after two other conditions", produce + "return match(true){$x,$n!==false=>0,default=>strlen($n)};", 1},
+		// The tested operand may be the assignment that stores the result.
+		{"match on the stored result", "return match($n=normalizer_normalize(load($b))){false=>0,default=>strlen($n)};", 0},
+		{"match on the stored result, no false arm", "return match($n=normalizer_normalize(load($b))){''=>0,default=>strlen($n)};", 1},
+		{"compared predicate of the stored result", "return is_string($n=normalizer_normalize(load($b)))===true?strlen($n):0;", 0},
+		{"compared predicate of another stored result", "$n=normalizer_normalize(load($b));return is_string($x=normalizer_normalize($b))===true?strlen($n):0;", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"UnicodeNormalizationFailureConsumed"}})

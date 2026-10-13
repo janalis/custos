@@ -74,8 +74,10 @@ func NativeSameValue(ctx *analysis.Context, a, b syntax.Expr) bool {
 	if x.Complete && y.Complete && x.Identity != 0 && x.Identity == y.Identity && x.Invalidated == y.Invalidated {
 		return true
 	}
+	// The lexical scan names the producer; it does not see a call that may
+	// have assigned a static local between the two reads.
 	av, bv := NativeLocalValue(ctx, a), NativeLocalValue(ctx, b)
-	return av != nil && av == bv
+	return av != nil && av == bv && !nativeStaticReplaced(ctx, a, b, x, y)
 }
 
 // NativeConditionUse returns the truthiness expression containing a call.
@@ -522,7 +524,7 @@ func NativeContractInt(ctx *analysis.Context, e syntax.Expr) (int64, bool) {
 // callees omitted by the general value graph. It rejects ambiguous writes,
 // by-reference aliases and calls that may replace the tracked variable.
 func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
-	return nativeLocalValue(ctx, e, "")
+	return nativeLocalValue(ctx, e, "", nil)
 }
 
 // NativeLocalResult is NativeLocalValue for an inspection about results that
@@ -530,10 +532,31 @@ func NativeLocalValue(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 // read, a call result counts as guarded only if that value is excluded on
 // its path, whatever the declared return type of the callee says.
 func NativeLocalResult(ctx *analysis.Context, e syntax.Expr, failure string) syntax.Expr {
-	return nativeLocalValue(ctx, e, failure)
+	return nativeLocalValue(ctx, e, failure, nil)
 }
 
-func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string) syntax.Expr {
+// NativeLocalResultOf is NativeLocalResult for an inspection about the
+// results of some calls only: when several assignments reach the read, the
+// result of a call it does not ask about is passed over, so that an unguarded
+// result of another API reaching the same read does not hide one it reports.
+func NativeLocalResultOf(ctx *analysis.Context, e syntax.Expr, failure string, produced func(syntax.Expr) bool) syntax.Expr {
+	return nativeLocalValue(ctx, e, failure, produced)
+}
+
+// NativeLocalOnly is NativeLocalValue for an inspection that needs the one
+// value a variable holds wherever the read runs: nil when the producers of
+// several paths reach the read, or one producer and a path that left the
+// variable unknown. NativeLocalValue answers such a read with a call result
+// no guard covers, which is what a failure check asks, not what the variable
+// is known to hold.
+func NativeLocalOnly(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
+	if reaching, single := ctx.Flow().Reaching(e); !single && len(reaching) > 0 {
+		return nil
+	}
+	return NativeLocalValue(ctx, e)
+}
+
+func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string, produced func(syntax.Expr) bool) syntax.Expr {
 	known := NativeValue(ctx, e)
 	variable, ok := syntax.UnwrapParens(e).(*syntax.Variable)
 	if !ok {
@@ -542,8 +565,13 @@ func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string) synt
 		}
 		return e
 	}
-	if result := nativeUnguardedResult(ctx, e, failure); result != nil {
+	if result := nativeUnguardedResult(ctx, e, failure, produced); result != nil {
 		return result
+	}
+	// Every result the inspection asks about is guarded on its own path:
+	// what the other assignments left is not its concern.
+	if reaching, single := ctx.Flow().Reaching(e); produced != nil && !single && len(reaching) > 0 {
+		return nil
 	}
 	scope := syntax.EnclosingVariableScope(e)
 	facts := nativeContractScope(ctx, scope)
@@ -614,7 +642,7 @@ func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string) synt
 		return nil
 	}
 	if v, ok := value.(*syntax.Variable); ok {
-		return nativeLocalValue(ctx, v, failure)
+		return nativeLocalValue(ctx, v, failure, produced)
 	}
 	return NativeUnsilenced(value)
 }
@@ -627,14 +655,18 @@ func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string) synt
 // reaching call result is guarded on its path. failure names the value the
 // asking inspection is about; without one, a function result fails with false
 // when its declared type can be false, with null otherwise, and a result of
-// unknown type is guarded by either exclusion.
-func nativeUnguardedResult(ctx *analysis.Context, e syntax.Expr, failure string) syntax.Expr {
+// unknown type is guarded by either exclusion. produced, when given, names
+// the call results the asking inspection is about: the others are passed over.
+func nativeUnguardedResult(ctx *analysis.Context, e syntax.Expr, failure string, produced func(syntax.Expr) bool) syntax.Expr {
 	reaching, single := ctx.Flow().Reaching(e)
 	if single {
 		return nil
 	}
 	for _, origin := range reaching {
 		result := NativeUnsilenced(origin.Expr)
+		if produced != nil && !produced(result) {
+			continue
+		}
 		fails, null := failure == "false", failure == "null"
 		switch call := result.(type) {
 		case *syntax.FuncCall:

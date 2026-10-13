@@ -15,9 +15,11 @@ type guard struct {
 	origin syntax.Expr
 }
 
-// dominated proves that a strict false check or an is_string test keeps the
-// failure value away from the consumption. Truthiness, loose comparison and
-// assert() stay unknown rather than guessed safe.
+// dominated proves that an is_string test keeps the failure value away from
+// the consumption, in the forms the flow facts, asked first, do not read: a
+// predicate compared with a boolean literal, and a `match` on the value
+// itself. A strict comparison of the value with false is a flow fact wherever
+// this walk could read it. assert() stays unknown rather than guessed safe.
 func (g guard) dominated() bool {
 	var child syntax.Node = g.input
 	for p := g.input.Parent(); p != nil && !syntax.IsVariableScope(p); child, p = p, p.Parent() {
@@ -154,9 +156,6 @@ func (g guard) holds(cond syntax.Expr, truth bool) bool {
 			literal, ok := astquery.BoolConst(syntax.UnwrapParens(pair[1]))
 			if !ok {
 				continue
-			}
-			if !literal && !equal && g.same(pair[0]) {
-				return true
 			}
 			if call, ok := syntax.UnwrapParens(pair[0]).(*syntax.FuncCall); ok && literal == equal && g.stringTest(call) {
 				return true

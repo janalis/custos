@@ -57,7 +57,7 @@ func guarded(ctx *analysis.Context, input syntax.Expr) bool {
 	if ctx.Flow().Excludes(input, "false") {
 		return true
 	}
-	if _, ok := syntax.UnwrapParens(input).(*syntax.Variable); !ok {
+	if _, ok := syntax.UnwrapParens(input).(*syntax.Variable); !ok || semanticquery.NativeLabelled(ctx, input) {
 		return false
 	}
 	for p := input.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {

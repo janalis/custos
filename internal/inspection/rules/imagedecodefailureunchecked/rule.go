@@ -31,7 +31,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if _, literal := semanticquery.NativeString(ctx, semanticquery.CallArgument(origin.Args, 0, "data")); literal {
 		return
 	}
-	if ctx.Flow().Excludes(input, "false") || (guard{ctx: ctx, input: input, origin: origin}).protects() {
+	if ctx.Flow().Excludes(input, "false") || !semanticquery.NativeLabelled(ctx, input) && (guard{ctx: ctx, input: input, origin: origin}).protects() {
 		return
 	}
 	ctx.ReportNode(input, message)

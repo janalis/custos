@@ -38,7 +38,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !sk || (shift != 8 && shift != 16) {
 			continue
 		}
-		c, ok := semanticquery.NativeLocalValue(ctx, s.Left).(*syntax.FuncCall)
+		// Both the index and its image must be the one value every path
+		// agrees on: a packed colour or a truecolor image on another path
+		// makes the shift valid there.
+		c, ok := semanticquery.NativeLocalOnly(ctx, s.Left).(*syntax.FuncCall)
 		if !ok || !semanticquery.NativeBuiltin(ctx, c, "imagecolorallocate") {
 			continue
 		}
@@ -46,7 +49,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !semanticquery.ExpansionDUnaliased(ctx, e, n) {
 			return
 		}
-		creation, ok := semanticquery.NativeLocalValue(ctx, e).(*syntax.FuncCall)
+		creation, ok := semanticquery.NativeLocalOnly(ctx, e).(*syntax.FuncCall)
 		if !ok || !semanticquery.NativeBuiltin(ctx, creation, "imagecreate") {
 			continue
 		}

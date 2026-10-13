@@ -47,7 +47,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // rewritable reports whether a variable operand can change behind the local
 // value facts: through a closure holding a reference, a builtin that writes
 // the caller's symbol table, or, for a global, application code. The local
-// facts already give up on scopes containing goto.
+// facts follow `goto` jumps, and give up on a scope that also has a `try`.
 // Local facts may chain through other variables, so names are not compared.
 func rewritable(ctx *analysis.Context, at *syntax.Binary, operand syntax.Expr) bool {
 	if _, ok := syntax.UnwrapParens(operand).(*syntax.Variable); !ok {

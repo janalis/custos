@@ -627,7 +627,7 @@ var globArrayConsumers = map[string]struct {
 // builtin glob() call that no flow fact or recognised guard separates from false.
 func globFailureUse(ctx *analysis.Context, use syntax.Expr, message string) {
 	call, ok := NativeValue(ctx, use).(*syntax.FuncCall)
-	if !ok || NativeBuiltinName(ctx, call) != "glob" || ctx.Flow().Excludes(use, "false") || globFailureGuarded(ctx, use) {
+	if !ok || NativeBuiltinName(ctx, call) != "glob" || ctx.Flow().Excludes(use, "false") || !NativeLabelled(ctx, use) && globFailureGuarded(ctx, use) {
 		return
 	}
 	ctx.ReportNode(use, message)
@@ -1174,7 +1174,7 @@ func CheckStreamOpenFailureUnchecked(ctx *analysis.Context, n syntax.Node, messa
 	}
 
 	open, ok := NativeValue(ctx, handle).(*syntax.FuncCall)
-	report = ok && NativeBuiltinName(ctx, open) == "fopen" && !ctx.Flow().Excludes(handle, "false") && !streamOpenGuarded(ctx, handle, open)
+	report = ok && NativeBuiltinName(ctx, open) == "fopen" && !ctx.Flow().Excludes(handle, "false") && (NativeLabelled(ctx, handle) || !streamOpenGuarded(ctx, handle, open))
 
 	if report {
 		ctx.ReportNode(c, message)

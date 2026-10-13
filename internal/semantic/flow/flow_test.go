@@ -58,7 +58,8 @@ func TestResolveAndGuards(t *testing.T) {
 		{`$x=$_GET['x']; while($flag){break;} probe($x);`, true, true, HTML},
 		{`$x=$_GET['x']; do{continue;}while($flag); probe($x);`, true, true, HTML},
 		{`$x=$_GET['x']; for($i=0;$i<2;$i++){ $x='safe'; } probe($x);`, false, true, HTML},
-		{`$x=$_GET['x']; foreach($items as $x){} probe($x);`, false, false, HTML},
+		{`$x=$_GET['x']; foreach($items as $x){} probe($x);`, false, true, HTML},
+		{`$x=$_GET['x']; foreach($items as $x){ probe($x); }`, false, false, HTML},
 		{`$x=$_GET['x']; unset($x);probe($x);`, false, false, HTML},
 		{`$x=$_GET['x']; eval($code);probe($x);`, false, false, HTML},
 	} {

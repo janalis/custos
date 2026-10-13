@@ -1,6 +1,11 @@
 package flow
 
-import "custos/internal/php/syntax"
+import (
+	"cmp"
+	"slices"
+
+	"custos/internal/php/syntax"
+)
 
 // bindings seeds the names of a scope that code outside it can replace: a
 // reference parameter, a reference capture of the closure itself and, at file
@@ -83,20 +88,87 @@ func (e *Env) globals() map[string]bool {
 		return true
 	})
 	// The request data those functions write reaches the file-level variable.
-	// Each writer scope is analysed once, however many names it binds.
+	// The writers are analysed in source order, each once however many names
+	// it binds. One that reads a global after a call saw what the writers
+	// before it leave only: when the request data written to a global
+	// changes, the writers bound to that global are analysed again with it,
+	// the others keeping their result, until nothing more is written. Each
+	// round carries the data one global further, so the rounds are bounded
+	// by the number of globals written, and by globalRounds.
+	writers := make([]globalWriter, 0, len(e.writers))
 	for w := range e.writers {
-		if written := e.holderWrites(w.scope, w.name); tainted(written) {
-			if e.globalTaint == nil {
-				e.globalTaint = map[string]Value{}
-			}
-			if old, ok := e.globalTaint[w.name]; ok {
-				written = merge(old, written)
-			}
-			e.globalTaint[w.name] = written
-		}
+		writers = append(writers, w)
 	}
 	e.writers = nil
+	slices.SortFunc(writers, func(a, b globalWriter) int {
+		return cmp.Or(cmp.Compare(a.scope.Span().Start, b.scope.Span().Start), cmp.Compare(a.name, b.name))
+	})
+	names := map[string]bool{}
+	for _, w := range writers {
+		names[w.name] = true
+	}
+	for round := 0; ; round++ {
+		var taint map[string]Value
+		for _, w := range writers {
+			if written := e.holderWrites(w.scope, w.name); tainted(written) {
+				if taint == nil {
+					taint = map[string]Value{}
+				}
+				if old, ok := taint[w.name]; ok {
+					written = merge(old, written)
+				}
+				taint[w.name] = written
+			}
+		}
+		changed := changedTaint(taint, e.globalTaint)
+		if len(changed) == 0 {
+			break
+		}
+		e.globalTaint = taint
+		e.forget(writers, changed)
+		if round == min(len(names), globalRounds) {
+			break
+		}
+	}
 	return e.global
+}
+
+// forget drops the result of the writers bound to one of the globals named:
+// they are analysed again, in the next round or when they are asked for, and
+// with each the scopes around it, which read what it leaves in the variables
+// it captures. The other writers read none of what changed.
+func (e *Env) forget(writers []globalWriter, changed map[string]bool) {
+	for _, w := range writers {
+		if changed[w.name] {
+			for scope := w.scope; scope != nil; scope = syntax.EnclosingVariableScope(scope) {
+				delete(e.scopes, scope)
+			}
+		}
+	}
+}
+
+// globalRounds bounds how many times the functions writing global variables
+// are analysed again to carry request data from one global to another: a
+// longer chain of globals copied into one another is not followed to its end.
+const globalRounds = 16
+
+// changedTaint names the global variables two rounds wrote different
+// request data to.
+func changedTaint(a, b map[string]Value) map[string]bool {
+	var changed map[string]bool
+	differ := func(a, b map[string]Value) {
+		for name, v := range a {
+			if w, ok := b[name]; !ok || !equal(v, w) {
+				if changed == nil {
+					changed = map[string]bool{}
+				}
+				changed[name] = true
+			}
+		}
+	}
+	differ(a, b)
+	differ(b, a)
+	return changed
 }
 
 // globalWriter is a function scope bound to a global variable.

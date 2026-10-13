@@ -527,6 +527,13 @@ func (ix *Index) FindConst(class, name string, ver phpversion.Version) *ClassCon
 // Children returns the FQNs of classes directly extending/implementing fqn
 // (project symbols only).
 func (ix *Index) Children(fqn string) []string {
+	// The table is built once per change of the index: readers share it.
+	ix.mu.RLock()
+	if ix.children != nil {
+		defer ix.mu.RUnlock()
+		return ix.children[key(fqn)]
+	}
+	ix.mu.RUnlock()
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
 	if ix.children == nil {

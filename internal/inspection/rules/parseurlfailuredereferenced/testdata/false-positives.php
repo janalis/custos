@@ -89,3 +89,21 @@ function combined($raw) {
     }
     return $parts['host'];
 }
+
+function retried_with_prefix($raw, $prefix) {
+    $attempts = 0;
+    again:
+    try {
+        $parts = parse_url($raw);
+        if (!is_array($parts)) {
+            return null;
+        }
+        $host = $parts['host'];
+        return $prefix . $host . ($parts[$prefix] ?? '');
+    } catch (RuntimeException $failure) {
+        if (++$attempts < 3) {
+            goto again;
+        }
+        throw $failure;
+    }
+}

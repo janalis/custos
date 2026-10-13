@@ -90,8 +90,8 @@ func TestReviewGuards(t *testing.T) {
 		{"closure boundary", "if (!$p) { return; } return function ($p) { return $p; };", 0},
 	} {
 		// A scope the flow analysis does not cover (here through a trailing
-		// `goto`) is judged by the guards written around the read alone.
-		for _, tail := range []string{" }", " goto done; done: ; }"} {
+		// `goto` beside a `try`) is judged by the guards written around the read alone.
+		for _, tail := range []string{" }", " try { } finally { } goto done; done: ; }"} {
 			t.Run(tc.name+tail, func(t *testing.T) {
 				f := syntax.ParseBest("review.php", []byte(head+tc.body+tail), syntax.Options{Version: phpversion.PHP85})
 				if len(f.Errors) != 0 {
@@ -136,7 +136,11 @@ func TestReviewGuardValueIdentity(t *testing.T) {
 		{"assigned in an xor test", "<?php function f($u, $c) { if ($c xor ($p = parse_url($u)) === false) { return; } echo $p['host']; }", 1},
 		{"tested under xor", "<?php function f($u, $c) { $p = parse_url($u); if ($c xor $p === false) { return; } echo $p['host']; }", 1},
 		{"assigned in a bitwise and test", "<?php function f($u, $c) { if ($c & ($p = parse_url($u)) === false) { return; } echo $p['host']; }", 1},
-		{"assigned in a bitwise or test", "<?php function f($u, $c) { if ($c | ($p = parse_url($u)) === false) { return; } echo $p['host']; }", 1},
+		// `|` and `&` evaluate both tests: a false `|` means both failed, a true `&` that both held.
+		{"assigned in a bitwise or test", "<?php function f($u, $c) { if ($c | ($p = parse_url($u)) === false) { return; } echo $p['host']; }", 0},
+		{"assigned in a passing bitwise or test", "<?php function f($u, $c) { if ($c | ($p = parse_url($u)) !== false) { echo $p['host']; } }", 1},
+		{"assigned in a passing bitwise and test", "<?php function f($u, $c) { if (($c === 1) & (($p = parse_url($u)) !== false)) { echo $p['host']; } }", 0},
+		{"bitwise or of a number", "<?php function f($u, $c) { $p = parse_url($u); if ($c | $p) { return; } echo $p['host']; }", 1},
 		{"assigned in a compared test", "<?php function f($u, $c) { if ($c == (($p = parse_url($u)) === false)) { return; } echo $p['host']; }", 1},
 		{"assigned in a test that does not exit", "<?php function f($u) { if (($p = parse_url($u)) === false) { echo 'bad'; } echo $p['host']; }", 1},
 		{"assigned in a null test", "<?php function f($u) { if (($p = parse_url($u)) === null) { return; } echo $p['host']; }", 1},
@@ -157,6 +161,38 @@ func TestReviewGuardValueIdentity(t *testing.T) {
 			}
 			if got := e.Analyze(f); len(got) != tc.findings {
 				t.Fatalf("findings: got %v, want %d", got, tc.findings)
+			}
+		})
+	}
+}
+
+// The unguarded result of another call reaching the same read does not hide a
+// parse_url result, and does not stand in for one.
+func TestReviewOtherProducers(t *testing.T) {
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{PHP: phpversion.PHP85, EnableAll: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, body string
+		findings   int
+	}{
+		{"other call first, result on one path", "$p = scandir($u); if ($c) { $p = parse_url($u); } echo $p['host'];", 1},
+		{"other call first and checked, result on one path", "$p = scandir($u); if ($p === false) { return; } if ($c) { $p = parse_url($u); } echo $p['host'];", 1},
+		{"text first, result on one path", "$p = htmlspecialchars($u); if ($c) { $p = parse_url($u); } echo $p['host'];", 1},
+		{"text first, result in a loop", "$p = htmlspecialchars($u); while ($c--) { $p = parse_url($u); } echo $p['host'];", 1},
+		{"text first, result in a loop that restarts on failure", "$p = htmlspecialchars($u); while ($c--) { $p = parse_url($u); if (!$p) { continue; } } echo $p['host'];", 1},
+		{"text first, result in a loop that leaves on failure", "$p = htmlspecialchars($u); while ($c--) { $p = parse_url($u); if (!$p) { return; } } echo $p['host'];", 0},
+		{"other call first, result checked on its path", "$p = scandir($u); if ($c) { $p = parse_url($u); if (!$p) { return; } } echo $p['host'];", 0},
+		{"result checked, other call on one path", "$p = parse_url($u); if ($p === false) { return; } if ($c) { $p = scandir($u); } echo $p['host'];", 0},
+		{"two other calls", "$p = scandir($u); if ($c) { $p = glob($u); } echo $p['host'];", 0},
+		{"other call first, both checked after", "$p = scandir($u); if ($c) { $p = parse_url($u); } if (!$p) { return; } echo $p['host'];", 0},
+		{"other call first, one component on one path", "$p = scandir($u); if ($c) { $p = parse_url($u, PHP_URL_HOST); } echo $p['host'];", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := syntax.ParseBest("review.php", []byte("<?php function f($u, $c) { "+tc.body+" }"), syntax.Options{Version: phpversion.PHP85})
+			if got := e.Analyze(f); len(f.Errors) != 0 || len(got) != tc.findings {
+				t.Fatalf("findings: got %v, want %d (%v)", got, tc.findings, f.Errors)
 			}
 		})
 	}

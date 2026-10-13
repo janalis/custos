@@ -39,7 +39,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		// The join may sit in an earlier assignment; a check between it and
 		// the consuming call still keeps the failure away from the path API.
-		if g := (guard{ctx, source}); g.protects(input) || g.protects(c) {
+		if g := (guard{ctx, source}); !ctx.Flow().LabelledBefore(input, c) && (g.protects(input) || g.protects(c)) {
 			continue
 		}
 		ctx.ReportNode(c, message)

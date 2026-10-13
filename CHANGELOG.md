@@ -261,6 +261,92 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Operand comparisons keep keyword-spelled constant names and named-argument
   labels case-sensitive (`A::Array` is not `A::ARRAY`); `\X41` hex escapes are
   decoded; `exit()` with empty parentheses ends a response with a known body.
+- Failure-value and request-data inspections read more checks: the arms of
+  `match (true)`, `|` and `&` between two tests, a strict `in_array()`
+  against a list of literals, a result assigned inside an `is_*()` test, and
+  a test kept in a flag across a method call. A `match` arm that throws,
+  exits or never returns no longer weakens what the other arms established.
+  Functions containing `goto` are followed (unless they also contain a
+  `try`), and a `foreach` target is only assigned when the loop body runs.
+- Where a `goto` label is written between the place a function first names
+  a checked variable, or a variable that can hold the same value, and a use
+  of it, a check is only accepted when the flow analysis finds it on every
+  path that reaches the use: a failure that jumps to the use, or a jump over
+  the check, is reported. Two variables can hold the same value when one is
+  assigned from the other (`=`, `=&`, `??=`) or taken out of it by a
+  `foreach`, directly or through others; a parameter that is only read
+  beside the value, passed to a call, joined to it or used as a key does
+  not count. A label written before all of that (a `retry:` label ahead of
+  the `try` that produces and checks the value) changes nothing. In a
+  function the flow analysis does not follow (one that has
+  both such a label and a `try`, a generator, one that evaluates or includes
+  code), `ParseUrlFailureDereferenced`,
+  `PosixAccountLookupFailureDereferenced`, `RealpathFailureUsedAsPath` and
+  `ScandirFailureIterated` then report the use whether it is checked or not,
+  and the inspections that need the flow analysis to find the producing call
+  report nothing. Code written after a `return`, `throw` or `goto` is
+  inspected again when a label makes it reachable: one that a reachable
+  `goto` names, written where control can go on from it to that code.
+- A check made on a `static` variable no longer holds after code that can
+  enter the function again without a written call (an object converted to
+  text, a magic property or offset access, the destructor of an object a
+  variable held when it is assigned again, a callback other than a PHP
+  function that only computes on text and numbers, a class PHP loads by the
+  name it is given (`method_exists($name, 'm')`, `is_callable('A::b')`,
+  `defined('A::B')`, `new ReflectionClass($name)`) or constructs for a
+  fetched row, a session or output-buffer handler, the callbacks of a cURL
+  transfer or an XML parser, a garbage collection; reading a declared
+  property of `$this` or a constant of the class itself is no such code, and neither is
+  giving another value to a variable that held text, numbers or arrays of
+  them), nor, for
+  `FileReadFailureUnchecked`, `ImageDecodeFailureUnchecked`,
+  `IntlFormattingFailureUnchecked`, `ScandirFailureIterated`,
+  `ParseUrlFailureDereferenced` and `PosixAccountLookupFailureDereferenced`,
+  after a call that shares a statement, branch or loop with the read. A
+  static cache reset to `null`, a generator helper and a helper that only
+  copies or strictly tests a local no longer discard such a check.
+- `PregReplaceFailureUnchecked` and `FileReadFailureUnchecked` report a
+  result passed to a `string` parameter of a static method or of a method
+  of a known class, as they did for functions, when the declaration that
+  runs is known: its class is declared once in the analysed paths, and no
+  project class extending the receiver's declares the parameter otherwise.
+  A function declared twice, and any project declaration on a PHP target
+  below 7.0 (where `string` names a class), is no longer read as a string
+  use, nor is a `string` parameter with a `null` default, which accepts
+  null. Neither is an assertion or expectation of PHPUnit (`assert…` and
+  `expect…` methods of its `Assert` and `TestCase` classes, `assert…`
+  functions of `PHPUnit\Framework`): the test checks the value there.
+- `ParseUrlFailureDereferenced` and `PosixAccountLookupFailureDereferenced`
+  report an unchecked result when the result of another call also reaches
+  the read on a different path.
+- `GdPaletteIndexDecodedAsRgb` no longer reports a shift whose colour or
+  image is assigned differently on another path.
+- `UnescapedHtmlOutput` reports request data read after `unset()` or a
+  replacement of a request superglobal element when a later statement fills
+  it with request data again (also through a computed or nested key, a
+  reference, `$GLOBALS`, a destructuring or a `foreach` target, later in a
+  loop around the output, or possibly in a call made in between whose
+  callee is not known to leave the request superglobals alone: an unresolved
+  one, a project function, method or constructor that names one of them
+  (also as `${'_GET'}`, or in a default parameter value), takes an argument
+  by reference, is given an array holding a reference or calls other project
+  code, or a PHP function or method that runs project code: a callback, a
+  handler, a class loaded by name, a method of a PHP class the project
+  extends), and keeps
+  examining the output after a value derived from a
+  `switch`-matched label.
+- `UntrustedShellCommand` treats a project function that forwards its
+  argument to `proc_open` or a backtick command as a sink, unless
+  `proc_open` receives it in an argument vector.
+- Request data assigned to a `global` variable after a call in the same
+  function reaches the file-level reads of that global, and the functions
+  that read it after a call, whatever the order in which the functions are
+  written and through up to 16 globals copied into one another; below
+  PHP 7 a scalar parameter type no longer
+  counts as a check; a protected method called from a subclass and a
+  receiver typed by a doc comment are resolved for parameter checks.
+- `FractionalModuloOperand` reports an operand assigned before a `goto` label
+  that no jump leads back from.
 
 ## [0.1.4] - 2026-10-10
 

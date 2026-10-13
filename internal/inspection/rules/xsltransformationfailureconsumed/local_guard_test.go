@@ -9,7 +9,7 @@ import (
 
 // Each guard below is read twice. In a scope the flow follows, its facts
 // prove it although the result is computed from a project call. A scope with
-// `goto` is not followed: the producer is still found lexically and the
+// `goto` beside a `try` is not followed: the producer is still found lexically and the
 // rule's own walk decides.
 func TestLocalGuardWalk(t *testing.T) {
 	const produce = "$n=$p->transformToXML(load($d));"
@@ -48,7 +48,7 @@ func TestLocalGuardWalk(t *testing.T) {
 		{"else of conjunction of two failure tests", produce + "if(!$n&&$n==false){echo 1;}else{echo $n;}", 0},
 		{"ternary on disjunction of two rejecting tests", produce + "return ($n!==false||is_string($n))?file_put_contents($file,$n):0;", 0},
 	} {
-		for _, tail := range []string{"", "goto done;done:;"} {
+		for _, tail := range []string{"", "try{}finally{}goto done;done:;"} {
 			t.Run(tc.name+" "+tail, func(t *testing.T) {
 				e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"XslTransformationFailureConsumed"}})
 				if err != nil {

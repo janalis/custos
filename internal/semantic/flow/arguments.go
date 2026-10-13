@@ -1,6 +1,7 @@
 package flow
 
 import (
+	"slices"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -76,7 +77,7 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 		if known && p >= 0 && !params[p].ByRef {
 			continue
 		}
-		untest(a.Value, f)
+		untest(a.Value, f, false)
 		target := syntax.UnwrapParens(a.Value)
 		for {
 			dim, ok := target.(*syntax.ArrayDimFetch)
@@ -92,7 +93,7 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 			next := unsettled(f.vars[variable.Name], Value{})
 			if known {
 				next = Value{}
-				name, builtin, _ := e.callee(at)
+				name, builtin, _, _ := e.callee(at)
 				switch {
 				case !builtin:
 					next = e.left(at, i, list, positions, f.vars[variable.Name], f, r)
@@ -106,6 +107,13 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 				default:
 					next = e.updated(name, i, list, positions, params, f.vars[variable.Name], r)
 				}
+				if builtin && p >= 0 {
+					// A PHP function leaves what it declares for the parameter:
+					// an array it filled, or the one it was given, reordered.
+					kind := e.kinds(params[p].Type, params[p].DocType)
+					next.plain = kind&(kindKnown|kindObject|kindOpaque) == kindKnown
+					next.deep = next.plain && (kind&kindArray == 0 || e.sealed(at, name, list, r) && (params[p].Optional || params[p].Variadic || f.vars[variable.Name].deep))
+				}
 			}
 			if old := f.vars[variable.Name]; target != syntax.UnwrapParens(a.Value) {
 				// Only the element can be bound: the callee may change or
@@ -113,7 +121,7 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 				// array it was, with the request data its other elements hold.
 				next = unsettled(old, next)
 				next.Complete = next.Complete || old.Complete
-				next.NonFalse, next.NonNull = old.NonFalse, old.NonNull
+				next.NonFalse, next.NonNull, next.plain, next.deep = old.NonFalse, old.NonNull, old.plain, old.deep && next.deep
 				next.elements = old.elements.without(boundElement(a.Value))
 			}
 			f.write(r, variable.Name, next)
@@ -136,34 +144,10 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 	// (`static::` and a method called on an object bind late).
 	name, sealed := e.summaryName(call), true
 	switch n := call.(type) {
-	case *syntax.MethodCall, *syntax.StaticCall:
-		sealed = false
-		// A method that is not visible from here is not the one that runs.
-		if m := e.method(call); m != nil && e.visible(call, m) {
-			name, sealed = strings.ToLower(m.Class+"::"+m.Name), m.Final || m.Visibility == index.Private
-			// The class of the object the method is looked up on at run
-			// time is the receiver's, the enclosing one for `$this` and
-			// `static`, or one that extends it.
-			within := syntax.EnclosingClass(call)
-			receiver := e.types.ClassFQN(within)
-			if static, ok := n.(*syntax.StaticCall); ok {
-				class, _ := static.Class.(*syntax.Name)
-				sealed = sealed || !strings.EqualFold(class.Value, "static")
-			} else if typed := e.types.TypeOf(n.(*syntax.MethodCall).Var).Classes(); len(typed) == 1 {
-				receiver, within = typed[0], nil
-			}
-			// A trait method runs in classes that are not known here, and
-			// a variable is the object inferred for it only while the flow
-			// follows it: created here or received, and bound to nothing.
-			known := within == nil || within.ClassKind != syntax.KindTrait
-			if method, ok := n.(*syntax.MethodCall); ok && plainVariable(method.Var) != "" && plainVariable(method.Var) != "this" {
-				_, shared := f.aliased[plainVariable(method.Var)]
-				known = !shared && f.vars[plainVariable(method.Var)].Identity != 0
-			}
-			if !sealed && known {
-				sealed = !e.replaced(receiver, m)
-			}
-		}
+	case *syntax.MethodCall:
+		name, sealed = e.dispatched(call, e.follows(n.Var, f), name)
+	case *syntax.StaticCall:
+		name, sealed = e.dispatched(call, followTyped, name)
 	}
 	summary, ok := e.contract(name)
 	written, described := summary.ByRef[positions[at]]
@@ -203,6 +187,402 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 	return next
 }
 
+// dispatched names the summary of the method a call runs, the given one
+// when the method is not resolved, and tells whether it is exactly known.
+func (e *Env) dispatched(call syntax.Node, followed uint8, name string) (string, bool) {
+	if m, sealed := e.dispatch(call, followed); m != nil {
+		return strings.ToLower(m.Class + "::" + m.Name), sealed
+	}
+	return name, false
+}
+
+// dispatch resolves the method a method or static call names and tells
+// whether that declaration is the one that runs: a final or private method,
+// a method of a final class, a static call that names its class, as `self::`
+// and `parent::` do too, a method called on an object made here by `new`, or
+// a method no class of the project extending the receiver's replaces
+// (`static::` and a method called on an object bind late). followed tells
+// what is known of the receiver (see follows).
+func (e *Env) dispatch(call syntax.Node, followed uint8) (*index.Method, bool) {
+	m, receiver, sealed, open := e.resolve(call, followed)
+	if m != nil && !sealed && open {
+		sealed = !e.replaced(receiver, m)
+	}
+	return m, sealed
+}
+
+// resolve is dispatch without the classes of the project: sealed tells that
+// the declaration is the one that runs whatever they declare, and open that
+// it is unless one of those extending the receiver's class replaces it.
+func (e *Env) resolve(call syntax.Node, followed uint8) (m *index.Method, receiver string, sealed, open bool) {
+	// A method that is not visible from here is not the one that runs.
+	m = e.method(call)
+	if m == nil || !e.visible(call, m) {
+		return nil, "", false, false
+	}
+	sealed = m.Final || m.Visibility == index.Private || followed == followExact
+	// The class of the object the method is looked up on at run time is the
+	// receiver's, the enclosing one for `$this` and `static`, or one that
+	// extends it.
+	within := syntax.EnclosingClass(call)
+	receiver = e.types.ClassFQN(within)
+	if static, ok := call.(*syntax.StaticCall); ok {
+		class, _ := static.Class.(*syntax.Name)
+		sealed = sealed || !strings.EqualFold(class.Value, "static")
+	} else if typed := e.types.TypeOf(call.(*syntax.MethodCall).Var).Classes(); len(typed) == 1 {
+		receiver, within = typed[0], nil
+	}
+	// A trait method runs in classes that are not known here.
+	return m, receiver, sealed, followed != followLoose && (within == nil || within.ClassKind != syntax.KindTrait)
+}
+
+// What is known of the receiver of a method call.
+const (
+	// followExact: a variable that holds an object made by `new` of the
+	// class inferred for it, on every path.
+	followExact uint8 = iota + 1
+	// followTyped: an object of the class inferred, or of one extending it.
+	followTyped
+	// followLoose: a variable that may hold something else.
+	followLoose
+)
+
+// follows tells whether a receiver is the object inferred for it: a variable
+// is only while the flow follows it, created here, received or produced by
+// one expression every path agrees on, and bound to nothing. Any other
+// receiver is what is declared or documented for it.
+func (e *Env) follows(receiver syntax.Expr, f *frame) uint8 {
+	name := plainVariable(receiver)
+	if name == "" || name == "this" {
+		return followTyped
+	}
+	held := f.vars[name]
+	if _, shared := f.aliased[name]; shared || held.Identity == 0 && (held.Expr == nil || held.Invalidated != 0) {
+		return followLoose
+	}
+	made, created := syntax.UnwrapParens(held.Expr).(*syntax.New)
+	typed := e.types.TypeOf(receiver).Classes()
+	if !created || held.Invalidated != 0 || len(typed) != 1 {
+		return followTyped
+	}
+	if class, named := made.Class.(*syntax.Name); named && !strings.EqualFold(class.Value, "static") && strings.EqualFold(strings.TrimPrefix(e.named(class), `\`), strings.TrimPrefix(typed[0], `\`)) {
+		return followExact
+	}
+	return followTyped
+}
+
+// Targets returns the declarations a method or static call may run: the one
+// it resolves to when no other can (see dispatch), else that one and each
+// method that replaces it in a class of the project extending the
+// receiver's. Every class from the receiver's up to the one that declares
+// the method, and every class extending it, must be declared once: of two
+// declarations either may be the one in effect. Nothing is returned when
+// the callee is not known that well. A method PHP itself declares only has
+// to be the one no class of the project replaces.
+func (e *Env) Targets(call syntax.Node) []*index.Method {
+	return e.targets(call, e.reached(call))
+}
+
+// reached tells what the scope of a method call knows of its receiver (see
+// follows): a variable is followed only in a scope analysed to its end.
+func (e *Env) reached(call syntax.Node) uint8 {
+	r := e.scope(syntax.EnclosingVariableScope(call))
+	followed := followTyped
+	if method, ok := call.(*syntax.MethodCall); ok && plainVariable(method.Var) != "" && plainVariable(method.Var) != "this" {
+		if followed = r.receivers[call]; followed == 0 || !r.complete {
+			followed = followLoose
+		}
+	}
+	return followed
+}
+
+// targets is Targets for what is known of the receiver.
+func (e *Env) targets(call syntax.Node, followed uint8) []*index.Method {
+	m, receiver, sealed, open := e.resolve(call, followed)
+	if m == nil || m.Magic || !sealed && !open || !m.Builtin && !e.single(call, m) {
+		return nil
+	}
+	targets := []*index.Method{m}
+	if sealed {
+		return targets
+	}
+	ix := e.types.Index
+	if e.below(receiver, func(sub string) bool {
+		other := ix.FindMethod(sub, m.Name, e.types.PHP)
+		if ix.ClassCount(sub) != 1 || other == nil {
+			return true
+		}
+		if !slices.Contains(targets, other) {
+			targets = append(targets, other)
+		}
+		return false
+	}) {
+		return nil
+	}
+	return targets
+}
+
+// single reports that each class on the way from the one a call looks its
+// method up on to the one that declares it is declared once: none of them
+// may be another declaration, with another method.
+func (e *Env) single(call syntax.Node, m *index.Method) bool {
+	ix := e.types.Index
+	from := e.types.ClassFQN(syntax.EnclosingClass(call))
+	switch n := call.(type) {
+	case *syntax.New:
+		from = e.named(n.Class.(*syntax.Name))
+	case *syntax.StaticCall:
+		from = e.named(n.Class.(*syntax.Name))
+	case *syntax.MethodCall:
+		if typed := e.types.TypeOf(n.Var).Classes(); len(typed) == 1 {
+			from = typed[0]
+		}
+	}
+	for steps := 0; steps < MaxDepth*4 && ix.ClassCount(from) == 1; steps++ {
+		class := ix.Class(from, e.types.PHP)
+		if strings.EqualFold(strings.TrimPrefix(from, `\`), strings.TrimPrefix(m.Class, `\`)) || class.Parent == "" {
+			// A method of a trait is declared outside the classes above.
+			return ix.ClassCount(m.Class) == 1
+		}
+		from = class.Parent
+	}
+	return false
+}
+
+// Spares reports a written call or a construction that stores nothing in a
+// request table. A PHP function or method does not, unless it runs code of
+// the project: it is given a function to call, loads or evaluates code,
+// resumes or invokes some (see runner, loads, invokes and builds), or is a
+// method, not final, of a class the project extends. A call given an array
+// that shares a variable (`[&$x]`) may store anything; `f(...)` calls
+// nothing. A
+// callable of the project does not when it is the declaration that runs, or
+// each of those that may (see Targets), declared once, takes no argument by
+// reference, and its body spares the tables too and calls nothing of the
+// project (see Summary.Spares). A
+// construction runs the constructor and, once the object is dropped, the
+// destructor the class finds: none is none. Anything not known that well may
+// store request text anywhere. Code that runs without a call being written
+// (a conversion to text, a magic method, an autoloader) is not counted.
+func (e *Env) Spares(call syntax.Node) bool {
+	return e.spares(call, e.reached(call), false)
+}
+
+// spares is Spares for what is known of the receiver. within tells that the
+// call is written in a body being summarized: a callable of the project is
+// then not looked into, so that a summary depends on no other.
+func (e *Env) spares(call syntax.Node, followed uint8, within bool) bool {
+	ix := e.types.Index
+	if list := arguments(call); list != nil {
+		if len(list.Args) == 1 {
+			if _, callable := list.Args[0].(*syntax.VariadicPlaceholder); callable {
+				// `f(...)` only makes a closure: nothing is called.
+				return true
+			}
+		}
+		if shares(list) {
+			return false
+		}
+	}
+	switch n := call.(type) {
+	case *syntax.FuncCall:
+		f := e.types.ResolveFunction(n)
+		if f == nil || !f.Avail.In(e.types.PHP) {
+			return false
+		}
+		if f.Builtin {
+			name := strings.ToLower(f.FQN)
+			return name != "create_function" && !runner(name) && !loads(name, n.Args) && !e.callbackGiven(n.Args, f.Params)
+		}
+		if within {
+			return false
+		}
+		summary, ok := e.contract(strings.ToLower(f.FQN))
+		return ok && summary.Spares && !referenced(f.Params) && len(ix.FunctionDecls(f.FQN, e.types.PHP)) == 1
+	case *syntax.MethodCall:
+		return e.sparing(e.targets(call, followed), n.Args, within)
+	case *syntax.StaticCall:
+		return e.sparing(e.targets(call, followed), n.Args, within)
+	case *syntax.New:
+		class, named := n.Class.(*syntax.Name)
+		if !named || strings.EqualFold(class.Value, "static") {
+			return false
+		}
+		fqn := e.named(class)
+		declared := ix.Class(fqn, e.types.PHP)
+		if declared == nil || ix.ClassCount(fqn) != 1 {
+			return false
+		}
+		short := fqn[strings.LastIndexByte(fqn, '\\')+1:]
+		for _, name := range []string{"__construct", "__destruct", short} {
+			m := ix.FindMethod(fqn, name, e.types.PHP)
+			switch {
+			case m == nil:
+			case name == short:
+				// Before PHP 8 a method named like its class constructs it.
+				if !e.types.PHP.AtLeast(phpversion.PHP80) {
+					return false
+				}
+			case !m.Builtin && !e.single(call, m), !e.sparing([]*index.Method{m}, n.Args, within):
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// sparing reports that none of the declarations a call may run stores
+// anything in a request table, and that one of them at least has a body.
+func (e *Env) sparing(targets []*index.Method, list *syntax.ArgList, within bool) bool {
+	bodies := 0
+	for _, m := range targets {
+		switch class := strings.ToLower(strings.TrimPrefix(m.Class, `\`)); {
+		case referenced(m.Params):
+			return false
+		case m.Abstract:
+			continue
+		case !m.Builtin && within:
+			return false
+		case !m.Builtin:
+			if summary, ok := e.contract(strings.ToLower(m.Class + "::" + m.Name)); !ok || !summary.Spares {
+				return false
+			}
+		case class == "closure" || class == "generator" || class == "fiber" || strings.HasPrefix(class, "reflection") || e.callbackGiven(list, m.Params):
+			return false
+		case strings.EqualFold(m.Name, "__construct"):
+			// The object made is of that very class.
+			if builds(class, list) {
+				return false
+			}
+		case invokes(class+"::"+strings.ToLower(m.Name), list) || !m.Final && e.extended(m.Class):
+			return false
+		}
+		bodies++
+	}
+	return bodies > 0
+}
+
+// shares reports arguments that hold an array written with an element by
+// reference (`[&$_GET]`): the callee then holds what the caller's variable
+// holds, and writes it without a parameter by reference.
+func shares(list *syntax.ArgList) bool {
+	shared := false
+	syntax.Inspect(list, func(n syntax.Node) bool {
+		item, ok := n.(*syntax.ArrayItem)
+		shared = shared || ok && item.ByRef
+		return !shared
+	})
+	return shared
+}
+
+// arguments returns the argument list of a call or a construction, nil when
+// none is written.
+func arguments(call syntax.Node) *syntax.ArgList {
+	switch n := call.(type) {
+	case *syntax.FuncCall:
+		return n.Args
+	case *syntax.MethodCall:
+		return n.Args
+	case *syntax.StaticCall:
+		return n.Args
+	case *syntax.New:
+		return n.Args
+	}
+	return nil
+}
+
+// extended reports a class of PHP that a class of the project extends: a
+// method PHP declares may then call one the project replaces, as the
+// insertion into a heap calls its comparison. The answer is kept per class.
+func (e *Env) extended(class string) bool {
+	at := strings.ToLower(strings.TrimPrefix(class, `\`))
+	if known, ok := e.extendedBy[at]; ok {
+		return known
+	}
+	if e.extendedBy == nil {
+		e.extendedBy = map[string]bool{}
+	}
+	ix := e.types.Index
+	e.extendedBy[at] = e.below(class, func(sub string) bool {
+		declared := ix.Class(sub, e.types.PHP)
+		return declared != nil && !strings.HasPrefix(declared.File, "stubs/")
+	})
+	return e.extendedBy[at]
+}
+
+// referenced reports a parameter taken by reference: the callee writes to
+// what the caller hands it.
+func referenced(params []index.Param) bool {
+	return slices.ContainsFunc(params, func(p index.Param) bool { return p.ByRef })
+}
+
+// callbackGiven reports an argument that may be a function for PHP to call:
+// one bound to a parameter that takes one, unless it names a PHP function
+// that only computes a number, a boolean or text, or one whose parameter is
+// not known.
+func (e *Env) callbackGiven(list *syntax.ArgList, params []index.Param) bool {
+	if list == nil {
+		return false
+	}
+	var few [8]int
+	for i, at := range parameters(list, params, few[:0]) {
+		arg, ok := list.Args[i].(*syntax.Arg)
+		if !ok || at < 0 || arg.Unpack || invoked(params[at]) && !e.harmless(arg.Value) {
+			return true
+		}
+	}
+	return false
+}
+
+// sparesTables reports a callable whose body is the one every call runs and
+// stores nothing in a request table: it names no request table, no
+// `$GLOBALS` and no variable by a name computed at run time, evaluates and
+// includes no code, and all it calls or constructs, in the default values
+// of its parameters and in the functions it declares inline too, is PHP's own and
+// spares them (see Spares), or a class of the project without constructor
+// and destructor. A callable of the project it calls is not looked into: one
+// summary then depends on no other, and none has to be computed again for
+// this. The receivers of the calls in the inline functions are not followed.
+func (e *Env) sparesTables(scope, body syntax.Node) bool {
+	if body == nil || !unconditional(scope) {
+		return false
+	}
+	spared := true
+	look := func(n syntax.Node) bool {
+		if !spared {
+			// What is written after a refill does not undo it.
+			return false
+		}
+		switch x := n.(type) {
+		case *syntax.Function, *syntax.ClassLike:
+			// Declared here, run where it is called or constructed.
+			return false
+		case *syntax.Variable:
+			// A name computed at run time may be the one of a request table.
+			spared = x.NameExpr == nil && !external(x.Name) && x.Name != "GLOBALS"
+		case *syntax.Eval, *syntax.Include:
+			spared = false
+		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
+			followed := followLoose
+			if syntax.EnclosingVariableScope(n) == scope {
+				followed = e.reached(n)
+			}
+			spared = e.spares(n, followed, true)
+		}
+		return spared
+	}
+	// The value a parameter takes when none is given is computed by each
+	// call that leaves it out.
+	for _, p := range syntax.VariableScopeParams(scope) {
+		if p.Default != nil {
+			syntax.Inspect(p.Default, look)
+		}
+	}
+	syntax.Inspect(body, look)
+	return spared
+}
+
 // replaced reports that a class of the project extending the receiver's
 // declares, inherits or uses another method of that name than the one
 // resolved. A class extends the receiver's through any of its declarations
@@ -211,18 +591,40 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 // cannot be seen: a method meant to be replaced outside it is not known to
 // be. The answer is kept per receiver class and method.
 func (e *Env) replaced(receiver string, m *index.Method) bool {
-	at := [2]string{strings.ToLower(receiver), strings.ToLower(m.Class + "::" + m.Name)}
-	if known, ok := e.overrides[at]; ok {
-		return known
-	}
-	if e.overrides == nil {
-		e.overrides = map[[2]string]bool{}
-	}
-	e.overrides[at] = e.overridden(receiver, m)
-	return e.overrides[at]
+	return e.overrides(receiver, m.Name, m.Class)
 }
 
-func (e *Env) overridden(receiver string, m *index.Method) bool {
+// overrides is replaced for a method name and the class that declares the
+// method resolved: none when the receiver's class has no such method, which
+// a class extending it then must not have either.
+func (e *Env) overrides(receiver, method, declaring string) bool {
+	at := [2]string{strings.ToLower(receiver), strings.ToLower(declaring + "::" + method)}
+	if known, ok := e.overridden[at]; ok {
+		return known
+	}
+	if e.overridden == nil {
+		e.overridden = map[[2]string]bool{}
+	}
+	e.overridden[at] = e.override(receiver, method, declaring)
+	return e.overridden[at]
+}
+
+func (e *Env) override(receiver, method, declaring string) bool {
+	ix := e.types.Index
+	return e.below(receiver, func(sub string) bool {
+		// The summaries read here depend on what each subclass declares.
+		e.contract(strings.ToLower(sub) + "::" + strings.ToLower(method))
+		other := ix.FindMethod(sub, method, e.types.PHP)
+		return ix.ClassCount(sub) != 1 || (other == nil) != (declaring == "") || other != nil && !strings.EqualFold(other.Class, declaring)
+	})
+}
+
+// below visits each class of the project that extends the receiver's, through
+// any of its declarations and through the names class_alias() gives it, until
+// found reports one; it tells whether one was. A final class has none. The
+// receiver may be written with a leading backslash; the index names the
+// classes extending it without one.
+func (e *Env) below(receiver string, found func(sub string) bool) bool {
 	ix := e.types.Index
 	if declared := ix.Class(receiver, e.types.PHP); declared != nil && declared.Final {
 		return false
@@ -241,15 +643,12 @@ func (e *Env) overridden(receiver string, m *index.Method) bool {
 		}
 		for _, name := range names {
 			for _, sub := range ix.ChildrenAll(name) {
-				folded := strings.ToLower(strings.TrimPrefix(sub, `\`))
+				folded := strings.ToLower(sub)
 				if seen[folded] {
 					continue
 				}
 				seen[folded] = true
-				// The summaries read here depend on what each subclass declares.
-				e.contract(folded + "::" + strings.ToLower(m.Name))
-				other := ix.FindMethod(sub, m.Name, e.types.PHP)
-				if ix.ClassCount(sub) != 1 || other == nil || !strings.EqualFold(other.Class, m.Class) {
+				if found(sub) {
 					return true
 				}
 				queue = append(queue, sub)
@@ -445,10 +844,12 @@ func (e *Env) bind(at syntax.Node, values []Value) ([]Value, bool) {
 // only takes arrays, objects or callables (booleans and null still convert
 // to scalar parameters). A function of the project, or a static method
 // named by its class, `self` or `parent`, throws one for null given to a
-// required parameter whose declared type does not admit it, in every
-// version. The proof holds where that error cannot be caught: outside any
-// `try` with a `catch`.
-func (e *Env) accepted(call syntax.Node, list *syntax.ArgList, builtin bool, f *frame) {
+// required parameter whose declared type does not admit it, as does a method
+// called on an object when it is the one resolved (see dispatch), since PHP 7:
+// before, the refusal is an error a handler can recover from, and a scalar
+// type names a class. The proof holds where that error cannot be caught:
+// outside any `try` with a `catch`.
+func (e *Env) accepted(call syntax.Node, list *syntax.ArgList, builtin bool, followed uint8, f *frame) {
 	switch n := call.(type) {
 	case *syntax.FuncCall:
 		// One of two declarations of a name may be the one in effect.
@@ -467,10 +868,17 @@ func (e *Env) accepted(call syntax.Node, list *syntax.ArgList, builtin bool, f *
 		if !e.visible(call, m) || e.types.Index.ClassCount(m.Class) != 1 {
 			return
 		}
-	default:
-		return
+	case *syntax.MethodCall:
+		// A method called on an object is the one resolved when no class
+		// can replace it; a null-safe call may not be made.
+		if builtin || conditional(n) || !e.provable(call, list, f) {
+			return
+		}
+		if m, exact := e.dispatch(call, followed); m == nil || !exact || !e.single(call, m) {
+			return
+		}
 	}
-	if builtin && !e.types.PHP.AtLeast(phpversion.PHP80) {
+	if builtin && !e.types.PHP.AtLeast(phpversion.PHP80) || !e.types.PHP.AtLeast(phpversion.PHP70) {
 		return
 	}
 	params, _, _ := e.declaration(call)
@@ -502,6 +910,26 @@ func (e *Env) accepted(call syntax.Node, list *syntax.ArgList, builtin bool, f *
 			exclude(arg.Value, f, false, true)
 		}
 	}
+}
+
+// provable reports a call with something to prove: an argument that is a
+// variable not yet known to differ from null, bound to a required parameter
+// that does not admit null. Only then is what runs worth resolving.
+func (e *Env) provable(call syntax.Node, list *syntax.ArgList, f *frame) bool {
+	params, _, _ := e.declaration(call)
+	var few [8]int
+	for i, at := range parameters(list, params, few[:0]) {
+		arg, ok := list.Args[i].(*syntax.Arg)
+		if !ok || at < 0 || params[at].Optional || !rejectsNull(params[at].Type) {
+			continue
+		}
+		if variable := guarded(arg.Value); variable != nil {
+			if held, tracked := f.vars[variable.Name]; tracked && !held.NonNull {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // rejectsNull reports a declared parameter type that does not admit null.

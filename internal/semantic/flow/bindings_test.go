@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"custos/internal/php/syntax"
 	"custos/internal/testing/testbudget"
 )
 
@@ -46,7 +47,8 @@ func TestSwitchPaths(t *testing.T) {
 		{"levels across a finally block that writes", `function f($l,$c){$x=1; foreach($l as $v){while($c){try{break 2;}finally{$x=$_GET['a'];}}} probe($x);}`, false, true},
 		{"too many levels across a finally block", `function f($l,$c){$x=1; while($c){try{break 3;}finally{echo 1;}} probe($x);}`, false, false},
 		{"one level inside a finally block", `function f($l,$c){$x=1; while($c){try{break;}finally{echo 1;}} probe($x);}`, true, false},
-		{"jump", `function f($c){$x=1; goto end; end: probe($x);}`, false, false},
+		{"jump", `function f($c){$x=1; goto end; end: probe($x);}`, true, false},
+		{"jump out of a try", `function f($c){$x=1; try{goto end;}finally{echo 1;} end: probe($x);}`, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, f := environment(t, tc.src, nil)
@@ -134,6 +136,13 @@ func TestSwitchAllowLists(t *testing.T) {
 		{"superglobal element, offset of a local", `switch($_GET['a']){case 'list': echo $o['i']; probe($_GET['a']);}`, true},
 		{"superglobal element, class constant", `switch($_GET['a']){case 'list': echo K::A; probe($_GET['a']);}`, true},
 		{"superglobal element, dynamic variable", `switch($_GET['a']){case 'list': echo $$n; probe($_GET['a']);}`, true},
+		{"superglobal element, text beside a number", `function f(int $n){switch($_GET['a']){case 'list': echo "v$n" . $n; probe($_GET['a']);}}`, false},
+		{"superglobal element, local copied and tested", `function f($o){switch($_GET['a']){case 'list': if ($o === null || !$o) { return; } probe($_GET['a']);}}`, false},
+		{"superglobal element, read after a part of the same text", `switch($_GET['a']){case 'list': probe("x {$GLOBALS['o']} {$_GET['a']}");}`, true},
+		{"superglobal element, read before a part of the same text", `switch($_GET['a']){case 'list': probe("x {$_GET['a']} {$GLOBALS['o']}");}`, false},
+		{"superglobal element, read after a concatenation", `switch($_GET['a']){case 'list': probe($o . ' ' . $_GET['a']);}`, true},
+		{"superglobal element, session table read", `switch($_GET['a']){case 'list': probe(($_SESSION['o'] ?? 'x') . $_GET['a']);}`, true},
+		{"superglobal element, exception caught", `switch($_GET['a']){case 'list': try { throw new E; } catch (E $e) { } probe($_GET['a']);}`, true},
 		{"superglobal element, copied in the call", `switch($_GET['a']){case 'list': probe('<p>' . $_GET['a'] . "</p>" . (true ? 1 : 2) . isset($_GET['b']));}`, false},
 		{"superglobal element, argument of a method", `switch($_GET['a']){case 'list': $o->show(probe($_GET['a']));}`, false},
 		{"superglobal element, PHP function called", `switch($_GET['a']){case 'list': echo strlen($o); probe($_GET['a']);}`, true},
@@ -173,13 +182,31 @@ func TestSwitchAllowLists(t *testing.T) {
 // The value a switch matched is one of its labels: text the program wrote.
 func TestMatchedLabels(t *testing.T) {
 	for src, want := range map[string]bool{
-		`$a=$_GET['a']; switch($a){case 'list': probe($a);}`:                        true,
-		`$a=$_GET['a']; switch($a){case 'list': $b=$a; probe($b);}`:                 true,
-		`switch($_GET['a']){case 'list': probe($_GET['a']);}`:                       true,
-		`$a=$_GET['a']; switch($a){case 'list': probe($a . 'x');}`:                  false,
-		`$a=$_GET['a']; switch($a){case 'list': break;} probe($a);`:                 false,
-		`$a=$_GET['a']; switch($a){case 1: probe($a);}`:                             false,
-		`$a='list'; probe($a);`:                                                     false,
+		`$a=$_GET['a']; switch($a){case 'list': probe($a);}`:        true,
+		`$a=$_GET['a']; switch($a){case 'list': $b=$a; probe($b);}`: true,
+		`switch($_GET['a']){case 'list': probe($_GET['a']);}`:       true,
+		// Text built from a label and from literals is text of the program too.
+		`$a=$_GET['a']; switch($a){case 'list': probe($a . 'x');}`:                                  true,
+		`$a=$_GET['a']; switch($a){case 'list': probe("p-$a-" . 1);}`:                               true,
+		`$a=$_GET['a']; switch($a){case 'list': probe(ucfirst(strtolower($a)));}`:                   true,
+		`$a=$_GET['a']; switch($a){case 'list': probe(sprintf('%s-%d', $a, 2));}`:                   true,
+		`$a=$_GET['a']; switch($a){case 'list': $b='x'; $b.=$a; probe($b);}`:                        true,
+		`function f($c){$a=$_GET['a']; switch($a){case 'list': probe($c ? $a : 'x');}}`:             true,
+		`function f($c){$a=$_GET['a']; switch($a){case 'list': $b='x'; if($c){$b=$a;} probe($b);}}`: true,
+		`$a=$_GET['a']; switch($a){case 'list': probe($a . $_GET['b']);}`:                           false,
+		`function f($c){$a=$_GET['a']; switch($a){case 'list': probe($a . $c);}}`:                   false,
+		`function f($c){$a=$_GET['a']; switch($a){case 'list': probe(sprintf('%s', $a, $c));}}`:     false,
+		`$a=$_GET['a']; switch($a){case 'list': probe(file_get_contents($a));}`:                     false,
+		`$a=$_GET['a']; switch($a){case 'list': probe($a == 'x');}`:                                 false,
+		`$a=$_GET['a']; switch($a){case 'list': probe($a + 1);}`:                                    false,
+		`$a=$_GET['a']; switch($a){case 'list': probe(!$a);}`:                                       false,
+		`$a=$_GET['a']; switch($a){case 'list': probe(empty($a));}`:                                 false,
+		`$a=$_GET['a']; switch($a){case 'list': probe((string) @$a);}`:                              true,
+		`$a=$_GET['a']; switch($a){case 'list': $b=1; $b+=$a; probe($b);}`:                          false,
+		`probe('a' . "b" . strtolower('C'));`:                                                       false,
+		`$a=$_GET['a']; switch($a){case 'list': break;} probe($a);`:                                 false,
+		`$a=$_GET['a']; switch($a){case 1: probe($a);}`:                                             false,
+		`$a='list'; probe($a);`: false,
 		`function g(){$a=$_GET['a']; switch($a){case 'list': probe($a);} yield 1;}`: false,
 	} {
 		e, f := environment(t, src, nil)
@@ -564,6 +591,86 @@ func TestInvalidationKeepsRequestData(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A function that writes a global variable is analysed before any scope that
+// reads what the writers leave, whichever scope is asked for first, and the
+// writers are analysed in source order.
+func TestGlobalWritersAreKnownBeforeTheScopeAskedFor(t *testing.T) {
+	for _, tc := range []struct {
+		name, src   string
+		first, then bool
+	}{
+		{"writer asked for first", `function w(){global $g; first($g); other(); $g=$_GET['a'];} $g=1; w(); probe($g);`, false, true},
+		{"writer reads what it wrote in an earlier call", `function w(){global $g; other(); first($g); $g=$_GET['a'];} w(); probe($g);`, true, true},
+		{"writer reads what a later function writes", `function r(){global $g; other(); first($g);} function w(){global $g; $g=$_GET['a'];} probe($g);`, true, false},
+		{"clean writers", `function r(){global $g; other(); first($g);} function w(){global $g; $g='x';} $g=1; w(); probe($g);`, false, false},
+		{"copied from one global to another", `function c(){global $g, $h; other(); $h=$g; first($h);} function w(){global $g; $g=$_GET['a'];} $h=1; c(); probe($h);`, true, true},
+		{"copied into a global another function writes", `function c(){global $g, $h; other(); $g=$h; first($g);} function w(){global $h; $h=$_GET['a'];} function v(){global $g; $g=$_POST['b'];} $g=1; c(); probe($g);`, true, true},
+		{"copied along a chain of functions written in reverse", `function c3(){global $j, $k; other(); $k=$j;} function c2(){global $h, $j; other(); $j=$h;} function c1(){global $g, $h; other(); $h=$g; first($h);} function w(){global $g; $g=$_GET['a'];} $k=1; c3(); probe($k);`, true, true},
+		{"copied along more functions than are followed", globalChain(globalRounds + 4), true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for range 20 {
+				e, f := environment(t, tc.src, nil)
+				if got := e.Tainted(argument(callsNamed(f, "first")[0]), HTML); got != tc.first {
+					t.Fatalf("first: taint=%v", got)
+				}
+				if got := e.Tainted(argument(callsNamed(f, "probe")[0]), HTML); got != tc.then {
+					t.Fatalf("then: taint=%v", got)
+				}
+			}
+		})
+	}
+}
+
+// A writer is analysed again only when request data reaches a global it is
+// bound to: any other keeps the result of its first analysis. A scope around
+// a closure bound to such a global is analysed again with it.
+func TestGlobalWritersAreAnalysedAgainOnlyForTheirGlobals(t *testing.T) {
+	const src = `function apart(){global $z; other(); $z='x'; probe($z);}
+		function reader(){global $g; other(); probe($g);}
+		function around(){global $y; $y = 1; $f = function () use (&$v) {global $g; other(); $v = $g;}; $f(); probe($v);}
+		function w(){global $g; $g=$_GET['a'];}`
+	e, f := environment(t, src, nil)
+	for i, want := range []bool{false, true, true} {
+		if got := e.Tainted(argument(callsNamed(f, "probe")[i]), HTML); got != want {
+			t.Errorf("probe %d: taint=%v", i, got)
+		}
+	}
+	var closure syntax.Node
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.Closure); ok {
+			closure = c
+		}
+		return true
+	})
+	var writers []globalWriter
+	for _, fn := range f.Stmts[:3] {
+		e.scope(fn)
+		writers = append(writers, globalWriter{fn, map[string]string{"apart": "z", "reader": "g", "around": "y"}[fn.(*syntax.Function).Name.Value]})
+	}
+	e.scope(closure)
+	e.forget(append(writers, globalWriter{closure, "g"}), map[string]bool{"g": true})
+	for i, kept := range []bool{true, false, false} {
+		if _, ok := e.scopes[f.Stmts[i]]; ok != kept {
+			t.Errorf("writer %d: result kept=%v", i, ok)
+		}
+	}
+	if _, ok := e.scopes[closure]; ok {
+		t.Error("the closure bound to the global kept its result")
+	}
+}
+
+// globalChain is a file whose functions, written last hop first, copy
+// request data from one global variable to the next along hops of them.
+func globalChain(hops int) string {
+	var src strings.Builder
+	for i := hops; i > 0; i-- {
+		fmt.Fprintf(&src, "function c%d(){global $g%d, $g%d; other(); $g%d=$g%d;%s} ", i, i-1, i, i, i-1, map[bool]string{true: " first($g1);"}[i == 1])
+	}
+	fmt.Fprintf(&src, "function w(){global $g0; $g0=$_GET['a'];} $g%d=1; c1(); probe($g%d);", hops, hops)
+	return src.String()
 }
 
 func TestInvalidationDropsEverythingButRequestData(t *testing.T) {

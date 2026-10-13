@@ -22,12 +22,6 @@ function viaParseStr(int $n, string $query): int {
     parse_str($query);
     return $n % ($width);
 }
-function viaGoto(int $n): int {
-    $width = 0.5;
-    goto done;
-    done:
-    return $n % $width;
-}
 function viaLoop(int $n, array $settings): int {
     $width = 0.5;
     $sum = 0;

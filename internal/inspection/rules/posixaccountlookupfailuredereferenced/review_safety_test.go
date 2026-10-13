@@ -99,8 +99,8 @@ func TestReviewGuards(t *testing.T) {
 		{"direct call", "if (posix_getpwuid(5)) { echo posix_getpwuid(5)['name']; }", 1},
 	} {
 		// A scope the flow analysis does not cover (here through a trailing
-		// `goto`) is judged by the guards written around the read alone.
-		for _, tail := range []string{" }", " goto done; done: ; }"} {
+		// `goto` beside a `try`) is judged by the guards written around the read alone.
+		for _, tail := range []string{" }", " try { } finally { } goto done; done: ; }"} {
 			t.Run(tc.name+tail, func(t *testing.T) {
 				f := syntax.ParseBest("review.php", []byte(head+tc.body+tail), syntax.Options{Version: phpversion.PHP85})
 				if len(f.Errors) != 0 {
@@ -132,6 +132,27 @@ func TestReviewReassignedLookups(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := syntax.ParseBest("review.php", []byte("<?php function f($u, $o) { $i = posix_getpwnam($u); "+tc.body+" }"), syntax.Options{Version: phpversion.PHP85})
+			if got := e.Analyze(f); len(f.Errors) != 0 || len(got) != tc.findings {
+				t.Fatalf("findings: got %v, want %d (%v)", got, tc.findings, f.Errors)
+			}
+		})
+	}
+	// The unguarded result of another call reaching the same read does not
+	// hide a lookup, and does not stand in for one.
+	for _, tc := range []struct {
+		name, body string
+		findings   int
+	}{
+		{"other call first, lookup on one path", "$i = scandir($u); if ($o) { $i = posix_getpwnam($u); } return $i['dir'];", 1},
+		{"other call first and checked, lookup on one path", "$i = scandir($u); if ($i === false) { return; } if ($o) { $i = posix_getpwnam($u); } return $i['dir'];", 1},
+		{"text first, lookup in a loop", "$i = trim($u); while ($o--) { $i = posix_getpwuid($o); } return $i['dir'];", 1},
+		{"other call first, lookup checked on its path", "$i = scandir($u); if ($o) { $i = posix_getpwnam($u); if (!$i) { return; } } return $i['dir'];", 0},
+		{"lookup checked, other call on one path", "$i = posix_getpwnam($u); if ($i === false) { return; } if ($o) { $i = scandir($u); } return $i['dir'];", 0},
+		{"two other calls", "$i = scandir($u); if ($o) { $i = glob($u); } return $i['dir'];", 0},
+		{"other call first, both checked after", "$i = scandir($u); if ($o) { $i = posix_getpwnam($u); } if (!$i) { return; } return $i['dir'];", 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := syntax.ParseBest("review.php", []byte("<?php function f($u, $o) { "+tc.body+" }"), syntax.Options{Version: phpversion.PHP85})
 			if got := e.Analyze(f); len(f.Errors) != 0 || len(got) != tc.findings {
 				t.Fatalf("findings: got %v, want %d (%v)", got, tc.findings, f.Errors)
 			}

@@ -7,6 +7,7 @@ import (
 
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/index"
 )
 
 func TestRefinementRejectsUnprovedGuards(t *testing.T) {
@@ -73,6 +74,35 @@ func TestRequestStateAndUnknownEffects(t *testing.T) {
 	}
 }
 
+// A condition can throw like a statement: what it wrote before reaches the
+// handler of the enclosing try.
+func TestConditionsThrowIntoTheEnclosingHandler(t *testing.T) {
+	for _, src := range []string{
+		`try { if (risky($x = $_GET['a'])) { } } catch (E $e) { probe($x); }`,
+		`try { if ($c) { } elseif (risky($x = $_GET['a'])) { } } catch (E $e) { probe($x); }`,
+		`try { while (risky($x = $_GET['a'])) { } } catch (E $e) { probe($x); }`,
+		`try { do { } while (risky($x = $_GET['a'])); } catch (E $e) { probe($x); }`,
+		`try { for (; risky($x = $_GET['a']);) { } } catch (E $e) { probe($x); }`,
+		`try { foreach (risky($x = $_GET['a']) as $v) { } } catch (E $e) { probe($x); }`,
+		`try { switch (true) { case risky($x = $_GET['a']): } } catch (E $e) { probe($x); }`,
+		`try { switch (false) { case risky($x = $_GET['a']): } } catch (E $e) { probe($x); }`,
+		`try { risky($x = $_GET['a']) or exit; } catch (E $e) { probe($x); }`,
+		`try { risky($x = $_GET['a']) and exit; } catch (E $e) { probe($x); }`,
+		`try { risky($x = $_GET['a']) ?: exit; } catch (E $e) { probe($x); }`,
+		`try { try { if (risky($x = $_GET['a'])) { } } finally { } } catch (E $e) { probe($x); }`,
+	} {
+		e, f := environment(t, `function t($c) { `+src+` }`, nil)
+		if !e.Tainted(argument(callsNamed(f, "probe")[0]), HTML) {
+			t.Errorf("%s: request data written by the condition lost", src)
+		}
+	}
+	// Outside any try nothing catches it.
+	e, f := environment(t, `function t($c) { if (risky($x = 1)) { return; } probe($x); }`, nil)
+	if _, resolved := e.Resolve(argument(callsNamed(f, "probe")[0])); !resolved {
+		t.Error("a condition outside a try lost its value")
+	}
+}
+
 func TestUnsupportedAndExceptionalScopes(t *testing.T) {
 	for _, src := range []string{
 		`$x=$_GET[$key];$s=$_SERVER[$key];probe($s);`,
@@ -81,6 +111,7 @@ func TestUnsupportedAndExceptionalScopes(t *testing.T) {
 		`while($flag){break 2;}probe(1);`, `while($flag){continue 2;}probe(1);`,
 		`$x='a';if($flag){$x='b';}elseif($other){$x='c';}else{$x='d';}probe($x);`,
 		`$f=fn($x)=>$x;probe($f);`,
+		`$f=function($x): string {return $x;};`,
 		`class C{static function f($x){return $x;}}C::f($_GET['x']);`,
 		`Unknown::f();`,
 	} {
@@ -145,6 +176,33 @@ func TestSnapshotsAreReplacedWithoutStaleContracts(t *testing.T) {
 	}
 	if sinks := local.Sinks(callsNamed(g, "net")[0]); len(sinks) != 1 || sinks[0].Context != URL {
 		t.Fatalf("curl option context: %+v", sinks)
+	}
+}
+
+// A wrapper that runs a command through `proc_open`, a backtick string or a
+// function that also fills reference arguments is a shell sink for callers.
+func TestCommandWrappersAreShellSinks(t *testing.T) {
+	e, f := environment(t, "function tick($x){return `ls $x`;} function quoted($x){$q=escapeshellarg($x); return `ls $q`;} function fixed($x){return `ls -l`;}"+
+		` function open($x){return proc_open($x, [], $pipes);} function lines($x){exec($x, $out, $code); return $out;} function named($x){exec(output: $out, command: $x);}`+
+		` function spread($x){exec(...$x);} function bound(PDOStatement $s, $x){$s->bindParam(1, $x);} function nested($x){$g=function() use ($x){return shell_exec($x);};} function dead($x){return; echo `+"`$x`"+`;}`+
+		` function vector($x){return proc_open(['convert', $x], [], $pipes);} function held($x){$c=['convert', $x]; return proc_open($c, [], $pipes);} function typed(array $x){return proc_open($x, [], $pipes);} function either($x, $k){$c=$k ? ['convert', $x] : 'convert '.$x; return proc_open($c, [], $pipes);} function byname($x){return proc_open(descriptor_spec: [], command: 'convert '.$x, pipes: $pipes);}`, nil)
+	snapshot := NewSnapshot(Extract(f, e.types.Index, phpversion.Max, nil))
+	local, g := environment(t, `tick($_GET['a']); quoted($_GET['a']); fixed($_GET['a']); open($_GET['a']); lines($_GET['a']); named($_GET['a']); spread($_GET['a']); bound($s, $_GET['a']); nested($_GET['a']); dead($_GET['a']); vector($_GET['a']); held($_GET['a']); typed($_GET); either($_GET['a'], $k); byname($_GET['a']);`, snapshot)
+	local.types.Index = index.New(e.types.Index)
+	local.types.Index.Add(index.Extract(g))
+	for name, want := range map[string]int{"tick": 1, "quoted": 0, "fixed": 0, "open": 1, "lines": 1, "named": 1, "spread": 0, "bound": 0, "nested": 0, "dead": 0, "vector": 0, "held": 0, "typed": 0, "either": 1, "byname": 1} {
+		unsafe := 0
+		for _, sink := range local.Sinks(callsNamed(g, name)[0]) {
+			if sink.Context != Shell {
+				t.Errorf("%s: context %v", name, sink.Context)
+			}
+			if sink.Argument.Complete && sink.Argument.Safe&Shell == 0 && tainted(sink.Argument) {
+				unsafe++
+			}
+		}
+		if unsafe != want {
+			t.Errorf("%s: %d tainted shell sinks, want %d", name, unsafe, want)
+		}
 	}
 }
 

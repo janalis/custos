@@ -156,12 +156,13 @@ func (g guard) againstFalse(b *syntax.Binary) bool {
 
 // same accepts the checked variable while it still holds the decode result,
 // and the assignment that stores that result when it is tested in place.
+// Neither counts once a call may have replaced the value before the use.
 func (g guard) same(e syntax.Expr) bool {
 	e = syntax.UnwrapParens(e)
 	if a, ok := e.(*syntax.Assign); ok {
-		return astquery.Equivalent(g.ctx.File, a.Var, g.input) && semanticquery.NativeUnsilenced(a.Value) == syntax.Expr(g.origin)
+		return astquery.Equivalent(g.ctx.File, a.Var, g.input) && semanticquery.NativeUnsilenced(a.Value) == syntax.Expr(g.origin) && semanticquery.NativeUnreplaced(g.ctx, a.Var, g.input)
 	}
-	return astquery.Equivalent(g.ctx.File, e, g.input) && semanticquery.NativeValue(g.ctx, e) == syntax.Expr(g.origin)
+	return astquery.Equivalent(g.ctx.File, e, g.input) && semanticquery.NativeValue(g.ctx, e) == syntax.Expr(g.origin) && semanticquery.NativeUnreplaced(g.ctx, e, g.input)
 }
 
 func connective(b *syntax.Binary) (and, or bool) {

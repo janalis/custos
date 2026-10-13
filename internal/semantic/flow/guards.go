@@ -89,11 +89,22 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			// settled for that value, whichever operand decided.
 			e.refineAssigned(written, f, truth)
 		}
+		if (!truth && n.Op.Kind == syntax.TBar) || (truth && n.Op.Kind == syntax.TAmpersand) {
+			// A bitwise operation evaluates both operands and combines them
+			// as numbers: `|` is zero only when each is, `&` is not zero
+			// only when neither is. That settles an operand that is a test.
+			if e.boolean(n.Left) && !e.rebinds(n.Right, n.Left, f) {
+				e.refine(n.Left, f, truth)
+			}
+			if e.boolean(n.Right) {
+				e.refine(n.Right, f, truth)
+			}
+		}
 		flag := constantName(n.Right)
 		if (truth && n.Op.Kind == syntax.TIsIdentical) || (!truth && n.Op.Kind == syntax.TIsNotIdentical) {
 			if variable, ok := syntax.UnwrapParens(n.Left).(*syntax.Variable); ok && variable.NameExpr == nil && !mirrored {
 				if _, literal := literalText(n.Right); literal {
-					f.vars[variable.Name] = Value{Complete: true, Expr: n.Right}
+					f.vars[variable.Name] = Value{Complete: true, Expr: n.Right, plain: true, deep: true}
 				}
 			}
 		}
@@ -196,6 +207,14 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 				exclude(variable, f, false, true)
 			}
 		}
+		if held, tracked := f.vars[variable.Name]; truth && tracked {
+			switch name {
+			case "is_string", "is_array", "is_int", "is_integer", "is_long", "is_float", "is_double", "is_numeric", "is_resource", "is_bool", "is_null", "is_scalar":
+				// None of these is an object, and only an array holds any.
+				held.plain, held.deep = true, held.deep || name != "is_array"
+				f.vars[variable.Name] = held
+			}
+		}
 		v := f.vars[variable.Name]
 		if truth && (name == "ctype_digit" || name == "is_int" || name == "is_integer") {
 			v.Safe |= SQL
@@ -225,6 +244,8 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			v.Sources = nil
 			v.Safe = HTML | SQL | Shell | Header | URL | Path
 			f.vars[variable.Name] = v
+			// The value is one of the literals: neither false nor null.
+			exclude(variable, f, true, true)
 		}
 		if !truth && name == "str_contains" && len(args) == 2 {
 			arg := args[1]
@@ -244,6 +265,30 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			f.vars[variable.Name] = v
 		}
 	}
+}
+
+// boolean reports an operand that yields true or false: a comparison, a
+// negation, a boolean combination, a test of existence or of class, a PHP
+// function declared to return a boolean, or a bitwise combination of those.
+func (e *Env) boolean(x syntax.Expr) bool {
+	switch n := syntax.UnwrapParens(x).(type) {
+	case *syntax.Isset, *syntax.Empty, *syntax.Instanceof:
+		return true
+	case *syntax.Unary:
+		return n.Op.Kind == syntax.TExclaim || n.Op.Kind == syntax.TBoolCast
+	case *syntax.Binary:
+		switch n.Op.Kind {
+		case syntax.TIsEqual, syntax.TIsNotEqual, syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsSmallerOrEqual, syntax.TIsGreaterOrEqual,
+			syntax.TLess, syntax.TGreater, syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr, syntax.TXor:
+			return true
+		case syntax.TBar, syntax.TAmpersand:
+			return e.boolean(n.Left) && e.boolean(n.Right)
+		}
+	case *syntax.FuncCall:
+		_, builtin, result, _ := e.callee(n)
+		return builtin && result == "bool"
+	}
+	return false
 }
 
 // guarded names the variable a condition operand tests: the variable itself or
@@ -354,8 +399,11 @@ func sameOperand(a, b syntax.Expr) bool {
 // untest forgets that a short-circuit operation tested the variable an
 // access is rooted in: a write to a property of it, a method called on it or
 // a reference taken inside it can change what it compares or converts to
-// (an object's content, a value PHP turns into an object or an array).
-func untest(x syntax.Expr, f *frame) {
+// (an object's content, a value PHP turns into an object or an array). With
+// identity, the access leaves the variable the value it is: a method call,
+// or a property write where writing one to a value that is no object is an
+// error. What a strict comparison decided of it then stands.
+func untest(x syntax.Expr, f *frame, identity bool) {
 	for {
 		switch n := syntax.UnwrapParens(x).(type) {
 		case *syntax.PropertyFetch:
@@ -368,9 +416,19 @@ func untest(x syntax.Expr, f *frame) {
 			x = n.Var
 			continue
 		case *syntax.Variable:
-			if v, tracked := f.vars[n.Name]; tracked && v.tested != nil {
+			strict := func(by *syntax.Binary) bool {
+				c, _ := compares(by.Left)
+				return identity && c.right != nil
+			}
+			if v, tracked := f.vars[n.Name]; tracked && v.tested != nil && !strict(v.tested) {
 				v.tested = nil
 				f.vars[n.Name] = v
+			}
+			// What a left operand decided from it may no longer hold.
+			for _, known := range f.related {
+				if c, _ := compares(known.by.Left); (plainVariable(c.left) == n.Name || plainVariable(c.right) == n.Name) && !strict(known.by) {
+					f.relate(known.by, known.bits&f.settled(known.by))
+				}
 			}
 		}
 		return
@@ -488,7 +546,7 @@ func (e *Env) rebinds(x, tested syntax.Expr, f *frame) bool {
 		syntax.Inspect(tested, func(read syntax.Node) bool {
 			if v, ok := read.(*syntax.Variable); ok && v.NameExpr == nil {
 				_, shared := f.aliased[v.Name]
-				reachable = reachable || shared || r.statics[v.Name] != staticKept
+				reachable = reachable || shared || r.statics[v.Name].state != staticKept
 			}
 			return !reachable
 		})
@@ -587,7 +645,8 @@ func (e *Env) refineAssigned(operation *syntax.Binary, f *frame, truth bool) {
 }
 
 // assignedInPlace finds the plain assignment a condition tests directly:
-// the condition itself, under negations, or an operand of a comparison.
+// the condition itself, under negations, an operand of a comparison, or the
+// first argument of a type predicate.
 func assignedInPlace(cond syntax.Expr) *syntax.Assign {
 	switch n := syntax.UnwrapParens(cond).(type) {
 	case *syntax.Assign:
@@ -605,6 +664,20 @@ func assignedInPlace(cond syntax.Expr) *syntax.Assign {
 				return stored
 			}
 			return assignedInPlace(n.Right)
+		}
+	case *syntax.FuncCall:
+		name, named := n.Name.(*syntax.Name)
+		if !named || n.Args == nil || len(n.Args.Args) != 1 {
+			return nil
+		}
+		switch strings.ToLower(strings.TrimPrefix(name.Value, `\`)) {
+		case "is_string", "is_array", "is_int", "is_integer", "is_long", "is_float", "is_double", "is_numeric",
+			"is_object", "is_resource", "is_iterable", "is_countable", "is_callable", "is_bool", "is_null":
+			if arg, ok := n.Args.Args[0].(*syntax.Arg); ok && arg.Name == nil && !arg.Unpack && !arg.ByRef {
+				if stored, ok := syntax.UnwrapParens(arg.Value).(*syntax.Assign); ok && guarded(stored) != nil {
+					return stored
+				}
+			}
 		}
 	}
 	return nil

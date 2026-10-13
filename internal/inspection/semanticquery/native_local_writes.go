@@ -36,6 +36,9 @@ type nativeLocalWrites struct {
 	// offsets after which a call that can run project code has returned.
 	shared map[string]uint32
 	calls  []uint32
+	// statics names the locals declared `static`: an invocation the function
+	// makes of itself, through whatever it calls, assigns them too.
+	statics map[string]bool
 }
 
 // share records a name whose storage is reachable without naming it. The
@@ -173,6 +176,10 @@ func (w *nativeLocalWrites) record(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.StaticStmt:
 		for _, v := range x.Vars {
 			w.target(v.Var, write)
+			if w.statics == nil {
+				w.statics = map[string]bool{}
+			}
+			w.statics[v.Var.Name] = true
 		}
 	case *syntax.Unset:
 		for _, v := range x.Vars {
@@ -398,4 +405,10 @@ func (w *nativeLocalWrites) rebound(name string, after, before uint32) bool {
 		}
 	}
 	return w.reached(name, after, before)
+}
+
+// static reports a local declared `static` in the scope, or any local of a
+// scope with more writes than the budget.
+func (w *nativeLocalWrites) static(name string) bool {
+	return !w.known || w.statics[name]
 }

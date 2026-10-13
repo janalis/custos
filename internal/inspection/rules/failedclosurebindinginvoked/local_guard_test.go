@@ -77,8 +77,13 @@ func TestLocalGuards(t *testing.T) {
 		{"generator unguarded", generator("$b();"), 1},
 		{"generator guarded", generator("if($b!==null){$b();}"), 0},
 		// Forms the flow does not read and the walk does not accept stay reported.
-		{"match arm", "function f(){$b=" + bind + ";return match(true){$b!==null=>$b(),default=>0};}", 1},
 		{"predicate compared with literal", "function f(){$b=" + bind + ";if(is_callable($b)===true){return $b();}return 0;}", 1},
+		// An arm of `match (true)` runs when its condition holds, and after
+		// every earlier condition failed.
+		{"match arm", "function f(){$b=" + bind + ";return match(true){$b!==null=>$b(),default=>0};}", 0},
+		{"match arm of the failure", "function f(){$b=" + bind + ";return match(true){$b===null=>$b(),default=>0};}", 1},
+		{"match default after the failure", "function f(){$b=" + bind + ";return match(true){$b===null=>0,default=>$b()};}", 0},
+		{"match arm of another test", "function f($flag){$b=" + bind + ";return match(true){$flag!==null=>$b(),default=>0};}", 1},
 		// The flow proves a result assigned inside the condition that tests it.
 		{"assigned in condition", "function f(){$c=static function(){};if($b=$c->bindTo(new stdClass())){return $b();}return 0;}", 0},
 		{"assigned in failed condition", "function f(){$c=static function(){};if(!($b=$c->bindTo(new stdClass()))){return $b();}return 0;}", 1},

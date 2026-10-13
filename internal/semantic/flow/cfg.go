@@ -8,6 +8,7 @@ import (
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/types"
 )
 
 type (
@@ -33,6 +34,17 @@ type (
 		// full marks a graph that reached MaxBlocks.
 		full bool
 		env  *Env
+		// body is what the graph is built from, nil for the statements of
+		// the file. labels gives the block each label starts, and jumps the
+		// blocks of the `goto` statements written before their label, which
+		// gets them when it is built. guarded tells whether the body holds a
+		// try statement, once that was looked up.
+		body    syntax.Node
+		labels  map[string]int
+		jumps   map[string][]int
+		guarded int8
+		// first is where the first label of the body is written, plus one.
+		first uint32
 	}
 	exits struct {
 		ret, thrown, brk, cont int
@@ -49,6 +61,16 @@ func (g *graph) add(n syntax.Node, next ...int) int {
 	}
 	g.blocks = append(g.blocks, block{node: n, next: next, exceptional: -1})
 	return len(g.blocks) - 1
+}
+
+// test adds the block of a condition, or of what a loop iterates: its
+// evaluation can throw into the enclosing handler like a statement.
+func (g *graph) test(n syntax.Node, x exits, next ...int) int {
+	i := g.add(n, next...)
+	if i != 0 {
+		g.blocks[i].exceptional = x.thrown
+	}
+	return i
 }
 
 func (g *graph) atom(n syntax.Node, next int, x exits) int {
@@ -96,18 +118,18 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		}
 		for i := len(n.ElseIfs) - 1; i >= 0; i-- {
 			el := n.ElseIfs[i]
-			other = g.add(el.Cond, g.stmt(el.Body, next, x), other)
+			other = g.test(el.Cond, x, g.stmt(el.Body, next, x), other)
 		}
-		return g.add(n.Cond, g.stmt(n.Body, next, x), other)
+		return g.test(n.Cond, x, g.stmt(n.Body, next, x), other)
 	case *syntax.While:
 		g.blocks[next].shared = true
-		test := g.add(n.Cond)
+		test := g.test(n.Cond, x)
 		lx := x.inside(next, test)
 		g.blocks[test].next = repeats(n.Cond, g.stmt(n.Body, test, lx), next)
 		return test
 	case *syntax.DoWhile:
 		g.blocks[next].shared = true
-		test := g.add(n.Cond)
+		test := g.test(n.Cond, x)
 		lx := x.inside(next, test)
 		body := g.stmt(n.Body, test, lx)
 		g.blocks[test].next = repeats(n.Cond, body, next)
@@ -134,7 +156,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		if len(earlier) > 0 {
 			deciding, earlier = earlier[len(earlier)-1], earlier[:len(earlier)-1]
 		}
-		cond := g.add(deciding, repeats(deciding, body, next)...)
+		cond := g.test(deciding, x, repeats(deciding, body, next)...)
 		for i := len(earlier) - 1; i >= 0; i-- {
 			cond = g.atom(earlier[i], cond, x)
 		}
@@ -146,7 +168,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		return start
 	case *syntax.Foreach:
 		g.blocks[next].shared = true
-		test := g.add(n)
+		test := g.test(n, x)
 		lx := x.inside(next, test)
 		g.blocks[test].next = []int{g.stmt(n.Body, test, lx), next}
 		return test
@@ -168,13 +190,13 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 			and := expr.Op.Kind == syntax.TBooleanAnd || expr.Op.Kind == syntax.TAnd
 			or := expr.Op.Kind == syntax.TBooleanOr || expr.Op.Kind == syntax.TOr
 			if leave, leaves := g.leave(expr.Right, x); leaves && and {
-				return g.add(expr.Left, leave, next)
+				return g.test(expr.Left, x, leave, next)
 			} else if leaves && or {
-				return g.add(expr.Left, next, leave)
+				return g.test(expr.Left, x, next, leave)
 			}
 		case *syntax.Ternary:
 			if leave, leaves := g.leave(expr.Else, x); leaves && expr.Then == nil {
-				return g.add(expr.Cond, next, leave)
+				return g.test(expr.Cond, x, next, leave)
 			}
 		}
 	case *syntax.Break:
@@ -217,10 +239,61 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		return g.stmt(n.Body, normal, inside)
 	case *syntax.Switch:
 		return g.choose(n, next, x)
+	case *syntax.Label:
+		// Nothing written before the label runs after a jump to it.
+		at := g.add(nil, next)
+		g.blocks[at].shared = true
+		if g.labels == nil {
+			g.labels = map[string]int{}
+		}
+		g.labels[n.Name.Value] = at
+		g.first = n.Span().Start + 1
+		for _, jump := range g.jumps[n.Name.Value] {
+			g.blocks[jump].next = []int{at}
+		}
+		delete(g.jumps, n.Name.Value)
+		return at
 	case *syntax.Goto:
-		g.complete = false
+		// A jump out of a try statement runs its finally blocks on the
+		// way: such a scope is not followed.
+		if g.tries() {
+			g.complete = false
+			break
+		}
+		if at, built := g.labels[n.Label.Value]; built {
+			return g.add(nil, at)
+		}
+		jump := g.add(nil)
+		if g.jumps == nil {
+			g.jumps = map[string][]int{}
+		}
+		g.jumps[n.Label.Value] = append(g.jumps[n.Label.Value], jump)
+		return jump
 	}
 	return g.atom(s, next, x)
+}
+
+// tries reports whether the body the graph is built from holds a try
+// statement, outside the functions declared in it.
+func (g *graph) tries() bool {
+	if g.guarded == 0 {
+		g.guarded = -1
+		look := func(n syntax.Node) bool {
+			switch n.(type) {
+			case *syntax.Function, *syntax.ClassLike, *syntax.Closure, *syntax.ArrowFunction:
+				return false
+			case *syntax.Try:
+				g.guarded = 1
+			}
+			return g.guarded < 0
+		}
+		if g.body == nil {
+			syntax.InspectFile(g.env.file, look)
+		} else {
+			syntax.Inspect(g.body, look)
+		}
+	}
+	return g.guarded > 0
 }
 
 // repeats returns the successors of a loop test: the body and, unless the
@@ -321,10 +394,10 @@ func (g *graph) choose(n *syntax.Switch, next int, x exits) int {
 		switch {
 		case label == nil:
 		case conditions == "true":
-			test = g.add(label, bodies[i], test)
+			test = g.test(label, x, bodies[i], test)
 			g.blocks[test].shared = true
 		case conditions == "false":
-			test = g.add(label, test, bodies[i])
+			test = g.test(label, x, test, bodies[i])
 			g.blocks[test].shared = true
 		default:
 			matched, missed := bodies[i], test
@@ -486,20 +559,75 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 	if r, ok := e.scopes[scope]; ok {
 		return r
 	}
+	// What the functions of the file write to global variables is computed
+	// before the scope has a result of its own: one that is such a function
+	// is analysed there, and has no result to read while it is.
+	if !e.globalsKnown {
+		e.globals()
+		return e.scope(scope)
+	}
 	// A static variable the function assigns is first assumed never to be
 	// false where another invocation can read it: at its calls and where it
 	// ends. Then a guard on it holds across a call that enters the function
-	// again. When some path breaks the assumption the scope is analysed
-	// again without it.
-	r := e.follow(scope, false)
-	if r.broken {
-		r = e.follow(scope, true)
+	// again. When some path breaks the assumption for a variable the scope
+	// is analysed again without it for that one, a bounded number of times,
+	// then without it for any.
+	r := e.follow(scope, nil, false)
+	var distrust map[string]bool
+	for round := 0; len(r.broken) > 0; round++ {
+		if distrust == nil {
+			distrust = map[string]bool{}
+		}
+		for name := range r.broken {
+			distrust[name] = true
+		}
+		r = e.follow(scope, distrust, round == staticRounds)
 	}
 	return r
 }
 
-func (e *Env) follow(scope syntax.Node, distrust bool) *scopeResult {
-	r := &scopeResult{values: map[syntax.Expr]Value{}, before: map[syntax.Node]map[uint32]State{}, callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust}
+// firstLabel returns where the first `goto` label of a scope is written,
+// outside the functions and classes declared in it, plus one; 0 without one.
+func (e *Env) firstLabel(scope syntax.Node) uint32 {
+	first := uint32(0)
+	look := func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.Function, *syntax.ClassLike, *syntax.Closure, *syntax.ArrowFunction:
+			return n == scope
+		case *syntax.Label:
+			first = n.Span().Start + 1
+		}
+		return first == 0
+	}
+	if scope == nil {
+		syntax.InspectFile(e.file, look)
+	} else {
+		syntax.Inspect(scope, look)
+	}
+	return first
+}
+
+// jumpShare is the part of the time budget a scope with labels gets.
+const jumpShare = 16
+
+// staticRounds bounds the analyses of a scope made to find which of its
+// static variables may be left false.
+const staticRounds = 2
+
+// typed reports a parameter whose declared type admits no object: an array,
+// what a variadic parameter collects, or since PHP 7 a number, a boolean or
+// text. Before, a scalar type names a class. With deep the type admits no
+// array either, which may hold objects.
+func (e *Env) typed(p *syntax.Param, deep bool) bool {
+	declared := types.FromNode(p.Type, nil)
+	if e.types.PHP.AtLeast(phpversion.PHP70) && declared.OnlyOf("int", "float", "string", "bool", "true", "false", "null") {
+		return !deep || !p.Variadic
+	}
+	return !deep && (p.Variadic || declared.OnlyOf("array") || e.types.PHP.AtLeast(phpversion.PHP70) && declared.OnlyOf("int", "float", "string", "bool", "true", "false", "null", "array"))
+}
+
+func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bool) *scopeResult {
+	r := &scopeResult{values: map[syntax.Expr]Value{}, before: map[syntax.Node]map[uint32]State{}, callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
 	e.scopes[scope] = r
 	// Block 0 ends the scope however it is left; a normal completion passes
 	// through the block before it, which tells whether the scope can return.
@@ -513,11 +641,14 @@ func (e *Env) follow(scope syntax.Node, distrust bool) *scopeResult {
 	} else {
 		body := syntax.VariableScopeBody(scope)
 		if st, ok := body.(syntax.Stmt); ok {
+			g.body = body
 			entry = g.stmt(st, done, x)
 		} else if body != nil {
 			entry = g.atom(body, done, x)
 		}
 	}
+	// A jump to a label that is not there goes nowhere known.
+	g.complete = g.complete && len(g.jumps) == 0
 	initial := frame{vars: map[string]Value{}, states: map[uint32]State{}, definite: scope != nil}
 	switch captured := scope.(type) {
 	case *syntax.Closure:
@@ -528,7 +659,7 @@ func (e *Env) follow(scope syntax.Node, distrust bool) *scopeResult {
 	}
 	for i, p := range syntax.VariableScopeParams(scope) {
 		if p.Var != nil {
-			initial.vars[p.Var.Name] = Value{Complete: true, Identity: p.Var.Span().Start + 1, Sources: []Source{{Kind: "parameter", Parameter: i}}}
+			initial.vars[p.Var.Name] = Value{Complete: true, Identity: p.Var.Span().Start + 1, Sources: []Source{{Kind: "parameter", Parameter: i}}, plain: e.typed(p, false), deep: e.typed(p, true)}
 		}
 	}
 	e.bindings(scope, r, &initial)
@@ -539,6 +670,19 @@ func (e *Env) follow(scope syntax.Node, distrust bool) *scopeResult {
 	waiting := make([]bool, len(g.blocks))
 	inputs[entry], waiting[entry] = initial, true
 	top, queued, steps := entry, 1, 0
+	// A jump back to a label is no loop the numbering knows: a scope with
+	// labels is swept from its start to its end, the blocks a jump back
+	// reaches waiting for the next sweep, which settles it in far fewer
+	// visits. A scope of jumps between many labels still takes more of them
+	// than it is worth: it has a fraction of the time budget.
+	sweep, again, budget := g.labels != nil, 0, MaxCopied
+	if sweep {
+		budget = MaxCopied / jumpShare
+	}
+	if r.labelled = g.first; g.full {
+		// The statements before the one that filled the graph were not read.
+		r.labelled = e.firstLabel(scope)
+	}
 	// A block input is retained until the scope is done: only its growth is
 	// charged to the memory budget. owned marks a frame nothing else uses.
 	propagate := func(target int, v frame, owned bool) {
@@ -563,14 +707,24 @@ func (e *Env) follow(scope syntax.Node, distrust bool) *scopeResult {
 		if !waiting[target] {
 			waiting[target] = true
 			queued++
-			top = max(top, target)
+			if sweep {
+				again = max(again, target)
+			} else {
+				top = max(top, target)
+			}
 		}
 	}
 	// A broken assumption about a static variable ends the first analysis:
 	// the scope is analysed again without it.
-	for queued > 0 && steps < MaxTransfers && !r.spent && !r.broken && r.operations <= MaxTransfers && r.copies <= MaxCopied {
-		for !waiting[top] {
+	for queued > 0 && steps < MaxTransfers && !r.spent && len(r.broken) == 0 && r.operations <= MaxTransfers && r.copies <= budget {
+		for top >= 0 && !waiting[top] {
 			top--
+		}
+		if top < 0 {
+			// The sweep is over: the next one starts at the first block a
+			// jump back reached.
+			top, again = again, 0
+			continue
 		}
 		i := top
 		waiting[i] = false
@@ -586,10 +740,15 @@ func (e *Env) follow(scope syntax.Node, distrust bool) *scopeResult {
 		}
 		if b.node != nil {
 			e.transfer(b.node, &out, r)
+			if b.exceptional > 0 {
+				// What the condition wrote before it threw.
+				_, work := exceptional.absorb(out)
+				r.copies += work
+			}
 		}
 		if held := out.vars[b.pin]; b.pin != "" && tainted(held) {
 			// The request data was just compared equal to a fixed text.
-			out.write(r, b.pin, Value{Complete: true, matched: true})
+			out.write(r, b.pin, Value{Complete: true, matched: true, plain: true, deep: true})
 		} else if strings.Contains(b.pin, "\x00") {
 			out.match(r, b.pin)
 		}
@@ -606,18 +765,23 @@ func (e *Env) follow(scope syntax.Node, distrust bool) *scopeResult {
 		}
 		condition, conditional := b.node.(syntax.Expr)
 		conditional = conditional && len(b.next) == 2
+		loop, iterating := b.node.(*syntax.Foreach)
 		for j, target := range b.next {
 			// The last successor takes the working frame itself.
 			last := j == len(b.next)-1
 			branch := out
-			if conditional {
-				if !last {
-					r.copies += len(out.vars) + len(out.states)
-					branch = clone(out)
-				}
-				e.refine(condition, &branch, j == 0)
+			if (conditional || iterating) && !last {
+				r.copies += len(out.vars) + len(out.states)
+				branch = clone(out)
 			}
-			propagate(target, branch, conditional || last)
+			switch {
+			case conditional:
+				e.refine(condition, &branch, j == 0)
+			case iterating && j == 0:
+				// The body starts with an element in the targets.
+				e.each(loop, &branch, r)
+			}
+			propagate(target, branch, conditional || iterating || last)
 		}
 		if b.exceptional > 0 {
 			propagate(b.exceptional, exceptional, true)

@@ -491,7 +491,8 @@ func (p *parser) parseExprList() []Expr {
 func (p *parser) parseBlock() *Block {
 	start := p.start()
 	p.expect(TLBrace)
-	n := put(&p.slabs.sBlock, Block{Stmts: p.parseStmtList(TRBrace)})
+	n := p.slabs.sBlock.next()
+	n.Stmts = p.parseStmtList(TRBrace)
 	p.expect(TRBrace)
 	return fin(p, n, start)
 }
@@ -502,7 +503,8 @@ func (p *parser) parseBody(alt *bool, ends ...TokenKind) Stmt {
 	if p.at(TColon) {
 		*alt = true
 		colon := p.advance()
-		n := put(&p.slabs.sBlock, Block{Alt: true})
+		n := p.slabs.sBlock.next()
+		n.Alt = true
 		n.Stmts = p.parseStmtList(ends...)
 		end := p.lastEnd
 		if len(n.Stmts) == 0 {

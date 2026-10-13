@@ -63,8 +63,16 @@ func TestReviewSafety(t *testing.T) {
 		{"disjunction then", "return ($o || $s !== false) ? strlen($s) : 0;", 1},
 		{"both disjuncts", "return ($s !== false || is_string($s)) ? strlen($s) : 0;", 0},
 		{"both conjuncts fail", "return ($s === false && !is_string($s)) ? 0 : strlen($s);", 0},
-		// The flow does not combine two operands that both exclude false, nor
-		// read match (true) arms: the rule's own walk decides the rows below.
+		// The flow does not combine two operands that both exclude false: the
+		// rule's own walk decides the rows below.
+		{"conjunction inside both disjuncts", "return (($o && $s !== false) || is_string($s)) ? strlen($s) : 0;", 0},
+		{"conjunction inside one disjunct", "return (($o && $s !== false) || is_string($o)) ? strlen($s) : 0;", 1},
+		{"disjunction inside both failed conjuncts", "return (($o || $s === false) && !is_string($s)) ? 0 : strlen($s);", 0},
+		{"disjunction inside one failed conjunct", "return (($o || $s === false) && !is_string($o)) ? 0 : strlen($s);", 1},
+		{"match arm of both disjuncts", "return match (true) { $s !== false || is_string($s) => strlen($s), default => 0 };", 0},
+		{"match arm of one disjunct", "return match (true) { $s !== false || is_string($o) => strlen($s), default => 0 };", 1},
+		{"match default after both conjuncts fail", "return match (true) { $s === false && !is_string($s) => 0, default => strlen($s) };", 0},
+		{"match default after one conjunct fails", "return match (true) { $s === false && !is_string($o) => 0, default => strlen($s) };", 1},
 		{"both disjuncts branch", "if ($s !== false || is_string($s)) { return strlen($s); }", 0},
 		{"one disjunct branch", "if ($s !== false || is_string($o)) { return strlen($s); }", 1},
 		{"both conjuncts fail else", "if ($s === false && !is_string($s)) { return 0; } else { return strlen($s); }", 0},

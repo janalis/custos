@@ -4,6 +4,7 @@ package flow
 
 import (
 	"cmp"
+	"sort"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -87,6 +88,14 @@ type Value struct {
 	matched bool
 	// unlessFalse, unlessNull, skippedFalse and skippedNull qualify unless.
 	unlessFalse, unlessNull, skippedFalse, skippedNull bool
+	// entry marks the binding of a static variable that still holds what it
+	// held when its declaration was reached: nothing wrote it since.
+	entry bool
+	// plain marks a value that is not an object: converting it to text,
+	// comparing it, iterating it or reading an offset of it runs no method.
+	// deep marks one that, when it is an array, holds no object either, at
+	// any depth: what is done with its elements runs none.
+	plain, deep bool
 }
 
 // Origin is one expression that may have produced the value read, with the
@@ -311,6 +320,126 @@ type frame struct {
 	// name (`$r = &$$n`): a write through a reference kept somewhere may
 	// reach any variable.
 	wild bool
+	// related lists what holds between the left operand of a short-circuit
+	// operation and the variable its right operand assigns in place (see
+	// relation). The list is never modified once a frame holds it.
+	related []relation
+}
+
+// relation tells, for a short-circuit operation whose right operand assigns
+// a variable and tests it in place, that wherever the left operand, read
+// from the values now in place, would skip that operand, the variable is not
+// false (relatedFalse) or not null (relatedNull). It holds across the turns
+// of a loop that keep the left operand deciding with the assignment: the
+// value a turn leaves in place where the next one skips passed the test.
+type relation struct {
+	by   *syntax.Binary
+	bits uint8
+}
+
+const (
+	relatedFalse uint8 = 1 << iota
+	relatedNull
+)
+
+// relates returns what is recorded for an operation.
+func (f *frame) relates(by *syntax.Binary) uint8 {
+	for _, known := range f.related {
+		if known.by == by {
+			return known.bits
+		}
+	}
+	return 0
+}
+
+// relate records what holds for an operation, in place of what did.
+func (f *frame) relate(by *syntax.Binary, bits uint8) {
+	kept := make([]relation, 0, len(f.related)+1)
+	for _, known := range f.related {
+		if known.by != by {
+			kept = append(kept, known)
+		}
+	}
+	if bits != 0 {
+		kept = append(kept, relation{by, bits})
+	}
+	f.related = kept
+}
+
+// settled is what holds for an operation whatever its left operand decides:
+// the variable is not false, or not null, on its own. A variable nothing
+// assigned is null.
+func (f *frame) settled(by *syntax.Binary) uint8 {
+	v, tracked := f.vars[assignedInPlace(by.Right).Var.(*syntax.Variable).Name]
+	return excluded(v, !tracked && f.definite)
+}
+
+// excluded is what a value settles: it is not false, or not null. null
+// reports the value of a variable nothing assigned.
+func excluded(v Value, null bool) uint8 {
+	bits := uint8(0)
+	if v.NonFalse || null {
+		bits |= relatedFalse
+	}
+	if v.NonNull {
+		bits |= relatedNull
+	}
+	return bits
+}
+
+// rewritten applies a write to what is recorded: the variable assigned in
+// place keeps what the value written has, and a variable the left operand
+// reads may now decide otherwise, which leaves what holds on its own.
+func (f *frame) rewritten(r *scopeResult, name string, v Value) {
+	if _, shared := f.aliased[name]; shared {
+		// The names bound with it are written too.
+		f.related = nil
+		return
+	}
+	r.operations += len(f.related)
+	var kept []relation
+	for i, known := range f.related {
+		bits := known.bits
+		if c, _ := compares(known.by.Left); assignedInPlace(known.by.Right).Var.(*syntax.Variable).Name == name {
+			bits &= excluded(v, false)
+		} else if plainVariable(c.left) == name || plainVariable(c.right) == name {
+			bits &= f.settled(known.by)
+		}
+		if bits == known.bits && kept == nil {
+			continue
+		}
+		if kept == nil {
+			kept = append(make([]relation, 0, len(f.related)), f.related[:i]...)
+		}
+		if bits != 0 {
+			kept = append(kept, relation{known.by, bits})
+		}
+	}
+	if kept != nil {
+		f.related = kept
+	}
+}
+
+// correlated joins what is recorded on two paths: what holds on both, by
+// record or on its own. It reports whether the record of the frame changed.
+func (f *frame) correlated(b frame) bool {
+	var joined []relation
+	for _, known := range f.related {
+		if bits := (known.bits | f.settled(known.by)) & (b.relates(known.by) | b.settled(known.by)); bits != 0 {
+			joined = append(joined, relation{known.by, bits})
+		}
+	}
+	for _, known := range b.related {
+		if bits := f.settled(known.by) & (known.bits | b.settled(known.by)); bits != 0 && f.relates(known.by) == 0 {
+			joined = append(joined, relation{known.by, bits})
+		}
+	}
+	changed := len(joined) != len(f.related)
+	for i := 0; !changed && i < len(joined); i++ {
+		changed = joined[i] != f.related[i]
+	}
+	f.related = joined
+	return changed
 }
 
 const (
@@ -360,33 +489,11 @@ func requestElement(x syntax.Expr) string {
 
 // match records that the request table element of that reserved name holds
 // a fixed text on this path. Any code can rewrite the table: the record
-// does not outlive an expression that may run some (see rewrites).
+// does not outlive an expression that may run some (see implicit).
 func (f *frame) match(r *scopeResult, element string) {
 	f.vars[element] = Value{Complete: true, NonFalse: true}
 	f.alias(element, aliasHeld)
 	r.matching = true
-}
-
-// rewrites reports an expression whose evaluation may run code of the
-// project before its operands are read: a magic or hooked property, an
-// offset of an object, a class that loads on first use, a local converted to
-// a string or iterated. Only literals, constants, the request tables, the
-// receiver of a method call and the operators that combine them run none.
-// What a call or an assignment runs comes after its operands (see
-// unmatchAll there).
-func rewrites(x syntax.Expr) bool {
-	switch n := x.(type) {
-	case *syntax.Literal, *syntax.ConstFetch, *syntax.Name, *syntax.Identifier, *syntax.ArrayDimFetch, *syntax.Binary, *syntax.Unary, *syntax.Paren, *syntax.Arg,
-		*syntax.InterpolatedString, *syntax.Ternary, *syntax.Isset, *syntax.Empty, *syntax.Assign,
-		*syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
-		return false
-	case *syntax.Variable:
-		if call, receiver := n.Parent().(*syntax.MethodCall); receiver && call.Var == x {
-			return false
-		}
-		return n.NameExpr != nil || !external(n.Name)
-	}
-	return true
 }
 
 // unmatchAll discards every recorded match: what is called, a PHP function
@@ -445,9 +552,19 @@ type Env struct {
 	globalTaint  map[string]Value
 	writers      map[globalWriter]bool
 	globalsKnown bool
-	// overrides caches, per receiver class and method, whether a class of
+	// overridden caches, per receiver class and method, whether a class of
 	// the project replaces the method (see replaced).
-	overrides map[[2]string]bool
+	overridden map[[2]string]bool
+	// extendedBy caches whether a class of the project extends a class.
+	extendedBy map[string]bool
+	// properties caches, per class and property name, whether reading the
+	// property of the object itself runs no code (see backed).
+	properties map[[2]string]bool
+	// kindOf caches what each declared type read admits (see kinds).
+	kindOf map[string]uint8
+	// statics caches, per scope, what its code does to each of its static
+	// variables (see declared).
+	statics map[syntax.Node]map[string]static
 }
 
 type scopeResult struct {
@@ -486,14 +603,36 @@ type scopeResult struct {
 	globalNames map[string]bool
 	// statics are the names the scope binds with `static`, each with what a
 	// call that enters the function again can do to it (see staticKept).
-	statics map[string]uint8
-	// distrust marks the second analysis of a scope, made when the first
-	// one, which assumed that its static variables are never false where
-	// the function can be entered again, found one that may be (broken).
-	distrust, broken bool
+	statics map[string]static
+	// broken names the static variables the analysis assumed never to be
+	// false where the function can be entered again, and found that they may
+	// be. The scope is then analysed again without the assumption for the
+	// names in distrust, or for every name (distrustAll).
+	broken, distrust map[string]bool
+	distrustAll      bool
 	// runs marks a scope that may run code of the project other than its
 	// own: a call that is not known to make none, a constructor, a callback.
 	runs bool
+	// modern marks a scope analysed for PHP 8 or later, where writing a
+	// property of a value that is no object is an error.
+	modern bool
+	// receivers tells, for each method call on a variable, what the variable
+	// holds wherever the call is reached (see follows).
+	receivers map[syntax.Node]uint8
+	// labelled is where the first `goto` label of the scope is written, plus
+	// one: a statement after it can be reached without running the ones
+	// written before it.
+	labelled uint32
+	// landings is read when a rule first asks about a label of the scope.
+	landings *landings
+}
+
+// static describes a static variable of a scope: what a call that enters the
+// function again can do to it, and what the code of the scope gives it (see
+// declared).
+type static struct {
+	state               uint8
+	starts, plain, deep bool
 }
 
 const (
@@ -501,7 +640,8 @@ const (
 	// invocation leaves it as it is.
 	staticKept uint8 = iota
 	// staticHeld: the function assigns it, and it is assumed not to be
-	// false wherever the function calls out or ends, which is checked.
+	// false wherever the function, having written it, calls out, reaches
+	// its declaration again or ends, which is checked.
 	staticHeld
 	// staticLoose: the function assigns it and nothing is assumed.
 	staticLoose
@@ -554,6 +694,190 @@ func (e *Env) Excludes(x syntax.Expr, literal string) bool {
 		return v.NonNull
 	}
 	return false
+}
+
+// Labelled reports that a jump to a `goto` label can land between what a
+// node reads and the node: what is written before the node need not have run
+// when it does, and only the facts of the paths that reach it say anything
+// about it. A label counts when it is written before the node and after the
+// first place its scope names one of the variables the node reads or a
+// variable that can hold the same value as one of them (see landings). A
+// label written before all of that is passed before anything is known of
+// them, and one written after the node is only reached past it. Every label
+// before the node counts at file level, where any call may write the
+// variables, and for a node that reads no variable or reads `$this`.
+//
+// The node is the expression whose check is in question, not the statement
+// around it: the variables of a loop body or of an element key say nothing
+// about where the checked value was tested.
+func (e *Env) Labelled(at syntax.Node) bool {
+	return e.LabelledBefore(at, at)
+}
+
+// LabelledBefore is Labelled for a value checked in one place and used in
+// another: the labels count up to use, the variables are the ones of checked.
+func (e *Env) LabelledBefore(checked, use syntax.Node) bool {
+	scope := syntax.EnclosingVariableScope(use)
+	r := e.scope(scope)
+	if r.labelled == 0 || r.labelled > use.Span().Start {
+		return false
+	}
+	if scope == nil {
+		return true
+	}
+	if r.landings == nil {
+		r.landings = e.landings(scope)
+	}
+	since, named := use.Span().Start, false
+	syntax.Inspect(checked, func(n syntax.Node) bool {
+		if v, ok := n.(*syntax.Variable); ok {
+			// A variable of a function declared in the node is not known.
+			from := r.landings.since[v.Name]
+			if v.Name == "this" {
+				from = 0
+			}
+			since, named = min(since, from), true
+		}
+		return true
+	})
+	if !named {
+		since = 0
+	}
+	labels := r.landings.labels
+	next := sort.Search(len(labels), func(i int) bool { return labels[i] >= since })
+	return next < len(labels) && labels[next] < use.Span().Start
+}
+
+// landings tells where a jump can land in a scope and since where each of
+// its variables is spoken of: the first place the scope names the variable
+// or one that can hold the same value. Two variables can when a plain
+// assignment, an assignment by reference or a `??=` writes one from the
+// other, when a `foreach` takes one out of the other, or through a chain of
+// those: a check of one is then a check of the other, wherever it is
+// written. Nothing else ties two variables. A call hands on no value the
+// rules trace, so neither its receiver nor its arguments count in the value
+// written; the result of an operator other than `??`, or of a string that
+// embeds a variable, is a new value; an element key only selects; and a
+// statement that only reads (`echo`, `return`, a condition) passes nothing.
+// A parameter is named from the start. Code that writes variables it does
+// not name (a name chosen at run time, `extract`, `parse_str` filling the
+// scope, `compact`, `get_defined_vars`, `$GLOBALS`, code evaluated or
+// included) names them all where it is written.
+type landings struct {
+	labels []uint32
+	since  map[string]uint32
+}
+
+func (e *Env) landings(scope syntax.Node) *landings {
+	l := &landings{since: map[string]uint32{}}
+	// Variables that can hold the same value belong to one group, named
+	// after one of them.
+	group := map[string]string{}
+	var find func(name string) string
+	find = func(name string) string {
+		if parent := group[name]; parent != name {
+			group[name] = find(parent)
+		}
+		return group[name]
+	}
+	first := map[string]uint32{}
+	wild := ^uint32(0)
+	mention := func(v *syntax.Variable) {
+		if _, seen := group[v.Name]; !seen {
+			group[v.Name], first[v.Name] = v.Name, v.Span().Start
+		}
+	}
+	// tie puts the variables a value can pass between in one group.
+	tie := func(sides ...syntax.Node) {
+		held := ""
+		for _, side := range sides {
+			passing(side, func(v *syntax.Variable) {
+				mention(v)
+				if held == "" {
+					held = v.Name
+					return
+				}
+				a, b := find(held), find(v.Name)
+				group[b] = a
+				first[a] = min(first[a], first[b])
+			})
+		}
+	}
+	for _, p := range syntax.VariableScopeParams(scope) {
+		if p.Var != nil {
+			group[p.Var.Name], first[p.Var.Name] = p.Var.Name, 0
+		}
+	}
+	syntax.Inspect(syntax.VariableScopeBody(scope), func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.Function, *syntax.ClassLike:
+			return false
+		case *syntax.Closure:
+			// The variables a closure takes are named where it is made.
+			for _, use := range n.Uses {
+				mention(use.Var)
+			}
+			return false
+		case *syntax.Label:
+			l.labels = append(l.labels, n.Span().Start)
+		case *syntax.Eval, *syntax.Include:
+			wild = min(wild, n.Span().Start)
+		case *syntax.FuncCall:
+			switch name, builtin := e.callName(n); {
+			case !builtin:
+			case name == "extract", name == "compact", name == "get_defined_vars", name == "parse_str" && n.Args != nil && len(n.Args.Args) == 1:
+				wild = min(wild, n.Span().Start)
+			}
+		case *syntax.Assign:
+			if n.Op.Kind == syntax.TEqual || n.Op.Kind == syntax.TCoalesceEqual {
+				tie(n.Var, n.Value)
+			}
+		case *syntax.Foreach:
+			tie(n.Expr, n.Key, n.Value)
+		case *syntax.Variable:
+			if n.NameExpr != nil || n.Name == "GLOBALS" {
+				wild = min(wild, n.Span().Start)
+			} else {
+				mention(n)
+			}
+		}
+		return true
+	})
+	for name := range group {
+		l.since[name] = min(first[find(name)], wild)
+	}
+	return l
+}
+
+// passing visits the variables of an expression whose value the expression
+// can hand on as it is: not the receiver or the arguments of a call, not the
+// operands of an operator other than `??`, not what a string embeds, not an
+// element key. A closure hands on the variables it takes.
+func passing(side syntax.Node, visit func(*syntax.Variable)) {
+	if side == nil {
+		return
+	}
+	syntax.Inspect(side, func(n syntax.Node) bool {
+		switch n := n.(type) {
+		case *syntax.Variable:
+			if n.NameExpr == nil {
+				visit(n)
+			}
+		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New, *syntax.InterpolatedString, *syntax.Function, *syntax.ClassLike:
+			return false
+		case *syntax.Binary:
+			return n.Op.Kind == syntax.TCoalesce
+		case *syntax.ArrayDimFetch:
+			passing(n.Var, visit)
+			return false
+		case *syntax.Closure:
+			for _, use := range n.Uses {
+				visit(use.Var)
+			}
+			return false
+		}
+		return true
+	})
 }
 
 // Reaching returns the expressions that may have produced the value of a
@@ -690,7 +1014,10 @@ func merge(a, b Value) Value {
 	}
 	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, headerMask: a.headerMask & b.headerMask, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull, LengthKnown: a.LengthKnown && b.LengthKnown && a.Length == b.Length, Length: a.Length}
 	v.elements = common(a.elements, b.elements)
-	v.matched = a.matched && b.matched
+	// Text of the program joined with a matched label is text of the program.
+	v.matched = (a.matched || b.matched) && (a.matched || a.written()) && (b.matched || b.written())
+	v.entry = a.entry && b.entry
+	v.plain, v.deep = a.plain && b.plain, a.deep && b.deep
 	v.scalars = ca && cb
 	if ua == ub {
 		v.upload = ua
@@ -711,6 +1038,15 @@ func merge(a, b Value) Value {
 		v.Complete = false
 	}
 	return v
+}
+
+// written reports the value of a literal: text the program wrote.
+func (v *Value) written() bool {
+	switch v.Expr.(type) {
+	case *syntax.Literal, *syntax.StringPart:
+		return v.Complete && len(v.Sources) == 0
+	}
+	return false
 }
 
 // union joins two source lists, each in the order of before, without
@@ -773,7 +1109,7 @@ func before(a, b Source) bool {
 // equal reports two values that hold the same facts. Element sets are
 // compared by identity, which merge keeps when nothing changes.
 func equal(v, w Value) bool {
-	if v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched {
+	if v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched || v.entry != w.entry || v.plain != w.plain || v.deep != w.deep {
 		return false
 	}
 	if v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || !sameOrigins(v.origins, w.origins) || v.upload != w.upload || v.scalars != w.scalars || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
@@ -791,7 +1127,7 @@ func equal(v, w Value) bool {
 }
 
 func clone(f frame) frame {
-	n := frame{vars: make(map[string]Value, len(f.vars)), states: map[uint32]State{}, definite: f.definite, wild: f.wild}
+	n := frame{vars: make(map[string]Value, len(f.vars)), states: map[uint32]State{}, definite: f.definite, wild: f.wild, related: f.related}
 	for k, v := range f.vars {
 		n.vars[k] = v
 	}
@@ -819,9 +1155,10 @@ func (f *frame) alias(name string, group uint32) {
 	}
 	old, known := f.aliased[name]
 	switch {
+	case known && (group == aliasHeld || group == old):
+		return
 	case !known || old == aliasHeld:
 		f.aliased[name] = group
-	case group == aliasHeld || group == old:
 	default:
 		for other, g := range f.aliased {
 			if g >= aliasGroup && (g == old || g == group) {
@@ -830,6 +1167,8 @@ func (f *frame) alias(name string, group uint32) {
 		}
 		f.aliased[name] = aliasAny
 	}
+	// What related the name to another one may no longer hold.
+	f.related = nil
 }
 
 // bind makes target a reference to source, as `$target = &$source` does: the
@@ -842,6 +1181,7 @@ func (f *frame) bind(target, source string, site uint32) {
 	if f.aliased == nil {
 		f.aliased = map[string]uint32{}
 	}
+	f.related = nil
 	f.aliased[source] = group
 	f.aliased[target] = group
 }
@@ -853,6 +1193,9 @@ func (f *frame) bind(target, source string, site uint32) {
 // now be read under them. The walk is charged to the scope's budget.
 func (f *frame) write(r *scopeResult, name string, v Value) {
 	f.unmatch(r, name)
+	if len(f.related) > 0 {
+		f.rewritten(r, name, v)
+	}
 	if group, shared := f.aliased[name]; shared && group == aliasAny && f.wild {
 		f.unsettle(r, v)
 	}
@@ -875,6 +1218,7 @@ func (f *frame) write(r *scopeResult, name string, v Value) {
 // `global` do: the storage it was bound to keeps its value for the other
 // names, and the name starts over with nothing known.
 func (f *frame) detach(name string) {
+	f.related = nil
 	delete(f.aliased, name)
 	f.vars[name] = Value{}
 }
@@ -885,6 +1229,7 @@ func (f *frame) through(r *scopeResult, v Value) {
 	if len(f.aliased) == 0 {
 		return
 	}
+	f.related = nil
 	r.operations += len(f.aliased)
 	for other, g := range f.aliased {
 		if g == aliasAny {
@@ -904,6 +1249,7 @@ func (f *frame) forget(r *scopeResult) {
 // unsettle makes every binding unknown, keeping its request data and adding
 // what was written.
 func (f *frame) unsettle(r *scopeResult, written Value) {
+	f.related = nil
 	r.operations += len(f.vars)
 	for name, old := range f.vars {
 		f.vars[name] = unsettled(old, written)
@@ -960,6 +1306,11 @@ func rejoin(first, second frame, r *scopeResult) frame {
 // frame changed and the work done, in bindings visited and sources compared.
 func (f *frame) absorb(b frame) (bool, int) {
 	changed, work, shared := false, len(f.vars)+len(f.states), 0
+	// What relates two variables is joined from what each path holds of
+	// them, before their values are.
+	if len(f.related)+len(b.related) > 0 && f.correlated(b) {
+		changed = true
+	}
 	for k, v := range f.vars {
 		w, ok := b.vars[k]
 		if ok {
@@ -976,8 +1327,8 @@ func (f *frame) absorb(b frame) (bool, int) {
 		m := merge(v, w)
 		m.correlate(v, w)
 		if !ok && b.definite && !reserved(k) {
-			// The other path never assigned the variable.
-			m.NonFalse = v.NonFalse
+			// The other path never assigned the variable: it is null there.
+			m.NonFalse, m.plain, m.deep = v.NonFalse, v.plain, v.deep
 		}
 		if m.origins = origins(v, w); !equal(m, v) {
 			f.vars[k] = m
@@ -993,7 +1344,7 @@ func (f *frame) absorb(b frame) (bool, int) {
 			m := merge(Value{}, v)
 			m.origins = origins(Value{}, v)
 			if f.definite && !reserved(k) {
-				m.NonFalse = v.NonFalse
+				m.NonFalse, m.plain, m.deep = v.NonFalse, v.plain, v.deep
 			}
 			f.vars[k] = m
 			changed = true

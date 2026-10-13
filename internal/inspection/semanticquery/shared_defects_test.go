@@ -33,6 +33,18 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 		if v := NativeLocalValue(ctx, a); v != nil {
 			result = ctx.Text(v)
 		}
+	case "origin-of-scandir":
+		scanned := func(e syntax.Expr) bool {
+			call, ok := e.(*syntax.FuncCall)
+			return ok && NativeBuiltin(ctx, call, "scandir")
+		}
+		if v := NativeLocalResultOf(ctx, a, "false", scanned); v != nil {
+			result = ctx.Text(v)
+		}
+	case "only":
+		if v := NativeLocalOnly(ctx, a); v != nil {
+			result = ctx.Text(v)
+		}
 	case "origin-false", "origin-null":
 		if v := NativeLocalResult(ctx, a, strings.TrimPrefix(p.query, "origin-")); v != nil {
 			result = ctx.Text(v)
@@ -45,6 +57,10 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 		result = fmt.Sprint(NativeSentinelGuard(ctx, a, "false"))
 	case "local-false":
 		result = fmt.Sprint(NativeLocalSentinelGuard(ctx, a, "false"))
+	case "unreplaced":
+		result = fmt.Sprint(NativeUnreplaced(ctx, a, b))
+	case "static":
+		result = fmt.Sprint(NativeStaticLocal(ctx, a))
 	case "length":
 		result = fmt.Sprint(NativeLengthGuard(ctx, a, 4))
 	case "class":
@@ -132,6 +148,13 @@ func TestSharedLocalResultUsesTheStatedFailure(t *testing.T) {
 		{"function result, null excluded, fails with null", "origin-null", twoResults + `scandir($a);} if($u === null){return;} probe($u);}`, ""},
 		{"function result, false excluded, fails with null", "origin-null", twoResults + `scandir($a);} if($u === false){return;} probe($u);}`, "parse_url($a)"},
 		{"single result", "origin-false", `function f($a){$u=parse_url($a); probe($u);}`, "parse_url($a)"},
+		// An inspection that names the calls it is about is not answered with
+		// the unguarded result of another one.
+		{"other result first", "origin-false", `function f($a, $c){$u=parse_url($a); if($c){$u=scandir($a);} probe($u);}`, "parse_url($a)"},
+		{"other result first, passed over", "origin-of-scandir", `function f($a, $c){$u=parse_url($a); if($c){$u=scandir($a);} probe($u);}`, "scandir($a)"},
+		{"other result first, own result guarded", "origin-of-scandir", `function f($a, $c){$u=parse_url($a); if($c){$u=scandir($a); if(!$u){return;}} probe($u);}`, ""},
+		{"only other results", "origin-of-scandir", `function f($a, $c){$u=parse_url($a); if($c){$u=glob($a);} probe($u);}`, ""},
+		{"single other result", "origin-of-scandir", `function f($a){$u=parse_url($a); probe($u);}`, "parse_url($a)"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := sharedDefectResults(t, tc.query, tc.src, ""); got != tc.want {
@@ -268,8 +291,8 @@ func TestSharedLocalWriteBudget(t *testing.T) {
 		src.WriteString("$u++;")
 	}
 	// The flow facts answer first where the scope is followed: a `goto`
-	// leaves the guard to the walk.
-	src.WriteString("probe($t);} goto done; done: ;}")
+	// beside a `try` leaves the guard to the walk.
+	src.WriteString("probe($t);} try { work(); } finally { work(); } goto done; done: ;}")
 	if got := sharedDefectResults(t, "false", src.String(), ""); got != "false" {
 		t.Fatalf("guard beyond budget: %q", got)
 	}
@@ -569,5 +592,84 @@ func BenchmarkSharedLocalWrites(b *testing.B) {
 	}
 	if len(got) != 1 || got[0] == "" {
 		b.Fatalf("origin=%v", got)
+	}
+}
+
+// A call that can enter the function again assigns its static locals: what
+// was established of one before the call says nothing of a read after it,
+// even though the lexical scan still names the same producer.
+func TestSharedStaticLocalAcrossReentry(t *testing.T) {
+	const static = `function f($a, $o, $c){static $s; $s=parse_url($a); `
+	var crowded strings.Builder
+	crowded.WriteString("function f($s){")
+	for range nativeLocalWriteBudget + 1 {
+		crowded.WriteString("$u++;")
+	}
+	crowded.WriteString("probe($s);}")
+	for _, tc := range []struct{ query, name, src, want string }{
+		{"static", "declared", static + `probe($s);}`, "true"},
+		{"static", "other local", static + `probe($a);}`, "false"},
+		{"static", "not a variable", static + `probe($a->p);}`, "false"},
+		{"static", "computed name beside a static", static + `probe($$a);}`, "true"},
+		{"static", "computed name, no static", `function f($a){probe($$a);}`, "false"},
+		{"static", "scope beyond the budget", crowded.String(), "true"},
+		{"static", "declared in a nested function", `function f($s){$g=function(){static $s;}; probe($s);}`, "false"},
+
+		{"same", "copies around nothing", static + `$t=$s; $u=$s; probe($t, $u);}`, "true"},
+		{"same", "copies around a call", static + `$t=$s; $o->run(); $u=$s; probe($t, $u);}`, "false"},
+		{"same", "copies around a call on one path", static + `$t=$s; if($c){$o->run();} $u=$s; probe($t, $u);}`, "false"},
+		{"same", "copies after a call on one path", static + `if($c){$o->run();} $t=$s; $u=$s; probe($t, $u);}`, "false"},
+		{"same", "copies around a builtin", static + `$t=$s; strlen('a'); $u=$s; probe($t, $u);}`, "true"},
+		{"same", "copies around a conversion to text", static + `$t=$s; strlen($a); $u=$s; probe($t, $u);}`, "false"},
+		{"same", "plain local around a call", `function f($a, $o){$s=parse_url($a); $t=$s; $o->run(); $u=$s; probe($t, $u);}`, "true"},
+		{"same", "object around a call it is handed to", `function f($o){$s=new stdClass(); $t=$s; $o->run($s); probe($t, $s);}`, "true"},
+		{"same", "object handed to a call on one path", `function f($o, $c){$s=new stdClass(); $t=$s; if($c){$o->run($t);} probe($t, $s);}`, "true"},
+		{"same", "static object around a call", `function f($o){static $s; $s=new stdClass(); $t=$s; $o->run(); probe($t, $s);}`, "false"},
+
+		{"unreplaced", "copies around nothing", static + `$t=$s; $u=$s; probe($t, $u);}`, "true"},
+		{"unreplaced", "copies around a call", static + `$t=$s; $o->run(); $u=$s; probe($t, $u);}`, "false"},
+		{"unreplaced", "copies after a call on one path", static + `if($c){$o->run();} $t=$s; $u=$s; probe($t, $u);}`, "false"},
+		{"unreplaced", "plain local around a call", `function f($a, $o){$s=parse_url($a); $t=$s; $o->run(); $u=$s; probe($t, $u);}`, "true"},
+
+		{"local-false", "tested, then read", static + `if($s !== false){probe($s);}}`, "true"},
+		{"local-false", "tested, call, then read", static + `if($s !== false){$o->run(); probe($s);}}`, "false"},
+		{"local-false", "tested, call in a loop with the read", static + `if($s !== false){foreach($c as $e){probe($s); $o->run();}}}`, "false"},
+		{"local-false", "plain local tested, call, then read", `function f($a, $o){$s=parse_url($a); if($s !== false){$o->run(); probe($s);}}`, "true"},
+	} {
+		t.Run(tc.query+"/"+tc.name, func(t *testing.T) {
+			if got := sharedDefectResults(t, tc.query, tc.src, ""); got != tc.want {
+				t.Fatalf("%s=%q, want %q", tc.query, got, tc.want)
+			}
+		})
+	}
+}
+
+// An inspection that needs the one value a variable holds is not answered
+// with one of several producers, whichever is written first.
+func TestSharedLocalOnly(t *testing.T) {
+	for _, tc := range []struct{ name, src, want string }{
+		{"one assignment", `function f($a){$u=scandir($a); probe($u);}`, "scandir($a)"},
+		{"two branches", `function f($a, $c){if($c){$u=scandir($a);}else{$u=glob($a);} probe($u);}`, ""},
+		{"two branches, literal second", `function f($a, $c){if($c){$u=scandir($a);}else{$u=[];} probe($u);}`, ""},
+		{"one path only", `function f($a, $c){$u=[]; if($c){$u=scandir($a);} probe($u);}`, ""},
+		{"one path, the other unknown", `function f($a, $c, $u){if($c){$u=scandir($a);} probe($u);}`, ""},
+		{"loop back-edge", `function f($a, $c){$u=scandir($a); while($c--){probe($u); $u=[];}}`, ""},
+		{"same assignment on every pass", `function f($a, $c){while($c--){$u=scandir($a); probe($u);}}`, "scandir($a)"},
+		{"copy", `function f($a){$u=scandir($a); $v=$u; probe($v);}`, "scandir($a)"},
+		{"not a variable", `function f($a){probe(scandir($a));}`, "scandir($a)"},
+		{"parameter", `function f($a){probe($a);}`, ""},
+		{"scope the flow does not follow", `function f($a){$u=scandir($a); probe($u); yield 1;}`, "scandir($a)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := sharedDefectResults(t, "only", tc.src, ""); got != tc.want {
+				t.Fatalf("only=%q, want %q", got, tc.want)
+			}
+			if tc.want == "" {
+				return
+			}
+			if got := sharedDefectResults(t, "origin", tc.src, ""); got != tc.want {
+				t.Fatalf("origin=%q, want %q", got, tc.want)
+			}
+		})
 	}
 }

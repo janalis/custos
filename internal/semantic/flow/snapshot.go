@@ -38,8 +38,13 @@ type Summary struct {
 	Fixed bool
 	// Quiet marks a callable whose body is the one every call runs and
 	// which runs no code of the project but its own: no call that may, no
-	// constructor, no callback. A call to it cannot enter its caller again.
+	// constructor, no callback, or a generator, which runs nothing until it
+	// is iterated. A call to it cannot enter its caller again.
 	Quiet bool
+	// Spares marks a callable whose body is the one every call runs and
+	// stores nothing in a request table: it names none and calls only what
+	// PHP declares (see Env.Spares).
+	Spares bool
 }
 
 // File contains summaries from one indexed file. It retains no source or AST.
@@ -269,7 +274,10 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot) (*Env, *
 			sum.Return.Complete = sum.Return.Complete && r.complete
 			sum.Never = r.complete && r.leaves && !sum.Generator && body != nil && unconditional(n)
 			sum.Fixed = !sum.Generator && unconditional(n)
-			sum.Quiet = sum.Fixed && r.complete && !r.runs && body != nil
+			// The body of a generator runs when it is iterated, not when
+			// it is called.
+			sum.Quiet = unconditional(n) && body != nil && (sum.Generator || r.complete && !r.runs)
+			sum.Spares = e.sparesTables(n, body)
 			for i, p := range syntax.VariableScopeParams(n) {
 				if p.ByRef && p.Var != nil && r.complete {
 					// The argument holds what the name wrote to it while it
@@ -294,6 +302,7 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot) (*Env, *
 					sum.Sinks = append(sum.Sinks, e.nativeSinks(c)...)
 					sum.Sinks = append(sum.Sinks, e.Sinks(c.Node)...)
 				}
+				sum.Sinks = append(sum.Sinks, e.commands(body, r)...)
 			}
 			out.Summaries[strings.ToLower(name)] = sum
 		}
@@ -339,6 +348,11 @@ func (e *Env) nativeSinks(c Call) []Sink {
 		return nil
 	}
 	args, known := e.bind(c.Node, c.Arguments)
+	if !known {
+		// A reference argument, which a command fills with its output,
+		// leaves the first parameter what it was given.
+		args, known = e.leading(c)
+	}
 	if !known || len(args) == 0 {
 		return nil
 	}
@@ -352,7 +366,7 @@ func (e *Env) nativeSinks(c Call) []Sink {
 		}
 	case *syntax.FuncCall:
 		switch name {
-		case "system", "exec", "shell_exec", "passthru", "popen":
+		case "system", "exec", "shell_exec", "passthru", "popen", "proc_open":
 			context = Shell
 		case "header":
 			context = Header
@@ -372,6 +386,10 @@ func (e *Env) nativeSinks(c Call) []Sink {
 	if context == 0 {
 		return nil
 	}
+	if call, function := c.Node.(*syntax.FuncCall); function && name == "proc_open" && e.vector(call, args[0]) {
+		// An array is an argument vector: no shell reads it.
+		return nil
+	}
 	value := args[position]
 	value.Expr = nil
 	value.origins = nil
@@ -384,6 +402,59 @@ func (e *Env) nativeSinks(c Call) []Sink {
 			}
 		}
 	}
+	return sinks
+}
+
+// vector reports a `proc_open` command that is an array: an array literal, a
+// variable holding one on every path, or an expression typed as an array.
+func (e *Env) vector(call *syntax.FuncCall, command Value) bool {
+	if _, literal := syntax.UnwrapParens(command.Expr).(*syntax.Array); literal {
+		return true
+	}
+	var few [8]int
+	var written syntax.Expr
+	params, _, _ := e.declaration(call)
+	for i, at := range parameters(call.Args, params, few[:0]) {
+		if arg, ok := call.Args.Args[i].(*syntax.Arg); ok && at == 0 {
+			written = arg.Value
+		}
+	}
+	return e.types.TypeOf(written).IsArrayLike()
+}
+
+// leading returns the value given to the first parameter of a call whose
+// arguments do not all bind by value.
+func (e *Env) leading(c Call) ([]Value, bool) {
+	call, ok := c.Node.(*syntax.FuncCall)
+	params, _, known := e.declaration(c.Node)
+	if !ok || !known || call.Args == nil {
+		return nil, false
+	}
+	var few [8]int
+	for i, at := range parameters(call.Args, params, few[:0]) {
+		if arg, written := call.Args.Args[i].(*syntax.Arg); written && at == 0 && !arg.Unpack && !arg.ByRef {
+			return c.Arguments[i : i+1], true
+		}
+	}
+	return nil, false
+}
+
+// commands lists the backtick strings a body runs, outside the functions
+// declared in it: each is a command given to the shell.
+func (e *Env) commands(body syntax.Node, r *scopeResult) []Sink {
+	var sinks []Sink
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		if n != body && syntax.IsVariableScope(n) {
+			return false
+		}
+		if command, ok := n.(*syntax.InterpolatedString); ok && command.Backtick {
+			if value, reached := r.values[command]; reached {
+				value.Expr, value.origins, value.Identity = nil, nil, 0
+				sinks = append(sinks, Sink{Name: "shell_exec", Context: Shell, Argument: value, Path: e.file.Path, Span: command.Span()})
+			}
+		}
+		return true
+	})
 	return sinks
 }
 

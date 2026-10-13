@@ -455,6 +455,7 @@ type Block struct {
 	Stmts []Stmt
 	Alt   bool
 	term  int32 // FirstTerminating cache
+	jumps listJumps
 }
 
 type ExprStmt struct {
@@ -534,6 +535,7 @@ type Case struct {
 	Cond  Expr // nil for default
 	Stmts []Stmt
 	term  int32 // FirstTerminating cache
+	jumps listJumps
 }
 
 type Switch struct {
@@ -656,6 +658,7 @@ type Namespace struct {
 	Stmts  []Stmt
 	Braced bool
 	term   int32 // FirstTerminating cache
+	jumps  listJumps
 }
 
 type ConstItem struct {

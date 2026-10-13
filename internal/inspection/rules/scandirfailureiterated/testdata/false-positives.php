@@ -17,3 +17,23 @@ function afterElseif($d, $c) { $fs = scandir($d); if ($c) { echo 0; } elseif (!$
 function elseExit($d) { $fs = scandir($d); if ($fs) { echo 1; } else { return; } foreach ($fs as $f) { echo $f; } }
 function outerExit($d, $c) { $fs = scandir($d); if (!$fs) { throw new RuntimeException($d); } if ($c) foreach ($fs as $f) { echo $f; } }
 function loopExit($d, $ds) { $fs = scandir($d); if (!$fs) { return; } while ($ds) { $ds = next($ds); foreach ($fs as $f) { echo $f; } } }
+
+function retried_listing($directory, $separator) {
+    $attempts = 0;
+    again:
+    try {
+        $names = scandir($directory);
+        if (!is_array($names)) {
+            return 0;
+        }
+        foreach ($names as $name) {
+            echo $directory . $separator . $name;
+        }
+    } catch (RuntimeException $failure) {
+        if (++$attempts < 3) {
+            goto again;
+        }
+        throw $failure;
+    }
+    return 1;
+}

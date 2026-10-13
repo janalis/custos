@@ -183,7 +183,7 @@ func (g guard) same(e syntax.Expr) bool {
 		return false
 	}
 	tested, read := g.ctx.Flow().Value(e), g.ctx.Flow().Value(g.target)
-	return tested.Expr == read.Expr && tested.Invalidated == read.Invalidated
+	return tested.Expr == read.Expr && semanticquery.NativeUnreplaced(g.ctx, e, g.target)
 }
 
 // root strips array accesses down to the indexed expression.
