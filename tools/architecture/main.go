@@ -180,7 +180,7 @@ func check(root string) ([]string, error) {
 		if err != nil || spec.IsDir() {
 			report("%s: specification missing", id)
 		}
-		fixtures, err := os.ReadDir(filepath.Join(root, "testdata/rules", id))
+		fixtures, err := os.ReadDir(filepath.Join(root, owner, "testdata"))
 		hasPHP := false
 		for _, fixture := range fixtures {
 			if !fixture.IsDir() && strings.HasSuffix(fixture.Name(), ".php") {

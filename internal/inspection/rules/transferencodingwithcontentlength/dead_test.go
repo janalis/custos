@@ -11,7 +11,7 @@ import (
 )
 
 func TestUnreachableCall(t *testing.T) {
-	raw, err := os.ReadFile("../../../../testdata/rules/TransferEncodingWithContentLength/basic.php")
+	raw, err := os.ReadFile("testdata/basic.php")
 	if err != nil {
 		t.Fatal(err)
 	}

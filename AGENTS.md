@@ -40,6 +40,7 @@ internal/inspection/analysis/     engine, context, semantic access and suppressi
 internal/inspection/meta/         independent rule facts and generated descriptions
 internal/inspection/catalogue/    explicit ordered inspection constructors
 internal/inspection/rules/<lowercase-ID>/ private implementation, New(), companion tests
+internal/inspection/rules/<lowercase-ID>/testdata/ own PHP fixtures, fixed bytes and option sidecars
 internal/inspection/{astquery,flowquery,semanticquery}/ focused shared inspection queries
 internal/inspection/phpunit/      shared PHPUnit call/version behavior
 internal/diagnostic/              findings, severity, lazy fixes, edits and positioned results
@@ -54,7 +55,6 @@ internal/testing/{conformance,testbudget}/ fixture harness and test timing
 tools/                          generators, architecture, coverage and clean-room checks
 tools/internal/specmd/          spec section/front-matter/example parsing
 specs/                           clean-room behavioral specification per stable rule ID
-testdata/rules/<ID>/             own PHP fixtures, fixed bytes and option sidecars
 docs/                           VitePress guide, contributing docs and generated rules
 docs/internals/                 generated rule status
 ```
@@ -96,8 +96,8 @@ make fixcheck       # apply every quick-fix on CUSTOS_CORPUS, require parsable o
 - Severity mapping: EA ERROR→error, WARNING→warning, WEAK WARNING→info.
 - Correctness beats upstream fidelity: when EA behaviour is wrong (false
   positives, fixes changing semantics or producing invalid PHP), diverge,
-  document it in the spec's Divergences and in `testdata/ea-divergences.json`.
-- No rule lands without own fixtures in `testdata/rules/<ID>/` (positive,
+  document it in the spec's Divergences and in `internal/testing/conformance/testdata/ea-divergences.json`.
+- No rule lands without own fixtures in `internal/inspection/rules/<id>/testdata/` (positive,
   false-positive cases, `.fixed.php` when it has a fix) covering 100% of its
   statements (`make coverage`; remove unreachable code rather than exempt it) and a green
   `make conformance RULE=<ID>` (or a documented, justified divergence in the

@@ -42,7 +42,7 @@ func TestContracts(t *testing.T) {
 
 func TestFixtureRanges(t *testing.T) {
 	for _, name := range []string{"basic", "negative", "guards", "false-positives"} {
-		marked, err := os.ReadFile("../../../../testdata/rules/FilePermissionFailurePassesPolicy/" + name + ".php")
+		marked, err := os.ReadFile("testdata/" + name + ".php")
 		if err != nil {
 			t.Fatal(err)
 		}

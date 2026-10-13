@@ -31,7 +31,7 @@ report which prerequisite blocks the rule.
    `inspection/flowquery` or `inspection/semanticquery` according to lexical,
    local-flow or resolved behavior. New shared helpers need focused tests.
    Run `make architecture` to check dependencies and catalogue completeness.
-4. Write own fixtures in `testdata/rules/<ID>/`: `basic.php` (positives),
+4. Write own fixtures in `internal/inspection/rules/<id>/testdata/`: `basic.php` (positives),
    `false-positives.php`, `basic.fixed.php` if fixable, `<name>.json` for
    options/PHP version. Use the spec's examples as a starting point.
    Fixtures must cover every statement of the rule file (`make coverage`
@@ -95,7 +95,7 @@ current directory. To only check compilation use `go build ./...`.
   lookup tables) once instead of on every node.
 - Fix: `diagnostic.Fix{Title: "...", Edits: func() []diagnostic.TextEdit {...}}`
   — edits are byte-range replacements on the original source; build them lazily.
-- Fixtures: `testdata/rules/<ID>/*.php` use `<warning descr="msg">code</warning>`
+- Fixtures: `internal/inspection/rules/<id>/testdata/*.php` use `<warning descr="msg">code</warning>`
   (`<error>`, `<weak_warning>` = info); optional `<name>.fixed.php` and
   `<name>.json` (`{"php": "7.4", "comparisonStyle": "yoda", "options": {"OPT": "true"}}`).
   Own fixtures default to PHP 8.4; messages are compared exactly.

@@ -41,7 +41,7 @@ func TestContracts(t *testing.T) {
 
 func TestFixtureRanges(t *testing.T) {
 	for _, name := range []string{"basic", "negative"} {
-		marked, err := os.ReadFile("../../../../testdata/rules/UmaskSetterReturnMisread/" + name + ".php")
+		marked, err := os.ReadFile("testdata/" + name + ".php")
 		if err != nil {
 			t.Fatal(err)
 		}

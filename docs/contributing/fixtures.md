@@ -1,13 +1,13 @@
 # Fixtures
 
-Every rule has its own fixtures in `testdata/rules/<ID>/`. They are the CI
+Every rule has its own fixtures in `internal/inspection/rules/<id>/testdata/`. They are the CI
 gate (`make fixtures`) and, with the rule packages' tests, must cover 100 %
 of the rule's statements (`make coverage`).
 
 ## Files
 
 ```text
-testdata/rules/OneTimeUseVariables/
+internal/inspection/rules/onetimeusevariables/testdata/
 ├── basic.php              # findings, marked up
 ├── basic.fixed.php        # expected source after `custos fix`
 ├── false-positives.php    # code that must not be reported
@@ -93,5 +93,5 @@ Fix comparison applies the first analysis's fixes in one pass, resolving edit
 conflicts together, and collapses whitespace for comparison. This checks
 single-pass editor behavior separately from the CLI's iterative fix loop.
 Intentional differences belong in the rule specification's *Divergences*
-section and `testdata/ea-divergences.json`. See the
+section and `internal/testing/conformance/testdata/ea-divergences.json`. See the
 [clean-room process](./clean-room) for restrictions on failure output.

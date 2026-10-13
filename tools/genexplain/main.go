@@ -23,7 +23,7 @@ type desc struct {
 
 func main() { os.Exit(run(".", os.Stdout, os.Stderr)) }
 
-// run reads root/specs and root/testdata/rules and writes
+// run reads root/specs and each rule package's testdata and writes
 // root/internal/inspection/meta/descriptions.json.
 func run(root string, stdout, stderr io.Writer) int {
 	files, _ := filepath.Glob(filepath.Join(root, "specs", "*.md"))
@@ -63,7 +63,7 @@ var tagRe = regexp.MustCompile(`</?(?:error|warning|weak_warning|info)(?:\s[^>]*
 func hasRealFix(root, id string) bool {
 	var fixed []string
 	for _, pat := range []string{"*.fixed.*", "*/*.fixed.*"} {
-		m, _ := filepath.Glob(filepath.Join(root, "testdata", "rules", id, pat))
+		m, _ := filepath.Glob(filepath.Join(root, "internal", "inspection", "rules", strings.ToLower(id), "testdata", pat))
 		fixed = append(fixed, m...)
 	}
 	norm := func(b []byte) string { return strings.Join(strings.Fields(tagRe.ReplaceAllString(string(b), "")), " ") }

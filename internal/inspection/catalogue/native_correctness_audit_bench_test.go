@@ -3,6 +3,7 @@ package catalogue
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"custos/internal/inspection/analysis"
@@ -23,7 +24,7 @@ func BenchmarkNativeCorrectnessAudit(b *testing.B) {
 		"FtpPendingTransferAcceptedAsComplete",
 	} {
 		b.Run(id, func(b *testing.B) {
-			marked, err := os.ReadFile(filepath.Join("../../../testdata/rules", id, "basic.php"))
+			marked, err := os.ReadFile(filepath.Join("../rules", strings.ToLower(id), "testdata", "basic.php"))
 			if err != nil {
 				b.Fatal(err)
 			}

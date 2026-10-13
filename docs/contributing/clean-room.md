@@ -41,7 +41,7 @@ and its first example is shown on that page.
 at test time (`EA_PATH`). It compares only the rule, the range and the
 severity of each finding, and the result of applying fixes. Upstream message
 text is never compared or stored. The repository's own fixtures
-(`testdata/rules/`) are the CI gate.
+(`internal/inspection/rules/<id>/testdata/`) are the CI gate.
 
 `make cleanroom` scans the repository (specs, code, test data, docs) for long
 strings that appear verbatim in the local upstream checkout and fails on any
@@ -56,4 +56,4 @@ fixtures and locally extracted case data outside version control.
 
 custos fixes upstream bugs instead of reproducing them. Each intentional
 difference is documented in the spec's *Divergences* section and listed in
-`testdata/ea-divergences.json`, so conformance runs know about it.
+`internal/testing/conformance/testdata/ea-divergences.json`, so conformance runs know about it.

@@ -20,7 +20,7 @@ func TestContracts(t *testing.T) {
 	r := New()
 	r.(analysis.SemanticRule).Semantic()
 	r.(analysis.FlowRule).Flow()
-	fixtures, err := filepath.Glob("../../../../testdata/rules/XPathIgnoresDefaultNamespace/*.php")
+	fixtures, err := filepath.Glob("testdata/*.php")
 	if err != nil || len(fixtures) == 0 {
 		t.Fatalf("fixtures: %v", err)
 	}

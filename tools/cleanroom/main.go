@@ -60,7 +60,7 @@ func run(root string, args []string, stdout, stderr io.Writer) int {
 		}
 	})
 	hits := 0
-	for _, dir := range []string{"specs", "internal", "cmd", "testdata", "docs"} {
+	for _, dir := range []string{"specs", "internal", "cmd", "docs"} {
 		walk(filepath.Join(root, dir), "", func(p, text string) {
 			p, _ = filepath.Rel(root, p)
 			p = filepath.ToSlash(p)

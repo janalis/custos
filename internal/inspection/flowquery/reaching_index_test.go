@@ -15,7 +15,7 @@ import (
 // against the original per-query walk (kept below as the reference) for
 // every variable use of every own fixture.
 func TestReachingAssignmentsIndexMatches(t *testing.T) {
-	paths, _ := filepath.Glob("../../../testdata/rules/*/*.php")
+	paths, _ := filepath.Glob("../rules/*/testdata/*.php")
 	if len(paths) == 0 {
 		t.Skip("no fixtures")
 	}

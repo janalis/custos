@@ -24,7 +24,7 @@ func TestContracts(t *testing.T) {
 	if flow, ok := r.(analysis.FlowRule); ok {
 		flow.Flow()
 	}
-	fixtures, err := filepath.Glob("../../../../testdata/rules/SqliteResultUsedAfterFinalize/*.php")
+	fixtures, err := filepath.Glob("testdata/*.php")
 	if err != nil || len(fixtures) == 0 {
 		t.Fatalf("fixtures: %v", err)
 	}

@@ -12,5 +12,4 @@
 /go.mod           export-ignore
 /internal         export-ignore
 /specs            export-ignore
-/testdata         export-ignore
 /tools            export-ignore

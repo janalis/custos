@@ -38,5 +38,5 @@ make rules-doc        # if you changed a spec or a rule's fixtures
 ```
 
 - Every new statement is covered by tests (`make coverage`).
-- Rule changes come with fixtures in `testdata/rules/<ID>/`.
+- Rule changes come with fixtures in `internal/inspection/rules/<id>/testdata/`.
 - User-visible changes get a line under `## [Unreleased]` in `CHANGELOG.md`.

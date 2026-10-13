@@ -66,7 +66,7 @@ func TestContracts(t *testing.T) {
 
 func TestFixtureRanges(t *testing.T) {
 	for _, name := range []string{"basic", "negative", "delimiters"} {
-		marked, err := os.ReadFile("../../../../testdata/rules/RegexUtf8SubjectKnownInvalid/" + name + ".php")
+		marked, err := os.ReadFile("testdata/" + name + ".php")
 		if err != nil {
 			t.Fatal(err)
 		}

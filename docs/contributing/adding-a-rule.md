@@ -69,7 +69,7 @@ func (r unnecessarySemicolon) Check(ctx *analysis.Context, n syntax.Node) {
 
 ## 3. Fixtures and checks
 
-1. Write or extend the [fixtures](./fixtures) in `testdata/rules/<ID>/`:
+1. Write or extend the [fixtures](./fixtures) in `internal/inspection/rules/<id>/testdata/`:
    positives, false positives, `.fixed.php` for fixes, a sidecar per option
    or PHP version.
 2. `make fixtures RULE=<ID>`.

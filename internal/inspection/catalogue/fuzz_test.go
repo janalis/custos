@@ -18,7 +18,7 @@ import (
 // any rule panic (reported by the engine as an "internal" finding) or on a
 // fix that cannot be applied. Seeded with the own fixtures.
 func FuzzRules(f *testing.F) {
-	seeds, _ := filepath.Glob("../../../testdata/rules/*/*.php")
+	seeds, _ := filepath.Glob("../rules/*/testdata/*.php")
 	for i, p := range seeds {
 		if i%3 != 0 { // keep the seed corpus small
 			continue

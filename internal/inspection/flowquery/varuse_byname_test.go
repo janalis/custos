@@ -13,7 +13,7 @@ import (
 // TestVarAccessesByNameMatches checks the one-walk variant against the
 // per-name walk on every own fixture, for every scope and name.
 func TestVarAccessesByNameMatches(t *testing.T) {
-	paths, _ := filepath.Glob("../../../testdata/rules/*/*.php")
+	paths, _ := filepath.Glob("../rules/*/testdata/*.php")
 	if len(paths) == 0 {
 		t.Skip("no fixtures")
 	}

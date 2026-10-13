@@ -43,7 +43,7 @@ code compiles.
 | `make test` | `go test ./...` |
 | `make lint` | golangci-lint, actionlint, editorconfig-checker and markdownlint (see [Code style](#code-style)). |
 | `make fmt` | Apply the Go formatters and markdownlint's automatic fixes. |
-| `make fixtures RULE=<ID>` | Run the own fixtures in `testdata/rules/`, optionally for one rule. |
+| `make fixtures RULE=<ID>` | Run the own fixtures of every rule package, optionally for one rule. |
 | `make conformance RULE=<ID>` | Compare against the upstream fixtures of a local Php Inspections checkout (`EA_PATH`, default `~/Sites/phpinspectionsea`). Skipped when absent. |
 | `make coverage` | 100 % statement coverage gates (see below). |
 | `make rules-doc` | Regenerate the rule catalogue docs: `docs/rules/`, `docs/internals/rules.md`, `custos explain` texts. |
@@ -90,7 +90,7 @@ use; set a tool's variable empty to skip it offline (`make lint MDLINT=`).
 - **Correctness beats upstream fidelity.** When the upstream behaviour is
   wrong (false positives, fixes that change semantics or produce invalid PHP),
   diverge. Document it in the spec's *Divergences* section and in
-  `testdata/ea-divergences.json`.
+  `internal/testing/conformance/testdata/ea-divergences.json`.
 - **Standard library first**: no new dependency without a clear reason.
 - **Messages** are short, imperative and in our own words.
 - Supported PHP versions are 5.3 to 8.5: gate version-dependent rules on the

@@ -9,7 +9,7 @@ import (
 )
 
 func TestIndependentNativeFalsePositiveFixture(t *testing.T) {
-	src, err := os.ReadFile("../../../../testdata/rules/ContentLengthUsesCharacterCount/false-positives.php")
+	src, err := os.ReadFile("testdata/false-positives.php")
 	if os.IsNotExist(err) {
 		return
 	}

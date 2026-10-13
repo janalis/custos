@@ -24,8 +24,8 @@ const (
 	eaIndexPath = "../../../.cache/ea/index.json"
 	eaResults   = "../../../.cache/ea/conformance.json"
 	// divergencesPath lists EA cases where custos intentionally differs.
-	divergencesPath = "../../../testdata/ea-divergences.json"
-	ownRoot         = "../../../testdata/rules"
+	divergencesPath = "testdata/ea-divergences.json"
+	ownRoot         = "../../inspection/rules"
 )
 
 func wanted(rules []string) bool {
@@ -142,22 +142,23 @@ type fixtureConfig struct {
 	Companions []string `json:"companions"`
 }
 
-// TestOwnFixtures checks testdata/rules/<RuleID>/*.php (with optional
+// TestOwnFixtures checks each rule package's testdata/*.php (with optional
 // *.fixed.php and *.json sidecars). Messages are compared exactly.
 func TestOwnFixtures(t *testing.T) {
-	dirs, err := os.ReadDir(ownRoot)
+	rules, err := meta.All()
 	if err != nil {
-		t.Skip("no own fixtures yet")
+		t.Fatal(err)
 	}
-	for _, d := range dirs {
-		if !d.IsDir() || !wanted([]string{d.Name()}) {
+	for _, r := range rules {
+		rule := r.ID
+		if !wanted([]string{rule}) {
 			continue
 		}
-		rule := d.Name()
-		files, _ := filepath.Glob(filepath.Join(ownRoot, rule, "*.php"))
+		dir := filepath.Join(ownRoot, strings.ToLower(rule), "testdata")
+		files, _ := filepath.Glob(filepath.Join(dir, "*.php"))
 		// Manifest fixtures for non-PHP rules: <case>/composer.json with an
 		// optional composer.fixed.json and composer.config.json sidecar.
-		manifests, _ := filepath.Glob(filepath.Join(ownRoot, rule, "*", "composer.json"))
+		manifests, _ := filepath.Glob(filepath.Join(dir, "*", "composer.json"))
 		files = append(files, manifests...)
 		for _, f := range files {
 			if strings.HasSuffix(f, ".fixed.php") {
@@ -201,7 +202,7 @@ func TestOwnFixtures(t *testing.T) {
 				fixed, _ := os.ReadFile(base + ".fixed" + ext)
 				req := Request{Path: f, Rules: []string{rule}, PHP: cfg.PHP, ComparisonStyle: cfg.ComparisonStyle, Options: opts, Calls: calls}
 				for _, comp := range cfg.Companions {
-					p := filepath.Join(ownRoot, rule, comp)
+					p := filepath.Join(dir, comp)
 					src, err := os.ReadFile(p)
 					if err != nil {
 						t.Fatal(err)

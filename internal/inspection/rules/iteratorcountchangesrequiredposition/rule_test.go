@@ -13,7 +13,7 @@ import (
 func TestFixtures(t *testing.T) {
 	for _, name := range []string{"basic", "negative", "loops", "false-positives"} {
 		t.Run(name, func(t *testing.T) {
-			data, err := os.ReadFile(filepath.Join("../../../../testdata/rules", "IteratorCountChangesRequiredPosition", name+".php"))
+			data, err := os.ReadFile(filepath.Join("testdata", name+".php"))
 			if err != nil {
 				t.Fatal(err)
 			}

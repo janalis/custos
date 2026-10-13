@@ -32,16 +32,16 @@ func TestRun(t *testing.T) {
 	write(t, filepath.Join(root, "internal/inspection/meta/.keep"), "")
 
 	// Teapot: a real fix (content changes) in a subdirectory.
-	write(t, filepath.Join(root, "testdata/rules/Teapot/sub/a.php"), "<?php <warning descr=\"x\">brew()</warning>;\n")
-	write(t, filepath.Join(root, "testdata/rules/Teapot/sub/a.fixed.php"), "<?php steep();\n")
+	write(t, filepath.Join(root, "internal/inspection/rules/teapot/testdata/sub/a.php"), "<?php <warning descr=\"x\">brew()</warning>;\n")
+	write(t, filepath.Join(root, "internal/inspection/rules/teapot/testdata/sub/a.fixed.php"), "<?php steep();\n")
 	// Saucer: only "no change" expectations (markup and whitespace ignored).
-	write(t, filepath.Join(root, "testdata/rules/Saucer/b.php"), "<?php <error>spin()</error>;  <caret>\n")
-	write(t, filepath.Join(root, "testdata/rules/Saucer/b.fixed.php"), "<?php\n spin();\n")
+	write(t, filepath.Join(root, "internal/inspection/rules/saucer/testdata/b.php"), "<?php <error>spin()</error>;  <caret>\n")
+	write(t, filepath.Join(root, "internal/inspection/rules/saucer/testdata/b.fixed.php"), "<?php\n spin();\n")
 	// Fork: the expected output has no source file.
-	write(t, filepath.Join(root, "testdata/rules/Fork/orphan.fixed.php"), "<?php\n")
+	write(t, filepath.Join(root, "internal/inspection/rules/fork/testdata/orphan.fixed.php"), "<?php\n")
 	// Cup: the expected output is unreadable (a directory).
-	write(t, filepath.Join(root, "testdata/rules/Cup/c.php"), "<?php\n")
-	if err := os.MkdirAll(filepath.Join(root, "testdata/rules/Cup/c.fixed.php"), 0o755); err != nil {
+	write(t, filepath.Join(root, "internal/inspection/rules/cup/testdata/c.php"), "<?php\n")
+	if err := os.MkdirAll(filepath.Join(root, "internal/inspection/rules/cup/testdata/c.fixed.php"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 

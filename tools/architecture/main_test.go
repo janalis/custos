@@ -38,11 +38,11 @@ func New() analysis.Rule { return rule{} }
 import inspection "custos/internal/inspection/rules/example"
 func All() []any { return []any{inspection.New()} }
 `,
-		"cmd/custos/main.go":               "package main\nimport \"custos/internal/cli\"\nfunc main(){cli.Run()}",
-		"specs/Example.md":                 "# Example\n",
-		"testdata/rules/Example/basic.php": "<?php\n",
-		"internal/ignored_test.go":         "not Go; test files are excluded",
-		"internal/asset.txt":               "asset",
+		"cmd/custos/main.go": "package main\nimport \"custos/internal/cli\"\nfunc main(){cli.Run()}",
+		"specs/Example.md":   "# Example\n",
+		"internal/inspection/rules/example/testdata/basic.php": "<?php\n",
+		"internal/ignored_test.go":                             "not Go; test files are excluded",
+		"internal/asset.txt":                                   "asset",
 	} {
 		write(t, root, path, src)
 	}
@@ -70,7 +70,7 @@ func TestViolations(t *testing.T) {
 		{"duplicate registration", "internal/inspection/catalogue/catalogue.go", "package catalogue\nimport \"custos/internal/inspection/rules/example\"\nfunc All() []any{return []any{example.New(),example.New()}}", "exactly once (got 2)"},
 		{"missing implementation", "internal/inspection/meta/rules.json", `[{"id":"Missing"}]`, "implementation missing"},
 		{"empty ID", "internal/inspection/rules/example/rule.go", "package example\ntype rule struct{}\nfunc (rule) ID()string{ return \"\" }\nfunc New()any{return rule{}}", "unknown inspection ID"},
-		{"missing fixture", "testdata/rules/Example/basic.php", "fixture", ""},
+		{"missing fixture", "internal/inspection/rules/example/testdata/basic.php", "fixture", ""},
 		{"opaque ID", "internal/inspection/rules/example/rule.go", "package example\ntype rule struct{}\nfunc (rule) ID()string{ if true {return}; return name }\nfunc (rule) OtherID()int{return 1}", "implementation missing"},
 		{"numeric ID", "internal/inspection/rules/example/rule.go", "package example\ntype rule struct{}\nfunc (rule) ID()int{return 123}", "implementation missing"},
 		{"catalogue expression", "internal/inspection/catalogue/catalogue.go", "package catalogue\nimport \"custos/internal/inspection/rules/example\"\nfunc All() []any { f(); example.Other(); factory.New().New(); return nil }", "exactly once"},
@@ -91,7 +91,7 @@ func TestViolations(t *testing.T) {
 }
 
 func TestMissingArtifacts(t *testing.T) {
-	for _, path := range []string{"specs/Example.md", "testdata/rules/Example"} {
+	for _, path := range []string{"specs/Example.md", "internal/inspection/rules/example/testdata"} {
 		t.Run(path, func(t *testing.T) {
 			root := layout(t)
 			if err := os.RemoveAll(filepath.Join(root, path)); err != nil {
@@ -110,11 +110,11 @@ func TestMissingArtifacts(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(root, "specs/Example.md"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Remove(filepath.Join(root, "testdata/rules/Example/basic.php")); err != nil {
+	if err := os.Remove(filepath.Join(root, "internal/inspection/rules/example/testdata/basic.php")); err != nil {
 		t.Fatal(err)
 	}
-	write(t, root, "testdata/rules/Example/readme.txt", "empty")
-	if err := os.Mkdir(filepath.Join(root, "testdata/rules/Example/subdir.php"), 0o755); err != nil {
+	write(t, root, "internal/inspection/rules/example/testdata/readme.txt", "empty")
+	if err := os.Mkdir(filepath.Join(root, "internal/inspection/rules/example/testdata/subdir.php"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	problems, err := check(root)
