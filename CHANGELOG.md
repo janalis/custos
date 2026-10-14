@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-14
+
 ### Added
 
 - `IsIterableCanBeUsed` offers a quick fix for an adjacent
