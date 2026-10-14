@@ -74,6 +74,36 @@ func TestTerminates(t *testing.T) {
 	}
 }
 
+// An endless loop is one that control never falls out of wherever it entered
+// it: a loop that only ends because its body always returns is not one.
+func TestEndless(t *testing.T) {
+	cases := map[string]bool{
+		`while (true) { f(); }`:                   true,
+		`while (true) { if ($a) { break; } }`:     false,
+		`while ($a) { return; }`:                  false,
+		`for (;;) { f(); }`:                       true,
+		`for (;;) { if ($a) { break; } }`:         false,
+		`for (; $a;) { return; }`:                 false,
+		`do { f(); } while (true);`:               true,
+		`do { if ($a) { break; } } while (true);`: false,
+		`do { return; } while ($a);`:              false,
+		`foreach ($a as $b) { return; }`:          false,
+		`{ return; }`:                             false,
+	}
+	for src, want := range cases {
+		f := parse(t, "<?php "+src, phpversion.PHP84)
+		if len(f.Errors) > 0 {
+			t.Fatalf("%s: %v", src, f.Errors)
+		}
+		for range 2 {
+			// The second answer is the one kept on the loop.
+			if got := Endless(f.Stmts[0]); got != want {
+				t.Errorf("%s: Endless = %v, want %v", src, got, want)
+			}
+		}
+	}
+}
+
 func TestStmtIndexAndFirstTerminating(t *testing.T) {
 	f := parse(t, "<?php f(); return; g();", phpversion.PHP84)
 	if StmtIndex(f.Stmts, f.Stmts[2]) != 2 || StmtIndex(nil, f.Stmts[0]) != -1 || StmtIndex(f.Stmts, nil) != -1 {

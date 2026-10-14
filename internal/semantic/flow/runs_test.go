@@ -18,9 +18,10 @@ import (
 // across the same functions given nothing of the kind.
 func TestStaticGuardAcrossCodePHPRuns(t *testing.T) {
 	const src = `function probe($x) {}
+		const MINE = 1024;
 		function mine($x) { return $x; }
 		final class K {
-			function t($a, $o, string $s, array $l, PDOStatement $st, mysqli_result $res, SoapServer $soap, LimitIterator $it, ArrayIterator $plain, $k) { static $u; $u = parse_url($a); if ($u === false) { return; } %s probe($u); }
+			function t($a, $o, string $s, array $l, PDOStatement $st, mysqli_result $res, SoapServer $soap, LimitIterator $it, ArrayIterator $plain, $k, ArrayObject $ao, SplFileInfo $fi, SplFileObject $fo, DOMDocument $dom, int $n = 0) { static $u; $u = parse_url($a); if ($u === false) { return; } %s probe($u); }
 		}`
 	for _, tc := range []struct {
 		body string
@@ -40,6 +41,17 @@ func TestStaticGuardAcrossCodePHPRuns(t *testing.T) {
 		{`$t = call_user_func('missing_function', $s);`, false},
 		{`$t = array_map('get_parent_class', explode(',', $s));`, false},
 		{`$t = array_map('trim', explode(',', $s)); $t = [];`, true},
+		{`$t = call_user_func('strcmp', $s, 'a');`, true},
+		// Not one that raises a warning on text that is no number: the
+		// error handler of the project receives it.
+		{`$t = call_user_func('hex2bin', $s);`, false},
+		{`$t = array_map('hexdec', explode(',', $s)); $t = [];`, false},
+		{`$t = array_map('bindec', explode(',', $s)); $t = [];`, false},
+		{`$t = array_map('octdec', explode(',', $s)); $t = [];`, false},
+		{`$t = array_map('abs', explode(',', $s)); $t = [];`, false},
+		{`$t = array_map('chr', explode(',', $s)); $t = [];`, false},
+		{`$t = array_map('ord', explode(',', $s)); $t = [];`, false},
+		{`$t = call_user_func('strncmp', $s, 'a', $s);`, false},
 		// A class named by text is loaded; the class of the code that runs
 		// is loaded already. An object handed to PHP may be converted.
 		{`$t = method_exists($s, 'm');`, false},
@@ -83,6 +95,11 @@ func TestStaticGuardAcrossCodePHPRuns(t *testing.T) {
 		{`$t = constant(...$l);`, false},
 		// Handlers of the project.
 		{`spl_autoload($s);`, false},
+		{`class_alias($s, 'Other');`, false},
+		{`class_alias('Missing', 'Other');`, false},
+		{`stream_wrapper_register('x', $s);`, false},
+		{`stream_register_wrapper('x', 'Mine');`, false},
+		{`stream_filter_register('x.*', $s);`, false},
 		{`ob_end_flush();`, false},
 		{`$t = ob_get_clean();`, false},
 		{`ob_flush();`, false},
@@ -118,6 +135,35 @@ func TestStaticGuardAcrossCodePHPRuns(t *testing.T) {
 		{`$t = filter_input(...$l);`, false},
 		{`$t = filter_var_array(['a' => $s], $k);`, false},
 		{`$t = filter_input_array(INPUT_GET, $k);`, false},
+		// The filter is named by a constant of PHP: one of the project, or a
+		// number, may stand for the filter that calls back.
+		{`$t = filter_var($s, (\FILTER_SANITIZE_NUMBER_INT));`, true},
+		{`$t = filter_var($s, MINE, ['options' => 'mine']);`, false},
+		{`$t = filter_var($s, filter_validate_int);`, false},
+		{`$t = filter_var($s, 1024, ['options' => 'mine']);`, false},
+		{`$t = filter_var($s, K::MODE, ['options' => 'mine']);`, false},
+		{`$t = filter_var($s, FILTER_VALIDATE_INT | MINE);`, false},
+		{`$t = filter_input(INPUT_GET, 'a', MINE, ['options' => 'mine']);`, false},
+		// The table of filters is the second argument of both functions that
+		// take one; the third says what to do with missing keys.
+		{`$t = filter_input_array(INPUT_POST);`, true},
+		{`$t = filter_input_array(INPUT_POST, FILTER_VALIDATE_INT, $k);`, true},
+		{`$t = filter_input_array(INPUT_POST, MINE);`, false},
+		{`$t = filter_input_array(INPUT_POST, ['a' => ['filter' => $n, 'options' => 'mine']]);`, false},
+		{`$t = filter_input_array(INPUT_POST, ['a' => ['filter' => $n, 'options' => 'mine']], true);`, false},
+		{`$t = filter_var_array(['a' => $s], ['a' => $n]);`, false},
+		{`$t = filter_var_array(['a' => $s], FILTER_VALIDATE_INT);`, true},
+		{`$t = filter_var_array(['a' => $s], (['a' => FILTER_VALIDATE_INT, 'b' => ['filter' => FILTER_VALIDATE_REGEXP, 'flags' => FILTER_NULL_ON_FAILURE, 'options' => ['regexp' => '/a/', 'default' => PHP_INT_MAX]], 'c' => ['flags' => FILTER_REQUIRE_ARRAY], PHP_INT_SIZE => (FILTER_DEFAULT)]));`, true},
+		{`$t = filter_var_array(['a' => $s], ['a' => MINE]);`, false},
+		{`$t = filter_var_array(['a' => $s], ['a' => 1024]);`, false},
+		{`$t = filter_var_array(['a' => $s], ['a' => ['filter' => MINE, 'options' => 'mine']]);`, false},
+		{`$t = filter_var_array(['a' => $s], ['a' => ['filter' => 1024, 'options' => 'mine']]);`, false},
+		{`$t = filter_var_array(['a' => $s], ['a' => [MINE => FILTER_VALIDATE_INT]]);`, false},
+		{`$t = filter_var_array(['a' => $s], ['a' => [0 => FILTER_VALIDATE_INT]]);`, false},
+		{`$t = filter_var_array(['a' => $s], ['a' => [FILTER_VALIDATE_INT]]);`, false},
+		{`$t = filter_var_array(['a' => $s], ['a' => [...K::FILTER]]);`, false},
+		{`$t = filter_var_array(['a' => $s], [...K::FILTERS]);`, false},
+		{`$t = filter_var_array(['a' => $s], [...['a' => 1024]]);`, false},
 		// Methods of PHP that construct a class, call a function or move
 		// an iterator that wraps another.
 		{`$t = $st->fetchObject('Mine'); $t = null;`, false},
@@ -134,6 +180,20 @@ func TestStaticGuardAcrossCodePHPRuns(t *testing.T) {
 		{`$t = new ReflectionClass(...$l); $t = null;`, false},
 		{`$t = new ArrayObject([], 0, $s); $t = null;`, false},
 		{`$t = new ArrayObject(...$l); $t = null;`, false},
+		// Methods of PHP that load or construct the class they are given.
+		{`$ao->setIteratorClass($s);`, false},
+		{`$t = $ao->getIteratorClass();`, true},
+		{`$t = $fi->getFileInfo($s);`, false},
+		{`$t = $fi->getFileInfo();`, true},
+		{`$t = $fi->getPathInfo('Mine');`, false},
+		{`$t = $fo->getFileInfo($s);`, false},
+		{`$fi->setFileClass($s);`, false},
+		{`$fi->setInfoClass($s);`, false},
+		{`$fi->setInfoClass(...$l);`, false},
+		{`$t = $fi->getFilename();`, true},
+		{`$dom->registerNodeClass('DOMElement', $s);`, false},
+		{`$dom->registerNodeClass('DOMElement', null);`, true},
+		{`$dom->registerNodeClass(...$l);`, false},
 	} {
 		t.Run(tc.body, func(t *testing.T) {
 			e, f := environmentAt(t, fmt.Sprintf(src, tc.body), phpversion.PHP84)
@@ -151,6 +211,16 @@ func TestStaticGuardAcrossCodePHPRuns(t *testing.T) {
 func TestCodePHPRunsEdges(t *testing.T) {
 	if pure("extract") || !pure("strlen") || runner("strlen") || !runner("spl_autoload") {
 		t.Fatal("pure and runner disagree with their lists")
+	}
+	for _, warns := range []string{"hex2bin", "hexdec", "bindec", "octdec", "abs", "ceil", "floor", "round", "sqrt", "chr", "dechex", "decbin", "decoct", "ord", "strncmp", "strncasecmp"} {
+		if pure(warns) {
+			t.Fatalf("%s raises a warning or a deprecation on text", warns)
+		}
+	}
+	empty := &syntax.Array{Items: []*syntax.ArrayItem{nil}}
+	detail := &syntax.Array{Items: []*syntax.ArrayItem{{Value: &syntax.Array{Items: []*syntax.ArrayItem{nil}}}}}
+	if !filters([]syntax.Expr{&syntax.Arg{Value: empty}}, 0, true) || !filters([]syntax.Expr{&syntax.Arg{Value: detail}}, 0, true) || filter(&syntax.ConstFetch{}) {
+		t.Fatal("a table of filters with an empty slot, a constant without a name")
 	}
 	if loads("method_exists", nil) || loads("strlen", nil) || invokes("datetime::format", nil) || builds("datetime", nil) {
 		t.Fatal("a call given nothing loads nothing")
@@ -208,6 +278,11 @@ func TestSparesMethodsOfExtendedPHPClasses(t *testing.T) {
 		{"PHP function given the class of the code", `get_class_vars(self::class);`, true},
 		{"PHP function asked whether text names a class", `is_a($this, 'B', true);`, true},
 		{"PHP function that flushes a buffer", `ob_end_flush();`, false},
+		{"PHP function that makes an alias of a class", `class_alias($a, 'Other');`, false},
+		{"PHP function given a table of filters in a variable", `filter_input_array(INPUT_POST, ['a' => ['filter' => $a]]);`, false},
+		{"PHP function given a filter by its constant", `filter_input_array(INPUT_POST, FILTER_VALIDATE_INT, false);`, true},
+		{"PHP function given a filter by a constant of the project", `filter_var('1', MINE, ['options' => 'refill']);`, false},
+		{"method that loads a class of iterators", `$ao->setIteratorClass($a);`, false},
 		{"function that stores what it is given", `refill($a);`, false},
 		{"function that stores, then reads a variable and calls PHP", `refill_then_reads($a);`, false},
 		{"function that names a table by text", `computed($a);`, false},
@@ -227,7 +302,7 @@ func TestSparesMethodsOfExtendedPHPClasses(t *testing.T) {
 		{"static method made into a closure", `Closure::fromCallable(...);`, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			src := declared + `function t($a, Heap $h, DateTime $d, Failure $x, PDOStatement $st, LimitIterator $it) { ` + tc.call + ` }`
+			src := declared + `function t($a, Heap $h, DateTime $d, Failure $x, PDOStatement $st, LimitIterator $it, ArrayObject $ao) { ` + tc.call + ` }`
 			f := syntax.Parse("test.php", []byte("<?php "+src), syntax.Options{Version: phpversion.Max})
 			if len(f.Errors) > 0 {
 				t.Fatalf("parse: %v", f.Errors)

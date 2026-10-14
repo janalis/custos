@@ -112,3 +112,62 @@ $arrow = fn () => 1;
 		t.Error("no scope, no jumps")
 	}
 }
+
+func TestScopeLabels(t *testing.T) {
+	f := Parse("t.php", []byte(`<?php
+function f($c) {
+	a: if ($c) { b: goto a; }
+	$h = function () { closed: };
+	function g() { inner: }
+	new class { function m() { deep: } };
+	c:
+}
+function none() { return 1; }
+$arrow = fn () => 1;
+`), Options{Version: phpversion.Max})
+	if len(f.Errors) != 0 {
+		t.Fatal(f.Errors)
+	}
+	SetParents(f)
+	names := ""
+	for _, label := range ScopeLabels(f.Stmts[0]) {
+		names += label.Name.Value
+	}
+	if names != "abc" {
+		t.Fatalf("labels of f = %q", names)
+	}
+	if got := ScopeLabels(f.Stmts[1]); len(got) != 0 {
+		t.Errorf("labels of none = %v", got)
+	}
+	if ScopeLabels(nil) != nil || ScopeLabels(f.Stmts[2].(*ExprStmt).Expr.(*Assign).Value) != nil {
+		t.Error("no block body, no labels")
+	}
+}
+
+func TestScopeMemo(t *testing.T) {
+	f := Parse("t.php", []byte(`<?php
+function f() { return 1; }
+function g() { return 2; }
+$arrow = fn () => 1;
+`), Options{Version: phpversion.Max})
+	if len(f.Errors) != 0 {
+		t.Fatal(f.Errors)
+	}
+	SetParents(f)
+	built := 0
+	build := func(scope Node) *string {
+		built++
+		name := scope.(*Function).Name.Value
+		return &name
+	}
+	first := ScopeMemo(f.Stmts[0], build)
+	if again := ScopeMemo(f.Stmts[0], build); again != first || *first != "f" || built != 1 {
+		t.Fatalf("made %d times: %q", built, *first)
+	}
+	if other := ScopeMemo(f.Stmts[1], build); *other != "g" || built != 2 {
+		t.Fatalf("the memo of g = %q, made %d times", *other, built)
+	}
+	if ScopeMemo(nil, build) != nil || ScopeMemo(f.Stmts[2].(*ExprStmt).Expr.(*Assign).Value, build) != nil || built != 2 {
+		t.Error("no block body, no memo")
+	}
+}

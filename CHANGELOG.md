@@ -286,16 +286,28 @@ versions follow [Semantic Versioning](https://semver.org/).
   and the inspections that need the flow analysis to find the producing call
   report nothing. Code written after a `return`, `throw` or `goto` is
   inspected again when a label makes it reachable: one that a reachable
-  `goto` names, written where control can go on from it to that code.
+  `goto` names, written where control can go on from it to that code (not
+  in an endless loop written before that code, nor in an earlier `catch` of
+  the same `try`). In the top-level code of a namespace block any label
+  written there counts, and top-level code outside a namespace block is
+  always inspected.
+- Inspections that leave unreachable code alone no longer skip the body of a
+  property hook because of what is written around its class: a hook of a
+  class declared after a top-level `return` in a namespace block was skipped
+  where a method of the same class was not.
 - A check made on a `static` variable no longer holds after code that can
   enter the function again without a written call (an object converted to
   text, a magic property or offset access, the destructor of an object a
   variable held when it is assigned again, a callback other than a PHP
-  function that only computes on text and numbers, a class PHP loads by the
-  name it is given (`method_exists($name, 'm')`, `is_callable('A::b')`,
-  `defined('A::B')`, `new ReflectionClass($name)`) or constructs for a
-  fetched row, a session or output-buffer handler, the callbacks of a cURL
-  transfer or an XML parser, a garbage collection; reading a declared
+  function that only computes on text and numbers and raises no warning
+  whatever text it is given (`strlen`, `trim`, `intval`; not `hexdec` or
+  `abs`), a class PHP loads by the name it is given
+  (`method_exists($name, 'm')`, `is_callable('A::b')`, `defined('A::B')`,
+  `class_alias($name, 'B')`, `new ReflectionClass($name)`) or constructs for
+  a fetched row, a filter that one of PHP's own `FILTER_…` constants does
+  not name, a session or output-buffer handler, the callbacks of a cURL
+  transfer or an XML parser, a garbage collection; a warning that a PHP
+  function called directly raises by itself is not counted; reading a declared
   property of `$this` or a constant of the class itself is no such code, and neither is
   giving another value to a variable that held text, numbers or arrays of
   them), nor, for

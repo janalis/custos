@@ -7,10 +7,18 @@ import (
 
 // listJumps caches, on the node that owns a statement list, what the
 // questions about `goto` ask of it again and again: the Tail of the list
-// and, for the body of a variable scope, the jumps of the scope.
+// and, for the body of a variable scope, the jumps and the labels of the
+// scope and what a caller worked out from them (ScopeMemo).
 type listJumps struct {
 	tail  atomic.Pointer[Tail]
-	gotos atomic.Pointer[[]*Goto]
+	scope atomic.Pointer[scopeJumps]
+	memo  atomic.Value
+}
+
+// scopeJumps holds the `goto` statements and the labels of a variable scope.
+type scopeJumps struct {
+	gotos  []*Goto
+	labels []*Label
 }
 
 // Tail describes the statements of a list from its first terminating one
@@ -76,21 +84,58 @@ func TailOf(p Node) *Tail {
 // order, the ones of the functions, closures and classes declared in it left
 // out. They are read once per scope. A scope without a block body has none.
 func ScopeGotos(scope Node) []*Goto {
+	if all := jumpsOf(scope); all != nil {
+		return all.gotos
+	}
+	return nil
+}
+
+// ScopeLabels returns the labels of a variable scope in source order, read
+// with its `goto` statements and with the same ones left out.
+func ScopeLabels(scope Node) []*Label {
+	if all := jumpsOf(scope); all != nil {
+		return all.labels
+	}
+	return nil
+}
+
+// jumpsOf reads the jumps and the labels of a scope with a block body.
+func jumpsOf(scope Node) *scopeJumps {
 	body, ok := VariableScopeBody(scope).(*Block)
 	if !ok {
 		return nil
 	}
-	if all := body.jumps.gotos.Load(); all != nil {
-		return *all
+	if all := body.jumps.scope.Load(); all != nil {
+		return all
 	}
-	all := []*Goto{}
+	all := &scopeJumps{gotos: []*Goto{}}
 	inspectVariableScope(body, func(n Node) {
-		if jump, ok := n.(*Goto); ok {
-			all = append(all, jump)
+		switch x := n.(type) {
+		case *Goto:
+			all.gotos = append(all.gotos, x)
+		case *Label:
+			all.labels = append(all.labels, x)
 		}
 	})
-	body.jumps.gotos.Store(&all)
+	slices.SortStableFunc(all.labels, func(a, b *Label) int { return int(a.Span().Start) - int(b.Span().Start) })
+	body.jumps.scope.Store(all)
 	return all
+}
+
+// ScopeMemo returns what build makes of a variable scope with a block body,
+// kept on that body so that it is made once per scope; nil for another
+// scope. One caller owns the slot: every call must ask for the same type.
+func ScopeMemo[T any](scope Node, build func(scope Node) *T) *T {
+	body, ok := VariableScopeBody(scope).(*Block)
+	if !ok {
+		return nil
+	}
+	if made, ok := body.jumps.memo.Load().(*T); ok {
+		return made
+	}
+	made := build(scope)
+	body.jumps.memo.Store(made)
+	return made
 }
 
 // inspectVariableScope visits the nodes below n that share its variable

@@ -500,24 +500,27 @@ type Else struct {
 
 type While struct {
 	stmtBase
-	Cond Expr
-	Body Stmt
-	Alt  bool
+	Cond    Expr
+	Body    Stmt
+	Alt     bool
+	endless int32 // Endless cache
 }
 
 type DoWhile struct {
 	stmtBase
-	Body Stmt
-	Cond Expr
+	Body    Stmt
+	Cond    Expr
+	endless int32 // Endless cache
 }
 
 type For struct {
 	stmtBase
-	Init []Expr
-	Cond []Expr
-	Loop []Expr
-	Body Stmt
-	Alt  bool
+	Init    []Expr
+	Cond    []Expr
+	Loop    []Expr
+	Body    Stmt
+	Alt     bool
+	endless int32 // Endless cache
 }
 
 type Foreach struct {

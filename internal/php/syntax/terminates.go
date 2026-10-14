@@ -4,6 +4,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync/atomic"
 )
 
 // Terminates reports whether control never falls through s to the next
@@ -64,21 +65,46 @@ func Terminates(s Stmt) bool {
 		}
 		last := x.Cases[len(x.Cases)-1]
 		return FirstTerminating(last) < len(last.Stmts)
-	case *While:
-		return isTrueConst(x.Cond) && !containsBreak(x.Body)
+	case *While, *For:
+		return Endless(x)
 	case *DoWhile:
 		// A break leaves the loop, and a continue reaches a condition that
 		// may end it.
-		if containsBreak(x.Body) {
-			return false
-		}
-		return isTrueConst(x.Cond) || Terminates(x.Body) && !jumps(x.Body, true)
-	case *For:
-		return len(x.Cond) == 0 && !containsBreak(x.Body)
+		return Endless(x) || !containsBreak(x.Body) && Terminates(x.Body) && !jumps(x.Body, true)
 	case *Declare:
 		return x.Body != nil && Terminates(x.Body)
 	}
 	return false
+}
+
+// Endless reports a loop that control never falls out of, wherever it
+// entered it: `while (true)`, `for (;;)` or `do … while (true)` without a
+// `break` that leaves it. The search for that `break` is cached on the
+// loop, so that asking for every label of a long body stays linear overall.
+func Endless(n Node) bool {
+	switch x := n.(type) {
+	case *While:
+		return isTrueConst(x.Cond) && unbroken(&x.endless, x.Body)
+	case *DoWhile:
+		return isTrueConst(x.Cond) && unbroken(&x.endless, x.Body)
+	case *For:
+		return len(x.Cond) == 0 && unbroken(&x.endless, x.Body)
+	}
+	return false
+}
+
+// unbroken reports a loop body without a `break` that leaves the loop.
+func unbroken(memo *int32, body Stmt) bool {
+	// memo: 0 = not computed yet, 1 = a break leaves the loop, 2 = none.
+	v := atomic.LoadInt32(memo)
+	if v == 0 {
+		v = 2
+		if containsBreak(body) {
+			v = 1
+		}
+		atomic.StoreInt32(memo, v)
+	}
+	return v == 2
 }
 
 func isTrueConst(e Expr) bool {
