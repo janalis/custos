@@ -11,354 +11,54 @@ versions follow [Semantic Versioning](https://semver.org/).
   `is_array($v) || $v instanceof Traversable` pair on a plain variable.
 - Security inspections cover more sinks: interpolated, `print` and SVG/XHTML
   output, the backtick operator and string-form `proc_open`, remote stream
-  reads and `curl_setopt_array` destinations, LDAP filters escaped for the wrong
+  reads, `curl_setopt_array` destinations, LDAP filters escaped for the wrong
   context, bit-or permission modes and cURL basic authentication set through
   `CURLOPT_URL`.
+- The flow analysis follows functions containing `switch`, `match (true)` and
+  `goto`, by-reference outputs, silenced calls, `global` variables written by
+  other functions and `static` locals, so value, failure-check and
+  request-data inspections report in more places.
+
+### Changed
+
+- Project analysis is faster on large projects: summaries are computed in
+  parallel, built once instead of per file, and a file is not analysed again
+  when nothing it calls changed. Very long functions and files with many
+  `goto` labels no longer exhaust the analysis budget or take seconds.
 
 ### Fixed
 
-- Quick fixes no longer produce invalid PHP around adjacent keywords
-  (`return!is_null(...)`), closing `?>` tags, line comments, heredocs below
-  PHP 7.3 and attribute closures, and they keep comments inside the rewritten
-  range or are withheld.
-- Quick fixes add the parentheses needed to preserve operator precedence, and
-  are withheld (the finding is still reported) when the rewrite would duplicate,
-  drop or reorder side effects.
-- Code-style fixes no longer change behaviour: postfix increments where the
-  value is used, compound assignments over `+`/`*` chains, `self` in `catch`
-  clauses, `static::` inside string interpolation, modifier words read from
-  comments and `parent::` calls overridden through traits.
-- Control-flow and performance rewrites are withheld when the result could
-  differ: multibyte case conversions, non-literal `strtr`/`stripos` operands,
-  merged `isset`/`str_replace` calls, loop-length caching, reordered conditions
-  and `foreach` conversions whose counter stays observable.
-- Language-migration fixes handle namespace blocks and clashing imports,
-  case-sensitive class constants, version-suffixed `PHP_VERSION` comparisons,
-  return types that could throw at runtime and casts that need quoting or
-  parentheses; `rand()`/`mt_rand()` are reported without an automatic rename.
-- PHPUnit assertion rewrites no longer change what a test checks, and ignore
-  same-named methods of non-PHPUnit classes.
+- Quick fixes no longer produce invalid PHP or change behaviour: they add
+  needed parentheses, keep comments, respect keywords, closing tags, heredocs
+  and PHP-version differences, and are withheld (the finding is still
+  reported) when the rewrite could duplicate, drop or reorder side effects.
+- Code-style, control-flow, performance, language-migration and PHPUnit
+  rewrites are withheld where the result could differ; PHPUnit rewrites
+  ignore same-named methods of other classes.
 - Calls using named arguments, argument unpacking or first-class callable
   syntax are no longer misread by argument-position checks.
-- Variables that can change through references, by-reference arguments,
-  `global`, `extract()`, variable variables, destructuring or `foreach` targets
-  are no longer treated as stable by type, cast, unused-code and security
-  checks.
+- Variables that can change through references, `global`, `extract()`,
+  variable variables, destructuring, `foreach` targets or code PHP runs
+  implicitly (conversions to text, magic methods, destructors, autoloading,
+  callbacks) are no longer treated as stable.
+- Failure-check inspections accept many more guard forms (early exits,
+  `or exit`, stored tests, never-returning calls, `switch` and `match`
+  allow-lists, type predicates, `isset`/`empty` on an element), and no longer
+  let a check vouch for a later, unchecked assignment or for a value that a
+  `goto` carries past it.
+- Request-data inspections track array elements, references, by-reference
+  parameters, statement bindings, `extract()` and `parse_str()` more
+  precisely, report request data combined with unknown values, and no longer
+  report numbers, booleans or `switch`/`match`-selected values.
+  `UnescapedHtmlOutput` examines every part of an output statement.
 - Architecture and unused-code inspections respect property hooks, abstract
   and promoted properties, trait methods, `__sleep()` lists and PHP-version
   differences of built-in classes.
-- Probable-bug inspections that reason about a known value (sizes, counts,
-  indexes, nonces, handles, statements) no longer trust it after `++`/`--`,
-  a by-reference capture or argument, destructuring, a `foreach` target,
-  `extract()`, a variable variable or a possible replacement in a closure.
-- Failure-check inspections (files, streams, sockets, images, regexes, intl,
-  XML, databases, processes) accept more guard forms: early exits, `elseif`
-  chains, `&&`/`||` operands, ternaries, truthiness, `instanceof`, type
-  predicates and constant-first comparisons; nullsafe chains and
-  first-class callable syntax are no longer read as checked calls.
-- HTTP and cookie inspections compare option and header names
-  case-insensitively and ignore text inside quoted parameter values; PDO,
-  mysqli and SQLite inspections tolerate SQL comments, restored connection
-  state and statements bound elsewhere.
-- Several probable-bug inspections now report equivalent spellings they
-  missed: constant-first comparisons, brace-less and parenthesised forms,
-  `new self()` in abstract classes and guards that only `continue` or `break`.
-- Probable-bug quick fixes are withheld when the rewritten value may have
-  changed since it was assigned or when the matched text sits inside another
-  quoted value.
-- Security inspections recognise more validation idioms (early exits,
-  combined conditions, allow-lists, server-side MIME inspection, `realpath`
-  containment) and no longer report numeric, boolean or `match`-selected
-  constant values as tainted.
-- Value-based inspections no longer trust a variable's assigned value after
-  a `foreach`, `list()` or `catch` target, `extract()`, a write
-  through a reference alias, or a call that can run code holding a reference
-  to it (by-reference closure capture, `global`, by-reference parameter);
-  copies taken afterwards are unknown too. Request data the variable held, or
-  that the reference holder writes to it, is still reported. A known integer
-  stepped with `++`, `--`, `+=` or `-=` on the only path to its use has the
-  stepped value; an unrelated property, element or compound assignment no
-  longer discards what is known about other variables. A write through
-  `$GLOBALS['name']`, or through a property, static property or array slot
-  holding a reference to a local, is seen as a write to that variable, and
-  `$a = &$b` makes both names read the same value, until `unset`, `static` or
-  `global` gives one of them other storage. Long functions (hundreds of
-  locals and branches) no longer exhaust the analysis budget, and deeply
-  nested loops or a `switch` in such a function no longer make its analysis
-  take seconds.
-- Project analysis no longer rebuilds the whole cross-file summary table for
-  every analysed file, which took about a third of the time on large projects,
-  and no longer analyses a file again when nothing it calls changed.
-- Malformed input (`curl_exec(` at end of file, `new` without an argument
-  list inside an array access) no longer makes four inspections skip the file.
-- Request-data inspections no longer treat a `match` subject, arithmetic
-  results or number- and boolean-returning builtins as carrying request text;
-  the short ternary `$a ?: $b` now keeps the request data of `$a`. Request
-  data is now reported when it is combined with a value of unknown origin
-  (`$this->bin . $_GET['a']`), appended with `.=`, stored in an array element,
-  iterated with `foreach`, imported by `extract($_GET)`, or passed to a
-  function that cannot be resolved before it reaches the sink. Array elements
-  with a constant key are tracked individually and follow the array into
-  another variable, so a clean element next to a request-derived one is not
-  reported; keys are compared as PHP folds them (`0x1`, `01`, `1.7`, `true`
-  and `'1'` are the key `1`). `sort()`, `preg_match()` groups and
-  `parse_str()` results keep the request data they work on, while counts,
-  exit statuses and other numeric results a function writes to a reference
-  argument, the output of `exec()` and an array sorted with a request-supplied
-  callback are clean. `extract()` honours `EXTR_SKIP`, also combined with
-  `EXTR_REFS` or passed as a named argument, and cannot create superglobals;
-  `settype($v, 'int')` and `$n += ...` on a number yield clean values.
-  `array_map('intval', ...)` yields clean values but keeps the request's keys
-  (`array_keys()` of the result is still reported). The server-chosen fields
-  of an uploaded file (`size`, `tmp_name`, `error`) are trusted only on the
-  upload entry itself, not on an array a client field was copied into. A value
-  passed to a variadic PHP function (`sprintf`, `max`) keeps what was known
-  about it.
-- `UnescapedHtmlOutput` no longer stops at the first dynamic part of an
-  output statement: request text emitted after an escaped value, a number or
-  a boolean (`echo '<i>' . htmlspecialchars($a) . '</i><b>' . $b . '</b>'`,
-  `"<i>$page</i><b>$name</b>"`) is reported.
-- Request-data inspections keep the request data of a variable bound to a
-  statement parameter (`mysqli_stmt::bind_param`, `PDOStatement::bindParam`),
-  report client-chosen upload fields at any depth
-  (`$_FILES['f']['name'][0]`), and see a write through a reference to an
-  array element in copies of that array.
-- Failure-value inspections that follow a local back to the call that
-  produced it (`parse_url`, `scandir`, `posix_getpwnam`, `realpath` and the
-  like) no longer let a guard vouch for a later assignment: a result
-  reassigned in a loop after an early-exit check, or on one branch only, is
-  reported when that assignment is unchecked. `isset($v['key'])`,
-  `!empty($v['key'])` and `array_key_exists('key', $v)` count as checks of
-  `$v`, as do the condition of a `for` loop and a fallback chain tested in
-  place (`($u = a()) === false && ($u = b()) === false`).
-- Failure-value and request-data inspections understand more ways of
-  ruling a failure out: a statement that leaves on failure
-  (`$h !== false or exit;`, `$h = fopen($f, 'r') or die();`,
-  `$v ?: throw …;`), a failing branch that ends in a call that never returns
-  (a callee declared `never` such as PHPUnit's `fail()`, or a project function
-  or final/private method that always throws or exits), a test stored in a
-  boolean (`$ok = $v !== false; if (!$ok) { return; }`) while neither
-  variable is written, and, for PHP 8.0 and later, a builtin that only accepts
-  arrays or objects having returned (`count($v)` throws on `false`).
-  Positions PHP may skip (the right side of `??=`, arguments of a null-safe
-  call) prove nothing.
-- Functions of about two thousand lines and very long `elseif` chains no
-  longer exhaust the flow analysis budget.
-- `FileReadFailureUnchecked` accepts the same failure checks as the other
-  failure-value inspections (`$s !== false or exit;`, a test stored in a
-  boolean, a branch ending in a never-returning call, an early exit that also
-  has an `else` branch, loop conditions).
-- Passing an element of an array to a function or method (`$o->m($parts['host'])`)
-  no longer discards what is known about the array itself: an earlier failure
-  check still holds, and request data in its other elements is still reported.
-  Elements beside the one passed keep what was known of them.
-- Functions containing a `switch` are now followed by the flow analysis
-  (subject once, cases in order, fall-through, `default` anywhere, `break`
-  and `continue` with a level): value, failure-check and request-data
-  inspections report there as everywhere else. Only `goto` still leaves a
-  function unfollowed.
-- Request data a project function writes to a by-reference parameter
-  (`function fill(&$x) { $x = $_GET['a']; }`) reaches the caller's variable,
-  across files; a function that overwrites the parameter with clean data on
-  every path clears it, and one that may leave it alone keeps what it held.
-- A silenced call (`$s = @file_get_contents($f)`) is followed like the call
-  itself by the inspections that track a result back to its producer.
-- `ForkChildFallsIntoParentWork` counts the levels of `break 2`/`continue 2`
-  instead of assuming any level leaves the child block.
-- Request-data inspections accept a `switch` allow-list: inside an arm
-  reached only through non-numeric string labels, and after the switch when
-  the `default` arm replaces the value or leaves, the value is the matched
-  label. `switch (true)` cases are read as conditions, for request data and
-  for failure checks alike.
-- A by-reference sanitiser called as `Class::method($x)`, or on an object of
-  a `final` class, clears or escapes the argument again; an array of numbers
-  produced through a by-reference parameter keeps that property.
-- Failure checks hold for a result computed from a property, a loop variable
-  or a method call (`$s = gzdecode($this->data); $s !== false or exit;`):
-  every guard form the flow analysis reads is now honoured for such values,
-  not only for results whose inputs are all known.
-- A `switch` on the checked variable is a failure check: the cases after a
-  `false` or `null` label and the `default` arm hold a value that is neither
-  (`switch ($u) { case false: return; }`), as does a `true` case.
-- A `switch` allow-list also validates an element of a request superglobal
-  (`switch ($_GET['action']) { case 'list': echo $_GET['action']; }`), as long
-  as nothing that may run code (a call, an assignment, the use of a local
-  variable or property) comes between the match and the read.
-- In a `for` loop with a step expression, `continue` no longer runs the
-  statements that end the loop body: a guard such as
-  `if ($s === false) { continue; }` holds for what follows it, and a value
-  rewritten just before a `continue` no longer reaches the rest of the body.
-- A loop without a condition or with the constant `true` (`for (;;)`,
-  `while (true)`) is left only through `break`, `return`, a throw or an exit:
-  a failing branch that ends in such a loop is an early exit, and a function
-  that only loops never returns.
-- Passing a value to a required, typed parameter of a project function, or
-  of a static method named by its class and visible from the call, proves it
-  is not null afterwards, as PHP throws for null there.
-- A retry loop that stops on success or at the end of its input
-  (`while ($n !== false && ($u = parse_url($n)) === false)` followed by
-  `if ($n === false) return;`) is no longer reported: a later test of what
-  the left operand of `&&`/`||` read tells whether the assignment ran.
-- A project function that unsets or rebinds its by-reference parameter
-  (`unset($x)`, `$x = &$other`, `static $x`) is no longer taken to overwrite
-  the caller's variable, nor is one that replaces a by-reference variadic
-  array or rebinds the parameter through `[&$x] = …`; one that only calls
-  other project code no longer clears the request data the argument held. Request data a parameter
-  brings in is kept when the parameter is passed to an unresolved callee
-  before being returned or output.
-- `self::method()` and `parent::method()` resolve to the method that runs,
-  declared in the class or inherited: its return value, its sinks and what
-  it leaves in by-reference arguments are followed, and a by-reference
-  sanitiser called that way clears the argument.
-- A by-reference sanitiser called on an object (`$this->clean($x)`,
-  `$helper->clean($x)`) or through `static::` clears the argument when no
-  class among the analysed files extending the receiver's class (also
-  through a `class_alias()` name) replaces the method. A class extended
-  only outside the analysed paths is not seen.
-- A guard established on a `static` variable no longer holds after a call
-  that can run project code when the function assigns that variable and may
-  leave it false where it calls out or ends: a nested call of the function
-  may have replaced it. A static cache that never holds false stays
-  accepted. `FileReadFailureUnchecked`, `ScandirFailureIterated` and
-  `ImageDecodeFailureUnchecked` still accept such a guard.
-- Failure checks are read in more places: a guard whose body leaves inside
-  a `declare` block, a type predicate around an assignment
-  (`if (!is_string($s = f())) return;`), `switch (false)` cases, and a
-  variable that is only assigned, and checked, on some paths of a function
-  (it is null, not false, on the others).
-- An assignment written inside the target of another write
-  (`$this->seen[$id = $_GET['id']] = true;`), in a dynamic member name or in
-  a destructuring key is followed: the value it stores was not seen before.
-  A write through a reference to a variable variable (`$r = &$$name`) may
-  reach any variable.
-- A `break` or `continue` over several levels out of a `try` with a
-  `finally` block no longer leaves the function unanalysed.
-- A `do … while` loop left by `break`, or whose body ends in a `continue`,
-  is no longer taken for code that never falls through.
-- A result assigned inside a condition (`if (($u = parse_url($s)) === false)
-  { … } echo $u['host'];`), in an `else` branch, a `for` initialiser or a
-  `switch` subject is tracked to its producer by the failure-value
-  inspections that look for an earlier assignment.
-- `UnescapedHtmlOutput` keeps examining an output statement after a value a
-  `switch` matched, and reports request data read after a request
-  superglobal was overwritten with other request data.
-- `XslTransformationFailureConsumed` accepts a condition whose two operands
-  both exclude the failure value.
-- Project summaries are computed in parallel, which shortens the analysis
-  of large projects.
-- Statements written before a `do … while` loop are no longer analysed as
-  part of its body: a read before the loop does not see values assigned in
-  it, and a variable stepped in the loop is no longer taken for its value
-  after one iteration.
-- Failure-value inspections accept more guards: truthiness, `!empty()`, loose
-  comparison with `false`/`null`, type predicates, constant-first comparisons,
-  an assignment tested in place, `elseif`/`else` arms, short-circuit operands,
-  ternary arms and an early exit that also has an `else` branch.
-- Handle and object inspections notice when a tracked local is rebound by
-  destructuring, a loop target, a by-reference argument or `unset`, no longer
-  count a call in another `match` arm or behind a null-safe access as always
-  executed, and resolve `new self`.
-- Operand comparisons keep keyword-spelled constant names and named-argument
-  labels case-sensitive (`A::Array` is not `A::ARRAY`); `\X41` hex escapes are
-  decoded; `exit()` with empty parentheses ends a response with a known body.
-- Failure-value and request-data inspections read more checks: the arms of
-  `match (true)`, `|` and `&` between two tests, a strict `in_array()`
-  against a list of literals, a result assigned inside an `is_*()` test, and
-  a test kept in a flag across a method call. A `match` arm that throws,
-  exits or never returns no longer weakens what the other arms established.
-  Functions containing `goto` are followed (unless they also contain a
-  `try`), and a `foreach` target is only assigned when the loop body runs.
-- Where a `goto` label is written between the place a function first names
-  a checked variable, or a variable that can hold the same value, and a use
-  of it, a check is only accepted when the flow analysis finds it on every
-  path that reaches the use: a failure that jumps to the use, or a jump over
-  the check, is reported. Two variables can hold the same value when one is
-  assigned from the other (`=`, `=&`, `??=`) or taken out of it by a
-  `foreach`, directly or through others; a parameter that is only read
-  beside the value, passed to a call, joined to it or used as a key does
-  not count. A label written before all of that (a `retry:` label ahead of
-  the `try` that produces and checks the value) changes nothing. In a
-  function the flow analysis does not follow (one that has
-  both such a label and a `try`, a generator, one that evaluates or includes
-  code), `ParseUrlFailureDereferenced`,
-  `PosixAccountLookupFailureDereferenced`, `RealpathFailureUsedAsPath` and
-  `ScandirFailureIterated` then report the use whether it is checked or not,
-  and the inspections that need the flow analysis to find the producing call
-  report nothing. Code written after a `return`, `throw` or `goto` is
-  inspected again when a label makes it reachable: one that a reachable
-  `goto` names, written where control can go on from it to that code (not
-  in an endless loop written before that code, nor in an earlier `catch` of
-  the same `try`). In the top-level code of a namespace block any label
-  written there counts, and top-level code outside a namespace block is
-  always inspected.
-- Inspections that leave unreachable code alone no longer skip the body of a
-  property hook because of what is written around its class: a hook of a
-  class declared after a top-level `return` in a namespace block was skipped
-  where a method of the same class was not.
-- A check made on a `static` variable no longer holds after code that can
-  enter the function again without a written call (an object converted to
-  text, a magic property or offset access, the destructor of an object a
-  variable held when it is assigned again, a callback other than a PHP
-  function that only computes on text and numbers and raises no warning
-  whatever text it is given (`strlen`, `trim`, `intval`; not `hexdec` or
-  `abs`), a class PHP loads by the name it is given
-  (`method_exists($name, 'm')`, `is_callable('A::b')`, `defined('A::B')`,
-  `class_alias($name, 'B')`, `new ReflectionClass($name)`) or constructs for
-  a fetched row, a filter that one of PHP's own `FILTER_…` constants does
-  not name, a session or output-buffer handler, the callbacks of a cURL
-  transfer or an XML parser, a garbage collection; a warning that a PHP
-  function called directly raises by itself is not counted; reading a declared
-  property of `$this` or a constant of the class itself is no such code, and neither is
-  giving another value to a variable that held text, numbers or arrays of
-  them), nor, for
-  `FileReadFailureUnchecked`, `ImageDecodeFailureUnchecked`,
-  `IntlFormattingFailureUnchecked`, `ScandirFailureIterated`,
-  `ParseUrlFailureDereferenced` and `PosixAccountLookupFailureDereferenced`,
-  after a call that shares a statement, branch or loop with the read. A
-  static cache reset to `null`, a generator helper and a helper that only
-  copies or strictly tests a local no longer discard such a check.
-- `PregReplaceFailureUnchecked` and `FileReadFailureUnchecked` report a
-  result passed to a `string` parameter of a static method or of a method
-  of a known class, as they did for functions, when the declaration that
-  runs is known: its class is declared once in the analysed paths, and no
-  project class extending the receiver's declares the parameter otherwise.
-  A function declared twice, and any project declaration on a PHP target
-  below 7.0 (where `string` names a class), is no longer read as a string
-  use, nor is a `string` parameter with a `null` default, which accepts
-  null. Neither is an assertion or expectation of PHPUnit (`assert…` and
-  `expect…` methods of its `Assert` and `TestCase` classes, `assert…`
-  functions of `PHPUnit\Framework`): the test checks the value there.
-- `ParseUrlFailureDereferenced` and `PosixAccountLookupFailureDereferenced`
-  report an unchecked result when the result of another call also reaches
-  the read on a different path.
-- `GdPaletteIndexDecodedAsRgb` no longer reports a shift whose colour or
-  image is assigned differently on another path.
-- `UnescapedHtmlOutput` reports request data read after `unset()` or a
-  replacement of a request superglobal element when a later statement fills
-  it with request data again (also through a computed or nested key, a
-  reference, `$GLOBALS`, a destructuring or a `foreach` target, later in a
-  loop around the output, or possibly in a call made in between whose
-  callee is not known to leave the request superglobals alone: an unresolved
-  one, a project function, method or constructor that names one of them
-  (also as `${'_GET'}`, or in a default parameter value), takes an argument
-  by reference, is given an array holding a reference or calls other project
-  code, or a PHP function or method that runs project code: a callback, a
-  handler, a class loaded by name, a method of a PHP class the project
-  extends), and keeps
-  examining the output after a value derived from a
-  `switch`-matched label.
-- `UntrustedShellCommand` treats a project function that forwards its
-  argument to `proc_open` or a backtick command as a sink, unless
-  `proc_open` receives it in an argument vector.
-- Request data assigned to a `global` variable after a call in the same
-  function reaches the file-level reads of that global, and the functions
-  that read it after a call, whatever the order in which the functions are
-  written and through up to 16 globals copied into one another; below
-  PHP 7 a scalar parameter type no longer
-  counts as a check; a protected method called from a subclass and a
-  receiver typed by a doc comment are resolved for parameter checks.
-- `FractionalModuloOperand` reports an operand assigned before a `goto` label
-  that no jump leads back from.
+- Inspections that skip unreachable code no longer skip code a `goto` label
+  makes reachable, nor property hooks after a top-level `return`.
+- HTTP, cookie, PDO, mysqli and SQLite inspections compare names
+  case-insensitively and tolerate SQL comments and state restored elsewhere.
+- Malformed input no longer makes some inspections skip the file.
 
 ## [0.1.4] - 2026-10-10
 
