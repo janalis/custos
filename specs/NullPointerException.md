@@ -63,7 +63,8 @@ Terminology:
     null introduced solely by short-circuiting an earlier nullsafe access in
     this chain; keep null from the evaluated member's own result. A chain
     that certainly short-circuits has no evaluated result to dereference.
-    Drop unknown parts. If any part is `null` or `void`, and no *null-tested*
+    Signatures of classes unavailable at the configured PHP version do not
+    establish nullable member results. Drop unknown parts. If any part is `null` or `void`, and no *null-tested*
     entry (below) has the same method/function name as `X` **and** is
     structurally identical to `X` (same text modulo whitespace) → report the
     `->` token of `X->m`.

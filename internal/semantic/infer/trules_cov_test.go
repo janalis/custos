@@ -151,7 +151,7 @@ t('unknown', $i + $nope);
 	checkLabels(t, trulesLabels(t, src, phpversion.PHP84, func(r *TRules) { r.SoundArithmetic = true }),
 		map[string]string{
 			"plus": "array", "minus": "", "mixed": "", "plain": "array",
-			"float": "float", "div": "float|int", "pow": "int", "powVar": "float|int", "numStr": "float|int", "intInt": "int", "unknown": "",
+			"float": "float", "div": "float|int", "pow": "float|int", "powVar": "float|int", "numStr": "float|int", "intInt": "int", "unknown": "",
 		})
 }
 

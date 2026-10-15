@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/types"
 )
@@ -32,6 +33,11 @@ const bakery = `<?php
 function bake_loaf(array $recipe, $oven) {}
 
 class Oven {
+ #[PhpStormStubsElementAvailable(to: "7.4")]
+ /** @return array{warm: bool} */
+ public function versioned($old) {}
+ #[PhpStormStubsElementAvailable(from: "8.0")]
+ public function versioned($new) {}
     /** @var array{dial: int} */
     public $settings;
 
@@ -102,10 +108,7 @@ func TestRun(t *testing.T) {
 	if fn.File != fs.Path || c.File != fs.Path {
 		t.Errorf("file not recorded: %q %q", fn.File, c.File)
 	}
-	var m *index.Method
-	for _, x := range c.Methods {
-		m = x
-	}
+	m := c.Methods["preheat"]
 	var p *index.Property
 	for _, x := range c.Props {
 		p = x
@@ -137,7 +140,7 @@ func TestRunDefaultSource(t *testing.T) {
 	if code := run([]string{"-out", out}, &stdout, &stderr); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
-	if v, _ := os.ReadFile(filepath.Join(filepath.Dir(out), "VERSION")); string(v) != "fake-phpstorm-stubs-abc\n" {
+	if v, _ := os.ReadFile(filepath.Join(filepath.Dir(out), "VERSION")); string(v) != "fake-phpstorm-stubs-abc+index-v2\n" {
 		t.Errorf("VERSION = %q", v)
 	}
 	// No checkout found.
@@ -191,5 +194,22 @@ func TestNoShapes(t *testing.T) {
 	noShapes(&s)
 	if strings.Contains(s, "{") {
 		t.Errorf("shape kept: %q", s)
+	}
+}
+
+func TestVersionedInterfaces(t *testing.T) {
+	files := []*index.FileSymbols{{Classes: []*index.Class{
+		{FQN: "New", Avail: index.Avail{From: phpversion.PHP80}},
+		{FQN: "Newer", Avail: index.Avail{From: phpversion.PHP84}},
+		{FQN: "C", Interfaces: []string{"Old", "New", "New", "Newer"}},
+		{FQN: "DatePeriod", Interfaces: []string{"IteratorAggregate"}},
+	}, Functions: []*index.Function{{FQN: "is_real"}, {FQN: "keep"}}}}
+	versionedInterfaces(files)
+	c := files[0].Classes[2]
+	if len(c.InterfacesVer) != 2 || len(c.InterfacesVer[0].Interfaces) != 1 || len(c.InterfacesVer[1].Interfaces) != 3 {
+		t.Fatalf("%+v", c.InterfacesVer)
+	}
+	if len(files[0].Classes[3].InterfacesVer) != 1 || files[0].Functions[0].Avail.To != phpversion.PHP80-1 {
+		t.Fatal("overrides")
 	}
 }

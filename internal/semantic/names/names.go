@@ -15,10 +15,10 @@ import (
 // Scope is one namespace region with its imports.
 type Scope struct {
 	Span      syntax.Span
-	Namespace string            // without leading/trailing backslash; "" = global
-	Classes   map[string]string // lower-case alias -> FQN
-	Functions map[string]string // lower-case alias -> FQN
-	Consts    map[string]string // alias (case-sensitive) -> FQN
+	Namespace string
+	Classes   map[string]importBinding
+	Functions map[string]importBinding
+	Consts    map[string]importBinding
 }
 
 // Resolver resolves names in one file.
@@ -67,8 +67,47 @@ func New(f *syntax.File) *Resolver {
 	return r
 }
 
+type importBinding struct {
+	start   uint32
+	fqn     string
+	history *[]importBinding
+}
+
+func imported(entries map[string]importBinding, alias string, offset uint32) (string, bool) {
+	entry, ok := entries[alias]
+	if !ok {
+		return "", false
+	}
+	if entry.start > offset {
+		if entry.history == nil {
+			return "", false
+		}
+		history := *entry.history
+		i := sort.Search(len(history), func(i int) bool { return history[i].start > offset })
+		if i == 0 {
+			return "", false
+		}
+		entry = history[i-1]
+	}
+	return entry.fqn, true
+}
+
+func bindImport(entries map[string]importBinding, alias, fqn string, at uint32) {
+	entry := importBinding{start: at, fqn: fqn}
+	if previous, ok := entries[alias]; ok {
+		if previous.history == nil {
+			history := []importBinding{previous}
+			entry.history = &history
+		} else {
+			entry.history = previous.history
+			*entry.history = append(*entry.history, importBinding{start: previous.start, fqn: previous.fqn})
+		}
+	}
+	entries[alias] = entry
+}
+
 func newScope(span syntax.Span, ns string) *Scope {
-	return &Scope{Span: span, Namespace: ns, Classes: map[string]string{}, Functions: map[string]string{}, Consts: map[string]string{}}
+	return &Scope{Span: span, Namespace: ns, Classes: map[string]importBinding{}, Functions: map[string]importBinding{}, Consts: map[string]importBinding{}}
 }
 
 func (s *Scope) addUse(u *syntax.Use) {
@@ -84,11 +123,11 @@ func (s *Scope) addUse(u *syntax.Use) {
 		}
 		switch it.Type {
 		case syntax.UseFunction:
-			s.Functions[strings.ToLower(alias)] = fqn
+			bindImport(s.Functions, strings.ToLower(alias), fqn, u.Span().End)
 		case syntax.UseConst:
-			s.Consts[alias] = fqn
+			bindImport(s.Consts, alias, fqn, u.Span().End)
 		default:
-			s.Classes[strings.ToLower(alias)] = fqn
+			bindImport(s.Classes, strings.ToLower(alias), fqn, u.Span().End)
 		}
 	}
 }
@@ -133,7 +172,8 @@ func IsSpecialClass(name string) bool { return special[strings.ToLower(name)] }
 // `number` as the class only when imported).
 func (r *Resolver) Class(written string, offset uint32) string {
 	if probe, ok := strings.CutPrefix(written, "!"); ok {
-		return r.ScopeAt(offset).Classes[strings.ToLower(probe)]
+		fqn, _ := imported(r.ScopeAt(offset).Classes, strings.ToLower(probe), offset)
+		return fqn
 	}
 	if strings.HasPrefix(written, `\`) {
 		return written[1:]
@@ -146,7 +186,7 @@ func (r *Resolver) Class(written string, offset uint32) string {
 		return join(sc.Namespace, rest)
 	}
 	first, rest, qualified := strings.Cut(written, `\`)
-	if fqn, ok := sc.Classes[strings.ToLower(first)]; ok {
+	if fqn, ok := imported(sc.Classes, strings.ToLower(first), offset); ok {
 		if qualified {
 			return fqn + `\` + rest
 		}
@@ -168,12 +208,12 @@ func (r *Resolver) Function(written string, offset uint32) (fqn, fallback string
 	}
 	if strings.Contains(written, `\`) {
 		first, rest, _ := strings.Cut(written, `\`)
-		if ns, ok := sc.Classes[strings.ToLower(first)]; ok {
+		if ns, ok := imported(sc.Classes, strings.ToLower(first), offset); ok {
 			return ns + `\` + rest, ""
 		}
 		return join(sc.Namespace, written), ""
 	}
-	if fqn, ok := sc.Functions[strings.ToLower(written)]; ok {
+	if fqn, ok := imported(sc.Functions, strings.ToLower(written), offset); ok {
 		return fqn, ""
 	}
 	if sc.Namespace == "" {
@@ -193,12 +233,12 @@ func (r *Resolver) Const(written string, offset uint32) (fqn, fallback string) {
 	}
 	if strings.Contains(written, `\`) {
 		first, rest, _ := strings.Cut(written, `\`)
-		if ns, ok := sc.Classes[strings.ToLower(first)]; ok {
+		if ns, ok := imported(sc.Classes, strings.ToLower(first), offset); ok {
 			return ns + `\` + rest, ""
 		}
 		return join(sc.Namespace, written), ""
 	}
-	if fqn, ok := sc.Consts[written]; ok {
+	if fqn, ok := imported(sc.Consts, written, offset); ok {
 		return fqn, ""
 	}
 	if sc.Namespace == "" {

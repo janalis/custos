@@ -20,6 +20,7 @@ func TestReviewSafety(t *testing.T) {
 		fixed        string
 	}{
 		{"by-reference function", "<?php function fill(&$o) { $o = 'x'; } function f() { $n = 0; fill($n); return (int) $n; }", 0, ""},
+		{"unresolved method after cast", "<?php function f($o, int $n) { $c = (int) $n; $o->missing($n); return $c; }", 0, ""},
 		{"unresolved function", "<?php function f() { $n = 0; missing($n); return (int) $n; }", 0, ""},
 		{"callable variable", "<?php function f($g) { $n = 0; $g($n); return (int) $n; }", 0, ""},
 		{"variadic out parameter", "<?php function f() { $n = 0; sscanf('abc', '%s', $n); return (int) $n; }", 0, ""},

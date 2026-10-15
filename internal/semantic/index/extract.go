@@ -2,6 +2,7 @@ package index
 
 import (
 	"sort"
+	"strings"
 
 	"custos/internal/php/phpdoc"
 	"custos/internal/php/syntax"
@@ -10,18 +11,29 @@ import (
 )
 
 type extractor struct {
-	f         *syntax.File
-	r         *names.Resolver
-	out       *FileSymbols
-	templates map[string]bool   // @template names in scope (class + member)
-	classTpl  map[string]bool   // class-level @template names of the class being extracted
-	methodTpl map[string]bool   // @template names of the method being extracted
-	aliases   map[string]string // @phpstan-type / import-type names in scope
+	docClasses map[string]*Class
+	stub       bool
+	f          *syntax.File
+	r          *names.Resolver
+	out        *FileSymbols
+	templates  map[string]bool   // @template names in scope (class + member)
+	classTpl   map[string]bool   // class-level @template names of the class being extracted
+	methodTpl  map[string]bool   // @template names of the method being extracted
+	aliases    map[string]string // @phpstan-type / import-type names in scope
 }
 
 // Extract collects the symbols declared in f.
 func Extract(f *syntax.File) *FileSymbols {
-	x := &extractor{f: f, r: names.New(f), out: &FileSymbols{Path: f.Path}}
+	return extractFile(f, false)
+}
+
+// ExtractStubs collects symbols with PHP stub availability annotations enabled.
+func ExtractStubs(f *syntax.File) *FileSymbols {
+	return extractFile(f, true)
+}
+
+func extractFile(f *syntax.File, stub bool) *FileSymbols {
+	x := &extractor{stub: stub, f: f, r: names.New(f), out: &FileSymbols{Path: f.Path}}
 	var calls []*syntax.FuncCall
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		switch n := n.(type) {
@@ -118,7 +130,29 @@ func (x *extractor) typeStr(n syntax.Expr, at uint32) string {
 }
 
 func (x *extractor) docTypeStr(text string, at uint32) string {
-	t := types.FromDoc(text, x.resolver(at))
+	resolveType := x.docTypeResolver(at)
+	t := types.FromDocResolved(text, x.resolver(at), func(expr string) types.Type {
+		t := resolveType(expr)
+		if !t.IsUnknown() {
+			return t
+		}
+		for _, prefix := range []string{"key-of<", "value-of<"} {
+			if strings.HasPrefix(expr, prefix) && strings.HasSuffix(expr, ">") {
+				owner := expr[len(prefix) : len(expr)-1]
+				if !strings.ContainsAny(owner, "<>{}[]:") {
+					return types.Of(prefix + `\` + strings.TrimPrefix(x.resolver(at)(owner), `\`) + ">")
+				}
+			}
+		}
+		owner, member, ok := strings.Cut(expr, "::")
+		if !ok {
+			return types.Unknown
+		}
+		// Keep genuine, qualified PHPDoc constant syntax in index metadata.
+		// It is parsed with the project index by inference, never exposed as a
+		// runtime class type. Unsupported consumers conservatively read mixed.
+		return types.Of(`\` + strings.TrimPrefix(x.resolver(at)(owner), `\`) + "::" + member)
+	})
 	if t.IsUnknown() {
 		return ""
 	}
@@ -180,4 +214,44 @@ func (x *extractor) class(n *syntax.ClassLike) {
 	}
 	x.withTemplates(d, func() { x.classBody(n) })
 	x.aliases, x.classTpl = saved, savedTpl
+}
+
+// docTypeResolver reads constant declarations without depending on extraction
+// order, including enums declared after the documented declaration.
+func (x *extractor) docTypeResolver(at uint32) types.DocTypeResolver {
+	return func(expr string) types.Type {
+		return ResolveDocType(expr, x.resolver(at), func(name string) *Class {
+			if x.docClasses != nil {
+				return x.docClasses[strings.ToLower(name)]
+			}
+			x.docClasses = map[string]*Class{}
+			syntax.InspectFile(x.f, func(n syntax.Node) bool {
+				c, ok := n.(*syntax.ClassLike)
+				if !ok || c.Name == nil {
+					return true
+				}
+				fqn := c.Name.Value
+				if ns := x.r.Namespace(c.Span().Start); ns != "" {
+					fqn = ns + `\` + fqn
+				}
+				result := &Class{FQN: fqn, Kind: c.ClassKind, Consts: map[string]*ClassConst{}}
+				if c.EnumType != nil {
+					result.Props = map[string]*Property{"value": {Type: x.typeStr(c.EnumType, c.Span().Start)}}
+				}
+				for _, member := range c.Members {
+					switch m := member.(type) {
+					case *syntax.EnumCase:
+						result.Consts[m.Name.Value] = &ClassConst{Name: m.Name.Value, Case: true, Value: x.text(m.Value)}
+					case *syntax.ClassConst:
+						for _, k := range m.Consts {
+							result.Consts[k.Name.Value] = &ClassConst{Name: k.Name.Value, Type: x.typeStr(m.Type, m.Span().Start)}
+						}
+					}
+				}
+				x.docClasses[strings.ToLower(fqn)] = result
+				return true
+			})
+			return x.docClasses[strings.ToLower(name)]
+		})
+	}
 }

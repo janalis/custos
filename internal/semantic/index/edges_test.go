@@ -3,6 +3,8 @@ package index
 import (
 	"testing"
 
+	"custos/internal/php/syntax"
+
 	phpversion "custos/internal/php/version"
 )
 
@@ -83,7 +85,7 @@ class C extends Plain implements I {
 }
 
 func TestStubAttributes(t *testing.T) {
-	fs := extract(t, "stub.php", `<?php
+	fs := ExtractStubs(syntax.Parse("stub.php", []byte(`<?php
 #[LanguageLevelTypeAware(['8.0' => 'string'], default: 'int')]
 function a() {}
 #[LanguageLevelTypeAware(default: 'int')]
@@ -111,7 +113,7 @@ function h() {}
 function i() {}
 #[PhpStormStubsElementAvailable(8.1)]
 function j() {}
-`)
+`), syntax.Options{Version: phpversion.PHP84}))
 	want := map[string]struct {
 		ret      string
 		from, to phpversion.Version

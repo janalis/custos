@@ -47,12 +47,12 @@ func TestFromDoc(t *testing.T) {
 	if !FromDoc("", nil).IsUnknown() {
 		t.Error("empty doc type must be unknown")
 	}
-	for _, in := range []string{"{array}", "self::TYPE_*", "foo-bar", `A\\B`, "1abc"} {
+	for _, in := range []string{"{array}", "foo-bar", `A\\B`, "1abc"} {
 		if got := FromDoc(in, resolve); !got.IsUnknown() && got.String() != "int" {
 			t.Errorf("%q: invalid class name typed as %s", in, got)
 		}
 	}
-	if got := FromDoc("int|{array}", resolve).String(); got != "int" {
+	if got := FromDoc("int|{array}", resolve).String(); got != "int|mixed" {
 		t.Errorf("int|{array}: got %s", got)
 	}
 }

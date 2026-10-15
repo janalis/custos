@@ -84,7 +84,19 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.Ternary:
 		then := n.Then
 		if then == nil {
-			return types.Union(e.TypeOf(n.Cond).Without("null", "false"), e.TypeOf(n.Else))
+			t := e.TypeOf(n.Cond)
+			truthy := t.Without("null", "false", "bool")
+			if t.Has("bool") {
+				if truthy.IsUnknown() {
+					truthy = types.Of("true")
+				} else {
+					truthy = types.Union(truthy, types.Of("true"))
+				}
+			}
+			if truthy.IsUnknown() && !t.IsUnknown() {
+				return e.TypeOf(n.Else)
+			}
+			return types.Union(truthy, e.TypeOf(n.Else))
 		}
 		return types.Union(e.TypeOf(then), e.TypeOf(n.Else))
 	case *syntax.Instanceof, *syntax.Isset, *syntax.Empty:

@@ -56,3 +56,35 @@ func TestDecodeErrors(t *testing.T) {
 	}()
 	must(decode([]byte("x")))
 }
+
+func TestVersionedBuiltinMetadata(t *testing.T) {
+	ix := Index()
+	if !ix.Function("is_real", phpversion.PHP74).Avail.In(phpversion.PHP74) || ix.Function("is_real", phpversion.PHP80).Avail.In(phpversion.PHP80) {
+		t.Fatal("is_real availability")
+	}
+	if ix.FindMethod("WeakMap", "offsetGet", phpversion.PHP74) != nil || ix.FindMethod("WeakMap", "offsetGet", phpversion.PHP80) == nil {
+		t.Fatal("WeakMap method availability")
+	}
+	if ix.IsSubtype("DatePeriod", "IteratorAggregate", phpversion.PHP74) || !ix.IsSubtype("DatePeriod", "IteratorAggregate", phpversion.PHP80) {
+		t.Fatal("DatePeriod interfaces")
+	}
+	for _, tc := range []struct {
+		v phpversion.Version
+		n int
+	}{{phpversion.PHP74, 4}, {phpversion.PHP80, 3}} {
+		m := ix.FindMethod("PDO", "query", tc.v)
+		if m == nil || len(m.Params) != tc.n || !m.Builtin {
+			t.Fatalf("PDO query %v: %+v", tc.v, m)
+		}
+	}
+}
+
+func TestUnrestrictedBuiltinMethods(t *testing.T) {
+	ix := Index()
+	if method := ix.FindMethod("IntlCalendar", "get", 0); method == nil || !method.Builtin {
+		t.Fatalf("unrestricted Intl method: %+v", method)
+	}
+	if method := ix.FindMethod("PDO", "query", 0); method == nil || len(method.Params) != 3 {
+		t.Fatalf("unrestricted versioned method: %+v", method)
+	}
+}

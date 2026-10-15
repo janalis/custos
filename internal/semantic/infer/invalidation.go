@@ -86,7 +86,7 @@ var typeChecks = map[string][]string{
 	"is_long": {"int"}, "is_float": {"float"}, "is_double": {"float"}, "is_bool": {"bool", "true", "false"},
 	"is_null": {"null"}, "is_object": {"object"}, "is_callable": {"callable"}, "is_iterable": {"iterable", "array"},
 	"is_numeric": {"int", "float", "string"}, "is_scalar": {"int", "float", "string", "bool", "true", "false"},
-	"is_resource": {"resource"},
+	"is_resource": {"resource"}, "is_countable": {"array", `\Countable`},
 }
 
 // maxCondSteps caps the condition nodes one applyCond call examines. The

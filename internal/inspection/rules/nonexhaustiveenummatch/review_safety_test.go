@@ -28,7 +28,7 @@ func TestReviewNarrowingAndAliases(t *testing.T) {
 		{"guard does not exit", "function f(E $e) { if ($e === E::A) { echo 1; } return match($e) { E::B => 1 }; }", 1},
 		{"guard on other variable", "function f(E $e, E $o) { if ($o === E::A) { return 0; } return match($e) { E::B => 1 }; }", 1},
 		{"subject reassigned", "function f(E $e, E $o) { if ($e === E::A) { return 0; } $e = $o; return match($e) { E::B => 1 }; }", 1},
-		{"subject passed by reference", "function f(E $e) { if ($e === E::A) { return 0; } byRef($e); return match($e) { E::B => 1 }; }", 1},
+		{"subject type unknown after reference call", "function f(E $e) { if ($e === E::A) { return 0; } byRef($e); return match($e) { E::B => 1 }; }", 0},
 		{"by-reference parameter", "function f(E &$e) { if ($e === E::A) { return 0; } return match($e) { E::B => 1 }; }", 1},
 		{"loose comparison", "function f(E $e) { if ($e == E::A) { return 0; } return match($e) { E::B => 1 }; }", 1},
 		{"top-level guard", "if ($e === E::A) { exit; } $e = E::B; echo match($e) { E::A => 1 };", 1},

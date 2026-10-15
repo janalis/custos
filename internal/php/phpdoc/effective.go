@@ -19,7 +19,7 @@ func (d *Doc) EffectiveVars() []Param {
 }
 
 func annotationRank(name, base string) int {
-	switch name {
+	switch strings.ToLower(name) {
 	case "phpstan-" + base:
 		return 3
 	case "psalm-" + base:

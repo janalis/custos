@@ -7,9 +7,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/stubs"
 )
 
 // classReImplementsParentInterface reports `implements` entries already
@@ -42,23 +39,16 @@ func (classReImplementsParentInterface) Check(ctx *analysis.Context, n syntax.No
 	f := ctx.File
 	redundant := make([]bool, len(cl.Implements))
 	msgs := make([]string, len(cl.Implements))
-	var gated map[string]bool // E4, built for the first candidate only
 	for i, entry := range cl.Implements {
 		if entry.Span().Len() == 0 {
 			continue
 		}
 		iface := ix.Class(ctx.Names().Class(entry.Value, entry.Span().Start), ctx.PHP) // D2
-		if iface == nil || iface.Kind != syntax.KindInterface {
+		if iface == nil || iface.Kind != syntax.KindInterface || ctx.PHP != 0 && !iface.Avail.In(ctx.PHP) {
 			continue
 		}
 		k := criKey(iface.FQN)
 		if !inherited[k] { // D5
-			continue
-		}
-		if gated == nil {
-			gated = criInherited(ix, parent, ctx.PHP)
-		}
-		if !gated[k] {
 			continue
 		}
 		redundant[i] = true
@@ -81,38 +71,6 @@ func (classReImplementsParentInterface) Check(ctx *analysis.Context, n syntax.No
 }
 
 func criKey(fqn string) string { return strings.ToLower(strings.TrimPrefix(fqn, `\`)) }
-
-// criInherited is the inherited set of parent (D4) without the links a
-// built-in class only has in a later PHP version than ver (E4): the stubs
-// record one interface list per class, so `Throwable extends Stringable`
-// shows at every version, and a project polyfill of the interface would
-// make the entry look redundant where it is the only thing providing it. A
-// link leaving a built-in class is followed only when the stubs declare
-// its target at ver.
-func criInherited(ix *index.Index, parent *index.Class, ver phpversion.Version) map[string]bool {
-	builtin := stubs.Index()
-	seen := map[string]bool{criKey(parent.FQN): true}
-	queue := []*index.Class{parent}
-	for len(queue) > 0 && len(seen) < index.MaxAncestors {
-		c := queue[0]
-		queue = queue[1:]
-		stub := builtin.Class(c.FQN, ver) == c
-		links := c.Interfaces
-		if c.Parent != "" {
-			links = append([]string{c.Parent}, links...)
-		}
-		for _, l := range links {
-			if seen[criKey(l)] || (stub && len(builtin.ClassDecls(l, ver)) == 0) {
-				continue
-			}
-			if next := ix.Class(l, ver); next != nil {
-				seen[criKey(l)] = true
-				queue = append(queue, next)
-			}
-		}
-	}
-	return seen
-}
 
 // criRemoveEdit deletes entry idx of an implements list (F1–F3). The
 // separator removed with an entry is chosen so that the fixes of all

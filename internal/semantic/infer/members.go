@@ -172,7 +172,7 @@ func (e *Env) propType(p *index.Property, receiver string) types.Type {
 	if p.Type == "" && p.DocType == "" {
 		return e.bindMember(e.inferredProp(p), p.Class, p.TypeClass, receiver)
 	}
-	return e.bindMember(memberType(p.Type, p.DocType), p.Class, p.TypeClass, receiver)
+	return e.bindMember(e.memberType(p.Type, p.DocType), p.Class, p.TypeClass, receiver)
 }
 
 func (e *Env) propertyType(recv types.Type, name syntax.Expr, static bool) types.Type {
@@ -252,16 +252,16 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 		// only consulted when no ancestor declares one.
 		if pm := e.inheritedSignature(m); pm != nil {
 			if pm.Builtin {
-				return e.bindMember(builtinMemberType(pm.Return, pm.DocReturn), pm.Class, pm.TypeClass, origin)
+				return e.bindMember(e.builtinMemberType(pm.Return, pm.DocReturn), pm.Class, pm.TypeClass, origin)
 			}
-			return e.bindMember(memberType(pm.Return, pm.DocReturn), pm.Class, pm.TypeClass, origin)
+			return e.bindMember(e.memberType(pm.Return, pm.DocReturn), pm.Class, pm.TypeClass, origin)
 		}
 		return e.methodBodyReturn(m, virtual)
 	}
 	if m.Builtin {
-		return bind(builtinMemberType(m.Return, m.DocReturn))
+		return bind(e.builtinMemberType(m.Return, m.DocReturn))
 	}
-	return bind(memberType(m.Return, m.DocReturn))
+	return bind(e.memberType(m.Return, m.DocReturn))
 }
 
 // inheritedSignature returns the nearest method m overrides (in the parents
@@ -369,4 +369,21 @@ func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
 		return bindStatic(t, owner)
 	}
 	return literalTextType(k.Value)
+}
+
+// resolvedDoc retains cheap normalized member typing for ordinary contracts;
+// constant expressions are deferred until the complete project index exists.
+func (e *Env) resolvedDoc(doc string) string {
+	if !strings.Contains(doc, "::") && !strings.Contains(doc, "key-of<") && !strings.Contains(doc, "value-of<") {
+		return doc
+	}
+	return e.docType(doc, nil).DocString()
+}
+
+func (e *Env) memberType(declared, doc string) types.Type {
+	return memberType(declared, e.resolvedDoc(doc))
+}
+
+func (e *Env) builtinMemberType(declared, doc string) types.Type {
+	return builtinMemberType(declared, e.resolvedDoc(doc))
 }

@@ -5,6 +5,18 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- PHP type inference preserves unknown PHPDoc union members, resolves enum
+  cases and typed constants in documentation, and handles more template and
+  pseudo-type forms. Numeric unions, powers and shorthand ternaries retain
+  conservative result types; by-reference writes invalidate stale types.
+- PHPDoc tags ignore case and code examples. Imports apply from their
+  declaration, and trait visibility aliases honor the selected implementation.
+- Deprecation attributes and version-specific builtin interfaces, parameter
+  names and method signatures are indexed. Availability tags in application
+  documentation no longer impose PHP version restrictions.
+
 ## [0.1.5] - 2026-10-14
 
 ### Added

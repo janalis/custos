@@ -43,7 +43,7 @@ func (e *Env) closureReturn(n syntax.Expr) types.Type {
 	t := types.FromNode(retNode, e.resolver(at))
 	if d := e.DocOf(n); d != nil && !e.native {
 		if doc := d.EffectiveReturnType(); doc != "" {
-			t = pickMemberType(t, types.FromDoc(doc, e.resolverFor(n, at)))
+			t = pickMemberType(t, e.docType(doc, e.resolverFor(n, at)))
 		}
 	}
 	if t.IsUnknown() {
@@ -136,9 +136,9 @@ func (e *Env) callbackReturn(x syntax.Expr) types.Type {
 			return voidAsNull(e.BodyReturnType(f))
 		}
 		if f.Builtin {
-			return voidAsNull(builtinMemberType(f.Return, f.DocReturn))
+			return voidAsNull(e.builtinMemberType(f.Return, f.DocReturn))
 		}
-		return voidAsNull(memberType(f.Return, f.DocReturn))
+		return voidAsNull(e.memberType(f.Return, f.DocReturn))
 	}
 	return e.invokeType(e.TypeOf(x))
 }

@@ -214,7 +214,7 @@ function g(array $rows, A|B $o, A $a) {
 		}},
 		"specOnly": {spec, map[string]string{
 			"rebound": "string", "compound": "int", "byref": "array|string", "recv": "", "union": "int",
-			"subject": "array|string", "elems": "array", "parlit": "int", "elvis": "",
+			"subject": "array|string", "elems": "array", "parlit": "int", "elvis": "string",
 		}},
 	} {
 		got := collect(c.tr)

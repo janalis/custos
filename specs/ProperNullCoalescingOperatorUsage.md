@@ -59,7 +59,12 @@ not `null`):
   Types are normalised: `integer`→`int`, `boolean`/`true`/`false`→`bool`,
   any `T[]`→`array`, `Closure`→`callable`, `iterable`→ both `array` and
   `\Traversable` (custos diverges, see Divergences); class types are
-  fully-qualified names.
+  fully-qualified names. Documented string refinements such as
+  `uppercase-string` normalize to `string`; an array of those refinements
+  therefore participates as `array`. An unsupported PHPDoc union member
+  contributes `mixed`, rather than being discarded. After a resolved
+  by-reference call without an output contract, the argument's previous
+  element types cannot establish a usable set.
 - D4: complementary check:
   - `ALLOW_OVERLAPPING_TYPES` true: complementary when at least one type of
     `R` is in `L`'s set.

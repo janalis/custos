@@ -86,7 +86,7 @@ function run() {
  $m = 3; $m *= 2; t('multiply', $m);
  $p = 2; $p **= 3; t('power', $p);
 }
-`, map[string]string{"subtract": "int", "multiply": "int", "power": "int"})
+`, map[string]string{"subtract": "int", "multiply": "int", "power": "float|int"})
 }
 
 func TestArrayOperationsShapeLimit(t *testing.T) {

@@ -81,13 +81,17 @@ func generate(src, out, rev string, stdout io.Writer) error {
 		if len(f.Errors) > 0 {
 			errs++
 		}
-		fsyms := index.Extract(f)
+		fsyms := index.ExtractStubs(f)
 		fsyms.Path = "stubs/" + filepath.ToSlash(rel)
 		for _, c := range fsyms.Classes {
 			c.File = fsyms.Path
 			for _, m := range c.Methods {
 				noShapes(&m.DocReturn)
 				noParamShapes(m.Params)
+				for _, variant := range m.Variants {
+					noShapes(&variant.DocReturn)
+					noParamShapes(variant.Params)
+				}
 			}
 			for _, p := range c.Props {
 				noShapes(&p.DocType)
@@ -105,11 +109,12 @@ func generate(src, out, rev string, stdout io.Writer) error {
 		return err
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].Path < all[j].Path })
+	versionedInterfaces(all)
 	if err := write(out, all); err != nil {
 		return err
 	}
 	if rev == "" {
-		rev = filepath.Base(src)
+		rev = filepath.Base(src) + "+index-v2"
 	}
 	_ = os.WriteFile(filepath.Join(filepath.Dir(out), "VERSION"), []byte(rev+"\n"), 0o644)
 	nc, nf, nk := 0, 0, 0
@@ -152,4 +157,51 @@ func write(path string, all []*index.FileSymbols) error {
 	// Every step's error is reported, the file's Close included (a failed
 	// final flush would otherwise leave a truncated index unnoticed).
 	return errors.Join(gob.NewEncoder(zw).Encode(all), zw.Close(), f.Close())
+}
+
+// versionedInterfaces removes interfaces before their introduction. DatePeriod
+// adopted its pre-existing interface later (PHP manual, class.dateperiod).
+func versionedInterfaces(files []*index.FileSymbols) {
+	starts := map[string]phpversion.Version{}
+	for _, f := range files {
+		for _, c := range f.Classes {
+			starts[strings.ToLower(c.FQN)] = c.Avail.From
+		}
+	}
+	for _, f := range files {
+		for _, fn := range f.Functions {
+			if strings.EqualFold(fn.FQN, "is_real") {
+				fn.Avail.To = phpversion.PHP80 - 1
+			}
+		}
+		for _, c := range f.Classes {
+			var cuts []phpversion.Version
+			for _, iface := range c.Interfaces {
+				start := starts[strings.ToLower(iface)]
+				if strings.EqualFold(c.FQN, "DatePeriod") && strings.EqualFold(iface, "IteratorAggregate") {
+					start = phpversion.PHP80
+				}
+				if start > phpversion.Min {
+					cuts = append(cuts, start)
+				}
+			}
+			sort.Slice(cuts, func(i, j int) bool { return cuts[i] < cuts[j] })
+			for i, cut := range cuts {
+				if i > 0 && cut == cuts[i-1] {
+					continue
+				}
+				v := index.VerInterfaces{Until: cut}
+				for _, iface := range c.Interfaces {
+					start := starts[strings.ToLower(iface)]
+					if strings.EqualFold(c.FQN, "DatePeriod") && strings.EqualFold(iface, "IteratorAggregate") {
+						start = phpversion.PHP80
+					}
+					if start < cut {
+						v.Interfaces = append(v.Interfaces, iface)
+					}
+				}
+				c.InterfacesVer = append(c.InterfacesVer, v)
+			}
+		}
+	}
 }

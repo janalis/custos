@@ -738,7 +738,7 @@ func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
 		}
 	}
 	if doc != "" {
-		dt := types.FromDoc(doc, e.resolverFor(scope, at))
+		dt := e.docType(doc, e.resolverFor(scope, at))
 		if declared.IsUnknown() || declared.HasAny("array", "iterable", "mixed") {
 			return dt
 		}
@@ -781,7 +781,7 @@ func (e *Env) inlineVarDocs(scope syntax.Node, addDoc func(string, uint32, uint3
 			if name == "" {
 				continue
 			}
-			ty := types.FromDoc(typ, e.resolverFor(e.nodeAt(scope, t.Start), t.Start))
+			ty := e.docType(typ, e.resolverFor(e.nodeAt(scope, t.Start), t.Start))
 			addDoc(name, t.Start, t.End, func() types.Type { return ty })
 		}
 	}

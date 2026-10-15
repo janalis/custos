@@ -28,14 +28,18 @@ func (l *methodLookup) find(class, name string, inherited bool) (*Method, bool) 
 		}
 	}
 	c := l.ix.Class(k, l.ver)
-	if c == nil {
+	if c == nil || l.ver != 0 && !c.Avail.In(l.ver) {
 		return nil, false
 	}
 	l.visited++
 	l.path[l.depth] = k
 	l.depth++
 	defer func() { l.depth-- }()
-	if m := c.Methods[name]; m != nil && (l.ver == 0 || m.Avail.In(l.ver)) {
+	m := c.Methods[name]
+	if m != nil {
+		m = m.available(l.ver)
+	}
+	if m != nil {
 		if !m.Magic {
 			return m, false
 		}
@@ -173,6 +177,9 @@ func (l *methodLookup) selectTrait(c *Class, trait, name string) (*Method, bool)
 	var found, requirement *Method
 	var incompatible bool
 	for _, candidate := range c.Traits {
+		if trait == "" && excludedTrait(c, candidate, name) {
+			continue
+		}
 		if trait != "" && key(candidate) != key(trait) {
 			continue
 		}

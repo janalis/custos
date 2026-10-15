@@ -7,8 +7,10 @@ enum E { case A; case B; case C;
     const Z = 3;
     function own(): int { if ($this === self::A) { return 0; } return <error descr="Handle every reachable enum case.">match($this) { self::B => 1 }</error>; }
 }
+/** @param-out E $r */
 function byRef(E &$r): void { $r = E::C; }
 function byVal(E $v, ...$rest): void {}
+/** @param-out E $rest */
 function refTail(E $v, &...$rest): void {}
 function source(): E { return E::A; }
 function bad01(E $e): int { if ($e === E::A) { return 0; } return <error descr="Handle every reachable enum case.">match($e) { E::B => 1 }</error>; }

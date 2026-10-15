@@ -31,11 +31,36 @@ func Parse(comment string) *Doc {
 	// line by line was quadratic on long tags)
 	var cont [][]string
 	cur := -1
+	var fence string
+	code := false
 	for _, line := range strings.Split(body, "\n") {
 		line = strings.TrimSpace(line)
 		line = strings.TrimPrefix(line, "*")
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "@") {
+		low := strings.ToLower(line)
+		protected := code || fence != ""
+		if !code && (strings.HasPrefix(line, "```") || strings.HasPrefix(line, "~~~")) {
+			end := 1
+			for end < len(line) && line[end] == line[0] {
+				end++
+			}
+			mark := line[:end]
+			if fence == "" {
+				fence = mark
+			} else if mark[0] == fence[0] && len(mark) >= len(fence) && strings.TrimSpace(line[end:]) == "" {
+				fence = ""
+			}
+			protected = true
+		}
+		if i := strings.Index(low, "<code"); fence == "" && i >= 0 && len(low) > i+5 && (low[i+5] == '>' || low[i+5] == ' ' || low[i+5] == '\t') {
+			code = true
+			protected = true
+		}
+		if fence == "" && strings.Contains(low, "</code>") {
+			code = false
+			protected = true
+		}
+		if !protected && strings.HasPrefix(line, "@") {
 			name := line[1:]
 			text := ""
 			if i := strings.IndexAny(name, " \t("); i >= 0 {
@@ -64,27 +89,27 @@ func Parse(comment string) *Doc {
 	return d
 }
 
-// Tag returns the first tag with the given name (also matching psalm-/phpstan- prefixed variants when prefixed is true).
+// Tag returns the first tag with the given name, ignoring case.
 func (d *Doc) Tag(name string) (Tag, bool) {
 	for _, t := range d.Tags {
-		if t.Name == name {
+		if strings.EqualFold(t.Name, name) {
 			return t, true
 		}
 	}
 	return Tag{}, false
 }
 
-// Has reports whether a tag exists.
+// Has reports whether a tag exists, ignoring case.
 func (d *Doc) Has(name string) bool {
 	_, ok := d.Tag(name)
 	return ok
 }
 
-// All returns every tag with the given name.
+// All returns every tag with the given name, ignoring case.
 func (d *Doc) All(name string) []Tag {
 	var out []Tag
 	for _, t := range d.Tags {
-		if t.Name == name {
+		if strings.EqualFold(t.Name, name) {
 			out = append(out, t)
 		}
 	}
@@ -337,7 +362,7 @@ func (d *Doc) TemplateParams() []TemplateParam {
 }
 
 func isTemplateTag(name string) bool {
-	switch name {
+	switch strings.ToLower(name) {
 	case "template", "template-covariant", "template-contravariant",
 		"psalm-template", "psalm-template-covariant", "phpstan-template", "phpstan-template-covariant":
 		return true
@@ -350,7 +375,7 @@ func isTemplateTag(name string) bool {
 func (d *Doc) Templates() []string {
 	var out []string
 	for _, t := range d.Tags {
-		switch t.Name {
+		switch strings.ToLower(t.Name) {
 		case "template", "template-covariant", "template-contravariant",
 			"psalm-template", "psalm-template-covariant", "phpstan-template", "phpstan-template-covariant":
 			if f := strings.Fields(t.Text); len(f) > 0 {
@@ -378,7 +403,7 @@ func (d *Doc) TypeAliases() map[string]string {
 		out[k] = v
 	}
 	for _, t := range d.Tags {
-		switch t.Name {
+		switch strings.ToLower(t.Name) {
 		case "phpstan-type", "psalm-type":
 			text := strings.TrimSpace(t.Text)
 			name, def := text, ""

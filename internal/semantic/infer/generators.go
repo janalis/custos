@@ -140,7 +140,7 @@ func (e *Env) yieldType(n *syntax.Yield) types.Type {
 	if d == nil {
 		return types.Unknown
 	}
-	t := types.FromDoc(d.EffectiveReturnType(), e.resolverFor(scope, scope.Span().Start))
+	t := e.docType(d.EffectiveReturnType(), e.resolverFor(scope, scope.Span().Start))
 	args := t.TypeArgs(`\Generator`)
 	if len(args) < 3 || args[2].IsUnknown() || args[2].Has("mixed") {
 		return types.Unknown

@@ -75,7 +75,7 @@ func (passingByReferenceCorrectness) Check(ctx *analysis.Context, n syntax.Node)
 	if !ok {
 		return
 	}
-	params := declaredParams(cal.Params, ctx.PHP)
+	params := declaredParams(cal.Params)
 	for i, a := range list.Args { // D5
 		arg := a.(*syntax.Arg)
 		pi := i

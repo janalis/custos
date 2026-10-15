@@ -30,7 +30,7 @@ final class Calc
         return $result;
     }
 
-    public function raisedLiteral(int $base): int
+    public function raisedLiteral(int $base)
     {
         $result = $base;
         $result **= 2;
@@ -39,19 +39,29 @@ final class Calc
         return $result;
     }
 
-    public function square(int $n): int
+    public function square(int $n)
     {
         return $n ** 2;
     }
 
-    public function floating(float $base, int $exp): float
+    public function floating(float $base, int $exp)
     {
         return $base ** $exp;
     }
 
-    public function root(int $n): float
+    public function root(int $n)
     {
         return $n ** 0.5;
+    }
+
+    public function literalPower(): int
+    {
+        return 2 ** 3;
+    }
+
+    public function overflowingPower()
+    {
+        return 2 ** 63;
     }
 
     public function scale(int $n): int

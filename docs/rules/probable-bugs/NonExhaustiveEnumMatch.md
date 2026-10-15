@@ -38,7 +38,7 @@ Reported:
 
 ## Exceptions (no report)
 
-- E1. Exhaustive matches, flow-narrowed case sets, default arms and unknown subject types are excluded.
+- E1. Exhaustive matches, flow-narrowed case sets, default arms and unknown subject types are excluded. A resolved by-reference call without an output contract invalidates the previous enum type; its parameter declaration constrains entry to the call, not the value returned through the reference.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 - E3. A match with an arm condition that is not a constant of the subject's enum, or is a constant of it that cannot be traced to a case (a non-case value, an unknown name, a dynamic name), has an unknown arm set and is not reported.
 

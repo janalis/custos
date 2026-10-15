@@ -16,6 +16,8 @@ var pseudo = map[string][]string{
 	"positive-int": {"int"}, "negative-int": {"int"}, "non-positive-int": {"int"}, "non-negative-int": {"int"},
 	"non-zero-int": {"int"}, "non-empty-string": {"string"}, "numeric-string": {"string"},
 	"literal-string": {"string"}, "lowercase-string": {"string"}, "non-falsy-string": {"string"},
+	"non-empty-literal-string": {"string"}, "non-empty-lowercase-string": {"string"}, "uppercase-string": {"string"},
+	"callable-object": {"object", "callable"}, "non-empty-mixed": {"mixed"},
 	"truthy-string": {"string"}, "class-string": {"string"}, "interface-string": {"string"},
 	"trait-string": {"string"}, "enum-string": {"string"}, "callable-string": {"string"},
 	"non-empty-array": {"array"}, "list": {"array"}, "non-empty-list": {"array"},
@@ -47,17 +49,27 @@ const (
 
 // docParser carries the work budget of one FromDoc call.
 type docParser struct {
-	budget int // parts left
-	bytes  int // text bytes left to scan
+	budget      int // parts left
+	bytes       int // text bytes left to scan
+	resolveType DocTypeResolver
 }
+
+// DocTypeResolver resolves constant, enum and indexed PHPDoc expressions.
+// Unknown results fall back to conservative parsing.
+type DocTypeResolver func(expression string) Type
 
 // FromDoc parses a PHPDoc type expression.
 func FromDoc(text string, resolve Resolver) Type {
+	return FromDocResolved(text, resolve, nil)
+}
+
+// FromDocResolved parses PHPDoc using optional semantic type resolution.
+func FromDocResolved(text string, resolve Resolver, resolveType DocTypeResolver) Type {
 	text = strings.TrimSpace(text)
 	if text == "" || len(text) > MaxDocTypeLen {
 		return Unknown
 	}
-	p := docParser{budget: maxDocParts, bytes: maxDocBytes}
+	p := docParser{budget: maxDocParts, bytes: maxDocBytes, resolveType: resolveType}
 	return p.union(text, resolve, 0)
 }
 
@@ -79,14 +91,14 @@ func (p *docParser) union(text string, resolve Resolver, depth int) Type {
 	var infos, pts []Type
 	for _, part := range parts {
 		pt := p.part(part, resolve, depth)
+		if pt.IsUnknown() {
+			pt = Mixed
+		}
 		pts = append(pts, pt)
 		atoms = append(atoms, pt.atoms...)
 		if pt.hasArrayAtom() {
 			infos = append(infos, pt)
 		}
-	}
-	if len(atoms) == 0 {
-		return Unknown
 	}
 	t := Of(atoms...)
 	if len(infos) > 0 {
@@ -148,6 +160,18 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		}
 		return Int
 	}
+
+	// Indexed access to a literal shape or a resolved alias.
+	if strings.HasSuffix(s, "]") && !strings.HasSuffix(s, "[]") {
+		if i := strings.LastIndexByte(s, '['); i > 0 {
+			container := p.part(s[:i], resolve, depth+1)
+			key := strings.Trim(s[i+1:len(s)-1], "'\"")
+			if t, ok := container.ShapeKey(key); ok {
+				return t
+			}
+			return Mixed
+		}
+	}
 	// T[]
 	if strings.HasSuffix(s, "[]") {
 		in := p.part(s[:len(s)-2], resolve, depth+1)
@@ -161,6 +185,15 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		}
 		return t
 	}
+	// Constant types require semantic information; unsupported constants are mixed.
+	if strings.Contains(s, "::") && !strings.ContainsAny(s, "<{(") {
+		if p.resolveType != nil {
+			if t := p.resolveType(s); !t.IsUnknown() {
+				return t
+			}
+		}
+		return Mixed
+	}
 	// Generic forms: name<...> and shapes name{...}, callable(...)
 	base, args := s, ""
 	if i := strings.IndexAny(s, "<{("); i > 0 {
@@ -168,11 +201,35 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 	}
 	low := strings.ToLower(base)
 	switch low {
+	case "key-of", "value-of":
+		if strings.HasPrefix(args, "<") && matchingClose(args) == len(args)-1 {
+			inner := p.union(args[1:len(args)-1], resolve, depth+1)
+			result := inner.Elem()
+			for _, key := range inner.ShapeKeys() {
+				if result.IsUnknown() {
+					result = key.Type
+				} else {
+					result = Union(result, key.Type)
+				}
+			}
+			if low == "key-of" {
+				result = inner.ArrayKey()
+			}
+			if !result.IsUnknown() {
+				return result
+			}
+			if p.resolveType != nil {
+				if t := p.resolveType(s); !t.IsUnknown() {
+					return t
+				}
+			}
+		}
+		return Mixed
 	case "array", "list", "non-empty-array", "non-empty-list", "iterable":
 		return p.arrayPart(low, args, resolve, depth)
-	case "callable", "closure", "\\closure":
+	case "callable", "pure-callable", "closure", "\\closure", "pure-closure":
 		atom := `\Closure`
-		if low == "callable" {
+		if low == "callable" || low == "pure-callable" {
 			atom = "callable"
 		}
 		t := Of(atom)

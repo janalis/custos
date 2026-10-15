@@ -130,8 +130,8 @@ func TestPHPDocUnionMetadataControls(t *testing.T) {
 		}
 	}
 	for _, doc := range []string{"int|{invalid}", "{invalid}|int"} {
-		if got := FromDoc(doc, nil); !got.Equal(Int) {
-			t.Errorf("%s: existing partial-union atoms changed to %s", doc, got)
+		if got := FromDoc(doc, nil); !got.Equal(Of("int", "mixed")) {
+			t.Errorf("%s: conservative partial-union atoms changed to %s", doc, got)
 		}
 	}
 }

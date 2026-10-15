@@ -105,7 +105,8 @@ The argument list is irrelevant (any number of arguments, including none).
 - **E4** Names not in either table.
 - **E5** The call resolves to a global function the project itself
   declares, for a name PHP does not provide at the analysed level (`close`
-  is not a PHP function, `recode` left with its extension after 7.3). PHP
+  is not a PHP function, `recode` left with its extension after 7.3, and
+  `is_real` was removed in PHP 8.0). PHP
   refuses to redeclare a built-in, so such a declaration can only load
   where the built-in is absent: the call runs project code, which is not an
   alias of anything. This covers plain declarations and polyfills guarded

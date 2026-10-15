@@ -104,8 +104,10 @@ type Function struct {
 
 // Method is a class member function.
 type Method struct {
-	Name  string `json:"name"`
-	Class string `json:"-"` // declaring class FQN
+	// Variants are older, separately declared stub signatures.
+	Variants []*Method `json:"variants,omitempty"`
+	Name     string    `json:"name"`
+	Class    string    `json:"-"` // declaring class FQN
 	// TypeClass is the effective trait-import owner on transient lookup copies.
 	// Class remains the original declaration for templates and body analysis.
 	TypeClass  string     `json:"-"`
@@ -208,6 +210,7 @@ func (p *Property) WriteVisibility(ver phpversion.Version) Visibility {
 
 // ClassConst is a class constant or enum case.
 type ClassConst struct {
+	Deprecated bool        `json:"dep,omitempty"`
 	Name       string      `json:"name"`
 	Class      string      `json:"-"`
 	TypeClass  string      `json:"-"` // effective trait-import owner; lookup copies only
@@ -229,8 +232,15 @@ type TraitAdaptation struct {
 	Final      bool        `json:"final,omitempty"`
 }
 
+// VerInterfaces lists implemented interfaces before Until.
+type VerInterfaces struct {
+	Until      phpversion.Version
+	Interfaces []string
+}
+
 // Class is a class, interface, trait or enum.
 type Class struct {
+	InterfacesVer    []VerInterfaces        `json:"ifacesVer,omitempty"`
 	FQN              string                 `json:"fqn"`
 	Anonymous        bool                   `json:"anonymous,omitempty"`
 	Kind             syntax.ClassKind       `json:"kind,omitempty"`

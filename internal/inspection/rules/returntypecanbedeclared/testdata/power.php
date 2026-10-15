@@ -30,7 +30,7 @@ final class Calc
         return $result;
     }
 
-    public function <weak_warning descr="Declare ': int' as the return type.">raisedLiteral</weak_warning>(int $base)
+    public function raisedLiteral(int $base)
     {
         $result = $base;
         $result **= 2;
@@ -39,19 +39,29 @@ final class Calc
         return $result;
     }
 
-    public function <weak_warning descr="Declare ': int' as the return type.">square</weak_warning>(int $n)
+    public function square(int $n)
     {
         return $n ** 2;
     }
 
-    public function <weak_warning descr="Declare ': float' as the return type.">floating</weak_warning>(float $base, int $exp)
+    public function floating(float $base, int $exp)
     {
         return $base ** $exp;
     }
 
-    public function <weak_warning descr="Declare ': float' as the return type.">root</weak_warning>(int $n)
+    public function root(int $n)
     {
         return $n ** 0.5;
+    }
+
+    public function <weak_warning descr="Declare ': int' as the return type.">literalPower</weak_warning>()
+    {
+        return 2 ** 3;
+    }
+
+    public function overflowingPower()
+    {
+        return 2 ** 63;
     }
 
     public function <weak_warning descr="Declare ': int' as the return type.">scale</weak_warning>(int $n)

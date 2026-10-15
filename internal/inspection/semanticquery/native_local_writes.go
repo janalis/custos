@@ -250,7 +250,7 @@ func (w *nativeLocalWrites) arguments(ctx *analysis.Context, call syntax.Node, l
 		}
 		written := arg.ByRef || assume
 		if resolved {
-			written = arg.ByRef || arg.Unpack || !nativeByValueParameter(ctx, params, arg, at)
+			written = arg.ByRef || arg.Unpack || !nativeByValueParameter(params, arg, at)
 		}
 		if !written {
 			continue
@@ -292,16 +292,12 @@ func nativeCalleeParameters(ctx *analysis.Context, call syntax.Node) (params []i
 }
 
 // nativeByValueParameter proves the parameter an argument binds to is taken
-// by value. Parameters unavailable at the target version are not counted, and
+// by value. The resolved signature already excludes unavailable parameters;
 // a surplus argument of a non-variadic callee binds to nothing.
-func nativeByValueParameter(ctx *analysis.Context, params []index.Param, arg *syntax.Arg, position int) bool {
+func nativeByValueParameter(params []index.Param, arg *syntax.Arg, position int) bool {
 	var last *index.Param
-	seen := 0
 	for i := range params {
 		p := &params[i]
-		if !p.Avail.In(ctx.PHP) {
-			continue
-		}
 		last = p
 		if arg.Name != nil {
 			if p.Name == arg.Name.Value {
@@ -309,10 +305,9 @@ func nativeByValueParameter(ctx *analysis.Context, params []index.Param, arg *sy
 			}
 			continue
 		}
-		if seen == position {
+		if i == position {
 			return !p.ByRef
 		}
-		seen++
 	}
 	return arg.Name == nil && (last == nil || !last.Variadic || !last.ByRef)
 }

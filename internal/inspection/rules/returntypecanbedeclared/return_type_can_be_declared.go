@@ -596,7 +596,7 @@ func rtdScanVars(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Metho
 				mark(x.Var, rtdRef)
 				mark(x.Value, rtdRef)
 			}
-			if v, ok := x.Var.(*syntax.Variable); ok && rtdAssignsPower(ctx, class, x) {
+			if v, ok := x.Var.(*syntax.Variable); ok && rtdAssignsPower(x) {
 				powers[v.Name] = true
 			}
 		case *syntax.ArrayItem:
@@ -638,17 +638,10 @@ func rtdScanVars(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Metho
 	return &rtdVars{refs: out, powers: powers}
 }
 
-// rtdAssignsPower reports whether a stores an integer power: `**=`, or a
-// plain assignment of an expression with such an operand.
-func rtdAssignsPower(ctx *analysis.Context, class *syntax.ClassLike, a *syntax.Assign) bool {
-	switch a.Op.Kind {
-	case syntax.TPowEqual:
-		return !rtdNaturalLiteral(a.Value)
-	case syntax.TEqual:
-		_, power := rtdOperandFacts(ctx, class, &rtdVars{}, a.Value)
-		return power
-	}
-	return false
+// rtdAssignsPower reports a compound power whose exponent may be negative.
+// Ordinary power expressions already retain float in their inferred type.
+func rtdAssignsPower(a *syntax.Assign) bool {
+	return a.Op.Kind == syntax.TPowEqual && !rtdNaturalLiteral(a.Value)
 }
 
 // rtdNaturalLiteral reports whether e is a non-negative integer literal (a
@@ -773,10 +766,6 @@ func rtdOperandFacts(ctx *analysis.Context, class *syntax.ClassLike, vars *rtdVa
 		case *syntax.ClassConstFetch:
 			if rtdLateConst(ctx, class, x) {
 				unstable = true
-			}
-		case *syntax.Binary:
-			if x.Op.Kind == syntax.TPow && ctx.TypeOf(x).OnlyOf("int") && !rtdNaturalLiteral(x.Right) {
-				power = true
 			}
 		}
 	})

@@ -131,7 +131,7 @@ func (e *Env) DocOf(n syntax.Node) *phpdoc.Doc {
 func (e *Env) scopeDocs(n syntax.Node) *docScope {
 	for n != nil {
 		switch n.(type) {
-		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.PropertyHook, *syntax.ClassLike:
+		case *syntax.Function, *syntax.Method, *syntax.Closure, *syntax.ArrowFunction, *syntax.PropertyHook, *syntax.ClassLike:
 		default:
 			n = n.Parent()
 			continue
@@ -217,4 +217,11 @@ func (e *Env) resolverFor(n syntax.Node, at uint32) types.Resolver {
 		}
 		return e.className(w, at)
 	}
+}
+
+// docType resolves PHPDoc constants through the current project index.
+func (e *Env) docType(text string, resolve types.Resolver) types.Type {
+	return types.FromDocResolved(text, resolve, func(expr string) types.Type {
+		return index.ResolveDocType(expr, resolve, func(name string) *index.Class { return e.Index.Class(name, e.PHP) })
+	})
 }

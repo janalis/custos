@@ -20,7 +20,9 @@ entry.
   `implements` list. Interfaces (`interface X extends …`) are not concerned.
 - **D2** Resolve each `implements` entry to an interface declaration (through
   namespace and `use` aliases, e.g. `use \Countable as Sized;` then
-  `implements Sized`). Unresolvable entries are ignored.
+  `implements Sized`). Unresolvable entries and declarations unavailable at
+  the configured PHP version are ignored. A project polyfill remains a
+  valid interface at that version.
 - **D3** Resolve the direct parent class `P` (`extends`). No parent, or an
   unresolvable one → nothing.
 - **D4** Build the inherited set of `P` (P itself excluded): every interface
@@ -39,9 +41,9 @@ entry.
 - **E3** Redundancy *within* the class's own list (`implements A, B` where
   `B extends A`, no parent involved) is not reported.
 - **E4** The parent only covers the entry through a built-in class whose
-  link to that interface does not exist at the target PHP version. When
-  building the inherited set, a link leaving a built-in class is followed
-  only if PHP itself declares the linked interface at the target version.
+  link to that interface does not exist at the target PHP version. The inherited set uses
+  the index's version-specific interface lists, so a built-in interface
+  link is followed only when PHP provides it at the target version.
   `class E extends \Exception implements \Stringable` is therefore silent
   below 8.0 (exceptions became `Stringable` in 8.0; with a polyfilled
   interface the entry is what makes the class `Stringable`) and reported

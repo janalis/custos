@@ -530,51 +530,14 @@ func CheckPdoSelectRowCountAssumption(ctx *analysis.Context, n syntax.Node, mess
 	var fixes []diagnostic.Fix
 	report := false
 
-	facts, known := pdoRowCountSQL(ctx, c)
-	report = known && facts.selectQuery
+	if NativeMethod(ctx, c, "PDOStatement", "rowCount") {
+		facts, known := nativePrepared(ctx, c.Var)
+		report = known && facts.selectQuery
+	}
 
 	if report {
 		ctx.ReportNode(c, message, fixes...)
 	}
-}
-
-// pdoRowCountSQL returns the scanned SQL of the statement c calls rowCount()
-// on. The statement is either typed as PDOStatement and prepared or queried
-// from PDO, or it is the proven result of a builtin PDO::query() call whose
-// signature the stub index does not list for the target version.
-func pdoRowCountSQL(ctx *analysis.Context, c *syntax.MethodCall) (sqlFacts, bool) {
-	if NativeMethod(ctx, c, "PDOStatement", "rowCount") {
-		return nativePrepared(ctx, c.Var)
-	}
-	id, ok := c.Name.(*syntax.Identifier)
-	if !ok || !strings.EqualFold(id.Value, "rowCount") {
-		return sqlFacts{}, false
-	}
-	origin, ok := NativeValue(ctx, c.Var).(*syntax.MethodCall)
-	if !ok || !pdoUnversionedQuery(ctx, origin) {
-		return sqlFacts{}, false
-	}
-	sql, known := NativeString(ctx, CallArgument(origin.Args, 0, "query"))
-	if !known {
-		return sqlFacts{}, false
-	}
-	return scanNativeSQL(sql)
-}
-
-// pdoUnversionedQuery proves that c calls the builtin PDO::query(), looking the
-// method up without a target version: an override in a subclass is found
-// first and is not builtin.
-func pdoUnversionedQuery(ctx *analysis.Context, c *syntax.MethodCall) bool {
-	id, ok := c.Name.(*syntax.Identifier)
-	if !ok || !strings.EqualFold(id.Value, "query") {
-		return false
-	}
-	classes := ctx.Types().Native().TypeOf(c.Var).Classes()
-	if len(classes) != 1 || !ctx.Index().IsSubtype(classes[0], "PDO", ctx.PHP) {
-		return false
-	}
-	m := ctx.Index().FindMethod(classes[0], "query", 0)
-	return m != nil && m.Builtin
 }
 
 // CheckTransactionEarlyReturn checks the independently specified contract.

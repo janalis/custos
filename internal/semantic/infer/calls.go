@@ -117,7 +117,7 @@ func (e *Env) declCallType(f *index.Function, n *syntax.FuncCall) types.Type {
 		return e.BodyReturnType(f)
 	}
 	if f.Builtin {
-		return builtinMemberType(f.Return, f.DocReturn)
+		return e.builtinMemberType(f.Return, f.DocReturn)
 	}
-	return memberType(f.Return, f.DocReturn)
+	return e.memberType(f.Return, f.DocReturn)
 }

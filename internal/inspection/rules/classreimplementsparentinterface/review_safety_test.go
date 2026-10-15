@@ -18,6 +18,9 @@ func TestReviewSafety(t *testing.T) {
 		findings int
 		fixed    string
 	}{
+		{"user parent future builtin before 8.0", phpversion.PHP74, "<?php class P implements \\Stringable {} class C extends P implements \\Stringable {}", 0, ""},
+		{"user parent builtin from 8.0", phpversion.PHP80, "<?php class P implements \\Stringable {} class C extends P implements \\Stringable {}", 1, "<?php class P implements \\Stringable {} class C extends P {}"},
+		{"user polyfill before 8.0", phpversion.PHP74, "<?php interface Stringable {} class P implements Stringable {} class C extends P implements Stringable {}", 1, "<?php interface Stringable {} class P implements Stringable {} class C extends P {}"},
 		{"stringable before 8.0", phpversion.PHP74, "<?php class E extends \\Exception implements \\Stringable {}", 0, ""},
 		{"stringable from 8.0", phpversion.PHP80, "<?php class E extends \\Exception implements \\Stringable {}", 1, "<?php class E extends \\Exception {}"},
 		{"throwable before 8.0", phpversion.PHP74, "<?php class E extends \\Exception implements \\Throwable {}", 1, "<?php class E extends \\Exception {}"},

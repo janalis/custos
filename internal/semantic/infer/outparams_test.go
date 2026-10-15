@@ -37,7 +37,7 @@ class Svc {
 `, map[string]string{
 		"m": "string[]", "mf": "array", "all": "string[][]", "c": "string[]", "count": "int",
 		"q": "array", "out": "string[]", "code": "int", "ints": "int[]|string[]",
-		"o": `\App\Foo`, "n": "int", "p": "string", "lines": "string[]", "x": `\App\Foo`,
+		"o": `\App\Foo`, "n": "int", "p": "?unknown", "lines": "string[]", "x": `\App\Foo`,
 		"y": "int|string[]",
 	})
 }

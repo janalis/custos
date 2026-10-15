@@ -79,12 +79,12 @@ engine enforce the contract and documents it in the signature.
     has a declared type; inside a trait, any such read.
   Other builtin functions are left to inference, which knows their output
   parameters (`preg_match()`, `exec()`, …).
-- **D5d** (custos) A returned expression with an operand (as in D5c) that is
-  an integer `**` whose exponent is not a non-negative integer literal also
-  contributes `float`: a negative exponent yields a float. So does an
-  operand that is a variable the method's own body assigns such a power
-  (`$v = $a ** $b;`, with the power among the operands of the assigned
-  value) or raises with `**=` and a non-literal exponent.
+- **D5d** (custos) Powers contribute both `int` and `float` unless literal
+  integer operands prove a non-negative exponent and a result within the
+  supported integer range. A non-negative literal exponent alone does not
+  exclude overflow of an unknown integer base. This also applies through
+  assignments and compound `**=` writes. A single integer or float return
+  declaration is withheld for these uncertain results.
 - **D6** If `R0` contains any unknown member, stop — unless `R0` has exactly
   two members, exactly one of which is known (a contribution from an
   unresolvable parent/interface declaration must not block the report; in our

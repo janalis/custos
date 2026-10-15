@@ -38,10 +38,10 @@ func NativeNewClass(ctx *analysis.Context, n *syntax.New) *index.Class {
 		if strings.EqualFold(name.Value, "self") {
 			return nativeSelfClass(ctx, n)
 		}
-		return ctx.Index().Class(ctx.Names().Class(name.Value, name.Span().Start), ctx.PHP)
+		return nativeAvailableClass(ctx, ctx.Names().Class(name.Value, name.Span().Start))
 	}
 	if name, ok := astquery.QuotedStringValue(NativeLocalValue(ctx, n.Class)); ok {
-		return ctx.Index().Class(strings.TrimPrefix(name, `\`), ctx.PHP)
+		return nativeAvailableClass(ctx, strings.TrimPrefix(name, `\`))
 	}
 	return nil
 }
@@ -59,7 +59,7 @@ func nativeSelfClass(ctx *analysis.Context, at syntax.Node) *index.Class {
 			if p.Name == nil || p.ClassKind == syntax.KindTrait {
 				return nil
 			}
-			return ctx.Index().Class(ctx.Types().ClassFQN(p), ctx.PHP)
+			return nativeAvailableClass(ctx, ctx.Types().ClassFQN(p))
 		}
 	}
 	return nil
@@ -817,4 +817,14 @@ func NativeMethodStateCalls(ctx *analysis.Context, at syntax.Node, e syntax.Expr
 		}
 	}
 	return out
+}
+
+// nativeAvailableClass keeps best-effort index candidates out of runtime
+// contracts when the configured PHP version cannot provide the class.
+func nativeAvailableClass(ctx *analysis.Context, name string) *index.Class {
+	c := ctx.Index().Class(name, ctx.PHP)
+	if c != nil && !c.Avail.In(ctx.PHP) {
+		return nil
+	}
+	return c
 }

@@ -16,7 +16,7 @@ func (ix *Index) ClassDecls(fqn string, ver phpversion.Version) []*Class {
 				continue
 			}
 			if ver == 0 || c.Avail.In(ver) {
-				out = append(out, c)
+				out = append(out, c.at(ver))
 			}
 		}
 		l.mu.RUnlock()

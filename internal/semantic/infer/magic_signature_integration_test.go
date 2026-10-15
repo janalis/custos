@@ -39,10 +39,10 @@ function run(Service $service) {
 `)
 	expectShapes(t, got, map[string]string{
 		"plain":    "int[]{k: int}",
-		"instance": "int[]",
-		"named":    "int[]",
-		"static":   "int[]",
-		"variadic": "int[]",
+		"instance": "?unknown",
+		"named":    "?unknown",
+		"static":   "?unknown",
+		"variadic": "?unknown",
 	})
 }
 

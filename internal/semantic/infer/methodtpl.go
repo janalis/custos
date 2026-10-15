@@ -175,14 +175,29 @@ func (e *Env) bindPattern(pat, at types.Type, arg syntax.Expr, found map[string]
 		others = append(others, a)
 	}
 	if direct != "" {
-		if len(others) > 0 && len(pat.Atoms()) > 1 {
-			for _, o := range others {
-				if strings.Contains(o, "~~") || pat.TypeArgs(o) != nil {
-					return // `T|class-string<T>`, `T|T[]`: not handled
+		rest := at.Without(others...)
+		for _, o := range others {
+			if strings.Contains(o, "~~") || pat.TypeArgs(o) != nil {
+				structured := pat.Without(`\~~` + direct)
+				if strings.HasSuffix(o, "[]") {
+					var arrays, nonarrays []string
+					for _, atom := range at.Atoms() {
+						if atom == "array" || strings.HasSuffix(atom, "[]") {
+							arrays = append(arrays, atom)
+						} else {
+							nonarrays = append(nonarrays, atom)
+						}
+					}
+					if len(arrays) > 0 {
+						e.bindPattern(structured, at.Without(nonarrays...), arg, found)
+						rest = rest.Without(arrays...)
+					}
+				} else if o == "string" && !types.ClassStringOf(at).IsUnknown() {
+					e.bindPattern(structured, at, arg, found)
 				}
 			}
 		}
-		if rest := at.Without(others...); len(rest.Atoms()) > 0 {
+		if len(rest.Atoms()) > 0 {
 			found[direct] = append(found[direct], rest)
 		}
 		return

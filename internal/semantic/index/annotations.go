@@ -38,7 +38,7 @@ func (x *extractor) generics(c *Class, d *phpdoc.Doc, at uint32) {
 		c.Templates = append(c.Templates, Template{Name: p.Name, Bound: x.docTypeStr(p.Bound, at), Default: x.docTypeStr(p.Default, at)})
 	}
 	for _, t := range d.Tags {
-		switch t.Name {
+		switch strings.ToLower(t.Name) {
 		case "extends", "template-extends", "phpstan-extends", "psalm-extends",
 			"implements", "template-implements", "phpstan-implements", "psalm-implements",
 			"use", "template-use", "phpstan-use", "psalm-use":
@@ -138,7 +138,7 @@ func (x *extractor) assertions(d *phpdoc.Doc, ps []*syntax.Param, method bool, a
 	var out []Assertion
 	for _, t := range d.Tags {
 		var kind AssertKind
-		switch t.Name {
+		switch strings.ToLower(t.Name) {
 		case "phpstan-assert", "psalm-assert":
 			kind = AssertAlways
 		case "phpstan-assert-if-true", "psalm-assert-if-true":
@@ -392,7 +392,7 @@ func (x *extractor) avail(attrs []*syntax.AttributeGroup, d *phpdoc.Doc) Avail {
 			}
 		}
 	}
-	if d != nil {
+	if x.stub && d != nil {
 		if t, ok := d.Tag("since"); ok && a.From == 0 {
 			if v, err := phpversion.Parse(firstWord(t.Text)); err == nil {
 				a.From = v
@@ -412,4 +412,20 @@ func firstWord(s string) string {
 		return s[:i]
 	}
 	return s
+}
+
+// deprecated recognizes only the native attribute and the stub vendor attribute.
+func (x *extractor) deprecated(attrs []*syntax.AttributeGroup, d *phpdoc.Doc) bool {
+	if d != nil && d.Has("deprecated") {
+		return true
+	}
+	for _, group := range attrs {
+		for _, attr := range group.Attrs {
+			name := strings.ToLower(strings.TrimPrefix(x.r.Class(attr.Name.Value, attr.Span().Start), `\`))
+			if name == "deprecated" || x.stub && name == `jetbrains\phpstorm\deprecated` {
+				return true
+			}
+		}
+	}
+	return false
 }

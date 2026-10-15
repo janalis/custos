@@ -106,7 +106,7 @@ func TestFunctionAndDeclarations(t *testing.T) {
 	gsrc := "<?php\nuse function Lib\\g;\nclass G {}\n"
 	gf := syntax.Parse("g.php", []byte(gsrc), syntax.Options{Version: phpversion.PHP84})
 	g := New(gf)
-	if fqn, _ := g.Function("g", 1); fqn != `Lib\g` {
+	if fqn, _ := g.Function("g", uint32(strings.Index(gsrc, "class"))); fqn != `Lib\g` {
 		t.Errorf("global use function: %q", fqn)
 	}
 	if fqn, fb := g.Function("strlen", 1); fqn != "strlen" || fb != "" {

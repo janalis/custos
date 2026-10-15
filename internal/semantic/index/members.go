@@ -64,12 +64,12 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 			for _, k := range m.Consts {
 				c.Consts[k.Name.Value] = &ClassConst{
 					Name: k.Name.Value, Class: fqn, Visibility: visibility(m.Modifiers),
-					Type:  x.typeStr(m.Type, at),
+					Type: x.typeStr(m.Type, at), Deprecated: x.deprecated(m.Attrs, x.doc(m)),
 					Final: m.Modifiers.Has(syntax.TFinal), Value: x.text(k.Value), Span: k.Span(),
 				}
 			}
 		case *syntax.EnumCase:
-			c.Consts[m.Name.Value] = &ClassConst{Name: m.Name.Value, Class: fqn, Case: true, Value: x.text(m.Value), Span: m.Span()}
+			c.Consts[m.Name.Value] = &ClassConst{Name: m.Name.Value, Class: fqn, Case: true, Deprecated: x.deprecated(m.Attrs, x.doc(m)), Value: x.text(m.Value), Span: m.Span()}
 		case *syntax.TraitUse:
 			for _, t := range m.Traits {
 				c.Traits = append(c.Traits, x.r.Class(t.Value, m.Span().Start))
@@ -360,9 +360,16 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 		meth.CondReturn = x.condReturn(d, at)
 		meth.Asserts = x.assertions(d, m.Params, !meth.Static, at)
 		meth.Tpl = x.funcTemplates(d, m.Params, meth.Asserts, at)
-		meth.Deprecated = d.Has("deprecated")
 	}
-	c.Methods[strings.ToLower(meth.Name)] = meth
+	meth.Deprecated = x.deprecated(m.Attrs, d)
+	key := strings.ToLower(meth.Name)
+	if old := c.Methods[key]; old != nil && x.stub {
+		meth.Variants = append([]*Method(nil), old.Variants...)
+		previous := *old
+		previous.Variants = nil
+		meth.Variants = append(meth.Variants, &previous)
+	}
+	c.Methods[key] = meth
 	if strings.EqualFold(meth.Name, "__construct") {
 		for i, p := range m.Params {
 			if len(p.Modifiers) == 0 {

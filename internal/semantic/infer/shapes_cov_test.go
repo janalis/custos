@@ -156,10 +156,10 @@ $arrow = fn() => [$a = ['k' => 1], sort($a), t('arrow', $a)];
 		"dynMethod":    "int[]{k: int}", // unresolvable callee: not clobbered
 		"dynStatic":    "int[]{k: int}",
 		"newDyn":       "int[]{k: int}",
-		"new":          "int[]",           // by-reference constructor parameter
-		"named":        "int[]",           // named by-reference parameter
+		"new":          "?unknown",        // by-reference constructor parameter
+		"named":        "?unknown",        // named by-reference parameter
 		"namedMissing": "int[]{k: int}",   // no parameter of that name
-		"variadic":     "int[]",           // by-reference variadic
+		"variadic":     "?unknown",        // by-reference variadic
 		"extra":        "int[]{k: int}",   // beyond the parameters, not variadic
 		"elseif":       "non-empty int[]", // mutations only in exclusive branches
 		"arrow":        "int[]",           // sort() inside the arrow function

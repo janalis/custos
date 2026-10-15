@@ -168,7 +168,7 @@ func (e *Env) assertTargets(ca *callAsserts, a index.Assertion, name string) boo
 // assertedType is the type of assertion a, with templates bound.
 func (e *Env) assertedType(ca *callAsserts, a index.Assertion) (types.Type, bool) {
 	if !strings.Contains(a.Type, `\~`) {
-		t := types.FromDoc(a.Type, nil)
+		t := e.docType(a.Type, nil)
 		return t, !t.IsUnknown()
 	}
 	if !ca.bound {

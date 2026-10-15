@@ -93,3 +93,10 @@ function notAVariable(array $rows)
 {
     return <error descr="'count($rows)' does not support offset access (types: int).">count($rows)[0]</error>;
 }
+
+function namedReferenceAfterRead(float $number)
+{
+    $before = $number[0];
+    settype(type: 'array', var: $number);
+    return $before;
+}

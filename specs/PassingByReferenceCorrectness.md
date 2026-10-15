@@ -51,7 +51,12 @@ reference") and the callee's writes are lost.
 - **E1** All arguments plain variables (or, below PHP 7.0, variables/`new`).
 - **E2** Arguments returned by reference: inner callee declared
   `function &f()` / `public function &m()`.
-- **E3** Unresolvable outer or inner callees.
+- **E3** Unresolvable outer or inner callees. Resolve receiver types after
+  preceding writes. Passing a receiver variable to a resolved by-reference
+  user callee without an output contract invalidates its previous class;
+  the input parameter type does not guarantee its output. A fresh class
+  assignment restores resolution. Knowing an inner static call or a `new`
+  expression does not establish an unresolved outer reference parameter.
 - **E4** Global `current()`/`key()`.
 - **E5** Arguments beyond the declared parameter list; by-value parameters.
 
@@ -131,3 +136,11 @@ key($s->plain());
   (by reference only for `EXTR_REFS`): `extract(array_merge($defaults,
   $vars))` is accepted silently (view renderers in Joomla, CakePHP, Yii),
   so calls resolving to the global `extract()` are skipped as well.
+
+- **Reference writes invalidate receivers.** Five upstream warnings retain
+  class information after user callees replace the receiver through a
+  reference argument with a scalar. custos omits the warnings because the
+  outer reference-taking declaration, or the inner by-value method, is no
+  longer resolvable. Returning by reference from the outer method does not
+  prevent its writes to reference arguments. Own fixtures also require all
+  five warning forms after a fresh receiver assignment restores its class.

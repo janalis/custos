@@ -134,7 +134,7 @@ func (e *Env) bindArgs(c *index.Class, args []types.Type) tplBindings {
 	}
 	for _, t := range c.Templates {
 		if _, ok := b[t.Name]; !ok && t.Default != "" {
-			b[t.Name] = types.FromDoc(t.Default, nil)
+			b[t.Name] = e.docType(t.Default, nil)
 		}
 	}
 	return b

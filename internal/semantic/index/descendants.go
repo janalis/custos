@@ -1,6 +1,9 @@
 package index
 
-import "sort"
+import (
+	"sort"
+	"strings"
+)
 
 // Subclasses returns the FQNs of all classes (in this index and its base
 // layers) that directly or transitively extend class fqn via `extends`.
@@ -45,12 +48,13 @@ func (ix *Index) directSubclasses(fqn string) []string {
 // class fqn, across all layers, sorted. A class declared under such a name
 // as its parent extends fqn.
 func (ix *Index) AliasesOf(fqn string) []string {
+	fqn = key(fqn)
 	var out []string
 	for l := ix; l != nil; l = l.base {
 		l.mu.RLock()
 		for alias, targets := range l.aliases {
 			for _, target := range targets {
-				if key(target.original) == key(fqn) {
+				if aliasMatches(target.original, fqn) {
 					out = append(out, alias)
 				}
 			}
@@ -59,4 +63,28 @@ func (ix *Index) AliasesOf(fqn string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// aliasMatches avoids allocating lowercase copies for the usual ASCII names.
+// Unicode uses key so matching retains the index's lowercase semantics.
+func aliasMatches(original, folded string) bool {
+	original = strings.TrimPrefix(original, `\`)
+	for i := range len(original) {
+		if original[i] >= 128 {
+			return key(original) == folded
+		}
+	}
+	if len(original) != len(folded) {
+		return false
+	}
+	for i := range len(original) {
+		c := original[i]
+		if c >= 'A' && c <= 'Z' {
+			c += 'a' - 'A'
+		}
+		if c != folded[i] {
+			return false
+		}
+	}
+	return true
 }

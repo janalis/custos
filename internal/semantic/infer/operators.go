@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"strconv"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -83,7 +84,10 @@ func (e *Env) numeric(a, b syntax.Expr) types.Type {
 	case ta.OnlyOf("int") && tb.OnlyOf("int"):
 		return types.Int
 	case ta.OnlyOf("int", "float") && tb.OnlyOf("int", "float"):
-		return types.Float
+		if ta.OnlyOf("float") || tb.OnlyOf("float") {
+			return types.Float
+		}
+		return types.Of("int", "float")
 	}
 	return types.Unknown
 }
@@ -99,7 +103,9 @@ func (e *Env) binaryType(n *syntax.Binary) types.Type {
 			return arrayUnion(a, b)
 		}
 		return e.numeric(n.Left, n.Right)
-	case syntax.TMinus, syntax.TMul, syntax.TPow:
+	case syntax.TPow:
+		return e.powerType(n.Left, n.Right)
+	case syntax.TMinus, syntax.TMul:
 		return e.numeric(n.Left, n.Right)
 	case syntax.TDiv:
 		if t := e.numeric(n.Left, n.Right); !t.IsUnknown() {
@@ -126,7 +132,9 @@ func (e *Env) compoundType(n *syntax.Assign) types.Type {
 			return arrayUnion(a, b)
 		}
 		return e.numeric(n.Var, n.Value)
-	case syntax.TMinusEqual, syntax.TMulEqual, syntax.TPowEqual:
+	case syntax.TPowEqual:
+		return e.powerType(n.Var, n.Value)
+	case syntax.TMinusEqual, syntax.TMulEqual:
 		return e.numeric(n.Var, n.Value)
 	case syntax.TDivEqual: // as `/`
 		if t := e.numeric(n.Var, n.Value); !t.IsUnknown() {
@@ -169,3 +177,51 @@ func (e *Env) bitwise(a, b syntax.Expr) types.Type {
 
 // mayBeString reports a type that is unknown or may hold a string.
 func mayBeString(t types.Type) bool { return t.IsUnknown() || t.HasAny("string", "mixed") }
+
+// powerType keeps integers only when literal operands prove no overflow.
+func (e *Env) powerType(a, b syntax.Expr) types.Type {
+	if e.numeric(a, b).IsUnknown() {
+		return types.Unknown
+	}
+	if powerFitsInt(a, b) {
+		return types.Int
+	}
+	return types.Of("int", "float")
+}
+
+func powerFitsInt(a, b syntax.Expr) bool {
+	x, xok := integerLiteral(a)
+	y, yok := integerLiteral(b)
+	if !xok || !yok || y < 0 {
+		return false
+	}
+	if y == 0 || x == 0 || x == 1 || x == -1 {
+		return true
+	}
+	if y > 63 {
+		return false
+	}
+	result := int64(1)
+	for range y {
+		next := result * x
+		if next/x != result || next == -1<<63 && x == -1 {
+			return false
+		}
+		result = next
+	}
+	return true
+}
+
+func integerLiteral(x syntax.Expr) (int64, bool) {
+	x = syntax.UnwrapParens(x)
+	if u, ok := x.(*syntax.Unary); ok && u.Op.Kind == syntax.TMinus {
+		v, valid := integerLiteral(u.Expr)
+		return -v, valid && v != -1<<63
+	}
+	lit, ok := x.(*syntax.Literal)
+	if !ok || lit.LitKind != syntax.LitInt {
+		return 0, false
+	}
+	v, err := strconv.ParseInt(strings.ReplaceAll(lit.Raw, "_", ""), 0, 64)
+	return v, err == nil
+}

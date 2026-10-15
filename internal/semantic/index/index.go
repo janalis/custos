@@ -189,7 +189,7 @@ func (ix *Index) declared(fqn string, ver phpversion.Version) *Class {
 	c, ok := pick(ix.classes[key(fqn)], func(c *Class) Avail { return c.Avail }, ver)
 	ix.mu.RUnlock()
 	if ok {
-		return c
+		return c.at(ver)
 	}
 	if ix.base != nil {
 		return ix.base.declared(fqn, ver)
@@ -259,11 +259,11 @@ var verCopies sync.Map
 
 // at returns f with Return resolved for ver (f itself when unchanged).
 func (f *Function) at(ver phpversion.Version) *Function {
-	if len(f.RetVer) == 0 {
+	if len(f.RetVer) == 0 && paramsUnchanged(f.Params, ver) {
 		return f
 	}
 	r := returnAt(f.Return, f.RetVer, ver)
-	if r == f.Return {
+	if r == f.Return && paramsUnchanged(f.Params, ver) {
 		return f
 	}
 	k := verKey{f, ver}
@@ -271,7 +271,7 @@ func (f *Function) at(ver phpversion.Version) *Function {
 		return c.(*Function)
 	}
 	cp := *f
-	cp.Return, cp.RetVer = r, nil
+	cp.Return, cp.RetVer, cp.Params = r, nil, paramsAt(f.Params, ver)
 	cp.DocReturn = docAt(f.DocReturn, f.Return, r)
 	c, _ := verCopies.LoadOrStore(k, &cp)
 	return c.(*Function)
@@ -279,11 +279,11 @@ func (f *Function) at(ver phpversion.Version) *Function {
 
 // at returns m with Return resolved for ver (m itself when unchanged).
 func (m *Method) at(ver phpversion.Version) *Method {
-	if len(m.RetVer) == 0 {
+	if len(m.RetVer) == 0 && paramsUnchanged(m.Params, ver) {
 		return m
 	}
 	r := returnAt(m.Return, m.RetVer, ver)
-	if r == m.Return {
+	if r == m.Return && paramsUnchanged(m.Params, ver) {
 		return m
 	}
 	k := verKey{m, ver}
@@ -291,7 +291,7 @@ func (m *Method) at(ver phpversion.Version) *Method {
 		return c.(*Method)
 	}
 	cp := *m
-	cp.Return, cp.RetVer = r, nil
+	cp.Return, cp.RetVer, cp.Params = r, nil, paramsAt(m.Params, ver)
 	cp.DocReturn = docAt(m.DocReturn, m.Return, r)
 	c, _ := verCopies.LoadOrStore(k, &cp)
 	return c.(*Method)
@@ -474,6 +474,9 @@ func (ix *Index) IsSubtype(child, parent string, ver phpversion.Version) bool {
 func (ix *Index) FindMethod(class, name string, ver phpversion.Version) *Method {
 	lname := strings.ToLower(name)
 	if c := ix.Class(class, ver); c != nil {
+		if ver != 0 && !c.Avail.In(ver) {
+			return nil
+		}
 		if m := c.Methods[lname]; m != nil && !m.Magic && (ver == 0 || m.Avail.In(ver)) {
 			return m.at(ver)
 		}
@@ -598,4 +601,64 @@ func (ix *Index) DropStaleInferred(fs *FileSymbols) {
 			p.Inferred = ""
 		}
 	}
+}
+
+func paramsUnchanged(ps []Param, ver phpversion.Version) bool {
+	if ver == 0 {
+		ver = phpversion.Max
+	}
+	for _, p := range ps {
+		if !p.Avail.In(ver) {
+			return false
+		}
+	}
+	return true
+}
+
+func paramsAt(ps []Param, ver phpversion.Version) []Param {
+	if paramsUnchanged(ps, ver) {
+		return ps
+	}
+	out := make([]Param, 0, len(ps))
+	if ver == 0 {
+		ver = phpversion.Max
+	}
+	for _, p := range ps {
+		if p.Avail.In(ver) {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func (m *Method) available(ver phpversion.Version) *Method {
+	if ver == 0 || m.Avail.In(ver) {
+		return m
+	}
+	for i := len(m.Variants) - 1; i >= 0; i-- {
+		if candidate := m.Variants[i]; candidate.Avail.In(ver) {
+			return candidate
+		}
+	}
+	return nil
+}
+
+func (c *Class) at(ver phpversion.Version) *Class {
+	if ver == 0 {
+		return c
+	}
+	for _, v := range c.InterfacesVer {
+		if ver >= v.Until {
+			continue
+		}
+		k := verKey{c, ver}
+		if old, ok := verCopies.Load(k); ok {
+			return old.(*Class)
+		}
+		cp := *c
+		cp.Interfaces, cp.InterfacesVer = v.Interfaces, nil
+		old, _ := verCopies.LoadOrStore(k, &cp)
+		return old.(*Class)
+	}
+	return c
 }

@@ -5,7 +5,7 @@ array_push($queue, ... $more);
 $size = array_push($queue, $job);
 while (array_push($queue, $job) < 10) {}
 (array_push($queue, $job));
-Array_push($queue, $job);
+<warning descr="Use '$queue[] = $job' instead; it avoids a function call.">Array_push($queue, $job)</warning>;
 $o->array_push($queue, $job);
 
 $queue[count($queue) - 1] = $job;

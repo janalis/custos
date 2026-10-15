@@ -34,7 +34,9 @@ would produce anyway (for list-shaped arrays).
   non-empty and every member is an array form (`array`, `T[]`, e.g. from a
   `$a = [];` assignment, an `array` parameter or property type, or an
   `@var T[]` doc type). Unknown, nullable, object (`ArrayAccess`), string or
-  mixed types are not reported.
+  mixed types are not reported. A prior resolved builtin mutation such as
+  `array_push` can establish that the variable is an array on the path after
+  a successful call.
 
 ### B. Index computed with `count()` (option `REPORT_EXCESSIVE_COUNT_CALLS`, default on)
 

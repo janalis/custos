@@ -357,6 +357,7 @@ func (r *TRules) declaredAndDoc(declared, doc string, builtin bool) types.Type {
 	if r.Env.userDoc(builtin) {
 		return types.FromDoc(declared, nil)
 	}
+	doc = r.Env.resolvedDoc(doc)
 	if builtin && declared != "" {
 		// The version-resolved signature is authoritative; the stub doc
 		// only refines it (see builtinMemberType).
@@ -775,7 +776,7 @@ func (r *TRules) ParamTypes(scope syntax.Node, p *syntax.Param) types.Type {
 	if d := r.Env.DocOf(scope); d != nil && p.Var != nil && !r.Env.native {
 		for _, dp := range d.EffectiveParams() {
 			if dp.Name == p.Var.Name {
-				doc = types.FromDoc(dp.Type, res)
+				doc = r.Env.docType(dp.Type, res)
 			}
 		}
 	}
@@ -805,7 +806,7 @@ func (r *TRules) soundArithmetic(n *syntax.Binary) types.Type {
 		case syntax.TDiv:
 			return intOrFloat
 		case syntax.TPow:
-			if lit, ok := syntax.UnwrapParens(n.Right).(*syntax.Literal); !ok || lit.LitKind != syntax.LitInt {
+			if !powerFitsInt(n.Left, n.Right) {
 				return intOrFloat // a negative exponent gives a float
 			}
 		}

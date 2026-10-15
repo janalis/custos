@@ -152,7 +152,7 @@ function run(M $m, Box $box, Box $plainBox, Coll $c, Coll $cu, Free $f, Free $fu
 		"untyped":      `mixed`,
 		"half":         `mixed`,
 		"ambiguous":    `mixed`,
-		"oneOrMany":    `mixed`,
+		"oneOrMany":    `int`,
 		"maybeList":    `mixed`,
 		"notArray":     `mixed`,
 		"shapeIt":      `int`,

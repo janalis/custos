@@ -43,8 +43,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // pdoSink proves a call to the builtin PDO::query, PDO::exec or PDO::prepare,
-// including inherited ones. All three exist on every supported PHP version, so
-// a stub entry that only describes a later signature still identifies the sink.
+// including inherited ones, using the configured PHP version signature.
 func pdoSink(ctx *analysis.Context, c *syntax.MethodCall) bool {
 	id, ok := c.Name.(*syntax.Identifier)
 	if !ok {
@@ -60,9 +59,6 @@ func pdoSink(ctx *analysis.Context, c *syntax.MethodCall) bool {
 		return false
 	}
 	m := ctx.Index().FindMethod(classes[0], id.Value, ctx.PHP)
-	if m == nil {
-		m = ctx.Index().FindMethod(classes[0], id.Value, 0)
-	}
 	return m != nil && m.Builtin
 }
 

@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/stubs"
 	"custos/internal/semantic/types"
@@ -24,18 +25,31 @@ import (
 type outKind uint8
 
 const (
-	outInt         outKind = iota + 1
-	outFloat               // float
-	outString              // string
-	outArray               // array of unknown elements
-	outMatches             // preg_match: string[] without flags, else array
-	outMatchesAll          // preg_match_all: string[][] without flags, else array
-	outAppendLines         // exec: string lines appended to an array
+	outInt        outKind = iota + 1
+	outFloat              // float
+	outString             // string
+	outArray              // array of unknown elements
+	outMatches            // preg_match: string[] without flags, else array
+	outMatchesAll         // preg_match_all: string[][] without flags, else array
+	outReindex
+	outPreserve
+	outPush
+	outUnshift
+	outSplice
+	outSettype
+	outAppendLines // exec: string lines appended to an array
 )
+
+// noBuiltinOut distinguishes a known builtin without an output contract from a
+// user callee. It is read-only and shared across calls.
+var noBuiltinOut = map[int]outKind{}
 
 // builtinOut lists, per builtin function, the output parameters by
 // position and the value they hold after the call.
 var builtinOut = map[string]map[int]outKind{
+	"sort": {0: outReindex}, "rsort": {0: outReindex}, "usort": {0: outReindex}, "shuffle": {0: outReindex},
+	"ksort": {0: outPreserve}, "krsort": {0: outPreserve}, "asort": {0: outPreserve}, "arsort": {0: outPreserve}, "uasort": {0: outPreserve}, "uksort": {0: outPreserve}, "natsort": {0: outPreserve}, "natcasesort": {0: outPreserve},
+	"array_push": {0: outPush}, "array_unshift": {0: outUnshift}, "array_splice": {0: outSplice}, "settype": {0: outSettype},
 	"preg_match":                  {2: outMatches},
 	"preg_match_all":              {2: outMatchesAll},
 	"preg_replace":                {4: outInt},
@@ -87,6 +101,9 @@ func (e *Env) collectOutArgs(call syntax.Expr, sv *scopeVars) {
 	}
 	params, builtin := e.calleeParams(call)
 	if params == nil {
+		if method, ok := call.(*syntax.MethodCall); ok {
+			e.collectDeferredMethodOut(method, sv)
+		}
 		return
 	}
 	var kill syntax.Span
@@ -107,16 +124,19 @@ func (e *Env) collectOutArgs(call syntax.Expr, sv *scopeVars) {
 		var typ func() types.Type
 		if builtin != nil {
 			if kind := builtin[paramIndex(params, p)]; kind != 0 {
-				typ = e.builtinOutType(kind, al, v)
+				typ = e.builtinOutType(kind, al, v, params)
 			}
 		} else if p.Out != "" && !e.native {
 			out := p.Out
 			typ = func() types.Type {
-				if t := types.FromDoc(out, nil); !t.Has("mixed") {
+				if t := e.docType(out, nil); !t.Has("mixed") {
 					return t
 				}
 				return types.Unknown
 			}
+		}
+		if typ == nil && builtin == nil {
+			typ = func() types.Type { return types.Unknown }
 		}
 		if typ == nil {
 			continue
@@ -167,15 +187,44 @@ func (e *Env) calleeParams(call syntax.Expr) (params []index.Param, builtin map[
 			if b, ok := builtinOut[strings.ToLower(f.FQN)]; ok {
 				return f.Params, b
 			}
+			return f.Params, noBuiltinOut
 		}
 		return f.Params, nil
 	case *syntax.MethodCall:
-		id, ok := c.Name.(*syntax.Identifier)
-		recv, isVar := syntax.UnwrapParens(c.Var).(*syntax.Variable)
-		if !ok || !isVar || recv.Name != "this" || recv.NameExpr != nil {
+		if e.hasNullsafeChain(c) {
 			return nil, nil
 		}
-		if cls := e.selfClass(syntax.EnclosingClass(c)); cls != "" {
+		id, ok := c.Name.(*syntax.Identifier)
+		recv, isVar := syntax.UnwrapParens(c.Var).(*syntax.Variable)
+		if !ok || !isVar || recv.NameExpr != nil {
+			return nil, nil
+		}
+		cls := ""
+		if recv.Name == "this" {
+			cls = e.selfClass(syntax.EnclosingClass(c))
+		} else {
+			scope := syntax.EnclosingVariableScope(c)
+			body := syntax.VariableScopeBody(scope)
+			if body == nil {
+				return nil, nil
+			}
+			if sv := e.scopes[scope]; sv != nil {
+				for _, d := range sv.defs[recv.Name] {
+					if d.pos >= body.Span().Start && d.pos < c.Span().Start {
+						return nil, nil
+					}
+				}
+			}
+			for _, p := range syntax.VariableScopeParams(scope) {
+				if p.Var.Name == recv.Name {
+					classes := types.FromNode(p.Type, e.resolver(p.Span().Start)).Classes()
+					if len(classes) == 1 {
+						cls = strings.TrimPrefix(classes[0], `\`)
+					}
+				}
+			}
+		}
+		if cls != "" {
 			m = e.Index.FindMethod(cls, id.Value, e.PHP)
 		}
 	case *syntax.StaticCall:
@@ -202,8 +251,86 @@ func (e *Env) calleeParams(call syntax.Expr) (params []index.Param, builtin map[
 
 // builtinOutType is the type a builtin's output parameter of kind holds
 // after the call (al: its arguments; v: the variable passed).
-func (e *Env) builtinOutType(kind outKind, al *syntax.ArgList, v *syntax.Variable) func() types.Type {
+func (e *Env) builtinOutType(kind outKind, al *syntax.ArgList, v *syntax.Variable, params []index.Param) func() types.Type {
 	switch kind {
+	case outSettype:
+		return func() types.Type {
+			value := tplArg(al, params, 1)
+			if value == nil {
+				return types.Unknown
+			}
+			lit, ok := syntax.UnwrapParens(value).(*syntax.Literal)
+			if !ok || lit.LitKind != syntax.LitString {
+				return types.Unknown
+			}
+			switch strings.ToLower(strings.Trim(lit.Raw, "'\"")) {
+			case "boolean", "bool":
+				return types.Bool
+			case "integer", "int":
+				return types.Int
+			case "float", "double":
+				return types.Float
+			case "string":
+				return types.String
+			case "array":
+				return types.Array
+			case "object":
+				return types.Of("object")
+			case "null":
+				return types.Null
+			}
+			return types.Unknown
+		}
+	case outReindex, outPreserve, outPush, outUnshift, outSplice:
+		return func() types.Type {
+			prior := e.TypeOf(v)
+			if e.PHP != 0 && e.PHP < phpversion.PHP80 && !prior.IsArrayLike() {
+				for _, atom := range prior.Atoms() {
+					if atom == "array" || strings.HasSuffix(atom, "[]") {
+						return types.Unknown
+					}
+				}
+				return prior
+			}
+			elem := iterElem(prior)
+			if kind == outPush || kind == outUnshift {
+				for i, item := range al.Args {
+					if a, ok := item.(*syntax.Arg); ok {
+						if p, valid := paramFor(params, a, i); !valid || paramIndex(params, p) == 0 {
+							continue
+						}
+						t := e.TypeOf(a.Value)
+						if a.Unpack {
+							t = iterElem(t)
+						}
+						elem = types.Union(elem, t)
+					}
+				}
+			}
+			if kind == outSplice {
+				if replacement := tplArg(al, params, 3); replacement != nil {
+					t := e.TypeOf(replacement)
+					if t.IsArrayLike() {
+						t = iterElem(t)
+					}
+					if !t.OnlyOf("null") {
+						elem = types.Union(elem, t.Without("null"))
+					}
+				}
+			}
+			result := arrayOf(elem)
+			if result.IsUnknown() {
+				result = types.Array
+			}
+			if kind == outReindex {
+				return result.WithArrayKey(types.Int)
+			}
+			key := prior.ArrayKey()
+			if kind == outPush || kind == outUnshift || kind == outSplice {
+				key = types.Union(key, types.Int)
+			}
+			return result.WithArrayKey(key)
+		}
 	case outInt:
 		return func() types.Type { return types.Int }
 	case outFloat:
@@ -306,4 +433,62 @@ func matchFlags(x syntax.Expr) string {
 		return strings.ToLower(strings.TrimPrefix(v.Name.Value, `\`))
 	}
 	return ""
+}
+
+// collectDeferredMethodOut postpones receiver inference until all definitions
+// have been collected. Arguments passed by value or to unresolved methods keep
+// their type at the argument, before the call's possible write.
+func (e *Env) collectDeferredMethodOut(call *syntax.MethodCall, sv *scopeVars) {
+	id, ok := call.Name.(*syntax.Identifier)
+	if !ok {
+		return
+	}
+	kill := unconditionalBlock(call)
+	if arrow := e.arrowDefinitionSpan(call); arrow.Len() > 0 {
+		kill = arrow
+	}
+	for i, item := range call.Args.Args {
+		a, ok := item.(*syntax.Arg)
+		if !ok || a.Unpack {
+			continue
+		}
+		v, ok := a.Value.(*syntax.Variable)
+		if !ok || v.Name == "" || v.Name == "this" {
+			continue
+		}
+		typ := func() types.Type {
+			receiver := e.TypeOf(call.Var)
+			classes := receiver.Classes()
+			keepPrior := e.hasNullsafeChain(call) || receiver.HasAny("mixed", "object")
+			var results []types.Type
+			for _, cls := range classes {
+				m := e.Index.FindMethod(strings.TrimPrefix(cls, `\`), id.Value, e.PHP)
+				if m == nil {
+					keepPrior = true
+					continue
+				}
+				p, valid := paramFor(m.Params, a, i)
+				if !valid || !p.ByRef {
+					keepPrior = true
+					continue
+				}
+				if p.Out == "" || e.native {
+					return types.Unknown
+				}
+				t := e.docType(p.Out, nil)
+				if t.Has("mixed") {
+					return types.Unknown
+				}
+				results = append(results, t)
+			}
+			if len(results) == 0 {
+				return e.TypeOf(v)
+			}
+			if keepPrior {
+				results = append(results, e.TypeOf(v))
+			}
+			return types.Union(results...)
+		}
+		sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: call.Span().Start, end: call.Span().End, kill: kill, typ: typ})
+	}
 }

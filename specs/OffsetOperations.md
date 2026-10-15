@@ -107,7 +107,7 @@ a container `C`):
 
 ## Exceptions (no report)
 
-- **E1** Unknown/partially-unknown container types; `mixed`.
+- **E1** Unknown/partially-unknown container types; `mixed`. A class unavailable at the configured PHP version cannot establish its offset contract, so it is treated as unknown rather than reported as lacking offset support.
 - **E2** `string|int` and `string|false` containers.
 - **E3** Containers whose only non-null types are `object`/`null`/`void`.
 - **E4** Containers mixing arrays with classes lacking offset methods

@@ -34,7 +34,7 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 	}
 	fn := &Function{
 		FQN: fqn, Params: x.params(n.Params, d, at), ByRef: n.ByRef,
-		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d), CSPRNG: callsCSPRNG(n.Body),
+		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d), CSPRNG: callsCSPRNG(n.Body), Deprecated: x.deprecated(n.Attrs, d),
 	}
 	fn.Return, fn.RetVer = x.returnType(n.ReturnType, n.Attrs, at)
 	if d != nil {
@@ -42,7 +42,6 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 		fn.CondReturn = x.condReturn(d, at)
 		fn.Asserts = x.assertions(d, n.Params, false, at)
 		fn.Tpl = x.funcTemplates(d, n.Params, fn.Asserts, at)
-		fn.Deprecated = d.Has("deprecated")
 	}
 	x.out.Functions = append(x.out.Functions, fn)
 }
