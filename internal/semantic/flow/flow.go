@@ -544,8 +544,9 @@ type Env struct {
 	types    *infer.Env
 	snapshot *Snapshot
 	// consulted records the contracts read while summaries are extracted.
-	consulted map[string]bool
-	scopes    map[syntax.Node]*scopeResult
+	consulted   map[string]bool
+	scopes      map[syntax.Node]*scopeResult
+	localBodies map[string]syntax.Node
 	// global caches the file's function-bound global names once scanned, and
 	// globalTaint the request data those functions write to them.
 	global       map[string]bool
@@ -1272,6 +1273,7 @@ func unsettled(old, written Value) Value {
 		}
 		v = merge(v, Value{Complete: true, Sources: written.Sources, Safe: written.Safe})
 	}
+	v.origins = origins(Value{}, written)
 	return v
 }
 
@@ -1428,4 +1430,23 @@ func retain(r *scopeResult, cells int) bool {
 	}
 	r.retained += cells
 	return true
+}
+
+// retained reports effects useful to either request-data or failure analysis.
+func retained(v Value) bool { return tainted(v) || v.Expr != nil || v.origins != nil }
+
+// effects joins local writes, retaining their syntax only in the environment.
+func effects(a, b Value) Value {
+	v := merge(a, b)
+	v.origins = origins(a, b)
+	return v
+}
+
+// producers exports local syntax only after the whole scope was followed.
+// Partial generator or budget-limited bodies cannot establish that a write ran.
+func (r *scopeResult) producers(v Value) *originSet {
+	if !r.complete {
+		return nil
+	}
+	return origins(Value{}, v)
 }

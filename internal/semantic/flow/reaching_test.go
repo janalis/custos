@@ -19,6 +19,11 @@ func TestReachingProducers(t *testing.T) {
 		want   string
 		single bool
 	}{
+		{"reference closure", `$u=parse_url($a); if($u===false){return;} $c=function()use(&$u){$u=parse_url($b);}; $c(); probe($u);`, "parse_url", false},
+		{"reference method", `final class W{function write(&$o){$o=parse_url($b);}} function f(W $w,$a){$u=parse_url($a);if($u===false){return;}$w->write($u);probe($u);}`, "parse_url", false},
+		{"reference method sourceful old", `final class W{function write(&$o){$o=parse_url($b);}} function f(W $w){$u=$_GET['u'];$w->write($u);probe($u);}`, "parse_url", false},
+		{"global rewrite", `function w(){global $u;$u=parse_url($b);} function f(){global $u;$u=parse_url($a);if($u===false){return;}w();probe($u);}`, "parse_url parse_url", false},
+		{"element reference", `$u=parse_url($a);if($u===false){return;}$o->m($u['host']);probe($u);`, "parse_url!false", false},
 		{"single", `$u=parse_url($a); probe($u);`, "parse_url", true},
 		{"single, tested", `$u=parse_url($a); if($u === false){return;} probe($u);`, "parse_url!false", true},
 		{"loop", `$u=parse_url($a); if($u === false){return;} while($c--){probe($u); $u=scandir($n);}`, "parse_url!false scandir", false},
@@ -64,6 +69,9 @@ func TestReachingProducers(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, f := environment(t, tc.src, nil)
+			if strings.HasPrefix(tc.name, "reference") || tc.name == "global rewrite" {
+				e, f = summarized(t, tc.src)
+			}
 			found, single := e.Reaching(argument(callsNamed(f, "probe")[0]))
 			var got []string
 			for _, o := range found {
@@ -128,5 +136,94 @@ func TestSummariesKeepNoProducers(t *testing.T) {
 	again := Extract(syntax.Parse("test.php", []byte("<?php "+src), syntax.Options{Version: e.types.PHP}), e.types.Index, e.types.PHP, nil)
 	if !NewSnapshot(again).Holds(&File{Path: "test.php", Summaries: map[string]Summary{"pick": sum}}) {
 		t.Fatal("the same file summarized twice differs")
+	}
+}
+
+func TestAlternateSuperglobalSpellings(t *testing.T) {
+	for _, src := range []string{`probe($_GET['id']);`, `probe(${'_GET'}['id']);`, `probe($GLOBALS['_GET']['id']);`, `probe(${'_POST'}['id']);`, `probe($GLOBALS['_FILES']['f']['name']);`} {
+		e, f := environment(t, src, nil)
+		if !e.Tainted(argument(callsNamed(f, "probe")[0]), HTML) {
+			t.Errorf("request source missing: %s", src)
+		}
+	}
+	e, f := environment(t, `probe(${$name}['id']);`, nil)
+	if e.Tainted(argument(callsNamed(f, "probe")[0]), HTML) {
+		t.Fatal("unknown name fabricated request source")
+	}
+}
+
+func TestReferenceChannelAcrossBackwardGoto(t *testing.T) {
+	e, f := summarized(t, `function f(string $a,string $b,$n){$u=parse_url($a);if($u===false){return;}$c=function()use(&$u,$b){$u=parse_url($b);};again:probe($u);$c();if($n--){goto again;}}`)
+	origins, single := e.Reaching(argument(callsNamed(f, "probe")[0]))
+	if single || len(origins) < 1 {
+		t.Fatalf("reference rewrite missing: %+v single=%v", origins, single)
+	}
+	found := false
+	for _, origin := range origins {
+		found = found || !origin.NonFalse
+	}
+	if !found {
+		t.Fatal("closure rewrite retained earlier guard")
+	}
+}
+
+func TestLocalProducerBodiesRequireUniqueDeclarations(t *testing.T) {
+	for _, tc := range []struct {
+		src, name string
+		known     bool
+	}{
+		{`namespace N; function put(&$x){$x=parse_url($s);}`, `n\put`, true},
+		{`function put(&$x){$x=parse_url($s);} function put(&$x){$x=[];}`, "put", false},
+		{`if($c){function put(&$x){$x=parse_url($s);}}`, "put", false},
+		{`function outer(){function put(&$x){$x=parse_url($s);}}`, "put", false},
+		{`class W{function put(&$x){$x=parse_url($s);}}`, "w::missing", false},
+		{`namespace N; use function Other\put; function local(&$x){$x=parse_url($s);}`, `n\local`, true},
+	} {
+		e, _ := environment(t, tc.src, nil)
+		if got := e.localBody(tc.name) != nil; got != tc.known {
+			t.Errorf("%s body known=%v", tc.src, got)
+		}
+	}
+}
+
+func TestAliasedReferenceHoldersKeepBothProducers(t *testing.T) {
+	e, f := summarized(t, `function f(string $a,string $b){$u=[];$v=&$u;$c=function()use(&$u,$a){$u=parse_url($a);};$d=function()use(&$v,$b){$v=scandir($b);};unknown();probe($u);}`)
+	found, single := e.Reaching(argument(callsNamed(f, "probe")[0]))
+	names := map[string]bool{}
+	for _, o := range found {
+		if c, ok := o.Expr.(*syntax.FuncCall); ok {
+			names[c.Name.(*syntax.Name).Value] = true
+		}
+	}
+	if single || !names["parse_url"] || !names["scandir"] {
+		t.Fatalf("aliased holder producers=%v single=%v", names, single)
+	}
+}
+
+func TestIncompleteHoldersKeepSourcesWithoutProducers(t *testing.T) {
+	for _, tc := range []struct {
+		body              string
+		sources, producer bool
+	}{
+		{`$u=parse_url($path);yield 1;`, false, false},
+		{`$u=parse_url($path);if(false){yield 1;}`, false, false},
+		{`$u=$_GET['url'];yield 1;`, true, false},
+		{`$u=parse_url($path);`, false, true},
+	} {
+		e, f := environment(t, `$replace=function()use(&$u){`+tc.body+`};`, nil)
+		var closure *syntax.Closure
+		syntax.InspectFile(f, func(n syntax.Node) bool {
+			if c, ok := n.(*syntax.Closure); ok {
+				closure = c
+			}
+			return true
+		})
+		written := e.holderWrites(closure, "u")
+		if got := len(written.Sources) > 0; got != tc.sources {
+			t.Errorf("%s sources=%v", tc.body, got)
+		}
+		if got := written.Expr != nil || written.origins != nil && len(written.origins.items) > 0; got != tc.producer {
+			t.Errorf("%s producer=%v", tc.body, got)
+		}
 	}
 }

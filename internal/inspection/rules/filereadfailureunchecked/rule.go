@@ -41,7 +41,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		inputs = semanticquery.NativeStringInputs(ctx, n, args)
 	}
 	for _, input := range inputs {
-		inner, ok := semanticquery.NativeValue(ctx, input).(*syntax.FuncCall)
+		inner, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
 		if !ok {
 			continue
 		}
@@ -53,7 +53,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		// A narrowed type describes a static local as its last test left it:
 		// only the flow knows the calls that may have assigned it since. In
 		// a scope with a `goto` label only the flow says what holds here.
-		jumps := semanticquery.NativeLabelled(ctx, input)
+		jumps := semanticquery.NativeFailureFlowOnly(ctx, input)
 		if !jumps && !semanticquery.NativeStaticLocal(ctx, input) && ctx.TypeOf(input).OnlyOf("string") || ctx.Flow().Excludes(input, "false") || !jumps && guarded(ctx, input, inner) {
 			continue
 		}

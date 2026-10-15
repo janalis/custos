@@ -123,6 +123,7 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 				next.Complete = next.Complete || old.Complete
 				next.NonFalse, next.NonNull, next.plain, next.deep = old.NonFalse, old.NonNull, old.plain, old.deep && next.deep
 				next.elements = old.elements.without(boundElement(a.Value))
+				next.Expr, next.origins = nil, origins(Value{}, old)
 			}
 			f.write(r, variable.Name, next)
 		}
@@ -184,6 +185,15 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 	}
 	// An array of numbers the callee left is one for the caller.
 	next.scalars = written.scalars
+	if body := e.localBody(name); body != nil {
+		params := syntax.VariableScopeParams(body)
+		at := positions[at]
+		if at >= 0 && at < len(params) && params[at].Var != nil {
+			result := e.scope(body)
+			written := result.exit[received(params[at].Var.Name)]
+			next.origins = result.producers(written)
+		}
+	}
 	return next
 }
 
@@ -968,4 +978,44 @@ func compoundOnly(declared string) (bool, bool) {
 		}
 	}
 	return true, nullable
+}
+
+// localBody finds a unique declaration in this file. Producer syntax is kept
+// in this environment only; exported summaries remain independent of the AST.
+func (e *Env) localBody(name string) syntax.Node {
+	if e.localBodies == nil {
+		e.localBodies = map[string]syntax.Node{}
+		seen := map[string]bool{}
+		syntax.InspectFile(e.file, func(n syntax.Node) bool {
+			key := ""
+			switch n := n.(type) {
+			case *syntax.Function:
+				if n.Name != nil {
+					key = n.Name.Value
+					if ns := e.types.Names.Namespace(n.Span().Start); ns != "" {
+						key = ns + `\` + key
+					}
+				}
+			case *syntax.Method:
+				if n.Name != nil {
+					key = e.types.ClassFQN(syntax.EnclosingClass(n)) + "::" + n.Name.Value
+				}
+			}
+			key = strings.ToLower(key)
+			if key != "" {
+				if seen[key] {
+					e.localBodies[key] = nil
+				} else {
+					e.localBodies[key] = n
+					seen[key] = true
+				}
+			}
+			return true
+		})
+	}
+	body := e.localBodies[name]
+	if body != nil && unconditional(body) {
+		return body
+	}
+	return nil
 }

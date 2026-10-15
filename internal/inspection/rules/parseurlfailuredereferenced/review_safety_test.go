@@ -197,3 +197,21 @@ func TestReviewOtherProducers(t *testing.T) {
 		})
 	}
 }
+
+func TestMixedParseContracts(t *testing.T) {
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{EnableAll: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, body := range []string{
+		`$p=parse_url('https://example.test');if($c){$p=parse_url($u);}echo $p['host'];`,
+		`$p=parse_url($u);if($c){$p=parse_url('https://example.test');}echo $p['host'];`,
+		`$p=parse_url($u,PHP_URL_HOST);if($c){$p=parse_url($u);}echo $p['host'];`,
+		`$p=parse_url($u);if($c){$p=parse_url($u,PHP_URL_HOST);}echo $p['host'];`,
+	} {
+		f := syntax.Parse("mixed.php", []byte("<?php function f(string $u,$c){"+body+"}"), syntax.Options{})
+		if got := e.Analyze(f); len(got) != 1 {
+			t.Errorf("%s: got %d", body, len(got))
+		}
+	}
+}

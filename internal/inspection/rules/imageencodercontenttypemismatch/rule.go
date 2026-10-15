@@ -47,7 +47,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	statement, ok := c.Parent().(*syntax.ExprStmt)
-	if !ok || statement.Parent() != nil {
+	if !ok {
+		return
+	}
+	if _, file := statement.Parent().(*syntax.File); !file {
 		return
 	}
 	list, index, known := astquery.StmtList(ctx.File, statement)

@@ -1,6 +1,7 @@
 package semanticquery
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -565,6 +566,14 @@ func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string, prod
 		}
 		return e
 	}
+	// A resolved variable has exactly one producer. An unrelated known value
+	// cannot hide a later producer, so do not scan its lexical write history.
+	if produced != nil && known != nil {
+		if produced(known) {
+			return known
+		}
+		return nil
+	}
 	if result := nativeUnguardedResult(ctx, e, failure, produced); result != nil {
 		return result
 	}
@@ -611,14 +620,7 @@ func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string, prod
 				}
 			}
 		}
-		if call, ok := n.(*syntax.FuncCall); ok && call.Span().End < e.Span().Start && NativeBuiltinName(ctx, call) == "" {
-			syntax.Inspect(call.Args, func(a syntax.Node) bool {
-				if v, ok := a.(*syntax.Variable); ok && v.Name == variable.Name {
-					value = nil
-				}
-				return true
-			})
-		}
+
 		return true
 	}
 	for _, event := range facts.nodes {
@@ -700,9 +702,6 @@ func NativeStateDominates(before, at syntax.Node) bool {
 		return false
 	}
 	owner := stmt.Parent()
-	if owner == nil {
-		return syntax.EnclosingVariableScope(at) == nil
-	}
 	if _, ok := syntax.StmtListOf(owner); !ok {
 		return false
 	}
@@ -827,4 +826,22 @@ func nativeAvailableClass(ctx *analysis.Context, name string) *index.Class {
 		return nil
 	}
 	return c
+}
+
+// NativeFailureFlowOnly reports reads whose producer paths must be checked by
+// flow instead of a lexical guard or the inferred type of an earlier write.
+func NativeFailureFlowOnly(ctx *analysis.Context, e syntax.Expr) bool {
+	if NativeLabelled(ctx, e) {
+		return true
+	}
+	reaching, single := ctx.Flow().Reaching(e)
+	return !single && len(reaching) > 0
+}
+
+// NativeLocalBuiltinResult follows unguarded results of the named builtins.
+func NativeLocalBuiltinResult(ctx *analysis.Context, e syntax.Expr, failure string, names ...string) syntax.Expr {
+	return NativeLocalResultOf(ctx, e, failure, func(result syntax.Expr) bool {
+		call, ok := result.(*syntax.FuncCall)
+		return ok && slices.Contains(names, NativeBuiltinName(ctx, call))
+	})
 }

@@ -1,6 +1,7 @@
 package flowquery
 
 import (
+	"container/heap"
 	"math"
 	"sort"
 
@@ -34,13 +35,13 @@ type jumps struct {
 func (j *jumps) blocked(n, child, p syntax.Node) (owner syntax.Node, at int) {
 	for ; p != nil && child != j.scope; p = p.Parent() {
 		if list, ok := syntax.StmtListOf(p); ok {
-			// Statements before child (all of them when child is not in the
-			// list, e.g. a case condition); FirstTerminating is cached so
-			// long lists stay linear overall.
+			// Statement-list metadata comes before its body: a case's
+			// condition or a namespace's name is not one of its statements.
 			i := syntax.StmtIndex(list, child)
 			if i < 0 {
-				i = len(list)
+				i = 0
 			}
+
 			if syntax.FirstTerminating(p) < i && !j.landing(p, list, i, n) {
 				return p, i
 			}
@@ -302,7 +303,7 @@ type building struct {
 	at    map[string][]int
 	named map[string]bool
 	// parked holds the jumps a list stops, by the place that stops them.
-	parked map[gap][]parking
+	parked map[gap]*parkings
 	// fired holds the names of labels reached and not yet followed.
 	fired []string
 }
@@ -317,8 +318,9 @@ type gap struct {
 
 // parking is a jump stopped in a list at the statement of index at.
 type parking struct {
-	jump *syntax.Goto
-	at   int
+	jump  *syntax.Goto
+	at    int
+	owner syntax.Node
 }
 
 // land works out the landings of a scope with a block body.
@@ -328,7 +330,7 @@ func land(scope syntax.Node) *landings {
 		landings: &landings{labels: labels, marks: make([]int32, len(labels)+1), lists: map[syntax.Node]*landed{}},
 		at:       map[string][]int{},
 		named:    map[string]bool{},
-		parked:   map[gap][]parking{},
+		parked:   map[gap]*parkings{},
 	}
 	b.jumps = jumps{scope: scope, live: b.landings}
 	body := syntax.VariableScopeBody(scope)
@@ -369,7 +371,16 @@ func (b *building) follow(jump *syntax.Goto, child, p syntax.Node) {
 	}
 	if b.lists[owner] != nil {
 		place := gap{owner, syntax.TailOf(owner).LastTerminating(at - 1)}
-		b.parked[place] = append(b.parked[place], parking{jump, at})
+		waiting := b.parked[place]
+		if waiting == nil {
+			waiting = &parkings{byIndex: map[int][]parking{}, queued: map[int]bool{}}
+			b.parked[place] = waiting
+		}
+		if !waiting.queued[at] {
+			waiting.queued[at] = true
+			heap.Push(&waiting.indexes, at)
+		}
+		waiting.byIndex[at] = append(waiting.byIndex[at], parking{jump, at, owner})
 	}
 }
 
@@ -380,29 +391,65 @@ func (b *building) reach(name string, body syntax.Node) {
 		return
 	}
 	b.named[name] = true
-	var woken []gap
+	var waking []parking
+	wake := func(place gap, at int, through bool) {
+		waiting := b.parked[place]
+		if waiting == nil {
+			return
+		}
+		take := func(index int) {
+			waking = append(waking, waiting.byIndex[index]...)
+			delete(waiting.byIndex, index)
+		}
+		// A label nested in the same statement may reach a parked jump even
+		// when the containing statement cannot fall through.
+		take(at)
+		if through {
+			for len(waiting.indexes) > 0 && waiting.indexes[0] > at {
+				index := heap.Pop(&waiting.indexes).(int)
+				delete(waiting.queued, index)
+				take(index)
+			}
+		}
+	}
 	for _, k := range b.at[name] {
 		b.mark(k)
 		exits(b.labels[k], body, func(p syntax.Node, i int, leaves bool) {
 			known, tail := b.lists[p], syntax.TailOf(p)
 			last := tail.LastTerminating(i)
-			if leaves && int32(i) < known.least[last-known.from] {
+			improved := leaves && int32(i) < known.least[last-known.from]
+			if improved {
 				known.least[last-known.from] = int32(i)
 			}
-			woken = append(woken, gap{p, last})
+			wake(gap{p, last}, i, improved)
 			if last == i && i > known.from {
-				// A jump below a statement that ends the list waits at the
-				// one before.
-				woken = append(woken, gap{p, tail.LastTerminating(i - 1)})
+				wake(gap{p, tail.LastTerminating(i - 1)}, i, false)
 			}
 		})
 	}
-	for _, place := range woken {
-		waiting := b.parked[place]
-		delete(b.parked, place)
-		list, _ := syntax.StmtListOf(place.owner)
-		for _, w := range waiting {
-			b.follow(w.jump, list[w.at], place.owner)
-		}
+	for _, w := range waking {
+		list, _ := syntax.StmtListOf(w.owner)
+		b.follow(w.jump, list[w.at], w.owner)
 	}
+}
+
+// parkings indexes stopped jumps by their statement. A new earliest landing
+// releases only later statements; jumps before it stay parked without work.
+type parkings struct {
+	byIndex map[int][]parking
+	queued  map[int]bool
+	indexes parkingIndexes
+}
+
+type parkingIndexes []int
+
+func (p parkingIndexes) Len() int           { return len(p) }
+func (p parkingIndexes) Less(i, j int) bool { return p[i] > p[j] }
+func (p parkingIndexes) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p *parkingIndexes) Push(v any)        { *p = append(*p, v.(int)) }
+func (p *parkingIndexes) Pop() any {
+	last := len(*p) - 1
+	v := (*p)[last]
+	*p = (*p)[:last]
+	return v
 }

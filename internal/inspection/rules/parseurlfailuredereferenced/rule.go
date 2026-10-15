@@ -30,14 +30,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !astquery.ArrayFetchRequiresRead(a) {
 		return
 	}
-	if !semanticquery.ExpansionDPristine(ctx, a.Var, n) {
+	if !semanticquery.ExpansionDPristine(ctx, a.Var, n) && !semanticquery.NativeFailureFlowOnly(ctx, a.Var) {
 		return
 	}
 	// Among several reaching assignments only a parse_url result counts:
 	// an unguarded result of another call does not stand in for it.
 	parsed := func(e syntax.Expr) bool {
 		call, ok := e.(*syntax.FuncCall)
-		return ok && semanticquery.NativeBuiltin(ctx, call, "parse_url")
+		return ok && relevantParse(ctx, call)
 	}
 	c, ok := semanticquery.NativeLocalResultOf(ctx, a.Var, "false", parsed).(*syntax.FuncCall)
 	if !ok {
@@ -48,22 +48,32 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || !semanticquery.NativeBuiltin(ctx, c, "parse_url") {
 		return
 	}
-	component := semanticquery.CallArgument(c.Args, 1, "component")
-	if component != nil {
-		v, k := semanticquery.NativeInt(ctx, component)
-		if !k || v != -1 {
-			return
-		}
-	}
-	if raw, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(c.Args, 0, "url")); known && !literalURLFails(raw) {
+	if !relevantParse(ctx, c) {
 		return
 	}
-	if semanticquery.NativeLocalSentinelGuard(ctx, a.Var, "false") || ctx.Flow().Excludes(a.Var, "false") {
+
+	if !semanticquery.NativeFailureFlowOnly(ctx, a.Var) && semanticquery.NativeLocalSentinelGuard(ctx, a.Var, "false") || ctx.Flow().Excludes(a.Var, "false") {
 		return
 	}
-	if semanticquery.NativeLabelled(ctx, a.Var) || !(guard{ctx: ctx, target: a.Var, after: c.Span().End}).covers() {
+	if semanticquery.NativeFailureFlowOnly(ctx, a.Var) || !(guard{ctx: ctx, target: a.Var, after: c.Span().End}).covers() {
 		ctx.ReportNode(a, message)
 	}
+}
+
+// relevantParse excludes other result contracts before choosing a producer,
+// so a safe literal or component result cannot hide another failing parse.
+func relevantParse(ctx *analysis.Context, c *syntax.FuncCall) bool {
+	if !semanticquery.NativeBuiltin(ctx, c, "parse_url") {
+		return false
+	}
+	if component := semanticquery.CallArgument(c.Args, 1, "component"); component != nil {
+		v, known := semanticquery.NativeInt(ctx, component)
+		if !known || v != -1 {
+			return false
+		}
+	}
+	raw, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(c.Args, 0, "url"))
+	return !known || literalURLFails(raw)
 }
 
 // guard proves lexically that the failure value cannot reach a read of target.

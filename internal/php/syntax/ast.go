@@ -1,6 +1,28 @@
 package syntax
 
+import (
+	"sync"
+
+	phpversion "custos/internal/php/version"
+)
+
 //go:generate go run ../../../tools/genkinds
+
+// File is a parsed PHP source file.
+type File struct {
+	nodeBase
+	term    int32
+	jumps   listJumps
+	Path    string
+	Src     []byte
+	Version phpversion.Version
+	Tokens  []Token // complete token stream (trivia included)
+	Stmts   []Stmt
+	Errors  []Error
+
+	memoMu sync.Mutex
+	memo   map[any]any
+}
 
 // Span is a byte range [Start, End) in the source.
 type Span struct {

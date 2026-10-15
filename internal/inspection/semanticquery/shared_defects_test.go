@@ -61,6 +61,13 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 		result = fmt.Sprint(NativeUnreplaced(ctx, a, b))
 	case "static":
 		result = fmt.Sprint(NativeStaticLocal(ctx, a))
+	case "writes-known":
+		scope := syntax.EnclosingVariableScope(a)
+		result = fmt.Sprint(nativeContractScope(ctx, scope).localWrites(ctx, scope).known)
+	case "warning-unknown":
+		result = fmt.Sprint(nativeJoinedWarningUnknown(ctx, a.(*syntax.FuncCall)))
+	case "string-nonnull":
+		result = fmt.Sprint(NativeStringNonNullGuard(ctx, a))
 	case "length":
 		result = fmt.Sprint(NativeLengthGuard(ctx, a, 4))
 	case "class":
@@ -154,7 +161,10 @@ func TestSharedLocalResultUsesTheStatedFailure(t *testing.T) {
 		{"other result first, passed over", "origin-of-scandir", `function f($a, $c){$u=parse_url($a); if($c){$u=scandir($a);} probe($u);}`, "scandir($a)"},
 		{"other result first, own result guarded", "origin-of-scandir", `function f($a, $c){$u=parse_url($a); if($c){$u=scandir($a); if(!$u){return;}} probe($u);}`, ""},
 		{"only other results", "origin-of-scandir", `function f($a, $c){$u=parse_url($a); if($c){$u=glob($a);} probe($u);}`, ""},
-		{"single other result", "origin-of-scandir", `function f($a){$u=parse_url($a); probe($u);}`, "parse_url($a)"},
+		{"known literal is unrelated", "origin-of-scandir", `function f(){$u='known'; probe($u);}`, ""},
+		{"known matching result", "origin-of-scandir", `function f($a){$u=scandir($a); probe($u);}`, "scandir($a)"},
+		{"literal before later matching result", "origin-of-scandir", `function f($a,$c){$u='known'; if($c){$u=scandir($a);} probe($u);}`, "scandir($a)"},
+		{"single other result", "origin-of-scandir", `function f($a){$u=parse_url($a); probe($u);}`, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := sharedDefectResults(t, tc.query, tc.src, ""); got != tc.want {
@@ -169,6 +179,19 @@ func TestSharedLocalResultUsesTheStatedFailure(t *testing.T) {
 func TestSharedLocalValueSeesEveryWrite(t *testing.T) {
 	for _, tc := range []struct{ name, src, want string }{
 		{"plain", `$n=5; probe($n);`, "5"},
+		{"temporary array argument", `function f(){$n=5; work(['sink'=>$n]); probe($n);}`, "5"},
+		{"released foreach reference", `function f($a){foreach($a as &$n){} unset($n); $n=5; work(); probe($n);}`, "5"},
+		{"conditional binding released", `function f($a,$c){if($c){foreach($a as &$n){} unset($n);} $n=5; work(); probe($n);}`, "5"},
+		{"older alias survives conditional release", `function f($a,$c){$r=&$n;if($c){foreach($a as &$n){}unset($n);} $n=5;work();probe($n);}`, ""},
+
+		{"binding escapes before release", `function f($a,$c){while($c){foreach($a as &$n){} break; unset($n);} $n=5; work(); probe($n);}`, ""},
+		{"exception skips release", `function f($a){try{foreach($a as &$n){} work();unset($n);}catch(E){} $n=5;work();probe($n);}`, ""},
+
+		{"conditional release", `function f($a,$c){foreach($a as &$n){} if($c){unset($n);} $n=5; work(); probe($n);}`, ""},
+		{"nested release", `function f($a,$c){foreach($a as &$n){} if($c){unset($n); $n=5; work(); probe($n);}}`, "5"},
+		{"unbraced conditional release", `function f($a,$c){foreach($a as &$n){} if($c) unset($n); $n=5; work(); probe($n);}`, ""},
+		{"reference bound again", `function f($a){foreach($a as &$n){} unset($n); $r=&$n; $n=5; work(); probe($n);}`, ""},
+		{"label may skip release", `function f($a,$c){foreach($a as &$n){} if($c) goto next; unset($n); next: $n=5; work(); probe($n);}`, ""},
 		{"silenced call", `function f($a){$u=@parse_url($a); probe($u);}`, "parse_url($a)"},
 		{"silenced call in parentheses", `function f($a){$u=(@(parse_url($a))); probe($u);}`, "parse_url($a)"},
 		{"copy", `$m=5; $n=$m; probe($n);`, "5"},
@@ -229,16 +252,16 @@ func TestSharedLocalValueSeesEveryWrite(t *testing.T) {
 		{"call-time reference", `function f($s){$n=5; work(); strlen(&$n); probe($n);}`, ""},
 		{"placeholder call", `function f($s){$n=5; work(); $g=strlen(...); probe($n);}`, "5"},
 		{"callee without arguments", `function f($s){$n=5; work(); new stdClass; probe($n);}`, "5"},
-		{"unresolved method argument", `function f($o){$n=5; work(); $o->fill($n); probe($n);}`, "5"},
+		{"unresolved method argument", `function f($o){$n=5; work(); $o->fill($n); probe($n);}`, ""},
 		{"reference method argument", `class W { function fill(&$x){} } function f(W $o){$n=5; work(); $o->fill($n); probe($n);}`, ""},
 		{"value method argument", `class W { function fill($x){} } function f(W $o){$n=5; work(); $o->fill($n); probe($n);}`, "5"},
 		{"unpacked method argument", `class W { function fill($x){} } function f(W $o){$n=[5]; work(); $o->fill(...$n); probe($n);}`, ""},
 		{"builtin method value argument", `function f(DateTime $o){$n=5; work(); $o->format($n); probe($n);}`, "5"},
-		{"unresolved static argument", `function f(){$n=5; work(); Unknown::fill($n); probe($n);}`, "5"},
+		{"unresolved static argument", `function f(){$n=5; work(); Unknown::fill($n); probe($n);}`, ""},
 		{"reference static argument", `class W { static function fill(&$x){} } function f(){$n=5; work(); W::fill($n); probe($n);}`, ""},
 		{"builtin static value argument", `function f(){$n=5; work(); DateTime::createFromFormat($n, 'x'); probe($n);}`, "5"},
-		{"unresolved constructor argument", `function f(){$n=5; work(); new Unknown($n); probe($n);}`, "5"},
-		{"dynamic constructor argument", `function f($c){$n=5; work(); new $c($n); probe($n);}`, "5"},
+		{"unresolved constructor argument", `function f(){$n=5; work(); new Unknown($n); probe($n);}`, ""},
+		{"dynamic constructor argument", `function f($c){$n=5; work(); new $c($n); probe($n);}`, ""},
 		{"reference constructor argument", `class W { function __construct(&$x){} } function f(){$n=5; work(); new W($n); probe($n);}`, ""},
 		{"unresolved function argument", `function f(){$n=5; work(); if(fill($n)){} probe($n);}`, ""},
 		{"builtin constructor value argument", `function f(){$n=5; work(); new DateTime($n); probe($n);}`, "5"},
@@ -352,6 +375,7 @@ func TestSharedIdentityAcrossWrites(t *testing.T) {
 		{"unknown function", `fill($n);`, false},
 		{"unknown function reading it", `fill($n + 1);`, false},
 		{"unknown method", `$o->fill($n);`, false},
+		{"unknown method reading it", `$o->fill($n + 1);`, false},
 		{"variable variable from a builtin", `preg_match('/a/', 'a', $$k);`, true},
 	} {
 		t.Run("between "+tc.name, func(t *testing.T) {
@@ -622,8 +646,8 @@ func TestSharedStaticLocalAcrossReentry(t *testing.T) {
 		{"same", "copies around a builtin", static + `$t=$s; strlen('a'); $u=$s; probe($t, $u);}`, "true"},
 		{"same", "copies around a conversion to text", static + `$t=$s; strlen($a); $u=$s; probe($t, $u);}`, "false"},
 		{"same", "plain local around a call", `function f($a, $o){$s=parse_url($a); $t=$s; $o->run(); $u=$s; probe($t, $u);}`, "true"},
-		{"same", "object around a call it is handed to", `function f($o){$s=new stdClass(); $t=$s; $o->run($s); probe($t, $s);}`, "true"},
-		{"same", "object handed to a call on one path", `function f($o, $c){$s=new stdClass(); $t=$s; if($c){$o->run($t);} probe($t, $s);}`, "true"},
+		{"same", "object around a call it is handed to", `function f($o){$s=new stdClass(); $t=$s; $o->run($s); probe($t, $s);}`, "false"},
+		{"same", "object handed to a call on one path", `function f($o, $c){$s=new stdClass(); $t=$s; if($c){$o->run($t);} probe($t, $s);}`, "false"},
 		{"same", "static object around a call", `function f($o){static $s; $s=new stdClass(); $t=$s; $o->run(); probe($t, $s);}`, "false"},
 
 		{"unreplaced", "copies around nothing", static + `$t=$s; $u=$s; probe($t, $u);}`, "true"},
@@ -669,6 +693,266 @@ func TestSharedLocalOnly(t *testing.T) {
 			}
 			if got := sharedDefectResults(t, "origin", tc.src, ""); got != tc.want {
 				t.Fatalf("origin=%q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// Dense unrelated writes must not make each known nonmatching result scan
+// the scope's preceding events. Keep both literal and unrelated API cases.
+func BenchmarkNativeLocalNonmatchingResults(b *testing.B) {
+	for _, value := range []string{"'known'", "parse_url($a)"} {
+		var source strings.Builder
+		source.WriteString("<?php function f(string $a){")
+		for range 128 {
+			source.WriteString("$u=" + value + ";probe($u);")
+		}
+		source.WriteString("}")
+		file := syntax.Parse("dense.php", []byte(source.String()), syntax.Options{})
+		var results []string
+		rule := sharedDefectProbe{"origin-of-scandir", &results}
+		engine, err := analysis.NewEngine([]analysis.Rule{rule}, analysis.Config{Only: []string{rule.ID()}})
+		if err != nil {
+			b.Fatal(err)
+		}
+		b.Run(value, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				results = results[:0]
+				engine.Analyze(file)
+			}
+		})
+	}
+}
+
+func TestSharedDerivedStringGuards(t *testing.T) {
+	for _, tc := range []struct {
+		name, condition, between string
+		want                     string
+	}{
+		{"suffix", "str_ends_with($v, '/')", "", "true"},
+		{"prefix", "str_starts_with($v, '/')", "", "true"},
+		{"contains", "str_contains($v, '/')", "", "true"},
+		{"empty needle", "str_ends_with($v, '')", "", "false"},
+		{"position", "strpos($v, '$') !== FALSE", "", "true"},
+		{"empty position needle", "strpos($v, '') !== false", "", "false"},
+		{"strict offset", "$v[0] === 'x'", "", "true"},
+		{"empty offset", "$v[0] === ''", "", "false"},
+		{"different variable", "str_ends_with($other, '/')", "", "false"},
+		{"rewrite", "str_ends_with($v, '/')", "$v=other();", "false"},
+		{"false branch", "!str_ends_with($v, '/')", "", "false"},
+		{"unpacked", "str_ends_with(...$v)", "", "false"},
+		{"named", "str_ends_with(needle:'/', haystack:$v)", "", "true"},
+		{"duplicate", "str_ends_with($v, '/', haystack:$v)", "", "false"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := "function f($s,$c){$v=$s;if($c){$v=preg_replace('/x/','',$v);}if(" + tc.condition + "){" + tc.between + "probe($v);}}"
+			if got := sharedDefectResults(t, "string-nonnull", source, ""); got != tc.want {
+				t.Fatalf("got %q want %q", got, tc.want)
+			}
+		})
+	}
+	for _, source := range []string{
+		`function f($s,$c){$v=preg_replace('/x/','',$s);if(str_ends_with($v,'/')){while($c){probe($v);$v=preg_replace('/y/','',$s);}}}`,
+		`function f($s,$c){$v=preg_replace('/x/','',$s);while($c){if(str_ends_with($v,'/')){again: probe($v);$v=preg_replace('/y/','',$s);goto again;}}}`,
+		`namespace N; function str_ends_with($v,$n){return true;} function f($s){$v=preg_replace('/x/','',$s);if(str_ends_with($v,'/')){probe($v);}}`,
+	} {
+		if got := sharedDefectResults(t, "string-nonnull", source, ""); got != "false" {
+			t.Fatalf("unexpected guard: %q", got)
+		}
+	}
+}
+
+func TestSharedJoinedWarningBoundary(t *testing.T) {
+	for _, tc := range []struct {
+		name, before string
+		want         bool
+	}{
+		{"none", "", false},
+		{"throwing arrow", "set_error_handler(fn()=>throw new E());", true},
+		{"throwing closure", "set_error_handler(function(){throw new E();});", true},
+		{"return false", "set_error_handler(function(){return false;});", false},
+		{"return true", "set_error_handler(fn()=>true);", true},
+		{"typed callback", "set_error_handler(fn(array $a)=>false);", true},
+		{"extra default", "set_error_handler(fn($a,$b,$c,$d,$e=new E())=>false);", true},
+		{"unpacked callback", "set_error_handler(...$o);", true},
+		{"named handler", "set_error_handler('handler');", true},
+		{"larger handler", "set_error_handler(function(){work();return false;});", true},
+		{"restored", "set_error_handler(fn()=>throw new E());restore_error_handler();", false},
+		{"conditional restore", "set_error_handler(fn()=>throw new E());if($c){restore_error_handler();}", true},
+		{"conditional registration", "if($c){set_error_handler(fn()=>throw new E());}", true},
+		{"project call", "set_error_handler(fn()=>false);work();", true},
+		{"method", "set_error_handler(fn()=>false);$o->work();", true},
+		{"property", "set_error_handler(fn()=>false);$p=$o->p;", true},
+		{"array", "set_error_handler(fn()=>false);$p=$o[0];", true},
+		{"unset", "set_error_handler(fn()=>false);unset($o);", true},
+		{"destructor assignment", "set_error_handler(fn()=>false);$o=null;", true},
+		{"property assignment", "set_error_handler(fn()=>false);$o->p=1;", true},
+		{"conversion", "set_error_handler(fn()=>false);$p='x'.$o;", true},
+		{"cast", "set_error_handler(fn()=>false);$p=(string)$o;", true},
+		{"scalar call", "set_error_handler(fn()=>false);str_replace('x','y','z');", false},
+		{"object call", "set_error_handler(fn()=>false);str_replace('x','y',$o);", true},
+		{"fresh local", "set_error_handler(fn()=>false);$p='a';$p='b';", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := "function f($o,$c){" + tc.before + "probe(fopen('local','r'));}"
+			if got := sharedDefectResults(t, "warning-unknown", source, ""); got != fmt.Sprint(tc.want) {
+				t.Fatalf("got %q want %v", got, tc.want)
+			}
+		})
+	}
+	for _, source := range []string{
+		`set_error_handler(fn()=>throw new E());probe(fopen('x','r'));`,
+		`function f($c){while($c){probe(fopen('x','r'));set_error_handler(fn()=>throw new E());}}`,
+		`function f(){again: probe(fopen('x','r'));set_error_handler(fn()=>throw new E());goto again;}`,
+		"function f(){" + strings.Repeat("$p='x';", 2050) + "probe(fopen('x','r'));}",
+	} {
+		if got := sharedDefectResults(t, "warning-unknown", source, ""); got != "true" {
+			t.Fatalf("unexpected boundary %q", got)
+		}
+	}
+}
+
+func TestSharedDerivedStringGuardBoundaries(t *testing.T) {
+	for _, tc := range []struct{ source, want string }{
+		{`function f($s,$c){$v=$s;if($c){$v=preg_replace('/x/','',$v);}if(false===$i=strpos($v,'$')){return;}$n=1;$v=substr($v,$i);probe($v);}`, "false"},
+		{`function f($s,$c){$v=$s;if($c){$v=preg_replace('/x/','',$v);}if(false===$i=strpos($v,'$')){return;}$n=1;probe($v);}`, "true"},
+		{`function f($s,$c){$v=$s;if($c){$v=preg_replace('/x/','',$v);}if(str_ends_with($v,'/')){$v=substr(probe($v),1);}}`, "true"},
+		{`function f($o){if(str_ends_with($o->p,'/')){probe($o->p);}}`, "false"},
+		{`function f($o,$k){if(str_ends_with($$k,'/')){probe($$k);}}`, "false"},
+		{`function f($v){if(str_ends_with($v,'/')){$v='changed';probe($v);}}`, "false"},
+		{"function f($v){" + strings.Repeat("$x=1;", 513) + "probe($v);}", "false"},
+	} {
+		if got := sharedDefectResults(t, "string-nonnull", tc.source, ""); got != tc.want {
+			t.Fatalf("got %q want %q for %s", got, tc.want, tc.source)
+		}
+	}
+	// Unknown write histories cannot establish an unchanged string binding.
+	writes := nativeLocalWrites{}
+	if !nativeStringRewritten(&writes, "v", 0, &syntax.Variable{Name: "v"}) {
+		t.Fatal("unknown history proved stable")
+	}
+	writes.share(&syntax.Variable{Name: "v"}, 1)
+	if len(writes.shared) != 0 {
+		t.Fatal("exhausted history retained a reference")
+	}
+}
+
+func BenchmarkNativeJoinedFailureGuards(b *testing.B) {
+	for _, tc := range []struct{ name, query, source string }{
+		{"derived", "string-nonnull", `<?php function f($s,$c){$v=$s;if($c){$v=preg_replace('/x/','',$v);}if(false===$i=strpos($v,'$'))return;$n=1;probe($v);}`},
+		{"handler", "warning-unknown", `<?php function f($p){set_error_handler(fn()=>throw new E());probe(fopen($p,'r'));}`},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			file := syntax.Parse("guard.php", []byte(tc.source), syntax.Options{})
+			var results []string
+			rule := sharedDefectProbe{tc.query, &results}
+			engine, err := analysis.NewEngine([]analysis.Rule{rule}, analysis.Config{Only: []string{rule.ID()}})
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.ReportAllocs()
+			for b.Loop() {
+				results = results[:0]
+				engine.Analyze(file)
+			}
+		})
+	}
+}
+
+func TestSharedReferenceWorkBudget(t *testing.T) {
+	for _, tc := range []struct {
+		bindings int
+		want     string
+	}{{20, "5"}, {160, ""}} {
+		source := "function f(){" + strings.Repeat("$alias=&$n;unset($n);", tc.bindings) + "$n=5;work();probe($n);}"
+		if got := sharedDefectResults(t, "origin", source, ""); got != tc.want {
+			t.Fatalf("bindings%d got %q want %q", tc.bindings, got, tc.want)
+		}
+	}
+	for _, tc := range []struct {
+		jumps int
+		want  string
+	}{{nativeLocalWriteBudget, "true"}, {nativeLocalWriteBudget + 1, "false"}} {
+		source := "function f($c,$n){while($c){" + strings.Repeat("if($c){break;}", tc.jumps) + "}probe($n);}"
+		if got := sharedDefectResults(t, "writes-known", source, ""); got != tc.want {
+			t.Fatalf("jumps%d got %q want %q", tc.jumps, got, tc.want)
+		}
+	}
+	unknown := nativeLocalWrites{}
+	if !unknown.reached("n", 0, 100) {
+		t.Fatal("unknown write history proved isolated")
+	}
+	// All nested walks spend one allowance; running out inside either operand
+	// must not let the other operand turn the result into a proof of isolation.
+	for _, tc := range []struct {
+		name     string
+		writes   int
+		calls    int
+		starts   int
+		releases int
+		jumps    int
+	}{
+		{"outer writes", nativeLocalWriteBudget, 0, 3, 0, 0},
+		{"outer calls", nativeLocalWriteBudget, 1, 3, 0, 0},
+		{"starts", nativeLocalWriteBudget, 1, nativeLocalWriteBudget, 0, 0},
+		{"releases", nativeLocalWriteBudget, 1, 4, nativeLocalWriteBudget - 4, 0},
+		{"jumps", 5, 1, 4, 1, nativeLocalWriteBudget},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			writes := nativeLocalWrites{known: true, shared: map[string][]uint32{"n": make([]uint32, tc.starts)}, released: map[string][]nativeLocalRelease{"n": make([]nativeLocalRelease, tc.releases)}, writes: make([]nativeLocalWrite, tc.writes), calls: make([]uint32, tc.calls), jumps: make([]uint32, tc.jumps)}
+			for i := range writes.writes {
+				writes.writes[i] = nativeLocalWrite{name: "other", at: 50}
+			}
+			for i := range writes.calls {
+				writes.calls[i] = 50
+			}
+			for i := range writes.shared["n"] {
+				writes.shared["n"][i] = 100
+			}
+			if tc.releases > 0 {
+				for i := range writes.shared["n"] {
+					writes.shared["n"][i] = uint32(i + 1)
+				}
+				for i := range writes.released["n"] {
+					writes.released["n"][i].at = uint32(1000 + i)
+				}
+			}
+			if tc.jumps > 0 {
+				writes.released["n"][0] = nativeLocalRelease{at: 20, owner: syntax.Span{Start: 0, End: 30}}
+				for i := range writes.jumps {
+					writes.jumps[i] = uint32(1000 + i)
+				}
+			}
+			if tc.name == "outer writes" {
+				for i := range writes.shared["n"] {
+					writes.shared["n"][i] = 50
+				}
+				writes.shared["heavy"] = []uint32{200, 200, 200, 200, 200, 200}
+				writes.writes[0] = nativeLocalWrite{name: "heavy", at: 60}
+				for i := 1; i < len(writes.writes); i++ {
+					writes.writes[i].at = 40
+				}
+			}
+			if !writes.reached("n", 0, 100) {
+				t.Fatal("exhausted query proved isolation")
+			}
+		})
+	}
+}
+
+func BenchmarkNativeReferenceLifetimes(b *testing.B) {
+	for _, bindings := range []int{1, 160} {
+		b.Run(fmt.Sprint(bindings), func(b *testing.B) {
+			writes := nativeLocalWrites{known: true, shared: map[string][]uint32{"n": {}}, released: map[string][]nativeLocalRelease{}, calls: []uint32{10000}}
+			for i := range bindings {
+				writes.shared["n"] = append(writes.shared["n"], uint32(i*4+1))
+				writes.released["n"] = append(writes.released["n"], nativeLocalRelease{at: uint32(i*4 + 2), owner: syntax.Span{Start: 0, End: 20000}})
+			}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				_ = writes.reached("n", 0, 20000)
 			}
 		})
 	}

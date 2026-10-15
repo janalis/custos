@@ -66,8 +66,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // handedOver reports whether the parser is passed, before the free, to code
-// that may finish the parse: a method, static or constructor call. Unknown
-// function calls already invalidate the parser's local value. Arguments of
+// that may finish the parse: a project function, method, static or constructor
+// call. A temporary array preserves its local binding but can still hand over
+// the parser it contains. Arguments of
 // nested builtin calls only read the parser and are not a hand-over.
 func handedOver(ctx *analysis.Context, parser syntax.Expr, free syntax.Node) bool {
 	scope := syntax.EnclosingVariableScope(free)
@@ -78,6 +79,10 @@ func handedOver(ctx *analysis.Context, parser syntax.Expr, free syntax.Node) boo
 		}
 		var args *syntax.ArgList
 		switch call := node.(type) {
+		case *syntax.FuncCall:
+			if semanticquery.NativeBuiltinName(ctx, call) == "" {
+				args = call.Args
+			}
 		case *syntax.MethodCall:
 			args = call.Args
 		case *syntax.StaticCall:

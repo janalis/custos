@@ -32,7 +32,7 @@ func (rule) Check(ctx *analysis.Context, call syntax.Node) {
 		args = x.Args
 	}
 	for _, input := range semanticquery.NativeStringInputs(ctx, call, args) {
-		inner, ok := semanticquery.NativeValue(ctx, input).(*syntax.FuncCall)
+		inner, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "null", "preg_replace", "preg_replace_callback").(*syntax.FuncCall)
 		if !ok {
 			continue
 		}
@@ -42,7 +42,7 @@ func (rule) Check(ctx *analysis.Context, call syntax.Node) {
 			continue
 		}
 		// In a scope with a `goto` label only the flow says what holds here.
-		if ctx.Flow().Excludes(input, "null") || !semanticquery.NativeLabelled(ctx, input) && (ctx.TypeOf(input).OnlyOf("string") || nullGuarded(ctx, input)) {
+		if ctx.Flow().Excludes(input, "null") || semanticquery.NativeStringNonNullGuard(ctx, input) || !semanticquery.NativeFailureFlowOnly(ctx, input) && (ctx.TypeOf(input).OnlyOf("string") || nullGuarded(ctx, input)) {
 			continue
 		}
 		// The parameter must be `string` in whichever declaration runs, and a

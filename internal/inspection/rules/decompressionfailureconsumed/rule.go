@@ -28,7 +28,17 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	input := semanticquery.CallArgument(c.Args, 0, "string")
-	origin, ok := semanticquery.NativeValue(ctx, input).(*syntax.FuncCall)
+	origin, ok := semanticquery.NativeLocalResultOf(ctx, input, "false", func(e syntax.Expr) bool {
+		call, ok := e.(*syntax.FuncCall)
+		if !ok {
+			return false
+		}
+		switch semanticquery.NativeBuiltinName(ctx, call) {
+		case "gzdecode", "gzuncompress", "gzinflate", "inflate_add":
+			return !safeCompression(ctx, call)
+		}
+		return false
+	}).(*syntax.FuncCall)
 	if !ok {
 		return
 	}
@@ -37,18 +47,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return
 	}
-	encoder, known := semanticquery.NativeValue(ctx, semanticquery.CallArgument(origin.Args, 0, "data")).(*syntax.FuncCall)
-	if known && semanticquery.CallArgument(encoder.Args, 2, "encoding") == nil {
-		expected := map[string]string{"gzdecode": "gzencode", "gzuncompress": "gzcompress", "gzinflate": "gzdeflate"}[semanticquery.NativeBuiltinName(ctx, origin)]
-		if expected != "" && semanticquery.NativeBuiltin(ctx, encoder, expected) {
-			level := semanticquery.CallArgument(encoder.Args, 1, "level")
-			if level == nil {
-				return
-			}
-			if n, ok := semanticquery.NativeInt(ctx, level); ok && n >= -1 && n <= 9 {
-				return
-			}
-		}
+	if safeCompression(ctx, origin) {
+		return
 	}
 
 	// Every strict false guard on the tracked local is a fact of the shared
@@ -56,4 +56,24 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ctx.Flow().Excludes(input, "false") {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// safeCompression recognizes a statically valid matching encoder. Exclude
+// these producers before selection so they cannot hide another failing call.
+func safeCompression(ctx *analysis.Context, origin *syntax.FuncCall) bool {
+	encoder, known := semanticquery.NativeValue(ctx, semanticquery.CallArgument(origin.Args, 0, "data")).(*syntax.FuncCall)
+	if known && semanticquery.CallArgument(encoder.Args, 2, "encoding") == nil {
+		expected := map[string]string{"gzdecode": "gzencode", "gzuncompress": "gzcompress", "gzinflate": "gzdeflate"}[semanticquery.NativeBuiltinName(ctx, origin)]
+		if expected != "" && semanticquery.NativeBuiltin(ctx, encoder, expected) {
+			level := semanticquery.CallArgument(encoder.Args, 1, "level")
+			if level == nil {
+				return true
+			}
+			if n, ok := semanticquery.NativeInt(ctx, level); ok && n >= -1 && n <= 9 {
+				return true
+			}
+		}
+	}
+
+	return false
 }

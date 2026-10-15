@@ -36,7 +36,7 @@ func (e *Env) statementKill(n syntax.Node) syntax.Span {
 	if b, ok := n.Parent().(*syntax.Block); ok {
 		return b.Span()
 	}
-	if n.Parent() == nil {
+	if _, file := n.Parent().(*syntax.File); file {
 		return syntax.Span{End: uint32(len(e.File.Src))}
 	}
 	return syntax.Span{}

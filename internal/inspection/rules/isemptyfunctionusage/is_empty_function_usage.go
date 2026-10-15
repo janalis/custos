@@ -224,7 +224,7 @@ func isEmptySubjectAssigned(f *syntax.File, s syntax.Expr) bool {
 		var holder syntax.Node = v
 		for {
 			switch holder.Parent().(type) {
-			case nil, *syntax.Namespace:
+			case nil, *syntax.File, *syntax.Namespace:
 				st, _ := holder.(syntax.Stmt)
 				list, i, ok := astquery.StmtList(f, st)
 				return !ok || isEmptyAssignedBefore(list[:i], v.Name)

@@ -9,8 +9,11 @@ import (
 // ok is false when s is not part of a statement list (e.g. an unbraced body).
 func StmtList(f *syntax.File, s syntax.Stmt) (list []syntax.Stmt, idx int, ok bool) {
 	switch p := s.Parent().(type) {
-	case nil:
-		list = f.Stmts
+	case *syntax.File:
+		if p != f {
+			return nil, -1, false
+		}
+		list = p.Stmts
 	case *syntax.Block:
 		list = p.Stmts
 	case *syntax.Case:
@@ -20,10 +23,8 @@ func StmtList(f *syntax.File, s syntax.Stmt) (list []syntax.Stmt, idx int, ok bo
 	default:
 		return nil, -1, false
 	}
-	if i := syntax.StmtIndex(list, s); i >= 0 {
-		return list, i, true
-	}
-	return nil, -1, false
+	// A parsed statement whose parent owns a list is one of its entries.
+	return list, syntax.StmtIndex(list, s), true
 }
 
 // PrevStmt returns the statement preceding s in its statement list.

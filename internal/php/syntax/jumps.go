@@ -38,7 +38,7 @@ func (t *Tail) LastTerminating(i int) int {
 	return int(t.last[i-t.first])
 }
 
-// TailOf returns the Tail of the list owned by p (a *Block, *Case or
+// TailOf returns the Tail of the list owned by p (a *File, *Block, *Case or
 // *Namespace), or nil for another node or a list no statement ends. It is
 // read once per list, so asking it for every node of a long list stays
 // linear overall.
@@ -46,6 +46,8 @@ func TailOf(p Node) *Tail {
 	var memo *listJumps
 	var list []Stmt
 	switch x := p.(type) {
+	case *File:
+		memo, list = &x.jumps, x.Stmts
 	case *Block:
 		memo, list = &x.jumps, x.Stmts
 	case *Case:

@@ -25,6 +25,11 @@ type nativeLocalWrite struct {
 	builtin bool
 }
 
+type nativeLocalRelease struct {
+	at    uint32
+	owner syntax.Span
+}
+
 // nativeLocalWrites lists the writes of one variable scope in source order.
 // known is false for a scope with more writes than the budget, which then
 // proves nothing.
@@ -34,23 +39,28 @@ type nativeLocalWrites struct {
 	// shared names are bound, from the recorded offset on, to storage another
 	// name, a closure or the globals table also reaches; calls are the
 	// offsets after which a call that can run project code has returned.
-	shared map[string]uint32
-	calls  []uint32
+	shared      map[string][]uint32
+	released    map[string][]nativeLocalRelease
+	jumps       []uint32
+	exceptional bool
+	labelled    bool
+	calls       []uint32
 	// statics names the locals declared `static`: an invocation the function
 	// makes of itself, through whatever it calls, assigns them too.
 	statics map[string]bool
 }
 
-// share records a name whose storage is reachable without naming it. The
-// scope is walked in source order, so the first record is the earliest.
+// share records a name whose storage is reachable without naming it.
+// Multiple bindings matter when unset releases an earlier reference.
 func (w *nativeLocalWrites) share(x syntax.Expr, at uint32) {
+	if !w.known {
+		return
+	}
 	if v := nativeRootVariable(x); v != nil && v.NameExpr == nil {
 		if w.shared == nil {
-			w.shared = map[string]uint32{}
+			w.shared = map[string][]uint32{}
 		}
-		if _, known := w.shared[v.Name]; !known {
-			w.shared[v.Name] = at
-		}
+		w.shared[v.Name] = append(w.shared[v.Name], at)
 	}
 }
 
@@ -64,6 +74,9 @@ func (w *nativeLocalWrites) call(n syntax.Node) {
 }
 
 const nativeLocalWriteBudget = 1024
+
+// Bound the combined nested work of each reference-lifetime query.
+const nativeLocalReferenceWork = 4096
 
 // index walks the scope once. A nested closure contributes the names it
 // binds by reference: its body may write them whenever it runs.
@@ -153,6 +166,7 @@ func (w *nativeLocalWrites) record(ctx *analysis.Context, n syntax.Node) {
 			w.share(x.Var, start)
 		}
 		write.plain = !x.ByRef && x.Op.Kind == syntax.TEqual
+
 		w.target(x.Var, write)
 	case *syntax.IncDec:
 		w.target(x.Var, write)
@@ -184,7 +198,25 @@ func (w *nativeLocalWrites) record(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.Unset:
 		for _, v := range x.Vars {
 			w.target(v, write)
+			if _, list := syntax.StmtListOf(x.Parent()); list && w.known {
+				if variable, plain := syntax.UnwrapParens(v).(*syntax.Variable); plain && variable.NameExpr == nil {
+					if w.released == nil {
+						w.released = map[string][]nativeLocalRelease{}
+					}
+					w.released[variable.Name] = append(w.released[variable.Name], nativeLocalRelease{at: x.Span().End, owner: x.Parent().Span()})
+				}
+			}
 		}
+	case *syntax.Break, *syntax.Continue, *syntax.Throw:
+		if len(w.jumps) == nativeLocalWriteBudget {
+			w.known = false
+			return
+		}
+		w.jumps = append(w.jumps, start)
+	case *syntax.Try:
+		w.exceptional = true
+	case *syntax.Label:
+		w.labelled = true
 	case *syntax.ArrayItem:
 		if x.ByRef {
 			w.target(x.Value, nativeLocalWrite{at: x.Span().End})
@@ -223,8 +255,8 @@ func (w *nativeLocalWrites) record(ctx *analysis.Context, n syntax.Node) {
 
 // arguments records the variables a call may replace through a reference
 // parameter once it returns. A resolved callee decides by its parameter; an
-// unresolved function is assumed to take references, as the local-value scan
-// always did, an unresolved method or constructor is not.
+// unresolved callee may take a reference to a variable or element. Temporary
+// arrays and values passed inside them are not rebindable argument slots.
 func (w *nativeLocalWrites) arguments(ctx *analysis.Context, call syntax.Node, list *syntax.ArgList) {
 	if list == nil {
 		return
@@ -282,13 +314,13 @@ func nativeCalleeParameters(ctx *analysis.Context, call syntax.Node) (params []i
 				return m.Params, true, false, false
 			}
 		}
-		return nil, false, false, false
+		return nil, false, true, false
 	case *syntax.FuncCall:
 		callee, ok := ResolveCallee(ctx, x)
 		return callee.Params, ok, true, NativeBuiltinName(ctx, x) != ""
 	}
 	callee, ok := ResolveCallee(ctx, call)
-	return callee.Params, ok, false, false
+	return callee.Params, ok, !ok, false
 }
 
 // nativeByValueParameter proves the parameter an argument binds to is taken
@@ -357,17 +389,84 @@ func (w *nativeLocalWrites) rewritten(name string, from, read uint32, content bo
 // between two offsets without naming it: through another shared name, or by a
 // call that can run code holding a reference.
 func (w *nativeLocalWrites) reached(name string, after, before uint32) bool {
-	since, shared := w.shared[name]
-	if !shared || since >= before {
+	if !w.known {
+		return true
+	}
+	if len(w.shared[name]) == 0 {
 		return false
 	}
+	budget := nativeLocalReferenceWork
 	for _, write := range w.writes {
-		if _, other := w.shared[write.name]; other && write.name != name && !write.builtin && write.at > after && write.at < before {
+		budget--
+		if budget < 0 {
+			return true
+		}
+		if write.name != name && !write.builtin && write.at > after && write.at < before && w.sharedAt(name, write.at, &budget) && w.sharedAt(write.name, write.at, &budget) {
+			return true
+		}
+		if budget < 0 {
 			return true
 		}
 	}
 	for _, at := range w.calls {
-		if at > after && at < before {
+		budget--
+		if budget < 0 {
+			return true
+		}
+		if at > after && at < before && w.sharedAt(name, at, &budget) {
+			return true
+		}
+	}
+	return false
+}
+
+// sharedAt keeps releases local to the statement list where unset executes.
+// A later reference binds the name again. Labels prevent this lexical proof:
+// a jump could land past the unset without having released the binding.
+func (w *nativeLocalWrites) sharedAt(name string, at uint32, budget *int) bool {
+	for _, start := range w.shared[name] {
+		(*budget)--
+		if *budget < 0 {
+			return true
+		}
+		if start >= at {
+			continue
+		}
+		released := false
+		if !w.labelled {
+			for _, release := range w.released[name] {
+				(*budget)--
+				if *budget < 0 {
+					return true
+				}
+				if release.at >= at || release.at <= start {
+					continue
+				}
+				if release.owner.Contains(syntax.Span{Start: at, End: at}) {
+					released = true
+					break
+				}
+				if w.exceptional || !release.owner.Contains(syntax.Span{Start: start, End: start}) {
+					continue
+				}
+				escaped := false
+				for _, jump := range w.jumps {
+					(*budget)--
+					if *budget < 0 {
+						return true
+					}
+					if jump > start && jump < release.at {
+						escaped = true
+						break
+					}
+				}
+				if !escaped {
+					released = true
+					break
+				}
+			}
+		}
+		if !released {
 			return true
 		}
 	}

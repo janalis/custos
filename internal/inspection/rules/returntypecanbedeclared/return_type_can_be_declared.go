@@ -413,6 +413,8 @@ func (returnTypeCanBeDeclared) compact(ctx *analysis.Context, class *syntax.Clas
 		parent := p.Parent()
 		var list []syntax.Stmt
 		switch x := parent.(type) {
+		case *syntax.File:
+			list = x.Stmts
 		case *syntax.Namespace:
 			list = x.Stmts
 		case *syntax.Block:

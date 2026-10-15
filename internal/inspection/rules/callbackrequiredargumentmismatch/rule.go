@@ -55,7 +55,9 @@ func settledDeclaration(f *syntax.File, body syntax.Node) bool {
 		return true
 	}
 	if parent := decl.Parent(); parent != nil {
-		if _, ok := parent.(*syntax.Namespace); !ok {
+		_, namespace := parent.(*syntax.Namespace)
+		_, file := parent.(*syntax.File)
+		if !namespace && !file {
 			return false
 		}
 	}

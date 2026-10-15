@@ -130,7 +130,7 @@ func TestNodeKinds(t *testing.T) {
 	files = append(files, Parse("bad.php", []byte("<?php #[A] ; $a = ; ) abstract 1;"), Options{Version: phpversion.PHP85}))
 	seen := map[NodeKind]bool{}
 	for _, f := range files {
-		InspectFile(f, func(n Node) bool {
+		Inspect(f, func(n Node) bool {
 			k := n.Kind()
 			seen[k] = true
 			if name := reflect.TypeOf(n).Elem().Name(); name != k.String() {

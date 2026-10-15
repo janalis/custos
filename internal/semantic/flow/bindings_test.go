@@ -601,14 +601,14 @@ func TestGlobalWritersAreKnownBeforeTheScopeAskedFor(t *testing.T) {
 		name, src   string
 		first, then bool
 	}{
-		{"writer asked for first", `function w(){global $g; first($g); other(); $g=$_GET['a'];} $g=1; w(); probe($g);`, false, true},
+		{"writer asked for first", `function w(){global $g; first($g); other(); $g=$_GET['a'];} $g=1; w(); probe($g);`, true, true},
 		{"writer reads what it wrote in an earlier call", `function w(){global $g; other(); first($g); $g=$_GET['a'];} w(); probe($g);`, true, true},
 		{"writer reads what a later function writes", `function r(){global $g; other(); first($g);} function w(){global $g; $g=$_GET['a'];} probe($g);`, true, false},
 		{"clean writers", `function r(){global $g; other(); first($g);} function w(){global $g; $g='x';} $g=1; w(); probe($g);`, false, false},
 		{"copied from one global to another", `function c(){global $g, $h; other(); $h=$g; first($h);} function w(){global $g; $g=$_GET['a'];} $h=1; c(); probe($h);`, true, true},
 		{"copied into a global another function writes", `function c(){global $g, $h; other(); $g=$h; first($g);} function w(){global $h; $h=$_GET['a'];} function v(){global $g; $g=$_POST['b'];} $g=1; c(); probe($g);`, true, true},
 		{"copied along a chain of functions written in reverse", `function c3(){global $j, $k; other(); $k=$j;} function c2(){global $h, $j; other(); $j=$h;} function c1(){global $g, $h; other(); $h=$g; first($h);} function w(){global $g; $g=$_GET['a'];} $k=1; c3(); probe($k);`, true, true},
-		{"copied along more functions than are followed", globalChain(globalRounds + 4), true, false},
+		{"copied beyond the former sixteen-global limit", globalChain(24), true, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for range 20 {
@@ -1028,5 +1028,36 @@ func BenchmarkIndirectWrites(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		env := New(f, e.types, nil)
 		env.Value(x)
+	}
+}
+
+func TestGlobalPropagationBudget(t *testing.T) {
+	e, f := environment(t, `function writer(){global $g;$g=$_GET['a'];} probe($g);`, nil)
+	e.globals()
+	var writer syntax.Node
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if fn, ok := n.(*syntax.Function); ok {
+			writer = fn
+		}
+		return true
+	})
+	e.propagateGlobals([]globalWriter{{writer, "g"}}, 1, 0)
+	if !tainted(e.globalTaint["g"]) {
+		t.Fatal("exhausted propagation left clean global")
+	}
+}
+
+func BenchmarkGlobalChain(b *testing.B) {
+	for _, size := range []int{8, 24, 48} {
+		src := globalChain(size)
+		b.Run(fmt.Sprint(size), func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				e, f := environment(b, src, nil)
+				if !e.Tainted(argument(callsNamed(f, "probe")[0]), HTML) {
+					b.Fatal("lost global chain")
+				}
+			}
+		})
 	}
 }

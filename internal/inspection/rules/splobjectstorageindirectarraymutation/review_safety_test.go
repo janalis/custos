@@ -33,7 +33,9 @@ func TestReviewReplacedValue(t *testing.T) {
 		{"conditional array", "if($c){$s[$o]=['d'=>1];}$s[$o]['c']=2;", 1},
 		{"other key array", "$s[$p]=[];$s[$o]['c']=2;", 1},
 		{"unrelated closure", "$f=function() use($o){};$s[$o]['c']=2;", 1},
-		{"unrelated call", "$q->attach($o);$s[$o]['c']=2;", 1},
+		{"unknown key reference", "$q->attach($o);$s[$o]['c']=2;", 0},
+		{"resolved unrelated storage", "$q=new SplObjectStorage();$q->attach($o);$s[$o]['c']=2;", 1},
+		{"unrelated argument", "$q->attach('label');$s[$o]['c']=2;", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"SplObjectStorageIndirectArrayMutation"}})

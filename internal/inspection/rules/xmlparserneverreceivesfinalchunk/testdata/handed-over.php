@@ -19,3 +19,15 @@ class Feed {
 }
 class Closer { function __construct($p) { xml_parse($p, '</a>', true); } }
 function finish_later($label, array $parsers) { xml_parse($parsers[0], '</a>', true); }
+function unresolved_array_handover() {
+    $parser = xml_parser_create();
+    xml_parse($parser, '<item>');
+    delegate_parser(['parser' => [$parser]]);
+    xml_parser_free($parser);
+}
+function only_parser_status_is_handed_over() {
+    $parser = xml_parser_create();
+    xml_parse($parser, '<item>');
+    record_status(['code' => xml_get_error_code($parser)]);
+    <warning descr="Finish parsing before freeing the XML parser.">xml_parser_free($parser)</warning>;
+}

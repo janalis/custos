@@ -243,26 +243,8 @@ func otuReadsByName(call *syntax.FuncCall, name string) bool {
 
 // otuReachable reports whether n can be reached from the entry of scope
 // (nil = file level, where the top-level statement list is checked too).
-func otuReachable(f *syntax.File, n, scope syntax.Node) bool {
-	if !flowquery.Reachable(n, scope) {
-		return false
-	}
-	if scope != nil {
-		return true
-	}
-	top := n
-	for top.Parent() != nil {
-		top = top.Parent()
-	}
-	for _, s := range f.Stmts {
-		if syntax.Node(s) == top {
-			break
-		}
-		if syntax.Terminates(s) {
-			return false
-		}
-	}
-	return true
+func otuReachable(_ *syntax.File, n, scope syntax.Node) bool {
+	return flowquery.Reachable(n, scope)
 }
 
 // otuReturnsByRef reports whether the nearest enclosing function, method or

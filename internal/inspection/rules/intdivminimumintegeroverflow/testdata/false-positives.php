@@ -143,3 +143,21 @@ function otherDivisor(): int
 {
     return intdiv(PHP_INT_MIN, -2) + intdiv(5, -1);
 }
+
+// A later loop turn can see a value changed through a reference established
+// after the division; source order alone cannot prove the original operand.
+function reference_created_after_division($keepGoing) {
+    $number = PHP_INT_MIN;
+    while ($keepGoing) {
+        intdiv($number, -1);
+        $alias =& $number;
+        replace_operand($alias);
+    }
+}
+function unknown_reference_after_division($keepGoing, $service) {
+    $number = PHP_INT_MIN;
+    while ($keepGoing) {
+        intdiv($number, -1);
+        $service->replace($number);
+    }
+}

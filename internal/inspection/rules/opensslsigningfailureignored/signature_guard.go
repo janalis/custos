@@ -175,9 +175,10 @@ func (g guard) safe(v *syntax.Variable) bool {
 	// does not test the variable.
 	boolean := true
 	var child syntax.Node = v
-	for p := v.Parent(); p != g.scope; child, p = p, p.Parent() {
+	for p := v.Parent(); ; child, p = p, p.Parent() {
 		if p.Span().Start < g.stmt.Span().End {
 			// Constructs enclosing the call were evaluated before it ran.
+			// The body or File root starts before the call, ending every ascent.
 			return false
 		}
 		got := unproven
@@ -234,7 +235,6 @@ func (g guard) safe(v *syntax.Variable) bool {
 			return true
 		}
 	}
-	return false
 }
 
 // rejectedBefore reports whether a statement between the signing call and st,

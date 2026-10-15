@@ -75,9 +75,6 @@ func NativeDominates(earlier, at syntax.Node) bool {
 		return false
 	}
 	owner := statement.Parent()
-	if owner == nil {
-		return syntax.EnclosingVariableScope(at) == nil
-	}
 	if _, ok := syntax.StmtListOf(owner); !ok {
 		return false
 	}

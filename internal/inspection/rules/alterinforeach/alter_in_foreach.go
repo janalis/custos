@@ -123,6 +123,9 @@ func (alterInForeach) checkWriteBack(ctx *analysis.Context, a *syntax.Assign) {
 // nextSibling returns the child of n's parent (or the file's top-level
 // statement) following n, in source order.
 func nextSibling(f *syntax.File, n syntax.Node) syntax.Node {
+	if _, root := n.(*syntax.File); root {
+		return nil
+	}
 	parent := n.Parent()
 	list, isList := f.Stmts, parent == nil
 	if !isList {

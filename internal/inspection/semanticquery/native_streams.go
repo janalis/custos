@@ -504,9 +504,6 @@ func nativeLockFollows(statement syntax.Stmt, write syntax.Node) bool {
 		return false
 	}
 	owner := statement.Parent()
-	if owner == nil {
-		return true
-	}
 	_, list := syntax.StmtListOf(owner)
 	_, label := owner.(*syntax.Case)
 	return list && !label && nativeLockWithin(write, owner)
@@ -626,8 +623,8 @@ var globArrayConsumers = map[string]struct {
 // globFailureUse reports an array-only use whose single reaching value is a
 // builtin glob() call that no flow fact or recognised guard separates from false.
 func globFailureUse(ctx *analysis.Context, use syntax.Expr, message string) {
-	call, ok := NativeValue(ctx, use).(*syntax.FuncCall)
-	if !ok || NativeBuiltinName(ctx, call) != "glob" || ctx.Flow().Excludes(use, "false") || !NativeLabelled(ctx, use) && globFailureGuarded(ctx, use) {
+	call, ok := NativeLocalBuiltinResult(ctx, use, "false", "glob").(*syntax.FuncCall)
+	if !ok || NativeBuiltinName(ctx, call) != "glob" || ctx.Flow().Excludes(use, "false") || !NativeFailureFlowOnly(ctx, use) && globFailureGuarded(ctx, use) {
 		return
 	}
 	ctx.ReportNode(use, message)
@@ -1173,8 +1170,11 @@ func CheckStreamOpenFailureUnchecked(ctx *analysis.Context, n syntax.Node, messa
 		return
 	}
 
-	open, ok := NativeValue(ctx, handle).(*syntax.FuncCall)
-	report = ok && NativeBuiltinName(ctx, open) == "fopen" && !ctx.Flow().Excludes(handle, "false") && (NativeLabelled(ctx, handle) || !streamOpenGuarded(ctx, handle, open))
+	open, ok := NativeLocalResultOf(ctx, handle, "false", func(result syntax.Expr) bool {
+		call, ok := result.(*syntax.FuncCall)
+		return ok && NativeBuiltin(ctx, call, "fopen") && (!NativeFailureFlowOnly(ctx, handle) || !nativeJoinedWarningUnknown(ctx, call))
+	}).(*syntax.FuncCall)
+	report = ok && NativeBuiltinName(ctx, open) == "fopen" && !ctx.Flow().Excludes(handle, "false") && (NativeFailureFlowOnly(ctx, handle) || !streamOpenGuarded(ctx, handle, open))
 
 	if report {
 		ctx.ReportNode(c, message)

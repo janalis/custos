@@ -486,3 +486,80 @@ func benchmarkReachable(b *testing.B, sources map[string]string) {
 		})
 	}
 }
+
+func TestCaseConditionsPrecedeTheirBodies(t *testing.T) {
+	f := Parse(t, `<?php function f($x){switch($x){case checked_return(): return 1; case checked_break(): break; default: return 2;}}`)
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok && !Reachable(c, syntax.EnclosingFuncLike(c)) {
+			t.Errorf("condition %s is unreachable", astquery.CallLastName(c))
+		}
+		return true
+	})
+}
+
+func TestFileRootReachability(t *testing.T) {
+	for _, src := range []string{`<?php a(); exit; dead();`, `<?php namespace N; a(); return; dead();`, `<?php namespace N { a(); exit; dead(); }`} {
+		f := Parse(t, src)
+		syntax.InspectFile(f, func(n syntax.Node) bool {
+			if c, ok := n.(*syntax.FuncCall); ok {
+				want := astquery.CallLastName(c) != "dead"
+				if got := Reachable(c, nil); got != want {
+					t.Errorf("%s %s reachable=%v", src, astquery.CallLastName(c), got)
+				}
+			}
+			return true
+		})
+	}
+}
+
+func BenchmarkParkedJumps(b *testing.B) {
+	for _, size := range []int{400, 800, 1600, 3200} {
+		var src strings.Builder
+		src.WriteString("<?php function f($c){goto begin;return;")
+		for range size {
+			src.WriteString("if($c)goto begin;")
+		}
+		for i := range size {
+			fmt.Fprintf(&src, "L%d:;", i)
+		}
+		src.WriteString("begin:;")
+		for i := range size {
+			fmt.Fprintf(&src, "if($c)goto L%d;", i)
+		}
+		src.WriteString("probe();}")
+		data := []byte(src.String())
+		b.Run(fmt.Sprint(size), func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				f := syntax.Parse("bench.php", data, syntax.Options{})
+				syntax.InspectFile(f, func(n syntax.Node) bool {
+					if c, ok := n.(*syntax.FuncCall); ok {
+						Reachable(c, syntax.EnclosingFuncLike(c))
+					}
+					return true
+				})
+			}
+		})
+	}
+}
+
+func TestParkedNestedStatementsStayApart(t *testing.T) {
+	f := Parse(t, `<?php function f($c){goto begin;return;if($c){return;if($c)goto dead;one:;two:;three:;}else{live:reached();}begin:if($c)goto one;if($c)goto two;if($c)goto three;if($c)goto live;return;dead:unreached();}`)
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			want := astquery.CallLastName(c) == "reached"
+			if got := Reachable(c, syntax.EnclosingFuncLike(c)); got != want {
+				t.Errorf("%s reachable=%v", astquery.CallLastName(c), got)
+			}
+		}
+		return true
+	})
+}
+
+func TestNamespaceNamePrecedesBody(t *testing.T) {
+	f := Parse(t, `<?php namespace App { return; }`)
+	namespace := f.Stmts[0].(*syntax.Namespace)
+	if !Reachable(namespace.Name, nil) {
+		t.Fatal("namespace name followed its terminating body")
+	}
+}

@@ -5,10 +5,12 @@ import (
 	"sync/atomic"
 )
 
-// StmtListOf returns the statement list owned by p (a *Block, *Case or
+// StmtListOf returns the statement list owned by p (a *File, *Block, *Case or
 // *Namespace); ok is false for any other node.
 func StmtListOf(p Node) (list []Stmt, ok bool) {
 	switch x := p.(type) {
+	case *File:
+		return x.Stmts, true
 	case *Block:
 		return x.Stmts, true
 	case *Case:
@@ -46,7 +48,7 @@ func StmtIndex(list []Stmt, s Node) int {
 }
 
 // FirstTerminating returns the index of the first statement of the list
-// owned by p (*Block, *Case or *Namespace) that Terminates, or the list
+// owned by p (*File, *Block, *Case or *Namespace) that Terminates, or the list
 // length when none does (also for other nodes: 0). The result is cached on
 // the node, so callers asking "does a statement before index i terminate?"
 // for many i stay linear overall instead of quadratic on long lists.
@@ -54,6 +56,8 @@ func FirstTerminating(p Node) int {
 	var memo *int32
 	var list []Stmt
 	switch x := p.(type) {
+	case *File:
+		memo, list = &x.term, x.Stmts
 	case *Block:
 		memo, list = &x.term, x.Stmts
 	case *Case:

@@ -7,6 +7,7 @@ type NodeKind uint8
 
 const (
 	KindInvalid NodeKind = iota
+	KFile
 	KName
 	KIdentifier
 	KVariable
@@ -106,6 +107,7 @@ const (
 	NumNodeKinds
 )
 
+func (*File) Kind() NodeKind                { return KFile }
 func (*Name) Kind() NodeKind                { return KName }
 func (*Identifier) Kind() NodeKind          { return KIdentifier }
 func (*Variable) Kind() NodeKind            { return KVariable }
@@ -205,6 +207,7 @@ func (*BadStmt) Kind() NodeKind             { return KBadStmt }
 
 var nodeKindNames = [...]string{
 	KindInvalid:          "Invalid",
+	KFile:                "File",
 	KName:                "Name",
 	KIdentifier:          "Identifier",
 	KVariable:            "Variable",

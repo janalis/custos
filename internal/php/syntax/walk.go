@@ -44,6 +44,8 @@ func Children(n Node, fn func(Node)) {
 		}
 	}
 	switch n := n.(type) {
+	case *File:
+		stmts(n.Stmts)
 	case *Name, *Identifier, *Literal, *StringPart, *MagicConst, *BadExpr, *BadStmt,
 		*VariadicPlaceholder, *InlineHTML, *Nop, *HaltCompiler:
 	case *Variable:
@@ -416,7 +418,7 @@ func InspectFile(f *File, fn func(Node) bool) {
 }
 
 // SetParents links every node to its parent (top-level statements have a
-// nil parent). It also moves parent span starts back to cover their
+// file as parent). It also moves parent span starts back to cover their
 // children, which only matters for zero-width nodes created by error
 // recovery. Ends need no widening: a parser node ends at the last consumed
 // token, after all its children were parsed (lastEnd never decreases).
@@ -433,8 +435,6 @@ func SetParents(f *File) {
 			}
 		})
 	}
-	for _, s := range f.Stmts {
-		s.base().parent = nil
-		link(s)
-	}
+	f.nodeBase = nodeBase{span: Span{End: uint32(len(f.Src))}}
+	link(f)
 }

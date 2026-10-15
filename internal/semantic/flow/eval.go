@@ -67,6 +67,7 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 					r.globalNames = map[string]bool{}
 				}
 				r.globalNames[name] = true
+				f.vars[name] = unsettled(f.vars[name], e.held(name, r))
 			}
 		}
 	case *syntax.Unset:
@@ -212,15 +213,11 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			}
 			f.definite = false
 			v = Value{}
-		} else if strings.HasPrefix(n.Name, "_") && external(n.Name) {
-			// A table of the request holds text and arrays of it, until
-			// the scope stores something else there.
-			held, written := f.vars[n.Name]
-			v.plain, v.deep = true, !written || held.deep
-			v.Sources = []Source{{Kind: n.Name, Path: e.file.Path, Span: n.Span(), Parameter: -1}}
-			if n.Name == "_FILES" {
-				v.upload = uploadTable
+			if name, known := literalText(n.NameExpr); known && external(name) {
+				v = e.request(name, n, f)
 			}
+		} else if external(n.Name) {
+			v = e.request(n.Name, n, f)
 		} else {
 			var tracked bool
 			if v, tracked = f.vars[n.Name]; !tracked {
@@ -514,6 +511,12 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		v.Expr = x
 		v.Identity = 0
 	case *syntax.ArrayDimFetch:
+		if name := assigned(n); external(name) {
+			e.eval(n.Var, f, r, depth+1)
+			e.eval(n.Dim, f, r, depth+1)
+			v = e.request(name, n, f)
+			break
+		}
 		v = e.eval(n.Var, f, r, depth+1)
 		if conditional(n.Var) {
 			indexed := clone(*f)
@@ -663,7 +666,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		for _, use := range n.Uses {
 			if use.ByRef && use.Var != nil {
 				f.alias(use.Var.Name, aliasHeld)
-				if written := e.holderWrites(n, use.Var.Name); tainted(written) {
+				if written := e.holderWrites(n, use.Var.Name); retained(written) {
 					if r.holders == nil {
 						r.holders = map[string]Value{}
 					}
@@ -966,6 +969,19 @@ func conditional(x syntax.Expr) bool {
 			return false
 		}
 	}
+}
+
+// request constructs the same provenance for every spelling of a request table.
+func (e *Env) request(name string, at syntax.Expr, f *frame) Value {
+	held, written := f.vars[name]
+	v := Value{
+		Complete: true, Expr: at, plain: true, deep: !written || held.deep,
+		Sources: []Source{{Kind: name, Path: e.file.Path, Span: at.Span(), Parameter: -1}},
+	}
+	if name == "_FILES" {
+		v.upload = uploadTable
+	}
+	return v
 }
 
 func external(s string) bool {
@@ -2464,11 +2480,11 @@ func (e *Env) invalidateShared(f *frame, r *scopeResult) {
 	r.operations += len(f.aliased)
 	var groups map[uint32]Value
 	for name, group := range f.aliased {
-		if written := e.held(name, r); group >= aliasGroup && tainted(written) {
+		if written := e.held(name, r); group >= aliasGroup && retained(written) {
 			if groups == nil {
 				groups = map[uint32]Value{}
 			}
-			groups[group] = unsettled(groups[group], written)
+			groups[group] = effects(groups[group], written)
 		}
 	}
 	for name, group := range f.aliased {
@@ -2488,7 +2504,7 @@ func (e *Env) held(name string, r *scopeResult) Value {
 	if r.global || r.globalNames[name] {
 		e.globals()
 		if other, ok := e.globalTaint[name]; ok {
-			written = merge(Value{Complete: true, Sources: written.Sources, Safe: written.Safe}, other)
+			written = effects(written, other)
 		}
 	}
 	return written
@@ -2505,10 +2521,12 @@ func (e *Env) holderWrites(scope syntax.Node, name string) Value {
 		left = r.exit[name]
 	}
 	for _, v := range []Value{left, r.globalWrites[name]} {
-		if tainted(v) {
-			written = merge(written, Value{Complete: true, Sources: v.Sources, Safe: v.Safe})
+		if retained(v) {
+			written = effects(written, v)
 		}
 	}
+	written.origins = r.producers(written)
+	written.Expr = nil
 	return written
 }
 
@@ -2521,7 +2539,7 @@ func (e *Env) globalWrite(target syntax.Expr, v Value, r *scopeResult) {
 	if r.globalWrites == nil {
 		r.globalWrites = map[string]Value{}
 	}
-	r.globalWrites[name] = merge(Value{Complete: true, Sources: r.globalWrites[name].Sources, Safe: r.globalWrites[name].Safe}, Value{Complete: true, Sources: v.Sources, Safe: v.Safe})
+	r.globalWrites[name] = effects(r.globalWrites[name], v)
 }
 
 // assigned names the variable a literal globals table entry stands for.

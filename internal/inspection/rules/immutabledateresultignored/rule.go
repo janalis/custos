@@ -77,7 +77,7 @@ func freshLocalRead(ctx *analysis.Context, call *syntax.MethodCall) bool {
 	// Only whole local bodies or the file/namespace top level qualify;
 	// loop and conditional bodies can inherit aliases from earlier paths.
 	switch parent := st.Parent().(type) {
-	case nil, *syntax.Namespace:
+	case nil, *syntax.File, *syntax.Namespace:
 	case *syntax.Block:
 		switch scope := parent.Parent().(type) {
 		case *syntax.Function, *syntax.Method:

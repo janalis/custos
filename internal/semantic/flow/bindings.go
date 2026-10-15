@@ -94,7 +94,7 @@ func (e *Env) globals() map[string]bool {
 	// changes, the writers bound to that global are analysed again with it,
 	// the others keeping their result, until nothing more is written. Each
 	// round carries the data one global further, so the rounds are bounded
-	// by the number of globals written, and by globalRounds.
+	// by the number of globals written, and by the scope transfer budget.
 	writers := make([]globalWriter, 0, len(e.writers))
 	for w := range e.writers {
 		writers = append(writers, w)
@@ -107,29 +107,7 @@ func (e *Env) globals() map[string]bool {
 	for _, w := range writers {
 		names[w.name] = true
 	}
-	for round := 0; ; round++ {
-		var taint map[string]Value
-		for _, w := range writers {
-			if written := e.holderWrites(w.scope, w.name); tainted(written) {
-				if taint == nil {
-					taint = map[string]Value{}
-				}
-				if old, ok := taint[w.name]; ok {
-					written = merge(old, written)
-				}
-				taint[w.name] = written
-			}
-		}
-		changed := changedTaint(taint, e.globalTaint)
-		if len(changed) == 0 {
-			break
-		}
-		e.globalTaint = taint
-		e.forget(writers, changed)
-		if round == min(len(names), globalRounds) {
-			break
-		}
-	}
+	e.propagateGlobals(writers, len(names), MaxTransfers)
 	return e.global
 }
 
@@ -146,11 +124,6 @@ func (e *Env) forget(writers []globalWriter, changed map[string]bool) {
 		}
 	}
 }
-
-// globalRounds bounds how many times the functions writing global variables
-// are analysed again to carry request data from one global to another: a
-// longer chain of globals copied into one another is not followed to its end.
-const globalRounds = 16
 
 // changedTaint names the global variables two rounds wrote different
 // request data to.
@@ -248,4 +221,50 @@ func targetItems(x syntax.Expr) []*syntax.ArrayItem {
 		return n.Items
 	}
 	return nil
+}
+
+// propagateGlobals charges new scope analyses and each writer visit to a
+// shared budget, including the fixed-point bookkeeping between analyses.
+func (e *Env) propagateGlobals(writers []globalWriter, names, budget int) {
+	if e.globalTaint == nil {
+		e.globalTaint = map[string]Value{}
+	}
+	for round, work := 0, 0; ; round++ {
+		var taint map[string]Value
+		for _, w := range writers {
+			work++
+			if work > budget {
+				// The exact chain exceeded the scope budget. Every participating
+				// global may hold external data; a truncated clean suffix is no proof.
+				for _, writer := range writers {
+					e.globalTaint[writer.name] = Value{Complete: true, Sources: []Source{{Kind: "global", Path: e.file.Path, Parameter: -1}}}
+				}
+				e.forget(writers, e.global)
+				return
+			}
+			_, cached := e.scopes[w.scope]
+			written := e.holderWrites(w.scope, w.name)
+			if !cached {
+				work += e.scopes[w.scope].operations
+			}
+			if retained(written) {
+				if taint == nil {
+					taint = map[string]Value{}
+				}
+				if old, ok := taint[w.name]; ok {
+					written = effects(old, written)
+				}
+				taint[w.name] = written
+			}
+		}
+		changed := changedTaint(taint, e.globalTaint)
+		if len(changed) == 0 {
+			break
+		}
+		e.globalTaint = taint
+		e.forget(writers, changed)
+		if round >= names {
+			break
+		}
+	}
 }

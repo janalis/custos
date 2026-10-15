@@ -490,9 +490,10 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 				if _, plain := n.Var.(*syntax.Variable); plain && !n.ByRef {
 					kill = e.arrowDefinitionSpan(n)
 					if es, ok := n.Parent().(*syntax.ExprStmt); ok {
-						if blk, ok := es.Parent().(*syntax.Block); ok {
-							kill = blk.Span()
-						} else if es.Parent() == nil {
+						switch parent := es.Parent().(type) {
+						case *syntax.Block:
+							kill = parent.Span()
+						case *syntax.File:
 							kill = syntax.Span{End: uint32(len(e.File.Src))}
 						}
 					}

@@ -62,9 +62,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // Inserting a preceding statement is safe only in a statement list: the file
 // top level, a braced block, a namespace body or a switch case.
 func statementList(branch *syntax.If) bool {
-	if branch.Parent() == nil {
-		return true
-	}
 	_, ok := syntax.StmtListOf(branch.Parent())
 	return ok
 }

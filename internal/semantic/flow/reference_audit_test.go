@@ -52,7 +52,7 @@ func TestReferenceCallsCannotRetainPriorValueProof(t *testing.T) {
 		if e.Tainted(x, HTML) != tc.tainted || e.Excludes(x, "false") != tc.nonFalse {
 			t.Errorf("%s: value=%+v", tc.src, e.Value(x))
 		}
-		// What the array held is no longer known once an element was bound.
+		// An element may change, so the whole array is not a known expression.
 		if _, resolved := e.Resolve(x); resolved && strings.Contains(tc.src, "['host']); probe($u)") {
 			t.Errorf("%s: resolved", tc.src)
 		}

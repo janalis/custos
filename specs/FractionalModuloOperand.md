@@ -14,6 +14,10 @@ Identify modulo when either operand is a proven finite fractional numeric value 
 
 ## Detection
 
+A case condition runs before its own statements, including a return or break.
+At file level, a preceding unconditional exit makes later statements
+unreachable just as it does inside a namespace block.
+
 - D1. Report modulo when either operand is a proven finite fractional numeric value with a nonzero fractional part. Integral floats and unknown numeric strings are excluded.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. An endless literal-truth loop hides following statements only when no

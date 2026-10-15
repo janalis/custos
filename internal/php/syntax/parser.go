@@ -2,24 +2,10 @@ package syntax
 
 import (
 	"fmt"
-	"sync"
 	"unsafe"
 
 	phpversion "custos/internal/php/version"
 )
-
-// File is a parsed PHP source file.
-type File struct {
-	Path    string
-	Src     []byte
-	Version phpversion.Version
-	Tokens  []Token // complete token stream (trivia included)
-	Stmts   []Stmt
-	Errors  []Error
-
-	memoMu sync.Mutex
-	memo   map[any]any
-}
 
 // Memo returns the value cached on the file under key, computing it with fn
 // on first use. Analysis helpers use it for derived per-file data (indexes

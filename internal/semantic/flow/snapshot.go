@@ -326,7 +326,7 @@ func unconditional(n syntax.Node) bool {
 		n = class
 	}
 	switch n.Parent().(type) {
-	case nil, *syntax.Namespace:
+	case nil, *syntax.File, *syntax.Namespace:
 		return true
 	}
 	return false

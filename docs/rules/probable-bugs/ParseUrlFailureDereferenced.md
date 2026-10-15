@@ -14,6 +14,17 @@ Identify ordinary unguarded reads of dynamic parse_url results, or literal resul
 
 ## Detection
 
+A resolved same-file reference parameter, reference capture or global writer
+can replace a checked result. Retain the producer of that replacement while
+clearing the earlier binding proof. Giving an element to an unresolved method
+does not rebind the containing array.
+
+Follow each producer reaching a local read, including results written on an
+earlier loop turn or before a backward jump. A check of an earlier result does
+not check a later replacement; a check repeated before every consumption does.
+Ignore producers belonging to other result contracts when selecting an
+unchecked result.
+
 - D1. Report ordinary unguarded reads of dynamic parse_url results, or literal results with a supported parsing-failure proof. Empty HTTP(S) authorities and ports above 65535 establish such a proof. Restrict to array-returning mode; missing keys are another concern.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
@@ -26,6 +37,10 @@ Identify ordinary unguarded reads of dynamic parse_url results, or literal resul
   - `isset` or `empty` on a key of the variable (`isset($parts['host'])`, `!empty($parts['path'])`); `isset($parts)` alone proves nothing because `false` is set.
   - negation, and `&&`/`||` (also `and`/`or`) combinations: a true conjunction needs one proving operand, a false conjunction needs all of them, and symmetrically for disjunctions.
 - D5. A guard applies in these positions: the matching branch of an enclosing `if`/`elseif`/`else` (later branches also know the earlier conditions failed); the matching arm of an enclosing ternary; the right operand of `&&` or `||` whose left operand is the guard; and any statement after an earlier sibling `if` whose main body always exits, at every enclosing block level inside the same function scope.
+
+Only completely followed same-file bodies export replacement producers.
+An unstarted generator closure does not establish that its body wrote a new
+result; advancing generators is outside this local producer contract.
 
 ## Exceptions (no report)
 

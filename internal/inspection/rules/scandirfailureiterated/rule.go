@@ -25,11 +25,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	loop := n.(*syntax.Foreach)
-	if !semanticquery.ExpansionDUnaliased(ctx, loop.Expr, n) {
+	if !semanticquery.ExpansionDUnaliased(ctx, loop.Expr, n) && !semanticquery.NativeFailureFlowOnly(ctx, loop.Expr) {
 		return
 	}
-	c, ok := semanticquery.NativeLocalResult(ctx, loop.Expr, "false").(*syntax.FuncCall)
-	if ok && semanticquery.NativeBuiltin(ctx, c, "scandir") && !semanticquery.NativeLocalSentinelGuard(ctx, loop.Expr, "false") && !ctx.Flow().Excludes(loop.Expr, "false") && (semanticquery.NativeLabelled(ctx, loop.Expr) || !guarded(ctx, loop.Expr)) {
+	c, ok := semanticquery.NativeLocalBuiltinResult(ctx, loop.Expr, "false", "scandir").(*syntax.FuncCall)
+	if ok && semanticquery.NativeBuiltin(ctx, c, "scandir") && (semanticquery.NativeFailureFlowOnly(ctx, loop.Expr) || !semanticquery.NativeLocalSentinelGuard(ctx, loop.Expr, "false")) && !ctx.Flow().Excludes(loop.Expr, "false") && (semanticquery.NativeFailureFlowOnly(ctx, loop.Expr) || !guarded(ctx, loop.Expr)) {
 		ctx.ReportNode(loop.Expr, message)
 	}
 }
@@ -37,12 +37,12 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // guarded proves that a branch condition or an earlier terminating guard on
 // the current path rejects false for the iterated local.
 func guarded(ctx *analysis.Context, value syntax.Expr) bool {
-	variable, ok := syntax.UnwrapParens(value).(*syntax.Variable)
+	_, ok := syntax.UnwrapParens(value).(*syntax.Variable)
 	if !ok {
 		return false
 	}
 	start := value.Span().Start
-	for p := value.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
+	for p := value.Parent(); p != nil && p != ctx.File && !syntax.IsVariableScope(p); p = p.Parent() {
 		switch x := p.(type) {
 		case *syntax.If:
 			// Past the main body means an elseif or else branch.
@@ -57,11 +57,6 @@ func guarded(ctx *analysis.Context, value syntax.Expr) bool {
 		case *syntax.ElseIf:
 			if rejectsFalse(ctx, value, x.Cond, true) {
 				return true
-			}
-		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach:
-			// A guard outside a loop proves nothing once the loop rewrites the local.
-			if assigns(p, variable.Name) {
-				return false
 			}
 		}
 		// Every ancestor below the scope is a statement.
@@ -80,18 +75,6 @@ func guarded(ctx *analysis.Context, value syntax.Expr) bool {
 		}
 	}
 	return false
-}
-
-func assigns(loop syntax.Node, name string) bool {
-	found := false
-	syntax.Inspect(loop, func(n syntax.Node) bool {
-		if a, ok := n.(*syntax.Assign); ok {
-			v, ok := a.Var.(*syntax.Variable)
-			found = found || ok && v.Name == name
-		}
-		return !found
-	})
-	return found
 }
 
 // rejectsFalse reports whether cond evaluating to truth proves value is not

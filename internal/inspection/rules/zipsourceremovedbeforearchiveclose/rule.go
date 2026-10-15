@@ -114,7 +114,9 @@ func rebound(ctx *analysis.Context, receiver syntax.Expr, later syntax.Node) boo
 // is: every construct between it and their common ancestor must run it
 // unconditionally.
 func runsBefore(earlier, at syntax.Node) bool {
-	for node := earlier; node.Parent() != nil; node = node.Parent() {
+	for node := earlier; ; node = node.Parent() {
+		// The File root contains both nodes, so a parsed ancestry always
+		// reaches a shared parent before it ends.
 		shared := node.Parent().Span().Contains(at.Span())
 		switch parent := node.Parent().(type) {
 		case *syntax.Ternary:
@@ -159,7 +161,6 @@ func runsBefore(earlier, at syntax.Node) bool {
 			return true
 		}
 	}
-	return true
 }
 
 func shortCircuit(kind syntax.TokenKind) bool {

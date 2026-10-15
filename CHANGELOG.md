@@ -7,6 +7,23 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Treat XML parsers passed inside temporary arrays to project functions as
+  handed over, and invalidate storage-key identity after unresolved reference
+  arguments.
+
+- Preserve local failure results through temporary array arguments and released
+  reference bindings. Recognize native string tests that exclude nullable regex
+  results, and leave joined stream producers across uncertain error-handler
+  changes unknown. Bound reference-lifetime analysis work in large scopes.
+
+- Failure checks follow results replaced across loop turns, backward jumps,
+  reference captures, resolved reference parameters and same-file global
+  writers. Element arguments retain guards on their containing arrays.
+- Request sources include literal variable-variable and global-table spellings;
+  global readers see same-file writes before calls and beyond sixteen links.
+  File-level exits and case conditions now use their correct statement order,
+  and parked goto reachability avoids repeatedly scanning blocked earlier jumps.
+
 - Unterminated shell backticks no longer produce a replacement from invalid
   recovered source ranges or panic while preparing fixes.
 - Property hooks form independent function-like scopes for shared inspection

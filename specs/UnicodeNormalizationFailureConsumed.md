@@ -14,6 +14,12 @@ Check normalization before consuming text.
 
 ## Detection
 
+Follow each producer reaching a local read, including results written on an
+earlier loop turn or before a backward jump. A check of an earlier result does
+not check a later replacement; a check repeated before every consumption does.
+Ignore producers belonging to other result contracts when selecting an
+unchecked result.
+
 - D1. Report a result of resolved Normalizer::normalize or normalizer_normalize reaching strlen or strtoupper without a dominating strict false guard. Follow direct expressions and unchanged local assignments; storage and testing alone are excluded.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
 - D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
