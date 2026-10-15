@@ -27,8 +27,8 @@ type VarAccess struct {
 }
 
 // VarAccesses returns every access to the variable `name` (without '$') in
-// scope, in source order. scope is a function, method, closure or arrow
-// function (its parameters are not included), or nil for the file's
+// scope, in source order. scope is a function, method, closure, arrow
+// function or property hook (its parameters are not included), or nil for the file's
 // top-level code. Bodies of nested functions, closures and classes are
 // separate scopes and are skipped, except that a closure's `use ($v)` and
 // any occurrence inside a nested arrow function (which captures by value)
@@ -44,7 +44,7 @@ func VarAccesses(f *syntax.File, scope syntax.Node, name string) []VarAccess {
 	case *syntax.ArrowFunction:
 		w.node(s.Expr)
 	default:
-		if b := syntax.FuncLikeBody(scope); b != nil {
+		if b := syntax.VariableScopeBody(scope); b != nil {
 			w.node(b)
 		}
 	}
@@ -65,7 +65,7 @@ func VarAccessesByName(f *syntax.File, scope syntax.Node) map[string][]VarAccess
 	case *syntax.ArrowFunction:
 		w.node(s.Expr)
 	default:
-		if b := syntax.FuncLikeBody(scope); b != nil {
+		if b := syntax.VariableScopeBody(scope); b != nil {
 			w.node(b)
 		}
 	}
@@ -170,7 +170,7 @@ func (w *varWalker) node(n syntax.Node) {
 		return
 	}
 	switch n := n.(type) {
-	case *syntax.Function, *syntax.Method:
+	case *syntax.Function, *syntax.Method, *syntax.PropertyHook:
 		return
 	case *syntax.ClassLike:
 		// The constructor arguments of `new class ($a)` are evaluated in

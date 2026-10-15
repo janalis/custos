@@ -54,7 +54,7 @@ func TestPrivateLocalProof(t *testing.T) {
 		{"maybe reassigned with key", "function f($c){ $a=[]; if($c){ $a=[\"name\"=>1]; } " + splice + " }", 0},
 		{"loop reassigns with key", "function f($xs){ $a=[]; foreach($xs as $x){ " + splice + " $a=[\"name\"=>1]; } }", 0},
 		{"top-level call", "$a=[]; g(); " + splice, 0},
-		{"property hook", "class C { public $p { get { $a=[]; g(); " + splice + " } } }", 0},
+		{"property hook", "class C { public $p { get { $a=[]; g(); " + splice + " } } }", 1},
 		{"parameter", "function f(array &$a){ $a=[]; g(); " + splice + " }", 0},
 		{"captured in scope closure", "$f=function() use (&$a){ $a=[]; g(); " + splice + " };", 0},
 		{"other capture", "$f=function() use (&$b){ $a=[]; g(); " + splice + " };", 1},

@@ -18,23 +18,10 @@ func AssignedValue(a *syntax.Assign) syntax.Expr {
 	}
 }
 
-// ScopeParts returns the parameters and the body (block, or expression for
-// an arrow function; nil for an abstract method) of a function-like.
+// ScopeParts returns the explicit parameters and block or expression body of
+// a local scope. Abstract declarations have no body.
 func ScopeParts(scope syntax.Node) (params []*syntax.Param, body syntax.Node) {
-	switch s := scope.(type) {
-	case *syntax.Function:
-		return s.Params, s.Body
-	case *syntax.Method:
-		if s.Body != nil {
-			return s.Params, s.Body
-		}
-		return s.Params, nil
-	case *syntax.Closure:
-		return s.Params, s.Body
-	case *syntax.ArrowFunction:
-		return s.Params, s.Expr
-	}
-	return nil, nil
+	return syntax.VariableScopeParams(scope), syntax.VariableScopeBody(scope)
 }
 
 // FileClassNamed returns the first class-like declared in f (preorder)

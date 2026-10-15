@@ -90,6 +90,7 @@ type Function struct {
 	Asserts    []Assertion `json:"as,omitempty"`
 	ByRef      bool        `json:"byRef,omitempty"`
 	Deprecated bool        `json:"dep,omitempty"`
+	NoDiscard  bool        `json:"noDiscard,omitempty"`
 	Avail      Avail       `json:"a,omitempty"`
 	// Builtin marks a declaration of the embedded stubs (set when they are
 	// loaded): its documented types describe PHP itself, not user PHPDoc.
@@ -132,6 +133,7 @@ type Method struct {
 	// Asserts are the @phpstan-assert / @psalm-assert annotations.
 	Asserts    []Assertion `json:"as,omitempty"`
 	Deprecated bool        `json:"dep,omitempty"`
+	NoDiscard  bool        `json:"noDiscard,omitempty"`
 	// EmptyBody is set for a project method whose body holds no statement
 	// and that promotes no constructor parameter (`public function
 	// __construct() {}`): calling it does nothing. Never set for builtins

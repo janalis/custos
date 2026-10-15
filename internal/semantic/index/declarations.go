@@ -34,7 +34,7 @@ func (x *extractor) functionBody(n *syntax.Function, d *phpdoc.Doc) {
 	}
 	fn := &Function{
 		FQN: fqn, Params: x.params(n.Params, d, at), ByRef: n.ByRef,
-		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d), CSPRNG: callsCSPRNG(n.Body), Deprecated: x.deprecated(n.Attrs, d),
+		File: x.f.Path, Span: n.Span(), Avail: x.avail(n.Attrs, d), CSPRNG: callsCSPRNG(n.Body), Deprecated: x.deprecated(n.Attrs, d), NoDiscard: x.noDiscard(n.Attrs),
 	}
 	fn.Return, fn.RetVer = x.returnType(n.ReturnType, n.Attrs, at)
 	if d != nil {

@@ -7,6 +7,13 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Unterminated shell backticks no longer produce a replacement from invalid
+  recovered source ranges or panic while preparing fixes.
+- Property hooks form independent function-like scopes for shared inspection
+  queries. Reference-returning getters retain their references when simplifying
+  conditional returns. Literal truth values and escaping gotos improve endless
+  loop detection. Syntax version requirements and native `NoDiscard` attributes
+  are recorded for future compatibility and result-use inspections.
 - PHP type inference preserves unknown PHPDoc union members, resolves enum
   cases and typed constants in documentation, and handles more template and
   pseudo-type forms. Numeric unions, powers and shorthand ternaries retain

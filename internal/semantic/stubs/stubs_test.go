@@ -59,6 +59,9 @@ func TestDecodeErrors(t *testing.T) {
 
 func TestVersionedBuiltinMetadata(t *testing.T) {
 	ix := Index()
+	if method := ix.FindMethod("DateTimeImmutable", "add", phpversion.PHP85); method == nil || !method.NoDiscard {
+		t.Fatal("DateTimeImmutable::add NoDiscard metadata")
+	}
 	if !ix.Function("is_real", phpversion.PHP74).Avail.In(phpversion.PHP74) || ix.Function("is_real", phpversion.PHP80).Avail.In(phpversion.PHP80) {
 		t.Fatal("is_real availability")
 	}

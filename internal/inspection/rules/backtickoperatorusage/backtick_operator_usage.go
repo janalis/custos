@@ -26,8 +26,19 @@ func (backtickOperatorUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	span := s.Span()
-	if span.Len() <= 2 || ctx.Src[span.Start] != '`' || ctx.Src[span.End-1] != '`' { // D2/E1
+	if span.Start >= span.End || span.Len() <= 2 || span.End > uint32(len(ctx.Src)) || ctx.Src[span.Start] != '`' || ctx.Src[span.End-1] != '`' { // D2/E1
 		return
+	}
+	// Recovery may mistake an escaped final backtick for the closing
+	// delimiter. Every part must lie inside the actual command content;
+	// otherwise neither reporting nor slicing a replacement is justified.
+	pos := span.Start + 1
+	for _, part := range s.Parts {
+		ps := part.Span()
+		if ps.Start < pos || ps.End < ps.Start || ps.End > span.End-1 {
+			return
+		}
+		pos = ps.End
 	}
 	src := ctx.Src
 	fn := semanticquery.QualifiedBuiltin(ctx, "shell_exec", span.Start) // a namespaced shell_exec() would capture a bare call

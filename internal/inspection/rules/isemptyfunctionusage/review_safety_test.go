@@ -61,3 +61,20 @@ func TestReviewSafety(t *testing.T) {
 		})
 	}
 }
+
+// Expression recovery accepts checks where a constant parameter default is
+// required. Such a variable is outside the function body: never walk past the
+// scope looking for an earlier assignment or panic on its parent chain.
+func TestRecoveredParameterDefaultAssignment(t *testing.T) {
+	f := syntax.Parse("recovery.php", []byte(`<?php function f($default = empty($subject)) {}`), syntax.Options{Version: phpversion.PHP84})
+	var subject *syntax.Variable
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if v, ok := n.(*syntax.Variable); ok && v.Name == "subject" {
+			subject = v
+		}
+		return true
+	})
+	if subject == nil || !isEmptySubjectAssigned(f, subject) {
+		t.Fatal("default expression must be handled conservatively outside the body")
+	}
+}

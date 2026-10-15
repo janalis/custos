@@ -409,7 +409,9 @@ is negated K-null with `===`, so the true branch is the "set" branch.
   binds a reference (`$item = &$this->menu[$k];`) is not rewritten: `??`
   yields a value, so later writes through `$item` would no longer reach the
   array (Matomo `MenuAbstract`). Neither is the if/return form inside a
-  function declared to return by reference (`function &get()`).
+  function declared to return by reference (`function &get()`) or a
+  property getter declared with `&get`. Value-returning hooks follow the
+  ordinary function-body rules.
 - **S3 needs a probe independent of the target (custos diverges).** The
   merged form `T = V ?? X` no longer assigns `X` to `T` before the probe
   runs, so S3 does not apply when the condition or the assigned value

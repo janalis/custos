@@ -429,3 +429,15 @@ func (x *extractor) deprecated(attrs []*syntax.AttributeGroup, d *phpdoc.Doc) bo
 	}
 	return false
 }
+
+// noDiscard records the native PHP 8.5 attribute for later inspections.
+func (x *extractor) noDiscard(attrs []*syntax.AttributeGroup) bool {
+	for _, group := range attrs {
+		for _, attr := range group.Attrs {
+			if strings.ToLower(strings.TrimPrefix(x.r.Class(attr.Name.Value, attr.Span().Start), `\`)) == "nodiscard" {
+				return true
+			}
+		}
+	}
+	return false
+}

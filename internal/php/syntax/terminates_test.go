@@ -142,3 +142,79 @@ func TestStmtIndexAndFirstTerminating(t *testing.T) {
 		t.Fatal("StmtListOf switch")
 	}
 }
+
+func TestEndlessLiteralTruthAndGotos(t *testing.T) {
+	for _, tc := range []struct {
+		source string
+		want   bool
+	}{
+		{`for (; 1;) {}`, true},
+		{`for (; f(), "yes";) {}`, true},
+		{`for (; true, 0;) {}`, false},
+		{`while (1) {}`, true},
+		{`while (0x10) {}`, true},
+		{`while (0b10) {}`, true},
+		{`while (0o10) {}`, true},
+		{`while (1_000) {}`, true},
+		{`while (0) {}`, false},
+		{`while ('') {}`, false},
+		{`while ("0") {}`, false},
+		{`while ("\x30") {}`, false},
+		{`while ("\060") {}`, false},
+		{`while (b"") {}`, false},
+		{`while (B'0') {}`, false},
+		{`while ('\0') {}`, true},
+		{`while ('0.0') {}`, true},
+		{`while ("\n") {}`, true},
+		{`while (!0) {}`, true},
+		{`while (!false) {}`, true},
+		{`while (!true) {}`, false},
+		{`while (!null) {}`, true},
+		{`while (!f()) {}`, false},
+		{`while (-1) {}`, true},
+		{`while (+2) {}`, true},
+		{`while (-0) {}`, false},
+		{`while (-$x) {}`, false},
+		{`while (1.5) {}`, false},
+		{`while (OTHER) {}`, false},
+		{`while (true) { if ($x) { goto outside; } } outside: done();`, false},
+		{`while (true) { goto missing; }`, false},
+		{`while (true) { goto inside; inside: next(); }`, true},
+		{`while (true) { inside: next(); goto inside; }`, true},
+		{`while (true) { while ($x) { goto outside; } } outside: done();`, false},
+		{`while (true) { function nested() { goto outside; } } outside: done();`, true},
+		{`while (true) { $f = function () { goto outside; }; } outside: done();`, true},
+		{`while (true) { if ($x) { return; } }`, true},
+		{`while (true) { if ($x) { throw new E; } }`, true},
+		{`do { goto outside; } while (true); outside: done();`, false},
+		{`for (;;) { goto outside; } outside: done();`, false},
+	} {
+		f := parse(t, "<?php "+tc.source, phpversion.PHP85)
+		if len(f.Errors) != 0 {
+			t.Fatalf("%s: %v", tc.source, f.Errors)
+		}
+		for range 2 {
+			if got := Endless(f.Stmts[0]); got != tc.want {
+				t.Errorf("%s: %v want %v", tc.source, got, tc.want)
+			}
+		}
+	}
+	if isTrueConst(&ConstFetch{}) {
+		t.Fatal("nameless constant")
+	}
+	if truth, known := constantTruth(&Literal{Raw: "not an int", LitKind: LitInt}); truth || known {
+		t.Fatal("invalid integer")
+	}
+}
+
+func BenchmarkEndlessLiteralAndGoto(b *testing.B) {
+	for _, source := range []string{`while (1) { next(); }`, `while ("\x31") { next(); }`, `while (true) { goto inside; inside: next(); }`} {
+		b.Run(source, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				f := Parse("bench.php", []byte("<?php "+source), Options{Version: phpversion.PHP85})
+				Endless(f.Stmts[0])
+			}
+		})
+	}
+}

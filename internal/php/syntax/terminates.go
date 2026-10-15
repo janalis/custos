@@ -70,7 +70,7 @@ func Terminates(s Stmt) bool {
 	case *DoWhile:
 		// A break leaves the loop, and a continue reaches a condition that
 		// may end it.
-		return Endless(x) || !containsBreak(x.Body) && Terminates(x.Body) && !jumps(x.Body, true)
+		return Endless(x) || !containsBreak(x.Body) && Terminates(x.Body) && !jumps(x.Body, true, false)
 	case *Declare:
 		return x.Body != nil && Terminates(x.Body)
 	}
@@ -79,28 +79,33 @@ func Terminates(s Stmt) bool {
 
 // Endless reports a loop that control never falls out of, wherever it
 // entered it: `while (true)`, `for (;;)` or `do … while (true)` without a
-// `break` that leaves it. The search for that `break` is cached on the
+// `break` or `goto` that leaves it. The search for those jumps is cached on the
 // loop, so that asking for every label of a long body stays linear overall.
 func Endless(n Node) bool {
 	switch x := n.(type) {
 	case *While:
-		return isTrueConst(x.Cond) && unbroken(&x.endless, x.Body)
+		return memoEndless(&x.endless, x.Body, x.Cond, false)
 	case *DoWhile:
-		return isTrueConst(x.Cond) && unbroken(&x.endless, x.Body)
+		return memoEndless(&x.endless, x.Body, x.Cond, false)
 	case *For:
-		return len(x.Cond) == 0 && unbroken(&x.endless, x.Body)
+		var cond Expr
+		if len(x.Cond) != 0 {
+			cond = x.Cond[len(x.Cond)-1]
+		}
+		return memoEndless(&x.endless, x.Body, cond, len(x.Cond) == 0)
 	}
 	return false
 }
 
-// unbroken reports a loop body without a `break` that leaves the loop.
-func unbroken(memo *int32, body Stmt) bool {
-	// memo: 0 = not computed yet, 1 = a break leaves the loop, 2 = none.
+// memoEndless caches both literal truth and escaping jumps, so repeated
+// label queries do not repeatedly decode a large string condition.
+func memoEndless(memo *int32, body Stmt, cond Expr, unconditional bool) bool {
+	// memo: 0 = not computed yet, 1 = may end, 2 = endless.
 	v := atomic.LoadInt32(memo)
 	if v == 0 {
-		v = 2
-		if containsBreak(body) {
-			v = 1
+		v = 1
+		if (unconditional || isTrueConst(cond)) && !jumps(body, false, true) {
+			v = 2
 		}
 		atomic.StoreInt32(memo, v)
 	}
@@ -108,8 +113,46 @@ func unbroken(memo *int32, body Stmt) bool {
 }
 
 func isTrueConst(e Expr) bool {
-	c, ok := UnwrapParens(e).(*ConstFetch)
-	return ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), "true")
+	truth, known := constantTruth(e)
+	return known && truth
+}
+
+// constantTruth recognizes literal PHP truth values without resolving names.
+func constantTruth(e Expr) (bool, bool) {
+	switch x := UnwrapParens(e).(type) {
+	case *ConstFetch:
+		if x.Name != nil {
+			switch strings.ToLower(strings.TrimPrefix(x.Name.Value, `\`)) {
+			case "true":
+				return true, true
+			case "false", "null":
+				return false, true
+			}
+		}
+	case *Literal:
+		switch x.LitKind {
+		case LitInt:
+			v, err := strconv.ParseUint(strings.ReplaceAll(x.Raw, "_", ""), 0, 64)
+			return v != 0, err == nil
+		case LitString:
+			value, ok := StringLiteralValue(x.Raw)
+			if !ok {
+				value, ok = staticHeredocValue(x.Raw)
+			}
+			return value != "" && value != "0", ok
+		}
+	case *Unary:
+		if x.Op.Kind == TMinus || x.Op.Kind == TPlus {
+			if literal, ok := UnwrapParens(x.Expr).(*Literal); ok && literal.LitKind == LitInt {
+				return constantTruth(literal)
+			}
+		}
+		if x.Op.Kind == TExclaim {
+			truth, known := constantTruth(x.Expr)
+			return !truth, known
+		}
+	}
+	return false, false
 }
 
 // containsBreak reports whether a jump that could make control fall out of
@@ -118,24 +161,38 @@ func isTrueConst(e Expr) bool {
 // skipped), or — when n is a switch — a `continue` targeting n, which PHP
 // treats as `break`. A non-literal level (PHP 5.3 `break $n`) is assumed to
 // leave n.
-func containsBreak(n Node) bool { return jumps(n, false) }
+func containsBreak(n Node) bool { return jumps(n, false, false) }
 
 // jumps looks for a `break` leaving the construct rooted at n or, when
 // continues is set, for a `continue` that targets the loop n is the body of.
-func jumps(n Node, continues bool) bool {
+func jumps(n Node, continues, escapingGotos bool) bool {
 	if n == nil {
 		return false
 	}
 	_, rootSwitch := n.(*Switch)
 	found := false
+	var gotos []*Goto
+	var labels map[string]bool
 	var walk func(m Node, depth int)
 	walk = func(m Node, depth int) {
 		if found {
 			return
 		}
 		switch x := m.(type) {
-		case *Function, *Method, *Closure, *ArrowFunction, *ClassLike:
+		case *Function, *Method, *Closure, *ArrowFunction, *PropertyHook, *ClassLike:
 			return
+		case *Goto:
+			if escapingGotos {
+				gotos = append(gotos, x)
+			}
+			return
+		case *Label:
+			if escapingGotos {
+				if labels == nil {
+					labels = map[string]bool{}
+				}
+				labels[x.Name.Value] = true
+			}
 		case *Break:
 			found = !continues && jumpLevel(x.Num) > depth
 			return
@@ -153,6 +210,11 @@ func jumps(n Node, continues bool) bool {
 		Children(m, func(c Node) { walk(c, depth) })
 	}
 	walk(n, 0)
+	for _, g := range gotos {
+		if !labels[g.Label.Value] {
+			return true
+		}
+	}
 	return found
 }
 

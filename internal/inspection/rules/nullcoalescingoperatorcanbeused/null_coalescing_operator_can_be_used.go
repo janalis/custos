@@ -422,6 +422,8 @@ func ncoReturnsByRef(n syntax.Node) bool {
 		return f.ByRef
 	case *syntax.Closure:
 		return f.ByRef
+	case *syntax.PropertyHook:
+		return f.ByRef
 	}
 	return false
 }

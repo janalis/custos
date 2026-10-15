@@ -129,3 +129,37 @@ func TestMethodAvailabilityIncludesReceiverAndParents(t *testing.T) {
 		t.Fatal("available inherited method lost")
 	}
 }
+
+func TestNoDiscardAttributeMetadata(t *testing.T) {
+	f := syntax.Parse("test.php", []byte(`<?php
+ namespace Demo;
+ use NoDiscard as MustUse;
+ #[\NoDiscard] function native() {}
+ #[MustUse] function imported() {}
+ #[NoDiscard] function local() {}
+ #[Other\NoDiscard] function unrelated() {}
+ #[Other, \NoDiscard] function grouped() {}
+ function plain() {}
+ #[\NoDiſcard] function unicodeLookalike() {}
+ class C {
+ #[\NoDiscard] function native() {}
+ #[MustUse] function imported() {}
+ #[NoDiscard] function local() {}
+ function plain() {}
+ }
+ `), syntax.Options{Version: phpversion.PHP85})
+	if len(f.Errors) != 0 {
+		t.Fatal(f.Errors)
+	}
+	s := Extract(f)
+	for i, want := range []bool{true, true, false, false, true, false, false} {
+		if s.Functions[i].NoDiscard != want {
+			t.Errorf("function %d: %v", i, s.Functions[i].NoDiscard)
+		}
+	}
+	for name, want := range map[string]bool{"native": true, "imported": true, "local": false, "plain": false} {
+		if s.Classes[0].Methods[name].NoDiscard != want {
+			t.Errorf("method %s", name)
+		}
+	}
+}

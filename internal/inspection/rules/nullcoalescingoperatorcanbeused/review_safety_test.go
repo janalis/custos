@@ -19,6 +19,8 @@ func TestReviewSafety(t *testing.T) {
 		findings     int
 		fixed        string
 	}{
+		{"reference hook", "<?php class C { public array $a; public mixed $p { &get { if (isset($this->a['k'])) { return $this->a['k']; } return $this->a; } } }", 0, ""},
+		{"value hook", "<?php class C { public array $a; public mixed $p { get { if (isset($this->a['k'])) { return $this->a['k']; } return null; } } }", 1, "<?php class C { public array $a; public mixed $p { get { return $this->a['k'] ?? null; } } }"},
 		// The probe is evaluated twice by the original, once by `??`: report only.
 		{"null call", "<?php $r = nxt() !== null ? nxt() : 'none';", 1, ""},
 		{"null method", "<?php $r = null === $q->pop() ? 'none' : $q->pop();", 1, ""},

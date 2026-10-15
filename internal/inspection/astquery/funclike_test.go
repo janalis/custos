@@ -76,3 +76,28 @@ func TestQuotedStringContentPrefixed(t *testing.T) {
 		t.Fatal("binary-prefixed literal is not plainly quoted")
 	}
 }
+
+func TestHookScopeParts(t *testing.T) {
+	f := Parse(t, `<?php class C { public int $p { get { return $this->p; } set(int $incoming) => $incoming; } public int $abstract { get; set; } }`)
+	count := 0
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if hook, ok := n.(*syntax.PropertyHook); ok {
+			params, body := ScopeParts(hook)
+			if len(params) != len(hook.Params) || body != hook.Body {
+				t.Fatal("hook scope parts")
+			}
+			if body != nil && syntax.EnclosingFuncLike(body) != hook {
+				t.Fatal("hook enclosure")
+			}
+			count++
+		}
+		return true
+	})
+	if count != 4 {
+		t.Fatalf("hooks: %d", count)
+	}
+	params, body := ScopeParts(&syntax.Literal{})
+	if params != nil || body != nil {
+		t.Fatal("non-scope")
+	}
+}

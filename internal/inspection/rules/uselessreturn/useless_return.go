@@ -51,6 +51,9 @@ func (uselessReturn) checkAssign(ctx *analysis.Context, ret *syntax.Return) {
 		return
 	}
 	scope := syntax.EnclosingFuncLike(ret) // D4
+	if hook, ok := scope.(*syntax.PropertyHook); ok && hook.ByRef {
+		return
+	}
 	body := syntax.FuncLikeBody(scope)
 	if body == nil {
 		return

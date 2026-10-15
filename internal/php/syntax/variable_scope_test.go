@@ -26,8 +26,12 @@ outside();
 		switch n := n.(type) {
 		case *PropertyHook:
 			hooks = append(hooks, n)
-			if !IsVariableScope(n) || IsFuncLike(n) || FuncLikeBody(n) != nil || FuncLikeParams(n) != nil {
-				t.Fatal("hook changed function-like contracts")
+			if !IsVariableScope(n) || !IsFuncLike(n) || len(FuncLikeParams(n)) != len(n.Params) {
+				t.Fatal("hook function-like contracts")
+			}
+			block, _ := n.Body.(*Block)
+			if FuncLikeBody(n) != block {
+				t.Fatal("hook block body")
 			}
 			if VariableScopeBody(n) != n.Body || len(VariableScopeParams(n)) != len(n.Params) {
 				t.Fatal("hook body/params")
@@ -55,5 +59,16 @@ outside();
 	fn := &Function{Body: &Block{}, Params: []*Param{{}}}
 	if VariableScopeBody(fn) != fn.Body || len(VariableScopeParams(fn)) != 1 {
 		t.Fatal("function body/params")
+	}
+}
+
+func BenchmarkHookScopeNavigation(b *testing.B) {
+	hook := &PropertyHook{Body: &Block{}, Params: []*Param{{}}}
+	b.ReportAllocs()
+	for b.Loop() {
+		IsFuncLike(hook)
+		FuncLikeBody(hook)
+		FuncLikeParams(hook)
+		VariableScopeBody(hook)
 	}
 }

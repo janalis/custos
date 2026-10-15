@@ -50,6 +50,11 @@ func (issetArgumentExistence) candidate(ctx *analysis.Context, e syntax.Expr) {
 		return
 	}
 	fn := syntax.EnclosingFuncLike(v)
+	if hook, ok := fn.(*syntax.PropertyHook); ok {
+		if len(ctx.File.Errors) != 0 || hook.Name != nil && strings.EqualFold(hook.Name.Value, "set") && len(hook.Params) == 0 && name == "value" {
+			return
+		}
+	}
 	body := syntax.FuncLikeBody(fn) // D6
 	if fn == nil || body == nil {
 		return
@@ -92,7 +97,7 @@ func (issetArgumentExistence) candidate(ctx *analysis.Context, e syntax.Expr) {
 		}
 		return true
 	})
-	if first == nil { // only in broken code (error recovery), e.g. `isset$x`
+	if first == nil { // a recovered parameter default is outside the body
 		return
 	}
 	if first != v {

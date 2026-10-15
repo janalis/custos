@@ -38,7 +38,7 @@ For each candidate variable `V` named `n`:
   `_SERVER`, `GLOBALS`, `HTTP_RAW_POST_DATA`, `php_errormsg`,
   `http_response_header`.
 - **D5** `n` is not the name of a parameter of the innermost enclosing
-  function-like `F` (function, method or closure), and not the name of a
+  function-like `F` (function, method, closure or property hook), and not the name of a
   variable imported by `F`'s `use (...)` list (by-value or by-reference).
 - **D6** `F` exists (the candidate is not in global/file scope) and `F` has a
   `{ }` body (arrow functions `fn() =>` have none → never reported).
@@ -98,6 +98,9 @@ can each be reported (e.g. `isset($q) && empty($q)` as first two mentions:
 only the first is the first mention, so only it is reported).
 
 ## Exceptions (no report)
+
+- An implicit setter parameter named `$value` is defined on entry. Hook
+  bodies in files with syntax errors do not establish a reliable local scope.
 
 - **E1** Any earlier mention of the variable in the function's own scope (a
   read, `echo $n`, `global $n`, a `use ($n)` of a nested closure, a read in a

@@ -252,7 +252,7 @@ func isEmptySubjectAssigned(f *syntax.File, s syntax.Expr) bool {
 	for holder.Parent() != syntax.Node(body) {
 		holder = holder.Parent()
 		if holder == nil {
-			return true // recovery tree: the subject is not under the body
+			return true // a recovered default expression is outside the body
 		}
 	}
 	i := syntax.StmtIndex(body.Stmts, holder.(syntax.Stmt))

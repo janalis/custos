@@ -18,7 +18,7 @@ suggests control flow that does not exist. Remove it.
 Visit every goto label statement (`name:`).
 
 - **D1** Find the nearest enclosing function-like scope of the label:
-  function, method or closure (an arrow function cannot contain
+  function, method, closure or property hook (an arrow function cannot contain
   statements). If there is none (label in top-level code, in a namespace
   body, etc.) → no report.
 - **D2** That scope has a `{ … }` body (abstract/interface methods have none
@@ -33,7 +33,8 @@ Visit every goto label statement (`name:`).
 
 ## Exceptions (no report)
 
-- **E1** Labels outside any function/method/closure.
+- **E1** Labels outside any function/method/closure/property hook. A hook
+  recovered from a file with syntax errors does not establish a label scope.
 - **E2** Labels targeted by at least one `goto` in the same scope body
   (before or after the label, any nesting depth of blocks/loops, but not
   from a nested function-like).

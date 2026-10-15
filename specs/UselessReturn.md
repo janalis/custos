@@ -62,6 +62,11 @@ function has returned.
 
 ## Exceptions (no report)
 
+- Reference-returning property getters keep assignment returns: replacing an
+  assignment expression with its right-hand variable can change what is
+  returned by reference. Ordinary value-returning getter bodies use the local
+  assignment checks.
+
 - **E1** `return;` that is not the last top-level statement of the body, and
   `return null;` / `return <value>;` at the end.
 - **E2** `return ($v = expr);` (parenthesised value).

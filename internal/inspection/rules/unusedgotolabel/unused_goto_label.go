@@ -15,13 +15,15 @@ func (unusedGotoLabel) Kinds() []syntax.NodeKind { return []syntax.NodeKind{synt
 func (unusedGotoLabel) Check(ctx *analysis.Context, n syntax.Node) {
 	l := n.(*syntax.Label)
 	fn := syntax.EnclosingFuncLike(l) // D1
+	if _, hook := fn.(*syntax.PropertyHook); hook && len(ctx.File.Errors) != 0 {
+		return
+	}
 	if fn == nil {
 		return
 	}
+	// A parsed label in a function-like belongs to its block body;
+	// expression scopes cannot contain labels and recovered hooks were rejected.
 	body := syntax.FuncLikeBody(fn) // D2
-	if body == nil {
-		return // error recovery: `class A function {{A:` (fuzz)
-	}
 	used := gotoTargets(ctx, body)[l.Name.Value]
 	if used {
 		return

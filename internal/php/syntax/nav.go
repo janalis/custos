@@ -17,18 +17,17 @@ func UnwrapParens(e Expr) Expr {
 	}
 }
 
-// IsFuncLike reports whether n is a function, method, closure or arrow
-// function.
+// IsFuncLike reports whether n is a function, method, closure, arrow
+// function or property hook.
 func IsFuncLike(n Node) bool {
 	switch n.(type) {
-	case *Function, *Method, *Closure, *ArrowFunction:
+	case *Function, *Method, *Closure, *ArrowFunction, *PropertyHook:
 		return true
 	}
 	return false
 }
 
-// EnclosingFuncLike returns the nearest function, method, closure or arrow
-// function strictly enclosing n (nil in top-level code).
+// EnclosingFuncLike returns the nearest function-like strictly enclosing n (nil in top-level code).
 func EnclosingFuncLike(n Node) Node {
 	for p := n.Parent(); p != nil; p = p.Parent() {
 		if IsFuncLike(p) {
@@ -39,7 +38,7 @@ func EnclosingFuncLike(n Node) Node {
 }
 
 // FuncLikeBody returns the braced body of a function-like (nil for arrow
-// functions and abstract methods).
+// functions, expression hooks and abstract declarations).
 func FuncLikeBody(n Node) *Block {
 	switch f := n.(type) {
 	case *Function:
@@ -48,6 +47,9 @@ func FuncLikeBody(n Node) *Block {
 		return f.Body
 	case *Closure:
 		return f.Body
+	case *PropertyHook:
+		b, _ := f.Body.(*Block)
+		return b
 	}
 	return nil
 }
@@ -62,6 +64,8 @@ func FuncLikeParams(n Node) []*Param {
 	case *Closure:
 		return f.Params
 	case *ArrowFunction:
+		return f.Params
+	case *PropertyHook:
 		return f.Params
 	}
 	return nil

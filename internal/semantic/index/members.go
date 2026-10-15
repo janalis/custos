@@ -362,6 +362,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 		meth.Tpl = x.funcTemplates(d, m.Params, meth.Asserts, at)
 	}
 	meth.Deprecated = x.deprecated(m.Attrs, d)
+	meth.NoDiscard = x.noDiscard(m.Attrs)
 	key := strings.ToLower(meth.Name)
 	if old := c.Methods[key]; old != nil && x.stub {
 		meth.Variants = append([]*Method(nil), old.Variants...)

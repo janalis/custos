@@ -93,3 +93,31 @@ func TestVarAccessesEdges(t *testing.T) {
 		t.Errorf("recovered global: %q", got)
 	}
 }
+
+func TestVarAccessesHooks(t *testing.T) {
+	f := Parse(t, `<?php class C { public int $p { get { $v = 1; return $v; } set => $value + $v; } public function __construct(public int $q { get => $v; }) {} }`)
+	var hooks []*syntax.PropertyHook
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if h, ok := n.(*syntax.PropertyHook); ok {
+			hooks = append(hooks, h)
+		}
+		return true
+	})
+	for i, want := range []string{"w r", "r", "r"} {
+		if got := describe(VarAccesses(f, hooks[i], "v")); got != want {
+			t.Fatalf("hook %d: %q", i, got)
+		}
+		if got := describe(VarAccessesByName(f, hooks[i])["v"]); got != want {
+			t.Fatalf("hook map %d: %q", i, got)
+		}
+	}
+	if got := describe(VarAccesses(f, nil, "v")); got != "" {
+		t.Fatalf("file leaked hook: %q", got)
+	}
+	// A hook itself is a scope boundary when encountered by a surrounding walk.
+	w := varWalker{name: "v"}
+	w.node(hooks[0])
+	if len(w.out) != 0 {
+		t.Fatal("nested hook leak")
+	}
+}

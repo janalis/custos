@@ -25,6 +25,8 @@ Calling `shell_exec()` explicitly makes command execution visible.
 ## Exceptions (no report)
 
 - **E1** The empty command ` `` ` (two backticks, nothing between).
+- **E3** Incomplete commands recovered from malformed input, including a final
+  escaped backtick with no closing delimiter, are not reported or rewritten.
 - **E2** Backticks inside ordinary string literals or comments are not shell
   commands and are never considered.
 
