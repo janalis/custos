@@ -68,6 +68,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 	case *syntax.Binary:
 		// A constant-first comparison states the same fact. It only pins the
 		// variable to a literal in the written order, as it always did.
+		e.refineInts(n, f, truth)
 		written := n
 		mirrored := constantOperand(n.Left) && !constantOperand(n.Right)
 		if mirrored {

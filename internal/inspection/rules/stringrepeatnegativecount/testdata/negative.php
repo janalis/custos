@@ -85,5 +85,5 @@ function longChain(): string
     $h = $g;
     $i = $h;
     $j = $i;
-    return str_repeat('a', $j);
+    return <error descr="Supply a nonnegative repetition count.">str_repeat('a', $j)</error>;
 }

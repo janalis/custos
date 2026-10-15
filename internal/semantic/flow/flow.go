@@ -48,8 +48,9 @@ type Source struct {
 // Value is a conservative union of possible inputs. Safe is the intersection
 // of proven escaping contexts. Expr and Identity require agreement on every path.
 type Value struct {
-	Sources []Source
-	Expr    syntax.Expr
+	interval *intInterval
+	Sources  []Source
+	Expr     syntax.Expr
 	// elements holds the literal-keyed elements of an array variable that
 	// are tracked on their own. Only a binding carries them: the value of an
 	// expression never does.
@@ -1014,6 +1015,7 @@ func merge(a, b Value) Value {
 		sb, ub, cb = HTML|SQL|Shell|Header|URL|Path, ua, ca
 	}
 	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, headerMask: a.headerMask & b.headerMask, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull, LengthKnown: a.LengthKnown && b.LengthKnown && a.Length == b.Length, Length: a.Length}
+	v.interval = joinInts(a, b)
 	v.elements = common(a.elements, b.elements)
 	// Text of the program joined with a matched label is text of the program.
 	v.matched = (a.matched || b.matched) && (a.matched || a.written()) && (b.matched || b.written())
@@ -1110,7 +1112,7 @@ func before(a, b Source) bool {
 // equal reports two values that hold the same facts. Element sets are
 // compared by identity, which merge keeps when nothing changes.
 func equal(v, w Value) bool {
-	if v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched || v.entry != w.entry || v.plain != w.plain || v.deep != w.deep {
+	if !sameInts(v.interval, w.interval) || v.tested != w.tested || v.unless != w.unless || v.unlessFalse != w.unlessFalse || v.unlessNull != w.unlessNull || v.skippedFalse != w.skippedFalse || v.skippedNull != w.skippedNull || v.matched != w.matched || v.entry != w.entry || v.plain != w.plain || v.deep != w.deep {
 		return false
 	}
 	if v.Complete != w.Complete || v.Safe != w.Safe || v.headerMask != w.headerMask || v.NonFalse != w.NonFalse || v.NonNull != w.NonNull || v.LengthKnown != w.LengthKnown || v.LengthKnown && v.Length != w.Length || v.Expr != w.Expr || v.elements != w.elements || !sameOrigins(v.origins, w.origins) || v.upload != w.upload || v.scalars != w.scalars || v.Identity != w.Identity || v.Invalidated != w.Invalidated || len(v.Sources) != len(w.Sources) {
@@ -1307,6 +1309,10 @@ func rejoin(first, second frame, r *scopeResult) frame {
 // absorb joins another path into the frame in place. It reports whether the
 // frame changed and the work done, in bindings visited and sources compared.
 func (f *frame) absorb(b frame) (bool, int) {
+	return f.absorbAt(b, false)
+}
+
+func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 	changed, work, shared := false, len(f.vars)+len(f.states), 0
 	// What relates two variables is joined from what each path holds of
 	// them, before their values are.
@@ -1327,6 +1333,9 @@ func (f *frame) absorb(b frame) (bool, int) {
 			work += (len(v.Sources) + len(w.Sources)) / 2
 		}
 		m := merge(v, w)
+		if head {
+			m.interval = widenInterval(v, m)
+		}
 		m.correlate(v, w)
 		if !ok && b.definite && !reserved(k) {
 			// The other path never assigned the variable: it is null there.

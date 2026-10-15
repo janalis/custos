@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Track bounded integer intervals through local arithmetic and loop comparisons.
+  Repetition counts and GD alpha checks recognize wholly invalid ranges and
+  concrete first-turn values, while dropping integer proofs on possible overflow.
+
 - Treat XML parsers passed inside temporary arrays to project functions as
   handed over, and invalidate storage-key identity after unresolved reference
   arguments.

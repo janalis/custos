@@ -295,6 +295,7 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot) (*Env, *
 				}
 			}
 			sum.Return.Expr = nil
+			sum.Return.interval = nil
 			sum.Return.origins = nil
 			sum.Return.Identity = 0
 			if !sum.Generator {
@@ -392,6 +393,7 @@ func (e *Env) nativeSinks(c Call) []Sink {
 	}
 	value := args[position]
 	value.Expr = nil
+	value.interval = nil
 	value.origins = nil
 	value.Identity = 0
 	sinks := []Sink{{Name: name, Context: context, Argument: value, Path: e.file.Path, Span: c.Node.Span()}}

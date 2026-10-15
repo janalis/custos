@@ -397,6 +397,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			e.implicit(x, f, r)
 		}
 		v = merge(left, right)
+		if n.Op.Kind != syntax.TCoalesce {
+			v.interval = arithmetic(n.Op.Kind, left, right)
+		}
 		v.Expr = x
 		v.Identity = 0
 		// Only a concatenation, or a choice, yields the text it is given.
@@ -411,6 +414,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 	case *syntax.Unary:
 		v = e.eval(n.Expr, f, r, depth+1)
+		v.interval = unaryInts(n.Op.Kind, v)
 		if n.Op.Kind == syntax.TStringCast && !v.plain {
 			e.implicit(x, f, r)
 		}
@@ -431,6 +435,11 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			// Before PHP 8.3 a step leaves an object, or an array, as it is.
 			strict := e.types.PHP.AtLeast(phpversion.PHP83)
 			next := Value{Complete: v.Complete, Sources: v.Sources, Safe: v.Safe, plain: v.plain || strict, deep: v.deep || strict}
+			delta := int64(1)
+			if n.Op.Kind == syntax.TDec {
+				delta = -1
+			}
+			next.interval = arithmetic(syntax.TPlus, v, integerValue(delta))
 			if v.Expr != nil {
 				next.Expr = x
 			}
@@ -770,6 +779,15 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			v.upload, v.scalars = 0, false
 		}
 	}
+	switch n := x.(type) {
+	case *syntax.Variable, *syntax.Paren, *syntax.Assign, *syntax.Ternary, *syntax.Match, *syntax.Arg, *syntax.IncDec, *syntax.Binary, *syntax.Unary:
+	case *syntax.ConstFetch:
+		v.interval = e.constantInt(n)
+	case *syntax.ClassConstFetch:
+		v.interval = e.classConstantInt(n)
+	default:
+		v.interval = nil
+	}
 	if old, ok := r.values[x]; ok {
 		seen := merge(old, v)
 		if _, read := x.(*syntax.Variable); read {
@@ -818,6 +836,7 @@ func (e *Env) assign(n *syntax.Assign, f *frame, r *scopeResult, depth int, targ
 			e.implicit(n, f, r)
 		}
 		v = compound(n, old, operand, scalar(r, old.Expr, MaxDepth))
+		v.interval = arithmetic(n.Op.Kind, old, operand)
 		// `??=` keeps or takes a value, `+=` may unite two arrays.
 		both := old.deep && operand.deep
 		v.plain, v.deep = n.Op.Kind != syntax.TCoalesceEqual || old.plain && operand.plain, both || n.Op.Kind != syntax.TCoalesceEqual && n.Op.Kind != syntax.TPlusEqual

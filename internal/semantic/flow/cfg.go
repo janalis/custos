@@ -18,6 +18,7 @@ type (
 		next        []int
 		exceptional int
 		shared      bool
+		head        bool
 		// pin names a variable that, on entry to the block, was just found
 		// loosely equal to a string literal no request text can equal
 		// without being that literal (see allowed), or the request table
@@ -124,22 +125,27 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 	case *syntax.While:
 		g.blocks[next].shared = true
 		test := g.test(n.Cond, x)
+		g.blocks[test].head = true
 		lx := x.inside(next, test)
 		g.blocks[test].next = repeats(n.Cond, g.stmt(n.Body, test, lx), next)
 		return test
 	case *syntax.DoWhile:
 		g.blocks[next].shared = true
 		test := g.test(n.Cond, x)
+		g.blocks[test].head = true
 		lx := x.inside(next, test)
 		body := g.stmt(n.Body, test, lx)
 		g.blocks[test].next = repeats(n.Cond, body, next)
 		// The body runs again: what is written before the loop is not part
 		// of its first block.
 		g.blocks[body].shared = true
+		g.blocks[body].head = true
 		return body
 	case *syntax.For:
 		g.blocks[next].shared = true
 		test := g.add(nil)
+		g.blocks[test].head = true
+		g.blocks[test].shared = true
 		loop := test
 		for i := len(n.Loop) - 1; i >= 0; i-- {
 			loop = g.atom(n.Loop[i], loop, x)
@@ -169,6 +175,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 	case *syntax.Foreach:
 		g.blocks[next].shared = true
 		test := g.test(n, x)
+		g.blocks[test].head = true
 		lx := x.inside(next, test)
 		g.blocks[test].next = []int{g.stmt(n.Body, test, lx), next}
 		return test
@@ -627,6 +634,10 @@ func (e *Env) typed(p *syntax.Param, deep bool) bool {
 }
 
 func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bool) *scopeResult {
+	return e.followMode(scope, distrust, distrustAll, nil)
+}
+
+func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr) *scopeResult {
 	r := &scopeResult{values: map[syntax.Expr]Value{}, before: map[syntax.Node]map[uint32]State{}, callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
 	e.scopes[scope] = r
 	// Block 0 ends the scope however it is left; a normal completion passes
@@ -663,6 +674,10 @@ func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bo
 		}
 	}
 	e.bindings(scope, r, &initial)
+	if target != nil {
+		g.entryPrefix(entry, initial, r, target)
+		return r
+	}
 	// A block is visited when no block before it in the source waits: blocks
 	// are numbered from the end of the scope, a loop body above its test, so
 	// a loop settles before what follows it runs.
@@ -698,7 +713,7 @@ func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bo
 			*input = v
 		} else {
 			before := len(input.vars) + len(input.states)
-			changed, work := input.absorb(v)
+			changed, work := input.absorbAt(v, g.blocks[target].head)
 			r.copies += work
 			if !changed || !retain(r, max(0, len(input.vars)+len(input.states)-before)) {
 				return

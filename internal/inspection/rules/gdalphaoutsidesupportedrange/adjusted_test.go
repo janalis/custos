@@ -15,9 +15,9 @@ func TestAdjustedBefore(t *testing.T) {
 		{"file scope literal", "$a = 200; imagecolorallocatealpha($i, 1, 2, 3, $a);", 1},
 		{"copied literal", "function f($i) { $b = 200; $a = $b; return imagecolorallocatealpha($i, 1, 2, 3, $a); }", 1},
 		{"builtin call before", "function f($i) { $a = 200; strlen('x'); return imagecolorallocatealpha($i, 1, 2, 3, $a); }", 1},
-		{"reassigned after step", "function f($i) { $a = 1; $a++; $a = 200; return imagecolorallocatealpha($i, 1, 2, 3, $a); }", 0},
-		{"reference capture never invoked", "function f($i) { $a = 200; $g = function () use (&$a) { $a = 3; }; return imagecolorallocatealpha($i, 1, 2, $g, $a); }", 0},
-		{"reassigned after extract", "function f($i, $o) { extract($o); $a = 200; return imagecolorallocatealpha($i, 1, 2, 3, $a); }", 0},
+		{"reassigned after step", "function f($i) { $a = 1; $a++; $a = 200; return imagecolorallocatealpha($i, 1, 2, 3, $a); }", 1},
+		{"reference capture never invoked", "function f($i) { $a = 200; $g = function () use (&$a) { $a = 3; }; return imagecolorallocatealpha($i, 1, 2, $g, $a); }", 1},
+		{"reassigned after extract", "function f($i, $o) { extract($o); $a = 200; return imagecolorallocatealpha($i, 1, 2, 3, $a); }", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"GdAlphaOutsideSupportedRange"}})
