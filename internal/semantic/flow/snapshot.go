@@ -252,18 +252,7 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot) (*Env, *
 			r := e.scope(n)
 			sum := Summary{Return: Value{Complete: r.complete}}
 			body := syntax.VariableScopeBody(n)
-			if body != nil {
-				syntax.Inspect(body, func(child syntax.Node) bool {
-					if child != body && syntax.IsVariableScope(child) {
-						return false
-					}
-					switch child.(type) {
-					case *syntax.Yield, *syntax.YieldFrom:
-						sum.Generator = true
-					}
-					return true
-				})
-			}
+			sum.Generator = r.generator
 			for i, v := range r.returns {
 				if i == 0 {
 					sum.Return = v

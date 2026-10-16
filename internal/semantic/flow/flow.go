@@ -570,6 +570,7 @@ type Env struct {
 }
 
 type scopeResult struct {
+	generator bool
 	values    map[syntax.Expr]Value
 	before    map[syntax.Node]map[uint32]State
 	calls     []Call
@@ -1454,7 +1455,7 @@ func effects(a, b Value) Value {
 // producers exports local syntax only after the whole scope was followed.
 // Partial generator or budget-limited bodies cannot establish that a write ran.
 func (r *scopeResult) producers(v Value) *originSet {
-	if !r.complete {
+	if !r.complete || r.generator {
 		return nil
 	}
 	return origins(Value{}, v)

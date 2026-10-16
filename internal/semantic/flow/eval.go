@@ -454,6 +454,18 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 	case *syntax.Ternary:
 		cond := e.eval(n.Cond, f, r, depth+1)
+		if truth, known := constantTruth(n.Cond); known {
+			chosen := n.Else
+			if truth {
+				chosen = n.Then
+			}
+			e.refine(n.Cond, f, truth)
+			v = cond
+			if chosen != nil {
+				v = e.eval(chosen, f, r, depth+1)
+			}
+			break
+		}
 		other := clone(*f)
 		a := cond // The short form yields its condition.
 		if n.Then != nil {
@@ -1590,6 +1602,16 @@ func (e *Env) elements(value syntax.Expr, f *frame, r *scopeResult) *elementSet 
 			return e.elements(n.Expr, f, r)
 		}
 	case *syntax.Ternary:
+		if truth, known := constantTruth(n.Cond); known {
+			chosen := n.Else
+			if truth {
+				chosen = n.Then
+				if chosen == nil {
+					chosen = n.Cond
+				}
+			}
+			return e.elements(chosen, f, r)
+		}
 		if n.Then != nil {
 			return common(e.elements(n.Then, f, r), e.elements(n.Else, f, r))
 		}

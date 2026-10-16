@@ -19,6 +19,7 @@ type (
 		exceptional int
 		shared      bool
 		head        bool
+		choice      int8
 		// pin names a variable that, on entry to the block, was just found
 		// loosely equal to a string literal no request text can equal
 		// without being that literal (see allowed), or the request table
@@ -640,6 +641,7 @@ func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bo
 func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr) *scopeResult {
 	r := &scopeResult{values: map[syntax.Expr]Value{}, before: map[syntax.Node]map[uint32]State{}, callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
 	e.scopes[scope] = r
+	r.generator = e.generator(scope)
 	// Block 0 ends the scope however it is left; a normal completion passes
 	// through the block before it, which tells whether the scope can return.
 	g := graph{complete: true, env: e}
@@ -656,6 +658,19 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 			entry = g.stmt(st, done, x)
 		} else if body != nil {
 			entry = g.atom(body, done, x)
+		}
+	}
+	// All label bodies remain built, including those entered by goto inside a
+	// constant-false branch. Only propagation from the condition is pruned.
+	for i := range g.blocks {
+		b := &g.blocks[i]
+		if condition, ok := b.node.(syntax.Expr); ok && len(b.next) == 2 {
+			if truth, known := constantTruth(condition); known {
+				b.choice = 2
+				if truth {
+					b.choice = 1
+				}
+			}
 		}
 	}
 	// A jump to a label that is not there goes nowhere known.
@@ -782,8 +797,11 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 		conditional = conditional && len(b.next) == 2
 		loop, iterating := b.node.(*syntax.Foreach)
 		for j, target := range b.next {
+			if b.choice != 0 && int(b.choice)-1 != j {
+				continue
+			}
 			// The last successor takes the working frame itself.
-			last := j == len(b.next)-1
+			last := b.choice != 0 || j == len(b.next)-1
 			branch := out
 			if (conditional || iterating) && !last {
 				r.copies += len(out.vars) + len(out.states)

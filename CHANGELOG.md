@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Follow only the selected flow path for bounded, pure constant conditions and
+  ternaries. Preserve label entry and generator identity even when a yield lies
+  in a skipped branch.
+
 - Track bounded integer intervals through local arithmetic and loop comparisons.
   Repetition counts and GD alpha checks recognize wholly invalid ranges and
   concrete first-turn values, while dropping integer proofs on possible overflow.

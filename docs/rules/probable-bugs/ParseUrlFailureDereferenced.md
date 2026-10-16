@@ -40,7 +40,8 @@ unchecked result.
 
 Only completely followed same-file bodies export replacement producers.
 An unstarted generator closure does not establish that its body wrote a new
-result; advancing generators is outside this local producer contract.
+result, including when its syntactic yield lies in a skipped constant branch
+or ternary arm; advancing generators is outside this local producer contract.
 
 ## Exceptions (no report)
 

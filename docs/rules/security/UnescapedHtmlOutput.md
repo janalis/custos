@@ -43,6 +43,11 @@ Reported:
 
 ## Detection
 
+Bounded, pure constant conditions select only their executable flow successor.
+The same applies to ternary arms. User constants, calls and unsupported scalar
+coercions remain unknown; labels inside skipped branches can still be entered
+by a legal jump. Lexical reachability queries retain their existing contract.
+
 Literal variable-variable and global-table spellings of request superglobals
 carry the same request provenance as direct reads. A function binding a global
 can read request data written by another function of that file before its first

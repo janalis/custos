@@ -27,6 +27,11 @@ Reported:
 
 ## Detection
 
+Bounded, pure constant conditions select only their executable flow successor.
+The same applies to ternary arms. User constants, calls and unsupported scalar
+coercions remain unknown; labels inside skipped branches can still be entered
+by a legal jump. Lexical reachability queries retain their existing contract.
+
 Follow each producer reaching a local read, including results written on an
 earlier loop turn or before a backward jump. A check of an earlier result does
 not check a later replacement; a check repeated before every consumption does.

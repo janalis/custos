@@ -17,6 +17,7 @@ func TestIntegerRanges(t *testing.T) {
 		known     bool
 	}{
 		{"literal", `probe(-3);`, -3, -3, true},
+		{"explicit octal", `probe(0o7);`, 7, 7, true},
 		{"union", `if($c){$n=-2;}else{$n=-7;}probe($n);`, -7, -2, true},
 		{"crossing", `if($c){$n=-2;}else{$n=7;}probe($n);`, -2, 7, true},
 		{"unknown path", `if($c){$n=-2;}probe($n);`, 0, 0, false},
@@ -75,6 +76,8 @@ func TestIntegerEntryPrefix(t *testing.T) {
 		known     bool
 	}{
 		{"do first", `$n=-1;do{probe($n);$n=5;}while($c);`, -1, true},
+		{"false before first", `$n=-2;if(false){$n=5;}do{probe($n);$n=5;}while($c);`, -2, true},
+		{"null before first", `$n=-2;if(null){$n=5;}do{probe($n);$n=5;}while($c);`, -2, true},
 		{"for first", `for($n=-4;$n<0;$n++){probe($n);}`, -4, true},
 		{"zero turns", `for($n=4;$n<0;$n++){probe($n);}`, 0, false},
 		{"while false", `$n=-1;while(false){probe($n);}`, 0, false},

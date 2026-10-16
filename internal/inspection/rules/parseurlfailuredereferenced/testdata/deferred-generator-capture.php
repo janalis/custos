@@ -33,3 +33,13 @@ function nested_generator_is_independent(string $path) {
     $replace();
     echo <warning descr="Reject URL parsing failure before indexing.">$parts['host']</warning>;
 }
+function ternary_generator(string $path) {
+    $parts = parse_url($path);
+    if ($parts === false) { return; }
+    $replace = function () use (&$parts, $path) {
+        $parts = parse_url($path);
+        true ? 1 : yield 1;
+    };
+    $replace();
+    echo $parts['host'];
+}
