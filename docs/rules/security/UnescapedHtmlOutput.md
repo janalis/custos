@@ -60,6 +60,8 @@ call; propagation follows longer chains within the shared analysis budget.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
+A catch contributes values only when its try body can throw. Bounded inert literal expressions, definite plain reads and proven scalar local writes do not enter a catch. Calls, unknown reads/accesses, output callbacks, discarded objects, aliases, dynamic bindings and tick declarations preserve conservative exception paths. Finally blocks still run along every applicable normal or abrupt exit.
+
 ## Exceptions (no report)
 
 - E1. Trusted literals, htmlspecialchars/htmlentities with correct charset/flags and unknown output context are excluded. Markup emitted by an earlier statement or by inline HTML outside the statement does not establish a context.

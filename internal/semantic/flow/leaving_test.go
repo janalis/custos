@@ -760,7 +760,8 @@ func TestCodeThatRunsWithoutACallEntersTheFunctionAgain(t *testing.T) {
 		{`if (is_array($o)) { $o = null; }`, false},
 		{`function it($c) { return function () use ($c) { static $u; $u = parse_url($c); if ($u === false) { return; } $x = 1; probe($u); }; }`, false},
 		{`try { $n = 1; } catch (Exception $n) { } catch (Error) { }`, true},
-		{`try { $n = 1; } catch (Exception $o) { }`, false},
+		{`try { $n = 1; } catch (Exception $o) { }`, true},
+		{`try { work(); } catch (Exception $o) { }`, false},
 		// A key is a number or text when an array is iterated.
 		{`foreach ($o as $k => $v) { echo $k; }`, false},
 		{`foreach ([1] as $k => $v) { echo $k; }`, true},

@@ -116,6 +116,11 @@ not validate file paths or network destinations. Method wrappers require a final
 receiver class, a final method or an accessible private method, with one
 unconditional declaration. Open overridable methods remain conservative.
 
+Catch paths are omitted only for blocks proven nonthrowing. Calls, uncertain
+reads or writes, callbacks and object destruction preserve exception paths;
+finally blocks still follow the applicable exits. Tick declarations disable this
+pruning conservatively for the file.
+
 Ambiguous declarations, escaped resources and unsupported operations discard
 definite facts. Recursive calls and bounded analysis exhaustion likewise
 cannot establish a definite finding. This keeps an unknown result from being

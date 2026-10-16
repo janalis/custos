@@ -33,6 +33,7 @@ type (
 	graph struct {
 		blocks   []block
 		complete bool
+		proofs   map[int]*exceptionProof
 		// full marks a graph that reached MaxBlocks.
 		full bool
 		env  *Env
@@ -662,8 +663,10 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	}
 	// All label bodies remain built, including those entered by goto inside a
 	// constant-false branch. Only propagation from the condition is pruned.
+	hasExceptional := false
 	for i := range g.blocks {
 		b := &g.blocks[i]
+		hasExceptional = hasExceptional || b.exceptional > 0
 		if condition, ok := b.node.(syntax.Expr); ok && len(b.next) == 2 {
 			if truth, known := constantTruth(condition); known {
 				b.choice = 2
@@ -672,6 +675,9 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 				}
 			}
 		}
+	}
+	if hasExceptional {
+		g.exceptionProofs(scope)
 	}
 	// A jump to a label that is not there goes nowhere known.
 	g.complete = g.complete && len(g.jumps) == 0
@@ -764,13 +770,14 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 		r.copies += len(in.vars) + len(in.states)
 		out := clone(in)
 		b := g.blocks[i]
+		throwing := b.exceptional > 0 && !g.proofs[i].holds(in)
 		var exceptional frame
-		if b.exceptional > 0 {
+		if throwing {
 			exceptional = clone(in)
 		}
 		if b.node != nil {
 			e.transfer(b.node, &out, r)
-			if b.exceptional > 0 {
+			if throwing {
 				// What the condition wrote before it threw.
 				_, work := exceptional.absorb(out)
 				r.copies += work
@@ -788,7 +795,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 			if !r.complete || r.operations > MaxTransfers {
 				break
 			}
-			if b.exceptional > 0 {
+			if throwing {
 				_, work := exceptional.absorb(out)
 				r.copies += work
 			}
@@ -816,7 +823,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 			}
 			propagate(target, branch, conditional || iterating || last)
 		}
-		if b.exceptional > 0 {
+		if throwing {
 			propagate(b.exceptional, exceptional, true)
 		}
 	}

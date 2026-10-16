@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Keep catch-only values out of flow results when the try block is proven
+  nonthrowing. Preserve callback, destructor, warning and finally paths, with
+  cached block proofs and conservative checks for local reads and writes.
+
 - Preserve numeric array-value safety through nested project sink wrappers while
   keeping keys and destinations untrusted. Follow final and accessible private
   method wrappers, with dispatch-aware summary invalidation in the language server.
