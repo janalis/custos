@@ -24,10 +24,10 @@ const (
 )
 
 // Limits bound hostile scopes and recursive wrapper queries. MaxRetained
-// bounds the bindings and states kept as block inputs of one scope (memory);
-// MaxCopied the bindings copied, joined and compared while iterating to a
-// fixed point (time). An ordinary long function carries a hundred locals
-// through a few hundred blocks, far below both.
+// bounds retained block bindings, states and immutable origin cells of one
+// scope (memory). MaxCopied bounds bindings copied, joined and compared while
+// iterating to a fixed point (time). An ordinary long function carries a hundred
+// locals through a few hundred blocks, far below both.
 const (
 	MaxBlocks    = 8192
 	MaxTransfers = 100000
@@ -107,46 +107,84 @@ type Origin struct {
 	NonNull  bool
 }
 
-// MaxOrigins bounds the producers followed for one binding.
-const MaxOrigins = 4
+// MaxOrigins is the ordinary expression retention threshold before compacting
+// finite native contracts and non-call ambiguity. Sensitive calls remain exact.
+const MaxOrigins = 64
 
 // originSet is never modified once a binding holds it. A path that gave the
 // binding a value no expression accounts for adds nothing to it: a set of one
-// producer is a binding some other path left unknown. full records that
-// there were more producers than are followed, which no later join undoes.
+// producer is a binding some other path left unknown. compressed marks finite
+// contract representatives; other preserves non-call ambiguity without syntax.
+// full is an exhausted host budget, which invalidates the owning scope.
 type originSet struct {
-	items []Origin
-	full  bool
+	items      []Origin
+	full       bool
+	compressed bool
+	other      bool
 }
 
 // origins joins the producers of a binding two paths disagree on. It returns
 // the set one of them already holds when the other adds nothing to it, and a
-// full set past MaxOrigins.
-func origins(a, b Value) *originSet {
+// compact contract witnesses past MaxOrigins, within the owning scope budget.
+func origins(a, b Value, owners ...*scopeResult) *originSet {
+	var r *scopeResult
+	if len(owners) > 0 {
+		r = owners[0]
+	}
 	if a.Expr == b.Expr && (a.Expr != nil || a.origins == nil && b.origins == nil) {
 		return nil
 	}
-	if held := a.origins; a.Expr == nil && held != nil && (held.full || held.holds(&b)) {
+	if held := a.origins; a.Expr == nil && held != nil && (held.full || held.holds(&b, r)) {
 		return held
 	}
-	if held := b.origins; b.Expr == nil && held != nil && (held.full || held.holds(&a)) {
+	if held := b.origins; b.Expr == nil && held != nil && (held.full || held.holds(&a, r)) {
 		return held
 	}
 	n := &originSet{}
+	if a.origins != nil {
+		n.compressed = a.origins.compressed
+		n.other = a.origins.other
+	}
+	if b.origins != nil {
+		n.compressed = n.compressed || b.origins.compressed
+		n.other = n.other || b.origins.other
+	}
+	size := 0
+	for _, v := range [2]*Value{&a, &b} {
+		if v.Expr != nil {
+			size++
+		} else if v.origins != nil {
+			size += len(v.origins.items)
+		}
+	}
+	var positions map[syntax.Expr]int
+	if size > MaxOrigins {
+		positions = make(map[syntax.Expr]int, size)
+	}
+	add := func(o Origin) {
+		if positions == nil {
+			n.add(o)
+			return
+		}
+		if i, ok := positions[o.Expr]; ok {
+			known := n.items[i]
+			n.items[i] = Origin{o.Expr, known.NonFalse && o.NonFalse, known.NonNull && o.NonNull}
+			return
+		}
+		positions[o.Expr] = len(n.items)
+		n.items = append(n.items, o)
+	}
 	for _, v := range [2]*Value{&a, &b} {
 		switch {
 		case v.Expr != nil:
-			n.add(Origin{v.Expr, v.NonFalse, v.NonNull})
+			add(Origin{v.Expr, v.NonFalse, v.NonNull})
 		case v.origins != nil:
 			for _, o := range v.origins.items {
-				n.add(o)
+				add(o)
 			}
 		}
 	}
-	if len(n.items) > MaxOrigins {
-		return &originSet{full: true}
-	}
-	return n
+	return finishOrigins(n, r, a.origins, b.origins)
 }
 
 // add joins one producer into a set under construction.
@@ -162,9 +200,19 @@ func (s *originSet) add(o Origin) {
 
 // holds reports that joining v adds nothing to the set: each producer of v
 // is there with no more guards than v has.
-func (s *originSet) holds(v *Value) bool {
+func (s *originSet) holds(v *Value, owners ...*scopeResult) bool {
+	var r *scopeResult
+	if len(owners) > 0 {
+		r = owners[0]
+	}
 	has := func(o Origin) bool {
+		if s.other && !callOrigin(o.Expr) {
+			return true
+		}
 		for _, known := range s.items {
+			if s.compressed && r != nil && r.originKey(o.Expr) != "" && r.originKey(o.Expr) == r.originKey(known.Expr) && known.NonFalse == o.NonFalse && known.NonNull == o.NonNull && known.Expr.Span().Start <= o.Expr.Span().Start {
+				return true
+			}
 			if known.Expr == o.Expr {
 				return (!known.NonFalse || o.NonFalse) && (!known.NonNull || o.NonNull)
 			}
@@ -178,6 +226,8 @@ func (s *originSet) holds(v *Value) bool {
 		return true
 	case v.origins.full:
 		return false
+	case v.origins.other && !s.other:
+		return false
 	}
 	for _, o := range v.origins.items {
 		if !has(o) {
@@ -188,15 +238,26 @@ func (s *originSet) holds(v *Value) bool {
 }
 
 // excluding returns the set with a failure value excluded for every producer.
-func (s *originSet) excluding(nonFalse, nonNull bool) *originSet {
+func (s *originSet) excluding(nonFalse, nonNull bool, owners ...*scopeResult) *originSet {
 	if s == nil {
 		return nil
 	}
-	n := &originSet{items: make([]Origin, len(s.items)), full: s.full}
+	unchanged := true
+	for _, o := range s.items {
+		unchanged = unchanged && (!nonFalse || o.NonFalse) && (!nonNull || o.NonNull)
+	}
+	if unchanged {
+		return s
+	}
+	var r *scopeResult
+	if len(owners) > 0 {
+		r = owners[0]
+	}
+	n := &originSet{items: make([]Origin, len(s.items)), full: s.full, compressed: s.compressed, other: s.other}
 	for i, o := range s.items {
 		n.items[i] = Origin{o.Expr, o.NonFalse || nonFalse, o.NonNull || nonNull}
 	}
-	return n
+	return finishOrigins(n, r, s)
 }
 
 // sameOrigins compares two sets by content.
@@ -204,7 +265,7 @@ func sameOrigins(a, b *originSet) bool {
 	if a == b {
 		return true
 	}
-	if a == nil || b == nil || a.full != b.full || len(a.items) != len(b.items) {
+	if a == nil || b == nil || a.full != b.full || a.compressed != b.compressed || a.other != b.other || len(a.items) != len(b.items) {
 		return false
 	}
 	for i, o := range a.items {
@@ -303,6 +364,7 @@ type Call struct {
 }
 
 type frame struct {
+	owner  *scopeResult
 	vars   map[string]Value
 	states map[uint32]State
 	// aliased names are bound to storage that code outside the tracked
@@ -457,7 +519,7 @@ const imported = ""
 // importing joins request data an import may have spread over the scope.
 func (f *frame) importing(v Value) {
 	if tainted(v) {
-		f.vars[imported] = unsettled(f.vars[imported], v)
+		f.vars[imported] = unsettled(f.vars[imported], v, f.owner)
 	}
 }
 
@@ -574,13 +636,17 @@ type Env struct {
 }
 
 type scopeResult struct {
-	generator bool
-	values    map[syntax.Expr]Value
-	before    map[syntax.Node]map[uint32]State
-	calls     []Call
-	returns   []Value
-	callIndex map[syntax.Node]int
-	complete  bool
+	originTypes     *infer.Env
+	originKeys      map[syntax.Expr]string
+	originReserve   int
+	originContracts map[string]bool
+	generator       bool
+	values          map[syntax.Expr]Value
+	before          map[syntax.Node]map[uint32]State
+	calls           []Call
+	returns         []Value
+	callIndex       map[syntax.Node]int
+	complete        bool
 	// stale lists the assignments tested in place in a short-circuit
 	// operand whose earlier result can reach the path that skips them.
 	stale map[*syntax.Assign]bool
@@ -900,7 +966,9 @@ func passing(side syntax.Node, visit func(*syntax.Variable)) {
 // failure values its paths exclude. The second result reports that the paths
 // agree on one producer. Otherwise the list may leave out paths on which the
 // variable is unassigned or holds a value the scope does not account for,
-// and it is empty when nothing is known or more than MaxOrigins reach.
+// and it is empty when nothing is known or the host scope budget is exhausted.
+// When CompressedOrigins is true, items are finite-contract representatives,
+// not a complete list suitable for arbitrary expression predicates.
 func (e *Env) Reaching(x syntax.Expr) ([]Origin, bool) {
 	if x == nil {
 		return nil, false
@@ -1143,7 +1211,7 @@ func equal(v, w Value) bool {
 }
 
 func clone(f frame) frame {
-	n := frame{vars: make(map[string]Value, len(f.vars)), states: map[uint32]State{}, definite: f.definite, wild: f.wild, related: f.related}
+	n := frame{owner: f.owner, vars: make(map[string]Value, len(f.vars)), states: map[uint32]State{}, definite: f.definite, wild: f.wild, related: f.related}
 	for k, v := range f.vars {
 		n.vars[k] = v
 	}
@@ -1221,7 +1289,7 @@ func (f *frame) write(r *scopeResult, name string, v Value) {
 			switch {
 			case other == name || g != group:
 			case group == aliasAny:
-				f.vars[other] = unsettled(f.vars[other], v)
+				f.vars[other] = unsettled(f.vars[other], v, f.owner)
 			default:
 				f.vars[other] = v
 			}
@@ -1249,7 +1317,7 @@ func (f *frame) through(r *scopeResult, v Value) {
 	r.operations += len(f.aliased)
 	for other, g := range f.aliased {
 		if g == aliasAny {
-			f.vars[other] = unsettled(f.vars[other], v)
+			f.vars[other] = unsettled(f.vars[other], v, f.owner)
 		}
 	}
 }
@@ -1268,7 +1336,7 @@ func (f *frame) unsettle(r *scopeResult, written Value) {
 	f.related = nil
 	r.operations += len(f.vars)
 	for name, old := range f.vars {
-		f.vars[name] = unsettled(old, written)
+		f.vars[name] = unsettled(old, written, f.owner)
 	}
 }
 
@@ -1277,7 +1345,7 @@ func (f *frame) unsettle(r *scopeResult, written Value) {
 // data it held, or that such code writes (written), may still be there:
 // unknown must not read as untainted. The same goes for what a parameter
 // brought in, which is request data when a caller passes some.
-func unsettled(old, written Value) Value {
+func unsettled(old, written Value, owners ...*scopeResult) Value {
 	v := Value{}
 	if len(old.Sources) > 0 {
 		v = Value{Complete: true, Sources: old.Sources, Safe: old.Safe}
@@ -1288,7 +1356,7 @@ func unsettled(old, written Value) Value {
 		}
 		v = merge(v, Value{Complete: true, Sources: written.Sources, Safe: written.Safe})
 	}
-	v.origins = origins(Value{}, written)
+	v.origins = origins(Value{}, written, owners...)
 	return v
 }
 
@@ -1354,7 +1422,7 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 			// The other path never assigned the variable: it is null there.
 			m.NonFalse, m.plain, m.deep = v.NonFalse, v.plain, v.deep
 		}
-		if m.origins = origins(v, w); !equal(m, v) {
+		if m.origins = origins(v, w, f.owner); !equal(m, v) {
 			f.vars[k] = m
 			changed = true
 		}
@@ -1366,7 +1434,7 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 				continue
 			}
 			m := merge(Value{}, v)
-			m.origins = origins(Value{}, v)
+			m.origins = origins(Value{}, v, f.owner)
 			if f.definite && !reserved(k) {
 				m.NonFalse, m.plain, m.deep = v.NonFalse, v.plain, v.deep
 			}
@@ -1421,15 +1489,26 @@ func (v *Value) correlate(a, b Value) {
 }
 
 // unguarded returns the set without any exclusion.
-func (s *originSet) unguarded() *originSet {
+func (s *originSet) unguarded(owners ...*scopeResult) *originSet {
 	if s == nil {
 		return nil
 	}
-	n := &originSet{items: make([]Origin, len(s.items)), full: s.full}
+	unchanged := true
+	for _, o := range s.items {
+		unchanged = unchanged && !o.NonFalse && !o.NonNull
+	}
+	if unchanged {
+		return s
+	}
+	var r *scopeResult
+	if len(owners) > 0 {
+		r = owners[0]
+	}
+	n := &originSet{items: make([]Origin, len(s.items)), full: s.full, compressed: s.compressed, other: s.other}
 	for i, o := range s.items {
 		n.items[i] = Origin{Expr: o.Expr}
 	}
-	return n
+	return finishOrigins(n, r, s)
 }
 
 // reserve bounds the operation states remembered per node.
@@ -1445,7 +1524,7 @@ func reserve(r *scopeResult, cells int) bool {
 
 // retain bounds the frame cells kept as block inputs.
 func retain(r *scopeResult, cells int) bool {
-	if cells > MaxRetained-r.retained {
+	if cells > MaxRetained-r.originReserve-r.retained {
 		r.spent = true
 		r.complete = false
 		return false
@@ -1458,9 +1537,9 @@ func retain(r *scopeResult, cells int) bool {
 func retained(v Value) bool { return tainted(v) || v.Expr != nil || v.origins != nil }
 
 // effects joins local writes, retaining their syntax only in the environment.
-func effects(a, b Value) Value {
+func effects(a, b Value, owners ...*scopeResult) Value {
 	v := merge(a, b)
-	v.origins = origins(a, b)
+	v.origins = origins(a, b, owners...)
 	return v
 }
 
@@ -1470,5 +1549,9 @@ func (r *scopeResult) producers(v Value) *originSet {
 	if !r.complete || r.generator {
 		return nil
 	}
-	return origins(Value{}, v)
+	out := origins(Value{}, v, r)
+	if !r.complete {
+		return nil
+	}
+	return out
 }

@@ -32,8 +32,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		inputs = c.Exprs
 	}
 	for _, e := range inputs {
-		c, ok := semanticquery.NativeLocalResult(ctx, e, "false").(*syntax.MethodCall)
-		if ok && semanticquery.NativeMethod(ctx, c, "XSLTProcessor", "transformToXML") && !ctx.Flow().Excludes(e, "false") && !semanticquery.NativeLocalSentinelGuard(ctx, e, "false") && (semanticquery.NativeLabelled(ctx, e) || !(guard{ctx, e, c}).dominates()) {
+		c, ok := semanticquery.NativeLocalBuiltinResult(ctx, e, "false", "XSLTProcessor::transformToXML").(*syntax.MethodCall)
+		if ok && semanticquery.NativeMethod(ctx, c, "XSLTProcessor", "transformToXML") && !ctx.Flow().Excludes(e, "false") && (semanticquery.NativeFailureFlowOnly(ctx, e) || !semanticquery.NativeLocalSentinelGuard(ctx, e, "false")) && (semanticquery.NativeFailureFlowOnly(ctx, e) || !(guard{ctx, e, c}).dominates()) {
 			ctx.ReportNode(n, message)
 			return
 		}

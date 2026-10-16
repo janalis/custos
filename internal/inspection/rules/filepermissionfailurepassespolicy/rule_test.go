@@ -128,6 +128,8 @@ func TestGuardsWithoutFlowFacts(t *testing.T) {
 		{"elseif after failed test", "if ($f === '') { echo 1; } elseif (!$p) { echo 2; } elseif ($f) { " + check + " }", 0},
 		{"earlier exit", "if (!$p) { return false; } " + check, 0},
 		{"loose exit", "if ($p == false) { return false; } " + check, 0},
+		{"invalid predicate arity", "if (is_int()) { " + check + " }", 1},
+		{"disjunction exit", "if (!$p || $f === '') { return false; } " + check, 0},
 		{"wrong branch", "if (!$p) { " + check + " }", 1},
 		{"unrelated else", "if ($f === '') { echo 1; } elseif ($f) { echo 2; } else { " + check + " }", 1},
 	} {

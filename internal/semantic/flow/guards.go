@@ -332,7 +332,7 @@ func (f *frame) excluding(name string, v Value, nonFalse, nonNull bool) {
 	if nonNull {
 		v.NonNull = true
 	}
-	v.origins = v.origins.excluding(nonFalse, nonNull)
+	v.origins = v.origins.excluding(nonFalse, nonNull, f.owner)
 	f.vars[name] = v
 }
 
@@ -618,7 +618,7 @@ func (e *Env) refineAssigned(operation *syntax.Binary, f *frame, truth bool) {
 	}
 	name := stored.Var.(*syntax.Variable).Name
 	produced := syntax.UnwrapParens(stored.Value)
-	alone := frame{vars: map[string]Value{name: {Complete: true, Expr: produced}}, states: map[uint32]State{}}
+	alone := frame{owner: f.owner, vars: map[string]Value{name: {Complete: true, Expr: produced}}, states: map[uint32]State{}}
 	e.refine(cond, &alone, truth)
 	fact := alone.vars[name]
 	v, tracked := f.vars[name]
@@ -635,13 +635,13 @@ func (e *Env) refineAssigned(operation *syntax.Binary, f *frame, truth bool) {
 	if e.scopes[syntax.EnclosingVariableScope(stored)].stale[stored] || v.Expr != nil || v.origins == nil {
 		return
 	}
-	n := &originSet{items: append([]Origin(nil), v.origins.items...), full: v.origins.full}
+	n := &originSet{items: append([]Origin(nil), v.origins.items...), full: v.origins.full, compressed: v.origins.compressed, other: v.origins.other}
 	for i, o := range n.items {
 		if syntax.UnwrapParens(o.Expr) == produced {
 			n.items[i] = Origin{o.Expr, o.NonFalse || fact.NonFalse, o.NonNull || fact.NonNull}
 		}
 	}
-	v.origins = n
+	v.origins = finishOrigins(n, f.owner, v.origins)
 	f.vars[name] = v
 }
 

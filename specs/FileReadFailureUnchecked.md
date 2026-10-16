@@ -102,6 +102,18 @@ assumed to terminate. A later description expression that can rewrite the tested
 value prevents using the condition as a guard. Before PHP 8, evaluated string
 assertions invalidate local proofs; their PHP code is not interpreted.
 
+### Joined producer retention
+
+Several assignments reaching a use are checked per producer. Ordinary
+sets retain up to 64 expressions, then finite resolved native contracts retain
+real representatives for each false/null guard state. An eligible unguarded
+producer still counts when other paths use another API or are guarded.
+Argument-sensitive contracts retain their individual producers so an irrelevant
+variant cannot hide a later eligible call. Unknown non-call paths establish no
+exact identity. Origin storage is charged to the scope's retained-state budget;
+exhausting that host budget leaves the scope unknown rather than fabricating a
+producer or a guard.
+
 ## Divergences
 
 Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.

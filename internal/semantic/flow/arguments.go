@@ -90,7 +90,7 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 			// A declared reference parameter replaces the value. An unresolved
 			// callee may not write at all: request data stays possible.
 			// The write reaches the names aliased with the argument too.
-			next := unsettled(f.vars[variable.Name], Value{})
+			next := unsettled(f.vars[variable.Name], Value{}, r)
 			if known {
 				next = Value{}
 				name, builtin, _, _ := e.callee(at)
@@ -119,11 +119,11 @@ func (e *Env) invalidateReferences(at syntax.Node, list *syntax.ArgList, f *fram
 				// Only the element can be bound: the callee may change or
 				// create it, with what it writes, but the variable stays the
 				// array it was, with the request data its other elements hold.
-				next = unsettled(old, next)
+				next = unsettled(old, next, r)
 				next.Complete = next.Complete || old.Complete
 				next.NonFalse, next.NonNull, next.plain, next.deep = old.NonFalse, old.NonNull, old.plain, old.deep && next.deep
 				next.elements = old.elements.without(boundElement(a.Value))
-				next.Expr, next.origins = nil, origins(Value{}, old)
+				next.Expr, next.origins = nil, origins(Value{}, old, r)
 			}
 			f.write(r, variable.Name, next)
 		}
@@ -153,7 +153,7 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 	summary, ok := e.contract(name)
 	written, described := summary.ByRef[positions[at]]
 	if !ok || !described {
-		return unsettled(old, Value{})
+		return unsettled(old, Value{}, r)
 	}
 	v := Value{Complete: true, Safe: written.Safe}
 	for _, source := range written.Sources {
@@ -181,7 +181,7 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 		next = Value{Complete: true, Sources: v.Sources, Safe: v.Safe}
 	}
 	if !summary.Fixed || !sealed {
-		return unsettled(old, next)
+		return unsettled(old, next, r)
 	}
 	// An array of numbers the callee left is one for the caller.
 	next.scalars = written.scalars
@@ -743,7 +743,7 @@ func (e *Env) updated(name string, at int, list *syntax.ArgList, positions []int
 	if p < 0 || params[p].Optional || params[p].Variadic {
 		old = Value{}
 	}
-	next := unsettled(old, inputs)
+	next := unsettled(old, inputs, r)
 	// Reordering or shortening an array of numbers leaves one.
 	next.scalars = old.scalars && !tainted(inputs) && !strings.HasPrefix(name, "array_walk")
 	return next

@@ -35,11 +35,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	// Among several reaching assignments only a parse_url result counts:
 	// an unguarded result of another call does not stand in for it.
-	parsed := func(e syntax.Expr) bool {
-		call, ok := e.(*syntax.FuncCall)
-		return ok && relevantParse(ctx, call)
+	var c *syntax.FuncCall
+	for _, candidate := range semanticquery.NativeLocalBuiltinResults(ctx, a.Var, "false", "parse_url") {
+		if call, ok := candidate.(*syntax.FuncCall); ok && relevantParse(ctx, call) {
+			c = call
+			break
+		}
 	}
-	c, ok := semanticquery.NativeLocalResultOf(ctx, a.Var, "false", parsed).(*syntax.FuncCall)
+	ok := c != nil
 	if !ok {
 		// The lexical scan only reads assignments that are statements; the
 		// flow also knows a result assigned inside a condition.
@@ -63,9 +66,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // relevantParse excludes other result contracts before choosing a producer,
 // so a safe literal or component result cannot hide another failing parse.
 func relevantParse(ctx *analysis.Context, c *syntax.FuncCall) bool {
-	if !semanticquery.NativeBuiltin(ctx, c, "parse_url") {
-		return false
-	}
 	if component := semanticquery.CallArgument(c.Args, 1, "component"); component != nil {
 		v, known := semanticquery.NativeInt(ctx, component)
 		if !known || v != -1 {

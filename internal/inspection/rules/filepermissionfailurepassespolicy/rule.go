@@ -37,8 +37,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.ExpansionDUnaliased(ctx, mask.Left, n) {
 		return
 	}
-	c, ck := semanticquery.NativeLocalResult(ctx, mask.Left, "false").(*syntax.FuncCall)
-	if !ck || !semanticquery.NativeBuiltin(ctx, c, "fileperms") || semanticquery.NativeLocalSentinelGuard(ctx, mask.Left, "false") || ctx.Flow().Excludes(mask.Left, "false") || !semanticquery.NativeLabelled(ctx, mask.Left) && failureRejected(ctx, mask.Left) {
+	c, ck := semanticquery.NativeLocalBuiltinResult(ctx, mask.Left, "false", "fileperms").(*syntax.FuncCall)
+	if !ck || !semanticquery.NativeBuiltin(ctx, c, "fileperms") || !semanticquery.NativeFailureFlowOnly(ctx, mask.Left) && semanticquery.NativeLocalSentinelGuard(ctx, mask.Left, "false") || ctx.Flow().Excludes(mask.Left, "false") || !semanticquery.NativeFailureFlowOnly(ctx, mask.Left) && failureRejected(ctx, mask.Left) {
 		return
 	}
 	branch, ok := b.Parent().(*syntax.If)

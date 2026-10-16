@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Follow failure-producing values beyond four joined assignments. Retain
+  contract-specific unguarded witnesses past 64 producers, preserve
+  argument-sensitive variants, and charge origin storage to the scope budget.
+
 - Keep assertion guards disabled by default and account for arguments skipped
   when PHP assertions are disabled. The `flow.assertions` setting enables the
   assumption that assertions execute and failures terminate, consistently in

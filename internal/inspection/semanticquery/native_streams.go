@@ -1261,10 +1261,14 @@ func CheckStreamOpenFailureUnchecked(ctx *analysis.Context, n syntax.Node, messa
 		return
 	}
 
-	open, ok := NativeLocalResultOf(ctx, handle, "false", func(result syntax.Expr) bool {
-		call, ok := result.(*syntax.FuncCall)
-		return ok && NativeBuiltin(ctx, call, "fopen") && (!NativeFailureFlowOnly(ctx, handle) || !nativeJoinedWarningUnknown(ctx, call))
-	}).(*syntax.FuncCall)
+	var open *syntax.FuncCall
+	for _, candidate := range NativeLocalBuiltinResults(ctx, handle, "false", "fopen") {
+		if call, ok := candidate.(*syntax.FuncCall); ok && (!NativeFailureFlowOnly(ctx, handle) || !nativeJoinedWarningUnknown(ctx, call)) {
+			open = call
+			break
+		}
+	}
+	ok = open != nil
 	report = ok && NativeBuiltinName(ctx, open) == "fopen" && !ctx.Flow().Excludes(handle, "false") && (NativeFailureFlowOnly(ctx, handle) || !streamOpenGuarded(ctx, handle, open))
 
 	if report {

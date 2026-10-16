@@ -1,0 +1,77 @@
+<?php
+function transformOverflow($choice, $doc) {
+    $processor = new XSLTProcessor();
+    switch ($choice) {
+        case 0: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 1: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 2: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 3: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 4: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 5: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 6: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 7: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 8: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 9: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 10: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 11: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 12: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 13: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 14: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 15: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 16: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 17: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 18: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 19: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 20: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 21: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 22: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 23: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 24: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 25: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 26: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 27: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 28: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 29: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 30: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 31: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 32: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 33: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 34: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 35: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 36: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 37: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 38: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 39: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 40: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 41: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 42: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 43: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 44: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 45: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 46: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 47: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 48: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 49: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 50: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 51: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 52: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 53: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 54: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 55: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 56: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 57: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 58: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 59: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 60: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 61: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 62: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 63: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 64: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 65: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 66: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 67: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        case 68: $value = $processor->transformToXML($doc); if ($value === false || $value === null) { return; } break;
+        default: $value = $processor->transformToXML($doc); break;
+    }
+    <warning descr="Reject transformation failure before using the XML.">echo $value;</warning>
+}

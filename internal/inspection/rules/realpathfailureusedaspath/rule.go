@@ -33,13 +33,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !semanticquery.ExpansionDUnaliased(ctx, input, c) {
 			continue
 		}
-		source, known := semanticquery.NativeLocalResult(ctx, input, "false").(*syntax.FuncCall)
-		if !known || !semanticquery.NativeBuiltin(ctx, source, "realpath") || semanticquery.NativeLocalSentinelGuard(ctx, input, "false") || ctx.Flow().Excludes(input, "false") {
+		source, known := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "realpath").(*syntax.FuncCall)
+		if !known || !semanticquery.NativeBuiltin(ctx, source, "realpath") || !semanticquery.NativeFailureFlowOnly(ctx, input) && semanticquery.NativeLocalSentinelGuard(ctx, input, "false") || ctx.Flow().Excludes(input, "false") {
 			continue
 		}
 		// The join may sit in an earlier assignment; a check between it and
 		// the consuming call still keeps the failure away from the path API.
-		if g := (guard{ctx, source}); !ctx.Flow().LabelledBefore(input, c) && (g.protects(input) || g.protects(c)) {
+		if g := (guard{ctx, source}); !semanticquery.NativeFailureFlowOnly(ctx, input) && !ctx.Flow().LabelledBefore(input, c) && (g.protects(input) || g.protects(c)) {
 			continue
 		}
 		ctx.ReportNode(c, message)

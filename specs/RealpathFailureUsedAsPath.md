@@ -96,6 +96,18 @@ function load(string $path, bool $force) {
 }
 ```
 
+### Joined producer retention
+
+Several assignments reaching a use are checked per producer. Ordinary
+sets retain up to 64 expressions, then finite resolved native contracts retain
+real representatives for each false/null guard state. An eligible unguarded
+producer still counts when other paths use another API or are guarded.
+Argument-sensitive contracts retain their individual producers so an irrelevant
+variant cannot hide a later eligible call. Unknown non-call paths establish no
+exact identity. Origin storage is charged to the scope's retained-state budget;
+exhausting that host budget leaves the scope unknown rather than fabricating a
+producer or a guard.
+
 ## Divergences
 
 Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent.

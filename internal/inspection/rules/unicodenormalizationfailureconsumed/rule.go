@@ -24,12 +24,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	input := semanticquery.CallArgument(c.Args, 0, "string")
-	origin := semanticquery.NativeLocalResultOf(ctx, input, "false", func(e syntax.Expr) bool {
-		if f, ok := e.(*syntax.FuncCall); ok {
-			return semanticquery.NativeBuiltin(ctx, f, "normalizer_normalize")
-		}
-		return semanticquery.ExpansionCStatic(ctx, e, "Normalizer", "normalize")
-	})
+	origin := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "normalizer_normalize", "Normalizer::normalize")
 	valid := false
 	if f, ok := origin.(*syntax.FuncCall); ok {
 		valid = semanticquery.NativeBuiltin(ctx, f, "normalizer_normalize")

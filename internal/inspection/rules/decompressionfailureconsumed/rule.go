@@ -28,26 +28,15 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	input := semanticquery.CallArgument(c.Args, 0, "string")
-	origin, ok := semanticquery.NativeLocalResultOf(ctx, input, "false", func(e syntax.Expr) bool {
-		call, ok := e.(*syntax.FuncCall)
-		if !ok {
-			return false
+	var origin *syntax.FuncCall
+	for _, candidate := range semanticquery.NativeLocalBuiltinResults(ctx, input, "false", "gzdecode", "gzuncompress", "gzinflate", "inflate_add") {
+		if call, ok := candidate.(*syntax.FuncCall); ok && !safeCompression(ctx, call) {
+			origin = call
+			break
 		}
-		switch semanticquery.NativeBuiltinName(ctx, call) {
-		case "gzdecode", "gzuncompress", "gzinflate", "inflate_add":
-			return !safeCompression(ctx, call)
-		}
-		return false
-	}).(*syntax.FuncCall)
+	}
+	ok := origin != nil
 	if !ok {
-		return
-	}
-	switch semanticquery.NativeBuiltinName(ctx, origin) {
-	case "gzdecode", "gzuncompress", "gzinflate", "inflate_add":
-	default:
-		return
-	}
-	if safeCompression(ctx, origin) {
 		return
 	}
 

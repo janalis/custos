@@ -26,23 +26,19 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !astquery.ArrayFetchRequiresRead(a) {
 		return
 	}
-	if !semanticquery.ExpansionDPristine(ctx, a.Var, n) {
+	if !semanticquery.ExpansionDPristine(ctx, a.Var, n) && !semanticquery.NativeFailureFlowOnly(ctx, a.Var) {
 		return
 	}
 	// Among several reaching assignments only a lookup result counts: an
 	// unguarded result of another call does not stand in for it.
-	lookup := func(e syntax.Expr) bool {
-		call, ok := e.(*syntax.FuncCall)
-		return ok && (semanticquery.NativeBuiltin(ctx, call, "posix_getpwnam") || semanticquery.NativeBuiltin(ctx, call, "posix_getpwuid"))
-	}
-	c, ok := semanticquery.NativeLocalResultOf(ctx, a.Var, "false", lookup).(*syntax.FuncCall)
-	if !ok || !lookup(c) {
+	c, ok := semanticquery.NativeLocalBuiltinResult(ctx, a.Var, "false", "posix_getpwnam", "posix_getpwuid").(*syntax.FuncCall)
+	if !ok {
 		return
 	}
-	if ctx.Flow().Excludes(a.Var, "false") || semanticquery.NativeLocalSentinelGuard(ctx, a.Var, "false") {
+	if ctx.Flow().Excludes(a.Var, "false") || !semanticquery.NativeFailureFlowOnly(ctx, a.Var) && semanticquery.NativeLocalSentinelGuard(ctx, a.Var, "false") {
 		return
 	}
-	if semanticquery.NativeLabelled(ctx, a.Var) || !(guard{ctx: ctx, target: a.Var, call: c}).covers() {
+	if semanticquery.NativeFailureFlowOnly(ctx, a.Var) || !(guard{ctx: ctx, target: a.Var, call: c}).covers() {
 		ctx.ReportNode(n, message)
 	}
 }

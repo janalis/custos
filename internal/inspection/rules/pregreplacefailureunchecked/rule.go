@@ -32,15 +32,11 @@ func (rule) Check(ctx *analysis.Context, call syntax.Node) {
 		args = x.Args
 	}
 	for _, input := range semanticquery.NativeStringInputs(ctx, call, args) {
-		inner, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "null", "preg_replace", "preg_replace_callback").(*syntax.FuncCall)
+		_, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "null", "preg_replace", "preg_replace_callback").(*syntax.FuncCall)
 		if !ok {
 			continue
 		}
-		switch semanticquery.NativeBuiltinName(ctx, inner) {
-		case "preg_replace", "preg_replace_callback":
-		default:
-			continue
-		}
+
 		// In a scope with a `goto` label only the flow says what holds here.
 		if ctx.Flow().Excludes(input, "null") || semanticquery.NativeStringNonNullGuard(ctx, input) || !semanticquery.NativeFailureFlowOnly(ctx, input) && (ctx.TypeOf(input).OnlyOf("string") || nullGuarded(ctx, input)) {
 			continue

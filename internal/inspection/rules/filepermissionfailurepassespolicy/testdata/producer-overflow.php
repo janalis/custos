@@ -1,0 +1,76 @@
+<?php
+function producerOverflow($choice, $input, $pattern) {
+    switch ($choice) {
+        case 0: $value = fileperms($input); break;
+        case 1: $value = fileperms($input); break;
+        case 2: $value = fileperms($input); break;
+        case 3: $value = fileperms($input); break;
+        case 4: $value = fileperms($input); break;
+        case 5: $value = fileperms($input); break;
+        case 6: $value = fileperms($input); break;
+        case 7: $value = fileperms($input); break;
+        case 8: $value = fileperms($input); break;
+        case 9: $value = fileperms($input); break;
+        case 10: $value = fileperms($input); break;
+        case 11: $value = fileperms($input); break;
+        case 12: $value = fileperms($input); break;
+        case 13: $value = fileperms($input); break;
+        case 14: $value = fileperms($input); break;
+        case 15: $value = fileperms($input); break;
+        case 16: $value = fileperms($input); break;
+        case 17: $value = fileperms($input); break;
+        case 18: $value = fileperms($input); break;
+        case 19: $value = fileperms($input); break;
+        case 20: $value = fileperms($input); break;
+        case 21: $value = fileperms($input); break;
+        case 22: $value = fileperms($input); break;
+        case 23: $value = fileperms($input); break;
+        case 24: $value = fileperms($input); break;
+        case 25: $value = fileperms($input); break;
+        case 26: $value = fileperms($input); break;
+        case 27: $value = fileperms($input); break;
+        case 28: $value = fileperms($input); break;
+        case 29: $value = fileperms($input); break;
+        case 30: $value = fileperms($input); break;
+        case 31: $value = fileperms($input); break;
+        case 32: $value = fileperms($input); break;
+        case 33: $value = fileperms($input); break;
+        case 34: $value = fileperms($input); break;
+        case 35: $value = fileperms($input); break;
+        case 36: $value = fileperms($input); break;
+        case 37: $value = fileperms($input); break;
+        case 38: $value = fileperms($input); break;
+        case 39: $value = fileperms($input); break;
+        case 40: $value = fileperms($input); break;
+        case 41: $value = fileperms($input); break;
+        case 42: $value = fileperms($input); break;
+        case 43: $value = fileperms($input); break;
+        case 44: $value = fileperms($input); break;
+        case 45: $value = fileperms($input); break;
+        case 46: $value = fileperms($input); break;
+        case 47: $value = fileperms($input); break;
+        case 48: $value = fileperms($input); break;
+        case 49: $value = fileperms($input); break;
+        case 50: $value = fileperms($input); break;
+        case 51: $value = fileperms($input); break;
+        case 52: $value = fileperms($input); break;
+        case 53: $value = fileperms($input); break;
+        case 54: $value = fileperms($input); break;
+        case 55: $value = fileperms($input); break;
+        case 56: $value = fileperms($input); break;
+        case 57: $value = fileperms($input); break;
+        case 58: $value = fileperms($input); break;
+        case 59: $value = fileperms($input); break;
+        case 60: $value = fileperms($input); break;
+        case 61: $value = fileperms($input); break;
+        case 62: $value = fileperms($input); break;
+        case 63: $value = fileperms($input); break;
+        case 64: $value = fileperms($input); break;
+        case 65: $value = fileperms($input); break;
+        case 66: $value = fileperms($input); break;
+        case 67: $value = fileperms($input); break;
+        case 68: $value = fileperms($input); break;
+        default: $value = fileperms($input); break;
+    }
+    if (<warning descr="Reject permission lookup failure before checking bits.">($value & 0002) === 0</warning>) { return true; }
+}

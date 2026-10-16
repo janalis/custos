@@ -252,7 +252,7 @@ func (e *Env) propagateGlobals(writers []globalWriter, names, budget int) {
 					taint = map[string]Value{}
 				}
 				if old, ok := taint[w.name]; ok {
-					written = effects(old, written)
+					written = effects(old, written, e.scopes[w.scope])
 				}
 				taint[w.name] = written
 			}

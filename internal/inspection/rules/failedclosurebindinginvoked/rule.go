@@ -21,25 +21,23 @@ func (rule) Semantic()                {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	call := n.(*syntax.FuncCall)
-	bound := semanticquery.NativeLocalResult(ctx, call.Name, "null")
+	for _, bound := range semanticquery.NativeLocalBuiltinResults(ctx, call.Name, "null", "Closure::bind", "Closure::bindTo") {
+		if failedBinding(ctx, call, bound) {
+			ctx.ReportNode(call, message)
+			return
+		}
+	}
+}
+
+func failedBinding(ctx *analysis.Context, call *syntax.FuncCall, bound syntax.Expr) bool {
 	var closure, object syntax.Expr
 	switch b := bound.(type) {
 	case *syntax.MethodCall:
-		if !semanticquery.NativeMethod(ctx, b, "Closure", "bindTo") {
-			return
-		}
 		closure = b.Var
 		object = semanticquery.CallArgument(b.Args, 0, "newThis")
 	case *syntax.StaticCall:
-		cl, ok := b.Class.(*syntax.Name)
-		name, ok2 := b.Name.(*syntax.Identifier)
-		if !ok || !ok2 || !strings.EqualFold(ctx.Names().Class(cl.Value, cl.Span().Start), "Closure") || !strings.EqualFold(name.Value, "bind") {
-			return
-		}
 		closure = semanticquery.CallArgument(b.Args, 0, "closure")
 		object = semanticquery.CallArgument(b.Args, 1, "newThis")
-	default:
-		return
 	}
 	static := false
 	switch c := semanticquery.NativeValue(ctx, closure).(type) {
@@ -48,10 +46,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.ArrowFunction:
 		static = c.Static
 	}
-	if !static || object == nil || !provenObject(ctx, object) || ctx.Flow().Excludes(call.Name, "null") || !semanticquery.NativeLabelled(ctx, call.Name) && guarded(ctx, call.Name) {
-		return
+	if !static || object == nil || !provenObject(ctx, object) || ctx.Flow().Excludes(call.Name, "null") || !semanticquery.NativeFailureFlowOnly(ctx, call.Name) && guarded(ctx, call.Name) {
+		return false
 	}
-	ctx.ReportNode(call, message)
+	return true
 }
 
 // provenObject requires every alternative of the bound value to be a class

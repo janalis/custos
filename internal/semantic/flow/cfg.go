@@ -639,7 +639,7 @@ func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bo
 }
 
 func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr) *scopeResult {
-	r := &scopeResult{values: map[syntax.Expr]Value{}, before: map[syntax.Node]map[uint32]State{}, callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
+	r := &scopeResult{originTypes: e.types, values: map[syntax.Expr]Value{}, before: map[syntax.Node]map[uint32]State{}, callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
 	e.scopes[scope] = r
 	r.generator = e.generator(scope)
 	// Block 0 ends the scope however it is left; a normal completion passes
@@ -675,7 +675,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	}
 	// A jump to a label that is not there goes nowhere known.
 	g.complete = g.complete && len(g.jumps) == 0
-	initial := frame{vars: map[string]Value{}, states: map[uint32]State{}, definite: scope != nil}
+	initial := frame{owner: r, vars: map[string]Value{}, states: map[uint32]State{}, definite: scope != nil}
 	switch captured := scope.(type) {
 	case *syntax.Closure:
 		// A captured variable holds a value without a binding.

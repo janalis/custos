@@ -1,7 +1,6 @@
 package semanticquery
 
 import (
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -541,6 +540,9 @@ func NativeLocalResult(ctx *analysis.Context, e syntax.Expr, failure string) syn
 // result of a call it does not ask about is passed over, so that an unguarded
 // result of another API reaching the same read does not hide one it reports.
 func NativeLocalResultOf(ctx *analysis.Context, e syntax.Expr, failure string, produced func(syntax.Expr) bool) syntax.Expr {
+	if ctx.Flow().CompressedOrigins(e) {
+		return nil
+	}
 	return nativeLocalValue(ctx, e, failure, produced)
 }
 
@@ -558,6 +560,9 @@ func NativeLocalOnly(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 }
 
 func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string, produced func(syntax.Expr) bool) syntax.Expr {
+	if ctx.Flow().ProducerBudgetExceeded(e) || ctx.Flow().CompressedOrigins(e) {
+		return nil
+	}
 	known := NativeValue(ctx, e)
 	variable, ok := syntax.UnwrapParens(e).(*syntax.Variable)
 	if !ok {
@@ -835,13 +840,75 @@ func NativeFailureFlowOnly(ctx *analysis.Context, e syntax.Expr) bool {
 		return true
 	}
 	reaching, single := ctx.Flow().Reaching(e)
-	return !single && len(reaching) > 0
+	return ctx.Flow().CompressedOrigins(e) || !single && len(reaching) > 0
 }
 
-// NativeLocalBuiltinResult follows unguarded results of the named builtins.
+// NativeLocalBuiltinResult follows an unguarded result of a finite resolved
+// native callable contract (function name, or Class::method).
 func NativeLocalBuiltinResult(ctx *analysis.Context, e syntax.Expr, failure string, names ...string) syntax.Expr {
-	return NativeLocalResultOf(ctx, e, failure, func(result syntax.Expr) bool {
-		call, ok := result.(*syntax.FuncCall)
-		return ok && slices.Contains(names, NativeBuiltinName(ctx, call))
-	})
+	results := NativeLocalBuiltinResults(ctx, e, failure, names...)
+	if len(results) > 0 {
+		return results[0]
+	}
+	return nil
+}
+
+// NativeLocalBuiltinResults returns all eligible native producer witnesses.
+// Argument-sensitive contracts are individually retained, allowing consumers
+// to examine every candidate before choosing one.
+func NativeLocalBuiltinResults(ctx *analysis.Context, e syntax.Expr, failure string, names ...string) []syntax.Expr {
+	if ctx.Flow().ProducerBudgetExceeded(e) {
+		return nil
+	}
+	matches := func(result syntax.Expr) bool { return nativeBuiltinContract(ctx, result, names) }
+	reaching, single := ctx.Flow().Reaching(e)
+	if !single && len(reaching) > 0 {
+		var results []syntax.Expr
+		for _, origin := range reaching {
+			result := NativeUnsilenced(origin.Expr)
+			if matches(result) && ((failure == "false" && !origin.NonFalse) || (failure == "null" && !origin.NonNull)) {
+				results = append(results, result)
+			}
+		}
+		return results
+	}
+	result := nativeLocalValue(ctx, e, failure, matches)
+	if result == nil || !matches(result) {
+		return nil
+	}
+	return []syntax.Expr{result}
+}
+
+func nativeBuiltinContract(ctx *analysis.Context, result syntax.Expr, names []string) bool {
+	if call, ok := result.(*syntax.FuncCall); ok {
+		key := NativeBuiltinName(ctx, call)
+		for _, name := range names {
+			if strings.EqualFold(key, name) && key != "" {
+				return true
+			}
+		}
+		return false
+	}
+	for _, contract := range names {
+		class, method, qualified := strings.Cut(contract, "::")
+		if !qualified {
+			continue
+		}
+		switch call := result.(type) {
+		case *syntax.MethodCall:
+			if id, ok := call.Name.(*syntax.Identifier); ok && strings.EqualFold(id.Value, method) && NativeMethod(ctx, call, class, method) {
+				return true
+			}
+		case *syntax.StaticCall:
+			name, named := call.Class.(*syntax.Name)
+			id, methodNamed := call.Name.(*syntax.Identifier)
+			if named && methodNamed && strings.EqualFold(id.Value, method) && strings.EqualFold(ctx.Names().Class(name.Value, name.Span().Start), class) {
+				decl := ctx.Index().FindMethod(class, method, ctx.PHP)
+				if decl != nil && decl.Builtin && decl.Avail.In(ctx.PHP) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

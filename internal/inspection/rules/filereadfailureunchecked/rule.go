@@ -45,11 +45,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !ok {
 			continue
 		}
-		switch semanticquery.NativeBuiltinName(ctx, inner) {
-		case "file_get_contents", "stream_get_contents":
-		default:
-			continue
-		}
+
 		// A narrowed type describes a static local as its last test left it:
 		// only the flow knows the calls that may have assigned it since. In
 		// a scope with a `goto` label only the flow says what holds here.

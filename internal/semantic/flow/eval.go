@@ -67,7 +67,7 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 					r.globalNames = map[string]bool{}
 				}
 				r.globalNames[name] = true
-				f.vars[name] = unsettled(f.vars[name], e.held(name, r))
+				f.vars[name] = unsettled(f.vars[name], e.held(name, r), r)
 			}
 		}
 	case *syntax.Unset:
@@ -823,7 +823,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		seen := merge(old, v)
 		if _, read := x.(*syntax.Variable); read {
 			// Every visit of the read adds the producers that reach it.
-			seen.origins = origins(old, v)
+			seen.origins = origins(old, v, r)
 		}
 		r.values[x] = seen
 	} else {
@@ -1467,7 +1467,7 @@ func kill(target syntax.Expr, f *frame, r *scopeResult) {
 		case "GLOBALS":
 			global(n, Value{}, false, f, r)
 		default:
-			f.write(r, name, unsettled(f.vars[name], Value{}))
+			f.write(r, name, unsettled(f.vars[name], Value{}, r))
 			// The slot may be a reference to a variable (`$a = [&$v]`).
 			f.through(r, Value{})
 		}
@@ -1497,14 +1497,14 @@ func global(target *syntax.ArrayDimFetch, v Value, definite bool, f *frame, r *s
 		} else {
 			r.operations += len(r.globalNames)
 			for bound := range r.globalNames {
-				f.write(r, bound, unsettled(f.vars[bound], v))
+				f.write(r, bound, unsettled(f.vars[bound], v, r))
 			}
 		}
 	case !r.global && !r.globalNames[name]:
 	case definite:
 		f.write(r, name, v)
 	default:
-		f.write(r, name, unsettled(f.vars[name], v))
+		f.write(r, name, unsettled(f.vars[name], v, r))
 	}
 }
 
@@ -1526,7 +1526,7 @@ func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 			// The name stands for a variable chosen at run time.
 			f.wild = true
 		}
-		f.write(r, target.Name, unsettled(Value{}, v))
+		f.write(r, target.Name, unsettled(Value{}, v, r))
 		return
 	}
 	// The reference is kept in an element, a property or a dynamic name. The
@@ -1538,7 +1538,7 @@ func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 	case *syntax.ArrayDimFetch:
 		if name := rootVariable(slot); name != "" {
 			f.alias(name, aliasAny)
-			f.vars[name] = unsettled(f.vars[name], v)
+			f.vars[name] = unsettled(f.vars[name], v, r)
 		}
 	}
 }
@@ -1576,7 +1576,7 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 			// An offset of an object is written by a method of its class.
 			e.implicit(n, f, r)
 		}
-		array := unsettled(old, v)
+		array := unsettled(old, v, r)
 		array.plain = held
 		array.deep = held && v.deep && (old.deep || !tracked && (external(name) || f.definite && importable(name)))
 		// A literal key directly in the array is tracked on its own; a
@@ -1596,7 +1596,7 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 				if tracked, ok := old.elements.lookup(key); ok {
 					previous = tracked
 				}
-				own = unsettled(previous, v)
+				own = unsettled(previous, v, r)
 			}
 			r.operations += len(old.elements.all())
 			array.elements = old.elements.with(key, own)
@@ -1904,7 +1904,7 @@ func spread(target syntax.Expr, v Value, f *frame, r *scopeResult) {
 	}
 	if name := rootVariable(target); name != "" {
 		// The names bound with the target read what it was given.
-		f.write(r, name, unsettled(f.vars[name], v))
+		f.write(r, name, unsettled(f.vars[name], v, r))
 		return
 	}
 	for _, item := range targetItems(target) {
@@ -2027,7 +2027,7 @@ func reenter(at syntax.Node, f *frame, r *scopeResult) {
 			continue
 		}
 		held := known.state == staticHeld && v.NonFalse
-		v.NonFalse, v.NonNull, v.origins = held, false, v.origins.unguarded().excluding(held, false)
+		v.NonFalse, v.NonNull, v.origins = held, false, v.origins.unguarded(r).excluding(held, false, r)
 		v.tested, v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = nil, nil, false, false, false, false
 		v.Invalidated = at.Span().Start + 1
 		v.plain, v.deep = v.plain && known.plain, v.deep && known.deep
@@ -2529,7 +2529,7 @@ func (e *Env) invalidateShared(f *frame, r *scopeResult) {
 		f.related = nil
 		r.operations += len(f.vars)
 		for name, old := range f.vars {
-			f.vars[name] = unsettled(old, e.held(name, r))
+			f.vars[name] = unsettled(old, e.held(name, r), r)
 		}
 		return
 	}
@@ -2544,7 +2544,7 @@ func (e *Env) invalidateShared(f *frame, r *scopeResult) {
 			if groups == nil {
 				groups = map[uint32]Value{}
 			}
-			groups[group] = effects(groups[group], written)
+			groups[group] = effects(groups[group], written, r)
 		}
 	}
 	for name, group := range f.aliased {
@@ -2552,7 +2552,7 @@ func (e *Env) invalidateShared(f *frame, r *scopeResult) {
 		if !shared {
 			written = e.held(name, r)
 		}
-		f.vars[name] = unsettled(f.vars[name], written)
+		f.vars[name] = unsettled(f.vars[name], written, r)
 	}
 }
 
@@ -2564,7 +2564,7 @@ func (e *Env) held(name string, r *scopeResult) Value {
 	if r.global || r.globalNames[name] {
 		e.globals()
 		if other, ok := e.globalTaint[name]; ok {
-			written = effects(written, other)
+			written = effects(written, other, r)
 		}
 	}
 	return written
@@ -2582,7 +2582,7 @@ func (e *Env) holderWrites(scope syntax.Node, name string) Value {
 	}
 	for _, v := range []Value{left, r.globalWrites[name]} {
 		if retained(v) {
-			written = effects(written, v)
+			written = effects(written, v, r)
 		}
 	}
 	written.origins = r.producers(written)
@@ -2599,7 +2599,7 @@ func (e *Env) globalWrite(target syntax.Expr, v Value, r *scopeResult) {
 	if r.globalWrites == nil {
 		r.globalWrites = map[string]Value{}
 	}
-	r.globalWrites[name] = effects(r.globalWrites[name], v)
+	r.globalWrites[name] = effects(r.globalWrites[name], v, r)
 }
 
 // assigned names the variable a literal globals table entry stands for.
