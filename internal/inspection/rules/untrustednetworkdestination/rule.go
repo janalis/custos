@@ -25,13 +25,22 @@ var (
 type rule struct{}
 
 // New constructs the stateless inspection.
-func New() analysis.Rule              { return rule{} }
-func (rule) ID() string               { return "UntrustedNetworkDestination" }
-func (rule) Semantic()                {}
-func (rule) Flow()                    {}
-func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
+func New() analysis.Rule { return rule{} }
+func (rule) ID() string  { return "UntrustedNetworkDestination" }
+func (rule) Semantic()   {}
+func (rule) Flow()       {}
+func (rule) Kinds() []syntax.NodeKind {
+	return []syntax.NodeKind{syntax.KFuncCall, syntax.KMethodCall, syntax.KStaticCall}
+}
+
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	c := n.(*syntax.FuncCall)
+	c, function := n.(*syntax.FuncCall)
+	if !function {
+		if wrapperSink(ctx, n) {
+			ctx.ReportNode(n, message)
+		}
+		return
+	}
 	report := false
 	switch semanticquery.NativeBuiltinName(ctx, c) {
 	case "curl_exec":
@@ -213,7 +222,7 @@ func literalText(e syntax.Expr) string {
 
 // wrapperSink proves a request value reaches a curl destination inside a
 // project function through its summarized sink contract.
-func wrapperSink(ctx *analysis.Context, c *syntax.FuncCall) bool {
+func wrapperSink(ctx *analysis.Context, c syntax.Node) bool {
 	for _, sink := range ctx.Flow().Sinks(c) {
 		if sink.Name != "curl_init" && sink.Name != "curl_setopt" {
 			continue

@@ -48,6 +48,10 @@ Reported:
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 - D4. The leading operand of a destination is found by looking through parentheses, the left side of concatenations, the first part of an interpolated string and variables with a single reaching value. The origin is fixed when that operand is literal text spelling a scheme, `://`, a non-empty authority and the `/`, `?` or `#` that ends it. The closing delimiter is required: without it a later operand could still extend or replace the host. A variable is followed to its reaching assignment only when its scope cannot rebind it behind that assignment; a reference alias, a by-reference closure capture, `foreach` or argument, a `catch` binding or `static` declaration of the same name, `extract()`, an assignment through a variable variable, a `global` declaration of it or a `$GLOBALS` access that is not a different literal entry keeps the report.
 
+Project method wrappers are followed only when a single visible declaration is fixed by a final receiver class, a final method, or a private method accessible at the call. Open overridable methods, ambiguous declarations, conditional class bodies and trait bodies do not establish a wrapper sink. Static calls must name a static method. These contracts compose through nested project wrappers and refresh when class or method dispatch metadata changes.
+
+Numeric array values retain their network-destination provenance through wrappers: numerical content alone does not validate an outbound destination.
+
 ## Exceptions (no report)
 
 - E1. Fixed destinations, policy validating schemes/resolved addresses/redirects, non-network local streams and unknown flows are excluded. In particular:

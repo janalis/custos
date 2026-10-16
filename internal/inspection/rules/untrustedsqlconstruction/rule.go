@@ -18,11 +18,13 @@ const maxDepth = 16
 type rule struct{}
 
 // New constructs the stateless inspection.
-func New() analysis.Rule              { return rule{} }
-func (rule) ID() string               { return "UntrustedSqlConstruction" }
-func (rule) Semantic()                {}
-func (rule) Flow()                    {}
-func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall, syntax.KFuncCall} }
+func New() analysis.Rule { return rule{} }
+func (rule) ID() string  { return "UntrustedSqlConstruction" }
+func (rule) Semantic()   {}
+func (rule) Flow()       {}
+func (rule) Kinds() []syntax.NodeKind {
+	return []syntax.NodeKind{syntax.KMethodCall, syntax.KStaticCall, syntax.KFuncCall}
+}
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if method, ok := n.(*syntax.MethodCall); ok {
@@ -34,8 +36,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			if sql != nil && tainted(ctx, sql, maxDepth) {
 				ctx.ReportNode(method, message)
 			}
+			return
 		}
-		return
 	}
 	if wrapperSink(ctx, n) {
 		ctx.ReportNode(n, message)

@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Preserve numeric array-value safety through nested project sink wrappers while
+  keeping keys and destinations untrusted. Follow final and accessible private
+  method wrappers, with dispatch-aware summary invalidation in the language server.
+
 - Follow failure-producing values beyond four joined assignments. Retain
   contract-specific unguarded witnesses past 64 producers, preserve
   argument-sensitive variants, and charge origin storage to the scope budget.

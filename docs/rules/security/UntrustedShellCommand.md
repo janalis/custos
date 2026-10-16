@@ -43,6 +43,10 @@ Reported:
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
+Project method wrappers are followed only when a single visible declaration is fixed by a final receiver class, a final method, or a private method accessible at the call. Open overridable methods, ambiguous declarations, conditional class bodies and trait bodies do not establish a wrapper sink. Static calls must name a static method. These contracts compose through nested project wrappers and refresh when class or method dispatch metadata changes.
+
+A wrapper dependency that reads only array values preserves the numeric safety of an array whose values are all numbers, booleans or null. Array keys, whole-array formatting and mixed key/value dependencies remain untrusted; numeric conversion of extracted keys can establish safety again. Return and reference-output dependencies preserve the same distinction.
+
 ## Exceptions (no report)
 
 - E1. Resolved argument-vector execution, escaped arguments with validated option policy, constant commands and unknown flows are excluded. `proc_open` whose command is an array literal, a variable holding one or an array-typed expression is argument-vector execution. A command assembled only from constants selected by request data (for example `match` arms or conditional branches that are all literals) is a constant command.

@@ -21,7 +21,7 @@ func (rule) ID() string  { return "UntrustedShellCommand" }
 func (rule) Semantic()   {}
 func (rule) Flow()       {}
 func (rule) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KFuncCall, syntax.KInterpolatedString}
+	return []syntax.NodeKind{syntax.KFuncCall, syntax.KMethodCall, syntax.KStaticCall, syntax.KInterpolatedString}
 }
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
@@ -29,6 +29,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.InterpolatedString:
 		// The backtick operator runs its text through the shell (D1).
 		if n.Backtick && injectable(ctx, n, 0) {
+			ctx.ReportNode(n, message)
+		}
+	case *syntax.MethodCall, *syntax.StaticCall:
+		if wrapperSink(ctx, n) {
 			ctx.ReportNode(n, message)
 		}
 	case *syntax.FuncCall:
@@ -65,7 +69,7 @@ func argumentVector(ctx *analysis.Context, command syntax.Expr) bool {
 // wrapperSink reports a project wrapper whose summary forwards request data
 // from this call to a shell sink. The summary merges whole argument values,
 // so arguments proven harmless here (E1, E3) do not count as carriers.
-func wrapperSink(ctx *analysis.Context, c *syntax.FuncCall) bool {
+func wrapperSink(ctx *analysis.Context, c syntax.Node) bool {
 	reaches := false
 	for _, sink := range ctx.Flow().Sinks(c) {
 		if sink.Context != flow.Shell || !sink.Argument.Complete || sink.Argument.Safe&flow.Shell != 0 {
@@ -79,7 +83,16 @@ func wrapperSink(ctx *analysis.Context, c *syntax.FuncCall) bool {
 		return false
 	}
 	harmless := false
-	for _, node := range c.Args.Args {
+	var args *syntax.ArgList
+	switch c := c.(type) {
+	case *syntax.FuncCall:
+		args = c.Args
+	case *syntax.MethodCall:
+		args = c.Args
+	case *syntax.StaticCall:
+		args = c.Args
+	}
+	for _, node := range args.Args {
 		arg, ok := node.(*syntax.Arg)
 		if !ok || !ctx.Flow().Tainted(arg.Value, flow.Shell) {
 			continue

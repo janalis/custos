@@ -170,14 +170,15 @@ func (e *Env) left(call syntax.Node, at int, list *syntax.ArgList, positions []i
 			if i == at {
 				in = old
 			}
-			if tainted(in) {
+			in = projectSource(in, source)
+			if len(in.Sources) > 0 {
 				v = merge(v, Value{Complete: true, Sources: in.Sources, Safe: in.Safe})
 			}
 		}
 	}
 	v.Safe |= written.Safe
 	next := Value{}
-	if tainted(v) {
+	if len(v.Sources) > 0 {
 		next = Value{Complete: true, Sources: v.Sources, Safe: v.Safe}
 	}
 	if !summary.Fixed || !sealed {

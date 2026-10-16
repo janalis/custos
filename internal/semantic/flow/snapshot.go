@@ -22,6 +22,8 @@ type Sink struct {
 
 // Summary is a compact, syntax-free callable return and sink contract.
 type Summary struct {
+	// dispatch is a reserved, syntax-free class metadata contract.
+	dispatch  *sinkClass
 	Return    Value
 	Sinks     []Sink
 	Generator bool
@@ -261,6 +263,14 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options 
 	syntax.InspectFile(file, func(n syntax.Node) bool {
 		name := ""
 		switch n := n.(type) {
+		case *syntax.ClassLike:
+			name := types.ClassFQN(n)
+			key := sinkClassKey(name)
+			if _, duplicate := out.Summaries[key]; duplicate {
+				out.Summaries[key] = Summary{}
+			} else {
+				out.Summaries[key] = Summary{dispatch: describeSinkClass(n, types)}
+			}
 		case *syntax.Function:
 			if n.Name != nil {
 				name, _ = types.Names.Function(n.Name.Value, n.Span().Start)
@@ -474,7 +484,7 @@ func (e *Env) commands(body syntax.Node, r *scopeResult) []Sink {
 // Sinks expands known project wrapper sink contracts at this call site.
 // The argument sources and escaping contexts come from this call's flow.
 func (e *Env) Sinks(at syntax.Node) []Sink {
-	name := e.summaryName(at)
+	name := e.sinkSummaryName(at)
 	summary, ok := e.contract(name)
 	if !ok {
 		return nil
@@ -485,19 +495,7 @@ func (e *Env) Sinks(at syntax.Node) []Sink {
 	}
 	out := make([]Sink, 0, len(summary.Sinks))
 	for _, s := range summary.Sinks {
-		v := Value{Complete: s.Argument.Complete}
-		for _, source := range s.Argument.Sources {
-			if source.Parameter >= 0 {
-				if source.Parameter < len(args) {
-					v = merge(v, args[source.Parameter])
-				} else {
-					v.Complete = false
-				}
-			} else {
-				v.Sources, _ = union(v.Sources, []Source{source})
-			}
-		}
-		v.Safe |= s.Argument.Safe
+		v := substitute(s.Argument, args, true)
 		s.Argument = v
 		out = append(out, s)
 	}

@@ -134,9 +134,9 @@ func (e *Env) each(n *syntax.Foreach, f *frame, r *scopeResult) {
 	kill(n.Key, f, r)
 	kill(n.Value, f, r)
 	// The keys and elements of request data are request data.
-	if tainted(iterated) {
-		spread(n.Key, Value{Complete: true, Sources: iterated.Sources, Safe: iterated.Safe}, f, r)
-		item := iterated
+	if len(iterated.Sources) > 0 {
+		spread(n.Key, projectKeys(Value{Complete: true, Sources: iterated.Sources, Safe: iterated.Safe}), f, r)
+		item := projectValues(iterated)
 		if item.scalars {
 			item.Safe |= HTML | SQL | Shell | Header
 		}
@@ -588,6 +588,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		// What an element of the uploads table is depends on how deep it sits.
 		whole := v.upload
 		v.upload = 0
+		v = projectValues(v)
 		if v.scalars {
 			// An element of such an array is one of its values.
 			v.scalars = false
@@ -1094,6 +1095,14 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	// text of the program.
 	labels, texts := 0, 0
 	for _, a := range values {
+		if builtin && !yieldsElements(name) && !keepsElements(name) && name != "array_merge" && name != "array_replace" && name != "array_map" && name != "array_chunk" {
+			// An unaudited transform may expose keys in its result. A later
+			// element projection cannot reinterpret those as original values.
+			a = projectKeys(a)
+		}
+		if builtin && yieldsElements(name) {
+			a = projectValues(a)
+		}
 		if a.scalars && builtin && (yieldsElements(name) || name == "array_chunk" && len(values) == 2) {
 			// Only the numbers of the array reach the result.
 			a.Safe |= HTML | SQL | Shell | Header
@@ -1123,17 +1132,8 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	}
 	if s, ok := e.contract(e.summaryName(n)); ok {
 		v = Value{Complete: s.Return.Complete, Expr: n.(syntax.Expr), Safe: s.Return.Safe}
-		for _, source := range s.Return.Sources {
-			if source.Parameter >= 0 {
-				if boundOK && source.Parameter < len(bound) {
-					v = merge(v, bound[source.Parameter])
-				} else {
-					v.Complete = false
-				}
-			} else {
-				v.Sources, _ = union(v.Sources, []Source{source})
-			}
-		}
+		v = substitute(s.Return, bound, boundOK)
+		v.Expr = n.(syntax.Expr)
 		v.Safe |= s.Return.Safe
 		v.scalars = s.Return.scalars && len(v.Sources) > 0
 		if s.Generator {

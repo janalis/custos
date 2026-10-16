@@ -43,6 +43,11 @@ type Source struct {
 	Path      string
 	Span      syntax.Span
 	Parameter int // -1 for external input
+	// ValuesOnly means that only an array parameter's values contribute.
+	ValuesOnly bool
+	// Keys records keys moved into an element or scalar output. Such a
+	// dependency cannot be made safe by projecting the original values.
+	Keys bool
 }
 
 // Value is a conservative union of possible inputs. Safe is the intersection
@@ -1170,6 +1175,8 @@ func union(a, b []Source) ([]Source, bool) {
 			j++
 		default:
 			next = a[i]
+			next.ValuesOnly = a[i].ValuesOnly && b[j].ValuesOnly
+			next.Keys = a[i].Keys || b[j].Keys
 			i++
 			j++
 		}
