@@ -12,7 +12,11 @@ import (
 // BuildFlowSnapshot builds project-local summaries without including vendor
 // bodies. Parsing is bounded by the same source reader as ordinary analysis.
 // Trees are retained only during bounded composition, then released.
-func BuildFlowSnapshot(files []string, srcs [][]byte, opt syntax.Options, ix *index.Index) *flow.Snapshot {
+func BuildFlowSnapshot(files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options ...flow.Options) *flow.Snapshot {
+	var resolved flow.Options
+	if len(options) > 0 {
+		resolved = options[0]
+	}
 	trees := make([]*syntax.File, len(files))
 	each(len(files), runtime.GOMAXPROCS(0), func(i int) {
 		var src []byte
@@ -31,16 +35,16 @@ func BuildFlowSnapshot(files []string, srcs [][]byte, opt syntax.Options, ix *in
 	// A file is summarized again only when a contract its summaries were
 	// computed from changed in the last round. The files of a round read the
 	// snapshot of the round before: they are summarized side by side.
-	snapshot := flow.NewSnapshot()
+	snapshot := flow.NewSnapshotWithOptions(resolved)
 	var earlier *flow.Snapshot
 	results := make([]*flow.File, len(trees))
 	for round := 0; round < flow.MaxDepth; round++ {
 		each(len(trees), max(1, runtime.GOMAXPROCS(0)/2), func(i int) {
 			if file := trees[i]; file != nil && (results[i] == nil || !results[i].Current(earlier, snapshot)) {
-				results[i] = flow.Extract(file, ix, opt.Version, snapshot)
+				results[i] = flow.Extract(file, ix, opt.Version, snapshot, resolved)
 			}
 		})
-		next := flow.NewSnapshot(results...)
+		next := flow.NewSnapshotWithOptions(resolved, results...)
 		if snapshot.Equal(next) {
 			return next
 		}

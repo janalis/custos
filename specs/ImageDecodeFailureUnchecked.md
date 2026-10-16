@@ -68,6 +68,20 @@ if (!$im) { return; }
 echo $im instanceof GdImage ? imagesx($im) : 0;
 ```
 
+### Assertion assumptions
+
+Only plain variable tests, literals, boolean operators, strict comparisons,
+instanceof, isset/empty and native type predicates supply assertion guards.
+A direct native flock result can prove that operation succeeded.
+Conditions with property/array accesses, evaluated code, conversions or other
+effects supply none; an earlier test may precede a rewrite.
+
+A builtin assertion supplies a guard only with the resolved `flow.assertions`
+setting enabled (default false). Its argument must bind the native assertion
+parameter without unpacking or duplicate names. A later description that may
+run callbacks or rewrite the tested value prevents that guard. Enabling the
+setting assumes assertions execute and failed assertions terminate.
+
 ## Divergences
 
 Native custos inspection, independently specified; no EA counterpart or EA conformance requirement.

@@ -16,6 +16,7 @@ import (
 	"custos/internal/inspection/meta"
 	phpversion "custos/internal/php/version"
 	"custos/internal/platform/safeio"
+	"custos/internal/semantic/flow"
 )
 
 // FileName is the project configuration file.
@@ -33,9 +34,15 @@ type RuleSettings struct {
 	Options  map[string]any `json:"options,omitempty"`
 }
 
+// FlowSettings configures optional runtime assumptions.
+type FlowSettings struct {
+	Assertions *bool `json:"assertions,omitempty"`
+}
+
 // File is the JSON shape of custos.json (also accepted as LSP
 // initializationOptions).
 type File struct {
+	Flow            *FlowSettings           `json:"flow,omitempty"`
 	PHP             string                  `json:"php,omitempty"`
 	ComparisonStyle string                  `json:"comparisonStyle,omitempty"` // regular | yoda
 	ShortOpenTag    *bool                   `json:"shortOpenTag,omitempty"`
@@ -47,6 +54,7 @@ type File struct {
 
 // Config is the resolved configuration.
 type Config struct {
+	Flow            flow.Options
 	Root            string // directory of custos.json / composer.json (or cwd)
 	PHP             phpversion.Version
 	PHPSource       string // where PHP came from: config | composer | default
@@ -112,6 +120,9 @@ func Resolve(root string, f File) (*Config, error) {
 		c.ComparisonStyle = analysis.StyleYoda
 	default:
 		return nil, fmt.Errorf("config: comparisonStyle must be regular or yoda, got %q", f.ComparisonStyle)
+	}
+	if f.Flow != nil && f.Flow.Assertions != nil {
+		c.Flow.Assertions = *f.Flow.Assertions
 	}
 	if f.ShortOpenTag != nil {
 		c.ShortOpenTag = *f.ShortOpenTag
@@ -197,7 +208,7 @@ func insideRoot(p string) bool {
 
 // Analysis returns the analysis.Config view.
 func (c *Config) Analysis() analysis.Config {
-	return analysis.Config{PHP: c.PHP, ComparisonStyle: c.ComparisonStyle, Rules: c.Rules}
+	return analysis.Config{Flow: c.Flow, PHP: c.PHP, ComparisonStyle: c.ComparisonStyle, Rules: c.Rules}
 }
 
 func findRoot(dir string) (string, error) {

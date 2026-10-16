@@ -100,7 +100,7 @@ func (g guard) leaves(st syntax.Stmt) bool {
 			_, throws := syntax.UnwrapParens(e.Right).(*syntax.Throw)
 			return (and || or) && (throws || syntax.ExitInvocation(e.Right)) && g.proves(e.Left, or)
 		case *syntax.FuncCall:
-			return semanticquery.NativeBuiltin(g.ctx, e, "assert") && g.proves(semanticquery.CallArgument(e.Args, 0, "assertion"), true)
+			return g.proves(g.ctx.Types().AssertGuard(e), true)
 		}
 	}
 	return false

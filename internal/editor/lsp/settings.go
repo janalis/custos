@@ -69,22 +69,47 @@ func (s *Server) configure() error {
 		return err
 	}
 	s.mu.Lock()
+	modeChanged := s.cfg != nil && s.cfg.Flow != cfg.Flow
+	restart := modeChanged || s.indexing
+	if restart {
+		s.indexGeneration++
+		s.indexing = false
+		if !e.NeedsIndex() {
+			s.pending = nil
+		}
+	}
+	if modeChanged {
+		s.index = nil
+		s.flow = nil
+	}
 	if s.index != nil {
 		e = e.WithIndex(s.index)
+		if s.flow != nil {
+			e = e.WithFlow(s.flow)
+		}
 	}
 	s.cfg, s.engine = cfg, e
 	s.mu.Unlock()
+	if restart && s.beginIndexing() {
+		go s.buildIndex()
+	}
 	return nil
 }
 
 // mergeOverrides applies client-provided settings on top of the project config.
 func mergeOverrides(base *config.Config, over config.File) (*config.Config, error) {
-	f := config.File{PHP: over.PHP, ComparisonStyle: over.ComparisonStyle, ShortOpenTag: over.ShortOpenTag, Rules: over.Rules}
+	f := config.File{Flow: &config.FlowSettings{}, PHP: over.PHP, ComparisonStyle: over.ComparisonStyle, ShortOpenTag: over.ShortOpenTag, Rules: over.Rules}
 	if f.PHP == "" {
 		f.PHP = base.PHP.String()
 	}
 	if f.ComparisonStyle == "" && base.ComparisonStyle == analysis.StyleYoda {
 		f.ComparisonStyle = "yoda"
+	}
+	if over.Flow != nil {
+		*f.Flow = *over.Flow
+	}
+	if f.Flow.Assertions == nil {
+		f.Flow.Assertions = &base.Flow.Assertions
 	}
 	if f.ShortOpenTag == nil {
 		f.ShortOpenTag = &base.ShortOpenTag

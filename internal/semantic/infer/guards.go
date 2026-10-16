@@ -37,9 +37,8 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 			if ca := e.assertsOf(es.Expr); ca != nil {
 				t, _ = e.applyAsserts(ca, index.AssertAlways, name, t, false)
 			}
-			// `assert($x instanceof Foo);`: the code after it relies on
-			// the condition (with assertions disabled it is not checked,
-			// but then the author's claim is all there is).
+			// `assert($x instanceof Foo);` narrows only when the resolved
+			// environment assumes assertions execute and failures terminate.
 			if c := e.assertCall(es.Expr); c != nil {
 				t = e.condAt(use, scope, t, c, name, true, es.Span().End)
 			}

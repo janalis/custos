@@ -47,9 +47,9 @@ func (c *Context) Flow() *flow.Env {
 		// The buffer's declarations shadow the indexed copy of its path.
 		// Only files with callable declarations need a local summary overlay.
 		// The environment that computed them serves when they change nothing.
-		env, own := flow.Summarize(c.File, c.Types(), snapshot)
+		env, own := flow.Summarize(c.File, c.Types(), snapshot, c.engine.cfg.Flow)
 		if len(own.Summaries) > 0 && !snapshot.Holds(own) {
-			env = flow.New(c.File, c.Types(), snapshot.WithFile(own))
+			env = flow.New(c.File, c.Types(), snapshot.WithFile(own), c.engine.cfg.Flow)
 		}
 		c.flow = env
 	}
@@ -106,7 +106,7 @@ func (c *Context) Index() *index.Index {
 // Types returns the type inference environment for this file.
 func (c *Context) Types() *infer.Env {
 	if c.types == nil {
-		c.types = infer.NewEnv(c.File, c.Names(), c.Index(), c.PHP)
+		c.types = infer.NewEnv(c.File, c.Names(), c.Index(), c.PHP, infer.Options{Assertions: c.engine.cfg.Flow.Assertions})
 	}
 	return c.types
 }

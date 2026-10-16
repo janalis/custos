@@ -39,7 +39,7 @@ func (s *Server) analyzeNow(uri string) {
 
 	s.mu.Lock()
 	d, ok = s.docs[uri]
-	if !ok || d.version != version {
+	if !ok || d.version != version || s.engine != e {
 		s.mu.Unlock()
 		return // stale
 	}

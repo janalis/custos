@@ -1,10 +1,12 @@
 package imagedecodefailureunchecked
 
 import (
+	"strings"
 	"testing"
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/flow"
 )
 
 func TestReviewGuards(t *testing.T) {
@@ -84,7 +86,7 @@ func TestReviewGuards(t *testing.T) {
 		{"incomplete ternary", decode + "return $c?imagesx($im):", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"ImageDecodeFailureUnchecked"}})
+			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Flow: flow.Options{Assertions: strings.HasPrefix(tc.name, "assert")}, Only: []string{"ImageDecodeFailureUnchecked"}})
 			if err != nil {
 				t.Fatal(err)
 			}

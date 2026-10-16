@@ -49,6 +49,7 @@ type Summary struct {
 
 // File contains summaries from one indexed file. It retains no source or AST.
 type File struct {
+	options   Options
 	Path      string
 	Summaries map[string]Summary
 	// consulted names the callables whose contracts the summaries were
@@ -60,6 +61,9 @@ type File struct {
 // would come out the same under s: no contract they were computed from
 // differs between the two.
 func (f *File) Current(earlier, s *Snapshot) bool {
+	if f.options != snapshotOptions(earlier) || f.options != snapshotOptions(s) {
+		return false
+	}
 	for name := range f.consulted {
 		before, had := earlier.lookup(name)
 		now, has := s.lookup(name)
@@ -77,6 +81,7 @@ func (f *File) Current(earlier, s *Snapshot) bool {
 // so it does not rebuild the collection: the result overlays the file on its
 // base and answers lookups from both.
 type Snapshot struct {
+	options   Options
 	files     map[string]*File
 	summaries map[string]Summary
 	// shared counts the files declaring a name more than one file declares.
@@ -90,22 +95,35 @@ type Snapshot struct {
 
 // NewSnapshot creates an empty summary collection.
 func NewSnapshot(files ...*File) *Snapshot {
-	s := &Snapshot{files: map[string]*File{}, summaries: map[string]Summary{}}
+	var options Options
 	for _, f := range files {
 		if f != nil {
+			options = f.options
+			break
+		}
+	}
+	return NewSnapshotWithOptions(options, files...)
+}
+
+// NewSnapshotWithOptions preserves runtime assumptions even for empty snapshots.
+func NewSnapshotWithOptions(options Options, files ...*File) *Snapshot {
+	s := &Snapshot{options: options, files: map[string]*File{}, summaries: map[string]Summary{}}
+	for _, f := range files {
+		if f != nil && f.options == options {
 			s.files[f.Path] = f
 		}
 	}
+
 	s.rebuild()
 	return s
 }
 
 // WithFile replaces all summaries of a file in a new snapshot.
 func (s *Snapshot) WithFile(f *File) *Snapshot {
-	if s == nil {
-		return NewSnapshot(f)
+	if s == nil || s.options != f.options {
+		return NewSnapshotWithOptions(f.options, f)
 	}
-	return &Snapshot{base: s.flat(), own: f}
+	return &Snapshot{options: s.options, base: s.flat(), own: f}
 }
 
 // Holds reports that the snapshot already has exactly these summaries for
@@ -120,12 +138,12 @@ func (s *Snapshot) Holds(f *File) bool {
 			held = s.own
 		}
 	}
-	return held != nil && reflect.DeepEqual(held.Summaries, f.Summaries)
+	return held != nil && held.options == f.options && s.options == f.options && reflect.DeepEqual(held.Summaries, f.Summaries)
 }
 
 // WithoutFile removes all summaries of a file in a new snapshot.
 func (s *Snapshot) WithoutFile(path string) *Snapshot {
-	n := NewSnapshot()
+	n := NewSnapshotWithOptions(snapshotOptions(s))
 	if s != nil {
 		for p, f := range s.flat().files {
 			if p != path {
@@ -142,7 +160,7 @@ func (s *Snapshot) flat() *Snapshot {
 	if s.base == nil {
 		return s
 	}
-	n := NewSnapshot()
+	n := NewSnapshotWithOptions(s.options)
 	for path, file := range s.base.files {
 		n.files[path] = file
 	}
@@ -218,24 +236,28 @@ func (s *Snapshot) Equal(other *Snapshot) bool {
 	if s == nil || other == nil {
 		return s == other
 	}
-	return reflect.DeepEqual(s.flat().summaries, other.flat().summaries)
+	return s.options == other.options && reflect.DeepEqual(s.flat().summaries, other.flat().summaries)
 }
 
 // Extract computes compact summaries while the project's parser tree is
 // available. It does not open any other files. A supplied snapshot permits
 // bounded composition with previously summarized project wrappers.
-func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot) *File {
-	_, out := Summarize(file, infer.NewEnv(file, names.New(file), ix, php), snapshot)
+func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot, options ...Options) *File {
+	var resolved Options
+	if len(options) > 0 {
+		resolved = options[0]
+	}
+	_, out := Summarize(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: resolved.Assertions}), snapshot, resolved)
 	return out
 }
 
 // Summarize computes the summaries of a file and returns them with the
 // environment that computed them, which answers for the file under the same
 // snapshot without analysing its scopes again.
-func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot) (*Env, *File) {
-	e := New(file, types, snapshot)
+func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options ...Options) (*Env, *File) {
+	e := New(file, types, snapshot, options...)
 	e.consulted = map[string]bool{}
-	out := &File{Path: file.Path, Summaries: map[string]Summary{}}
+	out := &File{options: e.options, Path: file.Path, Summaries: map[string]Summary{}}
 	syntax.InspectFile(file, func(n syntax.Node) bool {
 		name := ""
 		switch n := n.(type) {
@@ -480,4 +502,11 @@ func (e *Env) Sinks(at syntax.Node) []Sink {
 		out = append(out, s)
 	}
 	return out
+}
+
+func snapshotOptions(s *Snapshot) Options {
+	if s == nil {
+		return Options{}
+	}
+	return s.options
 }

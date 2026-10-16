@@ -4,6 +4,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/flow"
 )
 
 // Rule is one inspection. Implementations must be stateless and safe for
@@ -40,6 +41,7 @@ type RuleConfig struct {
 
 // Config selects and configures rules.
 type Config struct {
+	Flow            flow.Options
 	PHP             phpversion.Version // target version for rule gating
 	ComparisonStyle ComparisonStyle
 	Rules           map[string]RuleConfig // keyed by rule ID

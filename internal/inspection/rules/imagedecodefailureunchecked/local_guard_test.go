@@ -1,10 +1,12 @@
 package imagedecodefailureunchecked
 
 import (
+	"strings"
 	"testing"
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/flow"
 )
 
 // A result decoded from a project call or a property is guarded by the facts
@@ -58,7 +60,7 @@ func TestLocalGuardWalk(t *testing.T) {
 		{"assert on earlier value", decode + "assert(is_object($n));$n=imagecreatefromstring($b);imagepng($n);", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"ImageDecodeFailureUnchecked"}})
+			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Flow: flow.Options{Assertions: strings.HasPrefix(tc.name, "assert")}, Only: []string{"ImageDecodeFailureUnchecked"}})
 			if err != nil {
 				t.Fatal(err)
 			}

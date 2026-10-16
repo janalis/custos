@@ -135,7 +135,13 @@ func (e *Env) writtenType(a *syntax.Assign) types.Type {
 // expression result: a postfix increment returns the previous value.
 func (e *Env) elementStoredType(w *elemWrite) types.Type {
 	if w.inc != nil {
+		if e.optionalAssertion(w.inc) {
+			return types.Mixed
+		}
 		return e.incDecStored(w.inc)
+	}
+	if e.optionalAssertion(w.a) {
+		return types.Mixed
 	}
 	return e.writtenType(w.a)
 }
@@ -504,13 +510,23 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 				}
 				e.collectAssignTargets(n, func(name string, pos uint32, t func() types.Type) {
 					if name != "" {
+						if e.optionalAssertion(n) {
+							kill = syntax.Span{}
+							asg = nil
+							t = func() types.Type { return types.Mixed }
+						}
 						sv.defs[name] = append(sv.defs[name], varDef{pos: pos, end: end, kill: kill, typ: t, asg: asg})
 					}
 				})
 			case *syntax.IncDec:
 				e.collectDimMutation(n, n.Var, sv)
 				if v := asVariable(n.Var); v != nil {
-					sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: n.Span().Start, end: n.Span().End, kill: e.statementKill(n), typ: func() types.Type { return e.incDecStored(n) }})
+					sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: n.Span().Start, end: n.Span().End, kill: e.statementKill(n), typ: func() types.Type {
+						if e.optionalAssertion(n) {
+							return types.Mixed
+						}
+						return e.incDecStored(n)
+					}})
 				}
 			case *syntax.Unset:
 				for _, x := range n.Vars {

@@ -52,11 +52,12 @@ type Server struct {
 	watchDynamic bool
 	// indexing is true while the initial project index is being built;
 	// file changes arriving meanwhile are queued in pending and replayed.
-	indexing bool
-	pending  []fileChange
-	index    *index.Index
-	flow     *flow.Snapshot
-	shutdown bool
+	indexing        bool
+	indexGeneration uint64
+	pending         []fileChange
+	index           *index.Index
+	flow            *flow.Snapshot
+	shutdown        bool
 	// sem bounds concurrent analyses.
 	sem chan struct{}
 }

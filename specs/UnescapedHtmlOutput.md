@@ -108,6 +108,24 @@ function cleaned()
 }
 ```
 
+### Assertion assumptions
+
+Only plain variable tests, literals, boolean operators, strict comparisons,
+instanceof, isset/empty and native type predicates supply assertion guards.
+A direct native flock result can prove that operation succeeded.
+Conditions with property/array accesses, evaluated code, conversions or other
+effects supply none; an earlier test may precede a rewrite.
+
+A direct native `assert()` call is a guard only when the resolved project
+setting `flow.assertions` is true. Its default is false, since PHP can disable
+assertions. On PHP 7 and later, writes inside assertion arguments may be skipped:
+a sanitizer or cast written there supplies no definite safety proof in the
+default mode. Dynamic callable invocations evaluate arguments normally and do
+not supply an assertion guard. With the setting enabled, failed assertions are
+assumed to terminate. A later description expression that can rewrite the tested
+value prevents using the condition as a guard. Before PHP 8, evaluated string
+assertions invalidate local proofs; their PHP code is not interpreted.
+
 ## Divergences
 
 Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.

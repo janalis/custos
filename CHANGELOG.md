@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Keep assertion guards disabled by default and account for arguments skipped
+  when PHP assertions are disabled. The `flow.assertions` setting enables the
+  assumption that assertions execute and failures terminate, consistently in
+  local inference, project summaries and the language server.
+
 - Follow only the selected flow path for bounded, pure constant conditions and
   ternaries. Preserve label entry and generator identity even when a yield lies
   in a skipped branch.

@@ -5,6 +5,9 @@ import "custos/internal/php/syntax"
 // skippedExpressionAt identifies optional coalescing RHSs and side
 // expressions of a nullsafe chain. Receiver evaluation itself always runs.
 func (e *Env) skippedExpressionAt(parent syntax.Node, at uint32) bool {
+	if call, ok := parent.(*syntax.FuncCall); ok && e.optionalAssert(call) && call.Args != nil && call.Args.Span().Start <= at && at < call.Args.Span().End {
+		return true
+	}
 	if a, ok := parent.(*syntax.Assign); ok && a.Op.Kind == syntax.TCoalesceEqual {
 		return a.Value.Span().Start <= at && at < a.Value.Span().End
 	}

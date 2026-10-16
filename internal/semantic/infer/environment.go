@@ -11,12 +11,16 @@ import (
 	"custos/internal/semantic/types"
 )
 
+// Options controls runtime assumptions used for type proofs.
+type Options struct{ Assertions bool }
+
 // Env infers expression types within one file. Not safe for concurrent use.
 type Env struct {
-	File  *syntax.File
-	Names *names.Resolver
-	Index *index.Index // project index layered over the stubs
-	PHP   phpversion.Version
+	options Options
+	File    *syntax.File
+	Names   *names.Resolver
+	Index   *index.Index // project index layered over the stubs
+	PHP     phpversion.Version
 
 	chains map[syntax.Expr]nullsafeFact
 	cache  map[syntax.Expr]types.Type
@@ -89,10 +93,21 @@ func (e *Env) Native() *Env {
 		return e
 	}
 	if e.nativeTwin == nil {
-		e.nativeTwin = NewEnv(e.File, e.Names, e.Index, e.PHP)
+		e.nativeTwin = NewEnv(e.File, e.Names, e.Index, e.PHP, e.options)
 		e.nativeTwin.native = true
 	}
 	return e.nativeTwin
+}
+
+// WithOptions returns this environment when assumptions match, or a fresh
+// cache-isolated environment over the same file/index when they differ.
+func (e *Env) WithOptions(options Options) *Env {
+	if e.options == options {
+		return e
+	}
+	configured := NewEnv(e.File, e.Names, e.Index, e.PHP, options)
+	configured.native = e.native
+	return configured
 }
 
 // IsNative reports whether e is a native Env (see Native).
@@ -174,9 +189,13 @@ func (e *Env) scopeDocs(n syntax.Node) *docScope {
 }
 
 // NewEnv creates an inference environment.
-func NewEnv(f *syntax.File, r *names.Resolver, ix *index.Index, php phpversion.Version) *Env {
+func NewEnv(f *syntax.File, r *names.Resolver, ix *index.Index, php phpversion.Version, options ...Options) *Env {
+	var resolved Options
+	if len(options) > 0 {
+		resolved = options[0]
+	}
 	return &Env{
-		File: f, Names: r, Index: ix, PHP: php, cache: map[syntax.Expr]types.Type{}, scopes: map[syntax.Node]*scopeVars{}, busy: map[syntax.Expr]bool{},
+		options: resolved, File: f, Names: r, Index: ix, PHP: php, cache: map[syntax.Expr]types.Type{}, scopes: map[syntax.Node]*scopeVars{}, busy: map[syntax.Expr]bool{},
 		bodies: map[syntax.Span]types.Type{}, bodyBusy: map[syntax.Span]bool{},
 	}
 }

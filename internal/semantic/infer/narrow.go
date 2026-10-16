@@ -215,6 +215,13 @@ func (e *Env) cond(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Ex
 
 func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, truthy bool, from uint32) types.Type {
 	r := e.applyCond(t, c, key, truthy)
+	if !e.options.Assertions && !isDimKey(key) && !isPropKey(key) && r.ShapeString() != t.ShapeString() {
+		for _, m := range e.mutations(scope, key) {
+			if m.optional && e.brokenBy(scope, from, use, []mutation{m}) {
+				return t
+			}
+		}
+	}
 	if b := propBase(key); b != "" && r.ShapeString() != t.ShapeString() && e.chainBroken(scope, key, b, from, use) {
 		return t // `$v` (or a property along the chain) changed since
 	}
@@ -398,23 +405,13 @@ func (e *Env) aliasCond(v *syntax.Variable, name string) syntax.Expr {
 // assertCall returns the condition of a call statement `assert(cond)` to
 // the global assert() (nil otherwise).
 func (e *Env) assertCall(x syntax.Expr) syntax.Expr {
-	c, ok := x.(*syntax.FuncCall)
-	if !ok || len(c.Args.Args) == 0 {
+	if !e.options.Assertions {
 		return nil
 	}
-	nm, ok := c.Name.(*syntax.Name)
-	if !ok {
-		return nil
+	if call, ok := syntax.UnwrapParens(x).(*syntax.FuncCall); ok {
+		return e.AssertGuard(call)
 	}
-	fqn, fb := e.Names.Function(nm.Value, nm.Span().Start)
-	if !strings.EqualFold(fqn, "assert") && !(strings.EqualFold(fb, "assert") && e.Index.Function(fqn, e.PHP) == nil) {
-		return nil
-	}
-	a, ok := c.Args.Args[0].(*syntax.Arg)
-	if !ok || a.Unpack || a.Name != nil {
-		return nil
-	}
-	return a.Value
+	return nil
 }
 
 // nativeProp reports whether property fetch x names a property with a

@@ -343,11 +343,12 @@ const (
 const anyCall = "\x00call"
 
 type mutation struct {
-	span syntax.Span
-	kind mutKind
-	call syntax.Expr // mutCallArg: the call
-	arg  *syntax.Arg // mutCallArg: the argument
-	idx  int         // mutCallArg: argument position
+	span     syntax.Span
+	kind     mutKind
+	optional bool        // the mutation may be skipped with disabled assertions
+	call     syntax.Expr // mutCallArg: the call
+	arg      *syntax.Arg // mutCallArg: the argument
+	idx      int         // mutCallArg: argument position
 }
 
 // mutations returns the operations that may change variable name in scope
@@ -363,6 +364,7 @@ func (e *Env) mutations(scope syntax.Node, name string) []mutation {
 func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 	out := map[string][]mutation{}
 	add := func(x syntax.Expr, m mutation) {
+		m.optional = e.optionalAssertion(x)
 		x = syntax.UnwrapParens(x)
 		if d, ok := x.(*syntax.ArrayDimFetch); ok {
 			// An element write: recorded under the first-level element's

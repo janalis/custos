@@ -51,7 +51,7 @@ function asserted(string $bytes): void
 {
     $im = imagecreatefromstring($bytes);
     assert($im !== false);
-    imagejpeg($im);
+    imagejpeg(<warning descr="Check image decoding success before using the image.">$im</warning>);
 }
 
 function shortCircuit(string $bytes): void

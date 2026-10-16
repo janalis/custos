@@ -2,12 +2,14 @@ package lsp
 
 import (
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"custos/internal/php/syntax"
 	"custos/internal/project"
 	"custos/internal/semantic/flow"
+	"custos/internal/semantic/infer"
 )
 
 // beginIndexing reports whether an enabled rule needs cross-file symbols
@@ -20,6 +22,7 @@ func (s *Server) beginIndexing() bool {
 		return false
 	}
 	s.indexing = true
+	s.indexGeneration++
 	return true
 }
 
@@ -27,35 +30,39 @@ func (s *Server) beginIndexing() bool {
 // re-analyses open documents.
 func (s *Server) buildIndex() {
 	s.mu.Lock()
-	e, cfg := s.engine, s.cfg
+	e, cfg, generation := s.engine, s.cfg, s.indexGeneration
 	s.mu.Unlock()
 	start := time.Now()
 	var paths []string
 	for _, p := range cfg.Paths {
 		paths = append(paths, filepath.Join(cfg.Root, p))
 	}
-	files, err := project.Discover(paths, cfg.Exclude)
+	files, err := discoverIndexFiles(paths, cfg.Exclude)
 	if err != nil {
 		s.logf("index: %v", err)
 		s.mu.Lock()
-		s.indexing, s.pending = false, nil
+		if s.indexGeneration == generation && s.engine == e {
+			s.indexing, s.pending = false, nil
+		}
 		s.mu.Unlock()
 		return
 	}
-	ix := project.BuildIndex(project.IndexSources(cfg.Root, files), syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+	ix := buildIndexSymbols(project.IndexSources(cfg.Root, files), syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
 	var snapshot *flow.Snapshot
 	if e.NeedsFlow() {
-		snapshot = project.BuildFlowSnapshot(files, nil, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, ix)
+		snapshot = project.BuildFlowSnapshot(files, nil, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, ix, cfg.Flow)
 	}
 	s.mu.Lock()
-	if s.engine == e {
-		s.engine = e.WithIndex(ix)
-		if snapshot != nil {
-			s.engine = s.engine.WithFlow(snapshot)
-			s.flow = snapshot
-		}
-		s.index = ix
+	if s.engine != e || s.indexGeneration != generation {
+		s.mu.Unlock()
+		return
 	}
+	s.engine = e.WithIndex(ix)
+	if snapshot != nil {
+		s.engine = s.engine.WithFlow(snapshot)
+		s.flow = snapshot
+	}
+	s.index = ix
 	s.indexing = false
 	queued := s.pending
 	s.pending = nil
@@ -108,7 +115,7 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 			ix.Remove(path)
 			continue
 		}
-		fs := project.ExtractSymbols(path, src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+		fs := project.ExtractSymbols(path, src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
 		ix.DropStaleInferred(fs)
 		ix.Add(fs)
 	}
@@ -133,7 +140,7 @@ func (s *Server) reindexDoc(uri string) bool {
 	if !ok || ix == nil {
 		return false
 	}
-	fs := project.ExtractSymbols(path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+	fs := project.ExtractSymbols(path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
 	ix.DropStaleInferred(fs)
 	ix.Add(fs)
 	s.refreshFlow()
@@ -158,8 +165,9 @@ func (s *Server) refreshFlow() {
 		buffers = append(buffers, buffer{d.path, d.text})
 	}
 	s.mu.Unlock()
+	sort.Slice(buffers, func(i, j int) bool { return buffers[i].path < buffers[j].path })
 	for _, b := range buffers {
-		symbols := project.ExtractSymbols(b.path, b.src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+		symbols := project.ExtractSymbols(b.path, b.src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
 		ix.DropStaleInferred(symbols)
 		ix.Add(symbols)
 	}
@@ -172,11 +180,25 @@ func (s *Server) refreshFlow() {
 		return
 	}
 	opt := syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}
-	snapshot := project.BuildFlowSnapshot(files, nil, opt, ix)
-	for _, b := range buffers {
-		f := syntax.ParseBest(b.path, b.src, opt)
-		snapshot = snapshot.WithFile(flow.Extract(f, ix, cfg.PHP, snapshot))
+	contents := make(map[string][]byte, len(buffers))
+	present := make(map[string]bool, len(files))
+	for _, path := range files {
+		present[path] = true
 	}
+	for _, b := range buffers {
+		contents[b.path] = b.src
+		if !present[b.path] {
+			files = append(files, b.path)
+			present[b.path] = true
+		}
+	}
+	sort.Strings(files)
+	sources := make([][]byte, len(files))
+	for i, path := range files {
+		sources[i] = contents[path]
+	}
+	// Compose every unsaved dependency in the same bounded fixed point.
+	snapshot := project.BuildFlowSnapshot(files, sources, opt, ix, cfg.Flow)
 	s.mu.Lock()
 	if s.engine == e {
 		s.flow = snapshot
@@ -184,3 +206,9 @@ func (s *Server) refreshFlow() {
 	}
 	s.mu.Unlock()
 }
+
+// Test seams also keep each build's filesystem/index operations explicit.
+var (
+	discoverIndexFiles = project.Discover
+	buildIndexSymbols  = project.BuildIndex
+)

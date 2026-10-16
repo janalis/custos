@@ -254,7 +254,26 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			// binds its reference captures before the call.
 			e.eval(n.Name, f, r, depth+1)
 		}
-		v = e.call(n, n.Args, nil, f, r, depth)
+		if !e.options.Assertions && e.types.PHP.AtLeast(phpversion.PHP70) && e.types.BuiltinAssert(n) {
+			skipped := clone(*f)
+			v = e.call(n, n.Args, nil, f, r, depth)
+			*f = rejoin(skipped, *f, r)
+		} else {
+			v = e.call(n, n.Args, nil, f, r, depth)
+			if e.options.Assertions {
+				if condition := e.types.AssertGuard(n); condition != nil {
+					e.refine(condition, f, true)
+				}
+			}
+		}
+		if e.types.LegacyAssertCode(n) {
+			f.definite = false
+			f.related = nil
+			f.vars = map[string]Value{}
+			f.states = map[uint32]State{}
+			v = Value{}
+			r.complete = false
+		}
 	case *syntax.MethodCall:
 		if conditional(n) {
 			// The name and the arguments are not evaluated when the

@@ -13,6 +13,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/flow"
 	"custos/internal/testing/conformance"
 )
 
@@ -242,7 +243,7 @@ func TestReviewSafety(t *testing.T) {
 		{"guard outside closure", u + "if(!$t instanceof ReflectionNamedType){return;}$f=function(){$r=new ReflectionFunction('f');$t=$r->getParameters()[0]->getType();return $t->getName();};$g=fn()=>$t->getName();", 1, "8.4"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{PHP: phpversion.MustParse(tc.php), Only: []string{"ReflectionCompositeTypeAssumedNamed"}})
+			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Flow: flow.Options{Assertions: tc.name == "assert"}, PHP: phpversion.MustParse(tc.php), Only: []string{"ReflectionCompositeTypeAssumedNamed"}})
 			if err != nil {
 				t.Fatal(err)
 			}

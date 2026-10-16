@@ -27,6 +27,10 @@ func (e *Env) noteDynamic(n syntax.Node, sv *scopeVars) {
 			return
 		}
 		switch strings.ToLower(strings.TrimPrefix(f.FQN, `\`)) {
+		case "assert":
+			if !e.LegacyAssertCode(n) {
+				return
+			}
 		case "extract":
 		case "parse_str":
 			if len(n.Args.Args) != 1 {

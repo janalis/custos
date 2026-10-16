@@ -41,7 +41,7 @@ function matchArm() {
 function asserted() {
     $r = new ReflectionFunction('consume'); $t = $r->getParameters()[0]->getType();
     assert($t instanceof ReflectionNamedType);
-    return $t->getName();
+    return <error descr="Inspect the composite reflection type members.">$t->getName()</error>;
 }
 
 $r = new ReflectionFunction('consume'); $t = $r->getParameters()[0]->getType();

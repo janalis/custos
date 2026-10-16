@@ -101,7 +101,7 @@ func guarded(ctx *analysis.Context, call *syntax.MethodCall, typ string) bool {
 				}
 			case *syntax.ExprStmt:
 				c, ok := x.Expr.(*syntax.FuncCall)
-				if ok && semanticquery.NativeBuiltin(ctx, c, "assert") && named(semanticquery.CallArgument(c.Args, 0, "assertion"), true) {
+				if ok && named(ctx.Types().AssertGuard(c), true) {
 					return true
 				}
 			}

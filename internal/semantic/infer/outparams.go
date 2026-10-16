@@ -147,6 +147,10 @@ func (e *Env) collectOutArgs(call syntax.Expr, sv *scopeVars) {
 				kill = arrow
 			}
 		}
+		if e.optionalAssertion(call) {
+			kill = syntax.Span{}
+			typ = func() types.Type { return types.Mixed }
+		}
 		sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: call.Span().Start, end: call.Span().End, kill: kill, typ: typ})
 	}
 }
@@ -488,6 +492,10 @@ func (e *Env) collectDeferredMethodOut(call *syntax.MethodCall, sv *scopeVars) {
 				results = append(results, e.TypeOf(v))
 			}
 			return types.Union(results...)
+		}
+		if e.optionalAssertion(call) {
+			kill = syntax.Span{}
+			typ = func() types.Type { return types.Mixed }
 		}
 		sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: call.Span().Start, end: call.Span().End, kill: kill, typ: typ})
 	}

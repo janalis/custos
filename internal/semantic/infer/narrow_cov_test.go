@@ -14,7 +14,7 @@ import (
 
 // checkAnywhere is checkWith (ShapeString) for every `t('label', expr)`
 // call, including those that are not expression statements.
-func checkAnywhere(t *testing.T, src string, want map[string]string) {
+func checkAnywhere(t *testing.T, src string, want map[string]string, options ...infer.Options) {
 	t.Helper()
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	if len(f.Errors) > 0 {
@@ -22,7 +22,7 @@ func checkAnywhere(t *testing.T, src string, want map[string]string) {
 	}
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, options...)
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {

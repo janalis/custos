@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/flow"
 )
 
 func TestReviewFileLockFailureUncheckedResultTests(t *testing.T) {
@@ -69,4 +70,24 @@ func TestReviewFileLockFailureUncheckedGuardWalk(t *testing.T) {
 	if _, _, guarded := nativeLockTruthGuards(variables(f, "ok")[0], nativeLockTruth{whenTrue: true}, write); guarded {
 		t.Fatal("a later case label can be entered below the test")
 	}
+}
+
+func TestAssertionLockAttemptSharesScopeBudget(t *testing.T) {
+	probeNative(t, `function f($h){assert(flock($h,LOCK_EX));probe($h);}`, func(ctx *analysis.Context, at *syntax.FuncCall) {
+		if name, ok := at.Name.(*syntax.Name); !ok || name.Value != "probe" {
+			return
+		}
+		handle := CallArgument(at.Args, 0, "")
+		if _, known := assertionLockAttempt(ctx, at, handle); !known {
+			t.Fatal("missing initial lock witness")
+		}
+		scopes := ctx.Memo("file-lock.assertion-attempts", nil).(map[syntax.Node]*assertionLockIndex)
+		ix := scopes[syntax.EnclosingVariableScope(at)]
+		for _, used := range []int{flow.MaxTransfers, flow.MaxTransfers - 1} {
+			ix.work = used
+			if _, known := assertionLockAttempt(ctx, at, handle); known {
+				t.Fatal("exhausted work budget retained witness")
+			}
+		}
+	})
 }

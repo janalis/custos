@@ -7,6 +7,9 @@ import (
 
 // statementKill is the block in which a standalone mutation always runs.
 func (e *Env) statementKill(n syntax.Node) syntax.Span {
+	if e.optionalAssertion(n) {
+		return syntax.Span{}
+	}
 	if expr, ok := n.(syntax.Expr); ok {
 		if _, arrow := syntax.EnclosingVariableScope(n).(*syntax.ArrowFunction); arrow {
 			return e.arrowDefinitionSpan(expr)

@@ -23,7 +23,14 @@ Detect a write following flock requiring an exclusive lock where acquisition suc
   - an `if` whose failure branch always leaves (return, throw, exit, break, continue), with the write later in the statement list that owns the `if`;
   - a statement of the form `flock(...) or exit` / `|| throw`, with the write later in the same statement list;
   - a `while` or `do`-`while` retry loop repeating until the result is true and containing no `break`, with the write after the loop.
-- D5. A test proves nothing, and the write is still reported, when the local was reassigned or merged from another value, when the test sits on only one path to the write (a nested conditional, another closure or function, an earlier `case` label), when the failure branch can continue, or when the result is combined with an unrelated condition that can let the failing side through. `assert(flock(...))` is not a test: assertions may be compiled out.
+- D5. A test proves nothing, and the write is still reported, when the local was reassigned or merged from another value, when the test sits on only one path to the write (a nested conditional, another closure or function, an earlier `case` label), when the failure branch can continue, or when the result is combined with an unrelated condition that can let the failing side through. `assert(flock(...))` is not a test by default: assertions may be compiled out. With `flow.assertions` enabled, a direct native flock result with effect-free arguments proves acquisition on the assumed successful path.
+
+- D6. An exclusive-lock attempt inside a direct native assertion remains a
+  possible unchecked attempt when assertion arguments may be skipped. Report a
+  following write only while the handle has the same complete allocation
+  identity and no intervening call makes that witness ambiguous. This witness
+  proves no successful acquisition and does not change the common-state query
+  used for definite operations.
 
 ## Exceptions (no report)
 

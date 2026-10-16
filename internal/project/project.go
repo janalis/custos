@@ -5,6 +5,7 @@ import (
 	"custos/internal/fixing"
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/infer"
 )
 
 // Options contains resolved configuration; adapters own flags and settings.
@@ -41,10 +42,10 @@ func (p *Project) AnalyzeReport() []diagnostic.FileResult {
 	engine := p.Engine
 	var sources [][]byte
 	if engine.NeedsIndex() {
-		ix, srcs := BuildIndexKeep(IndexSources(p.Options.Root, p.Files), len(p.Files), p.Options.Parse)
+		ix, srcs := BuildIndexKeep(IndexSources(p.Options.Root, p.Files), len(p.Files), p.Options.Parse, infer.Options{Assertions: p.Options.Analysis.Flow.Assertions})
 		engine, sources = engine.WithIndex(ix), srcs
 		if engine.NeedsFlow() {
-			engine = engine.WithFlow(BuildFlowSnapshot(p.Files, srcs, p.Options.Parse, ix))
+			engine = engine.WithFlow(BuildFlowSnapshot(p.Files, srcs, p.Options.Parse, ix, p.Options.Analysis.Flow))
 		}
 	}
 	return RunReport(engine, p.Files, sources, p.Options.Parse)
@@ -54,10 +55,10 @@ func (p *Project) AnalyzeReport() []diagnostic.FileResult {
 func (p *Project) PrepareFixes() []PreparedFix {
 	engine := p.Engine
 	if engine.NeedsIndex() {
-		ix := BuildIndex(IndexSources(p.Options.Root, p.Files), p.Options.Parse)
+		ix := BuildIndex(IndexSources(p.Options.Root, p.Files), p.Options.Parse, infer.Options{Assertions: p.Options.Analysis.Flow.Assertions})
 		engine = engine.WithIndex(ix)
 		if engine.NeedsFlow() {
-			engine = engine.WithFlow(BuildFlowSnapshot(p.Files, nil, p.Options.Parse, ix))
+			engine = engine.WithFlow(BuildFlowSnapshot(p.Files, nil, p.Options.Parse, ix, p.Options.Analysis.Flow))
 		}
 	}
 	return PrepareFixes(engine, p.Files, p.Options.Parse)

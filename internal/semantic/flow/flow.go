@@ -539,8 +539,12 @@ func (f *frame) unmatch(r *scopeResult, table string) {
 	}
 }
 
+// Options controls runtime assumptions used for flow proofs.
+type Options struct{ Assertions bool }
+
 // Env shares one bounded analysis per variable scope among all inspections.
 type Env struct {
+	options  Options
 	file     *syntax.File
 	types    *infer.Env
 	snapshot *Snapshot
@@ -651,8 +655,16 @@ const (
 )
 
 // New creates an environment without computing scope flow eagerly.
-func New(file *syntax.File, types *infer.Env, snapshot *Snapshot) *Env {
-	return &Env{file: file, types: types, snapshot: snapshot, scopes: map[syntax.Node]*scopeResult{}}
+func New(file *syntax.File, types *infer.Env, snapshot *Snapshot, options ...Options) *Env {
+	var resolved Options
+	if len(options) > 0 {
+		resolved = options[0]
+	}
+	if snapshot != nil && snapshot.options != resolved {
+		snapshot = nil
+	}
+	types = types.WithOptions(infer.Options{Assertions: resolved.Assertions})
+	return &Env{options: resolved, file: file, types: types, snapshot: snapshot, scopes: map[syntax.Node]*scopeResult{}}
 }
 
 // Value returns the joined value of an expression at its execution point.

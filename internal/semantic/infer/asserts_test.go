@@ -1,6 +1,10 @@
 package infer_test
 
-import "testing"
+import (
+	"testing"
+
+	"custos/internal/semantic/infer"
+)
 
 func TestAssertions(t *testing.T) {
 	lib := `<?php
@@ -104,8 +108,8 @@ function f(?object $b, ?object $c) {
     t('shadowed', $c);
 }
 function g(?object $d) { assert($d !== null); t('fallback', $d); }
-`, map[string]string{"assert": `\N\Code`, "shadowed": "null|object", "fallback": "null|object"})
+`, map[string]string{"assert": `\N\Code`, "shadowed": "null|object", "fallback": "null|object"}, infer.Options{Assertions: true})
 	checkAnywhere(t, `<?php
 function g(?object $d, $x) { assert(); assert(...[$d]); assert(value: $d); $x->assert($d); assert($d !== null); t('global', $d); }
-`, map[string]string{"global": "object"})
+`, map[string]string{"global": "object"}, infer.Options{Assertions: true})
 }
