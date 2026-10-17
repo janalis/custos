@@ -73,14 +73,22 @@ function indexAfterConversion(array $rows)
 }
 
 // Still reported: the variable is only read, copied or passed by value.
+function valueHelper($value) {}
+
 function passedByValue(int $n)
 {
     $copy = $n;
     $twice = function () use ($n) {
         return $n * 2;
     };
-    echo abs($n), unknownHelper($n), $copy, $twice();
+    echo abs($n), valueHelper($n), $copy, $twice();
     return <error descr="'$n' does not support offset access (types: int).">$n[0]</error>;
+}
+
+function unresolvedArgument(int $n)
+{
+    unknownHelper($n);
+    return $n[0];
 }
 
 function namedByValue(int $n)

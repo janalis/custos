@@ -46,12 +46,18 @@ func NativeStringInputs(ctx *analysis.Context, call syntax.Node, list *syntax.Ar
 // wherever it stands when the argument is passed by name. Below PHP 7 a
 // declaration of the project names a class with `string`.
 func NativeStringConsumer(ctx *analysis.Context, call syntax.Node, list *syntax.ArgList, input syntax.Expr) bool {
-	callee, _ := ResolveCallee(ctx, call)
-	at := 0
+	callee, resolved := ResolveCallee(ctx, call)
+	if !resolved || list == nil {
+		return false
+	}
+	at := -1
 	for i, p := range callee.Params {
 		if stringOnly(p) && CallArgument(list, i, p.Name) == input {
 			at = i
 		}
+	}
+	if at < 0 {
+		return false
 	}
 	name := callee.Params[at].Name
 	named := slices.ContainsFunc(list.Args, func(n syntax.Expr) bool {

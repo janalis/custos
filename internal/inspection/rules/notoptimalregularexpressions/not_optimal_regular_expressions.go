@@ -7,7 +7,6 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -94,11 +93,11 @@ func noreCandidates(ctx *analysis.Context, n syntax.Node) (*syntax.FuncCall, str
 			if it == nil || it.Value == nil {
 				continue
 			}
-			if lit := flowquery.SingleStringLiteral(ctx.File, it.Value); lit != nil {
+			if lit := semanticquery.LocalStringLiteral(ctx.Types(), it.Value); lit != nil {
 				cands = append(cands, lit)
 			}
 		}
-	} else if lit := flowquery.SingleStringLiteral(ctx.File, first.Value); lit != nil {
+	} else if lit := semanticquery.LocalStringLiteral(ctx.Types(), first.Value); lit != nil {
 		cands = append(cands, lit)
 	}
 	return call, fn, cands, array

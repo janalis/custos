@@ -90,14 +90,14 @@ func (offsetOperations) Check(ctx *analysis.Context, n syntax.Node) {
 	// discovered value is only a fallback when the occurrence is untyped.
 	// An unknown discovery result (unstable variable) empties S: no
 	// fallback to the occurrence type.
-	if _, known := flowquery.PossibleValuesKnown(ctx.File, access.Var); !known {
+	if _, known := semanticquery.LocalValuesKnown(ctx.Types(), access.Var); !known {
 		return
 	}
 	t := ctx.TypeOf(access.Var)
 	if t.IsUnknown() {
 		// The fallback needs every value: a parameter default, a foreach
 		// variable or an unresolved source is only one of the values.
-		if all, complete := flowquery.PossibleValuesComplete(ctx.File, access.Var); complete && len(all) == 1 {
+		if all, complete := semanticquery.LocalValuesComplete(ctx.Types(), access.Var); complete && len(all) == 1 {
 			t = ctx.TypeOf(all[0])
 		}
 	}
@@ -303,50 +303,10 @@ func offsetRebound(ctx *analysis.Context, e syntax.Expr) bool {
 				return true
 			}
 		case nil:
-			switch p, _ := astquery.ParentSkipParens(acc.Var); x := p.(type) {
-			case *syntax.Assign:
-				// A read under an assignment is its value.
-				if x.ByRef {
-					return true
-				}
-			case *syntax.Arg:
-				if offsetArgByRef(ctx, x) {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-// offsetArgByRef reports whether arg is a call-time `&$v` or binds to a
-// by-reference parameter of its resolved callee (positional, variadic tail
-// or named). An unresolved callee is taken as by-value.
-func offsetArgByRef(ctx *analysis.Context, arg *syntax.Arg) bool {
-	if arg.ByRef {
-		return true
-	}
-	list := arg.Parent().(*syntax.ArgList)
-	callee, ok := semanticquery.ResolveCallee(ctx, list.Parent())
-	if !ok {
-		return false
-	}
-	pos := 0
-	for pos < len(list.Args) && list.Args[pos] != syntax.Node(arg) {
-		pos++
-	}
-	for i, p := range callee.Params {
-		if !p.ByRef {
-			continue
-		}
-		if arg.Name != nil {
-			if strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
+			parent, _ := astquery.ParentSkipParens(acc.Var)
+			if arg, ok := parent.(*syntax.Arg); ok && semanticquery.ArgumentMayWrite(ctx.Types(), arg) {
 				return true
 			}
-			continue
-		}
-		if i == pos || p.Variadic && pos > i {
-			return true
 		}
 	}
 	return false

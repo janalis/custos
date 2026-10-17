@@ -410,7 +410,11 @@ func noContentStatusReplaced(ctx *analysis.Context, set *syntax.FuncCall, echo *
 // in place: no other explicit status argument, and a field line that is
 // neither a status line nor a Location or Status field.
 func noContentHeaderKeepsStatus(ctx *analysis.Context, c *syntax.FuncCall) bool {
-	if explicit := CallArgument(c.Args, 2, "response_code"); explicit != nil {
+	explicit, state := CallArgumentBinding(c.Args, 2, "response_code")
+	if state == ArgumentUnknown {
+		return false
+	}
+	if state == ArgumentBound {
 		code, known := NativeInt(ctx, explicit)
 		if !known {
 			return false

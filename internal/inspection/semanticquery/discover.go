@@ -49,6 +49,7 @@ func DiscoverValuesKnown(env *infer.Env, e syntax.Expr) (vals []syntax.Expr, kno
 	d := &discoverer{ValueWalk: flowquery.NewValueWalk(env.File), env: env}
 	d.ElvisCond, d.SkipEmpty = true, true
 	d.Resolve = d.resolveExpr
+	d.ReferenceArgument = d.referenceArgument
 	d.Collect(e)
 	return d.Result()
 }
@@ -56,6 +57,60 @@ func DiscoverValuesKnown(env *infer.Env, e syntax.Expr) (vals []syntax.Expr, kno
 type discoverer struct {
 	flowquery.ValueWalk
 	env *infer.Env
+}
+
+func (d *discoverer) referenceArgument(arg *syntax.Arg) bool {
+	return ArgumentMayWrite(d.env, arg)
+}
+
+// ArgumentMayWrite reports a reference binding or an unresolved binding that
+// cannot prove its argument storage unchanged.
+func ArgumentMayWrite(env *infer.Env, arg *syntax.Arg) bool {
+	list, ok := arg.Parent().(*syntax.ArgList)
+	if !ok {
+		return true
+	}
+	callee, resolved := calleeParameters(env, list.Parent())
+	if !resolved {
+		return true
+	}
+	byRef, known := ArgumentBindsByRef(list, arg, callee.Params, true)
+	return !known || byRef
+}
+
+// LocalValuesKnown keeps lexical candidate discovery while resolving argument
+// effects through env. It does not expand properties through the project index.
+func LocalValuesKnown(env *infer.Env, expr syntax.Expr) ([]syntax.Expr, bool) {
+	d := &discoverer{env: env}
+	return flowquery.PossibleValuesWithReferences(env.File, expr, d.referenceArgument)
+}
+
+// LocalValues returns the known lexical candidates, or nil when effects make
+// discovery unknown. Consumers that distinguish an empty set use LocalValuesKnown.
+func LocalValues(env *infer.Env, expr syntax.Expr) []syntax.Expr {
+	values, _ := LocalValuesKnown(env, expr)
+	return values
+}
+
+// LocalValuesComplete proves the lexical candidate set complete, accounting for
+// resolved reference arguments instead of treating every call as a write.
+func LocalValuesComplete(env *infer.Env, expr syntax.Expr) ([]syntax.Expr, bool) {
+	d := &discoverer{env: env}
+	return flowquery.CompleteValuesWithReferences(env.File, expr, d.referenceArgument)
+}
+
+// LocalValuesReaching is lexical reaching-value discovery with resolved
+// argument effects.
+func LocalValuesReaching(env *infer.Env, expr syntax.Expr) ([]syntax.Expr, bool) {
+	d := &discoverer{env: env}
+	return flowquery.ReachingValuesWithReferences(env.File, expr, d.referenceArgument)
+}
+
+// LocalStringLiteral finds a single string candidate, preserving the lexical
+// discovery contract and accounting for resolved reference arguments.
+func LocalStringLiteral(env *infer.Env, expr syntax.Expr) syntax.Expr {
+	d := &discoverer{env: env}
+	return flowquery.StringLiteralWithReferences(env.File, expr, d.referenceArgument)
 }
 
 func (d *discoverer) resolveExpr(e syntax.Expr) bool {

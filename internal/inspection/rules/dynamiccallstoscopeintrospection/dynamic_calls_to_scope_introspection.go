@@ -5,7 +5,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 )
@@ -58,7 +58,7 @@ func (dynamicCallsToScopeIntrospection) Check(ctx *analysis.Context, n syntax.No
 	if l, ok := syntax.UnwrapParens(target).(*syntax.Literal); ok && l.LitKind == syntax.LitString { // D3
 		lit = l
 	} else { // D4
-		vals, known := flowquery.PossibleValuesReaching(ctx.File, target)
+		vals, known := semanticquery.LocalValuesReaching(ctx.Types(), target)
 		if !known {
 			return
 		}

@@ -91,8 +91,10 @@ a container `C`):
   - bound by reference (`$v = &$other`) or aliased (`$alias = &$v`);
   - written as a call-time `&$v` argument, or passed to a by-reference
     parameter of a callee that resolves (positional, variadic tail or named:
-    `settype($v, 'array')`, `sscanf($s, '%s', $v)`). An unresolved callee
-    counts as by-value.
+    `settype($v, 'array')`, `sscanf($s, '%s', $v)`). A prior unresolved
+    callee cannot establish by-value binding: value discovery becomes unknown
+    instead of trusting the earlier scalar assignment. Resolved by-value
+    arguments preserve the evidence.
 
 ### Index type
 

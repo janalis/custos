@@ -7,7 +7,6 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -61,7 +60,7 @@ func strtrSingleLiteral(ctx *analysis.Context, e syntax.Expr) (lit syntax.Expr, 
 	if astquery.IsStringLiteral(e) {
 		return e, true
 	}
-	for _, v := range flowquery.PossibleValues(ctx.File, e) {
+	for _, v := range semanticquery.LocalValues(ctx.Types(), e) {
 		if !astquery.IsStringLiteral(v) {
 			continue
 		}

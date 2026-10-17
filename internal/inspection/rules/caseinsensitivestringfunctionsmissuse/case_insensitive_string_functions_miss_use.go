@@ -8,7 +8,6 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -85,13 +84,13 @@ func needleLiteral(ctx *analysis.Context, e syntax.Expr) *syntax.Literal {
 	default:
 		return nil
 	}
-	return onlyLiteral(ctx.File, e)
+	return onlyLiteral(ctx, e)
 }
 
 // onlyLiteral returns the quoted string literal that is the complete value
 // set of e, or nil.
-func onlyLiteral(f *syntax.File, e syntax.Expr) *syntax.Literal {
-	vals, complete := flowquery.PossibleValuesComplete(f, e)
+func onlyLiteral(ctx *analysis.Context, e syntax.Expr) *syntax.Literal {
+	vals, complete := semanticquery.LocalValuesComplete(ctx.Types(), e)
 	if !complete || len(vals) != 1 {
 		return nil
 	}
@@ -105,7 +104,7 @@ func onlyLiteral(f *syntax.File, e syntax.Expr) *syntax.Literal {
 // assigned to the variable itself (no chain through another variable), and
 // nothing in the function may rebind the variable behind the assignments.
 func localLiteral(ctx *analysis.Context, v *syntax.Variable) *syntax.Literal {
-	lit := onlyLiteral(ctx.File, v)
+	lit := onlyLiteral(ctx, v)
 	if lit == nil {
 		return nil
 	}
@@ -142,36 +141,14 @@ func stableLocal(ctx *analysis.Context, body syntax.Node, name string) bool {
 			unstable = unstable || x.NameExpr != nil
 		case *syntax.Eval, *syntax.Include:
 			unstable = true
-		case *syntax.Assign:
-			unstable = unstable || x.ByRef && isLocal(x.Value, name)
-		case *syntax.ArrayItem:
-			unstable = unstable || x.ByRef && isLocal(x.Value, name)
 		case *syntax.Yield:
 			unstable = unstable || isLocal(x.Value, name) // a by-reference generator hands out the variable
 		case *syntax.FuncCall:
 			unstable = unstable || scopeWriters[ctx.GlobalFunctionName(x)]
-		case *syntax.ArgList:
-			unstable = unstable || mayBindByRef(ctx, x, name)
 		}
 		return !unstable
 	})
 	return !unstable
-}
-
-// mayBindByRef reports whether list passes $name to a callee that is
-// unknown or takes one of the arguments by reference.
-func mayBindByRef(ctx *analysis.Context, list *syntax.ArgList, name string) bool {
-	passed := false
-	for _, a := range list.Args {
-		if arg, ok := a.(*syntax.Arg); ok && isLocal(arg.Value, name) {
-			passed = true
-		}
-	}
-	if !passed {
-		return false
-	}
-	callee, known := semanticquery.ResolveCallee(ctx, list.Parent())
-	return !known || semanticquery.ArgBindsByRef(list, callee.Params, true)
 }
 
 // declaredOnce reports whether this file declares the global constant

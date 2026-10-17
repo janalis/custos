@@ -73,7 +73,7 @@ func (unnecessaryAssertion) Check(ctx *analysis.Context, n syntax.Node) {
 // `$double->method(...)` would then call that method.
 func uaDeclaresMethod(ctx *analysis.Context, recv syntax.Expr) bool {
 	classes := ctx.TypeOf(recv).Classes()
-	for _, v := range flowquery.PossibleValues(ctx.File, recv) {
+	for _, v := range semanticquery.LocalValues(ctx.Types(), recv) {
 		syntax.Inspect(v, func(n syntax.Node) bool {
 			if e, ok := n.(syntax.Expr); ok {
 				if cn, ok := phpunit.PuClassConstClass(e); ok {
@@ -97,10 +97,11 @@ func uaDeclaresMethod(ctx *analysis.Context, recv syntax.Expr) bool {
 // unknown (nil).
 func uaValues(ctx *analysis.Context, e syntax.Expr) []syntax.Expr {
 	w := flowquery.NewValueWalk(ctx.File)
+	w.ReferenceArgument = func(arg *syntax.Arg) bool { return uaArgMayBindByRef(ctx, arg) }
 	w.Resolve = func(e syntax.Expr) bool {
 		v, ok := e.(*syntax.Variable)
 		if !ok {
-			vals, known := flowquery.PossibleValuesKnown(ctx.File, e)
+			vals, known := semanticquery.LocalValuesKnown(ctx.Types(), e)
 			w.Stop = !known
 			w.Out = append(w.Out, vals...)
 			return true
@@ -167,20 +168,9 @@ func uaRebound(ctx *analysis.Context, v *syntax.Variable) bool {
 func uaArgMayBindByRef(ctx *analysis.Context, arg *syntax.Arg) bool {
 	list := arg.Parent().(*syntax.ArgList)
 	call := list.Parent()
-	if n, ok := call.(*syntax.New); ok {
-		nm, ok := n.Class.(*syntax.Name)
-		if !ok {
-			return true
-		}
-		cls := phpunit.PuResolveClassName(ctx, nm)
-		if ctx.Index().Class(cls, ctx.PHP) == nil {
-			return true
-		}
-		ctor := ctx.Index().FindMethod(cls, "__construct", ctx.PHP)
-		return ctor != nil && semanticquery.ArgBindsByRef(list, ctor.Params, true)
-	}
 	if callee, ok := semanticquery.ResolveCallee(ctx, call); ok {
-		return semanticquery.ArgBindsByRef(list, callee.Params, true)
+		byRef, known := semanticquery.ArgumentBindsByRef(list, arg, callee.Params, true)
+		return !known || byRef
 	}
 	c, ok := phpunit.AsPuCall(call)
 	return !ok || !strings.HasPrefix(strings.ToLower(c.Name), "assert")

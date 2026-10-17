@@ -141,7 +141,11 @@ func nativePrepared(ctx *analysis.Context, receiver syntax.Expr) (sqlFacts, bool
 
 func nativeBindings(ctx *analysis.Context, c *syntax.MethodCall) (map[string]bool, bool) {
 	bindings := map[string]bool{}
-	if values := CallArgument(c.Args, 0, "params"); values != nil {
+	values, state := CallArgumentBinding(c.Args, 0, "params")
+	if state == ArgumentUnknown {
+		return nil, false
+	}
+	if state == ArgumentBound {
 		entries, known := NativeArrayEntries(ctx, values)
 		if !known {
 			return nil, false

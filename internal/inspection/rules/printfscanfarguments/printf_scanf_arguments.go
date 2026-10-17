@@ -6,7 +6,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 )
@@ -44,7 +44,7 @@ func (printfScanfArguments) Check(ctx *analysis.Context, n syntax.Node) {
 	a := arg.Value
 
 	// D2: every possible format must be a known literal (custos diverges).
-	vals, complete := flowquery.PossibleValuesComplete(ctx.File, a)
+	vals, complete := semanticquery.LocalValuesComplete(ctx.Types(), a)
 	if !complete || len(vals) == 0 {
 		return
 	}

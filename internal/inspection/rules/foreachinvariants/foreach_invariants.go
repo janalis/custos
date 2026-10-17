@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
 )
@@ -346,7 +347,7 @@ func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Ex
 		if pf, ok := syntax.UnwrapParens(limit).(*syntax.PropertyFetch); ok {
 			return foreachInvPropertyLimitValues(ctx, l, pf)
 		}
-		return flowquery.PossibleValues(ctx.File, limit), nil
+		return semanticquery.LocalValues(ctx.Types(), limit), nil
 	}
 	scope := syntax.EnclosingFuncLike(l)
 	body := syntax.FuncLikeBody(scope)
@@ -365,7 +366,7 @@ func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Ex
 	for i := len(l.Init) - 1; i >= 0; i-- {
 		if a, ok := l.Init[i].(*syntax.Assign); ok && a.Op.Kind == syntax.TEqual && !a.ByRef {
 			if t, ok := astquery.PlainVariable(a.Var); ok && t.Name == v.Name {
-				return flowquery.PossibleValues(ctx.File, innermost(a.Value)), nil
+				return semanticquery.LocalValues(ctx.Types(), innermost(a.Value)), nil
 			}
 		}
 	}
@@ -373,12 +374,12 @@ func foreachInvLimitValues(ctx *analysis.Context, l *syntax.For, limit syntax.Ex
 	if entry {
 		for _, p := range syntax.FuncLikeParams(scope) {
 			if p.Var != nil && p.Var.Name == v.Name && p.Default != nil {
-				vals = append(vals, flowquery.PossibleValues(ctx.File, p.Default)...)
+				vals = append(vals, semanticquery.LocalValues(ctx.Types(), p.Default)...)
 			}
 		}
 	}
 	for _, d := range defs {
-		vals = append(vals, flowquery.PossibleValues(ctx.File, innermost(d.Value))...)
+		vals = append(vals, semanticquery.LocalValues(ctx.Types(), innermost(d.Value))...)
 	}
 	return vals, defs
 }
@@ -412,7 +413,7 @@ func foreachInvPropertyLimitValues(ctx *analysis.Context, l *syntax.For, limit *
 				after = true
 				return false
 			}
-			vals = append(vals, flowquery.PossibleValues(ctx.File, x.Value)...)
+			vals = append(vals, semanticquery.LocalValues(ctx.Types(), x.Value)...)
 			defs = append(defs, x)
 		}
 		return !after

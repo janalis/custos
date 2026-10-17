@@ -2,7 +2,6 @@ package dateintervalspecification
 
 import (
 	"regexp"
-	"slices"
 	"strings"
 
 	"custos/internal/inspection/analysis"
@@ -11,7 +10,6 @@ import (
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
-	"custos/internal/semantic/index"
 )
 
 // dateIntervalSpecification validates literal DateInterval specifications.
@@ -214,22 +212,10 @@ func boundByReference(ctx *analysis.Context, acc flowquery.VarAccess) bool {
 }
 
 // argBindsByRef reports whether arg binds to a by-reference parameter of
-// its resolved callee (named, positional or variadic tail). An unresolved
-// callee binds nothing: most calls take their arguments by value.
+// its resolved callee (named, positional or variadic tail). Unknown bindings
+// cannot establish that the argument remains unchanged.
 func argBindsByRef(ctx *analysis.Context, arg *syntax.Arg) bool {
-	list := arg.Parent().(*syntax.ArgList)
-	callee, _ := semanticquery.ResolveCallee(ctx, list.Parent())
-	params := callee.Params
-	if arg.Name != nil {
-		return slices.ContainsFunc(params, func(p index.Param) bool {
-			return p.ByRef && strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value)
-		})
-	}
-	i := slices.Index(list.Args, syntax.Expr(arg))
-	if n := len(params); i >= n && n > 0 && params[n-1].Variadic {
-		i = n - 1
-	}
-	return i < len(params) && params[i].ByRef
+	return semanticquery.ArgumentMayWrite(ctx.Types(), arg)
 }
 
 // dateIntervalReportedEarlier reports whether a `new DateInterval(...)`

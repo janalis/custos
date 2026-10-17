@@ -141,3 +141,15 @@ function constant_($v)
 }
 
 $top = <warning descr="Use 'is_object($y)' instead.">gettype($y) === KIND</warning>;
+
+function replaceTypeName(&$kind)
+{
+    $kind = 'string';
+}
+
+function overwrittenInvalidTypeName($value)
+{
+    $kind = 'int';
+    replaceTypeName($kind);
+    return gettype($value) === $kind;
+}

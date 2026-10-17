@@ -9,10 +9,11 @@ import (
 // to re-walk the whole function body for every variable use, which is
 // quadratic on large functions.
 type assignIndex struct {
-	plain    []*syntax.Assign            // plain `=` (not by-ref) assignments, preorder
-	byVar    map[string][]*syntax.Assign // the plain ones whose target is $name
-	unstable map[string]bool             // UnstableVariableIn(f, root, name)
-	byRefUse map[string]bool             // imported by reference into a closure under root
+	plain     []*syntax.Assign            // plain `=` (not by-ref) assignments, preorder
+	byVar     map[string][]*syntax.Assign // the plain ones whose target is $name
+	unstable  map[string]bool             // UnstableVariableIn(f, root, name)
+	byRefUse  map[string]bool             // imported by reference into a closure under root
+	arguments map[string][]*syntax.Arg    // argument storage a callee may write
 	// the plain ones by target kind (non-variable targets) and, for
 	// property fetches, by target source text
 	byKind     map[syntax.NodeKind][]*syntax.Assign
@@ -49,6 +50,33 @@ func buildAssignIndex(f *syntax.File, root syntax.Node) *assignIndex {
 			if x.ByRef && x.Var != nil {
 				ix.byRefUse[x.Var.Name] = true
 			}
+		case *syntax.ArrayItem:
+			if name, ok := simple(x.Value); ok && x.ByRef {
+				ix.byRefUse[name] = true
+			}
+		case *syntax.Foreach:
+			if name, ok := simple(x.Expr); ok && x.ByRef {
+				ix.byRefUse[name] = true
+			}
+		case *syntax.Arg:
+			expr := syntax.UnwrapParens(x.Value)
+			for {
+				dim, ok := expr.(*syntax.ArrayDimFetch)
+				if !ok {
+					break
+				}
+				expr = syntax.UnwrapParens(dim.Var)
+			}
+			if variable, ok := expr.(*syntax.Variable); ok {
+				if ix.arguments == nil {
+					ix.arguments = map[string][]*syntax.Arg{}
+				}
+				name := variable.Name
+				if variable.NameExpr != nil {
+					name = ""
+				}
+				ix.arguments[name] = append(ix.arguments[name], x)
+			}
 		case *syntax.IncDec:
 			if name, ok := simple(x.Var); ok {
 				ix.unstable[name] = true
@@ -61,6 +89,11 @@ func buildAssignIndex(f *syntax.File, root syntax.Node) *assignIndex {
 				break
 			}
 			if x.ByRef {
+				for _, expr := range []syntax.Expr{x.Var, x.Value} {
+					if name, ok := simple(expr); ok {
+						ix.byRefUse[name] = true
+					}
+				}
 				break
 			}
 			ix.plain = append(ix.plain, x)

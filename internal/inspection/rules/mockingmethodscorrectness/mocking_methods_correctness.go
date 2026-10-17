@@ -6,7 +6,6 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/phpunit"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -69,7 +68,7 @@ func mmcCheckMethod(ctx *analysis.Context, c phpunit.PuCall, arg syntax.Expr) {
 	if ex, ok := phpunit.PuMethodCallNamed(recv, "expects"); ok {
 		recv = ex.Recv
 	}
-	vals := flowquery.PossibleValues(ctx.File, recv) // D5
+	vals := semanticquery.LocalValues(ctx.Types(), recv) // D5
 	if len(vals) != 1 {
 		return
 	}

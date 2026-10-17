@@ -194,6 +194,8 @@ walk for this name, *skip* goes to the next usage:
   the parameter of that name (none → skip). If that parameter's declared type does not
   contain `null`, its default is not `null`, and its declared types form an
   object-only set → **report** `v`.
+  Constructors are outside U11, even when the shared callee query can resolve
+  their parameter contracts.
 - Anything else (e.g. `v ?? x`, `v ?: x`, `return v`, plain read) → skip.
 - **U12** (applies to every *report* of U7–U11) The report is dropped —
   the walk goes on without stopping — when `v` sits in a region that an

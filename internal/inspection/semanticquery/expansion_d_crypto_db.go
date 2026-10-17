@@ -1264,7 +1264,8 @@ func CheckPdoBoundValueAssumedLive(ctx *analysis.Context, n syntax.Node, message
 		return
 	}
 	c := n.(*syntax.MethodCall)
-	if !NativeMethod(ctx, c, "PDOStatement", "execute") || CallArgument(c.Args, 0, "params") != nil {
+	_, paramsState := CallArgumentBinding(c.Args, 0, "params")
+	if !NativeMethod(ctx, c, "PDOStatement", "execute") || paramsState != ArgumentMissing {
 		return
 	}
 	bindings := expansionDMethodCalls(ctx, c, c.Var, "PDOStatement", "bindvalue", "bindparam")
@@ -1490,9 +1491,7 @@ func pdoGroupedRowsRewritten(ctx *analysis.Context, rows syntax.Expr, at syntax.
 			found = x.ByRef && pdoGroupedRoot(x.Value) == name
 		case *syntax.Arg:
 			if pdoGroupedRoot(x.Value) == name {
-				list := x.Parent().(*syntax.ArgList)
-				callee, known := ResolveCallee(ctx, list.Parent())
-				found = !known || ArgBindsByRef(list, callee.Params, true)
+				found = ArgumentMayWrite(ctx.Types(), x)
 			}
 		}
 		return !found

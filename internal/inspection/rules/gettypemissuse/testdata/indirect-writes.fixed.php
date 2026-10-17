@@ -141,3 +141,15 @@ function constant_($v)
 }
 
 $top = is_object($y);
+
+function replaceTypeName(&$kind)
+{
+    $kind = 'string';
+}
+
+function overwrittenInvalidTypeName($value)
+{
+    $kind = 'int';
+    replaceTypeName($kind);
+    return gettype($value) === $kind;
+}

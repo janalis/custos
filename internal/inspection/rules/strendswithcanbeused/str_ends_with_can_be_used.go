@@ -3,7 +3,6 @@ package strendswithcanbeused
 import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
@@ -68,7 +67,7 @@ func sewNonEmpty(ctx *analysis.Context, e syntax.Expr) bool {
 	}
 	switch e.(type) {
 	case *syntax.Variable, *syntax.ClassConstFetch, *syntax.ConstFetch:
-		vals, complete := flowquery.PossibleValuesComplete(ctx.File, e)
+		vals, complete := semanticquery.LocalValuesComplete(ctx.Types(), e)
 		if !complete || len(vals) == 0 {
 			return false
 		}

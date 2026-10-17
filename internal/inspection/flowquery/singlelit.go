@@ -11,6 +11,12 @@ import (
 // are ignored). nil when there is none or more than one, and when the
 // discovery result is unknown (an unstable variable on the path).
 func SingleStringLiteral(f *syntax.File, e syntax.Expr) syntax.Expr {
+	return StringLiteralWithReferences(f, e, nil)
+}
+
+// StringLiteralWithReferences is SingleStringLiteral with resolved argument
+// effects. Unknown bindings must be treated as possible writes.
+func StringLiteralWithReferences(f *syntax.File, e syntax.Expr, mayWrite func(*syntax.Arg) bool) syntax.Expr {
 	if _, _, ok := astquery.QuotedStringRaw(e); ok {
 		return e
 	}
@@ -18,7 +24,8 @@ func SingleStringLiteral(f *syntax.File, e syntax.Expr) syntax.Expr {
 		return nil
 	}
 	var found syntax.Expr
-	for _, v := range PossibleValues(f, e) {
+	values, _ := PossibleValuesWithReferences(f, e, mayWrite)
+	for _, v := range values {
 		if _, _, ok := astquery.QuotedStringRaw(v); ok {
 			if found != nil {
 				return nil

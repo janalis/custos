@@ -270,9 +270,7 @@ func (w *nativeLocalWrites) arguments(ctx *analysis.Context, call syntax.Node, l
 			continue
 		}
 		at := position
-		if arg.Name == nil {
-			position++
-		}
+		position = nextArgumentPosition(arg, position)
 		if nativeRootVariable(arg.Value) == nil {
 			continue
 		}
@@ -282,7 +280,8 @@ func (w *nativeLocalWrites) arguments(ctx *analysis.Context, call syntax.Node, l
 		}
 		written := arg.ByRef || assume
 		if resolved {
-			written = arg.ByRef || arg.Unpack || !nativeByValueParameter(params, arg, at)
+			byRef, known := referenceBinding(arg, at, params)
+			written = arg.ByRef || !known || byRef
 		}
 		if !written {
 			continue
@@ -307,41 +306,12 @@ func nativeTakesCallback(ctx *analysis.Context, call *syntax.FuncCall) bool {
 // to, whether an unresolved callee must be assumed to take references, and
 // whether PHP itself declares the function.
 func nativeCalleeParameters(ctx *analysis.Context, call syntax.Node) (params []index.Param, resolved, assume, builtin bool) {
-	switch x := call.(type) {
-	case *syntax.New:
-		if name, ok := x.Class.(*syntax.Name); ok {
-			if m := ctx.Index().FindMethod(ctx.Names().Class(name.Value, name.Span().Start), "__construct", ctx.PHP); m != nil {
-				return m.Params, true, false, false
-			}
-		}
-		return nil, false, true, false
-	case *syntax.FuncCall:
+	if x, ok := call.(*syntax.FuncCall); ok {
 		callee, ok := ResolveCallee(ctx, x)
 		return callee.Params, ok, true, NativeBuiltinName(ctx, x) != ""
 	}
 	callee, ok := ResolveCallee(ctx, call)
 	return callee.Params, ok, !ok, false
-}
-
-// nativeByValueParameter proves the parameter an argument binds to is taken
-// by value. The resolved signature already excludes unavailable parameters;
-// a surplus argument of a non-variadic callee binds to nothing.
-func nativeByValueParameter(params []index.Param, arg *syntax.Arg, position int) bool {
-	var last *index.Param
-	for i := range params {
-		p := &params[i]
-		last = p
-		if arg.Name != nil {
-			if p.Name == arg.Name.Value {
-				return !p.ByRef
-			}
-			continue
-		}
-		if i == position {
-			return !p.ByRef
-		}
-	}
-	return arg.Name == nil && (last == nil || !last.Variadic || !last.ByRef)
 }
 
 // nativeRootVariable returns the variable an lvalue chain is stored in.

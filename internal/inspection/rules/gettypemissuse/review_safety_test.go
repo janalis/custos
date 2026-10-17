@@ -31,7 +31,7 @@ func TestReviewSafety(t *testing.T) {
 		{"alias", "<?php function f($v) { $t = 'array'; $r = &$t; $r = 'string'; return gettype($v) === $t; }", 0, ""},
 		{"extract", "<?php function f($v, $o) { $t = 'array'; extract($o); return gettype($v) === $t; }", 0, ""},
 		{"variable variable", "<?php function f($v, $n) { $t = 'array'; $$n = 'string'; return gettype($v) === $t; }", 0, ""},
-		{"invalid name kept", "<?php function p(&$o) {} function f($v) { $t = 'int'; p($t); return gettype($v) === $t; }", 1, ""},
+		{"invalid name may be overwritten", "<?php function p(&$o) {} function f($v) { $t = 'int'; p($t); return gettype($v) === $t; }", 0, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			src := []byte(tc.source)

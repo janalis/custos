@@ -10,7 +10,6 @@ function byValue() {
     logSpec(extra: $s, spec: 'a');
     logSpec('a', 'b', $s);
     collect(1, 2, $s);
-    unknownLogger($s);
     $copy = $s;
     $list = [$s, 'k' => $s];
     $f = function () use ($s) { return $s; };
@@ -18,6 +17,13 @@ function byValue() {
     $other = 'P1D';
     fillOther($s, $other);
     return [new DateInterval($s), new SplObjectStorage($s)];
+}
+
+// An unresolved callee may replace the argument through a reference parameter.
+function unresolvedWriter() {
+    $s = '1W';
+    unknownLogger($s);
+    return new DateInterval($s);
 }
 function throughCopies($flag) {
     $base = <error descr="Malformed DateInterval specification.">'2 days'</error>;

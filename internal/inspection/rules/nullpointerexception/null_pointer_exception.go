@@ -483,6 +483,11 @@ func npeChainedNotNull(call syntax.Node) bool {
 // calleeParam returns the parameter of the resolved callee receiving the
 // argument at position idx, or the one called name for a named argument.
 func (u *npeUnit) calleeParam(call syntax.Node, idx int, name string) *index.Param {
+	switch call.(type) {
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+	default:
+		return nil
+	}
 	c, ok := semanticquery.ResolveCallee(u.ctx, call)
 	if !ok {
 		return nil

@@ -194,11 +194,12 @@ function kinds($item, $mode = 'array') {
   pass others), a branch with an unknown value, or a property a subclass may
   redeclare (MediaWiki's `NumericDef::$valueType = 'integer'`, redeclared
   `'double'` by `FloatDef`) would make `is_int()` test the wrong type. The
-  invalid-name report (D4b) keeps the spec's resolution.
+  invalid-name report (D4b) also requires that discovery has not lost possible
+  values through an indirect write.
 - **Indirect writes (custos diverges from D3).** The value set of a local
   variable is not complete, so D4a stays silent, when the variable — or a
   variable one of its plain assignments reads — may be written without an
-  assignment naming it anywhere in the enclosing function: it is passed
+  assignment naming it on a path reaching the comparison: it is passed
   directly as an argument that binds to a by-reference parameter
   (`sscanf($s, '%s', $t)`, a variadic by-reference tail, a call-time `&$t`)
   or to a callee whose parameters are not known (method, static method,
@@ -206,4 +207,7 @@ function kinds($item, $mode = 'array') {
   is aliased (`$r = &$t`, `[&$t]`); or the function contains `extract()`,
   `parse_str()`, a variable-variable, `include`/`require` or `eval`.
   Passing it to a resolved function's by-value parameter keeps the report.
-  D4b is unaffected.
+  Prior reference arguments, aliases and reference captures also make D4b's
+  candidate discovery unknown. A previously invalid spelling cannot authorize
+  a warning after a callee may have replaced it with a valid type name. Calls
+  later in an enclosing loop count as possible writes before a subsequent read.

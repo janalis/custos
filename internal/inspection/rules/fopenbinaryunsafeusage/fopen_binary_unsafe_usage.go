@@ -6,7 +6,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
 
@@ -26,7 +26,7 @@ func (fopenBinaryUnsafeUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if mode == nil {
 		return
 	}
-	lit := flowquery.SingleStringLiteral(ctx.File, mode) // D3
+	lit := semanticquery.LocalStringLiteral(ctx.Types(), mode) // D3
 	if lit == nil {
 		return
 	}

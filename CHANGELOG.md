@@ -7,6 +7,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Distinguish omitted arguments from uncertain unpacking in state checks. Resolve
+  inherited constructor contracts, require receiver alternatives to agree, and
+  respect case-sensitive named arguments and variadic reference parameters.
+  Discard stale possible-value sets after indirect writes; resolved by-value
+  calls retain their value evidence.
+
 - Keep catch-only values out of flow results when the try block is proven
   nonthrowing. Preserve callback, destructor, warning and finally paths, with
   cached block proofs and conservative checks for local reads and writes.

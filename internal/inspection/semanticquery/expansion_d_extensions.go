@@ -122,7 +122,10 @@ func expansionDFrames(ctx *analysis.Context, obj syntax.Expr, at syntax.Node, de
 		return 0
 	}
 	creation := NativeConstruction(ctx, obj, "Imagick")
-	if creation == nil || CallArgument(creation.Args, 0, "files") != nil {
+	if creation == nil {
+		return 0
+	}
+	if _, state := CallArgumentBinding(creation.Args, 0, "files"); state != ArgumentMissing {
 		return 0
 	}
 	count := 0

@@ -22,7 +22,11 @@ func ExpansionHeader(ctx *analysis.Context, c *syntax.FuncCall) (key, value stri
 		return "", "", false, false
 	}
 	replace = true
-	if e := CallArgument(c.Args, 1, "replace"); e != nil {
+	e, state := CallArgumentBinding(c.Args, 1, "replace")
+	if state == ArgumentUnknown {
+		return "", "", false, false
+	}
+	if state == ArgumentBound {
 		replace, ok = NativeTruth(ctx, e)
 		if !ok {
 			return "", "", false, false

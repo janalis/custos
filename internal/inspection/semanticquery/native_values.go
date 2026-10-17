@@ -57,18 +57,29 @@ func NativeArrayKey(ctx *analysis.Context, e syntax.Expr) (string, bool) {
 	return "", false
 }
 
-// CallArgument finds a positional or named argument. Spreads and duplicate
-// bindings are deliberately unknown: inspections must not guess their values.
-func CallArgument(list *syntax.ArgList, position int, name string) syntax.Expr {
+// ArgumentState distinguishes an omitted parameter from an uncertain binding.
+type ArgumentState uint8
+
+const (
+	ArgumentMissing ArgumentState = iota
+	ArgumentBound
+	ArgumentUnknown
+)
+
+// CallArgumentBinding finds a positional or named argument. Unpacking,
+// placeholders and duplicate bindings cannot establish absence or a value.
+// Names from the index may include the parameter's leading dollar sign.
+func CallArgumentBinding(list *syntax.ArgList, position int, name string) (syntax.Expr, ArgumentState) {
 	if list == nil {
-		return nil
+		return nil, ArgumentMissing
 	}
+	name = strings.TrimPrefix(name, "$")
 	var result syntax.Expr
 	pos := 0
 	for _, node := range list.Args {
 		arg, ok := node.(*syntax.Arg)
 		if !ok || arg.Unpack {
-			return nil
+			return nil, ArgumentUnknown
 		}
 		matches := arg.Name != nil && arg.Name.Value == name
 		if arg.Name == nil {
@@ -77,12 +88,22 @@ func CallArgument(list *syntax.ArgList, position int, name string) syntax.Expr {
 		}
 		if matches {
 			if result != nil {
-				return nil
+				return nil, ArgumentUnknown
 			}
 			result = arg.Value
 		}
 	}
-	return result
+	if result == nil {
+		return nil, ArgumentMissing
+	}
+	return result, ArgumentBound
+}
+
+// CallArgument returns a proven argument value. Callers requiring proof of
+// omission must use CallArgumentBinding instead of comparing this with nil.
+func CallArgument(list *syntax.ArgList, position int, name string) syntax.Expr {
+	value, _ := CallArgumentBinding(list, position, name)
+	return value
 }
 
 // NativeValue returns a single discovered expression, retaining the distinction

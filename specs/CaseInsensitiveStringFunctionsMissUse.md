@@ -48,8 +48,11 @@ the same result faster.
     out of sight: no variable-variable, `eval`, `include`/`require`,
     `extract()`, `parse_str()` or `mb_parse_str()`; no reference taken to
     the variable (`$r = &$v`, `[&$v]`), no `yield $v`; and the variable is
-    not an argument of a call whose callee cannot be resolved or that takes
-    an argument by reference;
+    not passed to an unresolved or reference parameter before the read. A
+    by-value argument remains stable even when another argument binds by
+    reference. Calls later in an enclosing loop may already have run on a
+    prior iteration; calls after the read without a back edge do not change
+    that read's value;
   - for a **global constant**: its value, when this file declares a
     constant of that name exactly once (`const` or `define()`; a `define()`
     with a non-literal name counts as a declaration of every name);

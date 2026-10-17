@@ -22,6 +22,9 @@ type ValueWalk struct {
 	// resolve handles e (variables, properties, constants...); false when
 	// e is a value itself.
 	Resolve func(e syntax.Expr) bool
+	// ReferenceArgument may prove an argument cannot write its storage. Without
+	// resolved declarations, every prior argument exposure is a possible write.
+	ReferenceArgument func(*syntax.Arg) bool
 }
 
 func NewValueWalk(f *syntax.File) ValueWalk {
@@ -89,7 +92,7 @@ func (w *ValueWalk) LocalVar(v *syntax.Variable) {
 	}
 	params, body := astquery.ScopeParts(scope)
 	ix := assignsUnder(w.F, body)
-	if ix.unstable[v.Name] {
+	if ix.unstable[v.Name] || ix.byRefUse[v.Name] || w.indirectWrite(ix, v) {
 		w.Stop = true
 		return
 	}
@@ -106,6 +109,43 @@ func (w *ValueWalk) LocalVar(v *syntax.Variable) {
 	for _, a := range assigns {
 		w.Collect(astquery.AssignedValue(a))
 	}
+}
+
+func (w *ValueWalk) indirectWrite(ix *assignIndex, v *syntax.Variable) bool {
+	work := 0
+	for _, name := range []string{v.Name, ""} {
+		for _, arg := range ix.arguments[name] {
+			work++
+			if work > MaxAssignScan {
+				return true
+			}
+			list, ok := arg.Parent().(*syntax.ArgList)
+			if !ok {
+				return true
+			}
+			call := list.Parent()
+			if call == nil || syntax.EnclosingVariableScope(call) != syntax.EnclosingVariableScope(v) {
+				continue
+			}
+			before := call.Span().End <= v.Span().Start
+			if !before {
+				for parent := call.Parent(); parent != nil && !syntax.IsVariableScope(parent); parent = parent.Parent() {
+					work++
+					if work > MaxAssignScan {
+						return true
+					}
+					switch parent.(type) {
+					case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+						before = before || parent.Span().Contains(v.Span())
+					}
+				}
+			}
+			if before && (w.ReferenceArgument == nil || w.ReferenceArgument(arg)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // PossibleValues collects the candidate value expressions of e, following
@@ -129,7 +169,14 @@ func PossibleValues(f *syntax.File, e syntax.Expr) []syntax.Expr {
 // PossibleValuesKnown is PossibleValues reporting whether the result is
 // known; when known is false, vals is nil and consumers must stay silent.
 func PossibleValuesKnown(f *syntax.File, e syntax.Expr) (vals []syntax.Expr, known bool) {
+	return PossibleValuesWithReferences(f, e, nil)
+}
+
+// PossibleValuesWithReferences is PossibleValuesKnown with resolved argument
+// effects. mayWrite must return true when the binding or its effects are unknown.
+func PossibleValuesWithReferences(f *syntax.File, e syntax.Expr, mayWrite func(*syntax.Arg) bool) (vals []syntax.Expr, known bool) {
 	pv := &possibleValues{ValueWalk: NewValueWalk(f)}
+	pv.ReferenceArgument = mayWrite
 	pv.Resolve = pv.resolveExpr
 	pv.Collect(e)
 	return pv.Result()
@@ -158,13 +205,20 @@ func (pv *possibleValues) resolveExpr(e syntax.Expr) bool {
 // plus its parameter default when the entry value reaches it; anything
 // other than a ternary, `??` or variable is resolved by PossibleValuesKnown.
 func PossibleValuesReaching(f *syntax.File, e syntax.Expr) (vals []syntax.Expr, known bool) {
+	return ReachingValuesWithReferences(f, e, nil)
+}
+
+// ReachingValuesWithReferences is PossibleValuesReaching with resolved
+// argument effects; unknown bindings must be treated as possible writes.
+func ReachingValuesWithReferences(f *syntax.File, e syntax.Expr, mayWrite func(*syntax.Arg) bool) (vals []syntax.Expr, known bool) {
 	w := NewValueWalk(f)
+	w.ReferenceArgument = mayWrite
 	w.Resolve = func(e syntax.Expr) bool {
 		if x, ok := e.(*syntax.Variable); ok {
 			w.reachingVar(x)
 			return true
 		}
-		vals, ok := PossibleValuesKnown(f, e)
+		vals, ok := PossibleValuesWithReferences(f, e, mayWrite)
 		if !ok {
 			w.Stop = true
 		} else {
@@ -185,7 +239,8 @@ func (w *ValueWalk) reachingVar(v *syntax.Variable) {
 		return
 	}
 	params, body := astquery.ScopeParts(scope)
-	if UnstableVariableIn(w.F, body, v.Name) {
+	ix := assignsUnder(w.F, body)
+	if ix.unstable[v.Name] || ix.byRefUse[v.Name] || w.indirectWrite(ix, v) {
 		w.Stop = true
 		return
 	}

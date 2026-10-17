@@ -7,6 +7,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
@@ -63,7 +64,7 @@ func (r unnecessaryCasting) Check(ctx *analysis.Context, n syntax.Node) {
 			}
 		}
 	}
-	vals, known := flowquery.PossibleValuesKnown(ctx.File, a)
+	vals, known := semanticquery.LocalValuesKnown(ctx.Types(), a)
 	if !known { // D3b: unknown discovery result (unstable variable)
 		return
 	}
@@ -265,7 +266,6 @@ func castAliased(ctx *analysis.Context, a syntax.Expr) bool {
 		}
 		scope = syntax.EnclosingVariableScope(arrow)
 	}
-	env := ctx.Types()
 	found := false
 	visit := func(n syntax.Node) bool {
 		if found { // pruning a subtree does not stop the walk of its siblings
@@ -282,35 +282,8 @@ func castAliased(ctx *analysis.Context, a syntax.Expr) bool {
 			for _, v := range x.Vars {
 				found = found || castRootName(v) == name
 			}
-		case *syntax.FuncCall:
-			found = castPassedByRef(x.Args, name, func() ([]index.Param, bool) {
-				if f := env.ResolveFunction(x); f != nil {
-					return f.Params, true
-				}
-				return nil, false
-			})
-		case *syntax.MethodCall:
-			found = castPassedByRef(x.Args, name, func() ([]index.Param, bool) {
-				if m := castMethod(env, x.Var, x.Name, false); m != nil {
-					return m.Params, true
-				}
-				return nil, false
-			})
-		case *syntax.StaticCall:
-			found = castPassedByRef(x.Args, name, func() ([]index.Param, bool) {
-				if m := castStaticMethod(ctx, env, x.Class, x.Name); m != nil {
-					return m.Params, true
-				}
-				return nil, false
-			})
-		case *syntax.New:
-			found = castPassedByRef(x.Args, name, func() ([]index.Param, bool) {
-				cls := castClassName(ctx, env, x.Class)
-				if m := env.Index.FindMethod(cls, "__construct", env.PHP); m != nil {
-					return m.Params, true
-				}
-				return nil, false
-			})
+		case *syntax.Arg:
+			found = castRootName(x.Value) == name && semanticquery.ArgumentMayWrite(ctx.Types(), x)
 		}
 		// Nested functions and classes have their own variables; an arrow
 		// function shares its parent's.
@@ -363,48 +336,6 @@ func castForeachBinds(x *syntax.Foreach, name string) bool {
 		return !ref
 	})
 	return ref
-}
-
-// castPassedByRef reports whether the variable `name` (or one of its
-// elements) is an argument that may bind to a by-reference parameter:
-// spread, or bound to a parameter of the resolved callee
-// that is by-reference. An unresolved callee may take anything by
-// reference.
-func castPassedByRef(args *syntax.ArgList, name string, resolve func() ([]index.Param, bool)) bool {
-	if args == nil {
-		return false
-	}
-	var params []index.Param
-	resolved := false
-	for i, e := range args.Args {
-		arg, ok := e.(*syntax.Arg)
-		if !ok || castRootName(arg.Value) != name {
-			continue
-		}
-		if !resolved {
-			if params, resolved = resolve(); !resolved {
-				return true
-			}
-		}
-		if arg.Unpack {
-			return true
-		}
-		if arg.Name != nil {
-			i = len(params) // unknown names are collected by a variadic
-			for j, p := range params {
-				if strings.EqualFold(strings.TrimPrefix(p.Name, "$"), arg.Name.Value) {
-					i = j
-				}
-			}
-		}
-		if n := len(params); i >= n && n > 0 && params[n-1].Variadic {
-			i = n - 1
-		}
-		if i < len(params) && params[i].ByRef {
-			return true
-		}
-	}
-	return false
 }
 
 // castPrivatePropertyType: only private properties yield their own type

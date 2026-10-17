@@ -45,9 +45,9 @@ Visit every `new` expression.
     `[&$v]`, `use (&$v)`, a call-time `&$v` argument, or an argument bound
     to a by-reference parameter (positional, named or variadic tail) of a
     callee resolved through the index (user function, method, static
-    method or builtin). A call that cannot be resolved is assumed to take
-    its arguments by value, so `$s = '1W'; log($s); new DateInterval($s)`
-    is still reported;
+    method or builtin). An unresolved callee cannot prove by-value binding;
+    passing the variable to it makes value discovery unknown. A resolved
+    by-value call preserves the candidate specification;
   - its scope does not call `extract()`.
 - **D4** `L` contains no interpolation.
 - **D5** Let `s` be the raw content of `L` (between the quotes, escape

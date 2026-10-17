@@ -57,7 +57,7 @@ func ivSecureRandomizer(ctx *analysis.Context, c *syntax.MethodCall) bool {
 	}
 	sources := []syntax.Expr{syntax.UnwrapParens(c.Var)}
 	if v, ok := sources[0].(*syntax.Variable); ok && syntax.EnclosingFuncLike(v) != nil {
-		sources, _ = flowquery.PossibleValuesReaching(ctx.File, v)
+		sources, _ = semanticquery.LocalValuesReaching(ctx.Types(), v)
 	}
 	for _, s := range sources {
 		n, ok := s.(*syntax.New)
@@ -120,7 +120,7 @@ func (encryptionInitializationVectorRandomness) Check(ctx *analysis.Context, n s
 	if v, ok := syntax.UnwrapParens(iv).(*syntax.Variable); ok && syntax.EnclosingFuncLike(v) != nil {
 		// Only the assignments reaching the call matter: a later
 		// `$iv = base64_encode($iv)` does not feed the encryption.
-		values, _ = flowquery.PossibleValuesReaching(ctx.File, v)
+		values, _ = semanticquery.LocalValuesReaching(ctx.Types(), v)
 		dead = ivReplacedValues(ctx, v)
 	} else {
 		values = semanticquery.DiscoverValues(ctx.Types(), iv) // D3

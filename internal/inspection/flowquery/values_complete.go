@@ -40,7 +40,14 @@ import (
 //     value; true/false/null are values themselves;
 //   - anything that cannot be resolved this way: incomplete.
 func PossibleValuesComplete(f *syntax.File, e syntax.Expr) (vals []syntax.Expr, complete bool) {
+	return CompleteValuesWithReferences(f, e, nil)
+}
+
+// CompleteValuesWithReferences is PossibleValuesComplete with resolved argument
+// effects. All other resolution and completeness requirements remain lexical.
+func CompleteValuesWithReferences(f *syntax.File, e syntax.Expr, mayWrite func(*syntax.Arg) bool) (vals []syntax.Expr, complete bool) {
 	pc := &completeValues{ValueWalk: NewValueWalk(f)}
+	pc.ReferenceArgument = mayWrite
 	pc.ElvisCond, pc.NilStops = true, true
 	pc.Resolve = pc.resolveExpr
 	pc.Collect(e)
@@ -94,7 +101,7 @@ func (pc *completeValues) variable(v *syntax.Variable) {
 		return
 	}
 	ix := assignsUnder(pc.F, body)
-	if otherWrites(pc.F, scope)[v.Name] || ix.byRefUse[v.Name] || ix.unstable[v.Name] || len(ix.byVar[v.Name]) > MaxPossibleValues {
+	if otherWrites(pc.F, scope)[v.Name] || ix.byRefUse[v.Name] || ix.unstable[v.Name] || len(ix.byVar[v.Name]) > MaxPossibleValues || pc.indirectWrite(ix, v) {
 		pc.Stop = true
 		return
 	}
