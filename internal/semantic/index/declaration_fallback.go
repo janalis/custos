@@ -17,7 +17,7 @@ func (ix *Index) removeDeclarationCandidatesLocked(old *FileSymbols) {
 	}
 	constantKeys := map[string]bool{}
 	for _, c := range old.Constants {
-		k := strings.TrimPrefix(c.FQN, `\`)
+		k := c.indexKey()
 		if constantKeys[k] {
 			continue
 		}
@@ -101,4 +101,11 @@ func (fs *FileSymbols) WithoutProvisionalDeclarations() *FileSymbols {
 		}
 	}
 	return &view
+}
+
+func (c *Constant) indexKey() string {
+	if c.Verbatim {
+		return c.FQN
+	}
+	return strings.TrimPrefix(c.FQN, `\`)
 }

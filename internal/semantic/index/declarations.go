@@ -112,11 +112,12 @@ func (x *extractor) define(call *syntax.FuncCall) {
 	if !ok {
 		return
 	}
-	lit, ok := syntax.UnwrapParens(args[0].Value).(*syntax.Literal)
-	if !ok || lit.LitKind != syntax.LitString {
+	name, known := x.declarationName(args[0].Value)
+	if !known {
 		return
 	}
-	x.out.Constants = append(x.out.Constants, &Constant{FQN: strings.TrimPrefix(unquote(lit.Raw), `\`), Value: x.text(args[1].Value), File: x.f.Path, Span: call.Span(), DeclarationFallback: x.declarationFallback(call)})
+	// Unlike a class name, define's literal name keeps a leading separator.
+	x.out.Constants = append(x.out.Constants, &Constant{FQN: name, Verbatim: strings.HasPrefix(name, `\`), Value: x.text(args[1].Value), File: x.f.Path, Span: call.Span(), DeclarationFallback: x.declarationFallback(call)})
 }
 
 // classAlias records `class_alias(Original::class, 'Alias')` (class
@@ -128,22 +129,11 @@ func (x *extractor) classAlias(call *syntax.FuncCall) {
 	}
 	var fqns [2]string
 	for i := range fqns {
-		switch v := syntax.UnwrapParens(args[i].Value).(type) {
-		case *syntax.ClassConstFetch:
-			id, ok := v.Name.(*syntax.Identifier)
-			nm, ok2 := v.Class.(*syntax.Name)
-			if !ok || !ok2 || !strings.EqualFold(id.Value, "class") || names.IsSpecialClass(nm.Value) {
-				return
-			}
-			fqns[i] = x.r.Class(nm.Value, nm.Span().Start)
-		case *syntax.Literal:
-			if v.LitKind != syntax.LitString {
-				return
-			}
-			fqns[i] = strings.TrimPrefix(unquote(v.Raw), `\`)
-		default:
+		value, known := x.declarationName(args[i].Value)
+		if !known {
 			return
 		}
+		fqns[i] = strings.TrimPrefix(value, `\`)
 		if fqns[i] == "" {
 			return
 		}
@@ -166,4 +156,52 @@ func (x *extractor) declarationFallback(call *syntax.FuncCall) string {
 		return key(fqn)
 	}
 	return ""
+}
+
+// declarationName evaluates a bounded string expression without invoking PHP.
+// Dynamic constants, calls and late-bound class names establish no name.
+func (x *extractor) declarationName(expression syntax.Expr) (string, bool) {
+	if literal, ok := expression.(*syntax.Literal); ok {
+		return syntax.LiteralStringValue(literal)
+	}
+	var out strings.Builder
+	remaining := 256
+	var appendValue func(syntax.Expr) bool
+	appendValue = func(expression syntax.Expr) bool {
+		remaining--
+		if remaining < 0 {
+			return false
+		}
+		switch value := expression.(type) {
+		case *syntax.Paren:
+			return appendValue(value.Expr)
+		case *syntax.Binary:
+			return value.Op.Kind == syntax.TDot && appendValue(value.Left) && appendValue(value.Right)
+		case *syntax.Literal:
+			text, known := syntax.LiteralStringValue(value)
+			if !known {
+				return false
+			}
+			out.WriteString(text)
+		case *syntax.MagicConst:
+			if value.Token.Kind != syntax.TNsC {
+				return false
+			}
+			out.WriteString(x.r.Namespace(value.Span().Start))
+		case *syntax.ClassConstFetch:
+			member, plain := value.Name.(*syntax.Identifier)
+			class, named := value.Class.(*syntax.Name)
+			if !plain || !named || !strings.EqualFold(member.Value, "class") || names.IsSpecialClass(class.Value) || x.f.Version != 0 && x.f.Version < phpversion.PHP55 {
+				return false
+			}
+			out.WriteString(x.r.Class(class.Value, class.Span().Start))
+		default:
+			return false
+		}
+		return true
+	}
+	if !appendValue(expression) {
+		return "", false
+	}
+	return out.String(), true
 }

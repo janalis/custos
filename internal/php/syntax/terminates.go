@@ -135,10 +135,7 @@ func constantTruth(e Expr) (bool, bool) {
 			v, err := strconv.ParseUint(strings.ReplaceAll(x.Raw, "_", ""), 0, 64)
 			return v != 0, err == nil
 		case LitString:
-			value, ok := StringLiteralValue(x.Raw)
-			if !ok {
-				value, ok = staticHeredocValue(x.Raw)
-			}
+			value, ok := LiteralStringValue(x)
 			return value != "" && value != "0", ok
 		}
 	case *Unary:

@@ -341,6 +341,9 @@ type SuperArgs struct {
 
 // Constant is a global constant (define() or const).
 type Constant struct {
+	// Verbatim retains a leading separator supplied to define(), which belongs
+	// to its runtime name rather than qualifying a source reference.
+	Verbatim bool `json:"verbatim,omitempty"`
 	// DeclarationFallback is the namespaced function candidate of an unqualified
 	// define call. The constant exists only while that function is absent.
 	DeclarationFallback string      `json:"fallback,omitempty"`

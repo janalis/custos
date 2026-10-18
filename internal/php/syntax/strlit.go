@@ -1,13 +1,25 @@
 package syntax
 
 import (
+	"reflect"
 	"strconv"
 	"strings"
+
+	phpversion "custos/internal/php/version"
 )
 
 // StringLiteralValue decodes a quoted PHP string literal without interpolation.
 // Heredoc, nowdoc and non-string source return false.
 func StringLiteralValue(raw string) (val string, ok bool) {
+	return StringLiteralValueForVersion(raw, phpversion.Max)
+}
+
+// StringLiteralValueForVersion decodes quoted strings using the selected PHP
+// escape rules. Version zero selects the latest supported version.
+func StringLiteralValueForVersion(raw string, version phpversion.Version) (val string, ok bool) {
+	if version == 0 {
+		version = phpversion.Max
+	}
 	if len(raw) >= 1 && (raw[0] == 'b' || raw[0] == 'B') {
 		raw = raw[1:]
 	}
@@ -32,12 +44,12 @@ func StringLiteralValue(raw string) (val string, ok bool) {
 		if strings.IndexByte(body, '\\') < 0 {
 			return body, true
 		}
-		return decodeDoubleQuoted(body), true
+		return decodeDoubleQuotedForVersion(body, version), true
 	}
 	return "", false
 }
 
-func decodeDoubleQuoted(s string) string {
+func decodeDoubleQuotedForVersion(s string, version phpversion.Version) string {
 	var b strings.Builder
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -56,7 +68,11 @@ func decodeDoubleQuoted(s string) string {
 		case 'v':
 			b.WriteByte('\v')
 		case 'e':
-			b.WriteByte(0x1b)
+			if version < phpversion.PHP54 {
+				b.WriteString(`\e`)
+			} else {
+				b.WriteByte(0x1b)
+			}
 		case 'f':
 			b.WriteByte('\f')
 		case '\\', '$', '"':
@@ -76,7 +92,7 @@ func decodeDoubleQuoted(s string) string {
 			i = j - 1
 			continue
 		case 'u':
-			if i+2 < len(s) && s[i+2] == '{' {
+			if version >= phpversion.PHP70 && i+2 < len(s) && s[i+2] == '{' {
 				// Only hex digits may precede the '}' (scanning to the next
 				// '}' per escape was quadratic on many unterminated `\u{`).
 				end := 0
@@ -109,4 +125,34 @@ func decodeDoubleQuoted(s string) string {
 		i++
 	}
 	return b.String()
+}
+
+// LiteralStringValue decodes a parsed, noninterpolated string, including a
+// complete heredoc or nowdoc. Its owning file supplies the PHP version.
+func LiteralStringValue(literal *Literal) (string, bool) {
+	if literal == nil || literal.LitKind != LitString {
+		return "", false
+	}
+	version := SourceVersion(literal)
+	if value, ok := StringLiteralValueForVersion(literal.Raw, version); ok {
+		return value, true
+	}
+	return staticHeredocValueForVersion(literal.Raw, version)
+}
+
+// SourceVersion returns the parser version of a node's owning file. Detached
+// nodes and files without an explicit version use the latest supported PHP.
+func SourceVersion(node Node) phpversion.Version {
+	for ; node != nil; node = node.Parent() {
+		if value := reflect.ValueOf(node); value.Kind() == reflect.Pointer && value.IsNil() {
+			break
+		}
+		if file, ok := node.(*File); ok {
+			if file.Version != 0 {
+				return file.Version
+			}
+			break
+		}
+	}
+	return phpversion.Max
 }

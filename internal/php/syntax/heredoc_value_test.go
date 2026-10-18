@@ -59,7 +59,7 @@ func TestEndlessStaticHeredoc(t *testing.T) {
 
 func TestStaticHeredocValueRejectsRecovery(t *testing.T) {
 	for _, raw := range []string{"", "b", "text", "<<<", "<<<'E\n0\nE", "<<<E\n0", "<<<E\n0\nE;", "<<<E\n$variable\nE", "<<<E\nx\n  E", "<<<E\n x\n \tE"} {
-		if value, ok := staticHeredocValue(raw); ok {
+		if value, ok := staticHeredocValueForVersion(raw, phpversion.Max); ok {
 			t.Errorf("accepted %q as %q", raw, value)
 		}
 	}
@@ -71,7 +71,7 @@ func BenchmarkStaticHeredocTruth(b *testing.B) {
 			raw := "<<<E\n" + body + "\nE"
 			b.ReportAllocs()
 			for b.Loop() {
-				staticHeredocValue(raw)
+				staticHeredocValueForVersion(raw, phpversion.Max)
 			}
 		})
 	}
@@ -85,7 +85,7 @@ func FuzzStaticHeredocValue(f *testing.F) {
 		if len(raw) > 65536 {
 			return
 		}
-		staticHeredocValue(raw)
+		staticHeredocValueForVersion(raw, phpversion.Max)
 	})
 }
 

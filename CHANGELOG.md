@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Decode escaped and composed declaration names, retaining exact names from
+  `define()` and resolving literal class aliases. Respect version-dependent
+  escapes in parsed strings and heredocs, including constant-condition checks.
+  Rebuild builtin aliases from the same pinned stubs revision.
+
 - Cache repeated builtin and method resolution with bounded storage and index
   revision checks. Release removed method entries immediately and avoid
   temporary call-argument and empty state-snapshot allocations.

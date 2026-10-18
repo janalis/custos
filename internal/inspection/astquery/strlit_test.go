@@ -2,6 +2,8 @@ package astquery
 
 import (
 	"testing"
+
+	"custos/internal/php/syntax"
 )
 
 func TestStringLiteralValue(t *testing.T) {
@@ -32,5 +34,13 @@ func TestStringLiteralValueEdges(t *testing.T) {
 	}
 	if v, ok := StringLiteralValue(`"\r\v\e\f"`); !ok || v != "\r\v\x1b\f" {
 		t.Fatalf("got %q %v", v, ok)
+	}
+}
+
+func TestQuotedStringValueKeepsQuotedContract(t *testing.T) {
+	file := syntax.Parse("strings.php", []byte("<?php <<<TEXT\nname\nTEXT;"), syntax.Options{})
+	literal := file.Stmts[0].(*syntax.ExprStmt).Expr
+	if _, known := QuotedStringValue(literal); known {
+		t.Fatal("heredoc was accepted as a quoted expression")
 	}
 }

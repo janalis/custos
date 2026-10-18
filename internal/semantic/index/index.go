@@ -105,7 +105,7 @@ func (ix *Index) Add(fs *FileSymbols) {
 		ix.functions[k] = append(ix.functions[k], f)
 	}
 	for _, c := range fs.Constants {
-		k := strings.TrimPrefix(c.FQN, `\`)
+		k := c.indexKey()
 		ix.constants[k] = append(ix.constants[k], c)
 	}
 	for pos, a := range fs.ClassAliases {

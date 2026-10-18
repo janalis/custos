@@ -20,7 +20,7 @@ func QuotedStringValue(e syntax.Expr) (string, bool) {
 	if !ok || l.LitKind != syntax.LitString {
 		return "", false
 	}
-	return StringLiteralValue(l.Raw)
+	return syntax.StringLiteralValueForVersion(l.Raw, syntax.SourceVersion(l))
 }
 
 // IsStringLiteral reports whether e is a string literal: quoted, heredoc or

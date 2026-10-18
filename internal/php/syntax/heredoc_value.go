@@ -9,14 +9,14 @@ import (
 // staticHeredocValue decodes only a complete noninterpolated heredoc/nowdoc.
 // Reusing the lexer validates delimiters and indentation without growing AST
 // nodes or broadening the public quoted-string decoder's contract.
-func staticHeredocValue(raw string) (string, bool) {
+func staticHeredocValueForVersion(raw string, version phpversion.Version) (string, bool) {
 	if raw != "" && (raw[0] == 'b' || raw[0] == 'B') {
 		raw = raw[1:]
 	}
 	if !strings.HasPrefix(raw, "<<<") {
 		return "", false
 	}
-	l := lexer{src: []byte(raw), ver: phpversion.Max, states: []lexState{stScripting}, halt: -1}
+	l := lexer{src: []byte(raw), ver: version, states: []lexState{stScripting}, halt: -1}
 	if l.next() != TStartHeredoc {
 		return "", false
 	}
@@ -63,7 +63,7 @@ func staticHeredocValue(raw string) (string, bool) {
 			if !strings.Contains(body, `\`) {
 				return body, true
 			}
-			return decodeDoubleQuoted(body), true
+			return decodeDoubleQuotedForVersion(body, version), true
 		default:
 			return "", false
 		}
