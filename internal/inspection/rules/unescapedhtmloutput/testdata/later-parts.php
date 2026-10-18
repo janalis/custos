@@ -5,20 +5,20 @@ function laterParts($row, $flag)
     $name = $_GET['name'];
     $page = (int) $_GET['page'];
     $safe = htmlspecialchars($name);
-    <error descr="Escape untrusted text for its HTML output context.">echo '<i>' . $safe . '</i><b>' . $name . '</b>';</error>
-    <error descr="Escape untrusted text for its HTML output context.">echo "<i>$page</i><b>$name</b>";</error>
-    <error descr="Escape untrusted text for its HTML output context.">echo '<i>', $page, '</i><b>', $name, '</b>';</error>
-    <error descr="Escape untrusted text for its HTML output context.">print '<i>' . strlen($name) . '</i><b>' . $name</error>;
-    <error descr="Escape untrusted text for its HTML output context.">echo '<a href="?page=' . $page . '">' . $name . '</a>';</error>
-    <error descr="Escape untrusted text for its HTML output context.">echo '<a href="?page=', ($page + 1), '">next</a><b>', htmlentities($name), '</b><u>', $name;</error>
-    <error descr="Escape untrusted text for its HTML output context.">echo <<<HTML
+    echo '<i>' . $safe . '</i><b>' . <error descr="Escape untrusted text for its HTML output context.">$name</error> . '</b>';
+    echo "<i>$page</i><b><error descr="Escape untrusted text for its HTML output context.">$name</error></b>";
+    echo '<i>', $page, '</i><b>', <error descr="Escape untrusted text for its HTML output context.">$name</error>, '</b>';
+    print '<i>' . strlen($name) . '</i><b>' . <error descr="Escape untrusted text for its HTML output context.">$name</error>;
+    echo '<a href="?page=' . $page . '">' . <error descr="Escape untrusted text for its HTML output context.">$name</error> . '</a>';
+    echo '<a href="?page=', ($page + 1), '">next</a><b>', htmlentities($name), '</b><u>', <error descr="Escape untrusted text for its HTML output context.">$name</error>;
+    echo <<<HTML
         <td>{$page}</td>
         <td>{$safe}</td>
-        <td>{$name}</td>
-        HTML;</error>
+        <td>{<error descr="Escape untrusted text for its HTML output context.">$name</error>}</td>
+        HTML;
     foreach ($_GET['ids'] as $key => $id) {
         $id = (int) $id;
-        <error descr="Escape untrusted text for its HTML output context.">echo "<i>$id</i><b>$key</b>";</error>
+        echo "<i>$id</i><b><error descr="Escape untrusted text for its HTML output context.">$key</error></b>";
     }
 
     // Every part is escaped or numeric.

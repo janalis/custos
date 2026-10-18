@@ -33,7 +33,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if input == nil || !tainted(ctx, input, 0, context) || requestRewritten(ctx, n, input, context) || inertResponse(ctx, n) {
 		return
 	}
-	ctx.ReportNode(n, message)
+	ctx.ReportNode(input, message)
 }
 
 // htmlInput returns the first request-derived part of an output statement

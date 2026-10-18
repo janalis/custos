@@ -7,6 +7,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Highlight the unsafe emitted value in HTML-output findings, including
+  interpolated values and transformed expressions.
+
 - Detect unescaped request data in quoted HTML data attributes. Track single-
   and double-quote escaping separately, respect PHP-version defaults and named
   flags, and recognize delimiter-free encoder outputs.

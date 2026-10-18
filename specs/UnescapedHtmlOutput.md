@@ -31,7 +31,7 @@ control characters before PHP numeric-key normalization is applied.
 - D1. Report request-derived text emitted inside a proven HTML text-node or quoted ordinary data-attribute context without appropriate escaping. Both `echo` and `print` are output statements.
 - D1a. The context is proven from the bytes one statement emits before the request-derived part: concatenated literals, the literal fragments of a double-quoted string or heredoc (escape sequences decoded for the parsed source version), and the earlier operands of a comma-separated `echo`. Those bytes must close an ordinary tag and leave no tag, attribute, comment, `script` or `style` element open, or end inside a single- or double-quoted ordinary data attribute. Supported attributes are `title`, `alt`, `class`, `id`, `name`, `value`, `placeholder`, `role`, `tabindex`, `width`, `height`, `colspan`, `rowspan`, and names starting with `data-` or `aria-`, matched without ASCII case. URL-bearing attributes, event handlers, style, srcdoc and unquoted values have separate grammars and remain unclassified.
 - D1b. Dynamic parts emitted before the request-derived one are passed over when they cannot hold markup: a value typed integer, float or boolean anywhere in the statement, and a value that derives from tracked inputs and is escaped for HTML on every path when it is emitted into a text node. Such a part adds nothing to the proven bytes. A safely escaped dynamic attribute value ends the context search: provenance escaping alone does not prove that an opaque value contains no trusted delimiters. Any other dynamic part (an unknown value, a call result or a value escaped on some paths only) could open an attribute or a raw-text element: nothing after it is examined.
-- D1c. The first request-derived part found this way decides the statement; one finding is reported however many parts are unescaped. Later parts of the same operand must be free of side effects, because the whole operand is evaluated before any of it is emitted; later `echo` operands are not restricted.
+- D1c. The first request-derived part found this way decides the statement; one finding highlights that emitted expression, however many later parts are unescaped. Arbitrary unescaped bytes end the context proof, so later expressions are not presumed to share its context. Later parts of the same operand must be free of side effects, because the whole operand is evaluated before any of it is emitted; later `echo` operands are not restricted.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
 - D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
@@ -52,7 +52,7 @@ A catch contributes values only when its try body can throw. Bounded inert liter
 
 ## Report
 
-- Range: the complete violating call or expression identified by D1; for a declaration-state violation, the offending property access or assignment. Highlight the final unsafe use for source-to-use findings.
+- Range: the unsafe emitted expression identified by D1, excluding enclosing concatenations, parentheses, output keywords and statement terminators. Interpolated values highlight their expression within the string. A transformed value highlights the whole transforming call; a conditional value highlights the whole conditional expression.
 - Severity: error.
 - Message: `Escape untrusted text for its HTML output context.`
 
@@ -72,17 +72,17 @@ Apply only on PHP versions supporting the referenced APIs and syntax (within PHP
 
 ```php
 <?php
-<error descr="Escape untrusted text for its HTML output context.">echo '<p>' . $_GET['label'] . '</p>';</error>
-<error descr="Escape untrusted text for its HTML output context.">echo "<li>{$_POST['title']}</li>";</error>
-<error descr="Escape untrusted text for its HTML output context.">echo '<td>', $_GET['cell'], '</td>';</error>
-<error descr="Escape untrusted text for its HTML output context.">print '<p>' . $_COOKIE['theme']</error>;
+echo '<p>' . <error descr="Escape untrusted text for its HTML output context.">$_GET['label']</error> . '</p>';
+echo "<li>{<error descr="Escape untrusted text for its HTML output context.">$_POST['title']</error>}</li>";
+echo '<td>', <error descr="Escape untrusted text for its HTML output context.">$_GET['cell']</error>, '</td>';
+print '<p>' . <error descr="Escape untrusted text for its HTML output context.">$_COOKIE['theme']</error>;
 
 function row()
 {
     $name = $_GET['name'];
     $page = (int) $_GET['page'];
-    <error descr="Escape untrusted text for its HTML output context.">echo '<i>' . htmlspecialchars($name) . '</i><b>' . $name . '</b>';</error>
-    <error descr="Escape untrusted text for its HTML output context.">echo "<a href=\"?page=$page\">$name</a>";</error>
+    echo '<i>' . htmlspecialchars($name) . '</i><b>' . <error descr="Escape untrusted text for its HTML output context.">$name</error> . '</b>';
+    echo "<a href=\"?page=$page\"><error descr="Escape untrusted text for its HTML output context.">$name</error></a>";
 }
 ```
 

@@ -15,7 +15,7 @@ function possibleCall() {
     $text = 'ready';
     try { work(); }
     catch (Throwable $error) { $text = $_GET['text']; }
-    <error descr="Escape untrusted text for its HTML output context.">echo '<p>' . $text;</error>
+    echo '<p>' . <error descr="Escape untrusted text for its HTML output context.">$text</error>;
 }
 class ReleasingValue { public function __destruct() { throw new Exception; } }
 function discardedObject() {
@@ -23,5 +23,5 @@ function discardedObject() {
     $value = new ReleasingValue;
     try { $value = 1; }
     catch (Throwable $error) { $text = $_GET['text']; }
-    <error descr="Escape untrusted text for its HTML output context.">echo '<p>' . $text;</error>
+    echo '<p>' . <error descr="Escape untrusted text for its HTML output context.">$text</error>;
 }
