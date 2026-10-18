@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Preserve HTML-output findings through reference calls that retain request data.
+  Match named reference arguments and use callable output contracts to distinguish
+  proven replacements from conditional writes and potentially aliased outputs.
+
 - Report bounded analysis gaps separately from findings in JSON, SARIF, CLI
   summaries and editor logs. Reject diagnostics and fixes from replaced
   documents or outdated analysis snapshots.

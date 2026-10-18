@@ -86,7 +86,7 @@ func aliased(ctx *analysis.Context, v *syntax.Variable) bool {
 		case *syntax.FuncCall:
 			found = found || semanticquery.NativeBuiltinName(ctx, x) == "extract"
 			for _, target := range referenceArguments(ctx, x) {
-				found = found || named(target)
+				found = found || named(target.Argument.Value)
 			}
 		}
 		return !found && (n == scope || !syntax.IsVariableScope(n))
@@ -289,8 +289,15 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) 
 		case *syntax.FuncCall:
 			targets := referenceArguments(ctx, x)
 			fed := len(targets) > 0 && fedByRequest(ctx, x, targets)
-			for _, target := range targets {
-				add(write{target: target, replace: !fed, refill: fed})
+			for _, reference := range targets {
+				arg := reference.Argument
+				replace, refill := !fed && reference.Known, fed || !reference.Known
+				if semanticquery.NativeBuiltinName(ctx, x) == "" {
+					value, known := ctx.Flow().ReferenceResult(x, arg)
+					replace = known && (value.Safe&flow.HTML != 0 || !slices.ContainsFunc(value.Sources, func(source flow.Source) bool { return source.Parameter < 0 }) || callbackResult(ctx, value.Expr))
+					refill = !replace
+				}
+				add(write{target: arg.Value, replace: replace, refill: refill})
 			}
 		}
 		return true
@@ -384,20 +391,14 @@ var pointerOnly = map[string]bool{
 	"extract": true, "current": true, "key": true, "end": true, "reset": true, "next": true, "prev": true, "each": true,
 }
 
-// referenceArguments returns the positional arguments bound to by-reference
+// referenceArguments returns arguments that may bind to by-reference
 // parameters of a resolved callee that may change them.
-func referenceArguments(ctx *analysis.Context, call *syntax.FuncCall) []syntax.Expr {
+func referenceArguments(ctx *analysis.Context, call *syntax.FuncCall) []semanticquery.ReferenceArgument {
 	callee, ok := semanticquery.ResolveCallee(ctx, call)
 	if !ok || call.Args == nil || pointerOnly[semanticquery.NativeBuiltinName(ctx, call)] {
 		return nil
 	}
-	var out []syntax.Expr
-	for i, node := range call.Args.Args {
-		if arg, ok := node.(*syntax.Arg); ok && i < len(callee.Params) && callee.Params[i].ByRef {
-			out = append(out, arg.Value)
-		}
-	}
-	return out
+	return semanticquery.ReferenceArguments(call.Args, callee.Params, true)
 }
 
 // callbackResult reports the result of a resolved function that applies a
@@ -420,12 +421,12 @@ func callbackResult(ctx *analysis.Context, value syntax.Expr) bool {
 // fedByRequest reports a builtin that receives request text in an argument
 // it does not write: what it stores in the referenced ones may derive from it
 // (`parse_str($_SERVER['QUERY_STRING'], $_GET)`).
-func fedByRequest(ctx *analysis.Context, call *syntax.FuncCall, written []syntax.Expr) bool {
+func fedByRequest(ctx *analysis.Context, call *syntax.FuncCall, written []semanticquery.ReferenceArgument) bool {
 	if semanticquery.NativeBuiltinName(ctx, call) == "" {
 		return false
 	}
 	for _, node := range call.Args.Args {
-		if arg, ok := node.(*syntax.Arg); ok && !slices.Contains(written, arg.Value) && ctx.Flow().Tainted(arg.Value, flow.HTML) {
+		if arg, ok := node.(*syntax.Arg); ok && !slices.ContainsFunc(written, func(reference semanticquery.ReferenceArgument) bool { return reference.Argument == arg }) && ctx.Flow().Tainted(arg.Value, flow.HTML) {
 			return true
 		}
 	}

@@ -32,6 +32,38 @@ func ArgBindsByRef(list *syntax.ArgList, params []index.Param, callTimeRef bool)
 	return false
 }
 
+// ReferenceArgument is a written argument that may bind by reference.
+// Known distinguishes an exact binding from an uncertain unpacked position.
+type ReferenceArgument struct {
+	Argument *syntax.Arg
+	Known    bool
+}
+
+// ReferenceArguments collects possible reference bindings in one pass over the
+// written arguments. Callers must not use uncertain bindings as write proofs.
+func ReferenceArguments(list *syntax.ArgList, params []index.Param, callTimeRef bool) []ReferenceArgument {
+	if list == nil {
+		return nil
+	}
+	var out []ReferenceArgument
+	pos := 0
+	for _, node := range list.Args {
+		arg, ok := node.(*syntax.Arg)
+		if !ok {
+			continue
+		}
+		byRef, known := referenceBinding(arg, pos, params)
+		if callTimeRef && arg.ByRef {
+			byRef, known = true, true
+		}
+		if byRef {
+			out = append(out, ReferenceArgument{Argument: arg, Known: known})
+		}
+		pos = nextArgumentPosition(arg, pos)
+	}
+	return out
+}
+
 // ArgumentBindsByRef reports whether one written argument may bind by
 // reference. known=false means unpacking obscures its parameter; byRef then
 // conservatively includes every parameter it may bind. A node not in list

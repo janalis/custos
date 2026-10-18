@@ -18,6 +18,18 @@ func TestReviewSafety(t *testing.T) {
 		name, source string
 		findings     int
 	}{
+		{"reference noop positional", "<?php function keep(&$out,$ignored){} keep($_GET,[]); echo '<p>'.$_GET['v'];", 1},
+		{"reference noop named", "<?php function keep($ignored,&$out){} keep(out:$_GET,ignored:[]); echo '<p>'.$_GET['v'];", 1},
+		{"reference clean positional", "<?php function clear(&$out,$ignored){$out=['v'=>'safe'];} clear($_GET,[]); echo '<p>'.$_GET['v'];", 0},
+		{"reference clean named", "<?php function clear(&$out,$ignored){$out=['v'=>'safe'];} clear(ignored:[],out:$_GET); echo '<p>'.$_GET['v'];", 0},
+		{"reference conditional clean", "<?php function clear(&$out,$condition){if($condition){$out=['v'=>'safe'];}} clear($_GET,$c); echo '<p>'.$_GET['v'];", 1},
+		{"reference source copied named", "<?php function copyOutput(&$out,$from){$out=$from;} copyOutput(from:$_POST,out:$_GET); echo '<p>'.$_GET['v'];", 1},
+		{"reference clean copied named", "<?php function copyOutput(&$out,$from){$out=$from;} copyOutput(from:['v'=>'safe'],out:$_GET); echo '<p>'.$_GET['v'];", 0},
+		{"reference aliases positional", "<?php function changeOutput(&$out,&$other){$out=['v'=>'safe'];$other=$_POST;} changeOutput($_GET,$_GET); echo '<p>'.$_GET['v'];", 1},
+		{"reference aliases reordered", "<?php function changeOutput(&$out,&$other){$out=['v'=>'safe'];$other=$_POST;} changeOutput(other:$_GET,out:$_GET); echo '<p>'.$_GET['v'];", 1},
+		{"reference source refills clean table", "<?php function fillOutput(&$out,$from){$out=$from;} $_GET=['v'=>'safe']; fillOutput($_GET,$_POST); echo '<p>'.$_GET['v'];", 1},
+		{"unpacked builtin cannot replace its container", "<?php preg_match(...$_GET); echo '<p>'.$_GET['v'];", 1},
+		{"reference cleanup before indirect refill", "<?php function clearOutput(&$out){$out=[];other();} clearOutput($_GET); echo '<p>'.$_GET['v'];", 1},
 		{"concatenation", "<?php echo '<p>' . $_GET['v'] . '</p>';", 1},
 		// A matched switch label is text of the program: what follows it in
 		// the statement is still looked at.

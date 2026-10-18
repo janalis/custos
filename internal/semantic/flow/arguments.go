@@ -21,6 +21,63 @@ func (e *Env) BoundArguments(at syntax.Node) ([]Value, bool) {
 	return nil, false
 }
 
+// ReferenceResult returns what a fixed project function leaves in an argument.
+// Sources include inputs retained on any path; Expr is present only for a
+// single reaching expression from the local reference channel.
+// Unpacked, variadic and unresolved bindings cannot establish this proof.
+// Multiple reference arguments may alias, so their outputs are not projected.
+// A callee that may modify request globals can also write the actual argument
+// through another route; its parameter-only summary cannot prove this result.
+func (e *Env) ReferenceResult(call *syntax.FuncCall, target *syntax.Arg) (Value, bool) {
+	if call == nil || call.Args == nil || target == nil {
+		return Value{}, false
+	}
+	params, name, known := e.declaration(call)
+	summary, described := e.contract(name)
+	if !known || !described || !summary.Fixed || !summary.Spares {
+		return Value{}, false
+	}
+	r := e.scope(syntax.EnclosingVariableScope(call))
+	if !r.complete {
+		return Value{}, false
+	}
+	if len(call.Args.Args) > 256 || len(params) > 64 {
+		r.gap("argument-budget", call.Span())
+		return Value{}, false
+	}
+	var few [8]int
+	positions := parameters(call.Args, params, few[:0])
+	at, references := -1, 0
+	for i, node := range call.Args.Args {
+		arg, ok := node.(*syntax.Arg)
+		p := positions[i]
+		if !ok || arg.Unpack || arg.ByRef || p < 0 || params[p].Variadic {
+			return Value{}, false
+		}
+		if _, evaluated := r.values[arg.Value]; !evaluated {
+			return Value{}, false
+		}
+		if params[p].ByRef {
+			references++
+		}
+		if arg == target {
+			at = i
+		}
+	}
+	if at < 0 || references != 1 || !params[positions[at]].ByRef {
+		return Value{}, false
+	}
+	if _, described := summary.ByRef[positions[at]]; !described {
+		return Value{}, false
+	}
+	v := e.left(call, at, call.Args, positions, r.values[target.Value], nil, r)
+	if body := e.localBody(name); body != nil {
+		p := syntax.VariableScopeParams(body)[positions[at]]
+		v.Expr = e.scope(body).exit[received(p.Var.Name)].Expr
+	}
+	return v, true
+}
+
 func (e *Env) declaration(at syntax.Node) ([]index.Param, string, bool) {
 	switch n := at.(type) {
 	case *syntax.FuncCall:
