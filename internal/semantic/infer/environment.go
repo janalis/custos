@@ -22,10 +22,14 @@ type Env struct {
 	Index   *index.Index // project index layered over the stubs
 	PHP     phpversion.Version
 
-	chains map[syntax.Expr]nullsafeFact
-	cache  map[syntax.Expr]types.Type
-	scopes map[syntax.Node]*scopeVars
-	busy   map[syntax.Expr]bool
+	chains           map[syntax.Expr]nullsafeFact
+	cache            map[syntax.Expr]types.Type
+	scopes           map[syntax.Node]*scopeVars
+	busy             map[syntax.Expr]bool
+	functions        map[*syntax.FuncCall]*index.Function
+	functionIndex    *index.Index
+	functionRevision uint64
+	functionVersion  phpversion.Version
 	// bases holds the type of variable reads before the element writes
 	// reaching them are applied (see baseType).
 	bases map[*syntax.Variable]types.Type

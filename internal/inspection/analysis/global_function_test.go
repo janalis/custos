@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/index"
 )
 
 func TestGlobalFunctionName(t *testing.T) {
@@ -37,6 +38,36 @@ namespace { StrLen($x); }
 	}
 	if !ctx.IsGlobalFunctionCall(firstCall(f, "StrLen"), "strlen") {
 		t.Fatal("StrLen in the global namespace should resolve to strlen")
+	}
+}
+
+func TestGlobalFunctionCacheFollowsIndexChanges(t *testing.T) {
+	e, err := NewEngine(nil, Config{PHP: phpversion.PHP84})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := syntax.Parse("caller.php", []byte(`<?php namespace App; trim($value);`), syntax.Options{})
+	ctx := NewTestContext(e, f)
+	call := firstCall(f, "trim")
+	for range 2 {
+		if got := ctx.GlobalFunctionName(call); got != "trim" {
+			t.Fatal(got)
+		}
+	}
+	shadow := syntax.Parse("shadow.php", []byte(`<?php namespace App; function trim($value){}`), syntax.Options{})
+	ctx.Index().Add(index.Extract(shadow))
+	for range 2 {
+		if got := ctx.GlobalFunctionName(call); got != "" {
+			t.Fatalf("stale global fallback: %q", got)
+		}
+	}
+	ctx.Index().Remove("shadow.php")
+	if got := ctx.GlobalFunctionName(call); got != "trim" {
+		t.Fatalf("removed shadow retained: %q", got)
+	}
+	ctx.PHP = phpversion.PHP74
+	if got := ctx.GlobalFunctionName(call); got != "trim" {
+		t.Fatal(got)
 	}
 }
 

@@ -130,16 +130,24 @@ func (c *Context) IsGlobalFunctionCall(call *syntax.FuncCall, global string) boo
 // name is declared (it wins over PHP's global fallback). Rules matching
 // builtins switch on it instead of on the written name.
 func (c *Context) GlobalFunctionName(call *syntax.FuncCall) string {
+	if cached, ok := c.globalCalls[call]; ok && cached.php == c.PHP && cached.revision == c.Index().Revision() {
+		return cached.name
+	}
 	name, ok := call.Name.(*syntax.Name)
 	if !ok {
 		return ""
 	}
 	fqn, fallback := c.Names().Function(name.Value, name.Span().Start)
 	if fallback != "" {
+		resolved := lower(fallback)
 		if c.Index().Function(fqn, c.PHP) != nil {
-			return ""
+			resolved = ""
 		}
-		return lower(fallback)
+		if c.globalCalls == nil {
+			c.globalCalls = map[*syntax.FuncCall]globalCallResolution{}
+		}
+		c.globalCalls[call] = globalCallResolution{revision: c.Index().Revision(), php: c.PHP, name: resolved}
+		return resolved
 	}
 	if strings.Contains(fqn, `\`) {
 		return ""

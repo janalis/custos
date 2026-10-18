@@ -18,11 +18,11 @@ func GlobalCall(ctx *analysis.Context, e syntax.Node, names ...string) (*syntax.
 	if g == "" {
 		return nil, ""
 	}
-	if declaration := ctx.Types().ResolveFunction(call); declaration != nil && !declaration.Builtin {
-		return nil, ""
-	}
 	for _, n := range names {
 		if g == n {
+			if declaration := ctx.Types().ResolveFunction(call); declaration != nil && !declaration.Builtin {
+				return nil, ""
+			}
 			return call, n
 		}
 	}
@@ -43,5 +43,7 @@ func NativeBuiltinName(ctx *analysis.Context, call *syntax.FuncCall) string {
 
 // NativeBuiltin proves that a call targets the available named builtin.
 func NativeBuiltin(ctx *analysis.Context, call *syntax.FuncCall, name string) bool {
-	return NativeBuiltinName(ctx, call) == name
+	// Most subscribed rules reject this call by name. Only a matching name
+	// needs the available declaration, rather than one lookup per rule.
+	return ctx.GlobalFunctionName(call) == name && NativeBuiltinName(ctx, call) == name
 }

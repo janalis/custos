@@ -14,11 +14,20 @@ func (e *Env) ResolveFunction(call *syntax.FuncCall) *index.Function {
 	if !ok {
 		return nil
 	}
+	revision := e.Index.Revision()
+	if e.functions == nil || e.functionIndex != e.Index || e.functionRevision != revision || e.functionVersion != e.PHP {
+		e.functions = map[*syntax.FuncCall]*index.Function{}
+		e.functionIndex, e.functionRevision, e.functionVersion = e.Index, revision, e.PHP
+	}
+	if cached, ok := e.functions[call]; ok {
+		return cached
+	}
 	fqn, fb := e.Names.Function(name.Value, name.Span().Start)
 	f := e.Index.ResolveFunction(fqn, fb, e.PHP)
 	if e.annotating && fb != "" && f != nil && !strings.EqualFold(f.FQN, fqn) {
 		e.deps = append(e.deps, fqn)
 	}
+	e.functions[call] = f
 	return f
 }
 

@@ -22,16 +22,23 @@ type Context struct {
 	PHP             phpversion.Version
 	ComparisonStyle ComparisonStyle
 
-	engine   *Engine
-	cur      *activeRule
-	findings []diagnostic.Finding
-	names    *names.Resolver
-	index    *index.Index
-	types    *infer.Env
-	flow     *flow.Env
-	memo     map[string]any
+	engine      *Engine
+	cur         *activeRule
+	findings    []diagnostic.Finding
+	names       *names.Resolver
+	index       *index.Index
+	types       *infer.Env
+	flow        *flow.Env
+	memo        map[string]any
+	globalCalls map[*syntax.FuncCall]globalCallResolution
 	// truncated is set once MaxFindingsPerFile findings were collected.
 	truncated bool
+}
+
+type globalCallResolution struct {
+	revision uint64
+	php      phpversion.Version
+	name     string
 }
 
 // Text returns the source text of n ("" for a nil node).

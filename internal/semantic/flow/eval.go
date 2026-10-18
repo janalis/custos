@@ -176,9 +176,12 @@ func remember(r *scopeResult, n syntax.Node, f frame) {
 		if !reserve(r, len(f.states)) {
 			return
 		}
-		m := map[uint32]State{}
-		for id, s := range f.states {
-			m[id] = s
+		var m map[uint32]State
+		if len(f.states) > 0 {
+			m = make(map[uint32]State, len(f.states))
+			for id, s := range f.states {
+				m[id] = s
+			}
 		}
 		r.before[n] = m
 	}
@@ -1067,8 +1070,10 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 	}
 	values := []Value{}
-	written := []*syntax.Arg{}
+	var argumentStorage [8]*syntax.Arg
+	written := argumentStorage[:0]
 	if args != nil {
+		values = make([]Value, 0, len(args.Args))
 		for _, x := range args.Args {
 			values = append(values, e.eval(x, f, r, depth+1))
 			if a, ok := x.(*syntax.Arg); ok {

@@ -26,10 +26,28 @@ type Index struct {
 	// gen counts the changes (Add/Remove) of this layer; ancestors caches
 	// Ancestors per class and version, valid while the generation of this
 	// layer and of every base layer is unchanged (see generation).
-	gen       atomic.Uint64
-	ancMu     sync.RWMutex
-	ancestors map[ancKey]ancEntry
+	gen              atomic.Uint64
+	ancMu            sync.RWMutex
+	ancestors        map[ancKey]ancEntry
+	methodGeneration uint64
+	methodMu         sync.RWMutex
+	methods          map[resolvedMethodKey]resolvedMethodEntry
 }
+
+type resolvedMethodKey struct {
+	class, name string
+	version     phpversion.Version
+}
+
+type resolvedMethodEntry struct {
+	generation uint64
+	method     *Method
+}
+
+const (
+	maxResolvedMethods        = 4096
+	maxResolvedMethodKeyBytes = 1024
+)
 
 type ancKey struct {
 	fqn string // lower-case
@@ -57,6 +75,10 @@ func (ix *Index) generation() uint64 {
 	}
 	return g
 }
+
+// Revision changes whenever declarations in this index or a base layer change.
+// File-local query caches use it to reject results from an earlier index state.
+func (ix *Index) Revision() uint64 { return ix.generation() }
 
 // New returns an empty index layered over base (may be nil).
 func New(base *Index) *Index {
@@ -94,6 +116,7 @@ func (ix *Index) Add(fs *FileSymbols) {
 	}
 	ix.children = nil
 	ix.gen.Add(1)
+	ix.clearMethodCache()
 }
 
 // Remove drops the symbols of a file.
@@ -103,6 +126,16 @@ func (ix *Index) Remove(path string) {
 	ix.removeLocked(path)
 	ix.children = nil
 	ix.gen.Add(1)
+	ix.clearMethodCache()
+}
+
+// clearMethodCache runs under the index write lock. Method lookups never hold
+// their cache lock while acquiring the index lock.
+func (ix *Index) clearMethodCache() {
+	ix.methodMu.Lock()
+	ix.methods = nil
+	ix.methodGeneration = 0
+	ix.methodMu.Unlock()
 }
 
 func (ix *Index) removeLocked(path string) {
@@ -472,6 +505,34 @@ func (ix *Index) IsSubtype(child, parent string, ver phpversion.Version) bool {
 // FindMethod looks a method up through the class, its traits, parents and
 // interfaces. Returns nil when not found.
 func (ix *Index) FindMethod(class, name string, ver phpversion.Version) *Method {
+	if len(class) > maxResolvedMethodKeyBytes || len(name) > maxResolvedMethodKeyBytes {
+		return ix.resolveMethod(class, name, ver)
+	}
+	key := resolvedMethodKey{class: class, name: name, version: ver}
+	generation := ix.generation()
+	ix.methodMu.RLock()
+	cached, found := ix.methods[key]
+	ix.methodMu.RUnlock()
+	if found && cached.generation == generation {
+		return cached.method
+	}
+	method := ix.resolveMethod(class, name, ver)
+	ix.methodMu.Lock()
+	// A concurrent writer may have invalidated this lookup while it resolved.
+	if ix.generation() == generation {
+		if ix.methods == nil || ix.methodGeneration != generation || len(ix.methods) >= maxResolvedMethods {
+			ix.methods = make(map[resolvedMethodKey]resolvedMethodEntry)
+			ix.methodGeneration = generation
+		}
+		// Lookup names may be slices of an editor buffer; retain only their bytes.
+		key.class, key.name = strings.Clone(class), strings.Clone(name)
+		ix.methods[key] = resolvedMethodEntry{generation: generation, method: method}
+	}
+	ix.methodMu.Unlock()
+	return method
+}
+
+func (ix *Index) resolveMethod(class, name string, ver phpversion.Version) *Method {
 	lname := strings.ToLower(name)
 	if c := ix.Class(class, ver); c != nil {
 		if ver != 0 && !c.Avail.In(ver) {

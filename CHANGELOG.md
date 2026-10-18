@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Cache repeated builtin and method resolution with bounded storage and index
+  revision checks. Release removed method entries immediately and avoid
+  temporary call-argument and empty state-snapshot allocations.
+
 - Retain conditional native operations in bounded receiver histories. Distinguish
   an empty proven history from an incomplete one, account for loop replay and
   captured aliases, and retain fresh handle identities with uncertain input data.
