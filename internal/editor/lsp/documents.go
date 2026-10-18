@@ -47,6 +47,8 @@ func (s *Server) change(p didChangeParams) {
 		}
 		d.lines = syntax.NewLineIndex(d.text)
 	}
+	d.revision++
+	d.analyzed = -1
 	d.version = p.TextDocument.Version
 	if d.timer != nil {
 		d.timer.Stop()
@@ -57,13 +59,15 @@ func (s *Server) change(p didChangeParams) {
 }
 
 func (s *Server) close(uri string) {
-	s.mu.Lock()
-	if d, ok := s.docs[uri]; ok && d.timer != nil {
-		d.timer.Stop()
-	}
-	delete(s.docs, uri)
-	s.mu.Unlock()
-	_ = s.c.notify("textDocument/publishDiagnostics", publishDiagnosticsParams{URI: uri, Diagnostics: []protocolDiagnostic{}})
+	func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if d, ok := s.docs[uri]; ok && d.timer != nil {
+			d.timer.Stop()
+		}
+		delete(s.docs, uri)
+		_ = s.c.notify("textDocument/publishDiagnostics", publishDiagnosticsParams{URI: uri, Diagnostics: []protocolDiagnostic{}})
+	}()
 	if s.flowEnabled() {
 		s.watchedFilesChanged([]fileChange{{URI: uri, Type: 2}})
 	}

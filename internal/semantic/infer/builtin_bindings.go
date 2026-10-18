@@ -12,7 +12,7 @@ import (
 // builtin return type. Unknown spreads and invalid calls retain the declaration
 // type. A fixed bitset avoids allocating on this hot path.
 func builtinBindingsKnown(list *syntax.ArgList, params []index.Param, php phpversion.Version, allowTailSpread bool) bool {
-	if list == nil || len(list.Args) > 256 || len(params) > 64 {
+	if list == nil || len(list.Args) > maxWrittenArgs || len(params) > maxBoundParams {
 		return false
 	}
 	var seen uint64

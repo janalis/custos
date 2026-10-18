@@ -143,7 +143,12 @@ func (e *Env) bodyReturn(span syntax.Span) types.Type {
 	if t, ok := e.bodies[span]; ok {
 		return t
 	}
-	if e.bodyBusy[span] || e.bodyDepth >= maxBodyDepth {
+	if e.bodyBusy[span] {
+		e.noteGap(gapRecursion, span)
+		return types.Unknown
+	}
+	if e.bodyDepth >= maxBodyDepth {
+		e.noteGap(gapInferenceBudget, span)
 		return types.Unknown
 	}
 	var body *syntax.Block

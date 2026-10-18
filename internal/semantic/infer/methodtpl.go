@@ -24,7 +24,7 @@ import (
 // tplArg returns the argument expression bound to parameter i of params
 // (positional, or named after it), nil when absent, unpacked or variadic.
 func (e *Env) tplArg(args *syntax.ArgList, params []index.Param, i int) syntax.Expr {
-	value, _ := bindArgument(args, params, i, e.PHP)
+	value, _ := e.boundArgument(args, params, i)
 	return value
 }
 

@@ -99,14 +99,23 @@ func (e *Engine) Config() Config { return e.cfg }
 // source order. A rule that panics is reported as an "internal" error
 // finding and disabled for this file; the remaining rules still run.
 func (e *Engine) Analyze(f *syntax.File) []diagnostic.Finding {
+	return e.AnalyzeResult(f).Findings
+}
+
+// AnalyzeResult also reports incomplete proofs encountered by enabled checks.
+func (e *Engine) AnalyzeResult(f *syntax.File) diagnostic.AnalysisResult {
 	var disabled map[int]bool
 	var internal []diagnostic.Finding
 	// Terminates: each crash disables a distinct rule, and a run with every
 	// rule disabled cannot crash.
 	for {
-		findings, crashed, msg := e.analyzeOnce(f, disabled)
+		result, crashed, msg := e.analyzeOnce(f, disabled)
 		if crashed < 0 {
-			return append(internal, findings...)
+			result.Findings = append(internal, result.Findings...)
+			if len(internal) > 0 {
+				result.Incomplete = append(result.Incomplete, diagnostic.AnalysisIssue{Reason: "rule-failure", Span: f.Span()})
+			}
+			return result
 		}
 		if disabled == nil {
 			disabled = map[int]bool{}
@@ -121,12 +130,12 @@ func (e *Engine) Analyze(f *syntax.File) []diagnostic.Finding {
 
 // analyzeOnce runs the rules not in disabled. When a rule panics it returns
 // that rule's index (else -1) and the panic message.
-func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool) (out []diagnostic.Finding, crashed int, msg string) {
+func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool) (result diagnostic.AnalysisResult, crashed int, msg string) {
 	ctx := &Context{File: f, Src: f.Src, PHP: e.cfg.PHP, ComparisonStyle: e.cfg.ComparisonStyle, engine: e}
 	cur := -1
 	defer func() {
 		if r := recover(); r != nil {
-			out, crashed, msg = nil, cur, fmt.Sprint(r)
+			result, crashed, msg = diagnostic.AnalysisResult{}, cur, fmt.Sprint(r)
 			if cur < 0 {
 				panic(r) // not a rule failure
 			}
@@ -155,10 +164,10 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool) (out []diagn
 	}
 	cur = -1
 	if len(ctx.findings) == 0 {
-		return nil, -1, ""
+		return diagnostic.AnalysisResult{Incomplete: ctx.incomplete()}, -1, ""
 	}
 	sup := newSuppressions(f)
-	out = ctx.findings[:0]
+	out := ctx.findings[:0]
 	for _, fd := range ctx.findings {
 		if !sup.suppressed(fd) {
 			out = append(out, fd)
@@ -171,7 +180,7 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool) (out []diagn
 			Message: fmt.Sprintf("more than %d findings in this file; the rest are not reported", MaxFindingsPerFile),
 		})
 	}
-	return out, -1, ""
+	return diagnostic.AnalysisResult{Findings: out, Incomplete: ctx.incomplete()}, -1, ""
 }
 
 func sortFindings(fs []diagnostic.Finding) {
@@ -191,4 +200,25 @@ func less(a, b diagnostic.Finding) bool {
 		return a.Span.End < b.Span.End
 	}
 	return a.Rule < b.Rule
+}
+
+func (c *Context) incomplete() []diagnostic.AnalysisIssue {
+	var issues []diagnostic.AnalysisIssue
+	if len(c.File.Errors) > 0 {
+		issues = append(issues, diagnostic.AnalysisIssue{Reason: "syntax-recovery", Span: c.File.Errors[0].Span})
+	}
+	if c.types != nil {
+		for _, gap := range c.types.Gaps() {
+			issues = append(issues, diagnostic.AnalysisIssue{Reason: gap.Reason, Span: gap.Span})
+		}
+	}
+	if c.flow != nil {
+		for _, gap := range c.flow.Gaps() {
+			issues = append(issues, diagnostic.AnalysisIssue{Reason: gap.Reason, Span: gap.Span})
+		}
+	}
+	if c.truncated {
+		issues = append(issues, diagnostic.AnalysisIssue{Reason: "finding-limit", Span: c.File.Span()})
+	}
+	return issues
 }

@@ -31,7 +31,7 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 	}
 	allowTailSpread := builtin == "array_filter" || builtin == "array_map"
 	function := e.Index.Function(fqn, e.PHP)
-	if function == nil || !function.Builtin || !builtinBindingsKnown(n.Args, function.Params, e.PHP, allowTailSpread) {
+	if function == nil || !function.Builtin || e.bindingBudget(n.Args, function.Params) || !builtinBindingsKnown(n.Args, function.Params, e.PHP, allowTailSpread) {
 		return types.Unknown, false
 	}
 	arg := func(i int) syntax.Expr {

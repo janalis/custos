@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -69,9 +70,24 @@ func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {
 			fmt.Fprintf(stderr, "custos: %d finding(s) suppressed by baseline\n", suppressed)
 		}
 	}
-	if err := report.Write(stdout, *format, items, len(s.project.Files)); err != nil {
+	status := diagnostic.Status(results)
+	if err := report.WriteWithAnalysis(stdout, *format, items, len(s.project.Files), status); err != nil {
 		return 2, err
 	}
+	if !status.Complete {
+		files, reasons := map[string]bool{}, map[string]bool{}
+		for _, issue := range status.Issues {
+			files[issue.Path] = true
+			reasons[issue.Reason] = true
+		}
+		names := make([]string, 0, len(reasons))
+		for reason := range reasons {
+			names = append(names, reason)
+		}
+		sort.Strings(names)
+		fmt.Fprintf(stderr, "custos: analysis incomplete in %d file(s): %s\n", len(files), strings.Join(names, ", "))
+	}
+
 	if *stats {
 		fmt.Fprintf(stderr, "custos: %d files, %d rules, PHP %s (%s), %v\n", len(s.project.Files), len(s.project.Engine.Rules()), s.cfg.PHP, s.cfg.PHPSource, time.Since(start).Round(time.Millisecond))
 	}

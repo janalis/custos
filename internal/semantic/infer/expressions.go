@@ -14,6 +14,7 @@ func (e *Env) TypeOf(x syntax.Expr) types.Type {
 		return t
 	}
 	if e.busy[x] {
+		e.noteGap(gapRecursion, x.Span())
 		return types.Unknown // recursion (e.g. $a = $a + 1)
 	}
 	e.busy[x] = true

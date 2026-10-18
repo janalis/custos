@@ -112,7 +112,7 @@ func (e *Env) condTest(c *types.Cond, params []index.Param, args *syntax.ArgList
 		return condUnknown
 	}
 	var v argValue
-	value, state := bindArgument(args, params, i, e.PHP)
+	value, state := e.boundArgument(args, params, i)
 	switch state {
 	case bindingBound:
 		v = e.exprValue(value)

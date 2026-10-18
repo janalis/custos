@@ -35,11 +35,12 @@ type Finding struct {
 
 // FileResult is the outcome for one file.
 type FileResult struct {
-	Path     string // as discovered (relative to the working directory when possible)
-	Src      []byte
-	Findings []Finding
-	Errors   []syntax.Error // syntax errors
-	Err      error          // I/O error
+	Incomplete []AnalysisIssue
+	Path       string // as discovered (relative to the working directory when possible)
+	Src        []byte
+	Findings   []Finding
+	Errors     []syntax.Error // syntax errors
+	Err        error          // I/O error
 }
 
 // Item is one finding with resolved positions (1-based line/column, rune columns).

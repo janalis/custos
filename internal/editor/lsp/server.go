@@ -28,14 +28,18 @@ const (
 )
 
 type document struct {
-	uri      string
-	path     string
-	version  int
-	text     []byte
-	lines    *syntax.LineIndex
-	findings []diagnostic.Finding // for analyzedVersion
-	analyzed int                  // version the findings belong to (-1 = none)
-	timer    *time.Timer
+	analysisStatus string
+	analysisEngine *analysis.Engine
+	snapshot       uint64
+	revision       uint64
+	uri            string
+	path           string
+	version        int
+	text           []byte
+	lines          *syntax.LineIndex
+	findings       []diagnostic.Finding // for analyzedVersion
+	analyzed       int                  // version the findings belong to (-1 = none)
+	timer          *time.Timer
 }
 
 // Server is the custos language server.
@@ -54,6 +58,7 @@ type Server struct {
 	// file changes arriving meanwhile are queued in pending and replayed.
 	indexing        bool
 	indexGeneration uint64
+	nextSnapshot    uint64
 	pending         []fileChange
 	index           *index.Index
 	flow            *flow.Snapshot

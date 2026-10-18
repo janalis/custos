@@ -16,11 +16,13 @@ type Options struct{ Assertions bool }
 
 // Env infers expression types within one file. Not safe for concurrent use.
 type Env struct {
-	options Options
-	File    *syntax.File
-	Names   *names.Resolver
-	Index   *index.Index // project index layered over the stubs
-	PHP     phpversion.Version
+	gaps     map[inferenceGapKind]syntax.Span
+	gapOwner *Env
+	options  Options
+	File     *syntax.File
+	Names    *names.Resolver
+	Index    *index.Index // project index layered over the stubs
+	PHP      phpversion.Version
 
 	chains           map[syntax.Expr]nullsafeFact
 	cache            map[syntax.Expr]types.Type
@@ -99,6 +101,7 @@ func (e *Env) Native() *Env {
 	if e.nativeTwin == nil {
 		e.nativeTwin = NewEnv(e.File, e.Names, e.Index, e.PHP, e.options)
 		e.nativeTwin.native = true
+		e.nativeTwin.gapOwner = e.gapRoot()
 	}
 	return e.nativeTwin
 }
@@ -111,6 +114,7 @@ func (e *Env) WithOptions(options Options) *Env {
 	}
 	configured := NewEnv(e.File, e.Names, e.Index, e.PHP, options)
 	configured.native = e.native
+	configured.gapOwner = e.gapRoot()
 	return configured
 }
 

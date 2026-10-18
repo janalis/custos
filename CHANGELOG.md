@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Report bounded analysis gaps separately from findings in JSON, SARIF, CLI
+  summaries and editor logs. Reject diagnostics and fixes from replaced
+  documents or outdated analysis snapshots.
+
 - Preserve exact named-parameter bindings in template, conditional return and
   output inference. Distinguish uncertain spreads from omitted defaults while
   retaining explicit argument evidence on successful calls.

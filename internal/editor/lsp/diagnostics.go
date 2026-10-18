@@ -1,6 +1,9 @@
 package lsp
 
 import (
+	"sort"
+	"strings"
+
 	"custos/internal/diagnostic"
 	"custos/internal/php/syntax"
 	"custos/internal/project"
@@ -27,30 +30,41 @@ func (s *Server) analyzeNow(uri string) {
 		s.mu.Unlock()
 		return
 	}
-	text, version, path, e, cfg := d.text, d.version, d.path, s.engine, s.cfg
+	original, revision := d, d.revision
+	text, version, path, e, cfg, lines := d.text, d.version, d.path, s.engine, s.cfg, d.lines
 	s.mu.Unlock()
 
 	s.sem <- struct{}{}
-	findings := func() []diagnostic.Finding {
-		defer s.guard("analysis of "+path, nil)
-		return project.AnalyzeBuffer(e, path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}).Findings
-	}()
+	result := s.guardedAnalysis(path, func() diagnostic.FileResult {
+		return project.AnalyzeBuffer(e, path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
+	})
 	<-s.sem
 
-	s.mu.Lock()
-	d, ok = s.docs[uri]
-	if !ok || d.version != version || s.engine != e {
-		s.mu.Unlock()
-		return // stale
-	}
-	d.findings, d.analyzed = findings, version
-	lines := d.lines
-	s.mu.Unlock()
-
+	findings := result.Findings
+	status := analysisStatus(result.Incomplete)
 	diags := make([]protocolDiagnostic, 0, len(findings))
 	for _, f := range findings {
 		diags = append(diags, toDiagnostic(lines, f))
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	d, ok = s.docs[uri]
+	if !ok || d != original || d.revision != revision || d.version != version || s.engine != e {
+		return
+	}
+	statusChanged := d.analysisStatus != status
+	d.analysisStatus = status
+	s.nextSnapshot++
+	d.snapshot, d.analysisEngine = s.nextSnapshot, e
+	d.findings, d.analyzed = findings, version
+	if statusChanged {
+		if status == "" {
+			s.logf("analysis complete for %s", path)
+		} else {
+			s.logf("analysis incomplete for %s: %s", path, status)
+		}
+	}
+	// Keep validation and publication ordered with document/model replacement.
 	v := version
 	_ = s.c.notify("textDocument/publishDiagnostics", publishDiagnosticsParams{URI: uri, Version: &v, Diagnostics: diags})
 }
@@ -73,4 +87,26 @@ func toDiagnostic(lines *syntax.LineIndex, f diagnostic.Finding) protocolDiagnos
 		Range: toRange(lines, f.Span), Severity: sev, Code: f.Rule, Source: "custos", Message: f.Message,
 		Data: &diagData{Rule: f.Rule, Start: f.Span.Start, End: f.Span.End},
 	}
+}
+
+func analysisStatus(issues []diagnostic.AnalysisIssue) string {
+	reasons := map[string]bool{}
+	for _, issue := range issues {
+		reasons[issue.Reason] = true
+	}
+	names := make([]string, 0, len(reasons))
+	for reason := range reasons {
+		names = append(names, reason)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ", ")
+}
+
+// guardedAnalysis preserves an explicit incomplete result after an unexpected
+// adapter or engine failure, so recovery cannot publish a complete status.
+func (s *Server) guardedAnalysis(path string, run func() diagnostic.FileResult) (result diagnostic.FileResult) {
+	defer s.guard("analysis of "+path, func() {
+		result.Incomplete = []diagnostic.AnalysisIssue{{Reason: "internal-failure"}}
+	})
+	return run()
 }

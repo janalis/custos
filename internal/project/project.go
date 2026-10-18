@@ -67,5 +67,17 @@ func (p *Project) PrepareFixes() []PreparedFix {
 // AnalyzeBuffer analyzes supplied bytes without reading the filesystem.
 func AnalyzeBuffer(engine fixing.Analyzer, path string, src []byte, opt syntax.Options) diagnostic.FileResult {
 	file := syntax.ParseBest(path, src, opt)
-	return diagnostic.FileResult{Path: path, Src: src, Findings: engine.Analyze(file), Errors: file.Errors}
+	result := diagnostic.FileResult{Path: path, Src: src, Errors: file.Errors}
+	if detailed, ok := engine.(interface {
+		AnalyzeResult(*syntax.File) diagnostic.AnalysisResult
+	}); ok {
+		analysis := detailed.AnalyzeResult(file)
+		result.Findings, result.Incomplete = analysis.Findings, analysis.Incomplete
+	} else {
+		result.Findings = engine.Analyze(file)
+		if len(file.Errors) > 0 {
+			result.Incomplete = []diagnostic.AnalysisIssue{{Reason: "syntax-recovery", Span: file.Errors[0].Span}}
+		}
+	}
+	return result
 }

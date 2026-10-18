@@ -8,6 +8,11 @@ import (
 	"custos/internal/semantic/index"
 )
 
+const (
+	maxBoundParams = 64
+	maxWrittenArgs = 256
+)
+
 type argumentBindingState uint8
 
 const (
@@ -20,7 +25,7 @@ const (
 // spread cannot replace an explicit binding without making PHP reject the call,
 // but it prevents proof of omission. Invalid and exhausted bindings stay unknown.
 func bindArgument(args *syntax.ArgList, params []index.Param, target int, version phpversion.Version) (syntax.Expr, argumentBindingState) {
-	if args == nil || target < 0 || target >= len(params) || len(params) > 64 || len(args.Args) > 256 || params[target].Variadic {
+	if args == nil || target < 0 || target >= len(params) || len(params) > maxBoundParams || len(args.Args) > maxWrittenArgs || params[target].Variadic {
 		return nil, bindingUnknown
 	}
 	if version == 0 {

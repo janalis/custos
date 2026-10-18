@@ -17,7 +17,12 @@ func (e *Env) captureType(closure syntax.Expr, name string) types.Type {
 	if t, ok := e.captures[k]; ok {
 		return t
 	}
-	if e.captureBusy[k] || e.captureDepth >= maxCaptureDepth {
+	if e.captureBusy[k] {
+		e.noteGap(gapRecursion, closure.Span())
+		return types.Unknown
+	}
+	if e.captureDepth >= maxCaptureDepth {
+		e.noteGap(gapInferenceBudget, closure.Span())
 		return types.Unknown
 	}
 	if e.captures == nil {
@@ -40,6 +45,7 @@ func (e *Env) captureSnapshot(closure syntax.Expr, name string) types.Type {
 	sv := e.scopeVars(scope)
 	defs := sv.defs[name]
 	if len(defs) > maxVarDefs {
+		e.noteGap(gapInferenceBudget, closure.Span())
 		return types.Unknown
 	}
 	if arrow, ok := scope.(*syntax.ArrowFunction); ok && len(defs) == 0 {

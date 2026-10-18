@@ -371,7 +371,7 @@ func (r *TRules) declaredAndDoc(declared, doc string, builtin bool) types.Type {
 // or named; nil when omitted or uncertain. The parser gives a FuncCall an argument
 // list (parseArgs), so n.Args is never nil here.
 func (r *TRules) arg(n *syntax.FuncCall, f *index.Function, i int) syntax.Expr {
-	value, _ := bindArgument(n.Args, f.Params, i, r.Env.PHP)
+	value, _ := r.Env.boundArgument(n.Args, f.Params, i)
 	return value
 }
 
@@ -462,7 +462,7 @@ func (r *TRules) override(n *syntax.FuncCall, f *index.Function) (types.Type, bo
 		}
 		return types.Int, true
 	case "var_export", "print_r":
-		value, state := bindArgument(n.Args, f.Params, 1, r.Env.PHP)
+		value, state := r.Env.boundArgument(n.Args, f.Params, 1)
 		if state != bindingUnknown {
 			if t, ok := printReturn(name, value, r.argCount(n)); ok {
 				return t, true

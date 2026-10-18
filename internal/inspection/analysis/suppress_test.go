@@ -94,7 +94,15 @@ func TestSuppressionsScale(t *testing.T) {
 // TestFindingsCap checks that a file with a huge number of findings is
 // truncated with one note instead of collecting them all.
 func TestFindingsCap(t *testing.T) {
-	got := analyseOK(t, "<?php\n"+strings.Repeat("$a = !$b;\n", MaxFindingsPerFile+500))
+	engine, err := NewEngine([]Rule{okRule{}}, Config{EnableAll: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := engine.AnalyzeResult(syntax.Parse("limited.php", []byte("<?php\n"+strings.Repeat("$a = !$b;\n", MaxFindingsPerFile+500)), syntax.Options{}))
+	if len(result.Incomplete) != 1 || result.Incomplete[0].Reason != "finding-limit" {
+		t.Fatalf("missing finding-limit status: %+v", result.Incomplete)
+	}
+	got := result.Findings
 	if len(got) != MaxFindingsPerFile+1 {
 		t.Fatalf("got %d findings", len(got))
 	}

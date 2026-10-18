@@ -13,13 +13,14 @@ import (
 
 // actionData identifies a fix for lazy resolution.
 type actionData struct {
-	URI     string `json:"uri"`
-	Version int    `json:"version"`
-	Rule    string `json:"rule,omitempty"`
-	Start   uint32 `json:"start,omitempty"`
-	End     uint32 `json:"end,omitempty"`
-	Fix     int    `json:"fix,omitempty"`
-	All     bool   `json:"all,omitempty"`
+	Snapshot uint64 `json:"snapshot"`
+	URI      string `json:"uri"`
+	Version  int    `json:"version"`
+	Rule     string `json:"rule,omitempty"`
+	Start    uint32 `json:"start,omitempty"`
+	End      uint32 `json:"end,omitempty"`
+	Fix      int    `json:"fix,omitempty"`
+	All      bool   `json:"all,omitempty"`
 	// Suppress asks for a `// @custos-ignore <Rule>` comment instead of a fixing.
 	Suppress bool `json:"suppress,omitempty"`
 }
@@ -27,11 +28,11 @@ type actionData struct {
 func (s *Server) codeActions(p codeActionParams) []codeAction {
 	s.mu.Lock()
 	d, ok := s.docs[p.TextDocument.URI]
-	if !ok || d.analyzed != d.version {
+	if !ok || d.analyzed != d.version || d.analysisEngine != s.engine {
 		s.mu.Unlock()
 		return []codeAction{}
 	}
-	lines, findings, version := d.lines, d.findings, d.version
+	lines, findings, version, snapshot := d.lines, d.findings, d.version, d.snapshot
 	s.mu.Unlock()
 
 	want := func(kind string) bool {
@@ -67,14 +68,14 @@ func (s *Server) codeActions(p codeActionParams) []codeAction {
 		}
 		diag := toDiagnostic(lines, f)
 		for i, fx := range f.Fixes {
-			data := actionData{URI: p.TextDocument.URI, Version: version, Rule: f.Rule, Start: f.Span.Start, End: f.Span.End, Fix: i}
+			data := actionData{URI: p.TextDocument.URI, Version: version, Snapshot: snapshot, Rule: f.Rule, Start: f.Span.Start, End: f.Span.End, Fix: i}
 			a := codeAction{Title: fx.Title, Kind: "quickfix", Diagnostics: []protocolDiagnostic{diag}, IsPreferred: i == 0, Data: mustJSON(data)}
 			if !s.resolve {
 				a.Edit = s.buildEdit(data)
 			}
 			actions = append(actions, a)
 		}
-		data := actionData{URI: p.TextDocument.URI, Version: version, Rule: f.Rule, Start: f.Span.Start, End: f.Span.End, Suppress: true}
+		data := actionData{URI: p.TextDocument.URI, Version: version, Snapshot: snapshot, Rule: f.Rule, Start: f.Span.Start, End: f.Span.End, Suppress: true}
 		a := codeAction{Title: "Suppress " + f.Rule + " for this statement", Kind: "quickfix", Diagnostics: []protocolDiagnostic{diag}, Data: mustJSON(data)}
 		// Only offered when it works (a line to annotate, and re-analysis
 		// confirms just this finding goes away), even with lazy resolve.
@@ -90,12 +91,17 @@ func (s *Server) codeActions(p codeActionParams) []codeAction {
 	// Fixes first, then the suppressions (less often wanted).
 	actions = append(actions, suppress...)
 	if fixable > 0 && want(kindFixAll) {
-		data := actionData{URI: p.TextDocument.URI, Version: version, All: true}
+		data := actionData{URI: p.TextDocument.URI, Version: version, Snapshot: snapshot, All: true}
 		a := codeAction{Title: "custos: fix all problems in file", Kind: kindFixAll, Data: mustJSON(data)}
 		if !s.resolve {
 			a.Edit = s.buildEdit(data)
 		}
 		actions = append(actions, a)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.docs[p.TextDocument.URI] != d || d.analyzed != version || d.version != version || d.snapshot != snapshot || d.analysisEngine != s.engine {
+		return []codeAction{}
 	}
 	return actions
 }
@@ -116,7 +122,7 @@ func (s *Server) resolveAction(a codeAction) (any, *rpcError) {
 func (s *Server) buildEdit(data actionData) *workspaceEdit {
 	s.mu.Lock()
 	d, ok := s.docs[data.URI]
-	if !ok || d.version != data.Version || d.analyzed != d.version {
+	if !ok || d.version != data.Version || d.analyzed != d.version || d.analysisEngine != s.engine || d.snapshot != data.Snapshot {
 		s.mu.Unlock()
 		return nil
 	}
@@ -147,7 +153,13 @@ func (s *Server) buildEdit(data actionData) *workspaceEdit {
 			return nil
 		}
 	}
-	return docEdit(data.URI, data.Version, lines, edits)
+	edit := docEdit(data.URI, data.Version, lines, edits)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.docs[data.URI] != d || d.version != data.Version || d.analyzed != d.version || d.snapshot != data.Snapshot || s.engine != e {
+		return nil
+	}
+	return edit
 }
 
 func docEdit(uri string, version int, lines *syntax.LineIndex, edits []diagnostic.TextEdit) *workspaceEdit {
@@ -181,7 +193,7 @@ func (s *Server) executeCommand(p executeCommandParams) (any, *rpcError) {
 		s.mu.Unlock()
 		return nil, &rpcError{Code: codeInvalidParams, Message: "document not open"}
 	}
-	text, lines, version, path, e, cfg := d.text, d.lines, d.version, d.path, s.engine, s.cfg
+	text, lines, version, path, e, cfg, revision := d.text, d.lines, d.version, d.path, s.engine, s.cfg, d.revision
 	s.mu.Unlock()
 	opt := fixing.Options{Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}}
 	if only != "" {
@@ -196,6 +208,11 @@ func (s *Server) executeCommand(p executeCommandParams) (any, *rpcError) {
 		return nil, nil
 	}
 	edit := docEdit(uri, version, lines, []diagnostic.TextEdit{{Span: syntax.Span{Start: 0, End: uint32(len(text))}, NewText: string(res.Source)}})
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.docs[uri] != d || d.version != version || d.revision != revision || s.engine != e {
+		return nil, &rpcError{Code: codeRequestFailed, Message: "analysis changed; rerun the fix command"}
+	}
 	if err := s.c.request("workspace/applyEdit", map[string]any{"label": "custos fix", "edit": edit}); err != nil {
 		return nil, &rpcError{Code: codeInternalError, Message: err.Error()}
 	}

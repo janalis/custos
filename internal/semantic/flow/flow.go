@@ -641,6 +641,7 @@ type Env struct {
 }
 
 type scopeResult struct {
+	gaps            map[string]syntax.Span
 	originTypes     *infer.Env
 	originKeys      map[syntax.Expr]string
 	originReserve   int

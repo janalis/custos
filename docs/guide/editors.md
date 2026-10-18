@@ -57,6 +57,17 @@ name = "php"
 language-servers = ["intelephense", "custos"]   # keep your main server first
 ```
 
+## Analysis status
+
+The server sends an informational `window/logMessage` when a document's
+analysis becomes incomplete or returns to complete. The message includes the
+incompleteness reasons. It is separate from diagnostics and does not add a
+finding to the document. Results from an older document version, a closed and
+reopened document, or a replaced engine are discarded before publishing either
+diagnostics or status. Lazy fixes are tied to the analysis that produced them;
+reopening a document or changing the project/settings invalidates older fixes.
+Fix computations are checked again before returning or requesting edits.
+
 ## VS Code
 
 Use a generic LSP client extension and point it at `custos lsp` for the

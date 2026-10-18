@@ -28,7 +28,11 @@ func TestRulePanicIsolated(t *testing.T) {
 		t.Fatal(err)
 	}
 	f := syntax.Parse("x.php", []byte("<?php ;\n$a = !$b;"), syntax.Options{Version: phpversion.PHP84})
-	got := e.Analyze(f)
+	result := e.AnalyzeResult(f)
+	if len(result.Incomplete) != 1 || result.Incomplete[0].Reason != "rule-failure" {
+		t.Fatalf("missing crash status: %+v", result.Incomplete)
+	}
+	got := result.Findings
 	if len(got) != 2 || got[0].Rule != "internal" || got[1].Rule != "NestedNotOperators" {
 		t.Fatalf("got %+v", got)
 	}

@@ -48,12 +48,31 @@ These apply to both `analyse` and `fix`:
 Output formats:
 
 - `text`: `file:line:col: severity: message [Rule] (fixable)` and a summary line.
-- `json`: `{"files": N, "findings": [...]}`, each finding with `path`, `line`,
+- `json`: `{"files": N, "findings": [...], "analysis": {...}}`, each finding with `path`, `line`,
   `column`, `endLine`, `endColumn`, `rule`, `severity`, `message` and `fixable`.
 - `checkstyle`: Checkstyle XML, read by many CI dashboards.
 - `github`: GitHub Actions workflow commands, shown as annotations on the
   pull request diff.
 - `sarif`: SARIF 2.1.0, for GitHub code scanning and other SARIF viewers.
+
+Analysis status is separate from findings. JSON includes `analysis.complete` and
+`analysis.incomplete`; SARIF includes the same object in the run's
+`properties.analysis`. Each incomplete entry identifies a file, source range
+and reason, such as `dynamic-code`, `generator-suspension`,
+`unsupported-control-flow`, `flow-budget`, `syntax-recovery`, `finding-limit`
+or `rule-failure`. Read failures use `io-error`; `status-limit` indicates that
+the list was bounded.
+
+The CLI also prints an incomplete-analysis summary on stderr. This status does
+not change `--fail-on`: exit severity still comes from findings. A complete
+status means the enabled checks reported none of these gaps. It does not mean
+that the PHP program has no defects, that every runtime behavior was analyzed,
+or that every value could be determined.
+
+Inference reports `argument-budget` when binding limits are exceeded,
+`inference-budget` for bounded return or capture inference, and
+`inference-recursion` for a recursive type proof. Flow queries also report
+`unresolved-dispatch` when a call has no available flow contract. Limits reached while evaluating native types or enabled assertions are included.
 
 ## fix
 

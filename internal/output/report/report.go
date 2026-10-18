@@ -47,6 +47,24 @@ func Write(w io.Writer, format string, items []diagnostic.Item, files int) error
 	return fmt.Errorf("unknown format %q (want one of %s)", format, strings.Join(Formats, ", "))
 }
 
+// WriteWithAnalysis adds independent completion metadata to JSON and SARIF.
+// Other formats retain their established diagnostic encoding.
+func WriteWithAnalysis(w io.Writer, format string, items []diagnostic.Item, files int, status diagnostic.AnalysisStatus) error {
+	switch format {
+	case "json":
+		if items == nil {
+			items = []diagnostic.Item{}
+		}
+		enc := json.NewEncoder(w)
+		enc.SetIndent("", "  ")
+		return enc.Encode(map[string]any{"files": files, "findings": items, "analysis": status})
+	case "sarif":
+		return writeSARIFStatus(w, items, &status)
+	default:
+		return Write(w, format, items, files)
+	}
+}
+
 func writeText(w io.Writer, items []diagnostic.Item, files int) error {
 	counts := map[string]int{}
 	for _, it := range items {
@@ -115,6 +133,10 @@ func writeCheckstyle(w io.Writer, items []diagnostic.Item) error {
 
 // writeSARIF emits SARIF 2.1.0 (GitHub code scanning and most CI viewers).
 func writeSARIF(w io.Writer, items []diagnostic.Item) error {
+	return writeSARIFStatus(w, items, nil)
+}
+
+func writeSARIFStatus(w io.Writer, items []diagnostic.Item, status *diagnostic.AnalysisStatus) error {
 	level := map[string]string{"error": "error", "warning": "warning", "info": "note"}
 	ruleIdx := map[string]int{}
 	var rules []map[string]any
@@ -144,14 +166,15 @@ func writeSARIF(w io.Writer, items []diagnostic.Item) error {
 			}}},
 		})
 	}
-	doc := map[string]any{
-		"$schema": "https://json.schemastore.org/sarif-2.1.0.json",
-		"version": "2.1.0",
-		"runs": []any{map[string]any{
-			"tool":    map[string]any{"driver": map[string]any{"name": "custos", "rules": rules}},
-			"results": results,
-		}},
+	run := map[string]any{
+		"tool":    map[string]any{"driver": map[string]any{"name": "custos", "rules": rules}},
+		"results": results,
 	}
+	if status != nil {
+		run["properties"] = map[string]any{"analysis": status}
+	}
+	doc := map[string]any{"$schema": "https://json.schemastore.org/sarif-2.1.0.json", "version": "2.1.0", "runs": []any{run}}
+
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(doc)

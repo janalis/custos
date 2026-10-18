@@ -832,6 +832,17 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	r.exit = inputs[exit].vars
 	leaving(&inputs[exit], r)
 	r.leaves = inputs[done].vars == nil
+	if !g.complete {
+		reason := "unsupported-control-flow"
+		if g.full {
+			reason = "flow-budget"
+		}
+		span := e.file.Span()
+		if scope != nil {
+			span = scope.Span()
+		}
+		r.gap(reason, span)
+	}
 	r.complete = r.complete && g.complete && queued == 0
 	sort.Slice(r.calls, func(i, j int) bool { return r.calls[i].Node.Span().Start < r.calls[j].Node.Span().Start })
 	return r

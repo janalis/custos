@@ -722,6 +722,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	case *syntax.Yield, *syntax.YieldFrom:
 		v = Value{}
 		r.complete = false
+		r.gap("generator-suspension", x.Span())
 	case *syntax.Eval, *syntax.Include:
 		f.definite = false
 		f.related = nil
@@ -729,6 +730,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		f.states = map[uint32]State{}
 		v = Value{}
 		r.complete = false
+		r.gap("dynamic-code", x.Span())
 	default:
 		first := true
 		syntax.Children(x, func(child syntax.Node) {
@@ -1145,6 +1147,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
 		}
 	} else if !builtin {
+		r.gap("unresolved-dispatch", n.Span())
 		// Nothing is known about what an unresolved callee returns: it may
 		// well validate or escape its arguments.
 		v = Value{Expr: v.Expr}
