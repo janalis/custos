@@ -49,6 +49,13 @@ flowchart TD
 
 ## Execution and contracts
 
+Native operation histories distinguish mandatory predecessors from possible
+ones. Consumers must join conditional state changes, or require `Certain()`
+before replaying an exact sequence. An empty event list proves absence only
+when the history is complete; an incomplete history may retain a proven suffix
+without establishing the initial state. These bounded queries account for local
+aliases, storage escapes and operations replayed by enclosing loops.
+
 `project.Open` receives resolved options and an explicit inspection list. It
 builds an engine and discovers PHP files plus enabled inspections' file patterns.
 `AnalyzeReport` indexes project and vendor declarations when needed, reuses

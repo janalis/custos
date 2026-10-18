@@ -42,6 +42,10 @@ func NativeDominates(earlier, at syntax.Node) bool {
 			if node == parent.Right && (parent.Op.Kind == syntax.TBooleanAnd || parent.Op.Kind == syntax.TBooleanOr || parent.Op.Kind == syntax.TAnd || parent.Op.Kind == syntax.TOr || parent.Op.Kind == syntax.TCoalesce) {
 				return false
 			}
+		case *syntax.Assign:
+			if node == parent.Value && parent.Op.Kind == syntax.TCoalesceEqual {
+				return false
+			}
 		case *syntax.Closure, *syntax.ArrowFunction:
 			return false
 		case *syntax.MatchArm:
@@ -106,42 +110,6 @@ func nativeNullsafeChain(e syntax.Expr) bool {
 			return false
 		}
 	}
-}
-
-// NativePriorCalls returns unconditionally preceding calls matching the same
-// receiver allocation identity. Unknown identities establish no relation.
-func NativePriorCalls(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr, names ...string) []syntax.Node {
-	target := ctx.Flow().Value(receiver)
-	id := target.Identity
-	if !target.Complete || id == 0 || target.Invalidated == ^uint32(0) {
-		return nil
-	}
-	out := []syntax.Node{}
-	for _, c := range ctx.Flow().Calls(syntax.EnclosingVariableScope(at)) {
-		if !NativeDominates(c.Node, at) {
-			continue
-		}
-		candidate := c.Receiver
-		if candidate == nil {
-			if call, ok := c.Node.(*syntax.FuncCall); ok {
-				candidate = CallArgument(call.Args, 0, "")
-			}
-		}
-		if candidate == nil {
-			continue
-		}
-		value := ctx.Flow().Value(candidate)
-		if !value.Complete || value.Identity != id || value.Invalidated != target.Invalidated {
-			continue
-		}
-		for _, name := range names {
-			if strings.EqualFold(c.Name, name) {
-				out = append(out, c.Node)
-				break
-			}
-		}
-	}
-	return out
 }
 
 func nativeFix(span syntax.Span, text, title string) diagnostic.Fix {

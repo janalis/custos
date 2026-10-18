@@ -166,7 +166,11 @@ func nativeBindings(ctx *analysis.Context, c *syntax.MethodCall) (map[string]boo
 	if _, known := ctx.Flow().StateBefore(c, c.Var); !known {
 		return nil, false
 	}
-	for _, node := range NativePriorCalls(ctx, c, c.Var, "bindparam", "bindvalue") {
+	prior, historyKnown := NativeCallHistory(ctx, c, c.Var, "bindparam", "bindvalue").Certain()
+	if !historyKnown {
+		return nil, false
+	}
+	for _, node := range prior {
 		binding := node.(*syntax.MethodCall)
 		value := CallArgument(binding.Args, 0, "param")
 		if name, known := NativeString(ctx, value); known {
@@ -213,7 +217,10 @@ func CheckPdoExecuteArrayReplacesBindings(ctx *analysis.Context, n syntax.Node, 
 // SQL. A binding for an absent marker makes a bare execute() fail, so the empty
 // array that discards it is not a mistake.
 func pdoPriorBindingsRequired(ctx *analysis.Context, c *syntax.MethodCall, facts sqlFacts) bool {
-	prior := NativePriorCalls(ctx, c, c.Var, "bindparam", "bindvalue")
+	prior, historyKnown := NativeCallHistory(ctx, c, c.Var, "bindparam", "bindvalue").Certain()
+	if !historyKnown {
+		return false
+	}
 	for _, node := range prior {
 		// Anything but a method call with a proven marker leaves the key empty,
 		// which no marker matches.
@@ -401,7 +408,7 @@ func CheckPdoPlaceholderBindingMismatch(ctx *analysis.Context, n syntax.Node, me
 	}
 
 	bindings, known := nativeBindings(ctx, c)
-	if !known || CallArgument(c.Args, 0, "params") == nil && pdoStatementCaptured(ctx, c) {
+	if !known {
 		return
 	}
 	if len(bindings) != len(facts.markers) {
@@ -418,46 +425,6 @@ func CheckPdoPlaceholderBindingMismatch(ctx *analysis.Context, n syntax.Node, me
 	}
 }
 
-// pdoStatementCaptured reports whether the statement variable of an execute
-// call is captured by a closure or arrow function that may already have run.
-// Such a callable can bind markers outside the scope's own call list, so the
-// binding set collected from that list is not complete.
-func pdoStatementCaptured(ctx *analysis.Context, c *syntax.MethodCall) bool {
-	receiver := ctx.SpanText(c.Var.Span())
-	// A call inside a loop never reaches this point: its bindings are unknown.
-	scope := syntax.EnclosingVariableScope(c)
-	captured := false
-	visit := func(n syntax.Node) bool {
-		if !syntax.IsVariableScope(n) {
-			return !captured
-		}
-		if n.Span().Start > c.Span().Start {
-			return false
-		}
-		switch fn := n.(type) {
-		case *syntax.Closure:
-			for _, use := range fn.Uses {
-				captured = captured || ctx.SpanText(use.Var.Span()) == receiver
-			}
-		case *syntax.ArrowFunction:
-			syntax.Inspect(fn.Expr, func(m syntax.Node) bool {
-				if v, ok := m.(*syntax.Variable); ok && ctx.SpanText(v.Span()) == receiver {
-					captured = true
-				}
-				return !captured
-			})
-		}
-		return false
-	}
-	if scope == nil {
-		syntax.InspectFile(ctx.File, visit)
-	} else {
-		syntax.Inspect(syntax.VariableScopeBody(scope), visit)
-	}
-	return captured
-}
-
-// CheckPdoQuotedPlaceholder checks the independently specified contract.
 func CheckPdoQuotedPlaceholder(ctx *analysis.Context, n syntax.Node, message string) {
 	c, ok := n.(*syntax.MethodCall)
 	if !ok {
@@ -511,7 +478,11 @@ func CheckPdoReferenceBindingVariableReuse(ctx *analysis.Context, n syntax.Node,
 	}
 	type referenceBinding struct{ param, value string }
 	variables := map[string]referenceBinding{}
-	for _, node := range NativePriorCalls(ctx, c, c.Var, "bindparam") {
+	prior, historyKnown := NativeCallHistory(ctx, c, c.Var, "bindparam").Certain()
+	if !historyKnown {
+		return
+	}
+	for _, node := range prior {
 		binding := node.(*syntax.MethodCall)
 		param, known := NativeString(ctx, CallArgument(binding.Args, 0, "param"))
 		variable, ok := CallArgument(binding.Args, 1, "var").(*syntax.Variable)

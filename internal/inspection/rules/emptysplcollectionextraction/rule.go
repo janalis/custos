@@ -52,7 +52,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	size := 0
-	for _, n := range semanticquery.NativePriorCalls(ctx, c, c.Var, "insert", "push", "unshift", "enqueue", "extract", "pop", "shift", "dequeue") {
+	historyCalls, historyKnown := semanticquery.NativeCallHistory(ctx, c, c.Var, "insert", "push", "unshift", "enqueue", "extract", "pop", "shift", "dequeue").Certain()
+	if !historyKnown {
+		return
+	}
+	for _, n := range historyCalls {
 		p := n.(*syntax.MethodCall)
 		switch strings.ToLower(p.Name.(*syntax.Identifier).Value) {
 		case "insert", "push", "unshift", "enqueue":

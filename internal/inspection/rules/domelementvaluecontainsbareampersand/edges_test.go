@@ -12,16 +12,16 @@ func TestEdges(t *testing.T) {
 		src  string
 		want int
 	}{
-		{`function loadXML($doc) {} $d=new DOMDocument();loadXML($d);$d->createElement('x','&author;');`, 1},
+		{`function loadXML($doc) {} $d=new DOMDocument();loadXML($d);$d->createElement('x','&author;');`, 0},
 
-		{`class CustomDocument extends DOMDocument {function loadXML($source,$options=0):bool{return true;}} $d=new CustomDocument();$d->loadXML('<x/>');$d->createElement('x','&author;');`, 1},
+		{`class CustomDocument extends DOMDocument {function loadXML($source,$options=0):bool{return true;}} $d=new CustomDocument();$d->loadXML('<x/>');$d->createElement('x','&author;');`, 0},
 		{`$d=new DOMDocument();$d->loadXML('<!SOMETHING text><x/>');$d->createElement('x','&author;');`, 1},
 
 		{`$d=new DOMDocument();$d->loadXML('<!DOCTYPE x [<!ENTITY author "Bex">]><x/>');$d->createElement('x','&author;');`, 0},
 		{`$d=new DOMDocument();$d->loadXML('<x/>');$d->createElement('x','&author;');`, 1},
-		{`$d=new DOMDocument();$d->loadXML($xml);$d->createElement('x','&author;');`, 1},
-		{`$d=new DOMDocument();$d->loadXML('<!DOCTYPE x SYSTEM "x.dtd"><x/>');$d->createElement('x','&author;');`, 1},
-		{`$d=new DOMDocument();$d->loadXML('<!DOCTYPE x [<!ELEMENT x EMPTY>]><x/>');$d->createElement('x','&author;');`, 1},
+		{`$d=new DOMDocument();$d->loadXML($xml);$d->createElement('x','&author;');`, 0},
+		{`$d=new DOMDocument();$d->loadXML('<!DOCTYPE x SYSTEM "x.dtd"><x/>');$d->createElement('x','&author;');`, 0},
+		{`$d=new DOMDocument();$d->loadXML('<!DOCTYPE x [<!ELEMENT x EMPTY>]><x/>');$d->createElement('x','&author;');`, 0},
 		{`$d=new DOMDocument();$d->loadXML('bad');$d->createElement('x','&author;');`, 1},
 		{`$d=new DOMDocument();$d->loadXML('<?xml version="1.0"?><!DOCTYPE x [<!ENTITY other "Other">]><x/>');$d->createElement('x','&author;');`, 1},
 

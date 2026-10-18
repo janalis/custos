@@ -28,20 +28,21 @@ func TestNativePriorResolvedCalls(t *testing.T) {
 	for _, tc := range []struct {
 		source string
 		count  int
+		known  bool
 	}{
-		{"probe($unknown);", 0},
-		{"$h=tmpfile();flock($h,LOCK_EX);probe($h);", 1},
-		{"$h=fopen('path','rb'); flock($h,LOCK_EX); probe($h);", 1},
-		{"$h=fopen('path','rb'); if($flag) flock($h,LOCK_EX); probe($h);", 0},
-		{"$h=fopen('path','rb'); $other=fopen('other','rb'); flock($other,LOCK_EX); probe($h);", 0},
-		{"$h=fopen('path','rb'); probe($h); flock($h,LOCK_EX);", 0},
-		{"namespace App; function flock($handle,$mode){} $h=\\fopen('path','rb'); flock($h,LOCK_EX); probe($h);", 0},
+		{"probe($unknown);", 0, false},
+		{"$h=tmpfile();flock($h,LOCK_EX);probe($h);", 1, true},
+		{"$h=fopen('path','rb'); flock($h,LOCK_EX); probe($h);", 1, true},
+		{"$h=fopen('path','rb'); if($flag) flock($h,LOCK_EX); probe($h);", 0, false},
+		{"$h=fopen('path','rb'); $other=fopen('other','rb'); flock($other,LOCK_EX); probe($h);", 0, true},
+		{"$h=fopen('path','rb'); probe($h); flock($h,LOCK_EX);", 0, true},
+		{"namespace App; function flock($handle,$mode){} $h=\\fopen('path','rb'); flock($h,LOCK_EX); probe($h);", 0, false},
 	} {
 		t.Run(tc.source, func(t *testing.T) {
 			probeNative(t, tc.source, func(ctx *analysis.Context, at *syntax.FuncCall) {
-				calls := NativePriorCalls(ctx, at, CallArgument(at.Args, 0, "value"), "flock")
-				if len(calls) != tc.count {
-					t.Fatalf("prior resolved calls: %d, want %d", len(calls), tc.count)
+				calls, known := NativeCallHistory(ctx, at, CallArgument(at.Args, 0, "value"), "flock").Certain()
+				if len(calls) != tc.count || known != tc.known {
+					t.Fatalf("prior resolved calls: %d/%v, want %d/%v", len(calls), known, tc.count, tc.known)
 				}
 			})
 		})

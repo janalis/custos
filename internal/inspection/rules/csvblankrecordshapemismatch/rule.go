@@ -44,7 +44,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	blank := false
 	rewound := false
-	for _, n := range semanticquery.NativePriorCalls(ctx, call, h, "fwrite", "fputs", "rewind", "fseek", "fread", "fgets", "fgetcsv") {
+	historyCalls, historyKnown := semanticquery.NativeCallHistory(ctx, call, h, "fwrite", "fputs", "rewind", "fseek", "fread", "fgets", "fgetcsv").Certain()
+	if !historyKnown {
+		return
+	}
+	for _, n := range historyCalls {
 		c := n.(*syntax.FuncCall)
 		switch semanticquery.NativeBuiltinName(ctx, c) {
 		case "fwrite", "fputs":

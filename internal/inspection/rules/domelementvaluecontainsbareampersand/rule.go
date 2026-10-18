@@ -3,6 +3,8 @@ package domelementvaluecontainsbareampersand
 
 import (
 	"encoding/xml"
+	"errors"
+	"io"
 	"regexp"
 	"strconv"
 	"strings"
@@ -44,7 +46,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 		entity := s[i+1 : i+end]
-		if entity != "amp" && entity != "lt" && entity != "gt" && entity != "apos" && entity != "quot" && !numericEntity(entity) && !declaredEntity(ctx, c, entity) {
+		if entity != "amp" && entity != "lt" && entity != "gt" && entity != "apos" && entity != "quot" && !numericEntity(entity) && !entityMayBeDeclared(ctx, c, entity) {
 			ctx.ReportNode(c, message)
 			return
 		}
@@ -66,53 +68,72 @@ func numericEntity(s string) bool {
 	return err == nil && (v == 9 || v == 10 || v == 13 || v >= 32 && v <= 0xD7FF || v >= 0xE000 && v <= 0xFFFD || v >= 0x10000 && v <= 0x10FFFF)
 }
 
-func declaredEntity(ctx *analysis.Context, c *syntax.MethodCall, name string) bool {
-	var prior []*syntax.MethodCall
-	for _, node := range semanticquery.NativePriorCalls(ctx, c, c.Var, "loadXML") {
-		if load, ok := node.(*syntax.MethodCall); ok && semanticquery.NativeMethod(ctx, load, "DOMDocument", "loadXML") {
-			prior = append(prior, load)
+func entityMayBeDeclared(ctx *analysis.Context, c *syntax.MethodCall, name string) bool {
+	// A failed numeric-reference check cannot be rescued by a DTD declaration.
+	if strings.HasPrefix(name, "#") {
+		return false
+	}
+	calls, historyKnown := semanticquery.NativeCallHistory(ctx, c, c.Var, "loadXML").Certain()
+	if !historyKnown {
+		return true
+	}
+	remaining := 65536
+	for _, node := range calls {
+		// Non-native loaders invalidate this receiver, preventing a certain history.
+		load := node.(*syntax.MethodCall)
+		text, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(load.Args, 0, "source"))
+		if !known || len(text) > remaining {
+			return true
+		}
+		remaining -= len(text)
+		if documentMayDeclare(text, name) {
+			return true
 		}
 	}
-	if len(prior) == 0 {
-		return false
-	}
-	load := prior[len(prior)-1]
-	text, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(load.Args, 0, "source"))
-	if !known || len(text) > 65536 {
-		return false
-	}
+	return false
+}
+
+// A failed load preserves the preceding document. Retain possible declarations
+// from every prior load rather than treating the latest source as a reset.
+func documentMayDeclare(text, name string) bool {
 	decoder := xml.NewDecoder(strings.NewReader(text))
 	for {
 		token, err := decoder.Token()
 		if err != nil {
-			return false
+			return !errors.Is(err, io.EOF)
 		}
 		if _, ok := token.(xml.StartElement); ok {
 			return false
 		}
 		if directive, ok := token.(xml.Directive); ok {
 			d := string(directive)
-			if !strings.HasPrefix(d, "DOCTYPE ") {
+			if !strings.HasPrefix(d, "DOCTYPE") {
 				continue
+			}
+			if len(d) == len("DOCTYPE") || !strings.ContainsRune(" \t\r\n", rune(d[len("DOCTYPE")])) {
+				return true
 			}
 			open := strings.IndexByte(d, '[')
 			close := strings.LastIndexByte(d, ']')
-			if open < 0 || close < open {
-				return false
+			if open < 0 {
+				return len(strings.Fields(d)) != 2
+			}
+			if close < open {
+				return true
 			}
 			subset := strings.TrimSpace(d[open+1 : close])
 			found := false
 			for subset != "" {
 				match := entityDeclaration.FindStringSubmatch(subset)
 				if match == nil {
-					return false
+					return true
 				}
 				if match[1] == name {
 					found = true
 				}
 				subset = strings.TrimSpace(subset[len(match[0]):])
 			}
-			return found
+			return found || len(strings.Fields(d[:open])) > 2
 		}
 	}
 }

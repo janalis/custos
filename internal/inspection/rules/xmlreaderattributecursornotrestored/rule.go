@@ -50,7 +50,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			if !same(ctx, move.Var, property.Var) {
 				continue
 			}
-			if !restored(ctx, b, property.Var, move) {
+			if !cursorMayBeRestored(ctx, b, property.Var, move) {
 				ctx.ReportNode(b, message)
 				return
 			}
@@ -62,12 +62,15 @@ func same(ctx *analysis.Context, a, b syntax.Expr) bool {
 	return semanticquery.ExpansionSameObject(ctx, a, b)
 }
 
-// restored reports whether a cursor move that leaves the attribute dominates
-// the comparison and runs after the guarding attribute move. Calls before the
-// guard cannot undo it.
-func restored(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr, move *syntax.MethodCall) bool {
-	for _, call := range semanticquery.NativePriorCalls(ctx, at, receiver, "moveToElement", "read", "next") {
-		if call.Span().Start >= move.Span().End {
+// cursorMayBeRestored includes conditional moves and incomplete histories.
+// Only a complete absence of a later move establishes an unrestored cursor.
+func cursorMayBeRestored(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr, move *syntax.MethodCall) bool {
+	history := semanticquery.NativeCallHistory(ctx, at, receiver, "moveToElement", "read", "next")
+	if !history.Complete {
+		return true
+	}
+	for _, event := range history.Events {
+		if event.Node.Span().Start >= move.Span().End {
 			return true
 		}
 	}

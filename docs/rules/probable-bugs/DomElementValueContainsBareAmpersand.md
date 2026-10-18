@@ -31,6 +31,14 @@ Reported:
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
 - D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
 
+Unknown XML input, unsupported DTD declarations and external subsets do not
+prove that a named entity is missing. Only a complete locally parsed declaration
+set establishes that absence. Invalid numeric references remain invalid
+independently of the document declarations.
+
+A failed XML load preserves the previous document. Declaration evidence from
+earlier loads therefore remains possible when replaying later load attempts.
+
 ## Exceptions (no report)
 
 - E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.

@@ -27,7 +27,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	executed, cleared, bound := false, false, false
 	var result *syntax.MethodCall
-	for _, node := range semanticquery.NativePriorCalls(ctx, c, c.Var, "execute", "clear", "bindValue", "bindParam", "reset") {
+	historyCalls, historyKnown := semanticquery.NativeCallHistory(ctx, c, c.Var, "execute", "clear", "bindValue", "bindParam", "reset").Certain()
+	if !historyKnown {
+		return
+	}
+	for _, node := range historyCalls {
 		if p, ok := node.(*syntax.MethodCall); ok {
 			if semanticquery.NativeMethod(ctx, p, "SQLite3Stmt", "reset") {
 				executed, cleared, bound = false, false, false

@@ -25,7 +25,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	var priorities []float64
-	for _, n := range semanticquery.NativePriorCalls(ctx, c, c.Var, "insert", "extract") {
+	historyCalls, historyKnown := semanticquery.NativeCallHistory(ctx, c, c.Var, "insert", "extract").Certain()
+	if !historyKnown {
+		return
+	}
+	for _, n := range historyCalls {
 		p := n.(*syntax.MethodCall)
 		if strings.EqualFold(p.Name.(*syntax.Identifier).Value, "extract") {
 			return

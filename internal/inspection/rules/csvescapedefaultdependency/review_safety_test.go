@@ -40,7 +40,7 @@ func TestReviewSafety(t *testing.T) {
 		{"captured", create + `$g = function () use ($o) {}; $o->fgetcsv();`, 1, ""},
 		{"conditional escape", create + `if ($c) { $o->setCsvControl(',', '"', ''); } $o->fgetcsv();`, 1, ""},
 		{"later escape in loop", `function f() { $o = new SplFileObject('x'); while (g()) { $o->fgetcsv(); $o->setCsvControl(escape: ''); } }`, 1, ""},
-		{"spread control", create + `$o->setCsvControl(...$a); $o->fgetcsv();`, 2, ""},
+		{"spread control", create + `$o->setCsvControl(...$a); $o->fgetcsv();`, 1, ""},
 		{"dynamic method", create + `$o->$m(); $o->fgetcsv();`, 1, ""},
 		{"reassigned", create + `$o = new SplFileObject('y'); $o->fgetcsv();`, 1, ""},
 		{"conditional creation", `function f(SplFileObject $o, $c) { if ($c) { $o = new SplFileObject('x'); } return $o->fgetcsv(); }`, 1, ""},
@@ -52,7 +52,7 @@ func TestReviewSafety(t *testing.T) {
 		{"include before", `function f() { include 'configure.php'; $o = new SplFileObject('x'); $o->fgetcsv(); }`, 1, ""},
 		{"eval before", `function f() { eval($code); $o = new SplFileObject('x'); $o->fgetcsv(); }`, 1, ""},
 		{"eval", create + `eval($code); $o->fgetcsv();`, 1, ""},
-		{"spread arguments", create + `$o->fputcsv(...$a);`, 1, ""},
+		{"spread arguments", create + `$o->fputcsv(...$a);`, 0, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			src := []byte("<?php " + tc.source)

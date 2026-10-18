@@ -29,13 +29,13 @@ Reported:
 
 ## Detection
 
-- D1. For resolved fgetcsv, fputcsv, str_getcsv and SplFileObject fgetcsv/fputcsv/setCsvControl, report omission of the escape argument. For SplFileObject reading/writing, omitted arguments inherit the object's control values: when the latest setCsvControl call proven to run before the operation on the same object supplies an escape, the contract is satisfied, whether or not the operation passes its own separator or enclosure. Bind named arguments to their signature positions.
+- D1. For resolved fgetcsv, fputcsv, str_getcsv and SplFileObject fgetcsv/fputcsv/setCsvControl, report omission of the escape argument. For SplFileObject reading/writing, omitted arguments inherit the object's control values: when the local trace proves explicit controls on every path, the contract is satisfied, whether or not the operation passes its own separator or enclosure. A conditional reset to omitted/default controls loses that proof; conditional updates that all supply an escape preserve it. Unknown object controls retain the explicit-argument recommendation. Bind named arguments to their signature positions.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
 - D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
-- E1. Calls explicitly supplying escape, unknown receiver types and PHP targets below 8.4 are excluded.
+- E1. Calls explicitly supplying escape or whose unpacking makes its omission unknown, unknown receiver types and PHP targets below 8.4 are excluded.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore CsvEscapeDefaultDependency` and `@noinspection CsvEscapeDefaultDependency` suppress this inspection.
 
 ## Fix

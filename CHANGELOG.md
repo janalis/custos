@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Retain conditional native operations in bounded receiver histories. Distinguish
+  an empty proven history from an incomplete one, account for loop replay and
+  captured aliases, and retain fresh handle identities with uncertain input data.
+  Avoid treating spread CSV arguments or unknown XML declarations as omissions.
+
 - Respect class availability and named callback declaration availability in native
   checks. Track trait methods and aliases in bounded descendant override queries.
   Treat escaped cURL handles and dialect-dependent SQL counts as unknown, and

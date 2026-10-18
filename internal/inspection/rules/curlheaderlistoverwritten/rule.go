@@ -25,6 +25,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	h := semanticquery.CallArgument(c.Args, 0, "handle")
+	historyCalls, historyKnown := semanticquery.NativeCallHistory(ctx, c, h, "curl_setopt").Certain()
+	if !historyKnown {
+		return
+	}
 	latest, known := semanticquery.NativeCurlOption(ctx, c, h, "CURLOPT_HTTPHEADER")
 	if !known {
 		return
@@ -34,7 +38,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	var earlier syntax.Expr
-	for _, node := range semanticquery.NativePriorCalls(ctx, c, h, "curl_setopt") {
+	for _, node := range historyCalls {
 		setter := node.(*syntax.FuncCall)
 		key, ok := semanticquery.CallArgument(setter.Args, 1, "option").(*syntax.ConstFetch)
 		if ok && semanticquery.GlobalConstName(ctx, key) == "CURLOPT_HTTPHEADER" {

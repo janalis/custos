@@ -56,7 +56,10 @@ func ExpansionDOMElementChildren(ctx *analysis.Context, e syntax.Expr, at syntax
 	}
 	if p, ok := v.(*syntax.PropertyFetch); ok {
 		if id, ok := p.Name.(*syntax.Identifier); ok && id.Value == "documentElement" {
-			prior := NativePriorCalls(ctx, at, p.Var, "loadXML", "load", "appendChild", "removeChild")
+			prior, historyKnown := NativeCallHistory(ctx, at, p.Var, "loadXML", "load", "appendChild", "removeChild").Certain()
+			if !historyKnown {
+				return false
+			}
 			if len(prior) == 0 {
 				return false
 			}

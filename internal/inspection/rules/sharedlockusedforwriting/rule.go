@@ -24,32 +24,30 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	handle := semanticquery.CallArgument(c.Args, 0, "stream")
-	calls := semanticquery.NativePriorCalls(ctx, c, handle, "flock")
-	if len(calls) == 0 {
+	history := semanticquery.NativeCallHistory(ctx, c, handle, "flock")
+	if !history.Complete {
 		return
 	}
-	previous, ok := calls[len(calls)-1].(*syntax.FuncCall)
+	var previousNode syntax.Node
+	for _, event := range history.Events {
+		if event.Must {
+			previousNode = event.Node
+		}
+	}
+	previous, ok := previousNode.(*syntax.FuncCall)
 	if ok && semanticquery.NativeBuiltin(ctx, previous, "flock") {
 		mode := semanticquery.CallArgument(previous.Args, 1, "operation")
-		if shared(ctx, mode) && !relocked(ctx, previous, c, handle) {
+		if shared(ctx, mode) && !relocked(ctx, previous, history) {
 			ctx.ReportNode(c, message)
 		}
 	}
 }
 
-// relocked reports whether a flock call between the proven shared lock and
-// the write may have changed the lock mode. Checked upgrades sit in conditions
-// or guarded blocks, so every reached call counts, not only dominating ones.
-func relocked(ctx *analysis.Context, lock, write *syntax.FuncCall, handle syntax.Expr) bool {
-	id := ctx.Flow().Value(handle).Identity
-	for _, call := range ctx.Flow().Calls(syntax.EnclosingVariableScope(write)) {
-		later, ok := call.Node.(*syntax.FuncCall)
-		if !ok || later.Span().Start < lock.Span().End || later.Span().End > write.Span().Start || !semanticquery.NativeBuiltin(ctx, later, "flock") {
-			continue
-		}
-		// Only a handle proven to be another stream leaves the lock untouched.
-		other := ctx.Flow().Value(semanticquery.CallArgument(later.Args, 0, "stream"))
-		if other.Complete && other.Identity != 0 && other.Identity != id {
+// relocked reports a possible lock-mode change after the last mandatory lock.
+func relocked(ctx *analysis.Context, lock *syntax.FuncCall, history semanticquery.CallHistory) bool {
+	for _, event := range history.Events {
+		later, ok := event.Node.(*syntax.FuncCall)
+		if !ok || later.Span().Start < lock.Span().End || !semanticquery.NativeBuiltin(ctx, later, "flock") {
 			continue
 		}
 		if !shared(ctx, semanticquery.CallArgument(later.Args, 1, "operation")) {

@@ -22,7 +22,7 @@ func TestReviewSafety(t *testing.T) {
 		{"parenthesized", "foreach (($l) as $x) {}", 1},
 		{"unrelated call between", "$l->push(1); echo count($l); foreach ($l as $x) {}", 1},
 		{"keep after loop", "foreach ($l as $x) {} $l->setIteratorMode(0);", 1},
-		{"keep later in enclosing loop", "while ($c--) { foreach ($l as $x) {} $l->setIteratorMode(0); }", 1},
+		{"keep later in enclosing loop", "while ($c--) { foreach ($l as $x) {} $l->setIteratorMode(0); }", 0},
 		{"conditional keep before delete", "if ($c) { $l->setIteratorMode(0); } $l->setIteratorMode(1); foreach ($l as $x) {}", 1},
 		{"dominating keep", "$l->setIteratorMode(0); foreach ($l as $x) {}", 0},
 		{"keep in if", "if ($c) { $l->setIteratorMode(0); } foreach ($l as $x) {}", 0},

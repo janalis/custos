@@ -120,7 +120,7 @@ func TestEdges(t *testing.T) {
 	}{
 		{"str_getcsv('x',escape:'');", 0},
 		{"$o=new SplFileObject('x');$o->setCsvControl(',','\"','\\\\');$o->fgetcsv();$o->fputcsv([]);", 0},
-		{"fputcsv(...$args);", 1},
+		{"fputcsv(...$args);", 0},
 		{"$o=new SplFileObject('x');$o->fgetcsv(',');", 1},
 	} {
 		t.Run(tc.src, func(t *testing.T) {

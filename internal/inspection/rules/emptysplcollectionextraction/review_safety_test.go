@@ -26,7 +26,7 @@ func TestReviewSafety(t *testing.T) {
 		{"loop later escape", `$q=new SplQueue();while($c){$q->pop();fill($q);}`, 0},
 		{"loop later unmodeled", `$q=new SplQueue();while($c){$q->pop();$q->add(0,1);}`, 0},
 		{"loop removal only", `$q=new SplQueue();while($c){$q->pop();}`, 1},
-		{"loop later removal", `$q=new SplQueue();while($c){$q->top();$q->pop();}`, 2},
+		{"loop later removal", `$q=new SplQueue();while($c){$q->top();$q->pop();}`, 1},
 		{"loop earlier conditional removal", `$q=new SplQueue();while($c){if($d){$q->pop();}$q->top();}`, 1},
 		{"loop rebuilds collection", `while($c){$q=new SplQueue();$q->pop();$q->push(1);}`, 1},
 		{"loop after call", `$q=new SplQueue();$q->pop();while($c){$q->push(1);}`, 1},
@@ -80,7 +80,7 @@ func TestReviewSafety(t *testing.T) {
 		{"returned by closure call", `$q=new SplQueue();$f=[$q,'push'];$f(1);$q->pop();`, 0},
 		{"array append", `$q=new SplQueue();$q[]=1;$q->dequeue();`, 0},
 		{"unrelated reference", `$q=new SplQueue();$a=&$b;$q->dequeue();`, 1},
-		{"unrelated uses", `$q=new SplQueue();$o->q=$p;$h=[$p];$p->enqueue(1);$q->dequeue();`, 1},
+		{"unproven receiver may alias", `$q=new SplQueue();$o->q=$p;$h=[$p];$p->enqueue(1);$q->dequeue();`, 0},
 		{"direct construction", `(new SplQueue())->dequeue();`, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

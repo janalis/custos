@@ -29,7 +29,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	// finalize() cannot fail, so a call that always runs before the use is
 	// enough: its result does not have to be tested.
-	for _, prior := range semanticquery.NativePriorCalls(ctx, c, c.Var, "finalize") {
+	for _, event := range semanticquery.NativeCallHistory(ctx, c, c.Var, "finalize").Events {
+		if !event.Must {
+			continue
+		}
+		prior := event.Node
 		finish, ok := prior.(*syntax.MethodCall)
 		if ok && semanticquery.NativeMethod(ctx, finish, "SQLite3Result", "finalize") {
 			ctx.ReportNode(c, message)

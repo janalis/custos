@@ -32,7 +32,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known || !strings.HasPrefix(dsn, "mysql:") {
 		return
 	}
-	prior := semanticquery.NativePriorCalls(ctx, c, c.Var, "beginTransaction", "exec", "commit", "rollBack")
+	prior, historyKnown := semanticquery.NativeCallHistory(ctx, c, c.Var, "beginTransaction", "exec", "commit", "rollBack").Certain()
+	if !historyKnown {
+		return
+	}
 	var ddl *syntax.MethodCall
 	active := false
 	for _, node := range prior {

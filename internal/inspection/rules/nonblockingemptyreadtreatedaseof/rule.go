@@ -55,7 +55,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if identity == 0 || ctx.Flow().Value(semanticquery.CallArgument(close.Args, 0, "stream")).Identity != identity {
 		return
 	}
-	prior := semanticquery.NativePriorCalls(ctx, c, handle, "stream_set_blocking")
+	prior, historyKnown := semanticquery.NativeCallHistory(ctx, c, handle, "stream_set_blocking").Certain()
+	if !historyKnown {
+		return
+	}
 	if len(prior) == 0 {
 		return
 	}

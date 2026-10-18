@@ -34,29 +34,31 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	escape := pos + 2
-	if semanticquery.CallArgument(args, escape, "escape") != nil {
+	if _, state := semanticquery.CallArgumentBinding(args, escape, "escape"); state != semanticquery.ArgumentMissing {
 		return
 	}
 	fixable := true
 	if c, ok := n.(*syntax.MethodCall); ok {
 		if id := c.Name.(*syntax.Identifier); !strings.EqualFold(id.Value, "setCsvControl") {
-			// Omitted arguments inherit the object's control values, so the
-			// latest unconditional setCsvControl decides the effective escape.
-			var last *syntax.MethodCall
-			for _, p := range semanticquery.NativePriorCalls(ctx, c, c.Var, "setCsvControl") {
-				if control := p.(*syntax.MethodCall); last == nil || control.Span().Start > last.Span().Start {
-					last = control
+			// Every possible control update must retain an explicit escape.
+			history := semanticquery.NativeCallHistory(ctx, c, c.Var, "setCsvControl")
+			explicit := false
+			if history.Complete {
+				for _, event := range history.Events {
+					control := event.Node.(*syntax.MethodCall)
+					_, state := semanticquery.CallArgumentBinding(control.Args, 2, "escape")
+					provided := state == semanticquery.ArgumentBound
+					if event.Must {
+						explicit = provided
+					} else if !provided {
+						explicit = false
+					}
 				}
 			}
-			if last != nil && semanticquery.CallArgument(last.Args, 2, "escape") != nil {
+			if explicit {
 				return
 			}
 			fixable = defaultEscapeProven(ctx, c)
-		}
-	}
-	for _, a := range args.Args {
-		if arg, ok := a.(*syntax.Arg); !ok || arg.Unpack {
-			fixable = false
 		}
 	}
 	if !fixable {

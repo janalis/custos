@@ -56,20 +56,29 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // curlDestination replays the URL configured on the executed handle: the
-// curl_init argument, then every dominating CURLOPT_URL assignment in order,
-// so a later fixed URL replaces an earlier request-derived one.
+// curl_init argument, then ordered possible CURLOPT_URL assignments. A
+// mandatory assignment replaces the state; a conditional one joins it.
 func curlDestination(ctx *analysis.Context, exec *syntax.FuncCall) bool {
 	handle := semanticquery.CallArgument(exec.Args, 0, "handle")
 	report := false
 	if origin, ok := semanticquery.NativeValue(ctx, handle).(*syntax.FuncCall); ok && semanticquery.NativeBuiltin(ctx, origin, "curl_init") {
 		report = untrusted(ctx, semanticquery.CallArgument(origin.Args, 0, "url"))
 	}
-	for _, previous := range semanticquery.NativePriorCalls(ctx, exec, handle, "curl_setopt", "curl_setopt_array") {
-		option := previous.(*syntax.FuncCall)
+	history := semanticquery.NativeCallHistory(ctx, exec, handle, "curl_setopt", "curl_setopt_array")
+	if !history.Complete {
+		return false
+	}
+	for _, event := range history.Events {
+		option := event.Node.(*syntax.FuncCall)
 		switch semanticquery.NativeBuiltinName(ctx, option) {
 		case "curl_setopt":
 			if curlURLOption(ctx, semanticquery.CallArgument(option.Args, 1, "option")) {
-				report = untrusted(ctx, semanticquery.CallArgument(option.Args, 2, "value"))
+				unsafe := untrusted(ctx, semanticquery.CallArgument(option.Args, 2, "value"))
+				if event.Must {
+					report = unsafe
+				} else {
+					report = report || unsafe
+				}
 			}
 		case "curl_setopt_array":
 			// Only a literal option array has known keys; anything else
@@ -77,7 +86,12 @@ func curlDestination(ctx *analysis.Context, exec *syntax.FuncCall) bool {
 			if options := semanticquery.NativeArray(ctx, semanticquery.CallArgument(option.Args, 1, "options")); options != nil {
 				for _, item := range options.Items {
 					if curlURLOption(ctx, item.Key) {
-						report = untrusted(ctx, item.Value)
+						unsafe := untrusted(ctx, item.Value)
+						if event.Must {
+							report = unsafe
+						} else {
+							report = report || unsafe
+						}
 					}
 				}
 			}

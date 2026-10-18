@@ -380,9 +380,22 @@ func ExpansionDUnaliased(ctx *analysis.Context, obj syntax.Expr, at syntax.Node)
 // NativeHandleUnescaped rejects visible storage escapes of an opaque handle.
 // Callers separately establish its allocation identity and call effects.
 func NativeHandleUnescaped(ctx *analysis.Context, handle syntax.Expr, at syntax.Node) bool {
+	return nativeHandleUnescaped(ctx, handle, at, false)
+}
+
+func nativeHandleUnescaped(ctx *analysis.Context, handle syntax.Expr, at syntax.Node, allowLocalCopies bool) bool {
 	candidates := expansionDEscapes(ctx, syntax.EnclosingVariableScope(at), true)
 	if !candidates.known {
 		return false
+	}
+	// Keep possible local copies even across conditional rebinding. Reads inside
+	// deferred arrow bodies need not carry the enclosing scope's flow identity.
+	var aliases map[string]bool
+	matches := func(expr syntax.Expr) bool {
+		if variable, ok := syntax.UnwrapParens(expr).(*syntax.Variable); ok && aliases[variable.Name] {
+			return true
+		}
+		return astquery.Equivalent(ctx.File, expr, handle) || NativeSameValue(ctx, expr, handle)
 	}
 	for _, node := range candidates.nodes {
 		if node.Span().Start >= at.Span().Start {
@@ -390,24 +403,33 @@ func NativeHandleUnescaped(ctx *analysis.Context, handle syntax.Expr, at syntax.
 		}
 		switch value := node.(type) {
 		case *syntax.Variable:
-			if astquery.Equivalent(ctx.File, value, handle) {
+			if matches(value) {
 				return false
 			}
 		case *syntax.Assign:
+			if local, plain := value.Var.(*syntax.Variable); allowLocalCopies && plain && local.NameExpr == nil && !value.ByRef {
+				if matches(value.Value) && !astquery.Equivalent(ctx.File, local, syntax.UnwrapParens(handle)) {
+					if aliases == nil {
+						aliases = make(map[string]bool)
+					}
+					aliases[local.Name] = true
+				}
+				continue
+			}
 			if value.ByRef && astquery.Equivalent(ctx.File, value.Var, handle) {
 				return false
 			}
 			if value.ByRef || !astquery.Equivalent(ctx.File, value.Var, handle) {
-				if astquery.Equivalent(ctx.File, value.Value, handle) || NativeSameValue(ctx, value.Value, handle) {
+				if matches(value.Value) {
 					return false
 				}
 			}
 		case *syntax.ArrayItem:
-			if astquery.Equivalent(ctx.File, value.Value, handle) || NativeSameValue(ctx, value.Value, handle) {
+			if matches(value.Value) {
 				return false
 			}
 		case *syntax.ClosureUse:
-			if astquery.Equivalent(ctx.File, value.Var, handle) || NativeSameValue(ctx, value.Var, handle) {
+			if matches(value.Var) {
 				return false
 			}
 		}

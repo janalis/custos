@@ -58,7 +58,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	document := semanticquery.CallArgument(creation.Args, 0, "document")
-	calls := semanticquery.NativePriorCalls(ctx, creation, document, "loadxml")
+	calls, historyKnown := semanticquery.NativeCallHistory(ctx, creation, document, "loadxml").Certain()
+	if !historyKnown {
+		return
+	}
 	if len(calls) == 0 {
 		return
 	}

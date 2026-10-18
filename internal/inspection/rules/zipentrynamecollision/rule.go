@@ -57,7 +57,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		case target.Identity == 0 && guard.Identity == 0:
 			same = undisturbed(ctx, branch.Body, c, add)
 		case target.Complete && guard.Complete && guard.Identity == target.Identity && guard.Invalidated == target.Invalidated:
-			same = !invalidated(ctx, c, add)
+			same = guardSupportsCollision(ctx, c, add)
 		}
 		if same {
 			ctx.ReportNode(c, message)
@@ -108,12 +108,17 @@ func undisturbed(ctx *analysis.Context, body syntax.Node, c, add *syntax.MethodC
 	return clean
 }
 
-// invalidated reports whether a call after the guard may have removed, renamed or discarded the guarded entry.
-func invalidated(ctx *analysis.Context, c, add *syntax.MethodCall) bool {
-	for _, prior := range semanticquery.NativePriorCalls(ctx, c, c.Var, invalidators...) {
-		if prior.Span().Start >= add.Span().End {
-			return true
+// guardSupportsCollision retains the earlier insertion as collision evidence
+// unless a mandatory remover intervenes or the history is incomplete.
+func guardSupportsCollision(ctx *analysis.Context, c, add *syntax.MethodCall) bool {
+	history := semanticquery.NativeCallHistory(ctx, c, c.Var, invalidators...)
+	if !history.Complete {
+		return false
+	}
+	for _, event := range history.Events {
+		if event.Must && event.Node.Span().Start >= add.Span().End {
+			return false
 		}
 	}
-	return false
+	return true
 }
