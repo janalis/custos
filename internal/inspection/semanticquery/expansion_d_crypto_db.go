@@ -436,52 +436,6 @@ func expansionDCurlOption(ctx *analysis.Context, at syntax.Node, handle syntax.E
 	return result
 }
 
-func expansionDFailureBranch(ctx *analysis.Context, e syntax.Expr) *syntax.If {
-	for {
-		switch p := e.Parent().(type) {
-		case *syntax.Paren:
-			e = p
-		case *syntax.Assign:
-			e = p
-		case *syntax.Unary:
-			if p.Op.Kind != syntax.TExclaim {
-				return nil
-			}
-			e = p
-		case *syntax.Binary:
-			if p.Op.Kind != syntax.TIsEqual || !expansionDFalse(p.Right) {
-				return nil
-			}
-			e = p
-		case *syntax.If:
-			neg, ok := syntax.UnwrapParens(e).(*syntax.Unary)
-			loose, lok := syntax.UnwrapParens(e).(*syntax.Binary)
-			if (!ok || neg.Op.Kind != syntax.TExclaim) && (!lok || loose.Op.Kind != syntax.TIsEqual) {
-				return nil
-			}
-			found := false
-			syntax.Inspect(p.Body, func(n syntax.Node) bool {
-				if syntax.IsVariableScope(n) {
-					return false
-				}
-				if t, ok := n.(*syntax.Throw); ok && NativeCallbackReachable(t) {
-					found = true
-				}
-				if r, ok := n.(*syntax.Return); ok && expansionDFalse(r.Expr) && NativeCallbackReachable(r) {
-					found = true
-				}
-				return true
-			})
-			if found {
-				return p
-			}
-			return nil
-		default:
-			return nil
-		}
-	}
-}
-
 func expansionDFalse(e syntax.Expr) bool {
 	v, k := astquery.BoolConst(syntax.UnwrapParens(e))
 	return k && !v
@@ -680,25 +634,11 @@ func CheckCurlResponseZeroRejected(ctx *analysis.Context, n syntax.Node, message
 		return
 	}
 	c, ok := n.(*syntax.FuncCall)
-	if !ok || !NativeBuiltin(ctx, c, "curl_exec") || expansionDFailureBranch(ctx, c) == nil || !curlResponseNegated(c) {
+	if !ok || !NativeBuiltin(ctx, c, "curl_exec") || expansionDFailureBranch(c) == nil {
 		return
 	}
 	if curlResponseReturned(ctx, c, CallArgument(c.Args, 0, "handle")) {
 		ctx.ReportNode(c, message)
-	}
-}
-
-// curlResponseNegated requires an odd number of negations between the call and
-// the accepted failure condition: `!!curl_exec()` guards the success path.
-func curlResponseNegated(c *syntax.FuncCall) bool {
-	odd := false
-	for e := syntax.Node(c); ; e = e.Parent() {
-		switch e.Parent().(type) {
-		case *syntax.Unary, *syntax.Binary:
-			odd = !odd
-		case *syntax.If:
-			return odd
-		}
 	}
 }
 
@@ -779,12 +719,7 @@ func CheckNonblockingSocketConnectPendingRejected(ctx *analysis.Context, n synta
 	if !NativeBuiltin(ctx, c, "socket_connect") {
 		return
 	}
-	// The silence operator does not change the tested result.
-	tested := syntax.Expr(c)
-	if u, ok := c.Parent().(*syntax.Unary); ok && u.Op.Kind == syntax.TAt {
-		tested = u
-	}
-	branch := expansionDFailureBranch(ctx, tested)
+	branch := expansionDFailureBranch(c)
 	socket := CallArgument(c.Args, 0, "socket")
 	if branch == nil || nonblockingConnectInspected(ctx, branch.Body, socket) {
 		return
@@ -855,7 +790,7 @@ func CheckSocketReadZeroRejected(ctx *analysis.Context, n syntax.Node, message s
 		return
 	}
 	c := n.(*syntax.FuncCall)
-	if NativeBuiltin(ctx, c, "socket_read") && socketReadBinaryMode(ctx, c) && expansionDFailureBranch(ctx, c) != nil {
+	if NativeBuiltin(ctx, c, "socket_read") && socketReadBinaryMode(ctx, c) && expansionDFailureBranch(c) != nil {
 		ctx.ReportNode(c, message)
 	}
 }

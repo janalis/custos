@@ -22,6 +22,9 @@ Identify a `socket_connect` failure branch that throws or returns false although
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 - D4. The failure branch inspects the reason when, outside nested closures and functions, it calls `socket_last_error`, `socket_get_option` or `socket_getopt`, or calls anything that is not a builtin function (user or unresolved function, dynamic callee, instance or static method) whose receiver, callee or arguments mention a variable used to name the socket. Builtin functions other than the three listed never count, even when they receive the socket.
 
+- D6. A failure test must select a falsy result: count negation and loose equality with literal false, on either side, by parity. Parentheses, error suppression and the right-hand value of a plain non-reference assignment preserve the test. Compound assignments and assignment targets do not.
+- D7. Require every supported path through the failure body to throw or return literal false. A conditional rejection alone is insufficient. Structured blocks and conditional branches are bounded; suspension, jumps, unsupported control flow and budget exhaustion establish no rejection proof.
+
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.

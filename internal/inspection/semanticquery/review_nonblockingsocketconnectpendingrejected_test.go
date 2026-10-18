@@ -38,6 +38,7 @@ func TestReviewNonblockingSocketConnectPendingRejected(t *testing.T) {
 		{"last error inspected", on + "if(!socket_connect($s,$h,80)){if(socket_last_error($s)!==SOCKET_EINPROGRESS){return false;}}", 0},
 		{"socket option inspected", on + "if(!socket_connect($s,$h,80)){if(socket_get_option($s,SOL_SOCKET,SO_ERROR)!==0){return false;}}", 0},
 		{"socket option alias inspected", on + "if(!socket_connect($s,$h,80)){if(socket_getopt($s,SOL_SOCKET,SO_ERROR)!==0){return false;}}", 0},
+		{"helper handles socket before rejection", on + "if(!socket_connect($s,$h,80)){pending($s);return false;}", 0},
 		{"helper receives socket", on + "if(!socket_connect($s,$h,80)){if(pending($s)){return true;}return false;}", 0},
 		{"method receives socket", on + "if(!socket_connect($s,$h,80)){if($this->pending($s)){return true;}return false;}", 0},
 		{"static method receives socket", on + "if(!socket_connect($s,$h,80)){if(Net::pending($s)){return true;}return false;}", 0},

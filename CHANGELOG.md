@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Require a falsy condition and rejection on every supported branch before
+  reporting cURL and socket zero-result checks. Ignore nested strict-failure
+  guards and success-path conditions.
+
 - Decode escaped and composed declaration names, retaining exact names from
   `define()` and resolving literal class aliases. Respect version-dependent
   escapes in parsed strings and heredocs, including constant-condition checks.
