@@ -14,7 +14,7 @@ import (
 )
 
 func TestNativeFixtureRangesAndFixes(t *testing.T) {
-	for _, name := range []string{"basic", "negative", "references", "attributes"} {
+	for _, name := range []string{"basic", "negative", "references", "attributes", "transforms"} {
 		t.Run(name, func(t *testing.T) {
 			base := filepath.Join("testdata", name)
 			marked, err := os.ReadFile(base + ".php")

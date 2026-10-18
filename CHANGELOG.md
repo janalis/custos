@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Invalidate HTML escaping after native decoding and replacement transforms,
+  including transforms inside function summaries and after request rewrites.
+  Recognize delimiter-free encoders in HTML text output.
+
 - Highlight the unsafe emitted value in HTML-output findings, including
   interpolated values and transformed expressions.
 

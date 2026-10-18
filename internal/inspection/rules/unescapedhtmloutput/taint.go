@@ -165,7 +165,7 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr, 
 	}
 	// A write's escaping contract applies to a later direct read, but not
 	// to an output transform that can decode that text again.
-	escapingApplies := context == flow.HTML || directRequestRead(ctx, input, 0)
+	escapingApplies := directRequestRead(ctx, input, 0) || context == flow.HTML && preservingRequestRead(ctx, input, 0)
 	scope := syntax.EnclosingVariableScope(at)
 	limit := at.Span().Start
 	// whole lists the superglobals read as a whole or through an unknown key;
@@ -496,4 +496,25 @@ func directRequestRead(ctx *analysis.Context, input syntax.Expr, depth int) bool
 
 func requestSource(value flow.Value) bool {
 	return slices.ContainsFunc(value.Sources, func(source flow.Source) bool { return source.Parameter < 0 })
+}
+
+// preservingRequestRead recognizes the narrow native transforms that cannot
+// expose markup from an earlier escaped request write.
+func preservingRequestRead(ctx *analysis.Context, input syntax.Expr, depth int) bool {
+	if depth == maxOrigins {
+		return false
+	}
+	if directRequestRead(ctx, input, depth) {
+		return true
+	}
+	call, ok := syntax.UnwrapParens(input).(*syntax.FuncCall)
+	if !ok {
+		return false
+	}
+	switch semanticquery.NativeBuiltinName(ctx, call) {
+	case "trim", "ltrim", "rtrim", "strtolower", "strtoupper", "ucfirst", "lcfirst", "ucwords", "str_repeat", "strrev", "substr":
+		arg, state := semanticquery.CallArgumentBinding(call.Args, 0, "string")
+		return state == semanticquery.ArgumentBound && preservingRequestRead(ctx, arg, depth+1)
+	}
+	return false
 }

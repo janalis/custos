@@ -52,6 +52,8 @@ type Source struct {
 	// Keys records keys moved into an element or scalar output. Such a
 	// dependency cannot be made safe by projecting the original values.
 	Keys bool
+	// htmlDecoded prevents caller escaping from surviving a decoding transform.
+	htmlDecoded bool
 }
 
 // Value is a conservative union of possible inputs. Safe is the intersection
@@ -1182,6 +1184,7 @@ func union(a, b []Source) ([]Source, bool) {
 			next = a[i]
 			next.ValuesOnly = a[i].ValuesOnly && b[j].ValuesOnly
 			next.Keys = a[i].Keys || b[j].Keys
+			next.htmlDecoded = a[i].htmlDecoded || b[j].htmlDecoded
 			i++
 			j++
 		}

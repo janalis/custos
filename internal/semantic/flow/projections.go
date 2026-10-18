@@ -30,6 +30,9 @@ func projectSource(v Value, s Source) Value {
 			v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
 		}
 	}
+	if s.htmlDecoded {
+		v = decodedHTML(v)
+	}
 	return v
 }
 

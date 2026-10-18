@@ -1153,6 +1153,9 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		v = Value{Expr: v.Expr}
 	}
 	if builtin {
+		if htmlDecoding(name) {
+			v = decodedHTML(v)
+		}
 		if !quotePreserving(name) {
 			v.Safe &^= HTMLSingleQuoted | HTMLDoubleQuoted
 		}
@@ -1215,7 +1218,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			}
 		case "urlencode", "rawurlencode", "base64_encode", "bin2hex":
 			// Their output alphabets contain no HTML or quote delimiters.
-			v.Safe |= HTMLSingleQuoted | HTMLDoubleQuoted
+			v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted
 		case "escapeshellarg":
 			v.Safe |= Shell
 		case "intval", "floatval":
