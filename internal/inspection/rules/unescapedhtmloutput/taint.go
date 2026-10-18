@@ -19,9 +19,9 @@ const maxOrigins = 8
 // the taint of every operand, so values that only select between trusted
 // results, or whose string conversion is a number or boolean, are cleared
 // here. It never turns an untainted value into a tainted one.
-func tainted(ctx *analysis.Context, expr syntax.Expr, depth int) bool {
+func tainted(ctx *analysis.Context, expr syntax.Expr, depth int, context flow.Context) bool {
 	expr = syntax.UnwrapParens(expr)
-	if !ctx.Flow().Tainted(expr, flow.HTML) {
+	if !ctx.Flow().Tainted(expr, context) {
 		return false
 	}
 	if depth == maxOrigins {
@@ -30,15 +30,15 @@ func tainted(ctx *analysis.Context, expr syntax.Expr, depth int) bool {
 	switch x := expr.(type) {
 	case *syntax.Variable:
 		if origin, known := ctx.Flow().Resolve(x); known && origin != expr && !aliased(ctx, x) {
-			return tainted(ctx, origin, depth+1)
+			return tainted(ctx, origin, depth+1, context)
 		}
 	case *syntax.Ternary:
-		return tainted(ctx, x.Then, depth+1) || tainted(ctx, x.Else, depth+1)
+		return tainted(ctx, x.Then, depth+1, context) || tainted(ctx, x.Else, depth+1, context)
 	case *syntax.Match:
 		// Only arm results are emitted; the subject and arm conditions merely
 		// select one of them.
 		for _, arm := range x.Arms {
-			if tainted(ctx, arm.Body, depth+1) {
+			if tainted(ctx, arm.Body, depth+1, context) {
 				return true
 			}
 		}
@@ -154,7 +154,7 @@ func numericFormat(format string) bool {
 // flow.Env.Spares) may store request text in any of them. In a loop
 // around the output, what fills a table after the output does so before its
 // next turn.
-func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) bool {
+func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr, context flow.Context) bool {
 	names := map[string]bool{"GLOBALS": true}
 	spans := map[syntax.Span]bool{}
 	for _, source := range ctx.Flow().Value(input).Sources {
@@ -163,6 +163,9 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) 
 			spans[source.Span] = true
 		}
 	}
+	// A write's escaping contract applies to a later direct read, but not
+	// to an output transform that can decode that text again.
+	escapingApplies := context == flow.HTML || directRequestRead(ctx, input, 0)
 	scope := syntax.EnclosingVariableScope(at)
 	limit := at.Span().Start
 	// whole lists the superglobals read as a whole or through an unknown key;
@@ -263,7 +266,7 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) 
 					return !syntax.IsVariableScope(child)
 				})
 			}
-			clean := !ctx.Flow().Tainted(x.Value, flow.HTML) || callbackResult(ctx, x.Value)
+			clean := !ctx.Flow().Tainted(x.Value, context) && (escapingApplies || !requestSource(ctx.Flow().Value(x.Value))) || context == flow.HTML && callbackResult(ctx, x.Value)
 			for _, target := range slots(x.Var) {
 				add(write{target: target, replace: x.Op.Kind == syntax.TEqual && clean, refill: !clean})
 			}
@@ -279,7 +282,7 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) 
 			}
 		case *syntax.Foreach:
 			// The targets receive the keys and elements of what is iterated.
-			fed := ctx.Flow().Tainted(x.Expr, flow.HTML)
+			fed := ctx.Flow().Tainted(x.Expr, context) || !escapingApplies && requestSource(ctx.Flow().Value(x.Expr))
 			for _, target := range append(slots(x.Key), slots(x.Value)...) {
 				add(write{target: target, replace: !fed, refill: fed})
 			}
@@ -288,13 +291,13 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr) 
 			}
 		case *syntax.FuncCall:
 			targets := referenceArguments(ctx, x)
-			fed := len(targets) > 0 && fedByRequest(ctx, x, targets)
+			fed := len(targets) > 0 && fedByRequest(ctx, x, targets, context, escapingApplies)
 			for _, reference := range targets {
 				arg := reference.Argument
-				replace, refill := !fed && reference.Known, fed || !reference.Known
+				replace, refill := !fed && reference.Known && escapingApplies, fed || !reference.Known
 				if semanticquery.NativeBuiltinName(ctx, x) == "" {
 					value, known := ctx.Flow().ReferenceResult(x, arg)
-					replace = known && (value.Safe&flow.HTML != 0 || !slices.ContainsFunc(value.Sources, func(source flow.Source) bool { return source.Parameter < 0 }) || callbackResult(ctx, value.Expr))
+					replace = known && (escapingApplies && value.Safe&context != 0 || !requestSource(value) || context == flow.HTML && callbackResult(ctx, value.Expr))
 					refill = !replace
 				}
 				add(write{target: arg.Value, replace: replace, refill: refill})
@@ -421,12 +424,12 @@ func callbackResult(ctx *analysis.Context, value syntax.Expr) bool {
 // fedByRequest reports a builtin that receives request text in an argument
 // it does not write: what it stores in the referenced ones may derive from it
 // (`parse_str($_SERVER['QUERY_STRING'], $_GET)`).
-func fedByRequest(ctx *analysis.Context, call *syntax.FuncCall, written []semanticquery.ReferenceArgument) bool {
+func fedByRequest(ctx *analysis.Context, call *syntax.FuncCall, written []semanticquery.ReferenceArgument, context flow.Context, escapingApplies bool) bool {
 	if semanticquery.NativeBuiltinName(ctx, call) == "" {
 		return false
 	}
 	for _, node := range call.Args.Args {
-		if arg, ok := node.(*syntax.Arg); ok && !slices.ContainsFunc(written, func(reference semanticquery.ReferenceArgument) bool { return reference.Argument == arg }) && ctx.Flow().Tainted(arg.Value, flow.HTML) {
+		if arg, ok := node.(*syntax.Arg); ok && !slices.ContainsFunc(written, func(reference semanticquery.ReferenceArgument) bool { return reference.Argument == arg }) && (ctx.Flow().Tainted(arg.Value, context) || !escapingApplies && requestSource(ctx.Flow().Value(arg.Value))) {
 			return true
 		}
 	}
@@ -468,4 +471,29 @@ func rootVariable(target syntax.Expr) string {
 		}
 		return ""
 	}
+}
+
+// directRequestRead distinguishes a read (including a reaching local copy)
+// from a transform that can invalidate a prior write's escaping contract.
+func directRequestRead(ctx *analysis.Context, input syntax.Expr, depth int) bool {
+	if depth == maxOrigins {
+		return false
+	}
+	switch x := syntax.UnwrapParens(input).(type) {
+	case *syntax.ArrayDimFetch:
+		return directRequestRead(ctx, x.Var, depth+1)
+	case *syntax.Variable:
+		switch x.Name {
+		case "_GET", "_POST", "_REQUEST", "_COOKIE", "_FILES", "_SERVER", "GLOBALS":
+			return x.NameExpr == nil
+		}
+		if origin, known := ctx.Flow().Resolve(x); known && origin != x && !aliased(ctx, x) {
+			return directRequestRead(ctx, origin, depth+1)
+		}
+	}
+	return false
+}
+
+func requestSource(value flow.Value) bool {
+	return slices.ContainsFunc(value.Sources, func(source flow.Source) bool { return source.Parameter < 0 })
 }

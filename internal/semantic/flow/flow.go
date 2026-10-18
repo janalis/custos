@@ -21,6 +21,10 @@ const (
 	Header
 	URL
 	Path
+	// HTMLSingleQuoted and HTMLDoubleQuoted prove conversion of the matching
+	// delimiter in an ordinary quoted data attribute.
+	HTMLSingleQuoted
+	HTMLDoubleQuoted
 )
 
 // Limits bound hostile scopes and recursive wrapper queries. MaxRetained
@@ -1095,11 +1099,11 @@ func merge(a, b Value) Value {
 	ca, cb := a.scalars, b.scalars
 	switch {
 	case len(a.Sources) == 0 && len(b.Sources) == 0:
-		sa, sb, ua, ub, ca, cb = HTML|SQL|Shell|Header|URL|Path, HTML|SQL|Shell|Header|URL|Path, 0, 0, false, false
+		sa, sb, ua, ub, ca, cb = HTML|HTMLSingleQuoted|HTMLDoubleQuoted|SQL|Shell|Header|URL|Path, HTML|HTMLSingleQuoted|HTMLDoubleQuoted|SQL|Shell|Header|URL|Path, 0, 0, false, false
 	case len(a.Sources) == 0:
-		sa, ua, ca = HTML|SQL|Shell|Header|URL|Path, ub, cb
+		sa, ua, ca = HTML|HTMLSingleQuoted|HTMLDoubleQuoted|SQL|Shell|Header|URL|Path, ub, cb
 	case len(b.Sources) == 0:
-		sb, ub, cb = HTML|SQL|Shell|Header|URL|Path, ua, ca
+		sb, ub, cb = HTML|HTMLSingleQuoted|HTMLDoubleQuoted|SQL|Shell|Header|URL|Path, ua, ca
 	}
 	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, headerMask: a.headerMask & b.headerMask, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull, LengthKnown: a.LengthKnown && b.LengthKnown && a.Length == b.Length, Length: a.Length}
 	v.interval = joinInts(a, b)
@@ -1413,7 +1417,7 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 		if ok {
 			shared++
 		}
-		if ok && equal(v, w) && (len(v.Sources) > 0 || v.Safe == HTML|SQL|Shell|Header|URL|Path && v.upload == 0 && !v.scalars) {
+		if ok && equal(v, w) && (len(v.Sources) > 0 || v.Safe == HTML|HTMLSingleQuoted|HTMLDoubleQuoted|SQL|Shell|Header|URL|Path && v.upload == 0 && !v.scalars) {
 			// Joining a value with itself leaves it as it is, once a value
 			// without request data has the form a join gives it.
 			continue

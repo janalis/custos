@@ -27,7 +27,7 @@ func projectSource(v Value, s Source) Value {
 	} else if s.ValuesOnly {
 		v = projectValues(v)
 		if v.scalars {
-			v.Safe |= HTML | SQL | Shell | Header
+			v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
 		}
 	}
 	return v

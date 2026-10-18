@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Detect unescaped request data in quoted HTML data attributes. Track single-
+  and double-quote escaping separately, respect PHP-version defaults and named
+  flags, and recognize delimiter-free encoder outputs.
+
 - Preserve HTML-output findings through reference calls that retain request data.
   Match named reference arguments and use callable output contracts to distinguish
   proven replacements from conditional writes and potentially aliased outputs.

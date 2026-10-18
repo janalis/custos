@@ -233,7 +233,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 				}
 			}
 			v.Sources = nil
-			v.Safe = HTML | SQL | Shell | Header | URL | Path
+			v.Safe = HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header | URL | Path
 			f.vars[variable.Name] = v
 			// The value is one of the literals: neither false nor null.
 			exclude(variable, f, true, true)

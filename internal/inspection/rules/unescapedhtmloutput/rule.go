@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -30,22 +29,23 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.Print:
 		operands = []syntax.Expr{x.Expr}
 	}
-	input := textNodeInput(ctx, operands)
-	if input == nil || !tainted(ctx, input, 0) || requestRewritten(ctx, n, input) || inertResponse(ctx, n) {
+	input, context := htmlInput(ctx, operands)
+	if input == nil || !tainted(ctx, input, 0, context) || requestRewritten(ctx, n, input, context) || inertResponse(ctx, n) {
 		return
 	}
 	ctx.ReportNode(n, message)
 }
 
-// textNodeInput returns the first request-derived part of an output statement
-// that is emitted into an HTML text node. Every byte emitted before it must
-// be known, or come from a part that cannot hold markup: a number or a
+// htmlInput returns the first request-derived part of an output statement
+// emitted into a proven text node or quoted data attribute. Every earlier byte
+// must be known, or come from a part that cannot hold markup: a number or a
 // boolean anywhere, text escaped for HTML inside a text node. Any other
 // dynamic part could open an attribute or a raw-text element, which ends the
 // search.
-func textNodeInput(ctx *analysis.Context, operands []syntax.Expr) syntax.Expr {
+func htmlInput(ctx *analysis.Context, operands []syntax.Expr) (syntax.Expr, flow.Context) {
 	var prefix strings.Builder
 	var input syntax.Expr
+	var context flow.Context
 	open := true
 	var collect func(syntax.Expr) bool
 	collect = func(part syntax.Expr) bool {
@@ -66,7 +66,9 @@ func textNodeInput(ctx *analysis.Context, operands []syntax.Expr) syntax.Expr {
 			}
 		case *syntax.StringPart:
 			if input == nil {
-				text, _ := astquery.StringLiteralValue(`"` + x.Raw + `"`)
+				// Wrapping guarantees a supported quote form; escapes still
+				// follow the parsed source version.
+				text, _ := syntax.StringLiteralValueForVersion(`"`+x.Raw+`"`, syntax.SourceVersion(x))
 				prefix.WriteString(text)
 			}
 			return true
@@ -77,19 +79,26 @@ func textNodeInput(ctx *analysis.Context, operands []syntax.Expr) syntax.Expr {
 			}
 			return true
 		}
+		var partContext flow.Context
+		if input == nil && open {
+			partContext = htmlContext(prefix.String())
+		}
 		switch {
 		case input != nil:
 			// The whole operand is evaluated before any of it is emitted, so
 			// a later part with effects could still change the response.
 			return !flowquery.MayHaveSideEffects(part)
 		case !open:
-		case tainted(ctx, part, 0):
-			input = part
-		case ctx.Flow().Matched(part):
+		case partContext != 0 && tainted(ctx, part, 0, partContext):
+			input, context = part, partContext
+		case partContext == flow.HTML && ctx.Flow().Matched(part):
 			// A switch label the request data was matched with is text of
 			// the program: the parts after it are still looked at.
 		case ctx.TypeOf(part).OnlyOf("int", "float", "bool"):
-		case textPrefix(prefix.String()) && escaped(ctx, part):
+		case partContext != 0 && escaped(ctx, part, partContext):
+			// Escaping tracked inputs does not prove that an opaque value
+			// contains no trusted quote delimiters of its own.
+			open = partContext == flow.HTML
 		default:
 			open = false
 		}
@@ -97,32 +106,30 @@ func textNodeInput(ctx *analysis.Context, operands []syntax.Expr) syntax.Expr {
 	}
 	for _, operand := range operands {
 		if !collect(operand) {
-			return nil
+			return nil, 0
 		}
 		if input != nil {
 			break
 		}
 	}
-	if !textPrefix(prefix.String()) {
-		return nil
-	}
-	return input
+	return input, context
 }
 
 // escaped reports a part whose value derives from tracked inputs and was
 // escaped for HTML on every path: it adds no markup to the text node.
-func escaped(ctx *analysis.Context, part syntax.Expr) bool {
+func escaped(ctx *analysis.Context, part syntax.Expr, context flow.Context) bool {
 	v := ctx.Flow().Value(part)
-	return v.Complete && len(v.Sources) > 0 && v.Safe&flow.HTML != 0
+	return v.Complete && len(v.Sources) > 0 && v.Safe&context != 0
 }
 
-// textPrefix proves that known markup ends inside an ordinary text node.
-func textPrefix(prefix string) bool {
+// htmlContext identifies text nodes and quoted ordinary data attributes.
+func htmlContext(prefix string) flow.Context {
 	lower := strings.ToLower(prefix)
 	if strings.Contains(lower, "<script") || strings.Contains(lower, "<style") {
-		return false
+		return 0
 	}
-	tag, text := false, false
+	tag, text, closing := false, false, false
+	quoteAt := 0
 	var quote byte
 	for i := 0; i < len(prefix); i++ {
 		c := prefix[i]
@@ -135,11 +142,11 @@ func textPrefix(prefix string) bool {
 		if tag {
 			switch c {
 			case '\'', '"':
-				quote = c
+				quote, quoteAt = c, i
 			case '>':
 				tag, text = false, true
 			case '<':
-				return false
+				return 0
 			}
 			continue
 		}
@@ -151,12 +158,21 @@ func textPrefix(prefix string) bool {
 			// Comments, declarations and incomplete/unknown tags cannot
 			// establish text context. Only ordinary ASCII tag names do.
 			if start >= len(prefix) || lower[start] < 'a' || lower[start] > 'z' {
-				return false
+				return 0
 			}
-			tag = true
+			tag, closing = true, start != i+1
 		}
 	}
-	return text && !tag
+	if quote != 0 && !closing && ordinaryAttribute(prefix, quoteAt) {
+		if quote == '\'' {
+			return flow.HTMLSingleQuoted
+		}
+		return flow.HTMLDoubleQuoted
+	}
+	if text && !tag {
+		return flow.HTML
+	}
+	return 0
 }
 
 // inertResponse reports whether the latest dominating literal Content-Type
