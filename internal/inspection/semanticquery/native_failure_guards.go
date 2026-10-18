@@ -220,8 +220,14 @@ func NativeIntegerAllowsZero(ctx *analysis.Context, options syntax.Expr) bool {
 // NativeCurlDefault proves a local handle retains an option's disabled default.
 // Any escape, ambiguous option, bulk update or write callback invalidates proof.
 func NativeCurlDefault(ctx *analysis.Context, at syntax.Node, handle syntax.Expr, option string) bool {
-	id := ctx.Flow().Value(handle).Identity
-	if id == 0 {
+	value := ctx.Flow().Value(handle)
+	id := value.Identity
+	if id == 0 || value.Invalidated == ^uint32(0) || !NativeHandleUnescaped(ctx, handle, at) {
+		return false
+	}
+	origin := NativeValue(ctx, handle)
+	init, initialized := origin.(*syntax.FuncCall)
+	if !initialized || !NativeBuiltin(ctx, init, "curl_init") {
 		return false
 	}
 	for _, call := range ctx.Flow().Calls(syntax.EnclosingVariableScope(at)) {
@@ -248,7 +254,11 @@ func NativeCurlDefault(ctx *analysis.Context, at syntax.Node, handle syntax.Expr
 			if !ok || constant.Name == nil {
 				return false
 			}
-			name := strings.TrimPrefix(constant.Name.Value, `\`)
+			name := GlobalConstName(ctx, constant)
+			declaration := ctx.Index().Constant(name, ctx.PHP)
+			if declaration == nil || !declaration.Builtin || !declaration.Avail.In(ctx.PHP) {
+				return false
+			}
 			if name == "CURLOPT_WRITEFUNCTION" {
 				return false
 			}

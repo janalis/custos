@@ -136,44 +136,9 @@ func overridable(ctx *analysis.Context, fqn, name string) bool {
 		}
 	}
 	below := ctx.Memo("descendant-methods\x00"+strings.ToLower(fqn), func() any {
-		return descendantMethods(ctx, fqn)
-	}).(map[string]bool)
-	return below[strings.ToLower(name)]
-}
-
-// descendantMethods extends semanticquery.DescendantMethods with the
-// methods descendants take from traits (declared there or aliased by an
-// `as` adaptation), which the shared walk does not see.
-func descendantMethods(ctx *analysis.Context, fqn string) map[string]bool {
-	ix := ctx.Index()
-	out := semanticquery.DescendantMethods(ix, fqn, ctx.PHP)
-	seen := map[string]bool{}
-	queue := []string{fqn}
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		for _, ch := range ix.ChildrenAll(cur) {
-			k := strings.ToLower(strings.TrimPrefix(ch, `\`))
-			if seen[k] {
-				continue
-			}
-			seen[k] = true
-			queue = append(queue, ch)
-			for _, a := range ix.Ancestors(ch, ctx.PHP) {
-				if a.Kind == syntax.KindTrait {
-					for name := range a.Methods {
-						out[name] = true
-					}
-				}
-				for _, ad := range a.TraitAdaptations {
-					if ad.Alias != "" {
-						out[strings.ToLower(ad.Alias)] = true
-					}
-				}
-			}
-		}
-	}
-	return out
+		return semanticquery.DescendantMethods(ix, fqn, ctx.PHP)
+	}).(semanticquery.MethodOverrides)
+	return below.MayOverride(name)
 }
 
 // isThis reports whether e is `$this`, possibly parenthesized.

@@ -495,8 +495,8 @@ func rtdOverridden(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Met
 	}
 	below := ctx.Memo("descendant-methods\x00"+self, func() any {
 		return semanticquery.DescendantMethods(ix, fqn, ctx.PHP)
-	}).(map[string]bool)
-	return below[name]
+	}).(semanticquery.MethodOverrides)
+	return below.MayOverride(name)
 }
 
 // rtdTraitExposed reports whether trait method m is composed into classes

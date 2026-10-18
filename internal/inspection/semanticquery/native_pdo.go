@@ -62,6 +62,10 @@ func scanNativeSQL(sql string) (sqlFacts, bool) {
 			previous = ""
 			continue
 		}
+		if c == '-' && i+1 < len(sql) && sql[i+1] == '-' && i+2 < len(sql) && sql[i+2] > ' ' {
+			// SQL dialects disagree on whether this opens a comment.
+			return f, false
+		}
 		if c == '#' || c == '-' && i+1 < len(sql) && sql[i+1] == '-' {
 			for i < len(sql) && sql[i] != '\n' {
 				i++
@@ -69,6 +73,10 @@ func scanNativeSQL(sql string) (sqlFacts, bool) {
 			continue
 		}
 		if c == '/' && i+1 < len(sql) && sql[i+1] == '*' {
+			if i+2 < len(sql) && (sql[i+2] == '!' || strings.HasPrefix(sql[i+2:], "M!")) {
+				// Executable vendor comments depend on the server and version.
+				return f, false
+			}
 			end := strings.Index(sql[i+2:], "*/")
 			if end < 0 || strings.Contains(sql[i+2:i+2+end], "/*") {
 				return f, false

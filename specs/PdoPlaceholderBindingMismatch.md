@@ -62,6 +62,10 @@ function fine(PDO $pdo) {
 }
 ```
 
+Executable MySQL/MariaDB comments and double-dash sequences without following
+whitespace depend on the database dialect. Without a resolved dialect, their
+placeholder count is unknown and does not establish a mismatch.
+
 ## Divergences
 
 Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.

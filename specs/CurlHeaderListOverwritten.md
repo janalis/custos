@@ -21,6 +21,7 @@ Setting cURL's HTTP header list again replaces the earlier list. Combine require
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- E1a. An opaque handle copied into another binding, an array, a property or a closure no longer has exclusive local ownership. Do not use local option history to prove its current configuration after that escape.
 - E2. Both standard suppression forms suppress this native ID.
 
 ## Report

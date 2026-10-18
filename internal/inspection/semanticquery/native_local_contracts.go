@@ -25,7 +25,7 @@ func NativeConstruction(ctx *analysis.Context, e syntax.Expr, class string) *syn
 	}
 	fqn := ctx.Names().Class(n.Value, n.Span().Start)
 	c := ctx.Index().Class(fqn, ctx.PHP)
-	if c == nil || !strings.HasPrefix(c.File, "stubs/") || !strings.EqualFold(fqn, class) {
+	if c == nil || !c.Avail.In(ctx.PHP) || !strings.HasPrefix(c.File, "stubs/") || !strings.EqualFold(fqn, class) {
 		return nil
 	}
 	return v
@@ -367,9 +367,9 @@ func NativeStreamMode(ctx *analysis.Context, h syntax.Expr, at syntax.Node) (str
 		return "", false
 	}
 	if path, known := NativeString(ctx, CallArgument(c.Args, 0, "filename")); known && (strings.HasPrefix(path, "php://memory") || strings.HasPrefix(path, "php://temp")) {
-		if mode[0] == 'a' {
+		if strings.Contains(mode, "a") {
 			mode = "a+"
-		} else if mode[0] == 'w' || strings.Contains(mode, "+") {
+		} else if strings.ContainsAny(mode, "w+") {
 			mode = "w+"
 		} else {
 			mode = "r"

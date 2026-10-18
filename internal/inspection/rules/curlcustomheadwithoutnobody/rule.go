@@ -46,16 +46,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 }
 
-// handleEscapes reports whether the handle variable, or a local copy of it,
-// is used before at in a way the call-based option proof cannot follow: a
-// closure capture, an arrow-function body, an array item, a store into a
-// property or element, a reference, compact() or get_defined_vars(), or any
-// other value position. Only direct call arguments, plain copies and boolean
-// tests keep the handle local.
+// handleEscapes rejects lexical uses outside direct calls and boolean tests.
+// The shared option proof has already rejected copies and stored handles.
 func handleEscapes(ctx *analysis.Context, at syntax.Node, handle syntax.Expr) bool {
 	// The option proof only succeeds for a plain local handle variable.
 	name, _ := astquery.PlainVariableName(handle)
-	names := map[string]bool{name: true}
 	escaped := false
 	visit := func(n syntax.Node) bool {
 		if escaped || n.Span().Start >= at.Span().Start {
@@ -64,13 +59,11 @@ func handleEscapes(ctx *analysis.Context, at syntax.Node, handle syntax.Expr) bo
 		switch n := n.(type) {
 		case *syntax.Closure:
 			for _, use := range n.Uses {
-				escaped = escaped || names[use.Var.Name]
+				escaped = escaped || use.Var.Name == name
 			}
 			return false
 		case *syntax.ArrowFunction:
-			for alias := range names {
-				escaped = escaped || astquery.MentionsVariable(n.Expr, alias)
-			}
+			escaped = escaped || astquery.MentionsVariable(n.Expr, name)
 			return false
 		case *syntax.FuncCall:
 			// These builtins read the scope's variables by name.
@@ -81,27 +74,23 @@ func handleEscapes(ctx *analysis.Context, at syntax.Node, handle syntax.Expr) bo
 		case *syntax.Variable:
 			if n.NameExpr != nil {
 				escaped = true
-			} else if names[n.Name] {
-				escaped = !keepsHandleLocal(n, names)
+			} else if n.Name == name {
+				escaped = !keepsHandleLocal(n)
 			}
 		}
 		return !syntax.IsVariableScope(n)
 	}
-	// A copy adds a name, so repeat until earlier uses of that name are seen.
-	for known := 0; !escaped && known != len(names); {
-		known = len(names)
-		if scope := syntax.EnclosingVariableScope(at); scope != nil {
-			syntax.Inspect(syntax.VariableScopeBody(scope), visit)
-		} else {
-			syntax.InspectFile(ctx.File, visit)
-		}
+	if scope := syntax.EnclosingVariableScope(at); scope != nil {
+		syntax.Inspect(syntax.VariableScopeBody(scope), visit)
+	} else {
+		syntax.InspectFile(ctx.File, visit)
 	}
 	return escaped
 }
 
 // keepsHandleLocal accepts the positions where a handle variable cannot leave
-// the scope unseen; a plain copy registers its target as another handle name.
-func keepsHandleLocal(v *syntax.Variable, names map[string]bool) bool {
+// the scope unseen. Copies have already invalidated the shared option proof.
+func keepsHandleLocal(v *syntax.Variable) bool {
 	parent, child := astquery.ParentSkipParens(v)
 	switch p := parent.(type) {
 	case *syntax.Arg, *syntax.Isset, *syntax.Empty, *syntax.If, *syntax.ElseIf:
@@ -114,14 +103,7 @@ func keepsHandleLocal(v *syntax.Variable, names map[string]bool) bool {
 			return true
 		}
 	case *syntax.Assign:
-		if p.Var == child {
-			return p.Op.Kind == syntax.TEqual && !p.ByRef
-		}
-		target, plain := astquery.PlainVariableName(p.Var)
-		if plain && p.Op.Kind == syntax.TEqual && !p.ByRef {
-			names[target] = true
-			return true
-		}
+		return p.Var == child && p.Op.Kind == syntax.TEqual && !p.ByRef
 	}
 	return false
 }

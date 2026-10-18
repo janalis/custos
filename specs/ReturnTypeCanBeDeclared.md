@@ -169,6 +169,11 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
   transitively), or any known subclass/implementor anywhere in the project.
   Overridden methods are still reported, but without a fix and with a message
   that recommends changing the whole hierarchy.
+- **D13a** (custos) A missing or unavailable descendant dependency, duplicate
+  descendant declaration, or exhausted hierarchy budget cannot prove that no
+  replacement exists. Keep the suggestion, withhold the one-click fix and use
+  the hierarchy-refactoring message. Include composed trait methods and aliases
+  when enumerating descendant replacements.
 - **D13b** (custos) Trait methods. An abstract trait method always counts
   as overridden (every class using the trait declares it). Another trait
   method that is neither `final` nor `private` counts as overridden when a

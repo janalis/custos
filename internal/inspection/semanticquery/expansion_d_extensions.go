@@ -258,6 +258,8 @@ func ExpansionDMethodName(c *syntax.MethodCall) string {
 
 type expansionDEscapeScopeKey struct{ scope syntax.Node }
 
+type opaqueEscapeScopeKey struct{ scope syntax.Node }
+
 type expansionDEscapeCandidates struct {
 	nodes []syntax.Node
 	known bool
@@ -265,8 +267,14 @@ type expansionDEscapeCandidates struct {
 
 // expansionDEscapes caches syntax-only escape candidates once per lexical scope.
 // Receiver identity and types remain context-dependent and are never cached.
-func expansionDEscapes(ctx *analysis.Context, scope syntax.Node) expansionDEscapeCandidates {
-	return ctx.File.Memo(expansionDEscapeScopeKey{scope}, func() any {
+func expansionDEscapes(ctx *analysis.Context, scope syntax.Node, opaque bool) expansionDEscapeCandidates {
+	var key any
+	if opaque {
+		key = opaqueEscapeScopeKey{scope}
+	} else {
+		key = expansionDEscapeScopeKey{scope}
+	}
+	return ctx.File.Memo(key, func() any {
 		result := expansionDEscapeCandidates{known: true}
 		visited, events := 0, 0
 		visit := func(n syntax.Node) bool {
@@ -274,6 +282,26 @@ func expansionDEscapes(ctx *analysis.Context, scope syntax.Node) expansionDEscap
 				return false
 			}
 			if n != scope && syntax.IsVariableScope(n) {
+				if arrow, ok := n.(*syntax.ArrowFunction); ok && opaque {
+					parameters := map[string]bool{}
+					for _, param := range arrow.Params {
+						if param.Var != nil {
+							parameters[param.Var.Name] = true
+						}
+					}
+					syntax.Inspect(arrow.Expr, func(child syntax.Node) bool {
+						visited++
+						if visited > 4096 {
+							result.known = false
+							result.nodes = nil
+							return false
+						}
+						if variable, ok := child.(*syntax.Variable); ok && !parameters[variable.Name] {
+							result.nodes = append(result.nodes, variable)
+						}
+						return true
+					})
+				}
 				if closure, ok := n.(*syntax.Closure); ok {
 					visited += len(closure.Uses)
 					if visited > 4096 {
@@ -297,8 +325,15 @@ func expansionDEscapes(ctx *analysis.Context, scope syntax.Node) expansionDEscap
 				result.nodes = nil
 				return false
 			}
-			if a, ok := n.(*syntax.Assign); ok && a.ByRef {
-				result.nodes = append(result.nodes, a)
+			switch value := n.(type) {
+			case *syntax.Assign:
+				if opaque || value.ByRef {
+					result.nodes = append(result.nodes, n)
+				}
+			case *syntax.ArrayItem:
+				if opaque {
+					result.nodes = append(result.nodes, n)
+				}
 			}
 			return true
 		}
@@ -313,7 +348,7 @@ func expansionDEscapes(ctx *analysis.Context, scope syntax.Node) expansionDEscap
 
 // ExpansionDUnaliased rejects escaping aliases using bounded cached syntax.
 func ExpansionDUnaliased(ctx *analysis.Context, obj syntax.Expr, at syntax.Node) bool {
-	candidates := expansionDEscapes(ctx, syntax.EnclosingVariableScope(at))
+	candidates := expansionDEscapes(ctx, syntax.EnclosingVariableScope(at), false)
 	if !candidates.known {
 		return false
 	}
@@ -323,7 +358,7 @@ func ExpansionDUnaliased(ctx *analysis.Context, obj syntax.Expr, at syntax.Node)
 		}
 		switch x := candidate.(type) {
 		case *syntax.Assign:
-			if astquery.Equivalent(ctx.File, x.Value, obj) || NativeSameValue(ctx, x.Value, obj) {
+			if x.ByRef && (astquery.Equivalent(ctx.File, x.Value, obj) || NativeSameValue(ctx, x.Value, obj)) {
 				return false
 			}
 		case *syntax.ClosureUse:
@@ -335,6 +370,44 @@ func ExpansionDUnaliased(ctx *analysis.Context, obj syntax.Expr, at syntax.Node)
 			}
 			object := ctx.Types().Native().TypeOf(obj)
 			if len(object.Classes()) > 0 || object.Has("resource") {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// NativeHandleUnescaped rejects visible storage escapes of an opaque handle.
+// Callers separately establish its allocation identity and call effects.
+func NativeHandleUnescaped(ctx *analysis.Context, handle syntax.Expr, at syntax.Node) bool {
+	candidates := expansionDEscapes(ctx, syntax.EnclosingVariableScope(at), true)
+	if !candidates.known {
+		return false
+	}
+	for _, node := range candidates.nodes {
+		if node.Span().Start >= at.Span().Start {
+			break
+		}
+		switch value := node.(type) {
+		case *syntax.Variable:
+			if astquery.Equivalent(ctx.File, value, handle) {
+				return false
+			}
+		case *syntax.Assign:
+			if value.ByRef && astquery.Equivalent(ctx.File, value.Var, handle) {
+				return false
+			}
+			if value.ByRef || !astquery.Equivalent(ctx.File, value.Var, handle) {
+				if astquery.Equivalent(ctx.File, value.Value, handle) || NativeSameValue(ctx, value.Value, handle) {
+					return false
+				}
+			}
+		case *syntax.ArrayItem:
+			if astquery.Equivalent(ctx.File, value.Value, handle) || NativeSameValue(ctx, value.Value, handle) {
+				return false
+			}
+		case *syntax.ClosureUse:
+			if astquery.Equivalent(ctx.File, value.Var, handle) || NativeSameValue(ctx, value.Var, handle) {
 				return false
 			}
 		}

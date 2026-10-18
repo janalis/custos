@@ -7,6 +7,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Respect class availability and named callback declaration availability in native
+  checks. Track trait methods and aliases in bounded descendant override queries.
+  Treat escaped cURL handles and dialect-dependent SQL counts as unknown, and
+  model writable memory-stream modes. Withhold signature fixes when descendant
+  hierarchies are incomplete.
+
 - Distinguish omitted arguments from uncertain unpacking in state checks. Resolve
   inherited constructor contracts, require receiver alternatives to agree, and
   respect case-sensitive named arguments and variadic reference parameters.

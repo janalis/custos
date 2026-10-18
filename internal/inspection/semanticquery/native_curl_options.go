@@ -11,6 +11,9 @@ import (
 // NativeCurlOption returns a proven, explicitly configured cURL option value.
 // Unknown updates, conditional setters and escapes invalidate the proof.
 func NativeCurlOption(ctx *analysis.Context, at syntax.Node, handle syntax.Expr, option string) (syntax.Expr, bool) {
+	if !NativeHandleUnescaped(ctx, handle, at) {
+		return nil, false
+	}
 	value := ctx.Flow().Value(handle)
 	if !value.Complete || value.Identity == 0 {
 		return nil, false

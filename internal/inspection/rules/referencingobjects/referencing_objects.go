@@ -219,8 +219,8 @@ func roInHierarchy(ctx *analysis.Context, m *syntax.Method) bool {
 	}
 	below := ctx.Memo("descendant-methods\x00"+strings.ToLower(fqn), func() any {
 		return semanticquery.DescendantMethods(ix, fqn, ctx.PHP)
-	}).(map[string]bool)
-	return below[lname]
+	}).(semanticquery.MethodOverrides)
+	return below.MayOverride(lname)
 }
 
 // usedAsReference reports whether the parameter is written to, captured by

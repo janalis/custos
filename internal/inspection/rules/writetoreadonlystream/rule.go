@@ -23,19 +23,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	handle := semanticquery.CallArgument(c.Args, 0, "stream")
-	open, ok := semanticquery.NativeValue(ctx, handle).(*syntax.FuncCall)
-	if !ok {
-		return
-	}
 	mode, known := semanticquery.NativeStreamMode(ctx, handle, c)
 	if !known || mode[0] != 'r' || strings.Contains(mode, "+") {
-		return
-	}
-	// php://memory and php://temp are writable as soon as the mode holds a
-	// "w", "a" or "+" anywhere, unlike plain files where the first letter decides.
-	path, _ := semanticquery.NativeString(ctx, semanticquery.CallArgument(open.Args, 0, "filename"))
-	raw, _ := semanticquery.NativeString(ctx, semanticquery.CallArgument(open.Args, 1, "mode"))
-	if (strings.HasPrefix(path, "php://memory") || strings.HasPrefix(path, "php://temp")) && strings.ContainsAny(raw, "wa") {
 		return
 	}
 	ctx.ReportNode(c, message)

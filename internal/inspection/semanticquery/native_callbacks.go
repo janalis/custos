@@ -16,13 +16,21 @@ func NativeCallback(ctx *analysis.Context, e syntax.Expr) ([]*syntax.Param, synt
 		return params, body
 	}
 	if name, ok := NativeString(ctx, e); ok {
-		if fn := ctx.Index().Function(name, ctx.PHP); fn != nil {
-			if declaration := FunctionDecl(ctx.File, fn); declaration != nil {
+		if fn := ctx.Index().Function(name, ctx.PHP); fn != nil && len(ctx.Index().FunctionDecls(fn.FQN, ctx.PHP)) == 1 {
+			if declaration := FunctionDecl(ctx.File, fn); declaration != nil && unconditionalFunction(declaration) {
 				return astquery.ScopeParts(declaration)
 			}
 		}
 	}
 	return nil, nil
+}
+
+func unconditionalFunction(declaration *syntax.Function) bool {
+	switch declaration.Parent().(type) {
+	case *syntax.File, *syntax.Namespace:
+		return true
+	}
+	return false
 }
 
 // NativeReturns collects explicit returns of one callback, excluding nested
@@ -62,7 +70,7 @@ func NativeReturns(body syntax.Node) ([]syntax.Expr, bool) {
 func NativeFunctionBody(ctx *analysis.Context, call *syntax.FuncCall) *syntax.Block {
 	fn := ctx.Types().ResolveFunction(call)
 	decl := FunctionDecl(ctx.File, fn)
-	if decl == nil {
+	if decl == nil || !unconditionalFunction(decl) || len(ctx.Index().FunctionDecls(fn.FQN, ctx.PHP)) != 1 {
 		return nil
 	}
 	return decl.Body
