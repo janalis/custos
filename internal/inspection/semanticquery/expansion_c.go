@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
 )
 
@@ -103,13 +104,6 @@ func ExpansionCOutputCall(ctx *analysis.Context, at syntax.Node, value syntax.Ex
 		if n != scope && syntax.EnclosingVariableScope(n) != scope {
 			return false
 		}
-		if n.Span().Start > found.Span().End {
-			if a, ok := n.(*syntax.Assign); ok {
-				if target, ok := a.Var.(*syntax.Variable); ok && target.Name == v.Name {
-					valid = false
-				}
-			}
-		}
 		return true
 	}
 	if scope != nil {
@@ -121,6 +115,9 @@ func ExpansionCOutputCall(ctx *analysis.Context, at syntax.Node, value syntax.Ex
 			}
 			syntax.Inspect(stmt, visit)
 		}
+	}
+	if valid && expansionCRebound(ctx, scope, v.Name, found, at) {
+		valid = false
 	}
 	for _, fact := range calls {
 		if fact.Node.Span().Start <= found.Span().End || fact.Node.Span().Start >= at.Span().Start {
@@ -151,6 +148,22 @@ func ExpansionCOutputCall(ctx *analysis.Context, at syntax.Node, value syntax.Ex
 		return nil
 	}
 	return found
+}
+
+// expansionCRebound reports a write of the output variable between found and
+// at: any rebinding (assignment, destructuring, increment, foreach target,
+// unset), an element write or a by-reference capture. A write later in a loop
+// around at does not count: the first pass still reads found's output.
+func expansionCRebound(ctx *analysis.Context, scope syntax.Node, name string, found *syntax.FuncCall, at syntax.Node) bool {
+	from, to := found.Span().End, at.Span().Start
+	for _, access := range flowquery.VarAccesses(ctx.File, scope, name) {
+		use, captured := access.By.(*syntax.ClosureUse)
+		write := access.Write || access.ElemWrite || captured && use.ByRef
+		if start := access.Var.Span().Start; write && start > from && start < to {
+			return true
+		}
+	}
+	return false
 }
 
 // ExpansionCSame compares stable source expressions; useful for output argument identities.

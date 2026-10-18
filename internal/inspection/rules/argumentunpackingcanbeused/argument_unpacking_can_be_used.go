@@ -93,18 +93,7 @@ func coercedCallback(ctx *analysis.Context, call *syntax.FuncCall) bool {
 	if _, fallback := ctx.Names().Function(name.Value, name.Span().Start); fallback == "" {
 		return false
 	}
-	for _, st := range ctx.File.Stmts {
-		decl, ok := st.(*syntax.Declare)
-		if !ok {
-			continue
-		}
-		for _, item := range decl.Items {
-			if strings.EqualFold(item.Key.Value, "strict_types") {
-				return ctx.Text(item.Value) != "0"
-			}
-		}
-	}
-	return false
+	return syntax.StrictTypes(ctx.File)
 }
 
 type unpackKeys int

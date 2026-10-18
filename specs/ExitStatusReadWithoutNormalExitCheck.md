@@ -25,6 +25,7 @@ Check normal termination before decoding the exit code.
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding, whether written as one condition, nested conditions, guard clauses that leave early, else branches, ternary arms or short-circuit operands. Both legacy noinspection and custos-ignore forms suppress this ID.
+- E3. A status variable written between the wait and the read, by assignment, destructuring, increment, `foreach`, `unset`, an element write or a by-reference closure capture, no longer holds the wait status: no report.
 
 ## Report
 

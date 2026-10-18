@@ -57,6 +57,7 @@ or ternary arm; advancing generators is outside this local producer contract.
 - `assert()` is not a guard: assertions are compiled out in production configurations, so the read stays reported. Indirect evidence (a null-coalesced copy tested later) is not followed either.
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
+- E3. An unpacked argument (`parse_url($url, ...$options)`) may supply `component`, which changes the result contract: no report.
 - E2. Both `@custos-ignore ParseUrlFailureDereferenced` and `@noinspection ParseUrlFailureDereferenced` suppress this native rule.
 
 ## Report

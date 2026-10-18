@@ -68,9 +68,9 @@ func Terminates(s Stmt) bool {
 	case *While, *For:
 		return Endless(x)
 	case *DoWhile:
-		// A break leaves the loop, and a continue reaches a condition that
-		// may end it.
-		return Endless(x) || !containsBreak(x.Body) && Terminates(x.Body) && !jumps(x.Body, true, false)
+		// A break or a goto to a label outside the body leaves the loop, and
+		// a continue reaches a condition that may end it.
+		return Endless(x) || !containsBreak(x.Body) && Terminates(x.Body) && !jumps(x.Body, true, true)
 	case *Declare:
 		return x.Body != nil && Terminates(x.Body)
 	}

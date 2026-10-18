@@ -80,17 +80,12 @@ func (getTypeMissUse) Check(ctx *analysis.Context, n syntax.Node) {
 			text := repl
 			// `return'string'===gettype($x)`: the predicate (or its leading
 			// backslash) would fuse with the keyword before the literal.
-			if start := bin.Span().Start; repl[0] != '!' && start > 0 && gettypeNameByte(ctx.File.Src[start-1]) {
+			if start := bin.Span().Start; repl[0] != '!' && start > 0 && astquery.NameByte(ctx.File.Src[start-1]) {
 				text = " " + repl
 			}
 			return []diagnostic.TextEdit{{Span: bin.Span(), NewText: text}}
 		},
 	})
-}
-
-// gettypeNameByte reports whether c can end a keyword or a name.
-func gettypeNameByte(c byte) bool {
-	return c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= 0x80
 }
 
 // gettypeOperandLiteral resolves e to a single string literal (D3).

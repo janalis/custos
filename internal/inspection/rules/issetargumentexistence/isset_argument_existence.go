@@ -19,10 +19,9 @@ func (issetArgumentExistence) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KBinary, syntax.KIsset, syntax.KEmpty}
 }
 
+// issetSpecialNames are the predefined variables besides superglobals.
 var issetSpecialNames = map[string]bool{
-	"this": true, "_GET": true, "_POST": true, "_SESSION": true, "_REQUEST": true,
-	"_FILES": true, "_COOKIE": true, "_ENV": true, "_SERVER": true, "GLOBALS": true,
-	"HTTP_RAW_POST_DATA": true, "php_errormsg": true, "http_response_header": true,
+	"this": true, "HTTP_RAW_POST_DATA": true, "php_errormsg": true, "http_response_header": true,
 }
 
 func (r issetArgumentExistence) Check(ctx *analysis.Context, n syntax.Node) {
@@ -46,7 +45,7 @@ func (issetArgumentExistence) candidate(ctx *analysis.Context, e syntax.Expr) {
 		return
 	}
 	name := v.Name
-	if issetSpecialNames[name] { // D4
+	if syntax.Superglobal(name) || issetSpecialNames[name] { // D4
 		return
 	}
 	fn := syntax.EnclosingFuncLike(v)

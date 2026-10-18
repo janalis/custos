@@ -20,11 +20,6 @@ func (unsupportedStringOffsetOperations) Kinds() []syntax.NodeKind {
 	return []syntax.NodeKind{syntax.KArrayDimFetch}
 }
 
-var superglobals = map[string]bool{
-	"_GET": true, "_POST": true, "_SESSION": true, "_REQUEST": true, "_FILES": true,
-	"_COOKIE": true, "_ENV": true, "_SERVER": true, "GLOBALS": true, "HTTP_RAW_POST_DATA": true,
-}
-
 // usoParentDim returns the array access having e as its base, or nil.
 func usoParentDim(e syntax.Node) *syntax.ArrayDimFetch {
 	if p, ok := e.Parent().(*syntax.ArrayDimFetch); ok && p.Var == e {
@@ -72,7 +67,7 @@ func (unsupportedStringOffsetOperations) Check(ctx *analysis.Context, n syntax.N
 	}
 	root := usoRoot(c) // D2
 	rootVar, _ := root.(*syntax.Variable)
-	if rootVar != nil && rootVar.NameExpr == nil && superglobals[rootVar.Name] {
+	if rootVar != nil && rootVar.NameExpr == nil && (syntax.Superglobal(rootVar.Name) || rootVar.Name == "HTTP_RAW_POST_DATA") {
 		return
 	}
 	var target syntax.Expr

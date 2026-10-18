@@ -29,7 +29,7 @@ Reported:
 
 ## Detection
 
-- D1. A while condition is !feof(simpleLocalHandle); under declare(strict_types=1), its body unconditionally assigns fgets(sameHandle) to a local then passes it to resolved strlen, trim or strtoupper without a false guard, or directly nests fgets in that consumer. These consumers require strings and reject the false read result in strict mode. Highlight loop condition. Echo and coercive consumers are excluded because false can be harmless there.
+- D1. A while condition is !feof(simpleLocalHandle); under declare(strict_types=1) (the directive name is case-insensitive), its body unconditionally assigns fgets(sameHandle) to a local then passes it to resolved strlen, trim or strtoupper without a false guard, or directly nests fgets in that consumer. These consumers require strings and reject the false read result in strict mode. Highlight loop condition. Echo and coercive consumers are excluded because false can be harmless there.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
 

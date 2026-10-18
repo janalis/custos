@@ -33,7 +33,7 @@ func (compactCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		key, _ := astquery.StringLiteralValue(lit.Raw) // escapes decoded; a quoted key is always terminated
 		v, ok := it.Value.(*syntax.Variable)
-		if !ok || v.NameExpr != nil || v.Name != key || superglobals[key] {
+		if !ok || v.NameExpr != nil || v.Name != key || syntax.Superglobal(key) { // never in the symbol table compact() reads
 			return // compact() reads the local symbol table only: no superglobals
 		}
 		keys = append(keys, lit.Raw)
@@ -58,23 +58,12 @@ func (compactCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 			text := repl
 			// `return[...]`: keep the keyword apart from the call name
 			// (`return\compact` would lex as one qualified name too).
-			if s.Start > 0 && isNameByte(ctx.Src[s.Start-1]) {
+			if s.Start > 0 && astquery.NameByte(ctx.Src[s.Start-1]) {
 				text = " " + repl
 			}
 			return []diagnostic.TextEdit{{Span: s, NewText: text}}
 		},
 	})
-}
-
-// superglobals are never in the symbol table compact() reads.
-var superglobals = map[string]bool{
-	"GLOBALS": true, "_GET": true, "_POST": true, "_COOKIE": true, "_FILES": true,
-	"_SERVER": true, "_ENV": true, "_REQUEST": true, "_SESSION": true,
-}
-
-// isNameByte reports whether b can end a keyword or name.
-func isNameByte(b byte) bool {
-	return b == '_' || b >= 0x80 || b-'0' < 10 || (b|0x20)-'a' < 26
 }
 
 // arrowParamsCover reports whether every name is a parameter of fn.

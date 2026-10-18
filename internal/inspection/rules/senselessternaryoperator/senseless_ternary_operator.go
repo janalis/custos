@@ -119,16 +119,11 @@ func floatZero(raw string) bool {
 // while the replacement starts or ends with a name. A leading backslash
 // fuses too (`return\FOO` is one qualified name).
 func separated(src []byte, span syntax.Span, repl string) string {
-	if span.Start > 0 && wordByte(src[span.Start-1]) && (wordByte(repl[0]) || repl[0] == '\\') {
+	if span.Start > 0 && astquery.NameByte(src[span.Start-1]) && (astquery.NameByte(repl[0]) || repl[0] == '\\') {
 		repl = " " + repl
 	}
-	if int(span.End) < len(src) && wordByte(src[span.End]) && wordByte(repl[len(repl)-1]) {
+	if int(span.End) < len(src) && astquery.NameByte(src[span.End]) && astquery.NameByte(repl[len(repl)-1]) {
 		repl += " "
 	}
 	return repl
-}
-
-// wordByte reports whether c can be part of a PHP identifier or number.
-func wordByte(c byte) bool {
-	return c == '_' || c >= 0x80 || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }

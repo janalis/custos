@@ -39,7 +39,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	// All three functions take the same optional framing selector, which
 	// overrides the function's default framing.
-	if e := semanticquery.CallArgument(c.Args, 2, "encoding"); e != nil {
+	if e, state := semanticquery.CallArgumentBinding(c.Args, 2, "encoding"); state != semanticquery.ArgumentMissing {
 		v, ok := framing(ctx, e)
 		if !ok {
 			return

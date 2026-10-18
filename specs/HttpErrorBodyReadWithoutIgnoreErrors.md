@@ -23,6 +23,7 @@ Enable reading HTTP error response bodies. This opt-in inspection applies the po
 - E1. ignore_errors=true, non-HTTP streams, unknown URL schemes and unknown contexts are excluded. Enabling the rule states the response-body policy; comments or variable names are not evidence.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore HttpErrorBodyReadWithoutIgnoreErrors` and `@noinspection HttpErrorBodyReadWithoutIgnoreErrors` suppress this inspection.
 - E3. The default stream context is process-wide state. When the analysed file calls the builtin stream_context_set_default or stream_context_get_default anywhere, a read without a context argument is not reported: the default may already enable ignore_errors. A stream_context_create call whose second (params) argument is not a proven array, or is an array holding an `options` entry, yields an unknown context, because those options are merged into the ones given first.
+- E4. A stream_context_create call given an unpacked argument (`...$options`) may receive any options or params: its context is unknown.
 
 ## Report
 

@@ -99,6 +99,13 @@ func CallArgumentBinding(list *syntax.ArgList, position int, name string) (synta
 	return result, ArgumentBound
 }
 
+// CallArgumentOmitted reports whether the parameter is provably not passed,
+// so that PHP uses its default value.
+func CallArgumentOmitted(list *syntax.ArgList, position int, name string) bool {
+	_, state := CallArgumentBinding(list, position, name)
+	return state == ArgumentMissing
+}
+
 // CallArgument returns a proven argument value. Callers requiring proof of
 // omission must use CallArgumentBinding instead of comparing this with nil.
 func CallArgument(list *syntax.ArgList, position int, name string) syntax.Expr {

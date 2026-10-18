@@ -26,9 +26,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	for i, name := range []string{"flags", "encoding"} {
-		a := semanticquery.CallArgument(outer.Args, i+1, name)
-		b := semanticquery.CallArgument(inner.Args, i+1, name)
-		if (a == nil) != (b == nil) || a != nil && !astquery.Equivalent(ctx.File, a, b) {
+		a, outerState := semanticquery.CallArgumentBinding(outer.Args, i+1, name)
+		b, innerState := semanticquery.CallArgumentBinding(inner.Args, i+1, name)
+		if outerState == semanticquery.ArgumentUnknown || innerState == semanticquery.ArgumentUnknown || (a == nil) != (b == nil) || a != nil && !astquery.Equivalent(ctx.File, a, b) {
 			return
 		}
 	}

@@ -45,7 +45,7 @@ func (missingArrayInitialization) Check(ctx *analysis.Context, n syntax.Node) {
 		base = d.Var
 	}
 	v, ok := base.(*syntax.Variable)
-	if !ok || v.Name == "" || isSuperglobal(v.Name) { // superglobals live outside the function (custos)
+	if !ok || v.Name == "" || syntax.Superglobal(v.Name) { // superglobals live outside the function (custos)
 		return
 	}
 	name := v.Name

@@ -32,8 +32,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if creation == nil {
 		return
 	}
-	a := semanticquery.CallArgument(creation.Args, 1, "options")
-	if a == nil {
+	a, state := semanticquery.CallArgumentBinding(creation.Args, 1, "options")
+	if state == semanticquery.ArgumentMissing {
 		ctx.ReportNode(n, message)
 		return
 	}

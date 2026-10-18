@@ -21,6 +21,7 @@ Identify __getLastRequest on locally constructed SoapClient whose options prove 
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
+- E3. A construction given an unpacked argument (`new SoapClient($wsdl, ...$options)`) may enable tracing: no report.
 - E2. Both `@custos-ignore SoapLastRequestWithoutTracing` and `@noinspection SoapLastRequestWithoutTracing` suppress this native rule.
 
 ## Fix

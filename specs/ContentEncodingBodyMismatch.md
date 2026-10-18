@@ -23,6 +23,7 @@ Encode the body using the declared content coding.
 
 - E1. Unknown body provenance, buffering/transformation, compound coding lists and subsequent replacement headers invalidate proof. Do not claim all plain strings are uncompressed binary data.
 - E3. An `encoding` argument that is not a statically known integer, or is a value other than the three framing constants, leaves the framing unproven: no report.
+- E4. An unpacked argument (`...$options`) may supply `encoding`; the framing is then unproven: no report.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore ContentEncodingBodyMismatch` and `@noinspection ContentEncodingBodyMismatch` suppress this inspection.
 
 ## Report

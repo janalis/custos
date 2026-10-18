@@ -57,8 +57,7 @@ func freshLocalRead(ctx *analysis.Context, call *syntax.MethodCall) bool {
 	if !ok || v.Name == "" || v.Name == "this" {
 		return false
 	}
-	switch v.Name {
-	case "GLOBALS", "_SERVER", "_GET", "_POST", "_FILES", "_COOKIE", "_SESSION", "_REQUEST", "_ENV":
+	if syntax.Superglobal(v.Name) {
 		return false
 	}
 	if !strings.EqualFold(call.Name.(*syntax.Identifier).Value, "modify") {

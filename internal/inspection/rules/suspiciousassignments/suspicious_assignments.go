@@ -596,11 +596,6 @@ func saHasCall(n syntax.Node) bool {
 	return found
 }
 
-var saSuperglobals = map[string]bool{
-	"GLOBALS": true, "_SERVER": true, "_GET": true, "_POST": true, "_FILES": true,
-	"_COOKIE": true, "_SESSION": true, "_REQUEST": true, "_ENV": true,
-}
-
 // saSharedTarget reports whether the root of target t is visible to code
 // other than the enclosing function: a property, a static property, a
 // superglobal, a variable declared global or static, a by-reference
@@ -618,7 +613,7 @@ func saSharedTarget(ctx *analysis.Context, t syntax.Expr) bool {
 	if !ok || v.NameExpr != nil {
 		return true // properties, static properties, variable variables
 	}
-	if saSuperglobals[v.Name] {
+	if syntax.Superglobal(v.Name) {
 		return true
 	}
 	fn := syntax.EnclosingFuncLike(t)

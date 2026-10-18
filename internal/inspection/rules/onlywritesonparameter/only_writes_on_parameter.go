@@ -26,11 +26,6 @@ const (
 	owpUnusedMsg = "Variable is never used."
 )
 
-var owpSuperGlobals = map[string]bool{
-	"_GET": true, "_POST": true, "_SESSION": true, "_REQUEST": true, "_FILES": true, "_COOKIE": true,
-	"_ENV": true, "_SERVER": true, "GLOBALS": true, "HTTP_RAW_POST_DATA": true,
-}
-
 type owpScope struct {
 	dynamic  map[string]bool // names read through compact(); "*" for get_defined_vars()
 	ctx      *analysis.Context
@@ -101,7 +96,7 @@ func (onlyWritesOnParameter) Check(ctx *analysis.Context, n syntax.Node) {
 				return true
 			}
 			v, ok := a.Var.(*syntax.Variable)
-			if !ok || v.NameExpr != nil || v.Name == "" || owpSuperGlobals[v.Name] || excluded[v.Name] || done[v.Name] {
+			if !ok || v.NameExpr != nil || v.Name == "" || syntax.Superglobal(v.Name) || v.Name == "HTTP_RAW_POST_DATA" || excluded[v.Name] || done[v.Name] {
 				return true
 			}
 			if !owpEntryContext(a) { // D6

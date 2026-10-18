@@ -20,7 +20,7 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KWhile} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	loop := n.(*syntax.While)
-	if ctx.PHP < phpversion.PHP70 || !strict(ctx) {
+	if ctx.PHP < phpversion.PHP70 || !syntax.StrictTypes(ctx.File) {
 		return
 	}
 	condition, ok := syntax.UnwrapParens(loop.Cond).(*syntax.Unary)
@@ -62,20 +62,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
-}
-
-func strict(ctx *analysis.Context) bool {
-	for _, st := range ctx.File.Stmts {
-		if decl, ok := st.(*syntax.Declare); ok {
-			for _, item := range decl.Items {
-				if item.Key.Value == "strict_types" {
-					n, known := semanticquery.NativeInt(ctx, item.Value)
-					return known && n == 1
-				}
-			}
-		}
-	}
-	return false
 }
 
 func consumer(ctx *analysis.Context, st syntax.Stmt) syntax.Expr {

@@ -24,6 +24,7 @@ Identify the return type of an explicitly nonvoid nongenerator function when str
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
 - E3. Sibling branches that together cover every value, such as `if ($n > 0) { return 1; } if ($n <= 0) { return -1; }`, leave no proven exit. Ordering complements are trusted even though NAN or uncomparable arrays fail both tests: reaching the end then depends on unknown runtime values, which is not proof. Tests that merely mention the same variable (`> 0` then `< 0`) remain a finding.
+- E4. A statement or condition that may run code (a call anywhere in it, `eval`, `include`, `clone`, a shell command, `exit`) or divide may leave the function, so no fall-through is proven past it.
 - E2. Both `@custos-ignore NonVoidFunctionFallsThrough` and `@noinspection NonVoidFunctionFallsThrough` suppress this native rule.
 
 ## Report

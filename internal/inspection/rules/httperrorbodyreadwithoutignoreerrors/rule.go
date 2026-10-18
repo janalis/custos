@@ -58,14 +58,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	// The params array may carry its own "options" entry, merged into the context.
-	if params := semanticquery.CallArgument(producer.Args, 1, "params"); params != nil {
+	if params, state := semanticquery.CallArgumentBinding(producer.Args, 1, "params"); state != semanticquery.ArgumentMissing {
 		entries, known := semanticquery.NativeArrayEntries(ctx, params)
 		if !known || entries["s:options"] != nil {
 			return
 		}
 	}
-	options := semanticquery.CallArgument(producer.Args, 0, "options")
-	if options == nil {
+	options, state := semanticquery.CallArgumentBinding(producer.Args, 0, "options")
+	if state == semanticquery.ArgumentMissing {
 		ctx.ReportNode(c, message)
 		return
 	}

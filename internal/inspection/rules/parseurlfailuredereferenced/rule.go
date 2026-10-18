@@ -66,7 +66,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // relevantParse excludes other result contracts before choosing a producer,
 // so a safe literal or component result cannot hide another failing parse.
 func relevantParse(ctx *analysis.Context, c *syntax.FuncCall) bool {
-	if component := semanticquery.CallArgument(c.Args, 1, "component"); component != nil {
+	if component, state := semanticquery.CallArgumentBinding(c.Args, 1, "component"); state != semanticquery.ArgumentMissing {
 		v, known := semanticquery.NativeInt(ctx, component)
 		if !known || v != -1 {
 			return false

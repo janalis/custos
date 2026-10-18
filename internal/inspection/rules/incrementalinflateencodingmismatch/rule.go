@@ -31,7 +31,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
-	if semanticquery.CallArgument(encoder.Args, 2, "encoding") != nil {
+	if !semanticquery.CallArgumentOmitted(encoder.Args, 2, "encoding") {
 		return
 	}
 

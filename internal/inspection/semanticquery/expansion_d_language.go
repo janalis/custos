@@ -118,10 +118,12 @@ func expansionLanguageMayCall(n syntax.Node) bool {
 			return false
 		}
 		switch n := n.(type) {
-		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New, *syntax.Include, *syntax.Exit:
+		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New, *syntax.Include, *syntax.Exit, *syntax.Eval, *syntax.Clone:
 			found = true
+		case *syntax.InterpolatedString:
+			found = found || n.Backtick
 		case *syntax.Binary:
-			found = n.Op.Kind == syntax.TDiv || n.Op.Kind == syntax.TMod
+			found = found || n.Op.Kind == syntax.TDiv || n.Op.Kind == syntax.TMod
 		}
 		return !found
 	})

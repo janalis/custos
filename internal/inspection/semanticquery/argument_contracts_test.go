@@ -100,6 +100,9 @@ func TestArgumentBindingStates(t *testing.T) {
 			if state != tc.state || arg != nil && Text(f, arg) != tc.text {
 				t.Fatalf("argument=%v state=%v, want text=%q state=%v", arg, state, tc.text, tc.state)
 			}
+			if omitted := CallArgumentOmitted(call.Args, 0, "$value"); omitted != (tc.state == ArgumentMissing) {
+				t.Fatalf("omitted=%v for state %v", omitted, tc.state)
+			}
 		})
 	}
 }

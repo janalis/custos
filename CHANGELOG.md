@@ -7,6 +7,25 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Treat an unpacked argument as possibly supplying an optional parameter in
+  ContentEncodingBodyMismatch, IncrementalInflateEncodingMismatch,
+  ParseUrlFailureDereferenced, HttpErrorBodyReadWithoutIgnoreErrors,
+  SoapLastRequestWithoutTracing and RepeatedHtmlEntityEncoding.
+
+- Stop ExitStatusReadWithoutNormalExitCheck from reporting a status variable
+  rebound after the wait by unset, destructuring, increment, foreach, an
+  element write or a by-reference capture.
+
+- Recognize `declare(strict_types=1)` written in any letter case in
+  ReadLoopProcessesEofFailure.
+
+- Treat a do-while body left by `goto` like one left by `break` when deciding
+  whether the loop completes.
+
+- Stop NonVoidFunctionFallsThrough from proving a fall-through past a condition
+  that calls code alongside other operators, evaluates code, clones an object or
+  runs a shell command.
+
 - Invalidate HTML escaping after native decoding and replacement transforms,
   including transforms inside function summaries and after request rewrites.
   Recognize delimiter-free encoders in HTML text output.

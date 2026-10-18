@@ -307,14 +307,9 @@ func isNumericLiteral(x syntax.Expr) bool {
 	return ok && (l.LitKind == syntax.LitInt || l.LitKind == syntax.LitFloat)
 }
 
-var superglobals = map[string]bool{
-	"_GET": true, "_POST": true, "_COOKIE": true, "_REQUEST": true, "_SERVER": true,
-	"_ENV": true, "_FILES": true, "_SESSION": true, "GLOBALS": true,
-}
-
 func superglobalDim(n *syntax.ArrayDimFetch) (types.Type, bool) {
 	v, ok := n.Var.(*syntax.Variable)
-	if !ok || !superglobals[v.Name] {
+	if !ok || !syntax.Superglobal(v.Name) {
 		return types.Unknown, false
 	}
 	if v.Name == "_SERVER" {

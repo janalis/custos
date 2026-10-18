@@ -35,6 +35,8 @@ Reported:
 
 Exclude encoders with an explicit encoding argument, including named arguments that omit the level.
 
+An encoder whose arguments include an unpacked list (`gzencode($data, ...$options)`) may receive an encoding the same way and is excluded too.
+
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
 

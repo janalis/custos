@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -46,7 +47,7 @@ func (backtickOperatorUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		Title: "Replace with shell_exec()",
 		Edits: func() []diagnostic.TextEdit {
 			repl := fn + "(\"" + backtickContent(src, s) + "\")"
-			if span.Start > 0 && isIdentByte(src[span.Start-1]) {
+			if span.Start > 0 && astquery.NameByte(src[span.Start-1]) {
 				repl = " " + repl
 			}
 			return []diagnostic.TextEdit{{Span: span, NewText: repl}}
@@ -99,8 +100,4 @@ func writeLiteral(b *strings.Builder, raw []byte) {
 			b.WriteByte(c)
 		}
 	}
-}
-
-func isIdentByte(c byte) bool {
-	return c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c >= 0x80
 }

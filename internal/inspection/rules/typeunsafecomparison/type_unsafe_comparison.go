@@ -388,12 +388,6 @@ func tucDeclared(ctx *analysis.Context, classes []string, name syntax.Expr, meth
 	return ok
 }
 
-// tucSuperglobals can be written from any scope.
-var tucSuperglobals = map[string]bool{
-	"_GET": true, "_POST": true, "_COOKIE": true, "_REQUEST": true, "_SERVER": true,
-	"_ENV": true, "_FILES": true, "_SESSION": true, "GLOBALS": true,
-}
-
 // tucVarKey identifies one stability question of a scope.
 type tucVarKey struct {
 	name string
@@ -438,7 +432,7 @@ func tucStableVar(ctx *analysis.Context, v *syntax.Variable, via bool) bool {
 }
 
 func tucComputeStable(ctx *analysis.Context, scope syntax.Node, facts *tucScope, name string, via bool) bool {
-	if facts.dynamic || facts.byRef[name] || tucSuperglobals[name] {
+	if facts.dynamic || facts.byRef[name] || syntax.Superglobal(name) {
 		return false
 	}
 	defs := 0

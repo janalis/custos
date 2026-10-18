@@ -16,3 +16,6 @@ function nestedComplement($n): int { if ($n == 1) { return 1; } else { if ($n !=
 function rethrow($e): int { match (true) { default => throw $e }; }
 function everyArm($e, $code): int { match ($code) { 1 => throw $e, 2 => throw new LogicException('two') }; }
 function assignedThrow($e): int { $unused = throw $e; }
+// A call beside other operators may still leave the function.
+function callBesideArithmetic(int $x): int { if ($x > 1) { return 1; } exit_now() || $x + 1; }
+function evaluated(int $x, string $code): int { if ($x > 1) { return 1; } eval($code); }

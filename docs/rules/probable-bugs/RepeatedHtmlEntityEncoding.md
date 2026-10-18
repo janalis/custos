@@ -34,6 +34,7 @@ Reported:
 ## Exceptions (no report)
 
 - E1. Different contexts/options, double_encode false on the outer call and intentionally literal entity rendering are excluded.
+- E3. When either call receives an unpacked argument (`...$options`), its flags and encoding are unknown and may differ: no report.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix

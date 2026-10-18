@@ -33,3 +33,9 @@ func IndentBefore(src []byte, off uint32) string {
 
 // IsSpace reports whether c is a space, tab, newline or carriage return.
 func IsSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
+
+// NameByte reports whether c can be part of a PHP name or keyword, so that
+// text placed right next to it would merge with it.
+func NameByte(c byte) bool {
+	return c == '_' || c >= 0x80 || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}

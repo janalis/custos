@@ -70,6 +70,17 @@ func TestExpansionCOutput(t *testing.T) {
 		{`pcntl_waitpid($p,$status);probe(10);`, false},
 		{`other($p,$status);probe($status);`, false},
 		{`pcntl_waitpid($p,$status);pcntl_waitpid($p,$status);probe($status);`, true},
+		{`pcntl_waitpid($p,$status);unset($status);probe($status);`, false},
+		{`pcntl_waitpid($p,$status);[$status]=[1];probe($status);`, false},
+		{`pcntl_waitpid($p,$status);$status++;probe($status);`, false},
+		{`pcntl_waitpid($p,$status);$status[0]=1;probe($status);`, false},
+		{`pcntl_waitpid($p,$status);foreach($xs as $status){}probe($status);`, false},
+		{`pcntl_waitpid($p,$status);$f=function()use(&$status){};probe($status);`, false},
+		{`pcntl_waitpid($p,$status);$f=function()use($status){};probe($status);`, true},
+		{`pcntl_waitpid($p,$status);while($x){probe($status);$status=1;}`, true},
+		{`while($x){pcntl_waitpid($p,$status);probe($status);$status=1;}`, true},
+		{`pcntl_waitpid($p,$status);while($x){probe($status);}$status=1;`, true},
+		{`pcntl_waitpid($p,$status);probe($status);$status=1;`, true},
 	} {
 		probeNative(t, tc.src, func(ctx *analysis.Context, c *syntax.FuncCall) {
 			got := ExpansionCOutputCall(ctx, c, CallArgument(c.Args, 0, ""), []string{"pcntl_waitpid"}, 1, "status") != nil
