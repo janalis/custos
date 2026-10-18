@@ -19,28 +19,43 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 		}
 		fqn = fb
 	}
+	// Only resolved native declarations establish argument-dependent contracts.
+	builtin := strings.ToLower(fqn)
+	switch builtin {
+	case "str_replace", "str_ireplace", "preg_replace", "preg_replace_callback", "substr_replace", "preg_filter", "preg_replace_callback_array",
+		"max", "min", "pathinfo", "gettimeofday", "var_export", "print_r", "mb_convert_encoding", "array_rand",
+		"current", "reset", "end", "next", "prev", "array_pop", "array_shift", "hrtime", "sscanf", "parse_url", "abs",
+		"array_values", "array_reverse", "array_slice", "array_filter", "array_unique", "array_map", "explode", "array_reduce", "call_user_func", "call_user_func_array":
+	default:
+		return types.Unknown, false
+	}
+	allowTailSpread := builtin == "array_filter" || builtin == "array_map"
+	function := e.Index.Function(fqn, e.PHP)
+	if function == nil || !function.Builtin || !builtinBindingsKnown(n.Args, function.Params, e.PHP, allowTailSpread) {
+		return types.Unknown, false
+	}
 	arg := func(i int) syntax.Expr {
 		if i < len(n.Args.Args) {
-			if a, ok := n.Args.Args[i].(*syntax.Arg); ok && !a.Unpack && a.Name == nil {
+			if a := n.Args.Args[i].(*syntax.Arg); a.Name == nil && !a.Unpack {
 				return a.Value
 			}
 		}
-		// Named argument bound to the callee's parameter at position i.
-		if f := e.Index.Function(fqn, e.PHP); f != nil && i < len(f.Params) {
-			want := strings.TrimPrefix(f.Params[i].Name, "$")
-			for _, x := range n.Args.Args {
-				if a, ok := x.(*syntax.Arg); ok && a.Name != nil && strings.EqualFold(a.Name.Value, want) {
-					return a.Value
-				}
+		if i >= len(function.Params) {
+			return nil
+		}
+		want := strings.TrimPrefix(function.Params[i].Name, "$")
+		for _, node := range n.Args.Args {
+			if a := node.(*syntax.Arg); !a.Unpack && a.Name != nil && a.Name.Value == want {
+				return a.Value
 			}
 		}
 		return nil
 	}
-	switch strings.ToLower(fqn) {
+	switch builtin {
 	case "str_replace", "str_ireplace", "preg_replace", "preg_replace_callback", "substr_replace", "preg_filter",
 		"preg_replace_callback_array":
 		subjectIdx := 2
-		switch strings.ToLower(fqn) {
+		switch builtin {
 		case "substr_replace":
 			subjectIdx = 0
 		case "preg_replace_callback_array":
@@ -182,17 +197,14 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 			if t := e.TypeOf(a); t.IsArrayLike() {
 				// Keys are renumbered or dropped: no shape; the result of
 				// array_slice()/array_filter() may be empty.
-				switch strings.ToLower(fqn) {
+				switch builtin {
 				case "array_filter":
 					cb := arg(1)
 					if cb == nil {
-						for _, x := range n.Args.Args {
-							a, ok := x.(*syntax.Arg)
-							if !ok {
-								return t.WithoutShape().WithNonEmpty(false), true
-							}
-							if a.Unpack {
-								cb = a.Value
+						for _, node := range n.Args.Args {
+							if node.(*syntax.Arg).Unpack {
+								cb = node.(*syntax.Arg).Value
+								break
 							}
 						}
 					}

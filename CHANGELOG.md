@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Refine builtin return types only from resolved native declarations and proven
+  argument bindings. Respect named-parameter case, target PHP versions, duplicate
+  arguments and uncertain unpacking; retain supported array-tail refinements.
+
 - Require a falsy condition and rejection on every supported branch before
   reporting cURL and socket zero-result checks. Ignore nested strict-failure
   guards and success-path conditions.

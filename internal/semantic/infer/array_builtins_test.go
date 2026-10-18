@@ -88,7 +88,7 @@ func TestArrayMapShapeCap(t *testing.T) {
 
 func TestArrayBuiltinRecovery(t *testing.T) {
 	for _, tc := range []struct{ src, want string }{
-		{`array_map('intval', [1], ...)`, "int[]"},
+		{`array_map('intval', [1], ...)`, "array"},
 		{`array_map(null, [1], ...)`, "array"},
 		{`array_filter([1, null], ...)`, "array"},
 	} {

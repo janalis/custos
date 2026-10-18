@@ -159,11 +159,8 @@ func (e *Env) arrayMapType(cb, first syntax.Expr, args *syntax.ArgList) (types.T
 	inputs := []types.Type{e.TypeOf(first)}
 	precise := true
 	for _, x := range args.Args {
-		a, ok := x.(*syntax.Arg)
-		if !ok {
-			precise = false
-			break
-		}
+		// The builtin binding gate has rejected placeholder/recovery nodes.
+		a := x.(*syntax.Arg)
 		if a.Value == cb || a.Value == first {
 			continue
 		}
