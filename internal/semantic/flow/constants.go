@@ -101,10 +101,13 @@ func constantValue(x syntax.Expr, budget int, fuel *int) (constantScalar, bool) 
 	return constantScalar{}, false
 }
 
-// strconv.Unquote accepts Go-only escapes (notably \a, \b and \uNNNN).
-// Reject those before using the shared literal decoder. Unsupported PHP
-// escapes stay unknown; a restricted decoder must never change their value.
+// Constant folding retains its established escape subset. The shared parsed
+// literal decoder also supports other PHP strings, which remain unknown here
+// until their folding contracts have been verified.
 func constantString(n *syntax.Literal) (string, bool) {
+	if len(n.Raw) < 2 || n.Raw[0] != '"' && n.Raw[0] != '\'' {
+		return "", false
+	}
 	if n.Raw != "" && n.Raw[0] == '"' {
 		for i := 1; i < len(n.Raw)-1; i++ {
 			if n.Raw[i] != '\\' {

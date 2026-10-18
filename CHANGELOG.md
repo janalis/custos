@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Decode flow-analysis strings with PHP escape rules and the parsed source
+  version. Preserve unknown PHP escapes instead of interpreting Go-only escapes,
+  and recognize binary-prefixed strings and static heredocs consistently.
+
 - Refine builtin return types only from resolved native declarations and proven
   argument bindings. Respect named-parameter case, target PHP versions, duplicate
   arguments and uncertain unpacking; retain supported array-tail refinements.

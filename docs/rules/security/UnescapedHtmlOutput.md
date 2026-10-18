@@ -53,6 +53,10 @@ carry the same request provenance as direct reads. A function binding a global
 can read request data written by another function of that file before its first
 call; propagation follows longer chains within the shared analysis budget.
 
+Literal keys and computed request names use PHP string decoding for the parsed
+source version. Escape sequences PHP preserves remain distinct from actual
+control characters before PHP numeric-key normalization is applied.
+
 - D1. Report request-derived text emitted inside a proven HTML text-node context without context-appropriate escaping. Both `echo` and `print` are output statements.
 - D1a. The context is proven from the bytes one statement emits before the request-derived part: concatenated literals, the literal fragments of a double-quoted string or heredoc (escape sequences decoded), and the earlier operands of a comma-separated `echo`. Those bytes must close an ordinary tag and leave no tag, attribute, comment, `script` or `style` element open.
 - D1b. Dynamic parts emitted before the request-derived one are passed over when they cannot hold markup: a value typed integer, float or boolean anywhere in the statement, and a value that derives from tracked inputs and is escaped for HTML on every path when it is emitted into a text node. Such a part adds nothing to the proven bytes. Any other dynamic part (an unknown value, a call result, escaped text inside a tag, a value escaped on some paths only) could open an attribute or a raw-text element: nothing after it is examined.

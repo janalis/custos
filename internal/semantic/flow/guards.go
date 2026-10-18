@@ -15,17 +15,7 @@ func literalText(x syntax.Expr) (string, bool) {
 	if n.LitKind != syntax.LitString {
 		return n.Raw, true
 	}
-	if len(n.Raw) < 2 {
-		return "", false
-	}
-	if n.Raw[0] == '"' {
-		s, err := strconv.Unquote(n.Raw)
-		return s, err == nil
-	}
-	if n.Raw[0] == '\'' {
-		return strings.NewReplacer(`\\`, `\`, `\'`, `'`).Replace(n.Raw[1 : len(n.Raw)-1]), true
-	}
-	return "", false
+	return syntax.LiteralStringValue(n)
 }
 
 func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
