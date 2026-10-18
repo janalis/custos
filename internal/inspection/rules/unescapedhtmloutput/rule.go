@@ -94,7 +94,8 @@ func htmlInput(ctx *analysis.Context, operands []syntax.Expr) (syntax.Expr, flow
 		case partContext == flow.HTML && ctx.Flow().Matched(part):
 			// A switch label the request data was matched with is text of
 			// the program: the parts after it are still looked at.
-		case ctx.TypeOf(part).OnlyOf("int", "float", "bool"):
+		case ctx.TypeOf(part).OnlyOf("int", "float", "bool", "null", "void"):
+			// A number or a boolean adds no markup, and nothing prints no text.
 		case partContext != 0 && escaped(ctx, part, partContext):
 			// Escaping tracked inputs does not prove that an opaque value
 			// contains no trusted quote delimiters of its own.

@@ -66,13 +66,3 @@ func (e *Env) htmlFlagBits(x syntax.Expr, r *scopeResult, budget int) (int64, bo
 	}
 	return 0, false
 }
-
-// quotePreserving lists transforms that introduce no new quote bytes from an
-// escaped input. Other native transforms need their own output contract.
-func quotePreserving(name string) bool {
-	switch name {
-	case "htmlspecialchars", "htmlentities", "trim", "ltrim", "rtrim", "strtolower", "strtoupper", "ucfirst", "lcfirst", "ucwords", "str_repeat", "strrev", "substr":
-		return true
-	}
-	return false
-}

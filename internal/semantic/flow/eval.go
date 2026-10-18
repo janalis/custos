@@ -138,7 +138,7 @@ func (e *Env) each(n *syntax.Foreach, f *frame, r *scopeResult) {
 		spread(n.Key, projectKeys(Value{Complete: true, Sources: iterated.Sources, Safe: iterated.Safe}), f, r)
 		item := projectValues(iterated)
 		if item.scalars {
-			item.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+			item.Safe |= everyContext
 		}
 		spread(n.Value, item, f, r)
 		if name := plainVariable(n.Value); name != "" && iterated.upload == uploadTable {
@@ -432,7 +432,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			syntax.TSpaceship, syntax.TBooleanAnd, syntax.TBooleanOr, syntax.TAnd, syntax.TOr, syntax.TXor,
 			// These operators yield a number or throw; `+` may also unite arrays.
 			syntax.TMinus, syntax.TMul, syntax.TDiv, syntax.TMod, syntax.TPow, syntax.TSl, syntax.TSr:
-			v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+			v.Safe |= everyContext
 		}
 	case *syntax.Unary:
 		v = e.eval(n.Expr, f, r, depth+1)
@@ -447,7 +447,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 		switch n.Op.Kind {
 		case syntax.TExclaim, syntax.TIntCast, syntax.TDoubleCast, syntax.TBoolCast, syntax.TMinus, syntax.TPlus:
-			v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+			v.Safe |= everyContext
 		}
 	case *syntax.IncDec:
 		v = e.eval(n.Var, f, r, depth+1)
@@ -595,7 +595,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		if v.scalars {
 			// An element of such an array is one of its values.
 			v.scalars = false
-			v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+			v.Safe |= everyContext
 		}
 		if variable, ok := root.(*syntax.Variable); ok {
 			key, known := literalText(n.Dim)
@@ -747,7 +747,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		v.Expr = x
 		switch n := x.(type) {
 		case *syntax.Instanceof, *syntax.Isset, *syntax.Empty:
-			v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+			v.Safe |= everyContext
 		case *syntax.Literal, *syntax.StringPart, *syntax.ConstFetch, *syntax.MagicConst, *syntax.Name, *syntax.Identifier, *syntax.Throw:
 		case *syntax.Print, *syntax.Exit:
 			// The operand is converted to text.
@@ -1112,7 +1112,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 		if a.scalars && builtin && (yieldsElements(name) || name == "array_chunk" && len(values) == 2) {
 			// Only the numbers of the array reach the result.
-			a.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+			a.Safe |= everyContext
 		}
 		if a.matched {
 			labels++
@@ -1153,14 +1153,15 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		v = Value{Expr: v.Expr}
 	}
 	if builtin {
-		if htmlDecoding(name) {
+		contract := transforms[name]
+		if contract.decodes {
 			v = decodedHTML(v)
 		}
-		if !quotePreserving(name) {
+		if !contract.keepsQuotes {
 			v.Safe &^= HTMLSingleQuoted | HTMLDoubleQuoted
 		}
 		if len(v.Sources) > 0 && scalarResult(result) {
-			v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+			v.Safe |= everyContext
 		}
 		switch name {
 		case "extract", "parse_str":
@@ -1176,7 +1177,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 				}
 				if array.scalars {
 					// The variables hold the numbers; the keys name them.
-					array.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+					array.Safe |= everyContext
 				}
 				// With a skipping or prefixing flag existing variables stay.
 				if flags, chosen := passed(args, values, "flags", 1); !chosen || name != "extract" || !keepsExisting(flags.Expr) {
@@ -1191,7 +1192,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 				if len(values) == 2 && !e.list(values[1].Expr) {
 					v.scalars = true
 				} else {
-					v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+					v.Safe |= everyContext
 				}
 			}
 		}
@@ -1209,20 +1210,29 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		} else if e.handed(n, name, args, values) {
 			e.implicit(n, f, r)
 		}
+		v.Safe |= transforms[name].safe
 		switch name {
 		case "htmlspecialchars", "htmlentities":
-			v.Safe |= HTML
+			// An unpacked list may pass flags that leave quotes alone.
 			if boundOK && len(bound) > 1 {
-				flags, given := passed(args, values, "flags", 1)
-				v.Safe |= e.htmlQuoteSafety(flags, !given, r)
+				if flags, given := passed(args, values, "flags", 1); given || absent(args, "flags", 1) {
+					v.Safe |= e.htmlQuoteSafety(flags, !given, r)
+				}
 			}
-		case "urlencode", "rawurlencode", "base64_encode", "bin2hex":
-			// Their output alphabets contain no HTML or quote delimiters.
-			v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted
-		case "escapeshellarg":
-			v.Safe |= Shell
-		case "intval", "floatval":
-			v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+		case "number_format":
+			// Digits, a sign and the separators, which PHP chooses unless
+			// they are given.
+			if absent(args, "decimal_separator", 2) && absent(args, "thousands_separator", 3) {
+				v.Safe |= everyContext
+			}
+		case "filter_var":
+			if filter, given := passed(args, values, "filter", 1); given {
+				v.Safe |= e.filtered(filter)
+			}
+		case "quote":
+			if m := e.method(n); m != nil && strings.EqualFold(strings.TrimPrefix(m.Class, `\`), "PDO") {
+				v.Safe |= SQL
+			}
 		case "md5", "sha1", "hash", "hash_hmac":
 			position := 1
 			switch name {
@@ -1234,16 +1244,16 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 			if boundOK && position < len(bound) {
 				flag := bound[position]
 				if flag.Complete && flag.Expr == nil {
-					v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+					v.Safe |= everyContext
 				} else {
 					switch flag := syntax.UnwrapParens(flag.Expr).(type) {
 					case *syntax.ConstFetch:
 						if strings.EqualFold(flag.Name.Value, "false") {
-							v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+							v.Safe |= everyContext
 						}
 					case *syntax.Literal:
 						if flag.LitKind == syntax.LitInt && flag.Raw == "0" {
-							v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+							v.Safe |= everyContext
 						}
 					}
 				}
@@ -1484,10 +1494,10 @@ func compound(n *syntax.Assign, old, operand Value, scalar bool) Value {
 	case syntax.TPlusEqual:
 		// Adding to a value that is not an array yields a number.
 		if scalar {
-			v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+			v.Safe |= everyContext
 		}
 	case syntax.TMinusEqual, syntax.TMulEqual, syntax.TDivEqual, syntax.TModEqual, syntax.TPowEqual, syntax.TSlEqual, syntax.TSrEqual:
-		v.Safe |= HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+		v.Safe |= everyContext
 	}
 	v = Value{Complete: v.Complete, Sources: v.Sources, Safe: v.Safe, matched: v.matched && n.Op.Kind == syntax.TConcatEqual}
 	if old.Expr != nil && n.Op.Kind != syntax.TCoalesceEqual {

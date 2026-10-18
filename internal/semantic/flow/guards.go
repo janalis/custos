@@ -208,7 +208,8 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		}
 		v := f.vars[variable.Name]
 		if truth && (name == "ctype_digit" || name == "is_int" || name == "is_integer") {
-			v.Safe |= SQL
+			// Digits alone, or a number, are safe in every text context.
+			v.Safe |= everyContext
 			f.vars[variable.Name] = v
 		}
 		if truth && name == "in_array" && len(args) == 3 {
@@ -233,7 +234,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 				}
 			}
 			v.Sources = nil
-			v.Safe = HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header | URL | Path
+			v.Safe = everyContext | URL | Path
 			f.vars[variable.Name] = v
 			// The value is one of the literals: neither false nor null.
 			exclude(variable, f, true, true)

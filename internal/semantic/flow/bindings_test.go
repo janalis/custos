@@ -158,7 +158,7 @@ func TestSwitchAllowLists(t *testing.T) {
 		{"bound name sees the match", a + `$r=&$a; switch($a){case 'list': probe($r);}`, false},
 		// `switch (true)` reads its cases as conditions.
 		{"condition case", a + `switch(true){case $a === 'home': case $a === 'about': probe($a); break;}`, false},
-		{"condition case leaves", `function f(){` + a + `switch(true){case !ctype_digit($a): return;} probe($a);}`, true},
+		{"condition case leaves", `function f(){` + a + `switch(true){case !ctype_digit($a): return;} probe($a);}`, false},
 		{"condition case without a fact", a + `switch(TRUE){case strlen($a) > 3: probe($a); break;}`, true},
 		{"condition default after cases", a + `switch(true){case $a !== 'home': break; default: probe($a);}`, false},
 		{"subject false", a + `switch(false){case $a === 'home': probe($a); break;}`, true},

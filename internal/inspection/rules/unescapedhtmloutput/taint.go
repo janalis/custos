@@ -168,27 +168,36 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr, 
 	escapingApplies := directRequestRead(ctx, input, 0) || context == flow.HTML && preservingRequestRead(ctx, input, 0)
 	scope := syntax.EnclosingVariableScope(at)
 	limit := at.Span().Start
-	// whole lists the superglobals read as a whole or through an unknown key;
-	// keys lists the literal elements read, as name and key.
-	whole, keys := map[string]bool{"GLOBALS": true}, map[[2]string]bool{}
-	located := 0
+	// reads lists where each source of the input reads its table, and the
+	// literal key of the element it reads, if any.
+	type read struct {
+		at         uint32
+		table, key string
+		keyed      bool
+	}
+	var reads []read
 	type write struct {
 		target  syntax.Expr
+		at      uint32
+		late    bool
+		inside  bool // written inside the output statement
 		replace bool // false when the stored value still holds request text
 		refill  bool // the write stores request text
 		any     bool // code that may store request text in any table
 	}
 	var writes []write
-	// again is where the outermost loop around the output ends: what is
-	// written up to there may run before the output does once more.
-	again := limit
+	// again is where the outermost loop around the output ends, and turn
+	// where it starts: what is written up to its end may run before the
+	// output does once more.
+	again, turn := limit, limit
 	for p := at.Parent(); p != nil && p != scope; p = p.Parent() {
 		switch p.(type) {
 		case *syntax.While, *syntax.DoWhile, *syntax.For, *syntax.Foreach:
-			again = p.Span().End
+			again, turn = p.Span().End, p.Span().Start
 		}
 	}
-	late := false
+	late, inside := false, false
+	var position uint32
 	add := func(w write) {
 		if late && !w.refill {
 			// A replacement made after the output says nothing of the
@@ -196,18 +205,18 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr, 
 			return
 		}
 		w.replace = w.replace && !late
+		w.at, w.late, w.inside = position, late, inside
 		writes = append(writes, w)
 	}
 	// called is the value of the assignment whose calls are already counted:
 	// they run before the assignment stores its result.
 	var called syntax.Span
+	// What a PHP function is given by reference is read below; Spares
+	// tells whether it runs code of the project, such as a callback.
 	foreign := func(n syntax.Node) bool {
-		switch x := n.(type) {
-		case *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
+		switch n.(type) {
+		case *syntax.MethodCall, *syntax.StaticCall, *syntax.New, *syntax.FuncCall:
 			return !ctx.Flow().Spares(n)
-		case *syntax.FuncCall:
-			// What a PHP function is given by reference is read below.
-			return semanticquery.NativeBuiltinName(ctx, x) == "" && !ctx.Flow().Spares(n)
 		}
 		return false
 	}
@@ -241,14 +250,14 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr, 
 			return false
 		}
 		if v, ok := n.(*syntax.Variable); ok && spans[v.Span()] {
-			located++
-			if key, known := elementKey(ctx, v); known {
-				keys[[2]string{v.Name, key}] = true
-			} else {
-				whole[v.Name] = true
-			}
+			key, keyed := elementKey(ctx, v)
+			reads = append(reads, read{at: v.Span().Start, table: v.Name, key: key, keyed: keyed})
 		}
-		if late = n.Span().Start >= limit; n.Span().Start >= again {
+		// The output statement runs its own parts before it reads what
+		// comes after them; what follows it runs before a next turn only.
+		position = n.Span().Start
+		inside = position >= limit && position < at.Span().End
+		if late = position >= limit && !inside; position >= again && !inside {
 			return true
 		}
 		if foreign(n) && !called.Contains(n.Span()) {
@@ -267,6 +276,9 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr, 
 				})
 			}
 			clean := !ctx.Flow().Tainted(x.Value, context) && (escapingApplies || !requestSource(ctx.Flow().Value(x.Value))) || context == flow.HTML && callbackResult(ctx, x.Value)
+			// The value is stored once it was computed: a read inside it
+			// still sees the earlier content.
+			position = x.Span().End
 			for _, target := range slots(x.Var) {
 				add(write{target: target, replace: x.Op.Kind == syntax.TEqual && clean, refill: !clean})
 			}
@@ -292,6 +304,7 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr, 
 		case *syntax.FuncCall:
 			targets := referenceArguments(ctx, x)
 			fed := len(targets) > 0 && fedByRequest(ctx, x, targets, context, escapingApplies)
+			position = x.Span().End
 			for _, reference := range targets {
 				arg := reference.Argument
 				replace, refill := !fed && reference.Known && escapingApplies, fed || !reference.Known
@@ -310,67 +323,113 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr, 
 	} else {
 		syntax.Inspect(scope, visit)
 	}
-	// A source read in another scope (through a callee) has no known key.
-	unknown := located != len(spans)
-	// emptied holds the elements a replacement left without request text, and
-	// cleared the tables replaced as a whole or through an element no literal
-	// names; filled then lists the elements of such a table written since.
-	emptied, filled := map[[2]string]bool{}, map[[2]string]bool{}
-	cleared := map[string]bool{}
-	for _, w := range writes {
-		name := rootVariable(w.target)
-		through, bound := alias[name]
-		if bound {
-			name = through.table
+	// replaced replays writes and reports one that may have replaced the
+	// request text the read takes (any replacement of its table for a read
+	// in another scope, whose place and key are unknown). emptied holds the
+	// elements a replacement left without request text, and cleared the
+	// tables replaced as a whole or through an element no literal names;
+	// filled then lists the elements of such a table written since.
+	replaced := func(r read, unknown bool, sequence []write) bool {
+		whole, keys := map[string]bool{"GLOBALS": true}, map[[2]string]bool{}
+		if r.keyed {
+			keys[[2]string{r.table, r.key}] = true
+		} else if !unknown {
+			whole[r.table] = true
 		}
-		if w.any || w.refill && name == "GLOBALS" {
-			// Request text may now be in any element of any table.
-			clear(emptied)
-			clear(cleared)
-			continue
-		}
-		if !names[name] {
-			continue
-		}
-		root, element := syntax.UnwrapParens(w.target).(*syntax.ArrayDimFetch)
-		key, known := through.key, through.named
-		if element && (!bound || through.whole) {
-			if v, direct := syntax.UnwrapParens(root.Var).(*syntax.Variable); direct {
-				key, known = elementKey(ctx, v)
+		emptied, filled := map[[2]string]bool{}, map[[2]string]bool{}
+		cleared := map[string]bool{}
+		for _, w := range sequence {
+			name := rootVariable(w.target)
+			through, bound := alias[name]
+			if bound {
+				name = through.table
+			}
+			if w.any || w.refill && name == "GLOBALS" {
+				// Request text may now be in any element of any table.
+				clear(emptied)
+				clear(cleared)
+				continue
+			}
+			if !names[name] {
+				continue
+			}
+			root, element := syntax.UnwrapParens(w.target).(*syntax.ArrayDimFetch)
+			key, known := through.key, through.named
+			if element && (!bound || through.whole) {
+				if v, direct := syntax.UnwrapParens(root.Var).(*syntax.Variable); direct {
+					key, known = elementKey(ctx, v)
+				}
+			}
+			slot := [2]string{name, key}
+			switch {
+			case w.replace && !known:
+				cleared[name] = true
+				maps.DeleteFunc(filled, func(s [2]string, _ bool) bool { return s[0] == name })
+			case w.replace:
+				if unknown || whole[name] || keys[slot] {
+					emptied[slot] = true
+				}
+				delete(filled, slot)
+			case w.refill && known:
+				// Request text stored into one element reaches that element.
+				delete(emptied, slot)
+				filled[slot] = true
+			case w.refill:
+				// Stored into the whole table, it reaches every element;
+				// stored into an element no literal names, it may reach any.
+				delete(cleared, name)
+				maps.DeleteFunc(emptied, func(s [2]string, _ bool) bool { return s[0] == name })
 			}
 		}
-		slot := [2]string{name, key}
-		switch {
-		case w.replace && !known:
-			cleared[name] = true
-			maps.DeleteFunc(filled, func(s [2]string, _ bool) bool { return s[0] == name })
-		case w.replace:
-			if unknown || whole[name] || keys[slot] {
-				emptied[slot] = true
-			}
-			delete(filled, slot)
-		case w.refill && known:
-			// Request text stored into one element reaches that element.
-			delete(emptied, slot)
-			filled[slot] = true
-		case w.refill:
-			// Stored into the whole table, it reaches every element; stored
-			// into an element no literal names, it may reach any of them.
-			delete(cleared, name)
-			maps.DeleteFunc(emptied, func(s [2]string, _ bool) bool { return s[0] == name })
-		}
-	}
-	for name := range cleared {
-		if unknown || whole[name] {
-			return true
-		}
-		for slot := range keys {
-			if slot[0] == name && !filled[slot] {
+		for name := range cleared {
+			if unknown || whole[name] {
 				return true
 			}
+			for slot := range keys {
+				if slot[0] == name && !filled[slot] {
+					return true
+				}
+			}
+		}
+		return len(emptied) > 0
+	}
+	var lates []write
+	for _, w := range writes {
+		if w.late {
+			lates = append(lates, w)
 		}
 	}
-	return len(emptied) > 0
+	// Text copied before a replacement keeps the request text, whatever the
+	// table holds later: only writes before a read count for it. A read in a
+	// loop around the output also follows, on a later turn, what the loop
+	// writes after the output and then again before the read.
+	for _, r := range reads {
+		var first []write
+		for _, w := range writes {
+			if !w.late && w.at < r.at {
+				first = append(first, w)
+			}
+		}
+		if !replaced(r, false, first) {
+			continue
+		}
+		if len(lates) == 0 || r.at < turn {
+			return true
+		}
+		again := append(slices.Clone(first), lates...)
+		for _, w := range first {
+			if w.at >= turn {
+				again = append(again, w)
+			}
+		}
+		if replaced(r, false, again) {
+			return true
+		}
+	}
+	// A source read in another scope (through a callee) has no known place:
+	// it may be read by a call of the output statement itself.
+	before := slices.DeleteFunc(slices.Clone(writes), func(w write) bool { return w.inside })
+	return len(reads) != len(spans) && replaced(read{}, true, before)
 }
 
 // elementKey returns the literal key of the element access whose base is v.
@@ -405,18 +464,27 @@ func referenceArguments(ctx *analysis.Context, call *syntax.FuncCall) []semantic
 }
 
 // callbackResult reports the result of a resolved function that applies a
-// callback: the taint cannot tell whether `array_map('htmlspecialchars', …)`
-// still holds request text.
+// callback which may escape for HTML: the taint cannot tell whether
+// `array_map($escape, …)` still holds request text. A callback named by a
+// literal PHP function is judged by that function's output contract.
 func callbackResult(ctx *analysis.Context, value syntax.Expr) bool {
 	call, ok := syntax.UnwrapParens(value).(*syntax.FuncCall)
 	if !ok {
 		return false
 	}
 	callee, _ := semanticquery.ResolveCallee(ctx, call)
-	for _, param := range callee.Params {
-		if strings.Contains(param.Type, "callable") {
+	for i, param := range callee.Params {
+		if !strings.Contains(param.Type, "callable") {
+			continue
+		}
+		callback, state := semanticquery.CallArgumentBinding(call.Args, i, param.Name)
+		literal, _ := syntax.UnwrapParens(callback).(*syntax.Literal)
+		name, decoded := syntax.LiteralStringValue(literal)
+		if state != semanticquery.ArgumentBound || !decoded {
 			return true
 		}
+		function := ctx.Types().Index.Function(strings.TrimPrefix(name, `\`), ctx.PHP)
+		return function == nil || !function.Builtin || flow.NativeSafety(strings.ToLower(strings.TrimPrefix(name, `\`)))&flow.HTML != 0
 	}
 	return false
 }
@@ -511,10 +579,9 @@ func preservingRequestRead(ctx *analysis.Context, input syntax.Expr, depth int) 
 	if !ok {
 		return false
 	}
-	switch semanticquery.NativeBuiltinName(ctx, call) {
-	case "trim", "ltrim", "rtrim", "strtolower", "strtoupper", "ucfirst", "lcfirst", "ucwords", "str_repeat", "strrev", "substr":
-		arg, state := semanticquery.CallArgumentBinding(call.Args, 0, "string")
-		return state == semanticquery.ArgumentBound && preservingRequestRead(ctx, arg, depth+1)
+	if !flow.Reshapes(semanticquery.NativeBuiltinName(ctx, call)) {
+		return false
 	}
-	return false
+	arg, state := semanticquery.CallArgumentBinding(call.Args, 0, "string")
+	return state == semanticquery.ArgumentBound && preservingRequestRead(ctx, arg, depth+1)
 }

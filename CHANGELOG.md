@@ -7,6 +7,27 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Read request-table writes in UnescapedHtmlOutput in the order they run: a
+  replacement repeated before each output in a loop is trusted again, while a
+  refill through a call written in the output statement, or through a PHP
+  function given a project callback, is reported. Parts that print nothing no
+  longer hide the parts after them.
+
+- Report request text copied from a superglobal before the program
+  rewrote that superglobal in UnescapedHtmlOutput: a later replacement no
+  longer clears a copy taken earlier.
+
+- Judge a request rewrite through a callback named by a PHP function by that
+  function's output contract in UnescapedHtmlOutput: `array_map('trim', …)` no
+  longer hides later unescaped output.
+
+- Recognize more output contracts for request data: a `ctype_digit` or
+  `is_int` check, `number_format` without custom separators, validating and
+  escaping `filter_var` filters and `PDO::quote`. Keep quoted-attribute
+  escaping through `nl2br`, `implode`, `join` and `str_pad`, and stop trusting
+  `htmlspecialchars` quote handling when its flags come from an unpacked
+  argument.
+
 - Follow `goto` jumps out of `try` and `catch` blocks through the `finally`
   blocks they leave, and follow generator scopes across `yield`, instead of
   giving up on the whole scope. Guarded reads there are no longer reported and
