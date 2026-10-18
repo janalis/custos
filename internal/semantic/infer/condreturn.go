@@ -112,18 +112,17 @@ func (e *Env) condTest(c *types.Cond, params []index.Param, args *syntax.ArgList
 		return condUnknown
 	}
 	var v argValue
-	if x := tplArg(args, params, i); x != nil {
-		v = e.exprValue(x)
-	} else {
-		for _, a := range args.Args {
-			if a, ok := a.(*syntax.Arg); !ok || a.Unpack {
-				return condUnknown // `...$args` may bind it
-			}
-		}
-		if params[i].Variadic || params[i].Default == "" {
+	value, state := bindArgument(args, params, i, e.PHP)
+	switch state {
+	case bindingBound:
+		v = e.exprValue(value)
+	case bindingMissing:
+		if params[i].Default == "" {
 			return condUnknown
 		}
 		v = e.textValue(params[i].Default)
+	default:
+		return condUnknown
 	}
 	r := e.testValue(c, v)
 	if r != condUnknown && c.Negated {

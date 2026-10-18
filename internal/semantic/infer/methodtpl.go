@@ -23,26 +23,9 @@ import (
 
 // tplArg returns the argument expression bound to parameter i of params
 // (positional, or named after it), nil when absent, unpacked or variadic.
-func tplArg(args *syntax.ArgList, params []index.Param, i int) syntax.Expr {
-	if args == nil || i >= len(params) || params[i].Variadic {
-		return nil
-	}
-	for j, x := range args.Args {
-		a, ok := x.(*syntax.Arg)
-		if !ok || a.Unpack {
-			return nil
-		}
-		if a.Name == nil {
-			if j == i {
-				return a.Value
-			}
-			continue
-		}
-		if strings.EqualFold(a.Name.Value, strings.TrimPrefix(params[i].Name, "$")) {
-			return a.Value
-		}
-	}
-	return nil
+func (e *Env) tplArg(args *syntax.ArgList, params []index.Param, i int) syntax.Expr {
+	value, _ := bindArgument(args, params, i, e.PHP)
+	return value
 }
 
 // tplReturn types a call to a function or method with method-level
@@ -78,7 +61,7 @@ func (e *Env) bindCall(ft *index.FuncTemplates, params []index.Param, args *synt
 		if pat == "" {
 			continue
 		}
-		arg := tplArg(args, params, i)
+		arg := e.tplArg(args, params, i)
 		if arg == nil {
 			continue
 		}

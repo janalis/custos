@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Preserve exact named-parameter bindings in template, conditional return and
+  output inference. Distinguish uncertain spreads from omitted defaults while
+  retaining explicit argument evidence on successful calls.
+
 - Decode flow-analysis strings with PHP escape rules and the parsed source
   version. Preserve unknown PHP escapes instead of interpreting Go-only escapes,
   and recognize binary-prefixed strings and static heredocs consistently.

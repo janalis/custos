@@ -161,7 +161,7 @@ func (e *Env) assertTargets(ca *callAsserts, a index.Assertion, name string) boo
 	case index.AssertThisProp:
 		return ca.recv != nil && narrowKey(syntax.UnwrapParens(ca.recv)) == "this" && name == "this->"+a.Prop
 	}
-	arg := tplArg(ca.args, ca.params, a.Param)
+	arg := e.tplArg(ca.args, ca.params, a.Param)
 	return arg != nil && isVar(arg, name)
 }
 

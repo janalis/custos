@@ -569,16 +569,16 @@ func (e *Env) byRefArg(m mutation) bool {
 func paramFor(ps []index.Param, a *syntax.Arg, idx int) (index.Param, bool) {
 	if a.Name != nil {
 		for _, p := range ps {
-			if strings.EqualFold(strings.TrimPrefix(p.Name, "$"), a.Name.Value) {
+			if strings.TrimPrefix(p.Name, "$") == a.Name.Value {
 				return p, true
 			}
 		}
 		return index.Param{}, false
 	}
-	if idx < len(ps) {
+	if idx >= 0 && idx < len(ps) {
 		return ps[idx], true
 	}
-	if len(ps) > 0 && ps[len(ps)-1].Variadic {
+	if idx >= 0 && len(ps) > 0 && ps[len(ps)-1].Variadic {
 		return ps[len(ps)-1], true
 	}
 	return index.Param{}, false

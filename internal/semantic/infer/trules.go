@@ -368,27 +368,11 @@ func (r *TRules) declaredAndDoc(declared, doc string, builtin bool) types.Type {
 }
 
 // arg returns the argument of n (a call of f) for f's parameter i, positional
-// or named; nil when absent. The parser always gives a FuncCall an argument
+// or named; nil when omitted or uncertain. The parser gives a FuncCall an argument
 // list (parseArgs), so n.Args is never nil here.
 func (r *TRules) arg(n *syntax.FuncCall, f *index.Function, i int) syntax.Expr {
-	if i < len(n.Args.Args) {
-		if a, ok := n.Args.Args[i].(*syntax.Arg); ok && a.Name == nil && !a.Unpack {
-			return a.Value
-		}
-	}
-	// Named argument: match the callee's parameter name at position i (the
-	// stubs declare every parameter the overrides read; the bound only
-	// guards against a stub lacking one).
-	if i >= len(f.Params) {
-		return nil
-	}
-	want := strings.TrimPrefix(f.Params[i].Name, "$")
-	for _, x := range n.Args.Args {
-		if a, ok := x.(*syntax.Arg); ok && a.Name != nil && strings.EqualFold(a.Name.Value, want) {
-			return a.Value
-		}
-	}
-	return nil
+	value, _ := bindArgument(n.Args, f.Params, i, r.Env.PHP)
+	return value
 }
 
 func (r *TRules) argCount(n *syntax.FuncCall) int {
@@ -478,8 +462,11 @@ func (r *TRules) override(n *syntax.FuncCall, f *index.Function) (types.Type, bo
 		}
 		return types.Int, true
 	case "var_export", "print_r":
-		if t, ok := printReturn(name, r.arg(n, f, 1), r.argCount(n)); ok {
-			return t, true
+		value, state := bindArgument(n.Args, f.Params, 1, r.Env.PHP)
+		if state != bindingUnknown {
+			if t, ok := printReturn(name, value, r.argCount(n)); ok {
+				return t, true
+			}
 		}
 	case "pathinfo", "gettimeofday":
 		// Argument-decided returns: the engine's override.

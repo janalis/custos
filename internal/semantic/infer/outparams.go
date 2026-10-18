@@ -259,7 +259,7 @@ func (e *Env) builtinOutType(kind outKind, al *syntax.ArgList, v *syntax.Variabl
 	switch kind {
 	case outSettype:
 		return func() types.Type {
-			value := tplArg(al, params, 1)
+			value := e.tplArg(al, params, 1)
 			if value == nil {
 				return types.Unknown
 			}
@@ -312,7 +312,7 @@ func (e *Env) builtinOutType(kind outKind, al *syntax.ArgList, v *syntax.Variabl
 				}
 			}
 			if kind == outSplice {
-				if replacement := tplArg(al, params, 3); replacement != nil {
+				if replacement := e.tplArg(al, params, 3); replacement != nil {
 					t := e.TypeOf(replacement)
 					if t.IsArrayLike() {
 						t = iterElem(t)

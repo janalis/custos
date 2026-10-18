@@ -182,7 +182,7 @@ func (e *Env) LegacyAssertCode(call *syntax.FuncCall) bool {
 		return false
 	}
 	f := e.ResolveFunction(call)
-	value := tplArg(call.Args, f.Params, 0)
+	value := e.tplArg(call.Args, f.Params, 0)
 	if value == nil {
 		return true
 	}
