@@ -121,23 +121,6 @@ func pairFix(ctx *analysis.Context, call *syntax.FuncCall, parent *syntax.Binary
 	return []diagnostic.Fix{astquery.ReplaceFix(span, repl)}
 }
 
-// impureFunctions lists built-in functions whose result differs between two
-// evaluations or that change state (internal pointers, random generators,
-// clocks, streams), lower-case.
-var impureFunctions = func() map[string]bool {
-	m := map[string]bool{}
-	for _, f := range strings.Fields(`next prev reset end each array_shift array_pop
-		array_unshift array_push array_splice shuffle str_shuffle array_rand
-		rand mt_rand random_int random_bytes lcg_value uniqid microtime hrtime time
-		openssl_random_pseudo_bytes mcrypt_create_iv
-		fgets fgetc fgetss fread fgetcsv fscanf fwrite fputs fputcsv readline
-		stream_get_line stream_get_contents socket_read file_put_contents
-		func_get_args`) {
-		m[f] = true
-	}
-	return m
-}()
-
 // unstableOperand reports whether evaluating e twice provably differs from
 // evaluating it once (E5): it contains an assignment, an increment or
 // decrement, an argument bound to a by-reference parameter of a resolved
@@ -150,7 +133,7 @@ func unstableOperand(ctx *analysis.Context, e syntax.Expr) bool {
 			found = true
 		case *syntax.FuncCall:
 			f := ctx.Types().ResolveFunction(c)
-			found = found || impureFunctions[ctx.GlobalFunctionName(c)] ||
+			found = found || astquery.ImpureBuiltin(ctx.GlobalFunctionName(c)) ||
 				f != nil && semanticquery.ArgBindsByRef(c.Args, f.Params, false)
 		}
 		return !found

@@ -39,6 +39,7 @@ func TestKnownAndUnknownOperationHistories(t *testing.T) {
 		{`$handle=curl_init();$other=curl_init();if($flag){curl_setopt($other,CURLOPT_HEADER,true);}probe($handle);`, 0, true},
 		{`$handle=curl_init();probe($handle);curl_setopt($handle,CURLOPT_HEADER,true);`, 0, true},
 		{`$handle=curl_init();while($flag){probe($handle);curl_setopt($handle,CURLOPT_HEADER,true);}`, 0, false},
+		{`$handle=curl_init();curl_setopt(...$arguments);probe($handle);`, 0, false},
 		{`probe($unknown);`, 0, false},
 		{`function configure($value){curl_setopt($value,CURLOPT_HEADER,true);}$handle=curl_init();configure($handle);probe($handle);`, 0, false},
 		{`$handle=curl_init();curl_setopt($unknown,CURLOPT_HEADER,true);probe($handle);`, 0, false},

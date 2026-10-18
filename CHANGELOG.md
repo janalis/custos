@@ -7,6 +7,27 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Stop reading an argument hidden by unpacking as omitted in the shared
+  helpers: a fixed array size, kept keys of `SplFixedArray::fromArray`, PDO
+  fetch modes, `ob_start` callbacks, `mb_strlen` encodings for fixes, response
+  codes and removed headers.
+
+- Release what a destructuring or a reference assignment rebinds, so a
+  destructor that may run there drops static guards like a plain assignment
+  does. In a namespace, stop trusting a PHP constant read through an
+  unqualified name when the file defines constants under computed names.
+
+- Infer the type a PHP function stores in a by-reference parameter from its
+  declaration instead of keeping the earlier type, and stop narrowing a call
+  on a receiver of several classes to the declared returns when one of them
+  declares none.
+
+- Treat `class_exists` and its siblings told not to autoload, and `unset` of
+  a variable that holds no object, as running no project code; treat
+  `stream_filter_append` and `stream_filter_prepend` as running the filter's
+  code. Static guards are kept or dropped accordingly by the failure-value
+  rules.
+
 - Read request-table writes in UnescapedHtmlOutput in the order they run: a
   replacement repeated before each output in a loop is trusted again, while a
   refill through a call written in the output statement, or through a PHP

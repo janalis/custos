@@ -27,6 +27,7 @@ Use an index within the fixed array size.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore SplFixedArrayIndexOutOfBounds` and `@noinspection SplFixedArrayIndexOutOfBounds` suppress this inspection.
 - E3. Existence probes never throw and are not reported: an out-of-range offset that is an operand of `isset()` or `empty()`, or the left operand of `??`, including when it is the base of a longer offset or property chain in that position (`isset($a[9][0])`, `$a[9]->name ?? null`). The probe does not extend to an index expression, a method call on the element or the right operand of `??`, and `??=` is still reported because it writes the offset.
 - E4. No report once the receiver may have been resized or replaced out of sight: captured by a closure `use` or mentioned in an arrow function, copied or referenced into another variable, passed to a user function, method, constructor or callback-invoking builtin, iterated by reference, unset as a whole, or called through a dynamic method name.
+- E5. A size passed through an unpacked argument (`new SplFixedArray(...$args)`) is unknown: no report.
 
 ## Report
 

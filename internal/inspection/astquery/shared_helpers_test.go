@@ -102,3 +102,9 @@ func TestIsStaticPropName(t *testing.T) {
 		t.Errorf("got %v", names)
 	}
 }
+
+func TestImpureBuiltin(t *testing.T) {
+	if !ImpureBuiltin("next") || !ImpureBuiltin("random_int") || ImpureBuiltin("strlen") || ImpureBuiltin("NEXT") {
+		t.Fatal("impure builtins")
+	}
+}

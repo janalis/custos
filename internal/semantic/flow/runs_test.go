@@ -194,6 +194,15 @@ func TestStaticGuardAcrossCodePHPRuns(t *testing.T) {
 		{`$dom->registerNodeClass('DOMElement', $s);`, false},
 		{`$dom->registerNodeClass('DOMElement', null);`, true},
 		{`$dom->registerNodeClass(...$l);`, false},
+		// A class looked up without autoloading loads nothing.
+		{`$t = class_exists($s, false);`, true},
+		{`$t = interface_exists($s, \false);`, true},
+		{`$t = class_exists($s);`, false},
+		{`$t = enum_exists($s, true);`, false},
+		{`$t = trait_exists(...$l);`, false},
+		// A filter added to a stream may be one of the project.
+		{`stream_filter_append($o, 'string.rot13');`, false},
+		{`stream_filter_prepend($o, 'mine');`, false},
 	} {
 		t.Run(tc.body, func(t *testing.T) {
 			e, f := environmentAt(t, fmt.Sprintf(src, tc.body), phpversion.PHP84)

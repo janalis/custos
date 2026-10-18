@@ -105,3 +105,41 @@ function inspect(Child $child) {
 		}
 	}
 }
+
+// A call on a receiver of several classes returns anything when one of them
+// declares no return type; the specification mode keeps what is declared.
+func TestUnionReceiverWithUntypedMethod(t *testing.T) {
+	f := syntax.Parse("t.php", []byte(`<?php
+class A { function m(): string { return ''; } }
+class B { function m() { return 1; } }
+class C { function m(): int { return 1; } }
+/**
+ * @param A|B $ab
+ * @param A|C $ac
+ */
+function run($ab, $ac) { t('ab', $ab->m()); t('ac', $ac->m()); }
+`), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(nil)
+	ix.Add(index.Extract(f))
+	for strict, want := range map[bool]map[string]string{
+		false: {"ab": "?unknown", "ac": "int|string"},
+		true:  {"ab": "string", "ac": "int|string"},
+	} {
+		r := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84))
+		r.SpecOnly = strict
+		syntax.InspectFile(f, func(n syntax.Node) bool {
+			call, ok := n.(*syntax.FuncCall)
+			if !ok {
+				return true
+			}
+			if name, named := call.Name.(*syntax.Name); !named || name.Value != "t" {
+				return true
+			}
+			label := strings.Trim(call.Args.Args[0].(*syntax.Arg).Value.(*syntax.Literal).Raw, "'")
+			if got := r.TypeOf(call.Args.Args[1].(*syntax.Arg).Value).String(); got != want[label] {
+				t.Errorf("strict=%v %s: got %q, want %q", strict, label, got, want[label])
+			}
+			return true
+		})
+	}
+}

@@ -75,10 +75,15 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 		leaving(f, r)
 		for _, x := range n.Vars {
 			e.operands(x, f, r, 0)
+			// What is released may have a destructor, and a property may
+			// have a magic method that unsets it.
+			if name := rootVariable(x); name != "" {
+				e.release(n, name, f, r)
+			} else {
+				e.implicit(n, f, r)
+			}
 			rebind(x, f, r)
 		}
-		// What is released may have a destructor.
-		e.implicit(n, f, r)
 	case *syntax.StaticStmt:
 		scope := syntax.EnclosingVariableScope(n)
 		for _, x := range n.Vars {
@@ -1585,7 +1590,8 @@ func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 	target, plain := syntax.UnwrapParens(n.Var).(*syntax.Variable)
 	source := rootVariable(n.Value)
 	if plain && target.NameExpr == nil {
-		// The two names now read one value.
+		// What the name held is released; the two names now read one value.
+		e.release(n, target.Name, f, r)
 		if direct, ok := syntax.UnwrapParens(n.Value).(*syntax.Variable); ok && direct.NameExpr == nil {
 			f.bind(target.Name, direct.Name, n.Span().Start)
 			f.vars[target.Name] = f.vars[direct.Name]
@@ -1628,6 +1634,10 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 	switch {
 	case !element || name == "":
 		referenceTarget(n.Var, f)
+		// What the variables a destructuring names held is released.
+		for _, released := range rebound(n.Var) {
+			e.release(n, released, f, r)
+		}
 		kill(n.Var, f, r)
 		f.through(r, v)
 		if tainted(v) {
@@ -2825,9 +2835,46 @@ func (e *Env) fixed(c *syntax.ConstFetch) bool {
 	fqn, fallback := e.types.Names.Const(c.Name.Value, c.Span().Start)
 	known := e.types.Index.Constant(fqn, e.types.PHP)
 	if known == nil && fallback != "" {
+		// A constant defined under a computed name may be the namespaced
+		// one, which PHP then reads instead of its own.
+		if e.computedDefines() {
+			return false
+		}
 		known = e.types.Index.Constant(fallback, e.types.PHP)
 	}
 	return known != nil && known.Builtin
+}
+
+// firstArg returns the first argument of a call written in order.
+func firstArg(list *syntax.ArgList) (*syntax.Arg, bool) {
+	if list == nil || len(list.Args) == 0 {
+		return nil, false
+	}
+	arg, plain := list.Args[0].(*syntax.Arg)
+	return arg, plain && !arg.Unpack && arg.Name == nil
+}
+
+// computedDefinesKey caches syntax only; no semantic option or index state.
+type computedDefinesKey struct{}
+
+// computedDefines reports a call of define in the file whose name is not
+// literal text.
+func (e *Env) computedDefines() bool {
+	return e.file.Memo(computedDefinesKey{}, func() any {
+		found := false
+		syntax.InspectFile(e.file, func(n syntax.Node) bool {
+			call, ok := n.(*syntax.FuncCall)
+			if name, builtin := e.callName(n); ok && builtin && name == "define" {
+				found = true
+				if arg, plain := firstArg(call.Args); plain {
+					_, literal := literalText(arg.Value)
+					found = !literal
+				}
+			}
+			return !found
+		})
+		return found
+	}).(bool)
 }
 
 // selfContained reports a class constant whose value names no other class:

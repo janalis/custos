@@ -38,6 +38,8 @@ const (
 	outSplice
 	outSettype
 	outAppendLines // exec: string lines appended to an array
+	outUnchanged   // the variable keeps its type: an array whose pointer moves or that loses an end
+	outElements    // an array keeps its keys, its elements may change
 )
 
 // noBuiltinOut distinguishes a known builtin without an output contract from a
@@ -80,6 +82,14 @@ var builtinOut = map[string]map[int]outKind{
 	"getopt":                      {2: outInt},
 	"proc_open":                   {2: outArray},
 	"flock":                       {2: outInt},
+	"end":                         {0: outUnchanged},
+	"reset":                       {0: outUnchanged},
+	"next":                        {0: outUnchanged},
+	"prev":                        {0: outUnchanged},
+	"array_pop":                   {0: outUnchanged},
+	"array_shift":                 {0: outUnchanged},
+	"array_walk":                  {0: outElements},
+	"array_walk_recursive":        {0: outElements},
 }
 
 // collectOutArgs records the variables call (a function, method or static
@@ -125,6 +135,16 @@ func (e *Env) collectOutArgs(call syntax.Expr, sv *scopeVars) {
 		if builtin != nil {
 			if kind := builtin[paramIndex(params, p)]; kind != 0 {
 				typ = e.builtinOutType(kind, al, v, params)
+			} else {
+				// Without a listed contract, the variable holds what the
+				// parameter is declared to take.
+				declared := p.Type
+				typ = func() types.Type {
+					if t := e.docType(declared, nil); declared != "" && !t.Has("mixed") {
+						return t
+					}
+					return types.Unknown
+				}
 			}
 		} else if p.Out != "" && !e.native {
 			out := p.Out
@@ -257,6 +277,15 @@ func (e *Env) calleeParams(call syntax.Expr) (params []index.Param, builtin map[
 // after the call (al: its arguments; v: the variable passed).
 func (e *Env) builtinOutType(kind outKind, al *syntax.ArgList, v *syntax.Variable, params []index.Param) func() types.Type {
 	switch kind {
+	case outUnchanged:
+		return nil
+	case outElements:
+		return func() types.Type {
+			if prior := e.TypeOf(v); prior.IsArrayLike() {
+				return types.Array.WithArrayKey(prior.ArrayKey())
+			}
+			return types.Unknown
+		}
 	case outSettype:
 		return func() types.Type {
 			value := e.tplArg(al, params, 1)

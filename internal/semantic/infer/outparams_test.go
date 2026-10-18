@@ -70,3 +70,20 @@ function f(string $s, $flags) {
 		"m7": "array",
 	})
 }
+
+// A PHP function without a listed output contract leaves in the variable
+// what its parameter is declared to take; moving the pointer of an array or
+// removing one of its ends keeps the array's type.
+func TestUnlistedBuiltinOutParameters(t *testing.T) {
+	checkAnywhere(t, `<?php
+function f(string $host, $pid, array $items) {
+    $hosts = 'x'; getmxrr($host, $hosts); t('hosts', $hosts);
+    $status = 'x'; pcntl_waitpid($pid, $status); t('status', $status);
+    $list = [1, 2]; end($list); t('list', $list);
+    $popped = [1, 2]; array_pop($popped); t('popped', $popped);
+    $walked = [1, 2]; array_walk($walked, 'f'); t('walked', $walked);
+    $object = new ArrayObject(); array_walk($object, 'f'); t('object', $object);
+    $getmxrrHosts = 1; getmxrr($host, $getmxrrHosts, $weights); t('weights', $weights);
+}
+`, map[string]string{"hosts": "?unknown", "status": "?unknown", "list": "int[]{0: int, 1: int}", "popped": "int[]", "walked": "array", "object": "?unknown", "weights": "?unknown"})
+}

@@ -908,7 +908,7 @@ func nativeEmittedBody(ctx *analysis.Context, header *syntax.FuncCall, body synt
 		}
 	}
 	for _, call := range nativePriorGlobal(ctx, header, "ob_start", "ini_set") {
-		if NativeBuiltinName(ctx, call) == "ob_start" && CallArgument(call.Args, 0, "callback") != nil {
+		if NativeBuiltinName(ctx, call) == "ob_start" && !CallArgumentOmitted(call.Args, 0, "callback") {
 			return false
 		}
 		if key, known := NativeString(ctx, CallArgument(call.Args, 0, "option")); known && key == "zlib.output_compression" {
@@ -979,8 +979,8 @@ func nativeLengthCountsBytes(ctx *analysis.Context, call *syntax.FuncCall) bool 
 }
 
 func nativeLengthEncodingSafe(ctx *analysis.Context, call *syntax.FuncCall) bool {
-	encoding := CallArgument(call.Args, 1, "encoding")
-	if encoding == nil {
+	encoding, state := CallArgumentBinding(call.Args, 1, "encoding")
+	if state == ArgumentMissing {
 		return true
 	}
 	name, known := NativeString(ctx, encoding)

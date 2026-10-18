@@ -212,6 +212,21 @@ func referenceTarget(x syntax.Expr, f *frame) bool {
 	return found
 }
 
+// rebound lists the plain variables a write to target gives another value:
+// the variable itself, or each one a destructuring names, at any depth.
+func rebound(target syntax.Expr) []string {
+	if name := plainVariable(target); name != "" {
+		return []string{name}
+	}
+	var names []string
+	for _, item := range targetItems(target) {
+		if item != nil {
+			names = append(names, rebound(item.Value)...)
+		}
+	}
+	return names
+}
+
 // targetItems returns the slots of a `[...]` or `list(...)` destructuring target.
 func targetItems(x syntax.Expr) []*syntax.ArrayItem {
 	switch n := syntax.UnwrapParens(x).(type) {

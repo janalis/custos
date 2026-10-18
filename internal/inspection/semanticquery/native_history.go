@@ -82,6 +82,8 @@ func nativeCallHistory(ctx *analysis.Context, at syntax.Node, receiver syntax.Ex
 		if !matches || call.Node == at {
 			continue
 		}
+		// An unpacked list that may name the receiver lets it escape, which
+		// ends the history before this loop.
 		candidate := call.Receiver
 		if candidate == nil {
 			if function, ok := call.Node.(*syntax.FuncCall); ok {

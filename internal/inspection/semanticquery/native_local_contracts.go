@@ -203,8 +203,8 @@ func NativeFixedArraySize(ctx *analysis.Context, e syntax.Expr, at syntax.Node) 
 	var size int64
 	known := false
 	if c := NativeConstruction(ctx, e, "SplFixedArray"); c != nil {
-		arg := CallArgument(c.Args, 0, "size")
-		if arg == nil {
+		arg, state := CallArgumentBinding(c.Args, 0, "size")
+		if state == ArgumentMissing {
 			size = 0
 			known = true
 		} else {
@@ -218,8 +218,7 @@ func NativeFixedArraySize(ctx *analysis.Context, e syntax.Expr, at syntax.Node) 
 			if !ok {
 				return 0, false
 			}
-			keep := CallArgument(c.Args, 1, "preserveKeys")
-			if keep != nil {
+			if keep, state := CallArgumentBinding(c.Args, 1, "preserveKeys"); state != ArgumentMissing {
 				v, k := NativeTruth(ctx, keep)
 				if !k {
 					return 0, false
@@ -264,10 +263,12 @@ func NativeFixedArraySlots(ctx *analysis.Context, e syntax.Expr, at syntax.Node)
 	if c, ok := NativeValue(ctx, e).(*syntax.StaticCall); ok {
 		entries, known := NativeArrayEntries(ctx, CallArgument(c.Args, 0, "array"))
 		if known {
-			preserve := CallArgument(c.Args, 1, "preserveKeys")
 			keep := true
-			if preserve != nil {
-				keep, _ = NativeTruth(ctx, preserve)
+			if preserve, state := CallArgumentBinding(c.Args, 1, "preserveKeys"); state != ArgumentMissing {
+				var known bool
+				if keep, known = NativeTruth(ctx, preserve); !known {
+					return slots
+				}
 			}
 			if !keep {
 				for i := range len(entries) {

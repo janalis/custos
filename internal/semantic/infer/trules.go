@@ -211,7 +211,12 @@ func (r *TRules) infer(x syntax.Expr) types.Type {
 				}
 				return types.Unknown
 			}
-			ts = append(ts, r.bindMember(r.declaredAndDoc(m.Return, m.DocReturn, m.Builtin), m.Class, m.TypeClass, strings.TrimPrefix(cls, `\`)))
+			t := r.bindMember(r.declaredAndDoc(m.Return, m.DocReturn, m.Builtin), m.Class, m.TypeClass, strings.TrimPrefix(cls, `\`))
+			if t.IsUnknown() && !r.SpecOnly {
+				// One receiver class returns anything: so may the call.
+				return types.Unknown
+			}
+			ts = append(ts, t)
 		}
 		return KnownUnion(ts...)
 	case *syntax.StaticCall:

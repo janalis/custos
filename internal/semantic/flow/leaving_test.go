@@ -649,7 +649,17 @@ func TestCodeThatRunsWithoutACallEntersTheFunctionAgain(t *testing.T) {
 		{`$o[0] = 1;`, false},
 		{`$x = isset($o[0]);`, false},
 		{`$x = clone $o;`, false},
-		{`unset($x);`, false},
+		{`unset($x);`, true},
+		{`$x = 'text'; unset($x);`, true},
+		{`unset($o);`, false},
+		{`unset($o[0]);`, false},
+		{`unset($o->p);`, false},
+		// What a destructuring or a reference rebinds is released.
+		{`$x = $o; [$x] = [1];`, false},
+		{`$x = $o; [[$x]] = [[1]];`, false},
+		{`$x = 'text'; [$x] = [1];`, true},
+		{`$x = $o; $x = &$l;`, false},
+		{`$x = 'text'; $x = &$l;`, true},
 		{`$x = count($o);`, false},
 		{`$x = strlen($o);`, false},
 		{`$x = json_encode($o);`, false},
@@ -970,5 +980,31 @@ func TestQuietCalleesLeaveStaticVariables(t *testing.T) {
 		if got := e.Excludes(argument(callsNamed(f, "probe")[0]), "false"); got != want {
 			t.Errorf("non-false=%v for %s", got, src)
 		}
+	}
+}
+
+// In a namespace, a constant defined under a computed name may be the one an
+// unqualified name reads instead of PHP's own, and may be an object.
+func TestComputedDefinesShadowConstants(t *testing.T) {
+	const body = `function probe($x) {} function t($a) { static $u; $u = parse_url($a); if ($u === false) { return; } $x = PHP_EOL; echo $x; probe($u); }`
+	for _, tc := range []struct {
+		src  string
+		kept bool
+	}{
+		{`namespace App; ` + body, true},
+		{`namespace App; ` + body + ` define('App\OTHER', 1);`, true},
+		{`namespace App; ` + body + ` define($name, 1);`, false},
+		{`namespace App; ` + body + ` define(...$args);`, false},
+		{`namespace App; ` + body + ` define();`, false},
+		{`namespace App; ` + body + ` define(constant_name: 'App\OTHER', value: 1);`, false},
+		{`namespace App; ` + body + ` function define($n, $v) {} define($name, 1);`, true},
+	} {
+		t.Run(tc.src[len(body)+15:], func(t *testing.T) {
+			e, f := summarized(t, tc.src)
+			calls := callsNamed(f, "probe")
+			if got := e.Excludes(argument(calls[len(calls)-1]), "false"); got != tc.kept {
+				t.Fatalf("non-false=%v", got)
+			}
+		})
 	}
 }

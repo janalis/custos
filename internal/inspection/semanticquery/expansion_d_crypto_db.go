@@ -1669,7 +1669,7 @@ func CheckPdoFetchIntoRetainsSharedRows(ctx *analysis.Context, n syntax.Node, me
 	if source == nil || !pdoFetchIntoMethod(ctx, source, "fetch") || !expansionDSame(ctx, produced, assign.Value) {
 		return
 	}
-	if override := CallArgument(source.Args, 0, "mode"); override != nil {
+	if override, state := CallArgumentBinding(source.Args, 0, "mode"); state != ArgumentMissing {
 		mode, known := NativeContractInt(ctx, override)
 		if !known || mode != 0 {
 			return

@@ -37,6 +37,7 @@ Reported:
 - E3. A closure created anywhere in the same scope that binds the handle variable by reference (`use (&$h)`) invalidates proof, whether it is created before or after the close: calling it can store a newly opened stream in the variable. A by-value capture, a by-reference capture of another variable, and a capture written inside a nested function body do not.
 - E4. No report where the operation runs only when the reaching `fclose` returned false, since a refused close leaves the stream open. The result may be tested directly or through an unchanged local holding it, by negation, a comparison with a boolean literal, `and`/`or`, a ternary, an `if`/`else` branch, or an early exit of the success branch. An operation reached only when the close returned true is still reported, as is one guarded by a local that was reassigned after the close.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. A close whose stream argument comes from an unpacked list (`fclose(...$handles)`) may close the stream or not: the use is not reported as following a close.
 
 ## Fix
 

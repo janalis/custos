@@ -138,7 +138,7 @@ func expansionResponseList(ctx *analysis.Context, list []syntax.Stmt, top bool, 
 					prev.HasTransfer = len(fields["transfer-encoding"]) > 0
 					out[value] = prev
 					headers = append(headers, value)
-					if e := CallArgument(value.Args, 2, "response_code"); e != nil {
+					if e, state := CallArgumentBinding(value.Args, 2, "response_code"); state != ArgumentMissing {
 						v, ok := NativeInt(ctx, e)
 						if !ok {
 							bodyKnown = false
@@ -147,8 +147,9 @@ func expansionResponseList(ctx *analysis.Context, list []syntax.Stmt, top bool, 
 						}
 					}
 				case "header_remove":
-					e := CallArgument(value.Args, 0, "name")
-					if e == nil {
+					// Without a name every header goes; an unknown one may be any.
+					e, state := CallArgumentBinding(value.Args, 0, "name")
+					if state == ArgumentMissing {
 						clear(fields)
 						clear(final)
 					} else if name, ok := NativeString(ctx, e); ok {
@@ -160,8 +161,8 @@ func expansionResponseList(ctx *analysis.Context, list []syntax.Stmt, top bool, 
 						bodyKnown = false
 					}
 				case "http_response_code":
-					e := CallArgument(value.Args, 0, "response_code")
-					if e != nil {
+					// Without a code it only reads the status.
+					if e, state := CallArgumentBinding(value.Args, 0, "response_code"); state != ArgumentMissing {
 						v, ok := NativeInt(ctx, e)
 						if !ok {
 							bodyKnown = false

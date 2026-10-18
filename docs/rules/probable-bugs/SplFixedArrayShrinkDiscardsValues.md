@@ -39,6 +39,7 @@ Reported:
 - E1. Fresh unpopulated arrays, explicit unset of all discarded slots, enlargement, unchanged size and unknown occupancy are excluded.
 - E3. Occupancy is unknown, and nothing is reported, when before the shrink the array variable is captured by a closure or read inside an arrow function, copied or bound by reference to another variable, stored in a container, passed to a call other than the inspecting builtins `count`, `sizeof`, `iterator_count`, `iterator_to_array`, `var_dump`, `print_r` and `var_export`, used with a method other than `setSize`, `offsetSet`, `offsetUnset` and the read-only accessors (`getSize`, `offsetGet`, `offsetExists`, `toArray`, `count`, `jsonSerialize`, `getIterator` and the iterator methods), or released with a non-literal index or on only some paths (`unset` or `offsetUnset` inside a branch, a conditional earlier `setSize`). Reading a slot, cloning the array and iterating with `foreach` keep the occupancy known.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore SplFixedArrayShrinkDiscardsValues` and `@noinspection SplFixedArrayShrinkDiscardsValues` suppress this inspection.
+- E3. When `fromArray` is given a `preserveKeys` value that is not a known boolean, or one through an unpacked argument, the populated entries are unknown: no report.
 
 ## Fix
 

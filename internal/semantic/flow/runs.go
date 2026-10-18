@@ -41,16 +41,16 @@ func pure(name string) bool {
 }
 
 // runner reports a PHP function that runs code of the project whatever it is
-// given: an error handler, an autoloader, also for the class an alias, a
-// stream wrapper or a stream filter is made of, the methods that restore an
+// given: an error handler, an autoloader for the class an alias, a stream
+// wrapper or a stream filter is made of, the filter a stream is given, the methods that restore an
 // object, the handler of a session, which also holds the objects stored in
 // it, the destructors of the objects a collection frees, the handler of an
 // output buffer that is flushed or dropped, the callbacks set on a transfer
 // or a parser, the callbacks an array names.
 func runner(name string) bool {
 	switch name {
-	case "trigger_error", "user_error", "class_exists", "interface_exists", "trait_exists", "enum_exists", "spl_autoload_call", "spl_autoload", "unserialize",
-		"class_alias", "stream_wrapper_register", "stream_register_wrapper", "stream_filter_register",
+	case "trigger_error", "user_error", "spl_autoload_call", "spl_autoload", "unserialize",
+		"class_alias", "stream_wrapper_register", "stream_register_wrapper", "stream_filter_register", "stream_filter_append", "stream_filter_prepend",
 		"session_start", "session_write_close", "session_commit", "session_destroy", "session_regenerate_id", "session_reset", "session_gc", "session_decode",
 		"session_abort", "session_create_id", "session_encode",
 		"gc_collect_cycles",
@@ -65,12 +65,14 @@ func runner(name string) bool {
 // loads reports a call of a PHP function that runs code of the project by
 // what it is given, other than a function to call: a class named by text,
 // which is loaded (not one named by an object, `self::class` or
-// `static::class`, which is loaded already), a constant written with `::`, a
-// class to construct, a filter that calls back. Arguments given by name or
-// unpacked may be any of these.
+// `static::class`, which is loaded already, nor one only looked up without
+// autoloading), a constant written with `::`, a class to construct, a filter
+// that calls back. Arguments given by name or unpacked may be any of these.
 func loads(name string, list *syntax.ArgList) bool {
 	args, ordered := positional(list)
 	switch name {
+	case "class_exists", "interface_exists", "trait_exists", "enum_exists":
+		return !ordered || len(args) < 2 || constantName(value(args[1])) != "false"
 	case "is_subclass_of", "method_exists", "property_exists", "get_parent_class", "class_implements", "class_parents", "class_uses",
 		"get_class_methods", "get_class_vars":
 		return !ordered || len(args) > 0 && !instance(value(args[0]))
