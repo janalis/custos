@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Follow `goto` jumps out of `try` and `catch` blocks through the `finally`
+  blocks they leave, and follow generator scopes across `yield`, instead of
+  giving up on the whole scope. Guarded reads there are no longer reported and
+  unguarded ones are, by the failure-value rules and the request-data rules.
+
 - Treat an unpacked argument as possibly supplying an optional parameter in
   ContentEncodingBodyMismatch, IncrementalInflateEncodingMismatch,
   ParseUrlFailureDereferenced, HttpErrorBodyReadWithoutIgnoreErrors,

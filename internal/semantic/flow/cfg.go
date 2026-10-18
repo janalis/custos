@@ -39,13 +39,13 @@ type (
 		env  *Env
 		// body is what the graph is built from, nil for the statements of
 		// the file. labels gives the block each label starts, and jumps the
-		// blocks of the `goto` statements written before their label, which
-		// gets them when it is built. guarded tells whether the body holds a
-		// try statement, once that was looked up.
+		// `goto` statements written before their label, which gets them when
+		// it is built. written holds the label statements of the body, once
+		// a jump out of a try statement needs to know where one is.
 		body    syntax.Node
 		labels  map[string]int
-		jumps   map[string][]int
-		guarded int8
+		jumps   map[string][]pendingJump
+		written map[string]*syntax.Label
 		// first is where the first label of the body is written, plus one.
 		first uint32
 	}
@@ -54,6 +54,22 @@ type (
 		// levels lists the break and continue targets of the enclosing
 		// loops and switches, innermost last, for `break 2`.
 		levels [][2]int
+		// finals lists the finally blocks of the enclosing try statements,
+		// innermost last, which a `goto` out of them runs on its way.
+		finals []final
+	}
+	// final is the finally block of a try statement and the exits around
+	// that statement, where the block continues.
+	final struct {
+		try  *syntax.Try
+		body syntax.Stmt
+		out  exits
+	}
+	// pendingJump is a `goto` built before its label, with the finally
+	// blocks it runs on its way there.
+	pendingJump struct {
+		block  int
+		finals []final
 	}
 )
 
@@ -222,6 +238,7 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 			inside.thrown = g.stmt(n.Finally.Body, x.thrown, x)
 			inside.brk = g.stmt(n.Finally.Body, x.brk, x)
 			inside.cont = g.stmt(n.Finally.Body, x.cont, x)
+			inside.finals = append(inside.finals[:len(inside.finals):len(inside.finals)], final{try: n, body: n.Finally.Body, out: x})
 			// A jump over several levels runs the finally block on its way
 			// to each of them: the copies are built when one is written.
 			inside.levels = nil
@@ -258,43 +275,42 @@ func (g *graph) stmt(s syntax.Stmt, next int, x exits) int {
 		g.labels[n.Name.Value] = at
 		g.first = n.Span().Start + 1
 		for _, jump := range g.jumps[n.Name.Value] {
-			g.blocks[jump].next = []int{at}
+			g.blocks[jump.block].next = []int{g.through(jump.finals, at)}
 		}
 		delete(g.jumps, n.Name.Value)
 		return at
 	case *syntax.Goto:
-		// A jump out of a try statement runs its finally blocks on the
-		// way: such a scope is not followed.
-		if g.tries() {
-			g.complete = false
-			break
-		}
+		leaves := g.leaves(n.Label.Value, x.finals)
 		if at, built := g.labels[n.Label.Value]; built {
-			return g.add(nil, at)
+			return g.add(nil, g.through(leaves, at))
 		}
 		jump := g.add(nil)
 		if g.jumps == nil {
-			g.jumps = map[string][]int{}
+			g.jumps = map[string][]pendingJump{}
 		}
-		g.jumps[n.Label.Value] = append(g.jumps[n.Label.Value], jump)
+		g.jumps[n.Label.Value] = append(g.jumps[n.Label.Value], pendingJump{block: jump, finals: leaves})
 		return jump
 	}
 	return g.atom(s, next, x)
 }
 
-// tries reports whether the body the graph is built from holds a try
-// statement, outside the functions declared in it.
-func (g *graph) tries() bool {
-	if g.guarded == 0 {
-		g.guarded = -1
+// leaves returns the finally blocks a jump to label runs: those of the try
+// statements it is in that do not hold the label, outermost first. PHP
+// allows no jump into or out of a finally block itself.
+func (g *graph) leaves(label string, finals []final) []final {
+	if len(finals) == 0 {
+		return nil
+	}
+	if g.written == nil {
+		g.written = map[string]*syntax.Label{}
 		look := func(n syntax.Node) bool {
-			switch n.(type) {
+			switch n := n.(type) {
 			case *syntax.Function, *syntax.ClassLike, *syntax.Closure, *syntax.ArrowFunction:
-				return false
-			case *syntax.Try:
-				g.guarded = 1
+				return n == g.body
+			case *syntax.Label:
+				g.written[n.Name.Value] = n
 			}
-			return g.guarded < 0
+			return true
 		}
 		if g.body == nil {
 			syntax.InspectFile(g.env.file, look)
@@ -302,7 +318,27 @@ func (g *graph) tries() bool {
 			syntax.Inspect(g.body, look)
 		}
 	}
-	return g.guarded > 0
+	target := g.written[label]
+	for i, f := range finals {
+		if target == nil || !flowContains(f.try, target) {
+			return finals[i:]
+		}
+	}
+	return nil
+}
+
+// through returns where a jump to at starts when it runs finals first: the
+// innermost block runs first, and each continues into the next one out.
+func (g *graph) through(finals []final, at int) int {
+	for _, f := range finals {
+		at = g.stmt(f.body, at, f.out)
+	}
+	return at
+}
+
+// flowContains reports whether inner is written inside outer.
+func flowContains(outer, inner syntax.Node) bool {
+	return inner.Span().Start >= outer.Span().Start && inner.Span().End <= outer.Span().End
 }
 
 // repeats returns the successors of a loop test: the body and, unless the

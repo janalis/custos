@@ -313,9 +313,9 @@ func TestSharedLocalWriteBudget(t *testing.T) {
 	for range nativeLocalWriteBudget + 1 {
 		src.WriteString("$u++;")
 	}
-	// The flow facts answer first where the scope is followed: a `goto`
-	// beside a `try` leaves the guard to the walk.
-	src.WriteString("probe($t);} try { work(); } finally { work(); } goto done; done: ;}")
+	// The flow facts answer first where the scope is followed: code the
+	// scope evaluates leaves the guard to the walk.
+	src.WriteString("probe($t);} eval($o);}")
 	if got := sharedDefectResults(t, "false", src.String(), ""); got != "false" {
 		t.Fatalf("guard beyond budget: %q", got)
 	}

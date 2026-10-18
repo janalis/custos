@@ -39,7 +39,7 @@ func TestReviewSafety(t *testing.T) {
 		{"goto back, nothing written", "<?php function f($a, $o) { $s = 0.5; again: $r = $a % $s; if ($o) { goto again; } }", 1},
 		{"goto back past a reference capture", "<?php function f($a) { $s = 1.5; again: $r = $a % $s; $g = function () use (&$s) { $s = 3; }; $g(); goto again; }", 0},
 		{"goto back past extract", "<?php function f($a, $o) { $s = 0.5; again: $r = $a % $s; extract($o); goto again; }", 0},
-		{"goto beside try", "<?php function f($a) { $s = 0.5; $r = $a % $s; try { g(); } finally { h(); } again: $s = 2; goto again; }", 0},
+		{"goto beside try", "<?php function f($a) { $s = 0.5; $r = $a % $s; try { g(); } finally { h(); } again: $s = 2; goto again; }", 1},
 		{"local user call", "<?php function f($a) { $s = 0.5; g(); $o = new K(); $o->m(); K::n(); return $a % $s; }", 1},
 		{"literal operand beside extract", "<?php function f($a, $o) { extract($o); return $a % 0.5; }", 1},
 		{"global literal", "<?php $s = 0.5; echo strlen('a'); echo 9 % $s;", 1},

@@ -65,7 +65,8 @@ func TestReachingProducers(t *testing.T) {
 		{"too many, then one more path", `$u=a(); if($c){$u=b();} if($c){$u=c();} if($c){$u=d();} if($c){$u=e();} while($c--){probe($u); if($c){$u=f();}}`, "a b c d e f", false},
 		{"switch case", `$u=parse_url($a); switch($c){case 1: $u=scandir($n);} probe($u);`, "parse_url scandir", false},
 		{"jump", `$u=parse_url($a); if($c){$u=scandir($n);} goto end; end: probe($u);`, "parse_url scandir", false},
-		{"unsupported scope", `$u=parse_url($a); if($c){$u=scandir($n);} try{goto end;}finally{echo 1;} end: probe($u);`, "", false},
+		{"jump out of a try", `$u=parse_url($a); if($c){$u=scandir($n);} try{goto end;}finally{echo 1;} end: probe($u);`, "parse_url scandir", false},
+		{"jump through a finally that writes", `$u=parse_url($a); try{goto end;}finally{$u=scandir($n);} end: probe($u);`, "scandir", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, f := environment(t, tc.src, nil)

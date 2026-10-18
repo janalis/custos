@@ -25,11 +25,11 @@ func TestReviewSafety(t *testing.T) {
 		{"empty exit", "if (empty($fs)) { return; } foreach ($fs as $f) {}", 0},
 		{"either exit", "if (!$fs || $c) { return; } foreach ($fs as $f) {}", 0},
 		{"both branch", "if ($c && $fs) { foreach ($fs as $f) {} }", 0},
-		// A yield in the scope leaves the flow facts incomplete: the guard walk decides.
-		{"loose branch in an uncovered scope", "yield 0; if ($fs != false) { foreach ($fs as $f) {} }", 0},
-		{"loose elseif in an uncovered scope", "yield 0; if ($c) { echo 1; } elseif ($fs != false) { foreach ($fs as $f) {} }", 0},
-		{"else after loose elseif", "yield 0; if ($c) { echo 1; } elseif ($fs == false) { echo 0; } else { foreach ($fs as $f) {} }", 0},
-		{"exiting else", "yield 0; if ($fs != false) { echo 1; } else { return; } foreach ($fs as $f) {}", 0},
+		// Code the scope evaluates leaves the flow facts incomplete: the guard walk decides.
+		{"loose branch in an uncovered scope", "if ($fs != false) { foreach ($fs as $f) {} } eval('');", 0},
+		{"loose elseif in an uncovered scope", "if ($c) { echo 1; } elseif ($fs != false) { foreach ($fs as $f) {} } eval('');", 0},
+		{"else after loose elseif", "if ($c) { echo 1; } elseif ($fs == false) { echo 0; } else { foreach ($fs as $f) {} } eval('');", 0},
+		{"exiting else", "if ($fs != false) { echo 1; } else { return; } foreach ($fs as $f) {} eval('');", 0},
 		{"exclusive or", "if ($fs xor $c) { foreach ($fs as $f) {} }", 1},
 		{"conjunction exit", "if (!$fs && $c) { return; } foreach ($fs as $f) {}", 1},
 		{"disjunction branch", "if ($fs || $c) { foreach ($fs as $f) {} }", 1},

@@ -720,9 +720,9 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 	case *syntax.ArrowFunction: // The body executes only on invocation.
 	case *syntax.Yield, *syntax.YieldFrom:
+		e.suspend(x, f, r, depth)
+		// What the consumer sends back is not known.
 		v = Value{}
-		r.complete = false
-		r.gap("generator-suspension", x.Span())
 	case *syntax.Eval, *syntax.Include:
 		f.definite = false
 		f.related = nil
@@ -1432,6 +1432,46 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 			delete(f.states, value.Identity)
 		}
 	}
+}
+
+// suspend hands control to the consumer of a generator, which may run any
+// code before resuming it: like a call of unknown code given what is yielded.
+// Locals keep their values, except storage code outside can reach. A
+// generator returning by reference also hands out the variable it yields,
+// which the consumer can then write whenever the generator is suspended.
+func (e *Env) suspend(x syntax.Expr, f *frame, r *scopeResult, depth int) {
+	var yielded []Value
+	syntax.Children(x, func(child syntax.Node) {
+		if expr, ok := child.(syntax.Expr); ok {
+			yielded = append(yielded, e.eval(expr, f, r, depth+1))
+		}
+	})
+	if y, ok := x.(*syntax.Yield); ok && y.Value != nil && byReference(syntax.EnclosingVariableScope(x)) {
+		f.alias(rootVariable(y.Value), aliasHeld)
+	}
+	f.unmatchAll(r)
+	leaving(f, r)
+	e.invalidateEscaped(x, yielded, f, r)
+	reenter(x, f, r)
+	e.invalidateShared(f, r)
+	for id := range f.states {
+		if id >= bufferID {
+			delete(f.states, id)
+		}
+	}
+}
+
+// byReference reports a function-like that returns by reference.
+func byReference(scope syntax.Node) bool {
+	switch s := scope.(type) {
+	case *syntax.Function:
+		return s.ByRef
+	case *syntax.Method:
+		return s.ByRef
+	case *syntax.Closure:
+		return s.ByRef
+	}
+	return false
 }
 
 // compound is the value a compound assignment leaves in its variable: the

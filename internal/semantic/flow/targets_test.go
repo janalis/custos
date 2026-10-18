@@ -42,7 +42,7 @@ func TestTargetsAreTheDeclarationsThatMayRun(t *testing.T) {
 		{"typed receiver, a class extending it declared twice", base + `if ($c) { class L extends K {} } else { class L extends K { function take($s) {} } } function f(K $k, $v) { $k->take($v); }`, nil},
 		{"object made here", base + `class L extends K { function take($s) {} } function f($v) { $k = new K; $k->take($v); }`, []string{"K"}},
 		{"receiver assigned on one path", base + `function f(K $k, $v, $c) { if ($c) { $k = other(); } $k->take($v); }`, nil},
-		{"receiver in a scope not followed", base + `function f(K $k, $v) { $k->take($v); yield 1; }`, nil},
+		{"receiver in a scope not followed", base + `function f(K $k, $v, $code) { $k->take($v); eval($code); }`, nil},
 		{"receiver in code never reached", base + `function f(K $k, $v) { return; $k->take($v); }`, nil},
 		{"receiver that is the object itself", `class K { function take(string $s) {} function f($v) { $this->take($v); } } class L extends K { function take($s) {} }`, []string{"K", "L"}},
 		{"receiver in a trait", `trait T { function take(string $s) {} function f($v) { $this->take($v); } }`, nil},

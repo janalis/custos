@@ -13,8 +13,9 @@ func TestIncompleteFlowReasons(t *testing.T) {
 		{`eval($code); strlen("value");`, "dynamic-code"},
 		{`missingCall();`, "unresolved-dispatch"},
 		{`include 'generated.php'; strlen("value");`, "dynamic-code"},
-		{`yield 1; strlen("value");`, "generator-suspension"},
-		{`try{goto done;}finally{1;}done:strlen("value");`, "unsupported-control-flow"},
+		{`yield 1; strlen("value");`, ""},
+		{`try{goto done;}finally{1;}done:strlen("value");`, ""},
+		{`while($code){break 3;} strlen("value");`, "unsupported-control-flow"},
 	} {
 		t.Run(tc.body, func(t *testing.T) {
 			e, f := environment(t, `function example($code){`+tc.body+`}`, nil)

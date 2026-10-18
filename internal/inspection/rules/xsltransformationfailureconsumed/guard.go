@@ -16,7 +16,7 @@ type guard struct {
 
 // dominates reports whether a truthiness, loose or type test of the same
 // value cannot let false reach the input. The flow facts answer first; this
-// walk decides in a scope the flow does not follow (`goto`, a generator).
+// walk decides in a scope the flow does not follow (one that evaluates code).
 func (g guard) dominates() bool {
 	at := g.input.Span()
 	for p := g.input.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {

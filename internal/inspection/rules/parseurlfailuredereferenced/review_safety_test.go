@@ -90,8 +90,8 @@ func TestReviewGuards(t *testing.T) {
 		{"closure boundary", "if (!$p) { return; } return function ($p) { return $p; };", 0},
 	} {
 		// A scope the flow analysis does not cover (here through a trailing
-		// `goto` beside a `try`) is judged by the guards written around the read alone.
-		for _, tail := range []string{" }", " try { } finally { } goto done; done: ; }"} {
+		// eval) is judged by the guards written around the read alone.
+		for _, tail := range []string{" }", " eval(''); }"} {
 			t.Run(tc.name+tail, func(t *testing.T) {
 				f := syntax.ParseBest("review.php", []byte(head+tc.body+tail), syntax.Options{Version: phpversion.PHP85})
 				if len(f.Errors) != 0 {

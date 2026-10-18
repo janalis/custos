@@ -48,7 +48,11 @@ func TestSwitchPaths(t *testing.T) {
 		{"too many levels across a finally block", `function f($l,$c){$x=1; while($c){try{break 3;}finally{echo 1;}} probe($x);}`, false, false},
 		{"one level inside a finally block", `function f($l,$c){$x=1; while($c){try{break;}finally{echo 1;}} probe($x);}`, true, false},
 		{"jump", `function f($c){$x=1; goto end; end: probe($x);}`, true, false},
-		{"jump out of a try", `function f($c){$x=1; try{goto end;}finally{echo 1;} end: probe($x);}`, false, false},
+		{"jump out of a try", `function f($c){$x=1; try{goto end;}finally{echo 1;} end: probe($x);}`, true, false},
+		{"jump out of a try whose finally writes", `function f($c){$x=1; try{goto end;}finally{$x=$_GET['a'];} end: probe($x);}`, true, true},
+		{"jump out of two tries", `function f($c){$x=1; try{try{goto end;}finally{echo 1;}}finally{$x=$_GET['a'];} end: probe($x);}`, true, true},
+		{"jump within a try", `function f($c){$x=1; try{goto end; end: probe($x);}finally{$x=$_GET['a'];}}`, true, false},
+		{"jump back out of a try", `function f($c){$x=1; again: probe($x); try{if($c){goto again;}}finally{$x=$_GET['a'];}}`, false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, f := environment(t, tc.src, nil)
@@ -207,7 +211,8 @@ func TestMatchedLabels(t *testing.T) {
 		`$a=$_GET['a']; switch($a){case 'list': break;} probe($a);`:                                 false,
 		`$a=$_GET['a']; switch($a){case 1: probe($a);}`:                                             false,
 		`$a='list'; probe($a);`: false,
-		`function g(){$a=$_GET['a']; switch($a){case 'list': probe($a);} yield 1;}`: false,
+		`function g(){$a=$_GET['a']; switch($a){case 'list': probe($a);} yield 1;}`: true,
+		`function g(){$a=$_GET['a']; switch($a){case 'list': yield 1; probe($a);}}`: true,
 	} {
 		e, f := environment(t, src, nil)
 		if got := e.Matched(argument(callsNamed(f, "probe")[0])); got != want {

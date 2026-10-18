@@ -32,10 +32,25 @@ func TestRefinementRejectsUnprovedGuards(t *testing.T) {
 	if x := argument(callsNamed(f, "probe")[0]); !e.Excludes(x, "null") || e.Excludes(x, "false") || e.Value(x).Complete {
 		t.Fatal("guard on an unknown result")
 	}
-	// A scope that is not followed to its end proves nothing.
-	e, f = environment(t, `function g(){$x=unknown();if ($x===null){return;}probe($x);yield 1;}`, nil)
-	if e.Excludes(argument(callsNamed(f, "probe")[0]), "null") || e.Excludes(nil, "null") {
+	// A generator keeps its locals while the consumer runs.
+	e, f = environment(t, `function g(){$x=unknown();if ($x===null){return;}yield 1;probe($x);}`, nil)
+	if !e.Excludes(argument(callsNamed(f, "probe")[0]), "null") || e.Excludes(nil, "null") {
 		t.Fatal("guard in a generator")
+	}
+	// A generator returning by reference hands the yielded variable out.
+	e, f = environment(t, `function &g(){$x=unknown();if ($x===null){return;}yield $x;probe($x);}`, nil)
+	if e.Excludes(argument(callsNamed(f, "probe")[0]), "null") {
+		t.Fatal("guard on a variable yielded by reference")
+	}
+	// The consumer may write a global or a static while it runs.
+	e, f = environment(t, `function g(){global $x;$x=unknown();if ($x===null){return;}yield 1;probe($x);}`, nil)
+	if e.Excludes(argument(callsNamed(f, "probe")[0]), "null") {
+		t.Fatal("guard on a global across a suspension")
+	}
+	// A scope that is not followed to its end proves nothing.
+	e, f = environment(t, `function g($code){$x=unknown();if ($x===null){return;}probe($x);eval($code);}`, nil)
+	if e.Excludes(argument(callsNamed(f, "probe")[0]), "null") || e.Excludes(nil, "null") {
+		t.Fatal("guard in a scope evaluating code")
 	}
 	e, f = environment(t, `$x=preg_replace('/x/','y','z');if ($x===null){return;}probe($x);`, nil)
 	x := argument(callsNamed(f, "probe")[0])

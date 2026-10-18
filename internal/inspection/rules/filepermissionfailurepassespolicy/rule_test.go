@@ -107,7 +107,7 @@ func TestReviewGuards(t *testing.T) {
 	}
 }
 
-// A yield in the scope leaves the flow facts incomplete, so only the guard
+// Code the scope evaluates leaves the flow facts incomplete, so only the guard
 // walk can relate a loose or truthiness test to the later mask check.
 func TestGuardsWithoutFlowFacts(t *testing.T) {
 	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"FilePermissionFailurePassesPolicy"}})
@@ -133,7 +133,7 @@ func TestGuardsWithoutFlowFacts(t *testing.T) {
 		{"wrong branch", "if (!$p) { " + check + " }", 1},
 		{"unrelated else", "if ($f === '') { echo 1; } elseif ($f) { echo 2; } else { " + check + " }", 1},
 	} {
-		src := "<?php function check($f) { $p = fileperms($f); yield 0; " + tc.body + " return false; }"
+		src := "<?php function check($f) { $p = fileperms($f); " + tc.body + " eval(''); return false; }"
 		f := syntax.Parse("test.php", []byte(src), syntax.Options{})
 		if len(f.Errors) != 0 {
 			t.Fatalf("%s: invalid probe: %v", tc.name, f.Errors)

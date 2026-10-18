@@ -30,7 +30,7 @@ func TestGuardsBeforeALabel(t *testing.T) {
 		{"failure jumps past the read", "<?php function f($a) { $u = parse_url($a); if ($u === false) { goto end; } echo $u['host']; end: return; }", 0},
 		{"guard taken again on every turn", "<?php function f($a, $l) { again: $u = parse_url($a); if ($u === false) { $a = next($l); goto again; } echo $u['host']; }", 0},
 		{"label nothing jumps to", "<?php function f($a) { $u = parse_url($a); return; dead: echo $u['host']; }", 0},
-		{"guard by position, label and try", "<?php function f($a) { $u = parse_url($a); if (!isset($u['host'])) { return; } try { g(); } finally { h(); } goto ok; ok: echo $u['host']; }", 1},
+		{"guard by position, label and try", "<?php function f($a) { $u = parse_url($a); if (!isset($u['host'])) { return; } try { g(); } finally { h(); } goto ok; ok: echo $u['host']; }", 0},
 		{"guard by position, label after the read and try", "<?php function f($a) { $u = parse_url($a); if (!isset($u['host'])) { return; } echo $u['host']; try { g(); } finally { h(); } goto done; done: ; }", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
