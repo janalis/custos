@@ -36,7 +36,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.
 - Inside a trait, `$this->property` takes the type the trait declares for it,
-  so calls and checks on trait properties are typed.
+  and `$this->method()` the return type the trait declares (except in the
+  checks that need a proof, since a using class may replace the method).
 - `foreach` over an iterator class without generic annotations types its keys
   and values from `getIterator()`, or from `key()` and `current()`; for
   example, `DirectoryIterator` entries are no longer reported by

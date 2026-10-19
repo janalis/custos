@@ -22,24 +22,52 @@ func (e *Env) selfClass(c *syntax.ClassLike) string {
 	return e.ClassFQN(c)
 }
 
+// traitThis returns the FQN of the trait x is `$this` in, "" when x is not
+// `$this` inside a trait.
+func (e *Env) traitThis(x syntax.Expr) string {
+	v, ok := syntax.UnwrapParens(x).(*syntax.Variable)
+	c := syntax.EnclosingClass(x)
+	if !ok || v.Name != "this" || c == nil || c.ClassKind != syntax.KindTrait {
+		return ""
+	}
+	return e.ClassFQN(c)
+}
+
 // traitPropertyType types `$this->p` inside a trait, where `$this` has no
 // class of its own, from the trait's declaration of p: a class using the
 // trait cannot declare p again with another type (unlike its methods, which
 // the class may replace). Unknown otherwise, and when the type names the
 // trait itself (`self` there stands for the using class).
 func (e *Env) traitPropertyType(n *syntax.PropertyFetch) types.Type {
-	v, ok := syntax.UnwrapParens(n.Var).(*syntax.Variable)
+	fqn := e.traitThis(n.Var)
 	id, named := n.Name.(*syntax.Identifier)
-	c := syntax.EnclosingClass(n)
-	if !ok || !named || v.Name != "this" || c == nil || c.ClassKind != syntax.KindTrait {
+	if fqn == "" || !named {
 		return types.Unknown
 	}
-	fqn := e.ClassFQN(c)
 	p := e.Index.FindProperty(fqn, id.Value, e.PHP)
 	if p == nil || p.Magic || p.Static {
 		return types.Unknown
 	}
 	t := e.propType(p, fqn)
+	if t.Has(`\` + fqn) {
+		return types.Unknown
+	}
+	return t
+}
+
+// traitMethodType types `$this->m()` inside a trait from the return type
+// the trait declares for m. A class using the trait may replace m with
+// another signature, so the native environment, used for proofs, keeps
+// the call unknown; so does a type naming the trait itself.
+func (e *Env) traitMethodType(n *syntax.MethodCall, name string) types.Type {
+	fqn := e.traitThis(n.Var)
+	if fqn == "" || e.native {
+		return types.Unknown
+	}
+	if m := e.Index.FindMethod(fqn, name, e.PHP); m == nil || m.Magic {
+		return types.Unknown
+	}
+	t := e.methodReturn(fqn, name, true, fqn, nil, n.Args)
 	if t.Has(`\` + fqn) {
 		return types.Unknown
 	}
@@ -338,7 +366,7 @@ func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
 	}
 	recv := e.chainReceiver(n.Var, n.NullSafe)
 	if recv.IsUnknown() {
-		return types.Unknown
+		return e.traitMethodType(n, id.Value)
 	}
 	var ts []types.Type
 	for _, cls := range e.memberClasses(recv, func(c string) bool { return e.Index.FindMethod(c, id.Value, e.PHP) != nil }) {
