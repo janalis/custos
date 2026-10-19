@@ -50,6 +50,9 @@ func TestInts(t *testing.T) {
 	if !Ints(IntRange{0, 0}).IntsOnly(0, 0) || fork.IntsOnly(0, math.MaxInt64) || Int.IntsOnly(0, 0) || Union(Ints(IntRange{0, 0}), Null).IntsOnly(0, 0) {
 		t.Error("IntsOnly")
 	}
+	if got := Union(fork, Of("static")).BindRelative(`\A`, "", `\A`).ShapeString(); got != `\A|int<-1, max>` {
+		t.Errorf("bound relative: got %s", got)
+	}
 	if _, ok := Int.IntRanges(); ok {
 		t.Error("a plain int is unconstrained")
 	}

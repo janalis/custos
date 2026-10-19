@@ -315,10 +315,7 @@ func intOrder(t types.Type, op syntax.TokenKind, v int64, truthy bool) types.Typ
 	}
 	switch op {
 	case syntax.TLess:
-		if v == math.MinInt64 {
-			return t.Without("int")
-		}
-		return t.IntsWithin(math.MinInt64, v-1)
+		return t.IntsWithin(math.MinInt64, v-1) // integerLiteral never reads the minimum
 	case syntax.TIsSmallerOrEqual:
 		return t.IntsWithin(math.MinInt64, v)
 	case syntax.TGreater:

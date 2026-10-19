@@ -64,3 +64,10 @@ function assignmentOfAnotherValue() {
     if (($other = lookup()) === -1) { return; }
     if (<warning descr="Handle fork failure separately.">$pid</warning>) { echo 'parent'; }
 }
+function jumpPastGuard() {
+    $pid = pcntl_fork();
+    goto test;
+    if ($pid === -1) { exit(1); }
+    test:
+    if (<warning descr="Handle fork failure separately.">$pid</warning>) { echo 'parent'; }
+}

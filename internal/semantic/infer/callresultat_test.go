@@ -208,6 +208,8 @@ function f() {
     $pid = pcntl_fork(); if ($pid <= 0) { u(); }
     if (pcntl_fork() > 5) { u(); }
     $pid = pcntl_fork(); $failed = -1; if ($failed === $pid) { return; } if ($bound < $pid) {} u();
+    $pid = pcntl_fork(); if ($pid == 0) { u(); }
+    $pid = pcntl_fork(); if ($pid > 9223372036854775807) { u(); }
 }`
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
@@ -230,7 +232,7 @@ function f() {
 	want := []string{
 		"int<-1, -1>|int<1, max>", "int<1, max>", "int<0, max>", "int<1, max>", "int<0, 0>",
 		"int<1, max>", "int<0, 0>", "int<-1, -1>|int<1, max>", "int<-1, 2>|int<4, max>", "?unknown",
-		"int<-1, 0>", "int<-1, 0>", "int<6, max>", "int<0, max>",
+		"int<-1, 0>", "int<-1, 0>", "int<6, max>", "int<0, max>", "int<0, 0>", "?unknown",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %v", got)
@@ -275,5 +277,28 @@ func TestCallResultCopies(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("use %d: got %s want %s", i+1, got[i], want[i])
 		}
+	}
+}
+
+// A local past the definition budget holds no known integer.
+func TestKnownIntBudget(t *testing.T) {
+	src := "<?php\nfunction f($c) { $pid = pcntl_fork(); $failed = -1;" + strings.Repeat(" if ($c > 1) { $failed = -1; }", 513) + " if ($pid === $failed) { return; } u(); }"
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var fork, use *syntax.FuncCall
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			if c.Name.(*syntax.Name).Value == "u" {
+				use = c
+			} else {
+				fork = c
+			}
+		}
+		return true
+	})
+	if got := env.CallResultAsAt(fork, use, types.Ints(types.IntRange{Lo: -1, Hi: math.MaxInt64})).ShapeString(); got != "int<-1, max>" {
+		t.Fatalf("got %s", got)
 	}
 }

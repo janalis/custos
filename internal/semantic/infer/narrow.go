@@ -140,10 +140,10 @@ func (e *Env) CallResultAsAt(c *syntax.FuncCall, at syntax.Expr, seed types.Type
 		return types.Unknown
 	}
 	t := e.narrowExprAfter(seed, at, callKey(c), scope, c.Span().End)
+	if t.IsUnknown() {
+		return t
+	}
 	for _, a := range e.holdersAt(c, at, scope) {
-		if t.IsUnknown() {
-			break
-		}
 		// `$ok = f(); if ($ok != true) { return; }`: the tests of a variable
 		// holding the result, narrowing the same seed, prove as much of it.
 		vt := e.narrowExprAfter(seed, at, a.Var.(*syntax.Variable).Name, scope, a.Span().End)
@@ -212,12 +212,9 @@ func unsilenced(x syntax.Expr) syntax.Expr {
 
 // onlyAssign returns the plain assignment that is the only definition of
 // variable name reaching at (nil else).
-func (e *Env) onlyAssign(name string, at syntax.Node, scope syntax.Node) *syntax.Assign {
+func (e *Env) onlyAssign(name string, at, scope syntax.Node) *syntax.Assign {
 	sv := e.scopeVars(scope)
-	defs := sv.defs[name]
-	if len(defs) > maxVarDefs {
-		return nil
-	}
+	defs := sv.defs[name] // holdersAt only asks within maxVarDefs
 	fwd, back, _ := e.reaching(defs, at, scope)
 	if len(fwd) != 1 || len(back) != 0 || fwd[0].asg == nil || e.clobbered(sv, fwd, back, at, scope) {
 		return nil
