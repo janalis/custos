@@ -26,15 +26,12 @@ func looseFalsy(x syntax.Expr) (nonFalse, nonNull bool) {
 	if !ok {
 		return false, false
 	}
-	switch n.LitKind {
-	case syntax.LitString:
+	if n.LitKind == syntax.LitString {
 		v, ok := syntax.LiteralStringValue(n)
 		return ok && (v == "" || v == "0"), ok && v == ""
-	case syntax.LitInt, syntax.LitFloat:
-		f, err := strconv.ParseFloat(strings.ReplaceAll(n.Raw, "_", ""), 64)
-		return err == nil && f == 0, err == nil && f == 0
 	}
-	return false, false
+	f, err := strconv.ParseFloat(strings.ReplaceAll(n.Raw, "_", ""), 64) // int or float
+	return err == nil && f == 0, err == nil && f == 0
 }
 
 func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {

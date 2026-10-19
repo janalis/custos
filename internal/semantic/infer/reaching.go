@@ -382,19 +382,22 @@ const (
 // exitKind classifies a statement that always leaves: exitFunc (return,
 // throw, exit), exitBreak (a plain break, or a mix with exitFunc).
 // continueLevel returns the level of a `continue` statement s written with a
-// literal level of at least 2 (0 for any other statement: a plain continue
-// is level 1 and handled as such).
+// literal level (1 for a plain continue; 0 for a computed or invalid level
+// and for any other statement).
 func continueLevel(s syntax.Stmt) int {
 	c, ok := s.(*syntax.Continue)
-	if !ok || c.Num == nil {
+	if !ok {
 		return 0
+	}
+	if c.Num == nil {
+		return 1
 	}
 	l, ok := syntax.UnwrapParens(c.Num).(*syntax.Literal)
 	if !ok || l.LitKind != syntax.LitInt {
 		return 0
 	}
 	n, err := strconv.Atoi(strings.ReplaceAll(l.Raw, "_", ""))
-	if err != nil || n < 2 {
+	if err != nil || n < 1 {
 		return 0
 	}
 	return n
@@ -409,7 +412,7 @@ func exitKind(s syntax.Stmt) int {
 			return exitBreak
 		}
 	case *syntax.Continue:
-		if n.Num == nil {
+		if continueLevel(n) == 1 {
 			return exitContinue
 		}
 	case *syntax.ExprStmt:
@@ -421,7 +424,7 @@ func exitKind(s syntax.Stmt) int {
 		}
 	case *syntax.Block:
 		for _, st := range n.Stmts {
-			if k := exitKind(st); k != exitNone || jumps(st) || continueLevel(st) > 0 {
+			if k := exitKind(st); k != exitNone || jumps(st) || continueLevel(st) > 1 {
 				return k
 			}
 		}
@@ -448,7 +451,7 @@ func jumps(s syntax.Stmt) bool {
 	case *syntax.Break:
 		return n.Num != nil
 	case *syntax.Continue:
-		return n.Num != nil && continueLevel(n) == 0
+		return continueLevel(n) == 0
 	}
 	return false
 }
@@ -470,7 +473,7 @@ func (e *Env) exitRegions(scope syntax.Node) []exitRegion {
 		start := ls.Start
 		for _, st := range stmts {
 			k := exitKind(st)
-			if continueLevel(st) > 0 {
+			if continueLevel(st) > 1 {
 				k = exitContinue // only written directly: its level is known
 			}
 			if jumps(st) {

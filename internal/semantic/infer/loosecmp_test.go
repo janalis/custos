@@ -52,3 +52,11 @@ function run(?Obj $o, Obj $known, ?Obj $maybe, ?string $s, string $str, $untyped
 		"looseObject": `\Obj`, "looseString": "null|string", "looseMixed": `\Obj|int`,
 	})
 }
+
+// A loose comparison with an untyped value proves nothing.
+func TestLooseComparisonWithUnknown(t *testing.T) {
+	checkWith(t, nil, `<?php
+class Obj {}
+function run(?Obj $o, $untyped) { if ($o == $untyped) { t('unknown', $o); } }
+`, map[string]string{"unknown": `\Obj|null`})
+}

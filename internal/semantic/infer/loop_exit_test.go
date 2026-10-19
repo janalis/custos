@@ -137,3 +137,25 @@ function byRef(?Link $a) { for (; $a; $a = t('byRef', $a)) { f($a); } }
 function f(&$x) {}
 `, map[string]string{"step": `\Link`, "written": `\Link|null`, "earlier": `\Link|null`, "noCond": `\Link|null`, "byRef": `\Link|null`})
 }
+
+// A plain `continue 1` is a plain continue.
+func TestContinueOne(t *testing.T) {
+	checkWith(t, nil, `<?php
+class Cell {}
+class X {
+    function next(): ?Cell { return null; }
+    function one(?Cell $t, int $k) {
+        while (null !== $t) {
+            if ($k > 1) { $t = $this->next(); continue 1; }
+            t('one', $t);
+        }
+    }
+    function hex(?Cell $t, int $k) {
+        while (null !== $t) {
+            if ($k > 1) { $t = $this->next(); continue 0x1; }
+            t('hex', $t);
+        }
+    }
+}
+`, map[string]string{"one": `\Cell`, "hex": `\Cell|null`})
+}

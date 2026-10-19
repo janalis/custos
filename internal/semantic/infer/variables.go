@@ -341,30 +341,31 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 	if len(backTs) == 0 {
 		return e.narrow(settle(types.Union(ts...)), v, scope, after)
 	}
-	if len(ts) == 0 {
-		return e.narrow(settle(types.Union(backTs...)), v, scope, backAfter)
-	}
 	// A union with an unknown member is unknown: keep that rule.
-	all := settle(types.Union(append(ts, backTs...)...))
-	if all.IsUnknown() {
+	if all := settle(types.Union(append(ts, backTs...)...)); all.IsUnknown() {
 		return all
 	}
-	return types.Union(e.narrow(settle(types.Union(ts...)), v, scope, after), e.narrow(settle(types.Union(backTs...)), v, scope, backAfter))
+	parts := []types.Type{e.narrow(settle(types.Union(backTs...)), v, scope, backAfter)}
+	if len(ts) > 0 {
+		parts = append(parts, e.narrow(settle(types.Union(ts...)), v, scope, after))
+	}
+	return types.Union(parts...)
 }
 
 // loopAround returns the start of the innermost loop holding both
 // definition d and read v, where the conditions a value d carries around
-// the loop passes again begin; d's own end when no loop holds both.
+// the loop passes again begin (d's own end, should no loop hold both).
 func loopAround(d varDef, v *syntax.Variable, scope syntax.Node) uint32 {
-	for p := v.Parent(); p != nil && p != scope; p = p.Parent() {
+	start, found := max(d.pos, d.end), false
+	for p := v.Parent(); p != nil && p != scope && !found; p = p.Parent() {
 		switch p.(type) {
 		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
 			if sp := p.Span(); d.pos >= sp.Start && d.pos < sp.End {
-				return sp.Start
+				start, found = sp.Start, true
 			}
 		}
 	}
-	return max(d.pos, d.end)
+	return start
 }
 
 // forStep reports whether definition d sits in the step expressions of a
