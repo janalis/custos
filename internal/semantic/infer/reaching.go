@@ -3,6 +3,8 @@ package infer
 import (
 	"cmp"
 	"slices"
+	"strconv"
+	"strings"
 
 	"custos/internal/php/syntax"
 )
@@ -379,6 +381,25 @@ const (
 
 // exitKind classifies a statement that always leaves: exitFunc (return,
 // throw, exit), exitBreak (a plain break, or a mix with exitFunc).
+// continueLevel returns the level of a `continue` statement s written with a
+// literal level of at least 2 (0 for any other statement: a plain continue
+// is level 1 and handled as such).
+func continueLevel(s syntax.Stmt) int {
+	c, ok := s.(*syntax.Continue)
+	if !ok || c.Num == nil {
+		return 0
+	}
+	l, ok := syntax.UnwrapParens(c.Num).(*syntax.Literal)
+	if !ok || l.LitKind != syntax.LitInt {
+		return 0
+	}
+	n, err := strconv.Atoi(strings.ReplaceAll(l.Raw, "_", ""))
+	if err != nil || n < 2 {
+		return 0
+	}
+	return n
+}
+
 func exitKind(s syntax.Stmt) int {
 	switch n := s.(type) {
 	case *syntax.Return:
@@ -400,7 +421,7 @@ func exitKind(s syntax.Stmt) int {
 		}
 	case *syntax.Block:
 		for _, st := range n.Stmts {
-			if k := exitKind(st); k != exitNone || jumps(st) {
+			if k := exitKind(st); k != exitNone || jumps(st) || continueLevel(st) > 0 {
 				return k
 			}
 		}
@@ -427,7 +448,7 @@ func jumps(s syntax.Stmt) bool {
 	case *syntax.Break:
 		return n.Num != nil
 	case *syntax.Continue:
-		return n.Num != nil
+		return n.Num != nil && continueLevel(n) == 0
 	}
 	return false
 }
@@ -449,6 +470,9 @@ func (e *Env) exitRegions(scope syntax.Node) []exitRegion {
 		start := ls.Start
 		for _, st := range stmts {
 			k := exitKind(st)
+			if continueLevel(st) > 0 {
+				k = exitContinue // only written directly: its level is known
+			}
 			if jumps(st) {
 				return // the rest of the list never runs
 			}
@@ -456,11 +480,18 @@ func (e *Env) exitRegions(scope syntax.Node) []exitRegion {
 				continue
 			}
 			limit := whole
+			// `continue N`: the loops and switches it leaves before the one
+			// whose next iteration it starts.
+			skip := continueLevel(st) - 1
 			for p := st.Parent(); p != nil && p != scope; p = p.Parent() {
 				switch p.(type) {
 				case *syntax.Try:
 					return // catch/finally may resume: no region
 				case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile, *syntax.Switch:
+					if skip > 0 {
+						skip--
+						continue
+					}
 					if k == exitContinue && limit == whole {
 						if _, sw := p.(*syntax.Switch); sw {
 							k = exitBreak // continue in a switch acts as break

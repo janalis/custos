@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"slices"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -200,6 +201,10 @@ func (e *Env) narrowExprAfter(t types.Type, x syntax.Expr, key string, scope syn
 		case *syntax.For:
 			// The last condition expression decides each iteration.
 			if child == syntax.Node(n.Body) && len(n.Cond) > 0 {
+				t = cond(x, scope, t, n.Cond[len(n.Cond)-1], key, true)
+			} else if len(n.Cond) > 0 && e.stepAfterCond(n, child, key, scope) {
+				// A step runs after the body, which ran with the condition
+				// true and left the variable alone.
 				t = cond(x, scope, t, n.Cond[len(n.Cond)-1], key, true)
 			}
 		case *syntax.ElseIf:
@@ -468,4 +473,27 @@ func (e *Env) nativeProp(x syntax.Expr) bool {
 		}
 	}
 	return len(cs) > 0
+}
+
+// stepAfterCond reports whether child is a step expression of for loop n
+// that only runs with n's condition still true for variable key: neither
+// the body (a continue reaches the steps without testing the condition
+// again) nor an earlier step assigns it.
+func (e *Env) stepAfterCond(n *syntax.For, child syntax.Node, key string, scope syntax.Node) bool {
+	i := slices.IndexFunc(n.Loop, func(x syntax.Expr) bool { return syntax.Node(x) == child })
+	if i < 0 || isPropKey(key) || isDimKey(key) || n.Body == nil {
+		return false
+	}
+	body := n.Body.Span()
+	for _, d := range e.scopeVars(scope).defs[key] {
+		if body.Contains(syntax.Span{Start: d.pos, End: d.pos}) || d.pos >= n.Loop[0].Span().Start && d.pos < n.Loop[i].Span().Start {
+			return false
+		}
+	}
+	for _, m := range e.mutations(scope, key) {
+		if body.Contains(m.span) {
+			return false
+		}
+	}
+	return true
 }
