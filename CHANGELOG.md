@@ -65,6 +65,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   reassigned inside the guarded branch.
 - A condition on a `static` local no longer narrows it past a call that may
   run the function again and assign it.
+- A namespaced function named like a type check (`App\is_string()`) no longer
+  narrows its argument as PHP's own check would.
 
 ### Security
 

@@ -160,8 +160,8 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			return t
 		}
 		a, ok := c.Args.Args[0].(*syntax.Arg)
-		if !ok || !isVar(a.Value, name) {
-			return t
+		if !ok || !isVar(a.Value, name) || !e.isBuiltinCall(c) {
+			return t // (a namespaced function may shadow the builtin)
 		}
 		fn := strings.ToLower(strings.TrimPrefix(nm.Value, `\`))
 		switch fn {

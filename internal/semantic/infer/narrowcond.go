@@ -341,7 +341,7 @@ func (e *Env) typeFuncCmp(t types.Type, fx, val syntax.Expr, name string, holds 
 			return t, false
 		}
 		a, ok := n.Args.Args[0].(*syntax.Arg)
-		if !ok || a.Unpack || a.Name != nil || !isVar(a.Value, name) {
+		if !ok || a.Unpack || a.Name != nil || !isVar(a.Value, name) || !e.isBuiltinCall(n) {
 			return t, false
 		}
 		fn = strings.TrimPrefix(nm.Value, `\`)

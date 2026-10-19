@@ -102,3 +102,19 @@ function f() {
 		"notObj": "?unknown",
 	})
 }
+
+// A namespaced function named like a type check shadows the builtin: its
+// result proves nothing about the argument.
+func TestShadowedTypeChecksDoNotNarrow(t *testing.T) {
+	checkWith(t, nil, `<?php
+namespace App;
+function is_string($v) { return true; }
+function gettype($v) { return 'string'; }
+function f(string|false $s, int|false $i) {
+    if (is_string($s)) { t('shadowed', $s); }
+    if (\is_string($s)) { t('qualified', $s); }
+    if (gettype($s) === 'string') { t('shadowedGettype', $s); }
+    if (is_int($i)) { t('builtin', $i); }
+}
+`, map[string]string{"shadowed": "false|string", "qualified": "string", "shadowedGettype": "false|string", "builtin": "int"})
+}
