@@ -29,7 +29,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if semanticquery.NativeDateStatic(ctx, origin, "getLastErrors") == nil {
 		return
 	}
-	if silentProbe(fetch) || !semanticquery.NativeLabelled(ctx, fetch.Var) && !ctx.Types().Native().NarrowMember(fetch.Var, types.Of("array", "false")).Has("false") {
+	if silentProbe(fetch) || !semanticquery.NativeLabelled(ctx, fetch.Var) && semanticquery.NativeNarrowedExcludes(ctx, fetch.Var, types.Of("array", "false"), "false") {
 		return
 	}
 	ctx.ReportNode(fetch, message)

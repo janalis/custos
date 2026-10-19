@@ -5,6 +5,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Check directory enumeration before iterating."
@@ -26,41 +27,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c, ok := semanticquery.NativeLocalBuiltinResult(ctx, loop.Expr, "false", "scandir").(*syntax.FuncCall)
-	if ok && semanticquery.NativeBuiltin(ctx, c, "scandir") && (semanticquery.NativeFailureFlowOnly(ctx, loop.Expr) || !semanticquery.NativeLocalSentinelGuard(ctx, loop.Expr, "false")) && !ctx.Flow().Excludes(loop.Expr, "false") && (semanticquery.NativeFailureFlowOnly(ctx, loop.Expr) || !narrowedNotFalse(ctx, loop.Expr)) {
+	if ok && semanticquery.NativeBuiltin(ctx, c, "scandir") && (semanticquery.NativeFailureFlowOnly(ctx, loop.Expr) || !semanticquery.NativeLocalSentinelGuard(ctx, loop.Expr, "false")) && !ctx.Flow().Excludes(loop.Expr, "false") && (semanticquery.NativeFailureFlowOnly(ctx, loop.Expr) || !semanticquery.NativeNarrowedExcludes(ctx, loop.Expr, types.Of("array", "false"), "false")) {
 		ctx.ReportNode(loop.Expr, message)
 	}
-}
-
-// narrowedNotFalse reports whether the conditions guarding the iterated
-// local leave its native type known and without false. A static local is
-// left to the flow analysis, which knows the calls that may enter the
-// function again and assign it.
-func narrowedNotFalse(ctx *analysis.Context, value syntax.Expr) bool {
-	v, ok := syntax.UnwrapParens(value).(*syntax.Variable)
-	if !ok || staticLocal(v) {
-		return false
-	}
-	t := ctx.Types().Native().TypeOf(value)
-	return !t.IsUnknown() && !t.Has("false")
-}
-
-// staticLocal reports whether v is declared `static` in its scope.
-func staticLocal(v *syntax.Variable) bool {
-	scope := syntax.EnclosingVariableScope(v)
-	if scope == nil {
-		return false // no static locals at file level
-	}
-	found := false
-	syntax.Inspect(scope, func(n syntax.Node) bool {
-		switch x := n.(type) {
-		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
-			return n == scope
-		case *syntax.StaticStmt:
-			for _, sv := range x.Vars {
-				found = found || sv.Var != nil && sv.Var.Name == v.Name
-			}
-		}
-		return !found
-	})
-	return found
 }
