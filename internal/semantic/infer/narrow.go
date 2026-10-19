@@ -170,7 +170,8 @@ func (e *Env) narrowExprAfter(t types.Type, x syntax.Expr, key string, scope syn
 		case *syntax.Ternary:
 			if n.Then != nil && child == syntax.Node(n.Then) {
 				t = cond(x, scope, t, n.Cond, key, true)
-			} else if child == syntax.Node(n.Else) && n.Then != nil {
+			} else if child == syntax.Node(n.Else) {
+				// Also `c ?: v`: v runs when c is falsy.
 				t = cond(x, scope, t, n.Cond, key, false)
 			}
 		case *syntax.Binary:

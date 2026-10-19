@@ -69,6 +69,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   run the function again and assign it.
 - A namespaced function named like a type check (`App\is_string()`) no longer
   narrows its argument as PHP's own check would.
+- A value assigned inside a loop and carried to the next iteration is no
+  longer narrowed by a condition outside the loop, which it never passed.
+- The right side of `$a ?: $b` is narrowed by `$a` being falsy.
 
 ### Security
 

@@ -293,14 +293,20 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		return types.Unknown
 	}
 	ts := make([]types.Type, 0, len(fwd)+len(back))
-	after := uint32(0)
+	// Values carried by a loop's back edge (and the step of a for loop
+	// around v) never passed the conditions outside that loop: they are
+	// narrowed apart, from the start of the innermost loop holding both
+	// the definition and v.
+	var backTs []types.Type
+	after, backAfter := uint32(0), uint32(0)
 	for _, d := range fwd {
 		t := d.typ()
 		if !t.IsUnknown() && e.forStep(d, v, scope) {
 			// The step of a for loop around v runs before the condition
 			// is tested again: a back edge, not a definition after it.
 			if nt := e.loopCondNarrow(t, d, v, scope); !nt.IsUnknown() {
-				ts = append(ts, nt)
+				backTs = append(backTs, nt)
+				backAfter = max(backAfter, loopAround(d, v, scope))
 			}
 			continue
 		}
@@ -311,25 +317,54 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		// An unknown back-edge type (often a cycle through this very use)
 		// adds nothing: keep what the forward definitions say.
 		if t := d.typ(); !t.IsUnknown() {
-			ts = append(ts, e.loopCondNarrow(t, d, v, scope))
+			backTs = append(backTs, e.loopCondNarrow(t, d, v, scope))
+			backAfter = max(backAfter, loopAround(d, v, scope))
 		}
 	}
-	if len(ts) == 0 {
+	if len(ts)+len(backTs) == 0 {
 		return types.Unknown
 	}
 	if undef {
 		ts = append(ts, types.Null) // read before any assignment on some path
 	}
-	t := types.Union(ts...)
-	if t.HasShape() || !t.ArrayKey().IsUnknown() || t.IsNonEmptyArray() {
-		if (t.HasShape() || !t.ArrayKey().IsUnknown()) && e.shapeClobbered(scope, v.Name) {
-			t = t.WithoutShape().WithArrayKey(types.Unknown)
+	settle := func(t types.Type) types.Type {
+		if t.HasShape() || !t.ArrayKey().IsUnknown() || t.IsNonEmptyArray() {
+			if (t.HasShape() || !t.ArrayKey().IsUnknown()) && e.shapeClobbered(scope, v.Name) {
+				t = t.WithoutShape().WithArrayKey(types.Unknown)
+			}
+			if t.IsNonEmptyArray() && e.nonEmptyBroken(scope, v.Name, from, v) {
+				t = t.WithNonEmpty(false)
+			}
 		}
-		if t.IsNonEmptyArray() && e.nonEmptyBroken(scope, v.Name, from, v) {
-			t = t.WithNonEmpty(false)
+		return t
+	}
+	if len(backTs) == 0 {
+		return e.narrow(settle(types.Union(ts...)), v, scope, after)
+	}
+	if len(ts) == 0 {
+		return e.narrow(settle(types.Union(backTs...)), v, scope, backAfter)
+	}
+	// A union with an unknown member is unknown: keep that rule.
+	all := settle(types.Union(append(ts, backTs...)...))
+	if all.IsUnknown() {
+		return all
+	}
+	return types.Union(e.narrow(settle(types.Union(ts...)), v, scope, after), e.narrow(settle(types.Union(backTs...)), v, scope, backAfter))
+}
+
+// loopAround returns the start of the innermost loop holding both
+// definition d and read v, where the conditions a value d carries around
+// the loop passes again begin; d's own end when no loop holds both.
+func loopAround(d varDef, v *syntax.Variable, scope syntax.Node) uint32 {
+	for p := v.Parent(); p != nil && p != scope; p = p.Parent() {
+		switch p.(type) {
+		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+			if sp := p.Span(); d.pos >= sp.Start && d.pos < sp.End {
+				return sp.Start
+			}
 		}
 	}
-	return e.narrow(t, v, scope, after)
+	return max(d.pos, d.end)
 }
 
 // forStep reports whether definition d sits in the step expressions of a

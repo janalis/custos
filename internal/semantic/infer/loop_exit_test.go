@@ -48,3 +48,37 @@ function nestedBreak(?int $a, int $m) {
 }
 `, map[string]string{"break": "int|null", "goto": "int|null", "nested": "int"})
 }
+
+// A value assigned in a loop and carried around it by a back edge did not
+// pass the conditions outside the loop again.
+func TestBackEdgeValuesSkipOuterConditions(t *testing.T) {
+	checkWith(t, nil, `<?php
+class Cell {}
+class X {
+    function next(): ?Cell { return null; }
+    function outer(?Cell $w, int $k) {
+        if (null !== $w) {
+            foreach ([1, 2] as $i) {
+                if ($i > $k) { $w = $this->next(); continue; }
+                t('outer', $w);
+            }
+        }
+    }
+    function inner(?Cell $w, int $k) {
+        foreach ([1, 2] as $i) {
+            if (null !== $w) { t('inner', $w); }
+            $w = $this->next();
+        }
+    }
+    function step(?Cell $w) {
+        if (null !== $w) {
+            for ($i = 0; $i < 3; $w = $this->next(), $i++) { t('step', $w); }
+        }
+    }
+}
+`, map[string]string{"outer": `\Cell|null`, "inner": `\Cell`, "step": `\Cell|null`})
+	checkAnywhere(t, `<?php
+class Cell {}
+function short(?Cell $c) { return is_null($c) ?: t('short', $c); }
+`, map[string]string{"short": `\Cell`})
+}
