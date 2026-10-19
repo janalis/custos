@@ -29,24 +29,37 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.Print:
 		operands = []syntax.Expr{x.Expr}
 	}
-	input, context := htmlInput(ctx, operands)
-	if input == nil || !tainted(ctx, input, 0, context) || requestRewritten(ctx, n, input, context) || inertResponse(ctx, n) {
+	parts := htmlInputs(ctx, operands)
+	if len(parts) == 0 || inertResponse(ctx, n) {
 		return
 	}
-	ctx.ReportNode(input, message)
+	for _, part := range parts {
+		if tainted(ctx, part.expr, 0, part.context) && !requestRewritten(ctx, n, part.expr, part.context) {
+			ctx.ReportNode(part.expr, message)
+		}
+	}
 }
 
-// htmlInput returns the first request-derived part of an output statement
+// emitted is a request-derived part of an output statement and the context
+// it is emitted into.
+type emitted struct {
+	expr    syntax.Expr
+	context flow.Context
+}
+
+// htmlInputs returns the request-derived parts of an output statement
 // emitted into a proven text node or quoted data attribute. Every earlier byte
 // must be known, or come from a part that cannot hold markup: a number or a
-// boolean anywhere, text escaped for HTML inside a text node. Any other
-// dynamic part could open an attribute or a raw-text element, which ends the
-// search.
-func htmlInput(ctx *analysis.Context, operands []syntax.Expr) (syntax.Expr, flow.Context) {
+// boolean anywhere, text escaped for HTML inside a text node, or an earlier
+// request-derived part, read as the text it should be. Any other dynamic part
+// could open an attribute or a raw-text element, which ends the search.
+func htmlInputs(ctx *analysis.Context, operands []syntax.Expr) []emitted {
 	var prefix strings.Builder
-	var input syntax.Expr
-	var context flow.Context
+	var found []emitted
 	open := true
+	// earlier counts the parts found in earlier operands: echo emits each
+	// operand before it evaluates the next one.
+	earlier := 0
 	var collect func(syntax.Expr) bool
 	collect = func(part syntax.Expr) bool {
 		part = syntax.UnwrapParens(part)
@@ -65,32 +78,33 @@ func htmlInput(ctx *analysis.Context, operands []syntax.Expr) (syntax.Expr, flow
 				return true
 			}
 		case *syntax.StringPart:
-			if input == nil {
-				// Wrapping guarantees a supported quote form; escapes still
-				// follow the parsed source version.
-				text, _ := syntax.StringLiteralValueForVersion(`"`+x.Raw+`"`, syntax.SourceVersion(x))
-				prefix.WriteString(text)
-			}
+			// Wrapping guarantees a supported quote form; escapes still
+			// follow the parsed source version. Text that does not decode
+			// says nothing of what follows.
+			text, decoded := syntax.StringLiteralValueForVersion(`"`+x.Raw+`"`, syntax.SourceVersion(x))
+			prefix.WriteString(text)
+			open = open && decoded
 			return true
 		}
 		if text, known := semanticquery.NativeString(ctx, part); known {
-			if input == nil {
-				prefix.WriteString(text)
-			}
+			prefix.WriteString(text)
 			return true
 		}
+		// The whole operand is evaluated before any of it is emitted, so a
+		// later part with effects could still change the response.
+		if len(found) > earlier && flowquery.MayHaveSideEffects(part) {
+			return false
+		}
 		var partContext flow.Context
-		if input == nil && open {
+		if open {
 			partContext = htmlContext(prefix.String())
 		}
 		switch {
-		case input != nil:
-			// The whole operand is evaluated before any of it is emitted, so
-			// a later part with effects could still change the response.
-			return !flowquery.MayHaveSideEffects(part)
 		case !open:
 		case partContext != 0 && tainted(ctx, part, 0, partContext):
-			input, context = part, partContext
+			found = append(found, emitted{part, partContext})
+			// What follows is read as if the part were the text intended.
+			prefix.WriteString("x")
 		case partContext == flow.HTML && ctx.Flow().Matched(part):
 			// A switch label the request data was matched with is text of
 			// the program: the parts after it are still looked at.
@@ -106,14 +120,12 @@ func htmlInput(ctx *analysis.Context, operands []syntax.Expr) (syntax.Expr, flow
 		return true
 	}
 	for _, operand := range operands {
+		earlier = len(found)
 		if !collect(operand) {
-			return nil, 0
-		}
-		if input != nil {
-			break
+			return found[:earlier]
 		}
 	}
-	return input, context
+	return found
 }
 
 // escaped reports a part whose value derives from tracked inputs and was
@@ -123,11 +135,23 @@ func escaped(ctx *analysis.Context, part syntax.Expr, context flow.Context) bool
 	return v.Complete && len(v.Sources) > 0 && v.Safe&context != 0
 }
 
-// htmlContext identifies text nodes and quoted ordinary data attributes.
+// htmlContext identifies what text written after prefix must be safe for:
+// a text node, the text of a script or style element, or the value of a
+// classified attribute, quoted or not.
 func htmlContext(prefix string) flow.Context {
 	lower := strings.ToLower(prefix)
-	if strings.Contains(lower, "<script") || strings.Contains(lower, "<style") {
-		return 0
+	for _, element := range []struct {
+		name    string
+		context flow.Context
+	}{{"script", flow.HTMLScript}, {"style", flow.HTMLRaw}} {
+		open, closed := strings.LastIndex(lower, "<"+element.name), strings.LastIndex(lower, "</"+element.name)
+		switch {
+		case open > closed && strings.Contains(prefix[open:], ">"):
+			// The element's text runs until its end tag, whatever it holds.
+			return element.context
+		case open >= 0:
+			return 0
+		}
 	}
 	tag, text, closing := false, false, false
 	quoteAt := 0
@@ -164,13 +188,38 @@ func htmlContext(prefix string) flow.Context {
 			tag, closing = true, start != i+1
 		}
 	}
-	if quote != 0 && !closing && ordinaryAttribute(prefix, quoteAt) {
-		if quote == '\'' {
-			return flow.HTMLSingleQuoted
+	switch {
+	case tag && closing:
+		// An end tag holds no attribute.
+	case quote != 0:
+		eq := quoteAt - 1
+		for eq >= 0 && htmlSpace(prefix[eq]) {
+			eq--
 		}
-		return flow.HTMLDoubleQuoted
-	}
-	if text && !tag {
+		if eq < 0 || prefix[eq] != '=' {
+			return 0
+		}
+		name, named := attributeName(prefix, eq)
+		contract, classified := attributeContract(name, prefix[quoteAt+1:])
+		if !named || !classified {
+			return 0
+		}
+		if quote == '\'' {
+			return contract | flow.HTMLSingleQuoted
+		}
+		return contract | flow.HTMLDoubleQuoted
+	case tag:
+		eq, value, unquoted := unquotedValue(prefix)
+		if !unquoted {
+			return 0
+		}
+		name, named := attributeName(prefix, eq)
+		contract, classified := attributeContract(name, value)
+		if !named || !classified {
+			return 0
+		}
+		return contract | flow.HTMLUnquoted
+	case text:
 		return flow.HTML
 	}
 	return 0

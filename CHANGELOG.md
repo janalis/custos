@@ -7,6 +7,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Classify more HTML output contexts in UnescapedHtmlOutput: script and style
+  element text, the start of URL attributes, event handlers, `style` and
+  `srcdoc` attributes, and unquoted attribute values, where escaping for HTML
+  text is not enough. Recognize `json_encode` output as safe in scripts.
+  Reject `\u{…}` escapes PHP does not compile when decoding string literals.
+
+- Report every request-derived part of an output statement in
+  UnescapedHtmlOutput instead of only the first one.
+
 - Report a failed read or replacement given to a PHPUnit assertion that
   would pass with it: loose comparisons with an empty or falsy literal,
   `assertEmpty`, and, for file reads without strict types, string needles,

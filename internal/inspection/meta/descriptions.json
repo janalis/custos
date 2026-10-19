@@ -1874,7 +1874,7 @@
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "UnescapedHtmlOutput": {
-    "summary": "Detect request-derived text emitted into proven HTML text nodes or quoted ordinary data attributes without appropriate escaping.",
+    "summary": "Detect request-derived text emitted into proven HTML text nodes, script or style element text, or classified attribute values without the escaping that context needs.",
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "UnicodeNormalizationFailureConsumed": {

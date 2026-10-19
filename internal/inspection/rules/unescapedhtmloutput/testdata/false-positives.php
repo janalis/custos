@@ -15,7 +15,6 @@ print '<p>' . mb_strlen($_GET['q']) . '</p>';
 // Unknown output context.
 echo `ls`;
 echo $_GET['label'], '<p>';
-echo "<p\x3e\x3cscript>{$_GET['label']}";
 echo '<p>' . $_GET['label'] . audit();
 echo "<p>{$_GET['label']}{$logger->flush()}";
 echo render(), '<p>', $_GET['label'];

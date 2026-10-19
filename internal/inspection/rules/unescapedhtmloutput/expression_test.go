@@ -1,6 +1,7 @@
 package unescapedhtmloutput
 
 import (
+	"strings"
 	"testing"
 
 	"custos/internal/inspection/analysis"
@@ -10,7 +11,7 @@ import (
 func TestUnsafeExpressionRange(t *testing.T) {
 	for _, tc := range []struct{ name, source, want string }{
 		{"concatenation", `echo '<p>'.($_GET['first']).'</p>';`, `$_GET['first']`},
-		{"comma operands", `echo '<p>', $_GET['first'], '</p>', $_GET['second'];`, `$_GET['first']`},
+		{"comma operands", `echo '<p>', $_GET['first'], '</p>', $_GET['second'];`, `$_GET['first']|$_GET['second']`},
 		{"print", `print '<p>'.$_POST['first'].'</p>';`, `$_POST['first']`},
 		{"interpolation", `echo "<p>{$_GET['first']}</p>";`, `$_GET['first']`},
 		{"unbraced interpolation", `echo "<p>$_GET[first]</p>";`, `$_GET[first]`},
@@ -20,7 +21,10 @@ func TestUnsafeExpressionRange(t *testing.T) {
 		{"transformed value", `echo '<p>'.strtoupper($_GET['first']);`, `strtoupper($_GET['first'])`},
 		{"conditional value", `echo '<p>'.($_GET['flag'] ? $_GET['first'] : 'none');`, `$_GET['flag'] ? $_GET['first'] : 'none'`},
 		{"escaped prefix", `echo '<p>'.htmlspecialchars($_GET['first']).$_GET['second'];`, `$_GET['second']`},
-		{"unsafe value ends proof", `echo '<p>'.$_GET['first'].'<p>'.$_GET['second'];`, `$_GET['first']`},
+		// Each unsafe value is reported, read in the context the text intends.
+		{"every unsafe value", `echo '<p>'.$_GET['first'].'<p>'.$_GET['second'];`, `$_GET['first']|$_GET['second']`},
+		{"unsafe value then attribute", `echo '<p>'.$_GET['first'].'<a title="'.$_GET['second'].'">';`, `$_GET['first']|$_GET['second']`},
+		{"opaque value ends proof", `echo '<p>'.$_GET['first'].$prefix.'<p>'.$_GET['second'];`, `$_GET['first']`},
 		{"operand effect before output", `echo '<p>'.$_GET['first'].changeResponse();`, ""},
 		{"later operand effect", `echo '<p>', $_GET['first'], changeResponse();`, `$_GET['first']`},
 		{"unknown prefix", `echo $prefix.'<p>'.$_GET['first'];`, ""},
@@ -43,11 +47,14 @@ func TestUnsafeExpressionRange(t *testing.T) {
 				}
 				return
 			}
-			if len(got) != 1 {
-				t.Fatalf("got %d findings, want 1: %+v", len(got), got)
+			wants := strings.Split(tc.want, "|")
+			if len(got) != len(wants) {
+				t.Fatalf("got %d findings, want %d: %+v", len(got), len(wants), got)
 			}
-			if actual := string(src[got[0].Span.Start:got[0].Span.End]); actual != tc.want {
-				t.Fatalf("highlighted %q, want %q", actual, tc.want)
+			for i, want := range wants {
+				if actual := string(src[got[i].Span.Start:got[i].Span.End]); actual != want {
+					t.Fatalf("highlighted %q, want %q", actual, want)
+				}
 			}
 		})
 	}

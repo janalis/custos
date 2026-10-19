@@ -7,7 +7,7 @@ import (
 )
 
 // everyContext holds the contexts a number or a string of digits is safe in.
-const everyContext = HTML | HTMLSingleQuoted | HTMLDoubleQuoted | SQL | Shell | Header
+const everyContext = HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLScript | HTMLRaw | HTMLURL | HTMLUnquoted | SQL | Shell | Header
 
 // transform is what a PHP function does to the text it is given, as far as
 // escaping for output is concerned. A function missing from transforms puts
@@ -50,11 +50,13 @@ var transforms = map[string]transform{
 	"join":    {keepsQuotes: true},
 	"str_pad": {keepsQuotes: true},
 
-	// Their output alphabets hold no markup or quote delimiter.
-	"urlencode":     {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted},
-	"rawurlencode":  {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted},
-	"base64_encode": {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted},
-	"bin2hex":       {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted},
+	// Their output alphabets hold no markup or quote delimiter, nor a colon
+	// that could start a URL scheme; only some hold no character that ends
+	// an unquoted attribute value.
+	"urlencode":     {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL | HTMLUnquoted},
+	"rawurlencode":  {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL | HTMLUnquoted},
+	"base64_encode": {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL},
+	"bin2hex":       {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL | HTMLUnquoted},
 	"intval":        {safe: everyContext},
 	"floatval":      {safe: everyContext},
 

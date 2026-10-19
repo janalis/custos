@@ -16,7 +16,7 @@ func TestIndependentNativeEdges(t *testing.T) {
 		// Parts that cannot hold markup do not hide the request text behind them.
 		{"$x = $_GET['a']; echo '<i>' . htmlspecialchars($x) . '</i><b>' . $x . '</b>';", 1},
 		{"$x = $_GET['a']; $y = (int) $x; echo \"<i>$y</i><b>$x</b>\";", 1},
-		{"$x = $_GET['a']; echo '<i>', strlen($x), '</i><b>', $x, '</b>', $x;", 1},
+		{"$x = $_GET['a']; echo '<i>', strlen($x), '</i><b>', $x, '</b>', $x;", 2},
 		{"$x = $_GET['a']; echo '<i>' . htmlspecialchars($x) . '</i><b>' . (int) $x . '</b>';", 0},
 		{"$x = $_GET['a']; echo '<i>' . $row['t'] . '</i><b>' . $x . '</b>';", 0},
 		{"$x = $_GET['a']; echo \"<a title='\" . htmlspecialchars($x) . \"'>\" . $x;", 0},

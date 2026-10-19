@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"unicode"
 
 	phpversion "custos/internal/php/version"
 )
@@ -44,12 +45,15 @@ func StringLiteralValueForVersion(raw string, version phpversion.Version) (val s
 		if strings.IndexByte(body, '\\') < 0 {
 			return body, true
 		}
-		return decodeDoubleQuotedForVersion(body, version), true
+		return decodeDoubleQuotedForVersion(body, version)
 	}
 	return "", false
 }
 
-func decodeDoubleQuotedForVersion(s string, version phpversion.Version) string {
+// decodeDoubleQuotedForVersion decodes the escapes of a double-quoted body.
+// From PHP 7, a `\u{` escape without hexadecimal digits and a closing brace,
+// or naming no Unicode code point, does not compile: ok is then false.
+func decodeDoubleQuotedForVersion(s string, version phpversion.Version) (string, bool) {
 	var b strings.Builder
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -99,13 +103,13 @@ func decodeDoubleQuotedForVersion(s string, version phpversion.Version) string {
 				for i+3+end < len(s) && isHex(s[i+3+end]) {
 					end++
 				}
-				if end > 0 && i+3+end < len(s) && s[i+3+end] == '}' {
-					if v, err := strconv.ParseUint(s[i+3:i+3+end], 16, 32); err == nil {
-						b.WriteRune(rune(v))
-						i = i + 3 + end
-						continue
-					}
+				v, err := strconv.ParseUint(s[i+3:i+3+end], 16, 32)
+				if end == 0 || i+3+end >= len(s) || s[i+3+end] != '}' || err != nil || v > unicode.MaxRune {
+					return "", false
 				}
+				b.WriteRune(rune(v))
+				i = i + 3 + end
+				continue
 			}
 			b.WriteString(`\u`)
 		default:
@@ -124,7 +128,7 @@ func decodeDoubleQuotedForVersion(s string, version phpversion.Version) string {
 		}
 		i++
 	}
-	return b.String()
+	return b.String(), true
 }
 
 // LiteralStringValue decodes a parsed, noninterpolated string, including a

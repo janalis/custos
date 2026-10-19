@@ -1224,6 +1224,17 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 					v.Safe |= e.htmlQuoteSafety(flags, !given, r)
 				}
 			}
+		case "json_encode":
+			// A JSON text holds no unescaped slash, so no `</script>`,
+			// unless asked for one without escaping `<` and `>` instead.
+			flags, given := passed(args, values, "flags", 1)
+			bits, known := int64(0), absent(args, "flags", 1)
+			if given && flags.Complete {
+				bits, known = e.htmlFlagBits(flags.Expr, r, 16)
+			}
+			if known && (bits&64 == 0 || bits&1 != 0) {
+				v.Safe |= HTMLScript
+			}
 		case "number_format":
 			// Digits, a sign and the separators, which PHP chooses unless
 			// they are given.

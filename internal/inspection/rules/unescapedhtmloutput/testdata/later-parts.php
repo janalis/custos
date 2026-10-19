@@ -30,9 +30,6 @@ function laterParts($row, $flag)
     echo "<i>{$row['title']}</i><b>$name</b>";
     // Escaped text inside a tag may end an attribute quoted the other way.
     echo "<a title='" . $safe . "'>" . $name . '</a>';
-    // The request text is not in a text node.
-    echo '<i>' . $page . '</i><a href="' . $name . '">';
-    echo '<i>' . $safe . '</i><script>' . $name;
     // A later part of the same operand could still change the response.
     echo '<i>' . $page . '</i><b>' . $name . '</b>' . redirect();
     if ($flag) {

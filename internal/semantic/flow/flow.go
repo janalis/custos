@@ -12,7 +12,7 @@ import (
 )
 
 // Context distinguishes incompatible escaping contracts.
-type Context uint8
+type Context uint16
 
 const (
 	HTML Context = 1 << iota
@@ -25,7 +25,26 @@ const (
 	// delimiter in an ordinary quoted data attribute.
 	HTMLSingleQuoted
 	HTMLDoubleQuoted
+	// HTMLScript proves text safe in JavaScript: a script element, or an
+	// event handler attribute once its entities are decoded. HTMLRaw proves
+	// text safe where markup is read again or as style: a style element or
+	// attribute, a srcdoc document. HTMLURL proves that text cannot start a
+	// URL attribute with a scheme, and HTMLUnquoted that it cannot end an
+	// unquoted attribute value.
+	HTMLScript
+	HTMLRaw
+	HTMLURL
+	HTMLUnquoted
 )
+
+// allContexts holds every contract: what a value without request data is
+// safe for.
+const allContexts = HTML | SQL | Shell | Header | URL | Path | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLScript | HTMLRaw | HTMLURL | HTMLUnquoted
+
+// Covers reports whether safe holds every contract of context.
+func (safe Context) Covers(context Context) bool {
+	return safe&context == context
+}
 
 // Limits bound hostile scopes and recursive wrapper queries. MaxRetained
 // bounds retained block bindings, states and immutable origin cells of one
@@ -1014,7 +1033,7 @@ func (e *Env) Tainted(x syntax.Expr, context Context) bool {
 	}
 	r := e.scope(syntax.EnclosingVariableScope(x))
 	v := r.values[x]
-	return r.complete && v.Safe&context == 0 && tainted(v)
+	return r.complete && !v.Safe.Covers(context) && tainted(v)
 }
 
 // Matched reports a value that is the text of a `switch` label the request
@@ -1101,11 +1120,11 @@ func merge(a, b Value) Value {
 	ca, cb := a.scalars, b.scalars
 	switch {
 	case len(a.Sources) == 0 && len(b.Sources) == 0:
-		sa, sb, ua, ub, ca, cb = HTML|HTMLSingleQuoted|HTMLDoubleQuoted|SQL|Shell|Header|URL|Path, HTML|HTMLSingleQuoted|HTMLDoubleQuoted|SQL|Shell|Header|URL|Path, 0, 0, false, false
+		sa, sb, ua, ub, ca, cb = allContexts, allContexts, 0, 0, false, false
 	case len(a.Sources) == 0:
-		sa, ua, ca = HTML|HTMLSingleQuoted|HTMLDoubleQuoted|SQL|Shell|Header|URL|Path, ub, cb
+		sa, ua, ca = allContexts, ub, cb
 	case len(b.Sources) == 0:
-		sb, ub, cb = HTML|HTMLSingleQuoted|HTMLDoubleQuoted|SQL|Shell|Header|URL|Path, ua, ca
+		sb, ub, cb = allContexts, ua, ca
 	}
 	v := Value{Complete: a.Complete && b.Complete, Safe: sa & sb, headerMask: a.headerMask & b.headerMask, NonFalse: a.NonFalse && b.NonFalse, NonNull: a.NonNull && b.NonNull, LengthKnown: a.LengthKnown && b.LengthKnown && a.Length == b.Length, Length: a.Length}
 	v.interval = joinInts(a, b)
@@ -1420,7 +1439,7 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 		if ok {
 			shared++
 		}
-		if ok && equal(v, w) && (len(v.Sources) > 0 || v.Safe == HTML|HTMLSingleQuoted|HTMLDoubleQuoted|SQL|Shell|Header|URL|Path && v.upload == 0 && !v.scalars) {
+		if ok && equal(v, w) && (len(v.Sources) > 0 || v.Safe == allContexts && v.upload == 0 && !v.scalars) {
 			// Joining a value with itself leaves it as it is, once a value
 			// without request data has the form a join gives it.
 			continue

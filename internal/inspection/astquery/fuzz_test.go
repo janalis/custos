@@ -29,15 +29,20 @@ func FuzzStringLiteralValue(f *testing.F) {
 // TestStringLiteralValuePathological guards linear decoding on hostile
 // literals (unterminated \u{ escapes used to rescan to the end each).
 func TestStringLiteralValuePathological(t *testing.T) {
-	for name, raw := range map[string]string{
-		"unterminated \\u{": `"` + strings.Repeat(`\u{`, 300000) + `"`,
-		"long hex":          `"\u{` + strings.Repeat("0", 1<<20) + `41}"`,
-		"octal/hex runs":    `"` + strings.Repeat(`\x\777\u`, 200000) + `"`,
-		"single escapes":    `'` + strings.Repeat(`\'\\`, 300000) + `'`,
+	// An unterminated or malformed `\u{` escape does not compile from PHP 7:
+	// it is rejected, as fast as the others are decoded.
+	for name, tc := range map[string]struct {
+		raw     string
+		decoded bool
+	}{
+		"unterminated \\u{": {`"` + strings.Repeat(`\u{`, 300000) + `"`, false},
+		"long hex":          {`"\u{` + strings.Repeat("0", 1<<20) + `41}"`, true},
+		"octal/hex runs":    {`"` + strings.Repeat(`\x\777\u`, 200000) + `"`, true},
+		"single escapes":    {`'` + strings.Repeat(`\'\\`, 300000) + `'`, true},
 	} {
 		start := time.Now()
-		if _, ok := StringLiteralValue(raw); !ok {
-			t.Errorf("%s: not decoded", name)
+		if _, ok := StringLiteralValue(tc.raw); ok != tc.decoded {
+			t.Errorf("%s: decoded=%v", name, ok)
 		}
 		if d := time.Since(start); d > testbudget.Of(2*time.Second) {
 			t.Errorf("%s: %v", name, d)
@@ -46,7 +51,10 @@ func TestStringLiteralValuePathological(t *testing.T) {
 	if v, _ := StringLiteralValue(`"\u{` + strings.Repeat("0", 1000) + `41}"`); v != "A" {
 		t.Errorf("leading zeros: %q", v)
 	}
-	if v, _ := StringLiteralValue(`"\u{4 1}\u{}"`); v != `\u{4 1}\u{}` {
-		t.Errorf("malformed: %q", v)
+	if _, ok := StringLiteralValue(`"\u{4 1}\u{}"`); ok {
+		t.Error("malformed escape decoded")
+	}
+	if _, ok := StringLiteralValue(`"\u{110000}"`); ok {
+		t.Error("code point beyond Unicode decoded")
 	}
 }

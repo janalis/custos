@@ -63,7 +63,7 @@ func staticHeredocValueForVersion(raw string, version phpversion.Version) (strin
 			if !strings.Contains(body, `\`) {
 				return body, true
 			}
-			return decodeDoubleQuotedForVersion(body, version), true
+			return decodeDoubleQuotedForVersion(body, version)
 		default:
 			return "", false
 		}
