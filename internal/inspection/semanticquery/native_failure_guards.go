@@ -1,13 +1,12 @@
 package semanticquery
 
 import (
-	"strings"
-
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/flow"
+	"custos/internal/semantic/types"
 )
 
 // NativeLengthGuard proves that an enclosing true branch requires an exact
@@ -36,29 +35,15 @@ func NativeLengthGuard(ctx *analysis.Context, input syntax.Expr, length int64) b
 	})
 }
 
-// NativeSentinelGuard proves that the null/false failure value cannot reach
-// the input: the flow facts of the tested variable exclude it, or a strict
-// comparison of the same value guards the current path.
-func NativeSentinelGuard(ctx *analysis.Context, input syntax.Expr, sentinel string) bool {
+// NativeFailureExcluded proves that the failure value sentinel (`null`,
+// `false`) cannot reach input: the flow facts exclude it, or, in a scope
+// without goto labels before it, the conditions guarding input narrow it out
+// (seed is the type its producer returns, for a member read).
+func NativeFailureExcluded(ctx *analysis.Context, input syntax.Expr, seed types.Type, sentinel string) bool {
 	if input == nil {
 		return false
 	}
-	if ctx.Flow().Excludes(input, sentinel) {
-		return true
-	}
-	return nativePathGuard(ctx, input, func(condition syntax.Expr, truth bool) bool {
-		b, ok := syntax.UnwrapParens(condition).(*syntax.Binary)
-		if !ok || !((truth && b.Op.Kind == syntax.TIsNotIdentical) || (!truth && b.Op.Kind == syntax.TIsIdentical)) {
-			return false
-		}
-		for _, pair := range [][2]syntax.Expr{{b.Left, b.Right}, {b.Right, b.Left}} {
-			constant, ok := syntax.UnwrapParens(pair[1]).(*syntax.ConstFetch)
-			if ok && constant.Name != nil && strings.EqualFold(strings.TrimPrefix(constant.Name.Value, `\`), sentinel) && nativeGuardSameValue(ctx, input, pair[0]) {
-				return true
-			}
-		}
-		return false
-	})
+	return ctx.Flow().Excludes(input, sentinel) || !NativeLabelled(ctx, input) && NativeNarrowedExcludes(ctx, input, seed, sentinel)
 }
 
 func nativeGuard(ctx *analysis.Context, input syntax.Expr, accepts func(syntax.Expr, bool) bool) bool {

@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/types"
 )
 
 // sharedDefectProbe evaluates one shared query at every `probe(...)` call.
@@ -54,9 +55,9 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 	case "stable":
 		result = fmt.Sprint(expansionDSame(ctx, a, b))
 	case "false":
-		result = fmt.Sprint(NativeSentinelGuard(ctx, a, "false"))
+		result = fmt.Sprint(NativeFailureExcluded(ctx, a, types.Of("resource", "false"), "false"))
 	case "local-false":
-		result = fmt.Sprint(NativeLocalSentinelGuard(ctx, a, "false"))
+		result = fmt.Sprint(NativeFailureExcluded(ctx, a, types.Of("resource", "false"), "false"))
 	case "unreplaced":
 		result = fmt.Sprint(NativeUnreplaced(ctx, a, b))
 	case "static":
@@ -430,45 +431,46 @@ func TestSharedFailureGuardPositions(t *testing.T) {
 		{"false", "truthy exit", `function f($p){$x=fopen($p,'r'); if(!$x){return;} probe($x);}`, "true"},
 		{"false", "earlier exit", `function f($p){$x=fopen($p,'r'); if($x === false){return;} echo 1; probe($x);}`, "true"},
 		{"false", "ternary arm", `function f($p){$x=fopen($p,'r'); return $x === false ? 0 : probe($x);}`, "true"},
-		// Property reads have no flow value: only the written guard proves them.
-		{"false", "property branch", `function f($o){if($o->h !== false){probe($o->h);}}`, "true"},
-		{"false", "property constant-first branch", `function f($o){if(false !== $o->h){probe($o->h);}}`, "true"},
-		{"false", "property else arm", `function f($o){if($o->h === false){return 0;}else{probe($o->h);}}`, "true"},
-		{"false", "property wrong arm", `function f($o){if($o->h !== false){return 0;}else{probe($o->h);}}`, "false"},
-		{"false", "property elseif arm", `function f($o, $c){if($c){return 0;}elseif($o->h !== false){probe($o->h);}}`, "true"},
-		{"false", "property after elseif", `function f($o, $c){if($c){return 0;}elseif($o->h === false){return 1;}else{probe($o->h);}}`, "true"},
-		{"false", "property after first test", `function f($o, $c){if($o->h === false){return 0;}elseif($c){probe($o->h);}}`, "true"},
-		{"false", "property later elseif", `function f($o, $c, $d){if($c){return 0;}elseif($o->h === false){return 1;}elseif($d){probe($o->h);}}`, "true"},
-		{"false", "property unrelated elseif", `function f($o, $c, $d){if($c){return 0;}elseif($d){probe($o->h);}elseif($o->h === false){return 1;}}`, "false"},
-		{"false", "property spaced else if", `function f($o, $c){if($o->h === false){return 0;}else if($c){probe($o->h);}}`, "true"},
-		{"false", "property conjunction operand", `function f($o){return $o->h !== false && probe($o->h);}`, "true"},
-		{"false", "property word conjunction operand", `function f($o){return ($o->h !== false and probe($o->h));}`, "true"},
-		{"false", "property disjunction operand", `function f($o){return $o->h === false || probe($o->h);}`, "true"},
-		{"false", "property word disjunction operand", `function f($o){return ($o->h === false or probe($o->h));}`, "true"},
-		{"false", "property wrong disjunction", `function f($o){return $o->h !== false || probe($o->h);}`, "false"},
-		{"false", "property left operand", `function f($o){return probe($o->h) && $o->h !== false;}`, "false"},
-		{"false", "property other operator", `function f($o){return ($o->h !== false) + probe($o->h);}`, "false"},
-		{"false", "property ternary arm", `function f($o){return $o->h !== false ? probe($o->h) : 0;}`, "true"},
-		{"false", "property ternary else arm", `function f($o){return $o->h === false ? 0 : probe($o->h);}`, "true"},
-		{"false", "property wrong ternary arm", `function f($o){return $o->h !== false ? 0 : probe($o->h);}`, "false"},
-		{"false", "property short ternary", `function f($o){return $o->h === false ?: probe($o->h);}`, "true"},
-		{"false", "property ternary condition", `function f($o){return probe($o->h) ? $o->h !== false : 0;}`, "false"},
-		{"false", "property negated guard", `function f($o){if(!($o->h === false)){probe($o->h);}}`, "true"},
-		{"false", "property conjunction guard", `function f($o, $c){if($c && $o->h !== false){probe($o->h);}}`, "true"},
-		{"false", "property false conjunction", `function f($o, $c){if($c && $o->h === false){return 0;} probe($o->h);}`, "false"},
-		{"false", "property disjunction exit", `function f($o, $c){if($c || $o->h === false){return 0;} probe($o->h);}`, "true"},
-		{"false", "property true disjunction", `function f($o, $c){if($c || $o->h !== false){probe($o->h);}}`, "false"},
-		{"false", "property preceding exit", `function f($o){if($o->h === false){return 0;} probe($o->h);}`, "true"},
-		{"false", "property other value", `function f($o){if($o->g === false){return 0;} probe($o->h);}`, "false"},
+		// Property reads have no flow value: type narrowing proves them, on a
+		// receiver whose class declares the property.
+		{"false", "property branch", `final class H { public $h; public $g; } function f(H $o){if($o->h !== false){probe($o->h);}}`, "true"},
+		{"false", "property constant-first branch", `final class H { public $h; public $g; } function f(H $o){if(false !== $o->h){probe($o->h);}}`, "true"},
+		{"false", "property else arm", `final class H { public $h; public $g; } function f(H $o){if($o->h === false){return 0;}else{probe($o->h);}}`, "true"},
+		{"false", "property wrong arm", `final class H { public $h; public $g; } function f(H $o){if($o->h !== false){return 0;}else{probe($o->h);}}`, "false"},
+		{"false", "property elseif arm", `final class H { public $h; public $g; } function f(H $o, $c){if($c){return 0;}elseif($o->h !== false){probe($o->h);}}`, "true"},
+		{"false", "property after elseif", `final class H { public $h; public $g; } function f(H $o, $c){if($c){return 0;}elseif($o->h === false){return 1;}else{probe($o->h);}}`, "true"},
+		{"false", "property after first test", `final class H { public $h; public $g; } function f(H $o, $c){if($o->h === false){return 0;}elseif($c){probe($o->h);}}`, "true"},
+		{"false", "property later elseif", `final class H { public $h; public $g; } function f(H $o, $c, $d){if($c){return 0;}elseif($o->h === false){return 1;}elseif($d){probe($o->h);}}`, "true"},
+		{"false", "property unrelated elseif", `final class H { public $h; public $g; } function f(H $o, $c, $d){if($c){return 0;}elseif($d){probe($o->h);}elseif($o->h === false){return 1;}}`, "false"},
+		{"false", "property spaced else if", `final class H { public $h; public $g; } function f(H $o, $c){if($o->h === false){return 0;}else if($c){probe($o->h);}}`, "true"},
+		{"false", "property conjunction operand", `final class H { public $h; public $g; } function f(H $o){return $o->h !== false && probe($o->h);}`, "true"},
+		{"false", "property word conjunction operand", `final class H { public $h; public $g; } function f(H $o){return ($o->h !== false and probe($o->h));}`, "true"},
+		{"false", "property disjunction operand", `final class H { public $h; public $g; } function f(H $o){return $o->h === false || probe($o->h);}`, "true"},
+		{"false", "property word disjunction operand", `final class H { public $h; public $g; } function f(H $o){return ($o->h === false or probe($o->h));}`, "true"},
+		{"false", "property wrong disjunction", `final class H { public $h; public $g; } function f(H $o){return $o->h !== false || probe($o->h);}`, "false"},
+		{"false", "property left operand", `final class H { public $h; public $g; } function f(H $o){return probe($o->h) && $o->h !== false;}`, "false"},
+		{"false", "property other operator", `final class H { public $h; public $g; } function f(H $o){return ($o->h !== false) + probe($o->h);}`, "false"},
+		{"false", "property ternary arm", `final class H { public $h; public $g; } function f(H $o){return $o->h !== false ? probe($o->h) : 0;}`, "true"},
+		{"false", "property ternary else arm", `final class H { public $h; public $g; } function f(H $o){return $o->h === false ? 0 : probe($o->h);}`, "true"},
+		{"false", "property wrong ternary arm", `final class H { public $h; public $g; } function f(H $o){return $o->h !== false ? 0 : probe($o->h);}`, "false"},
+		{"false", "property short ternary", `final class H { public $h; public $g; } function f(H $o){return $o->h === false ?: probe($o->h);}`, "true"},
+		{"false", "property ternary condition", `final class H { public $h; public $g; } function f(H $o){return probe($o->h) ? $o->h !== false : 0;}`, "false"},
+		{"false", "property negated guard", `final class H { public $h; public $g; } function f(H $o){if(!($o->h === false)){probe($o->h);}}`, "true"},
+		{"false", "property conjunction guard", `final class H { public $h; public $g; } function f(H $o, $c){if($c && $o->h !== false){probe($o->h);}}`, "true"},
+		{"false", "property false conjunction", `final class H { public $h; public $g; } function f(H $o, $c){if($c && $o->h === false){return 0;} probe($o->h);}`, "false"},
+		{"false", "property disjunction exit", `final class H { public $h; public $g; } function f(H $o, $c){if($c || $o->h === false){return 0;} probe($o->h);}`, "true"},
+		{"false", "property true disjunction", `final class H { public $h; public $g; } function f(H $o, $c){if($c || $o->h !== false){probe($o->h);}}`, "false"},
+		{"false", "property preceding exit", `final class H { public $h; public $g; } function f(H $o){if($o->h === false){return 0;} probe($o->h);}`, "true"},
+		{"false", "property other value", `final class H { public $h; public $g; } function f(H $o){if($o->g === false){return 0;} probe($o->h);}`, "false"},
 		{"false", "repeated call", `function f($o){if($o->h() === false){return 0;} probe($o->h());}`, "false"},
 		// A parameter has no reaching producer: the guard holds only while
 		// nothing writes the variable between the test and the read.
 		{"false", "untracked variable branch", `function f($s, $o){$t=$o->p; if($t !== false){probe($t);}}`, "true"},
 		{"false", "untracked variable rewritten in the branch", `function f($s, $o){$t=$o->p; if($t !== false){$t=$o->q; probe($t);}}`, "false"},
 		{"false", "untracked variable stepped in the branch", `function f($s, $o){$t=$o->p; if($t !== false){$t++; probe($t);}}`, "false"},
-		{"false", "untracked variable variable", `function f($s, $o){if($$s !== false){probe($$s);}}`, "true"},
+		{"false", "untracked variable variable", `function f($s, $o){if($$s !== false){probe($$s);}}`, "false"},
 		{"false", "stepping operand", `function f($i){if($i++ !== false){probe($i++);}}`, "false"},
-		{"false", "closure boundary", `function f($o){if($o->h === false){return 0;} $g=function() use ($o){probe($o->h);};}`, "false"},
+		{"false", "closure boundary", `final class H { public $h; public $g; } function f(H $o){if($o->h === false){return 0;} $g=function() use ($o){probe($o->h);};}`, "false"},
 		{"local-false", "property branch", `function f($o){if(\FALSE !== ($o->h)){probe($o->h);}}`, "false"},
 		{"local-false", "callable branch", `function f($o){$g=$o->pick(); if(\FALSE !== ($g)){probe($g);}}`, "true"},
 		{"length", "no input", `function f($s){probe();}`, "false"},

@@ -22,3 +22,12 @@ function guardedByEnclosingTest($read, $write, $except) {
         if ($r !== 0) { echo "ready"; }
     }
 }
+function guardedByLooseExit($read, $write, $except) {
+    $r = stream_select($read, $write, $except, 1);
+    if ($r == false) { return; }
+    if ($r !== 0) { echo "never reached with zero"; }
+}
+function guardedByTypeCheck($read, $write, $except) {
+    $r = stream_select($read, $write, $except, 1);
+    if (is_int($r) && $r !== 0) { echo "ready"; }
+}

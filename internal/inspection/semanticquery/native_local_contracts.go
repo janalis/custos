@@ -11,6 +11,7 @@ import (
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/types"
 )
 
 // NativeConstruction resolves an unchanged locally constructed object.
@@ -376,7 +377,7 @@ func NativeStreamMode(ctx *analysis.Context, h syntax.Expr, at syntax.Node) (str
 			mode = "r"
 		}
 	}
-	if !ctx.Flow().Value(h).NonFalse && !NativeSentinelGuard(ctx, h, "false") {
+	if !ctx.Flow().Value(h).NonFalse && !NativeFailureExcluded(ctx, h, types.Of("resource", "false"), "false") {
 		return "", false
 	}
 	if len(NativeStreamCalls(ctx, at, h, "fclose")) > 0 {
@@ -717,27 +718,6 @@ func NativeStateDominates(before, at syntax.Node) bool {
 		}
 	}
 	return false
-}
-
-// NativeLocalSentinelGuard recognizes lexical guards for a callable variable
-// whose dynamic invocation is not included in the general value graph.
-func NativeLocalSentinelGuard(ctx *analysis.Context, e syntax.Expr, sentinel string) bool {
-	if NativeSentinelGuard(ctx, e, sentinel) {
-		return true
-	}
-	return nativePathGuard(ctx, e, func(cond syntax.Expr, truth bool) bool {
-		b, ok := syntax.UnwrapParens(cond).(*syntax.Binary)
-		if !ok || !((truth && b.Op.Kind == syntax.TIsNotIdentical) || (!truth && b.Op.Kind == syntax.TIsIdentical)) {
-			return false
-		}
-		for _, pair := range [][2]syntax.Expr{{b.Left, b.Right}, {b.Right, b.Left}} {
-			c, ok := syntax.UnwrapParens(pair[1]).(*syntax.ConstFetch)
-			if ok && c.Name != nil && strings.EqualFold(strings.TrimPrefix(c.Name.Value, `\`), sentinel) && NativeSameValue(ctx, e, pair[0]) {
-				return true
-			}
-		}
-		return false
-	})
 }
 
 type nativeContractEventKey struct{ scope syntax.Node }

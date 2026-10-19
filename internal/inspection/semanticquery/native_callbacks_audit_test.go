@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 func TestNativeCallbackLiteralReachability(t *testing.T) {
@@ -62,7 +63,7 @@ func TestAuditFailureGuardsTrackReachingValue(t *testing.T) {
 	} {
 		t.Run(src, func(t *testing.T) {
 			probeNative(t, src, func(ctx *analysis.Context, c *syntax.FuncCall) {
-				if NativeSentinelGuard(ctx, CallArgument(c.Args, 0, ""), "null") {
+				if NativeFailureExcluded(ctx, CallArgument(c.Args, 0, ""), types.Unknown, "null") {
 					t.Fatal("old producer guard applied to new result")
 				}
 			})

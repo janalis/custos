@@ -5,6 +5,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Check decryption success before using the plaintext."
@@ -29,7 +30,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	call, ok := semanticquery.NativeValue(ctx, data).(*syntax.FuncCall)
-	if !ok || !semanticquery.NativeBuiltin(ctx, call, "openssl_decrypt") || ctx.Flow().Excludes(data, "false") || semanticquery.NativeSentinelGuard(ctx, data, "false") {
+	if !ok || !semanticquery.NativeBuiltin(ctx, call, "openssl_decrypt") || semanticquery.NativeFailureExcluded(ctx, data, types.Of("string", "false"), "false") {
 		return
 	}
 	ctx.ReportNode(data, message)

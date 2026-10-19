@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/types"
 )
 
 // expansionDSame proves a stable local variable even when its value comes from
@@ -158,7 +159,7 @@ func CheckHashFileFailureUsedAsDigest(ctx *analysis.Context, n syntax.Node, mess
 		}
 	}
 	for _, e := range inputs {
-		if expansionDOrigin(ctx, e, "hash_file") != nil && !NativeSentinelGuard(ctx, e, "false") {
+		if expansionDOrigin(ctx, e, "hash_file") != nil && !NativeFailureExcluded(ctx, e, types.Of("string", "false"), "false") {
 			ctx.ReportNode(n, message)
 			return
 		}
@@ -1953,7 +1954,7 @@ func CheckPgReturnedRowsUsedAsAffectedRows(ctx *analysis.Context, n syntax.Node,
 	}
 	value := CallArgument(c.Args, 0, "result")
 	query := expansionDOrigin(ctx, value, "pg_query")
-	if query == nil || !NativeSentinelGuard(ctx, value, "false") {
+	if query == nil || !NativeFailureExcluded(ctx, value, types.Of(`\PgSql\Result`, "resource", "false"), "false") {
 		return
 	}
 	sql, known := NativeString(ctx, CallArgument(query.Args, 1, "query"))

@@ -76,6 +76,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 - RealpathFailureUsedAsPath reads its guards from type narrowing, including
   a test between the path join and the call that consumes it.
 - FilePermissionFailurePassesPolicy reads its guards from type narrowing.
+- SelectFailureTreatedAsReadiness, DecryptionFailureUsedAsPlaintext,
+  PgReturnedRowsUsedAsAffectedRows, the comparison check of
+  HashFileFailureUsedAsDigest and the stream-mode rules
+  (WriteToReadOnlyStream, ReadFromWriteOnlyStream, TruncationAssumedToRewind,
+  AppendModeSeekUsedForOverwrite) read failure tests from type narrowing:
+  loose comparisons, truthiness and type checks count, not only `=== false`.
 
 ### Fixed
 

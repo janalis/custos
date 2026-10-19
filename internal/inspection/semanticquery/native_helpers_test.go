@@ -5,6 +5,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 type nativeProbe struct {
@@ -258,24 +259,26 @@ func TestNativeStringInputContracts(t *testing.T) {
 	}
 }
 
-func TestNativeSentinelGuards(t *testing.T) {
+func TestNativeFailureExcluded(t *testing.T) {
+	const nullable, falsy = "$v=preg_replace('/a/','b','c');", "$v=strpos('abc',$s);"
 	for _, tc := range []struct {
 		src, sentinel string
 		want          bool
 	}{
-		{"if($v!==null){probe($v);}", "null", true},
-		{"if(null!==$v){probe($v);}", "null", true},
-		{"if($v===null){return;} probe($v);", "null", true},
-		{"if($v===false){}else{probe($v);}", "false", true},
-		{"if($v!==false){probe($v);}", "null", false},
-		{"if($other!==null){probe($v);}", "null", false},
-		{"if($v){probe($v);}", "null", false},
-		{"if($v==null){return;} probe($v);", "null", false},
+		{nullable + "if($v!==null){probe($v);}", "null", true},
+		{nullable + "if(null!==$v){probe($v);}", "null", true},
+		{nullable + "if($v===null){return;} probe($v);", "null", true},
+		{falsy + "if($v===false){}else{probe($v);}", "false", true},
+		{nullable + "if($v){probe($v);}", "null", true},
+		{nullable + "if($other!==null){probe($v);}", "null", false},
+		{nullable + "probe($v);", "null", false},
+		// The flow follows the jump; narrowing alone would not count here.
+		{nullable + "a: if($v!==null){probe($v);} goto a;", "null", true},
 		{"probe();", "null", false},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			probeNative(t, tc.src, func(ctx *analysis.Context, c *syntax.FuncCall) {
-				got := NativeSentinelGuard(ctx, CallArgument(c.Args, 0, "value"), tc.sentinel)
+				got := NativeFailureExcluded(ctx, CallArgument(c.Args, 0, "value"), types.Unknown, tc.sentinel)
 				if got != tc.want {
 					t.Fatalf("got %v, want %v", got, tc.want)
 				}
@@ -361,7 +364,7 @@ func TestNativeRemainingBoundaries(t *testing.T) {
 		}
 	})
 	probeNative(t, "function f($v){probe($v);}", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if NativeSentinelGuard(ctx, CallArgument(c.Args, 0, "value"), "null") {
+		if NativeFailureExcluded(ctx, CallArgument(c.Args, 0, "value"), types.Unknown, "null") {
 			t.Fatal("parameter presence does not prove nonnull")
 		}
 	})

@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/types"
 )
 
 type localContractProbe struct {
@@ -80,7 +81,7 @@ func (p localContractProbe) Check(ctx *analysis.Context, n syntax.Node) {
 		params, ret, k := NativeReflectionTarget(ctx, a)
 		result = fmt.Sprintf("%d/%s/%t", len(params), ret, k)
 	case "sentinel":
-		result = fmt.Sprint(NativeLocalSentinelGuard(ctx, a, "null"))
+		result = fmt.Sprint(NativeFailureExcluded(ctx, a, types.Of(`\Closure`, "null"), "null"))
 	case "csv":
 		args, pos, name, k := NativeCSVSignature(ctx, a)
 		_ = args
@@ -126,7 +127,7 @@ func TestNativeLocalQueries(t *testing.T) {
 		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());if($b){probe($b);}`, "true", ""},
 		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());if($b){}else{probe($b);}`, "false", ""},
 		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());if($b!==null){probe($b);}`, "true", ""},
-		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());$c=$b;if($c!==null){probe($b);}`, "true", ""},
+		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());$c=$b;if($c!==null){probe($b);}`, "false", ""},
 		{"sentinel", `$a=static function(){};$b=$a->bindTo(new stdClass());if($other!==null){probe($b);}`, "false", ""},
 		{"csv", `probe(1);probe(str_getcsv('a'));probe($unknown->fgetcsv());`, "0//false,1/separator/true,0//false", ""},
 		{"conditions", `$x=readdir($d);if(readdir($d)&&$x){} if((readdir($d))){} if($x=readdir($d)){} if(-readdir($d)){} if(1+readdir($d)){} if(readdir($d)==$unknown){} if(false==readdir($d)){} while(readdir($d)){} do{}while(readdir($d));`, "false,false,true,true,false,false,false,true,true,true", ""},

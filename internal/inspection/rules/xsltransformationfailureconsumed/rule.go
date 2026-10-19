@@ -34,7 +34,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, e := range inputs {
 		c, ok := semanticquery.NativeLocalBuiltinResult(ctx, e, "false", "XSLTProcessor::transformToXML").(*syntax.MethodCall)
-		if ok && semanticquery.NativeMethod(ctx, c, "XSLTProcessor", "transformToXML") && !ctx.Flow().Excludes(e, "false") && (semanticquery.NativeFailureFlowOnly(ctx, e) || !semanticquery.NativeLocalSentinelGuard(ctx, e, "false")) && (semanticquery.NativeFailureFlowOnly(ctx, e) || !semanticquery.NativeNarrowedExcludes(ctx, e, types.Of("string", "null", "false"), "false")) {
+		if ok && semanticquery.NativeMethod(ctx, c, "XSLTProcessor", "transformToXML") && !ctx.Flow().Excludes(e, "false") && (semanticquery.NativeFailureFlowOnly(ctx, e) || !semanticquery.NativeNarrowedExcludes(ctx, e, types.Of("string", "null", "false"), "false")) {
 			ctx.ReportNode(n, message)
 			return
 		}

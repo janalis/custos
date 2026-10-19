@@ -5,6 +5,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Handle selection failure before processing ready streams."
@@ -32,12 +33,12 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.ReportNode(b, message)
 }
 
-// failureExcluded reports whether a strict false test on the same stored
-// result already ruled failure out before the readiness comparison runs.
+// failureExcluded reports whether a test of the same stored result already
+// ruled failure out before the readiness comparison runs.
 // Direct calls never qualify: a second call is a different result.
 func failureExcluded(ctx *analysis.Context, b *syntax.Binary) bool {
 	if _, ok := syntax.UnwrapParens(b.Left).(*syntax.Variable); !ok {
 		return false
 	}
-	return semanticquery.NativeSentinelGuard(ctx, b.Left, "false")
+	return semanticquery.NativeFailureExcluded(ctx, b.Left, types.Of("int", "false"), "false")
 }
