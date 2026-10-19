@@ -46,6 +46,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   successful `$value instanceof $class` as `Foo`.
 - A list built with `$list[] = …` from an empty array types its integer-key
   reads (`$list[0]`) as the appended values.
+- Loose comparisons narrow types: `$x == false` and `$x != true` test
+  truthiness, and `$x != null`, `!= ''`, `!= 0` exclude both null and false
+  (`!= '0'` excludes false).
 
 ### Security
 

@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"strconv"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -204,8 +205,17 @@ func (e *Env) eqCond(t types.Type, c *syntax.Binary, name string, truthy bool, s
 func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.Type {
 	lit := constLiteral(other)
 	if !strict {
-		if lit == "null" && !holds {
-			return t.Without("null")
+		switch {
+		case lit == "true" || lit == "false":
+			// `$x == false` compares $x as a bool: a truthiness test.
+			if (lit == "true") == holds {
+				return truthyType(t)
+			}
+			return falsyType(t)
+		case !holds:
+			// Not loosely equal to null, '', 0 or 0.0: neither null nor
+			// false, which equal each of them; not equal to '0': not false.
+			return t.Without(looseFalsyPeers(other, lit)...)
 		}
 		return t
 	}
@@ -495,4 +505,31 @@ func (e *Env) inArrayCond(t types.Type, c *syntax.FuncCall, truthy bool) types.T
 		return t
 	}
 	return e.assertIs(t, el.WithoutArrayInfo())
+}
+
+// looseFalsyPeers returns the null and false atoms a value loosely equal to
+// constant x (lit: its constLiteral) may have: both for null, ”, 0 and 0.0
+// (`null == 0`, `false == ”`), false alone for '0' (`null == '0'` is false).
+func looseFalsyPeers(x syntax.Expr, lit string) []string {
+	if lit == "null" {
+		return []string{"null", "false"}
+	}
+	l, ok := syntax.UnwrapParens(x).(*syntax.Literal)
+	if !ok {
+		return nil
+	}
+	switch l.LitKind {
+	case syntax.LitString:
+		switch v, ok := syntax.LiteralStringValue(l); {
+		case ok && v == "":
+			return []string{"null", "false"}
+		case ok && v == "0":
+			return []string{"false"}
+		}
+	case syntax.LitInt, syntax.LitFloat:
+		if f, err := strconv.ParseFloat(strings.ReplaceAll(l.Raw, "_", ""), 64); err == nil && f == 0 {
+			return []string{"null", "false"}
+		}
+	}
+	return nil
 }
