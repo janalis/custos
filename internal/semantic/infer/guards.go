@@ -2,6 +2,7 @@ package infer
 
 import (
 	"slices"
+	"sort"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -30,6 +31,9 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 	cands, ok := gi.candidates(name, from, end)
 	if !ok {
 		return types.Unknown // hostile statement lists: see maxGuardScan
+	}
+	if strings.HasPrefix(name, callKeyPrefix) {
+		cands = callStmt(cands, stmts, from, end, name)
 	}
 	for _, i := range cands {
 		s := stmts[i]
@@ -380,6 +384,19 @@ func (gi *guardIndex) candidates(name string, from, end int) ([]int, bool) {
 	slices.Sort(out)
 	out = slices.Compact(out)
 	return out, len(out) <= maxGuardScan
+}
+
+// callStmt adds to cands (ascending) the statement among stmts[from:end]
+// holding the call whose key is name: the only one that may test it.
+func callStmt(cands []int, stmts []syntax.Stmt, from, end int, name string) []int {
+	at, _ := callKeySpan(strings.TrimPrefix(name, callKeyPrefix))
+	i := from + sort.Search(end-from, func(i int) bool { return uint64(stmts[from+i].Span().End) > at })
+	if i >= end || uint64(stmts[i].Span().Start) > at || slices.Contains(cands, i) {
+		return cands
+	}
+	out := append(slices.Clone(cands), i)
+	slices.Sort(out)
+	return out
 }
 
 // loopCond returns the condition deciding whether a while, do-while or for

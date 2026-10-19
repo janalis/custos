@@ -79,9 +79,12 @@ func (e *Env) exits(s syntax.Stmt) bool {
 func isVar(x syntax.Expr, name string) bool {
 	x = syntax.UnwrapParens(x)
 	if a, ok := x.(*syntax.Assign); ok && a.Op.Kind == syntax.TEqual && !a.ByRef {
+		if callMatches(a.Value, name) {
+			return true // `false === ($ok = f())` tests f()'s result too
+		}
 		x = a.Var // `false === ($x = f())` tests $x
 	}
-	return narrowKey(x) == name
+	return narrowKey(x) == name || callMatches(x, name)
 }
 
 // constLiteral returns "null", "true" or "false" for those constants.

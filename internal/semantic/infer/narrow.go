@@ -2,6 +2,7 @@ package infer
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -86,6 +87,54 @@ func narrowKey(x syntax.Expr) string {
 
 // isPropKey reports the narrowing key of a property (`$this->p`, a static
 // property): any non-builtin call may change it.
+// callKeyPrefix starts the narrowing key of one call node (see callKey):
+// the result of that very call, not of the same text elsewhere.
+const callKeyPrefix = "\x03call "
+
+// callKey is the narrowing key of call c, by its span.
+func callKey(c *syntax.FuncCall) string {
+	sp := c.Span()
+	return callKeyPrefix + strconv.FormatUint(uint64(sp.Start), 10) + " " + strconv.FormatUint(uint64(sp.End), 10)
+}
+
+// callMatches reports whether x is the call whose key is name.
+func callMatches(x syntax.Expr, name string) bool {
+	rest, ok := strings.CutPrefix(name, callKeyPrefix)
+	if !ok {
+		return false
+	}
+	c, ok := syntax.UnwrapParens(x).(*syntax.FuncCall)
+	if !ok {
+		return false
+	}
+	start, end := callKeySpan(rest)
+	sp := c.Span()
+	return uint64(sp.Start) == start && uint64(sp.End) == end
+}
+
+// callKeySpan decodes the offsets of a call key stripped of its prefix.
+func callKeySpan(rest string) (start, end uint64) {
+	a, b, _ := strings.Cut(rest, " ")
+	start, _ = strconv.ParseUint(a, 10, 32)
+	end, _ = strconv.ParseUint(b, 10, 32)
+	return start, end
+}
+
+// CallResultAt types the result of call c as known at expression at, a
+// later place of its scope: the call's type narrowed by the conditions on
+// that very call guarding at, written directly (`if (flock($h, LOCK_EX))`,
+// `flock($h, LOCK_EX) or exit;`, `if (!@f()) { return; }`), assigned in
+// place (`if ($ok = f())`) or through a boolean holding it
+// (`$ok = f(); if (!$ok) { return; }`). A call that may run again before at
+// (inside a loop around both) still counts by its last result.
+func (e *Env) CallResultAt(c *syntax.FuncCall, at syntax.Expr) types.Type {
+	scope := syntax.EnclosingVariableScope(c)
+	if syntax.EnclosingVariableScope(at) != scope || at.Span().Start < c.Span().End {
+		return types.Unknown
+	}
+	return e.narrowExprAfter(e.TypeOf(c), at, callKey(c), scope, c.Span().End)
+}
+
 func isPropKey(k string) bool { return strings.Contains(k, "->") || strings.Contains(k, "::") }
 
 // propBase returns the variable holding the object of a `$v->p` key (also
@@ -432,7 +481,7 @@ func (e *Env) aliasCond(v *syntax.Variable, name string) syntax.Expr {
 	}
 	a := fwd[0].asg
 	cond := syntax.UnwrapParens(a.Value)
-	if !isBoolExpr(cond) {
+	if !isBoolExpr(cond) && !callMatches(cond, name) {
 		return nil
 	}
 	end, at := a.Span().End, v.Span().Start

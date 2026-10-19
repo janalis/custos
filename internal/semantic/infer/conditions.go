@@ -43,8 +43,11 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 	steps.n--
 	switch c := syntax.UnwrapParens(cond).(type) {
 	case *syntax.Unary:
-		if c.Op.Kind == syntax.TExclaim {
+		switch c.Op.Kind {
+		case syntax.TExclaim:
 			return e.applyCondB(t, c.Expr, name, !truthy, steps)
+		case syntax.TAt:
+			return e.applyCondB(t, c.Expr, name, truthy, steps) // silencing keeps the value
 		}
 	case *syntax.Binary:
 		switch c.Op.Kind {
@@ -148,11 +151,20 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		if c.Op.Kind == syntax.TEqual && !c.ByRef && narrowKey(c.Var) == name {
 			return e.applyCondB(t, c.Var, name, truthy, steps)
 		}
+		if c.Op.Kind == syntax.TEqual && !c.ByRef && callMatches(c.Value, name) {
+			return e.applyCondB(t, c.Value, name, truthy, steps)
+		}
 	case *syntax.StaticCall:
 		if r, ok := e.condAsserts(c, name, truthy, t); ok {
 			return r
 		}
 	case *syntax.FuncCall:
+		if callMatches(c, name) {
+			if truthy {
+				return truthyType(t)
+			}
+			return falsyType(t)
+		}
 		if r, ok := e.condAsserts(c, name, truthy, t); ok {
 			return r
 		}

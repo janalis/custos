@@ -8,7 +8,7 @@ function unrelatedChain(XSLTProcessor $p, DOMDocument $d, $x, $y) { $out = $p->t
 function shortTernary(XSLTProcessor $p, DOMDocument $d, $file, $x) { $out = $p->transformToXML($d); return $x ?: <warning descr="Reject transformation failure before using the XML.">file_put_contents($file, $out)</warning>; }
 function leftOperand(XSLTProcessor $p, DOMDocument $d, $file) { $out = $p->transformToXML($d); return <warning descr="Reject transformation failure before using the XML.">file_put_contents($file, $out)</warning> && $out; }
 function arithmetic(XSLTProcessor $p, DOMDocument $d, $file) { $out = $p->transformToXML($d); return 1 + <warning descr="Reject transformation failure before using the XML.">file_put_contents($file, $out)</warning>; }
-function silenced(XSLTProcessor $p, DOMDocument $d) { $out = $p->transformToXML($d); if (@$out) { <warning descr="Reject transformation failure before using the XML.">echo $out;</warning> } }
+function silenced(XSLTProcessor $p, DOMDocument $d) { $out = $p->transformToXML($d); if (@$out) { echo $out; } }
 function otherTest(XSLTProcessor $p, DOMDocument $d) { $out = $p->transformToXML($d); if (is_scalar($out)) { <warning descr="Reject transformation failure before using the XML.">echo $out;</warning> } }
 function eitherPasses(XSLTProcessor $p, DOMDocument $d, $x) { $out = $p->transformToXML($d); if ($out || $x) { <warning descr="Reject transformation failure before using the XML.">echo $out;</warning> } }
 function bothFail(XSLTProcessor $p, DOMDocument $d, $x) { $out = $p->transformToXML($d); if (!$out && $x) { return; } <warning descr="Reject transformation failure before using the XML.">echo $out;</warning> }
