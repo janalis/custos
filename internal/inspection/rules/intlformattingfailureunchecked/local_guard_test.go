@@ -30,7 +30,7 @@ func TestFlowGuards(t *testing.T) {
 }
 
 // A condition whose two operands each rule out the failure is not a fact of
-// the flow, so the rule's own walk decides every guard below.
+// the flow, so type narrowing decides every guard below.
 func TestLocalGuardWalk(t *testing.T) {
 	const produce = "$n=$fm->format($b);"
 	run(t, []guardCase{
