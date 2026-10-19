@@ -130,6 +130,11 @@ type Method struct {
 	// Tpl describes the method's own @template parameters when its
 	// documented return type uses them; nil otherwise.
 	Tpl *FuncTemplates `json:"ftpl,omitempty"`
+	// CtorTpl holds, for a constructor of a generic class, the documented
+	// type of each parameter that mentions a class template, with those
+	// templates written as `\~~T` atoms ("" for the others): `new` binds
+	// the class templates from the arguments. Nil otherwise.
+	CtorTpl []string `json:"ctpl,omitempty"`
 	// Asserts are the @phpstan-assert / @psalm-assert annotations.
 	Asserts    []Assertion `json:"as,omitempty"`
 	Deprecated bool        `json:"dep,omitempty"`

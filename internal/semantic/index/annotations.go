@@ -237,6 +237,41 @@ func (x *extractor) funcTemplates(d *phpdoc.Doc, ps []*syntax.Param, asserts []A
 	return ft
 }
 
+// ctorTemplates returns, per parameter of constructor ps documented by d,
+// its documented type when it mentions a template of the class being
+// extracted, written with those templates as `\~~T` atoms ("" for the other
+// parameters); nil when no parameter does.
+func (x *extractor) ctorTemplates(d *phpdoc.Doc, ps []*syntax.Param, at uint32) []string {
+	if d == nil || len(x.classTpl) == 0 {
+		return nil
+	}
+	gen := x.genResolver(at)
+	res := func(w string) string {
+		if x.classTpl[w] && !x.methodTpl[w] {
+			return "~~" + w
+		}
+		return gen(w)
+	}
+	docs := map[string]string{}
+	for _, p := range d.EffectiveParams() {
+		docs[p.Name] = p.Type
+	}
+	var out []string
+	for i, p := range ps {
+		text := docs[p.Var.Name]
+		if text == "" || !mentionsAny(text, x.classTpl) {
+			continue
+		}
+		if ds := types.FromDoc(text, res).DocString(); strings.Contains(ds, `\~~`) {
+			if out == nil {
+				out = make([]string, len(ps))
+			}
+			out[i] = ds
+		}
+	}
+	return out
+}
+
 // condReturn returns the conditional return type documented by d
 // (preferring @phpstan-return and @psalm-return) in types.Cond canonical
 // form, "" when there is none. A template subject (`(T is int ? …)`)

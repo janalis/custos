@@ -349,6 +349,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	}
 	if strings.EqualFold(m.Name.Value, "__construct") {
 		meth.StoresParams, meth.Stores = storedParams(m)
+		meth.CtorTpl = x.ctorTemplates(d, m.Params, at)
 	}
 	if m.Body != nil {
 		meth.CSPRNG = callsCSPRNG(m.Body)

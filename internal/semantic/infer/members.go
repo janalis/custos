@@ -56,9 +56,38 @@ func (e *Env) newType(n *syntax.New) types.Type {
 		return e.anonClassType(cl)
 	}
 	if cls := e.classRef(n.Class); cls != "" {
-		return types.Of(`\` + cls)
+		return e.ctorGenerics(types.Of(`\`+cls), cls, n.Args)
 	}
 	return types.Unknown
+}
+
+// ctorGenerics gives t, the type `new cls(…)` creates, the class template
+// arguments its own constructor binds from args (`new Box($foo)` with
+// `@param T $value` is `Box<Foo>`); templates left unbound take their bound,
+// else mixed. t is returned unchanged when nothing binds.
+func (e *Env) ctorGenerics(t types.Type, cls string, args *syntax.ArgList) types.Type {
+	c := e.Index.Class(cls, e.PHP)
+	if c == nil || len(c.Templates) == 0 {
+		return t
+	}
+	m := c.Methods["__construct"]
+	if m == nil || m.CtorTpl == nil {
+		return t
+	}
+	mb := e.bindCall(&index.FuncTemplates{Templates: c.Templates, Params: m.CtorTpl}, m.Params, args)
+	if len(mb) == 0 {
+		return t
+	}
+	targs := make([]types.Type, len(c.Templates))
+	for i, tp := range c.Templates {
+		switch bt, ok := mb[tp.Name]; {
+		case ok:
+			targs[i] = bt
+		case tp.Bound != "":
+			targs[i] = types.FromDoc(tp.Bound, nil)
+		}
+	}
+	return t.WithTypeArgs(`\`+cls, targs)
 }
 
 // bindStatic binds types whose declaration and receiver share a class context.
