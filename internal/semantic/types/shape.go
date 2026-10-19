@@ -384,15 +384,19 @@ func unionInfo(ts []Type) *arrayInfo {
 // ShapeString renders t with its array facts, for tests and debugging:
 // the atoms (as String) prefixed by "non-empty " when the array members are
 // known non-empty without a shape saying so, followed by the shape
-// `{a: int, b?: string}` (`...` when unsealed) and the element facts `<…>`.
+// `{a: int, b?: string}` (`...` when unsealed) and the element facts `<…>`;
+// a constrained int member reads `int<lo, hi>`.
 func (t Type) ShapeString() string {
 	base := t.String()
-	if len(t.gen) > 0 {
+	if len(t.gen) > 0 || t.ints != nil {
 		parts := make([]string, len(t.atoms))
 		for i, a := range t.atoms {
 			parts[i] = a
 			if args := t.TypeArgs(a); args != nil {
 				parts[i] = genString(a, args)
+			}
+			if a == "int" && t.ints != nil {
+				parts[i] = intsString(t.ints)
 			}
 		}
 		base = t.joinParts(parts)

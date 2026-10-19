@@ -18,12 +18,14 @@ import (
 // A type may also carry array facts (see shape.go) describing its array
 // members: per-key types, non-emptiness. They never change the atom set, so
 // atom-based checks (Has("array"), IsArrayLike, Atoms) behave as without
-// them; Equal and String ignore them (ShapeString shows them).
+// them; Equal and String ignore them (ShapeString shows them). The values
+// of the int atom (see ints.go) are kept the same way.
 type Type struct {
 	atoms []string   // sorted, unique; nil = unknown
 	arr   *arrayInfo // optional array facts; nil when none
 	gen   []genEntry // generic arguments of class atoms (see gen.go); nil when none
 	inter *[]string  // class atoms forming one intersection (see inter.go); nil when none
+	ints  []IntRange // values of the int atom (see ints.go); nil when unconstrained
 }
 
 // Common types.
@@ -130,6 +132,9 @@ func Union(ts ...Type) Type {
 	if info {
 		u = u.withInfo(unionInfo(ts))
 	}
+	if u.Has("int") {
+		u.ints = unionInts(ts)
+	}
 	return u.withGen(unionGen(u, ts)).withInter(unionInter(ts))
 }
 
@@ -150,7 +155,11 @@ func (t Type) Without(atoms ...string) Type {
 			out = append(out, a)
 		}
 	}
-	return Type{atoms: out}.withInfo(t.arr).withGen(t.gen).withInter(t.Intersection())
+	r := Type{atoms: out}.withInfo(t.arr).withGen(t.gen).withInter(t.Intersection())
+	if r.Has("int") {
+		r.ints = t.ints
+	}
+	return r
 }
 
 // Classes returns class atoms (with leading backslash, excluding T[] forms).

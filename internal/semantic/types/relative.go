@@ -102,6 +102,9 @@ func (r *relativeBinding) bind(t Type, depth int) (Type, bool) {
 	if changed {
 		out = Of(atoms...)
 		out.arr, out.gen, out.inter = t.arr, t.gen, t.inter
+		if out.Has("int") {
+			out.ints = t.ints
+		}
 	}
 	var gens []genEntry
 	for i, g := range t.gen {

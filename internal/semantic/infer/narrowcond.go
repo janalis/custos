@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -16,9 +17,9 @@ import (
 // `isset($x->p)`), `is_a()`, `is_subclass_of()` and strict `in_array()`.
 
 // truthyType is t where it is truthy: neither null nor false, `true` for
-// bool, a non-empty array.
+// bool, a non-empty array, an int with known values other than 0.
 func truthyType(t types.Type) types.Type {
-	return replaceAtom(t.Without("null", "false"), "bool", "true").WithNonEmpty(true)
+	return replaceAtom(t.Without("null", "false"), "bool", "true").WithNonEmpty(true).IntsWithout(0)
 }
 
 // replaceAtom replaces atom from of t by to (`bool` minus false is true).
@@ -36,6 +37,7 @@ func replaceAtom(t types.Type, from, to string) types.Type {
 // falsyType is t where it is falsy: `true` goes, bool becomes false.
 // Other members may hold falsy values (empty string, 0, [], null) and stay.
 func falsyType(t types.Type) types.Type {
+	t = t.IntsWithin(0, 0) // known int values: only 0 is falsy
 	if !t.Has("true") && !t.Has("bool") {
 		return t
 	}
@@ -202,6 +204,11 @@ func (e *Env) eqCond(t types.Type, c *syntax.Binary, name string, truthy bool, s
 
 // varCmp narrows the type t of a variable compared with other.
 func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.Type {
+	if v, ok := integerLiteral(other); ok {
+		if _, known := t.IntRanges(); known {
+			return intCmp(t, v, strict, holds)
+		}
+	}
 	lit := constLiteral(other)
 	if !strict {
 		switch {
@@ -251,6 +258,52 @@ func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.
 		out = replaceAtom(out, "bool", map[string]string{"true": "false", "false": "true"}[lit])
 	}
 	return out
+}
+
+// intCmp narrows t, whose int member has known values, compared with the
+// integer v: identical, only that int; equal, that int beside the other
+// members (which may loosely equal it); different, without v. A loose
+// difference from 0 also rules out null and false, which equal 0.
+func intCmp(t types.Type, v int64, strict, holds bool) types.Type {
+	switch {
+	case holds && strict:
+		if !t.HasInt(v) {
+			return types.Unknown // never identical: the branch does not run
+		}
+		return types.Ints(types.IntRange{Lo: v, Hi: v})
+	case holds:
+		return t.IntsWithin(v, v)
+	case !strict && v == 0:
+		return t.IntsWithout(0).Without("null", "false")
+	}
+	return t.IntsWithout(v)
+}
+
+// intOrder narrows t, whose int member has known values, by `x op v` (op a
+// relational operator, x the narrowed variable) holding when truthy.
+// Members other than int are kept: PHP compares them with v too.
+func intOrder(t types.Type, op syntax.TokenKind, v int64, truthy bool) types.Type {
+	if !truthy {
+		op = map[syntax.TokenKind]syntax.TokenKind{
+			syntax.TLess: syntax.TIsGreaterOrEqual, syntax.TIsGreaterOrEqual: syntax.TLess,
+			syntax.TGreater: syntax.TIsSmallerOrEqual, syntax.TIsSmallerOrEqual: syntax.TGreater,
+		}[op]
+	}
+	switch op {
+	case syntax.TLess:
+		if v == math.MinInt64 {
+			return t.Without("int")
+		}
+		return t.IntsWithin(math.MinInt64, v-1)
+	case syntax.TIsSmallerOrEqual:
+		return t.IntsWithin(math.MinInt64, v)
+	case syntax.TGreater:
+		if v == math.MaxInt64 {
+			return t.Without("int")
+		}
+		return t.IntsWithin(v+1, math.MaxInt64)
+	}
+	return t.IntsWithin(v, math.MaxInt64)
 }
 
 // isConstValue reports a literal or constant expression (whose value is

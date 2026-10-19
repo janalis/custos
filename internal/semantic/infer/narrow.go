@@ -155,7 +155,7 @@ func (e *Env) CallResultAsAt(c *syntax.FuncCall, at syntax.Expr, seed types.Type
 		if vt.IsUnknown() {
 			return vt // an impossible path
 		}
-		t = e.assertIs(t, vt)
+		t = e.assertIs(t, vt).IntsAlso(vt)
 	}
 	return t
 }

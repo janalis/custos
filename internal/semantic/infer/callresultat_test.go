@@ -1,6 +1,7 @@
 package infer_test
 
 import (
+	"math"
 	"strings"
 	"testing"
 
@@ -179,6 +180,57 @@ func TestCallResultStored(t *testing.T) {
 		return true
 	})
 	want := []string{"true", "bool", "bool"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("use %d: got %s want %s", i+1, got[i], want[i])
+		}
+	}
+}
+
+// Known int values narrow by truthiness, comparisons with integer literals
+// and relational tests: a fork result seeded as int<-1, max>.
+func TestCallResultInts(t *testing.T) {
+	src := `<?php
+function f() {
+    $pid = pcntl_fork(); if ($pid) { u(); }
+    $pid = pcntl_fork(); if ($pid === -1) { exit(1); } if ($pid) { u(); }
+    $pid = pcntl_fork(); if ($pid < 0) { exit(1); } u();
+    $pid = pcntl_fork(); if (0 < $pid) { u(); }
+    $pid = pcntl_fork(); if (!$pid) { u(); }
+    $pid = pcntl_fork(); if ($pid == -1) { return; } elseif ($pid) { u(); } else { u(); }
+    $pid = pcntl_fork(); if ($pid != 0) { u(); }
+    $pid = pcntl_fork(); if ($pid !== 3) { u(); }
+    $pid = pcntl_fork(); if ($pid === -2) { u(); }
+    $pid = pcntl_fork(); if ($pid >= 1) { } else { u(); }
+    $pid = pcntl_fork(); if ($pid <= 0) { u(); }
+    if (pcntl_fork() > 5) { u(); }
+}`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	seed := types.Ints(types.IntRange{Lo: -1, Hi: math.MaxInt64})
+	var last *syntax.FuncCall
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			switch c.Name.(*syntax.Name).Value {
+			case "u":
+				got = append(got, env.CallResultAsAt(last, c, seed).ShapeString())
+			case "pcntl_fork":
+				last = c
+			}
+		}
+		return true
+	})
+	want := []string{
+		"int<-1, -1>|int<1, max>", "int<1, max>", "int<0, max>", "int<1, max>", "int<0, 0>",
+		"int<1, max>", "int<0, 0>", "int<-1, -1>|int<1, max>", "int<-1, 2>|int<4, max>", "?unknown",
+		"int<-1, 0>", "int<-1, 0>", "int<6, max>",
+	}
 	if len(got) != len(want) {
 		t.Fatalf("got %v", got)
 	}
