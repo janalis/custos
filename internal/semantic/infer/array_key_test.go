@@ -179,3 +179,38 @@ function f($id, array $rows) {
 		"propCoalesce":  "?unknown",
 	})
 }
+
+// A list built by appends from an empty literal reads its integer keys as
+// the appended values; a string key, or a shape with listed keys, does not.
+func TestAppendedListElements(t *testing.T) {
+	checkAnywhere(t, `<?php
+function res(): ?string { return null; }
+/** @param list<object> $files */
+function f(array $files, int $n) {
+    $l = [];
+    foreach ($files as $file) {
+        if (null !== ($r = res())) { $l[] = $r; }
+    }
+    if ([] === $l) { return; }
+    t('first', $l[0]);
+    t('stringKey', $l['a']);
+    $m = [];
+    $m[] = 1;
+    $m[] = 'x';
+    t('mixedAppends', $m[1]);
+    $s = [];
+    $s[] = $n;
+    $s[3] = 'y';
+    t('withLiteral', $s[0]);
+    $u = [];
+    $u[] = $GLOBALS['x'];
+    t('unknownAppend', $u[0]);
+    $k = [1];
+    $k[] = 2;
+    t('listed', $k[5]);
+}
+`, map[string]string{
+		"first": "string", "stringKey": "?unknown", "mixedAppends": "int|string",
+		"withLiteral": "int", "unknownAppend": "?unknown", "listed": "?unknown",
+	})
+}

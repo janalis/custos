@@ -44,6 +44,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   TypeUnsafeComparison when compared to a string.
 - A `class-string<Foo>` value types `new $class`, `$class::method()` and a
   successful `$value instanceof $class` as `Foo`.
+- A list built with `$list[] = …` from an empty array types its integer-key
+  reads (`$list[0]`) as the appended values.
 
 ### Security
 

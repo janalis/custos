@@ -113,22 +113,26 @@ func (e *Env) shapeKeyOf(ct types.Type, key string, v *syntax.Variable) (types.T
 		// otherwise it is unknown, never the type of the other elements
 		// (`$rows = ['total' => 1]; $rows['meta']['s'] = 1;` does not make
 		// `$rows['meta']` an int).
-		if isVar && e.mayWriteKey(v, key) {
-			return e.widenKey(types.Of("never"), v, key), true
+		// On an empty literal (`$a = []; $a[] = $x;`) an integer key may
+		// also hold an appended value (or be missing, read as for `T[]`).
+		appends := len(ct.ShapeKeys()) == 0 && types.IsIntKey(key)
+		if isVar && e.mayWriteKey(v, key, appends) {
+			return e.widenKey(types.Of("never"), v, key, appends), true
 		}
 		return types.Unknown, true
 	}
 	if isVar {
-		kt = e.widenKey(kt, v, key)
+		kt = e.widenKey(kt, v, key, false)
 	}
 	return kt, true
 }
 
 // mayWriteKey reports whether a write reaching variable v may store a
 // known value into its element `key`: a direct write with that literal key
-// or with a computed key, and no nested, unknown or (for an integer key)
-// appending write that would leave its value unknown.
-func (e *Env) mayWriteKey(v *syntax.Variable, key string) bool {
+// or with a computed key, or an append when appends is set, and no nested,
+// unknown or (for an integer key, without appends) appending write that
+// would leave its value unknown.
+func (e *Env) mayWriteKey(v *syntax.Variable, key string, appends bool) bool {
 	ws, _ := e.reachingWrites(v)
 	may := false
 	for _, w := range ws {
@@ -140,7 +144,11 @@ func (e *Env) mayWriteKey(v *syntax.Variable, key string) bool {
 		}
 		d := w.dim()
 		switch k, ok := literalKey(d); {
-		case !w.known(), d == nil && types.IsIntKey(key):
+		case !w.known():
+			return false
+		case d == nil && appends:
+			may = true
+		case d == nil && types.IsIntKey(key):
 			return false
 		case d == nil || (ok && k != key):
 		default:
@@ -152,9 +160,10 @@ func (e *Env) mayWriteKey(v *syntax.Variable, key string) bool {
 
 // widenKey unions the type kt of key `key` of variable v with the values
 // written into that key by the writes reaching v: writes to the same
-// literal key or to a computed key; a nested write (`$a['key'][…] = …`) or
-// a destructuring write makes it unknown.
-func (e *Env) widenKey(kt types.Type, v *syntax.Variable, key string) types.Type {
+// literal key or to a computed key, and appends when appends is set; a
+// nested write (`$a['key'][…] = …`) or a destructuring write makes it
+// unknown.
+func (e *Env) widenKey(kt types.Type, v *syntax.Variable, key string, appends bool) types.Type {
 	ws, back := e.reachingWrites(v)
 	if len(ws) == 0 {
 		return kt
@@ -171,10 +180,10 @@ func (e *Env) widenKey(kt types.Type, v *syntax.Variable, key string) types.Type
 			return types.Unknown
 		}
 		d := w.dim()
-		if d == nil {
+		if d == nil && !appends {
 			continue // `$a[] = v` appends a new key
 		}
-		if k, ok := literalKey(d); ok && k != key {
+		if k, ok := literalKey(d); d != nil && ok && k != key {
 			continue
 		}
 		if w.a != nil && w.a.ByRef {
