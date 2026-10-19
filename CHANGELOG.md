@@ -88,6 +88,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   and the nonblocking-stream checks) read its success from type narrowing:
   `call() or exit;`, a result kept in a boolean and tested later, `elseif`
   and ternary arms now count.
+- ConnectTimeoutAssumedToBoundReads reads a checked `stream_set_timeout()`
+  through type narrowing: `stream_set_timeout($s, 2) or exit;` and a result
+  kept in a boolean now count.
 
 ### Fixed
 
@@ -105,6 +108,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   before 8.0, where `throw` is not an expression.
 - A silenced test (`if (@$x)`) narrows `$x` like the plain test;
   XslTransformationFailureConsumed no longer reports output it guards.
+- The checks that need a proof treat a strict comparison with a constant of
+  a type the declaration rules out (`$flag === 1` for a `bool`) as a branch
+  that never runs, not as a proof.
 - A true `array_key_exists($key, $a)` narrows `$a` to an array whatever the
   key, not only for a literal one.
 - `is_array($x) || isset($x['k'])` narrows `$x` to an array: a key probe on

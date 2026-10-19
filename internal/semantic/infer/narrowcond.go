@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -224,6 +225,12 @@ func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.
 		// `$x === 'a'`, `$x === Kind::A`: the constant's type.
 		if holds {
 			if vt, ok := e.constValueType(other); ok {
+				if e.native && !slices.ContainsFunc(t.Atoms(), func(x string) bool { return e.atomIn(x, vt) }) {
+					// Declarations hold in the native environment: identical
+					// to a constant of a type the value cannot have, the
+					// branch never runs.
+					return types.Unknown
+				}
 				return e.assertIs(t, vt)
 			}
 			// `$x === $known`: identical to a value that is never null.

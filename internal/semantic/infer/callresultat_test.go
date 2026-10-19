@@ -21,7 +21,7 @@ function f($h, $c) {
     flock($h, LOCK_EX) or exit(1); u();
     if (!@flock($h, LOCK_EX)) { return; } u();
     if (($ok = flock($h, LOCK_EX)) === false) { return; } u();
-    $ok = flock($h, LOCK_EX); if (!$ok) { return; } u();
+    $ok = @flock($h, LOCK_EX); if (!$ok) { return; } u();
     $ok = flock($h, LOCK_EX); $ok = $c; if (!$ok) { return; } u();
     flock($h, LOCK_EX); if (flock($h, LOCK_SH)) { u(); }
     if (flock($h, LOCK_EX)) { echo 1; } u();
@@ -85,5 +85,30 @@ function f($h) { u(); if (flock($h, LOCK_EX)) { $g = function () { u(); }; } }`
 		if r := env.CallResultAt(lock, u); !r.IsUnknown() {
 			t.Errorf("use %d: got %s", i+1, r)
 		}
+	}
+}
+
+// Identical to a constant of a type its declaration rules out, a value
+// reaches no code in the native environment; the resolved one keeps the
+// constant's type, as documented types may be wrong.
+func TestDisjointIdentity(t *testing.T) {
+	src := `<?php
+function f(bool $b) { if ($b === 1) { u($b); } }`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	resolved := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	for _, tc := range []struct {
+		env  *infer.Env
+		want string
+	}{{resolved.Native(), "?unknown"}, {resolved, "int"}} {
+		syntax.InspectFile(f, func(n syntax.Node) bool {
+			if c, ok := n.(*syntax.FuncCall); ok && c.Name.(*syntax.Name).Value == "u" {
+				if got := tc.env.TypeOf(c.Args.Args[0].(*syntax.Arg).Value).String(); got != tc.want {
+					t.Errorf("got %s want %s", got, tc.want)
+				}
+			}
+			return true
+		})
 	}
 }

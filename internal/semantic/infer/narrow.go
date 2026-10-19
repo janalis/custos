@@ -103,7 +103,15 @@ func callMatches(x syntax.Expr, name string) bool {
 	if !ok {
 		return false
 	}
-	c, ok := syntax.UnwrapParens(x).(*syntax.FuncCall)
+	x = syntax.UnwrapParens(x)
+	for {
+		u, silenced := x.(*syntax.Unary)
+		if !silenced || u.Op.Kind != syntax.TAt {
+			break
+		}
+		x = syntax.UnwrapParens(u.Expr) // `@f()` is f()'s result
+	}
+	c, ok := x.(*syntax.FuncCall)
 	if !ok {
 		return false
 	}
