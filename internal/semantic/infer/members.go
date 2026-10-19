@@ -22,6 +22,30 @@ func (e *Env) selfClass(c *syntax.ClassLike) string {
 	return e.ClassFQN(c)
 }
 
+// traitPropertyType types `$this->p` inside a trait, where `$this` has no
+// class of its own, from the trait's declaration of p: a class using the
+// trait cannot declare p again with another type (unlike its methods, which
+// the class may replace). Unknown otherwise, and when the type names the
+// trait itself (`self` there stands for the using class).
+func (e *Env) traitPropertyType(n *syntax.PropertyFetch) types.Type {
+	v, ok := syntax.UnwrapParens(n.Var).(*syntax.Variable)
+	id, named := n.Name.(*syntax.Identifier)
+	c := syntax.EnclosingClass(n)
+	if !ok || !named || v.Name != "this" || c == nil || c.ClassKind != syntax.KindTrait {
+		return types.Unknown
+	}
+	fqn := e.ClassFQN(c)
+	p := e.Index.FindProperty(fqn, id.Value, e.PHP)
+	if p == nil || p.Magic || p.Static {
+		return types.Unknown
+	}
+	t := e.propType(p, fqn)
+	if t.Has(`\` + fqn) {
+		return types.Unknown
+	}
+	return t
+}
+
 // classRef resolves a class reference expression (Name or expression) to a FQN.
 func (e *Env) classRef(x syntax.Expr) string {
 	switch n := x.(type) {

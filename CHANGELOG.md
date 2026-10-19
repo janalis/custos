@@ -35,6 +35,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `new` gives a generic class the template arguments its constructor's
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.
+- Inside a trait, `$this->property` takes the type the trait declares for it,
+  so calls and checks on trait properties are typed.
 
 ### Security
 

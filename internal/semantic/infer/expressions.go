@@ -141,7 +141,11 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.StaticCall:
 		return e.staticCallType(n)
 	case *syntax.PropertyFetch:
-		t := e.propertyType(e.chainReceiver(n.Var, n.NullSafe), n.Name, false)
+		recv := e.chainReceiver(n.Var, n.NullSafe)
+		t := e.propertyType(recv, n.Name, false)
+		if recv.IsUnknown() {
+			t = e.traitPropertyType(n)
+		}
 		if key := narrowKey(n); key != "" {
 			t = e.narrowExpr(t, n, key, syntax.EnclosingVariableScope(n))
 		}
