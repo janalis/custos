@@ -72,7 +72,45 @@ func (e *Env) NarrowedFrom(x syntax.Expr, seed types.Type) types.Type {
 	if carried {
 		parts = append(parts, e.narrowExprAfter(seed, v, v.Name, scope, backAfter))
 	}
-	return types.Union(parts...)
+	t := types.Union(parts...)
+	if src, a := e.copiedFrom(v, scope); src != "" && !t.IsUnknown() {
+		// `$tag = $_POST['tag']; if (strlen($_POST['tag']) !== 16) { … }`:
+		// the source, unchanged since the copy, was tested.
+		st := e.narrowExprAfter(seed, v, src, scope, a.Span().End)
+		t = e.assertIs(t, st).IntsAlso(st).LengthsAlso(st)
+	}
+	return t
+}
+
+// copiedFrom returns the narrowing key of what read v copies (a local, a
+// member or a literal-key element), with the plain assignment making the
+// copy, when that assignment is the only definition reaching v and the
+// source cannot have changed since: tests of the source made after the
+// copy apply to v.
+func (e *Env) copiedFrom(v *syntax.Variable, scope syntax.Node) (string, *syntax.Assign) {
+	a := e.onlyAssign(v.Name, v, scope)
+	if a == nil {
+		return "", nil
+	}
+	src := narrowKey(syntax.UnwrapParens(a.Value))
+	from := a.Span().End
+	switch {
+	case src == "" || src == v.Name:
+		return "", nil
+	case isDimKey(src):
+		if e.dimBroken(scope, src, from, v) {
+			return "", nil
+		}
+	case isPropKey(src):
+		if e.nonEmptyBroken(scope, src, from, v) {
+			return "", nil
+		}
+	default:
+		if e.brokenBy(scope, from, v, e.mutations(scope, src)) {
+			return "", nil
+		}
+	}
+	return src, a
 }
 
 // narrowKey identifies an expression whose type guards can refine: a
@@ -416,18 +454,18 @@ func (e *Env) narrowExprAfter(t types.Type, x syntax.Expr, key string, scope syn
 		case *syntax.MatchArm:
 			t = e.matchArm(x, scope, t, n, child, key, after)
 		case *syntax.Block:
-			t = e.guards(x, scope, t, n, n.Stmts, child, key)
+			t = e.guards(x, scope, t, n, n.Stmts, child, key, after)
 		case *syntax.Case:
-			t = e.guards(x, scope, t, n, n.Stmts, child, key)
+			t = e.guards(x, scope, t, n, n.Stmts, child, key, after)
 			if child != syntax.Node(n.Cond) {
 				t = e.switchCase(x, scope, t, n, key, after)
 			}
 		case *syntax.Namespace:
-			t = e.guards(x, scope, t, n, n.Stmts, child, key)
+			t = e.guards(x, scope, t, n, n.Stmts, child, key, after)
 		}
 	}
 	if scope == nil {
-		t = e.guards(x, scope, t, nil, e.File.Stmts, child, key)
+		t = e.guards(x, scope, t, nil, e.File.Stmts, child, key, after)
 	}
 	return t
 }
@@ -496,7 +534,16 @@ func (e *Env) dimBroken(scope syntax.Node, key string, from uint32, use syntax.N
 	if b := propBase(base); b != "" && e.nonEmptyBroken(scope, b, from, use) {
 		return true
 	}
+	if e.native && superglobals[base] && e.brokenBy(scope, from, use, e.mutations(scope, anyCall)) {
+		return true // where facts are proofs, any call of the project may write it
+	}
 	return e.brokenBy(scope, from, use, e.mutations(scope, key), e.mutations(scope, dimKey(base, "*")))
+}
+
+// superglobals are the variables every function can write.
+var superglobals = map[string]bool{
+	"GLOBALS": true, "_SERVER": true, "_GET": true, "_POST": true, "_FILES": true,
+	"_COOKIE": true, "_SESSION": true, "_REQUEST": true, "_ENV": true,
 }
 
 // applyKeyCond narrows the array t of variable (or `$this->prop`) name by

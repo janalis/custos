@@ -103,6 +103,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - ExitStatusReadWithoutNormalExitCheck reads the wait result through integer
   narrowing: after a blocking wait, which never returns 0, `$r >= 0` and
   `$r > -1` prove the wait succeeded.
+- AeadDecryptionTagLengthUnchecked reads the tag length from type
+  narrowing: a loose `strlen()` comparison, a test inside a loop that never
+  writes the tag and any guarding position now count; a call of the project
+  between the test and a request tag ends the proof.
 - ConnectTimeoutAssumedToBoundReads reads a checked `stream_set_timeout()`
   through type narrowing: `stream_set_timeout($s, 2) or exit;` and a result
   kept in a boolean now count.
@@ -126,6 +130,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The checks that need a proof treat a strict comparison with a constant of
   a type the declaration rules out (`$flag === 1` for a `bool`) as a branch
   that never runs, not as a proof.
+- A guard written before a variable is assigned in a later condition
+  (`if ($x = f())`) no longer narrows the new value.
 - A comparison of `strlen($x)` with an integer that rules out length 0
   rules out null and false for `$x` (`strlen($p) > 0` after `parse_url()`).
 - A true `array_key_exists($key, $a)` narrows `$a` to an array whatever the

@@ -15,7 +15,9 @@ import (
 // NarrowedFrom narrows a type assumed for a read by its guards, whatever the
 // read's declared type: request data tested for its length, a member, a
 // value carried around a loop, and locals the narrowing cannot follow. An
-// untyped receiver's property may run code when read: no proof.
+// untyped receiver's property may run code when read: no proof. A call of
+// the project may write a superglobal; a copy carries the tests of its
+// unchanged source.
 func TestNarrowedFrom(t *testing.T) {
 	src := `<?php
 function f($o, $n) {
@@ -34,6 +36,10 @@ function f($o, $n) {
     if (strlen($s) === $n) { u($s); }
     if (u(1)) {}
     if (strlen($s) > 9223372036854775807) { u($s); }
+    if (strlen($_POST['k']) === 2) { refresh(); u($_POST['k']); }
+    if (strlen($_POST['k']) === 2) { strtolower('x'); u($_POST['k']); }
+    $c = $_POST['c']; if (strlen($_POST['c']) === 5) { u($c); }
+    $c = $_POST['c']; $_POST['c'] = $n; if (strlen($_POST['c']) === 5) { u($c); }
     $p = $n; extract($_GET); if (strlen($p) === 3) { u($p); }
 }`
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
@@ -49,7 +55,8 @@ function f($o, $n) {
 	})
 	want := []string{
 		"string<len 16, 16>", "string", "string<len 4, max>", "string", "string<len 3, max>", "string<len 3, 3>",
-		"string", "string", "string", "string", "string", "string", "?unknown", "?unknown",
+		"string", "string", "string", "string", "string", "string", "?unknown",
+		"string", "string<len 2, 2>", "string<len 5, 5>", "string", "?unknown",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %v", got)

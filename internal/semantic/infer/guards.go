@@ -14,7 +14,7 @@ import (
 // guards applies early-exit guards among the statements preceding child
 // in stmts (the statements of owner; nil: the file). Only the statements
 // that can matter for name are visited (see guardIndex).
-func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syntax.Node, stmts []syntax.Stmt, child syntax.Node, name string) types.Type {
+func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syntax.Node, stmts []syntax.Stmt, child syntax.Node, name string, after uint32) types.Type {
 	gi := e.guardIndexOf(owner, stmts)
 	end, ok := gi.pos[child]
 	if !ok {
@@ -37,6 +37,9 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 	}
 	for _, i := range cands {
 		s := stmts[i]
+		if s.Span().End <= after {
+			continue // before the definition reaching use: about another value
+		}
 		if es, ok := s.(*syntax.ExprStmt); ok {
 			// `Assert::string($x);` (@phpstan-assert on the callee).
 			if ca := e.assertsOf(es.Expr); ca != nil {
