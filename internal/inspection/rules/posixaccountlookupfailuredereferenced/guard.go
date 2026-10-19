@@ -20,7 +20,9 @@ type guard struct {
 // covers walks the enclosing conditions and the earlier aborting statements
 // of every enclosing statement list, up to the variable scope.
 func (g guard) covers() bool {
-	if _, ok := syntax.UnwrapParens(g.target).(*syntax.Variable); !ok {
+	switch syntax.UnwrapParens(g.target).(type) {
+	case *syntax.Variable, *syntax.PropertyFetch:
+	default:
 		return false
 	}
 	var child syntax.Node = g.target
@@ -126,7 +128,7 @@ func (g guard) branch(x *syntax.If, at syntax.Span) bool {
 // proves reports whether cond evaluating to truth excludes the failure value.
 func (g guard) proves(cond syntax.Expr, truth bool) bool {
 	switch x := syntax.UnwrapParens(cond).(type) {
-	case *syntax.Variable:
+	case *syntax.Variable, *syntax.PropertyFetch:
 		return truth && g.same(x)
 	case *syntax.Assign:
 		// `$info = posix_getpwnam(...)` used as a condition tests the result.
@@ -181,6 +183,11 @@ func (g guard) comparesFalse(b *syntax.Binary) bool {
 func (g guard) same(e syntax.Expr) bool {
 	if e == nil || e.Span().Start < g.call.Span().End || !astquery.Equivalent(g.ctx.File, e, g.target) {
 		return false
+	}
+	if _, property := syntax.UnwrapParens(e).(*syntax.PropertyFetch); property {
+		// The flow does not follow properties: nothing between the two
+		// reads may change this one.
+		return semanticquery.NativePropertyUnchanged(g.ctx, e, g.target)
 	}
 	tested, read := g.ctx.Flow().Value(e), g.ctx.Flow().Value(g.target)
 	return tested.Expr == read.Expr && semanticquery.NativeUnreplaced(g.ctx, e, g.target)

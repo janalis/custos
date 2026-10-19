@@ -7,6 +7,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Look into functions of the same file up to four calls deep when deciding
+  whether a call may refill a request superglobal in UnescapedHtmlOutput,
+  instead of stopping at the first callee.
+
+- Trust a truthiness or comparison guard on a property in
+  ParseUrlFailureDereferenced and PosixAccountLookupFailureDereferenced when
+  reading the property runs no code and nothing between the test and the read
+  may change it.
+
 - Report a `query-budget` analysis gap when a call history, a guard walk or
   an error-handler scan stops at its work bound, instead of answering
   conservatively without saying so.

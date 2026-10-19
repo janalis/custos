@@ -644,6 +644,8 @@ type Env struct {
 	consulted   map[string]bool
 	scopes      map[syntax.Node]*scopeResult
 	localBodies map[string]syntax.Node
+	// nested holds the functions nestedSpares is looking into.
+	nested map[syntax.Node]bool
 	// global caches the file's function-bound global names once scanned, and
 	// globalTaint the request data those functions write to them.
 	global       map[string]bool

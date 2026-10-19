@@ -267,6 +267,7 @@ func TestCallsThatSpareTheRequestTables(t *testing.T) {
 		function through() { log_it('x'); }
 		function through_fill() { fill(); }
 		function again($n) { again($n - 1); }
+		function chain1() { chain2(); } function chain2() { chain3(); } function chain3() { chain4(); } function chain4() { chain5(); } function chain5() { chain6(); } function chain6() { log_it('x'); }
 		function by_reference(&$a) { }
 		function maker() { return function () { $_GET['a'] = 1; }; }
 		function outer() { function inner() { $_GET['a'] = 1; } }
@@ -315,7 +316,9 @@ func TestCallsThatSpareTheRequestTables(t *testing.T) {
 		{"function that names the globals table", `table();`, phpversion.Max, false},
 		{"function that evaluates code", `evaluated($a);`, phpversion.Max, false},
 		{"function that includes a file", `included($a);`, phpversion.Max, false},
-		{"function that calls one of the project", `through();`, phpversion.Max, false},
+		{"function that calls one of the project", `through();`, phpversion.Max, true},
+		{"calls past the bound", `chain1();`, phpversion.Max, false},
+		{"calls within the bound", `chain3();`, phpversion.Max, true},
 		{"function that calls one that writes", `through_fill();`, phpversion.Max, false},
 		{"function that calls itself", `again(3);`, phpversion.Max, false},
 		{"function taking a reference", `by_reference($a);`, phpversion.Max, false},

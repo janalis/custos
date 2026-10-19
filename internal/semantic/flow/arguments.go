@@ -495,7 +495,7 @@ func (e *Env) spares(call syntax.Node, followed uint8, within bool) bool {
 			return name != "create_function" && !runner(name) && !loads(name, n.Args) && !e.callbackGiven(n.Args, f.Params)
 		}
 		if within {
-			return false
+			return e.nestedSpares(f)
 		}
 		summary, ok := e.contract(strings.ToLower(f.FQN))
 		return ok && summary.Spares && !referenced(f.Params) && len(ix.FunctionDecls(f.FQN, e.types.PHP)) == 1
@@ -681,6 +681,27 @@ func (e *Env) sparesTables(scope, body syntax.Node) bool {
 	}
 	syntax.Inspect(body, look)
 	return spared
+}
+
+// maxNested bounds how many calls deep nestedSpares looks.
+const maxNested = 4
+
+// nestedSpares looks into a function of the file that a body being
+// summarized calls, so that a summary still depends on no other: the function
+// must be declared once, unconditionally, take nothing by reference, and its
+// own body must spare the tables, a few calls deep. A call that comes back
+// to a body being looked into is taken to fill them.
+func (e *Env) nestedSpares(f *index.Function) bool {
+	declaration := e.localBody(strings.ToLower(strings.TrimPrefix(f.FQN, `\`)))
+	if declaration == nil || referenced(f.Params) || len(e.types.Index.FunctionDecls(f.FQN, e.types.PHP)) != 1 || len(e.nested) >= maxNested || e.nested[declaration] {
+		return false
+	}
+	if e.nested == nil {
+		e.nested = map[syntax.Node]bool{}
+	}
+	e.nested[declaration] = true
+	defer delete(e.nested, declaration)
+	return e.sparesTables(declaration, syntax.VariableScopeBody(declaration))
 }
 
 // replaced reports that a class of the project extending the receiver's
