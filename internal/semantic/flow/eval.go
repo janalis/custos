@@ -56,7 +56,7 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 			}
 		}
 		leaving(f, r)
-		f.states[outputID] = State{Operation: "echo", Span: n.Span()}
+		f.setState(outputID, State{Operation: "echo", Span: n.Span()})
 	case *syntax.Global:
 		for _, x := range n.Vars {
 			// The name leaves what it was bound to for the global variable.
@@ -278,7 +278,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			f.definite = false
 			f.related = nil
 			f.vars = map[string]Value{}
-			f.states = map[uint32]State{}
+			f.states = nil
 			v = Value{}
 			r.complete = false
 		}
@@ -732,7 +732,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		f.definite = false
 		f.related = nil
 		f.vars = map[string]Value{}
-		f.states = map[uint32]State{}
+		f.states = nil
 		v = Value{}
 		r.complete = false
 		r.gap("dynamic-code", x.Span())
@@ -1283,25 +1283,25 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 		switch name {
 		case "session_start", "session_write_close", "session_commit", "session_abort", "session_destroy":
-			f.states[sessionID] = State{Operation: name, Span: n.Span()}
+			f.setState(sessionID, State{Operation: name, Span: n.Span()})
 		case "http_response_code":
-			f.states[responseID] = State{Operation: name, Span: n.Span()}
+			f.setState(responseID, State{Operation: name, Span: n.Span()})
 		case "flush", "ob_end_flush":
 			if _, output := f.states[outputID]; output {
 				if _, buffering := f.states[bufferID]; !buffering || name == "ob_end_flush" {
-					f.states[committedID] = State{Operation: name, Span: n.Span()}
+					f.setState(committedID, State{Operation: name, Span: n.Span()})
 				}
 			}
 			if name == "ob_end_flush" {
 				delete(f.states, bufferID)
 			}
 		case "ob_start":
-			f.states[bufferID] = State{Operation: name, Span: n.Span()}
+			f.setState(bufferID, State{Operation: name, Span: n.Span()})
 		case "ob_end_clean":
 			delete(f.states, bufferID)
 		case "header":
 			if text, known := literalText(first.Expr); known && strings.HasPrefix(strings.ToLower(text), "set-cookie:") {
-				f.states[cookieID] = State{Operation: name, Span: n.Span()}
+				f.setState(cookieID, State{Operation: name, Span: n.Span()})
 			}
 		}
 	} else {
@@ -1317,7 +1317,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		}
 	}
 	if v.Identity != 0 {
-		f.states[v.Identity] = State{Operation: name, Span: n.Span()}
+		f.setState(v.Identity, State{Operation: name, Span: n.Span()})
 	}
 	id := rv.Identity
 	if receiver == nil {
@@ -1325,7 +1325,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	}
 	if id != 0 {
 		if builtin {
-			f.states[id] = State{Operation: name, Span: n.Span()}
+			f.setState(id, State{Operation: name, Span: n.Span()})
 		} else {
 			delete(f.states, id)
 		}
@@ -2413,8 +2413,11 @@ func propertyTarget(target syntax.Expr) bool {
 // never holds an array with an object in it either.
 func (e *Env) declared(scope syntax.Node) map[string]static {
 	if known, read := e.statics[scope]; read {
+		e.depend(e.staticReads[scope])
 		return known
 	}
+	reads := e.begin()
+	defer e.end(reads)
 	body := syntax.VariableScopeBody(scope)
 	known := map[string]static{}
 	syntax.Inspect(body, func(n syntax.Node) bool {
@@ -2505,6 +2508,12 @@ func (e *Env) declared(scope syntax.Node) map[string]static {
 		e.statics = map[syntax.Node]map[string]static{}
 	}
 	e.statics[scope] = known
+	if reads != nil {
+		if e.staticReads == nil {
+			e.staticReads = map[syntax.Node]map[string]bool{}
+		}
+		e.staticReads[scope] = reads
+	}
 	return known
 }
 

@@ -240,6 +240,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   names and method signatures are indexed. Availability tags in application
   documentation no longer impose PHP version restrictions.
 
+### Changed
+
+- Re-analysis after an edit is faster: a file's functions are analysed once
+  for both its summaries and its findings, a function's summary is computed
+  before the callers in the same file that read it, and results that read no
+  changed summary are kept. In the editor, analysis gaps are now reported for
+  every function of the file, as on the command line.
+
 ## [0.1.5] - 2026-10-14
 
 ### Added

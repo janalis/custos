@@ -26,7 +26,7 @@ func TestNativeCallbackLiteralReachability(t *testing.T) {
 			syntax.InspectFile(f, func(n syntax.Node) bool {
 				if c, ok := n.(*syntax.FuncCall); ok {
 					checked = true
-					if got := NativeCallbackReachable(c); got != tc.want {
+					if got := nativeCallbackReachable(c); got != tc.want {
 						t.Fatalf("got %v, want %v", got, tc.want)
 					}
 				}
@@ -51,7 +51,7 @@ func BenchmarkNativeCallbackReachable(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		NativeCallbackReachable(call)
+		nativeCallbackReachable(call)
 	}
 }
 

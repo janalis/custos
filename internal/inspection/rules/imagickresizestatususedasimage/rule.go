@@ -21,7 +21,7 @@ func (rule) Kinds() []syntax.NodeKind {
 }
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
 	var e syntax.Expr

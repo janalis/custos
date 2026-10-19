@@ -31,6 +31,7 @@ type Context struct {
 	types       *infer.Env
 	flow        *flow.Env
 	memo        map[string]any
+	shared      map[any]any
 	globalCalls map[*syntax.FuncCall]globalCallResolution
 	// truncated is set once MaxFindingsPerFile findings were collected.
 	truncated bool

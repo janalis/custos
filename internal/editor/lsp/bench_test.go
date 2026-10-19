@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"os"
+	"runtime"
 	"sort"
 	"testing"
 	"time"
@@ -29,6 +30,9 @@ func TestEditLatency(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
+	// The server samples no heap allocations (see cli.Run).
+	defer func(rate int) { runtime.MemProfileRate = rate }(runtime.MemProfileRate)
+	runtime.MemProfileRate = 0
 	e, err := analysis.NewEngine(catalogue.All(), analysis.Config{PHP: phpversion.PHP84})
 	if err != nil {
 		t.Fatal(err)

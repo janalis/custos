@@ -63,7 +63,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		name := use.Var.Name
 		write, returns, read := false, false, false
 		syntax.Inspect(cl.Body, func(x syntax.Node) bool {
-			if !semanticquery.NativeCallbackReachable(x) {
+			if !semanticquery.NativeCallbackReachable(ctx, x) {
 				return false
 			}
 			switch z := x.(type) {

@@ -28,7 +28,7 @@ func ExpansionDFinalOutcome(ctx *analysis.Context, body syntax.Stmt, success boo
 		}
 		body = b.Stmts[len(b.Stmts)-1]
 	}
-	if !NativeCallbackReachable(body) {
+	if !NativeCallbackReachable(ctx, body) {
 		return false
 	}
 	if st, ok := body.(*syntax.ExprStmt); ok {

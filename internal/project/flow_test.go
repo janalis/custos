@@ -47,8 +47,8 @@ func TestFlowSnapshotSourcesAndBoundedComposition(t *testing.T) {
 	if !fromDisk.Equal(fromBuffer) {
 		t.Fatal("disk and supplied source summaries differ")
 	}
-	// A chain longer than the composition budget must stop conservatively,
-	// rather than recurse indefinitely or retain parser trees in the snapshot.
+	// The functions of one file are summarized callee first: a chain of
+	// them composes in one round, however long.
 	var chain strings.Builder
 	chain.WriteString("<?php function f0() { return $_GET['value']; }")
 	for i := 1; i < 12; i++ {
@@ -57,6 +57,23 @@ func TestFlowSnapshotSourcesAndBoundedComposition(t *testing.T) {
 	ix.Add(ExtractSymbols(path, []byte(chain.String()), opt))
 	long := BuildFlowSnapshot([]string{path}, [][]byte{[]byte(chain.String())}, opt, ix)
 	if long == nil || long.Equal(fromDisk) {
-		t.Fatal("bounded composition did not retain distinct wrapper summaries")
+		t.Fatal("composition did not retain distinct wrapper summaries")
+	}
+	// A chain across files takes a round per file: one longer than the
+	// composition budget must stop conservatively, rather than recurse
+	// indefinitely or retain parser trees in the snapshot.
+	var paths []string
+	var srcs [][]byte
+	for i := range 12 {
+		src := fmt.Sprintf("<?php function g%d() { return g%d(); }", i, i-1)
+		if i == 0 {
+			src = "<?php function g0() { return $_GET['value']; }"
+		}
+		paths = append(paths, filepath.Join(root, fmt.Sprintf("g%d.php", i)))
+		srcs = append(srcs, []byte(src))
+		ix.Add(ExtractSymbols(paths[i], srcs[i], opt))
+	}
+	if BuildFlowSnapshot(paths, srcs, opt, ix) == nil {
+		t.Fatal("bounded composition returned no snapshot")
 	}
 }

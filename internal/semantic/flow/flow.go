@@ -4,6 +4,7 @@ package flow
 
 import (
 	"cmp"
+	"maps"
 	"sort"
 	"strings"
 
@@ -641,7 +642,17 @@ type Env struct {
 	types    *infer.Env
 	snapshot *Snapshot
 	// consulted records the contracts read while summaries are extracted.
-	consulted   map[string]bool
+	consulted map[string]bool
+	// answers holds what those contracts gave, and summarizing the state of
+	// the summaries being computed, which serve the file's own.
+	answers     map[string]answer
+	summarizing *summarizing
+	// reading holds, innermost last, the contracts each result being
+	// computed read meanwhile; globalReads and staticReads those the cached
+	// globals and static variable facts were computed from.
+	reading     []map[string]bool
+	globalReads map[string]bool
+	staticReads map[syntax.Node]map[string]bool
 	scopes      map[syntax.Node]*scopeResult
 	localBodies map[string]syntax.Node
 	// nested holds the functions nestedSpares is looking into.
@@ -675,11 +686,14 @@ type scopeResult struct {
 	originContracts map[string]bool
 	generator       bool
 	values          map[syntax.Expr]Value
-	before          map[syntax.Node]map[uint32]State
-	calls           []Call
-	returns         []Value
-	callIndex       map[syntax.Node]int
-	complete        bool
+	// reads names the contracts the result was computed from, with those of
+	// the results and facts it read; nil when Summarize did not compute it.
+	reads     map[string]bool
+	before    map[syntax.Node]map[uint32]State
+	calls     []Call
+	returns   []Value
+	callIndex map[syntax.Node]int
+	complete  bool
 	// stale lists the assignments tested in place in a short-circuit
 	// operand whose earlier result can reach the path that skips them.
 	stale map[*syntax.Assign]bool
@@ -1247,13 +1261,7 @@ func equal(v, w Value) bool {
 }
 
 func clone(f frame) frame {
-	n := frame{owner: f.owner, vars: make(map[string]Value, len(f.vars)), states: map[uint32]State{}, definite: f.definite, wild: f.wild, related: f.related}
-	for k, v := range f.vars {
-		n.vars[k] = v
-	}
-	for k, v := range f.states {
-		n.states[k] = v
-	}
+	n := frame{owner: f.owner, vars: maps.Clone(f.vars), states: maps.Clone(f.states), definite: f.definite, wild: f.wild, related: f.related}
 	if len(f.aliased) > 0 {
 		n.aliased = make(map[string]uint32, len(f.aliased))
 		for k, group := range f.aliased {
@@ -1261,6 +1269,15 @@ func clone(f frame) frame {
 		}
 	}
 	return n
+}
+
+// setState records the state of the resource or output identity id; a frame
+// without any keeps no map.
+func (f *frame) setState(id uint32, s State) {
+	if f.states == nil {
+		f.states = map[uint32]State{}
+	}
+	f.states[id] = s
 }
 
 // alias records a name whose storage is shared outside the tracked bindings.
@@ -1363,7 +1380,7 @@ func (f *frame) through(r *scopeResult, v Value) {
 func (f *frame) forget(r *scopeResult) {
 	f.definite = false
 	f.unsettle(r, Value{})
-	f.states = map[uint32]State{}
+	f.states = nil
 }
 
 // unsettle makes every binding unknown, keeping its request data and adding

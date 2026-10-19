@@ -12,7 +12,7 @@ import (
 
 // CheckInterfaceInstantiation applies the independent interface contract.
 func CheckInterfaceInstantiation(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	construct := n.(*syntax.New)
@@ -24,7 +24,7 @@ func CheckInterfaceInstantiation(ctx *analysis.Context, n syntax.Node, message s
 
 // CheckCatchCannotHandleKnownThrowable checks a directly known thrown type.
 func CheckCatchCannotHandleKnownThrowable(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	caught := n.(*syntax.Catch)
@@ -376,7 +376,7 @@ func expansionLanguageFallsThrough(ctx *analysis.Context, stmt syntax.Stmt, fact
 
 // CheckNonVoidFunctionFallsThrough proves a typed function's normal exit.
 func CheckNonVoidFunctionFallsThrough(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || ctx.PHP < phpversion.PHP70 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || ctx.PHP < phpversion.PHP70 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	var typ syntax.Expr
@@ -404,7 +404,7 @@ func CheckNonVoidFunctionFallsThrough(ctx *analysis.Context, n syntax.Node, mess
 
 // CheckAssertionContainsRequiredSideEffect finds an assertion-only definition.
 func CheckAssertionContainsRequiredSideEffect(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -460,7 +460,7 @@ func CheckAssertionContainsRequiredSideEffect(ctx *analysis.Context, n syntax.No
 					earlier = true
 					return false
 				}
-				if variable.Span().Start > c.Span().End && NativeCallbackReachable(variable) {
+				if variable.Span().Start > c.Span().End && NativeCallbackReachable(ctx, variable) {
 					required := true
 					for parent := variable.Parent(); parent != nil && parent != scope; parent = parent.Parent() {
 						switch x := parent.(type) {
@@ -593,7 +593,7 @@ func expansionLanguageFiberStarted(ctx *analysis.Context, c *syntax.MethodCall) 
 
 // CheckFiberStartedTwice enforces one start per allocation.
 func CheckFiberStartedTwice(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
@@ -744,7 +744,7 @@ func fiberResumeRebound(ctx *analysis.Context, resume *syntax.MethodCall, name s
 
 // CheckFiberResumedAfterTermination recognizes a trivially completing callback.
 func CheckFiberResumedAfterTermination(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
@@ -785,7 +785,7 @@ func expansionLanguageSuspends(ctx *analysis.Context, body syntax.Node) bool {
 // CheckFiberReturnBeforeTermination checks a definitely suspended callback
 // whose fiber is only allocated and started before the read.
 func CheckFiberReturnBeforeTermination(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
@@ -862,7 +862,7 @@ func expansionLanguageFiberUntouched(ctx *analysis.Context, c *syntax.MethodCall
 
 // CheckFiberSuspendOutsideFiber uses an explicit current-fiber guard.
 func CheckFiberSuspendOutsideFiber(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || ctx.PHP < phpversion.PHP81 || !NativeCallbackReachable(n) || !ExpansionCStatic(ctx, n.(syntax.Expr), "Fiber", "suspend") {
+	if len(ctx.File.Errors) > 0 || ctx.PHP < phpversion.PHP81 || !NativeCallbackReachable(ctx, n) || !ExpansionCStatic(ctx, n.(syntax.Expr), "Fiber", "suspend") {
 		return
 	}
 	for p := n.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
@@ -883,7 +883,7 @@ func CheckFiberSuspendOutsideFiber(ctx *analysis.Context, n syntax.Node, message
 
 // CheckGeneratorRewindAfterAdvance recognizes a finite local generator body.
 func CheckGeneratorRewindAfterAdvance(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || ctx.PHP < phpversion.PHP55 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || ctx.PHP < phpversion.PHP55 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
@@ -935,7 +935,7 @@ func CheckGeneratorRewindAfterAdvance(ctx *analysis.Context, n syntax.Node, mess
 
 // CheckIteratorCountChangesRequiredPosition tracks finite ArrayIterator state.
 func CheckIteratorCountChangesRequiredPosition(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)

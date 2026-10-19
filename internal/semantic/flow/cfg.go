@@ -602,6 +602,7 @@ func (e *Env) named(class *syntax.Name) string {
 
 func (e *Env) scope(scope syntax.Node) *scopeResult {
 	if r, ok := e.scopes[scope]; ok {
+		e.depend(r.reads)
 		return r
 	}
 	// What the functions of the file write to global variables is computed
@@ -626,7 +627,9 @@ func (e *Env) scope(scope syntax.Node) *scopeResult {
 		for name := range r.broken {
 			distrust[name] = true
 		}
+		earlier := r
 		r = e.follow(scope, distrust, round == staticRounds)
+		addReads(r.reads, earlier.reads)
 	}
 	return r
 }
@@ -678,6 +681,8 @@ func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bo
 func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr) *scopeResult {
 	r := &scopeResult{originTypes: e.types, values: map[syntax.Expr]Value{}, before: map[syntax.Node]map[uint32]State{}, callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
 	e.scopes[scope] = r
+	r.reads = e.begin()
+	defer e.end(r.reads)
 	r.generator = e.generator(scope)
 	// Block 0 ends the scope however it is left; a normal completion passes
 	// through the block before it, which tells whether the scope can return.
@@ -717,7 +722,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	}
 	// A jump to a label that is not there goes nowhere known.
 	g.complete = g.complete && len(g.jumps) == 0
-	initial := frame{owner: r, vars: map[string]Value{}, states: map[uint32]State{}, definite: scope != nil}
+	initial := frame{owner: r, vars: map[string]Value{}, definite: scope != nil}
 	switch captured := scope.(type) {
 	case *syntax.Closure:
 		// A captured variable holds a value without a binding.
@@ -751,6 +756,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	if sweep {
 		budget = MaxCopied / jumpShare
 	}
+	once := g.once(sweep, exit, done)
 	if r.labelled = g.first; g.full {
 		// The statements before the one that filled the graph were not read.
 		r.labelled = e.firstLabel(scope)
@@ -804,7 +810,10 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 		steps++
 		in := inputs[i]
 		r.copies += len(in.vars) + len(in.states)
-		out := clone(in)
+		out := in
+		if !once[i] {
+			out = clone(in)
+		}
 		b := g.blocks[i]
 		throwing := b.exceptional > 0 && !g.proofs[i].holds(in)
 		var exceptional frame
@@ -882,4 +891,41 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	r.complete = r.complete && g.complete && queued == 0
 	sort.Slice(r.calls, func(i, j int) bool { return r.calls[i].Node.Span().Start < r.calls[j].Node.Span().Start })
 	return r
+}
+
+// once marks the blocks a scope visits once at most: no edge leads from a
+// block at or below one to a block at or above it, so once the block is
+// visited, as the highest waiting, nothing visited after it reaches it
+// again. Its input is not kept for a later arrival to be absorbed in: the
+// visit works on it in place. The exit blocks keep theirs, read when the
+// scope is done, and a sweep over labels visits blocks out of that order.
+func (g *graph) once(sweep bool, keep ...int) []bool {
+	if sweep {
+		return make([]bool, len(g.blocks))
+	}
+	spans := make([]int, len(g.blocks)+1)
+	back := func(from, to int) {
+		if to >= from {
+			spans[from]++
+			spans[to+1]--
+		}
+	}
+	for j, b := range g.blocks {
+		for _, t := range b.next {
+			back(j, t)
+		}
+		if b.exceptional >= 0 {
+			back(j, b.exceptional)
+		}
+	}
+	once := make([]bool, len(g.blocks))
+	depth := 0
+	for i := range once {
+		depth += spans[i]
+		once[i] = depth == 0
+	}
+	for _, i := range keep {
+		once[i] = false
+	}
+	return once
 }

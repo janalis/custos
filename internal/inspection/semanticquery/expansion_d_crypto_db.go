@@ -116,7 +116,7 @@ func expansionDOrigin(ctx *analysis.Context, e syntax.Expr, names ...string) *sy
 }
 
 func CheckHashContextUsedAfterFinalization(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -136,7 +136,7 @@ func CheckHashContextUsedAfterFinalization(ctx *analysis.Context, n syntax.Node,
 }
 
 func CheckHashFileFailureUsedAsDigest(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	var inputs []syntax.Expr
@@ -194,7 +194,7 @@ func expansionDOutputs(ctx *analysis.Context, at syntax.Node) []syntax.Node {
 }
 
 func CheckOpenSslSigningFailureIgnored(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -231,7 +231,7 @@ func CheckOpenSslSigningFailureIgnored(ctx *analysis.Context, n syntax.Node, mes
 }
 
 func CheckOpenSslEncryptionStatusUsedAsCiphertext(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	var inputs []syntax.Expr
@@ -263,7 +263,7 @@ func CheckOpenSslEncryptionStatusUsedAsCiphertext(ctx *analysis.Context, n synta
 }
 
 func CheckPasswordVerifyArgumentsReversed(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -277,7 +277,7 @@ func CheckPasswordVerifyArgumentsReversed(ctx *analysis.Context, n syntax.Node, 
 }
 
 func CheckSodiumSecretboxKeyLengthMismatch(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -291,7 +291,7 @@ func CheckSodiumSecretboxKeyLengthMismatch(ctx *analysis.Context, n syntax.Node,
 }
 
 func CheckSodiumSecretboxNonceReused(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -337,7 +337,7 @@ func CheckSodiumSecretboxNonceReused(ctx *analysis.Context, n syntax.Node, messa
 }
 
 func CheckDetachedSignaturePassedToCombinedVerifier(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -347,7 +347,7 @@ func CheckDetachedSignaturePassedToCombinedVerifier(ctx *analysis.Context, n syn
 }
 
 func CheckSodiumKdfContextLengthMismatch(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -361,7 +361,7 @@ func CheckSodiumKdfContextLengthMismatch(ctx *analysis.Context, n syntax.Node, m
 }
 
 func CheckSecretstreamPushAfterFinalTag(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -442,7 +442,7 @@ func expansionDFalse(e syntax.Expr) bool {
 }
 
 func CheckCurlHeaderOptionRequiresArray(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -460,7 +460,7 @@ func CheckCurlHeaderOptionRequiresArray(ctx *analysis.Context, n syntax.Node, me
 }
 
 func CheckCurlUploadDeclaredSizeMismatch(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -506,7 +506,7 @@ func CheckCurlUploadDeclaredSizeMismatch(ctx *analysis.Context, n syntax.Node, m
 }
 
 func CheckCurlReadCallbackExceedsRequestedSize(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -601,7 +601,7 @@ func expansionDCurlSizeRebound(ctx *analysis.Context, body syntax.Node, name str
 }
 
 func CheckCurlHeaderCallbackMissingByteCount(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -619,7 +619,7 @@ func CheckCurlHeaderCallbackMissingByteCount(ctx *analysis.Context, n syntax.Nod
 		if syntax.IsVariableScope(n) {
 			return false
 		}
-		if r, ok := n.(*syntax.Return); ok && r.Expr == nil && NativeCallbackReachable(r) {
+		if r, ok := n.(*syntax.Return); ok && r.Expr == nil && NativeCallbackReachable(ctx, r) {
 			missing = true
 		}
 		return true
@@ -630,7 +630,7 @@ func CheckCurlHeaderCallbackMissingByteCount(ctx *analysis.Context, n syntax.Nod
 }
 
 func CheckCurlResponseZeroRejected(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c, ok := n.(*syntax.FuncCall)
@@ -696,7 +696,7 @@ func curlResponseWrite(ctx *analysis.Context, proven bool, option, value syntax.
 }
 
 func CheckCurlWholeURLEscapedAsComponent(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -712,7 +712,7 @@ func CheckCurlWholeURLEscapedAsComponent(ctx *analysis.Context, n syntax.Node, m
 }
 
 func CheckNonblockingSocketConnectPendingRejected(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -786,7 +786,7 @@ func nonblockingConnectInspected(ctx *analysis.Context, body syntax.Node, socket
 }
 
 func CheckSocketReadZeroRejected(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -818,7 +818,7 @@ func socketReadBinaryMode(ctx *analysis.Context, c *syntax.FuncCall) bool {
 }
 
 func CheckTLSHandshakePendingAccepted(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -907,7 +907,7 @@ func tlsHandshakeCompletionGuard(ctx *analysis.Context, stmt syntax.Stmt, stream
 }
 
 func CheckFtpPendingTransferAcceptedAsComplete(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -1195,7 +1195,7 @@ func pdoBoundMayRebind(ctx *analysis.Context, a, b syntax.Expr) bool {
 }
 
 func CheckPdoBoundValueAssumedLive(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
@@ -1302,7 +1302,7 @@ func pdoEmulationMayChange(ctx *analysis.Context, prepare *syntax.MethodCall, pr
 }
 
 func CheckPdoRepeatedNamedMarkerWithoutEmulation(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
@@ -1463,7 +1463,7 @@ func pdoGroupedLegacyFetchAll(ctx *analysis.Context, c *syntax.MethodCall) bool 
 }
 
 func CheckPdoGroupedFetchReadsRemovedColumn(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	fetch := n.(*syntax.ArrayDimFetch)
@@ -1631,7 +1631,7 @@ func pdoFetchIntoBreaksLoop(st *syntax.Break, loop *syntax.While) bool {
 }
 
 func CheckPdoFetchIntoRetainsSharedRows(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	assign := n.(*syntax.Assign)
@@ -1687,7 +1687,7 @@ func CheckPdoFetchIntoRetainsSharedRows(ctx *analysis.Context, n syntax.Node, me
 }
 
 func CheckPdoExecZeroRejectedAsFailure(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
@@ -1745,11 +1745,11 @@ func pdoExecBranchRejects(ctx *analysis.Context, body syntax.Stmt, receiver synt
 				consulted, seen = x.Span().Start, true
 			}
 		case *syntax.Throw:
-			if NativeCallbackReachable(x) {
+			if NativeCallbackReachable(ctx, x) {
 				exits = append(exits, x)
 			}
 		case *syntax.Return:
-			if expansionDFalse(x.Expr) && NativeCallbackReachable(x) {
+			if expansionDFalse(x.Expr) && NativeCallbackReachable(ctx, x) {
 				exits = append(exits, x)
 			}
 		}
@@ -1790,7 +1790,7 @@ func pdoExecStraightLine(body syntax.Stmt, exit syntax.Node) bool {
 }
 
 func CheckMysqliEscapedValueSurvivesCharsetChange(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
@@ -1854,7 +1854,7 @@ func expansionDLastCharsetCall(ctx *analysis.Context, at syntax.Node, receiver s
 }
 
 func CheckMysqliMultiQueryResultsNotDrained(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
@@ -1944,7 +1944,7 @@ func CheckMysqliMultiQueryResultsNotDrained(ctx *analysis.Context, n syntax.Node
 }
 
 func CheckPgReturnedRowsUsedAsAffectedRows(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.FuncCall)
@@ -1981,7 +1981,7 @@ func CheckPgReturnedRowsUsedAsAffectedRows(ctx *analysis.Context, n syntax.Node,
 }
 
 func CheckSqliteNondeterministicFunctionDeclaredDeterministic(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)
@@ -2041,7 +2041,7 @@ func expansionDTransaction(tokens []string, active bool) (bool, bool) {
 }
 
 func CheckSqliteForeignKeySettingInsideTransaction(ctx *analysis.Context, n syntax.Node, message string) {
-	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !NativeCallbackReachable(ctx, n) {
 		return
 	}
 	c := n.(*syntax.MethodCall)

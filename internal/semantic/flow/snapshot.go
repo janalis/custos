@@ -256,10 +256,20 @@ func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapsho
 // Summarize computes the summaries of a file and returns them with the
 // environment that computed them, which answers for the file under the same
 // snapshot without analysing its scopes again.
+//
+// A callable of the file that the snapshot, with these summaries in place of
+// the file's, would answer for gets its summary from the file: one declared
+// once is summarized before the first scope that reads it, unless that scope
+// is part of its own summary, and the classes of the file are described
+// first. Where no callable of the file reaches itself through the others,
+// the environment then read what the snapshot with the file's summaries
+// reads (see Rebase).
 func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options ...Options) (*Env, *File) {
 	e := New(file, types, snapshot, options...)
 	e.consulted = map[string]bool{}
 	out := &File{options: e.options, Path: file.Path, Summaries: map[string]Summary{}}
+	s := &summarizing{out: out, declared: map[string][]syntax.Node{}, names: map[syntax.Node]string{}, state: map[syntax.Node]uint8{}}
+	var order []syntax.Node
 	syntax.InspectFile(file, func(n syntax.Node) bool {
 		name := ""
 		switch n := n.(type) {
@@ -281,57 +291,91 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options 
 			}
 		}
 		if name != "" {
-			r := e.scope(n)
-			sum := Summary{Return: Value{Complete: r.complete}}
-			body := syntax.VariableScopeBody(n)
-			sum.Generator = r.generator
-			for i, v := range r.returns {
-				if i == 0 {
-					sum.Return = v
-				} else {
-					sum.Return = merge(sum.Return, v)
-				}
-			}
-			sum.Return.Complete = sum.Return.Complete && r.complete
-			sum.Never = r.complete && r.leaves && !sum.Generator && body != nil && unconditional(n)
-			sum.Fixed = !sum.Generator && unconditional(n)
-			// The body of a generator runs when it is iterated, not when
-			// it is called.
-			sum.Quiet = unconditional(n) && body != nil && (sum.Generator || r.complete && !r.runs)
-			sum.Spares = e.sparesTables(n, body)
-			for i, p := range syntax.VariableScopeParams(n) {
-				if p.ByRef && p.Var != nil && r.complete {
-					// The argument holds what the name wrote to it while it
-					// stood for it.
-					left := r.exit[received(p.Var.Name)]
-					if p.Variadic {
-						// The arguments keep what they held, and may hold
-						// what was written to an element of the array.
-						left = merge(left, r.exit[p.Var.Name])
-					}
-					if sum.ByRef == nil {
-						sum.ByRef = map[int]Value{}
-					}
-					sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe, scalars: left.scalars}
-				}
-			}
-			sum.Return.Expr = nil
-			sum.Return.interval = nil
-			sum.Return.origins = nil
-			sum.Return.Identity = 0
-			if !sum.Generator {
-				for _, c := range r.calls {
-					sum.Sinks = append(sum.Sinks, e.nativeSinks(c)...)
-					sum.Sinks = append(sum.Sinks, e.Sinks(c.Node)...)
-				}
-				sum.Sinks = append(sum.Sinks, e.commands(body, r)...)
-			}
-			out.Summaries[strings.ToLower(name)] = sum
+			key := strings.ToLower(name)
+			order = append(order, n)
+			s.names[n] = key
+			s.declared[key] = append(s.declared[key], n)
 		}
 		return true
 	})
+	e.summarizing = s
+	for _, n := range order {
+		e.summarize(n)
+	}
+	e.summarizing = nil
 	out.consulted, e.consulted = e.consulted, nil
 	return e, out
+}
+
+// summarizing is the state of Summarize: the summaries made so far, each
+// callable of the file under its key, and whether its summary is begun
+// (summaryBegun) or made (summaryMade).
+type summarizing struct {
+	out      *File
+	declared map[string][]syntax.Node
+	names    map[syntax.Node]string
+	state    map[syntax.Node]uint8
+}
+
+const (
+	summaryBegun uint8 = iota + 1
+	summaryMade
+)
+
+// summarize makes the summary of a callable of the file being summarized.
+func (e *Env) summarize(n syntax.Node) {
+	s := e.summarizing
+	if s.state[n] != 0 {
+		return
+	}
+	s.state[n] = summaryBegun
+	r := e.scope(n)
+	sum := Summary{Return: Value{Complete: r.complete}}
+	body := syntax.VariableScopeBody(n)
+	sum.Generator = r.generator
+	for i, v := range r.returns {
+		if i == 0 {
+			sum.Return = v
+		} else {
+			sum.Return = merge(sum.Return, v)
+		}
+	}
+	sum.Return.Complete = sum.Return.Complete && r.complete
+	sum.Never = r.complete && r.leaves && !sum.Generator && body != nil && unconditional(n)
+	sum.Fixed = !sum.Generator && unconditional(n)
+	// The body of a generator runs when it is iterated, not when
+	// it is called.
+	sum.Quiet = unconditional(n) && body != nil && (sum.Generator || r.complete && !r.runs)
+	sum.Spares = e.sparesTables(n, body)
+	for i, p := range syntax.VariableScopeParams(n) {
+		if p.ByRef && p.Var != nil && r.complete {
+			// The argument holds what the name wrote to it while it
+			// stood for it.
+			left := r.exit[received(p.Var.Name)]
+			if p.Variadic {
+				// The arguments keep what they held, and may hold
+				// what was written to an element of the array.
+				left = merge(left, r.exit[p.Var.Name])
+			}
+			if sum.ByRef == nil {
+				sum.ByRef = map[int]Value{}
+			}
+			sum.ByRef[i] = Value{Complete: left.Complete, Sources: left.Sources, Safe: left.Safe, scalars: left.scalars}
+		}
+	}
+	sum.Return.Expr = nil
+	sum.Return.interval = nil
+	sum.Return.origins = nil
+	sum.Return.Identity = 0
+	if !sum.Generator {
+		for _, c := range r.calls {
+			sum.Sinks = append(sum.Sinks, e.nativeSinks(c)...)
+			sum.Sinks = append(sum.Sinks, e.Sinks(c.Node)...)
+		}
+		sum.Sinks = append(sum.Sinks, e.commands(body, r)...)
+	}
+	s.out.Summaries[s.names[n]] = sum
+	s.state[n] = summaryMade
 }
 
 // unconditional reports a callable whose body is the one every call of its
@@ -354,13 +398,157 @@ func unconditional(n syntax.Node) bool {
 	return false
 }
 
-// contract returns the summary of a project callable, recording the name
-// while the summaries of the file are being computed.
-func (e *Env) contract(name string) (Summary, bool) {
-	if e.consulted != nil && name != "" {
-		e.consulted[name] = true
+// Rebase returns the environment for s that the one Summarize returned
+// becomes: itself, reading any further contract from s, when every contract
+// read meanwhile gave one answer, the one s gives. Otherwise a new one keeps
+// the results computed from none of those that differ.
+func (e *Env) Rebase(s *Snapshot) *Env {
+	differ := map[string]bool{}
+	for key, read := range e.answers {
+		summary, ok := s.lookup(key)
+		if read.own && read.held || read.ok != ok || !reflect.DeepEqual(read.summary, summary) {
+			differ[key] = true
+		}
 	}
-	return e.snapshot.lookup(name)
+	if len(differ) == 0 && snapshotOptions(s) == e.options {
+		e.snapshot = s
+		return e
+	}
+	n := New(e.file, e.types, s, e.options)
+	if snapshotOptions(s) != e.options {
+		return n
+	}
+	for scope, r := range e.scopes {
+		if r.reads != nil && !readsAny(r.reads, differ) {
+			n.scopes[scope] = r
+		}
+	}
+	return n
+}
+
+// begin starts recording the contracts a result computed while summaries
+// are made reads; nil when they are not being made.
+func (e *Env) begin() map[string]bool {
+	if e.consulted == nil {
+		return nil
+	}
+	reads := map[string]bool{}
+	e.reading = append(e.reading, reads)
+	return reads
+}
+
+// end stops recording for reads, which the result computing it, if any,
+// read as well.
+func (e *Env) end(reads map[string]bool) {
+	if reads == nil {
+		return
+	}
+	e.reading = e.reading[:len(e.reading)-1]
+	e.depend(reads)
+}
+
+// depend records that the result being computed read one computed from
+// reads.
+func (e *Env) depend(reads map[string]bool) {
+	if len(e.reading) > 0 {
+		addReads(e.reading[len(e.reading)-1], reads)
+	}
+}
+
+func readsAny(reads, keys map[string]bool) bool {
+	for key := range reads {
+		if keys[key] {
+			return true
+		}
+	}
+	return false
+}
+
+func addReads(into, from map[string]bool) {
+	for key := range from {
+		into[key] = true
+	}
+}
+
+// contract returns the summary of a project callable, recording the name
+// and the answer while the summaries of the file are being computed.
+func (e *Env) contract(name string) (Summary, bool) {
+	if e.consulted == nil || name == "" {
+		return e.snapshot.lookup(name)
+	}
+	e.consulted[name] = true
+	key := strings.ToLower(name)
+	if len(e.reading) > 0 {
+		e.reading[len(e.reading)-1][key] = true
+	}
+	summary, ok, own := e.serve(key)
+	if !own {
+		summary, ok = e.snapshot.lookup(key)
+	}
+	read, again := e.answers[key]
+	if !again {
+		if e.answers == nil {
+			e.answers = map[string]answer{}
+		}
+		read = answer{summary: summary, ok: ok}
+	}
+	if own {
+		read.own = true
+	} else {
+		read.held = true
+	}
+	e.answers[key] = read
+	return summary, ok
+}
+
+// answer is what a contract read while summaries were computed gave: the
+// file's own summary (own), the snapshot's (held), or each at some time.
+type answer struct {
+	summary   Summary
+	ok        bool
+	own, held bool
+}
+
+// serve returns the summary of the file being summarized for a key the
+// snapshot with the file's summaries would answer from them: a class of the
+// file, or a callable of it declared once, summarized now unless its
+// summary is being made. own is false for any other key.
+func (e *Env) serve(key string) (summary Summary, ok, own bool) {
+	s := e.summarizing
+	if s == nil || !e.snapshot.alone(s.out.Path, key) {
+		return Summary{}, false, false
+	}
+	if strings.HasPrefix(key, sinkClassKey("")) {
+		summary, ok = s.out.Summaries[key]
+		return summary, ok, ok
+	}
+	if declared := s.declared[key]; len(declared) == 1 && s.state[declared[0]] != summaryBegun {
+		e.summarize(declared[0])
+		return s.out.Summaries[key], true, true
+	}
+	return Summary{}, false, false
+}
+
+// alone reports that no file of the snapshot but the one at path declares
+// the callable or class key: with that file's summaries replaced by ones
+// that declare it, the snapshot answers with them.
+func (s *Snapshot) alone(path, key string) bool {
+	switch {
+	case s == nil:
+		return true
+	case s.base != nil:
+		return false
+	}
+	declaring := s.shared[key]
+	if _, single := s.summaries[key]; single {
+		declaring = 1
+	}
+	if replaced := s.files[path]; replaced != nil {
+		if _, held := replaced.Summaries[key]; held {
+			declaring--
+		}
+	}
+	return declaring == 0
 }
 
 // nativeSinks recognizes resolved native sinks and binds named arguments.

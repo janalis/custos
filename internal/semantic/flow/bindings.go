@@ -60,9 +60,12 @@ func (f *frame) receive(name *syntax.Variable) {
 // result stays nil for the common file without either.
 func (e *Env) globals() map[string]bool {
 	if e.globalsKnown {
+		e.depend(e.globalReads)
 		return e.global
 	}
 	e.globalsKnown = true
+	e.globalReads = e.begin()
+	defer e.end(e.globalReads)
 	syntax.InspectFile(e.file, func(n syntax.Node) bool {
 		switch n := n.(type) {
 		case *syntax.Global:

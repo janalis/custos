@@ -609,7 +609,7 @@ func (e *Env) refineAssigned(operation *syntax.Binary, f *frame, truth bool) {
 	}
 	name := stored.Var.(*syntax.Variable).Name
 	produced := syntax.UnwrapParens(stored.Value)
-	alone := frame{owner: f.owner, vars: map[string]Value{name: {Complete: true, Expr: produced}}, states: map[uint32]State{}}
+	alone := frame{owner: f.owner, vars: map[string]Value{name: {Complete: true, Expr: produced}}}
 	e.refine(cond, &alone, truth)
 	fact := alone.vars[name]
 	v, tracked := f.vars[name]

@@ -218,10 +218,11 @@ const maxAliasHops = 8
 // A name declared by class_alias() resolves to the original class.
 func (ix *Index) Class(fqn string, ver phpversion.Version) *Class {
 	for hop := 0; hop <= maxAliasHops; hop++ {
-		if c := ix.declared(fqn, ver); c != nil {
+		k := key(fqn)
+		if c := ix.declared(k, ver); c != nil {
 			return c
 		}
-		if fqn = ix.aliasOf(fqn); fqn == "" {
+		if fqn = ix.aliasOf(k); fqn == "" {
 			return nil
 		}
 	}
@@ -229,11 +230,11 @@ func (ix *Index) Class(fqn string, ver phpversion.Version) *Class {
 }
 
 // aliasOf returns the original class of a class_alias() alias, in this
-// layer or a base ("" when fqn is no alias).
-func (ix *Index) aliasOf(fqn string) string {
+// layer or a base ("" when the class key k is no alias).
+func (ix *Index) aliasOf(k string) string {
 	for l := ix; l != nil; l = l.base {
 		l.mu.RLock()
-		cands := l.aliases[key(fqn)]
+		cands := l.aliases[k]
 		l.mu.RUnlock()
 		// The most recently added alias wins, as before. Keep every candidate so
 		// suppressing or removing that declaration reveals its predecessor.
@@ -247,16 +248,16 @@ func (ix *Index) aliasOf(fqn string) string {
 	return ""
 }
 
-// declared is Class without aliases.
-func (ix *Index) declared(fqn string, ver phpversion.Version) *Class {
+// declared is Class without aliases, for the class key k.
+func (ix *Index) declared(k string, ver phpversion.Version) *Class {
 	ix.mu.RLock()
-	c, ok := pick(ix.classes[key(fqn)], func(c *Class) Avail { return c.Avail }, ver)
+	c, ok := pick(ix.classes[k], func(c *Class) Avail { return c.Avail }, ver)
 	ix.mu.RUnlock()
 	if ok {
 		return c.at(ver)
 	}
 	if ix.base != nil {
-		return ix.base.declared(fqn, ver)
+		return ix.base.declared(k, ver)
 	}
 	return nil
 }

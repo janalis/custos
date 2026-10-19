@@ -97,12 +97,27 @@ func NativeGeneratorBody(body *syntax.Block) bool {
 // NativeCallbackReachable excludes callback statements after termination and
 // bodies whose literal condition proves they cannot execute. Unknown branches
 // remain possible; this is a reachability filter, not execution prediction.
-func NativeCallbackReachable(n syntax.Node) bool {
-	scope := syntax.EnclosingVariableScope(n)
-	if !flowquery.Reachable(n, scope) {
-		return false
+// The answer is kept for every rule that asks about n.
+func NativeCallbackReachable(ctx *analysis.Context, n syntax.Node) bool {
+	known := ctx.Shared(reachableKey{}, func() any { return map[syntax.Node]bool{} }).(map[syntax.Node]bool)
+	reachable, ok := known[n]
+	if !ok {
+		reachable = nativeCallbackReachable(n)
+		known[n] = reachable
 	}
-	for parent := n.Parent(); parent != nil && parent != scope; parent = parent.Parent() {
+	return reachable
+}
+
+type reachableKey struct{}
+
+func nativeCallbackReachable(n syntax.Node) bool {
+	// One climb finds the variable scope and the constant branches on the way.
+	var scope syntax.Node
+	for parent := n.Parent(); parent != nil; parent = parent.Parent() {
+		if syntax.IsVariableScope(parent) {
+			scope = parent
+			break
+		}
 		if branch, ok := parent.(*syntax.If); ok {
 			truth, known := astquery.BoolConst(syntax.UnwrapParens(branch.Cond))
 			if known && !truth && branch.Body.Span().Contains(n.Span()) {
@@ -113,5 +128,5 @@ func NativeCallbackReachable(n syntax.Node) bool {
 			}
 		}
 	}
-	return true
+	return flowquery.Reachable(n, scope)
 }

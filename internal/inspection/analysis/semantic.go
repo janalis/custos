@@ -46,10 +46,11 @@ func (c *Context) Flow() *flow.Env {
 		snapshot := c.engine.flow
 		// The buffer's declarations shadow the indexed copy of its path.
 		// Only files with callable declarations need a local summary overlay.
-		// The environment that computed them serves when they change nothing.
+		// The environment that computed them serves, or the results of it
+		// that read nothing they change.
 		env, own := flow.Summarize(c.File, c.Types(), snapshot, c.engine.cfg.Flow)
 		if len(own.Summaries) > 0 && !snapshot.Holds(own) {
-			env = flow.New(c.File, c.Types(), snapshot.WithFile(own), c.engine.cfg.Flow)
+			env = env.Rebase(snapshot.WithFile(own))
 		}
 		c.flow = env
 	}
@@ -194,6 +195,21 @@ func NewTestContext(e *Engine, f *syntax.File) *Context {
 		c.cur = &e.rules[0]
 	}
 	return c
+}
+
+// Shared returns the value cached under key for every rule of this analysis
+// of the file, computing it with fn on first use. Shared queries use it for
+// answers many rules ask about the same nodes.
+func (c *Context) Shared(key any, fn func() any) any {
+	if v, ok := c.shared[key]; ok {
+		return v
+	}
+	if c.shared == nil {
+		c.shared = map[any]any{}
+	}
+	v := fn()
+	c.shared[key] = v
+	return v
 }
 
 // Memo returns the value cached under key for the current rule and file,

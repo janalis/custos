@@ -19,7 +19,7 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KBinary} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(n) {
+	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
 	b := n.(*syntax.Binary)
