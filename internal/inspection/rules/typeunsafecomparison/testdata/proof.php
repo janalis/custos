@@ -314,3 +314,8 @@ function nested(string $s) {
 
 $top = 'a';
 <warning descr="Use '===' here if the other operand is never a bool, a number or a Stringable object; the string is not numeric.">$top == 'yes'</warning>;
+// A guard narrows the property, but its declaration still allows a bool.
+final class Flagged { public string|bool $flag = 'off'; }
+function narrowedFlag(Flagged $o) {
+    return is_string($o->flag) && <warning descr="Use '===' here if the other operand is never a bool, a number or a Stringable object; the string is not numeric.">$o->flag == 'on'</warning>;
+}

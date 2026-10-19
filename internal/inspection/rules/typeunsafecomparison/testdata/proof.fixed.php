@@ -314,3 +314,8 @@ function nested(string $s) {
 
 $top = 'a';
 $top == 'yes';
+// A guard narrows the property, but its declaration still allows a bool.
+final class Flagged { public string|bool $flag = 'off'; }
+function narrowedFlag(Flagged $o) {
+    return is_string($o->flag) && $o->flag == 'on';
+}

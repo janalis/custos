@@ -1,6 +1,7 @@
 package infer_test
 
 import (
+	"strings"
 	"testing"
 
 	"custos/internal/php/syntax"
@@ -62,5 +63,24 @@ function f($x, $o) {
 	}
 	if env.ReachesUnchanged(reads[1], reads[0]) {
 		t.Error("an earlier place is not reached")
+	}
+}
+
+// Past the definition budget no read is known to hold the same value.
+func TestReachesUnchangedBudget(t *testing.T) {
+	src := "<?php\nfunction f($c) {\n" + strings.Repeat(" if ($c) { $d = 1; }\n", 513) + " u($d); u(1);\n}"
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var calls []*syntax.FuncCall
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			calls = append(calls, c)
+		}
+		return true
+	})
+	if env.ReachesUnchanged(calls[0].Args.Args[0].(*syntax.Arg).Value.(*syntax.Variable), calls[1]) {
+		t.Fatal("a variable past the definition budget is not known unchanged")
 	}
 }

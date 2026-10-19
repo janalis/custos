@@ -1,6 +1,7 @@
 package semanticquery
 
 import (
+	"strings"
 	"testing"
 
 	"custos/internal/inspection/analysis"
@@ -387,4 +388,24 @@ func TestNativeRemainingBoundaries(t *testing.T) {
 			t.Fatal("generator callback does not return mapped values")
 		}
 	})
+}
+
+// Without a reaching producer, a guard holds only for a plain read nothing
+// may rewrite between the test and the use.
+func TestNativeGuardSameValueWithoutProducer(t *testing.T) {
+	for _, src := range []string{
+		"probe(g(), g());",
+		"function h($i){probe($i++, $i++);}",
+		"function h($a){probe($a[f()], $a[f()]);}",
+		// Past the write budget nothing is known not to rewrite $s.
+		"function h($s){" + strings.Repeat("$x=1;", nativeLocalWriteBudget+1) + "probe($s, $s);}",
+	} {
+		t.Run(src, func(t *testing.T) {
+			probeNative(t, src, func(ctx *analysis.Context, c *syntax.FuncCall) {
+				if nativeGuardSameValue(ctx, CallArgument(c.Args, 0, ""), CallArgument(c.Args, 1, "")) {
+					t.Fatal("not the same value")
+				}
+			})
+		})
+	}
 }

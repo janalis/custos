@@ -481,6 +481,13 @@ func TestSharedFailureGuardPositions(t *testing.T) {
 		{"length", "property ternary", `function f($o){return strlen($o->s) === 4 ? probe($o->s) : 0;}`, "true"},
 		{"length", "property other test", `function f($o){if(count($o->s) === 4){probe($o->s);}}`, "false"},
 		{"length", "property loose test", `function f($o){if(strlen($o->s) == 4){probe($o->s);}}`, "false"},
+		{"length", "property elseif arm", `function f($o, $c){if($c){return 0;}elseif(strlen($o->s) === 4){probe($o->s);}}`, "true"},
+		{"length", "property else arm", `function f($o){if(strlen($o->s) !== 4){return 0;}else{probe($o->s);}}`, "true"},
+		{"length", "property after failed elseif", `function f($o, $c){if($c){return 0;}elseif(strlen($o->s) !== 4){return 1;}else{probe($o->s);}}`, "true"},
+		{"length", "property conjunction operand", `function f($o){return strlen($o->s) === 4 && probe($o->s);}`, "true"},
+		{"length", "property disjunction operand", `function f($o){return strlen($o->s) !== 4 || probe($o->s);}`, "true"},
+		{"length", "call result", `function f($o){if(strlen($o->s()) === 4){probe($o->s());}}`, "false"},
+		{"length", "unknown writes", `function f($s, $a){if(strlen($s) === 4){extract($a); probe($s);}}`, "false"},
 	} {
 		t.Run(tc.query+" "+tc.name, func(t *testing.T) {
 			if got := sharedDefectResults(t, tc.query, tc.src, ""); got != tc.want {
