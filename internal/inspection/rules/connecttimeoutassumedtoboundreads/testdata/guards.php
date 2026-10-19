@@ -47,3 +47,9 @@ function timeoutStoredThenReplaced($flag) {
     if (!$ok) { return null; }
     return <warning descr="Set a separate timeout for stream reads.">fgets($s)</warning>;
 }
+function timeoutInClosure() {
+    $s = fsockopen("example.test", 443, $errno, $errstr, 2);
+    if ($s === false) { return null; }
+    $configure = function () use ($s) { if (!stream_set_timeout($s, 2)) { exit(1); } };
+    return <warning descr="Set a separate timeout for stream reads.">fgets($s)</warning>;
+}

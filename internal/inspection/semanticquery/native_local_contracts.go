@@ -409,7 +409,7 @@ func nativeSeekSucceeded(ctx *analysis.Context, c *syntax.FuncCall, at syntax.No
 	accepts := func(cond syntax.Expr, truth bool) bool {
 		e := syntax.UnwrapParens(cond)
 		if u, ok := e.(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim && syntax.UnwrapParens(u.Expr) == c {
-			return truth == false
+			return truth // !fseek(...) holds when it returned 0
 		}
 		b, ok := e.(*syntax.Binary)
 		if !ok {

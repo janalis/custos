@@ -87,7 +87,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   NonblockingSocketConnectPendingRejected, SysvMessageSerializationMismatch
   and the nonblocking-stream checks) read its success from type narrowing:
   `call() or exit;`, a result kept in a boolean and tested later, `elseif`
-  and ternary arms now count.
+  and ternary arms now count, and `if (!fseek($h, 0))` is read as a
+  successful seek.
 - FileLockFailureUnchecked and StreamUseAfterClose read the result of
   `flock()` and `fclose()` through type narrowing, which also follows
   `elseif` chains, `match` and `switch` arms.

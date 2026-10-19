@@ -164,23 +164,19 @@ func (e *Env) CallResultAsAt(c *syntax.FuncCall, at syntax.Expr, seed types.Type
 // variable when it is the only definition of $v reaching at (nil else).
 func (e *Env) storedIn(c *syntax.FuncCall, at syntax.Expr, scope syntax.Node) *syntax.Assign {
 	// `$ok = f()`, also `$ok = @f()` and `$ok = (f())`.
-	var x syntax.Node = c
 	p := c.Parent()
 	for {
 		if u, silenced := p.(*syntax.Unary); silenced && u.Op.Kind == syntax.TAt {
-			x, p = p, p.Parent()
+			p = p.Parent()
 			continue
 		}
 		if _, paren := p.(*syntax.Paren); paren {
-			x, p = p, p.Parent()
+			p = p.Parent()
 			continue
 		}
 		break
 	}
-	a, ok := p.(*syntax.Assign)
-	if ok && syntax.Node(a.Value) != x {
-		ok = false
-	}
+	a, ok := p.(*syntax.Assign) // x is its value: a call is never a target
 	if !ok || a.ByRef || a.Op.Kind != syntax.TEqual {
 		return nil
 	}

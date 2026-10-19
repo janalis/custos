@@ -409,3 +409,46 @@ func TestNativeGuardSameValueWithoutProducer(t *testing.T) {
 		})
 	}
 }
+
+// firstCall finds the first call to name in the probed file.
+func firstCall(ctx *analysis.Context, name string) *syntax.FuncCall {
+	var found *syntax.FuncCall
+	syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok && found == nil {
+			if nm, named := c.Name.(*syntax.Name); named && nm.Value == name {
+				found = c
+			}
+		}
+		return found == nil
+	})
+	return found
+}
+
+// A call result read from narrowing proves nothing where a goto label lets
+// a jump land between the test and the use; `!fseek(...)` holds on success.
+func TestNativeCallResultQueries(t *testing.T) {
+	probeNative(t, "function f($h){if(!fseek($h,0)){probe($h);}}", func(ctx *analysis.Context, c *syntax.FuncCall) {
+		if !NativeCallSucceeded(ctx, firstCall(ctx, "fseek"), c) {
+			t.Fatal("!fseek() holds when the seek succeeded")
+		}
+		if NativeCallSucceeded(ctx, firstCall(ctx, "fseek"), c.Parent()) {
+			t.Fatal("a statement is no place to type a call result")
+		}
+	})
+	probeNative(t, "function f($h){a: if(flock($h,LOCK_EX)){probe($h);} goto a;}", func(ctx *analysis.Context, c *syntax.FuncCall) {
+		if NativeCallSucceeded(ctx, firstCall(ctx, "flock"), c) {
+			t.Fatal("a labelled scope proves nothing")
+		}
+	})
+	probeNative(t, "function f($s){a: if(stream_socket_enable_crypto($s,true)===true){probe($s);} goto a;}", func(ctx *analysis.Context, c *syntax.FuncCall) {
+		body := syntax.EnclosingVariableScope(c).(*syntax.Function).Body
+		if tlsHandshakeCompleted(ctx, body, CallArgument(c.Args, 0, ""), c) {
+			t.Fatal("a labelled scope proves nothing")
+		}
+	})
+	probeNative(t, "function f($h){a: if(!fclose($h)){probe($h);} goto a;}", func(ctx *analysis.Context, c *syntax.FuncCall) {
+		if streamCloseFailed(ctx, firstCall(ctx, "fclose").Span(), c, syntax.EnclosingVariableScope(c)) {
+			t.Fatal("a labelled scope proves nothing")
+		}
+	})
+}

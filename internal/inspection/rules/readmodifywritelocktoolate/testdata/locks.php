@@ -22,3 +22,10 @@ function lockedAfterRead(string $path, $lock): void {
     <warning descr="Hold the lock across the complete read-modify-write operation.">file_put_contents($path, $n + 1, LOCK_EX)</warning>;
     flock($lock, LOCK_UN);
 }
+function releasedAroundWrite(string $path, $lock): void {
+    flock($lock, LOCK_EX);
+    $n = (int) file_get_contents($path);
+    if (flock($lock, LOCK_UN)) {
+        <warning descr="Hold the lock across the complete read-modify-write operation.">file_put_contents($path, $n + 1, LOCK_EX)</warning>;
+    }
+}

@@ -1,6 +1,7 @@
 package infer_test
 
 import (
+	"strings"
 	"testing"
 
 	"custos/internal/php/syntax"
@@ -144,6 +145,40 @@ function f($s) {
 		return true
 	})
 	want := []string{"true", "null|true", "true", "null|true", "?unknown"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("use %d: got %s want %s", i+1, got[i], want[i])
+		}
+	}
+}
+
+// Only a plain variable that the assignment alone defines where the result is
+// asked for carries the tests of the call; parentheses change nothing.
+func TestCallResultStored(t *testing.T) {
+	src := "<?php\n" +
+		"function f($h) { $ok = (flock($h, LOCK_EX)); if (!$ok) { return; } u(); }\n" +
+		"function g($h, $n) { $$n = flock($h, LOCK_EX); if (!$$n) { return; } u(); }\n" +
+		"function h($h, $c) { $ok = flock($h, LOCK_EX);" + strings.Repeat(" if ($c > 1) { $ok = 1; }", 513) + " u(); }"
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var last *syntax.FuncCall
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			if c.Name.(*syntax.Name).Value == "u" {
+				got = append(got, env.CallResultAt(last, c).String())
+			} else {
+				last = c
+			}
+		}
+		return true
+	})
+	want := []string{"true", "bool", "bool"}
 	if len(got) != len(want) {
 		t.Fatalf("got %v", got)
 	}
