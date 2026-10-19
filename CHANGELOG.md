@@ -69,6 +69,7 @@ versions follow [Semantic Versioning](https://semver.org/).
   and a predicate compared with `true`.
 - PosixAccountLookupFailureDereferenced reads its guards from type
   narrowing, and trusts a property test on a class that is not final.
+- ImageDecodeFailureUnchecked reads its guards from type narrowing.
 
 ### Fixed
 

@@ -5,6 +5,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Check image decoding success before using the image."
@@ -31,7 +32,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if _, literal := semanticquery.NativeString(ctx, semanticquery.CallArgument(origin.Args, 0, "data")); literal {
 		return
 	}
-	if ctx.Flow().Excludes(input, "false") || !semanticquery.NativeLabelled(ctx, input) && (guard{ctx: ctx, input: input, origin: origin}).protects() {
+	if ctx.Flow().Excludes(input, "false") || !semanticquery.NativeLabelled(ctx, input) && semanticquery.NativeNarrowedExcludes(ctx, input, types.Of(`\GdImage`, "false"), "false") {
 		return
 	}
 	ctx.ReportNode(input, message)
