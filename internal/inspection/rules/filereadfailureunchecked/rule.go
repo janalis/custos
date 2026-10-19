@@ -38,9 +38,12 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		inputs = []syntax.Expr{x.Left, x.Right}
 	}
 	assertion := args != nil && phpunit.PuAssertion(ctx, n)
+	library, checked := phpunit.LibraryFailurePassing(ctx, n, args, true)
 	switch {
 	case assertion:
 		inputs = phpunit.FailurePassing(ctx, n, args, true)
+	case checked:
+		inputs, assertion = library, true
 	case args != nil:
 		inputs = semanticquery.NativeStringInputs(ctx, n, args)
 	}

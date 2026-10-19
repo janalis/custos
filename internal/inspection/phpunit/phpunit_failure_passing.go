@@ -103,3 +103,41 @@ func falsy(e syntax.Expr, failsFalse bool) bool {
 	}
 	return false
 }
+
+// webmozartAssert names the assertion class of webmozart/assert, matched by
+// the name written in the call: its source need not be analysed.
+const webmozartAssert = `webmozart\assert\assert`
+
+// LibraryFailurePassing returns, for a static call of an assertion of
+// webmozart/assert, the arguments that pass when they hold a failure value
+// as if it were a value: a value loosely compared by `eq` with a literal that
+// equals the failure, a value asserted `isEmpty`, and, for a failure null
+// (textual false), the value of any `nullOr…` assertion, which accepts null.
+// ok is false for any other call.
+func LibraryFailurePassing(ctx *analysis.Context, call syntax.Node, args *syntax.ArgList, textual bool) (inputs []syntax.Expr, ok bool) {
+	static, isStatic := call.(*syntax.StaticCall)
+	if !isStatic {
+		return nil, false
+	}
+	class, named := static.Class.(*syntax.Name)
+	method, literal := static.Name.(*syntax.Identifier)
+	if !named || !literal || !strings.EqualFold(strings.TrimPrefix(PuResolveClassName(ctx, class), `\`), webmozartAssert) {
+		return nil, false
+	}
+	name := strings.ToLower(method.Value)
+	if after, nullable := strings.CutPrefix(name, "nullor"); nullable {
+		if !textual {
+			return passed(args, 0, "value"), true
+		}
+		name = after
+	}
+	switch name {
+	case "eq":
+		if value := argument(args, 0, "value"); value != nil && falsy(argument(args, 1, "expect"), textual) {
+			return []syntax.Expr{value}, true
+		}
+	case "isempty":
+		return passed(args, 0, "value"), true
+	}
+	return nil, true
+}

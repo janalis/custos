@@ -34,9 +34,13 @@ func (rule) Check(ctx *analysis.Context, call syntax.Node) {
 	// A PHPUnit assertion checks what it is given, unless it lets a null
 	// pass: a string parameter rejects null, a loose comparison does not.
 	assertion := phpunit.PuAssertion(ctx, call)
+	library, checked := phpunit.LibraryFailurePassing(ctx, call, args, false)
 	inputs := semanticquery.NativeStringInputs(ctx, call, args)
-	if assertion {
+	switch {
+	case assertion:
 		inputs = phpunit.FailurePassing(ctx, call, args, false)
+	case checked:
+		inputs, assertion = library, true
 	}
 	for _, input := range inputs {
 		_, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "null", "preg_replace", "preg_replace_callback").(*syntax.FuncCall)

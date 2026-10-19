@@ -7,6 +7,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Treat webmozart/assert assertions as checks in FileReadFailureUnchecked and
+  PregReplaceFailureUnchecked, and report a failure given to one that would
+  pass with it: loose `eq` with an empty or falsy literal, `isEmpty`, and, for
+  a failed replacement, any `nullOr…` assertion.
+
 - Look into functions of the same file up to four calls deep when deciding
   whether a call may refill a request superglobal in UnescapedHtmlOutput,
   instead of stopping at the first callee.
