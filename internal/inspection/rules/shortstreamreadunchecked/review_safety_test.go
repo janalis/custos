@@ -18,6 +18,8 @@ func TestReviewLengthGuards(t *testing.T) {
 		want      int
 	}{
 		{"lower bound exit", four + "if(strlen($v)<4){return;}unpack('N',$v);", 0},
+		// A local something else may rewrite has no resolved read result.
+		{"unfollowed local", four + "$f=function()use(&$v){};if(strlen($v)===4){unpack('N',$v);}", 0},
 		{"mirrored lower bound exit", four + "if(4>strlen($v)){return;}unpack('N',$v);", 0},
 		{"at most exit", four + "if(strlen($v)<=3){return;}unpack('N',$v);", 0},
 		{"mirrored at most exit", four + "if(3>=strlen($v)){return;}unpack('N',$v);", 0},
@@ -71,7 +73,7 @@ func TestReviewLengthGuards(t *testing.T) {
 		{"isset unknown offset", four + "if(isset($v[$i])){unpack('N',$v);}", 1},
 		{"isset whole value", four + "if(isset($v)){unpack('N',$v);}", 1},
 		{"isset other value", four + "if(isset($w[3])){unpack('N',$v);}", 1},
-		{"isset several", four + "if(isset($v[3],$w)){unpack('N',$v);}", 1},
+		{"isset several", four + "if(isset($v[3],$w)){unpack('N',$v);}",0},
 		{"missing offset branch", four + "if(!isset($v[3])){unpack('N',$v);}", 1},
 		{"character encoding", four + "if(mb_strlen($v,'UTF-8')===4){unpack('N',$v);}", 1},
 		{"dynamic encoding", four + "if(mb_strlen($v,$enc)===4){unpack('N',$v);}", 1},
@@ -79,11 +81,11 @@ func TestReviewLengthGuards(t *testing.T) {
 		{"user strlen", "namespace App;function strlen($s){return 4;}" + four + "if(strlen($v)===4){\\unpack('N',$v);}", 1},
 		{"disjunction branch", four + "if(strlen($v)===4||$ok){unpack('N',$v);}", 1},
 		{"conjunction exit", four + "if(strlen($v)!==4&&$ok){return;}unpack('N',$v);", 1},
-		{"exit with else", four + "if(strlen($v)!==4){return;}else{$n=1;}unpack('N',$v);", 1},
-		{"exit with elseif", four + "if(strlen($v)!==4){return;}elseif($n){$n=1;}unpack('N',$v);", 1},
+		{"exit with else", four + "if(strlen($v)!==4){return;}else{$n=1;}unpack('N',$v);",0},
+		{"exit with elseif", four + "if(strlen($v)!==4){return;}elseif($n){$n=1;}unpack('N',$v);",0},
 		{"later guard", four + "unpack('N',$v);if(strlen($v)!==4){return;}", 1},
 		{"read in condition", four + "if(unpack('N',$v)){$n=1;}", 1},
-		{"read in elseif condition", four + "if(strlen($v)!==4){}elseif(unpack('N',$v)){}", 1},
+		{"read in elseif condition", four + "if(strlen($v)!==4){}elseif(unpack('N',$v)){}",0},
 		{"ternary condition", four + "$r=unpack('N',$v)?1:2;", 1},
 		{"left operand", four + "$r=unpack('N',$v)&&strlen($v)===4;", 1},
 		{"concatenated", four + "$r='x'.unpack('N',$v);", 1},

@@ -7,6 +7,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Read the complete record before decoding it."
@@ -56,4 +57,19 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	ctx.ReportNode(call, message)
+}
+
+// lengthChecked reports whether the tests guarding input, the result of an
+// fread of size bytes, leave only a complete read: fread returns false or
+// at most size bytes.
+func lengthChecked(ctx *analysis.Context, input syntax.Expr, size int64) bool {
+	if semanticquery.NativeLabelled(ctx, input) {
+		return false
+	}
+	read := types.Union(types.StringLengths(types.IntRange{Lo: 0, Hi: size}), types.Of("false"))
+	t := ctx.Types().Native().NarrowedFrom(input, read)
+	// Empty, no read result reaches a branch whose tests contradict each
+	// other. (A local the narrowing cannot follow never gets here: its read
+	// result is not resolved either.)
+	return t.IsUnknown() || t.LengthsOnly(size, size)
 }
