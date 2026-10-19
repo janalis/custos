@@ -5,6 +5,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Reject canonicalization failure before joining paths."
@@ -34,12 +35,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			continue
 		}
 		source, known := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "realpath").(*syntax.FuncCall)
-		if !known || !semanticquery.NativeBuiltin(ctx, source, "realpath") || !semanticquery.NativeFailureFlowOnly(ctx, input) && semanticquery.NativeLocalSentinelGuard(ctx, input, "false") || ctx.Flow().Excludes(input, "false") {
+		if !known || !semanticquery.NativeBuiltin(ctx, source, "realpath") || ctx.Flow().Excludes(input, "false") {
 			continue
 		}
 		// The join may sit in an earlier assignment; a check between it and
 		// the consuming call still keeps the failure away from the path API.
-		if g := (guard{ctx, source}); !semanticquery.NativeFailureFlowOnly(ctx, input) && !ctx.Flow().LabelledBefore(input, c) && (g.protects(input) || g.protects(c)) {
+		if !semanticquery.NativeFailureFlowOnly(ctx, input) && !ctx.Flow().LabelledBefore(input, c) &&
+			(semanticquery.NativeNarrowedExcludes(ctx, input, types.Unknown, "false") || semanticquery.NativeNarrowedExcludesAt(ctx, input, c, "false")) {
 			continue
 		}
 		ctx.ReportNode(c, message)

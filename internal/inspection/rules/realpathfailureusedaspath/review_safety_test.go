@@ -100,7 +100,7 @@ func TestReviewSafety(t *testing.T) {
 		{"project call path guarded", "$r = realpath(load($d)); if (!$r) { return; } is_file($r . '/x');", phpversion.PHP85, 0},
 		{"property path", "$r = realpath($o->dir); is_file($r . '/x');", phpversion.PHP85, 1},
 		{"property path guarded", "$r = realpath($o->dir); $r !== false or exit; is_file($r . '/x');", phpversion.PHP85, 0},
-		// A scope with `goto` is not followed by the flow: the walk alone decides.
+		// A scope with `goto` is not followed by the flow: type narrowing alone decides.
 		{"unfollowed scope", "$r = realpath($d); is_file($r . '/x'); goto done; done: ;", phpversion.PHP85, 1},
 		{"unfollowed scope guarded", "$r = realpath($d); if (!$r) { return; } is_file($r . '/x'); goto done; done: ;", phpversion.PHP85, 0},
 		{"guard in closure scope", "$r = realpath($d); if (!$r) { return; } $f = function () use ($d) { $r = realpath($d); is_file($r . '/x'); };", phpversion.PHP85, 1},
