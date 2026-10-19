@@ -204,7 +204,7 @@ func (e *Env) eqCond(t types.Type, c *syntax.Binary, name string, truthy bool, s
 
 // varCmp narrows the type t of a variable compared with other.
 func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.Type {
-	if v, ok := integerLiteral(other); ok {
+	if v, ok := e.knownInt(other); ok {
 		if _, known := t.IntRanges(); known {
 			return intCmp(t, v, strict, holds)
 		}
@@ -258,6 +258,30 @@ func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.
 		out = replaceAtom(out, "bool", map[string]string{"true": "false", "false": "true"}[lit])
 	}
 	return out
+}
+
+// knownInt returns the integer x holds: a literal (with its sign), or a
+// plain local whose only reaching definition assigns one and that nothing
+// else may have changed (`$failed = -1; if ($pid === $failed)`).
+func (e *Env) knownInt(x syntax.Expr) (int64, bool) {
+	if v, ok := integerLiteral(x); ok {
+		return v, true
+	}
+	v, ok := syntax.UnwrapParens(x).(*syntax.Variable)
+	if !ok || v.Name == "" || v.NameExpr != nil {
+		return 0, false
+	}
+	scope := syntax.EnclosingVariableScope(v)
+	sv := e.scopeVars(scope)
+	defs := sv.defs[v.Name]
+	if len(defs) > maxVarDefs {
+		return 0, false
+	}
+	fwd, back, _ := e.reaching(defs, v, scope)
+	if len(fwd) != 1 || len(back) != 0 || fwd[0].asg == nil || e.clobbered(sv, fwd, back, v, scope) {
+		return 0, false
+	}
+	return integerLiteral(fwd[0].asg.Value)
 }
 
 // intCmp narrows t, whose int member has known values, compared with the

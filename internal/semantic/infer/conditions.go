@@ -72,10 +72,10 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 				return nonEmptyIf(t, countNonEmpty(c.Op.Kind, n, truthy))
 			}
 			if _, known := t.IntRanges(); known {
-				if v, ok := integerLiteral(c.Right); ok && isVar(c.Left, name) {
+				if v, ok := e.knownInt(c.Right); ok && isVar(c.Left, name) {
 					return intOrder(t, c.Op.Kind, v, truthy)
 				}
-				if v, ok := integerLiteral(c.Left); ok && isVar(c.Right, name) {
+				if v, ok := e.knownInt(c.Left); ok && isVar(c.Right, name) {
 					// `0 < $x` reads `$x > 0`.
 					return intOrder(t, map[syntax.TokenKind]syntax.TokenKind{
 						syntax.TLess: syntax.TGreater, syntax.TGreater: syntax.TLess,

@@ -207,6 +207,7 @@ function f() {
     $pid = pcntl_fork(); if ($pid >= 1) { } else { u(); }
     $pid = pcntl_fork(); if ($pid <= 0) { u(); }
     if (pcntl_fork() > 5) { u(); }
+    $pid = pcntl_fork(); $failed = -1; if ($failed === $pid) { return; } if ($bound < $pid) {} u();
 }`
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
@@ -229,7 +230,7 @@ function f() {
 	want := []string{
 		"int<-1, -1>|int<1, max>", "int<1, max>", "int<0, max>", "int<1, max>", "int<0, 0>",
 		"int<1, max>", "int<0, 0>", "int<-1, -1>|int<1, max>", "int<-1, 2>|int<4, max>", "?unknown",
-		"int<-1, 0>", "int<-1, 0>", "int<6, max>",
+		"int<-1, 0>", "int<-1, 0>", "int<6, max>", "int<0, max>",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %v", got)
