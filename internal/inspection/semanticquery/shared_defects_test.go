@@ -68,7 +68,7 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 	case "warning-unknown":
 		result = fmt.Sprint(nativeJoinedWarningUnknown(ctx, a.(*syntax.FuncCall)))
 	case "string-nonnull":
-		result = fmt.Sprint(NativeStringNonNullGuard(ctx, a))
+		result = fmt.Sprint(NativeNarrowedExcludes(ctx, a, types.Of("string", "null"), "null"))
 	case "length":
 		result = fmt.Sprint(NativeLengthGuard(ctx, a, 4))
 	case "class":
@@ -746,7 +746,8 @@ func TestSharedDerivedStringGuards(t *testing.T) {
 		{"position", "strpos($v, '$') !== FALSE", "", "true"},
 		{"empty position needle", "strpos($v, '') !== false", "", "false"},
 		{"strict offset", "$v[0] === 'x'", "", "true"},
-		{"empty offset", "$v[0] === ''", "", "false"},
+		{"empty offset", "$v[0] === ''", "", "true"}, // null[0] is null, never ''
+
 		{"different variable", "str_ends_with($other, '/')", "", "false"},
 		{"rewrite", "str_ends_with($v, '/')", "$v=other();", "false"},
 		{"false branch", "!str_ends_with($v, '/')", "", "false"},
@@ -824,23 +825,23 @@ func TestSharedJoinedWarningBoundary(t *testing.T) {
 
 func TestSharedDerivedStringGuardBoundaries(t *testing.T) {
 	for _, tc := range []struct{ source, want string }{
-		{`function f($s,$c){$v=$s;if($c){$v=preg_replace('/x/','',$v);}if(false===$i=strpos($v,'$')){return;}$n=1;$v=substr($v,$i);probe($v);}`, "false"},
+		// substr() returns a string, whatever the guard tested.
+		{`function f($s,$c){$v=$s;if($c){$v=preg_replace('/x/','',$v);}if(false===$i=strpos($v,'$')){return;}$n=1;$v=substr($v,$i);probe($v);}`, "true"},
+		{`function f($s,$c){$v=$s;if($c){$v=preg_replace('/x/','',$v);}if(false===$i=strpos($v,'$')){return;}$n=1;$v=other();probe($v);}`, "false"},
 		{`function f($s,$c){$v=$s;if($c){$v=preg_replace('/x/','',$v);}if(false===$i=strpos($v,'$')){return;}$n=1;probe($v);}`, "true"},
 		{`function f($s,$c){$v=$s;if($c){$v=preg_replace('/x/','',$v);}if(str_ends_with($v,'/')){$v=substr(probe($v),1);}}`, "true"},
 		{`function f($o){if(str_ends_with($o->p,'/')){probe($o->p);}}`, "false"},
 		{`function f($o,$k){if(str_ends_with($$k,'/')){probe($$k);}}`, "false"},
-		{`function f($v){if(str_ends_with($v,'/')){$v='changed';probe($v);}}`, "false"},
+		{`function f($v){if(str_ends_with($v,'/')){$v='changed';probe($v);}}`, "true"}, // a literal
+		{`function f($v){if(str_ends_with($v,'/')){$v=other();probe($v);}}`, "false"},
 		{"function f($v){" + strings.Repeat("$x=1;", 513) + "probe($v);}", "false"},
 	} {
 		if got := sharedDefectResults(t, "string-nonnull", tc.source, ""); got != tc.want {
 			t.Fatalf("got %q want %q for %s", got, tc.want, tc.source)
 		}
 	}
-	// Unknown write histories cannot establish an unchanged string binding.
+	// An unknown write history retains no reference.
 	writes := nativeLocalWrites{}
-	if !nativeStringRewritten(&writes, "v", 0, &syntax.Variable{Name: "v"}) {
-		t.Fatal("unknown history proved stable")
-	}
 	writes.share(&syntax.Variable{Name: "v"}, 1)
 	if len(writes.shared) != 0 {
 		t.Fatal("exhausted history retained a reference")
