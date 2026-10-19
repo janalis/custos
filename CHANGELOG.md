@@ -84,6 +84,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   narrows its argument as PHP's own check would.
 - A value assigned inside a loop and carried to the next iteration is no
   longer narrowed by a condition outside the loop, which it never passed.
+- Statements at file level (outside any function) narrow what follows them:
+  `if (!$path) { exit; }` now guards the rest of a script.
+- `$x or throw …;` no longer narrows `$x` when analysing for a PHP version
+  before 8.0, where `throw` is not an expression.
 - A true `array_key_exists($key, $a)` narrows `$a` to an array whatever the
   key, not only for a literal one.
 - `is_array($x) || isset($x['k'])` narrows `$x` to an array: a key probe on

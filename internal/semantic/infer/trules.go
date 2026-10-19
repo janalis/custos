@@ -572,7 +572,7 @@ func (r *TRules) variable(v *syntax.Variable) types.Type {
 		// T-rules sets may be partial (unknown members dropped), so a guard
 		// is only trusted to remove members: a result naming types outside
 		// the known set comes from the unknown part.
-		n := r.Env.narrow(t, v, scope, after)
+		n := r.Env.narrowExprAfter(t, v, v.Name, scope, after)
 		for _, a := range n.Atoms() {
 			if !t.Has(a) {
 				return types.Unknown

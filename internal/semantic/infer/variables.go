@@ -279,16 +279,61 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		}
 		return types.Unknown
 	}
+	return e.variableBaseAt(v.Name, v, v)
+}
+
+// TypeOfVarAt types variable name as a read written at expression at would
+// be typed (without the element writes reaching it): the definitions
+// reaching at, narrowed by the conditions guarding at. It asks what holds of
+// a variable at a place that does not read it, such as a call consuming a
+// value computed from it earlier.
+func (e *Env) TypeOfVarAt(name string, at syntax.Expr) types.Type {
+	if name == "" || name == "this" {
+		return types.Unknown
+	}
+	return e.variableBaseAt(name, at, nil)
+}
+
+// ReachesUnchanged reports whether the definitions of variable read v that
+// reach it are exactly those reaching expression at, a later place of its
+// scope: no assignment between them may have given the variable another
+// value (see TypeOfVarAt).
+func (e *Env) ReachesUnchanged(v *syntax.Variable, at syntax.Expr) bool {
 	scope := syntax.EnclosingVariableScope(v)
+	if v.Name == "" || v.NameExpr != nil || syntax.EnclosingVariableScope(at) != scope || at.Span().Start < v.Span().End {
+		return false
+	}
+	defs := e.scopeVars(scope).defs[v.Name]
+	if len(defs) > maxVarDefs {
+		return false
+	}
+	positions := func(use syntax.Node) []uint32 {
+		fwd, back, _ := e.reaching(defs, use, scope)
+		var out []uint32
+		for _, d := range append(fwd, back...) {
+			out = append(out, d.pos)
+		}
+		slices.Sort(out)
+		return out
+	}
+	return slices.Equal(positions(v), positions(at))
+}
+
+// variableBaseAt is variableBase for variable name read at use; read is the
+// variable read itself, whose dynamic-read facts it records (nil for none).
+func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable) types.Type {
+	scope := syntax.EnclosingVariableScope(use)
 	sv := e.scopeVars(scope)
-	defs := sv.defs[v.Name]
+	defs := sv.defs[name]
 	if len(defs) > maxVarDefs {
 		return types.Unknown
 	}
-	fwd, back, from := e.reaching(defs, v, scope)
-	clob := e.clobbered(sv, fwd, back, v, scope)
-	undef := !clob && len(fwd)+len(back) > 0 && e.maybeUndefined(sv, defs, fwd, v, scope)
-	e.noteDynRead(v, clob, undef)
+	fwd, back, from := e.reaching(defs, use, scope)
+	clob := e.clobbered(sv, fwd, back, use, scope)
+	undef := !clob && len(fwd)+len(back) > 0 && e.maybeUndefinedAt(sv, defs, fwd, name, use, scope)
+	if read != nil {
+		e.noteDynRead(read, clob, undef)
+	}
 	if clob {
 		return types.Unknown
 	}
@@ -301,12 +346,12 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 	after, backAfter := uint32(0), uint32(0)
 	for _, d := range fwd {
 		t := d.typ()
-		if !t.IsUnknown() && e.forStep(d, v, scope) {
+		if !t.IsUnknown() && e.forStep(d, use, scope) {
 			// The step of a for loop around v runs before the condition
 			// is tested again: a back edge, not a definition after it.
-			if nt := e.loopCondNarrow(t, d, v, scope); !nt.IsUnknown() {
+			if nt := e.loopCondNarrow(t, d, name, use, scope); !nt.IsUnknown() {
 				backTs = append(backTs, nt)
-				backAfter = max(backAfter, loopAround(d, v, scope))
+				backAfter = max(backAfter, loopAround(d, use, scope))
 			}
 			continue
 		}
@@ -317,8 +362,8 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		// An unknown back-edge type (often a cycle through this very use)
 		// adds nothing: keep what the forward definitions say.
 		if t := d.typ(); !t.IsUnknown() {
-			backTs = append(backTs, e.loopCondNarrow(t, d, v, scope))
-			backAfter = max(backAfter, loopAround(d, v, scope))
+			backTs = append(backTs, e.loopCondNarrow(t, d, name, use, scope))
+			backAfter = max(backAfter, loopAround(d, use, scope))
 		}
 	}
 	if len(ts)+len(backTs) == 0 {
@@ -329,25 +374,25 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 	}
 	settle := func(t types.Type) types.Type {
 		if t.HasShape() || !t.ArrayKey().IsUnknown() || t.IsNonEmptyArray() {
-			if (t.HasShape() || !t.ArrayKey().IsUnknown()) && e.shapeClobbered(scope, v.Name) {
+			if (t.HasShape() || !t.ArrayKey().IsUnknown()) && e.shapeClobbered(scope, name) {
 				t = t.WithoutShape().WithArrayKey(types.Unknown)
 			}
-			if t.IsNonEmptyArray() && e.nonEmptyBroken(scope, v.Name, from, v) {
+			if t.IsNonEmptyArray() && e.nonEmptyBroken(scope, name, from, use) {
 				t = t.WithNonEmpty(false)
 			}
 		}
 		return t
 	}
 	if len(backTs) == 0 {
-		return e.narrow(settle(types.Union(ts...)), v, scope, after)
+		return e.narrowExprAfter(settle(types.Union(ts...)), use, name, scope, after)
 	}
 	// A union with an unknown member is unknown: keep that rule.
 	if all := settle(types.Union(append(ts, backTs...)...)); all.IsUnknown() {
 		return all
 	}
-	parts := []types.Type{e.narrow(settle(types.Union(backTs...)), v, scope, backAfter)}
+	parts := []types.Type{e.narrowExprAfter(settle(types.Union(backTs...)), use, name, scope, backAfter)}
 	if len(ts) > 0 {
-		parts = append(parts, e.narrow(settle(types.Union(ts...)), v, scope, after))
+		parts = append(parts, e.narrowExprAfter(settle(types.Union(ts...)), use, name, scope, after))
 	}
 	return types.Union(parts...)
 }
@@ -355,7 +400,7 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 // loopAround returns the start of the innermost loop holding both
 // definition d and read v, where the conditions a value d carries around
 // the loop passes again begin (d's own end, should no loop hold both).
-func loopAround(d varDef, v *syntax.Variable, scope syntax.Node) uint32 {
+func loopAround(d varDef, v, scope syntax.Node) uint32 {
 	start, found := max(d.pos, d.end), false
 	for p := v.Parent(); p != nil && p != scope && !found; p = p.Parent() {
 		switch p.(type) {
@@ -370,8 +415,8 @@ func loopAround(d varDef, v *syntax.Variable, scope syntax.Node) uint32 {
 
 // forStep reports whether definition d sits in the step expressions of a
 // for loop whose body holds v.
-func (e *Env) forStep(d varDef, v *syntax.Variable, scope syntax.Node) bool {
-	var child syntax.Node = v
+func (e *Env) forStep(d varDef, v, scope syntax.Node) bool {
+	child := v
 	for p := v.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
 		if f, ok := p.(*syntax.For); ok && child == syntax.Node(f.Body) {
 			for _, x := range f.Loop {
@@ -388,7 +433,7 @@ func (e *Env) forStep(d varDef, v *syntax.Variable, scope syntax.Node) bool {
 // sits in the condition (or step) of a loop around v that is tested before
 // the body runs again: `do { … } while ($e = $e->getPrevious());` only
 // loops with a truthy $e; `for (…; $x !== null; $x = next($x))` likewise.
-func (e *Env) loopCondNarrow(t types.Type, d varDef, v *syntax.Variable, scope syntax.Node) types.Type {
+func (e *Env) loopCondNarrow(t types.Type, d varDef, name string, v, scope syntax.Node) types.Type {
 	in := func(x syntax.Node) bool {
 		sp := x.Span()
 		return d.pos >= sp.Start && d.pos < sp.End
@@ -397,7 +442,7 @@ func (e *Env) loopCondNarrow(t types.Type, d varDef, v *syntax.Variable, scope s
 		switch n := p.(type) {
 		case *syntax.DoWhile:
 			if in(n.Cond) {
-				return e.applyCond(t, n.Cond, v.Name, true)
+				return e.applyCond(t, n.Cond, name, true)
 			}
 		case *syntax.For:
 			if len(n.Cond) == 0 {
@@ -405,7 +450,7 @@ func (e *Env) loopCondNarrow(t types.Type, d varDef, v *syntax.Variable, scope s
 			}
 			for _, x := range append(slices.Clone(n.Loop), n.Cond...) {
 				if in(x) {
-					return e.applyCond(t, n.Cond[len(n.Cond)-1], v.Name, true)
+					return e.applyCond(t, n.Cond[len(n.Cond)-1], name, true)
 				}
 			}
 		}

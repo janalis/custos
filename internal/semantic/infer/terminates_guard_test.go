@@ -1,6 +1,15 @@
 package infer_test
 
-import "testing"
+import (
+	"testing"
+
+	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/index"
+	"custos/internal/semantic/infer"
+	"custos/internal/semantic/names"
+	"custos/internal/semantic/stubs"
+)
 
 // A guard leaves the block through every branch of an if/else, a try, a
 // switch or a call that never returns: past it, the condition is false.
@@ -107,4 +116,42 @@ function noLeave(?int $a) { $a or print('x'); t('noLeave', $a); }
 		"orExit": "int", "orThrow": "int", "andExit": "int", "short": "int", "elseExit": "int",
 		"thenThrow": "int", "never": "int", "noLeave": "int|null",
 	})
+}
+
+// Before PHP 8.0 throw is a statement: an `or throw` written there (a parse
+// error the file recovers from) leaves nothing.
+func TestThrowExpressionBeforePHP8(t *testing.T) {
+	src := `<?php
+function f(?int $a) { $a || throw new \Exception(); u($a); }`
+	for _, tc := range []struct {
+		php  phpversion.Version
+		want string
+	}{{phpversion.PHP74, "int|null"}, {phpversion.PHP80, "int"}} {
+		f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+		ix := index.New(stubs.Index())
+		ix.Add(index.Extract(f))
+		env := infer.NewEnv(f, names.New(f), ix, tc.php)
+		syntax.InspectFile(f, func(n syntax.Node) bool {
+			if c, ok := n.(*syntax.FuncCall); ok {
+				if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "u" {
+					if got := env.TypeOf(c.Args.Args[0].(*syntax.Arg).Value).String(); got != tc.want {
+						t.Errorf("%v: got %s want %s", tc.php, got, tc.want)
+					}
+				}
+			}
+			return true
+		})
+	}
+}
+
+// Statements at file level guard what follows them like those of a function.
+func TestFileLevelGuards(t *testing.T) {
+	checkAnywhere(t, `<?php
+$r = realpath($d);
+if (!$r) { return; }
+t('afterExit', $r);
+$s = realpath($d);
+$s !== false or exit(1);
+t('afterOr', $s);
+`, map[string]string{"afterExit": "string", "afterOr": "string"})
 }

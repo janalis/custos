@@ -8,14 +8,6 @@ import (
 	"custos/internal/semantic/types"
 )
 
-// narrow refines the type of variable occurrence v using the conditions that
-// guard it: ternary branches, if/elseif/else bodies, the right operand of
-// && / ||, and early-exit guards (`if (cond) { return; }`) earlier in the
-// same block. Only checks on the same variable name are understood.
-func (e *Env) narrow(t types.Type, v *syntax.Variable, scope syntax.Node, after uint32) types.Type {
-	return e.narrowExprAfter(t, v, v.Name, scope, after)
-}
-
 // NarrowMember narrows seed, a type assumed for the property, static
 // property or literal-key element read x, by the conditions guarding x, as
 // TypeOf narrows such a read whose declared type is known: what a guard
@@ -167,6 +159,9 @@ func (e *Env) narrowExprAfter(t types.Type, x syntax.Expr, key string, scope syn
 	}
 	var child syntax.Node = x
 	for p := x.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
+		if _, top := p.(*syntax.File); top {
+			break // child is a top-level statement: see the file's guards below
+		}
 		switch n := p.(type) {
 		case *syntax.Ternary:
 			if n.Then != nil && child == syntax.Node(n.Then) {

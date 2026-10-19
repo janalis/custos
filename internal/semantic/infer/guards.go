@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/types"
 )
@@ -425,12 +426,12 @@ func (e *Env) leavesOn(x syntax.Expr) (c syntax.Expr, truth, ok bool) {
 	return nil, false, false
 }
 
-// leavesExpr reports an expression that never completes: a throw, an exit
-// or a call typed never.
+// leavesExpr reports an expression that never completes: a throw (an
+// expression from PHP 8.0), an exit or a call typed never.
 func (e *Env) leavesExpr(x syntax.Expr) bool {
 	switch n := syntax.UnwrapParens(x).(type) {
 	case *syntax.Throw:
-		return true
+		return e.PHP.AtLeast(phpversion.PHP80)
 	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
 		return e.TypeOf(n).OnlyOf("never")
 	}
