@@ -40,3 +40,16 @@ function zeroFloat(string $host)
     $s = fsockopen($host, 80, $errno, $errstr, 0.0);
     return fgets($s);
 }
+function timeoutOrExit() {
+    $s = fsockopen("example.test", 443, $errno, $errstr, 2);
+    if ($s === false) { return null; }
+    stream_set_timeout($s, 2) or exit(1);
+    return fgets($s);
+}
+function timeoutStored() {
+    $s = fsockopen("example.test", 443, $errno, $errstr, 2);
+    if ($s === false) { return null; }
+    $ok = @stream_set_timeout($s, 2);
+    if (!$ok) { return null; }
+    return fgets($s);
+}
