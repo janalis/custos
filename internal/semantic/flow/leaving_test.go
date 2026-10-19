@@ -39,6 +39,17 @@ func TestGuardsOutsideBranches(t *testing.T) {
 		{"other operator", u + `$u !== false xor exit; probe($u);`, false, false},
 		{"exit in a try", u + `try { $u !== false or throw new E(); } catch (E $e) {} probe($u);`, false, false},
 		{"exit statement", u + `if ($u === false) { exit; } probe($u);`, true, false},
+		// Loose comparisons with constants false and null equal.
+		{"loose empty string", u + `if ($u == '') { return; } probe($u);`, true, true},
+		{"loose zero", u + `if ($u == 0) { return; } probe($u);`, true, true},
+		{"loose zero float", u + `if (0.0 == $u) { return; } probe($u);`, true, true},
+		{"loose zero string", u + `if ($u == '0') { return; } probe($u);`, true, false},
+		{"loose other string", u + `if ($u == 'x') { return; } probe($u);`, false, false},
+		{"loose hexadecimal", u + `if ($u == 0x0) { return; } probe($u);`, false, false},
+		{"loose different from empty", u + `if ($u != '') { probe($u); }`, true, true},
+		{"loose true", u + `if ($u == true) { probe($u); }`, true, true},
+		{"loose not true", u + `if ($u != true) { return; } probe($u);`, true, true},
+		{"loose different from a variable", u + `if ($u != $a) { probe($u); }`, false, false},
 		// Calls that never return.
 		{"declared never", `function fail(): never { throw new E; } ` + u + `if ($u === false) { fail(); } probe($u);`, true, false},
 		{"declared never, or form", `function fail(): never { throw new E; } ` + u + `$u !== false or fail(); probe($u);`, true, false},

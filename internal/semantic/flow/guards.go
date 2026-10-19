@@ -18,6 +18,25 @@ func literalText(x syntax.Expr) (string, bool) {
 	return syntax.LiteralStringValue(n)
 }
 
+// looseFalsy reports what a value loosely different from literal x is not:
+// false for ”, '0', 0 and 0.0 (each loosely equals false), and null too for
+// all of them but '0'.
+func looseFalsy(x syntax.Expr) (nonFalse, nonNull bool) {
+	n, ok := syntax.UnwrapParens(x).(*syntax.Literal)
+	if !ok {
+		return false, false
+	}
+	switch n.LitKind {
+	case syntax.LitString:
+		v, ok := syntax.LiteralStringValue(n)
+		return ok && (v == "" || v == "0"), ok && v == ""
+	case syntax.LitInt, syntax.LitFloat:
+		f, err := strconv.ParseFloat(strings.ReplaceAll(n.Raw, "_", ""), 64)
+		return err == nil && f == 0, err == nil && f == 0
+	}
+	return false, false
+}
+
 func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 	if expr == nil {
 		return
@@ -102,8 +121,18 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		if (!truth && n.Op.Kind == syntax.TIsIdentical) || (truth && n.Op.Kind == syntax.TIsNotIdentical) {
 			exclude(n.Left, f, flag == "false", flag == "null")
 		}
-		// A value loosely different from false or null is neither of them.
-		if ((!truth && n.Op.Kind == syntax.TIsEqual) || (truth && n.Op.Kind == syntax.TIsNotEqual)) && (flag == "false" || flag == "null") {
+		// A value loosely different from false or null is neither of them;
+		// so is one loosely different from '', 0 or 0.0, which both equal,
+		// and one loosely equal to true. Loosely different from '0', it is
+		// not false (`null == '0'` does not hold).
+		if (!truth && n.Op.Kind == syntax.TIsEqual) || (truth && n.Op.Kind == syntax.TIsNotEqual) {
+			if flag == "false" || flag == "null" {
+				exclude(n.Left, f, true, true)
+			} else if nonFalse, nonNull := looseFalsy(n.Right); nonFalse {
+				exclude(n.Left, f, true, nonNull)
+			}
+		}
+		if ((truth && n.Op.Kind == syntax.TIsEqual) || (!truth && n.Op.Kind == syntax.TIsNotEqual)) && flag == "true" {
 			exclude(n.Left, f, true, true)
 		}
 		if (truth && n.Op.Kind == syntax.TIsIdentical) || (!truth && n.Op.Kind == syntax.TIsNotIdentical) {

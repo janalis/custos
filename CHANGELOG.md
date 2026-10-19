@@ -49,6 +49,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Loose comparisons narrow types: `$x == false` and `$x != true` test
   truthiness, and `$x != null`, `!= ''`, `!= 0` exclude both null and false
   (`!= '0'` excludes false).
+- Failure checks of the `*FailureUnchecked` family read a loose comparison of
+  the result with `''`, `0`, `0.0` or `'0'` (and `== true`) as a test of the
+  failure value, also for `static` locals.
 - Truthiness tests narrow static properties (`if (self::$cache) { … }`).
 - PregReplaceFailureUnchecked accepts a null test from any earlier condition
   of an `if`/`elseif` chain for a result kept in a property, not only the

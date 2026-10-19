@@ -40,9 +40,7 @@ func TestStaticLocalAcrossReentry(t *testing.T) {
 		{"walked test, use and call in a loop", static + walked + "foreach ($k as $e) { " + use + " $o->run(); } }", 1},
 		{"walked test and use in a loop with a call", static + "foreach ($k as $e) { " + walked + use + " $o->run(); } }", 0},
 		{"call on one path, walked test, call on one path, use", static + "if ($k) { $o->run(); } " + walked + "if ($k) { $o->run(); } " + use + " }", 1},
-		// Paths that disagree on the last call leave the walk nothing to
-		// compare: a test the flow does not read is then not trusted.
-		{"call on one path, walked test, use", static + "if ($k) { $o->run(); } " + walked + use + " }", 1},
+		{"call on one path, walked test, use", static + "if ($k) { $o->run(); } " + walked + use + " }", 0},
 		{"plain local, strict test, call, use", plain + strict + "$o->run(); " + use + " }", 0},
 		{"plain local, walked test, call, use", plain + walked + "$o->run(); " + use + " }", 0},
 		{"plain local, call on one path, walked test, use", plain + "if ($k) { $o->run(); } " + walked + use + " }", 0},
