@@ -110,7 +110,22 @@ func (e *Env) newType(n *syntax.New) types.Type {
 	if cls := e.classRef(n.Class); cls != "" {
 		return e.ctorGenerics(types.Of(`\`+cls), cls, n.Args)
 	}
+	if cls := e.classStringRef(n.Class); cls != "" {
+		return types.Of(`\` + cls) // the class or one extending it
+	}
 	return types.Unknown
+}
+
+// classStringRef returns class C when expression x (not a name) holds a
+// `class-string<C>` of a single class: it names C or a class extending it.
+func (e *Env) classStringRef(x syntax.Expr) string {
+	if _, named := x.(*syntax.Name); named {
+		return ""
+	}
+	if cs := types.ClassStringOf(e.TypeOf(x)).Classes(); len(cs) == 1 {
+		return strings.TrimPrefix(cs[0], `\`)
+	}
+	return ""
 }
 
 // ctorGenerics gives t, the type `new cls(…)` creates, the class template
@@ -390,6 +405,9 @@ func (e *Env) staticCallType(n *syntax.StaticCall) types.Type {
 		return types.Unknown
 	}
 	cls := e.classRef(n.Class)
+	if cls == "" {
+		cls = e.classStringRef(n.Class)
+	}
 	if cls == "" {
 		return types.Unknown
 	}

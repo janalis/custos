@@ -42,6 +42,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   and values from `getIterator()`, or from `key()` and `current()`; for
   example, `DirectoryIterator` entries are no longer reported by
   TypeUnsafeComparison when compared to a string.
+- A `class-string<Foo>` value types `new $class`, `$class::method()` and a
+  successful `$value instanceof $class` as `Foo`.
 
 ### Security
 

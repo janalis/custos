@@ -86,6 +86,10 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			return t
 		}
 		cls := e.classRef(c.Class)
+		if cls == "" && truthy {
+			// `$x instanceof $cls` with `$cls` a class-string<C>: a C.
+			cls = e.classStringRef(c.Class)
+		}
 		if cls == "" {
 			return t
 		}
