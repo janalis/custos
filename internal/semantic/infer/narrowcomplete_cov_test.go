@@ -84,7 +84,7 @@ function g($x, ?string $s) {
 		"negChain":          `\K`,
 		"varChain":          `\K|null`,
 		"looseChain":        `\K|null`,
-		"negConst":          "int|null|string",
+		"negConst":          "int|string",
 		"unknownConst":      "int|null|string",
 		"identVar":          "int|null|string",
 		"classConst":        "string",

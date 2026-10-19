@@ -216,6 +216,9 @@ func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.
 			// Not loosely equal to null, '', 0 or 0.0: neither null nor
 			// false, which equal each of them; not equal to '0': not false.
 			return t.Without(looseFalsyPeers(other, lit)...)
+		case lit == "" && objectOnly(e.TypeOf(other)):
+			// `$x == $object`: null equals no object.
+			return t.Without("null")
 		}
 		return t
 	}
@@ -224,6 +227,10 @@ func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.
 		if holds {
 			if vt, ok := e.constValueType(other); ok {
 				return e.assertIs(t, vt)
+			}
+			// `$x === $known`: identical to a value that is never null.
+			if ot := e.TypeOf(other); !ot.IsUnknown() && !ot.HasAny("null", "mixed", "void") {
+				return t.Without("null")
 			}
 		}
 		return t
@@ -532,4 +539,17 @@ func looseFalsyPeers(x syntax.Expr, lit string) []string {
 		}
 	}
 	return nil
+}
+
+// objectOnly reports a known type made of classes and object only.
+func objectOnly(t types.Type) bool {
+	if t.IsUnknown() || len(t.Atoms()) == 0 {
+		return false
+	}
+	for _, a := range t.Atoms() {
+		if a != "object" && (!strings.HasPrefix(a, `\`) || strings.HasSuffix(a, "[]")) {
+			return false
+		}
+	}
+	return true
 }

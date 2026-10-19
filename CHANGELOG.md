@@ -53,6 +53,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   the result with `''`, `0`, `0.0` or `'0'` (and `== true`) as a test of the
   failure value, also for `static` locals.
 - Truthiness tests narrow static properties (`if (self::$cache) { … }`).
+- Comparing a value with `===` to an expression whose type is known and never
+  null, or with `==` to an object, rules null out (`if ($node === $root)`).
 - PregReplaceFailureUnchecked accepts a null test from any earlier condition
   of an `if`/`elseif` chain for a result kept in a property, not only the
   first one.

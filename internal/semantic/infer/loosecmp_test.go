@@ -31,3 +31,24 @@ function run(string|false $s, ?Obj $o, string|false|null $n, bool $b, int|false 
 		"eqEmpty": "false|null|string", "hex": "false|int",
 	})
 }
+
+// Comparing with a value whose type is known and never null rules null out.
+func TestComparisonWithKnownValues(t *testing.T) {
+	checkWith(t, nil, `<?php
+class Obj {}
+function run(?Obj $o, Obj $known, ?Obj $maybe, ?string $s, string $str, $untyped, int|Obj|null $mixed) {
+    if ($o === $known) { t('identical', $o); }
+    if ($o === $maybe) { t('identicalNullable', $o); }
+    if ($o === $untyped) { t('identicalUnknown', $o); }
+    if ($o !== $known) { t('notIdentical', $o); } else { t('notIdenticalElse', $o); }
+    if ($s === $str) { t('identicalString', $s); }
+    if ($o == $known) { t('looseObject', $o); }
+    if ($s == $str) { t('looseString', $s); }
+    if ($mixed == $known) { t('looseMixed', $mixed); }
+}
+`, map[string]string{
+		"identical": `\Obj`, "identicalNullable": `\Obj|null`, "identicalUnknown": `\Obj|null`,
+		"notIdentical": `\Obj|null`, "notIdenticalElse": `\Obj`, "identicalString": "string",
+		"looseObject": `\Obj`, "looseString": "null|string", "looseMixed": `\Obj|int`,
+	})
+}
