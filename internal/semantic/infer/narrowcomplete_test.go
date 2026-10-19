@@ -211,9 +211,11 @@ function f($x) {
 func TestNarrowNullsafeAndChains(t *testing.T) {
 	checkAnywhere(t, `<?php
 class Foo { public ?Foo $next = null; public array $items = []; public function ok(): bool { return true; } }
-function f(?Foo $x, ?Foo $y, ?Foo $z, ?array $a, ?Foo $w, ?Foo $v, array|false $l) {
+function f(?Foo $x, ?Foo $y, ?Foo $z, ?array $a, ?Foo $w, ?Foo $v, array|false $l, $k) {
     if ($x?->ok()) { t('nullsafe', $x); }
     if (is_array($l) || isset($l['k'])) { t('orKey', $l); }
+    if (array_key_exists($k, $l)) { t('keyExists', $l); }
+    if (!key_exists($k, $l)) { t('keyMissing', $l); }
     if ($y?->next !== null) { t('neNull', $y); }
     if (isset($z->next->items)) { t('isset', $z); }
     if ($a[0] ?? false) {}
@@ -231,6 +233,8 @@ function f(?Foo $x, ?Foo $y, ?Foo $z, ?array $a, ?Foo $w, ?Foo $v, array|false $
 		"instChain":   `\Foo`,
 		"negNullsafe": `\Foo|null`,
 		"orKey":       "array",
+		"keyExists":   "non-empty array",
+		"keyMissing":  "array|false",
 	})
 }
 

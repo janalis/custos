@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/types"
 )
@@ -159,6 +160,9 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		if !ok || c.Args == nil || len(c.Args.Args) == 0 {
 			return t
 		}
+		if r, ok := e.keyExistsCond(t, c, nm, name, truthy); ok {
+			return r
+		}
 		a, ok := c.Args.Args[0].(*syntax.Arg)
 		if !ok || !isVar(a.Value, name) {
 			return t
@@ -187,6 +191,28 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		return narrowAtoms(t, atoms, truthy)
 	}
 	return t
+}
+
+// keyExistsCond narrows name, the array of a true `array_key_exists($k, $a)`
+// whatever its key: from PHP 8.0 a value that is no array throws instead, and
+// before it false and null make the call fail. The array holds a key.
+func (e *Env) keyExistsCond(t types.Type, c *syntax.FuncCall, nm *syntax.Name, name string, truthy bool) (types.Type, bool) {
+	switch strings.ToLower(strings.TrimPrefix(nm.Value, `\`)) {
+	case "array_key_exists", "key_exists":
+	default:
+		return t, false
+	}
+	if !truthy || len(c.Args.Args) != 2 || !e.isBuiltinCall(c) {
+		return t, false
+	}
+	a, ok := c.Args.Args[1].(*syntax.Arg)
+	if !ok || a.Name != nil || a.Unpack || !isVar(a.Value, name) {
+		return t, false
+	}
+	if e.PHP.AtLeast(phpversion.PHP80) {
+		return narrowAtoms(t, typeChecks["is_array"], true).WithNonEmpty(true), true
+	}
+	return t.Without("null", "false").WithNonEmpty(true), true
 }
 
 // condAsserts applies the -assert-if-true (truthy) or -assert-if-false
