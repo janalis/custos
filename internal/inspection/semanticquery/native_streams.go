@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/astquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/flow"
+	"custos/internal/semantic/types"
 )
 
 func nativeSameExpression(ctx *analysis.Context, a, b syntax.Expr) bool {
@@ -715,141 +715,10 @@ var globArrayConsumers = map[string]struct {
 // builtin glob() call that no flow fact or recognised guard separates from false.
 func globFailureUse(ctx *analysis.Context, use syntax.Expr, message string) {
 	call, ok := NativeLocalBuiltinResult(ctx, use, "false", "glob").(*syntax.FuncCall)
-	if !ok || NativeBuiltinName(ctx, call) != "glob" || ctx.Flow().Excludes(use, "false") || !NativeFailureFlowOnly(ctx, use) && globFailureGuarded(ctx, use) {
+	if !ok || NativeBuiltinName(ctx, call) != "glob" || ctx.Flow().Excludes(use, "false") || !NativeFailureFlowOnly(ctx, use) && NativeNarrowedExcludes(ctx, use, types.Of("array", "false"), "false") {
 		return
 	}
 	ctx.ReportNode(use, message)
-}
-
-// globFailureGuarded proves that a dominating condition on the same reaching
-// value already excluded false: an enclosing branch, a short-circuit operand,
-// a ternary arm, or an earlier sibling `if` whose body always leaves.
-func globFailureGuarded(ctx *analysis.Context, use syntax.Expr) bool {
-	if _, ok := syntax.UnwrapParens(use).(*syntax.Variable); !ok {
-		return false
-	}
-	span := use.Span()
-	for p := use.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
-		switch x := p.(type) {
-		case *syntax.Binary:
-			and := x.Op.Kind == syntax.TBooleanAnd || x.Op.Kind == syntax.TAnd
-			or := x.Op.Kind == syntax.TBooleanOr || x.Op.Kind == syntax.TOr
-			if (and || or) && x.Right.Span().Contains(span) && globFailureExcluded(ctx, use, x.Left, and) {
-				return true
-			}
-		case *syntax.Ternary:
-			if x.Then != nil && x.Then.Span().Contains(span) && globFailureExcluded(ctx, use, x.Cond, true) {
-				return true
-			}
-			if x.Else != nil && x.Else.Span().Contains(span) && globFailureExcluded(ctx, use, x.Cond, false) {
-				return true
-			}
-		case *syntax.If:
-			// Outside the body, every elseif condition, elseif body and the else
-			// body run only after the leading condition failed.
-			inBody := x.Body != nil && x.Body.Span().Contains(span)
-			if !x.Cond.Span().Contains(span) && globFailureExcluded(ctx, use, x.Cond, inBody) {
-				return true
-			}
-			for _, branch := range x.ElseIfs {
-				if branch.Body != nil && branch.Body.Span().Contains(span) && globFailureExcluded(ctx, use, branch.Cond, true) {
-					return true
-				}
-			}
-		}
-		st, ok := p.(syntax.Stmt)
-		if !ok {
-			continue
-		}
-		list, i, _ := astquery.StmtList(ctx.File, st)
-		for _, previous := range list[:max(i, 0)] {
-			if guard, ok := previous.(*syntax.If); ok && syntax.Terminates(guard.Body) && globFailureExcluded(ctx, use, guard.Cond, false) {
-				return true
-			}
-			if globFailureLeaves(ctx, use, previous) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// globFailureLeaves recognises `$paths or exit;` and `$paths === false and
-// throw ...;` statements: execution continues only when the left operand
-// excluded false.
-func globFailureLeaves(ctx *analysis.Context, use syntax.Expr, st syntax.Stmt) bool {
-	statement, ok := st.(*syntax.ExprStmt)
-	if !ok {
-		return false
-	}
-	b, ok := syntax.UnwrapParens(statement.Expr).(*syntax.Binary)
-	if !ok {
-		return false
-	}
-	switch syntax.UnwrapParens(b.Right).(type) {
-	case *syntax.Exit, *syntax.Throw:
-	default:
-		return false
-	}
-	switch b.Op.Kind {
-	case syntax.TBooleanOr, syntax.TOr:
-		return globFailureExcluded(ctx, use, b.Left, true)
-	case syntax.TBooleanAnd, syntax.TAnd:
-		return globFailureExcluded(ctx, use, b.Left, false)
-	}
-	return false
-}
-
-// globFailureExcluded reports whether condition evaluating to truth proves the
-// guarded value is not false. glob() yields an array or false, so truthiness,
-// emptiness and type predicates all separate the two outcomes.
-func globFailureExcluded(ctx *analysis.Context, use, condition syntax.Expr, truth bool) bool {
-	switch c := syntax.UnwrapParens(condition).(type) {
-	case *syntax.Variable:
-		return truth && nativeGuardSameValue(ctx, use, c)
-	case *syntax.Empty:
-		return !truth && nativeGuardSameValue(ctx, use, c.Expr)
-	case *syntax.Isset:
-		// A set offset means the value is an array; isset($paths) alone only
-		// excludes null.
-		for _, v := range c.Vars {
-			if fetch, ok := syntax.UnwrapParens(v).(*syntax.ArrayDimFetch); ok && truth && nativeGuardSameValue(ctx, use, fetch.Var) {
-				return true
-			}
-		}
-	case *syntax.Unary:
-		return c.Op.Kind == syntax.TExclaim && globFailureExcluded(ctx, use, c.Expr, !truth)
-	case *syntax.FuncCall:
-		switch NativeBuiltinName(ctx, c) {
-		case "is_array", "is_iterable", "is_countable":
-			return truth && nativeGuardSameValue(ctx, use, CallArgument(c.Args, 0, "value"))
-		case "is_bool":
-			return !truth && nativeGuardSameValue(ctx, use, CallArgument(c.Args, 0, "value"))
-		}
-	case *syntax.Binary:
-		switch c.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TAnd:
-			return truth && (globFailureExcluded(ctx, use, c.Left, true) || globFailureExcluded(ctx, use, c.Right, true))
-		case syntax.TBooleanOr, syntax.TOr:
-			return !truth && (globFailureExcluded(ctx, use, c.Left, false) || globFailureExcluded(ctx, use, c.Right, false))
-		case syntax.TIsIdentical, syntax.TIsEqual, syntax.TIsNotIdentical, syntax.TIsNotEqual:
-			// Comparing with a boolean literal keeps or flips the operand's truth.
-			negated := c.Op.Kind == syntax.TIsNotIdentical || c.Op.Kind == syntax.TIsNotEqual
-			for _, pair := range [][2]syntax.Expr{{c.Left, c.Right}, {c.Right, c.Left}} {
-				constant, ok := syntax.UnwrapParens(pair[1]).(*syntax.ConstFetch)
-				if !ok || constant.Name == nil {
-					continue
-				}
-				switch strings.ToLower(strings.TrimPrefix(constant.Name.Value, `\`)) {
-				case "true":
-					return globFailureExcluded(ctx, use, pair[0], truth != negated)
-				case "false":
-					return globFailureExcluded(ctx, use, pair[0], truth == negated)
-				}
-			}
-		}
-	}
-	return false
 }
 
 // CheckOwnedStreamNotClosed checks the independently specified contract.
@@ -1269,148 +1138,11 @@ func CheckStreamOpenFailureUnchecked(ctx *analysis.Context, n syntax.Node, messa
 		}
 	}
 	ok = open != nil
-	report = ok && NativeBuiltinName(ctx, open) == "fopen" && !ctx.Flow().Excludes(handle, "false") && (NativeFailureFlowOnly(ctx, handle) || !streamOpenGuarded(ctx, handle, open))
+	report = ok && NativeBuiltinName(ctx, open) == "fopen" && !ctx.Flow().Excludes(handle, "false") && (NativeFailureFlowOnly(ctx, handle) || !NativeNarrowedExcludes(ctx, handle, types.Of("resource", "false"), "false"))
 
 	if report {
 		ctx.ReportNode(c, message)
 	}
-}
-
-// streamOpenGuarded proves that a dominating condition on the same reaching
-// fopen() result already excluded false: an enclosing branch or loop
-// condition, a short-circuit operand, a ternary arm, or an earlier sibling
-// statement that leaves when the open failed.
-func streamOpenGuarded(ctx *analysis.Context, use syntax.Expr, open *syntax.FuncCall) bool {
-	if _, ok := syntax.UnwrapParens(use).(*syntax.Variable); !ok {
-		return false
-	}
-	span := use.Span()
-	for p := use.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
-		switch x := p.(type) {
-		case *syntax.Binary:
-			and := x.Op.Kind == syntax.TBooleanAnd || x.Op.Kind == syntax.TAnd
-			or := x.Op.Kind == syntax.TBooleanOr || x.Op.Kind == syntax.TOr
-			if (and || or) && x.Right.Span().Contains(span) && streamOpenExcluded(ctx, use, open, x.Left, and) {
-				return true
-			}
-		case *syntax.Ternary:
-			if x.Then != nil && x.Then.Span().Contains(span) && streamOpenExcluded(ctx, use, open, x.Cond, true) {
-				return true
-			}
-			if x.Else != nil && x.Else.Span().Contains(span) && streamOpenExcluded(ctx, use, open, x.Cond, false) {
-				return true
-			}
-		case *syntax.While:
-			if x.Body != nil && x.Body.Span().Contains(span) && streamOpenExcluded(ctx, use, open, x.Cond, true) {
-				return true
-			}
-		case *syntax.If:
-			// Outside the body, every elseif condition, elseif body and the else
-			// body run only after the leading condition failed.
-			inBody := x.Body != nil && x.Body.Span().Contains(span)
-			if !x.Cond.Span().Contains(span) && streamOpenExcluded(ctx, use, open, x.Cond, inBody) {
-				return true
-			}
-			for _, branch := range x.ElseIfs {
-				if branch.Body != nil && branch.Body.Span().Contains(span) && streamOpenExcluded(ctx, use, open, branch.Cond, true) {
-					return true
-				}
-			}
-		}
-		st, ok := p.(syntax.Stmt)
-		if !ok {
-			continue
-		}
-		list, i, _ := astquery.StmtList(ctx.File, st)
-		for _, previous := range list[:max(i, 0)] {
-			if guard, ok := previous.(*syntax.If); ok && syntax.Terminates(guard.Body) && streamOpenExcluded(ctx, use, open, guard.Cond, false) {
-				return true
-			}
-			if streamOpenLeaves(ctx, use, open, previous) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// streamOpenLeaves recognises expression statements that only complete when
-// the open succeeded: `$h = fopen(...) or die();`, `$h === false and throw
-// ...;` and `$h ?: throw ...;`.
-func streamOpenLeaves(ctx *analysis.Context, use syntax.Expr, open *syntax.FuncCall, st syntax.Stmt) bool {
-	statement, ok := st.(*syntax.ExprStmt)
-	if !ok {
-		return false
-	}
-	leaves := func(e syntax.Expr) bool {
-		_, throws := syntax.UnwrapParens(e).(*syntax.Throw)
-		return e != nil && (throws || syntax.ExitInvocation(e))
-	}
-	switch x := syntax.UnwrapParens(statement.Expr).(type) {
-	case *syntax.Binary:
-		if !leaves(x.Right) {
-			return false
-		}
-		switch x.Op.Kind {
-		case syntax.TBooleanOr, syntax.TOr:
-			return streamOpenExcluded(ctx, use, open, x.Left, true)
-		case syntax.TBooleanAnd, syntax.TAnd:
-			return streamOpenExcluded(ctx, use, open, x.Left, false)
-		}
-	case *syntax.Ternary:
-		if leaves(x.Else) {
-			return streamOpenExcluded(ctx, use, open, x.Cond, true)
-		}
-		return leaves(x.Then) && streamOpenExcluded(ctx, use, open, x.Cond, false)
-	}
-	return false
-}
-
-// streamOpenExcluded reports whether condition evaluating to truth proves the
-// handle is not false. fopen() yields a resource or false, so truthiness,
-// emptiness and type predicates all separate the two outcomes.
-func streamOpenExcluded(ctx *analysis.Context, use syntax.Expr, open *syntax.FuncCall, condition syntax.Expr, truth bool) bool {
-	switch c := syntax.UnwrapParens(condition).(type) {
-	case *syntax.Variable:
-		return truth && nativeGuardSameValue(ctx, use, c)
-	case *syntax.Assign:
-		// `if ($h = fopen(...))` tests the very call whose result reaches the use.
-		return truth && c.Op.Kind == syntax.TEqual && !c.ByRef && NativeUnsilenced(c.Value) == syntax.Expr(open) && astquery.Equivalent(ctx.File, use, c.Var)
-	case *syntax.Empty:
-		return !truth && nativeGuardSameValue(ctx, use, c.Expr)
-	case *syntax.Unary:
-		return c.Op.Kind == syntax.TExclaim && streamOpenExcluded(ctx, use, open, c.Expr, !truth)
-	case *syntax.FuncCall:
-		switch NativeBuiltinName(ctx, c) {
-		case "is_resource":
-			return truth && nativeGuardSameValue(ctx, use, CallArgument(c.Args, 0, "value"))
-		case "is_bool":
-			return !truth && nativeGuardSameValue(ctx, use, CallArgument(c.Args, 0, "value"))
-		}
-	case *syntax.Binary:
-		switch c.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TAnd:
-			return truth && (streamOpenExcluded(ctx, use, open, c.Left, true) || streamOpenExcluded(ctx, use, open, c.Right, true))
-		case syntax.TBooleanOr, syntax.TOr:
-			return !truth && (streamOpenExcluded(ctx, use, open, c.Left, false) || streamOpenExcluded(ctx, use, open, c.Right, false))
-		case syntax.TIsIdentical, syntax.TIsEqual, syntax.TIsNotIdentical, syntax.TIsNotEqual:
-			// Comparing with a boolean literal keeps or flips the operand's truth.
-			negated := c.Op.Kind == syntax.TIsNotIdentical || c.Op.Kind == syntax.TIsNotEqual
-			for _, pair := range [][2]syntax.Expr{{c.Left, c.Right}, {c.Right, c.Left}} {
-				constant, ok := syntax.UnwrapParens(pair[1]).(*syntax.ConstFetch)
-				if !ok || constant.Name == nil {
-					continue
-				}
-				switch strings.ToLower(strings.TrimPrefix(constant.Name.Value, `\`)) {
-				case "true":
-					return streamOpenExcluded(ctx, use, open, pair[0], truth != negated)
-				case "false":
-					return streamOpenExcluded(ctx, use, open, pair[0], truth == negated)
-				}
-			}
-		}
-	}
-	return false
 }
 
 // CheckStreamUseAfterClose checks the independently specified contract.
