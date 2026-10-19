@@ -117,6 +117,9 @@ func nativeJoinedWarningUnknown(ctx *analysis.Context, at *syntax.FuncCall) bool
 	} else {
 		syntax.Inspect(scope, visit)
 	}
+	if budget < 0 {
+		ctx.Gap("query-budget", at.Span())
+	}
 	return budget < 0 || unknown
 }
 

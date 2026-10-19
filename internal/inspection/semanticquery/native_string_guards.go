@@ -62,6 +62,7 @@ func NativeStringNonNullGuard(ctx *analysis.Context, input syntax.Expr) bool {
 		for _, previous := range list[:max(i, 0)] {
 			budget--
 			if budget < 0 {
+				ctx.Gap("query-budget", input.Span())
 				return false
 			}
 			guard, ok := previous.(*syntax.If)

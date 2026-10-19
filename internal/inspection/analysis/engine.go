@@ -217,6 +217,7 @@ func (c *Context) incomplete() []diagnostic.AnalysisIssue {
 			issues = append(issues, diagnostic.AnalysisIssue{Reason: gap.Reason, Span: gap.Span})
 		}
 	}
+	issues = append(issues, c.gaps...)
 	if c.truncated {
 		issues = append(issues, diagnostic.AnalysisIssue{Reason: "finding-limit", Span: c.File.Span()})
 	}

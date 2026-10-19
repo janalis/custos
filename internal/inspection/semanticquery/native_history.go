@@ -72,6 +72,7 @@ func nativeCallHistory(ctx *analysis.Context, at syntax.Node, receiver syntax.Ex
 	for _, call := range ctx.Flow().Calls(scope) {
 		work++
 		if work > budget {
+			ctx.Gap("query-budget", at.Span())
 			history.Complete = false
 			break
 		}
@@ -102,6 +103,7 @@ func nativeCallHistory(ctx *analysis.Context, at syntax.Node, receiver syntax.Ex
 			for parent := call.Node.Parent(); parent != nil && !syntax.IsVariableScope(parent); parent = parent.Parent() {
 				work++
 				if work > budget {
+					ctx.Gap("query-budget", at.Span())
 					history.Complete = false
 					return history
 				}

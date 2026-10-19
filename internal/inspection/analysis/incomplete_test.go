@@ -49,3 +49,24 @@ func TestDetailedAnalysisIncludesFlowAndParserGaps(t *testing.T) {
 		}
 	}
 }
+
+type queryGapRule struct{ typeGapRule }
+
+func (queryGapRule) Check(ctx *Context, n syntax.Node) {
+	for i := range MaxGaps + 2 {
+		ctx.Gap("query-budget", syntax.Span{Start: uint32(i), End: uint32(i + 1)})
+		ctx.Gap("query-budget", syntax.Span{Start: uint32(i), End: uint32(i + 1)})
+	}
+}
+
+// Query gaps are recorded once per reason and range, and at most MaxGaps.
+func TestQueryGapsAreBounded(t *testing.T) {
+	engine, err := NewEngine([]Rule{queryGapRule{}}, Config{EnableAll: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := engine.AnalyzeResult(syntax.Parse("query.php", []byte(`<?php f();`), syntax.Options{}))
+	if len(result.Incomplete) != MaxGaps || result.Incomplete[0].Reason != "query-budget" || result.Incomplete[1].Span.Start != 1 {
+		t.Fatalf("%d gaps: %+v", len(result.Incomplete), result.Incomplete[:2])
+	}
+}

@@ -7,10 +7,16 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Report a `query-budget` analysis gap when a call history, a guard walk or
+  an error-handler scan stops at its work bound, instead of answering
+  conservatively without saying so.
+
 - Classify more HTML output contexts in UnescapedHtmlOutput: script and style
   element text, the start of URL attributes, event handlers, `style` and
   `srcdoc` attributes, and unquoted attribute values, where escaping for HTML
-  text is not enough. Recognize `json_encode` output as safe in scripts.
+  text is not enough. Recognize `json_encode` output as safe in scripts,
+  except inside a string, template literal or comment, and treat a URL after
+  a scheme other than a known safe one as code.
   Reject `\u{…}` escapes PHP does not compile when decoding string literals.
 
 - Report every request-derived part of an output statement in

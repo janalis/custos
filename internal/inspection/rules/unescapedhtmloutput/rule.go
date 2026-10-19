@@ -132,22 +132,27 @@ func htmlInputs(ctx *analysis.Context, operands []syntax.Expr) []emitted {
 // escaped for HTML on every path: it adds no markup to the text node.
 func escaped(ctx *analysis.Context, part syntax.Expr, context flow.Context) bool {
 	v := ctx.Flow().Value(part)
-	return v.Complete && len(v.Sources) > 0 && v.Safe&context != 0
+	return v.Complete && len(v.Sources) > 0 && v.Safe.Covers(context)
 }
 
 // htmlContext identifies what text written after prefix must be safe for:
 // a text node, the text of a script or style element, or the value of a
 // classified attribute, quoted or not.
 func htmlContext(prefix string) flow.Context {
-	lower := strings.ToLower(prefix)
+	// Lowering only ASCII letters keeps every byte where it is.
+	lower := asciiLower(prefix)
 	for _, element := range []struct {
 		name    string
 		context flow.Context
 	}{{"script", flow.HTMLScript}, {"style", flow.HTMLRaw}} {
 		open, closed := strings.LastIndex(lower, "<"+element.name), strings.LastIndex(lower, "</"+element.name)
 		switch {
-		case open > closed && strings.Contains(prefix[open:], ">"):
-			// The element's text runs until its end tag, whatever it holds.
+		case open > closed && strings.Contains(lower[open:], ">"):
+			// The element's text runs until its end tag, whatever it holds;
+			// a script's text decides whether JSON may be written there.
+			if element.context == flow.HTMLScript {
+				return scriptContract(prefix[open+strings.IndexByte(lower[open:], '>')+1:])
+			}
 			return element.context
 		case open >= 0:
 			return 0

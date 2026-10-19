@@ -3,6 +3,7 @@ package analysis
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,22 @@ type Context struct {
 	globalCalls map[*syntax.FuncCall]globalCallResolution
 	// truncated is set once MaxFindingsPerFile findings were collected.
 	truncated bool
+	// gaps are the bounded queries that ran out of work, once per reason
+	// and range, at most MaxGaps.
+	gaps []diagnostic.AnalysisIssue
+}
+
+// MaxGaps bounds the analysis gaps a file records from its queries.
+const MaxGaps = 128
+
+// Gap records that a query stopped at its work bound for the node at span
+// and answered conservatively: the file's analysis is then incomplete.
+func (c *Context) Gap(reason string, span syntax.Span) {
+	issue := diagnostic.AnalysisIssue{Reason: reason, Span: span}
+	if len(c.gaps) >= MaxGaps || slices.Contains(c.gaps, issue) {
+		return
+	}
+	c.gaps = append(c.gaps, issue)
 }
 
 type globalCallResolution struct {

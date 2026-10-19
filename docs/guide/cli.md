@@ -58,7 +58,7 @@ Output formats:
 Analysis status is separate from findings. JSON includes `analysis.complete` and
 `analysis.incomplete`; SARIF includes the same object in the run's
 `properties.analysis`. Each incomplete entry identifies a file, source range
-and reason, such as `dynamic-code`,
+and reason, such as `dynamic-code`, `query-budget`,
 `unsupported-control-flow`, `flow-budget`, `syntax-recovery`, `finding-limit`
 or `rule-failure`. Read failures use `io-error`; `status-limit` indicates that
 the list was bounded.

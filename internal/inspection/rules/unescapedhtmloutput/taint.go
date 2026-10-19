@@ -310,7 +310,7 @@ func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr, 
 				replace, refill := !fed && reference.Known && escapingApplies, fed || !reference.Known
 				if semanticquery.NativeBuiltinName(ctx, x) == "" {
 					value, known := ctx.Flow().ReferenceResult(x, arg)
-					replace = known && (escapingApplies && value.Safe&context != 0 || !requestSource(value) || context == flow.HTML && callbackResult(ctx, value.Expr))
+					replace = known && (escapingApplies && value.Safe.Covers(context) || !requestSource(value) || context == flow.HTML && callbackResult(ctx, value.Expr))
 					refill = !replace
 				}
 				add(write{target: arg.Value, replace: replace, refill: refill})
