@@ -443,19 +443,6 @@ func (w *nativeLocalWrites) sharedAt(name string, at uint32, budget *int) bool {
 	return false
 }
 
-// written reports any write of name strictly between two offsets.
-func (w *nativeLocalWrites) written(name string, after, before uint32) bool {
-	if !w.known {
-		return true
-	}
-	for _, write := range w.writes {
-		if (write.name == name || write.name == "") && write.at > after && write.at < before {
-			return true
-		}
-	}
-	return w.reached(name, after, before)
-}
-
 // rebound reports a write strictly between two offsets after which
 // name may denote another value. A PHP function updating the handle it was
 // given, and a write into the value's elements, keep it the same value.

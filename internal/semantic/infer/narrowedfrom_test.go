@@ -1,6 +1,7 @@
 package infer_test
 
 import (
+	"strings"
 	"testing"
 
 	"custos/internal/php/syntax"
@@ -40,6 +41,9 @@ function f($o, $n) {
     if (strlen($_POST['k']) === 2) { strtolower('x'); u($_POST['k']); }
     $c = $_POST['c']; if (strlen($_POST['c']) === 5) { u($c); }
     $c = $_POST['c']; $_POST['c'] = $n; if (strlen($_POST['c']) === 5) { u($c); }
+    $a = $n; $c = $a; $a = $o; if (strlen($a) === 5) { u($c); }
+    for ($i = $n; strlen($i) > 1; $i = substr($i, 1)) { u($i); }
+    if (strpos(haystack: $n, needle: 'a', offset: 1) !== false) { u($n); }
     $p = $n; extract($_GET); if (strlen($p) === 3) { u($p); }
 }`
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
@@ -56,7 +60,7 @@ function f($o, $n) {
 	want := []string{
 		"string<len 16, 16>", "string", "string<len 4, max>", "string", "string<len 3, max>", "string<len 3, 3>",
 		"string", "string", "string", "string", "string", "string", "?unknown",
-		"string", "string<len 2, 2>", "string<len 5, 5>", "string", "?unknown",
+		"string", "string<len 2, 2>", "string<len 5, 5>", "string", "string", "string<len 2, max>", "string", "?unknown",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %v", got)
@@ -85,7 +89,7 @@ function f($h) {
     $d = fread($h, 4); if (strlen($d) !== 0) { u($d); }
     $d = fread($h, 4); if (strlen($d) != 2) { u($d); }
     $d = fread($h, 4); if (strlen($d) > 5) { u($d); }
-    $d = fread($h, 4); if (strlen($d) === 4) { if ($d === '') { u($d); } }
+    $d = fread($h, 4); if ($d === '') { if (strlen($d) === 4) { u($d); } }
 }`
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
@@ -115,7 +119,7 @@ function f($h) {
 }
 
 // A needle found in a haystack proves the haystack was not null or false,
-// which read as ''.
+// which read as ”.
 func TestNeedleFound(t *testing.T) {
 	src := `<?php
 function f(?string $s, $n) {
@@ -153,5 +157,27 @@ function f(?string $s, $n) {
 		if got[i] != want[i] {
 			t.Errorf("use %d: got %s want %s", i+1, got[i], want[i])
 		}
+	}
+}
+
+// A member copy whose source changed carries no test of it, and a local
+// past the definition budget is unknown.
+func TestNarrowedFromLimits(t *testing.T) {
+	src := "<?php\nfinal class B { public $p; }\n" +
+		"function f(B $o, $n) { $c = $o->p; $o->p = $n; if (strlen($o->p) === 5) { u($c); } }\n" +
+		"function g($n, $k) { $v = $n;" + strings.Repeat(" if ($k > 1) { $v = $k; }", 513) + " u($v); }\n"
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok && c.Name.(*syntax.Name).Value == "u" {
+			got = append(got, env.NarrowedFrom(c.Args.Args[0].(*syntax.Arg).Value, types.String).ShapeString())
+		}
+		return true
+	})
+	if len(got) != 2 || got[0] != "string" || got[1] != "?unknown" {
+		t.Fatalf("got %v", got)
 	}
 }

@@ -3,7 +3,6 @@ package semanticquery
 import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/types"
@@ -53,104 +52,6 @@ func nativeGuard(ctx *analysis.Context, input syntax.Expr, accepts func(syntax.E
 		}
 	}
 	return false
-}
-
-// nativePathGuard finds a condition whose outcome is fixed wherever input
-// runs: the test of an enclosing if/elseif/else arm, the deciding left operand
-// of a short-circuit operator, a ternary condition, or a terminating `if`
-// written directly before an enclosing statement. Negations, true conjunctions
-// and false disjunctions are decomposed before accepts sees an operand.
-func nativePathGuard(ctx *analysis.Context, input syntax.Expr, accepts func(syntax.Expr, bool) bool) bool {
-	if NativeLabelled(ctx, input) {
-		return false
-	}
-	var child syntax.Node = input
-	for p := input.Parent(); p != nil; child, p = p, p.Parent() {
-		if syntax.IsVariableScope(p) {
-			break
-		}
-		switch x := p.(type) {
-		case *syntax.If:
-			if x.Body == child && nativeGuardHolds(x.Cond, true, accepts) {
-				return true
-			}
-		case *syntax.ElseIf:
-			if x.Body == child && nativeGuardHolds(x.Cond, true, accepts) || nativeGuardEarlierArms(x, accepts) {
-				return true
-			}
-		case *syntax.Else:
-			if nativeGuardEarlierArms(x, accepts) {
-				return true
-			}
-		case *syntax.Binary:
-			if x.Right == child {
-				switch x.Op.Kind {
-				case syntax.TBooleanAnd, syntax.TAnd:
-					if nativeGuardHolds(x.Left, true, accepts) {
-						return true
-					}
-				case syntax.TBooleanOr, syntax.TOr:
-					if nativeGuardHolds(x.Left, false, accepts) {
-						return true
-					}
-				}
-			}
-		case *syntax.Ternary:
-			if x.Then != nil && x.Then == child && nativeGuardHolds(x.Cond, true, accepts) || x.Else == child && nativeGuardHolds(x.Cond, false, accepts) {
-				return true
-			}
-		}
-		if st, ok := p.(syntax.Stmt); ok {
-			previous, exists := astquery.PrevStmt(ctx.File, st)
-			if guard, ok := previous.(*syntax.If); exists && ok && guard.Else == nil && len(guard.ElseIfs) == 0 && syntax.Terminates(guard.Body) && nativeGuardHolds(guard.Cond, false, accepts) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// nativeGuardEarlierArms handles an elseif or else arm: every condition
-// written before it was false when the arm runs.
-func nativeGuardEarlierArms(arm syntax.Node, accepts func(syntax.Expr, bool) bool) bool {
-	owner := arm.Parent().(*syntax.If)
-	if nativeGuardHolds(owner.Cond, false, accepts) {
-		return true
-	}
-	for _, other := range owner.ElseIfs {
-		if syntax.Node(other) == arm {
-			break
-		}
-		if nativeGuardHolds(other.Cond, false, accepts) {
-			return true
-		}
-	}
-	return false
-}
-
-// nativeGuardHolds decomposes a condition with a known outcome: a negation
-// flips it, a true conjunction and a false disjunction fix both operands.
-func nativeGuardHolds(cond syntax.Expr, truth bool, accepts func(syntax.Expr, bool) bool) bool {
-	switch c := syntax.UnwrapParens(cond).(type) {
-	case *syntax.Unary:
-		if c.Op.Kind == syntax.TExclaim {
-			return nativeGuardHolds(c.Expr, !truth, accepts)
-		}
-	case *syntax.Binary:
-		switch c.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TAnd:
-			if truth {
-				return nativeGuardHolds(c.Left, true, accepts) || nativeGuardHolds(c.Right, true, accepts)
-			}
-			return false
-		case syntax.TBooleanOr, syntax.TOr:
-			if !truth {
-				return nativeGuardHolds(c.Left, false, accepts) || nativeGuardHolds(c.Right, false, accepts)
-			}
-			return false
-		}
-	}
-	return accepts(cond, truth)
 }
 
 // NativeIntegerAllowsZero proves the validator options neither exclude zero
@@ -246,33 +147,6 @@ func NativeCurlDefault(ctx *analysis.Context, at syntax.Node, handle syntax.Expr
 		}
 	}
 	return true
-}
-
-// nativeGuardSameValue keeps syntactic guards tied to the reaching producer.
-// A repeated call or reassignment creates a new value even when its text agrees.
-func nativeGuardSameValue(ctx *analysis.Context, a, b syntax.Expr) bool {
-	if !astquery.Equivalent(ctx.File, a, b) {
-		return false
-	}
-	av, bv := ctx.Flow().Value(a), ctx.Flow().Value(b)
-	if av.Expr != nil || bv.Expr != nil {
-		return av.Expr == bv.Expr && av.Invalidated == bv.Invalidated && !nativeStaticReplaced(ctx, a, b, av, bv)
-	}
-	// Without a reaching producer only a plain read is the same value twice,
-	// and a variable only while nothing writes it between the two reads.
-	if flowquery.MayHaveSideEffects(a) {
-		return false
-	}
-	variable, ok := syntax.UnwrapParens(a).(*syntax.Variable)
-	if !ok || variable.NameExpr != nil {
-		return true
-	}
-	scope := syntax.EnclosingVariableScope(a)
-	after, before := a.Span().End, b.Span().Start
-	if after > before {
-		after, before = b.Span().End, a.Span().Start
-	}
-	return !nativeContractScope(ctx, scope).localWrites(ctx, scope).written(variable.Name, after, before)
 }
 
 // NativeLabelled reports that a `goto` label is written before a node in its

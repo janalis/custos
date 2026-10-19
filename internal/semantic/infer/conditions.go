@@ -237,7 +237,7 @@ var needleSearches = map[string]bool{
 
 // needleFound reports whether c searches haystack name for a non-empty
 // literal needle (`str_contains($x, 'a')`, `strpos($x, 'a')`): where it
-// succeeds, name was neither null nor false, which read as ''.
+// succeeds, name was neither null nor false, which read as ”.
 func (e *Env) needleFound(c *syntax.FuncCall, name string) bool {
 	nm, ok := c.Name.(*syntax.Name)
 	if !ok || c.Args == nil || !needleSearches[strings.ToLower(strings.TrimPrefix(nm.Value, `\`))] || !e.isBuiltinCall(c) {

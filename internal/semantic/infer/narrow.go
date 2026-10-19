@@ -479,14 +479,10 @@ func (e *Env) cond(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Ex
 }
 
 func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, truthy bool, from uint32) types.Type {
+	// A local's write after the condition (an assignment inside assert()
+	// too, which may not run) is a definition reaching use: callers skip the
+	// conditions written before it (see narrowExprAfter's after).
 	r := e.applyCond(t, c, key, truthy)
-	if !e.options.Assertions && !isDimKey(key) && !isPropKey(key) && r.ShapeString() != t.ShapeString() {
-		for _, m := range e.mutations(scope, key) {
-			if m.optional && e.brokenBy(scope, from, use, []mutation{m}) {
-				return t
-			}
-		}
-	}
 	if b := propBase(key); b != "" && r.ShapeString() != t.ShapeString() && e.chainBroken(scope, key, b, from, use) {
 		return t // `$v` (or a property along the chain) changed since
 	}
