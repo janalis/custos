@@ -6,6 +6,7 @@ import (
 	"custos/internal/inspection/phpunit"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Handle file reading failure before using its result."
@@ -48,7 +49,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		inputs = semanticquery.NativeStringInputs(ctx, n, args)
 	}
 	for _, input := range inputs {
-		inner, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
+		_, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
 		if !ok {
 			continue
 		}
@@ -57,7 +58,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		// only the flow knows the calls that may have assigned it since. In
 		// a scope with a `goto` label only the flow says what holds here.
 		jumps := semanticquery.NativeFailureFlowOnly(ctx, input)
-		if !jumps && !semanticquery.NativeStaticLocal(ctx, input) && ctx.TypeOf(input).OnlyOf("string") || ctx.Flow().Excludes(input, "false") || !jumps && guarded(ctx, input, inner) {
+		if !jumps && !semanticquery.NativeStaticLocal(ctx, input) && ctx.TypeOf(input).OnlyOf("string") || ctx.Flow().Excludes(input, "false") || !jumps && semanticquery.NativeNarrowedExcludes(ctx, input, types.Of("string", "false"), "false") {
 			continue
 		}
 		// A parameter must be `string` in whichever declaration runs; a
