@@ -71,9 +71,7 @@ func chainBase(t types.Type, x syntax.Expr, name string) (types.Type, bool) {
 			if dim {
 				out = out.Without("false").WithNonEmpty(true)
 			}
-			if len(out.Atoms()) == 0 {
-				return t, false
-			}
+			// Emptied, the path is impossible (as with truthyType).
 			return out, true
 		}
 		x = base

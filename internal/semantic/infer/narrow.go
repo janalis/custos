@@ -262,6 +262,9 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 	if isPropKey(key) && !isDimKey(key) && r.ShapeString() != t.ShapeString() && e.brokenBy(scope, from, use, e.mutations(scope, key)) {
 		return t // the property itself was written since
 	}
+	if isPropKey(key) && !isDimKey(key) && r.ShapeString() != t.ShapeString() && e.native && e.memberBroken(scope, key, from, use) {
+		return t
+	}
 	if !isPropKey(key) && !isDimKey(key) && r.ShapeString() != t.ShapeString() && e.scopeVars(scope).statics[key] && e.brokenBy(scope, from, use, e.mutations(scope, anyCall)) {
 		return t // a call may enter the function again and assign its static local
 	}
@@ -456,6 +459,40 @@ func (e *Env) assertCall(x syntax.Expr) syntax.Expr {
 		return e.AssertGuard(call)
 	}
 	return nil
+}
+
+// memberBroken reports, for the native environment, which proves rather
+// than assumes, whether a fact a condition established at from about
+// property key may no longer hold at use: a call that may run code of the
+// project lies between them, a property of that name is written through
+// another receiver (which may hold the same object), or reading use may run
+// code itself (see plainMember).
+func (e *Env) memberBroken(scope syntax.Node, key string, from uint32, use syntax.Expr) bool {
+	if e.brokenBy(scope, from, use, e.mutations(scope, anyCall)) {
+		return true
+	}
+	pf, ok := syntax.UnwrapParens(use).(*syntax.PropertyFetch)
+	if !ok {
+		return false // a static property: no other receiver, no hook
+	}
+	id := pf.Name.(*syntax.Identifier) // a narrowing key names the property
+	return e.brokenBy(scope, from, use, e.mutations(scope, propNameKey(id.Value)), e.mutations(scope, propNameKey("*"))) || !e.plainMember(pf, id.Value)
+}
+
+// plainMember reports a property read that runs no code: every class its
+// receiver may be of declares the property, without a hook, and has no
+// __get method. A class extending it that declares the property again with
+// a hook is not considered.
+func (e *Env) plainMember(pf *syntax.PropertyFetch, name string) bool {
+	cs := e.TypeOf(pf.Var).Classes()
+	for _, c := range cs {
+		c = strings.TrimPrefix(c, `\`)
+		p := e.Index.FindProperty(c, name, e.PHP)
+		if p == nil || p.Magic || p.Static || p.Hooked || p.ReadsRunCode || e.Index.FindMethod(c, "__get", e.PHP) != nil {
+			return false
+		}
+	}
+	return len(cs) > 0
 }
 
 // nativeProp reports whether property fetch x names a property with a

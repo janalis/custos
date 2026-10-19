@@ -351,6 +351,10 @@ const (
 // anyCall is the mutations key listing every call of the scope.
 const anyCall = "\x00call"
 
+// propNameKey is the mutations key listing the writes of property name
+// through any receiver ("*" for a name computed at run time).
+func propNameKey(name string) string { return "\x00prop " + name }
+
 type mutation struct {
 	span     syntax.Span
 	kind     mutKind
@@ -375,6 +379,9 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 	add := func(x syntax.Expr, m mutation) {
 		m.optional = e.optionalAssertion(x)
 		x = syntax.UnwrapParens(x)
+		if k := writtenPropName(x); k != "" {
+			out[k] = append(out[k], m)
+		}
 		if d, ok := x.(*syntax.ArrayDimFetch); ok {
 			// An element write: recorded under the first-level element's
 			// key (dimKey), or dimKey(base, "*") for a computed key.
@@ -529,6 +536,26 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 		})
 	}
 	return out
+}
+
+// writtenPropName is the propNameKey of the property a write to x changes
+// (`$q->p`, `$q->p['k']`), or "".
+func writtenPropName(x syntax.Expr) string {
+	for {
+		d, ok := x.(*syntax.ArrayDimFetch)
+		if !ok {
+			break
+		}
+		x = syntax.UnwrapParens(d.Var)
+	}
+	pf, ok := x.(*syntax.PropertyFetch)
+	if !ok {
+		return ""
+	}
+	if id, named := pf.Name.(*syntax.Identifier); named {
+		return propNameKey(id.Value)
+	}
+	return propNameKey("*")
 }
 
 // byRefArg reports whether the argument of mutation m binds a by-reference

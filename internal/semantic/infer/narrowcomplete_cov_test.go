@@ -79,7 +79,7 @@ function g($x, ?string $s) {
     t('issetFalse', $s);
 }
 `, map[string]string{
-		"nullBase":          "null",
+		"nullBase":          "?unknown",
 		"constChain":        `\K`,
 		"negChain":          `\K`,
 		"varChain":          `\K|null`,

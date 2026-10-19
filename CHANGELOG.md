@@ -78,6 +78,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   narrows its argument as PHP's own check would.
 - A value assigned inside a loop and carried to the next iteration is no
   longer narrowed by a condition outside the loop, which it never passed.
+- `is_array($x) || isset($x['k'])` narrows `$x` to an array: a key probe on
+  a value that can only be `false` no longer keeps `false` in the union.
+- The failure checks that need a proof no longer accept a property test past
+  a call that may run project code, a write of a property of the same name
+  through another variable, or on a hooked or magic property.
 - The right side of `$a ?: $b` is narrowed by `$a` being falsy.
 - An `elseif` condition is narrowed by the earlier conditions of its chain
   having failed.
