@@ -132,15 +132,62 @@ func callKeySpan(rest string) (start, end uint64) {
 // later place of its scope: the call's type narrowed by the conditions on
 // that very call guarding at, written directly (`if (flock($h, LOCK_EX))`,
 // `flock($h, LOCK_EX) or exit;`, `if (!@f()) { return; }`), assigned in
-// place (`if ($ok = f())`) or through a boolean holding it
-// (`$ok = f(); if (!$ok) { return; }`). A call that may run again before at
+// place (`if ($ok = f())`) or through the variable it was stored in, while
+// that assignment is the only one reaching at (`$ok = f(); if (!$ok) { … }`). A call that may run again before at
 // (inside a loop around both) still counts by its last result.
 func (e *Env) CallResultAt(c *syntax.FuncCall, at syntax.Expr) types.Type {
 	scope := syntax.EnclosingVariableScope(c)
 	if syntax.EnclosingVariableScope(at) != scope || at.Span().Start < c.Span().End {
 		return types.Unknown
 	}
-	return e.narrowExprAfter(e.TypeOf(c), at, callKey(c), scope, c.Span().End)
+	t := e.narrowExprAfter(e.TypeOf(c), at, callKey(c), scope, c.Span().End)
+	if v := e.storedIn(c, at, scope); v != "" {
+		// `$ok = f(); if ($ok != true) { return; }`: what the tests of the
+		// variable prove of it holds of the call.
+		if vt := e.variableBaseAt(v, at, nil); !vt.IsUnknown() && !t.IsUnknown() {
+			t = e.assertIs(t, vt)
+		}
+	}
+	return t
+}
+
+// storedIn names the variable a plain assignment `$v = c` stores call c in
+// when that assignment is the only definition of $v reaching at ("" else).
+func (e *Env) storedIn(c *syntax.FuncCall, at syntax.Expr, scope syntax.Node) string {
+	// `$ok = f()`, also `$ok = @f()` and `$ok = (f())`.
+	var x syntax.Node = c
+	p := c.Parent()
+	for {
+		if u, silenced := p.(*syntax.Unary); silenced && u.Op.Kind == syntax.TAt {
+			x, p = p, p.Parent()
+			continue
+		}
+		if _, paren := p.(*syntax.Paren); paren {
+			x, p = p, p.Parent()
+			continue
+		}
+		break
+	}
+	a, ok := p.(*syntax.Assign)
+	if ok && syntax.Node(a.Value) != x {
+		ok = false
+	}
+	if !ok || a.ByRef || a.Op.Kind != syntax.TEqual {
+		return ""
+	}
+	v, plain := a.Var.(*syntax.Variable)
+	if !plain || v.Name == "" || v.NameExpr != nil || v.Name == "this" {
+		return ""
+	}
+	defs := e.scopeVars(scope).defs[v.Name]
+	if len(defs) > maxVarDefs {
+		return ""
+	}
+	fwd, back, _ := e.reaching(defs, at, scope)
+	if len(fwd) != 1 || len(back) != 0 || fwd[0].asg != a {
+		return ""
+	}
+	return v.Name
 }
 
 func isPropKey(k string) bool { return strings.Contains(k, "->") || strings.Contains(k, "::") }
@@ -489,7 +536,7 @@ func (e *Env) aliasCond(v *syntax.Variable, name string) syntax.Expr {
 	}
 	a := fwd[0].asg
 	cond := syntax.UnwrapParens(a.Value)
-	if !isBoolExpr(cond) && !callMatches(cond, name) {
+	if !isBoolExpr(cond) {
 		return nil
 	}
 	end, at := a.Span().End, v.Span().Start
