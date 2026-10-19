@@ -9,8 +9,9 @@ import (
 	"custos/internal/semantic/types"
 )
 
-// NativeLengthGuard proves that an enclosing true branch requires an exact
-// byte length. Other validation shapes stay unknown rather than guessed safe.
+// NativeLengthGuard proves that input is exactly length bytes long where it
+// is read: the flow facts say so, or, in a scope without goto labels before
+// it, the strlen() tests guarding it leave only that length.
 func NativeLengthGuard(ctx *analysis.Context, input syntax.Expr, length int64) bool {
 	if input == nil {
 		return false
@@ -18,21 +19,7 @@ func NativeLengthGuard(ctx *analysis.Context, input syntax.Expr, length int64) b
 	if n, known := ctx.Flow().ExactLength(input); known && n == length {
 		return true
 	}
-	return nativePathGuard(ctx, input, func(condition syntax.Expr, truth bool) bool {
-		b, ok := syntax.UnwrapParens(condition).(*syntax.Binary)
-		if !ok || !((truth && b.Op.Kind == syntax.TIsIdentical) || (!truth && b.Op.Kind == syntax.TIsNotIdentical)) {
-			return false
-		}
-		for _, pair := range [][2]syntax.Expr{{b.Left, b.Right}, {b.Right, b.Left}} {
-			call, ok := syntax.UnwrapParens(pair[0]).(*syntax.FuncCall)
-			if !ok || !NativeBuiltin(ctx, call, "strlen") {
-				continue
-			}
-			n, known := NativeInt(ctx, pair[1])
-			return known && n == length && nativeGuardSameValue(ctx, CallArgument(call.Args, 0, "string"), input)
-		}
-		return false
-	})
+	return !NativeLabelled(ctx, input) && ctx.Types().Native().NarrowedFrom(input, types.String).LengthsOnly(length, length)
 }
 
 // NativeFailureExcluded proves that the failure value sentinel (`null`,
