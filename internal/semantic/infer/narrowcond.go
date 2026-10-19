@@ -231,9 +231,9 @@ func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.
 			return intCmp(t, v, strict, holds)
 		}
 	}
-	if l, ok := syntax.UnwrapParens(other).(*syntax.Literal); ok && l.LitKind == syntax.LitString {
-		if text, ok := syntax.LiteralStringValue(l); ok && text == "" {
-			if _, known := t.StringLengthRanges(); known {
+	if _, known := t.StringLengthRanges(); known {
+		if l, ok := syntax.UnwrapParens(other).(*syntax.Literal); ok && l.LitKind == syntax.LitString {
+			if text, ok := syntax.LiteralStringValue(l); ok && text == "" {
 				return emptyCmp(t, strict, holds)
 			}
 		}
@@ -334,30 +334,34 @@ func emptyCmp(t types.Type, strict, holds bool) types.Type {
 // strlen($x), or mb_strlen($x, '8bit').
 func (e *Env) lengthOperand(x syntax.Expr, name string) bool {
 	c, ok := syntax.UnwrapParens(x).(*syntax.FuncCall)
-	if !ok || c.Args == nil || len(c.Args.Args) == 0 || !e.isBuiltinCall(c) {
+	if !ok || c.Args == nil || len(c.Args.Args) == 0 {
+		return false
+	}
+	nm, ok := c.Name.(*syntax.Name)
+	if !ok {
+		return false
+	}
+	fn := strings.ToLower(strings.TrimPrefix(nm.Value, `\`))
+	if fn != "strlen" && fn != "mb_strlen" {
 		return false
 	}
 	a, ok := c.Args.Args[0].(*syntax.Arg)
-	if !ok || a.Unpack || a.Name != nil || !isVar(a.Value, name) {
+	if !ok || a.Unpack || a.Name != nil || !isVar(a.Value, name) || !e.isBuiltinCall(c) {
 		return false
 	}
-	nm, _ := c.Name.(*syntax.Name)
-	switch strings.ToLower(strings.TrimPrefix(nm.Value, `\`)) {
-	case "strlen":
+	if fn == "strlen" {
 		return len(c.Args.Args) == 1
-	case "mb_strlen":
-		if len(c.Args.Args) != 2 {
-			return false
-		}
-		enc, ok := c.Args.Args[1].(*syntax.Arg)
-		l, lit := syntax.UnwrapParens(enc.Value).(*syntax.Literal)
-		if !ok || !lit || l.LitKind != syntax.LitString {
-			return false
-		}
-		text, _ := syntax.LiteralStringValue(l)
-		return strings.EqualFold(text, "8bit")
 	}
-	return false
+	if len(c.Args.Args) != 2 {
+		return false
+	}
+	enc, ok := c.Args.Args[1].(*syntax.Arg)
+	l, lit := syntax.UnwrapParens(enc.Value).(*syntax.Literal)
+	if !ok || !lit || l.LitKind != syntax.LitString {
+		return false
+	}
+	text, _ := syntax.LiteralStringValue(l)
+	return strings.EqualFold(text, "8bit")
 }
 
 // lengthCmp narrows t by a comparison of its byte length with v (op an

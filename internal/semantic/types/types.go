@@ -121,22 +121,23 @@ func (t Type) OnlyOf(atoms ...string) bool {
 // is represented as unknown (callers must treat partial knowledge as unknown).
 func Union(ts ...Type) Type {
 	var all []string
-	info := false
+	info, ints, lens := false, false, false
 	for _, t := range ts {
 		if t.IsUnknown() {
 			return Unknown
 		}
 		all = append(all, t.atoms...)
 		info = info || t.arr != nil
+		ints, lens = ints || t.ints != nil, lens || t.lens != nil
 	}
 	u := Of(all...)
 	if info {
 		u = u.withInfo(unionInfo(ts))
 	}
-	if u.Has("int") {
+	if ints {
 		u.ints = unionInts(ts)
 	}
-	if u.Has("string") {
+	if lens {
 		u.lens = unionLens(ts)
 	}
 	return u.withGen(unionGen(u, ts)).withInter(unionInter(ts))
@@ -160,10 +161,10 @@ func (t Type) Without(atoms ...string) Type {
 		}
 	}
 	r := Type{atoms: out}.withInfo(t.arr).withGen(t.gen).withInter(t.Intersection())
-	if r.Has("int") {
+	if t.ints != nil && r.Has("int") {
 		r.ints = t.ints
 	}
-	if r.Has("string") {
+	if t.lens != nil && r.Has("string") {
 		r.lens = t.lens
 	}
 	return r
