@@ -53,6 +53,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - PregReplaceFailureUnchecked accepts a null test from any earlier condition
   of an `if`/`elseif` chain for a result kept in a property, not only the
   first one.
+- DateLastErrorsFalseUnchecked no longer reports a diagnostics read on a
+  property inside a branch, ternary arm or `else` that a `false` test guards.
 
 ### Fixed
 
