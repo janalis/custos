@@ -42,6 +42,11 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 			if c := e.assertCall(es.Expr); c != nil {
 				t = e.condAt(use, scope, t, c, name, true, es.Span().End)
 			}
+			// `$x or exit;`, `$x ?: throw …;`, `$x ? null : exit(1);`: past
+			// the statement, the outcome that does not leave held.
+			if c, truth, ok := e.leavesOn(es.Expr); ok {
+				t = e.condAt(use, scope, t, c, name, truth, es.Span().End)
+			}
 			continue
 		}
 		if c := loopCond(s); c != nil {
@@ -390,4 +395,44 @@ func loopCond(s syntax.Stmt) syntax.Expr {
 		}
 	}
 	return nil
+}
+
+// leavesOn reports a statement expression that leaves the path on one
+// outcome of a condition: c is the condition and truth the outcome that
+// lets execution go on.
+func (e *Env) leavesOn(x syntax.Expr) (c syntax.Expr, truth, ok bool) {
+	switch n := syntax.UnwrapParens(x).(type) {
+	case *syntax.Binary:
+		if !e.leavesExpr(n.Right) {
+			return nil, false, false
+		}
+		switch n.Op.Kind {
+		case syntax.TBooleanOr, syntax.TOr:
+			return n.Left, true, true
+		case syntax.TBooleanAnd, syntax.TAnd:
+			return n.Left, false, true
+		}
+	case *syntax.Ternary:
+		then := n.Then != nil && e.leavesExpr(n.Then)
+		other := e.leavesExpr(n.Else)
+		switch {
+		case then && !other:
+			return n.Cond, false, true
+		case other && !then:
+			return n.Cond, true, true
+		}
+	}
+	return nil, false, false
+}
+
+// leavesExpr reports an expression that never completes: a throw, an exit
+// or a call typed never.
+func (e *Env) leavesExpr(x syntax.Expr) bool {
+	switch n := syntax.UnwrapParens(x).(type) {
+	case *syntax.Throw:
+		return true
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+		return e.TypeOf(n).OnlyOf("never")
+	}
+	return syntax.ExitInvocation(x)
 }

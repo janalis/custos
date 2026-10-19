@@ -89,3 +89,22 @@ function voidCall(?int $a, Maybe $m) {
 		"elseFalls": "int|null", "elseIfFalls": "int|null",
 	})
 }
+
+// A statement that leaves on one outcome of a test narrows what follows.
+func TestStatementsLeavingOnAnOutcome(t *testing.T) {
+	checkWith(t, nil, `<?php
+function stop(): never { exit(1); }
+function orExit(?int $a) { $a !== null or exit; t('orExit', $a); }
+function orThrow(?int $a) { $a || throw new \Exception(); t('orThrow', $a); }
+function andExit(?int $a) { $a === null and exit(1); t('andExit', $a); }
+function shortTernary(?int $a) { $a ?: throw new \Exception(); t('short', $a); }
+function elseExit(?int $a) { $a ? null : exit(1); t('elseExit', $a); }
+function thenThrow(?int $a) { !$a ? throw new \Exception() : null; t('thenThrow', $a); }
+function neverCall(?int $a) { $a !== null or stop(); t('never', $a); }
+function bothLeave(?int $a) { $a ? exit(1) : exit(2); }
+function noLeave(?int $a) { $a or print('x'); t('noLeave', $a); }
+`, map[string]string{
+		"orExit": "int", "orThrow": "int", "andExit": "int", "short": "int", "elseExit": "int",
+		"thenThrow": "int", "never": "int", "noLeave": "int|null",
+	})
+}

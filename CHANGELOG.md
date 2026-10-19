@@ -81,6 +81,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The right side of `$a ?: $b` is narrowed by `$a` being falsy.
 - An `elseif` condition is narrowed by the earlier conditions of its chain
   having failed.
+- Type inference narrows past a statement that leaves on one outcome of a
+  test: `$x or exit;`, `$x || throw …;`, `$x ?: throw …;`,
+  `$x ? null : exit(1);`.
 - A value assigned right before `continue 2` (or a deeper level) no longer
   reaches the reads of the loops it leaves, and a `for` loop's step
   expressions are narrowed by its condition when the body does not assign
