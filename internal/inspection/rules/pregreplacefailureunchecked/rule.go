@@ -31,7 +31,14 @@ func (rule) Check(ctx *analysis.Context, call syntax.Node) {
 	case *syntax.MethodCall:
 		args = x.Args
 	}
-	for _, input := range semanticquery.NativeStringInputs(ctx, call, args) {
+	// A PHPUnit assertion checks what it is given, unless it lets a null
+	// pass: a string parameter rejects null, a loose comparison does not.
+	assertion := phpunit.PuAssertion(ctx, call)
+	inputs := semanticquery.NativeStringInputs(ctx, call, args)
+	if assertion {
+		inputs = phpunit.FailurePassing(ctx, call, args, false)
+	}
+	for _, input := range inputs {
 		_, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "null", "preg_replace", "preg_replace_callback").(*syntax.FuncCall)
 		if !ok {
 			continue
@@ -41,9 +48,8 @@ func (rule) Check(ctx *analysis.Context, call syntax.Node) {
 		if ctx.Flow().Excludes(input, "null") || semanticquery.NativeStringNonNullGuard(ctx, input) || !semanticquery.NativeFailureFlowOnly(ctx, input) && (ctx.TypeOf(input).OnlyOf("string") || nullGuarded(ctx, input)) {
 			continue
 		}
-		// The parameter must be `string` in whichever declaration runs, and a
-		// PHPUnit assertion is the check of what it is given.
-		if !phpunit.PuAssertion(ctx, call) && semanticquery.NativeStringConsumer(ctx, call, args, input) {
+		// The parameter must be `string` in whichever declaration runs.
+		if assertion || semanticquery.NativeStringConsumer(ctx, call, args, input) {
 			ctx.ReportNode(call, message)
 			return
 		}

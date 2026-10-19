@@ -321,7 +321,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		if !e.nativeClass(n) {
 			reenter(n, f, r)
 			if e.exposed(f, r) {
-				e.invalidateShared(f, r)
+				e.invalidateShared(n, f, r)
 			}
 		} else if e.handed(n, "", n.Args, values) {
 			e.implicit(n, f, r)
@@ -1210,7 +1210,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		if name == "__invoke" || name == "call" || e.callbackParameter(n, args, values) {
 			reenter(n, f, r)
 			if e.exposed(f, r) {
-				e.invalidateShared(f, r)
+				e.invalidateShared(n, f, r)
 			}
 		} else if e.handed(n, name, args, values) {
 			e.implicit(n, f, r)
@@ -1264,7 +1264,9 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 				}
 			}
 		case "fopen", "tmpfile", "popen", "curl_init":
-			v.Identity = n.Span().Start + 1
+			// A fresh handle: no code ran on it, whatever its arguments
+			// went through.
+			v.Identity, v.Invalidated = n.Span().Start+1, 0
 		case "prepare", "query":
 			v = Value{Complete: true, Expr: n.(syntax.Expr), Identity: n.Span().Start + 1}
 		}
@@ -1296,7 +1298,7 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 		if !e.quiet(n, args, values) {
 			reenter(n, f, r)
 		}
-		e.invalidateShared(f, r)
+		e.invalidateShared(n, f, r)
 		for id := range f.states {
 			if id >= bufferID {
 				delete(f.states, id)
@@ -1468,7 +1470,7 @@ func (e *Env) suspend(x syntax.Expr, f *frame, r *scopeResult, depth int) {
 	leaving(f, r)
 	e.invalidateEscaped(x, yielded, f, r)
 	reenter(x, f, r)
-	e.invalidateShared(f, r)
+	e.invalidateShared(x, f, r)
 	for id := range f.states {
 		if id >= bufferID {
 			delete(f.states, id)
@@ -2605,12 +2607,17 @@ func destructured(item *syntax.ArrayItem) bool {
 
 // invalidateShared discards the bindings code outside the scope can replace
 // while a callee with unknown effects, or a callback, runs.
-func (e *Env) invalidateShared(f *frame, r *scopeResult) {
+func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
+	// What is left there was possibly written by the code at: a guard read
+	// before it says nothing of a read after it.
+	stamp := at.Span().Start + 1
 	if r.global && e.globalsTable() {
 		f.related = nil
 		r.operations += len(f.vars)
 		for name, old := range f.vars {
-			f.vars[name] = unsettled(old, e.held(name, r), r)
+			v := unsettled(old, e.held(name, r), r)
+			v.Invalidated = stamp
+			f.vars[name] = v
 		}
 		return
 	}
@@ -2633,7 +2640,9 @@ func (e *Env) invalidateShared(f *frame, r *scopeResult) {
 		if !shared {
 			written = e.held(name, r)
 		}
-		f.vars[name] = unsettled(f.vars[name], written, r)
+		v := unsettled(f.vars[name], written, r)
+		v.Invalidated = stamp
+		f.vars[name] = v
 	}
 }
 

@@ -28,8 +28,10 @@ func environmentAt(t testing.TB, src string, version phpversion.Version) (*Env, 
 
 // The declarations a call may run are the one it resolves to when no other
 // can stand for it, or that one and each replacement in a class extending
-// the receiver's; none when a class on the way is declared twice, the
-// receiver is not followed or the method is not the one reached.
+// the receiver's; the method of each copy when the class looked up is
+// declared more than once and each copy declares it; none when another class
+// on the way is declared twice, the receiver is not followed or the method
+// is not the one reached.
 func TestTargetsAreTheDeclarationsThatMayRun(t *testing.T) {
 	const base = `class K { function take(string $s) {} static function make(string $s) {} private function hidden(string $s) {} } `
 	for _, tc := range []struct {
@@ -49,7 +51,8 @@ func TestTargetsAreTheDeclarationsThatMayRun(t *testing.T) {
 		{"property receiver", base + `class H { private K $k; function f($v) { $this->k->take($v); } }`, []string{"K"}},
 		{"static call naming the class", base + `class L extends K { static function make($s) {} } function f($v) { K::make($v); }`, []string{"K"}},
 		{"static call bound late", `class K { static function make(string $s) {} function f($v) { static::make($v); } } class L extends K { static function make($s) {} }`, []string{"K", "L"}},
-		{"class declared twice", `if ($c) { class K { function take(string $s) {} } } else { class K { function take($s) {} } } function f(K $k, $v) { $k->take($v); }`, nil},
+		{"class declared twice", `if ($c) { class K { function take(string $s) {} } } else { class K { function take($s) {} } } function f(K $k, $v) { $k->take($v); }`, []string{"K", "K"}},
+		{"class declared twice, one copy inheriting", `class I { function take($s) {} } if ($c) { class K { function take(string $s) {} } } else { class K extends I { } } function f(K $k, $v) { $k->take($v); }`, nil},
 		{"method not visible", base + `function f(K $k, $v) { $k->hidden($v); }`, nil},
 		{"unknown method", base + `function f(K $k, $v) { $k->other($v); }`, nil},
 		{"unknown receiver", base + `function f($k, $v) { $k->take($v); }`, nil},

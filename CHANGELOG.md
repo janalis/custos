@@ -7,6 +7,24 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Report a failed read or replacement given to a PHPUnit assertion that
+  would pass with it: loose comparisons with an empty or falsy literal,
+  `assertEmpty`, and, for file reads without strict types, string needles,
+  prefixes and suffixes.
+
+- Count methods PHP itself declares, such as `DateTime::modify` and
+  `DOMDocument::loadXML`, as string consumers in FileReadFailureUnchecked and
+  PregReplaceFailureUnchecked.
+
+- Count a function or a class declared more than once in the analysed paths
+  (two copies of a library) as a string consumer in FileReadFailureUnchecked
+  and PregReplaceFailureUnchecked when every copy takes the parameter as
+  `string`.
+
+- Drop what file-level code proved of a global variable when it calls
+  project code and a function of another file binds that global. The index
+  now records the globals each file's functions bind.
+
 - Stop reading an argument hidden by unpacking as omitted in the shared
   helpers: a fixed array size, kept keys of `SplFixedArray::fromArray`, PDO
   fetch modes, `ob_start` callbacks, `mb_strlen` encodings for fixes, response

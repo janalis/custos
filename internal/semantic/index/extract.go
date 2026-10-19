@@ -1,6 +1,7 @@
 package index
 
 import (
+	"slices"
 	"sort"
 	"strings"
 
@@ -32,6 +33,30 @@ func ExtractStubs(f *syntax.File) *FileSymbols {
 	return extractFile(f, true)
 }
 
+// bindsGlobal records a global variable a function-like of the file binds;
+// an unnamed one stands for any of them.
+func (x *extractor) bindsGlobal(name string, named bool) {
+	if !named {
+		name = ""
+	}
+	if !slices.Contains(x.out.Globals, name) {
+		x.out.Globals = append(x.out.Globals, name)
+	}
+}
+
+// globalsEntry names the global a literal key of the globals table reads.
+func globalsEntry(table *syntax.Variable) (string, bool) {
+	entry, ok := table.Parent().(*syntax.ArrayDimFetch)
+	if !ok || entry.Var != syntax.Expr(table) {
+		return "", false
+	}
+	key, ok := syntax.UnwrapParens(entry.Dim).(*syntax.Literal)
+	if !ok || key.LitKind != syntax.LitString {
+		return "", false
+	}
+	return syntax.LiteralStringValue(key)
+}
+
 func extractFile(f *syntax.File, stub bool) *FileSymbols {
 	x := &extractor{stub: stub, f: f, r: names.New(f), out: &FileSymbols{Path: f.Path}}
 	var calls []*syntax.FuncCall
@@ -52,6 +77,20 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 		case *syntax.FuncCall:
 			if x.declarationBuiltin(n, nil) != "" {
 				calls = append(calls, n)
+			}
+		case *syntax.Global:
+			if syntax.EnclosingVariableScope(n) != nil {
+				// A name chosen at run time is not counted, as within a file:
+				// only a use of the globals table may reach any of them.
+				for _, v := range n.Vars {
+					if variable, ok := v.(*syntax.Variable); ok && variable.NameExpr == nil {
+						x.bindsGlobal(variable.Name, true)
+					}
+				}
+			}
+		case *syntax.Variable:
+			if n.Name == "GLOBALS" && n.NameExpr == nil && syntax.EnclosingVariableScope(n) != nil {
+				x.bindsGlobal(globalsEntry(n))
 			}
 		}
 		return true

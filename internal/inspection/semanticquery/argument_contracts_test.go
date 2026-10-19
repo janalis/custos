@@ -252,11 +252,18 @@ func TestUnknownOptionalArgumentContracts(t *testing.T) {
 	})
 }
 
+// Copies of a function that all take the parameter as text consume it,
+// whichever one runs; copies that differ establish nothing.
 func TestStringConsumerDuplicateDeclarations(t *testing.T) {
-	probeNative(t, `if($flag){function consume(string $value){}}else{function consume(string $value){}}probe(consume($value));`, func(ctx *analysis.Context, probe *syntax.FuncCall) {
-		call := CallArgument(probe.Args, 0, "").(*syntax.FuncCall)
-		if NativeStringConsumer(ctx, call, call.Args, CallArgument(call.Args, 0, "")) {
-			t.Fatal("duplicate declarations established a native string consumer")
-		}
-	})
+	for source, want := range map[string]bool{
+		`if($flag){function consume(string $value){}}else{function consume(string $value){}}probe(consume($value));`: true,
+		`if($flag){function consume(string $value){}}else{function consume($value){}}probe(consume($value));`:        false,
+	} {
+		probeNative(t, source, func(ctx *analysis.Context, probe *syntax.FuncCall) {
+			call := CallArgument(probe.Args, 0, "").(*syntax.FuncCall)
+			if got := NativeStringConsumer(ctx, call, call.Args, CallArgument(call.Args, 0, "")); got != want {
+				t.Fatalf("%s: consumer=%v", source, got)
+			}
+		})
+	}
 }

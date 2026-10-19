@@ -84,6 +84,8 @@ function f(string $host, $pid, array $items) {
     $walked = [1, 2]; array_walk($walked, 'f'); t('walked', $walked);
     $object = new ArrayObject(); array_walk($object, 'f'); t('object', $object);
     $getmxrrHosts = 1; getmxrr($host, $getmxrrHosts, $weights); t('weights', $weights);
+    $read = 'x'; stream_select($read, $write, $except, 0); t('read', $read);
+    $code = 'x'; msg_receive($queue, 0, $type, 1, $message, true, 0, $code); t('code', $code);
 }
-`, map[string]string{"hosts": "?unknown", "status": "?unknown", "list": "int[]{0: int, 1: int}", "popped": "int[]", "walked": "array", "object": "?unknown", "weights": "?unknown"})
+`, map[string]string{"hosts": "?unknown", "status": "?unknown", "list": "int[]{0: int, 1: int}", "popped": "int[]", "walked": "array", "object": "?unknown", "weights": "?unknown", "read": "array|null", "code": "int"})
 }

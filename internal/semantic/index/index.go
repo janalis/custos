@@ -32,6 +32,10 @@ type Index struct {
 	methodGeneration uint64
 	methodMu         sync.RWMutex
 	methods          map[resolvedMethodKey]resolvedMethodEntry
+	// globals caches GlobalNames for globalsGeneration.
+	globalsMu         sync.Mutex
+	globals           map[string]bool
+	globalsGeneration uint64
 }
 
 type resolvedMethodKey struct {
@@ -74,6 +78,33 @@ func (ix *Index) generation() uint64 {
 		g += ix.base.generation()
 	}
 	return g
+}
+
+// GlobalNames returns the global variables a function-like of any indexed
+// file binds ("" for one that may reach any). The result is shared: callers
+// must not modify it.
+func (ix *Index) GlobalNames() map[string]bool {
+	g := ix.generation()
+	ix.globalsMu.Lock()
+	defer ix.globalsMu.Unlock()
+	if ix.globals != nil && ix.globalsGeneration == g {
+		return ix.globals
+	}
+	names := map[string]bool{}
+	if ix.base != nil {
+		for name := range ix.base.GlobalNames() {
+			names[name] = true
+		}
+	}
+	ix.mu.RLock()
+	for _, fs := range ix.files {
+		for _, name := range fs.Globals {
+			names[name] = true
+		}
+	}
+	ix.mu.RUnlock()
+	ix.globals, ix.globalsGeneration = names, g
+	return names
 }
 
 // Revision changes whenever declarations in this index or a base layer change.

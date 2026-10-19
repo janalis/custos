@@ -37,7 +37,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		inputs = []syntax.Expr{x.Left, x.Right}
 	}
-	if args != nil {
+	assertion := args != nil && phpunit.PuAssertion(ctx, n)
+	switch {
+	case assertion:
+		inputs = phpunit.FailurePassing(ctx, n, args, true)
+	case args != nil:
 		inputs = semanticquery.NativeStringInputs(ctx, n, args)
 	}
 	for _, input := range inputs {
@@ -53,9 +57,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !jumps && !semanticquery.NativeStaticLocal(ctx, input) && ctx.TypeOf(input).OnlyOf("string") || ctx.Flow().Excludes(input, "false") || !jumps && guarded(ctx, input, inner) {
 			continue
 		}
-		// A parameter must be `string` in whichever declaration runs, and a
-		// PHPUnit assertion is the check of what it is given.
-		if args == nil || !phpunit.PuAssertion(ctx, n) && semanticquery.NativeStringConsumer(ctx, n, args, input) {
+		// A parameter must be `string` in whichever declaration runs; a
+		// PHPUnit assertion checks what it is given, unless it lets the
+		// failure pass as text.
+		if args == nil || assertion || semanticquery.NativeStringConsumer(ctx, n, args, input) {
 			ctx.ReportNode(n, message)
 			return
 		}

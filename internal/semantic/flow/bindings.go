@@ -54,7 +54,7 @@ func (f *frame) receive(name *syntax.Variable) {
 	f.vars[received(name.Name)] = f.vars[name.Name]
 }
 
-// globals returns the names functions of the file bind with `global` or
+// globals returns the names functions of the project bind with `global` or
 // through a literal globals table entry. The reserved empty name records a
 // function that uses the table in any other way. The
 // result stays nil for the common file without either.
@@ -87,6 +87,13 @@ func (e *Env) globals() map[string]bool {
 		}
 		return true
 	})
+	// A function of another file may bind them as well, and replace what the
+	// file-level code proved of them when it is called.
+	if e.types.Index != nil {
+		for name := range e.types.Index.GlobalNames() {
+			e.bindGlobal(name, name == "")
+		}
+	}
 	// The request data those functions write reaches the file-level variable.
 	// The writers are analysed in source order, each once however many names
 	// it binds. One that reads a global after a call saw what the writers

@@ -13,8 +13,9 @@ import (
 
 // stringOnly reports a parameter declared exactly `string` that null cannot
 // be passed to: a null default makes the declared type nullable.
-func stringOnly(p index.Param) bool {
-	return p.Type == "string" && !strings.EqualFold(strings.TrimPrefix(strings.Trim(p.Default, "() \t\r\n"), `\`), "null")
+func stringOnly(p index.Param, builtin bool) bool {
+	text := p.Type == "string" || builtin && p.Type == "" && p.DocType == "string"
+	return text && !strings.EqualFold(strings.TrimPrefix(strings.Trim(p.Default, "() \t\r\n"), `\`), "null")
 }
 
 // NativeStringInputs returns arguments bound to a resolved nonnullable string
@@ -28,7 +29,7 @@ func NativeStringInputs(ctx *analysis.Context, call syntax.Node, list *syntax.Ar
 	}
 	var inputs []syntax.Expr
 	for i, p := range callee.Params {
-		if stringOnly(p) {
+		if stringOnly(p, callee.Builtin) {
 			if arg := CallArgument(list, i, p.Name); arg != nil {
 				inputs = append(inputs, arg)
 			}
@@ -52,7 +53,7 @@ func NativeStringConsumer(ctx *analysis.Context, call syntax.Node, list *syntax.
 	}
 	at := -1
 	for i, p := range callee.Params {
-		if stringOnly(p) && CallArgument(list, i, p.Name) == input {
+		if stringOnly(p, callee.Builtin) && CallArgument(list, i, p.Name) == input {
 			at = i
 		}
 	}
@@ -66,10 +67,10 @@ func NativeStringConsumer(ctx *analysis.Context, call syntax.Node, list *syntax.
 	})
 	builtin := false
 	if function, ok := call.(*syntax.FuncCall); ok {
-		f := ctx.Types().ResolveFunction(function)
-		if builtin = f.Builtin; !builtin && len(ctx.Index().FunctionDecls(f.FQN, ctx.PHP)) != 1 {
-			return false
-		}
+		// ResolveCallee only resolved copies of a function declared more
+		// than once that all take the same parameters: whichever runs takes
+		// this one as text.
+		builtin = ctx.Types().ResolveFunction(function).Builtin
 	} else {
 		targets := ctx.Flow().Targets(call)
 		if len(targets) == 0 {
@@ -81,7 +82,7 @@ func NativeStringConsumer(ctx *analysis.Context, call syntax.Node, list *syntax.
 			if named {
 				bound = slices.IndexFunc(m.Params, func(p index.Param) bool { return p.Name == name && !p.Variadic })
 			}
-			if bound < 0 || bound >= len(m.Params) || !stringOnly(m.Params[bound]) || m.Params[bound].Name != name {
+			if bound < 0 || bound >= len(m.Params) || !stringOnly(m.Params[bound], m.Builtin) || m.Params[bound].Name != name {
 				return false
 			}
 		}

@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"cmp"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -137,8 +138,9 @@ func (e *Env) collectOutArgs(call syntax.Expr, sv *scopeVars) {
 				typ = e.builtinOutType(kind, al, v, params)
 			} else {
 				// Without a listed contract, the variable holds what the
-				// parameter is declared to take.
-				declared := p.Type
+				// parameter is declared to take; the stubs document PHP's
+				// own types.
+				declared := cmp.Or(p.Type, p.DocType)
 				typ = func() types.Type {
 					if t := e.docType(declared, nil); declared != "" && !t.Has("mixed") {
 						return t

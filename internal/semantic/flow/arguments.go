@@ -367,10 +367,15 @@ func (e *Env) reached(call syntax.Node) uint8 {
 // targets is Targets for what is known of the receiver.
 func (e *Env) targets(call syntax.Node, followed uint8) []*index.Method {
 	m, receiver, sealed, open := e.resolve(call, followed)
-	if m == nil || m.Magic || !sealed && !open || !m.Builtin && !e.single(call, m) {
+	if m == nil || m.Magic || !sealed && !open {
 		return nil
 	}
 	targets := []*index.Method{m}
+	if !m.Builtin && !e.single(call, m) {
+		if targets = e.copies(call, m); targets == nil {
+			return nil
+		}
+	}
 	if sealed {
 		return targets
 	}
@@ -395,6 +400,20 @@ func (e *Env) targets(call syntax.Node, followed uint8) []*index.Method {
 // may be another declaration, with another method.
 func (e *Env) single(call syntax.Node, m *index.Method) bool {
 	ix := e.types.Index
+	from := e.lookedUp(call)
+	for steps := 0; steps < MaxDepth*4 && ix.ClassCount(from) == 1; steps++ {
+		class := ix.Class(from, e.types.PHP)
+		if strings.EqualFold(strings.TrimPrefix(from, `\`), strings.TrimPrefix(m.Class, `\`)) || class.Parent == "" {
+			// A method of a trait is declared outside the classes above.
+			return ix.ClassCount(m.Class) == 1
+		}
+		from = class.Parent
+	}
+	return false
+}
+
+// lookedUp names the class a call looks its method up on.
+func (e *Env) lookedUp(call syntax.Node) string {
 	from := e.types.ClassFQN(syntax.EnclosingClass(call))
 	switch n := call.(type) {
 	case *syntax.New:
@@ -406,15 +425,28 @@ func (e *Env) single(call syntax.Node, m *index.Method) bool {
 			from = typed[0]
 		}
 	}
-	for steps := 0; steps < MaxDepth*4 && ix.ClassCount(from) == 1; steps++ {
-		class := ix.Class(from, e.types.PHP)
-		if strings.EqualFold(strings.TrimPrefix(from, `\`), strings.TrimPrefix(m.Class, `\`)) || class.Parent == "" {
-			// A method of a trait is declared outside the classes above.
-			return ix.ClassCount(m.Class) == 1
-		}
-		from = class.Parent
+	return from
+}
+
+// copies returns the method of each declaration of the class a call looks it
+// up on, when the project declares that class more than once and every copy
+// declares the method itself: any of them may be the one that runs.
+func (e *Env) copies(call syntax.Node, m *index.Method) []*index.Method {
+	from := e.lookedUp(call)
+	if !strings.EqualFold(strings.TrimPrefix(from, `\`), strings.TrimPrefix(m.Class, `\`)) {
+		return nil
 	}
-	return false
+	// single found more than one declaration of the class.
+	declarations := e.types.Index.ClassDecls(from, e.types.PHP)
+	methods := make([]*index.Method, 0, len(declarations))
+	for _, class := range declarations {
+		own := class.Methods[strings.ToLower(m.Name)]
+		if own == nil || own.Magic {
+			return nil
+		}
+		methods = append(methods, own)
+	}
+	return methods
 }
 
 // Spares reports a written call or a construction that stores nothing in a

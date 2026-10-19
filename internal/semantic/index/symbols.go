@@ -366,6 +366,10 @@ type FileSymbols struct {
 	// not declare them; when the project declares one of them, the inferred
 	// returns of this file are dropped (see DropStaleInferred).
 	ReturnDeps []string `json:"-"`
+	// Globals lists the global variables the functions, methods and
+	// closures of the file bind with `global` or a literal globals table
+	// entry; "" stands for a use of the table that may reach any of them.
+	Globals []string `json:"globals,omitempty"`
 	// ClassAliases lists the class_alias(original, alias) calls of the
 	// file with literal names: [alias FQN, original FQN].
 	ClassAliases [][2]string `json:"aliases,omitempty"`

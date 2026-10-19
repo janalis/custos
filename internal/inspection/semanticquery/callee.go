@@ -15,6 +15,9 @@ import (
 type Callee struct {
 	Params []index.Param
 	ByRef  bool
+	// Builtin tells that PHP itself declares every declaration resolved: its
+	// documented parameter types then describe PHP's own checks.
+	Builtin bool
 }
 
 // ResolveCallee resolves a call or construction to its parameter contract.
@@ -39,7 +42,7 @@ func calleeParameters(env *infer.Env, call syntax.Node) (Callee, bool) {
 					}
 				}
 			}
-			return Callee{Params: f.Params, ByRef: f.ByRef}, true
+			return Callee{Params: f.Params, ByRef: f.ByRef, Builtin: f.Builtin}, true
 		}
 	case *syntax.MethodCall:
 		id, ok := c.Name.(*syntax.Identifier)
@@ -63,7 +66,7 @@ func calleeParameters(env *infer.Env, call syntax.Node) (Callee, bool) {
 			if i > 0 && (contract.ByRef != m.ByRef || !slices.Equal(contract.Params, m.Params)) {
 				return Callee{}, false
 			}
-			contract = Callee{Params: m.Params, ByRef: m.ByRef}
+			contract = Callee{Params: m.Params, ByRef: m.ByRef, Builtin: m.Builtin && (i == 0 || contract.Builtin)}
 		}
 		return contract, true
 	case *syntax.StaticCall:
@@ -79,7 +82,7 @@ func calleeParameters(env *infer.Env, call syntax.Node) (Callee, bool) {
 			return Callee{}, false
 		}
 		if m := env.Index.FindMethod(cls, id.Value, env.PHP); m != nil {
-			return Callee{Params: m.Params, ByRef: m.ByRef}, true
+			return Callee{Params: m.Params, ByRef: m.ByRef, Builtin: m.Builtin}, true
 		}
 	case *syntax.New:
 		name, ok := c.Class.(*syntax.Name)
@@ -95,7 +98,7 @@ func calleeParameters(env *infer.Env, call syntax.Node) (Callee, bool) {
 			return Callee{}, false
 		}
 		if m != nil {
-			return Callee{Params: m.Params, ByRef: m.ByRef}, true
+			return Callee{Params: m.Params, ByRef: m.ByRef, Builtin: m.Builtin}, true
 		}
 		return Callee{}, true
 	}
