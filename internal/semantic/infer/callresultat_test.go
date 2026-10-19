@@ -9,6 +9,7 @@ import (
 	"custos/internal/semantic/infer"
 	"custos/internal/semantic/names"
 	"custos/internal/semantic/stubs"
+	"custos/internal/semantic/types"
 )
 
 // CallResultAt narrows the result of one call by the conditions on that very
@@ -110,5 +111,45 @@ function f(bool $b) { if ($b === 1) { u($b); } }`
 			}
 			return true
 		})
+	}
+}
+
+// A caller-assumed type models results the declaration cannot tell apart:
+// with null standing for a falsy 0, truthiness rules both out while a
+// `!== false` test keeps the 0, also through a variable holding the result.
+func TestCallResultAsAt(t *testing.T) {
+	src := `<?php
+function f($s) {
+    if (stream_socket_enable_crypto($s, true)) { u(); }
+    if (stream_socket_enable_crypto($s, true) !== false) { u(); }
+    $r = stream_socket_enable_crypto($s, true); if ($r !== true) { return; } u();
+    $r = stream_socket_enable_crypto($s, true); if ($r === false) { return; } u();
+    $r = stream_socket_enable_crypto($s, true); if ($r === 1) { u(); }
+}`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	seed := types.Of("true", "false", "null")
+	var last *syntax.FuncCall
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			if c.Name.(*syntax.Name).Value == "u" {
+				got = append(got, env.CallResultAsAt(last, c, seed).String())
+			} else {
+				last = c
+			}
+		}
+		return true
+	})
+	want := []string{"true", "null|true", "true", "null|true", "?unknown"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("use %d: got %s want %s", i+1, got[i], want[i])
+		}
 	}
 }
