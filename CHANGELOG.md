@@ -29,6 +29,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   nested `if`/`else`, `try` or `switch`, or through a call to a `never`
   function; past loops that only their condition ends; and on nested literal
   array keys (`$a['x']['y']`).
+- Closures passed to `array_map()`, `array_filter()`, `array_walk()`,
+  `array_reduce()`, `usort()`, `uasort()` and `uksort()` get their untyped
+  parameters typed from the array's elements or keys.
 
 ### Security
 

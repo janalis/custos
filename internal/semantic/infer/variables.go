@@ -761,6 +761,15 @@ func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
 		}
 		return declared.WithTypeArgsFrom(dt)
 	}
+	if declared.IsUnknown() && !e.native && !p.Variadic {
+		// A callback's untyped parameter receives what its caller passes.
+		switch fn := scope.(type) {
+		case *syntax.Closure:
+			return e.contextParamType(fn, nodeIndex(fn.Params, p))
+		case *syntax.ArrowFunction:
+			return e.contextParamType(fn, nodeIndex(fn.Params, p))
+		}
+	}
 	return declared
 }
 
