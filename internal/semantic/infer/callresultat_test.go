@@ -241,3 +241,39 @@ function f() {
 		}
 	}
 }
+
+// A copy of a variable holding the result carries its tests too, while each
+// link still holds what it copied.
+func TestCallResultCopies(t *testing.T) {
+	src := "<?php\n" +
+		"function a($h) { $s = flock($h, LOCK_EX); $t = $s; if (!$t) { return; } u(); }\n" +
+		"function b($h) { $s = flock($h, LOCK_EX); $t = $s; $u = $t; if ($u !== true) { return; } u(); }\n" +
+		"function c($h, $o) { $s = flock($h, LOCK_EX); $s = $o; $t = $s; if (!$t) { return; } u(); }\n" +
+		"function d($h, $o) { $s = flock($h, LOCK_EX); $t = $s; $t = $o; if (!$t) { return; } u(); }\n" +
+		"function e($h) { $a = flock($h, LOCK_EX); $b = $a; $c = $b; $d = $c; $e = $d; $f = $e; if (!$f) { return; } u(); }\n"
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var last *syntax.FuncCall
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			if c.Name.(*syntax.Name).Value == "u" {
+				got = append(got, env.CallResultAt(last, c).String())
+			} else {
+				last = c
+			}
+		}
+		return true
+	})
+	want := []string{"true", "true", "bool", "bool", "bool"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("use %d: got %s want %s", i+1, got[i], want[i])
+		}
+	}
+}

@@ -103,15 +103,7 @@ func callMatches(x syntax.Expr, name string) bool {
 	if !ok {
 		return false
 	}
-	x = syntax.UnwrapParens(x)
-	for {
-		u, silenced := x.(*syntax.Unary)
-		if !silenced || u.Op.Kind != syntax.TAt {
-			break
-		}
-		x = syntax.UnwrapParens(u.Expr) // `@f()` is f()'s result
-	}
-	c, ok := x.(*syntax.FuncCall)
+	c, ok := unsilenced(x).(*syntax.FuncCall) // `@f()` is f()'s result
 	if !ok {
 		return false
 	}
@@ -148,9 +140,12 @@ func (e *Env) CallResultAsAt(c *syntax.FuncCall, at syntax.Expr, seed types.Type
 		return types.Unknown
 	}
 	t := e.narrowExprAfter(seed, at, callKey(c), scope, c.Span().End)
-	if a := e.storedIn(c, at, scope); a != nil && !t.IsUnknown() {
-		// `$ok = f(); if ($ok != true) { return; }`: the tests of the
-		// variable, narrowing the same seed, prove as much of the call.
+	for _, a := range e.holdersAt(c, at, scope) {
+		if t.IsUnknown() {
+			break
+		}
+		// `$ok = f(); if ($ok != true) { return; }`: the tests of a variable
+		// holding the result, narrowing the same seed, prove as much of it.
 		vt := e.narrowExprAfter(seed, at, a.Var.(*syntax.Variable).Name, scope, a.Span().End)
 		if vt.IsUnknown() {
 			return vt // an impossible path
@@ -160,39 +155,90 @@ func (e *Env) CallResultAsAt(c *syntax.FuncCall, at syntax.Expr, seed types.Type
 	return t
 }
 
-// storedIn returns the plain assignment `$v = c` storing call c in a
-// variable when it is the only definition of $v reaching at (nil else).
-func (e *Env) storedIn(c *syntax.FuncCall, at syntax.Expr, scope syntax.Node) *syntax.Assign {
-	// `$ok = f()`, also `$ok = @f()` and `$ok = (f())`.
-	p := c.Parent()
+// maxHolderHops bounds the plain copies followed from a call result to a
+// variable holding it (`$s = f(); $t = $s;` is two).
+const maxHolderHops = 4
+
+// holdersAt returns, for each local holding the result of call c at at, the
+// plain assignment defining it there: its only reaching definition stores c
+// (`$ok = f()`, `$ok = @f()`) or a copy of such a local (`$t = $ok`).
+func (e *Env) holdersAt(c *syntax.FuncCall, at syntax.Expr, scope syntax.Node) []*syntax.Assign {
+	sv := e.scopeVars(scope)
+	// Candidates first: names assigned c, then names assigned a copy of a
+	// candidate, before checking what reaches at.
+	names := map[string]bool{}
+	for hop := 0; hop <= maxHolderHops; hop++ {
+		grew := false
+		for name, defs := range sv.defs {
+			if names[name] || len(defs) > maxVarDefs {
+				continue
+			}
+			for _, d := range defs {
+				if d.asg == nil {
+					continue
+				}
+				v, copied := unsilenced(d.asg.Value).(*syntax.Variable)
+				if unsilenced(d.asg.Value) == syntax.Expr(c) || copied && hop > 0 && names[v.Name] {
+					names[name], grew = true, true
+					break
+				}
+			}
+		}
+		if !grew {
+			break
+		}
+	}
+	var out []*syntax.Assign
+	for name := range names {
+		if a := e.onlyAssign(name, at, scope); a != nil && e.holds(a.Value, c, scope, 0) {
+			out = append(out, a)
+		}
+	}
+	slices.SortFunc(out, func(a, b *syntax.Assign) int { return int(a.Span().Start) - int(b.Span().Start) })
+	return out
+}
+
+// unsilenced strips parentheses and `@` from x.
+func unsilenced(x syntax.Expr) syntax.Expr {
+	x = syntax.UnwrapParens(x)
 	for {
-		if u, silenced := p.(*syntax.Unary); silenced && u.Op.Kind == syntax.TAt {
-			p = p.Parent()
-			continue
+		u, silenced := x.(*syntax.Unary)
+		if !silenced || u.Op.Kind != syntax.TAt {
+			return x
 		}
-		if _, paren := p.(*syntax.Paren); paren {
-			p = p.Parent()
-			continue
-		}
-		break
+		x = syntax.UnwrapParens(u.Expr)
 	}
-	a, ok := p.(*syntax.Assign) // x is its value: a call is never a target
-	if !ok || a.ByRef || a.Op.Kind != syntax.TEqual {
-		return nil
-	}
-	v, plain := a.Var.(*syntax.Variable)
-	if !plain || v.Name == "" || v.NameExpr != nil || v.Name == "this" {
-		return nil
-	}
-	defs := e.scopeVars(scope).defs[v.Name]
+}
+
+// onlyAssign returns the plain assignment that is the only definition of
+// variable name reaching at (nil else).
+func (e *Env) onlyAssign(name string, at syntax.Node, scope syntax.Node) *syntax.Assign {
+	sv := e.scopeVars(scope)
+	defs := sv.defs[name]
 	if len(defs) > maxVarDefs {
 		return nil
 	}
 	fwd, back, _ := e.reaching(defs, at, scope)
-	if len(fwd) != 1 || len(back) != 0 || fwd[0].asg != a {
+	if len(fwd) != 1 || len(back) != 0 || fwd[0].asg == nil || e.clobbered(sv, fwd, back, at, scope) {
 		return nil
 	}
-	return a
+	return fwd[0].asg
+}
+
+// holds reports whether value is the result of call c: the call itself
+// (parenthesised or silenced) or a local holding it where it is read.
+func (e *Env) holds(value syntax.Expr, c *syntax.FuncCall, scope syntax.Node, hops int) bool {
+	switch v := unsilenced(value).(type) {
+	case *syntax.FuncCall:
+		return v == c
+	case *syntax.Variable:
+		if hops >= maxHolderHops || v.Name == "" || v.NameExpr != nil {
+			return false
+		}
+		a := e.onlyAssign(v.Name, v, scope)
+		return a != nil && e.holds(a.Value, c, scope, hops+1)
+	}
+	return false
 }
 
 func isPropKey(k string) bool { return strings.Contains(k, "->") || strings.Contains(k, "::") }
