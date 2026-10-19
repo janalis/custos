@@ -39,7 +39,8 @@ func TestSummariesServeTheCallablesOfTheFile(t *testing.T) {
 
 // When a callable reaches itself through another, the one its own summary
 // reads first has no summary yet: a new environment keeps only the results
-// that read nothing the file's summaries change.
+// that read nothing the file's summaries change. A caller read the summary
+// it was given, not what computing that summary read.
 func TestRebaseKeepsTheResultsTheSummariesDoNotChange(t *testing.T) {
 	e, f := environment(t, `function a($c){ if ($c) { return b($c); } return $_GET['x']; } function b($c){ return a($c); } function c($x){ return strlen($x); }`, nil)
 	env, own := Summarize(f, e.types, nil)
@@ -50,13 +51,13 @@ func TestRebaseKeepsTheResultsTheSummariesDoNotChange(t *testing.T) {
 	if rebased == env {
 		t.Fatal("environment kept with a changed contract")
 	}
-	if rebased.scopes[functionNamed(f, "c")] != env.scopes[functionNamed(f, "c")] {
-		t.Error("unrelated result not kept")
-	}
-	for _, name := range []string{"a", "b"} {
-		if _, kept := rebased.scopes[functionNamed(f, name)]; kept {
-			t.Errorf("%s kept", name)
+	for _, name := range []string{"a", "c"} {
+		if rebased.scopes[functionNamed(f, name)] != env.scopes[functionNamed(f, name)] {
+			t.Errorf("%s not kept", name)
 		}
+	}
+	if _, kept := rebased.scopes[functionNamed(f, "b")]; kept {
+		t.Error("b kept")
 	}
 	// Other runtime assumptions keep nothing.
 	assuming := NewSnapshotWithOptions(Options{Assertions: true}, own)

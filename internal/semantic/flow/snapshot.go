@@ -523,7 +523,12 @@ func (e *Env) serve(key string) (summary Summary, ok, own bool) {
 		return summary, ok, ok
 	}
 	if declared := s.declared[key]; len(declared) == 1 && s.state[declared[0]] != summaryBegun {
+		// The reader depends on the summary, which Rebase compares, not on
+		// what computing it read.
+		reading := e.reading
+		e.reading = nil
 		e.summarize(declared[0])
+		e.reading = reading
 		return s.out.Summaries[key], true, true
 	}
 	return Summary{}, false, false
