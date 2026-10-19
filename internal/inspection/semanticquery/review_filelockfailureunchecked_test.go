@@ -28,6 +28,9 @@ func TestReviewFileLockFailureUncheckedResultTests(t *testing.T) {
 		{"retry", "function f($h){do{$ok=flock($h,LOCK_EX);}while($ok!==true);fwrite($h,'x');}", 0},
 		{"compared ternary", "function f($h){return flock($h,LOCK_EX)===true?fwrite($h,'x'):0;}", 0},
 		{"abandoned retry", "function f($h,$n){do{$ok=flock($h,LOCK_EX);if(!--$n){break;}}while($ok!==true);fwrite($h,'x');}", 1},
+		// A later case label can be entered below the test.
+		{"case below the test", "function f($h,$mode){$ok=flock($h,LOCK_EX);switch($mode){case 1: if(!$ok){return;} case 2: fwrite($h,'x');}}", 1},
+		{"stored into a property", "function f($h,$box){$ok=flock($h,LOCK_EX);$box->ok=$ok;if(!$box->ok){return;}fwrite($h,'x');}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			probe := nativeStreamProbe{"FileLockFailureUnchecked", CheckFileLockFailureUnchecked}
@@ -40,35 +43,6 @@ func TestReviewFileLockFailureUncheckedResultTests(t *testing.T) {
 				t.Fatalf("got %d findings, want %d: %+v", len(got), tc.want, got)
 			}
 		})
-	}
-}
-
-// The flow engine currently hides these shapes from the check, so the guard
-// walk is exercised on the syntax tree directly.
-func TestReviewFileLockFailureUncheckedGuardWalk(t *testing.T) {
-	variables := func(f *syntax.File, name string) []*syntax.Variable {
-		var found []*syntax.Variable
-		syntax.InspectFile(f, func(n syntax.Node) bool {
-			if v, ok := n.(*syntax.Variable); ok && v.Name == name {
-				found = append(found, v)
-			}
-			return true
-		})
-		return found
-	}
-	held := nativeLockTruth{whenFalse: true}
-
-	f := Parse(t, "<?php $ok = 1; $box->ok = $ok; $sum += $ok;")
-	for _, use := range variables(f, "ok") {
-		if stored, _, guarded := nativeLockTruthGuards(use, held, f.Stmts[2]); stored != nil || guarded {
-			t.Fatalf("assignment at %d must not carry the lock result", use.Span().Start)
-		}
-	}
-
-	f = Parse(t, "<?php switch ($mode) { case 1: if (!$ok) { return; } case 2: fwrite($h, 'x'); }")
-	write := f.Stmts[0].(*syntax.Switch).Cases[1].Stmts[0]
-	if _, _, guarded := nativeLockTruthGuards(variables(f, "ok")[0], nativeLockTruth{whenTrue: true}, write); guarded {
-		t.Fatal("a later case label can be entered below the test")
 	}
 }
 

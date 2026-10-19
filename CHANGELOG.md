@@ -88,6 +88,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   and the nonblocking-stream checks) read its success from type narrowing:
   `call() or exit;`, a result kept in a boolean and tested later, `elseif`
   and ternary arms now count.
+- FileLockFailureUnchecked and StreamUseAfterClose read the result of
+  `flock()` and `fclose()` through type narrowing, which also follows
+  `elseif` chains, `match` and `switch` arms.
 - ConnectTimeoutAssumedToBoundReads reads a checked `stream_set_timeout()`
   through type narrowing: `stream_set_timeout($s, 2) or exit;` and a result
   kept in a boolean now count.

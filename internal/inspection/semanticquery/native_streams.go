@@ -336,7 +336,7 @@ func CheckFileLockFailureUnchecked(ctx *analysis.Context, n syntax.Node, message
 	scope := syntax.EnclosingVariableScope(c)
 	for _, reached := range ctx.Flow().Calls(scope) {
 		lock, ok := reached.Node.(*syntax.FuncCall)
-		if ok && lock.Span() == state.Span && nativeLockResultTested(ctx, lock, c, scope) {
+		if ok && lock.Span() == state.Span && NativeCallSucceeded(ctx, lock, c) {
 			return
 		}
 	}
@@ -429,155 +429,6 @@ func assertionLockAttempt(ctx *analysis.Context, write *syntax.FuncCall, handle 
 	return flow.State{}, false
 }
 
-// nativeLockTruth records what the truthiness of an expression proves about a
-// lock call: held when it is truthy, held when it is falsy, or both.
-type nativeLockTruth struct{ whenTrue, whenFalse bool }
-
-// nativeLockResultTested proves that write runs only after lock returned true,
-// through a test of the call itself or of an unchanged local holding its result.
-func nativeLockResultTested(ctx *analysis.Context, lock *syntax.FuncCall, write, scope syntax.Node) bool {
-	stored, held, guarded := nativeLockTruthGuards(lock, nativeLockTruth{whenTrue: true}, write)
-	if guarded || stored == nil {
-		return guarded
-	}
-	name := stored.Var.(*syntax.Variable).Name
-	value := ctx.Flow().Value(stored.Value).Expr
-	visit := func(n syntax.Node) bool {
-		if guarded || (n != scope && syntax.IsVariableScope(n)) {
-			return false
-		}
-		// A read whose single reaching value is the stored result tests the
-		// same acquisition; a reassigned or merged local proves nothing.
-		if use, ok := n.(*syntax.Variable); ok && use.Name == name && value != nil && ctx.Flow().Value(use).Expr == value {
-			_, _, guarded = nativeLockTruthGuards(use, held, write)
-		}
-		return true
-	}
-	if scope == nil {
-		syntax.InspectFile(ctx.File, visit)
-	} else {
-		syntax.Inspect(scope, visit)
-	}
-	return guarded
-}
-
-// nativeLockTruthGuards follows x outwards through negation, error
-// suppression, boolean comparisons, short-circuit operators and a plain local
-// assignment, and reports whether the construct consuming it lets write run
-// only when the lock is held. The first plain assignment met is returned with
-// the truth it stores, so later reads of that local can be followed too.
-func nativeLockTruthGuards(x syntax.Expr, held nativeLockTruth, write syntax.Node) (stored *syntax.Assign, storedHeld nativeLockTruth, guarded bool) {
-	for held.whenTrue || held.whenFalse {
-		switch parent := x.Parent().(type) {
-		case *syntax.Paren:
-			x = parent
-		case *syntax.Unary:
-			switch parent.Op.Kind {
-			case syntax.TExclaim:
-				held = nativeLockTruth{held.whenFalse, held.whenTrue}
-			case syntax.TAt:
-			default:
-				return stored, storedHeld, false
-			}
-			x = parent
-		case *syntax.Assign:
-			target, ok := parent.Var.(*syntax.Variable)
-			if !ok || target.NameExpr != nil || x != parent.Value || parent.ByRef || parent.Op.Kind != syntax.TEqual {
-				return stored, storedHeld, false
-			}
-			if stored == nil {
-				stored, storedHeld = parent, held
-			}
-			x = parent
-		case *syntax.Binary:
-			switch parent.Op.Kind {
-			case syntax.TIsIdentical, syntax.TIsEqual, syntax.TIsNotIdentical, syntax.TIsNotEqual:
-				other := parent.Right
-				if x == parent.Right {
-					other = parent.Left
-				}
-				value, ok := nativeBoolConstant(other)
-				if !ok {
-					return stored, storedHeld, false
-				}
-				// Every followed expression is boolean, so `=== false`
-				// and `!== true` are plain negations.
-				if value == (parent.Op.Kind == syntax.TIsNotIdentical || parent.Op.Kind == syntax.TIsNotEqual) {
-					held = nativeLockTruth{held.whenFalse, held.whenTrue}
-				}
-			case syntax.TBooleanAnd, syntax.TAnd:
-				if x == parent.Left && nativeLockWithin(write, parent.Right) {
-					return stored, storedHeld, held.whenTrue
-				}
-				held.whenFalse = false
-			case syntax.TBooleanOr, syntax.TOr:
-				if x == parent.Left && nativeLockWithin(write, parent.Right) {
-					return stored, storedHeld, held.whenFalse
-				}
-				// `flock(...) or die()` completes only with the lock held.
-				_, throws := syntax.UnwrapParens(parent.Right).(*syntax.Throw)
-				if x == parent.Left && held.whenTrue && (throws || syntax.ExitInvocation(parent.Right)) {
-					held.whenFalse = true
-				} else {
-					held.whenTrue = false
-				}
-			default:
-				return stored, storedHeld, false
-			}
-			x = parent
-		case *syntax.Ternary:
-			if x != parent.Cond {
-				return stored, storedHeld, false
-			}
-			if parent.Then != nil && nativeLockWithin(write, parent.Then) {
-				return stored, storedHeld, held.whenTrue
-			}
-			return stored, storedHeld, held.whenFalse && nativeLockWithin(write, parent.Else)
-		case *syntax.ExprStmt:
-			return stored, storedHeld, held.whenTrue && held.whenFalse && nativeLockFollows(parent, write)
-		case *syntax.If:
-			if nativeLockWithin(write, parent.Body) {
-				return stored, storedHeld, held.whenTrue
-			}
-			if nativeLockWithin(write, parent) {
-				return stored, storedHeld, held.whenFalse && write.Span().Start > parent.Body.Span().End
-			}
-			// Past the statement, the branch that means "not held" must have left.
-			left := held.whenFalse && syntax.Terminates(parent.Body)
-			if held.whenTrue && len(parent.ElseIfs) == 0 && parent.Else != nil {
-				left = left || syntax.Terminates(parent.Else.Body)
-			}
-			return stored, storedHeld, left && nativeLockFollows(parent, write)
-		case *syntax.ElseIf:
-			return stored, storedHeld, held.whenTrue && nativeLockWithin(write, parent.Body)
-		case *syntax.While:
-			if nativeLockWithin(write, parent.Body) {
-				return stored, storedHeld, held.whenTrue
-			}
-			return stored, storedHeld, held.whenFalse && !nativeLockLoopEscapes(parent.Body) && nativeLockFollows(parent, write)
-		case *syntax.DoWhile:
-			return stored, storedHeld, held.whenFalse && !nativeLockLoopEscapes(parent.Body) && nativeLockFollows(parent, write)
-		default:
-			return stored, storedHeld, false
-		}
-	}
-	return stored, storedHeld, false
-}
-
-func nativeBoolConstant(e syntax.Expr) (value, ok bool) {
-	constant, ok := syntax.UnwrapParens(e).(*syntax.ConstFetch)
-	if !ok {
-		return false, false
-	}
-	switch strings.ToLower(strings.TrimPrefix(constant.Name.Value, `\`)) {
-	case "true":
-		return true, true
-	case "false":
-		return false, true
-	}
-	return false, false
-}
-
 func nativeLockWithin(n, ancestor syntax.Node) bool {
 	for ; n != nil; n = n.Parent() {
 		if n == ancestor {
@@ -598,18 +449,6 @@ func nativeLockFollows(statement syntax.Stmt, write syntax.Node) bool {
 	_, list := syntax.StmtListOf(owner)
 	_, label := owner.(*syntax.Case)
 	return list && !label && nativeLockWithin(write, owner)
-}
-
-// nativeLockLoopEscapes reports a break that could leave a retry loop before
-// its condition established the lock. Scopes using goto have no flow state.
-func nativeLockLoopEscapes(body syntax.Stmt) bool {
-	escapes := false
-	syntax.Inspect(body, func(n syntax.Node) bool {
-		_, leaves := n.(*syntax.Break)
-		escapes = escapes || leaves
-		return !escapes
-	})
-	return escapes
 }
 
 // CheckFileTruncatedBeforeLock checks the independently specified contract.
@@ -1204,34 +1043,22 @@ func streamCapturedByReference(ctx *analysis.Context, scope syntax.Node, handle 
 }
 
 // streamCloseFailed proves that use runs only when the fclose call spanning
-// closed returned false, through a test of the call itself or of an unchanged
-// local holding its result. A refused close leaves the stream open.
+// closed returned false, through the tests on that call's result guarding
+// use. A refused close leaves the stream open.
 func streamCloseFailed(ctx *analysis.Context, closed syntax.Span, use *syntax.FuncCall, scope syntax.Node) bool {
-	guarded := false
+	if NativeLabelled(ctx, use) {
+		return false
+	}
 	for _, reached := range ctx.Flow().Calls(scope) {
-		call, ok := reached.Node.(syntax.Expr)
+		call, ok := reached.Node.(*syntax.FuncCall)
 		if !ok || call.Span() != closed {
 			continue
 		}
-		stored, failed, direct := nativeLockTruthGuards(call, nativeLockTruth{whenFalse: true}, use)
-		if guarded = direct; guarded || stored == nil {
-			continue
-		}
-		name := stored.Var.(*syntax.Variable).Name
-		value := ctx.Flow().Value(stored.Value).Expr
-		streamInspectScope(ctx, scope, func(n syntax.Node) bool {
-			if guarded || (n != scope && syntax.IsVariableScope(n)) {
-				return false
-			}
-			// Only a read whose single reaching value is the stored result
-			// tests this close; a reassigned or merged local proves nothing.
-			if read, ok := n.(*syntax.Variable); ok && read.Name == name && value != nil && ctx.Flow().Value(read).Expr == value {
-				_, _, guarded = nativeLockTruthGuards(read, failed, use)
-			}
+		if t := ctx.Types().Native().CallResultAt(call, use); !t.IsUnknown() && !t.HasAny("true", "bool", "mixed") {
 			return true
-		})
+		}
 	}
-	return guarded
+	return false
 }
 
 // CheckTempnamDirectoryFallbackUnchecked checks the independently specified contract.
