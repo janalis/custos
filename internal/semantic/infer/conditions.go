@@ -112,7 +112,7 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 				return r
 			}
 		}
-	case *syntax.Variable, *syntax.PropertyFetch, *syntax.ArrayDimFetch, *syntax.MethodCall:
+	case *syntax.Variable, *syntax.PropertyFetch, *syntax.StaticPropertyFetch, *syntax.ArrayDimFetch, *syntax.MethodCall:
 		if narrowKey(c) == name {
 			if truthy {
 				return truthyType(t)

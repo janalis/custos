@@ -109,3 +109,21 @@ function f(object|string|null $r, ?int $n, $c) {
 		"undefinedAlias": "null|object|string", "replaceUnknown": "?unknown",
 	})
 }
+
+// A condition on a property ends where the property is written again, and
+// truthiness narrows static properties too.
+func TestPropertyConditionEndsAtWrite(t *testing.T) {
+	checkWith(t, nil, `<?php
+function g(): ?string { return null; }
+class A {
+    public ?string $p;
+    public static ?string $s;
+    function reset(): void {}
+    function f() {
+        if ($this->p !== null) { $this->p = g(); t('reassigned', $this->p); }
+        if ($this->p !== null) { $this->reset(); t('afterCall', $this->p); }
+        if (self::$s) { t('static', self::$s); } else { t('staticElse', self::$s); }
+    }
+}
+`, map[string]string{"reassigned": "null|string", "afterCall": "string", "static": "string", "staticElse": "null|string"})
+}

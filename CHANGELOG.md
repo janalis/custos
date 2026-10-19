@@ -49,6 +49,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Loose comparisons narrow types: `$x == false` and `$x != true` test
   truthiness, and `$x != null`, `!= ''`, `!= 0` exclude both null and false
   (`!= '0'` excludes false).
+- Truthiness tests narrow static properties (`if (self::$cache) { … }`).
+
+### Fixed
+
+- A condition on a property no longer narrows the property after it is
+  reassigned inside the guarded branch.
 
 ### Security
 

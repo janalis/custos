@@ -232,6 +232,9 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 	if b := propBase(key); b != "" && r.ShapeString() != t.ShapeString() && e.chainBroken(scope, key, b, from, use) {
 		return t // `$v` (or a property along the chain) changed since
 	}
+	if isPropKey(key) && !isDimKey(key) && r.ShapeString() != t.ShapeString() && e.brokenBy(scope, from, use, e.mutations(scope, key)) {
+		return t // the property itself was written since
+	}
 	if isDimKey(key) {
 		// An element is narrowed only while neither it nor its array can
 		// have changed since the condition.
