@@ -160,10 +160,16 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			return t
 		}
 		a, ok := c.Args.Args[0].(*syntax.Arg)
-		if !ok || !isVar(a.Value, name) || !e.isBuiltinCall(c) {
-			return t // (a namespaced function may shadow the builtin)
+		if !ok || !isVar(a.Value, name) {
+			return t
 		}
 		fn := strings.ToLower(strings.TrimPrefix(nm.Value, `\`))
+		switch _, check := typeChecks[fn]; {
+		case !check && fn != "count" && fn != "sizeof" && fn != "is_a" && fn != "is_subclass_of" && fn != "in_array":
+			return t
+		case !e.isBuiltinCall(c):
+			return t // a namespaced function shadows the builtin
+		}
 		switch fn {
 		case "count", "sizeof":
 			return nonEmptyIf(t, truthy)
@@ -172,10 +178,7 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		case "in_array":
 			return e.inArrayCond(t, c, truthy)
 		}
-		atoms, ok := typeChecks[fn]
-		if !ok {
-			return t
-		}
+		atoms := typeChecks[fn]
 		if fn == "is_numeric" && !truthy {
 			// A string failing is_numeric() is a non-numeric string: only
 			// int and float are excluded.
