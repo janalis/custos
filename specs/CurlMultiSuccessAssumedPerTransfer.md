@@ -18,7 +18,7 @@ Successful multi-transfer execution does not establish that each request succeed
 - D1a. Require at least one resolved curl_multi_add_handle on the same locally initialized multi handle before execution. Empty multi handles are valid and excluded. The handle must be held in a plain local variable.
 - D1b. Before the guarding `if`, every use of that variable must be either the target of a plain assignment or a direct argument of a resolved lifecycle builtin: curl_multi_add_handle, curl_multi_exec, curl_multi_select, curl_multi_setopt or curl_multi_errno. These drive the handle without exposing per-transfer results and without detaching transfers.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

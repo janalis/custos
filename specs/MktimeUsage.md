@@ -134,7 +134,7 @@ function epoch_values($flag)
   matches the name in any case (D1).
 - The `is_dst` report could be gated on target `< 7.0` being irrelevant
   (on 7.0+ the call is a fatal arity error anyway); upstream reports at all
-  levels. Recommendation: keep reporting at all levels (matches fixtures).
+  levels, and so does custos (matches fixtures).
 - **Spread arguments (custos diverges).** Upstream counts written
   arguments, so a spread in seventh position is reported as `is_dst`.
   custos does not report a seven-argument call containing a spread (E4):

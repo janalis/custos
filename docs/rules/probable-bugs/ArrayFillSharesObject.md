@@ -29,7 +29,7 @@ Reported:
 
 - D1. A resolved array_fill call uses a newly constructed object as value and constant count greater than one; a property write through one literal array index is followed by a read of that property through a different in-range index.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

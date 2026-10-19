@@ -35,8 +35,6 @@ Detect a reachable normal return from a scope owning a successfully begun PDO tr
 
 No automatic fix: choose commit or rollback explicitly according to the transaction contract.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

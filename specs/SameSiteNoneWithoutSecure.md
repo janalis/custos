@@ -35,8 +35,6 @@ Detect setcookie with literal options selecting SameSite None and secure absent 
 
 No automatic fix: enabling Secure can make a cookie unusable on non-HTTPS deployments; document the HTTPS prerequisite.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

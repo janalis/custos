@@ -140,20 +140,8 @@ func numericFormat(format string) bool {
 }
 
 // requestRewritten reports whether a request superglobal feeding the input is
-// written, unset or passed by reference earlier in the same scope. Such a
-// write may replace the request text, so the source-to-use path is unproven.
-// A write to another literal key than the ones read, or one that stores a
-// value still holding request text, replaces nothing the output depends on.
-// A reference bound to the superglobal replaces nothing either: writes to the
-// bound name are then read as writes to the superglobal.
-// The writes are read in source order: one that stores request text into the
-// whole table, into the element a replacement emptied, or into an element no
-// literal names (a computed or nested key, a reference to the table, an entry
-// of `$GLOBALS`), fills it again. So does code the scope does not show: a call
-// or a construction not known to spare the request tables (see
-// flow.Env.Spares) may store request text in any of them. In a loop
-// around the output, what fills a table after the output does so before its
-// next turn.
+// written, unset or passed by reference earlier in the same scope, so the
+// source-to-use path is unproven (spec E6). See NOTES.md.
 func requestRewritten(ctx *analysis.Context, at syntax.Node, input syntax.Expr, context flow.Context) bool {
 	names := map[string]bool{"GLOBALS": true}
 	spans := map[syntax.Span]bool{}

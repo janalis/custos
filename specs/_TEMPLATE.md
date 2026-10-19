@@ -8,6 +8,9 @@ php: { min: "", max: "" }
 
 # RuleID
 
+<!-- Behavior only: no Go identifiers, repository paths, analysis budgets or
+advice to implementers. Those go in internal/inspection/rules/<lowercase-ID>/NOTES.md. -->
+
 ## Summary
 
 One or two sentences, in our own words: what problem this rule points out and why it matters.
@@ -38,7 +41,7 @@ whitespace/comments are preserved. "None" if the rule has no fix.
 
 ## PHP versions
 
-Gating and version-dependent behaviour.
+Gating and version-dependent behavior.
 
 ## Examples
 
@@ -57,4 +60,4 @@ in the fixture markup format:
 
 ## Divergences
 
-Intentional differences from upstream behaviour, with reason. Empty if none.
+Intentional differences from upstream behavior, with reason. Empty if none.

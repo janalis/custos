@@ -196,10 +196,9 @@ $car::build();
 - Upstream, D3 accepts `Foo::m()` written with the declaring class's short name
   even when `Foo` is unrelated to the enclosing class, as long as the enclosing
   class happens to have a method `m` too; the fix then rewrites it to
-  `$this->m()`, which changes semantics. Recommendation: additionally require
-  the enclosing class to be the resolved class or one of its descendants
-  (keep upstream behaviour only if conformance demands it — fixtures don't
-  exercise the unrelated case).
+  `$this->m()`, which changes semantics. custos additionally requires the
+  enclosing class to be the resolved class or one of its descendants
+  (fixtures don't exercise the unrelated case).
 - **Letter case (custos diverges).** Upstream matches `static`, `self` and
   the class short name case-sensitively in D3; `SELF::m()` or `car::m()`
   then fall to D4, which skips plain names, so they are never reported.
@@ -237,3 +236,5 @@ $car::build();
   (also when declared inside a method), top-level code and unrelated
   classes, where the original call cannot succeed on another receiver.
   Upstream always rewrites.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

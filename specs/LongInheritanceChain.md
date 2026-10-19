@@ -130,5 +130,5 @@ namespace App\Widgets {
 ## Divergences
 
 - Cycles not passing through the class itself (`A extends B`, `B extends C`,
-  `C extends B`) would loop forever upstream. Recommendation: stop the walk
-  on any already-visited class.
+  `C extends B`) would loop forever upstream. custos stops the walk on any
+  already-visited class.

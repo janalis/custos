@@ -428,28 +428,6 @@
     ]
   },
   {
-    "text": "PHPUnit",
-    "collapsed": true,
-    "items": [
-      {
-        "text": "MockingMethodsCorrectness",
-        "link": "/rules/phpunit/MockingMethodsCorrectness"
-      },
-      {
-        "text": "PhpUnitDeprecations",
-        "link": "/rules/phpunit/PhpUnitDeprecations"
-      },
-      {
-        "text": "PhpUnitTests",
-        "link": "/rules/phpunit/PhpUnitTests"
-      },
-      {
-        "text": "UnnecessaryAssertion",
-        "link": "/rules/phpunit/UnnecessaryAssertion"
-      }
-    ]
-  },
-  {
     "text": "Performance",
     "collapsed": true,
     "items": [
@@ -516,6 +494,28 @@
       {
         "text": "VariableFunctionsUsage",
         "link": "/rules/performance/VariableFunctionsUsage"
+      }
+    ]
+  },
+  {
+    "text": "PHPUnit",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "MockingMethodsCorrectness",
+        "link": "/rules/phpunit/MockingMethodsCorrectness"
+      },
+      {
+        "text": "PhpUnitDeprecations",
+        "link": "/rules/phpunit/PhpUnitDeprecations"
+      },
+      {
+        "text": "PhpUnitTests",
+        "link": "/rules/phpunit/PhpUnitTests"
+      },
+      {
+        "text": "UnnecessaryAssertion",
+        "link": "/rules/phpunit/UnnecessaryAssertion"
       }
     ]
   },

@@ -16,7 +16,7 @@ mysqli bindings accept only the supported integer, floating-point, string and bl
 
 - D1. Resolved mysqli_stmt::bind_param literal type string contains a character other than i,d,s,b. Highlight the type-string argument.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

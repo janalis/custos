@@ -60,6 +60,7 @@ func TestRun(t *testing.T) {
 		},
 		{ID: "Toaster", LegacyID: "ToasterInspection", Group: "Hot Drinks", Severity: diagnostic.SeverityError, Experimental: true},
 		{ID: "Lamp", LegacyID: "LampInspection", Group: "Bedroom", Severity: diagnostic.SeverityInfo},
+		{ID: "Spoon", Native: true, Group: "bathroom", Severity: diagnostic.SeverityInfo, EnabledByDefault: true},
 		{ID: "Clock", LegacyID: "ClockInspection", Group: "Bedroom", Severity: diagnostic.SeverityInfo, EnabledByDefault: true},
 		{ID: "Rug", LegacyID: "RugInspection", Group: "Bedroom", Severity: diagnostic.SeverityInfo},
 		{ID: "Bed", LegacyID: "BedInspection", Group: "Bedroom", Severity: diagnostic.SeverityInfo},
@@ -81,19 +82,26 @@ func TestRun(t *testing.T) {
 	if code := run(root, &stdout, &stderr); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
-	if got := stdout.String(); got != "docs/rules: 6 rules in 2 groups\n" {
+	if got := stdout.String(); got != "docs/rules: 7 rules in 3 groups\n" {
 		t.Errorf("stdout = %q", got)
 	}
 	if _, err := os.Stat(filepath.Join(root, outDir, "attic")); !os.IsNotExist(err) {
 		t.Errorf("stale page kept: %v", err)
 	}
 
-	contains(t, "index", read(t, filepath.Join(root, outDir, "index.md")),
-		"custos ships **6 rules** in 2 groups.",
-		"## Bedroom\n\n| Rule | Severity | Default | Quick-fix | PHP |\n| :--- | :--- | :---: | :---: | :--- |\n"+
-			"| [Lamp](./bedroom/Lamp) | info | off |  | PHP ≤ 7.0 |\n| [Clock](./bedroom/Clock) | info | on |  | any |\n",
-		"| [Kettle](./hot-drinks/Kettle) | warning | on | ✓ | PHP ≥ 7.1 |\n| [Toaster](./hot-drinks/Toaster) | error | off, experimental | ✓ | PHP 7.0–8.0 |\n",
+	index := read(t, filepath.Join(root, outDir, "index.md"))
+	contains(t, "index", index,
+		"title: Rules\neditLink: false\n",
+		"custos ships **7 rules** in 3 groups.",
+		"## Bedroom\n\n| Rule | Origin | Severity | Default | Quick-fix | PHP |\n| :--- | :--- | :--- | :---: | :---: | :--- |\n"+
+			"| [Lamp](./bedroom/Lamp) | EA | info | off |  | PHP ≤ 7.0 |\n| [Clock](./bedroom/Clock) | EA | info | on |  | any |\n",
+		"| [Kettle](./hot-drinks/Kettle) | EA | warning | on | ✓ | PHP ≥ 7.1 |\n| [Toaster](./hot-drinks/Toaster) | EA | error | off, experimental | ✓ | PHP 7.0–8.0 |\n",
+		"| [Spoon](./bathroom/Spoon) | native | info | on |  | any |\n",
 	)
+	// Groups are sorted by display name, ignoring case.
+	if i, j, k := strings.Index(index, "## bathroom"), strings.Index(index, "## Bedroom"), strings.Index(index, "## Hot Drinks"); i < 0 || i > j || j > k {
+		t.Errorf("groups out of order: bathroom %d, Bedroom %d, Hot Drinks %d", i, j, k)
+	}
 
 	kettle := read(t, filepath.Join(root, outDir, "hot-drinks/Kettle.md"))
 	contains(t, "Kettle", kettle,

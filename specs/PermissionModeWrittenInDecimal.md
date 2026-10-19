@@ -16,7 +16,7 @@ A decimal permission literal can represent a different bitmask from the intended
 
 - D1. Resolved chmod or mkdir mode argument is a decimal integer token of exactly three/four octal digits with nonzero first digit and numeric value exceeding 0777, such as 755. Report disabled-by-default notation hazard; explicit octal, hex, symbolic/bitwise mode excluded.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

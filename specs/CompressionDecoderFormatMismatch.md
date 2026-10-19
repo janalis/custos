@@ -16,7 +16,7 @@ Match the decoder to the compression format.
 
 - D1. Compare resolved gzip/zlib/raw encoders and decoders through direct nesting or unchanged locals. Report gzencode input to gzuncompress/gzinflate, gzcompress input to gzdecode/gzinflate, or gzdeflate input to gzdecode/gzuncompress. Encoders with a third explicit format argument and manually transformed bytes remain unknown.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

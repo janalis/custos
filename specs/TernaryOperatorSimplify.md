@@ -139,7 +139,7 @@ function probe($n, $m, $a, $b, $obj) {
 - The fix inserts `R` without parentheses. Parentheses around the ternary are
   outside the replaced range and stay, so this is only a concern for an
   unparenthesised ternary used as an operand (rare, e.g. nested ternaries).
-  Recommendation: follow upstream (verbatim insertion).
+  custos follows upstream (verbatim insertion).
 - **Inverted ordering comparisons (custos diverges):** upstream always swaps
   `<`/`>=` and `>`/`<=` when inverting. That is wrong for `NAN` (every
   ordering comparison is false) and for arrays or objects that cannot be

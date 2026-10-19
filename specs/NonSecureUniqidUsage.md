@@ -200,3 +200,5 @@ namespace Shop {
   which a function of that name declared in (or imported into) the current
   namespace captures, so the fix would call user code. custos writes
   `\uniqid(` in that case.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

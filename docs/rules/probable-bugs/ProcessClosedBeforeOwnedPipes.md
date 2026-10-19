@@ -30,7 +30,7 @@ Reported:
 - D1. Resolved proc_open declares at least one parent-owned pipe and assigns process local; proc_close occurs before all declared pipes are definitely closed/drained. Highlight proc_close; unknown descriptor shape excluded.
 - D1c. The initial supported proof is an immediately preceding local assignment from proc_open, with explicit owned pipe descriptors and no intervening statements.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

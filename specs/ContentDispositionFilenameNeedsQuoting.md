@@ -16,7 +16,7 @@ Quote the Content-Disposition filename.
 
 - D1. Parse a literal Content-Disposition header and identify an unquoted filename parameter containing characters outside HTTP token grammar, including whitespace. Report the full header call. Split the header value into parameters only on semicolons outside double-quoted strings, honouring backslash escapes inside them, so `; filename=` text inside another parameter's quoted value is not a filename parameter. Recognize filename-star as separate syntax.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

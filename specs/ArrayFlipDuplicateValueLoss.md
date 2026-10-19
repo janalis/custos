@@ -16,7 +16,7 @@ Detect array_flip of a literal array with two statically equal string or integer
 
 - D1. Report array_flip of a literal array with two statically equal string or integer values after PHP key conversion.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
@@ -32,8 +32,6 @@ Detect array_flip of a literal array with two statically equal string or integer
 ## Fix
 
 No automatic fix: the desired grouping representation is unknown.
-
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 
 ## Options
 

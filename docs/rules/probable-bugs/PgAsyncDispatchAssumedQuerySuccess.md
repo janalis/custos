@@ -33,7 +33,7 @@ This is an opt-in policy. Truthiness, previous-state checks, raw wait-status com
 
 - D1. A pg_send_query or pg_send_query_params boolean success condition directly returns true, a literal success string, or calls a success-output sink without retrieving pg_get_result and checking pg_result_status first. Initial sinks are return true and echo literal text. Ordinary queue bookkeeping is excluded. The sink is the first statement the condition guards, whatever the branch syntax: a braced body, an alternative-syntax body (`if: ... endif;`) or a single statement without braces are equivalent.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

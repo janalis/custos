@@ -6,18 +6,22 @@ and adapters. `cmd/custos` only passes process arguments and streams to the CLI.
 
 ## Ownership
 
+This table is the canonical package map; the `AGENTS.md` files in each root
+summarize the same responsibilities.
+
 | Root | Responsibilities |
 |---|---|
 | `internal/php` | `syntax`: lexer, parser, arena AST, traversal and positions; `version`: PHP 5.3–8.5; `phpdoc`: doc tags and type expressions. |
 | `internal/semantic` | `names`, `types`, `index`, `infer` and embedded `stubs`: resolution, declarations, inheritance, inference and narrowing. |
+| `internal/semantic/flow` | Bounded file-local value and state analysis (possible values, origins, integer ranges, receiver state) and immutable project-local callable summaries, exposed through `Context.Flow()`. |
 | `internal/inspection` | `analysis`: dispatch, context and suppressions; `meta`: independent rule facts and descriptions; `catalogue`: explicit constructors; `rules`: one package per lowercase inspection ID. |
 | `internal/inspection/astquery` | Lexical queries over nodes and tokens, plus exact source-edit builders. Written names do not imply resolved symbols. |
-| `internal/inspection/flowquery` | Local reachability, assignments, side effects and possible values. |
-| `internal/inspection/semanticquery` | Resolved calls, classes, hierarchies, types and inspection fix decisions. |
+| `internal/inspection/flowquery` | Local reachability, assignments, variable accesses, side effects and possible values. |
+| `internal/inspection/semanticquery` | Resolved calls, classes, hierarchies, types, native-function contracts and inspection fix decisions. |
 | `internal/inspection/phpunit` | Shared assertion-call shapes, method spelling and PHPUnit version detection. |
 | `internal/diagnostic` | Severity, findings, lazy fixes, edits, file results and positioned items. |
 | `internal/fixing` | Conflict detection, edit application and bounded iterative fixing. |
-| `internal/project` | Discovery, bounded reading, indexing, buffer analysis, project reporting and prepared file fixes; `config` and `baseline` subpackages. |
+| `internal/project` | Discovery, bounded reading, indexing and flow snapshots, buffer analysis, project reporting and prepared file fixes; `config` and `baseline` subpackages. |
 | `internal/output` | `report` renders text, JSON, Checkstyle, GitHub and SARIF; `diff` renders changes. |
 | `internal/cli` | Arguments, configuration precedence, profiling, output, exit codes and file writes. |
 | `internal/editor/lsp` | Transport dispatch, settings, workspace indexing, documents, diagnostics and code actions. |
@@ -49,13 +53,6 @@ flowchart TD
 
 ## Execution and contracts
 
-Native operation histories distinguish mandatory predecessors from possible
-ones. Consumers must join conditional state changes, or require `Certain()`
-before replaying an exact sequence. An empty event list proves absence only
-when the history is complete; an incomplete history may retain a proven suffix
-without establishing the initial state. These bounded queries account for local
-aliases, storage escapes and operations replayed by enclosing loops.
-
 `project.Open` receives resolved options and an explicit inspection list. It
 builds an engine and discovers PHP files plus enabled inspections' file patterns.
 `AnalyzeReport` indexes project and vendor declarations when needed, reuses
@@ -64,22 +61,46 @@ source bytes and removes edit closures while retaining fix titles.
 diffs, writes and exit decisions. `AnalyzeBuffer` processes supplied editor
 bytes without filesystem reads.
 
-Each inspection exposes `New() analysis.Rule`; implementation types and private
-helpers stay in its package. `catalogue.All` constructs inspections in the
-original group order, sorted by ID within each group. Categories are metadata.
-The engine subscribes inspections by node kind and walks each parsed file once.
-Names, symbols, types and memoized queries are lazy per-file context data.
+`catalogue.All` constructs inspections in the original group order, sorted by
+ID within each group. Categories are metadata. The engine subscribes
+inspections by node kind and walks each parsed file once. Names, symbols,
+types, flow environments and memoized queries are lazy per-file context data.
+An inspection implementing `analysis.SemanticRule` makes the runner build the
+project index first; one implementing `analysis.FlowRule` requests
+project-local callable summaries.
 
-`Engine.WithIndex` returns a configured copy. Published engines are never
-reconfigured in place. LSP publishes replacement engines while holding its
-workspace mutex. Source positions remain `uint32` byte offsets; diagnostic
-items use rune columns and LSP uses UTF-16 columns.
+`Engine.WithIndex` and `Engine.WithFlow` return configured copies; published
+engines are never reconfigured in place. Project indexes are built in memory.
+The LSP builds its workspace index in the background and publishes
+replacement engines while holding its server mutex. Keep shared declarations immutable during
+context-dependent member lookup.
+
+Source positions remain `uint32` byte offsets; diagnostic items use rune
+columns and LSP uses UTF-16 columns.
 
 A `diagnostic.Fix` builds exact edits lazily. Fixing depends on an `Analyzer`
 interface returning findings for a parsed file. It selects one fix per finding,
 keeps multi-edit fixes together, rejects ambiguous insertion conflicts and
 iterates at most ten times. Single-pass mode preserves editor/conformance
 semantics. Rule implementations decide whether a proposed fix is safe.
+
+## Inspection helpers
+
+Each inspection exposes `New() analysis.Rule`; its implementation type and
+private helpers stay in its package. Keep a helper there until another
+inspection needs it, then choose its owner by behavior:
+
+- `astquery` for lexical AST and token queries and edit builders;
+- `flowquery` for local reachability, assignments and possible values (its
+  package comment states the completeness contract);
+- `semanticquery` for resolved symbols, types and native-function contracts.
+  Operation histories (`semanticquery.CallHistory`) separate mandatory from
+  possible predecessors; their doc comments define when a history proves
+  absence.
+
+PHPUnit call and version support belongs in `phpunit`. Preserve the
+difference between a written call name and its actual runtime target,
+especially when deciding whether a fix is safe.
 
 ## Semantic evidence and fix safety
 
@@ -93,9 +114,58 @@ When a fix requires native type evidence, use `Env.Native()` to exclude user
 PHPDoc. Unsupported operations, escaped values and exhausted analysis budgets
 must discard definite facts rather than authorize a finding or fix.
 
-Project indexes are built in memory. The LSP builds its workspace index in the
-background and publishes replacement engines under its workspace mutex. Keep
-shared declarations immutable during context-dependent member lookup.
+## Flow and project summaries
+
+Flow queries track reachable assignments, branch guards, object and resource
+identities and context-specific validation, and distinguish an unchecked read
+result from one rejected by a strict failure check. Project analysis builds
+summaries for resolved project functions and methods so supported wrappers
+carry return values and unsafe uses across files; the LSP updates them for
+open documents.
+
+- Sink summaries keep array values apart from keys. Numeric values stay safe
+  for text-injection contexts when a wrapper uses only those values; keys and
+  whole-array formatting keep their input provenance. Numeric content alone
+  never validates file paths or network destinations.
+- A method wrapper needs a final receiver class, a final method or an
+  accessible private method, with one unconditional declaration. Overridable
+  methods stay conservative.
+- Catch paths are pruned only for blocks proven non-throwing. Calls, uncertain
+  reads or writes, callbacks and object destruction keep exception paths;
+  `finally` blocks follow the applicable exits. `declare(ticks=…)` disables
+  pruning for the whole file.
+- Ambiguous declarations, escaped resources, unsupported operations, recursion
+  and exhausted budgets discard definite facts: an unknown result is never
+  proof of a bug.
+
+### Assertions
+
+By default `assert()` establishes no guard: on PHP 7+ its arguments may be
+skipped, so assignments and sanitizers inside them prove nothing. With
+`flow.assertions: true`, direct `assert` calls are assumed to run and to
+terminate on failure, in inference, project summaries and the LSP (which
+rebuilds dependent summaries when the setting changes). Before PHP 8 a string
+assertion can execute code, so a string — or any argument not syntactically
+known to be non-string — invalidates local proofs; native type predicates and
+strict comparisons stay usable. From PHP 8 a plain variable assertion may also
+supply a guard.
+
+## Analysis status
+
+Analysis gaps are reported as status reasons instead of findings:
+
+- inference: `argument-budget`, `inference-budget`, `inference-recursion`;
+- flow: `unresolved-dispatch` (no flow contract for a call), `dynamic-code`,
+  `unsupported-control-flow`, `flow-budget`, and `status-limit` when the
+  per-file gap list is bounded;
+- `semanticquery` helpers: `query-budget` (`ctx.Gap`);
+- engine: `syntax-recovery`, `finding-limit`, `rule-failure`; `io-error` from
+  `diagnostic.Status`; LSP guarded analysis: `internal-failure`.
+
+The LSP discards results from an older document version, a reopened document
+or a replaced engine before publishing diagnostics or status. Lazy fixes are
+tied to the analysis that produced them and are rechecked before returning
+edits. Status log messages are sent only when a document's reasons change.
 
 ## Bounded analysis and input
 
@@ -111,8 +181,7 @@ responsibility for writes, path validation and protocol framing. Malformed or
 oversized input must produce a controlled error rather than hang or panic.
 
 Use hostile-input regression tests and fuzz targets for these contracts.
-Measure hot-path changes with `make bench` and allocation counts; retain local
-corpus comparisons and timing logs in ignored `.cache/`, not in documentation.
+Measure hot-path changes with `make bench` and allocation counts.
 
 ## Dependency enforcement
 
@@ -123,15 +192,10 @@ PHP, semantic, diagnostic, analysis and fixing packages cannot depend on CLI,
 LSP, reporting, project orchestration or filesystem adapters. Test imports may
 cross boundaries to exercise complete execution paths.
 
-Keep a helper in its inspection until another inspection needs it. Then choose
-its owner by behavior: lexical AST, local flow or resolved semantics. Preserve
-the difference between a written call name and its actual runtime target,
-especially when deciding whether a fix is safe.
-
 ## Extending features
 
-- Add an inspection in its ID package, with spec and fixtures at their stable
-  locations; add one constructor to the catalogue. Follow the clean-room process.
+- Add an inspection in its ID package with its spec and fixtures, then one
+  constructor in the catalogue; see [Adding a rule](./adding-a-rule).
 - Improve inference in `semantic/infer`, with tests there. Environment,
   expressions, operators, calls, members, variables, conditions, guards and
   invalidation have separate files in the same package and share existing caches.
@@ -139,11 +203,13 @@ especially when deciding whether a fix is safe.
   changes belong in `fixing`; project preparation and adapter writes stay separate.
 - Add an output adapter in `output/report` using positioned diagnostic items.
   Core analysis and baselines do not depend on reporting.
-- Extend syntax in `php/syntax`, then regenerate node kinds and verify all PHP
-  versions. Keep arena ownership, parser recovery and exact spans intact.
+- Extend syntax in `php/syntax`, then regenerate node kinds with
+  `go generate ./internal/php/syntax` and verify all PHP versions. Keep arena
+  ownership, parser recovery and exact spans intact.
 
 ## Generated files
 
 `make rules-doc` regenerates `inspection/meta/descriptions.json`, the public
-rule reference, sidebar and internal status table. `make stubs` rebuilds embedded
-semantic assets. Specifications and inspection fixtures remain ID-based.
+rule reference, sidebar and internal status table. `make stubs` rebuilds
+embedded semantic assets. Specifications and inspection fixtures remain
+ID-based.

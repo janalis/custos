@@ -16,7 +16,7 @@ JSON encoding flags do not describe the intended decoding policy. Use the consta
 
 - D1. Resolved json_decode fourth flags argument syntactically includes an encoding-only resolved JSON constant: JSON_HEX_TAG, JSON_HEX_AMP, JSON_HEX_APOS, JSON_HEX_QUOT, JSON_FORCE_OBJECT, JSON_NUMERIC_CHECK, JSON_UNESCAPED_SLASHES, JSON_PRETTY_PRINT, JSON_UNESCAPED_UNICODE, JSON_PARTIAL_OUTPUT_ON_ERROR, or JSON_PRESERVE_ZERO_FRACTION. Shared decode-valid flags are excluded.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

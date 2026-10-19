@@ -29,7 +29,7 @@ Reported:
 
 - D1. Same resolved curl handle has CURLOPT_POSTFIELDS set to literal array and final CURLOPT_HTTPHEADER list includes Content-Type: application/json. No later body/header replacement before execution. Highlight conflicting header configuration.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

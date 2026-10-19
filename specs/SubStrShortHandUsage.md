@@ -214,8 +214,8 @@ function cut($name, $head, $k) {
   variable encoding is still assumed to be the internal one.
 - **Negative literal start:** `substr($s, -3, strlen($s) - 1)` gives
   `d = -2` → simplify to `-2`, which is not equivalent (original returns the
-  last 3 characters). Recommendation: only apply D6 when `start` is
-  non-negative; no upstream fixture covers negative starts.
+  last 3 characters). custos only applies D6 when `start` is non-negative;
+  no upstream fixture covers negative starts.
 - **4-argument `substr` (custos diverges):** plain `substr` has no 4th
   parameter, yet upstream still reports such calls and its fix keeps the
   stray argument after a new `null`. The call is already an argument-count

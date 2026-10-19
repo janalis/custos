@@ -17,7 +17,7 @@ A custom GET method does not clear an already configured request body. Remove th
 - D1. Same curl handle configures nonempty CURLOPT_POSTFIELDS followed by CURLOPT_CUSTOMREQUEST GET and executes without clearing body. Require straight-line final state; report opt-in because GET bodies can be intentional.
 - D1e. Exclude later CURLOPT_HTTPGET, CURLOPT_POST, CURLOPT_UPLOAD or CURLOPT_NOBODY setters between the body/custom-GET setup and execution; they can change the underlying transfer mode and invalidate the retained-body proof.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

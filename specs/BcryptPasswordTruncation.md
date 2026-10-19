@@ -16,7 +16,7 @@ bcrypt supports only a limited password byte length. Apply an explicit supported
 
 - D1. Resolved password_hash uses explicit PASSWORD_BCRYPT and a password of known byte length greater than 72. Literal/str_repeat provenance only; do not flag PASSWORD_DEFAULT because its algorithm can change.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

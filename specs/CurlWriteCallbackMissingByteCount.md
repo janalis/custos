@@ -16,7 +16,7 @@ A cURL write callback must return the number of bytes it handled. Return the han
 
 - D1. Resolved curl_setopt CURLOPT_WRITEFUNCTION receives literal closure whose reachable paths lack a returned integer count; recognize no-return closure and explicit null/false return. A complete branch return analysis is required; unknown expressions excluded.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -20,7 +20,7 @@ Restore stream watch arrays before each selection. This opt-in rule applies the 
 
 ## Exceptions (no report)
 
-Find the latest dominating assignment in the selection operation’s own variable scope. A later null, unknown or conditional assignment discards the initial-array proof. Stop at the bounded traversal budget.
+Find the latest dominating assignment in the selection operation’s own variable scope. A later null, unknown or conditional assignment discards the initial-array proof. When that search exceeds the analysis budget, nothing is reported.
 
 - E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
 - E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.

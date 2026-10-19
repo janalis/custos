@@ -109,9 +109,9 @@ while ([$key, $item] = each($legacy)) {
 
 - Upstream converts only the outermost `list(...)`; a nested
   `list($a, list($b, $c)) = $v;` becomes `[$a, list($b, $c)] = $v;`, which
-  PHP rejects (mixing `[]` and `list()` is a compile error). Recommendation:
-  convert nested `list(` keywords inside the same pattern as well (still one
-  report). Not covered by upstream fixtures.
+  PHP rejects (mixing `[]` and `list()` is a compile error). custos
+  converts nested `list(` keywords inside the same pattern as well (still
+  one report). Not covered by upstream fixtures.
 - **`list()` in sub-expressions (custos diverges from upstream).** Upstream
   only reports `list(...) = …` used as a whole statement, so
   `while (list($k, $v) = each($a))`, `for (list($i) = $start; …)` or

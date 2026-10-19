@@ -219,7 +219,7 @@ function tail(array $list) {
   0; }`, where the value already is a reference; the advice is meaningless
   there, so custos does not report it (D8).
 - Destructuring values (`as [$a, $b]`): upstream behaviour unverified;
-  recommendation: skip parts A/B. Part C requires a value variable, so skip
+  custos skips parts A/B. Part C requires a value variable, so custos skips
   it too.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method

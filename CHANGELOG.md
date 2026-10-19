@@ -248,6 +248,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   changed summary are kept. In the editor, analysis gaps are now reported for
   every function of the file, as on the command line.
 
+- Documentation is simpler and matches the binary: the CI recipe no longer
+  writes its JSON report over `custos.json`, the guide states how `exclude`,
+  the project root, configuration validation and baselines actually behave,
+  the native rules page lists the custos annotations, and the rule index shows
+  each rule's origin (native or EA-modelled) with groups sorted by name.
+
 ## [0.1.5] - 2026-10-14
 
 ### Added

@@ -17,7 +17,7 @@ Form-style query encoding differs from RFC3986 encoding for spaces. Select RFC39
 - D1. Resolved http_build_query result is data argument of hash_hmac and a configured signature protocol requires RFC3986 (default empty configured function list; rule disabled by default). Initial explicit evidence is a configured enclosing function fully qualified name; query contains literal space and encoding is absent/PHP_QUERY_RFC1738. Never infer from variable names.
 - D1a. The literal space is searched in the whole literal query data: string values, string keys, and both again inside nested literal arrays (bounded nesting depth). A key is serialized only together with its value, so a spaced key counts only when its value is provably emitted: a known string or integer, or a nested literal array that itself provably emits a pair.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

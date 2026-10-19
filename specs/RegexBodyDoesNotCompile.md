@@ -10,11 +10,11 @@ php: { min: "", max: "" }
 
 ## Summary
 
-Identify a constant slash or tilde delimited regex body with an unterminated ordinary character class or group, or unmatched closing parenthesis. Validate delimiter/modifier shape first. Exclude advanced (? syntax, extended mode, quoted \Q regions, escapes not fully parsed and paired delimiters; no Go regexp parser may reject valid PCRE features.
+Identify a constant slash or tilde delimited regex body with an unterminated ordinary character class or group, or unmatched closing parenthesis. Validate delimiter/modifier shape first. Exclude advanced (? syntax, extended mode, quoted \Q regions, escapes not fully parsed and paired delimiters, so that valid PCRE features are never reported.
 
 ## Detection
 
-- D1. Report a constant slash or tilde delimited regex body with an unterminated ordinary character class or group, or unmatched closing parenthesis. Validate delimiter/modifier shape first. Exclude advanced (? syntax, extended mode, quoted \Q regions, escapes not fully parsed and paired delimiters; no Go regexp parser may reject valid PCRE features.
+- D1. Report a constant slash or tilde delimited regex body with an unterminated ordinary character class or group, or unmatched closing parenthesis. Validate delimiter/modifier shape first. Exclude advanced (? syntax, extended mode, quoted \Q regions, escapes not fully parsed and paired delimiters, so that valid PCRE features are never reported.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 

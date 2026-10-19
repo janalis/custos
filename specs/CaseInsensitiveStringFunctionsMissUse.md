@@ -171,12 +171,12 @@ function parts($path, $mode)
 - **Line breaks in the needle (upstream bug):** upstream's letter test does
   not look past a line terminator, so a literal whose raw content contains a
   real newline plus letters (e.g. a double-quoted string spanning two lines,
-  `"a⏎b"`) is treated as letter-free and reported. Recommendation: scan the
-  whole content; no fixture covers it.
+  `"a⏎b"`) is treated as letter-free and reported. custos scans the whole
+  content; no fixture covers it.
 - **Interpolated strings:** the raw content of `"{$x}"`/`"$x"` contains the
   variable name's letters, so it is normally skipped; a variable such as `$_`
   has no letters and would be reported although the needle is dynamic.
-  Recommendation: skip literals containing interpolation.
+  custos skips literals containing interpolation.
 - **Escape sequences (custos diverges):** upstream tests the raw literal
   text, so letter-free needles written with escapes (`"\t"`, `"\x2F"`) are
   missed because of the escape letter, and `"\x41"` would only be skipped by

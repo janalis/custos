@@ -293,7 +293,7 @@ function os_checks() {
   `testdata/ea-divergences.json`.
 - Upstream's `$`-anchored version match would also accept a version string
   ending with a single trailing newline (`"8.1\n"` raw contents never contain
-  a real newline in practice). Recommendation: require a full match without
+  a real newline in practice). custos requires a full match without
   trailing characters.
 - **Function names (custos diverges):** upstream compares the written last
   segment case-sensitively: it misses `PHP_SAPI_NAME()`, `Version_Compare(...)`

@@ -13,7 +13,7 @@ func ReplaceFix(span syntax.Span, repl string) diagnostic.Fix {
 }
 
 // MethodRemovalEdits deletes a method with its doc comment and trailing
-// whitespace (F1).
+// whitespace (F1 of SenselessMethodDuplication and SenselessProxyMethod).
 func MethodRemovalEdits(f *syntax.File, m syntax.Node) []diagnostic.TextEdit {
 	var out []diagnostic.TextEdit
 	for _, s := range MemberRemovalSpans(f, m) {

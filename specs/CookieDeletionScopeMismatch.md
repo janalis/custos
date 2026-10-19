@@ -19,7 +19,7 @@ Cookie deletion must target the same path and domain as creation. Use the origin
   - the domains are both explicit nonempty literals and still differ after lower-casing and dropping one leading dot.
 - D1a. Path and domain are read from the options array when the third argument is a literal array, otherwise from the fourth/fifth (or named `path`/`domain`) arguments. Option names are matched case-insensitively, as PHP does. The scalar form is proven when the third argument is absent or a known integer, or when a `path`, `domain`, `secure` or `httponly` argument is present (PHP refuses those next to an options array); the stored cookie's expiry may then be any expression such as `time() + 3600`.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

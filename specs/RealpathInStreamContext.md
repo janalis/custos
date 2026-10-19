@@ -133,9 +133,9 @@ $two  = realpath('/tmp', 'x');
   "fixed" away). custos compares the name case-insensitively and requires
   the call to reach the builtin (D1).
 - R1 strips a leading `/..` even when it is part of a longer name
-  (`'/..hidden'` → `dirname(L) . 'hidden'`). Recommendation: only strip
-  `/..` when followed by `/` or the end of the literal; no fixture covers
-  this.
+  (`'/..hidden'` → `dirname(L) . 'hidden'`). custos only strips `/..`
+  when followed by `/` or the end of the literal (see "Whole segments"
+  below); no upstream fixture covers this.
 - **Tighter operators (custos diverges, fix).** R1's result is a
   concatenation; an operator binding tighter than `.` applied directly to
   the call would capture only its first part (`realpath(…)[0]`,
@@ -203,3 +203,5 @@ $two  = realpath('/tmp', 'x');
   reported without a fix. A bare `__FILE__` is one of them: it is not a
   directory, so `realpath(__FILE__ . '/..')` fails where
   `dirname(__FILE__)` succeeds.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

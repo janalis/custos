@@ -20,7 +20,7 @@ parse_str normalizes dots and spaces in parameter names to underscores. Read the
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D2a. The access and the parse_str statement must belong to the same variable scope. An access inside a nested closure, arrow function or property hook is not followed, even when an arrow function would capture the parsed array: the name may equally be a parameter or local of the nested scope.
 - D2b. By-reference binding covers the value side of a reference assignment (`$slot = &$q["a.b"]`), a by-reference array item value (`[&$q["a.b"]]`) and the source of a by-reference `foreach`. Each of these creates the dimension rather than reading it, so none is reported. The same holds when a deeper dimension of the access is what gets bound (`$slot = &$q["a.b"]["c"]`). An access that only supplies the key of another by-reference access (`$slot = &$cache[$q["a.b"]]`) is an ordinary read and is reported.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

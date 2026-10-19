@@ -39,7 +39,7 @@ Reported:
 - D1. Resolved ZipArchive::open call is used directly as an if/elseif/while truthiness condition or direct logical negation. An `elseif` clause counts exactly like `if`, whether written as one word or as `else if`. Its error integers are nonzero; success is boolean true. Require receiver proven ZipArchive. Highlight call.
 - D1b. Report a direct logical negation even outside a branch condition, but offer a fix only for direct if/elseif/while truthiness or its negation. Withhold the fix if replacing its condition span would discard comments.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

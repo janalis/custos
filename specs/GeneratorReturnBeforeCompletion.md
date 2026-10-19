@@ -19,7 +19,7 @@ A generator exposes its return value only after it finishes. Complete iteration 
 - D1e. The first statement of the literal closure body must be an expression statement whose expression is a direct nondelegating yield. Preceding assignments, conditionals or other statements do not establish this initial suspended state; yield-from is excluded.
 - D1f. The method name is matched case-insensitively, and the result does not have to be discarded. The call is reported when the statement directly after the assignment is an expression statement, a return or an echo that evaluates the call before anything else: the path from the call up to the statement may only pass through parentheses, unary operators and casts, the value of an assignment to a plain variable, the left operand of a binary operator, the condition of a ternary, the first argument of a call to a named function, and the first echo operand.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

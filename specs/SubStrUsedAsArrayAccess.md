@@ -183,3 +183,5 @@ function peek(string $buf, ?string $maybe, string|int $mixed, array $rows, int $
   another scalar (`string|int $code`), the finding has no fix: an int's
   offset is null, so `($code[$i] ?? '')` would return `''` where
   `substr()` returns the digit.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

@@ -51,8 +51,6 @@ A temporary array argument cannot rebind variables copied into its entries. An u
 
 No automatic fix: read failure handling belongs to the caller.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.
@@ -102,17 +100,13 @@ assumed to terminate. A later description expression that can rewrite the tested
 value prevents using the condition as a guard. Before PHP 8, evaluated string
 assertions invalidate local proofs; their PHP code is not interpreted.
 
-### Joined producer retention
+### Joined producers
 
-Several assignments reaching a use are checked per producer. Ordinary
-sets retain up to 64 expressions, then finite resolved native contracts retain
-real representatives for each false/null guard state. An eligible unguarded
-producer still counts when other paths use another API or are guarded.
-Argument-sensitive contracts retain their individual producers so an irrelevant
-variant cannot hide a later eligible call. Unknown non-call paths establish no
-exact identity. Origin storage is charged to the scope's retained-state budget;
-exhausting that host budget leaves the scope unknown rather than fabricating a
-producer or a guard.
+When several assignments reach a use, each producer is checked on its own: an
+unguarded eligible producer is still reported when other paths use another API
+or are guarded, and an irrelevant variant cannot hide a later eligible call. A
+path whose value does not come from a known call establishes nothing. When the
+producers cannot be tracked within the analysis budget, nothing is reported.
 
 ## Divergences
 

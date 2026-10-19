@@ -119,6 +119,5 @@ function plain($x) {
   the source. Consequences not covered by fixtures: a `return` inside a
   `try` (or `catch`) that has a `finally` block probably flows through the
   finally block and is then not counted; returns in unreachable code may
-  still be counted. Recommendation: count every `return` statement of the
-  method as in D2 (simpler and stable); revisit if a conformance case shows a
-  difference.
+  still be counted. custos counts every `return` statement of the method as
+  in D2.

@@ -120,12 +120,12 @@ function route(string $uri) {
 - Upstream counts UTF-16 code units of the decoded literal, whereas PHP's
   length argument counts bytes. For ASCII literals both agree. For
   non-ASCII literals (`'é'`) upstream would demand 1 where PHP needs 2.
-  Recommendation: count bytes of the UTF-8 decoded value (correct PHP
-  semantics); document the divergence (no upstream fixture uses non-ASCII).
+  custos counts bytes of the decoded value, as PHP does (no upstream
+  fixture uses non-ASCII).
 - Interpolated double-quoted strings (`"/$base/"`) and heredoc/nowdoc literals:
   upstream measures the raw text including the `$var` placeholders.
-  Recommendation: skip literals containing interpolation; treat nowdoc like
-  single-quoted and heredoc like double-quoted only when not interpolated.
+  custos only measures quoted literals without interpolation; interpolated
+  strings, heredoc and nowdoc literals are not reported.
 - **Integer literals read as PHP reads them — custos diverges from upstream**
   (D6). Upstream reads the length as a decimal number, so `010` counts as 10
   although PHP passes 8: `strncmp($s, 'abcdefgh', 010)` is correct but was

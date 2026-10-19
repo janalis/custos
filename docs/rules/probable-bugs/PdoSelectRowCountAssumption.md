@@ -41,8 +41,6 @@ Reported:
 
 No automatic fix: replacing the query changes result shape, cost and transaction consistency.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## PHP versions
 
 Apply only on PHP versions supporting the referenced APIs and syntax (within PHP 5.3–8.5). `PDO::query()`, `PDO::prepare()` and `PDOStatement::rowCount()` exist across that whole range, so the rule behaves the same for every target version. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.

@@ -16,7 +16,7 @@ A session name must be configured before the session becomes active. Set the nam
 
 - D1. Resolved session_start in straight-line scope precedes session_name setter before any session_write_close/session_abort/session_destroy. Require definite active state; unknown calls invalidate proof.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

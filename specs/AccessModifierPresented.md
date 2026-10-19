@@ -207,12 +207,12 @@ class Limits
 ## Divergences
 
 - Promoted constructor parameters are not covered upstream in a reliable way
-  (they are not part of a property statement). Recommendation: do not report
+  (they are not part of a property statement). custos does not report
   them.
 - Typed class constants (PHP 8.3, `const int X = 1;`): upstream behaviour is
-  uncertain (the type may count as "something before the name"). Recommendation:
-  treat the type as not being a modifier and report like an untyped constant;
-  no EA fixture covers it.
+  uncertain (the type may count as "something before the name"). custos
+  treats the type as not being a modifier and reports like an untyped
+  constant; no EA fixture covers it.
 - custos diverges: `final const X` (PHP 8.1) is reported (D3). Upstream treats
   any modifier before `const` as explicit visibility, but `final` says nothing
   about visibility, which stays implicitly public. The fix inserts `public`

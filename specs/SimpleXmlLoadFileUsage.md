@@ -121,8 +121,8 @@ function feeds(string $dir, string $cls, int $flags, string $nsUri) {
 - Named arguments (PHP 8): upstream copies argument text as-is, so
   `simplexml_load_file(filename: $f)` would become
   `file_get_contents(filename: $f)` (works by accident). Spread arguments
-  (`...$args`) as first argument produce wrong code. Recommendation: skip the
-  report when the first argument is a spread or any argument is named.
+  (`...$args`) as first argument produce wrong code. custos does not report
+  a call with a spread or named argument.
 - **Fix withheld for base-URI-dependent options (custos diverges)** (F2).
   Upstream rewrites every reported call. With entity substitution, DTD
   loading or XInclude enabled, the string-based load resolves relative
@@ -139,3 +139,5 @@ function feeds(string $dir, string $cls, int $flags, string $nsUri) {
   off by default, so the call is no longer needed). On an 8.0+ target the
   advice only rewrites working code, at error severity (14 findings on
   Akeneo, Mautic and Shopware); custos reports from 5.3 to 7.4 only.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

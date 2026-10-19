@@ -234,7 +234,8 @@ inverted.)
 - Upstream also offers F3 when the call is the **left** operand of the logical
   expression (`mkdir($d) && log()`); its fix then rebuilds the expression from
   the left operand only, duplicating `mkdir` and dropping the right operand.
-  Recommendation: report but offer no fix in that case (no fixture covers it).
+  custos reports but offers no fix in that case (F3; no upstream fixture
+  covers it).
 - `is_dir()` re-check on another path (custos diverges from upstream).
   Upstream accepts any `is_dir` call in the right operand, whatever its
   argument, so `!mkdir($cache) && !is_dir($logs)` passes although the
@@ -322,3 +323,5 @@ inverted.)
 - **Unbraced bodies (custos).** When the ignored `mkdir()` statement is the
   unbraced body of an `if`/`else`/loop, the D4 replacement is wrapped in
   braces: a bare `if (…) { throw … }` would capture the outer `else`.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

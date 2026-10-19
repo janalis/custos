@@ -21,7 +21,7 @@ Identify str_repeat when times is a proven negative integer.
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Integer intervals report only when every value is negative. Loops widen changing bounds after their second head visit, and integer comparisons narrow body values. Arithmetic that may overflow PHP integers loses its integer proof. A concrete, acyclic CFG entry prefix can also establish a negative first read before a later rewrite; unknown branches, prior calls, references and unsupported operations end that additional proof. Fresh assignments supersede earlier steps or extract calls, and merely creating an uninvoked capture does not execute its body. Unknown or crossing intervals give no finding without a concrete entry witness.
+- E2. Integer intervals report only when every value is negative. A bound that changes inside a loop is widened after the loop's second pass, and integer comparisons narrow the values seen in their body. Arithmetic that may overflow PHP integers loses its integer proof. Straight-line code from the start of the scope, without loops, can also establish a negative first read before a later rewrite; unknown branches, prior calls, references and unsupported operations end that additional proof. Fresh assignments supersede earlier steps or extract calls, and merely creating an uninvoked capture does not execute its body. Unknown or crossing intervals give no finding without a concrete entry witness.
 - E3. Both `@custos-ignore StringRepeatNegativeCount` and `@noinspection StringRepeatNegativeCount` suppress this native rule.
 
 ## Report

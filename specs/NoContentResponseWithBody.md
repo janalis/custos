@@ -41,8 +41,6 @@ Detect nonempty output after response status is proven 204 and before any status
 
 No automatic fix: changing the status or removing the body is an API decision.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

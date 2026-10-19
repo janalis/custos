@@ -29,7 +29,7 @@ Reported:
 
 - D1. Report a resolved backed enum from call with a request-derived backing value not proven within its declared case set and without handling ValueError.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 - D4. A ValueError handler counts only when the call sits in the try body of a statement whose catch clauses name ValueError, Error or Throwable. A call placed in a catch or finally block of that statement is not covered by it, though an outer try may still cover it.
 - D5. Guards and handlers are looked up inside the function-like body that contains the call. A closure or arrow function runs later, so a try block or membership check surrounding its creation proves nothing about the call inside it.
 
@@ -41,8 +41,6 @@ Reported:
 ## Fix
 
 No automatic fix: choosing null fallback versus throwing is a caller contract.
-
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 
 ## PHP versions
 

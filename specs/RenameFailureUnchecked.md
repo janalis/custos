@@ -16,7 +16,7 @@ Renaming a file can fail. Check the result before returning success from the pub
 
 - D1. Resolved rename result is discarded immediately before containing function returns literal true. Restrict to proven success return rather than arbitrary success-named consumers; guarded/returned rename results excluded.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

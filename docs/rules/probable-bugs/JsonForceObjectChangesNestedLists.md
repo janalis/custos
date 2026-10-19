@@ -31,7 +31,7 @@ Reported:
 - D1d. Evaluate the effective array after PHP key normalization and duplicate-key overwrites, recursively where nested values supply evidence. Only surviving entries establish row collisions, nested arrays, non-stringable objects, formatted numeric strings or nested list shapes. Earlier entries overwritten by a later occurrence of the same normalized key are not evidence; unknown keys or unsupported effective-array evaluation discard proof.
 - D1e. A nested array is a list only when its effective keys are the integers 0, 1, 2, … in that insertion order, which is the shape json_encode writes as a JSON array without the flag. Explicit integer or integer-like string keys count when each one is either the next unused index or an index already inserted (an overwrite keeps the original position). Keys out of order, gaps, negative keys and string keys make the array a map that the flag does not change.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

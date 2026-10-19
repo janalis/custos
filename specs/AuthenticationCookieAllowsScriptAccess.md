@@ -18,7 +18,7 @@ An authentication cookie without HttpOnly is available to scripts. Enable HttpOn
   - Options array: the third argument is a literal array whose keys are all known. Option names are matched case-insensitively, as PHP does (`"HttpOnly"`, `"HTTPONLY"`); when several spellings are present the element that comes last in array order decides.
   - Legacy argument: whenever the third argument is not a literal array, an explicit `httponly` argument decides, whatever the expiry expression is (`0`, `time() + 3600`, a variable, a call). PHP refuses to combine an options array with the legacy arguments, so their presence proves the legacy signature.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

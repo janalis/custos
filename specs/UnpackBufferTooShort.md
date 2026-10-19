@@ -16,7 +16,7 @@ Provide enough bytes for the unpack format.
 
 - D1. For constant unpack format, byte string and optional nonnegative offset, interpret widths and cursor moves and prove a required read exceeds available bytes. Supported widths: c/C one byte, n/v two bytes, N/V four bytes, J/P eight bytes, g/G four bytes, e/E eight bytes; a/A/Z byte counts and h/H nibble counts. Cursor directives x/X/@ update byte position. Unpack slash-separated field names do not consume bytes. A star read consumes only remaining bytes and does not itself establish underflow. Include network integer widths and fixed string counts; unsupported directives or platform-dependent widths invalidate proof. Exclude J/P before PHP 5.6, g/G/e/E before PHP 7.2, Z before PHP 5.5, and explicit offsets before PHP 7.1.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

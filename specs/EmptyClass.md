@@ -96,7 +96,9 @@ $x = new class {};
 ## Divergences
 
 - `#[\Deprecated]` attributes are not considered by upstream (docblock tag
-  only). Recommendation: same.
+  only). custos does not treat the attribute as a deprecation marker either,
+  but a class carrying it is still not reported: any attribute exempts the
+  class (see below).
 - **Attribute classes (custos diverges).** A class carrying `#[Attribute]`
   (resolved through imports: `#[\Attribute]`, `use Attribute;
   #[Attribute(…)]`) is an attribute: it is used by its name alone

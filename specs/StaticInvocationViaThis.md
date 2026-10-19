@@ -217,3 +217,5 @@ namespace PHPUnit\Framework {
   `"{$this->m()}"` to `"{static::m()}"` turns the call into literal text,
   because a brace only starts an interpolation when a `$` follows it.
   custos still reports such calls but offers no fix (F2).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

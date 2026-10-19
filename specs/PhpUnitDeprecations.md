@@ -94,9 +94,6 @@ ordered `PHPUNIT70 < 71 < 72 < 73 < 74 < 75 < 80 < 81 < 82 < 83 < 84 < 85 <
   (These are the real PHPUnit ≥ 9.1 names. Upstream produces a different,
   non-existent name — see Divergences.)
 
-`internal/inspection/meta/rules.json` lists `hasFix: false` for this rule although the
-upstream inspection offers F1; treat the rule as fixable.
-
 ## Options
 
 | Option | Type | Default | Effect |
@@ -184,14 +181,14 @@ final class ExportTest
   the test. custos emits the real names `assertFileDoesNotExist` /
   `assertDirectoryDoesNotExist`. Consequence: the EA conformance fixture for
   PHPUnit 9.1 will differ in fix output by exactly that trailing `s`
-  (ranges and severities still match). Recommendation: keep the correct
-  names and record the case as an accepted conformance divergence.
+  (ranges and severities still match); the case is an accepted conformance
+  divergence.
 - PHP 8 named arguments (`assertEquals(1.0, $x, delta: 0.1)`): upstream works
   purely on argument positions; behaviour with named arguments is unverified.
-  Recommendation: for named arguments, map by parameter name (`delta`,
-  `maxDepth`, `canonicalize`, `ignoreCase`) and report the whole named
-  argument (name label included); positional arguments as specified. No
-  fixture covers it.
+  custos maps named arguments by parameter name (`delta`, `maxDepth`,
+  `canonicalize`, `ignoreCase`) and reports the whole named argument (name
+  label included); positional arguments as specified. No upstream fixture
+  covers it.
 - **Foreign `assertEquals` methods (custos diverges).** Upstream matches
   `assertEquals`/`assertNotEquals` by name on any receiver, so a comparator
   library's own `$comparator->assertEquals($a, $b, $delta, $canonicalize)`
@@ -216,3 +213,5 @@ final class ExportTest
   (`require-dev`, else `require`) before falling back to the option
   default: EspoCRM (`^11.5`) was told to use `assertContains()` (strict
   from 9.0, unlike `in_array()`) and Grav `assertRegExp()` (removed in 10).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

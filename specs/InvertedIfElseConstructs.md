@@ -164,12 +164,14 @@ if (!ready()) { a(); }
   as upstream), but gets the `!==` form too: nothing forces the documented
   type to hold at run time.
 - D4b's "exactly one resolved type" depends on the type engine: our engine may
-  resolve more or fewer expressions than upstream. Recommendation: report only
-  when the type is certain (declared non-nullable return type of a resolved
-  function/method, a bool literal); otherwise skip.
+  resolve more or fewer expressions than upstream. custos reports whenever
+  its inference resolves exactly one type, PHPDoc included; F1 decides
+  whether the fix may drop `false`.
 - Alternative syntax (`if (!x): … else: … endif;`) is not covered by upstream
-  fixtures. Recommendation: do not report (bodies are not braced blocks).
+  fixtures. custos does not report it (bodies are not braced blocks, E2).
 - **Empty else (custos diverges).** `if (!$ok) { … } else { }` (no
   statements, comments only) is not reported: swapping the branches would
   leave an empty `if` body — removing the empty `else` is the change to
   make, and the negation then reads naturally.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

@@ -19,7 +19,7 @@ Check normal termination before decoding the exit code.
 - D1b. Wait success is a comparison between the wait result and an integer, in either operand order, that implies a positive result: `> n` with n >= 0, `>= n` with n >= 1, or `!== -1` / `!= -1` when the wait call passes no flags (a blocking wait returns a child pid or -1). The negated forms (`<= 0`, `< 1`, `=== -1`) count when the condition is known false. Comparing the result with the awaited pid proves nothing: a pid argument of -1 equals the failure result.
 - D1c. A pcntl_wifexited check counts only when it is written after the wait call; an earlier check describes an older status value.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
@@ -37,8 +37,6 @@ Check normal termination before decoding the exit code.
 ## Fix
 
 No automatic fix. The required repair depends on error handling, data selection, lifecycle ordering or application policy.
-
-All edits use exact byte ranges and preserve comments and evaluation order. Offer no fix when its stated prerequisites cannot be proven or the replacement is unsupported by the configured PHP version.
 
 ## Options
 

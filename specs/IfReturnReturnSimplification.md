@@ -244,5 +244,5 @@ function hasElseif($q) {
   `and`/`or` expression the result is still correct thanks to the
   parentheses. No divergence needed.
 - Alternative syntax (`if (…): return true; endif; return false;`) is not
-  covered by upstream fixtures. Recommendation: treat its statement list like
-  a braced block.
+  covered by upstream fixtures. custos treats its statement list like a
+  braced block and reports it.

@@ -29,7 +29,7 @@ Reported:
 
 - D1. XMLWriter writeRaw receives directly or through unchanged local bindings an indexed _GET,_POST, _REQUEST or_COOKIE string. Exclude proven literal content, text(), and values reconstructed by a proven XML parser/serializer. Do not assume arbitrary sanitizers establish safety.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

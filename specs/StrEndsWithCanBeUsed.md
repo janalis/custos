@@ -152,3 +152,5 @@ function isType(string $file, string $ext): array {
   to be non-empty: a non-empty literal, a concatenation with such a part,
   or a variable or constant whose every possible value is one; other
   needles (`string $ext` parameters) are reported without a fix.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

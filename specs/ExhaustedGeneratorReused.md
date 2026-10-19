@@ -16,7 +16,7 @@ Detect a resolved Generator identity traversed again after a proven complete ite
 
 - D1. Report a resolved Generator identity traversed again after a proven complete iterator_to_array call or complete foreach.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 - D4. The traversed expression must be a plain local variable in both traversals. A call, property or other expression may hand back a different generator each time it is evaluated, so two textually identical calls are never one identity.
 
 ## Exceptions (no report)
@@ -35,8 +35,6 @@ Detect a resolved Generator identity traversed again after a proven complete ite
 ## Fix
 
 No automatic fix: recreation and materialization have different side effects and memory costs.
-
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 
 ## Options
 

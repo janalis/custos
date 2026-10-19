@@ -168,8 +168,8 @@ while ($ok) break;
   reported although it is the same legitimate idiom. custos exempts every
   type that is a subtype of `\Traversable` (D4).
 - Alternative syntax (`foreach (…): … endforeach;`): upstream behaviour
-  depends on whether the parser exposes a group body; recommendation: treat
-  the statement list as the body.
+  depends on whether the parser exposes a group body. custos treats the
+  statement list as the body.
 - **Empty `while`/`do`/`for` bodies (custos diverges).** Upstream reports
   any empty loop body, but `while (@ob_end_flush()) {}` or
   `for (; next($a) !== false;) {}` repeat as long as the condition holds —

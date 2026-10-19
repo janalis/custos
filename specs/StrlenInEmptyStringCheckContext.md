@@ -230,3 +230,5 @@ class Form
   `strlen()` counts as empty and `=== ''` does not (October CMS
   `Table::init()`, `!strlen($this->getConfig('dataSource'))`). Same policy
   as UnnecessaryCasting's PHPDoc-only types.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

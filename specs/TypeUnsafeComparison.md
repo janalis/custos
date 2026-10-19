@@ -320,3 +320,5 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, st
   only objects, `==` compares their properties and `===` their identity:
   a different question, not type juggling. Kind H is not reported
   (`function same(Money $a, Money $b) { return $a == $b; }`).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

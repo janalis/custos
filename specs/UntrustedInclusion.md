@@ -108,6 +108,5 @@ include '\\\\fileserver\\shared\\boot.php';
   included one, and the advice in the message is already applied.
 - Double-quoted strings with interpolation (`"$base/x.php"`) are string
   literals whose raw content does not start with `/`, so upstream reports
-  them although the real path is unknown. Recommendation: do not report a
-  literal whose content starts with an interpolation; not covered by
-  fixtures.
+  them although the real path is unknown. custos does not report a literal
+  whose content starts with an interpolation; not covered by fixtures.

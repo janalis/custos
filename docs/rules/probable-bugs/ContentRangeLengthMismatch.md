@@ -31,7 +31,7 @@ Reported:
 
 - D1. Track effective Content-Range bytes START-END/TOTAL (decimal numeric bounds, valid single range) and a proven status 206. Report the range header when complete emitted constant bytes differ from END - START + 1. Support repeated literal concatenations and constant-folded str_repeat. Use the same complete response-path proof and invalidations as ContentLengthKnownBodyMismatch.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
@@ -43,8 +43,6 @@ Reported:
 ## Fix
 
 No automatic fix. Choosing a repair requires runtime information, error-handling policy or a semantic decision.
-
-All edits use exact byte ranges, preserve comments and evaluation order, and require syntax supported by the target PHP version. A fix must never add an evaluation or silently change unrelated arguments.
 
 ## PHP versions
 

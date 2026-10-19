@@ -110,8 +110,8 @@ against cycles; an already-visited node yields nothing):
    `define('C', value)` declaration (including stub declarations such as
    `PHP_INT_MAX`) and add the value expression itself (not further
    discovered). Unresolved → empty. (Whether top-level `const C = value;`
-   declarations resolve here upstream is unverified; recommendation: treat
-   them like `define()`.)
+   declarations resolve here upstream is unverified; custos treats them like
+   `define()`.)
 8. Anything else (including `true`/`false`/`null`) → the expression itself.
 
 **Unknown result.** If any variable expanded during a discovery (at any
@@ -293,11 +293,11 @@ function relay(Relay $relay)
   compound-assigned (PrintfScanfArguments' only such fixture expects no
   report), so conformance is unaffected.
 - Interpolated double-quoted strings (`"$cls::open"`) are string literals but
-  cannot describe a fixed callback; upstream behaviour unverified.
-  Recommendation: skip strings containing interpolation.
+  cannot describe a fixed callback; upstream behaviour unverified. custos
+  skips strings containing interpolation.
 - Keyed two-element arrays (`['c' => Shop::class, 'm' => 'open']`) are not
-  valid callables; recommendation: skip arrays with explicit keys.
-- Short ternary `a ?: b` in value discovery: recommendation — union of
+  valid callables; custos skips arrays with explicit keys.
+- Short ternary `a ?: b` in value discovery: custos takes the union of
   discovery on `a` and `b`. No fixture covers it.
 - **Calling scope (custos diverges):** upstream reports every non-public
   method, wherever `is_callable()` is called. PHP evaluates visibility from

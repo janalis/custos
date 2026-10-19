@@ -29,7 +29,7 @@ Reported:
 
 - D1. Enabled policy requires complete standalone compression streams. Report file_put_contents publishing an unchanged local/direct deflate_add result whose explicit flush constant is ZLIB_SYNC_FLUSH, ZLIB_NO_FLUSH or ZLIB_FULL_FLUSH. The write must replace the file: either no `flags` argument is passed, or its value resolves to an integer without the FILE_APPEND bit. Concatenated outputs and publication through other consumers remain outside this local subset.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
@@ -40,8 +40,6 @@ Reported:
 ## Fix
 
 No automatic fix. The required repair depends on error handling, data selection, lifecycle ordering or application policy.
-
-All edits use exact byte ranges and preserve comments and evaluation order. Offer no fix when its stated prerequisites cannot be proven or the replacement is unsupported by the configured PHP version.
 
 ## PHP versions
 

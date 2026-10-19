@@ -254,12 +254,12 @@ define('LIMIT', 3);
   escaped name (D5) is not reported: qualifying the reference would rebind
   it to the global constant of the same name.
 - **Empty callback strings** (`array_map('', $a)` with
-  `REPORT_ALL_FUNCTIONS`) would be reported as `'\'`. Recommendation: skip
-  empty contents.
+  `REPORT_ALL_FUNCTIONS`) would be reported as `'\'`. custos skips empty
+  contents.
 - **Global namespace block:** in a file with several namespaces, a call inside
   `namespace { … }` (the global block) is reported although it already binds
-  globally. Recommendation: skip when the governing namespace is the global
-  one. Not covered by fixtures.
+  globally. custos still reports it, as upstream does. Not covered by
+  fixtures.
 - **Letter case and resolution — custos diverges from upstream.** Upstream
   compares function names case-sensitively: `StrLen($s)` in a namespace is
   not reported although PHP resolves it to `\strlen` at run time just the

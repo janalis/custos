@@ -215,8 +215,8 @@ namespace {
   `$this->CreateMock(Sealed::class)` escapes the check although PHP calls
   the same method. custos compares them case-insensitively (D1, D4).
 - Variadic constructor parameters have no default value and therefore count
-  as "required" for CTOR upstream; recommendation: treat variadic parameters
-  as optional (no fixture covers it).
+  as "required" for CTOR upstream; custos treats variadic parameters as
+  optional (no fixture covers it).
 - String class names are always resolved as fully-qualified names, never
   relative to the current namespace (matches PHP's runtime behaviour).
 - **Default values in Part B (custos diverges):** upstream also walks the

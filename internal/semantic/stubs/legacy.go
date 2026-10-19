@@ -59,9 +59,7 @@ func markBuiltin(files []*index.FileSymbols) {
 
 // missingProps lists the public properties extensions create at runtime on
 // their objects that phpstorm-stubs does not declare (lower-case class
-// FQN -> names). OAuthProvider (pecl/oauth) fills these from the request
-// it checks; rules reading the stubs (MissingIssetImplementation) took
-// them for undeclared.
+// FQN -> names). See rules/missingissetimplementation/NOTES.md.
 var missingProps = map[string][]string{
 	"oauthprovider": {
 		"consumer_key", "consumer_secret", "signature", "signature_method", "token",

@@ -33,8 +33,6 @@ Detect discarded file_put_contents followed on the same path by a resolved succe
 
 No automatic fix: handling partial or failed writes requires an application contract.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

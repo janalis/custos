@@ -29,7 +29,7 @@ Reported:
 
 - D1. Resolved openssl_encrypt/decrypt uses a literal aes-128/192/256 cipher variant; key byte length is proven and differs from 16/24/32 respectively. Track literal string, str_repeat, random_bytes and unmodified local values. Unknown cipher/key produces no report.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

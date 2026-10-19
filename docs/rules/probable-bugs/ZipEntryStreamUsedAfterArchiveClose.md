@@ -30,7 +30,7 @@ Reported:
 - D1. A resource local is assigned getStream on a proven ZipArchive receiver; that same receiver is closed and stream_get_contents/fread/fgets subsequently consumes the resource. Track direct locals and invalidate escape/reassignment.
 - D1a. The initial supported proof is consecutive local getStream assignment, close call, and stream consumer statements.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -177,4 +177,4 @@ function cleanup($handle) {
   The upstream fixture's caught variables are never used afterwards, so
   conformance is unaffected.
 - Whether an empty statement `;` inside the block counts as a statement is
-  unverified upstream. Recommendation: do not count empty statements.
+  unverified upstream. custos does not count empty statements.

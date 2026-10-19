@@ -8,8 +8,8 @@
 
 ## Checklist
 
-- [ ] `make verify` passes (lint, tests, fixtures, 100 % coverage, clean-room scan)
-- [ ] Rule behaviour changes: the spec (`specs/<ID>.md`) is updated, and fixtures in `internal/inspection/rules/<id>/testdata/` cover the change
 - [ ] `make rules-doc` was run if a spec, a rule's fixtures or rule status changed
+- [ ] `make verify` passes (architecture, lint, tests, fixtures, 100% coverage, clean-room scan)
+- [ ] Rule behavior changes: the spec (`specs/<ID>.md`) is updated, and fixtures in `internal/inspection/rules/<lowercase-ID>/testdata/` cover the change
 - [ ] User-visible change: a line under `## [Unreleased]` in `CHANGELOG.md`
-- [ ] Clean-room: nothing in this PR is copied, translated or closely paraphrased from Php Inspections (EA Extended) code, messages, docs or fixtures, and rule code was written from the spec only
+- [ ] Clean-room: nothing is copied, translated or closely paraphrased from Php Inspections (EA Extended), and rule code was written from the spec only ([clean-room process](https://janalis.github.io/custos/contributing/clean-room))

@@ -72,7 +72,7 @@ func run(root string, stdout, stderr io.Writer) int {
 	if upstream != len(rules) {
 		b.WriteString("Native custos rules have no upstream counterpart; their EA conformance is N/A.\n\n")
 	}
-	b.WriteString("Conformance: `pass` / `fail` / `pending` (not implemented) / `—` (not run).\n")
+	b.WriteString("Default: `✓` enabled by default, `exp.` experimental (disabled upstream and off by default). Conformance: `pass` / `fail` / `—` (not run).\n")
 	for _, g := range groups {
 		fmt.Fprintf(&b, "\n## %s\n\n| Rule | Severity | Default | Fix | Spec | EA conformance |\n| :--- | :--- | :---: | :---: | :---: | :---: |\n", g)
 		for _, r := range byGroup[g] {

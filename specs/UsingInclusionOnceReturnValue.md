@@ -157,3 +157,5 @@ function renderPage(string $file)
   `get_defined_vars()`, `$$name`, `eval`) and, for a never-read variable,
   a scope with another inclusion. There the stored value is observable
   and turns into `true` on the second evaluation, so the report is kept.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

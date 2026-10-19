@@ -148,7 +148,7 @@ function open_files($path)
   `FOPEN($p, 'r')` is missed and a namespace's own `fopen()` is checked (and
   "fixed"). custos resolves the call to the global function, in any case.
 - Interpolated double-quoted modes (`"{$m}"`) are processed on their raw
-  text upstream. Recommendation: skip literals containing interpolation.
+  text upstream. custos does not report interpolated modes.
 - **Named arguments and spreads (custos diverges from upstream).** Upstream
   always inspects the second written argument, so with named arguments in
   another order it judges and rewrites the filename. custos follows the
@@ -158,5 +158,6 @@ function open_files($path)
   of a mode written with escape sequences and yields invalid PHP when a
   double-quoted mode holds a single quote. custos does not report those.
 - When several `fopen()` calls share one resolved literal, upstream applies
-  the rewrite once (later fixes find the literal already replaced).
-  Recommendation: deduplicate edits on the same literal.
+  the rewrite once (later fixes find the literal already replaced). custos
+  also rewrites the shared literal once: the overlapping edits of the other
+  findings are skipped.

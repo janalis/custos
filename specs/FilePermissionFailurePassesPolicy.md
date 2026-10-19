@@ -70,17 +70,13 @@ function readOnly($path) {
 }
 ```
 
-### Joined producer retention
+### Joined producers
 
-Several assignments reaching a use are checked per producer. Ordinary
-sets retain up to 64 expressions, then finite resolved native contracts retain
-real representatives for each false/null guard state. An eligible unguarded
-producer still counts when other paths use another API or are guarded.
-Argument-sensitive contracts retain their individual producers so an irrelevant
-variant cannot hide a later eligible call. Unknown non-call paths establish no
-exact identity. Origin storage is charged to the scope's retained-state budget;
-exhausting that host budget leaves the scope unknown rather than fabricating a
-producer or a guard.
+When several assignments reach a use, each producer is checked on its own: an
+unguarded eligible producer is still reported when other paths use another API
+or are guarded, and an irrelevant variant cannot hide a later eligible call. A
+path whose value does not come from a known call establishes nothing. When the
+producers cannot be tracked within the analysis budget, nothing is reported.
 
 ## Divergences
 

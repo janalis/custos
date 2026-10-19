@@ -17,7 +17,7 @@ Browsers reject a wildcard CORS origin for credentialed requests. Return an expl
 - D1. Resolved header calls in same response scope definitely set Access-Control-Allow-Origin to * and Access-Control-Allow-Credentials to true, case-insensitive. Account for later replacement/removal and unknown control flow.
 - D1c. The supported initial proof uses a contiguous block of known header and header_remove operations. Account for the final replacement/removal state, and do not treat unknown later operations as proof that the conflicting headers remain final.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

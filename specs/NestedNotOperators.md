@@ -94,12 +94,12 @@ $one  = !$token;
 - Upstream walks outwards through *any* unary operator (unary minus/plus,
   bitwise not, casts, error suppression `@`, …) while counting only the `!`
   ones, so `!(int)!$v` or `!-!$v` is reported as `(bool)$v` and the fix drops
-  the intermediate operator (semantics change). Recommendation: stop the
-  outward walk at the first unary operator that is not `!` (only `!` and
+  the intermediate operator (semantics change). custos stops the outward
+  walk at the first unary operator that is not `!` (only `!` and
   parentheses extend a chain). Not covered by upstream fixtures; results for
   `-!!$v` are identical either way (outermost `!` reported, `-` kept).
 - Upstream wraps only binary subjects in parentheses; a ternary or assignment
   subject (`!!($a ? $b : $c)`, `!!($x = f())`) would produce `(bool)$a ? $b : $c`
-  (wrong precedence). Recommendation: also parenthesise ternary, assignment
-  and other low-precedence subjects (`print`, `yield`, `include`, `throw`). Not
+  (wrong precedence). custos also parenthesises ternary, assignment and
+  other low-precedence subjects (`print`, `yield`, `include`, `throw`). Not
   covered by upstream fixtures.

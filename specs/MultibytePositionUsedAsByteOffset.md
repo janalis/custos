@@ -16,7 +16,7 @@ Multibyte character positions are not byte offsets. Use matching multibyte opera
 
 - D1. Resolved mb_strpos/mb_stripos on a known UTF-8 literal containing multibyte characters before a found needle yields index used as offset of substr on same source. Require literal needle and explicit UTF-8 encoding, no arithmetic conversion.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

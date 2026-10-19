@@ -172,19 +172,19 @@ class Repo
 
 - The fix keeps all `prepare()` arguments; a second `prepare()` argument
   (driver options array) becomes `query()`'s fetch-mode argument, changing
-  meaning. Recommendation: offer the fix only when `prepare()` has exactly one
-  argument (still report). No upstream fixture has a second argument.
-  custos applies this (F3) and also withholds the fix for a single spread
-  argument (`prepare(...$args)`), whose array may carry the options too.
+  meaning. custos offers the fix only when `prepare()` has exactly one
+  argument (still reporting otherwise, F3), and also withholds the fix for a
+  single spread argument (`prepare(...$args)`), whose array may carry the
+  options too. No upstream fixture has a second argument.
 - **First-class callable (custos diverges):** `$st = $pdo->prepare(...);`
   creates a closure rather than a statement, so custos does not report the
   following `$st->execute();` (E7).
 - Upstream accepts compound assignments in D4 (`$st .= $pdo->prepare(…)`),
-  which is nonsensical; recommendation: accept only `=`. Not covered.
+  which is nonsensical; custos accepts only `=`. Not covered.
 - If the receiver's type cannot be resolved to PDO (D5), nothing is reported;
-  a typed `\PDO` parameter, property with `@var \PDO` docblock or `new \PDO`
-  must be enough for an implementation to pass upstream fixtures (the fixture
-  uses a `\PDO`-typed parameter).
+  custos resolves a typed `\PDO` parameter, a property with an `@var \PDO`
+  docblock and `new \PDO` (the upstream fixture uses a `\PDO`-typed
+  parameter).
 - **Method-name case (custos diverges):** upstream compares `execute` and
   `prepare` case-sensitively, so `$st = $pdo->Prepare(…); $st->EXECUTE();`
   was missed although PHP calls the same methods. custos compares the method

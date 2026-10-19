@@ -33,7 +33,7 @@ Reported:
   - A statement starting with COPY is never a table position for this rule: `COPY t FROM $x` names a file.
   - Unbalanced closing parentheses before the operand make the SQL ambiguous.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

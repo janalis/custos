@@ -8,49 +8,24 @@ import (
 	"custos/internal/semantic/types"
 )
 
-// TRules is the expression typer described by the "Expression type rules
-// (T-rules)" of specs/UnnecessaryCasting.md (also referenced by
-// CallableParameterUseCaseInTypeContext). It is layered over Env: rules it
-// does not cover fall back to Env.TypeOf.
-//
-// Results are type sets with unknown parts dropped: types.Unknown (no atoms)
-// means "empty". Atoms are raw (not normalised by any rule-specific scheme):
-// class names keep their leading backslash and `T[]` forms are kept.
-// SpecOnly retains self/static/parent member contracts as written for the
-// consuming rule's translation; ordinary mode binds their class contexts.
-//
-// It is kept separate from Env on purpose: its rules come from the specs
-// (partial sets, spec-defined arithmetic and overrides, optional SpecOnly
-// mode) and differ from the engine's typing; folding it into Env would
-// change the engine's types or the two rules' findings.
+// TRules is the expression typer of the "Expression type rules (T-rules)"
+// of specs/UnnecessaryCasting.md, also used by
+// CallableParameterUseCaseInTypeContext. It is layered over Env: rules it
+// does not cover fall back to Env.TypeOf. Results drop unknown parts
+// (types.Unknown means "empty"). Design and modes:
+// internal/inspection/rules/unnecessarycasting/NOTES.md.
 type TRules struct {
 	Env *Env
 	// SpecOnly evaluates the T-rules as literally written, without the
-	// general engine's enrichments (CallableParameterUseCaseInTypeContext,
-	// whose spec prefers "unknown" when in doubt):
-	//   - a variable's type comes only from its parameter types and plain
-	//     `=` assignments (`=&` included, typed by T-rules); foreach
-	//     bindings and compound assignments neither contribute nor hide
-	//     earlier assignments;
-	//   - a method call's receiver is typed by T-rules only, and a receiver
-	//     class lacking the method contributes nothing (the others still
-	//     count);
-	//   - the R-function subject argument is typed by T-rules;
-	//   - arithmetic normalises `T[]` to array and sees a parenthesised
-	//     numeric literal as a numeric literal;
-	//   - `c ?: b` needs a non-empty type for `c` minus null.
-	// Set it before the first TypeOf call.
+	// general engine's enrichments (see NOTES.md). Set it before the first
+	// TypeOf call.
 	SpecOnly bool
-	// DivisionIntOrFloat types `int / int` as int|float (PHP returns a float
-	// unless the division is exact) instead of the spec heuristic's int
-	// (UnnecessaryCasting). Set it before the first TypeOf call.
+	// DivisionIntOrFloat types `int / int` as int|float instead of the spec
+	// heuristic's int. Set it before the first TypeOf call.
 	DivisionIntOrFloat bool
 	// SoundArithmetic types `+ - * / **` by PHP's actual result rules
-	// instead of the spec heuristic (UnnecessaryCasting): an unknown
-	// operand gives unknown, a float operand gives float, int with int
-	// gives int (`/` and `**` with a non-literal exponent may give a
-	// float), and any other operand (numeric strings, null, bool) gives
-	// int|float. Set it before the first TypeOf call.
+	// instead of the spec heuristic (see NOTES.md). Set it before the first
+	// TypeOf call.
 	SoundArithmetic bool
 	cache           map[syntax.Expr]types.Type
 	busy            map[syntax.Expr]bool

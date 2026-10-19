@@ -241,11 +241,11 @@ function collect(array $batches, $repo)
 - **Fix side detection (upstream bug):** upstream decides which operand is the
   length call by testing whether the left operand is *any* call, including
   method calls. For `$o->limit() > count($a)` it would replace the method
-  call instead of `count(...)`. Recommendation: pick the side that holds the
+  call instead of `count(...)`. custos rewrites the side that holds the
   reported length call. Not covered by fixtures.
 - **Both operands are length calls** (`count($a) < count($b)`): two reports
   on the same range with conflicting fixes (order unspecified upstream).
-  Recommendation: report both, but offer the fix only for the left one.
+  custos reports both but offers the fix only for the left one.
 - **Name clashes — custos diverges from upstream** (F1a). Upstream always
   uses `$xMax`/`$loopsMax`, overwriting a variable of that name that the
   code already uses (a parameter, a value read after the loop, the limit of

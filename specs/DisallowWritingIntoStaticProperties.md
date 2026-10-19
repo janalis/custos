@@ -163,8 +163,8 @@ class Counter
 
 - Properties brought in by a trait used by the method's class are resolved
   upstream to the trait, so a write like `static::$p = 1` from the using class
-  would be reported. Recommendation: treat properties imported from traits the
-  caller class uses as declared by the caller (no report). No fixture covers it.
+  would be reported. custos treats properties imported from traits the caller
+  class uses as declared by the caller (no report). No fixture covers it.
 - **`self` in another letter case (custos diverges):** upstream compares
   the class part with `self` case-sensitively, so `SELF::$p = 1` falls
   through to resolution and is reported inside closures and functions,

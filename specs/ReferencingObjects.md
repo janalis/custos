@@ -204,8 +204,8 @@ $fn = function (DOMNode &$node) {};
 
 - Upstream deletes "the token before the name (after skipping one whitespace
   run)"; for a by-reference variadic `Foo &...$rest` that token is `...`,
-  so the fix would drop the variadic marker instead of `&`. Recommendation:
-  always remove the `&` itself (F1 applied to the `&` token, keeping `...`).
+  so the fix would drop the variadic marker instead of `&`. custos always
+  removes the `&` itself (F1 applied to the `&` token, keeping `...`).
 - **`callable` is not an object type — custos diverges from upstream** (D3).
   Upstream reports `callable &$cb` with its "objects are handed over by
   handle" message, but a callable may be a string or an array, for which the
@@ -214,7 +214,7 @@ $fn = function (DOMNode &$node) {};
   reported unless reassigned or tested in the body (D4 already covers the
   reassigned case, so no extra rule is needed for it).
 - Compound assignments count as "written to" (D4) because upstream treats
-  every assignment kind alike. Recommendation: keep.
+  every assignment kind alike; custos does the same.
 - **custos diverges — references that matter (D3a, D4a, D6).** Found on
   Drupal, Laravel and Nextcloud: upstream reports `array|\ArrayAccess
   &$context` with `$context['k'] = 1` (the reference matters for arrays),
@@ -236,3 +236,5 @@ $fn = function (DOMNode &$node) {};
   write on a nullable parameter (`?Node &$a` with `$a[] = 1`) and for
   bodies that write variables by name (D4c: `extract()`, `$$name`,
   `include`, `eval`).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

@@ -365,12 +365,11 @@ function silenced(array $out)
   upstream fixture has an include inside a closure, so conformance is
   unaffected.
 - A variable assigned in several statements triggers the analysis once per
-  assignment upstream; identical findings must be emitted once.
-  Recommendation: de-duplicate by (range, message).
+  assignment upstream. custos emits each reported range once.
 - The exact set of contexts in which the flow graph records the extra read
   of an inline assignment target (D-analysis "two accesses") is an upstream
-  engine detail; recommendation: any assignment that is not directly an
-  expression statement.
+  engine detail. custos records it for any assignment that is not directly
+  an expression statement.
 - A2 counts nothing for a non-`++/--` unary used as a bare statement
   (`!$v;`). Harmless; keep.
 - **custos diverges — globals, by-reference aliases, object locals (D4c,
@@ -384,7 +383,7 @@ function silenced(array $out)
   fixture covers these shapes.
 - **Anonymous class arguments (custos diverges).** The constructor
   arguments of `new class ($a, $b) { … }` are evaluated in the enclosing
-  scope (shared variable-access walker): a closure import passed only
+  scope: a closure import passed only
   there (`use ($organisation)`, Matomo tests) is a use, not "never used".
 - **Element writes on values of unknown type (custos diverges, extends
   D4c).** For a local variable, when every lost write is an element write

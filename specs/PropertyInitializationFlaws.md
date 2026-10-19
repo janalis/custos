@@ -363,10 +363,10 @@ final class Job
   leaves the property uninitialised (an error for a typed property). custos
   skips pattern **O** after any earlier statement containing a `return`.
 - A property assigned several times directly in the constructor yields one
-  O finding per assignment on the same default upstream. Recommendation:
-  de-duplicate by range.
+  O finding per assignment on the same default upstream. custos reports the
+  default once.
 - Constructor-promoted parameters with a `null` default are not property
-  declarations for this rule; recommendation: do not report them (no
+  declarations for this rule; custos does not report them (no upstream
   fixture).
 - Pattern W for a non-nullable typed property without default
   (`private int $n; … $this->n = null;`) is reported upstream (it is a type

@@ -189,10 +189,11 @@ Yoda style: `!strstr($text, $word)` becomes `false === strpos($text, $word)`.
 ## Divergences
 
 - **`<>` operator:** upstream appends `=` to any 2-character operator, so
-  `strstr($a, $b) <> false` would become the invalid `<>=`. Recommendation:
-  map `<>` to `!==`. Not covered by upstream fixtures.
+  `strstr($a, $b) <> false` would become the invalid `<>=`. custos maps
+  `<>` to `!==`. Not covered by upstream fixtures.
 - **Needle `''` / non-string needles:** behaviour of `strstr` and `strpos`
-  differs only in pathological cases; upstream ignores this. Keep.
+  differs only in pathological cases; upstream ignores this and so does
+  custos.
 - **Tail `"0"` (kept, same as upstream).** A loose test of the substring is
   false when the match runs to the end of the haystack and is exactly `"0"`
   (`strstr('1.0', '0')` is the falsy `"0"`), whereas the position test says

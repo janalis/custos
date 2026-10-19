@@ -29,7 +29,7 @@ Reported:
 
 - D1. A `pg_fetch_result()` call is the whole condition of an `if` or `while`, either directly or as the right-hand side of a plain `=` assignment to a simple variable (`$v = pg_fetch_result(...)`). The function returns a string, `false` when the fetch fails, or `null` for an SQL NULL column; a truthiness test therefore also rejects the fetched strings `"0"` and `""`. Explicit comparisons, negations and conditions combining other requirements are not reported.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

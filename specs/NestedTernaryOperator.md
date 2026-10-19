@@ -90,6 +90,6 @@ $call  = $ok ? strtoupper($v ? 'y' : 'n') : '';
 
 - Unparenthesised mixed chains such as `$a ? 1 : $b ? 2 : 3` or
   `$a ? $b : $c ?: $d`: upstream's tree shape for these is not observable in
-  the fixtures, so the exact node reported is unknown. Recommendation: with
-  custos' left-nesting tree, report the inner ternary that is the condition
+  the fixtures, so the exact node reported is unknown. custos nests these
+  chains to the left and reports the inner ternary that is the condition
   (`$a ? 1 : $b`), since E1 only exempts short-in-short chains.

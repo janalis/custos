@@ -301,10 +301,10 @@ class Inventory {
   Expressions such as `time() + SOME_CONSTANT` must resolve to `int` for the
   upstream fixture's false-positive cases to stay silent; if constant types
   cannot be inferred, the set is unknown and no report is made either way.
-- **Unresolved classes (D3, implementation fix).** A class type that does
-  not resolve in the project index (`$h ?? new Vendor\Missing\Handler()`
-  with the vendor tree absent) makes the set unusable, as D3 requires;
-  custos used to compare it as an unrelated class and report.
+- **Unresolved classes (D3, custos).** A class type that does not resolve
+  in the project index (`$h ?? new Vendor\Missing\Handler()` with the vendor
+  tree absent) makes the set unusable, as D3 requires: custos does not
+  compare it as an unrelated class and does not report.
 - **Invokable classes (custos diverges).** Upstream treats `callable` and a
   class as unrelated, so `?callable $h ... $h ?? new Dispatcher()` is
   reported although `Dispatcher` declares `__invoke()` and is a valid

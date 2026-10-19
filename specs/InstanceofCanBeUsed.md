@@ -241,3 +241,5 @@ function check(Invoice $doc, Document $base, string $name, $loose) {
 - **Function-name case (custos diverges):** upstream matches `get_class`,
   `is_a`, `in_array`, `class_implements` & co. case-sensitively, missing
   `Get_Class($o) === 'Final'` or `IS_A($o, 'X')`. custos matches any case.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

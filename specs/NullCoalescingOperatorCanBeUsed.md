@@ -71,8 +71,9 @@ value that must equal the probed expression, "alt" the fallback.
 - **G3 K-truthy** (`K` itself is the probed expression): positive → cand =
   `T`, alt = `F`; negated → cand = `F`, alt = `T`. Requires cand to be a
   **non-static** property access whose base is equivalent to `K`. Then the
-  inferred type of cand must contain at least one known type, and G6 must
-  hold with probe `K` (null allowed in the probe).
+  inferred type of cand must contain at least one known type (when the
+  base's class or the property cannot be resolved there is none, and nothing
+  is reported), and G6 must hold with probe `K` (null allowed in the probe).
   `R = cand ?? wrap(alt)` (alt absent → `null`).
 - **G4 K-ake** (requires `F` present): the call must have exactly two
   arguments `(key, arr)`. Positive → cand = `T`, alt = `F`; negated → swap.
@@ -243,17 +244,6 @@ its default `true`, so both forms are active in both runs.
 
 Nothing is reported below PHP 7.0. Upstream fixtures run at 7.1.
 
-## Type inference requirements (G3 only)
-
-The cand property's type comes from: declared property types, `@var` doc
-comments on properties (`null|Foo`, `string`, …), `@var` inline doc comments
-declaring a variable's class (`/** @var Foo $x */`), element types of
-array-typed variables (`Foo[]` → element `Foo`), and chained accesses
-(`$x->a->b` where `a` is typed `null|Foo` and `Foo::$b` is `string` → `string`;
-nullability of the intermediate does not leak into the final type). When the
-base's class or the property cannot be resolved, there is no known type and no
-report.
-
 ## Examples
 
 ```php
@@ -383,8 +373,8 @@ is negated K-null with `===`, so the true branch is the "set" branch.
   `$v = f(); if (isset($w)) { $v = $w; }` into `$v = $w ?? f();`, so `f()`
   is only evaluated when `$w` is unset and its side effects may be lost.
   custos skips S3 when the previous value has side effects (E10).
-- Alternative-syntax `if (): … endif;` bodies: upstream treatment unverified;
-  recommendation: do not report (only braced blocks qualify).
+- Alternative-syntax `if (): … endif;` bodies: upstream treatment
+  unverified; custos does not report them (only braced blocks qualify).
 - **K-ake resolution and case (custos diverges):** upstream matches
   `array_key_exists` case-sensitively on the written last segment: it misses
   `Array_Key_Exists('k', $a) ? $a['k'] : null` and treats a user

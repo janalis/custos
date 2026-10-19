@@ -17,7 +17,7 @@ Import the node into the destination document.
 - D1. appendChild, insertBefore or replaceChild receives a node whose owner document is proven distinct from the destination owner document, from local DOMDocument allocations and createElement/createTextNode provenance. Imported, adopted or cloned nodes with correct owner provenance are excluded.
 - D1a. A node held in a variable takes the receiver of the latest preceding `adoptNode()` call as its owner when that call is a statement executed on every path to the operation and adopts that same node, whether or not its result is used. This applies to the destination receiver as well as to the inserted node, so a node adopted by a third document, or adopted away from the destination, is still reported.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

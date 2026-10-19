@@ -16,7 +16,7 @@ Partial JSON output takes precedence over throwing on encoding errors. Choose th
 
 - D1. Resolved json_encode flag expression definitely contains both JSON_PARTIAL_OUTPUT_ON_ERROR and JSON_THROW_ON_ERROR. Highlight the flag expression.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -241,8 +241,9 @@ function summarise(iterable $map, array $rows, array $totals) {
   fixture's report is a direct body statement, so conformance is unaffected.
 - Upstream visits only plain assignments for Part B; whether compound
   (`.=`) or by-reference (`=&`) current statements are included depends on the
-  host parser's node kinds. Recommendation: require plain `=` (by-reference
-  `= &$r[1]` treated as plain too). No fixture coverage.
+  host parser's node kinds. custos requires plain `=`; compound assignments
+  are not paired, nor are by-reference ones (see below). No upstream fixture
+  coverage.
 - Repeated index (custos diverges from upstream). Upstream does not compare
   the two indexes, so `$p = $r[0]; $q = $r[0];` — the same element copied
   into two variables — is told to use one destructuring assignment, which

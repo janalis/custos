@@ -123,15 +123,15 @@ function payload($id, $tag, $note) {
   destructuring in `foreach ($rows as ['id' => $id, 'tag' => $tag])`, nested
   destructuring (`[['a' => $a, 'b' => $b]] = $src;` — inner array) and
   `list('a' => $a, ...)`-style targets nested in other arrays would be
-  reported and "fixed" into invalid code. Recommendation: skip every array
-  literal in a write/destructuring position. No upstream fixture covers
-  these, so conformance is unaffected.
+  reported and "fixed" into invalid code. custos skips every array literal
+  in a write/destructuring position. No upstream fixture covers these, so
+  conformance is unaffected.
 - **By-reference values.** `['a' => &$a, 'b' => &$b]` — upstream behaviour
   depends on how the parser exposes the `&`; `compact()` copies values, so
-  the rewrite would change semantics. Recommendation: do not report when any
-  value is by-reference.
+  the rewrite would change semantics. custos does not report when any value
+  is by-reference.
 - **`$this`.** `['this' => $this, 'x' => $x]` matches D3 upstream.
-  Recommendation: keep (compact('this') works), no fixture covers it.
+  custos reports it too (`compact('this')` works); no fixture covers it.
 - **Superglobals (custos diverges).** `['_GET' => $_GET, '_POST' => $_POST]`
   satisfies the upstream name check, but `compact('_GET', '_POST')` yields
   an empty array plus warnings. custos does not report (E5).

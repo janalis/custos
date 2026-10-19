@@ -95,7 +95,7 @@ function stamp($pattern, Clock $clock)
 ## Divergences
 
 - With a trailing comma (`date('Y', time(),)`), upstream's deletion stops at
-  the second argument and leaves `date('Y',)`. Recommendation: same behaviour
+  the second argument and leaves `date('Y',)`. custos behaves the same
   (still valid PHP 7.3+); not covered by fixtures.
 - **Function-name matching — custos diverges from upstream.** Upstream matches
   `date`/`time` by the name as written (case-sensitive, any namespace

@@ -18,7 +18,7 @@ An unbuffered mysqli result can block further queries on the same connection. Co
 - D1d. The unbuffered query must be a known literal result-producing SELECT, SHOW, DESCRIBE or EXPLAIN statement. Mutating statements that return only a success boolean, unknown SQL, and unsupported statement kinds do not establish an outstanding result set.
 - D1e. The next query is the statement directly after the unbuffered assignment, and nothing in that statement may touch the result variable before the query runs (including inside the query's own arguments): a method call on it, passing it as an argument or capturing it may consume or free the result first, so no report. Overwriting the variable with a plain assignment is not such a use, and uses positioned after the query do not help.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

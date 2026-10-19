@@ -21,7 +21,7 @@ The response content type must describe the image bytes being written. Match it 
 - D1e. Restrict the initial proof to an encoder that is the final top-level statement in the file. Finality inside a function or nested block cannot establish that later execution leaves the MIME header unchanged, so those contexts are excluded.
 - D1f. Exclude earlier ob_start calls with any explicitly supplied callback: that callback can transform the eventual output bytes. Scan at most 4096 prior syntax nodes; exhausted scan cannot establish the response MIME proof.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -18,7 +18,7 @@ function version(): string {
 
 export default withMermaid(defineConfig({
   title: 'custos',
-  description: 'Fast PHP inspector and fixer: PHP inspections with quick-fixes, a single static binary, CLI and LSP.',
+  description: 'Fast PHP inspector and fixer: rules with quick-fixes, a single static binary, CLI and LSP.',
   lang: 'en-US',
   base,
   cleanUrls: true,
@@ -63,13 +63,18 @@ export default withMermaid(defineConfig({
           items: [
             { text: 'Command line', link: '/guide/cli' },
             { text: 'Configuration', link: '/guide/configuration' },
-            { text: 'Native inspections', link: '/guide/native-rules' },
             { text: 'Suppressing findings', link: '/guide/suppressing' },
             { text: 'Continuous integration', link: '/guide/ci' },
             { text: 'Editors (LSP)', link: '/guide/editors' },
           ],
         },
-        { text: 'Rule reference', link: '/rules/' },
+        {
+          text: 'Rules',
+          items: [
+            { text: 'Native rules', link: '/guide/native-rules' },
+            { text: 'Rule reference', link: '/rules/' },
+          ],
+        },
       ],
       '/rules/': [{ text: 'All rules', link: '/rules/' }, ...rulesSidebar],
       '/contributing/': [
@@ -89,9 +94,10 @@ export default withMermaid(defineConfig({
     search: { provider: 'local' },
     editLink: {
       // Serialised into the client bundle: no closure variables. Rule pages
-      // are generated from their spec, so they link to it.
+      // are generated from their spec, so they link to it; the generated
+      // rules/index.md turns the link off in its front matter.
       pattern: ({ filePath }) =>
-        filePath.startsWith('rules/') && filePath !== 'rules/index.md'
+        filePath.startsWith('rules/')
           ? 'https://github.com/janalis/custos/edit/main/specs/' + filePath.split('/').pop()
           : 'https://github.com/janalis/custos/edit/main/docs/' + filePath,
       text: 'Edit this page on GitHub',
@@ -100,7 +106,7 @@ export default withMermaid(defineConfig({
     outline: { level: [2, 3] },
     footer: {
       message:
-        'Released under the MIT License. Rule catalogue modelled on Php Inspections (EA Extended); independent clean-room implementation.',
+        'Released under the MIT License. Native rules and rules modelled on Php Inspections (EA Extended); independent clean-room implementation.',
       copyright: 'Builtin symbol data from JetBrains phpstorm-stubs (Apache-2.0).',
     },
   },

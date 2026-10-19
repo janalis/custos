@@ -33,8 +33,6 @@ Detect assigning a missing instance property on a resolved PHP 8.2+ class with a
 
 No automatic fix: declaring a property changes visibility, serialization and initialization contracts.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

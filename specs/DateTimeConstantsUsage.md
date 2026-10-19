@@ -128,9 +128,8 @@ function formats(DateTimeImmutable $at)
 
 - Depending on the stub set, `DateTimeImmutable` may declare its own copy of
   the constants (identity `\DateTimeImmutable::ISO8601`), in which case
-  upstream would not report `DateTimeImmutable::ISO8601`. Recommendation:
-  report it as well (it is the same format); not covered by upstream
-  fixtures.
+  upstream would not report `DateTimeImmutable::ISO8601`. custos reports
+  it as well (it is the same format); not covered by upstream fixtures.
 - **Namespaced constants (custos diverges).** Upstream compares only the
   last segment of the written name, so `X\DATE_ISO8601` (or a namespace's
   own `DATE_ISO8601`) is reported and rewritten to a constant `X\DATE_ATOM`

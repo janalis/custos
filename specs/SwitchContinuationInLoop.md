@@ -115,7 +115,7 @@ function dispatch(array $events) {
 
 - With nested switches inside a loop (`loop { switch { switch { continue; } } }`)
   upstream still reports and suggests `continue 2`, which then only targets
-  the outer `switch`. Recommendation: count the `switch` levels passed and use
+  the outer `switch`. custos counts the `switch` levels passed and uses
   `continue {switches + 1}` in the fix (message unchanged); for a single
   switch this equals upstream. Not covered by upstream fixtures.
 - **No fix when statements follow the switch (custos diverges).** `continue`

@@ -16,7 +16,7 @@ Detect strlen of a literal non-ASCII valid UTF-8 string under an explicitly enab
 
 - D1. Report strlen of a literal non-ASCII valid UTF-8 string under an explicitly enabled Unicode character-count contract.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
@@ -33,8 +33,6 @@ Detect strlen of a literal non-ASCII valid UTF-8 string under an explicitly enab
 ## Fix
 
 No automatic fix: code-point versus grapheme counting and encoding must be selected explicitly.
-
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 
 ## Options
 

@@ -16,7 +16,7 @@ Use the already quoted PostgreSQL literal directly.
 
 - D1. pg_escape_literal result is interpolated or concatenated into a constant SQL skeleton with additional single quotes immediately surrounding the entire escaped expression. Parse SQL quote boundaries; report the final query-producing expression. Unknown SQL structure and mixed escaping are excluded.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -21,7 +21,7 @@ Identify imagecolorallocatealpha or imagecolorclosestalpha with known integer al
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. An integer interval proves invalid alpha only when entirely below zero or entirely above 127. A concrete, acyclic CFG entry prefix may establish an invalid first read before a later loop rewrite. Unknown branches, prior calls, references and unsupported operations end that additional proof. Steps and fresh assignments are evaluated in order; merely creating an uninvoked capture does not execute it. Crossing intervals and arithmetic that may overflow to float provide no range proof. Loop heads widen after their second visit, and integer comparisons narrow their body values.
+- E2. An integer interval proves invalid alpha only when entirely below zero or entirely above 127. A concrete, loop-free path from the start of the scope may establish an invalid first read before a later loop rewrites the value. Unknown branches, prior calls, references and unsupported operations end that additional proof. Steps and fresh assignments are evaluated in order; merely creating an uninvoked capture does not execute it. Crossing intervals and arithmetic that may overflow to float provide no range proof. Loop heads widen after their second visit, and integer comparisons narrow their body values.
 - E3. Both `@custos-ignore GdAlphaOutsideSupportedRange` and `@noinspection GdAlphaOutsideSupportedRange` suppress this native rule.
 
 ## Report

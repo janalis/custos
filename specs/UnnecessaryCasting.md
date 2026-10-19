@@ -384,10 +384,10 @@ After fix (changed lines):
   float) and `microtime()` → int are upstream heuristics, not PHP semantics.
   They are reproduced because EA fixtures depend on them.
 - The default variable/property typing depends on PhpStorm's inference engine;
-  custos' engine only needs to match it on the patterns above (literal
-  assignments, declared parameter/return/property types, `@var` on private
-  properties, `new`). Where custos cannot infer a single type it must stay
-  silent (empty type ⇒ no report).
+  custos matches it on the patterns above (literal assignments, declared
+  parameter/return/property types, `@var` on private properties, `new`).
+  Where custos cannot infer a single type it stays silent (empty type ⇒ no
+  report).
 - **Concatenation casts need a plain operand (custos diverges, D0).**
   Upstream reports every `(string)` cast that is an operand of `.` or `.=`,
   whatever the operand's type (even an array or an object without
@@ -448,3 +448,5 @@ After fix (changed lines):
   instead of the union of its known definitions: the partial set made the
   cast look redundant and the fix changed behaviour (Magento config
   element and fixtures).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

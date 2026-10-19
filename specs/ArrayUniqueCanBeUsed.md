@@ -144,9 +144,9 @@ function tally(array $votes, $batch) {
   (keys with value 2 — different semantics) and
   `count(array_count_values($a), COUNT_RECURSIVE)` are reported and the fix
   silently drops the extra argument; `array_keys($x, array_count_values($a))`
-  (inner call as the search value) is reported too. Recommendation: only
-  report when *O* has exactly one argument (the inner call). No upstream
-  fixture covers these shapes.
+  (inner call as the search value) is reported too. custos reports only
+  when *O* has exactly one argument (the inner call). No upstream fixture
+  covers these shapes.
 - custos diverges: upstream matches both function names case-sensitively,
   missing `Count(ARRAY_COUNT_VALUES($a))`. PHP function names are
   case-insensitive, so custos matches any casing (D2, D3).

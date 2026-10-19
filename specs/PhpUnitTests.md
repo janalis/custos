@@ -828,7 +828,7 @@ class ArchiveTest
   global function.
 - **`assertIsNull` / `assertIsNotNull`** (D20, PHPUnit ≥ 8.0 with `is_null`):
   upstream builds these names, which do not exist in PHPUnit.
-  Recommendation: suggest `assertNull` / `assertNotNull` instead. No upstream
+  custos suggests `assertNull` / `assertNotNull` instead. No upstream
   fixture covers `is_null`.
 - **Regex names from 9.1 — custos diverges from upstream** (D26/D27).
   Upstream suggests `assertRegExp`/`assertNotRegExp` at every PHPUnit
@@ -864,12 +864,12 @@ class ArchiveTest
   considers `args[0]`/`args[1]`.
 - **D22 leading backslash**: a literal that already starts with `\`
   (`'\\Shop\\Cart'`) produces `\\Shop\Cart::class` (double leading backslash,
-  invalid). Recommendation: strip a leading `\` from the contents before
+  invalid). custos strips a leading `\` from the contents before
   prefixing.
 - **D17 "primitive" types**: upstream accepts any fully-known type set
   without class types or `array`, which also lets through pseudo-types like
-  `mixed`, `callable`, `iterable`, `resource`, `int[]`. Recommendation: accept
-  only `int`, `float`, `string`, `bool`, `true`, `false`, `null`.
+  `mixed`, `callable`, `iterable`, `resource`, `int[]`. custos accepts only
+  `int`, `float`, `string`, `bool`, `true`, `false`, `null`.
 - **Function-name matching (custos diverges from upstream).** Upstream
   matches `count`, `is_int`, `in_array`, `get_class`, … case-sensitively, so
   `Count($x)` or `IS_INT($n)` are not recognised although PHP function names
@@ -888,14 +888,13 @@ class ArchiveTest
   `PHPUNIT90`; else `assertIsInt` → `PHPUNIT80`; else `PHPUNIT70`. When
   PHPUnit is not indexed either, `PHPUNIT80`.
 - **`@depends clone x` / `@depends shallowClone x`**: the modifier word is
-  taken as the reference and reported. Recommendation: skip `clone` /
-  `shallowClone` and resolve the following word.
+  taken as the reference and reported, by upstream and by custos alike.
 - **No test-case check**: any class method docblock and any `assert*` call
   on any receiver is examined. Kept as upstream: the upstream fixtures wrap
   their code in plain classes, and restricting to test classes would drop all
   conformance coverage for a rare false positive.
 - **PHPUnit 10+ attributes** (`#[DataProvider]`, `#[Depends]`, `#[CoversClass]`,
-  `#[Test]`) are not examined. Recommendation: out of scope, as upstream.
+  `#[Test]`) are not examined, by upstream or by custos.
 - **Fully qualified tag names (custos diverges).** PHPUnit reads the class
   names of `@covers`, `@coversDefaultClass`, `@depends` and
   `@dataProvider` as fully qualified (no leading `\` needed). A name that
@@ -913,3 +912,5 @@ class ArchiveTest
   (`require-dev`, else `require`) before falling back to the option
   default: EspoCRM (`^11.5`) was told to use `assertContains()` (strict
   from 9.0, unlike `in_array()`) and Grav `assertRegExp()` (removed in 10).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

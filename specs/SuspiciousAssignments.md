@@ -315,10 +315,6 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
 
 ## Divergences
 
-- Check C relies on control-flow ordering; if the implementation lacks a CFG,
-  approximate with a source-order scan of the body where an assignment's RHS
-  precedes its target, and nested closures are excluded from the scan (their
-  text still counts for D10).
 - **D16 — custos diverges from upstream.** Upstream takes any assignment in
   the preceding `if` block as the conditional write, so
   `if ($c) { $v .= 'x'; } $v = '';` is reported with "an 'else' may be
@@ -337,11 +333,10 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
   value is an array whenever destructuring can succeed (found on real code).
   custos ignores `null` and `false` when at least one supporting type is
   present. The upstream fixtures report `string` and `stdClass` values only,
-  so conformance is unaffected. Note: a stub union that also carries other
-  scalars (e.g. `array|int|float|false`) is still reported; silencing such
-  calls needs argument-aware return types, not this rule.
+  so conformance is unaffected. A stub union that also carries other
+  scalars (e.g. `array|int|float|false`) is still reported.
 - Check A for property/array targets uses the same equivalence, so
-  `$this->a` written in two fall-through clauses is reported too. Keep.
+  `$this->a` written in two fall-through clauses is reported too.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
@@ -354,8 +349,8 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
   return $r; } } $r = build();` and a block ending in an `if/else` whose
   branches both return are reported, although the conditional value is used
   or the code after the `if` is never reached from it. custos scans every
-  later statement of the block, skips blocks that always terminate
-  (`syntax.Terminates`), and — when `T` is shared state (see below) — also
+  later statement of the block, skips blocks that always terminate, and —
+  when `T` is shared state (see below) — also
   skips when a later statement of the block makes a call, which may read it.
 - **D17 shared targets (custos diverges).** `global $r; $r = load(); $r =
   tidy();`, `$_SESSION['k'] = []; $_SESSION['k'] = merge();` or

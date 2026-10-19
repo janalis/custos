@@ -243,8 +243,8 @@ class LedgerTest
   case-insensitively.
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - D7 compares literals by raw source text, so `setMethods(["run"])` does not
-  cover `method('run')`. Recommendation: compare unquoted contents; no fixture
-  depends on the quote style.
+  cover `method('run')`. custos compares the contents between the quotes; no
+  fixture depends on the quote style.
 - **`addMethods([...])` (custos diverges).** Upstream ignores
   `addMethods` (PHPUnit 8.3+/9), so a method added to the double that way
   (`getMockBuilder(\stdClass::class)->addMethods(['getRepository'])`) is

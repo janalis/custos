@@ -261,27 +261,9 @@ func (slowArrayOperationsInLoop) checkFor(ctx *analysis.Context, f *syntax.For) 
 	}
 }
 
-// forSubjectChange tells whether the measured value may change while the
-// loop runs (custos), so computing its length once would change the number
-// of iterations.
-//
-// It is written when the body, the step or the condition visibly changes it:
-// assigns (also through list()/[] destructuring or as a foreach key/value),
-// pushes to, increments or unsets the measured expression, one of its
-// elements, or an expression it is reached through (the root array, the
-// object holding a measured property, a variable of an offset), or passes
-// one of them to a by-reference parameter of a resolved function. The loop
-// then measures a length it changes on purpose, and the condition is not
-// reported.
-//
-// It may change when the subject is not a variable or property fetch, when
-// the loop iterates it by reference, binds a reference to it, passes it to
-// an unresolved callee or unpacks it into a call, calls a method on it or on
-// an object it is reached through, hands such an object to user code, or
-// runs code that can reach a shared subject (a property, or a variable that
-// is not purely local: any call but a builtin without callable parameter),
-// and when a reference to it exists anywhere in the enclosing scope. The
-// condition is reported without a fix.
+// forSubjectChange classifies the measured value of a for condition as
+// written by the loop, possibly changing while it runs, or stable (spec F1,
+// E6, "Changing loop subjects"). See NOTES.md.
 func forSubjectChange(ctx *analysis.Context, f *syntax.For, call *syntax.FuncCall, name string) forChange {
 	args, ok := astquery.CallArgValues(call)
 	if !ok || len(args) == 0 {

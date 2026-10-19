@@ -32,7 +32,7 @@ Reported:
 - D1. Track an effective literal Content-Encoding gzip, deflate or identity and an emitted body proven produced directly by gzencode, gzcompress or gzdeflate. Report the emitted compression call when its format contradicts the declared coding: gzip requires gzip framing; HTTP deflate requires zlib framing. Identity contradicts any of these proven compressed outputs.
 - D4. The framing of the emitted body is the function's default (gzencode: gzip, gzcompress: zlib, gzdeflate: raw deflate) unless the call passes the third `encoding` argument, positionally or by name. That argument overrides the default for all three functions alike: `ZLIB_ENCODING_GZIP` (31) selects gzip framing, `ZLIB_ENCODING_DEFLATE` (15) zlib framing and `ZLIB_ENCODING_RAW` (-15) raw deflate. So `gzdeflate($body, 9, ZLIB_ENCODING_GZIP)` is a valid gzip body, and `gzencode($body, -1, ZLIB_ENCODING_RAW)` is not.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
@@ -44,8 +44,6 @@ Reported:
 ## Fix
 
 No automatic fix. Choosing a repair requires runtime information, error-handling policy or a semantic decision.
-
-All edits use exact byte ranges, preserve comments and evaluation order, and require syntax supported by the target PHP version. A fix must never add an evaluation or silently change unrelated arguments.
 
 ## PHP versions
 

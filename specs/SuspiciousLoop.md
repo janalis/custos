@@ -112,10 +112,10 @@ foreach ($matrix as $row => $cols) {
 ## Divergences
 
 - Upstream gathers loop variable names in a hash set, so the order of
-  multiple reports on one keyword is unspecified. Report in source order of
-  the clashing variables.
+  multiple reports on one keyword is unspecified. custos reports in source
+  order of the clashing variables.
 - A `foreach` loop whose key and value use the same name as one parameter
-  yields one report per distinct name. Keep.
+  yields one report per distinct name.
 - Destructured `foreach` values (`foreach ($a as [$x, $y])`) are assumed to
   contribute their variables to D2; upstream behaviour there is unverified
-  (no fixture). Keep the assumption.
+  (no fixture); custos counts them.

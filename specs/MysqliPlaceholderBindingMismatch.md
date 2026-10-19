@@ -16,7 +16,7 @@ Every SQL parameter placeholder needs a corresponding bound value. Match the bin
 
 - D1. Resolved mysqli::prepare literal SQL produces statement whose bind_param binding argument count differs from SQL question-mark parameter count. Ignore question marks inside SQL quoted strings, backticks and plain comments (`#`, `/* */`, and a double dash followed by whitespace or the end of the text). Exclude SQL parse ambiguity and unpacked bindings.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

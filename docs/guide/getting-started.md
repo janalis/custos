@@ -1,6 +1,6 @@
 # Getting started
 
-## 1. Analyse
+## 1. Analyze
 
 From your project root (the directory holding `composer.json`):
 
@@ -8,10 +8,11 @@ From your project root (the directory holding `composer.json`):
 custos analyse
 ```
 
-custos checks the whole project (`vendor`, `node_modules`, `.git` and caches
-are skipped) against the PHP version your project targets, taken from
-`composer.json`. Each finding gives its position, severity, message and rule,
-and says when a quick-fix is available:
+custos checks the whole project, minus the
+[default excludes](./configuration#excluded-directories), against your
+[target PHP version](./configuration#target-php-version), usually taken from
+`composer.json`. Each finding gives its position, severity, message and rule
+ID, and says when a quick-fix is available:
 
 ```text
 src/Invoice.php:3:5: warning: Variable $total is used only once; inline its value. [OneTimeUseVariables] (fixable)
@@ -21,8 +22,8 @@ src/Invoice.php:7:6: error: Restrict the classes unserialize() may create via it
 1 file(s) analysed: 1 error(s), 1 warning(s), 1 info
 ```
 
-The exit code is `1` when a finding is a warning or worse. You can change
-the threshold with [`--fail-on`](./cli#analyse).
+The command fails when a finding is a warning or worse; `--fail-on` changes
+the threshold (see [exit codes](./cli#exit-codes)).
 
 Want to know more about a rule? Run `custos explain OneTimeUseVariables`, or
 open its page in the [rule reference](/rules/).
@@ -66,7 +67,7 @@ paths, and turn rules on or off:
   "php": "8.3",
   "paths": ["src", "tests"],
   "rules": {
-    "MultipleReturnStatements": { "enabled": false }
+    "StaticClosureCanBeUsed": { "enabled": false }
   }
 }
 ```
@@ -75,18 +76,12 @@ See [Configuration](./configuration).
 
 ## 4. Adopt on legacy code
 
-On an existing code base, record the current findings once, commit the file,
-and from then on only new findings are reported:
+On an existing code base, record the current findings in a
+[baseline](./suppressing#baseline) so that only new ones are reported:
 
 ```sh
 custos analyse --generate-baseline custos-baseline.json
 ```
-
-```json
-{ "baseline": "custos-baseline.json" }
-```
-
-Details in [Suppressing findings](./suppressing#baseline).
 
 ## 5. Wire it in
 

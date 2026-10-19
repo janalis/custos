@@ -167,7 +167,7 @@ function has_city(array $order, $customer)
 
 - With a trailing comma after the last argument (PHP 7.3+), F2 leaves the
   trailing comma in place (`isset($m['a'], $m,)` → `isset($m['a'],)`).
-  Recommendation: same behaviour; no fixture.
+  custos behaves the same; no fixture.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,

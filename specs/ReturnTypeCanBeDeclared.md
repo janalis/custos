@@ -383,15 +383,16 @@ abstract class Node {
 - A method with no `@return` that returns `$this`/`new static` infers
   `static`; upstream then suggests `: static` regardless of language level (the
   8.0 guard only looks at the doc tag), producing invalid code below 8.0.
-  Recommendation: below 8.0 never suggest `static` (suggest nothing). No
+  Below 8.0 custos never suggests `static` (it suggests nothing). No
   upstream fixture covers it.
 - D10 looks only at the *first* `return` in document order: if it lives in a
   nested closure while the method itself also has a value-less `return;`
   later, `void` is still suggested (harmless) — but with a value-returning
-  later `return` this cannot happen because `R` would not be empty. Keep.
+  later `return` this cannot happen because `R` would not be empty. custos
+  behaves the same.
 - Compact step 4 removes every occurrence of the namespace prefix, not only the
-  leading one (`\A\B\A\C` in namespace `A` would become `BC`). Recommendation:
-  strip only the leading prefix.
+  leading one (`\A\B\A\C` in namespace `A` would become `BC`). custos
+  strips only the leading prefix.
 - The inferred-type model is PhpStorm's; exotic inference (generics, closures'
   `use` variables, conditional `@return`) may differ. Only the patterns in
   D5–D9 must match upstream fixtures: `@param`-typed parameters returned as is,
@@ -487,3 +488,5 @@ abstract class Node {
   the trait's own ancestors and offers the fix. custos reports abstract
   trait methods as overridden and withholds the fix from trait methods
   that are neither `final` nor `private` (D13b).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

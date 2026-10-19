@@ -16,7 +16,7 @@ Match Content-Length to the emitted bytes.
 
 - D1. Track effective literal Content-Length set by builtin header. Report that header when a complete straight-line local response path emits a statically known sequence of echo/print literal bytes and terminates, with total byte length unequal to the declared decimal length. Replacements override prior headers. Include final top-level path or a function ending in exit; do not treat returning from a helper as response completion. `exit` and `die` terminate the path in every spelling: bare, with an empty argument list (`exit()`, `die()`), which emits nothing, or with a string argument of known length, whose bytes count as body.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
@@ -33,8 +33,6 @@ Match Content-Length to the emitted bytes.
 ## Fix
 
 No automatic fix. Choosing a repair requires runtime information, error-handling policy or a semantic decision.
-
-All edits use exact byte ranges, preserve comments and evaluation order, and require syntax supported by the target PHP version. A fix must never add an evaluation or silently change unrelated arguments.
 
 ## Options
 

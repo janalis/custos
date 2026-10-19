@@ -33,7 +33,7 @@ Reported:
 - D1e. Account for a later CURLOPT_HTTPGET setter resetting no-body transfer behavior. The finding must describe the final mode rather than an earlier explicit CURLOPT_NOBODY value.
 - D1f. Local ownership requires an uncopied handle allocation. Before the reported `curl_exec`, the handle variable may only appear as a direct call argument, as the target of a plain assignment, or in a boolean test (`if`/`elseif` condition, `!`, `isset`, `empty`, `==`, `!=`, `===`, `!==`, `&&`, `||`). Copying it into another binding loses the shared option proof. Uses after the reported call do not matter.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

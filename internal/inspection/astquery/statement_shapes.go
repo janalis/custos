@@ -45,8 +45,9 @@ func ArgumentNodes(list *syntax.ArgList) []syntax.Expr {
 }
 
 // NeedsParensAsComparison reports whether replacing n with an unparenthesised
-// `a == b` would change the meaning (spec Divergences): n is the operand of
-// an operator binding at least as tight as `==`.
+// `a == b` would change the meaning (InArrayMissUse and
+// StrlenInEmptyStringCheckContext Divergences): n is the operand of an
+// operator binding at least as tight as `==`.
 func NeedsParensAsComparison(n syntax.Node) bool {
 	switch p := n.Parent().(type) {
 	case *syntax.Binary:

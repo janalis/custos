@@ -29,7 +29,7 @@ Reported:
 
 - D1. DOMElement getAttribute result is compared strictly with null, directly or via unchanged local binding. Both === and !== are covered. Do not report comparisons to empty string or tests using hasAttribute.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

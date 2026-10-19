@@ -34,8 +34,6 @@ Detect rowCount on a PDOStatement prepared from a SELECT and used as a total res
 
 No automatic fix: replacing the query changes result shape, cost and transaction consistency.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

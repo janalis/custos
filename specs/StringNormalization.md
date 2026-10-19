@@ -254,8 +254,8 @@ function tidy($code, $mask, $o) {
   `S`'s text inside `I`'s text), not by node ranges. It produces broken code
   when `S`'s text also appears elsewhere inside `I` (e.g.
   `trim(mb_convert_case($v, $vMode))` corrupts `$vMode`) or when `I`'s text
-  repeats inside `O`. Recommendation: substitute by node ranges as described
-  in F1; identical for all upstream fixtures.
+  repeats inside `O`. custos substitutes by node ranges as described in F1;
+  the result is identical for all upstream fixtures.
 - **Pattern A with `ucfirst`/`lcfirst`/`ucwords` — custos diverges from
   upstream** (D3). Upstream swaps these inner calls with trim/substr too,
   but the swap is not equivalent: they change the first character of the

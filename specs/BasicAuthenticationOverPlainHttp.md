@@ -19,7 +19,7 @@ Basic authentication credentials sent over plain HTTP are exposed in transit. Us
 - D1c. The initial supported execution proof is an immediately following curl_exec on the same owned handle, with known prior URL replacements.
 - D1d. Require CURLOPT_USERPWD to be a statically known nonempty credential string. Authentication must remain at its Basic default or be explicitly configured to exactly CURLAUTH_BASIC; Digest, Negotiate, NTLM, mixed masks and unknown policies do not establish Basic credentials on the wire. Unknown setters, bulk curl_setopt_array configuration, handle escapes and unknown same-handle operations invalidate the final request proof.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -122,11 +122,11 @@ key($s->plain());
   `openssl_seal()` (`$iv`) and `ldap_exop_passwd()` (`$controls`).
 - Upstream caches, by short name, global functions known to have no
   by-reference parameter and skips later calls with that name, even if a
-  namespaced function of the same short name exists. Recommendation: key any
-  such cache by resolved FQN (no behavioural difference on fixtures).
+  namespaced function of the same short name exists. custos resolves each
+  call to its own function (no behavioural difference on fixtures).
 - Named arguments are paired positionally upstream (probably wrong for
-  `f(b: g())`). Recommendation: pair named arguments with the parameter of
-  that name.
+  `f(b: g())`). custos pairs named arguments with the parameter of that
+  name.
 - **Prefer-ref parameters (custos diverges).** `array_multisort()` declares
   its parameters by reference in the stubs, but PHP passes them
   "prefer-ref": a temporary such as `array_values($a)` is accepted without
@@ -144,3 +144,5 @@ key($s->plain());
   longer resolvable. Returning by reference from the outer method does not
   prevent its writes to reference arguments. Own fixtures also require all
   five warning forms after a fresh receiver assignment restores its class.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

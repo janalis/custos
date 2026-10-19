@@ -350,7 +350,7 @@ abstract class CartTest
 - `assertInstanceOf` whose argument 0 is not a resolvable `X::class`
   (e.g. `'Shop\Cart'`, `$class`, an unknown class): upstream falls back to
   "no expected type" and reports whenever D2–D5 hold, regardless of the
-  class asked for. Recommendation (adopted above): no report in that case.
+  class asked for. custos does not report that case.
   No upstream fixture covers it.
 - **`assertInternalType` — custos diverges from upstream.** Upstream reports
   it whenever the checked value has a single declared return type, without

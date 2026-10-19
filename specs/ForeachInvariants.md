@@ -500,3 +500,5 @@ so step 4 deletes `$total = count($rows);`.
   any other expression (`for ($i = 0, $acc = []; …)`, `$stop += 1`,
   `$o->p = 0`) is not reported, since the rewrite would drop it (Magento
   `AbstractIo`).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

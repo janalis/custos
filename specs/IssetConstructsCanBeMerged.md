@@ -171,13 +171,13 @@ function probe(array $cfg, $row, $extra) {
 - **Unary operator not checked (upstream bug).** In `||` chains upstream
   accepts any unary expression wrapping `isset` (e.g. a cast
   `(bool) isset($a)` or `@`-like wrappers the parser models as unary) and the
-  fix emits `!isset(...)`, changing semantics. Recommendation: only accept
-  the logical-not operator `!`.
+  fix emits `!isset(...)`, changing semantics. custos only accepts the
+  logical-not operator `!`.
 - **Double parentheses around a sub-chain.** D1 looks through one level of
   parentheses only, while D2 strips any number; so in
   `isset($a) && ((isset($b) && isset($c)))` the inner chain is also treated as
   a chain root and may produce a second, overlapping report/fix.
-  Recommendation: look through all parentheses in D1 too. No fixture covers
+  custos looks through all parentheses in D1 too. No upstream fixture covers
   it.
 - **Reordering (custos diverges from upstream).** Upstream moves the merged
   construct to the front of the chain and accepts side-effecting fragments

@@ -54,8 +54,9 @@ a container `C`):
   Already-visited expressions are not revisited.
 - **D3** Shortcuts on `S` (no report at all):
   - `S` contains `mixed`;
-  - `S` is exactly {`string`, `int`} (foreach keys) or exactly {`string`,
-    `bool`} (built-ins returning string|false).
+  - `S` is exactly {`string`, `int`} (foreach keys), exactly {`string`,
+    `bool`} (built-ins returning string|false) or exactly {`array`, `bool`}
+    (built-ins returning array|false, see Divergences).
 - **D4** Then: `callable` is replaced by `array` + `string`; remove `null`,
   `void`, `object` and the empty-set marker. If `S` is now empty → no report.
 
@@ -203,13 +204,11 @@ function ok($m, $c, $n) {
 - Built-in return types are stub-dependent. Upstream's fixture expects no
   report for `explode(...)[0]`-style containers whose stub type is
   `string[]|false` (normalised {`array`, `bool`}), which the algorithm above
-  would report. Recommendation: in D3 also treat exactly {`array`, `bool`}
-  as a shortcut (no report) — or have stubs give `explode` a plain `array`
-  return type — so the conformance case passes.
+  would report. custos treats exactly {`array`, `bool`} as a D3 shortcut
+  (no report), so the conformance case passes.
 - Index arithmetic: upstream infers `$key + 1` (with `$key` an array key) as
-  an acceptable index type; make sure `int + int` infers `int` (not
-  `int|float`), or treat arithmetic results as unknown, to avoid false
-  positives.
+  an acceptable index type. custos does not report arithmetic indexes such
+  as `$key + 1` or `$i * 2` against an `int` offset either.
 - Subtype indexes (custos diverges from upstream). Upstream checks index
   types by plain set membership, so with `offsetGet(Key $k)` an index of a
   subclass `SpecialKey` is reported although PHP accepts it. custos accepts
@@ -217,7 +216,7 @@ function ok($m, $c, $n) {
 - **Complete fallback, failure markers, bool keys (custos diverges).**
   Found on PrestaShop, Matomo and phpMyAdmin (736 reports, about 410 of
   them false). (1) The single-value fallback of D1 now needs *every* value
-  of the container (`PossibleValuesComplete`): a parameter default
+  of the container to be known: a parameter default
   (`function copy($tables = false)` called with arrays) or `$last = false`
   reassigned from a `foreach` value is only one of the values, so it no
   longer types the container as `bool`. (2) In D4 a `bool` next to `array`,

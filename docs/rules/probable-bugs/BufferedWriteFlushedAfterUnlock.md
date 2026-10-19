@@ -16,7 +16,7 @@ Identify fflush after proven fwrite on the same exclusively locked stream when L
 
 - D1. Report fflush after proven fwrite on the same exclusively locked stream when LOCK_UN occurs between write and flush and no intervening flush or close occurred.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values or escaped aliases invalidate proof. When the proof is inconclusive, nothing is reported.
 - D4. The stream must be a plain local variable whose only route to other code is the stream slot of the tracked builtin calls. The handle escapes, and nothing is reported, when a closure of the same scope lists it in `use`, when an arrow function of the same scope mentions it, or when it is passed before the flush as any other argument of a function, method, static or constructor call: such code can flush or close the stream while the lock is still held.
 
 ## Exceptions (no report)

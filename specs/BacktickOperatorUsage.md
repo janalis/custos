@@ -115,8 +115,8 @@ $text = 'uses `backticks` in a plain string';
   backticks, see F1.3) and `` \` ``. Quotes inside an interpolated
   expression are code and stay as written; escaping them would produce
   invalid PHP. Not covered by upstream fixtures beyond the bare `"`.
-- The identifier-boundary space in F1 is our addition (upstream's
-  replacement is a PSI node so the question does not arise); the fixture
+- The identifier-boundary space in F1 is our addition (upstream replaces
+  a syntax node, so the question does not arise); the fixture
   case has `return` followed by a space.
 - **Builtin spelling (custos diverges).** Upstream inserts a bare `shell_exec(`,
   which a function of that name declared in (or imported into) the current

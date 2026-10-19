@@ -180,7 +180,7 @@ function fetch($handle, $insecure)
 - D1 accepts `K` in any argument position of `curl_setopt`
   (`curl_setopt($h, $opt, CURLOPT_SSL_VERIFYPEER)` would evaluate the
   constant itself as the value; that resolves to a multi-digit number and is
-  ignored, so in practice nothing is reported). Recommendation: require `K`
-  to be the second argument — equivalent on all realistic code.
+  ignored, so in practice nothing is reported). custos does the same: `K` is
+  not required to be the second argument.
 - For H, `true` counts as disabling (cURL treats `true` as `1`, which is not
   the safe value `2`). Keep.

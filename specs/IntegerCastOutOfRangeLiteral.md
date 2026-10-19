@@ -16,7 +16,7 @@ An integer string outside the supported integer range cannot be preserved by an 
 
 - D1. An int cast receives a literal signed decimal integer string beyond signed 64-bit range. Compare digits textually; exclude exponent/fraction notation and values merely beyond 32-bit range.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

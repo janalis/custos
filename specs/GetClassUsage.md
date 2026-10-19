@@ -160,10 +160,10 @@ function legacy($item = null) {
 
 - Arrow functions (`fn($m = null) => get_class($m)`): upstream treats the
   arrow function as the enclosing scope but has no block body to search;
-  this path throws internally and nothing gets reported. Recommendation:
-  treat an arrow function as having no preceding checks except those inside
-  its own expression body that come before `A`, and report otherwise. No
-  fixture covers it.
+  this path throws internally and nothing gets reported. custos does not
+  apply D4b to an arrow function's parameters either; D4a (an inferred
+  nullable type such as `fn(?Order $o) => get_class($o)`) still reports. No
+  upstream fixture covers it.
 - The null-check search is order-based and branch-insensitive (a check in an
   unrelated branch suppresses later calls). Kept on purpose: requiring a
   dominating check would also have to understand early exits

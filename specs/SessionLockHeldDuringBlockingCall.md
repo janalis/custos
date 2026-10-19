@@ -38,8 +38,6 @@ Detect a known blocking sleep/usleep or network operation while an active sessio
 
 No automatic fix: early close may discard later writes or break atomic session behavior.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

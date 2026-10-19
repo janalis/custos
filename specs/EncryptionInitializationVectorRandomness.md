@@ -178,7 +178,7 @@ class Box
   parameter default overwritten before the call was listed too. For a local
   variable argument inside a function custos takes only the plain `=`
   assignments that reach the call, plus the parameter default when the
-  entry value reaches it (`util.PossibleValuesReaching`); other arguments
+  entry value reaches it; other arguments
   keep D3.
 - **Wrappers in other files (custos diverges).** D5 also accepts a
   wrapper declared in another file of the project: the index records

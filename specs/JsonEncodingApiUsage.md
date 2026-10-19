@@ -295,10 +295,8 @@ class Exporter {
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (kind E is not reported, since the flags may well include a strict flag added through `|=`), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - F1 keeps only the first argument; with named trailing arguments
   (`json_decode($s, depth: 4)`, `json_decode($s, flags: X)`) upstream drops
-  them. Recommendation: insert the boolean as the second positional argument
-  and keep the remaining arguments when they are named; produce no fix when
-  positional and named arguments make insertion ambiguous. No fixture covers
-  it.
+  them. custos keeps them and appends the boolean as a named `associative:`
+  argument (F1b). No upstream fixture covers it.
 - **Argument unpacking is left alone (custos diverges, E6).** A call that
   spreads an array into its arguments may receive the result type and the
   flags from that array, and a rebuilt call would lose the spread or pass
@@ -329,9 +327,11 @@ class Exporter {
   `JSON_PARTIAL_OUTPUT_ON_ERROR`, so it is correct for the flags slot. Keep.
 - With both kinds enabled on the same `json_decode` call, applying both fixes
   in sequence is order-dependent; upstream fixtures never enable both.
-  Recommendation: when both apply, offer them independently; conformance only
-  checks configurations (a) and (b).
+  custos reports both kinds independently, each with its own fix;
+  conformance only checks configurations (a) and (b).
 - Value discovery treats an unresolvable constant as "no value" → reported.
-  An implementation without full stubs should at least resolve
-  `JSON_THROW_ON_ERROR` (4194304) and `JSON_PARTIAL_OUTPUT_ON_ERROR` (512), or
-  equivalently accept those bare names directly.
+  custos accepts the names `JSON_THROW_ON_ERROR` and
+  `JSON_PARTIAL_OUTPUT_ON_ERROR` directly, as well as their values 4194304
+  and 512.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

@@ -18,7 +18,7 @@ This is an opt-in policy. Truthiness, previous-state checks, raw wait-status com
 
 - D1. Report a resolved pcntl_async_signals setter with a proven nonnull scalar argument used directly in a truthiness or negation condition. Getter calls, null and unknown enable values are excluded. A standalone negated if condition may be repaired by moving the setter before the if and testing the getter.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

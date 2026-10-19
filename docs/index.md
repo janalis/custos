@@ -4,7 +4,7 @@ layout: home
 hero:
   name: custos
   text: Fast PHP inspector and fixer
-  tagline: PHP inspections with quick-fixes, from probable bugs to PHP 8.5 migration. One static binary for the command line, CI and your editor.
+  tagline: Rules with quick-fixes, from probable bugs to PHP 8.5 migration. One static binary for the command line, CI and your editor.
   image:
     src: /logo.png
     alt: custos, an elephant in a police uniform
@@ -21,8 +21,8 @@ hero:
 
 features:
   - icon: 🔎
-    title: PHP inspections
-    details: Probable bugs, performance, security, control flow, code style, unused code, PHPUnit and language-level migration from PHP 5.3 to 8.5.
+    title: Rules for PHP
+    details: Probable bugs, security, performance, control flow, code style, unused code, PHPUnit and language level migration from PHP 5.3 to 8.5.
     link: /rules/
     linkText: Rule reference
   - icon: 🛠️
@@ -32,7 +32,7 @@ features:
     linkText: custos fix
   - icon: ⚡
     title: Fast, no PHP needed
-    details: A single static Go binary with its own PHP parser and type inference. Files are analysed in parallel, each in one pass over its syntax tree.
+    details: A single static Go binary with its own PHP parser and type inference. Files are analyzed in parallel, each in one pass over its syntax tree.
     link: /guide/installation
     linkText: Install
   - icon: 🧩
@@ -47,7 +47,7 @@ features:
     linkText: CI recipes
   - icon: 🤝
     title: PhpStorm-compatible
-    details: Rule IDs match Php Inspections (EA Extended), so your existing @noinspection comments keep working.
+    details: Rules modelled on Php Inspections (EA Extended) keep their PhpStorm names, so existing @noinspection comments keep working. Native rules are designed for custos.
     link: /guide/suppressing
     linkText: Suppressing findings
 ---

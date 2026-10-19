@@ -29,7 +29,7 @@ Reported:
 
 - D1. A forward for loop starts index at zero, tests index against a live getElementsByTagName/getElementsByTagNameNS result length, increments by one, and unconditionally removes item(index) from its parent. The removed node is either a local bound to item(index) earlier in the loop body, or the unbound form where the parentNode receiver and the removeChild argument are the same item(index) call written twice. Exclude backwards loops, snapshots, index correction and removals outside this exact pattern.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -30,7 +30,7 @@ Reported:
 - D1. Resolved exec is called twice with same output-array local, no reset/unset between, and second result is subsequently counted/iterated as a complete command output. Require local initialized [] before first exec; opt-in since aggregation may be intentional.
 - D1c. The initial supported proof uses adjacent empty-array initialization and two exec calls, followed immediately by foreach or echo(count(output)) on that same local.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

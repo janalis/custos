@@ -302,14 +302,14 @@ class UserRepo extends MiddleRepo
 
 - Whether `true`/`false`/`null` and `self`/`static`/`parent` references
   resolve (and to which FQN) is an IDE detail upstream; an unresolved entry
-  suppresses the report. Recommendation: treat `true`/`false`/`null` as
-  resolved to themselves, and `self`/`static`/`parent` as the class they
-  denote in each body (so a duplicated `new self()` resolves differently in
+  suppresses the report. custos treats `true`/`false`/`null` as resolved
+  to themselves, and `self`/`static`/`parent` as the class they denote in
+  each body (so a duplicated `new self()` resolves differently in
   child and parent and is not reported).
 - F2 drops `...` for variadic parameters and `&` is irrelevant at call site;
   `parent::m($args)` for a variadic `...$args` changes behaviour.
-  Recommendation: emit `...$args` for variadic parameters (no upstream
-  fixture covers it).
+  custos emits `...$args` for variadic parameters (no upstream fixture
+  covers it).
 - **Staticness compared — custos diverges from upstream** (D5). Upstream
   does not compare the `static` modifier, so a static child method whose
   body matches a non-static parent method (or the reverse) is reported as a

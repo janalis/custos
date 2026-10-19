@@ -16,7 +16,7 @@ Drain all pending PostgreSQL results before another asynchronous query.
 
 - D1. On the same proven connection, a successful pg_send_query of a constant SQL string with at least two statements is followed by fewer fixed pg_get_result calls than statements and another pg_send_query. Also report a second send with no retrieval after any first successful send. Recognize loops until pg_get_result is false as draining; unknown SQL or calls invalidate count proof.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -309,8 +309,8 @@ interface Printable { public function __toString(); }
   custos matches magic names, the known non-magic list, the missing
   underscore list and the parent-call search case-insensitively.
 - A bare `return;` inside a nested closure of `__toString`/`__sleep`/… is
-  reported by C-returns upstream (inconsistent with E4). Recommendation:
-  ignore returns that belong to nested function-likes entirely.
+  reported by C-returns upstream (inconsistent with E4). custos ignores
+  returns that belong to nested functions, closures and arrow functions.
 - Subclass returns (custos diverges from upstream). Upstream compares
   returned types by set membership, so `__set_state` returning an instance
   of a subclass of the containing class is reported, although a subclass
@@ -379,3 +379,5 @@ interface Printable { public function __toString(); }
   (`'Base::__construct'`, `[$this, 'parent::__construct']`,
   `parent::class . '::__construct'`) calls the parent method: not
   reported (Swiftmailer, bundled by Kanboard, 10 findings).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

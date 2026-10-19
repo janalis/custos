@@ -16,7 +16,7 @@ Preserve child nodes when adding element text. This inspection is disabled by de
 
 - D1. Assigning nodeValue or textContent on a proven DOMElement with existing element children is reported. Prove children through direct construction or literal loadXML. Enabling establishes child-preservation policy; text-only nodes and unknown children are excluded.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

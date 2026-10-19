@@ -153,18 +153,18 @@ $none = dirname();
   still writes plain lower-case `dirname` (D7).
 - Upstream's chain walk (D3) also continues into *method* calls named
   `dirname` (`dirname(dirname($fs->dirname($p)))` would treat the method call
-  as part of the chain and drop the object). Recommendation: only plain
-  function calls extend a chain; a method/static call stops the walk like any
-  other non-dirname call. Not covered by fixtures.
+  as part of the chain and drop the object). In custos only plain function
+  calls extend a chain; a method/static call stops the walk like any other
+  non-dirname call. Not covered by fixtures.
 - Level expressions are joined with ` + ` without parentheses, so a
   low-precedence level (`dirname(dirname($p, $deep ? 2 : 1))`) yields
-  `1 + $deep ? 2 : 1` (wrong precedence). Recommendation: wrap any level
-  expression that is not a primary expression (variable, constant, call,
-  property/array access, literal) in parentheses. Not covered by fixtures.
+  `1 + $deep ? 2 : 1` (wrong precedence). custos wraps any level expression
+  that is not a primary expression (variable, constant, call, property/array
+  access, literal) in parentheses. Not covered by fixtures.
 - Integer literals with leading zeros are summed as decimal (`010` → 10) while
-  PHP reads them as octal (8). Recommendation: treat a literal with a leading
-  `0` followed by more digits as a non-parsable expression (kept as text).
-  Not covered by fixtures.
+  PHP reads them as octal (8). custos treats a literal with a leading `0`
+  followed by more digits as a non-parsable expression (kept as text). Not
+  covered by fixtures.
 - **Level evaluation order (custos diverges):** upstream writes the kept
   level expressions outer call first (`dirname(dirname($p, $a), $b)` gives
   `0 + $b + $a`). PHP evaluates the nested form inner level first, so that
@@ -178,8 +178,8 @@ $none = dirname();
   That call is not part of the outer chain; custos skips only first-argument
   chain members (D2) and reports the inner chain.
 - Named arguments (PHP 8, `dirname(path: $p, levels: 2)`) are not handled
-  specially upstream. Recommendation: skip any call in the chain that uses
-  named arguments or argument unpacking (`...`).
+  specially upstream. custos skips any call in the chain that uses named
+  arguments or argument unpacking (`...`).
 - **Shadowing namespaced function (custos diverges):** upstream also chains
   calls to a user `dirname()` declared in (or imported into) the current
   namespace. custos only chains calls that reach the global function, and

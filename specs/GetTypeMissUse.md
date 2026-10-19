@@ -173,12 +173,10 @@ function kinds($item, $mode = 'array') {
   predicate derived from one possible value, and "exactly one string literal
   among the possibilities" is accepted even if other non-string values are
   possible (e.g. `$t = 'array'; if ($x) { $t = getKind(); }`). The M2 error
-  may then land on a literal far from the comparison. Recommendation: for
-  conformance only literal operands are exercised by upstream fixtures; an
-  implementation may start with literal operands plus local-variable
-  resolution, and should only report through resolution when **all**
-  possibilities are the same string literal. Document any narrowing as a
-  deliberate divergence.
+  may then land on a literal far from the comparison. Upstream fixtures only
+  exercise literal operands; custos reports through resolution only when
+  **all** possibilities are the same string literal (see "One complete
+  value" below).
 - **Function name (custos diverges):** upstream matches the last name
   segment case-sensitively and ignores the namespace, so `GETTYPE($v)` was
   missed while a namespaced user `gettype` (`App\gettype($v)`, or an

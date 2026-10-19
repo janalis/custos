@@ -380,21 +380,8 @@ func (c *csrCtx) kind(e syntax.Expr) (csrKind, int) {
 }
 
 // fixable reports whether merging calls (latest first) can be written
-// without changing the result (custos). Merged lists hold the earliest
-// call's elements first, so every call but the latest must contribute as
-// many replacements as searches:
-//   - an argument that may be a string or an array (untyped, `array|string`)
-//     cannot be written as one element nor spread;
-//   - a string search needs a string replace;
-//   - a string replace is copied once per search element, which needs their
-//     number (and at least one);
-//   - array search and replace must have the same known length, except in
-//     the latest call, whose elements end both lists (PHP pads a short
-//     replace list with ” and ignores extra entries).
-//
-// When every call replaces with the same string literal it stays one scalar
-// and only the searches are merged (EspoCRM's sheet-name cleanup otherwise
-// turned ':' and '/' into ” instead of ' ').
+// without changing the result: the known-shape and pairing conditions of
+// spec F0. See NOTES.md.
 func (c *csrCtx) fixable(calls []csrCall, cascade bool) bool {
 	same := true
 	first := c.unboxed(calls[0])
@@ -730,7 +717,7 @@ func (c *csrCtx) count(v csrVal) int { return len(c.contribution(v)) }
 func (c *csrCtx) merge(to, from csrVal) csrVal {
 	fe := c.contribution(from)
 	if arr, ok := to.expr.(*syntax.Array); ok {
-		if len(arr.Items) == 0 { // see spec Divergences: keep from's elements
+		if len(arr.Items) == 0 { // keep from's elements; see NOTES.md
 			return csrVal{elems: fe}
 		}
 		if c.strip { // keys dropped: rebuild instead of inserting into to's text

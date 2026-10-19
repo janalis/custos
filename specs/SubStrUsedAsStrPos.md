@@ -213,8 +213,8 @@ becomes `0 === strpos($uri, '/api')`.
   is the offset parameter, so the produced call fails or searches from the
   wrong position. custos emits `mb_strpos({arg1}, {O}, 0, {arg4})` (F1).
 - **`<>` operator:** upstream appends `=` to any 2-character operator, so
-  `<>` would become the invalid `<>=`. Recommendation: map `<>` to `!==`.
-  Not covered by upstream fixtures.
+  `<>` would become the invalid `<>=`. custos maps `<>` to `!==`. Not
+  covered by upstream fixtures.
 - **Length vs. compared value (custos diverges):** upstream accepts any
   non-call length, and any `strlen`/`mb_strlen` call whatever it measures,
   so `substr($s, 0, 3) == $longer` or `substr($s, 0, strlen($a)) == $b` are
@@ -264,3 +264,5 @@ becomes `0 === strpos($uri, '/api')`.
 - **Hexadecimal strings before PHP 7.0 (custos diverges).** PHP 5 compares
   `'0x1a' == '0x1A'` numerically, so such literals join the numeric ones
   that block the fix of a loose comparison (F2).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

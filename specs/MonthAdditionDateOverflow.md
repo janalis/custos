@@ -33,8 +33,6 @@ Detect modify with literal +1 month or -1 month on a resolved literal date when 
 
 No automatic fix: clamping, rolling and rejecting are distinct month-end policies.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

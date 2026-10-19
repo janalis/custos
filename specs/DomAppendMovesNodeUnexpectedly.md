@@ -16,7 +16,7 @@ Clone the node when preserving its existing parent. This inspection is disabled 
 
 - D1. The same proven node is appended consecutively to distinct proven parents. Enabling establishes that both parents must retain a copy. An intervening explicit detachment or clone excludes the finding (E3); do not infer this policy from identifiers.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

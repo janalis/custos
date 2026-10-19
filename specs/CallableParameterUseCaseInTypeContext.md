@@ -277,8 +277,8 @@ function untyped($flag = null) {
   `string` parameter). Only the range and severity are compared, so any
   incompatible member may be named.
 - Upstream depends on the IDE's full type engine; where the T-rules do not
-  determine a type, results may differ. Recommendation: when in doubt, prefer
-  "unknown" (no report).
+  determine a type, results may differ. custos treats an undetermined type
+  as unknown and does not report.
 - **Unresolvable classes (custos diverges):** upstream treats a value class
   it cannot resolve as incompatible, so `$shape = new UnknownClass();` on a
   `Shape` parameter is reported although the unknown class may well
@@ -371,3 +371,5 @@ function untyped($flag = null) {
   `microtime()` without a `true` argument is the string PHP returns, not
   the `int` of the shared T-rules: a `string` parameter accepts it and an
   `int` one does not.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

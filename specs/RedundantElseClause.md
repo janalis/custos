@@ -163,15 +163,15 @@ function route($req, $list) {
 ## Divergences
 
 - F1 separator: upstream inserts a newline and then lets the IDE formatter
-  adjust it, which removes the space before a leading `;`. Recommendation:
-  newline separator, none when the moved content starts with `;` (needed to
-  match the upstream fixture). Re-indentation of moved statements is not
+  adjust it, which removes the space before a leading `;`. custos uses a
+  newline separator, and none when the moved content starts with `;` (as the
+  upstream fixture expects). Re-indentation of moved statements is not
   required (comparison is whitespace-collapsed).
 - F3 normalises the first `if`'s header to `if (COND1) ` (upstream rebuilds it
-  from a template). Recommendation: follow upstream so `if($a){…}` becomes
+  from a template). custos does the same, so `if($a){…}` becomes
   `if ($a) {…}`.
 - Comments between `}` and `else`/`elseif`: upstream behaviour unverified
-  (no fixture). Recommendation: preserve them (keep them before the moved code).
+  (no fixture). custos preserves them before the moved code.
 - **Trailing line comment (custos diverges).** When the moved content ends
   with a `//`/`#` comment and more code follows the clause on the same line,
   a line break is kept after the comment; gluing the two would comment out

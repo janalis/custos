@@ -328,11 +328,12 @@ function swap(array $from, array $to, $text) {
 ## Divergences
 
 - **Arity of the merged-in call not checked upstream:** `G`/`I` are not
-  required to have 3 arguments (upstream would fail on fewer). Recommendation:
-  require exactly 3 arguments for `G` and `I` as well.
+  required to have 3 arguments (upstream would fail on fewer). custos
+  requires exactly 3 arguments for `G` and `I` as well.
 - **Empty array target:** `merge(to = [], from)` silently drops `from`'s
-  elements, changing behaviour. Recommendation: produce the `from` elements
-  (treat `[]` as an empty element list). No fixture covers it.
+  elements, changing behaviour. custos still reports but offers no fix when
+  a search or replace argument of either call is an empty array literal.
+  No fixture covers it.
 - **Spread of array-only arguments:** custos diverges from upstream (F3).
   Upstream spreads such arguments as plain `...$x` from PHP 7.4. Arrays
   with string keys cannot be spread before 8.1 (the merged call would
@@ -342,10 +343,10 @@ function swap(array $from, array $to, $text) {
   keys and gives the same `str_replace()` result. The affected EA 7.4 case
   is listed in `testdata/ea-divergences.json`.
 - **Compound assignments** (`$s .= str_replace(...)`): whether upstream visits
-  them as assignments is unverified; recommendation: only plain `=`.
+  them as assignments is unverified; custos considers only plain `=`.
 - **Non-statement assignments** (`if ($s = str_replace(…, $s))`): upstream
   looks at the preceding sibling inside the enclosing expression, which is
-  never an assignment statement; recommendation: only statement-level
+  never an assignment statement; in custos only statement-level
   assignments enter part A (parts B and C still apply).
 - **Fourth `$count` argument (custos diverges):** upstream skips every
   check on a call with a 4th argument, including part C. Collapsing

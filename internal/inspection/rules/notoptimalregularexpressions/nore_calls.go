@@ -297,18 +297,9 @@ func noreReplaceText(ctx *analysis.Context, span syntax.Span, repl, text string)
 	})
 }
 
-// noreSite implements the D22 context and inversion of a preg_match()
-// call whose 0/1 result is replaced by a boolean test (custos diverges from
-// upstream, see spec): ok is false when no replacement keeps the meaning.
-//   - logical operand: the call, or its direct `!` (inverted);
-//   - direct operand of a comparison with a number literal: the comparison,
-//     inverted when it holds for 0 and not for 1; skipped when it holds for
-//     both or neither (`== 2`, `< 5`);
-//   - any other operator operand (arithmetic, `@`, casts, a comparison
-//     with something else or through parentheses): skipped;
-//   - a value position (assignment, return, argument…): skipped — the
-//     replacement yields true/false where preg_match() yields 1/0
-//     (`echo`, `: int` returns under strict_types, arithmetic).
+// noreSite returns the node a D22 boolean test replaces for a preg_match()
+// call, and whether the test is inverted; ok is false when no replacement
+// keeps the meaning. See NOTES.md.
 func noreSite(call *syntax.FuncCall) (site syntax.Node, inverted, ok bool) {
 	if astquery.IsLogicalOperand(call) {
 		if u, isNot := call.Parent().(*syntax.Unary); isNot && u.Op.Kind == syntax.TExclaim {

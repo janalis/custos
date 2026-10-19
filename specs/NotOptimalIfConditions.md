@@ -518,3 +518,5 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   or class name (`Repo::$node` vs `repo::$node`), which PHP treats as the
   same, are not recognised as equivalent. custos folds the case of those
   names (Detection, "Name case").
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

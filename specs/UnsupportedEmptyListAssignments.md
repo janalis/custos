@@ -81,9 +81,9 @@ list(, $only) = $queue;
 - Upstream decides "no variables" from the loop's variable list; a pattern
   whose only targets are property or array-element writes
   (`foreach ($rows as list($this->a))`) may be seen as variable-less and
-  reported although valid. Recommendation: report only when the pattern
+  reported although valid. custos reports only when the pattern
   (recursively) contains no assignable target at all. Not covered by upstream
   fixtures.
 - Empty patterns behind a key (`$k => list()`) and in plain assignments are
-  real fatal errors that this rule leaves to the parser. Recommendation: keep
-  upstream behaviour (a parse diagnostic covers them).
+  real fatal errors that this rule leaves to the parser, as upstream does
+  (a parse diagnostic covers them).

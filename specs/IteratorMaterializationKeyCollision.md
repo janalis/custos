@@ -33,8 +33,6 @@ Detect iterator_to_array with key preservation enabled/default on a resolved gen
 
 No automatic fix: preserving an associative mapping versus every value is an application decision.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

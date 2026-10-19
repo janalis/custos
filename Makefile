@@ -52,7 +52,7 @@ bench:
 	$(GO) test -run '^$$' -bench . -benchmem ./...
 	CUSTOS_PERF=1 $(GO) test -count=1 -run TestEditLatency -v ./internal/editor/lsp
 
-# Short fuzz smoke over every Fuzz* target (parser/lexer once they exist).
+# Short fuzz smoke over every Fuzz* target.
 fuzz:
 	@for pkg in $$($(GO) list ./...); do \
 		for f in $$($(GO) test -list '^Fuzz' $$pkg | grep '^Fuzz'); do \

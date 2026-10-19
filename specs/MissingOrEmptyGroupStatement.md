@@ -147,9 +147,9 @@ In `views/page.blade.php` nothing is reported (E2).
 ## Divergences
 
 - Alternative syntax (E4): upstream behaviour depends on how the IDE models the
-  colon-syntax body; it is not covered by upstream fixtures. Recommendation:
-  never report D1 for colon syntax (adding braces there is not the intended
-  style); for D2, treat a colon-syntax body with zero statements as empty.
+  colon-syntax body; it is not covered by upstream fixtures. custos never
+  reports D1 for colon syntax (adding braces there is not the intended
+  style); for D2, a colon-syntax body with zero statements counts as empty.
 - Whether `{ ; }` counts as empty is not covered by upstream fixtures; we count
   `;` as a statement (not empty).
 - **Formatting (custos).** Upstream relies on the IDE formatter; the fix

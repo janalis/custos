@@ -121,11 +121,11 @@ foreach ($a as $x) {
 
 - `global $name;` and `static $name = [];` declarations do not suppress the
   report upstream (only direct assignments/foreach headers do), which gives
-  false positives. Recommendation: also treat `global`/`static` declarations
-  of the name as initialisation.
+  false positives. custos also treats `global`/`static` declarations of the
+  name as initialisation.
 - Whether a variable inside a `list()`/`[...]` destructuring target counts as
-  an assignment operand upstream is unverified. Recommendation: treat it as
-  an assignment (no report).
+  an assignment operand upstream is unverified. custos treats it as an
+  assignment (no report).
 - **Superglobals (custos).** `$_SESSION['k'][] = $v`, `$GLOBALS['x'][] = $v`
   and the other superglobals hold state from outside the function; they
   are never reported (SuiteCRM's upgrade wizard).

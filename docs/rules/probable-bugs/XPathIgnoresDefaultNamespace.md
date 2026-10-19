@@ -30,7 +30,7 @@ Reported:
 - D1. A local DOMDocument loads a literal XML root with a nonempty default xmlns and no unnamespaced matching descendant. A DOMXPath created for that document queries a literal //NAME path corresponding to a namespaced element, without registered prefix in the query.
 - D1b. The evidence must be three adjacent statements of one block: the `loadXML` call as a statement of its own, then the assignment of the new DOMXPath, then the statement holding the query. Nothing can then mutate, reload or replace the document between the load and the query.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

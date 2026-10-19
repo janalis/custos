@@ -41,8 +41,6 @@ A sentinel or length guard applies only to the same reaching value. Reassignment
 
 No automatic fix: EOF, timeouts and retry behavior require explicit handling.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

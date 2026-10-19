@@ -199,8 +199,8 @@ annotated above).
 ## Divergences
 
 - `static $n;` declarations: whether upstream sees the declared name as a
-  plain variable mention is unverified. Recommendation: treat `static $n`
-  as an earlier mention (no report afterwards).
+  plain variable mention is unverified. custos treats `static $n` as an
+  earlier mention (no report afterwards).
 - **Scope-bounded first mention (custos diverges):** upstream's first-mention
   scan descends into nested closures and functions, so a variable that only
   exists inside an inner closure (`function () { $total = 0; … }`) hides a

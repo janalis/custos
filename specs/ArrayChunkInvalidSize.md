@@ -16,7 +16,7 @@ Detect array_chunk with a size proven an integer less than one.
 
 - D1. Report array_chunk with a size proven an integer less than one.
 - D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 - D4. A size read from a variable is proven only when every change to that variable in the enclosing function (or top-level code) is a plain assignment the flow analysis follows. The same holds for every variable whose value an assignment in that scope copies into it, directly or through further copies (`$size = $seen;`). `++`/`--` on the variable, a closure capturing it by reference (`use (&$size)`), an array item holding a reference to it (`[&$size]`) and an `extract()` call in the same scope each make the size unknown, wherever they appear in that scope.
 
 ## Exceptions (no report)
@@ -34,8 +34,6 @@ Detect array_chunk with a size proven an integer less than one.
 ## Fix
 
 No automatic fix: a replacement size cannot be inferred.
-
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
 
 ## Options
 

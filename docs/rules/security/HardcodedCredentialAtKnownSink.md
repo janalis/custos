@@ -30,7 +30,7 @@ Reported:
 - D1. Resolved PDO constructor password or mysqli connection password is a nonempty literal string. Inspection is disabled by default and excludes configured example/test path glob list, default **/testdata/** and **/tests/**; no arbitrary password variable naming heuristics.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
 - D1a. The excluded-path globs are matched against the file path relative to its project root, with forward slashes. The project root is the nearest ancestor directory holding `custos.json`; without one, the outermost ancestor holding `composer.json`, so that a package or fixture application nested in the project (`tests/fixtures/app/composer.json`) stays part of it; without either, the working directory. A file outside that root is matched by its absolute path. The outcome therefore does not depend on the directory custos is started from, and a directory named `tests` or `testdata` above the project root does not exclude the project.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

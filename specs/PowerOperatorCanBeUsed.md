@@ -129,8 +129,8 @@ $meth   = $calc->pow($side, 2);
   call from the argument texts and silently drops any comment placed around
   them. custos keeps the report and offers no fix.
 - Upstream builds the text with placeholder substitution; an argument whose
-  text happens to contain the placeholder token could be garbled. Our
-  implementation must simply concatenate.
+  text happens to contain the placeholder token could be garbled. custos
+  joins the argument texts directly, so no argument text is altered.
 - **Callee resolved — custos diverges from upstream** (D1). Upstream checks
   only the last name segment, so a user function `App\pow()` (qualified, or
   unqualified inside `namespace App` where it is declared) is reported and

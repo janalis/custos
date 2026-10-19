@@ -29,7 +29,7 @@ Reported:
 
 - D1. Report gzencode, gzcompress or gzdeflate level argument proven integer less than -1 or greater than 9. Skip unknown levels, default omission, and bzip2 APIs with different contracts.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
 - D4. A level passed as a variable is proven only when that variable keeps its literal for the whole enclosing scope (function, method, closure or top-level code; nested function, closure and class bodies are not part of it). The same requirement applies to every variable it was copied from by a plain `$copy = $source` assignment.
 
 ## Exceptions (no report)
@@ -45,8 +45,6 @@ Reported:
 ## Fix
 
 No automatic fix. The required repair depends on error handling, data selection, lifecycle ordering or application policy.
-
-All edits use exact byte ranges and preserve comments and evaluation order. Offer no fix when its stated prerequisites cannot be proven or the replacement is unsupported by the configured PHP version.
 
 ## PHP versions
 

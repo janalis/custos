@@ -19,7 +19,7 @@ Set a separate timeout for stream reads. This opt-in rule applies the policy des
 - D1b. Accepted guard positions, searched from the read outwards within the same function scope: the body of an `if`/`elseif` whose condition proves success when true; an `elseif` or `else` reached only after an earlier condition of the chain that proves success when false; the right operand of `&&`/`and` (left proves success when true) or `||`/`or` (left proves success when false); the matching arm of a full ternary; and an early exit, i.e. an earlier `if` in a statement list enclosing the read whose body always leaves the path (return, throw, exit, break, continue) and whose condition proves success when false.
 - D1c. A read reached only when configuration failed (inverted condition, wrong branch) is reported. A bare `stream_set_timeout($h, …);` statement whose result is discarded is not a guard: the policy asks for a checked configuration, so the following read is still reported.
 - D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
@@ -36,8 +36,6 @@ Set a separate timeout for stream reads. This opt-in rule applies the policy des
 ## Fix
 
 No automatic fix. The required repair depends on error handling, data selection, lifecycle ordering or application policy.
-
-All edits use exact byte ranges and preserve comments and evaluation order. Offer no fix when its stated prerequisites cannot be proven or the replacement is unsupported by the configured PHP version.
 
 ## Options
 

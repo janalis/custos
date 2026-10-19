@@ -184,18 +184,19 @@ function checks($role, $list, $map, $a, $b)
   replaced by an unparenthesised comparison. Fine under `&&`/`||`, but under
   a non-boolean binary parent (`in_array($x, [1]) == $y`, `$k . in_array(...)`)
   or a cast/unary other than `!` the result changes meaning or is invalid
-  (`==` is non-associative). Recommendation: wrap the replacement in
-  parentheses when the parent operator binds tighter than or equal to `==`;
-  keep the bare form under `&&`, `||`, `and`, `or`, `xor`, `?:`, assignment,
-  argument and statement contexts (matches all fixtures).
+  (`==` is non-associative). custos wraps the replacement in parentheses
+  when the parent operator binds tighter than or equal to `==` (and under a
+  cast or unary operator); it keeps the bare form under `&&`, `||`, `and`,
+  `or`, `xor`, `?:`, assignment, argument and statement contexts (matches all
+  fixtures).
 - **Needle/element precedence:** only binary/ternary needles are wrapped;
   assignment, `print`, `yield`, `include`, arrow-fn needles and any
   low-precedence element `V` (e.g. `[$a ?: 1]`, `[$x = 2]`) produce wrong
-  code. Recommendation: also parenthesise those. Not covered upstream.
+  code. custos also parenthesises those. Not covered upstream.
 - **Spread element:** `in_array($x, [...$list])` would be treated as a
   one-element literal and rewritten to `$x == ...$list` (invalid).
-  Recommendation: skip haystacks whose single element is a spread or a
-  by-reference element.
+  custos skips haystacks whose single element is a spread or a by-reference
+  element.
 - **Loose comparison semantics:** `in_array` with loose mode and a single
   element is equivalent to `==`, so the rewrite is exact; no divergence.
 - **Function-name matching — custos diverges from upstream.** Upstream matches
@@ -215,3 +216,5 @@ function checks($role, $list, $map, $a, $b)
   canonical integer with strict comparison, or a non-numeric string
   literal with loose comparison on PHP 8+. EA case affected:
   `in-array-misuse.php` (listed divergence).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

@@ -31,7 +31,7 @@ Reported:
 - D1a. The initial proof requires a valid non-ASCII UTF-8 literal converted to ISO-8859-1 and passed to json_encode, where the resulting bytes are not valid UTF-8. ASCII-only text is excluded.
 - D1d. Compute the supported literal conversion and prove the resulting Latin-1 bytes are invalid UTF-8. Exclude converted bytes that already form valid UTF-8, even when the source literal contains non-ASCII code points; not every Latin-1 byte sequence is invalid UTF-8.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

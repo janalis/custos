@@ -179,14 +179,14 @@ interface Printer
 - **Namespaced classes**: since PHP 5.3.3 a method named after its class is
   *not* a constructor when the class lives in a namespace; upstream still
   reports it and the fix would turn a plain method into a constructor
-  (behaviour change). No upstream fixture covers this. Recommendation: skip
-  classes declared inside a non-global namespace.
+  (behaviour change). No upstream fixture covers this. custos skips classes
+  declared inside a non-global namespace.
 - **Enums**: upstream only excludes traits and interfaces, so an `enum Foo`
   with a method `Foo()` would be reported, although enums cannot have
-  constructors. Recommendation: skip enums.
+  constructors. custos skips enums.
 - **`__construct` lookup case**: upstream's own-method lookup for
   `__construct` — whether `__CONSTRUCT` counts — is not covered by fixtures.
-  Recommendation: match case-insensitively, as PHP does for method names.
+  custos matches it case-insensitively, as PHP does for method names.
 - **Name match case (custos diverges)**: upstream compares class and method
   names case-sensitively, so `class Ledger { function ledger() {} }` is
   missed, although PHP treated that method as the old-style constructor.

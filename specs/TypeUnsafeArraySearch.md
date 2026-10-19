@@ -75,14 +75,8 @@ Visit every function call.
 
 ## Fix
 
-- **F1** Replace the whole call with
-  `<qualifier><name>(<N>, <H>, true)` where `<qualifier>` is the namespace
-  qualifier exactly as written (`\` for `\in_array(...)`, empty when
-  unqualified), `<name>` the function name as written, `<N>`/`<H>` the source
-  texts of the two argument expressions (without `name:` labels), separated
-  by `, `. Whitespace/comments between the original arguments are not kept.
-  - `in_array($code, $allowed)` → `in_array($code, $allowed, true)`
-  - `\array_search(7, [])` → `\array_search(7, [], true)`
+No automatic fix: adding the strict flag can change the result (see
+Divergences).
 
 ## Options
 
@@ -163,11 +157,6 @@ function pick($code, array $allowed) {
   arguments are not two passed arguments when one is `...$rest`:
   `in_array($needle, ...$rest)` called with `[[1, 2], true]` is already
   strict. custos does not report a call with a spread argument.
-- Named arguments: F1 drops labels and keeps written order, so
-  `in_array(haystack: $h, needle: $n)` would become `in_array($h, $n, true)`
-  (swapped). Recommendation: when any argument is named, emit the fix as
-  `…, strict: true` appended to the original argument list, or offer no fix.
-  Not covered by fixtures.
 - E2 depends on PhpStorm-style type inference (inline `@var` comments,
   array-literal element typing). Where custos cannot infer a type, the call is
   reported (safe side). The upstream fixture only needs: inline `@var` with
@@ -185,3 +174,5 @@ function pick($code, array $allowed) {
   equivalent (same type on both sides) are already exempt (E2), so the
   rule reports without a fix. EA case affected: `strict-array-search.php`
   (listed divergence).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

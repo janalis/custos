@@ -341,7 +341,7 @@ class DiskStore extends Store
   returns nothing. Upstream's fixtures expect the report, so the affected
   EA case is listed in `testdata/ea-divergences.json`.
 - Equivalence of parameter types is by resolved type set; a doc-only type
-  change is ignored. Keep.
+  change is ignored.
 - **Letter case — custos diverges from upstream.** Upstream requires the
   class part to be exactly `parent` and the method name to match `M`'s name
   case-sensitively, so `PARENT::send()` or `parent::Send()` inside `send()`

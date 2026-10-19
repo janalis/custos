@@ -16,7 +16,7 @@ Non-strict base64 decoding can discard invalid characters. Enable strict mode wh
 
 - D1. Resolved base64_decode with absent/false strict argument is compared strictly to false in a condition that rejects input by throw/return. Highlight call.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

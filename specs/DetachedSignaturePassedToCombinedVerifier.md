@@ -16,7 +16,7 @@ Identify sodium_crypto_sign_open whose signed-message argument is unchanged resu
 
 - D1. Report sodium_crypto_sign_open whose signed-message argument is unchanged result of sodium_crypto_sign_detached; no concatenation may intervene.
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values or escaped aliases invalidate proof. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -1,8 +1,9 @@
 # Continuous integration
 
-`custos analyse` exits with `1` when a finding reaches `--fail-on` (default
-`warning`) and with `2` on configuration errors, so it can gate a pipeline as
-is. Pick an output format that your CI can display.
+`custos analyse` fails when a finding reaches `--fail-on` (default `warning`)
+or on a configuration error (see [exit codes](./cli#exit-codes)), so it can
+gate a pipeline as is. Pick an [output format](./cli#analyse) that your CI
+can display.
 
 ## GitHub Actions
 
@@ -14,7 +15,7 @@ Annotations on the pull request diff:
 ```
 
 With GitHub code scanning (alerts in the *Security* tab), upload SARIF and
-then gate:
+then gate. This runs the analysis twice, once per format:
 
 ```yaml
 - name: custos (SARIF)
@@ -33,9 +34,11 @@ Composer, download a release archive in a step and run `custos` from there.
 
 ```sh
 custos analyse --format=checkstyle > custos-checkstyle.xml   # for Checkstyle-aware viewers
-custos analyse --format=json > custos.json                   # for your own scripts
+custos analyse --format=json > custos-report.json            # for your own scripts
 custos analyse --fail-on=error                               # gate on errors only
 ```
+
+Do not redirect a report to `custos.json`: that is the configuration file.
 
 ## Tips
 

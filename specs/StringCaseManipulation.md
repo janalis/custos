@@ -176,3 +176,5 @@ function lookup(string $text, string $term, array $row) {
 - **Integer needles before PHP 8.0 (custos diverges).** Upstream rewrites
   regardless of the needle's type. For targets below 8.0 custos withholds
   the fix unless the unwrapped needle is known to be a string (F2).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

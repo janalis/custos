@@ -215,17 +215,17 @@ class Tag extends Base {
 - A cast binds more loosely than `**`, `[]` and `->`; replacing a call that is
   the operand of such an operator changes meaning (`intval($x) ** 2` →
   `(int)$x ** 2`, `strval($n)[0]` → `(string)$n[0]`). Upstream does not guard
-  this. Recommendation: wrap `R` in parentheses when the call is the base of an
+  this. custos wraps `R` in parentheses when the call is the base of an
   array access / member access or an operand of `**`. Not covered by upstream
   fixtures. custos also parenthesises a callee and the class operand of `::`
   (F3).
 - Spread arguments (`intval(...$xs)`) count as one argument upstream and give
-  broken code. Recommendation: skip calls with a spread argument.
+  broken code. custos skips calls with a spread argument.
 - D10 with a static call on `self`/`static`/a class name yields
   `(string)self`, which is invalid; nullsafe `$o?->__toString()` loses the
-  null-safety. Recommendation: only report instance calls with `->`.
+  null-safety. custos only reports instance calls with `->`.
 - `"${name}"` (dollar-brace interpolation): upstream behaviour unverified.
-  Recommendation: do not report it.
+  custos does not report it.
 - **Name case and resolution (custos diverges):** upstream matches
   `intval`/`floatval`/`strval`/`boolval`, `settype` and `__toString`
   case-sensitively, and the conversion functions on the written last segment

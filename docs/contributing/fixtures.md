@@ -1,8 +1,10 @@
 # Fixtures
 
-Every rule has its own fixtures in `internal/inspection/rules/<id>/testdata/`. They are the CI
-gate (`make fixtures`) and, with the rule packages' tests, must cover 100 %
-of the rule's statements (`make coverage`).
+Every rule has its own fixtures in
+`internal/inspection/rules/<lowercase-ID>/testdata/`. They are the CI gate
+(`make fixtures`) and, with the rule packages' tests, must cover 100% of the
+rule's statements (`make coverage`). This page is the reference for their
+format.
 
 ## Files
 
@@ -13,7 +15,7 @@ internal/inspection/rules/onetimeusevariables/testdata/
 ├── false-positives.php    # code that must not be reported
 ├── options.php            # same rule with non-default options…
 ├── options.json           # …set by this sidecar
-└── old.php / old.json     # behaviour on an older PHP version
+└── old.php / old.json     # behavior on an older PHP version
 ```
 
 - `<name>.php`: a fixture. Every expected finding is marked up (see below);
@@ -26,7 +28,7 @@ internal/inspection/rules/onetimeusevariables/testdata/
 
 A typical set is `basic.php`, `false-positives.php` and `basic.fixed.php`
 when the rule has a fix, plus one fixture per option or PHP version that
-changes the behaviour. Cover parser-recovery guards with broken PHP in
+changes the behavior. Start from the spec's examples. Cover parser-recovery guards with broken PHP in
 `broken*.php`.
 
 ## Markup
@@ -61,7 +63,7 @@ function total($a) {
 
 | Key | Meaning |
 |---|---|
-| `php` | Target PHP version for this fixture. |
+| `php` | Target PHP version for this fixture (default 8.4). |
 | `comparisonStyle` | `regular` or `yoda`. |
 | `options` | Rule options (bool, number, string or list). |
 | `calls` | Rarely needed: list options given as registration calls. |

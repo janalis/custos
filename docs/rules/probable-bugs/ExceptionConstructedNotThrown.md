@@ -29,7 +29,7 @@ Reported:
 
 - D1. A standalone new-expression statement constructs a resolved Throwable subtype, with no assignment, return, throw or use of the result. User class ancestry must prove Throwable; recognize resolved builtin exception classes.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -17,7 +17,7 @@ An exception thrown during final cleanup can replace the exception already being
 - D1. A try body ends with an unconditional explicit throw, and its finally block also ends with an unconditional explicit throw; neither throw is caught inside its own block. Highlight the finally throw.
 - D1d. The original try exception must remain unhandled when entering finally. Exclude a try statement with a catch that handles that thrown exception, including a catch that returns normally; conservative unsupported catch relationships discard the propagating-exception proof.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

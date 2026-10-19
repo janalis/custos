@@ -18,7 +18,7 @@ Decoding image bytes can fail and return false. Check the result before using it
 - D1a. A guard is a test of the same variable while it still holds that decode result. Accepted tests: plain truthiness (`$im`, `!$im`, `empty($im)`), strict or loose comparison with `false`, `instanceof`, `is_object`, `is_resource`, `is_bool`, and the decode assignment tested in place (`if (!$im = imagecreatefromstring($b))`). Tests combine through `!`, `&&`/`and` and `||`/`or` with their usual logic: a conjunction that holds proves each operand, a disjunction that fails refutes each operand.
 - D1b. A guard protects a use when the use sits in the branch the test selects (if/elseif/else arm, including arms reached only after an earlier condition of the chain failed; ternary arm; right operand of a short-circuit operator), or when an earlier statement of the same or an enclosing statement list leaves the path on failure: an `if` without `elseif` whose failing arm always terminates (return, throw, exit, break, continue), `test or exit/throw`, `!test and exit/throw`, or `assert(test)`.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

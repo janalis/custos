@@ -203,10 +203,10 @@ __CLASS__;                          // not inside a class method
 - Upstream also considers references inside an anonymous class declared in the
   method but outside that anonymous class's methods (e.g. its constant or
   property initialisers): `self` there would mean the anonymous class.
-  Recommendation: skip any reference located inside an anonymous class body.
-  Not covered by upstream fixtures.
-- Reverse mode on PHP < 5.5: `Name::class` does not exist. Recommendation: do
-  not report D5 (`__CLASS__`) when the configured PHP version is below 5.5.
+  custos skips any reference located inside an anonymous class body. Not
+  covered by upstream fixtures.
+- Reverse mode on PHP < 5.5: `Name::class` does not exist. custos does not
+  report D5 (`__CLASS__`) when the configured PHP version is below 5.5.
 - **Letter case (custos diverges).** Upstream matches `Name`, `self` and
   `__CLASS__` case-sensitively, so `new basket()`, `SELF::X` and `__class__`
   are skipped although PHP resolves them to the same class. custos matches

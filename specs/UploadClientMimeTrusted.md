@@ -38,8 +38,6 @@ Detect acceptance of an upload based solely on $_FILES entry type compared to an
 
 No automatic fix: content types, file size limits and image decoding policy must be selected by the application.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

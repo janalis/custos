@@ -30,7 +30,7 @@ Reported:
 - D1. Both operands of array union are nonempty literal arrays with implicit zero-based keys, and at least one right key collides. The result is subsequently iterated as a value list without key access; opt-in because first-value precedence can be intentional.
 - D1a. The initial supported downstream proof is an immediately following by-value foreach without a key binding.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

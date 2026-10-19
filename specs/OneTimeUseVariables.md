@@ -352,8 +352,8 @@ function refParam(&$out) {
   are unreachable and not counted, so consecutive dead-code pairs such as
   `$x = 1; return $x; $x = 2; return $x;` are still each reported.
 - Whether parameters count as an initial write in D8 is not observable from
-  upstream fixtures. Recommendation: do not count the parameter declaration
-  itself; reads of the parameter inside the assigned value count as reads.
+  upstream fixtures. custos does not count the parameter declaration itself;
+  reads of the parameter inside the assigned value count as reads.
 - Upstream decides reachability from its IDE control-flow graph. custos uses
   the statement-list approximation of D8 (an access is unreachable when a
   terminating statement precedes it in an enclosing list); it does not

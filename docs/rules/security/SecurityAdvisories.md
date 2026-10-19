@@ -35,8 +35,8 @@ Throughout this spec:
 | `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for the owner skip (D2). |
 
 Effective DEV: upstream always merges the default list into whatever the
-user configured (user entries ∪ defaults, deduplicated). Recommendation for
-custos: DEV = defaults ∪ user entries. Entries may also be vendor prefixes
+user configured (user entries ∪ defaults, deduplicated). custos does the
+same: DEV = defaults ∪ user entries. Entries may also be vendor prefixes
 ending in `/` (only meaningful for the owner skip D2).
 
 Conformance note: upstream test cases that do not add the defaults run with

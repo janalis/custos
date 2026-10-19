@@ -272,8 +272,8 @@ After fix (only changed lines shown):
   closure makes that fail. custos does not report returned closures.
 - **Attributed closures.** Upstream highlights the first child of the function,
   which is the attribute group for `#[A] function () {}`, and inserts `static`
-  before it, producing invalid code (`static #[A] function`). Recommendation:
-  always highlight the `function`/`fn` keyword and insert `static ` right before
+  before it, producing invalid code (`static #[A] function`). custos always
+  highlights the `function`/`fn` keyword and inserts `static ` right before
   it (`#[A] static function`). No fixture covers this.
 - **`self::`/`static::` instance calls — custos diverges from upstream**
   (D5b). Upstream only inspects `parent::` calls, so a closure calling
@@ -328,3 +328,5 @@ After fix (only changed lines shown):
   method (Laravel/October facades: `Cache::extend('x', fn …)` binds the
   closure to the cache manager) counts as an unknown target (E6).
   Unknown classes stay reported, without a fix (F2).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

@@ -236,8 +236,8 @@ is acceptable next to the alias `Bag`.)
   ArrayObject::class`) is reported. That access yields the right string;
   custos adds the correct plain spelling to `L` (L4) and stays silent.
 - Group imports (`use A\{B, C as D};`): upstream handling of the target text
-  is unverified; recommendation: treat each item as an import whose target is
-  the full name (`A\B`).
+  is unverified; custos treats each item as an import whose target is the
+  full name (`A\B`).
 - **Imports unrelated to the written name (custos diverges).** Upstream's
   L4 adds an import's alias whenever the import targets `C`, even when the
   access does not go through it: in `namespace Shop\Model; use
@@ -260,3 +260,5 @@ is acceptable next to the alias `Bag`.)
   resolved class differ by more than letter case (`\App\Old\Resp::class`
   for an alias of `\App\Http\Resp`), there is no case mismatch to report
   (Grav's `GPM\Response` compatibility alias).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

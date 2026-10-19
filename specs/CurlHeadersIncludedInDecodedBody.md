@@ -16,7 +16,7 @@ Including response headers in a cURL return value makes the combined data unsuit
 
 - D1. Same resolved curl handle has definite CURLOPT_HEADER=true and CURLOPT_RETURNTRANSFER=true; curl_exec result enters json_decode directly or through unmodified local without splitting headers. Highlight decode call.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

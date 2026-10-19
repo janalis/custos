@@ -42,8 +42,6 @@ Reported:
 
 No automatic fix: an appropriate initial value cannot be inferred.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## PHP versions
 
 Available from PHP 7.4. Builtin behavior and argument contracts follow the configured PHP version. Extension-specific calls require resolved extension API symbols; do not treat same-named application functions as extension calls.

@@ -17,7 +17,7 @@ Destroying stored session data does not clear the current session array. Clear l
 - D1. Resolved session_destroy precedes a read of $_SESSION in a condition in same scope, with no intervening $_SESSION=[]/unset or successful new session_start. Highlight post-destroy session read.
 - D1c. The initial supported proof is an immediately preceding session_destroy and direct session array access as the if condition; guarded or nested conditions are excluded.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

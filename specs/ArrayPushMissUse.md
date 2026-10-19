@@ -182,11 +182,11 @@ $queue[\count($queue)] = &$job;
   `and`/`or`/`xor` is parenthesised in the replacement (F2); pasting it
   verbatim after `=` would change which value is appended.
 - Part B with a qualified call (`\count($a)`): whether upstream's range
-  includes the leading `\` is unverified; recommendation: highlight the
-  name identifier only (without the qualifier).
+  includes the leading `\` is unverified; custos highlights the name
+  identifier only (without the qualifier).
 - Named arguments (`array_push(array: $a, values: $b)`) are not
   distinguished upstream and would yield `array: $a[] = values: $b`;
-  recommendation: skip calls with named arguments. No fixture covers it.
+  custos skips calls with named arguments. No fixture covers it.
 - **Function-name matching — custos diverges from upstream.** Upstream matches
   `array_push` and `count` by the name as written (case-sensitive, any
   namespace qualifier, no resolution), so a differently cased call such as
@@ -199,3 +199,5 @@ $queue[\count($queue)] = &$job;
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognised as equivalent. custos folds the case of those names
   (Detection, "Name case").
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

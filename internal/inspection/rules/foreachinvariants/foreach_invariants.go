@@ -800,17 +800,8 @@ func foreachInvStaleLimit(ctx *analysis.Context, l *syntax.For, defs []*syntax.A
 }
 
 // foreachInvElementsChanged reports whether the loop writes container
-// elements in a way foreach's snapshot and the fix's value variable would
-// not see (custos): an element other than `$c[$i]` (`$c[$i + 1] = …`,
-// `$c[$k]['x'] = …`; a later iteration would read the new value), or a
-// path under `$c[$i]` followed in the body by a mention of an overlapping
-// path (`$c[$i] = trim($c[$i]); echo $c[$i];`: the fix would read the stale
-// `$iValue`). Taking a reference (`$r = &$c[$i]`) is not a write.
-//
-// With escapes, an element captured by reference (`$r = &$c[$i]`,
-// `[&$c[$i]]`) counts as written as well, since it may be written later
-// without being named. Such a loop is still reported; only its fix would
-// read a stale copy.
+// elements in a way foreach's snapshot or the fix's value variable would not
+// see; with escapes, by-reference element captures count. See NOTES.md.
 func foreachInvElementsChanged(ctx *analysis.Context, l *syntax.For, container syntax.Expr, counter string, escapes bool) bool {
 	type write struct {
 		end  uint32

@@ -18,7 +18,7 @@ A catch variable shares its surrounding local scope. Use a different name when t
 - D1d. The catch path must reach the later read while retaining the caught exception binding. Exclude catches that terminate by return/throw/exit, reassign or unset the local, and finally blocks that restore or replace its value. Unknown catch/finally operations discard the retained-binding proof.
 - D1e. Exclude terminating catches and any assignment, increment/decrement or unset of the catch variable in the catch body or finally. These operations invalidate the retained exception-binding proof; do not treat the subsequent read as an overwrite hazard.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

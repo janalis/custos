@@ -17,7 +17,7 @@ Reading a child's stdout and stderr sequentially can deadlock when the other pip
 - D1. Resolved proc_open descriptors declare stdout and stderr as separate output pipes; parent performs blocking stream_get_contents on pipes[1] then pipes[2]. No nonblocking mode/select/concurrent draining. Require owned pipe array and no reassignment.
 - D1c. The initial supported proof is three adjacent statements: proc_open, blocking stdout read, blocking stderr read, using the same simple pipes-array name and literal descriptor indices.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -17,7 +17,7 @@ Fetch named SQLite columns before JSON serialization. This inspection is disable
 - D1. SQLite3Result fetchArray explicitly uses SQLITE3_BOTH or omits its mode, and its unchanged result flows to json_encode. Enabling establishes named-column JSON policy. Numeric indexing or mixed-key consumers before serialization invalidate proof.
 - D1a. When the fetched row is stored in a plain local variable, json_encode must be its only consumer. Every other mention of that variable in the scope invalidates the proof, including element writes, unset, destructuring, interpolation and reads after such a write, because a modified row is still the fetched row. A mention is unrelated only when it is a complete plain overwrite, when it sits textually before the fetch in code that cannot repeat, or when local flow proves it holds another complete value. Inside a loop, every other mention counts, wherever it appears.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

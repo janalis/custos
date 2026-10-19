@@ -16,7 +16,7 @@ Setting cURL's HTTP header list again replaces the earlier list. Combine require
 
 - D1. Same curl handle receives two CURLOPT_HTTPHEADER literal lists before execution, first containing Authorization and second lacking it. Neither list is empty/reset-intent and no intervening execution. Highlight second list.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -168,8 +168,8 @@ the colon).
 | `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for the owner skip (D2). |
 
 Effective DEV: upstream always merges the default list into whatever the
-user configured (user entries ∪ defaults, deduplicated). Recommendation for
-custos: DEV = defaults ∪ user entries. Entries may also be vendor prefixes
+user configured (user entries ∪ defaults, deduplicated). custos does the
+same: DEV = defaults ∪ user entries. Entries may also be vendor prefixes
 ending in `/` (only meaningful for the owner skip D2).
 
 Conformance note: upstream test cases that do not add the defaults run with
@@ -304,11 +304,10 @@ full, `vendor/package`, exactly as the fix must produce it.)
   user-configured entry with capitals is ignored. Composer package names
   are case-insensitive; custos lower-cases both sides (D2, D4).
 - F2 on an empty `require-dev` object (`{}`) produces `{ PAIR , }` (invalid
-  JSON) upstream. Recommendation: omit the comma when the object has no
-  members.
+  JSON) upstream. custos omits the comma when the object has no members.
 - F1 when a `require-dev` property exists but is not an object
-  (e.g. `[]`) adds a second `require-dev` key upstream. Recommendation:
-  offer no fix in that case.
+  (e.g. `[]`) adds a second `require-dev` key upstream. custos offers no
+  fix in that case.
 - **No fix when the inserted pair would be shadowed (custos diverges,
   F3).** With a duplicated top-level `require-dev` key, or an ADV key
   already present in `require-dev` with an empty or non-string value, the

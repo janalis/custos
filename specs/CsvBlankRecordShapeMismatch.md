@@ -16,7 +16,7 @@ Recognize a blank CSV record as a null field.
 
 - D1. Track a fgetcsv or SplFileObject::fgetcsv result; report strict equality/inequality against an empty array when a blank record is proven from a local in-memory stream containing a single newline (LF or CRLF), at position zero. For an unknown stream, do not infer blank-record intent from the comparison alone.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
@@ -33,8 +33,6 @@ Recognize a blank CSV record as a null field.
 ## Fix
 
 No automatic fix. Choosing a repair requires runtime information, error-handling policy or a semantic decision.
-
-All edits use exact byte ranges, preserve comments and evaluation order, and require syntax supported by the target PHP version. A fix must never add an evaluation or silently change unrelated arguments.
 
 ## Options
 

@@ -118,8 +118,8 @@ $ids = <weak_warning descr="Sort the integer keys ascending so the array can be 
 - **Sign handling in string keys:** upstream's integer parse accepts a
   leading `+` (and `-0`), but PHP keeps `'+5'` and `'-0'` as string keys, so
   such arrays are mis-classified (e.g. `['+5' => …, 6 => …, 7 => …]` gets
-  report I). Recommendation: accept only canonical decimal strings (`0` or
-  an optional `-` followed by a non-zero digit and digits, no `-0`). No
+  report I). custos accepts only canonical decimal strings (`0` or an
+  optional `-` followed by a non-zero digit and digits, no `-0`). No
   fixture covers it.
 - **64-bit keys (custos diverges from upstream).** Upstream parses keys as
   32-bit integers, so any key beyond ±2147483647 stops the analysis
@@ -130,5 +130,5 @@ $ids = <weak_warning descr="Sort the integer keys ascending so the array can be 
   `0b1` or `1_000` stop the analysis. custos evaluates PHP integer literals
   (D5), so out-of-order keys written in those forms are reported.
 - **Element count:** upstream counts the array's child nodes; comments inside
-  the literal are not expected to count. Recommendation: count real elements
+  the literal are not expected to count. custos counts real elements
   only.

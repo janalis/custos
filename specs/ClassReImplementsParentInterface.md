@@ -63,14 +63,12 @@ Each report carries a fix acting on its own entry; fixes are applied one at a
 time (the conformance runner re-analyses until fixpoint), so each fix sees the
 list as left by the previous ones.
 
-- **F1** The entry is the **only** entry of the `implements` list: delete the
-  entry's text and the `implements` keyword. Whitespace around them is left
-  in place, so `extends Base\n    implements\n        Sized {}` becomes
-  `extends Base\n    \n         {}` — whitespace-collapsed:
-  `extends Base {}`. Implementations may equally delete from the end of the
-  `extends` clause to the end of the entry and leave one space; the result
-  must keep at least one whitespace character between the parent name and
-  `{`.
+- **F1** The entry is the **only** entry of the `implements` list: delete
+  everything from the end of the `extends` clause to the end of the entry,
+  `implements` keyword included. One space is left in its place unless
+  whitespace already follows the entry, so at least one whitespace character
+  remains between the parent name and `{`:
+  `extends Base implements Sized {}` becomes `extends Base {}`.
 - **F2** The list has several entries and this is the **first** one: delete
   the entry and the comma that follows it (skipping at most one whitespace
   run between entry and comma); whitespace after the comma stays.

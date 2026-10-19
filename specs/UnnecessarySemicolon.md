@@ -125,8 +125,8 @@ class Box {}
 
 - Alternative syntax (`if (...): ; endif;`, `while (...): ; endwhile;`): the `;`
   sits inside the statement list rather than directly as the clause body;
-  upstream behaviour unverified. Recommendation: report it (treat the
-  statement list as a block). No fixture covers it.
+  upstream behaviour unverified. custos reports it (the statement list is
+  treated as a block). No fixture covers it.
 - custos diverges: the terminator of a short echo tag at the end of the
   file (`<?= $title;` with no closing `?>`) is not reported — without a
   closing tag the `;` is required, and removing it is a parse error

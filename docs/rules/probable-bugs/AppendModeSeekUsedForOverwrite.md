@@ -32,7 +32,7 @@ Reported:
 - D1. Track a successful fopen with literal append mode a/a+ (optional b/t/e suffixes), then successful seek to a proven position before a later fwrite/fputs on the same handle without reopening. Report the write because append writes ignore the seek position. Require seek position proven not EOF, such as rewind or fseek(handle,0,SEEK_SET), to avoid flagging harmless seek-to-end.
 - D4. A stream that may be empty has its start at EOF, so a write after seeking to 0 lands where intended. Any earlier `ftruncate` on the same handle in the same scope, conditional or not, whose size is 0 or not a known non-zero integer therefore withdraws the proof. The proof is restored only by a later dominating fwrite/fputs of a non-empty literal string on that handle, which puts content before the seek target again. A truncation to a known non-zero size leaves content at offset 0 and changes nothing.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
@@ -43,8 +43,6 @@ Reported:
 ## Fix
 
 No automatic fix. Choosing a repair requires runtime information, error-handling policy or a semantic decision.
-
-All edits use exact byte ranges, preserve comments and evaluation order, and require syntax supported by the target PHP version. A fix must never add an evaluation or silently change unrelated arguments.
 
 ## PHP versions
 

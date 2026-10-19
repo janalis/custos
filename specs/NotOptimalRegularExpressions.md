@@ -653,39 +653,40 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
 - **D21 range.** The upstream fixture highlights only the function name of
   the `preg_match_all` call although the finding is attached to the whole
   call (the `preg_quote` finding, attached the same way, covers the whole
-  call). Match the fixture: report the name token.
+  call). custos matches the fixture and reports the name token.
 - **Arrays with several patterns (upstream bug).** Upstream processes one
   element (in arbitrary order) and then aborts with a concurrent-modification
-  failure when the array has two or more resolvable literals. Recommendation:
-  check every element (D2/D5). Only single-element arrays appear in fixtures.
+  failure when the array has two or more resolvable literals. custos checks
+  every element (D2/D5). Only single-element arrays appear in fixtures.
 - **Inversion/context gaps (upstream).** `1 > preg_match(…)`,
   `preg_match(…) <= 0` and `0 >= preg_match(…)` are treated as *not*
   inverted while the whole comparison is replaced, flipping the meaning;
   comparisons with other numbers (`== 2`) are replaced too. A parenthesised
   call compared to a number (`(preg_match(…)) === 0`) only has the call
-  replaced, producing `(false !== strpos(…)) === 0`. Recommendation (implemented, see "D22 rewrites that keep the meaning" below): treat
-  `n > C` like `C < n`, `<= 0`/`0 >=` as inverted, skip numbers other than
-  0/1 and skip parenthesised operands. None of this is in the fixtures.
+  replaced, producing `(false !== strpos(…)) === 0`. custos treats
+  `n > C` like `C < n` and `<= 0`/`0 >=` as inverted, and skips numbers other
+  than 0/1 and parenthesised operands (see "D22 rewrites that keep the meaning" below). None of this is in the
+  fixtures.
 - **Precedence.** Replacements are inserted without parentheses
-  (`preg_match('/^a$/', $s) + 1` → `"a" === $s + 1`). Recommendation (implemented, see "D22 rewrites that keep the meaning" below): wrap
-  in parentheses when the context's parent binds tighter than `===`.
+  (`preg_match('/^a$/', $s) + 1` → `"a" === $s + 1`). custos wraps them
+  in parentheses when the context's parent binds tighter than `===` (see "D22 rewrites that keep the meaning" below).
 - **Broken trim / explode output.** A trim character `\` or `'`
   (`/^\++/`-like bodies such as `^\+`) yields invalid PHP (`ltrim($s, '\')`);
   explode copies the whole body raw, so `[;]` gives `explode("[;]", …)`, and
   `"`, `$` or `\` inside produce a broken or different string; a metacharacter
   at the very start of the body (`+x`, `|`) escapes the regex-syntax test.
   `preg_split` limit semantics (`0`/`-1`) differ from `explode`.
-  Recommendation (implemented, see "D22 rewrites that keep the meaning" below): skip these cases (use the inner character for `[x]`).
+  custos skips these cases and uses the inner character for `[x]` (see "D22 rewrites that keep the meaning" below).
 - **Modifiers ignored by D22.** `m` (with `^`/`$`) and `x` change meaning
-  but are not checked for D22a–d. Recommendation (implemented, see "D22 rewrites that keep the meaning" below): skip D22a/b when `mods`
-  contains `m`. D22 also builds `T` from the normalised body, so a literal
+  but are not checked for D22a–d. custos skips D22a/b when `mods` contains
+  `m` (see "D22 rewrites that keep the meaning" below). D22 also builds `T` from the normalised body, so a literal
   `a-zA-Z` becomes `A-Za-z` in the suggestion; custos uses the body as
   written for `T`, the trim character and the explode delimiter.
 - **Line terminators.** Upstream's D13 and D19 tests fail on any body
   containing a line break (a multi-line pattern with non-ASCII text is not
   reported), and its D22/D22f end-anchors also accept a single trailing
-  newline. Recommendation: for D13 ignore line breaks (report anyway); keep
-  D19 as specified. Not covered by fixtures.
+  newline. custos keeps the D13 and D19 tests as specified: a body with a
+  line break gets neither report. Not covered by fixtures.
 - **End anchor and trailing newline (custos diverges from upstream).** In
   PCRE `$` also matches before a final newline unless the `D` modifier is
   set, so `^T$` accepts `"T\n"`: D22a (identity comparison) is offered only
@@ -720,9 +721,8 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
   the surrounding pattern uses a delimiter preg_quote already escapes
   (`'{' . preg_quote($s) . '}'`, common in Symfony), so reporting every
   1-argument call would add false positives.
-- **Heredoc/nowdoc patterns:** upstream handling unverified;
-  recommendation: treat a nowdoc / non-interpolated heredoc like a quoted
-  literal whose contents are its body.
+- **Heredoc/nowdoc patterns:** upstream handling unverified; custos does
+  not analyse heredoc or nowdoc patterns.
 - **Function-name matching — custos diverges from upstream.** Upstream matches
   the `preg_*` functions (and the case conversions of D23) by the name as
   written (case-sensitive, any namespace qualifier, no resolution), so a

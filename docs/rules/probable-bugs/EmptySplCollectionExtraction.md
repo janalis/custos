@@ -31,7 +31,7 @@ Reported:
 
 - D1. Track exact builtin SplQueue, SplStack, SplDoublyLinkedList, SplHeap and SplPriorityQueue size from construction, insert/push/unshift/enqueue and extract/pop/shift/dequeue. Report a removal or top/bottom read when the collection is proven empty.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 - D4. The history of a call inside a `while`, `do`, `for` or `foreach` loop covers the whole body of the outermost enclosing loop that does not itself construct the collection, because code written after the call runs before it on the next pass. Within that replayed part an insertion or any unmodeled use discards the proof; an earlier-turn removal may also prevent an exact ordered replay. Unknown receivers of matching mutators prevent a proof when they cannot be distinguished from the tracked collection. A statement label before the call extends the history to the end of the scope in the same way.
 
 ## Exceptions (no report)
@@ -51,8 +51,6 @@ Only a fully modeled, bounded history proves emptiness. Array writes, unmodeled 
 ## Fix
 
 No automatic fix. Choosing a repair requires runtime information, error-handling policy or a semantic decision.
-
-All edits use exact byte ranges, preserve comments and evaluation order, and require syntax supported by the target PHP version. A fix must never add an evaluation or silently change unrelated arguments.
 
 ## PHP versions
 

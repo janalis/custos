@@ -257,3 +257,5 @@ final class Page extends Node {
   `Traversable|array`) and literals that end up as the same stored value
   (`1` and `1.0` on a `float` property, `0.0` and `-0.0`) are compatible
   duplicates.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

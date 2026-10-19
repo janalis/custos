@@ -131,8 +131,8 @@ function prefixes($url, $head, $part)
 - **Multibyte needles (upstream bug):** upstream counts the decoded needle in
   UTF-16 code units (≈ characters), but `strncmp` counts bytes, so `'é/'`
   gets `2` instead of `3` and the rewritten check compares too few bytes.
-  Recommendation: use the byte length of the decoded value (identical for
-  ASCII, which is all the fixtures use).
+  custos uses the byte length of the decoded value (identical for ASCII,
+  which is all the fixtures use).
 - **Empty needle:** custos diverges from upstream (D4a, E5). Upstream
   rewrites `strpos($s, '') === 0` to `strncmp($s, '', 0) === 0`, which is
   always true, whereas before PHP 8 `strpos()` with an empty needle returned
@@ -145,8 +145,8 @@ function prefixes($url, $head, $part)
   fallback, but it drops the author's explicit qualification (which code
   styles use for opcache-inlined builtins) and lets a namespaced function of
   the same name take over. custos keeps a leading `\` (F1).
-- Heredoc/nowdoc needles are untested upstream; recommendation: treat them
-  like double-/single-quoted literals respectively.
+- Heredoc/nowdoc needles are untested upstream; custos does not report
+  them (only single- and double-quoted needles qualify).
 - **Function-name matching — custos diverges from upstream.** Upstream matches
   `strpos`/`stripos` by the name as written (case-sensitive, any namespace
   qualifier, no resolution), so a differently cased call such as `StrPos($s,

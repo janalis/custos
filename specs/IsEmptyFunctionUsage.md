@@ -235,8 +235,8 @@ Yoda style, default options: `empty($ratio)` → `null === $ratio`;
 ## Divergences
 
 - The replacement is inserted without parentheses; in a higher-precedence
-  context (`'x' . empty($n)`) upstream's output changes meaning. Recommendation:
-  wrap the replacement in parentheses when the parent expression binds tighter
+  context (`'x' . empty($n)`) upstream's output changes meaning. custos wraps
+  the replacement in parentheses when the parent expression binds tighter
   than a comparison (conformance fixtures only use statement/array/argument
   contexts, so this is safe).
 - **Guard stops at calls (custos diverges):** upstream's "first child"
@@ -289,3 +289,5 @@ Yoda style, default options: `empty($ratio)` → `null === $ratio`;
   "not empty" with `=== null` (and `count(false)` throws). The D1/D2
   message is still reported, but the fix is offered only when native
   declarations alone give the subject the same types.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

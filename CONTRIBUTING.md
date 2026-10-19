@@ -13,30 +13,31 @@ Open an issue and pick a template (*Wrong finding or fix* for rule problems,
 - the target PHP version (`custos analyse --stats` prints it);
 - what custos reports, or the fix it applies, and what you expected.
 
-False positives and fixes that change behaviour or produce invalid PHP are
+False positives and fixes that change behavior or produce invalid PHP are
 treated as bugs, even when the upstream plugin behaves the same way.
 
 ## Clean-room rule (mandatory)
 
-custos is an MIT-licensed, independent clean-room implementation of a rule
-catalogue modelled on Php Inspections (EA Extended), which is LGPL-2.1.
-
-- Never copy, translate or closely paraphrase its code, messages,
-  descriptions, documentation or test fixtures.
-- Rule behaviour is specified in our own words in `specs/<ID>.md`, then
-  implemented from the spec only, without opening the upstream sources.
-
-Details: [Clean-room process](https://janalis.github.io/custos/contributing/clean-room).
+custos is an MIT-licensed, independent clean-room implementation. Never copy,
+translate or closely paraphrase code, messages, descriptions, documentation or
+fixtures from Php Inspections (EA Extended) (LGPL-2.1); rules are specified in
+our own words, then implemented from the spec only. Read the
+[clean-room process](https://janalis.github.io/custos/contributing/clean-room)
+before touching a rule.
 
 ## Before opening a pull request
 
 ```sh
 npm ci --prefix docs  # once: markdownlint (and the docs site)
 make fmt              # gofumpt, goimports, markdownlint fixes
-make verify           # architecture, lint, tests, own fixtures, 100 % coverage, clean-room scan
-make rules-doc        # if you changed a spec or a rule's fixtures
+make rules-doc        # if you changed a spec, a rule's fixtures or rule status
+make verify           # architecture, lint, tests, own fixtures, coverage, clean-room scan
 ```
 
 - Every new statement is covered by tests (`make coverage`).
-- Rule changes come with fixtures in `internal/inspection/rules/<id>/testdata/`.
+- Rule changes come with fixtures in
+  `internal/inspection/rules/<lowercase-ID>/testdata/`.
 - User-visible changes get a line under `## [Unreleased]` in `CHANGELOG.md`.
+
+See [Make targets](https://janalis.github.io/custos/contributing/#make-targets)
+for the full list.

@@ -16,7 +16,7 @@ Unrestricted authentication can forward credentials across redirected hosts. Kee
 
 - D1. Same resolved curl handle enables CURLOPT_FOLLOWLOCATION and CURLOPT_UNRESTRICTED_AUTH and configures CURLOPT_USERPWD to a known nonempty string before execution. Empty or unknown credentials do not establish a finding. Highlight unrestricted-auth option; unknown URL does not excuse enabled credential forwarding.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

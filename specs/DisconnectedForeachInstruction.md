@@ -227,14 +227,14 @@ foreach ($rows as $row) {
   bare `throw $error;` statement directly in the body may be reported as
   disconnected depending on how the parser nests the throw (older parsers:
   statement is the throw itself → reported; newer: expression statement
-  containing a throw expression → not reported). Recommendation: never report a
+  containing a throw expression → not reported). custos never reports a
   statement that is or contains `throw`. No fixture covers the bare form.
 - **Element reads (custos diverges):** upstream marks an array as modified
   on any element access, so a pure read such as `echo $cfg['title'];` makes
   every statement using `$cfg` connected and hides genuine findings. custos
   only counts element writes (D7).
-- D8a ignores nullsafe `?->` calls. Recommendation: treat `?->` like `->`.
-  No fixture coverage.
+- D8a ignores nullsafe `?->` calls, as upstream does: an argument passed to
+  `$o?->add($v)` does not mark `$o` as modified. No fixture coverage.
 - **Catch and inner-loop variables (custos diverges):** upstream treats them
   as plain reads, so a statement reading the variable after the inner loop
   or `try` (`report($line);` after `foreach ($batch as $line)`) is reported
@@ -310,3 +310,5 @@ foreach ($rows as $row) {
   a variable or other expression (`$progress && $progress(['type' =>
   'progress']);`, `$log('step');`) is not reported: like a progress tick
   it is meant to run once per item (Grav's archivers and security scans).
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

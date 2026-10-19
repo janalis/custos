@@ -17,7 +17,7 @@ Writing an archive is not complete until finalization succeeds. Check the close 
 - D1. A proven ZipArchive receiver has a successful checked open, then addFromString/addFile mutation, and a discarded close result followed by unconditional literal true return from the containing function. Highlight close; no success-name heuristics.
 - D1a. The initial supported proof is consecutive checked-open rejection guard, archive mutation, discarded close, and return true statements.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

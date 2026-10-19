@@ -143,8 +143,8 @@ class Shop_Cart_Item {}
 
 - Conditional declarations (a class declared inside an `if` at file level) and
   whether they count as top-level definitions are unverified upstream.
-  Recommendation: count only declarations that are direct statements of the
-  file or of a namespace body.
+  custos counts only declarations that are direct statements of the file or
+  of a namespace body.
 - Upstream compares only the first `.`-separated segment of the file name, so
   `Invoice.php.dist` style names are not .php files (D1 fails) and are never
   reported; keep this.

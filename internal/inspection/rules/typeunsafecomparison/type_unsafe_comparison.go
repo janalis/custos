@@ -252,15 +252,9 @@ func tucHierarchyKnown(ctx *analysis.Context, class string) bool {
 }
 
 // tucStrictSafe reports whether `e == 'text'` (a non-empty, non-numeric
-// string) always equals `e === 'text'`: e is proven to hold only strings,
-// null or arrays — or numbers from PHP 8.0, where they compare as strings.
-// A bool (`true == 'text'`), a number before 8.0 (`0 == 'text'`) or a
-// Stringable object (compared by its string form) would change the result
-// (custos diverges: upstream always fixes). The proof ignores PHPDoc, which
-// PHP does not enforce, and requires every variable the type rests on to be
-// stable (tucStableVar). text is the compared string ("" when e is only a
-// value flowing into the compared variable): an infinite float is the one
-// number whose string form is not numeric, so `INF == 'INF'` holds.
+// string) always equals `e === 'text'`, from native types of stable variables
+// only (spec F2, F3 and "Kind S fix only when equivalent"). text is the
+// compared string, "" when e only flows into the compared variable.
 func tucStrictSafe(ctx *analysis.Context, e syntax.Expr, text string) bool {
 	parts := tucParts(ctx.Types().Native().TypeOf(e))
 	if len(parts) == 0 {

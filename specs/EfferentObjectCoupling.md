@@ -105,7 +105,7 @@ class Basket {
 - Upstream counts every class-reference node of the syntax tree. Whether its
   tree models scalar type keywords and `self`/`static`/`parent` as class
   references (and how they would be named) is not observable from the
-  fixtures. Recommendation: exclude them (E3), so the metric only counts real
+  fixtures. custos excludes them (E3), so the metric only counts real
   classes. No fixture is affected.
 - **Case-insensitive distinctness (custos diverges):** upstream counts
   distinct resolved texts, so `\Foo` and `\foo` (or `Money` and `money`)

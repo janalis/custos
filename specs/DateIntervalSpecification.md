@@ -177,8 +177,8 @@ function later()
   the same class. custos compares it case-insensitively (D2).
 - The regular expressions use `$`, which in the upstream engine also matches
   just before a final line break; a literal whose raw content ends with an
-  actual newline would be accepted. Recommendation: anchor at the true end of
-  the string (no fixture covers it).
+  actual newline would be accepted. custos anchors at the true end of the
+  string (no fixture covers it).
 - **Shared literals (custos diverges):** upstream reports a literal reached
   through value discovery once per `new DateInterval(...)` that uses it, so
   the same range carries duplicate findings. custos reports it once (D6).

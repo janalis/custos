@@ -39,7 +39,7 @@ Reported:
 - D1. Resolved openssl_verify is directly used as a truthiness condition or direct logical negation. Success is integer 1, while error -1 is truthy. Highlight call.
   The condition positions are those of `if`, `elseif` (and `else if`), `while` and `do … while`. Redundant parentheses are transparent at every level: around the call, between `!` and the call, and around the negation.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

@@ -36,8 +36,6 @@ Detect HTTP_X_FORWARDED_FOR-derived address used in an access-control comparison
 
 No automatic fix: trusted proxy addresses and forwarding-chain policy must be supplied by deployment configuration.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

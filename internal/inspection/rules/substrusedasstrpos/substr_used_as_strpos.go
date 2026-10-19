@@ -113,15 +113,9 @@ func (subStrUsedAsStrPos) Check(ctx *analysis.Context, n syntax.Node) {
 }
 
 // fixPreservesResult reports whether the position search answers exactly
-// what the comparison with other did (custos diverges):
-//   - other is written twice in the strlen() form and once in the fix, so
-//     it must have no side effects;
-//   - before PHP 8.0 an empty needle makes strpos() warn and return false,
-//     so other must be a non-empty literal;
-//   - `==` compares numeric strings as numbers ("0 " == "00") while strpos()
-//     matches bytes, so other must be a non-numeric literal;
-//   - `===` never matches a non-string, which strpos() would cast, so other
-//     must be a string by syntax or by its natively declared type.
+// what the comparison with other did: other has no side effects and is a
+// non-empty literal before PHP 8.0, a non-numeric literal for a loose
+// comparison, a string for a strict one (spec F2 and Divergences).
 func fixPreservesResult(ctx *analysis.Context, loose bool, other syntax.Expr) bool {
 	if flowquery.MayHaveSideEffects(other) {
 		return false

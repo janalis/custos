@@ -35,7 +35,7 @@ Reported:
 - D1f. A read is guarded when it is the operand of isset/empty, the left operand of `??`, or when the same expression only evaluates it after an existence test of the same capture (same result variable, same literal index) succeeded: the right operand of `&&` whose left operand implies the test, the right operand of `||` whose left operand being false implies it, and the ternary branch selected by it. The test is `isset($m[i])` or `!empty($m[i])`, seen through parentheses, `!`, and `&&`/`||` combinations of the matching polarity. The right operand of `??` is not guarded by that operator. A statement calling array_key_exists on the result array is already excluded by D1e.
 - D1g. A by-reference bind of the capture (`$x = &$m[i]`, `[&$m[i]]`) creates the element instead of reading it and is not reported.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

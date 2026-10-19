@@ -123,15 +123,17 @@ $keep5  = getTitle() ? getTitle() : DEFAULT_TITLE;
   behaviour for anything stateful (`next()`, `fetch()`, counters) and can
   return a different value. custos skips conditions that may have side
   effects. The EA conformance case still passes.
-- Precedence: `R` is substituted without parentheses. If `C` is a
-  low-precedence expression (assignment, `and`/`or`, `yield`, `print`) or the
-  ternary is an operand of a tighter operator, the rewritten text can parse
-  differently. Recommendation: wrap the result in parentheses only when the
-  ternary itself was not standalone and its parent operator binds tighter than
-  `?:`; otherwise emit `R` verbatim (matches upstream fixtures).
+- Precedence: `R` is substituted without parentheses (matches upstream
+  fixtures). Upstream could change the parse when `C` is a low-precedence
+  expression (assignment, `and`/`or`, `yield`, `print`) or the ternary is an
+  operand of a tighter operator. In custos the verbatim `R` keeps the parse:
+  a side-effect-free condition (D3a) cannot be an assignment, `yield` or
+  `print`; an `and`/`or` condition is already parenthesised in the source;
+  and a ternary operand of a tighter operator is parenthesised in the source,
+  outside the replaced range.
 - Nested reportable ternaries (`$a ? $a : ($b ? $b : 0)`) produce two
-  overlapping reports; recommendation: apply the outermost fix and re-run, or
-  compose both (`$a ?: ($b ?: 0)`). Not covered by fixtures.
+  overlapping reports; applying both fixes composes them (`$a ?: ($b ?: 0)`).
+  Not covered by fixtures.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,

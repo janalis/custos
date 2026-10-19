@@ -16,7 +16,7 @@ A shared lock does not provide exclusive access for a write. Acquire an exclusiv
 
 - D1. Resolved flock(handle,LOCK_SH optionally OR LOCK_NB) precedes fwrite/fputs/ftruncate on same simple-local handle before unlock/exclusive-lock change. Unknown handle escape invalidates proof.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

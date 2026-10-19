@@ -406,7 +406,7 @@ function visit(?Node $item) {
   statement (U8/E4); parameters and later re-assignments are reported.
 - Strategy B scans nested closures both from the enclosing unit and from the
   closure itself, so a chained call inside a closure could be reported twice
-  on the same range upstream. Recommendation: report each `->` once.
+  on the same range upstream. custos reports each `->` once.
 - Enclosing conditions (custos diverges from upstream). Upstream does not
   model control flow: a check it does not recognise as a null check
   (`is_object($v)`, `$v === $known`, `'v' === $v->name`, `$v?->p !== null`)
@@ -431,9 +431,10 @@ function visit(?Node $item) {
   `draw(?bool $on, Mode $mode = Mode::Idle, ?Tint $tint = null)` passes
   `$v` to `?Tint $tint`, which accepts null, not to `Mode $mode`.
 - Whether compound assignments (`.=`, `??=`) and list destructuring count as
-  "assignments" in D4/U6 is unverified upstream; recommendation: only plain
-  and by-reference `=` with a variable on the left are declarations; a
-  compound assignment to the variable is a non-stopping usage (skip).
+  "assignments" in D4/U6 is unverified upstream. In custos only plain and
+  by-reference `=` with a variable on the left are declarations; a compound
+  assignment to the variable is a non-stopping usage (skipped), except
+  `??=` (below).
 - **`??=` stops the walk (custos diverges).** `$b ??= $this->box;` leaves
   `$b` non-null when the right side is not nullable, exactly like
   `$b = $b ?? $this->box;` (which already stopped the walk), yet a later

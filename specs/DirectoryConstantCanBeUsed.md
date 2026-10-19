@@ -98,9 +98,8 @@ function bootstrap()
 
 - Upstream matches only the bare last segment of the called name, so a
   namespaced user function call like `Tools\dirname(__FILE__)` is reported as
-  well. Recommendation: report only unqualified or `\`-qualified `dirname`
-  calls (and unqualified calls that resolve to the global function). No
-  fixture covers it.
+  well. custos reports only unqualified or `\`-qualified `dirname` calls
+  (unqualified calls resolve to the global function). No fixture covers it.
 - **Name case (custos diverges):** upstream compares the function name and
   the magic constant case-sensitively, missing `Dirname(__FILE__)` and
   `dirname(__file__)`. Both names are case-insensitive in PHP, so custos

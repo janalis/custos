@@ -160,9 +160,9 @@ class IconButton extends Button
   missed although PHP treats them identically. custos accepts any letter
   case (D1).
 - Methods imported from traits used by the current class are not treated as
-  own declarations in D4 upstream. Recommendation: treat trait-imported
-  methods as own (no report), since `$this->m()` would then call the trait
-  method rather than the parent one. Not covered by fixtures.
+  own declarations in D4 upstream. custos treats trait-imported methods as
+  own (no report), since `$this->m()` would then call the trait method
+  rather than the parent one. Not covered by upstream fixtures.
 - **Trait-supplied overrides in descendants (custos diverges).** A descendant
   that gets the called method from a trait, directly or under an alias,
   overrides it just like a body declaration does. custos counts those in D5

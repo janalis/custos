@@ -31,11 +31,11 @@ corrected or deleted.
   `explanation`, …) are ignored.
 - **D5** A relevant candidate is *unknown* if neither the candidate itself nor
   the candidate followed by `Inspection` is in the known-inspection set:
-  - every `legacyId` from `internal/inspection/meta/rules.json` (e.g.
+  - every legacy EA inspection name known to custos (e.g.
     `UnknownInspectionInspection`) and every custos rule ID;
   - a bundled list of JetBrains PhpStorm inspection short names (names of the
-    IDE's own inspections, which users legitimately suppress). It must at least
-    contain: `PhpUnused`, `PhpMultipleClassDeclarationsInspection`,
+    IDE's own inspections, which users legitimately suppress). It contains at
+    least: `PhpUnused`, `PhpMultipleClassDeclarationsInspection`,
     `PhpMissingParentCallCommonInspection`, `PhpUndefinedMethodInspection`,
     `PhpUndefinedFieldInspection`, `PhpUndefinedClassInspection`,
     `PhpUndefinedFunctionInspection`, `PhpUndefinedVariableInspection`,
@@ -63,7 +63,6 @@ corrected or deleted.
     `PhpSameParameterValueInspection`, `PhpMissingParentConstructorInspection`,
     `PhpRedundantClosingTagInspection`, `PhpCSValidationInspection`,
     `PhpPureAttributeCanBeAddedInspection`, `PhpMissingDocCommentInspection`.
-    Keep the list in a data file so it can grow.
 - **D6** Report the tag when at least one relevant candidate is unknown.
 
 ## Exceptions (no report)
@@ -118,8 +117,8 @@ function audit() {
   (PhpStorm built-ins and all installed plugins). custos cannot know those, so
   it uses its own catalogue plus a curated PhpStorm list (D5). Names from other
   plugins that start with `Php` or end with `Inspection`/`Inspector` may be
-  reported by custos where the IDE would not. Recommendation: keep the curated
-  list editable and accept user additions through configuration later.
+  reported by custos where the IDE would not. The curated list cannot be
+  extended through configuration.
 - Upstream extracts candidates either from the IDE's parsed references or, as a
   fallback, with a "two or more capitalised words" pattern; D3 (identifier
   words) gives the same results on all fixtures and handles names with

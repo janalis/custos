@@ -1,9 +1,11 @@
 # Clean-room process
 
-custos is released under the MIT license. Its rule catalogue is modelled on
+custos is released under the MIT license. Part of its rule catalogue is
+modeled on
 [Php Inspections (EA Extended)](https://github.com/kalessil/phpinspectionsea),
-which is LGPL-2.1. To keep custos free of upstream code and text, every rule
-goes through a two-step **clean-room** process. This page explains it.
+which is LGPL-2.1. To keep custos free of upstream code and text, every
+EA-modeled rule goes through a two-step **clean-room** process. This page is
+the reference for it; other pages only summarize it.
 
 ## What may be reused
 
@@ -29,7 +31,8 @@ into this repository.
 2. **Implement.** Someone else implements the rule **from the spec only**.
    They do not open the upstream Java sources or fixtures. When the spec is
    wrong or incomplete, the gap goes back to step 1, not to the upstream
-   sources.
+   sources. Rule implementation notes (`NOTES.md`) are written by the
+   implementer, in their own words, and never quote upstream code or text.
 
 The spec is also the source of the user documentation: its *Summary* and
 *Options* sections become `custos explain` and the rule's page on this site,

@@ -16,7 +16,7 @@ array_rand returns a key rather than the selected element. Read the element at t
 
 - D1. Resolved array_rand with default or constant-one count operates on a known string-value list. Its result is passed directly to a consumer provably requiring one of those values (a local function with an explicit switch over the value literals). No name heuristic.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

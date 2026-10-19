@@ -16,7 +16,7 @@ Session identifier regeneration can fail. Check its result before establishing t
 
 - D1. Resolved session_regenerate_id result is discarded immediately before assignment of true to a configured authentication session key (default authenticated). Require explicit $_SESSION literal key and no result guard; ordinary regeneration excluded. The result is still discarded when the call statement is wrapped in parentheses or silenced with the `@` operator, in any nesting: suppressing the warning does not check the outcome. Any other wrapper (negation, cast, assignment, output) uses the result and is not reported.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

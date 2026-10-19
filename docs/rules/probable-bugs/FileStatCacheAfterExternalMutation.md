@@ -32,7 +32,7 @@ Reported:
 - D1. Repeated filesize/filemtime of same known literal path straddles resolved exec/system command with statically parseable literal touch/truncate/rm on that exact path. No intervening clearstatcache; unsupported shell quoting/operators excluded.
 - D2. Only targets up to PHP 8.2 are inspected: from PHP 8.3 on, exec and system drop the stat cache themselves, so the second read is already fresh.
 - D3. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D4. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D4. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

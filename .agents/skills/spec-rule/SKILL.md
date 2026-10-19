@@ -1,13 +1,14 @@
 ---
 name: spec-rule
-description: Write the clean-room behavioural spec (specs/<RuleID>.md) for one or more custos rules by studying the upstream Php Inspections EA inspection. Use when asked to spec a rule, a batch of rules, or a rule group.
+description: Write the clean-room behavioral spec (specs/<RuleID>.md) for one or more custos rules by studying the upstream Php Inspections EA inspection. Use when asked to spec a rule, a batch of rules, or a rule group.
 ---
 
 # spec-rule
 
 Produce `specs/<RuleID>.md` for each requested rule. You are the **only** step
 allowed to read the upstream EA sources; your output must let an implementer
-reproduce the behaviour **without** ever opening EA.
+reproduce the behavior **without** ever opening EA. Process:
+`docs/contributing/clean-room.md`.
 
 ## Inputs
 
@@ -32,9 +33,13 @@ reproduce the behaviour **without** ever opening EA.
 3. Read the test class to learn option values and PHP levels used.
 4. Copy `specs/_TEMPLATE.md` to `specs/<ID>.md` and fill every section:
    numbered detection conditions (D1…), exceptions (E1…), report range,
-   fix behaviour (F1…; the fix output is compared whitespace-normalised to EA's
+   fix behavior (F1…; the fix output is compared whitespace-normalized to EA's
    `.fixed` file, so be precise about produced code), options (names/defaults
    from `rules.json`, effect in your words), PHP-version gating.
+   Describe observable behavior only: no Go identifiers, repository paths,
+   analysis budgets or "Recommendation:" notes for implementers. Those belong
+   in the implementer's optional
+   `internal/inspection/rules/<lowercase-ID>/NOTES.md`, never in the spec.
 5. Write **new** examples: different identifiers, structure and values than
    any EA fixture; cover each D/E/F item at least once.
 6. Run `make rules-doc`.
@@ -46,9 +51,10 @@ reproduce the behaviour **without** ever opening EA.
       or lightly reworded) — write our own message wording.
 - [ ] No snippet copied or adapted from EA fixtures.
 - [ ] Every detection/exception/fix condition observed in EA is captured
-      (behaviour is not copyrightable — be exhaustive about it).
-- [ ] Ambiguities or likely upstream bugs listed under "Divergences" with a
-      recommendation.
+      (behavior is not copyrightable — be exhaustive about it).
+- [ ] Ambiguities or likely upstream bugs listed under "Divergences", stated
+      as the behavior custos adopts and why.
+- [ ] Behavior only: no Go identifiers, repo paths or implementation advice.
 
 ## Output
 

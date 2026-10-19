@@ -31,7 +31,7 @@ Reported:
 
 - D1. Resolve the attribute class and its builtin Attribute annotation; constant-fold the target bitmask (default TARGET_ALL). Report an application on a class, function, method, property, class constant or parameter whose corresponding bit is absent. This predicts failure of ReflectionAttribute::newInstance, not immediate parse failure. PHP 8.5 property hooks are method targets.
 - D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
@@ -43,8 +43,6 @@ A constructor-promoted parameter is also a property declaration. Accept attribut
 ## Fix
 
 No automatic fix. Choosing a repair requires runtime information, error-handling policy or a semantic decision.
-
-All edits use exact byte ranges, preserve comments and evaluation order, and require syntax supported by the target PHP version. A fix must never add an evaluation or silently change unrelated arguments.
 
 ## PHP versions
 

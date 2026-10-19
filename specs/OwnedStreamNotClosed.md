@@ -37,8 +37,6 @@ Detect an owned successfully opened stream leaving its local scope without close
 
 No automatic fix: adding finally may alter exception/return interactions and resource ownership.
 
-A fix is offered only when the concrete prerequisites above are proven. Edits use exact source byte ranges, preserve comments and argument evaluation order, and introduce syntax supported by the configured PHP version. Never invent error-handling policy.
-
 ## Options
 
 None. Enable or disable this rule through normal rule configuration.

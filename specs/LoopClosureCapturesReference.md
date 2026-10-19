@@ -16,7 +16,7 @@ Deferred closures that capture a loop counter by reference observe its later val
 
 - D1. A closure appended to a local array inside a for loop explicitly captures the loop counter by reference. The array is consumed after the loop and the closure body reads that counter in its own variable scope. Reads inside nested closures, arrow functions, functions or other variable scopes do not establish this proof. A plain assignment target is a write, not a read, and so are a foreach key or value target, a value slot of a `list()`/`[]` destructuring pattern (nested patterns included, in an assignment or a foreach target) and an `unset()` operand. Compound assignments and increments also read their target, as do a destructuring key expression and an element of an ordinary array value. Require no intervening overwrite or escape of the array.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

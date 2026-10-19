@@ -19,7 +19,7 @@ Check the XPath query result before accessing its nodes.
 - D1b. A test guards the dereference when its outcome is already decided on every path to it: the dereference sits in the matching branch of an `if` / `elseif` / `else` chain (an earlier condition of the chain having failed counts), in the matching arm of a full ternary, in the right operand of `&&` / `||` whose left operand decides it, or after an earlier statement of the same or an enclosing statement list that is an `if` without alternatives whose body always leaves the path when the result may be false. Any number of statements may separate that exit from the dereference.
 - D1c. The tested variable must hold the same reaching query result as the dereferenced one; a reassignment or invalidation between test and dereference discards the guard.
 - D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. Unsupported proof and exhausted analysis budgets produce no report.
+- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

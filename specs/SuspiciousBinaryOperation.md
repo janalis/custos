@@ -322,8 +322,8 @@ if ((!$x) < $y) {}
   replaced text inside the reported node is wrapped. If the target text also
   occurs elsewhere in the node (e.g. `if ($v = $v == 1)` contains `$v == 1`
   only once, fine; `!$a > !$a` would wrap both), the result differs from a
-  structural edit. Recommendation: do a structural edit (wrap only the
-  intended node); identical for all upstream fixtures.
+  structural edit. custos edits structurally (it wraps only the intended
+  node); the result is identical for all upstream fixtures.
 - **D10a keyword operators (custos diverges).** Upstream only looks at
   `&&` mixed with `||`, so the same ambiguity spelled with keywords
   (`$a and $b or $c`, `$a xor $b or $c`) goes unreported although `and`,
@@ -341,7 +341,7 @@ if ((!$x) < $y) {}
   still needs every type to be among the callee's return types.
 - F5 whitespace removal: upstream's formatter may also normalise other
   spacing in the generated node; only the space after `!` is observable in
-  fixtures. Keep the rest verbatim.
+  fixtures. custos keeps the rest verbatim.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,

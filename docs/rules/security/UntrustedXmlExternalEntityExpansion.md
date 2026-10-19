@@ -31,7 +31,7 @@ Reported:
 - D1a. Input must be a directly written array-field access on $_GET, $_POST, $_REQUEST or $_COOKIE. Stored local values and other superglobals are excluded.
 - D1b. Inspect at most 64 preceding statements in the same straight-line lexical prefix. Each must be an ordinary, non-reference simple-local assignment whose value is a resolved new DOMDocument expression with no constructor arguments. The assignment target must not be the same request-superglobal variable used by the input access. Any other preceding operation discards the untouched-input proof, including superglobal writes, sanitization calls and unknown operations. Constructors with any arguments are excluded, including otherwise harmless literal arguments, to keep the request-source proof conservative.
 - D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. Use existing analysis budgets; exhausted proof produces no report.
+- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 

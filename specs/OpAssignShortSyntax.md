@@ -173,3 +173,5 @@ expression → not reported, the same outcome as with the older precedence.
   rewrites whatever the fragments contain. custos withholds the fix when the
   moment the target is read differs between the two forms and a fragment may
   have an effect (F2); the report stays.
+
+Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.
