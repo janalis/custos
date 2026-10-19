@@ -134,6 +134,10 @@ func TestEdges(t *testing.T) {
 		{"$f=fopen($path,'a+');$g=fopen($o,'a+');if($f===false||$g===false){return;}ftruncate($g,0);if(fseek($f,0)!==0){return;}fwrite($f,'x');", 1},
 		{"$f=fopen($path,'a+');if($f===false){return;}$k=function($f){ftruncate($f,0);};if(fseek($f,0)!==0){return;}fwrite($f,'x');", 1},
 		{"$f=fopen($path,'a+');if($f===false){return;}if(fseek($f,0)!==0){return;}fwrite($f,'x');ftruncate($f,0);", 1},
+		// A seek that fails returns -1: leaving on it is a check too.
+		{"$f=fopen($path,'a+');if($f===false){return;}if(fseek($f,0)===-1){return;}fwrite($f,'x');", 1},
+		{"$f=fopen($path,'a+');if($f===false){return;}if(fseek($f,0)<0){return;}fwrite($f,'x');", 1},
+		{"$f=fopen($path,'a+');if($f===false){return;}if(fseek($f,0)>0){return;}fwrite($f,'x');", 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"AppendModeSeekUsedForOverwrite"}})

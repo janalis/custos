@@ -388,54 +388,17 @@ func NativeStreamMode(ctx *analysis.Context, h syntax.Expr, at syntax.Node) (str
 
 // NativeCallSucceeded reports whether call c is known to have succeeded at
 // at: the conditions on that very call guarding at rule its failure out.
-// fseek fails with -1 rather than false, and only a direct `=== 0` test or
-// a negation of the call written around at counts for it.
+// fseek fails with -1 rather than false: its result must be known to be 0.
 func NativeCallSucceeded(ctx *analysis.Context, c *syntax.FuncCall, at syntax.Node) bool {
 	x, ok := at.(syntax.Expr)
 	if !ok || NativeLabelled(ctx, x) {
 		return false
 	}
 	if NativeBuiltinName(ctx, c) == "fseek" {
-		return nativeSeekSucceeded(ctx, c, at)
+		return ctx.Types().Native().CallResultAsAt(c, x, types.Ints(types.IntRange{Lo: -1, Hi: 0})).IntsOnly(0, 0)
 	}
 	t := ctx.Types().Native().CallResultAt(c, x)
 	return !t.IsUnknown() && !nativeMayHold(t, "false")
-}
-
-// nativeSeekSucceeded finds `fseek(...) === 0` (or `!fseek(...)`) holding as
-// the condition of an if around at, or failing for an earlier sibling `if`
-// whose body leaves.
-func nativeSeekSucceeded(ctx *analysis.Context, c *syntax.FuncCall, at syntax.Node) bool {
-	accepts := func(cond syntax.Expr, truth bool) bool {
-		e := syntax.UnwrapParens(cond)
-		if u, ok := e.(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim && syntax.UnwrapParens(u.Expr) == c {
-			return truth // !fseek(...) holds when it returned 0
-		}
-		b, ok := e.(*syntax.Binary)
-		if !ok {
-			return false
-		}
-		equality := (truth && (b.Op.Kind == syntax.TIsIdentical || b.Op.Kind == syntax.TIsEqual)) || (!truth && (b.Op.Kind == syntax.TIsNotIdentical || b.Op.Kind == syntax.TIsNotEqual))
-		for _, pair := range [][2]syntax.Expr{{b.Left, b.Right}, {b.Right, b.Left}} {
-			if equality && syntax.UnwrapParens(pair[0]) == c {
-				v, k := NativeInt(ctx, pair[1])
-				return k && v == 0
-			}
-		}
-		return false
-	}
-	for p := at; p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
-		if branch, ok := p.(*syntax.If); ok && branch.Body.Span().Contains(at.Span()) && accepts(branch.Cond, true) {
-			return true
-		}
-		if st, ok := p.(syntax.Stmt); ok {
-			prev, exists := astquery.PrevStmt(ctx.File, st)
-			if guard, ok := prev.(*syntax.If); exists && ok && guard.Else == nil && len(guard.ElseIfs) == 0 && syntax.Terminates(guard.Body) && accepts(guard.Cond, false) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // NativeStreamCalls includes guarded stream operations preceding the use.
