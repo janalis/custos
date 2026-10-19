@@ -102,3 +102,15 @@ function guardAroundSwitchAndTry($mode) {
             }
     }
 }
+function testedInsideSuccessBranch() {
+    $pid = pcntl_fork();
+    if ($pid !== -1) {
+        if ($pid) { echo 'parent'; }
+    }
+}
+function testedInsideNonNegativeBranch() {
+    $pid = pcntl_fork();
+    if ($pid >= 0) {
+        if (!$pid) { echo 'child'; }
+    }
+}
