@@ -113,3 +113,45 @@ function f($h) {
 		}
 	}
 }
+
+// A needle found in a haystack proves the haystack was not null or false,
+// which read as ''.
+func TestNeedleFound(t *testing.T) {
+	src := `<?php
+function f(?string $s, $n) {
+    if (str_contains($s, 'a')) { u($s); }
+    if (str_starts_with($s, '')) { u($s); }
+    if (strpos($s, 'a') !== false) { u($s); }
+    if (false !== stripos($s, 'a')) { u($s); }
+    if (strpos($s, 'a') === false) { u($s); }
+    if (strstr($s, 'a')) { u($s); }
+    if (!str_ends_with($s, 'a')) { u($s); }
+    if (str_contains($s, $n)) { u($s); }
+    if (str_contains($n, 'a')) { u($s); }
+    if (str_contains(haystack: $s, needle: 'a')) { u($s); }
+    if (str_contains($s, 'a', 3)) { u($s); }
+    if ($s[0] === 'a') { u($s); }
+    if (str_contains($s, 'a', haystack: $s)) { u($s); }
+    if (false === $i = strpos($s, 'a')) { return; } u($s);
+}`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok && c.Name.(*syntax.Name).Value == "u" {
+			got = append(got, env.TypeOf(c.Args.Args[0].(*syntax.Arg).Value).String())
+		}
+		return true
+	})
+	want := []string{"string", "null|string", "string", "string", "null|string", "string", "null|string", "null|string", "null|string", "string", "string", "string", "null|string", "string"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("use %d: got %s want %s", i+1, got[i], want[i])
+		}
+	}
+}

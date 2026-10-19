@@ -191,6 +191,13 @@ func (e *Env) eqCond(t types.Type, c *syntax.Binary, name string, truthy bool, s
 			continue
 		}
 		b := lit == "true"
+		searched := p[1]
+		if a, ok := searched.(*syntax.Assign); ok && a.Op.Kind == syntax.TEqual && !a.ByRef {
+			searched = syntax.UnwrapParens(a.Value) // `false === $i = strpos($x, 'a')`
+		}
+		if call, ok := searched.(*syntax.FuncCall); ok && lit == "false" && !holds && e.needleFound(call, name) {
+			return t.Without("null", "false") // `strpos($x, 'a') !== false`: found
+		}
 		switch {
 		case holds:
 			// Equal to true is truthy, to false falsy (strictly or not).

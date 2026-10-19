@@ -184,6 +184,9 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			}
 			return falsyType(t)
 		}
+		if truthy && e.needleFound(c, name) {
+			return t.Without("null", "false")
+		}
 		if r, ok := e.condAsserts(c, name, truthy, t); ok {
 			return r
 		}
@@ -222,6 +225,61 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		return narrowAtoms(t, atoms, truthy)
 	}
 	return t
+}
+
+// needleSearches are the builtins that find a needle in a haystack: a true
+// (truthy) result means it was found, which an empty haystack never allows.
+var needleSearches = map[string]bool{
+	"str_contains": true, "str_starts_with": true, "str_ends_with": true,
+	"strpos": true, "stripos": true, "strrpos": true, "strripos": true,
+	"strstr": true, "stristr": true, "strrchr": true,
+}
+
+// needleFound reports whether c searches haystack name for a non-empty
+// literal needle (`str_contains($x, 'a')`, `strpos($x, 'a')`): where it
+// succeeds, name was neither null nor false, which read as ''.
+func (e *Env) needleFound(c *syntax.FuncCall, name string) bool {
+	nm, ok := c.Name.(*syntax.Name)
+	if !ok || c.Args == nil || !needleSearches[strings.ToLower(strings.TrimPrefix(nm.Value, `\`))] || !e.isBuiltinCall(c) {
+		return false
+	}
+	// The haystack and the needle, by position or by name (`haystack:`,
+	// `needle:`); any other argument (an offset) keeps the proof.
+	var hay, needle syntax.Expr
+	for i, x := range c.Args.Args {
+		a, ok := x.(*syntax.Arg)
+		if !ok || a.Unpack {
+			return false
+		}
+		slot := i
+		if a.Name != nil {
+			switch strings.ToLower(a.Name.Value) {
+			case "haystack":
+				slot = 0
+			case "needle":
+				slot = 1
+			default:
+				continue
+			}
+		}
+		switch {
+		case slot == 0 && hay == nil:
+			hay = a.Value
+		case slot == 1 && needle == nil:
+			needle = a.Value
+		case slot < 2:
+			return false // given twice: the call throws
+		}
+	}
+	if hay == nil || needle == nil || !isVar(hay, name) {
+		return false
+	}
+	l, ok := syntax.UnwrapParens(needle).(*syntax.Literal)
+	if !ok || l.LitKind != syntax.LitString {
+		return false
+	}
+	text, ok := syntax.LiteralStringValue(l)
+	return ok && text != ""
 }
 
 // issetOffset narrows r, the type of name, where `isset($x[k])` holds with

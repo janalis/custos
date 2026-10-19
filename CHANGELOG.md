@@ -111,6 +111,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   `isset($d[3], $other)`, an exit followed by `else`/`elseif`, an `elseif`
   condition after a failed length test and `while` conditions now count,
   and a decode in a branch the length tests contradict is not reported.
+- PregReplaceFailureUnchecked reads string tests (`str_ends_with`,
+  `strpos(...) !== false`, offsets) from type narrowing, which also covers
+  `stripos`, `strstr` and the other substring searches.
 - ConnectTimeoutAssumedToBoundReads reads a checked `stream_set_timeout()`
   through type narrowing: `stream_set_timeout($s, 2) or exit;` and a result
   kept in a boolean now count.
@@ -136,6 +139,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   that never runs, not as a proof.
 - A guard written before a variable is assigned in a later condition
   (`if ($x = f())`) no longer narrows the new value.
+- A needle found in a haystack (`str_contains($x, 'a')`, `strpos($x, 'a')
+  !== false`, also with named arguments) rules out null and false for the
+  haystack.
 - A comparison of `strlen($x)` with an integer that rules out length 0
   rules out null and false for `$x` (`strlen($p) > 0` after `parse_url()`).
 - A true `array_key_exists($key, $a)` narrows `$a` to an array whatever the
