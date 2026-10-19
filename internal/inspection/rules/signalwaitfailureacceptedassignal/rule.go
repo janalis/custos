@@ -9,6 +9,7 @@ import (
 	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Reject signal-wait failure before handling the result."
@@ -125,113 +126,12 @@ func aliased(v *syntax.Variable) bool {
 	return false
 }
 
-// failureRejected reports whether every path to value passed a comparison
-// that excludes -1, made after the wait call c returned: an enclosing
-// condition, or an earlier sibling `if` whose body leaves the block.
+// failureRejected reports whether the tests on the wait result guarding
+// value, a use of it, have ruled out the failure value -1.
 func failureRejected(ctx *analysis.Context, c *syntax.FuncCall, value syntax.Expr) bool {
-	excludes := func(cond syntax.Expr, truth bool) bool {
-		return cond.Span().Start >= c.Span().End && rejects(ctx, c, value, cond, truth)
+	if semanticquery.NativeLabelled(ctx, value) {
+		return false
 	}
-	for child := syntax.Node(value); child != nil && !syntax.IsVariableScope(child); child = child.Parent() {
-		parent := child.Parent()
-		switch p := parent.(type) {
-		case *syntax.If:
-			if child == syntax.Node(p.Body) {
-				if excludes(p.Cond, true) {
-					return true
-				}
-			} else if child != syntax.Node(p.Cond) {
-				if excludes(p.Cond, false) {
-					return true
-				}
-				for _, branch := range p.ElseIfs {
-					if syntax.Node(branch) == child {
-						break
-					}
-					if excludes(branch.Cond, false) {
-						return true
-					}
-				}
-			}
-		case *syntax.ElseIf:
-			if child == syntax.Node(p.Body) && excludes(p.Cond, true) {
-				return true
-			}
-		case *syntax.Ternary:
-			if child != syntax.Node(p.Cond) && excludes(p.Cond, child != syntax.Node(p.Else)) {
-				return true
-			}
-		case *syntax.Binary:
-			if child == syntax.Node(p.Right) {
-				switch p.Op.Kind {
-				case syntax.TBooleanAnd, syntax.TAnd:
-					if excludes(p.Left, true) {
-						return true
-					}
-				case syntax.TBooleanOr, syntax.TOr:
-					if excludes(p.Left, false) {
-						return true
-					}
-				}
-			}
-		}
-		list, _ := syntax.StmtListOf(parent)
-		if parent == nil {
-			list = ctx.File.Stmts
-		}
-		for _, st := range list {
-			if st.Span().Start >= child.Span().Start {
-				break
-			}
-			if guard, ok := st.(*syntax.If); ok && syntax.Terminates(guard.Body) && excludes(guard.Cond, false) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// rejects reports whether cond evaluating to truth proves the tracked value
-// is not -1, from integer comparisons joined by !, && and ||.
-func rejects(ctx *analysis.Context, c *syntax.FuncCall, value, cond syntax.Expr, truth bool) bool {
-	switch x := syntax.UnwrapParens(cond).(type) {
-	case *syntax.Unary:
-		return x.Op.Kind == syntax.TExclaim && rejects(ctx, c, value, x.Expr, !truth)
-	case *syntax.Binary:
-		switch x.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TAnd:
-			return truth && (rejects(ctx, c, value, x.Left, true) || rejects(ctx, c, value, x.Right, true))
-		case syntax.TBooleanOr, syntax.TOr:
-			return !truth && (rejects(ctx, c, value, x.Left, false) || rejects(ctx, c, value, x.Right, false))
-		}
-		for i, pair := range [][2]syntax.Expr{{x.Left, x.Right}, {x.Right, x.Left}} {
-			bound, ok := semanticquery.NativeInt(ctx, pair[1])
-			if !ok || !(astquery.Equivalent(ctx.File, value, pair[0]) || semanticquery.NativeLocalValue(ctx, pair[0]) == c) {
-				continue
-			}
-			left, right := int64(-1), bound
-			if i == 1 {
-				left, right = bound, -1
-			}
-			var holds bool
-			switch x.Op.Kind {
-			case syntax.TIsEqual, syntax.TIsIdentical:
-				holds = left == right
-			case syntax.TIsNotEqual, syntax.TIsNotIdentical:
-				holds = left != right
-			case syntax.TLess:
-				holds = left < right
-			case syntax.TIsSmallerOrEqual:
-				holds = left <= right
-			case syntax.TGreater:
-				holds = left > right
-			case syntax.TIsGreaterOrEqual:
-				holds = left >= right
-			default:
-				return false
-			}
-			return holds != truth
-		}
-	}
-	return false
+	t := ctx.Types().Native().CallResultAsAt(c, value, types.Ints(types.IntRange{Lo: -1, Hi: math.MaxInt64}))
+	return !t.IsUnknown() && !t.HasInt(-1)
 }

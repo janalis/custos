@@ -98,6 +98,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - ForkFailureTreatedAsParent reads the fork result through integer
   narrowing: a test inside `if ($pid !== -1)` or `if ($pid >= 0)` no
   longer reports.
+- SignalWaitFailureAcceptedAsSignal reads the wait result through integer
+  narrowing, which also follows `while` conditions.
 - ConnectTimeoutAssumedToBoundReads reads a checked `stream_set_timeout()`
   through type narrowing: `stream_set_timeout($s, 2) or exit;` and a result
   kept in a boolean now count.
