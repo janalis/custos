@@ -204,9 +204,18 @@ func (e *Env) traversal(cls string, args []types.Type) (k, v types.Type) {
 
 // iterTypes returns the key and value types of iterating a value of type
 // t that has non-array members: `T[]` members, `iterable<…>` and
-// Traversable classes with bound generic arguments. Each is unknown when a
+// Traversable classes with bound generic arguments, else typed by the
+// methods foreach calls on them (see iterMethods). Each is unknown when a
 // member's is unknown or mixed.
 func (e *Env) iterTypes(t types.Type) (key, val types.Type) {
+	return e.iterTypesAt(t, 0)
+}
+
+// maxIterHops bounds the getIterator() results iterMethods follows (an
+// aggregate may return another aggregate).
+const maxIterHops = 4
+
+func (e *Env) iterTypesAt(t types.Type, hops int) (key, val types.Type) {
 	t = t.Without("null", "false")
 	if t.IsUnknown() || len(t.Atoms()) == 0 {
 		return types.Unknown, types.Unknown
@@ -243,6 +252,16 @@ func (e *Env) iterTypes(t types.Type) (key, val types.Type) {
 			}
 		case strings.HasPrefix(a, `\`):
 			k, v = e.traversal(a, t.TypeArgs(a))
+			if v.IsUnknown() || v.Has("mixed") {
+				// Bound generic arguments win; the methods fill the rest.
+				mk, mv := e.iterMethods(a, t.TypeArgs(a), hops)
+				if !mv.IsUnknown() && !mv.Has("mixed") {
+					v = mv
+				}
+				if k.IsUnknown() || k.Has("mixed") {
+					k = mk
+				}
+			}
 		}
 		ks, vs = append(ks, k), append(vs, v)
 	}
@@ -255,4 +274,21 @@ func (e *Env) iterTypes(t types.Type) (key, val types.Type) {
 		return types.Union(ts...)
 	}
 	return join(ks), join(vs)
+}
+
+// iterMethods types iterating class a when its Traversable templates are
+// not bound, from the methods foreach calls: getIterator() of an
+// IteratorAggregate, whose result is iterated in turn, or current() and
+// key() of an Iterator. An override can only narrow those return types.
+func (e *Env) iterMethods(a string, args []types.Type, hops int) (k, v types.Type) {
+	cls := strings.TrimPrefix(a, `\`)
+	switch {
+	case e.Index.IsSubtype(cls, "IteratorAggregate", e.PHP):
+		if hops < maxIterHops {
+			return e.iterTypesAt(e.methodReturn(cls, "getIterator", true, cls, args, nil), hops+1)
+		}
+	case e.Index.IsSubtype(cls, "Iterator", e.PHP):
+		return e.methodReturn(cls, "key", true, cls, args, nil), e.methodReturn(cls, "current", true, cls, args, nil)
+	}
+	return types.Unknown, types.Unknown
 }
