@@ -36,6 +36,8 @@ func TestStaticLocalAcrossReentry(t *testing.T) {
 		{"walked test, call after the use", static + walked + use + " $o->run(); }", 0},
 		{"call, walked test, use", static + "$o->run(); " + walked + use + " }", 0},
 		{"walked test, builtin call, use", static + walked + "strlen('a'); " + use + " }", 0},
+		{"walked test, builtin given a callback, use", static + walked + "array_map($k, [1]); " + use + " }", 1},
+		{"strict test, builtin given a callback, use", static + strict + "array_map($k, [1]); " + use + " }", 1},
 		{"walked test, call on one path, use", static + walked + "if ($k) { $o->run(); } " + use + " }", 1},
 		{"walked test, use and call in a loop", static + walked + "foreach ($k as $e) { " + use + " $o->run(); } }", 1},
 		{"walked test and use in a loop with a call", static + "foreach ($k as $e) { " + walked + use + " $o->run(); } }", 0},
