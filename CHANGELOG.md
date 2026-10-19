@@ -75,6 +75,7 @@ versions follow [Semantic Versioning](https://semver.org/).
 - IntlFormattingFailureUnchecked reads its guards from type narrowing.
 - RealpathFailureUsedAsPath reads its guards from type narrowing, including
   a test between the path join and the call that consumes it.
+- FilePermissionFailurePassesPolicy reads its guards from type narrowing.
 
 ### Fixed
 

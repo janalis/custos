@@ -5,6 +5,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Reject permission lookup failure before checking bits."
@@ -38,7 +39,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c, ck := semanticquery.NativeLocalBuiltinResult(ctx, mask.Left, "false", "fileperms").(*syntax.FuncCall)
-	if !ck || !semanticquery.NativeBuiltin(ctx, c, "fileperms") || !semanticquery.NativeFailureFlowOnly(ctx, mask.Left) && semanticquery.NativeLocalSentinelGuard(ctx, mask.Left, "false") || ctx.Flow().Excludes(mask.Left, "false") || !semanticquery.NativeFailureFlowOnly(ctx, mask.Left) && failureRejected(ctx, mask.Left) {
+	if !ck || !semanticquery.NativeBuiltin(ctx, c, "fileperms") || ctx.Flow().Excludes(mask.Left, "false") || !semanticquery.NativeFailureFlowOnly(ctx, mask.Left) && semanticquery.NativeNarrowedExcludes(ctx, mask.Left, types.Of("int", "false"), "false") {
 		return
 	}
 	branch, ok := b.Parent().(*syntax.If)
