@@ -386,31 +386,40 @@ func NativeStreamMode(ctx *analysis.Context, h syntax.Expr, at syntax.Node) (str
 	return mode, true
 }
 
-// NativeCallSucceeded recognizes a direct successful condition dominating at.
+// NativeCallSucceeded reports whether call c is known to have succeeded at
+// at: the conditions on that very call guarding at rule its failure out.
+// fseek fails with -1 rather than false, and only a direct `=== 0` test or
+// a negation of the call written around at counts for it.
 func NativeCallSucceeded(ctx *analysis.Context, c *syntax.FuncCall, at syntax.Node) bool {
+	x, ok := at.(syntax.Expr)
+	if !ok || NativeLabelled(ctx, x) {
+		return false
+	}
+	if NativeBuiltinName(ctx, c) == "fseek" {
+		return nativeSeekSucceeded(ctx, c, at)
+	}
+	t := ctx.Types().Native().CallResultAt(c, x)
+	return !t.IsUnknown() && !nativeMayHold(t, "false")
+}
+
+// nativeSeekSucceeded finds `fseek(...) === 0` (or `!fseek(...)`) holding as
+// the condition of an if around at, or failing for an earlier sibling `if`
+// whose body leaves.
+func nativeSeekSucceeded(ctx *analysis.Context, c *syntax.FuncCall, at syntax.Node) bool {
 	accepts := func(cond syntax.Expr, truth bool) bool {
 		e := syntax.UnwrapParens(cond)
-		if e == c {
-			return truth && NativeBuiltinName(ctx, c) != "fseek"
-		}
 		if u, ok := e.(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim && syntax.UnwrapParens(u.Expr) == c {
-			return !truth && NativeBuiltinName(ctx, c) != "fseek"
+			return truth == false
 		}
-		if b, ok := e.(*syntax.Binary); ok {
-			equality := (truth && (b.Op.Kind == syntax.TIsIdentical || b.Op.Kind == syntax.TIsEqual)) || (!truth && (b.Op.Kind == syntax.TIsNotIdentical || b.Op.Kind == syntax.TIsNotEqual))
-			if !equality {
-				return false
-			}
-			for _, pair := range [][2]syntax.Expr{{b.Left, b.Right}, {b.Right, b.Left}} {
-				if syntax.UnwrapParens(pair[0]) != c {
-					continue
-				}
-				if NativeBuiltin(ctx, c, "fseek") {
-					v, k := NativeInt(ctx, pair[1])
-					return k && v == 0
-				}
-				v, k := NativeTruth(ctx, pair[1])
-				return k && v
+		b, ok := e.(*syntax.Binary)
+		if !ok {
+			return false
+		}
+		equality := (truth && (b.Op.Kind == syntax.TIsIdentical || b.Op.Kind == syntax.TIsEqual)) || (!truth && (b.Op.Kind == syntax.TIsNotIdentical || b.Op.Kind == syntax.TIsNotEqual))
+		for _, pair := range [][2]syntax.Expr{{b.Left, b.Right}, {b.Right, b.Left}} {
+			if equality && syntax.UnwrapParens(pair[0]) == c {
+				v, k := NativeInt(ctx, pair[1])
+				return k && v == 0
 			}
 		}
 		return false

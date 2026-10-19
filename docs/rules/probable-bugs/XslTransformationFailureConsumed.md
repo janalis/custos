@@ -18,7 +18,7 @@ Identify transformToXML result on a resolved XSLTProcessor passed directly or un
 - D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
 - D4. A value counts as having rejected false when the use is dominated by a test of the same unchanged value that cannot pass for false:
   - a strict comparison with `false` (`!== false` branch, or a terminating `=== false` guard);
-  - a truthiness test (`if ($out)`, `if (!$out) { return; }`, `empty($out)`), since false and null are both falsy;
+  - a truthiness test (`if ($out)`, `if (!$out) { return; }`, `empty($out)`, also silenced: `if (@$out)`), since false and null are both falsy;
   - a loose comparison with `false` (`!= false` branch, terminating `== false` guard);
   - a resolved builtin `is_string()` test.
   The test may be the condition of an enclosing `if`/`elseif`/`else` branch or ternary arm, the left operand of a short-circuit `&&`/`||`/`and`/`or` whose right operand holds the use, or an earlier sibling `if` without `else`/`elseif` whose body always terminates. Negation and parentheses are followed. A conjunction that held, or a disjunction that failed, proves what either operand proves; a conjunction that failed, or a disjunction that held, proves only what both operands prove (`if ($out || is_string($out))`, `if ($out === false && !is_string($out)) { return; }`). An assignment of the call inside the condition is the tested value.

@@ -119,7 +119,7 @@ func TestEdges(t *testing.T) {
 		want int
 	}{
 		{"$f=fopen($p,'w+');if($f===false){return;}if(fseek($f,10)===0){if(ftruncate($f,0)){if(rewind($f)){fwrite($f,'x');}}}", 0},
-		{"$f=fopen($p,'w+');if($f===false){return;}if(fseek($f,0)===0){if(fwrite($f,'abc')===true){if(ftruncate($f,0)){fwrite($f,'x');}}}", 1},
+		{"$f=fopen($p,'w+');if($f===false){return;}if(fseek($f,0)===0){if(fwrite($f,'abc')!==false){if(ftruncate($f,0)){fwrite($f,'x');}}}", 1},
 		{"$f=fopen($p,'w+');if($f===false){return;}fseek($f,$offset);if(ftruncate($f,0)){fwrite($f,'x');}", 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {

@@ -26,7 +26,7 @@ func NativeNarrowedExcludes(ctx *analysis.Context, x syntax.Expr, seed types.Typ
 	default:
 		return false
 	}
-	return !t.IsUnknown() && !t.Has(atom)
+	return !t.IsUnknown() && !nativeMayHold(t, atom)
 }
 
 // NativeNarrowedExcludesAt reports whether the conditions guarding at, a
@@ -43,5 +43,11 @@ func NativeNarrowedExcludesAt(ctx *analysis.Context, x, at syntax.Expr, atom str
 		return false
 	}
 	t := env.TypeOfVarAt(v.Name, at)
-	return !t.IsUnknown() && !t.Has(atom)
+	return !t.IsUnknown() && !nativeMayHold(t, atom)
+}
+
+// nativeMayHold reports whether a value of type t may be atom (`null`,
+// `false`): t names it, or a type that includes it (`bool`, `mixed`).
+func nativeMayHold(t types.Type, atom string) bool {
+	return t.HasAny(atom, "mixed") || atom == "false" && t.Has("bool")
 }
