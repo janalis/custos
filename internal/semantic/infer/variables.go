@@ -52,6 +52,9 @@ type scopeVars struct {
 	// (see noteDynamic); dynamic is set by any of them.
 	clobbers []uint32
 	dynamic  bool
+	// statics holds the static locals of the scope: a call that enters the
+	// function again may assign them (see condAt).
+	statics map[string]bool
 }
 
 // widenElem unions the element type el of the array read by n with every
@@ -569,9 +572,16 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 				}
 			case *syntax.Global, *syntax.StaticStmt:
 				// types.Unknown provenance.
+				_, static := n.(*syntax.StaticStmt)
 				syntax.Inspect(n, func(m syntax.Node) bool {
 					if v, ok := m.(*syntax.Variable); ok {
 						add(v.Name, v.Span().Start, func() types.Type { return types.Unknown })
+						if static {
+							if sv.statics == nil {
+								sv.statics = map[string]bool{}
+							}
+							sv.statics[v.Name] = true
+						}
 					}
 					return true
 				})

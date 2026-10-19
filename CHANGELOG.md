@@ -60,6 +60,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 - A condition on a property no longer narrows the property after it is
   reassigned inside the guarded branch.
+- A condition on a `static` local no longer narrows it past a call that may
+  run the function again and assign it.
 
 ### Security
 

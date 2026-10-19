@@ -255,6 +255,9 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 	if isPropKey(key) && !isDimKey(key) && r.ShapeString() != t.ShapeString() && e.brokenBy(scope, from, use, e.mutations(scope, key)) {
 		return t // the property itself was written since
 	}
+	if !isPropKey(key) && !isDimKey(key) && r.ShapeString() != t.ShapeString() && e.scopeVars(scope).statics[key] && e.brokenBy(scope, from, use, e.mutations(scope, anyCall)) {
+		return t // a call may enter the function again and assign its static local
+	}
 	if isDimKey(key) {
 		// An element is narrowed only while neither it nor its array can
 		// have changed since the condition.

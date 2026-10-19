@@ -127,3 +127,17 @@ class A {
 }
 `, map[string]string{"reassigned": "null|string", "afterCall": "string", "static": "string", "staticElse": "null|string"})
 }
+
+// A call that may enter the function again ends what a condition proved of
+// a static local; a builtin call does not, nor does a call before the test.
+func TestStaticLocalNarrowingEndsAtCalls(t *testing.T) {
+	checkWith(t, nil, `<?php
+function g(): ?string { return null; }
+class O { function run(): void {} }
+function guarded() { static $s; $s = g(); if ($s === null) { return; } t('guarded', $s); }
+function builtin() { static $s; $s = g(); if ($s === null) { return; } strlen('a'); t('afterBuiltin', $s); }
+function called(O $o) { static $s; $s = g(); if ($s === null) { return; } $o->run(); t('afterCall', $s); }
+function before(O $o) { static $s; $s = g(); $o->run(); if ($s === null) { return; } t('callBefore', $s); }
+function plain(O $o) { $p = g(); if ($p === null) { return; } $o->run(); t('plain', $p); }
+`, map[string]string{"guarded": "string", "afterBuiltin": "string", "afterCall": "null|string", "callBefore": "string", "plain": "string"})
+}
