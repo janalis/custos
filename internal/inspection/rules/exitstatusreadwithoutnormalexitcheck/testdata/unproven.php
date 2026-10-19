@@ -19,9 +19,9 @@ function nonBlocking(int $pid) {
     return null;
 }
 function weakBounds(int $pid) {
-    $r = pcntl_waitpid($pid, $status);
+    $r = pcntl_waitpid($pid, $status, WNOHANG);
     if ($r >= 0 && pcntl_wifexited($status)) { return <warning descr="Check normal termination before decoding the exit code.">pcntl_wexitstatus($status)</warning>; }
-    $r = pcntl_waitpid($pid, $status);
+    $r = pcntl_waitpid($pid, $status, WNOHANG);
     if ($r > -1 && pcntl_wifexited($status)) { return <warning descr="Check normal termination before decoding the exit code.">pcntl_wexitstatus($status)</warning>; }
     $r = pcntl_waitpid($pid, $status);
     if ($r !== 0 && pcntl_wifexited($status)) { return <warning descr="Check normal termination before decoding the exit code.">pcntl_wexitstatus($status)</warning>; }

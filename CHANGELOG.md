@@ -100,6 +100,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   longer reports.
 - SignalWaitFailureAcceptedAsSignal reads the wait result through integer
   narrowing, which also follows `while` conditions.
+- ExitStatusReadWithoutNormalExitCheck reads the wait result through integer
+  narrowing: after a blocking wait, which never returns 0, `$r >= 0` and
+  `$r > -1` prove the wait succeeded.
 - ConnectTimeoutAssumedToBoundReads reads a checked `stream_set_timeout()`
   through type narrowing: `stream_set_timeout($s, 2) or exit;` and a result
   kept in a boolean now count.

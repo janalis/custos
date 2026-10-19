@@ -74,3 +74,11 @@ function directResult(int $pid) {
     }
     return null;
 }
+function blockingBounds(int $pid) {
+    // A blocking wait returns a child pid or -1: excluding -1 is enough.
+    $r = pcntl_waitpid($pid, $status);
+    if ($r >= 0 && pcntl_wifexited($status)) { return pcntl_wexitstatus($status); }
+    $r = pcntl_waitpid($pid, $status);
+    if ($r > -1 && pcntl_wifexited($status)) { return pcntl_wexitstatus($status); }
+    return null;
+}

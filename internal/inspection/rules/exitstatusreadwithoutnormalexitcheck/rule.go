@@ -2,10 +2,12 @@
 package exitstatusreadwithoutnormalexitcheck
 
 import (
+	"math"
+
 	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Check normal termination before decoding the exit code."
@@ -30,137 +32,40 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if wait == nil {
 		return
 	}
-	p := proof{ctx: ctx, wait: wait, status: input, blocking: semanticquery.CallArgument(wait.Args, flags, "flags") == nil}
-	for child, parent := syntax.Node(c), c.Parent(); parent != nil; child, parent = parent, parent.Parent() {
-		switch x := parent.(type) {
-		case *syntax.If:
-			if child == x.Body {
-				p.assume(x.Cond, true)
-			} else if child != x.Cond {
-				// An elseif or else branch runs only after every earlier condition failed.
-				p.assume(x.Cond, false)
-				for _, earlier := range x.ElseIfs {
-					if earlier.Span().Start < child.Span().Start {
-						p.assume(earlier.Cond, false)
-					}
-				}
-			}
-		case *syntax.ElseIf:
-			if child == x.Body {
-				p.assume(x.Cond, true)
-			}
-		case *syntax.Ternary:
-			switch child {
-			case x.Then:
-				p.assume(x.Cond, true)
-			case x.Else:
-				p.assume(x.Cond, false)
-			}
-		case *syntax.Binary:
-			if child == x.Right {
-				switch x.Op.Kind {
-				case syntax.TBooleanAnd, syntax.TAnd:
-					p.assume(x.Left, true)
-				case syntax.TBooleanOr, syntax.TOr:
-					p.assume(x.Left, false)
-				}
-			}
-		}
-		if _, ok := parent.(syntax.Stmt); !ok {
-			continue
-		}
-		// Falling past a guard whose body always leaves proves its condition failed.
-		for _, prior := range flowquery.NativePriorStatements(ctx.File, parent) {
-			if guard, ok := prior.(*syntax.If); ok && syntax.Terminates(guard.Body) {
-				p.assume(guard.Cond, false)
-			}
-		}
-	}
-	if p.success && p.exited {
-		return
-	}
-
-	ctx.ReportNode(c, message)
-}
-
-// proof accumulates what the conditions dominating the decoded status establish.
-type proof struct {
-	ctx             *analysis.Context
-	wait            *syntax.FuncCall
-	status          syntax.Expr
-	blocking        bool // flags omitted: the result is a child pid or -1
-	success, exited bool
-}
-
-var (
-	mirrored = map[syntax.TokenKind]syntax.TokenKind{
-		syntax.TLess: syntax.TGreater, syntax.TGreater: syntax.TLess,
-		syntax.TIsSmallerOrEqual: syntax.TIsGreaterOrEqual, syntax.TIsGreaterOrEqual: syntax.TIsSmallerOrEqual,
-	}
-	// Only operators whose negation can prove a successful wait are listed.
-	negated = map[syntax.TokenKind]syntax.TokenKind{
-		syntax.TLess: syntax.TIsGreaterOrEqual, syntax.TIsSmallerOrEqual: syntax.TGreater,
-		syntax.TIsIdentical: syntax.TIsNotIdentical, syntax.TIsEqual: syntax.TIsNotEqual,
-	}
-)
-
-// assume records the facts that follow from e evaluating to truth.
-func (p *proof) assume(e syntax.Expr, truth bool) {
-	switch x := syntax.UnwrapParens(e).(type) {
-	case *syntax.Unary:
-		if x.Op.Kind == syntax.TExclaim {
-			p.assume(x.Expr, !truth)
-		}
-	case *syntax.Binary:
-		switch x.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TAnd:
-			if truth {
-				p.assume(x.Left, true)
-				p.assume(x.Right, true)
-			}
-		case syntax.TBooleanOr, syntax.TOr:
-			if !truth {
-				p.assume(x.Left, false)
-				p.assume(x.Right, false)
-			}
-		default:
-			p.compare(x, truth)
-		}
-	case *syntax.FuncCall:
-		// A check placed before the wait describes an older status value.
-		if truth && x.Span().Start > p.wait.Span().End && semanticquery.NativeBuiltin(p.ctx, x, "pcntl_wifexited") && semanticquery.ExpansionCSame(p.ctx, p.status, semanticquery.CallArgument(x.Args, 0, "status")) {
-			p.exited = true
-		}
+	blocking := semanticquery.CallArgument(wait.Args, flags, "flags") == nil
+	if semanticquery.NativeLabelled(ctx, c) || !waited(ctx, wait, c, blocking) || !exited(ctx, wait, input, c) {
+		ctx.ReportNode(c, message)
 	}
 }
 
-// compare recognises a comparison of the wait result with an integer, in
-// either operand order, that rules out a failed or empty wait.
-func (p *proof) compare(b *syntax.Binary, truth bool) {
-	op, subject := b.Op.Kind, b.Left
-	bound, known := semanticquery.NativeInt(p.ctx, b.Right)
-	if !known {
-		if bound, known = semanticquery.NativeInt(p.ctx, b.Left); !known {
-			return
+// waited reports whether the wait result is known to be a child pid where
+// read runs: it fails with -1 and, unless it blocks (flags omitted), may
+// also return 0 when no child changed state.
+func waited(ctx *analysis.Context, wait, read *syntax.FuncCall, blocking bool) bool {
+	seed := types.Ints(types.IntRange{Lo: -1, Hi: math.MaxInt64})
+	if blocking {
+		seed = types.Ints(types.IntRange{Lo: -1, Hi: -1}, types.IntRange{Lo: 1, Hi: math.MaxInt64})
+	}
+	return ctx.Types().Native().CallResultAsAt(wait, read, seed).IntsOnly(1, math.MaxInt64)
+}
+
+// exited reports whether a pcntl_wifexited() test of the status, made after
+// the wait, is known to have returned true where read runs.
+func exited(ctx *analysis.Context, wait *syntax.FuncCall, status syntax.Expr, read *syntax.FuncCall) bool {
+	found := false
+	visit := func(n syntax.Node) bool {
+		if found || n.Span().Start >= read.Span().Start || n != syntax.EnclosingVariableScope(read) && syntax.IsVariableScope(n) {
+			return false
 		}
-		subject = b.Right
-		if flipped, ok := mirrored[op]; ok {
-			op = flipped
+		if call, ok := n.(*syntax.FuncCall); ok && call.Span().Start > wait.Span().End && semanticquery.NativeBuiltin(ctx, call, "pcntl_wifexited") && semanticquery.ExpansionCSame(ctx, status, semanticquery.CallArgument(call.Args, 0, "status")) {
+			found = ctx.Types().Native().CallResultAt(call, read).OnlyOf("true")
 		}
+		return !found
 	}
-	if semanticquery.NativeValue(p.ctx, subject) != p.wait {
-		return
+	if scope := syntax.EnclosingVariableScope(read); scope != nil {
+		syntax.Inspect(scope, visit)
+	} else {
+		syntax.InspectFile(ctx.File, visit)
 	}
-	if !truth {
-		op = negated[op]
-	}
-	switch op {
-	case syntax.TGreater:
-		p.success = p.success || bound >= 0
-	case syntax.TIsGreaterOrEqual:
-		p.success = p.success || bound >= 1
-	case syntax.TIsNotIdentical, syntax.TIsNotEqual:
-		// Without flags the call blocks, so the only non-child result is -1.
-		p.success = p.success || (bound == -1 && p.blocking)
-	}
+	return found
 }
