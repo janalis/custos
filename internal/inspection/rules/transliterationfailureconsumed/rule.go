@@ -5,6 +5,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Check transliteration before consuming text."
@@ -35,7 +36,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !valid || ctx.Flow().Excludes(input, "false") {
 		return
 	}
-	if v, ok := syntax.UnwrapParens(input).(*syntax.Variable); ok && !semanticquery.NativeLabelled(ctx, v) && (guard{ctx, v}).dominates() {
+	if v, ok := syntax.UnwrapParens(input).(*syntax.Variable); ok && !semanticquery.NativeLabelled(ctx, v) && semanticquery.NativeNarrowedExcludes(ctx, v, types.Of("string", "false"), "false") {
 		return
 	}
 	ctx.ReportNode(c, message)
