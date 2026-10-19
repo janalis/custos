@@ -152,6 +152,11 @@ func constantTruth(e Expr) (bool, bool) {
 	return false, false
 }
 
+// Escapes reports whether a loop can be left other than by its condition
+// turning false: a `break` that leaves it, or a `goto` to a label outside it.
+// Past a loop that does not escape, its condition is known to be false.
+func Escapes(loop Node) bool { return jumps(loop, false, true) }
+
 // containsBreak reports whether a jump that could make control fall out of
 // the construct rooted at n appears inside it: a `break` whose level reaches
 // past the loops and switches nested in n (nested function-likes are

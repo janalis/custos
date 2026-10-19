@@ -220,3 +220,27 @@ func BenchmarkEndlessLiteralAndGoto(b *testing.B) {
 		})
 	}
 }
+
+func TestEscapes(t *testing.T) {
+	cases := map[string]bool{
+		`while ($a) { f(); }`:                                         false,
+		`while ($a) { if ($b) { break; } }`:                           true,
+		`while ($a) { if ($b) { continue; } }`:                        false,
+		`while ($a) { switch ($b) { case 1: break; } }`:               false,
+		`while ($a) { switch ($b) { case 1: break 2; } }`:             true,
+		`while ($a) { goto out; } out: f();`:                          true,
+		`while ($a) { goto in; in: f(); }`:                            false,
+		`do { if ($b) { break; } } while ($a);`:                       true,
+		`for (; $a;) { foreach ($b as $c) { break; } }`:               false,
+		`while ($a) { $g = function () { while (1) { break 2; } }; }`: false,
+	}
+	for src, want := range cases {
+		f := parse(t, "<?php "+src, phpversion.PHP84)
+		if len(f.Errors) > 0 {
+			t.Fatalf("%s: %v", src, f.Errors)
+		}
+		if got := Escapes(f.Stmts[0]); got != want {
+			t.Errorf("%s: Escapes = %v, want %v", src, got, want)
+		}
+	}
+}

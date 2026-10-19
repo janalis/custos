@@ -39,23 +39,39 @@ func (e *Env) overwrites(body syntax.Stmt, name string) syntax.Expr {
 	return a.Value
 }
 
-// terminates reports whether a statement always leaves the current block.
-// Deliberately shallower than syntax.Terminates (no if/else, try or switch
-// analysis): switching would make more guards count as early exits, which
-// changes narrowing and therefore findings.
-func terminates(s syntax.Stmt) bool {
-	switch n := s.(type) {
-	case *syntax.Return, *syntax.Break, *syntax.Continue, *syntax.Goto:
+// terminates reports whether a statement always leaves the current block,
+// structurally: see syntax.Terminates.
+func terminates(s syntax.Stmt) bool { return syntax.Terminates(s) }
+
+// exits reports whether a statement always leaves the current block, also
+// through calls that never return (`stop();` where stop is declared, or
+// inferred, `never`), alone or as the last word of every branch.
+func (e *Env) exits(s syntax.Stmt) bool {
+	if syntax.Terminates(s) {
 		return true
+	}
+	switch n := s.(type) {
 	case *syntax.ExprStmt:
-		if _, ok := syntax.UnwrapParens(n.Expr).(*syntax.Throw); ok {
-			return true
+		switch syntax.UnwrapParens(n.Expr).(type) {
+		case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall:
+			return e.TypeOf(n.Expr).OnlyOf("never")
 		}
-		return syntax.ExitInvocation(n.Expr)
 	case *syntax.Block:
-		if len(n.Stmts) > 0 {
-			return terminates(n.Stmts[len(n.Stmts)-1])
+		for _, st := range n.Stmts {
+			if e.exits(st) {
+				return true
+			}
 		}
+	case *syntax.If:
+		if n.Else == nil || !e.exits(n.Body) || !e.exits(n.Else.Body) {
+			return false
+		}
+		for _, ei := range n.ElseIfs {
+			if !e.exits(ei.Body) {
+				return false
+			}
+		}
+		return true
 	}
 	return false
 }

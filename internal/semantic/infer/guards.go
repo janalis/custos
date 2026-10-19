@@ -44,8 +44,16 @@ func (e *Env) guards(use syntax.Expr, scope syntax.Node, t types.Type, owner syn
 			}
 			continue
 		}
+		if c := loopCond(s); c != nil {
+			// Control leaves a loop that has no break when its condition,
+			// last evaluated, is false.
+			if !syntax.Escapes(s) {
+				t = e.condAt(use, scope, t, c, name, false, s.Span().End)
+			}
+			continue
+		}
 		if g, ok := s.(*syntax.If); ok && g.Else == nil && len(g.ElseIfs) == 0 {
-			if terminates(g.Body) {
+			if e.exits(g.Body) {
 				t = e.condAt(use, scope, t, g.Cond, name, false, g.Span().End)
 			} else if val := e.overwrites(g.Body, name); val != nil && !(isDimKey(name) && e.dimBroken(scope, name, g.Span().End, use)) &&
 				!(isPropKey(name) && e.nonEmptyBroken(scope, name, g.Span().End, use)) {
@@ -76,7 +84,7 @@ func (e *Env) chainJoin(use syntax.Expr, scope syntax.Node, t types.Type, g *syn
 	var parts []types.Type
 	var prefix []syntax.Expr // conditions found false so far
 	path := func(body syntax.Stmt, last syntax.Expr) bool {
-		if terminates(body) {
+		if e.exits(body) {
 			return true
 		}
 		if val := e.overwrites(body, name); val != nil {
@@ -286,6 +294,10 @@ func (e *Env) guardIndexOf(owner syntax.Node, stmts []syntax.Stmt) *guardIndex {
 					}
 				}
 			}
+		case *syntax.While, *syntax.DoWhile, *syntax.For:
+			if c := loopCond(st); c != nil {
+				collect(c)
+			}
 		case *syntax.If:
 			if st.Else == nil && len(st.ElseIfs) == 0 {
 				collect(st.Cond)
@@ -362,4 +374,20 @@ func (gi *guardIndex) candidates(name string, from, end int) ([]int, bool) {
 	slices.Sort(out)
 	out = slices.Compact(out)
 	return out, len(out) <= maxGuardScan
+}
+
+// loopCond returns the condition deciding whether a while, do-while or for
+// loop runs again (the last one of a for), nil for other statements.
+func loopCond(s syntax.Stmt) syntax.Expr {
+	switch l := s.(type) {
+	case *syntax.While:
+		return l.Cond
+	case *syntax.DoWhile:
+		return l.Cond
+	case *syntax.For:
+		if len(l.Cond) > 0 {
+			return l.Cond[len(l.Cond)-1]
+		}
+	}
+	return nil
 }

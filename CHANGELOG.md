@@ -25,6 +25,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   which shortens whole-project runs.
 - Rule option descriptions in `custos explain` and the rule reference no longer
   include notes about upstream test configurations.
+- Type inference narrows past `if` blocks that leave through every branch of a
+  nested `if`/`else`, `try` or `switch`, or through a call to a `never`
+  function; past loops that only their condition ends; and on nested literal
+  array keys (`$a['x']['y']`).
 
 ### Security
 

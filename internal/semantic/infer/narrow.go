@@ -17,7 +17,8 @@ func (e *Env) narrow(t types.Type, v *syntax.Variable, scope syntax.Node, after 
 
 // narrowKey identifies an expression whose type guards can refine: a
 // variable by its name, `$this->prop` as "this->prop", and an element with
-// a literal key of either (`$a['k']`) as dimKey(base, key) ("" otherwise).
+// a literal key of either (`$a['k']`, nested up to maxDimDepth levels:
+// `$a['k']['l']`) as dimKey(base, key) ("" otherwise).
 func narrowKey(x syntax.Expr) string {
 	switch n := x.(type) {
 	case *syntax.Variable:
@@ -60,7 +61,7 @@ func narrowKey(x syntax.Expr) string {
 			return ""
 		}
 		base := narrowKey(n.Var)
-		if base == "" || isDimKey(base) {
+		if base == "" || strings.Count(base, dimSep) >= maxDimDepth-1 {
 			return ""
 		}
 		if k, ok := literalKey(n.Dim); ok {
@@ -101,6 +102,10 @@ func (e *Env) chainBroken(scope syntax.Node, k, b string, from uint32, use synta
 	return false
 }
 
+// maxDimDepth bounds the literal keys of a narrowed element (`$a['k']['l']`
+// is two).
+const maxDimDepth = 4
+
 // dimSep separates the base and the key of an element's narrowing key.
 const dimSep = "\x01"
 
@@ -110,7 +115,9 @@ func dimKey(base, key string) string { return base + dimSep + key }
 
 func isDimKey(k string) bool { return strings.Contains(k, dimSep) }
 
-// splitDimKey returns the base and key of an element's narrowing key.
+// splitDimKey returns the base and key of an element's narrowing key: the
+// variable or property, and the literal key path below it (still joined by
+// dimSep for a nested element).
 func splitDimKey(k string) (base, key string) {
 	base, key, _ = strings.Cut(k, dimSep)
 	return base, key
@@ -247,9 +254,13 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 // dimBroken reports whether element key (a dimKey) may have changed
 // between from and use: a mutation of its array (assignment, reference,
 // unset, by-reference argument; for `$this->prop` any call), or a write to
-// the same literal key or to a computed key.
+// the same first-level literal key (anywhere below it, for a nested
+// element) or to a computed key.
 func (e *Env) dimBroken(scope syntax.Node, key string, from uint32, use syntax.Node) bool {
-	base, _ := splitDimKey(key)
+	base, path := splitDimKey(key)
+	if first, _, nested := strings.Cut(path, dimSep); nested {
+		key = dimKey(base, first) // element writes are recorded there
+	}
 	if e.nonEmptyBroken(scope, base, from, use) {
 		return true
 	}

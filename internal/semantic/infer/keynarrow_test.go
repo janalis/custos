@@ -83,3 +83,36 @@ class Holder {
 		"propCall":     `\Foo|null`,
 	})
 }
+
+// Nested literal keys narrow too, until anything below the first-level
+// element (or the array) is written.
+func TestNestedKeyNarrowing(t *testing.T) {
+	checkWith(t, nil, `<?php
+class Foo {}
+/** @param array<string, array<string, Foo|null>> $m */
+function run(array $m) {
+    if (isset($m['a']['b'])) { t('isset', $m['a']['b']); }
+    if ($m['a']['b'] === null) { return; }
+    t('guard', $m['a']['b']);
+}
+/** @param array<string, array<string, Foo|null>> $m */
+function writes(array $m, $i) {
+    if (isset($m['a']['b'])) { $m['a']['c'] = null; t('sibling', $m['a']['b']); }
+    if (isset($m['a']['b'])) { $m['a'][$i] = null; t('computedBelow', $m['a']['b']); }
+    if (isset($m['a']['b'])) { $m[$i] = []; t('computedTop', $m['a']['b']); }
+    if (isset($m['a']['b'])) { $m['z']['b'] = null; t('otherBranch', $m['a']['b']); }
+    if (isset($m['a']['b'])) { $m = []; t('whole', $m['a']['b']); }
+}
+/** @param array<string, array<string, array<string, array<string, array<string, ?int>>>>> $d */
+function deep(array $d) {
+    if (isset($d['a']['b']['c']['d'])) { t('four', $d['a']['b']['c']['d']); }
+    if (isset($d['a']['b']['c']['d']['e'])) { t('five', $d['a']['b']['c']['d']['e']); }
+}
+`, map[string]string{
+		"isset": `\Foo`, "guard": `\Foo`,
+		"sibling": `\Foo|null`, "computedBelow": `\Foo|null`,
+		// Writes elsewhere in the array already widen its element type.
+		"computedTop": "?unknown", "otherBranch": "?unknown", "whole": "?unknown",
+		"four": "int[]|null[]", "five": "int|null",
+	})
+}
