@@ -5,254 +5,48 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-### Fixed
+### Added
 
-- Treat webmozart/assert assertions as checks in FileReadFailureUnchecked and
-  PregReplaceFailureUnchecked, and report a failure given to one that would
-  pass with it: loose `eq` with an empty or falsy literal, `isEmpty`, and, for
-  a failed replacement, any `nullOr…` assertion.
-
-- Look into functions of the same file up to four calls deep when deciding
-  whether a call may refill a request superglobal in UnescapedHtmlOutput,
-  instead of stopping at the first callee.
-
-- Trust a truthiness or comparison guard on a property in
-  ParseUrlFailureDereferenced and PosixAccountLookupFailureDereferenced when
-  reading the property runs no code and nothing between the test and the read
-  may change it.
-
-- Report a `query-budget` analysis gap when a call history, a guard walk or
-  an error-handler scan stops at its work bound, instead of answering
-  conservatively without saying so.
-
-- Classify more HTML output contexts in UnescapedHtmlOutput: script and style
-  element text, the start of URL attributes, event handlers, `style` and
-  `srcdoc` attributes, and unquoted attribute values, where escaping for HTML
-  text is not enough. Recognize `json_encode` output as safe in scripts,
-  except inside a string, template literal or comment, and treat a URL after
-  a scheme other than a known safe one as code.
-  Reject `\u{…}` escapes PHP does not compile when decoding string literals.
-
-- Report every request-derived part of an output statement in
-  UnescapedHtmlOutput instead of only the first one.
-
-- Report a failed read or replacement given to a PHPUnit assertion that
-  would pass with it: loose comparisons with an empty or falsy literal,
-  `assertEmpty`, and, for file reads without strict types, string needles,
-  prefixes and suffixes.
-
-- Count methods PHP itself declares, such as `DateTime::modify` and
-  `DOMDocument::loadXML`, as string consumers in FileReadFailureUnchecked and
-  PregReplaceFailureUnchecked.
-
-- Count a function or a class declared more than once in the analysed paths
-  (two copies of a library) as a string consumer in FileReadFailureUnchecked
-  and PregReplaceFailureUnchecked when every copy takes the parameter as
-  `string`.
-
-- Drop what file-level code proved of a global variable when it calls
-  project code and a function of another file binds that global. The index
-  now records the globals each file's functions bind.
-
-- Stop reading an argument hidden by unpacking as omitted in the shared
-  helpers: a fixed array size, kept keys of `SplFixedArray::fromArray`, PDO
-  fetch modes, `ob_start` callbacks, `mb_strlen` encodings for fixes, response
-  codes and removed headers.
-
-- Release what a destructuring or a reference assignment rebinds, so a
-  destructor that may run there drops static guards like a plain assignment
-  does. In a namespace, stop trusting a PHP constant read through an
-  unqualified name when the file defines constants under computed names.
-
-- Infer the type a PHP function stores in a by-reference parameter from its
-  declaration instead of keeping the earlier type, and stop narrowing a call
-  on a receiver of several classes to the declared returns when one of them
-  declares none.
-
-- Treat `class_exists` and its siblings told not to autoload, and `unset` of
-  a variable that holds no object, as running no project code; treat
-  `stream_filter_append` and `stream_filter_prepend` as running the filter's
-  code. Static guards are kept or dropped accordingly by the failure-value
-  rules.
-
-- Read request-table writes in UnescapedHtmlOutput in the order they run: a
-  replacement repeated before each output in a loop is trusted again, while a
-  refill through a call written in the output statement, or through a PHP
-  function given a project callback, is reported. Parts that print nothing no
-  longer hide the parts after them.
-
-- Report request text copied from a superglobal before the program
-  rewrote that superglobal in UnescapedHtmlOutput: a later replacement no
-  longer clears a copy taken earlier.
-
-- Judge a request rewrite through a callback named by a PHP function by that
-  function's output contract in UnescapedHtmlOutput: `array_map('trim', …)` no
-  longer hides later unescaped output.
-
-- Recognize more output contracts for request data: a `ctype_digit` or
-  `is_int` check, `number_format` without custom separators, validating and
-  escaping `filter_var` filters and `PDO::quote`. Keep quoted-attribute
-  escaping through `nl2br`, `implode`, `join` and `str_pad`, and stop trusting
-  `htmlspecialchars` quote handling when its flags come from an unpacked
-  argument.
-
-- Follow `goto` jumps out of `try` and `catch` blocks through the `finally`
-  blocks they leave, and follow generator scopes across `yield`, instead of
-  giving up on the whole scope. Guarded reads there are no longer reported and
-  unguarded ones are, by the failure-value rules and the request-data rules.
-
-- Treat an unpacked argument as possibly supplying an optional parameter in
-  ContentEncodingBodyMismatch, IncrementalInflateEncodingMismatch,
-  ParseUrlFailureDereferenced, HttpErrorBodyReadWithoutIgnoreErrors,
-  SoapLastRequestWithoutTracing and RepeatedHtmlEntityEncoding.
-
-- Stop ExitStatusReadWithoutNormalExitCheck from reporting a status variable
-  rebound after the wait by unset, destructuring, increment, foreach, an
-  element write or a by-reference capture.
-
-- Recognize `declare(strict_types=1)` written in any letter case in
-  ReadLoopProcessesEofFailure.
-
-- Treat a do-while body left by `goto` like one left by `break` when deciding
-  whether the loop completes.
-
-- Stop NonVoidFunctionFallsThrough from proving a fall-through past a condition
-  that calls code alongside other operators, evaluates code, clones an object or
-  runs a shell command.
-
-- Invalidate HTML escaping after native decoding and replacement transforms,
-  including transforms inside function summaries and after request rewrites.
-  Recognize delimiter-free encoders in HTML text output.
-
-- Highlight the unsafe emitted value in HTML-output findings, including
-  interpolated values and transformed expressions.
-
-- Detect unescaped request data in quoted HTML data attributes. Track single-
-  and double-quote escaping separately, respect PHP-version defaults and named
-  flags, and recognize delimiter-free encoder outputs.
-
-- Preserve HTML-output findings through reference calls that retain request data.
-  Match named reference arguments and use callable output contracts to distinguish
-  proven replacements from conditional writes and potentially aliased outputs.
-
-- Report bounded analysis gaps separately from findings in JSON, SARIF, CLI
-  summaries and editor logs. Reject diagnostics and fixes from replaced
-  documents or outdated analysis snapshots.
-
-- Preserve exact named-parameter bindings in template, conditional return and
-  output inference. Distinguish uncertain spreads from omitted defaults while
-  retaining explicit argument evidence on successful calls.
-
-- Decode flow-analysis strings with PHP escape rules and the parsed source
-  version. Preserve unknown PHP escapes instead of interpreting Go-only escapes,
-  and recognize binary-prefixed strings and static heredocs consistently.
-
-- Refine builtin return types only from resolved native declarations and proven
-  argument bindings. Respect named-parameter case, target PHP versions, duplicate
-  arguments and uncertain unpacking; retain supported array-tail refinements.
-
-- Require a falsy condition and rejection on every supported branch before
-  reporting cURL and socket zero-result checks. Ignore nested strict-failure
-  guards and success-path conditions.
-
-- Decode escaped and composed declaration names, retaining exact names from
-  `define()` and resolving literal class aliases. Respect version-dependent
-  escapes in parsed strings and heredocs, including constant-condition checks.
-  Rebuild builtin aliases from the same pinned stubs revision.
-
-- Cache repeated builtin and method resolution with bounded storage and index
-  revision checks. Release removed method entries immediately and avoid
-  temporary call-argument and empty state-snapshot allocations.
-
-- Retain conditional native operations in bounded receiver histories. Distinguish
-  an empty proven history from an incomplete one, account for loop replay and
-  captured aliases, and retain fresh handle identities with uncertain input data.
-  Avoid treating spread CSV arguments or unknown XML declarations as omissions.
-
-- Respect class availability and named callback declaration availability in native
-  checks. Track trait methods and aliases in bounded descendant override queries.
-  Treat escaped cURL handles and dialect-dependent SQL counts as unknown, and
-  model writable memory-stream modes. Withhold signature fixes when descendant
-  hierarchies are incomplete.
-
-- Distinguish omitted arguments from uncertain unpacking in state checks. Resolve
-  inherited constructor contracts, require receiver alternatives to agree, and
-  respect case-sensitive named arguments and variadic reference parameters.
-  Discard stale possible-value sets after indirect writes; resolved by-value
-  calls retain their value evidence.
-
-- Keep catch-only values out of flow results when the try block is proven
-  nonthrowing. Preserve callback, destructor, warning and finally paths, with
-  cached block proofs and conservative checks for local reads and writes.
-
-- Preserve numeric array-value safety through nested project sink wrappers while
-  keeping keys and destinations untrusted. Follow final and accessible private
-  method wrappers, with dispatch-aware summary invalidation in the language server.
-
-- Follow failure-producing values beyond four joined assignments. Retain
-  contract-specific unguarded witnesses past 64 producers, preserve
-  argument-sensitive variants, and charge origin storage to the scope budget.
-
-- Keep assertion guards disabled by default and account for arguments skipped
-  when PHP assertions are disabled. The `flow.assertions` setting enables the
-  assumption that assertions execute and failures terminate, consistently in
-  local inference, project summaries and the language server.
-
-- Follow only the selected flow path for bounded, pure constant conditions and
-  ternaries. Preserve label entry and generator identity even when a yield lies
-  in a skipped branch.
-
-- Track bounded integer intervals through local arithmetic and loop comparisons.
-  Repetition counts and GD alpha checks recognize wholly invalid ranges and
-  concrete first-turn values, while dropping integer proofs on possible overflow.
-
-- Treat XML parsers passed inside temporary arrays to project functions as
-  handed over, and invalidate storage-key identity after unresolved reference
-  arguments.
-
-- Preserve local failure results through temporary array arguments and released
-  reference bindings. Recognize native string tests that exclude nullable regex
-  results, and leave joined stream producers across uncertain error-handler
-  changes unknown. Bound reference-lifetime analysis work in large scopes.
-
-- Failure checks follow results replaced across loop turns, backward jumps,
-  reference captures, resolved reference parameters and same-file global
-  writers. Element arguments retain guards on their containing arrays.
-- Request sources include literal variable-variable and global-table spellings;
-  global readers see same-file writes before calls and beyond sixteen links.
-  File-level exits and case conditions now use their correct statement order,
-  and parked goto reachability avoids repeatedly scanning blocked earlier jumps.
-
-- Unterminated shell backticks no longer produce a replacement from invalid
-  recovered source ranges or panic while preparing fixes.
-- Property hooks form independent function-like scopes for shared inspection
-  queries. Reference-returning getters retain their references when simplifying
-  conditional returns. Literal truth values and escaping gotos improve endless
-  loop detection. Syntax version requirements and native `NoDiscard` attributes
-  are recorded for future compatibility and result-use inspections.
-- PHP type inference preserves unknown PHPDoc union members, resolves enum
-  cases and typed constants in documentation, and handles more template and
-  pseudo-type forms. Numeric unions, powers and shorthand ternaries retain
-  conservative result types; by-reference writes invalidate stale types.
-- PHPDoc tags ignore case and code examples. Imports apply from their
-  declaration, and trait visibility aliases honor the selected implementation.
-- Deprecation attributes and version-specific builtin interfaces, parameter
-  names and method signatures are indexed. Availability tags in application
-  documentation no longer impose PHP version restrictions.
+- Analysis gaps, places where an inspection stopped at a work bound instead of
+  answering, are reported apart from findings in JSON, SARIF, the CLI summary
+  and editor logs.
+- The `flow.assertions` setting (off by default) lets `assert()` calls count
+  as guards, assuming assertions run and a failed one stops execution.
 
 ### Changed
 
 - Re-analysis after an edit is faster: a file's functions are analysed once
-  for both its summaries and its findings, a function's summary is computed
-  before the callers in the same file that read it, and results that read no
-  changed summary are kept. In the editor, analysis gaps are now reported for
-  every function of the file, as on the command line.
+  for summaries and findings, and results that read no changed summary are
+  kept. Repeated builtin and method lookups are cached.
+- Documentation matches the binary more closely, and the rule index shows
+  each rule's origin (native or EA-modelled).
 
-- Documentation is simpler and matches the binary: the CI recipe no longer
-  writes its JSON report over `custos.json`, the guide states how `exclude`,
-  the project root, configuration validation and baselines actually behave,
-  the native rules page lists the custos annotations, and the rule index shows
-  each rule's origin (native or EA-modelled) with groups sorted by name.
+### Fixed
+
+- UnescapedHtmlOutput understands far more HTML contexts (script and style
+  text, URL, event-handler, `style` and `srcdoc` attributes, unquoted and data
+  attributes) and more escaping functions, follows request superglobals
+  rewritten or refilled before output, reports every unsafe part of an output
+  statement and highlights the exact value.
+- Failure-check inspections accept webmozart/assert and PHPUnit assertions and
+  guards on properties, report assertions that would pass with the failure
+  value, and count PHP's own methods and duplicated library functions as
+  string consumers.
+- The flow analysis follows `goto` through `finally`, generators across
+  `yield`, constant conditions, integer ranges, loops, references, globals
+  written in other functions and try blocks that cannot throw, so findings are
+  both more complete and less noisy.
+- Unpacked and named arguments are no longer read as omitted or misplaced by
+  argument checks.
+- Type inference handles more PHPDoc forms, enum cases, typed constants,
+  by-reference outputs of PHP functions, property hooks and version-specific
+  builtin signatures; documentation availability tags no longer restrict PHP
+  versions.
+- Fewer false positives in ExitStatusReadWithoutNormalExitCheck,
+  NonVoidFunctionFallsThrough, ReadLoopProcessesEofFailure and the cURL and
+  socket zero-result checks.
+- An unterminated backtick no longer crashes fix preparation, and signature
+  fixes are withheld when a class hierarchy is only partly known.
 
 ## [0.1.5] - 2026-10-14
 
