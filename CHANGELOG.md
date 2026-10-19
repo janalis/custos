@@ -5,6 +5,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-19
+
 ### Added
 
 - Analysis gaps, places where an inspection stopped at a work bound instead of
