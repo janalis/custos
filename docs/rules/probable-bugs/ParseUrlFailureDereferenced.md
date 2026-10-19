@@ -58,7 +58,7 @@ or ternary arm; advancing generators is outside this local producer contract.
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
 - E3. An unpacked argument (`parse_url($url, ...$options)`) may supply `component`, which changes the result contract: no report.
-- E4. A property read is guarded like a variable when its earlier test and the read give the same value: the read runs no code (every class the receiver may be of declares the property without a hook, has no `__get`, and is final or keeps the property private), and between them no call that may run project code, no write, `unset`, increment, `foreach` target or reference of a property of that name through any receiver, and no write of the receiver variable can change it; a loop around the read and not the test counts its whole body.
+- E4. A property read is guarded like a variable when its earlier test and the read give the same value: the read runs no code (every class the receiver may be of declares the property without a hook, and has no `__get`; a class extending it that declares the property again with a hook is not considered), and between them no call that may run project code, no write, `unset`, increment, `foreach` target or reference of a property of that name through any receiver, and no write of the receiver variable can change it; a loop around the read and not the test counts its whole body.
 - E2. Both `@custos-ignore ParseUrlFailureDereferenced` and `@noinspection ParseUrlFailureDereferenced` suppress this native rule.
 
 ## Fix

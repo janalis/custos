@@ -50,6 +50,7 @@ func TestReviewGuards(t *testing.T) {
 		{"earlier exit", "if (!$p) { return; } echo 1; echo $p['host'];", 0},
 		{"outer exit", "if (!$p) { return; } if ($o) { echo $p['host']; }", 0},
 		{"key exists", "if (array_key_exists('host', $p)) { echo $p['host']; }", 0},
+		{"computed key exists", "if (array_key_exists($o, $p)) { echo $p['host']; }", 0},
 		// Key probes and an exit through an endless loop are proven by the guard walk only.
 		{"isset and chain", "return isset($p['host']) && $p['host'] === 'x';", 0},
 		{"isset or chain", "return !isset($p['host']) || $p['host'] === 'x';", 0},

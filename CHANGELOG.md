@@ -70,6 +70,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - PosixAccountLookupFailureDereferenced reads its guards from type
   narrowing, and trusts a property test on a class that is not final.
 - ImageDecodeFailureUnchecked reads its guards from type narrowing.
+- ParseUrlFailureDereferenced reads its guards from type narrowing, and
+  trusts a property test on a class that is not final.
 
 ### Fixed
 
