@@ -29,6 +29,52 @@ func (e *Env) NarrowMember(x syntax.Expr, seed types.Type) types.Type {
 	return e.narrowExpr(seed, x, key, syntax.EnclosingVariableScope(x))
 }
 
+// NarrowedFrom narrows seed, a type assumed for read x whatever its
+// declaration says, by the conditions guarding x: for a plain local, the
+// conditions written after the definitions reaching it (values carried
+// around a loop are narrowed from the start of that loop); for a member or
+// a literal-key element, as NarrowMember. A local that something else may
+// rewrite (a reference, a dynamic write) is unknown; other expressions
+// return seed.
+func (e *Env) NarrowedFrom(x syntax.Expr, seed types.Type) types.Type {
+	v, ok := syntax.UnwrapParens(x).(*syntax.Variable)
+	if !ok {
+		return e.NarrowMember(x, seed)
+	}
+	if v.Name == "" || v.NameExpr != nil || v.Name == "this" {
+		return seed
+	}
+	scope := syntax.EnclosingVariableScope(v)
+	sv := e.scopeVars(scope)
+	defs := sv.defs[v.Name]
+	if len(defs) > maxVarDefs {
+		return types.Unknown
+	}
+	fwd, back, _ := e.reaching(defs, v, scope)
+	if e.clobbered(sv, fwd, back, v, scope) {
+		return types.Unknown
+	}
+	after, backAfter, forward, carried := uint32(0), uint32(0), len(fwd) == 0, false
+	for _, d := range fwd {
+		if e.forStep(d, v, scope) {
+			backAfter, carried = max(backAfter, loopAround(d, v, scope)), true
+			continue
+		}
+		after, forward = max(after, d.pos, d.end), true
+	}
+	for _, d := range back {
+		backAfter, carried = max(backAfter, loopAround(d, v, scope)), true
+	}
+	var parts []types.Type
+	if forward {
+		parts = append(parts, e.narrowExprAfter(seed, v, v.Name, scope, after))
+	}
+	if carried {
+		parts = append(parts, e.narrowExprAfter(seed, v, v.Name, scope, backAfter))
+	}
+	return types.Union(parts...)
+}
+
 // narrowKey identifies an expression whose type guards can refine: a
 // variable by its name, `$this->prop` as "this->prop", and an element with
 // a literal key of either (`$a['k']`, nested up to maxDimDepth levels:

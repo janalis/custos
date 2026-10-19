@@ -126,6 +126,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The checks that need a proof treat a strict comparison with a constant of
   a type the declaration rules out (`$flag === 1` for a `bool`) as a branch
   that never runs, not as a proof.
+- A comparison of `strlen($x)` with an integer that rules out length 0
+  rules out null and false for `$x` (`strlen($p) > 0` after `parse_url()`).
 - A true `array_key_exists($key, $a)` narrows `$a` to an array whatever the
   key, not only for a literal one.
 - `is_array($x) || isset($x['k'])` narrows `$x` to an array: a key probe on

@@ -67,14 +67,7 @@ func (t Type) IntsWithin(lo, hi int64) Type {
 	if _, ok := t.IntRanges(); !ok {
 		return t
 	}
-	var out []IntRange
-	for _, r := range t.ints {
-		r.Lo, r.Hi = max(r.Lo, lo), min(r.Hi, hi)
-		if r.Lo <= r.Hi {
-			out = append(out, r)
-		}
-	}
-	return t.withInts(out)
+	return t.withInts(rangesWithin(t.ints, lo, hi))
 }
 
 // IntsWithout removes v from a constrained int member, dropping the member
@@ -83,20 +76,7 @@ func (t Type) IntsWithout(v int64) Type {
 	if _, ok := t.IntRanges(); !ok {
 		return t
 	}
-	var out []IntRange
-	for _, r := range t.ints {
-		if v < r.Lo || v > r.Hi {
-			out = append(out, r)
-			continue
-		}
-		if v > r.Lo {
-			out = append(out, IntRange{r.Lo, v - 1})
-		}
-		if v < r.Hi {
-			out = append(out, IntRange{v + 1, r.Hi})
-		}
-	}
-	return t.withInts(out)
+	return t.withInts(rangesWithout(t.ints, v))
 }
 
 // IntsAlso keeps the values of t's int member that o's int member may also
@@ -115,15 +95,50 @@ func (t Type) IntsAlso(o Type) Type {
 	if mine == nil {
 		mine = []IntRange{{math.MinInt64, math.MaxInt64}}
 	}
+	return t.withInts(rangesMeet(mine, o.ints))
+}
+
+// rangesWithin keeps the parts of rs inside [lo, hi].
+func rangesWithin(rs []IntRange, lo, hi int64) []IntRange {
 	var out []IntRange
-	for _, a := range mine {
-		for _, b := range o.ints {
-			if lo, hi := max(a.Lo, b.Lo), min(a.Hi, b.Hi); lo <= hi {
+	for _, r := range rs {
+		r.Lo, r.Hi = max(r.Lo, lo), min(r.Hi, hi)
+		if r.Lo <= r.Hi {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// rangesWithout removes v from rs.
+func rangesWithout(rs []IntRange, v int64) []IntRange {
+	var out []IntRange
+	for _, r := range rs {
+		if v < r.Lo || v > r.Hi {
+			out = append(out, r)
+			continue
+		}
+		if v > r.Lo {
+			out = append(out, IntRange{r.Lo, v - 1})
+		}
+		if v < r.Hi {
+			out = append(out, IntRange{v + 1, r.Hi})
+		}
+	}
+	return out
+}
+
+// rangesMeet keeps the values both a and b hold.
+func rangesMeet(a, b []IntRange) []IntRange {
+	var out []IntRange
+	for _, x := range a {
+		for _, y := range b {
+			if lo, hi := max(x.Lo, y.Lo), min(x.Hi, y.Hi); lo <= hi {
 				out = append(out, IntRange{lo, hi})
 			}
 		}
 	}
-	return t.withInts(out)
+	return out
 }
 
 // withInts replaces the values of the int member; none drops the member.
@@ -181,22 +196,31 @@ func normalizeInts(rs []IntRange) []IntRange {
 // unionInts computes the int values of a union: every member with an int
 // atom must constrain it, members without one do not count.
 func unionInts(ts []Type) []IntRange {
+	return unionRanges(ts, "int", func(t Type) []IntRange { return t.ints })
+}
+
+// unionRanges merges the value sets field gives for atom over a union.
+func unionRanges(ts []Type, atom string, field func(Type) []IntRange) []IntRange {
 	var all []IntRange
 	for _, t := range ts {
-		if !t.Has("int") {
+		if !t.Has(atom) {
 			continue
 		}
-		if t.ints == nil {
+		rs := field(t)
+		if rs == nil {
 			return nil
 		}
-		all = append(all, t.ints...)
+		all = append(all, rs...)
 	}
 	return normalizeInts(all)
 }
 
 // intsString renders the int member with its values: `int<-1, 0>`, joined
 // with `|` for several intervals.
-func intsString(rs []IntRange) string {
+func intsString(rs []IntRange) string { return rangesString("int<", rs) }
+
+// rangesString renders value sets as `prefix lo, hi>` joined with `|`.
+func rangesString(prefix string, rs []IntRange) string {
 	bound := func(v int64, low bool) string {
 		switch {
 		case low && v == math.MinInt64:
@@ -208,7 +232,7 @@ func intsString(rs []IntRange) string {
 	}
 	parts := make([]string, len(rs))
 	for i, r := range rs {
-		parts[i] = "int<" + bound(r.Lo, true) + ", " + bound(r.Hi, false) + ">"
+		parts[i] = prefix + bound(r.Lo, true) + ", " + bound(r.Hi, false) + ">"
 	}
 	return strings.Join(parts, "|")
 }

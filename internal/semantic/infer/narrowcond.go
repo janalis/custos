@@ -19,7 +19,11 @@ import (
 // truthyType is t where it is truthy: neither null nor false, `true` for
 // bool, a non-empty array, an int with known values other than 0.
 func truthyType(t types.Type) types.Type {
-	return replaceAtom(t.Without("null", "false"), "bool", "true").WithNonEmpty(true).IntsWithout(0)
+	t = replaceAtom(t.Without("null", "false"), "bool", "true").WithNonEmpty(true).IntsWithout(0)
+	if _, known := t.StringLengthRanges(); known {
+		t = t.LengthsWithout(0) // '' is falsy ('0' has the length of others)
+	}
+	return t
 }
 
 // replaceAtom replaces atom from of t by to (`bool` minus false is true).
@@ -38,6 +42,9 @@ func replaceAtom(t types.Type, from, to string) types.Type {
 // Other members may hold falsy values (empty string, 0, [], null) and stay.
 func falsyType(t types.Type) types.Type {
 	t = t.IntsWithin(0, 0) // known int values: only 0 is falsy
+	if _, known := t.StringLengthRanges(); known {
+		t = t.LengthsWithin(0, 1) // '' or '0'
+	}
 	if !t.Has("true") && !t.Has("bool") {
 		return t
 	}
@@ -163,6 +170,14 @@ func (e *Env) eqCond(t types.Type, c *syntax.Binary, name string, truthy bool, s
 		return nonEmptyIf(t, countNonEmpty(c.Op.Kind, n, truthy))
 	}
 	l, r := syntax.UnwrapParens(c.Left), syntax.UnwrapParens(c.Right)
+	for _, p := range [2][2]syntax.Expr{{l, r}, {r, l}} {
+		if !e.lengthOperand(p[0], name) {
+			continue
+		}
+		if v, ok := e.knownInt(p[1]); ok {
+			return lengthCmp(t, c.Op.Kind, v, truthy)
+		}
+	}
 	switch {
 	case isVar(l, name):
 		return e.varCmp(t, r, strict, holds)
@@ -204,9 +219,16 @@ func (e *Env) eqCond(t types.Type, c *syntax.Binary, name string, truthy bool, s
 
 // varCmp narrows the type t of a variable compared with other.
 func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.Type {
-	if v, ok := e.knownInt(other); ok {
-		if _, known := t.IntRanges(); known {
+	if _, known := t.IntRanges(); known {
+		if v, ok := e.knownInt(other); ok {
 			return intCmp(t, v, strict, holds)
+		}
+	}
+	if l, ok := syntax.UnwrapParens(other).(*syntax.Literal); ok && l.LitKind == syntax.LitString {
+		if text, ok := syntax.LiteralStringValue(l); ok && text == "" {
+			if _, known := t.StringLengthRanges(); known {
+				return emptyCmp(t, strict, holds)
+			}
 		}
 	}
 	lit := constLiteral(other)
@@ -284,6 +306,77 @@ func (e *Env) knownInt(x syntax.Expr) (int64, bool) {
 	return integerLiteral(fwd[0].asg.Value)
 }
 
+// emptyCmp narrows t, whose string member has known lengths, compared with
+// ”. Loosely, null and false equal ” too.
+func emptyCmp(t types.Type, strict, holds bool) types.Type {
+	switch {
+	case holds && strict:
+		if !t.LengthsWithin(0, 0).Has("string") {
+			return types.Unknown // never identical: the branch does not run
+		}
+		return types.StringLengths(types.IntRange{})
+	case holds:
+		return t.LengthsWithin(0, 0)
+	case strict:
+		return t.LengthsWithout(0)
+	}
+	return t.LengthsWithout(0).Without("null", "false")
+}
+
+// lengthOperand reports whether x measures the byte length of variable name:
+// strlen($x), or mb_strlen($x, '8bit').
+func (e *Env) lengthOperand(x syntax.Expr, name string) bool {
+	c, ok := syntax.UnwrapParens(x).(*syntax.FuncCall)
+	if !ok || c.Args == nil || len(c.Args.Args) == 0 || !e.isBuiltinCall(c) {
+		return false
+	}
+	a, ok := c.Args.Args[0].(*syntax.Arg)
+	if !ok || a.Unpack || a.Name != nil || !isVar(a.Value, name) {
+		return false
+	}
+	nm, _ := c.Name.(*syntax.Name)
+	switch strings.ToLower(strings.TrimPrefix(nm.Value, `\`)) {
+	case "strlen":
+		return len(c.Args.Args) == 1
+	case "mb_strlen":
+		if len(c.Args.Args) != 2 {
+			return false
+		}
+		enc, ok := c.Args.Args[1].(*syntax.Arg)
+		l, lit := syntax.UnwrapParens(enc.Value).(*syntax.Literal)
+		if !ok || !lit || l.LitKind != syntax.LitString {
+			return false
+		}
+		text, _ := syntax.LiteralStringValue(l)
+		return strings.EqualFold(text, "8bit")
+	}
+	return false
+}
+
+// lengthCmp narrows t by a comparison of its byte length with v (op an
+// equality or relational operator, holding when truthy): the string member
+// keeps the lengths satisfying it, from any length. A length that cannot be
+// 0 rules out null and false, whose length is 0.
+func lengthCmp(t types.Type, op syntax.TokenKind, v int64, truthy bool) types.Type {
+	lo, hi := v, v
+	switch op {
+	case syntax.TIsIdentical, syntax.TIsEqual, syntax.TIsNotIdentical, syntax.TIsNotEqual:
+		if (op == syntax.TIsIdentical || op == syntax.TIsEqual) != truthy {
+			if v != 0 {
+				return t.LengthsWithout(v)
+			}
+			return t.LengthsWithout(0).Without("null", "false")
+		}
+	default:
+		lo, hi = orderBounds(op, v, truthy)
+	}
+	r := t.LengthsWithin(lo, hi)
+	if lo > 0 || hi < 0 {
+		r = r.Without("null", "false")
+	}
+	return r
+}
+
 // intCmp narrows t, whose int member has known values, compared with the
 // integer v: identical, only that int; equal, that int beside the other
 // members (which may loosely equal it); different, without v. A loose
@@ -307,6 +400,19 @@ func intCmp(t types.Type, v int64, strict, holds bool) types.Type {
 // relational operator, x the narrowed variable) holding when truthy.
 // Members other than int are kept: PHP compares them with v too.
 func intOrder(t types.Type, op syntax.TokenKind, v int64, truthy bool) types.Type {
+	return t.IntsWithin(orderBounds(op, v, truthy))
+}
+
+// mirrorOrder swaps the operands of a relational operator (`0 < $x` is
+// `$x > 0`).
+var mirrorOrder = map[syntax.TokenKind]syntax.TokenKind{
+	syntax.TLess: syntax.TGreater, syntax.TGreater: syntax.TLess,
+	syntax.TIsSmallerOrEqual: syntax.TIsGreaterOrEqual, syntax.TIsGreaterOrEqual: syntax.TIsSmallerOrEqual,
+}
+
+// orderBounds is the interval of values x satisfying `x op v` (op a
+// relational operator) when truthy, its complement otherwise.
+func orderBounds(op syntax.TokenKind, v int64, truthy bool) (lo, hi int64) {
 	if !truthy {
 		op = map[syntax.TokenKind]syntax.TokenKind{
 			syntax.TLess: syntax.TIsGreaterOrEqual, syntax.TIsGreaterOrEqual: syntax.TLess,
@@ -315,16 +421,16 @@ func intOrder(t types.Type, op syntax.TokenKind, v int64, truthy bool) types.Typ
 	}
 	switch op {
 	case syntax.TLess:
-		return t.IntsWithin(math.MinInt64, v-1) // integerLiteral never reads the minimum
+		return math.MinInt64, v - 1 // integerLiteral never reads the minimum
 	case syntax.TIsSmallerOrEqual:
-		return t.IntsWithin(math.MinInt64, v)
+		return math.MinInt64, v
 	case syntax.TGreater:
 		if v == math.MaxInt64 {
-			return t.Without("int")
+			return 1, 0 // nothing is greater
 		}
-		return t.IntsWithin(v+1, math.MaxInt64)
+		return v + 1, math.MaxInt64
 	}
-	return t.IntsWithin(v, math.MaxInt64)
+	return v, math.MaxInt64
 }
 
 // isConstValue reports a literal or constant expression (whose value is

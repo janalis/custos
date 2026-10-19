@@ -105,6 +105,9 @@ func (r *relativeBinding) bind(t Type, depth int) (Type, bool) {
 		if out.Has("int") {
 			out.ints = t.ints
 		}
+		if out.Has("string") {
+			out.lens = t.lens
+		}
 	}
 	var gens []genEntry
 	for i, g := range t.gen {

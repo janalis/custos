@@ -26,6 +26,7 @@ type Type struct {
 	gen   []genEntry // generic arguments of class atoms (see gen.go); nil when none
 	inter *[]string  // class atoms forming one intersection (see inter.go); nil when none
 	ints  []IntRange // values of the int atom (see ints.go); nil when unconstrained
+	lens  []IntRange // byte lengths of the string atom (see lengths.go); nil when unconstrained
 }
 
 // Common types.
@@ -135,6 +136,9 @@ func Union(ts ...Type) Type {
 	if u.Has("int") {
 		u.ints = unionInts(ts)
 	}
+	if u.Has("string") {
+		u.lens = unionLens(ts)
+	}
 	return u.withGen(unionGen(u, ts)).withInter(unionInter(ts))
 }
 
@@ -158,6 +162,9 @@ func (t Type) Without(atoms ...string) Type {
 	r := Type{atoms: out}.withInfo(t.arr).withGen(t.gen).withInter(t.Intersection())
 	if r.Has("int") {
 		r.ints = t.ints
+	}
+	if r.Has("string") {
+		r.lens = t.lens
 	}
 	return r
 }

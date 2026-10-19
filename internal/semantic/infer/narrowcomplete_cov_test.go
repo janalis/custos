@@ -92,7 +92,7 @@ function g($x, ?string $s) {
 		"inArrayBool":       "int|null|string",
 		"otherBool":         "int|null|string",
 		"constConst":        "int|null|string",
-		"strlenCmp":         "int|null|string",
+		"strlenCmp":         "int|string<len 3, 3>",
 		"gettypeArgs":       "int|null|string",
 		"gettypeUnpack":     "int|null|string",
 		"dynFunc":           "int|null|string",

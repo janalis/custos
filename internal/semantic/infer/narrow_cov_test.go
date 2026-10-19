@@ -127,7 +127,7 @@ function f($x, $n, $sm, $is, $a, $cls, $fn) {
 		"boolNone":         "bool",
 		"contradiction":    "?unknown",
 		"dynCount":         "int[]|null",
-		"notCount":         "int[]|null",
+		"notCount":         "int[]",
 		"countVar":         "int[]|null",
 		"countStr":         "int[]|null",
 		"flipLess":         "non-empty int[]",

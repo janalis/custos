@@ -121,7 +121,7 @@ func TestReviewGuardValueIdentity(t *testing.T) {
 		// Since PHP 8 a function that only takes arrays throws on false.
 		{"array-only call returned", "<?php function f($u) { $p = parse_url($u); if (count($p) > 0) { echo $p['host']; } }", 0},
 		{"array-only call in a try", "<?php function f($u) { $p = parse_url($u); try { $n = count($p); } catch (TypeError $e) { $n = 0; } echo $p['host']; }", 1},
-		{"scalar call returned", "<?php function f($u) { $p = parse_url($u); if (strlen($p) > 0) { echo $p['host']; } }", 1},
+		{"scalar call returned", "<?php function f($u) { $p = parse_url($u); if (strlen($p) >= 0) { echo $p['host']; } }", 1},
 		{"stored test", "<?php function f($u) { $p = parse_url($u); $ok = $p !== false; if (!$ok) { return; } echo $p['host']; }", 0},
 		{"stored test of an earlier result", "<?php function f($u, $v) { $p = parse_url($u); $ok = $p !== false; $p = parse_url($v); if (!$ok) { return; } echo $p['host']; }", 1},
 		{"stored test overwritten", "<?php function f($u, $v) { $p = parse_url($u); $ok = $p !== false; $ok = $v; if (!$ok) { return; } echo $p['host']; }", 1},

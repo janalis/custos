@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"math"
 	"slices"
 	"strconv"
 	"strings"
@@ -71,16 +72,22 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			if n, ok := countComparison(c, name); ok {
 				return nonEmptyIf(t, countNonEmpty(c.Op.Kind, n, truthy))
 			}
+			if e.lengthOperand(c.Left, name) {
+				if v, ok := e.knownInt(c.Right); ok {
+					return lengthCmp(t, c.Op.Kind, v, truthy)
+				}
+			}
+			if e.lengthOperand(c.Right, name) {
+				if v, ok := e.knownInt(c.Left); ok {
+					return lengthCmp(t, mirrorOrder[c.Op.Kind], v, truthy)
+				}
+			}
 			if _, known := t.IntRanges(); known {
-				if v, ok := e.knownInt(c.Right); ok && isVar(c.Left, name) {
+				if v, ok := e.knownInt(c.Right); isVar(c.Left, name) && ok {
 					return intOrder(t, c.Op.Kind, v, truthy)
 				}
-				if v, ok := e.knownInt(c.Left); ok && isVar(c.Right, name) {
-					// `0 < $x` reads `$x > 0`.
-					return intOrder(t, map[syntax.TokenKind]syntax.TokenKind{
-						syntax.TLess: syntax.TGreater, syntax.TGreater: syntax.TLess,
-						syntax.TIsSmallerOrEqual: syntax.TIsGreaterOrEqual, syntax.TIsGreaterOrEqual: syntax.TIsSmallerOrEqual,
-					}[c.Op.Kind], v, truthy)
+				if v, ok := e.knownInt(c.Left); isVar(c.Right, name) && ok {
+					return intOrder(t, mirrorOrder[c.Op.Kind], v, truthy) // `0 < $x` reads `$x > 0`
 				}
 			}
 		}
@@ -125,7 +132,7 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		for _, x := range c.Vars {
 			// `isset($x->p)`, `isset($x['a']['b'])`: the base is set too.
 			if r, ok := chainBase(t, x, name); ok {
-				return r
+				return issetOffset(r, x, name)
 			}
 		}
 	case *syntax.Variable, *syntax.PropertyFetch, *syntax.StaticPropertyFetch, *syntax.ArrayDimFetch, *syntax.MethodCall:
@@ -215,6 +222,20 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		return narrowAtoms(t, atoms, truthy)
 	}
 	return t
+}
+
+// issetOffset narrows r, the type of name, where `isset($x[k])` holds with
+// k a non-negative integer and the string lengths of name known: a string
+// with a byte at offset k is at least k+1 bytes long.
+func issetOffset(r types.Type, x syntax.Expr, name string) types.Type {
+	d, ok := syntax.UnwrapParens(x).(*syntax.ArrayDimFetch)
+	if _, known := r.StringLengthRanges(); !ok || !known || !isVar(d.Var, name) {
+		return r
+	}
+	if k, ok := integerLiteral(d.Dim); ok && k >= 0 && k < math.MaxInt64 {
+		return r.LengthsWithin(k+1, math.MaxInt64)
+	}
+	return r
 }
 
 // keyExistsCond narrows name, the array of a true `array_key_exists($k, $a)`

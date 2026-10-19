@@ -388,7 +388,7 @@ func unionInfo(ts []Type) *arrayInfo {
 // a constrained int member reads `int<lo, hi>`.
 func (t Type) ShapeString() string {
 	base := t.String()
-	if len(t.gen) > 0 || t.ints != nil {
+	if len(t.gen) > 0 || t.ints != nil || t.lens != nil {
 		parts := make([]string, len(t.atoms))
 		for i, a := range t.atoms {
 			parts[i] = a
@@ -397,6 +397,9 @@ func (t Type) ShapeString() string {
 			}
 			if a == "int" && t.ints != nil {
 				parts[i] = intsString(t.ints)
+			}
+			if a == "string" && t.lens != nil {
+				parts[i] = rangesString("string<len ", t.lens)
 			}
 		}
 		base = t.joinParts(parts)
