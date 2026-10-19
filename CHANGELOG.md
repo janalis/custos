@@ -91,6 +91,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - FileLockFailureUnchecked and StreamUseAfterClose read the result of
   `flock()` and `fclose()` through type narrowing, which also follows
   `elseif` chains, `match` and `switch` arms.
+- TlsHandshakePendingAccepted accepts a completion test on a stored
+  handshake result, `… === true or exit;` and an `if (… === true)` body.
 - ConnectTimeoutAssumedToBoundReads reads a checked `stream_set_timeout()`
   through type narrowing: `stream_set_timeout($s, 2) or exit;` and a result
   kept in a boolean now count.

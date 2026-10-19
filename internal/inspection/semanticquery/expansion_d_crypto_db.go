@@ -851,11 +851,6 @@ func CheckTLSHandshakePendingAccepted(ctx *analysis.Context, n syntax.Node, mess
 	}
 	found := false
 	for _, stmt := range stmts {
-		// Statements after a strict completion guard only run once a later
-		// handshake call returned true.
-		if tlsHandshakeCompletionGuard(ctx, stmt, stream) {
-			break
-		}
 		syntax.Inspect(stmt, func(n syntax.Node) bool {
 			if syntax.IsVariableScope(n) {
 				return false
@@ -864,7 +859,7 @@ func CheckTLSHandshakePendingAccepted(ctx *analysis.Context, n syntax.Node, mess
 			case *syntax.If, *syntax.While, *syntax.For, *syntax.Foreach, *syntax.DoWhile, *syntax.Switch, *syntax.Try:
 				return false
 			}
-			if p, ok := n.(*syntax.FuncCall); ok && NativeBuiltin(ctx, p, "fwrite") && expansionDSame(ctx, stream, CallArgument(p.Args, 0, "stream")) {
+			if p, ok := n.(*syntax.FuncCall); ok && NativeBuiltin(ctx, p, "fwrite") && expansionDSame(ctx, stream, CallArgument(p.Args, 0, "stream")) && !tlsHandshakeCompleted(ctx, branch.Body, stream, p) {
 				found = true
 			}
 			return true
@@ -875,36 +870,31 @@ func CheckTLSHandshakePendingAccepted(ctx *analysis.Context, n syntax.Node, mess
 	}
 }
 
-// tlsHandshakeCompletionGuard recognizes `if (<handshake> !== true) { leave }`:
-// a terminating branch taken for every result of a further enabling handshake
-// call on the stream except true. `!`, `!= true` and `!== true` all reject
-// both false and the pending 0; the result may be assigned inside the test.
-func tlsHandshakeCompletionGuard(ctx *analysis.Context, stmt syntax.Stmt, stream syntax.Expr) bool {
-	guard, ok := stmt.(*syntax.If)
-	if !ok || !syntax.Terminates(guard.Body) {
+// tlsHandshakeCompleted reports whether a further enabling handshake call on
+// the stream, written in body before write, is known to have returned true
+// (neither false nor the pending 0) where write runs.
+func tlsHandshakeCompleted(ctx *analysis.Context, body syntax.Stmt, stream syntax.Expr, write *syntax.FuncCall) bool {
+	if NativeLabelled(ctx, write) {
 		return false
 	}
-	var tested syntax.Expr
-	switch cond := syntax.UnwrapParens(guard.Cond).(type) {
-	case *syntax.Unary:
-		if cond.Op.Kind == syntax.TExclaim {
-			tested = cond.Expr
+	completed := false
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		if completed || n.Span().Start >= write.Span().Start || syntax.IsVariableScope(n) {
+			return false
 		}
-	case *syntax.Binary:
-		if value, known := astquery.BoolConst(syntax.UnwrapParens(cond.Right)); known && value && (cond.Op.Kind == syntax.TIsNotIdentical || cond.Op.Kind == syntax.TIsNotEqual) {
-			tested = cond.Left
+		c, ok := n.(*syntax.FuncCall)
+		if !ok || !NativeBuiltin(ctx, c, "stream_socket_enable_crypto") || !expansionDSame(ctx, stream, CallArgument(c.Args, 0, "stream")) {
+			return true
 		}
-	}
-	tested = syntax.UnwrapParens(tested)
-	if a, ok := tested.(*syntax.Assign); ok && !a.ByRef && a.Op.Kind == syntax.TEqual {
-		tested = syntax.UnwrapParens(a.Value)
-	}
-	c, ok := tested.(*syntax.FuncCall)
-	if !ok || !NativeBuiltin(ctx, c, "stream_socket_enable_crypto") || !expansionDSame(ctx, stream, CallArgument(c.Args, 0, "stream")) {
-		return false
-	}
-	enabling, known := NativeTruth(ctx, CallArgument(c.Args, 1, "enable"))
-	return known && enabling
+		if enabling, known := NativeTruth(ctx, CallArgument(c.Args, 1, "enable")); known && enabling {
+			// The handshake returns true, false or the pending 0; null stands
+			// for 0: falsy and loosely equal to false, as 0 is.
+			t := ctx.Types().Native().CallResultAsAt(c, write, types.Of("true", "false", "null"))
+			completed = !t.IsUnknown() && t.OnlyOf("true")
+		}
+		return !completed
+	})
+	return completed
 }
 
 func CheckFtpPendingTransferAcceptedAsComplete(ctx *analysis.Context, n syntax.Node, message string) {
