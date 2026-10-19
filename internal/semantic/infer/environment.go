@@ -48,6 +48,11 @@ type Env struct {
 	annotating bool
 	deps       []string
 
+	// seedUse is the read NarrowMember narrows from an assumed type: a
+	// write of an unknown value to it keeps that type (see
+	// afterPropertyWrite).
+	seedUse syntax.Expr
+
 	// generics caches genBindings.
 	generics map[string]map[string]tplBindings
 

@@ -6,6 +6,7 @@ import (
 	"custos/internal/inspection/phpunit"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Handle regex replacement failure before using its result."
@@ -49,7 +50,7 @@ func (rule) Check(ctx *analysis.Context, call syntax.Node) {
 		}
 
 		// In a scope with a `goto` label only the flow says what holds here.
-		if ctx.Flow().Excludes(input, "null") || semanticquery.NativeStringNonNullGuard(ctx, input) || !semanticquery.NativeFailureFlowOnly(ctx, input) && (ctx.TypeOf(input).OnlyOf("string") || nullGuarded(ctx, input)) {
+		if ctx.Flow().Excludes(input, "null") || semanticquery.NativeStringNonNullGuard(ctx, input) || !semanticquery.NativeFailureFlowOnly(ctx, input) && (ctx.TypeOf(input).OnlyOf("string") || !ctx.Types().Native().NarrowMember(input, types.Of("string", "null")).Has("null")) {
 			continue
 		}
 		// The parameter must be `string` in whichever declaration runs.

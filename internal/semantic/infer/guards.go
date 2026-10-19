@@ -152,7 +152,7 @@ func (e *Env) afterPropertyWrite(use syntax.Expr, scope syntax.Node, t types.Typ
 	if e.nonEmptyBroken(scope, name, a.Span().End, use) {
 		return t
 	}
-	if a.Op.Kind == syntax.TEqual && (vt.IsUnknown() || vt.Has("mixed")) && !e.nativeProp(a.Var) {
+	if a.Op.Kind == syntax.TEqual && (vt.IsUnknown() || vt.Has("mixed")) && !e.nativeProp(a.Var) && use != e.seedUse {
 		// The value just stored is not known and nothing enforces the
 		// property's documented type: it is no more than a hint.
 		return types.Unknown

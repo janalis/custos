@@ -50,6 +50,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   truthiness, and `$x != null`, `!= ''`, `!= 0` exclude both null and false
   (`!= '0'` excludes false).
 - Truthiness tests narrow static properties (`if (self::$cache) { … }`).
+- PregReplaceFailureUnchecked accepts a null test from any earlier condition
+  of an `if`/`elseif` chain for a result kept in a property, not only the
+  first one.
 
 ### Fixed
 

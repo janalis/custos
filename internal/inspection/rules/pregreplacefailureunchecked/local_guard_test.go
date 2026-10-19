@@ -103,8 +103,8 @@ func TestPropertyGuardWalk(t *testing.T) {
 		{"enclosing branch, wrong sense", "if($this->n===null){strlen($this->n);}", 1},
 		{"else of a null test", "if($this->n===null){echo 1;}else{strlen($this->n);}", 0},
 		{"elseif own condition", "if($x){echo 1;}elseif($this->n!==null){strlen($this->n);}", 0},
-		// Only the first condition of a chain is read for its later arms.
-		{"else after a failed elseif", "if($x){echo 1;}elseif($this->n===null){echo 2;}else{strlen($this->n);}", 1},
+		// Every failed condition of a chain holds in its later arms.
+		{"else after a failed elseif", "if($x){echo 1;}elseif($this->n===null){echo 2;}else{strlen($this->n);}", 0},
 		{"elseif of an unrelated chain", "if($x){echo 1;}elseif($b){strlen($this->n);}", 1},
 		{"ternary arm", "return $this->n!==null?strlen($this->n):0;", 0},
 		{"ternary wrong arm", "return $this->n===null?strlen($this->n):0;", 1},

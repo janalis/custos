@@ -15,6 +15,26 @@ func (e *Env) narrow(t types.Type, v *syntax.Variable, scope syntax.Node, after 
 	return e.narrowExprAfter(t, v, v.Name, scope, after)
 }
 
+// NarrowMember narrows seed, a type assumed for the property, static
+// property or literal-key element read x, by the conditions guarding x, as
+// TypeOf narrows such a read whose declared type is known: what a guard
+// proves of a value its declaration says nothing about (a result stored in
+// an untyped property). Writes to x, its object or its array between a
+// condition and x end what the condition proves; a write of an unknown
+// value keeps the assumed type. Plain variables, whose
+// narrowing starts after their reaching definitions, and other expressions
+// return seed.
+func (e *Env) NarrowMember(x syntax.Expr, seed types.Type) types.Type {
+	x = syntax.UnwrapParens(x)
+	key := narrowKey(x)
+	if !isPropKey(key) && !isDimKey(key) {
+		return seed
+	}
+	e.seedUse = x
+	defer func() { e.seedUse = nil }()
+	return e.narrowExpr(seed, x, key, syntax.EnclosingVariableScope(x))
+}
+
 // narrowKey identifies an expression whose type guards can refine: a
 // variable by its name, `$this->prop` as "this->prop", and an element with
 // a literal key of either (`$a['k']`, nested up to maxDimDepth levels:
