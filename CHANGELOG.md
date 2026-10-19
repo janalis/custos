@@ -67,6 +67,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - FailedClosureBindingInvoked reads guards of a binding kept in a property
   through type narrowing, which also accepts an exit with an `else` branch
   and a predicate compared with `true`.
+- PosixAccountLookupFailureDereferenced reads its guards from type
+  narrowing, and trusts a property test on a class that is not final.
 
 ### Fixed
 

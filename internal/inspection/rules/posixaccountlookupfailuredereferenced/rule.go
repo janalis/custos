@@ -4,9 +4,9 @@ package posixaccountlookupfailuredereferenced
 import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
-
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Reject account lookup failure before indexing."
@@ -31,14 +31,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	// Among several reaching assignments only a lookup result counts: an
 	// unguarded result of another call does not stand in for it.
-	c, ok := semanticquery.NativeLocalBuiltinResult(ctx, a.Var, "false", "posix_getpwnam", "posix_getpwuid").(*syntax.FuncCall)
-	if !ok {
+	if _, ok := semanticquery.NativeLocalBuiltinResult(ctx, a.Var, "false", "posix_getpwnam", "posix_getpwuid").(*syntax.FuncCall); !ok {
 		return
 	}
-	if ctx.Flow().Excludes(a.Var, "false") || !semanticquery.NativeFailureFlowOnly(ctx, a.Var) && semanticquery.NativeLocalSentinelGuard(ctx, a.Var, "false") {
+	if ctx.Flow().Excludes(a.Var, "false") || !semanticquery.NativeFailureFlowOnly(ctx, a.Var) && semanticquery.NativeNarrowedExcludes(ctx, a.Var, types.Of("array", "false"), "false") {
 		return
 	}
-	if semanticquery.NativeFailureFlowOnly(ctx, a.Var) || !(guard{ctx: ctx, target: a.Var, call: c}).covers() {
-		ctx.ReportNode(n, message)
-	}
+	ctx.ReportNode(n, message)
 }

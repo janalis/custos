@@ -6,5 +6,5 @@ class Own { private $p; function own($n) { $this->p = posix_getpwnam($n); if ($t
 function finalTruth(F $o, $n) { $o->p = posix_getpwnam($n); if ($o->p) { echo $o->p['dir']; } }
 function finalWrite(F $o, $n) { $o->p = posix_getpwnam($n); if ($o->p) { $o->p = posix_getpwnam($n . 'x'); echo $o->p['dir']; } }
 function finalOther(F $o, F $q, $n) { $o->p = posix_getpwnam($n); if ($o->p) { $q->p = false; echo <warning descr="Reject account lookup failure before indexing.">$o->p['dir']</warning>; } }
-function openTruth(T $o, $n) { $o->p = posix_getpwnam($n); if ($o->p) { echo <warning descr="Reject account lookup failure before indexing.">$o->p['dir']</warning>; } }
+function openTruth(T $o, $n) { $o->p = posix_getpwnam($n); if ($o->p) { echo $o->p['dir']; } }
 function finalCall(F $o, $n) { $o->p = posix_getpwnam($n); if ($o->p) { work($o); echo <warning descr="Reject account lookup failure before indexing.">$o->p['dir']</warning>; } }

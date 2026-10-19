@@ -51,7 +51,7 @@ func TestReviewGuards(t *testing.T) {
 		{"and die", "!$i and die('unknown'); return $i['dir'];", 0},
 		{"assigned or throw", "$j = posix_getpwuid($o) or throw new Exception(); return $j['dir'];", 0},
 		{"assigned exit", "if (!($j = posix_getpwuid($o))) { return; } return $j['dir'];", 0},
-		// Key probes are proven by the guard walk only.
+		// A key probe proves the lookup returned an array.
 		{"isset ternary", "return isset($i['dir']) ? $i['dir'] : null;", 0},
 		{"isset else branch", "if (!isset($i['dir'])) { echo 0; } else { echo $i['dir']; }", 0},
 		{"after failed isset elseif", "if ($o) { echo 0; } elseif (!isset($i['dir'])) { echo 1; } else { echo $i['dir']; }", 0},
