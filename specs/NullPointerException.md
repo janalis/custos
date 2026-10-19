@@ -198,54 +198,30 @@ walk for this name, *skip* goes to the next usage:
   their parameter contracts.
 - Anything else (e.g. `v ?? x`, `v ?: x`, `return v`, plain read) → skip.
 - **U12** (applies to every *report* of U7–U11) The report is dropped —
-  the walk goes on without stopping — when `v` sits in a region that an
-  enclosing condition `c` (between `v` and `F`) only enters when `$n` is not
-  null, and `$n` is not the target of an assignment (any operator,
-  destructuring included; a write to `$n->p` or `$n[…]` is not one) or a
-  `foreach` key/value that completes between the end of `c` and `v`.
-  An assignment does not count when it cannot reach `v` without passing
-  `c` again: a statement list that holds it but not `v` then ends (after
-  it) in `return`, `throw` or `exit`, or in `continue`/`break` whose
-  nearest enclosing loop (no `switch` in between) holds `c`.
-  Regions and the truth value of `c` they imply:
-  the body of `if (c)` / `elseif (c)` / `while (c)` (true); an `elseif` body
-  also implies every earlier `if`/`elseif` condition false; the `else` body
-  implies every condition of its chain false; ternary `c ? v : …` (true),
-  `c ? … : v` and `c ?: v` (false); the right operand of `c && v` /
-  `c and v` (true) and of `c || v` / `c or v` (false); the body of the arm
-  `c => v` of `match (true)` when it has the single condition `c` (true);
-  the statements following, in the same statement list, an `if (c)` whose
-  body always terminates (`return`, `throw`, `exit`, `continue`, `break`)
-  (false).
-  `for (…; c; loop) body`, `c` being the last condition expression (true):
-  the body is such a region, the assignment window starting at the body
-  (the loop expressions are written before it but run after it, and `c` is
-  evaluated again behind them). A loop expression is such a region only
-  when, in addition, the body holds no assignment to `$n` or `foreach`
-  over it at all — a `continue` reaches the loop expressions without
-  passing `c` again — and no earlier loop expression assigns it. A read on
-  the right side of the loop expression's own assignment
-  (`$n = $n->next()`) happens before that write.
-  `match ($n) { … }` on the variable itself: the body of the `default` arm
-  when some arm lists `null` among its conditions; the body of an arm whose
-  conditions all have a known inferred type containing neither `null`,
-  `void` nor `mixed` (arms compare with `===`). An arm listing `null`, or
-  the `default` arm of a match without a `null` arm, is not such a region.
-  `$n` must not be assigned between the subject and `v`.
-  `c` *guarantees non-null when true* if, after removing parentheses:
-  `!x` guarantees it when `x` is false; `a && b` when `a` or `b` does;
-  otherwise `c` is `$n` itself or an access chain starting at `$n`
-  (`$n->p`, `$n?->m()`, `$n['k']`, any depth) used as a truthy value;
-  `$n instanceof T`; `isset(...)` with an argument that is `$n` or such a
-  chain; `is_object($n)` (global function); `X !== null` / `X != null` with
-  `X` being `$n` or such a chain; `X === E` (`X` being `$n` or such a
-  chain: a null `$n` makes the chain null or throws) where `E`'s inferred
-  type is known and contains neither `null`, `void` nor `mixed`; `X == E` where
-  `E`'s type is additionally object-only (a loose comparison with `''`,
-  `0`, `false` or `[]` also holds for `null`).
-  `c` *guarantees non-null when false* if: `!x` when `x` guarantees it when
-  true; `a || b` when `a` or `b` does; `empty(X)`, `is_null($n)` (global),
-  `X === null` / `X == null` with `X` being `$n` or a chain starting at it.
+  the walk goes on without stopping — when the conditions that must have
+  held to reach `v` prove `$n` is not null there, reading `$n` with its
+  declared (native) type narrowed at `v`. Such conditions guard the body of
+  an enclosing `if`/`elseif`/`else` (an `elseif` or `else` body also implies
+  every earlier condition of its chain false), `while`, or `for` (its body,
+  and its loop expressions when neither the body nor an earlier loop
+  expression assigns `$n`), an arm of a ternary or short ternary, the right
+  operand of `&&`/`and`/`||`/`or`, a `match` arm (the earlier arms did not
+  match), and the statements after an `if` whose body always leaves: by
+  `return`, `throw`, `exit`, `continue`, `break`, a call that never returns,
+  or an `if`/`else`, `try` or `switch` that leaves on every path.
+  A condition proves `$n` non-null when true if it is `$n` or an access
+  chain starting at `$n` (`$n->p`, `$n?->m()`, `$n['k']`) used as a truthy
+  value, `$n instanceof T`, `isset(...)` of `$n` or such a chain, a builtin
+  type predicate that excludes null (`is_object($n)`), `X !== null` or a
+  loose comparison of `X` (`$n` or such a chain) with `null`, `''`, `0` or
+  `true` that excludes null, `$n === E` where `E` is known never to be
+  null, or `$n == E` where `E` is an object; it proves it when false if it
+  is `empty(X)`, builtin `is_null($n)`, `X === null` or `X == null`; `!`,
+  `&&` and `||` combine these. What a condition proved ends where `$n` may
+  have changed since: an assignment to `$n` (any operator, destructuring
+  included; a write to `$n->p` or `$n[…]` is not one) that can reach `v`
+  without passing the condition again, a by-reference use, or, for a
+  `static` local, a call that may run the function again.
 
 ## Exceptions (no report)
 
@@ -420,7 +396,7 @@ function visit(?Node $item) {
   variable and then `continue`s; writing a property of the variable
   (`$v->p = 1`) does not undo the check. A `for` condition guards the loop
   body and, when the body never assigns the variable, the loop expressions;
-  a `match ($v)` with a `null` arm guards its `default` arm, and an arm
+  a `match ($v)` guards each arm after one that lists `null`, and an arm
   whose conditions are all known non-null values guards its own body.
 - Variadic parameters (custos diverges from upstream). `?T ...$v` declares
   an array of nullable elements, never a nullable object, so `$v[0]` is not

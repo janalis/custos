@@ -68,7 +68,7 @@ class Link
         };
         $r += match ($d) {
             $known, null => <warning descr="Possible null dereference.">$d</warning>->value,
-            $loose => <warning descr="Possible null dereference.">$d</warning>->value,
+            $loose => $d->value,
             default => 2,
         };
         $r += match ($e) {

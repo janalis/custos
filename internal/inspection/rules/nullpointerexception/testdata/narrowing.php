@@ -159,7 +159,7 @@ class Cell
                     continue 2;
                 }
             }
-            <warning descr="Possible null dereference.">$r</warning>->value = 1;
+            $r->value = 1;
         }
 
         $u = $start->previous;
@@ -190,7 +190,7 @@ class Cell
                     return;
                 }
             }
-            <warning descr="Possible null dereference.">$m</warning>->value = 1;
+            $m->value = 1;
         }
 
         $s = $start->previous;

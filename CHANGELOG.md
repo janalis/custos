@@ -60,6 +60,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   first one.
 - DateLastErrorsFalseUnchecked no longer reports a diagnostics read on a
   property inside a branch, ternary arm or `else` that a `false` test guards.
+- NullPointerException reads its guards from type narrowing: a dereference
+  is no longer reported after a test with the assignment written inside it
+  (`if (null === $x = f()) { return; }`), after `continue 2` back to the
+  guarding loop, or in a `match` arm after one that lists `null`.
 
 ### Fixed
 
@@ -72,6 +76,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A value assigned inside a loop and carried to the next iteration is no
   longer narrowed by a condition outside the loop, which it never passed.
 - The right side of `$a ?: $b` is narrowed by `$a` being falsy.
+- A value assigned right before `continue 2` (or a deeper level) no longer
+  reaches the reads of the loops it leaves, and a `for` loop's step
+  expressions are narrowed by its condition when the body does not assign
+  the variable.
 
 ### Security
 
