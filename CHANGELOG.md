@@ -64,6 +64,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   is no longer reported after a test with the assignment written inside it
   (`if (null === $x = f()) { return; }`), after `continue 2` back to the
   guarding loop, or in a `match` arm after one that lists `null`.
+- FailedClosureBindingInvoked reads guards of a binding kept in a property
+  through type narrowing, which also accepts an exit with an `else` branch
+  and a predicate compared with `true`.
 
 ### Fixed
 
@@ -76,6 +79,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A value assigned inside a loop and carried to the next iteration is no
   longer narrowed by a condition outside the loop, which it never passed.
 - The right side of `$a ?: $b` is narrowed by `$a` being falsy.
+- An `elseif` condition is narrowed by the earlier conditions of its chain
+  having failed.
 - A value assigned right before `continue 2` (or a deeper level) no longer
   reaches the reads of the loops it leaves, and a `for` loop's step
   expressions are narrowed by its condition when the body does not assign

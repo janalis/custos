@@ -8,9 +8,9 @@ import (
 )
 
 // The flow analysis answers every guard of a plain variable in a scope it
-// follows. The rule's own guard walk decides for a binding result kept in a
-// property or static property, and in a scope the flow does not follow
-// (`goto`, generator).
+// follows. Type narrowing decides for a binding result kept in a property or
+// static property, and in a scope the flow does not follow (`goto`,
+// generator).
 func TestLocalGuards(t *testing.T) {
 	const bind = "(static function(){})->bindTo(new stdClass())"
 	property := func(body string) string {
@@ -44,7 +44,7 @@ func TestLocalGuards(t *testing.T) {
 		{"property early return", property("if($this->b===null){return 0;}echo 'bound';return ($this->b)();"), 0},
 		{"property early return in enclosing list", property("if(!$this->b){return 0;}if($flag){return ($this->b)();}return 0;"), 0},
 		{"property non-terminating guard", property("if(!$this->b){echo 'failed';}return ($this->b)();"), 1},
-		{"property guard with else", property("if(!$this->b){return 0;}else{echo 'bound';}return ($this->b)();"), 1},
+		{"property guard with else", property("if(!$this->b){return 0;}else{echo 'bound';}return ($this->b)();"), 0},
 		{"property else branch", property("if($this->b===null){return 0;}else{return ($this->b)();}"), 0},
 		{"property elseif body", property("if($flag){return 0;}elseif($this->b){return ($this->b)();}return 0;"), 0},
 		{"property after failed branch", property("if(!$this->b){return 0;}elseif($flag){return ($this->b)();}return 0;"), 0},
@@ -77,7 +77,7 @@ func TestLocalGuards(t *testing.T) {
 		{"generator unguarded", generator("$b();"), 1},
 		{"generator guarded", generator("if($b!==null){$b();}"), 0},
 		// Forms the flow does not read and the walk does not accept stay reported.
-		{"predicate compared with literal", "function f(){$b=" + bind + ";if(is_callable($b)===true){return $b();}return 0;}", 1},
+		{"predicate compared with literal", "function f(){$b=" + bind + ";if(is_callable($b)===true){return $b();}return 0;}", 0},
 		// An arm of `match (true)` runs when its condition holds, and after
 		// every earlier condition failed.
 		{"match arm", "function f(){$b=" + bind + ";return match(true){$b!==null=>$b(),default=>0};}", 0},
