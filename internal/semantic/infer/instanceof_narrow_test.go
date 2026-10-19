@@ -118,3 +118,14 @@ function f(string|false $s, int|false $i) {
 }
 `, map[string]string{"shadowed": "false|string", "qualified": "string", "shadowedGettype": "false|string", "builtin": "int"})
 }
+
+// An elseif condition runs after the earlier conditions of its chain failed.
+func TestElseIfConditionAfterFailedConditions(t *testing.T) {
+	checkAnywhere(t, `<?php
+class C {}
+function f(?C $c, bool $b) {
+    if ($c === null) { echo 1; } elseif (t('cond', $c)) { echo 2; }
+    if ($b) { echo 1; } elseif ($c === null) { echo 2; } elseif (t('later', $c)) { echo 3; }
+}
+`, map[string]string{"cond": `\C`, "later": `\C`})
+}

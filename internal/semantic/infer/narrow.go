@@ -208,15 +208,16 @@ func (e *Env) narrowExprAfter(t types.Type, x syntax.Expr, key string, scope syn
 				t = cond(x, scope, t, n.Cond[len(n.Cond)-1], key, true)
 			}
 		case *syntax.ElseIf:
-			if child == syntax.Node(n.Body) {
-				// The conditions before it in the chain were false.
-				ifn := n.Parent().(*syntax.If)
-				if i := nodeIndex(ifn.ElseIfs, n); i < len(ifn.ElseIfs) && i < maxBranchScan {
-					t = cond(x, scope, t, ifn.Cond, key, false)
-					for _, ei := range ifn.ElseIfs[:i] {
-						t = cond(x, scope, t, ei.Cond, key, false)
-					}
+			// Its condition, like its body, runs once the conditions before
+			// it in the chain were false.
+			ifn := n.Parent().(*syntax.If)
+			if i := nodeIndex(ifn.ElseIfs, n); i < len(ifn.ElseIfs) && i < maxBranchScan {
+				t = cond(x, scope, t, ifn.Cond, key, false)
+				for _, ei := range ifn.ElseIfs[:i] {
+					t = cond(x, scope, t, ei.Cond, key, false)
 				}
+			}
+			if child == syntax.Node(n.Body) {
 				t = cond(x, scope, t, n.Cond, key, true)
 			}
 		case *syntax.MatchArm:
