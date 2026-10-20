@@ -297,9 +297,10 @@ func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.
 	return out
 }
 
-// knownInt returns the integer x holds: a literal (with its sign), or a
-// plain local whose only reaching definition assigns one and that nothing
-// else may have changed (`$failed = -1; if ($pid === $failed)`).
+// knownInt returns the integer x holds: a literal (with its sign), a plain
+// local whose only reaching definition assigns one and that nothing else may
+// have changed (`$failed = -1; if ($pid === $failed)`), a fixed builtin
+// constant, or the byte length of a known string.
 func (e *Env) knownInt(x syntax.Expr) (int64, bool) {
 	if v, ok := integerLiteral(x); ok {
 		return v, true
@@ -316,11 +317,13 @@ func (e *Env) knownInt(x syntax.Expr) (int64, bool) {
 		}
 		return 0, false
 	}
-	v, ok := syntax.UnwrapParens(x).(*syntax.Variable)
-	if !ok {
-		return 0, false
+	switch v := syntax.UnwrapParens(x).(type) {
+	case *syntax.Variable:
+		return integerLiteral(e.onlyValue(v))
+	case *syntax.ConstFetch:
+		return e.constInt(v) // `PHP_SESSION_ACTIVE`
 	}
-	return integerLiteral(e.onlyValue(v))
+	return 0, false
 }
 
 // onlyValue returns the value of the only plain assignment of local v

@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"strconv"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -27,6 +28,28 @@ func (e *Env) resolvedConstType(n *syntax.ConstFetch) types.Type {
 		}
 	}
 	return types.Unknown
+}
+
+// constInt returns the value of the builtin constant n names when it is an
+// integer that no platform or version changes (not PHP_INT_MAX nor E_ALL,
+// whose values vary). Where the constant does not exist, reading it throws.
+func (e *Env) constInt(n *syntax.ConstFetch) (int64, bool) {
+	fqn, fallback := e.Names.Const(n.Name.Value, n.Span().Start)
+	for _, name := range []string{fqn, fallback} {
+		if name == "" {
+			continue
+		}
+		c := e.Index.Constant(name, e.PHP)
+		if c == nil {
+			continue
+		}
+		if !c.Builtin || !builtinConstType(name, 0).IsUnknown() {
+			return 0, false
+		}
+		v, err := strconv.ParseInt(strings.TrimSpace(c.Value), 10, 64)
+		return v, err == nil
+	}
+	return 0, false
 }
 
 func (e *Env) namedConstType(fqn string) (types.Type, bool) {

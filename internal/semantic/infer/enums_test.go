@@ -194,3 +194,35 @@ u($n);
 		t.Error("no name, or $this, is no local")
 	}
 }
+
+// A fixed builtin integer constant is a known integer for comparisons; a
+// project constant, a value that varies by version or platform, a float or
+// an unknown name is not.
+func TestKnownConstantInt(t *testing.T) {
+	src := `<?php
+namespace N;
+const MINE = 2;
+function f($s) {
+    if ($s === PHP_SESSION_ACTIVE) { u($s); }
+    if ($s === \LOCK_EX) { u($s); }
+    if ($s === MINE) { u($s); }
+    if ($s === E_ALL) { u($s); }
+    if ($s === M_PI) { u($s); }
+    if ($s === \N\MISSING) { u($s); }
+    if ($s < SEEK_CUR) { u($s); }
+}`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "u" {
+				got = append(got, env.NarrowedFrom(c.Args.Args[0].(*syntax.Arg).Value, types.Ints(types.IntRange{Lo: 0, Hi: 9})).ShapeString())
+			}
+		}
+		return true
+	})
+	checkReads(t, got, []string{"int<2, 2>", "int<2, 2>", "int<0, 9>", "int<0, 9>", "?unknown", "int<0, 9>", "int<0, 0>"})
+}
