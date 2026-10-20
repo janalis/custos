@@ -634,6 +634,23 @@ func (e *Env) shapeClobbered(scope syntax.Node, name string) bool {
 	return false
 }
 
+// shapeClobberedAt is shapeClobbered for array facts established at from
+// and read at use: a by-reference argument only clobbers them between the
+// two (or in a loop around use), a reference binding anywhere does (writes
+// through the reference may happen at any point).
+func (e *Env) shapeClobberedAt(scope syntax.Node, name string, from uint32, use syntax.Node) bool {
+	var calls []mutation
+	for _, m := range e.mutations(scope, name) {
+		switch m.kind {
+		case mutRef:
+			return true
+		case mutCallArg:
+			calls = append(calls, m)
+		}
+	}
+	return e.brokenBy(scope, from, use, calls)
+}
+
 // nonEmptyBroken reports whether a non-empty fact established at position
 // from (a definition or a condition) may no longer hold at use: a mutation
 // of the variable lies between them (outside branches exclusive with use),

@@ -156,13 +156,13 @@ $arrow = fn() => [$a = ['k' => 1], sort($a), t('arrow', $a)];
 		"dynMethod":    "int[]{k: int}", // unresolvable callee: not clobbered
 		"dynStatic":    "int[]{k: int}",
 		"newDyn":       "int[]{k: int}",
-		"new":          "?unknown",        // by-reference constructor parameter
-		"named":        "?unknown",        // named by-reference parameter
-		"namedMissing": "int[]{k: int}",   // no parameter of that name
-		"variadic":     "?unknown",        // by-reference variadic
-		"extra":        "int[]{k: int}",   // beyond the parameters, not variadic
-		"elseif":       "non-empty int[]", // mutations only in exclusive branches
-		"arrow":        "int[]",           // sort() inside the arrow function
+		"new":          "?unknown",      // by-reference constructor parameter
+		"named":        "?unknown",      // named by-reference parameter
+		"namedMissing": "int[]{k: int}", // no parameter of that name
+		"variadic":     "?unknown",      // by-reference variadic
+		"extra":        "int[]{k: int}", // beyond the parameters, not variadic
+		"elseif":       "int[]{0: int}", // mutations only in exclusive branches
+		"arrow":        "int[]",         // sort() inside the arrow function
 	})
 }
 
@@ -233,5 +233,23 @@ function f(array $ints, ?array $map, array $plain) {
 `, map[string]string{
 		"a": "int", "b": "int", "k": "string", "plain": "?unknown", "widened": "int|string",
 		"call": "string", "nested": "int",
+	})
+}
+
+// A by-reference argument changes an array's shape only for the reads it
+// can precede; a reference binding does anywhere.
+func TestShapeClobberedByPosition(t *testing.T) {
+	checkShape(t, `<?php
+/** @param array<string, int> $xs */
+function f(array $xs, bool $c) {
+    $a = []; foreach ($xs as $n => $x) { $a[] = ['n' => $n]; }
+    t('before', $a); sort($a); t('after', $a);
+    $l = ['k' => 1]; t('loopFirst', $l);
+    foreach ($xs as $x) { t('inLoop', $l); sort($l); }
+    $r = ['k' => 1]; t('ref', $r); $alias = &$r;
+}
+`, map[string]string{
+		"before": "string[][]<array{n: string}>", "after": "string[][]<array{n: string}>",
+		"loopFirst": "int[]{k: int}", "inLoop": "int[]", "ref": "non-empty int[]",
 	})
 }

@@ -53,6 +53,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   `str_getcsv()`, `file()` and `glob()` return lists of strings; and
   `preg_split()` with `PREG_SPLIT_OFFSET_CAPTURE` returns `[string, int]`
   pairs.
+- An array filled by appending shaped rows in a loop keeps the rows' shape,
+  and passing an array to `sort()`, `usort()` or another by-reference
+  parameter no longer drops its known keys and shape for reads before the
+  call.
 - `new` gives a generic class the template arguments its constructor's
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.

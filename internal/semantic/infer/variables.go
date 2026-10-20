@@ -287,7 +287,7 @@ func (e *Env) withElemWritesAt(t types.Type, name string, use, scope syntax.Node
 			arr = append(arr, a+"[]")
 		}
 	}
-	return types.Of(append(other, arr...)...).WithNonEmpty(t.IsNonEmptyArray()).WithArrayKey(e.arrayKeyAt(t, name, use, scope)), true
+	return types.Of(append(other, arr...)...).WithElem(el).WithNonEmpty(t.IsNonEmptyArray()).WithArrayKey(e.arrayKeyAt(t, name, use, scope)), true
 }
 
 func (e *Env) variableBase(v *syntax.Variable) types.Type {
@@ -402,7 +402,7 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 	}
 	settle := func(t types.Type) types.Type {
 		if t.HasShape() || !t.ArrayKey().IsUnknown() || t.IsNonEmptyArray() {
-			if (t.HasShape() || !t.ArrayKey().IsUnknown()) && e.shapeClobbered(scope, name) {
+			if (t.HasShape() || !t.ArrayKey().IsUnknown()) && e.shapeClobberedAt(scope, name, from, use) {
 				t = t.WithoutShape().WithArrayKey(types.Unknown)
 			}
 			if t.IsNonEmptyArray() && e.nonEmptyBroken(scope, name, from, use) {
