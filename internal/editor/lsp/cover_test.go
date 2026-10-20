@@ -380,21 +380,31 @@ func TestSettings(t *testing.T) {
 func TestMergeOverrides(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, config.FileName), []byte(`{"php": "8.1", "comparisonStyle": "yoda", "paths": ["src"], "exclude": ["gen"], "baseline": "bl.json",
-		"rules": {"NestedNotOperators": {"enabled": false}, "UnnecessarySemicolon": {"severity": "info"}}}`), 0o644); err != nil {
+		"rules": {"NestedNotOperators": {"enabled": false, "severity": "info", "options": {"a": 1}}, "UnnecessarySemicolon": {"severity": "info"}}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	base, err := config.Load(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := mergeOverrides(base, config.File{Rules: map[string]config.RuleSettings{"UnnecessarySemicolon": {Severity: "error"}}})
+	m, err := mergeOverrides(base, config.File{Rules: map[string]config.RuleSettings{
+		"UnnecessarySemicolon": {Severity: "error"},
+		"NestedNotOperators":   {Options: map[string]any{"b": 2}},
+	}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if m.PHP != phpversion.PHP81 || m.ComparisonStyle != analysis.StyleYoda || m.ShortOpenTag ||
 		strings.Join(m.Paths, ",") != "src" || !strings.HasSuffix(strings.Join(m.Exclude, ","), ",gen") || m.Baseline != "bl.json" ||
-		m.Rules["UnnecessarySemicolon"].Severity != "error" || m.Rules["NestedNotOperators"].Enabled == nil {
+		m.Rules["UnnecessarySemicolon"].Severity != "error" {
 		t.Fatalf("merged: %+v", m)
+	}
+	// A client entry overrides the project's entry field by field.
+	if n := m.Rules["NestedNotOperators"]; n.Enabled == nil || *n.Enabled || n.Severity != "info" || n.Options["a"] != 1.0 || n.Options["b"] != 2 {
+		t.Fatalf("field merge: %+v", n)
+	}
+	if u := m.Rules["UnnecessarySemicolon"]; u.Enabled != nil || len(u.Options) != 0 {
+		t.Fatalf("field merge without project options: %+v", u)
 	}
 	yes := true
 	m, err = mergeOverrides(base, config.File{PHP: "7.4", ComparisonStyle: "regular", ShortOpenTag: &yes})

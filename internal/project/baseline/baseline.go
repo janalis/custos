@@ -115,6 +115,38 @@ func (b *Baseline) Filter(items []diagnostic.Item) ([]diagnostic.Item, int) {
 	return out, suppressed
 }
 
+// FilterFindings removes one file's findings covered by the baseline,
+// taking flagged lines from src (an editor buffer, say) instead of reading
+// the file again. Lines are numbered and split exactly as Filter sees them.
+func (b *Baseline) FilterFindings(path string, src []byte, findings []diagnostic.Finding) []diagnostic.Finding {
+	if len(b.counts) == 0 || len(findings) == 0 {
+		return findings
+	}
+	li := syntax.NewLineIndex(src)
+	lines := strings.Split(string(bytes.ReplaceAll(src, []byte("\r\n"), []byte("\n"))), "\n")
+	p := rel(b.dir, path)
+	remaining := map[key]int{}
+	out := findings[:0:0]
+	for _, f := range findings {
+		text := ""
+		if l, _ := li.Position(f.Span.Start); l < len(lines) {
+			text = strings.TrimSpace(lines[l])
+		}
+		k := key{p, f.Rule, f.Message, text}
+		left, seen := remaining[k]
+		if !seen {
+			left = b.counts[k]
+		}
+		if left > 0 {
+			remaining[k] = left - 1
+			continue
+		}
+		remaining[k] = 0
+		out = append(out, f)
+	}
+	return out
+}
+
 // Write creates a baseline at path covering items.
 func Write(path string, items []diagnostic.Item) (int, error) {
 	abs, err := filepath.Abs(path)

@@ -1,6 +1,7 @@
-// Command cleanroom scans the repository for text that appears verbatim in
-// the local EA checkout: long Java string literals (messages) and long
-// fixture lines. Identifier-like hits (class names) are allowed.
+// Command cleanroom scans the repository for forbidden upstream tokens and,
+// when the local EA checkout exists, for text that appears verbatim in it:
+// long Java string literals (messages) and long fixture lines.
+// Identifier-like hits (class names) are allowed.
 package main
 
 import (
@@ -37,11 +38,12 @@ func run(root string, args []string, stdout, stderr io.Writer) int {
 		}
 		return 2
 	}
-	if _, err := os.Stat(*ea); err != nil {
-		fmt.Fprintln(stdout, "cleanroom: EA checkout not found, skipped")
-		return 0
-	}
+	// Forbidden tokens are checked everywhere; verbatim text needs the
+	// checkout to compare against.
 	var needles []string
+	if _, err := os.Stat(*ea); err != nil {
+		fmt.Fprintln(stdout, "cleanroom: EA checkout not found, verbatim scan skipped")
+	}
 	walk(filepath.Join(*ea, "src/main/java"), ".java", func(_, b string) {
 		for _, m := range javaStr.FindAllStringSubmatch(b, -1) {
 			s := strings.TrimSpace(strings.NewReplacer(`\`, "", "[EA] ", "", "%s", "").Replace(m[1]))

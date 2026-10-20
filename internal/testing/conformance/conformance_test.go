@@ -17,7 +17,7 @@ import (
 
 var ruleFilter = flag.String("rule", "", "only run cases for this rule ID")
 
-// engine is the analysis engine under test; nil until the engine exists.
+// engine is the analysis engine under test, set by the adapter.
 var engine Engine
 
 const (

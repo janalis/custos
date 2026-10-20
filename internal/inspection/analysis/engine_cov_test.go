@@ -73,6 +73,17 @@ func TestEngineSelection(t *testing.T) {
 	if e.FilePatterns() != nil {
 		t.Fatal("no pattern rule enabled")
 	}
+	// Naming a rule beats its config; the config beats enabling everything.
+	off := false
+	disabled := map[string]RuleConfig{"NestedNotOperators": {Enabled: &off}}
+	e, _ = NewEngine([]Rule{okRule{}}, Config{Only: []string{"NestedNotOperators"}, Rules: disabled})
+	if !reflect.DeepEqual(e.Rules(), []string{"NestedNotOperators"}) {
+		t.Fatalf("only beats config: %v", e.Rules())
+	}
+	e, _ = NewEngine([]Rule{okRule{}, semRule{}}, Config{EnableAll: true, Rules: disabled})
+	if !reflect.DeepEqual(e.Rules(), []string{"UnnecessarySemicolon"}) {
+		t.Fatalf("config beats all: %v", e.Rules())
+	}
 	e, _ = NewEngine([]Rule{okRule{}, semRule{}}, Config{EnableAll: true})
 	if !e.NeedsIndex() {
 		t.Fatal("semantic rule needs the index")

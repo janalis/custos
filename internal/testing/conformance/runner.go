@@ -34,13 +34,13 @@ type Finding struct {
 	End      int
 }
 
-// Engine is implemented by the analysis engine (wired in once it exists).
+// Engine is implemented by the analysis engine adapter.
 type Engine interface {
 	// Supports reports whether every given rule is implemented.
 	Supports(rules []string) bool
 	// Analyze returns findings for req.
 	Analyze(req Request) ([]Finding, error)
-	// Fix applies every available fix until fixpoint and returns the result.
+	// Fix applies the available fixes in one pass and returns the result.
 	Fix(req Request) ([]byte, error)
 }
 

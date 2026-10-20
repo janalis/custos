@@ -46,13 +46,15 @@ func NewEngine(registered []Rule, cfg Config) (*Engine, error) {
 		}
 		rc := cfg.Rules[m.ID]
 		enabled := m.EnabledByDefault
+		// Naming rules beats the config; the config's explicit choice
+		// beats enabling everything.
 		switch {
 		case len(only) > 0:
 			enabled = only[m.ID]
-		case cfg.EnableAll:
-			enabled = true
 		case rc.Enabled != nil:
 			enabled = *rc.Enabled
+		case cfg.EnableAll:
+			enabled = true
 		}
 		if !enabled {
 			continue

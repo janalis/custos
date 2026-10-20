@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"custos/internal/diagnostic"
+	"custos/internal/php/syntax"
 )
 
 func TestRoundTrip(t *testing.T) {
@@ -140,5 +141,34 @@ func TestNoWorkingDirectory(t *testing.T) {
 	}
 	if got := rel("/x", "a.php"); got != "a.php" {
 		t.Fatalf("rel: %q", got)
+	}
+}
+
+// TestFilterFindings: one file's findings are matched on the buffer's line
+// text, numbered and split as Filter sees them (a lone CR ends a line for
+// positions but not for line text, so such a line keys as "").
+func TestFilterFindings(t *testing.T) {
+	dir := t.TempDir()
+	bl := filepath.Join(dir, "bl.json")
+	if err := os.WriteFile(bl, []byte(`{"version": 1, "entries": [
+		{"path": "a.php", "rule": "R", "message": "m", "line": "$a;", "count": 1},
+		{"path": "a.php", "rule": "R", "message": "m", "line": "", "count": 1}]}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err := Load(bl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	php := filepath.Join(dir, "a.php")
+	src := []byte("<?php\n$a;\n $a;\r$b;")
+	at := func(off uint32) diagnostic.Finding {
+		return diagnostic.Finding{Rule: "R", Message: "m", Span: syntax.Span{Start: off, End: off + 1}}
+	}
+	rest := b.FilterFindings(php, src, []diagnostic.Finding{at(6), at(11), at(15), at(15)})
+	if len(rest) != 2 || rest[0].Span.Start != 11 || rest[1].Span.Start != 15 {
+		t.Fatalf("rest: %+v", rest)
+	}
+	if got := Empty().FilterFindings(php, src, []diagnostic.Finding{at(6)}); len(got) != 1 {
+		t.Fatalf("empty baseline: %+v", got)
 	}
 }

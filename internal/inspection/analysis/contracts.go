@@ -47,6 +47,7 @@ type Config struct {
 	Rules           map[string]RuleConfig // keyed by rule ID
 	// Only, when non-empty, enables exactly these rule IDs (overrides defaults).
 	Only []string
-	// EnableAll enables every registered rule, including disabled-by-default ones.
+	// EnableAll enables every registered rule, including disabled-by-default
+	// ones, except those the rule config explicitly disables.
 	EnableAll bool
 }
