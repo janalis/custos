@@ -436,6 +436,9 @@ func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
 		}
 		return types.String
 	}
+	if c, name, ok := e.enumCase(n); ok {
+		return types.EnumCases(`\`+c.FQN, name)
+	}
 	cls := e.classRef(n.Class)
 	if cls == "" {
 		return types.Unknown
@@ -443,9 +446,6 @@ func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
 	k := e.Index.FindConst(cls, id.Value, e.PHP)
 	if k == nil {
 		return types.Unknown
-	}
-	if k.Case {
-		return types.Of(`\` + k.Class)
 	}
 	if k.Type != "" {
 		t := types.FromDoc(k.Type, nil)

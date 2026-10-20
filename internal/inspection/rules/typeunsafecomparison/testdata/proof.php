@@ -319,3 +319,15 @@ final class Flagged { public string|bool $flag = 'off'; }
 function narrowedFlag(Flagged $o) {
     return is_string($o->flag) && <warning descr="Use '===' here if the other operand is never a bool, a number or a Stringable object; the string is not numeric.">$o->flag == 'on'</warning>;
 }
+
+function evaluatedLater(string $s) {
+    $early = <warning descr="Use '===' here if the other operand is never a bool, a number or a Stringable object; the string is not numeric.">$s == 'yes'</warning>;
+    eval('$s = true;');
+    return $early;
+}
+
+function boxedLater(string $s) {
+    $early = <warning descr="Use '===' here if the other operand is never a bool, a number or a Stringable object; the string is not numeric.">$s == 'yes'</warning>;
+    $box = [&$s];
+    return $early;
+}

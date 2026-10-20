@@ -51,7 +51,7 @@ func TestReviewSafety(t *testing.T) {
 		{"include in function", `function f() { $o = new SplFileObject('x'); include 'configure.php'; $o->fgetcsv(); }`, 0, ""},
 		{"include before", `function f() { include 'configure.php'; $o = new SplFileObject('x'); $o->fgetcsv(); }`, 1, ""},
 		{"eval before", `function f() { eval($code); $o = new SplFileObject('x'); $o->fgetcsv(); }`, 1, ""},
-		{"eval", create + `eval($code); $o->fgetcsv();`, 1, ""},
+		{"eval", create + `eval($code); $o->fgetcsv();`, 0, ""},
 		{"spread arguments", create + `$o->fputcsv(...$a);`, 0, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

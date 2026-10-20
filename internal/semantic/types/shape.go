@@ -385,10 +385,11 @@ func unionInfo(ts []Type) *arrayInfo {
 // the atoms (as String) prefixed by "non-empty " when the array members are
 // known non-empty without a shape saying so, followed by the shape
 // `{a: int, b?: string}` (`...` when unsealed) and the element facts `<…>`;
-// a constrained int member reads `int<lo, hi>`.
+// a constrained int member reads `int<lo, hi>`, an enum member with known
+// cases `\E::A|\E::B`.
 func (t Type) ShapeString() string {
 	base := t.String()
-	if len(t.gen) > 0 || t.ints != nil || t.lens != nil {
+	if len(t.gen) > 0 || t.ints != nil || t.lens != nil || t.cases != nil {
 		parts := make([]string, len(t.atoms))
 		for i, a := range t.atoms {
 			parts[i] = a
@@ -400,6 +401,9 @@ func (t Type) ShapeString() string {
 			}
 			if a == "string" && t.lens != nil {
 				parts[i] = rangesString("string<len ", t.lens)
+			}
+			if t.cases != nil && a == t.cases.class {
+				parts[i] = casesString(t.cases)
 			}
 		}
 		base = t.joinParts(parts)

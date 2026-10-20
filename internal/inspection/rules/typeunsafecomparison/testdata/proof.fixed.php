@@ -319,3 +319,15 @@ final class Flagged { public string|bool $flag = 'off'; }
 function narrowedFlag(Flagged $o) {
     return is_string($o->flag) && $o->flag == 'on';
 }
+
+function evaluatedLater(string $s) {
+    $early = $s == 'yes';
+    eval('$s = true;');
+    return $early;
+}
+
+function boxedLater(string $s) {
+    $early = $s == 'yes';
+    $box = [&$s];
+    return $early;
+}

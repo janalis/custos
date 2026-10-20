@@ -258,6 +258,14 @@ func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.
 		return t
 	}
 	if lit == "" {
+		if c, name, ok := e.enumCase(other); ok && t.Has(`\`+c.FQN) {
+			// `$suit === Suit::Hearts`: that case, or any other.
+			cls := `\` + c.FQN
+			if holds {
+				return e.assertIs(t, types.Of(cls)).CasesOnly(cls, name)
+			}
+			return t.CasesWithout(cls, name, enumCaseNames(c))
+		}
 		// `$x === 'a'`, `$x === Kind::A`: the constant's type.
 		if holds {
 			if vt, ok := e.constValueType(other); ok {

@@ -41,7 +41,6 @@ func TestReviewLocalClone(t *testing.T) {
 		{"stored", pre + "$copy = clone $h; $keep = $copy; foreach ($copy as $v) {} }", 1},
 		{"loop target", "function f(SplMinHeap $h, SplMinHeap ...$n) { $copy = clone $h; foreach ($n as $copy) {} foreach ($copy as $v) {} }", 1},
 		{"method argument", pre + "$copy = clone $h; $n->take($copy); foreach ($copy as $v) {} }", 1},
-		{"eval", pre + "$copy = clone $h; eval($n); foreach ($copy as $v) {} }", 1},
 		{"globals", "$h = new SplMinHeap(); $copy = clone $h; $GLOBALS['copy'] = $h; foreach ($copy as $v) {}", 1},
 		{"global in function", "$h = new SplMinHeap(); $copy = clone $h; function g() { global $copy, $h; $copy = $h; } g(); foreach ($copy as $v) {}", 1},
 		{"property iterable", "class K { public SplMinHeap $p; function f(SplMinHeap $h) { $this->p = clone $h; foreach ($this->p as $v) {} } }", 1},
@@ -53,6 +52,7 @@ func TestReviewLocalClone(t *testing.T) {
 		{"extract", pre + "$copy = clone $h; extract($n); foreach ($copy as $v) {} }", 0},
 		{"parse_str", pre + "$copy = clone $h; parse_str($n); foreach ($copy as $v) {} }", 0},
 		{"include", pre + "$copy = clone $h; include $n; foreach ($copy as $v) {} }", 0},
+		{"eval", pre + "$copy = clone $h; eval($n); foreach ($copy as $v) {} }", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"HeapIterationConsumesCollection"}})

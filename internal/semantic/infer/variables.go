@@ -48,13 +48,20 @@ type scopeVars struct {
 	exits     []exitRegion
 	exitsDone bool
 	// clobbers holds the positions of extract(), one-argument parse_str(),
-	// `$$name = …` writes and include/require, which may set any local
+	// `$$name = …` writes, eval() and include/require, which may set any local
 	// (see noteDynamic); dynamic is set by any of them.
 	clobbers []uint32
 	dynamic  bool
 	// statics holds the static locals of the scope: a call that enters the
 	// function again may assign them (see condAt).
 	statics map[string]bool
+	// shared holds the by-reference parameters and global locals of the
+	// scope, which any call may write through the variable they alias;
+	// refs the locals bound by reference in the scope (`$a = &$b`, `[&$x]`,
+	// `foreach (… as &$v)`, `use (&$x)`), which a write through the other
+	// name changes (see condAt).
+	shared, refs map[string]bool
+	pairs        []refPair
 }
 
 // widenElem unions the element type el of the array read by n with every
@@ -274,10 +281,17 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 		return types.Unknown
 	}
 	if v.Name == "this" {
-		if fqn := e.selfClass(syntax.EnclosingClass(v)); fqn != "" {
-			return types.Of(`\` + fqn)
+		fqn := e.selfClass(syntax.EnclosingClass(v))
+		if fqn == "" {
+			return types.Unknown
 		}
-		return types.Unknown
+		t := types.Of(`\` + fqn)
+		if c := e.Index.Class(fqn, e.PHP); c != nil && c.Kind == syntax.KindEnum {
+			// `if ($this === self::Off) { return; }`: an enum method narrows
+			// its case ($this is never reassigned).
+			t = e.narrowExprAfter(t, v, "this", syntax.EnclosingVariableScope(v), 0)
+		}
+		return t
 	}
 	return e.variableBaseAt(v.Name, v, v)
 }
@@ -550,6 +564,9 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 	}
 	for _, p := range params {
 		add(p.Var.Name, p.Span().Start, func() types.Type { return e.paramType(scope, p) })
+		if p.ByRef {
+			sv.shared = mark(sv.shared, p.Var.Name)
+		}
 	}
 	// body holds no nil node: the parser always builds function and closure
 	// bodies (parseBlock) and arrow function expressions (BadExpr at worst);
@@ -557,6 +574,7 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 	for _, b := range body {
 		syntax.Inspect(b, func(n syntax.Node) bool {
 			e.noteDynamic(n, sv)
+			e.noteRefs(n, sv)
 			switch n := n.(type) {
 			case *syntax.Closure:
 				if n != scope {
@@ -658,10 +676,9 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 					if v, ok := m.(*syntax.Variable); ok {
 						add(v.Name, v.Span().Start, func() types.Type { return types.Unknown })
 						if static {
-							if sv.statics == nil {
-								sv.statics = map[string]bool{}
-							}
-							sv.statics[v.Name] = true
+							sv.statics = mark(sv.statics, v.Name)
+						} else {
+							sv.shared = mark(sv.shared, v.Name)
 						}
 					}
 					return true
@@ -677,11 +694,85 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 			sv.defs[name] = append(sv.defs[name], varDef{pos: pos, docEnd: end, typ: t, doc: true})
 		})
 	}
+	if e.native {
+		refDefs(sv)
+	}
 	for name, defs := range sv.defs {
 		sortDefs(defs)
 		sv.defs[name] = defs
 	}
 	return sv
+}
+
+// mark adds name to set m, created on first use.
+func mark(m map[string]bool, name string) map[string]bool {
+	if m == nil {
+		m = map[string]bool{}
+	}
+	m[name] = true
+	return m
+}
+
+// noteRefs records in sv the locals node n binds by reference. Where
+// declarations are proofs, a write through the other name changes them
+// unseen: two locals bound together see each other's later writes (see
+// refDefs), a local bound to an array element is unknown from the binding
+// on.
+func (e *Env) noteRefs(n syntax.Node, sv *scopeVars) {
+	var elem *syntax.Variable
+	switch n := n.(type) {
+	case *syntax.Assign:
+		a, b := asVariable(n.Var), asVariable(n.Value)
+		if !n.ByRef || a == nil || b == nil || a.Name == "" || b.Name == "" {
+			return
+		}
+		sv.refs = mark(sv.refs, a.Name)
+		sv.refs = mark(sv.refs, b.Name)
+		sv.pairs = append(sv.pairs, refPair{a.Name, b.Name, n.Span().End})
+		return
+	case *syntax.ArrayItem:
+		if n.ByRef {
+			elem = asVariable(n.Value)
+		}
+	case *syntax.Foreach:
+		if n.ByRef {
+			elem = asVariable(n.Value)
+		}
+	case *syntax.Closure:
+		for _, u := range n.Uses {
+			if u.ByRef {
+				sv.refs = mark(sv.refs, u.Var.Name) // the closure may write it whenever called
+			}
+		}
+		return
+	}
+	if elem == nil || elem.Name == "" {
+		return
+	}
+	sv.refs = mark(sv.refs, elem.Name)
+	if e.native {
+		sv.defs[elem.Name] = append(sv.defs[elem.Name], varDef{pos: n.Span().End, typ: func() types.Type { return types.Unknown }})
+	}
+}
+
+// refPair records `$a = &$b` ending at pos.
+type refPair struct {
+	a, b string
+	pos  uint32
+}
+
+// refDefs makes every write to one local of a reference pair, after the
+// binding, a definition of the other too.
+func refDefs(sv *scopeVars) {
+	for _, p := range sv.pairs {
+		for _, d := range [2][2]string{{p.a, p.b}, {p.b, p.a}} {
+			for _, def := range sv.defs[d[0]] {
+				if def.pos > p.pos {
+					sv.defs[d[1]] = append(sv.defs[d[1]], varDef{pos: def.pos, end: def.end, typ: def.typ})
+				}
+			}
+		}
+	}
 }
 
 // collectDimMutation records ++/-- on array elements. Nested mutations use

@@ -10,5 +10,6 @@ function shared(&$n, $code) { $n = [1, 2]; return count(array_count_values($n));
 function merged(array $row) { $n = [1, 2]; extract($row); return count(array_count_values($n)); }
 function loaded() { $n = [1, 2]; include 'more.php'; return count(array_count_values($n)); }
 function evaluated($code) { $n = [1, 2]; eval($code); return count(array_count_values($n)); }
+function evaluatedLater($code) { $n = [1, 2]; $c = count(array_count_values($n)); eval($code); return $c; }
 function target($rows) { $n = [1, 2]; foreach ($rows as $n[0]) {} return count(array_count_values($n)); }
 function item() { $n = [1, 2]; $box = [&$n]; $box[0][] = 1.5; return count(array_count_values($n)); }

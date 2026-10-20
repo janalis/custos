@@ -141,9 +141,9 @@ function f($x, Kind|int $k) {
 		"null":           "null",
 		"nonNull":        `\Foo|int|string`,
 		"armCond":        `\Foo|null|string`,
-		"enum":           `\Kind`,
+		"enum":           `\Kind::A`,
 		"ints":           "int",
-		"kdefault":       `\Kind|int`,
+		"kdefault":       `\Kind::B|int`,
 		"nonBool":        `\Foo|int|null|string`, // (bool) $x is a cast, not a condition on $x
 		"gettype":        "string",
 		"gettypeNull":    "null",

@@ -2,6 +2,7 @@ package infer
 
 import (
 	"cmp"
+	"slices"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -495,11 +496,13 @@ func (e *Env) collectDeferredMethodOut(call *syntax.MethodCall, sv *scopeVars) {
 			receiver := e.TypeOf(call.Var)
 			classes := receiver.Classes()
 			keepPrior := e.hasNullsafeChain(call) || receiver.HasAny("mixed", "object")
+			// unresolved: a callee the call may reach is unknown.
+			unresolved := len(classes) == 0 || receiver.HasAny("mixed", "object")
 			var results []types.Type
 			for _, cls := range classes {
 				m := e.Index.FindMethod(strings.TrimPrefix(cls, `\`), id.Value, e.PHP)
 				if m == nil {
-					keepPrior = true
+					keepPrior, unresolved = true, true
 					continue
 				}
 				p, valid := paramFor(m.Params, a, i)
@@ -516,11 +519,17 @@ func (e *Env) collectDeferredMethodOut(call *syntax.MethodCall, sv *scopeVars) {
 				}
 				results = append(results, t)
 			}
+			prior := e.TypeOf(v)
+			if e.native && unresolved {
+				// The callee may be unknown and take it by reference: what
+				// conditions proved about it before the call does not hold.
+				prior = e.definedType(v)
+			}
 			if len(results) == 0 {
-				return e.TypeOf(v)
+				return prior
 			}
 			if keepPrior {
-				results = append(results, e.TypeOf(v))
+				results = append(results, prior)
 			}
 			return types.Union(results...)
 		}
@@ -530,4 +539,20 @@ func (e *Env) collectDeferredMethodOut(call *syntax.MethodCall, sv *scopeVars) {
 		}
 		sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: call.Span().Start, end: call.Span().End, kill: kill, typ: typ})
 	}
+}
+
+// definedType types read v by the definitions reaching it, without the
+// conditions guarding it.
+func (e *Env) definedType(v *syntax.Variable) types.Type {
+	scope := syntax.EnclosingVariableScope(v)
+	sv := e.scopeVars(scope)
+	fwd, back, _ := e.reaching(sv.defs[v.Name], v, scope)
+	if len(fwd)+len(back) == 0 || e.clobbered(sv, fwd, back, v, scope) {
+		return types.Unknown
+	}
+	ts := make([]types.Type, 0, len(fwd)+len(back))
+	for _, d := range slices.Concat(fwd, back) {
+		ts = append(ts, d.typ())
+	}
+	return types.Union(ts...)
 }

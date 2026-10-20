@@ -351,6 +351,13 @@ const (
 // anyCall is the mutations key listing every call of the scope.
 const anyCall = "\x00call"
 
+// argKey keys the calls a local is passed to as a bare argument.
+func argKey(name string) string { return "\x00arg " + name }
+
+// anyWrite keys every write of a scope (assignment, increment, unset, loop
+// target, argument), whatever it changes.
+const anyWrite = "\x00write"
+
 // propNameKey is the mutations key listing the writes of property name
 // through any receiver ("*" for a name computed at run time).
 func propNameKey(name string) string { return "\x00prop " + name }
@@ -376,6 +383,7 @@ func (e *Env) mutations(scope syntax.Node, name string) []mutation {
 func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 	out := map[string][]mutation{}
 	add := func(x syntax.Expr, m mutation) {
+		out[anyWrite] = append(out[anyWrite], m)
 		x = syntax.UnwrapParens(x)
 		if k := writtenPropName(x); k != "" {
 			out[k] = append(out[k], m)
@@ -443,7 +451,11 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 			} else if pointer && i == 0 {
 				kind = mutPointer
 			}
-			add(a.Value, mutation{span: call.Span(), kind: kind, call: call, arg: a, idx: i})
+			m := mutation{span: call.Span(), kind: kind, call: call, arg: a, idx: i}
+			add(a.Value, m)
+			if v, ok := syntax.UnwrapParens(a.Value).(*syntax.Variable); ok && kind == mutCallArg && v.Name != "" && v.NameExpr == nil {
+				out[argKey(v.Name)] = append(out[argKey(v.Name)], m)
+			}
 		}
 	}
 	var body []syntax.Node
@@ -560,6 +572,9 @@ func writtenPropName(x syntax.Expr) string {
 // parameter of a resolvable callee.
 func (e *Env) byRefArg(m mutation) bool {
 	var params [][]index.Param
+	// unresolved: some callee the call may reach is unknown. Where
+	// declarations are proofs, it may take the argument by reference.
+	unresolved := false
 	switch c := m.call.(type) {
 	case *syntax.FuncCall:
 		if f := e.ResolveFunction(c); f != nil {
@@ -568,17 +583,21 @@ func (e *Env) byRefArg(m mutation) bool {
 	case *syntax.MethodCall:
 		id, ok := c.Name.(*syntax.Identifier)
 		if !ok {
-			return false
+			return e.native
 		}
-		for _, cls := range e.TypeOf(c.Var).Classes() {
+		recv := e.TypeOf(c.Var)
+		unresolved = recv.HasAny("mixed", "object")
+		for _, cls := range recv.Classes() {
 			if mm := e.Index.FindMethod(strings.TrimPrefix(cls, `\`), id.Value, e.PHP); mm != nil {
 				params = append(params, mm.Params)
+			} else {
+				unresolved = true
 			}
 		}
 	case *syntax.StaticCall:
 		id, ok := c.Name.(*syntax.Identifier)
 		if !ok {
-			return false
+			return e.native
 		}
 		if cls := e.classRef(c.Class); cls != "" {
 			if mm := e.Index.FindMethod(cls, id.Value, e.PHP); mm != nil {
@@ -586,11 +605,18 @@ func (e *Env) byRefArg(m mutation) bool {
 			}
 		}
 	case *syntax.New:
-		if cls := e.classRef(c.Class); cls != "" {
-			if mm := e.Index.FindMethod(cls, "__construct", e.PHP); mm != nil {
-				params = append(params, mm.Params)
-			}
+		cls := e.classRef(c.Class)
+		if cls == "" {
+			return e.native
 		}
+		if mm := e.Index.FindMethod(cls, "__construct", e.PHP); mm != nil {
+			params = append(params, mm.Params)
+		} else if e.Index.Class(cls, e.PHP) != nil {
+			return false // no constructor: the arguments are not bound
+		}
+	}
+	if e.native && (unresolved || len(params) == 0) {
+		return true
 	}
 	for _, ps := range params {
 		if p, ok := paramFor(ps, m.arg, m.idx); ok && p.ByRef {

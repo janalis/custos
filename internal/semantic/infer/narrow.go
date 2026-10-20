@@ -492,8 +492,19 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 	if isPropKey(key) && !isDimKey(key) && r.ShapeString() != t.ShapeString() && e.native && e.memberBroken(scope, key, from, use) {
 		return t
 	}
-	if !isPropKey(key) && !isDimKey(key) && r.ShapeString() != t.ShapeString() && e.scopeVars(scope).statics[key] && e.brokenBy(scope, from, use, e.mutations(scope, anyCall)) {
-		return t // a call may enter the function again and assign its static local
+	if !isPropKey(key) && !isDimKey(key) && r.ShapeString() != t.ShapeString() {
+		sv := e.scopeVars(scope)
+		if e.native && sv.refs[key] && e.brokenBy(scope, from, use, e.mutations(scope, anyWrite), e.mutations(scope, anyCall)) {
+			return t // a write through another name may have changed it
+		}
+		if (sv.statics[key] || e.native && sv.shared[key]) && e.brokenBy(scope, from, use, e.mutations(scope, anyCall)) {
+			// A call may enter the function again and assign its static
+			// local, or write the variable a reference or global aliases.
+			return t
+		}
+		if e.native && e.brokenBy(scope, from, use, e.mutations(scope, argKey(key))) {
+			return t // passed since to a callee that may take it by reference
+		}
 	}
 	if isDimKey(key) {
 		// An element is narrowed only while neither it nor its array can

@@ -111,6 +111,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   `isset($d[3], $other)`, an exit followed by `else`/`elseif`, an `elseif`
   condition after a failed length test and `while` conditions now count,
   and a decode in a branch the length tests contradict is not reported.
+- Proof-grade type facts about a local end where it may change unseen: a
+  write through a reference bound to it, a call that may take it by
+  reference (including unresolved callees), any call for a by-reference
+  parameter or `global` local, and `eval()`, which now counts as a dynamic
+  write like `include`. CsvEscapeDefaultDependency and
+  HeapIterationConsumesCollection no longer report after `eval()`.
 - ReflectionCompositeTypeAssumedNamed reads `instanceof` guards from type
   narrowing: `while` conditions, `is_a()`, comparisons with `true`/`false`
   and a test result kept in a local now count; a jump label between the
