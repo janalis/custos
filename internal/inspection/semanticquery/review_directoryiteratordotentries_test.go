@@ -1,6 +1,9 @@
 package semanticquery
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestReviewDirectoryIteratorDotEntries(t *testing.T) {
 	const kill = "unlink($e->getPathname());"
@@ -33,7 +36,13 @@ func TestReviewDirectoryIteratorDotEntries(t *testing.T) {
 		{"unknown list", "if(in_array($e->getFilename(),$names)){continue;}" + kill, 1},
 		{"other needle", "if(in_array($name,['.','..'])){continue;}" + kill, 1},
 		{"other function", "if(str_contains($e->getFilename(),'.')){continue;}" + kill, 1},
-		{"name equals dot continue is no proof when negated", "if($e->getFilename()!=='.'||$e->getFilename()!=='..'){continue;}" + kill, 1},
+		{"always true condition leaves the mutation unreachable", "if($e->getFilename()!=='.'||$e->getFilename()!=='..'){continue;}" + kill, 0},
+		{"exit off the path", "if($skip){if($e->isDot()){continue;}}" + kill, 1},
+		{"one name ruled in", "if($e->getFilename()!=='.'){continue;}" + kill, 1},
+		{"saved name test", "$dot=$e->isDot();if($dot){continue;}" + kill, 0},
+		{"exit with else", "if($e->isDot()){continue;}else{$x=1;}" + kill, 0},
+		{"match arm", "echo match(true){$e->isDot()=>0,default=>" + strings.TrimSuffix(kill, ";") + "};", 0},
+		{"jump label after test", "if($e->isDot()){continue;}back:" + kill + "goto back;", 1},
 		{"name with suffix argument", "if($e->getBasename('.')==='.'||$e->getBasename('.')==='..'){continue;}" + kill, 1},
 		{"other name method", "if($e->getExtension()==='.'||$e->getExtension()==='..'){continue;}" + kill, 1},
 		{"unrelated comparison", "if($a==='.'||$b==='..'){continue;}" + kill, 1},

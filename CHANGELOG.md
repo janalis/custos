@@ -111,6 +111,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   `isset($d[3], $other)`, an exit followed by `else`/`elseif`, an `elseif`
   condition after a failed length test and `while` conditions now count,
   and a decode in a branch the length tests contradict is not reported.
+- DirectoryIteratorDotEntries reads entry tests from type narrowing: a
+  saved test, `match (true)` arms and an exit followed by `else` now count,
+  and only tests on the path to the mutation (not any earlier exit in the
+  loop) are used.
 - UploadClientMimeTrusted reads client type tests from type narrowing:
   ternary and `||` positions, an exit followed by `else`, disjunctions of
   MIME tests and `in_array()` with named arguments now count. A call of the

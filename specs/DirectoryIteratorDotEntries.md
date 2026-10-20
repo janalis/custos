@@ -21,11 +21,11 @@ Detect a filesystem mutation on DirectoryIterator entry paths inside foreach wit
 ## Exceptions (no report)
 
 - E1. FilesystemIterator with SKIP_DOTS and nonmutating entry handling are excluded.
-- E4. No report when a condition on the same loop variable proves the entry is neither `.` nor `..` where the mutation runs. Method names match case-insensitively and redundant parentheses are ignored.
-  - Proving conditions: `isDot()` or `isDir()` being false; `isFile()` or `isLink()` being true (dot entries are always directories); `getFilename()` or argument-less `getBasename()` differing from a known string (`===`, `==`, `!==`, `!=`, either operand order) or absent from a known literal array through `in_array`. A name check rules out only the names it mentions, so both `.` and `..` must be covered, possibly by several conditions.
-  - Composition: `!` swaps the outcome; a true `&&`/`and` and a false `||`/`or` establish what either operand proves; a false `&&` and a true `||` establish only what both operands prove.
-  - Positions: an earlier `if` in the loop body whose body always leaves (continue, break, return, throw) contributes the false outcome of its condition; an enclosing `if`/`elseif` body contributes the true outcome; an `else`/`elseif` branch contributes the false outcome of the leading `if` condition; the right operand of `&&`/`||` contributes the corresponding outcome of the left operand.
-  - Any other condition (other receiver, dynamic method, unknown list, suffix argument to `getBasename`) proves nothing and the report stays.
+- E4. No report when the conditions guarding the mutation prove the entry is neither `.` nor `..`, from tests of methods called on the same loop variable earlier in the loop body. Method names match case-insensitively and redundant parentheses are ignored.
+  - Proving tests: `isDot()` or `isDir()` false; `isFile()` or `isLink()` true (dot entries are always directories); `getFilename()` or argument-less `getBasename()` compared with a string literal (`===`, `!==`, and `==`, `!=` with a literal that does not read as a number, either operand order) or searched in a literal array through `in_array`. A name test rules out only the names it mentions, so both `.` and `..` must be covered, possibly by several tests; tests that contradict each other leave the mutation unreachable.
+  - Composition: `!`, `&&`/`and`, `||`/`or`, comparisons with booleans and a local holding a test combine the usual way.
+  - Positions: the branch of an `if`/`elseif`/`else` chain, a ternary or `match (true)` arm, the right operand of `&&`/`||`, or code after an `if` whose branch for a dot entry always leaves (continue, break, return, throw), with or without other arms.
+  - Any other condition (other receiver, dynamic method, unknown list, suffix argument to `getBasename`, a jump label between the test and the mutation) proves nothing and the report stays.
 - E3. Reassignment, unsetting or reuse of the element variable before its destructive use leaves its directory-entry identity incomplete. Writes inside an uninvoked separate closure do not establish outer-variable reassignment.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 

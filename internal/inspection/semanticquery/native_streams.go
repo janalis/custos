@@ -172,100 +172,44 @@ func CheckDirectoryIteratorDotEntries(ctx *analysis.Context, n syntax.Node, mess
 const nativeDotEntryNames uint8 = 3
 
 // nativeDotEntriesExcludedAt returns which dot entries the loop variable can
-// no longer name when c runs: early exits completed before c contribute the
-// false outcome of their condition, enclosing branches and short-circuit
-// operands the outcome that lets control reach c.
+// no longer name when c runs: what the conditions guarding c prove of the
+// entry's earlier isDot()/isDir()/isFile()/isLink() results and of its name
+// (getFilename(), argument-less getBasename()), joined over those calls.
 func nativeDotEntriesExcludedAt(ctx *analysis.Context, loop *syntax.Foreach, c *syntax.FuncCall, variable string) uint8 {
+	if NativeLabelled(ctx, c) {
+		return 0 // a jump may land between a test and the call
+	}
+	env := ctx.Types().Native()
 	var mask uint8
-	syntax.Inspect(loop.Body, func(child syntax.Node) bool {
-		branch, ok := child.(*syntax.If)
-		if ok && branch.Span().End <= c.Span().Start && syntax.Terminates(branch.Body) {
-			mask |= nativeDotEntriesExcluded(ctx, branch.Cond, variable, false)
+	syntax.Inspect(loop.Body, func(n syntax.Node) bool {
+		if n.Span().Start >= c.Span().Start || syntax.IsVariableScope(n) {
+			return false
+		}
+		call, ok := n.(*syntax.MethodCall)
+		if !ok || call.Span().End > c.Span().Start {
+			return true
+		}
+		switch method := nativeEntryMethod(call, variable); {
+		case method == "isdot" || method == "isdir":
+			if t := env.CallResultAsAt(call, c, types.Bool); t.IsUnknown() || t.OnlyOf("false") {
+				mask = nativeDotEntryNames
+			}
+		case method == "isfile" || method == "islink":
+			if t := env.CallResultAsAt(call, c, types.Bool); t.IsUnknown() || t.OnlyOf("true") {
+				mask = nativeDotEntryNames
+			}
+		case nativeEntryName(call, variable):
+			t := env.CallResultAsAt(call, c, types.TrackedStrings())
+			if t.StringExcludes(".") {
+				mask |= 1
+			}
+			if t.StringExcludes("..") {
+				mask |= 2
+			}
 		}
 		return true
 	})
-	for child, ancestor := syntax.Node(c), c.Parent(); ancestor != loop; child, ancestor = ancestor, ancestor.Parent() {
-		switch a := ancestor.(type) {
-		case *syntax.If:
-			if child == syntax.Node(a.Body) {
-				mask |= nativeDotEntriesExcluded(ctx, a.Cond, variable, true)
-			} else if child != syntax.Node(a.Cond) {
-				mask |= nativeDotEntriesExcluded(ctx, a.Cond, variable, false)
-			}
-		case *syntax.ElseIf:
-			if child == syntax.Node(a.Body) {
-				mask |= nativeDotEntriesExcluded(ctx, a.Cond, variable, true)
-			}
-		case *syntax.Binary:
-			if child != syntax.Node(a.Right) {
-				continue
-			}
-			switch a.Op.Kind {
-			case syntax.TBooleanAnd, syntax.TAnd:
-				mask |= nativeDotEntriesExcluded(ctx, a.Left, variable, true)
-			case syntax.TBooleanOr, syntax.TOr:
-				mask |= nativeDotEntriesExcluded(ctx, a.Left, variable, false)
-			}
-		}
-	}
 	return mask
-}
-
-// nativeDotEntriesExcluded returns which dot entries the loop variable cannot
-// name once cond has evaluated to truth.
-func nativeDotEntriesExcluded(ctx *analysis.Context, cond syntax.Expr, variable string, truth bool) uint8 {
-	switch e := cond.(type) {
-	case *syntax.Paren:
-		return nativeDotEntriesExcluded(ctx, e.Expr, variable, truth)
-	case *syntax.Unary:
-		if e.Op.Kind == syntax.TExclaim {
-			return nativeDotEntriesExcluded(ctx, e.Expr, variable, !truth)
-		}
-	case *syntax.Binary:
-		switch e.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TAnd, syntax.TBooleanOr, syntax.TOr:
-			left := nativeDotEntriesExcluded(ctx, e.Left, variable, truth)
-			right := nativeDotEntriesExcluded(ctx, e.Right, variable, truth)
-			// A true conjunction and a false disjunction fix both operands;
-			// otherwise only what both operands agree on is known.
-			if (e.Op.Kind == syntax.TBooleanAnd || e.Op.Kind == syntax.TAnd) == truth {
-				return left | right
-			}
-			return left & right
-		case syntax.TIsIdentical, syntax.TIsEqual:
-			if !truth {
-				return nativeDotNameCompared(ctx, e, variable)
-			}
-		case syntax.TIsNotIdentical, syntax.TIsNotEqual:
-			if truth {
-				return nativeDotNameCompared(ctx, e, variable)
-			}
-		}
-	case *syntax.MethodCall:
-		// "." and ".." are always directories, never regular files or links.
-		switch nativeEntryMethod(e, variable) {
-		case "isdot", "isdir":
-			if !truth {
-				return nativeDotEntryNames
-			}
-		case "isfile", "islink":
-			if truth {
-				return nativeDotEntryNames
-			}
-		}
-	case *syntax.FuncCall:
-		if truth || NativeBuiltinName(ctx, e) != "in_array" || !nativeEntryName(CallArgument(e.Args, 0, "needle"), variable) {
-			return 0
-		}
-		var mask uint8
-		if names := NativeArray(ctx, CallArgument(e.Args, 1, "haystack")); names != nil {
-			for _, item := range names.Items {
-				mask |= nativeDotNameBit(ctx, item.Value)
-			}
-		}
-		return mask
-	}
-	return 0
 }
 
 // nativeEntryMethod returns the lower-cased name of a method called directly
@@ -279,35 +223,14 @@ func nativeEntryMethod(call *syntax.MethodCall, variable string) string {
 	return strings.ToLower(id.Value)
 }
 
-// nativeEntryName reports whether e reads the entry's own name, which is "."
-// or ".." exactly for the dot entries.
-func nativeEntryName(e syntax.Expr, variable string) bool {
-	call, ok := e.(*syntax.MethodCall)
-	if !ok || (call.Args != nil && len(call.Args.Args) != 0) {
+// nativeEntryName reports whether call reads the entry's own name, which is
+// "." or ".." exactly for the dot entries.
+func nativeEntryName(call *syntax.MethodCall, variable string) bool {
+	if call.Args != nil && len(call.Args.Args) != 0 {
 		return false
 	}
 	name := nativeEntryMethod(call, variable)
 	return name == "getfilename" || name == "getbasename"
-}
-
-func nativeDotNameCompared(ctx *analysis.Context, e *syntax.Binary, variable string) uint8 {
-	if nativeEntryName(e.Left, variable) {
-		return nativeDotNameBit(ctx, e.Right)
-	}
-	if nativeEntryName(e.Right, variable) {
-		return nativeDotNameBit(ctx, e.Left)
-	}
-	return 0
-}
-
-func nativeDotNameBit(ctx *analysis.Context, e syntax.Expr) uint8 {
-	switch name, _ := NativeString(ctx, e); name {
-	case ".":
-		return 1
-	case "..":
-		return 2
-	}
-	return 0
 }
 
 // CheckFileLockFailureUnchecked checks the independently specified contract.
