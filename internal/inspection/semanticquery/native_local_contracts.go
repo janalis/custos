@@ -386,15 +386,16 @@ func NativeStreamMode(ctx *analysis.Context, h syntax.Expr, at syntax.Node) (str
 	return mode, true
 }
 
-// NativeCallSucceeded reports whether call c is known to have succeeded at
-// at: the conditions on that very call guarding at rule its failure out.
-// fseek fails with -1 rather than false: its result must be known to be 0.
-func NativeCallSucceeded(ctx *analysis.Context, c *syntax.FuncCall, at syntax.Node) bool {
+// NativeCallSucceeded reports whether call c (a function or method call) is
+// known to have succeeded at at: the conditions on that very call guarding at
+// rule its failure out. fseek fails with -1 rather than false: its result
+// must be known to be 0.
+func NativeCallSucceeded(ctx *analysis.Context, c syntax.Expr, at syntax.Node) bool {
 	x, ok := at.(syntax.Expr)
 	if !ok || NativeLabelled(ctx, x) {
 		return false
 	}
-	if NativeBuiltinName(ctx, c) == "fseek" {
+	if f, ok := c.(*syntax.FuncCall); ok && NativeBuiltinName(ctx, f) == "fseek" {
 		return ctx.Types().Native().CallResultAsAt(c, x, types.Ints(types.IntRange{Lo: -1, Hi: 0})).IntsOnly(0, 0)
 	}
 	t := ctx.Types().Native().CallResultAt(c, x)

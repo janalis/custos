@@ -1112,41 +1112,11 @@ func expansionDSQL(sql string) ([]string, bool) {
 	return out, true
 }
 
-func expansionDMethodSucceeded(ctx *analysis.Context, c *syntax.MethodCall, at syntax.Node) bool {
-	accepts := func(e syntax.Expr, truth bool) bool {
-		e = syntax.UnwrapParens(e)
-		if e == c {
-			return truth
-		}
-		if u, ok := e.(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim && syntax.UnwrapParens(u.Expr) == c {
-			return !truth
-		}
-		if b, ok := e.(*syntax.Binary); ok && syntax.UnwrapParens(b.Left) == c {
-			v, k := astquery.BoolConst(b.Right)
-			return k && ((truth && (b.Op.Kind == syntax.TIsIdentical || b.Op.Kind == syntax.TIsEqual) && v) || (!truth && (b.Op.Kind == syntax.TIsIdentical || b.Op.Kind == syntax.TIsEqual) && !v))
-		}
-		return false
-	}
-	for p := at.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
-		if branch, ok := p.(*syntax.If); ok && branch.Body.Span().Contains(at.Span()) && accepts(branch.Cond, true) {
-			return true
-		}
-		if st, ok := p.(syntax.Stmt); ok {
-			prev, exists := astquery.PrevStmt(ctx.File, st)
-			guard, ok := prev.(*syntax.If)
-			if exists && ok && guard.Else == nil && len(guard.ElseIfs) == 0 && syntax.Terminates(guard.Body) && accepts(guard.Cond, false) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 func expansionDMethodCalls(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr, class string, names ...string) []*syntax.MethodCall {
 	var out []*syntax.MethodCall
 	for _, event := range expansionDCalls(ctx, at) {
 		c, ok := event.(*syntax.MethodCall)
-		if !ok || c.Span().End >= at.Span().Start || (!NativeDominates(c, at) && !expansionDMethodSucceeded(ctx, c, at)) || !expansionDSame(ctx, c.Var, receiver) {
+		if !ok || c.Span().End >= at.Span().Start || (!NativeDominates(c, at) && !ExpansionDMethodSucceeded(ctx, c, at)) || !expansionDSame(ctx, c.Var, receiver) {
 			continue
 		}
 		for _, name := range names {
@@ -1574,7 +1544,7 @@ func pdoFetchIntoMode(ctx *analysis.Context, fetch *syntax.MethodCall, loop synt
 			continue
 		}
 		latest = nil
-		if c.Span().End < fetch.Span().Start && (NativeDominates(c, fetch) || expansionDMethodSucceeded(ctx, c, fetch)) && pdoFetchIntoMethod(ctx, c, "setFetchMode") && expansionDSame(ctx, c.Var, fetch.Var) {
+		if c.Span().End < fetch.Span().Start && (NativeDominates(c, fetch) || ExpansionDMethodSucceeded(ctx, c, fetch)) && pdoFetchIntoMethod(ctx, c, "setFetchMode") && expansionDSame(ctx, c.Var, fetch.Var) {
 			latest = c
 		}
 	}
@@ -1811,7 +1781,7 @@ func CheckMysqliEscapedValueSurvivesCharsetChange(ctx *analysis.Context, n synta
 		// Only the last selection on each side decides: an earlier change that
 		// a later call overrides, restores or leaves unproven is not evidence.
 		prior := expansionDLastCharsetCall(ctx, escape, escape.Var, 0)
-		if prior == nil || (!NativeDominates(prior, escape) && !expansionDMethodSucceeded(ctx, prior, escape)) {
+		if prior == nil || (!NativeDominates(prior, escape) && !ExpansionDMethodSucceeded(ctx, prior, escape)) {
 			continue
 		}
 		before, known := NativeString(ctx, CallArgument(prior.Args, 0, "charset"))
@@ -1819,7 +1789,7 @@ func CheckMysqliEscapedValueSurvivesCharsetChange(ctx *analysis.Context, n synta
 			continue
 		}
 		change := expansionDLastCharsetCall(ctx, c, c.Var, escape.Span().End)
-		if change == nil || !expansionDMethodSucceeded(ctx, change, c) {
+		if change == nil || !ExpansionDMethodSucceeded(ctx, change, c) {
 			continue
 		}
 		after, known := NativeString(ctx, CallArgument(change.Args, 0, "charset"))
@@ -1857,7 +1827,7 @@ func CheckMysqliMultiQueryResultsNotDrained(ctx *analysis.Context, n syntax.Node
 		return
 	}
 	p := prior[len(prior)-1]
-	if !expansionDMethodSucceeded(ctx, p, c) {
+	if !ExpansionDMethodSucceeded(ctx, p, c) {
 		return
 	}
 	sql, known := NativeString(ctx, CallArgument(p.Args, 0, "query"))
@@ -2052,7 +2022,7 @@ func CheckSqliteForeignKeySettingInsideTransaction(ctx *analysis.Context, n synt
 			continue
 		}
 		// A call on another branch may or may not have run before the PRAGMA.
-		certain := NativeDominates(prior, c) || expansionDMethodSucceeded(ctx, prior, c)
+		certain := NativeDominates(prior, c) || ExpansionDMethodSucceeded(ctx, prior, c)
 		if !certain && sqliteCallLeaves(prior, c) {
 			// The path through this call never reaches the PRAGMA.
 			continue

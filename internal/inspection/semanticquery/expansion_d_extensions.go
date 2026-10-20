@@ -13,28 +13,7 @@ import (
 
 // ExpansionDMethodSucceeded proves a boolean method succeeded on the current path.
 func ExpansionDMethodSucceeded(ctx *analysis.Context, c *syntax.MethodCall, at syntax.Node) bool {
-	accepts := func(e syntax.Expr, truth bool) bool {
-		e = syntax.UnwrapParens(e)
-		if e == c {
-			return truth
-		}
-		if u, ok := e.(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
-			return syntax.UnwrapParens(u.Expr) == c && !truth
-		}
-		return false
-	}
-	for p := at; p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
-		if b, ok := p.(*syntax.If); ok && b.Body.Span().Contains(at.Span()) && accepts(b.Cond, true) {
-			return true
-		}
-		if st, ok := p.(syntax.Stmt); ok {
-			prev, exists := astquery.PrevStmt(ctx.File, st)
-			if b, ok := prev.(*syntax.If); exists && ok && b.Else == nil && len(b.ElseIfs) == 0 && syntax.Terminates(b.Body) && accepts(b.Cond, false) {
-				return true
-			}
-		}
-	}
-	return false
+	return NativeCallSucceeded(ctx, c, at)
 }
 
 // ExpansionDMethods retains ordered same-object calls; ambiguous path effects
