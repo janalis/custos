@@ -207,11 +207,11 @@ function f(string $s, array $a) {
 }
 `
 	checkVer(t, phpversion.PHP72, false, src, map[string]string{
-		"hash": "false|string", "hmac": "false|string", "chunk": "array|null", "words": "false|int|string[]",
+		"hash": "false|string", "hmac": "false|string", "chunk": "array[]|null<non-empty array>", "words": "false|int|string[]",
 		"count": "false|int", "substr": "false|string",
 	})
 	checkVer(t, phpversion.PHP84, false, src, map[string]string{
-		"hash": "string", "hmac": "string", "chunk": "array", "words": "int|string[]", "count": "int", "substr": "string",
+		"hash": "string", "hmac": "string", "chunk": "array[]<non-empty array>", "words": "int|string[]", "count": "int", "substr": "string",
 	})
 }
 

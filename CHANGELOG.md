@@ -43,6 +43,16 @@ versions follow [Semantic Versioning](https://semver.org/).
   gives the union of its values; destructuring an array whose elements are
   typed (`[$a, $b] = $ints`) types each variable; a promoted constructor
   parameter's own `@var` comment documents the property.
+- More array builtins are typed from their arguments: `array_merge()` and
+  `array_replace()` (merging literal shapes), `array_chunk()`,
+  `array_combine()`, `array_column()`, `array_fill()`, `array_fill_keys()`,
+  `array_pad()`, `array_keys()`, `array_flip()`, `array_count_values()`,
+  `array_intersect*()`/`array_diff*()`, `iterator_to_array()` and integer
+  `range()`; `array_values()` and its siblings keep a literal's value types;
+  `pathinfo()` and `parse_url()` return their parts as a shape; `fgetcsv()`,
+  `str_getcsv()`, `file()` and `glob()` return lists of strings; and
+  `preg_split()` with `PREG_SPLIT_OFFSET_CAPTURE` returns `[string, int]`
+  pairs.
 - `new` gives a generic class the template arguments its constructor's
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.

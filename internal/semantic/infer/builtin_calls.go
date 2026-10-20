@@ -27,11 +27,19 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 		"current", "reset", "end", "next", "prev", "array_pop", "array_shift", "hrtime", "sscanf", "parse_url", "abs",
 		"array_values", "array_reverse", "array_slice", "array_filter", "array_unique", "array_map", "explode", "array_reduce", "call_user_func", "call_user_func_array":
 	default:
-		return types.Unknown, false
+		if !arrayBuiltins[builtin] {
+			return types.Unknown, false
+		}
 	}
 	allowTailSpread := builtin == "array_filter" || builtin == "array_map"
 	function := e.Index.Function(fqn, e.PHP)
-	if function == nil || !function.Builtin || e.bindingBudget(n.Args, function.Params) || !builtinBindingsKnown(n.Args, function.Params, e.PHP, allowTailSpread) {
+	if function == nil || !function.Builtin || e.bindingBudget(n.Args, function.Params) {
+		return types.Unknown, false
+	}
+	// The stubs declare array_keys($array) as an older variant only, so its
+	// main signature requires the search value.
+	keysOnly := builtin == "array_keys" && len(n.Args.Args) == 1 && n.Args.Args[0].(*syntax.Arg).Name == nil && !n.Args.Args[0].(*syntax.Arg).Unpack
+	if !keysOnly && !builtinBindingsKnown(n.Args, function.Params, e.PHP, allowTailSpread) {
 		return types.Unknown, false
 	}
 	arg := func(i int) syntax.Expr {
@@ -50,6 +58,19 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 			}
 		}
 		return nil
+	}
+	if arrayBuiltins[builtin] {
+		t, ok := e.arrayBuiltinType(builtin, n, arg)
+		if ok {
+			// Keep the failure values the version's signature declares
+			// (array_chunk() returned null before PHP 8.0).
+			for _, a := range []string{"null", "false"} {
+				if types.FromDoc(function.Return, nil).Has(a) {
+					t = types.Union(t, types.Of(a))
+				}
+			}
+		}
+		return t, ok
 	}
 	switch builtin {
 	case "str_replace", "str_ireplace", "preg_replace", "preg_replace_callback", "substr_replace", "preg_filter",
@@ -78,7 +99,12 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 		// One PATHINFO_* flag returns that part as a string, none the
 		// array of parts.
 		if len(n.Args.Args) == 1 && arg(0) != nil {
-			return types.Array, true
+			return types.Array.WithShape([]types.ShapeKey{
+				{Name: "dirname", Type: types.String, Optional: true},
+				{Name: "basename", Type: types.String},
+				{Name: "extension", Type: types.String, Optional: true},
+				{Name: "filename", Type: types.String},
+			}, true), true
 		}
 		if c, ok := syntax.UnwrapParens(arg(1)).(*syntax.ConstFetch); ok && strings.HasPrefix(strings.ToUpper(strings.TrimPrefix(c.Name.Value, `\`)), "PATHINFO_") {
 			return types.String, true
@@ -174,7 +200,12 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 		switch len(n.Args.Args) {
 		case 1:
 			if arg(0) != nil {
-				return types.Of("array", "false"), true
+				parts := []types.ShapeKey{{Name: "scheme"}, {Name: "host"}, {Name: "port"}, {Name: "user"}, {Name: "pass"}, {Name: "path"}, {Name: "query"}, {Name: "fragment"}}
+				for i := range parts {
+					parts[i].Type, parts[i].Optional = types.String, true
+				}
+				parts[2].Type = types.Int
+				return types.Union(types.Array.WithShape(parts, true), types.Of("false")), true
 			}
 		case 2:
 			if c, ok := syntax.UnwrapParens(arg(1)).(*syntax.ConstFetch); ok && c != nil {
@@ -210,13 +241,13 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 					}
 					return e.arrayFilterType(a, t, cb), true
 				case "array_values":
-					return t.WithoutShape().WithArrayKey(types.Int), true
+					return shapeless(t).WithArrayKey(types.Int), true
 				case "array_slice":
-					return t.WithoutShape().WithNonEmpty(false).WithArrayKey(types.Of("int", "string")), true
+					return shapeless(t).WithNonEmpty(false).WithArrayKey(types.Of("int", "string")), true
 				case "array_reverse":
-					return t.WithoutShape().WithArrayKey(types.Of("int", "string")), true
+					return shapeless(t).WithArrayKey(types.Of("int", "string")), true
 				}
-				return t.WithoutShape(), true
+				return shapeless(t), true
 			}
 		}
 	case "array_map":

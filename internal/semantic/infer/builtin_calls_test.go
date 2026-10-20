@@ -65,7 +65,7 @@ function f(string $f, $flags) {
 }
 `, map[string]string{
 		"pe": "string",
-		"pa": "array",
+		"pa": "array{dirname?: string, basename: string, extension?: string, filename: string}",
 		"pv": "array|string",
 		"g0": "array",
 		"g1": "float",
