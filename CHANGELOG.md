@@ -111,6 +111,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   `isset($d[3], $other)`, an exit followed by `else`/`elseif`, an `elseif`
   condition after a failed length test and `while` conditions now count,
   and a decode in a branch the length tests contradict is not reported.
+- UploadClientMimeTrusted reads client type tests from type narrowing:
+  ternary and `||` positions, an exit followed by `else`, disjunctions of
+  MIME tests and `in_array()` with named arguments now count. A call of the
+  project between the test and the move, or an entry key held in a variable,
+  no longer counts as proof.
 - OpenSslSigningFailureIgnored reads signature tests from type narrowing:
   comparisons with `''` or `null` (also as tests themselves), an
   `openssl_verify()` result kept in a local or compared loosely,

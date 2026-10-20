@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Inspect uploaded content instead of trusting its client MIME label."
@@ -62,115 +63,46 @@ func uploadEntry(ctx *analysis.Context, expr syntax.Expr, field string) (string,
 }
 
 // trustsClientType reports whether the call is reached only when the client
-// type of the same upload matched an allowed MIME string: it sits in the
-// accepting branch of such a test, in an alternative taken once the mismatch
-// test failed, or after a guard clause leaving on mismatch.
+// type of the same upload matched an allowed MIME string: where it runs, the
+// conditions guarding it narrow `$_FILES[key]['type']` to a list of such
+// strings.
 func trustsClientType(ctx *analysis.Context, call *syntax.FuncCall, upload string) bool {
-	for node := syntax.Node(call); node != nil && !syntax.IsVariableScope(node); node = node.Parent() {
-		switch branch := node.Parent().(type) {
-		case *syntax.If:
-			if node == branch.Body && clientTypeTest(ctx, branch.Cond, upload, true) {
-				return true
-			}
-			switch node.(type) {
-			case *syntax.ElseIf, *syntax.Else:
-				if failedEarlier(ctx, branch, node, upload) {
-					return true
-				}
-			}
-		case *syntax.ElseIf:
-			if clientTypeTest(ctx, branch.Cond, upload, true) {
-				return true
-			}
-		}
-		stmt, ok := node.(syntax.Stmt)
-		if !ok {
-			continue
-		}
-		list, index, ok := astquery.StmtList(ctx.File, stmt)
-		if !ok {
-			continue
-		}
-		for _, earlier := range list[:index] {
-			guard, ok := earlier.(*syntax.If)
-			if ok && syntax.Terminates(guard.Body) && clientTypeTest(ctx, guard.Cond, upload, false) {
-				return true
-			}
-		}
+	if semanticquery.NativeLabelled(ctx, call) {
+		return false // a jump may land between the test and the call
 	}
-	return false
-}
-
-// failedEarlier reports whether the alternative alt of chain (an elseif or
-// the else) is reached only after a condition that is true whenever the
-// client type test fails: the `if` condition or an earlier `elseif` one.
-func failedEarlier(ctx *analysis.Context, chain *syntax.If, alt syntax.Node, upload string) bool {
-	if clientTypeTest(ctx, chain.Cond, upload, false) {
+	var label syntax.Expr
+	visit := func(n syntax.Node) bool {
+		if label != nil || n.Span().Start >= call.Span().Start || syntax.IsVariableScope(n) {
+			return false
+		}
+		if x, ok := n.(syntax.Expr); ok && clientType(ctx, x, upload) {
+			label = x
+		}
 		return true
 	}
-	for _, earlier := range chain.ElseIfs {
-		if syntax.Node(earlier) == alt {
-			break
-		}
-		if clientTypeTest(ctx, earlier.Cond, upload, false) {
-			return true
+	if scope := syntax.EnclosingVariableScope(call); scope != nil {
+		syntax.Inspect(syntax.VariableScopeBody(scope), visit)
+	} else {
+		syntax.InspectFile(ctx.File, visit)
+	}
+	if label == nil {
+		return false
+	}
+	values, ok := ctx.Types().Native().NarrowMemberAt(label, call, types.TrackedStrings()).StringValueList()
+	if !ok {
+		return false
+	}
+	for _, v := range values {
+		if !strings.Contains(v, "/") {
+			return false
 		}
 	}
-	return false
-}
-
-// clientTypeTest reports whether cond being true (accept) or false (!accept)
-// implies that the upload's client type matched an allowed MIME string.
-func clientTypeTest(ctx *analysis.Context, cond syntax.Expr, upload string, accept bool) bool {
-	switch e := syntax.UnwrapParens(cond).(type) {
-	case *syntax.Unary:
-		return e.Op.Kind == syntax.TExclaim && clientTypeTest(ctx, e.Expr, upload, !accept)
-	case *syntax.Binary:
-		switch e.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TBooleanOr:
-			// Every `&&` operand holds in an accepting branch; every `||`
-			// operand is false once a guard clause was passed.
-			return (e.Op.Kind == syntax.TBooleanAnd) == accept &&
-				(clientTypeTest(ctx, e.Left, upload, accept) || clientTypeTest(ctx, e.Right, upload, accept))
-		case syntax.TIsIdentical, syntax.TIsEqual, syntax.TIsNotIdentical, syntax.TIsNotEqual:
-			positive := e.Op.Kind == syntax.TIsIdentical || e.Op.Kind == syntax.TIsEqual
-			return positive == accept &&
-				(clientTypeIs(ctx, e.Left, e.Right, upload) || clientTypeIs(ctx, e.Right, e.Left, upload))
-		}
-	case *syntax.FuncCall:
-		return accept && semanticquery.NativeBuiltin(ctx, e, "in_array") &&
-			clientType(ctx, semanticquery.CallArgument(e.Args, 0, "needle"), upload) &&
-			mimeList(ctx, semanticquery.CallArgument(e.Args, 1, "haystack"))
-	}
-	return false
+	return true
 }
 
 func clientType(ctx *analysis.Context, expr syntax.Expr, upload string) bool {
 	entry, known := uploadEntry(ctx, expr, "type")
 	return known && entry == upload
-}
-
-func clientTypeIs(ctx *analysis.Context, subject, value syntax.Expr, upload string) bool {
-	return clientType(ctx, subject, upload) && mimeString(ctx, value)
-}
-
-func mimeString(ctx *analysis.Context, expr syntax.Expr) bool {
-	mime, known := semanticquery.NativeString(ctx, expr)
-	return known && strings.Contains(mime, "/")
-}
-
-// mimeList reports whether expr is a non-empty array of MIME string literals.
-func mimeList(ctx *analysis.Context, expr syntax.Expr) bool {
-	list := semanticquery.NativeArray(ctx, expr)
-	if list == nil || len(list.Items) == 0 {
-		return false
-	}
-	for _, item := range list.Items {
-		if !mimeString(ctx, item.Value) {
-			return false
-		}
-	}
-	return true
 }
 
 // contentInspected reports whether the same uploaded temporary file is handed

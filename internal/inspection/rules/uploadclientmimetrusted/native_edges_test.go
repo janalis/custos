@@ -23,6 +23,17 @@ func TestIndependentNativeEdges(t *testing.T) {
 		{"if(in_array($_FILES['f']['type'],['image/png','image/jpeg'],true)){move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 1},
 		{"namespace App; function in_array($a,$b){return true;} if(in_array($_FILES['f']['type'],['image/png'])){move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 0},
 		{"if($_FILES['f']['type']==='image/png' && $_FILES['f']['size']<10){move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 1},
+		{"$ok=$_FILES['f']['type']==='image/png';if($ok){move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 0},
+		{"if($_FILES['f']['type']!=='image/png'){return;}else{$x=1;}move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');", 1},
+		{"$r=$_FILES['f']['type']==='image/png'?move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image'):null;", 1},
+		{"$r=$_FILES['f']['type']!=='image/png'||move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');", 1},
+		{"if($_FILES['f']['type']==='image/png'||$_FILES['f']['type']==='image/gif'){move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 1},
+		{"if($_FILES['f']['type']==='image/png'||$x){move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 0},
+		{"if($_FILES['f']['type']==='png'){move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 0},
+		{"function g(){} if($_FILES['f']['type']==='image/png'){g();move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 0},
+		{"if($_FILES['f']['type']!=='image/png'){return;}back:move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');goto back;", 0},
+		{"move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');if($_FILES['f']['type']==='image/png'){}", 0},
+		{"$k='f';if($_FILES[$k]['type']==='image/png'){move_uploaded_file($_FILES[$k]['tmp_name'],'/tmp/image');}", 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"UploadClientMimeTrusted"}})
