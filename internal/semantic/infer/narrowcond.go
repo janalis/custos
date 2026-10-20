@@ -304,21 +304,42 @@ func (e *Env) knownInt(x syntax.Expr) (int64, bool) {
 	if v, ok := integerLiteral(x); ok {
 		return v, true
 	}
-	v, ok := syntax.UnwrapParens(x).(*syntax.Variable)
-	if !ok || v.Name == "" || v.NameExpr != nil {
+	if c, a := lengthArg(x); a != nil {
+		// `strlen('12abc')`, `strlen($s)` with $s = '12abc'.
+		if l, ok := syntax.UnwrapParens(a).(*syntax.Variable); ok {
+			a = e.onlyValue(l)
+		}
+		if lit, ok := a.(*syntax.Literal); ok && lit.LitKind == syntax.LitString && e.isBuiltinCall(c) {
+			if text, ok := syntax.LiteralStringValue(lit); ok {
+				return int64(len(text)), true
+			}
+		}
 		return 0, false
+	}
+	v, ok := syntax.UnwrapParens(x).(*syntax.Variable)
+	if !ok {
+		return 0, false
+	}
+	return integerLiteral(e.onlyValue(v))
+}
+
+// onlyValue returns the value of the only plain assignment of local v
+// reaching it, unwrapped (nil else).
+func (e *Env) onlyValue(v *syntax.Variable) syntax.Expr {
+	if v.Name == "" || v.NameExpr != nil {
+		return nil
 	}
 	scope := syntax.EnclosingVariableScope(v)
 	sv := e.scopeVars(scope)
 	defs := sv.defs[v.Name]
 	if len(defs) > maxVarDefs {
-		return 0, false
+		return nil
 	}
-	fwd, back, _ := e.reaching(defs, v, scope)
+	fwd, back, _ := e.reaching(e.changing(defs), v, scope)
 	if len(fwd) != 1 || len(back) != 0 || fwd[0].asg == nil || e.clobbered(sv, fwd, back, v, scope) {
-		return 0, false
+		return nil
 	}
-	return integerLiteral(fwd[0].asg.Value)
+	return syntax.UnwrapParens(fwd[0].asg.Value)
 }
 
 // emptyCmp narrows t, whose string member has known lengths, compared with
@@ -341,35 +362,47 @@ func emptyCmp(t types.Type, strict, holds bool) types.Type {
 // lengthOperand reports whether x measures the byte length of variable name:
 // strlen($x), or mb_strlen($x, '8bit').
 func (e *Env) lengthOperand(x syntax.Expr, name string) bool {
+	c, a := lengthArg(x)
+	return a != nil && isVar(a, name) && e.isBuiltinCall(c)
+}
+
+// lengthArg returns the call and its measured argument when x is written as
+// strlen(…) or mb_strlen(…, '8bit') (whichever function it resolves to).
+func lengthArg(x syntax.Expr) (*syntax.FuncCall, syntax.Expr) {
 	c, ok := syntax.UnwrapParens(x).(*syntax.FuncCall)
 	if !ok || c.Args == nil || len(c.Args.Args) == 0 {
-		return false
+		return nil, nil
 	}
 	nm, ok := c.Name.(*syntax.Name)
 	if !ok {
-		return false
+		return nil, nil
 	}
 	fn := strings.ToLower(strings.TrimPrefix(nm.Value, `\`))
 	if fn != "strlen" && fn != "mb_strlen" {
-		return false
+		return nil, nil
 	}
 	a, ok := c.Args.Args[0].(*syntax.Arg)
-	if !ok || a.Unpack || a.Name != nil || !isVar(a.Value, name) || !e.isBuiltinCall(c) {
-		return false
+	if !ok || a.Unpack || a.Name != nil {
+		return nil, nil
 	}
 	if fn == "strlen" {
-		return len(c.Args.Args) == 1
+		if len(c.Args.Args) != 1 {
+			return nil, nil
+		}
+		return c, a.Value
 	}
 	if len(c.Args.Args) != 2 {
-		return false
+		return nil, nil
 	}
 	enc, ok := c.Args.Args[1].(*syntax.Arg)
 	l, lit := syntax.UnwrapParens(enc.Value).(*syntax.Literal)
 	if !ok || !lit || l.LitKind != syntax.LitString {
-		return false
+		return nil, nil
 	}
-	text, _ := syntax.LiteralStringValue(l)
-	return strings.EqualFold(text, "8bit")
+	if text, _ := syntax.LiteralStringValue(l); !strings.EqualFold(text, "8bit") {
+		return nil, nil
+	}
+	return c, a.Value
 }
 
 // lengthCmp narrows t by a comparison of its byte length with v (op an

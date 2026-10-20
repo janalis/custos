@@ -9,6 +9,7 @@ import (
 	"custos/internal/semantic/infer"
 	"custos/internal/semantic/names"
 	"custos/internal/semantic/stubs"
+	"custos/internal/semantic/types"
 )
 
 // nativeReads types the argument of every `u(...)` call with the native
@@ -143,4 +144,53 @@ function w(E $e) { if ($e === E::A) { return; } $f = function () use (&$e) {}; $
 		`\E`, `\E`, `\E`, `\E`, `\E`, `\E::B`, `\E`, "?unknown",
 		"?unknown", "?unknown", "?unknown", "?unknown", `\E`, "?unknown", "?unknown",
 	})
+}
+
+// The byte length of a known string is a known integer for comparisons, and
+// a local that a call does not touch keeps its only assignment even when
+// passed to a method resolved late; NarrowedVarAt asks it where the local
+// is not read.
+func TestKnownLengthAndVarAt(t *testing.T) {
+	src := `<?php
+$f = new NumberFormatter("en_US", 1);
+$s = "37tail";
+$n = $f->parse($s, 1, $end);
+if ($end === strlen($s)) { u($n); }
+if ($end === mb_strlen("ab", '8bit')) { u($n); }
+if ($end === mb_strlen("ab", 'UTF-8')) { u($n); }
+if ($end === mb_strlen("ab", $enc)) { u($n); }
+if ($end === strlen($s, 1)) { u($n); }
+if ($end === strlen(...$a)) { u($n); }
+if ($end === strlen($g)) { u($n); }
+if ($end === strlen(1)) { u($n); }
+if ($end === $f->strlen($s)) { u($n); }
+if ($end === mb_strlen("ab")) { u($n); }
+if ($end === $name("ab")) { u($n); }
+if ($end === strlen()) { u($n); }
+if ($end === strtolower("ab")) { u($n); }
+if ($end === strlen($$k)) { u($n); }
+$g = "abc"; $f->format($g); if ($end === strlen($g)) { u($n); }
+u($n);
+`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var got []string
+	seed := types.Ints(types.IntRange{Lo: 0, Hi: 9})
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "u" {
+				got = append(got, env.NarrowedVarAt("end", c, seed).ShapeString())
+			}
+		}
+		return true
+	})
+	checkReads(t, got, []string{
+		"int<6, 6>", "int<2, 2>", "int<0, 9>", "int<0, 9>", "int<0, 9>", "int<0, 9>", "int<0, 9>", "int<0, 9>",
+		"int<0, 9>", "int<0, 9>", "int<0, 9>", "int<0, 9>", "int<0, 9>", "int<0, 9>", "int<3, 3>", "int<0, 9>",
+	})
+	if !env.NarrowedVarAt("", f.Stmts[0].(*syntax.ExprStmt).Expr, seed).IsUnknown() || !env.NarrowedVarAt("this", f.Stmts[0].(*syntax.ExprStmt).Expr, seed).IsUnknown() {
+		t.Error("no name, or $this, is no local")
+	}
 }

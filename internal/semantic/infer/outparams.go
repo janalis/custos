@@ -174,7 +174,8 @@ func (e *Env) collectOutArgs(call syntax.Expr, sv *scopeVars) {
 			kill = syntax.Span{}
 			typ = func() types.Type { return types.Mixed }
 		}
-		sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: call.Span().Start, end: call.Span().End, kill: kill, typ: typ})
+		arg := &mutation{span: call.Span(), kind: mutCallArg, call: call, arg: a, idx: i}
+		sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: call.Span().Start, end: call.Span().End, kill: kill, typ: typ, arg: arg})
 	}
 }
 
@@ -537,7 +538,8 @@ func (e *Env) collectDeferredMethodOut(call *syntax.MethodCall, sv *scopeVars) {
 			kill = syntax.Span{}
 			typ = func() types.Type { return types.Mixed }
 		}
-		sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: call.Span().Start, end: call.Span().End, kill: kill, typ: typ})
+		arg := &mutation{span: call.Span(), kind: mutCallArg, call: call, arg: a, idx: i}
+		sv.defs[v.Name] = append(sv.defs[v.Name], varDef{pos: call.Span().Start, end: call.Span().End, kill: kill, typ: typ, arg: arg})
 	}
 }
 

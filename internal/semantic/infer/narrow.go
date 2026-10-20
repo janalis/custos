@@ -45,34 +45,7 @@ func (e *Env) NarrowedFrom(x syntax.Expr, seed types.Type) types.Type {
 		return seed
 	}
 	scope := syntax.EnclosingVariableScope(v)
-	sv := e.scopeVars(scope)
-	defs := sv.defs[v.Name]
-	if len(defs) > maxVarDefs {
-		return types.Unknown
-	}
-	fwd, back, _ := e.reaching(defs, v, scope)
-	if e.clobbered(sv, fwd, back, v, scope) {
-		return types.Unknown
-	}
-	after, backAfter, forward, carried := uint32(0), uint32(0), len(fwd) == 0, false
-	for _, d := range fwd {
-		if e.forStep(d, v, scope) {
-			backAfter, carried = max(backAfter, loopAround(d, v, scope)), true
-			continue
-		}
-		after, forward = max(after, d.pos, d.end), true
-	}
-	for _, d := range back {
-		backAfter, carried = max(backAfter, loopAround(d, v, scope)), true
-	}
-	var parts []types.Type
-	if forward {
-		parts = append(parts, e.narrowExprAfter(seed, v, v.Name, scope, after))
-	}
-	if carried {
-		parts = append(parts, e.narrowExprAfter(seed, v, v.Name, scope, backAfter))
-	}
-	t := types.Union(parts...)
+	t := e.narrowedVar(v.Name, v, scope, seed)
 	if src, a := e.copiedFrom(v, scope); src != "" && !t.IsUnknown() {
 		// `$tag = $_POST['tag']; if (strlen($_POST['tag']) !== 16) { … }`:
 		// the source, unchanged since the copy, was tested.
@@ -80,6 +53,51 @@ func (e *Env) NarrowedFrom(x syntax.Expr, seed types.Type) types.Type {
 		t = e.assertIs(t, st).IntsAlso(st).LengthsAlso(st)
 	}
 	return t
+}
+
+// NarrowedVarAt narrows seed, a type assumed for local name, by the
+// conditions guarding expression at, a place that need not read it: what
+// the tests of the value reaching at prove (a parse offset compared with a
+// length before the parsed value is used).
+func (e *Env) NarrowedVarAt(name string, at syntax.Expr, seed types.Type) types.Type {
+	if name == "" || name == "this" {
+		return types.Unknown
+	}
+	return e.narrowedVar(name, at, syntax.EnclosingVariableScope(at), seed)
+}
+
+// narrowedVar narrows seed for local name at use by the conditions after
+// the definitions reaching use (from the loop start for values carried
+// around a loop); unknown where a dynamic write may have replaced it.
+func (e *Env) narrowedVar(name string, use syntax.Expr, scope syntax.Node, seed types.Type) types.Type {
+	sv := e.scopeVars(scope)
+	defs := sv.defs[name]
+	if len(defs) > maxVarDefs {
+		return types.Unknown
+	}
+	fwd, back, _ := e.reaching(defs, use, scope)
+	if e.clobbered(sv, fwd, back, use, scope) {
+		return types.Unknown
+	}
+	after, backAfter, forward, carried := uint32(0), uint32(0), len(fwd) == 0, false
+	for _, d := range fwd {
+		if e.forStep(d, use, scope) {
+			backAfter, carried = max(backAfter, loopAround(d, use, scope)), true
+			continue
+		}
+		after, forward = max(after, d.pos, d.end), true
+	}
+	for _, d := range back {
+		backAfter, carried = max(backAfter, loopAround(d, use, scope)), true
+	}
+	var parts []types.Type
+	if forward {
+		parts = append(parts, e.narrowExprAfter(seed, use, name, scope, after))
+	}
+	if carried {
+		parts = append(parts, e.narrowExprAfter(seed, use, name, scope, backAfter))
+	}
+	return types.Union(parts...)
 }
 
 // copiedFrom returns the narrowing key of what read v copies (a local, a
@@ -176,7 +194,7 @@ func narrowKey(x syntax.Expr) string {
 const callKeyPrefix = "\x03call "
 
 // callKey is the narrowing key of call c, by its span.
-func callKey(c *syntax.FuncCall) string {
+func callKey(c syntax.Expr) string {
 	sp := c.Span()
 	return callKeyPrefix + strconv.FormatUint(uint64(sp.Start), 10) + " " + strconv.FormatUint(uint64(sp.End), 10)
 }
@@ -187,8 +205,10 @@ func callMatches(x syntax.Expr, name string) bool {
 	if !ok {
 		return false
 	}
-	c, ok := unsilenced(x).(*syntax.FuncCall) // `@f()` is f()'s result
-	if !ok {
+	c := unsilenced(x) // `@f()` is f()'s result
+	switch c.(type) {
+	case *syntax.FuncCall, *syntax.MethodCall:
+	default:
 		return false
 	}
 	start, end := callKeySpan(rest)
@@ -211,14 +231,14 @@ func callKeySpan(rest string) (start, end uint64) {
 // place (`if ($ok = f())`) or through the variable it was stored in, while
 // that assignment is the only one reaching at (`$ok = f(); if (!$ok) { … }`). A call that may run again before at
 // (inside a loop around both) still counts by its last result.
-func (e *Env) CallResultAt(c *syntax.FuncCall, at syntax.Expr) types.Type {
+func (e *Env) CallResultAt(c, at syntax.Expr) types.Type {
 	return e.CallResultAsAt(c, at, e.TypeOf(c))
 }
 
 // CallResultAsAt is CallResultAt narrowing seed, a type the caller assumes
 // for the result (one modelling values the declared type cannot tell
 // apart), instead of the call's type.
-func (e *Env) CallResultAsAt(c *syntax.FuncCall, at syntax.Expr, seed types.Type) types.Type {
+func (e *Env) CallResultAsAt(c, at syntax.Expr, seed types.Type) types.Type {
 	scope := syntax.EnclosingVariableScope(c)
 	if syntax.EnclosingVariableScope(at) != scope || at.Span().Start < c.Span().End {
 		return types.Unknown
@@ -246,7 +266,7 @@ const maxHolderHops = 4
 // holdersAt returns, for each local holding the result of call c at at, the
 // plain assignment defining it there: its only reaching definition stores c
 // (`$ok = f()`, `$ok = @f()`) or a copy of such a local (`$t = $ok`).
-func (e *Env) holdersAt(c *syntax.FuncCall, at syntax.Expr, scope syntax.Node) []*syntax.Assign {
+func (e *Env) holdersAt(c, at syntax.Expr, scope syntax.Node) []*syntax.Assign {
 	sv := e.scopeVars(scope)
 	// Candidates first: names assigned c, then names assigned a copy of a
 	// candidate, before checking what reaches at.
@@ -262,7 +282,7 @@ func (e *Env) holdersAt(c *syntax.FuncCall, at syntax.Expr, scope syntax.Node) [
 					continue
 				}
 				v, copied := unsilenced(d.asg.Value).(*syntax.Variable)
-				if unsilenced(d.asg.Value) == syntax.Expr(c) || copied && hop > 0 && names[v.Name] {
+				if unsilenced(d.asg.Value) == c || copied && hop > 0 && names[v.Name] {
 					names[name], grew = true, true
 					break
 				}
@@ -299,7 +319,7 @@ func unsilenced(x syntax.Expr) syntax.Expr {
 func (e *Env) onlyAssign(name string, at, scope syntax.Node) *syntax.Assign {
 	sv := e.scopeVars(scope)
 	defs := sv.defs[name] // holdersAt only asks within maxVarDefs
-	fwd, back, _ := e.reaching(defs, at, scope)
+	fwd, back, _ := e.reaching(e.changing(defs), at, scope)
 	if len(fwd) != 1 || len(back) != 0 || fwd[0].asg == nil || e.clobbered(sv, fwd, back, at, scope) {
 		return nil
 	}
@@ -308,9 +328,9 @@ func (e *Env) onlyAssign(name string, at, scope syntax.Node) *syntax.Assign {
 
 // holds reports whether value is the result of call c: the call itself
 // (parenthesised or silenced) or a local holding it where it is read.
-func (e *Env) holds(value syntax.Expr, c *syntax.FuncCall, scope syntax.Node, hops int) bool {
+func (e *Env) holds(value, c syntax.Expr, scope syntax.Node, hops int) bool {
 	switch v := unsilenced(value).(type) {
-	case *syntax.FuncCall:
+	case *syntax.FuncCall, *syntax.MethodCall:
 		return v == c
 	case *syntax.Variable:
 		if hops >= maxHolderHops || v.Name == "" || v.NameExpr != nil {

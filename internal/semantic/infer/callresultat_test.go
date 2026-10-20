@@ -303,3 +303,41 @@ func TestKnownIntBudget(t *testing.T) {
 		t.Fatalf("got %s", got)
 	}
 }
+
+// A method call's result is narrowed like a function's: directly, silenced,
+// assigned in place or through the local holding it.
+func TestCallResultAtMethod(t *testing.T) {
+	src := `<?php
+function f(SplQueue $q) {
+    if (!$q->isEmpty()) { u(); }
+    if ($q->isEmpty()) { return; } u();
+    if (!$e = @$q->isEmpty()) { u(); }
+    $e = $q->isEmpty(); if ($e === false) { u(); }
+    if ($q->isEmpty()) { u(); }
+    $q->isEmpty(); u();
+}`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var last *syntax.MethodCall
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		switch c := n.(type) {
+		case *syntax.MethodCall:
+			last = c
+		case *syntax.FuncCall:
+			got = append(got, env.CallResultAt(last, c).String())
+		}
+		return true
+	})
+	want := []string{"false", "false", "false", "false", "true", "bool"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("use %d: got %s want %s", i+1, got[i], want[i])
+		}
+	}
+}

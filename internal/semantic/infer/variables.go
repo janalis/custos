@@ -32,6 +32,20 @@ type varDef struct {
 	barrier bool
 	// w marks an element write (see elemDefs); such entries carry no type.
 	w *elemWrite
+	// arg is the argument passing the variable to a method resolved only
+	// when typed (see collectDeferredMethodOut): a by-value parameter
+	// leaves the variable as it was (see changing).
+	arg *mutation
+}
+
+// changing drops from defs the definitions that leave the variable as it
+// was: a method argument binding a by-value parameter (whose kill would
+// otherwise hide the definitions before it).
+func (e *Env) changing(defs []varDef) []varDef {
+	if !slices.ContainsFunc(defs, func(d varDef) bool { return d.arg != nil }) {
+		return defs
+	}
+	return slices.DeleteFunc(slices.Clone(defs), func(d varDef) bool { return d.arg != nil && !e.byRefArg(*d.arg) })
 }
 
 type scopeVars struct {
