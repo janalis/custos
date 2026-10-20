@@ -140,6 +140,13 @@ func TestUnreleasedLast(t *testing.T) {
 	if err != nil || body != "- x" || cl != "# C\n\n## [Unreleased]\n\n## [1.0.0] - 2026-10-08\n- x\n" {
 		t.Fatalf("%q %q %v", cl, body, err)
 	}
+	// Comparison links follow the new tag.
+	cl, _, err = cutChangelog("# C\n\n## [Unreleased]\n- x\n\n## [0.9.0]\n- y\n\n[Unreleased]: https://h/r/compare/v0.9.0...HEAD\n[0.9.0]: https://h/r/releases/tag/v0.9.0\n", "1.0.0", "2026-10-08")
+	want := "# C\n\n## [Unreleased]\n\n## [1.0.0] - 2026-10-08\n- x\n\n## [0.9.0]\n- y\n\n" +
+		"[Unreleased]: https://h/r/compare/v1.0.0...HEAD\n[1.0.0]: https://h/r/compare/v0.9.0...v1.0.0\n[0.9.0]: https://h/r/releases/tag/v0.9.0\n"
+	if err != nil || cl != want {
+		t.Fatalf("links:\n%s\n%v", cl, err)
+	}
 }
 
 func TestGitErrors(t *testing.T) {

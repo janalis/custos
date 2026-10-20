@@ -179,8 +179,18 @@ func cutChangelog(cl, version, date string) (string, string, error) {
 		return "", "", errors.New("the [Unreleased] changelog section is empty")
 	}
 	heading := fmt.Sprintf("## [%s] - %s", version, date)
-	return cl[:start] + unreleased + "\n\n" + heading + "\n" + cl[bodyStart:], body, nil
+	out := cl[:start] + unreleased + "\n\n" + heading + "\n" + cl[bodyStart:]
+	// Keep the comparison links at the bottom current: [Unreleased] now
+	// starts at the new tag, which gets its own link from the previous one.
+	if m := unreleasedLinkRe.FindStringSubmatchIndex(out); m != nil {
+		base, prev := out[m[2]:m[3]], out[m[4]:m[5]]
+		links := fmt.Sprintf("[Unreleased]: %s/compare/v%s...HEAD\n[%s]: %s/compare/%s...v%s", base, version, version, base, prev, version)
+		out = out[:m[0]] + links + out[m[1]:]
+	}
+	return out, body, nil
 }
+
+var unreleasedLinkRe = regexp.MustCompile(`(?m)^\[Unreleased\]: (\S+)/compare/(\S+)\.{3}HEAD$`)
 
 var launcherVersionRe = regexp.MustCompile(`const VERSION = '[^']*';`)
 

@@ -23,7 +23,7 @@ body:
       options:
         - Reported, but the code is fine (false positive)
         - Not reported, but it should be (missed case)
-        - The quick-fix changes behaviour
+        - The quick-fix changes behavior
         - The quick-fix produces invalid PHP
         - The message is wrong or unclear
     validations:
