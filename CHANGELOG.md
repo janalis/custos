@@ -73,7 +73,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   on every edit: when an edit leaves a file's declarations unchanged, only
   the summaries it can affect are computed again (a full rebuild still
   follows an edit that reaches a recursion between files), and other open
-  files are analyzed again only when a summary changed.
+  files are analyzed again only when a summary changed. An analysis that
+  waited for a free slot is skipped if the file changed meanwhile.
 - `new` gives a generic class the template arguments its constructor's
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.

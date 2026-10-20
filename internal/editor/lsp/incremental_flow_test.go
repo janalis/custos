@@ -1,9 +1,11 @@
 package lsp
 
 import (
+	"bytes"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"custos/internal/inspection/rules/untrustedshellcommand"
@@ -90,5 +92,29 @@ func TestIncrementalFlowRefresh(t *testing.T) {
 	}
 	if !edit("<?php function invoke($arg, $more = null) { system($arg); // refused\n}") {
 		t.Fatal("refused update not rebuilt")
+	}
+}
+
+// A document changed while its analysis waited for a slot is not analysed
+// for the superseded text.
+func TestAnalysisSkippedWhenSupersededWhileWaiting(t *testing.T) {
+	var out bytes.Buffer
+	s := whiteBox(t, t.TempDir(), &out, untrustedshellcommand.New())
+	uri := "file:///w/a.php"
+	s.docs[uri] = &document{path: "/w/a.php", text: []byte("<?php system($_GET['c']);"), lines: syntax.NewLineIndex([]byte("<?php system($_GET['c']);")), analyzed: -1}
+	defer func(f func(*Server)) { acquireSlot = f }(acquireSlot)
+	analysed := false
+	acquireSlot = func(s *Server) {
+		s.docs[uri].revision++
+		s.sem <- struct{}{}
+	}
+	s.analyzeNow(uri)
+	if s.docs[uri].analyzed != -1 || strings.Contains(out.String(), "publishDiagnostics") {
+		t.Fatal("superseded analysis published")
+	}
+	acquireSlot = func(s *Server) { analysed = true; s.sem <- struct{}{} }
+	s.analyzeNow(uri)
+	if !analysed || !strings.Contains(out.String(), "publishDiagnostics") || len(s.sem) != 0 {
+		t.Fatal("current analysis not published or slot kept")
 	}
 }

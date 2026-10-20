@@ -21,6 +21,9 @@ func (s *Server) reanalyzeAll() {
 	}
 }
 
+// acquireSlot waits for one of the concurrent analysis slots (a test seam).
+var acquireSlot = func(s *Server) { s.sem <- struct{}{} }
+
 // analyzeNow analyses the current text of uri and publishes diagnostics if
 // the document did not change meanwhile.
 func (s *Server) analyzeNow(uri string) {
@@ -34,7 +37,21 @@ func (s *Server) analyzeNow(uri string) {
 	text, version, path, e, cfg, lines := d.text, d.version, d.path, s.engine, s.cfg, d.lines
 	s.mu.Unlock()
 
-	s.sem <- struct{}{}
+	// current reports (under s.mu) that the analysis still describes the
+	// document: neither it nor the engine changed meanwhile.
+	current := func() bool {
+		d, ok := s.docs[uri]
+		return ok && d == original && d.revision == revision && d.version == version && s.engine == e
+	}
+	acquireSlot(s)
+	s.mu.Lock()
+	waited := !current()
+	s.mu.Unlock()
+	if waited {
+		// Changed while waiting for a slot: a later analysis covers it.
+		<-s.sem
+		return
+	}
 	result := s.guardedAnalysis(path, func() diagnostic.FileResult {
 		return project.AnalyzeBuffer(e, path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag})
 	})
@@ -48,8 +65,7 @@ func (s *Server) analyzeNow(uri string) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	d, ok = s.docs[uri]
-	if !ok || d != original || d.revision != revision || d.version != version || s.engine != e {
+	if !current() {
 		return
 	}
 	statusChanged := d.analysisStatus != status
