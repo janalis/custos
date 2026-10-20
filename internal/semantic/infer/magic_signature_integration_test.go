@@ -39,10 +39,10 @@ function run(Service $service) {
 `)
 	expectShapes(t, got, map[string]string{
 		"plain":    "int[]{k: int}",
-		"instance": "?unknown",
-		"named":    "?unknown",
-		"static":   "?unknown",
-		"variadic": "?unknown",
+		"instance": "array", // the documented `array`, without the shape
+		"named":    "array",
+		"static":   "array",
+		"variadic": "array",
 	})
 }
 

@@ -63,6 +63,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Arithmetic with one numeric operand is typed as a number (`int|float`, or
   `float` with a float operand) even when the other operand is unknown, so
   counters such as `$totals['count'] += $row['n']` keep their type.
+- A variable passed by reference to a function or method without
+  `@param-out` takes the parameter's `@param` type after the call, instead of
+  becoming unknown (checks that need a proof still treat it as unknown).
 - `new` gives a generic class the template arguments its constructor's
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.

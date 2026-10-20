@@ -44,6 +44,13 @@ const (
 	outElements    // an array keeps its keys, its elements may change
 )
 
+// byRefOut is the documented type a user callee leaves in by-reference
+// parameter p: its `@param-out`, else its `@param` (the callee is trusted to
+// write back what it documents taking); "" when neither is documented.
+func byRefOut(p index.Param) string {
+	return cmp.Or(p.Out, p.DocType)
+}
+
 // noBuiltinOut distinguishes a known builtin without an output contract from a
 // user callee. It is read-only and shared across calls.
 var noBuiltinOut = map[int]outKind{}
@@ -149,8 +156,7 @@ func (e *Env) collectOutArgs(call syntax.Expr, sv *scopeVars) {
 					return types.Unknown
 				}
 			}
-		} else if p.Out != "" && !e.native {
-			out := p.Out
+		} else if out := byRefOut(p); out != "" && !e.native {
 			typ = func() types.Type {
 				if t := e.docType(out, nil); !t.Has("mixed") {
 					return t
@@ -511,10 +517,10 @@ func (e *Env) collectDeferredMethodOut(call *syntax.MethodCall, sv *scopeVars) {
 					keepPrior = true
 					continue
 				}
-				if p.Out == "" || e.native {
+				if byRefOut(p) == "" || e.native {
 					return types.Unknown
 				}
-				t := e.docType(p.Out, nil)
+				t := e.docType(byRefOut(p), nil)
 				if t.Has("mixed") {
 					return types.Unknown
 				}
