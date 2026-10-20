@@ -374,6 +374,32 @@ func (e *Env) inheritedSignature(m *index.Method) *index.Method {
 	return nil
 }
 
+// inheritedParamDoc returns the documented type of parameter i of method m
+// taken from the nearest overridden method (in the parents and interfaces of
+// its class) that documents the parameter at the same position; parameters
+// may be renamed, so the name is never matched. Unknown when none does, and
+// for variadic parameters.
+func (e *Env) inheritedParamDoc(m *syntax.Method, i int) types.Type {
+	if i >= len(m.Params) || m.Params[i].Variadic {
+		return types.Unknown
+	}
+	c := syntax.EnclosingClass(m)
+	if c == nil || c.ClassKind == syntax.KindTrait {
+		return types.Unknown
+	}
+	child := e.ClassFQN(c)
+	anc := e.Index.Ancestors(child, e.PHP)
+	low := strings.ToLower(m.Name.Value)
+	for _, a := range anc[min(1, len(anc)):] {
+		pm, ok := a.Methods[low]
+		if !ok || pm.Magic || pm.Visibility == index.Private || i >= len(pm.Params) || pm.Params[i].Variadic || pm.Params[i].DocType == "" {
+			continue
+		}
+		return e.bindMember(types.FromDoc(e.resolvedDoc(pm.Params[i].DocType), nil), pm.Class, pm.TypeClass, `\`+child)
+	}
+	return types.Unknown
+}
+
 func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
 	id, ok := n.Name.(*syntax.Identifier)
 	if !ok {

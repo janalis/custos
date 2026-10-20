@@ -177,3 +177,47 @@ class H {
 }
 `, map[string]string{"items": `\Foo[]`, "n": "int"})
 }
+
+func TestInheritedParamDoc(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Foo {}
+interface Builder {
+    /** @param array<string, Foo> $options */
+    public function build(array $options, $extra);
+}
+abstract class Base implements Builder {
+    /**
+     * @param int[] $items
+     * @param static $self
+     */
+    abstract protected function take($items, $self);
+    /** @param string $s */
+    private function hidden(array $s) {}
+}
+class Mid extends Base {}
+class Impl extends Mid {
+    public function build(array $renamed, $extra) { t('renamed', $renamed); t('extra', $extra); }
+    protected function take($items, $self) { t('items', $items); t('self', $self); }
+    private function hidden(array $s) { t('hidden', $s); }
+}
+class Own implements Builder {
+    /** @param Foo[] $options */
+    public function build(array $options, $extra) { t('own', $options); }
+}
+interface Scalar { /** @param string $v */ public function set($v, array $w); }
+class Wrong implements Scalar {
+    /** @param string $w */
+    public function set(...$v) { t('variadic', $v); }
+}
+class Mismatch implements Scalar {
+    public function set($v, array $w = []) { t('scalar', $v); t('notArray', $w); }
+}
+interface Doc { /** @param string|int $x */ public function m(array $x); }
+class Ignored implements Doc { public function m(array $x) { t('ignored', $x); } }
+trait T { public function build(array $options, $extra) { t('trait', $options); } }
+`, map[string]string{
+		"renamed": `\Foo[]`, "extra": "?unknown", "items": "int[]", "self": `\Impl`,
+		"hidden": "array", "own": `\Foo[]`, "variadic": "?unknown", "scalar": "string",
+		"notArray": "array", "ignored": "array", "trait": "array",
+	})
+}

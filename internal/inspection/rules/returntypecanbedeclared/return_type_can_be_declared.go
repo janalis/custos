@@ -837,8 +837,9 @@ func rtdParamsEnd(ctx *analysis.Context, m *syntax.Method) (uint32, bool) {
 }
 
 // rtdInheritedParamType types a returned, untyped and undocumented parameter
-// of m from the same parameter of the method it overrides (declared type,
-// else doc type), as PhpStorm inherits parameter types.
+// of m from the declared type of the same parameter of the method it
+// overrides, as PhpStorm inherits parameter types (an inherited doc type
+// is already the parameter's inferred type).
 func rtdInheritedParamType(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Method, e syntax.Expr) types.Type {
 	v, ok := e.(*syntax.Variable)
 	if !ok || v.NameExpr != nil {
@@ -879,9 +880,6 @@ func rtdInheritedParamType(ctx *analysis.Context, class *syntax.ClassLike, m *sy
 		p := pm.Params[idx]
 		if p.Type != "" {
 			return types.FromDoc(p.Type, nil)
-		}
-		if p.DocType != "" {
-			return types.FromDoc(p.DocType, nil)
 		}
 		return types.Unknown
 	}

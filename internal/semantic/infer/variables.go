@@ -957,6 +957,11 @@ func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
 		}
 		return declared.WithTypeArgsFrom(dt)
 	}
+	if m, ok := scope.(*syntax.Method); ok && !e.native && (declared.IsUnknown() || declared.HasAny("array", "iterable", "mixed")) {
+		if dt := e.inheritedParamDoc(m, nodeIndex(m.Params, p)); !dt.IsUnknown() && (!declared.HasAny("array", "iterable") || dt.Without("null").IsArrayLike()) {
+			return dt
+		}
+	}
 	if declared.IsUnknown() && !e.native && !p.Variadic {
 		// A callback's untyped parameter receives what its caller passes.
 		switch fn := scope.(type) {

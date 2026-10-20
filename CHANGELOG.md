@@ -32,6 +32,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Closures passed to `array_map()`, `array_filter()`, `array_walk()`,
   `array_reduce()`, `usort()`, `uasort()` and `uksort()` get their untyped
   parameters typed from the array's elements or keys.
+- A method parameter without its own `@param` takes the documented type of
+  the same parameter of the method it overrides or implements (for example
+  the `$options` array of a Symfony form type's `buildForm()`).
 - `new` gives a generic class the template arguments its constructor's
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.
