@@ -389,7 +389,7 @@ func unionInfo(ts []Type) *arrayInfo {
 // cases `\E::A|\E::B`.
 func (t Type) ShapeString() string {
 	base := t.String()
-	if len(t.gen) > 0 || t.ints != nil || t.lens != nil || t.cases != nil {
+	if len(t.gen) > 0 || t.ints != nil || t.lens != nil || t.cases != nil || t.strs != nil {
 		parts := make([]string, len(t.atoms))
 		for i, a := range t.atoms {
 			parts[i] = a
@@ -401,6 +401,9 @@ func (t Type) ShapeString() string {
 			}
 			if a == "string" && t.lens != nil {
 				parts[i] = rangesString("string<len ", t.lens)
+			}
+			if a == "string" && t.strs != nil {
+				parts[i] = strsString(t.strs)
 			}
 			if t.cases != nil && a == t.cases.class {
 				parts[i] = casesString(t.cases)

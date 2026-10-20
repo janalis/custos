@@ -239,6 +239,17 @@ func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.
 		}
 	}
 	lit := constLiteral(other)
+	if t.StringsTracked() {
+		// `$s === 'image/png'`; loosely only for a non-numeric literal, the
+		// one strings compare by identity with.
+		if v, ok := stringLiteral(other); ok && (strict || !numericText(v)) {
+			if holds {
+				t = t.StringsOnly(v)
+			} else {
+				t = t.StringsWithout(v)
+			}
+		}
+	}
 	if !strict {
 		switch {
 		case lit == "true" || lit == "false":
@@ -792,4 +803,20 @@ func objectOnly(t types.Type) bool {
 		}
 	}
 	return true
+}
+
+// stringLiteral returns the value of a plain string literal.
+func stringLiteral(x syntax.Expr) (string, bool) {
+	l, ok := syntax.UnwrapParens(x).(*syntax.Literal)
+	if !ok || l.LitKind != syntax.LitString {
+		return "", false
+	}
+	return syntax.LiteralStringValue(l)
+}
+
+// numericText reports whether a string may compare numerically: it reads as
+// a number once trimmed (inf and nan included, to stay on the safe side).
+func numericText(v string) bool {
+	_, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+	return err == nil
 }

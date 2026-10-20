@@ -111,6 +111,9 @@ func (r *relativeBinding) bind(t Type, depth int) (Type, bool) {
 		if t.cases != nil && out.Has(t.cases.class) {
 			out.cases = t.cases
 		}
+		if t.strs != nil && out.Has("string") {
+			out.strs = t.strs
+		}
 	}
 	var gens []genEntry
 	for i, g := range t.gen {

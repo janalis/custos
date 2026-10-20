@@ -226,3 +226,58 @@ function f($s) {
 	})
 	checkReads(t, got, []string{"int<2, 2>", "int<2, 2>", "int<0, 9>", "int<0, 9>", "?unknown", "int<0, 9>", "int<0, 0>"})
 }
+
+// Tracked string values follow comparisons with literals (loosely only for
+// a non-numeric literal) and in_array() over a literal list; untracked
+// strings keep no values.
+func TestTrackedStringValues(t *testing.T) {
+	src := `<?php
+function f($s, $o) {
+    if ($s === 'a/b') { u($s); }
+    if ($s !== '.') { u($s); }
+    if ($s !== '.' && $s !== '..') { u($s); }
+    if ($s == 'x/y') { u($s); }
+    if ($s == '1') { u($s); }
+    if ($s != '..') { u($s); }
+    if (in_array($s, ['a/b', 'c/d'], true)) { u($s); }
+    if (!in_array($s, ['.', '..'])) { u($s); }
+    if (in_array($s, ['1', 'c/d'])) { u($s); }
+    if (in_array($s, ['a', $o], true)) { u($s); }
+    if (in_array($s, ['a'], $o)) { u($s); }
+    if (in_array($s, ['a'], false, 1)) { u($s); }
+    if (in_array($s, [])) { u($s); }
+    if (in_array($s, [...$o])) { u($s); }
+    if (in_array(...$o)) { u($s); }
+    if (in_array($s, ...$o)) { u($s); }
+    if (in_array(needle: $s, haystack: ['a'])) { u($s); }
+    if (in_array(haystack: ['a'], needle: $s, strict: true)) { u($s); }
+    if (in_array($s, needle: $s)) { u($s); }
+    if (in_array($s, ['a'], other: true)) { u($s); }
+    if (in_array($o, ['a'])) { u($s); }
+    if (in_array($s, $o)) { u($s); }
+    if (\strtolower($s, ['a'])) { u($s); }
+    if ($s === 'a/b' || $s === 'c/d') { u($s); }
+    if ($s === 'a/b' || $o) { u($s); }
+    if ($s === 'a' && $s === 'b') { u($s); }
+    if ($s === 'a') { if ($s !== 'a') { u($s); } }
+}`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "u" {
+				got = append(got, env.NarrowedFrom(c.Args.Args[0].(*syntax.Arg).Value, types.TrackedStrings()).ShapeString())
+			}
+		}
+		return true
+	})
+	checkReads(t, got, []string{
+		`string<"a/b">`, `string<not ".">`, `string<not "."|"..">`, `string<"x/y">`, "string", `string<not "..">`,
+		`string<"a/b"|"c/d">`, `string<not "."|"..">`, "string", "string", "string", "string", "string", "string", "string", "string",
+		`string<"a">`, `string<"a">`, "string", "string", "string", "string", "string",
+		`string<"a/b"|"c/d">`, "string", "?unknown", "?unknown",
+	})
+}

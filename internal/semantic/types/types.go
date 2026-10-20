@@ -28,6 +28,7 @@ type Type struct {
 	ints  []IntRange // values of the int atom (see ints.go); nil when unconstrained
 	lens  []IntRange // byte lengths of the string atom (see lengths.go); nil when unconstrained
 	cases *enumCases // cases of one enum class atom (see cases.go); nil when unconstrained
+	strs  *strFacts  // values of the string atom (see strings.go); nil when untracked
 }
 
 // Common types.
@@ -122,7 +123,7 @@ func (t Type) OnlyOf(atoms ...string) bool {
 // is represented as unknown (callers must treat partial knowledge as unknown).
 func Union(ts ...Type) Type {
 	var all []string
-	info, ints, lens, cases := false, false, false, false
+	info, ints, lens, cases, strs := false, false, false, false, false
 	for _, t := range ts {
 		if t.IsUnknown() {
 			return Unknown
@@ -130,7 +131,7 @@ func Union(ts ...Type) Type {
 		all = append(all, t.atoms...)
 		info = info || t.arr != nil
 		ints, lens = ints || t.ints != nil, lens || t.lens != nil
-		cases = cases || t.cases != nil
+		cases, strs = cases || t.cases != nil, strs || t.strs != nil
 	}
 	u := Of(all...)
 	if info {
@@ -144,6 +145,9 @@ func Union(ts ...Type) Type {
 	}
 	if cases {
 		u.cases = unionCases(ts)
+	}
+	if strs && u.Has("string") {
+		u.strs = unionStrs(ts)
 	}
 	return u.withGen(unionGen(u, ts)).withInter(unionInter(ts))
 }
@@ -174,6 +178,9 @@ func (t Type) Without(atoms ...string) Type {
 	}
 	if t.cases != nil && r.Has(t.cases.class) {
 		r.cases = t.cases
+	}
+	if t.strs != nil && r.Has("string") {
+		r.strs = t.strs
 	}
 	return r
 }

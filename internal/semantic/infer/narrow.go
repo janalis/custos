@@ -29,6 +29,21 @@ func (e *Env) NarrowMember(x syntax.Expr, seed types.Type) types.Type {
 	return e.narrowExpr(seed, x, key, syntax.EnclosingVariableScope(x))
 }
 
+// NarrowMemberAt narrows seed, a type assumed for member or literal-key
+// element x, by the conditions guarding at, a place of the same scope that
+// need not read it (x only names the member: any read of it will do).
+// Unknown for anything else.
+func (e *Env) NarrowMemberAt(x, at syntax.Expr, seed types.Type) types.Type {
+	key := narrowKey(syntax.UnwrapParens(x))
+	scope := syntax.EnclosingVariableScope(at)
+	if !isPropKey(key) && !isDimKey(key) || syntax.EnclosingVariableScope(x) != scope {
+		return types.Unknown
+	}
+	e.seedUse = at
+	defer func() { e.seedUse = nil }()
+	return e.narrowExpr(seed, at, key, scope)
+}
+
 // NarrowedFrom narrows seed, a type assumed for read x whatever its
 // declaration says, by the conditions guarding x: for a plain local, the
 // conditions written after the definitions reaching it (values carried

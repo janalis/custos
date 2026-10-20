@@ -187,6 +187,9 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		if truthy && e.needleFound(c, name) {
 			return t.Without("null", "false")
 		}
+		if r, ok := e.inListCond(t, c, name, truthy); ok {
+			return r
+		}
 		if r, ok := e.condAsserts(c, name, truthy, t); ok {
 			return r
 		}
@@ -496,4 +499,61 @@ func nonEmptyIf(t types.Type, cond bool) types.Type {
 		t = nt
 	}
 	return t.WithNonEmpty(true)
+}
+
+// inListCond narrows the tracked string values of name by `in_array($name,
+// ['a', 'b'], true)`: one of them when found, none of them when not. A loose
+// search counts when no value is numeric (strings then compare by identity).
+func (e *Env) inListCond(t types.Type, c *syntax.FuncCall, name string, truthy bool) (types.Type, bool) {
+	if !t.StringsTracked() || c.Args == nil || len(c.Args.Args) < 2 || len(c.Args.Args) > 3 {
+		return t, false
+	}
+	nm, ok := c.Name.(*syntax.Name)
+	if !ok || !strings.EqualFold(strings.TrimPrefix(nm.Value, `\`), "in_array") {
+		return t, false
+	}
+	// needle, haystack, strict: by position or by name, each once.
+	var args [3]syntax.Expr
+	for i, x := range c.Args.Args {
+		a, ok := x.(*syntax.Arg)
+		if !ok || a.Unpack {
+			return t, false
+		}
+		if a.Name != nil {
+			i = slices.Index([]string{"needle", "haystack", "strict"}, a.Name.Value)
+		}
+		if i < 0 || args[i] != nil {
+			return t, false
+		}
+		args[i] = a.Value
+	}
+	list, ok := syntax.UnwrapParens(args[1]).(*syntax.Array)
+	if !isVar(args[0], name) || !ok || len(list.Items) == 0 {
+		return t, false
+	}
+	strict := args[2] != nil && constLiteral(args[2]) == "true"
+	if args[2] != nil && !strict && constLiteral(args[2]) != "false" {
+		return t, false
+	}
+	var values []string
+	for _, it := range list.Items {
+		if it == nil || it.ByRef || it.Unpack {
+			return t, false
+		}
+		v, ok := stringLiteral(it.Value)
+		if !ok || !strict && numericText(v) {
+			return t, false
+		}
+		values = append(values, v)
+	}
+	if !e.isBuiltinCall(c) {
+		return t, false
+	}
+	if truthy {
+		return t.StringsOnly(values...), true
+	}
+	for _, v := range values {
+		t = t.StringsWithout(v)
+	}
+	return t, true
 }
