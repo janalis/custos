@@ -33,7 +33,12 @@ func TestIndependentNativeEdges(t *testing.T) {
 		{"function g(){} if($_FILES['f']['type']==='image/png'){g();move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 0},
 		{"if($_FILES['f']['type']!=='image/png'){return;}back:move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');goto back;", 0},
 		{"move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');if($_FILES['f']['type']==='image/png'){}", 0},
-		{"$k='f';if($_FILES[$k]['type']==='image/png'){move_uploaded_file($_FILES[$k]['tmp_name'],'/tmp/image');}", 0},
+		{"$k='f';if($_FILES[$k]['type']==='image/png'){move_uploaded_file($_FILES[$k]['tmp_name'],'/tmp/image');}", 1},
+		{"$k='f';if($_FILES[$k]['type']!=='image/png'){return;}move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');", 1},
+		{"$k='f';if($_FILES[$k]['type']==='image/png'){$k='g';move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 0},
+		{"$k='f';if($_FILES[$k]['type']==='image/png'){$_FILES['f']['type']=$x;move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 0},
+		{"$k='f';if($_FILES[$k]['type']==='image/png'){$_FILES['g']=[];move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 0},
+		{"$k='f';if($_FILES['f']['type']==='image/png'){$_FILES[$k]['type']=$x;move_uploaded_file($_FILES['f']['tmp_name'],'/tmp/image');}", 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"UploadClientMimeTrusted"}})

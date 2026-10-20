@@ -29,8 +29,8 @@ func (e *Env) NarrowMember(x syntax.Expr, seed types.Type) types.Type {
 	return e.narrowExpr(seed, x, key, syntax.EnclosingVariableScope(x))
 }
 
-// NarrowMemberAt narrows seed, a type assumed for member or literal-key
-// element x, by the conditions guarding at, a place of the same scope that
+// NarrowMemberAt narrows seed, a type assumed for member or element x
+// (named by a literal or a local key), by the conditions guarding at, a place of the same scope that
 // need not read it (x only names the member: any read of it will do).
 // Unknown for anything else.
 func (e *Env) NarrowMemberAt(x, at syntax.Expr, seed types.Type) types.Type {
@@ -197,6 +197,11 @@ func narrowKey(x syntax.Expr) string {
 		}
 		if k, ok := literalKey(n.Dim); ok {
 			return dimKey(base, k)
+		}
+		if v, ok := syntax.UnwrapParens(n.Dim).(*syntax.Variable); ok && v.Name != "" && v.NameExpr == nil && v.Name != "this" {
+			// `$_FILES[$field]`: the element the local names, while neither
+			// it nor any element of the array changes (see dimBroken).
+			return dimKey(base, varSeg+v.Name)
 		}
 	}
 	return ""
@@ -397,6 +402,24 @@ const dimSep = "\x01"
 // dimKey(base, "*") collects the writes with a computed key.
 func dimKey(base, key string) string { return base + dimSep + key }
 
+// varSeg starts the key segment of an element named by a local variable
+// (`$a[$k]`); anyElem collects every element write of an array.
+const (
+	varSeg  = "\x02"
+	anyElem = "\x02*"
+)
+
+// dimVars returns the locals naming the elements along key path.
+func dimVars(path string) []string {
+	var out []string
+	for seg := range strings.SplitSeq(path, dimSep) {
+		if name, ok := strings.CutPrefix(seg, varSeg); ok {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
 func isDimKey(k string) bool { return strings.Contains(k, dimSep) }
 
 // splitDimKey returns the base and key of an element's narrowing key: the
@@ -578,6 +601,17 @@ func (e *Env) dimBroken(scope syntax.Node, key string, from uint32, use syntax.N
 	}
 	if e.native && superglobals[base] && e.brokenBy(scope, from, use, e.mutations(scope, anyCall)) {
 		return true // where facts are proofs, any call of the project may write it
+	}
+	if vars := dimVars(path); vars != nil {
+		// A local key may now name another element, and any element write
+		// may have been to the one it names.
+		lists := [][]mutation{e.mutations(scope, dimKey(base, anyElem))}
+		for _, v := range vars {
+			lists = append(lists, e.mutations(scope, v))
+		}
+		if e.brokenBy(scope, from, use, lists...) {
+			return true
+		}
 	}
 	return e.brokenBy(scope, from, use, e.mutations(scope, key), e.mutations(scope, dimKey(base, "*")))
 }

@@ -398,9 +398,14 @@ func (e *Env) collectMutations(scope syntax.Node) map[string][]mutation {
 				}
 				d = inner
 			}
-			if k := narrowKey(d); k != "" {
+			b := narrowKey(syntax.UnwrapParens(d.Var))
+			if b != "" && !isDimKey(b) {
+				out[dimKey(b, anyElem)] = append(out[dimKey(b, anyElem)], m)
+			}
+			if k := narrowKey(d); k != "" && len(dimVars(k)) == 0 {
 				out[k] = append(out[k], m)
-			} else if b := narrowKey(syntax.UnwrapParens(d.Var)); b != "" && !isDimKey(b) {
+			} else if b != "" && !isDimKey(b) {
+				// A computed key (a local one included) may be any element.
 				out[dimKey(b, "*")] = append(out[dimKey(b, "*")], m)
 			}
 			return

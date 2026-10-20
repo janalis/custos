@@ -297,3 +297,40 @@ class K {
     }
 }`), []string{"?unknown"})
 }
+
+// An element named by a local key is narrowed like a literal-key one while
+// the local and every element of the array stay unchanged; a write through
+// a local key may be to any element.
+func TestLocalKeyElements(t *testing.T) {
+	src := `<?php
+function f(array $a, $k, $j) {
+    if ($a[$k] !== null) { u($a[$k]); }
+    if ($a[$k] !== null) { $k = $j; u($a[$k]); }
+    if ($a[$k] !== null) { $a['x'] = null; u($a[$k]); }
+    if ($a['x'] !== null) { $a[$k] = null; u($a['x']); }
+    if ($a[$k]['t'] !== null) { u($a[$k]['t']); }
+    if ($a['x'][$k] !== null) { $a['x']['y'] = null; u($a['x'][$k]); }
+    if ($a[$j] !== null) { u($a[$k]); }
+    if ($a[$$k] !== null) { u($a[$$k]); }
+}`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "u" {
+				got = append(got, env.NarrowedFrom(c.Args.Args[0].(*syntax.Arg).Value, types.Of("string", "null")).String())
+			}
+		}
+		return true
+	})
+	checkReads(t, got, []string{"string", "null|string", "null|string", "null|string", "string", "null|string", "null|string", "null|string"})
+	fn := f.Stmts[0].(*syntax.Function)
+	first := fn.Body.Stmts[0].(*syntax.If)
+	read := first.Cond.(*syntax.Binary).Left
+	if !env.NarrowMemberAt(fn.Params[1].Var, read, types.String).IsUnknown() {
+		t.Error("a plain local is no member")
+	}
+}
