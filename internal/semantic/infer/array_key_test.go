@@ -170,7 +170,7 @@ function f($id, array $rows) {
 		"expr":          "array{}",
 		"expr2":         "int|string",
 		"nested":        "array",
-		"computed":      "?unknown",
+		"computed":      "int|string",
 		"emptyComputed": "?unknown",
 		"mixedBase":     "?unknown",
 		"literalBase":   "int",

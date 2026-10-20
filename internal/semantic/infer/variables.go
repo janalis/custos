@@ -858,6 +858,9 @@ func (e *Env) collectAssignTargets(n *syntax.Assign, add func(string, uint32, fu
 			if !ct.Without("null").IsArrayLike() {
 				return types.Unknown
 			}
+			if !ct.HasShape() && !ct.Has("array") {
+				return e.widenVarElem(ct.Elem(), v) // `T[]` elements
+			}
 			kt, _ := e.shapeKeyOf(ct, key, v)
 			return kt
 		}

@@ -402,12 +402,17 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 				continue
 			}
 			// The constructor's `@param Foo[] $items` documents the
-			// promoted property too (as PhpStorm and PHPStan read it).
+			// promoted property too (as PhpStorm and PHPStan read it), else
+			// a `@var` doc comment written on the parameter itself.
+			doc := meth.Params[i].DocType
+			if pd := x.doc(p); doc == "" && pd != nil {
+				doc = x.docTypeStr(pd.EffectiveVarType(p.Var.Name), at)
+			}
 			c.Props[p.Var.Name] = &Property{
 				Name: p.Var.Name, Class: c.FQN, Visibility: visibility(p.Modifiers),
 				SetVisibility: setVisibility(p.Modifiers), Final: p.Modifiers.Has(syntax.TFinal) || p.Modifiers.Has(syntax.TPrivateSet),
 				Readonly: p.Modifiers.Has(syntax.TReadonly) || c.Readonly, Type: x.typeStr(p.Type, at), Promoted: true,
-				DocType: meth.Params[i].DocType, HasDefault: p.Default != nil, Default: x.text(p.Default), Span: p.Span(),
+				DocType: doc, HasDefault: p.Default != nil, Default: x.text(p.Default), Span: p.Span(),
 				ReadsRunCode:  readsRunCode(p.Var.Name, p.Modifiers, p.Hooks),
 				WritesRunCode: writesRunCode(p.Var.Name, p.Modifiers, p.Hooks),
 				Hooked:        len(p.Hooks) > 0, Attributed: len(p.Attrs) > 0,

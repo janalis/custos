@@ -7,18 +7,22 @@ import (
 	"custos/internal/semantic/types"
 )
 
-// sealedComputedDim types an element read with a computed key on an empty
-// literal array: one of the values written into it since (a missing key
-// reads null with a warning, which is not added, as for `T[]` elements). Unknown with an unknown write; ok is false for
-// another type, or nothing known.
+// sealedComputedDim types an element read with a computed key on a sealed
+// shape: one of its listed values or of the values written into it since
+// (a missing key reads null with a warning, which is not added, as for `T[]`
+// elements). ok is false for another type, an unknown write, or nothing
+// known.
 func (e *Env) sealedComputedDim(ct types.Type, n *syntax.ArrayDimFetch) (types.Type, bool) {
 	// (A literal key on a sealed shape is shapeDim's: dimType asks it
-	// first.) Only an empty literal: with listed keys, any of their values
-	// may be read, a union rules would distrust.
-	if !ct.IsSealedShape() || len(ct.ShapeKeys()) > 0 || n.Dim == nil || !ct.Without("null").IsArrayLike() {
+	// first.)
+	if !ct.IsSealedShape() || n.Dim == nil || !ct.Without("null").IsArrayLike() {
 		return types.Unknown, false
 	}
-	el := e.widenElem(types.Of("never"), n) // the values written since
+	ts := []types.Type{types.Of("never")}
+	for _, k := range ct.ShapeKeys() {
+		ts = append(ts, k.Type)
+	}
+	el := e.widenElem(types.Union(ts...), n)
 	if el.IsUnknown() || el.OnlyOf("never") {
 		return types.Unknown, false
 	}

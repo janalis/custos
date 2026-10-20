@@ -213,3 +213,25 @@ function f() {
 		"badOctal":   "non-empty int[]", // invalid integer literal: no key
 	})
 }
+
+// Destructuring an array of `T[]` elements without a shape gives each
+// target the element type, widened by the writes into the array.
+func TestDestructuringElementType(t *testing.T) {
+	checkAnywhere(t, `<?php
+/**
+ * @param list<int> $ints
+ * @param array<string, string>|null $map
+ */
+function f(array $ints, ?array $map, array $plain) {
+    [$a, $b] = $ints; t('a', $a); t('b', $b);
+    ['k' => $k] = $map; t('k', $k);
+    [$p] = $plain; t('plain', $p);
+    $w = $ints; $w[] = 'x'; [$x] = $w; t('widened', $x);
+    [$c] = explode(',', 'a,b'); t('call', $c);
+    [[$n]] = [$ints]; t('nested', $n);
+}
+`, map[string]string{
+		"a": "int", "b": "int", "k": "string", "plain": "?unknown", "widened": "int|string",
+		"call": "string", "nested": "int",
+	})
+}

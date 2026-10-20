@@ -94,7 +94,7 @@ function elementMutations(bool $condition, string $key, $unknown) {
 		"prefix": "int", "stored": "int|null", "sibling": "string", "copy": "int|null|string",
 		"capture": "int|null|string", "array": "non-empty int[]|null[]|string[]", "key": "string", "element": "int|null|string",
 		"postfix": "null", "postfixStored": "int|null", "decrement": "null", "decrementStored": "null",
-		"conditional": "int|null", "optional": "int|null", "computed": "?unknown",
+		"conditional": "int|null", "optional": "int|null", "computed": "false|int|null",
 		"nested": "?unknown", "nestedSibling": "string", "nestedArray": "non-empty array",
 		"nestedAbsent": "?unknown", "nestedComputed": "?unknown",
 		"invalid": "?unknown", "unknown": "?unknown", "reset": "string", "loop": "int|null", "paren": "int|null",

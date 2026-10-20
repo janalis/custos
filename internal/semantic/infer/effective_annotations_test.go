@@ -221,3 +221,25 @@ trait T { public function build(array $options, $extra) { t('trait', $options); 
 		"notArray": "array", "ignored": "array", "trait": "array",
 	})
 }
+
+func TestPromotedPropertyInlineVar(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Foo {}
+class H {
+    /** @param Foo[] $docs */
+    public function __construct(
+        /** @var array{a?: int, b?: string} $options some text */
+        public array $options = [],
+        /** @var int[] */
+        private array $unnamed = [],
+        /** @var string[] $docs */
+        private array $docs = [],
+        private array $plain = [],
+    ) {}
+    public function f() {
+        t('options', $this->options['a']); t('unnamed', $this->unnamed);
+        t('docs', $this->docs); t('plain', $this->plain);
+    }
+}
+`, map[string]string{"options": "int", "unnamed": "int[]", "docs": `\Foo[]`, "plain": "array"})
+}

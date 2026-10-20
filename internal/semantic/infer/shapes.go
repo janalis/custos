@@ -266,6 +266,9 @@ func shapeTarget(src func() types.Type, key string) func() types.Type {
 		if kt, ok := st.ShapeKey(key); ok {
 			return kt
 		}
+		if !st.HasShape() && !st.Has("array") {
+			return st.Elem() // `[$a, $b] = $list` with `T[]` elements
+		}
 		return types.Unknown
 	}
 }

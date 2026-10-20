@@ -39,6 +39,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Constants initialized with an array literal keep its keys and value types
   (`self::LABELS['draft']`, `foreach (self::TYPES as $key => $type)`), except
   where `static::` may read a subclass's override.
+- Reading a literal or constant array with a computed key (`self::LABELS[$k]`)
+  gives the union of its values; destructuring an array whose elements are
+  typed (`[$a, $b] = $ints`) types each variable; a promoted constructor
+  parameter's own `@var` comment documents the property.
 - `new` gives a generic class the template arguments its constructor's
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.
