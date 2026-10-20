@@ -260,6 +260,8 @@ function f($s, $o) {
     if ($s === 'a/b' || $o) { u($s); }
     if ($s === 'a' && $s === 'b') { u($s); }
     if ($s === 'a') { if ($s !== 'a') { u($s); } }
+    if ($s) { u($s); }
+    if (!$s) { u($s); }
 }`
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
@@ -278,7 +280,7 @@ function f($s, $o) {
 		`string<"a/b">`, `string<not ".">`, `string<not "."|"..">`, `string<"x/y">`, "string", `string<not "..">`,
 		`string<"a/b"|"c/d">`, `string<not "."|"..">`, "string", "string", "string", "string", "string", "string", "string", "string",
 		`string<"a">`, `string<"a">`, "string", "string", "string", "string", "string",
-		`string<"a/b"|"c/d">`, "string", "?unknown", "?unknown",
+		`string<"a/b"|"c/d">`, "string", "?unknown", "?unknown", `string<not ""|"0">`, `string<""|"0">`,
 	})
 }
 

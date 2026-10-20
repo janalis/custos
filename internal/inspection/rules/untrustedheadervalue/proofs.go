@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/flow"
+	"custos/internal/semantic/types"
 )
 
 // maxDepth bounds the structural walk through operands and definitions.
@@ -99,80 +100,27 @@ func scalarCall(ctx *analysis.Context, call *syntax.FuncCall) bool {
 	return scalarBuiltins[name] || strings.HasPrefix(name, "ctype_") || strings.HasPrefix(name, "is_")
 }
 
-// guarded finds a line-break rejection of the value read by use: an earlier
-// sibling `if` that leaves on a positive test, or an enclosing branch entered
-// only on a negative one. origin is the single assignment reaching use; the
-// tested expression must still carry that same assignment.
-func guarded(ctx *analysis.Context, use syntax.Node, origin syntax.Expr) bool {
-	for node := use; node != nil && !syntax.IsVariableScope(node); node = node.Parent() {
-		switch parent := node.Parent().(type) {
-		case *syntax.If:
-			if node == parent.Body && clean(ctx, parent.Cond, origin, true) {
-				return true
-			}
-		case *syntax.Else:
-			if owner, ok := parent.Parent().(*syntax.If); ok && clean(ctx, owner.Cond, origin, false) {
-				return true
-			}
-		}
-		list, ok := syntax.StmtListOf(node.Parent())
-		if node.Parent() == nil {
-			list, ok = ctx.File.Stmts, true
-		}
-		if !ok {
-			continue
-		}
-		for _, earlier := range list {
-			if earlier.Span().Start >= node.Span().Start {
-				break
-			}
-			if guard, ok := earlier.(*syntax.If); ok && syntax.Terminates(guard.Body) && clean(ctx, guard.Cond, origin, false) {
-				return true
-			}
-		}
+// guarded finds a line-break rejection of the value read by use: a
+// preg_match or strpbrk test of that very value (origin is the single
+// assignment reaching use, and the tested expression must still carry it)
+// whose result the conditions guarding use prove negative.
+func guarded(ctx *analysis.Context, use, origin syntax.Expr) bool {
+	if semanticquery.NativeLabelled(ctx, use) {
+		return false // a jump may land between the test and the use
 	}
-	return false
-}
-
-// clean reports whether cond evaluating to truth proves the value assigned by
-// origin holds neither CR nor LF.
-func clean(ctx *analysis.Context, cond, origin syntax.Expr, truth bool) bool {
-	switch x := syntax.UnwrapParens(cond).(type) {
-	case *syntax.FuncCall:
-		return !truth && lineBreakTest(ctx, x, origin) != ""
-	case *syntax.Unary:
-		return x.Op.Kind == syntax.TExclaim && clean(ctx, x.Expr, origin, !truth)
-	case *syntax.Binary:
-		equal := false
-		switch x.Op.Kind {
-		case syntax.TBooleanOr, syntax.TOr:
-			return !truth && (clean(ctx, x.Left, origin, false) || clean(ctx, x.Right, origin, false))
-		case syntax.TBooleanAnd, syntax.TAnd:
-			return truth && (clean(ctx, x.Left, origin, true) || clean(ctx, x.Right, origin, true))
-		case syntax.TGreater:
-			zero, ok := syntax.UnwrapParens(x.Right).(*syntax.Literal)
-			return !truth && ok && zero.Raw == "0" && lineBreakTest(ctx, x.Left, origin) == "preg_match"
-		case syntax.TIsIdentical, syntax.TIsEqual:
-			equal = true
-		case syntax.TIsNotIdentical, syntax.TIsNotEqual:
-		default:
-			return false
+	return semanticquery.NativeEarlierCallProves(ctx, use, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		switch lineBreakTest(ctx, x, origin) {
+		case "preg_match":
+			// 1 when a line break matched, 0 when none did, false on error.
+			return types.Union(types.Ints(types.IntRange{Lo: 0, Hi: 1}), types.Of("false")), func(t types.Type) bool { return !t.HasInt(1) }
+		case "strpbrk":
+			// The rest of the subject from the first line break (never '' nor
+			// '0'), or false.
+			found := types.TrackedStrings().StringsWithout("").StringsWithout("0")
+			return types.Union(found, types.Of("false")), func(t types.Type) bool { return t.OnlyOf("false") }
 		}
-		test, operand := x.Left, x.Right
-		if _, ok := syntax.UnwrapParens(test).(*syntax.FuncCall); !ok {
-			test, operand = operand, test
-		}
-		// With a line break present the comparison yields found == equal.
-		found, known := false, false
-		switch o := syntax.UnwrapParens(operand).(type) {
-		case *syntax.Literal: // preg_match returns 1 for a matching subject
-			found, known = o.Raw == "1", (o.Raw == "0" || o.Raw == "1") && lineBreakTest(ctx, test, origin) == "preg_match"
-		case *syntax.ConstFetch:
-			known = strings.EqualFold(strings.TrimPrefix(o.Name.Value, `\`), "false") && lineBreakTest(ctx, test, origin) != ""
-		}
-		return known && (found == equal) != truth
-	}
-	return false
+		return types.Unknown, nil
+	})
 }
 
 // lineBreakTest names the builtin when e is a two-argument preg_match or

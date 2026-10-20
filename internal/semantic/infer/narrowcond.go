@@ -23,6 +23,9 @@ func truthyType(t types.Type) types.Type {
 	if _, known := t.StringLengthRanges(); known {
 		t = t.LengthsWithout(0) // '' is falsy ('0' has the length of others)
 	}
+	if t.StringsTracked() {
+		t = t.StringsWithout("").StringsWithout("0")
+	}
 	return t
 }
 
@@ -44,6 +47,9 @@ func falsyType(t types.Type) types.Type {
 	t = t.IntsWithin(0, 0) // known int values: only 0 is falsy
 	if _, known := t.StringLengthRanges(); known {
 		t = t.LengthsWithin(0, 1) // '' or '0'
+	}
+	if t.StringsTracked() {
+		t = t.StringsOnly("", "0")
 	}
 	if !t.Has("true") && !t.Has("bool") {
 		return t
