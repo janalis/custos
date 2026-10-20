@@ -33,20 +33,31 @@ function bad17(E $e): int { if ($e == E::A) { return 0; } return <error descr="H
 function bad18(E $e): int { if (-1 === E::A) { return 0; } return <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; }
 
 // Narrowing is withheld when the subject is not proven to keep its value.
-function kept01(E $e): int { if ($e === E::A) { return 0; } (new \ArrayObject())->append($e); return <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; }
-function kept02(E &$e): int { if ($e === E::A) { return 0; } return <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; }
 function kept03(E $e): int { if ($e === E::A) { return 0; } $r = &$e; return <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; }
-function kept04(E $e): int { if ($e === E::A) { return 0; } $x = <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; $f = function () use (&$e) {}; return $x; }
-function kept05(E $e): int { if ($e === E::A) { return 0; } $x = <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; $n = 'q'; $$n = 1; return $x; }
-function kept06(E $e): int { if ($e === E::A) { return 0; } $x = <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; extract([]); return $x; }
 function kept07(E $e): int { if ($e === E::A) { return 0; } $a = [&$e]; return <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; }
 function kept08(E $e): int { if ($e === E::A) { return 0; } byRef($e); return <error descr="Handle every reachable enum case.">match($e) { E::A, E::B => 1 }</error>; }
 function kept09(E $e): int { if ($e === E::A) { return 0; } refTail($e, $e, $e); return <error descr="Handle every reachable enum case.">match($e) { E::A, E::B => 1 }</error>; }
 function kept10(E $e): int { if ($e === E::A) { goto done; } return 0; done: return <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; }
-function kept11(E $e): int { if ($e === E::A) { return 0; } $x = <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; eval(''); return $x; }
 function kept12(E $e): int { if ($e === E::A) { return 0; } $f = 'byVal'; $f($e); return <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; }
-function kept13(E $e): int { if ($e === E::A) { return 0; } byVal(nope: $e); return <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; }
-function kept14(E $e): int { if ($e === E::A) { return 0; } byVal(...$e); return <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; }
-function kept15(E $e) { if ($e === E::A) { return 0; } yield $e; return <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; }
 function kept16(E $e): int { $f = function () use (&$e): int { /** @var E $e */ if ($e === E::A) { return 0; } return <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; }; return $f(); }
 function kept17(E $e): int { if ($e === E::A) { return 0; } missing($e); return <error descr="Handle every reachable enum case.">match($e) { E::B, E::C => 1 }</error>; }
+
+// Nothing between the comparison and the match can change the subject.
+// an object method taking it by value:
+function proven01(E $e): int { if ($e === E::A) { return 0; } (new \ArrayObject())->append($e); return match($e) { E::B, E::C => 1 }; }
+// a by-reference parameter, no call in between:
+function proven02(E &$e): int { if ($e === E::A) { return 0; } return match($e) { E::B, E::C => 1 }; }
+// the closure capture comes after the match:
+function proven04(E $e): int { if ($e === E::A) { return 0; } $x = match($e) { E::B, E::C => 1 }; $f = function () use (&$e) {}; return $x; }
+// the variable variable write comes after the match:
+function proven05(E $e): int { if ($e === E::A) { return 0; } $x = match($e) { E::B, E::C => 1 }; $n = 'q'; $$n = 1; return $x; }
+// extract() comes after the match:
+function proven06(E $e): int { if ($e === E::A) { return 0; } $x = match($e) { E::B, E::C => 1 }; extract([]); return $x; }
+// eval() comes after the match:
+function proven11(E $e): int { if ($e === E::A) { return 0; } $x = match($e) { E::B, E::C => 1 }; eval(''); return $x; }
+// the named argument lands in a by-value variadic:
+function proven13(E $e): int { if ($e === E::A) { return 0; } byVal(nope: $e); return match($e) { E::B, E::C => 1 }; }
+// unpacking an enum throws:
+function proven14(E $e): int { if ($e === E::A) { return 0; } byVal(...$e); return match($e) { E::B, E::C => 1 }; }
+// a by-value generator hands out a copy:
+function proven15(E $e) { if ($e === E::A) { return 0; } yield $e; return match($e) { E::B, E::C => 1 }; }
