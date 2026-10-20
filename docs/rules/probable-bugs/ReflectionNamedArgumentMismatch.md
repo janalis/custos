@@ -6,7 +6,7 @@ title: ReflectionNamedArgumentMismatch
 
 # ReflectionNamedArgumentMismatch
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.0" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.0" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,14 +29,13 @@ Reported:
 
 ## Detection
 
-- D1. Resolve ReflectionFunction or ReflectionMethod constructed from a known declaration. For invokeArgs, inspect literal string keys against resolved parameter names; report an unknown key only when the target is nonvariadic. Numeric keys remain positional. Account for inherited methods and named constructor arguments.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Resolve ReflectionFunction or ReflectionMethod constructed from a known declaration. For invokeArgs, inspect literal string keys against resolved parameter names; report an unknown key only when the target is nonvariadic. Numeric keys remain positional. Account for inherited methods and named constructor arguments.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
-- E1. Unknown reflected targets, unknown argument arrays and variadic targets accepting extra named arguments are excluded. Do not extend the named-key behavior to PHP 7.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore ReflectionNamedArgumentMismatch` and `@noinspection ReflectionNamedArgumentMismatch` suppress this inspection.
+- Unknown reflected targets, unknown argument arrays and variadic targets accepting extra named arguments are excluded. Do not extend the named-key behavior to PHP 7.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -46,11 +45,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Minimum PHP 8.0. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Minimum PHP 8.0.
 
 ## Configure
 

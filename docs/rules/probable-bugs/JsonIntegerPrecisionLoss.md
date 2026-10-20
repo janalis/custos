@@ -6,7 +6,7 @@ title: JsonIntegerPrecisionLoss
 
 # JsonIntegerPrecisionLoss
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -36,14 +36,14 @@ Reported:
 
 ## Detection
 
-- D1. Report json_decode on literal JSON containing an integer outside the portable signed 64-bit range without JSON_BIGINT_AS_STRING.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report json_decode on literal JSON containing an integer outside the portable signed 64-bit range without JSON_BIGINT_AS_STRING.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Existing flag, deliberately floating-point values, unknown JSON bytes, and custom decoding wrappers are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Existing flag, deliberately floating-point values, unknown JSON bytes, and custom decoding wrappers are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

@@ -51,7 +51,7 @@ Visit every class's own constructor.
 - **D5a** A string literal in the body of a `__sleep()` method of the class
   or of a directly used trait that spells a candidate's name (plain, or in
   the `"\0Class\0name"` form) is a use of that candidate: the property is
-  serialised.
+  serialized.
 - **D5** Collect relevant references inside every other method declared in
   the class and in every method declared in the traits the class uses
   directly (`use T;`). (Methods of parent classes and of traits used by
@@ -180,7 +180,7 @@ class Mailer
   in the constructor runs its `set` hook, which may do more than store the
   value.
 - **`__sleep()` (custos, D5a).** A candidate named in `__sleep()` is
-  written to the serialised form, so its constructor assignment is not
+  written to the serialized form, so its constructor assignment is not
   dead. Names listed by any other method remain plain strings.
 - **Re-entered constructors (custos diverges).** A constructor that calls
   `$this->__construct(…)` (SimplePie's `File` follows a redirect by

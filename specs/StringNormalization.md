@@ -10,7 +10,7 @@ php: { min: "", max: "" }
 
 ## Summary
 
-Two smells when chaining string normalisation calls:
+Two smells when chaining string normalization calls:
 
 1. Changing the case of a string and *then* trimming / cutting it converts
    characters that are thrown away right after; cut first, convert the case
@@ -297,7 +297,7 @@ function tidy($code, $mask, $o) {
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **Trim character lists — custos diverges from upstream** (D4). Upstream
   reports every heredoc/nowdoc second argument (its text does not start

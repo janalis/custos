@@ -1,11 +1,10 @@
 {
   "AbstractClassInstantiation": {
-    "summary": "Instantiate a concrete class.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Instantiate a concrete class."
   },
   "AccessModifierPresented": {
     "summary": "Class members that rely on PHP's implicit public visibility (methods declared\nwith no visibility keyword, properties declared with `var`/`static`/`readonly`\nonly, constants declared with a bare `const`) should spell out their visibility\nexplicitly so intent is clear to readers.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| ANALYZE_INTERFACES | bool | true | When false, interface declarations are not inspected at all. |\n| ANALYZE_CONSTANTS | bool | true | When false, class constants are never reported (D3 disabled). |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| ANALYZE_INTERFACES | bool | true | When false, interface declarations are not inspected at all. |\n| ANALYZE_CONSTANTS | bool | true | When false, class constants are never reported. |",
     "fix": true
   },
   "AeadAuthenticationTagDiscarded": {
@@ -15,7 +14,7 @@
   "AeadDecryptionTagLengthUnchecked": {
     "phpMin": "7.1",
     "summary": "Authenticated decryption needs a tag of the expected length. Validate request-supplied tag lengths before calling the decryptor. This inspection is disabled by default because the intended policy or use can vary.",
-    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| tagLength | int | `16` | Configure the explicit policy evidence described in D1. |"
+    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| tagLength | int | `16` | Expected GCM tag length in bytes that the length guard must check. |"
   },
   "AliasFunctionsUsage": {
     "summary": "Several built-in PHP functions exist only as alternative names for another\nbuilt-in (`sizeof` for `count`, `join` for `implode`, …), and a few of those\nalternative names were deprecated or removed. Calling the canonical function\nkeeps code consistent and avoids relying on legacy names.",
@@ -23,7 +22,7 @@
   },
   "AlterInForeach": {
     "summary": "Three related `foreach` value-variable pitfalls:\n\n1. a by-reference value (`as \u0026$v`) that stays alive after the loop, so a later\n   write to `$v` silently modifies the last array element;\n2. an `unset($v)` right after a loop whose `$v` was *not* a reference (the\n   unset is pointless, probably a leftover);\n3. (opt-in) writing back through `$array[$key] = …` inside\n   `foreach ($array as $key =\u003e $value)` where a by-reference value would do.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_VALUE_BY_REF | bool | false | Enables part C (D7–D8). Parts A and B are always active. |"
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_VALUE_BY_REF | bool | false | Enables part C. Parts A and B are always active. |"
   },
   "AmbiguousMethodsCallsInArrayMapping": {
     "summary": "When a loop builds a map like `$map[key($x)] = key($x);`, the same call is\nevaluated twice per iteration (once for the key, once for the value). Compute\nit once into a local variable."
@@ -34,8 +33,7 @@
     "fix": true
   },
   "AppendModeSeekUsedForOverwrite": {
-    "summary": "Use an overwrite-capable stream mode.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Use an overwrite-capable stream mode."
   },
   "ArgumentUnpackingCanBeUsed": {
     "phpMin": "5.6",
@@ -153,12 +151,11 @@
   },
   "AttributeTargetMismatch": {
     "phpMin": "8.0",
-    "summary": "Use the attribute on a permitted target.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Use the attribute on a permitted target."
   },
   "AuthenticationCookieAllowsScriptAccess": {
     "summary": "An authentication cookie without HttpOnly is available to scripts. Enable HttpOnly when the configured authentication policy requires it. This inspection is disabled by default because the intended policy or use can vary.",
-    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| authenticationCookies | list | `[\"auth_token\"]` | Configure the explicit policy evidence described in D1. |"
+    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| authenticationCookies | list | `[\"auth_token\"]` | Names of the cookies that carry authentication; only these are checked. |"
   },
   "AutoloadingIssues": {
     "summary": "PSR-0/PSR-4 autoloaders locate a class by its name, so a file that declares a\nsingle class whose name does not match the file name will not be found by the\nautoloader. Point at the class name when file and class names disagree."
@@ -250,7 +247,7 @@
   },
   "ClassOverridesFieldOfSuperClass": {
     "summary": "Re-declaring a property that an ancestor already declares is usually\naccidental: for protected/public properties it merely duplicates the\ndeclaration (often with a diverging default), and for an ancestor's private\nproperty it creates a second, unrelated property with the same name.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_PRIVATE_REDEFINITION` | bool | true | Also report re-declarations of an ancestor's (or ancestor trait's) private property (D5). |"
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_PRIVATE_REDEFINITION` | bool | true | Also report re-declarations of an ancestor's (or ancestor trait's) private property. |"
   },
   "ClassReImplementsParentInterface": {
     "summary": "Listing an interface in `implements` when the parent class already implements\nit (directly or through its own ancestors) is redundant noise. Remove the\nentry.",
@@ -295,8 +292,7 @@
     "summary": "Use a supported compression level. Enabled by default; require positive semantic or local-flow proof."
   },
   "ConflictingContentLengthHeaders": {
-    "summary": "Send one consistent Content-Length value.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Send one consistent Content-Length value."
   },
   "ConnectTimeoutAssumedToBoundReads": {
     "phpMin": "5.3",
@@ -308,16 +304,13 @@
   },
   "ContentDispositionFilenameNeedsQuoting": {
     "summary": "Quote the Content-Disposition filename.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection.",
     "fix": true
   },
   "ContentEncodingBodyMismatch": {
-    "summary": "Encode the body using the declared content coding.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Encode the body using the declared content coding."
   },
   "ContentLengthKnownBodyMismatch": {
-    "summary": "Match Content-Length to the emitted bytes.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Match Content-Length to the emitted bytes."
   },
   "ContentLengthUsesCharacterCount": {
     "summary": "Detect Content-Length built from mb_strlen/grapheme_strlen of the exact response body later emitted without transformation.",
@@ -325,8 +318,7 @@
     "fix": true
   },
   "ContentRangeLengthMismatch": {
-    "summary": "Match the body to the inclusive byte range.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Match the body to the inclusive byte range."
   },
   "CookieDeletionScopeMismatch": {
     "summary": "Cookie deletion must target the same path and domain as creation. Use the original scope when expiring the cookie."
@@ -335,12 +327,10 @@
     "summary": "Identify discarded copy call in a function whose next reachable statement is unconditional return true; exclude throws, checks and propagated return copy."
   },
   "CorsOriginListInvalid": {
-    "summary": "Send one allowed origin in the CORS header.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Send one allowed origin in the CORS header."
   },
   "CorsSubdomainWildcardInvalid": {
-    "summary": "Send a concrete CORS origin.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Send a concrete CORS origin."
   },
   "CredentialedCorsUsesWildcardOrigin": {
     "summary": "Browsers reject a wildcard CORS origin for credentialed requests. Return an explicit allowed origin instead."
@@ -352,17 +342,14 @@
     "summary": "`openssl_random_pseudo_bytes()` and `mcrypt_create_iv()` can silently fall\nback to weak sources or fail (returning `false`) and their strength depends on\noptional arguments. Point out missing strength arguments, unverified results\nand weak sources, and suggest `random_bytes()` on PHP 7+."
   },
   "CsvBlankRecordShapeMismatch": {
-    "summary": "Recognize a blank CSV record as a null field.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Recognize a blank CSV record as a null field."
   },
   "CsvDelimiterInvalidByteLength": {
-    "summary": "Use a one-byte CSV separator.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Use a one-byte CSV separator."
   },
   "CsvEscapeDefaultDependency": {
     "phpMin": "8.4",
     "summary": "Pass the CSV escape character explicitly.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection.",
     "fix": true
   },
   "CsvReadLengthSplitsKnownRecord": {
@@ -500,11 +487,11 @@
   },
   "DisallowWritingIntoStaticProperties": {
     "summary": "Static properties are global mutable state. This opt-in rule flags assignments\nto static properties: by default only writes performed outside the class that\ndeclares the property; optionally every write.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| ALLOW_WRITE_FROM_SOURCE_CLASS | bool | true | true: only writes from outside the declaring class are reported (D3). false: every static property assignment is reported (D2). |"
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| ALLOW_WRITE_FROM_SOURCE_CLASS | bool | true | true: only writes from outside the declaring class are reported. false: every static property assignment is reported. |"
   },
   "DisconnectedForeachInstruction": {
     "summary": "A statement inside a `foreach` body that uses no loop variable and nothing the\nloop body changes produces the same effect on every iteration; it most likely\nbelongs before or after the loop. Optionally (off by default) the rule also\npoints at objects instantiated on every iteration that could be built once and\ncloned.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). |"
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_USING_CLONE | bool | false | Reports object creation on every iteration. |"
   },
   "DomAppendMovesNodeUnexpectedly": {
     "summary": "Clone the node when preserving its existing parent. This inspection is disabled by default; enabling it selects the stated policy.",
@@ -573,8 +560,7 @@
   },
   "EmptySplCollectionExtraction": {
     "phpMin": "5.3",
-    "summary": "Check that the collection contains an element.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Check that the collection contains an element."
   },
   "EncodingConversionArgumentsReversed": {
     "summary": "Converting text away from the output consumer's required encoding can make it invalid input. Convert to the encoding required by the consumer. This inspection is disabled by default because the intended policy or use can vary."
@@ -589,8 +575,7 @@
   },
   "EnumInstantiation": {
     "phpMin": "8.1",
-    "summary": "Use an enum case instead of instantiation.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Use an enum case instead of instantiation."
   },
   "ExceptionConstructedNotThrown": {
     "summary": "Constructing an exception and discarding it does not interrupt execution. Throw the exception when the failure should stop the operation."
@@ -613,8 +598,7 @@
   },
   "FailedClosureBindingInvoked": {
     "phpMin": "5.4",
-    "summary": "Check closure binding before invoking it.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Check closure binding before invoking it."
   },
   "FastDigestUsedForPasswordStorage": {
     "summary": "Detect a password input positively established by an HTML password-field mapping or explicit annotated password parameter reaching md5/sha1/hash and then a persisted credential field.",
@@ -704,7 +688,7 @@
   "FormEncodingUsedForRfc3986Signature": {
     "phpMin": "5.4",
     "summary": "Form-style query encoding differs from RFC3986 encoding for spaces. Select RFC3986 encoding when the configured signature protocol requires it. This inspection is disabled by default because the intended policy or use can vary.",
-    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| signatureFunctions | list | `[]` | Configure the explicit policy evidence described in D1. |"
+    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| signatureFunctions | list | `[]` | Fully qualified names of the functions that build RFC 3986 signatures; only queries signed inside one of them are checked. |"
   },
   "FractionalArrayKeyTruncation": {
     "summary": "PHP converts float array keys to integers and loses their fractional part. Use a string key when the complete value identifies the entry."
@@ -784,7 +768,7 @@
   },
   "HardcodedCredentialAtKnownSink": {
     "summary": "Literal credentials embedded in connection setup are difficult to rotate and protect. Load them from the application's external configuration. This inspection is disabled by default because the intended policy or use can vary.",
-    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| excludedPaths | list | `[\"**/testdata/**\", \"**/tests/**\"]` | Project-relative path globs (D1a) for files that are never reported. |"
+    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| excludedPaths | list | `[\"**/testdata/**\", \"**/tests/**\"]` | Project-relative path globs for files that are never reported. |"
   },
   "HashContextUsedAfterFinalization": {
     "summary": "Identify hash_update, hash_copy or hash_final on the same local context after unconditional hash_final, with no replacement."
@@ -925,7 +909,7 @@
   },
   "IsEmptyFunctionUsage": {
     "summary": "`empty()` treats many unrelated values (`0`, `'0'`, `''`, `[]`, `null`,\n`false`) as \"empty\". When the argument's type is known, a precise check is\nclearer: `count(...) === 0` for countables, `... === null` for nullable\nscalars/objects. Optionally, any other `empty()` use can be flagged.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_EMPTY_USAGE | bool | false | Enables the generic report D3. |\n| SUGGEST_TO_USE_COUNT_CHECK | bool | false | Enables D1 (count comparison for arrays/Countable). |\n| SUGGEST_TO_USE_NULL_COMPARISON | bool | true | Enables D2 (null comparison) as a whole. |\n| SUGGEST_NULL_COMPARISON_FOR_SCALARS | bool | true | Enables D2a (nullable int/float/bool/resource); D2b (objects) only needs the previous option. |\n\nGlobal setting: comparison style (`regular` default / `yoda`) selects the\noperand order of F1/F2.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_EMPTY_USAGE | bool | false | Also reports the remaining `empty()` calls that have no better replacement, without a fix. |\n| SUGGEST_TO_USE_COUNT_CHECK | bool | false | Suggests a count comparison for arrays and `Countable` values. |\n| SUGGEST_TO_USE_NULL_COMPARISON | bool | true | Suggests a null comparison, as a whole. |\n| SUGGEST_NULL_COMPARISON_FOR_SCALARS | bool | true | Extends the null comparison to nullable int, float, bool and resource values; nullable objects only need the previous option. |\n\nGlobal setting: comparison style (`regular` default / `yoda`) selects the\noperand order of F1/F2.",
     "fix": true
   },
   "IsIterableCanBeUsed": {
@@ -974,7 +958,7 @@
   },
   "JsonEncodingApiUsage": {
     "summary": "`json_decode()` without its second argument silently returns `stdClass`\nobjects, which readers often confuse with arrays; and both `json_decode()` and\n`json_encode()` report failures only through `json_last_error()` unless the\n`JSON_THROW_ON_ERROR` flag (PHP 7.3+) is passed. This rule asks for an explicit\ndecoding target and for exception-based error handling.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| HARDEN_DECODING_RESULT_TYPE | bool | true | Enables kind T (D1). Also affects `\u003cassoc\u003e` in F2. |\n| DECODE_AS_ARRAY | bool | false | Fixes insert `true` (decode to arrays) instead of `false`. |\n| DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |\n| HARDEN_ERRORS_HANDLING | bool | true | Enables kind E (D2–D5). |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| HARDEN_DECODING_RESULT_TYPE | bool | true | Enables kind T. Also affects `\u003cassoc\u003e` in F2. |\n| DECODE_AS_ARRAY | bool | false | Fixes insert `true` (decode to arrays) instead of `false`. |\n| DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |\n| HARDEN_ERRORS_HANDLING | bool | true | Enables kind E. |",
     "fix": true
   },
   "JsonForceObjectChangesNestedLists": {
@@ -1012,7 +996,7 @@
     "options": "None. Use normal rule configuration to enable or disable the inspection."
   },
   "LongInheritanceChain": {
-    "summary": "Deep `extends` chains spread behaviour over many levels and make a class hard\nto understand. The rule counts the ancestors of a class and complains when the\nchain reaches a threshold, with carve-outs for exception hierarchies, test\ncases and well-known framework base classes.",
+    "summary": "Deep `extends` chains spread behavior over many levels and make a class hard\nto understand. The rule counts the ancestors of a class and complains when the\nchain reaches a threshold, with carve-outs for exception hierarchies, test\ncases and well-known framework base classes.",
     "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `COMPLAIN_THRESHOLD` | int | 3 | Minimum ancestor count (inclusive) that triggers a report. |"
   },
   "LoopClosureCapturesReference": {
@@ -1039,14 +1023,14 @@
     "fix": true
   },
   "MissingArrayInitialization": {
-    "summary": "Appending to a local array (`$list[] = …`) deep inside nested loops without\never initialising it means the variable is undefined (`null`) when nothing is\nappended, and its contents leak between outer iterations if it is meant to be\nreset. The array should be initialised explicitly at the right place."
+    "summary": "Appending to a local array (`$list[] = …`) deep inside nested loops without\never initializing it means the variable is undefined (`null`) when nothing is\nappended, and its contents leak between outer iterations if it is meant to be\nreset. The array should be initialized explicitly at the right place."
   },
   "MissingIssetImplementation": {
     "summary": "`isset($obj-\u003ename)` / `empty($obj-\u003ename)` on a property the class does not\ndeclare can only answer correctly if the class implements `__isset()`. When it\ndoes not (typically classes with `__get` only), the check is always\nfalse/empty, which is a silent logic bug."
   },
   "MissingOrEmptyGroupStatement": {
     "summary": "Control structures should always use a braced block for their body. A body\nwritten as a bare statement is easy to break when a second line is added; a\nbraced block that contains nothing is usually leftover or unfinished code.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_EMPTY_BODY | bool | true | Enables D2 (empty braced bodies). D1 is always on. |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_EMPTY_BODY | bool | true | Reports empty braced bodies. Missing braces are always reported. |",
     "fix": true
   },
   "MkdirRaceCondition": {
@@ -1126,8 +1110,7 @@
   },
   "NeverFunctionFallsThrough": {
     "phpMin": "8.1",
-    "summary": "Terminate every path in the never function.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Terminate every path in the never function."
   },
   "NoContentResponseWithBody": {
     "summary": "Detect nonempty output after response status is proven 204 and before any status change.",
@@ -1143,8 +1126,7 @@
   },
   "NonRepeatableAttributeRepeated": {
     "phpMin": "8.0",
-    "summary": "Remove the repeated attribute.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Remove the repeated attribute."
   },
   "NonSecureParseStrUsage": {
     "summary": "Called with a single argument, `parse_str()` / `mb_parse_str()` create\nvariables in the current scope from user-supplied query strings, which can\noverwrite existing variables. Always pass the result array as second\nargument."
@@ -1166,7 +1148,7 @@
   },
   "NotOptimalIfConditions": {
     "summary": "Looks at the conditions of `if`/`elseif` statements and flags four kinds of\nproblems: a cheap operand evaluated after an expensive one in an `\u0026\u0026`/`||`\nchain (short-circuiting would save work if swapped), `and`/`or` keyword\noperators (low precedence, error-prone), an equality comparison on a value\nthat the same `\u0026\u0026` chain also tests with `instanceof` (likely a logic bug),\nand an `instanceof` check made redundant by another `instanceof` on the same\nsubject against a related type.",
-    "options": "| Option | Type | Default | Effect |\n|--------|------|---------|--------|\n| REPORT_LITERAL_OPERATORS | bool | true | enables D2 |\n| REPORT_INSTANCE_OF_FLAWS | bool | true | enables D3 and D4 |\n| SUGGEST_OPTIMIZING_CONDITIONS | bool | true | enables D1 |"
+    "options": "| Option | Type | Default | Effect |\n|--------|------|---------|--------|\n| REPORT_LITERAL_OPERATORS | bool | true | Reports the keyword logical operators `and` and `or`. |\n| REPORT_INSTANCE_OF_FLAWS | bool | true | Reports an equality next to `instanceof` and a redundant `instanceof`. |\n| SUGGEST_OPTIMIZING_CONDITIONS | bool | true | Suggests reordering operands so cheaper checks run first. |"
   },
   "NotOptimalRegularExpressions": {
     "summary": "A family of checks on PCRE patterns passed to the `preg_*` functions: broken\nor missing delimiters, invalid / pointless / missing modifiers, class\nspellings that have a shorter escape, redundant or backtracking-prone\nconstructs, and calls where a plain string function (`strpos`,\n`str_replace`, `trim`, `explode`, a `===` comparison) does the same job\nfaster. Only a few findings carry a fix (the plain-function replacements).",
@@ -1194,7 +1176,7 @@
   },
   "OneTimeUseVariables": {
     "summary": "A local variable that is assigned in one statement and consumed exactly once in\nthe very next `return`, `throw` or destructuring statement adds a name without\nadding meaning. The value can be used directly at the consumption site.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `ALLOW_LONG_STATEMENTS` | bool | false | When false, assignments whose text exceeds 80 characters are left alone (a long expression may deserve a name). When true, length is ignored. |\n| `ANALYZE_RETURN_STATEMENTS` | bool | true | Inspect `return` consumers (D1). |\n| `ANALYZE_THROW_STATEMENTS` | bool | true | Inspect `throw` consumers (D2). |\n| `ANALYZE_ARRAY_DESTRUCTURING` | bool | true | Inspect `list()`/`[]` destructuring consumers (D3). |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `ALLOW_LONG_STATEMENTS` | bool | false | When false, assignments whose text exceeds 80 characters are left alone (a long expression may deserve a name). When true, length is ignored. |\n| `ANALYZE_RETURN_STATEMENTS` | bool | true | Inspect `return` consumers. |\n| `ANALYZE_THROW_STATEMENTS` | bool | true | Inspect `throw` consumers. |\n| `ANALYZE_ARRAY_DESTRUCTURING` | bool | true | Inspect `list()`/`[]` destructuring consumers. |",
     "fix": true
   },
   "OnlyWritesOnParameter": {
@@ -1226,8 +1208,7 @@
   },
   "OverrideAttributeWithoutTarget": {
     "phpMin": "8.3",
-    "summary": "Apply Override to an inherited member.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Apply Override to an inherited member."
   },
   "OwnedStreamNotClosed": {
     "summary": "Detect an owned successfully opened stream leaving its local scope without close, return or ownership transfer.",
@@ -1269,7 +1250,7 @@
   },
   "PasswordUsedDirectlyAsEncryptionKey": {
     "summary": "Encryption APIs do not derive a cryptographic key from a password. Apply an appropriate key derivation function before encrypting or decrypting. This inspection is disabled by default because the intended policy or use can vary.",
-    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| passwordKeys | list | `[\"password\", \"passphrase\"]` | Configure the explicit policy evidence described in D1. |"
+    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| passwordKeys | list | `[\"password\", \"passphrase\"]` | Request fields that hold passwords; only these are checked when used as an encryption key. |"
   },
   "PasswordVerifyArgumentsReversed": {
     "phpMin": "5.5",
@@ -1368,13 +1349,13 @@
     "summary": "Identify pg_num_rows on unchanged successful pg_query result whose constant SQL is INSERT, UPDATE or DELETE without RETURNING. Parse literals/comments rather than substring matching."
   },
   "PhpUnitDeprecations": {
-    "summary": "Flags PHPUnit assertion APIs deprecated in the configured PHPUnit version:\nthe optional trailing parameters of `assertEquals()` / `assertNotEquals()`\n(deprecated in 8.0 in favour of dedicated assertions) and the\n`assertFileNotExists()` / `assertDirectoryNotExists()` assertions (deprecated\nin 9.1 in favour of their `...DoesNotExist()` counterparts).",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `PHP_UNIT_VERSION` | enum (`PHPUNIT70` … `PHPUNIT95`, see ordering above) | `PHPUNIT80` | PHPUnit version targeted by the project. D1/D2 need ≥ `PHPUNIT80`; D3 needs ≥ `PHPUNIT91`. Unset → inferred from the indexed PHPUnit (see Divergences). |",
+    "summary": "Flags PHPUnit assertion APIs deprecated in the configured PHPUnit version:\nthe optional trailing parameters of `assertEquals()` / `assertNotEquals()`\n(deprecated in 8.0 in favor of dedicated assertions) and the\n`assertFileNotExists()` / `assertDirectoryNotExists()` assertions (deprecated\nin 9.1 in favor of their `...DoesNotExist()` counterparts).",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `PHP_UNIT_VERSION` | enum (`PHPUNIT70` … `PHPUNIT95`, see ordering above) | `PHPUNIT80` | PHPUnit version targeted by the project. The `assertEquals` extra-argument checks need ≥ `PHPUNIT80`; the renamed file and directory assertions need ≥ `PHPUNIT91`. Unset → inferred from the indexed PHPUnit (see Divergences). |",
     "fix": true
   },
   "PhpUnitTests": {
-    "summary": "A grab-bag of PHPUnit hygiene checks. On test method docblocks it validates the\ntargets of `@covers`, `@depends` and `@dataProvider`, flags a redundant `@test`\nand (optionally) unnamed datasets. On assertion and mock-builder calls it\npoints at generic assertions that have a dedicated, more expressive PHPUnit\ncounterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,\n`assertSame(1, count($l))` → `assertCount(1, $l)`, `-\u003ewill($this-\u003ereturnValue(…))`\n→ `-\u003ewillReturn(…)`, …) and rewrites them.\n\nThe rule has two independent halves:\n\n- **Part A** — docblock tags on methods (D1–D12).\n- **Part B** — method calls whose name starts with `assert`, or is `expects`\n  or `will` (D13–D30).\n\nNeither half checks that the class extends a PHPUnit test case: every method\nof every class-like and every matching method call is examined.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 D20 suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. D25 only runs below 9.0. D23 uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. D26/D27 use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |\n| `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Enables D17. |\n| `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Enables D6. |\n| `PROMOTE_PHPUNIT_API` | bool | `true` | Enables D18–D28. |\n| `PROMOTE_MOCKING_ONCE` | bool | `true` | Enables D29. |\n| `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Enables D30. |",
+    "summary": "A grab-bag of PHPUnit hygiene checks. On test method docblocks it validates the\ntargets of `@covers`, `@depends` and `@dataProvider`, flags a redundant `@test`\nand (optionally) unnamed datasets. On assertion and mock-builder calls it\npoints at generic assertions that have a dedicated, more expressive PHPUnit\ncounterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,\n`assertSame(1, count($l))` → `assertCount(1, $l)`, `-\u003ewill($this-\u003ereturnValue(…))`\n→ `-\u003ewillReturn(…)`, …) and rewrites them.\n\nThe rule has two independent halves:\n\n- **Part A** — docblock tags on methods.\n- **Part B** — method calls whose name starts with `assert`, or is `expects`\n  or `will`.\n\nNeither half checks that the class extends a PHPUnit test case: every method\nof every class-like and every matching method call is examined.",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 the internal-type check suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. The contains check only runs below 9.0. The resource check uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. The regex checks use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |\n| `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Suggests `assertSame` over `assertEquals` (and their negations). |\n| `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Asks data providers to name their datasets. |\n| `PROMOTE_PHPUNIT_API` | bool | `true` | Suggests dedicated assertions (empty, internal type, instanceof, class, file and resource checks, count, contains, regex, file equality). |\n| `PROMOTE_MOCKING_ONCE` | bool | `true` | Suggests `once()` over `exactly(1)`. |\n| `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Suggests `willReturn…()` over `will($this-\u003ereturn…())`. |",
     "fix": true
   },
   "PosixAccountLookupFailureDereferenced": {
@@ -1420,8 +1401,7 @@
   },
   "PriorityQueueExtractionShapeMismatch": {
     "phpMin": "5.3",
-    "summary": "Match the priority queue extraction mode.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Match the priority queue extraction mode."
   },
   "PriorityQueueMinOrderAssumption": {
     "phpMin": "5.3",
@@ -1451,7 +1431,7 @@
     "fix": true
   },
   "PropertyCanBeStatic": {
-    "summary": "A non-public instance property initialised with a sizeable array literal\n(several nested arrays or strings) is copied into every object. When such data\nis really per-class configuration it is cheaper as a static property — or, on\nPHP 5.6+, as a class constant."
+    "summary": "A non-public instance property initialized with a sizeable array literal\n(several nested arrays or strings) is copied into every object. When such data\nis really per-class configuration it is cheaper as a static property — or, on\nPHP 5.6+, as a class constant."
   },
   "PropertyInitializationFlaws": {
     "summary": "Property defaults and constructor assignments that do nothing: an explicit\n`= null` default (untyped properties are already `null`), a default that\nmerely repeats the inherited one, a default on a private property that the\nconstructor unconditionally overwrites, and a constructor assignment that\nwrites exactly the default value.",
@@ -1467,8 +1447,7 @@
     "summary": "Identify range with a numeric step proven equal to zero; map supported named arguments."
   },
   "ReadFromWriteOnlyStream": {
-    "summary": "Open the stream with read access.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Open the stream with read access."
   },
   "ReadLoopProcessesEofFailure": {
     "phpMin": "7.0",
@@ -1480,7 +1459,6 @@
   },
   "ReaddirFalsyFilenameLoss": {
     "summary": "Compare the directory entry with false.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection.",
     "fix": true
   },
   "ReadonlyPropertyReassignment": {
@@ -1517,13 +1495,11 @@
   },
   "ReflectionCompositeTypeAssumedNamed": {
     "phpMin": "8.0",
-    "summary": "Inspect the composite reflection type members.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Inspect the composite reflection type members."
   },
   "ReflectionNamedArgumentMismatch": {
     "phpMin": "8.0",
-    "summary": "Use a declared reflection parameter name.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Use a declared reflection parameter name."
   },
   "RegexBodyDoesNotCompile": {
     "summary": "Identify a constant slash or tilde delimited regex body with an unterminated ordinary character class or group, or unmatched closing parenthesis. Validate delimiter/modifier shape first. Exclude advanced (? syntax, extended mode, quoted \\Q regions, escapes not fully parsed and paired delimiters, so that valid PCRE features are never reported."
@@ -1578,13 +1554,12 @@
     "summary": "Identify secretstream push on same local state after a prior push using TAG_FINAL, with unchanged state identity."
   },
   "SecurityAdvisories": {
-    "summary": "Works on a project's `composer.json` (not on PHP code). Two concerns:\ndevelopment-only packages (test frameworks, debuggers, static analysers…)\nlisted under `require` end up in production; and an application that pulls\nthird-party packages should also require the advisory \"firewall\" meta-package\nin `require-dev`, which blocks installing versions with known\nvulnerabilities.\n\nThroughout this spec:\n\n- **ADV** is the advisory meta-package: vendor `roave`, package\n  `security-advisories`; its full name is vendor, `/`, package.\n- **CHK** is the alternative checker package: vendor `sensiolabs`, package\n  `security-checker`.\n- **DEV** is the effective development-package list (option\n  `optionConfiguration`, see Options).",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_MISSING_ROAVE_ADVISORIES` | bool | false | Enables kinds A (missing advisory package, with fix) and L (advisory package not on `dev-latest`). |\n| `REPORT_MISPLACED_DEPENDENCIES` | bool | true | Enables kind M (development packages under `require`). |\n| `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for the owner skip (D2). |\n\nEffective DEV: the default list is always merged with the configured entries\n(configured entries ∪ defaults, deduplicated). Entries may also be vendor\nprefixes ending in `/` (only meaningful for the owner skip D2).\n\nDefault list (vendor / package; the list entry is `vendor/package`, compared\ncase-insensitively — the entry is stored as `mikey179/vfsStream`):\n\n| Vendor | Package | | Vendor | Package |\n|---|---|---|---|---|\n| phpunit | phpunit | | phpspec | prophecy |\n| johnkary | phpunit-speedtrap | | phpspec | phpspec |\n| brianium | paratest | | humbug | humbug |\n| mybuilder | phpunit-accelerator | | infection | infection |\n| codedungeon | phpunit-result-printer | | mockery | mockery |\n| spatie | phpunit-watcher | | satooshi | php-coveralls |\n| symfony | phpunit-bridge | | mikey179 | vfsStream |\n| symfony | debug | | filp | whoops |\n| symfony | maker-bundle | | friendsofphp | php-cs-fixer |\n| zendframework | zend-test | | phpstan | phpstan |\n| zendframework | zend-debug | | vimeo | psalm |\n| yiisoft | yii2-gii | | jakub-onderka | php-parallel-lint |\n| yiisoft | yii2-debug | | squizlabs | php_codesniffer |\n| orchestra | testbench | | slevomat | coding-standard |\n| barryvdh | laravel-debugbar | | doctrine | coding-standard |\n| codeception | codeception | | phpcompatibility | php-compatibility |\n| behat | behat | | zendframework | zend-coding-standard |\n| yiisoft | yii2-coding-standards | | wp-coding-standards | wpcs |\n| phpmd | phpmd | | pdepend | pdepend |\n| sebastian | phpcpd | | povils | phpmnd |\n| phan | phan | | phpro | grumphp |\n| wimg | php-compatibility | | sstalle | php7cc |\n| phing | phing | | composer | composer |\n| roave | security-advisories | | kalessil | production-dependencies-guard |\n\n(48 entries.) ADV itself is in the list, so ADV under `require` is reported\nas kind M.",
+    "summary": "Works on a project's `composer.json` (not on PHP code). Two concerns:\ndevelopment-only packages (test frameworks, debuggers, static analyzers…)\nlisted under `require` end up in production; and an application that pulls\nthird-party packages should also require the advisory \"firewall\" meta-package\nin `require-dev`, which blocks installing versions with known\nvulnerabilities.\n\nThroughout this spec:\n\n- **ADV** is the advisory meta-package: vendor `roave`, package\n  `security-advisories`; its full name is vendor, `/`, package.\n- **CHK** is the alternative checker package: vendor `sensiolabs`, package\n  `security-checker`.\n- **DEV** is the effective development-package list (option\n  `optionConfiguration`, see Options).",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `REPORT_MISSING_ROAVE_ADVISORIES` | bool | false | Enables kinds A (missing advisory package, with fix) and L (advisory package not on `dev-latest`). |\n| `REPORT_MISPLACED_DEPENDENCIES` | bool | true | Enables kind M (development packages under `require`). |\n| `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for skipping manifests owned by a listed package or vendor. |\n\nEffective DEV: the default list is always merged with the configured entries\n(configured entries ∪ defaults, deduplicated). Entries may also be vendor\nprefixes ending in `/` (only meaningful for skipping manifests whose vendor is listed).\n\nDefault list (vendor / package; the list entry is `vendor/package`, compared\ncase-insensitively — the entry is stored as `mikey179/vfsStream`):\n\n| Vendor | Package | | Vendor | Package |\n|---|---|---|---|---|\n| phpunit | phpunit | | phpspec | prophecy |\n| johnkary | phpunit-speedtrap | | phpspec | phpspec |\n| brianium | paratest | | humbug | humbug |\n| mybuilder | phpunit-accelerator | | infection | infection |\n| codedungeon | phpunit-result-printer | | mockery | mockery |\n| spatie | phpunit-watcher | | satooshi | php-coveralls |\n| symfony | phpunit-bridge | | mikey179 | vfsStream |\n| symfony | debug | | filp | whoops |\n| symfony | maker-bundle | | friendsofphp | php-cs-fixer |\n| zendframework | zend-test | | phpstan | phpstan |\n| zendframework | zend-debug | | vimeo | psalm |\n| yiisoft | yii2-gii | | jakub-onderka | php-parallel-lint |\n| yiisoft | yii2-debug | | squizlabs | php_codesniffer |\n| orchestra | testbench | | slevomat | coding-standard |\n| barryvdh | laravel-debugbar | | doctrine | coding-standard |\n| codeception | codeception | | phpcompatibility | php-compatibility |\n| behat | behat | | zendframework | zend-coding-standard |\n| yiisoft | yii2-coding-standards | | wp-coding-standards | wpcs |\n| phpmd | phpmd | | pdepend | pdepend |\n| sebastian | phpcpd | | povils | phpmnd |\n| phan | phan | | phpro | grumphp |\n| wimg | php-compatibility | | sstalle | php7cc |\n| phing | phing | | composer | composer |\n| roave | security-advisories | | kalessil | production-dependencies-guard |\n\n(48 entries.) ADV itself is in the list, so ADV under `require` is reported\nas kind M.",
     "fix": true
   },
   "SeekSuccessCheckedAsTruthy": {
-    "summary": "Compare the seek result with zero.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Compare the seek result with zero."
   },
   "SelectFailureTreatedAsReadiness": {
     "phpMin": "5.3",
@@ -1608,7 +1583,7 @@
     "fix": true
   },
   "SenselessProxyMethod": {
-    "summary": "An override whose only statement forwards its parameters unchanged to the\nsame-named parent method — with the same signature, modifiers and\ndocumentation tags — adds nothing; inheritance already provides that\nbehaviour. Remove it.",
+    "summary": "An override whose only statement forwards its parameters unchanged to the\nsame-named parent method — with the same signature, modifiers and\ndocumentation tags — adds nothing; inheritance already provides that\nbehavior. Remove it.",
     "fix": true
   },
   "SenselessTernaryOperator": {
@@ -1635,7 +1610,7 @@
   },
   "SessionRegenerationFailureUnchecked": {
     "summary": "Session identifier regeneration can fail. Check its result before establishing the configured authenticated session state. This inspection is disabled by default because the intended policy or use can vary.",
-    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| authenticationKeys | list | `[\"authenticated\"]` | Configure the explicit policy evidence described in D1. |"
+    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| authenticationKeys | list | `[\"authenticated\"]` | `$_SESSION` keys whose assignment of `true` marks a login; only regeneration right before such an assignment is checked. |"
   },
   "ShallowCloneNestedMutation": {
     "summary": "Detect cloning an object followed by mutation of a nested object member where the nested identity is proven shared with the original.",
@@ -1688,7 +1663,7 @@
     "summary": "Identify boolean cast of a locally constructed SimpleXMLElement whose literal sole text content is a boolean spelling true/false and whose element has no children or attributes. Literal false produces true under object conversion; disabled by default because parsing intent remains optional."
   },
   "SlowArrayOperationsInLoop": {
-    "summary": "Two loop anti-patterns:\n\n- **Accumulating merges**: `$acc = array_merge($acc, $chunk)` inside a loop\n  copies the whole accumulator on every iteration (quadratic cost). Collect\n  the chunks and merge once after the loop.\n- **Length in a `for` condition**: `$i \u003c count($items)` re-evaluates the\n  length on every iteration. Compute it once in the initialiser.",
+    "summary": "Two loop anti-patterns:\n\n- **Accumulating merges**: `$acc = array_merge($acc, $chunk)` inside a loop\n  copies the whole accumulator on every iteration (quadratic cost). Collect\n  the chunks and merge once after the loop.\n- **Length in a `for` condition**: `$i \u003c count($items)` re-evaluates the\n  length on every iteration. Compute it once in the initializer.",
     "fix": true
   },
   "SoapLastRequestWithoutTracing": {
@@ -1733,8 +1708,7 @@
   },
   "SplFixedArrayIndexOutOfBounds": {
     "phpMin": "5.3",
-    "summary": "Use an index within the fixed array size.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Use an index within the fixed array size."
   },
   "SplFixedArrayShrinkDiscardsValues": {
     "phpMin": "5.3",
@@ -1743,8 +1717,7 @@
   },
   "SplObjectStorageIndirectArrayMutation": {
     "phpMin": "5.3",
-    "summary": "Assign the modified storage value back.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Assign the modified storage value back."
   },
   "SqlNullComparedWithEquality": {
     "summary": "SQL equality comparisons do not test whether a value is null. Use IS NULL or IS NOT NULL instead."
@@ -1787,7 +1760,7 @@
   },
   "StaticInvocationViaThis": {
     "summary": "Calling a static method through an object (`$this-\u003emake()` or `$obj-\u003emake()`)\nhides the fact that no instance is involved. Use `self::`/`ClassName::` so the\ncall reads as what it is.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| EXCEPT_PHPUNIT_ASSERTIONS | bool | true | Skip static methods declared in PHPUnit framework classes and Symfony's test assertion traits (E3). |\n| EXCEPT_ELOQUENT_MODELS | bool | true | Skip static methods declared in Laravel's Eloquent base model (E4). |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| EXCEPT_PHPUNIT_ASSERTIONS | bool | true | Skip static methods declared in PHPUnit framework classes and Symfony's test assertion traits. |\n| EXCEPT_ELOQUENT_MODELS | bool | true | Skip static methods declared in Laravel's Eloquent base model. |",
     "fix": true
   },
   "StaticLambdaBinding": {
@@ -1825,7 +1798,6 @@
   },
   "StreamOutputReturnUsedAsContent": {
     "summary": "Output the stream without printing its byte count.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection.",
     "fix": true
   },
   "StreamUseAfterClose": {
@@ -1837,7 +1809,7 @@
     "fix": true
   },
   "StringNormalization": {
-    "summary": "Two smells when chaining string normalisation calls:\n\n1. Changing the case of a string and *then* trimming / cutting it converts\n   characters that are thrown away right after; cut first, convert the case\n   of the (shorter) result.\n2. Wrapping a case conversion inside another case conversion is pointless\n   when the outer call overrides what the inner one did (or repeats it); the\n   inner call can be dropped.",
+    "summary": "Two smells when chaining string normalization calls:\n\n1. Changing the case of a string and *then* trimming / cutting it converts\n   characters that are thrown away right after; cut first, convert the case\n   of the (shorter) result.\n2. Wrapping a case conversion inside another case conversion is pointless\n   when the outer call overrides what the inner one did (or repeats it); the\n   inner call can be dropped.",
     "fix": true
   },
   "StringOffsetWriteTruncatesValue": {
@@ -1884,7 +1856,7 @@
   },
   "SuspiciousBinaryOperation": {
     "summary": "Flags binary operations that are almost certainly not what the author meant:\n`instanceof` against a trait, identical operands, `==` used as a statement,\n`\u003e=` typed instead of `=\u003e` in an array, a comparison placed inside a call's\nparentheses, negated comparisons on nullable values, `??` after a cast or\n`!`, concatenation with an array literal, hard-coded booleans in `\u0026\u0026`/`||`,\nand mixed `\u0026\u0026`/`||`/assignment precedence.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `VERIFY_CONSTANTS_IN_CONDITIONS` | bool | `true` | Enables D9. |\n| `VERIFY_UNCLEAR_OPERATIONS_PRIORITIES` | bool | `true` | Enables D10. |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `VERIFY_CONSTANTS_IN_CONDITIONS` | bool | `true` | Reports hard-coded boolean operands in conditions. |\n| `VERIFY_UNCLEAR_OPERATIONS_PRIORITIES` | bool | `true` | Reports operations whose precedence is unclear without parentheses. |",
     "fix": true
   },
   "SuspiciousFunctionCalls": {
@@ -1892,7 +1864,7 @@
   },
   "SuspiciousLoop": {
     "summary": "Two loop mistakes: a `for` condition section with several comma-separated\nexpressions (only the last one decides whether the loop continues), and loop\nvariables that silently overwrite a parameter of the enclosing function or the\nvariable of an outer loop.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `VERIFY_VARIABLES_OVERRIDE` | bool | `true` | Enables the parameter and outer-loop clash checks (D2–D4). |"
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| `VERIFY_VARIABLES_OVERRIDE` | bool | `true` | Enables the parameter and outer-loop clash checks. |"
   },
   "SuspiciousReturn": {
     "summary": "A `return` inside a `finally` block discards whatever the `try` block was\ndoing on its way out: its own return value is replaced and any exception in\nflight is swallowed. When the `try` block itself returns or throws, this is\nalmost always a bug."
@@ -1920,7 +1892,7 @@
   },
   "ThrowRawException": {
     "summary": "Throwing the base `\\Exception` class gives callers nothing specific to catch;\na more specific (SPL) exception class communicates intent better. Separately,\nthrowing a standard-shaped exception without any constructor argument loses\nthe diagnostic message.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_MISSING_ARGUMENTS | bool | true | Enables D3 (exceptions created without any argument). |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_MISSING_ARGUMENTS | bool | true | Reports exceptions created without any argument. |",
     "fix": true
   },
   "TlsHandshakePendingAccepted": {
@@ -1928,8 +1900,7 @@
   },
   "TraitInstantiation": {
     "phpMin": "5.4",
-    "summary": "Instantiate a class using the trait.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Instantiate a class using the trait."
   },
   "TraitsPropertiesConflicts": {
     "summary": "When a class and one of its traits (or its parent class and one of its\ntraits) declare the same property, PHP only accepts it if both declarations\nare compatible, and even then the duplication is fragile. Point out these\noverlaps; when the two declarations are incompatible (PHP refuses to compose\nthe class), it is a real conflict."
@@ -1943,8 +1914,7 @@
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "TransferEncodingWithContentLength": {
-    "summary": "Choose a single HTTP message framing mechanism.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Choose a single HTTP message framing mechanism."
   },
   "TransliterationFailureConsumed": {
     "phpMin": "5.4",
@@ -1955,8 +1925,7 @@
     "options": "None. Enable or disable this rule through normal rule configuration."
   },
   "TruncationAssumedToRewind": {
-    "summary": "Rewind after truncating the stream.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Rewind after truncating the stream."
   },
   "TypeUnsafeArraySearch": {
     "summary": "`in_array()` and `array_search()` compare loosely unless their third argument\nis `true`, so `'1abc'`, `1`, `true` and `'1'` can all \"match\". Asking for the\nthird argument forces the author to decide whether loose matching is really\nwanted."
@@ -1967,7 +1936,7 @@
   },
   "TypesCastingCanBeUsed": {
     "summary": "Conversion helpers (`intval()`, `floatval()`, `strval()`, `boolval()`,\n`settype()`), a string made of a single interpolated expression (`\"$x\"`), and\nexplicit `-\u003e__toString()` calls all perform a plain type conversion. A cast\nexpresses the same thing directly and avoids a function call.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_INLINES | bool | true | Enables the single-interpolation string check (D8–D9). |\n| REPORT_TO_STRING_METHOD_CALLS | bool | false | Enables the `__toString()` call check (D10–D11). |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| REPORT_INLINES | bool | true | Enables the single-interpolation string check. |\n| REPORT_TO_STRING_METHOD_CALLS | bool | false | Enables the `__toString()` call check. |",
     "fix": true
   },
   "UmaskSetterReturnMisread": {
@@ -1979,7 +1948,7 @@
   },
   "UnSafeIsSetOverArray": {
     "summary": "`isset()` mixes two questions: \"does the key/variable exist\" and \"is it not\nnull\". This rule points out single-argument `isset()` calls where a more\nexplicit construct says what is meant: a plain `!== null` comparison for\nvariables and declared properties, `array_key_exists()` for array keys, and\nflags concatenated index expressions that should be computed beforehand.",
-    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_TO_USE_ARRAY_KEY_EXISTS | bool | false | Enables D10. |\n| SUGGEST_TO_USE_NULL_COMPARISON | bool | false | Enables D8 and its fix. |\n| REPORT_CONCATENATION_IN_INDEXES | bool | true | Enables D9. When off, such accesses go straight to D10. |",
+    "options": "| Option | Type | Default | Effect |\n|---|---|---|---|\n| SUGGEST_TO_USE_ARRAY_KEY_EXISTS | bool | false | Suggests `array_key_exists()` for array accesses whose container is not known to be an object. |\n| SUGGEST_TO_USE_NULL_COMPARISON | bool | false | Suggests a null comparison, with its fix, for non-array subjects. |\n| REPORT_CONCATENATION_IN_INDEXES | bool | true | Reports concatenations used directly as an index. When off, such accesses get the `array_key_exists()` suggestion instead. |",
     "fix": true
   },
   "UndeclaredDynamicProperty": {
@@ -2177,11 +2146,10 @@
   },
   "WorldWritablePermission": {
     "summary": "World-write permission lets other users modify a configured sensitive file. Remove that permission when the project's file policy forbids it. This inspection is disabled by default because the intended policy or use can vary.",
-    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| sensitivePaths | list | `[\"**/*.pem\", \"**/.env\", \"**/config.php\"]` | Configure the explicit policy evidence described in D1. |"
+    "options": "| Option | Type | Default | Effect |\n| --- | --- | --- | --- |\n| sensitivePaths | list | `[\"**/*.pem\", \"**/.env\", \"**/config.php\"]` | Globs of the sensitive paths whose world-writable modes are reported. |"
   },
   "WriteToReadOnlyStream": {
-    "summary": "Open the stream with write access.",
-    "options": "None. Use ordinary rule configuration to enable or disable this inspection."
+    "summary": "Open the stream with write access."
   },
   "XPathIgnoresDefaultNamespace": {
     "summary": "Unprefixed XPath names do not select elements in a nonempty default namespace. Register and use a prefix for that namespace."

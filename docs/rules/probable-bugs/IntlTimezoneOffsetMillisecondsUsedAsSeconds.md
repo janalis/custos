@@ -6,7 +6,7 @@ title: IntlTimezoneOffsetMillisecondsUsedAsSeconds
 
 # IntlTimezoneOffsetMillisecondsUsedAsSeconds
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.5" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.5" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. Track direct rawOffset/dstOffset output locals of a preceding resolved IntlTimeZone::getOffset call in the same lexical scope. Report DateTime/DateTimeImmutable::modify with either local, or their sum, concatenated with the literal seconds unit. Already-divided offsets and unknown provenance are excluded.
-- D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Track direct rawOffset/dstOffset output locals of a preceding resolved IntlTimeZone::getOffset call in the same lexical scope. Report DateTime/DateTimeImmutable::modify with either local, or their sum, concatenated with the literal seconds unit. Already-divided offsets and unknown provenance are excluded.
+- Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
 
 ## Exceptions (no report)
 
 Reject offset-unit proof after an intervening use of the output local, a reference alias, a nested scope or proof-budget exhaustion. Compound assignments and opaque calls discard the proof.
 
-- E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
+- A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
 
 ## Fix
 

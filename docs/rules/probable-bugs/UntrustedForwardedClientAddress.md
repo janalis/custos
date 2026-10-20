@@ -6,7 +6,7 @@ title: UntrustedForwardedClientAddress
 
 # UntrustedForwardedClientAddress
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -28,17 +28,17 @@ Reported:
 
 ## Detection
 
-- D1. Report HTTP_X_FORWARDED_FOR-derived address used in an access-control comparison without established trusted-proxy validation.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D4. Require a direct equality condition guarding a call to a project function explicitly annotated `@custos-protected`. Unknown intent and additional unmodelled proxy guards suppress the finding.
+- Report HTTP_X_FORWARDED_FOR-derived address used in an access-control comparison without established trusted-proxy validation.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- Require a direct equality condition guarding a call to a project function explicitly annotated `@custos-protected`. Unknown intent and additional unmodelled proxy guards suppress the finding.
 - D5. A condition may validate the proxy boundary when it reads `$_SERVER['REMOTE_ADDR']` or contains a method call, a static call, or a function call that does not resolve to a builtin. Such a condition counts as an unmodelled proxy guard when it belongs to an `if`/`elseif` chain enclosing the comparison's `if` within the same function scope, or to an earlier `if` chain in an enclosing statement list of that scope with at least one arm that never falls through (return, throw, exit, break, continue).
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Configured trusted-proxy resolver summaries, logging-only use, non-security uses and missing source-to-sink proof are excluded.
-- E3. The comparison is governed by an unmodelled proxy guard as defined in D5: nested inside a guarded `if` chain, or placed after a guard clause that leaves the statement list. Guards outside the enclosing closure or function, earlier checks whose every arm falls through, and conditions made only of plain variables, builtin calls or other `$_SERVER` keys do not suppress the report.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Configured trusted-proxy resolver summaries, logging-only use, non-security uses and missing source-to-sink proof are excluded.
+- The comparison is governed by an unmodelled proxy guard as defined in D5: nested inside a guarded `if` chain, or placed after a guard clause that leaves the statement list. Guards outside the enclosing closure or function, earlier checks whose every arm falls through, and conditions made only of plain variables, builtin calls or other `$_SERVER` keys do not suppress the report.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

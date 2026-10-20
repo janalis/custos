@@ -105,7 +105,7 @@ $text = 'uses `backticks` in a plain string';
 ## Divergences
 
 - Upstream escapes the content with the IDE's generic "escape for a
-  double-quoted string" helper. Only the behaviour for `"` is confirmed by
+  double-quoted string" helper. Only the behavior for `"` is confirmed by
   fixtures. That helper may additionally double backslashes, escape `$`
   and turn raw newlines/tabs into `\n`/`\t`; doing so would change the
   meaning of backtick content (which already follows double-quoted string

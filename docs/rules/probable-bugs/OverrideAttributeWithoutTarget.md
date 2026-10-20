@@ -6,7 +6,7 @@ title: OverrideAttributeWithoutTarget
 
 # OverrideAttributeWithoutTarget
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.3" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,16 +29,15 @@ Reported:
 
 ## Detection
 
-- D1. Resolve the builtin Override attribute on a method. Report only when the complete parent and interface closure proves there is no overridable method of that name. From PHP 8.5 also check properties against inherited properties; methods and properties are separate lookup domains. A private parent method does not satisfy a method override; abstract interface requirements do.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Resolve the builtin Override attribute on a method. Report only when the complete parent and interface closure proves there is no overridable method of that name. From PHP 8.5 also check properties against inherited properties; methods and properties are separate lookup domains. A private parent method does not satisfy a method override; abstract interface requirements do.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
-- E1. Unknown ancestors or inherited traits prevent a definite missing-target proof. Exclude shadowed custom Override attributes and inaccessible private declarations.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore OverrideAttributeWithoutTarget` and `@noinspection OverrideAttributeWithoutTarget` suppress this inspection.
-- E3. A member declared in a trait is never reported: PHP checks the attribute in each class that uses the trait, against that class's ancestors, so the trait alone proves nothing.
-- E4. A method named `__toString` (any case) is never reported: declaring it makes the type implicitly implement `Stringable`, whose `__toString` is the overridden method.
+- Unknown ancestors or inherited traits prevent a definite missing-target proof. Exclude shadowed custom Override attributes and inaccessible private declarations.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
+- A member declared in a trait is never reported: PHP checks the attribute in each class that uses the trait, against that class's ancestors, so the trait alone proves nothing.
+- A method named `__toString` (any case) is never reported: declaring it makes the type implicitly implement `Stringable`, whose `__toString` is the overridden method.
 
 ## Fix
 
@@ -48,11 +47,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Minimum PHP 8.3. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Minimum PHP 8.3.
 
 ## Configure
 

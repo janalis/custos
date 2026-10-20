@@ -6,7 +6,7 @@ title: XmlParseZeroComparedWithFalse
 
 # XmlParseZeroComparedWithFalse
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,14 +14,14 @@ Identify strict comparison of xml_parse result to boolean false. The API returns
 
 ## Detection
 
-- D1. Report strict comparison of xml_parse result to boolean false. The API returns integer zero on failure; loose false and strict zero comparisons exclude.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report strict comparison of xml_parse result to boolean false. The API returns integer zero on failure; loose false and strict zero comparisons exclude.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore XmlParseZeroComparedWithFalse` and `@noinspection XmlParseZeroComparedWithFalse` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore XmlParseZeroComparedWithFalse` and `@noinspection XmlParseZeroComparedWithFalse` suppress this native rule.
 
 ## Fix
 

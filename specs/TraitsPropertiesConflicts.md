@@ -39,7 +39,7 @@ Helper predicates:
     the `static` flag or the `readonly` flag differs (a `readonly` class
     makes all its properties readonly), when exactly one side declares a
     type, when both declare types that differ (compared as resolved,
-    normalised type sets, case-insensitively; `?T` equals `T|null`,
+    normalized type sets, case-insensitively; `?T` equals `T|null`,
     `iterable` equals `Traversable|array`, member order is irrelevant), or when
     the initial values are known to differ (below);
   - *compatible* when none of the above differs and the defaults are the

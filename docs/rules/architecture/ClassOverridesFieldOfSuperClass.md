@@ -82,7 +82,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `REPORT_PRIVATE_REDEFINITION` | bool | true | Also report re-declarations of an ancestor's (or ancestor trait's) private property (D5). |
+| `REPORT_PRIVATE_REDEFINITION` | bool | true | Also report re-declarations of an ancestor's (or ancestor trait's) private property. |
 
 ## Configure
 

@@ -15,7 +15,7 @@ it breaks (prints source code) where that setting is off. Use `<?php`.
 
 ## Detection
 
-Token-level: requires the lexer to recognise `<?` as an opening tag (as PHP
+Token-level: requires the lexer to recognize `<?` as an opening tag (as PHP
 does with `short_open_tag=On`).
 
 - D1: an opening-tag token whose text is exactly `<?` (not `<?php` in any

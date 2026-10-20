@@ -6,7 +6,7 @@ title: SqliteBindingIndexZero
 
 # SqliteBindingIndexZero
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Resolved SQLite3Stmt bindValue or bindParam receives constant integer zero as the parameter argument. String names and positive positions are excluded.
+- Resolved SQLite3Stmt bindValue or bindParam receives constant integer zero as the parameter argument. String names and positive positions are excluded.
   A variable argument counts only while it provably still holds the literal zero it was assigned (see E3).
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore SqliteBindingIndexZero and @noinspection SqliteBindingIndexZero suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Both @custos-ignore SqliteBindingIndexZero and @noinspection SqliteBindingIndexZero suppress this native rule.
 - E3. A variable position is not a proven zero once the variable may have been stepped or rewritten behind the
   assignment: an increment or decrement (`$i++`, `++$i`, `$i--`, `--$i`) or a closure capturing it by reference
   (`use (&$i)`) that appears before the call, or anywhere inside a loop that also contains the call. The same

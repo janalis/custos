@@ -20,10 +20,10 @@ Visit every array literal (`[...]` and `array(...)`, including short-list
 destructuring targets, which share the same syntax).
 
 Walk its `key => value` elements in source order, keeping a map from the
-normalised key to the **most recently seen** value for that key. Elements
+normalized key to the **most recently seen** value for that key. Elements
 without an explicit key and spread elements are skipped.
 
-- **D1** Only literal keys take part, normalised to the key PHP stores:
+- **D1** Only literal keys take part, normalized to the key PHP stores:
   - string literals (single- or double-quoted) **without interpolation** are
     decoded with PHP's escape rules for their quote style (`'id'`, `"id"`
     and `"\x69d"` are the same key; so are `'a\'b'` and `"a'b"`);
@@ -122,12 +122,12 @@ $settings = [
 - custos diverges: upstream compares the raw text between the quotes and
   ignores integer keys, so keys PHP stores identically but spelled
   differently (`"\x41"` vs `'A'`, `'1'` vs `1`, `0x10` vs `16`, or simply
-  `3 => …, 3 => …`) are missed. custos compares the normalised key value
+  `3 => …, 3 => …`) are missed. custos compares the normalized key value
   (D1), so these duplicates are reported too.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 
 Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

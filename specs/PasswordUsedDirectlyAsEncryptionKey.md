@@ -39,7 +39,7 @@ None. Choosing a repair requires intent or additional runtime information.
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| passwordKeys | list | `["password", "passphrase"]` | Configure the explicit policy evidence described in D1. |
+| passwordKeys | list | `["password", "passphrase"]` | Request fields that hold passwords; only these are checked when used as an encryption key. |
 
 ## PHP versions
 

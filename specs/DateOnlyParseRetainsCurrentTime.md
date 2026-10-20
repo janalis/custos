@@ -62,6 +62,6 @@ $day=DateTimeImmutable::createFromFormat('!Y-m-d',$input);
 
 Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
 
-Audit constraint: the fix never changes the parsed calendar date; partial-date formats keep the report but get no edit. A value normalised by a directly chained `setTime` is not reported.
+Audit constraint: the fix never changes the parsed calendar date; partial-date formats keep the report but get no edit. A value normalized by a directly chained `setTime` is not reported.
 
 Audit constraint: escaped calendar letters are literal text and do not establish a date-only parsing format.

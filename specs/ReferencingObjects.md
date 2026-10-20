@@ -227,7 +227,7 @@ $fn = function (DOMNode &$node) {};
   reference (or to unresolved callees), and methods that take part in an
   override relation, have no body, or live in traits or anonymous classes.
 - **custos diverges — indirect writes and promoted properties (D2a, D4b).**
-  Upstream only recognises a plain assignment whose target is the parameter
+  Upstream only recognizes a plain assignment whose target is the parameter
   itself. A swap helper (`list($a, $b) = array($b, $a)`), a `foreach` or
   `catch` variable, an alias (`$r = &$a; $r = new Node`), an element write
   on a by-reference variadic, and a promoted `public Node &$node` all rely

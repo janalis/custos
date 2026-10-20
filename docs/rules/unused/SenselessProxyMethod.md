@@ -13,7 +13,7 @@ Group: [Unused](/rules/#unused) · PhpStorm name: `SenselessProxyMethodInspectio
 An override whose only statement forwards its parameters unchanged to the
 same-named parent method — with the same signature, modifiers and
 documentation tags — adds nothing; inheritance already provides that
-behaviour. Remove it.
+behavior. Remove it.
 
 ## Example
 

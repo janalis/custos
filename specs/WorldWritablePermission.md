@@ -39,7 +39,7 @@ None. Choosing a repair requires intent or additional runtime information.
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| sensitivePaths | list | `["**/*.pem", "**/.env", "**/config.php"]` | Configure the explicit policy evidence described in D1. |
+| sensitivePaths | list | `["**/*.pem", "**/.env", "**/config.php"]` | Globs of the sensitive paths whose world-writable modes are reported. |
 
 ## PHP versions
 

@@ -79,7 +79,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| ALLOW_WRITE_FROM_SOURCE_CLASS | bool | true | true: only writes from outside the declaring class are reported (D3). false: every static property assignment is reported (D2). |
+| ALLOW_WRITE_FROM_SOURCE_CLASS | bool | true | true: only writes from outside the declaring class are reported. false: every static property assignment is reported. |
 
 ## Configure
 

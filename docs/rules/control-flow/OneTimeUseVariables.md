@@ -180,9 +180,9 @@ Reported:
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | `ALLOW_LONG_STATEMENTS` | bool | false | When false, assignments whose text exceeds 80 characters are left alone (a long expression may deserve a name). When true, length is ignored. |
-| `ANALYZE_RETURN_STATEMENTS` | bool | true | Inspect `return` consumers (D1). |
-| `ANALYZE_THROW_STATEMENTS` | bool | true | Inspect `throw` consumers (D2). |
-| `ANALYZE_ARRAY_DESTRUCTURING` | bool | true | Inspect `list()`/`[]` destructuring consumers (D3). |
+| `ANALYZE_RETURN_STATEMENTS` | bool | true | Inspect `return` consumers. |
+| `ANALYZE_THROW_STATEMENTS` | bool | true | Inspect `throw` consumers. |
+| `ANALYZE_ARRAY_DESTRUCTURING` | bool | true | Inspect `list()`/`[]` destructuring consumers. |
 
 ## Configure
 

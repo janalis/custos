@@ -6,7 +6,7 @@ title: UnlinkFailureReportedAsSuccess
 
 # UnlinkFailureReportedAsSuccess
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,15 +14,15 @@ Identify discarded unlink call immediately followed by unconditional return true
 
 ## Detection
 
-- D1. Report discarded unlink call immediately followed by unconditional return true in the same function.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report discarded unlink call immediately followed by unconditional return true in the same function.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore UnlinkFailureReportedAsSuccess` and `@noinspection UnlinkFailureReportedAsSuccess` suppress this native rule.
-- E3. A file the function made itself with `tempnam()` is not reported: when
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore UnlinkFailureReportedAsSuccess` and `@noinspection UnlinkFailureReportedAsSuccess` suppress this native rule.
+- A file the function made itself with `tempnam()` is not reported: when
   the path given to `unlink` holds, as its only local value, the result of a
   `tempnam()` call, the deletion cleans up after the function's own work,
   and the returned success is that of this work, not of the deletion. Once

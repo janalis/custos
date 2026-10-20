@@ -6,7 +6,7 @@ title: PgEscapedLiteralQuotedAgain
 
 # PgEscapedLiteralQuotedAgain
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.4" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.4" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. pg_escape_literal result is interpolated or concatenated into a constant SQL skeleton with additional single quotes immediately surrounding the entire escaped expression. Parse SQL quote boundaries; report the final query-producing expression. Unknown SQL structure and mixed escaping are excluded.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- pg_escape_literal result is interpolated or concatenated into a constant SQL skeleton with additional single quotes immediately surrounding the entire escaped expression. Parse SQL quote boundaries; report the final query-producing expression. Unknown SQL structure and mixed escaping are excluded.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore PgEscapedLiteralQuotedAgain and @noinspection PgEscapedLiteralQuotedAgain suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Both @custos-ignore PgEscapedLiteralQuotedAgain and @noinspection PgEscapedLiteralQuotedAgain suppress this native rule.
 
 ## Fix
 

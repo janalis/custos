@@ -196,7 +196,7 @@ A `for` statement `L` is reported when all of the following hold:
 
 - **E1** More than one step expression, or a step other than `++` on the
   counter (`$i += 1`, `$i--`).
-- **E2** Counter not initialised to literal `0`.
+- **E2** Counter not initialized to literal `0`.
 - **E3** Condition list with 0 or 2+ expressions, or a condition that is not
   a binary expression directly comparing the counter (`$i < $n || $stop`).
 - **E4** Two different containers indexed by the counter (`$a[$i]`, `$b[$i]`).
@@ -320,9 +320,9 @@ function render(array $rows, $cap) {
     <error descr="Replace the each() loop with foreach.">while</error> (list($slot, $entry) = each($rows)) {
         echo $entry;
     }
-    for ($n = 0; $n < $cap; $n++) { echo $rows[$n]; }               // E5: parameter
-    for ($n = 1; $n < count($rows); $n++) { echo $rows[$n]; }       // E2
-    while (list($slot, $entry) = each($rows)) { unset($rows[$slot]); } // E7
+    for ($n = 0; $n < $cap; $n++) { echo $rows[$n]; }               // parameter
+    for ($n = 1; $n < count($rows); $n++) { echo $rows[$n]; }       // counter does not start at 0
+    while (list($slot, $entry) = each($rows)) { unset($rows[$slot]); } // body uses the iterated container
 }
 ```
 
@@ -343,9 +343,9 @@ function render(array $rows, $cap) {
     foreach ($rows as $entry) {
         echo $entry;
     }
-    for ($n = 0; $n < $cap; $n++) { echo $rows[$n]; }               // E5: parameter
-    for ($n = 1; $n < count($rows); $n++) { echo $rows[$n]; }       // E2
-    while (list($slot, $entry) = each($rows)) { unset($rows[$slot]); } // E7
+    for ($n = 0; $n < $cap; $n++) { echo $rows[$n]; }               // parameter
+    for ($n = 1; $n < count($rows); $n++) { echo $rows[$n]; }       // counter does not start at 0
+    while (list($slot, $entry) = each($rows)) { unset($rows[$slot]); } // body uses the iterated container
 }
 ```
 
@@ -381,7 +381,7 @@ so step 4 deletes `$total = count($rows);`.
 
 ## Divergences
 
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analyzed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - **Loop condition (custos diverges).** Upstream's D5 accepts any binary
   operator between counter and limit (`<=`, `>`, `!=`, even `+`), so
   `for ($i = 0; $i <= count($a); $i++)` is reported and fixed although it
@@ -461,18 +461,18 @@ so step 4 deletes `$total = count($rows);`.
   `each` (D10) by exact spelling regardless of namespace, so `COUNT($c)` /
   `Each($c)` loops were missed while loops over a same-named user function
   in the current namespace were reported (the suggested `foreach` would then
-  drop that function's behaviour). custos matches the names
+  drop that function's behavior). custos matches the names
   case-insensitively and only when they resolve to the global built-ins.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **Container changes (D8d) — custos refinement, not upstream.** Upstream
   rewrites `for ($i = 0; $i < $n; $i++) { … array_splice($posts, $i, 1); … }`
   (WordPress sticky-post reordering), loops that `sort()`, reassign, push to
   or unset elements of the iterated array; the `foreach` replacement walks a
-  snapshot and changes behaviour. custos skips them. No upstream fixture
+  snapshot and changes behavior. custos skips them. No upstream fixture
   changed outcome.
 - **Element writes (custos diverges, refines D8d).** Writing an element
   other than `$c[$i]` (`$c[$i + 1] = …`, `$c[$k][…] = …`, by-reference

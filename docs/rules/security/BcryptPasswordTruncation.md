@@ -6,7 +6,7 @@ title: BcryptPasswordTruncation
 
 # BcryptPasswordTruncation
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.5" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.5" />
 
 Group: [Security](/rules/#security)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. Resolved password_hash uses explicit PASSWORD_BCRYPT and a password of known byte length greater than 72. Literal/str_repeat provenance only; do not flag PASSWORD_DEFAULT because its algorithm can change.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved password_hash uses explicit PASSWORD_BCRYPT and a password of known byte length greater than 72. Literal/str_repeat provenance only; do not flag PASSWORD_DEFAULT because its algorithm can change.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

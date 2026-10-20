@@ -22,7 +22,7 @@ subject against a related type.
 
 ```php{3,4,5,6,7,8,28,41,42,50,51,55,62,63}
 <?php
-// D1 ordering
+// ordering
 if (strlen($name) > 3 && $enabled) {}
 if (\json_encode($id) || empty($cache)) {}
 if (isset($rows[md5($k)]) && $limit) {}
@@ -48,7 +48,7 @@ if (($n = count($rows)) === 0 || $force) {}     // S4: assignment
 if (strlen($name) > $i++ && $enabled) {}        // S4: ++ writes $i
 if (in_array($k, $keys, true) && $map[$k] > 1) {} // S6: guarded array access
 if (abs($step) > 0 && $total % $step === 0) {}  // S6: guarded divisor
-if (fetch($a) and $b) {} // one operand for D1
+if (fetch($a) and $b) {} // one operand for ordering
 
 // property fetches
 final class Folder {
@@ -69,16 +69,16 @@ function scan(Folder $f, Lazy $l, $any, string $p) {
     if ($f->isEmpty || $f->open) {}             // computed neighbour: impure
 }
 
-// D2 keyword operators
+// keyword operators
 if ($p AND $q) {}
 if ($p || ($q or $r)) {}
 if ($p xor $q) {}
 
-// D3 equality next to instanceof
+// equality next to instanceof
 if ($node != null && $node instanceof Leaf && $node->ok) {}
 if ($node instanceof Leaf || $node === null) {}
 
-// D4 redundant instanceof
+// redundant instanceof
 interface Shape {}
 class Circle implements Shape {}
 class Ring extends Circle {}
@@ -110,9 +110,9 @@ Reported:
 
 | Option | Type | Default | Effect |
 |--------|------|---------|--------|
-| REPORT_LITERAL_OPERATORS | bool | true | enables D2 |
-| REPORT_INSTANCE_OF_FLAWS | bool | true | enables D3 and D4 |
-| SUGGEST_OPTIMIZING_CONDITIONS | bool | true | enables D1 |
+| REPORT_LITERAL_OPERATORS | bool | true | Reports the keyword logical operators `and` and `or`. |
+| REPORT_INSTANCE_OF_FLAWS | bool | true | Reports an equality next to `instanceof` and a redundant `instanceof`. |
+| SUGGEST_OPTIMIZING_CONDITIONS | bool | true | Suggests reordering operands so cheaper checks run first. |
 
 ## Configure
 

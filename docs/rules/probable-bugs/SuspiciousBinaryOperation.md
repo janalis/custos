@@ -140,8 +140,8 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `VERIFY_CONSTANTS_IN_CONDITIONS` | bool | `true` | Enables D9. |
-| `VERIFY_UNCLEAR_OPERATIONS_PRIORITIES` | bool | `true` | Enables D10. |
+| `VERIFY_CONSTANTS_IN_CONDITIONS` | bool | `true` | Reports hard-coded boolean operands in conditions. |
+| `VERIFY_UNCLEAR_OPERATIONS_PRIORITIES` | bool | `true` | Reports operations whose precedence is unclear without parentheses. |
 
 ## Configure
 

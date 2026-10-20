@@ -34,17 +34,17 @@ For each parameter:
   any; `= null` → null, `= []` → array, `= ''` → string, …). For a variadic
   parameter (`...$xs`, typed or not) the raw type set is just `{array}`.
   Unknown/unresolvable entries are dropped.
-- **D2** Normalise each raw type with N (below). Build `P`:
+- **D2** Normalize each raw type with N (below). Build `P`:
   - `mixed` or `object` present → skip this parameter entirely;
   - `callable` → add `callable`, `array`, `string` and the class name
-    `\Closure` (literal, not re-normalised);
+    `\Closure` (literal, not re-normalized);
   - `iterable` → add `iterable`, `array` and the class name `\Traversable`;
-  - anything else → add the normalised name.
+  - anything else → add the normalized name.
 - **D3** `P` empty → skip the parameter.
 - **D4** `P` is exactly `{null}` and the default value is the `null`
   constant → skip the parameter.
 
-**N — normalisation** of one type name: if it contains `[]` → `array`.
+**N — normalization** of one type name: if it contains `[]` → `array`.
 Otherwise look up its lowercase form, with or without a leading `\`:
 `array`; `iterable`; `string`; `bool`/`boolean`/`true`/`false` → `bool`;
 `int`/`integer` → `int`; `float`; `number`; `null`; `void`; `mixed`;
@@ -59,7 +59,7 @@ and is kept as its FQN with leading `\` and original case (e.g.
   that is reachable in the function body's control flow from the entry,
   in source order — **all** of them, not only the first one per path.
   Accesses inside nested closures/arrow functions/classes are not part of
-  this function's flow and are ignored. Each access is analysed with D6/D7.
+  this function's flow and are ignored. Each access is analyzed with D6/D7.
   A "class name" in `P` below means an entry starting with `\` other than
   exactly `\Closure`, or the entries `self`/`static`.
 
@@ -107,13 +107,13 @@ and is kept as its FQN with leading `\` and original case (e.g.
   `$p = &value`); compound assignments (`.=`, `+=`, `??=` …) and
   destructuring are not considered. The assignment's target must be the
   parameter variable itself.
-- **D7b** `R` = normalised (N) types of `value`, unknowns dropped, computed
+- **D7b** `R` = normalized (N) types of `value`, unknowns dropped, computed
   with the expression type rules **T** of `specs/UnnecessaryCasting.md`
   (section "Expression type rules (T-rules)", including the R-function
   overrides for `str_replace`, `parse_url`, `abs`, `microtime`, …), plus:
   `$this` has the enclosing class's FQN as type; a method call's type is its
   callee's declared return type ∪ `@return` types (`self`/`static`
-  normalised to `self`/`static`); an unresolvable callee yields no type.
+  normalized to `self`/`static`); an unresolvable callee yields no type.
   When `value` is a plain call to one of the following global functions
   written with positional arguments only, its arguments decide `R` (any
   other argument shape, including named arguments, leaves `R` unknown):

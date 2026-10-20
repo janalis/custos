@@ -6,7 +6,7 @@ title: ZipFirstEntryTreatedAsMissing
 
 # ZipFirstEntryTreatedAsMissing
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,19 +27,19 @@ Reported:
 
 ## Detection
 
-- D1. Report a resolved ZipArchive::locateName call whose result is the whole condition of an `if`, `elseif`, `while` or `do`/`while`, either directly, negated once with `!`, or through a plain `=` assignment in that condition. Zero is a valid index. Highlight the negation when there is one, otherwise the condition expression (including the assignment).
-- D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
-- D4. Report a loose comparison (`==`, `!=`, `<>`) of that call, or of a plain `=` assignment of it, with the `false` constant on either side, wherever the comparison appears. Highlight the whole comparison. Strict false comparisons, comparisons with other values and later separate comparisons are excluded.
+- Report a resolved ZipArchive::locateName call whose result is the whole condition of an `if`, `elseif`, `while` or `do`/`while`, either directly, negated once with `!`, or through a plain `=` assignment in that condition. Zero is a valid index. Highlight the negation when there is one, otherwise the condition expression (including the assignment).
+- Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Report a loose comparison (`==`, `!=`, `<>`) of that call, or of a plain `=` assignment of it, with the `false` constant on either side, wherever the comparison appears. Highlight the whole comparison. Strict false comparisons, comparisons with other values and later separate comparisons are excluded.
 
 ## Exceptions (no report)
 
 Preserve assignment precedence in negated conditions: the repaired comparison surrounds an unparenthesized assignment before comparing its result with false.
 
-- E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
-- E3. A compound assignment in the condition (`.=`, `??=`, `+=` and the like) is not reported: its value is the combined or pre-existing value, not the lookup result.
-- E4. A doubled negation, another unary operator, or a call that is only one operand of a larger condition is not reported.
+- Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
+- A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- A compound assignment in the condition (`.=`, `??=`, `+=` and the like) is not reported: its value is the combined or pre-existing value, not the lookup result.
+- A doubled negation, another unary operator, or a call that is only one operand of a larger condition is not reported.
 
 ## Fix
 

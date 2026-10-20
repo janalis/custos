@@ -39,9 +39,9 @@ function render(array $rows, $cap) {
     while (list($slot, $entry) = each($rows)) {
         echo $entry;
     }
-    for ($n = 0; $n < $cap; $n++) { echo $rows[$n]; }               // E5: parameter
-    for ($n = 1; $n < count($rows); $n++) { echo $rows[$n]; }       // E2
-    while (list($slot, $entry) = each($rows)) { unset($rows[$slot]); } // E7
+    for ($n = 0; $n < $cap; $n++) { echo $rows[$n]; }               // parameter
+    for ($n = 1; $n < count($rows); $n++) { echo $rows[$n]; }       // counter does not start at 0
+    while (list($slot, $entry) = each($rows)) { unset($rows[$slot]); } // body uses the iterated container
 }
 ```
 
@@ -62,9 +62,9 @@ function render(array $rows, $cap) {
     foreach ($rows as $entry) {
         echo $entry;
     }
-    for ($n = 0; $n < $cap; $n++) { echo $rows[$n]; }               // E5: parameter
-    for ($n = 1; $n < count($rows); $n++) { echo $rows[$n]; }       // E2
-    while (list($slot, $entry) = each($rows)) { unset($rows[$slot]); } // E7
+    for ($n = 0; $n < $cap; $n++) { echo $rows[$n]; }               // parameter
+    for ($n = 1; $n < count($rows); $n++) { echo $rows[$n]; }       // counter does not start at 0
+    while (list($slot, $entry) = each($rows)) { unset($rows[$slot]); } // body uses the iterated container
 }
 ```
 

@@ -6,7 +6,7 @@ title: AsyncSignalSetterReturnMisread
 
 # AsyncSignalSetterReturnMisread
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 7.1" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 7.1" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,18 +27,18 @@ Reported:
 
 ## Detection
 
-This is an opt-in policy. Truthiness, previous-state checks, raw wait-status comparisons and dispatch acknowledgements can be intentional; enabling this inspection requests explicit handling of the contract described below.
+This is an opt-in policy. Truthiness, previous-state checks, raw wait-status comparisons and dispatch acknowledgements can be intentional; enabling this rule requests explicit handling of the contract described below.
 
 - D1. Report a resolved pcntl_async_signals setter with a proven nonnull scalar argument used directly in a truthiness or negation condition. Getter calls, null and unknown enable values are excluded. A standalone negated if condition may be repaired by moving the setter before the if and testing the getter.
-- D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
+- Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
 Getter-mode null is resolved through unchanged locals and parentheses. A fix that inserts a statement requires a statement list: the file top level, a namespace body in either its semicolon or braced form, a braced or alternative-syntax block, or a switch case. Withhold it when the if is the unbraced body of another statement.
 
-- E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
+- A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
 
 ## Fix
 

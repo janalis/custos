@@ -6,7 +6,7 @@ title: DetachedSignaturePassedToCombinedVerifier
 
 # DetachedSignaturePassedToCombinedVerifier
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 7.2" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 7.2" />
 
 Group: [Security](/rules/#security)
 
@@ -14,14 +14,14 @@ Identify sodium_crypto_sign_open whose signed-message argument is unchanged resu
 
 ## Detection
 
-- D1. Report sodium_crypto_sign_open whose signed-message argument is unchanged result of sodium_crypto_sign_detached; no concatenation may intervene.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values or escaped aliases invalidate proof. When the proof is inconclusive, nothing is reported.
+- Report sodium_crypto_sign_open whose signed-message argument is unchanged result of sodium_crypto_sign_detached; no concatenation may intervene.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values or escaped aliases invalidate proof. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore DetachedSignaturePassedToCombinedVerifier` and `@noinspection DetachedSignaturePassedToCombinedVerifier` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore DetachedSignaturePassedToCombinedVerifier` and `@noinspection DetachedSignaturePassedToCombinedVerifier` suppress this native rule.
 
 ## Fix
 

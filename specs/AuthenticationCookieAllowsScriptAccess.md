@@ -40,7 +40,7 @@ None. Choosing a repair requires intent or additional runtime information.
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| authenticationCookies | list | `["auth_token"]` | Configure the explicit policy evidence described in D1. |
+| authenticationCookies | list | `["auth_token"]` | Names of the cookies that carry authentication; only these are checked. |
 
 ## PHP versions
 

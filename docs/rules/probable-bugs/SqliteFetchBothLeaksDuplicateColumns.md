@@ -6,7 +6,7 @@ title: SqliteFetchBothLeaksDuplicateColumns
 
 # SqliteFetchBothLeaksDuplicateColumns
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,19 +27,19 @@ Reported:
 
 ## Detection
 
-- D1. SQLite3Result fetchArray explicitly uses SQLITE3_BOTH or omits its mode, and its unchanged result flows to json_encode. Enabling establishes named-column JSON policy. Numeric indexing or mixed-key consumers before serialization invalidate proof.
+- SQLite3Result fetchArray explicitly uses SQLITE3_BOTH or omits its mode, and its unchanged result flows to json_encode. Enabling establishes named-column JSON policy. Numeric indexing or mixed-key consumers before serialization invalidate proof.
 - D1a. When the fetched row is stored in a plain local variable, json_encode must be its only consumer. Every other mention of that variable in the scope invalidates the proof, including element writes, unset, destructuring, interpolation and reads after such a write, because a modified row is still the fetched row. A mention is unrelated only when it is a complete plain overwrite, when it sits textually before the fetch in code that cannot repeat, or when local flow proves it holds another complete value. Inside a loop, every other mention counts, wherever it appears.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
 Resolve inserted SQLITE3_ASSOC to the global builtin constant. Parentheses around the fetch do not bypass consumer checks. Captures into nested scopes and exhausted consumer budgets withhold the finding.
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
 - E1a. Exclude scopes that can reach the row without naming it: variable-variables, compact, extract, get_defined_vars, include or require, eval and goto in the same scope, and `$GLOBALS` when the row is a file-level variable. Exclude a row variable that is a by-reference parameter, a by-reference closure capture, or declared global or static, and a fetch stored through a compound or reference assignment.
 - E1b. Exclude a fetchArray written as a first-class callable, which yields a Closure rather than a row, and a fetchArray whose arguments contain a spread, whose mode is unknown.
-- E2. Both @custos-ignore SqliteFetchBothLeaksDuplicateColumns and @noinspection SqliteFetchBothLeaksDuplicateColumns suppress this native rule.
+- Both @custos-ignore SqliteFetchBothLeaksDuplicateColumns and @noinspection SqliteFetchBothLeaksDuplicateColumns suppress this native rule.
 
 ## Fix
 

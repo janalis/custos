@@ -117,5 +117,5 @@ foreach ($matrix as $row => $cols) {
 - A `foreach` loop whose key and value use the same name as one parameter
   yields one report per distinct name.
 - Destructured `foreach` values (`foreach ($a as [$x, $y])`) are assumed to
-  contribute their variables to D2; upstream behaviour there is unverified
+  contribute their variables to D2; upstream behavior there is unverified
   (no fixture); custos counts them.

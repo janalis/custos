@@ -6,7 +6,7 @@ title: ExplodeEmptySeparator
 
 # ExplodeEmptySeparator
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Report explode with a separator statically equal to the empty string.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
-- D4. A separator read from a variable is definite only when plain assignments are the sole way that variable can change in the scope of the call. See E3 for the writes that make it indefinite.
+- Report explode with a separator statically equal to the empty string.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- A separator read from a variable is definite only when plain assignments are the sole way that variable can change in the scope of the call. See E3 for the writes that make it indefinite.
 
 ## Exceptions (no report)
 
-- E1. Unknown or nonempty separators and shadowed application functions are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Unknown or nonempty separators and shadowed application functions are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 - E3. No report when a variable of the separator expression, or a variable whose value was copied into it by assignment, can be rewritten behind the tracked assignments:
   - it is captured by reference in a closure `use` list in the scope (including the closure that is the scope itself);
   - it is declared `global` in the scope;

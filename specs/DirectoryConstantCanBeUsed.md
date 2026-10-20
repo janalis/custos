@@ -22,7 +22,7 @@ php: { min: "", max: "" }
   test, so `\dirname(...)` matches. The call must also resolve to the global
   `dirname()`: an unqualified call inside a namespace that declares its own
   `dirname` function, or imports one with `use function`, is not reported.
-  The declaration is looked up in the whole analysed project, not only in the
+  The declaration is looked up in the whole analyzed project, not only in the
   current file: a `dirname` declared for the namespace in any indexed file
   shadows the built-in.
 - **D2** The call has exactly one argument.

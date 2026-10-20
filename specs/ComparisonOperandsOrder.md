@@ -69,7 +69,7 @@ F3. No fix (the report stays) when the target PHP version is below 7.3 and
     either operand contains a heredoc or nowdoc: there the closing marker must
     remain alone on its line, which a moved operand cannot guarantee.
 
-F4. A moved operand never fuses with a neighbouring word. A space is added
+F4. A moved operand never fuses with a neighboring word. A space is added
     before the new left operand when the comparison is written directly
     against a preceding identifier character and the operand starts with an
     identifier character or a backslash (`return'a'==foo()` →

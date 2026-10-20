@@ -16,7 +16,7 @@ Two loop anti-patterns:
   copies the whole accumulator on every iteration (quadratic cost). Collect
   the chunks and merge once after the loop.
 - **Length in a `for` condition**: `$i < count($items)` re-evaluates the
-  length on every iteration. Compute it once in the initialiser.
+  length on every iteration. Compute it once in the initializer.
 
 ## Example
 

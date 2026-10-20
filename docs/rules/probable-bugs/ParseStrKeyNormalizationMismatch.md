@@ -6,7 +6,7 @@ title: ParseStrKeyNormalizationMismatch
 
 # ParseStrKeyNormalizationMismatch
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -36,18 +36,18 @@ Reported:
 
 ## Detection
 
-- D1. Resolved parse_str literal query and explicit local output array contains a key with dot/space normalized to underscore. A subsequent unguarded result access uses original key, which is absent after parsing. Ignore bracket syntax and duplicate normalized keys in initial proof.
-- D1d. Require an actual value read of the absent dimension. Exclude assignment targets, unset, by-reference binding or arguments, and calls whose argument contract does not prove a read. Any mutation of the result array in the same containing statement discards the access proof. Query keys with leading whitespace after URL decoding are unsupported and excluded.
-- D1e. All argument uses are excluded because they can involve reference passing. Also exclude increment/decrement, unset and write contexts. Any same-statement mutation or call receiving the result array discards the actual-read proof.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D2a. The access and the parse_str statement must belong to the same variable scope. An access inside a nested closure, arrow function or property hook is not followed, even when an arrow function would capture the parsed array: the name may equally be a parameter or local of the nested scope.
-- D2b. By-reference binding covers the value side of a reference assignment (`$slot = &$q["a.b"]`), a by-reference array item value (`[&$q["a.b"]]`) and the source of a by-reference `foreach`. Each of these creates the dimension rather than reading it, so none is reported. The same holds when a deeper dimension of the access is what gets bound (`$slot = &$q["a.b"]["c"]`). An access that only supplies the key of another by-reference access (`$slot = &$cache[$q["a.b"]]`) is an ordinary read and is reported.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved parse_str literal query and explicit local output array contains a key with dot/space normalized to underscore. A subsequent unguarded result access uses original key, which is absent after parsing. Ignore bracket syntax and duplicate normalized keys in initial proof.
+- Require an actual value read of the absent dimension. Exclude assignment targets, unset, by-reference binding or arguments, and calls whose argument contract does not prove a read. Any mutation of the result array in the same containing statement discards the access proof. Query keys with leading whitespace after URL decoding are unsupported and excluded.
+- All argument uses are excluded because they can involve reference passing. Also exclude increment/decrement, unset and write contexts. Any same-statement mutation or call receiving the result array discards the actual-read proof.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- The access and the parse_str statement must belong to the same variable scope. An access inside a nested closure, arrow function or property hook is not followed, even when an arrow function would capture the parsed array: the name may equally be a parameter or local of the nested scope.
+- By-reference binding covers the value side of a reference assignment (`$slot = &$q["a.b"]`), a by-reference array item value (`[&$q["a.b"]]`) and the source of a by-reference `foreach`. Each of these creates the dimension rather than reading it, so none is reported. The same holds when a deeper dimension of the access is what gets bound (`$slot = &$q["a.b"]["c"]`). An access that only supplies the key of another by-reference access (`$slot = &$cache[$q["a.b"]]`) is an ordinary read and is reported.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

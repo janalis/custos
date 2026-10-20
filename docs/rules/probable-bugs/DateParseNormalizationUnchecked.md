@@ -6,7 +6,7 @@ title: DateParseNormalizationUnchecked
 
 # DateParseNormalizationUnchecked
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. Report createFromFormat on a literal calendar date whose fields require normalization or whose parsing diagnostics are not checked before accepting the parsed value.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- Report createFromFormat on a literal calendar date whose fields require normalization or whose parsing diagnostics are not checked before accepting the parsed value.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Explicit diagnostics validation after the parse in the same function scope, through the static `getLastErrors()` method of `DateTime`/`DateTimeImmutable` or the resolved builtin function `date_get_last_errors()` (its procedural equivalent), intentional overflow, unknown format and input, or invalid parsing already rejected are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Explicit diagnostics validation after the parse in the same function scope, through the static `getLastErrors()` method of `DateTime`/`DateTimeImmutable` or the resolved builtin function `date_get_last_errors()` (its procedural equivalent), intentional overflow, unknown format and input, or invalid parsing already rejected are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

@@ -160,7 +160,7 @@ namespace PHPUnit\Framework {
 - **Abstract restatements of PHPUnit assertions (custos diverges).** A
   trait for test cases may restate an assertion abstractly
   (`abstract public static function assertIsResource(mixed $actual, string $message = ''): void;`)
-  so that static analysers narrow through it, then call
+  so that static analyzers narrow through it, then call
   `$this->assertIsResource($r)`. The test case using the trait satisfies the
   requirement with PHPUnit's own `Assert::assertIsResource()`, so the call
   follows PHPUnit's convention like any other assertion. With
@@ -178,7 +178,7 @@ namespace PHPUnit\Framework {
   `\Symfony\Bundle\FrameworkBundle\Test\`.
 - Null-safe calls (`$obj?->make()`): upstream only checks the plain `->`
   token; treat `?->` as not matching (no report). No fixture covers it.
-- E3 normalises underscores in the whole FQN string (class and method part),
+- E3 normalizes underscores in the whole FQN string (class and method part),
   so a method name containing `_` is affected too; harmless because only the
   prefix is compared.
 - **Late static binding in the fix (custos diverges).** Upstream rewrites

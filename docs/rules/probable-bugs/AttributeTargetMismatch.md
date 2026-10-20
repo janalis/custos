@@ -6,7 +6,7 @@ title: AttributeTargetMismatch
 
 # AttributeTargetMismatch
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.0" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.0" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,16 +29,15 @@ Reported:
 
 ## Detection
 
-- D1. Resolve the attribute class and its builtin Attribute annotation; constant-fold the target bitmask (default TARGET_ALL). Report an application on a class, function, method, property, class constant or parameter whose corresponding bit is absent. This predicts failure of ReflectionAttribute::newInstance, not immediate parse failure. PHP 8.5 property hooks are method targets.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
+- Resolve the attribute class and its builtin Attribute annotation; constant-fold the target bitmask (default TARGET_ALL). Report an application on a class, function, method, property, class constant or parameter whose corresponding bit is absent. This predicts failure of ReflectionAttribute::newInstance, not immediate parse failure. PHP 8.5 property hooks are method targets.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
 A constructor-promoted parameter is also a property declaration. Accept attributes permitting either parameter or property targets at that combined declaration. A parameter is promoted when it carries any promoting modifier: a visibility keyword (`public`, `protected`, `private`), `readonly` (PHP 8.1), an asymmetric set-visibility such as `private(set)` (PHP 8.4), or `final` (PHP 8.5). The modifier does not have to be a visibility keyword. A parameter carrying none of these is a plain parameter and needs the parameter target.
 
-- E1. Skip unresolved attribute declarations and unknown bitmasks. Attribute::IS_REPEATABLE is not a target bit.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore AttributeTargetMismatch` and `@noinspection AttributeTargetMismatch` suppress this inspection.
+- Skip unresolved attribute declarations and unknown bitmasks. Attribute::IS_REPEATABLE is not a target bit.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -46,11 +45,7 @@ No automatic fix. Choosing a repair requires runtime information, error-handling
 
 ## PHP versions
 
-Minimum PHP 8.0. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Minimum PHP 8.0.
 
 ## Configure
 

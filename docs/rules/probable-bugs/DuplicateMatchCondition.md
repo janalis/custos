@@ -6,7 +6,7 @@ title: DuplicateMatchCondition
 
 # DuplicateMatchCondition
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 8.0" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 8.0" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -36,16 +36,16 @@ Reported:
 
 ## Detection
 
-- D1. Report a later match arm condition statically strictly identical to an earlier condition, including resolved references to the same enum case.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
-- D4. A variable condition takes part only when it is a local of a braced function, method or closure body bound by exactly one plain `=` assignment of the variable itself, the assigned expression reads no variable, and the resolved value of that assignment is known. Two conditions repeated inside the same arm are reported, but they do not make the arm unreachable.
+- Report a later match arm condition statically strictly identical to an earlier condition, including resolved references to the same enum case.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- A variable condition takes part only when it is a local of a braced function, method or closure body bound by exactly one plain `=` assignment of the variable itself, the assigned expression reads no variable, and the resolved value of that assignment is known. Two conditions repeated inside the same arm are reported, but they do not make the arm unreachable.
 
 ## Exceptions (no report)
 
-- E1. Unknown values, different strict types and effectful condition expressions are excluded.
-- E3. A variable condition is ignored when the variable has any other binding in its scope: `++`/`--`, a compound, by-reference or destructuring assignment, a second assignment, a `catch`, `foreach`, `global`, `static` or `unset` binding, or a by-reference closure capture. It is ignored as well when its single assignment copies or computes from another variable (`$a = $b`), because that variable may itself have changed. It is also ignored in top-level code and arrow functions, and when the scope contains a variable-variable, `extract()`, `eval` or an include, since those can rebind a local by name.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Unknown values, different strict types and effectful condition expressions are excluded.
+- A variable condition is ignored when the variable has any other binding in its scope: `++`/`--`, a compound, by-reference or destructuring assignment, a second assignment, a `catch`, `foreach`, `global`, `static` or `unset` binding, or a by-reference closure capture. It is ignored as well when its single assignment copies or computes from another variable (`$a = $b`), because that variable may itself have changed. It is also ignored in top-level code and arrow functions, and when the scope contains a variable-variable, `extract()`, `eval` or an include, since those can rebind a local by name.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

@@ -12,9 +12,9 @@ php: { min: "", max: "" }
 
 Flags PHPUnit assertion APIs deprecated in the configured PHPUnit version:
 the optional trailing parameters of `assertEquals()` / `assertNotEquals()`
-(deprecated in 8.0 in favour of dedicated assertions) and the
+(deprecated in 8.0 in favor of dedicated assertions) and the
 `assertFileNotExists()` / `assertDirectoryNotExists()` assertions (deprecated
-in 9.1 in favour of their `...DoesNotExist()` counterparts).
+in 9.1 in favor of their `...DoesNotExist()` counterparts).
 
 ## Detection
 
@@ -98,7 +98,7 @@ ordered `PHPUNIT70 < 71 < 72 < 73 < 74 < 75 < 80 < 81 < 82 < 83 < 84 < 85 <
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `PHP_UNIT_VERSION` | enum (`PHPUNIT70` … `PHPUNIT95`, see ordering above) | `PHPUNIT80` | PHPUnit version targeted by the project. D1/D2 need ≥ `PHPUNIT80`; D3 needs ≥ `PHPUNIT91`. Unset → inferred from the indexed PHPUnit (see Divergences). |
+| `PHP_UNIT_VERSION` | enum (`PHPUNIT70` … `PHPUNIT95`, see ordering above) | `PHPUNIT80` | PHPUnit version targeted by the project. The `assertEquals` extra-argument checks need ≥ `PHPUNIT80`; the renamed file and directory assertions need ≥ `PHPUNIT91`. Unset → inferred from the indexed PHPUnit (see Divergences). |
 
 ## PHP versions
 
@@ -184,7 +184,7 @@ final class ExportTest
   (ranges and severities still match); the case is an accepted conformance
   divergence.
 - PHP 8 named arguments (`assertEquals(1.0, $x, delta: 0.1)`): upstream works
-  purely on argument positions; behaviour with named arguments is unverified.
+  purely on argument positions; behavior with named arguments is unverified.
   custos maps named arguments by parameter name (`delta`, `maxDepth`,
   `canonicalize`, `ignoreCase`) and reports the whole named argument (name
   label included); positional arguments as specified. No upstream fixture

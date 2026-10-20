@@ -16,7 +16,7 @@ Two loop anti-patterns:
   copies the whole accumulator on every iteration (quadratic cost). Collect
   the chunks and merge once after the loop.
 - **Length in a `for` condition**: `$i < count($items)` re-evaluates the
-  length on every iteration. Compute it once in the initialiser.
+  length on every iteration. Compute it once in the initializer.
 
 ## Detection
 
@@ -57,7 +57,7 @@ Two loop anti-patterns:
 - **G7** (custos, see Divergences) With `L` the innermost loop of G5, no
   report when the merge does not accumulate across iterations:
   - `C`'s base variable (`$v` of `$v`, `$v[…]`) is assigned by `L`'s header
-    (foreach key/value, `for` initialiser/step) or by another plain `=`
+    (foreach key/value, `for` initializer/step) or by another plain `=`
     assignment inside `L` (a fresh value each iteration);
   - an index of `C` mentions such a variable (`$form[$id]`: another element
     each iteration);
@@ -98,7 +98,7 @@ Two loop anti-patterns:
   `if`/`elseif`/`else` clause or a `switch` case, within the loop (G4).
 - **E4** Merge outside any loop of the current function (loops in an outer
   function do not count for code in a nested closure).
-- **E5** Length already cached in the initialiser
+- **E5** Length already cached in the initializer
   (`for ($i = 0, $n = count($a); $i < $n; $i++)`), empty condition, length
   call nested deeper than a direct operand (`$i < count($a) - 1`,
   `$i < (count($a))`), method calls (`$i < $c->count()`).
@@ -138,11 +138,11 @@ Kind G: none.
     taken. So an existing `$iMax` makes the fix use `$iMax1`, and two nested
     loops both preferring `loopsMax` get `$loopsMax` and `$loopsMax1`.
   - Replace `L` in `B` with `{v}` (the rest of `B` is untouched).
-  - Insert the initialiser `{v} = {L}` (`{L}` = verbatim original call text):
+  - Insert the initializer `{v} = {L}` (`{L}` = verbatim original call text):
     - if the `for` has at least one initial expression: insert `, ` +
-      initialiser immediately after the last initial expression
+      initializer immediately after the last initial expression
       (`for ($i = 0; …` → `for ($i = 0, $iMax = count($a); …`);
-    - if the initial section is empty: insert the initialiser immediately
+    - if the initial section is empty: insert the initializer immediately
       after the `(` of the `for` (`for (; …` → `for ($iMax = count($a); …`).
   - Examples:
     - `for ($i = 0; $i < count($rows); $i++)` →
@@ -278,7 +278,7 @@ function collect(array $batches, $repo)
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **custos diverges — merges that do not accumulate (G7).** Upstream reports
   every `C = array_merge(…, C, …)` in a loop at error severity, including
@@ -289,7 +289,7 @@ function collect(array $batches, $repo)
   `array_shift()`), none of which can be merged once after the loop (found
   on WordPress, Laravel and Drupal). custos skips them (G7).
 - **Changing loop subjects (custos diverges, F1, E6).** The length is
-  hoisted into the initialiser only when the measured value cannot change
+  hoisted into the initializer only when the measured value cannot change
   while the loop runs. The *parts* of the measured expression are the
   expression itself and everything it is read through: the root array of a
   measured element, the object (chain) holding a measured property, and the

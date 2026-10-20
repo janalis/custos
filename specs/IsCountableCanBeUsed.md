@@ -109,7 +109,7 @@ function sizeOf($bag, $other) {
 
 ## Divergences
 
-- None in behaviour. Upstream's own message mentions `Traversable` while the
+- None in behavior. Upstream's own message mentions `Traversable` while the
   check is about `Countable`; our message names the right interface.
 - **Name resolution (custos diverges):** upstream compares the written last
   segments case-sensitively: it misses `IS_ARRAY($v) || $v instanceof
@@ -121,5 +121,5 @@ function sizeOf($bag, $other) {
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").

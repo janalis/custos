@@ -19,8 +19,11 @@ const (
 	statusFile = ".cache/ea/conformance.json"
 )
 
-// catalogue is a seam for tests: the rule facts are embedded.
-var catalogue = meta.All
+// Seams for tests: the rule facts and descriptions are embedded.
+var (
+	catalogue = meta.All
+	describe  = meta.Describe
+)
 
 func main() { os.Exit(run(".", os.Stdout, os.Stderr)) }
 
@@ -87,7 +90,9 @@ func run(root string, stdout, stderr io.Writer) int {
 			if st == "" {
 				st = "—"
 			}
-			fmt.Fprintf(&b, "| `%s` | %s | %s | %s | %s | %s |\n", r.ID, r.Severity, def, yes(r.HasFix), yes(hasSpec(root, r.ID)), st)
+			// What custos offers (as in the site reference), not the upstream flag.
+			d, _ := describe(r.ID)
+			fmt.Fprintf(&b, "| `%s` | %s | %s | %s | %s | %s |\n", r.ID, r.Severity, def, yes(d.Fix), yes(hasSpec(root, r.ID)), st)
 		}
 	}
 	if err := os.WriteFile(filepath.Join(root, out), []byte(b.String()), 0o644); err != nil {

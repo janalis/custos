@@ -11,9 +11,9 @@ title: MissingArrayInitialization
 Group: [Probable bugs](/rules/#probable-bugs) · PhpStorm name: `MissingArrayInitializationInspection`
 
 Appending to a local array (`$list[] = …`) deep inside nested loops without
-ever initialising it means the variable is undefined (`null`) when nothing is
+ever initializing it means the variable is undefined (`null`) when nothing is
 appended, and its contents leak between outer iterations if it is meant to be
-reset. The array should be initialised explicitly at the right place.
+reset. The array should be initialized explicitly at the right place.
 
 ## Example
 
@@ -61,8 +61,8 @@ foreach ($a as $x) {
 Reported:
 
 <ul>
-<li>line 5: Array &#39;$bucket&#39; is never initialised; initialise it before the loops.</li>
-<li>line 6: Array &#39;$bucket&#39; is never initialised; initialise it before the loops.</li>
+<li>line 5: Array &#39;$bucket&#39; is never initialized; initialize it before the loops.</li>
+<li>line 6: Array &#39;$bucket&#39; is never initialized; initialize it before the loops.</li>
 </ul>
 
 ## Configure

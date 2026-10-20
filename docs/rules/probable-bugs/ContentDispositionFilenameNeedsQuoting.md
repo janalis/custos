@@ -6,7 +6,7 @@ title: ContentDispositionFilenameNeedsQuoting
 
 # ContentDispositionFilenameNeedsQuoting
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,14 +29,13 @@ Reported:
 
 ## Detection
 
-- D1. Parse a literal Content-Disposition header and identify an unquoted filename parameter containing characters outside HTTP token grammar, including whitespace. Report the full header call. Split the header value into parameters only on semicolons outside double-quoted strings, honouring backslash escapes inside them, so `; filename=` text inside another parameter's quoted value is not a filename parameter. Recognize filename-star as separate syntax.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
+- Parse a literal Content-Disposition header and identify an unquoted filename parameter containing characters outside HTTP token grammar, including whitespace. Report the full header call. Split the header value into parameters only on semicolons outside double-quoted strings, honouring backslash escapes inside them, so `; filename=` text inside another parameter's quoted value is not a filename parameter. Recognize filename-star as separate syntax.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Already quoted filenames, token-safe filenames, RFC extended filename parameters, unknown values, ambiguous multiple filename parameters and header values with an unterminated quoted string (parameter boundaries unknown) are excluded.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore ContentDispositionFilenameNeedsQuoting` and `@noinspection ContentDispositionFilenameNeedsQuoting` suppress this inspection.
+- Already quoted filenames, token-safe filenames, RFC extended filename parameters, unknown values, ambiguous multiple filename parameters and header values with an unterminated quoted string (parameter boundaries unknown) are excluded.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -46,11 +45,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Available throughout PHP 5.3–8.5. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Available throughout PHP 5.3–8.5.
 
 ## Configure
 

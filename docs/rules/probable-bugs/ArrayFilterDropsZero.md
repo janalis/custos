@@ -6,7 +6,7 @@ title: ArrayFilterDropsZero
 
 # ArrayFilterDropsZero
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. Report builtin array_filter with its callback omitted or explicitly null, when the effective entries of a literal array contain integer zero or string zero and another nonempty scalar value. Later entries replacing the same key determine the effective value.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- Report builtin array_filter with its callback omitted or explicitly null, when the effective entries of a literal array contain integer zero or string zero and another nonempty scalar value. Later entries replacing the same key determine the effective value.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not infer intent from an unknown input array; an explicit non-null predicate suppresses the report. An explicit null callback retains PHP’s default filtering behavior.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Do not infer intent from an unknown input array; an explicit non-null predicate suppresses the report. An explicit null callback retains PHP’s default filtering behavior.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

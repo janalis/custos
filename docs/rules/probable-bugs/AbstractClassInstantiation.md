@@ -6,7 +6,7 @@ title: AbstractClassInstantiation
 
 # AbstractClassInstantiation
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,16 +29,15 @@ Reported:
 
 ## Detection
 
-- D1. Report a new expression whose resolved class declaration is abstract, including a literal class-string traced to that declaration.
-- D1a. `new self` counts as resolved when it is evaluated by the body of a method declared in a named abstract class: the instantiated class is then that enclosing class.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
+- Report a new expression whose resolved class declaration is abstract, including a literal class-string traced to that declaration.
+- `new self` counts as resolved when it is evaluated by the body of a method declared in a named abstract class: the instantiated class is then that enclosing class.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Dynamic class names, unresolved ancestors and factory calls are excluded.
-- E1a. `new static` and `new parent` are never resolved. `new self` stays unresolved inside a closure or arrow function (its class scope can be rebound at run time), inside a trait (it names the using class), inside an anonymous class, in a parameter default or attribute argument, and outside a class method.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore AbstractClassInstantiation` and `@noinspection AbstractClassInstantiation` suppress this inspection.
+- Dynamic class names, unresolved ancestors and factory calls are excluded.
+- `new static` and `new parent` are never resolved. `new self` stays unresolved inside a closure or arrow function (its class scope can be rebound at run time), inside a trait (it names the using class), inside an anonymous class, in a parameter default or attribute argument, and outside a class method.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -46,11 +45,7 @@ No automatic fix. Choosing a repair requires runtime information, error-handling
 
 ## PHP versions
 
-Available throughout PHP 5.3–8.5. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Available throughout PHP 5.3–8.5.
 
 ## Configure
 

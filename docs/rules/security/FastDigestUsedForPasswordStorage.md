@@ -6,7 +6,7 @@ title: FastDigestUsedForPasswordStorage
 
 # FastDigestUsedForPasswordStorage
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Security](/rules/#security)
 
@@ -28,15 +28,15 @@ Reported:
 
 ## Detection
 
-- D1. Report a password input positively established by an HTML password-field mapping or explicit annotated password parameter reaching md5/sha1/hash and then a persisted credential field.
-- D4. Recognize password inputs only through an exact `@param password-string $parameter` annotation on their declaring callable or a positively resolved HTML password-field mapping. Recognize persistence only through a resolved project callable explicitly documented with `@custos-credential-store`. Do not infer either contract from identifiers.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report a password input positively established by an HTML password-field mapping or explicit annotated password parameter reaching md5/sha1/hash and then a persisted credential field.
+- Recognize password inputs only through an exact `@param password-string $parameter` annotation on their declaring callable or a positively resolved HTML password-field mapping. Recognize persistence only through a resolved project callable explicitly documented with `@custos-credential-store`. Do not infer either contract from identifiers.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. General integrity checks, hash-based message authentication, password_hash, variable-name-only guesses and unknown persistence are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- General integrity checks, hash-based message authentication, password_hash, variable-name-only guesses and unknown persistence are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

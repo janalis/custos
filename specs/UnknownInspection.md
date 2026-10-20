@@ -19,7 +19,7 @@ corrected or deleted.
 - **D1** Scan block comments — both doc comments `/** ... */` and plain block
   comments `/* ... */` — for the tag `@noinspection` (exact, case-sensitive).
   Line comments (`//`, `#`) are not scanned. Each occurrence of the tag in a
-  comment is analysed separately.
+  comment is analyzed separately.
 - **D2** Tag value: the text after `@noinspection` up to the end of that line
   (or the comment terminator `*/`, whichever comes first), trimmed.
 - **D3** Candidates: every identifier-like word (`[A-Za-z_][A-Za-z0-9_]*`) in
@@ -77,7 +77,7 @@ corrected or deleted.
 - Range: the `@noinspection` tag text itself (13 characters, from `@` to the
   final `n`).
 - Severity: info.
-- Message: `Suppressed inspection not recognised: {names}.` where `{names}` is
+- Message: `Suppressed inspection not recognized: {names}.` where `{names}` is
   the list of unknown candidates joined by `, ` in source order, each listed once.
 - One report per tag, even if several names are unknown.
 
@@ -98,9 +98,9 @@ None.
 ```php
 <?php
 function audit() {
-    /** <weak_warning descr="Suppressed inspection not recognised: PhpLegacyCheckInspector.">@noinspection</weak_warning> PhpLegacyCheckInspector */
-    /* <weak_warning descr="Suppressed inspection not recognised: TypoNameInspection.">@noinspection</weak_warning> TypoNameInspection */
-    /** <weak_warning descr="Suppressed inspection not recognised: PhpGoneAway.">@noinspection</weak_warning> PhpUnused, PhpGoneAway -- kept for BC */
+    /** <weak_warning descr="Suppressed inspection not recognized: PhpLegacyCheckInspector.">@noinspection</weak_warning> PhpLegacyCheckInspector */
+    /* <weak_warning descr="Suppressed inspection not recognized: TypoNameInspection.">@noinspection</weak_warning> TypoNameInspection */
+    /** <weak_warning descr="Suppressed inspection not recognized: PhpGoneAway.">@noinspection</weak_warning> PhpUnused, PhpGoneAway -- kept for BC */
 
     /** @noinspection PhpUndefinedMethodInspection */
     /** @noinspection UnnecessarySemicolonInspection */

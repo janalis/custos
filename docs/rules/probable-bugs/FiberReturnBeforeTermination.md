@@ -6,7 +6,7 @@ title: FiberReturnBeforeTermination
 
 # FiberReturnBeforeTermination
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.1" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.1" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,15 +14,15 @@ Identify getReturn on a locally allocated Fiber after start of a callback proven
 
 ## Detection
 
-- D1. Report getReturn on a locally allocated Fiber after start of a callback proven to suspend before termination, when nothing can have completed the fiber before the read. The proof requires that the receiver variable is named only by its allocation, by start calls that dominate the read, and by the read itself in all code that can run before the read: everything textually before it in the same variable scope, plus the whole outermost enclosing loop when the read sits in one.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report getReturn on a locally allocated Fiber after start of a callback proven to suspend before termination, when nothing can have completed the fiber before the read. The proof requires that the receiver variable is named only by its allocation, by start calls that dominate the read, and by the read itself in all code that can run before the read: everything textually before it in the same variable scope, plus the whole outermost enclosing loop when the read sits in one.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Any other mention of the receiver variable before the read abandons the proof, wherever it sits: a resume or throw inside a loop, branch, try block or arrow function, a state query such as isTerminated or isSuspended guarding the read, an alias assignment, an array or callable holding the fiber, or the fiber passed as an argument. Variable variables and calls to compact, extract or get_defined_vars in that code abandon it too. Nested functions, methods, property hooks and closures have their own variables and are not searched.
-- E3. Both `@custos-ignore FiberReturnBeforeTermination` and `@noinspection FiberReturnBeforeTermination` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Any other mention of the receiver variable before the read abandons the proof, wherever it sits: a resume or throw inside a loop, branch, try block or arrow function, a state query such as isTerminated or isSuspended guarding the read, an alias assignment, an array or callable holding the fiber, or the fiber passed as an argument. Variable variables and calls to compact, extract or get_defined_vars in that code abandon it too. Nested functions, methods, property hooks and closures have their own variables and are not searched.
+- Both `@custos-ignore FiberReturnBeforeTermination` and `@noinspection FiberReturnBeforeTermination` suppress this native rule.
 
 ## Fix
 

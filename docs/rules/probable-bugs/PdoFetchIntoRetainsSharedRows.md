@@ -6,7 +6,7 @@ title: PdoFetchIntoRetainsSharedRows
 
 # PdoFetchIntoRetainsSharedRows
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,18 +14,18 @@ Identify array append of an unchanged fetch return in a loop when statement FETC
 
 ## Detection
 
-- D1. Report array append of an unchanged fetch return in a loop when statement FETCH_INTO mode targets same known object on every fetch. Cloned snapshots and immediate single-row consumption exclude.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D1a. The statement is a `PDOStatement` by its resolved type, or a local variable whose latest write is an unconditional plain assignment of a builtin `PDO::query()` result. The second form keeps the rule working on targets below PHP 8.0, where `PDO::query()` carries no native return type.
-- D1b. The governing `setFetchMode()` call is the last one on the statement that runs unconditionally before the loop (or whose success guards the loop). It must select `PDO::FETCH_INTO` with an object target.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report array append of an unchanged fetch return in a loop when statement FETCH_INTO mode targets same known object on every fetch. Cloned snapshots and immediate single-row consumption exclude.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- The statement is a `PDOStatement` by its resolved type, or a local variable whose latest write is an unconditional plain assignment of a builtin `PDO::query()` result. The second form keeps the rule working on targets below PHP 8.0, where `PDO::query()` carries no native return type.
+- The governing `setFetchMode()` call is the last one on the statement that runs unconditionally before the loop (or whose success guards the loop). It must select `PDO::FETCH_INTO` with an object target.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E3. No report when another `setFetchMode()` call on the same statement follows the governing call and either sits on a conditional path before the loop or runs inside the fetch loop or a loop enclosing it: the mode or its target may differ between fetches. Calls after the outermost loop are irrelevant.
-- E4. No report when the append is followed, in its own statement list or an enclosing one inside the fetch loop, by an unconditional `return`, `throw`, `exit` or a `break` that leaves the fetch loop: at most one row is retained, so nothing is shared. A `break` that only leaves an inner loop or a `switch` does not count, and neither does a conditional exit.
-- E2. Both `@custos-ignore PdoFetchIntoRetainsSharedRows` and `@noinspection PdoFetchIntoRetainsSharedRows` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- No report when another `setFetchMode()` call on the same statement follows the governing call and either sits on a conditional path before the loop or runs inside the fetch loop or a loop enclosing it: the mode or its target may differ between fetches. Calls after the outermost loop are irrelevant.
+- No report when the append is followed, in its own statement list or an enclosing one inside the fetch loop, by an unconditional `return`, `throw`, `exit` or a `break` that leaves the fetch loop: at most one row is retained, so nothing is shared. A `break` that only leaves an inner loop or a `switch` does not count, and neither does a conditional exit.
+- Both `@custos-ignore PdoFetchIntoRetainsSharedRows` and `@noinspection PdoFetchIntoRetainsSharedRows` suppress this native rule.
 
 ## Fix
 

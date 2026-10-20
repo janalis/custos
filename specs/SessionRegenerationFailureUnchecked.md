@@ -38,7 +38,7 @@ None. Choosing a repair requires intent or additional runtime information.
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| authenticationKeys | list | `["authenticated"]` | Configure the explicit policy evidence described in D1. |
+| authenticationKeys | list | `["authenticated"]` | `$_SESSION` keys whose assignment of `true` marks a login; only regeneration right before such an assignment is checked. |
 
 ## PHP versions
 

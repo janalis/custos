@@ -6,7 +6,7 @@ title: DomMissingAttributeCheckedAsNull
 
 # DomMissingAttributeCheckedAsNull
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. DOMElement getAttribute result is compared strictly with null, directly or via unchanged local binding. Both === and !== are covered. Do not report comparisons to empty string or tests using hasAttribute.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- DOMElement getAttribute result is compared strictly with null, directly or via unchanged local binding. Both === and !== are covered. Do not report comparisons to empty string or tests using hasAttribute.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Do not report a call that a nullsafe operator can skip: either the getAttribute call itself uses `?->`, or an earlier property fetch or method call in the same unparenthesised member chain does. Such an expression yields null whenever the nullsafe receiver is null, so the null comparison is meaningful and hasAttribute is not an equivalent test. This also applies when the result reaches the comparison through a local binding.
-- E3. Both @custos-ignore DomMissingAttributeCheckedAsNull and @noinspection DomMissingAttributeCheckedAsNull suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Do not report a call that a nullsafe operator can skip: either the getAttribute call itself uses `?->`, or an earlier property fetch or method call in the same unparenthesised member chain does. Such an expression yields null whenever the nullsafe receiver is null, so the null comparison is meaningful and hasAttribute is not an equivalent test. This also applies when the result reaches the comparison through a local binding.
+- Both @custos-ignore DomMissingAttributeCheckedAsNull and @noinspection DomMissingAttributeCheckedAsNull suppress this native rule.
 
 ## Fix
 

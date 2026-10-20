@@ -179,7 +179,7 @@ interface Printer
 - **Namespaced classes**: since PHP 5.3.3 a method named after its class is
   *not* a constructor when the class lives in a namespace; upstream still
   reports it and the fix would turn a plain method into a constructor
-  (behaviour change). No upstream fixture covers this. custos skips classes
+  (behavior change). No upstream fixture covers this. custos skips classes
   declared inside a non-global namespace.
 - **Enums**: upstream only excludes traits and interfaces, so an `enum Foo`
   with a method `Foo()` would be reported, although enums cannot have

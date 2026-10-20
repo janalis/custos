@@ -6,7 +6,7 @@ title: ReadLoopProcessesEofFailure
 
 # ReadLoopProcessesEofFailure
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 7.0" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 7.0" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,14 +29,14 @@ Reported:
 
 ## Detection
 
-- D1. A while condition is !feof(simpleLocalHandle); under declare(strict_types=1) (the directive name is case-insensitive), its body unconditionally assigns fgets(sameHandle) to a local then passes it to resolved strlen, trim or strtoupper without a false guard, or directly nests fgets in that consumer. These consumers require strings and reject the false read result in strict mode. Highlight loop condition. Echo and coercive consumers are excluded because false can be harmless there.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- A while condition is !feof(simpleLocalHandle); under declare(strict_types=1) (the directive name is case-insensitive), its body unconditionally assigns fgets(sameHandle) to a local then passes it to resolved strlen, trim or strtoupper without a false guard, or directly nests fgets in that consumer. These consumers require strings and reject the false read result in strict mode. Highlight loop condition. Echo and coercive consumers are excluded because false can be harmless there.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

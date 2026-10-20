@@ -89,7 +89,7 @@ class Node
     public function rewind(array $list)
     {
         foreach ($list as $item) {
-            $item = $item->next();      // declaring statement of local $item: right side exempt (E4)
+            $item = $item->next();      // declaring statement of local $item: right side exempt
             $item->value = 1;
         }
     }

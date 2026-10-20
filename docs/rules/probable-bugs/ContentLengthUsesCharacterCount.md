@@ -6,7 +6,7 @@ title: ContentLengthUsesCharacterCount
 
 # ContentLengthUsesCharacterCount
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -36,16 +36,16 @@ Reported:
 
 ## Detection
 
-- D1. Report Content-Length built from mb_strlen/grapheme_strlen of the exact response body later emitted without transformation.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- Report Content-Length built from mb_strlen/grapheme_strlen of the exact response body later emitted without transformation.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. ASCII-proven bodies, post-length compression/transformation making either length invalid, byte strlen and unknown body identity are excluded.
-- E2. An `mb_strlen` call whose encoding argument resolves to a byte-per-character encoding already measures bytes and is not reported. The name is compared case-insensitively against an explicit list: `8bit`, `binary`, `ASCII`, `US-ASCII`, `latin1`, `ISO-8859-1` to `ISO-8859-10`, `ISO-8859-13` to `ISO-8859-16`, `Windows-1251`, `Windows-1252`, `Windows-1254` and their `CP125x` spellings. Multibyte, unknown and non-constant encodings stay reported.
-- E3. The measured body must be the only output after the header: any further `echo`, `print` or non-empty inline template text in the same scope, or an `echo` nested in a loop of that scope, leaves the response length unproven and produces no report.
-- E4. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- ASCII-proven bodies, post-length compression/transformation making either length invalid, byte strlen and unknown body identity are excluded.
+- An `mb_strlen` call whose encoding argument resolves to a byte-per-character encoding already measures bytes and is not reported. The name is compared case-insensitively against an explicit list: `8bit`, `binary`, `ASCII`, `US-ASCII`, `latin1`, `ISO-8859-1` to `ISO-8859-10`, `ISO-8859-13` to `ISO-8859-16`, `Windows-1251`, `Windows-1252`, `Windows-1254` and their `CP125x` spellings. Multibyte, unknown and non-constant encodings stay reported.
+- The measured body must be the only output after the header: any further `echo`, `print` or non-empty inline template text in the same scope, or an `echo` nested in a loop of that scope, leaves the response length unproven and produces no report.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

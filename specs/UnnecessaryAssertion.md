@@ -327,11 +327,11 @@ abstract class CartTest
   compares the assertion, `expects` and `any` names case-sensitively, so
   `$this->AssertNull($this->clear())` is not reported although PHP calls the
   same method. custos compares them case-insensitively.
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analyzed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - **Rebound variables — custos refinement, not upstream.** Upstream value
   discovery only reads plain assignments, so
   `$box = make(); foreach ($rows as $box) { assertInstanceOf(Box::class, $box); }`
-  or a variable later filled through a by-reference parameter is analysed
+  or a variable later filled through a by-reference parameter is analyzed
   with its first value and called redundant. custos makes the result unknown
   (V3). Calls it cannot resolve count as possibly by-reference, which can
   hide a true positive when the variable is also passed to an unknown

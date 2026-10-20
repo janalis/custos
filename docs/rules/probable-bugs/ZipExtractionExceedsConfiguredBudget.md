@@ -6,7 +6,7 @@ title: ZipExtractionExceedsConfiguredBudget
 
 # ZipExtractionExceedsConfiguredBudget
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. Enabled policy requires maxEntries and maxExpandedBytes. Report extractTo in a known local archive lifecycle unless a terminating numFiles > configured-count guard and a complete ascending index loop bound extraction. The supported loop starts an accumulator at zero immediately before traversal, reads statIndex for every index, separately rejects false metadata and negative size, rejects size > configured-byte-limit minus accumulated bytes before adding the size, and increments every index once. A guard rejects only when its body always abandons the extraction: it throws, returns, exits, or jumps with a literal `break`/`continue` level that leaves a loop enclosing both the validation and the extraction. For the three guards inside the traversal that means level 2 or more, because `continue` or `break` aimed at the traversal itself only skips or truncates the accounting while extractTo still writes every entry. A `goto`, a computed jump level, or such a jump anywhere in the guard body removes the proof; jumps confined to loops, switches or callables nested in the body are ignored. This proves both total size and overflow safety. Earlier direct statIndex reads alone are insufficient. Unknown external validation receiving the archive is excluded rather than certified safe; metadata budgets do not guarantee runtime decompressor resource limits.
-- D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Enabled policy requires maxEntries and maxExpandedBytes. Report extractTo in a known local archive lifecycle unless a terminating numFiles > configured-count guard and a complete ascending index loop bound extraction. The supported loop starts an accumulator at zero immediately before traversal, reads statIndex for every index, separately rejects false metadata and negative size, rejects size > configured-byte-limit minus accumulated bytes before adding the size, and increments every index once. A guard rejects only when its body always abandons the extraction: it throws, returns, exits, or jumps with a literal `break`/`continue` level that leaves a loop enclosing both the validation and the extraction. For the three guards inside the traversal that means level 2 or more, because `continue` or `break` aimed at the traversal itself only skips or truncates the accounting while extractTo still writes every entry. A `goto`, a computed jump level, or such a jump anywhere in the guard body removes the proof; jumps confined to loops, switches or callables nested in the body are ignored. This proves both total size and overflow safety. Earlier direct statIndex reads alone are insufficient. Unknown external validation receiving the archive is excluded rather than certified safe; metadata budgets do not guarantee runtime decompressor resource limits.
+- Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
+- A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
 
 ## Fix
 

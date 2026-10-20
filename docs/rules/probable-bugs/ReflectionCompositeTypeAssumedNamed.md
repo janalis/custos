@@ -6,7 +6,7 @@ title: ReflectionCompositeTypeAssumedNamed
 
 # ReflectionCompositeTypeAssumedNamed
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.0" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.0" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,15 +29,14 @@ Reported:
 
 ## Detection
 
-- D1. Resolve getType on a ReflectionParameter, ReflectionProperty or getReturnType on a ReflectionFunctionAbstract for a known union type (PHP 8.0+) or intersection type (PHP 8.1+). Report getName invoked on that result, because only ReflectionNamedType provides it. Follow local assignments and indexed parameter selection.
+- Resolve getType on a ReflectionParameter, ReflectionProperty or getReturnType on a ReflectionFunctionAbstract for a known union type (PHP 8.0+) or intersection type (PHP 8.1+). Report getName invoked on that result, because only ReflectionNamedType provides it. Follow local assignments and indexed parameter selection.
 - D1a. A declared type is composite when it has an intersection (`&`, including a parenthesised group inside a union) or when at least two union members remain after discarding a leading `?` and any `null` member. `?T`, `T|null` and `null|T` are a single nullable named type and are never reported; `int|string|null` is.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
-- E1. Calls on members returned by getTypes and unknown reflected declarations are excluded. Nullable single named types remain ReflectionNamedType (D1a).
-- E1a. No report when the conditions guarding the call prove the receiver value is a ReflectionNamedType. A test proves it when it is `$t instanceof ReflectionNamedType` (or `is_a()` with that class) and holds, or when it is such a test for the composite class the declared type reflects as (ReflectionUnionType for a union, ReflectionIntersectionType for a pure intersection) and fails. Negation with `!`, parentheses, comparisons with `true`/`false`, a local holding the test's result, `&&`/`and` and `||`/`or` combine these the usual way: a true conjunction or a false disjunction needs one proving operand, the opposite needs both. Guarding positions:
+- Calls on members returned by getTypes and unknown reflected declarations are excluded. Nullable single named types remain ReflectionNamedType (D1a).
+- No report when the conditions guarding the call prove the receiver value is a ReflectionNamedType. A test proves it when it is `$t instanceof ReflectionNamedType` (or `is_a()` with that class) and holds, or when it is such a test for the composite class the declared type reflects as (ReflectionUnionType for a union, ReflectionIntersectionType for a pure intersection) and fails. Negation with `!`, parentheses, comparisons with `true`/`false`, a local holding the test's result, `&&`/`and` and `||`/`or` combine these the usual way: a true conjunction or a false disjunction needs one proving operand, the opposite needs both. Guarding positions:
   - the body of an `if`/`elseif`/`while` whose condition proves it when true, and any later `elseif` condition, `elseif` body or `else` body of a chain in which an earlier condition proves it when false;
   - the matching arm of a ternary (including the right side of the short form);
   - the right operand of `&&`/`and` (left proves when true) or `||`/`or` (left proves when false);
@@ -45,7 +44,7 @@ Reported:
   - any code after a test whose other side always leaves (`if (!$t instanceof ReflectionNamedType) { return; }`, with or without later `elseif`/`else` arms, or an `else` that leaves), or after a builtin `assert()` of a proving condition.
 
   The test must concern the same unmodified receiver value: reassigning the variable between the test and the call, a test on another value, a dynamic class operand, a guard in an outer function scope, a branch that falls through or a jump label between the test and the call keep the report. The wrong side of a guard (`if ($t instanceof ReflectionUnionType) { $t->getName(); }`, the `else` of a ReflectionNamedType test) is still reported.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore ReflectionCompositeTypeAssumedNamed` and `@noinspection ReflectionCompositeTypeAssumedNamed` suppress this inspection.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -55,11 +54,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Minimum PHP 8.0. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Minimum PHP 8.0.
 
 ## Configure
 

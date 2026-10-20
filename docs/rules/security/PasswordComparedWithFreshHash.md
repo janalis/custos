@@ -6,7 +6,7 @@ title: PasswordComparedWithFreshHash
 
 # PasswordComparedWithFreshHash
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.5" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.5" />
 
 Group: [Security](/rules/#security)
 
@@ -36,15 +36,15 @@ Reported:
 
 ## Detection
 
-- D1. Report password_hash result compared for equality with a stored string hash to decide password acceptance.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report password_hash result compared for equality with a stored string hash to decide password acceptance.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. password_verify, hashes used only for storage, explicit non-password comparison and unknown builtin targets are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
-- E3. A comparison whose other operand is known to be `false`, `null`, `true`, an integer or float literal, an array literal or the empty string is a hashing-failure or sanity check, not a comparison with a stored hash. This holds for the operand as written and for a local variable resolved to such a value, and whether the fresh hash is written inline or read from a variable. No report, hence no fix.
+- password_verify, hashes used only for storage, explicit non-password comparison and unknown builtin targets are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- A comparison whose other operand is known to be `false`, `null`, `true`, an integer or float literal, an array literal or the empty string is a hashing-failure or sanity check, not a comparison with a stored hash. This holds for the operand as written and for a local variable resolved to such a value, and whether the fresh hash is written inline or read from a variable. No report, hence no fix.
 
 ## Fix
 

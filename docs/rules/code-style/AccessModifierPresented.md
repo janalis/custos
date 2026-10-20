@@ -92,7 +92,7 @@ Reported:
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | ANALYZE_INTERFACES | bool | true | When false, interface declarations are not inspected at all. |
-| ANALYZE_CONSTANTS | bool | true | When false, class constants are never reported (D3 disabled). |
+| ANALYZE_CONSTANTS | bool | true | When false, class constants are never reported. |
 
 ## Configure
 

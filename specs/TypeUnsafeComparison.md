@@ -34,7 +34,7 @@ string literal here).
   parentheses from `O`. The literal's *contents* are the raw text between the
   delimiters (escapes not decoded).
 - **D2** *Object in string context*: infer the type of `O`, drop unknown
-  parts, and normalise each part: any array type (`X[]`) → `array`; scalar /
+  parts, and normalize each part: any array type (`X[]`) → `array`; scalar /
   pseudo types (`int`, `integer`, `string`, `bool`, `boolean`, `true`,
   `false`, `float`, `null`, `void`, `mixed`, `callable`, `resource`,
   `iterable`, `object`, `static`, `self`, `$this`, matched
@@ -151,7 +151,7 @@ At most one report per expression (M, S or H).
   accounted for by declarations PHP enforces. It must be a local of a
   function, method, closure or arrow function (top-level code is never
   stable: any called function can rebind a global; property hooks are not
-  analysed), and:
+  analyzed), and:
   - it is a parameter with a native type, not taken by reference; or it is
     not a parameter and starts undefined — a variable a closure imports
     with `use`, one an arrow function captures, and superglobals are not
@@ -277,7 +277,7 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, st
   numeric-string grammar, and skips the fix when the value is not static
   (D3). These comparisons get the info-level report instead.
 - **`\Closure` (custos diverges).** Upstream lists `\Closure` among the
-  comparable objects but first normalises that type to `callable`, so the
+  comparable objects but first normalizes that type to `callable`, so the
   entry never matches: `$onDone == $handler` with two closures gets the
   info report, and `$onDone == 'x'` is treated as a scalar comparison
   (kind S fix). custos keeps `\Closure` as a class name, so closure

@@ -6,7 +6,7 @@ title: SodiumSecretboxNonceReused
 
 # SodiumSecretboxNonceReused
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 7.2" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 7.2" />
 
 Group: [Security](/rules/#security)
 
@@ -14,15 +14,15 @@ Identify the second secretbox encryption on same proven key and nonce when plain
 
 ## Detection
 
-- D1. Report the second secretbox encryption on same proven key and nonce when plaintexts are proven distinct. Identical plaintexts, unknown equality, new nonce and new key exclude.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
-- D4. A write to the nonce or key variable between the two encryptions ends the proof, whatever its form: plain or compound assignment, a `[...]`/`list(...)` destructuring slot, a `foreach` key or value variable, an offset write such as `$nonce[0] = ...`, `++`/`--`, a reference alias, an argument bound to a by-reference parameter of a resolved callee, `extract()`/`parse_str()`, or an assignment through a variable variable. Only an earlier encryption located after the latest such write, with the same nonce and key expressions and a different known plaintext, can still justify a report.
+- Report the second secretbox encryption on same proven key and nonce when plaintexts are proven distinct. Identical plaintexts, unknown equality, new nonce and new key exclude.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- A write to the nonce or key variable between the two encryptions ends the proof, whatever its form: plain or compound assignment, a `[...]`/`list(...)` destructuring slot, a `foreach` key or value variable, an offset write such as `$nonce[0] = ...`, `++`/`--`, a reference alias, an argument bound to a by-reference parameter of a resolved callee, `extract()`/`parse_str()`, or an assignment through a variable variable. Only an earlier encryption located after the latest such write, with the same nonce and key expressions and a different known plaintext, can still justify a report.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore SodiumSecretboxNonceReused` and `@noinspection SodiumSecretboxNonceReused` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore SodiumSecretboxNonceReused` and `@noinspection SodiumSecretboxNonceReused` suppress this native rule.
 
 ## Fix
 

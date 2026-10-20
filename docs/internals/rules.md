@@ -123,10 +123,10 @@ Default: `✓` enabled by default, `exp.` experimental (disabled upstream and of
 | `DynamicCallsToScopeIntrospection` | warning | ✓ |  | ✓ | pass |
 | `ElvisOperatorCanBeUsed` | info | ✓ | ✓ | ✓ | pass |
 | `GetClassUsage` | warning | ✓ |  | ✓ | pass |
-| `GetDebugTypeCanBeUsed` | info | ✓ | ✓ | ✓ | pass |
+| `GetDebugTypeCanBeUsed` | info | ✓ |  | ✓ | pass |
 | `InstanceofCanBeUsed` | warning | ✓ | ✓ | ✓ | pass |
 | `IsCountableCanBeUsed` | info | ✓ |  | ✓ | pass |
-| `IsIterableCanBeUsed` | info | ✓ |  | ✓ | pass |
+| `IsIterableCanBeUsed` | info | ✓ | ✓ | ✓ | pass |
 | `NullCoalescingOperatorCanBeUsed` | info | ✓ | ✓ | ✓ | pass |
 | `PowerOperatorCanBeUsed` | warning | ✓ | ✓ | ✓ | pass |
 | `ReturnTypeCanBeDeclared` | info | ✓ | ✓ | ✓ | pass |
@@ -158,7 +158,7 @@ Default: `✓` enabled by default, `exp.` experimental (disabled upstream and of
 | `CaseInsensitiveStringFunctionsMissUse` | warning | ✓ | ✓ | ✓ | pass |
 | `FixedTimeStartWith` | warning |  | ✓ | ✓ | pass |
 | `InArrayMissUse` | warning | ✓ | ✓ | ✓ | pass |
-| `NotOptimalRegularExpressions` | warning | ✓ |  | ✓ | pass |
+| `NotOptimalRegularExpressions` | warning | ✓ | ✓ | ✓ | pass |
 | `PackedHashtableOptimization` | info | ✓ |  | ✓ | pass |
 | `SlowArrayOperationsInLoop` | error | ✓ | ✓ | ✓ | pass |
 | `StrStrUsedAsStrPos` | warning | ✓ | ✓ | ✓ | pass |
@@ -331,7 +331,7 @@ Default: `✓` enabled by default, `exp.` experimental (disabled upstream and of
 | `ImagickFrameIndexPastEnd` | error | ✓ |  | ✓ | N/A |
 | `ImagickResizeStatusUsedAsImage` | warning | ✓ |  | ✓ | N/A |
 | `ImagickSingleBlobDropsRequiredFrames` | warning |  |  | ✓ | N/A |
-| `ImmutableDateResultIgnored` | warning | ✓ |  | ✓ | N/A |
+| `ImmutableDateResultIgnored` | warning | ✓ | ✓ | ✓ | N/A |
 | `IncorrectRandomRange` | error | ✓ |  | ✓ | pass |
 | `IncrementalInflateEncodingMismatch` | warning | ✓ |  | ✓ | N/A |
 | `InfinityLoop` | error | ✓ |  | ✓ | pass |
@@ -513,7 +513,7 @@ Default: `✓` enabled by default, `exp.` experimental (disabled upstream and of
 | `StringsFirstCharactersCompare` | error | ✓ | ✓ | ✓ | pass |
 | `StrtokStateClobbered` | warning | ✓ |  | ✓ | N/A |
 | `SuspiciousAssignments` | error | ✓ |  | ✓ | pass |
-| `SuspiciousBinaryOperation` | error | ✓ |  | ✓ | pass |
+| `SuspiciousBinaryOperation` | error | ✓ | ✓ | ✓ | pass |
 | `SuspiciousFunctionCalls` | error | ✓ |  | ✓ | pass |
 | `SuspiciousLoop` | error | ✓ |  | ✓ | pass |
 | `SuspiciousReturn` | error | ✓ |  | ✓ | pass |
@@ -543,7 +543,7 @@ Default: `✓` enabled by default, `exp.` experimental (disabled upstream and of
 | `UnreachableCatchClause` | warning | ✓ |  | ✓ | N/A |
 | `UnserializeFalseAmbiguity` | warning | ✓ |  | ✓ | N/A |
 | `UntrustedForwardedClientAddress` | warning |  |  | ✓ | N/A |
-| `UsingInclusionOnceReturnValue` | error | ✓ | ✓ | ✓ | pass |
+| `UsingInclusionOnceReturnValue` | error | ✓ |  | ✓ | pass |
 | `UsortDiscardsRequiredKeys` | warning |  | ✓ | ✓ | N/A |
 | `Utf8ByteTruncation` | warning |  |  | ✓ | N/A |
 | `ValidatedBooleanFalseRejectedAsInvalid` | warning |  |  | ✓ | N/A |
@@ -631,7 +631,7 @@ Default: `✓` enabled by default, `exp.` experimental (disabled upstream and of
 | Rule | Severity | Default | Fix | Spec | EA conformance |
 | :--- | :--- | :---: | :---: | :---: | :---: |
 | `JsonEncodingApiUsage` | info | ✓ | ✓ | ✓ | pass |
-| `TypeUnsafeArraySearch` | info | ✓ | ✓ | ✓ | pass |
+| `TypeUnsafeArraySearch` | info | ✓ |  | ✓ | pass |
 | `TypeUnsafeComparison` | warning | ✓ | ✓ | ✓ | pass |
 
 ## Unused

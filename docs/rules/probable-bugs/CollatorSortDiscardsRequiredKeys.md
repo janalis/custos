@@ -6,7 +6,7 @@ title: CollatorSortDiscardsRequiredKeys
 
 # CollatorSortDiscardsRequiredKeys
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. Enabled policy requires preserving known noninteger record keys. Report Collator::sort applied to a local array proven to have at least one string key, including a known literal. Skip list arrays, unknown keys, and Collator::asort.
-- D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
+- Enabled policy requires preserving known noninteger record keys. Report Collator::sort applied to a local array proven to have at least one string key, including a known literal. Skip list arrays, unknown keys, and Collator::asort.
+- Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
 - D4. A by-reference escape includes a closure declared in the same scope that captures the sorted variable with `use (&$var)`: calling it can replace the array without any visible assignment, so the literal is no longer proof wherever the closure is declared. The same holds when the sorted variable is a plain copy (`$copy = $var`, transitively) of such a captured local, when the sort runs inside the capturing closure itself, and when a catch clause in the scope binds the variable. By-value captures, captures of other variables, and captures written in a nested function, method, closure or arrow function (which name that scope's own variable) keep the proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
-- E3. No report, and therefore no fix, when D4 removes the proof: after the hidden replacement the array may be a list, and switching to asort would stop the reindexing that code relies on.
+- Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
+- A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- No report, and therefore no fix, when D4 removes the proof: after the hidden replacement the array may be a list, and switching to asort would stop the reindexing that code relies on.
 
 ## Fix
 

@@ -37,7 +37,7 @@ the relevant statements in practice).
     `bool`, `false`, `true`, `null`, `void`, `mixed`, `callable`,
     `resource` — and the class name `Closure` (case-insensitive, treated like
     `callable`) are not object types. A variadic parameter is always treated
-    as `array` (so `Foo ...$xs` is analysed). Untyped parameters are analysed.
+    as `array` (so `Foo ...$xs` is analyzed). Untyped parameters are analyzed.
 - **D2** Run the access analysis for that name in the scope.
 
 ### Entry 2 — closure imports
@@ -61,7 +61,7 @@ non-empty name:
   `ArrayObject`, `?Collection`, `array|Bag`), drop all **W** findings of that
   analysis: writes through an object handle (`$bag['k'] = 1` on an
   `ArrayAccess`, `$bag[] = 1`) are visible outside the closure. Unknown or
-  `mixed` types are analysed as before. **U** is unaffected.
+  `mixed` types are analyzed as before. **U** is unaffected.
 - **D4b** (custos refinement, see Divergences) Includes: no **U** finding is
   reported for any import of a closure (D3 or D4) whose body contains an
   `include` / `include_once` / `require` / `require_once` expression
@@ -98,7 +98,7 @@ For each plain assignment `$v = …` or by-reference assignment `$v = &…`
   `$v` is not one of that scope's parameters and not one of its `use`
   imports.
 - **D8** Run the access analysis for `$v` in that scope. (A variable assigned
-  N times is analysed N times; findings must be de-duplicated by range.)
+  N times is analyzed N times; findings must be de-duplicated by range.)
 
 ### Access analysis for name `v` in scope `S`
 
@@ -169,7 +169,7 @@ Notable consequences:
 ## Exceptions (no report)
 
 - **E1** By-reference parameters; parameters typed with a class/interface or
-  `object` (but `Closure`-typed parameters are analysed).
+  `object` (but `Closure`-typed parameters are analyzed).
 - **E2** Abstract methods and interface methods (no body).
 - **E3** Any read of the variable anywhere reachable in the scope (including
   passing it to a call, `isset`, `empty`, a closure `use`, a comparison,
@@ -311,12 +311,12 @@ function makeHandlers(ArrayObject $registry, array $plain, string $template)
 {
     $store = new SplObjectStorage();
     $register = function ($name) use ($registry, $plain, $store) {
-        $registry[$name] = true;          // E5b: object import, the write is visible
-        $store[] = $name;                 // E5b: inferred SplObjectStorage
+        $registry[$name] = true;          // object import, the write is visible
+        $store[] = $name;                 // inferred SplObjectStorage
         <weak_warning descr="Value is only written here and never read; the write is lost.">$plain[$name]</weak_warning> = true;
     };
     $render = function () use ($template, $registry) {
-        require __DIR__ . '/view.php';    // E5c: the view may read $template and $registry
+        require __DIR__ . '/view.php';    // the view may read $template and $registry
     };
     $noop = function () use (<weak_warning descr="Variable is never used.">$template</weak_warning>) {
         $inner = function () { include 'x.php'; };   // nested closure: its include does not count
@@ -391,7 +391,7 @@ function silenced(array $out)
   an object member, nothing is reported: the value
   (`$spec = $e->getParam('inputSpec')`) may be an ArrayAccess object such
   as ArrayObject, whose writes are not lost (laminas-form listeners).
-  Parameters keep the upstream behaviour.
+  Parameters keep the upstream behavior.
 - **`mixed` values (custos diverges).** A local holding a value of type
   `mixed` (`$list = $prop->getValue($owner); $list[] = $item;`, the
   Doctrine `UnitOfWork` patch in Mautic) may hold an `ArrayAccess` object

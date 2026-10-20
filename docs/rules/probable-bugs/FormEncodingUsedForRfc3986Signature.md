@@ -6,7 +6,7 @@ title: FormEncodingUsedForRfc3986Signature
 
 # FormEncodingUsedForRfc3986Signature
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.4" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.4" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,16 +29,16 @@ Reported:
 
 ## Detection
 
-- D1. Resolved http_build_query result is data argument of hash_hmac and a configured signature protocol requires RFC3986 (default empty configured function list; rule disabled by default). Initial explicit evidence is a configured enclosing function fully qualified name; query contains literal space and encoding is absent/PHP_QUERY_RFC1738. Never infer from variable names.
-- D1a. The literal space is searched in the whole literal query data: string values, string keys, and both again inside nested literal arrays (bounded nesting depth). A key is serialized only together with its value, so a spaced key counts only when its value is provably emitted: a known string or integer, or a nested literal array that itself provably emits a pair.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved http_build_query result is data argument of hash_hmac and a configured signature protocol requires RFC3986 (default empty configured function list; rule disabled by default). Initial explicit evidence is a configured enclosing function fully qualified name; query contains literal space and encoding is absent/PHP_QUERY_RFC1738. Never infer from variable names.
+- The literal space is searched in the whole literal query data: string values, string keys, and both again inside nested literal arrays (bounded nesting depth). A key is serialized only together with its value, so a spaced key counts only when its value is provably emitted: a known string or integer, or a nested literal array that itself provably emits a pair.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E1a. A spaced key whose value is `null`, an empty array, or not statically known is not evidence: PHP drops such a pair entirely or may do so at run time.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- A spaced key whose value is `null`, an empty array, or not statically known is not evidence: PHP drops such a pair entirely or may do so at run time.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 
@@ -52,7 +52,7 @@ Requires PHP 5.4 or later.
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| signatureFunctions | list | `[]` | Configure the explicit policy evidence described in D1. |
+| signatureFunctions | list | `[]` | Fully qualified names of the functions that build RFC 3986 signatures; only queries signed inside one of them are checked. |
 
 ## Configure
 

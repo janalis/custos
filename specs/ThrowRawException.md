@@ -93,7 +93,7 @@ be the thrown operand.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| REPORT_MISSING_ARGUMENTS | bool | true | Enables D3 (exceptions created without any argument). |
+| REPORT_MISSING_ARGUMENTS | bool | true | Reports exceptions created without any argument. |
 
 ## PHP versions
 

@@ -6,7 +6,7 @@ title: CsvBlankRecordShapeMismatch
 
 # CsvBlankRecordShapeMismatch
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -30,14 +30,13 @@ Reported:
 
 ## Detection
 
-- D1. Track a fgetcsv or SplFileObject::fgetcsv result; report strict equality/inequality against an empty array when a blank record is proven from a local in-memory stream containing a single newline (LF or CRLF), at position zero. For an unknown stream, do not infer blank-record intent from the comparison alone.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
+- Track a fgetcsv or SplFileObject::fgetcsv result; report strict equality/inequality against an empty array when a blank record is proven from a local in-memory stream containing a single newline (LF or CRLF), at position zero. For an unknown stream, do not infer blank-record intent from the comparison alone.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Empty arrays produced by application filtering, unknown stream data and checks against [null] are excluded.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore CsvBlankRecordShapeMismatch` and `@noinspection CsvBlankRecordShapeMismatch` suppress this inspection.
+- Empty arrays produced by application filtering, unknown stream data and checks against [null] are excluded.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -45,11 +44,7 @@ No automatic fix. Choosing a repair requires runtime information, error-handling
 
 ## PHP versions
 
-Available throughout PHP 5.3–8.5. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Available throughout PHP 5.3–8.5.
 
 ## Configure
 

@@ -2,8 +2,8 @@
 function collect(array $groups, $limit) {
     for ($n = 0; $n < $limit; ++$n) {
         do {
-            <warning descr="Array '$bucket' is never initialised; initialise it before the loops.">$bucket[]</warning> = $n;
-            <warning descr="Array '$bucket' is never initialised; initialise it before the loops.">$bucket[$n][]</warning> = $limit;
+            <warning descr="Array '$bucket' is never initialized; initialize it before the loops.">$bucket[]</warning> = $n;
+            <warning descr="Array '$bucket' is never initialized; initialize it before the loops.">$bucket[$n][]</warning> = $limit;
         } while (false);
     }
 
@@ -26,7 +26,7 @@ function collect(array $groups, $limit) {
             foreach ($extra as $e) {
                 $done[] = $e;
                 $extra[] = $e;
-                <warning descr="Array '$fresh' is never initialised; initialise it before the loops.">$fresh[]</warning> = count($fresh);
+                <warning descr="Array '$fresh' is never initialized; initialize it before the loops.">$fresh[]</warning> = count($fresh);
             }
         }
     };
@@ -38,7 +38,7 @@ class Repo
     {
         foreach ($data as $row) {
             while ($row) {
-                <warning descr="Array '$out' is never initialised; initialise it before the loops.">$out['k'][]</warning> = $row;
+                <warning descr="Array '$out' is never initialized; initialize it before the loops.">$out['k'][]</warning> = $row;
             }
         }
         return $out;

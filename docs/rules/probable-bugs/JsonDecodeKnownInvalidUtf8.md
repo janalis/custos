@@ -6,7 +6,7 @@ title: JsonDecodeKnownInvalidUtf8
 
 # JsonDecodeKnownInvalidUtf8
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,14 +14,14 @@ Identify json_decode with constant invalid UTF-8 bytes unless flags include JSON
 
 ## Detection
 
-- D1. Report json_decode with constant invalid UTF-8 bytes unless flags include JSON_INVALID_UTF8_IGNORE or JSON_INVALID_UTF8_SUBSTITUTE; validation uses actual string bytes.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report json_decode with constant invalid UTF-8 bytes unless flags include JSON_INVALID_UTF8_IGNORE or JSON_INVALID_UTF8_SUBSTITUTE; validation uses actual string bytes.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore JsonDecodeKnownInvalidUtf8` and `@noinspection JsonDecodeKnownInvalidUtf8` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore JsonDecodeKnownInvalidUtf8` and `@noinspection JsonDecodeKnownInvalidUtf8` suppress this native rule.
 
 ## Fix
 

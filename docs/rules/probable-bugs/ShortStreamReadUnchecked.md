@@ -6,7 +6,7 @@ title: ShortStreamReadUnchecked
 
 # ShortStreamReadUnchecked
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,20 +29,20 @@ Reported:
 
 A sentinel or length guard applies only to the same reaching value. Reassignment or reevaluating an identical-looking call invalidates the earlier guard.
 
-- D1. Report fread with a fixed positive byte count whose result reaches unpack requiring that exact length without a length check.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report fread with a fixed positive byte count whose result reaches unpack requiring that exact length without a length check.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 - D4. A length check is a condition known to hold on every path to the unpack call and applied to the same reaching read result. Because fread never returns more than the requested count N, each of these proves a complete read:
   - `strlen($d)` compared with a known integer so that the length is N: `=== N`, `== N`, `>= N`, `> N-1`, or the negation of `!== N`, `!= N`, `< N`, `<= N-1`; operands may be written in either order. `mb_strlen($d, '8bit')` counts bytes and is treated like strlen; mb_strlen with any other or no encoding is not.
   - `isset($d[N-1])`, alone or beside other operands (isset holds only when every operand is set).
   - For a one-byte read only: a non-zero length, or the value being proven both non-empty and not `false` (strict comparisons against `''` and `false` together, one loose comparison against either, a truthiness test, or `!empty($d)`).
 - D5. A condition holds on the path when the unpack call is inside the true branch of an `if`/`elseif` or in its condition after earlier failed ones, inside an `else` after the negated conditions, in the matching arm of a ternary, on the right of `&&`/`||`, inside a `while` loop whose condition holds, or after an earlier `if` whose branches that do not leave (return, throw, exit, break, continue) all keep it. `!` negates; a true `&&` and a false `||` establish both operands; a false `&&` or a true `||` establishes nothing. An unpack call in a branch the conditions before it contradict (a length both at most N-1 and exactly N) is never reached and not reported.
-- D6. A check of a different value, of a wrong bound (for example `strlen($d) < 3` before a four-byte decode), of character count, or one whose guarding branch does not leave, is not a length check: the report stays.
+- A check of a different value, of a wrong bound (for example `strlen($d) < 3` before a four-byte decode), of character count, or one whose guarding branch does not leave, is not a length check: the report stays.
 
 ## Exceptions (no report)
 
-- E1. Accumulation loops, length checks as defined by D4 and D5, bounded formats accepting shorter inputs, and unknown formats are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Accumulation loops, length checks as defined by D4 and D5, bounded formats accepting shorter inputs, and unknown formats are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

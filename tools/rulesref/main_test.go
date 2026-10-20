@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -166,13 +167,58 @@ func TestRunErrors(t *testing.T) {
 
 func TestNativePage(t *testing.T) {
 	body := page(meta.Rule{ID: "NativeExample", Native: true, Group: "Correctness", Severity: diagnostic.SeverityWarning}, "correctness", meta.Description{}, "")
-	contains(t, "native page", body, "@custos-ignore NativeExample", "Group: [Correctness]")
+	contains(t, "native page", body, "@custos-ignore NativeExample", "Group: [Correctness]", `<Badge type="tip" text="native" />`)
 	for _, unwanted := range []string{"PhpStorm name", "@noinspection"} {
 		if strings.Contains(body, unwanted) {
 			t.Errorf("native page contains %q", unwanted)
 		}
 	}
-	md := "# NativeExample\n\n## Detection\n\nProven value.\n\n## Exceptions (no report)\n\nUnknown values.\n\n## Fix\n\nPreserve behavior.\n\n## PHP versions\n\nPHP 5.4 and later.\n"
+	md := "# NativeExample\n\n## Detection\n\n- D1. Proven value.\n- D2. Traced value, unless E1 applies.\n\n## Exceptions (no report)\n\n- E1. Unknown values (D3).\n\n## Fix\n\nPreserve behavior.\n\n## PHP versions\n\nPHP 5.4 and later.\n"
 	body = page(meta.Rule{ID: "NativeExample", Native: true}, "correctness", meta.Description{}, md)
-	contains(t, "native contracts", body, "Proven value.", "Unknown values.", "Preserve behavior.", "PHP 5.4 and later.")
+	// Labels go unless referred to; a reference to a missing label goes too.
+	contains(t, "native contracts", body, "- Proven value.", "- Traced value, unless E1 applies.", "- E1. Unknown values.", "Preserve behavior.", "PHP 5.4 and later.")
+}
+
+func TestByLetters(t *testing.T) {
+	var items []sideItem
+	for _, id := range []string{"Apple", "Avocado", "Banana", "Cherry", "Date"} {
+		items = append(items, sideItem{Text: id})
+	}
+	collapsed := true
+	got := byLetters(items, &collapsed)
+	var texts []string
+	for _, g := range got {
+		texts = append(texts, fmt.Sprintf("%s:%d", g.Text, len(g.Items)))
+	}
+	if want := "A–D:5"; strings.Join(texts, ",") != want {
+		t.Fatalf("got %v, want %s", texts, want)
+	}
+	many := make([]sideItem, bucketMax)
+	for i := range many {
+		many[i] = sideItem{Text: "B" + fmt.Sprint(i)}
+	}
+	got = byLetters(append(append(items[:1:1], many...), items[3:]...), &collapsed)
+	texts = nil
+	for _, g := range got {
+		texts = append(texts, fmt.Sprintf("%s:%d", g.Text, len(g.Items)))
+	}
+	if want := fmt.Sprintf("A:1,B:%d,C–D:2", bucketMax); strings.Join(texts, ",") != want {
+		t.Fatalf("got %v, want %s", texts, want)
+	}
+}
+
+// TestRunSplitsLargeGroups: a group over splitOver rules gets letter
+// sub-groups in the sidebar.
+func TestRunSplitsLargeGroups(t *testing.T) {
+	var rules []meta.Rule
+	for i := 0; i <= splitOver; i++ {
+		rules = append(rules, meta.Rule{ID: fmt.Sprintf("%c%02d", 'A'+i/bucketMax, i), Group: "Big", Severity: diagnostic.SeverityInfo})
+	}
+	fake(t, rules, nil, nil)
+	root := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	contains(t, "sidebar", read(t, filepath.Join(root, sidebar)), `"text": "A"`, `"text": "B"`)
 }

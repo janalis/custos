@@ -6,7 +6,7 @@ title: NonblockingWaitZeroTreatedAsReaped
 
 # NonblockingWaitZeroTreatedAsReaped
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,18 +27,18 @@ Reported:
 
 ## Detection
 
-- D1. Report direct or unchanged-local pcntl_waitpid result compared !=/!== -1, or >= 0, with an explicit resolved WNOHANG option. Zero indicates no available status. Other three-way handling and compound flags remain outside this literal-flag subset.
-- D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- Report direct or unchanged-local pcntl_waitpid result compared !=/!== -1, or >= 0, with an explicit resolved WNOHANG option. Zero indicates no available status. Other three-way handling and compound flags remain outside this literal-flag subset.
+- Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
 
 ## Exceptions (no report)
 
 The literal comparison subset is exactly != or !== minus one, and >= zero. Comparisons != or !== zero already exclude a pending result and are not findings.
 
-- E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
-- E3. No report when the same unchanged wait result is told apart from zero elsewhere, because the code then already handles the pending case. The separating test must start before the end of the statement that contains the comparison: an earlier statement (for example an early return on `=== 0`), another operand of the same condition, an enclosing condition, or a test inside the branch the comparison governs. A test placed after that statement cannot protect the guarded code and does not count.
-- E4. Separating tests are: a comparison with zero using `===`, `!==`, `==`, `!=`, `> 0` or `<= 0`; `>= 1` or `< 1`; the mirrored forms with the literal on the left; and truthiness of the variable as an `if`/`elseif`/ternary condition, a `!` operand, an `&&`/`||` operand, or a `switch`/`match` subject. `>= 0`, `< 0`, comparisons with other values and tests of a different wait result do not separate zero from a reaped PID.
+- Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
+- A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- No report when the same unchanged wait result is told apart from zero elsewhere, because the code then already handles the pending case. The separating test must start before the end of the statement that contains the comparison: an earlier statement (for example an early return on `=== 0`), another operand of the same condition, an enclosing condition, or a test inside the branch the comparison governs. A test placed after that statement cannot protect the guarded code and does not count.
+- Separating tests are: a comparison with zero using `===`, `!==`, `==`, `!=`, `> 0` or `<= 0`; `>= 1` or `< 1`; the mirrored forms with the literal on the left; and truthiness of the variable as an `if`/`elseif`/ternary condition, a `!` operand, an `&&`/`||` operand, or a `switch`/`match` subject. `>= 0`, `< 0`, comparisons with other values and tests of a different wait result do not separate zero from a reaped PID.
 
 ## Fix
 

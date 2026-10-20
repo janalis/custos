@@ -6,7 +6,7 @@ title: EnumFromUncheckedExternalValue
 
 # EnumFromUncheckedExternalValue
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 8.1" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 8.1" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. Report a resolved backed enum from call with a request-derived backing value not proven within its declared case set and without handling ValueError.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
-- D4. A ValueError handler counts only when the call sits in the try body of a statement whose catch clauses name ValueError, Error or Throwable. A call placed in a catch or finally block of that statement is not covered by it, though an outer try may still cover it.
-- D5. Guards and handlers are looked up inside the function-like body that contains the call. A closure or arrow function runs later, so a try block or membership check surrounding its creation proves nothing about the call inside it.
+- Report a resolved backed enum from call with a request-derived backing value not proven within its declared case set and without handling ValueError.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- A ValueError handler counts only when the call sits in the try body of a statement whose catch clauses name ValueError, Error or Throwable. A call placed in a catch or finally block of that statement is not covered by it, though an outer try may still cover it.
+- Guards and handlers are looked up inside the function-like body that contains the call. A closure or arrow function runs later, so a try block or membership check surrounding its creation proves nothing about the call inside it.
 
 ## Exceptions (no report)
 
-- E1. Known valid backing constants, tryFrom, validation establishing membership, and a catching error handler are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Known valid backing constants, tryFrom, validation establishing membership, and a catching error handler are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

@@ -40,7 +40,7 @@ produced for one call; checks are independent unless noted.
     (`=`; compound assignments such as `.=` are believed to count too —
     unverified, no fixture) whose target `T`
     satisfies the *false-check* test (below) — or when the assignment has
-    no recognisable target.
+    no recognizable target.
   - It also counts as verified when that assignment, possibly wrapped in
     parentheses, is itself an operand of a `===` or `!==` comparison whose
     other operand is the constant `false`
@@ -163,7 +163,7 @@ class Tokens
 }
 ```
 
-Same class analysed at PHP 7.0 additionally gets an info finding (D1) on the
+Same class analyzed at PHP 7.0 additionally gets an info finding (D1) on the
 name of each of the four calls, e.g.
 `<weak_warning descr="Use random_bytes() for cryptographically secure randomness.">mcrypt_create_iv</weak_warning>`.
 
@@ -176,16 +176,16 @@ name of each of the four calls, e.g.
   to the global function, in any case.
 - Upstream registers D1/D2/D3 on the whole call node but its fixtures show
   the highlight on the name identifier only; follow the fixtures.
-- D3's "no recognisable target" branch also covers destructuring
+- D3's "no recognizable target" branch also covers destructuring
   (`[$a] = openssl_random_pseudo_bytes(4, $s);`) upstream (treated as
   verified). Unverified; keep it.
 - The false-check test is position-insensitive and name-based (a check of a
   same-named variable in an unrelated branch counts). Keep upstream
-  behaviour.
+  behavior.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **Truthiness checks of the strength flag (custos diverges).** The flag
   is a plain bool, so `if ($strong)`, `$ok ? … : …`, `$bytes && $strong`

@@ -66,7 +66,7 @@ bounded by the needle length.
   - `{n}`: decimal length of the needle's *decoded* value — the literal's
     content with PHP escape sequences of its quote style resolved
     (single-quoted: only `\\` and `\'`; double-quoted: `\n`, `\t`, `\\`, `\$`,
-    `\"`, `\x..`, octal, `\u{..}`, …). The hex escape is recognised with
+    `\"`, `\x..`, octal, `\u{..}`, …). The hex escape is recognized with
     either letter case, as PHP does: `"\X41-"` is two bytes, exactly like
     `"\x41-"`, while `"\\X41"` (an escaped backslash followed by plain text)
     is four. See Divergences about multibyte text.

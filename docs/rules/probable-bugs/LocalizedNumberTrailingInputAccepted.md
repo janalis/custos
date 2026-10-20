@@ -6,7 +6,7 @@ title: LocalizedNumberTrailingInputAccepted
 
 # LocalizedNumberTrailingInputAccepted
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,17 +27,17 @@ Reported:
 
 ## Detection
 
-- D1. When enabled, require whole-input number parsing. Report an echoed NumberFormatter::parse result for a proven ASCII numeric prefix followed by an alphabetic suffix (excluding exponent syntax), unless a guard from D4 covers the echo. Other locale-dependent inputs and UTF-16 offset checks remain outside this bounded detection subset.
-- D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- When enabled, require whole-input number parsing. Report an echoed NumberFormatter::parse result for a proven ASCII numeric prefix followed by an alphabetic suffix (excluding exponent syntax), unless a guard from D4 covers the echo. Other locale-dependent inputs and UTF-16 offset checks remain outside this bounded detection subset.
+- Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
 - D4. A guard proves that the offset the parse call returned through a local equals the input length: a strict or ordered comparison of that local, after the parse, with `strlen` of the input (or `mb_strlen` with `'8bit'`), with the literal length, or with a local holding either, operands in either order. The offset never exceeds the input length, so a guard that leaves when the offset is smaller also proves it. It covers the echo wherever the conditions guarding it hold only for that length: in the branch of an `if`/`elseif`/`else` chain such a comparison selects, after an `if` whose branch for a shorter offset always leaves (return, throw, exit, break, continue), with or without other arms, or behind a boolean local holding the comparison. Conditions combine through parentheses, `!`, `&&`/`and` and `||`/`or`. A jump label between the guard and the echo, or a later write of the offset, voids it.
-- D5. The receiver must be proven to be a formatter that stops at the suffix: a direct `new NumberFormatter` with exactly a locale and a style resolving to NumberFormatter::DECIMAL, with no pattern argument. When it is held in a variable, every earlier use of that variable in the scope (anywhere in an enclosing loop of the parse call) must be its assignment or a call to parse, parseCurrency, format, formatCurrency, getErrorCode, getErrorMessage, getLocale, getPattern, getAttribute, getTextAttribute or getSymbol.
+- The receiver must be proven to be a formatter that stops at the suffix: a direct `new NumberFormatter` with exactly a locale and a style resolving to NumberFormatter::DECIMAL, with no pattern argument. When it is held in a variable, every earlier use of that variable in the scope (anywhere in an enclosing loop of the parse call) must be its assignment or a call to parse, parseCurrency, format, formatCurrency, getErrorCode, getErrorMessage, getLocale, getPattern, getAttribute, getTextAttribute or getSymbol.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
-- E3. No report when the formatter may consume the suffix or cannot be proven plain: another style such as PATTERN_DECIMAL, an explicit pattern, an unknown style, a subclass, or a formatter that was reconfigured (setPattern, setTextAttribute, setSymbol, setAttribute), aliased, captured by a closure or passed to another call before the parse.
+- Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
+- A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- No report when the formatter may consume the suffix or cannot be proven plain: another style such as PATTERN_DECIMAL, an explicit pattern, an unknown style, a subclass, or a formatter that was reconfigured (setPattern, setTextAttribute, setSymbol, setAttribute), aliased, captured by a closure or passed to another call before the parse.
 
 ## Fix
 

@@ -6,7 +6,7 @@ title: PermissionModeWrittenInDecimal
 
 # PermissionModeWrittenInDecimal
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,14 +29,14 @@ Reported:
 
 ## Detection
 
-- D1. Resolved chmod or mkdir mode argument is a decimal integer token of exactly three/four octal digits with nonzero first digit and numeric value exceeding 0777, such as 755. Report disabled-by-default notation hazard; explicit octal, hex, symbolic/bitwise mode excluded.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved chmod or mkdir mode argument is a decimal integer token of exactly three/four octal digits with nonzero first digit and numeric value exceeding 0777, such as 755. Report disabled-by-default notation hazard; explicit octal, hex, symbolic/bitwise mode excluded.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

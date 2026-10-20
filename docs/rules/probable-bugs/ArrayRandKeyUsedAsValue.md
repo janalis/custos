@@ -6,7 +6,7 @@ title: ArrayRandKeyUsedAsValue
 
 # ArrayRandKeyUsedAsValue
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Resolved array_rand with default or constant-one count operates on a known string-value list. Its result is passed directly to a consumer provably requiring one of those values (a local function with an explicit switch over the value literals). No name heuristic.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved array_rand with default or constant-one count operates on a known string-value list. Its result is passed directly to a consumer provably requiring one of those values (a local function with an explicit switch over the value literals). No name heuristic.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Do not report when every key the call can return (0 to n-1 for an n-element list) loosely equals one of the switch case literals, because the consumer then already works with the key. The comparison follows the target PHP version: a numeric string compares by value (`"0"`, `"1.0"`, `" 1"`); any other string never equals an integer from PHP 8.0 and compares by its leading numeric prefix (zero when it has none) before 8.0. One key without a matching case keeps the report.
-- E3. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Do not report when every key the call can return (0 to n-1 for an n-element list) loosely equals one of the switch case literals, because the consumer then already works with the key. The comparison follows the target PHP version: a numeric string compares by value (`"0"`, `"1.0"`, `" 1"`); any other string never equals an integer from PHP 8.0 and compares by its leading numeric prefix (zero when it has none) before 8.0. One key without a matching case keeps the report.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

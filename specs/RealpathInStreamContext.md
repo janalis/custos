@@ -146,7 +146,7 @@ $two  = realpath('/tmp', 'x');
 - **Comments (custos diverges, fix).** A comment inside the call
   (`realpath(__DIR__ /* root */ . '/..')`) would be dropped by the
   replacement: reported without a fix.
-- **Normalised paths (custos diverges).** `realpath()` returns a canonical
+- **Normalized paths (custos diverges).** `realpath()` returns a canonical
   path. A tail that still contains `.`, `..` or empty segments after the
   leading climbs gives another string (prefix checks and comparisons with
   other canonical paths then fail), so R1 yields no replacement for it.

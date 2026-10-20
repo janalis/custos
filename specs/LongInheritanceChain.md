@@ -10,7 +10,7 @@ php: { min: "", max: "" }
 
 ## Summary
 
-Deep `extends` chains spread behaviour over many levels and make a class hard
+Deep `extends` chains spread behavior over many levels and make a class hard
 to understand. The rule counts the ancestors of a class and complains when the
 chain reaches a threshold, with carve-outs for exception hierarchies, test
 cases and well-known framework base classes.

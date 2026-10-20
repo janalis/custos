@@ -6,7 +6,7 @@ title: TransactionEarlyReturn
 
 # TransactionEarlyReturn
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. Report a reachable normal return from a scope owning a successfully begun PDO transaction where neither commit nor rollback occurs on the exit path.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report a reachable normal return from a scope owning a successfully begun PDO transaction where neither commit nor rollback occurs on the exit path.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
 - E1. Ownership transfer, exception unwinding into proven cleanup, surrounding finally cleanup, failure to begin and unknown transaction state are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
-- E3. A return whose own expression closes the transaction is not reported: a `commit()` or `rollBack()` call on the connection that began it must be evaluated every time the expression is, either unconditionally (directly, parenthesised, under a unary operator or cast, as an assigned value, or as an operand that is always evaluated) or in both branches of a full ternary or in every arm of a `match`. A call that is only the right operand of `&&`, `||`, `and`, `or`, `??` or `??=`, or one branch of a short ternary, may be skipped and proves nothing, so `return $saved && $pdo->commit();` is still reported.
-- E4. Surrounding `finally` cleanup (E1) covers a direct `commit()`/`rollBack()` statement in the `finally` block and the guarded idiom `if ($pdo->inTransaction()) { $pdo->rollBack(); }` on the same connection, where the closing call is a direct statement of the guard body. A closing call under any other condition does not prove cleanup. A return written inside the `finally` block itself is not covered by the guarded idiom.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- A return whose own expression closes the transaction is not reported: a `commit()` or `rollBack()` call on the connection that began it must be evaluated every time the expression is, either unconditionally (directly, parenthesised, under a unary operator or cast, as an assigned value, or as an operand that is always evaluated) or in both branches of a full ternary or in every arm of a `match`. A call that is only the right operand of `&&`, `||`, `and`, `or`, `??` or `??=`, or one branch of a short ternary, may be skipped and proves nothing, so `return $saved && $pdo->commit();` is still reported.
+- Surrounding `finally` cleanup (E1) covers a direct `commit()`/`rollBack()` statement in the `finally` block and the guarded idiom `if ($pdo->inTransaction()) { $pdo->rollBack(); }` on the same connection, where the closing call is a direct statement of the guard body. A closing call under any other condition does not prove cleanup. A return written inside the `finally` block itself is not covered by the guarded idiom.
 
 ## Fix
 

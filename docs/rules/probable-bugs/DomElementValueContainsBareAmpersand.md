@@ -6,7 +6,7 @@ title: DomElementValueContainsBareAmpersand
 
 # DomElementValueContainsBareAmpersand
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,9 +27,9 @@ Reported:
 
 ## Detection
 
-- D1. DOMDocument createElement second argument is a constant string containing an ampersand not starting a syntactically valid numeric reference or a declared/predefined XML entity. Accept amp, lt, gt, apos and quot; custom declarations require proven DTD provenance.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- DOMDocument createElement second argument is a constant string containing an ampersand not starting a syntactically valid numeric reference or a declared/predefined XML entity. Accept amp, lt, gt, apos and quot; custom declarations require proven DTD provenance.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 Unknown XML input, unsupported DTD declarations and external subsets do not
 prove that a named entity is missing. Only a complete locally parsed declaration
@@ -41,8 +41,8 @@ earlier loads therefore remains possible when replaying later load attempts.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore DomElementValueContainsBareAmpersand and @noinspection DomElementValueContainsBareAmpersand suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Both @custos-ignore DomElementValueContainsBareAmpersand and @noinspection DomElementValueContainsBareAmpersand suppress this native rule.
 
 ## Fix
 

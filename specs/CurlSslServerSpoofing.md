@@ -169,7 +169,7 @@ function fetch($handle, $insecure)
   accepts any call whose written last segment is exactly `curl_setopt`, so a
   namespace's own `curl_setopt()` is checked while `\Curl_SetOpt()` is not.
   custos resolves the call to the global function, in any case (D1).
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analyzed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - **Dead initial values (custos diverges).** Upstream collects every
   assignment of a variable or property regardless of order, so a disabling
   initial value is reported even when it is always replaced by something

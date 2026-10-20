@@ -6,7 +6,7 @@ title: ExitStatusReadWithoutNormalExitCheck
 
 # ExitStatusReadWithoutNormalExitCheck
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,18 +27,18 @@ Reported:
 
 ## Detection
 
-- D1. Track pcntl_wait/pcntl_waitpid output status into pcntl_wexitstatus. The read needs two facts, both established by conditions that dominate it: the wait succeeded, and pcntl_wifexited holds for the same status. Reassignment and intervening unknown calls receiving status invalidate provenance.
-- D1a. Facts accumulate over every dominating condition; they do not have to share one condition. A condition known true contributes its `&&`/`and` operands; a condition known false contributes the negation of its `||`/`or` operands; `!` flips the polarity. Conditions known true: the condition of an enclosing `if`/`elseif` body, the condition of a ternary for its middle arm, the left operand of `&&`/`and` for its right operand. Conditions known false: every earlier `if`/`elseif` condition for a later `elseif`/`else` branch, the ternary condition for its last arm, the left operand of `||`/`or` for its right operand, and the condition of an earlier `if` in an enclosing statement list whose body always leaves (return, throw, exit, break, continue).
-- D1b. Wait success is established when the comparisons of the wait result with integers, in either operand order, that guard the read leave only positive values. A blocking wait (no flags passed) returns a child pid or -1, so `!== -1`, `!= -1`, `> -1` or `>= 0` suffice; with flags it may also return 0, so the guard must rule out both (`> 0`, `>= 1`). The negated forms (`<= 0`, `< 1`, `=== -1`) count when the condition is known false. A known integer is a literal or a local whose only value is one. Comparing the result with the awaited pid proves nothing: a pid argument of -1 equals the failure result.
-- D1c. A pcntl_wifexited check counts only when it is written after the wait call; an earlier check describes an older status value.
-- D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
+- Track pcntl_wait/pcntl_waitpid output status into pcntl_wexitstatus. The read needs two facts, both established by conditions that dominate it: the wait succeeded, and pcntl_wifexited holds for the same status. Reassignment and intervening unknown calls receiving status invalidate provenance.
+- Facts accumulate over every dominating condition; they do not have to share one condition. A condition known true contributes its `&&`/`and` operands; a condition known false contributes the negation of its `||`/`or` operands; `!` flips the polarity. Conditions known true: the condition of an enclosing `if`/`elseif` body, the condition of a ternary for its middle arm, the left operand of `&&`/`and` for its right operand. Conditions known false: every earlier `if`/`elseif` condition for a later `elseif`/`else` branch, the ternary condition for its last arm, the left operand of `||`/`or` for its right operand, and the condition of an earlier `if` in an enclosing statement list whose body always leaves (return, throw, exit, break, continue).
+- Wait success is established when the comparisons of the wait result with integers, in either operand order, that guard the read leave only positive values. A blocking wait (no flags passed) returns a child pid or -1, so `!== -1`, `!= -1`, `> -1` or `>= 0` suffice; with flags it may also return 0, so the guard must rule out both (`> 0`, `>= 1`). The negated forms (`<= 0`, `< 1`, `=== -1`) count when the condition is known false. A known integer is a literal or a local whose only value is one. Comparing the result with the awaited pid proves nothing: a pid argument of -1 equals the failure result.
+- A pcntl_wifexited check counts only when it is written after the wait call; an earlier check describes an older status value.
+- Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding, whether written as one condition, nested conditions, guard clauses that leave early, else branches, ternary arms or short-circuit operands. Both legacy noinspection and custos-ignore forms suppress this ID.
-- E3. A status variable written between the wait and the read, by assignment, destructuring, increment, `foreach`, `unset`, an element write or a by-reference closure capture, no longer holds the wait status: no report.
+- Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
+- A dominating valid guard or repair described in Detection prevents the finding, whether written as one condition, nested conditions, guard clauses that leave early, else branches, ternary arms or short-circuit operands. Both legacy noinspection and custos-ignore forms suppress this ID.
+- A status variable written between the wait and the read, by assignment, destructuring, increment, `foreach`, `unset`, an element write or a by-reference closure capture, no longer holds the wait status: no report.
 
 ## Fix
 

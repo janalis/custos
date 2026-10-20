@@ -6,7 +6,7 @@ title: ArrayChunkInvalidSize
 
 # ArrayChunkInvalidSize
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. Report array_chunk with a size proven an integer less than one.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- Report array_chunk with a size proven an integer less than one.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 - D4. A size read from a variable is proven only when every change to that variable in the enclosing function (or top-level code) is a plain assignment the flow analysis follows. The same holds for every variable whose value an assignment in that scope copies into it, directly or through further copies (`$size = $seen;`). `++`/`--` on the variable, a closure capturing it by reference (`use (&$size)`), an array item holding a reference to it (`[&$size]`) and an `extract()` call in the same scope each make the size unknown, wherever they appear in that scope.
 
 ## Exceptions (no report)
 
-- E1. Unknown sizes and values proven positive are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
-- E3. A size variable that is incremented, decremented, referenced from a closure or array item, or possibly rebound by `extract()` in the calling scope (D4) is unknown: `$size = 0; foreach ($headers as $h) { $size++; } array_chunk($items, $size);` is not reported. Bodies of nested functions and closures are separate scopes and do not count, nor does a by-value capture.
+- Unknown sizes and values proven positive are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- A size variable that is incremented, decremented, referenced from a closure or array item, or possibly rebound by `extract()` in the calling scope (D4) is unknown: `$size = 0; foreach ($headers as $h) { $size++; } array_chunk($items, $size);` is not reported. Bodies of nested functions and closures are separate scopes and do not count, nor does a by-value capture.
 
 ## Fix
 

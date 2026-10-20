@@ -172,12 +172,12 @@ foreach ($points as $idx => $point) {
     echo $idx, $px, $py;
 }
 foreach ($pairs as $idx => $pair) {
-    [$left, $right] = $pair;              // E2e: $pair is still read below
+    [$left, $right] = $pair;              // $pair is still read below
     if (is_array($pair)) {
-        [$top, $bottom] = $pair;          // E2b: nested under a guard
+        [$top, $bottom] = $pair;          // nested under a guard
     }
-    list($m, $n) = $other;                // E2: not a loop variable
-    $fn = function () use ($pair) { list($u) = $pair; };   // E2: closure boundary
+    list($m, $n) = $other;                // not a loop variable
+    $fn = function () use ($pair) { list($u) = $pair; };   // closure boundary
 
     $width = $pair[0];
     // a plain comment
@@ -186,10 +186,10 @@ foreach ($pairs as $idx => $pair) {
     <weak_warning descr="Use one destructuring assignment from '$pair' instead.">$depth = $pair[-1]</weak_warning>;
 
     $name = $pair['name'];
-    $kind = $pair['kind'];                // E4
+    $kind = $pair['kind'];                // string index
     $copy = [];
     $copy[0] = $pair[1];
-    $copy[1] = $pair[0];                  // E5
+    $copy[1] = $pair[0];                  // assigns into a non-variable
 }
 ```
 
@@ -199,12 +199,12 @@ foreach ($lines as $number => $line):
     <weak_warning descr="Destructure directly in the foreach header.">list($code, $text) = $line</weak_warning>;
 endforeach;
 foreach ($records as $key => $record):
-    list($id, $label) = $record;          // E2e: $record is still read below
+    list($id, $label) = $record;          // $record is still read below
     try {
-        [$first] = $record;               // E2b: inside try
+        [$first] = $record;               // inside try
     } catch (\Throwable $t) {}
     foreach ($record as $cell) {
-        [$x, $y] = $record;               // E2b: direct statement of the inner loop, which does not declare $record
+        [$x, $y] = $record;               // direct statement of the inner loop, which does not declare $record
     }
 endforeach;
 foreach ($records as $record) <weak_warning descr="Destructure directly in the foreach header.">[$id, $label] = $record</weak_warning>;
@@ -214,17 +214,17 @@ foreach ($records as $record) <weak_warning descr="Destructure directly in the f
 <?php
 function summarise(iterable $map, array $rows, array $totals) {
     foreach ($map as $compound => $amount) {
-        [$kind, $ref] = $compound;        // E2c: the key cannot be a list
+        [$kind, $ref] = $compound;        // the key cannot be a list
     }
     foreach ($rows as &$entry) {
-        [$low, $high] = $entry;           // E2c: by-reference value
+        [$low, $high] = $entry;           // by-reference value
         $entry[] = $high - $low;
     }
     foreach ($rows as $slot => $entry) {
-        [$totals[$slot], $rest] = $entry; // E2d: the header would index with the previous key
+        [$totals[$slot], $rest] = $entry; // the header would index with the previous key
     }
     foreach ($rows as $last) {
-        [$low, $high] = $last;            // E2e: read after the loop
+        [$low, $high] = $last;            // read after the loop
     }
     return [$totals, $last];
 }

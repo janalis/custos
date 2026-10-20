@@ -28,12 +28,12 @@ foreach ($points as $idx => $point) {
     echo $idx, $px, $py;
 }
 foreach ($pairs as $idx => $pair) {
-    [$left, $right] = $pair;              // E2e: $pair is still read below
+    [$left, $right] = $pair;              // $pair is still read below
     if (is_array($pair)) {
-        [$top, $bottom] = $pair;          // E2b: nested under a guard
+        [$top, $bottom] = $pair;          // nested under a guard
     }
-    list($m, $n) = $other;                // E2: not a loop variable
-    $fn = function () use ($pair) { list($u) = $pair; };   // E2: closure boundary
+    list($m, $n) = $other;                // not a loop variable
+    $fn = function () use ($pair) { list($u) = $pair; };   // closure boundary
 
     $width = $pair[0];
     // a plain comment
@@ -42,10 +42,10 @@ foreach ($pairs as $idx => $pair) {
     $depth = $pair[-1];
 
     $name = $pair['name'];
-    $kind = $pair['kind'];                // E4
+    $kind = $pair['kind'];                // string index
     $copy = [];
     $copy[0] = $pair[1];
-    $copy[1] = $pair[0];                  // E5
+    $copy[1] = $pair[0];                  // assigns into a non-variable
 }
 ```
 

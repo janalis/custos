@@ -171,7 +171,7 @@ function has_city(array $order, $customer)
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **Effectful bases (custos diverges).** Upstream treats two textually equal
   accesses as the same value even when their index or container has side

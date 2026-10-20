@@ -6,7 +6,7 @@ title: TempnamDirectoryFallbackUnchecked
 
 # TempnamDirectoryFallbackUnchecked
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,19 +27,19 @@ Reported:
 
 ## Detection
 
-- D1. Report tempnam result used for sensitive content under an explicitly enabled required-directory contract without verifying its parent directory.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report tempnam result used for sensitive content under an explicitly enabled required-directory contract without verifying its parent directory.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Verified canonical parent, intentional system-temp fallback, unknown sensitivity and tempnam failure already handled are excluded.
-- E3. The canonical parent is verified when `realpath(dirname($path))` is compared with another `realpath(...)` call, in either operand order, after the `tempnam` call that produced `$path`, and the conditions guarding the write prove that comparison matched: an equality (`===`, `==`) known to hold or an inequality (`!==`, `!=`) known to fail where the write runs. That covers the body of an `if` (or the right operand of `&&`) on a match test, code after an `if` on a mismatch test whose body always leaves (return, throw, exit, break, continue), with or without other arms, and either test negated, compared with a boolean, combined through `&&`/`||` or kept in a local. The `else` of a match test is not covered. `$path` must hold the same value at the comparison and at the write, and a jump label between them voids the proof.
+- Verified canonical parent, intentional system-temp fallback, unknown sensitivity and tempnam failure already handled are excluded.
+- The canonical parent is verified when `realpath(dirname($path))` is compared with another `realpath(...)` call, in either operand order, after the `tempnam` call that produced `$path`, and the conditions guarding the write prove that comparison matched: an equality (`===`, `==`) known to hold or an inequality (`!==`, `!=`) known to fail where the write runs. That covers the body of an `if` (or the right operand of `&&`) on a match test, code after an `if` on a mismatch test whose body always leaves (return, throw, exit, break, continue), with or without other arms, and either test negated, compared with a boolean, combined through `&&`/`||` or kept in a local. The `else` of a match test is not covered. `$path` must hold the same value at the comparison and at the write, and a jump label between them voids the proof.
 
   Parentheses around the operands are ignored. The loose operators are accepted because a canonical path is an absolute string or `false`, so numeric-string juggling cannot occur. A comparison of uncanonical values (`dirname($path) !== $dir`) proves nothing: symlinks and relative segments make equal directories differ and different ones match.
-- E4. A guard placed before the `tempnam` call that produced the written path verified a different file; the report is kept when the variable is assigned a new temporary file after the guard.
-- E5. The fallback is intentional when the directory argument of `tempnam` is a builtin `sys_get_temp_dir()` call, directly or through a variable with that single known value: the system directory is the fallback target, so there is no other location to end up in. A path derived from it (`sys_get_temp_dir() . '/private'`) is an ordinary required directory.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- A guard placed before the `tempnam` call that produced the written path verified a different file; the report is kept when the variable is assigned a new temporary file after the guard.
+- The fallback is intentional when the directory argument of `tempnam` is a builtin `sys_get_temp_dir()` call, directly or through a variable with that single known value: the system directory is the fallback target, so there is no other location to end up in. A path derived from it (`sys_get_temp_dir() . '/private'`) is an ordinary required directory.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

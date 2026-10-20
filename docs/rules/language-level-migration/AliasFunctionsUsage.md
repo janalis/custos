@@ -26,7 +26,7 @@ $csv   = \join(';', $cells);
 $ok    = is_long($port) && is_writeable($dir);
 magic_quotes_runtime(0);
 $n = SizeOf($rows);
-$s = $builder->join(',');  // E3
+$s = $builder->join(',');  // method call, not the alias function
 ```
 
 ```php [After fix]
@@ -36,7 +36,7 @@ $csv   = \implode(';', $cells);
 $ok    = is_int($port) && is_writable($dir);
 magic_quotes_runtime(0);
 $n = count($rows);
-$s = $builder->join(',');  // E3
+$s = $builder->join(',');  // method call, not the alias function
 ```
 
 :::

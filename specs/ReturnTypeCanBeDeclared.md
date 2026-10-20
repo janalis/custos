@@ -89,7 +89,7 @@ engine enforce the contract and documents it in the signature.
   two members, exactly one of which is known (a contribution from an
   unresolvable parent/interface declaration must not block the report; in our
   model such contributions are simply not added).
-- **D7** Normalise each known type (case-insensitive for the keys below):
+- **D7** Normalize each known type (case-insensitive for the keys below):
   any type containing `[]` → `array`; `boolean`, `true`, `false` → `bool`;
   `integer` → `int`; `\Closure` → `callable`; `$this` → `static`; the
   built-in names `array iterable string bool int float number null void mixed
@@ -466,7 +466,7 @@ abstract class Node {
   tag decides (`@return Item[]` → `: array`), and without a tag nothing is
   suggested. The `ArrayCollection` exclusion above still applies to the tag.
 - **Values replaced behind the inference (custos diverges).** Upstream
-  types `$r = ''; fill($r); return $r;` from the initialiser even when
+  types `$r = ''; fill($r); return $r;` from the initializer even when
   `fill(&$target)` stores an array, and likewise after `settype()`, a
   `=&` alias, `[&$x]`, a closure `use (&$x)` or a call that cannot be
   resolved; the added type then throws or coerces. custos treats such a
@@ -476,7 +476,7 @@ abstract class Node {
 - **Late-bound constants (custos diverges).** `return static::SIDES;` (or
   `$this::SIDES`) is not typed from this class's constant when a known
   subclass redeclares it, since an untyped constant may change type there
-  (D5c). Subclasses outside the analysed project remain unseen, as for
+  (D5c). Subclasses outside the analyzed project remain unseen, as for
   D13.
 - **Integer powers (custos diverges).** `int ** int` is a float for a
   negative exponent, so it is not suggested as `: int` (D5d). Overflow of

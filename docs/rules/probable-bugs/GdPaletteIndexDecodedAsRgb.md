@@ -6,7 +6,7 @@ title: GdPaletteIndexDecodedAsRgb
 
 # GdPaletteIndexDecodedAsRgb
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,16 +14,16 @@ Identify a color id from imagecolorallocate on a proven imagecreate palette imag
 
 ## Detection
 
-- D1. Report a color id from imagecolorallocate on a proven imagecreate palette image used in packed RGB extraction with rightshift8/16 and mask255. imagecreatetruecolor, imagepalettetotruecolor and imagecolorsforindex exclude.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report a color id from imagecolorallocate on a proven imagecreate palette image used in packed RGB extraction with rightshift8/16 and mask255. imagecreatetruecolor, imagepalettetotruecolor and imagecolorsforindex exclude.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Any `imagepalettetotruecolor` call on the same image located between its creation and the allocation removes the palette proof, even when the call sits in a branch or loop and does not run on every path: the image may be truecolor there and the shift is then valid. A conversion of another image, one preceding a new `imagecreate` assignment, or one following the allocation (the id is already a palette index) does not exclude.
-- E2a. The index and its image must each be the one value every path to the shift agrees on. When another assignment reaches the shift or the allocation on some path (a packed colour, an index allocated on another image, a truecolor image), or a loop replaces either after the shift, nothing is reported, whichever assignment is written first: the shift may be valid there.
-- E3. Both `@custos-ignore GdPaletteIndexDecodedAsRgb` and `@noinspection GdPaletteIndexDecodedAsRgb` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Any `imagepalettetotruecolor` call on the same image located between its creation and the allocation removes the palette proof, even when the call sits in a branch or loop and does not run on every path: the image may be truecolor there and the shift is then valid. A conversion of another image, one preceding a new `imagecreate` assignment, or one following the allocation (the id is already a palette index) does not exclude.
+- The index and its image must each be the one value every path to the shift agrees on. When another assignment reaches the shift or the allocation on some path (a packed colour, an index allocated on another image, a truecolor image), or a loop replaces either after the shift, nothing is reported, whichever assignment is written first: the shift may be valid there.
+- Both `@custos-ignore GdPaletteIndexDecodedAsRgb` and `@noinspection GdPaletteIndexDecodedAsRgb` suppress this native rule.
 
 ## Fix
 

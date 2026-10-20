@@ -29,9 +29,9 @@ another namespace, nor an unqualified call in a namespace declaring its own
 - **D2** Top-only: `C` is skipped when it is itself, directly (no parentheses
   in between), the **first** argument of another eligible dirname call (it
   is then a member of that call's chain). Only the outermost call of a chain
-  is analysed. A dirname chain used as the *levels* argument
+  is analyzed. A dirname chain used as the *levels* argument
   (`dirname($p, dirname(dirname($q)))`) is not a chain member and is
-  analysed on its own.
+  analyzed on its own.
 - **D3** Walk the chain starting at `C`. For the current call `K`:
   - if `K` is not named `dirname`, stop (without consuming `K`);
   - if `K` has 1 argument: record `arg = K.arg0`, add 1 to the *count*;

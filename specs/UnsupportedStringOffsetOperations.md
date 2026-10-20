@@ -55,7 +55,7 @@ be its base.
 
   Whoever holds the reference can replace the string with an array, so the
   declared type proves nothing. The check ignores statement order (the
-  write may sit in a loop) and the callee's behaviour. Arguments of calls
+  write may sit in a loop) and the callee's behavior. Arguments of calls
   whose callee cannot be resolved are taken as passed by value.
 - **D8** Report `T` with the D3 or D4 meaning.
 
@@ -132,7 +132,7 @@ $str[0][0] = 'x';
 ## Divergences
 
 - Compound assignment counts as a write context; this matches how PHP treats
-  it (still fatal). No upstream fixture; behaviour derived from upstream's
+  it (still fatal). No upstream fixture; behavior derived from upstream's
   assignment check, which covers compound assignments as well.
 - The `$words[0][1][2]` and `$words[0][]` cases rely on the element-type
   rule (`string[]` → `string`); the upstream fixture does not cover them.
@@ -140,7 +140,7 @@ $str[0][0] = 'x';
   (`C` is itself an offset access), D6 trusts the inferred element type only
   when the chain's root has a declared type: a property (typed or
   `@var`), or a parameter of the enclosing function. A local variable
-  initialised with an array literal (`$page = ['#markup' => 'x'];`) gets
+  initialized with an array literal (`$page = ['#markup' => 'x'];`) gets
   the literal's element type for *every* key, so `$page['#attached'][] =
   ...` — an absent key that PHP autovivifies as an array — was reported as
   a fatal error. Locals are no longer trusted there; the rare real fatal

@@ -6,7 +6,7 @@ title: GdJpegQualityOutsideSupportedRange
 
 # GdJpegQualityOutsideSupportedRange
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,16 +14,16 @@ Identify imagejpeg quality argument known integer outside -1 through100; retain 
 
 ## Detection
 
-- D1. Report imagejpeg quality argument known integer outside -1 through100; retain -1 default sentinel.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report imagejpeg quality argument known integer outside -1 through100; retain -1 default sentinel.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 - D4. A quality passed as a variable is no longer proven once that variable, or a variable it was copied from by plain assignment, can change outside the tracked assignments earlier in the same scope than the argument: it is incremented or decremented (`++`/`--`, prefix or postfix), a closure defined there captures it by reference, or `extract()` or single-argument `parse_str()` writes the local symbol table. The same construct written after the call does not affect it, and neither do steps on other variables or on same-named locals of a nested function, by-value closure or arrow function.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E3. No report when D4 applies: `$quality = 101; do { $quality--; imagejpeg($image, $path, $quality); } while (...)` never passes 101.
-- E2. Both `@custos-ignore GdJpegQualityOutsideSupportedRange` and `@noinspection GdJpegQualityOutsideSupportedRange` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- No report when D4 applies: `$quality = 101; do { $quality--; imagejpeg($image, $path, $quality); } while (...)` never passes 101.
+- Both `@custos-ignore GdJpegQualityOutsideSupportedRange` and `@noinspection GdJpegQualityOutsideSupportedRange` suppress this native rule.
 
 ## Fix
 

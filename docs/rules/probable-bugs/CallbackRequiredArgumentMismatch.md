@@ -6,7 +6,7 @@ title: CallbackRequiredArgumentMismatch
 
 # CallbackRequiredArgumentMismatch
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -39,16 +39,16 @@ Reported:
 
 ## Detection
 
-- D1. Report array_map with N supplied input arrays and a resolved callback requiring more than N positional parameters.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
-- D4. A string callback naming a project function is resolved only when that fully qualified function name has exactly one declaration in the index, and its body is a direct statement of the analysed file or of a namespace. Such a declaration is the signature every call reaches.
+- Report array_map with N supplied input arrays and a resolved callback requiring more than N positional parameters.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- A string callback naming a project function is resolved only when that fully qualified function name has exactly one declaration in the index, and its body is a direct statement of the analyzed file or of a namespace. Such a declaration is the signature every call reaches.
 
 ## Exceptions (no report)
 
-- E1. Optional parameters, variadics, unresolved callbacks, and array_map with null callback are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
-- E3. A string callback whose function is declared inside a condition, loop, function body or any other nested statement, or its fully qualified name has multiple indexed declarations (for example one signature per `if`/`else` branch, or a `function_exists` guarded fallback), is unresolved: the signature bound at run time is not known, so nothing is reported.
+- Optional parameters, variadics, unresolved callbacks, and array_map with null callback are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- A string callback whose function is declared inside a condition, loop, function body or any other nested statement, or its fully qualified name has multiple indexed declarations (for example one signature per `if`/`else` branch, or a `function_exists` guarded fallback), is unresolved: the signature bound at run time is not known, so nothing is reported.
 
 ## Fix
 

@@ -71,4 +71,4 @@ try { throw new Error($record->label); } catch (Exception $e) {}
 
 ## Divergences
 
-Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent. A user error handler that converts the notice of an undefined plain variable into an exception is not modelled.
+Native custos inspection, independently specified; no EA counterpart or EA conformance requirement. Conservative proof intentionally excludes unknown runtime state and intent. A user error handler that converts the notice of an undefined plain variable into an exception is not modeled.

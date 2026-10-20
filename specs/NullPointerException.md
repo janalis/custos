@@ -20,7 +20,7 @@ Disabled by default (experimental upstream).
 
 ## Detection
 
-Analysed units:
+Analyzed units:
 
 - every **method** that is not abstract and whose file/class is not a test
   context (path ends with `Test.php`, `Spec.php`, `.phpt`, or contains
@@ -352,7 +352,7 @@ class Node
     public function rewind(array $list)
     {
         foreach ($list as $item) {
-            $item = $item->next();      // declaring statement of local $item: right side exempt (E4)
+            $item = $item->next();      // declaring statement of local $item: right side exempt
             <warning descr="Possible null dereference.">$item</warning>->value = 1;
         }
     }
@@ -387,7 +387,7 @@ function visit(?Node $item) {
   closure itself, so a chained call inside a closure could be reported twice
   on the same range upstream. custos reports each `->` once.
 - Enclosing conditions (custos diverges from upstream). Upstream does not
-  model control flow: a check it does not recognise as a null check
+  model control flow: a check it does not recognize as a null check
   (`is_object($v)`, `$v === $known`, `'v' === $v->name`, `$v?->p !== null`)
   merely skips, so a
   dereference inside the branch that this check guards is still reported.

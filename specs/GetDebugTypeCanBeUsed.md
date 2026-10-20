@@ -74,7 +74,7 @@ same name.
   strings as the idiom: `int`/`integer`, `float`/`double`, `bool`/`boolean`,
   `null`/`NULL`, `resource (stream)`/`resource`, and a shortened name for
   anonymous classes. Code that compares, stores or displays the result can
-  change behaviour, so the rewrite is left to the developer.
+  change behavior, so the rewrite is left to the developer.
 
 ## Options
 
@@ -129,5 +129,5 @@ $t = is_object($v) ? get_class($v) : gettype($v);
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").

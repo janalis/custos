@@ -6,7 +6,7 @@ title: FilteredListJsonShape
 
 # FilteredListJsonShape
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -36,17 +36,17 @@ Reported:
 
 ## Detection
 
-- D1. Report builtin json_encode consuming array_filter on a literal sequential array when default filtering certainly removes an interior element and leaves a later numeric key.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report builtin json_encode consuming array_filter on a literal sequential array when default filtering certainly removes an interior element and leaves a later numeric key.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
 - An explicit JSON_FORCE_OBJECT flag establishes object output intent. Unknown flags cannot prove list output intent and suppress this check.
 
-- E1. Do not report a preserved contiguous list, explicit reindexing, or a deliberately keyed source array.
-- E2. Do not report when the literal is reached through a local variable (the filtered array itself, a variable item or key, or a variable one of those was copied from) that can receive another value without a plain assignment in the scope of the call: a closure capturing it by reference, a reference held by an array item, a reference assignment, a by-reference foreach over it, `++` or `--`, a catch, foreach, global, static or unset binding, or an extract() call. A by-value capture or copy does not suppress the report.
-- E3. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Do not report a preserved contiguous list, explicit reindexing, or a deliberately keyed source array.
+- Do not report when the literal is reached through a local variable (the filtered array itself, a variable item or key, or a variable one of those was copied from) that can receive another value without a plain assignment in the scope of the call: a closure capturing it by reference, a reference held by an array item, a reference assignment, a by-reference foreach over it, `++` or `--`, a catch, foreach, global, static or unset binding, or an extract() call. A by-value capture or copy does not suppress the report.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

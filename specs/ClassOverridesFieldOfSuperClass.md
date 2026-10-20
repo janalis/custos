@@ -180,13 +180,13 @@ class Door extends Locked {
   re-declaration, including `protected $table = 'invoices';` over a parent's
   `protected $table;` (Eloquent models) or `protected bool $skipScalars =
   true;` over `false` (Symfony compiler passes). Re-declaring is the way to
-  override a default; dropping it as advised changes behaviour. custos only
+  override a default; dropping it as advised changes behavior. custos only
   reports re-declarations with the same default (D6b).
 - **Context-dependent defaults (custos diverges).** `protected $table =
   self::TABLE;` in a subclass that redefines `TABLE`, `= __CLASS__`, or an
   unqualified `Limits::MAX` in another namespace has the same text as the
   parent's default but another value, so dropping the re-declaration
-  changes behaviour. custos resolves `self::` constants on both sides and
+  changes behavior. custos resolves `self::` constants on both sides and
   otherwise reports only when the names provably resolve identically
   (fully qualified, or same file and namespace block); when that cannot be
   shown (parent in another file, whose imports are unknown) it stays
@@ -194,8 +194,8 @@ class Door extends Locked {
 - **Hooks, attributes, finality, asymmetric visibility (custos diverges).**
   A plain re-declaration is how a class implements an abstract property;
   one with hooks, an attribute, `final` or a different write visibility
-  adds behaviour the inherited declaration lacks. Dropping any of them
-  breaks the class or changes behaviour, so custos does not report them
+  adds behavior the inherited declaration lacks. Dropping any of them
+  breaks the class or changes behavior, so custos does not report them
   (D6c).
 - **Documented narrowing (custos diverges).** A re-declaration whose `@var`
   type differs from the inherited property's documented type (or, without

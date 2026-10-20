@@ -20,9 +20,9 @@ counterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,
 
 The rule has two independent halves:
 
-- **Part A** — docblock tags on methods (D1–D12).
+- **Part A** — docblock tags on methods.
 - **Part B** — method calls whose name starts with `assert`, or is `expects`
-  or `will` (D13–D30).
+  or `will`.
 
 Neither half checks that the class extends a PHPUnit test case: every method
 of every class-like and every matching method call is examined.
@@ -121,12 +121,12 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 D20 suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. D25 only runs below 9.0. D23 uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. D26/D27 use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |
-| `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Enables D17. |
-| `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Enables D6. |
-| `PROMOTE_PHPUNIT_API` | bool | `true` | Enables D18–D28. |
-| `PROMOTE_MOCKING_ONCE` | bool | `true` | Enables D29. |
-| `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Enables D30. |
+| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 the internal-type check suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. The contains check only runs below 9.0. The resource check uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. The regex checks use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |
+| `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Suggests `assertSame` over `assertEquals` (and their negations). |
+| `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Asks data providers to name their datasets. |
+| `PROMOTE_PHPUNIT_API` | bool | `true` | Suggests dedicated assertions (empty, internal type, instanceof, class, file and resource checks, count, contains, regex, file equality). |
+| `PROMOTE_MOCKING_ONCE` | bool | `true` | Suggests `once()` over `exactly(1)`. |
+| `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Suggests `willReturn…()` over `will($this->return…())`. |
 
 ## Configure
 

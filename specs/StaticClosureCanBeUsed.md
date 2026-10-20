@@ -143,7 +143,7 @@ and arrow functions (`fn (...) => expr`).
 - **E8** PHP level below 5.4.
 - **E9** Returned closures (`return function () {...};`,
   `return (fn () => 1);`); closures held in a variable that is returned,
-  stored, re-assigned, captured or otherwise used outside the recognised call
+  stored, re-assigned, captured or otherwise used outside the recognized call
   shapes.
 - **E10** `self::m()` / `static::m()` that is not known to call a static
   method.
@@ -294,7 +294,7 @@ After fix (only changed lines shown):
   and `(function () {…})->call($obj)` are reported although the closure is
   stored, returned or bound to an object. custos follows the value through
   `??`, `?:`, `match` and parentheses, applies S4 to a closure used as a
-  receiver, and treats any context it does not recognise as an escape. The
+  receiver, and treats any context it does not recognize as an escape. The
   same holds for an assignment whose value is used (`return $v = …`).
 - **File-level variables — custos diverges from upstream** (D6b). Upstream
   collects nothing for `$v = function () {…};` outside a function and

@@ -6,7 +6,7 @@ title: PdoSelectRowCountAssumption
 
 # PdoSelectRowCountAssumption
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Report rowCount on a PDOStatement prepared from a SELECT and used as a total result count under an explicitly enabled portable-count contract.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. The receiver is a statement either when its resolved type is PDOStatement or when its value is proven to be the result of a builtin `PDO::query()` call. The second proof looks the method up independently of the target version and does not depend on a declared return type; a subclass that overrides `query()` is not a builtin call. Consequently `query()` and `prepare()` statements are reported alike for every supported target version.
-- D4. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report rowCount on a PDOStatement prepared from a SELECT and used as a total result count under an explicitly enabled portable-count contract.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- The receiver is a statement either when its resolved type is PDOStatement or when its value is proven to be the result of a builtin `PDO::query()` call. The second proof looks the method up independently of the target version and does not depend on a declared return type; a subclass that overrides `query()` is not a builtin call. Consequently `query()` and `prepare()` statements are reported alike for every supported target version.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Non-SELECT statements, COUNT queries fetched as a value, known driver-specific intentional behavior and unknown query origin are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Non-SELECT statements, COUNT queries fetched as a value, known driver-specific intentional behavior and unknown query origin are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

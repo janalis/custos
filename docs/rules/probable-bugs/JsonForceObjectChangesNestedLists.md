@@ -6,7 +6,7 @@ title: JsonForceObjectChangesNestedLists
 
 # JsonForceObjectChangesNestedLists
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,17 +27,17 @@ Reported:
 
 ## Detection
 
-- D1. Resolved json_encode uses JSON_FORCE_OBJECT and literal input contains a nonempty nested zero-based list. Highlight flag; opt-in because forced nested objects can be intended.
-- D1d. Evaluate the effective array after PHP key normalization and duplicate-key overwrites, recursively where nested values supply evidence. Only surviving entries establish row collisions, nested arrays, non-stringable objects, formatted numeric strings or nested list shapes. Earlier entries overwritten by a later occurrence of the same normalized key are not evidence; unknown keys or unsupported effective-array evaluation discard proof.
-- D1e. A nested array is a list only when its effective keys are the integers 0, 1, 2, … in that insertion order, which is the shape json_encode writes as a JSON array without the flag. Explicit integer or integer-like string keys count when each one is either the next unused index or an index already inserted (an overwrite keeps the original position). Keys out of order, gaps, negative keys and string keys make the array a map that the flag does not change.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved json_encode uses JSON_FORCE_OBJECT and literal input contains a nonempty nested zero-based list. Highlight flag; opt-in because forced nested objects can be intended.
+- Evaluate the effective array after PHP key normalization and duplicate-key overwrites, recursively where nested values supply evidence. Only surviving entries establish row collisions, nested arrays, non-stringable objects, formatted numeric strings or nested list shapes. Earlier entries overwritten by a later occurrence of the same normalized key are not evidence; unknown keys or unsupported effective-array evaluation discard proof.
+- A nested array is a list only when its effective keys are the integers 0, 1, 2, … in that insertion order, which is the shape json_encode writes as a JSON array without the flag. Explicit integer or integer-like string keys count when each one is either the next unused index or an index already inserted (an overwrite keeps the original position). Keys out of order, gaps, negative keys and string keys make the array a map that the flag does not change.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Do not use a variable as evidence, for the encoded value or for a nested entry, when its scope contains a construct that can rewrite it without an assignment the tracking follows: a foreach iterating the variable by reference (including a destructuring target that binds an element by reference), a foreach whose key or value target writes the variable or one of its elements, a closure capturing it by reference, a catch clause binding it, or any extract() call. A variable assigned directly from such a variable is excluded as well. The check is per scope and ignores statement order.
-- E3. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Do not use a variable as evidence, for the encoded value or for a nested entry, when its scope contains a construct that can rewrite it without an assignment the tracking follows: a foreach iterating the variable by reference (including a destructuring target that binds an element by reference), a foreach whose key or value target writes the variable or one of its elements, a closure capturing it by reference, a catch clause binding it, or any extract() call. A variable assigned directly from such a variable is excluded as well. The check is per scope and ignores statement order.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

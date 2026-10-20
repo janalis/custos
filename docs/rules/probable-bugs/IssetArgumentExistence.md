@@ -57,7 +57,7 @@ class Billing
     public function including()
     {
         include 'defaults.php';
-        return isset($config); // reported upstream when IGNORE_INCLUDES = true; never by custos (D11)
+        return isset($config); // reported upstream when IGNORE_INCLUDES = true; never by custos
     }
 
     public function arrow()

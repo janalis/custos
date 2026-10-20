@@ -6,7 +6,7 @@ title: FiberResumedAfterTermination
 
 # FiberResumedAfterTermination
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.1" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.1" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,16 +14,16 @@ Identify resume on a locally allocated Fiber whose inline arrow or closure callb
 
 ## Detection
 
-- D1. Report resume on a locally allocated Fiber whose inline arrow or closure callback completes with a literal return, without calls, branches, loops, nested callbacks or suspension, and whose start completed on the same unconditional path. Unknown or more complex callbacks do not establish termination.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
-- D4. Only an executed call counts. A first-class callable such as `$fiber->resume(...)` or `$fiber->start(...)` creates a closure and runs nothing: the former is never reported and the latter does not establish that the fiber started.
+- Report resume on a locally allocated Fiber whose inline arrow or closure callback completes with a literal return, without calls, branches, loops, nested callbacks or suspension, and whose start completed on the same unconditional path. Unknown or more complex callbacks do not establish termination.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Only an executed call counts. A first-class callable such as `$fiber->resume(...)` or `$fiber->start(...)` creates a closure and runs nothing: the former is never reported and the latter does not establish that the fiber started.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore FiberResumedAfterTermination` and `@noinspection FiberResumedAfterTermination` suppress this native rule.
-- E3. The receiver must be a plain local variable that still holds the allocated fiber. No report when, between the allocation and the resume, the variable is a `foreach` key or value target, an array or `list()` destructuring target, a `catch` variable, a `static` variable or an `unset()` operand, or when anywhere before the resume it is bound by reference (reference assignment, by-reference closure capture, `global`).
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore FiberResumedAfterTermination` and `@noinspection FiberResumedAfterTermination` suppress this native rule.
+- The receiver must be a plain local variable that still holds the allocated fiber. No report when, between the allocation and the resume, the variable is a `foreach` key or value target, an array or `list()` destructuring target, a `catch` variable, a `static` variable or an `unset()` operand, or when anywhere before the resume it is bound by reference (reference assignment, by-reference closure capture, `global`).
 
 ## Fix
 

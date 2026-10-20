@@ -6,7 +6,7 @@ title: UsortDiscardsRequiredKeys
 
 # UsortDiscardsRequiredKeys
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -36,16 +36,16 @@ Reported:
 
 ## Detection
 
-- D1. Report usort on a statically keyed array followed by access through an original nonsequential integer or string key that cannot exist after reindexing.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report usort on a statically keyed array followed by access through an original nonsequential integer or string key that cannot exist after reindexing.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Unknown keys, sequential lists, reassignment, and escaped arrays invalidate the proof. Assignment-only targets, unset, isset, empty, and null-coalescing fallbacks do not establish that the original key must survive.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Unknown keys, sequential lists, reassignment, and escaped arrays invalidate the proof. Assignment-only targets, unset, isset, empty, and null-coalescing fallbacks do not establish that the original key must survive.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 - E3. A null-coalescing assignment (`??=`) to the key is a fallback, not a read. Other compound assignments read the key and stay reportable.
-- E4. A read is not proof when the inspected statement also tests the same key of the same array for presence: isset, empty, the left side of `??` or `??=`, or builtin array_key_exists / key_exists with a statically known key. The test may guard the read (if body, ternary branch, right side of `&&`), so the code already tolerates a missing key. Tests on another key, another array or an unknown key guard nothing.
+- A read is not proof when the inspected statement also tests the same key of the same array for presence: isset, empty, the left side of `??` or `??=`, or builtin array_key_exists / key_exists with a statically known key. The test may guard the read (if body, ternary branch, right side of `&&`), so the code already tolerates a missing key. Tests on another key, another array or an unknown key guard nothing.
 - E5. A read is not proof when an earlier part of the inspected statement assigns or unsets that key, or assigns the whole array: the value read is no longer the pre-sort entry. A read positioned before the write, including the right side of the assignment to the same key, remains proof.
 
 ## Fix

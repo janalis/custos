@@ -6,7 +6,7 @@ title: SysvMessageSerializationMismatch
 
 # SysvMessageSerializationMismatch
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,9 +14,9 @@ Identify msg_receive when local successful msg_send on same queue and exact posi
 
 ## Detection
 
-- D1. Report msg_receive when local successful msg_send on same queue and exact positive matching type uses a different serialize flag. Require known flags, no unknown queue operation and no competing-sender evidence; unknown message selection excludes.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report msg_receive when local successful msg_send on same queue and exact positive matching type uses a different serialize flag. Require known flags, no unknown queue operation and no competing-sender evidence; unknown message selection excludes.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
@@ -24,8 +24,8 @@ Identify msg_receive when local successful msg_send on same queue and exact posi
 
 - A flag, message type or payload read from a variable is not a known value once that variable may have been stepped with `++` or `--`, or captured by reference by a closure, before the call reads it. A step later in a loop that also encloses the read counts too, because the next iteration observes it. A step after the read outside any shared loop, or a by-value capture, leaves the value known.
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore SysvMessageSerializationMismatch` and `@noinspection SysvMessageSerializationMismatch` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore SysvMessageSerializationMismatch` and `@noinspection SysvMessageSerializationMismatch` suppress this native rule.
 
 ## Fix
 

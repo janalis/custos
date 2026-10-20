@@ -22,7 +22,7 @@ Identify json_decode or json_encode with known integer depth at most zero. Addit
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E3. A depth variable initialised to a non-positive value and then stepped (`$depth = 0; $depth++;`, or a counter advanced inside the loop that makes the call) is not reported: the value reaching the call is no longer the initial one.
+- E3. A depth variable initialized to a non-positive value and then stepped (`$depth = 0; $depth++;`, or a counter advanced inside the loop that makes the call) is not reported: the value reaching the call is no longer the initial one.
 - E2. Both `@custos-ignore JsonInvalidDepth` and `@noinspection JsonInvalidDepth` suppress this native rule.
 
 ## Report

@@ -6,7 +6,7 @@ title: SessionDestroyLeavesLocalAuthentication
 
 # SessionDestroyLeavesLocalAuthentication
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. Resolved session_destroy precedes a read of $_SESSION in a condition in same scope, with no intervening $_SESSION=[]/unset or successful new session_start. Highlight post-destroy session read.
-- D1c. The initial supported proof is an immediately preceding session_destroy and direct session array access as the if condition; guarded or nested conditions are excluded.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved session_destroy precedes a read of $_SESSION in a condition in same scope, with no intervening $_SESSION=[]/unset or successful new session_start. Highlight post-destroy session read.
+- The initial supported proof is an immediately preceding session_destroy and direct session array access as the if condition; guarded or nested conditions are excluded.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Do not report when the statement directly before session_destroy already removed the local value: a plain assignment of an empty array (`[]` or `array()`) to $_SESSION, a resolved builtin session_unset() call, unset($_SESSION), or an unset of the same literal key as the one read (string keys compare by value, so quote style is irrelevant; a string key never matches a numeric literal). Any other preceding statement, a non-literal key, a different key, a non-empty array, a compound or by-reference assignment keeps the report.
-- E3. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Do not report when the statement directly before session_destroy already removed the local value: a plain assignment of an empty array (`[]` or `array()`) to $_SESSION, a resolved builtin session_unset() call, unset($_SESSION), or an unset of the same literal key as the one read (string keys compare by value, so quote style is irrelevant; a string key never matches a numeric literal). Any other preceding statement, a non-literal key, a different key, a non-empty array, a compound or by-reference assignment keeps the report.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

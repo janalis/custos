@@ -6,7 +6,7 @@ title: SemaphoreFailureEntersCriticalSection
 
 # SemaphoreFailureEntersCriticalSection
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,14 +14,14 @@ Identify discarded sem_acquire with nonblocking true followed by resolved shm_pu
 
 ## Detection
 
-- D1. Report discarded sem_acquire with nonblocking true followed by resolved shm_put_var/shm_remove_var and then sem_release of the same unchanged semaphore in the same straight-line scope. The acquire/mutate/release structure establishes explicit locking behavior; arbitrary custom functions cannot prove this contract and are excluded.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report discarded sem_acquire with nonblocking true followed by resolved shm_put_var/shm_remove_var and then sem_release of the same unchanged semaphore in the same straight-line scope. The acquire/mutate/release structure establishes explicit locking behavior; arbitrary custom functions cannot prove this contract and are excluded.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore SemaphoreFailureEntersCriticalSection` and `@noinspection SemaphoreFailureEntersCriticalSection` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore SemaphoreFailureEntersCriticalSection` and `@noinspection SemaphoreFailureEntersCriticalSection` suppress this native rule.
 
 ## Fix
 

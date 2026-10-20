@@ -6,7 +6,7 @@ title: SplFixedArrayIndexOutOfBounds
 
 # SplFixedArrayIndexOutOfBounds
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,20 +29,19 @@ Reported:
 
 ## Detection
 
-- D1. Track literal nonnegative size from new SplFixedArray, fromArray and setSize. Report read/write/unset of a proven integer index below zero or greater than/equal to size. For fromArray, preserved indices determine size; with preserveKeys=false use element count.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
-- D4. The size stays proven only while every earlier mention of the receiver is inert: an offset access, a named builtin method call, its own plain assignment, by-value `foreach`, `isset`/`empty`, `clone`, or a direct argument of a read-only builtin such as `count` or `var_dump`. A `setSize` call counts only when it runs on every path to the access; a conditional one, or one later in a loop that also contains the access, removes proof. When the access is inside a loop, every mention anywhere in the outermost enclosing loop is treated as earlier.
-- D5. A receiver that is not a plain local variable (a property, for instance) additionally loses proof when any method call on another receiver, user function call, static call or instantiation of a non-builtin class, or `include`/`require` appears before the access.
-- D6. An element `unset` does not discard a `fromArray` allocation: the unset itself and later accesses are still checked, provided no `setSize` follows the allocation.
+- Track literal nonnegative size from new SplFixedArray, fromArray and setSize. Report read/write/unset of a proven integer index below zero or greater than/equal to size. For fromArray, preserved indices determine size; with preserveKeys=false use element count.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- The size stays proven only while every earlier mention of the receiver is inert: an offset access, a named builtin method call, its own plain assignment, by-value `foreach`, `isset`/`empty`, `clone`, or a direct argument of a read-only builtin such as `count` or `var_dump`. A `setSize` call counts only when it runs on every path to the access; a conditional one, or one later in a loop that also contains the access, removes proof. When the access is inside a loop, every mention anywhere in the outermost enclosing loop is treated as earlier.
+- A receiver that is not a plain local variable (a property, for instance) additionally loses proof when any method call on another receiver, user function call, static call or instantiation of a non-builtin class, or `include`/`require` appears before the access.
+- An element `unset` does not discard a `fromArray` allocation: the unset itself and later accesses are still checked, provided no `setSize` follows the allocation.
 
 ## Exceptions (no report)
 
-- E1. Unknown sizes/indices and guarded in-range paths are excluded. Do not use ordinary PHP array bounds for SplFixedArray.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore SplFixedArrayIndexOutOfBounds` and `@noinspection SplFixedArrayIndexOutOfBounds` suppress this inspection.
-- E3. Existence probes never throw and are not reported: an out-of-range offset that is an operand of `isset()` or `empty()`, or the left operand of `??`, including when it is the base of a longer offset or property chain in that position (`isset($a[9][0])`, `$a[9]->name ?? null`). The probe does not extend to an index expression, a method call on the element or the right operand of `??`, and `??=` is still reported because it writes the offset.
-- E4. No report once the receiver may have been resized or replaced out of sight: captured by a closure `use` or mentioned in an arrow function, copied or referenced into another variable, passed to a user function, method, constructor or callback-invoking builtin, iterated by reference, unset as a whole, or called through a dynamic method name.
-- E5. A size passed through an unpacked argument (`new SplFixedArray(...$args)`) is unknown: no report.
+- Unknown sizes/indices and guarded in-range paths are excluded. Do not use ordinary PHP array bounds for SplFixedArray.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
+- Existence probes never throw and are not reported: an out-of-range offset that is an operand of `isset()` or `empty()`, or the left operand of `??`, including when it is the base of a longer offset or property chain in that position (`isset($a[9][0])`, `$a[9]->name ?? null`). The probe does not extend to an index expression, a method call on the element or the right operand of `??`, and `??=` is still reported because it writes the offset.
+- No report once the receiver may have been resized or replaced out of sight: captured by a closure `use` or mentioned in an arrow function, copied or referenced into another variable, passed to a user function, method, constructor or callback-invoking builtin, iterated by reference, unset as a whole, or called through a dynamic method name.
+- A size passed through an unpacked argument (`new SplFixedArray(...$args)`) is unknown: no report.
 
 ## Fix
 
@@ -52,11 +51,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Minimum PHP 5.3. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Minimum PHP 5.3.
 
 ## Configure
 

@@ -6,7 +6,7 @@ title: StreamOutputReturnUsedAsContent
 
 # StreamOutputReturnUsedAsContent
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,16 +29,15 @@ Reported:
 
 ## Detection
 
-- D1. Report a direct readfile or fpassthru return used as the sole operand of echo or print. These functions already output stream bytes; their numeric successful return is output again. Grouping parentheses around the call, as in `echo(readfile($f));` or `print (fpassthru($h));`, are looked through: they are not call syntax and the operand is still the stream call alone.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Report a direct readfile or fpassthru return used as the sole operand of echo or print. These functions already output stream bytes; their numeric successful return is output again. Grouping parentheses around the call, as in `echo(readfile($f));` or `print (fpassthru($h));`, are looked through: they are not call syntax and the operand is still the stream call alone.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
 Remove only the output keyword and its separating whitespace. Preserve suffix comments between the stream call and the statement terminator.
 
-- E1. Storing or testing the byte count, calls to file_get_contents, shadowed builtin names and multioperand echo are excluded.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore StreamOutputReturnUsedAsContent` and `@noinspection StreamOutputReturnUsedAsContent` suppress this inspection.
+- Storing or testing the byte count, calls to file_get_contents, shadowed builtin names and multioperand echo are excluded.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -48,11 +47,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Available throughout PHP 5.3–8.5. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Available throughout PHP 5.3–8.5.
 
 ## Configure
 

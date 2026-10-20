@@ -112,7 +112,7 @@ F2. **Constants** (D3): insert `public ` immediately before the `const`
 | Option | Type | Default | Effect |
 |---|---|---|---|
 | ANALYZE_INTERFACES | bool | true | When false, interface declarations are not inspected at all. |
-| ANALYZE_CONSTANTS | bool | true | When false, class constants are never reported (D3 disabled). |
+| ANALYZE_CONSTANTS | bool | true | When false, class constants are never reported. |
 
 ## PHP versions
 
@@ -209,7 +209,7 @@ class Limits
 - Promoted constructor parameters are not covered upstream in a reliable way
   (they are not part of a property statement). custos does not report
   them.
-- Typed class constants (PHP 8.3, `const int X = 1;`): upstream behaviour is
+- Typed class constants (PHP 8.3, `const int X = 1;`): upstream behavior is
   uncertain (the type may count as "something before the name"). custos
   treats the type as not being a modifier and reports like an untyped
   constant; no EA fixture covers it.

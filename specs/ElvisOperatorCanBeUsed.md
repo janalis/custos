@@ -120,7 +120,7 @@ $keep5  = getTitle() ? getTitle() : DEFAULT_TITLE;
 - custos diverges from upstream on side effects (D3a, E4). Upstream also
   reports conditions with calls such as `f() ? f() : $x`; the short ternary
   evaluates `f()` once where the original evaluated it twice, which changes
-  behaviour for anything stateful (`next()`, `fetch()`, counters) and can
+  behavior for anything stateful (`next()`, `fetch()`, counters) and can
   return a different value. custos skips conditions that may have side
   effects. The EA conformance case still passes.
 - Precedence: `R` is substituted without parentheses (matches upstream
@@ -137,5 +137,5 @@ $keep5  = getTitle() ? getTitle() : DEFAULT_TITLE;
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").

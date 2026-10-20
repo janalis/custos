@@ -48,8 +48,8 @@ For a condition expression `K`:
 
 With the operand list `O1…On` (n ≥ 2), compute `cost(Oi)` (below). For each
 `i ≥ 2`: report `Oi` when `cost(Oi) < cost(Oi-1)` and `Oi` is **not coupled**
-with `Oi-1` (below). Comparison is only between neighbours. When either
-neighbour's cost is *unknown* (an unknown part anywhere inside it, see
+with `Oi-1` (below). Comparison is only between neighbors. When either
+neighbor's cost is *unknown* (an unknown part anywhere inside it, see
 *Property fetches*), the pair is not compared and nothing is reported for
 it.
 
@@ -97,11 +97,11 @@ it.
 - ternary: `cost(cond) + max(cost(then), cost(else))` (missing middle part of
   `?:` costs 0).
 - anything else (`new`, closures, `include`, `print`, `match`, `clone` if not
-  modelled as unary, …): 10.
+  modeled as unary, …): 10.
 
 **Property fetches.** Reading a property is cheap only when it reads a
 stored slot. Since PHP 8.4 a property may carry a `get` hook (arbitrary code,
-which can e.g. initialise a lazy collection and run a database query), and on
+which can e.g. initialize a lazy collection and run a database query), and on
 any version a read of an undeclared property can land in `__get()`. Each
 instance property access `R->name` / `R?->name` with an identifier name is
 classified from the inferred type of `R`:
@@ -196,7 +196,7 @@ always stored.
   - every method call (`->`, `?->`), static method call (`A::m()`,
     `parent::m()`, …) and object creation (`new X(...)`, which runs a
     constructor): their targets run arbitrary user code (or magic
-    `__call`/`__get`), and there is no safe subset that can be recognised
+    `__call`/`__get`), and there is no safe subset that can be recognized
     from the call alone;
   - every instance property access classified *computed* (see *Property
     fetches*): a `get` hook or `__get()` runs user code just like a method.
@@ -292,24 +292,24 @@ Applies when the operand list has ≥ 2 entries (chain operator `&&` or `||`).
 
 ## Exceptions (no report)
 
-- **E1** Neighbouring operands in non-increasing order, or equal cost.
-- **E2** Coupled neighbours (S1–S3), e.g. `($n = $c->count()) && $n > 0`,
+- **E1** Neighboring operands in non-increasing order, or equal cost.
+- **E2** Coupled neighbors (S1–S3), e.g. `($n = $c->count()) && $n > 0`,
   `count($a) > 0 && $a[0]`, `($x = array_shift($q)) && $q`,
   `!isset($m[f($k)]) && !array_key_exists($k, $m)`,
-  `isset($rows[md5($k)]) && $rows`, and neighbours with a side effect (S4):
+  `isset($rows[md5($k)]) && $rows`, and neighbors with a side effect (S4):
   `fwrite($h, $line) && $ok`, `mkdir($dir) || $dryRun`,
   `rebuild($cache) && $fresh` (user function), `$repo->save($e) || $quiet`,
   `Cache::clear() || $quiet` (method calls).
-  Neighbours where `prev` narrows a variable `cur` uses (S5):
+  Neighbors where `prev` narrows a variable `cur` uses (S5):
   `!(null === $o || strlen($o->name) === 0) && $o->id > 0`.
-  Neighbours where `prev` writes a variable (S4):
+  Neighbors where `prev` writes a variable (S4):
   `($n = count($rows)) === 0 || $force`, `strlen($s) > $i++ && $ok`.
-  Neighbours where `cur` can fail on a variable `prev` mentions (S6):
+  Neighbors where `cur` can fail on a variable `prev` mentions (S6):
   `in_array($k, $keys, true) && $map[$k] > 1`,
   `abs($step) > 0 && $n % $step === 0`.
 
-- **E2a** Neighbours where one side reads a property whose cost cannot be
-  established (*unknown*: untyped receiver, dynamic name), and neighbours
+- **E2a** Neighbors where one side reads a property whose cost cannot be
+  established (*unknown*: untyped receiver, dynamic name), and neighbors
   where one side reads a hooked, virtual, interface/abstract or `__get()`
   property (*computed*, impure under S4), e.g. `'' === $ref ||
   filter_var($ref, FILTER_VALIDATE_INT) || !$invoice->isSettled` when
@@ -344,9 +344,9 @@ None.
 
 | Option | Type | Default | Effect |
 |--------|------|---------|--------|
-| REPORT_LITERAL_OPERATORS | bool | true | enables D2 |
-| REPORT_INSTANCE_OF_FLAWS | bool | true | enables D3 and D4 |
-| SUGGEST_OPTIMIZING_CONDITIONS | bool | true | enables D1 |
+| REPORT_LITERAL_OPERATORS | bool | true | Reports the keyword logical operators `and` and `or`. |
+| REPORT_INSTANCE_OF_FLAWS | bool | true | Reports an equality next to `instanceof` and a redundant `instanceof`. |
+| SUGGEST_OPTIMIZING_CONDITIONS | bool | true | Suggests reordering operands so cheaper checks run first. |
 
 ## PHP versions
 
@@ -358,7 +358,7 @@ None.
 
 ```php
 <?php
-// D1 ordering
+// ordering
 if (strlen($name) > 3 && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$enabled</weak_warning>) {}
 if (\json_encode($id) || <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">empty($cache)</weak_warning>) {}
 if (isset($rows[md5($k)]) && <weak_warning descr="Cheaper check placed after a costlier one; evaluate it first.">$limit</weak_warning>) {}
@@ -384,7 +384,7 @@ if (($n = count($rows)) === 0 || $force) {}     // S4: assignment
 if (strlen($name) > $i++ && $enabled) {}        // S4: ++ writes $i
 if (in_array($k, $keys, true) && $map[$k] > 1) {} // S6: guarded array access
 if (abs($step) > 0 && $total % $step === 0) {}  // S6: guarded divisor
-if (fetch($a) <weak_warning descr="Use '&&' instead of 'and'.">and</weak_warning> $b) {} // one operand for D1
+if (fetch($a) <weak_warning descr="Use '&&' instead of 'and'.">and</weak_warning> $b) {} // one operand for ordering
 
 // property fetches
 final class Folder {
@@ -405,16 +405,16 @@ function scan(Folder $f, Lazy $l, $any, string $p) {
     if ($f->isEmpty || $f->open) {}             // computed neighbour: impure
 }
 
-// D2 keyword operators
+// keyword operators
 if ($p <weak_warning descr="Use '&&' instead of 'and'.">AND</weak_warning> $q) {}
 if ($p || ($q <weak_warning descr="Use '||' instead of 'or'.">or</weak_warning> $r)) {}
 if ($p xor $q) {}
 
-// D3 equality next to instanceof
+// equality next to instanceof
 if (<weak_warning descr="Equality check on a value also tested with instanceof; verify the logic.">$node != null</weak_warning> && $node instanceof Leaf && $node->ok) {}
 if ($node instanceof Leaf || $node === null) {}
 
-// D4 redundant instanceof
+// redundant instanceof
 interface Shape {}
 class Circle implements Shape {}
 class Ring extends Circle {}
@@ -464,7 +464,7 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   `is_*()`), moving a `cur` that uses that variable ahead of it can run
   `cur` on the value the check excludes:
   `!(null === $o || strlen($o->name) === 0) && $o->id > 0` was told to read
-  `$o->id` first. custos treats such neighbours as coupled.
+  `$o->id` first. custos treats such neighbors as coupled.
 - **Assignments are side effects (custos diverges from upstream, S4).**
   Upstream only keeps an assignment in place when the next operand reads
   the assigned variable, so `($n = count($rows)) === 0 || $force` is told to
@@ -472,7 +472,7 @@ if ($s instanceof Circle || $t instanceof Shape) {}
   undefined whenever `$force` is true. The same holds for `++`/`--`. custos
   never reorders across an operand that writes a variable.
 - **Guarded operations stay behind their guard (custos diverges from
-  upstream, S6).** Upstream recognises a guard only through the array base
+  upstream, S6).** Upstream recognizes a guard only through the array base
   (S2) or `isset()` (S3), so `in_array($type, [...], true) && LIMITS[$type] > 5`
   and `abs($step) > 0 && $n % $step === 0` are told to run the array access
   or the modulo first, which raises "Undefined array key" or
@@ -513,7 +513,7 @@ if ($s instanceof Circle || $t instanceof Shape) {}
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so subjects that differ only in the case of a function, method
   or class name (`Repo::$node` vs `repo::$node`), which PHP treats as the
-  same, are not recognised as equivalent. custos folds the case of those
+  same, are not recognized as equivalent. custos folds the case of those
   names (Detection, "Name case").
 - Conformance note: upstream tests set one option to `true` without disabling
   the others, so each fixture is effectively evaluated with all checks on.

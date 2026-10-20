@@ -87,7 +87,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| REPORT_EMPTY_BODY | bool | true | Enables D2 (empty braced bodies). D1 is always on. |
+| REPORT_EMPTY_BODY | bool | true | Reports empty braced bodies. Missing braces are always reported. |
 
 ## Configure
 

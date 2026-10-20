@@ -126,7 +126,7 @@ function payload($id, $tag, $note) {
   reported and "fixed" into invalid code. custos skips every array literal
   in a write/destructuring position. No upstream fixture covers these, so
   conformance is unaffected.
-- **By-reference values.** `['a' => &$a, 'b' => &$b]` — upstream behaviour
+- **By-reference values.** `['a' => &$a, 'b' => &$b]` — upstream behavior
   depends on how the parser exposes the `&`; `compact()` copies values, so
   the rewrite would change semantics. custos does not report when any value
   is by-reference.

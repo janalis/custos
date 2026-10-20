@@ -737,7 +737,7 @@ func (n *forNames) pick(f *syntax.For, ci int, base string) string {
 func forLengthFix(ctx *analysis.Context, f *syntax.For, call *syntax.FuncCall, v string) diagnostic.Fix {
 	init := v + " = " + ctx.Text(call)
 	return diagnostic.Fix{
-		Title: "Compute the length once in the initialiser",
+		Title: "Compute the length once in the initializer",
 		Edits: func() []diagnostic.TextEdit {
 			var at uint32
 			text := init

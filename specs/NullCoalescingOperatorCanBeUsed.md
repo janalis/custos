@@ -381,7 +381,7 @@ is negated K-null with `===`, so the true branch is the "set" branch.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **Probe side effects (custos diverges).** Upstream offers the rewrite
   whatever the probed expression contains, so

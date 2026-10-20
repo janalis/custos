@@ -6,7 +6,7 @@ title: GmpAutomaticBaseChangesDecimalInput
 
 # GmpAutomaticBaseChangesDecimalInput
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. gmp_init receives a valid digit-only constant string with leading zero, an omitted or zero base, and octal interpretation differs from decimal interpretation. Enabling selects decimal-input policy. Exclude all-zero strings and 0x/0b prefixes.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- gmp_init receives a valid digit-only constant string with leading zero, an omitted or zero base, and octal interpretation differs from decimal interpretation. Enabling selects decimal-input policy. Exclude all-zero strings and 0x/0b prefixes.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. A variable argument is not reported when its assigned literal may be stale at the call: the variable, or a variable whose value was copied into it, is changed by `++` or `--`, is bound by a `catch` clause, is captured by reference in a closure `use` list, or is stored by reference in an array item; or the enclosing scope calls `extract()` or one-argument `parse_str()`. A file-level variable is also a global, so a `global` declaration naming it, or any `$GLOBALS` access in the file, has the same effect.
-- E3. Both @custos-ignore GmpAutomaticBaseChangesDecimalInput and @noinspection GmpAutomaticBaseChangesDecimalInput suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- A variable argument is not reported when its assigned literal may be stale at the call: the variable, or a variable whose value was copied into it, is changed by `++` or `--`, is bound by a `catch` clause, is captured by reference in a closure `use` list, or is stored by reference in an array item; or the enclosing scope calls `extract()` or one-argument `parse_str()`. A file-level variable is also a global, so a `global` declaration naming it, or any `$GLOBALS` access in the file, has the same effect.
+- Both @custos-ignore GmpAutomaticBaseChangesDecimalInput and @noinspection GmpAutomaticBaseChangesDecimalInput suppress this native rule.
 
 ## Fix
 

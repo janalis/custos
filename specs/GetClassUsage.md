@@ -84,7 +84,7 @@ call is always reported when D4 holds.
 - **E4** An equivalent occurrence earlier in the same function body passes
   C1–C4, even when that check is in an unrelated branch or was followed by a
   reassignment.
-- **E5** Checks that are not recognised: `is_null($n)`, `$n ?? …`,
+- **E5** Checks that are not recognized: `is_null($n)`, `$n ?? …`,
   `isset($n->prop)` (the occurrence's parent is the member access, not
   `isset`), comparisons with anything other than the `null` constant
   (`$n === false`), occurrences after the call.
@@ -107,7 +107,7 @@ None.
 ## PHP versions
 
 - Active only when the language level is >= 7.1 (the upstream threshold;
-  the PHP behaviour change itself is in 7.2).
+  the PHP behavior change itself is in 7.2).
 - Upstream fixture is run at level 7.1. Tests with no explicit level run below
   7.1 in upstream's harness and would produce no reports.
 
@@ -181,7 +181,7 @@ function legacy($item = null) {
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **Flow-aware D4b (custos diverges).** A parameter with a `null` default
   counts as possibly null only when the inferred type at the call is

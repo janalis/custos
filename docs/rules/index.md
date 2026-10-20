@@ -10,7 +10,7 @@ editLink: false
 custos ships **578 rules** in 12 groups. Rules marked *off* only run when enabled in
 [`custos.json`](/guide/configuration) or with `--all`; rules with a quick-fix are applied by `custos fix`
 and offered as code actions by the language server. The *Origin* column tells native rules, designed for custos,
-from rules modelled on Php Inspections (EA Extended) (*EA*). EA rules also answer to their PhpStorm
+from rules modeled on Php Inspections (EA Extended) (*EA*). EA rules also answer to their PhpStorm
 inspection name (`<ID>Inspection`), in `@noinspection` comments, `--rule` and `custos.json`.
 
 ## Architecture

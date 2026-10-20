@@ -6,7 +6,7 @@ title: CodePointSliceSplitsGrapheme
 
 # CodePointSliceSplitsGrapheme
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 7.0" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 7.0" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Resolved mb_substr with explicit UTF-8 slices a known valid literal string at a boundary between base character and combining mark or within a known emoji sequence. Restrict initial proof to combining marks U+0300–036F and fixed literal start/length.
-- D1d. The supported combining-mark proof excludes a mark immediately following a code point that always ends its grapheme cluster: CR, LF and every code point whose Unicode Grapheme_Cluster_Break property is Control. Besides the C0/C1 controls this covers the line and paragraph separators U+2028/U+2029, the soft hyphen U+00AD, zero width space U+200B, the directional marks and embedding/isolate controls, the word joiner block U+2060–206F, U+FEFF, U+FFF0–FFFB and the default-ignorable ranges of plane 14. A mark after one of these starts its own cluster, so such a boundary is not evidence of splitting one grapheme. Format characters that join or extend a cluster keep the report: ZWNJ U+200C, ZWJ U+200D, prepended signs such as U+0600–0605, and emoji tag characters U+E0020–E007F. Unsupported segmentation contexts discard the proof.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved mb_substr with explicit UTF-8 slices a known valid literal string at a boundary between base character and combining mark or within a known emoji sequence. Restrict initial proof to combining marks U+0300–036F and fixed literal start/length.
+- The supported combining-mark proof excludes a mark immediately following a code point that always ends its grapheme cluster: CR, LF and every code point whose Unicode Grapheme_Cluster_Break property is Control. Besides the C0/C1 controls this covers the line and paragraph separators U+2028/U+2029, the soft hyphen U+00AD, zero width space U+200B, the directional marks and embedding/isolate controls, the word joiner block U+2060–206F, U+FEFF, U+FFF0–FFFB and the default-ignorable ranges of plane 14. A mark after one of these starts its own cluster, so such a boundary is not evidence of splitting one grapheme. Format characters that join or extend a cluster keep the report: ZWNJ U+200C, ZWJ U+200D, prepended signs such as U+0600–0605, and emoji tag characters U+E0020–E007F. Unsupported segmentation contexts discard the proof.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

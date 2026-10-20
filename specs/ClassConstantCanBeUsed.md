@@ -66,11 +66,11 @@ Everything is gated on PHP language level ≥ 5.5.
   characters; reproduce it).
 - **D7** If the candidate contains no backslash and equals its own lowercase
   form, skip (e.g. `'stdclass'`, `'name'`).
-- **D8** Normalise: replace every doubled backslash `\\` by a single `\`
+- **D8** Normalize: replace every doubled backslash `\\` by a single `\`
   (left to right, non-overlapping). Then:
   - if it starts with `\`, it is the FQN to look up;
   - else if it contains a `\`, or option `LOOK_ROOT_NS_UP` is on, the FQN is
-    `\` + normalised text (i.e. relative-looking names are always treated as
+    `\` + normalized text (i.e. relative-looking names are always treated as
     fully qualified from the root, never resolved against the current
     namespace or imports);
   - else skip.
@@ -111,7 +111,7 @@ Everything is gated on PHP language level ≥ 5.5.
   - D1: `Use static::class instead.`
   - D2: `Use parent::class instead.`
   - literals: `Use {N}::class instead of the class name string.` where `{N}`
-    is: for a plain literal, the normalised FQN with leading `\`; for the
+    is: for a plain literal, the normalized FQN with leading `\`; for the
     namespace concat case, the literal's raw contents with `\\` collapsed to
     `\` and one leading `\` removed (a namespace-relative name, e.g.
     `Sub\Item`).
@@ -123,7 +123,7 @@ Everything is gated on PHP language level ≥ 5.5.
 - **F0** No fix (report only, with the leading-backslash message) when the
   string's value starts with a backslash: a plain literal written with a
   leading `\`, or `__NAMESPACE__ . '\Name'` in the global namespace.
-- **F3** Plain literals: the fix receives `Q`, the normalised FQN with
+- **F3** Plain literals: the fix receives `Q`, the normalized FQN with
   leading `\`, and computes the replacement class reference `T`; the reported
   range is replaced with `T::class`. Let `short` be the part of `Q` after its
   last `\`, and *the block* the namespace block that contains the literal

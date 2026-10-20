@@ -115,7 +115,7 @@ history; unknown, sparse and previously mutated arrays are skipped.
 
 ## PHP versions
 
-No gating. (Unpacking `...` requires 5.6 at runtime; it is merely recognised
+No gating. (Unpacking `...` requires 5.6 at runtime; it is merely recognized
 as an exclusion.)
 
 ## Examples
@@ -197,7 +197,7 @@ $queue[\count($queue)] = &$job;
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 
 Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.
