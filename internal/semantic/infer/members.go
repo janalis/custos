@@ -357,6 +357,9 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 	if m.Builtin {
 		return bind(e.builtinMemberType(m.Return, m.DocReturn))
 	}
+	if t := e.methodBodyReturn(m, virtual); !t.IsUnknown() {
+		return bind(t) // a plain declared array, refined by the body
+	}
 	return bind(e.memberType(m.Return, m.DocReturn))
 }
 

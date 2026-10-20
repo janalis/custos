@@ -17,12 +17,14 @@ import (
 // returned expression whose callee's body is inferred, and so on).
 const maxBodyDepth = 4
 
-// BodyReturnType infers the return type of a function without declared or
-// documented return type from its body: see bodyReturn for a function
-// declared in this file; for one declared in another file, the type the
-// index computed from its body (AnnotateReturns), if any.
+// BodyReturnType infers the return type of a function without documented
+// return type, and declared without one or as a plain array (see
+// bodyInferable), from its body: see bodyReturn for a function declared in
+// this file; for one declared in another file, the type the index computed
+// from its body (AnnotateReturns), if any. A declared array is refined
+// only by an array body type (refinedReturn).
 func (e *Env) BodyReturnType(f *index.Function) types.Type {
-	if f == nil || f.Return != "" || f.DocReturn != "" {
+	if f == nil || !bodyInferable(f.Return, f.DocReturn) {
 		return types.Unknown
 	}
 	if f.File != e.File.Path {
@@ -31,9 +33,37 @@ func (e *Env) BodyReturnType(f *index.Function) types.Type {
 			// (its body is an approximation of the builtin).
 			return types.Unknown
 		}
-		return types.FromDoc(f.Inferred, nil)
+		return refinedReturn(f.Return, types.FromDoc(f.Inferred, nil))
 	}
-	return e.bodyReturn(f.Span)
+	return refinedReturn(f.Return, e.bodyReturn(f.Span))
+}
+
+// bodyInferable reports whether a callable with declared return type ret
+// and documented doc has its return type inferred from its body: neither
+// declared nor documented, or declared `array` (`?array`) without doc.
+func bodyInferable(ret, doc string) bool {
+	return doc == "" && (ret == "" || types.FromDoc(ret, nil).Without("null").OnlyOf("array"))
+}
+
+// refinedReturn is the body type bt of a callable declared to return ret
+// (see bodyInferable): bt for an undeclared return, or for a declared array
+// when bt holds only arrays (and null where ret allows it, else null is
+// dropped); unknown otherwise, so that the declaration applies.
+func refinedReturn(ret string, bt types.Type) types.Type {
+	if ret == "" || bt.IsUnknown() {
+		return bt
+	}
+	nullable := types.FromDoc(ret, nil).Has("null")
+	if !nullable {
+		// Returning null from `: array` throws: only arrays come back.
+		bt = bt.Without("null")
+	}
+	for _, a := range bt.Atoms() {
+		if a != "array" && !strings.HasSuffix(a, "[]") && (a != "null" || !nullable) {
+			return types.Unknown
+		}
+	}
+	return bt
 }
 
 // methodBodyReturn infers the return type of method m of class cls from
@@ -42,7 +72,7 @@ func (e *Env) BodyReturnType(f *index.Function) types.Type {
 // final, its class final or an enum, or the call is non-virtual (`self::`,
 // `parent::`). Trait methods are skipped ($this/self mean the user class).
 func (e *Env) methodBodyReturn(m *index.Method, virtual bool) types.Type {
-	if m == nil || m.Return != "" || m.DocReturn != "" || m.Abstract {
+	if m == nil || !bodyInferable(m.Return, m.DocReturn) || m.Abstract {
 		return types.Unknown
 	}
 	c := e.Index.Class(m.Class, e.PHP)
@@ -53,9 +83,9 @@ func (e *Env) methodBodyReturn(m *index.Method, virtual bool) types.Type {
 		return types.Unknown
 	}
 	if c.File != e.File.Path {
-		return types.FromDoc(m.Inferred, nil) // computed by AnnotateReturns
+		return refinedReturn(m.Return, types.FromDoc(m.Inferred, nil)) // computed by AnnotateReturns
 	}
-	return e.bodyReturn(m.Span)
+	return refinedReturn(m.Return, e.bodyReturn(m.Span))
 }
 
 // AnnotateReturns stores in fs (the symbols extracted from f) the return
@@ -75,7 +105,7 @@ func AnnotateReturns(f *syntax.File, fs *index.FileSymbols, base *index.Index, p
 	}
 	var todo []target
 	for _, fn := range fs.Functions {
-		if fn.Return == "" && fn.DocReturn == "" {
+		if bodyInferable(fn.Return, fn.DocReturn) {
 			fn := fn
 			todo = append(todo, target{fn.Span, func(s string) { fn.Inferred = s }})
 		}
@@ -87,7 +117,7 @@ func AnnotateReturns(f *syntax.File, fs *index.FileSymbols, base *index.Index, p
 		for _, m := range c.Methods {
 			// Private methods are only called from their own file; magic
 			// @method entries have no body.
-			if m.Return != "" || m.DocReturn != "" || m.Abstract || m.Visibility == index.Private || m.Span == (syntax.Span{}) {
+			if !bodyInferable(m.Return, m.DocReturn) || m.Abstract || m.Visibility == index.Private || m.Span == (syntax.Span{}) {
 				continue
 			}
 			todo = append(todo, target{m.Span, func(s string) { m.Inferred = s }})

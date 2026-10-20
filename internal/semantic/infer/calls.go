@@ -122,8 +122,10 @@ func (e *Env) declCallType(f *index.Function, n *syntax.FuncCall) types.Type {
 			return t
 		}
 	}
-	if f.Return == "" && f.DocReturn == "" {
-		return e.BodyReturnType(f)
+	if !f.Builtin && bodyInferable(f.Return, f.DocReturn) {
+		if t := e.BodyReturnType(f); !t.IsUnknown() || f.Return == "" {
+			return t
+		}
 	}
 	if f.Builtin {
 		return e.builtinMemberType(f.Return, f.DocReturn)

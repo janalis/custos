@@ -57,6 +57,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   and passing an array to `sort()`, `usort()` or another by-reference
   parameter no longer drops its known keys and shape for reads before the
   call.
+- A function or method declared to return `array` without a `@return` tag
+  returns the array type its body returns, where no override can run
+  instead (functions, and private, final or static calls).
 - `new` gives a generic class the template arguments its constructor's
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.
