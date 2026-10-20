@@ -22,7 +22,8 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KIf} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
+	// Only a file spelling the builtin can call it (see astquery.Mentions).
+	if len(ctx.File.Errors) > 0 || !astquery.Mentions(ctx.File, "pcntl_sigwaitinfo") || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
 	b := n.(*syntax.If)

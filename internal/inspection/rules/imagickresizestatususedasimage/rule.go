@@ -3,6 +3,7 @@ package imagickresizestatususedasimage
 
 import (
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -21,6 +22,10 @@ func (rule) Kinds() []syntax.NodeKind {
 }
 
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
+	// Only a file spelling it can reach resizeImage (see astquery.Mentions).
+	if !astquery.Mentions(ctx.File, "resizeImage") {
+		return
+	}
 	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}

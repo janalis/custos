@@ -19,6 +19,10 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KIf} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
+	// Only a file spelling it can reach imagecolorallocate (see astquery.Mentions).
+	if !astquery.Mentions(ctx.File, "imagecolorallocate") {
+		return
+	}
 	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}

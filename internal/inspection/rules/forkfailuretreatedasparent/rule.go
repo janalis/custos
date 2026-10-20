@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -21,6 +22,10 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KIf} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
+	// Only a file spelling it can reach pcntl_fork (see astquery.Mentions).
+	if !astquery.Mentions(ctx.File, "pcntl_fork") {
+		return
+	}
 	if !flowquery.Reachable(n, syntax.EnclosingFuncLike(n)) {
 		return
 	}

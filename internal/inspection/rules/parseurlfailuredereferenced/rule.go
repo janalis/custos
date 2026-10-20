@@ -24,6 +24,10 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KArrayDimFetch} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
+	// Only a file spelling it can reach parse_url (see astquery.Mentions).
+	if !astquery.Mentions(ctx.File, "parse_url") {
+		return
+	}
 	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}

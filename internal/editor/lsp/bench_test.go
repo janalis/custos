@@ -1,10 +1,12 @@
 package lsp
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/pprof"
 	"sort"
 	"syscall"
 	"testing"
@@ -122,4 +124,61 @@ func TestWorkspaceEditLatency(t *testing.T) {
 	p50, p95 := percentiles(wall)
 	c50, c95 := percentiles(cpu)
 	t.Logf("edit in %s: p50 %v, p95 %v; CPU p50 %v, p95 %v (flow %v)", filepath.Base(path), p50, p95, c50, c95, s.flowEnabled())
+}
+
+// labelled runs a rule under a pprof goroutine label naming it, so that a
+// CPU profile of TestRuleCost splits the analysis by rule
+// (`go tool pprof -tags`). The time a rule spends building semantic state
+// it is the first to ask for (types, flow) is charged to it.
+type labelled struct {
+	analysis.Rule
+	ctx context.Context
+}
+
+func (l labelled) Check(ctx *analysis.Context, n syntax.Node) {
+	pprof.SetGoroutineLabels(l.ctx)
+	l.Rule.Check(ctx, n)
+	pprof.SetGoroutineLabels(context.Background())
+}
+
+// labelledFile is labelled for a rule that also checks whole files.
+type labelledFile struct{ labelled }
+
+func (l labelledFile) CheckFile(ctx *analysis.Context) {
+	pprof.SetGoroutineLabels(l.ctx)
+	l.Rule.(analysis.FileRule).CheckFile(ctx)
+	pprof.SetGoroutineLabels(context.Background())
+}
+
+// TestRuleCost analyses CUSTOS_BENCH_FILE repeatedly with every rule
+// labelled, for a CPU profile (-cpuprofile) to attribute by rule:
+//
+//	go test -run TestRuleCost -cpuprofile cpu.out ./internal/editor/lsp
+//	go tool pprof -tags cpu.out
+func TestRuleCost(t *testing.T) {
+	timingMeaningful(t)
+	path := os.Getenv("CUSTOS_BENCH_FILE")
+	if path == "" {
+		t.Skip("set CUSTOS_BENCH_FILE")
+	}
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Skip(err)
+	}
+	var rules []analysis.Rule
+	for _, r := range catalogue.All() {
+		l := labelled{r, pprof.WithLabels(context.Background(), pprof.Labels("rule", r.ID()))}
+		if _, ok := r.(analysis.FileRule); ok {
+			rules = append(rules, labelledFile{l})
+		} else {
+			rules = append(rules, l)
+		}
+	}
+	e, err := analysis.NewEngine(rules, analysis.Config{PHP: phpversion.PHP84})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 40 {
+		e.Analyze(syntax.ParseBest(path, src, syntax.Options{Version: phpversion.PHP84}))
+	}
 }

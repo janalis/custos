@@ -3,6 +3,7 @@ package imagickframeindexpastend
 
 import (
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
@@ -17,6 +18,10 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
+	// Only a file spelling it can reach setIteratorIndex (see astquery.Mentions).
+	if !astquery.Mentions(ctx.File, "setIteratorIndex") {
+		return
+	}
 	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
 		return
 	}
