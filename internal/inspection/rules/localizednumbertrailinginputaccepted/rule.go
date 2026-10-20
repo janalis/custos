@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Reject unparsed number suffixes."
@@ -47,8 +47,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known || !trailingNumber.MatchString(text) {
 		return
 	}
-	g := guard{ctx: ctx, parse: parse, input: input, offset: semanticquery.CallArgument(parse.Args, 2, "offset")}
-	if g.protects(e) {
+	if consumedWhole(ctx, semanticquery.CallArgument(parse.Args, 2, "offset"), value, len(text)) {
 		return
 	}
 
@@ -105,67 +104,15 @@ func plainDecimal(ctx *analysis.Context, parse *syntax.MethodCall) bool {
 	return proven
 }
 
-// guard recognizes checks that the parse consumed its whole input.
-type guard struct {
-	ctx           *analysis.Context
-	parse         *syntax.MethodCall
-	input, offset syntax.Expr
-}
-
-// protects reports whether the echo only runs once the returned offset was
-// compared with the input length: inside the branch such a comparison selects,
-// or after a statement that leaves when the comparison fails.
-func (g guard) protects(e *syntax.Echo) bool {
-	scope := syntax.EnclosingVariableScope(e)
-	for at := syntax.Node(e); at != nil && at != scope; at = at.Parent() {
-		if stmt, ok := at.(syntax.Stmt); ok {
-			for _, prior := range flowquery.NativePriorStatements(g.ctx.File, stmt) {
-				check, ok := prior.(*syntax.If)
-				if ok && check.Else == nil && len(check.ElseIfs) == 0 && check.Span().Start >= g.parse.Span().End && syntax.Terminates(check.Body) && g.implied(check.Cond, false) {
-					return true
-				}
-			}
-		}
-		switch p := at.Parent().(type) {
-		case *syntax.If:
-			if at == syntax.Node(p.Body) && g.implied(p.Cond, true) {
-				return true
-			}
-		case *syntax.ElseIf:
-			if at == syntax.Node(p.Body) && g.implied(p.Cond, true) {
-				return true
-			}
-		case *syntax.Else:
-			if owner, ok := p.Parent().(*syntax.If); ok && g.implied(owner.Cond, false) {
-				return true
-			}
-		}
+// consumedWhole reports whether the offset the parse returned through the
+// local offset is proven, where value is echoed, to equal the input length
+// size (or the echo is unreachable): a comparison with the length guards it.
+// The offset never passes the end of the input.
+func consumedWhole(ctx *analysis.Context, offset, value syntax.Expr, size int) bool {
+	v, ok := syntax.UnwrapParens(offset).(*syntax.Variable)
+	if !ok || v.NameExpr != nil || semanticquery.NativeLabelled(ctx, value) {
+		return false
 	}
-	return false
-}
-
-// implied reports whether cond evaluating to truth proves that the offset
-// equals the byte length of the input.
-func (g guard) implied(cond syntax.Expr, truth bool) bool {
-	switch c := syntax.UnwrapParens(cond).(type) {
-	case *syntax.Unary:
-		return c.Op.Kind == syntax.TExclaim && g.implied(c.Expr, !truth)
-	case *syntax.Binary:
-		switch c.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TAnd:
-			return truth && (g.implied(c.Left, true) || g.implied(c.Right, true))
-		case syntax.TBooleanOr, syntax.TOr:
-			return !truth && (g.implied(c.Left, false) || g.implied(c.Right, false))
-		case syntax.TIsIdentical, syntax.TIsNotIdentical:
-			return (c.Op.Kind == syntax.TIsIdentical) == truth && (g.compares(c.Left, c.Right) || g.compares(c.Right, c.Left))
-		}
-	}
-	return false
-}
-
-func (g guard) compares(offset, length syntax.Expr) bool {
-	call, ok := syntax.UnwrapParens(length).(*syntax.FuncCall)
-	return ok && semanticquery.ExpansionCSame(g.ctx, offset, g.offset) &&
-		semanticquery.NativeBuiltin(g.ctx, call, "strlen") &&
-		semanticquery.ExpansionCSame(g.ctx, semanticquery.CallArgument(call.Args, 0, "string"), g.input)
+	t := ctx.Types().Native().NarrowedVarAt(v.Name, value, types.Ints(types.IntRange{Lo: 0, Hi: int64(size)}))
+	return t.IsUnknown() || t.IntsOnly(int64(size), int64(size))
 }
