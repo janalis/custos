@@ -3,6 +3,7 @@ package project
 import (
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -75,5 +76,97 @@ func TestFlowSnapshotSourcesAndBoundedComposition(t *testing.T) {
 	}
 	if BuildFlowSnapshot(paths, srcs, opt, ix) == nil {
 		t.Fatal("bounded composition returned no snapshot")
+	}
+}
+
+// An incremental update gives the snapshot a full build gives for the same
+// sources, through edits that add and remove sinks, chains of wrappers
+// across files and recursion between files.
+func TestFlowBuildUpdateMatchesFullBuild(t *testing.T) {
+	root := t.TempDir()
+	opt := syntax.Options{Version: phpversion.Default}
+	sources := map[string]string{
+		"wrapper.php": "<?php function invoke($a): void { system($a); }",
+		"relay.php":   "<?php function relay($x): void { invoke($x); }",
+		"ping.php":    "<?php function ping($n): void { if ($n) { pong($n); } exec($n); }",
+		"pong.php":    "<?php function pong($n): void { ping($n); }",
+		"user.php":    "<?php relay($_GET['a']); ping($_POST['b']);",
+	}
+	var files []string
+	for name, src := range sources {
+		path := filepath.Join(root, name)
+		writeFile(t, path, src)
+		files = append(files, path)
+	}
+	sort.Strings(files)
+	ix := BuildIndex(files, opt)
+	build := BuildFlow(files, nil, opt, ix)
+	current := map[string]string{}
+	for name, src := range sources {
+		current[filepath.Join(root, name)] = src
+	}
+	edits := []struct{ name, src string }{
+		{"wrapper.php", "<?php function invoke($a): void { echo $a; }"},
+		{"relay.php", "<?php function relay($x): void { invoke(strtolower($x)); }"},
+		{"wrapper.php", "<?php function invoke($a): void { system($a); }"},
+		{"pong.php", "<?php function pong($n): void { passthru($n); }"},
+		{"pong.php", "<?php\n\n// moved down\nfunction pong($n): void { ping($n); }"},
+		{"relay.php", "<?php function relay($x): void { invoke($x); }"},
+	}
+	for step, edit := range edits {
+		path := filepath.Join(root, edit.name)
+		current[path] = edit.src
+		ix.Add(ExtractSymbols(path, []byte(edit.src), opt))
+		next, ok := build.Update(map[string][]byte{path: []byte(edit.src)}, ix)
+		if !ok {
+			t.Fatalf("step %d: update refused", step)
+		}
+		srcs := make([][]byte, len(files))
+		for i, f := range files {
+			srcs[i] = []byte(current[f])
+		}
+		if full := BuildFlow(files, srcs, opt, ix); !next.Snapshot.Equal(full.Snapshot) {
+			t.Fatalf("step %d (%s): incremental snapshot differs from a full build", step, edit.name)
+		}
+		if step == 0 && next.Snapshot.Equal(build.Snapshot) {
+			t.Fatal("removing a sink left the snapshot unchanged")
+		}
+		build = next
+	}
+	if _, ok := build.Update(map[string][]byte{filepath.Join(root, "new.php"): []byte("<?php")}, ix); ok {
+		t.Fatal("update accepted a file outside the build")
+	}
+	if len(build.Files()) != len(files) {
+		t.Fatalf("files: %v", build.Files())
+	}
+}
+
+// A file whose own recursion reads its summaries from the snapshot, and a
+// file that cannot be read, keep incremental updates equal to full builds.
+func TestFlowBuildUpdateSelfRecursionAndUnreadable(t *testing.T) {
+	root := t.TempDir()
+	opt := syntax.Options{Version: phpversion.Default}
+	self := filepath.Join(root, "self.php")
+	other := filepath.Join(root, "other.php")
+	gone := filepath.Join(root, "gone.php")
+	writeFile(t, self, "<?php function walk($n): void { if ($n) { walk($n - 1); } system($n); }")
+	writeFile(t, other, "<?php function shell($c): void { exec($c); }")
+	files := []string{gone, other, self}
+	ix := BuildIndex(files, opt)
+	build := BuildFlow(files, nil, opt, ix)
+	for _, edit := range []struct{ path, src string }{
+		{self, "<?php function walk($n): void { if ($n) { walk($n - 1); } echo $n; }"},
+		{other, "<?php function shell($c): void { echo $c; }"},
+	} {
+		ix.Add(ExtractSymbols(edit.path, []byte(edit.src), opt))
+		next, ok := build.Update(map[string][]byte{edit.path: []byte(edit.src)}, ix)
+		if !ok {
+			t.Fatal("update refused")
+		}
+		writeFile(t, edit.path, edit.src)
+		if full := BuildFlow(files, nil, opt, ix); !next.Snapshot.Equal(full.Snapshot) {
+			t.Fatalf("%s: incremental snapshot differs from a full build", filepath.Base(edit.path))
+		}
+		build = next
 	}
 }

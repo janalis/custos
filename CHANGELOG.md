@@ -69,6 +69,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 - `self` and `parent` in a parameter's declared or documented type and in an
   inline `@var` comment name the enclosing class, so calls on such variables
   are typed.
+- The language server no longer rebuilds the whole project's flow summaries
+  on every edit: when an edit leaves a file's declarations unchanged, only
+  the summaries it can affect are computed again (a full rebuild still
+  follows an edit that reaches a recursion between files), and other open
+  files are analyzed again only when a summary changed.
 - `new` gives a generic class the template arguments its constructor's
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.

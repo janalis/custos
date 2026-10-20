@@ -1,0 +1,94 @@
+package lsp
+
+import (
+	"io"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"custos/internal/inspection/rules/untrustedshellcommand"
+	"custos/internal/php/syntax"
+	"custos/internal/project"
+	"custos/internal/semantic/index"
+)
+
+// An edit that keeps a buffer's declarations updates the flow build: other
+// documents are analysed again only when a contract changed, and the
+// summaries match a full build. Any other edit rebuilds them.
+func TestIncrementalFlowRefresh(t *testing.T) {
+	root := t.TempDir()
+	s := whiteBox(t, root, io.Discard, untrustedshellcommand.New())
+	wrapper := filepath.Join(root, "wrapper.php")
+	if err := os.WriteFile(wrapper, []byte("<?php function invoke($arg) { system($arg); }"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !s.beginIndexing() {
+		t.Fatal("index not requested")
+	}
+	s.buildIndex()
+	uri := "file://" + wrapper
+	s.docs[uri] = &document{path: wrapper, text: []byte("<?php function invoke($arg) { system($arg); }")}
+	findings := func() int {
+		f := syntax.Parse("main.php", []byte("<?php invoke($_GET['c']);"), syntax.Options{Version: s.cfg.PHP})
+		return len(s.engine.Analyze(f))
+	}
+	edit := func(src string) bool {
+		t.Helper()
+		s.docs[uri].text = []byte(src)
+		return s.reindexDoc(uri)
+	}
+	// The buffer has no recorded symbols yet: a full rebuild.
+	if !edit("<?php function invoke($arg) { system($arg); }") || s.flowBuild == nil {
+		t.Fatal("first edit did not rebuild")
+	}
+	full := s.flowBuild
+	if edit("<?php function invoke($arg) { system($arg); /* typing */ }") {
+		t.Fatal("an edit changing no contract reanalysed every document")
+	}
+	if s.flowBuild == full || findings() != 1 {
+		t.Fatal("unchanged contract: build not updated or findings lost")
+	}
+	engine := s.engine
+	if !edit("<?php function invoke($arg) { echo $arg; }") || s.engine == engine || findings() != 0 {
+		t.Fatal("removing the sink did not republish the summaries")
+	}
+	sameAsFull := func() {
+		t.Helper()
+		files := s.flowBuild.Files()
+		srcs := make([][]byte, len(files))
+		for i, f := range files {
+			if f == wrapper {
+				srcs[i] = s.docs[uri].text
+			}
+		}
+		if !project.BuildFlow(files, srcs, syntax.Options{Version: s.cfg.PHP}, s.index, s.cfg.Flow).Snapshot.Equal(s.flow) {
+			t.Fatal("incremental summaries differ from a full build")
+		}
+	}
+	sameAsFull()
+	// A changed declaration rebuilds.
+	build := s.flowBuild
+	if !edit("<?php function invoke($arg, $more = null) { system($arg); }") || s.flowBuild == build || findings() != 1 {
+		t.Fatal("declaration change not rebuilt")
+	}
+	sameAsFull()
+	// Another refresh published meanwhile: the update is dropped and the
+	// summaries rebuilt.
+	defer func(f func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool)) {
+		updateFlow = f
+	}(updateFlow)
+	updateFlow = func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
+		next, ok := b.Update(changed, ix)
+		s.flowBuild = nil
+		return next, ok
+	}
+	if !edit("<?php function invoke($arg, $more = null) { system($arg); // concurrent\n}") || s.flowBuild == nil {
+		t.Fatal("superseded update not rebuilt")
+	}
+	updateFlow = func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool) {
+		return nil, false
+	}
+	if !edit("<?php function invoke($arg, $more = null) { system($arg); // refused\n}") {
+		t.Fatal("refused update not rebuilt")
+	}
+}

@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"maps"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -9,6 +10,7 @@ import (
 	"custos/internal/php/syntax"
 	"custos/internal/project"
 	"custos/internal/semantic/flow"
+	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
 )
 
@@ -125,16 +127,19 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 	}
 }
 
-// reindexDoc refreshes the index entry of an open document from its buffer;
-// it reports whether the index changed.
+// reindexDoc refreshes the index entry of an open document from its buffer
+// and the flow summaries; it reports whether other documents may need
+// analysing again (false when only the document's own findings can have
+// changed).
 func (s *Server) reindexDoc(uri string) bool {
 	s.mu.Lock()
 	d, ok := s.docs[uri]
-	ix, cfg := s.index, s.cfg
+	ix, cfg, build := s.index, s.cfg, s.flowBuild
 	var text []byte
 	var path string
+	var prev *index.FileSymbols
 	if ok {
-		text, path = d.text, d.path
+		text, path, prev = d.text, d.path, s.flowSymbols[d.path]
 	}
 	s.mu.Unlock()
 	if !ok || ix == nil {
@@ -143,6 +148,25 @@ func (s *Server) reindexDoc(uri string) bool {
 	fs := project.ExtractSymbols(path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
 	ix.DropStaleInferred(fs)
 	ix.Add(fs)
+	if build != nil && prev != nil && index.SameDeclarations(prev, fs) {
+		// No other file sees a change: summarize again only what the
+		// buffer's summaries reach.
+		if next, ok := updateFlow(build, map[string][]byte{path: text}, ix); ok {
+			s.mu.Lock()
+			if s.flowBuild == build {
+				changed := !next.Snapshot.Equal(build.Snapshot)
+				symbols := maps.Clone(s.flowSymbols)
+				symbols[path] = fs
+				s.flowBuild, s.flowSymbols, s.flow = next, symbols, next.Snapshot
+				if changed {
+					s.engine = s.engine.WithFlow(next.Snapshot)
+				}
+				s.mu.Unlock()
+				return changed
+			}
+			s.mu.Unlock()
+		}
+	}
 	s.refreshFlow()
 	return true
 }
@@ -166,10 +190,12 @@ func (s *Server) refreshFlow() {
 	}
 	s.mu.Unlock()
 	sort.Slice(buffers, func(i, j int) bool { return buffers[i].path < buffers[j].path })
+	built := make(map[string]*index.FileSymbols, len(buffers))
 	for _, b := range buffers {
 		symbols := project.ExtractSymbols(b.path, b.src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
 		ix.DropStaleInferred(symbols)
 		ix.Add(symbols)
+		built[b.path] = symbols
 	}
 	paths := []string{}
 	for _, p := range cfg.Paths {
@@ -198,11 +224,11 @@ func (s *Server) refreshFlow() {
 		sources[i] = contents[path]
 	}
 	// Compose every unsaved dependency in the same bounded fixed point.
-	snapshot := project.BuildFlowSnapshot(files, sources, opt, ix, cfg.Flow)
+	build := project.BuildFlow(files, sources, opt, ix, cfg.Flow)
 	s.mu.Lock()
 	if s.engine == e {
-		s.flow = snapshot
-		s.engine = e.WithFlow(snapshot)
+		s.flow, s.flowBuild, s.flowSymbols = build.Snapshot, build, built
+		s.engine = e.WithFlow(build.Snapshot)
 	}
 	s.mu.Unlock()
 }
@@ -211,4 +237,5 @@ func (s *Server) refreshFlow() {
 var (
 	discoverIndexFiles = project.Discover
 	buildIndexSymbols  = project.BuildIndex
+	updateFlow         = (*project.FlowBuild).Update
 )

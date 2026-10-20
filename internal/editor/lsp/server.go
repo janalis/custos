@@ -13,6 +13,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
+	"custos/internal/project"
 	"custos/internal/project/config"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
@@ -62,7 +63,12 @@ type Server struct {
 	pending         []fileChange
 	index           *index.Index
 	flow            *flow.Snapshot
-	shutdown        bool
+	// flowBuild is the build flow was published from, and flowSymbols the
+	// symbols of each open buffer it was built with: an edit keeping a
+	// buffer's declarations updates the build instead of redoing it.
+	flowBuild   *project.FlowBuild
+	flowSymbols map[string]*index.FileSymbols
+	shutdown    bool
 	// sem bounds concurrent analyses.
 	sem chan struct{}
 }

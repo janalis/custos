@@ -82,6 +82,8 @@ func (s *Server) configure() error {
 		s.index = nil
 		s.flow = nil
 	}
+	// Flow options may have changed: the next edit rebuilds the summaries.
+	s.flowBuild, s.flowSymbols = nil, nil
 	if s.index != nil {
 		e = e.WithIndex(s.index)
 		if s.flow != nil {

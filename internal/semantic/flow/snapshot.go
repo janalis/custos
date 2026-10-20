@@ -2,6 +2,7 @@ package flow
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -57,7 +58,15 @@ type File struct {
 	// consulted names the callables whose contracts the summaries were
 	// computed from: nothing else of a snapshot can change them.
 	consulted map[string]bool
+	// held lists the keys of those the snapshot answered (and not the
+	// file's own summaries).
+	held []string
 }
+
+// Reads returns the summary keys (as File.Summaries lists them) of the
+// contracts the snapshot supplied while the summaries were computed: within
+// a recursion, the summaries depend on what the snapshot held for them.
+func (f *File) Reads() []string { return f.held }
 
 // Current reports that the summaries, extracted under the earlier snapshot,
 // would come out the same under s: no contract they were computed from
@@ -304,6 +313,12 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options 
 	}
 	e.summarizing = nil
 	out.consulted, e.consulted = e.consulted, nil
+	for key, read := range e.answers {
+		if read.held {
+			out.held = append(out.held, key)
+		}
+	}
+	slices.Sort(out.held)
 	return e, out
 }
 
