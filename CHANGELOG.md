@@ -111,6 +111,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   `isset($d[3], $other)`, an exit followed by `else`/`elseif`, an `elseif`
   condition after a failed length test and `while` conditions now count,
   and a decode in a branch the length tests contradict is not reported.
+- ReflectionCompositeTypeAssumedNamed reads `instanceof` guards from type
+  narrowing: `while` conditions, `is_a()`, comparisons with `true`/`false`
+  and a test result kept in a local now count; a jump label between the
+  test and the call ends the proof.
 - PregReplaceFailureUnchecked reads string tests (`str_ends_with`,
   `strpos(...) !== false`, offsets) from type narrowing, which also covers
   `stripos`, `strstr` and the other substring searches.

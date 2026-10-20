@@ -240,6 +240,13 @@ func TestReviewSafety(t *testing.T) {
 		{"match other subject", u + "echo match($x){$t instanceof ReflectionNamedType=>$t->getName(),default=>''};", 1, "8.4"},
 		{"match false subject", u + "echo match(false){$t instanceof ReflectionNamedType=>$t->getName(),default=>''};", 1, "8.4"},
 		{"match arm condition", u + "echo match(true){$t->getName()=>1,default=>2};", 1, "8.4"},
+		{"jump target after guard", u + "if(!$t instanceof ReflectionNamedType){return;}back:$t->getName();goto back;", 1, "8.4"},
+		{"assertions off", u + "assert($t instanceof ReflectionNamedType);$t->getName();", 1, "8.4"},
+		{"guard in loop", u + "while($x){if(!$t instanceof ReflectionNamedType){continue;}$t->getName();}", 0, "8.4"},
+		{"while condition", u + "while($t instanceof ReflectionNamedType){$t->getName();}", 0, "8.4"},
+		{"is_a test", u + "if(is_a($t,ReflectionNamedType::class)){$t->getName();}", 0, "8.4"},
+		{"compared with false", u + "if($t instanceof ReflectionNamedType===false){return;}$t->getName();", 0, "8.4"},
+		{"saved test", u + "$ok=$t instanceof ReflectionNamedType;if($ok){$t->getName();}", 0, "8.4"},
 		{"guard outside closure", u + "if(!$t instanceof ReflectionNamedType){return;}$f=function(){$r=new ReflectionFunction('f');$t=$r->getParameters()[0]->getType();return $t->getName();};$g=fn()=>$t->getName();", 1, "8.4"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
