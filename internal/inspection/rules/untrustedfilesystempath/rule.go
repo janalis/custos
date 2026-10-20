@@ -2,6 +2,7 @@
 package untrustedfilesystempath
 
 import (
+	"math"
 	"strings"
 
 	"custos/internal/inspection/analysis"
@@ -9,6 +10,7 @@ import (
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/flow"
+	"custos/internal/semantic/types"
 )
 
 const message = "Validate filesystem containment before using this path."
@@ -146,55 +148,29 @@ func bindsByRef(ctx *analysis.Context, list *syntax.ArgList, i int) bool {
 	return params[i].ByRef
 }
 
-// contained looks for a prefix test on the same canonical value that every
-// path to use has passed: an enclosing `if` body, or an earlier sibling `if`
-// that leaves the scope when the test fails.
+// contained looks for a prefix test on the same canonical value whose result
+// the conditions guarding use prove passed: str_starts_with() true, or
+// strpos()/strncmp() returning 0.
 func contained(ctx *analysis.Context, use *syntax.Variable, origin syntax.Expr) bool {
-	for n := syntax.Node(use); n != nil && !syntax.IsVariableScope(n); n = n.Parent() {
-		if branch, ok := n.Parent().(*syntax.If); ok && n == syntax.Node(branch.Body) && implies(ctx, branch.Cond, true, origin) {
-			return true
-		}
-		st, ok := n.(syntax.Stmt)
-		if !ok {
-			continue
-		}
-		list, idx, _ := astquery.StmtList(ctx.File, st)
-		for i := 0; i < idx; i++ {
-			guard, ok := list[i].(*syntax.If)
-			if ok && syntax.Terminates(guard.Body) && implies(ctx, guard.Cond, false, origin) {
-				return true
-			}
-		}
+	if semanticquery.NativeLabelled(ctx, use) {
+		return false // a jump may land between the test and the use
 	}
-	return false
-}
-
-// implies reports whether cond evaluating to truth proves the prefix test.
-func implies(ctx *analysis.Context, cond syntax.Expr, truth bool, origin syntax.Expr) bool {
-	switch x := syntax.UnwrapParens(cond).(type) {
-	case *syntax.Unary:
-		return x.Op.Kind == syntax.TExclaim && implies(ctx, x.Expr, !truth, origin)
-	case *syntax.FuncCall:
-		return truth && prefixTest(ctx, x, origin, "str_starts_with")
-	case *syntax.Binary:
-		switch x.Op.Kind {
-		case syntax.TBooleanAnd:
-			return truth && (implies(ctx, x.Left, true, origin) || implies(ctx, x.Right, true, origin))
-		case syntax.TBooleanOr:
-			return !truth && (implies(ctx, x.Left, false, origin) || implies(ctx, x.Right, false, origin))
-		case syntax.TIsIdentical, syntax.TIsNotIdentical:
-			if (x.Op.Kind == syntax.TIsIdentical) != truth {
-				return false
+	return semanticquery.NativeEarlierCallProves(ctx, use, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		call, ok := x.(*syntax.FuncCall)
+		switch {
+		case !ok:
+		case prefixTest(ctx, call, origin, "str_starts_with"):
+			return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") }
+		case prefixTest(ctx, call, origin, "strpos", "strncmp"):
+			// strpos: the offset or false; strncmp: the ordering.
+			seed := types.Union(types.Ints(types.IntRange{Lo: 0, Hi: math.MaxInt64}), types.Of("false"))
+			if semanticquery.NativeBuiltinName(ctx, call) == "strncmp" {
+				seed = types.Ints(types.IntRange{Lo: math.MinInt64, Hi: math.MaxInt64})
 			}
-			for _, side := range [2][2]syntax.Expr{{x.Left, x.Right}, {x.Right, x.Left}} {
-				call, ok := syntax.UnwrapParens(side[0]).(*syntax.FuncCall)
-				if zero, known := semanticquery.NativeInt(ctx, side[1]); ok && known && zero == 0 {
-					return prefixTest(ctx, call, origin, "strpos", "strncmp")
-				}
-			}
+			return seed, func(t types.Type) bool { return t.IntsOnly(0, 0) }
 		}
-	}
-	return false
+		return types.Unknown, nil
+	})
 }
 
 // prefixTest matches one of the named builtins comparing the canonical value

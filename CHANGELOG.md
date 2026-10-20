@@ -111,6 +111,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   `isset($d[3], $other)`, an exit followed by `else`/`elseif`, an `elseif`
   condition after a failed length test and `while` conditions now count,
   and a decode in a branch the length tests contradict is not reported.
+- UntrustedFilesystemPath reads directory prefix tests from type narrowing:
+  a saved test, ternary positions and an exit followed by `else` now count.
 - UntrustedHeaderValue reads line-break rejections from type narrowing: a
   saved test result, ternary, `match (true)` and `&&`/`||` positions, an
   `elseif` after a failed test and an exit followed by `else` now count.

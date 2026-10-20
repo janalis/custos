@@ -48,7 +48,12 @@ func TestReviewSafety(t *testing.T) {
 		{"other comparison", canonical + "if (strpos($p, '/srv/d/') === 1) { exit; } readfile($p);", 1},
 		{"no call operand", canonical + "if ($p !== 0) { exit; } readfile($p);", 0}, // the flow proves $p is 0
 		{"other function", canonical + "if (!str_contains($p, '/srv/d/')) { exit; } readfile($p);", 1},
-		{"compared starts_with", canonical + "if (str_starts_with($p, '/srv/d/') !== 0) { exit; } readfile($p);", 1},
+		{"bool compared with an int always exits", canonical + "if (str_starts_with($p, '/srv/d/') !== 0) { exit; } readfile($p);", 0},
+		{"saved prefix test", canonical + "$inside = str_starts_with($p, '/srv/d/'); if (!$inside) { exit; } readfile($p);", 0},
+		{"prefix exit with else", canonical + "if (!str_starts_with($p, '/srv/d/')) { exit; } else { $x = 1; } readfile($p);", 0},
+		{"prefix ternary", canonical + "$r = str_starts_with($p, '/srv/d/') ? readfile($p) : 0;", 0},
+		{"strpos loosely zero", canonical + "if (strpos($p, '/srv/d/') != 0) { exit; } readfile($p);", 1},
+		{"jump label after prefix test", canonical + "if (!str_starts_with($p, '/srv/d/')) { exit; } back: readfile($p); goto back;", 1},
 		{"user function", canonical + "if (!inside($p, '/srv/d/')) { exit; } readfile($p);", 1}, // an unresolved helper proves nothing, declared or not
 		{"other subject", canonical + "$o = realpath('/srv/d/x'); if (!str_starts_with($o, '/srv/d/')) { exit; } readfile($p);", 1},
 		{"subject expression", canonical + "if (!str_starts_with($p . '', '/srv/d/')) { exit; } readfile($p);", 1},
