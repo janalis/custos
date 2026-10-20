@@ -182,3 +182,25 @@ func TestRuleCost(t *testing.T) {
 		e.Analyze(syntax.ParseBest(path, src, syntax.Options{Version: phpversion.PHP84}))
 	}
 }
+
+// BenchmarkEditAnalysis is TestEditLatency as a benchmark (parse and every
+// default rule on CUSTOS_BENCH_FILE), for allocation counts, which do not
+// depend on the machine's load.
+func BenchmarkEditAnalysis(b *testing.B) {
+	path := os.Getenv("CUSTOS_BENCH_FILE")
+	if path == "" {
+		b.Skip("set CUSTOS_BENCH_FILE")
+	}
+	src, err := os.ReadFile(path)
+	if err != nil {
+		b.Skip(err)
+	}
+	e, err := analysis.NewEngine(catalogue.All(), analysis.Config{PHP: phpversion.PHP84})
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		e.Analyze(syntax.ParseBest(path, src, syntax.Options{Version: phpversion.PHP84}))
+	}
+}
