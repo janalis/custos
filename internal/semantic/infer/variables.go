@@ -962,14 +962,24 @@ func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
 			return dt
 		}
 	}
-	if declared.IsUnknown() && !e.native && !p.Variadic {
-		// A callback's untyped parameter receives what its caller passes.
-		switch fn := scope.(type) {
-		case *syntax.Closure:
-			return e.contextParamType(fn, nodeIndex(fn.Params, p))
-		case *syntax.ArrowFunction:
-			return e.contextParamType(fn, nodeIndex(fn.Params, p))
+	if e.native || p.Variadic {
+		return declared
+	}
+	// A callback's untyped parameter receives what its caller passes; one
+	// declared `array` (or `iterable`) keeps the passed array's facts.
+	var ct types.Type
+	switch fn := scope.(type) {
+	case *syntax.Closure:
+		if declared.IsUnknown() || declared.OnlyOf("array", "iterable") {
+			ct = e.contextParamType(fn, nodeIndex(fn.Params, p))
 		}
+	case *syntax.ArrowFunction:
+		if declared.IsUnknown() || declared.OnlyOf("array", "iterable") {
+			ct = e.contextParamType(fn, nodeIndex(fn.Params, p))
+		}
+	}
+	if declared.IsUnknown() || ct.IsArrayLike() {
+		return ct
 	}
 	return declared
 }

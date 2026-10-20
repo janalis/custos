@@ -71,3 +71,35 @@ function first(array $a) { return array_map(fn($x) => $x, $a); }
 t('lib', \Lib\first([]));
 `, map[string]string{"lib": `\Lib\Foo[]`})
 }
+
+// A callback parameter declared `array` or `iterable` keeps the facts of the
+// arrays the builtin passes; any other passed type leaves the declaration.
+func TestCallbackArrayParametersFromBuiltins(t *testing.T) {
+	checkAnywhere(t, `<?php
+/**
+ * @param list<array{id: int, name: string}> $rows
+ * @param list<string> $names
+ * @param list<int[]> $lists
+ */
+function run(array $rows, array $names, array $lists) {
+    array_map(fn(array $row) => t('row', $row), $rows);
+    array_filter($rows, static function (array $row) { t('filter', $row); });
+    usort($rows, fn(array $a, array $b) => t('usortA', $a) <=> t('usortB', $b));
+    array_map(fn(iterable $l) => t('iterable', $l), $lists);
+    array_map(fn(?array $l) => t('nullable', $l), $lists);
+    array_map(fn(array $n) => t('scalar', $n), $names);
+    array_map(fn(array $u) => t('unknown', $u), $GLOBALS['x']);
+}
+`, map[string]string{
+		"row": "array{id: int, name: string}", "filter": "array{id: int, name: string}",
+		"usortA": "array{id: int, name: string}", "usortB": "array{id: int, name: string}",
+		"iterable": "int[]", "nullable": "array|null", "scalar": "array", "unknown": "array",
+	})
+	checkShape(t, `<?php
+/** @param list<array{id: int, name: string}> $rows */
+function run(array $rows) {
+    array_map(fn(array $row) => t('row', $row), $rows);
+    t('id', array_map(fn(array $row) => $row['id'], $rows));
+}
+`, map[string]string{"row": "array{id: int, name: string}", "id": "int[]"})
+}

@@ -31,7 +31,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   array keys (`$a['x']['y']`).
 - Closures passed to `array_map()`, `array_filter()`, `array_walk()`,
   `array_reduce()`, `usort()`, `uasort()` and `uksort()` get their untyped
-  parameters typed from the array's elements or keys.
+  parameters typed from the array's elements or keys; parameters declared
+  `array` or `iterable` keep the passed elements' array shape.
 - A method parameter without its own `@param` takes the documented type of
   the same parameter of the method it overrides or implements (for example
   the `$options` array of a Symfony form type's `buildForm()`).
