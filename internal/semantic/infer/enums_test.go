@@ -262,6 +262,7 @@ function f($s, $o) {
     if ($s === 'a') { if ($s !== 'a') { u($s); } }
     if ($s) { u($s); }
     if (!$s) { u($s); }
+    if ($$o) { u($s); }
 }`
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
@@ -280,7 +281,7 @@ function f($s, $o) {
 		`string<"a/b">`, `string<not ".">`, `string<not "."|"..">`, `string<"x/y">`, "string", `string<not "..">`,
 		`string<"a/b"|"c/d">`, `string<not "."|"..">`, "string", "string", "string", "string", "string", "string", "string", "string",
 		`string<"a">`, `string<"a">`, "string", `string<"a">`, "string", "string", "string",
-		`string<"a/b"|"c/d">`, "string", "?unknown", "?unknown", `string<not ""|"0">`, `string<""|"0">`,
+		`string<"a/b"|"c/d">`, "string", "?unknown", "?unknown", `string<not ""|"0">`, `string<""|"0">`, "string",
 	})
 }
 
@@ -335,4 +336,68 @@ function f(array $a, $k, $j) {
 	if !env.NarrowedMemberAt(fn.Params[1].Var, read, types.String).IsUnknown() {
 		t.Error("a plain local is no member")
 	}
+}
+
+// A boolean saved from a test of a property or an element stands for that
+// test while the member stays unchanged (in the native environment, no call
+// of the project either).
+func TestSavedMemberTests(t *testing.T) {
+	src := `<?php
+class K {
+    public ?string $p = null;
+    function f(array $a, $k) {
+        $ok = $this->p !== null; if ($ok) { u($this->p); }
+        $ok = $this->p !== null; $this->p = null; if ($ok) { u($this->p); }
+        $ok = $this->p !== null; g(); if ($ok) { u($this->p); }
+        $ok = $a['k'] !== null; if ($ok) { u($a['k']); }
+        $ok = $a['k'] !== null; $a['k'] = null; if ($ok) { u($a['k']); }
+        $ok = $a[$k] !== null; $k = 'x'; if ($ok) { u($a[$k]); }
+    }
+}`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "u" {
+				got = append(got, env.NarrowedFrom(c.Args.Args[0].(*syntax.Arg).Value, types.Of("string", "null")).String())
+			}
+		}
+		return true
+	})
+	checkReads(t, got, []string{"string", "null|string", "null|string", "string", "null|string", "null|string"})
+}
+
+// Tests of the source of a chain of plain copies apply to the last copy
+// while every link stays unchanged; a property source also ends at a call
+// of the project where facts are proofs.
+func TestCopyChains(t *testing.T) {
+	src := `<?php
+class K {
+    public ?string $p = null;
+    function f($s, $o) {
+        $t = $s; $u = $t; if ($s !== null) { u($u); }
+        $t = $s; $u = $t; $s = $o; if ($s !== null) { u($u); }
+        $t = $s; $u = $t; $t = $o; if ($s !== null) { u($u); }
+        $t = $this->p; if ($this->p !== null) { u($t); }
+        $t = $this->p; g(); if ($this->p !== null) { u($t); }
+        $t = $this->p; $u = $t; if ($this->p !== null) { u($u); }
+    }
+}`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok {
+			if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "u" {
+				got = append(got, env.NarrowedFrom(c.Args.Args[0].(*syntax.Arg).Value, types.Of("string", "null")).String())
+			}
+		}
+		return true
+	})
+	checkReads(t, got, []string{"string", "null|string", "null|string", "string", "null|string", "string"})
 }

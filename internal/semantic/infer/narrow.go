@@ -64,11 +64,22 @@ func (e *Env) NarrowedFrom(x syntax.Expr, seed types.Type) types.Type {
 	if t.IsUnknown() {
 		return t
 	}
-	if src, a := e.copiedFrom(v, scope); src != "" {
-		// `$tag = $_POST['tag']; if (strlen($_POST['tag']) !== 16) { … }`:
-		// the source, unchanged since the copy, was tested.
+	// `$tag = $_POST['tag']; if (strlen($_POST['tag']) !== 16) { … }`: the
+	// source, unchanged since the copy, was tested; so along a chain of
+	// copies (`$t = $s; $u = $t;`).
+	read := v
+	for range maxHolderHops {
+		src, a := e.copiedFrom(read, v, scope)
+		if src == "" {
+			break
+		}
 		st := e.narrowExprAfter(seed, v, src, scope, a.Span().End)
 		t = e.assertIs(t, st).IntsAlso(st).LengthsAlso(st)
+		next, ok := syntax.UnwrapParens(a.Value).(*syntax.Variable)
+		if !ok {
+			break
+		}
+		read = next
 	}
 	return t
 }
@@ -118,33 +129,23 @@ func (e *Env) narrowedVar(name string, use syntax.Expr, scope syntax.Node, seed 
 	return types.Union(parts...)
 }
 
-// copiedFrom returns the narrowing key of what read v copies (a local, a
-// member or an element named by a literal or a local key), with the plain assignment making the
-// copy, when that assignment is the only definition reaching v and the
-// source cannot have changed since: tests of the source made after the
-// copy apply to v.
-func (e *Env) copiedFrom(v *syntax.Variable, scope syntax.Node) (string, *syntax.Assign) {
-	a := e.onlyAssign(v.Name, v, scope)
+// copiedFrom returns the narrowing key of what read copies (a local, a
+// member or an element named by a literal or a local key), with the plain
+// assignment making the copy, when that assignment is the only definition
+// reaching read and the source cannot have changed between it and use:
+// tests of the source made after the copy apply to use.
+func (e *Env) copiedFrom(read *syntax.Variable, use syntax.Expr, scope syntax.Node) (string, *syntax.Assign) {
+	a := e.onlyAssign(read.Name, read, scope)
 	if a == nil {
 		return "", nil
 	}
 	src := narrowKey(syntax.UnwrapParens(a.Value))
 	from := a.Span().End
-	switch {
-	case src == "" || src == v.Name:
+	if src == "" || src == read.Name || e.factBroken(scope, src, from, use) {
 		return "", nil
-	case isDimKey(src):
-		if e.dimBroken(scope, src, from, v) {
-			return "", nil
-		}
-	case isPropKey(src):
-		if e.nonEmptyBroken(scope, src, from, v) {
-			return "", nil
-		}
-	default:
-		if e.brokenBy(scope, from, v, e.mutations(scope, src)) {
-			return "", nil
-		}
+	}
+	if !isPropKey(src) && !isDimKey(src) && e.brokenBy(scope, from, use, e.mutations(scope, src)) {
+		return "", nil // the local was written since
 	}
 	return src, a
 }
@@ -550,38 +551,10 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 	// too, which may not run) is a definition reaching use: callers skip the
 	// conditions written before it (see narrowExprAfter's after).
 	r := e.applyCond(t, c, key, truthy)
-	narrowed := r.ShapeString() != t.ShapeString()
-	if b := propBase(key); b != "" && narrowed && e.chainBroken(scope, key, b, from, use) {
-		return t // `$v` (or a property along the chain) changed since
-	}
-	if isPropKey(key) && !isDimKey(key) && narrowed {
-		if e.brokenBy(scope, from, use, e.mutations(scope, key)) {
-			return t // the property itself was written since
-		}
-		if e.native && e.memberBroken(scope, key, from, use) {
-			return t
-		}
-	}
-	if !isPropKey(key) && !isDimKey(key) && narrowed {
-		sv := e.scopeVars(scope)
-		if e.native && sv.refs[key] && e.brokenBy(scope, from, use, e.mutations(scope, anyWrite), e.mutations(scope, anyCall)) {
-			return t // a write through another name may have changed it
-		}
-		if (sv.statics[key] || e.native && sv.shared[key]) && e.brokenBy(scope, from, use, e.mutations(scope, anyCall)) {
-			// A call may enter the function again and assign its static
-			// local, or write the variable a reference or global aliases.
-			return t
-		}
-		if e.native && e.brokenBy(scope, from, use, e.mutations(scope, argKey(key))) {
-			return t // passed since to a callee that may take it by reference
-		}
+	if r.ShapeString() != t.ShapeString() && e.factBroken(scope, key, from, use) {
+		return t
 	}
 	if isDimKey(key) {
-		// An element is narrowed only while neither it nor its array can
-		// have changed since the condition.
-		if narrowed && e.dimBroken(scope, key, from, use) {
-			return t
-		}
 		return r
 	}
 	if k, changed := e.applyKeyCond(r, c, key, truthy); changed && !e.nonEmptyBroken(scope, key, from, use) {
@@ -593,6 +566,38 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 		}
 	}
 	return r
+}
+
+// factBroken reports whether what a condition ending at from established
+// about key may no longer hold at use: for a property, a write to it or
+// along its chain (where facts are proofs, also a call of the project or a
+// write through another receiver); for an element, a change of it or of its
+// array (see dimBroken); for a local, a write the definitions do not show
+// (through a reference, a global or static alias, a by-reference callee).
+func (e *Env) factBroken(scope syntax.Node, key string, from uint32, use syntax.Expr) bool {
+	if b := propBase(key); b != "" && e.chainBroken(scope, key, b, from, use) {
+		return true // `$v` (or a property along the chain) changed since
+	}
+	switch {
+	case isDimKey(key):
+		// An element is narrowed only while neither it nor its array can
+		// have changed since the condition.
+		return e.dimBroken(scope, key, from, use)
+	case isPropKey(key):
+		// The property itself was written since, or (where facts are
+		// proofs) code may have run that writes it.
+		return e.brokenBy(scope, from, use, e.mutations(scope, key)) || e.native && e.memberBroken(scope, key, from, use)
+	}
+	sv := e.scopeVars(scope)
+	if e.native && sv.refs[key] && e.brokenBy(scope, from, use, e.mutations(scope, anyWrite), e.mutations(scope, anyCall)) {
+		return true // a write through another name may have changed it
+	}
+	if (sv.statics[key] || e.native && sv.shared[key]) && e.brokenBy(scope, from, use, e.mutations(scope, anyCall)) {
+		// A call may enter the function again and assign its static local,
+		// or write the variable a reference or global aliases.
+		return true
+	}
+	return e.native && e.brokenBy(scope, from, use, e.mutations(scope, argKey(key))) // passed to a callee that may take it by reference
 }
 
 // dimBroken reports whether element key (a dimKey) may have changed
@@ -747,11 +752,12 @@ func keyPresent(t types.Type, k string, drop ...string) types.Type {
 
 // aliasCond returns the condition a boolean variable v stands for when it
 // narrows variable name: v's only reaching definition is `$v = cond;` with
-// cond a boolean expression, and name is not written between that
-// assignment and v. Only direct aliases (an alias of an alias is not
-// followed) and plain variable names; nil otherwise.
+// cond a boolean expression, and name (a local, a property or an element)
+// is not written between that assignment and v, nor otherwise changed (see
+// factBroken). Only direct aliases (an alias of an alias is not followed);
+// nil otherwise.
 func (e *Env) aliasCond(v *syntax.Variable, name string) syntax.Expr {
-	if v.NameExpr != nil || v.Name == "" || v.Name == "this" || strings.ContainsAny(name, ">:"+dimSep) {
+	if v.NameExpr != nil || v.Name == "" || v.Name == "this" {
 		return nil
 	}
 	scope := syntax.EnclosingVariableScope(v)
@@ -773,6 +779,9 @@ func (e *Env) aliasCond(v *syntax.Variable, name string) syntax.Expr {
 		if m.span.Start >= end && m.span.Start < at {
 			return nil // name changed since the alias was computed
 		}
+	}
+	if (isPropKey(name) || isDimKey(name)) && e.factBroken(scope, name, end, v) {
+		return nil // the member may have changed since
 	}
 	return cond
 }
