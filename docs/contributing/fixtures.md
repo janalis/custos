@@ -11,7 +11,7 @@ format.
 ```text
 internal/inspection/rules/onetimeusevariables/testdata/
 ├── basic.php              # findings, marked up
-├── basic.fixed.php        # expected source after `custos fix`
+├── basic.fixed.php        # expected source after applying the fixes
 ├── false-positives.php    # code that must not be reported
 ├── options.php            # same rule with non-default options…
 ├── options.json           # …set by this sidecar
@@ -20,16 +20,23 @@ internal/inspection/rules/onetimeusevariables/testdata/
 
 - `<name>.php`: a fixture. Every expected finding is marked up (see below);
   anything not marked must not be reported.
-- `<name>.fixed.php` (optional): the exact expected result of applying all
-  quick-fixes to `<name>.php`, markup removed.
+- `<name>.fixed.php` (optional): the expected result of applying, in one
+  pass, the quick-fixes of `<name>.php`, markup removed. Whitespace
+  differences are ignored. A fixture whose `.fixed.php` equals its source
+  checks that no fix is offered.
 - `<name>.json` (optional): settings for that fixture.
 - `*.inc`: extra project files whose symbols are indexed next to a fixture
   (see `companions`); they are not fixtures themselves.
 
-A typical set is `basic.php`, `false-positives.php` and `basic.fixed.php`
-when the rule has a fix, plus one fixture per option or PHP version that
-changes the behavior. Start from the spec's examples. Cover parser-recovery guards with broken PHP in
-`broken*.php`.
+Every rule needs findings, the false positives it must avoid and, when it
+has a fix, its expected result; most use `basic.php`, `false-positives.php`
+and `basic.fixed.php`, plus one fixture per option or PHP version that
+changes the behavior. Start from the spec's examples. Cover parser-recovery
+guards with broken PHP in `broken*.php`.
+
+Own fixtures are parsed with the newest supported syntax, in permissive mode
+and with short open tags; the rule itself sees the fixture's target PHP
+version.
 
 ## Markup
 

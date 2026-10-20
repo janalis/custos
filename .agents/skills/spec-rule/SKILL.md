@@ -35,7 +35,9 @@ reproduce the behavior **without** ever opening EA. Process:
    numbered detection conditions (D1…), exceptions (E1…), report range,
    fix behavior (F1…; the fix output is compared whitespace-normalized to EA's
    `.fixed` file, so be precise about produced code), options (names/defaults
-   from `rules.json`, effect in your words), PHP-version gating.
+   from `rules.json`, effect in your words, not by D/E label: Summary and
+   Options are published to users without the Detection list), PHP-version
+   gating.
    Describe observable behavior only: no Go identifiers, repository paths,
    analysis budgets or "Recommendation:" notes for implementers. Those belong
    in the implementer's optional
