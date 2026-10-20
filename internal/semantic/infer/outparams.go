@@ -546,6 +546,14 @@ func (e *Env) collectDeferredMethodOut(call *syntax.MethodCall, sv *scopeVars) {
 // definedType types read v by the definitions reaching it, without the
 // conditions guarding it.
 func (e *Env) definedType(v *syntax.Variable) types.Type {
+	if e.definedBusy[v] {
+		return types.Unknown // a cycle through a loop: nothing more is known
+	}
+	if e.definedBusy == nil {
+		e.definedBusy = map[*syntax.Variable]bool{}
+	}
+	e.definedBusy[v] = true
+	defer delete(e.definedBusy, v)
 	scope := syntax.EnclosingVariableScope(v)
 	sv := e.scopeVars(scope)
 	fwd, back, _ := e.reaching(sv.defs[v.Name], v, scope)

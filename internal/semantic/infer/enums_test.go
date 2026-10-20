@@ -281,3 +281,19 @@ function f($s, $o) {
 		`string<"a/b"|"c/d">`, "string", "?unknown", "?unknown",
 	})
 }
+
+// Two calls in a loop passing a local to methods of an unknown receiver
+// reach each other's definitions: typing one does not loop forever, and
+// the local's value is unknown after them.
+func TestDeferredArgumentsInLoop(t *testing.T) {
+	checkReads(t, nativeReads(t, `<?php
+function u($x) {}
+class K {
+    function f(Missing $c, array $xs) {
+        foreach ($xs as $x) {
+            if ($x) { $this->a->m($x, $c); } else { $this->a->n($x, $c); }
+            u($c);
+        }
+    }
+}`), []string{"?unknown"})
+}

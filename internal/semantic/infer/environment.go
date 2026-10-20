@@ -24,10 +24,13 @@ type Env struct {
 	Index    *index.Index // project index layered over the stubs
 	PHP      phpversion.Version
 
-	chains           map[syntax.Expr]nullsafeFact
-	cache            map[syntax.Expr]types.Type
-	scopes           map[syntax.Node]*scopeVars
-	busy             map[syntax.Expr]bool
+	chains map[syntax.Expr]nullsafeFact
+	cache  map[syntax.Expr]types.Type
+	scopes map[syntax.Node]*scopeVars
+	busy   map[syntax.Expr]bool
+	// definedBusy holds the reads definedType is typing: deferred method
+	// arguments in a loop may reach each other's definitions.
+	definedBusy      map[*syntax.Variable]bool
 	functions        map[*syntax.FuncCall]*index.Function
 	functionIndex    *index.Index
 	functionRevision uint64
