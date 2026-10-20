@@ -243,3 +243,33 @@ class H {
 }
 `, map[string]string{"options": "int", "unnamed": "int[]", "docs": `\Foo[]`, "plain": "array"})
 }
+
+// `self` and `parent` in a parameter's type name the class declaring it.
+func TestRelativeParameterTypes(t *testing.T) {
+	checkAnywhere(t, `<?php
+class P {}
+class A extends P {
+    public function m(self $a, ?self $b, parent $p) { t('self', $a); t('nullable', $b); t('parent', $p); }
+    /** @param self $d */
+    public function n($d, self ...$all) { t('doc', $d); t('variadic', $all); $f = fn (self $x) => t('closure', $x); }
+}
+trait T { public function m(self $x) { t('trait', $x); } }
+$f = function (self $x) { t('outside', $x); };
+`, map[string]string{
+		"self": `\A`, "nullable": `\A|null`, "parent": `\P`, "doc": `\A`, "variadic": `\A[]`,
+		"closure": `\A`, "trait": "?unknown", "outside": "?unknown",
+	})
+}
+
+// An inline `@var self` names the enclosing class too.
+func TestRelativeInlineVar(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Node {
+    public ?Node $parent = null;
+    public function root() { $n = $this; /** @var self $n */ while ($n = $n->parent) { t('loop', $n); } }
+}
+/** @var self $top */
+$top = 1;
+t('top', $top);
+`, map[string]string{"loop": `\Node`, "top": "?unknown"})
+}

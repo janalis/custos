@@ -933,6 +933,29 @@ func (e *Env) collectDimWrites(outer, a *syntax.Assign, target syntax.Expr, sv *
 }
 
 func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
+	return e.bindAtClass(e.paramTypeUnbound(scope, p), p)
+}
+
+// bindAtClass binds the relative atoms of a type written at n: `self` and
+// `parent` name the class enclosing n (unknown in a trait, whose self is
+// the using class, or outside a class); `static` (documented only) any
+// class extending it, which that class bounds.
+func (e *Env) bindAtClass(t types.Type, n syntax.Node) types.Type {
+	if !t.HasRelative() {
+		return t
+	}
+	var c *syntax.ClassLike
+	if n != nil {
+		c = syntax.EnclosingClass(n)
+	}
+	self, parent := e.selfClass(c), ""
+	if self != "" {
+		parent = e.Names.ParentFQN(c)
+	}
+	return t.BindRelative(self, parent, self)
+}
+
+func (e *Env) paramTypeUnbound(scope syntax.Node, p *syntax.Param) types.Type {
 	at := p.Span().Start
 	declared := types.FromNode(p.Type, e.resolver(at))
 	if p.Variadic && !declared.IsUnknown() {
@@ -1021,7 +1044,8 @@ func (e *Env) inlineVarDocs(scope syntax.Node, addDoc func(string, uint32, uint3
 			if name == "" {
 				continue
 			}
-			ty := e.docType(typ, e.resolverFor(e.nodeAt(scope, t.Start), t.Start))
+			at := e.nodeAt(scope, t.Start)
+			ty := e.bindAtClass(e.docType(typ, e.resolverFor(at, t.Start)), at)
 			addDoc(name, t.Start, t.End, func() types.Type { return ty })
 		}
 	}

@@ -104,20 +104,6 @@ func (properNullCoalescingOperatorUsage) typeSet(ctx *analysis.Context, e syntax
 		case a == "null" || a == "static" || a == "never":
 			// never (`?? throw …`) is the bottom type: it fits any side.
 			continue
-		case strings.EqualFold(a, "self") || strings.EqualFold(a, "parent"):
-			// Bind self/parent to the enclosing class (or its parent).
-			fqn := ctx.Types().ClassFQN(syntax.EnclosingClass(e))
-			if fqn != "" && strings.EqualFold(a, "parent") {
-				c := ctx.Index().Class(fqn, ctx.PHP)
-				fqn = ""
-				if c != nil {
-					fqn = c.Parent
-				}
-			}
-			if fqn == "" {
-				return nil, false
-			}
-			a = `\` + strings.TrimPrefix(fqn, `\`)
 		case a == "true" || a == "false":
 			a = "bool"
 		case strings.HasSuffix(a, "[]"):

@@ -66,6 +66,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A variable passed by reference to a function or method without
   `@param-out` takes the parameter's `@param` type after the call, instead of
   becoming unknown (checks that need a proof still treat it as unknown).
+- `self` and `parent` in a parameter's declared or documented type and in an
+  inline `@var` comment name the enclosing class, so calls on such variables
+  are typed.
 - `new` gives a generic class the template arguments its constructor's
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.
