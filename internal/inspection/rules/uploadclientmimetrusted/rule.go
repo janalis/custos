@@ -88,7 +88,7 @@ func trustsClientType(ctx *analysis.Context, call *syntax.FuncCall, upload strin
 	if label == nil {
 		return false
 	}
-	values, ok := ctx.Types().Native().NarrowMemberAt(label, call, types.TrackedStrings()).StringValueList()
+	values, ok := ctx.Types().Native().NarrowedMemberAt(label, call, types.TrackedStrings()).StringValueList()
 	if !ok {
 		return false
 	}

@@ -12,7 +12,7 @@ import (
 	"custos/internal/semantic/types"
 )
 
-// NarrowMember narrows an assumed type at member and element reads by
+// NarrowedMember narrows an assumed type at member and element reads by
 // their guards, whatever their declarations say.
 func TestNarrowMember(t *testing.T) {
 	src := `<?php
@@ -42,7 +42,7 @@ final class A {
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {
 			if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "u" {
-				got = append(got, env.NarrowMember(c.Args.Args[0].(*syntax.Arg).Value, types.Of("string", "null")).String())
+				got = append(got, env.NarrowedMember(c.Args.Args[0].(*syntax.Arg).Value, types.Of("string", "null")).String())
 			}
 		}
 		return true
@@ -89,7 +89,7 @@ class T { public $p;
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {
 			if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "u" {
-				got = append(got, env.NarrowMember(c.Args.Args[0].(*syntax.Arg).Value, types.Of("string", "null")).String())
+				got = append(got, env.NarrowedMember(c.Args.Args[0].(*syntax.Arg).Value, types.Of("string", "null")).String())
 			}
 		}
 		return true

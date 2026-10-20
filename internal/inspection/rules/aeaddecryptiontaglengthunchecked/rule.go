@@ -43,7 +43,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	want := int64(ctx.Int("tagLength"))
 	size, known := ctx.Flow().ExactLength(tag)
-	if (!known || size != want) && !semanticquery.NativeLengthGuard(ctx, tag, want) {
+	if (!known || size != want) && !semanticquery.NativeLengthProven(ctx, tag, want) {
 		ctx.ReportNode(tag, message)
 	}
 }

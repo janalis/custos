@@ -13,7 +13,7 @@ import (
 
 // ExpansionDMethods retains ordered same-object calls; ambiguous path effects
 // discard the complete state history rather than inventing a state transition.
-func ExpansionDMethods(ctx *analysis.Context, at syntax.Node, obj syntax.Expr) []*syntax.MethodCall {
+func ExpansionDMethods(ctx *analysis.Context, at, obj syntax.Expr) []*syntax.MethodCall {
 	calls := ctx.Flow().Calls(syntax.EnclosingVariableScope(at))
 	if len(calls) > 256 {
 		return nil
@@ -88,7 +88,7 @@ func ExpansionDFrames(ctx *analysis.Context, c *syntax.MethodCall) int {
 	return expansionDFrames(ctx, c.Var, c, 0)
 }
 
-func expansionDFrames(ctx *analysis.Context, obj syntax.Expr, at syntax.Node, depth int) int {
+func expansionDFrames(ctx *analysis.Context, obj, at syntax.Expr, depth int) int {
 	if depth > 8 {
 		return 0
 	}

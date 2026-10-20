@@ -56,7 +56,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 
-	if ctx.Flow().Excludes(a.Var, "false") || !semanticquery.NativeFailureFlowOnly(ctx, a.Var) && semanticquery.NativeNarrowedExcludes(ctx, a.Var, types.Of("array", "false"), "false") {
+	if semanticquery.NativeFailureExcludedSingle(ctx, a.Var, types.Of("array", "false"), "false") {
 		return
 	}
 	ctx.ReportNode(a, message)

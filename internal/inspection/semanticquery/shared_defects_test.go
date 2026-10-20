@@ -68,7 +68,7 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 	case "string-nonnull":
 		result = fmt.Sprint(NativeNarrowedExcludes(ctx, a, types.Of("string", "null"), "null"))
 	case "length":
-		result = fmt.Sprint(NativeLengthGuard(ctx, a, 4))
+		result = fmt.Sprint(NativeLengthProven(ctx, a, 4))
 	case "class":
 		if created, ok := a.(*syntax.New); ok {
 			if class := NativeNewClass(ctx, created); class != nil {

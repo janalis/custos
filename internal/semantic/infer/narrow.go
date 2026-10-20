@@ -9,7 +9,7 @@ import (
 	"custos/internal/semantic/types"
 )
 
-// NarrowMember narrows seed, a type assumed for the property, static
+// NarrowedMember narrows seed, a type assumed for the property, static
 // property or element read x (named by a literal or a local key), by the conditions guarding x, as
 // TypeOf narrows such a read whose declared type is known: what a guard
 // proves of a value its declaration says nothing about (a result stored in
@@ -18,7 +18,7 @@ import (
 // value keeps the assumed type. Plain variables, whose
 // narrowing starts after their reaching definitions, and other expressions
 // return seed.
-func (e *Env) NarrowMember(x syntax.Expr, seed types.Type) types.Type {
+func (e *Env) NarrowedMember(x syntax.Expr, seed types.Type) types.Type {
 	x = syntax.UnwrapParens(x)
 	key := narrowKey(x)
 	if !isPropKey(key) && !isDimKey(key) {
@@ -29,11 +29,11 @@ func (e *Env) NarrowMember(x syntax.Expr, seed types.Type) types.Type {
 	return e.narrowExpr(seed, x, key, syntax.EnclosingVariableScope(x))
 }
 
-// NarrowMemberAt narrows seed, a type assumed for member or element x
+// NarrowedMemberAt narrows seed, a type assumed for member or element x
 // (named by a literal or a local key), by the conditions guarding at, a place of the same scope that
 // need not read it (x only names the member: any read of it will do).
 // Unknown for anything else.
-func (e *Env) NarrowMemberAt(x, at syntax.Expr, seed types.Type) types.Type {
+func (e *Env) NarrowedMemberAt(x, at syntax.Expr, seed types.Type) types.Type {
 	key := narrowKey(syntax.UnwrapParens(x))
 	scope := syntax.EnclosingVariableScope(at)
 	if !isPropKey(key) && !isDimKey(key) || syntax.EnclosingVariableScope(x) != scope {
@@ -48,13 +48,13 @@ func (e *Env) NarrowMemberAt(x, at syntax.Expr, seed types.Type) types.Type {
 // declaration says, by the conditions guarding x: for a plain local, the
 // conditions written after the definitions reaching it (values carried
 // around a loop are narrowed from the start of that loop); for a member or
-// an element named by a literal or a local key, as NarrowMember. A local that something else may
+// an element named by a literal or a local key, as NarrowedMember. A local that something else may
 // rewrite (a reference, a dynamic write) is unknown; other expressions
 // return seed.
 func (e *Env) NarrowedFrom(x syntax.Expr, seed types.Type) types.Type {
 	v, ok := syntax.UnwrapParens(x).(*syntax.Variable)
 	if !ok {
-		return e.NarrowMember(x, seed)
+		return e.NarrowedMember(x, seed)
 	}
 	if v.Name == "" || v.NameExpr != nil || v.Name == "this" {
 		return seed

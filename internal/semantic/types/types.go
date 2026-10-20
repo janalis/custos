@@ -170,20 +170,22 @@ func (t Type) Without(atoms ...string) Type {
 			out = append(out, a)
 		}
 	}
-	r := Type{atoms: out}.withInfo(t.arr).withGen(t.gen).withInter(t.Intersection())
-	if t.ints != nil && r.Has("int") {
-		r.ints = t.ints
+	return Type{atoms: out}.withInfo(t.arr).withGen(t.gen).withInter(t.Intersection()).withValueFacts(t)
+}
+
+// withValueFacts carries the value facts of from (int values, string lengths
+// and values, enum cases) over to the members t still holds.
+func (t Type) withValueFacts(from Type) Type {
+	if from.ints != nil && t.Has("int") {
+		t.ints = from.ints
 	}
-	if t.lens != nil && r.Has("string") {
-		r.lens = t.lens
+	if t.Has("string") {
+		t.lens, t.strs = from.lens, from.strs
 	}
-	if t.cases != nil && r.Has(t.cases.class) {
-		r.cases = t.cases
+	if from.cases != nil && t.Has(from.cases.class) {
+		t.cases = from.cases
 	}
-	if t.strs != nil && r.Has("string") {
-		r.strs = t.strs
-	}
-	return r
+	return t
 }
 
 // Classes returns class atoms (with leading backslash, excluding T[] forms).

@@ -1106,7 +1106,7 @@ func expansionDSQL(sql string) ([]string, bool) {
 	return out, true
 }
 
-func expansionDMethodCalls(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr, class string, names ...string) []*syntax.MethodCall {
+func expansionDMethodCalls(ctx *analysis.Context, at, receiver syntax.Expr, class string, names ...string) []*syntax.MethodCall {
 	var out []*syntax.MethodCall
 	for _, event := range expansionDCalls(ctx, at) {
 		c, ok := event.(*syntax.MethodCall)

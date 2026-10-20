@@ -34,7 +34,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if _, ok := semanticquery.NativeLocalBuiltinResult(ctx, a.Var, "false", "posix_getpwnam", "posix_getpwuid").(*syntax.FuncCall); !ok {
 		return
 	}
-	if ctx.Flow().Excludes(a.Var, "false") || !semanticquery.NativeFailureFlowOnly(ctx, a.Var) && semanticquery.NativeNarrowedExcludes(ctx, a.Var, types.Of("array", "false"), "false") {
+	if semanticquery.NativeFailureExcludedSingle(ctx, a.Var, types.Of("array", "false"), "false") {
 		return
 	}
 	ctx.ReportNode(n, message)

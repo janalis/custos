@@ -200,7 +200,7 @@ func TestNativeFailurePolicyGuards(t *testing.T) {
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			probeNative(t, tc.src, func(ctx *analysis.Context, c *syntax.FuncCall) {
-				got := NativeLengthGuard(ctx, CallArgument(c.Args, 0, "value"), 4)
+				got := NativeLengthProven(ctx, CallArgument(c.Args, 0, "value"), 4)
 				if got != tc.want {
 					t.Fatalf("got %v, want %v", got, tc.want)
 				}
@@ -359,7 +359,7 @@ func TestNativeRemainingBoundaries(t *testing.T) {
 		}
 	})
 	probeNative(t, "if($v){probe($v);}", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if NativeLengthGuard(ctx, CallArgument(c.Args, 0, "value"), 4) {
+		if NativeLengthProven(ctx, CallArgument(c.Args, 0, "value"), 4) {
 			t.Fatal("truthiness does not prove a byte length")
 		}
 	})
@@ -409,9 +409,6 @@ func TestNativeCallResultQueries(t *testing.T) {
 	probeNative(t, "function f($h){if(!fseek($h,0)){probe($h);}}", func(ctx *analysis.Context, c *syntax.FuncCall) {
 		if !NativeCallSucceeded(ctx, firstCall(ctx, "fseek"), c) {
 			t.Fatal("!fseek() holds when the seek succeeded")
-		}
-		if NativeCallSucceeded(ctx, firstCall(ctx, "fseek"), c.Parent()) {
-			t.Fatal("a statement is no place to type a call result")
 		}
 	})
 	probeNative(t, "function f($h){a: if(flock($h,LOCK_EX)){probe($h);} goto a;}", func(ctx *analysis.Context, c *syntax.FuncCall) {

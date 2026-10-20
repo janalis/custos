@@ -7,10 +7,10 @@ import (
 	"custos/internal/semantic/types"
 )
 
-// NativeLengthGuard proves that input is exactly length bytes long where it
+// NativeLengthProven proves that input is exactly length bytes long where it
 // is read: the flow facts say so, or, in a scope without goto labels before
 // it, the strlen() tests guarding it leave only that length.
-func NativeLengthGuard(ctx *analysis.Context, input syntax.Expr, length int64) bool {
+func NativeLengthProven(ctx *analysis.Context, input syntax.Expr, length int64) bool {
 	if input == nil {
 		return false
 	}
@@ -29,6 +29,13 @@ func NativeFailureExcluded(ctx *analysis.Context, input syntax.Expr, seed types.
 		return false
 	}
 	return ctx.Flow().Excludes(input, sentinel) || NativeNarrowedExcludes(ctx, input, seed, sentinel)
+}
+
+// NativeFailureExcludedSingle is NativeFailureExcluded where the narrowed
+// type counts only when a single producer reaches input (see
+// NativeFailureFlowOnly): with several, only the flow facts do.
+func NativeFailureExcludedSingle(ctx *analysis.Context, input syntax.Expr, seed types.Type, sentinel string) bool {
+	return ctx.Flow().Excludes(input, sentinel) || !NativeFailureFlowOnly(ctx, input) && NativeNarrowedExcludes(ctx, input, seed, sentinel)
 }
 
 // NativeIntegerAllowsZero proves the validator options neither exclude zero

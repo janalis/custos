@@ -13,7 +13,7 @@ func TestStringValues(t *testing.T) {
 	for i := range many {
 		many[i] = strconv.Itoa(i)
 	}
-	ab := StringValues("b", "a", "a")
+	ab := stringValues("b", "a", "a")
 	notDot := TrackedStrings().StringsWithout(".")
 	for _, tc := range []struct {
 		name string
@@ -21,24 +21,24 @@ func TestStringValues(t *testing.T) {
 		want string
 	}{
 		{"list", ab, `string<"a"|"b">`},
-		{"none", StringValues(), "?unknown"},
-		{"too many", StringValues(many...), "string"},
+		{"none", stringValues(), "?unknown"},
+		{"too many", stringValues(many...), "string"},
 		{"tracked any", TrackedStrings(), "string"},
 		{"only", ab.StringsOnly("b", "c"), `string<"b">`},
 		{"only none", Union(ab, Null).StringsOnly("c"), "null"},
 		{"only from any", notDot.StringsOnly(".", "x"), `string<"x">`},
 		{"only untracked", String.StringsOnly("a"), "string"},
 		{"without listed", ab.StringsWithout("a"), `string<"b">`},
-		{"without last", StringValues("a").StringsWithout("a"), "?unknown"},
+		{"without last", stringValues("a").StringsWithout("a"), "?unknown"},
 		{"without excluded", ab.StringsWithout("c"), `string<"a"|"b">`},
 		{"without from any", notDot.StringsWithout(".."), `string<not "."|"..">`},
 		{"without untracked", String.StringsWithout("a"), "string"},
-		{"union of lists", Union(StringValues("a"), StringValues("b"), Null), `null|string<"a"|"b">`},
+		{"union of lists", Union(stringValues("a"), stringValues("b"), Null), `null|string<"a"|"b">`},
 		{"union of exclusions", Union(notDot, notDot.StringsWithout("..")), `string<not ".">`},
 		{"union of other exclusions", Union(notDot.StringsWithout(".."), notDot), `string<not ".">`},
-		{"union list and exclusions", Union(StringValues("."), notDot.StringsWithout("..")), `string<not "..">`},
+		{"union list and exclusions", Union(stringValues("."), notDot.StringsWithout("..")), `string<not "..">`},
 		{"union with untracked", Union(ab, String), "string"},
-		{"union past the cap", Union(StringValues(many[:9]...), StringValues(many[9:]...)), "string"},
+		{"union past the cap", Union(stringValues(many[:9]...), stringValues(many[9:]...)), "string"},
 		{"union without strings", Union(ab, Int), `int|string<"a"|"b">`},
 		{"without other atom", Union(ab, Null).Without("null"), `string<"a"|"b">`},
 		{"relative", Union(ab, Of("static")).BindRelative(`\A`, "", `\A`), `\A|string<"a"|"b">`},

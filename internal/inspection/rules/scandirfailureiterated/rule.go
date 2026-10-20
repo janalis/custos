@@ -27,7 +27,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	c, ok := semanticquery.NativeLocalBuiltinResult(ctx, loop.Expr, "false", "scandir").(*syntax.FuncCall)
-	if ok && semanticquery.NativeBuiltin(ctx, c, "scandir") && !ctx.Flow().Excludes(loop.Expr, "false") && (semanticquery.NativeFailureFlowOnly(ctx, loop.Expr) || !semanticquery.NativeNarrowedExcludes(ctx, loop.Expr, types.Of("array", "false"), "false")) {
+	if ok && semanticquery.NativeBuiltin(ctx, c, "scandir") && !semanticquery.NativeFailureExcludedSingle(ctx, loop.Expr, types.Of("array", "false"), "false") {
 		ctx.ReportNode(loop.Expr, message)
 	}
 }

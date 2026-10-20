@@ -356,7 +356,7 @@ func NativeStoredArray(ctx *analysis.Context, slot *syntax.ArrayDimFetch, at syn
 }
 
 // NativeStreamMode proves a guarded successful local fopen mode.
-func NativeStreamMode(ctx *analysis.Context, h syntax.Expr, at syntax.Node) (string, bool) {
+func NativeStreamMode(ctx *analysis.Context, h, at syntax.Expr) (string, bool) {
 	c, ok := NativeValue(ctx, h).(*syntax.FuncCall)
 	if !ok || !NativeBuiltin(ctx, c, "fopen") {
 		return "", false
@@ -390,20 +390,19 @@ func NativeStreamMode(ctx *analysis.Context, h syntax.Expr, at syntax.Node) (str
 // known to have succeeded at at: the conditions on that very call guarding at
 // rule its failure out. fseek fails with -1 rather than false: its result
 // must be known to be 0.
-func NativeCallSucceeded(ctx *analysis.Context, c syntax.Expr, at syntax.Node) bool {
-	x, ok := at.(syntax.Expr)
-	if !ok || NativeLabelled(ctx, x) {
+func NativeCallSucceeded(ctx *analysis.Context, c, at syntax.Expr) bool {
+	if NativeLabelled(ctx, at) {
 		return false
 	}
 	if f, ok := c.(*syntax.FuncCall); ok && NativeBuiltinName(ctx, f) == "fseek" {
-		return ctx.Types().Native().CallResultAsAt(c, x, types.Ints(types.IntRange{Lo: -1, Hi: 0})).IntsOnly(0, 0)
+		return ctx.Types().Native().CallResultAsAt(c, at, types.Ints(types.IntRange{Lo: -1, Hi: 0})).IntsOnly(0, 0)
 	}
-	t := ctx.Types().Native().CallResultAt(c, x)
+	t := ctx.Types().Native().CallResultAt(c, at)
 	return !t.IsUnknown() && !nativeMayHold(t, "false")
 }
 
 // NativeStreamCalls includes guarded stream operations preceding the use.
-func NativeStreamCalls(ctx *analysis.Context, at syntax.Node, h syntax.Expr, names ...string) []*syntax.FuncCall {
+func NativeStreamCalls(ctx *analysis.Context, at, h syntax.Expr, names ...string) []*syntax.FuncCall {
 	var out []*syntax.FuncCall
 	scope := syntax.EnclosingVariableScope(at)
 	for _, event := range nativeContractEvents(ctx, scope) {

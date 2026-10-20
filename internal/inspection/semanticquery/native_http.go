@@ -206,7 +206,7 @@ func CheckHeadersAfterCommittedOutput(ctx *analysis.Context, n syntax.Node, mess
 	}
 	commit, report := ctx.Flow().GlobalStateBefore(c, "committed-output")
 
-	if report && !headersUnsentGuard(ctx, c, commit.Span) {
+	if report && !headersUnsentProven(ctx, c, commit.Span) {
 		ctx.ReportNode(c, message, fixes...)
 	}
 }
@@ -222,11 +222,11 @@ func headersStatusWrite(ctx *analysis.Context, c *syntax.FuncCall) bool {
 	return set || !known
 }
 
-// headersUnsentGuard proves that a headers_sent() call evaluated before the
+// headersUnsentProven proves that a headers_sent() call evaluated before the
 // call returned false on its path: the conditions guarding the call narrow
 // its result to false. A commit recorded between that test and the call
 // invalidates it.
-func headersUnsentGuard(ctx *analysis.Context, c *syntax.FuncCall, commit syntax.Span) bool {
+func headersUnsentProven(ctx *analysis.Context, c *syntax.FuncCall, commit syntax.Span) bool {
 	return NativeEarlierCallProves(ctx, c, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
 		test, ok := x.(*syntax.FuncCall)
 		if !ok || commit.Start >= test.Span().End && commit.End <= c.Span().Start || !NativeBuiltin(ctx, test, "headers_sent") {
@@ -501,7 +501,7 @@ func CheckSessionCookieOptionsSetAfterStart(ctx *analysis.Context, n syntax.Node
 	if start == nil || !NativeBuiltin(ctx, start, "session_start") {
 		return
 	}
-	report = sessionStartKeepsActive(ctx, start) && !sessionInactiveGuard(ctx, c, start)
+	report = sessionStartKeepsActive(ctx, start) && !sessionInactiveProven(ctx, c, start)
 
 	if report {
 		ctx.ReportNode(c, message, fixes...)
@@ -524,11 +524,11 @@ func sessionStartKeepsActive(ctx *analysis.Context, start *syntax.FuncCall) bool
 	return !set || (known && !closing)
 }
 
-// sessionInactiveGuard proves that no session is active where c runs: the
+// sessionInactiveProven proves that no session is active where c runs: the
 // conditions guarding it narrow the start call's result to false, or a
 // session_status() call made after the start to anything but
 // PHP_SESSION_ACTIVE.
-func sessionInactiveGuard(ctx *analysis.Context, c, start *syntax.FuncCall) bool {
+func sessionInactiveProven(ctx *analysis.Context, c, start *syntax.FuncCall) bool {
 	return NativeEarlierCallProves(ctx, c, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
 		test, ok := x.(*syntax.FuncCall)
 		switch {

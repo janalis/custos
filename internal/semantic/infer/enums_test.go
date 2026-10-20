@@ -279,7 +279,7 @@ function f($s, $o) {
 	checkReads(t, got, []string{
 		`string<"a/b">`, `string<not ".">`, `string<not "."|"..">`, `string<"x/y">`, "string", `string<not "..">`,
 		`string<"a/b"|"c/d">`, `string<not "."|"..">`, "string", "string", "string", "string", "string", "string", "string", "string",
-		`string<"a">`, `string<"a">`, "string", "string", "string", "string", "string",
+		`string<"a">`, `string<"a">`, "string", `string<"a">`, "string", "string", "string",
 		`string<"a/b"|"c/d">`, "string", "?unknown", "?unknown", `string<not ""|"0">`, `string<""|"0">`,
 	})
 }
@@ -332,7 +332,7 @@ function f(array $a, $k, $j) {
 	fn := f.Stmts[0].(*syntax.Function)
 	first := fn.Body.Stmts[0].(*syntax.If)
 	read := first.Cond.(*syntax.Binary).Left
-	if !env.NarrowMemberAt(fn.Params[1].Var, read, types.String).IsUnknown() {
+	if !env.NarrowedMemberAt(fn.Params[1].Var, read, types.String).IsUnknown() {
 		t.Error("a plain local is no member")
 	}
 }

@@ -70,7 +70,7 @@ func TestAuditFailureGuardsTrackReachingValue(t *testing.T) {
 		})
 	}
 	probeNative(t, "$v=fread($h,4);if(strlen($v)===4){$v=fread($h,4);probe($v);}", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if NativeLengthGuard(ctx, CallArgument(c.Args, 0, ""), 4) {
+		if NativeLengthProven(ctx, CallArgument(c.Args, 0, ""), 4) {
 			t.Fatal("old length applied to new read")
 		}
 	})

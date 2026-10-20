@@ -102,18 +102,7 @@ func (r *relativeBinding) bind(t Type, depth int) (Type, bool) {
 	if changed {
 		out = Of(atoms...)
 		out.arr, out.gen, out.inter = t.arr, t.gen, t.inter
-		if t.ints != nil && out.Has("int") {
-			out.ints = t.ints
-		}
-		if t.lens != nil && out.Has("string") {
-			out.lens = t.lens
-		}
-		if t.cases != nil && out.Has(t.cases.class) {
-			out.cases = t.cases
-		}
-		if t.strs != nil && out.Has("string") {
-			out.strs = t.strs
-		}
+		out = out.withValueFacts(t)
 	}
 	var gens []genEntry
 	for i, g := range t.gen {

@@ -7,7 +7,7 @@ import (
 )
 
 // strFacts are the values the string member may hold. They are tracked only
-// where a caller seeded them (TrackedStrings, StringValues), so ordinary
+// where a caller seeded them (TrackedStrings), so ordinary
 // inference never carries them; like int values (see ints.go) they ride on
 // the atom: String and Equal ignore them, ShapeString shows them.
 type strFacts struct {
@@ -27,9 +27,9 @@ func TrackedStrings() Type {
 	return t
 }
 
-// StringValues builds the string type holding exactly values (unknown when
+// stringValues builds the string type holding exactly values (unknown when
 // there are none, a tracked string past maxStringValues).
-func StringValues(values ...string) Type {
+func stringValues(values ...string) Type {
 	if len(values) == 0 {
 		return Unknown
 	}

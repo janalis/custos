@@ -45,19 +45,18 @@ func nativePriorGlobal(ctx *analysis.Context, at syntax.Node, names ...string) [
 	return out
 }
 
-// nativeDirectoryGuard proves that the canonical parent of the temporary file
+// nativeDirectoryVerified proves that the canonical parent of the temporary file
 // held by path was compared with a canonical directory after source created it
 // and that the comparison is known to have matched where at runs: an equality
 // that the conditions guarding at prove true, or an inequality they prove
 // false, while path still holds the same file.
-func nativeDirectoryGuard(ctx *analysis.Context, at syntax.Node, path syntax.Expr, source syntax.Node) bool {
+func nativeDirectoryVerified(ctx *analysis.Context, at, path syntax.Expr, source syntax.Node) bool {
 	variable, ok := syntax.UnwrapParens(path).(*syntax.Variable)
-	x, isExpr := at.(syntax.Expr)
-	if !ok || !isExpr || NativeLabelled(ctx, x) {
+	if !ok || NativeLabelled(ctx, at) {
 		return false
 	}
 	env := ctx.Types().Native()
-	return NativeEarlierCallProves(ctx, x, func(n syntax.Expr) (types.Type, func(types.Type) bool) {
+	return NativeEarlierCallProves(ctx, at, func(n syntax.Expr) (types.Type, func(types.Type) bool) {
 		cmp, ok := n.(*syntax.Binary)
 		if !ok || cmp.Span().Start < source.Span().End {
 			return types.Unknown, nil
@@ -79,7 +78,7 @@ func nativeDirectoryGuard(ctx *analysis.Context, at syntax.Node, path syntax.Exp
 				return types.Unknown, nil
 			}
 		}
-		if !env.ReachesUnchanged(parent, x) {
+		if !env.ReachesUnchanged(parent, at) {
 			return types.Unknown, nil // another file since
 		}
 		return types.Bool, func(t types.Type) bool { return t.OnlyOf(want) }
@@ -968,7 +967,7 @@ func streamCloseFailed(ctx *analysis.Context, closed syntax.Span, use *syntax.Fu
 		if !ok || call.Span() != closed {
 			continue
 		}
-		if t := ctx.Types().Native().CallResultAt(call, use); !t.IsUnknown() && !t.HasAny("true", "bool", "mixed") {
+		if t := ctx.Types().Native().CallResultAt(call, use); !t.IsUnknown() && !nativeMayHold(t, "true") {
 			return true
 		}
 	}
@@ -1000,7 +999,7 @@ func CheckTempnamDirectoryFallbackUnchecked(ctx *analysis.Context, n syntax.Node
 	if system, ok := syntax.UnwrapParens(directory).(*syntax.FuncCall); ok && NativeBuiltinName(ctx, system) == "sys_get_temp_dir" {
 		return
 	}
-	report = !nativeDirectoryGuard(ctx, c, path, open)
+	report = !nativeDirectoryVerified(ctx, c, path, open)
 
 	if report {
 		ctx.ReportNode(c, message)

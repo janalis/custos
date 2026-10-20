@@ -115,7 +115,7 @@ writes, calls and references that end a fact.
   facts exist only where a caller seeds them, so ordinary inference never
   pays for them.
 - For a place that does not read the value, use `NarrowedVarAt` (locals) or
-  `NarrowMemberAt` (properties and elements).
+  `NarrowedMemberAt` (properties and elements).
 - For the result of one call or comparison node, use `CallResultAt` or
   `CallResultAsAt`. In `semanticquery`, `NativeEarlierCallProves` scans the
   earlier calls of the scope, and `NativeCallSucceeded` and

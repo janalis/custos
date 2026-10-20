@@ -247,34 +247,13 @@ func (e *Env) needleFound(c *syntax.FuncCall, name string) bool {
 	if !ok || c.Args == nil || !needleSearches[strings.ToLower(strings.TrimPrefix(nm.Value, `\`))] || !e.isBuiltinCall(c) {
 		return false
 	}
-	// The haystack and the needle, by position or by name (`haystack:`,
-	// `needle:`); any other argument (an offset) keeps the proof.
-	var hay, needle syntax.Expr
-	for i, x := range c.Args.Args {
-		a, ok := x.(*syntax.Arg)
-		if !ok || a.Unpack {
-			return false
-		}
-		slot := i
-		if a.Name != nil {
-			switch strings.ToLower(a.Name.Value) {
-			case "haystack":
-				slot = 0
-			case "needle":
-				slot = 1
-			default:
-				continue
-			}
-		}
-		switch {
-		case slot == 0 && hay == nil:
-			hay = a.Value
-		case slot == 1 && needle == nil:
-			needle = a.Value
-		case slot < 2:
-			return false // given twice: the call throws
-		}
+	// The haystack and the needle; any other argument (an offset) keeps the
+	// proof.
+	args, ok := bindArgs(c, "haystack", "needle")
+	if !ok {
+		return false
 	}
+	hay, needle := args[0], args[1]
 	if hay == nil || needle == nil || !isVar(hay, name) {
 		return false
 	}
@@ -509,20 +488,9 @@ func (e *Env) inListCond(t types.Type, c *syntax.FuncCall, name string, truthy b
 	if !ok || !strings.EqualFold(strings.TrimPrefix(nm.Value, `\`), "in_array") {
 		return t, false
 	}
-	// needle, haystack, strict: by position or by name, each once.
-	var args [3]syntax.Expr
-	for i, x := range c.Args.Args {
-		a, ok := x.(*syntax.Arg)
-		if !ok || a.Unpack {
-			return t, false
-		}
-		if a.Name != nil {
-			i = slices.Index([]string{"needle", "haystack", "strict"}, a.Name.Value)
-		}
-		if i < 0 || args[i] != nil {
-			return t, false
-		}
-		args[i] = a.Value
+	args, ok := bindArgs(c, "needle", "haystack", "strict")
+	if !ok {
+		return t, false
 	}
 	list, ok := syntax.UnwrapParens(args[1]).(*syntax.Array)
 	if !isVar(args[0], name) || !ok || len(list.Items) == 0 {
@@ -553,4 +521,29 @@ func (e *Env) inListCond(t types.Type, c *syntax.FuncCall, name string, truthy b
 		t = t.StringsWithout(v)
 	}
 	return t, true
+}
+
+// bindArgs binds the arguments of c to the parameters named params, by
+// position or by name (matched exactly, as PHP does); a missing one is nil.
+// Arguments past params and other names are left aside. An unpacked
+// argument, or one given twice (the call then throws), binds nothing.
+func bindArgs(c *syntax.FuncCall, params ...string) ([]syntax.Expr, bool) {
+	out := make([]syntax.Expr, len(params))
+	for i, x := range c.Args.Args {
+		a, ok := x.(*syntax.Arg)
+		if !ok || a.Unpack {
+			return nil, false
+		}
+		if a.Name != nil {
+			i = slices.Index(params, a.Name.Value)
+		}
+		if i < 0 || i >= len(params) {
+			continue
+		}
+		if out[i] != nil {
+			return nil, false
+		}
+		out[i] = a.Value
+	}
+	return out, true
 }

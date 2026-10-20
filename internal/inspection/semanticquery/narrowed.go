@@ -32,7 +32,7 @@ func NativeNarrowedExcludes(ctx *analysis.Context, x syntax.Expr, seed types.Typ
 			t = ctx.Types().Native().NarrowedFrom(v, seed)
 		}
 	case *syntax.PropertyFetch, *syntax.StaticPropertyFetch, *syntax.ArrayDimFetch:
-		t = ctx.Types().Native().NarrowMember(v, seed)
+		t = ctx.Types().Native().NarrowedMember(v, seed)
 	default:
 		return false
 	}
@@ -57,9 +57,9 @@ func NativeNarrowedExcludesAt(ctx *analysis.Context, x, at syntax.Expr, atom str
 }
 
 // nativeMayHold reports whether a value of type t may be atom (`null`,
-// `false`): t names it, or a type that includes it (`bool`, `mixed`).
+// `false`, `true`): t names it, or a type that includes it (`bool`, `mixed`).
 func nativeMayHold(t types.Type, atom string) bool {
-	return t.HasAny(atom, "mixed") || atom == "false" && t.Has("bool")
+	return t.HasAny(atom, "mixed") || (atom == "false" || atom == "true") && t.Has("bool")
 }
 
 // NativeEarlierCallProves reports whether a call or comparison made earlier
