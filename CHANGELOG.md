@@ -121,6 +121,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   used as an `&&` operand, and an exit followed by `else` now count; a
   rebinding of the path or a jump label between the check and the write
   voids it.
+- OptionalRegexCaptureReadWithoutNullFlag reads capture existence tests
+  from type narrowing: `match (true)` arms and an enclosing `if` now count.
 - Type narrowing follows a boolean saved from a test of a property or an
   array element (`$ok = $_FILES['f']['type'] === 'image/png'; if ($ok)`)
   while the member stays unchanged, and the tests of a copied value along a
