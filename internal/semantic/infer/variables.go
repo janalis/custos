@@ -88,7 +88,7 @@ func (e *Env) widenElem(el types.Type, n *syntax.ArrayDimFetch) types.Type {
 		return el
 	}
 	ws, back := e.reachingWrites(v)
-	if k, ok := literalKey(n.Dim); n.Dim != nil && ok {
+	if k, ok := syntax.LiteralArrayKey(n.Dim); n.Dim != nil && ok {
 		ws, back = writesForKey(ws, back, k)
 	}
 	return e.widenWrites(el, ws, back)
@@ -107,7 +107,7 @@ func writesForKey(ws []*elemWrite, back []bool, k string) ([]*elemWrite, []bool)
 			if d == nil && !types.IsIntKey(k) {
 				continue // appends add integer keys
 			}
-			if wk, ok := literalKey(d); d != nil && ok && wk != k {
+			if wk, ok := syntax.LiteralArrayKey(d); d != nil && ok && wk != k {
 				continue
 			}
 		}
@@ -879,7 +879,7 @@ func (e *Env) collectItems(items []*syntax.ArrayItem, pos uint32, keyType func(s
 		}
 		key, ok := strconv.Itoa(i), it.Key == nil
 		if it.Key != nil {
-			key, ok = literalKey(it.Key)
+			key, ok = syntax.LiteralArrayKey(it.Key)
 		}
 		item := func() types.Type { return types.Unknown }
 		if ok && !it.ByRef {

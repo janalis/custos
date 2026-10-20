@@ -65,7 +65,8 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 				c.Consts[k.Name.Value] = &ClassConst{
 					Name: k.Name.Value, Class: fqn, Visibility: visibility(m.Modifiers),
 					Type: x.typeStr(m.Type, at), Deprecated: x.deprecated(m.Attrs, x.doc(m)),
-					Final: m.Modifiers.Has(syntax.TFinal), Value: x.text(k.Value), Span: k.Span(),
+					Final: m.Modifiers.Has(syntax.TFinal), Value: x.text(k.Value),
+					ValueType: constArrayDoc(k.Value, x.ownConst(n, fqn)), Span: k.Span(),
 				}
 			}
 		case *syntax.EnumCase:
@@ -107,6 +108,29 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 // readsRunCode reports whether reading the property `name` declared with
 // these modifiers and hooks may run code: it is abstract, has a `get` hook
 // or an abstract hook, or is virtual (no hook touches its backing store).
+// ownConst resolves, for constant initialisers of class n (FQN fqn), a
+// fetch of one of n's own constants (`self::NAME`, or n's name) to its
+// initialiser; nil for any other fetch.
+func (x *extractor) ownConst(n *syntax.ClassLike, fqn string) func(f *syntax.ClassConstFetch) syntax.Expr {
+	return func(f *syntax.ClassConstFetch) syntax.Expr {
+		cls, ok := f.Class.(*syntax.Name)
+		id, named := f.Name.(*syntax.Identifier)
+		if !ok || !named || (!strings.EqualFold(cls.Value, "self") && !strings.EqualFold(strings.TrimPrefix(x.r.Class(cls.Value, cls.Span().Start), `\`), strings.TrimPrefix(fqn, `\`))) {
+			return nil
+		}
+		for _, m := range n.Members {
+			if k, ok := m.(*syntax.ClassConst); ok {
+				for _, c := range k.Consts {
+					if c.Name.Value == id.Value {
+						return c.Value
+					}
+				}
+			}
+		}
+		return nil
+	}
+}
+
 func readsRunCode(name string, mods syntax.Modifiers, hooks []*syntax.PropertyHook) bool {
 	if mods.Has(syntax.TAbstract) {
 		return true

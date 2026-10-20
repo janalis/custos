@@ -389,7 +389,7 @@ func countComparison(c *syntax.Binary, name string) (countCmp, bool) {
 		return ok && !a.Unpack && isVar(a.Value, name)
 	}
 	intLit := func(x syntax.Expr) (int64, bool) {
-		k, ok := literalKey(x)
+		k, ok := syntax.LiteralArrayKey(x)
 		if !ok {
 			return 0, false
 		}

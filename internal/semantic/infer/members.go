@@ -447,6 +447,18 @@ func (e *Env) staticCallType(n *syntax.StaticCall) types.Type {
 	return e.methodReturn(cls, id.Value, isVirtualClassRef(n.Class), origin, nil, n.Args)
 }
 
+// constFixed reports whether a fetch of constant k through class reference
+// ref (resolved to cls) always reads k's own value: a subclass may override
+// a constant that `static::` or an object reaches, unless the constant or
+// the class is final.
+func (e *Env) constFixed(ref syntax.Expr, cls string, k *index.ClassConst) bool {
+	if nm, ok := ref.(*syntax.Name); (ok && !strings.EqualFold(nm.Value, "static")) || k.Final {
+		return true
+	}
+	c := e.Index.Class(cls, e.PHP)
+	return c != nil && (c.Final || c.Kind == syntax.KindEnum)
+}
+
 func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
 	id, ok := n.Name.(*syntax.Identifier)
 	if !ok {
@@ -472,6 +484,9 @@ func (e *Env) classConstType(n *syntax.ClassConstFetch) types.Type {
 	k := e.Index.FindConst(cls, id.Value, e.PHP)
 	if k == nil {
 		return types.Unknown
+	}
+	if k.ValueType != "" && e.constFixed(n.Class, cls, k) {
+		return types.FromDoc(k.ValueType, nil)
 	}
 	if k.Type != "" {
 		t := types.FromDoc(k.Type, nil)

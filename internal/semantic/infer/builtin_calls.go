@@ -229,7 +229,7 @@ func (e *Env) overrideType(n *syntax.FuncCall, name *syntax.Name) (types.Type, b
 		// Before PHP 8.0 explode() returns false only for an empty
 		// separator (8.0 throws instead).
 		if sep, ok := syntax.UnwrapParens(arg(0)).(*syntax.Literal); ok && sep.LitKind == syntax.LitString {
-			if v, ok := plainString(sep.Raw); ok && v != "" {
+			if v, ok := syntax.PlainStringLiteral(sep.Raw); ok && v != "" {
 				return types.Of("string[]"), true
 			}
 		}

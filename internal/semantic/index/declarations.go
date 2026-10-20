@@ -117,7 +117,7 @@ func (x *extractor) define(call *syntax.FuncCall) {
 		return
 	}
 	// Unlike a class name, define's literal name keeps a leading separator.
-	x.out.Constants = append(x.out.Constants, &Constant{FQN: name, Verbatim: strings.HasPrefix(name, `\`), Value: x.text(args[1].Value), File: x.f.Path, Span: call.Span(), DeclarationFallback: x.declarationFallback(call)})
+	x.out.Constants = append(x.out.Constants, &Constant{FQN: name, Verbatim: strings.HasPrefix(name, `\`), Value: x.text(args[1].Value), ValueType: constArrayDoc(args[1].Value, nil), File: x.f.Path, Span: call.Span(), DeclarationFallback: x.declarationFallback(call)})
 }
 
 // classAlias records `class_alias(Original::class, 'Alias')` (class

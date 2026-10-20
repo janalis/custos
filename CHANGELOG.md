@@ -36,6 +36,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A method parameter without its own `@param` takes the documented type of
   the same parameter of the method it overrides or implements (for example
   the `$options` array of a Symfony form type's `buildForm()`).
+- Constants initialized with an array literal keep its keys and value types
+  (`self::LABELS['draft']`, `foreach (self::TYPES as $key => $type)`), except
+  where `static::` may read a subclass's override.
 - `new` gives a generic class the template arguments its constructor's
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.

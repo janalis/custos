@@ -149,7 +149,7 @@ func (e *Env) arrayType(n *syntax.Array) types.Type {
 		name := strconv.FormatInt(next, 10)
 		if it.Key != nil {
 			var ok bool
-			name, ok = literalKey(it.Key)
+			name, ok = syntax.LiteralArrayKey(it.Key)
 			if !ok {
 				precise = false
 				continue

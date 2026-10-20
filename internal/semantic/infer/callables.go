@@ -121,7 +121,7 @@ func (e *Env) callbackReturn(x syntax.Expr) types.Type {
 		return t
 	}
 	if lit, ok := syntax.UnwrapParens(x).(*syntax.Literal); ok && lit.LitKind == syntax.LitString {
-		name, ok := plainString(lit.Raw)
+		name, ok := syntax.PlainStringLiteral(lit.Raw)
 		if !ok || name == "" || strings.Contains(name, ":") {
 			return types.Unknown
 		}

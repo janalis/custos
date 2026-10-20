@@ -72,7 +72,7 @@ func extractFile(f *syntax.File, stub bool) *FileSymbols {
 				if ns := x.r.Namespace(c.Span().Start); ns != "" {
 					fqn = ns + `\` + c.Name.Value
 				}
-				x.out.Constants = append(x.out.Constants, &Constant{FQN: fqn, Value: x.text(c.Value), File: f.Path, Span: c.Span()})
+				x.out.Constants = append(x.out.Constants, &Constant{FQN: fqn, Value: x.text(c.Value), ValueType: constArrayDoc(c.Value, nil), File: f.Path, Span: c.Span()})
 			}
 		case *syntax.FuncCall:
 			if x.declarationBuiltin(n, nil) != "" {

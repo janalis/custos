@@ -622,7 +622,7 @@ func (e *Env) typeFuncCmp(t types.Type, fx, val syntax.Expr, name string, holds 
 	}
 	s, isStr := "", false
 	if l, ok := syntax.UnwrapParens(val).(*syntax.Literal); ok && l.LitKind == syntax.LitString {
-		s, isStr = plainString(l.Raw)
+		s, isStr = syntax.PlainStringLiteral(l.Raw)
 	}
 	switch fn {
 	case "gettype":
@@ -668,7 +668,7 @@ func (e *Env) classNameValue(x syntax.Expr) string {
 		if n.LitKind != syntax.LitString {
 			return ""
 		}
-		s, ok := plainString(n.Raw)
+		s, ok := syntax.PlainStringLiteral(n.Raw)
 		s = strings.TrimPrefix(s, `\`)
 		if !ok || s == "" || !validClassName(s) {
 			return ""

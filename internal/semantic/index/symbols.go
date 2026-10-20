@@ -217,16 +217,19 @@ func (p *Property) WriteVisibility(ver phpversion.Version) Visibility {
 
 // ClassConst is a class constant or enum case.
 type ClassConst struct {
-	Deprecated bool        `json:"dep,omitempty"`
-	Name       string      `json:"name"`
-	Class      string      `json:"-"`
-	TypeClass  string      `json:"-"` // effective trait-import owner; lookup copies only
-	Visibility Visibility  `json:"vis,omitempty"`
-	Final      bool        `json:"final,omitempty"`
-	Case       bool        `json:"case,omitempty"`
-	Type       string      `json:"t,omitempty"` // declared, namespace-resolved type
-	Value      string      `json:"v,omitempty"` // source text
-	Span       syntax.Span `json:"-"`
+	Deprecated bool       `json:"dep,omitempty"`
+	Name       string     `json:"name"`
+	Class      string     `json:"-"`
+	TypeClass  string     `json:"-"` // effective trait-import owner; lookup copies only
+	Visibility Visibility `json:"vis,omitempty"`
+	Final      bool       `json:"final,omitempty"`
+	Case       bool       `json:"case,omitempty"`
+	Type       string     `json:"t,omitempty"` // declared, namespace-resolved type
+	Value      string     `json:"v,omitempty"` // source text
+	// ValueType is the documented type of an array literal Value (see
+	// constArrayDoc); "" for any other value.
+	ValueType string      `json:"vt,omitempty"`
+	Span      syntax.Span `json:"-"`
 }
 
 // TraitAdaptation describes method selection or adaptation in a trait use.
@@ -355,6 +358,7 @@ type Constant struct {
 	Builtin             bool        `json:"-"` // a stub declaration (see Function.Builtin)
 	FQN                 string      `json:"fqn"`
 	Value               string      `json:"v,omitempty"`
+	ValueType           string      `json:"vt,omitempty"` // see ClassConst.ValueType
 	Avail               Avail       `json:"a,omitempty"`
 	File                string      `json:"-"`
 	Span                syntax.Span `json:"-"`

@@ -3,7 +3,6 @@ package infer
 import (
 	"cmp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -14,70 +13,6 @@ import (
 
 // ---- array shapes ---------------------------------------------------------------------
 
-// literalKey returns the canonical array key of a literal key expression
-// (integer or plain string literal, optionally negated): "0", "-1", "name".
-func literalKey(x syntax.Expr) (string, bool) {
-	switch n := syntax.UnwrapParens(x).(type) {
-	case *syntax.Literal:
-		switch n.LitKind {
-		case syntax.LitInt:
-			v, err := strconv.ParseInt(strings.ReplaceAll(n.Raw, "_", ""), 0, 64)
-			if err != nil {
-				return "", false
-			}
-			return strconv.FormatInt(v, 10), true
-		case syntax.LitString:
-			s, ok := plainString(n.Raw)
-			if !ok {
-				return "", false
-			}
-			return s, true // "12" is the integer key 12, same canonical text
-		}
-	case *syntax.Unary:
-		if n.Op.Kind == syntax.TMinus {
-			if l, ok := syntax.UnwrapParens(n.Expr).(*syntax.Literal); ok && l.LitKind == syntax.LitInt {
-				if k, ok := literalKey(l); ok && k != "0" {
-					return "-" + k, true
-				}
-			}
-		}
-	}
-	return "", false
-}
-
-// plainString decodes a quoted string literal without escapes that need
-// interpretation beyond `\\` and `\'` in single quotes. Narrower than
-// astquery.StringLiteralValue on purpose: a double-quoted key with escapes or
-// `$` is not given a shape key.
-func plainString(raw string) (string, bool) {
-	if raw != "" && (raw[0] == 'b' || raw[0] == 'B') {
-		raw = raw[1:]
-	}
-	if len(raw) < 2 || raw[len(raw)-1] != raw[0] {
-		return "", false
-	}
-	body := raw[1 : len(raw)-1]
-	switch raw[0] {
-	case '\'':
-		if strings.IndexByte(body, '\\') < 0 {
-			return body, true
-		}
-		var b strings.Builder
-		for i := 0; i < len(body); i++ {
-			if body[i] == '\\' && i+1 < len(body) && (body[i+1] == '\\' || body[i+1] == '\'') {
-				i++
-			}
-			b.WriteByte(body[i])
-		}
-		return b.String(), true
-	case '"':
-		if strings.IndexByte(body, '\\') < 0 && strings.IndexByte(body, '$') < 0 {
-			return body, true
-		}
-	}
-	return "", false
-}
-
 // shapeDim types `$a['key']` from the shape of $a when the key is a literal
 // listed by the shape; ok is false otherwise (callers fall back to the
 // element type).
@@ -85,7 +20,7 @@ func (e *Env) shapeDim(ct types.Type, n *syntax.ArrayDimFetch) (types.Type, bool
 	if !ct.HasShape() || n.Dim == nil || !ct.Without("null").IsArrayLike() {
 		return types.Unknown, false
 	}
-	key, ok := literalKey(n.Dim)
+	key, ok := syntax.LiteralArrayKey(n.Dim)
 	if !ok {
 		return types.Unknown, false
 	}
@@ -137,13 +72,13 @@ func (e *Env) mayWriteKey(v *syntax.Variable, key string, appends bool) bool {
 	may := false
 	for _, w := range ws {
 		if w.nested {
-			if k, ok := literalKey(w.key); !ok || k == key {
+			if k, ok := syntax.LiteralArrayKey(w.key); !ok || k == key {
 				return false
 			}
 			continue
 		}
 		d := w.dim()
-		switch k, ok := literalKey(d); {
+		switch k, ok := syntax.LiteralArrayKey(d); {
 		case !w.known():
 			return false
 		case d == nil && appends:
@@ -171,7 +106,7 @@ func (e *Env) widenKey(kt types.Type, v *syntax.Variable, key string, appends bo
 	ts := []types.Type{kt}
 	for i, w := range ws {
 		if w.nested {
-			if k, ok := literalKey(w.key); !ok || k == key {
+			if k, ok := syntax.LiteralArrayKey(w.key); !ok || k == key {
 				return types.Unknown
 			}
 			continue
@@ -183,7 +118,7 @@ func (e *Env) widenKey(kt types.Type, v *syntax.Variable, key string, appends bo
 		if d == nil && !appends {
 			continue // `$a[] = v` appends a new key
 		}
-		if k, ok := literalKey(d); d != nil && ok && k != key {
+		if k, ok := syntax.LiteralArrayKey(d); d != nil && ok && k != key {
 			continue
 		}
 		if w.a != nil && w.a.ByRef {
@@ -304,7 +239,7 @@ func (e *Env) arrayKeyAt(t types.Type, name string, use, scope syntax.Node) type
 				continue
 			}
 		}
-		k, ok := literalKey(d)
+		k, ok := syntax.LiteralArrayKey(d)
 		if !ok {
 			return types.Unknown
 		}

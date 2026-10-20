@@ -138,7 +138,7 @@ func (e *Env) exprValue(x syntax.Expr) argValue {
 	case *syntax.Literal:
 		switch n.LitKind {
 		case syntax.LitString:
-			v.str, v.isStr = plainString(n.Raw)
+			v.str, v.isStr = syntax.PlainStringLiteral(n.Raw)
 		default:
 			v.num = n.Raw
 		}
@@ -165,7 +165,7 @@ func (e *Env) textValue(s string) argValue {
 	}
 	switch {
 	case len(s) >= 2 && (s[0] == '\'' || s[0] == '"'):
-		v.str, v.isStr = plainString(s)
+		v.str, v.isStr = syntax.PlainStringLiteral(s)
 	case v.typ.OnlyOf("int") || v.typ.OnlyOf("float"):
 		v.num = s
 	default:

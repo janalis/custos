@@ -199,7 +199,7 @@ func narrowKey(x syntax.Expr) string {
 		if base == "" || strings.Count(base, dimSep) >= maxDimDepth-1 {
 			return ""
 		}
-		if k, ok := literalKey(n.Dim); ok {
+		if k, ok := syntax.LiteralArrayKey(n.Dim); ok {
 			return dimKey(base, k)
 		}
 		if v, ok := syntax.UnwrapParens(n.Dim).(*syntax.Variable); ok && v.Name != "" && v.NameExpr == nil && v.Name != "this" {
@@ -651,7 +651,7 @@ func (e *Env) applyKeyCond(t types.Type, cond syntax.Expr, name string, truthy b
 		if !ok || d.Dim == nil || narrowKey(d.Var) != name {
 			return "", false
 		}
-		return literalKey(d.Dim)
+		return syntax.LiteralArrayKey(d.Dim)
 	}
 	switch c := syntax.UnwrapParens(cond).(type) {
 	case *syntax.Unary:
@@ -721,7 +721,7 @@ func (e *Env) applyKeyCond(t types.Type, cond syntax.Expr, name string, truthy b
 		if !ok0 || !ok1 || a0.Name != nil || a1.Name != nil || a0.Unpack || a1.Unpack || narrowKey(syntax.UnwrapParens(a1.Value)) != name {
 			break
 		}
-		if k, ok := literalKey(a0.Value); ok {
+		if k, ok := syntax.LiteralArrayKey(a0.Value); ok {
 			return keyPresent(t, k), true
 		}
 	}

@@ -13,7 +13,7 @@ import (
 func (e *Env) literalMethodCallback(x syntax.Expr) (types.Type, bool) {
 	x = syntax.UnwrapParens(x)
 	if lit, ok := x.(*syntax.Literal); ok && lit.LitKind == syntax.LitString {
-		value, valid := plainString(lit.Raw)
+		value, valid := syntax.PlainStringLiteral(lit.Raw)
 		if !valid || !strings.Contains(value, ":") {
 			return types.Unknown, false
 		}
@@ -39,13 +39,13 @@ func (e *Env) literalMethodCallback(x syntax.Expr) (types.Type, bool) {
 	if !ok || methodLit.LitKind != syntax.LitString {
 		return types.Unknown, true
 	}
-	method, valid := plainString(methodLit.Raw)
+	method, valid := syntax.PlainStringLiteral(methodLit.Raw)
 	if !valid || method == "" {
 		return types.Unknown, true
 	}
 	receiver := syntax.UnwrapParens(arr.Items[0].Value)
 	if lit, ok := receiver.(*syntax.Literal); ok && lit.LitKind == syntax.LitString {
-		cls, valid := plainString(lit.Raw)
+		cls, valid := syntax.PlainStringLiteral(lit.Raw)
 		if !valid || cls == "" {
 			return types.Unknown, true
 		}
