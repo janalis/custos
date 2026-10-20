@@ -25,7 +25,19 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.NativeBuiltin(ctx, c, "unlink") {
 		return
 	}
-	if syntax.EnclosingVariableScope(c) != nil && semanticquery.NativeSuccessFollower(ctx, c) {
+	if syntax.EnclosingVariableScope(c) != nil && !scratch(ctx, c) && semanticquery.NativeSuccessFollower(ctx, c) {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// scratch reports an unlink of the file tempnam() made in the function
+// (E3): deleting it cleans up after the function's own work, whose success
+// the return reports.
+func scratch(ctx *analysis.Context, c *syntax.FuncCall) bool {
+	path := semanticquery.CallArgument(c.Args, 0, "filename")
+	if path == nil {
+		return false
+	}
+	made, ok := semanticquery.NativeLocalValue(ctx, path).(*syntax.FuncCall)
+	return ok && semanticquery.NativeBuiltin(ctx, made, "tempnam")
 }

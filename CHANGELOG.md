@@ -241,6 +241,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- UnlinkFailureReportedAsSuccess no longer reports a function that deletes
+  the scratch file it made with `tempnam()` before returning `true`.
+
 - A condition on a property no longer narrows the property after it is
   reassigned inside the guarded branch.
 - A condition on a `static` local no longer narrows it past a call that may

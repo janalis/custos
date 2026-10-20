@@ -22,6 +22,11 @@ Identify discarded unlink call immediately followed by unconditional return true
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
 - E2. Both `@custos-ignore UnlinkFailureReportedAsSuccess` and `@noinspection UnlinkFailureReportedAsSuccess` suppress this native rule.
+- E3. A file the function made itself with `tempnam()` is not reported: when
+  the path given to `unlink` holds, as its only local value, the result of a
+  `tempnam()` call, the deletion cleans up after the function's own work,
+  and the returned success is that of this work, not of the deletion. Once
+  the variable is reassigned to another path, the deletion is reported again.
 
 ## Report
 
@@ -51,11 +56,20 @@ Finding (enable the rule explicitly when disabled by default):
 function removeFile($p) { unlink($p); return true; }
 ```
 
-Valid case:
+Valid cases:
 
 ```php
 <?php
 function removeFile($p) { return unlink($p); }
+
+function canWrite(string $dir) {
+    $probe = tempnam($dir, 'probe');
+    if (false === $probe) {
+        return false;
+    }
+    unlink($probe);
+    return true;
+}
 ```
 
 ## Divergences
