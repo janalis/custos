@@ -42,7 +42,20 @@ func (e *Env) BodyReturnType(f *index.Function) types.Type {
 // and documented doc has its return type inferred from its body: neither
 // declared nor documented, or declared `array` (`?array`) without doc.
 func bodyInferable(ret, doc string) bool {
-	return doc == "" && (ret == "" || types.FromDoc(ret, nil).Without("null").OnlyOf("array"))
+	return doc == "" && (ret == "" || arrayReturn(ret) != 0)
+}
+
+// arrayReturn classifies a declared return type in the index's normalized
+// form: 1 for `array`, 2 for `?array`, 0 for anything else. A string check:
+// calls ask it for every function declaring a return type.
+func arrayReturn(ret string) int {
+	switch ret {
+	case "array":
+		return 1
+	case "array|null":
+		return 2
+	}
+	return 0
 }
 
 // refinedReturn is the body type bt of a callable declared to return ret
@@ -53,7 +66,7 @@ func refinedReturn(ret string, bt types.Type) types.Type {
 	if ret == "" || bt.IsUnknown() {
 		return bt
 	}
-	nullable := types.FromDoc(ret, nil).Has("null")
+	nullable := arrayReturn(ret) == 2
 	if !nullable {
 		// Returning null from `: array` throws: only arrays come back.
 		bt = bt.Without("null")
