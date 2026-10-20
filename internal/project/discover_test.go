@@ -41,3 +41,28 @@ func TestDiscoverWithPatterns(t *testing.T) {
 		t.Fatalf("DiscoverWith: got %v want %v", rel(got), want)
 	}
 }
+
+// Hidden directories below a scanned path (tool state, generated code) are
+// left out; a scanned path that is itself hidden is walked.
+func TestDiscoverSkipsHiddenDirectories(t *testing.T) {
+	dir := t.TempDir()
+	for _, f := range []string{"a.php", ".phpunit.cache/container/c.php", "src/.cache/x.php", "src/b.php", ".config/php/c.php"} {
+		writeFile(t, filepath.Join(dir, f), "<?php")
+	}
+	got, err := Discover([]string{dir}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rel []string
+	for _, f := range got {
+		r, _ := filepath.Rel(dir, f)
+		rel = append(rel, filepath.ToSlash(r))
+	}
+	if want := []string{"a.php", "src/b.php"}; !reflect.DeepEqual(rel, want) {
+		t.Fatalf("Discover: got %v want %v", rel, want)
+	}
+	named, err := Discover([]string{filepath.Join(dir, ".config")}, nil)
+	if err != nil || len(named) != 1 {
+		t.Fatalf("a hidden scanned path: %v %v", named, err)
+	}
+}

@@ -67,8 +67,10 @@ Unknown top-level keys and unknown rule options are ignored.
 
 ## Excluded directories
 
-Directories named `vendor`, `node_modules`, `.git`, `.idea` and `.custos`, and
-`var/cache` below each scanned path, are always skipped. `exclude` (or `--exclude a,b` on the command
+Directories named `vendor` and `node_modules`, hidden directories (whose name
+starts with a dot, such as `.git`, `.idea`, `.custos` or `.phpunit.cache`), and
+`var/cache` below each scanned path, are always skipped; a scanned path may
+still be a hidden directory itself. `exclude` (or `--exclude a,b` on the command
 line) adds more. Each entry is a directory name, skipped at any depth, or a
 path relative to each scanned path (not to the root): with `"paths": ["src"]`,
 write `"gen"` or `"sub/gen"` to skip `src/sub/gen`, not `"src/sub/gen"`.

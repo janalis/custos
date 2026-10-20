@@ -17,7 +17,7 @@ import (
 )
 
 // Discover lists *.php files under paths, skipping excluded directory names
-// or relative paths.
+// or relative paths, and hidden directories (see hidden).
 func Discover(paths, exclude []string) ([]string, error) {
 	return DiscoverWith(paths, exclude, nil)
 }
@@ -47,7 +47,7 @@ func DiscoverWith(paths, exclude, patterns []string) ([]string, error) {
 			if d.IsDir() {
 				if p != root {
 					rel, _ := filepath.Rel(root, p)
-					if ex[d.Name()] || ex[filepath.ToSlash(rel)] {
+					if ex[d.Name()] || ex[filepath.ToSlash(rel)] || hidden(d.Name()) {
 						return filepath.SkipDir
 					}
 				}
@@ -65,6 +65,11 @@ func DiscoverWith(paths, exclude, patterns []string) ([]string, error) {
 	sort.Strings(out)
 	return out, nil
 }
+
+// hidden reports a directory name starting with a dot (.git, .idea,
+// .phpunit.cache, …): tools keep their state and generated code there, so
+// discovery leaves it out below a scanned path (a path may still name one).
+func hidden(name string) bool { return strings.HasPrefix(name, ".") }
 
 func matchesAny(base string, patterns []string) bool {
 	for _, pat := range patterns {

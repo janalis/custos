@@ -21,6 +21,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Discovery skips hidden directories (`.phpunit.cache`, `.php-cs-fixer`, and
+  any other directory whose name starts with a dot) below each scanned path,
+  so generated code kept there is no longer analyzed. A scanned path may still
+  name one.
+
 - Symbol lookups no longer contend on a lock once the project index is built,
   which shortens whole-project runs.
 - Rule option descriptions in `custos explain` and the rule reference no longer

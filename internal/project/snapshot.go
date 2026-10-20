@@ -298,7 +298,7 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 						}
 						continue
 					}
-					if inVendor && (d.Name() == "tests" || d.Name() == "Tests" || d.Name() == "test") || excluded(cfg.Exclude, d.Name(), child) {
+					if inVendor && (d.Name() == "tests" || d.Name() == "Tests" || d.Name() == "test") || excluded(cfg.Exclude, d.Name(), child) || hidden(d.Name()) {
 						continue
 					}
 					if !recurse {
