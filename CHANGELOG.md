@@ -111,6 +111,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   `isset($d[3], $other)`, an exit followed by `else`/`elseif`, an `elseif`
   condition after a failed length test and `while` conditions now count,
   and a decode in a branch the length tests contradict is not reported.
+- TempnamDirectoryFallbackUnchecked reads the canonical-directory check from
+  type narrowing: a comparison kept in a local, compared with a boolean or
+  used as an `&&` operand, and an exit followed by `else` now count; a
+  rebinding of the path or a jump label between the check and the write
+  voids it.
 - Type narrowing follows array elements named by a local key
   (`$_FILES[$field]`) while neither the local nor any element of the array
   changes.

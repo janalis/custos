@@ -47,56 +47,55 @@ func nativePriorGlobal(ctx *analysis.Context, at syntax.Node, names ...string) [
 
 // nativeDirectoryGuard proves that the canonical parent of the temporary file
 // held by path was compared with a canonical directory after source created it
-// and before at runs: either an earlier terminating mismatch branch, or an
-// enclosing branch entered only on a match.
+// and that the comparison is known to have matched where at runs: an equality
+// that the conditions guarding at prove true, or an inequality they prove
+// false, while path still holds the same file.
 func nativeDirectoryGuard(ctx *analysis.Context, at syntax.Node, path syntax.Expr, source syntax.Node) bool {
 	variable, ok := syntax.UnwrapParens(path).(*syntax.Variable)
-	if !ok {
+	x, isExpr := at.(syntax.Expr)
+	if !ok || !isExpr || NativeLabelled(ctx, x) {
 		return false
 	}
-	for child, p := at, at.Parent(); p != nil && !syntax.IsVariableScope(p); child, p = p, p.Parent() {
-		switch parent := p.(type) {
-		case *syntax.If:
-			if child == syntax.Node(parent.Body) && parent.Cond.Span().Start >= source.Span().End && nativeDirectoryComparison(ctx, parent.Cond, variable.Name, true) {
+	env := ctx.Types().Native()
+	found := false
+	visit := func(n syntax.Node) bool {
+		if found || n.Span().Start >= at.Span().Start || syntax.IsVariableScope(n) {
+			return false
+		}
+		cmp, ok := n.(*syntax.Binary)
+		if !ok || cmp.Span().Start < source.Span().End || cmp.Span().End > at.Span().Start {
+			return true
+		}
+		// An equality must have held, an inequality failed. Canonical paths
+		// are absolute strings or false: the loose operators decide alike.
+		want := ""
+		switch cmp.Op.Kind {
+		case syntax.TIsIdentical, syntax.TIsEqual:
+			want = "true"
+		case syntax.TIsNotIdentical, syntax.TIsNotEqual:
+			want = "false"
+		default:
+			return true
+		}
+		parent := nativeCanonicalParent(ctx, cmp.Left, variable.Name)
+		if parent == nil || nativeCanonicalPath(ctx, cmp.Right) == nil {
+			if parent = nativeCanonicalParent(ctx, cmp.Right, variable.Name); parent == nil || nativeCanonicalPath(ctx, cmp.Left) == nil {
 				return true
 			}
-		case *syntax.Block:
-			for _, st := range parent.Stmts {
-				branch, ok := st.(*syntax.If)
-				if !ok || branch.Span().End > at.Span().Start || branch.Span().Start < source.Span().End || !syntax.Terminates(branch.Body) {
-					continue
-				}
-				if nativeDirectoryComparison(ctx, branch.Cond, variable.Name, false) {
-					return true
-				}
-			}
 		}
+		if !env.ReachesUnchanged(parent, x) {
+			return true // another file since
+		}
+		t := env.CallResultAsAt(cmp, x, types.Bool)
+		found = t.IsUnknown() || t.OnlyOf(want)
+		return true
 	}
-	return false
-}
-
-// nativeDirectoryComparison matches realpath(dirname($name)) compared with
-// another realpath() call in either operand order. With same it accepts the
-// equality forms, also as a conjunct; otherwise the inequality forms, also as
-// a disjunct. Canonical paths are absolute strings or false, so the loose
-// operators decide exactly like the strict ones.
-func nativeDirectoryComparison(ctx *analysis.Context, cond syntax.Expr, name string, same bool) bool {
-	binary, ok := syntax.UnwrapParens(cond).(*syntax.Binary)
-	if !ok {
-		return false
+	if scope := syntax.EnclosingVariableScope(at); scope != nil {
+		syntax.Inspect(syntax.VariableScopeBody(scope), visit)
+	} else {
+		syntax.InspectFile(ctx.File, visit)
 	}
-	join, strict, loose := syntax.TBooleanOr, syntax.TIsNotIdentical, syntax.TIsNotEqual
-	if same {
-		join, strict, loose = syntax.TBooleanAnd, syntax.TIsIdentical, syntax.TIsEqual
-	}
-	switch binary.Op.Kind {
-	case join:
-		return nativeDirectoryComparison(ctx, binary.Left, name, same) || nativeDirectoryComparison(ctx, binary.Right, name, same)
-	case strict, loose:
-		return nativeCanonicalParent(ctx, binary.Left, name) && nativeCanonicalPath(ctx, binary.Right) != nil ||
-			nativeCanonicalParent(ctx, binary.Right, name) && nativeCanonicalPath(ctx, binary.Left) != nil
-	}
-	return false
+	return found
 }
 
 // nativeCanonicalPath returns the argument of a builtin realpath() call.
@@ -108,14 +107,18 @@ func nativeCanonicalPath(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 	return CallArgument(call.Args, 0, "path")
 }
 
-// nativeCanonicalParent matches realpath(dirname($name)).
-func nativeCanonicalParent(ctx *analysis.Context, e syntax.Expr, name string) bool {
+// nativeCanonicalParent returns the variable read by realpath(dirname($name)),
+// nil for anything else.
+func nativeCanonicalParent(ctx *analysis.Context, e syntax.Expr, name string) *syntax.Variable {
 	dir, ok := syntax.UnwrapParens(nativeCanonicalPath(ctx, e)).(*syntax.FuncCall)
 	if !ok || NativeBuiltinName(ctx, dir) != "dirname" {
-		return false
+		return nil
 	}
 	v, ok := syntax.UnwrapParens(CallArgument(dir.Args, 0, "path")).(*syntax.Variable)
-	return ok && v.Name == name
+	if !ok || v.Name != name {
+		return nil
+	}
+	return v
 }
 
 // CheckDirectoryIteratorDotEntries checks the independently specified contract.

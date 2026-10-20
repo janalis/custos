@@ -51,6 +51,13 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			return e.applyCondB(t, c.Expr, name, truthy, steps) // silencing keeps the value
 		}
 	case *syntax.Binary:
+		if callMatches(c, name) {
+			// The result of this very comparison (see callKey).
+			if truthy {
+				return truthyType(t)
+			}
+			return falsyType(t)
+		}
 		switch c.Op.Kind {
 		case syntax.TBooleanAnd, syntax.TAnd:
 			lt := e.applyCondB(t, c.Left, name, true, steps)

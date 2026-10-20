@@ -341,3 +341,46 @@ function f(SplQueue $q) {
 		}
 	}
 }
+
+// A comparison's result is narrowed like a call's: tested directly, through
+// `!`, compared with a boolean or kept in a local.
+func TestCallResultAtComparison(t *testing.T) {
+	src := `<?php
+function f($a, $b) {
+    if ($a === $b) { u(); }
+    if ($a !== $b) { return; } u();
+    $same = $a == $b; if (!$same) { u(); }
+    if (($a === $b) === false) { u(); }
+    $a === $b && u();
+    if ($a === $b) {} u();
+}`
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
+	ix := index.New(stubs.Index())
+	ix.Add(index.Extract(f))
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	var last *syntax.Binary
+	var got []string
+	syntax.InspectFile(f, func(n syntax.Node) bool {
+		switch c := n.(type) {
+		case *syntax.Binary:
+			switch c.Op.Kind {
+			case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual:
+				if _, inner := c.Left.(*syntax.Paren); !inner {
+					last = c
+				}
+			}
+		case *syntax.FuncCall:
+			got = append(got, env.CallResultAsAt(last, c, types.Bool).String())
+		}
+		return true
+	})
+	want := []string{"true", "false", "false", "false", "true", "bool"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("use %d: got %s want %s", i+1, got[i], want[i])
+		}
+	}
+}

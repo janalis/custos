@@ -10,6 +10,14 @@ func TestReviewTempnamDirectoryFallbackUnchecked(t *testing.T) {
 		want      int
 	}{
 		{"unchecked", make + use, 1},
+		{"top level", "$p=tempnam($dir,'job');if($p===false){exit;}if(realpath(dirname($p))!==realpath($dir)){exit;}file_put_contents($p,$s);", 0},
+		{"path rebound after guard", make + "$q=$p;if(realpath(dirname($p))!==realpath($dir)){return;}$p=$q;" + use, 1},
+		{"saved comparison", make + "$same=realpath(dirname($p))===realpath($dir);if(!$same){return;}" + use, 0},
+		{"mismatch exit with else", make + "if(realpath(dirname($p))!==realpath($dir)){return;}else{$s.='x';}" + use, 0},
+		{"match as short circuit", make + "realpath(dirname($p))===realpath($dir)&&file_put_contents($p,$s);}", 0},
+		{"mismatch compared with false", make + "if((realpath(dirname($p))!==realpath($dir))===true){return;}" + use, 0},
+		{"jump label after guard", make + "if(realpath(dirname($p))!==realpath($dir)){return;}back:file_put_contents($p,$s);goto back;}", 1},
+		{"path no longer a temporary file", make + "if(realpath(dirname($p))!==realpath($dir)){return;}$p=$s;" + use, 0},
 		{"mismatch branch", make + "if(realpath(dirname($p))!==realpath($dir)){return;}" + use, 0},
 		{"swapped operands", make + "if(realpath($dir)!==realpath(dirname($p))){unlink($p);return;}" + use, 0},
 		{"loose mismatch", make + "if(realpath(dirname($p))!=realpath($dir)){return;}" + use, 0},

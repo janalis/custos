@@ -21,9 +21,7 @@ Detect tempnam result used for sensitive content under an explicitly enabled req
 ## Exceptions (no report)
 
 - E1. Verified canonical parent, intentional system-temp fallback, unknown sensitivity and tempnam failure already handled are excluded.
-- E3. The canonical parent is verified when `realpath(dirname($path))` is compared with another `realpath(...)` call, in either operand order, after the `tempnam` call that produced `$path`, in one of two shapes:
-  - a mismatch test (`!==` or `!=`, alone or as an operand of `||`) on an earlier `if` of an enclosing block whose body always leaves (return, throw, exit, break, continue);
-  - a match test (`===` or `==`, alone or as an operand of `&&`) on an `if` whose main body contains the write. Its `else`/`elseif` branches are not covered.
+- E3. The canonical parent is verified when `realpath(dirname($path))` is compared with another `realpath(...)` call, in either operand order, after the `tempnam` call that produced `$path`, and the conditions guarding the write prove that comparison matched: an equality (`===`, `==`) known to hold or an inequality (`!==`, `!=`) known to fail where the write runs. That covers the body of an `if` (or the right operand of `&&`) on a match test, code after an `if` on a mismatch test whose body always leaves (return, throw, exit, break, continue), with or without other arms, and either test negated, compared with a boolean, combined through `&&`/`||` or kept in a local. The `else` of a match test is not covered. `$path` must hold the same value at the comparison and at the write, and a jump label between them voids the proof.
 
   Parentheses around the operands are ignored. The loose operators are accepted because a canonical path is an absolute string or `false`, so numeric-string juggling cannot occur. A comparison of uncanonical values (`dirname($path) !== $dir`) proves nothing: symlinks and relative segments make equal directories differ and different ones match.
 - E4. A guard placed before the `tempnam` call that produced the written path verified a different file; the report is kept when the variable is assigned a new temporary file after the guard.

@@ -209,17 +209,19 @@ func narrowKey(x syntax.Expr) string {
 
 // isPropKey reports the narrowing key of a property (`$this->p`, a static
 // property): any non-builtin call may change it.
-// callKeyPrefix starts the narrowing key of one call node (see callKey):
-// the result of that very call, not of the same text elsewhere.
+// callKeyPrefix starts the narrowing key of one call or comparison node
+// (see callKey): the result of that very node, not of the same text
+// elsewhere.
 const callKeyPrefix = "\x03call "
 
-// callKey is the narrowing key of call c, by its span.
+// callKey is the narrowing key of call (or comparison) c, by its span.
 func callKey(c syntax.Expr) string {
 	sp := c.Span()
 	return callKeyPrefix + strconv.FormatUint(uint64(sp.Start), 10) + " " + strconv.FormatUint(uint64(sp.End), 10)
 }
 
-// callMatches reports whether x is the call whose key is name.
+// callMatches reports whether x is the call or comparison whose key is
+// name.
 func callMatches(x syntax.Expr, name string) bool {
 	rest, ok := strings.CutPrefix(name, callKeyPrefix)
 	if !ok {
@@ -227,7 +229,7 @@ func callMatches(x syntax.Expr, name string) bool {
 	}
 	c := unsilenced(x) // `@f()` is f()'s result
 	switch c.(type) {
-	case *syntax.FuncCall, *syntax.MethodCall:
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.Binary:
 	default:
 		return false
 	}
@@ -244,13 +246,14 @@ func callKeySpan(rest string) (start, end uint64) {
 	return start, end
 }
 
-// CallResultAt types the result of call c as known at expression at, a
-// later place of its scope: the call's type narrowed by the conditions on
-// that very call guarding at, written directly (`if (flock($h, LOCK_EX))`,
-// `flock($h, LOCK_EX) or exit;`, `if (!@f()) { return; }`), assigned in
-// place (`if ($ok = f())`) or through the variable it was stored in, while
-// that assignment is the only one reaching at (`$ok = f(); if (!$ok) { … }`). A call that may run again before at
-// (inside a loop around both) still counts by its last result.
+// CallResultAt types the result of call (or comparison) c as known at
+// expression at, a later place of its scope: c's type narrowed by the
+// conditions on that very node guarding at, written directly
+// (`if (flock($h, LOCK_EX))`, `flock($h, LOCK_EX) or exit;`,
+// `if (!@f()) { return; }`), assigned in place (`if ($ok = f())`) or through
+// the variable it was stored in, while that assignment is the only one
+// reaching at (`$ok = f(); if (!$ok) { … }`). A call that may run again
+// before at (inside a loop around both) still counts by its last result.
 func (e *Env) CallResultAt(c, at syntax.Expr) types.Type {
 	return e.CallResultAsAt(c, at, e.TypeOf(c))
 }
@@ -350,7 +353,7 @@ func (e *Env) onlyAssign(name string, at, scope syntax.Node) *syntax.Assign {
 // (parenthesised or silenced) or a local holding it where it is read.
 func (e *Env) holds(value, c syntax.Expr, scope syntax.Node, hops int) bool {
 	switch v := unsilenced(value).(type) {
-	case *syntax.FuncCall, *syntax.MethodCall:
+	case *syntax.FuncCall, *syntax.MethodCall, *syntax.Binary:
 		return v == c
 	case *syntax.Variable:
 		if hops >= maxHolderHops || v.Name == "" || v.NameExpr != nil {
