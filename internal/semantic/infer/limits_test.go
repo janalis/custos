@@ -2,7 +2,9 @@ package infer_test
 
 import (
 	"fmt"
+	"math"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -119,7 +121,7 @@ func typeAll(t *testing.T, src string) time.Duration {
 	ix.Add(index.Extract(f))
 	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
 	tr := infer.NewTRules(env)
-	start := time.Now()
+	start := cpuTime(t)
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		switch n := n.(type) {
 		case *syntax.Variable, *syntax.PropertyFetch, *syntax.ArrayDimFetch:
@@ -129,7 +131,20 @@ func typeAll(t *testing.T, src string) time.Duration {
 		}
 		return true
 	})
-	return time.Since(start)
+	return cpuTime(t) - start
+}
+
+// cpuTime is the CPU time (user + system) the process used so far: unlike
+// wall-clock time, it does not grow while other processes hold the CPU, so
+// the limits below hold on a loaded machine. (No test of the package runs
+// in parallel with them.)
+func cpuTime(t *testing.T) time.Duration {
+	t.Helper()
+	var ru syscall.Rusage
+	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &ru); err != nil {
+		t.Fatal(err)
+	}
+	return time.Duration(ru.Utime.Nano() + ru.Stime.Nano())
 }
 
 // Reads used to rescan the statements before them (guards), the
@@ -233,14 +248,14 @@ func TestReachingScales(t *testing.T) {
 		t.Skip("timing")
 	}
 	small, large := reachingProbe(2000, 200), reachingProbe(8000, 200)
-	best := func(src string) float64 {
-		d := typeAll(t, src)
-		if d2 := typeAll(t, src); d2 < d {
-			d = d2
-		}
-		return float64(d)
+	// The best of runs taking turns, so that what else the machine does
+	// weighs on both sizes alike.
+	bestSmall, bestLarge := time.Duration(math.MaxInt64), time.Duration(math.MaxInt64)
+	for range 5 {
+		bestSmall = min(bestSmall, typeAll(t, small))
+		bestLarge = min(bestLarge, typeAll(t, large))
 	}
-	if r := best(large) / best(small); r > 8 {
+	if r := float64(bestLarge) / float64(bestSmall); r > 8 {
 		t.Errorf("4x the reads took %.1fx the time", r)
 	}
 }
