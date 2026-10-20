@@ -60,3 +60,36 @@ func NativeNarrowedExcludesAt(ctx *analysis.Context, x, at syntax.Expr, atom str
 func nativeMayHold(t types.Type, atom string) bool {
 	return t.HasAny(atom, "mixed") || atom == "false" && t.Has("bool")
 }
+
+// NativeEarlierCallProves reports whether a call made earlier in the scope
+// of at has a result that the conditions guarding at narrow to what that
+// call's proves accepts (or that makes at unreachable). pick selects the
+// calls (nil proves skips one), returning the type assumed for the result
+// and the test of the narrowed result. Nested scopes are not searched.
+func NativeEarlierCallProves(ctx *analysis.Context, at syntax.Expr, pick func(syntax.Expr) (seed types.Type, proves func(types.Type) bool)) bool {
+	env := ctx.Types().Native()
+	found := false
+	scope := syntax.EnclosingVariableScope(at)
+	visit := func(n syntax.Node) bool {
+		if found || n.Span().Start >= at.Span().Start || syntax.IsVariableScope(n) {
+			return false
+		}
+		switch n.(type) {
+		case *syntax.FuncCall, *syntax.MethodCall:
+			if n.Span().End > at.Span().Start {
+				return true // a call holding at: its result comes later
+			}
+			if seed, proves := pick(n.(syntax.Expr)); proves != nil {
+				t := env.CallResultAsAt(n.(syntax.Expr), at, seed)
+				found = t.IsUnknown() || proves(t)
+			}
+		}
+		return true
+	}
+	if scope != nil {
+		syntax.Inspect(syntax.VariableScopeBody(scope), visit)
+	} else {
+		syntax.InspectFile(ctx.File, visit)
+	}
+	return found
+}

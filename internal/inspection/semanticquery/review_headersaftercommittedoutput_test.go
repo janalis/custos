@@ -69,6 +69,11 @@ func TestReviewHeadersAfterCommittedOutput(t *testing.T) {
 		{"commit after guard", "if (!headers_sent()) { echo 'x'; flush(); header('X: 1'); }", 1},
 		{"commit after short-circuit guard", "echo 'x'; headers_sent() or (flush() xor header('X: 1'));", 1},
 		{"guard does not cross scopes", sent + "if (!headers_sent()) { $f = function () { echo 'y'; flush(); header('X: 1'); }; }", 1},
+		{"saved test", "function f(){" + sent + "$sent = headers_sent(); if (!$sent) { header('X: 1'); }}", 0},
+		{"early return with else", "function f(){" + sent + "if (headers_sent()) { return; } else { $x = 1; } header('X: 1');}", 0},
+		{"while guard", "function f(){" + sent + "while (!headers_sent()) { header('X: 1'); break; }}", 0},
+		{"match arm", "function f(){" + sent + "return match (true) { !headers_sent() => header('X: 1'), default => null };}", 0},
+		{"commit between saved test and call", "function f(){$sent = headers_sent(); " + sent + "if (!$sent) { header('X: 1'); }}", 1},
 		{"buffered output", "ob_start(); " + sent + "header('X: 1');", 0},
 		{"no output", "flush(); header('X: 1');", 0},
 	} {

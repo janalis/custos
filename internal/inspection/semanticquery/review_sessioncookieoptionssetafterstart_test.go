@@ -51,6 +51,11 @@ func TestReviewSessionCookieOptionsSetAfterStart(t *testing.T) {
 		{"status not none", "session_start();if(session_status()!==PHP_SESSION_NONE){" + set + "}", 1},
 		{"status unknown value", "session_start();if(session_status()===$state){" + set + "}", 1},
 		{"other status function", "session_start();if(strlen($x)===PHP_SESSION_NONE){" + set + "}", 1},
+		{"saved failed start", "$ok=session_start();if(!$ok){" + set + "}", 0},
+		{"saved status", "session_start();$s=session_status();if($s!==PHP_SESSION_ACTIVE){" + set + "}", 0},
+		{"status below active", "session_start();if(session_status()<PHP_SESSION_ACTIVE){" + set + "}", 0},
+		{"status active exits with else", "function f(){session_start();if(session_status()===PHP_SESSION_ACTIVE){return;}else{$x=1;}" + set + "}", 0},
+		{"status at least none", "session_start();if(session_status()>=PHP_SESSION_NONE){" + set + "}", 1},
 		{"status tested before start", "if(session_status()!==PHP_SESSION_ACTIVE){session_start();" + set + "}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

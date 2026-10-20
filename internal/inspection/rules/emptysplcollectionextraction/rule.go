@@ -78,36 +78,19 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // guardedNonempty reports whether an `isEmpty()` or `count()` test of the
 // receiver, earlier in the scope, controls whether the call runs: the
 // result of that test, narrowed by the conditions guarding the call, says
-// the collection holds an element (or the call is unreachable). The proven
-// history has no nested scope before the call.
+// the collection holds an element (or the call is unreachable).
 func guardedNonempty(ctx *analysis.Context, c *syntax.MethodCall) bool {
-	env := ctx.Types().Native()
-	found := false
-	scope := syntax.EnclosingVariableScope(c)
-	visit := func(n syntax.Node) bool {
-		if found || n.Span().Start >= c.Span().Start {
-			return false
-		}
-		test, ok := n.(*syntax.MethodCall)
-		if !ok || !semanticquery.NativeSameValue(ctx, test.Var, c.Var) {
-			return true
-		}
+	return semanticquery.NativeEarlierCallProves(ctx, c, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		test, ok := x.(*syntax.MethodCall)
 		switch {
-		case sizeMethod(ctx, test, "isEmpty"):
-			t := env.CallResultAt(test, c)
-			found = t.IsUnknown() || t.OnlyOf("false")
+		case !ok || !semanticquery.NativeSameValue(ctx, test.Var, c.Var):
 		case sizeMethod(ctx, test, "count"):
-			t := env.CallResultAsAt(test, c, types.Ints(types.IntRange{Lo: 0, Hi: math.MaxInt64}))
-			found = t.IsUnknown() || t.IntsOnly(1, math.MaxInt64)
+			return types.Ints(types.IntRange{Lo: 0, Hi: math.MaxInt64}), func(t types.Type) bool { return t.IntsOnly(1, math.MaxInt64) }
+		case sizeMethod(ctx, test, "isEmpty"):
+			return types.Bool, func(t types.Type) bool { return t.OnlyOf("false") }
 		}
-		return true
-	}
-	if scope != nil {
-		syntax.Inspect(syntax.VariableScopeBody(scope), visit)
-	} else {
-		syntax.InspectFile(ctx.File, visit)
-	}
-	return found
+		return types.Unknown, nil
+	})
 }
 
 // sizeMethod reports whether call invokes the builtin method of that name

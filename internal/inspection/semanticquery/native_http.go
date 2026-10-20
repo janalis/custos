@@ -10,6 +10,7 @@ import (
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/types"
 )
 
 func nativeStateCall(ctx *analysis.Context, at syntax.Node, domain string) *syntax.FuncCall {
@@ -68,32 +69,22 @@ func nativeProtectedRedirect(ctx *analysis.Context, c *syntax.FuncCall) bool {
 		return false
 	}
 	scope := syntax.EnclosingVariableScope(c)
-	// authorized collects the variables proven truthy on every path from an
-	// enclosing statement list down to the protected call.
-	authorized := map[string]bool{}
-	var child syntax.Node = c
-	for p := c.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
-		nativeRedirectArmGuards(p, child, authorized)
-		if block, ok := p.(*syntax.Block); ok && nativeRedirectFallsThrough(ctx, scope, block.Stmts, c, authorized) {
+	for p := c.Parent(); p != nil && p != scope; p = p.Parent() {
+		if block, ok := p.(*syntax.Block); ok && nativeRedirectFallsThrough(ctx, scope, block.Stmts, c) {
 			return true
 		}
 	}
 	// Top-level statements have no enclosing block node.
-	return scope == nil && nativeRedirectFallsThrough(ctx, scope, ctx.File.Stmts, c, authorized)
+	return scope == nil && nativeRedirectFallsThrough(ctx, scope, ctx.File.Stmts, c)
 }
 
 // nativeRedirectFallsThrough scans the statements preceding the protected
-// call, nearest first, for a redirecting unauthorized branch whose predicate
-// is not proven truthy by a guard closer to the call.
-func nativeRedirectFallsThrough(ctx *analysis.Context, scope syntax.Node, stmts []syntax.Stmt, c *syntax.FuncCall, authorized map[string]bool) bool {
-	for i := len(stmts) - 1; i >= 0; i-- {
-		branch, ok := stmts[i].(*syntax.If)
-		if !ok || branch.Span().End > c.Span().Start || branch.Else != nil || len(branch.ElseIfs) > 0 {
-			continue
-		}
-		if syntax.Terminates(branch.Body) {
-			// Passing an early-exit guard proves its condition false.
-			nativeRedirectTruthyVars(branch.Cond, false, authorized)
+// call for a redirecting unauthorized branch that does not leave, whose
+// predicate the conditions guarding the call do not prove truthy.
+func nativeRedirectFallsThrough(ctx *analysis.Context, scope syntax.Node, stmts []syntax.Stmt, c *syntax.FuncCall) bool {
+	for _, st := range stmts {
+		branch, ok := st.(*syntax.If)
+		if !ok || branch.Span().End > c.Span().Start || branch.Else != nil || len(branch.ElseIfs) > 0 || syntax.Terminates(branch.Body) {
 			continue
 		}
 		unauthorized, ok := branch.Cond.(*syntax.Unary)
@@ -101,14 +92,24 @@ func nativeRedirectFallsThrough(ctx *analysis.Context, scope syntax.Node, stmts 
 			continue
 		}
 		predicate, ok := unauthorized.Expr.(*syntax.Variable)
-		if !ok || predicate.Name == "" || authorized[predicate.Name] {
+		if !ok || predicate.Name == "" || predicate.NameExpr != nil {
 			continue
 		}
-		if nativeRedirectBranch(ctx, branch.Body) && !nativeRedirectPredicateRebound(ctx, scope, predicate.Name, branch.Span().Start, c.Span().Start) {
+		if nativeRedirectBranch(ctx, branch.Body) && !nativeRedirectPredicateRebound(ctx, scope, predicate.Name, branch.Span().Start, c.Span().Start) && !nativeAuthorized(ctx, predicate.Name, c) {
 			return true
 		}
 	}
 	return false
+}
+
+// nativeAuthorized reports whether the conditions guarding c prove local
+// name truthy there (or make c unreachable).
+func nativeAuthorized(ctx *analysis.Context, name string, c *syntax.FuncCall) bool {
+	if NativeLabelled(ctx, c) {
+		return false // a jump may land between a guard and the call
+	}
+	t := ctx.Types().Native().NarrowedVarAt(name, c, types.Bool)
+	return t.IsUnknown() || t.OnlyOf("true")
 }
 
 // nativeRedirectBranch reports whether body emits a literal Location header
@@ -142,82 +143,6 @@ func nativeRedirectPredicateRebound(ctx *analysis.Context, scope syntax.Node, na
 		}
 	}
 	return false
-}
-
-// nativeRedirectArmGuards records the variables that must be truthy for
-// control to enter child, an arm of the conditional construct parent.
-func nativeRedirectArmGuards(parent, child syntax.Node, out map[string]bool) {
-	switch p := parent.(type) {
-	case *syntax.If:
-		switch arm := child.(type) {
-		case *syntax.ElseIf:
-			nativeRedirectTruthyVars(p.Cond, false, out)
-			for _, earlier := range p.ElseIfs {
-				if earlier == arm {
-					break
-				}
-				nativeRedirectTruthyVars(earlier.Cond, false, out)
-			}
-		case *syntax.Else:
-			nativeRedirectTruthyVars(p.Cond, false, out)
-			for _, earlier := range p.ElseIfs {
-				nativeRedirectTruthyVars(earlier.Cond, false, out)
-			}
-		default:
-			if child == syntax.Node(p.Body) {
-				nativeRedirectTruthyVars(p.Cond, true, out)
-			}
-		}
-	case *syntax.ElseIf:
-		if child == syntax.Node(p.Body) {
-			nativeRedirectTruthyVars(p.Cond, true, out)
-		}
-	case *syntax.While:
-		if child == syntax.Node(p.Body) {
-			nativeRedirectTruthyVars(p.Cond, true, out)
-		}
-	case *syntax.Ternary:
-		if p.Then != nil && child == syntax.Node(p.Then) {
-			nativeRedirectTruthyVars(p.Cond, true, out)
-		} else if child == syntax.Node(p.Else) {
-			nativeRedirectTruthyVars(p.Cond, false, out)
-		}
-	case *syntax.Binary:
-		if child != syntax.Node(p.Right) {
-			return
-		}
-		switch p.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TAnd:
-			nativeRedirectTruthyVars(p.Left, true, out)
-		case syntax.TBooleanOr, syntax.TOr:
-			nativeRedirectTruthyVars(p.Left, false, out)
-		}
-	}
-}
-
-// nativeRedirectTruthyVars adds the plain variables that are certainly truthy
-// when cond evaluates to outcome.
-func nativeRedirectTruthyVars(cond syntax.Expr, outcome bool, out map[string]bool) {
-	switch e := cond.(type) {
-	case *syntax.Paren:
-		nativeRedirectTruthyVars(e.Expr, outcome, out)
-	case *syntax.Variable:
-		if outcome && e.Name != "" {
-			out[e.Name] = true
-		}
-	case *syntax.Unary:
-		if e.Op.Kind == syntax.TExclaim {
-			nativeRedirectTruthyVars(e.Expr, !outcome, out)
-		}
-	case *syntax.Binary:
-		// A true conjunction and a false disjunction fix both operands.
-		conjunction := e.Op.Kind == syntax.TBooleanAnd || e.Op.Kind == syntax.TAnd
-		disjunction := e.Op.Kind == syntax.TBooleanOr || e.Op.Kind == syntax.TOr
-		if (conjunction && outcome) || (disjunction && !outcome) {
-			nativeRedirectTruthyVars(e.Left, outcome, out)
-			nativeRedirectTruthyVars(e.Right, outcome, out)
-		}
-	}
 }
 
 // CheckContentLengthUsesCharacterCount checks the independently specified contract.
@@ -297,64 +222,22 @@ func headersStatusWrite(ctx *analysis.Context, c *syntax.FuncCall) bool {
 	return set || !known
 }
 
-// headersUnsentGuard proves that a headers_sent() test evaluated before the
-// call excludes sent headers on its path. A commit recorded between the test
-// and the call invalidates the test.
+// headersUnsentGuard proves that a headers_sent() call evaluated before the
+// call returned false on its path: the conditions guarding the call narrow
+// its result to false. A commit recorded between that test and the call
+// invalidates it.
 func headersUnsentGuard(ctx *analysis.Context, c *syntax.FuncCall, commit syntax.Span) bool {
-	proves := func(cond syntax.Expr, truth bool) bool {
-		stale := commit.Start >= cond.Span().End && commit.End <= c.Span().Start
-		return !stale && headersUnsentWhen(ctx, cond, truth)
-	}
-	if nativeGuard(ctx, c, proves) {
-		return true
-	}
-	for child, p := syntax.Node(c), c.Parent(); p != nil && !syntax.IsVariableScope(p); child, p = p, p.Parent() {
-		switch x := p.(type) {
-		case *syntax.Binary:
-			and := x.Op.Kind == syntax.TBooleanAnd || x.Op.Kind == syntax.TAnd
-			or := x.Op.Kind == syntax.TBooleanOr || x.Op.Kind == syntax.TOr
-			if x.Right == child && (and || or) && proves(x.Left, and) {
-				return true
-			}
-		case *syntax.Ternary:
-			if (x.Then == child && proves(x.Cond, true)) || (x.Else == child && proves(x.Cond, false)) {
-				return true
-			}
-		case *syntax.ElseIf:
-			if syntax.Node(x.Body) == child && proves(x.Cond, true) {
-				return true
-			}
+	return NativeEarlierCallProves(ctx, c, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		test, ok := x.(*syntax.FuncCall)
+		if !ok || commit.Start >= test.Span().End && commit.End <= c.Span().Start || !NativeBuiltin(ctx, test, "headers_sent") {
+			return types.Unknown, nil
 		}
-	}
-	return false
+		return types.Bool, nativeOnlyFalse
+	})
 }
 
-// headersUnsentWhen reports whether cond evaluating to truth implies that
-// headers_sent() returned false.
-func headersUnsentWhen(ctx *analysis.Context, cond syntax.Expr, truth bool) bool {
-	switch x := syntax.UnwrapParens(cond).(type) {
-	case *syntax.FuncCall:
-		return !truth && NativeBuiltin(ctx, x, "headers_sent")
-	case *syntax.Unary:
-		return x.Op.Kind == syntax.TExclaim && headersUnsentWhen(ctx, x.Expr, !truth)
-	case *syntax.Binary:
-		switch x.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TAnd, syntax.TBooleanOr, syntax.TOr:
-			// A true conjunction and a false disjunction fix both operands.
-			if truth == (x.Op.Kind == syntax.TBooleanAnd || x.Op.Kind == syntax.TAnd) {
-				return headersUnsentWhen(ctx, x.Left, truth) || headersUnsentWhen(ctx, x.Right, truth)
-			}
-		case syntax.TIsIdentical, syntax.TIsEqual, syntax.TIsNotIdentical, syntax.TIsNotEqual:
-			equal := x.Op.Kind == syntax.TIsIdentical || x.Op.Kind == syntax.TIsEqual
-			for _, pair := range [][2]syntax.Expr{{x.Left, x.Right}, {x.Right, x.Left}} {
-				if expected, ok := astquery.BoolConst(syntax.UnwrapParens(pair[1])); ok {
-					return headersUnsentWhen(ctx, pair[0], truth == (expected == equal))
-				}
-			}
-		}
-	}
-	return false
-}
+// nativeOnlyFalse accepts a narrowed result that can only be false.
+func nativeOnlyFalse(t types.Type) bool { return t.OnlyOf("false") }
 
 // CheckNoContentResponseWithBody checks the independently specified contract.
 func CheckNoContentResponseWithBody(ctx *analysis.Context, n syntax.Node, message string) {
@@ -618,9 +501,7 @@ func CheckSessionCookieOptionsSetAfterStart(ctx *analysis.Context, n syntax.Node
 	if start == nil || !NativeBuiltin(ctx, start, "session_start") {
 		return
 	}
-	report = sessionStartKeepsActive(ctx, start) && !nativeGuard(ctx, c, func(cond syntax.Expr, truth bool) bool {
-		return sessionInactiveWhen(ctx, cond, truth, start)
-	})
+	report = sessionStartKeepsActive(ctx, start) && !sessionInactiveGuard(ctx, c, start)
 
 	if report {
 		ctx.ReportNode(c, message, fixes...)
@@ -643,39 +524,23 @@ func sessionStartKeepsActive(ctx *analysis.Context, start *syntax.FuncCall) bool
 	return !set || (known && !closing)
 }
 
-// sessionInactiveWhen proves that cond having the given truth leaves no active
-// session: the start call itself failed, or a session_status() test evaluated
-// after the start excludes the active state.
-func sessionInactiveWhen(ctx *analysis.Context, cond syntax.Expr, truth bool, start *syntax.FuncCall) bool {
-	switch x := syntax.UnwrapParens(cond).(type) {
-	case *syntax.FuncCall:
-		return !truth && x == start
-	case *syntax.Unary:
-		return x.Op.Kind == syntax.TExclaim && sessionInactiveWhen(ctx, x.Expr, !truth, start)
-	case *syntax.Binary:
-		switch x.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TAnd, syntax.TBooleanOr, syntax.TOr:
-			// A true conjunction and a false disjunction fix both operands.
-			if truth == (x.Op.Kind == syntax.TBooleanAnd || x.Op.Kind == syntax.TAnd) {
-				return sessionInactiveWhen(ctx, x.Left, truth, start) || sessionInactiveWhen(ctx, x.Right, truth, start)
-			}
-		case syntax.TIsIdentical, syntax.TIsEqual, syntax.TIsNotIdentical, syntax.TIsNotEqual:
-			equal := x.Op.Kind == syntax.TIsIdentical || x.Op.Kind == syntax.TIsEqual
-			for _, pair := range [][2]syntax.Expr{{x.Left, x.Right}, {x.Right, x.Left}} {
-				if expected, ok := astquery.BoolConst(syntax.UnwrapParens(pair[1])); ok {
-					return sessionInactiveWhen(ctx, pair[0], truth == (expected == equal), start)
-				}
-				status, ok := syntax.UnwrapParens(pair[0]).(*syntax.FuncCall)
-				if !ok || !NativeBuiltin(ctx, status, "session_status") || start.Span().End > x.Span().Start {
-					continue
-				}
-				if value, known := NativeInt(ctx, pair[1]); known {
-					return (truth == equal) != (value == 2) // PHP_SESSION_ACTIVE
-				}
-			}
+// sessionInactiveGuard proves that no session is active where c runs: the
+// conditions guarding it narrow the start call's result to false, or a
+// session_status() call made after the start to anything but
+// PHP_SESSION_ACTIVE.
+func sessionInactiveGuard(ctx *analysis.Context, c, start *syntax.FuncCall) bool {
+	return NativeEarlierCallProves(ctx, c, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		test, ok := x.(*syntax.FuncCall)
+		switch {
+		case !ok:
+		case test == start:
+			return types.Bool, nativeOnlyFalse
+		case test.Span().Start > start.Span().End && NativeBuiltin(ctx, test, "session_status"):
+			// PHP_SESSION_DISABLED, PHP_SESSION_NONE or PHP_SESSION_ACTIVE.
+			return types.Ints(types.IntRange{Lo: 0, Hi: 2}), func(t types.Type) bool { return t.IntsOnly(0, 1) }
 		}
-	}
-	return false
+		return types.Unknown, nil
+	})
 }
 
 // CheckSessionLockHeldDuringBlockingCall checks the independently specified contract.

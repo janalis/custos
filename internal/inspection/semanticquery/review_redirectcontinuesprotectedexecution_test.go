@@ -13,6 +13,12 @@ func TestReviewRedirectContinuesProtectedExecution(t *testing.T) {
 		want      int
 	}{
 		{"falls through", open + "deleteRecord();}", 1},
+		{"compared with true", open + "if($ok===true){deleteRecord();}}", 0},
+		{"early return with else", open + "if(!$ok){return;}else{$x=1;}deleteRecord();}", 0},
+		{"while guard", open + "while($ok){deleteRecord();break;}}", 0},
+		{"match arm", open + "return match(true){(bool)$other=>0,$ok=>deleteRecord(),default=>1};}", 0},
+		{"jump label after guard", open + "if(!$ok){return;}back:deleteRecord();goto back;}", 1},
+		{"guard on another value", open + "if($other===true){deleteRecord();}}", 1},
 		{"falls through at top level", decl + redirect + "deleteRecord();", 1},
 		{"top level guard", decl + redirect + "if(!$ok){exit;}deleteRecord();", 0},
 		{"single statement branch", decl + "function f($ok){if(!$ok)header('Location: /signin');deleteRecord();}", 1},

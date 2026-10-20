@@ -2,7 +2,6 @@ package semanticquery
 
 import (
 	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/astquery"
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/types"
@@ -30,28 +29,6 @@ func NativeFailureExcluded(ctx *analysis.Context, input syntax.Expr, seed types.
 		return false
 	}
 	return ctx.Flow().Excludes(input, sentinel) || !NativeLabelled(ctx, input) && NativeNarrowedExcludes(ctx, input, seed, sentinel)
-}
-
-func nativeGuard(ctx *analysis.Context, input syntax.Expr, accepts func(syntax.Expr, bool) bool) bool {
-	for p := input.Parent(); p != nil; p = p.Parent() {
-		if syntax.IsVariableScope(p) {
-			break
-		}
-		branch, ok := p.(*syntax.If)
-		if ok && branch.Body != nil && branch.Body.Span().Contains(input.Span()) && accepts(branch.Cond, true) {
-			return true
-		}
-		if ok && branch.Else != nil && branch.Else.Body.Span().Contains(input.Span()) && accepts(branch.Cond, false) {
-			return true
-		}
-		if st, ok := p.(syntax.Stmt); ok {
-			previous, exists := astquery.PrevStmt(ctx.File, st)
-			if guard, ok := previous.(*syntax.If); exists && ok && guard.Else == nil && len(guard.ElseIfs) == 0 && syntax.Terminates(guard.Body) && accepts(guard.Cond, false) {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // NativeIntegerAllowsZero proves the validator options neither exclude zero

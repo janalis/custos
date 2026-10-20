@@ -111,6 +111,16 @@ versions follow [Semantic Versioning](https://semver.org/).
   `isset($d[3], $other)`, an exit followed by `else`/`elseif`, an `elseif`
   condition after a failed length test and `while` conditions now count,
   and a decode in a branch the length tests contradict is not reported.
+- RedirectContinuesProtectedExecution reads the authorization guard from
+  type narrowing: comparisons with `true`/`false`, `match (true)` arms and an
+  exit followed by `else` now count.
+- HeadersAfterCommittedOutput reads `headers_sent()` tests from type
+  narrowing: a saved test, `while` and `match (true)` guards and an exit
+  followed by `else` now count.
+- SessionCookieOptionsSetAfterStart reads failed starts and
+  `session_status()` tests from type narrowing: saved results, ordered
+  comparisons (`< PHP_SESSION_ACTIVE`) and an exit followed by `else` now
+  count.
 - LocalizedNumberTrailingInputAccepted reads the offset guard from type
   narrowing: a comparison with the literal length, a `<` exit, a saved
   comparison and an exit followed by `else`/`elseif` now count.

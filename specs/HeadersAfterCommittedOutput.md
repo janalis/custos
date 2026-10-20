@@ -24,13 +24,13 @@ Detect a response-header write (header, setcookie, or http_response_code used as
 - E1. Active output buffering, unknown server buffering, no preceding output and headers before commitment are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 - E3. `http_response_code()` without a status argument, with a known `0` or `null` status, or with an unpacked argument list: the first two only read the current status, the last is not provably a write.
-- E4. Calls that a `headers_sent()` test keeps off the committed path:
-  - inside the body of `if (!headers_sent())` or of an `elseif` with that condition, or inside the `else` of `if (headers_sent())`;
-  - directly after an `if (headers_sent())` statement without `else`/`elseif` whose body always leaves the block;
-  - as the right operand of `headers_sent() || ...` / `headers_sent() or ...` or of `!headers_sent() && ...` / `!headers_sent() and ...`;
-  - in the matching branch of a ternary on such a test.
+- E4. Calls that a `headers_sent()` test keeps off the committed path: an earlier call to the builtin in the same function scope whose result the conditions guarding the call prove false. That covers:
+  - the body of `if (!headers_sent())`, `while (!headers_sent())` or an `elseif` with that condition, and the `else` of `if (headers_sent())`;
+  - code after an `if (headers_sent())` whose body always leaves, with or without other arms;
+  - the right operand of `headers_sent() || ...` / `or`, or of `!headers_sent() && ...` / `and`;
+  - the matching branch of a ternary or `match (true)` arm on such a test.
 
-  The test may be parenthesised, negated, compared with `true`/`false` (`===`, `==`, `!==`, `!=`), one operand of a conjunction that must hold, or one operand of a disjunction that must fail. It must target the builtin and belong to the same function scope as the call. The exception does not apply when the committing flush sits between the test and the call, because the test result is then stale.
+  The test may be parenthesised, negated, compared with `true`/`false` (`===`, `==`, `!==`, `!=`), one operand of a conjunction that must hold or of a disjunction that must fail, or kept in a local read later. The exception does not apply when the committing flush sits between the test and the call, because the test result is then stale.
 
 ## Report
 
