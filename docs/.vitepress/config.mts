@@ -82,10 +82,10 @@ export default withMermaid(defineConfig({
         {
           text: 'Contributing',
           items: [
-            { text: 'Getting set up', link: '/contributing/' },
+            { text: 'Contributing', link: '/contributing/' },
             { text: 'Clean-room process', link: '/contributing/clean-room' },
             { text: 'Architecture', link: '/contributing/architecture' },
-            { text: 'Adding a rule', link: '/contributing/adding-a-rule' },
+            { text: 'Adding or changing a rule', link: '/contributing/adding-a-rule' },
             { text: 'Fixtures', link: '/contributing/fixtures' },
             { text: 'Releasing', link: '/contributing/releasing' },
           ],
@@ -94,7 +94,7 @@ export default withMermaid(defineConfig({
     },
     search: { provider: 'local' },
     editLink: {
-      // Serialised into the client bundle: no closure variables. Rule pages
+      // Serialized into the client bundle: no closure variables. Rule pages
       // are generated from their spec, so they link to it; the generated
       // rules/index.md turns the link off in its front matter.
       pattern: ({ filePath }) =>
@@ -107,7 +107,7 @@ export default withMermaid(defineConfig({
     outline: { level: [2, 3] },
     footer: {
       message:
-        'Released under the MIT License. Native rules and rules modelled on Php Inspections (EA Extended); independent clean-room implementation.',
+        'Released under the MIT License. Native rules and rules modeled on Php Inspections (EA Extended); independent clean-room implementation.',
       copyright: 'Builtin symbol data from JetBrains phpstorm-stubs (Apache-2.0).',
     },
   },

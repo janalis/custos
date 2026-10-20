@@ -14,12 +14,34 @@ What it offers:
   finding;
 - `source.fixAll.custos`: apply every quick-fix in the file, for example on
   save;
-- the commands `custos.fixFile` and `custos.fixRule`.
+- the commands `custos.fixFile` (argument: the document URI) and
+  `custos.fixRule` (arguments: the document URI and a rule ID), which apply
+  the quick-fixes of an open document.
 
-Saving a file updates the project index and re-checks the other open files.
-Settings come from `custos.json` at the workspace root. Editors may override
-them with `initializationOptions`, which take the same JSON shape as
-[`custos.json`](./configuration).
+Diagnostics follow your typing with a short delay (150 ms). Saving a file
+updates the project index and re-checks the other open files. When the
+client supports dynamic file watchers, the server also watches `**/*.php`,
+so changes made outside the editor (a `git checkout`, generated code) reach
+the index, and the [baseline](./suppressing#baseline) file, so regenerating
+it takes effect at once.
+
+## Settings
+
+The server uses the first workspace folder and finds the
+[project root](./configuration#project-root) from it, like the CLI does from
+its start directory. It reads `custos.json` there and applies the project
+baseline, so the editor shows the same findings as `custos analyse`.
+
+Editors may override settings with `initializationOptions`, or later with
+the `settings` of `workspace/didChangeConfiguration`, which replace them.
+Both take the shape of [`custos.json`](./configuration) with these limits:
+
+- `php`, `comparisonStyle`, `shortOpenTag` and `flow` replace the project
+  values;
+- a `rules` entry overrides the project's entry for that rule field by
+  field: `{"severity": "error"}` keeps the project's `enabled` and options;
+- `paths`, `exclude` and `baseline` are ignored: what to analyze stays the
+  project's choice.
 
 When a document's [analysis status](./cli#analysis-status) changes (complete,
 or incomplete with other reasons), the server sends an informational
@@ -65,7 +87,17 @@ language-servers = ["intelephense", "custos"]   # keep your main server first
 
 Use a generic LSP client extension and point it at `custos lsp` for the
 `php` language. Or wrap it in a minimal extension built on
-`vscode-languageclient`, with `command: "custos", args: ["lsp"]`.
+`vscode-languageclient`:
+
+```ts
+const client = new LanguageClient('custos', 'custos', {
+  command: 'custos', args: ['lsp'], transport: TransportKind.stdio,
+}, { documentSelector: [{ scheme: 'file', language: 'php' }] });
+await client.start();
+```
+
+With `TransportKind.stdio`, the client appends `--stdio` to the arguments;
+`custos lsp` accepts it.
 
 ## PhpStorm and other JetBrains IDEs
 

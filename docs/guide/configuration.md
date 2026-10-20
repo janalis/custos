@@ -104,6 +104,6 @@ runtime always runs assertions and a failed one stops execution.
 
 ## In the language server
 
-`custos lsp` reads the same `custos.json` from the workspace root. Editors can
-override it with LSP `initializationOptions`, which take the same JSON shape.
-See [Editors](./editors).
+`custos lsp` reads the same `custos.json`, found from the first workspace
+folder. Editors can override part of it with LSP `initializationOptions`;
+see [Editors](./editors#settings) for what they can change.

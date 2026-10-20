@@ -16,8 +16,16 @@ function legacy() { /* … */ }
   or, for EA rules, the PhpStorm name (`<ID>Inspection`). Comments written for
   Php Inspections (EA Extended) in PhpStorm therefore keep working. Native
   rules have no PhpStorm name: use their rule ID.
+- Names are case-sensitive: `@custos-ignore onetimeusevariables` suppresses
+  nothing.
 - Several names can be listed: `// @custos-ignore UnusedGotoLabel, UnnecessarySemicolon`.
 - `ALL` suppresses every rule: `// @custos-ignore ALL`.
+- The rest of the line is read as names too; words that name no rule are
+  ignored, so a short reason can follow, as in the example below. Keep `ALL`
+  and rule IDs out of the reason.
+- [UnknownInspection](/rules/code-style/UnknownInspection) points out
+  `@noinspection` names in block comments that match no rule, such as a typo
+  or a removed rule.
 - Put the comment before the **first statement of a file** to suppress the
   rules for the whole file.
 - A comment right before a parameter, a property hook, a call argument or an
@@ -60,12 +68,30 @@ root:
 { "baseline": "custos-baseline.json" }
 ```
 
-`analyse` then hides the recorded findings. A baseline named in `custos.json`
+`analyse` then hides the recorded findings, and so does the
+[language server](./editors#settings). A baseline named in `custos.json`
 that does not exist yet suppresses nothing. You can also pass
 `--baseline FILE` (relative to the current directory), which must exist.
 `--generate-baseline` writes its file relative to the current directory too.
 `--stats` prints how many findings the baseline suppressed.
 
 Baseline entries match on file, rule, message and the text of the flagged
-line, not on line numbers, so they survive code moving around. Regenerate the
-baseline after fixing old findings to keep it small.
+line, not on line numbers, so they survive code moving around. Each entry
+counts its occurrences: a second identical finding on an identical line is
+new. Regenerate the baseline after fixing old findings to keep it small.
+
+The file is JSON, sorted so that it diffs well:
+
+```json
+{
+  "version": 1,
+  "entries": [
+    { "path": "src/Legacy.php", "rule": "OneTimeUseVariables", "message": "…", "line": "$total = compute();", "count": 1 }
+  ]
+}
+```
+
+Entry paths are relative to the baseline file's own directory: move the
+file and its entries no longer match, so regenerate it instead.
+[Tool findings](./cli#tool-findings) (`syntax`, `io`, `internal`) are never
+recorded.
