@@ -11,11 +11,6 @@ import (
 	"custos/internal/php/syntax"
 )
 
-// ExpansionDMethodSucceeded proves a boolean method succeeded on the current path.
-func ExpansionDMethodSucceeded(ctx *analysis.Context, c *syntax.MethodCall, at syntax.Node) bool {
-	return NativeCallSucceeded(ctx, c, at)
-}
-
 // ExpansionDMethods retains ordered same-object calls; ambiguous path effects
 // discard the complete state history rather than inventing a state transition.
 func ExpansionDMethods(ctx *analysis.Context, at syntax.Node, obj syntax.Expr) []*syntax.MethodCall {
@@ -29,7 +24,7 @@ func ExpansionDMethods(ctx *analysis.Context, at syntax.Node, obj syntax.Expr) [
 		if !ok || c.Span().End >= at.Span().Start || !NativeSameValue(ctx, c.Var, obj) {
 			continue
 		}
-		if !NativeDominates(c, at) && !ExpansionDMethodSucceeded(ctx, c, at) {
+		if !NativeDominates(c, at) && !NativeCallSucceeded(ctx, c, at) {
 			return nil
 		}
 		out = append(out, c)
@@ -111,12 +106,12 @@ func expansionDFrames(ctx *analysis.Context, obj syntax.Expr, at syntax.Node, de
 	for _, prior := range ExpansionDMethods(ctx, at, obj) {
 		switch ExpansionDMethodName(prior) {
 		case "newimage":
-			if !ExpansionDMethodSucceeded(ctx, prior, at) {
+			if !NativeCallSucceeded(ctx, prior, at) {
 				return 0
 			}
 			count++
 		case "addimage":
-			if !ExpansionDMethodSucceeded(ctx, prior, at) {
+			if !NativeCallSucceeded(ctx, prior, at) {
 				return 0
 			}
 			frames := expansionDFrames(ctx, CallArgument(prior.Args, 0, "source"), prior, depth+1)

@@ -51,11 +51,5 @@ func inputs(ctx *analysis.Context, n syntax.Node) []syntax.Expr {
 // guarded proves that false cannot reach input: the flow facts exclude it, or
 // the conditions guarding the read narrow it to a digest.
 func guarded(ctx *analysis.Context, input syntax.Expr) bool {
-	if input == nil {
-		return false // a missing argument
-	}
-	if ctx.Flow().Excludes(input, "false") {
-		return true
-	}
-	return !semanticquery.NativeLabelled(ctx, input) && semanticquery.NativeNarrowedExcludes(ctx, input, types.Of("string", "false"), "false")
+	return semanticquery.NativeFailureExcluded(ctx, input, types.Of("string", "false"), "false")
 }

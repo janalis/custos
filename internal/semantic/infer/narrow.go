@@ -10,7 +10,7 @@ import (
 )
 
 // NarrowMember narrows seed, a type assumed for the property, static
-// property or literal-key element read x, by the conditions guarding x, as
+// property or element read x (named by a literal or a local key), by the conditions guarding x, as
 // TypeOf narrows such a read whose declared type is known: what a guard
 // proves of a value its declaration says nothing about (a result stored in
 // an untyped property). Writes to x, its object or its array between a
@@ -48,7 +48,7 @@ func (e *Env) NarrowMemberAt(x, at syntax.Expr, seed types.Type) types.Type {
 // declaration says, by the conditions guarding x: for a plain local, the
 // conditions written after the definitions reaching it (values carried
 // around a loop are narrowed from the start of that loop); for a member or
-// a literal-key element, as NarrowMember. A local that something else may
+// an element named by a literal or a local key, as NarrowMember. A local that something else may
 // rewrite (a reference, a dynamic write) is unknown; other expressions
 // return seed.
 func (e *Env) NarrowedFrom(x syntax.Expr, seed types.Type) types.Type {
@@ -61,7 +61,10 @@ func (e *Env) NarrowedFrom(x syntax.Expr, seed types.Type) types.Type {
 	}
 	scope := syntax.EnclosingVariableScope(v)
 	t := e.narrowedVar(v.Name, v, scope, seed)
-	if src, a := e.copiedFrom(v, scope); src != "" && !t.IsUnknown() {
+	if t.IsUnknown() {
+		return t
+	}
+	if src, a := e.copiedFrom(v, scope); src != "" {
 		// `$tag = $_POST['tag']; if (strlen($_POST['tag']) !== 16) { … }`:
 		// the source, unchanged since the copy, was tested.
 		st := e.narrowExprAfter(seed, v, src, scope, a.Span().End)
@@ -116,7 +119,7 @@ func (e *Env) narrowedVar(name string, use syntax.Expr, scope syntax.Node, seed 
 }
 
 // copiedFrom returns the narrowing key of what read v copies (a local, a
-// member or a literal-key element), with the plain assignment making the
+// member or an element named by a literal or a local key), with the plain assignment making the
 // copy, when that assignment is the only definition reaching v and the
 // source cannot have changed since: tests of the source made after the
 // copy apply to v.
@@ -207,8 +210,6 @@ func narrowKey(x syntax.Expr) string {
 	return ""
 }
 
-// isPropKey reports the narrowing key of a property (`$this->p`, a static
-// property): any non-builtin call may change it.
 // callKeyPrefix starts the narrowing key of one call or comparison node
 // (see callKey): the result of that very node, not of the same text
 // elsewhere.
@@ -275,7 +276,7 @@ func (e *Env) CallResultAsAt(c, at syntax.Expr, seed types.Type) types.Type {
 		// holding the result, narrowing the same seed, prove as much of it.
 		vt := e.narrowExprAfter(seed, at, a.Var.(*syntax.Variable).Name, scope, a.Span().End)
 		if vt.IsUnknown() {
-			return vt // an impossible path
+			return vt // an impossible path, or the analysis gave up
 		}
 		t = e.assertIs(t, vt).IntsAlso(vt)
 	}
@@ -341,7 +342,10 @@ func unsilenced(x syntax.Expr) syntax.Expr {
 // variable name reaching at (nil else).
 func (e *Env) onlyAssign(name string, at, scope syntax.Node) *syntax.Assign {
 	sv := e.scopeVars(scope)
-	defs := sv.defs[name] // holdersAt only asks within maxVarDefs
+	defs := sv.defs[name]
+	if len(defs) > maxVarDefs {
+		return nil
+	}
 	fwd, back, _ := e.reaching(e.changing(defs), at, scope)
 	if len(fwd) != 1 || len(back) != 0 || fwd[0].asg == nil || e.clobbered(sv, fwd, back, at, scope) {
 		return nil
@@ -365,6 +369,8 @@ func (e *Env) holds(value, c syntax.Expr, scope syntax.Node, hops int) bool {
 	return false
 }
 
+// isPropKey reports the narrowing key of a property (`$this->p`, a static
+// property): any non-builtin call may change it.
 func isPropKey(k string) bool { return strings.Contains(k, "->") || strings.Contains(k, "::") }
 
 // propBase returns the variable holding the object of a `$v->p` key (also
@@ -544,16 +550,19 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 	// too, which may not run) is a definition reaching use: callers skip the
 	// conditions written before it (see narrowExprAfter's after).
 	r := e.applyCond(t, c, key, truthy)
-	if b := propBase(key); b != "" && r.ShapeString() != t.ShapeString() && e.chainBroken(scope, key, b, from, use) {
+	narrowed := r.ShapeString() != t.ShapeString()
+	if b := propBase(key); b != "" && narrowed && e.chainBroken(scope, key, b, from, use) {
 		return t // `$v` (or a property along the chain) changed since
 	}
-	if isPropKey(key) && !isDimKey(key) && r.ShapeString() != t.ShapeString() && e.brokenBy(scope, from, use, e.mutations(scope, key)) {
-		return t // the property itself was written since
+	if isPropKey(key) && !isDimKey(key) && narrowed {
+		if e.brokenBy(scope, from, use, e.mutations(scope, key)) {
+			return t // the property itself was written since
+		}
+		if e.native && e.memberBroken(scope, key, from, use) {
+			return t
+		}
 	}
-	if isPropKey(key) && !isDimKey(key) && r.ShapeString() != t.ShapeString() && e.native && e.memberBroken(scope, key, from, use) {
-		return t
-	}
-	if !isPropKey(key) && !isDimKey(key) && r.ShapeString() != t.ShapeString() {
+	if !isPropKey(key) && !isDimKey(key) && narrowed {
 		sv := e.scopeVars(scope)
 		if e.native && sv.refs[key] && e.brokenBy(scope, from, use, e.mutations(scope, anyWrite), e.mutations(scope, anyCall)) {
 			return t // a write through another name may have changed it
@@ -570,7 +579,7 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 	if isDimKey(key) {
 		// An element is narrowed only while neither it nor its array can
 		// have changed since the condition.
-		if r.ShapeString() != t.ShapeString() && e.dimBroken(scope, key, from, use) {
+		if narrowed && e.dimBroken(scope, key, from, use) {
 			return t
 		}
 		return r

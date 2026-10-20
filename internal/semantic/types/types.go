@@ -18,8 +18,9 @@ import (
 // A type may also carry array facts (see shape.go) describing its array
 // members: per-key types, non-emptiness. They never change the atom set, so
 // atom-based checks (Has("array"), IsArrayLike, Atoms) behave as without
-// them; Equal and String ignore them (ShapeString shows them). The values
-// of the int atom (see ints.go) are kept the same way.
+// them; Equal and String ignore them (ShapeString shows them). The value
+// facts are kept the same way: int values (ints.go), string lengths
+// (lengths.go), enum cases (cases.go) and string values (strings.go).
 type Type struct {
 	atoms []string   // sorted, unique; nil = unknown
 	arr   *arrayInfo // optional array facts; nil when none

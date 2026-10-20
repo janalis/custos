@@ -50,7 +50,7 @@ func (p expansionDExtensionsProbe) Check(ctx *analysis.Context, n syntax.Node) {
 	case "success":
 		for _, record := range ctx.Flow().Calls(syntax.EnclosingVariableScope(c)) {
 			if m, ok := record.Node.(*syntax.MethodCall); ok {
-				result = fmt.Sprint(ExpansionDMethodSucceeded(ctx, m, c))
+				result = fmt.Sprint(NativeCallSucceeded(ctx, m, c))
 			}
 		}
 	}

@@ -34,7 +34,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	uri := false
 	for _, p := range semanticquery.ExpansionDMethods(ctx, c, c.Var) {
 		if semanticquery.NativeMethod(ctx, p, "XMLWriter", "openUri") {
-			uri = semanticquery.ExpansionDMethodSucceeded(ctx, p, c)
+			uri = semanticquery.NativeCallSucceeded(ctx, p, c)
 		}
 		if semanticquery.NativeMethod(ctx, p, "XMLWriter", "openMemory") {
 			uri = false

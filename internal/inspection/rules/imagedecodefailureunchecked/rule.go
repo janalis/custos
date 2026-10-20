@@ -32,7 +32,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if _, literal := semanticquery.NativeString(ctx, semanticquery.CallArgument(origin.Args, 0, "data")); literal {
 		return
 	}
-	if ctx.Flow().Excludes(input, "false") || !semanticquery.NativeLabelled(ctx, input) && semanticquery.NativeNarrowedExcludes(ctx, input, types.Of(`\GdImage`, "false"), "false") {
+	if semanticquery.NativeFailureExcluded(ctx, input, types.Of(`\GdImage`, "false"), "false") {
 		return
 	}
 	ctx.ReportNode(input, message)

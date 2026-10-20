@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Set a separate timeout for stream reads."
@@ -48,26 +49,20 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // by origin, written before read in its scope, is known to have succeeded
 // there.
 func timeoutSet(ctx *analysis.Context, read *syntax.FuncCall, handle syntax.Expr, origin *syntax.FuncCall) bool {
-	set := false
-	visit := func(n syntax.Node) bool {
-		if set || n.Span().Start >= read.Span().Start {
-			return false
-		}
-		if n != syntax.EnclosingVariableScope(read) && syntax.IsVariableScope(n) {
-			return false
-		}
-		if call, ok := n.(*syntax.FuncCall); ok && semanticquery.NativeBuiltin(ctx, call, "stream_set_timeout") {
-			stream := semanticquery.CallArgument(call.Args, 0, "stream")
-			set = semanticquery.ExpansionCSame(ctx, handle, stream) && semanticquery.NativeValue(ctx, stream) == syntax.Expr(origin) && semanticquery.NativeCallSucceeded(ctx, call, read)
-		}
-		return !set
+	if semanticquery.NativeLabelled(ctx, read) {
+		return false // a jump may land between the call and the read
 	}
-	if scope := syntax.EnclosingVariableScope(read); scope != nil {
-		syntax.Inspect(scope, visit)
-	} else {
-		syntax.InspectFile(ctx.File, visit)
-	}
-	return set
+	return semanticquery.NativeEarlierCallProves(ctx, read, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		call, ok := x.(*syntax.FuncCall)
+		if !ok || !semanticquery.NativeBuiltin(ctx, call, "stream_set_timeout") {
+			return types.Unknown, nil
+		}
+		stream := semanticquery.CallArgument(call.Args, 0, "stream")
+		if !semanticquery.ExpansionCSame(ctx, handle, stream) || semanticquery.NativeValue(ctx, stream) != syntax.Expr(origin) {
+			return types.Unknown, nil
+		}
+		return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") }
+	})
 }
 
 // positiveTimeout accepts a known integer or float literal above zero.

@@ -28,7 +28,7 @@ func NativeFailureExcluded(ctx *analysis.Context, input syntax.Expr, seed types.
 	if input == nil {
 		return false
 	}
-	return ctx.Flow().Excludes(input, sentinel) || !NativeLabelled(ctx, input) && NativeNarrowedExcludes(ctx, input, seed, sentinel)
+	return ctx.Flow().Excludes(input, sentinel) || NativeNarrowedExcludes(ctx, input, seed, sentinel)
 }
 
 // NativeIntegerAllowsZero proves the validator options neither exclude zero
@@ -133,15 +133,6 @@ func NativeCurlDefault(ctx *analysis.Context, at syntax.Node, handle syntax.Expr
 // analysis established on the paths that reach the node count.
 func NativeLabelled(ctx *analysis.Context, at syntax.Node) bool {
 	return ctx.Flow().Labelled(at)
-}
-
-// NativeUnreplaced reports that nothing which may have replaced what two
-// reads see ran between them. A call that can enter the function again
-// assigns its static locals, so a test made before such a call says nothing of
-// a read made after it. The caller compares the producers itself.
-func NativeUnreplaced(ctx *analysis.Context, a, b syntax.Expr) bool {
-	av, bv := ctx.Flow().Value(a), ctx.Flow().Value(b)
-	return av.Invalidated == bv.Invalidated && !nativeStaticReplaced(ctx, a, b, av, bv)
 }
 
 // nativeStaticReplaced reports what a static local held, read twice, with a

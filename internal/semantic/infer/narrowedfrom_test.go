@@ -72,7 +72,7 @@ function f($o, $n) {
 	}
 }
 
-// Once lengths are known, truthiness, comparisons with ” and a byte read at
+// Once lengths are known, truthiness, comparisons with `”` and a byte read at
 // an offset narrow them: a fread result seeded as false|string<len 0, 4>.
 func TestKnownLengths(t *testing.T) {
 	src := `<?php
@@ -119,7 +119,7 @@ function f($h) {
 }
 
 // A needle found in a haystack proves the haystack was not null or false,
-// which read as ”.
+// which read as `”`.
 func TestNeedleFound(t *testing.T) {
 	src := `<?php
 function f(?string $s, $n) {

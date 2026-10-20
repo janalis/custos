@@ -52,20 +52,11 @@ func waited(ctx *analysis.Context, wait, read *syntax.FuncCall, blocking bool) b
 // exited reports whether a pcntl_wifexited() test of the status, made after
 // the wait, is known to have returned true where read runs.
 func exited(ctx *analysis.Context, wait *syntax.FuncCall, status syntax.Expr, read *syntax.FuncCall) bool {
-	found := false
-	visit := func(n syntax.Node) bool {
-		if found || n.Span().Start >= read.Span().Start || n != syntax.EnclosingVariableScope(read) && syntax.IsVariableScope(n) {
-			return false
+	return semanticquery.NativeEarlierCallProves(ctx, read, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		call, ok := x.(*syntax.FuncCall)
+		if !ok || call.Span().Start <= wait.Span().End || !semanticquery.NativeBuiltin(ctx, call, "pcntl_wifexited") || !semanticquery.ExpansionCSame(ctx, status, semanticquery.CallArgument(call.Args, 0, "status")) {
+			return types.Unknown, nil
 		}
-		if call, ok := n.(*syntax.FuncCall); ok && call.Span().Start > wait.Span().End && semanticquery.NativeBuiltin(ctx, call, "pcntl_wifexited") && semanticquery.ExpansionCSame(ctx, status, semanticquery.CallArgument(call.Args, 0, "status")) {
-			found = ctx.Types().Native().CallResultAt(call, read).OnlyOf("true")
-		}
-		return !found
-	}
-	if scope := syntax.EnclosingVariableScope(read); scope != nil {
-		syntax.Inspect(scope, visit)
-	} else {
-		syntax.InspectFile(ctx.File, visit)
-	}
-	return found
+		return types.Bool, func(t types.Type) bool { return t.OnlyOf("true") }
+	})
 }

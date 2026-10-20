@@ -877,24 +877,18 @@ func tlsHandshakeCompleted(ctx *analysis.Context, body syntax.Stmt, stream synta
 	if NativeLabelled(ctx, write) {
 		return false
 	}
-	completed := false
-	syntax.Inspect(body, func(n syntax.Node) bool {
-		if completed || n.Span().Start >= write.Span().Start || syntax.IsVariableScope(n) {
-			return false
-		}
-		c, ok := n.(*syntax.FuncCall)
+	return NativeEarlierCallProvesIn(ctx, body, write, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		c, ok := x.(*syntax.FuncCall)
 		if !ok || !NativeBuiltin(ctx, c, "stream_socket_enable_crypto") || !expansionDSame(ctx, stream, CallArgument(c.Args, 0, "stream")) {
-			return true
+			return types.Unknown, nil
 		}
-		if enabling, known := NativeTruth(ctx, CallArgument(c.Args, 1, "enable")); known && enabling {
-			// The handshake returns true, false or the pending 0; null stands
-			// for 0: falsy and loosely equal to false, as 0 is.
-			t := ctx.Types().Native().CallResultAsAt(c, write, types.Of("true", "false", "null"))
-			completed = !t.IsUnknown() && t.OnlyOf("true")
+		if enabling, known := NativeTruth(ctx, CallArgument(c.Args, 1, "enable")); !known || !enabling {
+			return types.Unknown, nil
 		}
-		return !completed
+		// The handshake returns true, false or the pending 0; null stands for
+		// 0: falsy and loosely equal to false, as 0 is.
+		return types.Of("true", "false", "null"), func(t types.Type) bool { return t.OnlyOf("true") }
 	})
-	return completed
 }
 
 func CheckFtpPendingTransferAcceptedAsComplete(ctx *analysis.Context, n syntax.Node, message string) {
@@ -1116,7 +1110,7 @@ func expansionDMethodCalls(ctx *analysis.Context, at syntax.Node, receiver synta
 	var out []*syntax.MethodCall
 	for _, event := range expansionDCalls(ctx, at) {
 		c, ok := event.(*syntax.MethodCall)
-		if !ok || c.Span().End >= at.Span().Start || (!NativeDominates(c, at) && !ExpansionDMethodSucceeded(ctx, c, at)) || !expansionDSame(ctx, c.Var, receiver) {
+		if !ok || c.Span().End >= at.Span().Start || (!NativeDominates(c, at) && !NativeCallSucceeded(ctx, c, at)) || !expansionDSame(ctx, c.Var, receiver) {
 			continue
 		}
 		for _, name := range names {
@@ -1544,7 +1538,7 @@ func pdoFetchIntoMode(ctx *analysis.Context, fetch *syntax.MethodCall, loop synt
 			continue
 		}
 		latest = nil
-		if c.Span().End < fetch.Span().Start && (NativeDominates(c, fetch) || ExpansionDMethodSucceeded(ctx, c, fetch)) && pdoFetchIntoMethod(ctx, c, "setFetchMode") && expansionDSame(ctx, c.Var, fetch.Var) {
+		if c.Span().End < fetch.Span().Start && (NativeDominates(c, fetch) || NativeCallSucceeded(ctx, c, fetch)) && pdoFetchIntoMethod(ctx, c, "setFetchMode") && expansionDSame(ctx, c.Var, fetch.Var) {
 			latest = c
 		}
 	}
@@ -1781,7 +1775,7 @@ func CheckMysqliEscapedValueSurvivesCharsetChange(ctx *analysis.Context, n synta
 		// Only the last selection on each side decides: an earlier change that
 		// a later call overrides, restores or leaves unproven is not evidence.
 		prior := expansionDLastCharsetCall(ctx, escape, escape.Var, 0)
-		if prior == nil || (!NativeDominates(prior, escape) && !ExpansionDMethodSucceeded(ctx, prior, escape)) {
+		if prior == nil || (!NativeDominates(prior, escape) && !NativeCallSucceeded(ctx, prior, escape)) {
 			continue
 		}
 		before, known := NativeString(ctx, CallArgument(prior.Args, 0, "charset"))
@@ -1789,7 +1783,7 @@ func CheckMysqliEscapedValueSurvivesCharsetChange(ctx *analysis.Context, n synta
 			continue
 		}
 		change := expansionDLastCharsetCall(ctx, c, c.Var, escape.Span().End)
-		if change == nil || !ExpansionDMethodSucceeded(ctx, change, c) {
+		if change == nil || !NativeCallSucceeded(ctx, change, c) {
 			continue
 		}
 		after, known := NativeString(ctx, CallArgument(change.Args, 0, "charset"))
@@ -1827,7 +1821,7 @@ func CheckMysqliMultiQueryResultsNotDrained(ctx *analysis.Context, n syntax.Node
 		return
 	}
 	p := prior[len(prior)-1]
-	if !ExpansionDMethodSucceeded(ctx, p, c) {
+	if !NativeCallSucceeded(ctx, p, c) {
 		return
 	}
 	sql, known := NativeString(ctx, CallArgument(p.Args, 0, "query"))
@@ -2022,7 +2016,7 @@ func CheckSqliteForeignKeySettingInsideTransaction(ctx *analysis.Context, n synt
 			continue
 		}
 		// A call on another branch may or may not have run before the PRAGMA.
-		certain := NativeDominates(prior, c) || ExpansionDMethodSucceeded(ctx, prior, c)
+		certain := NativeDominates(prior, c) || NativeCallSucceeded(ctx, prior, c)
 		if !certain && sqliteCallLeaves(prior, c) {
 			// The path through this call never reaches the PRAGMA.
 			continue

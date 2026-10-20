@@ -200,7 +200,7 @@ func (g guard) verifiedBefore(at syntax.Expr) bool {
 
 // writtenAt reports whether the conditions guarding at prove the call wrote
 // the signature, given what it held before: not null any more when it was
-// unset or null, not empty when it was ”.
+// unset or null, not empty when it was `”`.
 func (g guard) writtenAt(at syntax.Expr) bool {
 	if g.required == always || semanticquery.NativeLabelled(g.ctx, at) {
 		return false

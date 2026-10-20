@@ -49,8 +49,11 @@ func (rule) Check(ctx *analysis.Context, call syntax.Node) {
 			continue
 		}
 
-		// In a scope with a `goto` label only the flow says what holds here.
-		if ctx.Flow().Excludes(input, "null") || !semanticquery.NativeFailureFlowOnly(ctx, input) && ctx.TypeOf(input).OnlyOf("string") || semanticquery.NativeNarrowedExcludes(ctx, input, types.Of("string", "null"), "null") {
+		// The narrowed type reads the guards itself (none where a `goto`
+		// label may bypass them); the inferred type of an earlier write counts
+		// only where that write alone reaches the read.
+		if ctx.Flow().Excludes(input, "null") || semanticquery.NativeNarrowedExcludes(ctx, input, types.Of("string", "null"), "null") ||
+			!semanticquery.NativeFailureFlowOnly(ctx, input) && ctx.TypeOf(input).OnlyOf("string") {
 			continue
 		}
 		// The parameter must be `string` in whichever declaration runs.

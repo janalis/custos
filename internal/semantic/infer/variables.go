@@ -426,11 +426,11 @@ func (e *Env) variableBaseAt(name string, use syntax.Expr, read *syntax.Variable
 }
 
 // loopAround returns the start of the innermost loop holding both
-// definition d and read v, where the conditions a value d carries around
+// definition d and use, where the conditions a value d carries around
 // the loop passes again begin (d's own end, should no loop hold both).
-func loopAround(d varDef, v, scope syntax.Node) uint32 {
+func loopAround(d varDef, use, scope syntax.Node) uint32 {
 	start, found := max(d.pos, d.end), false
-	for p := v.Parent(); p != nil && p != scope && !found; p = p.Parent() {
+	for p := use.Parent(); p != nil && p != scope && !found; p = p.Parent() {
 		switch p.(type) {
 		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
 			if sp := p.Span(); d.pos >= sp.Start && d.pos < sp.End {
@@ -442,10 +442,10 @@ func loopAround(d varDef, v, scope syntax.Node) uint32 {
 }
 
 // forStep reports whether definition d sits in the step expressions of a
-// for loop whose body holds v.
-func (e *Env) forStep(d varDef, v, scope syntax.Node) bool {
-	child := v
-	for p := v.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
+// for loop whose body holds use.
+func (e *Env) forStep(d varDef, use, scope syntax.Node) bool {
+	child := use
+	for p := use.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
 		if f, ok := p.(*syntax.For); ok && child == syntax.Node(f.Body) {
 			for _, x := range f.Loop {
 				if sp := x.Span(); d.pos >= sp.Start && d.pos < sp.End {
@@ -457,16 +457,16 @@ func (e *Env) forStep(d varDef, v, scope syntax.Node) bool {
 	return false
 }
 
-// loopCondNarrow narrows the type t of back-edge definition d of v when d
-// sits in the condition (or step) of a loop around v that is tested before
+// loopCondNarrow narrows the type t of back-edge definition d of name read
+// at use when d sits in the condition (or step) of a loop around use that is tested before
 // the body runs again: `do { … } while ($e = $e->getPrevious());` only
 // loops with a truthy $e; `for (…; $x !== null; $x = next($x))` likewise.
-func (e *Env) loopCondNarrow(t types.Type, d varDef, name string, v, scope syntax.Node) types.Type {
+func (e *Env) loopCondNarrow(t types.Type, d varDef, name string, use, scope syntax.Node) types.Type {
 	in := func(x syntax.Node) bool {
 		sp := x.Span()
 		return d.pos >= sp.Start && d.pos < sp.End
 	}
-	for p := v.Parent(); p != nil && p != scope; p = p.Parent() {
+	for p := use.Parent(); p != nil && p != scope; p = p.Parent() {
 		switch n := p.(type) {
 		case *syntax.DoWhile:
 			if in(n.Cond) {

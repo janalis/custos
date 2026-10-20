@@ -29,7 +29,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok || !(semanticquery.NativeMethod(ctx, origin, "NumberFormatter", "format") || semanticquery.NativeMethod(ctx, origin, "IntlDateFormatter", "format")) {
 		return
 	}
-	if ctx.Flow().Excludes(input, "false") || !semanticquery.NativeLabelled(ctx, input) && semanticquery.NativeNarrowedExcludes(ctx, input, types.Of("string", "false"), "false") {
+	if semanticquery.NativeFailureExcluded(ctx, input, types.Of("string", "false"), "false") {
 		return
 	}
 	ctx.ReportNode(input, message)

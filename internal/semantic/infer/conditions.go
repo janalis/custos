@@ -42,6 +42,13 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		return t
 	}
 	steps.n--
+	if callMatches(cond, name) {
+		// The result of this very call or comparison (see callKey).
+		if truthy {
+			return truthyType(t)
+		}
+		return falsyType(t)
+	}
 	switch c := syntax.UnwrapParens(cond).(type) {
 	case *syntax.Unary:
 		switch c.Op.Kind {
@@ -51,13 +58,6 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			return e.applyCondB(t, c.Expr, name, truthy, steps) // silencing keeps the value
 		}
 	case *syntax.Binary:
-		if callMatches(c, name) {
-			// The result of this very comparison (see callKey).
-			if truthy {
-				return truthyType(t)
-			}
-			return falsyType(t)
-		}
 		switch c.Op.Kind {
 		case syntax.TBooleanAnd, syntax.TAnd:
 			lt := e.applyCondB(t, c.Left, name, true, steps)
@@ -143,7 +143,7 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			}
 		}
 	case *syntax.Variable, *syntax.PropertyFetch, *syntax.StaticPropertyFetch, *syntax.ArrayDimFetch, *syntax.MethodCall:
-		if narrowKey(c) == name || callMatches(c, name) {
+		if narrowKey(c) == name {
 			if truthy {
 				return truthyType(t)
 			}
@@ -185,12 +185,6 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			return r
 		}
 	case *syntax.FuncCall:
-		if callMatches(c, name) {
-			if truthy {
-				return truthyType(t)
-			}
-			return falsyType(t)
-		}
 		if truthy && e.needleFound(c, name) {
 			return t.Without("null", "false")
 		}
@@ -247,7 +241,7 @@ var needleSearches = map[string]bool{
 
 // needleFound reports whether c searches haystack name for a non-empty
 // literal needle (`str_contains($x, 'a')`, `strpos($x, 'a')`): where it
-// succeeds, name was neither null nor false, which read as ”.
+// succeeds, name was neither null nor false, which read as `”`.
 func (e *Env) needleFound(c *syntax.FuncCall, name string) bool {
 	nm, ok := c.Name.(*syntax.Name)
 	if !ok || c.Args == nil || !needleSearches[strings.ToLower(strings.TrimPrefix(nm.Value, `\`))] || !e.isBuiltinCall(c) {
@@ -284,11 +278,7 @@ func (e *Env) needleFound(c *syntax.FuncCall, name string) bool {
 	if hay == nil || needle == nil || !isVar(hay, name) {
 		return false
 	}
-	l, ok := syntax.UnwrapParens(needle).(*syntax.Literal)
-	if !ok || l.LitKind != syntax.LitString {
-		return false
-	}
-	text, ok := syntax.LiteralStringValue(l)
+	text, ok := stringLiteral(needle)
 	return ok && text != ""
 }
 

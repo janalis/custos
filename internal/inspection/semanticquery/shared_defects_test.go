@@ -58,8 +58,6 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 		result = fmt.Sprint(NativeFailureExcluded(ctx, a, types.Of("resource", "false"), "false"))
 	case "local-false":
 		result = fmt.Sprint(NativeFailureExcluded(ctx, a, types.Of("resource", "false"), "false"))
-	case "unreplaced":
-		result = fmt.Sprint(NativeUnreplaced(ctx, a, b))
 	case "static":
 		result = fmt.Sprint(NativeStaticLocal(ctx, a))
 	case "writes-known":
@@ -658,11 +656,6 @@ func TestSharedStaticLocalAcrossReentry(t *testing.T) {
 		{"same", "object around a call it is handed to", `function f($o){$s=new stdClass(); $t=$s; $o->run($s); probe($t, $s);}`, "false"},
 		{"same", "object handed to a call on one path", `function f($o, $c){$s=new stdClass(); $t=$s; if($c){$o->run($t);} probe($t, $s);}`, "false"},
 		{"same", "static object around a call", `function f($o){static $s; $s=new stdClass(); $t=$s; $o->run(); probe($t, $s);}`, "false"},
-
-		{"unreplaced", "copies around nothing", static + `$t=$s; $u=$s; probe($t, $u);}`, "true"},
-		{"unreplaced", "copies around a call", static + `$t=$s; $o->run(); $u=$s; probe($t, $u);}`, "false"},
-		{"unreplaced", "copies after a call on one path", static + `if($c){$o->run();} $t=$s; $u=$s; probe($t, $u);}`, "false"},
-		{"unreplaced", "plain local around a call", `function f($a, $o){$s=parse_url($a); $t=$s; $o->run(); $u=$s; probe($t, $u);}`, "true"},
 
 		{"local-false", "tested, then read", static + `if($s !== false){probe($s);}}`, "true"},
 		{"local-false", "tested, call, then read", static + `if($s !== false){$o->run(); probe($s);}}`, "false"},

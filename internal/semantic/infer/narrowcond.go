@@ -238,10 +238,8 @@ func (e *Env) varCmp(t types.Type, other syntax.Expr, strict, holds bool) types.
 		}
 	}
 	if _, known := t.StringLengthRanges(); known {
-		if l, ok := syntax.UnwrapParens(other).(*syntax.Literal); ok && l.LitKind == syntax.LitString {
-			if text, ok := syntax.LiteralStringValue(l); ok && text == "" {
-				return emptyCmp(t, strict, holds)
-			}
+		if text, ok := stringLiteral(other); ok && text == "" {
+			return emptyCmp(t, strict, holds)
 		}
 	}
 	lit := constLiteral(other)
@@ -327,10 +325,11 @@ func (e *Env) knownInt(x syntax.Expr) (int64, bool) {
 		if l, ok := syntax.UnwrapParens(a).(*syntax.Variable); ok {
 			a = e.onlyValue(l)
 		}
-		if lit, ok := a.(*syntax.Literal); ok && lit.LitKind == syntax.LitString && e.isBuiltinCall(c) {
-			if text, ok := syntax.LiteralStringValue(lit); ok {
-				return int64(len(text)), true
-			}
+		if a == nil {
+			return 0, false
+		}
+		if text, ok := stringLiteral(a); ok && e.isBuiltinCall(c) {
+			return int64(len(text)), true
 		}
 		return 0, false
 	}
@@ -349,21 +348,15 @@ func (e *Env) onlyValue(v *syntax.Variable) syntax.Expr {
 	if v.Name == "" || v.NameExpr != nil {
 		return nil
 	}
-	scope := syntax.EnclosingVariableScope(v)
-	sv := e.scopeVars(scope)
-	defs := sv.defs[v.Name]
-	if len(defs) > maxVarDefs {
+	a := e.onlyAssign(v.Name, v, syntax.EnclosingVariableScope(v))
+	if a == nil {
 		return nil
 	}
-	fwd, back, _ := e.reaching(e.changing(defs), v, scope)
-	if len(fwd) != 1 || len(back) != 0 || fwd[0].asg == nil || e.clobbered(sv, fwd, back, v, scope) {
-		return nil
-	}
-	return syntax.UnwrapParens(fwd[0].asg.Value)
+	return syntax.UnwrapParens(a.Value)
 }
 
 // emptyCmp narrows t, whose string member has known lengths, compared with
-// ”. Loosely, null and false equal ” too.
+// `”`. Loosely, null and false equal `”` too.
 func emptyCmp(t types.Type, strict, holds bool) types.Type {
 	switch {
 	case holds && strict:
@@ -414,12 +407,11 @@ func lengthArg(x syntax.Expr) (*syntax.FuncCall, syntax.Expr) {
 	if len(c.Args.Args) != 2 {
 		return nil, nil
 	}
-	enc, ok := c.Args.Args[1].(*syntax.Arg)
-	l, lit := syntax.UnwrapParens(enc.Value).(*syntax.Literal)
-	if !ok || !lit || l.LitKind != syntax.LitString {
-		return nil, nil
+	text, lit := "", false
+	if enc, ok := c.Args.Args[1].(*syntax.Arg); ok {
+		text, lit = stringLiteral(enc.Value)
 	}
-	if text, _ := syntax.LiteralStringValue(l); !strings.EqualFold(text, "8bit") {
+	if !lit || !strings.EqualFold(text, "8bit") {
 		return nil, nil
 	}
 	return c, a.Value
@@ -482,14 +474,18 @@ var mirrorOrder = map[syntax.TokenKind]syntax.TokenKind{
 	syntax.TIsSmallerOrEqual: syntax.TIsGreaterOrEqual, syntax.TIsGreaterOrEqual: syntax.TIsSmallerOrEqual,
 }
 
+// negatedOrder is the comparison holding where op fails (`!($x < 1)` reads
+// `$x >= 1`).
+var negatedOrder = map[syntax.TokenKind]syntax.TokenKind{
+	syntax.TLess: syntax.TIsGreaterOrEqual, syntax.TIsGreaterOrEqual: syntax.TLess,
+	syntax.TGreater: syntax.TIsSmallerOrEqual, syntax.TIsSmallerOrEqual: syntax.TGreater,
+}
+
 // orderBounds is the interval of values x satisfying `x op v` (op a
 // relational operator) when truthy, its complement otherwise.
 func orderBounds(op syntax.TokenKind, v int64, truthy bool) (lo, hi int64) {
 	if !truthy {
-		op = map[syntax.TokenKind]syntax.TokenKind{
-			syntax.TLess: syntax.TIsGreaterOrEqual, syntax.TIsGreaterOrEqual: syntax.TLess,
-			syntax.TGreater: syntax.TIsSmallerOrEqual, syntax.TIsSmallerOrEqual: syntax.TGreater,
-		}[op]
+		op = negatedOrder[op]
 	}
 	switch op {
 	case syntax.TLess:
@@ -772,7 +768,7 @@ func (e *Env) inArrayCond(t types.Type, c *syntax.FuncCall, truthy bool) types.T
 }
 
 // looseFalsyPeers returns the null and false atoms a value loosely equal to
-// constant x (lit: its constLiteral) may have: both for null, ”, 0 and 0.0
+// constant x (lit: its constLiteral) may have: both for null, `”`, 0 and 0.0
 // (`null == 0`, `false == ”`), false alone for '0' (`null == '0'` is false).
 func looseFalsyPeers(x syntax.Expr, lit string) []string {
 	if lit == "null" {

@@ -11,7 +11,8 @@ import (
 // those conditions, is known and lacks atom. Nothing is proven where a goto
 // label lets a jump land between a guard and the read. A plain local is typed
 // as read (narrowing seed when that type is unknown);
-// a property, static property or literal-key element read narrows seed, the
+// a property, static property or element read (named by a literal or a
+// local key) narrows seed, the
 // type its producer stores, since its declaration may say nothing. A static
 // local is left to the flow analysis, which knows the calls that may enter
 // the function again and assign it; other expressions prove nothing.
@@ -44,7 +45,7 @@ func NativeNarrowedExcludes(ctx *analysis.Context, x syntax.Expr, seed types.Typ
 // a plain local that is not static is followed.
 func NativeNarrowedExcludesAt(ctx *analysis.Context, x, at syntax.Expr, atom string) bool {
 	v, ok := syntax.UnwrapParens(x).(*syntax.Variable)
-	if !ok || NativeStaticLocal(ctx, v) {
+	if !ok || NativeStaticLocal(ctx, v) || NativeLabelled(ctx, at) {
 		return false
 	}
 	env := ctx.Types().Native()
@@ -61,23 +62,30 @@ func nativeMayHold(t types.Type, atom string) bool {
 	return t.HasAny(atom, "mixed") || atom == "false" && t.Has("bool")
 }
 
-// NativeEarlierCallProves reports whether a call made earlier in the scope
-// of at has a result that the conditions guarding at narrow to what that
-// call's proves accepts (or that makes at unreachable). pick selects the
-// calls (nil proves skips one), returning the type assumed for the result
-// and the test of the narrowed result. Nested scopes are not searched.
+// NativeEarlierCallProves reports whether a call or comparison made earlier
+// in the scope of at has a result that, narrowed by the conditions guarding
+// at, satisfies the proves test pick returned for it. pick returns the type
+// assumed for a node's result and that test, or a nil test to skip the node.
+// An unknown narrowed result (at is unreachable, or the analysis gave up)
+// also counts: callers use this to withhold a finding, never to raise one.
+// Nested scopes are not searched.
 func NativeEarlierCallProves(ctx *analysis.Context, at syntax.Expr, pick func(syntax.Expr) (seed types.Type, proves func(types.Type) bool)) bool {
+	return NativeEarlierCallProvesIn(ctx, nil, at, pick)
+}
+
+// NativeEarlierCallProvesIn is NativeEarlierCallProves searching only root
+// (a loop or branch body around at; nil for the whole scope).
+func NativeEarlierCallProvesIn(ctx *analysis.Context, root syntax.Node, at syntax.Expr, pick func(syntax.Expr) (seed types.Type, proves func(types.Type) bool)) bool {
 	env := ctx.Types().Native()
 	found := false
-	scope := syntax.EnclosingVariableScope(at)
 	visit := func(n syntax.Node) bool {
 		if found || n.Span().Start >= at.Span().Start || syntax.IsVariableScope(n) {
 			return false
 		}
 		switch n.(type) {
-		case *syntax.FuncCall, *syntax.MethodCall:
+		case *syntax.FuncCall, *syntax.MethodCall, *syntax.Binary:
 			if n.Span().End > at.Span().Start {
-				return true // a call holding at: its result comes later
+				return true // a node holding at: its result comes later
 			}
 			if seed, proves := pick(n.(syntax.Expr)); proves != nil {
 				t := env.CallResultAsAt(n.(syntax.Expr), at, seed)
@@ -86,9 +94,13 @@ func NativeEarlierCallProves(ctx *analysis.Context, at syntax.Expr, pick func(sy
 		}
 		return true
 	}
-	if scope != nil {
+	scope := syntax.EnclosingVariableScope(at)
+	switch {
+	case root != nil:
+		syntax.Inspect(root, visit)
+	case scope != nil:
 		syntax.Inspect(syntax.VariableScopeBody(scope), visit)
-	} else {
+	default:
 		syntax.InspectFile(ctx.File, visit)
 	}
 	return found

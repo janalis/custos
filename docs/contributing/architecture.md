@@ -100,6 +100,33 @@ inspection needs it, then choose its owner by behavior:
   possible predecessors; their doc comments define when a history proves
   absence.
 
+### Guards are narrowing questions
+
+A rule that needs "this value was tested on the way here" asks the native
+environment (`Env.Native()`) for the narrowed type instead of walking the
+enclosing branches, ternaries, short-circuit operands and early exits itself.
+The engine already handles chains, negations, saved results, loops and the
+writes, calls and references that end a fact.
+
+- For a read, use `TypeOf`, or `NarrowedFrom(x, seed)` when the rule models
+  values the declaration cannot express. Seeds can carry int values
+  (`types.Ints`), string lengths (`types.StringLengths`), enum cases
+  (`types.EnumCases`) and string values (`types.TrackedStrings`). These
+  facts exist only where a caller seeds them, so ordinary inference never
+  pays for them.
+- For a place that does not read the value, use `NarrowedVarAt` (locals) or
+  `NarrowMemberAt` (properties and elements).
+- For the result of one call or comparison node, use `CallResultAt` or
+  `CallResultAsAt`. In `semanticquery`, `NativeEarlierCallProves` scans the
+  earlier calls of the scope, and `NativeCallSucceeded` and
+  `NativeNarrowedExcludes` cover the common cases.
+
+An unknown result from a known seed means the place is unreachable, or that
+the analysis gave up (dynamic writes, budgets). Treat it as proof only to
+withhold a finding, never to raise one. Where a `goto` label may let a jump
+bypass a guard, `semanticquery.NativeLabelled` says so, and the guard proves
+nothing.
+
 PHPUnit call and version support belongs in `phpunit`. Preserve the
 difference between a written call name and its actual runtime target,
 especially when deciding whether a fix is safe.

@@ -57,14 +57,10 @@ func nativeDirectoryGuard(ctx *analysis.Context, at syntax.Node, path syntax.Exp
 		return false
 	}
 	env := ctx.Types().Native()
-	found := false
-	visit := func(n syntax.Node) bool {
-		if found || n.Span().Start >= at.Span().Start || syntax.IsVariableScope(n) {
-			return false
-		}
+	return NativeEarlierCallProves(ctx, x, func(n syntax.Expr) (types.Type, func(types.Type) bool) {
 		cmp, ok := n.(*syntax.Binary)
-		if !ok || cmp.Span().Start < source.Span().End || cmp.Span().End > at.Span().Start {
-			return true
+		if !ok || cmp.Span().Start < source.Span().End {
+			return types.Unknown, nil
 		}
 		// An equality must have held, an inequality failed. Canonical paths
 		// are absolute strings or false: the loose operators decide alike.
@@ -75,27 +71,19 @@ func nativeDirectoryGuard(ctx *analysis.Context, at syntax.Node, path syntax.Exp
 		case syntax.TIsNotIdentical, syntax.TIsNotEqual:
 			want = "false"
 		default:
-			return true
+			return types.Unknown, nil
 		}
 		parent := nativeCanonicalParent(ctx, cmp.Left, variable.Name)
 		if parent == nil || nativeCanonicalPath(ctx, cmp.Right) == nil {
 			if parent = nativeCanonicalParent(ctx, cmp.Right, variable.Name); parent == nil || nativeCanonicalPath(ctx, cmp.Left) == nil {
-				return true
+				return types.Unknown, nil
 			}
 		}
 		if !env.ReachesUnchanged(parent, x) {
-			return true // another file since
+			return types.Unknown, nil // another file since
 		}
-		t := env.CallResultAsAt(cmp, x, types.Bool)
-		found = t.IsUnknown() || t.OnlyOf(want)
-		return true
-	}
-	if scope := syntax.EnclosingVariableScope(at); scope != nil {
-		syntax.Inspect(syntax.VariableScopeBody(scope), visit)
-	} else {
-		syntax.InspectFile(ctx.File, visit)
-	}
-	return found
+		return types.Bool, func(t types.Type) bool { return t.OnlyOf(want) }
+	})
 }
 
 // nativeCanonicalPath returns the argument of a builtin realpath() call.
