@@ -12,9 +12,9 @@ Group: [PHPUnit](/rules/#phpunit) · PhpStorm name: `PhpUnitDeprecationsInspecti
 
 Flags PHPUnit assertion APIs deprecated in the configured PHPUnit version:
 the optional trailing parameters of `assertEquals()` / `assertNotEquals()`
-(deprecated in 8.0 in favour of dedicated assertions) and the
+(deprecated in 8.0 in favor of dedicated assertions) and the
 `assertFileNotExists()` / `assertDirectoryNotExists()` assertions (deprecated
-in 9.1 in favour of their `...DoesNotExist()` counterparts).
+in 9.1 in favor of their `...DoesNotExist()` counterparts).
 
 ## Example
 
@@ -55,7 +55,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `PHP_UNIT_VERSION` | enum (`PHPUNIT70` … `PHPUNIT95`, see ordering above) | `PHPUNIT80` | PHPUnit version targeted by the project. D1/D2 need ≥ `PHPUNIT80`; D3 needs ≥ `PHPUNIT91`. Unset → inferred from the indexed PHPUnit (see Divergences). |
+| `PHP_UNIT_VERSION` | enum (`PHPUNIT70` … `PHPUNIT95`, see ordering above) | `PHPUNIT80` | PHPUnit version targeted by the project. The `assertEquals` extra-argument checks need ≥ `PHPUNIT80`; the renamed file and directory assertions need ≥ `PHPUNIT91`. Unset → inferred from the indexed PHPUnit (see Divergences). |
 
 ## Configure
 

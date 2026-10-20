@@ -6,7 +6,7 @@ title: CredentialedCorsUsesWildcardOrigin
 
 # CredentialedCorsUsesWildcardOrigin
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Security](/rules/#security)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Resolved header calls in same response scope definitely set Access-Control-Allow-Origin to * and Access-Control-Allow-Credentials to true, case-insensitive. Account for later replacement/removal and unknown control flow.
-- D1c. The supported initial proof uses a contiguous block of known header and header_remove operations. Account for the final replacement/removal state, and do not treat unknown later operations as proof that the conflicting headers remain final.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved header calls in same response scope definitely set Access-Control-Allow-Origin to * and Access-Control-Allow-Credentials to true, case-insensitive. Account for later replacement/removal and unknown control flow.
+- The supported initial proof uses a contiguous block of known header and header_remove operations. Account for the final replacement/removal state, and do not treat unknown later operations as proof that the conflicting headers remain final.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

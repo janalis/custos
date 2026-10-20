@@ -6,7 +6,7 @@ title: RepeatedHtmlEntityEncoding
 
 # RepeatedHtmlEntityEncoding
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Report htmlspecialchars or htmlentities directly nesting an equivalent encoding call with matching flags/encoding and default or true double_encode.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report htmlspecialchars or htmlentities directly nesting an equivalent encoding call with matching flags/encoding and default or true double_encode.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Different contexts/options, double_encode false on the outer call and intentionally literal entity rendering are excluded.
-- E3. When either call receives an unpacked argument (`...$options`), its flags and encoding are unknown and may differ: no report.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Different contexts/options, double_encode false on the outer call and intentionally literal entity rendering are excluded.
+- When either call receives an unpacked argument (`...$options`), its flags and encoding are unknown and may differ: no report.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

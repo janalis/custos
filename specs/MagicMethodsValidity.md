@@ -66,7 +66,7 @@ Building-block checks:
   short name) and the method name.
 - **C-returns(T)** "must return T" (T a set of allowed types):
   - If the method declares a return type: resolve it, drop unknown parts,
-    normalise each part (`self` → the class FQN, scalar names lowercase,
+    normalize each part (`self` → the class FQN, scalar names lowercase,
     classes fully qualified). If the result is non-empty and contains a type
     not *accepted* by T → report on the name identifier. A type is accepted
     when it is in T, or when it is a class type that extends/implements a
@@ -111,7 +111,7 @@ Dispatch:
 - **D13** `__sleep`, `__serialize`: C-static, C-public, C-noargs,
   C-returns({`array`}).
 - **D14** `__autoload` (as a method): C-argc(1), C-noreturn, and always a
-  report on the name identifier saying it is deprecated in favour of
+  report on the name identifier saying it is deprecated in favor of
   `spl_autoload_register()` (PHP 7.2). Reported at every PHP level.
 - **D15** Any other name:
   - starting with `__` and not in the known non-magic list → report on the
@@ -170,7 +170,7 @@ Dispatch:
   - C-parent: `{m} does not call {ParentClass}::{m}().`
   - C-returns: `{m} must return {allowed}; got '{resolved}'.` where
     `{allowed}` joins T without `static` by `|` (e.g. `array|null`,
-    `\Shop\Cart`) and `{resolved}` joins the offending normalised types
+    `\Shop\Cart`) and `{resolved}` joins the offending normalized types
     (empty when nothing was returned).
   - C-version: `{m} only exists from PHP {v}; it is never called here.`
   - D14: `__autoload is deprecated since PHP 7.2; use spl_autoload_register().`

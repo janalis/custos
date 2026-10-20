@@ -23,7 +23,7 @@ Identify preg_replace_callback with an inline callback having a reachable fallth
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
 - E1a. A statement-level call whose target cannot be resolved ends the path as well: a function that is neither a builtin nor a known declaration, a dynamic function call, or a method call on a receiver of unknown type. Such a callee may be declared `never`, so fallthrough is unproven and nothing is reported.
-- E1b. Callbacks containing loops, `try`, `switch` or `goto` are not analysed.
+- E1b. Callbacks containing loops, `try`, `switch` or `goto` are not analyzed.
 - E2. Both `@custos-ignore RegexReplacementCallbackFallsThrough` and `@noinspection RegexReplacementCallbackFallsThrough` suppress this native rule.
 
 ## Report

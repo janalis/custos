@@ -6,7 +6,7 @@ title: SessionMutationAfterClose
 
 # SessionMutationAfterClose
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. Report a write to $_SESSION after successful session_write_close and before a proven session_start reopening.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report a write to $_SESSION after successful session_write_close and before a proven session_start reopening.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Reads, reopened sessions, failed close, externally persisted session wrappers and unknown session state are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Reads, reopened sessions, failed close, externally persisted session wrappers and unknown session state are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

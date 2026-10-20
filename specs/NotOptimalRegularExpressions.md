@@ -649,7 +649,7 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
 
 ## Divergences
 
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no candidate, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analyzed with its initial value only. custos makes the result unknown (no candidate, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - **D21 range.** The upstream fixture highlights only the function name of
   the `preg_match_all` call although the finding is attached to the whole
   call (the `preg_quote` finding, attached the same way, covers the whole
@@ -679,7 +679,7 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
   custos skips these cases and uses the inner character for `[x]` (see "D22 rewrites that keep the meaning" below).
 - **Modifiers ignored by D22.** `m` (with `^`/`$`) and `x` change meaning
   but are not checked for D22a–d. custos skips D22a/b when `mods` contains
-  `m` (see "D22 rewrites that keep the meaning" below). D22 also builds `T` from the normalised body, so a literal
+  `m` (see "D22 rewrites that keep the meaning" below). D22 also builds `T` from the normalized body, so a literal
   `a-zA-Z` becomes `A-Za-z` in the suggestion; custos uses the body as
   written for `T`, the trim character and the explode delimiter.
 - **Line terminators.** Upstream's D13 and D19 tests fail on any body
@@ -705,7 +705,7 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
 - **Delimiters as PHP parses them (custos diverges from upstream).**
   Upstream accepts letters, digits and `\` as delimiters, and treats leading
   whitespace as the delimiter itself. So `'abca'` (rejected by PHP) is
-  analysed as the body `bc` and can collect misleading pattern/modifier
+  analyzed as the body `bc` and can collect misleading pattern/modifier
   reports — or, through `preg_quote`, a "pass the delimiter" report — while
   `' /x/'` (accepted by PHP, which skips the space) is reported as having no
   valid delimiters. custos skips leading whitespace, rejects alphanumeric,

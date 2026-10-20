@@ -6,7 +6,7 @@ title: ArrayCopyRetainsReferences
 
 # ArrayCopyRetainsReferences
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. An explicit reference is bound to a literal-index element of a local array. The array is copied to a distinct local, and that copy writes the same index while the reference remains live. The original element is subsequently read. Require straight-line provenance.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- An explicit reference is bound to a literal-index element of a local array. The array is copied to a distinct local, and that copy writes the same index while the reference remains live. The original element is subsequently read. Require straight-line provenance.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

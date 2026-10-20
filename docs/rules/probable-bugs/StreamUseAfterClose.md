@@ -6,7 +6,7 @@ title: StreamUseAfterClose
 
 # StreamUseAfterClose
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,17 +27,17 @@ Reported:
 
 ## Detection
 
-- D1. Report a stream operation requiring an open resource on an identity closed by a successful fclose on every incoming path.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report a stream operation requiring an open resource on an identity closed by a successful fclose on every incoming path.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Fresh reopened identity, guarded failed close, unknown handles and escaped aliases invalidate proof.
-- E3. A closure created anywhere in the same scope that binds the handle variable by reference (`use (&$h)`) invalidates proof, whether it is created before or after the close: calling it can store a newly opened stream in the variable. A by-value capture, a by-reference capture of another variable, and a capture written inside a nested function body do not.
-- E4. No report where the operation runs only when the reaching `fclose` returned false, since a refused close leaves the stream open. The result may be tested directly or through an unchanged local holding it, by negation, a comparison with a boolean literal, `and`/`or`, a ternary, an `if`/`else` branch, or an early exit of the success branch. An operation reached only when the close returned true is still reported, as is one guarded by a local that was reassigned after the close.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
-- E3. A close whose stream argument comes from an unpacked list (`fclose(...$handles)`) may close the stream or not: the use is not reported as following a close.
+- Fresh reopened identity, guarded failed close, unknown handles and escaped aliases invalidate proof.
+- A closure created anywhere in the same scope that binds the handle variable by reference (`use (&$h)`) invalidates proof, whether it is created before or after the close: calling it can store a newly opened stream in the variable. A by-value capture, a by-reference capture of another variable, and a capture written inside a nested function body do not.
+- No report where the operation runs only when the reaching `fclose` returned false, since a refused close leaves the stream open. The result may be tested directly or through an unchanged local holding it, by negation, a comparison with a boolean literal, `and`/`or`, a ternary, an `if`/`else` branch, or an early exit of the success branch. An operation reached only when the close returned true is still reported, as is one guarded by a local that was reassigned after the close.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- A close whose stream argument comes from an unpacked list (`fclose(...$handles)`) may close the stream or not: the use is not reported as following a close.
 
 ## Fix
 

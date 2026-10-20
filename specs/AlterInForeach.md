@@ -218,13 +218,13 @@ function tail(array $list) {
   suggests iterating by reference in `foreach ($a as $k => &$v) { $a[$k] =
   0; }`, where the value already is a reference; the advice is meaningless
   there, so custos does not report it (D8).
-- Destructuring values (`as [$a, $b]`): upstream behaviour unverified;
+- Destructuring values (`as [$a, $b]`): upstream behavior unverified;
   custos skips parts A/B. Part C requires a value variable, so custos skips
   it too.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **custos diverges — part B at file scope (E5).** Upstream reports
   `unset($item)` after a by-value loop everywhere. At file scope the loop
@@ -238,7 +238,7 @@ function tail(array $list) {
   `static`, the target or source of `= &`, a by-reference closure capture,
   or the leftover of an earlier by-reference loop. The loop then writes
   through that binding and the following `unset` is what detaches it, so
-  calling it unnecessary is wrong and removing it changes behaviour. custos
+  calling it unnecessary is wrong and removing it changes behavior. custos
   stays silent in those cases (D6a).
 - **custos diverges — part A, empty statements and `break` (E7).** Upstream
   treats whatever node follows the loop as the follower, so a stray `;`

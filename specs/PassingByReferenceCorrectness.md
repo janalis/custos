@@ -123,7 +123,7 @@ key($s->plain());
 - Upstream caches, by short name, global functions known to have no
   by-reference parameter and skips later calls with that name, even if a
   namespaced function of the same short name exists. custos resolves each
-  call to its own function (no behavioural difference on fixtures).
+  call to its own function (no behavioral difference on fixtures).
 - Named arguments are paired positionally upstream (probably wrong for
   `f(b: g())`). custos pairs named arguments with the parameter of that
   name.

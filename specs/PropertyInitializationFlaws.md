@@ -377,7 +377,7 @@ final class Job
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **Typed properties keep their default (custos diverges).** Upstream
   reports (and its fix removes) the default of a typed private property the
@@ -409,7 +409,7 @@ final class Job
   `self::` or `static::` call, or `$this` passed to a call. That code may
   read the default (Composer's `Pool::__construct()` calls
   `$this->setPackages()` before assigning the other properties), so
-  removing it could change behaviour.
+  removing it could change behavior.
 - **Reads before the write (custos diverges).** Pattern O is also skipped
   when the constructor has already looked at the property before the
   assignment: a fetch of it in an earlier statement (copy to a local,

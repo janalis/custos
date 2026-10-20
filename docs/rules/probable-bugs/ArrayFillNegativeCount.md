@@ -6,7 +6,7 @@ title: ArrayFillNegativeCount
 
 # ArrayFillNegativeCount
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,16 +14,16 @@ Identify array_fill when num/count argument is a proven negative integer.
 
 ## Detection
 
-- D1. Report array_fill when num/count argument is a proven negative integer.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values or escaped aliases invalidate proof. When the proof is inconclusive, nothing is reported.
+- Report array_fill when num/count argument is a proven negative integer.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values or escaped aliases invalidate proof. When the proof is inconclusive, nothing is reported.
 - D4. A count read from a local variable is proven only while that variable still holds its assigned literal. The proof is dropped when the variable, or any variable whose value was copied into it by an assignment, is changed by `++`/`--`, is captured by reference in a closure `use`, is stored by reference in an array item, or when the same scope calls `extract()`. For file-level code the variable is also a global: a `global` declaration naming it, or any `$GLOBALS` access in the file, drops the proof as well.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. No report when D4 drops the proof, even if the stepped value would still be negative (`$n = -1; $n--;`): the rule does not compute arithmetic on tracked values.
-- E3. Both `@custos-ignore ArrayFillNegativeCount` and `@noinspection ArrayFillNegativeCount` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- No report when D4 drops the proof, even if the stepped value would still be negative (`$n = -1; $n--;`): the rule does not compute arithmetic on tracked values.
+- Both `@custos-ignore ArrayFillNegativeCount` and `@noinspection ArrayFillNegativeCount` suppress this native rule.
 
 ## Fix
 

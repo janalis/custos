@@ -6,7 +6,7 @@ title: PartialStreamWriteUnchecked
 
 # PartialStreamWriteUnchecked
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. Report fwrite whose result is ignored or checked only against false when the complete payload is then claimed sent via unconditional return true.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report fwrite whose result is ignored or checked only against false when the complete payload is then claimed sent via unconditional return true.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Loops advancing by returned byte count, complete count checks, and best-effort writes without success claims are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Loops advancing by returned byte count, complete count checks, and best-effort writes without success claims are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

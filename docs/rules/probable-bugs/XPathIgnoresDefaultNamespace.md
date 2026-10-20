@@ -6,7 +6,7 @@ title: XPathIgnoresDefaultNamespace
 
 # XPathIgnoresDefaultNamespace
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. A local DOMDocument loads a literal XML root with a nonempty default xmlns and no unnamespaced matching descendant. A DOMXPath created for that document queries a literal //NAME path corresponding to a namespaced element, without registered prefix in the query.
-- D1b. The evidence must be three adjacent statements of one block: the `loadXML` call as a statement of its own, then the assignment of the new DOMXPath, then the statement holding the query. Nothing can then mutate, reload or replace the document between the load and the query.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- A local DOMDocument loads a literal XML root with a nonempty default xmlns and no unnamespaced matching descendant. A DOMXPath created for that document queries a literal //NAME path corresponding to a namespaced element, without registered prefix in the query.
+- The evidence must be three adjacent statements of one block: the `loadXML` call as a statement of its own, then the assignment of the new DOMXPath, then the statement holding the query. Nothing can then mutate, reload or replace the document between the load and the query.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Unknown XML, complex XPath, namespace resets, or intervening document mutations have no report.
-- E1b. Any statement between the `loadXML` call and the DOMXPath construction withholds the report, whatever it does: appending or importing nodes, `load`, `loadHTML`, `loadHTMLFile`, or unrelated code. A `loadXML` call whose result is assigned or tested is likewise not accepted as evidence.
-- E2. Both standard suppression forms suppress this native ID.
+- Unknown XML, complex XPath, namespace resets, or intervening document mutations have no report.
+- Any statement between the `loadXML` call and the DOMXPath construction withholds the report, whatever it does: appending or importing nodes, `load`, `loadHTML`, `loadHTMLFile`, or unrelated code. A `loadXML` call whose result is assigned or tested is likewise not accepted as evidence.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

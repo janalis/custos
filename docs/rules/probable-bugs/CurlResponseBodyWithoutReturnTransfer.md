@@ -6,7 +6,7 @@ title: CurlResponseBodyWithoutReturnTransfer
 
 # CurlResponseBodyWithoutReturnTransfer
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Report curl_exec result used as a string or JSON document when a locally created handle is proven never configured with CURLOPT_RETURNTRANSFER true.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- Report curl_exec result used as a string or JSON document when a locally created handle is proven never configured with CURLOPT_RETURNTRANSFER true.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Unknown handle origins/options, enabled return transfer, custom write callbacks with separately consumed body, and success checks are excluded.
-- E3. A handle shared with another variable scope is not proven unconfigured, because that scope can set options without passing the handle to a call visible in the inspected scope. This covers a handle variable, or a local alias of it, listed in a closure `use` clause, referenced inside an arrow function, or bound by a `global` statement. Closures, arrow functions and `global` statements that do not name the handle leave the proof intact, as does a closure that merely declares its own variable of the same name.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Unknown handle origins/options, enabled return transfer, custom write callbacks with separately consumed body, and success checks are excluded.
+- A handle shared with another variable scope is not proven unconfigured, because that scope can set options without passing the handle to a call visible in the inspected scope. This covers a handle variable, or a local alias of it, listed in a closure `use` clause, referenced inside an arrow function, or bound by a `global` statement. Closures, arrow functions and `global` statements that do not name the handle leave the proof intact, as does a closure that merely declares its own variable of the same name.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

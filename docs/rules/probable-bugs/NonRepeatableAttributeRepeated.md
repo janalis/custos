@@ -6,7 +6,7 @@ title: NonRepeatableAttributeRepeated
 
 # NonRepeatableAttributeRepeated
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.0" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.0" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,14 +29,13 @@ Reported:
 
 ## Detection
 
-- D1. Within one attribute-bearing declaration, resolve attribute class identities; report the second and subsequent use of a class whose Attribute flags prove IS_REPEATABLE absent. This predicts failure on ReflectionAttribute::newInstance.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Within one attribute-bearing declaration, resolve attribute class identities; report the second and subsequent use of a class whose Attribute flags prove IS_REPEATABLE absent. This predicts failure on ReflectionAttribute::newInstance.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
-- E1. Aliases of the same class count as identical. Different attribute classes, separate declarations and unknown repeatability are excluded.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore NonRepeatableAttributeRepeated` and `@noinspection NonRepeatableAttributeRepeated` suppress this inspection.
+- Aliases of the same class count as identical. Different attribute classes, separate declarations and unknown repeatability are excluded.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -46,11 +45,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Minimum PHP 8.0. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Minimum PHP 8.0.
 
 ## Configure
 

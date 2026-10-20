@@ -6,7 +6,7 @@ title: PgIdentifierEscapedAsLiteral
 
 # PgIdentifierEscapedAsLiteral
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.4" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.4" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,20 +27,20 @@ Reported:
 
 ## Detection
 
-- D1. pg_escape_literal result occupies a proven single table identifier after FROM, JOIN, UPDATE, INTO or TABLE in a constant SQL skeleton passed to pg_query. Exclude values, expression positions, qualified identifier assembly and ambiguous SQL.
+- pg_escape_literal result occupies a proven single table identifier after FROM, JOIN, UPDATE, INTO or TABLE in a constant SQL skeleton passed to pg_query. Exclude values, expression positions, qualified identifier assembly and ambiguous SQL.
   - The keyword is read inside the innermost parenthesis group still open at the operand. An open group counts only when it is a subquery (it starts with SELECT or WITH); any other open group is a function call or an expression list, where FROM introduces a value (`substring(a FROM $x)`, `extract(year FROM $x)`, `trim(both FROM $x)`).
   - FROM directly preceded by DISTINCT is the comparison `IS [NOT] DISTINCT FROM` and takes a value.
   - A statement starting with COPY is never a table position for this rule: `COPY t FROM $x` names a file.
   - Unbalanced closing parentheses before the operand make the SQL ambiguous.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
 Parentheses around the producer do not bypass consumer checks. Captures into nested scopes and exhausted consumer budgets withhold the fix, while retaining the finding at the proven identifier use.
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore PgIdentifierEscapedAsLiteral and @noinspection PgIdentifierEscapedAsLiteral suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Both @custos-ignore PgIdentifierEscapedAsLiteral and @noinspection PgIdentifierEscapedAsLiteral suppress this native rule.
 
 ## Fix
 

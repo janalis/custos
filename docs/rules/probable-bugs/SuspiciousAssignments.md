@@ -86,9 +86,9 @@ function unpack_all(int $n, array $row, \ArrayObject $obj) {
 function sample_pair() { return [1, 2]; }
 
 function failure_markers(array|false $found, ?array $cached, string|false $line, false $none) {
-    [$p, $q] = $found;                   // E8: false ignored next to array
-    [$r] = $cached;                      // E8: null ignored next to array
-    [$s, $t] = sample_pair();            // E8: int[]|false
+    [$p, $q] = $found;                   // false ignored next to array
+    [$r] = $cached;                      // null ignored next to array
+    [$s, $t] = sample_pair();            // int[]|false
     [$u] = $line;   // string remains
     [$w] = $none;   // only false
 }

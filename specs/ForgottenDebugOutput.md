@@ -204,7 +204,7 @@ function work($order, Probe $probe, Quiet $quiet) {
   compares all of them case-insensitively (D1, D3, D5, D6, E2, E3).
 - Method wrappers (custos diverges from upstream). Upstream builds a
   method's identity with a `.` separator and compares it with entries
-  written with `::`, so no method is ever recognised as a debug wrapper and
+  written with `::`, so no method is ever recognized as a debug wrapper and
   the dumping code inside a listed method (`\Acme\Tracer::dump()`) is
   reported. That is a false positive: the method *is* the configured debug
   helper. custos compares the `\Class::method` form (E3).

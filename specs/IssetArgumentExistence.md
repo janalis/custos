@@ -182,7 +182,7 @@ class Billing
     public function including()
     {
         include 'defaults.php';
-        return isset($config); // reported upstream when IGNORE_INCLUDES = true; never by custos (D11)
+        return isset($config); // reported upstream when IGNORE_INCLUDES = true; never by custos
     }
 
     public function arrow()
@@ -220,14 +220,14 @@ annotated above).
 - **Destructuring in the loop (custos diverges, D8).** A destructuring
   assignment listing the variable (`[$ts, $tz] = …`, `list(, list($x)) =
   …`) inside the innermost enclosing loop defines it for the next
-  iteration, like a plain assignment (lazy initialisation in Craft's
+  iteration, like a plain assignment (lazy initialization in Craft's
   formatter).
 - **Every enclosing loop (custos diverges from D8).** The loop guard checks
   every loop enclosing the first mention up to `F`, not only the innermost:
   `foreach ($ids as $id) { foreach (… as $k) { if (isset($prev)) … }
   $prev = $id; }` sets `$prev` for the outer loop's next iteration (tcpdf).
 - **Every defining construct in the loop (custos diverges from D8).**
-  Upstream's loop guard only recognises `$n = …`. A later statement of the
+  Upstream's loop guard only recognizes `$n = …`. A later statement of the
   loop also defines the variable for the next iteration when it appends or
   writes an element (`$seen[] = $row;`), increments it, binds it in an inner
   `foreach` or a `catch`, declares it `global`/`static`, or passes it to a

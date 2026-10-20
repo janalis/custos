@@ -6,7 +6,7 @@ title: HeadersAfterCommittedOutput
 
 # HeadersAfterCommittedOutput
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,17 +27,17 @@ Reported:
 
 ## Detection
 
-- D1. Report `header`, `setcookie`, or `http_response_code` called as a setter, after demonstrably committed output on every incoming path, such as output plus flush with no active buffering.
-- D1a. `http_response_code` is a setter only when it receives a status argument (first positional or named `response_code`) that is not a known falsy value. A dynamic status counts as a setter.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report `header`, `setcookie`, or `http_response_code` called as a setter, after demonstrably committed output on every incoming path, such as output plus flush with no active buffering.
+- `http_response_code` is a setter only when it receives a status argument (first positional or named `response_code`) that is not a known falsy value. A dynamic status counts as a setter.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Active output buffering, unknown server buffering, no preceding output and headers before commitment are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
-- E3. `http_response_code()` without a status argument, with a known `0` or `null` status, or with an unpacked argument list: the first two only read the current status, the last is not provably a write.
-- E4. Calls that a `headers_sent()` test keeps off the committed path: an earlier call to the builtin in the same function scope whose result the conditions guarding the call prove false. That covers:
+- Active output buffering, unknown server buffering, no preceding output and headers before commitment are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- `http_response_code()` without a status argument, with a known `0` or `null` status, or with an unpacked argument list: the first two only read the current status, the last is not provably a write.
+- Calls that a `headers_sent()` test keeps off the committed path: an earlier call to the builtin in the same function scope whose result the conditions guarding the call prove false. That covers:
   - the body of `if (!headers_sent())`, `while (!headers_sent())` or an `elseif` with that condition, and the `else` of `if (headers_sent())`;
   - code after an `if (headers_sent())` whose body always leaves, with or without other arms;
   - the right operand of `headers_sent() || ...` / `or`, or of `!headers_sent() && ...` / `and`;

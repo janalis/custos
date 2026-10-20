@@ -6,7 +6,7 @@ title: SessionCookieOptionsSetAfterStart
 
 # SessionCookieOptionsSetAfterStart
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,17 +27,17 @@ Reported:
 
 ## Detection
 
-- D1. Report session_set_cookie_params after a successfully active session_start with no intervening close/destroy.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report session_set_cookie_params after a successfully active session_start with no intervening close/destroy.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Configuration before start, later closed session, failed start and unknown state are excluded.
-- E1a. A session_start call whose options enable `read_and_close` closes the session again immediately and does not establish an active session. Options that are not a known array literal, a `read_and_close` value that is not a known scalar, and spread arguments discard active-state proof.
-- E1b. No report when the conditions guarding the call prove the reaching session_start call failed: its result, tested directly, negated, compared with a boolean literal, combined through `&&`/`||`, or kept in a local, is false there (a branch taken when it is falsy, or code after an `if` that leaves when it succeeded).
-- E1c. No report when the conditions guarding the call prove that a session_status() call evaluated after the reaching start returned anything but PHP_SESSION_ACTIVE (for example `!== PHP_SESSION_ACTIVE`, `=== PHP_SESSION_NONE` or `< PHP_SESSION_ACTIVE`, directly or through a local). A status test evaluated before the start proves nothing.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Configuration before start, later closed session, failed start and unknown state are excluded.
+- A session_start call whose options enable `read_and_close` closes the session again immediately and does not establish an active session. Options that are not a known array literal, a `read_and_close` value that is not a known scalar, and spread arguments discard active-state proof.
+- No report when the conditions guarding the call prove the reaching session_start call failed: its result, tested directly, negated, compared with a boolean literal, combined through `&&`/`||`, or kept in a local, is false there (a branch taken when it is falsy, or code after an `if` that leaves when it succeeded).
+- No report when the conditions guarding the call prove that a session_status() call evaluated after the reaching start returned anything but PHP_SESSION_ACTIVE (for example `!== PHP_SESSION_ACTIVE`, `=== PHP_SESSION_NONE` or `< PHP_SESSION_ACTIVE`, directly or through a local). A status test evaluated before the start proves nothing.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

@@ -6,7 +6,7 @@ title: UntrustedXmlWriterRawContent
 
 # UntrustedXmlWriterRawContent
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Security](/rules/#security)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. XMLWriter writeRaw receives directly or through unchanged local bindings an indexed _GET,_POST, _REQUEST or_COOKIE string. Exclude proven literal content, text(), and values reconstructed by a proven XML parser/serializer. Do not assume arbitrary sanitizers establish safety.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- XMLWriter writeRaw receives directly or through unchanged local bindings an indexed _GET,_POST, _REQUEST or_COOKIE string. Exclude proven literal content, text(), and values reconstructed by a proven XML parser/serializer. Do not assume arbitrary sanitizers establish safety.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore UntrustedXmlWriterRawContent and @noinspection UntrustedXmlWriterRawContent suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Both @custos-ignore UntrustedXmlWriterRawContent and @noinspection UntrustedXmlWriterRawContent suppress this native rule.
 
 ## Fix
 

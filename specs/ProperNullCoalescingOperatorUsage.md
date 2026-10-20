@@ -56,7 +56,7 @@ not `null`):
   when the inferred type is missing, contains an unknown/unresolved part, or
   contains `mixed` or `object`. From a usable set remove `null` and `static`
   (`$this` counts as `static`); if it is then empty → no report.
-  Types are normalised: `integer`→`int`, `boolean`/`true`/`false`→`bool`,
+  Types are normalized: `integer`→`int`, `boolean`/`true`/`false`→`bool`,
   any `T[]`→`array`, `Closure`→`callable`, `iterable`→ both `array` and
   `\Traversable` (custos diverges, see Divergences); class types are
   fully-qualified names. Documented string refinements such as
@@ -79,7 +79,7 @@ not `null`):
   and every type left in `R`'s set is a scalar (`int`, `float`, `string`,
   `bool`), the sides are compatible → no report. A placeholder of another
   scalar type (`$id ?? 'new'`, `$count ?? '?'`) is a deliberate display or
-  serialisation choice, not a bug. Applies under both values of
+  serialization choice, not a bug. Applies under both values of
   `ALLOW_OVERLAPPING_TYPES`. A side holding a scalar *and* a non-scalar
   (`int|Engine`) is not covered by D5a. Nor is a left operand that can
   never be null because it is a comparison (`<`, `==`, `===`, `<=>`, …), a
@@ -182,7 +182,7 @@ class Garage {
             <weak_warning descr="'$this->lookup()' alone is equivalent; drop the '?? null' fallback.">$this->lookup() ?? null</weak_warning>,
             <weak_warning descr="'strrev($label)' alone is equivalent; drop the '?? null' fallback.">strrev($label) ?? NULL</weak_warning>,
             <weak_warning descr="Operand types of '??' do not match ([\Engine] vs [string]).">$this->engine ?? 'none'</weak_warning>,
-            $n ?? 'n/a',                    // scalar placeholder (D5a)
+            $n ?? 'n/a',                    // scalar placeholder
             $this->engine ?? null,
             $label ?? null,
             $t ?? $e,
@@ -214,7 +214,7 @@ class Garage {
             $this->lookup(),
             strrev($label),
             $this->engine ?? 'none',
-            $n ?? 'n/a',                    // scalar placeholder (D5a)
+            $n ?? 'n/a',                    // scalar placeholder
             $this->engine ?? null,
             $label ?? null,
             $t ?? $e,

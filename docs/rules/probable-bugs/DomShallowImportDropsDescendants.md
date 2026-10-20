@@ -6,7 +6,7 @@ title: DomShallowImportDropsDescendants
 
 # DomShallowImportDropsDescendants
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -28,15 +28,15 @@ Reported:
 ## Detection
 
 - D1. DOMDocument importNode has omitted or literal false deep argument and the imported element is proven to contain children, by literal loadXML or direct appendChild construction. Enabling establishes subtree-preservation policy. Leaves, attributes and explicit deep imports are excluded.
-- D1a. The proof must still hold at the import. Inside the enclosing scope, up to the import (the whole scope when the import sits in a loop), every use of the imported element variable, of the document variable that supplies or holds it, and of each variable appended to it must be one of: a plain rebinding from an object creation or method call; a node-creating or serialising document call (createElement, createElementNS, createTextNode, createComment, createCDATASection, createAttribute, createDocumentFragment, importNode, saveXML, saveHTML); an unconditional loadXML, load, appendChild or removeChild on the document, which D1 already orders; setAttribute, setAttributeNS, getAttribute, hasAttribute, hasChildNodes or appendChild on the element or an appended node; the element as the node of importNode or of an unconditional appendChild on a document variable; an appended variable as the node of appendChild on the element; `$document->documentElement` written directly as the imported node.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- D1a. The proof must still hold at the import. Inside the enclosing scope, up to the import (the whole scope when the import sits in a loop), every use of the imported element variable, of the document variable that supplies or holds it, and of each variable appended to it must be one of: a plain rebinding from an object creation or method call; a node-creating or serializing document call (createElement, createElementNS, createTextNode, createComment, createCDATASection, createAttribute, createDocumentFragment, importNode, saveXML, saveHTML); an unconditional loadXML, load, appendChild or removeChild on the document, which D1 already orders; setAttribute, setAttributeNS, getAttribute, hasAttribute, hasChildNodes or appendChild on the element or an appended node; the element as the node of importNode or of an unconditional appendChild on a document variable; an appended variable as the node of appendChild on the element; `$document->documentElement` written directly as the imported node.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E1a. Any other use breaks D1a and drops the report, because the children may be gone: the element, its document or an appended node passed to a function, method or constructor, captured by a closure, copied to another variable or bound by reference; a property read or write on the element; a property of the document other than the directly imported documentElement (so removal through `$document->documentElement->...`); any other method on them, such as remove, removeChild, replaceChild, replaceChildren, loadHTML or loadHTMLFile; a conditional reload of the document; overridden methods of user subclasses; a parenthesised node argument.
-- E2. Both @custos-ignore DomShallowImportDropsDescendants and @noinspection DomShallowImportDropsDescendants suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Any other use breaks D1a and drops the report, because the children may be gone: the element, its document or an appended node passed to a function, method or constructor, captured by a closure, copied to another variable or bound by reference; a property read or write on the element; a property of the document other than the directly imported documentElement (so removal through `$document->documentElement->...`); any other method on them, such as remove, removeChild, replaceChild, replaceChildren, loadHTML or loadHTMLFile; a conditional reload of the document; overridden methods of user subclasses; a parenthesised node argument.
+- Both @custos-ignore DomShallowImportDropsDescendants and @noinspection DomShallowImportDropsDescendants suppress this native rule.
 
 ## Fix
 

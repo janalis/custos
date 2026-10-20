@@ -6,7 +6,7 @@ title: GdColorZeroRejectedAsFailure
 
 # GdColorZeroRejectedAsFailure
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,14 +14,14 @@ Identify imagecolorallocate or imagecolorallocatealpha result negated or loosely
 
 ## Detection
 
-- D1. Report imagecolorallocate or imagecolorallocatealpha result negated or loosely equal false in a failure branch throwing or returning false; zero is a valid color identifier.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report imagecolorallocate or imagecolorallocatealpha result negated or loosely equal false in a failure branch throwing or returning false; zero is a valid color identifier.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore GdColorZeroRejectedAsFailure` and `@noinspection GdColorZeroRejectedAsFailure` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore GdColorZeroRejectedAsFailure` and `@noinspection GdColorZeroRejectedAsFailure` suppress this native rule.
 
 ## Fix
 

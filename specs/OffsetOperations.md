@@ -31,7 +31,7 @@ a container `C`):
     value expression, `S` = inferred type of that value.
   - Otherwise `S` = inferred type of `C` itself.
   - If inference yields nothing, or any part is unknown/unresolvable, `S` is
-    empty. Normalise each part: `integer`→`int`, `boolean`/`true`/`false`→
+    empty. Normalize each part: `integer`→`int`, `boolean`/`true`/`false`→
     `bool`, any `T[]` → `array`, `\Closure` (any case) → `callable`, leading
     `\` dropped for built-in names; class names stay fully qualified. Remove
     `self` and `static`.
@@ -101,7 +101,7 @@ a container `C`):
 
 - **D7** Supported, the allowed index set is non-empty, and an index
   expression `I` exists (not `C[]`): infer `I`'s type, drop unknown parts,
-  normalise. If empty → nothing. Remove from it: `mixed`, `null`, every type
+  normalize. If empty → nothing. Remove from it: `mixed`, `null`, every type
   in the allowed set, every class type that extends or implements a class
   type of the allowed set (per the index: a `\Child` index is accepted where
   `\Base` is), and — when the allowed set contains `object` — every class
@@ -200,10 +200,10 @@ function ok($m, $c, $n) {
 
 ## Divergences
 
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (`S` empty, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analyzed with its initial value only. custos makes the result unknown (`S` empty, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - Built-in return types are stub-dependent. Upstream's fixture expects no
   report for `explode(...)[0]`-style containers whose stub type is
-  `string[]|false` (normalised {`array`, `bool`}), which the algorithm above
+  `string[]|false` (normalized {`array`, `bool`}), which the algorithm above
   would report. custos treats exactly {`array`, `bool`} as a D3 shortcut
   (no report), so the conformance case passes.
 - Index arithmetic: upstream infers `$key + 1` (with `$key` an array key) as

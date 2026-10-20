@@ -6,7 +6,7 @@ title: NonExhaustiveEnumMatch
 
 # NonExhaustiveEnumMatch
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.1" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.1" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,22 +27,22 @@ Reported:
 
 ## Detection
 
-- D1. Report match over a resolved enum when reachable enum cases are missing and there is no default arm.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
-- D4. An arm condition written as a constant of the enum that aliases one of its cases (`const Fallback = self::Left;`, directly or through another such constant) handles that case.
-- D5. The required cases are the ones the subject may still hold at the match. Strict comparisons (`===`, `!==`) of the subject with a case of its enum (or an aliasing constant) narrow them where they guard the match: an equality that holds leaves one case, one that fails removes that case. Conditions combine through `!`, `&&`/`and`, `||`/`or` (each side of a true disjunction keeps what it proves), comparisons with `true`/`false` and a local holding a comparison's result. A comparison guards the match:
+- Report match over a resolved enum when reachable enum cases are missing and there is no default arm.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- An arm condition written as a constant of the enum that aliases one of its cases (`const Fallback = self::Left;`, directly or through another such constant) handles that case.
+- The required cases are the ones the subject may still hold at the match. Strict comparisons (`===`, `!==`) of the subject with a case of its enum (or an aliasing constant) narrow them where they guard the match: an equality that holds leaves one case, one that fails removes that case. Conditions combine through `!`, `&&`/`and`, `||`/`or` (each side of a true disjunction keeps what it proves), comparisons with `true`/`false` and a local holding a comparison's result. A comparison guards the match:
   - in the taken branch of an `if` / `elseif` / `else` chain, of a ternary or of a loop condition, in the right operand of `&&` / `||`, or in a `match` arm (a `default` arm keeps the cases earlier arms did not take);
   - after a branch on it that always leaves (return, throw, exit, break, continue), or a loop on it that has ended.
 
   Assigning a case (`$e = E::B;`) or a constant aliasing one fixes the subject to that case; a value whose declared type is the enum may hold any case. Inside a method of the enum, `$this` narrows the same way.
-- D6. What a comparison proves holds until the subject may change: an assignment, `unset` or loop binding of it, a by-reference binding written through the other name, a call that may take it by reference (a resolved by-reference parameter, or a callee that cannot be resolved: unknown function, dynamic name, method of an unknown class), and, for a by-reference parameter or a `global` local, any call. `extract()`, `parse_str()` with one argument, variable-variable writes, `include`/`require` and `eval()` before the match, or a local bound to an array element by reference, leave the subject unknown. A jump label between a comparison and the match proves nothing. Otherwise the comparisons are ignored and every case stays required.
+- What a comparison proves holds until the subject may change: an assignment, `unset` or loop binding of it, a by-reference binding written through the other name, a call that may take it by reference (a resolved by-reference parameter, or a callee that cannot be resolved: unknown function, dynamic name, method of an unknown class), and, for a by-reference parameter or a `global` local, any call. `extract()`, `parse_str()` with one argument, variable-variable writes, `include`/`require` and `eval()` before the match, or a local bound to an array element by reference, leave the subject unknown. A jump label between a comparison and the match proves nothing. Otherwise the comparisons are ignored and every case stays required.
 
 ## Exceptions (no report)
 
-- E1. Exhaustive matches, flow-narrowed case sets, default arms and unknown subject types are excluded. A resolved by-reference call without an output contract invalidates the previous enum type; its parameter declaration constrains entry to the call, not the value returned through the reference.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
-- E3. A match with an arm condition that is not a constant of the subject's enum, or is a constant of it that cannot be traced to a case (a non-case value, an unknown name, a dynamic name), has an unknown arm set and is not reported.
+- Exhaustive matches, flow-narrowed case sets, default arms and unknown subject types are excluded. A resolved by-reference call without an output contract invalidates the previous enum type; its parameter declaration constrains entry to the call, not the value returned through the reference.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- A match with an arm condition that is not a constant of the subject's enum, or is a constant of it that cannot be traced to a case (a non-case value, an unknown name, a dynamic name), has an unknown arm set and is not reported.
 
 ## Fix
 

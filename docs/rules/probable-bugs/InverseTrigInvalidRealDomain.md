@@ -6,7 +6,7 @@ title: InverseTrigInvalidRealDomain
 
 # InverseTrigInvalidRealDomain
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. asin or acos receives a proven real numeric argument less than -1 or greater than 1. Exclude unknown/non-numeric inputs.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- asin or acos receives a proven real numeric argument less than -1 or greater than 1. Exclude unknown/non-numeric inputs.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E3. A variable argument is not proven when the same variable is stepped with `++` or `--` or captured by reference in a closure, or when `extract()` is called, anywhere before the call in its function or file scope. Code inside a nested function does not count, apart from that by-reference capture. Inside a loop, a step or capture placed after the call counts too, because it precedes the call on the next iteration. A step after a call outside any loop does not weaken the proof.
-- E2. Both @custos-ignore InverseTrigInvalidRealDomain and @noinspection InverseTrigInvalidRealDomain suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- A variable argument is not proven when the same variable is stepped with `++` or `--` or captured by reference in a closure, or when `extract()` is called, anywhere before the call in its function or file scope. Code inside a nested function does not count, apart from that by-reference capture. Inside a loop, a step or capture placed after the call counts too, because it precedes the call on the next iteration. A step after a call outside any loop does not weaken the proof.
+- Both @custos-ignore InverseTrigInvalidRealDomain and @noinspection InverseTrigInvalidRealDomain suppress this native rule.
 
 ## Fix
 

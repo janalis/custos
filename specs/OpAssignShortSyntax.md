@@ -158,7 +158,7 @@ expression → not reported, the same outcome as with the older precedence.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **Targets that write (custos diverges).** `$m[$i++] = $m[$i++] + 1`
   evaluates the target twice (two increments, two different elements);

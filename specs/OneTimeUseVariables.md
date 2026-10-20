@@ -383,7 +383,7 @@ function refParam(&$out) {
   `get_defined_vars()`, `include` or `eval` may still read `$parts`, and so
   may a `finally` block after `return $res;`. `extract()` only writes and is
   not in the list. Dynamic function calls (`$fn('parts')`) and `$GLOBALS`
-  are not modelled.
+  are not modeled.
 - A consumer such as `$v->m($v)` reads `V` twice, so D8 suppresses it at
   file level as well as in functions.
 - **Nameless `@var` (custos diverges).** `/** @var \Illuminate\Auth\RequestGuard */

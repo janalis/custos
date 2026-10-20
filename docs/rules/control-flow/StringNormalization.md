@@ -10,7 +10,7 @@ title: StringNormalization
 
 Group: [Control flow](/rules/#control-flow) · PhpStorm name: `StringNormalizationInspection`
 
-Two smells when chaining string normalisation calls:
+Two smells when chaining string normalization calls:
 
 1. Changing the case of a string and *then* trimming / cutting it converts
    characters that are thrown away right after; cut first, convert the case

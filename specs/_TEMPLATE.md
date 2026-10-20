@@ -27,7 +27,8 @@ Cases that look similar but must not be reported (E1, E2, …).
 ## Report
 
 - Range: which node/token is highlighted (exact start/end).
-- Severity: default from `internal/inspection/meta/rules.json`.
+- Severity: default from `internal/inspection/meta/rules.json` (EA-modeled)
+  or `native-rules.json` (native).
 - Message: our own wording (may use placeholders).
 
 ## Fix

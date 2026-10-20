@@ -6,7 +6,7 @@ title: CorsSubdomainWildcardInvalid
 
 # CorsSubdomainWildcardInvalid
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,14 +29,13 @@ Reported:
 
 ## Detection
 
-- D1. Report builtin header setting a literal Access-Control-Allow-Origin value containing star within a serialized origin host or another origin component. The complete value star remains valid.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
+- Report builtin header setting a literal Access-Control-Allow-Origin value containing star within a serialized origin host or another origin component. The complete value star remains valid.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Unknown values and a sole star are excluded. Do not apply this rule to unrelated headers that support host patterns.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore CorsSubdomainWildcardInvalid` and `@noinspection CorsSubdomainWildcardInvalid` suppress this inspection.
+- Unknown values and a sole star are excluded. Do not apply this rule to unrelated headers that support host patterns.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -44,11 +43,7 @@ No automatic fix. Choosing a repair requires runtime information, error-handling
 
 ## PHP versions
 
-Available throughout PHP 5.3–8.5. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Available throughout PHP 5.3–8.5.
 
 ## Configure
 

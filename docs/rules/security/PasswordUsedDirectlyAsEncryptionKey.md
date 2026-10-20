@@ -6,7 +6,7 @@ title: PasswordUsedDirectlyAsEncryptionKey
 
 # PasswordUsedDirectlyAsEncryptionKey
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Security](/rules/#security)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Resolved openssl_encrypt/decrypt key argument directly references request data from a configurable password key list, default [password, passphrase]. Require request-origin expression and explicit configured key; generic request fields are excluded. KDF output is not direct password data.
-- D1e. Source provenance additionally requires an untouched lexical superglobal prefix. Exclude earlier explicit writes to or reference escapes of that superglobal and any earlier write or reference target involving GLOBALS. Reject all earlier object construction and unknown calls, including calls with no arguments, method calls and static calls; only resolved strlen, is_string, ctype_alnum, ctype_digit or in_array are supported pure-call exceptions. Traverse at most 4096 AST nodes, excluding nested variable scopes; exhaustion or unsupported source mutation discards the request-origin proof.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved openssl_encrypt/decrypt key argument directly references request data from a configurable password key list, default [password, passphrase]. Require request-origin expression and explicit configured key; generic request fields are excluded. KDF output is not direct password data.
+- Source provenance additionally requires an untouched lexical superglobal prefix. Exclude earlier explicit writes to or reference escapes of that superglobal and any earlier write or reference target involving GLOBALS. Reject all earlier object construction and unknown calls, including calls with no arguments, method calls and static calls; only resolved strlen, is_string, ctype_alnum, ctype_digit or in_array are supported pure-call exceptions. Traverse at most 4096 AST nodes, excluding nested variable scopes; exhaustion or unsupported source mutation discards the request-origin proof.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 
@@ -49,7 +49,7 @@ Available throughout supported PHP 5.3–8.5 where the referenced builtin/extens
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| passwordKeys | list | `["password", "passphrase"]` | Configure the explicit policy evidence described in D1. |
+| passwordKeys | list | `["password", "passphrase"]` | Request fields that hold passwords; only these are checked when used as an encryption key. |
 
 ## Configure
 

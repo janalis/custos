@@ -6,7 +6,7 @@ title: DomAppendMovesNodeUnexpectedly
 
 # DomAppendMovesNodeUnexpectedly
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. The same proven node is appended consecutively to distinct proven parents. Enabling establishes that both parents must retain a copy. An intervening explicit detachment or clone excludes the finding (E3); do not infer this policy from identifiers.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- The same proven node is appended consecutively to distinct proven parents. Enabling establishes that both parents must retain a copy. An intervening explicit detachment or clone excludes the finding (E3); do not infer this policy from identifiers.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore DomAppendMovesNodeUnexpectedly and @noinspection DomAppendMovesNodeUnexpectedly suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Both @custos-ignore DomAppendMovesNodeUnexpectedly and @noinspection DomAppendMovesNodeUnexpectedly suppress this native rule.
 - E3. A call that executes on every path between the two appends counts as an explicit detachment when it is one of:
   - `remove()` or `replaceWith(...)` called on the node itself;
   - `removeChild` or `replaceChild` naming the node, positionally or through the `child`/`node` named arguments, on any receiver;

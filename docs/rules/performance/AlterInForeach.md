@@ -64,7 +64,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| SUGGEST_USING_VALUE_BY_REF | bool | false | Enables part C (D7–D8). Parts A and B are always active. |
+| SUGGEST_USING_VALUE_BY_REF | bool | false | Enables part C. Parts A and B are always active. |
 
 ## Configure
 

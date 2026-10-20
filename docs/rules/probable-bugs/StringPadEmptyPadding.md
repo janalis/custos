@@ -6,7 +6,7 @@ title: StringPadEmptyPadding
 
 # StringPadEmptyPadding
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,15 +14,15 @@ Identify str_pad with a proven empty pad string only when requested length excee
 
 ## Detection
 
-- D1. Report str_pad with a proven empty pad string only when requested length exceeds known byte length of input.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
-- D4. Each of the three arguments may be a literal or a local variable holding one proven literal. A variable argument counts only while that literal is still its value at the call (see E3).
+- Report str_pad with a proven empty pad string only when requested length exceeds known byte length of input.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Each of the three arguments may be a literal or a local variable holding one proven literal. A variable argument counts only while that literal is still its value at the call (see E3).
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore StringPadEmptyPadding` and `@noinspection StringPadEmptyPadding` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore StringPadEmptyPadding` and `@noinspection StringPadEmptyPadding` suppress this native rule.
 - E3. No report when a variable argument may have changed since its literal was assigned: the variable is incremented or decremented, it is captured by reference by a closure, or `extract()` is called in the same scope. The change counts when it sits before the call in the source, or anywhere in a loop that also encloses the call. The same check applies to variables the argument was copied from, through at most eight plain copies; a longer chain gives no report. A change that can only happen after the call keeps the report.
 
 ## Fix

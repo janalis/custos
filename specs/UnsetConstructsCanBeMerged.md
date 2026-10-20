@@ -49,11 +49,11 @@ Visit every `unset(...)` statement.
   joined by `, `. Then delete the current statement (the `;` included).
   Comments that sat between the two statements stay where they were (now after
   the merged statement); whitespace around the deleted statement may remain
-  (comparison is whitespace-normalised).
+  (comparison is whitespace-normalized).
 - **F2** Applying the fixes of a run one after another, in source order,
   accumulates everything into the first statement:
   `unset($a); unset($b); unset($c);` → `unset($a, $b, $c);`.
-- Spacing quirks of the original (`unset ($x)`) are normalised to `unset(`
+- Spacing quirks of the original (`unset ($x)`) are normalized to `unset(`
   because the merged statement is regenerated.
 
 - **F3** The fix is withheld (the report stays) for every statement of a run
@@ -117,7 +117,7 @@ function release(array $cache, $tmp, $lock) {
 ## Divergences
 
 - Upstream skips plain comments implicitly and doc comments explicitly;
-  custos skips all comments, which is the same observable behaviour.
+  custos skips all comments, which is the same observable behavior.
 - **F3** is custos-only: upstream offers the merge regardless of how the
   statements are terminated and of comments inside them, which can produce
   unparsable template code or silently drop comments. custos keeps the report

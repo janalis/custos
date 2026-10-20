@@ -6,7 +6,7 @@ title: FinallyThrowMasksException
 
 # FinallyThrowMasksException
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.5" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.5" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. A try body ends with an unconditional explicit throw, and its finally block also ends with an unconditional explicit throw; neither throw is caught inside its own block. Highlight the finally throw.
-- D1d. The original try exception must remain unhandled when entering finally. Exclude a try statement with a catch that handles that thrown exception, including a catch that returns normally; conservative unsupported catch relationships discard the propagating-exception proof.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- A try body ends with an unconditional explicit throw, and its finally block also ends with an unconditional explicit throw; neither throw is caught inside its own block. Highlight the finally throw.
+- The original try exception must remain unhandled when entering finally. Exclude a try statement with a catch that handles that thrown exception, including a catch that returns normally; conservative unsupported catch relationships discard the propagating-exception proof.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

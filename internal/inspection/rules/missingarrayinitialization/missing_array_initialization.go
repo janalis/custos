@@ -87,7 +87,7 @@ func (missingArrayInitialization) Check(ctx *analysis.Context, n syntax.Node) {
 	if initialised {
 		return
 	}
-	ctx.ReportNode(access, "Array '$"+name+"' is never initialised; initialise it before the loops.")
+	ctx.ReportNode(access, "Array '$"+name+"' is never initialized; initialize it before the loops.")
 }
 
 // initialisesArray reports whether variable v is a direct assignment operand,

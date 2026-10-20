@@ -6,7 +6,7 @@ title: ContentEncodingBodyMismatch
 
 # ContentEncodingBodyMismatch
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,17 +29,16 @@ Reported:
 
 ## Detection
 
-- D1. Track an effective literal Content-Encoding gzip, deflate or identity and an emitted body proven produced directly by gzencode, gzcompress or gzdeflate. Report the emitted compression call when its format contradicts the declared coding: gzip requires gzip framing; HTTP deflate requires zlib framing. Identity contradicts any of these proven compressed outputs.
-- D4. The framing of the emitted body is the function's default (gzencode: gzip, gzcompress: zlib, gzdeflate: raw deflate) unless the call passes the third `encoding` argument, positionally or by name. That argument overrides the default for all three functions alike: `ZLIB_ENCODING_GZIP` (31) selects gzip framing, `ZLIB_ENCODING_DEFLATE` (15) zlib framing and `ZLIB_ENCODING_RAW` (-15) raw deflate. So `gzdeflate($body, 9, ZLIB_ENCODING_GZIP)` is a valid gzip body, and `gzencode($body, -1, ZLIB_ENCODING_RAW)` is not.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
+- Track an effective literal Content-Encoding gzip, deflate or identity and an emitted body proven produced directly by gzencode, gzcompress or gzdeflate. Report the emitted compression call when its format contradicts the declared coding: gzip requires gzip framing; HTTP deflate requires zlib framing. Identity contradicts any of these proven compressed outputs.
+- The framing of the emitted body is the function's default (gzencode: gzip, gzcompress: zlib, gzdeflate: raw deflate) unless the call passes the third `encoding` argument, positionally or by name. That argument overrides the default for all three functions alike: `ZLIB_ENCODING_GZIP` (31) selects gzip framing, `ZLIB_ENCODING_DEFLATE` (15) zlib framing and `ZLIB_ENCODING_RAW` (-15) raw deflate. So `gzdeflate($body, 9, ZLIB_ENCODING_GZIP)` is a valid gzip body, and `gzencode($body, -1, ZLIB_ENCODING_RAW)` is not.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Unknown body provenance, buffering/transformation, compound coding lists and subsequent replacement headers invalidate proof. Do not claim all plain strings are uncompressed binary data.
-- E3. An `encoding` argument that is not a statically known integer, or is a value other than the three framing constants, leaves the framing unproven: no report.
-- E4. An unpacked argument (`...$options`) may supply `encoding`; the framing is then unproven: no report.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore ContentEncodingBodyMismatch` and `@noinspection ContentEncodingBodyMismatch` suppress this inspection.
+- Unknown body provenance, buffering/transformation, compound coding lists and subsequent replacement headers invalidate proof. Do not claim all plain strings are uncompressed binary data.
+- An `encoding` argument that is not a statically known integer, or is a value other than the three framing constants, leaves the framing unproven: no report.
+- An unpacked argument (`...$options`) may supply `encoding`; the framing is then unproven: no report.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -47,11 +46,7 @@ No automatic fix. Choosing a repair requires runtime information, error-handling
 
 ## PHP versions
 
-Available throughout PHP 5.3–8.5. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Available throughout PHP 5.3–8.5.
 
 ## Configure
 

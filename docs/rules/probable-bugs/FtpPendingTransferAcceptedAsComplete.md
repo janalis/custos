@@ -6,7 +6,7 @@ title: FtpPendingTransferAcceptedAsComplete
 
 # FtpPendingTransferAcceptedAsComplete
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,18 +14,18 @@ Identify boolean test of ftp_nb_get/put/fget/fput/continue in a branch returning
 
 ## Detection
 
-- D1. Report boolean test of ftp_nb_get/put/fget/fput/continue in a branch returning true or emitting constant completion text. Require literal complete output or explicit success return; variable names cannot establish intent.
-- D1a. The tested branch is the one that runs when the returned status is non-zero, so `FTP_MOREDATA` reaches it: the body of `if (call)`, or the `else` of `if (!call)`. Parentheses, a plain assignment of the status, `!` and `==`/`!=`/`===`/`!==` against a boolean literal are followed with their polarity. The status is an integer, so a strict comparison of the status itself with a boolean has a fixed outcome: `!==` always holds (the body is the branch), `===` never does (the `else` is).
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report boolean test of ftp_nb_get/put/fget/fput/continue in a branch returning true or emitting constant completion text. Require literal complete output or explicit success return; variable names cannot establish intent.
+- The tested branch is the one that runs when the returned status is non-zero, so `FTP_MOREDATA` reaches it: the body of `if (call)`, or the `else` of `if (!call)`. Parentheses, a plain assignment of the status, `!` and `==`/`!=`/`===`/`!==` against a boolean literal are followed with their polarity. The status is an integer, so a strict comparison of the status itself with a boolean has a fixed outcome: `!==` always holds (the body is the branch), `===` never does (the `else` is).
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E1a. The branch that runs for a zero status only (`FTP_FAILED`), such as the body of `if (!call)` or `if (call == false)`, is a failure path and is not reported whatever it returns.
-- E1b. A branch that refers to the global constant `FTP_FINISHED` anywhere outside nested functions and classes checks or drives the transfer to completion itself (a guard on the assigned status, a polling loop on `ftp_nb_continue`); it is not reported.
-- E1c. Conditions of loops, compound or by-reference assignments, and comparisons with anything but a boolean literal are not followed. First-class callable syntax `ftp_nb_get(...)` starts no transfer and is not reported.
-- E2. Both `@custos-ignore FtpPendingTransferAcceptedAsComplete` and `@noinspection FtpPendingTransferAcceptedAsComplete` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- The branch that runs for a zero status only (`FTP_FAILED`), such as the body of `if (!call)` or `if (call == false)`, is a failure path and is not reported whatever it returns.
+- A branch that refers to the global constant `FTP_FINISHED` anywhere outside nested functions and classes checks or drives the transfer to completion itself (a guard on the assigned status, a polling loop on `ftp_nb_continue`); it is not reported.
+- Conditions of loops, compound or by-reference assignments, and comparisons with anything but a boolean literal are not followed. First-class callable syntax `ftp_nb_get(...)` starts no transfer and is not reported.
+- Both `@custos-ignore FtpPendingTransferAcceptedAsComplete` and `@noinspection FtpPendingTransferAcceptedAsComplete` suppress this native rule.
 
 ## Fix
 

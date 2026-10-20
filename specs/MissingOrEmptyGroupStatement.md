@@ -72,7 +72,7 @@ to the `if`.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| REPORT_EMPTY_BODY | bool | true | Enables D2 (empty braced bodies). D1 is always on. |
+| REPORT_EMPTY_BODY | bool | true | Reports empty braced bodies. Missing braces are always reported. |
 
 ## PHP versions
 
@@ -146,7 +146,7 @@ In `views/page.blade.php` nothing is reported (E2).
 
 ## Divergences
 
-- Alternative syntax (E4): upstream behaviour depends on how the IDE models the
+- Alternative syntax (E4): upstream behavior depends on how the IDE models the
   colon-syntax body; it is not covered by upstream fixtures. custos never
   reports D1 for colon syntax (adding braces there is not the intended
   style); for D2, a colon-syntax body with zero statements counts as empty.

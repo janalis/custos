@@ -307,7 +307,7 @@ class UserRepo extends MiddleRepo
   each body (so a duplicated `new self()` resolves differently in
   child and parent and is not reported).
 - F2 drops `...` for variadic parameters and `&` is irrelevant at call site;
-  `parent::m($args)` for a variadic `...$args` changes behaviour.
+  `parent::m($args)` for a variadic `...$args` changes behavior.
   custos emits `...$args` for variadic parameters (no upstream fixture
   covers it).
 - **Staticness compared — custos diverges from upstream** (D5). Upstream
@@ -320,7 +320,7 @@ class UserRepo extends MiddleRepo
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **Signatures compared — custos diverges from upstream** (D7a). Upstream
   compares bodies only, so an override that exists to change a default
@@ -334,7 +334,7 @@ class UserRepo extends MiddleRepo
   the calling scope's class or members, read a private member of the child,
   or when a used trait would supply the method instead of the parent.
   Upstream reports these; custos stays silent because both fixes would
-  change behaviour.
+  change behavior.
 - **Proxy fix — custos diverges** (F2). `never` is treated like `void`
   (returning from a `never` method does not compile), and the fix is
   withheld for by-reference returns and bodies reading the actual argument

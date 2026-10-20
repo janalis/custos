@@ -6,7 +6,7 @@ title: SoapLastRequestWithoutTracing
 
 # SoapLastRequestWithoutTracing
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,15 +14,15 @@ Identify __getLastRequest on locally constructed SoapClient whose options prove 
 
 ## Detection
 
-- D1. Report __getLastRequest on locally constructed SoapClient whose options prove trace false or omitted default, without mutation or unknown calls. Unknown option maps exclude.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report __getLastRequest on locally constructed SoapClient whose options prove trace false or omitted default, without mutation or unknown calls. Unknown option maps exclude.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E3. A construction given an unpacked argument (`new SoapClient($wsdl, ...$options)`) may enable tracing: no report.
-- E2. Both `@custos-ignore SoapLastRequestWithoutTracing` and `@noinspection SoapLastRequestWithoutTracing` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- A construction given an unpacked argument (`new SoapClient($wsdl, ...$options)`) may enable tracing: no report.
+- Both `@custos-ignore SoapLastRequestWithoutTracing` and `@noinspection SoapLastRequestWithoutTracing` suppress this native rule.
 
 ## Fix
 

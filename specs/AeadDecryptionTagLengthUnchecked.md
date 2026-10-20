@@ -40,7 +40,7 @@ None. Choosing a repair requires intent or additional runtime information.
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| tagLength | int | `16` | Configure the explicit policy evidence described in D1. |
+| tagLength | int | `16` | Expected GCM tag length in bytes that the length guard must check. |
 
 ## PHP versions
 

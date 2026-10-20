@@ -6,7 +6,7 @@ title: SqliteClearWithoutRequiredReset
 
 # SqliteClearWithoutRequiredReset
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP 5.3–7.1" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP 5.3–7.1" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. On PHP 5.3–7.1, a SQLite3Stmt with a successful guarded row fetch from its prior execute result is cleared, then rebound with bindValue/bindParam and executed again without reset between the prior execute and rebinding. Report the second execute. Require same local receiver identity and an unambiguous ordered path.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- On PHP 5.3–7.1, a SQLite3Stmt with a successful guarded row fetch from its prior execute result is cleared, then rebound with bindValue/bindParam and executed again without reset between the prior execute and rebinding. Report the second execute. Require same local receiver identity and an unambiguous ordered path.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore SqliteClearWithoutRequiredReset and @noinspection SqliteClearWithoutRequiredReset suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Both @custos-ignore SqliteClearWithoutRequiredReset and @noinspection SqliteClearWithoutRequiredReset suppress this native rule.
 
 ## Fix
 

@@ -6,7 +6,7 @@ title: TransactionExceptionWithoutRollback
 
 # TransactionExceptionWithoutRollback
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. Report a caught exceptional path after an owned PDO transaction begins when the catch continues or returns with the transaction active.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report a caught exceptional path after an owned PDO transaction begins when the catch continues or returns with the transaction active.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Finally rollback, catch rollback, proven transaction auto-termination, rethrow to established owner and unknown state are excluded.
-- E2. A catch-path return whose own expression always ends the transaction is a catch rollback: `commit()` or `rollBack()` on the transaction receiver as the returned expression, inside parentheses or a unary operator, as the condition of a ternary or the subject of a `match`, or in both arms of a full ternary or every arm of a `match`. A call in only one arm, in a short ternary fallback or behind a short-circuit operator is conditional and does not count.
-- E3. A finally rollback counts when the enclosing `finally` block calls `commit()` or `rollBack()` on the receiver as a top-level statement, or as a direct statement of a top-level `if` whose whole condition is `inTransaction()` on that same receiver. Other guards and deeper nesting do not count.
-- E4. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Finally rollback, catch rollback, proven transaction auto-termination, rethrow to established owner and unknown state are excluded.
+- A catch-path return whose own expression always ends the transaction is a catch rollback: `commit()` or `rollBack()` on the transaction receiver as the returned expression, inside parentheses or a unary operator, as the condition of a ternary or the subject of a `match`, or in both arms of a full ternary or every arm of a `match`. A call in only one arm, in a short ternary fallback or behind a short-circuit operator is conditional and does not count.
+- A finally rollback counts when the enclosing `finally` block calls `commit()` or `rollBack()` on the receiver as a top-level statement, or as a direct statement of a top-level `if` whose whole condition is `inTransaction()` on that same receiver. Other guards and deeper nesting do not count.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

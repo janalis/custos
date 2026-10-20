@@ -222,7 +222,7 @@ class Tag extends Base {
 - D10 with a static call on `self`/`static`/a class name yields
   `(string)self`, which is invalid; nullsafe `$o?->__toString()` loses the
   null-safety. custos only reports instance calls with `->`.
-- `"${name}"` (dollar-brace interpolation): upstream behaviour unverified.
+- `"${name}"` (dollar-brace interpolation): upstream behavior unverified.
   custos does not report it.
 - **Name case and resolution (custos diverges):** upstream matches
   `intval`/`floatval`/`strval`/`boolval`, `settype` and `__toString`

@@ -86,6 +86,6 @@ $dollar = 'cost: $';
 
 ## Divergences
 
-- Binary-prefixed strings (`b"..."`): upstream behaviour unverified. Recommend
+- Binary-prefixed strings (`b"..."`): upstream behavior unverified. Recommend
   treating them like ordinary double-quoted strings and keeping the `b` prefix
   in the fix (`b"x"` → `b'x'`).

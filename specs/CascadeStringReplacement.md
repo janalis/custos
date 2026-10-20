@@ -331,7 +331,7 @@ function swap(array $from, array $to, $text) {
   required to have 3 arguments (upstream would fail on fewer). custos
   requires exactly 3 arguments for `G` and `I` as well.
 - **Empty array target:** `merge(to = [], from)` silently drops `from`'s
-  elements, changing behaviour. custos still reports but offers no fix when
+  elements, changing behavior. custos still reports but offers no fix when
   a search or replace argument of either call is an empty array literal.
   No fixture covers it.
 - **Spread of array-only arguments:** custos diverges from upstream (F3).

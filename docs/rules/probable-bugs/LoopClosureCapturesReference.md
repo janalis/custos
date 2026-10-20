@@ -6,7 +6,7 @@ title: LoopClosureCapturesReference
 
 # LoopClosureCapturesReference
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. A closure appended to a local array inside a for loop explicitly captures the loop counter by reference. The array is consumed after the loop and the closure body reads that counter in its own variable scope. Reads inside nested closures, arrow functions, functions or other variable scopes do not establish this proof. A plain assignment target is a write, not a read, and so are a foreach key or value target, a value slot of a `list()`/`[]` destructuring pattern (nested patterns included, in an assignment or a foreach target) and an `unset()` operand. Compound assignments and increments also read their target, as do a destructuring key expression and an element of an ordinary array value. Require no intervening overwrite or escape of the array.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- A closure appended to a local array inside a for loop explicitly captures the loop counter by reference. The array is consumed after the loop and the closure body reads that counter in its own variable scope. Reads inside nested closures, arrow functions, functions or other variable scopes do not establish this proof. A plain assignment target is a write, not a read, and so are a foreach key or value target, a value slot of a `list()`/`[]` destructuring pattern (nested patterns included, in an assignment or a foreach target) and an `unset()` operand. Compound assignments and increments also read their target, as do a destructuring key expression and an element of an ordinary array value. Require no intervening overwrite or escape of the array.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E1a. A nested callback parameter with the same name does not read the captured outer counter. A closure that only writes the counter without reading it is excluded, whether it assigns it, destructures into it, iterates into it or unsets it.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- A nested callback parameter with the same name does not read the captured outer counter. A closure that only writes the counter without reading it is excluded, whether it assigns it, destructures into it, iterates into it or unsets it.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

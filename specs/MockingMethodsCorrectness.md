@@ -67,7 +67,7 @@ Method names named in this spec (`willReturn`, `returnCallback`,
   `L`'s source text (quotes included, so `'run'` ≠ `"run"`), stop — the method
   was explicitly added to the double. custos also searches the first
   `addMethods` call the same way, comparing the literal contents
-  case-insensitively (see Divergences); `onlyMethods()` is not recognised
+  case-insensitively (see Divergences); `onlyMethods()` is not recognized
   (it only lists existing methods).
 - **D8** `B` must have exactly one argument, of the form `X::class` where `X`
   is a class name (including `self`/`static`/`parent` when they resolve);
@@ -241,7 +241,7 @@ class LedgerTest
   `->WillReturn($this->ReturnValue(1))` or `->METHOD('missing')` are not
   checked although PHP calls the same methods. custos compares them
   case-insensitively.
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analyzed with its initial value only. custos makes the result unknown (no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - D7 compares literals by raw source text, so `setMethods(["run"])` does not
   cover `method('run')`. custos compares the contents between the quotes; no
   fixture depends on the quote style.
@@ -256,7 +256,7 @@ class LedgerTest
   (`($d->expects($x))->method('a')`), which then yields no report; harmless.
 - **Unresolvable ancestors (custos diverges).** Upstream reports a method
   as missing when the mocked class extends, implements or uses a type the
-  project does not contain (e.g. a vendor base class outside the analysed
+  project does not contain (e.g. a vendor base class outside the analyzed
   tree): the method may well be declared there. custos reports MISSING only
   when every parent, interface and trait of the class resolves; FINAL is
   unaffected.

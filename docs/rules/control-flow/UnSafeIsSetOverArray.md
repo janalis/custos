@@ -98,9 +98,9 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| SUGGEST_TO_USE_ARRAY_KEY_EXISTS | bool | false | Enables D10. |
-| SUGGEST_TO_USE_NULL_COMPARISON | bool | false | Enables D8 and its fix. |
-| REPORT_CONCATENATION_IN_INDEXES | bool | true | Enables D9. When off, such accesses go straight to D10. |
+| SUGGEST_TO_USE_ARRAY_KEY_EXISTS | bool | false | Suggests `array_key_exists()` for array accesses whose container is not known to be an object. |
+| SUGGEST_TO_USE_NULL_COMPARISON | bool | false | Suggests a null comparison, with its fix, for non-array subjects. |
+| REPORT_CONCATENATION_IN_INDEXES | bool | true | Reports concatenations used directly as an index. When off, such accesses get the `array_key_exists()` suggestion instead. |
 
 ## Configure
 

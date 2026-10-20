@@ -6,7 +6,7 @@ title: ValidatedIntegerZeroRejected
 
 # ValidatedIntegerZeroRejected
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -36,17 +36,17 @@ Reported:
 
 ## Detection
 
-- D1. Report FILTER_VALIDATE_INT result tested for falsiness when zero is permitted by configured min/max bounds.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report FILTER_VALIDATE_INT result tested for falsiness when zero is permitted by configured min/max bounds.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. FILTER_NULL_ON_FAILURE, bounds excluding zero, strict false checks, and explicit intended nonzero constraints are excluded.
-- E2. An options array whose `options` entry carries a `default` key: a rejected value then yields that default instead of false, so a strict false comparison could never observe the failure. No report and no fix.
-- E3. Flags containing FILTER_REQUIRE_ARRAY or FILTER_FORCE_ARRAY, given either as the integer third argument or as the `flags` entry of the options array: the call returns an array, negation is an emptiness test and the zero reasoning does not apply. No report and no fix.
-- E4. Flags, options or bounds that are not statically known (variables, spreads, non-literal keys or values) leave the failure value unproven and produce no report.
-- E5. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- FILTER_NULL_ON_FAILURE, bounds excluding zero, strict false checks, and explicit intended nonzero constraints are excluded.
+- An options array whose `options` entry carries a `default` key: a rejected value then yields that default instead of false, so a strict false comparison could never observe the failure. No report and no fix.
+- Flags containing FILTER_REQUIRE_ARRAY or FILTER_FORCE_ARRAY, given either as the integer third argument or as the `flags` entry of the options array: the call returns an array, negation is an emptiness test and the zero reasoning does not apply. No report and no fix.
+- Flags, options or bounds that are not statically known (variables, spreads, non-literal keys or values) leave the failure value unproven and produce no report.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

@@ -6,7 +6,7 @@ title: NestedPdoTransactionWithoutSavepoint
 
 # NestedPdoTransactionWithoutSavepoint
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. Same proven PDO receiver calls beginTransaction twice in straight-line scope with no commit/rollBack between. Highlight second call. Unknown intervening calls discard proof.
+- Same proven PDO receiver calls beginTransaction twice in straight-line scope with no commit/rollBack between. Highlight second call. Unknown intervening calls discard proof.
   The second call must be the first thing its statement evaluates, unconditionally: the expression of an expression statement, a returned value or an `if` condition, possibly under parentheses, unary operators (`!`, `@`), a plain `=` assignment to a variable (`$ok = $pdo->beginTransaction();`), or as the left operand of a binary operator or the condition of a ternary.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Do not report a second call that sits deeper inside its statement: as the right operand of `&&`, `||`, `??` or any other binary operator, in a ternary branch, as a call argument, under `??=`, in an `elseif` or loop condition, or in a closure or arrow-function body. Operands evaluated earlier in that statement may commit or roll back first (`$pdo->rollBack() && $pdo->beginTransaction()`), or short-circuit the call away (`$pdo->inTransaction() || $pdo->beginTransaction()`).
-- E3. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Do not report a second call that sits deeper inside its statement: as the right operand of `&&`, `||`, `??` or any other binary operator, in a ternary branch, as a call argument, under `??=`, in an `elseif` or loop condition, or in a closure or arrow-function body. Operands evaluated earlier in that statement may commit or roll back first (`$pdo->rollBack() && $pdo->beginTransaction()`), or short-circuit the call away (`$pdo->inTransaction() || $pdo->beginTransaction()`).
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

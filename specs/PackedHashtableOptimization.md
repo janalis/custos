@@ -45,7 +45,7 @@ layout. Sorting the keys or writing them as integers lets the engine use it.
     Float literals and integer literals that overflow the 64-bit range (PHP
     makes them floats) → no report.
 - **D6** Let *ascending* be true unless some key is strictly smaller than the
-  key immediately before it (equal neighbours are fine). Let *has-string* be
+  key immediately before it (equal neighbors are fine). Let *has-string* be
   true when at least one key is a string literal.
   - **D6a** not ascending → report kind R (reorder).
   - **D6b** ascending and has-string → report kind I (use integer keys).

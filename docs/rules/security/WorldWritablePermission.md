@@ -6,7 +6,7 @@ title: WorldWritablePermission
 
 # WorldWritablePermission
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Security](/rules/#security)
 
@@ -33,15 +33,15 @@ Reported:
 
 ## Detection
 
-- D1. Resolved chmod/mkdir mode is a constant mask with other-write bit 0002. The mask may be one integer or a parenthesised or bit-or (`|`) combination of constant integers, e.g. `0644 | 0002`; every operand must be known. Require path matched against configured sensitive path globs (default `**/*.pem`, `**/.env`, `**/config.php`) and a statically known literal path. Unknown paths excluded.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved chmod/mkdir mode is a constant mask with other-write bit 0002. The mask may be one integer or a parenthesised or bit-or (`|`) combination of constant integers, e.g. `0644 | 0002`; every operand must be known. Require path matched against configured sensitive path globs (default `**/*.pem`, `**/.env`, `**/config.php`) and a statically known literal path. Unknown paths excluded.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. A bit-or mode with any non-constant operand is unknown and is not reported, even when another operand carries bit 0002; other operators are not folded. A known combination without bit 0002 (`0640 | 0004`) is valid.
-- E3. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- A bit-or mode with any non-constant operand is unknown and is not reported, even when another operand carries bit 0002; other operators are not folded. A known combination without bit 0002 (`0640 | 0004`) is valid.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 
@@ -55,7 +55,7 @@ Available throughout supported PHP 5.3–8.5 where the referenced builtin/extens
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| sensitivePaths | list | `["**/*.pem", "**/.env", "**/config.php"]` | Configure the explicit policy evidence described in D1. |
+| sensitivePaths | list | `["**/*.pem", "**/.env", "**/config.php"]` | Globs of the sensitive paths whose world-writable modes are reported. |
 
 ## Configure
 

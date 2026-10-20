@@ -6,7 +6,7 @@ title: CurlRedirectForwardsCredentials
 
 # CurlRedirectForwardsCredentials
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Security](/rules/#security)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. Same resolved curl handle enables CURLOPT_FOLLOWLOCATION and CURLOPT_UNRESTRICTED_AUTH and configures CURLOPT_USERPWD to a known nonempty string before execution. Empty or unknown credentials do not establish a finding. Highlight unrestricted-auth option; unknown URL does not excuse enabled credential forwarding.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Same resolved curl handle enables CURLOPT_FOLLOWLOCATION and CURLOPT_UNRESTRICTED_AUTH and configures CURLOPT_USERPWD to a known nonempty string before execution. Empty or unknown credentials do not establish a finding. Highlight unrestricted-auth option; unknown URL does not excuse enabled credential forwarding.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

@@ -6,7 +6,7 @@ title: ArrayMapMissingCallbackReturn
 
 # ArrayMapMissingCallbackReturn
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -36,9 +36,9 @@ Reported:
 
 ## Detection
 
-- D1. Report array_map with a locally defined callback whose reachable normal exits all return no value and whose body evaluates a discarded expression with a non-void result.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- Report array_map with a locally defined callback whose reachable normal exits all return no value and whose body evaluates a discarded expression with a non-void result.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
@@ -46,9 +46,9 @@ Reported:
 
 - An explicit void return declaration establishes that the callback intentionally supplies no mapped value.
 
-- E1. Explicit return null, any value-returning path, unknown callbacks, and purely side-effect callbacks are excluded.
-- E3. A `str_replace()` statement whose arguments can reach the by-reference replacement counter (a fourth positional argument, a named `count` argument, or argument unpacking that hides the binding) is a side effect, not a discarded mapped value. It neither triggers a report nor receives a `return`.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Explicit return null, any value-returning path, unknown callbacks, and purely side-effect callbacks are excluded.
+- A `str_replace()` statement whose arguments can reach the by-reference replacement counter (a fourth positional argument, a named `count` argument, or argument unpacking that hides the binding) is a side effect, not a discarded mapped value. It neither triggers a report nor receives a `return`.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

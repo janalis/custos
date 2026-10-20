@@ -52,7 +52,7 @@ Cast kinds and their target type:
 ### Already of the target type
 
 - **D3** The *strict type* of *A* (below) consists of exactly one type after
-  normalisation, and that type equals the cast's target. Then:
+  normalization, and that type equals the cast's target. Then:
   - **D3a** if *A* is a variable whose name matches a parameter of the nearest
     enclosing function-like scope (function, method, closure, arrow function)
     and that parameter has **no declared type** (docblock types do not count),
@@ -107,12 +107,12 @@ and method bodies included) a `global` statement names it, or an element of
   it yield a type, namely the call's type per T-rules below (R-function
   overrides apply for plain functions). No declared return type → empty.
 - **T3** Anything else: the expression type per T-rules below.
-- **T4** Normalisation: drop unknown/unresolved types. If *A* is a member
+- **T4** Normalization: drop unknown/unresolved types. If *A* is a member
   access (property fetch or method call) using `?->` and the set does not
-  already contain `null`, add `null`. Then normalise each name: lowercase,
+  already contain `null`, add `null`. Then normalize each name: lowercase,
   strip a leading `\`; `integer`→`int`, `boolean`/`true`/`false`→`bool`,
   `double` is not an alias (keep as resolved), anything containing `[]`→`array`.
-  Count distinct normalised types.
+  Count distinct normalized types.
 
 ### Expression type rules (T-rules)
 
@@ -128,7 +128,7 @@ and method bodies included) a `global` statement names it, or an element of
 - Unary `-` or `~` → type of its operand. Unary `+`, `!`, casts: default rules
   (`!` → bool, `(T)` → T).
 - Arithmetic binary `+`, `-`, `*`, `/`, `**` (not `%`): compute as follows.
-  Let *L* be the left operand's normalised type set (unknowns removed).
+  Let *L* be the left operand's normalized type set (unknowns removed).
   `float-ish(S)` = S is empty, or contains float, or contains `number`, or
   contains string but not int.
   1. `isFloat = float-ish(L)`; `isArray = L contains array`.
@@ -234,7 +234,7 @@ visited at most once, parentheses removed first:
   `(string) preg_replace(...)`, `(string) strpos($f, '.')`), a `bool`, or an
   object converted through `__toString()` (`(string) $person.' / '`,
   `(string) new Markup($s)`). The result is the same at run time,
-  but the cast states a deliberate conversion and strict analysers require
+  but the cast states a deliberate conversion and strict analyzers require
   it.
 - **E8** Aliased storage (D3c): `$n = 0; readInto($n); (int) $n` with
   `function readInto(&$out)`, `$r = &$n`, `foreach ($row as &$cell)` before
@@ -376,7 +376,7 @@ After fix (changed lines):
   custos adds `null` to their R-function result, so the cast is kept. This
   also applies to CallableParameterUseCaseInTypeContext, which shares the
   T-rules.
-- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analysed with its initial value only. custos makes the result unknown (M1 not reported; M2 does not use discovery and is unaffected), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
+- **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analyzed with its initial value only. custos makes the result unknown (M1 not reported; M2 does not use discovery and is unaffected), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - **Integer division (custos diverges):** upstream types `int / int` as int,
   so `(int) ($a / $b)` with two ints is reported and the fix drops the cast,
   turning `7 / 2` from `3` into `3.5`. custos types the quotient as
@@ -394,9 +394,9 @@ After fix (changed lines):
   whatever the operand's type (even an array or an object without
   `__toString()`). Concatenation does convert the same way, but on a
   nullable, false-able, `bool`, `mixed` or `__toString()` operand the cast
-  is the explicit, analyser-checked statement of that conversion: dropping
+  is the explicit, analyzer-checked statement of that conversion: dropping
   it on a real project raised 14 errors and about 40 warnings in a strict
-  analyser the project gates on. custos reports only operands known to be
+  analyzer the project gates on. custos reports only operands known to be
   `string`, `int` or `float`; upstream's untyped-parameter cases in
   `unnecessary-casting.php` and `unnecessary-casting.php8.php` are no
   longer reported (both fixtures are already listed divergences).
@@ -418,7 +418,7 @@ After fix (changed lines):
   `$text = mb_convert_encoding($text, 'UTF-8')` look like an array
   assignment to CallableParameterUseCaseInTypeContext).
 - **Classes named like scalar aliases (custos diverges):** T4 maps the
-  normalised names `integer`/`boolean` to `int`/`bool`, so an object of a
+  normalized names `integer`/`boolean` to `int`/`bool`, so an object of a
   user class `Integer` or `Boolean` counts as already int/bool and
   `(int) new Integer()` is reported (the fix drops a cast that converts an
   object). custos resolves scalar aliases when parsing types; a remaining
@@ -440,14 +440,14 @@ After fix (changed lines):
   fix lets the other type through. custos does not report M1 for such a
   variable, nor when the callee receiving it cannot be resolved.
 - **Separator kept by the fix (custos diverges, F2).** Deleting the cast
-  alone can merge its neighbours into another token (`-(int)-$b` → `--$b`,
+  alone can merge its neighbors into another token (`-(int)-$b` → `--$b`,
   `.(string)2` → `.2`, `return(int)count()` → `returncount()`); custos
   leaves one space in its place when needed.
 - **Unknown reaching definitions (custos diverges, T4).** Outside the
   spec-only typer, a variable with a reaching definition of unknown type
   (`$f = $o->x; if ($c) { $f = 'x'; } return (string) $f;`) is unknown
   instead of the union of its known definitions: the partial set made the
-  cast look redundant and the fix changed behaviour (Magento config
+  cast look redundant and the fix changed behavior (Magento config
   element and fixtures).
 
 Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

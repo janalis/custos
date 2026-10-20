@@ -6,7 +6,7 @@ title: SplObjectStorageIndirectArrayMutation
 
 # SplObjectStorageIndirectArrayMutation
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -30,14 +30,13 @@ Reported:
 ## Detection
 
 - D1. Resolve SplObjectStorage offset whose most recent stored value is a proven array. Report nested offset/property-like array writes, increment/decrement or unset applied indirectly to its retrieved array. Highlight the complete mutation expression.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 - D4. The proof in D1 comes from the last `$storage[$key] = <array literal>` assignment that certainly ran before the mutation. It is dropped when, between that assignment and the mutation, the same storage may receive another value: a method call on the storage other than a read-only one (`contains`, `count`, `current`, `getHash`, `getInfo`, `key`, `next`, `offsetExists`, `offsetGet`, `rewind`, `seek`, `valid`), a direct `unset($storage[...])`, an offset assignment of a value that is not a proven array under any key or on a path that may not run, or a closure capturing the storage variable, including an arrow function that mentions it. Later offset assignments of proven arrays keep the proof. Passing the key variable to an unresolved method may rebind the key and drops the correspondence with the earlier offset assignment. A resolved by-value method on another storage keeps that correspondence.
 
 ## Exceptions (no report)
 
-- E1. Stored objects are mutable handles and are excluded. Assigning a retrieved modified array back is valid. Unknown stored type or custom offsetGet behavior is excluded. A value possibly replaced through `offsetSet()`, `attach()` or any other mutating storage call counts as unknown (D4).
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore SplObjectStorageIndirectArrayMutation` and `@noinspection SplObjectStorageIndirectArrayMutation` suppress this inspection.
+- Stored objects are mutable handles and are excluded. Assigning a retrieved modified array back is valid. Unknown stored type or custom offsetGet behavior is excluded. A value possibly replaced through `offsetSet()`, `attach()` or any other mutating storage call counts as unknown (D4).
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -47,11 +46,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Minimum PHP 5.3. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Minimum PHP 5.3.
 
 ## Configure
 

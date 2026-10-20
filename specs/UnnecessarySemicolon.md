@@ -125,7 +125,7 @@ class Box {}
 
 - Alternative syntax (`if (...): ; endif;`, `while (...): ; endwhile;`): the `;`
   sits inside the statement list rather than directly as the clause body;
-  upstream behaviour unverified. custos reports it (the statement list is
+  upstream behavior unverified. custos reports it (the statement list is
   treated as a block). No fixture covers it.
 - custos diverges: the terminator of a short echo tag at the end of the
   file (`<?= $title;` with no closing `?>`) is not reported — without a

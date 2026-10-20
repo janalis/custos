@@ -6,7 +6,7 @@ title: SodiumNonceLengthMismatch
 
 # SodiumNonceLengthMismatch
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 7.2" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 7.2" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -36,14 +36,14 @@ Reported:
 
 ## Detection
 
-- D1. Resolved sodium_crypto_secretbox second argument has known byte length other than 24. Recognize literal strings, str_repeat of literal strings and literal counts, and random_bytes of a positive literal count. Highlight nonce.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved sodium_crypto_secretbox second argument has known byte length other than 24. Recognize literal strings, str_repeat of literal strings and literal counts, and random_bytes of a positive literal count. Highlight nonce.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

@@ -6,7 +6,7 @@ title: DeflateStreamNeverFinished
 
 # DeflateStreamNeverFinished
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 7.0" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 7.0" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Enabled policy requires complete standalone compression streams. Report file_put_contents publishing an unchanged local/direct deflate_add result whose explicit flush constant is ZLIB_SYNC_FLUSH, ZLIB_NO_FLUSH or ZLIB_FULL_FLUSH. The write must replace the file: either no `flags` argument is passed, or its value resolves to an integer without the FILE_APPEND bit. Concatenated outputs and publication through other consumers remain outside this local subset.
-- D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
+- Enabled policy requires complete standalone compression streams. Report file_put_contents publishing an unchanged local/direct deflate_add result whose explicit flush constant is ZLIB_SYNC_FLUSH, ZLIB_NO_FLUSH or ZLIB_FULL_FLUSH. The write must replace the file: either no `flags` argument is passed, or its value resolves to an integer without the FILE_APPEND bit. Concatenated outputs and publication through other consumers remain outside this local subset.
+- Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. An appending write is one piece of a file that a later write can finish. Skip file_put_contents whose `flags` argument contains FILE_APPEND, and any `flags` value that cannot be resolved to an integer (parameters, call results, unpacked arguments).
-- E3. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
+- An appending write is one piece of a file that a later write can finish. Skip file_put_contents whose `flags` argument contains FILE_APPEND, and any `flags` value that cannot be resolved to an integer (parameters, call results, unpacked arguments).
+- A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
 
 ## Fix
 

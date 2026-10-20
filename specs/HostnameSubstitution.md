@@ -225,7 +225,7 @@ class Mailer
   is not a source: only the read flows into the address, so the finding is
   reported once instead of twice (Swiftmailer's message ids).
 - **Validated variable (custos diverges from upstream).** Upstream only
-  recognises an `in_array` test written on the `$_SERVER[...]` access
+  recognizes an `in_array` test written on the `$_SERVER[...]` access
   itself, so the usual store-then-validate form
   (`$host = $_SERVER['HTTP_HOST']; if (!in_array($host, $allowed)) …`) is
   reported although it does what the message asks. custos also accepts

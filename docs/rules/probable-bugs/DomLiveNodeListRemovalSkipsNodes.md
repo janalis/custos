@@ -6,7 +6,7 @@ title: DomLiveNodeListRemovalSkipsNodes
 
 # DomLiveNodeListRemovalSkipsNodes
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. A forward for loop starts index at zero, tests index against a live getElementsByTagName/getElementsByTagNameNS result length, increments by one, and unconditionally removes item(index) from its parent. The removed node is either a local bound to item(index) earlier in the loop body, or the unbound form where the parentNode receiver and the removeChild argument are the same item(index) call written twice. Exclude backwards loops, snapshots, index correction and removals outside this exact pattern.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- A forward for loop starts index at zero, tests index against a live getElementsByTagName/getElementsByTagNameNS result length, increments by one, and unconditionally removes item(index) from its parent. The removed node is either a local bound to item(index) earlier in the loop body, or the unbound form where the parentNode receiver and the removeChild argument are the same item(index) call written twice. Exclude backwards loops, snapshots, index correction and removals outside this exact pattern.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Statements following the removal in the loop body can compensate for the shift. No report when any of them, at any nesting depth, mentions the index variable (decrement, reassignment, passing it on), uses a variable variable, or leaves the iteration through break, continue, return, goto, throw or exit. Later statements that touch neither keep the report.
-- E3. Both @custos-ignore DomLiveNodeListRemovalSkipsNodes and @noinspection DomLiveNodeListRemovalSkipsNodes suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Statements following the removal in the loop body can compensate for the shift. No report when any of them, at any nesting depth, mentions the index variable (decrement, reassignment, passing it on), uses a variable variable, or leaves the iteration through break, continue, return, goto, throw or exit. Later statements that touch neither keep the report.
+- Both @custos-ignore DomLiveNodeListRemovalSkipsNodes and @noinspection DomLiveNodeListRemovalSkipsNodes suppress this native rule.
 
 ## Fix
 

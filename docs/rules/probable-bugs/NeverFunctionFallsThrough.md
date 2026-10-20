@@ -6,7 +6,7 @@ title: NeverFunctionFallsThrough
 
 # NeverFunctionFallsThrough
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.1" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 8.1" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,15 +29,14 @@ Reported:
 
 ## Detection
 
-- D1. For a function, method or closure with resolved builtin never return type, report its return type when a reachable path reaches the closing brace. Use bounded control-flow proof, recognizing throw, exit/die, unconditional infinite loops and calls with a resolved never return type. An explicit return is already illegal and is not this fall-through finding.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- For a function, method or closure with resolved builtin never return type, report its return type when a reachable path reaches the closing brace. Use bounded control-flow proof, recognizing throw, exit/die, unconditional infinite loops and calls with a resolved never return type. An explicit return is already illegal and is not this fall-through finding.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
-- E1. Exclude unreachable closing braces, unknown control-flow summaries and budget exhaustion. A conditional throw proves termination only on its throwing branch.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore NeverFunctionFallsThrough` and `@noinspection NeverFunctionFallsThrough` suppress this inspection.
-- E3. A `while`, `do`-`while` or `for` loop is not proven to end when its condition (the last one of a `for`) is a known truthy value such as `1`, or is built only from literals, constants and operators, such as `!false` or `1 === 1`, whose value the rule does not evaluate. The function is then not reported. A loop whose condition is known falsy, or reads a variable or the result of a call, can still end and does not prevent the report.
+- Exclude unreachable closing braces, unknown control-flow summaries and budget exhaustion. A conditional throw proves termination only on its throwing branch.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
+- A `while`, `do`-`while` or `for` loop is not proven to end when its condition (the last one of a `for`) is a known truthy value such as `1`, or is built only from literals, constants and operators, such as `!false` or `1 === 1`, whose value the rule does not evaluate. The function is then not reported. A loop whose condition is known falsy, or reads a variable or the result of a call, can still end and does not prevent the report.
 
 ## Fix
 
@@ -47,11 +46,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Minimum PHP 8.1. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Minimum PHP 8.1.
 
 ## Configure
 

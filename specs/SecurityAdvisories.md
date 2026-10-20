@@ -11,7 +11,7 @@ php: { min: "", max: "" }
 ## Summary
 
 Works on a project's `composer.json` (not on PHP code). Two concerns:
-development-only packages (test frameworks, debuggers, static analysers…)
+development-only packages (test frameworks, debuggers, static analyzers…)
 listed under `require` end up in production; and an application that pulls
 third-party packages should also require the advisory "firewall" meta-package
 in `require-dev`, which blocks installing versions with known
@@ -165,11 +165,11 @@ the colon).
 |---|---|---|---|
 | `REPORT_MISSING_ROAVE_ADVISORIES` | bool | false | Enables kinds A (missing advisory package, with fix) and L (advisory package not on `dev-latest`). |
 | `REPORT_MISPLACED_DEPENDENCIES` | bool | true | Enables kind M (development packages under `require`). |
-| `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for the owner skip (D2). |
+| `optionConfiguration` | list of strings | the default list below | The development-package list DEV, used for kind M and for skipping manifests owned by a listed package or vendor. |
 
 Effective DEV: the default list is always merged with the configured entries
 (configured entries ∪ defaults, deduplicated). Entries may also be vendor
-prefixes ending in `/` (only meaningful for the owner skip D2).
+prefixes ending in `/` (only meaningful for skipping manifests whose vendor is listed).
 
 Default list (vendor / package; the list entry is `vendor/package`, compared
 case-insensitively — the entry is stored as `mikey179/vfsStream`):

@@ -63,10 +63,10 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| HARDEN_DECODING_RESULT_TYPE | bool | true | Enables kind T (D1). Also affects `<assoc>` in F2. |
+| HARDEN_DECODING_RESULT_TYPE | bool | true | Enables kind T. Also affects `<assoc>` in F2. |
 | DECODE_AS_ARRAY | bool | false | Fixes insert `true` (decode to arrays) instead of `false`. |
 | DECODE_AS_OBJECT | bool | true | Radio-button companion of DECODE_AS_ARRAY; has no effect on detection or fixes by itself. |
-| HARDEN_ERRORS_HANDLING | bool | true | Enables kind E (D2–D5). |
+| HARDEN_ERRORS_HANDLING | bool | true | Enables kind E. |
 
 ## Configure
 

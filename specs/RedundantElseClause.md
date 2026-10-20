@@ -167,10 +167,10 @@ function route($req, $list) {
   newline separator, and none when the moved content starts with `;` (as the
   upstream fixture expects). Re-indentation of moved statements is not
   required (comparison is whitespace-collapsed).
-- F3 normalises the first `if`'s header to `if (COND1) ` (upstream rebuilds it
+- F3 normalizes the first `if`'s header to `if (COND1) ` (upstream rebuilds it
   from a template). custos does the same, so `if($a){…}` becomes
   `if ($a) {…}`.
-- Comments between `}` and `else`/`elseif`: upstream behaviour unverified
+- Comments between `}` and `else`/`elseif`: upstream behavior unverified
   (no fixture). custos preserves them before the moved code.
 - **Trailing line comment (custos diverges).** When the moved content ends
   with a `//`/`#` comment and more code follows the clause on the same line,

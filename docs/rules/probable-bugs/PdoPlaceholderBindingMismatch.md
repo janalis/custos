@@ -6,7 +6,7 @@ title: PdoPlaceholderBindingMismatch
 
 # PdoPlaceholderBindingMismatch
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Report execute on a resolved PDOStatement whose literal prepared SQL requires markers absent from the complete effective binding set, or whose binding set has extra markers.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report execute on a resolved PDOStatement whose literal prepared SQL requires markers absent from the complete effective binding set, or whose binding set has extra markers.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. Unknown SQL, unknown parameter spreads, unknown earlier bindings and driver-specific unresolved statements are excluded; parse quoted literals and comments before counting markers.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
-- E3. When `execute()` receives no parameter array and the statement variable is captured by a closure (`use ($s)`, by value or by reference) or referenced inside an arrow function written before the call, that callable may bind markers out of sight, so the earlier bindings are unknown and nothing is reported. A callable written after the call does not hide the mismatch, and an explicit parameter array is still checked because it alone supplies the values.
+- Unknown SQL, unknown parameter spreads, unknown earlier bindings and driver-specific unresolved statements are excluded; parse quoted literals and comments before counting markers.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- When `execute()` receives no parameter array and the statement variable is captured by a closure (`use ($s)`, by value or by reference) or referenced inside an arrow function written before the call, that callable may bind markers out of sight, so the earlier bindings are unknown and nothing is reported. A callable written after the call does not hide the mismatch, and an explicit parameter array is still checked because it alone supplies the values.
 
 ## Fix
 

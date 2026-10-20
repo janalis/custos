@@ -74,7 +74,7 @@ F1. Replace the target with the replacement built as:
       yoda style: `null {op} {a}`.
     Single spaces around `{op}`; see Divergences for the outer parentheses.
 
-F2. The edit never fuses with a neighbouring token. When the byte just
+F2. The edit never fuses with a neighboring token. When the byte just
     before the target is a word byte (letter, digit, `_`, byte >= 0x80) and
     the fix text starts with a word byte or a backslash, one space is
     inserted before it: `return!is_null(load())` → `return load() !== null`,

@@ -35,9 +35,9 @@ function audit() {
 Reported:
 
 <ul>
-<li>line 3: Suppressed inspection not recognised: PhpLegacyCheckInspector.</li>
-<li>line 4: Suppressed inspection not recognised: TypoNameInspection.</li>
-<li>line 5: Suppressed inspection not recognised: PhpGoneAway.</li>
+<li>line 3: Suppressed inspection not recognized: PhpLegacyCheckInspector.</li>
+<li>line 4: Suppressed inspection not recognized: TypoNameInspection.</li>
+<li>line 5: Suppressed inspection not recognized: PhpGoneAway.</li>
 </ul>
 
 ## Configure

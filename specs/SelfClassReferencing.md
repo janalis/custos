@@ -202,7 +202,7 @@ __CLASS__;                          // not inside a class method
 
 - Upstream also considers references inside an anonymous class declared in the
   method but outside that anonymous class's methods (e.g. its constant or
-  property initialisers): `self` there would mean the anonymous class.
+  property initializers): `self` there would mean the anonymous class.
   custos skips any reference located inside an anonymous class body. Not
   covered by upstream fixtures.
 - Reverse mode on PHP < 5.5: `Name::class` does not exist. custos does not

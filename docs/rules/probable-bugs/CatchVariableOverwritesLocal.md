@@ -6,7 +6,7 @@ title: CatchVariableOverwritesLocal
 
 # CatchVariableOverwritesLocal
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. A simple local has a definite non-exception assignment before try; a catch binds that same name and the variable is read after try without reassignment. Require lexical same-scope statements and a reachable throwing operation.
-- D1d. The catch path must reach the later read while retaining the caught exception binding. Exclude catches that terminate by return/throw/exit, reassign or unset the local, and finally blocks that restore or replace its value. Unknown catch/finally operations discard the retained-binding proof.
-- D1e. Exclude terminating catches and any assignment, increment/decrement or unset of the catch variable in the catch body or finally. These operations invalidate the retained exception-binding proof; do not treat the subsequent read as an overwrite hazard.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- A simple local has a definite non-exception assignment before try; a catch binds that same name and the variable is read after try without reassignment. Require lexical same-scope statements and a reachable throwing operation.
+- The catch path must reach the later read while retaining the caught exception binding. Exclude catches that terminate by return/throw/exit, reassign or unset the local, and finally blocks that restore or replace its value. Unknown catch/finally operations discard the retained-binding proof.
+- Exclude terminating catches and any assignment, increment/decrement or unset of the catch variable in the catch body or finally. These operations invalidate the retained exception-binding proof; do not treat the subsequent read as an overwrite hazard.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

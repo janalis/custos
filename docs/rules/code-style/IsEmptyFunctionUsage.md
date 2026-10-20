@@ -137,10 +137,10 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| REPORT_EMPTY_USAGE | bool | false | Enables the generic report D3. |
-| SUGGEST_TO_USE_COUNT_CHECK | bool | false | Enables D1 (count comparison for arrays/Countable). |
-| SUGGEST_TO_USE_NULL_COMPARISON | bool | true | Enables D2 (null comparison) as a whole. |
-| SUGGEST_NULL_COMPARISON_FOR_SCALARS | bool | true | Enables D2a (nullable int/float/bool/resource); D2b (objects) only needs the previous option. |
+| REPORT_EMPTY_USAGE | bool | false | Also reports the remaining `empty()` calls that have no better replacement, without a fix. |
+| SUGGEST_TO_USE_COUNT_CHECK | bool | false | Suggests a count comparison for arrays and `Countable` values. |
+| SUGGEST_TO_USE_NULL_COMPARISON | bool | true | Suggests a null comparison, as a whole. |
+| SUGGEST_NULL_COMPARISON_FOR_SCALARS | bool | true | Extends the null comparison to nullable int, float, bool and resource values; nullable objects only need the previous option. |
 
 Global setting: comparison style (`regular` default / `yoda`) selects the
 operand order of F1/F2.

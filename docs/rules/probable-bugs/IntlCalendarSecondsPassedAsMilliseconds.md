@@ -6,7 +6,7 @@ title: IntlCalendarSecondsPassedAsMilliseconds
 
 # IntlCalendarSecondsPassedAsMilliseconds
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.5" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.5" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. Report resolved IntlCalendar::setTime with direct time(), or an unchanged local assigned time(), as its timestamp. Exclude arbitrary numbers and arithmetic/computed timestamps. Offer a fix only for the direct call argument.
-- D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
-- D4. A local is not unchanged when it, or a variable whose value was copied into it, is captured by reference in a closure `use` of the same scope or bound by a `catch` clause of that scope. A file-level variable is also a global: a `global` declaration naming it, or any `$GLOBALS` access anywhere in the file, removes proof as well. A by-value capture does not.
+- Report resolved IntlCalendar::setTime with direct time(), or an unchanged local assigned time(), as its timestamp. Exclude arbitrary numbers and arithmetic/computed timestamps. Offer a fix only for the direct call argument.
+- Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- A local is not unchanged when it, or a variable whose value was copied into it, is captured by reference in a closure `use` of the same scope or bound by a `catch` clause of that scope. A file-level variable is also a global: a `global` declaration naming it, or any `$GLOBALS` access anywhere in the file, removes proof as well. A by-value capture does not.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
-- E3. No report for `$t = time(); $f = function () use (&$t) { $t *= 1000; }; $f(); $c->setTime($t);`: the closure may already have converted the value.
+- Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
+- A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- No report for `$t = time(); $f = function () use (&$t) { $t *= 1000; }; $f(); $c->setTime($t);`: the closure may already have converted the value.
 
 ## Fix
 

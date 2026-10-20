@@ -30,9 +30,13 @@ func fake(t *testing.T, rules []meta.Rule, err error) {
 }
 
 func TestRun(t *testing.T) {
+	// The Fix column shows what custos offers, not the upstream flag.
+	oldDescribe := describe
+	describe = func(id string) (meta.Description, bool) { return meta.Description{Fix: id == "Kettle"}, true }
+	t.Cleanup(func() { describe = oldDescribe })
 	fake(t, []meta.Rule{
-		{ID: "Kettle", Group: "Kitchen", Severity: diagnostic.SeverityWarning, EnabledByDefault: true, HasFix: true},
-		{ID: "Toaster", Group: "Kitchen", Severity: diagnostic.SeverityError, Experimental: true},
+		{ID: "Kettle", Group: "Kitchen", Severity: diagnostic.SeverityWarning, EnabledByDefault: true},
+		{ID: "Toaster", Group: "Kitchen", Severity: diagnostic.SeverityError, Experimental: true, HasFix: true},
 		{ID: "Lamp", Group: "Bedroom", Severity: diagnostic.SeverityInfo},
 		{ID: "Clock", Group: "Bedroom", Severity: diagnostic.SeverityInfo},
 		{ID: "Shelf", Group: "Attic", Severity: diagnostic.SeverityWarning, EnabledByDefault: true},

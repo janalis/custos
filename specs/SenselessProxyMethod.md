@@ -13,7 +13,7 @@ php: { min: "", max: "" }
 An override whose only statement forwards its parameters unchanged to the
 same-named parent method — with the same signature, modifiers and
 documentation tags — adds nothing; inheritance already provides that
-behaviour. Remove it.
+behavior. Remove it.
 
 ## Detection
 
@@ -136,7 +136,7 @@ When D1–D10 all hold and E7–E9 do not apply, report.
   effect.
 
 - **E9** (custos, see Divergences) A parameter has a default value and the
-  parent method's body, when it is declared in the analysed file, calls
+  parent method's body, when it is declared in the analyzed file, calls
   `func_num_args()`, `func_get_args()` or `func_get_arg()`. The proxy
   passes every declared parameter, so the parent sees an argument the
   caller left out; without the proxy it would not.
@@ -337,7 +337,7 @@ class DiskStore extends Store
   reports a child that calls `parent::m($a);` without `return` when the
   parent returns a value; deleting such a child makes calls start returning
   the parent's value instead of `null`, so the suggested removal changes
-  behaviour. custos only reports that shape when the parent provably
+  behavior. custos only reports that shape when the parent provably
   returns nothing. Upstream's fixtures expect the report, so the affected
   EA case is listed in `testdata/ea-divergences.json`.
 - Equivalence of parameter types is by resolved type set; a doc-only type
@@ -350,7 +350,7 @@ class DiskStore extends Store
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **custos diverges — PHP 4 constructors (E7).** Below PHP 8.0, removing a
   `__construct` proxy from a non-namespaced class that also has a method

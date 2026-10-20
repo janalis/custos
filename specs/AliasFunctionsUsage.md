@@ -104,13 +104,13 @@ The argument list is irrelevant (any number of arguments, including none).
   declarations, and string callables (`'join'`).
 - **E4** Names not in either table.
 - **E5** The call resolves to a global function the project itself
-  declares, for a name PHP does not provide at the analysed level (`close`
+  declares, for a name PHP does not provide at the analyzed level (`close`
   is not a PHP function, `recode` left with its extension after 7.3, and
   `is_real` was removed in PHP 8.0). PHP
   refuses to redeclare a built-in, so such a declaration can only load
   where the built-in is absent: the call runs project code, which is not an
   alias of anything. This covers plain declarations and polyfills guarded
-  by `function_exists`. When the built-in does exist at the analysed level,
+  by `function_exists`. When the built-in does exist at the analyzed level,
   a guarded polyfill never loads and the call is reported as usual.
 
 ## Report
@@ -138,10 +138,10 @@ The argument list is irrelevant (any number of arguments, including none).
   (`namespace App; function count($x) {…} sizeof($l)` → `\count($l)`); the
   message names that spelling too.
 - **F2** Table B: no fix offered.
-- **F3** Table A, alias absent from PHP at the analysed level: report
+- **F3** Table A, alias absent from PHP at the analyzed level: report
   without a fix. This is the case for `close` at every level, `recode` from
   7.4 and `is_real` from 8.0. A call that works there necessarily reaches a
-  function custos cannot see (declared outside the analysed files, or a
+  function custos cannot see (declared outside the analyzed files, or a
   polyfill hidden behind the stub declaration), and renaming the call would
   swap that function for a different one; for `recode` the canonical
   function is gone as well. At a level where the alias still exists the fix
@@ -165,7 +165,7 @@ $csv   = \<warning descr="Use 'implode(...)' instead of the alias 'join(...)'.">
 $ok    = <warning descr="Use 'is_int(...)' instead of the alias 'is_long(...)'.">is_long</warning>($port) && <warning descr="Use 'is_writable(...)' instead of the alias 'is_writeable(...)'.">is_writeable</warning>($dir);
 <warning descr="'magic_quotes_runtime(...)' is a legacy alias (deprecated 5.3, removed 7.0); stop relying on it.">magic_quotes_runtime</warning>(0);
 $n = <warning descr="Use 'count(...)' instead of the alias 'SizeOf(...)'.">SizeOf</warning>($rows);
-$s = $builder->join(',');  // E3
+$s = $builder->join(',');  // method call, not the alias function
 ```
 
 ```php
@@ -175,17 +175,17 @@ $csv   = \implode(';', $cells);
 $ok    = is_int($port) && is_writable($dir);
 magic_quotes_runtime(0);
 $n = count($rows);
-$s = $builder->join(',');  // E3
+$s = $builder->join(',');  // method call, not the alias function
 ```
 
 Project functions that merely share an alias name (E5) and aliases PHP
-lacks at the analysed level (F3), analysed at PHP 8.x:
+lacks at the analyzed level (F3), analyzed at PHP 8.x:
 
 ```php
 <?php
 function close($handle) { return $handle->release(); }
 
-close($connection);       // E5: project function, not PHP's alias
+close($connection);       // project function, not PHP's alias
 $f = <warning descr="Use 'is_float(...)' instead of the alias 'is_real(...)'.">is_real</warning>($ratio); // F3: reported, not rewritten
 $n = <warning descr="Use 'count(...)' instead of the alias 'sizeof(...)'.">sizeof</warning>($rows);
 ```
@@ -194,7 +194,7 @@ $n = <warning descr="Use 'count(...)' instead of the alias 'sizeof(...)'.">sizeo
 <?php
 function close($handle) { return $handle->release(); }
 
-close($connection);       // E5: project function, not PHP's alias
+close($connection);       // project function, not PHP's alias
 $f = is_real($ratio); // F3: reported, not rewritten
 $n = count($rows);
 ```
@@ -206,14 +206,14 @@ Namespace handling:
 namespace Shop\Util {
     function chop($s) { return $s; }
 
-    $a = chop($label);   // E1: resolves to Shop\Util\chop
+    $a = chop($label);   // resolves to Shop\Util\chop
     $b = \<warning descr="Use 'rtrim(...)' instead of the alias 'chop(...)'.">chop</warning>($label);
 }
 
 namespace Shop\Web {
     use function Shop\Util\chop;
 
-    $c = chop($label);   // E1: imported namespaced function
+    $c = chop($label);   // imported namespaced function
     $d = \<warning descr="Use 'rtrim(...)' instead of the alias 'chop(...)'.">chop</warning>($label);
     $e = <warning descr="Use 'current(...)' instead of the alias 'pos(...)'.">pos</warning>($stack); // falls back to global
 }
@@ -237,6 +237,6 @@ namespace Shop\Web {
   goes by the name alone, so a call to a project's own global `close()` or
   `recode()` is reported and rewritten to an unrelated built-in, breaking
   the call. custos does not report a call whose target is a project
-  declaration of a name PHP lacks at the analysed level (E5), and keeps the
+  declaration of a name PHP lacks at the analyzed level (E5), and keeps the
   report but withholds the rewrite when PHP lacks the alias and no
   declaration is visible (F3).

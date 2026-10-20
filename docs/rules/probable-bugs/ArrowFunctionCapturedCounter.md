@@ -6,7 +6,7 @@ title: ArrowFunctionCapturedCounter
 
 # ArrowFunctionCapturedCounter
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 7.4" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 7.4" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. Report an arrow function updating a captured scalar counter when the same callable is invoked at least twice without reassignment.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- Report an arrow function updating a captured scalar counter when the same callable is invoked at least twice without reassignment.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Parameters, object member updates, single calls, and unknown captured types are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Parameters, object member updates, single calls, and unknown captured types are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

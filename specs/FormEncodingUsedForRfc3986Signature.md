@@ -40,7 +40,7 @@ None. Choosing a repair requires intent or additional runtime information.
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| signatureFunctions | list | `[]` | Configure the explicit policy evidence described in D1. |
+| signatureFunctions | list | `[]` | Fully qualified names of the functions that build RFC 3986 signatures; only queries signed inside one of them are checked. |
 
 ## PHP versions
 

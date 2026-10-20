@@ -6,7 +6,7 @@ title: GmpDivisionPairUsedAsNumber
 
 # GmpDivisionPairUsedAsNumber
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,14 +27,14 @@ Reported:
 
 ## Detection
 
-- D1. The array result of gmp_div_qr directly or through an unchanged local variable reaches a numeric-operand slot of gmp_strval, gmp_intval, gmp_add, gmp_sub, gmp_mul, gmp_div_q, gmp_div_r, gmp_div_qr, gmp_mod, gmp_cmp, gmp_abs, gmp_neg, gmp_sqrt or gmp_pow (for gmp_pow only the base, its first argument or `num`, is an operand slot; the exponent is not inspected) without indexing.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- The array result of gmp_div_qr directly or through an unchanged local variable reaches a numeric-operand slot of gmp_strval, gmp_intval, gmp_add, gmp_sub, gmp_mul, gmp_div_q, gmp_div_r, gmp_div_qr, gmp_mod, gmp_cmp, gmp_abs, gmp_neg, gmp_sqrt or gmp_pow (for gmp_pow only the base, its first argument or `num`, is an operand slot; the exponent is not inspected) without indexing.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore GmpDivisionPairUsedAsNumber and @noinspection GmpDivisionPairUsedAsNumber suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Both @custos-ignore GmpDivisionPairUsedAsNumber and @noinspection GmpDivisionPairUsedAsNumber suppress this native rule.
 
 ## Fix
 

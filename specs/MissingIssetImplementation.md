@@ -26,7 +26,7 @@ For every argument `A` of `isset(...)` and of `empty(...)`:
   inherited, from traits, or a documented `@property*` tag) is found for it
   by normal member resolution.
 - **D3** `$base` is not literally the text `$this`.
-- **D4** Infer the type of `$base`; drop unknown parts and normalise each to
+- **D4** Infer the type of `$base`; drop unknown parts and normalize each to
   a fully-qualified name. For each class-like type (starting with `\`) that is
   not `\SimpleXMLElement`, `\stdClass` or `\DOMDocument`:
   - look the class up in the project index (FQN lookup, case-insensitive);
@@ -56,7 +56,7 @@ For every argument `A` of `isset(...)` and of `empty(...)`:
 - Range: the whole argument `A` (`$base->name`).
 - Severity: error.
 - Message: `{Type} has no __isset(); this isset/empty check is always false.`
-  where `{Type}` is the normalised FQN as inferred (e.g. `\Acme\Bag`).
+  where `{Type}` is the normalized FQN as inferred (e.g. `\Acme\Bag`).
 
 ## Fix
 
@@ -122,14 +122,14 @@ None known.
   type is a resolvable, concrete class (not an interface, abstract class,
   trait or enum) without the property, without `__isset()` and without
   `#[\AllowDynamicProperties]` in its hierarchy (attributes are seen on
-  declarations in the analysed file; the index does not record them for
+  declarations in the analyzed file; the index does not record them for
   other files). A union with `object`, `mixed`, an array or scalar type,
   `stdClass`/`SimpleXMLElement`/`DOMDocument`, or an unresolvable class
   yields no report. Interfaces and abstract classes are skipped because
   their implementations may declare `__isset()`.
 - **Dynamic properties (custos diverges).** Without `__set()`, a write
   `$o->name = …` creates a real (dynamic) property that `isset()` does see.
-  When the class has no `__set()` and the analysed file writes a property
+  When the class has no `__set()` and the analyzed file writes a property
   of that name on a receiver other than `$this`, or a property with a
   computed name (`$entity->$field = $value`, an importer), the check is not
   reported: it is not always false (PrestaShop: 63 → 1).

@@ -6,7 +6,7 @@ title: FailedClosureBindingInvoked
 
 # FailedClosureBindingInvoked
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.4" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.4" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,15 +29,14 @@ Reported:
 
 ## Detection
 
-- D1. Track an explicitly static closure bound using Closure::bindTo or builtin Closure::bind with a proven non-null object. Report invocation of the failed binding result on the same reachable local path, including an immediately invoked result. The object is proven only when every alternative of its inferred type is a class instance: a nullable, untyped, mixed or otherwise partly non-class type proves nothing, because binding null to a static closure succeeds.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Track an explicitly static closure bound using Closure::bindTo or builtin Closure::bind with a proven non-null object. Report invocation of the failed binding result on the same reachable local path, including an immediately invoked result. The object is proven only when every alternative of its inferred type is a class instance: a nullable, untyped, mixed or otherwise partly non-class type proves nothing, because binding null to a static closure succeeds.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
-- E1. Null object bindings, nonstatic closures, binding results guarded against null and unknown closure provenance are excluded. Binding failure alone is not reported here.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore FailedClosureBindingInvoked` and `@noinspection FailedClosureBindingInvoked` suppress this inspection.
-- E3. A result is guarded when the invocation can only run with a non-null value of the same tracked result:
+- Null object bindings, nonstatic closures, binding results guarded against null and unknown closure provenance are excluded. Binding failure alone is not reported here.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
+- A result is guarded when the invocation can only run with a non-null value of the same tracked result:
   - it sits in an `if`/`elseif` body whose condition proves it, in an `elseif`/`else` branch reached only after a condition whose failure proves it, in the matching arm of a ternary, or in the right operand of `&&`/`and` (left operand proves it when true) or `||`/`or` (left operand proves it when false);
   - or an earlier statement of the same or an enclosing statement list is an `if` whose body always leaves the path and whose condition proves it when false (its `elseif`/`else` branches, when they continue, are reached with that condition false too).
   - A condition proves the result when true if it is the result itself (truthiness), `!== null`/`!= null` in either operand order, `instanceof`, `isset(...)`, builtin `is_callable(...)`/`is_object(...)`, the negation of a condition that proves it when false, or a conjunction with such an operand. It proves the result when false if it is `=== null`/`== null`, `empty(...)`, builtin `is_null(...)`, the negation of a condition that proves it when true, or a disjunction with such an operand. A comparison of such a condition with `true` or `false` proves what the condition proves for that outcome (`is_callable($b) === true`); a comparison with any other value proves nothing.
@@ -51,11 +50,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Minimum PHP 5.4. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Minimum PHP 5.4.
 
 ## Configure
 

@@ -6,7 +6,7 @@ title: ParsedQueryValueDecodedTwice
 
 # ParsedQueryValueDecodedTwice
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Resolved parse_str output literal-key value flows directly into urldecode/rawurldecode without transformation. Require known literal query with a percent-encoded percent sequence yielding a second decodable escape or plus, proving meaning changes.
-- D1a. Support the decoding call only as a standalone expression statement, the value of a plain assignment whose parent is an expression statement, a direct return value, or the sole expression of an echo statement. Exclude other wrappers and compound expressions: another expression can replace or mutate the parsed output before decoding occurs.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved parse_str output literal-key value flows directly into urldecode/rawurldecode without transformation. Require known literal query with a percent-encoded percent sequence yielding a second decodable escape or plus, proving meaning changes.
+- Support the decoding call only as a standalone expression statement, the value of a plain assignment whose parent is an expression statement, a direct return value, or the sole expression of an echo statement. Exclude other wrappers and compound expressions: another expression can replace or mutate the parsed output before decoding occurs.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

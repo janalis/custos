@@ -110,7 +110,7 @@ final class Turbine
   (canonical order, and likely adds an explicit `public` when none was
   written), and replaces the method's first child, which drops attributes on
   attributed methods. custos removes only the `final` token (F1). Results are
-  identical on EA fixtures (comparison is whitespace-normalised); the
+  identical on EA fixtures (comparison is whitespace-normalized); the
   canonical reordering of e.g. `static final public` is not reproduced —
   acceptable since no fixture covers it.
 - Enums (implicitly final) are not treated as final classes; only the explicit

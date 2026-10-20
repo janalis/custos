@@ -6,7 +6,7 @@ title: CurlReadCallbackExceedsRequestedSize
 
 # CurlReadCallbackExceedsRequestedSize
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,16 +14,16 @@ Identify READFUNCTION callback whose every reachable nonempty return has length 
 
 ## Detection
 
-- D1. Report READFUNCTION callback whose every reachable nonempty return has length provably greater than its third parameter. Restrict initial analysis to str_repeat of one byte and requested size plus positive integer; exclude error/pause sentinels.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values or escaped aliases invalidate proof. When the proof is inconclusive, nothing is reported.
+- Report READFUNCTION callback whose every reachable nonempty return has length provably greater than its third parameter. Restrict initial analysis to str_repeat of one byte and requested size plus positive integer; exclude error/pause sentinels.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values or escaped aliases invalidate proof. When the proof is inconclusive, nothing is reported.
 - D4. The third parameter must provably keep the value cURL passed. The whole callback body is searched, not only the code before a return, because a loop can run a later statement first. The proof is dropped when the parameter is: an assignment target (plain, compound, destructuring), a `++`/`--` operand, a `foreach` key or value target, named by `global`, `static`, `unset` or a `catch` clause, bound by reference (`$a = &$limit`, `[&$limit]`, closure `use (&$limit)`), or passed itself as an argument of any call or `new` (the receiving parameter may be by-reference). It is also dropped when the body contains a construct able to write a local by name: a variable-variable, `extract`, `parse_str`, `mb_parse_str`, `import_request_variables`, `include`/`require` or `eval`. Plain reads, by-value closure captures and arguments that are expressions built from the parameter (`f($limit + 1)`) keep the proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore CurlReadCallbackExceedsRequestedSize` and `@noinspection CurlReadCallbackExceedsRequestedSize` suppress this native rule.
-- E3. A callback that may rebind its requested-size parameter (D4) is not reported, even when the rebinding cannot actually lower the value.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore CurlReadCallbackExceedsRequestedSize` and `@noinspection CurlReadCallbackExceedsRequestedSize` suppress this native rule.
+- A callback that may rebind its requested-size parameter (D4) is not reported, even when the rebinding cannot actually lower the value.
 
 ## Fix
 

@@ -6,7 +6,7 @@ title: DirectoryIteratorDotEntries
 
 # DirectoryIteratorDotEntries
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,20 +27,20 @@ Reported:
 
 ## Detection
 
-- D1. Report a filesystem mutation on DirectoryIterator entry paths inside foreach without a dominating isDot exclusion.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- Report a filesystem mutation on DirectoryIterator entry paths inside foreach without a dominating isDot exclusion.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. FilesystemIterator with SKIP_DOTS and nonmutating entry handling are excluded.
-- E4. No report when the conditions guarding the mutation prove the entry is neither `.` nor `..`, from tests of methods called on the same loop variable earlier in the loop body. Method names match case-insensitively and redundant parentheses are ignored.
+- FilesystemIterator with SKIP_DOTS and nonmutating entry handling are excluded.
+- No report when the conditions guarding the mutation prove the entry is neither `.` nor `..`, from tests of methods called on the same loop variable earlier in the loop body. Method names match case-insensitively and redundant parentheses are ignored.
   - Proving tests: `isDot()` or `isDir()` false; `isFile()` or `isLink()` true (dot entries are always directories); `getFilename()` or argument-less `getBasename()` compared with a string literal (`===`, `!==`, and `==`, `!=` with a literal that does not read as a number, either operand order) or searched in a literal array through `in_array`. A name test rules out only the names it mentions, so both `.` and `..` must be covered, possibly by several tests; tests that contradict each other leave the mutation unreachable.
   - Composition: `!`, `&&`/`and`, `||`/`or`, comparisons with booleans and a local holding a test combine the usual way.
   - Positions: the branch of an `if`/`elseif`/`else` chain, a ternary or `match (true)` arm, the right operand of `&&`/`||`, or code after an `if` whose branch for a dot entry always leaves (continue, break, return, throw), with or without other arms.
   - Any other condition (other receiver, dynamic method, unknown list, suffix argument to `getBasename`, a jump label between the test and the mutation) proves nothing and the report stays.
-- E3. Reassignment, unsetting or reuse of the element variable before its destructive use leaves its directory-entry identity incomplete. Writes inside an uninvoked separate closure do not establish outer-variable reassignment.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Reassignment, unsetting or reuse of the element variable before its destructive use leaves its directory-entry identity incomplete. Writes inside an uninvoked separate closure do not establish outer-variable reassignment.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

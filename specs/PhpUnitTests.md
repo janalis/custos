@@ -20,9 +20,9 @@ counterpart (`assertTrue(!$x)` → `assertNotTrue($x)`,
 
 The rule has two independent halves:
 
-- **Part A** — docblock tags on methods (D1–D12).
+- **Part A** — docblock tags on methods.
 - **Part B** — method calls whose name starts with `assert`, or is `expects`
-  or `will` (D13–D30).
+  or `will`.
 
 Neither half checks that the class extends a PHPUnit test case: every method
 of every class-like and every matching method call is examined.
@@ -67,7 +67,7 @@ contain a class part and a member part separated by `::`.
 - **Unresolved hierarchy.** A method that is not found in a class is only
   *proven* missing when every ancestor, interface and trait of that class
   is indexed. When one of them is not (a base test case or a trait from a
-  vendor directory that is not analysed), the method may be inherited from
+  vendor directory that is not analyzed), the method may be inherited from
   it: D5, D7 and the callable target of D10 then count as satisfied and
   nothing is reported (custos diverges, see Divergences).
 
@@ -509,12 +509,12 @@ filled, in order, with the original arguments that follow the message
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 D20 suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. D25 only runs below 9.0. D23 uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. D26/D27 use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |
-| `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Enables D17. |
-| `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Enables D6. |
-| `PROMOTE_PHPUNIT_API` | bool | `true` | Enables D18–D28. |
-| `PROMOTE_MOCKING_ONCE` | bool | `true` | Enables D29. |
-| `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Enables D30. |
+| `PHP_UNIT_VERSION` | enum | `PHPUNIT80` | Target PHPUnit version, one of `PHPUNIT70`, `PHPUNIT71`, `PHPUNIT72`, `PHPUNIT73`, `PHPUNIT74`, `PHPUNIT75`, `PHPUNIT80`, `PHPUNIT81`, `PHPUNIT82`, `PHPUNIT83`, `PHPUNIT84`, `PHPUNIT85`, `PHPUNIT90`, `PHPUNIT91`, `PHPUNIT92`, `PHPUNIT93`, `PHPUNIT94`, `PHPUNIT95` (ordered; comparisons are by this order). Below 8.0 the internal-type check suggests `assertInternalType`/`assertNotInternalType`, from 8.0 `assertIs*`/`assertIsNot*`. The contains check only runs below 9.0. The resource check uses the `NotExists` negative names below 9.1 and `DoesNotExist` from 9.1. The regex checks use `assertRegExp`/`assertNotRegExp` below 9.1 and `assertMatchesRegularExpression`/`assertDoesNotMatchRegularExpression` from 9.1. No other effect on detection or fixes. Unset → inferred from the indexed PHPUnit (see Divergences), else `PHPUNIT80`. |
+| `SUGGEST_TO_USE_ASSERTSAME` | bool | `false` | Suggests `assertSame` over `assertEquals` (and their negations). |
+| `SUGGEST_TO_USE_NAMED_DATASETS` | bool | `false` | Asks data providers to name their datasets. |
+| `PROMOTE_PHPUNIT_API` | bool | `true` | Suggests dedicated assertions (empty, internal type, instanceof, class, file and resource checks, count, contains, regex, file equality). |
+| `PROMOTE_MOCKING_ONCE` | bool | `true` | Suggests `once()` over `exactly(1)`. |
+| `PROMOTE_MOCKING_WILL_RETURN` | bool | `true` | Suggests `willReturn…()` over `will($this->return…())`. |
 
 ## PHP versions
 
@@ -799,7 +799,7 @@ class ArchiveTest
 - **Members of unindexed ancestors (custos diverges, D5/D7/D10).** A
   `@dataProvider`, `@depends` or `@covers C::m` member that is not found
   is not reported when the class extends a class, implements an interface
-  or uses a trait that is not indexed: projects analysed without their
+  or uses a trait that is not indexed: projects analyzed without their
   vendor directory got an error for every provider inherited from a base
   test case.
 
@@ -872,7 +872,7 @@ class ArchiveTest
   `int`, `float`, `string`, `bool`, `true`, `false`, `null`.
 - **Function-name matching (custos diverges from upstream).** Upstream
   matches `count`, `is_int`, `in_array`, `get_class`, … case-sensitively, so
-  `Count($x)` or `IS_INT($n)` are not recognised although PHP function names
+  `Count($x)` or `IS_INT($n)` are not recognized although PHP function names
   are case-insensitive. custos compares them case-insensitively.
 - **`@covers ::method` with `@coversDefaultClass` (custos diverges)**:
   PHPUnit resolves `::method` against the class-level `@coversDefaultClass`;

@@ -6,7 +6,7 @@ title: RepeatedCookieHeaderReplacement
 
 # RepeatedCookieHeaderReplacement
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -36,18 +36,18 @@ Reported:
 
 ## Detection
 
-- D1. Report a second header call with a Set-Cookie literal and default/true replace flag on a path with an earlier Set-Cookie header, when both literals name a cookie and the two names differ.
-- D1a. The cookie name is the trimmed text between the field name's colon and the first `=` of the leading `name=value` pair (the part before the first `;`). Names are compared byte for byte; the `Set-Cookie` field name itself is matched case-insensitively.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report a second header call with a Set-Cookie literal and default/true replace flag on a path with an earlier Set-Cookie header, when both literals name a cookie and the two names differ.
+- The cookie name is the trimmed text between the field name's colon and the first `=` of the leading `name=value` pair (the part before the first `;`). Names are compared byte for byte; the `Set-Cookie` field name itself is matched case-insensitively.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
-- E1. setcookie calls, replace false, header_remove clearing the earlier value and different response lifetimes are excluded.
-- E3. Both headers set the same cookie name: the later call deliberately replaces that cookie (new value, expiry), and appending would send both values.
-- E4. Either line has no `name=value` pair before its first `;`, or an empty name: the cookie names cannot be compared.
-- E5. A `header_remove` call sits between the two header calls in the same scope, on any branch, and has no argument, a `Set-Cookie` name in any letter case, or a name that is not a known string. A `header_remove` naming another header changes nothing.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- setcookie calls, replace false, header_remove clearing the earlier value and different response lifetimes are excluded.
+- Both headers set the same cookie name: the later call deliberately replaces that cookie (new value, expiry), and appending would send both values.
+- Either line has no `name=value` pair before its first `;`, or an empty name: the cookie names cannot be compared.
+- A `header_remove` call sits between the two header calls in the same scope, on any branch, and has no argument, a `Set-Cookie` name in any letter case, or a name that is not a known string. A `header_remove` naming another header changes nothing.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

@@ -6,7 +6,7 @@ title: HashContextUsedAfterFinalization
 
 # HashContextUsedAfterFinalization
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Security](/rules/#security)
 
@@ -14,18 +14,18 @@ Identify hash_update, hash_copy or hash_final on the same local context after un
 
 ## Detection
 
-- D1. Report hash_update, hash_copy or hash_final on the same local context after unconditional hash_final, with no replacement.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report hash_update, hash_copy or hash_final on the same local context after unconditional hash_final, with no replacement.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 - D4. The earlier hash_final must run on every path to the later call. A hash_final in a `match` arm body, or in the arguments or member name of a call reached through a `?->` chain, proves nothing for calls outside that arm or chain; calls inside the same arm or chain are still checked.
 - D5. Between the earlier hash_final and the later call the context variable must not be rebound. Besides plain assignment, a rebinding is: a `[...]`/`list(...)` destructuring target (positional, keyed or nested), a `foreach` key or value binding, a `catch` variable, a call to `extract` or `parse_str`, and any user function, method, static method or constructor call that receives the variable.
 - D6. When the context variable is a by-reference parameter, or is declared `global` or `static` in the scope, any intervening user function, method, static method or constructor call may replace it and invalidates proof. Calls to resolved builtin functions do not.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. No report when the only earlier hash_final is conditional in the sense of D4, or when the variable is rebound or may be replaced as described in D5 and D6.
-- E3. Both `@custos-ignore HashContextUsedAfterFinalization` and `@noinspection HashContextUsedAfterFinalization` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- No report when the only earlier hash_final is conditional in the sense of D4, or when the variable is rebound or may be replaced as described in D5 and D6.
+- Both `@custos-ignore HashContextUsedAfterFinalization` and `@noinspection HashContextUsedAfterFinalization` suppress this native rule.
 
 ## Fix
 

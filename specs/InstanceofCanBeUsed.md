@@ -36,7 +36,7 @@ any interpolation whose content:
 - is not exactly `__PHP_Incomplete_Class`.
 Its **FQN** is `\` followed by the content with every doubled backslash
 `\\` collapsed to a single `\` (so `'Acme\\Mail'` gives `\Acme\Mail`). The
-content is not otherwise normalised: a leading backslash in the content
+content is not otherwise normalized: a leading backslash in the content
 yields an FQN starting with two backslashes, which never matches a class
 (see E6).
 

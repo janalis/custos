@@ -6,7 +6,7 @@ title: PriorityQueueMinOrderAssumption
 
 # PriorityQueueMinOrderAssumption
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,14 +29,13 @@ Reported:
 
 ## Detection
 
-- D1. Enabled policy requires smallest numeric priority first. Report first extraction from an exact builtin SplPriorityQueue with at least two distinct proven literal numeric priorities since construction, using unmodified inherited comparator. Highlight extract/top/current call. The queue inherently returns the largest priority first.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Enabled policy requires smallest numeric priority first. Report first extraction from an exact builtin SplPriorityQueue with at least two distinct proven literal numeric priorities since construction, using unmodified inherited comparator. Highlight extract/top/current call. The queue inherently returns the largest priority first.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
-- E1. Exclude a single priority, tied priorities, unknown priorities, subclasses with custom compare, proven negated priorities and invalidated queue state. Enabling states the numeric ordering policy; labels and comments are not evidence.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore PriorityQueueMinOrderAssumption` and `@noinspection PriorityQueueMinOrderAssumption` suppress this inspection.
+- Exclude a single priority, tied priorities, unknown priorities, subclasses with custom compare, proven negated priorities and invalidated queue state. Enabling states the numeric ordering policy; labels and comments are not evidence.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -46,7 +45,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Minimum PHP 5.3. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
+Minimum PHP 5.3.
 
 ## Options
 

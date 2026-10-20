@@ -6,7 +6,7 @@ title: XmlReaderAttributeCursorNotRestored
 
 # XmlReaderAttributeCursorNotRestored
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. After a proven successful moveToAttribute or moveToFirstAttribute, with no moveToElement/read/next, compare nodeType to XMLReader::ELEMENT or perform element-only handling. Initial supported sink is strict equality with ELEMENT. Enabling establishes that this comparison intends to handle the containing element.
-- D1a. Only a moveToElement, read or next call on the same reader that runs after the guarding attribute move and on every path to the comparison restores the cursor. The same calls placed before the guard, such as the read that positions the reader on the element in the first place, do not suppress the report.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- After a proven successful moveToAttribute or moveToFirstAttribute, with no moveToElement/read/next, compare nodeType to XMLReader::ELEMENT or perform element-only handling. Initial supported sink is strict equality with ELEMENT. Enabling establishes that this comparison intends to handle the containing element.
+- Only a moveToElement, read or next call on the same reader that runs after the guarding attribute move and on every path to the comparison restores the cursor. The same calls placed before the guard, such as the read that positions the reader on the element in the first place, do not suppress the report.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. Both @custos-ignore XmlReaderAttributeCursorNotRestored and @noinspection XmlReaderAttributeCursorNotRestored suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- Both @custos-ignore XmlReaderAttributeCursorNotRestored and @noinspection XmlReaderAttributeCursorNotRestored suppress this native rule.
 
 ## Fix
 

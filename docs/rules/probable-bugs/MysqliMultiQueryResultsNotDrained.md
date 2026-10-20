@@ -6,7 +6,7 @@ title: MysqliMultiQueryResultsNotDrained
 
 # MysqliMultiQueryResultsNotDrained
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,15 +14,15 @@ Identify query on same resolved mysqli after successful multi_query containing a
 
 ## Detection
 
-- D1. Report query on same resolved mysqli after successful multi_query containing at least two known statements, before a complete more_results/next_result drain loop. Unknown calls invalidate proof; first result alone does not drain subsequent results.
-- D1a. A complete drain is a `while` or `do`-`while` loop, placed after the `multi_query` and ending before the reported query, whose condition is decided by `more_results()` or `next_result()` on the same connection (the call alone, parenthesised, or as an operand of `&&`) and which calls `next_result()` on that connection in its condition or body. This covers `do { ... } while ($db->next_result());`, `do { ... } while ($db->more_results() && $db->next_result());`, `while ($db->next_result()) { ... }` and `while ($db->more_results()) { $db->next_result(); }`. A negated, compared or `||`-combined probe, a probe on another connection, a `for`/`if` condition, and a loop that still contains the reported query are not a drain.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report query on same resolved mysqli after successful multi_query containing at least two known statements, before a complete more_results/next_result drain loop. Unknown calls invalidate proof; first result alone does not drain subsequent results.
+- A complete drain is a `while` or `do`-`while` loop, placed after the `multi_query` and ending before the reported query, whose condition is decided by `more_results()` or `next_result()` on the same connection (the call alone, parenthesised, or as an operand of `&&`) and which calls `next_result()` on that connection in its condition or body. This covers `do { ... } while ($db->next_result());`, `do { ... } while ($db->more_results() && $db->next_result());`, `while ($db->next_result()) { ... }` and `while ($db->more_results()) { $db->next_result(); }`. A negated, compared or `||`-combined probe, a probe on another connection, a `for`/`if` condition, and a loop that still contains the reported query are not a drain.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore MysqliMultiQueryResultsNotDrained` and `@noinspection MysqliMultiQueryResultsNotDrained` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore MysqliMultiQueryResultsNotDrained` and `@noinspection MysqliMultiQueryResultsNotDrained` suppress this native rule.
 
 ## Fix
 

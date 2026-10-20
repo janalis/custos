@@ -6,7 +6,7 @@ title: ArraySliceDiscardsRequiredKeys
 
 # ArraySliceDiscardsRequiredKeys
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. Resolved array_slice has absent/false preserve_keys, a literal array with an explicitly written nonzero integer key in the retained slice, and a subsequent result access uses that original key that is absent after reindexing.
-- D1a. The initial supported downstream proof is a single immediately following echo of the absent original numeric key. Input array keys must all be explicit known integers.
-- D1e. All literal numeric input keys must be known and unique after PHP key normalization. Duplicate or unknown keys are excluded: overwriting can change the effective length and selected slice positions, so original literal item positions cannot establish the retained-key proof.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved array_slice has absent/false preserve_keys, a literal array with an explicitly written nonzero integer key in the retained slice, and a subsequent result access uses that original key that is absent after reindexing.
+- The initial supported downstream proof is a single immediately following echo of the absent original numeric key. Input array keys must all be explicit known integers.
+- All literal numeric input keys must be known and unique after PHP key normalization. Duplicate or unknown keys are excluded: overwriting can change the effective length and selected slice positions, so original literal item positions cannot establish the retained-key proof.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

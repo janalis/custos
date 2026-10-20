@@ -19,10 +19,10 @@ it once into a local variable.
 - **D1** A `for` or `foreach` statement whose body is a statement block (the
   `{ ... }` block; the statement list of the alternative `: ... endfor;` /
   `endforeach;` syntax counts as a block too). A loop whose body is a single
-  braceless statement is not analysed.
+  braceless statement is not analyzed.
 - **D2** Each **direct** statement of that block is examined (statements
   nested in `if`, inner blocks, inner loops, … are not examined from this
-  loop; inner loops are analysed on their own). The statement must be an
+  loop; inner loops are analyzed on their own). The statement must be an
   expression statement whose expression, after removing any enclosing
   parentheses (`($m[f()] = f());`), is an assignment (plain `=`, `= &`,
   or compound `.=`, `+=`, … ) with a right-hand side, and whose left side is

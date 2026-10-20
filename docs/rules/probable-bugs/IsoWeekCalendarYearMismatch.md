@@ -6,7 +6,7 @@ title: IsoWeekCalendarYearMismatch
 
 # IsoWeekCalendarYearMismatch
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -36,14 +36,14 @@ Reported:
 
 ## Detection
 
-- D1. Report a date format literal containing unescaped Y and W in the same year-week label. The Y counts as a week label only when the format has no other part that belongs to the calendar year (see E1); otherwise Y is the correct year for that part and the format is left alone.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
+- Report a date format literal containing unescaped Y and W in the same year-week label. The Y counts as a week label only when the format has no other part that belongs to the calendar year (see E1); otherwise Y is the correct year for that part and the format is left alone.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is enabled, with positive proof required.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases, recursion or analysis-budget exhaustion cannot establish definite facts.
 
 ## Exceptions (no report)
 
 - E1. Escaped tokens and formats already using the ISO week-year o are excluded. So is any format with an unescaped calendar-dependent token: a month (`m`, `n`, `F`, `M`), a day of the month (`d`, `j`), the day of the year (`z`), the month length (`t`), the leap-year flag (`L`), or a composite date (`c`, `r`, `U`). There Y labels the month, day or full date, and swapping it for o would print that part with the wrong year, as in `F Y, \w\e\e\k W`, `Y-m W`, `Y/z W` or `c W Y`. Weekday tokens (`D`, `l`, `N`, `w`), time and timezone tokens do not exclude the format.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

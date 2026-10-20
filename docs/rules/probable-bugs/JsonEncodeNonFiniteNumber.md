@@ -6,7 +6,7 @@ title: JsonEncodeNonFiniteNumber
 
 # JsonEncodeNonFiniteNumber
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,15 +14,15 @@ Identify json_encode with proven NAN, INF or -INF reachable in a known value tre
 
 ## Detection
 
-- D1. Report json_encode with proven NAN, INF or -INF reachable in a known value tree, unless JSON_PARTIAL_OUTPUT_ON_ERROR explicitly permits replacement.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report json_encode with proven NAN, INF or -INF reachable in a known value tree, unless JSON_PARTIAL_OUTPUT_ON_ERROR explicitly permits replacement.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. A tracked variable is not trusted when its scope, anywhere and regardless of statement order, iterates it with a by-reference `foreach`, uses it (or one of its offsets) as a `foreach` key or value target, captures it by reference in a closure, or calls `extract()`. Such code can replace every non-finite entry before the call, so the initial literal no longer proves the encoded value.
-- E3. Both `@custos-ignore JsonEncodeNonFiniteNumber` and `@noinspection JsonEncodeNonFiniteNumber` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- A tracked variable is not trusted when its scope, anywhere and regardless of statement order, iterates it with a by-reference `foreach`, uses it (or one of its offsets) as a `foreach` key or value target, captures it by reference in a closure, or calls `extract()`. Such code can replace every non-finite entry before the call, so the initial literal no longer proves the encoded value.
+- Both `@custos-ignore JsonEncodeNonFiniteNumber` and `@noinspection JsonEncodeNonFiniteNumber` suppress this native rule.
 
 ## Fix
 

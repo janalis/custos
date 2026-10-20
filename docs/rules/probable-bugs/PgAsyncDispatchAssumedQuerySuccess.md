@@ -6,7 +6,7 @@ title: PgAsyncDispatchAssumedQuerySuccess
 
 # PgAsyncDispatchAssumedQuerySuccess
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,17 +29,17 @@ Reported:
 
 ## Detection
 
-This is an opt-in policy. Truthiness, previous-state checks, raw wait-status comparisons and dispatch acknowledgements can be intentional; enabling this inspection requests explicit handling of the contract described below.
+This is an opt-in policy. Truthiness, previous-state checks, raw wait-status comparisons and dispatch acknowledgements can be intentional; enabling this rule requests explicit handling of the contract described below.
 
 - D1. A pg_send_query or pg_send_query_params boolean success condition directly returns true, a literal success string, or calls a success-output sink without retrieving pg_get_result and checking pg_result_status first. Initial sinks are return true and echo literal text. Ordinary queue bookkeeping is excluded. The sink is the first statement the condition guards, whatever the branch syntax: a braced body, an alternative-syntax body (`if: ... endif;`) or a single statement without braces are equivalent.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. An empty guarded body, or one whose first statement is anything other than an initial sink of D1, is not reported.
-- E3. Both @custos-ignore PgAsyncDispatchAssumedQuerySuccess and @noinspection PgAsyncDispatchAssumedQuerySuccess suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- An empty guarded body, or one whose first statement is anything other than an initial sink of D1, is not reported.
+- Both @custos-ignore PgAsyncDispatchAssumedQuerySuccess and @noinspection PgAsyncDispatchAssumedQuerySuccess suppress this native rule.
 
 ## Fix
 

@@ -40,7 +40,7 @@ class Garage {
             $this->lookup() ?? null,
             strrev($label) ?? NULL,
             $this->engine ?? 'none',
-            $n ?? 'n/a',                    // scalar placeholder (D5a)
+            $n ?? 'n/a',                    // scalar placeholder
             $this->engine ?? null,
             $label ?? null,
             $t ?? $e,
@@ -72,7 +72,7 @@ class Garage {
             $this->lookup(),
             strrev($label),
             $this->engine ?? 'none',
-            $n ?? 'n/a',                    // scalar placeholder (D5a)
+            $n ?? 'n/a',                    // scalar placeholder
             $this->engine ?? null,
             $label ?? null,
             $t ?? $e,

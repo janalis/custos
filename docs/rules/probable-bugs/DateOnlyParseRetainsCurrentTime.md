@@ -6,7 +6,7 @@ title: DateOnlyParseRetainsCurrentTime
 
 # DateOnlyParseRetainsCurrentTime
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="tip" text="quick-fix" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -36,15 +36,15 @@ Reported:
 
 ## Detection
 
-- D1. Report DateTime or DateTimeImmutable createFromFormat with a format containing calendar-date tokens but no time tokens or reset modifiers.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- Report DateTime or DateTimeImmutable createFromFormat with a format containing calendar-date tokens but no time tokens or reset modifiers.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Formats containing ! or resetting unspecified fields with a trailing vertical-bar modifier, intentional current-time completion and unknown formats are excluded.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
-- E3. No report when the createFromFormat call (optionally parenthesised) is the direct receiver of a `->setTime(...)` or `?->setTime(...)` call: that call overwrites every omitted time field, so the current time is never kept. Only the immediate receiver counts; a later `setTime` statement on a variable and a chained `format()` are not tracked.
+- Formats containing ! or resetting unspecified fields with a trailing vertical-bar modifier, intentional current-time completion and unknown formats are excluded.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- No report when the createFromFormat call (optionally parenthesised) is the direct receiver of a `->setTime(...)` or `?->setTime(...)` call: that call overwrites every omitted time field, so the current time is never kept. Only the immediate receiver counts; a later `setTime` statement on a variable and a chained `format()` are not tracked.
 
 ## Fix
 

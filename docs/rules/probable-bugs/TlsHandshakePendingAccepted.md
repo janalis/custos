@@ -6,7 +6,7 @@ title: TlsHandshakePendingAccepted
 
 # TlsHandshakePendingAccepted
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,15 +14,15 @@ Identify stream_socket_enable_crypto result tested only !== false and followed b
 
 ## Detection
 
-- D1. Report stream_socket_enable_crypto result tested only !== false and followed by fwrite in accepted branch, with same stream proven nonblocking through successful stream_set_blocking(false). Only true confirms established handshake.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
-- D4. The write must sit in the accepted branch itself, outside nested conditionals, loops, `switch`, `try` and nested functions, and before any completion guard (E3). Switching the stream back to blocking mode does not finish a pending handshake, so it never clears the finding on its own.
+- Report stream_socket_enable_crypto result tested only !== false and followed by fwrite in accepted branch, with same stream proven nonblocking through successful stream_set_blocking(false). Only true confirms established handshake.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- The write must sit in the accepted branch itself, outside nested conditionals, loops, `switch`, `try` and nested functions, and before any completion guard (E3). Switching the stream back to blocking mode does not finish a pending handshake, so it never clears the finding on its own.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore TlsHandshakePendingAccepted` and `@noinspection TlsHandshakePendingAccepted` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore TlsHandshakePendingAccepted` and `@noinspection TlsHandshakePendingAccepted` suppress this native rule.
 - E3. A write placed after a completion guard is not reported. A completion guard is a test, written before the write in the accepted branch, proving that a further `stream_socket_enable_crypto` call on the same stream with a literal truthy `enable` argument returned `true` on every path to the write: `if (<handshake> !== true) { ... }` whose body always leaves (return, throw, exit, break, continue), `!<handshake>` and `<handshake> != true` (each rejects both `false` and the pending `0`), `<handshake> === true or exit;`, the body of `if (<handshake> === true)`, or any of these on a variable holding the result while it is not reassigned. A test of `=== false` or `!== false`, a guard whose body can fall through, a guard on another stream or with a non-literal or falsy `enable` argument prove nothing. Writes located before the guard are still reported.
 
 ## Fix

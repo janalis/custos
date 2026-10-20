@@ -82,12 +82,12 @@ function makeHandlers(ArrayObject $registry, array $plain, string $template)
 {
     $store = new SplObjectStorage();
     $register = function ($name) use ($registry, $plain, $store) {
-        $registry[$name] = true;          // E5b: object import, the write is visible
-        $store[] = $name;                 // E5b: inferred SplObjectStorage
+        $registry[$name] = true;          // object import, the write is visible
+        $store[] = $name;                 // inferred SplObjectStorage
         $plain[$name] = true;
     };
     $render = function () use ($template, $registry) {
-        require __DIR__ . '/view.php';    // E5c: the view may read $template and $registry
+        require __DIR__ . '/view.php';    // the view may read $template and $registry
     };
     $noop = function () use ($template) {
         $inner = function () { include 'x.php'; };   // nested closure: its include does not count

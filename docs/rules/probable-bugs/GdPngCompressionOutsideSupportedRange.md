@@ -6,7 +6,7 @@ title: GdPngCompressionOutsideSupportedRange
 
 # GdPngCompressionOutsideSupportedRange
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,15 +14,15 @@ Identify imagepng quality argument known integer outside -1 through9; -1 is the 
 
 ## Detection
 
-- D1. Report imagepng quality argument known integer outside -1 through9; -1 is the supported default sentinel.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report imagepng quality argument known integer outside -1 through9; -1 is the supported default sentinel.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. A level read from a local variable is not proven when that variable, or a variable it was assigned from, can change without a plain assignment anywhere in the scope of the call: it is incremented or decremented (`$level--`), captured by reference by a closure, stored by reference in an array item, passed directly to a call that is not a resolved function or that binds a by-reference parameter, or the scope calls `extract()`. Passing it by value to a resolved function keeps the proof.
-- E3. Both `@custos-ignore GdPngCompressionOutsideSupportedRange` and `@noinspection GdPngCompressionOutsideSupportedRange` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- A level read from a local variable is not proven when that variable, or a variable it was assigned from, can change without a plain assignment anywhere in the scope of the call: it is incremented or decremented (`$level--`), captured by reference by a closure, stored by reference in an array item, passed directly to a call that is not a resolved function or that binds a by-reference parameter, or the scope calls `extract()`. Passing it by value to a resolved function keeps the proof.
+- Both `@custos-ignore GdPngCompressionOutsideSupportedRange` and `@noinspection GdPngCompressionOutsideSupportedRange` suppress this native rule.
 
 ## Fix
 

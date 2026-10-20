@@ -6,7 +6,7 @@ title: ByteLengthUsedAsCharacterCount
 
 # ByteLengthUsedAsCharacterCount
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Report strlen of a literal non-ASCII valid UTF-8 string under an explicitly enabled Unicode character-count contract.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- Report strlen of a literal non-ASCII valid UTF-8 string under an explicitly enabled Unicode character-count contract.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. ASCII literals and operands of unknown encoding (anything that is not a known literal string, or a literal that is not valid UTF-8) are excluded.
-- E3. Byte-length use in protocol/storage operations is excluded: no report when the `strlen` result is passed as an argument to a resolved builtin whose offsets, lengths or sizes are counted in bytes. The recognised consumers are `substr`, `substr_replace`, `substr_count`, `substr_compare`, `mb_strcut`, `strpos`, `stripos`, `strrpos`, `strripos`, `strncmp`, `strncasecmp`, `str_pad`, `pack`, `fread`, `fwrite`, `fputs`, `fgets`, `fseek`, `ftruncate`, `stream_get_contents`, `stream_copy_to_stream`, `file_get_contents`, `socket_read`, `socket_write`, `socket_send` and `socket_recv`. The result may reach the argument through parentheses, unary minus and `+`, `-` or `*` arithmetic (`substr($s, -strlen('é'))`, `fseek($h, strlen('é') + 4)`). Any other route (a variable, concatenation, comparison, a user function or a same-named namespaced function) keeps the report.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- ASCII literals and operands of unknown encoding (anything that is not a known literal string, or a literal that is not valid UTF-8) are excluded.
+- Byte-length use in protocol/storage operations is excluded: no report when the `strlen` result is passed as an argument to a resolved builtin whose offsets, lengths or sizes are counted in bytes. The recognized consumers are `substr`, `substr_replace`, `substr_count`, `substr_compare`, `mb_strcut`, `strpos`, `stripos`, `strrpos`, `strripos`, `strncmp`, `strncasecmp`, `str_pad`, `pack`, `fread`, `fwrite`, `fputs`, `fgets`, `fseek`, `ftruncate`, `stream_get_contents`, `stream_copy_to_stream`, `file_get_contents`, `socket_read`, `socket_write`, `socket_send` and `socket_recv`. The result may reach the argument through parentheses, unary minus and `+`, `-` or `*` arithmetic (`substr($s, -strlen('é'))`, `fseek($h, strlen('é') + 4)`). Any other route (a variable, concatenation, comparison, a user function or a same-named namespaced function) keeps the report.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

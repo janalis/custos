@@ -150,7 +150,7 @@ class Widget extends Base {
 
 ## Divergences
 
-- **Keyword case (custos diverges).** Upstream recognises only the
+- **Keyword case (custos diverges).** Upstream recognizes only the
   lower-case text `parent`, so `PARENT::render()` in a static closure is
   missed although PHP treats it as the same keyword and the call fails the
   same way. custos compares it case-insensitively (D4b).

@@ -176,7 +176,7 @@ function throwDice($sides)
   `mt_rand`, `mt_rand(...$a, ...$b)` is not reported.
 - **No automatic rename to `random_int` (custos diverges).** Upstream
   rewrites `rand(a, b)` / `mt_rand(a, b)` to `random_int(a, b)`. That changes
-  behaviour for seeded generators (F2), so custos only reports.
+  behavior for seeded generators (F2), so custos only reports.
 - **Reversed literal bounds (custos diverges).** Upstream renames
   `rand(10, 1)` to `mt_rand(10, 1)`, which throws on PHP 8; custos reports
   without a fix (F3).

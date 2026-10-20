@@ -6,7 +6,7 @@ title: AuthenticationCookieAllowsScriptAccess
 
 # AuthenticationCookieAllowsScriptAccess
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Security](/rules/#security)
 
@@ -31,16 +31,16 @@ Reported:
 
 ## Detection
 
-- D1. Resolved setcookie/setrawcookie has a configured authentication cookie name (default auth_token) and an explicit false httponly, given either in a literal options array or as the legacy positional/named `httponly` argument. Missing httponly is excluded in initial contract to avoid policy ambiguity.
+- Resolved setcookie/setrawcookie has a configured authentication cookie name (default auth_token) and an explicit false httponly, given either in a literal options array or as the legacy positional/named `httponly` argument. Missing httponly is excluded in initial contract to avoid policy ambiguity.
   - Options array: the third argument is a literal array whose keys are all known. Option names are matched case-insensitively, as PHP does (`"HttpOnly"`, `"HTTPONLY"`); when several spellings are present the element that comes last in array order decides.
   - Legacy argument: whenever the third argument is not a literal array, an explicit `httponly` argument decides, whatever the expiry expression is (`0`, `time() + 3600`, a variable, a call). PHP refuses to combine an options array with the legacy arguments, so their presence proves the legacy signature.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 
@@ -54,7 +54,7 @@ Available throughout supported PHP 5.3–8.5 where the referenced builtin/extens
 
 | Option | Type | Default | Effect |
 | --- | --- | --- | --- |
-| authenticationCookies | list | `["auth_token"]` | Configure the explicit policy evidence described in D1. |
+| authenticationCookies | list | `["auth_token"]` | Names of the cookies that carry authentication; only these are checked. |
 
 ## Configure
 

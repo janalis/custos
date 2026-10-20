@@ -6,7 +6,7 @@ title: JsonEncodeKnownRecursiveValue
 
 # JsonEncodeKnownRecursiveValue
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,18 +14,18 @@ Identify json_encode of a local array whose reference assignments prove a cycle 
 
 ## Detection
 
-- D1. Report json_encode of a local array whose reference assignments prove a cycle reachable from encoded root. JSON_PARTIAL_OUTPUT_ON_ERROR explicitly permits replacement and excludes.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
-- D4. The reference graph is built only from assignments that execute on every path before the call: `$v = <array literal>` starts an array, and `$v[<constant key>] = &$w` between two such arrays adds an edge. Assigning a plain variable discards its edges; rebinding a slot by reference replaces that edge. An expression that encloses the call (for example the assignment receiving the encoded string) completes after it and does not affect the proof.
+- Report json_encode of a local array whose reference assignments prove a cycle reachable from encoded root. JSON_PARTIAL_OUTPUT_ON_ERROR explicitly permits replacement and excludes.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- The reference graph is built only from assignments that execute on every path before the call: `$v = <array literal>` starts an array, and `$v[<constant key>] = &$w` between two such arrays adds an edge. Assigning a plain variable discards its edges; rebinding a slot by reference replaces that edge. An expression that encloses the call (for example the assignment receiving the encoded string) completes after it and does not affect the proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. Both `@custos-ignore JsonEncodeKnownRecursiveValue` and `@noinspection JsonEncodeKnownRecursiveValue` suppress this native rule.
-- E3. A plain (non-reference) write to a slot that currently holds a reference edge writes through to the referenced variable, so the proof is dropped.
-- E4. Any other appearance of a graph variable before the call drops the proof: destructuring (`[$a] = ...`, `list(...)`) and `foreach` targets or keys, increments and decrements, aliases and copies (`$c = &$a`, `$c = $a`), `global`, nested or dynamic-key slot writes, and reads in any other expression.
-- E5. Constructs whose effect on local variables is unknown drop the proof when they precede the call in the same scope: function, method and static calls, `new`, `unset`, `include`/`require`, `eval` and variable variables (`$$name`).
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- Both `@custos-ignore JsonEncodeKnownRecursiveValue` and `@noinspection JsonEncodeKnownRecursiveValue` suppress this native rule.
+- A plain (non-reference) write to a slot that currently holds a reference edge writes through to the referenced variable, so the proof is dropped.
+- Any other appearance of a graph variable before the call drops the proof: destructuring (`[$a] = ...`, `list(...)`) and `foreach` targets or keys, increments and decrements, aliases and copies (`$c = &$a`, `$c = $a`), `global`, nested or dynamic-key slot writes, and reads in any other expression.
+- Constructs whose effect on local variables is unknown drop the proof when they precede the call in the same scope: function, method and static calls, `new`, `unset`, `include`/`require`, `eval` and variable variables (`$$name`).
 
 ## Fix
 

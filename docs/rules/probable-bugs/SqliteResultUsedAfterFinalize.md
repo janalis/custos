@@ -6,7 +6,7 @@ title: SqliteResultUsedAfterFinalize
 
 # SqliteResultUsedAfterFinalize
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,16 +29,16 @@ Reported:
 
 ## Detection
 
-- D1. After SQLite3Result finalize on a proven local receiver, fetchArray, reset, columnName, columnType or numColumns is called on that same result without reassignment. Report the invalid use. finalize cannot fail, so its return value does not have to be tested. Two shapes prove that finalize ran first: a finalize call in an expression statement of the same or an enclosing statement list that always executes before the use, including when its result is stored (`$ok = $r->finalize();`); or a use inside the body of an `if` whose condition is the finalize call itself or its comparison with `true` (`==` or `===`, either operand order).
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- After SQLite3Result finalize on a proven local receiver, fetchArray, reset, columnName, columnType or numColumns is called on that same result without reassignment. Report the invalid use. finalize cannot fail, so its return value does not have to be tested. Two shapes prove that finalize ran first: a finalize call in an expression statement of the same or an enclosing statement list that always executes before the use, including when its result is stored (`$ok = $r->finalize();`); or a use inside the body of an `if` whose condition is the finalize call itself or its comparison with `true` (`==` or `===`, either operand order).
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. A finalize call that may be skipped proves nothing: one inside a conditional statement that does not contain the use, on the right of a short-circuit or null-coalescing operator, in a ternary branch, in a `match` arm, in the arguments, array key or dynamic member name of a null-safe chain, in a `try` block that the use follows, or in a nested closure.
-- E3. No report when the receiver is a by-reference parameter: any call can replace the result behind it.
-- E4. Both @custos-ignore SqliteResultUsedAfterFinalize and @noinspection SqliteResultUsedAfterFinalize suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- A finalize call that may be skipped proves nothing: one inside a conditional statement that does not contain the use, on the right of a short-circuit or null-coalescing operator, in a ternary branch, in a `match` arm, in the arguments, array key or dynamic member name of a null-safe chain, in a `try` block that the use follows, or in a nested closure.
+- No report when the receiver is a by-reference parameter: any call can replace the result behind it.
+- Both @custos-ignore SqliteResultUsedAfterFinalize and @noinspection SqliteResultUsedAfterFinalize suppress this native rule.
 
 ## Fix
 

@@ -6,7 +6,7 @@ title: SplFixedArrayShrinkDiscardsValues
 
 # SplFixedArrayShrinkDiscardsValues
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 5.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,17 +29,16 @@ Reported:
 
 ## Detection
 
-- D1. Enabled policy forbids discarding populated fixed-array slots. Track known size and assigned slots of builtin SplFixedArray; report setSize with smaller nonnegative literal size when at least one populated slot is outside the new bounds. A null value still counts as populated when assignment is proven.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
-- D4. `offsetSet` with a literal index populates that slot and `offsetUnset` with a literal index releases it, exactly like the bracket forms; writes and releases are applied in source order, so a slot refilled after its release is populated again. An earlier `setSize` on the same array already dropped the slots past its bound.
+- Enabled policy forbids discarding populated fixed-array slots. Track known size and assigned slots of builtin SplFixedArray; report setSize with smaller nonnegative literal size when at least one populated slot is outside the new bounds. A null value still counts as populated when assignment is proven.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- `offsetSet` with a literal index populates that slot and `offsetUnset` with a literal index releases it, exactly like the bracket forms; writes and releases are applied in source order, so a slot refilled after its release is populated again. An earlier `setSize` on the same array already dropped the slots past its bound.
 
 ## Exceptions (no report)
 
-- E1. Fresh unpopulated arrays, explicit unset of all discarded slots, enlargement, unchanged size and unknown occupancy are excluded.
-- E3. Occupancy is unknown, and nothing is reported, when before the shrink the array variable is captured by a closure or read inside an arrow function, copied or bound by reference to another variable, stored in a container, passed to a call other than the inspecting builtins `count`, `sizeof`, `iterator_count`, `iterator_to_array`, `var_dump`, `print_r` and `var_export`, used with a method other than `setSize`, `offsetSet`, `offsetUnset` and the read-only accessors (`getSize`, `offsetGet`, `offsetExists`, `toArray`, `count`, `jsonSerialize`, `getIterator` and the iterator methods), or released with a non-literal index or on only some paths (`unset` or `offsetUnset` inside a branch, a conditional earlier `setSize`). Reading a slot, cloning the array and iterating with `foreach` keep the occupancy known.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore SplFixedArrayShrinkDiscardsValues` and `@noinspection SplFixedArrayShrinkDiscardsValues` suppress this inspection.
-- E3. When `fromArray` is given a `preserveKeys` value that is not a known boolean, or one through an unpacked argument, the populated entries are unknown: no report.
+- Fresh unpopulated arrays, explicit unset of all discarded slots, enlargement, unchanged size and unknown occupancy are excluded.
+- Occupancy is unknown, and nothing is reported, when before the shrink the array variable is captured by a closure or read inside an arrow function, copied or bound by reference to another variable, stored in a container, passed to a call other than the inspecting builtins `count`, `sizeof`, `iterator_count`, `iterator_to_array`, `var_dump`, `print_r` and `var_export`, used with a method other than `setSize`, `offsetSet`, `offsetUnset` and the read-only accessors (`getSize`, `offsetGet`, `offsetExists`, `toArray`, `count`, `jsonSerialize`, `getIterator` and the iterator methods), or released with a non-literal index or on only some paths (`unset` or `offsetUnset` inside a branch, a conditional earlier `setSize`). Reading a slot, cloning the array and iterating with `foreach` keep the occupancy known.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
+- When `fromArray` is given a `preserveKeys` value that is not a known boolean, or one through an unpacked argument, the populated entries are unknown: no report.
 
 ## Fix
 
@@ -49,7 +48,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Minimum PHP 5.3. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
+Minimum PHP 5.3.
 
 ## Options
 

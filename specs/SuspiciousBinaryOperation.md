@@ -176,7 +176,7 @@ with a strike-through style, but its severity is still error).
 - **F1 (D4)** Replace the whole `!(...)` expression with `R`
   (`!(($cnt <= 3))` → `$cnt > 3`).
   - *Grouping.* `R` is written as `(R)` when dropping the `!(...)` group
-    would let a neighbour regroup it: the `!` expression is the operand of a
+    would let a neighbor regroup it: the `!` expression is the operand of a
     unary operator or cast, or of a binary operator other
     than `&&`, `||`, `and`, `or`, `xor`, `??`, `&`, `|`, `^`
     (`(int) !($n < 10)` → `(int) ($n >= 10)`, `!($n < 10) > $x` →
@@ -214,8 +214,8 @@ with a strike-through style, but its severity is still error).
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| `VERIFY_CONSTANTS_IN_CONDITIONS` | bool | `true` | Enables D9. |
-| `VERIFY_UNCLEAR_OPERATIONS_PRIORITIES` | bool | `true` | Enables D10. |
+| `VERIFY_CONSTANTS_IN_CONDITIONS` | bool | `true` | Reports hard-coded boolean operands in conditions. |
+| `VERIFY_UNCLEAR_OPERATIONS_PRIORITIES` | bool | `true` | Reports operations whose precedence is unclear without parentheses. |
 
 ## PHP versions
 
@@ -339,13 +339,13 @@ if ((!$x) < $y) {}
   return value is what `$b` should be compared to. custos treats an empty
   set as "no evidence" and stays silent; a right operand with a known type
   still needs every type to be among the callee's return types.
-- F5 whitespace removal: upstream's formatter may also normalise other
+- F5 whitespace removal: upstream's formatter may also normalize other
   spacing in the generated node; only the space after `!` is observable in
   fixtures. custos keeps the rest verbatim.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **Operands that may vary (custos diverges from D5).** Two identical
   operands are not "the same" when evaluating them twice may give different

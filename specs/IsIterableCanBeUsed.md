@@ -96,7 +96,7 @@ nested parentheses of the same `||` chain.
     twice is not provably equivalent).
   - The matching `instanceof` (subject the same plain variable, class
     resolving to `\Traversable`, optionally parenthesised) is the direct
-    neighbour of the call in the `||` chain, in either order:
+    neighbor of the call in the `||` chain, in either order:
     `is_array($v) || $v instanceof T`, `$v instanceof T || is_array($v)`,
     and the same two as the tail or middle of a longer unparenthesised chain
     (`$x || is_array($v) || $v instanceof T`,
@@ -177,7 +177,7 @@ function walkAll($bag, $other) {
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **Unstable operands (custos diverges).** Upstream only compares the two
   operands for equivalence. custos does not report when the operand cannot

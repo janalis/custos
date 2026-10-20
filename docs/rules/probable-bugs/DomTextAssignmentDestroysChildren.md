@@ -6,7 +6,7 @@ title: DomTextAssignmentDestroysChildren
 
 # DomTextAssignmentDestroysChildren
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Assigning nodeValue or textContent on a proven DOMElement with existing element children is reported. Prove children through direct construction or literal loadXML. Enabling establishes child-preservation policy; text-only nodes and unknown children are excluded.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- Assigning nodeValue or textContent on a proven DOMElement with existing element children is reported. Prove children through direct construction or literal loadXML. Enabling establishes child-preservation policy; text-only nodes and unknown children are excluded.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E2. A child proven through a variable appended to the element stops counting once a later statement could move or remove that node: passing the variable to any call (including appending it to another parent), calling a method on it other than attribute accessors, hasChildNodes or appendChild, or any use other than reading or writing one of its properties. Rebinding the variable to a new value leaves the appended node in place and keeps the proof.
-- E3. Both @custos-ignore DomTextAssignmentDestroysChildren and @noinspection DomTextAssignmentDestroysChildren suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- A child proven through a variable appended to the element stops counting once a later statement could move or remove that node: passing the variable to any call (including appending it to another parent), calling a method on it other than attribute accessors, hasChildNodes or appendChild, or any use other than reading or writing one of its properties. Rebinding the variable to a new value leaves the appended node in place and keeps the proof.
+- Both @custos-ignore DomTextAssignmentDestroysChildren and @noinspection DomTextAssignmentDestroysChildren suppress this native rule.
 
 ## Fix
 

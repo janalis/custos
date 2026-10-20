@@ -58,7 +58,7 @@ Only the operators `&&` and `||` are concerned (the word operators `and` /
 
 At most one report is produced per chain root, even when it contains three or
 more qualifying constructs; the remaining ones are only seen after the fix is
-applied and the file re-analysed.
+applied and the file re-analyzed.
 
 ## Exceptions (no report)
 
@@ -119,7 +119,7 @@ applied and the file re-analysed.
     order of the other fragments is unchanged:
     `$ok && isset($a) && isset($b)` → `$ok && isset($a, $b)`.
   - Parentheses that grouped same-operator sub-chains are dropped; original
-    spacing between fragments is normalised to single spaces around the
+    spacing between fragments is normalized to single spaces around the
     operator; comments located between fragments are lost.
 
 ## Options
@@ -181,7 +181,7 @@ function probe(array $cfg, $row, $extra) {
   it.
 - **Reordering (custos diverges from upstream).** Upstream moves the merged
   construct to the front of the chain and accepts side-effecting fragments
-  between the hits. Both can change behaviour: fragments before the first hit
+  between the hits. Both can change behavior: fragments before the first hit
   (`load($o) && isset($a) && isset($b)`) would no longer run first, and a
   call or assignment between the hits could be skipped or could change what
   the moved check sees. custos keeps the merged construct at the first hit's

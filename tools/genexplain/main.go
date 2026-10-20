@@ -42,7 +42,7 @@ func run(root string, stdout, stderr io.Writer) int {
 		}
 		md := string(b)
 		phpMin, phpMax := specmd.PHP(md)
-		d := desc{PHPMin: phpMin, PHPMax: phpMax, Summary: specmd.Section(md, "Summary"), Options: specmd.Section(md, "Options"), Fix: hasRealFix(root, id)}
+		d := desc{PHPMin: phpMin, PHPMax: phpMax, Summary: specmd.Readable(specmd.Section(md, "Summary"), nil), Options: specmd.Readable(specmd.Section(md, "Options"), nil), Fix: hasRealFix(root, id)}
 		if strings.EqualFold(strings.Trim(d.Options, ". "), "none") {
 			d.Options = ""
 		}

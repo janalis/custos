@@ -79,7 +79,7 @@ an encoding argument is explicit.
 - **E1** (none — top-level code is reported too, see D2.)
 - **E2** Yoda-ordered threshold comparisons `1 > strlen($s)`,
   `1 <= strlen($s)`, `0 < strlen($s)`: only the forms in D3/D4 with `L` on
-  the left are recognised.
+  the left are recognized.
 - **E3** Other thresholds or number spellings: `strlen($s) > 1`,
   `strlen($s) == 1`, `strlen($s) >= 0`, `strlen($s) === 0.0`,
   `strlen($s) == '0'` (string, not a number literal), comparisons with a
@@ -107,7 +107,7 @@ an encoding argument is explicit.
 - **F1** Replace the target with a comparison:
   - operator `{op}` = `===` when empty is true, `!==` otherwise;
   - operand `{v}` = `A`'s source text verbatim, prefixed with `(string)`
-    (**no space** after the cast — upstream's formatter normalises it, and
+    (**no space** after the cast — upstream's formatter normalizes it, and
     the fix output is compared whitespace-collapsed) unless `A` is a known
     string (see cast decision).
   - **F1a** Parenthesise `A` (custos diverges, see Divergences): with the

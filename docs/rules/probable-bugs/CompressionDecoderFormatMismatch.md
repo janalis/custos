@@ -6,7 +6,7 @@ title: CompressionDecoderFormatMismatch
 
 # CompressionDecoderFormatMismatch
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="tip" text="quick-fix" /> <Badge type="info" text="PHP ≥ 5.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. Compare resolved gzip/zlib/raw encoders and decoders through direct nesting or unchanged locals. Report gzencode input to gzuncompress/gzinflate, gzcompress input to gzdecode/gzinflate, or gzdeflate input to gzdecode/gzuncompress. Encoders with a third explicit format argument and manually transformed bytes remain unknown.
-- D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
+- Compare resolved gzip/zlib/raw encoders and decoders through direct nesting or unchanged locals. Report gzencode input to gzuncompress/gzinflate, gzcompress input to gzdecode/gzinflate, or gzdeflate input to gzdecode/gzuncompress. Encoders with a third explicit format argument and manually transformed bytes remain unknown.
+- Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape and unresolved calls that can mutate relevant state remove proof. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
 An explicit encoding argument stays unknown whether positional or named. An encoder called with unpacked arguments (`gzencode(...$args)`) is unknown too, because the spread may carry the encoding. A local captured by reference by a closure of the same scope (`use (&$bytes)`), or by the closure the decoder itself sits in, is unknown: calling the closure may replace the bytes. The same holds for a local assigned from such a variable (`$copy = $bytes;`). The replacement decoder must exist in the target version; gzdecode is unavailable on PHP 5.3, so that finding has no automatic fix.
 
-- E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
+- A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
 
 ## Fix
 

@@ -280,7 +280,7 @@ function relay(Relay $relay)
 - **Unstable variables in value discovery — custos refinement, not
   upstream.** Upstream ignores `++`/`--` and compound assignments when
   collecting a variable's values, so `$n = 0; … ++$n; mt_rand(1, $n)` is
-  analysed as if `$n` were always `0` (IncorrectRandomRange then reports
+  analyzed as if `$n` were always `0` (IncorrectRandomRange then reports
   min > max), and `$spec = 'P1D'; $spec .= 'T2H';` is checked as `'P1D'`
   (found on real code). custos makes such a variable's value set, and the
   whole discovery result, unknown; consumers stay silent. This affects every
@@ -293,7 +293,7 @@ function relay(Relay $relay)
   compound-assigned (PrintfScanfArguments' only such fixture expects no
   report), so conformance is unaffected.
 - Interpolated double-quoted strings (`"$cls::open"`) are string literals but
-  cannot describe a fixed callback; upstream behaviour unverified. custos
+  cannot describe a fixed callback; upstream behavior unverified. custos
   skips strings containing interpolation.
 - Keyed two-element arrays (`['c' => Shop::class, 'm' => 'open']`) are not
   valid callables; custos skips arrays with explicit keys.

@@ -23,10 +23,10 @@ The rule runs on every `foreach` statement `L`.
 ### Preconditions
 
 - **D1** `L` has a braced body (`{ … }`, a group statement). Bodies without
-  braces (`foreach ($a as $b) stmt;`) are not analysed.
+  braces (`foreach ($a as $b) stmt;`) are not analyzed.
 - **D2** If any direct child of the body is inline HTML (the body contains a
   `?> … <?php` section), the whole loop is skipped.
-- **D3** The *statements* analysed are the direct children of the body that are
+- **D3** The *statements* analyzed are the direct children of the body that are
   real statements/elements; comments and docblocks are ignored.
 
 ### Loop variables (seed of the "modified" set `M`)
@@ -165,7 +165,7 @@ None.
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). |
+| SUGGEST_USING_CLONE | bool | false | Reports object creation on every iteration. |
 
 ## PHP versions
 
@@ -198,26 +198,26 @@ foreach ($orders as $key => $order) {
         report($problem);
     }
 
-    echo '<br>';                        // E4: no variables
-    if ($stop) { return; }              // E3
-    $total += $order;                   // E2 + connected
+    echo '<br>';                        // no variables
+    if ($stop) { return; }              // leaves the loop
+    $total += $order;                   // assignment, connected
     $copy = clone $template;            // clone: never reported
     $sink[] = 'seen';                   // accumulate
-    $logger->push($order);              // D8a: $logger becomes modified
+    $logger->push($order);              // $logger becomes modified
     $logger->flush();                   // connected through $logger
-    preg_match('/x/', $order, $hits);   // D8b: $hits modified
+    preg_match('/x/', $order, $hits);   // $hits modified
     print_r($hits);                     // connected
-    $meta->touch(compact('key'));       // D11: depends on $key
+    $meta->touch(compact('key'));       // depends on $key
 }
 
 foreach ($groups as $group) {
     foreach ($group as $member) {
-        echo $group;                    // D4: outer loop variable
+        echo $group;                    // outer loop variable
     }
 }
 
 foreach ($rows as $row) {
-    ?><td><?= $title ?></td><?php       // E5: inline HTML, loop skipped
+    ?><td><?= $title ?></td><?php       // inline HTML, loop skipped
 }
 ```
 
@@ -242,7 +242,7 @@ foreach ($rows as $row) {
   bindings of the declaring statement (D6a): other statements using them are
   connected, while the declaring statement itself is still judged on its own
   dependencies.
-- **compact() matching (custos diverges):** upstream recognises only the
+- **compact() matching (custos diverges):** upstream recognizes only the
   exact spelling `compact` regardless of namespace, so `\COMPACT('key')`
   (which reads `$key`) left the statement reported as disconnected, while a
   user function `compact` declared in the current namespace (which cannot
@@ -264,7 +264,7 @@ foreach ($rows as $row) {
   reported: running them once before the loop changes the output or the
   values (PrestaShop writes one `.htaccess` header per shop; Matomo draws a
   random value per period). `error_log()` and `usleep()` keep the upstream
-  behaviour (upstream fixtures). Output is per-iteration too: statements
+  behavior (upstream fixtures). Output is per-iteration too: statements
   containing `echo` or `print`, or calling `printf`/`vprintf`/
   `var_dump`/`print_r`/`var_export`/`debug_zval_dump`/
   `debug_print_backtrace`, are not reported (Moodle prints

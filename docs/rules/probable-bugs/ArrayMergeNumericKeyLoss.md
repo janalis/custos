@@ -6,7 +6,7 @@ title: ArrayMergeNumericKeyLoss
 
 # ArrayMergeNumericKeyLoss
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -31,16 +31,16 @@ Reported:
 
 ## Detection
 
-- D1. Report array_merge with a literal array input holding an integer key that the merge provably moves to another index. Within one input, array_merge renumbers integer keys from zero in entry order: only integer-keyed entries take an index, so string-keyed items are skipped and a repeated key overwrites its earlier entry without taking a new one. An item without a key takes the next index. A key is renumbered when it differs from the index its entry receives: `['name' => 'x', 1 => 'y']` is reported (1 becomes 0), `['name' => 'x', 0 => 'y']` is not. Negative integer keys are always renumbered. Canonical decimal strings such as `"42"` are integer keys.
-- D1a. Each literal input is judged on its own; the offset added by earlier arguments is ignored, so concatenating lists is never reported.
-- D1b. An item whose key is not a known integer or string may or may not add an integer entry. After such an item, report only a key that is negative or greater than the highest index any resolution of the unknown keys could give it.
-- D2. Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
-- D3. For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
+- Report array_merge with a literal array input holding an integer key that the merge provably moves to another index. Within one input, array_merge renumbers integer keys from zero in entry order: only integer-keyed entries take an index, so string-keyed items are skipped and a repeated key overwrites its earlier entry without taking a new one. An item without a key takes the next index. A key is renumbered when it differs from the index its entry receives: `['name' => 'x', 1 => 'y']` is reported (1 becomes 0), `['name' => 'x', 0 => 'y']` is not. Negative integer keys are always renumbered. Canonical decimal strings such as `"42"` are integer keys.
+- Each literal input is judged on its own; the offset added by earlier arguments is ignored, so concatenating lists is never reported.
+- An item whose key is not a known integer or string may or may not add an integer entry. After such an item, report only a key that is negative or greater than the highest index any resolution of the unknown keys could give it.
+- Resolve builtin calls and named arguments before checking the contract. Project-local callees are considered only when their bodies or immutable summaries establish the required facts. The default is disabled; enable only when the stated intent matches the application.
+- For flow-dependent conditions, require a reachable source-to-use path with no intervening invalidation. Unknown calls, ambiguous aliases or recursion cannot establish definite facts. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report inputs whose integer keys already equal their renumbered indexes (lists, lists mixed with string keys, duplicate keys that collapse to a list) or string-only keys; do not guess that an unknown array holds identifiers. Arrays with spread or by-reference items are unknown.
-- E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- Do not report inputs whose integer keys already equal their renumbered indexes (lists, lists mixed with string keys, duplicate keys that collapse to a list) or string-only keys; do not guess that an unknown array holds identifiers. Arrays with spread or by-reference items are unknown.
+- Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
 

@@ -79,5 +79,5 @@ function poll($queue, $ready, $late) {
 
 - Alternative syntax (`while ($x): ; endwhile;`, `if ($x): ; endif;`): whether
   the `;` is a direct child of the construct depends on the parser's tree
-  shape; upstream behaviour unverified. custos does not report it (the
+  shape; upstream behavior unverified. custos does not report it (the
   statement list of alternative syntax is treated like a block).

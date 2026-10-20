@@ -11,9 +11,9 @@ php: { min: "", max: "" }
 ## Summary
 
 Appending to a local array (`$list[] = …`) deep inside nested loops without
-ever initialising it means the variable is undefined (`null`) when nothing is
+ever initializing it means the variable is undefined (`null`) when nothing is
 appended, and its contents leak between outer iterations if it is meant to be
-reset. The array should be initialised explicitly at the right place.
+reset. The array should be initialized explicitly at the right place.
 
 ## Detection
 
@@ -60,7 +60,7 @@ Each qualifying `X[]` access is reported independently.
   variable to the closing `]` of the empty brackets (`$v[$i][]`). The
   assigned value is not included.
 - Severity: warning.
-- Message: `Array '${name}' is never initialised; initialise it before the loops.`
+- Message: `Array '${name}' is never initialized; initialize it before the loops.`
 
 ## Fix
 
@@ -81,8 +81,8 @@ None.
 function collect(array $groups, $limit) {
     for ($n = 0; $n < $limit; ++$n) {
         do {
-            <warning descr="Array '$bucket' is never initialised; initialise it before the loops.">$bucket[]</warning> = $n;
-            <warning descr="Array '$bucket' is never initialised; initialise it before the loops.">$bucket[$n][]</warning> = $limit;
+            <warning descr="Array '$bucket' is never initialized; initialize it before the loops.">$bucket[]</warning> = $n;
+            <warning descr="Array '$bucket' is never initialized; initialize it before the loops.">$bucket[$n][]</warning> = $limit;
         } while (false);
     }
 
@@ -122,7 +122,7 @@ foreach ($a as $x) {
 - `global $name;` and `static $name = [];` declarations do not suppress the
   report upstream (only direct assignments/foreach headers do), which gives
   false positives. custos also treats `global`/`static` declarations of the
-  name as initialisation.
+  name as initialization.
 - Whether a variable inside a `list()`/`[...]` destructuring target counts as
   an assignment operand upstream is unverified. custos treats it as an
   assignment (no report).

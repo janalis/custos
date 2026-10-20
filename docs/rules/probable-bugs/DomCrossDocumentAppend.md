@@ -6,7 +6,7 @@ title: DomCrossDocumentAppend
 
 # DomCrossDocumentAppend
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. appendChild, insertBefore or replaceChild receives a node whose owner document is proven distinct from the destination owner document, from local DOMDocument allocations and createElement/createTextNode provenance. Imported, adopted or cloned nodes with correct owner provenance are excluded.
-- D1a. A node held in a variable takes the receiver of the latest preceding `adoptNode()` call as its owner when that call is a statement executed on every path to the operation and adopts that same node, whether or not its result is used. This applies to the destination receiver as well as to the inserted node, so a node adopted by a third document, or adopted away from the destination, is still reported.
-- D2. Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
-- D3. Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
+- appendChild, insertBefore or replaceChild receives a node whose owner document is proven distinct from the destination owner document, from local DOMDocument allocations and createElement/createTextNode provenance. Imported, adopted or cloned nodes with correct owner provenance are excluded.
+- A node held in a variable takes the receiver of the latest preceding `adoptNode()` call as its owner when that call is a statement executed on every path to the operation and adopts that same node, whether or not its result is used. This applies to the destination receiver as well as to the inserted node, so a node adopted by a third document, or adopted away from the destination, is still reported.
+- Resolve builtin functions, extension classes, constants and method receivers, including aliases and supported named arguments. Inspect reachable operations in one lexical scope with bounded local flow.
+- Emit one finding per violating operation. Never infer policy from names or comments. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
-- E1a. When the latest preceding `adoptNode()` call is conditional, adopts a different or unproven node (it may be an ancestor, whose whole subtree moves), or has a receiver without a proven document, the owner of a node variable is unknown and nothing is reported. Documents, `documentElement` and nodes created inline in the operation are unaffected by adoptions.
-- E2. Both @custos-ignore DomCrossDocumentAppend and @noinspection DomCrossDocumentAppend suppress this native rule.
+- Exclude shadowed or unresolved symbols, incomplete code, unknown required constants, ambiguous receiver identity and unsupported versions. Reassignment, escaping aliases, and unknown calls invalidate dependent flow facts.
+- When the latest preceding `adoptNode()` call is conditional, adopts a different or unproven node (it may be an ancestor, whose whole subtree moves), or has a receiver without a proven document, the owner of a node variable is unknown and nothing is reported. Documents, `documentElement` and nodes created inline in the operation are unaffected by adoptions.
+- Both @custos-ignore DomCrossDocumentAppend and @noinspection DomCrossDocumentAppend suppress this native rule.
 
 ## Fix
 

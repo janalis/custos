@@ -81,7 +81,7 @@ Visit every `else` branch `E` (the plain `else` keyword; an `else if (…)` is a
 - **F3** The two braced bodies (each including its `{` and `}`) are swapped:
   `P`'s body takes `E`'s former block and `E` takes `P`'s former block. Block
   contents are moved verbatim. Whitespace between `)` and `{` and between
-  `else` and `{` may be normalised to a single space (upstream does so);
+  `else` and `{` may be normalized to a single space (upstream does so);
   either form is accepted because fix output is compared
   whitespace-collapsed.
 - Other branches (`if` branch when `P` is an `elseif`, earlier `elseif`s) are

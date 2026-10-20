@@ -52,7 +52,7 @@ Applies to `foreach`, `for`, `while` and `do … while` loops `L`.
   literal name, and for one of the receiver's known classes the method found
   for `name` (own, inherited or imported from a trait) is a generator: its
   body holds a `yield` / `yield from` of its own (nested closures, functions
-  and classes do not count). A method declared in another file is recognised
+  and classes do not count). A method declared in another file is recognized
   through the body-derived return type kept by the project index. Such a
   call returns a `\Generator` even though inference leaves the type of an
   overridable method without return type unknown → no report.
@@ -160,14 +160,14 @@ while ($ok) break;
   the switch, so the loop still exits on its first pass. custos counts
   `switch` (D3): it reports such loops, and `continue 2;` in the switch
   exempts them.
-- Empty braced bodies are reported (D2); this is upstream behaviour, kept.
+- Empty braced bodies are reported (D2); this is upstream behavior, kept.
 - Traversable classes (custos diverges from upstream). Upstream exempts only
   the four exact type names `\Generator`, `\Traversable`, `\Iterator` and
   `iterable`, so taking the first element of a user collection implementing
   `\IteratorAggregate` (or of `\ArrayIterator`, `\PDOStatement`, …) is
   reported although it is the same legitimate idiom. custos exempts every
   type that is a subtype of `\Traversable` (D4).
-- Alternative syntax (`foreach (…): … endforeach;`): upstream behaviour
+- Alternative syntax (`foreach (…): … endforeach;`): upstream behavior
   depends on whether the parser exposes a group body. custos treats the
   statement list as the body.
 - **Empty `while`/`do`/`for` bodies (custos diverges).** Upstream reports
@@ -178,7 +178,7 @@ while ($ok) break;
 - **Empty bodies over objects (custos diverges).** An empty `foreach` body
   is still reported over known arrays, but not when the subject's type is
   unknown, `object`, `iterable`, `mixed` or a class: iterating may be done
-  for the iterator's side effects (Doctrine tests initialise lazy
+  for the iterator's side effects (Doctrine tests initialize lazy
   collections with `foreach ($user->groups as $g) {}`).
 - **`$this` in a trait (custos diverges, D4).** `foreach ($this as $el) {
   return false; }` inside a trait method tests the using class (a
@@ -190,4 +190,4 @@ while ($ok) break;
   unknown for an untyped method that may be overridden. custos also looks at
   the called method itself: when its body yields, the loop takes the first
   element of a generator and is not reported. Limits: trait and private
-  generator methods are only recognised when declared in the analysed file.
+  generator methods are only recognized when declared in the analyzed file.

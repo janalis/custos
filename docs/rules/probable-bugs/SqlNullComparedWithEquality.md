@@ -6,7 +6,7 @@ title: SqlNullComparedWithEquality
 
 # SqlNullComparedWithEquality
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,17 +27,17 @@ Reported:
 
 ## Detection
 
-- D1. Resolved PDO query/exec/prepare or mysqli query/prepare receives literal SQL containing unquoted = NULL, <> NULL, != NULL or NULL = expression inside a WHERE, HAVING or JOIN ON predicate, outside comments. Exclude UPDATE SET assignments, INSERT values, column defaults and expressions outside a proven predicate context. Highlight entire SQL argument. SQL lexer distinguishes strings/quoted identifiers/comments.
-- D1a. Predicate context is tracked per parenthesis level. An opening parenthesis inherits the context of the enclosing level; clause keywords met inside the parentheses (a subquery's SELECT/FROM, the FROM of EXTRACT(... FROM ...)) only change that inner level, and the closing parenthesis restores the enclosing one. A FROM that directly follows DISTINCT belongs to the IS [NOT] DISTINCT FROM operator and does not end the predicate.
-- D1b. The receiver's method is looked up without a target-version filter, so PDO::query() is recognised for every supported target version; an override declared in a user subclass is still not the builtin.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved PDO query/exec/prepare or mysqli query/prepare receives literal SQL containing unquoted = NULL, <> NULL, != NULL or NULL = expression inside a WHERE, HAVING or JOIN ON predicate, outside comments. Exclude UPDATE SET assignments, INSERT values, column defaults and expressions outside a proven predicate context. Highlight entire SQL argument. SQL lexer distinguishes strings/quoted identifiers/comments.
+- Predicate context is tracked per parenthesis level. An opening parenthesis inherits the context of the enclosing level; clause keywords met inside the parentheses (a subquery's SELECT/FROM, the FROM of EXTRACT(... FROM ...)) only change that inner level, and the closing parenthesis restores the enclosing one. A FROM that directly follows DISTINCT belongs to the IS [NOT] DISTINCT FROM operator and does not end the predicate.
+- The receiver's method is looked up without a target-version filter, so PDO::query() is recognized for every supported target version; an override declared in a user subclass is still not the builtin.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. A NULL that closes an IS NULL or IS NOT NULL operator is not an operand of a following `=`: `x IS NOT NULL = 1` compares the boolean result and is not reported. A NULL on the right of the `=` is still reported (`x IS NOT NULL = NULL`), and so is a bare `NOT NULL = expr` without IS.
-- E3. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- A NULL that closes an IS NULL or IS NOT NULL operator is not an operand of a following `=`: `x IS NOT NULL = 1` compares the boolean result and is not reported. A NULL on the right of the `=` is still reported (`x IS NOT NULL = NULL`), and so is a bare `NOT NULL = expr` without IS.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

@@ -25,7 +25,7 @@ than a cryptographic random generator (a literal, `mt_rand()`, …), report it.
   (index 4; PHP 7.1+ `openssl_encrypt` takes up to 8: tag, AAD and tag
   length follow the IV) or the named argument `iv:`, with non-empty source
   text. A call containing an unpacked argument (`...$rest`) has no known
-  binding and is not analysed.
+  binding and is not analyzed.
 - **D3** Run *value discovery* (as defined in the `CallableMethodValidity`
   spec) on `A`. If it yields nothing, stop.
 - **D4** For each discovered value `v`: it is *secure* when `v` is a plain
@@ -143,7 +143,7 @@ class Box
 - **Function-name matching (custos diverges from upstream).** Upstream
   matches the encryption functions and the secure generators by their
   written last segment, case-sensitively and without resolution. custos
-  resolves them: `\OpenSSL_Encrypt(..., \Random_Bytes(16))` is analysed and
+  resolves them: `\OpenSSL_Encrypt(..., \Random_Bytes(16))` is analyzed and
   secure, a namespace's own `random_bytes()` is not a secure source, and a
   namespace's own `openssl_encrypt()` is not checked.
 - In D4 a *method* call named like a secure function

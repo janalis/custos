@@ -62,7 +62,7 @@ func (unknownInspection) CheckFile(ctx *analysis.Context) {
 			if unknown := unknownInspectionNames(value); len(unknown) > 0 {
 				s := t.Start + uint32(tagStart)
 				ctx.Report(syntax.Span{Start: s, End: s + uint32(len(unknownInspectionTag))},
-					"Suppressed inspection not recognised: "+strings.Join(unknown, ", ")+".")
+					"Suppressed inspection not recognized: "+strings.Join(unknown, ", ")+".")
 			}
 		}
 	}

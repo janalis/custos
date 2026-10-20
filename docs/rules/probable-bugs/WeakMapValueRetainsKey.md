@@ -6,7 +6,7 @@ title: WeakMapValueRetainsKey
 
 # WeakMapValueRetainsKey
 
-<Badge type="warning" text="warning" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 8.0" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="info" text="off by default" /> <Badge type="info" text="PHP ≥ 8.0" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,14 +29,13 @@ Reported:
 
 ## Detection
 
-- D1. Enabled policy requires automatic weak-key eviction. Report assigning a WeakMap value that is the identical key object or a literal array directly containing that same object; bounded local aliases of the key count. Highlight the assignment.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
+- Enabled policy requires automatic weak-key eviction. Report assigning a WeakMap value that is the identical key object or a literal array directly containing that same object; bounded local aliases of the key count. Highlight the assignment.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias, unknown call involving the tracked value or analysis-budget exhaustion. Uncertain facts cannot prove a violation.
 
 ## Exceptions (no report)
 
-- E1. Do not speculate about object graphs or closure captures beyond proven direct retention. Different objects, scalars and WeakReference wrappers are excluded.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore WeakMapValueRetainsKey` and `@noinspection WeakMapValueRetainsKey` suppress this inspection.
+- Do not speculate about object graphs or closure captures beyond proven direct retention. Different objects, scalars and WeakReference wrappers are excluded.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -46,7 +45,7 @@ All edits use exact byte ranges, preserve comments and evaluation order, and req
 
 ## PHP versions
 
-Minimum PHP 8.0, the release that introduced `WeakMap`: with an older target version the rule reports nothing, even when the class name resolves. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
+Minimum PHP 8.0, the release that introduced `WeakMap`: with an older target version the rule reports nothing, even when the class name resolves.
 
 ## Options
 

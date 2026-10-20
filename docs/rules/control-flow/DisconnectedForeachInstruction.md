@@ -42,26 +42,26 @@ foreach ($orders as $key => $order) {
         report($problem);
     }
 
-    echo '<br>';                        // E4: no variables
-    if ($stop) { return; }              // E3
-    $total += $order;                   // E2 + connected
+    echo '<br>';                        // no variables
+    if ($stop) { return; }              // leaves the loop
+    $total += $order;                   // assignment, connected
     $copy = clone $template;            // clone: never reported
     $sink[] = 'seen';                   // accumulate
-    $logger->push($order);              // D8a: $logger becomes modified
+    $logger->push($order);              // $logger becomes modified
     $logger->flush();                   // connected through $logger
-    preg_match('/x/', $order, $hits);   // D8b: $hits modified
+    preg_match('/x/', $order, $hits);   // $hits modified
     print_r($hits);                     // connected
-    $meta->touch(compact('key'));       // D11: depends on $key
+    $meta->touch(compact('key'));       // depends on $key
 }
 
 foreach ($groups as $group) {
     foreach ($group as $member) {
-        echo $group;                    // D4: outer loop variable
+        echo $group;                    // outer loop variable
     }
 }
 
 foreach ($rows as $row) {
-    ?><td><?= $title ?></td><?php       // E5: inline HTML, loop skipped
+    ?><td><?= $title ?></td><?php       // inline HTML, loop skipped
 }
 ```
 
@@ -81,7 +81,7 @@ Reported:
 
 | Option | Type | Default | Effect |
 |---|---|---|---|
-| SUGGEST_USING_CLONE | bool | false | Enables D13 (object creation on every iteration). |
+| SUGGEST_USING_CLONE | bool | false | Reports object creation on every iteration. |
 
 ## Configure
 

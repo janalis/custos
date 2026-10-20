@@ -6,7 +6,7 @@ title: ContentRangeLengthMismatch
 
 # ContentRangeLengthMismatch
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -29,16 +29,15 @@ Reported:
 
 ## Detection
 
-- D1. Track effective Content-Range bytes START-END/TOTAL (decimal numeric bounds, valid single range) and a proven status 206. Report the range header when complete emitted constant bytes differ from END - START + 1. Support repeated literal concatenations and constant-folded str_repeat. Use the same complete response-path proof and invalidations as ContentLengthKnownBodyMismatch.
-- D2. Resolve builtin functions, classes, constants and methods, including imported aliases and supported named arguments. Follow facts within one lexical scope and use resolved declarations when available; never infer intent from identifiers or comments.
-- D3. Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
+- Track effective Content-Range bytes START-END/TOTAL (decimal numeric bounds, valid single range) and a proven status 206. Report the range header when complete emitted constant bytes differ from END - START + 1. Support repeated literal concatenations and constant-folded str_repeat. Use the same complete response-path proof and invalidations as ContentLengthKnownBodyMismatch.
+- Emit one finding per violating operation. Flow facts require a reachable path with no intervening mutation, escaped alias or unknown call involving the tracked value. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
 - Redirect Location and CGI Status headers can change response status implicitly; exclude their body proof.
 
-- E1. Multipart ranges, unknown output, malformed ranges, unsatisfied bytes */TOTAL, buffering/transformation, HEAD and incomplete response paths are excluded.
-- E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore ContentRangeLengthMismatch` and `@noinspection ContentRangeLengthMismatch` suppress this inspection.
+- Multipart ranges, unknown output, malformed ranges, unsatisfied bytes */TOTAL, buffering/transformation, HEAD and incomplete response paths are excluded.
+- Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions.
 
 ## Fix
 
@@ -46,11 +45,7 @@ No automatic fix. Choosing a repair requires runtime information, error-handling
 
 ## PHP versions
 
-Available throughout PHP 5.3–8.5. Apply only where the referenced language features and builtin/extension APIs exist. API-specific later syntax or behavior is gated as described in Detection.
-
-## Options
-
-None. Use ordinary rule configuration to enable or disable this inspection.
+Available throughout PHP 5.3–8.5.
 
 ## Configure
 

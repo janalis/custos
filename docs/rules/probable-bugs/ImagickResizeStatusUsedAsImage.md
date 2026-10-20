@@ -6,7 +6,7 @@ title: ImagickResizeStatusUsedAsImage
 
 # ImagickResizeStatusUsedAsImage
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,18 +14,18 @@ Identify method/property access on unchanged result of resolved Imagick::resizeI
 
 ## Detection
 
-- D1. Report method/property access on unchanged result of resolved Imagick::resizeImage; it returns a boolean, not a replacement image.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report method/property access on unchanged result of resolved Imagick::resizeImage; it returns a boolean, not a replacement image.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 - D4. The accessed variable must still hold the boolean. Besides plain assignments, these make its value unknown, for the variable itself and for any variable it was copied from:
   - a value rebind after the assignment that supplied the boolean and before the access: a `foreach` key or value target, an array or `list()` destructuring target, a `catch` binding, or passing the variable to a resolved call that binds an argument by reference (`preg_match($pattern, $subject, $result)`). When the access sits in a loop, a rebind anywhere in the outermost enclosing loop counts, since it reaches the access on a later iteration;
   - shared storage established anywhere before the access (or in an enclosing loop): a reference assignment taking the variable as its source (`$alias = &$result`), a `global` or `static` declaration, or a by-reference closure capture.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. No report when D4 cannot establish that the variable still holds the boolean. A rebind that precedes the supplying assignment, follows the access outside any shared loop, or happens inside a nested function with a by-value capture does not prevent the report.
-- E3. Both `@custos-ignore ImagickResizeStatusUsedAsImage` and `@noinspection ImagickResizeStatusUsedAsImage` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- No report when D4 cannot establish that the variable still holds the boolean. A rebind that precedes the supplying assignment, follows the access outside any shared loop, or happens inside a nested function with a by-value capture does not prevent the report.
+- Both `@custos-ignore ImagickResizeStatusUsedAsImage` and `@noinspection ImagickResizeStatusUsedAsImage` suppress this native rule.
 
 ## Fix
 

@@ -6,7 +6,7 @@ title: BasicAuthenticationOverPlainHttp
 
 # BasicAuthenticationOverPlainHttp
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Security](/rules/#security)
 
@@ -27,17 +27,17 @@ Reported:
 
 ## Detection
 
-- D1. Resolved curl_init/curl_setopt URL is literal http:// and same curl handle configures CURLOPT_USERPWD with a known nonempty credential string before curl_exec, without known secure URL replacement. Highlight credentials option.
-- D1b. The effective URL is the last CURLOPT_URL set on the handle through curl_setopt; only when that option is still at its default does the curl_init argument count. So curl_init() without a URL, or with a non-literal one, followed by a literal http:// CURLOPT_URL is reported, and a literal http:// curl_init argument later replaced by an https:// or unknown CURLOPT_URL is not. With neither a literal curl_init URL nor a literal CURLOPT_URL there is no report.
-- D1c. The initial supported execution proof is an immediately following curl_exec on the same owned handle, with known prior URL replacements.
-- D1d. Require CURLOPT_USERPWD to be a statically known nonempty credential string. Authentication must remain at its Basic default or be explicitly configured to exactly CURLAUTH_BASIC; Digest, Negotiate, NTLM, mixed masks and unknown policies do not establish Basic credentials on the wire. Unknown setters, bulk curl_setopt_array configuration, handle escapes and unknown same-handle operations invalidate the final request proof.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved curl_init/curl_setopt URL is literal http:// and same curl handle configures CURLOPT_USERPWD with a known nonempty credential string before curl_exec, without known secure URL replacement. Highlight credentials option.
+- The effective URL is the last CURLOPT_URL set on the handle through curl_setopt; only when that option is still at its default does the curl_init argument count. So curl_init() without a URL, or with a non-literal one, followed by a literal http:// CURLOPT_URL is reported, and a literal http:// curl_init argument later replaced by an https:// or unknown CURLOPT_URL is not. With neither a literal curl_init URL nor a literal CURLOPT_URL there is no report.
+- The initial supported execution proof is an immediately following curl_exec on the same owned handle, with known prior URL replacements.
+- Require CURLOPT_USERPWD to be a statically known nonempty credential string. Authentication must remain at its Basic default or be explicitly configured to exactly CURLAUTH_BASIC; Digest, Negotiate, NTLM, mixed masks and unknown policies do not establish Basic credentials on the wire. Unknown setters, bulk curl_setopt_array configuration, handle escapes and unknown same-handle operations invalidate the final request proof.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

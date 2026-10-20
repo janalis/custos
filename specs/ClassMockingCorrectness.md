@@ -218,7 +218,7 @@ namespace {
   as "required" for CTOR upstream; custos treats variadic parameters as
   optional (no fixture covers it).
 - String class names are always resolved as fully-qualified names, never
-  relative to the current namespace (matches PHP's runtime behaviour).
+  relative to the current namespace (matches PHP's runtime behavior).
 - **Default values in Part B (custos diverges):** upstream also walks the
   parameter's default value, so `function it_works($max = Sealed::LIMIT)`
   is reported although nothing is mocked there (a constant of a final class

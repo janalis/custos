@@ -6,7 +6,7 @@ title: GdAlphaOutsideSupportedRange
 
 # GdAlphaOutsideSupportedRange
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,15 +14,15 @@ Identify imagecolorallocatealpha or imagecolorclosestalpha with known integer al
 
 ## Detection
 
-- D1. Report imagecolorallocatealpha or imagecolorclosestalpha with known integer alpha below zero or above127.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
+- Report imagecolorallocatealpha or imagecolorclosestalpha with known integer alpha below zero or above127.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values, escaped aliases or exhausted analysis budgets invalidate proof.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. An integer interval proves invalid alpha only when entirely below zero or entirely above 127. A concrete, loop-free path from the start of the scope may establish an invalid first read before a later loop rewrites the value. Unknown branches, prior calls, references and unsupported operations end that additional proof. Steps and fresh assignments are evaluated in order; merely creating an uninvoked capture does not execute it. Crossing intervals and arithmetic that may overflow to float provide no range proof. Loop heads widen after their second visit, and integer comparisons narrow their body values.
-- E3. Both `@custos-ignore GdAlphaOutsideSupportedRange` and `@noinspection GdAlphaOutsideSupportedRange` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- An integer interval proves invalid alpha only when entirely below zero or entirely above 127. A concrete, loop-free path from the start of the scope may establish an invalid first read before a later loop rewrites the value. Unknown branches, prior calls, references and unsupported operations end that additional proof. Steps and fresh assignments are evaluated in order; merely creating an uninvoked capture does not execute it. Crossing intervals and arithmetic that may overflow to float provide no range proof. Loop heads widen after their second visit, and integer comparisons narrow their body values.
+- Both `@custos-ignore GdAlphaOutsideSupportedRange` and `@noinspection GdAlphaOutsideSupportedRange` suppress this native rule.
 
 ## Fix
 

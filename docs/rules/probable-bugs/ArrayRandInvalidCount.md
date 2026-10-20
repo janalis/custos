@@ -6,7 +6,7 @@ title: ArrayRandInvalidCount
 
 # ArrayRandInvalidCount
 
-<Badge type="danger" text="error" /> <Badge type="tip" text="on by default" />
+<Badge type="danger" text="error" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -14,16 +14,16 @@ Identify array_rand when count is a proven integer below one or greater than the
 
 ## Detection
 
-- D1. Report array_rand when count is a proven integer below one or greater than the exact cardinality of a known array; empty arrays with omitted count also violate.
-- D2. Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
-- D3. Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values or escaped aliases invalidate proof. When the proof is inconclusive, nothing is reported.
+- Report array_rand when count is a proven integer below one or greater than the exact cardinality of a known array; empty arrays with omitted count also violate.
+- Resolve builtin functions, classes, constants and methods, including imports and supported named arguments. Follow only bounded local facts within one lexical scope. Receiver and argument provenance must establish the specific API contract; variable names and comments never prove intent.
+- Report one finding per violating operation. A reachable path, unchanged value identity and applicable API behavior are required. Intervening mutation, unknown calls involving tracked values or escaped aliases invalidate proof. When the proof is inconclusive, nothing is reported.
 - D4. A count or array read from a plain local variable stays proven only while the variable's scope never rewrites it behind the tracked assignment. Any of these, anywhere in the scope and regardless of statement order, withdraws the proof for that variable: `++` or `--` applied to it or to one of its offsets (`$seen[$key]++`), a `foreach` whose key or value target is the variable or one of its offsets, a by-reference closure capture (`use (&$pool)`), a by-reference array slot holding it (`[&$pool]`), or a call to `extract()`. A variable whose value an assignment in the scope copies into the tracked one, directly or through further copies (`$pool = $seen;`), withdraws it the same way. A withdrawn count yields no finding; a withdrawn array keeps only the size-independent check that the count is at least one.
 
 ## Exceptions (no report)
 
-- E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
-- E2. An array filled by incrementing its offsets, or a counter advanced with `++`, is not treated as still holding its initial value (D4).
-- E3. Both `@custos-ignore ArrayRandInvalidCount` and `@noinspection ArrayRandInvalidCount` suppress this native rule.
+- Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions.
+- An array filled by incrementing its offsets, or a counter advanced with `++`, is not treated as still holding its initial value (D4).
+- Both `@custos-ignore ArrayRandInvalidCount` and `@noinspection ArrayRandInvalidCount` suppress this native rule.
 
 ## Fix
 

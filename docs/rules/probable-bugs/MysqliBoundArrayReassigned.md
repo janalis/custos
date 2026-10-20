@@ -6,7 +6,7 @@ title: MysqliBoundArrayReassigned
 
 # MysqliBoundArrayReassigned
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,15 +27,15 @@ Reported:
 
 ## Detection
 
-- D1. Resolved mysqli_stmt::bind_param binds a literal-key element of a local literal array. The whole array is reassigned before execute without rebinding; highlight whole-array assignment. Element updates are valid.
-- D1d. The later execute call must use the existing reference bindings. An execute call supplying replacement parameters is excluded, including a known parameter array; unknown execution arguments cannot prove the stale binding is used.
-- D2. Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
-- D3. Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
+- Resolved mysqli_stmt::bind_param binds a literal-key element of a local literal array. The whole array is reassigned before execute without rebinding; highlight whole-array assignment. Element updates are valid.
+- The later execute call must use the existing reference bindings. An execute call supplying replacement parameters is excluded, including a known parameter array; unknown execution arguments cannot prove the stale binding is used.
+- Resolve builtin functions, classes, constants and methods; user-defined lookalikes are excluded. Follow only bounded local proof in one lexical scope.
+- Emit one finding per violating operation, not per supporting evidence statement. When the proof is inconclusive, nothing is reported.
 
 ## Exceptions (no report)
 
-- E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E2. Both standard suppression forms suppress this native ID.
+- Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
+- Both standard suppression forms suppress this native ID.
 
 ## Fix
 

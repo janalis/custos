@@ -10,7 +10,7 @@ php: { min: "", max: "" }
 
 ## Summary
 
-A non-public instance property initialised with a sizeable array literal
+A non-public instance property initialized with a sizeable array literal
 (several nested arrays or strings) is copied into every object. When such data
 is really per-class configuration it is cheaper as a static property — or, on
 PHP 5.6+, as a class constant.

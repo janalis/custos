@@ -61,6 +61,6 @@ $v=match($input) {4=>'first',default=>'other'};
 
 Native custos rule. No upstream inspection or fixture comparison applies. These conditions are independently specified and examples are original.
 
-Audit constraint: variable conditions are accepted only under the single-assignment proof of D4/E3, because a value that changed after its literal assignment makes the arm reachable and its removal a behaviour change.
+Audit constraint: variable conditions are accepted only under the single-assignment proof of D4/E3, because a value that changed after its literal assignment makes the arm reachable and its removal a behavior change.
 
 Audit constraint: arm removal is withheld when its byte range contains a PHP hash comment, as well as slash comments. The diagnostic remains available without a fix.

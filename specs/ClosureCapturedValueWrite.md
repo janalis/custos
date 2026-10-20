@@ -23,7 +23,7 @@ Detect a closure writing a scalar captured by value when that closure is invoked
 - Ignore writes or transformations after unconditional termination or inside a literal false if branch; these statements cannot establish a missing update or mapped value.
 
 - E1. Unknown invocations, object member mutation, explicit references, and deliberate inner-local results are excluded.
-- E3. The closure uses its copy as a working local, so capturing by reference would change behaviour. No report when, in reachable closure code, any of these holds:
+- E3. The closure uses its copy as a working local, so capturing by reference would change behavior. No report when, in reachable closure code, any of these holds:
   - the captured variable is mentioned anywhere other than as the target of a write to itself (for example echoed, interpolated, passed to a call, or captured or used by a nested function or class body);
   - the value of a write to it is consumed rather than discarded, i.e. the assignment or increment/decrement is not a whole expression statement (`while ($n-- > 0)`, `echo $n = 4`, a `for` step);
   - the closure returns a value.

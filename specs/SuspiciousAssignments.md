@@ -305,9 +305,9 @@ function unpack_all(int $n, array $row, \ArrayObject $obj) {
 function sample_pair() { return [1, 2]; }
 
 function failure_markers(array|false $found, ?array $cached, string|false $line, false $none) {
-    [$p, $q] = $found;                   // E8: false ignored next to array
-    [$r] = $cached;                      // E8: null ignored next to array
-    [$s, $t] = sample_pair();            // E8: int[]|false
+    [$p, $q] = $found;                   // false ignored next to array
+    [$r] = $cached;                      // null ignored next to array
+    [$s, $t] = sample_pair();            // int[]|false
     <error descr="Destructuring a value that is not an array.">[$u] = $line</error>;   // string remains
     <error descr="Destructuring a value that is not an array.">[$w] = $none</error>;   // only false
 }
@@ -340,7 +340,7 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
-  are not recognised as equivalent. custos folds the case of those names
+  are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
 - **D16 reads and exits (custos diverges).** Upstream looks for a read of
   `T` only in the statement following the conditional write (only its

@@ -6,7 +6,7 @@ title: ZipEntryIndexPastEnd
 
 # ZipEntryIndexPastEnd
 
-<Badge type="warning" text="warning" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
+<Badge type="warning" text="warning" /> <Badge type="tip" text="native" /> <Badge type="tip" text="on by default" /> <Badge type="info" text="PHP ≥ 5.3" />
 
 Group: [Probable bugs](/rules/#probable-bugs)
 
@@ -27,16 +27,16 @@ Reported:
 
 ## Detection
 
-- D1. Report a resolved ZIP indexed operation with a proven negative index, or an index directly equal to that same receiver numFiles property. Support getNameIndex, statIndex, getFromIndex, deleteIndex and getStreamIndex. Other inferred counts and unknown indices are excluded.
-- D2. Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
-- D3. Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
-- D4. A negative index is proven only by an integer literal, a resolved constant, or a local variable whose reaching value is such a literal. A variable is not proof when it, or a variable it was copied from through plain assignments, is the target of `++` or `--` anywhere in the enclosing function (including an arrow function around the call), or is captured by reference by a closure. A property or static property is never proof: its declared default says nothing about the value at the call.
+- Report a resolved ZIP indexed operation with a proven negative index, or an index directly equal to that same receiver numFiles property. Support getNameIndex, statIndex, getFromIndex, deleteIndex and getStreamIndex. Other inferred counts and unknown indices are excluded.
+- Resolve builtin functions, extension classes, method receivers, constants and named arguments. Follow unchanged locals and aliases only within the same bounded lexical scope. Require a reachable path; merge branch facts only when all incoming paths establish them.
+- Emit one finding at the violating operation, not one per evidence statement. Rebinding, writes, by-reference escape, unresolved calls that can mutate relevant state, and exhausted analysis budgets remove proof.
+- A negative index is proven only by an integer literal, a resolved constant, or a local variable whose reaching value is such a literal. A variable is not proof when it, or a variable it was copied from through plain assignments, is the target of `++` or `--` anywhere in the enclosing function (including an arrow function around the call), or is captured by reference by a closure. A property or static property is never proof: its declared default says nothing about the value at the call.
 
 ## Exceptions (no report)
 
-- E1. Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
-- E2. A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
-- E3. Counter idioms that start below zero are valid: `$i = -1; while (++$i < $z->numFiles) { $z->getNameIndex($i); }`, `$i = -1; do { $i++; ... } while (...)`, and a cursor object whose position property defaults to `-1` and is advanced before each read.
+- Exclude shadowed builtins, unresolved receivers, incomplete syntax and unknown prerequisite facts. An extension function name alone does not prove an application function is that builtin.
+- A dominating valid guard or repair described in Detection prevents the finding. Both legacy noinspection and custos-ignore forms suppress this ID.
+- Counter idioms that start below zero are valid: `$i = -1; while (++$i < $z->numFiles) { $z->getNameIndex($i); }`, `$i = -1; do { $i++; ... } while (...)`, and a cursor object whose position property defaults to `-1` and is advanced before each read.
 
 ## Fix
 
