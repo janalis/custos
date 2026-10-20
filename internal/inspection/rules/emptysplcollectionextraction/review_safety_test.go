@@ -60,7 +60,7 @@ func TestReviewSafety(t *testing.T) {
 		{"for guard", `$q=new SplQueue();for(;!$q->isEmpty();){$q->dequeue();}`, 0},
 		{"for last condition", `$q=new SplQueue();for(;$c,!$q->isEmpty();){$q->dequeue();}`, 0},
 		{"for without condition", `$q=new SplQueue();for(;;){$q->dequeue();}`, 1},
-		{"for step", `$q=new SplQueue();for(;!$q->isEmpty();$q->dequeue()){}`, 1},
+		{"for step", `$q=new SplQueue();for(;!$q->isEmpty();$q->dequeue()){}`, 0},
 		{"elseif own guard", `$q=new SplQueue();if($c){}elseif(!$q->isEmpty()){$q->dequeue();}`, 0},
 		{"elseif after empty", `$q=new SplQueue();if($q->isEmpty()){}elseif($c){$q->dequeue();}`, 0},
 		{"elseif chain", `$q=new SplQueue();if($a){}elseif($q->isEmpty()){}elseif($b){$q->dequeue();}`, 0},
@@ -82,6 +82,17 @@ func TestReviewSafety(t *testing.T) {
 		{"unrelated reference", `$q=new SplQueue();$a=&$b;$q->dequeue();`, 1},
 		{"unproven receiver may alias", `$q=new SplQueue();$o->q=$p;$h=[$p];$p->enqueue(1);$q->dequeue();`, 0},
 		{"direct construction", `(new SplQueue())->dequeue();`, 1},
+		{"saved emptiness test", `$q=new SplQueue();$e=$q->isEmpty();if(!$e){$q->dequeue();}`, 0},
+		{"emptiness compared with false", `$q=new SplQueue();if($q->isEmpty()===false){$q->dequeue();}`, 0},
+		{"mirrored count", `$q=new SplQueue();if(0<$q->count()){$q->dequeue();}`, 0},
+		{"count below one exits", `$q=new SplQueue();if($q->count()<1){return;}$q->dequeue();`, 0},
+		{"count of one", `$q=new SplQueue();if($q->count()===1){$q->dequeue();}`, 0},
+		{"truthy count", `$q=new SplQueue();if($q->count()){$q->dequeue();}`, 0},
+		{"match arm", `$q=new SplQueue();echo match(true){!$q->isEmpty()=>$q->dequeue(),default=>0};`, 0},
+		{"exit with else", `$q=new SplQueue();if($q->isEmpty()){throw new Exception();}else{$x=1;}$q->dequeue();`, 0},
+		{"empty branch", `$q=new SplQueue();if($q->isEmpty()){$q->dequeue();}`, 1},
+		{"test that falls through", `$q=new SplQueue();if($q->count()>0){}$q->dequeue();`, 1},
+		{"test of another collection", `$q=new SplQueue();$o=new SplQueue();if(!$o->isEmpty()){$q->dequeue();}`, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := syntax.ParseBest("review.php", []byte("<?php "+tc.source), syntax.Options{Version: phpversion.PHP85})

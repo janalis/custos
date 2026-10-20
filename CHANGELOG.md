@@ -111,6 +111,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   `isset($d[3], $other)`, an exit followed by `else`/`elseif`, an `elseif`
   condition after a failed length test and `while` conditions now count,
   and a decode in a branch the length tests contradict is not reported.
+- EmptySplCollectionExtraction reads `isEmpty()` and `count()` tests from
+  type narrowing: a saved test, comparisons with `true`/`false`, mirrored
+  and other integer comparisons (`0 < $q->count()`, `=== 1`, `< 1` exits),
+  a truthy `count()`, `match (true)` arms, `for` steps and an exit followed
+  by `else` now count.
 - NonExhaustiveEnumMatch reads the reachable cases from type narrowing.
   Comparisons now narrow inside loop conditions, enclosing `match` arms
   (including `default`), negated comparisons with `false` and booleans

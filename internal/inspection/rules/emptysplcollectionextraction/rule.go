@@ -2,13 +2,14 @@
 package emptysplcollectionextraction
 
 import (
+	"math"
 	"strings"
 
 	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 const message = "Check that the collection contains an element."
@@ -74,104 +75,45 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 }
 
-// guardedNonempty recognizes a size test on the receiver that controls whether
-// the call runs: a branch, a conditional operand or a loop condition.
+// guardedNonempty reports whether an `isEmpty()` or `count()` test of the
+// receiver, earlier in the scope, controls whether the call runs: the
+// result of that test, narrowed by the conditions guarding the call, says
+// the collection holds an element (or the call is unreachable). The proven
+// history has no nested scope before the call.
 func guardedNonempty(ctx *analysis.Context, c *syntax.MethodCall) bool {
-	for child, p := syntax.Node(c), c.Parent(); p != nil && !syntax.IsVariableScope(p); child, p = p, p.Parent() {
-		switch branch := p.(type) {
-		case *syntax.If:
-			if child == branch.Cond {
-				break
-			}
-			if child == branch.Body {
-				if nonemptyCondition(ctx, branch.Cond, c.Var, true) {
-					return true
-				}
-				break
-			}
-			// An elseif or else body runs only after every earlier condition failed.
-			if nonemptyCondition(ctx, branch.Cond, c.Var, false) {
-				return true
-			}
-			for _, alt := range branch.ElseIfs {
-				if child == alt {
-					break
-				}
-				if nonemptyCondition(ctx, alt.Cond, c.Var, false) {
-					return true
-				}
-			}
-		case *syntax.ElseIf:
-			if child == branch.Body && nonemptyCondition(ctx, branch.Cond, c.Var, true) {
-				return true
-			}
-		case *syntax.Ternary:
-			if child != branch.Cond && nonemptyCondition(ctx, branch.Cond, c.Var, child == branch.Then) {
-				return true
-			}
-		case *syntax.Binary:
-			if child != branch.Right {
-				break
-			}
-			switch branch.Op.Kind {
-			case syntax.TBooleanAnd, syntax.TAnd:
-				if nonemptyCondition(ctx, branch.Left, c.Var, true) {
-					return true
-				}
-			case syntax.TBooleanOr, syntax.TOr:
-				if nonemptyCondition(ctx, branch.Left, c.Var, false) {
-					return true
-				}
-			}
-		case *syntax.While:
-			if child == branch.Body && nonemptyCondition(ctx, branch.Cond, c.Var, true) {
-				return true
-			}
-		case *syntax.For:
-			if child == branch.Body && len(branch.Cond) > 0 && nonemptyCondition(ctx, branch.Cond[len(branch.Cond)-1], c.Var, true) {
-				return true
-			}
+	env := ctx.Types().Native()
+	found := false
+	scope := syntax.EnclosingVariableScope(c)
+	visit := func(n syntax.Node) bool {
+		if found || n.Span().Start >= c.Span().Start {
+			return false
 		}
-		if st, ok := p.(syntax.Stmt); ok {
-			prev, exists := astquery.PrevStmt(ctx.File, st)
-			if guard, ok := prev.(*syntax.If); exists && ok && guard.Else == nil && len(guard.ElseIfs) == 0 && syntax.Terminates(guard.Body) && nonemptyCondition(ctx, guard.Cond, c.Var, false) {
-				return true
-			}
+		test, ok := n.(*syntax.MethodCall)
+		if !ok || !semanticquery.NativeSameValue(ctx, test.Var, c.Var) {
+			return true
 		}
+		switch {
+		case sizeMethod(ctx, test, "isEmpty"):
+			t := env.CallResultAt(test, c)
+			found = t.IsUnknown() || t.OnlyOf("false")
+		case sizeMethod(ctx, test, "count"):
+			t := env.CallResultAsAt(test, c, types.Ints(types.IntRange{Lo: 0, Hi: math.MaxInt64}))
+			found = t.IsUnknown() || t.IntsOnly(1, math.MaxInt64)
+		}
+		return true
 	}
-	return false
+	if scope != nil {
+		syntax.Inspect(syntax.VariableScopeBody(scope), visit)
+	} else {
+		syntax.InspectFile(ctx.File, visit)
+	}
+	return found
 }
 
-func nonemptyCondition(ctx *analysis.Context, e, receiver syntax.Expr, truth bool) bool {
-	e = syntax.UnwrapParens(e)
-	if u, ok := e.(*syntax.Unary); ok && u.Op.Kind == syntax.TExclaim {
-		return nonemptyCondition(ctx, u.Expr, receiver, !truth)
-	}
-	if call, ok := e.(*syntax.MethodCall); ok && semanticquery.NativeSameValue(ctx, call.Var, receiver) && (semanticquery.NativeMethod(ctx, call, "SplDoublyLinkedList", "isEmpty") || semanticquery.NativeMethod(ctx, call, "SplHeap", "isEmpty") || semanticquery.NativeMethod(ctx, call, "SplPriorityQueue", "isEmpty")) {
-		return !truth
-	}
-	if b, ok := e.(*syntax.Binary); ok {
-		// A true conjunction proves both operands; a false disjunction refutes both.
-		switch b.Op.Kind {
-		case syntax.TBooleanAnd, syntax.TAnd:
-			return truth && (nonemptyCondition(ctx, b.Left, receiver, true) || nonemptyCondition(ctx, b.Right, receiver, true))
-		case syntax.TBooleanOr, syntax.TOr:
-			return !truth && (nonemptyCondition(ctx, b.Left, receiver, false) || nonemptyCondition(ctx, b.Right, receiver, false))
-		}
-		call, ok := b.Left.(*syntax.MethodCall)
-		if !ok || !semanticquery.NativeSameValue(ctx, call.Var, receiver) || !(semanticquery.NativeMethod(ctx, call, "SplDoublyLinkedList", "count") || semanticquery.NativeMethod(ctx, call, "SplHeap", "count") || semanticquery.NativeMethod(ctx, call, "SplPriorityQueue", "count")) {
-			return false
-		}
-		value, known := semanticquery.NativeInt(ctx, b.Right)
-		if !known {
-			return false
-		}
-		if !truth {
-			return (b.Op.Kind == syntax.TIsIdentical || b.Op.Kind == syntax.TIsEqual) && value == 0
-		}
-		return (b.Op.Kind == syntax.TGreater && value >= 0) || (b.Op.Kind == syntax.TIsGreaterOrEqual && value >= 1) || ((b.Op.Kind == syntax.TIsNotIdentical || b.Op.Kind == syntax.TIsNotEqual) && value == 0)
-	}
-	return false
+// sizeMethod reports whether call invokes the builtin method of that name
+// shared by the collections.
+func sizeMethod(ctx *analysis.Context, call *syntax.MethodCall, method string) bool {
+	return semanticquery.NativeMethod(ctx, call, "SplDoublyLinkedList", method) || semanticquery.NativeMethod(ctx, call, "SplHeap", method) || semanticquery.NativeMethod(ctx, call, "SplPriorityQueue", method)
 }
 
 // Only an entirely modeled history can establish an empty collection.

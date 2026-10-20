@@ -25,13 +25,11 @@ Only a fully modeled, bounded history proves emptiness. Array writes, unmodeled 
 
 - E1. Unknown initial collection, aliases escaping or custom method behavior prevent empty proof. Merely potentially empty collections are excluded. The collection variable may appear only as the receiver of a method call or as the target of a plain assignment: any other occurrence (call argument, assigned value stored in a variable, property or array element, array literal item, by-reference binding, array-style write, `return`, `yield`, iteration) counts as an escape.
 - E2. Exclude shadowed builtin symbols, unresolved required types, incomplete syntax and unsupported PHP versions. Both `@custos-ignore EmptySplCollectionExtraction` and `@noinspection EmptySplCollectionExtraction` suppress this inspection.
-- E3. No report when an `isEmpty()` or `count()` test on the same receiver controls whether the call runs:
-  - the matching branch of an `if`, including an `elseif` body guarded by its own condition and an `elseif`/`else` body reached only after an earlier emptiness test failed;
-  - a preceding `if` without alternatives whose body always leaves and whose condition holds for an empty collection;
-  - the matching arm of a ternary, including the short `?:` form;
-  - the right operand of `&&`/`and` after a non-empty test, or of `||`/`or` after an emptiness test;
-  - the body of a `while` loop, or of a `for` loop whose last condition expression is the test.
-  A test may be negated, parenthesized, one operand of a conjunction that holds, or one operand of a disjunction that failed. `count()` is compared with an integer constant on its right (`> 0`, `>= 1`, `!= 0`, `!== 0`, and `== 0`/`=== 0` for the failing side).
+- E3. No report when an `isEmpty()` or `count()` test on the same receiver, earlier in the scope, controls whether the call runs and holds only for a collection with an element: `isEmpty()` false, or `count()` compared with an integer so that zero is excluded (`> 0`, `>= 1`, `!== 0`, `=== 1`, `0 <`, a truthy `count()`, and the failing side of `< 1`, `<= 0` or `=== 0`). The test may be negated, parenthesized, compared with `true`/`false`, combined through `&&`/`and` and `||`/`or` (a conjunction that holds or a disjunction that failed), or kept in a local read later. It controls the call:
+  - in the matching branch of an `if`/`elseif`/`else` chain, of a ternary (including the short `?:` form) or of a `match (true)` arm;
+  - in the right operand of `&&`/`and` or `||`/`or`;
+  - in the body or step of a `while` or `for` loop whose condition (the last one of a `for`) is the test;
+  - after an `if` whose branch for an empty collection always leaves, with or without other arms.
 
 ## Report
 
