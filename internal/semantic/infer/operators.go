@@ -78,15 +78,18 @@ func (e *Env) unaryType(n *syntax.Unary) types.Type {
 	}
 }
 
+// numeric types `a + b`, `a - b` and `a * b` on numbers. One numeric
+// operand is enough: whatever the other holds, the result is a number
+// (null, booleans and numeric strings convert; arrays and objects throw on
+// PHP 8 and convert with a notice before), a float with a float operand.
 func (e *Env) numeric(a, b syntax.Expr) types.Type {
 	ta, tb := e.TypeOf(a), e.TypeOf(b)
 	switch {
 	case ta.OnlyOf("int") && tb.OnlyOf("int"):
 		return types.Int
-	case ta.OnlyOf("int", "float") && tb.OnlyOf("int", "float"):
-		if ta.OnlyOf("float") || tb.OnlyOf("float") {
-			return types.Float
-		}
+	case ta.OnlyOf("float") || tb.OnlyOf("float"):
+		return types.Float
+	case ta.OnlyOf("int", "float") || tb.OnlyOf("int", "float"):
 		return types.Of("int", "float")
 	}
 	return types.Unknown

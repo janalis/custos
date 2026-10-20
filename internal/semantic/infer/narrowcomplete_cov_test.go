@@ -253,7 +253,7 @@ function f(int $i, $u, string $s) {
 		"static":             "int",
 		"file":               "string",
 		"floatCast":          "float",
-		"divUnknown":         "?unknown",
+		"divUnknown":         "float|int",
 		"div":                "float|int",
 		"noClass":            "?unknown",
 		"paren":              "string",

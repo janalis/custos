@@ -28,7 +28,7 @@ function run(int|float $n, float $f, int $i, bool $b, bool|string $bs, $unknown,
  $dynamic=1; settype($dynamic,$unknown); t('dynamic',$dynamic);
 }
 `, map[string]string{
-		"union": "float|int", "float": "float", "int": "int", "unknown": "?unknown", "small": "int", "overflow": "float|int", "negative": "float|int", "floating": "float|int", "powerUnknown": "?unknown", "variable": "float|int", "ternary": "null|true", "ternaryUnion": "null|string|true", "falseTernary": "int", "unknownTernary": "?unknown", "compound": "float|int", "overwritten": "?unknown",
+		"union": "float|int", "float": "float", "int": "int", "unknown": "float|int", "small": "int", "overflow": "float|int", "negative": "float|int", "floating": "float|int", "powerUnknown": "float|int", "variable": "float|int", "ternary": "null|true", "ternaryUnion": "null|string|true", "falseTernary": "int", "unknownTernary": "?unknown", "compound": "float|int", "overwritten": "?unknown",
 		"sorted": "int[]", "keysorted": "int[]", "pushed": "int[]|string[]", "emptyPush": "array", "unshifted": "int[]|string[]", "spliced": "int[]|string[]", "plain": "array", "settype": "int", "setbool": "bool", "setfloat": "float", "setstring": "string", "setarray": "array", "setobject": "object", "setnull": "null", "bad": "?unknown", "dynamic": "?unknown",
 	})
 }

@@ -73,9 +73,9 @@ function f(int $i, float $fl, string $s, $u, array $a) {
 		"arrcast": "array", "boolcast": "bool", "objcast": "object",
 		"tilde": "int", "tildes": "string", "tildeu": "?unknown",
 		"at": "float|int", "neg": "float", "negs": "?unknown",
-		"addf": "float", "arrplus": "array", "divs": "?unknown",
+		"addf": "float", "arrplus": "array", "divs": "float|int",
 		"mod": "int", "and": "int", "ands": "string", "andu": "?unknown", "xor": "int",
-		"coaleq": "?unknown", "modeq": "int", "diveq": "float|int", "divequ": "?unknown",
+		"coaleq": "?unknown", "modeq": "int", "diveq": "float|int", "divequ": "float|int",
 		"andeq": "string", "oreq": "int",
 		"newdyn": "?unknown",
 	})

@@ -86,5 +86,16 @@ function f($f, int $i) {
     $r = &$s;
     t('byRef', $r);
 }
-`, map[string]string{"concat": "string", "concatNull": "string", "concatExpr": "string", "plus": "?unknown", "byRef": "string"})
+`, map[string]string{"concat": "string", "concatNull": "string", "concatExpr": "string", "plus": "float|int", "byRef": "string"})
+}
+
+// Arithmetic is typed when one operand is a number, and stays unknown when
+// neither is.
+func TestArithmeticWithOneNumber(t *testing.T) {
+	check(t, `<?php
+function f($u, $v, float $x) {
+    t('div', $u / $v); $w = $u; $w /= $v; t('divEq', $w); t('pow', $u ** $v);
+    t('mul', $u * 2); t('floatMinus', $u - $x); t('both', $u + $v);
+}
+`, map[string]string{"div": "?unknown", "divEq": "?unknown", "pow": "?unknown", "mul": "float|int", "floatMinus": "float", "both": "?unknown"})
 }

@@ -60,6 +60,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A function or method declared to return `array` without a `@return` tag
   returns the array type its body returns, where no override can run
   instead (functions, and private, final or static calls).
+- Arithmetic with one numeric operand is typed as a number (`int|float`, or
+  `float` with a float operand) even when the other operand is unknown, so
+  counters such as `$totals['count'] += $row['n']` keep their type.
 - `new` gives a generic class the template arguments its constructor's
   documented parameters bind (`new ArrayCollection($items)`), so iterating or
   reading the new object keeps the element type.
