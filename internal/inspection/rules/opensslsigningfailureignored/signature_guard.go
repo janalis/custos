@@ -1,24 +1,25 @@
 package opensslsigningfailureignored
 
 import (
+	"math"
 	"strings"
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
-// proof ranks what a test of the signature variable establishes about the
-// preceding openssl_sign call. A failed call leaves the variable untouched, so
-// an emptiness test only proves success when the earlier content is known.
+// proof says what the signature variable held before the openssl_sign call,
+// and so which test proves the call wrote it. A failed call leaves the
+// variable untouched.
 type proof uint8
 
 const (
-	unproven  proof = iota
-	whenUnset       // isset(): valid when the variable was unset or null before signing
-	whenEmpty       // empty()/truthiness: valid when it was unset, null or ''
-	always          // openssl_verify() === 1: valid whatever the variable held
+	whenUnset proof = iota // unset or null: any test ruling null out
+	whenEmpty              // '': any test ruling the empty string out
+	always                 // unknown: only openssl_verify() === 1
 )
 
 type guard struct {
@@ -119,135 +120,98 @@ func (g guard) same(e syntax.Expr) bool {
 	return ok && v.Name == g.name
 }
 
-// implies returns how strongly cond evaluating to truth proves that the
-// signature was written.
-func (g guard) implies(cond syntax.Expr, truth bool) proof {
-	switch c := syntax.UnwrapParens(cond).(type) {
-	case *syntax.Variable:
-		if truth && c.Name == g.name {
-			return whenEmpty
-		}
-	case *syntax.Isset:
-		for _, v := range c.Vars {
-			if truth && g.same(v) {
-				return whenUnset
-			}
-		}
-	case *syntax.Empty:
-		if !truth && g.same(c.Expr) {
-			return whenEmpty
-		}
-	case *syntax.Unary:
-		if c.Op.Kind == syntax.TExclaim {
-			return g.implies(c.Expr, !truth)
-		}
-	case *syntax.Binary:
-		switch {
-		case (c.Op.Kind == syntax.TBooleanAnd && truth) || (c.Op.Kind == syntax.TBooleanOr && !truth):
-			return max(g.implies(c.Left, truth), g.implies(c.Right, truth))
-		case (c.Op.Kind == syntax.TIsIdentical && truth) || (c.Op.Kind == syntax.TIsNotIdentical && !truth):
-			if g.verified(c.Left, c.Right) || g.verified(c.Right, c.Left) {
-				return always
-			}
-		}
-	}
-	return unproven
-}
-
-// verified matches openssl_verify(..., $signature, ...) compared with 1.
-func (g guard) verified(call, one syntax.Expr) bool {
-	c, ok := syntax.UnwrapParens(call).(*syntax.FuncCall)
-	if n, isInt := semanticquery.NativeInt(g.ctx, one); !ok || !isInt || n != 1 || !semanticquery.NativeBuiltin(g.ctx, c, "openssl_verify") {
-		return false
-	}
-	checked := syntax.UnwrapParens(semanticquery.CallArgument(c.Args, 1, "signature"))
-	if cast, ok := checked.(*syntax.Unary); ok && cast.Op.Kind == syntax.TStringCast {
-		checked = cast.Expr
-	}
-	return g.same(checked)
-}
-
 // safe reports whether the mention v is itself part of a test of the
 // signature, or is only reached once such a test proved signing succeeded.
 func (g guard) safe(v *syntax.Variable) bool {
-	// boolean stays true while v is only an operand of a truthiness test:
-	// `!send($signature)` or `empty(send($signature))` uses the value, it
-	// does not test the variable.
-	boolean := true
+	if use, ok := v.Parent().(*syntax.ClosureUse); ok {
+		// A capture copies the value where the closure is created.
+		closure := use.Parent().(*syntax.Closure)
+		return g.verifiedBefore(closure) || g.writtenAt(closure)
+	}
+	return g.tested(v) || g.verifiedBefore(v) || g.writtenAt(v)
+}
+
+// tested reports whether v is the operand of a test of the signature: of
+// isset, empty, `!`, a comparison with a constant or a truthiness condition
+// (parentheses, `&&` and `||` aside), or an argument of openssl_verify. A value computed from the
+// signature (`!deliver(base64_encode($signature))`) is a use, not a test.
+func (g guard) tested(v *syntax.Variable) bool {
 	var child syntax.Node = v
-	for p := v.Parent(); ; child, p = p, p.Parent() {
-		if p.Span().Start < g.stmt.Span().End {
-			// Constructs enclosing the call were evaluated before it ran.
-			// The body or File root starts before the call, ending every ascent.
-			return false
-		}
-		got := unproven
+	for p := v.Parent(); p != nil && !syntax.IsVariableScope(p); child, p = p, p.Parent() {
 		switch p := p.(type) {
-		case *syntax.Isset, *syntax.Empty:
-			if boolean {
-				return true
-			}
 		case *syntax.Paren:
 			continue
-		case *syntax.Unary:
-			if boolean && p.Op.Kind == syntax.TExclaim {
-				return true
-			}
-		case *syntax.FuncCall:
-			if semanticquery.NativeBuiltin(g.ctx, p, "openssl_verify") {
-				return true
-			}
 		case *syntax.Binary:
-			if p.Op.Kind == syntax.TBooleanAnd || p.Op.Kind == syntax.TBooleanOr {
-				if p.Op.Kind == syntax.TBooleanAnd && child == syntax.Node(p.Right) {
-					got = g.implies(p.Left, true)
+			switch p.Op.Kind {
+			case syntax.TBooleanAnd, syntax.TBooleanOr:
+				continue
+			case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+				// `$signature === ''`, `null !== $signature`: compared with a
+				// constant, the value is not used.
+				other := p.Right
+				if child == syntax.Node(p.Right) {
+					other = p.Left
 				}
-				if got < g.required {
-					continue
+				switch syntax.UnwrapParens(other).(type) {
+				case *syntax.Literal, *syntax.ConstFetch:
+					return true
 				}
 			}
-		case *syntax.Ternary:
-			switch {
-			case p.Then != nil && child == syntax.Node(p.Then):
-				got = g.implies(p.Cond, true)
-			case child == syntax.Node(p.Else):
-				got = g.implies(p.Cond, false)
-			case boolean && p.Then != nil:
+		case *syntax.Isset, *syntax.Empty:
+			return true
+		case *syntax.Unary:
+			if p.Op.Kind == syntax.TExclaim {
 				return true
 			}
 		case *syntax.If:
-			switch {
-			case child == syntax.Node(p.Body):
-				got = g.implies(p.Cond, true)
-			case boolean && child == syntax.Node(p.Cond):
-				return true
-			}
-		case *syntax.Else:
-			if branch := p.Parent().(*syntax.If); len(branch.ElseIfs) == 0 {
-				got = g.implies(branch.Cond, false)
-			}
+			return child == syntax.Node(p.Cond)
+		case *syntax.Ternary:
+			return p.Then != nil && child == syntax.Node(p.Cond)
 		}
-		if got >= g.required {
-			return true
-		}
-		boolean = false
-		if st, ok := p.(syntax.Stmt); ok && g.rejectedBefore(st) {
+		break
+	}
+	for p := v.Parent(); p != nil && !syntax.IsVariableScope(p); p = p.Parent() {
+		if c, ok := p.(*syntax.FuncCall); ok && semanticquery.NativeBuiltin(g.ctx, c, "openssl_verify") {
 			return true
 		}
 	}
+	return false
 }
 
-// rejectedBefore reports whether a statement between the signing call and st,
-// in the statement list of st, leaves the path unless signing succeeded.
-func (g guard) rejectedBefore(st syntax.Stmt) bool {
-	for {
-		prev, ok := astquery.PrevStmt(g.ctx.File, st)
-		if !ok || prev.Span().Start < g.stmt.Span().End {
-			return false
+// verifiedBefore reports whether an openssl_verify(..., $signature, ...)
+// call made after signing returned 1 where at runs: the signature is valid
+// whatever the variable held.
+func (g guard) verifiedBefore(at syntax.Expr) bool {
+	return semanticquery.NativeEarlierCallProves(g.ctx, at, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
+		c, ok := x.(*syntax.FuncCall)
+		if !ok || c.Span().Start < g.stmt.Span().End || !semanticquery.NativeBuiltin(g.ctx, c, "openssl_verify") {
+			return types.Unknown, nil
 		}
-		if branch, ok := prev.(*syntax.If); ok && branch.Else == nil && len(branch.ElseIfs) == 0 && syntax.Terminates(branch.Body) && g.implies(branch.Cond, false) >= g.required {
-			return true
+		checked := syntax.UnwrapParens(semanticquery.CallArgument(c.Args, 1, "signature"))
+		if cast, ok := checked.(*syntax.Unary); ok && cast.Op.Kind == syntax.TStringCast {
+			checked = cast.Expr
 		}
-		st = prev
+		if !g.same(checked) {
+			return types.Unknown, nil
+		}
+		return types.Ints(types.IntRange{Lo: -1, Hi: 1}), func(t types.Type) bool { return t.IntsOnly(1, 1) }
+	})
+}
+
+// writtenAt reports whether the conditions guarding at prove the call wrote
+// the signature, given what it held before: not null any more when it was
+// unset or null, not empty when it was ”.
+func (g guard) writtenAt(at syntax.Expr) bool {
+	if g.required == always || semanticquery.NativeLabelled(g.ctx, at) {
+		return false
 	}
+	env := g.ctx.Types().Native()
+	if g.required == whenUnset {
+		t := env.NarrowedVarAt(g.name, at, types.Union(types.Null, types.StringLengths(types.IntRange{Lo: 1, Hi: math.MaxInt64})))
+		return t.IsUnknown() || !t.Has("null")
+	}
+	// No signature is MaxInt64 bytes long: the bound keeps the lengths known,
+	// so that truthiness and emptiness tests refine them.
+	t := env.NarrowedVarAt(g.name, at, types.StringLengths(types.IntRange{Lo: 0, Hi: math.MaxInt64 - 1}))
+	return t.IsUnknown() || t.LengthsOnly(1, math.MaxInt64)
 }

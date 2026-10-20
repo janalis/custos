@@ -111,6 +111,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   `isset($d[3], $other)`, an exit followed by `else`/`elseif`, an `elseif`
   condition after a failed length test and `while` conditions now count,
   and a decode in a branch the length tests contradict is not reported.
+- OpenSslSigningFailureIgnored reads signature tests from type narrowing:
+  comparisons with `''` or `null` (also as tests themselves), an
+  `openssl_verify()` result kept in a local or compared loosely,
+  `match (true)` arms and an exit followed by `else` now count.
 - The rules that need a method call to have succeeded
   (ImagickSingleBlobDropsRequiredFrames, MysqliEscapedValueSurvivesCharsetChange,
   MysqliMultiQueryResultsNotDrained, PdoFetchIntoRetainsSharedRows,
