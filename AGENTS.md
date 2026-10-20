@@ -3,7 +3,8 @@
 Fast PHP inspector + fixer written in Go. Its rule catalogue includes native
 inspections and rules modeled on Php Inspections (EA Extended); it is an
 **independent clean-room implementation** released under MIT. Also runs as an
-LSP server (`custos lsp`) for editors.
+LSP server (`custos lsp`) for editors and an MCP server (`custos mcp`) for AI
+agents.
 
 Contributor docs (canonical, read before changing an area):
 `docs/contributing/` — `index.md` (make targets, code style, ground rules),
@@ -28,14 +29,25 @@ into this repo. Full process: `docs/contributing/clean-room.md`.
   default severity/enabled flags, option names/defaults, PHP-version
   thresholds, all captured in `internal/inspection/meta/rules.json` by
   `make extract`.
-- Two separate agents/sessions per rule:
+- Two separate agents/sessions per EA-modeled rule (skills in
+  `.agents/skills/`; for Claude Code, link them with
+  `ln -s ../.agents/skills .claude/skills`):
   1. `spec-rule` skill: read EA, write `specs/<ID>.md` in our own words with
      new examples.
   2. `implement-rule` skill: implement **from the spec only**; never open EA
      Java sources or EA fixtures while implementing.
 - EA fixtures are only *read at test time* from the local checkout by
-  `make conformance` (rule/range/severity + fix result compared; EA message
-  text is never compared or stored).
+  `make conformance` (severity and range of each finding + fix result
+  compared; EA message text is never compared or stored).
+
+## Native rules
+
+Most of the catalogue is native: rules designed for custos with no EA
+counterpart. Their IDs are our own, they have no PhpStorm name and no
+conformance run, and their facts (group, severity, default, options) live in
+`internal/inspection/meta/native-rules.json`, which `make extract` never
+touches. Their spec is written directly in our own words; the implementation
+step is the same. See `docs/contributing/adding-a-rule.md`.
 
 ## Layout
 
@@ -49,7 +61,7 @@ internal/inspection/                analysis, meta, catalogue, phpunit, {ast,flo
 internal/inspection/rules/<id>/     rule.go (New), implementation, tests, testdata/, optional NOTES.md
 internal/diagnostic/ internal/fixing/  findings and edits; fix application
 internal/project/                   discovery, indexing, analysis, prepared fixes; config, baseline
-internal/output/ internal/cli/ internal/editor/lsp/  adapters
+internal/output/ internal/cli/ internal/editor/{lsp,mcp}/  adapters
 internal/platform/safeio/ internal/testing/  bounded IO; conformance harness, test budgets
 tools/                              generators, architecture, coverage, clean-room checks
 specs/                              clean-room behavioral spec per rule ID
@@ -69,13 +81,14 @@ make rules-doc      # regenerate docs/rules/ (site), docs/internals/rules.md, ex
 make fixtures       # own fixtures (CI gate)            RULE=<ID> to filter
 make conformance    # EA fixtures from local checkout   RULE=<ID> to filter
 make bench / fuzz
-make cleanroom      # scan repo for verbatim EA text (local)
+make cleanroom      # forbidden upstream tokens; verbatim EA text when the checkout exists
 make docs / docs-dev # build / serve the docs site (Node 20+, docs/package.json)
-make coverage       # 100% gates: internal/inspection/rules from own fixtures + rule tests; cmd/ + internal/ + tools/ from the whole suite
+make coverage       # 100% gates: internal/inspection/rules from own fixtures + rule and catalogue tests; cmd/ + internal/ + tools/ from the whole suite
 make architecture   # package boundaries and complete inspection catalogue
 make verify         # definition of done: architecture + lint + test + fixtures + coverage + cleanroom
 make stubs          # rebuild embedded PHP stubs index
 make fixcheck       # apply every quick-fix on CUSTOS_CORPUS, require parsable output (FIXCHECK=php adds php -l samples; ~1-4 min)
+make clean          # remove bin/, dist/ and docs build output
 go generate ./internal/php/syntax  # regenerate node kinds after editing ast.go
 ```
 
@@ -90,25 +103,26 @@ go generate ./internal/php/syntax  # regenerate node kinds after editing ast.go
   dispatch, arena-allocated nodes, lazy semantic data, parallel files. Add a
   benchmark for any hot path you touch; check `-benchmem` allocations.
 - Byte offsets (`uint32`) everywhere; fixes are text edits on exact ranges.
-- Rule IDs: EA short name without `Inspection`. `@noinspection <LegacyID>`
-  and `@custos-ignore <ID>` must both suppress.
+- Rule IDs: for EA rules, the EA short name without `Inspection`;
+  `@noinspection <LegacyID>` and `@custos-ignore <ID>` must both suppress.
+  Native rules have only their ID.
 - Severity mapping: EA ERROR→error, WARNING→warning, WEAK WARNING→info.
 - Correctness beats upstream fidelity: when EA behavior is wrong (false
   positives, fixes changing semantics or producing invalid PHP), diverge,
   document it in the spec's Divergences and in
   `internal/testing/conformance/testdata/ea-divergences.json`.
 - No rule lands without own fixtures in
-  `internal/inspection/rules/<id>/testdata/` (positive, false-positive cases,
-  `.fixed.php` when it has a fix) covering 100% of its statements
-  (`make coverage`; remove unreachable code rather than exempt it) and a green
-  `make conformance RULE=<ID>` (or a documented, justified divergence in the
-  spec's "Divergences" section).
+  `internal/inspection/rules/<id>/testdata/` (findings, the false positives
+  it must avoid, `.fixed.php` when it has a fix) covering 100% of its
+  statements (`make coverage`; remove unreachable code rather than exempt
+  it), and, for EA rules, a green `make conformance RULE=<ID>` (or a
+  documented, justified divergence in the spec's "Divergences" section).
 - Specs are behavior only: no Go identifiers, repo paths, budget mechanics or
-  implementer advice. Keep those in an optional
-  `internal/inspection/rules/<id>/NOTES.md`, titled
-  `# <RuleID> implementation notes`, with free `##` sections in our own
-  words; create it only when there is something worth keeping.
+  implementer advice; those go in an optional `NOTES.md` next to the rule
+  (format in `docs/contributing/adding-a-rule.md`).
 - Messages: short, imperative, our own wording; no `[EA]` prefix.
+- Prose is US English (`behavior`, `analyze`); "custos" stays lowercase,
+  user docs say "rule" and "quick-fix". The `analyse` command keeps its name.
 - PHP versions 5.3–8.5 supported: version-gate rules via `meta`/spec thresholds.
 - New code ships with tests covering every statement (`make coverage`);
   timing limits in tests use `testbudget.Of(d)` (load-scaled) against

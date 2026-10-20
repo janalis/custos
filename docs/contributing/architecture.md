@@ -1,6 +1,6 @@
 # Architecture
 
-Custos is one Go module. Core analysis uses the standard library. The MCP adapter uses the official Go
+custos is one Go module. Core analysis uses the standard library. The MCP adapter uses the official Go
 MCP SDK pinned in `go.mod`; Windows storage ACL checks use `golang.org/x/sys`. Feature
 roots separate language processing, semantics, inspections, project operations
 and adapters. `cmd/custos` only passes process arguments and streams to the CLI.
@@ -35,6 +35,8 @@ summarize the same responsibilities.
 flowchart TD
     CLI[CLI adapter] --> Project[Project operations]
     LSP[LSP adapter] --> Project
+    MCP[MCP adapter] --> Project
+    CLI --> MCP
     CLI --> Output[Report and diff adapters]
     CLI --> Catalogue[Explicit inspection catalogue]
     LSP --> Catalogue
@@ -218,7 +220,10 @@ Measure hot-path changes with `make bench` and allocation counts.
 forbids cross-inspection dependencies and validates catalogue completeness,
 unique registration, lowercase ID directories, constructors, specs and fixtures.
 PHP, semantic, diagnostic, analysis and fixing packages cannot depend on CLI,
-LSP, reporting, project orchestration or filesystem adapters. Test imports may
+LSP, reporting, project orchestration or filesystem adapters. The MCP adapter
+may use project operations, fixing, analysis contracts, rule metadata, the
+diff renderer and `safeio`, but not the catalogue or the report formats: the
+CLI hands it the inspection list. Test imports may
 cross boundaries to exercise complete execution paths.
 
 ## Extending features
@@ -238,9 +243,12 @@ cross boundaries to exercise complete execution paths.
 
 ## Generated files
 
-`make rules-doc` regenerates `inspection/meta/descriptions.json`, the public
-rule reference, sidebar and internal status table. `make stubs` rebuilds
-embedded semantic assets; rerun it whenever a change to symbol extraction or
-annotation resolution alters the stub data, and bump the index revision that
-`tools/genstubs` records in `VERSION`. Specifications and inspection fixtures remain
-ID-based.
+`make rules-doc` regenerates `inspection/meta/descriptions.json`
+(`tools/genexplain`), the public rule reference and sidebar
+(`tools/rulesref`) and the internal status table (`tools/rulesdoc`). They
+read specs through `tools/internal/specmd`, which also makes spec text
+readable for users (see [Adding a rule](./adding-a-rule#_1-the-spec)).
+`make stubs` rebuilds embedded semantic assets; rerun it whenever a change to
+symbol extraction or annotation resolution alters the stub data, and bump the
+index revision that `tools/genstubs` records in `VERSION`. Specifications and
+inspection fixtures remain ID-based.

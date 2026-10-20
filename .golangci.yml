@@ -69,8 +69,9 @@ linters:
         - -ST1003 # naming: revive's var-naming covers it
         - -QF1001 # De Morgan rewrites: the original form often mirrors the spec
     misspell:
-      # No locale: prose is British English, while protocol and PHP names
-      # (initialize, __serialize, ANALYZE_* options) are American.
+      # No locale: prose is US English (docs/contributing), but older Go
+      # comments still use British spellings, and the `analyse` command
+      # keeps its own.
       ignore-rules:
         - ther # `\other` in PHP names
         - alse # `\false`

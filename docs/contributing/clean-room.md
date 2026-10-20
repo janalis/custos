@@ -41,14 +41,22 @@ and its first example is shown on that page.
 ## Checking against upstream without copying it
 
 `make conformance` reads the upstream fixtures directly from a local checkout
-at test time (`EA_PATH`). It compares only the rule, the range and the
-severity of each finding, and the result of applying fixes. Upstream message
-text is never compared or stored. The repository's own fixtures
-(`internal/inspection/rules/<id>/testdata/`) are the CI gate.
+at test time (`EA_PATH`). For each case it runs the rule under test and
+compares the severity and range of each finding, and the result of applying
+fixes. Upstream message text is never compared or stored. The repository's
+own fixtures (`internal/inspection/rules/<id>/testdata/`) are the CI gate.
 
-`make cleanroom` scans the repository (specs, code, test data, docs) for long
-strings that appear verbatim in the local upstream checkout and fails on any
-hit.
+`make cleanroom` scans `specs/`, `internal/`, `cmd/` and `docs/` and fails
+on any hit:
+
+- forbidden tokens, always: the upstream message prefix (`EA` in square
+  brackets) and names of upstream Java classes (IDE API types and the
+  plugin's helper classes), listed in `tools/cleanroom`;
+- when the local upstream checkout exists, long strings that appear verbatim
+  in its Java sources or fixtures.
+
+The conformance harness under `internal/testing/conformance/` is exempt from
+the token check, since it parses that prefix.
 
 Conformance failures must not expose upstream messages or expected fixed source
 to implementers. Missing expectations are reported by severity and range; fix
