@@ -33,7 +33,7 @@ many of them for you. It is written in Go with its own PHP parser and type
 inference, so it needs no PHP runtime. It runs from the command line, in CI,
 in editors as a language server, and with AI agents through MCP.
 
-The catalogue mixes rules modelled on *Php Inspections (EA Extended)*, whose
+The catalogue mixes rules modeled on *Php Inspections (EA Extended)*, whose
 existing `@noinspection XxxInspection` comments keep working, and native rules
 designed for custos. custos is an independent clean-room implementation (see
 [NOTICE](NOTICE)).
@@ -45,8 +45,8 @@ brew install janalis/tap/custos           # macOS / Linux
 composer require --dev janalis/custos     # per project → vendor/bin/custos
 ```
 
-Release archives for Linux, macOS and Windows (amd64/arm64) are on the
-[releases page](https://github.com/janalis/custos/releases). See
+Archives and bare binaries for Linux, macOS and Windows (amd64/arm64) are
+on the [releases page](https://github.com/janalis/custos/releases). See
 [Installation](https://janalis.github.io/custos/guide/installation) for
 details and building from source.
 
@@ -74,20 +74,12 @@ More in the guide: [command line](https://janalis.github.io/custos/guide/cli),
 
 ## Configuration
 
-An optional `custos.json` at the project root:
-
-```json
-{
-  "php": "8.3",
-  "paths": ["src", "tests"],
-  "rules": {
-    "StaticClosureCanBeUsed": { "enabled": false }
-  }
-}
-```
-
-All keys are described in
-[Configuration](https://janalis.github.io/custos/guide/configuration).
+An optional `custos.json` at the project root pins the PHP version, chooses
+paths and turns rules on or off; see
+[Getting started](https://janalis.github.io/custos/guide/getting-started#_3-configure)
+for an example and
+[Configuration](https://janalis.github.io/custos/guide/configuration) for
+every key.
 
 ## Contributing
 
@@ -99,7 +91,7 @@ enter this repository.
 
 ```sh
 make build          # → bin/custos
-make verify         # lint + tests + fixtures + 100 % coverage + clean-room scan
+make verify         # architecture + lint + tests + fixtures + 100 % coverage + clean-room scan
 ```
 
 ## License

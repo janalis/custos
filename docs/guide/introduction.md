@@ -31,21 +31,24 @@ available quick-fixes.
 ## Why custos
 
 - **One binary.** It is written in Go with its own PHP parser and type
-  inference, so it needs no PHP runtime, no IDE and no indexing step. Install
-  it with Homebrew or Composer, or download a release archive.
-- **Fast.** Files are analyzed in parallel, each in a single pass over its
-  syntax tree.
+  inference, so it needs no PHP runtime and no IDE. Install it with Homebrew
+  or Composer, or download it from a release.
+- **Fast.** custos first indexes the symbols of your project and its
+  `vendor/` directory, then analyzes files in parallel, each in a single pass
+  over its syntax tree.
 - **Fixes, not just reports.** Rules offer quick-fixes when a safe correction
   can be established. Apply them with `custos fix`, or one at a time from
   your editor.
-- **Same findings everywhere.** The CLI, CI and the language server share
-  one engine and one configuration file (`custos.json`).
+- **Same findings everywhere.** The CLI, CI, the language server and the
+  [MCP server](./mcp) for AI agents share one engine, one configuration file
+  (`custos.json`) and one baseline.
 - **Version-aware.** Rules are gated on your target PHP version (5.3 to 8.5),
-  read from `custos.json` or `composer.json`.
+  from `--php`, `custos.json` or `composer.json` (see
+  [Target PHP version](./configuration#target-php-version)).
 
 ## Relation to Php Inspections (EA Extended)
 
-The catalogue mixes two kinds of rules: rules modelled on the PhpStorm plugin
+The catalogue mixes two kinds of rules: rules modeled on the PhpStorm plugin
 [Php Inspections (EA Extended)](https://github.com/kalessil/phpinspectionsea)
 (*EA rules*), and [native rules](./native-rules) designed for custos. The
 [rule reference](/rules/) shows the origin of each rule.
@@ -76,4 +79,6 @@ invalid PHP, custos diverges on purpose.
 custos works alongside type checkers (PHPStan, Psalm), formatters
 (PHP-CS-Fixer, PHP_CodeSniffer) and your main PHP language server
 (Intelephense, Phpactor, PhpStorm). It covers patterns that are legal PHP
-but probably wrong, slow, insecure or outdated.
+but probably wrong, slow, insecure or outdated. Through its
+[MCP server](./mcp), AI coding agents can run the same checks and apply the
+same quick-fixes.

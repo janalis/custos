@@ -25,13 +25,22 @@ directory. Environment variables:
 |---|---|
 | `CUSTOS_BINARY` | Run this binary instead; nothing is downloaded. |
 | `CUSTOS_DOWNLOAD_URL` | Base URL, or a local directory, holding the release assets (a mirror). |
-| `HTTPS_PROXY` | Proxy for the download. |
+| `HTTPS_PROXY` (or `https_proxy`) | Proxy for the download. |
 
-## Release archives
+When the download fails, the launcher prints why and exits 2.
 
-Download the archive for your platform from the
-[releases page](https://github.com/janalis/custos/releases), check it
-against `SHA256SUMS`, extract `custos`, and put it on your `PATH`.
+## Release downloads
+
+Each [release](https://github.com/janalis/custos/releases) has, for every
+platform:
+
+- an archive (`.tar.gz`, or `.zip` on Windows) holding `custos` (`custos.exe`
+  on Windows) with the license and README;
+- the bare binary, `custos_<os>_<arch>` (for example `custos_linux_arm64`),
+  handy in CI.
+
+Check the download against `SHA256SUMS`, make the binary executable if
+needed, and put it on your `PATH` as `custos`.
 
 ## From source
 

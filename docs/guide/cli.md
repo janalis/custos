@@ -6,10 +6,12 @@ custos fix [flags] [paths...]       # apply quick-fixes
 custos explain <rule>               # describe a rule and its options
 custos rules [--json]               # list rules
 custos lsp                          # language server over stdio
+custos mcp [flags]                  # MCP server for AI agents (stdio or HTTP)
 custos version
 ```
 
-`analyze` is accepted as an alias of `analyse`. Run `custos <command> -h` for
+`analyze` is accepted as an alias of `analyse`, `--version` of `version`, and
+`help`, `-h` or `--help` print the list above. Run `custos <command> -h` for
 the flags of a command. Flags can be written `--php 8.1` or `--php=8.1`.
 
 ## Paths
@@ -18,9 +20,15 @@ Paths on the command line are relative to the current directory. Without
 paths, custos uses `paths` from `custos.json`, or else the
 [project root](./configuration#project-root). Some directories are
 [always skipped](./configuration#excluded-directories). Directories are
-searched for `.php` files (plus the few files some rules read, such as
-`composer.json`); a file named on the command line is analyzed whatever its
-extension.
+searched for files ending in `.php`, lowercase (plus the few files some rules
+read, such as `composer.json`); `.phtml` or `.inc` files are only analyzed
+when named on the command line, which works whatever the extension.
+
+Before checking files one by one, custos indexes the symbols they declare and
+those under `vendor/` (or Composer's `config.vendor-dir`), so rules know the
+classes and functions your code uses. Run `composer install` first: without
+`vendor/`, types from dependencies are unknown and rules that need them stay
+silent.
 
 ## Common flags
 
@@ -29,8 +37,8 @@ These apply to both `analyse` and `fix`:
 | Flag | Meaning |
 |---|---|
 | `--php 8.1` | Target PHP version; overrides the [usual sources](./configuration#target-php-version). |
-| `--rule A,B` | Run only these rules (rule IDs or PhpStorm names). |
-| `--all` | Enable every rule, including the ones off by default. |
+| `--rule A,B` | Run exactly these rules (rule IDs or PhpStorm names), even ones off by default or disabled in `custos.json`. |
+| `--all` | Enable every rule, including the ones off by default, except those `custos.json` sets to `"enabled": false`. |
 | `--comparison-style regular\|yoda` | Preferred operand order for comparison rules and their quick-fixes. |
 | `--config DIR` | Start the search for the [project root](./configuration#project-root) here. |
 | `--exclude a,b` | Extra directories to skip, as `exclude` in `custos.json`. |
@@ -46,8 +54,7 @@ These apply to both `analyse` and `fix`:
 | `--generate-baseline FILE` | Record all current findings in FILE, relative to the current directory, and exit 0. |
 | `--stats` | Print file and rule counts, the target PHP version and its source, and the time taken on stderr, plus the number of findings the baseline suppressed. |
 
-Without `--baseline`, `analyse` uses `baseline` from `custos.json`, relative
-to the project root; a missing file there suppresses nothing. See
+Without `--baseline`, `analyse` uses `baseline` from `custos.json`. See
 [Baseline](./suppressing#baseline).
 
 Output formats:
@@ -56,11 +63,26 @@ Output formats:
 - `json`: `{"files": N, "findings": [...], "analysis": {...}}`, each finding
   with `path`, `line`, `column`, `endLine`, `endColumn`, `rule`, `severity`,
   `message` and `fixable`.
-- `checkstyle`: Checkstyle XML, read by many CI dashboards.
+- `checkstyle`: Checkstyle XML, read by many CI dashboards. Each error's
+  `source` is `custos.<Rule>`.
 - `github`: GitHub Actions workflow commands, shown as annotations on the
-  pull request diff. `info` findings become notices.
+  pull request diff, titled with the rule ID. `info` findings become notices.
 - `sarif`: SARIF 2.1.0, for GitHub code scanning and other SARIF viewers.
   `info` findings have the `note` level.
+
+## Tool findings
+
+Three findings come from custos itself rather than from a rule, always at
+`error` severity:
+
+| Rule | Meaning |
+|---|---|
+| `syntax` | The file does not parse; findings of other rules may be missing. |
+| `io` | The file could not be read. |
+| `internal` | A rule failed on the file; the other rules still ran. |
+
+They count for `--fail-on` like any other error, so a syntax error fails the
+default run, and they are never recorded in a [baseline](./suppressing#baseline).
 
 ## Analysis status
 
@@ -102,7 +124,8 @@ proof that the code is correct.
 Quick-fixes are applied repeatedly until nothing changes (at most 10 rounds),
 since one fix can reveal another finding. A file that cannot be read or
 written is reported and the other files are still fixed; `fix` then exits 2.
-custos never writes through symlinks.
+custos never writes through symlinks. `fix` has no `--fail-on`: it exits 0
+whether or not findings remain.
 
 ## explain and rules
 
@@ -112,10 +135,38 @@ custos rules                            # ✓ marks implemented rules; group, se
 custos rules --json                     # the full catalogue, for tooling
 ```
 
+`rules --json` lists one object per rule with `id`, `legacyId` (the PhpStorm
+name of EA rules), `group`, `severity`, `enabledByDefault`, `hasFix`,
+`implemented`, and, when set, `experimental` and `options`.
+
+## lsp
+
+`custos lsp` serves the Language Server Protocol over stdin and stdout, the
+only transport; `--stdio` is accepted for clients that always pass it. See
+[Editors](./editors).
+
+## mcp
+
+`custos mcp` serves the Model Context Protocol to AI agents. See
+[MCP server](./mcp) for setup and tools.
+
+| Flag | Meaning |
+|---|---|
+| `--stdio` | Use stdin and stdout (the default). Cannot be combined with `--http`. |
+| `--root DIR` | Workspace root for stdio. Cannot be combined with `--workspaces`. |
+| `--workspaces FILE` | Private JSON file listing workspaces, identities and transport settings. |
+| `--storage DIR` | Private directory for checkpoints, outside every workspace. |
+| `--http ADDR` | Serve Streamable HTTP at ADDR instead of stdio. |
+| `--tls-cert FILE`, `--tls-key FILE` | HTTPS certificate and key for `--http`. |
+
+`mcp` takes flags only, no paths.
+
 ## Exit codes
 
 | Code | Meaning |
 |---|---|
 | `0` | Success; no finding at or above `--fail-on`. |
 | `1` | Findings at or above `--fail-on`. |
-| `2` | Usage or [configuration](./configuration#validation) error, or files `fix` could not process. |
+| `2` | Usage error (including no or an unknown command), [configuration](./configuration#validation) error, or files `fix` could not process. |
+
+`--fail-on` only applies to `analyse`.

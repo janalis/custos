@@ -4,7 +4,7 @@ layout: home
 hero:
   name: custos
   text: Fast PHP inspector and fixer
-  tagline: Rules with quick-fixes, from probable bugs to PHP 8.5 migration. One static binary for the command line, CI and your editor.
+  tagline: Rules with quick-fixes, from probable bugs to PHP 8.5 migration. One static binary for the command line, CI, your editor and AI agents.
   image:
     src: /logo.png
     alt: custos, an elephant in a police uniform
@@ -22,7 +22,7 @@ hero:
 features:
   - icon: 🔎
     title: Rules for PHP
-    details: Probable bugs, security, performance, control flow, code style, unused code, PHPUnit and language level migration from PHP 5.3 to 8.5.
+    details: From probable bugs and security issues to code style and language level migration, gated on your target PHP version, from 5.3 to 8.5.
     link: /rules/
     linkText: Rule reference
   - icon: 🛠️
@@ -32,7 +32,7 @@ features:
     linkText: custos fix
   - icon: ⚡
     title: Fast, no PHP needed
-    details: A single static Go binary with its own PHP parser and type inference. Files are analyzed in parallel, each in one pass over its syntax tree.
+    details: A single static Go binary with its own PHP parser and type inference. It indexes your project and vendor symbols, then analyzes files in parallel.
     link: /guide/installation
     linkText: Install
   - icon: 🧩
@@ -45,9 +45,14 @@ features:
     details: Text, JSON, Checkstyle, GitHub annotations and SARIF output. A baseline lets legacy projects report only new findings.
     link: /guide/ci
     linkText: CI recipes
+  - icon: 🤖
+    title: For AI agents
+    details: custos mcp lets coding agents analyze a workspace, read findings and apply quick-fixes through the Model Context Protocol, locally or remotely.
+    link: /guide/mcp
+    linkText: MCP setup
   - icon: 🤝
     title: PhpStorm-compatible
-    details: Rules modelled on Php Inspections (EA Extended) keep their PhpStorm names, so existing @noinspection comments keep working. Native rules are designed for custos.
+    details: Rules modeled on Php Inspections (EA Extended) keep their PhpStorm names, so existing @noinspection comments keep working. Native rules are designed for custos.
     link: /guide/suppressing
     linkText: Suppressing findings
 ---
