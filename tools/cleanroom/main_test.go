@@ -90,10 +90,18 @@ func TestRunClean(t *testing.T) {
 	}
 }
 
+// TestRunNoCheckout: without the checkout the verbatim scan is skipped,
+// but forbidden tokens are still refused.
 func TestRunNoCheckout(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	missing := filepath.Join(t.TempDir(), "none")
-	if code := run(t.TempDir(), []string{"-ea", missing}, &stdout, &stderr); code != 0 || stdout.String() != "cleanroom: EA checkout not found, skipped\n" {
+	if code := run(t.TempDir(), []string{"-ea", missing}, &stdout, &stderr); code != 0 || stdout.String() != "cleanroom: EA checkout not found, verbatim scan skipped\ncleanroom: ok\n" {
+		t.Fatalf("exit %d, %q", code, stdout.String())
+	}
+	repo := t.TempDir()
+	write(t, filepath.Join(repo, "internal/x.go"), "msg := \"[EA] copied\"\n")
+	stdout.Reset()
+	if code := run(repo, []string{"-ea", missing}, &stdout, &stderr); code != 1 || !strings.Contains(stdout.String(), "forbidden token") {
 		t.Fatalf("exit %d, %q", code, stdout.String())
 	}
 }

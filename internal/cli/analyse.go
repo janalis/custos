@@ -20,7 +20,7 @@ func cmdAnalyse(args []string, stdout, stderr io.Writer) (int, error) {
 	c := newCommon("analyse", stderr)
 	format := c.fs.String("format", "text", "output format: "+strings.Join(report.Formats, ", "))
 	failOn := c.fs.String("fail-on", "warning", "exit 1 when a finding has at least this severity: info, warning, error, never")
-	stats := c.fs.Bool("stats", false, "print timing to stderr")
+	stats := c.fs.Bool("stats", false, "print run statistics to stderr (files, rules, PHP version and its source, time, baseline-suppressed count)")
 	baselinePath := c.fs.String("baseline", "", "ignore findings recorded in this baseline file (default: custos.json \"baseline\")")
 	genBaseline := c.fs.String("generate-baseline", "", "write all current findings to this baseline file and exit 0")
 	s, err := c.prepare(args)

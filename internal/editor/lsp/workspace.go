@@ -91,6 +91,15 @@ type fileChange struct {
 // Changes arriving while the initial index is built are queued and replayed.
 func (s *Server) watchedFilesChanged(changes []fileChange) {
 	s.mu.Lock()
+	bl := baselinePath(s.cfg)
+	s.mu.Unlock()
+	for _, ch := range changes {
+		if bl != "" && filepath.Clean(uriToPath(ch.URI)) == bl {
+			s.reloadBaseline()
+			break
+		}
+	}
+	s.mu.Lock()
 	if s.indexing {
 		s.pending = append(s.pending, changes...)
 		s.mu.Unlock()

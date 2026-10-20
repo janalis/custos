@@ -34,14 +34,14 @@ func (s *Server) analyzeNow(uri string) {
 		return
 	}
 	original, revision := d, d.revision
-	text, version, path, e, cfg, lines := d.text, d.version, d.path, s.engine, s.cfg, d.lines
+	text, version, path, e, cfg, bl, lines := d.text, d.version, d.path, s.engine, s.cfg, s.baseline, d.lines
 	s.mu.Unlock()
 
 	// current reports (under s.mu) that the analysis still describes the
-	// document: neither it nor the engine changed meanwhile.
+	// document: neither it, the engine nor the baseline changed meanwhile.
 	current := func() bool {
 		d, ok := s.docs[uri]
-		return ok && d == original && d.revision == revision && d.version == version && s.engine == e
+		return ok && d == original && d.revision == revision && d.version == version && s.engine == e && s.baseline == bl
 	}
 	acquireSlot(s)
 	s.mu.Lock()
@@ -58,6 +58,9 @@ func (s *Server) analyzeNow(uri string) {
 	<-s.sem
 
 	findings := result.Findings
+	if bl != nil {
+		findings = bl.FilterFindings(path, text, findings)
+	}
 	status := analysisStatus(result.Incomplete)
 	diags := make([]protocolDiagnostic, 0, len(findings))
 	for _, f := range findings {

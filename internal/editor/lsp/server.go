@@ -14,6 +14,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	"custos/internal/project"
+	"custos/internal/project/baseline"
 	"custos/internal/project/config"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
@@ -45,11 +46,13 @@ type document struct {
 
 // Server is the custos language server.
 type Server struct {
-	c        *conn
-	mu       sync.Mutex
-	docs     map[string]*document
-	engine   *analysis.Engine
-	cfg      *config.Config
+	c      *conn
+	mu     sync.Mutex
+	docs   map[string]*document
+	engine *analysis.Engine
+	cfg    *config.Config
+	// baseline hides the project's known findings, nil without one.
+	baseline *baseline.Baseline
 	initOpts json.RawMessage
 	root     string
 	resolve  bool // client supports codeAction/resolve

@@ -120,11 +120,11 @@ verify: architecture lint test fixtures coverage cleanroom
 COVER_SKIP := TestEA|TestNoCrashOnCorpus|TestFixesKeepCodeParsable
 coverage:
 	@mkdir -p .cache
-	go test -p 4 ./internal/testing/conformance ./internal/inspection/catalogue ./internal/inspection/rules/... -skip '$(COVER_SKIP)' \
+	$(GO) test -p 4 ./internal/testing/conformance ./internal/inspection/catalogue ./internal/inspection/rules/... -skip '$(COVER_SKIP)' \
 		-coverpkg=./internal/inspection/rules/... -coverprofile=.cache/rules-cover.out >.cache/rules-cover.log 2>&1 \
 		|| { grep -E -B2 -A20 '^(--- FAIL|FAIL|panic:)' .cache/rules-cover.log; exit 1; }
 	@$(GO) run ./tools/covercheck -what internal/inspection/rules .cache/rules-cover.out
-	go test -p 4 ./... -skip '$(COVER_SKIP)' -coverpkg=./cmd/...,./internal/...,./tools/... -coverprofile=.cache/all-cover.out >.cache/all-cover.log 2>&1 \
+	$(GO) test -p 4 ./... -skip '$(COVER_SKIP)' -coverpkg=./cmd/...,./internal/...,./tools/... -coverprofile=.cache/all-cover.out >.cache/all-cover.log 2>&1 \
 		|| { grep -E -B2 -A20 '^(--- FAIL|FAIL|panic:)' .cache/all-cover.log; exit 1; }
 	@$(GO) run ./tools/covercheck -what "cmd/, internal/ and tools/" .cache/all-cover.out
 

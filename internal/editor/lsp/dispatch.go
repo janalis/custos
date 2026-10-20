@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"encoding/json"
+	"path/filepath"
 )
 
 func (s *Server) handle(m *message) (result any, rerr *rpcError) {
@@ -16,10 +17,17 @@ func (s *Server) handle(m *message) (result any, rerr *rpcError) {
 	case "initialized":
 		if s.watchDynamic {
 			// Ask the client to report PHP file changes so the project index
-			// follows edits made outside open buffers (git checkout, codegen…).
+			// follows edits made outside open buffers (git checkout, codegen…),
+			// and baseline changes so regenerating it takes effect.
+			watchers := []any{map[string]any{"globPattern": "**/*.php"}}
+			s.mu.Lock()
+			if p := baselinePath(s.cfg); p != "" {
+				watchers = append(watchers, map[string]any{"globPattern": "**/" + filepath.Base(p)})
+			}
+			s.mu.Unlock()
 			_ = s.c.request("client/registerCapability", map[string]any{"registrations": []any{map[string]any{
 				"id": "custos-php-watch", "method": "workspace/didChangeWatchedFiles",
-				"registerOptions": map[string]any{"watchers": []any{map[string]any{"globPattern": "**/*.php"}}},
+				"registerOptions": map[string]any{"watchers": watchers},
 			}}})
 		}
 		if s.beginIndexing() {
