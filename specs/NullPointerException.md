@@ -421,3 +421,10 @@ function visit(?Node $item) {
   a plain `=`: it stops the walk unless the right side is nullable in the
   D5 sense (`$c ??= $this->next()` with `next(): ?Box` keeps walking).
   Other compound assignments stay non-stopping usages.
+- **Locals assigned a tested call (custos diverges).** In D5, a right side
+  that is a function or method call is not nullable when an identical call
+  written before it was tested by the conditions guarding the assignment:
+  `if (null !== $box->next()) { $n = $box->next(); $n->open(); }` and
+  `if (lookup() === null) { return; } $n = lookup(); $n->open();` report
+  nothing. A test that does not guard the assignment (an earlier `if` whose
+  body has ended) still leaves the local nullable.

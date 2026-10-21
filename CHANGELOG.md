@@ -70,6 +70,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   longer reports `$container->get('id')->method()`, and a Prophecy
   `prophesize(Foo::class)->reveal()` is a `Foo`. A template documented as
   `array<T>|null` or `class-string<T>|null` binds from a non-null argument.
+- A value of unknown type takes the type its guards prove when they prove a
+  concrete one (`is_string($x)`, `$x instanceof Foo`, `Assert::string($x)`):
+  StrlenInEmptyStringCheckContext no longer suggests a redundant `(string)`
+  cast after `is_string($x) &&`, and rules see the narrowed type inside the
+  guarded code.
 - A function or method declared to return `array` without a `@return` tag
   returns the array type its body returns, where no override can run
   instead (functions, and private, final or static calls).
@@ -254,6 +259,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- NullPointerException no longer reports a local assigned a call that an
+  identical call guarding it was tested for null
+  (`if (null !== $o->get()) { $v = $o->get(); $v->run(); }`).
 - CallableParameterUseCaseInTypeContext no longer reports a local variable
   assigned to a parameter when the variable holds a call's result that may
   be `false` (`$tmp = tempnam(…); … $path = $tmp;`) or carries an inline

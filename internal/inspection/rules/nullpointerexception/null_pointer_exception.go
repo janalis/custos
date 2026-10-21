@@ -214,10 +214,27 @@ func (u *npeUnit) strategyLocals() {
 	}
 }
 
+// testedBefore reports whether x is a call whose identical earlier call
+// was tested by the conditions guarding x (`if (null !== $o->get()) { $v =
+// $o->get(); }`).
+func (u *npeUnit) testedBefore(x syntax.Expr) bool {
+	switch x.(type) {
+	case *syntax.FuncCall, *syntax.MethodCall:
+	default:
+		return false
+	}
+	return semanticquery.NativeEarlierCallProves(u.ctx, x, func(c syntax.Expr) (types.Type, func(types.Type) bool) {
+		if c.Kind() != x.Kind() || !astquery.Equivalent(u.ctx.File, c, x) {
+			return types.Unknown, nil
+		}
+		return u.ctx.TypeOf(c), func(t types.Type) bool { return !t.HasAny("null", "void") }
+	})
+}
+
 // nullableAssign applies D5 to an assignment of $name.
 func (u *npeUnit) nullableAssign(a *syntax.Assign, name string) bool {
 	t := u.ctx.TypeOf(a.Value)
-	if !t.HasAny("null", "void") || !npeObjectOnly(t) {
+	if !t.HasAny("null", "void") || !npeObjectOnly(t) || u.testedBefore(a.Value) {
 		return false
 	}
 	// a is a plain `=` assignment (both callers check it)
