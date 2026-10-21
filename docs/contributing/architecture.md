@@ -240,5 +240,7 @@ cross boundaries to exercise complete execution paths.
 
 `make rules-doc` regenerates `inspection/meta/descriptions.json`, the public
 rule reference, sidebar and internal status table. `make stubs` rebuilds
-embedded semantic assets. Specifications and inspection fixtures remain
+embedded semantic assets; rerun it whenever a change to symbol extraction or
+annotation resolution alters the stub data, and bump the index revision that
+`tools/genstubs` records in `VERSION`. Specifications and inspection fixtures remain
 ID-based.
