@@ -9,7 +9,7 @@
 
 namespace Custos\Launcher;
 
-const VERSION = '0.1.6';
+const VERSION = '0.1.7';
 const RELEASES = 'https://github.com/janalis/custos/releases/download';
 
 function fail(string $msg): void
