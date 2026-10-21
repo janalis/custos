@@ -31,16 +31,8 @@ func TestNativeAuditIntentAndIdentity(t *testing.T) {
 		{"ContentLengthUsesCharacterCount", "header('Content-Length: '.mb_strlen(1));echo 1;", CheckContentLengthUsesCharacterCount, 0},
 		{"ContentLengthUsesCharacterCount", "header('Content-Length: '.mb_strlen(1.5));echo 1.5;", CheckContentLengthUsesCharacterCount, 0},
 		{"ContentLengthUsesCharacterCount", "header('Content-Length: '.mb_strlen(true));echo true;", CheckContentLengthUsesCharacterCount, 0},
-		{"DirectoryIteratorDotEntries", "foreach(new DirectoryIterator('/tmp') as $entry){$entry=new SplFileInfo('/safe/file');unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 0},
-		{"DirectoryIteratorDotEntries", "foreach(new DirectoryIterator('/tmp') as $entry){if($flag){$entry=new SplFileInfo('/safe/file');}unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 0},
-		{"DirectoryIteratorDotEntries", "foreach(new DirectoryIterator('/tmp') as $entry){$f=function(){$entry=1;};unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 1},
-		{"DirectoryIteratorDotEntries", "foreach(new DirectoryIterator('/tmp') as $entry){unset($entry);unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 0},
-		{"DirectoryIteratorDotEntries", "foreach(new DirectoryIterator('/tmp') as $entry){$entry++;unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 0},
-		{"DirectoryIteratorDotEntries", "foreach(new DirectoryIterator('/tmp') as $entry){foreach($other as $entry){}unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 0},
 		{"PdoPlaceholderBindingMismatch", "function f(PDO $p,$flag){$s=$p->prepare('SELECT :id');$flag && $s->bindValue(':id',1);$s->execute();}", CheckPdoPlaceholderBindingMismatch, 0},
 		{"PdoPlaceholderBindingMismatch", "function f(PDO $p,$flag){$s=$p->prepare('SELECT :id');$flag ? $s->bindValue(':id',1) : 0;$s->execute();}", CheckPdoPlaceholderBindingMismatch, 0},
-		{"ReadModifyWriteLockTooLate", "file_put_contents(nextPath(),file_get_contents(nextPath()).'x',LOCK_EX);", CheckReadModifyWriteLockTooLate, 0},
-		{"ReadModifyWriteLockTooLate", "file_put_contents('file',file_get_contents('file').'x',LOCK_EX);", CheckReadModifyWriteLockTooLate, 1},
 		{"UntrustedForwardedClientAddress", "if($_SERVER['HTTP_X_FORWARDED_FOR']==='127.0.0.1'){echo 'logged';}", CheckUntrustedForwardedClientAddress, 0},
 		{"UntrustedForwardedClientAddress", "/** @custos-protected */ function access(){} if($log){echo $_SERVER['HTTP_X_FORWARDED_FOR']==='127.0.0.1';access();}", CheckUntrustedForwardedClientAddress, 0},
 		{"UntrustedForwardedClientAddress", "if($_SERVER['HTTP_X_FORWARDED_FOR']==='127.0.0.1'){grantAccess();}", CheckUntrustedForwardedClientAddress, 0},
@@ -126,15 +118,15 @@ func BenchmarkNativeContentLengthBodyProof(b *testing.B) {
 
 func TestNativeAuditSharedProofBoundaries(t *testing.T) {
 	probeNative(t, "$x='same';probe($x,$x);", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if !nativeSameExpression(ctx, CallArgument(c.Args, 0, ""), CallArgument(c.Args, 1, "")) {
+		if !SameOperand(ctx, CallArgument(c.Args, 0, ""), CallArgument(c.Args, 1, "")) {
 			t.Fatal("uniquely reaching assigned value lost")
 		}
-		if nativeSameExpression(ctx, nil, CallArgument(c.Args, 0, "")) {
+		if SameOperand(ctx, nil, CallArgument(c.Args, 0, "")) {
 			t.Fatal("missing path must be unknown")
 		}
 	})
 	probeNative(t, "probe($unknown,$unknown);", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if nativeSameExpression(ctx, CallArgument(c.Args, 0, ""), CallArgument(c.Args, 1, "")) {
+		if SameOperand(ctx, CallArgument(c.Args, 0, ""), CallArgument(c.Args, 1, "")) {
 			t.Fatal("unknown variables cannot prove identity")
 		}
 	})
@@ -144,18 +136,4 @@ func TestNativeAuditSharedProofBoundaries(t *testing.T) {
 			t.Fatal("effectful optional argument must remain evaluated")
 		}
 	})
-}
-
-func BenchmarkNativeIteratorBindingProof(b *testing.B) {
-	p := nativeCheckProbe{"DirectoryIteratorDotEntries", CheckDirectoryIteratorDotEntries}
-	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}})
-	if err != nil {
-		b.Fatal(err)
-	}
-	file := syntax.Parse("iterator.php", []byte("<?php foreach(new DirectoryIterator('/tmp') as $entry){if($entry->isDot()){continue;}unlink($entry->getPathname());}"), syntax.Options{})
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		e.Analyze(file)
-	}
 }

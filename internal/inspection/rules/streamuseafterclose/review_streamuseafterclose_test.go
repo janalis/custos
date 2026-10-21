@@ -1,4 +1,4 @@
-package semanticquery
+package streamuseafterclose
 
 import (
 	"testing"
@@ -40,7 +40,7 @@ func TestReviewStreamUseAfterCloseProof(t *testing.T) {
 		{"captured by reference at file scope", "$h=fopen('a','rb');if($h!==false){$g=function()use(&$h){$h=fopen('b','rb');};fclose($h);$g();fread($h,1);}", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := nativeStreamProbe{"StreamUseAfterClose", CheckStreamUseAfterClose}
+			probe := New()
 			engine, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{probe.ID()}})
 			if err != nil {
 				t.Fatal(err)

@@ -1,4 +1,4 @@
-package semanticquery
+package pathcontainmentprefixboundary
 
 import (
 	"testing"
@@ -71,8 +71,8 @@ func TestReviewPathContainmentPrefixBoundary(t *testing.T) {
 		{"substr raw path", "return substr($p,0,10)==='/srv/files';", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := nativeCheckProbe{"PathContainmentPrefixBoundary", CheckPathContainmentPrefixBoundary}
-			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}})
+			p := New()
+			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.ID()}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -88,8 +88,8 @@ func TestReviewPathContainmentPrefixBoundary(t *testing.T) {
 // and highlight the whole comparison rather than the inner call.
 func TestReviewPathContainmentPrefixBoundaryOldPHPAndRange(t *testing.T) {
 	const src = "<?php function f($p){$r=realpath($p);return strpos($r,'/srv/files')===0||str_starts_with($r,'/srv/files');}"
-	p := nativeCheckProbe{"PathContainmentPrefixBoundary", CheckPathContainmentPrefixBoundary}
-	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}, PHP: version.MustParse("5.3")})
+	p := New()
+	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.ID()}, PHP: version.MustParse("5.3")})
 	if err != nil {
 		t.Fatal(err)
 	}

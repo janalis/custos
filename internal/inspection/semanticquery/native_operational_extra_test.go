@@ -57,7 +57,7 @@ func TestNativeFinallyConditionalAndShadowedCleanup(t *testing.T) {
 	} {
 		t.Run(source, func(t *testing.T) {
 			probeNative(t, source, func(ctx *analysis.Context, at *syntax.FuncCall) {
-				if nativeFinally(ctx, at, CallArgument(at.Args, 0, "value"), "fclose") {
+				if CalledInFinally(ctx, at, CallArgument(at.Args, 0, "value"), "fclose") {
 					t.Fatal("cleanup without a proven unconditional matching contract")
 				}
 			})

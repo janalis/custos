@@ -1,4 +1,4 @@
-package semanticquery
+package ownedstreamnotclosed
 
 import (
 	"testing"
@@ -50,7 +50,7 @@ func TestReviewOwnedStreamNotClosed(t *testing.T) {
 		{"user function shadows the reader", "namespace N; function fgets($s){return $s;} function f($p){" + open + "return fgets($h);}", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := nativeCheckProbe{"OwnedStreamNotClosed", CheckOwnedStreamNotClosed}
+			p := New()
 			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{"OwnedStreamNotClosed"}})
 			if err != nil {
 				t.Fatal(err)

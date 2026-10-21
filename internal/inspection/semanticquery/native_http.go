@@ -808,7 +808,7 @@ func nativeEmittedBody(ctx *analysis.Context, header *syntax.FuncCall, body synt
 			return true
 		}
 		outputs++
-		if len(echo.Exprs) == 1 && NativeDominates(header, echo) && !nativeRepeatedOutput(echo, owner) && nativeSameExpression(ctx, body, echo.Exprs[0]) {
+		if len(echo.Exprs) == 1 && NativeDominates(header, echo) && !nativeRepeatedOutput(echo, owner) && SameOperand(ctx, body, echo.Exprs[0]) {
 			matched = true
 		}
 		return true

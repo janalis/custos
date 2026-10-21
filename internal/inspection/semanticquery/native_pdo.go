@@ -546,7 +546,7 @@ func CheckTransactionEarlyReturn(ctx *analysis.Context, n syntax.Node, message s
 			continue
 		}
 		state, known := ctx.Flow().StateBefore(ret, begin.Var, "begintransaction")
-		if !known || !state.Successful || nativeFinally(ctx, ret, begin.Var, "commit", "rollback") {
+		if !known || !state.Successful || CalledInFinally(ctx, ret, begin.Var, "commit", "rollback") {
 			continue
 		}
 		if transactionClosedByExpr(ctx, ret.Expr, begin.Var) || transactionGuardedFinally(ctx, ret, begin.Var) {
@@ -663,7 +663,7 @@ func CheckTransactionExceptionWithoutRollback(ctx *analysis.Context, n syntax.No
 			continue
 		}
 		state, known := ctx.Flow().StateBefore(ret, begin.Var, "begintransaction")
-		if known && state.Successful && !nativeFinally(ctx, ret, begin.Var, "commit", "rollback") && !rollbackCatchEnds(ctx, ret, begin.Var) {
+		if known && state.Successful && !CalledInFinally(ctx, ret, begin.Var, "commit", "rollback") && !rollbackCatchEnds(ctx, ret, begin.Var) {
 			ctx.ReportNode(ret, message)
 			return
 		}

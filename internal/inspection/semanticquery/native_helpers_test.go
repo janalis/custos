@@ -422,9 +422,4 @@ func TestNativeCallResultQueries(t *testing.T) {
 			t.Fatal("a labelled scope proves nothing")
 		}
 	})
-	probeNative(t, "function f($h){a: if(!fclose($h)){probe($h);} goto a;}", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if streamCloseFailed(ctx, firstCall(ctx, "fclose").Span(), c, syntax.EnclosingVariableScope(c)) {
-			t.Fatal("a labelled scope proves nothing")
-		}
-	})
 }

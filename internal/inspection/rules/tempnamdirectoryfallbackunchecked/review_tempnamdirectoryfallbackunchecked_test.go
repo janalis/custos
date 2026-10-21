@@ -1,6 +1,12 @@
-package semanticquery
+package tempnamdirectoryfallbackunchecked
 
-import "testing"
+import (
+	"testing"
+
+	"custos/internal/diagnostic"
+	"custos/internal/inspection/analysis"
+	"custos/internal/php/syntax"
+)
 
 func TestReviewTempnamDirectoryFallbackUnchecked(t *testing.T) {
 	const make = "function f($dir,$s){$p=tempnam($dir,'job');if($p===false){return;}"
@@ -53,10 +59,19 @@ func TestReviewTempnamDirectoryFallbackUnchecked(t *testing.T) {
 		{"other path", "function f($s){$p='/tmp/known';" + use, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := auditNative(t, "TempnamDirectoryFallbackUnchecked", CheckTempnamDirectoryFallbackUnchecked, tc.src)
+			got := analyzeReview(t, tc.src)
 			if len(got) != tc.want {
 				t.Fatalf("got %+v, want %d", got, tc.want)
 			}
 		})
 	}
+}
+
+func analyzeReview(t *testing.T, src string) []diagnostic.Finding {
+	t.Helper()
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"TempnamDirectoryFallbackUnchecked"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e.Analyze(syntax.Parse("review.php", []byte("<?php "+src), syntax.Options{}))
 }

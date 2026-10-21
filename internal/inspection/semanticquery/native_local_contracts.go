@@ -398,7 +398,7 @@ func NativeCallSucceeded(ctx *analysis.Context, c, at syntax.Expr) bool {
 		return ctx.Types().Native().CallResultAsAt(c, at, types.Ints(types.IntRange{Lo: -1, Hi: 0})).IntsOnly(0, 0)
 	}
 	t := ctx.Types().Native().CallResultAt(c, at)
-	return !t.IsUnknown() && !nativeMayHold(t, "false")
+	return !t.IsUnknown() && !MayHoldAtom(t, "false")
 }
 
 // NativeStreamCalls includes guarded stream operations preceding the use.

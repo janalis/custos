@@ -124,7 +124,9 @@ func CommentFreeSpan(ctx *analysis.Context, span syntax.Span) bool {
 	return !strings.Contains(text, "/*") && !strings.Contains(text, "//") && !strings.Contains(text, "#")
 }
 
-func nativeFinally(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr, names ...string) bool {
+// CalledInFinally reports whether a finally block around at calls one of
+// names on receiver: as a function taking it first, or as its method.
+func CalledInFinally(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr, names ...string) bool {
 	for p := at.Parent(); p != nil; p = p.Parent() {
 		tr, ok := p.(*syntax.Try)
 		if !ok || tr.Finally == nil {

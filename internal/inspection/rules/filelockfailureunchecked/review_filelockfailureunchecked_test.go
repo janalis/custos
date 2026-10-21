@@ -1,10 +1,12 @@
-package semanticquery
+package filelockfailureunchecked
 
 import (
 	"testing"
 
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/flow"
 )
 
@@ -33,8 +35,8 @@ func TestReviewFileLockFailureUncheckedResultTests(t *testing.T) {
 		{"stored into a property", "function f($h,$box){$ok=flock($h,LOCK_EX);$box->ok=$ok;if(!$box->ok){return;}fwrite($h,'x');}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := nativeStreamProbe{"FileLockFailureUnchecked", CheckFileLockFailureUnchecked}
-			engine, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{probe.id}})
+			probe := New()
+			engine, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{probe.ID()}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -51,7 +53,7 @@ func TestAssertionLockAttemptSharesScopeBudget(t *testing.T) {
 		if name, ok := at.Name.(*syntax.Name); !ok || name.Value != "probe" {
 			return
 		}
-		handle := CallArgument(at.Args, 0, "")
+		handle := semanticquery.CallArgument(at.Args, 0, "")
 		if _, known := assertionLockAttempt(ctx, at, handle); !known {
 			t.Fatal("missing initial lock witness")
 		}
@@ -65,3 +67,40 @@ func TestAssertionLockAttemptSharesScopeBudget(t *testing.T) {
 		}
 	})
 }
+
+func Parse(t *testing.T, src string) *syntax.File {
+	t.Helper()
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.Max})
+	if len(f.Errors) > 0 {
+		t.Fatalf("parse %q: %v", src, f.Errors)
+	}
+	return f
+}
+
+func probeNative(t *testing.T, src string, check func(*analysis.Context, *syntax.FuncCall)) {
+	t.Helper()
+	p := nativeProbe{check: func(ctx *analysis.Context, c *syntax.FuncCall) {
+		if name, ok := c.Name.(*syntax.Name); ok && name.Value == "probe" {
+			check(ctx, c)
+		}
+	}}
+	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.ID()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	e.Analyze(syntax.Parse("test.php", []byte("<?php "+src), syntax.Options{}))
+}
+
+type nativeProbe struct {
+	check func(*analysis.Context, *syntax.FuncCall)
+}
+
+func (nativeProbe) ID() string { return "ArrayFlipInvalidValueType" }
+
+func (nativeProbe) Semantic() {}
+
+func (nativeProbe) Flow() {}
+
+func (nativeProbe) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
+
+func (p nativeProbe) Check(ctx *analysis.Context, n syntax.Node) { p.check(ctx, n.(*syntax.FuncCall)) }

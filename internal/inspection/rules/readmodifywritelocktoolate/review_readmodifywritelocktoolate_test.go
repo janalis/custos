@@ -1,9 +1,11 @@
-package semanticquery
+package readmodifywritelocktoolate
 
 import (
 	"testing"
 
 	"custos/internal/inspection/analysis"
+	"custos/internal/php/syntax"
+	phpversion "custos/internal/php/version"
 )
 
 func TestReviewReadModifyWriteLockTooLateSpanningLock(t *testing.T) {
@@ -53,8 +55,8 @@ func TestReviewReadModifyWriteLockTooLateSpanningLock(t *testing.T) {
 		{"dynamic callee", "function f($p,$m,$fn){$m->$fn();$fn();" + rmw + "}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := nativeStreamProbe{"ReadModifyWriteLockTooLate", CheckReadModifyWriteLockTooLate}
-			engine, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{probe.id}})
+			probe := New()
+			engine, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{probe.ID()}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -64,4 +66,13 @@ func TestReviewReadModifyWriteLockTooLateSpanningLock(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Parse(t *testing.T, src string) *syntax.File {
+	t.Helper()
+	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.Max})
+	if len(f.Errors) > 0 {
+		t.Fatalf("parse %q: %v", src, f.Errors)
+	}
+	return f
 }

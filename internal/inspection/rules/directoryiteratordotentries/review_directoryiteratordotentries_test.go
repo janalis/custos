@@ -1,8 +1,12 @@
-package semanticquery
+package directoryiteratordotentries
 
 import (
 	"strings"
 	"testing"
+
+	"custos/internal/diagnostic"
+	"custos/internal/inspection/analysis"
+	"custos/internal/php/syntax"
 )
 
 func TestReviewDirectoryIteratorDotEntries(t *testing.T) {
@@ -81,10 +85,19 @@ func TestReviewDirectoryIteratorDotEntries(t *testing.T) {
 		{"other operator operand", "$r=$e->isFile()+unlink($e->getPathname());", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := auditNative(t, "DirectoryIteratorDotEntries", CheckDirectoryIteratorDotEntries, loop(tc.src))
+			got := analyzeReview(t, loop(tc.src))
 			if len(got) != tc.want {
 				t.Fatalf("got %+v, want %d", got, tc.want)
 			}
 		})
 	}
+}
+
+func analyzeReview(t *testing.T, src string) []diagnostic.Finding {
+	t.Helper()
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"DirectoryIteratorDotEntries"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e.Analyze(syntax.Parse("review.php", []byte("<?php "+src), syntax.Options{}))
 }

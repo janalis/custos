@@ -1,4 +1,4 @@
-package semanticquery
+package globfailureunchecked
 
 import (
 	"testing"
@@ -6,13 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewGlobProbe dispatches on the two node kinds the rule package registers.
-type reviewGlobProbe struct{ nativeCheckProbe }
-
-func (reviewGlobProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KForeach, syntax.KFuncCall}
-}
 
 func TestReviewGlobFailureUnchecked(t *testing.T) {
 	const get = "$p=glob($d);"
@@ -117,7 +110,7 @@ func TestReviewGlobFailureUnchecked(t *testing.T) {
 		{"incomplete ternary", get + "return $q?count($p):", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := reviewGlobProbe{nativeCheckProbe{"GlobFailureUnchecked", CheckGlobFailureUnchecked}}
+			p := New()
 			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{"GlobFailureUnchecked"}})
 			if err != nil {
 				t.Fatal(err)

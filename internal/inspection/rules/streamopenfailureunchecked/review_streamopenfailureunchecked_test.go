@@ -1,4 +1,4 @@
-package semanticquery
+package streamopenfailureunchecked
 
 import (
 	"testing"
@@ -116,7 +116,7 @@ func TestReviewStreamOpenFailureUnchecked(t *testing.T) {
 		{"incomplete loop", open + "while(fread($h,4))", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := nativeCheckProbe{"StreamOpenFailureUnchecked", CheckStreamOpenFailureUnchecked}
+			p := New()
 			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{"StreamOpenFailureUnchecked"}})
 			if err != nil {
 				t.Fatal(err)

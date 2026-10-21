@@ -106,7 +106,7 @@ func TestNativeDeterministicCleanupProof(t *testing.T) {
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			probeNative(t, tc.src, func(ctx *analysis.Context, c *syntax.FuncCall) {
-				if got := nativeFinally(ctx, c, CallArgument(c.Args, 0, "value"), "fclose"); got != tc.want {
+				if got := CalledInFinally(ctx, c, CallArgument(c.Args, 0, "value"), "fclose"); got != tc.want {
 					t.Fatalf("got %v, want %v", got, tc.want)
 				}
 			})
@@ -162,16 +162,6 @@ func TestNativeChecksIgnoreUnrelatedSyntax(t *testing.T) {
 		{"TransactionExceptionWithoutRollback", CheckTransactionExceptionWithoutRollback},
 		{"PdoFetchColumnFalsyValueLoss", CheckPdoFetchColumnFalsyValueLoss},
 		{"PdoExecuteArrayReplacesBindings", CheckPdoExecuteArrayReplacesBindings},
-		{"StreamUseAfterClose", CheckStreamUseAfterClose},
-		{"OwnedStreamNotClosed", CheckOwnedStreamNotClosed},
-		{"StreamOpenFailureUnchecked", CheckStreamOpenFailureUnchecked},
-		{"FileLockFailureUnchecked", CheckFileLockFailureUnchecked},
-		{"FileTruncatedBeforeLock", CheckFileTruncatedBeforeLock},
-		{"ReadModifyWriteLockTooLate", CheckReadModifyWriteLockTooLate},
-		{"TempnamDirectoryFallbackUnchecked", CheckTempnamDirectoryFallbackUnchecked},
-		{"GlobFailureUnchecked", CheckGlobFailureUnchecked},
-		{"DirectoryIteratorDotEntries", CheckDirectoryIteratorDotEntries},
-		{"PathContainmentPrefixBoundary", CheckPathContainmentPrefixBoundary},
 		{"HeadersAfterCommittedOutput", CheckHeadersAfterCommittedOutput},
 		{"RedirectContinuesProtectedExecution", CheckRedirectContinuesProtectedExecution},
 		{"SessionMutationAfterClose", CheckSessionMutationAfterClose},
@@ -270,32 +260,11 @@ func TestNativeConservativeOperationalBoundaries(t *testing.T) {
 		want    int
 	}{
 		{"RepeatedCookieHeaderReplacement", "header('Set-Cookie: a=b');header('Set-Cookie: a=b');", CheckRepeatedCookieHeaderReplacement, 0},
-		{"DirectoryIteratorDotEntries", "foreach(new DirectoryIterator('/tmp') as $entry){if($other){continue;}unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 1},
-		{"ReadModifyWriteLockTooLate", "file_put_contents('/tmp/f',function(){return 'x';},LOCK_EX);", CheckReadModifyWriteLockTooLate, 0},
 		{"ContentLengthUsesCharacterCount", "header('Content-Length: 2'); header($prefix.mb_strlen($body));", CheckContentLengthUsesCharacterCount, 0},
 		{"RepeatedCookieHeaderReplacement", "header($unknown);", CheckRepeatedCookieHeaderReplacement, 0},
 		{"SameSiteNoneWithoutSecure", "setcookie('a','b',['samesite'=>'None']);", CheckSameSiteNoneWithoutSecure, 1},
 		{"UntrustedForwardedClientAddress", "if($a===$b){}", CheckUntrustedForwardedClientAddress, 0},
 		{"RedirectContinuesProtectedExecution", "/** @custos-protected */ function protectedCall(){} function f(){if($auth){header('Location: /');}if(!isAuthorized()){header('Location: /');}protectedCall();}", CheckRedirectContinuesProtectedExecution, 0},
-		{"DirectoryIteratorDotEntries", "unlink('/safe'); unlink(makePath()->getPathname());", CheckDirectoryIteratorDotEntries, 0},
-		{"DirectoryIteratorDotEntries", "foreach($iterator as $entry){unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 0},
-		{"DirectoryIteratorDotEntries", "foreach(new ArrayIterator([]) as $entry){unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 0},
-		{"DirectoryIteratorDotEntries", "foreach(new DirectoryIterator('/tmp') as $entry){if($enabled){unlink($entry->getPathname());}}", CheckDirectoryIteratorDotEntries, 1},
-		{"DirectoryIteratorDotEntries", "foreach(new DirectoryIterator('/tmp') as $entry){if(!isAllowed()){unlink($entry->getPathname());}}", CheckDirectoryIteratorDotEntries, 1},
-		{"FileLockFailureUnchecked", "fwrite($unknown,'x'); $h=fopen('/tmp/f','c+');fread($h,1);", CheckFileLockFailureUnchecked, 0},
-		{"FileTruncatedBeforeLock", "fopen('/tmp/f','w');", CheckFileTruncatedBeforeLock, 0},
-		{"OwnedStreamNotClosed", "function f(){fopen('/tmp/f','r');return 1;}", CheckOwnedStreamNotClosed, 0},
-		{"OwnedStreamNotClosed", "function f(){$h=fopen('/tmp/f','r');return $h;}", CheckOwnedStreamNotClosed, 0},
-		{"OwnedStreamNotClosed", "function f(){$h=fopen('/tmp/f','r');return fread($h,1);}", CheckOwnedStreamNotClosed, 0},
-		{"ReadModifyWriteLockTooLate", "file_put_contents('/tmp/f','x',unknownFlags());file_put_contents('/tmp/f');", CheckReadModifyWriteLockTooLate, 0},
-		{"StreamOpenFailureUnchecked", "fread($unknown,1);", CheckStreamOpenFailureUnchecked, 0},
-		{"StreamUseAfterClose", "fread($unknown,1);", CheckStreamUseAfterClose, 0},
-		{"DirectoryIteratorDotEntries", "foreach(new DirectoryIterator('/tmp') as $entry){if($other->isDot()){continue;}unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 1},
-		{"TempnamDirectoryFallbackUnchecked", "function f(){$p=tempnam('/tmp','p');if($x!=='x'){return;} file_put_contents($p,'x');}", CheckTempnamDirectoryFallbackUnchecked, 1},
-		{"TempnamDirectoryFallbackUnchecked", "function f(){$p=tempnam('/tmp','p');if(realpath($x)!=='x'){return;} file_put_contents($p,'x');}", CheckTempnamDirectoryFallbackUnchecked, 1},
-		{"TempnamDirectoryFallbackUnchecked", "function f(){$p=tempnam('/tmp','p');if(realpath(dirname('/other'))!==realpath('/tmp')){return;} file_put_contents($p,'x');}", CheckTempnamDirectoryFallbackUnchecked, 1},
-		{"TempnamDirectoryFallbackUnchecked", "file_put_contents(tempnam('/tmp','p'),'x');", CheckTempnamDirectoryFallbackUnchecked, 1},
-		{"ReadModifyWriteLockTooLate", "file_put_contents('/tmp/f','x',LOCK_EX);", CheckReadModifyWriteLockTooLate, 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
 			p := nativeCheckProbe{tc.id, tc.check}
@@ -316,7 +285,7 @@ func TestNativeProofAuxiliaryBoundaries(t *testing.T) {
 		if nativeStateCall(ctx, c, "committed-output") != nil {
 			t.Fatal("echo is not a call state")
 		}
-		if !nativeSameExpression(ctx, CallArgument(c.Args, 0, ""), CallArgument(c.Args, 1, "")) {
+		if !SameOperand(ctx, CallArgument(c.Args, 0, ""), CallArgument(c.Args, 1, "")) {
 			t.Fatal("equal literal paths should match")
 		}
 	})
