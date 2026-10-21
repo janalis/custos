@@ -19,3 +19,27 @@ function branchLabels(?SafeBranch $root) {
     $saved = $root?->next()->next();
     <warning descr="Possible null dereference.">$saved</warning>->label();
 }
+
+// A nullsafe read equal to a value that is never null proves the base is not
+// null, also for a local whose own type is not declared.
+enum RowKind { case Header; case Line; }
+final class MergeRow { public function __construct(public RowKind $kind, public ?int $region) {} }
+final class MergePane {
+    /** @var list<MergeRow> */
+    private array $rows = [];
+    public function press(int $i): void {
+        $row = $this->rows[$i] ?? null;
+        if (RowKind::Header === $row?->kind && null !== $row->region) {
+            $this->accept($row->region);
+        }
+        if (RowKind::Line !== $row?->kind) {
+            return;
+        }
+        $this->accept($row->region);
+        $other = $this->rows[$i + 1] ?? null;
+        if ($other?->region === null) {
+            <warning descr="Possible null dereference.">$other</warning>->kind;
+        }
+    }
+    private function accept(?int $region): void {}
+}

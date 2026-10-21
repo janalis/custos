@@ -12,6 +12,9 @@ import (
 	"custos/internal/semantic/types"
 )
 
+// nullableObject is what a reported variable may hold (see U12).
+var nullableObject = types.Of("object", "null")
+
 // nullPointerException reports dereferences of possibly-null values
 // (nullable object parameters, nullable locals, chained nullable calls).
 // It runs per file so that the chained-call strategy, which also scans nested
@@ -292,7 +295,9 @@ func (u *npeUnit) walk(name string, decl *syntax.Assign) {
 	for ; i < len(list); i++ {
 		v := list[i]
 		stop, rep := u.evaluate(v, name, decl)
-		if rep && semanticquery.NativeNarrowedExcludes(u.ctx, v, types.Unknown, "null") { // U12
+		// U12: a variable whose native type is unknown is read as the
+		// nullable object D5 found (strategy C); a declared one keeps its type.
+		if rep && semanticquery.NativeNarrowedExcludes(u.ctx, v, nullableObject, "null") {
 			rep = false
 		}
 		if rep {

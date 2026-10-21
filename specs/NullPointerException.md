@@ -200,7 +200,10 @@ walk for this name, *skip* goes to the next usage:
 - **U12** (applies to every *report* of U7–U11) The report is dropped —
   the walk goes on without stopping — when the conditions that must have
   held to reach `v` prove `$n` is not null there, reading `$n` with its
-  declared (native) type narrowed at `v`. Such conditions guard the body of
+  declared (native) type narrowed at `v`; a local whose type the declarations
+  leave unknown is read as the nullable object D5 found (so
+  `$row = $rows[$i] ?? null; if (Kind::A === $row?->kind) { $row->p; }` is
+  silent). Such conditions guard the body of
   an enclosing `if`/`elseif`/`else` (an `elseif` or `else` body also implies
   every earlier condition of its chain false), `while`, or `for` (its body,
   and its loop expressions when neither the body nor an earlier loop

@@ -246,6 +246,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- NullPointerException no longer reports a local of undeclared type (such as
+  `$row = $rows[$i] ?? null;`) where an enclosing condition proves it is not
+  null, for example `Kind::A === $row?->kind` or an earlier `$row->p` in the
+  same `&&`.
+
 - UnlinkFailureReportedAsSuccess no longer reports a function that deletes
   the scratch file it made with `tempnam()` before returning `true`.
 
