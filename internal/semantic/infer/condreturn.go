@@ -20,21 +20,24 @@ import (
 // call's arguments, its declared return type and its @return type (doc;
 // the flattened conditional when @return holds it). ok is false when no
 // test is decided and doc is set (the call is typed as before), or the
-// result disagrees with the declared type. With no @return (the
+// result disagrees with the declared type. owner is the class declaring a
+// method (its `self::` in parameter defaults), "" for a function; tpl
+// describes its templates, whose `\~~T` atoms in a branch take the call's
+// bindings, else their bound, else mixed. With no @return (the
 // conditional is a @phpstan-return), an undecided call gets the union of
 // the branches.
-func (e *Env) condCall(cond string, params []index.Param, args *syntax.ArgList, declared, doc string) (types.Type, bool) {
+func (e *Env) condCall(cond, owner string, tpl *index.FuncTemplates, params []index.Param, args *syntax.ArgList, declared, doc string) (types.Type, bool) {
 	c := e.parsedCond(cond)
 	if c == nil {
 		return types.Unknown, false
 	}
 	decided := false
 	var t types.Type
-	if args == nil || isFirstClassCallable(args) {
-		t = e.condType(c, nil, nil, &decided)
-	} else {
-		t = e.condType(c, params, args, &decided)
+	cc := condCtx{owner: owner, tpl: tpl}
+	if !(args == nil || isFirstClassCallable(args)) {
+		cc.params, cc.args = params, args
 	}
+	t = e.condType(c, &cc, &decided)
 	if (!decided && doc != "") || t.IsUnknown() {
 		return types.Unknown, false
 	}
@@ -58,16 +61,28 @@ func (e *Env) parsedCond(cond string) *types.Cond {
 	return c
 }
 
+// condCtx is the call a conditional return type is evaluated for.
+type condCtx struct {
+	owner  string
+	tpl    *index.FuncTemplates
+	params []index.Param
+	args   *syntax.ArgList
+	bound  tplBindings // the call's template bindings, once computed
+}
+
 // condType is the type of conditional c for the call: the decided branch,
 // else the union of both (decided records that a test was decided).
-func (e *Env) condType(c *types.Cond, params []index.Param, args *syntax.ArgList, decided *bool) types.Type {
+func (e *Env) condType(c *types.Cond, cc *condCtx, decided *bool) types.Type {
 	branch := func(b types.CondBranch) types.Type {
 		if b.Cond != nil {
-			return e.condType(b.Cond, params, args, decided)
+			return e.condType(b.Cond, cc, decided)
+		}
+		if strings.Contains(b.Type, `\~~`) {
+			return e.condBranchType(b.Type, cc)
 		}
 		return types.FromDoc(b.Type, nil)
 	}
-	switch e.condTest(c, params, args) {
+	switch e.condTest(c, cc.owner, cc.params, cc.args) {
 	case condThen:
 		*decided = true
 		return branch(c.Then)
@@ -76,6 +91,37 @@ func (e *Env) condType(c *types.Cond, params []index.Param, args *syntax.ArgList
 		return branch(c.Else)
 	}
 	return types.Union(branch(c.Then), branch(c.Else))
+}
+
+// condBranchType types branch text whose `\~~T` atoms are method
+// templates: bound by the call's arguments, else by the template's bound,
+// else mixed.
+func (e *Env) condBranchType(text string, cc *condCtx) types.Type {
+	if cc.bound == nil {
+		cc.bound = tplBindings{}
+		if cc.args != nil {
+			cc.bound = e.bindCall(cc.tpl, cc.params, cc.args)
+		}
+	}
+	return types.FromDoc(text, func(w string) string {
+		name := strings.TrimPrefix(strings.TrimPrefix(w, `\`), "~~")
+		if bt, ok := cc.bound[name]; ok {
+			if ds := bt.DocString(); len(ds) <= types.MaxDocTypeLen {
+				return "=" + ds
+			}
+		}
+		if cc.tpl != nil {
+			for _, tp := range cc.tpl.Templates {
+				if tp.Name == name && tp.Bound != "" {
+					return "=" + tp.Bound
+				}
+			}
+		}
+		if strings.HasPrefix(strings.TrimPrefix(w, `\`), "~~") {
+			return "" // an unbound template: mixed
+		}
+		return strings.TrimPrefix(w, `\`)
+	})
 }
 
 type condOutcome int8
@@ -98,7 +144,7 @@ type argValue struct {
 
 // condTest decides the test of c for the call (condUnknown when the
 // argument does not decide it).
-func (e *Env) condTest(c *types.Cond, params []index.Param, args *syntax.ArgList) condOutcome {
+func (e *Env) condTest(c *types.Cond, owner string, params []index.Param, args *syntax.ArgList) condOutcome {
 	if args == nil {
 		return condUnknown
 	}
@@ -121,6 +167,9 @@ func (e *Env) condTest(c *types.Cond, params []index.Param, args *syntax.ArgList
 			return condUnknown
 		}
 		v = e.textValue(params[i].Default)
+		if strings.EqualFold(v.cls, "self") || strings.EqualFold(v.cls, "static") {
+			v.cls = owner // `= self::BAR`: a constant of the declaring class
+		}
 	default:
 		return condUnknown
 	}
@@ -225,28 +274,19 @@ func numKey(s string) string {
 func (e *Env) testValue(c *types.Cond, v argValue) condOutcome {
 	switch c.TargetKind() {
 	case types.TargetString, types.TargetNumber, types.TargetConst:
-		var want string
-		var wantType types.Type
-		if c.TargetKind() == types.TargetConst {
-			cls, name, _ := strings.Cut(strings.TrimPrefix(c.Target, `\`), "::")
-			if v.cls != "" && strings.EqualFold(v.cls, cls) && v.cname == name {
+		return e.testLiteral(c.Target, v)
+	case types.TargetLiterals:
+		// One matching member passes; failing every member fails.
+		r := condElse
+		for _, lit := range c.Literals() {
+			switch e.testLiteral(lit, v) {
+			case condThen:
 				return condThen
+			case condUnknown:
+				r = condUnknown
 			}
-			val := e.constValue(cls, name)
-			want, wantType = e.textLiteral(val), literalTextType(val)
-		} else {
-			want, wantType = e.textLiteral(c.Target), literalTextType(c.Target)
 		}
-		if got := e.literalOf(v); want != "" && got != "" {
-			if got == want {
-				return condThen
-			}
-			return condElse
-		}
-		if !wantType.IsUnknown() && !v.typ.IsUnknown() && !overlaps(v.typ, wantType) {
-			return condElse
-		}
-		return condUnknown
+		return r
 	}
 	if v.typ.IsUnknown() {
 		return condUnknown
@@ -256,6 +296,32 @@ func (e *Env) testValue(c *types.Cond, v argValue) condOutcome {
 		return condThen
 	}
 	if !overlaps(v.typ, target) {
+		return condElse
+	}
+	return condUnknown
+}
+
+// testLiteral decides whether value v equals target, a literal or a class
+// constant (see types.Cond.Target).
+func (e *Env) testLiteral(target string, v argValue) condOutcome {
+	var want string
+	var wantType types.Type
+	if cls, name, ok := strings.Cut(strings.TrimPrefix(target, `\`), "::"); ok {
+		if v.cls != "" && strings.EqualFold(v.cls, cls) && v.cname == name {
+			return condThen
+		}
+		val := e.constValue(cls, name)
+		want, wantType = e.textLiteral(val), literalTextType(val)
+	} else {
+		want, wantType = e.textLiteral(target), literalTextType(target)
+	}
+	if got := e.literalOf(v); want != "" && got != "" {
+		if got == want {
+			return condThen
+		}
+		return condElse
+	}
+	if !wantType.IsUnknown() && !v.typ.IsUnknown() && !overlaps(v.typ, wantType) {
 		return condElse
 	}
 	return condUnknown

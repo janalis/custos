@@ -338,7 +338,7 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 		return bind(t)
 	}
 	if m.CondReturn != "" {
-		if t, ok := e.condCall(m.CondReturn, m.Params, call, m.Return, m.DocReturn); ok {
+		if t, ok := e.condCall(m.CondReturn, m.Class, m.Tpl, m.Params, call, m.Return, m.DocReturn); ok {
 			return bind(t)
 		}
 	}

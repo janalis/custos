@@ -185,6 +185,13 @@ func (e *Env) bindPattern(pat, at types.Type, arg syntax.Expr, found map[string]
 		}
 		return
 	}
+	if len(pat.Atoms()) == 2 && pat.Has("null") {
+		// `class-string<T>|null`: a null argument binds nothing.
+		pat, at = pat.Without("null"), at.Without("null")
+		if at.IsUnknown() {
+			return
+		}
+	}
 	if len(pat.Atoms()) != 1 {
 		return
 	}

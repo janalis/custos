@@ -118,7 +118,7 @@ func (e *Env) declCallType(f *index.Function, n *syntax.FuncCall) types.Type {
 		}
 	}
 	if f.CondReturn != "" {
-		if t, ok := e.condCall(f.CondReturn, f.Params, n.Args, f.Return, f.DocReturn); ok {
+		if t, ok := e.condCall(f.CondReturn, "", f.Tpl, f.Params, n.Args, f.Return, f.DocReturn); ok {
 			return t
 		}
 	}

@@ -80,6 +80,9 @@ func TestParseCond(t *testing.T) {
 		"($x is -1.5 ? int : float)":                       "($x is -1.5 ? int : float)",
 		"($x is integer ? int : float)":                    "($x is int ? int : float)",
 		"($x is static ? int : float)":                     "($x is ~static ? int : float)",
+		"($x is 0|1 ? int : float)":                        "($x is 0|1 ? int : float)",
+		"($x is 'a|b' ? int : float)":                      "($x is 'a|b' ? int : float)",
+		"($m is Foo::A | 'b' ? int : float)":               `($m is \App\Foo::A|'b' ? int : float)`,
 	}
 	for in, want := range cases {
 		c, ok := ParseCond(in, resolve, subject)
@@ -106,6 +109,7 @@ func TestParseCond(t *testing.T) {
 		`($x is 'a"b' ? int : float)`,   // a quote in a string target
 		"($x-y is int ? int : float)",   // not an identifier
 		"($x is 1.2.3 ? int : float)",   // not a number
+		"($x is 1|1.2.3 ? int : float)", // a union member that is not a number
 		"($x is Foo::1 ? int : float)",  // not a constant name
 		"($x is T::A ? int : float)",    // a template's constant
 		"($x is {x} ? int : float)",     // not a type

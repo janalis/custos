@@ -13,8 +13,8 @@ type Cond struct {
 	Param   string // the tested parameter, without `$`
 	Negated bool   // `is not`
 	// Target is what the argument is tested against: a literal (`'a'`,
-	// `1`, `-1`, `1.5`), a class constant (`\Foo::BAR`), or a doc type
-	// (DocString form).
+	// `1`, `-1`, `1.5`), a class constant (`\Foo::BAR`), a union of those
+	// (`0|1`), or a doc type (DocString form).
 	Target string
 	// Exact reports a type target made of builtin type names and class
 	// names only, whose atoms describe it fully (`string`, `?Foo`), so that
@@ -64,10 +64,11 @@ type TargetKind uint8
 
 // Target kinds.
 const (
-	TargetType   TargetKind = iota // a doc type
-	TargetString                   // a quoted string literal
-	TargetNumber                   // an integer or float literal
-	TargetConst                    // a class constant `\Foo::BAR`
+	TargetType     TargetKind = iota // a doc type
+	TargetString                     // a quoted string literal
+	TargetNumber                     // an integer or float literal
+	TargetConst                      // a class constant `\Foo::BAR`
+	TargetLiterals                   // a union of the above (`0|1`), see Literals
 )
 
 // TargetKind returns the kind of c.Target.
@@ -75,7 +76,20 @@ func (c *Cond) TargetKind() TargetKind {
 	return targetKind(c.Target)
 }
 
+// Literals returns the members of a TargetLiterals target.
+func (c *Cond) Literals() []string {
+	return splitTop(c.Target, '|')
+}
+
 func targetKind(s string) TargetKind {
+	if parts := splitTop(s, '|'); len(parts) > 1 {
+		for _, p := range parts {
+			if p = strings.TrimSpace(p); p == "" || targetKind(p) == TargetType {
+				return TargetType
+			}
+		}
+		return TargetLiterals
+	}
 	switch {
 	case s[0] == '\'' || s[0] == '"':
 		return TargetString
@@ -140,6 +154,17 @@ func parseCond(text string, resolve Resolver, subject func(string) string, depth
 // setTarget records the test's target (see Cond.Target).
 func (c *Cond) setTarget(s string, resolve Resolver) bool {
 	switch targetKind(s) {
+	case TargetLiterals:
+		parts := splitTop(s, '|')
+		for i, p := range parts {
+			var one Cond
+			if !one.setTarget(strings.TrimSpace(p), resolve) {
+				return false
+			}
+			parts[i] = one.Target
+		}
+		c.Target = strings.Join(parts, "|")
+		return true
 	case TargetString:
 		if len(s) < 2 || s[len(s)-1] != s[0] || strings.ContainsAny(s[1:len(s)-1], `'"\`) {
 			return false

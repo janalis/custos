@@ -131,6 +131,7 @@ function run(M $m, Box $box, Box $plainBox, Coll $c, Coll $cu, Free $f, Free $fu
     t('ambiguous', $m->ambiguous(1));
     t('oneOrMany', $m->oneOrMany(1));
     t('maybeList', $m->maybeList([1]));
+    t('maybeNull', $m->maybeList(null));
     t('notArray', $m->firstOf('s'));
     t('shapeIt', $m->firstIt(['a' => 1]));
     t('mixedKey', $m->toArray($xs));
@@ -153,7 +154,8 @@ function run(M $m, Box $box, Box $plainBox, Coll $c, Coll $cu, Free $f, Free $fu
 		"half":         `mixed`,
 		"ambiguous":    `mixed`,
 		"oneOrMany":    `int`,
-		"maybeList":    `mixed`,
+		"maybeList":    `int`,
+		"maybeNull":    `mixed`,
 		"notArray":     `mixed`,
 		"shapeIt":      `int`,
 		"mixedKey":     `mixed[]`,

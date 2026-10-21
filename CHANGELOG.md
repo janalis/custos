@@ -62,6 +62,14 @@ versions follow [Semantic Versioning](https://semver.org/).
   and passing an array to `sort()`, `usort()` or another by-reference
   parameter no longer drops its known keys and shape for reads before the
   call.
+- Conditional return types accept a union of literals or constants as the
+  tested value (`(B is 0|1 ? object : object|null)`), read a parameter's
+  default given as a constant of the declaring class, and bind the method's
+  templates from the call (else read their bound): Symfony's
+  `$container->get('id')` is a non-null object, so NullPointerException no
+  longer reports `$container->get('id')->method()`, and a Prophecy
+  `prophesize(Foo::class)->reveal()` is a `Foo`. A template documented as
+  `array<T>|null` or `class-string<T>|null` binds from a non-null argument.
 - A function or method declared to return `array` without a `@return` tag
   returns the array type its body returns, where no override can run
   instead (functions, and private, final or static calls).

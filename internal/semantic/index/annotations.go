@@ -201,7 +201,8 @@ func (x *extractor) funcTemplates(d *phpdoc.Doc, ps []*syntax.Param, asserts []A
 		return nil
 	}
 	res := x.tplResolver(at)
-	need := false // an assertion type uses a template
+	// An assertion type or a conditional return type uses a template.
+	need := strings.Contains(x.condReturn(d, at), `\~~`)
 	for _, a := range asserts {
 		need = need || strings.Contains(a.Type, `\~~`)
 	}
@@ -287,7 +288,16 @@ func (x *extractor) condReturn(d *phpdoc.Doc, at uint32) string {
 	}
 	typ := d.EffectiveReturnType()
 	if strings.HasPrefix(typ, "(") && strings.Contains(typ, " is ") {
-		if c, ok := types.ParseCond(typ, x.resolver(at), subject); ok {
+		// Method templates stay `\~~T` atoms: infer binds them per call
+		// (else reads their bound).
+		res := x.resolver(at)
+		resolve := func(w string) string {
+			if x.methodTpl[w] {
+				return "~~" + w
+			}
+			return res(w)
+		}
+		if c, ok := types.ParseCond(typ, resolve, subject); ok {
 			if s := c.String(); len(s) <= types.MaxDocTypeLen {
 				return s
 			}
