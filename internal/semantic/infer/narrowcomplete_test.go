@@ -314,8 +314,8 @@ function f($x, mixed $m, int|string|null $s, ?array $a) {
 `, map[string]string{
 		"isA":           `\Base`,
 		"notIsA":        `\Fin|null|string`,
-		"isAString":     `\Base|string`,
-		"subclass":      `\Base|string`,
+		"isAString":     `\Base|class-string<\Base>`,
+		"subclass":      `\Base|class-string<\Base>`,
 		"notSubclass":   `\Base|\Fin|null|string`,
 		"subclassObj":   `\Base`,
 		"gettype":       "int",
@@ -386,4 +386,20 @@ function f(string|int|null $d, $c) {
 		"afterGoto":   "int|null|string|true", // [1] is followed by break
 		"loop":        "false|float|int|int[]|null|string|string[]|true",
 	})
+}
+
+// A string that passes is_a() with allow_string names the class: it is
+// no instance of it.
+func TestIsAStringOnlyNarrowsToClassString(t *testing.T) {
+	checkAnywhere(t, `<?php
+interface Stamp {}
+/** @param array<class-string<Stamp>, int> $stamps */
+function f(array $stamps, string $name) {
+    foreach ($stamps as $class => $n) {
+        if (is_a($class, Stamp::class, true)) { t('key', $class); }
+    }
+    if (is_subclass_of($name, Stamp::class)) { t('name', $name); }
+    if (is_a($name, Stamp::class)) { t('noAllow', $name); }
+}
+`, map[string]string{"key": `class-string<\Stamp>`, "name": `class-string<\Stamp>`, "noAllow": `\Stamp`})
 }

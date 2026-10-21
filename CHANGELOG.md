@@ -246,6 +246,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A string that passes `is_a($x, Foo::class, true)` or `is_subclass_of()` is
+  typed `class-string<Foo>` and no longer as a `Foo` instance, so an array
+  key checked this way (`$stamps[$class]`) is not reported by
+  OffsetOperations.
+
 - NullPointerException no longer reports a local of undeclared type (such as
   `$row = $rows[$i] ?? null;`) where an enclosing condition proves it is not
   null, for example `Kind::A === $row?->kind` or an earlier `$row->p` in the

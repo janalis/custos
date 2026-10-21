@@ -109,7 +109,7 @@ function g($x, ?string $s) {
 		"isAOne":            `\K|null|string`,
 		"isANamed":          `\K|null|string`,
 		"isADyn":            `\K|null|string`,
-		"isADynString":      `\K|string`,
+		"isADynString":      `\K|class-string<\K>`,
 		"inArrayTwo":        "int|null|string",
 		"inArrayNamed":      "int|null|string",
 		"inArrayFalse":      "int|null|string",

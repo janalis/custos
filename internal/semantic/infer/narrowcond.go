@@ -719,11 +719,17 @@ func (e *Env) isACond(t types.Type, c *syntax.FuncCall, fn string, truthy bool) 
 		// subclass (is_subclass_of) of cls; strings are left alone.
 		return e.notInstance(t, cls, fn == "is_a")
 	}
-	out := instanceType(t, cls)
-	if allowString && (t.Has("string") || t.Has("mixed")) {
-		out = types.Union(out, types.Of("string"))
+	// An object passing is an instance of cls; a string (allowed) names cls
+	// or a subclass. A value that can be no object is only such a name.
+	canObject := t.IsUnknown() || t.HasAny("mixed", "object", "iterable", "callable") || len(t.Classes()) > 0
+	canString := allowString && (t.Has("string") || t.Has("mixed"))
+	switch {
+	case canObject && canString:
+		return types.Union(instanceType(t, cls), types.ClassString(types.Of(`\`+cls)))
+	case canString:
+		return types.ClassString(types.Of(`\` + cls))
 	}
-	return out
+	return instanceType(t, cls)
 }
 
 // inArrayCond narrows t (the needle of c) by a strict `in_array($x, $list,
