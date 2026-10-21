@@ -442,6 +442,7 @@ func (missingRule) Check(*analysis.Context, syntax.Node) {}
 type editRule struct {
 	edit   string
 	before func()
+	crash  bool
 }
 
 func (editRule) ID() string               { return "NestedNotOperators" }
@@ -450,7 +451,12 @@ func (r editRule) Check(ctx *analysis.Context, n syntax.Node) {
 	if r.before != nil {
 		r.before()
 	}
-	ctx.Report(n.Span(), "Replace expression.", diagnostic.Fix{Title: "Replace", Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: n.Span(), NewText: r.edit}} }})
+	ctx.Report(n.Span(), "Replace expression.", diagnostic.Fix{Title: "Replace", Edits: func() []diagnostic.TextEdit {
+		if r.crash {
+			panic("fix bug")
+		}
+		return []diagnostic.TextEdit{{Span: n.Span(), NewText: r.edit}}
+	}})
 }
 
 func TestPreparedFixValidationAndBudgets(t *testing.T) {
@@ -486,8 +492,25 @@ func TestPreparedFixValidationAndBudgets(t *testing.T) {
 	}
 	original := snap.Engine
 	snap.Engine = engine
-	if _, err := s.prepare(ctx, w, cp, snap, Input{Iterative: true}); err == nil {
+	// The fix loop undoes an iteration that breaks the syntax; a selected
+	// fix is applied as is and rejected here.
+	out, err := s.prepare(ctx, w, cp, snap, Input{Iterative: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id, _ := out["planId"].(string); s.plans[id] == nil || len(s.plans[id].Changes) != 0 {
+		t.Fatal("unparsable iteration kept:", out)
+	}
+	if _, err := s.prepare(ctx, w, cp, snap, Input{Choices: []Choice{{FindingID: "0"}}}); err == nil {
 		t.Fatal("unparsable fix")
+	}
+	engine, err = analysis.NewEngine([]analysis.Rule{editRule{crash: true}}, snap.Config.Analysis())
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap.Engine = engine
+	if _, err := s.prepare(ctx, w, cp, snap, Input{Choices: []Choice{{FindingID: "0"}}}); err == nil || err.Error() != "fix failed to compute its edits" {
+		t.Fatal("crashing fix:", err)
 	}
 	snap.Engine = original
 	// A file vanishing or becoming a link before permission capture fails closed.

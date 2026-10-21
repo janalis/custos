@@ -1,11 +1,10 @@
 package project
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
-	"runtime"
-	"sync"
 
 	"custos/internal/fixing"
 	"custos/internal/inspection/analysis"
@@ -26,33 +25,25 @@ type PreparedFix struct {
 // diffs and messages stay deterministic.
 func PrepareFixes(engine *analysis.Engine, files []string, parse syntax.Options) []PreparedFix {
 	outs := make([]PreparedFix, len(files))
-	jobs := make(chan int)
-	var wg sync.WaitGroup
-	for w := 0; w < runtime.GOMAXPROCS(0); w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range jobs {
-				src, perm, err := ReadFixable(files[i])
-				if err != nil {
-					outs[i].Err = err
-					continue
-				}
-				res := fixing.FixSource(engine, files[i], src, fixing.Options{Parse: parse})
-				if res.Applied == 0 || string(res.Source) == string(src) {
-					continue
-				}
-				outs[i] = PreparedFix{Source: src, Output: res.Source, Perm: perm, Applied: res.Applied}
-			}
-		}()
-	}
-	for i := range files {
-		jobs <- i
-	}
-	close(jobs)
-	wg.Wait()
+	_ = parallel(context.Background(), len(files), 0, func(i int) {
+		src, perm, err := ReadFixable(files[i])
+		if err != nil {
+			outs[i].Err = err
+			return
+		}
+		res := fixSource(engine, files[i], src, fixing.Options{Parse: parse})
+		if res.Applied == 0 || string(res.Source) == string(src) {
+			return
+		}
+		outs[i] = PreparedFix{Source: src, Output: res.Source, Perm: perm, Applied: res.Applied}
+	}, func(i int, r any) {
+		outs[i] = PreparedFix{Err: fmt.Errorf("%s: internal failure, left unchanged: %v", files[i], r)}
+	})
 	return outs
 }
+
+// fixSource is fixing.FixSource; tests replace it to simulate a crash.
+var fixSource = fixing.FixSource
 
 // ErrSkipped marks files fix leaves alone without failing.
 var ErrSkipped = errors.New("not a regular file")

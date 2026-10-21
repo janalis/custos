@@ -145,7 +145,7 @@ func (s *Server) buildEdit(data actionData) *workspaceEdit {
 	} else {
 		for _, f := range findings {
 			if f.Rule == data.Rule && f.Span.Start == data.Start && f.Span.End == data.End && data.Fix >= 0 && data.Fix < len(f.Fixes) {
-				edits = f.Fixes[data.Fix].Edits()
+				edits, _ = fixing.Edits(f.Fixes[data.Fix])
 				break
 			}
 		}

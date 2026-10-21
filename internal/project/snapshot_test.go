@@ -129,7 +129,7 @@ func TestCapturedExtractionCrash(t *testing.T) {
 	original := extract
 	t.Cleanup(func() { extract = original })
 	extract = func(string, []byte, syntax.Options, ...infer.Options) *index.FileSymbols { panic("parser crash") }
-	if _, err := extractCaptured("a.php", []byte("<?php"), syntax.Options{}); err == nil || !strings.Contains(err.Error(), "a.php") {
+	if _, err := extractCaptured("a.php", []byte("<?php"), syntax.Options{}, infer.Options{}); err == nil || !strings.Contains(err.Error(), "a.php") {
 		t.Fatal(err)
 	}
 }

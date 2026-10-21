@@ -2,6 +2,7 @@
 package fixing
 
 import (
+	"context"
 	"sort"
 
 	"custos/internal/diagnostic"
@@ -69,11 +70,20 @@ type Result struct {
 
 // FixSource repeatedly analyses src and applies the first fix of every
 // fixable finding (one fix per finding, non-overlapping) until nothing
-// changes or MaxIterations is reached.
+// changes or MaxIterations is reached. A fix applies whole or not at all:
+// one whose edits leave the source or overlap each other is skipped, and an
+// iteration whose result has more syntax errors than its input is undone
+// and ends the loop.
 func FixSource(e Analyzer, path string, src []byte, opt Options) Result {
+	return FixSourceContext(context.Background(), e, path, src, opt)
+}
+
+// FixSourceContext is FixSource stopping between iterations once ctx is
+// done.
+func FixSourceContext(ctx context.Context, e Analyzer, path string, src []byte, opt Options) Result {
 	res := Result{Source: src}
-	for res.Iterations < MaxIterations {
-		f := syntax.ParseBest(path, res.Source, opt.Parse)
+	f := syntax.ParseBest(path, src, opt.Parse)
+	for res.Iterations < MaxIterations && ctx.Err() == nil {
 		var edits []diagnostic.TextEdit
 		for _, fd := range e.Analyze(f) {
 			if len(fd.Fixes) == 0 || (opt.Filter != nil && !opt.Filter(fd)) {
@@ -81,8 +91,8 @@ func FixSource(e Analyzer, path string, src []byte, opt Options) Result {
 			}
 			// All edits of one fix must apply together: group them by
 			// checking for overlap against already collected edits first.
-			fe := fd.Fixes[0].Edits()
-			if overlapsAny(fe, edits) {
+			fe, ok := Edits(fd.Fixes[0])
+			if !ok || !sound(fe, len(res.Source)) || overlapsAny(fe, edits) {
 				continue
 			}
 			edits = append(edits, fe...)
@@ -92,16 +102,46 @@ func FixSource(e Analyzer, path string, src []byte, opt Options) Result {
 		}
 		out, n := Apply(res.Source, edits)
 		res.Iterations++
-		if n == 0 {
+		next := syntax.ParseBest(path, out, opt.Parse)
+		if len(next.Errors) > len(f.Errors) {
 			break
 		}
 		res.Applied += n
-		res.Source = out
+		res.Source, f = out, next
 		if opt.SinglePass {
 			break
 		}
 	}
 	return res
+}
+
+// sound reports that the edits of one fix lie within a source of size bytes
+// and do not overlap each other, so Apply keeps all of them. Unlike
+// overlapsAny, edits that only touch are fine: one fix orders its own.
+func sound(edits []diagnostic.TextEdit, size int) bool {
+	for i, x := range edits {
+		if x.Span.End < x.Span.Start || x.Span.End > uint32(size) {
+			return false
+		}
+		for _, y := range edits[i+1:] {
+			if x.Span.Start < y.Span.End && y.Span.Start < x.Span.End {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// Edits computes the edits of a fix. Fixes compute them lazily, outside the
+// engine's crash isolation: ok is false when the computation panics, and
+// the fix is then left out instead of failing the whole request or run.
+func Edits(f diagnostic.Fix) (edits []diagnostic.TextEdit, ok bool) {
+	defer func() {
+		if recover() != nil {
+			edits, ok = nil, false
+		}
+	}()
+	return f.Edits(), true
 }
 
 func overlapsAny(a, b []diagnostic.TextEdit) bool {

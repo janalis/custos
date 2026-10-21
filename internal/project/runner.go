@@ -2,14 +2,13 @@
 package project
 
 import (
+	"context"
 	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
-	"sync"
 
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
@@ -102,30 +101,17 @@ func RunReport(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Opt
 
 func runSources(e *analysis.Engine, files []string, srcs [][]byte, opt syntax.Options, report bool) []diagnostic.FileResult {
 	results := make([]diagnostic.FileResult, len(files))
-	jobs := make(chan int)
-	var wg sync.WaitGroup
-	workers := runtime.GOMAXPROCS(0)
-	for w := 0; w < workers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range jobs {
-				var src []byte
-				if i < len(srcs) {
-					src = srcs[i]
-				}
-				results[i] = analyzeFile(e, files[i], src, opt)
-				if report {
-					dropEdits(results[i].Findings)
-				}
-			}
-		}()
-	}
-	for i := range files {
-		jobs <- i
-	}
-	close(jobs)
-	wg.Wait()
+	// AnalyzeBuffer isolates crashes of its own; nothing else here can fail.
+	_ = parallel(context.Background(), len(files), 0, func(i int) {
+		var src []byte
+		if i < len(srcs) {
+			src = srcs[i]
+		}
+		results[i] = analyzeFile(e, files[i], src, opt)
+		if report {
+			dropEdits(results[i].Findings)
+		}
+	}, nil)
 	return results
 }
 

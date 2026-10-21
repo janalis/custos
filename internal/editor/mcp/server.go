@@ -260,7 +260,15 @@ func (s *Server) Protocol(version string) *sdk.Server {
 	return server
 }
 
-func (s *Server) call(ctx context.Context, name string, in Input) (Output, error) {
+func (s *Server) call(ctx context.Context, name string, in Input) (out Output, err error) {
+	// A crash fails the request, not the server: tool handlers run on
+	// goroutines no outer guard covers. Deferred first, it runs after the
+	// locks and slots below are released.
+	defer func() {
+		if r := recover(); r != nil {
+			out, err = nil, fmt.Errorf("internal failure in %s: %v", name, r)
+		}
+	}()
 	// One operation runs at a time; a bounded number of callers wait.
 	if s.queued.Add(1) > maxQueued {
 		s.queued.Add(-1)

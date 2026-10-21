@@ -51,11 +51,16 @@ func (s *Server) prepare(ctx context.Context, w *workspace, cp *checkpoint, snap
 		result := project.AnalyzeBuffer(snap.Engine, ev.Path, snap.Sources[ev.Path], parse)
 		found := false
 		for _, fd := range result.Findings {
-			if fd.Rule == ev.Rule && fd.Span.Start == ev.Start && fd.Span.End == ev.End && choice.Fix < len(fd.Fixes) {
-				selected[ev.Path] = append(selected[ev.Path], fd.Fixes[choice.Fix].Edits()...)
-				found = true
-				break
+			if fd.Rule != ev.Rule || fd.Span.Start != ev.Start || fd.Span.End != ev.End || choice.Fix >= len(fd.Fixes) {
+				continue
 			}
+			edits, ok := fixing.Edits(fd.Fixes[choice.Fix])
+			if !ok {
+				return nil, errors.New("fix failed to compute its edits")
+			}
+			selected[ev.Path] = append(selected[ev.Path], edits...)
+			found = true
+			break
 		}
 		if !found {
 			return nil, errors.New("finding no longer reproducible")
@@ -79,7 +84,7 @@ func (s *Server) prepare(ctx context.Context, w *workspace, cp *checkpoint, snap
 	if in.Iterative {
 		filter := func(fd diagnostic.Finding) bool { return rule == "" || fd.Rule == rule }
 		if err := project.Each(ctx, len(names), func(i int) {
-			fixed[i] = fixing.FixSource(snap.Engine, names[i], snap.Sources[names[i]], fixing.Options{Parse: parse, Filter: filter}).Source
+			fixed[i] = fixing.FixSourceContext(ctx, snap.Engine, names[i], snap.Sources[names[i]], fixing.Options{Parse: parse, Filter: filter}).Source
 		}); err != nil {
 			return nil, err
 		}

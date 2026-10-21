@@ -1,6 +1,8 @@
 package project
 
 import (
+	"context"
+
 	"custos/internal/diagnostic"
 	"custos/internal/fixing"
 	"custos/internal/inspection/analysis"
@@ -46,7 +48,7 @@ func (p *Project) AnalyzeReport() []diagnostic.FileResult {
 		ix.Freeze()
 		engine, sources = engine.WithIndex(ix), srcs
 		if engine.NeedsFlow() {
-			engine = engine.WithFlow(BuildFlowSnapshot(p.Files, srcs, p.Options.Parse, ix, p.Options.Analysis.Flow))
+			engine = engine.WithFlow(BuildFlowSnapshot(context.Background(), p.Files, srcs, p.Options.Parse, ix, p.Options.Analysis.Flow))
 		}
 	}
 	return RunReport(engine, p.Files, sources, p.Options.Parse)
@@ -60,16 +62,21 @@ func (p *Project) PrepareFixes() []PreparedFix {
 		ix.Freeze()
 		engine = engine.WithIndex(ix)
 		if engine.NeedsFlow() {
-			engine = engine.WithFlow(BuildFlowSnapshot(p.Files, nil, p.Options.Parse, ix, p.Options.Analysis.Flow))
+			engine = engine.WithFlow(BuildFlowSnapshot(context.Background(), p.Files, nil, p.Options.Parse, ix, p.Options.Analysis.Flow))
 		}
 	}
 	return PrepareFixes(engine, p.Files, p.Options.Parse)
 }
 
 // AnalyzeBuffer analyzes supplied bytes without reading the filesystem.
-func AnalyzeBuffer(engine fixing.Analyzer, path string, src []byte, opt syntax.Options) diagnostic.FileResult {
+func AnalyzeBuffer(engine fixing.Analyzer, path string, src []byte, opt syntax.Options) (result diagnostic.FileResult) {
+	defer func() {
+		if r := recover(); r != nil {
+			result = internalFailure(path, src, r)
+		}
+	}()
 	file := syntax.ParseBest(path, src, opt)
-	result := diagnostic.FileResult{Path: path, Src: src, Errors: file.Errors}
+	result = diagnostic.FileResult{Path: path, Src: src, Errors: file.Errors}
 	if detailed, ok := engine.(interface {
 		AnalyzeResult(*syntax.File) diagnostic.AnalysisResult
 	}); ok {

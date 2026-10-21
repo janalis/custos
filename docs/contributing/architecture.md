@@ -190,8 +190,10 @@ Analysis gaps are reported as status reasons instead of findings:
   `unsupported-control-flow`, `flow-budget`, and `status-limit` when the
   per-file gap list is bounded;
 - `semanticquery` helpers: `query-budget` (`ctx.Gap`);
-- engine: `syntax-recovery`, `finding-limit`, `rule-failure`; `io-error` from
-  `diagnostic.Status`; LSP guarded analysis: `internal-failure`.
+- engine: `syntax-recovery`, `finding-limit`, `rule-failure`, and
+  `internal-failure` when building data rules share (names, symbols, types,
+  flow) crashed; `io-error` from `diagnostic.Status`; `project.AnalyzeBuffer`
+  and LSP guarded analysis: `internal-failure`.
 
 The LSP discards results from an older document version, a reopened document
 or a replaced engine before publishing diagnostics or status. Lazy fixes are
@@ -210,6 +212,14 @@ Filesystem reads belong to bounded `safeio` operations, which require regular
 files and check the opened descriptor as well as the path. Adapters retain
 responsibility for writes, path validation and protocol framing. Malformed or
 oversized input must produce a controlled error rather than hang or panic.
+
+A crash on one file must not end the process or other files' results. Work
+fanned out per file goes through the `project` worker pool, which recovers
+panics on its goroutines; `AnalyzeBuffer` turns a crash outside any rule into
+an `internal-failure` result, and `fixing.Edits` computes a lazy fix's edits
+under recovery. Cross-file flow composition runs a bounded number of rounds;
+summaries still unsettled after them are dropped, so calls into those files
+read as unresolved rather than as clean.
 
 Use hostile-input regression tests and fuzz targets for these contracts.
 Measure hot-path changes with `make bench` and allocation counts.

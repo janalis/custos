@@ -5,6 +5,23 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- A crash on one file no longer ends `custos analyse`, `custos fix`, the
+  language server or the MCP server: the file gets an `internal` finding and
+  the `internal-failure` status, and the other files are analyzed as usual.
+  A quick-fix that crashes is left out, and a failure building shared type or
+  flow data skips only the checks that need it instead of being reported
+  once per rule.
+- Quick-fixes apply whole or not at all: a fix whose edits overlap each other
+  or leave the file is skipped, and a fixing pass that would add syntax errors
+  is undone.
+- Taint is followed through a chain of more than eight wrapper functions
+  across files. Past 32 files, calls into the chain are reported as
+  `unresolved-dispatch` instead of passing as clean.
+- The MCP server applies `flow.assertions` to cross-file flow summaries, like
+  the CLI and the language server.
+
 ## [0.1.7] - 2026-10-21
 
 ### Added

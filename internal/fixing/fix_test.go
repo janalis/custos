@@ -1,6 +1,7 @@
 package fixing
 
 import (
+	"context"
 	"testing"
 
 	"custos/internal/diagnostic"
@@ -28,8 +29,8 @@ func TestApplyNoEdits(t *testing.T) {
 	}
 }
 
-// badFixRule offers a fix whose edit lies outside the source: Apply drops
-// it, and FixSource must stop instead of looping.
+// badFixRule offers a fix whose edit lies outside the source: FixSource
+// skips it and stops instead of looping.
 type badFixRule struct{}
 
 func (badFixRule) ID() string               { return "NestedNotOperators" }
@@ -47,8 +48,69 @@ func TestFixSourceInvalidEditStops(t *testing.T) {
 	}
 	src := []byte("<?php $a = !$b;")
 	res := FixSource(e, "x.php", src, Options{})
-	if string(res.Source) != string(src) || res.Applied != 0 || res.Iterations != 1 {
+	if string(res.Source) != string(src) || res.Applied != 0 || res.Iterations != 0 {
 		t.Fatalf("got %+v", res)
+	}
+}
+
+// fixRule reports every unary expression with a fix computed by edits.
+type fixRule struct {
+	edits func(n syntax.Node) []diagnostic.TextEdit
+}
+
+func (fixRule) ID() string               { return "NestedNotOperators" }
+func (fixRule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KUnary} }
+func (r fixRule) Check(ctx *analysis.Context, n syntax.Node) {
+	ctx.ReportNode(n, "x", diagnostic.Fix{Title: "fix", Edits: func() []diagnostic.TextEdit { return r.edits(n) }})
+}
+
+func fixWith(t *testing.T, src string, edits func(n syntax.Node) []diagnostic.TextEdit) Result {
+	t.Helper()
+	e, err := analysis.NewEngine([]analysis.Rule{fixRule{edits}}, analysis.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return FixSource(e, "x.php", []byte(src), Options{})
+}
+
+func TestFixSourceSkipsCrashingFix(t *testing.T) {
+	res := fixWith(t, "<?php $a = !$b;", func(syntax.Node) []diagnostic.TextEdit { panic("fix bug") })
+	if res.Applied != 0 || res.Iterations != 0 {
+		t.Fatalf("got %+v", res)
+	}
+	if _, ok := Edits(diagnostic.Fix{Edits: func() []diagnostic.TextEdit { panic("x") }}); ok {
+		t.Fatal("a crashing fix reported edits")
+	}
+}
+
+func TestFixSourceAppliesAFixWholeOrNotAtAll(t *testing.T) {
+	// The second edit overlaps the first: none of the fix applies, where
+	// Apply alone would keep the first.
+	src := "<?php $a = !$b;"
+	res := fixWith(t, src, func(n syntax.Node) []diagnostic.TextEdit {
+		sp := n.Span()
+		return []diagnostic.TextEdit{{Span: sp, NewText: "(bool) $b"}, {Span: syntax.Span{Start: sp.Start + 1, End: sp.End}, NewText: "c"}}
+	})
+	if string(res.Source) != src || res.Applied != 0 {
+		t.Fatalf("got %+v", res)
+	}
+	// Edits that only touch are one fix's own business.
+	res = fixWith(t, src, func(n syntax.Node) []diagnostic.TextEdit {
+		sp := n.Span()
+		return []diagnostic.TextEdit{{Span: syntax.Span{Start: sp.Start, End: sp.Start}, NewText: "("}, {Span: sp, NewText: "true"}, {Span: syntax.Span{Start: sp.End, End: sp.End}, NewText: ")"}}
+	})
+	if string(res.Source) != "<?php $a = (true);" || res.Applied != 3 {
+		t.Fatalf("got %q %+v", res.Source, res)
+	}
+}
+
+func TestFixSourceUndoesAnIterationAddingSyntaxErrors(t *testing.T) {
+	src := "<?php $a = !$b;"
+	res := fixWith(t, src, func(n syntax.Node) []diagnostic.TextEdit {
+		return []diagnostic.TextEdit{{Span: n.Span(), NewText: "$b +"}}
+	})
+	if string(res.Source) != src || res.Applied != 0 || res.Iterations != 1 {
+		t.Fatalf("got %q %+v", res.Source, res)
 	}
 }
 
@@ -86,5 +148,19 @@ func TestApplySameStart(t *testing.T) {
 	})
 	if string(out) != "ab+XYef" || n != 2 {
 		t.Fatalf("got %q (%d)", out, n)
+	}
+}
+
+func TestFixSourceContextStopsWhenDone(t *testing.T) {
+	e, err := analysis.NewEngine([]analysis.Rule{fixRule{func(n syntax.Node) []diagnostic.TextEdit {
+		return []diagnostic.TextEdit{{Span: n.Span(), NewText: "true"}}
+	}}}, analysis.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if res := FixSourceContext(ctx, e, "x.php", []byte("<?php $a = !$b;"), Options{}); res.Iterations != 0 || res.Applied != 0 {
+		t.Fatalf("got %+v", res)
 	}
 }

@@ -1,6 +1,7 @@
 package catalogue
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,12 +12,19 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/project"
+	"custos/internal/semantic/flow"
+	"custos/internal/semantic/index"
+	"custos/internal/semantic/stubs"
 	"custos/internal/testing/testbudget"
 )
 
 // FuzzRules runs every rule (and every fix) on fuzzed sources and fails on
-// any rule panic (reported by the engine as an "internal" finding) or on a
-// fix that cannot be applied. Seeded with the own fixtures.
+// any rule panic or shared-data failure (reported by the engine as an
+// "internal" finding) or on a fix that cannot be applied. At PHP 8.4 the
+// source also goes through the project paths: symbol extraction with
+// inferred returns and cross-file flow summaries. Seeded with the own
+// fixtures.
 func FuzzRules(f *testing.F) {
 	seeds, _ := filepath.Glob("../rules/*/testdata/*.php")
 	for i, p := range seeds {
@@ -34,9 +42,16 @@ func FuzzRules(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, src string) {
 		for _, v := range []phpversion.Version{phpversion.PHP56, phpversion.PHP84} {
-			file := syntax.ParseBest("fuzz.php", []byte(src), syntax.Options{Version: v, Permissive: true})
-			for _, fd := range e.Analyze(file) {
-				if fd.Rule == "internal" && strings.Contains(fd.Message, "crashed") {
+			opt := syntax.Options{Version: v, Permissive: true}
+			engine := e
+			if v == phpversion.PHP84 {
+				ix := index.New(stubs.Index())
+				ix.Add(project.ExtractSymbols("fuzz.php", []byte(src), opt))
+				engine = e.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(context.Background(), []string{"fuzz.php"}, [][]byte{[]byte(src)}, opt, ix, flow.Options{}))
+			}
+			file := syntax.ParseBest("fuzz.php", []byte(src), opt)
+			for _, fd := range engine.Analyze(file) {
+				if fd.Rule == "internal" && (strings.Contains(fd.Message, "crashed") || strings.Contains(fd.Message, "could not complete")) {
 					t.Fatalf("PHP %s: %s", v, fd.Message)
 				}
 				for _, fx := range fd.Fixes {

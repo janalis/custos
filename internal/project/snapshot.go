@@ -10,10 +10,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"custos/internal/diagnostic"
@@ -22,6 +20,7 @@ import (
 	"custos/internal/platform/safeio"
 	"custos/internal/project/config"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/infer"
 	"custos/internal/semantic/stubs"
 )
 
@@ -397,33 +396,12 @@ func sorted(set map[string]bool) []string {
 	return out
 }
 
-// Each runs fn(i) for every i below n on one worker per CPU. Only the
-// dispatcher observes cancellation, between items.
-func Each(ctx context.Context, n int, fn func(int)) error {
-	jobs := make(chan int)
-	var wg sync.WaitGroup
-	for range min(n, runtime.GOMAXPROCS(0)) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range jobs {
-				fn(i)
-			}
-		}()
-	}
-	var err error
-	for i := 0; i < n && err == nil; i++ {
-		if err = ctx.Err(); err == nil {
-			jobs <- i
-		}
-	}
-	close(jobs)
-	wg.Wait()
-	return err
-}
-
 func (s *Snapshot) parseOptions() syntax.Options {
 	return syntax.Options{Version: s.Config.PHP, ShortOpenTag: s.Config.ShortOpenTag}
+}
+
+func (s *Snapshot) inferOptions() infer.Options {
+	return infer.Options{Assertions: s.Config.Flow.Assertions}
 }
 
 // readVendor hashes every vendor file, verifying hashes already in the
@@ -431,7 +409,8 @@ func (s *Snapshot) parseOptions() syntax.Options {
 // is unchanged are trusted without a read.
 func (s *Snapshot) readVendor(ctx context.Context, extractSymbols bool) error {
 	opt := s.parseOptions()
-	parse := fmt.Sprint(opt.Version, opt.ShortOpenTag)
+	// Declarations depend on the inference options too (inferred returns).
+	parse := fmt.Sprint(opt.Version, opt.ShortOpenTag, s.inferOptions())
 	var cached map[string]vendorEntry
 	if s.cache != nil && s.cache.parse == parse {
 		cached = s.cache.files
@@ -477,7 +456,7 @@ func (s *Snapshot) readVendor(ctx context.Context, extractSymbols bool) error {
 				e.symbols = old.symbols
 			}
 			if extractSymbols && e.symbols == nil {
-				e.symbols, _ = extractCaptured(name, b, opt)
+				e.symbols, _ = extractCaptured(name, b, opt, s.inferOptions())
 			}
 			entries[i] = e
 		}
@@ -625,7 +604,7 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 	extracted := make([]*index.FileSymbols, len(semantic))
 	errs := make([]error, len(semantic))
 	if err := Each(ctx, len(semantic), func(i int) {
-		extracted[i], errs[i] = extractCaptured(semantic[i], s.Sources[semantic[i]], opt)
+		extracted[i], errs[i] = extractCaptured(semantic[i], s.Sources[semantic[i]], opt, s.inferOptions())
 	}); err != nil {
 		return nil, err
 	}
@@ -660,7 +639,7 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 		for _, name := range s.OwnFiles {
 			srcs = append(srcs, s.Sources[name])
 		}
-		s.Engine = s.Engine.WithFlow(BuildFlowSnapshot(s.OwnFiles, srcs, opt, s.Index))
+		s.Engine = s.Engine.WithFlow(BuildFlowSnapshot(ctx, s.OwnFiles, srcs, opt, s.Index, s.Config.Flow))
 	}
 	results := make([]diagnostic.FileResult, len(s.Files))
 	if err := Each(ctx, len(s.Files), func(i int) {
@@ -674,14 +653,14 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 }
 
 // Captured sources receive the same index crash isolation as disk sources.
-func extractCaptured(name string, src []byte, opt syntax.Options) (symbols *index.FileSymbols, err error) {
+func extractCaptured(name string, src []byte, opt syntax.Options, options infer.Options) (symbols *index.FileSymbols, err error) {
 	defer func() {
 		if recover() != nil {
 			symbols = nil
 			err = fmt.Errorf("semantic extraction failed for %s", name)
 		}
 	}()
-	return extract(name, src, opt), nil
+	return extract(name, src, opt, options), nil
 }
 
 // OverlaySnapshot replaces one file with supplied bytes and rebuilds semantic

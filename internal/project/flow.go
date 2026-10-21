@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"maps"
 	"runtime"
 	"slices"
@@ -13,9 +14,11 @@ import (
 
 // BuildFlowSnapshot builds project-local summaries without including vendor
 // bodies. Parsing is bounded by the same source reader as ordinary analysis.
-// Trees are retained only during bounded composition, then released.
-func BuildFlowSnapshot(files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options ...flow.Options) *flow.Snapshot {
-	return BuildFlow(files, srcs, opt, ix, options...).Snapshot
+// Trees are retained only during bounded composition, then released. Once
+// ctx is done the build stops between files and rounds, and the snapshot is
+// incomplete: callers check ctx before using it.
+func BuildFlowSnapshot(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options) *flow.Snapshot {
+	return BuildFlow(ctx, files, srcs, opt, ix, options).Snapshot
 }
 
 // FlowBuild is a flow snapshot with the summaries of each file it was
@@ -36,27 +39,24 @@ type FlowBuild struct {
 func (b *FlowBuild) Files() []string { return b.files }
 
 // BuildFlow is BuildFlowSnapshot keeping what Update needs.
-func BuildFlow(files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options ...flow.Options) *FlowBuild {
-	var resolved flow.Options
-	if len(options) > 0 {
-		resolved = options[0]
-	}
+func BuildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options) *FlowBuild {
 	trees := make([]*syntax.File, len(files))
-	each(len(files), runtime.GOMAXPROCS(0), func(i int) {
+	// A file that crashes the parser keeps no tree: it is not summarized.
+	_ = parallel(ctx, len(files), 0, func(i int) {
 		var src []byte
 		if i < len(srcs) {
 			src = srcs[i]
 		}
 		trees[i] = parseFlowSource(files[i], src, opt)
-	})
-	b := &FlowBuild{files: files, at: make(map[string]int, len(files)), results: make([]*flow.File, len(trees)), sources: map[string][]byte{}, opt: opt, options: resolved}
+	}, nil)
+	b := &FlowBuild{files: files, at: make(map[string]int, len(files)), results: make([]*flow.File, len(trees)), sources: map[string][]byte{}, opt: opt, options: options}
 	for i, path := range files {
 		b.at[path] = i
 		if i < len(srcs) && srcs[i] != nil {
 			b.sources[path] = srcs[i]
 		}
 	}
-	b.Snapshot = b.compose(flow.NewSnapshotWithOptions(resolved), make([]*flow.Snapshot, len(files)), ix, func(i int) *syntax.File { return trees[i] })
+	b.Snapshot = b.compose(ctx, flow.NewSnapshotWithOptions(options), make([]*flow.Snapshot, len(files)), ix, func(i int) *syntax.File { return trees[i] })
 	return b
 }
 
@@ -97,11 +97,11 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 	// a file in no recursion keeps that summary, which its unchanged
 	// contracts determine.
 	probe := make([]*flow.File, len(dirty))
-	each(len(dirty), max(1, runtime.GOMAXPROCS(0)/2), func(j int) {
+	_ = parallel(context.Background(), len(dirty), runtime.GOMAXPROCS(0)/2, func(j int) {
 		if file := tree(dirty[j]); file != nil {
-			probe[j] = flow.Extract(file, ix, b.opt.Version, b.Snapshot, b.options)
+			probe[j] = extractFlow(file, ix, b.opt.Version, b.Snapshot, b.options)
 		}
-	})
+	}, nil)
 	for j, i := range dirty {
 		next.results[i] = probe[j]
 	}
@@ -116,13 +116,13 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 		for i, path := range b.files {
 			srcs[i] = next.sources[path]
 		}
-		return BuildFlow(b.files, srcs, b.opt, ix, b.options), true
+		return BuildFlow(context.Background(), b.files, srcs, b.opt, ix, b.options), true
 	}
 	against := make([]*flow.Snapshot, len(b.files))
 	for i := range against {
 		against[i] = b.Snapshot
 	}
-	next.Snapshot = next.compose(flow.NewSnapshotWithOptions(b.options, next.results...), against, ix, tree)
+	next.Snapshot = next.compose(context.Background(), flow.NewSnapshotWithOptions(b.options, next.results...), against, ix, tree)
 	return next, true
 }
 
@@ -241,51 +241,62 @@ func parseFlowSource(path string, src []byte, opt syntax.Options) *syntax.File {
 	return syntax.ParseBest(path, src, opt)
 }
 
+// maxRounds bounds the rounds of compose. A round redoes only the files
+// whose summaries read a contract the previous one changed, and each round
+// settles one more file of a chain of calls across files.
+const maxRounds = 32
+
 // compose runs the bounded fixed point from snapshot: a file is summarized
 // (again) when it has no summary or a contract its summaries read differs
 // from the snapshot they were computed against (against). The files of a
 // round read the snapshot of the round before: they are summarized side by
 // side.
-func (b *FlowBuild) compose(snapshot *flow.Snapshot, against []*flow.Snapshot, ix *index.Index, tree func(int) *syntax.File) *flow.Snapshot {
-	for round := 0; round < flow.MaxDepth; round++ {
+func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, against []*flow.Snapshot, ix *index.Index, tree func(int) *syntax.File) *flow.Snapshot {
+	for range maxRounds {
+		if ctx.Err() != nil {
+			return snapshot
+		}
 		var work []int
 		for i, r := range b.results {
 			if r == nil || !r.Current(against[i], snapshot) {
 				work = append(work, i)
 			}
 		}
-		each(len(work), max(1, runtime.GOMAXPROCS(0)/2), func(j int) {
+		_ = parallel(ctx, len(work), runtime.GOMAXPROCS(0)/2, func(j int) {
 			if file := tree(work[j]); file != nil {
-				b.results[work[j]] = flow.Extract(file, ix, b.opt.Version, snapshot, b.options)
+				b.results[work[j]] = extractFlow(file, ix, b.opt.Version, snapshot, b.options)
 				against[work[j]] = snapshot
 			}
-		})
+		}, nil)
 		next := flow.NewSnapshotWithOptions(b.options, b.results...)
 		if snapshot.Equal(next) {
 			return next
 		}
 		snapshot = next
 	}
-	return snapshot
+	return b.unsettled(snapshot, against)
 }
 
-// each runs work for every index below n on that many goroutines and returns
-// when all are done. Each call of work owns its index.
-func each(n, workers int, work func(i int)) {
-	jobs := make(chan int)
-	var wg sync.WaitGroup
-	for w := 0; w < workers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range jobs {
-				work(i)
+// unsettled drops, once the rounds ran out, every summary computed against
+// contracts that differ from snapshot's, then those computed from dropped
+// ones: they may claim what no settled contract supports. Calls into the
+// files dropped are then unresolved, which their analyses report.
+func (b *FlowBuild) unsettled(snapshot *flow.Snapshot, against []*flow.Snapshot) *flow.Snapshot {
+	for {
+		dropped := false
+		for i, r := range b.results {
+			if r != nil && !r.Current(against[i], snapshot) {
+				b.results[i] = nil
+				dropped = true
 			}
-		}()
+		}
+		if !dropped {
+			return snapshot
+		}
+		snapshot = flow.NewSnapshotWithOptions(b.options, b.results...)
 	}
-	for i := range n {
-		jobs <- i
-	}
-	close(jobs)
-	wg.Wait()
 }
+
+// extractFlow is flow.Extract; tests replace it to simulate a crash. A file
+// whose summaries crash keeps none: calls into it read as unresolved.
+var extractFlow = flow.Extract

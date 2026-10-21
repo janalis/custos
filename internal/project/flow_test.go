@@ -1,6 +1,7 @@
 package project
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -11,6 +12,7 @@ import (
 	"custos/internal/inspection/rules/untrustedshellcommand"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/flow"
 )
 
 func TestProjectComposesFlowWithoutWriting(t *testing.T) {
@@ -43,8 +45,8 @@ func TestFlowSnapshotSourcesAndBoundedComposition(t *testing.T) {
 	writeFile(t, path, "<?php function source() { return $_GET['value']; }")
 	opt := syntax.Options{Version: phpversion.Default}
 	ix := BuildIndex([]string{path}, opt)
-	fromDisk := BuildFlowSnapshot([]string{path, filepath.Join(root, "gone.php")}, nil, opt, ix)
-	fromBuffer := BuildFlowSnapshot([]string{path}, [][]byte{[]byte("<?php function source() { return $_GET['value']; }")}, opt, ix)
+	fromDisk := BuildFlowSnapshot(context.Background(), []string{path, filepath.Join(root, "gone.php")}, nil, opt, ix, flow.Options{})
+	fromBuffer := BuildFlowSnapshot(context.Background(), []string{path}, [][]byte{[]byte("<?php function source() { return $_GET['value']; }")}, opt, ix, flow.Options{})
 	if !fromDisk.Equal(fromBuffer) {
 		t.Fatal("disk and supplied source summaries differ")
 	}
@@ -56,7 +58,7 @@ func TestFlowSnapshotSourcesAndBoundedComposition(t *testing.T) {
 		fmt.Fprintf(&chain, "function f%d() { return f%d(); }", i, i-1)
 	}
 	ix.Add(ExtractSymbols(path, []byte(chain.String()), opt))
-	long := BuildFlowSnapshot([]string{path}, [][]byte{[]byte(chain.String())}, opt, ix)
+	long := BuildFlowSnapshot(context.Background(), []string{path}, [][]byte{[]byte(chain.String())}, opt, ix, flow.Options{})
 	if long == nil || long.Equal(fromDisk) {
 		t.Fatal("composition did not retain distinct wrapper summaries")
 	}
@@ -74,7 +76,7 @@ func TestFlowSnapshotSourcesAndBoundedComposition(t *testing.T) {
 		srcs = append(srcs, []byte(src))
 		ix.Add(ExtractSymbols(paths[i], srcs[i], opt))
 	}
-	if BuildFlowSnapshot(paths, srcs, opt, ix) == nil {
+	if BuildFlowSnapshot(context.Background(), paths, srcs, opt, ix, flow.Options{}) == nil {
 		t.Fatal("bounded composition returned no snapshot")
 	}
 }
@@ -100,7 +102,7 @@ func TestFlowBuildUpdateMatchesFullBuild(t *testing.T) {
 	}
 	sort.Strings(files)
 	ix := BuildIndex(files, opt)
-	build := BuildFlow(files, nil, opt, ix)
+	build := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
 	current := map[string]string{}
 	for name, src := range sources {
 		current[filepath.Join(root, name)] = src
@@ -125,7 +127,7 @@ func TestFlowBuildUpdateMatchesFullBuild(t *testing.T) {
 		for i, f := range files {
 			srcs[i] = []byte(current[f])
 		}
-		if full := BuildFlow(files, srcs, opt, ix); !next.Snapshot.Equal(full.Snapshot) {
+		if full := BuildFlow(context.Background(), files, srcs, opt, ix, flow.Options{}); !next.Snapshot.Equal(full.Snapshot) {
 			t.Fatalf("step %d (%s): incremental snapshot differs from a full build", step, edit.name)
 		}
 		if step == 0 && next.Snapshot.Equal(build.Snapshot) {
@@ -153,7 +155,7 @@ func TestFlowBuildUpdateSelfRecursionAndUnreadable(t *testing.T) {
 	writeFile(t, other, "<?php function shell($c): void { exec($c); }")
 	files := []string{gone, other, self}
 	ix := BuildIndex(files, opt)
-	build := BuildFlow(files, nil, opt, ix)
+	build := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
 	for _, edit := range []struct{ path, src string }{
 		{self, "<?php function walk($n): void { if ($n) { walk($n - 1); } echo $n; }"},
 		{other, "<?php function shell($c): void { echo $c; }"},
@@ -164,9 +166,53 @@ func TestFlowBuildUpdateSelfRecursionAndUnreadable(t *testing.T) {
 			t.Fatal("update refused")
 		}
 		writeFile(t, edit.path, edit.src)
-		if full := BuildFlow(files, nil, opt, ix); !next.Snapshot.Equal(full.Snapshot) {
+		if full := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{}); !next.Snapshot.Equal(full.Snapshot) {
 			t.Fatalf("%s: incremental snapshot differs from a full build", filepath.Base(edit.path))
 		}
 		build = next
+	}
+}
+
+// A chain of wrappers across files settles one file per round; past the
+// rounds, the unsettled summaries are dropped and the call reads as
+// unresolved rather than as clean.
+func TestFlowChainAcrossFiles(t *testing.T) {
+	for _, n := range []int{12, maxRounds + 1} {
+		root := t.TempDir()
+		writeFile(t, filepath.Join(root, "f00.php"), "<?php function f0() { return $_GET['v']; }")
+		for i := 1; i < n; i++ {
+			writeFile(t, filepath.Join(root, fmt.Sprintf("f%02d.php", i)), fmt.Sprintf("<?php function f%d() { return f%d(); }", i, i-1))
+		}
+		main := filepath.Join(root, "main.php")
+		writeFile(t, main, fmt.Sprintf("<?php system(f%d());", n-1))
+		p, err := Open([]analysis.Rule{untrustedshellcommand.New()}, Options{Root: root, Paths: []string{root}, Analysis: analysis.Config{EnableAll: true, PHP: phpversion.Default}, Parse: syntax.Options{Version: phpversion.Default}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, r := range p.AnalyzeReport() {
+			if r.Path != main {
+				continue
+			}
+			settled := n <= maxRounds
+			if got := len(r.Findings) == 1; got != settled {
+				t.Errorf("chain of %d: findings %+v", n, r.Findings)
+			}
+			if got := len(r.Incomplete) == 1 && r.Incomplete[0].Reason == "unresolved-dispatch"; got == settled {
+				t.Errorf("chain of %d: status %+v", n, r.Incomplete)
+			}
+		}
+	}
+}
+
+func TestFlowBuildStopsWhenCancelled(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "a.php")
+	writeFile(t, path, "<?php function source() { return $_GET['value']; }")
+	opt := syntax.Options{Version: phpversion.Default}
+	ix := BuildIndex([]string{path}, opt)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if s := BuildFlowSnapshot(ctx, []string{path}, nil, opt, ix, flow.Options{}); s == nil || !s.Equal(flow.NewSnapshotWithOptions(flow.Options{})) {
+		t.Fatal("a cancelled build summarized files")
 	}
 }

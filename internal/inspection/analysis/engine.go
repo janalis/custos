@@ -2,6 +2,8 @@ package analysis
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/meta"
@@ -108,14 +110,24 @@ func (e *Engine) Analyze(f *syntax.File) []diagnostic.Finding {
 func (e *Engine) AnalyzeResult(f *syntax.File) diagnostic.AnalysisResult {
 	var disabled map[int]bool
 	var internal []diagnostic.Finding
-	// Terminates: each crash disables a distinct rule, and a run with every
-	// rule disabled cannot crash.
+	failed := map[string]envFailure{}
+	// Terminates: each crash disables a distinct rule or records the first
+	// failure of shared data (later runs isolate checks from any), and a
+	// run with every rule disabled cannot crash.
 	for {
-		result, crashed, msg := e.analyzeOnce(f, disabled)
+		result, crashed, msg := e.analyzeOnce(f, disabled, failed)
+		if crashed == envCrashed {
+			continue
+		}
 		if crashed < 0 {
+			internal = append(internal, envFindings(failed)...)
 			result.Findings = append(internal, result.Findings...)
+			reason := "rule-failure"
+			if len(failed) > 0 {
+				reason = "internal-failure"
+			}
 			if len(internal) > 0 {
-				result.Incomplete = append(result.Incomplete, diagnostic.AnalysisIssue{Reason: "rule-failure", Span: f.Span()})
+				result.Incomplete = append(result.Incomplete, diagnostic.AnalysisIssue{Reason: reason, Span: f.Span()})
 			}
 			return result
 		}
@@ -130,13 +142,43 @@ func (e *Engine) AnalyzeResult(f *syntax.File) diagnostic.AnalysisResult {
 	}
 }
 
+// envCrashed is analyzeOnce's crashed index for a failure of shared data.
+const envCrashed = -2
+
+// envFindings reports each failed build of shared data once (data built
+// from failed data names the failure it inherited).
+func envFindings(failed map[string]envFailure) []diagnostic.Finding {
+	var out []diagnostic.Finding
+	seen := map[string]bool{}
+	for _, what := range slices.Sorted(maps.Keys(failed)) {
+		f := failed[what]
+		if seen[f.what] {
+			continue
+		}
+		seen[f.what] = true
+		out = append(out, diagnostic.Finding{
+			Rule: "internal", Severity: diagnostic.SeverityError,
+			Message: fmt.Sprintf("custos could not complete the %s of this file and skipped the checks needing it: %v", f.what, f.value),
+		})
+	}
+	return out
+}
+
 // analyzeOnce runs the rules not in disabled. When a rule panics it returns
-// that rule's index (else -1) and the panic message.
-func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool) (result diagnostic.AnalysisResult, crashed int, msg string) {
-	ctx := &Context{File: f, Src: f.Src, PHP: e.cfg.PHP, ComparisonStyle: e.cfg.ComparisonStyle, engine: e}
+// that rule's index (else -1) and the panic message; when building data
+// the rules share fails, envCrashed. Once some failed
+// (failed is not empty), each check runs isolated: one needing that data
+// is skipped and the others go on.
+func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool, failed map[string]envFailure) (result diagnostic.AnalysisResult, crashed int, msg string) {
+	ctx := &Context{File: f, Src: f.Src, PHP: e.cfg.PHP, ComparisonStyle: e.cfg.ComparisonStyle, engine: e, failed: failed}
+	isolated := len(failed) > 0
 	cur := -1
 	defer func() {
 		if r := recover(); r != nil {
+			if _, ok := r.(envFailure); ok {
+				result, crashed, msg = diagnostic.AnalysisResult{}, envCrashed, ""
+				return
+			}
 			result, crashed, msg = diagnostic.AnalysisResult{}, cur, fmt.Sprint(r)
 			if cur < 0 {
 				panic(r) // not a rule failure
@@ -149,7 +191,12 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool) (result diag
 		}
 		cur = int(i)
 		ctx.cur = &e.rules[i]
-		e.rules[i].rule.(FileRule).CheckFile(ctx)
+		rule := e.rules[i].rule.(FileRule)
+		if isolated {
+			isolate(func() { rule.CheckFile(ctx) })
+		} else {
+			rule.CheckFile(ctx)
+		}
 	}
 	if len(e.rules) > len(e.files) || len(e.files) == 0 {
 		syntax.InspectFile(f, func(n syntax.Node) bool {
@@ -159,7 +206,11 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool) (result diag
 				}
 				cur = int(i)
 				ctx.cur = &e.rules[i]
-				e.rules[i].rule.Check(ctx, n)
+				if isolated {
+					isolate(func() { e.rules[i].rule.Check(ctx, n) })
+				} else {
+					e.rules[i].rule.Check(ctx, n)
+				}
 			}
 			return true
 		})
@@ -183,6 +234,19 @@ func (e *Engine) analyzeOnce(f *syntax.File, disabled map[int]bool) (result diag
 		})
 	}
 	return diagnostic.AnalysisResult{Findings: out, Incomplete: ctx.incomplete()}, -1, ""
+}
+
+// isolate runs check, skipping it when it needs shared data that failed to
+// build; any other panic goes on to the rule's crash handling.
+func isolate(check func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			if _, ok := r.(envFailure); !ok {
+				panic(r)
+			}
+		}
+	}()
+	check()
 }
 
 func sortFindings(fs []diagnostic.Finding) {

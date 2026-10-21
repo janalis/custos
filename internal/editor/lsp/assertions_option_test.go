@@ -198,3 +198,27 @@ func TestAssertionSameModeConfigurationRetainsProjectFlow(t *testing.T) {
 		t.Fatalf("same-mode configuration lost project flow: %v", got)
 	}
 }
+
+func TestIndexBuildCrashLeavesTheServerServing(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "source.php"), []byte("<?php class Original {}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := whiteBox(t, root, io.Discard, unescapedhtmloutput.New())
+	oldBuild := buildIndexSymbols
+	defer func() { buildIndexSymbols = oldBuild }()
+	buildIndexSymbols = func([]string, syntax.Options, ...infer.Options) *index.Index { panic("index bug") }
+	if !s.beginIndexing() {
+		t.Fatal("index not requested")
+	}
+	s.buildIndex()
+	s.mu.Lock()
+	indexing, ix := s.indexing, s.index
+	s.mu.Unlock()
+	if indexing || ix != nil {
+		t.Fatal("a crashed index build must end without publishing an index")
+	}
+	if !s.beginIndexing() {
+		t.Fatal("a later index build must be possible")
+	}
+}

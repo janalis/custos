@@ -1,6 +1,7 @@
 package catalogue
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/project"
+	"custos/internal/semantic/flow"
 )
 
 // TestNoCrashOnCorpus runs every rule over a real-world corpus (CUSTOS_CORPUS,
@@ -38,7 +40,7 @@ func TestNoCrashOnCorpus(t *testing.T) {
 	}
 	opt := syntax.Options{Version: phpversion.PHP85}
 	ix := project.BuildIndex(files, opt)
-	e = e.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(files, nil, opt, ix))
+	e = e.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(context.Background(), files, nil, opt, ix, flow.Options{}))
 	crashes := 0
 	for _, r := range project.Run(e, files, opt) {
 		for _, f := range r.Findings {

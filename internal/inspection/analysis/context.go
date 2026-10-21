@@ -38,6 +38,9 @@ type Context struct {
 	// gaps are the bounded queries that ran out of work, once per reason
 	// and range, at most MaxGaps.
 	gaps []diagnostic.AnalysisIssue
+	// failed holds the shared data whose build crashed on this file, kept
+	// across the engine's runs over it; once one did, checks run isolated.
+	failed map[string]envFailure
 }
 
 // MaxGaps bounds the analysis gaps a file records from its queries.

@@ -1,12 +1,14 @@
 package lsp
 
 import (
+	"context"
 	"maps"
 	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	"custos/internal/project"
 	"custos/internal/semantic/flow"
@@ -30,10 +32,22 @@ func (s *Server) beginIndexing() bool {
 
 // buildIndex indexes the workspace (and vendor) after beginIndexing, then
 // re-analyses open documents.
+// abandonIndex ends a failed index build, unless a later one replaced it:
+// analyses go on without a project index.
+func (s *Server) abandonIndex(e *analysis.Engine, generation uint64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.indexGeneration == generation && s.engine == e {
+		s.indexing, s.pending = false, nil
+	}
+}
+
 func (s *Server) buildIndex() {
 	s.mu.Lock()
 	e, cfg, generation := s.engine, s.cfg, s.indexGeneration
 	s.mu.Unlock()
+	// It runs on its own goroutine, outside the request guards.
+	defer s.guard("index", func() { s.abandonIndex(e, generation) })
 	start := time.Now()
 	var paths []string
 	for _, p := range cfg.Paths {
@@ -42,17 +56,13 @@ func (s *Server) buildIndex() {
 	files, err := discoverIndexFiles(paths, cfg.Exclude)
 	if err != nil {
 		s.logf("index: %v", err)
-		s.mu.Lock()
-		if s.indexGeneration == generation && s.engine == e {
-			s.indexing, s.pending = false, nil
-		}
-		s.mu.Unlock()
+		s.abandonIndex(e, generation)
 		return
 	}
 	ix := buildIndexSymbols(project.IndexSources(cfg.Root, files), syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
 	var snapshot *flow.Snapshot
 	if e.NeedsFlow() {
-		snapshot = project.BuildFlowSnapshot(files, nil, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, ix, cfg.Flow)
+		snapshot = project.BuildFlowSnapshot(context.Background(), files, nil, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, ix, cfg.Flow)
 	}
 	s.mu.Lock()
 	if s.engine != e || s.indexGeneration != generation {
@@ -233,7 +243,7 @@ func (s *Server) refreshFlow() {
 		sources[i] = contents[path]
 	}
 	// Compose every unsaved dependency in the same bounded fixed point.
-	build := project.BuildFlow(files, sources, opt, ix, cfg.Flow)
+	build := project.BuildFlow(context.Background(), files, sources, opt, ix, cfg.Flow)
 	s.mu.Lock()
 	if s.engine == e {
 		s.flow, s.flowBuild, s.flowSymbols = build.Snapshot, build, built

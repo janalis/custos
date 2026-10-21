@@ -48,13 +48,47 @@ func (c *Context) Flow() *flow.Env {
 		// Only files with callable declarations need a local summary overlay.
 		// The environment that computed them serves, or the results of it
 		// that read nothing they change.
-		env, own := flow.Summarize(c.File, c.Types(), snapshot, c.engine.cfg.Flow)
-		if len(own.Summaries) > 0 && !snapshot.Holds(own) {
-			env = env.Rebase(snapshot.WithFile(own))
-		}
-		c.flow = env
+		c.build("flow analysis", func() {
+			env, own := flow.Summarize(c.File, c.Types(), snapshot, c.engine.cfg.Flow)
+			if len(own.Summaries) > 0 && !snapshot.Holds(own) {
+				env = env.Rebase(snapshot.WithFile(own))
+			}
+			c.flow = env
+		})
 	}
 	return c.flow
+}
+
+// envFailure is a panic while building data the rules of a file share
+// (names, symbols, types, flow). No rule is to blame: the engine skips the
+// checks needing it instead of disabling whichever rule asked first, and
+// does not build it again for the file.
+type envFailure struct {
+	what  string
+	value any
+}
+
+// build runs make, which builds the shared data what. A panic in it, or a
+// request for data whose build failed before, panics with an envFailure.
+func (c *Context) build(what string, make func()) {
+	if f, ok := c.failed[what]; ok {
+		panic(f)
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			f, ok := r.(envFailure)
+			if !ok {
+				f = envFailure{what, r}
+			}
+			// Data built from failed data fails too.
+			if c.failed == nil {
+				c.failed = map[string]envFailure{} // NewTestContext
+			}
+			c.failed[what] = f
+			panic(f)
+		}
+	}()
+	make()
 }
 
 // NeedsIndex reports whether an enabled rule requires the project index.
@@ -86,10 +120,13 @@ func (e *Engine) projectIndex() *index.Index {
 	return stubs.Index()
 }
 
+// newResolver is names.New; tests replace it to simulate a crash.
+var newResolver = names.New
+
 // Names returns the file's name resolver (built on first use).
 func (c *Context) Names() *names.Resolver {
 	if c.names == nil {
-		c.names = names.New(c.File)
+		c.build("name resolution", func() { c.names = newResolver(c.File) })
 	}
 	return c.names
 }
@@ -98,8 +135,11 @@ func (c *Context) Names() *names.Resolver {
 // layered over the project index and the PHP stubs (built on first use).
 func (c *Context) Index() *index.Index {
 	if c.index == nil {
-		c.index = index.New(c.engine.projectIndex())
-		c.index.Add(index.Extract(c.File))
+		c.build("symbol index", func() {
+			ix := index.New(c.engine.projectIndex())
+			ix.Add(index.Extract(c.File))
+			c.index = ix
+		})
 	}
 	return c.index
 }
@@ -107,7 +147,9 @@ func (c *Context) Index() *index.Index {
 // Types returns the type inference environment for this file.
 func (c *Context) Types() *infer.Env {
 	if c.types == nil {
-		c.types = infer.NewEnv(c.File, c.Names(), c.Index(), c.PHP, infer.Options{Assertions: c.engine.cfg.Flow.Assertions})
+		c.build("type inference", func() {
+			c.types = infer.NewEnv(c.File, c.Names(), c.Index(), c.PHP, infer.Options{Assertions: c.engine.cfg.Flow.Assertions})
+		})
 	}
 	return c.types
 }

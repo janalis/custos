@@ -111,7 +111,7 @@ proof that the code is correct.
 | `finding-limit` | The file has too many findings; the rest are dropped. |
 | `rule-failure` | A rule failed on the file. |
 | `io-error` | The file could not be read. |
-| `internal-failure` | The language server hit an unexpected error. |
+| `internal-failure` | custos hit an unexpected error on the file; the checks it affected were skipped. |
 | `status-limit` | Too many gaps; the list was cut short. |
 
 ## fix

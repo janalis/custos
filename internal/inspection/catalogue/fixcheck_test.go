@@ -1,6 +1,7 @@
 package catalogue
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,6 +15,7 @@ import (
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/project"
+	"custos/internal/semantic/flow"
 )
 
 // TestFixesKeepCodeParsable applies every quick-fix offered on a real-world
@@ -47,7 +49,7 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 		t.Fatal(err)
 	}
 	ix := project.BuildIndex(files, opt)
-	e = e.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(files, nil, opt, ix))
+	e = e.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(context.Background(), files, nil, opt, ix, flow.Options{}))
 
 	broken := map[string][]string{} // rule -> examples
 	applied := 0

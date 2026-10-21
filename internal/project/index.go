@@ -1,11 +1,10 @@
 package project
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
-	"sync"
 
 	"custos/internal/php/syntax"
 	"custos/internal/platform/safeio"
@@ -66,26 +65,14 @@ func BuildIndexKeep(files []string, keep int, opt syntax.Options, options ...inf
 	ix := index.New(stubs.Index())
 	results := make([]*index.FileSymbols, len(files))
 	srcs := make([][]byte, keep)
-	jobs := make(chan int)
-	var wg sync.WaitGroup
-	for w := 0; w < runtime.GOMAXPROCS(0); w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := range jobs {
-				var src []byte
-				results[i], src = indexOne(files[i], opt, options...)
-				if i < keep {
-					srcs[i] = src
-				}
-			}
-		}()
-	}
-	for i := range files {
-		jobs <- i
-	}
-	close(jobs)
-	wg.Wait()
+	// indexOne isolates crashes of its own.
+	_ = parallel(context.Background(), len(files), 0, func(i int) {
+		var src []byte
+		results[i], src = indexOne(files[i], opt, options...)
+		if i < keep {
+			srcs[i] = src
+		}
+	}, nil)
 	for _, fs := range results {
 		if fs != nil && len(fs.Classes)+len(fs.Functions)+len(fs.Constants)+len(fs.ClassAliases) > 0 {
 			ix.Add(fs)

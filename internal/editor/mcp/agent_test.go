@@ -404,3 +404,16 @@ func TestResultsAreOneTextBlock(t *testing.T) {
 		t.Fatal(result, err)
 	}
 }
+
+func TestCallTurnsACrashIntoAnError(t *testing.T) {
+	s, ctx, _, _ := agentFixture(t)
+	s.rules = []analysis.Rule{nil}
+	_, err := s.call(ctx, "analyze", Input{})
+	if err == nil || !strings.HasPrefix(err.Error(), "internal failure in analyze: ") {
+		t.Fatal(err)
+	}
+	s.rules = []analysis.Rule{nestednotoperators.New()}
+	if _, err := s.call(ctx, "analyze", Input{}); err != nil {
+		t.Fatal("the server must keep serving after a crash:", err)
+	}
+}

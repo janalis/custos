@@ -295,23 +295,33 @@ func TestFixAllResolve(t *testing.T) {
 	})
 }
 
-// TestPanicIsContained: a fix crashing while a request is handled gives an
-// internal error reply and a log message; the server keeps serving.
+// TestPanicIsContained: a crash while a request is handled gives an
+// internal error reply and a log message; the server keeps serving. A fix
+// crashing while computing its edits is only left out.
 func TestPanicIsContained(t *testing.T) {
-	useRules(t, panicFixRule{})
+	useRules(t, nil)
 	cl := startServer(t)
+	raw := json.RawMessage("1")
+	_ = cl.c.write(&message{ID: &raw, Method: "initialize", Params: mustJSON(map[string]any{"rootUri": "file://" + t.TempDir(), "capabilities": map[string]any{}})})
+	cl.logContaining("panicked")
+	res := cl.waitFor("reply", func(m *message) bool { return m.ID != nil && string(*m.ID) == "1" })
+	if res.Error == nil || res.Error.Code != codeInternalError {
+		t.Fatalf("crashing configuration: %s %+v", res.Result, res.Error)
+	}
+	if res := cl.call(3, "shutdown", nil); res.Error != nil {
+		t.Fatal(res.Error)
+	}
+
+	useRules(t, panicFixRule{})
+	cl = startServer(t)
 	cl.initialize(map[string]any{"rootUri": "file://" + t.TempDir()})
 	uri := "file:///tmp/panic.php"
 	cl.open(uri, "<?php\n;\n")
 	cl.diagsFor(uri)
-	raw := json.RawMessage("2")
-	_ = cl.c.write(&message{ID: &raw, Method: "textDocument/codeAction", Params: mustJSON(map[string]any{"textDocument": map[string]any{"uri": uri}, "range": zeroRange, "context": map[string]any{}})})
-	cl.logContaining("panicked: boom")
-	res := cl.waitFor("reply", func(m *message) bool { return m.ID != nil && string(*m.ID) == "2" })
-	if res.Error == nil || res.Error.Code != codeInternalError {
+	if res := cl.call(2, "workspace/executeCommand", map[string]any{"command": cmdFixFile, "arguments": []any{uri}}); res.Error != nil || string(res.Result) != "null" {
 		t.Fatalf("crashing fix: %s %+v", res.Result, res.Error)
 	}
-	if res := cl.call(3, "shutdown", nil); res.Error != nil {
+	if res := cl.call(4, "shutdown", nil); res.Error != nil {
 		t.Fatal(res.Error)
 	}
 }

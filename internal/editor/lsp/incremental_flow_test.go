@@ -2,6 +2,7 @@ package lsp
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -63,7 +64,7 @@ func TestIncrementalFlowRefresh(t *testing.T) {
 				srcs[i] = s.docs[uri].text
 			}
 		}
-		if !project.BuildFlow(files, srcs, syntax.Options{Version: s.cfg.PHP}, s.index, s.cfg.Flow).Snapshot.Equal(s.flow) {
+		if !project.BuildFlow(context.Background(), files, srcs, syntax.Options{Version: s.cfg.PHP}, s.index, s.cfg.Flow).Snapshot.Equal(s.flow) {
 			t.Fatal("incremental summaries differ from a full build")
 		}
 	}
