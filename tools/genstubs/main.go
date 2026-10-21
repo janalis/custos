@@ -26,6 +26,10 @@ import (
 // defaultSrc locates the stubs checkout when -src is not given (`make stubs`).
 var defaultSrc = ".cache/stubs-src/*phpstorm-stubs*"
 
+// indexRevision names the extraction that produced the index in VERSION;
+// bump it whenever a change to the index alters the generated data.
+const indexRevision = "index-v5"
+
 func main() { os.Exit(run(os.Args[1:], os.Stdout, os.Stderr)) }
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -114,7 +118,7 @@ func generate(src, out, rev string, stdout io.Writer) error {
 		return err
 	}
 	if rev == "" {
-		rev = filepath.Base(src) + "+index-v2"
+		rev = filepath.Base(src) + "+" + indexRevision
 	}
 	_ = os.WriteFile(filepath.Join(filepath.Dir(out), "VERSION"), []byte(rev+"\n"), 0o644)
 	nc, nf, nk := 0, 0, 0

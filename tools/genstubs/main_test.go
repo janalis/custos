@@ -140,7 +140,7 @@ func TestRunDefaultSource(t *testing.T) {
 	if code := run([]string{"-out", out}, &stdout, &stderr); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr.String())
 	}
-	if v, _ := os.ReadFile(filepath.Join(filepath.Dir(out), "VERSION")); string(v) != "fake-phpstorm-stubs-abc+index-v2\n" {
+	if v, _ := os.ReadFile(filepath.Join(filepath.Dir(out), "VERSION")); string(v) != "fake-phpstorm-stubs-abc+"+indexRevision+"\n" {
 		t.Errorf("VERSION = %q", v)
 	}
 	// No checkout found.
