@@ -246,6 +246,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- DateLastErrorsFalseUnchecked no longer reports `getLastErrors()` read right
+  after a date parse failed (`if ($d = DateTime::createFromFormat(…)) { return
+  $d; }`, or in the branch of `if (!createFromFormat(…))`): a failed parse
+  always records an error.
+
 - A string that passes `is_a($x, Foo::class, true)` or `is_subclass_of()` is
   typed `class-string<Foo>` and no longer as a `Foo` instance, so an array
   key checked this way (`$stamps[$class]`) is not reported by
