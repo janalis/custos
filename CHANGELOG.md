@@ -7,186 +7,56 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- `custos mcp` exposes project analysis, rule knowledge, semantic navigation,
-  resumable checkpoints and prepared fixes over stdio and authenticated
-  Streamable HTTP. Workspace roots and identity permissions constrain access.
-- Composer's launcher supplies the consuming project as the MCP default,
-  including custom vendor/bin directories and symlinked package installations.
-- MCP analysis handles large dependency trees: vendor files are indexed without
-  being retained (up to 100,000 files), vendor symlinks are skipped and
-  reported instead of failing, and unchanged dependencies are not parsed again.
-- MCP findings filter by directory and case-insensitive rule ID and summarize
-  counts by severity, rule and file; symbol search ranks exact names first and
-  returns PHP-style signatures; types can be queried by line and column.
+- `custos mcp` serves project analysis, rule knowledge, semantic navigation,
+  resumable checkpoints and prepared fixes to AI agents over stdio or
+  authenticated Streamable HTTP, confined to workspace roots and identity
+  permissions. It handles large vendor trees, filters and summarizes
+  findings, and Composer's launcher points it at the consuming project.
 - The language server applies the project baseline, like `custos analyse`,
   and reloads it when the file changes.
-- Native rule pages carry a *native* badge, and the largest rule group of the
-  sidebar is split by initial letter.
+- Rule pages show a *native* badge, and large sidebar groups are split by
+  initial letter.
 
 ### Changed
 
-- Discovery skips hidden directories (`.phpunit.cache`, `.php-cs-fixer`, and
-  any other directory whose name starts with a dot) below each scanned path,
-  so generated code kept there is no longer analyzed. A scanned path may still
-  name one.
-- `--all` no longer enables rules that `custos.json` turns off with
-  `"enabled": false`. `--rule` still runs exactly the rules it names.
-- A `rules` entry in the language server's `initializationOptions` overrides
-  the project's entry field by field instead of replacing it: setting only a
-  severity keeps the project's `enabled` and options.
-- Rule pages and `custos explain` read better: spec item labels (D1, E2…)
-  only appear where the text refers to them, references to items a page does
-  not show and boilerplate sentences are gone, option descriptions say what
-  they do instead of naming spec items, and notes about upstream test
-  configurations are dropped.
-- The rule status table and the rule reference agree on which rules have a
-  quick-fix.
-- Symbol lookups no longer contend on a lock once the project index is built,
-  which shortens whole-project runs.
-- The language server no longer rebuilds the whole project's flow summaries
-  on every edit: an edit that leaves a file's declarations unchanged
-  recomputes only the summaries it can affect, and other open files are
-  analyzed again only when a summary changed. An analysis that waited for a
-  free slot is skipped if the file changed meanwhile.
-- Type inference knows more types:
-  - closures passed to `array_map()`, `array_filter()`, `array_walk()`,
-    `array_reduce()`, `usort()`, `uasort()` and `uksort()` get their untyped
-    parameters typed from the array's elements or keys, and parameters
-    declared `array` or `iterable` keep the elements' array shape;
-  - a method parameter without its own `@param` takes the documented type of
-    the method it overrides or implements (a Symfony form type's
-    `buildForm()` `$options`);
-  - constants initialized with an array literal keep its keys and value types
-    (except where `static::` may read an override); a computed-key read of a
-    literal or constant array gives the union of its values; destructuring a
-    typed array types each variable; a promoted parameter's `@var` documents
-    the property;
-  - more array builtins are typed from their arguments (`array_merge()`,
-    `array_replace()`, `array_chunk()`, `array_combine()`, `array_column()`,
-    `array_fill*()`, `array_pad()`, `array_keys()`, `array_flip()`,
-    `array_count_values()`, `array_intersect*()`/`array_diff*()`,
-    `iterator_to_array()`, integer `range()`, `array_values()` and its
-    siblings), `pathinfo()` and `parse_url()` return shapes, `fgetcsv()`,
-    `str_getcsv()`, `file()` and `glob()` return string lists, and
-    `preg_split()` with `PREG_SPLIT_OFFSET_CAPTURE` returns `[string, int]`
-    pairs;
-  - an array filled by appending shaped rows keeps the rows' shape, and
-    passing an array by reference (`sort()`, `usort()`…) no longer drops its
-    shape for reads before the call;
-  - conditional return types accept a union of literals or constants as the
-    tested value, read a parameter default given as a class constant and
-    bind the method's templates from the call: Symfony's
-    `$container->get('id')` is a non-null object (no NullPointerException on
-    `$container->get('id')->method()`), and Prophecy's
-    `prophesize(Foo::class)->reveal()` is a `Foo`;
-  - a function or method declared `array` without `@return` returns the array
-    type its body returns, where no override can run instead;
-  - arithmetic with one numeric operand is a number even when the other is
-    unknown (`$totals['count'] += $row['n']`), and arithmetic on `int`,
-    `bool` and `null` operands is an `int` (UnnecessaryCasting now reports
-    `(int)` on `strtotime($d) + 60`);
-  - a variable passed by reference without `@param-out` takes the
-    parameter's `@param` type after the call (checks that need a proof still
-    treat it as unknown);
-  - `self` and `parent` in parameter types and inline `@var` comments name
-    the enclosing class;
-  - a string that passes `is_a($x, Foo::class, true)` or `is_subclass_of()`
-    is a `class-string<Foo>`, not a `Foo` instance;
-  - `new` binds a generic class's template arguments from its constructor's
-    documented parameters (`new ArrayCollection($items)`);
-  - inside a trait, `$this->property` and `$this->method()` take the types
-    the trait declares (except in checks that need a proof);
-  - iterators without generic annotations type their keys and values from
-    `getIterator()`, `key()` and `current()`, so `DirectoryIterator` entries
-    are no longer reported by TypeUnsafeComparison when compared to a string;
-  - `class-string<Foo>` types `new $class`, `$class::method()` and
-    `$value instanceof $class` as `Foo`;
-  - a list built with `$list[] = …` types `$list[0]` as the appended values.
-- Type narrowing understands more ways of writing a check:
-  - a value of unknown type takes the concrete type its guards prove
-    (`is_string($x)`, `$x instanceof Foo`, `Assert::string($x)`), so
-    StrlenInEmptyStringCheckContext no longer suggests a redundant `(string)`
-    after `is_string($x) &&`;
-  - code after an `if` that leaves through every branch, a `never` call,
-    `$x or exit;`, `$x || throw …;`, `$x ?: throw …;` or a ternary with an
-    exit; code after a loop that only its condition ends; statements at file
-    level;
-  - loose comparisons (`$x == false`, `!= null`, `!= ''`, `!= 0`, `!= '0'`),
-    silenced tests (`@$x`), truthiness of static properties, `===` against a
-    value that is never null, `elseif` chains and the right side of `?:`;
-  - substring searches (`str_contains()`, `strpos(...) !== false` and the
-    like), `strlen()` comparisons, `array_key_exists()` with any key and
-    `is_array($x) || isset($x['k'])`;
-  - nested literal array keys, array elements named by an unchanged local key
-    (`$_FILES[$field]`), booleans saved from a test of a property or an
-    element, and copies of a tested value.
-- Rules that check for a guard now read it from type narrowing instead of
-  matching a few spellings, so saved test results, loose comparisons,
-  `elseif`, ternary, `match (true)` and `&&`/`||` positions, `or exit;` and
-  an exit followed by `else` count as guards, which removes false
-  positives. This covers the `*FailureUnchecked` family and
-  AeadDecryptionTagLengthUnchecked, AppendModeSeekUsedForOverwrite,
-  ConnectTimeoutAssumedToBoundReads, DateLastErrorsFalseUnchecked,
-  DecryptionFailureUsedAsPlaintext, DirectoryIteratorDotEntries,
-  EmptySplCollectionExtraction, ExitStatusReadWithoutNormalExitCheck,
-  FailedClosureBindingInvoked, FilePermissionFailurePassesPolicy,
-  ForkFailureTreatedAsParent, HashFileFailureUsedAsDigest,
-  HeadersAfterCommittedOutput, ImagickSingleBlobDropsRequiredFrames,
-  LocalizedNumberTrailingInputAccepted,
-  MysqliEscapedValueSurvivesCharsetChange, MysqliMultiQueryResultsNotDrained,
-  NonblockingSocketConnectPendingRejected, NonExhaustiveEnumMatch,
-  NullPointerException, OpenSslSigningFailureIgnored,
-  OptionalRegexCaptureReadWithoutNullFlag, ParseUrlFailureDereferenced,
-  PdoFetchIntoRetainsSharedRows, PgReturnedRowsUsedAsAffectedRows,
-  PosixAccountLookupFailureDereferenced, ReadFromWriteOnlyStream,
-  RealpathFailureUsedAsPath, RedirectContinuesProtectedExecution,
-  ReflectionCompositeTypeAssumedNamed, SelectFailureTreatedAsReadiness,
-  SessionCookieOptionsSetAfterStart, ShortStreamReadUnchecked,
-  SignalWaitFailureAcceptedAsSignal, SqliteForeignKeySettingInsideTransaction,
-  StreamUseAfterClose, SysvMessageSerializationMismatch,
-  TempnamDirectoryFallbackUnchecked, TlsHandshakePendingAccepted,
-  TruncationAssumedToRewind, UntrustedFilesystemPath, UntrustedHeaderValue,
-  UploadClientMimeTrusted, WriteToReadOnlyStream and
-  XmlWriterMemoryOutputInUriMode.
+- Discovery skips hidden directories (`.phpunit.cache`, `.php-cs-fixer`…)
+  below each scanned path.
+- `--all` no longer enables rules that `custos.json` turns off; `--rule`
+  still runs exactly the rules it names.
+- A rule entry in the language server's `initializationOptions` overrides the
+  project's entry field by field instead of replacing it.
+- The language server recomputes only the flow summaries an edit can affect
+  and skips analyses superseded while waiting; whole-project runs no longer
+  contend on symbol lookups.
+- Type inference knows many more types: callback parameters of array
+  functions, inherited `@param` types, constant and literal array shapes,
+  more array builtins, appended rows, conditional return types (Symfony's
+  `$container->get()`, Prophecy's `reveal()`), generic constructors, traits,
+  iterators, `class-string<T>`, `self`/`parent` and by-reference outputs.
+- Type narrowing understands more ways of writing a check (exits, loose
+  comparisons, substring and length tests, saved results, guards on values
+  of unknown type), and rules that look for a guard now read it from type
+  narrowing, which removes false positives across the failure-check rules,
+  NullPointerException and the stream, socket and process checks.
 - In checks that need a proof, a guard stops counting where the value may
-  change unseen: after a call of project code, a write through a reference,
-  a call that may take the value by reference, `eval()` (now a dynamic write
-  like `include`), or a jump label between the test and the use. For
-  example, UploadClientMimeTrusted reports a move after a project call that
-  follows the client type test.
+  change unseen (a project call, a reference write, `eval()`, a jump label).
+- Rule pages and `custos explain` read better: no unreferenced spec labels or
+  boilerplate, and option descriptions say what they do.
 
 ### Fixed
 
-- NullPointerException no longer reports a local assigned a call that an
-  identical guarding call was tested for null, nor a local of undeclared type
-  (`$row = $rows[$i] ?? null;`) that an enclosing condition proves non-null
-  (`Kind::A === $row?->kind`, an earlier `$row->p` in the same `&&`).
-- CallableParameterUseCaseInTypeContext no longer reports a local assigned to
-  a parameter when it holds a call result that may be `false` or carries an
-  inline `@var` tag.
-- MagicMethodsValidity no longer reports a constructor that calls the parent
-  constructor through a helper no subclass can replace.
-- DateLastErrorsFalseUnchecked no longer reports `getLastErrors()` read right
-  after a date parse failed.
-- UnlinkFailureReportedAsSuccess no longer reports a function that deletes
-  the scratch file it made with `tempnam()` before returning `true`.
-- OffsetOperations no longer reports an array key checked with
-  `is_a(..., true)` or `is_subclass_of()`.
-- Type narrowing no longer keeps a fact that stopped being true: about a
-  property reassigned inside the guarded branch, a `static` local after a
-  call that may run the function again, a value carried to the next loop
-  iteration, a value assigned right before `continue 2`, or a variable
-  assigned in a later condition than the guard.
-- A namespaced function named like a type check (`App\is_string()`) no longer
-  narrows its argument as PHP's own check would, and `$x or throw …;` no
-  longer narrows `$x` for PHP versions before 8.0.
-- Checks that need a proof treat a strict comparison with a constant the
-  declared type rules out (`$flag === 1` for a `bool`) as a branch that never
-  runs, not as a proof, and no longer accept a test of a hooked or magic
-  property, or of a property written through another variable.
-- CsvEscapeDefaultDependency and HeapIterationConsumesCollection no longer
-  report after `eval()`, and XslTransformationFailureConsumed no longer
-  reports output guarded by a silenced test.
+- Fewer false positives in NullPointerException,
+  CallableParameterUseCaseInTypeContext, MagicMethodsValidity,
+  DateLastErrorsFalseUnchecked, UnlinkFailureReportedAsSuccess,
+  OffsetOperations, CsvEscapeDefaultDependency,
+  HeapIterationConsumesCollection and XslTransformationFailureConsumed.
+- Type narrowing no longer keeps facts that stopped being true (reassigned
+  properties, `static` locals, loop-carried values), no longer treats a
+  namespaced `is_*()` function as PHP's, and respects the PHP version for
+  `or throw`.
+- Checks that need a proof reject tests that prove nothing: a comparison the
+  declared type rules out, a hooked or magic property, or a property written
+  through another variable.
 
 ### Security
 
