@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 
 	"custos/internal/inspection/analysis"
@@ -13,6 +14,7 @@ import (
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/flow"
+	"custos/internal/semantic/index"
 )
 
 func TestProjectComposesFlowWithoutWriting(t *testing.T) {
@@ -214,5 +216,38 @@ func TestFlowBuildStopsWhenCancelled(t *testing.T) {
 	cancel()
 	if s := BuildFlowSnapshot(ctx, []string{path}, nil, opt, ix, flow.Options{}); s == nil || !s.Equal(flow.NewSnapshotWithOptions(flow.Options{})) {
 		t.Fatal("a cancelled build summarized files")
+	}
+}
+
+// A file whose summaries keep changing is summarized a bounded number of
+// times, then dropped with what was computed from it.
+func TestFlowOscillatingFileIsDropped(t *testing.T) {
+	root := t.TempDir()
+	flip := filepath.Join(root, "flip.php")
+	reader := filepath.Join(root, "reader.php")
+	writeFile(t, flip, "<?php function flip() { reader(); return $_GET['v']; }")
+	writeFile(t, reader, "<?php function reader() { return flip(); }")
+	opt := syntax.Options{Version: phpversion.Default}
+	ix := BuildIndex([]string{flip, reader}, opt)
+	alternate := syntax.ParseBest(flip, []byte("<?php function flip() { reader(); return 1; }"), opt)
+	old := extractFlow
+	t.Cleanup(func() { extractFlow = old })
+	var mu sync.Mutex
+	calls := 0
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o ...flow.Options) *flow.File {
+		if f.Path == flip {
+			mu.Lock()
+			calls++
+			odd := calls%2 == 0
+			mu.Unlock()
+			if odd {
+				f = alternate
+			}
+		}
+		return old(f, ix, v, s, o...)
+	}
+	build := BuildFlow(context.Background(), []string{flip, reader}, nil, opt, ix, flow.Options{})
+	if calls != maxSummaries || build.results[0] != nil || build.results[1] != nil {
+		t.Fatalf("summaries of flip: %d, kept %v", calls, build.results)
 	}
 }

@@ -246,20 +246,29 @@ func parseFlowSource(path string, src []byte, opt syntax.Options) *syntax.File {
 // settles one more file of a chain of calls across files.
 const maxRounds = 32
 
+// maxSummaries bounds how often compose summarizes one file. A file of a
+// chain is summarized once with its callees unknown and again once they
+// settled, and one recursive through its own contracts needs a few rounds
+// more; one still changing after that keeps oscillating, and summarizing it
+// again only costs a round each time.
+const maxSummaries = 8
+
 // compose runs the bounded fixed point from snapshot: a file is summarized
 // (again) when it has no summary or a contract its summaries read differs
 // from the snapshot they were computed against (against). The files of a
 // round read the snapshot of the round before: they are summarized side by
-// side.
+// side. What has not settled when it stops is dropped (see unsettled).
 func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, against []*flow.Snapshot, ix *index.Index, tree func(int) *syntax.File) *flow.Snapshot {
+	summarized := make([]int, len(b.results))
 	for range maxRounds {
 		if ctx.Err() != nil {
 			return snapshot
 		}
 		var work []int
 		for i, r := range b.results {
-			if r == nil || !r.Current(against[i], snapshot) {
+			if (r == nil || !r.Current(against[i], snapshot)) && summarized[i] < maxSummaries {
 				work = append(work, i)
+				summarized[i]++
 			}
 		}
 		_ = parallel(ctx, len(work), runtime.GOMAXPROCS(0)/2, func(j int) {
@@ -270,14 +279,15 @@ func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, agains
 		}, nil)
 		next := flow.NewSnapshotWithOptions(b.options, b.results...)
 		if snapshot.Equal(next) {
-			return next
+			snapshot = next
+			break
 		}
 		snapshot = next
 	}
 	return b.unsettled(snapshot, against)
 }
 
-// unsettled drops, once the rounds ran out, every summary computed against
+// unsettled drops, once compose stops, every summary computed against
 // contracts that differ from snapshot's, then those computed from dropped
 // ones: they may claim what no settled contract supports. Calls into the
 // files dropped are then unresolved, which their analyses report.
