@@ -1,6 +1,12 @@
-package semanticquery
+package contentlengthusescharactercount
 
-import "testing"
+import (
+	"testing"
+
+	"custos/internal/diagnostic"
+	"custos/internal/inspection/analysis"
+	"custos/internal/php/syntax"
+)
 
 func TestReviewContentLengthUsesCharacterCount(t *testing.T) {
 	const head = "function f($body){header('Content-Length: '."
@@ -37,7 +43,7 @@ func TestReviewContentLengthUsesCharacterCount(t *testing.T) {
 		{"conditional echo", "function f($body,$c){header('Content-Length: '.mb_strlen($body));if($c){echo $body;}}", 1, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := auditNative(t, "ContentLengthUsesCharacterCount", CheckContentLengthUsesCharacterCount, tc.src)
+			got := analyzeReview(t, tc.src)
 			if len(got) != tc.want {
 				t.Fatalf("got %+v, want %d", got, tc.want)
 			}
@@ -46,4 +52,13 @@ func TestReviewContentLengthUsesCharacterCount(t *testing.T) {
 			}
 		})
 	}
+}
+
+func analyzeReview(t *testing.T, src string) []diagnostic.Finding {
+	t.Helper()
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"ContentLengthUsesCharacterCount"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e.Analyze(syntax.Parse("review.php", []byte("<?php "+src), syntax.Options{}))
 }

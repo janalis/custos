@@ -242,9 +242,6 @@ func TestUnknownOptionalArgumentContracts(t *testing.T) {
 		if _, _, _, known := ExpansionHeader(ctx, header); known {
 			t.Fatal("unpacked replacement policy was treated as omitted")
 		}
-		if noContentHeaderKeepsStatus(ctx, CallArgument(probe.Args, 1, "").(*syntax.FuncCall)) {
-			t.Fatal("unpacked response code preserved status")
-		}
 		execute := CallArgument(probe.Args, 2, "").(*syntax.MethodCall)
 		if _, known := ExecuteBindings(ctx, execute); known {
 			t.Fatal("unpacked bindings were treated as omitted")

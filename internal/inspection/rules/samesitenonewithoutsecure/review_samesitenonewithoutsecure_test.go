@@ -1,4 +1,4 @@
-package semanticquery
+package samesitenonewithoutsecure
 
 import (
 	"testing"
@@ -27,7 +27,7 @@ func TestReviewSameSiteNoneWithoutSecure(t *testing.T) {
 		{"legacy expires argument", "setcookie('a','x',0);", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := nativeCheckProbe{"SameSiteNoneWithoutSecure", CheckSameSiteNoneWithoutSecure}
+			probe := New()
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{"SameSiteNoneWithoutSecure"}})
 			if err != nil {
 				t.Fatal(err)

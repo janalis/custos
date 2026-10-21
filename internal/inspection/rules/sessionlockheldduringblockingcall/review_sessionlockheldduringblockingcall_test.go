@@ -1,6 +1,12 @@
-package semanticquery
+package sessionlockheldduringblockingcall
 
-import "testing"
+import (
+	"testing"
+
+	"custos/internal/diagnostic"
+	"custos/internal/inspection/analysis"
+	"custos/internal/php/syntax"
+)
 
 func TestReviewSessionLockHeldDuringBlockingCall(t *testing.T) {
 	const files = "ini_set('session.save_handler', 'files');"
@@ -48,10 +54,19 @@ func TestReviewSessionLockHeldDuringBlockingCall(t *testing.T) {
 		{"method call before start", "function f($o){" + files + "$o->prepare(); session_start(); sleep(5);}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := auditNative(t, "SessionLockHeldDuringBlockingCall", CheckSessionLockHeldDuringBlockingCall, tc.src)
+			got := analyzeReview(t, tc.src)
 			if len(got) != tc.want {
 				t.Fatalf("got %+v, want %d", got, tc.want)
 			}
 		})
 	}
+}
+
+func analyzeReview(t *testing.T, src string) []diagnostic.Finding {
+	t.Helper()
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"SessionLockHeldDuringBlockingCall"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e.Analyze(syntax.Parse("review.php", []byte("<?php "+src), syntax.Options{}))
 }

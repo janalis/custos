@@ -1,4 +1,4 @@
-package semanticquery
+package repeatedcookieheaderreplacement
 
 import (
 	"testing"
@@ -35,7 +35,7 @@ func TestReviewRepeatedCookieHeaderReplacement(t *testing.T) {
 		{"loop iterations are not paired", "foreach($xs as $x){header('Set-Cookie: b=2');header('Set-Cookie: a=1',false);}", 0, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := nativeCheckProbe{"RepeatedCookieHeaderReplacement", CheckRepeatedCookieHeaderReplacement}
+			probe := New()
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{"RepeatedCookieHeaderReplacement"}})
 			if err != nil {
 				t.Fatal(err)

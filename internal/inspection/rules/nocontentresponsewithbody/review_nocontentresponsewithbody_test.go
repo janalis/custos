@@ -1,6 +1,12 @@
-package semanticquery
+package nocontentresponsewithbody
 
-import "testing"
+import (
+	"testing"
+
+	"custos/internal/diagnostic"
+	"custos/internal/inspection/analysis"
+	"custos/internal/php/syntax"
+)
 
 func TestReviewNoContentResponseWithBody(t *testing.T) {
 	const set = "http_response_code(204);"
@@ -63,10 +69,19 @@ func TestReviewNoContentResponseWithBody(t *testing.T) {
 		{"body after flushed buffer", set + "ob_start(); ob_end_flush();" + body, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := auditNative(t, "NoContentResponseWithBody", CheckNoContentResponseWithBody, tc.src)
+			got := analyzeReview(t, tc.src)
 			if len(got) != tc.want {
 				t.Fatalf("got %+v, want %d", got, tc.want)
 			}
 		})
 	}
+}
+
+func analyzeReview(t *testing.T, src string) []diagnostic.Finding {
+	t.Helper()
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"NoContentResponseWithBody"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e.Analyze(syntax.Parse("review.php", []byte("<?php "+src), syntax.Options{}))
 }

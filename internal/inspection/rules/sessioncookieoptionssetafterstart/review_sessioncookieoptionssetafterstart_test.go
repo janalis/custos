@@ -1,4 +1,4 @@
-package semanticquery
+package sessioncookieoptionssetafterstart
 
 import (
 	"testing"
@@ -59,7 +59,7 @@ func TestReviewSessionCookieOptionsSetAfterStart(t *testing.T) {
 		{"status tested before start", "if(session_status()!==PHP_SESSION_ACTIVE){session_start();" + set + "}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := nativeCheckProbe{"SessionCookieOptionsSetAfterStart", CheckSessionCookieOptionsSetAfterStart}
+			probe := New()
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{"SessionCookieOptionsSetAfterStart"}})
 			if err != nil {
 				t.Fatal(err)

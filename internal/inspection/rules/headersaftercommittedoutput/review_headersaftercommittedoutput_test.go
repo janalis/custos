@@ -1,4 +1,4 @@
-package semanticquery
+package headersaftercommittedoutput
 
 import (
 	"testing"
@@ -6,13 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewHeadersProbe dispatches on function calls only, as the rule package does.
-type reviewHeadersProbe struct{ nativeCheckProbe }
-
-func (reviewHeadersProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KFuncCall}
-}
 
 func TestReviewHeadersAfterCommittedOutput(t *testing.T) {
 	const sent = "echo 'x'; flush();"
@@ -78,7 +71,7 @@ func TestReviewHeadersAfterCommittedOutput(t *testing.T) {
 		{"no output", "flush(); header('X: 1');", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := reviewHeadersProbe{nativeCheckProbe{"HeadersAfterCommittedOutput", CheckHeadersAfterCommittedOutput}}
+			probe := New()
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{"HeadersAfterCommittedOutput"}})
 			if err != nil {
 				t.Fatal(err)

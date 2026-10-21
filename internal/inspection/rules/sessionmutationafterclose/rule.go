@@ -3,7 +3,6 @@ package sessionmutationafterclose
 
 import (
 	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
 
@@ -18,5 +17,29 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KAssign, syntax.KIncDec} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	semanticquery.CheckSessionMutationAfterClose(ctx, n, message)
+	if !sessionMutation(n) {
+		return
+	}
+	state, known := ctx.Flow().GlobalStateBefore(n, "session")
+	if known && (state.Operation == "session_write_close" || state.Operation == "session_commit" || state.Operation == "session_abort") {
+		ctx.ReportNode(n, message)
+	}
+}
+
+func sessionMutation(n syntax.Node) bool {
+	var expr syntax.Expr
+	if assign, ok := n.(*syntax.Assign); ok {
+		expr = assign.Var
+	} else {
+		expr = n.(*syntax.IncDec).Var
+	}
+	for {
+		fetch, ok := expr.(*syntax.ArrayDimFetch)
+		if !ok {
+			break
+		}
+		expr = fetch.Var
+	}
+	v, ok := expr.(*syntax.Variable)
+	return ok && v.Name == "_SESSION"
 }

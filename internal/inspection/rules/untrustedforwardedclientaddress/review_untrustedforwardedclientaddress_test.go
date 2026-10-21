@@ -1,6 +1,12 @@
-package semanticquery
+package untrustedforwardedclientaddress
 
-import "testing"
+import (
+	"testing"
+
+	"custos/internal/diagnostic"
+	"custos/internal/inspection/analysis"
+	"custos/internal/php/syntax"
+)
 
 func TestReviewUntrustedForwardedClientAddress(t *testing.T) {
 	const decl = "/** @custos-protected */ function grant(){} "
@@ -52,10 +58,19 @@ func TestReviewUntrustedForwardedClientAddress(t *testing.T) {
 		{"unbraced unguarded", "function f($ip,$a){if($a)" + use + "}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := auditNative(t, "UntrustedForwardedClientAddress", CheckUntrustedForwardedClientAddress, decl+tc.src)
+			got := analyzeReview(t, decl+tc.src)
 			if len(got) != tc.want {
 				t.Fatalf("got %d findings, want %d: %+v", len(got), tc.want, got)
 			}
 		})
 	}
+}
+
+func analyzeReview(t *testing.T, src string) []diagnostic.Finding {
+	t.Helper()
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"UntrustedForwardedClientAddress"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e.Analyze(syntax.Parse("review.php", []byte("<?php "+src), syntax.Options{}))
 }

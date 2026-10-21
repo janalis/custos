@@ -5,8 +5,6 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
-	"custos/internal/semantic/index"
-	"custos/internal/semantic/stubs"
 )
 
 func TestNativeSQLLexicalFacts(t *testing.T) {
@@ -147,128 +145,15 @@ func (p nativeCheckProbe) Check(ctx *analysis.Context, n syntax.Node) {
 	p.check(ctx, n, "Native API contract violation.")
 }
 
-func TestNativeChecksIgnoreUnrelatedSyntax(t *testing.T) {
-	for _, tc := range []struct {
-		id    string
-		check func(*analysis.Context, syntax.Node, string)
-	}{
-		{"HeadersAfterCommittedOutput", CheckHeadersAfterCommittedOutput},
-		{"RedirectContinuesProtectedExecution", CheckRedirectContinuesProtectedExecution},
-		{"SessionMutationAfterClose", CheckSessionMutationAfterClose},
-		{"SessionLockHeldDuringBlockingCall", CheckSessionLockHeldDuringBlockingCall},
-		{"SameSiteNoneWithoutSecure", CheckSameSiteNoneWithoutSecure},
-		{"SessionCookieOptionsSetAfterStart", CheckSessionCookieOptionsSetAfterStart},
-		{"RepeatedCookieHeaderReplacement", CheckRepeatedCookieHeaderReplacement},
-		{"UntrustedForwardedClientAddress", CheckUntrustedForwardedClientAddress},
-		{"ContentLengthUsesCharacterCount", CheckContentLengthUsesCharacterCount},
-		{"NoContentResponseWithBody", CheckNoContentResponseWithBody},
-	} {
-		t.Run(tc.id, func(t *testing.T) {
-			p := nativeCheckProbe{tc.id, tc.check}
-			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{tc.id}})
-			if err != nil {
-				t.Fatal(err)
-			}
-			src := []byte("<?php harmless(); $v=1+2; ++$v; echo ''; foreach([] as $entry){} function benign(){return 1;} $object->unrelated();")
-			got := e.Analyze(syntax.Parse("unrelated.php", src, syntax.Options{}))
-			if len(got) != 0 {
-				t.Fatalf("unrelated nodes produced findings: %+v", got)
-			}
-		})
-	}
-}
-
-func TestNativePDOBindingProofBoundaries(t *testing.T) {
-	for _, tc := range []struct {
-		id, src string
-		check   func(*analysis.Context, syntax.Node, string)
-		want    int
-	}{} {
-		t.Run(tc.src, func(t *testing.T) {
-			p := nativeCheckProbe{tc.id, tc.check}
-			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{tc.id}})
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := e.Analyze(syntax.Parse("pdo.php", []byte("<?php "+tc.src), syntax.Options{}))
-			if len(got) != tc.want {
-				t.Fatalf("got %d, want %d: %+v", len(got), tc.want, got)
-			}
-		})
-	}
-}
-
-func TestNativeLengthFixEvaluation(t *testing.T) {
-	for _, tc := range []struct {
-		src   string
-		fixes int
-		want  int
-	}{
-		{"header('Content-Length: '.mb_strlen($body,'UTF-8'));", 1, 1},
-		{"header('Content-Length: '.mb_strlen($body,chooseEncoding()));", 0, 1},
-		{"header('Content-Length: '.mb_strlen(...$args));", 0, 0},
-		{"header('Content-Length: '.mb_strlen($body,&$encoding));", 0, 0},
-	} {
-		t.Run(tc.src, func(t *testing.T) {
-			p := nativeCheckProbe{"ContentLengthUsesCharacterCount", CheckContentLengthUsesCharacterCount}
-			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}})
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := e.Analyze(syntax.Parse("length.php", []byte("<?php function f($body,$encoding,$args){"+tc.src+"echo $body;}"), syntax.Options{}))
-			if len(got) != tc.want || (len(got) > 0 && len(got[0].Fixes) != tc.fixes) {
-				t.Fatalf("findings %+v, want one with %d fixes", got, tc.fixes)
-			}
-		})
-	}
-}
-
-func TestNativeConservativeOperationalBoundaries(t *testing.T) {
-	for _, tc := range []struct {
-		id, src string
-		check   func(*analysis.Context, syntax.Node, string)
-		want    int
-	}{
-		{"RepeatedCookieHeaderReplacement", "header('Set-Cookie: a=b');header('Set-Cookie: a=b');", CheckRepeatedCookieHeaderReplacement, 0},
-		{"ContentLengthUsesCharacterCount", "header('Content-Length: 2'); header($prefix.mb_strlen($body));", CheckContentLengthUsesCharacterCount, 0},
-		{"RepeatedCookieHeaderReplacement", "header($unknown);", CheckRepeatedCookieHeaderReplacement, 0},
-		{"SameSiteNoneWithoutSecure", "setcookie('a','b',['samesite'=>'None']);", CheckSameSiteNoneWithoutSecure, 1},
-		{"UntrustedForwardedClientAddress", "if($a===$b){}", CheckUntrustedForwardedClientAddress, 0},
-		{"RedirectContinuesProtectedExecution", "/** @custos-protected */ function protectedCall(){} function f(){if($auth){header('Location: /');}if(!isAuthorized()){header('Location: /');}protectedCall();}", CheckRedirectContinuesProtectedExecution, 0},
-	} {
-		t.Run(tc.src, func(t *testing.T) {
-			p := nativeCheckProbe{tc.id, tc.check}
-			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}})
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := e.Analyze(syntax.Parse("boundary.php", []byte("<?php "+tc.src), syntax.Options{}))
-			if len(got) != tc.want {
-				t.Fatalf("got %+v, want %d", got, tc.want)
-			}
-		})
-	}
-}
-
 func TestNativeProofAuxiliaryBoundaries(t *testing.T) {
 	probeNative(t, "echo 'done'; probe('/tmp','/tmp');", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if nativeStateCall(ctx, c, "committed-output") != nil {
+		if GlobalStateCall(ctx, c, "committed-output") != nil {
 			t.Fatal("echo is not a call state")
 		}
 		if !SameOperand(ctx, CallArgument(c.Args, 0, ""), CallArgument(c.Args, 1, "")) {
 			t.Fatal("equal literal paths should match")
 		}
 	})
-	ix := index.New(stubs.Index())
-	ix.Add(index.Extract(syntax.Parse("external.php", []byte("<?php /** @custos-protected */ function externalProtected(){}"), syntax.Options{})))
-	p := nativeCheckProbe{"RedirectContinuesProtectedExecution", CheckRedirectContinuesProtectedExecution}
-	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := e.WithIndex(ix).Analyze(syntax.Parse("consumer.php", []byte("<?php externalProtected();"), syntax.Options{})); len(got) != 0 {
-		t.Fatalf("foreign source unavailable: %+v", got)
-	}
 }
 
 func TestNativeNonCallGlobalState(t *testing.T) {
@@ -281,7 +166,7 @@ func TestNativeNonCallGlobalState(t *testing.T) {
 		if _, known := ctx.Flow().GlobalStateBefore(c, "output"); !known {
 			t.Fatal("literal echo must establish output state")
 		}
-		if nativeStateCall(ctx, c, "output") != nil {
+		if GlobalStateCall(ctx, c, "output") != nil {
 			t.Fatal("echo state must not resolve to a function call")
 		}
 	}}

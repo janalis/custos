@@ -26,23 +26,6 @@ func SameOperand(ctx *analysis.Context, a, b syntax.Expr) bool {
 	return av.Identity != 0 && av.Identity == bv.Identity && av.Invalidated == bv.Invalidated && av.Invalidated != ^uint32(0)
 }
 
-func nativePriorGlobal(ctx *analysis.Context, at syntax.Node, names ...string) []*syntax.FuncCall {
-	out := []*syntax.FuncCall{}
-	for _, c := range ctx.Flow().Calls(syntax.EnclosingVariableScope(at)) {
-		call, ok := c.Node.(*syntax.FuncCall)
-		if !ok || !NativeDominates(call, at) {
-			continue
-		}
-		for _, name := range names {
-			if c.Name == name {
-				out = append(out, call)
-				break
-			}
-		}
-	}
-	return out
-}
-
 // FileLockOperation folds a flock operation made of known integers and
 // constants joined by bitwise or. Anything else stays unknown.
 func FileLockOperation(ctx *analysis.Context, e syntax.Expr) (int64, bool) {
