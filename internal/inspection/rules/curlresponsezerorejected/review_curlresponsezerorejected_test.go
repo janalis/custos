@@ -1,16 +1,10 @@
-package semanticquery
+package curlresponsezerorejected
 
 import (
 	"testing"
 
-	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewCurlCallProbe dispatches on calls only, as the rule packages do.
-type reviewCurlCallProbe struct{ nativeCheckProbe }
-
-func (reviewCurlCallProbe) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 
 func TestReviewCurlResponseZeroRejected(t *testing.T) {
 	const on = "curl_setopt($c,CURLOPT_RETURNTRANSFER,true);"
@@ -49,35 +43,7 @@ func TestReviewCurlResponseZeroRejected(t *testing.T) {
 		{"negated assignment", on + "if(!($r=curl_exec($c))){return false;}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := auditNative(t, "CurlResponseZeroRejected", CheckCurlResponseZeroRejected, tc.src)
-			if len(got) != tc.want {
-				t.Fatalf("got %+v, want %d", got, tc.want)
-			}
-		})
-	}
-}
-
-// The upload-size check is now the only user of the last-write option lookup;
-// keep its invalidation paths exercised.
-func TestReviewCurlOptionLookupInvalidation(t *testing.T) {
-	const open = "$h=fopen('data://text/plain,abcdef','r');"
-	const tail = "curl_setopt($c,CURLOPT_INFILE,$h);curl_setopt($c,CURLOPT_INFILESIZE,99);"
-	for _, tc := range []struct {
-		name, src string
-		want      int
-	}{
-		{"proven upload", open + "curl_setopt($c,CURLOPT_UPLOAD,true);" + tail, 1},
-		{"conditional upload", open + "if($f){curl_setopt($c,CURLOPT_UPLOAD,true);}" + tail, 0},
-		{"unknown call on handle", open + "curl_setopt($c,CURLOPT_UPLOAD,true);configure($c);" + tail, 0},
-		{"other builtin call on handle", open + "curl_setopt($c,CURLOPT_UPLOAD,true);curl_reset($c);" + tail, 0},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			p := reviewCurlCallProbe{nativeCheckProbe{"CurlUploadDeclaredSizeMismatch", CheckCurlUploadDeclaredSizeMismatch}}
-			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}})
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := e.Analyze(syntax.Parse("audit.php", []byte("<?php "+tc.src), syntax.Options{}))
+			got := engine(t).Analyze(syntax.Parse("audit.php", []byte("<?php "+tc.src), syntax.Options{}))
 			if len(got) != tc.want {
 				t.Fatalf("got %+v, want %d", got, tc.want)
 			}

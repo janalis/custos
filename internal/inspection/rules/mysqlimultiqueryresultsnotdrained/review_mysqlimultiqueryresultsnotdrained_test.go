@@ -1,4 +1,4 @@
-package semanticquery
+package mysqlimultiqueryresultsnotdrained
 
 import (
 	"testing"
@@ -6,13 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewMysqliDrainProbe dispatches on method calls only, as the rule package does.
-type reviewMysqliDrainProbe struct{ nativeCheckProbe }
-
-func (reviewMysqliDrainProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KMethodCall}
-}
 
 func TestReviewMysqliMultiQueryResultsNotDrained(t *testing.T) {
 	const (
@@ -47,7 +40,7 @@ func TestReviewMysqliMultiQueryResultsNotDrained(t *testing.T) {
 		{"drain before multi_query", "function f(mysqli $db){do{}while($db->next_result());if($db->multi_query('SELECT 7; SELECT 11')){" + query, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := reviewMysqliDrainProbe{nativeCheckProbe{"MysqliMultiQueryResultsNotDrained", CheckMysqliMultiQueryResultsNotDrained}}
+			probe := New()
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{"MysqliMultiQueryResultsNotDrained"}})
 			if err != nil {
 				t.Fatal(err)

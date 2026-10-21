@@ -74,7 +74,7 @@ func TestFailureBranchProof(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			call := failureProbe(t, tc.condition, tc.body)
-			if got := expansionDFailureBranch(call) != nil; got != tc.want {
+			if got := FailureBranch(call) != nil; got != tc.want {
 				t.Fatalf("got %v want %v", got, tc.want)
 			}
 		})
@@ -86,6 +86,6 @@ func BenchmarkFailureBranchProof(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		expansionDFailureBranch(call)
+		FailureBranch(call)
 	}
 }

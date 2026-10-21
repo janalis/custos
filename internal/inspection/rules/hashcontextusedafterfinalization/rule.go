@@ -19,13 +19,13 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if finalizedBefore(ctx, n.(*syntax.FuncCall)) {
-		semanticquery.CheckHashContextUsedAfterFinalization(ctx, n, message)
+		check(ctx, n, message)
 	}
 }
 
 // finalizedBefore requires an earlier hash_final that always runs before c
 // and is not followed by a rebinding of the context variable. It only vetoes:
-// the shared check still has to prove that both calls use the same value.
+// check still has to prove that both calls use the same value.
 func finalizedBefore(ctx *analysis.Context, c *syntax.FuncCall) bool {
 	switch semanticquery.NativeBuiltinName(ctx, c) {
 	case "hash_update", "hash_copy", "hash_final":
@@ -124,4 +124,19 @@ func finalizedBefore(ctx *analysis.Context, c *syntax.FuncCall) bool {
 		}
 	}
 	return false
+}
+
+func check(ctx *analysis.Context, n syntax.Node, message string) {
+	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
+		return
+	}
+	c := n.(*syntax.FuncCall)
+	h := semanticquery.CallArgument(c.Args, 0, "context")
+	for _, prior := range semanticquery.ScopeCallEvents(ctx, c) {
+		p, ok := prior.(*syntax.FuncCall)
+		if ok && semanticquery.NativeBuiltin(ctx, p, "hash_final") && semanticquery.NativeDominates(p, c) && semanticquery.SameStableLocal(ctx, semanticquery.CallArgument(p.Args, 0, "context"), h) {
+			ctx.ReportNode(c, message)
+			return
+		}
+	}
 }

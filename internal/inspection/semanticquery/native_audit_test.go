@@ -3,20 +3,9 @@ package semanticquery
 import (
 	"testing"
 
-	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-func auditNative(t *testing.T, id string, check func(*analysis.Context, syntax.Node, string), src string) []diagnostic.Finding {
-	t.Helper()
-	p := nativeCheckProbe{id, check}
-	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{id}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return e.Analyze(syntax.Parse("audit.php", []byte("<?php "+src), syntax.Options{}))
-}
 
 func TestNativeAuditSharedProofBoundaries(t *testing.T) {
 	probeNative(t, "$x='same';probe($x,$x);", func(ctx *analysis.Context, c *syntax.FuncCall) {

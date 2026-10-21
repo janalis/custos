@@ -1,4 +1,4 @@
-package semanticquery
+package nonblockingsocketconnectpendingrejected
 
 import (
 	"testing"
@@ -6,11 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewSocketCallProbe dispatches on calls only, as the rule package does.
-type reviewSocketCallProbe struct{ nativeCheckProbe }
-
-func (reviewSocketCallProbe) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 
 func TestReviewNonblockingSocketConnectPendingRejected(t *testing.T) {
 	const on = "socket_set_nonblock($s);"
@@ -55,8 +50,8 @@ func TestReviewNonblockingSocketConnectPendingRejected(t *testing.T) {
 		{"static property socket is not tracked", "if(socket_set_nonblock(self::$s)){if(!socket_connect(self::$s,$h,80)){log_failure($h);return false;}}", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := reviewSocketCallProbe{nativeCheckProbe{"NonblockingSocketConnectPendingRejected", CheckNonblockingSocketConnectPendingRejected}}
-			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}})
+			p := New()
+			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.ID()}})
 			if err != nil {
 				t.Fatal(err)
 			}

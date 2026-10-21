@@ -416,10 +416,4 @@ func TestNativeCallResultQueries(t *testing.T) {
 			t.Fatal("a labelled scope proves nothing")
 		}
 	})
-	probeNative(t, "function f($s){a: if(stream_socket_enable_crypto($s,true)===true){probe($s);} goto a;}", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		body := syntax.EnclosingVariableScope(c).(*syntax.Function).Body
-		if tlsHandshakeCompleted(ctx, body, CallArgument(c.Args, 0, ""), c) {
-			t.Fatal("a labelled scope proves nothing")
-		}
-	})
 }

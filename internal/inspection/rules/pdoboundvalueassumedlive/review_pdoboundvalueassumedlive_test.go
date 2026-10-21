@@ -1,19 +1,14 @@
-package semanticquery
+package pdoboundvalueassumedlive
 
 import (
 	"testing"
 
+	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
 
 func TestReviewPdoBoundValueAssumedLive(t *testing.T) {
-	// Dispatch on method calls only, as the rule package does.
-	check := func(ctx *analysis.Context, n syntax.Node, message string) {
-		if _, ok := n.(*syntax.MethodCall); ok {
-			CheckPdoBoundValueAssumedLive(ctx, n, message)
-		}
-	}
 	const open = "function f(PDOStatement $s, $name, $pos){$n=1;"
 	for _, tc := range []struct {
 		name, src string
@@ -37,10 +32,19 @@ func TestReviewPdoBoundValueAssumedLive(t *testing.T) {
 		{"rebind before the write", "$s->bindValue(':n',$n);$s->bindValue('n',$n);$n=2;$s->execute();}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := auditNative(t, "PdoBoundValueAssumedLive", check, open+tc.src)
+			got := analyzeReview(t, open+tc.src)
 			if len(got) != tc.want {
 				t.Fatalf("got %+v, want %d", got, tc.want)
 			}
 		})
 	}
+}
+
+func analyzeReview(t *testing.T, src string) []diagnostic.Finding {
+	t.Helper()
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"PdoBoundValueAssumedLive"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e.Analyze(syntax.Parse("review.php", []byte("<?php "+src), syntax.Options{}))
 }

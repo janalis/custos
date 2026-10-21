@@ -27,7 +27,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !semanticquery.NativeBuiltin(ctx, c, function) || rebound(ctx, c) {
 		return
 	}
-	semanticquery.CheckSodiumSecretboxNonceReused(ctx, n, message)
+	check(ctx, n, message)
 }
 
 // rebound reports whether the nonce or key variable of c is written before c
@@ -159,4 +159,47 @@ func bindsByRef(ctx *analysis.Context, list *syntax.ArgList, i int) bool {
 		}
 	}
 	return params[i].ByRef
+}
+
+func check(ctx *analysis.Context, n syntax.Node, message string) {
+	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
+		return
+	}
+	c := n.(*syntax.FuncCall)
+	plaintext, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(c.Args, 0, "message"))
+	if !known {
+		return
+	}
+	nonce := semanticquery.CallArgument(c.Args, 1, "nonce")
+	key := semanticquery.CallArgument(c.Args, 2, "key")
+	events := semanticquery.ScopeCallEvents(ctx, c)
+	var latestMutation uint32
+	for _, event := range events {
+		m, ok := event.(*syntax.FuncCall)
+		if !ok || m.Span().End >= c.Span().Start {
+			continue
+		}
+		switch semanticquery.NativeBuiltinName(ctx, m) {
+		case "sodium_increment", "sodium_add", "sodium_memzero":
+			argument := "string"
+			if semanticquery.NativeBuiltinName(ctx, m) == "sodium_add" {
+				argument = "string1"
+			}
+			changed := semanticquery.CallArgument(m.Args, 0, argument)
+			if m.Span().End > latestMutation && (astquery.Equivalent(ctx.File, nonce, changed) || astquery.Equivalent(ctx.File, key, changed)) {
+				latestMutation = m.Span().End
+			}
+		}
+	}
+	for _, event := range events {
+		p, ok := event.(*syntax.FuncCall)
+		if !ok || p.Span().End < latestMutation || !semanticquery.NativeBuiltin(ctx, p, "sodium_crypto_secretbox") || !semanticquery.NativeDominates(p, c) {
+			continue
+		}
+		previous, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(p.Args, 0, "message"))
+		if known && previous != plaintext && semanticquery.SameStableLocal(ctx, semanticquery.CallArgument(p.Args, 1, "nonce"), semanticquery.CallArgument(c.Args, 1, "nonce")) && semanticquery.SameStableLocal(ctx, semanticquery.CallArgument(p.Args, 2, "key"), semanticquery.CallArgument(c.Args, 2, "key")) {
+			ctx.ReportNode(c, message)
+			return
+		}
+	}
 }

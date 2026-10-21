@@ -1,4 +1,4 @@
-package semanticquery
+package ftppendingtransferacceptedascomplete
 
 import (
 	"testing"
@@ -6,13 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewFtpPendingProbe dispatches on function calls only, as the rule package does.
-type reviewFtpPendingProbe struct{ nativeCheckProbe }
-
-func (reviewFtpPendingProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KFuncCall}
-}
 
 func TestReviewFtpPendingTransferAcceptedAsComplete(t *testing.T) {
 	const call = "ftp_nb_get($f,$l,$r,FTP_BINARY)"
@@ -61,7 +54,7 @@ func TestReviewFtpPendingTransferAcceptedAsComplete(t *testing.T) {
 		{"first-class callable", "if(ftp_nb_get(...)){return true;}", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := reviewFtpPendingProbe{nativeCheckProbe{"FtpPendingTransferAcceptedAsComplete", CheckFtpPendingTransferAcceptedAsComplete}}
+			probe := New()
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{"FtpPendingTransferAcceptedAsComplete"}})
 			if err != nil {
 				t.Fatal(err)

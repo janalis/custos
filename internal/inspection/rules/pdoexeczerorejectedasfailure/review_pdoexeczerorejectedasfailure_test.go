@@ -1,4 +1,4 @@
-package semanticquery
+package pdoexeczerorejectedasfailure
 
 import (
 	"testing"
@@ -46,7 +46,7 @@ func TestReviewPdoExecZeroRejectedAsFailure(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			probe := expansionCryptoDBProbe{"PdoExecZeroRejectedAsFailure", []syntax.NodeKind{syntax.KMethodCall}, func(ctx *analysis.Context, n syntax.Node) {
-				CheckPdoExecZeroRejectedAsFailure(ctx, n, "m")
+				check(ctx, n, "m")
 			}}
 			engine, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{probe.id}})
 			if err != nil {
@@ -59,3 +59,19 @@ func TestReviewPdoExecZeroRejectedAsFailure(t *testing.T) {
 		})
 	}
 }
+
+type expansionCryptoDBProbe struct {
+	id    string
+	kinds []syntax.NodeKind
+	check func(*analysis.Context, syntax.Node)
+}
+
+func (p expansionCryptoDBProbe) ID() string { return p.id }
+
+func (p expansionCryptoDBProbe) Semantic() {}
+
+func (p expansionCryptoDBProbe) Flow() {}
+
+func (p expansionCryptoDBProbe) Kinds() []syntax.NodeKind { return p.kinds }
+
+func (p expansionCryptoDBProbe) Check(ctx *analysis.Context, n syntax.Node) { p.check(ctx, n) }

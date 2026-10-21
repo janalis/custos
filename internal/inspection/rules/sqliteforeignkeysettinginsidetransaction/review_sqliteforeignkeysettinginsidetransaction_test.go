@@ -1,4 +1,4 @@
-package semanticquery
+package sqliteforeignkeysettinginsidetransaction
 
 import (
 	"testing"
@@ -6,13 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewSqliteForeignKeyProbe dispatches on method calls only, as the rule package does.
-type reviewSqliteForeignKeyProbe struct{ nativeCheckProbe }
-
-func (reviewSqliteForeignKeyProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KMethodCall}
-}
 
 func TestReviewSqliteForeignKeySettingInsideTransaction(t *testing.T) {
 	const (
@@ -73,7 +66,7 @@ func TestReviewSqliteForeignKeySettingInsideTransaction(t *testing.T) {
 		{"committed in a returning closure", lite + "$db->exec('BEGIN');$g=function()use($db){$db->exec('COMMIT');return;};$g();" + pragma, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := reviewSqliteForeignKeyProbe{nativeCheckProbe{"SqliteForeignKeySettingInsideTransaction", CheckSqliteForeignKeySettingInsideTransaction}}
+			probe := New()
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{"SqliteForeignKeySettingInsideTransaction"}})
 			if err != nil {
 				t.Fatal(err)

@@ -1,4 +1,4 @@
-package semanticquery
+package pdofetchintoretainssharedrows
 
 import (
 	"testing"
@@ -98,13 +98,7 @@ func TestReviewPdoFetchIntoRetainsSharedRowsLegacyOrigin(t *testing.T) {
 func reviewPdoFetchInto(t *testing.T, php, src string) []int {
 	t.Helper()
 	const id = "PdoFetchIntoRetainsSharedRows"
-	// Dispatch on assignments only, as the rule package does.
-	check := func(ctx *analysis.Context, n syntax.Node, message string) {
-		if _, ok := n.(*syntax.Assign); ok {
-			CheckPdoFetchIntoRetainsSharedRows(ctx, n, message)
-		}
-	}
-	e, err := analysis.NewEngine([]analysis.Rule{nativeCheckProbe{id, check}}, analysis.Config{Only: []string{id}, PHP: phpversion.MustParse(php)})
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{id}, PHP: phpversion.MustParse(php)})
 	if err != nil {
 		t.Fatal(err)
 	}

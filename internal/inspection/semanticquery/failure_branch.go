@@ -2,9 +2,9 @@ package semanticquery
 
 import "custos/internal/php/syntax"
 
-// expansionDFailureBranch requires a falsy condition and rejection on every
+// FailureBranch requires a falsy condition and rejection on every
 // structured path through its body. Unknown control flow establishes no proof.
-func expansionDFailureBranch(e syntax.Expr) *syntax.If {
+func FailureBranch(e syntax.Expr) *syntax.If {
 	odd := false
 	for budget := 256; budget > 0; budget-- {
 		switch p := e.Parent().(type) {
@@ -25,7 +25,7 @@ func expansionDFailureBranch(e syntax.Expr) *syntax.If {
 			}
 			e = p
 		case *syntax.Binary:
-			if p.Op.Kind != syntax.TIsEqual || !(p.Left == e && expansionDFalse(p.Right) || p.Right == e && expansionDFalse(p.Left)) {
+			if p.Op.Kind != syntax.TIsEqual || !(p.Left == e && IsFalse(p.Right) || p.Right == e && IsFalse(p.Left)) {
 				return nil
 			}
 			odd = !odd
@@ -93,7 +93,7 @@ func failureBranchOutcomes(statement syntax.Stmt, remaining *int) failureOutcome
 		}
 		return out
 	case *syntax.Return:
-		if expansionDFalse(s.Expr) {
+		if IsFalse(s.Expr) {
 			return failureReject
 		}
 		return failureUnknown

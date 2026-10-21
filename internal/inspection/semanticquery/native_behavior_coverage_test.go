@@ -127,24 +127,6 @@ func TestNativeCommentPreservation(t *testing.T) {
 	}
 }
 
-// nativeCheckProbe exercises the named query API on ordinary parser nodes.
-// Checks accept generic nodes and must safely ignore unrelated syntax.
-type nativeCheckProbe struct {
-	id    string
-	check func(*analysis.Context, syntax.Node, string)
-}
-
-func (p nativeCheckProbe) ID() string { return p.id }
-func (nativeCheckProbe) Semantic()    {}
-func (nativeCheckProbe) Flow()        {}
-func (nativeCheckProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KFuncCall, syntax.KMethodCall, syntax.KEcho, syntax.KReturn, syntax.KForeach, syntax.KBinary, syntax.KAssign, syntax.KIncDec}
-}
-
-func (p nativeCheckProbe) Check(ctx *analysis.Context, n syntax.Node) {
-	p.check(ctx, n, "Native API contract violation.")
-}
-
 func TestNativeProofAuxiliaryBoundaries(t *testing.T) {
 	probeNative(t, "echo 'done'; probe('/tmp','/tmp');", func(ctx *analysis.Context, c *syntax.FuncCall) {
 		if GlobalStateCall(ctx, c, "committed-output") != nil {

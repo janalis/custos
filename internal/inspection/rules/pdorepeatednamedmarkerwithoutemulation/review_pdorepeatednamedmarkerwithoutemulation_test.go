@@ -1,4 +1,4 @@
-package semanticquery
+package pdorepeatednamedmarkerwithoutemulation
 
 import (
 	"testing"
@@ -6,13 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewPdoMethodProbe dispatches on method calls only, as the rule package does.
-type reviewPdoMethodProbe struct{ nativeCheckProbe }
-
-func (reviewPdoMethodProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KMethodCall}
-}
 
 func TestReviewPdoRepeatedNamedMarkerWithoutEmulation(t *testing.T) {
 	const off = "$p=new PDO('mysql:host=x','u','p',[PDO::ATTR_EMULATE_PREPARES=>false]);"
@@ -51,8 +44,8 @@ func TestReviewPdoRepeatedNamedMarkerWithoutEmulation(t *testing.T) {
 		{"other function", off + prep + "function g($p){" + on + "}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := reviewPdoMethodProbe{nativeCheckProbe{"PdoRepeatedNamedMarkerWithoutEmulation", CheckPdoRepeatedNamedMarkerWithoutEmulation}}
-			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}})
+			p := New()
+			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.ID()}})
 			if err != nil {
 				t.Fatal(err)
 			}

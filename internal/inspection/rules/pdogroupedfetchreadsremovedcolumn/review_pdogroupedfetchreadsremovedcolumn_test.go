@@ -1,4 +1,4 @@
-package semanticquery
+package pdogroupedfetchreadsremovedcolumn
 
 import (
 	"testing"
@@ -54,7 +54,7 @@ func TestReviewPdoGroupedFetchReadsRemovedColumn(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			probe := expansionCryptoDBProbe{id, []syntax.NodeKind{syntax.KArrayDimFetch}, func(ctx *analysis.Context, n syntax.Node) {
-				CheckPdoGroupedFetchReadsRemovedColumn(ctx, n, "Read the group column from the group key.")
+				check(ctx, n, "Read the group column from the group key.")
 			}}
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{id}, PHP: tc.php})
 			if err != nil {
@@ -67,3 +67,19 @@ func TestReviewPdoGroupedFetchReadsRemovedColumn(t *testing.T) {
 		})
 	}
 }
+
+type expansionCryptoDBProbe struct {
+	id    string
+	kinds []syntax.NodeKind
+	check func(*analysis.Context, syntax.Node)
+}
+
+func (p expansionCryptoDBProbe) ID() string { return p.id }
+
+func (p expansionCryptoDBProbe) Semantic() {}
+
+func (p expansionCryptoDBProbe) Flow() {}
+
+func (p expansionCryptoDBProbe) Kinds() []syntax.NodeKind { return p.kinds }
+
+func (p expansionCryptoDBProbe) Check(ctx *analysis.Context, n syntax.Node) { p.check(ctx, n) }

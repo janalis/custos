@@ -26,7 +26,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if key, ok := syntax.UnwrapParens(semanticquery.CallArgument(c.Args, 2, "key")).(*syntax.Variable); ok && indirectlyWritten(ctx, key, c) {
 		return
 	}
-	semanticquery.CheckSodiumSecretboxKeyLengthMismatch(ctx, n, message)
+	check(ctx, n, message)
 }
 
 // indirectlyWritten reports whether the key variable may have been replaced
@@ -112,5 +112,16 @@ func destructured(item *syntax.ArrayItem) bool {
 		default:
 			return false
 		}
+	}
+}
+
+func check(ctx *analysis.Context, n syntax.Node, message string) {
+	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
+		return
+	}
+	c := n.(*syntax.FuncCall)
+	length, known := semanticquery.KnownByteLength(ctx, semanticquery.CallArgument(c.Args, 2, "key"))
+	if known && length != 32 {
+		ctx.ReportNode(c, message)
 	}
 }

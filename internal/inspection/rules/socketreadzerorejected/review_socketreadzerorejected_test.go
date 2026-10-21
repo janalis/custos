@@ -1,4 +1,4 @@
-package semanticquery
+package socketreadzerorejected
 
 import (
 	"testing"
@@ -6,11 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewSocketReadProbe dispatches on calls only, as the rule package does.
-type reviewSocketReadProbe struct{ nativeCheckProbe }
-
-func (reviewSocketReadProbe) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 
 func TestReviewSocketReadZeroRejected(t *testing.T) {
 	const fail = "){throw new RuntimeException();}"
@@ -36,7 +31,7 @@ func TestReviewSocketReadZeroRejected(t *testing.T) {
 		{"user function", "namespace A;function socket_read($s,$n){return '';}if(!socket_read($s,10)" + fail, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := reviewSocketReadProbe{nativeCheckProbe{"SocketReadZeroRejected", CheckSocketReadZeroRejected}}
+			p := New()
 			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{"SocketReadZeroRejected"}})
 			if err != nil {
 				t.Fatal(err)

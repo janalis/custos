@@ -1,4 +1,4 @@
-package semanticquery
+package tlshandshakependingaccepted
 
 import (
 	"testing"
@@ -6,11 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewTLSHandshakeProbe dispatches on calls only, as the rule package does.
-type reviewTLSHandshakeProbe struct{ nativeCheckProbe }
-
-func (reviewTLSHandshakeProbe) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 
 func TestReviewTLSHandshakePendingAccepted(t *testing.T) {
 	const (
@@ -44,7 +39,7 @@ func TestReviewTLSHandshakePendingAccepted(t *testing.T) {
 		{"unbraced guard", "{if(" + again + "!==true)return;fwrite($s,'x');}", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := reviewTLSHandshakeProbe{nativeCheckProbe{"TlsHandshakePendingAccepted", CheckTLSHandshakePendingAccepted}}
+			p := New()
 			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{"TlsHandshakePendingAccepted"}})
 			if err != nil {
 				t.Fatal(err)
