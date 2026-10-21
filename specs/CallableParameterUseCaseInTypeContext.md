@@ -371,5 +371,18 @@ function untyped($flag = null) {
   `microtime()` without a `true` argument is the string PHP returns, not
   the `int` of the shared T-rules: a `string` parameter accepts it and an
   `int` one does not.
+- **Local variables holding call results (custos diverges, D7c).** When
+  the value is a local variable, its own plain assignments in the function
+  speak for it: if each carries an inline `@var` tag for the variable, the
+  value is documented and not checked (`/** @var \DOMElement $el */ $el =
+  $doc->createElement($n); … $node = $el;`); if each assigns a call, its
+  `bool` is the call's failure marker and dropped next to any other type
+  (`$tmp = tempnam(…); … $path = $tmp;`). Its `null` is still checked: a
+  lookup miss kept in a variable and assigned to a non-nullable parameter
+  is reported.
+- **Booleans and null in arithmetic (custos diverges).** With the sound
+  arithmetic above, operands made only of int, bool and null give an int
+  (PHP counts them as 0, 0 and 1): `$end = strtotime($start) + 60` is an
+  int, not "float".
 
 Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

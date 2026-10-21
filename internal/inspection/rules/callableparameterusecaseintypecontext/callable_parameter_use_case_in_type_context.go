@@ -51,7 +51,6 @@ func (callableParameterUseCaseInTypeContext) Check(ctx *analysis.Context, n synt
 	tr.SpecOnly = true
 	tr.SoundArithmetic = true // `time() + $untyped` is not known to be a float
 	cp := &cpState{ctx: ctx, fn: n, tr: tr}
-	var accesses map[string][]*syntax.Variable
 	for _, p := range params {
 		if p.Var == nil || p.Var.Name == "" {
 			continue
@@ -60,10 +59,10 @@ func (callableParameterUseCaseInTypeContext) Check(ctx *analysis.Context, n synt
 		if !ok {
 			continue
 		}
-		if accesses == nil {
-			accesses = cpReachableAccesses(body)
+		if cp.accesses == nil {
+			cp.accesses = cpReachableAccesses(body)
 		}
-		for _, v := range accesses[p.Var.Name] {
+		for _, v := range cp.accesses[p.Var.Name] {
 			cp.checkIs(v, set)
 			cp.checkAssign(v, set)
 		}
@@ -71,9 +70,10 @@ func (callableParameterUseCaseInTypeContext) Check(ctx *analysis.Context, n synt
 }
 
 type cpState struct {
-	ctx *analysis.Context
-	fn  syntax.Node
-	tr  *infer.TRules
+	ctx      *analysis.Context
+	fn       syntax.Node
+	tr       *infer.TRules
+	accesses map[string][]*syntax.Variable // reachable accesses by name
 }
 
 // cpNorm is the N normalisation of one type name.
@@ -304,10 +304,15 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 	value := as.Value
 	// custos: an inline `/** @var User $u */` on the assignment states the
 	// value's type (a repository's `object|null` find result).
-	if es, ok := as.Parent().(*syntax.ExprStmt); ok {
-		if c := index.DocComment(cp.ctx.File, es); c != "" && phpdoc.Parse(c).VarType(v.Name) != "" {
-			return
-		}
+	if cp.documented(as, v.Name) {
+		return
+	}
+	// custos: a local variable stands for its own assignments: documented
+	// ones state its type, and calls make its false a failure marker (its
+	// null, a lookup's miss kept in a variable, is still checked).
+	documented, calls := cp.local(value)
+	if documented {
+		return
 	}
 	if cp.unknownReplaceSubject(value) {
 		return
@@ -340,6 +345,9 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 				}
 			}
 		}
+		if calls && others > 0 {
+			delete(r, "bool")
+		}
 		if plainCall && others > 0 {
 			// custos: a call's false is a failure marker next to any other
 			// type (`filemtime()` int|false, `fopen()` resource|false), and
@@ -367,6 +375,39 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 		cp.ctx.ReportNode(value, strings.Replace(cpMsgAssign, "%s", t, 1))
 		return
 	}
+}
+
+// documented reports an inline `@var` doc comment typing name on the
+// statement of the assignment as.
+func (cp *cpState) documented(as *syntax.Assign, name string) bool {
+	es, ok := as.Parent().(*syntax.ExprStmt)
+	if !ok {
+		return false
+	}
+	c := index.DocComment(cp.ctx.File, es)
+	return c != "" && phpdoc.Parse(c).VarType(name) != ""
+}
+
+// local looks at the plain assignments of value when it is a variable
+// assigned in the function: documented when each carries an inline `@var`
+// for it, calls when each assigns a call (D7c).
+func (cp *cpState) local(value syntax.Expr) (documented, calls bool) {
+	x, ok := syntax.UnwrapParens(value).(*syntax.Variable)
+	if !ok {
+		return false, false
+	}
+	documented, calls = true, true
+	n := 0
+	for _, w := range cp.accesses[x.Name] {
+		as, ok := w.Parent().(*syntax.Assign)
+		if !ok || as.Var != syntax.Expr(w) || as.Op.Kind != syntax.TEqual || as.Value == nil {
+			continue
+		}
+		n++
+		documented = documented && cp.documented(as, x.Name)
+		calls = calls && cpAllCalls(as.Value)
+	}
+	return n > 0 && documented, n > 0 && calls
 }
 
 func cpSorted(m map[string]bool) []string {

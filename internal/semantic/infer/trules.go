@@ -763,7 +763,7 @@ func (r *TRules) soundArithmetic(n *syntax.Binary) types.Type {
 	switch {
 	case l.OnlyOf("float") || rt.OnlyOf("float"):
 		return types.Float
-	case l.OnlyOf("int") && rt.OnlyOf("int"):
+	case intLike(l) && intLike(rt):
 		switch n.Op.Kind {
 		case syntax.TDiv:
 			return intOrFloat
@@ -775,6 +775,13 @@ func (r *TRules) soundArithmetic(n *syntax.Binary) types.Type {
 		return types.Int
 	}
 	return intOrFloat
+}
+
+// intLike reports a type whose values are ints in arithmetic: int itself,
+// and null, false and true, which count as 0, 0 and 1 (`strtotime($d) + 60`
+// is an int).
+func intLike(s types.Type) bool {
+	return s.OnlyOf("int", "bool", "false", "true", "null")
 }
 
 // hasArrayAtom reports an `array` or `T[]` atom in s.

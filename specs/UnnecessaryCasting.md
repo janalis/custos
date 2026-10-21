@@ -142,9 +142,10 @@ and method bodies included) a `global` statement names it, or an element of
      else int.
   **custos (this rule only, see Divergences):** arithmetic is typed by
   PHP's actual result instead: an operand with no known type → empty; any
-  float-only operand → float; int with int → int (`/` → `{int, float}`;
-  `**` with a non-literal exponent → `{int, float}`); arrays only for
-  `array + array`; anything else (numeric strings, null, bool) →
+  float-only operand → float; operands made only of int, bool and null
+  (which count as 0, 0 and 1) → int (`/` → `{int, float}`; `**` with a
+  non-literal exponent → `{int, float}`), so `strtotime($d) + 60` is an
+  int; arrays only for `array + array`; anything else (numeric strings) →
   `{int, float}`.
   Consequences (upstream heuristic): `int op int` → int for `+`, `-`, `*`, `**`; `int / int` →
   `{int, float}` (two types, so a cast of it is never reported, and a

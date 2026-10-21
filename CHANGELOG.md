@@ -246,6 +246,13 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- CallableParameterUseCaseInTypeContext no longer reports a local variable
+  assigned to a parameter when the variable holds a call's result that may
+  be `false` (`$tmp = tempnam(…); … $path = $tmp;`) or carries an inline
+  `@var` tag. Arithmetic on `int`, `bool` and `null` operands is typed `int`
+  (`strtotime($d) + 60`), which also corrects the type this rule names and
+  lets UnnecessaryCasting report `(int)` on such a result.
+
 - MagicMethodsValidity no longer reports a constructor that calls the parent
   constructor through a helper no subclass can replace (a private method,
   possibly of a trait, a final method, or a method of a final class).
