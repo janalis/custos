@@ -246,6 +246,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- MagicMethodsValidity no longer reports a constructor that calls the parent
+  constructor through a helper no subclass can replace (a private method,
+  possibly of a trait, a final method, or a method of a final class).
+
 - DateLastErrorsFalseUnchecked no longer reports `getLastErrors()` read right
   after a date parse failed (`if ($d = DateTime::createFromFormat(…)) { return
   $d; }`, or in the branch of `if (!createFromFormat(…))`): a failed parse

@@ -1,6 +1,7 @@
 package index
 
 import (
+	"slices"
 	"strings"
 
 	"custos/internal/php/phpdoc"
@@ -316,6 +317,28 @@ func callsCSPRNG(body syntax.Node) bool {
 // storedParams reports whether constructor m only stores its parameters
 // (each statement `$this->prop = $param;`, promoted parameters aside) and
 // the properties it sets that way.
+// parentCalls returns, lower-case and once each, the methods body calls as
+// `parent::name(…)`, outside nested functions, closures and classes.
+func parentCalls(body syntax.Node) []string {
+	var names []string
+	syntax.Inspect(body, func(n syntax.Node) bool {
+		switch c := n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
+			return false
+		case *syntax.StaticCall:
+			cls, named := c.Class.(*syntax.Name)
+			id, ok := c.Name.(*syntax.Identifier)
+			if named && ok && strings.EqualFold(cls.Value, "parent") {
+				if name := strings.ToLower(id.Value); !slices.Contains(names, name) {
+					names = append(names, name)
+				}
+			}
+		}
+		return true
+	})
+	return names
+}
+
 func storedParams(m *syntax.Method) (bool, []string) {
 	if m.Body == nil {
 		return false, nil
@@ -377,6 +400,9 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 	}
 	if m.Body != nil {
 		meth.CSPRNG = callsCSPRNG(m.Body)
+		if !x.stub {
+			meth.ParentCalls = parentCalls(m.Body)
+		}
 	}
 	meth.Return, meth.RetVer = x.returnType(m.ReturnType, m.Attrs, at)
 	if d != nil {

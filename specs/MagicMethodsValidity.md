@@ -373,6 +373,12 @@ interface Printable { public function __toString(); }
   values the child overwrites or sets itself (Dolibarr's `$this->db = $db`
   pattern, ~280 reports). A parent constructor doing anything else, or a
   child leaving one of its properties unset, is still reported.
+- **Parent call through a helper (custos).** A constructor (or other magic
+  method) that calls, as `$this->m()`, `self::m()` or `static::m()`, a
+  method of its class or of a trait it uses that no subclass can replace
+  (private, final, or declared in a final class), whose own body calls
+  `parent::<method>()`, calls the parent method: not reported (Symfony's
+  cache adapters initialise through a private trait method).
 - **Parent call through a callable (custos).** A constructor (or other
   magic method) that calls `call_user_func()` / `call_user_func_array()`
   with a callable whose string part ends in `::<method>`

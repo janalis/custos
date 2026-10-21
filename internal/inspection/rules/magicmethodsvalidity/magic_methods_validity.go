@@ -1,6 +1,7 @@
 package magicmethodsvalidity
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -395,6 +396,8 @@ func (c *magicCheck) callsParent() {
 			}
 			if id, ok := name.(*syntax.Identifier); ok && strings.EqualFold(id.Value, c.name) {
 				called = true
+			} else if ok && ownCall(n) {
+				called = c.helperCallsParent(id.Value)
 			}
 			return true
 		})
@@ -405,6 +408,33 @@ func (c *magicCheck) callsParent() {
 	declaring := strings.TrimPrefix(pm.Class, `\`)
 	declaring = astquery.LastNamePart(declaring)
 	c.report(c.name + " does not call " + declaring + "::" + c.name + "().")
+}
+
+// helperCallsParent reports whether a call of method on the object itself
+// (`$this->m()`, `self::m()`, `static::m()`) runs a method of the class (or
+// of a trait it uses) that no subclass can replace — private, final, or of
+// a final class — whose own body calls `parent::<method name>()` (custos,
+// see Divergences).
+func (c *magicCheck) helperCallsParent(method string) bool {
+	if c.fqn == "" {
+		return false
+	}
+	helper := c.ctx.Index().FindMethod(c.fqn, method, c.ctx.PHP)
+	if helper == nil || helper.Visibility != index.Private && !helper.Final && !c.cl.Modifiers.Has(syntax.TFinal) {
+		return false
+	}
+	return slices.Contains(helper.ParentCalls, strings.ToLower(c.name))
+}
+
+// ownCall reports a method or static call n made on the object itself:
+// `$this->m()`, `self::m()` or `static::m()`.
+func ownCall(n syntax.Node) bool {
+	if m, ok := n.(*syntax.MethodCall); ok {
+		v, ok := syntax.UnwrapParens(m.Var).(*syntax.Variable)
+		return ok && v.Name == "this"
+	}
+	cls, ok := n.(*syntax.StaticCall).Class.(*syntax.Name)
+	return ok && (strings.EqualFold(cls.Value, "self") || strings.EqualFold(cls.Value, "static"))
 }
 
 // callableNamesParent reports whether call is call_user_func[_array]() with

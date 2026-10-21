@@ -139,6 +139,10 @@ type Method struct {
 	Asserts    []Assertion `json:"as,omitempty"`
 	Deprecated bool        `json:"dep,omitempty"`
 	NoDiscard  bool        `json:"noDiscard,omitempty"`
+	// ParentCalls lists, lower-case, the methods the body calls through
+	// `parent::` (nested closures and classes excluded); project methods
+	// only.
+	ParentCalls []string `json:"pcalls,omitempty"`
 	// EmptyBody is set for a project method whose body holds no statement
 	// and that promotes no constructor parameter (`public function
 	// __construct() {}`): calling it does nothing. Never set for builtins
