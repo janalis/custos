@@ -13,7 +13,7 @@ func TestExpansionXMLChildren(t *testing.T) {
 		xml  string
 		want bool
 	}{{"<one><two/></one>", true}, {"<one>text</one>", false}, {"<one/>", false}, {"<one><two></one>", false}, {strings.Repeat("x", 65537), false}} {
-		if got := expansionXMLChildren(tc.xml); got != tc.want {
+		if got := XMLChildren(tc.xml); got != tc.want {
 			t.Errorf("%q got %v", tc.xml, got)
 		}
 	}
@@ -71,7 +71,7 @@ func BenchmarkExpansionXMLChildren(b *testing.B) {
 	s := `<catalog><item><name>Amber</name></item></catalog>`
 	b.ReportAllocs()
 	for b.Loop() {
-		expansionXMLChildren(s)
+		XMLChildren(s)
 	}
 }
 
@@ -92,30 +92,6 @@ func TestExpansionDOMChildrenProof(t *testing.T) {
 	} {
 		probeNative(t, tc.src, func(ctx *analysis.Context, c *syntax.FuncCall) {
 			if got := ExpansionDOMElementChildren(ctx, CallArgument(c.Args, 0, ""), c); got != tc.want {
-				t.Errorf("%s: %v", tc.src, got)
-			}
-		})
-	}
-}
-
-func TestExpansionDOMBeforeWriteProof(t *testing.T) {
-	for _, tc := range []struct {
-		src  string
-		want bool
-	}{
-		{`$d=new DOMDocument();$d->loadXML('<x><y/></x>');probe($d->documentElement);`, true},
-		{`$d=new DOMDocument();$d->loadXML('<x/>');probe($d->documentElement);`, false},
-		{`$d=new DOMDocument();$d->loadXML('<x><y/></x>');if($flag){}probe($d->documentElement);`, false},
-		{`$d=new DOMDocument();$d->loadXML('<x><y/></x>');mutate($d);probe($d->documentElement);`, false},
-		{`$d=new DOMDocument();$d->loadXML('<x><y/></x>');$other=3;probe($d->documentElement);`, true},
-		{`probe(3);`, false},
-		{`$d=new DOMDocument();probe($d->other);`, false},
-		{`probe((new DOMDocument())->documentElement);`, false},
-		{`$d=new DOMDocument();$d->loadXML('<x><y/></x>');$d=$unknown;probe($d->documentElement);`, false},
-		{strings.Repeat(`$a=1;`, 257) + `probe($d->documentElement);`, false},
-	} {
-		probeNative(t, tc.src, func(ctx *analysis.Context, c *syntax.FuncCall) {
-			if got := ExpansionDOMBeforeWrite(ctx, CallArgument(c.Args, 0, ""), c); got != tc.want {
 				t.Errorf("%s: %v", tc.src, got)
 			}
 		})
@@ -165,24 +141,4 @@ func TestExpansionDOMDepthBudget(t *testing.T) {
 			t.Fatal("depth budget")
 		}
 	})
-}
-
-func TestExpansionDOMConstructedWriteProof(t *testing.T) {
-	for _, tc := range []struct {
-		src  string
-		want bool
-	}{
-		{`$d=new DOMDocument();$n=$d->createElement('x');$n->appendChild($d->createElement('y'));probe($n);`, true},
-		{`$d=new DOMDocument();$n=$d->createElement('x');$n->appendChild($d->createTextNode('y'));probe($n);`, false},
-		{`$d=new DOMDocument();$n=$d->createElement('x');$n->appendChild($d->createElement('y'));if($flag){}probe($n);`, false},
-		{`$d=new DOMDocument();$n=$d->createElement('x');$n->appendChild($d->createElement('y'));mutate($n);probe($n);`, false},
-		{`probe(3);`, false},
-		{strings.Repeat(`$a=1;`, 257) + `probe($n);`, false},
-	} {
-		probeNative(t, tc.src, func(ctx *analysis.Context, c *syntax.FuncCall) {
-			if got := ExpansionDOMCreatedBeforeWrite(ctx, CallArgument(c.Args, 0, ""), c); got != tc.want {
-				t.Errorf("%s: %v", tc.src, got)
-			}
-		})
-	}
 }

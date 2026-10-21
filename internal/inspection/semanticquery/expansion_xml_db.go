@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/flowquery"
 	"custos/internal/php/syntax"
 )
 
@@ -68,7 +67,7 @@ func ExpansionDOMElementChildren(ctx *analysis.Context, e syntax.Expr, at syntax
 				return false
 			}
 			s, known := NativeString(ctx, CallArgument(c.Args, 0, "source"))
-			return known && expansionXMLChildren(s)
+			return known && XMLChildren(s)
 		}
 	}
 	found := false
@@ -91,7 +90,9 @@ func ExpansionDOMElementChildren(ctx *analysis.Context, e syntax.Expr, at syntax
 	return found
 }
 
-func expansionXMLChildren(s string) bool {
+// XMLChildren reports whether the XML document s parses and its root
+// element has a child element; false past 64 KiB.
+func XMLChildren(s string) bool {
 	if len(s) > 65536 {
 		return false
 	}
@@ -185,98 +186,4 @@ func ExpansionSameObject(ctx *analysis.Context, a, b syntax.Expr) bool {
 		return true
 	}
 	return false
-}
-
-// ExpansionDOMBeforeWrite handles a DOM assignment's left-hand receiver, which
-// has no read value in the flow model. Only direct, nonescaping statements prove state.
-func ExpansionDOMBeforeWrite(ctx *analysis.Context, e syntax.Expr, at syntax.Node) bool {
-	p, ok := e.(*syntax.PropertyFetch)
-	if !ok {
-		return false
-	}
-	field, ok := p.Name.(*syntax.Identifier)
-	if !ok || field.Value != "documentElement" {
-		return false
-	}
-	v, ok := p.Var.(*syntax.Variable)
-	if !ok {
-		return false
-	}
-	statements := flowquery.NativePriorStatements(ctx.File, at)
-	if len(statements) > 256 {
-		return false
-	}
-	document, children := false, false
-	for _, statement := range statements {
-		st, ok := statement.(*syntax.ExprStmt)
-		if !ok {
-			document, children = false, false
-			continue
-		}
-		if a, ok := st.Expr.(*syntax.Assign); ok {
-			if target, ok := a.Var.(*syntax.Variable); ok && target.Name == v.Name {
-				creation, ok := a.Value.(*syntax.New)
-				document = ok && !a.ByRef && a.Op.Kind == syntax.TEqual && NamesGlobalClass(ctx, creation.Class, "DOMDocument")
-				children = false
-				continue
-			}
-		}
-		if c, ok := st.Expr.(*syntax.MethodCall); ok {
-			if target, ok := c.Var.(*syntax.Variable); ok && target.Name == v.Name && document && NativeMethod(ctx, c, "DOMDocument", "loadXML") {
-				s, known := NativeString(ctx, CallArgument(c.Args, 0, "source"))
-				children = known && expansionXMLChildren(s)
-				continue
-			}
-		}
-		syntax.Inspect(statement, func(n syntax.Node) bool {
-			if x, ok := n.(*syntax.Variable); ok && x.Name == v.Name {
-				document, children = false, false
-			}
-			return true
-		})
-	}
-	return document && children
-}
-
-// ExpansionDOMCreatedBeforeWrite proves children of a directly constructed
-// local element before a write to that element's properties.
-func ExpansionDOMCreatedBeforeWrite(ctx *analysis.Context, e syntax.Expr, at syntax.Node) bool {
-	variable, ok := e.(*syntax.Variable)
-	if !ok {
-		return false
-	}
-	statements := flowquery.NativePriorStatements(ctx.File, at)
-	if len(statements) > 256 {
-		return false
-	}
-	element, children := false, false
-	for _, statement := range statements {
-		st, ok := statement.(*syntax.ExprStmt)
-		if !ok {
-			element, children = false, false
-			continue
-		}
-		if a, ok := st.Expr.(*syntax.Assign); ok {
-			if target, ok := a.Var.(*syntax.Variable); ok && target.Name == variable.Name {
-				c, ok := a.Value.(*syntax.MethodCall)
-				element = ok && !a.ByRef && a.Op.Kind == syntax.TEqual && (NativeMethod(ctx, c, "DOMDocument", "createElement") || NativeMethod(ctx, c, "DOMDocument", "createElementNS"))
-				children = false
-				continue
-			}
-		}
-		if c, ok := st.Expr.(*syntax.MethodCall); ok {
-			if target, ok := c.Var.(*syntax.Variable); ok && target.Name == variable.Name && element && NativeMethod(ctx, c, "DOMNode", "appendChild") {
-				child, ok := NativeValue(ctx, CallArgument(c.Args, 0, "node")).(*syntax.MethodCall)
-				children = children || ok && (NativeMethod(ctx, child, "DOMDocument", "createElement") || NativeMethod(ctx, child, "DOMDocument", "createElementNS"))
-				continue
-			}
-		}
-		syntax.Inspect(statement, func(n syntax.Node) bool {
-			if v, ok := n.(*syntax.Variable); ok && v.Name == variable.Name {
-				element, children = false, false
-			}
-			return true
-		})
-	}
-	return element && children
 }

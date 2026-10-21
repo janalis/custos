@@ -261,3 +261,35 @@ func TestAdapterBoundaries(t *testing.T) {
 		}
 	}
 }
+
+// An exported semantic query that only one rule uses belongs in that rule;
+// one semanticquery itself uses, or nothing uses yet, stays.
+func TestSingleRuleQueries(t *testing.T) {
+	root := layout(t)
+	write(t, root, "internal/inspection/semanticquery/query.go", `package semanticquery
+type Kind int
+var Unused, local = 1, 2
+const Limit = 3
+func Single() {}
+func Inner() {}
+func helper() { Inner() }
+func (Kind) Method() {}
+`)
+	write(t, root, "internal/inspection/rules/example/query.go", `package example
+import sq "custos/internal/inspection/semanticquery"
+func use() { sq.Single(); sq.Inner(); _ = sq.Limit; _ = local.Field }
+`)
+	problems, err := check(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(problems, "\n")
+	for _, name := range []string{"Single", "Limit"} {
+		if !strings.Contains(got, name+" is used only by internal/inspection/rules/example") {
+			t.Errorf("%s not reported: %v", name, problems)
+		}
+	}
+	if len(problems) != 2 {
+		t.Fatalf("%v", problems)
+	}
+}

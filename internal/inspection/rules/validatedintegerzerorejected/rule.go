@@ -33,7 +33,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	options := semanticquery.CallArgument(call.Args, 2, "options")
-	if !semanticquery.NativeIntegerAllowsZero(ctx, options) || !failsWithScalarFalse(ctx, options) {
+	if !integerAllowsZero(ctx, options) || !failsWithScalarFalse(ctx, options) {
 		return
 	}
 	p, _ := astquery.ParentSkipParens(call)
@@ -64,6 +64,42 @@ func failsWithScalarFalse(ctx *analysis.Context, options syntax.Expr) bool {
 		values, _ := semanticquery.NativeArrayEntries(ctx, inner)
 		if _, replaced := values["s:default"]; replaced {
 			return false
+		}
+	}
+	return true
+}
+
+// integerAllowsZero proves the validator options neither exclude zero
+// nor change the failure sentinel to null.
+func integerAllowsZero(ctx *analysis.Context, options syntax.Expr) bool {
+	if options == nil {
+		return true
+	}
+	if n, known := semanticquery.NativeInt(ctx, options); known {
+		return n&134217728 == 0 // FILTER_NULL_ON_FAILURE
+	}
+	entries, known := semanticquery.NativeArrayEntries(ctx, options)
+	if !known {
+		return false
+	}
+	if flags := entries["s:flags"]; flags != nil {
+		present, known := semanticquery.NativeFlag(ctx, flags, 134217728)
+		if !known || present {
+			return false
+		}
+	}
+	if bounds := entries["s:options"]; bounds != nil {
+		values, known := semanticquery.NativeArrayEntries(ctx, bounds)
+		if !known {
+			return false
+		}
+		for _, key := range []string{"min_range", "max_range"} {
+			if value := values["s:"+key]; value != nil {
+				n, known := semanticquery.NativeInt(ctx, value)
+				if !known || (key == "min_range" && n > 0) || (key == "max_range" && n < 0) {
+					return false
+				}
+			}
 		}
 	}
 	return true

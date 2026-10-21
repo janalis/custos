@@ -47,7 +47,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if semanticquery.NativeConstruction(ctx, slot.Var, "SplObjectStorage") == nil {
 			continue
 		}
-		if semanticquery.NativeStoredArray(ctx, slot, n) && !replaced(ctx, slot, n) {
+		if storedArray(ctx, slot, n) && !replaced(ctx, slot, n) {
 			ctx.ReportNode(n, message)
 			return
 		}
@@ -121,4 +121,25 @@ func replaced(ctx *analysis.Context, slot *syntax.ArrayDimFetch, at syntax.Node)
 		syntax.Inspect(scope, visit)
 	}
 	return dirty
+}
+
+// storedArray proves the last direct storage assignment is an array.
+func storedArray(ctx *analysis.Context, slot *syntax.ArrayDimFetch, at syntax.Node) bool {
+	found := false
+	scope := syntax.EnclosingVariableScope(at)
+	scan := func(n syntax.Node) bool {
+		if a, ok := n.(*syntax.Assign); ok && semanticquery.NativeDominates(a, at) {
+			if s, ok := a.Var.(*syntax.ArrayDimFetch); ok && semanticquery.NativeSameValue(ctx, s.Var, slot.Var) && semanticquery.NativeSameValue(ctx, s.Dim, slot.Dim) {
+				found = semanticquery.NativeArray(ctx, a.Value) != nil
+			}
+		}
+		return true
+	}
+	for _, event := range semanticquery.ContractEvents(ctx, scope) {
+		if event.Span().Start >= at.Span().Start {
+			break
+		}
+		scan(event)
+	}
+	return found
 }

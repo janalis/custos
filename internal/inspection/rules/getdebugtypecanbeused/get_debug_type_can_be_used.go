@@ -3,7 +3,6 @@ package getdebugtypecanbeused
 import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
-	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 )
@@ -23,7 +22,7 @@ func gdtSingleArgCall(ctx *analysis.Context, e syntax.Expr, name string) (*synta
 		return nil, nil, false
 	}
 	args, ok := astquery.CallArgValues(call)
-	if !ok || len(args) != 1 || !semanticquery.CallsGlobalFunction(ctx, call, true) {
+	if !ok || len(args) != 1 || !callsGlobalFunction(ctx, call, true) {
 		return nil, nil, false
 	}
 	return call, args[0], true
@@ -54,4 +53,14 @@ func (getDebugTypeCanBeUsed) Check(ctx *analysis.Context, n syntax.Node) {
 	// differently from gettype()/get_class() (int/integer, float/double,
 	// bool/boolean, null/NULL), so rewriting changes the produced string.
 	ctx.Report(t.Span(), "Use '"+repl+"' instead (scalar type names differ from gettype()).")
+}
+
+// callsGlobalFunction reports whether a named function call resolves to a
+// function of the global namespace: fully qualified, unqualified in the
+// global namespace, or unqualified in a namespace without a same-named
+// namespaced function (PHP's runtime fallback). When known is set, the
+// global function must also exist in the index.
+func callsGlobalFunction(ctx *analysis.Context, call *syntax.FuncCall, known bool) bool {
+	name := ctx.GlobalFunctionName(call)
+	return name != "" && (!known || ctx.Index().Function(name, ctx.PHP) != nil)
 }

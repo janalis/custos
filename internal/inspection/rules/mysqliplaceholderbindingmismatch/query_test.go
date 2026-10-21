@@ -1,4 +1,4 @@
-package semanticquery
+package mysqliplaceholderbindingmismatch
 
 import "testing"
 
@@ -14,7 +14,7 @@ func TestNativeSQLPositionalCount(t *testing.T) {
 		{"SELECT $$?$$", 0, false},
 		{"SELECT ??", 0, false},
 	} {
-		n, known := NativeSQLPositionalCount(tc.sql)
+		n, known := sQLPositionalCount(tc.sql)
 		if n != tc.n || known != tc.known {
 			t.Errorf("%q got %d %v", tc.sql, n, known)
 		}

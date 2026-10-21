@@ -95,7 +95,7 @@ type nativeProbe struct {
 	check func(*analysis.Context, *syntax.FuncCall)
 }
 
-func (nativeProbe) ID() string { return "ArrayFlipInvalidValueType" }
+func (nativeProbe) ID() string { return "FileLockFailureUnchecked" }
 
 func (nativeProbe) Semantic() {}
 

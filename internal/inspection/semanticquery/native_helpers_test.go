@@ -160,55 +160,6 @@ func TestNativeCallbackContracts(t *testing.T) {
 	})
 }
 
-func TestNativeFailurePolicyGuards(t *testing.T) {
-	for _, tc := range []struct {
-		src  string
-		want bool
-	}{
-		{"probe();", true},
-		{"probe(0);", true},
-		{"probe(FILTER_NULL_ON_FAILURE);", false},
-		{"probe(['flags'=>FILTER_NULL_ON_FAILURE]);", false},
-		{"probe(['options'=>['min_range'=>1]]);", false},
-		{"probe(['options'=>['max_range'=>-1]]);", false},
-		{"probe(['options'=>['min_range'=>0,'max_range'=>5]]);", true},
-		{"probe(['options'=>$unknown]);", false},
-		{"probe(['flags'=>$unknown]);", false},
-		{"probe(['options'=>['min_range'=>$unknown]]);", false},
-		{"probe($unknown);", false},
-	} {
-		t.Run(tc.src, func(t *testing.T) {
-			probeNative(t, tc.src, func(ctx *analysis.Context, c *syntax.FuncCall) {
-				got := NativeIntegerAllowsZero(ctx, CallArgument(c.Args, 0, "value"))
-				if got != tc.want {
-					t.Fatalf("got %v, want %v", got, tc.want)
-				}
-			})
-		})
-	}
-	for _, tc := range []struct {
-		src  string
-		want bool
-	}{
-		{"if(strlen($s)===4){probe($s);}", true},
-		{"if(strlen($s)===8){probe($s);}", false},
-		{"if(strlen($other)===4){probe($s);}", false},
-		{"if(count($s)===4){probe($s);}", false},
-		{"if(strlen($s)!==4){return;} probe($s);", true},
-		{"if(strlen($s)!==4){echo 'short';} probe($s);", false},
-		{"probe($s);", false},
-	} {
-		t.Run(tc.src, func(t *testing.T) {
-			probeNative(t, tc.src, func(ctx *analysis.Context, c *syntax.FuncCall) {
-				got := NativeLengthProven(ctx, CallArgument(c.Args, 0, "value"), 4)
-				if got != tc.want {
-					t.Fatalf("got %v, want %v", got, tc.want)
-				}
-			})
-		})
-	}
-}
-
 func TestNativeCurlOptionProof(t *testing.T) {
 	for _, tc := range []struct {
 		src  string
@@ -342,53 +293,6 @@ func TestNativeNamedCallbacks(t *testing.T) {
 	})
 }
 
-func TestNativeRemainingBoundaries(t *testing.T) {
-	probeNative(t, "$v=7;probe($v);", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if n, known := NativeInt(ctx, CallArgument(c.Args, 0, "value")); !known || n != 7 {
-			t.Fatal("dominated scalar assignment must resolve")
-		}
-	})
-	probeNative(t, "probe($flag?1:2);", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if NativeValue(ctx, CallArgument(c.Args, 0, "value")) != nil {
-			t.Fatal("alternative literal values must remain distinct")
-		}
-	})
-	probeNative(t, "probe(~4);", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if _, known := NativeInt(ctx, CallArgument(c.Args, 0, "value")); known {
-			t.Fatal("non-sign unary expressions are not integer literals")
-		}
-	})
-	probeNative(t, "if($v){probe($v);}", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if NativeLengthProven(ctx, CallArgument(c.Args, 0, "value"), 4) {
-			t.Fatal("truthiness does not prove a byte length")
-		}
-	})
-	probeNative(t, "function f($v){probe($v);}", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if NativeFailureExcluded(ctx, CallArgument(c.Args, 0, "value"), types.Unknown, "null") {
-			t.Fatal("parameter presence does not prove nonnull")
-		}
-	})
-	probeNative(t, "$h=curl_init('https://example.invalid'); $o=new stdClass(); $o->retain($h);probe($h);", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if NativeCurlDefault(ctx, c, CallArgument(c.Args, 0, "value"), "CURLOPT_RETURNTRANSFER") {
-			t.Fatal("unknown receiver escape must not prove default")
-		}
-	})
-	probeNative(t, "probe(function(){ $f=function(){return 1;};return 2;});", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		_, b := NativeCallback(ctx, CallArgument(c.Args, 0, "value"))
-		returns, complete := NativeReturns(b)
-		if !complete || len(returns) != 1 {
-			t.Fatal("nested callback returns must stay separate")
-		}
-	})
-	probeNative(t, "probe(function(){yield 1;return 2;});", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		_, b := NativeCallback(ctx, CallArgument(c.Args, 0, "value"))
-		_, complete := NativeReturns(b)
-		if complete {
-			t.Fatal("generator callback does not return mapped values")
-		}
-	})
-}
-
 // firstCall finds the first call to name in the probed file.
 func firstCall(ctx *analysis.Context, name string) *syntax.FuncCall {
 	var found *syntax.FuncCall
@@ -414,6 +318,48 @@ func TestNativeCallResultQueries(t *testing.T) {
 	probeNative(t, "function f($h){a: if(flock($h,LOCK_EX)){probe($h);} goto a;}", func(ctx *analysis.Context, c *syntax.FuncCall) {
 		if NativeCallSucceeded(ctx, firstCall(ctx, "flock"), c) {
 			t.Fatal("a labelled scope proves nothing")
+		}
+	})
+}
+
+func TestNativeRemainingBoundaries(t *testing.T) {
+	probeNative(t, "$v=7;probe($v);", func(ctx *analysis.Context, c *syntax.FuncCall) {
+		if n, known := NativeInt(ctx, CallArgument(c.Args, 0, "value")); !known || n != 7 {
+			t.Fatal("dominated scalar assignment must resolve")
+		}
+	})
+	probeNative(t, "probe($flag?1:2);", func(ctx *analysis.Context, c *syntax.FuncCall) {
+		if NativeValue(ctx, CallArgument(c.Args, 0, "value")) != nil {
+			t.Fatal("alternative literal values must remain distinct")
+		}
+	})
+	probeNative(t, "probe(~4);", func(ctx *analysis.Context, c *syntax.FuncCall) {
+		if _, known := NativeInt(ctx, CallArgument(c.Args, 0, "value")); known {
+			t.Fatal("non-sign unary expressions are not integer literals")
+		}
+	})
+	probeNative(t, "function f($v){probe($v);}", func(ctx *analysis.Context, c *syntax.FuncCall) {
+		if NativeFailureExcluded(ctx, CallArgument(c.Args, 0, "value"), types.Unknown, "null") {
+			t.Fatal("parameter presence does not prove nonnull")
+		}
+	})
+	probeNative(t, "$h=curl_init('https://example.invalid'); $o=new stdClass(); $o->retain($h);probe($h);", func(ctx *analysis.Context, c *syntax.FuncCall) {
+		if NativeCurlDefault(ctx, c, CallArgument(c.Args, 0, "value"), "CURLOPT_RETURNTRANSFER") {
+			t.Fatal("unknown receiver escape must not prove default")
+		}
+	})
+	probeNative(t, "probe(function(){ $f=function(){return 1;};return 2;});", func(ctx *analysis.Context, c *syntax.FuncCall) {
+		_, b := NativeCallback(ctx, CallArgument(c.Args, 0, "value"))
+		returns, complete := NativeReturns(b)
+		if !complete || len(returns) != 1 {
+			t.Fatal("nested callback returns must stay separate")
+		}
+	})
+	probeNative(t, "probe(function(){yield 1;return 2;});", func(ctx *analysis.Context, c *syntax.FuncCall) {
+		_, b := NativeCallback(ctx, CallArgument(c.Args, 0, "value"))
+		_, complete := NativeReturns(b)
+		if complete {
+			t.Fatal("generator callback does not return mapped values")
 		}
 	})
 }

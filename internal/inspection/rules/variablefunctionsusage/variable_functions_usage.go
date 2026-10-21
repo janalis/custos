@@ -174,7 +174,7 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, forward bool) (
 					return "", false
 				}
 				// F2: absolute class name
-				return semanticquery.StringCallableClass(ctx, cls, at) + "::" + m + "(" + args + ")", true
+				return stringCallableClass(ctx, cls, at) + "::" + m + "(" + args + ")", true
 			}
 			if vfuIdentifier(c) { // D7c: other names keep the `{…}` form
 				method = c
@@ -197,13 +197,13 @@ func vfuDirectCall(ctx *analysis.Context, call *syntax.FuncCall, forward bool) (
 				return "", false
 			}
 			params = vfuMethodParams(ctx, call, nil, target, vfuLiteralValue(second))
-			target = semanticquery.StringCallableClass(ctx, target, at)
+			target = stringCallableClass(ctx, target, at)
 		} else if cls, m, ok := strings.Cut(target, "::"); ok {
 			if !vfuQualifiedName(cls) || !vfuIdentifier(m) || forward && !names.IsSpecialClass(cls) {
 				return "", false
 			}
 			params = vfuMethodParams(ctx, call, nil, cls, m)
-			target = semanticquery.StringCallableClass(ctx, cls, at) + "::" + m
+			target = stringCallableClass(ctx, cls, at) + "::" + m
 		} else {
 			if !vfuQualifiedName(target) {
 				return "", false
@@ -358,4 +358,18 @@ func vfuBindsByRef(args []syntax.Expr, callees [][]index.Param) bool {
 		}
 	}
 	return false
+}
+
+// stringCallableClass spells the class named in a string callable (`'Foo'`
+// in `['Foo', 'm']` or `'Foo::m'`) so that `Class::m()` written at offset at
+// names the same class: a leading `\` is added when the name, written as-is,
+// would resolve to another class. self/static/parent are kept.
+func stringCallableClass(ctx *analysis.Context, class string, at uint32) string {
+	if strings.HasPrefix(class, `\`) || class == "" || names.IsSpecialClass(class) {
+		return class
+	}
+	if strings.EqualFold(ctx.Names().Class(class, at), class) {
+		return class
+	}
+	return `\` + class
 }

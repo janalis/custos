@@ -32,7 +32,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known || ambiguousComment(sql) {
 		return
 	}
-	count, known := semanticquery.NativeSQLPositionalCount(sql)
+	count, known := sQLPositionalCount(sql)
 	if !known {
 		return
 	}
@@ -70,4 +70,11 @@ func ambiguousComment(sql string) bool {
 		i += 2 + next
 	}
 	return false
+}
+
+// sQLPositionalCount counts positional placeholders outside quoted data
+// and comments in the supported SQL subset. Vendor syntax stays unknown.
+func sQLPositionalCount(sql string) (int, bool) {
+	facts, known := semanticquery.ScanSQL(sql)
+	return facts.Positional, known && len(facts.Markers) == facts.Positional
 }

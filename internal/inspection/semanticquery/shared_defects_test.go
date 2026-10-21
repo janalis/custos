@@ -42,10 +42,6 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 		if v := NativeLocalResultOf(ctx, a, "false", scanned); v != nil {
 			result = ctx.Text(v)
 		}
-	case "only":
-		if v := NativeLocalOnly(ctx, a); v != nil {
-			result = ctx.Text(v)
-		}
 	case "origin-false", "origin-null":
 		if v := NativeLocalResult(ctx, a, strings.TrimPrefix(p.query, "origin-")); v != nil {
 			result = ctx.Text(v)
@@ -65,8 +61,6 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 		result = fmt.Sprint(nativeContractScope(ctx, scope).localWrites(ctx, scope).known)
 	case "string-nonnull":
 		result = fmt.Sprint(NativeNarrowedExcludes(ctx, a, types.Of("string", "null"), "null"))
-	case "length":
-		result = fmt.Sprint(NativeLengthProven(ctx, a, 4))
 	case "class":
 		if created, ok := a.(*syntax.New); ok {
 			if class := NativeNewClass(ctx, created); class != nil {
@@ -81,7 +75,7 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 	case "dominated":
 		// Every earlier call named mark() that dominates the probe.
 		count := 0
-		for _, event := range nativeContractEvents(ctx, syntax.EnclosingVariableScope(c)) {
+		for _, event := range ContractEvents(ctx, syntax.EnclosingVariableScope(c)) {
 			if mark, ok := event.(*syntax.FuncCall); ok && ctx.Text(mark.Name) == "mark" && NativeDominates(mark, c) {
 				count++
 			}
@@ -412,7 +406,7 @@ func (p sharedStableProbe) Check(ctx *analysis.Context, n syntax.Node) {
 	if ctx.Text(second.Name) != "fread" {
 		return
 	}
-	for _, event := range nativeContractEvents(ctx, syntax.EnclosingVariableScope(second)) {
+	for _, event := range ContractEvents(ctx, syntax.EnclosingVariableScope(second)) {
 		if first, ok := event.(*syntax.FuncCall); ok && ctx.Text(first.Name) == "fclose" {
 			*p.result = SameStableLocal(ctx, CallArgument(first.Args, 0, ""), CallArgument(second.Args, 0, ""))
 		}
@@ -469,21 +463,6 @@ func TestSharedFailureGuardPositions(t *testing.T) {
 		{"false", "closure boundary", `final class H { public $h; public $g; } function f(H $o){if($o->h === false){return 0;} $g=function() use ($o){probe($o->h);};}`, "false"},
 		{"local-false", "property branch", `function f($o){if(\FALSE !== ($o->h)){probe($o->h);}}`, "false"},
 		{"local-false", "callable branch", `function f($o){$g=$o->pick(); if(\FALSE !== ($g)){probe($g);}}`, "true"},
-		{"length", "no input", `function f($s){probe();}`, "false"},
-		{"length", "flow fact", `function f($s){if(strlen($s) !== 4){return;} echo 1; probe($s);}`, "true"},
-		{"length", "property branch", `final class H { public $s; } function f(H $o){if(strlen($o->s) === 4){probe($o->s);}}`, "true"},
-		{"length", "property constant-first", `final class H { public $s; } function f(H $o){if(4 === strlen($o->s)){probe($o->s);}}`, "true"},
-		{"length", "property other length", `final class H { public $s; } function f(H $o){if(strlen($o->s) === 5){probe($o->s);}}`, "false"},
-		{"length", "property ternary", `final class H { public $s; } function f(H $o){return strlen($o->s) === 4 ? probe($o->s) : 0;}`, "true"},
-		{"length", "property other test", `final class H { public $s; } function f(H $o){if(count($o->s) === 4){probe($o->s);}}`, "false"},
-		{"length", "property loose test", `final class H { public $s; } function f(H $o){if(strlen($o->s) == 4){probe($o->s);}}`, "true"},
-		{"length", "property elseif arm", `final class H { public $s; } function f(H $o, $c){if($c){return 0;}elseif(strlen($o->s) === 4){probe($o->s);}}`, "true"},
-		{"length", "property else arm", `final class H { public $s; } function f(H $o){if(strlen($o->s) !== 4){return 0;}else{probe($o->s);}}`, "true"},
-		{"length", "property after failed elseif", `final class H { public $s; } function f(H $o, $c){if($c){return 0;}elseif(strlen($o->s) !== 4){return 1;}else{probe($o->s);}}`, "true"},
-		{"length", "property conjunction operand", `final class H { public $s; } function f(H $o){return strlen($o->s) === 4 && probe($o->s);}`, "true"},
-		{"length", "property disjunction operand", `final class H { public $s; } function f(H $o){return strlen($o->s) !== 4 || probe($o->s);}`, "true"},
-		{"length", "call result", `function f($o){if(strlen($o->s()) === 4){probe($o->s());}}`, "false"},
-		{"length", "unknown writes", `function f($s, $a){if(strlen($s) === 4){extract($a); probe($s);}}`, "false"},
 	} {
 		t.Run(tc.query+" "+tc.name, func(t *testing.T) {
 			if got := sharedDefectResults(t, tc.query, tc.src, ""); got != tc.want {
@@ -685,9 +664,6 @@ func TestSharedLocalOnly(t *testing.T) {
 		{"scope the flow does not follow", `function f($a){$u=scandir($a); probe($u); yield 1;}`, "scandir($a)"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := sharedDefectResults(t, "only", tc.src, ""); got != tc.want {
-				t.Fatalf("only=%q, want %q", got, tc.want)
-			}
 			if tc.want == "" {
 				return
 			}

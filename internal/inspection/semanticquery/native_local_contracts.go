@@ -81,61 +81,6 @@ func NativeSameValue(ctx *analysis.Context, a, b syntax.Expr) bool {
 	return av != nil && av == bv && !nativeStaticReplaced(ctx, a, b, x, y)
 }
 
-// NativeConditionUse returns the truthiness expression containing a call.
-// Integer sentinel comparisons are deliberately excluded.
-// A first-class callable creates a closure and has no result to test; only a
-// plain assignment of the result keeps its value as the tested operand.
-func NativeConditionUse(ctx *analysis.Context, call *syntax.FuncCall, booleanComparisons bool) syntax.Expr {
-	if call.Args != nil && len(call.Args.Args) == 1 {
-		if _, ok := call.Args.Args[0].(*syntax.VariadicPlaceholder); ok {
-			return nil
-		}
-	}
-	var e syntax.Expr = call
-	for {
-		switch p := e.Parent().(type) {
-		case *syntax.Paren:
-			e = p
-		case *syntax.Assign:
-			if p.Op.Kind != syntax.TEqual || p.Value != e {
-				return nil
-			}
-			e = p
-		case *syntax.Unary:
-			if p.Op.Kind != syntax.TExclaim {
-				return nil
-			}
-			e = p
-		case *syntax.Binary:
-			if !booleanComparisons {
-				return nil
-			}
-			if p.Op.Kind != syntax.TIsEqual && p.Op.Kind != syntax.TIsNotEqual && p.Op.Kind != syntax.TIsIdentical && p.Op.Kind != syntax.TIsNotIdentical {
-				return nil
-			}
-			other := p.Right
-			if other == e {
-				other = p.Left
-			}
-			c, ok := other.(*syntax.ConstFetch)
-			if !ok || c.Name == nil || (!strings.EqualFold(c.Name.Value, "true") && !strings.EqualFold(c.Name.Value, "false")) {
-				return nil
-			}
-			e = p
-		case *syntax.If, *syntax.ElseIf, *syntax.While, *syntax.DoWhile:
-			return e
-		case *syntax.For:
-			// Only the last condition expression decides the loop.
-			if n := len(p.Cond); n == 0 || p.Cond[n-1] != e {
-				return nil
-			}
-			return e
-		default:
-			return nil
-		}
-	}
-}
-
 // NativeAttributeFlags resolves the independently declared attribute contract.
 func NativeAttributeFlags(ctx *analysis.Context, a *syntax.Attribute) (string, int64, bool) {
 	fqn := ctx.Names().Class(a.Name.Value, a.Name.Span().Start)
@@ -258,103 +203,6 @@ func NativeFixedArraySize(ctx *analysis.Context, e syntax.Expr, at syntax.Node) 
 	return size, true
 }
 
-// NativeFixedArraySlots tracks explicit local population and unsets.
-func NativeFixedArraySlots(ctx *analysis.Context, e syntax.Expr, at syntax.Node) map[int64]bool {
-	slots := map[int64]bool{}
-	if c, ok := NativeValue(ctx, e).(*syntax.StaticCall); ok {
-		entries, known := NativeArrayEntries(ctx, CallArgument(c.Args, 0, "array"))
-		if known {
-			keep := true
-			if preserve, state := CallArgumentBinding(c.Args, 1, "preserveKeys"); state != ArgumentMissing {
-				var known bool
-				if keep, known = NativeTruth(ctx, preserve); !known {
-					return slots
-				}
-			}
-			if !keep {
-				for i := range len(entries) {
-					slots[int64(i)] = true
-				}
-			} else {
-				for key := range entries {
-					if strings.HasPrefix(key, "i:") {
-						i, err := strconv.ParseInt(key[2:], 10, 64)
-						if err == nil {
-							slots[i] = true
-						}
-					}
-				}
-			}
-		}
-	}
-	scope := syntax.EnclosingVariableScope(at)
-	if scope == nil {
-		scope = ctx.File.Stmts[0].Parent()
-	}
-	scan := func(n syntax.Node) bool {
-		switch x := n.(type) {
-		case *syntax.Assign:
-			if slot, ok := x.Var.(*syntax.ArrayDimFetch); ok && NativeSameValue(ctx, slot.Var, e) && NativeStateDominates(x, at) {
-				i, k := NativeInt(ctx, slot.Dim)
-				if k {
-					slots[i] = true
-				}
-			}
-		case *syntax.MethodCall:
-			if NativeMethod(ctx, x, "SplFixedArray", "setSize") && NativeSameValue(ctx, x.Var, e) && NativeDominates(x, at) {
-				size, known := NativeInt(ctx, CallArgument(x.Args, 0, "size"))
-				if !known {
-					clear(slots)
-				} else if size >= 0 {
-					for key := range slots {
-						if key >= size {
-							delete(slots, key)
-						}
-					}
-				}
-			}
-		case *syntax.Unset:
-			for _, v := range x.Vars {
-				if slot, ok := v.(*syntax.ArrayDimFetch); ok && NativeSameValue(ctx, slot.Var, e) && NativeStateDominates(x, at) {
-					i, k := NativeInt(ctx, slot.Dim)
-					if k {
-						delete(slots, i)
-					}
-				}
-			}
-		}
-		return true
-	}
-	for _, event := range nativeContractEvents(ctx, scope) {
-		if event.Span().Start >= at.Span().Start {
-			break
-		}
-		scan(event)
-	}
-	return slots
-}
-
-// NativeStoredArray proves the last direct storage assignment is an array.
-func NativeStoredArray(ctx *analysis.Context, slot *syntax.ArrayDimFetch, at syntax.Node) bool {
-	found := false
-	scope := syntax.EnclosingVariableScope(at)
-	scan := func(n syntax.Node) bool {
-		if a, ok := n.(*syntax.Assign); ok && NativeDominates(a, at) {
-			if s, ok := a.Var.(*syntax.ArrayDimFetch); ok && NativeSameValue(ctx, s.Var, slot.Var) && NativeSameValue(ctx, s.Dim, slot.Dim) {
-				found = NativeArray(ctx, a.Value) != nil
-			}
-		}
-		return true
-	}
-	for _, event := range nativeContractEvents(ctx, scope) {
-		if event.Span().Start >= at.Span().Start {
-			break
-		}
-		scan(event)
-	}
-	return found
-}
-
 // NativeStreamMode proves a guarded successful local fopen mode.
 func NativeStreamMode(ctx *analysis.Context, h, at syntax.Expr) (string, bool) {
 	c, ok := NativeValue(ctx, h).(*syntax.FuncCall)
@@ -405,7 +253,7 @@ func NativeCallSucceeded(ctx *analysis.Context, c, at syntax.Expr) bool {
 func NativeStreamCalls(ctx *analysis.Context, at, h syntax.Expr, names ...string) []*syntax.FuncCall {
 	var out []*syntax.FuncCall
 	scope := syntax.EnclosingVariableScope(at)
-	for _, event := range nativeContractEvents(ctx, scope) {
+	for _, event := range ContractEvents(ctx, scope) {
 		if event.Span().Start >= at.Span().Start {
 			break
 		}
@@ -518,19 +366,6 @@ func NativeLocalResultOf(ctx *analysis.Context, e syntax.Expr, failure string, p
 		return nil
 	}
 	return nativeLocalValue(ctx, e, failure, produced)
-}
-
-// NativeLocalOnly is NativeLocalValue for an inspection that needs the one
-// value a variable holds wherever the read runs: nil when the producers of
-// several paths reach the read, or one producer and a path that left the
-// variable unknown. NativeLocalValue answers such a read with a call result
-// no guard covers, which is what a failure check asks, not what the variable
-// is known to hold.
-func NativeLocalOnly(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
-	if reaching, single := ctx.Flow().Reaching(e); !single && len(reaching) > 0 {
-		return nil
-	}
-	return NativeLocalValue(ctx, e)
 }
 
 func nativeLocalValue(ctx *analysis.Context, e syntax.Expr, failure string, produced func(syntax.Expr) bool) syntax.Expr {
@@ -667,31 +502,6 @@ func nativeUnguardedResult(ctx *analysis.Context, e syntax.Expr, failure string,
 	return nil
 }
 
-// NativeStateDominates permits ordinary lifecycle statement effects such as
-// unset, in addition to expression statements.
-func NativeStateDominates(before, at syntax.Node) bool {
-	if NativeDominates(before, at) {
-		return true
-	}
-	if before.Span().End > at.Span().Start {
-		return false
-	}
-	stmt, ok := before.(syntax.Stmt)
-	if !ok {
-		return false
-	}
-	owner := stmt.Parent()
-	if _, ok := syntax.StmtListOf(owner); !ok {
-		return false
-	}
-	for p := at; p != nil; p = p.Parent() {
-		if p == owner {
-			return true
-		}
-	}
-	return false
-}
-
 type nativeContractEventKey struct{ scope syntax.Node }
 
 // nativeContractFacts are the lexical facts of one variable scope: its state
@@ -719,9 +529,10 @@ func (f *nativeContractFacts) localWrites(ctx *analysis.Context, scope syntax.No
 	return &f.writes
 }
 
-// Cache lexical state events once per parsed scope; larger scopes deliberately
-// establish no additional local facts rather than repeatedly scanning them.
-func nativeContractEvents(ctx *analysis.Context, scope syntax.Node) []syntax.Node {
+// ContractEvents is ScopeCallEvents for scope itself: its assignments,
+// unsets and calls, cached once per scope; none past 512, so larger scopes
+// establish no local facts rather than being scanned again.
+func ContractEvents(ctx *analysis.Context, scope syntax.Node) []syntax.Node {
 	return nativeContractScope(ctx, scope).nodes
 }
 
@@ -754,7 +565,7 @@ func nativeContractScope(ctx *analysis.Context, scope syntax.Node) *nativeContra
 // proven allocation, including factory allocations without graph identities.
 func NativeMethodStateCalls(ctx *analysis.Context, at syntax.Node, e syntax.Expr, names ...string) []*syntax.MethodCall {
 	var out []*syntax.MethodCall
-	for _, n := range nativeContractEvents(ctx, syntax.EnclosingVariableScope(at)) {
+	for _, n := range ContractEvents(ctx, syntax.EnclosingVariableScope(at)) {
 		if n.Span().Start >= at.Span().Start {
 			break
 		}

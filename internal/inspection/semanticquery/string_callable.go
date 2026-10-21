@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"custos/internal/inspection/analysis"
-	"custos/internal/semantic/names"
 )
 
 // StringCallableFunction spells the function named by a string callable fn
@@ -24,18 +23,4 @@ func StringCallableFunction(ctx *analysis.Context, fn string, at uint32) string 
 		return fn
 	}
 	return `\` + fn
-}
-
-// StringCallableClass spells the class named in a string callable (`'Foo'`
-// in `['Foo', 'm']` or `'Foo::m'`) so that `Class::m()` written at offset at
-// names the same class: a leading `\` is added when the name, written as-is,
-// would resolve to another class. self/static/parent are kept.
-func StringCallableClass(ctx *analysis.Context, class string, at uint32) string {
-	if strings.HasPrefix(class, `\`) || class == "" || names.IsSpecialClass(class) {
-		return class
-	}
-	if strings.EqualFold(ctx.Names().Class(class, at), class) {
-		return class
-	}
-	return `\` + class
 }

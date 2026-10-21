@@ -8,6 +8,7 @@ import (
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/types"
 )
 
 const message = "Validate the authentication tag length before decrypting."
@@ -43,7 +44,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	want := int64(ctx.Int("tagLength"))
 	size, known := ctx.Flow().ExactLength(tag)
-	if (!known || size != want) && !semanticquery.NativeLengthProven(ctx, tag, want) {
+	if (!known || size != want) && !lengthProven(ctx, tag, want) {
 		ctx.ReportNode(tag, message)
 	}
 }
@@ -67,4 +68,17 @@ func request(ctx *analysis.Context, e syntax.Expr) (global, key string, ok bool)
 	}
 	key, ok = semanticquery.NativeString(ctx, x.Dim)
 	return v.Name, key, ok
+}
+
+// lengthProven proves that input is exactly length bytes long where it
+// is read: the flow facts say so, or, in a scope without goto labels before
+// it, the strlen() tests guarding it leave only that length.
+func lengthProven(ctx *analysis.Context, input syntax.Expr, length int64) bool {
+	if input == nil {
+		return false
+	}
+	if n, known := ctx.Flow().ExactLength(input); known && n == length {
+		return true
+	}
+	return !semanticquery.NativeLabelled(ctx, input) && ctx.Types().Native().NarrowedFrom(input, types.String).LengthsOnly(length, length)
 }

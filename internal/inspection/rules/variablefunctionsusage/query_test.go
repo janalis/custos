@@ -1,9 +1,10 @@
-package semanticquery
+package variablefunctionsusage
 
 import (
 	"testing"
 
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 )
@@ -41,7 +42,7 @@ namespace { $y = 1; }
 		{"Util\\fmt", global, `Util\fmt`},
 	}
 	for _, c := range fn {
-		if got := StringCallableFunction(ctx, c.in, c.at); got != c.want {
+		if got := semanticquery.StringCallableFunction(ctx, c.in, c.at); got != c.want {
 			t.Errorf("function %q: got %q, want %q", c.in, got, c.want)
 		}
 	}
@@ -53,7 +54,7 @@ namespace { $y = 1; }
 		{"Repo", ns, `\Repo`}, {"Lib", ns, `\Lib`}, {"self", ns, "self"}, {"Repo", global, "Repo"}, {"\\A\\B", ns, `\A\B`},
 	}
 	for _, c := range cls {
-		if got := StringCallableClass(ctx, c.in, c.at); got != c.want {
+		if got := stringCallableClass(ctx, c.in, c.at); got != c.want {
 			t.Errorf("class %q: got %q, want %q", c.in, got, c.want)
 		}
 	}

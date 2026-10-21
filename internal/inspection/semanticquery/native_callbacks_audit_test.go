@@ -56,6 +56,14 @@ func BenchmarkNativeCallbackReachable(b *testing.B) {
 	}
 }
 
+func TestAuditCurlMethodEscape(t *testing.T) {
+	probeNative(t, "class Holder{function retain($h){}} $owner=new Holder();$h=curl_init('https://example.invalid');$owner->retain($h);probe($h);", func(ctx *analysis.Context, c *syntax.FuncCall) {
+		if NativeCurlDefault(ctx, c, CallArgument(c.Args, 0, ""), "CURLOPT_RETURNTRANSFER") {
+			t.Fatal("method escape preserved default proof")
+		}
+	})
+}
+
 func TestAuditFailureGuardsTrackReachingValue(t *testing.T) {
 	for _, src := range []string{
 		"$v=preg_replace('/x/','y','x');if($v!==null){$v=preg_replace('/x/','y','x');probe($v);}",
@@ -69,17 +77,4 @@ func TestAuditFailureGuardsTrackReachingValue(t *testing.T) {
 			})
 		})
 	}
-	probeNative(t, "$v=fread($h,4);if(strlen($v)===4){$v=fread($h,4);probe($v);}", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if NativeLengthProven(ctx, CallArgument(c.Args, 0, ""), 4) {
-			t.Fatal("old length applied to new read")
-		}
-	})
-}
-
-func TestAuditCurlMethodEscape(t *testing.T) {
-	probeNative(t, "class Holder{function retain($h){}} $owner=new Holder();$h=curl_init('https://example.invalid');$owner->retain($h);probe($h);", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if NativeCurlDefault(ctx, c, CallArgument(c.Args, 0, ""), "CURLOPT_RETURNTRANSFER") {
-			t.Fatal("method escape preserved default proof")
-		}
-	})
 }

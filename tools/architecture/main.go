@@ -67,6 +67,15 @@ func check(root string) ([]string, error) {
 	constructors := map[string]bool{}
 	ruleDirs := map[string]bool{}
 	listed := map[string]int{}
+	// Exported semanticquery declarations and the packages that use them.
+	shared := map[string]string{}
+	users := map[string]map[string]bool{}
+	use := func(name, user string) {
+		if users[name] == nil {
+			users[name] = map[string]bool{}
+		}
+		users[name][user] = true
+	}
 	for _, base := range []string{"internal", "cmd"} {
 		err := filepath.WalkDir(filepath.Join(root, base), func(path string, entry fs.DirEntry, walkErr error) error {
 			if walkErr != nil {
@@ -98,6 +107,48 @@ func check(root string) ([]string, error) {
 					report("%s: forbidden dependency on %s", rel, target)
 				}
 			}
+			if from == sharedQueries {
+				declared := map[*ast.Ident]bool{}
+				for _, decl := range file.Decls {
+					switch decl := decl.(type) {
+					case *ast.FuncDecl:
+						if decl.Recv == nil && decl.Name.IsExported() {
+							shared[decl.Name.Name] = rel
+							declared[decl.Name] = true
+						}
+					case *ast.GenDecl:
+						for _, spec := range decl.Specs {
+							var names []*ast.Ident
+							switch spec := spec.(type) {
+							case *ast.TypeSpec:
+								names = []*ast.Ident{spec.Name}
+							case *ast.ValueSpec:
+								names = spec.Names
+							}
+							for _, name := range names {
+								if name.IsExported() {
+									shared[name.Name] = rel
+									declared[name] = true
+								}
+							}
+						}
+					}
+				}
+				ast.Inspect(file, func(node ast.Node) bool {
+					if id, ok := node.(*ast.Ident); ok && !declared[id] && id.IsExported() {
+						use(id.Name, from)
+					}
+					return true
+				})
+			}
+			ast.Inspect(file, func(node ast.Node) bool {
+				if sel, ok := node.(*ast.SelectorExpr); ok {
+					if x, ok := sel.X.(*ast.Ident); ok && imports[x.Name] == "custos/"+sharedQueries {
+						use(sel.Sel.Name, from)
+					}
+				}
+				return true
+			})
 			isRule := strings.HasPrefix(from, "internal/inspection/rules/")
 			if isRule {
 				ruleDirs[from] = true
@@ -215,9 +266,22 @@ func check(root string) ([]string, error) {
 			report("%s: catalogue references missing constructor", owner)
 		}
 	}
+	for name, rel := range shared {
+		if len(users[name]) == 1 {
+			for user := range users[name] {
+				if strings.HasPrefix(user, "internal/inspection/rules/") {
+					report("%s: %s is used only by %s; keep it in that rule", rel, name, user)
+				}
+			}
+		}
+	}
 	sort.Strings(problems)
 	return problems, nil
 }
+
+// sharedQueries holds semantic queries several rules share; a query only
+// one rule uses belongs in that rule.
+const sharedQueries = "internal/inspection/semanticquery"
 
 func allowed(from, to string) bool {
 	within := func(prefix string) bool { return to == prefix || strings.HasPrefix(to, prefix+"/") }

@@ -39,23 +39,6 @@ func NativeNarrowedExcludes(ctx *analysis.Context, x syntax.Expr, seed types.Typ
 	return !t.IsUnknown() && !MayHoldAtom(t, atom)
 }
 
-// NativeNarrowedExcludesAt reports whether the conditions guarding at, a
-// later expression that read x still reaches with the same value (a call
-// consuming what was computed from x), prove x does not hold atom there. Only
-// a plain local that is not static is followed.
-func NativeNarrowedExcludesAt(ctx *analysis.Context, x, at syntax.Expr, atom string) bool {
-	v, ok := syntax.UnwrapParens(x).(*syntax.Variable)
-	if !ok || NativeStaticLocal(ctx, v) || NativeLabelled(ctx, at) {
-		return false
-	}
-	env := ctx.Types().Native()
-	if !env.ReachesUnchanged(v, at) {
-		return false
-	}
-	t := env.TypeOfVarAt(v.Name, at)
-	return !t.IsUnknown() && !MayHoldAtom(t, atom)
-}
-
 // MayHoldAtom reports whether a value of type t may be atom (`null`,
 // `false`, `true`): t names it, or a type that includes it (`bool`, `mixed`).
 func MayHoldAtom(t types.Type, atom string) bool {

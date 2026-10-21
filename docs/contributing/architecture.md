@@ -253,7 +253,9 @@ standard packages that reach the system (`os`, `os/...`, `syscall`, `net`,
 `net/http`): what a rule needs from outside the source, such as the project
 root of a file (`Context.ProjectPath`), comes from the adapter through the
 analysis configuration. A package missing from the tool's table may import
-nothing internal until it is added there. Test imports may cross boundaries
+nothing internal until it is added there. An exported `semanticquery`
+declaration that a single inspection uses is reported: it belongs in that
+inspection's package. Test imports may cross boundaries
 to exercise complete execution paths.
 
 ## Extending features

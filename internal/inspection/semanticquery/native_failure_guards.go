@@ -7,19 +7,6 @@ import (
 	"custos/internal/semantic/types"
 )
 
-// NativeLengthProven proves that input is exactly length bytes long where it
-// is read: the flow facts say so, or, in a scope without goto labels before
-// it, the strlen() tests guarding it leave only that length.
-func NativeLengthProven(ctx *analysis.Context, input syntax.Expr, length int64) bool {
-	if input == nil {
-		return false
-	}
-	if n, known := ctx.Flow().ExactLength(input); known && n == length {
-		return true
-	}
-	return !NativeLabelled(ctx, input) && ctx.Types().Native().NarrowedFrom(input, types.String).LengthsOnly(length, length)
-}
-
 // NativeFailureExcluded proves that the failure value sentinel (`null`,
 // `false`) cannot reach input: the flow facts exclude it, or, in a scope
 // without goto labels before it, the conditions guarding input narrow it out
@@ -36,42 +23,6 @@ func NativeFailureExcluded(ctx *analysis.Context, input syntax.Expr, seed types.
 // NativeFailureFlowOnly): with several, only the flow facts do.
 func NativeFailureExcludedSingle(ctx *analysis.Context, input syntax.Expr, seed types.Type, sentinel string) bool {
 	return ctx.Flow().Excludes(input, sentinel) || !NativeFailureFlowOnly(ctx, input) && NativeNarrowedExcludes(ctx, input, seed, sentinel)
-}
-
-// NativeIntegerAllowsZero proves the validator options neither exclude zero
-// nor change the failure sentinel to null.
-func NativeIntegerAllowsZero(ctx *analysis.Context, options syntax.Expr) bool {
-	if options == nil {
-		return true
-	}
-	if n, known := NativeInt(ctx, options); known {
-		return n&134217728 == 0 // FILTER_NULL_ON_FAILURE
-	}
-	entries, known := NativeArrayEntries(ctx, options)
-	if !known {
-		return false
-	}
-	if flags := entries["s:flags"]; flags != nil {
-		present, known := NativeFlag(ctx, flags, 134217728)
-		if !known || present {
-			return false
-		}
-	}
-	if bounds := entries["s:options"]; bounds != nil {
-		values, known := NativeArrayEntries(ctx, bounds)
-		if !known {
-			return false
-		}
-		for _, key := range []string{"min_range", "max_range"} {
-			if value := values["s:"+key]; value != nil {
-				n, known := NativeInt(ctx, value)
-				if !known || (key == "min_range" && n > 0) || (key == "max_range" && n < 0) {
-					return false
-				}
-			}
-		}
-	}
-	return true
 }
 
 // NativeCurlDefault proves a local handle retains an option's disabled default.

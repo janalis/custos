@@ -41,7 +41,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		// Both the index and its image must be the one value every path
 		// agrees on: a packed colour or a truecolor image on another path
 		// makes the shift valid there.
-		c, ok := semanticquery.NativeLocalOnly(ctx, s.Left).(*syntax.FuncCall)
+		c, ok := localOnly(ctx, s.Left).(*syntax.FuncCall)
 		if !ok || !semanticquery.NativeBuiltin(ctx, c, "imagecolorallocate") {
 			continue
 		}
@@ -49,7 +49,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if !semanticquery.ExpansionDUnaliased(ctx, e, n) {
 			return
 		}
-		creation, ok := semanticquery.NativeLocalOnly(ctx, e).(*syntax.FuncCall)
+		creation, ok := localOnly(ctx, e).(*syntax.FuncCall)
 		if !ok || !semanticquery.NativeBuiltin(ctx, creation, "imagecreate") {
 			continue
 		}
@@ -82,4 +82,17 @@ func converted(ctx *analysis.Context, creation, alloc *syntax.FuncCall) bool {
 		syntax.InspectFile(ctx.File, visit)
 	}
 	return found
+}
+
+// localOnly is NativeLocalValue for an inspection that needs the one
+// value a variable holds wherever the read runs: nil when the producers of
+// several paths reach the read, or one producer and a path that left the
+// variable unknown. NativeLocalValue answers such a read with a call result
+// no guard covers, which is what a failure check asks, not what the variable
+// is known to hold.
+func localOnly(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
+	if reaching, single := ctx.Flow().Reaching(e); !single && len(reaching) > 0 {
+		return nil
+	}
+	return semanticquery.NativeLocalValue(ctx, e)
 }

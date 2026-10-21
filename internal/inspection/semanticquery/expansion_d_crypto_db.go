@@ -75,7 +75,7 @@ func SameStableLocal(ctx *analysis.Context, a, b syntax.Expr) bool {
 // calls of the scope of at, nested scopes excluded, cached per scope; none
 // when there are more than 512.
 func ScopeCallEvents(ctx *analysis.Context, at syntax.Node) []syntax.Node {
-	return nativeContractEvents(ctx, syntax.EnclosingVariableScope(at))
+	return ContractEvents(ctx, syntax.EnclosingVariableScope(at))
 }
 
 // KnownByteLength returns the length in bytes of e when it is known: a

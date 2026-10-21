@@ -2,6 +2,7 @@
 package splfixedarrayshrinkdiscardsvalues
 
 import (
+	"strconv"
 	"strings"
 
 	"custos/internal/inspection/analysis"
@@ -41,7 +42,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known || !ok || size < 0 || size >= old {
 		return
 	}
-	slots := semanticquery.NativeFixedArraySlots(ctx, c.Var, c)
+	slots := fixedArraySlots(ctx, c.Var, c)
 	if v, ok := c.Var.(*syntax.Variable); ok && !replay(ctx, v, c, slots) {
 		return
 	}
@@ -110,7 +111,7 @@ func step(ctx *analysis.Context, v *syntax.Variable, at *syntax.MethodCall, slot
 		slot, known := semanticquery.NativeInt(ctx, p.Dim)
 		switch owner := p.Parent().(type) {
 		case *syntax.Assign:
-			if owner.Var == p && known && same && semanticquery.NativeStateDominates(owner, at) {
+			if owner.Var == p && known && same && stateDominates(owner, at) {
 				slots[slot] = true
 			}
 		case *syntax.Unset:
@@ -152,6 +153,107 @@ func step(ctx *analysis.Context, v *syntax.Variable, at *syntax.MethodCall, slot
 			return true
 		default:
 			return readers[method]
+		}
+	}
+	return false
+}
+
+// fixedArraySlots tracks explicit local population and unsets.
+func fixedArraySlots(ctx *analysis.Context, e syntax.Expr, at syntax.Node) map[int64]bool {
+	slots := map[int64]bool{}
+	if c, ok := semanticquery.NativeValue(ctx, e).(*syntax.StaticCall); ok {
+		entries, known := semanticquery.NativeArrayEntries(ctx, semanticquery.CallArgument(c.Args, 0, "array"))
+		if known {
+			keep := true
+			if preserve, state := semanticquery.CallArgumentBinding(c.Args, 1, "preserveKeys"); state != semanticquery.ArgumentMissing {
+				var known bool
+				if keep, known = semanticquery.NativeTruth(ctx, preserve); !known {
+					return slots
+				}
+			}
+			if !keep {
+				for i := range len(entries) {
+					slots[int64(i)] = true
+				}
+			} else {
+				for key := range entries {
+					if strings.HasPrefix(key, "i:") {
+						i, err := strconv.ParseInt(key[2:], 10, 64)
+						if err == nil {
+							slots[i] = true
+						}
+					}
+				}
+			}
+		}
+	}
+	scope := syntax.EnclosingVariableScope(at)
+	if scope == nil {
+		scope = ctx.File.Stmts[0].Parent()
+	}
+	scan := func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Assign:
+			if slot, ok := x.Var.(*syntax.ArrayDimFetch); ok && semanticquery.NativeSameValue(ctx, slot.Var, e) && stateDominates(x, at) {
+				i, k := semanticquery.NativeInt(ctx, slot.Dim)
+				if k {
+					slots[i] = true
+				}
+			}
+		case *syntax.MethodCall:
+			if semanticquery.NativeMethod(ctx, x, "SplFixedArray", "setSize") && semanticquery.NativeSameValue(ctx, x.Var, e) && semanticquery.NativeDominates(x, at) {
+				size, known := semanticquery.NativeInt(ctx, semanticquery.CallArgument(x.Args, 0, "size"))
+				if !known {
+					clear(slots)
+				} else if size >= 0 {
+					for key := range slots {
+						if key >= size {
+							delete(slots, key)
+						}
+					}
+				}
+			}
+		case *syntax.Unset:
+			for _, v := range x.Vars {
+				if slot, ok := v.(*syntax.ArrayDimFetch); ok && semanticquery.NativeSameValue(ctx, slot.Var, e) && stateDominates(x, at) {
+					i, k := semanticquery.NativeInt(ctx, slot.Dim)
+					if k {
+						delete(slots, i)
+					}
+				}
+			}
+		}
+		return true
+	}
+	for _, event := range semanticquery.ContractEvents(ctx, scope) {
+		if event.Span().Start >= at.Span().Start {
+			break
+		}
+		scan(event)
+	}
+	return slots
+}
+
+// stateDominates permits ordinary lifecycle statement effects such as
+// unset, in addition to expression statements.
+func stateDominates(before, at syntax.Node) bool {
+	if semanticquery.NativeDominates(before, at) {
+		return true
+	}
+	if before.Span().End > at.Span().Start {
+		return false
+	}
+	stmt, ok := before.(syntax.Stmt)
+	if !ok {
+		return false
+	}
+	owner := stmt.Parent()
+	if _, ok := syntax.StmtListOf(owner); !ok {
+		return false
+	}
+	for p := at; p != nil; p = p.Parent() {
+		if p == owner {
+			return true
 		}
 	}
 	return false
