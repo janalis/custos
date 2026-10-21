@@ -111,7 +111,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 		if (truth && n.Op.Kind == syntax.TIsIdentical) || (!truth && n.Op.Kind == syntax.TIsNotIdentical) {
 			if variable, ok := syntax.UnwrapParens(n.Left).(*syntax.Variable); ok && variable.NameExpr == nil && !mirrored {
 				if _, literal := literalText(n.Right); literal {
-					f.vars[variable.Name] = Value{Complete: true, Expr: n.Right, plain: true, deep: true}
+					f.setVar(variable.Name, Value{Complete: true, Expr: n.Right, plain: true, deep: true})
 				}
 			}
 		}
@@ -144,7 +144,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 						v := f.vars[variable.Name]
 						v.Safe |= Header
 						v.headerMask = 3
-						f.vars[variable.Name] = v
+						f.setVar(variable.Name, v)
 					}
 
 				}
@@ -160,7 +160,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 							v := f.vars[variable.Name]
 							v.Length = number
 							v.LengthKnown = true
-							f.vars[variable.Name] = v
+							f.setVar(variable.Name, v)
 						}
 					}
 
@@ -229,14 +229,14 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			case "is_string", "is_array", "is_int", "is_integer", "is_long", "is_float", "is_double", "is_numeric", "is_resource", "is_bool", "is_null", "is_scalar":
 				// None of these is an object, and only an array holds any.
 				held.plain, held.deep = true, held.deep || name != "is_array"
-				f.vars[variable.Name] = held
+				f.setVar(variable.Name, held)
 			}
 		}
 		v := f.vars[variable.Name]
 		if truth && (name == "ctype_digit" || name == "is_int" || name == "is_integer") {
 			// Digits alone, or a number, are safe in every text context.
 			v.Safe |= everyContext
-			f.vars[variable.Name] = v
+			f.setVar(variable.Name, v)
 		}
 		if truth && name == "in_array" && len(args) == 3 {
 			list, strict := args[1], args[2]
@@ -261,7 +261,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			}
 			v.Sources = nil
 			v.Safe = everyContext | URL | Path
-			f.vars[variable.Name] = v
+			f.setVar(variable.Name, v)
 			// The value is one of the literals: neither false nor null.
 			exclude(variable, f, true, true)
 		}
@@ -280,7 +280,7 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			if v.headerMask == 3 {
 				v.Safe |= Header
 			}
-			f.vars[variable.Name] = v
+			f.setVar(variable.Name, v)
 		}
 	}
 }
@@ -350,7 +350,7 @@ func (f *frame) excluding(name string, v Value, nonFalse, nonNull bool) {
 		v.NonNull = true
 	}
 	v.origins = v.origins.excluding(nonFalse, nonNull, f.owner)
-	f.vars[name] = v
+	f.setVar(name, v)
 }
 
 // comparison is a test without effects that decides the same way again
@@ -440,7 +440,7 @@ func untest(x syntax.Expr, f *frame, identity bool) {
 			}
 			if v, tracked := f.vars[n.Name]; tracked && v.tested != nil && !strict(v.tested) {
 				v.tested = nil
-				f.vars[n.Name] = v
+				f.setVar(n.Name, v)
 			}
 			// What a left operand decided from it may no longer hold.
 			for _, known := range f.related {
@@ -468,7 +468,7 @@ func (e *Env) witness(n *syntax.Binary, f *frame) {
 	for _, operand := range [2]syntax.Expr{c.left, c.right} {
 		if v, tracked := f.vars[plainVariable(operand)]; tracked {
 			v.tested = n
-			f.vars[plainVariable(operand)] = v
+			f.setVar(plainVariable(operand), v)
 		}
 	}
 }
@@ -635,7 +635,9 @@ func (e *Env) refineAssigned(operation *syntax.Binary, f *frame, truth bool) {
 	}
 	name := stored.Var.(*syntax.Variable).Name
 	produced := syntax.UnwrapParens(stored.Value)
-	alone := frame{owner: f.owner, vars: map[string]Value{name: {Complete: true, Expr: produced}}}
+	alone := frame{owner: f.owner}
+	alone.resetVars()
+	alone.vars[name] = Value{Complete: true, Expr: produced}
 	e.refine(cond, &alone, truth)
 	fact := alone.vars[name]
 	v, tracked := f.vars[name]
@@ -648,7 +650,7 @@ func (e *Env) refineAssigned(operation *syntax.Binary, f *frame, truth bool) {
 		v = f.vars[name]
 	}
 	v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = operation, fact.NonFalse, fact.NonNull, false, false
-	f.vars[name] = v
+	f.setVar(name, v)
 	if e.scopes[syntax.EnclosingVariableScope(stored)].stale[stored] || v.Expr != nil || v.origins == nil {
 		return
 	}
@@ -659,7 +661,7 @@ func (e *Env) refineAssigned(operation *syntax.Binary, f *frame, truth bool) {
 		}
 	}
 	v.origins = finishOrigins(n, f.owner, v.origins)
-	f.vars[name] = v
+	f.setVar(name, v)
 }
 
 // assignedInPlace finds the plain assignment a condition tests directly:

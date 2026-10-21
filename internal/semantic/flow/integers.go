@@ -222,7 +222,7 @@ func (e *Env) refineInts(n *syntax.Binary, f *frame, truth bool) {
 	}
 	if lo <= hi {
 		v.interval = &intInterval{lo, hi}
-		f.vars[variable.Name] = v
+		f.setVar(variable.Name, v)
 	}
 }
 

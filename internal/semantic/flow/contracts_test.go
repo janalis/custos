@@ -281,20 +281,20 @@ func TestMalformedOrDynamicCallsDiscardContracts(t *testing.T) {
 func TestFrameJoinsRequireAgreement(t *testing.T) {
 	a := frame{vars: map[string]Value{"x": {Complete: true, Sources: []Source{{Kind: "a"}}}}, states: map[uint32]State{1: {Operation: "open"}}}
 	b := frame{vars: map[string]Value{"x": {Complete: true, Sources: []Source{{Kind: "b"}}}}, states: map[uint32]State{1: {Operation: "close"}}}
-	joined := clone(a)
+	joined := clone(&a)
 	if changed, _ := joined.absorb(b); !changed {
 		t.Fatal("different origins agreed")
 	}
 	b.vars = a.vars
-	joined = clone(a)
+	joined = clone(&a)
 	if changed, _ := joined.absorb(b); !changed {
 		t.Fatal("different operations agreed")
 	}
-	joined = clone(a)
+	joined = clone(&a)
 	if changed, work := joined.absorb(a); changed || work == 0 {
 		t.Fatal("a path joined with itself changed")
 	}
-	joined = clone(a)
+	joined = clone(&a)
 	joined.absorb(frame{vars: map[string]Value{}, states: map[uint32]State{}})
 	if joined.vars["x"].Complete || len(joined.states) != 0 {
 		t.Fatal("missing path retained definite facts")

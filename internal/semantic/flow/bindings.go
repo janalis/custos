@@ -24,7 +24,7 @@ func (e *Env) bindings(scope syntax.Node, r *scopeResult, initial *frame) {
 		case p.Variadic:
 			// The name holds an array of references: only a write to one of
 			// its elements reaches an argument (see Summarize).
-			initial.vars[received(p.Var.Name)] = initial.vars[p.Var.Name]
+			initial.setVar(received(p.Var.Name), initial.vars[p.Var.Name])
 			initial.alias(p.Var.Name, aliasHeld)
 		default:
 			initial.receive(p.Var)
@@ -51,7 +51,7 @@ func received(name string) string { return "&" + name }
 // what it held.
 func (f *frame) receive(name *syntax.Variable) {
 	f.bind(name.Name, received(name.Name), name.Span().Start)
-	f.vars[received(name.Name)] = f.vars[name.Name]
+	f.setVar(received(name.Name), f.vars[name.Name])
 }
 
 // globals returns the names functions of the project bind with `global` or

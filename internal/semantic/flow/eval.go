@@ -67,7 +67,7 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 					r.globalNames = map[string]bool{}
 				}
 				r.globalNames[name] = true
-				f.vars[name] = unsettled(f.vars[name], e.held(name, r), r)
+				f.setVar(name, unsettled(f.vars[name], e.held(name, r), r))
 			}
 		}
 	case *syntax.Unset:
@@ -108,7 +108,7 @@ func (e *Env) transfer(n syntax.Node, f *frame, r *scopeResult) {
 			// The first invocation starts from the initial value, any other
 			// from what the function left (see declared).
 			held := known.state == staticHeld
-			f.vars[name] = Value{NonFalse: held && known.starts, entry: held, plain: known.plain, deep: known.deep}
+			f.setVar(name, Value{NonFalse: held && known.starts, entry: held, plain: known.plain, deep: known.deep})
 		}
 	default:
 		syntax.Children(n, func(child syntax.Node) {
@@ -150,7 +150,7 @@ func (e *Env) each(n *syntax.Foreach, f *frame, r *scopeResult) {
 			// Each element of the table is one uploaded file.
 			entry := f.vars[name]
 			entry.upload = uploadEntry
-			f.vars[name] = entry
+			f.setVar(name, entry)
 		}
 	}
 	if name := plainVariable(n.Key); name != "" && iterated.plain {
@@ -158,13 +158,13 @@ func (e *Env) each(n *syntax.Foreach, f *frame, r *scopeResult) {
 		// no object. Anything else that is iterated chooses its keys.
 		key := f.vars[name]
 		key.NonFalse, key.NonNull, key.plain, key.deep = true, true, true, true
-		f.vars[name] = key
+		f.setVar(name, key)
 	}
 	if name := plainVariable(n.Value); name != "" && iterated.deep && !n.ByRef {
 		// An array that holds no object yields none.
 		item := f.vars[name]
 		item.plain, item.deep = true, true
-		f.vars[name] = item
+		f.setVar(name, item)
 	}
 }
 
@@ -248,7 +248,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			// The offsets of the target are always evaluated; the right
 			// side runs only when the target is null.
 			e.operands(n.Var, f, r, depth+1)
-			assigned := clone(*f)
+			assigned := clone(f)
 			v = e.assign(n, &assigned, r, depth, true)
 			*f = rejoin(*f, assigned, r)
 			f.unmatchAll(r)
@@ -263,7 +263,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			e.eval(n.Name, f, r, depth+1)
 		}
 		if !e.options.Assertions && e.types.PHP.AtLeast(phpversion.PHP70) && e.types.BuiltinAssert(n) {
-			skipped := clone(*f)
+			skipped := clone(f)
 			v = e.call(n, n.Args, nil, f, r, depth)
 			*f = rejoin(skipped, *f, r)
 		} else {
@@ -277,7 +277,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		if e.types.LegacyAssertCode(n) {
 			f.definite = false
 			f.related = nil
-			f.vars = map[string]Value{}
+			f.resetVars()
 			f.states = nil
 			v = Value{}
 			r.complete = false
@@ -286,7 +286,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		if conditional(n) {
 			// The name and the arguments are not evaluated when the
 			// receiver is null.
-			called := clone(*f)
+			called := clone(f)
 			e.computed(n.Name, &called, r, depth)
 			v = e.call(n, n.Args, n.Var, &called, r, depth)
 			*f = rejoin(*f, called, r)
@@ -298,7 +298,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		e.computed(n.Class, f, r, depth)
 		if conditional(n.Class) {
 			// The call is not made when a null-safe link before it is null.
-			called := clone(*f)
+			called := clone(f)
 			e.computed(n.Name, &called, r, depth)
 			v = e.call(n, n.Args, nil, &called, r, depth)
 			*f = rejoin(*f, called, r)
@@ -350,13 +350,13 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			// The right operand runs only on the left operand's deciding outcome.
 			// The path that skips it saw the left operand decide the other way.
 			deciding := n.Op.Kind == syntax.TBooleanAnd || n.Op.Kind == syntax.TAnd
-			skipped := clone(*f)
+			skipped := clone(f)
 			e.refine(n.Left, &skipped, !deciding)
 			for name, refined := range skipped.vars {
 				// Only what the outcome excludes is kept: a value pinned
 				// or cleared by the test is another value to later reads.
 				if held := f.vars[name]; refined.Expr != held.Expr || len(refined.Sources) != len(held.Sources) {
-					skipped.vars[name] = held
+					skipped.setVar(name, held)
 				}
 			}
 			e.refine(n.Left, f, deciding)
@@ -408,13 +408,13 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 				if joined := f.vars[name]; notFalse || notNull {
 					joined.unless, joined.unlessFalse, joined.unlessNull = n, false, false
 					joined.skippedFalse, joined.skippedNull = notFalse, notNull
-					f.vars[name] = joined
+					f.setVar(name, joined)
 				}
 				break
 			}
 			*f = rejoin(skipped, *f, r)
 		case syntax.TCoalesce:
-			before := clone(*f)
+			before := clone(f)
 			right = e.eval(n.Right, f, r, depth+1)
 			*f = rejoin(before, *f, r)
 		default:
@@ -493,7 +493,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			}
 			break
 		}
-		other := clone(*f)
+		other := clone(f)
 		a := cond // The short form yields its condition.
 		if n.Then != nil {
 			e.refine(n.Cond, f, true)
@@ -512,7 +512,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		// match failed; `match (false)` reads them the other way round.
 		e.eval(n.Cond, f, r, depth+1)
 		subject := constantName(n.Cond)
-		rest := clone(*f)
+		rest := clone(f)
 		var fallback *syntax.MatchArm
 		arms := 0
 		result := func(arm *syntax.MatchArm, branch frame) {
@@ -538,7 +538,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 			for i, c := range arm.Conds {
 				e.eval(c, &rest, r, depth+1)
 				r.copies += len(rest.vars) + len(rest.states)
-				matched := clone(rest)
+				matched := clone(&rest)
 				if subject == "true" || subject == "false" {
 					e.refine(c, &matched, subject == "true")
 					if e.boolean(c) {
@@ -567,7 +567,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		}
 		v = e.eval(n.Var, f, r, depth+1)
 		if conditional(n.Var) {
-			indexed := clone(*f)
+			indexed := clone(f)
 			e.eval(n.Dim, &indexed, r, depth+1)
 			*f = rejoin(*f, indexed, r)
 		} else {
@@ -676,7 +676,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 		e.eval(n.Var, f, r, depth+1)
 		if conditional(n) {
 			// The name is not evaluated when the object is null.
-			read := clone(*f)
+			read := clone(f)
 			e.computed(n.Name, &read, r, depth)
 			*f = rejoin(*f, read, r)
 		} else {
@@ -731,7 +731,7 @@ func (e *Env) eval(x syntax.Expr, f *frame, r *scopeResult, depth int) Value {
 	case *syntax.Eval, *syntax.Include:
 		f.definite = false
 		f.related = nil
-		f.vars = map[string]Value{}
+		f.resetVars()
 		f.states = nil
 		v = Value{}
 		r.complete = false
@@ -954,7 +954,7 @@ func taken(target syntax.Expr, f *frame) {
 		if name := plainVariable(item.Value); name != "" {
 			slot := f.vars[name]
 			slot.plain, slot.deep = true, true
-			f.vars[name] = slot
+			f.setVar(name, slot)
 		} else {
 			taken(item.Value, f)
 		}
@@ -1456,7 +1456,7 @@ func (e *Env) invalidateEscaped(at syntax.Node, values []Value, f *frame, r *sco
 	for name, value := range f.vars {
 		if value.Identity != 0 && (all || identities[value.Identity]) {
 			value.Invalidated = at.Span().Start + 1
-			f.vars[name] = value
+			f.setVar(name, value)
 			delete(f.states, value.Identity)
 		}
 	}
@@ -1607,7 +1607,7 @@ func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 		e.release(n, target.Name, f, r)
 		if direct, ok := syntax.UnwrapParens(n.Value).(*syntax.Variable); ok && direct.NameExpr == nil {
 			f.bind(target.Name, direct.Name, n.Span().Start)
-			f.vars[target.Name] = f.vars[direct.Name]
+			f.setVar(target.Name, f.vars[direct.Name])
 			return
 		}
 		f.alias(target.Name, aliasAny)
@@ -1628,7 +1628,7 @@ func (e *Env) reference(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 	case *syntax.ArrayDimFetch:
 		if name := rootVariable(slot); name != "" {
 			f.alias(name, aliasAny)
-			f.vars[name] = unsettled(f.vars[name], v, r)
+			f.setVar(name, unsettled(f.vars[name], v, r))
 		}
 	}
 }
@@ -2125,7 +2125,7 @@ func reenter(at syntax.Node, f *frame, r *scopeResult) {
 		v.tested, v.unless, v.unlessFalse, v.unlessNull, v.skippedFalse, v.skippedNull = nil, nil, false, false, false, false
 		v.Invalidated = at.Span().Start + 1
 		v.plain, v.deep = v.plain && known.plain, v.deep && known.deep
-		f.vars[name] = v
+		f.setVar(name, v)
 	}
 }
 
@@ -2637,7 +2637,7 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 		for name, old := range f.vars {
 			v := unsettled(old, e.held(name, r), r)
 			v.Invalidated = stamp
-			f.vars[name] = v
+			f.setVar(name, v)
 		}
 		return
 	}
@@ -2662,7 +2662,7 @@ func (e *Env) invalidateShared(at syntax.Node, f *frame, r *scopeResult) {
 		}
 		v := unsettled(f.vars[name], written, r)
 		v.Invalidated = stamp
-		f.vars[name] = v
+		f.setVar(name, v)
 	}
 }
 

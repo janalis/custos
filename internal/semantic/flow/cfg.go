@@ -674,12 +674,32 @@ func (e *Env) typed(p *syntax.Param, deep bool) bool {
 	return !deep && (p.Variadic || declared.OnlyOf("array") || e.types.PHP.AtLeast(phpversion.PHP70) && declared.OnlyOf("int", "float", "string", "bool", "true", "false", "null", "array"))
 }
 
+// expressions counts the expressions of scope (the file's top level when
+// nil) outside the functions it declares: about how many values its
+// analysis records, so its maps are allocated once at their size.
+func (e *Env) expressions(scope syntax.Node) int {
+	n := 0
+	count := func(x syntax.Node) bool {
+		if _, ok := x.(syntax.Expr); ok {
+			n++
+		}
+		return x == scope || !syntax.IsVariableScope(x)
+	}
+	if scope == nil {
+		syntax.InspectFile(e.file, count)
+	} else {
+		syntax.Inspect(scope, count)
+	}
+	return n
+}
+
 func (e *Env) follow(scope syntax.Node, distrust map[string]bool, distrustAll bool) *scopeResult {
 	return e.followMode(scope, distrust, distrustAll, nil)
 }
 
 func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAll bool, target syntax.Expr) *scopeResult {
-	r := &scopeResult{originTypes: e.types, values: map[syntax.Expr]Value{}, before: map[syntax.Node]map[uint32]State{}, callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
+	size := e.expressions(scope)
+	r := &scopeResult{originTypes: e.types, values: make(map[syntax.Expr]Value, size), before: make(map[syntax.Node]map[uint32]State, size), callIndex: map[syntax.Node]int{}, complete: true, distrust: distrust, distrustAll: distrustAll, modern: e.types.PHP.AtLeast(phpversion.PHP80)}
 	e.scopes[scope] = r
 	r.reads = e.begin()
 	defer e.end(r.reads)
@@ -722,7 +742,8 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	}
 	// A jump to a label that is not there goes nowhere known.
 	g.complete = g.complete && len(g.jumps) == 0
-	initial := frame{owner: r, vars: map[string]Value{}, definite: scope != nil}
+	initial := frame{owner: r, definite: scope != nil}
+	initial.resetVars()
 	switch captured := scope.(type) {
 	case *syntax.Closure:
 		// A captured variable holds a value without a binding.
@@ -732,7 +753,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 	}
 	for i, p := range syntax.VariableScopeParams(scope) {
 		if p.Var != nil {
-			initial.vars[p.Var.Name] = Value{Complete: true, Identity: p.Var.Span().Start + 1, Sources: []Source{{Kind: "parameter", Parameter: i}}, plain: e.typed(p, false), deep: e.typed(p, true)}
+			initial.setVar(p.Var.Name, Value{Complete: true, Identity: p.Var.Span().Start + 1, Sources: []Source{{Kind: "parameter", Parameter: i}}, plain: e.typed(p, false), deep: e.typed(p, true)})
 		}
 	}
 	e.bindings(scope, r, &initial)
@@ -771,7 +792,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 			}
 			if !owned {
 				r.copies += len(v.vars) + len(v.states)
-				v = clone(v)
+				v = clone(&v)
 			}
 			*input = v
 		} else {
@@ -812,13 +833,13 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 		r.copies += len(in.vars) + len(in.states)
 		out := in
 		if !once[i] {
-			out = clone(in)
+			out = clone(&in)
 		}
 		b := g.blocks[i]
 		throwing := b.exceptional > 0 && !g.proofs[i].holds(in)
 		var exceptional frame
 		if throwing {
-			exceptional = clone(in)
+			exceptional = clone(&in)
 		}
 		if b.node != nil {
 			e.transfer(b.node, &out, r)
@@ -857,7 +878,7 @@ func (e *Env) followMode(scope syntax.Node, distrust map[string]bool, distrustAl
 			branch := out
 			if (conditional || iterating) && !last {
 				r.copies += len(out.vars) + len(out.states)
-				branch = clone(out)
+				branch = clone(&out)
 			}
 			switch {
 			case conditional:

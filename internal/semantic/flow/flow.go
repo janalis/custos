@@ -418,6 +418,36 @@ type frame struct {
 	// operation and the variable its right operand assigns in place (see
 	// relation). The list is never modified once a frame holds it.
 	related []relation
+	// varsShared is the flag of vars, which every frame holding that map
+	// holds, however it was copied: set once clone gave the map to two
+	// frames that change apart. A frame copies a shared map before its
+	// first change. Nil for a map no clone shared yet.
+	varsShared *bool
+}
+
+// setVar binds name to v.
+func (f *frame) setVar(name string, v Value) {
+	f.ownVars()
+	f.vars[name] = v
+}
+
+// unsetVar removes the binding of name.
+func (f *frame) unsetVar(name string) {
+	if _, ok := f.vars[name]; ok {
+		f.ownVars()
+		delete(f.vars, name)
+	}
+}
+
+func (f *frame) ownVars() {
+	if f.varsShared != nil && *f.varsShared {
+		f.vars, f.varsShared = maps.Clone(f.vars), new(bool)
+	}
+}
+
+// resetVars gives the frame new, empty variables.
+func (f *frame) resetVars() {
+	f.vars, f.varsShared = map[string]Value{}, new(bool)
 }
 
 // relation tells, for a short-circuit operation whose right operand assigns
@@ -550,7 +580,7 @@ const imported = ""
 // importing joins request data an import may have spread over the scope.
 func (f *frame) importing(v Value) {
 	if tainted(v) {
-		f.vars[imported] = unsettled(f.vars[imported], v, f.owner)
+		f.setVar(imported, unsettled(f.vars[imported], v, f.owner))
 	}
 }
 
@@ -585,7 +615,7 @@ func requestElement(x syntax.Expr) string {
 // a fixed text on this path. Any code can rewrite the table: the record
 // does not outlive an expression that may run some (see implicit).
 func (f *frame) match(r *scopeResult, element string) {
-	f.vars[element] = Value{Complete: true, NonFalse: true}
+	f.setVar(element, Value{Complete: true, NonFalse: true})
 	f.alias(element, aliasHeld)
 	r.matching = true
 }
@@ -602,7 +632,7 @@ func (f *frame) unmatchAll(r *scopeResult) {
 	for name := range f.aliased {
 		if strings.Contains(name, "\x00") {
 			delete(f.aliased, name)
-			delete(f.vars, name)
+			f.unsetVar(name)
 		}
 	}
 }
@@ -627,7 +657,7 @@ func (f *frame) unmatch(r *scopeResult, table string) {
 	for name := range f.aliased {
 		if strings.HasPrefix(name, table+"\x00") {
 			delete(f.aliased, name)
-			delete(f.vars, name)
+			f.unsetVar(name)
 		}
 	}
 }
@@ -1260,8 +1290,14 @@ func equal(v, w Value) bool {
 	return true
 }
 
-func clone(f frame) frame {
-	n := frame{owner: f.owner, vars: maps.Clone(f.vars), states: maps.Clone(f.states), definite: f.definite, wild: f.wild, related: f.related}
+// clone returns a frame holding what f holds, which either can then change
+// apart: their variables are copied on the first change of either.
+func clone(f *frame) frame {
+	if f.varsShared == nil {
+		f.varsShared = new(bool)
+	}
+	*f.varsShared = true
+	n := frame{owner: f.owner, vars: f.vars, varsShared: f.varsShared, states: maps.Clone(f.states), definite: f.definite, wild: f.wild, related: f.related}
 	if len(f.aliased) > 0 {
 		n.aliased = make(map[string]uint32, len(f.aliased))
 		for k, group := range f.aliased {
@@ -1342,13 +1378,13 @@ func (f *frame) write(r *scopeResult, name string, v Value) {
 			switch {
 			case other == name || g != group:
 			case group == aliasAny:
-				f.vars[other] = unsettled(f.vars[other], v, f.owner)
+				f.setVar(other, unsettled(f.vars[other], v, f.owner))
 			default:
-				f.vars[other] = v
+				f.setVar(other, v)
 			}
 		}
 	}
-	f.vars[name] = v
+	f.setVar(name, v)
 }
 
 // detach makes name a variable of its own again, as `unset`, `static` and
@@ -1357,7 +1393,7 @@ func (f *frame) write(r *scopeResult, name string, v Value) {
 func (f *frame) detach(name string) {
 	f.related = nil
 	delete(f.aliased, name)
-	f.vars[name] = Value{}
+	f.setVar(name, Value{})
 }
 
 // through is a write to storage the analysis does not follow (a property, an
@@ -1370,7 +1406,7 @@ func (f *frame) through(r *scopeResult, v Value) {
 	r.operations += len(f.aliased)
 	for other, g := range f.aliased {
 		if g == aliasAny {
-			f.vars[other] = unsettled(f.vars[other], v, f.owner)
+			f.setVar(other, unsettled(f.vars[other], v, f.owner))
 		}
 	}
 }
@@ -1389,7 +1425,7 @@ func (f *frame) unsettle(r *scopeResult, written Value) {
 	f.related = nil
 	r.operations += len(f.vars)
 	for name, old := range f.vars {
-		f.vars[name] = unsettled(old, written, f.owner)
+		f.setVar(name, unsettled(old, written, f.owner))
 	}
 }
 
@@ -1476,7 +1512,7 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 			m.NonFalse, m.plain, m.deep = v.NonFalse, v.plain, v.deep
 		}
 		if m.origins = origins(v, w, f.owner); !equal(m, v) {
-			f.vars[k] = m
+			f.setVar(k, m)
 			changed = true
 		}
 	}
@@ -1491,7 +1527,7 @@ func (f *frame) absorbAt(b frame, head bool) (bool, int) {
 			if f.definite && !reserved(k) {
 				m.NonFalse, m.plain, m.deep = v.NonFalse, v.plain, v.deep
 			}
-			f.vars[k] = m
+			f.setVar(k, m)
 			changed = true
 		}
 	}
