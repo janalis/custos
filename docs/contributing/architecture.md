@@ -140,6 +140,21 @@ resolved global-function queries so namespace functions and imports retain
 PHP's runtime behavior. Function, method and class names are case-insensitive;
 variables, properties and ordinary constants are case-sensitive.
 
+Pick the narrowest query that says what the check needs:
+
+- `semanticquery.NativeBuiltin` / `NativeBuiltinName`: the call reaches a
+  builtin available at the configured PHP version. The default for rules
+  about PHP's own functions.
+- `semanticquery.GlobalCall`: an expression that is a call to one of several
+  global functions, with the matched name.
+- `ctx.GlobalFunctionName` / `ctx.IsGlobalFunctionCall`: the global function
+  a call reaches, whether or not PHP still declares it at that version (for
+  removed or polyfilled functions).
+- `semanticquery.QualifiedBuiltin` / `QualifiedBuiltinFor`: the name a fix
+  must write so that its call still reaches the builtin.
+- `astquery.IsFuncNamedFold` / `CallName`: the written name only, for
+  syntax-level heuristics that do not claim runtime behavior.
+
 PHPDoc supplies useful analysis evidence, but it does not enforce runtime types.
 When a fix requires native type evidence, use `Env.Native()` to exclude user
 PHPDoc. Unsupported operations, escaped values and exhausted analysis budgets
@@ -233,8 +248,13 @@ PHP, semantic, diagnostic, analysis and fixing packages cannot depend on CLI,
 LSP, reporting, project orchestration or filesystem adapters. The MCP adapter
 may use project operations, fixing, analysis contracts, rule metadata, the
 diff renderer and `safeio`, but not the catalogue or the report formats: the
-CLI hands it the inspection list. Test imports may
-cross boundaries to exercise complete execution paths.
+CLI hands it the inspection list. Those analysis packages cannot import the
+standard packages that reach the system (`os`, `os/...`, `syscall`, `net`,
+`net/http`): what a rule needs from outside the source, such as the project
+root of a file (`Context.ProjectPath`), comes from the adapter through the
+analysis configuration. A package missing from the tool's table may import
+nothing internal until it is added there. Test imports may cross boundaries
+to exercise complete execution paths.
 
 ## Extending features
 

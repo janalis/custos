@@ -47,7 +47,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
-	outer, ok := echoExpr(ctx, stmt).(*syntax.ArrayDimFetch)
+	outer, ok := astquery.NextEcho(ctx.File, stmt).(*syntax.ArrayDimFetch)
 	if !ok {
 		return
 	}
@@ -87,18 +87,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if shorter {
 		ctx.ReportNode(call, message)
 	}
-}
-
-func echoExpr(ctx *analysis.Context, s syntax.Stmt) syntax.Expr {
-	next, ok := astquery.NextStmt(ctx.File, s)
-	if !ok {
-		return nil
-	}
-	echo, ok := next.(*syntax.Echo)
-	if !ok || len(echo.Exprs) != 1 {
-		return nil
-	}
-	return syntax.UnwrapParens(echo.Exprs[0])
 }
 
 func variable(e syntax.Expr) string {

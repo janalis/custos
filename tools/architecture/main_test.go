@@ -228,3 +228,36 @@ func TestMCPAdapterBoundaries(t *testing.T) {
 		}
 	}
 }
+
+func TestSystemAccess(t *testing.T) {
+	for _, path := range []string{"os", "os/exec", "syscall", "net", "net/http", "net/http/httputil"} {
+		if !systemPackage(path) {
+			t.Errorf("%s allowed", path)
+		}
+	}
+	for _, path := range []string{"net/url", "net/netip", "unsafe", "io/fs", "strings"} {
+		if systemPackage(path) {
+			t.Errorf("%s forbidden", path)
+		}
+	}
+	root := layout(t)
+	write(t, root, "internal/inspection/rules/example/fs.go", "package example\nimport \"os\"\nvar _ = os.Stat\n")
+	write(t, root, "internal/project/fs.go", "package project\nimport \"os\"\nvar _ = os.Stat\n")
+	problems, err := check(root)
+	if err != nil || len(problems) != 1 || !strings.Contains(problems[0], "rules/example/fs.go: analysis code cannot use os") {
+		t.Fatalf("%v: %v", problems, err)
+	}
+}
+
+func TestAdapterBoundaries(t *testing.T) {
+	for _, pair := range [][2]string{{"internal/editor/lsp", "internal/inspection/catalogue"}, {"internal/cli", "internal/editor/mcp"}, {"internal/testing/conformance", "internal/project"}} {
+		if !allowed(pair[0], pair[1]) {
+			t.Error(pair)
+		}
+	}
+	for _, pair := range [][2]string{{"internal/editor/lsp", "internal/editor/mcp"}, {"internal/editor/lsp", "internal/cli"}, {"internal/cli", "internal/testing/testbudget"}, {"internal/testing/conformance", "internal/editor/lsp"}, {"internal/unlisted", "internal/php/syntax"}} {
+		if allowed(pair[0], pair[1]) {
+			t.Error(pair)
+		}
+	}
+}

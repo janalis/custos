@@ -89,6 +89,7 @@ func (c *common) prepare(args []string) (*setup, error) {
 	}
 	acfg := cfg.Analysis()
 	acfg.EnableAll = c.all
+	acfg.ProjectPath = project.DiskProjectPaths(".")
 	if c.only != "" {
 		for _, id := range strings.Split(c.only, ",") {
 			m, ok := meta.Lookup(strings.TrimSpace(id))

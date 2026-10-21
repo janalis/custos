@@ -1,19 +1,19 @@
-package unvalidatedredirecttarget
+package semanticquery
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
-	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 )
 
-// aliased reports whether the scope of v can rebind it without an assignment
-// its resolved value accounts for: a reference to it (alias, by-reference
-// capture, loop or argument), a catch binding or static declaration of the
-// same name, extract(), an assignment through a variable variable or the
-// global symbol table. The
-// structural proofs of this rule follow a variable to its reaching
-// assignment, which such a rebinding leaves in place.
-func aliased(ctx *analysis.Context, v *syntax.Variable) bool {
+// RebindableVariable reports whether the scope of v can rebind it without an
+// assignment its resolved value accounts for: a reference to it (alias,
+// by-reference capture, loop or argument), a catch binding or static
+// declaration of the same name, extract(), an assignment through a variable
+// variable or the global symbol table. A proof that follows a variable to its reaching
+// assignment does not hold then: such a rebinding leaves it in place.
+func RebindableVariable(ctx *analysis.Context, v *syntax.Variable) bool {
 	found := false
 	// root is the variable an expression reads or writes an element of.
 	root := func(e syntax.Expr) *syntax.Variable {
@@ -45,8 +45,8 @@ func aliased(ctx *analysis.Context, v *syntax.Variable) bool {
 		case *syntax.StaticVar:
 			found = found || x.Var.Name == v.Name
 		case *syntax.FuncCall:
-			found = found || semanticquery.NativeBuiltinName(ctx, x) == "extract"
-			if callee, ok := semanticquery.ResolveCallee(ctx, x); ok && x.Args != nil {
+			found = found || NativeBuiltinName(ctx, x) == "extract"
+			if callee, ok := ResolveCallee(ctx, x); ok && x.Args != nil {
 				for i, node := range x.Args.Args {
 					arg, isArg := node.(*syntax.Arg)
 					found = found || isArg && i < len(callee.Params) && callee.Params[i].ByRef && named(arg.Value)
@@ -61,7 +61,7 @@ func aliased(ctx *analysis.Context, v *syntax.Variable) bool {
 			_, global := x.Parent().(*syntax.Global)
 			entry, known := "", false
 			if fetch, ok := x.Parent().(*syntax.ArrayDimFetch); ok && fetch.Var == syntax.Expr(x) && fetch.Dim != nil {
-				entry, known = semanticquery.NativeString(ctx, fetch.Dim)
+				entry, known = NativeString(ctx, fetch.Dim)
 			}
 			found = found || x.Name == "GLOBALS" && (!known || entry == v.Name) || global && x.Name == v.Name
 		}
@@ -75,4 +75,11 @@ func aliased(ctx *analysis.Context, v *syntax.Variable) bool {
 		syntax.InspectFile(ctx.File, shared)
 	}
 	return found
+}
+
+// NamesGlobalConstant reports whether e evaluates to PHP's global constant
+// name, written bare where it reaches the global one.
+func NamesGlobalConstant(ctx *analysis.Context, e syntax.Expr, name string) bool {
+	c, ok := NativeValue(ctx, e).(*syntax.ConstFetch)
+	return ok && c.Name != nil && strings.EqualFold(c.Name.Value, name) && BareReachesGlobal(ctx, name, c.Span().Start)
 }

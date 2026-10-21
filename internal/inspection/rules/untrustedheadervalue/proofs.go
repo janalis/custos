@@ -71,7 +71,7 @@ func inert(ctx *analysis.Context, e syntax.Expr, depth int) bool {
 		return scalarCall(ctx, x)
 	case *syntax.Variable:
 		origin := ctx.Flow().Value(x)
-		if !origin.Complete || origin.Expr == nil || aliased(ctx, x) {
+		if !origin.Complete || origin.Expr == nil || semanticquery.RebindableVariable(ctx, x) {
 			return false
 		}
 		return guarded(ctx, x, origin.Expr) || inert(ctx, origin.Expr, depth-1)

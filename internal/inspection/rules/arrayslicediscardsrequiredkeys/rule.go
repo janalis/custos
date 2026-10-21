@@ -81,7 +81,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ok {
 		return
 	}
-	access, ok := echoExpr(ctx, stmt).(*syntax.ArrayDimFetch)
+	access, ok := astquery.NextEcho(ctx.File, stmt).(*syntax.ArrayDimFetch)
 	if !ok || variable(access.Var) == "" || variable(access.Var) != variable(assignment.Var) {
 		return
 	}
@@ -96,18 +96,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
-}
-
-func echoExpr(ctx *analysis.Context, s syntax.Stmt) syntax.Expr {
-	next, ok := astquery.NextStmt(ctx.File, s)
-	if !ok {
-		return nil
-	}
-	echo, ok := next.(*syntax.Echo)
-	if !ok || len(echo.Exprs) != 1 {
-		return nil
-	}
-	return syntax.UnwrapParens(echo.Exprs[0])
 }
 
 func variable(e syntax.Expr) string {

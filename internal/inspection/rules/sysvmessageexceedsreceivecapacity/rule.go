@@ -71,40 +71,9 @@ func stepped(ctx *analysis.Context, e syntax.Expr) bool {
 	found := false
 	syntax.Inspect(e, func(n syntax.Node) bool {
 		if use, ok := n.(*syntax.Variable); ok && !found {
-			found = steppedBefore(ctx, use)
+			found = flowquery.SteppedBefore(ctx.File, use)
 		}
 		return !found
 	})
 	return found
-}
-
-func steppedBefore(ctx *analysis.Context, use *syntax.Variable) bool {
-	for _, access := range flowquery.VarAccesses(ctx.File, syntax.EnclosingFuncLike(use), use.Name) {
-		switch by := access.By.(type) {
-		case *syntax.IncDec:
-		case *syntax.ClosureUse:
-			if !by.ByRef {
-				continue
-			}
-		default:
-			continue
-		}
-		if access.Var.Span().Start < use.Span().Start || sharesLoop(use, access.Var) {
-			return true
-		}
-	}
-	return false
-}
-
-// sharesLoop reports whether a loop around use also contains other.
-func sharesLoop(use, other syntax.Node) bool {
-	for p := use.Parent(); p != nil && !syntax.IsFuncLike(p); p = p.Parent() {
-		switch p.(type) {
-		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
-			if span := p.Span(); span.Start <= other.Span().Start && other.Span().End <= span.End {
-				return true
-			}
-		}
-	}
-	return false
 }

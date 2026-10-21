@@ -2,8 +2,6 @@
 package incrementalinflateencodingmismatch
 
 import (
-	"strings"
-
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -41,15 +39,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	encoding := semanticquery.CallArgument(init.Args, 0, "encoding")
 	for _, name := range []string{"ZLIB_ENCODING_GZIP", "ZLIB_ENCODING_DEFLATE", "ZLIB_ENCODING_RAW"} {
-		if name != wanted && hasConstant(ctx, encoding, name) {
+		if name != wanted && semanticquery.NamesGlobalConstant(ctx, encoding, name) {
 			ctx.ReportNode(c, message)
 			return
 		}
 	}
-}
-
-func hasConstant(ctx *analysis.Context, e syntax.Expr, name string) bool {
-	value := semanticquery.NativeValue(ctx, e)
-	c, ok := value.(*syntax.ConstFetch)
-	return ok && c.Name != nil && strings.EqualFold(c.Name.Value, name) && semanticquery.BareReachesGlobal(ctx, name, c.Span().Start)
 }

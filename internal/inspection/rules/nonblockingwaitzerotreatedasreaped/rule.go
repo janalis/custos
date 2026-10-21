@@ -2,8 +2,6 @@
 package nonblockingwaitzerotreatedasreaped
 
 import (
-	"strings"
-
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
@@ -33,7 +31,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	flag := semanticquery.CallArgument(wait.Args, 2, "flags")
-	if hasConstant(ctx, flag, "WNOHANG") && !zeroHandled(ctx, b, wait) {
+	if semanticquery.NamesGlobalConstant(ctx, flag, "WNOHANG") && !zeroHandled(ctx, b, wait) {
 		ctx.ReportNode(b, message)
 	}
 }
@@ -122,10 +120,4 @@ func truthTested(v *syntax.Variable) bool {
 		return p.Cond == child
 	}
 	return false
-}
-
-func hasConstant(ctx *analysis.Context, e syntax.Expr, name string) bool {
-	value := semanticquery.NativeValue(ctx, e)
-	c, ok := value.(*syntax.ConstFetch)
-	return ok && c.Name != nil && strings.EqualFold(c.Name.Value, name) && semanticquery.BareReachesGlobal(ctx, name, c.Span().Start)
 }

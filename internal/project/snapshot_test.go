@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/rules/hardcodedcredentialatknownsink"
 	"custos/internal/inspection/rules/nestednotoperators"
 	"custos/internal/inspection/rules/securityadvisories"
 	"custos/internal/inspection/rules/untrustedshellcommand"
@@ -348,5 +349,37 @@ func TestSnapshotNormalizesConfiguredPaths(t *testing.T) {
 	}
 	if _, err := BuildSnapshot(context.Background(), root, rules, []string{"src/../.."}, nil); err == nil {
 		t.Fatal("escaped root")
+	}
+}
+
+// Snapshots resolve project paths inside the workspace root.
+func TestSnapshotProjectPaths(t *testing.T) {
+	dir := t.TempDir()
+	for name, text := range map[string]string{
+		"custos.json":  `{"rules":{"HardcodedCredentialAtKnownSink":{"enabled":true}}}`,
+		"src/Db.php":   `<?php new PDO($dsn, "service", "password");`,
+		"tests/Db.php": `<?php new PDO($dsn, "service", "password");`,
+	} {
+		p := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		writeFile(t, p, text)
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	s, err := BuildSnapshot(context.Background(), root, []analysis.Rule{hardcodedcredentialatknownsink.New()}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reported := map[string]int{}
+	for _, r := range s.Results {
+		reported[r.Path] = len(r.Findings)
+	}
+	if reported["src/Db.php"] != 1 || reported["tests/Db.php"] != 0 {
+		t.Fatal(reported)
 	}
 }

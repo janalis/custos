@@ -8,6 +8,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/catalogue"
+	"custos/internal/project"
 	"custos/internal/project/baseline"
 	"custos/internal/project/config"
 )
@@ -67,7 +68,9 @@ func (s *Server) configure() error {
 			return err
 		}
 	}
-	e, err := analysis.NewEngine(registry(), cfg.Analysis())
+	acfg := cfg.Analysis()
+	acfg.ProjectPath = project.DiskProjectPaths(cfg.Root)
+	e, err := analysis.NewEngine(registry(), acfg)
 	if err != nil {
 		return err
 	}

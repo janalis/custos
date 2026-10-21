@@ -42,7 +42,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if _, ok := semanticquery.NativeValue(ctx, a.Value).(*syntax.Literal); !ok {
 		return
 	}
-	read, ok := echoExpr(ctx, tr).(*syntax.Variable)
+	read, ok := astquery.NextEcho(ctx.File, tr).(*syntax.Variable)
 	if !ok || read.Name != v.Name {
 		return
 	}
@@ -67,18 +67,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			ctx.ReportNode(c.Var, message)
 		}
 	}
-}
-
-func echoExpr(ctx *analysis.Context, s syntax.Stmt) syntax.Expr {
-	next, ok := astquery.NextStmt(ctx.File, s)
-	if !ok {
-		return nil
-	}
-	echo, ok := next.(*syntax.Echo)
-	if !ok || len(echo.Exprs) != 1 {
-		return nil
-	}
-	return syntax.UnwrapParens(echo.Exprs[0])
 }
 
 func replaced(body syntax.Node, name string) bool {

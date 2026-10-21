@@ -50,4 +50,9 @@ type Config struct {
 	// EnableAll enables every registered rule, including disabled-by-default
 	// ones, except those the rule config explicitly disables.
 	EnableAll bool
+	// ProjectPath maps a file path to its path relative to its project
+	// root, with forward slashes, for rules matching project path globs.
+	// Adapters supply it, as they own filesystem access; nil keeps paths
+	// as given.
+	ProjectPath func(path string) string
 }

@@ -90,6 +90,9 @@ func check(root string) ([]string, error) {
 					alias = im.Name.Name
 				}
 				imports[alias] = target
+				if analysisLayer(from) && systemPackage(target) {
+					report("%s: analysis code cannot use %s; adapters own system access", rel, target)
+				}
 				target = strings.TrimPrefix(target, "custos/")
 				if strings.HasPrefix(target, "internal/") && !allowed(from, target) {
 					report("%s: forbidden dependency on %s", rel, target)
@@ -249,11 +252,39 @@ func allowed(from, to string) bool {
 		return within("internal/diagnostic") || within("internal/php") || within("internal/inspection/meta")
 	case strings.HasPrefix(from, "internal/platform/"):
 		return within("internal/platform")
+	case from == "internal/editor/lsp":
+		return within("internal/php") || within("internal/semantic") || within("internal/diagnostic") || within("internal/fixing") || within("internal/project") || within("internal/inspection/analysis") || within("internal/inspection/catalogue") || within("internal/inspection/meta")
+	case from == "internal/cli":
+		return !within("internal/testing")
+	case strings.HasPrefix(from, "internal/testing/"):
+		return !within("internal/cli") && !within("internal/editor")
 	case strings.HasPrefix(from, "cmd/"):
 		return within("internal/cli")
 	default:
+		// A new package states what it may use.
+		return false
+	}
+}
+
+// analysisLayer reports packages that turn source text into findings and
+// edits: they compute, and adapters supply whatever comes from the system.
+func analysisLayer(from string) bool {
+	for _, prefix := range []string{"internal/php", "internal/semantic", "internal/inspection", "internal/diagnostic", "internal/fixing"} {
+		if from == prefix || strings.HasPrefix(from, prefix+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// systemPackage reports standard packages reaching the filesystem, the
+// network, processes or the environment.
+func systemPackage(path string) bool {
+	switch path {
+	case "os", "syscall", "plugin", "net", "net/http", "net/rpc", "net/smtp":
 		return true
 	}
+	return strings.HasPrefix(path, "os/") || strings.HasPrefix(path, "net/http/") || strings.HasPrefix(path, "net/rpc/")
 }
 
 func constructor(fn *ast.FuncDecl, imports map[string]string) bool {

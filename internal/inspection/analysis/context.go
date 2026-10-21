@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strconv"
@@ -41,6 +42,15 @@ type Context struct {
 	// failed holds the shared data whose build crashed on this file, kept
 	// across the engine's runs over it; once one did, checks run isolated.
 	failed map[string]envFailure
+}
+
+// ProjectPath returns the file's path relative to its project root, with
+// forward slashes (see Config.ProjectPath).
+func (c *Context) ProjectPath() string {
+	if c.engine.cfg.ProjectPath == nil {
+		return filepath.ToSlash(c.File.Path)
+	}
+	return c.engine.cfg.ProjectPath(c.File.Path)
 }
 
 // MaxGaps bounds the analysis gaps a file records from its queries.

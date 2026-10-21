@@ -62,7 +62,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	scope := syntax.EnclosingFuncLike(call)
-	if broken && !reboundOutOfBand(ctx.File, scope, source, map[string]bool{}) && !importsVariables(ctx.File, scope) {
+	if broken && !reboundOutOfBand(ctx.File, scope, source, map[string]bool{}) && !astquery.CallsExtract(ctx.File, scope) {
 		ctx.ReportNode(call, message, diagnostic.Fix{Title: "Reindex the filtered list", Edits: func() []diagnostic.TextEdit {
 			return []diagnostic.TextEdit{{Span: inner.Span(), NewText: "\\array_values(" + ctx.Text(inner) + ")"}}
 		}})
@@ -106,22 +106,4 @@ func reboundOutOfBand(f *syntax.File, scope syntax.Node, e syntax.Expr, seen map
 		return false
 	})
 	return rebound
-}
-
-// importsVariables reports whether the scope calls extract(), which can bind
-// any local variable.
-func importsVariables(f *syntax.File, scope syntax.Node) bool {
-	found := false
-	visit := func(x syntax.Node) bool {
-		if _, ok := astquery.IsFuncNamedFold(x, "extract"); ok {
-			found = true
-		}
-		return !found
-	}
-	if scope == nil {
-		syntax.InspectFile(f, visit)
-	} else {
-		syntax.Inspect(scope, visit)
-	}
-	return found
 }

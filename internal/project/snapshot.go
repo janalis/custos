@@ -124,7 +124,12 @@ func capture(ctx context.Context, root *os.Root, rules []analysis.Rule, paths []
 	if err != nil {
 		return nil, err
 	}
-	engine, err := analysis.NewEngine(rules, cfg.Analysis())
+	acfg := cfg.Analysis()
+	acfg.ProjectPath = ProjectPaths(func(name string) bool {
+		_, err := root.Stat(name)
+		return err == nil
+	}, ".")
+	engine, err := analysis.NewEngine(rules, acfg)
 	if err != nil {
 		return nil, err
 	}

@@ -68,7 +68,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !ik || index < start || index >= start+count {
 		return
 	}
-	read, ok := echoExpr(ctx, writeStmt).(*syntax.PropertyFetch)
+	read, ok := astquery.NextEcho(ctx.File, writeStmt).(*syntax.PropertyFetch)
 	if !ok {
 		return
 	}
@@ -82,18 +82,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if jk && pk && qk && p.Value == q.Value && second >= start && second < start+count && second != index {
 		ctx.ReportNode(call, message)
 	}
-}
-
-func echoExpr(ctx *analysis.Context, s syntax.Stmt) syntax.Expr {
-	next, ok := astquery.NextStmt(ctx.File, s)
-	if !ok {
-		return nil
-	}
-	echo, ok := next.(*syntax.Echo)
-	if !ok || len(echo.Exprs) != 1 {
-		return nil
-	}
-	return syntax.UnwrapParens(echo.Exprs[0])
 }
 
 func variable(e syntax.Expr) string {

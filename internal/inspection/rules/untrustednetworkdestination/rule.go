@@ -148,7 +148,7 @@ func untrusted(ctx *analysis.Context, url syntax.Expr) bool {
 // concatenation.
 func fixedDestination(ctx *analysis.Context, e syntax.Expr) bool {
 	e = syntax.UnwrapParens(e)
-	if v, ok := e.(*syntax.Variable); ok && !aliased(ctx, v) {
+	if v, ok := e.(*syntax.Variable); ok && !semanticquery.RebindableVariable(ctx, v) {
 		if value := semanticquery.NativeValue(ctx, e); value != nil {
 			e = value
 		}
@@ -213,7 +213,7 @@ func leading(ctx *analysis.Context, e syntax.Expr) syntax.Expr {
 				continue
 			}
 		case *syntax.Variable:
-			if value := semanticquery.NativeValue(ctx, x); value != nil && value != e && steps < 64 && !aliased(ctx, x) {
+			if value := semanticquery.NativeValue(ctx, x); value != nil && value != e && steps < 64 && !semanticquery.RebindableVariable(ctx, x) {
 				e = value
 				continue
 			}

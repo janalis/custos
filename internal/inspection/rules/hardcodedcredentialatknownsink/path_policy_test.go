@@ -42,3 +42,17 @@ func BenchmarkCredentialPathPolicy(b *testing.B) {
 		}
 	}
 }
+
+// The path policy reads the project path the adapter supplies.
+func TestCredentialPathPolicyUsesProjectPath(t *testing.T) {
+	for path, want := range map[string]int{"tests/Db.php": 0, "src/Db.php": 1} {
+		e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"HardcodedCredentialAtKnownSink"}, ProjectPath: func(string) string { return path }})
+		if err != nil {
+			t.Fatal(err)
+		}
+		f := syntax.Parse("/elsewhere/tests/Db.php", []byte(`<?php new PDO($dsn,"service","password");`), syntax.Options{})
+		if got := e.Analyze(f); len(got) != want {
+			t.Errorf("%s: got %d findings, want %d", path, len(got), want)
+		}
+	}
+}

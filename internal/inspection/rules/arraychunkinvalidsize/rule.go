@@ -69,23 +69,5 @@ func rewrittenOutOfBand(f *syntax.File, call *syntax.FuncCall, size syntax.Expr)
 			}
 		}
 	}
-	return importsVariables(f, scope)
-}
-
-// importsVariables reports whether the scope calls extract(), which can bind
-// any local variable.
-func importsVariables(f *syntax.File, scope syntax.Node) bool {
-	found := false
-	visit := func(x syntax.Node) bool {
-		if _, ok := astquery.IsFuncNamedFold(x, "extract"); ok {
-			found = true
-		}
-		return !found
-	}
-	if scope == nil {
-		syntax.InspectFile(f, visit)
-	} else {
-		syntax.Inspect(scope, visit)
-	}
-	return found
+	return astquery.CallsExtract(f, scope)
 }

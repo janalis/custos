@@ -2,8 +2,6 @@
 package deflatestreamneverfinished
 
 import (
-	"strings"
-
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -32,7 +30,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	mode := semanticquery.CallArgument(chunk.Args, 2, "flush_mode")
-	if !hasConstant(ctx, mode, "ZLIB_SYNC_FLUSH") && !hasConstant(ctx, mode, "ZLIB_NO_FLUSH") && !hasConstant(ctx, mode, "ZLIB_FULL_FLUSH") {
+	if !semanticquery.NamesGlobalConstant(ctx, mode, "ZLIB_SYNC_FLUSH") && !semanticquery.NamesGlobalConstant(ctx, mode, "ZLIB_NO_FLUSH") && !semanticquery.NamesGlobalConstant(ctx, mode, "ZLIB_FULL_FLUSH") {
 		return
 	}
 	// An appending write publishes one piece of a file that a later write may
@@ -43,10 +41,4 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 	}
 	ctx.ReportNode(c, message)
-}
-
-func hasConstant(ctx *analysis.Context, e syntax.Expr, name string) bool {
-	value := semanticquery.NativeValue(ctx, e)
-	c, ok := value.(*syntax.ConstFetch)
-	return ok && c.Name != nil && strings.EqualFold(c.Name.Value, name) && semanticquery.BareReachesGlobal(ctx, name, c.Span().Start)
 }
