@@ -35,7 +35,7 @@ function f($h, $c) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	var last *syntax.FuncCall
 	var got []string
 	syntax.InspectFile(f, func(n syntax.Node) bool {
@@ -71,7 +71,7 @@ function f($h) { u(); if (flock($h, LOCK_EX)) { $g = function () { u(); }; } }`
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	var lock *syntax.FuncCall
 	var uses []*syntax.FuncCall
 	syntax.InspectFile(f, func(n syntax.Node) bool {
@@ -100,7 +100,7 @@ function f(bool $b) { if ($b === 1) { u($b); } }`
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	resolved := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	resolved := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	for _, tc := range []struct {
 		env  *infer.Env
 		want string
@@ -131,7 +131,7 @@ function f($s) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	seed := types.Of("true", "false", "null")
 	var last *syntax.FuncCall
 	var got []string
@@ -166,7 +166,7 @@ func TestCallResultStored(t *testing.T) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	var last *syntax.FuncCall
 	var got []string
 	syntax.InspectFile(f, func(n syntax.Node) bool {
@@ -215,7 +215,7 @@ function f() {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	seed := types.Ints(types.IntRange{Lo: -1, Hi: math.MaxInt64})
 	var last *syntax.FuncCall
 	var got []string
@@ -257,7 +257,7 @@ func TestCallResultCopies(t *testing.T) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	var last *syntax.FuncCall
 	var got []string
 	syntax.InspectFile(f, func(n syntax.Node) bool {
@@ -287,7 +287,7 @@ func TestKnownIntBudget(t *testing.T) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	var fork, use *syntax.FuncCall
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {
@@ -319,7 +319,7 @@ function f(SplQueue $q) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	var last *syntax.MethodCall
 	var got []string
 	syntax.InspectFile(f, func(n syntax.Node) bool {
@@ -357,7 +357,7 @@ function f($a, $b) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	var last *syntax.Binary
 	var got []string
 	syntax.InspectFile(f, func(n syntax.Node) bool {

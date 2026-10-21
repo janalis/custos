@@ -16,6 +16,7 @@ import (
 	phpversion "custos/internal/php/version"
 	"custos/internal/project"
 	"custos/internal/semantic/flow"
+	"custos/internal/semantic/infer"
 )
 
 // TestFixesKeepCodeParsable applies every quick-fix offered on a real-world
@@ -48,7 +49,7 @@ func TestFixesKeepCodeParsable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ix := project.BuildIndex(files, opt)
+	ix := project.BuildIndex(files, opt, infer.Options{})
 	e = e.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(context.Background(), files, nil, opt, ix, flow.Options{}))
 
 	broken := map[string][]string{} // rule -> examples

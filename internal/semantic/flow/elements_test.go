@@ -194,7 +194,7 @@ func TestScalarArraysCrossFunctions(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, f := environment(t, tc.src, nil)
-			e = New(f, e.types, NewSnapshot(Extract(f, e.types.Index, e.types.PHP, nil)))
+			e = New(f, e.types, NewSnapshot(Extract(f, e.types.Index, e.types.PHP, nil, Options{})), Options{})
 			x := argument(callsNamed(f, "probe")[0])
 			if got := e.Tainted(x, HTML); got != tc.taint {
 				t.Fatalf("taint=%v value=%+v", got, e.Value(x))

@@ -266,7 +266,7 @@ function g() { out($r); t('out', $r); return $r; }
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	native := env.Native()
 	if native.Native() != native || !native.IsNative() || env.IsNative() || env.Native() != native {
 		t.Fatal("Native() must be cached and idempotent")
@@ -412,7 +412,7 @@ function f(int $i, int $j, $u, float $f) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	for _, spec := range []bool{false, true} {
 		tr := infer.NewTRules(env)
 		tr.SpecOnly = spec

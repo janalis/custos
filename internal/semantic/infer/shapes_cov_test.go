@@ -20,7 +20,7 @@ func shapesAt(t *testing.T, ver phpversion.Version, src string) map[string]strin
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: ver})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, ver)
+	env := infer.NewEnv(f, names.New(f), ix, ver, infer.Options{})
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {

@@ -131,7 +131,7 @@ func TestPipePreservesSourceTree(t *testing.T) {
 	}
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP85)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP85, infer.Options{})
 	parents := map[syntax.Node]syntax.Node{}
 	spans := map[syntax.Node]syntax.Span{}
 	var pipe *syntax.Binary

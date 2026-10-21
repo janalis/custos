@@ -217,7 +217,7 @@ function f(int|string|null $x, $c) {
 	})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	got := map[string]string{}
 	for _, c := range calls {
 		label := strings.Trim(string(f.Src[c.Args.Args[0].Span().Start:c.Args.Args[0].Span().End]), "'")

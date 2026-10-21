@@ -23,7 +23,7 @@ func environmentAt(t testing.TB, src string, version phpversion.Version) (*Env, 
 	}
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	return New(f, infer.NewEnv(f, names.New(f), ix, version), nil), f
+	return New(f, infer.NewEnv(f, names.New(f), ix, version, infer.Options{}), nil, Options{}), f
 }
 
 // The declarations a call may run are the one it resolves to when no other
@@ -365,10 +365,10 @@ func TestCallsThatSpareTheRequestTables(t *testing.T) {
 			}
 			ix := index.New(stubs.Index())
 			ix.Add(index.Extract(f))
-			types := infer.NewEnv(f, names.New(f), ix, tc.version)
-			_, own := Summarize(f, types, NewSnapshot())
+			types := infer.NewEnv(f, names.New(f), ix, tc.version, infer.Options{})
+			_, own := Summarize(f, types, NewSnapshot(), Options{})
 			snapshot := NewSnapshot(own)
-			e := New(f, types, snapshot)
+			e := New(f, types, snapshot, Options{})
 			body := f.Stmts[len(f.Stmts)-1].(*syntax.Function).Body
 			call := body.Stmts[0].(*syntax.ExprStmt).Expr
 			if got := e.Spares(call); got != tc.spared {

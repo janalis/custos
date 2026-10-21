@@ -21,7 +21,7 @@ func hookTypes(t *testing.T, src string, native, trules bool, want map[string]st
 	}
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	e := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	e := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	if native {
 		e = e.Native()
 	}
@@ -135,7 +135,7 @@ func BenchmarkHookVariables(b *testing.B) {
 	ix.Add(index.Extract(f))
 	b.ReportAllocs()
 	for b.Loop() {
-		e := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+		e := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			if v, ok := n.(*syntax.Variable); ok {
 				e.TypeOf(v)

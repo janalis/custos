@@ -20,7 +20,7 @@ func discoverOf(t *testing.T, src string) string {
 	f := Parse(t, src)
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	var arg syntax.Expr
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok && astquery.CallLastName(c) == "probe" {
@@ -105,7 +105,7 @@ func TestDiscoverValuesEdges(t *testing.T) {
 		}
 	}
 	f := Parse(t, `<?php 1;`)
-	env := infer.NewEnv(f, names.New(f), index.New(stubs.Index()), phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), index.New(stubs.Index()), phpversion.PHP84, infer.Options{})
 	if ResolveConstant(env, nil) != nil {
 		t.Fatal("ResolveConstant(nil)")
 	}

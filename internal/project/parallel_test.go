@@ -17,6 +17,7 @@ import (
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/infer"
 )
 
 func TestParallelIsolatesPanics(t *testing.T) {
@@ -89,14 +90,14 @@ func TestFlowSurvivesSummaryPanic(t *testing.T) {
 	writeFile(t, good, "<?php function good() { return $_GET['v']; }")
 	writeFile(t, bad, "<?php function bad() { return $_GET['v']; }")
 	opt := syntax.Options{Version: phpversion.Default}
-	ix := BuildIndex([]string{good, bad}, opt)
+	ix := BuildIndex([]string{good, bad}, opt, infer.Options{})
 	old := extractFlow
 	t.Cleanup(func() { extractFlow = old })
-	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o ...flow.Options) *flow.File {
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
 		if strings.HasSuffix(f.Path, "bad.php") {
 			panic("simulated summary crash")
 		}
-		return old(f, ix, v, s, o...)
+		return old(f, ix, v, s, o)
 	}
 	build := BuildFlow(context.Background(), []string{good, bad}, nil, opt, ix, flow.Options{})
 	if build.results[0] == nil || build.results[1] != nil {

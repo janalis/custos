@@ -798,16 +798,12 @@ const (
 )
 
 // New creates an environment without computing scope flow eagerly.
-func New(file *syntax.File, types *infer.Env, snapshot *Snapshot, options ...Options) *Env {
-	var resolved Options
-	if len(options) > 0 {
-		resolved = options[0]
-	}
-	if snapshot != nil && snapshot.options != resolved {
+func New(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options) *Env {
+	if snapshot != nil && snapshot.options != options {
 		snapshot = nil
 	}
-	types = types.WithOptions(infer.Options{Assertions: resolved.Assertions})
-	return &Env{options: resolved, file: file, types: types, snapshot: snapshot, scopes: map[syntax.Node]*scopeResult{}}
+	types = types.WithOptions(infer.Options{Assertions: options.Assertions})
+	return &Env{options: options, file: file, types: types, snapshot: snapshot, scopes: map[syntax.Node]*scopeResult{}}
 }
 
 // Value returns the joined value of an expression at its execution point.

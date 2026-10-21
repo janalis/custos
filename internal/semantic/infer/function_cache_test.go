@@ -15,7 +15,7 @@ func TestResolvedFunctionCacheTracksDependencies(t *testing.T) {
 	call := f.Stmts[0].(*syntax.Namespace).Stmts[0].(*syntax.ExprStmt).Expr.(*syntax.FuncCall)
 	base := index.New(nil)
 	ix := index.New(base)
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	for range 2 {
 		if env.ResolveFunction(call) != nil {
 			t.Fatal("negative cache must start unresolved")
@@ -46,7 +46,7 @@ func TestResolvedFunctionCacheTracksPHPVersion(t *testing.T) {
 	call := f.Stmts[0].(*syntax.ExprStmt).Expr.(*syntax.FuncCall)
 	ix := index.New(nil)
 	ix.Add(&index.FileSymbols{Path: "versioned.php", Functions: []*index.Function{{FQN: "versioned", Return: "string", RetVer: []index.VerType{{Until: phpversion.PHP80, Type: "int"}}}}})
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP74)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP74, infer.Options{})
 	if fn := env.ResolveFunction(call); fn.Return != "int" {
 		t.Fatal(fn.Return)
 	}
@@ -61,7 +61,7 @@ func BenchmarkResolvedFunction(b *testing.B) {
 	call := file.Stmts[0].(*syntax.Namespace).Stmts[0].(*syntax.ExprStmt).Expr.(*syntax.FuncCall)
 	ix := index.New(nil)
 	ix.Add(&index.FileSymbols{Path: "target.php", Functions: []*index.Function{{FQN: "target", Return: "int"}}})
-	env := infer.NewEnv(file, names.New(file), ix, phpversion.PHP84)
+	env := infer.NewEnv(file, names.New(file), ix, phpversion.PHP84, infer.Options{})
 	b.ReportAllocs()
 	for b.Loop() {
 		env.ResolveFunction(call)

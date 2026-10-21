@@ -19,7 +19,7 @@ func trulesLabels(t *testing.T, src string, ver phpversion.Version, setup func(*
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: ver})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	tr := NewTRules(NewEnv(f, names.New(f), ix, ver))
+	tr := NewTRules(NewEnv(f, names.New(f), ix, ver, Options{}))
 	if setup != nil {
 		setup(tr)
 	}
@@ -120,7 +120,7 @@ function g($o, $m, $name, int $i, $doc) {
 // against stub data lacking it) matches nothing.
 func TestTRulesNamedArgBeyondParams(t *testing.T) {
 	f := syntax.Parse("t.php", []byte(`<?php str_replace('a', 'b', subject: 1);`), syntax.Options{Version: phpversion.PHP84})
-	tr := NewTRules(NewEnv(f, names.New(f), index.New(stubs.Index()), phpversion.PHP84))
+	tr := NewTRules(NewEnv(f, names.New(f), index.New(stubs.Index()), phpversion.PHP84, Options{}))
 	call := f.Stmts[0].(*syntax.ExprStmt).Expr.(*syntax.FuncCall)
 	fn := &index.Function{FQN: "str_replace"}
 	if tr.arg(call, fn, 2) != nil {
@@ -168,7 +168,7 @@ func TestTRulesMaxVarDefs(t *testing.T) {
 
 func TestTRulesNilAndReentrant(t *testing.T) {
 	f := syntax.Parse("t.php", []byte(`<?php $x = 1;`), syntax.Options{Version: phpversion.PHP84})
-	tr := NewTRules(NewEnv(f, names.New(f), index.New(stubs.Index()), phpversion.PHP84))
+	tr := NewTRules(NewEnv(f, names.New(f), index.New(stubs.Index()), phpversion.PHP84, Options{}))
 	if !tr.TypeOf(nil).IsUnknown() {
 		t.Error("nil expression")
 	}

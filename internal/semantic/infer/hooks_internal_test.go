@@ -11,7 +11,7 @@ import (
 
 func TestUnattachedHookValueType(t *testing.T) {
 	f := syntax.Parse("empty.php", []byte("<?php"), syntax.Options{Version: phpversion.PHP84})
-	e := NewEnv(f, names.New(f), index.New(nil), phpversion.PHP84)
+	e := NewEnv(f, names.New(f), index.New(nil), phpversion.PHP84, Options{})
 	if got := e.hookValueType(&syntax.PropertyHook{}); !got.IsUnknown() {
 		t.Fatalf("unattached hook: %s", got)
 	}

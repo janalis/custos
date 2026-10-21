@@ -18,7 +18,7 @@ func TestExitCallableInference(t *testing.T) {
 			if len(f.Errors) != 0 {
 				t.Fatal(f.Errors)
 			}
-			env := infer.NewEnv(f, names.New(f), index.New(nil), phpversion.PHP84)
+			env := infer.NewEnv(f, names.New(f), index.New(nil), phpversion.PHP84, infer.Options{})
 			got := env.TypeOf(f.Stmts[0].(*syntax.ExprStmt).Expr)
 			want := "never"
 			if expression == `exit(...)` || expression == `die(...)` {
@@ -84,7 +84,7 @@ func BenchmarkExitInference(b *testing.B) {
 			expr := f.Stmts[0].(*syntax.ExprStmt).Expr
 			b.ReportAllocs()
 			for b.Loop() {
-				infer.NewEnv(f, resolver, ix, phpversion.PHP84).TypeOf(expr)
+				infer.NewEnv(f, resolver, ix, phpversion.PHP84, infer.Options{}).TypeOf(expr)
 			}
 		})
 	}

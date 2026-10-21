@@ -306,7 +306,7 @@ func TestArrayOnlyParametersProveNothingBeforePHP8(t *testing.T) {
 	f := syntax.Parse("test.php", []byte(`<?php $u=scandir($a); if (count($u) > 0) { probe($u); }`), syntax.Options{Version: phpversion.PHP74})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	e := New(f, infer.NewEnv(f, names.New(f), ix, phpversion.PHP74), nil)
+	e := New(f, infer.NewEnv(f, names.New(f), ix, phpversion.PHP74, infer.Options{}), nil, Options{})
 	if e.Excludes(argument(callsNamed(f, "probe")[0]), "false") {
 		t.Fatal("PHP 7 count() accepted as a proof")
 	}
@@ -319,7 +319,7 @@ func TestTypedParametersProveNothingBeforePHP7(t *testing.T) {
 		f := syntax.Parse("test.php", []byte(`<?php function take(array $s) {} function t($a) { $u=scandir($a); take($u); probe($u); }`), syntax.Options{Version: version})
 		ix := index.New(stubs.Index())
 		ix.Add(index.Extract(f))
-		e := New(f, infer.NewEnv(f, names.New(f), ix, version), nil)
+		e := New(f, infer.NewEnv(f, names.New(f), ix, version, infer.Options{}), nil, Options{})
 		if got := e.Excludes(argument(callsNamed(f, "probe")[0]), "null"); got != want {
 			t.Errorf("%v: non-null=%v", version, got)
 		}
@@ -337,7 +337,7 @@ func TestPropertyWritesChangeIdentityBeforePHP8(t *testing.T) {
 		f := syntax.Parse("test.php", []byte(`<?php `+src), syntax.Options{Version: phpversion.PHP74})
 		ix := index.New(stubs.Index())
 		ix.Add(index.Extract(f))
-		e := New(f, infer.NewEnv(f, names.New(f), ix, phpversion.PHP74), nil)
+		e := New(f, infer.NewEnv(f, names.New(f), ix, phpversion.PHP74, infer.Options{}), nil, Options{})
 		if got := e.Excludes(argument(callsNamed(f, "probe")[0]), "false"); got != want {
 			t.Errorf("non-false=%v for %s", got, src)
 		}
@@ -369,14 +369,14 @@ func TestCallablesThatAlwaysLeave(t *testing.T) {
 	e, f := environment(t, helpers, nil)
 	snapshot := NewSnapshot()
 	for range 3 {
-		snapshot = NewSnapshot(Extract(f, e.types.Index, e.types.PHP, snapshot))
+		snapshot = NewSnapshot(Extract(f, e.types.Index, e.types.PHP, snapshot, Options{}))
 	}
 	for name, never := range map[string]bool{"fail": true, "stop": true, "maybe": false, "gen": false, "loud": false, "h::quit": true, "h::bail": true, "h::open": true, "d": false} {
 		if got := snapshot.files["test.php"].Summaries[name].Never; got != never {
 			t.Errorf("%s never=%v", name, got)
 		}
 	}
-	e = New(f, e.types, snapshot)
+	e = New(f, e.types, snapshot, Options{})
 	want := []bool{true, true, false, true, true, false, false, false, true}
 	for i, call := range callsNamed(f, "probe") {
 		if got := e.Excludes(argument(call), "false"); got != want[i] {
@@ -417,7 +417,7 @@ func TestBodiesThatMayNotBeTheOnesCalled(t *testing.T) {
 		trait Tr { private function tq() { throw new \E; } }
 		final class C { private function cq() { throw new \E; } }
 		if (PHP_VERSION_ID > 1) { final class D { private function dq() { throw new \E; } } } }`, nil)
-	sums := Extract(f, e.types.Index, e.types.PHP, nil).Summaries
+	sums := Extract(f, e.types.Index, e.types.PHP, nil, Options{}).Summaries
 	for name, never := range map[string]bool{`n\nf`: true, `n\cond`: false, `n\tr::tq`: false, `n\c::cq`: true, `n\d::dq`: false} {
 		if sum, ok := sums[name]; !ok || sum.Never != never {
 			t.Errorf("%s never=%v declared=%v (%v)", name, sum.Never, ok, len(sums))

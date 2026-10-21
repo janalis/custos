@@ -134,7 +134,7 @@ $f = documented(...); $m = (new C())->documented(...); $s = C::staticDocumented(
 		return true
 	})
 	for _, native := range []bool{false, true} {
-		env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+		env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 		if native {
 			env = env.Native()
 		}
@@ -190,7 +190,7 @@ func BenchmarkFirstClassCallableReturns(b *testing.B) {
 	})
 	b.ReportAllocs()
 	for b.Loop() {
-		env := infer.NewEnv(f, ns, ix, phpversion.PHP84)
+		env := infer.NewEnv(f, ns, ix, phpversion.PHP84, infer.Options{})
 		for _, call := range calls {
 			env.TypeOf(call)
 		}

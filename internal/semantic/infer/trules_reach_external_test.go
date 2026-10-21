@@ -23,7 +23,7 @@ function f(string $sql, array $c) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84))
+	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}))
 	tr.SpecOnly = true
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {
@@ -57,7 +57,7 @@ function preg_replace($p, $r, $s) {}
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84))
+	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}))
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {
 			if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "t" {
@@ -95,7 +95,7 @@ function f(string $t, array $xs, $c) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84))
+	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}))
 	want := map[string]string{"'list'": "?unknown", "'out'": "?unknown", "'plain'": "int", "'doc'": "int", "'binding'": "?unknown"}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {

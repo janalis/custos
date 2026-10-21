@@ -74,11 +74,11 @@ func TestVendorIsIndexedWithoutRetention(t *testing.T) {
 	settle(t, dir)
 	original := extract
 	t.Cleanup(func() { extract = original })
-	extract = func(name string, src []byte, opt syntax.Options, options ...infer.Options) *index.FileSymbols {
+	extract = func(name string, src []byte, opt syntax.Options, options infer.Options) *index.FileSymbols {
 		if strings.HasSuffix(name, "crash.php") {
 			panic("parser crash")
 		}
-		return original(name, src, opt, options...)
+		return original(name, src, opt, options)
 	}
 	ctx := context.Background()
 	rules := []analysis.Rule{nestednotoperators.New()}

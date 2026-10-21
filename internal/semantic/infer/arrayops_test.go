@@ -66,7 +66,7 @@ func TestArraySpreadVersions(t *testing.T) {
 			f := syntax.Parse("t.php", []byte("<?php function f() {"+tc.src+"}"), syntax.Options{Version: phpversion.PHP84})
 			ix := index.New(stubs.Index())
 			ix.Add(index.Extract(f))
-			env := infer.NewEnv(f, names.New(f), ix, tc.version)
+			env := infer.NewEnv(f, names.New(f), ix, tc.version, infer.Options{})
 			syntax.InspectFile(f, func(n syntax.Node) bool {
 				if r, ok := n.(*syntax.Return); ok {
 					if got := env.TypeOf(r.Expr).ShapeString(); got != tc.want {
@@ -98,7 +98,7 @@ func TestArrayOperationsShapeLimit(t *testing.T) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {
 			if name, ok := c.Name.(*syntax.Name); ok && name.Value == "t" {
@@ -146,7 +146,7 @@ func BenchmarkArrayOperations(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for b.Loop() {
-				env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+				env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 				env.TypeOf(expr)
 			}
 		})
@@ -155,7 +155,7 @@ func BenchmarkArrayOperations(b *testing.B) {
 
 func TestArrayInferenceIncompleteItems(t *testing.T) {
 	f := syntax.Parse("t.php", []byte("<?php"), syntax.Options{Version: phpversion.PHP84})
-	env := infer.NewEnv(f, names.New(f), index.New(stubs.Index()), phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), index.New(stubs.Index()), phpversion.PHP84, infer.Options{})
 	for _, items := range [][]*syntax.ArrayItem{{nil}, {{}}} {
 		got := env.TypeOf(&syntax.Array{Items: items})
 		if got.HasShape() || got.IsNonEmptyArray() || !got.OnlyOf("array") {

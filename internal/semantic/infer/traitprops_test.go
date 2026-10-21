@@ -91,7 +91,7 @@ func checkNative(t *testing.T, src string, want map[string]string) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {

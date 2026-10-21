@@ -33,8 +33,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - Taint is followed through a chain of more than eight wrapper functions
   across files. Past 32 files, calls into the chain are reported as
   `unresolved-dispatch` instead of passing as clean.
-- The MCP server applies `flow.assertions` to cross-file flow summaries, like
-  the CLI and the language server.
+- The MCP server applies `flow.assertions` to cross-file flow summaries and
+  to the types its `type` tool reports, like the CLI and the language server.
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.

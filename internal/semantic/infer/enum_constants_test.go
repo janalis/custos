@@ -32,7 +32,7 @@ func TestEnumCasesNativeInference(t *testing.T) {
 	if !ix.IsSubtype(`App\Flag`, "UnitEnum", phpversion.PHP81) || ix.IsSubtype(`App\Flag`, "BackedEnum", phpversion.PHP81) {
 		t.Fatal("enum runtime interfaces")
 	}
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP81).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP81, infer.Options{}).Native()
 	var stmt *syntax.ExprStmt
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if s, ok := n.(*syntax.ExprStmt); ok {
@@ -115,6 +115,6 @@ func BenchmarkTypedConstantInference(b *testing.B) {
 	expr := f.Stmts[1].(*syntax.ExprStmt).Expr
 	b.ReportAllocs()
 	for b.Loop() {
-		infer.NewEnv(f, resolver, ix, phpversion.PHP85).TypeOf(expr)
+		infer.NewEnv(f, resolver, ix, phpversion.PHP85, infer.Options{}).TypeOf(expr)
 	}
 }

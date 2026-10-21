@@ -22,7 +22,7 @@ func checkWith(t *testing.T, others map[string]string, src string, want map[stri
 	ix := index.New(stubs.Index())
 	var all []*index.FileSymbols
 	for path, s := range others {
-		fs := project.ExtractSymbols(path, []byte(s), opt)
+		fs := project.ExtractSymbols(path, []byte(s), opt, infer.Options{})
 		ix.Add(fs)
 		all = append(all, fs)
 	}
@@ -35,7 +35,7 @@ func checkWith(t *testing.T, others map[string]string, src string, want map[stri
 	}
 	local := index.New(ix)
 	local.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), local, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), local, phpversion.PHP84, infer.Options{})
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if es, ok := n.(*syntax.ExprStmt); ok {

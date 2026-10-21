@@ -35,7 +35,7 @@ function l(array $rows) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84))
+	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}))
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {
 			if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "t" {

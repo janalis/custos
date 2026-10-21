@@ -15,14 +15,14 @@ func projectionEnvironment(t testing.TB, src string) (*Env, *syntax.File, *File)
 	snapshot := NewSnapshot()
 	var own *File
 	for range 5 {
-		_, own = Summarize(f, e.types, snapshot)
+		_, own = Summarize(f, e.types, snapshot, Options{})
 		next := NewSnapshot(own)
 		if snapshot.Equal(next) {
 			break
 		}
 		snapshot = next
 	}
-	return New(f, e.types, snapshot), f, own
+	return New(f, e.types, snapshot, Options{}), f, own
 }
 
 func TestProjectedWrapperDependencies(t *testing.T) {
@@ -148,7 +148,7 @@ func TestSinkDispatchMetadataInvalidatesSnapshots(t *testing.T) {
 			before, after := NewSnapshot(oldFile), NewSnapshot(newFile)
 			caller, file := environment(t, `function invoke(C $o,$x){$o->send($x);}`, before)
 			caller.types.Index = oldEnv.types.Index
-			_, own := Summarize(file, caller.types, before)
+			_, own := Summarize(file, caller.types, before, Options{})
 			if !own.Current(before, before) || own.Current(before, after) || before.Equal(after) || before.Holds(newFile) {
 				t.Fatal("dispatch metadata change retained stale caller contract")
 			}
@@ -203,7 +203,7 @@ func TestNamedMethodBindingInvalidatesCallerSummary(t *testing.T) {
 	before, after := NewSnapshot(old), NewSnapshot(next)
 	caller, file := environment(t, `function invoke(C $o,$x){$o->send(value:$x);}`, before)
 	caller.types.Index = oldEnv.types.Index
-	_, own := Summarize(file, caller.types, before)
+	_, own := Summarize(file, caller.types, before, Options{})
 	if len(own.Summaries["invoke"].Sinks) != 1 || own.Current(before, after) {
 		t.Fatal("renamed method parameter retained named binding")
 	}

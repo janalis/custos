@@ -21,7 +21,7 @@ func check(t *testing.T, src string, want map[string]string) {
 	}
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if es, ok := n.(*syntax.ExprStmt); ok {
@@ -88,7 +88,7 @@ a(); b(); c(); d(1); g();
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	want := map[string]string{"a": "int|null", "b": "int|string", "c": "?unknown", "d": "?unknown", "g": `\Generator`}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {
@@ -448,7 +448,7 @@ func checkShape(t *testing.T, src string, want map[string]string) {
 	}
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {

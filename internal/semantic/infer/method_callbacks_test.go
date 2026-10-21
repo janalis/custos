@@ -92,7 +92,7 @@ func BenchmarkLiteralMethodCallbacks(b *testing.B) {
 	})
 	b.ReportAllocs()
 	for b.Loop() {
-		e := infer.NewEnv(f, ns, ix, phpversion.PHP85)
+		e := infer.NewEnv(f, ns, ix, phpversion.PHP85, infer.Options{})
 		for _, c := range calls {
 			e.TypeOf(c)
 		}

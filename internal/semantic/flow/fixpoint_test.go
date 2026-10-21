@@ -169,7 +169,7 @@ func TestSummariesKnowTheContractsTheyUsed(t *testing.T) {
 	inner := func(kind string) *Snapshot {
 		return NewSnapshot(&File{Path: "inner.php", Summaries: map[string]Summary{"inner": {Return: Value{Complete: true, Sources: []Source{{Kind: kind, Parameter: -1}}}}}})
 	}
-	env, own := Summarize(f, e.types, inner("_GET"))
+	env, own := Summarize(f, e.types, inner("_GET"), Options{})
 	if !own.consulted["inner"] || env.consulted != nil || len(own.Summaries) != 3 {
 		t.Fatalf("consulted=%v summaries=%v", own.consulted, own.Summaries)
 	}
@@ -223,7 +223,7 @@ func BenchmarkNestedLoops(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		if !New(f, e.types, nil).Tainted(x, Shell) {
+		if !New(f, e.types, nil, Options{}).Tainted(x, Shell) {
 			b.Fatal("request data lost")
 		}
 	}
@@ -235,7 +235,7 @@ func BenchmarkSwitchFunction(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		if !New(f, e.types, nil).Tainted(x, Shell) {
+		if !New(f, e.types, nil, Options{}).Tainted(x, Shell) {
 			b.Fatal("request data lost")
 		}
 	}

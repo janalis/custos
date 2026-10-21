@@ -767,7 +767,7 @@ func BenchmarkLongFunction(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		if !New(f, e.types, nil).Tainted(x, Shell) {
+		if !New(f, e.types, nil, Options{}).Tainted(x, Shell) {
 			b.Fatal("request data lost")
 		}
 	}
@@ -1004,7 +1004,7 @@ func TestStatesSurviveDisagreeingSuccess(t *testing.T) {
 
 func TestCurlOptionSinkAcceptsQualifiedConstant(t *testing.T) {
 	e, f := environment(t, `function fetch($u){$c=curl_init(); curl_setopt($c, \CURLOPT_URL, $u); return curl_exec($c);} function plain($u){$c=curl_init(); curl_setopt($c, \CURLOPT_TIMEOUT, $u);}`, nil)
-	file := Extract(f, e.types.Index, e.types.PHP, nil)
+	file := Extract(f, e.types.Index, e.types.PHP, nil, Options{})
 	options := func(name string) int {
 		n := 0
 		for _, sink := range file.Summaries[name].Sinks {
@@ -1031,7 +1031,7 @@ func BenchmarkIndirectWrites(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		env := New(f, e.types, nil)
+		env := New(f, e.types, nil, Options{})
 		env.Value(x)
 	}
 }

@@ -46,7 +46,7 @@ func TestDynamicBuiltinResolution(t *testing.T) {
 				other := syntax.Parse("other.php", []byte(tc.companion), syntax.Options{Version: phpversion.PHP84})
 				ix.Add(index.Extract(other))
 			}
-			env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+			env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 			tr := infer.NewTRules(env)
 			syntax.InspectFile(f, func(n syntax.Node) bool {
 				c, ok := n.(*syntax.FuncCall)
@@ -89,7 +89,7 @@ func BenchmarkDynamicBuiltinResolution(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		env := infer.NewEnv(f, ns, ix, phpversion.PHP84)
+		env := infer.NewEnv(f, ns, ix, phpversion.PHP84, infer.Options{})
 		for _, read := range reads {
 			env.TypeOf(read)
 		}

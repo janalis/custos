@@ -81,7 +81,7 @@ func BenchmarkGenericArrayKeys(b *testing.B) {
 	nm := names.New(f)
 	b.ReportAllocs()
 	for b.Loop() {
-		env := infer.NewEnv(f, nm, ix, phpversion.PHP84)
+		env := infer.NewEnv(f, nm, ix, phpversion.PHP84, infer.Options{})
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			if expr, ok := n.(syntax.Expr); ok {
 				_ = env.TypeOf(expr)
@@ -97,7 +97,7 @@ func TestGenericArrayKeysCrossFile(t *testing.T) {
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
 	ix.Add(index.Extract(consumer))
-	env := infer.NewEnv(consumer, names.New(consumer), ix, phpversion.PHP84)
+	env := infer.NewEnv(consumer, names.New(consumer), ix, phpversion.PHP84, infer.Options{})
 	syntax.InspectFile(consumer, func(n syntax.Node) bool {
 		if v, ok := n.(*syntax.Variable); ok && v.Name == "key" {
 			if got := env.TypeOf(v).String(); got != "string" {

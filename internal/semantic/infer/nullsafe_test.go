@@ -48,7 +48,7 @@ func TestNullsafeChainFacts(t *testing.T) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	var expressions []syntax.Expr
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if es, ok := n.(*syntax.ExprStmt); ok {
@@ -119,7 +119,7 @@ func BenchmarkNullsafeChains(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for b.Loop() {
-				env := infer.NewEnv(f, resolver, ix, phpversion.PHP84)
+				env := infer.NewEnv(f, resolver, ix, phpversion.PHP84, infer.Options{})
 				env.TypeOf(expr)
 			}
 		})

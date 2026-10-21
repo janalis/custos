@@ -118,9 +118,9 @@ func summarized(t testing.TB, src string) (*Env, *syntax.File) {
 	e, f := environment(t, src, nil)
 	snapshot := NewSnapshot()
 	for range 3 {
-		snapshot = NewSnapshot(Extract(f, e.types.Index, e.types.PHP, snapshot))
+		snapshot = NewSnapshot(Extract(f, e.types.Index, e.types.PHP, snapshot, Options{}))
 	}
-	return New(f, e.types, snapshot), f
+	return New(f, e.types, snapshot, Options{}), f
 }
 
 // What a function of the project leaves in a reference argument comes from

@@ -11,6 +11,7 @@ import (
 	phpversion "custos/internal/php/version"
 	"custos/internal/project"
 	"custos/internal/semantic/flow"
+	"custos/internal/semantic/infer"
 )
 
 // TestNoCrashOnCorpus runs every rule over a real-world corpus (CUSTOS_CORPUS,
@@ -39,7 +40,7 @@ func TestNoCrashOnCorpus(t *testing.T) {
 		t.Fatal(err)
 	}
 	opt := syntax.Options{Version: phpversion.PHP85}
-	ix := project.BuildIndex(files, opt)
+	ix := project.BuildIndex(files, opt, infer.Options{})
 	e = e.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(context.Background(), files, nil, opt, ix, flow.Options{}))
 	crashes := 0
 	for _, r := range project.Run(e, files, opt) {

@@ -111,7 +111,7 @@ func (e *Env) methodBodyReturn(m *index.Method, virtual bool) types.Type {
 // as same-file inference (see methodBodyReturn). Namespaced function names
 // resolved through the global fallback are recorded in fs.ReturnDeps
 // (index.DropStaleInferred).
-func AnnotateReturns(f *syntax.File, fs *index.FileSymbols, base *index.Index, php phpversion.Version, options ...Options) {
+func AnnotateReturns(f *syntax.File, fs *index.FileSymbols, base *index.Index, php phpversion.Version, options Options) {
 	type target struct {
 		span syntax.Span
 		set  func(string)
@@ -152,7 +152,7 @@ func AnnotateReturns(f *syntax.File, fs *index.FileSymbols, base *index.Index, p
 	sort.Slice(todo, func(i, j int) bool { return todo[i].span.Start < todo[j].span.Start })
 	ix := index.New(base)
 	ix.Add(fs.WithoutProvisionalDeclarations())
-	e := NewEnv(f, names.New(f), ix, php, options...)
+	e := NewEnv(f, names.New(f), ix, php, options)
 	e.annotating = true
 	for _, t := range todo {
 		if rt := e.bodyReturn(t.span); !rt.IsUnknown() {

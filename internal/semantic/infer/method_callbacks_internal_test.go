@@ -15,7 +15,7 @@ func TestMethodCallbackRecoveryAndNative(t *testing.T) {
 	f := syntax.Parse("t.php", []byte(`<?php final class C { /** @return int */ public static function text(): string { return ''; } } call_user_func([C::class, 'text']);`), syntax.Options{Version: phpversion.PHP85})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := NewEnv(f, names.New(f), ix, phpversion.PHP85)
+	env := NewEnv(f, names.New(f), ix, phpversion.PHP85, Options{})
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if call, ok := n.(*syntax.FuncCall); ok {
 			if got := env.Native().TypeOf(call); !got.Equal(types.String) {

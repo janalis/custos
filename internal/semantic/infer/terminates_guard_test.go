@@ -130,7 +130,7 @@ function f(?int $a) { $a || throw new \Exception(); u($a); }`
 		f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 		ix := index.New(stubs.Index())
 		ix.Add(index.Extract(f))
-		env := infer.NewEnv(f, names.New(f), ix, tc.php)
+		env := infer.NewEnv(f, names.New(f), ix, tc.php, infer.Options{})
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			if c, ok := n.(*syntax.FuncCall); ok {
 				if nm, ok := c.Name.(*syntax.Name); ok && nm.Value == "u" {

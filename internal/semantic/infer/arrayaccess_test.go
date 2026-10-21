@@ -27,7 +27,7 @@ func arrayAccessEnv(t testing.TB, src string, others ...string) (*Env, map[strin
 		ix.Add(index.Extract(lib))
 	}
 	ix.Add(index.Extract(f))
-	e := NewEnv(f, names.New(f), ix, phpversion.PHP85)
+	e := NewEnv(f, names.New(f), ix, phpversion.PHP85, Options{})
 	reads := map[string]*syntax.ArrayDimFetch{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		call, ok := n.(*syntax.FuncCall)

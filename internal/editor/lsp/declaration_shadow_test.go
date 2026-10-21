@@ -8,6 +8,7 @@ import (
 
 	"custos/internal/php/syntax"
 	"custos/internal/project"
+	"custos/internal/semantic/infer"
 )
 
 func TestDeclarationShadowsThroughWorkspaceChanges(t *testing.T) {
@@ -15,8 +16,8 @@ func TestDeclarationShadowsThroughWorkspaceChanges(t *testing.T) {
 	s := whiteBox(t, dir, io.Discard)
 	calls := filepath.Join(dir, "calls.php")
 	shadow := filepath.Join(dir, "shadow.php")
-	s.index = project.BuildIndex(nil, syntax.Options{Version: s.cfg.PHP})
-	s.index.Add(project.ExtractSymbols(calls, []byte(`<?php namespace App; class Original {} define('FLAG', 7); class_alias(Original::class, 'Alias');`), syntax.Options{Version: s.cfg.PHP}))
+	s.index = project.BuildIndex(nil, syntax.Options{Version: s.cfg.PHP}, infer.Options{})
+	s.index.Add(project.ExtractSymbols(calls, []byte(`<?php namespace App; class Original {} define('FLAG', 7); class_alias(Original::class, 'Alias');`), syntax.Options{Version: s.cfg.PHP}, infer.Options{}))
 	check := func(want bool) {
 		t.Helper()
 		if (s.index.Constant("FLAG", s.cfg.PHP) != nil) != want || (s.index.Class("Alias", s.cfg.PHP) != nil) != want {

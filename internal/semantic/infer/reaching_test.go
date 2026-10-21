@@ -236,7 +236,7 @@ function k($x) {
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
 	for _, spec := range []bool{false, true} {
-		tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84))
+		tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}))
 		tr.SpecOnly = spec
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			if c, ok := n.(*syntax.FuncCall); ok {

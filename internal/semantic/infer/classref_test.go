@@ -21,7 +21,7 @@ class Foo extends Base {
 `), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	want := map[string]string{"a": `App\Foo`, "b": `App\Foo`, "c": `App\Base`, "d": `App\Base`, "e": `App\Foo`}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.StaticCall); ok {

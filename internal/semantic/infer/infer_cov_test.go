@@ -26,7 +26,7 @@ func checkVer(t *testing.T, v phpversion.Version, noStubs bool, src string, want
 	}
 	ix := index.New(base)
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, v)
+	env := infer.NewEnv(f, names.New(f), ix, v, infer.Options{})
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok { // anywhere, e.g. in an arrow function
@@ -241,7 +241,7 @@ func envFor(t *testing.T, src string, fs *index.FileSymbols) (*infer.Env, *synta
 	}
 	ix := index.New(stubs.Index())
 	ix.Add(fs)
-	return infer.NewEnv(f, names.New(f), ix, phpversion.PHP84), f
+	return infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}), f
 }
 
 func TestCovEnvEdges(t *testing.T) {

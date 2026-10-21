@@ -25,7 +25,7 @@ outer()->getReturn(); documented()->send(1.5);
 	ns := names.New(f)
 	b.ReportAllocs()
 	for b.Loop() {
-		env := infer.NewEnv(f, ns, ix, phpversion.PHP85)
+		env := infer.NewEnv(f, ns, ix, phpversion.PHP85, infer.Options{})
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			if expr, ok := n.(syntax.Expr); ok {
 				env.TypeOf(expr)

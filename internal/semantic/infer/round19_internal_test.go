@@ -39,7 +39,7 @@ func TestDeferredNativeOutput(t *testing.T) {
  `), syntax.Options{})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := NewEnv(f, names.New(f), ix, phpversion.PHP84, Options{}).Native()
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if echo, ok := n.(*syntax.Echo); ok {
 			if got := env.TypeOf(echo.Exprs[0]); !got.IsUnknown() {
@@ -61,7 +61,7 @@ func TestPre80ArrayMutationFailuresKeepInput(t *testing.T) {
  `), syntax.Options{})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := NewEnv(f, names.New(f), ix, phpversion.PHP74)
+	env := NewEnv(f, names.New(f), ix, phpversion.PHP74, Options{})
 	want := []string{"int", "string", "?unknown", "?unknown"}
 	i := 0
 	syntax.InspectFile(f, func(n syntax.Node) bool {
@@ -87,7 +87,7 @@ func TestConstructorReferenceArgument(t *testing.T) {
 		f := syntax.Parse("construct.php", []byte("<?php class Receiver {function __construct("+parameter+"){}} $value=['key'=>1]; new Receiver($value);"), syntax.Options{})
 		ix := index.New(nil)
 		ix.Add(index.Extract(f))
-		env := NewEnv(f, names.New(f), ix, phpversion.PHP84)
+		env := NewEnv(f, names.New(f), ix, phpversion.PHP84, Options{})
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			if call, ok := n.(*syntax.New); ok {
 				arg := call.Args.Args[0].(*syntax.Arg)

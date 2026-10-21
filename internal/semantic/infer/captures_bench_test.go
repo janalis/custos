@@ -39,7 +39,7 @@ func BenchmarkTypeOfCapturesAndMutations(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for b.Loop() {
-				env := infer.NewEnv(file, resolver, ix, phpversion.PHP84)
+				env := infer.NewEnv(file, resolver, ix, phpversion.PHP84, infer.Options{})
 				syntax.InspectFile(file, func(n syntax.Node) bool {
 					if v, ok := n.(*syntax.Variable); ok {
 						env.TypeOf(v)

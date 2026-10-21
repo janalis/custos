@@ -26,7 +26,7 @@ func TestRecursiveSummarySettles(t *testing.T) {
 	var snapshot *Snapshot
 	var sinks []int
 	for range 4 {
-		file := Extract(f, e.types.Index, phpversion.Max, snapshot)
+		file := Extract(f, e.types.Index, phpversion.Max, snapshot, Options{})
 		sinks = append(sinks, len(file.Summaries[`tree::visit`].Sinks))
 		next := NewSnapshot(file)
 		if snapshot != nil && snapshot.Equal(next) {

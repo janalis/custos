@@ -20,7 +20,7 @@ function f($a, $k) { if (array_key_exists($k, $a)) { u($a); } }`
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP74})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP74)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP74, infer.Options{})
 	var got string
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {

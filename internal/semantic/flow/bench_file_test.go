@@ -35,7 +35,7 @@ func BenchmarkSummarizeFile(b *testing.B) {
 	})
 	b.ReportAllocs()
 	for b.Loop() {
-		e, _ := Summarize(f, infer.NewEnv(f, names.New(f), ix, phpversion.PHP84), nil)
+		e, _ := Summarize(f, infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}), nil, Options{})
 		for _, v := range reads {
 			e.Value(v)
 		}

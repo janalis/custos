@@ -44,7 +44,7 @@ t('top', $count * 3);
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84))
+	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}))
 	want := map[string]string{
 		"div": "int", "mixf": "float", "unk": "float", "neg": "float", "coal": "", "coal2": "int|string",
 		"tern": "int|string", "var": "array", "mt0": "int", "mt1": "float", "expl": "array", "expl0": "bool",
@@ -97,7 +97,7 @@ function g($o, bool $c) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84))
+	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}))
 	want := map[string]string{"partial": "", "known": "string", "element": "", "overwritten": "string"}
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
@@ -133,7 +133,7 @@ function g(array $rows, array $names) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84))
+	tr := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}))
 	want := map[string]string{"rebound": "", "inner": "int", "after": ""} // after: the binding also reaches (unmodelled)
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
@@ -188,7 +188,7 @@ function g(array $rows, A|B $o, A $a) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 	collect := func(tr *infer.TRules) map[string]string {
 		got := map[string]string{}
 		syntax.InspectFile(f, func(n syntax.Node) bool {

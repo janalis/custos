@@ -42,7 +42,7 @@ func TestResolvedConstants(t *testing.T) {
 			}
 			ix := index.New(stubs.Index())
 			ix.Add(index.Extract(f))
-			env := NewEnv(f, names.New(f), ix, phpversion.PHP85)
+			env := NewEnv(f, names.New(f), ix, phpversion.PHP85, Options{})
 			var expr syntax.Expr
 			syntax.InspectFile(f, func(n syntax.Node) bool {
 				if s, ok := n.(*syntax.ExprStmt); ok {
@@ -66,7 +66,7 @@ func TestConstantAvailability(t *testing.T) {
 		{FQN: `App\Future`, Value: "1", Avail: index.Avail{From: phpversion.PHP85}},
 		{FQN: "Future", Value: "'fallback'"},
 	}})
-	env := NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	env := NewEnv(f, names.New(f), ix, phpversion.PHP84, Options{})
 	var expr syntax.Expr
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if s, ok := n.(*syntax.ExprStmt); ok {
@@ -91,7 +91,7 @@ func TestConstantAvailability(t *testing.T) {
 		{"PHP_OS_FAMILY", phpversion.PHP71, "?unknown"},
 		{"PHP_OS_FAMILY", phpversion.PHP72, "string"},
 	} {
-		env := NewEnv(f, names.New(f), stubs.Index(), tc.ver)
+		env := NewEnv(f, names.New(f), stubs.Index(), tc.ver, Options{})
 		got, _ := env.namedConstType(tc.name)
 		if got.String() != tc.want {
 			t.Errorf("%s at %s: got %s want %s", tc.name, tc.ver, got, tc.want)
@@ -103,7 +103,7 @@ func TestConstantPolyfill(t *testing.T) {
 	f := syntax.Parse("polyfill.php", []byte(`<?php const PHP_INT_MIN = 'polyfill'; PHP_INT_MIN;`), syntax.Options{Version: phpversion.PHP56})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := NewEnv(f, names.New(f), ix, phpversion.PHP56)
+	env := NewEnv(f, names.New(f), ix, phpversion.PHP56, Options{})
 	expr := f.Stmts[len(f.Stmts)-1].(*syntax.ExprStmt).Expr
 	for _, e := range []*Env{env, env.Native()} {
 		if got := e.TypeOf(expr).String(); got != "string" {
@@ -137,7 +137,7 @@ func TestConstantsWithoutStubInitializers(t *testing.T) {
 	f := syntax.Parse("empty-stubs.php", []byte("<?php"), syntax.Options{Version: phpversion.PHP85})
 	ix := index.New(nil)
 	ix.Add(&index.FileSymbols{Path: "stub.php", Constants: []*index.Constant{{FQN: "PHP_VERSION"}}})
-	env := NewEnv(f, names.New(f), ix, phpversion.PHP85)
+	env := NewEnv(f, names.New(f), ix, phpversion.PHP85, Options{})
 	for _, tc := range []struct{ name, want string }{{"PHP_VERSION", "string"}, {"M_PI", "float"}} {
 		got, found := env.namedConstType(tc.name)
 		if !found || got.String() != tc.want {
@@ -151,7 +151,7 @@ func TestConstantsWithoutStubInitializers(t *testing.T) {
 
 func BenchmarkConstantResolution(b *testing.B) {
 	f := syntax.Parse("bench.php", []byte(`<?php namespace App; PHP_INT_MAX;`), syntax.Options{Version: phpversion.PHP85})
-	env := NewEnv(f, names.New(f), stubs.Index(), phpversion.PHP85)
+	env := NewEnv(f, names.New(f), stubs.Index(), phpversion.PHP85, Options{})
 	var expr *syntax.ConstFetch
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.ConstFetch); ok {

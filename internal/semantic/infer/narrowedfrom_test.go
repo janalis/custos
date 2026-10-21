@@ -49,7 +49,7 @@ function f($o, $n) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	var got []string
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok && c.Name.(*syntax.Name).Value == "u" {
@@ -94,7 +94,7 @@ function f($h) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	seed := types.Union(types.StringLengths(types.IntRange{Lo: 0, Hi: 4}), types.Of("false"))
 	var got []string
 	syntax.InspectFile(f, func(n syntax.Node) bool {
@@ -141,7 +141,7 @@ function f(?string $s, $n) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	var got []string
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok && c.Name.(*syntax.Name).Value == "u" {
@@ -169,7 +169,7 @@ func TestNarrowedFromLimits(t *testing.T) {
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}).Native()
 	var got []string
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok && c.Name.(*syntax.Name).Value == "u" {

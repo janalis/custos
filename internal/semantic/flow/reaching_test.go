@@ -130,11 +130,11 @@ func TestOriginSetsCompareByContent(t *testing.T) {
 func TestSummariesKeepNoProducers(t *testing.T) {
 	const src = `function pick($a, $c){$u=parse_url($a); if($c){$u=scandir($a);} system($u); return $u;}`
 	e, f := environment(t, src, nil)
-	sum := Extract(f, e.types.Index, e.types.PHP, nil).Summaries["pick"]
+	sum := Extract(f, e.types.Index, e.types.PHP, nil, Options{}).Summaries["pick"]
 	if sum.Return.origins != nil || sum.Return.Expr != nil || len(sum.Sinks) != 1 || sum.Sinks[0].Argument.origins != nil {
 		t.Fatalf("summary=%+v", sum)
 	}
-	again := Extract(syntax.Parse("test.php", []byte("<?php "+src), syntax.Options{Version: e.types.PHP}), e.types.Index, e.types.PHP, nil)
+	again := Extract(syntax.Parse("test.php", []byte("<?php "+src), syntax.Options{Version: e.types.PHP}), e.types.Index, e.types.PHP, nil, Options{})
 	if !NewSnapshot(again).Holds(&File{Path: "test.php", Summaries: map[string]Summary{"pick": sum}}) {
 		t.Fatal("the same file summarized twice differs")
 	}

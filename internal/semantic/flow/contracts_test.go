@@ -173,7 +173,7 @@ func TestSnapshotsAreReplacedWithoutStaleContracts(t *testing.T) {
 		t.Fatal("unrelated removal")
 	}
 	e, f := environment(t, `class C { function f($x) { $inner=function(){yield 1;};return $x;} } function input(){return $_GET['x'];} function sink(){system($_GET['x']);} function route($x){header('Location: '.$x);} function net($h,$x){curl_setopt($h,CURLOPT_URL,$x);}`, nil)
-	file := Extract(f, e.types.Index, phpversion.Max, nil)
+	file := Extract(f, e.types.Index, phpversion.Max, nil, Options{})
 	if file.Summaries["c::f"].Generator {
 		t.Fatal("nested deferred scope escaped")
 	}
@@ -201,7 +201,7 @@ func TestCommandWrappersAreShellSinks(t *testing.T) {
 		` function open($x){return proc_open($x, [], $pipes);} function lines($x){exec($x, $out, $code); return $out;} function named($x){exec(output: $out, command: $x);}`+
 		` function spread($x){exec(...$x);} function bound(PDOStatement $s, $x){$s->bindParam(1, $x);} function nested($x){$g=function() use ($x){return shell_exec($x);};} function dead($x){return; echo `+"`$x`"+`;}`+
 		` function vector($x){return proc_open(['convert', $x], [], $pipes);} function held($x){$c=['convert', $x]; return proc_open($c, [], $pipes);} function typed(array $x){return proc_open($x, [], $pipes);} function either($x, $k){$c=$k ? ['convert', $x] : 'convert '.$x; return proc_open($c, [], $pipes);} function byname($x){return proc_open(descriptor_spec: [], command: 'convert '.$x, pipes: $pipes);}`, nil)
-	snapshot := NewSnapshot(Extract(f, e.types.Index, phpversion.Max, nil))
+	snapshot := NewSnapshot(Extract(f, e.types.Index, phpversion.Max, nil, Options{}))
 	local, g := environment(t, `tick($_GET['a']); quoted($_GET['a']); fixed($_GET['a']); open($_GET['a']); lines($_GET['a']); named($_GET['a']); spread($_GET['a']); bound($s, $_GET['a']); nested($_GET['a']); dead($_GET['a']); vector($_GET['a']); held($_GET['a']); typed($_GET); either($_GET['a'], $k); byname($_GET['a']);`, snapshot)
 	local.types.Index = index.New(e.types.Index)
 	local.types.Index.Add(index.Extract(g))
@@ -223,7 +223,7 @@ func TestCommandWrappersAreShellSinks(t *testing.T) {
 
 func TestIncompleteSummaryArgumentsCannotProveTaint(t *testing.T) {
 	e, f := environment(t, `function f($x){return $x;}function sink($x){system($x);}`, nil)
-	snapshot := NewSnapshot(Extract(f, e.types.Index, phpversion.Max, nil))
+	snapshot := NewSnapshot(Extract(f, e.types.Index, phpversion.Max, nil, Options{}))
 	local, g := environment(t, `probe(f());sink();`, snapshot)
 	local.types.Index = e.types.Index
 	if local.Tainted(argument(callsNamed(g, "probe")[0]), HTML) {

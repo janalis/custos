@@ -318,9 +318,9 @@ func TestSparesMethodsOfExtendedPHPClasses(t *testing.T) {
 			}
 			ix := index.New(stubs.Index())
 			ix.Add(index.Extract(f))
-			types := infer.NewEnv(f, names.New(f), ix, phpversion.Max)
-			_, own := Summarize(f, types, NewSnapshot())
-			e := New(f, types, NewSnapshot(own))
+			types := infer.NewEnv(f, names.New(f), ix, phpversion.Max, infer.Options{})
+			_, own := Summarize(f, types, NewSnapshot(), Options{})
+			e := New(f, types, NewSnapshot(own), Options{})
 			call := f.Stmts[len(f.Stmts)-1].(*syntax.Function).Body.Stmts[0].(*syntax.ExprStmt).Expr
 			for range 2 {
 				// The second answer is the one kept.

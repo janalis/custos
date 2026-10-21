@@ -28,7 +28,7 @@ func TestClonePHP85(t *testing.T) {
 			}
 			ix := index.New(nil)
 			ix.Add(index.Extract(f))
-			env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP85)
+			env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP85, infer.Options{})
 			expr := f.Stmts[1].(*syntax.ExprStmt).Expr
 			if got := env.TypeOf(expr).String(); got != tc.want {
 				t.Errorf("got %s want %s", got, tc.want)
@@ -45,6 +45,6 @@ func BenchmarkCloneInference(b *testing.B) {
 	expr := f.Stmts[1].(*syntax.ExprStmt).Expr
 	b.ReportAllocs()
 	for b.Loop() {
-		infer.NewEnv(f, resolver, ix, phpversion.PHP85).TypeOf(expr)
+		infer.NewEnv(f, resolver, ix, phpversion.PHP85, infer.Options{}).TypeOf(expr)
 	}
 }

@@ -54,7 +54,7 @@ func TestDigestHexAndBinaryOutputRemainDistinct(t *testing.T) {
 		})
 	}
 	e, f := environment(t, `namespace App; function md5($x){return $x;} probe(md5($_GET['x']));`, nil)
-	snapshot := NewSnapshot(Extract(f, e.types.Index, phpversion.Max, nil))
+	snapshot := NewSnapshot(Extract(f, e.types.Index, phpversion.Max, nil, Options{}))
 	e.snapshot = snapshot
 	if !e.Tainted(argument(callsNamed(f, "probe")[0]), HTML) {
 		t.Fatal("application function inherited native digest safety")
@@ -63,7 +63,7 @@ func TestDigestHexAndBinaryOutputRemainDistinct(t *testing.T) {
 
 func TestInvalidWrapperBindingDoesNotExpandExternalSink(t *testing.T) {
 	e, f := environment(t, `function sink($required){system($_GET['command']);}`, nil)
-	snapshot := NewSnapshot(Extract(f, e.types.Index, phpversion.Max, nil))
+	snapshot := NewSnapshot(Extract(f, e.types.Index, phpversion.Max, nil, Options{}))
 	local, g := environment(t, `sink();sink(unknown: 1);sink(1);`, snapshot)
 	local.types.Index = e.types.Index
 	calls := callsNamed(g, "sink")
@@ -83,7 +83,7 @@ func BenchmarkScalarTextFlow(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		local := New(f, e.types, nil)
+		local := New(f, e.types, nil, Options{})
 		if local.Tainted(x, HTML) {
 			b.Fatal("fixed scalar text lost its output contract")
 		}
@@ -92,7 +92,7 @@ func BenchmarkScalarTextFlow(b *testing.B) {
 
 func TestChangedWrapperSignatureCannotRetainParameterProof(t *testing.T) {
 	e, f := environment(t, `function sink($parameter){system($parameter);}`, nil)
-	snapshot := NewSnapshot(Extract(f, e.types.Index, phpversion.Max, nil))
+	snapshot := NewSnapshot(Extract(f, e.types.Index, phpversion.Max, nil, Options{}))
 	local, g := environment(t, `function sink(){} sink();`, snapshot)
 	if sinks := local.Sinks(callsNamed(g, "sink")[0]); len(sinks) != 1 || sinks[0].Argument.Complete {
 		t.Fatalf("changed signature retained old parameter proof: %+v", sinks)

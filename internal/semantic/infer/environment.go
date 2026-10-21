@@ -205,13 +205,9 @@ func (e *Env) scopeDocs(n syntax.Node) *docScope {
 }
 
 // NewEnv creates an inference environment.
-func NewEnv(f *syntax.File, r *names.Resolver, ix *index.Index, php phpversion.Version, options ...Options) *Env {
-	var resolved Options
-	if len(options) > 0 {
-		resolved = options[0]
-	}
+func NewEnv(f *syntax.File, r *names.Resolver, ix *index.Index, php phpversion.Version, options Options) *Env {
 	return &Env{
-		options: resolved, File: f, Names: r, Index: ix, PHP: php, cache: map[syntax.Expr]types.Type{}, scopes: map[syntax.Node]*scopeVars{}, busy: map[syntax.Expr]bool{},
+		options: options, File: f, Names: r, Index: ix, PHP: php, cache: map[syntax.Expr]types.Type{}, scopes: map[syntax.Node]*scopeVars{}, busy: map[syntax.Expr]bool{},
 		bodies: map[syntax.Span]types.Type{}, bodyBusy: map[syntax.Span]bool{},
 	}
 }

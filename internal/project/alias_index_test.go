@@ -6,6 +6,7 @@ import (
 
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/infer"
 )
 
 func TestBuildIndexAliasOnlyFile(t *testing.T) {
@@ -15,7 +16,7 @@ func TestBuildIndexAliasOnlyFile(t *testing.T) {
 	writeFile(t, original, `<?php namespace App; final class Product { public function count(): int { return 1; } }`)
 	writeFile(t, alias, `<?php use function class_alias as register; register(alias: 'ProductAlias', class: \App\Product::class);`)
 	for _, files := range [][]string{{original, alias}, {alias, original}} {
-		ix := BuildIndex(files, syntax.Options{Version: phpversion.PHP85})
+		ix := BuildIndex(files, syntax.Options{Version: phpversion.PHP85}, infer.Options{})
 		if got := ix.Class("ProductAlias", phpversion.PHP85); got == nil || got.FQN != `App\Product` {
 			t.Fatalf("alias-only file missing: %+v", got)
 		}
@@ -36,7 +37,7 @@ func TestBuildIndexDeclarationShadows(t *testing.T) {
 	writeFile(t, calls, `<?php namespace App; class Original {} define('FLAG', 7); class_alias(Original::class, 'Alias');`)
 	writeFile(t, shadow, `<?php namespace App; function define() {} function class_alias() {}`)
 	for _, files := range [][]string{{calls, shadow}, {shadow, calls}} {
-		ix := BuildIndex(files, syntax.Options{Version: phpversion.PHP85})
+		ix := BuildIndex(files, syntax.Options{Version: phpversion.PHP85}, infer.Options{})
 		if ix.Constant("FLAG", phpversion.PHP85) != nil || ix.Class("Alias", phpversion.PHP85) != nil {
 			t.Fatal("project functions did not suppress declarations")
 		}

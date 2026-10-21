@@ -16,13 +16,17 @@ import (
 // call, including those that are not expression statements.
 func checkAnywhere(t *testing.T, src string, want map[string]string, options ...infer.Options) {
 	t.Helper()
+	var o infer.Options
+	if len(options) > 0 {
+		o = options[0]
+	}
 	f := syntax.Parse("t.php", []byte(src), syntax.Options{Version: phpversion.PHP84})
 	if len(f.Errors) > 0 {
 		t.Fatalf("parse: %v", f.Errors)
 	}
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, options...)
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, o)
 	got := map[string]string{}
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if c, ok := n.(*syntax.FuncCall); ok {

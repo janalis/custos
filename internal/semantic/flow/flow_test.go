@@ -21,7 +21,7 @@ func environment(t testing.TB, src string, snapshot *Snapshot) (*Env, *syntax.Fi
 	}
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	return New(f, infer.NewEnv(f, names.New(f), ix, phpversion.Max), snapshot), f
+	return New(f, infer.NewEnv(f, names.New(f), ix, phpversion.Max, infer.Options{}), snapshot, Options{}), f
 }
 
 func callsNamed(f *syntax.File, name string) []*syntax.FuncCall {
@@ -103,7 +103,7 @@ func TestStateAndFinally(t *testing.T) {
 
 func TestScopesAndWrappers(t *testing.T) {
 	e, f := environment(t, `function passthrough($x){return $x;} function encode($x){return htmlspecialchars($x);} function sink($x){system($x);} function generator(){yield system($_GET['x']);}`, nil)
-	file := Extract(f, e.types.Index, phpversion.Max, nil)
+	file := Extract(f, e.types.Index, phpversion.Max, nil, Options{})
 	snapshot := NewSnapshot(file)
 	for _, tc := range []struct {
 		src   string
@@ -168,7 +168,7 @@ func BenchmarkFlow(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		env := New(f, e.types, nil)
+		env := New(f, e.types, nil, Options{})
 		env.Value(x)
 	}
 }

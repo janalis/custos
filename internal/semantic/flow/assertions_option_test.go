@@ -52,7 +52,7 @@ func TestOptionalAssertionArgumentEffects(t *testing.T) {
 		}
 	}
 	base, f := environment(t, `$v='safe';$fn='assert';$fn(($v=$_GET['x'])!=='');probe($v);`, nil)
-	if !New(f, base.types, nil).Tainted(argument(callsNamed(f, "probe")[0]), HTML) {
+	if !New(f, base.types, nil, Options{}).Tainted(argument(callsNamed(f, "probe")[0]), HTML) {
 		t.Fatal("dynamic assert arguments always evaluate")
 	}
 }
@@ -139,12 +139,12 @@ func TestAssertionSnapshotModeMismatchCannotSupplySafety(t *testing.T) {
 	base.types.Index.Add(index.Extract(source))
 	enabled := NewSnapshot(Extract(source, base.types.Index, phpversion.Max, nil, Options{Assertions: true}))
 	caller := syntax.Parse("caller.php", []byte(`<?php probe(source());`), syntax.Options{})
-	types := infer.NewEnv(caller, names.New(caller), base.types.Index, phpversion.Max)
+	types := infer.NewEnv(caller, names.New(caller), base.types.Index, phpversion.Max, infer.Options{})
 	value := argument(callsNamed(caller, "probe")[0])
 	if New(caller, types, enabled, Options{Assertions: true}).Value(value).Safe&HTML == 0 {
 		t.Fatal("matching enabled snapshot lost sanitizer")
 	}
-	if New(caller, types, enabled).Value(value).Safe&HTML != 0 {
+	if New(caller, types, enabled, Options{}).Value(value).Safe&HTML != 0 {
 		t.Fatal("incompatible enabled snapshot supplied sanitizer")
 	}
 }

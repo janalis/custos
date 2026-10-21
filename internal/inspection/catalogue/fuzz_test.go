@@ -15,6 +15,7 @@ import (
 	"custos/internal/project"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/infer"
 	"custos/internal/semantic/stubs"
 	"custos/internal/testing/testbudget"
 )
@@ -46,7 +47,7 @@ func FuzzRules(f *testing.F) {
 			engine := e
 			if v == phpversion.PHP84 {
 				ix := index.New(stubs.Index())
-				ix.Add(project.ExtractSymbols("fuzz.php", []byte(src), opt))
+				ix.Add(project.ExtractSymbols("fuzz.php", []byte(src), opt, infer.Options{}))
 				engine = e.WithIndex(ix).WithFlow(project.BuildFlowSnapshot(context.Background(), []string{"fuzz.php"}, [][]byte{[]byte(src)}, opt, ix, flow.Options{}))
 			}
 			file := syntax.ParseBest("fuzz.php", []byte(src), opt)

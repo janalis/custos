@@ -33,7 +33,7 @@ function run(Child $c) { t('self', $c->same()); t('parent', $c->above()); t('sta
 	ix := index.New(nil)
 	ix.Add(index.Extract(f))
 	for _, strict := range []bool{false, true} {
-		r := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84))
+		r := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}))
 		r.SpecOnly = strict
 		want := map[string]string{"selfProperty": `\Base`, "parentProperty": `\Root`, "self": `\Base`, "parent": `\Root`, "static": `\Child`, "staticCall": `\Child`, "forward": `\Base`}
 		if strict {
@@ -80,7 +80,7 @@ function inspect(Child $child) {
 	want := map[string]string{"function": "int", "method": `\Base`, "static": `\Child`}
 	for _, native := range []bool{false, true} {
 		for _, strict := range []bool{false, true} {
-			e := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+			e := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 			if native {
 				e = e.Native()
 			}
@@ -125,7 +125,7 @@ function run($ab, $ac) { t('ab', $ab->m()); t('ac', $ac->m()); }
 		false: {"ab": "?unknown", "ac": "int|string"},
 		true:  {"ab": "string", "ac": "int|string"},
 	} {
-		r := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84))
+		r := infer.NewTRules(infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{}))
 		r.SpecOnly = strict
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			call, ok := n.(*syntax.FuncCall)

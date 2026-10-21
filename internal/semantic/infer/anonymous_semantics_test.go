@@ -33,11 +33,11 @@ func TestAnonymousClassCrossFileReturn(t *testing.T) {
 	factory := syntax.Parse("factory.php", []byte(`<?php function factory() { return new class { public string $value = ''; public function text(): string { return ''; } }; }`), syntax.Options{Version: phpversion.PHP84})
 	consumer := syntax.Parse("consumer.php", []byte(`<?php factory()->text(); factory()->value;`), syntax.Options{Version: phpversion.PHP84})
 	fs := index.Extract(factory)
-	infer.AnnotateReturns(factory, fs, nil, phpversion.PHP84)
+	infer.AnnotateReturns(factory, fs, nil, phpversion.PHP84, infer.Options{})
 	ix := index.New(nil)
 	ix.Add(fs)
 	ix.Add(index.Extract(consumer))
-	env := infer.NewEnv(consumer, names.New(consumer), ix, phpversion.PHP84)
+	env := infer.NewEnv(consumer, names.New(consumer), ix, phpversion.PHP84, infer.Options{})
 	for _, st := range consumer.Stmts {
 		es, ok := st.(*syntax.ExprStmt)
 		if !ok {
@@ -59,7 +59,7 @@ func TestAnonymousClassConstructorReference(t *testing.T) {
 	nm := names.New(f)
 	ix := index.New(nil)
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, nm, ix, phpversion.PHP84)
+	env := infer.NewEnv(f, nm, ix, phpversion.PHP84, infer.Options{})
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if cl, ok := n.(*syntax.ClassLike); ok {
 			ref := env.ClassRef(cl)

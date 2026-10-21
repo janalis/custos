@@ -81,7 +81,7 @@ function run(Child $c) {
 	ix.Add(index.Extract(f))
 	want := map[string]string{"property": `\Base`, "self": `\Base`, "parent": `\Root`, "static": `\Child`, "doc": `\Base`, "staticCall": `\Base`, "first": `\Base`}
 	for _, native := range []bool{false, true} {
-		e := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+		e := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 		if native {
 			e = e.Native()
 		}

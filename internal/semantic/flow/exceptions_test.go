@@ -129,7 +129,7 @@ func BenchmarkExceptionEdges(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for b.Loop() {
-				New(f, e.types, nil).Calls(scope)
+				New(f, e.types, nil, Options{}).Calls(scope)
 			}
 		})
 	}

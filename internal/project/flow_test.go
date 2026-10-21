@@ -15,6 +15,7 @@ import (
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/infer"
 )
 
 func TestProjectComposesFlowWithoutWriting(t *testing.T) {
@@ -46,7 +47,7 @@ func TestFlowSnapshotSourcesAndBoundedComposition(t *testing.T) {
 	path := filepath.Join(root, "wrapper.php")
 	writeFile(t, path, "<?php function source() { return $_GET['value']; }")
 	opt := syntax.Options{Version: phpversion.Default}
-	ix := BuildIndex([]string{path}, opt)
+	ix := BuildIndex([]string{path}, opt, infer.Options{})
 	fromDisk := BuildFlowSnapshot(context.Background(), []string{path, filepath.Join(root, "gone.php")}, nil, opt, ix, flow.Options{})
 	fromBuffer := BuildFlowSnapshot(context.Background(), []string{path}, [][]byte{[]byte("<?php function source() { return $_GET['value']; }")}, opt, ix, flow.Options{})
 	if !fromDisk.Equal(fromBuffer) {
@@ -59,7 +60,7 @@ func TestFlowSnapshotSourcesAndBoundedComposition(t *testing.T) {
 	for i := 1; i < 12; i++ {
 		fmt.Fprintf(&chain, "function f%d() { return f%d(); }", i, i-1)
 	}
-	ix.Add(ExtractSymbols(path, []byte(chain.String()), opt))
+	ix.Add(ExtractSymbols(path, []byte(chain.String()), opt, infer.Options{}))
 	long := BuildFlowSnapshot(context.Background(), []string{path}, [][]byte{[]byte(chain.String())}, opt, ix, flow.Options{})
 	if long == nil || long.Equal(fromDisk) {
 		t.Fatal("composition did not retain distinct wrapper summaries")
@@ -76,7 +77,7 @@ func TestFlowSnapshotSourcesAndBoundedComposition(t *testing.T) {
 		}
 		paths = append(paths, filepath.Join(root, fmt.Sprintf("g%d.php", i)))
 		srcs = append(srcs, []byte(src))
-		ix.Add(ExtractSymbols(paths[i], srcs[i], opt))
+		ix.Add(ExtractSymbols(paths[i], srcs[i], opt, infer.Options{}))
 	}
 	if BuildFlowSnapshot(context.Background(), paths, srcs, opt, ix, flow.Options{}) == nil {
 		t.Fatal("bounded composition returned no snapshot")
@@ -103,7 +104,7 @@ func TestFlowBuildUpdateMatchesFullBuild(t *testing.T) {
 		files = append(files, path)
 	}
 	sort.Strings(files)
-	ix := BuildIndex(files, opt)
+	ix := BuildIndex(files, opt, infer.Options{})
 	build := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
 	current := map[string]string{}
 	for name, src := range sources {
@@ -120,7 +121,7 @@ func TestFlowBuildUpdateMatchesFullBuild(t *testing.T) {
 	for step, edit := range edits {
 		path := filepath.Join(root, edit.name)
 		current[path] = edit.src
-		ix.Add(ExtractSymbols(path, []byte(edit.src), opt))
+		ix.Add(ExtractSymbols(path, []byte(edit.src), opt, infer.Options{}))
 		next, ok := build.Update(map[string][]byte{path: []byte(edit.src)}, ix)
 		if !ok {
 			t.Fatalf("step %d: update refused", step)
@@ -156,13 +157,13 @@ func TestFlowBuildUpdateSelfRecursionAndUnreadable(t *testing.T) {
 	writeFile(t, self, "<?php function walk($n): void { if ($n) { walk($n - 1); } system($n); }")
 	writeFile(t, other, "<?php function shell($c): void { exec($c); }")
 	files := []string{gone, other, self}
-	ix := BuildIndex(files, opt)
+	ix := BuildIndex(files, opt, infer.Options{})
 	build := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
 	for _, edit := range []struct{ path, src string }{
 		{self, "<?php function walk($n): void { if ($n) { walk($n - 1); } echo $n; }"},
 		{other, "<?php function shell($c): void { echo $c; }"},
 	} {
-		ix.Add(ExtractSymbols(edit.path, []byte(edit.src), opt))
+		ix.Add(ExtractSymbols(edit.path, []byte(edit.src), opt, infer.Options{}))
 		next, ok := build.Update(map[string][]byte{edit.path: []byte(edit.src)}, ix)
 		if !ok {
 			t.Fatal("update refused")
@@ -211,7 +212,7 @@ func TestFlowBuildStopsWhenCancelled(t *testing.T) {
 	path := filepath.Join(root, "a.php")
 	writeFile(t, path, "<?php function source() { return $_GET['value']; }")
 	opt := syntax.Options{Version: phpversion.Default}
-	ix := BuildIndex([]string{path}, opt)
+	ix := BuildIndex([]string{path}, opt, infer.Options{})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if s := BuildFlowSnapshot(ctx, []string{path}, nil, opt, ix, flow.Options{}); s == nil || !s.Equal(flow.NewSnapshotWithOptions(flow.Options{})) {
@@ -228,13 +229,13 @@ func TestFlowOscillatingFileIsDropped(t *testing.T) {
 	writeFile(t, flip, "<?php function flip() { reader(); return $_GET['v']; }")
 	writeFile(t, reader, "<?php function reader() { return flip(); }")
 	opt := syntax.Options{Version: phpversion.Default}
-	ix := BuildIndex([]string{flip, reader}, opt)
+	ix := BuildIndex([]string{flip, reader}, opt, infer.Options{})
 	alternate := syntax.ParseBest(flip, []byte("<?php function flip() { reader(); return 1; }"), opt)
 	old := extractFlow
 	t.Cleanup(func() { extractFlow = old })
 	var mu sync.Mutex
 	calls := 0
-	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o ...flow.Options) *flow.File {
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
 		if f.Path == flip {
 			mu.Lock()
 			calls++
@@ -244,7 +245,7 @@ func TestFlowOscillatingFileIsDropped(t *testing.T) {
 				f = alternate
 			}
 		}
-		return old(f, ix, v, s, o...)
+		return old(f, ix, v, s, o)
 	}
 	build := BuildFlow(context.Background(), []string{flip, reader}, nil, opt, ix, flow.Options{})
 	if calls != maxSummaries || build.results[0] != nil || build.results[1] != nil {

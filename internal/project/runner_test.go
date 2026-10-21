@@ -10,6 +10,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/infer"
 )
 
 func writeFile(t *testing.T, p, body string) {
@@ -36,7 +37,7 @@ func TestIndexVendor(t *testing.T) {
 		t.Fatalf("sources: %v", files)
 	}
 	// a vanished file is skipped, not fatal
-	ix := BuildIndex(append(files, filepath.Join(root, "gone.php")), syntax.Options{Version: phpversion.Default})
+	ix := BuildIndex(append(files, filepath.Join(root, "gone.php")), syntax.Options{Version: phpversion.Default}, infer.Options{})
 	if ix.Class(`Lib\Thing`, phpversion.Default) == nil || ix.Function("app_fn", phpversion.Default) == nil {
 		t.Fatal("vendor/app symbols missing from the index")
 	}

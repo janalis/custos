@@ -96,7 +96,7 @@ func TestArrayBuiltinRecovery(t *testing.T) {
 			f := syntax.Parse("arrays.php", []byte("<?php "+tc.src+";"), syntax.Options{Version: phpversion.PHP84})
 			ix := index.New(stubs.Index())
 			ix.Add(index.Extract(f))
-			env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+			env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 			if got := env.TypeOf(f.Stmts[0].(*syntax.ExprStmt).Expr).ShapeString(); got != tc.want {
 				t.Fatalf("got %s want %s", got, tc.want)
 			}
@@ -111,7 +111,7 @@ func BenchmarkArrayBuiltinInference(b *testing.B) {
 	resolver := names.New(f)
 	b.ReportAllocs()
 	for b.Loop() {
-		env := infer.NewEnv(f, resolver, ix, phpversion.PHP84)
+		env := infer.NewEnv(f, resolver, ix, phpversion.PHP84, infer.Options{})
 		for _, stmt := range f.Stmts {
 			env.TypeOf(stmt.(*syntax.ExprStmt).Expr)
 		}

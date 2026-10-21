@@ -21,7 +21,7 @@ func TestFlowEngineCopiesAndLocalBufferShadow(t *testing.T) {
 	indexed := syntax.Parse("source.php", []byte("<?php function source() { return $_GET['value']; }"), opt)
 	ix := index.New(nil)
 	ix.Add(index.Extract(indexed))
-	snapshot := flow.NewSnapshot(flow.Extract(indexed, ix, opt.Version, nil))
+	snapshot := flow.NewSnapshot(flow.Extract(indexed, ix, opt.Version, nil, flow.Options{}))
 	original, err := NewEngine([]Rule{flowProbeRule{}}, Config{EnableAll: true, PHP: opt.Version})
 	if err != nil {
 		t.Fatal(err)

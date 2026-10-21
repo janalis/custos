@@ -129,7 +129,7 @@ func BenchmarkProducerRetention(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for b.Loop() {
-				New(f, e.types, nil).Reaching(x)
+				New(f, e.types, nil, Options{}).Reaching(x)
 			}
 		})
 	}
@@ -189,7 +189,7 @@ func TestCompressedProducerStatesAndOrder(t *testing.T) {
 func TestCompressedProducerSummariesReleaseSyntax(t *testing.T) {
 	src := strings.Replace(producerSwitch(70, func(int) string { return `file_get_contents($input)` }, nil), `probe($v);}`, `system($v);return $v;}`, 1)
 	e, f := environment(t, src, nil)
-	summary := Extract(f, e.types.Index, e.types.PHP, nil).Summaries["f"]
+	summary := Extract(f, e.types.Index, e.types.PHP, nil, Options{}).Summaries["f"]
 	if summary.Return.Expr != nil || summary.Return.origins != nil || len(summary.Sinks) == 0 {
 		t.Fatal("compressed return syntax escaped")
 	}

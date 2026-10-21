@@ -166,7 +166,7 @@ func BenchmarkConstantBranches(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for b.Loop() {
-		if _, _, known := New(f, e.types, nil).IntRange(x); !known {
+		if _, _, known := New(f, e.types, nil, Options{}).IntRange(x); !known {
 			b.Fatal("range lost")
 		}
 	}

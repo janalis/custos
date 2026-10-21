@@ -181,6 +181,6 @@ func benchmarkArrayKeyTemplateBinding(b *testing.B, name string) {
 	})
 	b.ReportAllocs()
 	for b.Loop() {
-		_ = infer.NewEnv(f, nm, ix, phpversion.PHP85).TypeOf(call)
+		_ = infer.NewEnv(f, nm, ix, phpversion.PHP85, infer.Options{}).TypeOf(call)
 	}
 }

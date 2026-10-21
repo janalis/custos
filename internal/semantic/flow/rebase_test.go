@@ -21,7 +21,7 @@ func functionNamed(f *syntax.File, name string) *syntax.Function {
 // environment then read what the snapshot with those summaries reads.
 func TestSummariesServeTheCallablesOfTheFile(t *testing.T) {
 	e, f := environment(t, `function a($c){return b($c);} function b($c){return $_GET['x'];} class K { function m(){ return $this->n(); } function n(){ return 1; } }`, nil)
-	env, own := Summarize(f, e.types, nil)
+	env, own := Summarize(f, e.types, nil, Options{})
 	if !tainted(own.Summaries["a"].Return) {
 		t.Fatalf("a=%+v", own.Summaries["a"])
 	}
@@ -43,7 +43,7 @@ func TestSummariesServeTheCallablesOfTheFile(t *testing.T) {
 // it was given, not what computing that summary read.
 func TestRebaseKeepsTheResultsTheSummariesDoNotChange(t *testing.T) {
 	e, f := environment(t, `function a($c){ if ($c) { return b($c); } return $_GET['x']; } function b($c){ return a($c); } function c($x){ return strlen($x); }`, nil)
-	env, own := Summarize(f, e.types, nil)
+	env, own := Summarize(f, e.types, nil, Options{})
 	if read := env.answers["a"]; !read.held || read.ok {
 		t.Fatalf("a answered %+v", read)
 	}
@@ -64,7 +64,7 @@ func TestRebaseKeepsTheResultsTheSummariesDoNotChange(t *testing.T) {
 	if other := env.Rebase(assuming); other == env || len(other.scopes) != 0 {
 		t.Fatalf("kept %d results under other options", len(other.scopes))
 	}
-	again, _ := Summarize(f, e.types, nil)
+	again, _ := Summarize(f, e.types, nil, Options{})
 	if other := again.Rebase(NewSnapshotWithOptions(Options{Assertions: true})); other == again || len(other.scopes) != 0 {
 		t.Fatalf("kept %d results under other options", len(other.scopes))
 	}
@@ -103,7 +103,7 @@ func TestOnlyACallableNoOtherFileDeclaresIsServed(t *testing.T) {
 		}
 	}
 	e, f := environment(t, `function x(){ return 1; } function w(){ return x(); }`, nil)
-	env, _ := Summarize(f, e.types, shared)
+	env, _ := Summarize(f, e.types, shared, Options{})
 	if read := env.answers["x"]; read.own || !read.held {
 		t.Fatalf("x answered %+v", read)
 	}

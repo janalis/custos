@@ -22,7 +22,7 @@ class RemoteFeed {
     public function batches() { return [$this->items()]; }
 }`), opt)
 	fs := index.Extract(feed)
-	infer.AnnotateReturns(feed, fs, stubs.Index(), opt.Version)
+	infer.AnnotateReturns(feed, fs, stubs.Index(), opt.Version, infer.Options{})
 	ix := index.New(stubs.Index())
 	ix.Add(fs)
 	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{PHP: phpversion.PHP85, EnableAll: true})

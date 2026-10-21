@@ -30,7 +30,7 @@ func TestGlobalsBoundInAnotherFile(t *testing.T) {
 			ix := index.New(stubs.Index())
 			ix.Add(index.Extract(f))
 			ix.Add(index.Extract(other))
-			e := New(f, infer.NewEnv(f, names.New(f), ix, phpversion.Max), nil)
+			e := New(f, infer.NewEnv(f, names.New(f), ix, phpversion.Max, infer.Options{}), nil, Options{})
 			if got := e.Excludes(argument(callsNamed(f, "probe")[0]), "false"); got != tc.kept {
 				t.Fatalf("non-false=%v", got)
 			}

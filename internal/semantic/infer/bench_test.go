@@ -56,7 +56,7 @@ final class Subject {
 		f := syntax.Parse("t.php", src, opt)
 		ix := index.New(stubs.Index())
 		ix.Add(index.Extract(f))
-		env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+		env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			switch n.(type) {
 			case *syntax.Variable, *syntax.PropertyFetch, *syntax.MethodCall, *syntax.StaticCall:
@@ -99,7 +99,7 @@ func BenchmarkTypeOfElementWrites(b *testing.B) {
 		f := syntax.Parse("t.php", src, opt)
 		ix := index.New(stubs.Index())
 		ix.Add(index.Extract(f))
-		env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+		env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			switch n.(type) {
 			case *syntax.Variable, *syntax.ArrayDimFetch:
@@ -146,7 +146,7 @@ final class Subject {
 		f := syntax.Parse("t.php", src, opt)
 		ix := index.New(stubs.Index())
 		ix.Add(index.Extract(f))
-		env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+		env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			switch n.(type) {
 			case *syntax.Variable, *syntax.PropertyFetch, *syntax.FuncCall, *syntax.MethodCall:
@@ -184,7 +184,7 @@ func BenchmarkTypeOfConditions(b *testing.B) {
 		f := syntax.Parse("t.php", src, opt)
 		ix := index.New(stubs.Index())
 		ix.Add(index.Extract(f))
-		env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
+		env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84, infer.Options{})
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			switch n.(type) {
 			case *syntax.Variable, *syntax.PropertyFetch:
@@ -209,9 +209,9 @@ func BenchmarkTypeOfPipesAndGenerators(b *testing.B) {
 		f := syntax.Parse("t.php", src, opt)
 		ix := index.New(stubs.Index())
 		fs := index.Extract(f)
-		infer.AnnotateReturns(f, fs, stubs.Index(), phpversion.PHP85)
+		infer.AnnotateReturns(f, fs, stubs.Index(), phpversion.PHP85, infer.Options{})
 		ix.Add(fs)
-		env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP85)
+		env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP85, infer.Options{})
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			if x, ok := n.(syntax.Expr); ok {
 				env.TypeOf(x)

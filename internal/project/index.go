@@ -53,22 +53,22 @@ func vendorDirBytes(b []byte) string {
 // the embedded stubs. Files are added in input order (Discover sorts paths),
 // so when a symbol is declared more than once (polyfills) the same
 // declaration wins on every run.
-func BuildIndex(files []string, opt syntax.Options, options ...infer.Options) *index.Index {
-	ix, _ := BuildIndexKeep(files, 0, opt, options...)
+func BuildIndex(files []string, opt syntax.Options, options infer.Options) *index.Index {
+	ix, _ := BuildIndexKeep(files, 0, opt, options)
 	return ix
 }
 
 // BuildIndexKeep is BuildIndex that also returns the sources it read for the
 // first keep files (nil where unreadable), so a following Run over them does
 // not read them again (IndexSources lists the analysed files first).
-func BuildIndexKeep(files []string, keep int, opt syntax.Options, options ...infer.Options) (*index.Index, [][]byte) {
+func BuildIndexKeep(files []string, keep int, opt syntax.Options, options infer.Options) (*index.Index, [][]byte) {
 	ix := index.New(stubs.Index())
 	results := make([]*index.FileSymbols, len(files))
 	srcs := make([][]byte, keep)
 	// indexOne isolates crashes of its own.
 	_ = parallel(context.Background(), len(files), 0, func(i int) {
 		var src []byte
-		results[i], src = indexOne(files[i], opt, options...)
+		results[i], src = indexOne(files[i], opt, options)
 		if i < keep {
 			srcs[i] = src
 		}
@@ -93,7 +93,7 @@ var extract = ExtractSymbols
 // unusual input) drops that file's symbols instead of taking down the CLI
 // or the language server; the file itself still gets an "internal" finding
 // when it is analysed.
-func indexOne(path string, opt syntax.Options, options ...infer.Options) (fs *index.FileSymbols, src []byte) {
+func indexOne(path string, opt syntax.Options, options infer.Options) (fs *index.FileSymbols, src []byte) {
 	defer func() {
 		if recover() != nil {
 			fs = nil
@@ -103,16 +103,16 @@ func indexOne(path string, opt syntax.Options, options ...infer.Options) (fs *in
 	if err != nil {
 		return nil, nil
 	}
-	return extract(path, src, opt, options...), src
+	return extract(path, src, opt, options), src
 }
 
 // ExtractSymbols parses one file and returns its symbols, with the return
 // types of untyped functions and methods inferred from their bodies
 // (infer.AnnotateReturns). Before adding the result to a project index,
 // call DropStaleInferred on it once the project symbols are known.
-func ExtractSymbols(path string, src []byte, opt syntax.Options, options ...infer.Options) *index.FileSymbols {
+func ExtractSymbols(path string, src []byte, opt syntax.Options, options infer.Options) *index.FileSymbols {
 	f := syntax.ParseBest(path, src, opt)
 	fs := index.Extract(f)
-	infer.AnnotateReturns(f, fs, stubs.Index(), opt.Version, options...)
+	infer.AnnotateReturns(f, fs, stubs.Index(), opt.Version, options)
 	return fs
 }

@@ -23,13 +23,13 @@ func TestBuildIndexSurvivesExtractPanic(t *testing.T) {
 	}
 	old := extract
 	t.Cleanup(func() { extract = old })
-	extract = func(path string, src []byte, opt syntax.Options, options ...infer.Options) *index.FileSymbols {
+	extract = func(path string, src []byte, opt syntax.Options, options infer.Options) *index.FileSymbols {
 		if strings.HasSuffix(path, "bad.php") {
 			panic("simulated extraction crash")
 		}
-		return old(path, src, opt, options...)
+		return old(path, src, opt, options)
 	}
-	ix := BuildIndex([]string{good, bad}, syntax.Options{})
+	ix := BuildIndex([]string{good, bad}, syntax.Options{}, infer.Options{})
 	if ix.Class("Good", 0) == nil {
 		t.Error("symbols of the healthy file are missing")
 	}

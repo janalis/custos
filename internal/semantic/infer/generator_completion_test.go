@@ -60,7 +60,7 @@ function run($x) { t('invalid', yield from 1); t('unknown', yield from $x); t('s
 	f := syntax.Parse("native.php", []byte(`<?php /** @return \Generator<int,int,string,bool> */ function f() { yield 1; }`), syntax.Options{Version: phpversion.PHP85})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(f))
-	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP85).Native()
+	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP85, infer.Options{}).Native()
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if y, ok := n.(*syntax.Yield); ok && !env.TypeOf(y).IsUnknown() {
 			t.Error("native yield used PHPDoc")

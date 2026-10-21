@@ -374,7 +374,7 @@ func (s *Server) typeAt(snap *project.Snapshot, in Input) (Output, error) {
 	if expr == nil {
 		return Output{"resolved": false, "reason": "No expression at this position."}, nil
 	}
-	env := infer.NewEnv(file, names.New(file), snap.Index, snap.Config.PHP)
+	env := infer.NewEnv(file, names.New(file), snap.Index, snap.Config.PHP, infer.Options{Assertions: snap.Config.Flow.Assertions})
 	doc := env.TypeOf(expr)
 	native := env.Native().TypeOf(expr)
 	line, column := syntax.NewLineIndex(src).RuneColumn(expr.Span().Start)

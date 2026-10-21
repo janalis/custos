@@ -15,7 +15,7 @@ func TestOrdinaryOffsetLeavesVariableBaseUncached(t *testing.T) {
 		f := syntax.Parse("t.php", []byte(source), syntax.Options{Version: phpversion.PHP84})
 		ix := index.New(stubs.Index())
 		ix.Add(index.Extract(f))
-		env := NewEnv(f, names.New(f), ix, phpversion.PHP84)
+		env := NewEnv(f, names.New(f), ix, phpversion.PHP84, Options{})
 		var dim *syntax.ArrayDimFetch
 		syntax.InspectFile(f, func(n syntax.Node) bool {
 			if d, ok := n.(*syntax.ArrayDimFetch); ok {

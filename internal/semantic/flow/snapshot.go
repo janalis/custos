@@ -253,12 +253,8 @@ func (s *Snapshot) Equal(other *Snapshot) bool {
 // Extract computes compact summaries while the project's parser tree is
 // available. It does not open any other files. A supplied snapshot permits
 // bounded composition with previously summarized project wrappers.
-func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot, options ...Options) *File {
-	var resolved Options
-	if len(options) > 0 {
-		resolved = options[0]
-	}
-	_, out := Summarize(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: resolved.Assertions}), snapshot, resolved)
+func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapshot *Snapshot, options Options) *File {
+	_, out := Summarize(file, infer.NewEnv(file, names.New(file), ix, php, infer.Options{Assertions: options.Assertions}), snapshot, options)
 	return out
 }
 
@@ -273,8 +269,8 @@ func Extract(file *syntax.File, ix *index.Index, php phpversion.Version, snapsho
 // first. Where no callable of the file reaches itself through the others,
 // the environment then read what the snapshot with the file's summaries
 // reads (see Rebase).
-func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options ...Options) (*Env, *File) {
-	e := New(file, types, snapshot, options...)
+func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options Options) (*Env, *File) {
+	e := New(file, types, snapshot, options)
 	e.consulted = map[string]bool{}
 	out := &File{options: e.options, Path: file.Path, Summaries: map[string]Summary{}}
 	s := &summarizing{out: out, declared: map[string][]syntax.Node{}, names: map[syntax.Node]string{}, state: map[syntax.Node]uint8{}}

@@ -98,7 +98,7 @@ func TestParsedUnicodeStringKeyVersions(t *testing.T) {
 			}
 			ix := index.New(stubs.Index())
 			ix.Add(index.Extract(file))
-			env := New(file, infer.NewEnv(file, names.New(file), ix, version), nil)
+			env := New(file, infer.NewEnv(file, names.New(file), ix, version, infer.Options{}), nil, Options{})
 			value := argument(callsNamed(file, "probe")[0])
 			if got, want := env.Tainted(value, HTML), version < phpversion.PHP70; got != want {
 				t.Fatalf("tainted=%v want=%v", got, want)

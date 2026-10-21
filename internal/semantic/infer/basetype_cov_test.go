@@ -15,7 +15,7 @@ func TestBaseTypeRecursionGuard(t *testing.T) {
 	f := syntax.Parse("t.php", []byte(`<?php $a = ['k' => 1]; $a['j'] = 2; echo $a['k'];`), syntax.Options{Version: phpversion.PHP84})
 	ix := index.New(nil)
 	ix.Add(index.Extract(f))
-	e := NewEnv(f, names.New(f), ix, phpversion.PHP84)
+	e := NewEnv(f, names.New(f), ix, phpversion.PHP84, Options{})
 	var last *syntax.Variable
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		if v, ok := n.(*syntax.Variable); ok {
