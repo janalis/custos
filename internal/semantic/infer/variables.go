@@ -131,9 +131,11 @@ func (e *Env) widenWrites(el types.Type, ws []*elemWrite, back []bool) types.Typ
 		return el
 	}
 	ts := []types.Type{el}
+	var nested []types.Type
 	for i, w := range ws {
 		if w.nested {
-			continue // changes an element already counted; see widenKey
+			nested = append(nested, e.nestedElementType(w))
+			continue
 		}
 		if !w.known() {
 			return types.Unknown
@@ -144,7 +146,30 @@ func (e *Env) widenWrites(el types.Type, ws []*elemWrite, back []bool) types.Typ
 		}
 		ts = append(ts, t)
 	}
+	if created, ok := createdByNested(ts, nested); ok && len(nested) > 0 {
+		return created
+	}
+	// Otherwise a nested write changes an element already counted.
 	return types.Union(ts...)
+}
+
+// nestedElementType is the element a nested write `$a[k][…] = v` makes of
+// `$a[k]` when it creates it: an array of v for one more key, an array for
+// more. Writing into an element that exists already changes it in place,
+// which the other writes into it account for.
+func (e *Env) nestedElementType(w *elemWrite) types.Type {
+	if w.a == nil || w.a.ByRef || w.a.Op.Kind != syntax.TEqual {
+		return types.Of("array")
+	}
+	// A nested write has two keys or more: `$a[k][…]` is the element.
+	element := syntax.UnwrapParens(syntax.UnwrapParens(w.a.Var).(*syntax.ArrayDimFetch).Var).(*syntax.ArrayDimFetch)
+	if _, deeper := syntax.UnwrapParens(element.Var).(*syntax.ArrayDimFetch); deeper {
+		return types.Of("array")
+	}
+	if v := e.TypeOf(w.a.Value); !v.IsUnknown() {
+		return arrayOf(v)
+	}
+	return types.Of("array")
 }
 
 // writtenType is the value an element write stores.

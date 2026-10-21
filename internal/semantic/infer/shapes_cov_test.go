@@ -83,7 +83,7 @@ EOT => 1]);
 		"dyn":         "int",             // computed key: element type
 		"byref":       "?unknown",        // a reference write into the key
 		"emptyLit":    "?unknown",
-		"emptyNested": "?unknown", // nested write into an empty literal
+		"emptyNested": "int[]", // a nested write creates the element
 		"keyNested":   "string",
 		"keyLit":      "string",
 		"target":      "?unknown", // destructured key absent from the shape

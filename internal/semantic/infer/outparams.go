@@ -382,15 +382,22 @@ func (e *Env) builtinOutType(kind outKind, al *syntax.ArgList, v *syntax.Variabl
 		return func() types.Type { return types.String }
 	case outMatches, outMatchesAll:
 		// Unmatched groups are '' (trailing ones absent) without flags;
-		// PREG_UNMATCHED_AS_NULL makes them null. Other flags
-		// (PREG_OFFSET_CAPTURE, PREG_SET_ORDER…) change the entries'
-		// shape: plain array.
+		// PREG_UNMATCHED_AS_NULL makes them null, and PREG_OFFSET_CAPTURE
+		// pairs each match with its offset. preg_match_all() lists the
+		// matches per group, or with PREG_SET_ORDER per match: strings
+		// either way. Other flags: plain array.
 		el := "string"
 		if len(al.Args) > 3 {
 			switch matchFlags(al.Args[3]) {
 			case "0":
+			case "preg_pattern_order", "preg_set_order":
+				if kind != outMatchesAll {
+					el = ""
+				}
 			case "preg_unmatched_as_null":
 				el = "(string|null)"
+			case "preg_offset_capture":
+				el = "array{0: string, 1: int}"
 			default:
 				el = ""
 			}

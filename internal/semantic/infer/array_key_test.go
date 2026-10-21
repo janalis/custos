@@ -109,7 +109,7 @@ func TestGenericArrayKeysCrossFile(t *testing.T) {
 }
 
 // Keys absent from a literal get no type from the other elements, also
-// after writes to other keys or nested writes.
+// after writes to other keys; a nested write creates an array element.
 func TestAbsentKeysAfterWrites(t *testing.T) {
 	checkAnywhere(t, `<?php
 function f(int $x, string $k) {
@@ -134,7 +134,7 @@ function f(int $x, string $k) {
     t('destructured', $d['b']);
 }
 `, map[string]string{
-		"nested": "?unknown", "otherKey": "?unknown", "written": "string", "append": "?unknown",
+		"nested": "int[]", "otherKey": "?unknown", "written": "string", "append": "?unknown",
 		"appendStr": "?unknown", "computed": "string", "destructured": "?unknown",
 	})
 }

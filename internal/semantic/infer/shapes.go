@@ -44,10 +44,11 @@ func (e *Env) shapeKeyOf(ct types.Type, key string, v *syntax.Variable) (types.T
 		// A key missing from a literal array may be added by a write
 		// (`$a = []; $a['k'] = 1;`).
 		// Absent from the literal: only the writes that may store into the
-		// key give it a type (the same literal key, or a computed one);
-		// otherwise it is unknown, never the type of the other elements
-		// (`$rows = ['total' => 1]; $rows['meta']['s'] = 1;` does not make
-		// `$rows['meta']` an int).
+		// key give it a type (the same literal key, or a computed one, and
+		// the element a nested write creates: `$rows = ['total' => 1];
+		// $rows['meta']['s'] = 1;` makes `$rows['meta']` an int[], not an
+		// int); otherwise it is unknown, never the type of the other
+		// elements.
 		// On an empty literal (`$a = []; $a[] = $x;`) an integer key may
 		// also hold an appended value (or be missing, read as for `T[]`).
 		appends := len(ct.ShapeKeys()) == 0 && types.IsIntKey(key)
@@ -73,7 +74,7 @@ func (e *Env) mayWriteKey(v *syntax.Variable, key string, appends bool) bool {
 	for _, w := range ws {
 		if w.nested {
 			if k, ok := syntax.LiteralArrayKey(w.key); !ok || k == key {
-				return false
+				may = true // it may create the element
 			}
 			continue
 		}
@@ -95,19 +96,21 @@ func (e *Env) mayWriteKey(v *syntax.Variable, key string, appends bool) bool {
 
 // widenKey unions the type kt of key `key` of variable v with the values
 // written into that key by the writes reaching v: writes to the same
-// literal key or to a computed key, and appends when appends is set; a
-// nested write (`$a['key'][…] = …`) or a destructuring write makes it
-// unknown.
+// literal key or to a computed key, and appends when appends is set. A
+// nested write into that key (`$a['key'][…] = …`) gives the element it
+// creates when the key had none, else makes it unknown, as a destructuring
+// write does.
 func (e *Env) widenKey(kt types.Type, v *syntax.Variable, key string, appends bool) types.Type {
 	ws, back := e.reachingWrites(v)
 	if len(ws) == 0 {
 		return kt
 	}
 	ts := []types.Type{kt}
+	var nested []types.Type
 	for i, w := range ws {
 		if w.nested {
 			if k, ok := syntax.LiteralArrayKey(w.key); !ok || k == key {
-				return types.Unknown
+				nested = append(nested, e.nestedElementType(w))
 			}
 			continue
 		}
@@ -130,13 +133,31 @@ func (e *Env) widenKey(kt types.Type, v *syntax.Variable, key string, appends bo
 		}
 		ts = append(ts, t)
 	}
+	if len(nested) > 0 {
+		if created, ok := createdByNested(ts, nested); ok {
+			return created
+		}
+		return types.Unknown
+	}
 	return types.Union(ts...)
+}
+
+// createdByNested is the element nested writes create (see
+// nestedElementType) when they are its only source: ts holds the element
+// type before the writes, which "never" says is absent, and nothing else
+// stores into it. A nested write into an element that may exist changes it
+// in place, which no union of types describes.
+func createdByNested(ts, nested []types.Type) (types.Type, bool) {
+	if len(ts) != 1 || !ts[0].OnlyOf("never") {
+		return types.Type{}, false
+	}
+	return types.Union(nested...), true
 }
 
 // shapeElem is the union of the values of a sealed shape (unknown when the
 // type has no sealed shape), widened by the element writes into variable x
 // reaching it (when x is one). A sealed empty shape (`[]`) gives the union
-// of those writes, unknown without any or with a nested write.
+// of those writes, unknown without any.
 func (e *Env) shapeElem(t types.Type, x syntax.Expr) types.Type {
 	if !t.IsSealedShape() {
 		return types.Unknown
@@ -148,14 +169,8 @@ func (e *Env) shapeElem(t types.Type, x syntax.Expr) types.Type {
 		if !isVar {
 			return types.Unknown
 		}
-		ws, _ := e.reachingWrites(v)
-		if len(ws) == 0 {
+		if ws, _ := e.reachingWrites(v); len(ws) == 0 {
 			return types.Unknown
-		}
-		for _, w := range ws {
-			if w.nested {
-				return types.Unknown
-			}
 		}
 		el := e.widenVarElem(types.Of("never"), v)
 		if el.OnlyOf("never") {

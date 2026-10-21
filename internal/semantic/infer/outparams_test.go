@@ -35,7 +35,7 @@ class Svc {
     }
 }
 `, map[string]string{
-		"m": "string[]", "mf": "array", "all": "string[][]", "c": "string[]", "count": "int",
+		"m": "string[]", "mf": "array[]", "all": "string[][]", "c": "string[]", "count": "int",
 		"q": "array", "out": "string[]", "code": "int", "ints": "int[]|string[]",
 		"o": `\App\Foo`, "n": "int", "p": "?unknown", "lines": "string[]", "x": `\App\Foo`,
 		"y": "int|string[]",
@@ -65,7 +65,7 @@ function f(string $s, $flags) {
 		"m2": "null[]|string[]",
 		"m3": "null[][]|string[][]",
 		"m4": "string[]",
-		"m5": "array",
+		"m5": "array[]<array{0: string, 1: int}>",
 		"m6": "array",
 		"m7": "array",
 	})
@@ -88,4 +88,23 @@ function f(string $host, $pid, array $items) {
     $code = 'x'; msg_receive($queue, 0, $type, 1, $message, true, 0, $code); t('code', $code);
 }
 `, map[string]string{"hosts": "?unknown", "status": "?unknown", "list": "int[]{0: int, 1: int}", "popped": "int[]", "walked": "array", "object": "?unknown", "weights": "?unknown", "read": "array|null", "code": "int"})
+}
+
+// preg_match_all() lists strings per group or, with PREG_SET_ORDER, per
+// match; PREG_OFFSET_CAPTURE pairs each match with its byte offset.
+func TestPregMatchFlagShapes(t *testing.T) {
+	checkAnywhere(t, `<?php
+function f(string $s) {
+    preg_match_all('/(a)(b)/', $s, $set, PREG_SET_ORDER);
+    foreach ($set as $m) { t('setCell', $m[2]); }
+    preg_match_all('/(a)(b)/', $s, $groups, PREG_PATTERN_ORDER);
+    t('groups', $groups);
+    preg_match_all('/(a)/', $s, $all, PREG_OFFSET_CAPTURE);
+    foreach ($all[1] as $pair) { t('text', $pair[0]); t('offset', $pair[1]); }
+    preg_match('/(a)/', $s, $one, PREG_OFFSET_CAPTURE);
+    t('one', $one[1][1]);
+    preg_match('/(a)/', $s, $invalid, PREG_SET_ORDER);
+    t('invalid', $invalid);
+}
+`, map[string]string{"setCell": "string", "groups": "string[][]", "text": "string", "offset": "int", "one": "int", "invalid": "array"})
 }

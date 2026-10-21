@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"slices"
 	"strings"
 
 	"custos/internal/php/syntax"
@@ -524,7 +525,49 @@ func (e *Env) resolvedDoc(doc string) string {
 }
 
 func (e *Env) memberType(declared, doc string) types.Type {
-	return memberType(declared, e.resolvedDoc(doc))
+	doc = e.resolvedDoc(doc)
+	if narrowed, ok := e.narrowerDoc(types.FromDoc(declared, nil), types.FromDoc(doc, nil)); ok {
+		return narrowed
+	}
+	return memberType(declared, doc)
+}
+
+// narrowerDoc returns the doc type dt of a member declared d when dt only
+// names classes that extend or implement every class d names (`@var
+// Message` on a `MessageInterface` property), with null when d admits it:
+// the doc promises a subtype of what the declaration allows.
+func (e *Env) narrowerDoc(d, dt types.Type) (types.Type, bool) {
+	declared, documented := d.Without("null"), dt.Without("null")
+	if !classesOnly(declared) || !classesOnly(documented) || dt.Has("null") && !d.Has("null") {
+		return types.Type{}, false
+	}
+	for _, sub := range documented.Atoms() {
+		if declared.Has(sub) {
+			return types.Type{}, false
+		}
+		ancestors := e.Index.Ancestors(strings.TrimPrefix(sub, `\`), e.PHP)
+		for _, super := range declared.Atoms() {
+			if !slices.ContainsFunc(ancestors, func(c *index.Class) bool {
+				return strings.EqualFold(`\`+strings.TrimPrefix(c.FQN, `\`), super)
+			}) {
+				return types.Type{}, false
+			}
+		}
+	}
+	if d.Has("null") {
+		return types.Union(documented, types.Of("null")), true
+	}
+	return documented, true
+}
+
+// classesOnly reports a type naming one class or more and nothing else.
+func classesOnly(t types.Type) bool {
+	for _, a := range t.Atoms() {
+		if !strings.HasPrefix(a, `\`) || strings.HasSuffix(a, "[]") {
+			return false
+		}
+	}
+	return !t.IsUnknown() && len(t.Intersection()) == 0
 }
 
 func (e *Env) builtinMemberType(declared, doc string) types.Type {

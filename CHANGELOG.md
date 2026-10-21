@@ -7,6 +7,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Type inference knows more values: a property or return type documented as
+  a subclass of its declared type (`@var Text` on a `Message` property), the
+  elements nested writes create (`$groups[$key][] = $row`), and the matches
+  of `preg_match_all()` with `PREG_SET_ORDER` or `PREG_OFFSET_CAPTURE`.
 - HardcodedCredentialAtKnownSink matches `excludedPaths` from the workspace
   root in the language server and the MCP server when a file has no
   `custos.json` or `composer.json` above it, instead of the server's working
