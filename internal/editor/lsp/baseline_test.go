@@ -1,11 +1,13 @@
 package lsp
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"custos/internal/project/baseline"
 	"custos/internal/project/config"
 )
 
@@ -49,4 +51,38 @@ func TestBaselineHidesKnownFindings(t *testing.T) {
 	_ = cl.c.notify("workspace/didChangeWatchedFiles", changed)
 	cl.logContaining("baseline:")
 	cl.diagsN(uri, 2)
+}
+
+// TestBaselineReloadYieldsToReconfiguration: a baseline read while the
+// configuration was replaced does not overwrite the new one's baseline.
+func TestBaselineReloadYieldsToReconfiguration(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "bl.json"), []byte(`{"version": 1, "entries": []}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := whiteBox(t, dir, io.Discard)
+	s.cfg = &config.Config{Root: dir, Baseline: "bl.json"}
+	replaced := &config.Config{Root: dir}
+	defer func(f func(string) (*baseline.Baseline, error)) { loadBaselineFile = f }(loadBaselineFile)
+	loadBaselineFile = func(path string) (*baseline.Baseline, error) {
+		s.mu.Lock()
+		s.cfg = replaced
+		s.mu.Unlock()
+		return baseline.Load(path)
+	}
+	s.reloadBaseline()
+	if s.baseline != nil || s.cfg != replaced {
+		t.Fatalf("stale baseline installed: %+v", s.baseline)
+	}
+}
+
+// TestBaselineWithoutConfiguration: file changes reported after the
+// project's configuration failed to load do not look for a baseline.
+func TestBaselineWithoutConfiguration(t *testing.T) {
+	s := whiteBox(t, t.TempDir(), io.Discard)
+	s.cfg = nil
+	s.watchedFilesChanged([]fileChange{{URI: "file:///w/bl.json", Type: 2}})
+	if baselinePath(nil) != "" || s.baseline != nil {
+		t.Fatal("baseline without configuration")
+	}
 }

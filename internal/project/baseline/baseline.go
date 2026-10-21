@@ -40,6 +40,7 @@ type key struct{ path, rule, msg, line string }
 type Baseline struct {
 	dir    string
 	counts map[key]int
+	paths  map[string]bool // paths with at least one entry
 }
 
 // MaxFileSize bounds a baseline file (it may be named by the analysed
@@ -57,9 +58,10 @@ func Load(path string) (*Baseline, error) {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	abs, _ := filepath.Abs(path)
-	bl := &Baseline{dir: filepath.Dir(abs), counts: map[key]int{}}
+	bl := &Baseline{dir: filepath.Dir(abs), counts: map[key]int{}, paths: map[string]bool{}}
 	for _, e := range f.Entries {
 		bl.counts[key{e.Path, e.Rule, e.Message, e.Line}] += max(e.Count, 1)
+		bl.paths[e.Path] = true
 	}
 	return bl, nil
 }
@@ -119,12 +121,13 @@ func (b *Baseline) Filter(items []diagnostic.Item) ([]diagnostic.Item, int) {
 // taking flagged lines from src (an editor buffer, say) instead of reading
 // the file again. Lines are numbered and split exactly as Filter sees them.
 func (b *Baseline) FilterFindings(path string, src []byte, findings []diagnostic.Finding) []diagnostic.Finding {
-	if len(b.counts) == 0 || len(findings) == 0 {
+	p := rel(b.dir, path)
+	// Most files have no entry: skip indexing their lines on every analysis.
+	if len(findings) == 0 || !b.paths[p] {
 		return findings
 	}
 	li := syntax.NewLineIndex(src)
 	lines := strings.Split(string(bytes.ReplaceAll(src, []byte("\r\n"), []byte("\n"))), "\n")
-	p := rel(b.dir, path)
 	remaining := map[key]int{}
 	out := findings[:0:0]
 	for _, f := range findings {

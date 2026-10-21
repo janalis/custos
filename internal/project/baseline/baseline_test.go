@@ -171,4 +171,33 @@ func TestFilterFindings(t *testing.T) {
 	if got := Empty().FilterFindings(php, src, []diagnostic.Finding{at(6)}); len(got) != 1 {
 		t.Fatalf("empty baseline: %+v", got)
 	}
+	// A file without entries keeps its findings.
+	if got := b.FilterFindings(filepath.Join(dir, "b.php"), src, []diagnostic.Finding{at(6)}); len(got) != 1 {
+		t.Fatalf("file without entries: %+v", got)
+	}
+}
+
+// BenchmarkFilterFindings measures the per-analysis cost the language server
+// pays for a file the baseline records and for one it does not.
+func BenchmarkFilterFindings(b *testing.B) {
+	dir := b.TempDir()
+	path := filepath.Join(dir, "bl.json")
+	if err := os.WriteFile(path, []byte(`{"version": 1, "entries": [{"path": "a.php", "rule": "R", "message": "m", "line": "$a;", "count": 1}]}`), 0o644); err != nil {
+		b.Fatal(err)
+	}
+	bl, err := Load(path)
+	if err != nil {
+		b.Fatal(err)
+	}
+	src := []byte("<?php\n" + strings.Repeat("$a;\n", 5000))
+	findings := []diagnostic.Finding{{Rule: "R", Message: "m", Span: syntax.Span{Start: 6, End: 9}}}
+	for _, name := range []string{"a.php", "b.php"} {
+		file := filepath.Join(dir, name)
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				bl.FilterFindings(file, src, findings)
+			}
+		})
+	}
 }

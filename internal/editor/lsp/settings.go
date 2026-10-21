@@ -102,9 +102,10 @@ func (s *Server) configure() error {
 	return nil
 }
 
-// baselinePath returns the absolute path of cfg's baseline, "" without one.
+// baselinePath returns the absolute path of cfg's baseline, "" without one
+// (or without a configuration, when the project's failed to load).
 func baselinePath(cfg *config.Config) string {
-	if cfg.Baseline == "" {
+	if cfg == nil || cfg.Baseline == "" {
 		return ""
 	}
 	return filepath.Join(cfg.Root, cfg.Baseline)
@@ -117,7 +118,7 @@ func (s *Server) loadBaseline(cfg *config.Config) *baseline.Baseline {
 	if path == "" {
 		return nil
 	}
-	bl, err := baseline.Load(path)
+	bl, err := loadBaselineFile(path)
 	if err != nil {
 		s.logf("baseline: %v", err)
 		return nil
@@ -125,14 +126,26 @@ func (s *Server) loadBaseline(cfg *config.Config) *baseline.Baseline {
 	return bl
 }
 
+// loadBaselineFile reads a baseline file (a test seam).
+var loadBaselineFile = baseline.Load
+
 // reloadBaseline rereads the baseline after its file changed on disk.
 func (s *Server) reloadBaseline() {
-	// Held across the read so a concurrent reconfiguration cannot be
-	// overwritten with the previous configuration's baseline.
 	s.mu.Lock()
-	s.baseline = s.loadBaseline(s.cfg)
+	cfg := s.cfg
 	s.mu.Unlock()
-	s.reanalyzeAll()
+	// Read without the lock (a baseline may be large); a reconfiguration
+	// meanwhile already installed its own baseline.
+	bl := s.loadBaseline(cfg)
+	s.mu.Lock()
+	stale := s.cfg != cfg
+	if !stale {
+		s.baseline = bl
+	}
+	s.mu.Unlock()
+	if !stale {
+		s.reanalyzeAll()
+	}
 }
 
 // mergeOverrides applies client-provided settings on top of the project config.
