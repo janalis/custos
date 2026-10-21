@@ -11,9 +11,9 @@ import (
 	"custos/internal/semantic/types"
 )
 
-// expansionDSame proves a stable local variable even when its value comes from
+// SameStableLocal proves a stable local variable even when its value comes from
 // a parameter. Unknown calls, references and writes invalidate the relation.
-func expansionDSame(ctx *analysis.Context, a, b syntax.Expr) bool {
+func SameStableLocal(ctx *analysis.Context, a, b syntax.Expr) bool {
 	if a == nil || b == nil {
 		return false
 	}
@@ -74,7 +74,10 @@ func expansionDSame(ctx *analysis.Context, a, b syntax.Expr) bool {
 	return true
 }
 
-func expansionDCalls(ctx *analysis.Context, at syntax.Node) []syntax.Node {
+// ScopeCallEvents returns the assignments, unsets and function and method
+// calls of the scope of at, nested scopes excluded, cached per scope; none
+// when there are more than 512.
+func ScopeCallEvents(ctx *analysis.Context, at syntax.Node) []syntax.Node {
 	return nativeContractEvents(ctx, syntax.EnclosingVariableScope(at))
 }
 
@@ -127,9 +130,9 @@ func CheckHashContextUsedAfterFinalization(ctx *analysis.Context, n syntax.Node,
 		return
 	}
 	h := CallArgument(c.Args, 0, "context")
-	for _, prior := range expansionDCalls(ctx, c) {
+	for _, prior := range ScopeCallEvents(ctx, c) {
 		p, ok := prior.(*syntax.FuncCall)
-		if ok && NativeBuiltin(ctx, p, "hash_final") && NativeDominates(p, c) && expansionDSame(ctx, CallArgument(p.Args, 0, "context"), h) {
+		if ok && NativeBuiltin(ctx, p, "hash_final") && NativeDominates(p, c) && SameStableLocal(ctx, CallArgument(p.Args, 0, "context"), h) {
 			ctx.ReportNode(c, message)
 			return
 		}
@@ -223,7 +226,7 @@ func CheckOpenSslSigningFailureIgnored(ctx *analysis.Context, n syntax.Node, mes
 			inputs = use.Exprs
 		}
 		for _, input := range inputs {
-			if expansionDSame(ctx, signature, input) {
+			if SameStableLocal(ctx, signature, input) {
 				ctx.ReportNode(c, message)
 				return
 			}
@@ -272,7 +275,7 @@ func CheckPasswordVerifyArgumentsReversed(ctx *analysis.Context, n syntax.Node, 
 		return
 	}
 	origin := expansionDOrigin(ctx, CallArgument(c.Args, 0, "password"), "password_hash")
-	if origin != nil && expansionDSame(ctx, CallArgument(origin.Args, 0, "password"), CallArgument(c.Args, 1, "hash")) {
+	if origin != nil && SameStableLocal(ctx, CallArgument(origin.Args, 0, "password"), CallArgument(c.Args, 1, "hash")) {
 		ctx.ReportNode(c, message)
 	}
 }
@@ -305,7 +308,7 @@ func CheckSodiumSecretboxNonceReused(ctx *analysis.Context, n syntax.Node, messa
 	}
 	nonce := CallArgument(c.Args, 1, "nonce")
 	key := CallArgument(c.Args, 2, "key")
-	events := expansionDCalls(ctx, c)
+	events := ScopeCallEvents(ctx, c)
 	var latestMutation uint32
 	for _, event := range events {
 		m, ok := event.(*syntax.FuncCall)
@@ -330,7 +333,7 @@ func CheckSodiumSecretboxNonceReused(ctx *analysis.Context, n syntax.Node, messa
 			continue
 		}
 		previous, known := NativeString(ctx, CallArgument(p.Args, 0, "message"))
-		if known && previous != plaintext && expansionDSame(ctx, CallArgument(p.Args, 1, "nonce"), CallArgument(c.Args, 1, "nonce")) && expansionDSame(ctx, CallArgument(p.Args, 2, "key"), CallArgument(c.Args, 2, "key")) {
+		if known && previous != plaintext && SameStableLocal(ctx, CallArgument(p.Args, 1, "nonce"), CallArgument(c.Args, 1, "nonce")) && SameStableLocal(ctx, CallArgument(p.Args, 2, "key"), CallArgument(c.Args, 2, "key")) {
 			ctx.ReportNode(c, message)
 			return
 		}
@@ -370,9 +373,9 @@ func CheckSecretstreamPushAfterFinalTag(ctx *analysis.Context, n syntax.Node, me
 	if ctx.PHP < phpversion.PHP72 || !NativeBuiltin(ctx, c, name) {
 		return
 	}
-	for _, event := range expansionDCalls(ctx, c) {
+	for _, event := range ScopeCallEvents(ctx, c) {
 		p, ok := event.(*syntax.FuncCall)
-		if !ok || !NativeBuiltin(ctx, p, name) || !NativeDominates(p, c) || !expansionDSame(ctx, CallArgument(p.Args, 0, "state"), CallArgument(c.Args, 0, "state")) {
+		if !ok || !NativeBuiltin(ctx, p, name) || !NativeDominates(p, c) || !SameStableLocal(ctx, CallArgument(p.Args, 0, "state"), CallArgument(c.Args, 0, "state")) {
 			continue
 		}
 		tag, known := NativeContractInt(ctx, CallArgument(p.Args, 3, "tag"))
@@ -419,9 +422,9 @@ func expansionDCurlSetting(ctx *analysis.Context, c *syntax.FuncCall, option str
 
 func expansionDCurlOption(ctx *analysis.Context, at syntax.Node, handle syntax.Expr, option string) syntax.Expr {
 	var result syntax.Expr
-	for _, event := range expansionDCalls(ctx, at) {
+	for _, event := range ScopeCallEvents(ctx, at) {
 		c, ok := event.(*syntax.FuncCall)
-		if !ok || c.Span().End >= at.Span().Start || !expansionDSame(ctx, CallArgument(c.Args, 0, "handle"), handle) {
+		if !ok || c.Span().End >= at.Span().Start || !SameStableLocal(ctx, CallArgument(c.Args, 0, "handle"), handle) {
 			continue
 		}
 		if !NativeDominates(c, at) {
@@ -491,12 +494,12 @@ func CheckCurlUploadDeclaredSizeMismatch(ctx *analysis.Context, n syntax.Node, m
 	if !known || (mode != "r" && mode != "rb") {
 		return
 	}
-	for _, event := range expansionDCalls(ctx, c) {
+	for _, event := range ScopeCallEvents(ctx, c) {
 		p, ok := event.(*syntax.FuncCall)
 		if !ok || p == open || p.Span().Start <= open.Span().End || p.Span().End >= c.Span().Start {
 			continue
 		}
-		if expansionDSame(ctx, CallArgument(p.Args, 0, "stream"), source) && !NativeBuiltin(ctx, p, "curl_setopt") {
+		if SameStableLocal(ctx, CallArgument(p.Args, 0, "stream"), source) && !NativeBuiltin(ctx, p, "curl_setopt") {
 			return
 		}
 	}
@@ -648,9 +651,9 @@ func CheckCurlResponseZeroRejected(ctx *analysis.Context, n syntax.Node, message
 // RETURNTRANSFER proves that curl_exec() yields the body.
 func curlResponseReturned(ctx *analysis.Context, at syntax.Node, handle syntax.Expr) bool {
 	proven := false
-	for _, event := range expansionDCalls(ctx, at) {
+	for _, event := range ScopeCallEvents(ctx, at) {
 		c, ok := event.(*syntax.FuncCall)
-		if !ok || c.Span().End >= at.Span().Start || !expansionDSame(ctx, CallArgument(c.Args, 0, "handle"), handle) {
+		if !ok || c.Span().End >= at.Span().Start || !SameStableLocal(ctx, CallArgument(c.Args, 0, "handle"), handle) {
 			continue
 		}
 		if !NativeDominates(c, at) {
@@ -726,9 +729,9 @@ func CheckNonblockingSocketConnectPendingRejected(ctx *analysis.Context, n synta
 		return
 	}
 	var latest *syntax.FuncCall
-	for _, event := range expansionDCalls(ctx, c) {
+	for _, event := range ScopeCallEvents(ctx, c) {
 		p, ok := event.(*syntax.FuncCall)
-		if !ok || p.Span().End >= c.Span().Start || !expansionDSame(ctx, CallArgument(p.Args, 0, "socket"), socket) {
+		if !ok || p.Span().End >= c.Span().Start || !SameStableLocal(ctx, CallArgument(p.Args, 0, "socket"), socket) {
 			continue
 		}
 		if NativeBuiltin(ctx, p, "socket_set_block") || NativeBuiltin(ctx, p, "socket_set_nonblock") {
@@ -836,9 +839,9 @@ func CheckTLSHandshakePendingAccepted(ctx *analysis.Context, n syntax.Node, mess
 	}
 	stream := CallArgument(c.Args, 0, "stream")
 	var latest *syntax.FuncCall
-	for _, event := range expansionDCalls(ctx, c) {
+	for _, event := range ScopeCallEvents(ctx, c) {
 		p, ok := event.(*syntax.FuncCall)
-		if ok && p.Span().End < c.Span().Start && NativeBuiltin(ctx, p, "stream_set_blocking") && expansionDSame(ctx, CallArgument(p.Args, 0, "stream"), stream) {
+		if ok && p.Span().End < c.Span().Start && NativeBuiltin(ctx, p, "stream_set_blocking") && SameStableLocal(ctx, CallArgument(p.Args, 0, "stream"), stream) {
 			latest = p
 		}
 	}
@@ -859,7 +862,7 @@ func CheckTLSHandshakePendingAccepted(ctx *analysis.Context, n syntax.Node, mess
 			case *syntax.If, *syntax.While, *syntax.For, *syntax.Foreach, *syntax.DoWhile, *syntax.Switch, *syntax.Try:
 				return false
 			}
-			if p, ok := n.(*syntax.FuncCall); ok && NativeBuiltin(ctx, p, "fwrite") && expansionDSame(ctx, stream, CallArgument(p.Args, 0, "stream")) && !tlsHandshakeCompleted(ctx, branch.Body, stream, p) {
+			if p, ok := n.(*syntax.FuncCall); ok && NativeBuiltin(ctx, p, "fwrite") && SameStableLocal(ctx, stream, CallArgument(p.Args, 0, "stream")) && !tlsHandshakeCompleted(ctx, branch.Body, stream, p) {
 				found = true
 			}
 			return true
@@ -879,7 +882,7 @@ func tlsHandshakeCompleted(ctx *analysis.Context, body syntax.Stmt, stream synta
 	}
 	return NativeEarlierCallProvesIn(ctx, body, write, func(x syntax.Expr) (types.Type, func(types.Type) bool) {
 		c, ok := x.(*syntax.FuncCall)
-		if !ok || !NativeBuiltin(ctx, c, "stream_socket_enable_crypto") || !expansionDSame(ctx, stream, CallArgument(c.Args, 0, "stream")) {
+		if !ok || !NativeBuiltin(ctx, c, "stream_socket_enable_crypto") || !SameStableLocal(ctx, stream, CallArgument(c.Args, 0, "stream")) {
 			return types.Unknown, nil
 		}
 		if enabling, known := NativeTruth(ctx, CallArgument(c.Args, 1, "enable")); !known || !enabling {
@@ -1106,11 +1109,14 @@ func expansionDSQL(sql string) ([]string, bool) {
 	return out, true
 }
 
-func expansionDMethodCalls(ctx *analysis.Context, at, receiver syntax.Expr, class string, names ...string) []*syntax.MethodCall {
+// EarlierMethodCalls returns the calls, before at in its scope, of the
+// methods names of class on the same stable local as receiver that run
+// before at: they dominate it or at runs only when they succeeded.
+func EarlierMethodCalls(ctx *analysis.Context, at, receiver syntax.Expr, class string, names ...string) []*syntax.MethodCall {
 	var out []*syntax.MethodCall
-	for _, event := range expansionDCalls(ctx, at) {
+	for _, event := range ScopeCallEvents(ctx, at) {
 		c, ok := event.(*syntax.MethodCall)
-		if !ok || c.Span().End >= at.Span().Start || (!NativeDominates(c, at) && !NativeCallSucceeded(ctx, c, at)) || !expansionDSame(ctx, c.Var, receiver) {
+		if !ok || c.Span().End >= at.Span().Start || (!NativeDominates(c, at) && !NativeCallSucceeded(ctx, c, at)) || !SameStableLocal(ctx, c.Var, receiver) {
 			continue
 		}
 		for _, name := range names {
@@ -1158,7 +1164,7 @@ func CheckPdoBoundValueAssumedLive(ctx *analysis.Context, n syntax.Node, message
 	if !NativeMethod(ctx, c, "PDOStatement", "execute") || paramsState != ArgumentMissing {
 		return
 	}
-	bindings := expansionDMethodCalls(ctx, c, c.Var, "PDOStatement", "bindvalue", "bindparam")
+	bindings := EarlierMethodCalls(ctx, c, c.Var, "PDOStatement", "bindvalue", "bindparam")
 	for i, binding := range bindings {
 		if !NativeMethod(ctx, binding, "PDOStatement", "bindValue") {
 			continue
@@ -1180,7 +1186,7 @@ func CheckPdoBoundValueAssumedLive(ctx *analysis.Context, n syntax.Node, message
 		if rebound {
 			continue
 		}
-		for _, event := range expansionDCalls(ctx, c) {
+		for _, event := range ScopeCallEvents(ctx, c) {
 			a, ok := event.(*syntax.Assign)
 			if !ok || a.Span().Start <= binding.Span().End || a.Span().End >= c.Span().Start || !NativeDominates(a, c) {
 				continue
@@ -1274,7 +1280,7 @@ func CheckPdoRepeatedNamedMarkerWithoutEmulation(ctx *analysis.Context, n syntax
 			}
 		}
 	}
-	for _, prior := range expansionDMethodCalls(ctx, c, c.Var, "PDO", "setAttribute") {
+	for _, prior := range EarlierMethodCalls(ctx, c, c.Var, "PDO", "setAttribute") {
 		if cc, ok := CallArgument(prior.Args, 0, "attribute").(*syntax.ClassConstFetch); ok && ExpansionCConstant(ctx, cc, "PDO", "ATTR_EMULATE_PREPARES") {
 			emulation, proven = CallArgument(prior.Args, 1, "value"), prior.Span().End
 		}
@@ -1492,7 +1498,7 @@ func pdoFetchIntoMethod(ctx *analysis.Context, c *syntax.MethodCall, name string
 		return false
 	}
 	var origin *syntax.MethodCall
-	for _, event := range expansionDCalls(ctx, c) {
+	for _, event := range ScopeCallEvents(ctx, c) {
 		write, ok := event.(*syntax.Assign)
 		if !ok || write.Span().Start >= c.Span().Start || !astquery.MentionsVariable(write.Var, receiver.Name) {
 			continue
@@ -1528,7 +1534,7 @@ func pdoFetchIntoMode(ctx *analysis.Context, fetch *syntax.MethodCall, loop synt
 		}
 	}
 	var latest *syntax.MethodCall
-	for _, event := range expansionDCalls(ctx, fetch) {
+	for _, event := range ScopeCallEvents(ctx, fetch) {
 		c, ok := event.(*syntax.MethodCall)
 		if !ok || c.Span().Start >= end {
 			continue
@@ -1538,7 +1544,7 @@ func pdoFetchIntoMode(ctx *analysis.Context, fetch *syntax.MethodCall, loop synt
 			continue
 		}
 		latest = nil
-		if c.Span().End < fetch.Span().Start && (NativeDominates(c, fetch) || NativeCallSucceeded(ctx, c, fetch)) && pdoFetchIntoMethod(ctx, c, "setFetchMode") && expansionDSame(ctx, c.Var, fetch.Var) {
+		if c.Span().End < fetch.Span().Start && (NativeDominates(c, fetch) || NativeCallSucceeded(ctx, c, fetch)) && pdoFetchIntoMethod(ctx, c, "setFetchMode") && SameStableLocal(ctx, c.Var, fetch.Var) {
 			latest = c
 		}
 	}
@@ -1621,7 +1627,7 @@ func CheckPdoFetchIntoRetainsSharedRows(ctx *analysis.Context, n syntax.Node, me
 		}
 		return true
 	})
-	if source == nil || !pdoFetchIntoMethod(ctx, source, "fetch") || !expansionDSame(ctx, produced, assign.Value) {
+	if source == nil || !pdoFetchIntoMethod(ctx, source, "fetch") || !SameStableLocal(ctx, produced, assign.Value) {
 		return
 	}
 	if override, state := CallArgumentBinding(source.Args, 0, "mode"); state != ArgumentMissing {
@@ -1769,7 +1775,7 @@ func CheckMysqliEscapedValueSurvivesCharsetChange(ctx *analysis.Context, n synta
 		return true
 	})
 	for _, escape := range escaped {
-		if !expansionDSame(ctx, c.Var, escape.Var) {
+		if !SameStableLocal(ctx, c.Var, escape.Var) {
 			continue
 		}
 		// Only the last selection on each side decides: an earlier change that
@@ -1799,9 +1805,9 @@ func CheckMysqliEscapedValueSurvivesCharsetChange(ctx *analysis.Context, n synta
 // proven to execute; callers decide what that call proves.
 func expansionDLastCharsetCall(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr, from uint32) *syntax.MethodCall {
 	var last *syntax.MethodCall
-	for _, event := range expansionDCalls(ctx, at) {
+	for _, event := range ScopeCallEvents(ctx, at) {
 		c, ok := event.(*syntax.MethodCall)
-		if ok && c.Span().Start > from && c.Span().End < at.Span().Start && NativeMethod(ctx, c, "mysqli", "set_charset") && expansionDSame(ctx, c.Var, receiver) {
+		if ok && c.Span().Start > from && c.Span().End < at.Span().Start && NativeMethod(ctx, c, "mysqli", "set_charset") && SameStableLocal(ctx, c.Var, receiver) {
 			last = c
 		}
 	}
@@ -1816,7 +1822,7 @@ func CheckMysqliMultiQueryResultsNotDrained(ctx *analysis.Context, n syntax.Node
 	if !NativeMethod(ctx, c, "mysqli", "query") {
 		return
 	}
-	prior := expansionDMethodCalls(ctx, c, c.Var, "mysqli", "multi_query")
+	prior := EarlierMethodCalls(ctx, c, c.Var, "mysqli", "multi_query")
 	if len(prior) == 0 {
 		return
 	}
@@ -1850,9 +1856,9 @@ func CheckMysqliMultiQueryResultsNotDrained(ctx *analysis.Context, n syntax.Node
 	if count < 2 {
 		return
 	}
-	for _, event := range expansionDCalls(ctx, c) {
+	for _, event := range ScopeCallEvents(ctx, c) {
 		check, ok := event.(*syntax.MethodCall)
-		if !ok || check.Span().Start < p.Span().End || check.Span().End >= c.Span().Start || (!NativeMethod(ctx, check, "mysqli", "more_results") && !NativeMethod(ctx, check, "mysqli", "next_result")) || !expansionDSame(ctx, check.Var, c.Var) {
+		if !ok || check.Span().Start < p.Span().End || check.Span().End >= c.Span().Start || (!NativeMethod(ctx, check, "mysqli", "more_results") && !NativeMethod(ctx, check, "mysqli", "next_result")) || !SameStableLocal(ctx, check.Var, c.Var) {
 			continue
 		}
 		// The probe must decide the loop: alone or as an operand of `&&`.
@@ -1886,7 +1892,7 @@ func CheckMysqliMultiQueryResultsNotDrained(ctx *analysis.Context, n syntax.Node
 		}
 		drained := false
 		syntax.Inspect(loop, func(n syntax.Node) bool {
-			if next, ok := n.(*syntax.MethodCall); ok && NativeMethod(ctx, next, "mysqli", "next_result") && expansionDSame(ctx, next.Var, c.Var) {
+			if next, ok := n.(*syntax.MethodCall); ok && NativeMethod(ctx, next, "mysqli", "next_result") && SameStableLocal(ctx, next.Var, c.Var) {
 				drained = true
 			}
 			return true
@@ -1957,7 +1963,7 @@ func CheckSqliteNondeterministicFunctionDeclaredDeterministic(ctx *analysis.Cont
 		if p, ok := syntax.UnwrapParens(ret).(*syntax.FuncCall); ok {
 			switch NativeBuiltinName(ctx, p) {
 			case "random_int":
-				found = !expansionDSame(ctx, CallArgument(p.Args, 0, "min"), CallArgument(p.Args, 1, "max"))
+				found = !SameStableLocal(ctx, CallArgument(p.Args, 0, "min"), CallArgument(p.Args, 1, "max"))
 			case "random_bytes", "time", "microtime":
 				found = true
 			}
@@ -2010,9 +2016,9 @@ func CheckSqliteForeignKeySettingInsideTransaction(ctx *analysis.Context, n synt
 	// active is true only while an open transaction is proven; every unknown
 	// state is tracked as "not open" so it can never produce a report.
 	active := false
-	for _, event := range expansionDCalls(ctx, c) {
+	for _, event := range ScopeCallEvents(ctx, c) {
 		prior, ok := event.(*syntax.MethodCall)
-		if !ok || prior.Span().End >= c.Span().Start || !expansionDSame(ctx, prior.Var, c.Var) {
+		if !ok || prior.Span().End >= c.Span().Start || !SameStableLocal(ctx, prior.Var, c.Var) {
 			continue
 		}
 		// A call on another branch may or may not have run before the PRAGMA.

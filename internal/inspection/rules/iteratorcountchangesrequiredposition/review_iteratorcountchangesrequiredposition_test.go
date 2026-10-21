@@ -1,4 +1,4 @@
-package semanticquery
+package iteratorcountchangesrequiredposition
 
 import (
 	"testing"
@@ -6,13 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewIteratorCountProbe dispatches on method calls only, as the rule package does.
-type reviewIteratorCountProbe struct{ nativeCheckProbe }
-
-func (reviewIteratorCountProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KMethodCall}
-}
 
 func TestReviewIteratorCountChangesRequiredPosition(t *testing.T) {
 	const counted = "$it=new ArrayIterator([7,11]);$n=iterator_count($it);"
@@ -57,7 +50,7 @@ func TestReviewIteratorCountChangesRequiredPosition(t *testing.T) {
 		{"count argument missing", "$it=new ArrayIterator([7,11]);iterator_count();echo $it->current();", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := reviewIteratorCountProbe{nativeCheckProbe{"IteratorCountChangesRequiredPosition", CheckIteratorCountChangesRequiredPosition}}
+			probe := New()
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{"IteratorCountChangesRequiredPosition"}})
 			if err != nil {
 				t.Fatal(err)

@@ -53,7 +53,7 @@ func (p sharedDefectProbe) Check(ctx *analysis.Context, n syntax.Node) {
 	case "same":
 		result = fmt.Sprint(NativeSameValue(ctx, a, b))
 	case "stable":
-		result = fmt.Sprint(expansionDSame(ctx, a, b))
+		result = fmt.Sprint(SameStableLocal(ctx, a, b))
 	case "false":
 		result = fmt.Sprint(NativeFailureExcluded(ctx, a, types.Of("resource", "false"), "false"))
 	case "local-false":
@@ -414,7 +414,7 @@ func (p sharedStableProbe) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, event := range nativeContractEvents(ctx, syntax.EnclosingVariableScope(second)) {
 		if first, ok := event.(*syntax.FuncCall); ok && ctx.Text(first.Name) == "fclose" {
-			*p.result = expansionDSame(ctx, CallArgument(first.Args, 0, ""), CallArgument(second.Args, 0, ""))
+			*p.result = SameStableLocal(ctx, CallArgument(first.Args, 0, ""), CallArgument(second.Args, 0, ""))
 		}
 	}
 }

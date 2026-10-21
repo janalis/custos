@@ -1,4 +1,4 @@
-package semanticquery
+package catchcannothandleknownthrowable
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 
 func TestReviewCatchCannotHandleKnownThrowableArguments(t *testing.T) {
 	p := expansionCryptoDBProbe{id: "CatchCannotHandleKnownThrowable", kinds: []syntax.NodeKind{syntax.KCatch}, check: func(ctx *analysis.Context, n syntax.Node) {
-		CheckCatchCannotHandleKnownThrowable(ctx, n, "finding")
+		check(ctx, n, "finding")
 	}}
 	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}, PHP: phpversion.PHP85})
 	if err != nil {
@@ -59,3 +59,19 @@ func TestReviewCatchCannotHandleKnownThrowableArguments(t *testing.T) {
 		})
 	}
 }
+
+type expansionCryptoDBProbe struct {
+	id    string
+	kinds []syntax.NodeKind
+	check func(*analysis.Context, syntax.Node)
+}
+
+func (p expansionCryptoDBProbe) ID() string { return p.id }
+
+func (p expansionCryptoDBProbe) Semantic() {}
+
+func (p expansionCryptoDBProbe) Flow() {}
+
+func (p expansionCryptoDBProbe) Kinds() []syntax.NodeKind { return p.kinds }
+
+func (p expansionCryptoDBProbe) Check(ctx *analysis.Context, n syntax.Node) { p.check(ctx, n) }

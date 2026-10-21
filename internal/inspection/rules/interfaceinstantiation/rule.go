@@ -17,5 +17,12 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KNew} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	semanticquery.CheckInterfaceInstantiation(ctx, n, message)
+	if len(ctx.File.Errors) > 0 || !semanticquery.NativeCallbackReachable(ctx, n) {
+		return
+	}
+	construct := n.(*syntax.New)
+	decl := semanticquery.NativeNewClass(ctx, construct)
+	if decl != nil && decl.Kind == syntax.KindInterface {
+		ctx.ReportNode(construct, message)
+	}
 }

@@ -1,4 +1,4 @@
-package semanticquery
+package fiberstartedtwice
 
 import (
 	"testing"
@@ -6,13 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewFiberStartProbe dispatches on method calls only, as the rule package does.
-type reviewFiberStartProbe struct{ nativeCheckProbe }
-
-func (reviewFiberStartProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KMethodCall}
-}
 
 func TestReviewFiberStartedTwice(t *testing.T) {
 	const fiber = "$f=new Fiber(fn()=>Fiber::suspend());"
@@ -42,7 +35,7 @@ func TestReviewFiberStartedTwice(t *testing.T) {
 		{"no arguments list is not a callable", fiber + "$f->start(1);$f->start(2);", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := reviewFiberStartProbe{nativeCheckProbe{"FiberStartedTwice", CheckFiberStartedTwice}}
+			probe := New()
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{"FiberStartedTwice"}})
 			if err != nil {
 				t.Fatal(err)

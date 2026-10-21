@@ -1,4 +1,4 @@
-package semanticquery
+package nonvoidfunctionfallsthrough
 
 import (
 	"testing"
@@ -6,13 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewFallsThroughProbe dispatches on function-like nodes, as the rule does.
-type reviewFallsThroughProbe struct{ nativeCheckProbe }
-
-func (reviewFallsThroughProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KFunction, syntax.KMethod, syntax.KClosure}
-}
 
 func TestReviewNonVoidFunctionFallsThrough(t *testing.T) {
 	for _, tc := range []struct {
@@ -79,8 +72,8 @@ func TestReviewNonVoidFunctionFallsThrough(t *testing.T) {
 		{"short-circuit may skip throw", "function f($e, $x): int { $x || throw $e; }", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := reviewFallsThroughProbe{nativeCheckProbe{"NonVoidFunctionFallsThrough", CheckNonVoidFunctionFallsThrough}}
-			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}})
+			p := New()
+			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.ID()}})
 			if err != nil {
 				t.Fatal(err)
 			}

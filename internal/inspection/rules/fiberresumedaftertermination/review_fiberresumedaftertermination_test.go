@@ -1,8 +1,9 @@
-package semanticquery
+package fiberresumedaftertermination
 
 import (
 	"testing"
 
+	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
@@ -13,12 +14,6 @@ func TestReviewFiberResumedAfterTermination(t *testing.T) {
 		started = done + "$f->start();"
 		other   = "new Fiber(function(){Fiber::suspend();})"
 	)
-	// The rule only subscribes to method calls.
-	check := func(ctx *analysis.Context, n syntax.Node, message string) {
-		if _, ok := n.(*syntax.MethodCall); ok {
-			CheckFiberResumedAfterTermination(ctx, n, message)
-		}
-	}
 	fn := func(body string) string { return "function f($xs){" + body + "}" }
 	for _, tc := range []struct {
 		name, src string
@@ -65,10 +60,19 @@ func TestReviewFiberResumedAfterTermination(t *testing.T) {
 		{"rebinding after resume", started + "$f->resume();foreach($xs as $f){}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got := auditNative(t, "FiberResumedAfterTermination", check, tc.src)
+			got := analyzeReview(t, tc.src)
 			if len(got) != tc.want {
 				t.Fatalf("got %+v, want %d", got, tc.want)
 			}
 		})
 	}
+}
+
+func analyzeReview(t *testing.T, src string) []diagnostic.Finding {
+	t.Helper()
+	e, err := analysis.NewEngine([]analysis.Rule{New()}, analysis.Config{Only: []string{"FiberResumedAfterTermination"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return e.Analyze(syntax.Parse("review.php", []byte("<?php "+src), syntax.Options{}))
 }

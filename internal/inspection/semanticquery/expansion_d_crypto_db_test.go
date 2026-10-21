@@ -736,16 +736,16 @@ func TestExpansionCryptoDBLocalProof(t *testing.T) {
 			first := CallArgument(c.Args, 0, "a")
 			second := CallArgument(c.Args, 1, "b")
 			if second == nil {
-				for _, ev := range expansionDCalls(ctx, c) {
+				for _, ev := range ScopeCallEvents(ctx, c) {
 					if prior, ok := ev.(*syntax.FuncCall); ok && ctx.Text(prior.Name) == "useValue" {
 						second = CallArgument(prior.Args, 0, "")
 					}
 				}
 			}
-			if same := expansionDSame(ctx, first, second); same != tc.same {
+			if same := SameStableLocal(ctx, first, second); same != tc.same {
 				t.Fatalf("%s: same=%v", tc.src, same)
 			}
-			if expansionDSame(ctx, first, nil) {
+			if SameStableLocal(ctx, first, nil) {
 				t.Fatal("nil proves identity")
 			}
 		})
@@ -761,7 +761,7 @@ func TestExpansionCryptoDBLocalProof(t *testing.T) {
 
 func TestExpansionCryptoDBBudgetsAndSuccessGuards(t *testing.T) {
 	probeNative(t, "function f($a){"+strings.Repeat("other();", 513)+"probe($a,$a);}", func(ctx *analysis.Context, c *syntax.FuncCall) {
-		if expansionDSame(ctx, CallArgument(c.Args, 0, ""), CallArgument(c.Args, 1, "")) {
+		if SameStableLocal(ctx, CallArgument(c.Args, 0, ""), CallArgument(c.Args, 1, "")) {
 			t.Fatal("exhausted scope establishes identity")
 		}
 		if expansionDOutputs(ctx, c) != nil {
