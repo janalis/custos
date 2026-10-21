@@ -206,6 +206,10 @@ func (x *extractor) funcTemplates(d *phpdoc.Doc, ps []*syntax.Param, asserts []A
 	for _, a := range asserts {
 		need = need || strings.Contains(a.Type, `\~~`)
 	}
+	for _, p := range d.EffectiveParams() {
+		// A callback's signature uses a template (`Closure(T): void`).
+		need = need || mentionsAny(p.Type, x.methodTpl) && callableDoc(p.Type)
+	}
 	ret := ""
 	if ds := types.FromDoc(d.EffectiveReturnType(), res).DocString(); strings.Contains(ds, `\~~`) {
 		ret = ds
@@ -304,6 +308,12 @@ func (x *extractor) condReturn(d *phpdoc.Doc, at uint32) string {
 		}
 	}
 	return ""
+}
+
+// callableDoc reports doc type text naming a callable signature.
+func callableDoc(text string) bool {
+	low := strings.ToLower(text)
+	return strings.Contains(low, "callable(") || strings.Contains(low, "closure(")
 }
 
 // mentionsAny reports whether doc type text contains one of names as a word

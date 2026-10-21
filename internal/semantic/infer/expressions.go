@@ -49,6 +49,8 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 		}
 	}
 	switch n := x.(type) {
+	case *syntax.StaticVar:
+		return e.staticType(n)
 	case *syntax.Literal:
 		switch n.LitKind {
 		case syntax.LitInt:

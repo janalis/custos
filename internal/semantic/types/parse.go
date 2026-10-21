@@ -232,11 +232,7 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 		if low == "callable" || low == "pure-callable" {
 			atom = "callable"
 		}
-		t := Of(atom)
-		if ret, ok := p.callableReturn(args, resolve, depth); ok {
-			t = t.WithTypeArgs(atom, []Type{ret})
-		}
-		return t
+		return Of(atom).WithTypeArgs(atom, p.callableSignature(args, resolve, depth))
 	case "int":
 		return Int // int<0, max>
 	case "class-string", "interface-string":
@@ -293,27 +289,72 @@ func (p *docParser) part(s string, resolve Resolver, depth int) Type {
 	return t
 }
 
-// callableReturn parses the return type of a callable signature
-// `(params): R` (args is the text after `callable` / `Closure`). The
-// parameters are not kept. A missing, unknown or mixed return type gives
-// false: the signature then tells nothing about a call's result.
-func (p *docParser) callableReturn(args string, resolve Resolver, depth int) (Type, bool) {
+// callableSignature parses a callable signature `(params): R` (args is the
+// text after `callable` / `Closure`) into its generic arguments: the return
+// type R, then the type of each parameter before a variadic one, unknown
+// for a missing, unknown or mixed type. Nil when it tells nothing: neither
+// R nor a parameter type is known.
+func (p *docParser) callableSignature(args string, resolve Resolver, depth int) []Type {
 	if !strings.HasPrefix(args, "(") {
-		return Unknown, false
+		return nil
 	}
 	end := matchingClose(args)
 	if end < 0 {
-		return Unknown, false
+		return nil
 	}
-	rest := strings.TrimSpace(args[end+1:])
-	if !strings.HasPrefix(rest, ":") {
-		return Unknown, false
+	sig := []Type{Unknown}
+	if rest := strings.TrimSpace(args[end+1:]); strings.HasPrefix(rest, ":") {
+		sig[0] = known(p.union(rest[1:], resolve, depth+1))
 	}
-	ret := p.union(rest[1:], resolve, depth+1)
-	if ret.IsUnknown() || ret.Has("mixed") {
-		return Unknown, false
+	informative := !sig[0].IsUnknown()
+	if inner := strings.TrimSpace(args[1:end]); inner != "" {
+		for _, part := range splitTop(inner, ',') {
+			text, variadic := callableParam(part)
+			if variadic {
+				break
+			}
+			t := Unknown
+			if text != "" {
+				t = known(p.union(text, resolve, depth+1))
+			}
+			informative = informative || !t.IsUnknown()
+			sig = append(sig, t)
+		}
 	}
-	return ret, true
+	if !informative {
+		return nil
+	}
+	return sig
+}
+
+// known is t, or unknown when t is mixed: a signature type that says nothing.
+func known(t Type) Type {
+	if t.Has("mixed") {
+		return Unknown
+	}
+	return t
+}
+
+// callableParam returns the type text of one parameter of a callable
+// signature (`int`, `Foo $x`, `int=`, `string &...$rest`, also with the
+// blanks squashed: `Foo$x`), "" when it has none, and whether the
+// parameter is variadic.
+func callableParam(s string) (string, bool) {
+	s = strings.TrimSpace(s)
+	if i := strings.LastIndexByte(s, '$'); i >= 0 && validClassName(s[i+1:]) {
+		s = s[:i]
+	}
+	variadic := false
+	for {
+		trimmed := strings.TrimSpace(strings.TrimSuffix(strings.TrimSuffix(s, "="), "&"))
+		if t, ok := strings.CutSuffix(trimmed, "..."); ok {
+			trimmed, variadic = strings.TrimSpace(t), true
+		}
+		if trimmed == s {
+			return s, variadic
+		}
+		s = trimmed
+	}
 }
 
 // typeArgs parses a comma-separated generic argument list.

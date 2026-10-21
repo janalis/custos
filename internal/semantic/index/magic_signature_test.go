@@ -31,7 +31,7 @@ class Magic { public function real(int $actual): bool {} }
 	want := []Param{
 		{Name: "item", DocType: `\Domain\Item`},
 		{Name: "row", DocType: `array{item:\Domain\Item}`},
-		{Name: "callback", DocType: `callable(): (\Domain\Item)`},
+		{Name: "callback", DocType: `callable(\Domain\Item, int): (\Domain\Item)`},
 		{Name: "label", DocType: "string", Optional: true, Default: "'a, b'"},
 		{Name: "out", DocType: "array", Optional: true, ByRef: true, Default: "['k' => [1, 2]]"},
 		{Name: "rest", DocType: "string", Optional: true, ByRef: true, Variadic: true},

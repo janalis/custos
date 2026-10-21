@@ -204,7 +204,7 @@ func CallableReturn(t Type) Type {
 			continue
 		}
 		args := t.TypeArgs(a)
-		if len(args) != 1 {
+		if len(args) == 0 || args[0].IsUnknown() {
 			return Unknown
 		}
 		if !ret.IsUnknown() && ret.DocString() != args[0].DocString() {
@@ -213,6 +213,27 @@ func CallableReturn(t Type) Type {
 		ret = args[0]
 	}
 	return ret
+}
+
+// CallableParam returns the type that a `callable(…)` or `Closure(…)`
+// signature documents for parameter i of the callable members of t;
+// unknown when it documents none or the members disagree.
+func CallableParam(t Type, i int) Type {
+	var p Type
+	for _, a := range [...]string{"callable", `\Closure`} {
+		if !t.Has(a) {
+			continue
+		}
+		args := t.TypeArgs(a)
+		if i+1 >= len(args) || args[i+1].IsUnknown() {
+			return Unknown
+		}
+		if !p.IsUnknown() && p.DocString() != args[i+1].DocString() {
+			return Unknown
+		}
+		p = args[i+1]
+	}
+	return p
 }
 
 // WithCallableReturn returns t (which has the callable or \Closure atom)
@@ -225,18 +246,33 @@ func WithCallableReturn(t Type, atom string, ret Type) Type {
 	return t.WithTypeArgs(atom, []Type{ret})
 }
 
-// isCallableAtom reports the atoms whose generic argument is a callable
-// signature's return type.
+// isCallableAtom reports the atoms whose generic arguments are a callable
+// signature: its return type, then its parameter types.
 func isCallableAtom(atom string) bool { return atom == "callable" || atom == `\Closure` }
 
+// docOrMixed is the doc syntax of t, mixed when unknown.
+func docOrMixed(t Type) string {
+	if t.IsUnknown() {
+		return "mixed"
+	}
+	return t.DocString()
+}
+
 // genString renders atom with its generic arguments (doc syntax); the
-// return type of a callable signature as `callable(): (R)`.
+// signature of a callable as `callable(P1, P2): (R)`.
 func genString(atom string, args []Type) string {
 	var b strings.Builder
-	if isCallableAtom(atom) && len(args) == 1 {
+	if isCallableAtom(atom) {
 		b.WriteString(atom)
-		b.WriteString("(): (")
-		b.WriteString(args[0].DocString())
+		b.WriteByte('(')
+		for i, p := range args[1:] {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(docOrMixed(p))
+		}
+		b.WriteString("): (")
+		b.WriteString(docOrMixed(args[0]))
 		b.WriteByte(')')
 		return b.String()
 	}
@@ -249,11 +285,7 @@ func genString(atom string, args []Type) string {
 		if i > 0 {
 			b.WriteString(", ")
 		}
-		if a.IsUnknown() {
-			b.WriteString("mixed")
-		} else {
-			b.WriteString(a.DocString())
-		}
+		b.WriteString(docOrMixed(a))
 	}
 	b.WriteByte('>')
 	return b.String()

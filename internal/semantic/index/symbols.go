@@ -42,7 +42,11 @@ type Param struct {
 	Default  string `json:"def,omitempty"` // default value source text
 	// Out is the type a by-reference parameter holds after the call
 	// (`@param-out`, phpstan-/psalm- variants); "" when not documented.
-	Out   string `json:"out,omitempty"`
+	Out string `json:"out,omitempty"`
+	// Gen is the documented type when it mentions templates of the
+	// declaring class, which appear as `\~T` atoms (see Method.GenReturn);
+	// "" otherwise.
+	Gen   string `json:"g,omitempty"`
 	Avail Avail  `json:"a,omitempty"`
 }
 

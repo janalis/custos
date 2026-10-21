@@ -172,6 +172,39 @@ func (e *Env) nestedElementType(w *elemWrite) types.Type {
 	return types.Of("array")
 }
 
+// staticType is the value a static local holds where its declaration
+// binds it: its initializer (null without one) on the first call, else the
+// value a former call left, one of the plain assignments of the function.
+// Any other write (element, reference, increment, unset, out-argument,
+// inline annotation, dynamic) makes it unknown.
+func (e *Env) staticType(s *syntax.StaticVar) types.Type {
+	name, scope := s.Var.Name, syntax.EnclosingVariableScope(s)
+	sv := e.scopeVars(scope)
+	if sv.dynamic || sv.refs[name] || sv.shared[name] || len(sv.elemWrites[name]) > 0 {
+		return types.Unknown
+	}
+	ts := []types.Type{types.Null}
+	if s.Default != nil {
+		ts[0] = e.TypeOf(s.Default)
+	}
+	for _, d := range e.changing(sv.defs[name]) {
+		switch {
+		case d.barrier:
+		case d.asg != nil:
+			ts = append(ts, e.TypeOf(d.asg.Value))
+		case d.pos >= s.Span().Start && d.pos < s.Span().End:
+		default:
+			return types.Unknown
+		}
+	}
+	for _, t := range ts {
+		if t.IsUnknown() {
+			return types.Unknown
+		}
+	}
+	return types.Union(ts...)
+}
+
 // writtenType is the value an element write stores.
 func (e *Env) writtenType(a *syntax.Assign) types.Type {
 	if a.Op.Kind == syntax.TEqual || a.Op.Kind == syntax.TCoalesceEqual {
@@ -708,20 +741,22 @@ func (e *Env) scopeVars(scope syntax.Node) *scopeVars {
 					}
 					add(n.Var.Name, n.Var.Span().Start, func() types.Type { return types.Of(atoms...) })
 				}
-			case *syntax.Global, *syntax.StaticStmt:
+			case *syntax.Global:
 				// types.Unknown provenance.
-				_, static := n.(*syntax.StaticStmt)
-				syntax.Inspect(n, func(m syntax.Node) bool {
-					if v, ok := m.(*syntax.Variable); ok {
+				for _, x := range n.Vars {
+					if v, ok := x.(*syntax.Variable); ok {
 						add(v.Name, v.Span().Start, func() types.Type { return types.Unknown })
-						if static {
-							sv.statics = mark(sv.statics, v.Name)
-						} else {
-							sv.shared = mark(sv.shared, v.Name)
-						}
+						sv.shared = mark(sv.shared, v.Name)
 					}
-					return true
-				})
+				}
+				return false
+			case *syntax.StaticStmt:
+				for _, s := range n.Vars {
+					if s.Var != nil {
+						add(s.Var.Name, s.Var.Span().Start, func() types.Type { return e.TypeOf(s) })
+						sv.statics = mark(sv.statics, s.Var.Name)
+					}
+				}
 				return false
 			}
 			return true
@@ -1003,6 +1038,9 @@ func (e *Env) paramTypeUnbound(scope syntax.Node, p *syntax.Param) types.Type {
 	}
 	if doc != "" {
 		dt := e.docType(doc, e.resolverFor(scope, at))
+		if narrowed, ok := e.narrowerDoc(declared, dt); ok {
+			return narrowed
+		}
 		if declared.IsUnknown() || declared.HasAny("array", "iterable", "mixed") {
 			return dt
 		}

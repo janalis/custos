@@ -152,7 +152,7 @@ $arrow = fn() => [$a = ['k' => 1], sort($a), t('arrow', $a)];
 		"arrRef":       "?unknown",
 		"useRef":       "?unknown",
 		"global":       "?unknown",
-		"static":       "?unknown",
+		"static":       "int[]|null",    // its initializer (none) or any plain assignment
 		"dynMethod":    "int[]{k: int}", // unresolvable callee: not clobbered
 		"dynStatic":    "int[]{k: int}",
 		"newDyn":       "int[]{k: int}",

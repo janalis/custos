@@ -136,3 +136,47 @@ func TestParseCond(t *testing.T) {
 		t.Error("isNumberLiteral")
 	}
 }
+
+func TestCallableSignatureParams(t *testing.T) {
+	resolve := func(w string) string {
+		if w == "T" {
+			return ""
+		}
+		return strings.TrimPrefix(w, `\`)
+	}
+	cases := map[string][]string{
+		"callable(int, string): void":          {"int", "string"},
+		"Closure(Foo $x, int=, &$y): bool":     {`\Foo`, "int", "?unknown"},
+		"callable(T, int)":                     {"?unknown", "int"}, // no return type
+		"callable(int, string ...$rest): void": {"int", "?unknown"},
+		"callable(int...): void":               {"?unknown"},
+		"callable(array{a: int} $x)":           {"array"},
+		"callable(int)|Closure(int): void":     {"int"},
+		"callable(int)|Closure(string): void":  {"?unknown"}, // members disagree
+		"callable(T): void":                    {"?unknown"},
+		"callable(): void":                     {"?unknown"},
+		"callable(int $a, ...$more): void":     {"int", "?unknown"},
+		"Closure(int &...$values): void":       {"?unknown"},
+		"Closure(int $a = 1)":                  {"?unknown"}, // not a signature default
+		"callable(T)":                          {"?unknown"}, // tells nothing
+		"callable(Foo$x,int...$rest):void":     {`\Foo`, "?unknown"},
+		"callable(array{'$k': int}): void":     {"array"},
+	}
+	for in, want := range cases {
+		got := FromDoc(in, resolve)
+		for i, w := range want {
+			if p := CallableParam(got, i); p.String() != w {
+				t.Errorf("%s: param %d is %s, want %s", in, i, p, w)
+			}
+		}
+		back := FromDoc(got.DocString(), nil)
+		for i := range want {
+			if CallableParam(back, i).DocString() != CallableParam(got, i).DocString() {
+				t.Errorf("%s: DocString %q does not round-trip", in, got.DocString())
+			}
+		}
+	}
+	if got := FromDoc("callable(T, int)", resolve).DocString(); got != "callable(mixed, int): (mixed)" {
+		t.Errorf("unknown members render as mixed: %s", got)
+	}
+}

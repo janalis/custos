@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/index"
 	"custos/internal/semantic/types"
 )
 
@@ -18,12 +19,22 @@ var callbackSlot = map[string]int{
 // is written directly as the callback of a builtin that decides what it
 // passes: the elements (or keys) of the array argument for array_map(),
 // array_filter() (by its mode), array_walk(), array_reduce() and the usort()
-// family. Unknown otherwise.
+// family; otherwise what the called function or method documents its
+// callback receives (see documentedCallbackParam). Unknown otherwise.
 func (e *Env) contextParamType(fn syntax.Node, i int) types.Type {
 	arg, ok := fn.Parent().(*syntax.Arg)
 	if !ok {
 		return types.Unknown
 	}
+	if t := e.builtinCallbackParam(fn, arg, i); !t.IsUnknown() {
+		return t
+	}
+	return e.documentedCallbackParam(fn, arg.Parent().(*syntax.ArgList), i)
+}
+
+// builtinCallbackParam is contextParamType for the builtins with a fixed
+// callback contract (see callbackSlot).
+func (e *Env) builtinCallbackParam(fn syntax.Node, arg *syntax.Arg, i int) types.Type {
 	call, ok := arg.Parent().Parent().(*syntax.FuncCall)
 	if !ok {
 		return types.Unknown
@@ -126,4 +137,83 @@ func namedArgs(args *syntax.ArgList) bool {
 		}
 	}
 	return false
+}
+
+// documentedCallbackParam types parameter i of closure or arrow function
+// fn, an argument of argument list al, from the callable signature the
+// called function or method documents for the parameter fn binds
+// (`@param Closure(T, int): bool $p`): the receiver binds the templates of
+// the method's class, the other arguments its own templates. Unknown when
+// the callee or the signature is unknown, or callees disagree.
+func (e *Env) documentedCallbackParam(fn syntax.Node, al *syntax.ArgList, i int) types.Type {
+	switch call := al.Parent().(type) {
+	case *syntax.FuncCall:
+		if f := e.ResolveFunction(call); f != nil {
+			return e.signatureParam(f.Params, f.Tpl, nil, nil, al, fn, i)
+		}
+	case *syntax.MethodCall:
+		id, ok := call.Name.(*syntax.Identifier)
+		if !ok {
+			return types.Unknown
+		}
+		recv := e.chainReceiver(call.Var, call.NullSafe)
+		var t types.Type
+		for n, cls := range e.memberClasses(recv, func(c string) bool { return e.Index.FindMethod(c, id.Value, e.PHP) != nil }) {
+			c := strings.TrimPrefix(cls, `\`)
+			ct := e.methodCallbackParam(c, id.Value, c, recv.TypeArgs(cls), al, fn, i)
+			if ct.IsUnknown() || n > 0 && ct.DocString() != t.DocString() {
+				return types.Unknown
+			}
+			t = ct
+		}
+		return t
+	case *syntax.StaticCall:
+		id, ok := call.Name.(*syntax.Identifier)
+		if !ok {
+			return types.Unknown
+		}
+		if cls := e.classRef(call.Class); cls != "" {
+			return e.methodCallbackParam(cls, id.Value, cls, nil, al, fn, i)
+		}
+	}
+	return types.Unknown
+}
+
+// methodCallbackParam is documentedCallbackParam for method name of class
+// cls, called on origin (with generic arguments targs).
+func (e *Env) methodCallbackParam(cls, name, origin string, targs []types.Type, al *syntax.ArgList, fn syntax.Node, i int) types.Type {
+	m := e.Index.FindMethod(cls, name, e.PHP)
+	if m == nil {
+		return types.Unknown
+	}
+	var classB tplBindings
+	c := e.Index.Class(m.Class, e.PHP)
+	if c != nil && len(c.Templates) > 0 {
+		classB = e.genBindings(origin, targs)[strings.ToLower(strings.TrimPrefix(m.Class, `\`))]
+	}
+	t := e.signatureParam(m.Params, m.Tpl, classB, c, al, fn, i)
+	return e.bindMember(t, m.Class, m.TypeClass, origin)
+}
+
+// signatureParam is the type the documented callable signature of the
+// parameter of params that callback fn binds gives its parameter i, with
+// the templates of ft bound by the other arguments of al and those of
+// class cls by classB (see substTemplateText). Native typing never asks:
+// it keeps a parameter's declaration.
+func (e *Env) signatureParam(params []index.Param, ft *index.FuncTemplates, classB tplBindings, cls *index.Class, al *syntax.ArgList, fn syntax.Node, i int) types.Type {
+	for j, p := range params {
+		if x, state := e.boundArgument(al, params, j); state != bindingBound || x != fn {
+			continue
+		}
+		text := e.resolvedDoc(p.DocType)
+		switch {
+		case ft != nil && j < len(ft.Params) && ft.Params[j] != "":
+			text = ft.Params[j]
+		case p.Gen != "":
+			text = p.Gen
+		}
+		t, _ := substTemplateText(text, e.bindCallSkipping(ft, params, al, j), classB, cls)
+		return types.CallableParam(t, i)
+	}
+	return types.Unknown
 }

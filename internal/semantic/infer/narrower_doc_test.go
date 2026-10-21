@@ -34,3 +34,22 @@ class C {
 		"narrowed": `\Text`, "nullable": `\Html|\Text|null`, "unrelated": `\Message`, "widened": `\Message`, "same": `\Message`, "return": `\Html`,
 	})
 }
+
+// A parameter documented as a subtype of its declaration takes the doc type.
+func TestNarrowerParamDoc(t *testing.T) {
+	checkAnywhere(t, `<?php
+interface Message {}
+class Text implements Message {}
+class Other {}
+/**
+ * @param Text $narrowed
+ * @param Text|null $nullable
+ * @param Other $unrelated
+ */
+function f(Message $narrowed, ?Message $nullable, Message $unrelated) {
+    t('narrowed', $narrowed);
+    t('nullable', $nullable);
+    t('unrelated', $unrelated);
+}
+`, map[string]string{"narrowed": `\Text`, "nullable": `\Text|null`, "unrelated": `\Message`})
+}

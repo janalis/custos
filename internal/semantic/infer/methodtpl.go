@@ -53,12 +53,18 @@ func (e *Env) tplReturn(ft *index.FuncTemplates, params []index.Param, args *syn
 // arguments (see bindPattern); templates bound to unknown or mixed types
 // are left out.
 func (e *Env) bindCall(ft *index.FuncTemplates, params []index.Param, args *syntax.ArgList) tplBindings {
+	return e.bindCallSkipping(ft, params, args, -1)
+}
+
+// bindCallSkipping is bindCall leaving out parameter skip, whose argument
+// is being typed from the templates (see signatureParam).
+func (e *Env) bindCallSkipping(ft *index.FuncTemplates, params []index.Param, args *syntax.ArgList, skip int) tplBindings {
 	if ft == nil || args == nil || len(ft.Params) == 0 {
 		return nil
 	}
 	found := map[string][]types.Type{}
 	for i, pat := range ft.Params {
-		if pat == "" {
+		if pat == "" || i == skip {
 			continue
 		}
 		arg := e.tplArg(args, params, i)
@@ -81,7 +87,17 @@ func (e *Env) bindCall(ft *index.FuncTemplates, params []index.Param, args *synt
 // classB (else their bound, else mixed). ok is false when a method
 // template is unbound or the result unknown.
 func substFuncTemplates(text string, mb, classB tplBindings, cls *index.Class) (types.Type, bool) {
-	allBound := true
+	t, allBound := substTemplateText(text, mb, classB, cls)
+	if !allBound || t.IsUnknown() {
+		return types.Unknown, false
+	}
+	return t, true
+}
+
+// substTemplateText is substFuncTemplates reading an unbound method
+// template as mixed; allBound reports whether every one was bound.
+func substTemplateText(text string, mb, classB tplBindings, cls *index.Class) (_ types.Type, allBound bool) {
+	allBound = true
 	res := func(w string) string {
 		name := strings.TrimPrefix(w, `\`)
 		switch {
@@ -111,11 +127,7 @@ func substFuncTemplates(text string, mb, classB tplBindings, cls *index.Class) (
 		}
 		return name
 	}
-	t := types.FromDoc(text, res)
-	if !allBound || t.IsUnknown() {
-		return types.Unknown, false
-	}
-	return t, true
+	return types.FromDoc(text, res), allBound
 }
 
 // bindPattern matches the argument type at (of expression arg) against the
@@ -199,7 +211,7 @@ func (e *Env) bindPattern(pat, at types.Type, arg syntax.Expr, found map[string]
 	switch {
 	case a == "callable" || strings.EqualFold(a, `\Closure`):
 		// callable(…): T, Closure(…): T ← the callback's return type
-		if args := pat.TypeArgs(a); len(args) == 1 {
+		if args := pat.TypeArgs(a); len(args) > 0 {
 			e.bindSingle(args[0], e.callbackReturn(arg), found)
 		}
 	case a == "string":

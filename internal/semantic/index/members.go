@@ -6,6 +6,7 @@ import (
 
 	"custos/internal/php/phpdoc"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 func (x *extractor) classBody(n *syntax.ClassLike) {
@@ -237,6 +238,11 @@ func (x *extractor) params(ps []*syntax.Param, d *phpdoc.Doc, at uint32) []Param
 		}
 		if p.ByRef {
 			prm.Out = x.docTypeStr(outTypes[p.Var.Name], at)
+		}
+		if text := docTypes[p.Var.Name]; len(x.classTpl) > 0 && mentionsAny(text, x.classTpl) {
+			if ds := types.FromDoc(text, x.genResolver(at)).DocString(); strings.Contains(ds, `\~`) {
+				prm.Gen = ds
+			}
 		}
 		out = append(out, prm)
 	}
