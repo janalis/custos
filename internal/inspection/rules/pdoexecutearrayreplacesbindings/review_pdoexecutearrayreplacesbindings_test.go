@@ -1,4 +1,4 @@
-package semanticquery
+package pdoexecutearrayreplacesbindings
 
 import (
 	"testing"
@@ -6,13 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewPdoExecuteArrayProbe dispatches on method calls only, as the rule package does.
-type reviewPdoExecuteArrayProbe struct{ nativeCheckProbe }
-
-func (reviewPdoExecuteArrayProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KMethodCall}
-}
 
 func TestReviewPdoExecuteArrayReplacesBindings(t *testing.T) {
 	const open = "function f(PDO $pdo){$s=$pdo->prepare("
@@ -40,7 +33,7 @@ func TestReviewPdoExecuteArrayReplacesBindings(t *testing.T) {
 		{"unknown sql", open + "$sql);$s->bindValue(':id',7);$s->execute([]);}", 0, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := reviewPdoExecuteArrayProbe{nativeCheckProbe{"PdoExecuteArrayReplacesBindings", CheckPdoExecuteArrayReplacesBindings}}
+			probe := New()
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{"PdoExecuteArrayReplacesBindings"}})
 			if err != nil {
 				t.Fatal(err)

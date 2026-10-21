@@ -35,8 +35,8 @@ func TestNativeSQLLexicalFacts(t *testing.T) {
 		{"SELECT ':', ':1bad', 'ordinary'", true, 0, 0, 0, false},
 	} {
 		t.Run(tc.sql, func(t *testing.T) {
-			f, known := scanNativeSQL(tc.sql)
-			if known != tc.known || len(f.markers) != tc.markers || f.positional != tc.positional || len(f.quoted) != tc.quoted || f.identifiers != tc.identifiers {
+			f, known := ScanSQL(tc.sql)
+			if known != tc.known || len(f.Markers) != tc.markers || f.Positional != tc.positional || len(f.Quoted) != tc.quoted || f.Identifiers != tc.identifiers {
 				t.Fatalf("got %+v known %v, want %+v", f, known, tc)
 			}
 		})
@@ -152,16 +152,6 @@ func TestNativeChecksIgnoreUnrelatedSyntax(t *testing.T) {
 		id    string
 		check func(*analysis.Context, syntax.Node, string)
 	}{
-		{"PdoPlaceholderBindingMismatch", CheckPdoPlaceholderBindingMismatch},
-		{"PdoMixedPlaceholderStyles", CheckPdoMixedPlaceholderStyles},
-		{"PdoQuotedPlaceholder", CheckPdoQuotedPlaceholder},
-		{"PdoIdentifierPlaceholder", CheckPdoIdentifierPlaceholder},
-		{"PdoSelectRowCountAssumption", CheckPdoSelectRowCountAssumption},
-		{"PdoReferenceBindingVariableReuse", CheckPdoReferenceBindingVariableReuse},
-		{"TransactionEarlyReturn", CheckTransactionEarlyReturn},
-		{"TransactionExceptionWithoutRollback", CheckTransactionExceptionWithoutRollback},
-		{"PdoFetchColumnFalsyValueLoss", CheckPdoFetchColumnFalsyValueLoss},
-		{"PdoExecuteArrayReplacesBindings", CheckPdoExecuteArrayReplacesBindings},
 		{"HeadersAfterCommittedOutput", CheckHeadersAfterCommittedOutput},
 		{"RedirectContinuesProtectedExecution", CheckRedirectContinuesProtectedExecution},
 		{"SessionMutationAfterClose", CheckSessionMutationAfterClose},
@@ -193,27 +183,7 @@ func TestNativePDOBindingProofBoundaries(t *testing.T) {
 		id, src string
 		check   func(*analysis.Context, syntax.Node, string)
 		want    int
-	}{
-		{"PdoPlaceholderBindingMismatch", "function f(PDO $p){$s=$p->prepare('SELECT :a,:b');$s->execute(['a'=>1]);}", CheckPdoPlaceholderBindingMismatch, 1},
-		{"PdoPlaceholderBindingMismatch", "function f(PDO $p){$s=$p->prepare('SELECT ?');$s->bindValue(1,7);$s->execute();}", CheckPdoPlaceholderBindingMismatch, 0},
-		{"PdoPlaceholderBindingMismatch", "function f(PDO $p,$name){$s=$p->prepare('SELECT :a');$s->bindValue($name,7);$s->execute();}", CheckPdoPlaceholderBindingMismatch, 0},
-		{"PdoPlaceholderBindingMismatch", "function f(PDO $p){$s=$p->prepare('SELECT :a');retain($s);$s->execute();}", CheckPdoPlaceholderBindingMismatch, 0},
-		{"PdoExecuteArrayReplacesBindings", "function f(PDO $p,$sql){$s=$p->prepare($sql);$s->bindValue(':a',7);$s->execute([]);}", CheckPdoExecuteArrayReplacesBindings, 0},
-		{"PdoIdentifierPlaceholder", "function f(PDO $p,$sql){$p->prepare($sql);}", CheckPdoIdentifierPlaceholder, 0},
-		{"PdoIdentifierPlaceholder", "function f(PDO $p){$p->prepare(\"SELECT ':unfinished\");}", CheckPdoIdentifierPlaceholder, 0},
-		{"PdoMixedPlaceholderStyles", "function f(PDO $p,$sql){$p->prepare($sql);}", CheckPdoMixedPlaceholderStyles, 0},
-		{"PdoMixedPlaceholderStyles", "function f(PDO $p){$p->prepare(\"SELECT ':unfinished\");}", CheckPdoMixedPlaceholderStyles, 0},
-		{"PdoQuotedPlaceholder", "function f(PDO $p,$sql){$s=$p->prepare($sql);$s->execute(['a'=>7]);}", CheckPdoQuotedPlaceholder, 0},
-		{"PdoQuotedPlaceholder", "function f(PDO $p,$args){$s=$p->prepare(\"SELECT ':a'\");$s->execute($args);}", CheckPdoQuotedPlaceholder, 0},
-		{"PdoReferenceBindingVariableReuse", "function f(PDO $p,$sql){$s=$p->prepare($sql);$v=1;$s->bindParam(':a',$v);$v=2;$s->bindParam(':b',$v);$s->execute();}", CheckPdoReferenceBindingVariableReuse, 0},
-		{"PdoReferenceBindingVariableReuse", "function f(PDO $p,$args){$s=$p->prepare('SELECT :a,:b');$v=1;$s->bindParam(':a',$v);$v=2;$s->bindParam(':b',$v);$s->execute($args);}", CheckPdoReferenceBindingVariableReuse, 0},
-		{"PdoReferenceBindingVariableReuse", "function f(PDO $p,$name){$s=$p->prepare('SELECT :a,:b');$v=1;$s->bindParam($name,$v);$s->execute();}", CheckPdoReferenceBindingVariableReuse, 0},
-		{"PdoReferenceBindingVariableReuse", "function f(PDO $p,$v){$s=$p->prepare('SELECT :a,:b');$s->bindParam(':a',$v);$s->execute();}", CheckPdoReferenceBindingVariableReuse, 0},
-		{"PdoReferenceBindingVariableReuse", "function f(PDO $p){$s=$p->prepare('SELECT :a,:b');$v='a';$s->bindParam(':a',$v);$v='b';$s->bindParam(':b',$v);$s->execute();}", CheckPdoReferenceBindingVariableReuse, 1},
-		{"PdoPlaceholderBindingMismatch", "function f(PDOStatement $s){$s->execute(['a'=>1]);}", CheckPdoPlaceholderBindingMismatch, 0},
-		{"TransactionEarlyReturn", "function f(PDO $p){try{if($p->beginTransaction()){throw new Exception();}}catch(Exception $e){return;}}", CheckTransactionEarlyReturn, 0},
-		{"PdoFetchColumnFalsyValueLoss", "function f(PDOStatement $s){$v=(bool)$s->fetchColumn();}", CheckPdoFetchColumnFalsyValueLoss, 0},
-	} {
+	}{} {
 		t.Run(tc.src, func(t *testing.T) {
 			p := nativeCheckProbe{tc.id, tc.check}
 			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{tc.id}})

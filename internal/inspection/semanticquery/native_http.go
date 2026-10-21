@@ -181,7 +181,7 @@ func CheckContentLengthUsesCharacterCount(ctx *analysis.Context, n syntax.Node, 
 		return
 	}
 	report = true
-	if _, bound := ctx.Flow().BoundArguments(length); bound && body != nil && nativeLengthEncodingSafe(ctx, length) && nativeLengthFixSafe(length) && CommentFreeSpan(ctx, length.Span()) {
+	if _, bound := ctx.Flow().BoundArguments(length); bound && body != nil && nativeLengthEncodingSafe(ctx, length) && ArgumentsRemovable(length) && CommentFreeSpan(ctx, length.Span()) {
 		fixes = append(fixes, ReplacementFix(length.Span(), GlobalCallName(ctx, "strlen", c)+"("+ctx.Text(body)+")", "Count response bytes"))
 	}
 
@@ -736,8 +736,10 @@ func forwardedProxyTest(ctx *analysis.Context, cond syntax.Expr) bool {
 	return found
 }
 
-// nativeLengthFixSafe permits removing only arguments with no observable evaluation.
-func nativeLengthFixSafe(call *syntax.FuncCall) bool {
+// ArgumentsRemovable reports whether every argument of call can be
+// removed without losing an observable evaluation: none is unpacked, passed
+// by reference or has side effects.
+func ArgumentsRemovable(call *syntax.FuncCall) bool {
 	for _, node := range call.Args.Args {
 		arg, ok := node.(*syntax.Arg)
 		if !ok || arg.Unpack || arg.ByRef || flowquery.MayHaveSideEffects(arg.Value) {

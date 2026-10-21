@@ -1,4 +1,4 @@
-package semanticquery
+package pdoplaceholderbindingmismatch
 
 import (
 	"testing"
@@ -6,13 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewPdoPlaceholderProbe dispatches on method calls only, as the rule package does.
-type reviewPdoPlaceholderProbe struct{ nativeCheckProbe }
-
-func (reviewPdoPlaceholderProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KMethodCall}
-}
 
 func TestReviewPdoPlaceholderBindingMismatchCapturedStatement(t *testing.T) {
 	const open = "function f(PDO $pdo){$s=$pdo->prepare('SELECT :a,:b');"
@@ -37,7 +30,7 @@ func TestReviewPdoPlaceholderBindingMismatchCapturedStatement(t *testing.T) {
 		{"chained execute", "function f(PDO $pdo){$pdo->prepare('SELECT :a')->execute();}", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := reviewPdoPlaceholderProbe{nativeCheckProbe{"PdoPlaceholderBindingMismatch", CheckPdoPlaceholderBindingMismatch}}
+			probe := New()
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{"PdoPlaceholderBindingMismatch"}})
 			if err != nil {
 				t.Fatal(err)

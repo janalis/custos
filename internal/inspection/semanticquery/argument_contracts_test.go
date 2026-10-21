@@ -246,7 +246,7 @@ func TestUnknownOptionalArgumentContracts(t *testing.T) {
 			t.Fatal("unpacked response code preserved status")
 		}
 		execute := CallArgument(probe.Args, 2, "").(*syntax.MethodCall)
-		if _, known := nativeBindings(ctx, execute); known {
+		if _, known := ExecuteBindings(ctx, execute); known {
 			t.Fatal("unpacked bindings were treated as omitted")
 		}
 	})

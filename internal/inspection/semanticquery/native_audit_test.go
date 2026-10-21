@@ -31,8 +31,6 @@ func TestNativeAuditIntentAndIdentity(t *testing.T) {
 		{"ContentLengthUsesCharacterCount", "header('Content-Length: '.mb_strlen(1));echo 1;", CheckContentLengthUsesCharacterCount, 0},
 		{"ContentLengthUsesCharacterCount", "header('Content-Length: '.mb_strlen(1.5));echo 1.5;", CheckContentLengthUsesCharacterCount, 0},
 		{"ContentLengthUsesCharacterCount", "header('Content-Length: '.mb_strlen(true));echo true;", CheckContentLengthUsesCharacterCount, 0},
-		{"PdoPlaceholderBindingMismatch", "function f(PDO $p,$flag){$s=$p->prepare('SELECT :id');$flag && $s->bindValue(':id',1);$s->execute();}", CheckPdoPlaceholderBindingMismatch, 0},
-		{"PdoPlaceholderBindingMismatch", "function f(PDO $p,$flag){$s=$p->prepare('SELECT :id');$flag ? $s->bindValue(':id',1) : 0;$s->execute();}", CheckPdoPlaceholderBindingMismatch, 0},
 		{"UntrustedForwardedClientAddress", "if($_SERVER['HTTP_X_FORWARDED_FOR']==='127.0.0.1'){echo 'logged';}", CheckUntrustedForwardedClientAddress, 0},
 		{"UntrustedForwardedClientAddress", "/** @custos-protected */ function access(){} if($log){echo $_SERVER['HTTP_X_FORWARDED_FOR']==='127.0.0.1';access();}", CheckUntrustedForwardedClientAddress, 0},
 		{"UntrustedForwardedClientAddress", "if($_SERVER['HTTP_X_FORWARDED_FOR']==='127.0.0.1'){grantAccess();}", CheckUntrustedForwardedClientAddress, 0},
@@ -68,7 +66,6 @@ func TestNativeAuditFixSyntax(t *testing.T) {
 		{"RepeatedCookieHeaderReplacement", "header('Set-Cookie: a=1');header(header: 'Set-Cookie: b=2',);", "replace: false", CheckRepeatedCookieHeaderReplacement, 1},
 		{"RepeatedCookieHeaderReplacement", "header('Set-Cookie: a=1');header('Set-Cookie: b=2',);", " false", CheckRepeatedCookieHeaderReplacement, 1},
 		{"ContentLengthUsesCharacterCount", "namespace Site;function strlen($s){return 0;}function f($body){header('Content-Length: '.mb_strlen($body));echo $body;}", `\strlen($body)`, CheckContentLengthUsesCharacterCount, 1},
-		{"PdoExecuteArrayReplacesBindings", "function f(PDO $p){$s=$p->prepare('SELECT :a');$s->bindValue(':a',1);$s->execute([],sideEffect());}", "", CheckPdoExecuteArrayReplacesBindings, 0},
 		{"ContentLengthUsesCharacterCount", "function f($body){header('Content-Length: '.mb_strlen($body,'invalid'));echo $body;}", "", CheckContentLengthUsesCharacterCount, 0},
 		{"ContentLengthUsesCharacterCount", "function f($body,$encoding){header('Content-Length: '.mb_strlen($body,$encoding));echo $body;}", "", CheckContentLengthUsesCharacterCount, 0},
 	} {
@@ -132,7 +129,7 @@ func TestNativeAuditSharedProofBoundaries(t *testing.T) {
 	})
 	probeNative(t, "probe(mb_strlen($body,chooseEncoding()));", func(_ *analysis.Context, c *syntax.FuncCall) {
 		call := CallArgument(c.Args, 0, "").(*syntax.FuncCall)
-		if nativeLengthFixSafe(call) {
+		if ArgumentsRemovable(call) {
 			t.Fatal("effectful optional argument must remain evaluated")
 		}
 	})

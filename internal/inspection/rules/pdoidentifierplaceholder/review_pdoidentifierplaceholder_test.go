@@ -1,4 +1,4 @@
-package semanticquery
+package pdoidentifierplaceholder
 
 import (
 	"strings"
@@ -7,13 +7,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewPdoIdentifierProbe dispatches on method calls only, as the rule package does.
-type reviewPdoIdentifierProbe struct{ nativeCheckProbe }
-
-func (reviewPdoIdentifierProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KMethodCall}
-}
 
 func TestReviewPdoIdentifierPlaceholder(t *testing.T) {
 	for _, tc := range []struct {
@@ -53,7 +46,7 @@ func TestReviewPdoIdentifierPlaceholder(t *testing.T) {
 		{"unparsed sql", `SELECT * FROM :t WHERE a = $1`, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := reviewPdoIdentifierProbe{nativeCheckProbe{"PdoIdentifierPlaceholder", CheckPdoIdentifierPlaceholder}}
+			probe := New()
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{"PdoIdentifierPlaceholder"}})
 			if err != nil {
 				t.Fatal(err)

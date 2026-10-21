@@ -69,7 +69,7 @@ func TestMemoryStreamEffectiveMode(t *testing.T) {
 
 func TestSQLVendorCommentsDoNotEstablishGenericCounts(t *testing.T) {
 	for _, sql := range []string{`SELECT /*! ? */ ?`, `SELECT /*M! ? */ ?`, `SELECT /*!50700 ? */ ?`, `SELECT 1--? + ?`} {
-		if facts, known := scanNativeSQL(sql); known {
+		if facts, known := ScanSQL(sql); known {
 			t.Fatalf("dialect-sensitive SQL claimed complete: %s %+v", sql, facts)
 		}
 	}

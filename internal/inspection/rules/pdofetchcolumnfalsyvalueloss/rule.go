@@ -18,5 +18,24 @@ func (rule) Semantic()                {}
 func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
-	semanticquery.CheckPdoFetchColumnFalsyValueLoss(ctx, n, message)
+	c := n.(*syntax.MethodCall)
+
+	if !semanticquery.NativeMethod(ctx, c, "PDOStatement", "fetchColumn") {
+		return
+	}
+	assignment, ok := c.Parent().(*syntax.Assign)
+	if !ok {
+		return
+	}
+	p := assignment.Parent()
+	for {
+		par, ok := p.(*syntax.Paren)
+		if !ok {
+			break
+		}
+		p = par.Parent()
+	}
+	if branch, ok := p.(*syntax.If); ok && branch.Cond != nil {
+		ctx.ReportNode(assignment, message)
+	}
 }

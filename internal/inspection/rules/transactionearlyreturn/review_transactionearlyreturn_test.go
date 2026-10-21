@@ -1,4 +1,4 @@
-package semanticquery
+package transactionearlyreturn
 
 import (
 	"testing"
@@ -6,13 +6,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 )
-
-// reviewTransactionReturnProbe dispatches on returns only, as the rule package does.
-type reviewTransactionReturnProbe struct{ nativeCheckProbe }
-
-func (reviewTransactionReturnProbe) Kinds() []syntax.NodeKind {
-	return []syntax.NodeKind{syntax.KReturn}
-}
 
 func TestReviewTransactionEarlyReturn(t *testing.T) {
 	const begin = "if(!$p->beginTransaction()){return false;}"
@@ -65,8 +58,8 @@ func TestReviewTransactionEarlyReturn(t *testing.T) {
 		{"return inside finally", "try{work();}finally{if($x){return;}if($p->inTransaction()){$p->rollBack();}}", 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := reviewTransactionReturnProbe{nativeCheckProbe{"TransactionEarlyReturn", CheckTransactionEarlyReturn}}
-			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}})
+			p := New()
+			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.ID()}})
 			if err != nil {
 				t.Fatal(err)
 			}
