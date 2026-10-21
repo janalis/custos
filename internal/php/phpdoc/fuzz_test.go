@@ -56,9 +56,9 @@ func TestParsePathological(t *testing.T) {
 		"nesting":       "/** @return " + strings.Repeat("array<", 100000) + " */",
 		"invalid utf-8": "/** @param \xff\xfe $\xff " + strings.Repeat("\xc3", 100000) + " */",
 	} {
-		start := time.Now()
+		start := testbudget.CPU()
 		exercise(c)
-		if d := time.Since(start); d > testbudget.Of(3*time.Second) {
+		if d := testbudget.CPU() - start; d > testbudget.Of(3*time.Second) {
 			t.Errorf("%s: %v", name, d)
 		}
 	}

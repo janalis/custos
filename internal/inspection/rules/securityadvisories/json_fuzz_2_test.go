@@ -17,9 +17,9 @@ func TestParseJSONPathological(t *testing.T) {
 		"open string":   `{"` + strings.Repeat("a", 1<<20),
 		"trailing junk": `{}` + strings.Repeat(" ", 1<<20) + "x",
 	} {
-		start := time.Now()
+		start := testbudget.CPU()
 		parseJSON([]byte(s))
-		if d := time.Since(start); d > testbudget.Of(3*time.Second) {
+		if d := testbudget.CPU() - start; d > testbudget.Of(3*time.Second) {
 			t.Errorf("%s: %v", name, d)
 		}
 	}

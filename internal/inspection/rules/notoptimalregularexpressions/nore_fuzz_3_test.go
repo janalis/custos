@@ -18,13 +18,13 @@ func TestNorePathological(t *testing.T) {
 		"repeated":        strings.Repeat("[ab]", 300000),
 		"delimiters only": "/" + strings.Repeat("/", 1<<20),
 	} {
-		start := time.Now()
+		start := testbudget.CPU()
 		noreSplitDelimiters(body)
 		noreRepeatedClass(body)
 		if len(body) <= noreNestedMaxLen {
 			noreNestedQuantifiers(body)
 		}
-		if d := time.Since(start); d > testbudget.Of(3*time.Second) {
+		if d := testbudget.CPU() - start; d > testbudget.Of(3*time.Second) {
 			t.Errorf("%s: %v", name, d)
 		}
 	}
@@ -37,9 +37,9 @@ func TestNorePathological(t *testing.T) {
 		b.WriteString("a(b" + string(rune('0'+i%10)) + string(rune('A'+i/10%26)) + string(rune('a'+i/260%26)) + ")c")
 	}
 	for _, p := range []string{nested, b.String()} {
-		start := time.Now()
+		start := testbudget.CPU()
 		noreNestedQuantifiers(p)
-		if d := time.Since(start); d > testbudget.Of(3*time.Second) {
+		if d := testbudget.CPU() - start; d > testbudget.Of(3*time.Second) {
 			t.Errorf("max-size D18 pattern: %v", d)
 		}
 	}

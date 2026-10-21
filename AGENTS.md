@@ -111,7 +111,8 @@ go generate ./internal/php/syntax  # regenerate node kinds after editing ast.go
 - Messages: short, imperative, our own wording; no `[EA]` prefix.
 - PHP versions 5.3–8.5 supported: version-gate rules via `meta`/spec thresholds.
 - New code ships with tests covering every statement (`make coverage`);
-  timing limits in tests use `testbudget.Of(d)` (load-scaled), and hard
+  timing limits in tests use `testbudget.Of(d)` (load-scaled) against
+  `testbudget.CPU()` for compute-bound work, and hard
   performance budgets live in `make bench`.
 - Order: `make rules-doc` when a spec, a rule's fixtures or rule status
   changes, then `make verify` before declaring work done. CI (`docs.yml`)

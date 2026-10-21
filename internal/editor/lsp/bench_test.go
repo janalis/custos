@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"sort"
-	"syscall"
 	"testing"
 	"time"
 
@@ -16,18 +15,8 @@ import (
 	"custos/internal/inspection/catalogue"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/testing/testbudget"
 )
-
-// cpuTime is the CPU time (user + system) the process used so far: unlike
-// wall-clock time, it does not grow while other processes hold the CPU.
-func cpuTime(t *testing.T) time.Duration {
-	t.Helper()
-	var ru syscall.Rusage
-	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &ru); err != nil {
-		t.Fatal(err)
-	}
-	return time.Duration(ru.Utime.Nano() + ru.Stime.Nano())
-}
 
 // percentiles returns the median and 95th percentile of d (sorted in place).
 func percentiles(d []time.Duration) (time.Duration, time.Duration) {
@@ -69,10 +58,10 @@ func TestEditLatency(t *testing.T) {
 	}
 	var wall, cpu []time.Duration
 	for i := 0; i < 40; i++ {
-		start, startCPU := time.Now(), cpuTime(t)
+		start, startCPU := time.Now(), testbudget.CPU()
 		f := syntax.ParseBest(path, src, syntax.Options{Version: phpversion.PHP84})
 		e.Analyze(f)
-		wall, cpu = append(wall, time.Since(start)), append(cpu, cpuTime(t)-startCPU)
+		wall, cpu = append(wall, time.Since(start)), append(cpu, testbudget.CPU()-startCPU)
 	}
 	p50, p95 := percentiles(wall)
 	c50, c95 := percentiles(cpu)
@@ -117,9 +106,9 @@ func TestWorkspaceEditLatency(t *testing.T) {
 		d.version++
 		d.lines = syntax.NewLineIndex(d.text)
 		s.mu.Unlock()
-		start, startCPU := time.Now(), cpuTime(t)
+		start, startCPU := time.Now(), testbudget.CPU()
 		s.analyzeChanged(uri)
-		wall, cpu = append(wall, time.Since(start)), append(cpu, cpuTime(t)-startCPU)
+		wall, cpu = append(wall, time.Since(start)), append(cpu, testbudget.CPU()-startCPU)
 	}
 	p50, p95 := percentiles(wall)
 	c50, c95 := percentiles(cpu)

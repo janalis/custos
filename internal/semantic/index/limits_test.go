@@ -51,7 +51,7 @@ func lookupTime(t *testing.T, n int, cycle bool) time.Duration {
 	for run := 0; run < 2; run++ {
 		ix := New(nil)
 		ix.Add(Extract(f))
-		start := time.Now()
+		start := testbudget.CPU()
 		found := 0
 		for i := 0; i < n; i++ {
 			c := fmt.Sprintf("C%d", i)
@@ -62,7 +62,7 @@ func lookupTime(t *testing.T, n int, cycle bool) time.Duration {
 			ix.IsSubtype(c, "C0", 0)
 			ix.ParentChain(c, 0)
 		}
-		if d := time.Since(start); d < best {
+		if d := testbudget.CPU() - start; d < best {
 			best = d
 		}
 		if !cycle && found < MaxAncestors {

@@ -91,7 +91,8 @@ a tool's variable empty to skip it offline (`make lint MDLINT=`).
   than exempting it.
 - **Performance is a feature.** Add a benchmark for any hot path you touch,
   and watch allocations (`-benchmem`). Timing limits in tests use
-  `testbudget.Of(d)`, which scales with machine load.
+  `testbudget.Of(d)`, which scales with machine load, and time compute-bound
+  work with `testbudget.CPU()` (process CPU time) rather than the wall clock.
 - **Correctness beats upstream fidelity.** When the upstream behavior is
   wrong (false positives, fixes that change semantics or produce invalid PHP),
   diverge and document it (see [Divergences](./clean-room#divergences)).

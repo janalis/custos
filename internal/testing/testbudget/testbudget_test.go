@@ -19,3 +19,11 @@ func TestOf(t *testing.T) {
 		t.Errorf("Of shrank the budget: %v", d)
 	}
 }
+
+func TestCPU(t *testing.T) {
+	start := CPU()
+	calibrate()
+	if CPU() <= start {
+		t.Errorf("CPU did not advance over a busy loop")
+	}
+}

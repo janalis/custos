@@ -56,10 +56,10 @@ func TestFromDocPathological(t *testing.T) {
 		"long aliases":      "ManyLong",
 	}
 	for name, in := range cases {
-		start := time.Now()
+		start := testbudget.CPU()
 		got := FromDoc(in, resolve)
 		_ = got.DocString()
-		if d := time.Since(start); d > testbudget.Of(200*time.Millisecond) && !raceEnabled {
+		if d := testbudget.CPU() - start; d > testbudget.Of(200*time.Millisecond) && !raceEnabled {
 			t.Errorf("%s: took %v", name, d)
 		}
 	}
@@ -98,10 +98,10 @@ func FuzzFromDoc(f *testing.F) {
 		return strings.TrimPrefix(w, `\`)
 	}
 	f.Fuzz(func(t *testing.T, s string) {
-		start := time.Now()
+		start := testbudget.CPU()
 		got := FromDoc(s, resolve)
 		c, condOK := ParseCond(s, resolve, func(string) string { return "x" })
-		if d := time.Since(start); d > testbudget.Of(time.Second) && !raceEnabled {
+		if d := testbudget.CPU() - start; d > testbudget.Of(time.Second) && !raceEnabled {
 			t.Fatalf("%q took %v", s, d)
 		}
 		if condOK {

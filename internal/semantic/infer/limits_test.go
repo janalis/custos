@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -52,9 +51,9 @@ func TestGenericChainBounded(t *testing.T) {
 	b.WriteString("/**\n * @template T\n * @extends C0<list<T>>\n */\nclass S1 extends C0 {}\n")
 	b.WriteString("/**\n * @template T\n * @extends S1<T>\n */\nclass S2 extends S1 {}\n")
 	b.WriteString("function short(){ /** @var S2<int> $x */ $x = g(); return $x->m(); }\n")
-	start := time.Now()
+	start := testbudget.CPU()
 	got := returnTypes(t, b.String())
-	if d := time.Since(start); d > testbudget.Of(2*time.Second) && !raceEnabled {
+	if d := testbudget.CPU() - start; d > testbudget.Of(2*time.Second) && !raceEnabled {
 		t.Errorf("generic chain took %v", d)
 	}
 	for _, r := range got {
@@ -100,9 +99,9 @@ func scopeDocsTime(t *testing.T, n int) time.Duration {
 	fmt.Fprintf(&b, "        return $v%d;\n    }\n}\n", n-1)
 	best := time.Duration(1<<63 - 1)
 	for run := 0; run < 2; run++ {
-		start := time.Now()
+		start := testbudget.CPU()
 		got := returnTypes(t, b.String())
-		if d := time.Since(start); d < best {
+		if d := testbudget.CPU() - start; d < best {
 			best = d
 		}
 		if len(got) != 1 || got[0] != "array{k:int}" {
@@ -121,7 +120,7 @@ func typeAll(t *testing.T, src string) time.Duration {
 	ix.Add(index.Extract(f))
 	env := infer.NewEnv(f, names.New(f), ix, phpversion.PHP84)
 	tr := infer.NewTRules(env)
-	start := cpuTime(t)
+	start := testbudget.CPU()
 	syntax.InspectFile(f, func(n syntax.Node) bool {
 		switch n := n.(type) {
 		case *syntax.Variable, *syntax.PropertyFetch, *syntax.ArrayDimFetch:
@@ -131,20 +130,7 @@ func typeAll(t *testing.T, src string) time.Duration {
 		}
 		return true
 	})
-	return cpuTime(t) - start
-}
-
-// cpuTime is the CPU time (user + system) the process used so far: unlike
-// wall-clock time, it does not grow while other processes hold the CPU, so
-// the limits below hold on a loaded machine. (No test of the package runs
-// in parallel with them.)
-func cpuTime(t *testing.T) time.Duration {
-	t.Helper()
-	var ru syscall.Rusage
-	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &ru); err != nil {
-		t.Fatal(err)
-	}
-	return time.Duration(ru.Utime.Nano() + ru.Stime.Nano())
+	return testbudget.CPU() - start
 }
 
 // Reads used to rescan the statements before them (guards), the

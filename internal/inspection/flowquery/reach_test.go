@@ -337,9 +337,9 @@ func TestReachableLongDeadTailLinear(t *testing.T) {
 	for labelled, want := range map[bool]int{false: 0, true: 20000} {
 		f := Parse(t, deadTail(20000, labelled))
 		calls := probesOf(f)
-		start := time.Now()
+		start := testbudget.CPU()
 		got := reachableCount(calls)
-		elapsed := time.Since(start)
+		elapsed := testbudget.CPU() - start
 		if got != want {
 			t.Errorf("labelled=%v: %d reachable calls, want %d", labelled, got, want)
 		}
@@ -443,9 +443,9 @@ func TestReachableManyLabelsAndJumpsLinear(t *testing.T) {
 		{"ring nothing enters, in a block", deadRing(4000, true), 0},
 	} {
 		calls := probesOf(Parse(t, tc.src))
-		start := time.Now()
+		start := testbudget.CPU()
 		got := reachableCount(calls)
-		elapsed := time.Since(start)
+		elapsed := testbudget.CPU() - start
 		if got != tc.want {
 			t.Errorf("%s: %d reachable calls, want %d", tc.name, got, tc.want)
 		}

@@ -200,9 +200,9 @@ func TestDeclarationRemovalBounded(t *testing.T) {
 	ix.Add(&FileSymbols{Path: "keep.php", Constants: []*Constant{keeper}, ClassAliases: [][2]string{{"alias", "Original"}}})
 	repeated := repeatedDeclarations(count)
 	ix.Add(repeated)
-	start := time.Now()
+	start := testbudget.CPU()
 	ix.Remove(repeated.Path)
-	if elapsed := time.Since(start); elapsed > testbudget.Of(2*time.Second) {
+	if elapsed := testbudget.CPU() - start; elapsed > testbudget.Of(2*time.Second) {
 		t.Fatalf("removing %d repeated declarations took %v", count, elapsed)
 	}
 	if ix.Constant("FLAG", 0) != keeper || ix.aliasOf("alias") != "Original" {

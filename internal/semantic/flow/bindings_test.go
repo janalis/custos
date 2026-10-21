@@ -714,9 +714,9 @@ func TestSharedBindingsStayBounded(t *testing.T) {
 			var src strings.Builder
 			build(&src)
 			e, f := environment(t, src.String(), nil)
-			start := time.Now()
+			start := testbudget.CPU()
 			e.Value(argument(callsNamed(f, "probe")[0]))
-			if d := time.Since(start); d > testbudget.Of(2*time.Second) {
+			if d := testbudget.CPU() - start; d > testbudget.Of(2*time.Second) {
 				t.Fatalf("flow took %s", d)
 			}
 		})
@@ -748,14 +748,14 @@ func longFunction(locals, blocks int) string {
 func TestLongFunctionsKeepTheirFacts(t *testing.T) {
 	for _, size := range [][2]int{{100, 80}, {120, 150}, {200, 200}, {300, 400}} {
 		e, f := environment(t, longFunction(size[0], size[1]), nil)
-		start := time.Now()
+		start := testbudget.CPU()
 		if !e.Tainted(argument(callsNamed(f, "probe")[0]), Shell) {
 			t.Fatalf("%d locals, %d blocks: request data lost", size[0], size[1])
 		}
 		if _, resolved := e.Resolve(argument(callsNamed(f, "check")[0])); !resolved {
 			t.Fatalf("%d locals, %d blocks: producer lost", size[0], size[1])
 		}
-		if d := time.Since(start); d > testbudget.Of(2*time.Second) {
+		if d := testbudget.CPU() - start; d > testbudget.Of(2*time.Second) {
 			t.Fatalf("%d locals, %d blocks: flow took %s", size[0], size[1], d)
 		}
 	}

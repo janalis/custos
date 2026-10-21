@@ -91,14 +91,14 @@ func FuzzStringLiterals(f *testing.F) {
 		src = strings.ReplaceAll(src, "@return S", "@return "+comment)
 		src = strings.ReplaceAll(src, "@noinspection S", "@noinspection "+comment)
 		src = strings.ReplaceAll(src, "@custos-ignore S", "@custos-ignore "+strings.ReplaceAll(comment, "\n", " "))
-		start := time.Now()
+		start := testbudget.CPU()
 		file := syntax.ParseBest("fuzz.php", []byte(src), syntax.Options{Version: phpversion.PHP84, Permissive: true})
 		for _, fd := range e.Analyze(file) {
 			if fd.Rule == "internal" && strings.Contains(fd.Message, "crashed") {
 				t.Fatalf("%q: %s", s, fd.Message)
 			}
 		}
-		if d := time.Since(start); d > testbudget.Of(10*time.Second) {
+		if d := testbudget.CPU() - start; d > testbudget.Of(10*time.Second) {
 			t.Fatalf("%q: analysis took %v", s, d)
 		}
 	})

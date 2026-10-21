@@ -34,7 +34,7 @@ func switching(locals, blocks int) string {
 }
 
 // The work is bounded in bindings copied, which does not depend on the
-// machine; the wall-clock limit only catches a runaway.
+// machine; the CPU-time limit only catches a runaway.
 func TestDeepLoopsAndUncoveredScopesStayFast(t *testing.T) {
 	for _, tc := range []struct {
 		name, src string
@@ -49,11 +49,11 @@ func TestDeepLoopsAndUncoveredScopesStayFast(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			e, f := environment(t, tc.src, nil)
-			start := time.Now()
+			start := testbudget.CPU()
 			if got := e.Tainted(argument(callsNamed(f, "probe")[0]), Shell); got != tc.tainted {
 				t.Errorf("tainted=%v", got)
 			}
-			if d := time.Since(start); tc.limit > 0 && d > testbudget.Of(tc.limit) {
+			if d := testbudget.CPU() - start; tc.limit > 0 && d > testbudget.Of(tc.limit) {
 				t.Errorf("flow took %s", d)
 			}
 			if r := e.scope(e.file.Stmts[0].(*syntax.Function)); r.copies > tc.copies {

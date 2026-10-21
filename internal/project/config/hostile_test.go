@@ -50,7 +50,7 @@ func TestHostileConfig(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		start := time.Now()
+		start := testbudget.CPU()
 		c, err := Load(dir)
 		if (err != nil) != tc.wantErr {
 			t.Errorf("%s: err = %v, want error %v", name, err, tc.wantErr)
@@ -58,7 +58,7 @@ func TestHostileConfig(t *testing.T) {
 		if err == nil {
 			c.Analysis()
 		}
-		if d := time.Since(start); d > testbudget.Of(3*time.Second) {
+		if d := testbudget.CPU() - start; d > testbudget.Of(3*time.Second) {
 			t.Errorf("%s: %v", name, d)
 		}
 	}

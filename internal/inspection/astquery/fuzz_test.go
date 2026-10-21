@@ -40,11 +40,11 @@ func TestStringLiteralValuePathological(t *testing.T) {
 		"octal/hex runs":    {`"` + strings.Repeat(`\x\777\u`, 200000) + `"`, true},
 		"single escapes":    {`'` + strings.Repeat(`\'\\`, 300000) + `'`, true},
 	} {
-		start := time.Now()
+		start := testbudget.CPU()
 		if _, ok := StringLiteralValue(tc.raw); ok != tc.decoded {
 			t.Errorf("%s: decoded=%v", name, ok)
 		}
-		if d := time.Since(start); d > testbudget.Of(2*time.Second) {
+		if d := testbudget.CPU() - start; d > testbudget.Of(2*time.Second) {
 			t.Errorf("%s: %v", name, d)
 		}
 	}

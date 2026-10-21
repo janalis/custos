@@ -1,7 +1,8 @@
-// Package testbudget scales wall-clock limits in tests by the speed of the
-// machine at test time, so complexity-regression tests (whose broken
-// behaviour costs orders of magnitude more than the limit) do not fail
-// spuriously on a loaded machine.
+// Package testbudget scales time limits in tests by the speed of the
+// machine at test time, and measures compute-bound work in CPU time (CPU),
+// so complexity-regression tests (whose broken behaviour costs orders of
+// magnitude more than the limit) do not fail spuriously on a loaded
+// machine.
 package testbudget
 
 import (

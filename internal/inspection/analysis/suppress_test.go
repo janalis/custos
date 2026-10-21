@@ -64,7 +64,7 @@ func TestSuppressionsScale(t *testing.T) {
 	}
 	// Below the engine's findings cap: drive the suppression index directly.
 	f := syntax.Parse("x.php", []byte(b.String()), syntax.Options{Version: phpversion.PHP84})
-	start := time.Now()
+	start := testbudget.CPU()
 	sup := newSuppressions(f)
 	kept := 0
 	syntax.InspectFile(f, func(nd syntax.Node) bool {
@@ -76,14 +76,14 @@ func TestSuppressionsScale(t *testing.T) {
 	if kept != n/2 {
 		t.Fatalf("kept %d findings, want %d", kept, n/2)
 	}
-	if d := time.Since(start); d > testbudget.Of(5*time.Second) && !raceEnabled {
+	if d := testbudget.CPU() - start; d > testbudget.Of(5*time.Second) && !raceEnabled {
 		t.Errorf("%d findings took %v", n, d)
 	}
 
 	line := "// " + strings.Repeat("@noinspection ", 200000)
-	start = time.Now()
+	start = testbudget.CPU()
 	ids := ParseSuppressionComment(line)
-	if d := time.Since(start); d > testbudget.Of(2*time.Second) && !raceEnabled {
+	if d := testbudget.CPU() - start; d > testbudget.Of(2*time.Second) && !raceEnabled {
 		t.Errorf("long comment took %v", d)
 	}
 	if len(ids) > 200000 {
