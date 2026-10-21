@@ -28,5 +28,22 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
-	semanticquery.CheckUntrustedHeaderValue(ctx, n, message)
+	check(ctx, n, message)
+}
+
+func check(ctx *analysis.Context, n syntax.Node, message string) {
+	c := n.(*syntax.FuncCall)
+	name := semanticquery.NativeBuiltinName(ctx, c)
+	report := false
+
+	if name == "header" {
+		value := semanticquery.CallArgument(c.Args, 0, "header")
+		report = ctx.Flow().Tainted(value, flow.Header)
+
+	}
+
+	report = report || semanticquery.TaintedWrapperSink(ctx, c, flow.Header)
+	if report {
+		ctx.ReportNode(c, message)
+	}
 }

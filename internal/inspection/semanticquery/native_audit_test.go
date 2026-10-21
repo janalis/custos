@@ -76,14 +76,9 @@ func TestNativeAuditFixSyntax(t *testing.T) {
 		{"RepeatedCookieHeaderReplacement", "header('Set-Cookie: a=1');header(header: 'Set-Cookie: b=2',);", "replace: false", CheckRepeatedCookieHeaderReplacement, 1},
 		{"RepeatedCookieHeaderReplacement", "header('Set-Cookie: a=1');header('Set-Cookie: b=2',);", " false", CheckRepeatedCookieHeaderReplacement, 1},
 		{"ContentLengthUsesCharacterCount", "namespace Site;function strlen($s){return 0;}function f($body){header('Content-Length: '.mb_strlen($body));echo $body;}", `\strlen($body)`, CheckContentLengthUsesCharacterCount, 1},
-		{"PasswordComparedWithFreshHash", "namespace Site;function password_verify($p,$h){return false;}function f($password,$stored){return $password===password_hash($stored,PASSWORD_DEFAULT);}", `\password_verify(`, CheckPasswordComparedWithFreshHash, 1},
 		{"PdoExecuteArrayReplacesBindings", "function f(PDO $p){$s=$p->prepare('SELECT :a');$s->bindValue(':a',1);$s->execute([],sideEffect());}", "", CheckPdoExecuteArrayReplacesBindings, 0},
 		{"ContentLengthUsesCharacterCount", "function f($body){header('Content-Length: '.mb_strlen($body,'invalid'));echo $body;}", "", CheckContentLengthUsesCharacterCount, 0},
 		{"ContentLengthUsesCharacterCount", "function f($body,$encoding){header('Content-Length: '.mb_strlen($body,$encoding));echo $body;}", "", CheckContentLengthUsesCharacterCount, 0},
-		{"PasswordComparedWithFreshHash", "function f($p,$stored){return $stored===password_hash($p,9999);}", "", CheckPasswordComparedWithFreshHash, 0},
-		{"PasswordComparedWithFreshHash", "function f($p,$stored){return $stored===password_hash($p,PASSWORD_DEFAULT,['cost'=>-1]);}", "", CheckPasswordComparedWithFreshHash, 0},
-		{"PasswordComparedWithFreshHash", "function f($p,$stored){return $stored===password_hash($p,PASSWORD_DEFAULT,[],1);}", "", CheckPasswordComparedWithFreshHash, 0},
-		{"PasswordComparedWithFreshHash", "use function strlen as password_verify; function f($p,$stored){return $stored===password_hash($p,PASSWORD_DEFAULT);}", `\password_verify(`, CheckPasswordComparedWithFreshHash, 1},
 	} {
 		t.Run(tc.id+tc.src, func(t *testing.T) {
 			got := auditNative(t, tc.id, tc.check, tc.src)

@@ -203,8 +203,8 @@ func CheckPdoExecuteArrayReplacesBindings(ctx *analysis.Context, n syntax.Node, 
 
 	array := NativeArray(ctx, CallArgument(c.Args, 0, "params"))
 	report = array != nil && len(array.Items) == 0 && pdoPriorBindingsRequired(ctx, c, facts)
-	if report && len(c.Args.Args) == 1 && nativeLengthFixSafe(&syntax.FuncCall{Args: c.Args}) && nativeCleanEdit(ctx, c.Args.Span()) {
-		fixes = append(fixes, nativeFix(c.Args.Span(), "()", "Retain previous bindings"))
+	if report && len(c.Args.Args) == 1 && nativeLengthFixSafe(&syntax.FuncCall{Args: c.Args}) && CommentFreeSpan(ctx, c.Args.Span()) {
+		fixes = append(fixes, ReplacementFix(c.Args.Span(), "()", "Retain previous bindings"))
 	}
 
 	if report {

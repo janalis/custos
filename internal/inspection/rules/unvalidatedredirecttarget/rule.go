@@ -24,7 +24,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
 	if semanticquery.NativeBuiltinName(ctx, c) != "header" {
 		// Project wrappers around header() are proven by their sink summaries.
-		semanticquery.CheckUnvalidatedRedirectTarget(ctx, n, message)
+		if semanticquery.TaintedWrapperSink(ctx, c, flow.URL, "header") {
+			ctx.ReportNode(c, message)
+		}
 		return
 	}
 	value := semanticquery.CallArgument(c.Args, 0, "header")

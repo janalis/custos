@@ -5,7 +5,6 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
-	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/stubs"
 )
@@ -122,7 +121,7 @@ func TestNativeCommentPreservation(t *testing.T) {
 	}{{"probe(1);", true}, {"probe(/*keep*/1);", false}, {"probe(1 //keep\n);", false}, {"probe(1 #keep\n);", false}} {
 		t.Run(tc.src, func(t *testing.T) {
 			probeNative(t, tc.src, func(ctx *analysis.Context, c *syntax.FuncCall) {
-				if got := nativeCleanEdit(ctx, c.Span()); got != tc.want {
+				if got := CommentFreeSpan(ctx, c.Span()); got != tc.want {
 					t.Fatalf("got %v, want %v", got, tc.want)
 				}
 			})
@@ -183,11 +182,6 @@ func TestNativeChecksIgnoreUnrelatedSyntax(t *testing.T) {
 		{"UntrustedForwardedClientAddress", CheckUntrustedForwardedClientAddress},
 		{"ContentLengthUsesCharacterCount", CheckContentLengthUsesCharacterCount},
 		{"NoContentResponseWithBody", CheckNoContentResponseWithBody},
-		{"UntrustedHeaderValue", CheckUntrustedHeaderValue},
-		{"UnvalidatedRedirectTarget", CheckUnvalidatedRedirectTarget},
-		{"UntrustedFilesystemPath", CheckUntrustedFilesystemPath},
-		{"PasswordComparedWithFreshHash", CheckPasswordComparedWithFreshHash},
-		{"FastDigestUsedForPasswordStorage", CheckFastDigestUsedForPasswordStorage},
 	} {
 		t.Run(tc.id, func(t *testing.T) {
 			p := nativeCheckProbe{tc.id, tc.check}
@@ -199,35 +193,6 @@ func TestNativeChecksIgnoreUnrelatedSyntax(t *testing.T) {
 			got := e.Analyze(syntax.Parse("unrelated.php", src, syntax.Options{}))
 			if len(got) != 0 {
 				t.Fatalf("unrelated nodes produced findings: %+v", got)
-			}
-		})
-	}
-}
-
-func TestNativeWrapperSecurityContracts(t *testing.T) {
-	for _, tc := range []struct {
-		id, src string
-		check   func(*analysis.Context, syntax.Node, string)
-		want    int
-	}{
-		{"UntrustedFilesystemPath", "function openPath($p){readfile($p);} openPath($_GET['file']);", CheckUntrustedFilesystemPath, 1},
-		{"UntrustedHeaderValue", "function emitHeader($s){header($s);} emitHeader($_GET['header']);", CheckUntrustedHeaderValue, 1},
-		{"UnvalidatedRedirectTarget", "function fetchURL($u){$h=curl_init($u);curl_exec($h);} fetchURL($_GET['url']);", CheckUnvalidatedRedirectTarget, 0},
-		{"UnvalidatedRedirectTarget", "function redirectTo($u){header('Location: '.$u);} redirectTo($_GET['next']);", CheckUnvalidatedRedirectTarget, 1},
-		{"UntrustedFilesystemPath", "function openPath($p){readfile($p);} openPath(unknownValidator($_GET['file']));", CheckUntrustedFilesystemPath, 0},
-		{"UntrustedFilesystemPath", "rmdir(directory: $_GET['dir']);", CheckUntrustedFilesystemPath, 1},
-		{"UntrustedFilesystemPath", "rmdir(context: $c, directory: '/tmp/x');", CheckUntrustedFilesystemPath, 0},
-		{"UntrustedFilesystemPath", "function openPath($p){readfile($p);} function outer($p){openPath($p);}", CheckUntrustedFilesystemPath, 0},
-	} {
-		t.Run(tc.src, func(t *testing.T) {
-			p := nativeCheckProbe{tc.id, tc.check}
-			e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{tc.id}})
-			if err != nil {
-				t.Fatal(err)
-			}
-			got := e.Analyze(syntax.Parse("wrapper.php", []byte("<?php "+tc.src), syntax.Options{}))
-			if len(got) != tc.want {
-				t.Fatalf("got %d, want %d: %+v", len(got), tc.want, got)
 			}
 		})
 	}
@@ -312,13 +277,6 @@ func TestNativeConservativeOperationalBoundaries(t *testing.T) {
 		{"SameSiteNoneWithoutSecure", "setcookie('a','b',['samesite'=>'None']);", CheckSameSiteNoneWithoutSecure, 1},
 		{"UntrustedForwardedClientAddress", "if($a===$b){}", CheckUntrustedForwardedClientAddress, 0},
 		{"RedirectContinuesProtectedExecution", "/** @custos-protected */ function protectedCall(){} function f(){if($auth){header('Location: /');}if(!isAuthorized()){header('Location: /');}protectedCall();}", CheckRedirectContinuesProtectedExecution, 0},
-		{"FastDigestUsedForPasswordStorage", "/** @custos-credential-store */ function store($v){} function f($p){store(md5(unknown($p)));}", CheckFastDigestUsedForPasswordStorage, 0},
-		{"FastDigestUsedForPasswordStorage", "/** @custos-credential-store */ function store($v){} function f(){store(md5($_GET['p']));}", CheckFastDigestUsedForPasswordStorage, 0},
-		{"FastDigestUsedForPasswordStorage", "/** @custos-credential-store */ function store($v){} store(md5($_GET['p']));", CheckFastDigestUsedForPasswordStorage, 0},
-		{"FastDigestUsedForPasswordStorage", "/** @custos-credential-store */ function store($v){} function f($p){store(password_hash($p,PASSWORD_DEFAULT));}", CheckFastDigestUsedForPasswordStorage, 0},
-		{"FastDigestUsedForPasswordStorage", "/** @custos-credential-store */ function store($v){} /** @param password-string $p */ function f($p){store(hash('sha256',$p));}", CheckFastDigestUsedForPasswordStorage, 1},
-		{"PasswordComparedWithFreshHash", "$v=password_hash($p,PASSWORD_DEFAULT)+1;", CheckPasswordComparedWithFreshHash, 0},
-		{"PasswordComparedWithFreshHash", "$v=password_hash()===$stored;", CheckPasswordComparedWithFreshHash, 0},
 		{"DirectoryIteratorDotEntries", "unlink('/safe'); unlink(makePath()->getPathname());", CheckDirectoryIteratorDotEntries, 0},
 		{"DirectoryIteratorDotEntries", "foreach($iterator as $entry){unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 0},
 		{"DirectoryIteratorDotEntries", "foreach(new ArrayIterator([]) as $entry){unlink($entry->getPathname());}", CheckDirectoryIteratorDotEntries, 0},
@@ -337,7 +295,6 @@ func TestNativeConservativeOperationalBoundaries(t *testing.T) {
 		{"TempnamDirectoryFallbackUnchecked", "function f(){$p=tempnam('/tmp','p');if(realpath($x)!=='x'){return;} file_put_contents($p,'x');}", CheckTempnamDirectoryFallbackUnchecked, 1},
 		{"TempnamDirectoryFallbackUnchecked", "function f(){$p=tempnam('/tmp','p');if(realpath(dirname('/other'))!==realpath('/tmp')){return;} file_put_contents($p,'x');}", CheckTempnamDirectoryFallbackUnchecked, 1},
 		{"TempnamDirectoryFallbackUnchecked", "file_put_contents(tempnam('/tmp','p'),'x');", CheckTempnamDirectoryFallbackUnchecked, 1},
-		{"FastDigestUsedForPasswordStorage", "/** @custos-credential-store */ function store($v){} store('literal');", CheckFastDigestUsedForPasswordStorage, 0},
 		{"ReadModifyWriteLockTooLate", "file_put_contents('/tmp/f','x',LOCK_EX);", CheckReadModifyWriteLockTooLate, 0},
 	} {
 		t.Run(tc.src, func(t *testing.T) {
@@ -363,22 +320,10 @@ func TestNativeProofAuxiliaryBoundaries(t *testing.T) {
 			t.Fatal("equal literal paths should match")
 		}
 	})
-	p := nativeCheckProbe{"PasswordComparedWithFreshHash", CheckPasswordComparedWithFreshHash}
-	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	f := syntax.Parse("old.php", []byte("<?php $v=password_hash($p,PASSWORD_DEFAULT)===$saved;"), syntax.Options{})
-	ctx := analysis.NewTestContext(e, f)
-	ctx.PHP = phpversion.PHP54
-	syntax.InspectFile(f, func(n syntax.Node) bool {
-		CheckPasswordComparedWithFreshHash(ctx, n, "Use password verification.")
-		return true
-	})
 	ix := index.New(stubs.Index())
 	ix.Add(index.Extract(syntax.Parse("external.php", []byte("<?php /** @custos-protected */ function externalProtected(){}"), syntax.Options{})))
-	p = nativeCheckProbe{"RedirectContinuesProtectedExecution", CheckRedirectContinuesProtectedExecution}
-	e, err = analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}})
+	p := nativeCheckProbe{"RedirectContinuesProtectedExecution", CheckRedirectContinuesProtectedExecution}
+	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}})
 	if err != nil {
 		t.Fatal(err)
 	}

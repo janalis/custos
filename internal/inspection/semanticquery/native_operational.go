@@ -112,11 +112,14 @@ func nativeNullsafeChain(e syntax.Expr) bool {
 	}
 }
 
-func nativeFix(span syntax.Span, text, title string) diagnostic.Fix {
+// ReplacementFix is the quick-fix titled title that replaces span with text.
+func ReplacementFix(span syntax.Span, text, title string) diagnostic.Fix {
 	return diagnostic.Fix{Title: title, Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: text}} }}
 }
 
-func nativeCleanEdit(ctx *analysis.Context, span syntax.Span) bool {
+// CommentFreeSpan reports whether the source of span holds no comment
+// marker, even inside a string, so replacing it loses no comment.
+func CommentFreeSpan(ctx *analysis.Context, span syntax.Span) bool {
 	text := ctx.SpanText(span)
 	return !strings.Contains(text, "/*") && !strings.Contains(text, "//") && !strings.Contains(text, "#")
 }
@@ -157,8 +160,10 @@ func nativeFinally(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr, 
 	return false
 }
 
-// nativeGlobalCallName avoids namespace declarations and imported call aliases.
-func nativeGlobalCallName(ctx *analysis.Context, name string, at syntax.Node) string {
+// GlobalCallName is how to call the global function name at at: with a
+// leading backslash when a namespace or an imported alias would make the
+// bare name resolve elsewhere.
+func GlobalCallName(ctx *analysis.Context, name string, at syntax.Node) string {
 	fqn, _ := ctx.Names().Function(name, at.Span().Start)
 	if !strings.EqualFold(fqn, name) {
 		return `\` + name

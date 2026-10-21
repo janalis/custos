@@ -47,7 +47,9 @@ func nativeSessionMutation(n syntax.Node) bool {
 	return ok && v.Name == "_SESSION"
 }
 
-func nativeAnnotatedCall(ctx *analysis.Context, c *syntax.FuncCall, annotation string) bool {
+// CallsAnnotatedFunction reports whether c calls a project function whose
+// doc comment carries annotation (such as @custos-credential-store).
+func CallsAnnotatedFunction(ctx *analysis.Context, c *syntax.FuncCall, annotation string) bool {
 	function := ctx.Types().ResolveFunction(c)
 	if function == nil || function.Builtin {
 		return false
@@ -65,7 +67,7 @@ func nativeAnnotatedCall(ctx *analysis.Context, c *syntax.FuncCall, annotation s
 }
 
 func nativeProtectedRedirect(ctx *analysis.Context, c *syntax.FuncCall) bool {
-	if !nativeAnnotatedCall(ctx, c, "@custos-protected") {
+	if !CallsAnnotatedFunction(ctx, c, "@custos-protected") {
 		return false
 	}
 	scope := syntax.EnclosingVariableScope(c)
@@ -179,8 +181,8 @@ func CheckContentLengthUsesCharacterCount(ctx *analysis.Context, n syntax.Node, 
 		return
 	}
 	report = true
-	if _, bound := ctx.Flow().BoundArguments(length); bound && body != nil && nativeLengthEncodingSafe(ctx, length) && nativeLengthFixSafe(length) && nativeCleanEdit(ctx, length.Span()) {
-		fixes = append(fixes, nativeFix(length.Span(), nativeGlobalCallName(ctx, "strlen", c)+"("+ctx.Text(body)+")", "Count response bytes"))
+	if _, bound := ctx.Flow().BoundArguments(length); bound && body != nil && nativeLengthEncodingSafe(ctx, length) && nativeLengthFixSafe(length) && CommentFreeSpan(ctx, length.Span()) {
+		fixes = append(fixes, ReplacementFix(length.Span(), GlobalCallName(ctx, "strlen", c)+"("+ctx.Text(body)+")", "Count response bytes"))
 	}
 
 	if report {
@@ -385,7 +387,7 @@ func CheckRepeatedCookieHeaderReplacement(ctx *analysis.Context, n syntax.Node, 
 		return
 	}
 	report = true
-	if _, bound := ctx.Flow().BoundArguments(c); bound && replace == nil && nativeCleanEdit(ctx, c.Args.Span()) {
+	if _, bound := ctx.Flow().BoundArguments(c); bound && replace == nil && CommentFreeSpan(ctx, c.Args.Span()) {
 		insert := syntax.Span{Start: c.Args.Span().End - 1, End: c.Args.Span().End - 1}
 		addition := ", false"
 		for _, node := range c.Args.Args {
@@ -398,7 +400,7 @@ func CheckRepeatedCookieHeaderReplacement(ctx *analysis.Context, n syntax.Node, 
 		if strings.TrimSpace(string(ctx.File.Src[tail.Start:tail.End])) == "," {
 			addition = strings.TrimPrefix(addition, ",")
 		}
-		fixes = append(fixes, nativeFix(insert, addition, "Append this cookie header"))
+		fixes = append(fixes, ReplacementFix(insert, addition, "Append this cookie header"))
 	}
 
 	if report {
@@ -865,7 +867,7 @@ func nativeProtectedBranch(ctx *analysis.Context, body syntax.Stmt) bool {
 		if node != body && syntax.IsVariableScope(node) {
 			return false
 		}
-		if call, ok := node.(*syntax.FuncCall); ok && nativeAnnotatedCall(ctx, call, "@custos-protected") {
+		if call, ok := node.(*syntax.FuncCall); ok && CallsAnnotatedFunction(ctx, call, "@custos-protected") {
 			found = true
 		}
 		return true

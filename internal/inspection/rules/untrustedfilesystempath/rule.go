@@ -28,7 +28,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		pathProven(ctx, semanticquery.CallArgument(call.Args, 0, "filename")) {
 		return
 	}
-	semanticquery.CheckUntrustedFilesystemPath(ctx, n, message)
+	check(ctx, n, message)
 }
 
 // pathSinks are the builtins whose first argument the shared check inspects.
@@ -224,4 +224,22 @@ func trustedPrefix(ctx *analysis.Context, e syntax.Expr) (size int, literal, ok 
 	}
 	constant, ok := syntax.UnwrapParens(concat.Right).(*syntax.ConstFetch)
 	return 0, false, ok && semanticquery.GlobalConstName(ctx, constant) == "DIRECTORY_SEPARATOR"
+}
+
+func check(ctx *analysis.Context, n syntax.Node, message string) {
+	c := n.(*syntax.FuncCall)
+	name := semanticquery.NativeBuiltinName(ctx, c)
+	report := false
+
+	switch name {
+	case "readfile", "fopen", "file_get_contents", "file_put_contents", "unlink":
+		report = ctx.Flow().Tainted(semanticquery.CallArgument(c.Args, 0, "filename"), flow.Path)
+	case "rmdir":
+		report = ctx.Flow().Tainted(semanticquery.CallArgument(c.Args, 0, "directory"), flow.Path)
+	}
+
+	report = report || semanticquery.TaintedWrapperSink(ctx, c, flow.Path)
+	if report {
+		ctx.ReportNode(c, message)
+	}
 }
