@@ -199,7 +199,7 @@ function f($t, $c, array $xs) {
     $b = ($bb = $c) && t('rhs', $bb);
     $q = ($qq = $c) ? t('ternaryIn', $qq) : 0;
 }
-`, map[string]string{"elseifCond": "?unknown", "foreachExprIn": "array", "switchIn": "?unknown", "matchIn": "?unknown", "rhs": "?unknown", "ternaryIn": "?unknown"})
+`, map[string]string{"elseifCond": "?unknown", "foreachExprIn": "array", "switchIn": "?unknown", "matchIn": "int", "rhs": "?unknown", "ternaryIn": "?unknown"})
 	checkAnywhere(t, `<?php
 function g(int $c, array $xs) {
     if ($c) {} elseif ($e = $c) { t('elseifCond', $e); }

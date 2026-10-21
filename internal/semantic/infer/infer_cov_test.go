@@ -220,7 +220,7 @@ function f($u, P $p, iterable $raw, $it, string $s) {
     [$c] = $s; t('strdestruct', $c);
 }
 `, map[string]string{
-		"assertunknown": "?unknown", "assertnone": "?unknown", "first": "int", "second": "mixed", "traitself": "?unknown",
+		"assertunknown": "string", "assertnone": "?unknown", "first": "int", "second": "mixed", "traitself": "?unknown",
 		"bare": "int|null", "abstract": "?unknown", "rec": "?unknown", "deep": "?unknown", "closure": "int", "gen": `\Generator<int, int, mixed, int>`,
 		"iterv": `\Pair`, "m": "?unknown", "strdestruct": "?unknown",
 	})

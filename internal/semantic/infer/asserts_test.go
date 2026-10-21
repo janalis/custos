@@ -91,7 +91,7 @@ class T extends \Lib\Base {
 		"reassigned": "null",
 		"isSetTrue":  "string", // -if-false negated
 		"isSetFalse": "null",
-		"unknown":    "?unknown",
+		"unknown":    "string",
 	})
 }
 

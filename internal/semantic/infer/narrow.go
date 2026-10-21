@@ -452,9 +452,19 @@ func (e *Env) narrowExpr(t types.Type, x syntax.Expr, key string, scope syntax.N
 // condition. scope is syntax.EnclosingVariableScope(x) (every caller passes it),
 // so the walk up to it never crosses another function boundary.
 func (e *Env) narrowExprAfter(t types.Type, x syntax.Expr, key string, scope syntax.Node, after uint32) types.Type {
-	if t.IsUnknown() || key == "" {
+	if t.IsUnknown() {
+		// An untyped value is narrowed from mixed; only a concrete result
+		// says more than nothing (unknown inside the walk stays an
+		// impossible path).
+		if r := e.narrowGuarded(types.Mixed, x, key, scope, after); !r.IsUnknown() && !r.Has("mixed") {
+			return r
+		}
 		return t
 	}
+	return e.narrowGuarded(t, x, key, scope, after)
+}
+
+func (e *Env) narrowGuarded(t types.Type, x syntax.Expr, key string, scope syntax.Node, after uint32) types.Type {
 	cond := func(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.Expr, key string, truthy bool) types.Type {
 		if c.Span().End < after {
 			return t

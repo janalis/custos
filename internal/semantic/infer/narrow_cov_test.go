@@ -165,3 +165,23 @@ function g($x) {
 		"compound":  "false|int|string",
 	})
 }
+
+// An untyped value takes the type its guards prove, when they prove a
+// concrete one; a guard leaving mixed says nothing.
+func TestNarrowUntyped(t *testing.T) {
+	checkAnywhere(t, `<?php
+class Shelf {}
+function f($x, $flag) {
+    if (is_string($x)) { t('string', $x); }
+    if ($x instanceof Shelf) { t('object', $x); }
+    if (is_string($x) && strlen($x) > 0) { t('nonEmpty', $x); }
+    if (is_string($x) || $flag) { t('either', $x); }
+    if ($x !== null) { t('notNull', $x); }
+    if (!is_string($x)) { return; }
+    t('guarded', $x);
+}
+`, map[string]string{
+		"string": "string", "object": `\Shelf`, "nonEmpty": "string<len 1, max>", "either": "?unknown",
+		"notNull": "?unknown", "guarded": "string",
+	})
+}

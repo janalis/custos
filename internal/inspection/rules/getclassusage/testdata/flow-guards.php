@@ -9,6 +9,13 @@ class Driver
         return '';
     }
 
+    public function guardedApart($object = null, $parent = '')
+    {
+        $known = is_subclass_of($object, $parent);
+        log_it($known);
+        return get_class($object);
+    }
+
     public function replaced(?Driver $target = null): string
     {
         $target = $target ?: $this;
