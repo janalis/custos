@@ -35,6 +35,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   `unresolved-dispatch` instead of passing as clean.
 - The MCP server applies `flow.assertions` to cross-file flow summaries, like
   the CLI and the language server.
+- A recursive function or method that passes its argument on to a sink no
+  longer keeps growing its flow summary until it is dropped: calls into it
+  are followed instead of being reported as `unresolved-dispatch`.
 
 ## [0.1.7] - 2026-10-21
 

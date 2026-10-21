@@ -384,13 +384,27 @@ func (e *Env) summarize(n syntax.Node) {
 	sum.Return.Identity = 0
 	if !sum.Generator {
 		for _, c := range r.calls {
-			sum.Sinks = append(sum.Sinks, e.nativeSinks(c)...)
-			sum.Sinks = append(sum.Sinks, e.Sinks(c.Node)...)
+			sum.Sinks = appendSinks(sum.Sinks, e.nativeSinks(c))
+			sum.Sinks = appendSinks(sum.Sinks, e.Sinks(c.Node))
 		}
-		sum.Sinks = append(sum.Sinks, e.commands(body, r)...)
+		sum.Sinks = appendSinks(sum.Sinks, e.commands(body, r))
 	}
 	s.out.Summaries[s.names[n]] = sum
 	s.state[n] = summaryMade
+}
+
+// appendSinks appends to sinks those of more it does not list yet. A
+// callable calling itself reads its own sinks back from its summary: they
+// count once, so its summary settles.
+func appendSinks(sinks, more []Sink) []Sink {
+	for _, s := range more {
+		if !slices.ContainsFunc(sinks, func(o Sink) bool {
+			return o.Span == s.Span && o.Name == s.Name && o.Context == s.Context && o.Path == s.Path && reflect.DeepEqual(o.Argument, s.Argument)
+		}) {
+			sinks = append(sinks, s)
+		}
+	}
+	return sinks
 }
 
 // unconditional reports a callable whose body is the one every call of its
