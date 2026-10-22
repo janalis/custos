@@ -61,6 +61,10 @@ type File struct {
 	// held lists the keys of those the snapshot answered (and not the
 	// file's own summaries).
 	held []string
+	// served holds the keys of those only the file's own summaries
+	// answered: a snapshot gives the same answers while the file alone
+	// declares them.
+	served map[string]bool
 }
 
 // Reads returns the summary keys (as File.Summaries lists them) of the
@@ -70,12 +74,20 @@ func (f *File) Reads() []string { return f.held }
 
 // Current reports that the summaries, extracted under the earlier snapshot,
 // would come out the same under s: no contract they were computed from
-// differs between the two.
+// differs between the two. When s holds these very summaries, those the
+// file served itself only need to stay its own.
 func (f *File) Current(earlier, s *Snapshot) bool {
 	if f.options != snapshotOptions(earlier) || f.options != snapshotOptions(s) {
 		return false
 	}
+	mine := s != nil && s.base == nil && s.files[f.Path] == f
 	for name := range f.consulted {
+		if key := strings.ToLower(name); mine && f.served[key] {
+			if !s.alone(f.Path, key) {
+				return false
+			}
+			continue
+		}
 		before, had := earlier.lookup(name)
 		now, has := s.lookup(name)
 		if had != has || !reflect.DeepEqual(before, now) {
@@ -310,8 +322,13 @@ func Summarize(file *syntax.File, types *infer.Env, snapshot *Snapshot, options 
 	e.summarizing = nil
 	out.consulted, e.consulted = e.consulted, nil
 	for key, read := range e.answers {
-		if read.held {
+		switch {
+		case read.held:
 			out.held = append(out.held, key)
+		case out.served == nil:
+			out.served = map[string]bool{key: true}
+		default:
+			out.served[key] = true
 		}
 	}
 	slices.Sort(out.held)

@@ -195,6 +195,17 @@ func TestSummariesKnowTheContractsTheyUsed(t *testing.T) {
 			t.Errorf("%s: current=%v", tc.name, got)
 		}
 	}
+	// A contract only the file's own summaries answered stays theirs while
+	// no other file declares it.
+	e, f = environment(t, `function wrap($c){return inner($c);} function inner($c){return $_GET['x'];}`, nil)
+	_, alone := Summarize(f, e.types, NewSnapshot(), Options{})
+	if !alone.served["inner"] || len(alone.Reads()) != 0 {
+		t.Fatalf("served=%v reads=%v", alone.served, alone.Reads())
+	}
+	rival := &File{Path: "rival.php", Summaries: map[string]Summary{"inner": {}}}
+	if !alone.Current(NewSnapshot(), NewSnapshot(alone)) || alone.Current(NewSnapshot(), NewSnapshot(alone, rival)) {
+		t.Fatal("own contract")
+	}
 	base := NewSnapshot(own)
 	other := &File{Path: own.Path, Summaries: map[string]Summary{"wrap": {}}}
 	for _, tc := range []struct {
