@@ -58,7 +58,7 @@ func (s *Server) buildIndex() {
 		s.abandonIndex(e, generation)
 		return
 	}
-	ix := buildIndexSymbols(project.IndexSources(cfg.Root, files), syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
+	ix := buildIndexSymbols(project.IndexSources(cfg.Root, files, paths, cfg.Exclude), syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
 	s.mu.Lock()
 	if s.engine != e || s.indexGeneration != generation {
 		s.mu.Unlock()

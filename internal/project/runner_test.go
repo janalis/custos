@@ -31,7 +31,7 @@ func TestIndexVendor(t *testing.T) {
 	writeFile(t, app, "<?php\nfunction app_fn() {}\n")
 	writeFile(t, filepath.Join(root, "vendor", "lib", "Lib.php"), "<?php\nnamespace Lib;\nclass Thing {}\n")
 	writeFile(t, filepath.Join(root, "vendor", "lib", "tests", "T.php"), "<?php\nclass T {}\n")
-	files := IndexSources(root, []string{app})
+	files := IndexSources(root, []string{app}, nil, nil)
 	want := []string{app, filepath.Join(root, "vendor", "lib", "Lib.php")}
 	if !reflect.DeepEqual(files, want) {
 		t.Fatalf("sources: %v", files)
@@ -41,7 +41,7 @@ func TestIndexVendor(t *testing.T) {
 	if ix.Class(`Lib\Thing`, phpversion.Default) == nil || ix.Function("app_fn", phpversion.Default) == nil {
 		t.Fatal("vendor/app symbols missing from the index")
 	}
-	if got := IndexSources(t.TempDir(), []string{app}); !reflect.DeepEqual(got, []string{app}) {
+	if got := IndexSources(t.TempDir(), []string{app}, nil, nil); !reflect.DeepEqual(got, []string{app}) {
 		t.Fatalf("no vendor: %v", got)
 	}
 }
@@ -55,7 +55,7 @@ func TestIndexVendorDir(t *testing.T) {
 	lib := filepath.Join(root, "libraries", "vendor", "lib", "Lib.php")
 	writeFile(t, lib, "<?php\nclass Lib {}\n")
 	writeFile(t, filepath.Join(root, "composer.json"), `{"config": {"vendor-dir": "libraries/vendor"}}`)
-	if got := IndexSources(root, []string{app}); !reflect.DeepEqual(got, []string{app, lib}) {
+	if got := IndexSources(root, []string{app}, nil, nil); !reflect.DeepEqual(got, []string{app, lib}) {
 		t.Fatalf("vendor-dir: %v", got)
 	}
 	for _, bad := range []string{`{"config": {"vendor-dir": "../outside"}}`, `{"config": {"vendor-dir": "/abs"}}`, `{`, `{}`} {

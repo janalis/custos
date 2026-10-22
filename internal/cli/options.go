@@ -89,7 +89,7 @@ func (c *common) prepare(args []string) (*setup, error) {
 	}
 	acfg := cfg.Analysis()
 	acfg.EnableAll = c.all
-	acfg.ProjectPath = project.DiskProjectPaths(".")
+	acfg.ProjectPath = project.DiskProjectPaths(cfg.Root)
 	if c.only != "" {
 		for _, id := range strings.Split(c.only, ",") {
 			m, ok := meta.Lookup(strings.TrimSpace(id))
@@ -99,16 +99,18 @@ func (c *common) prepare(args []string) (*setup, error) {
 			acfg.Only = append(acfg.Only, m.ID)
 		}
 	}
+	var scope []string
+	for _, p := range cfg.Paths {
+		scope = append(scope, filepath.Join(cfg.Root, p))
+	}
 	if len(paths) == 0 {
-		for _, p := range cfg.Paths {
-			paths = append(paths, filepath.Join(cfg.Root, p))
-		}
+		paths = scope
 	}
 	exclude := cfg.Exclude
 	if c.exclude != "" {
 		exclude = append(exclude, strings.Split(c.exclude, ",")...)
 	}
-	p, err := project.Open(registry(), project.Options{Root: cfg.Root, Paths: paths, Exclude: exclude, Analysis: acfg, Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}})
+	p, err := project.Open(registry(), project.Options{Root: cfg.Root, Paths: paths, Exclude: exclude, Scope: scope, Analysis: acfg, Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}})
 	if err != nil {
 		return nil, err
 	}

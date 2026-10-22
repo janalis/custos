@@ -245,6 +245,7 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 			return fmt.Errorf("invalid relative path")
 		}
 		inVendor := symbolsOnly && base == vendor
+		scanned := base
 		file := func(name string, info fs.FileInfo) {
 			match := strings.HasSuffix(name, ".php")
 			if !symbolsOnly {
@@ -302,7 +303,7 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 						}
 						continue
 					}
-					if inVendor && (d.Name() == "tests" || d.Name() == "Tests" || d.Name() == "test") || excluded(cfg.Exclude, d.Name(), child) || hidden(d.Name()) {
+					if inVendor && (d.Name() == "tests" || d.Name() == "Tests" || d.Name() == "test") || excluded(cfg.Exclude, d.Name(), strings.TrimPrefix(child, scanned+"/")) || hidden(d.Name()) {
 						continue
 					}
 					if !recurse {

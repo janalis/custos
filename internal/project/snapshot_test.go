@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -381,5 +382,37 @@ func TestSnapshotProjectPaths(t *testing.T) {
 	}
 	if reported["src/Db.php"] != 1 || reported["tests/Db.php"] != 0 {
 		t.Fatal(reported)
+	}
+}
+
+// Excludes are directory names or paths relative to each scanned path, as on
+// the command line.
+func TestSnapshotExcludeRelativeToScannedPath(t *testing.T) {
+	dir := t.TempDir()
+	for name, text := range map[string]string{
+		"custos.json":         `{"paths":["src"],"exclude":["sub/gen"]}`,
+		"src/a.php":           "<?php",
+		"src/sub/gen/g.php":   "<?php",
+		"src/other/gen/o.php": "<?php",
+	} {
+		p := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(text), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	s, err := BuildSnapshot(context.Background(), root, []analysis.Rule{nestednotoperators.New()}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(s.Files, []string{"src/a.php", "src/other/gen/o.php"}) {
+		t.Fatal(s.Files)
 	}
 }

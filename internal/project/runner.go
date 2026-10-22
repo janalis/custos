@@ -16,7 +16,8 @@ import (
 )
 
 // Discover lists *.php files under paths, skipping excluded directory names
-// or relative paths, and hidden directories (see hidden).
+// or relative paths, hidden directories (see hidden), and symlinks that do
+// not lead to a regular file inside the scanned path.
 func Discover(paths, exclude []string) ([]string, error) {
 	return DiscoverWith(paths, exclude, nil)
 }
@@ -52,7 +53,7 @@ func DiscoverWith(paths, exclude, patterns []string) ([]string, error) {
 				}
 				return nil
 			}
-			if strings.HasSuffix(p, ".php") || matchesAny(d.Name(), patterns) {
+			if (strings.HasSuffix(p, ".php") || matchesAny(d.Name(), patterns)) && (d.Type()&fs.ModeSymlink == 0 || linkInside(root, p)) {
 				out = append(out, p)
 			}
 			return nil
@@ -63,6 +64,26 @@ func DiscoverWith(paths, exclude, patterns []string) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+// linkInside reports whether the symlink p resolves to a regular file under
+// the scanned path root. A link leading out of it would make the analysis
+// depend on files outside the project.
+func linkInside(root, p string) bool {
+	real, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return false
+	}
+	target, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(real, target)
+	if err != nil || !filepath.IsLocal(rel) {
+		return false
+	}
+	info, err := os.Stat(target)
+	return err == nil && info.Mode().IsRegular()
 }
 
 // hidden reports a directory name starting with a dot (.git, .idea,

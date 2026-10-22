@@ -21,6 +21,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The language server builds cross-file flow summaries once when it indexes
   the workspace instead of twice, and `custos fix` reads each file once
   instead of three times, fixing the same bytes it indexed.
+- The command line, the language server and the MCP server discover files
+  alike. `custos analyse` and `custos fix` index every file under `paths`
+  even when the command line names only some, so cross-file results no
+  longer depend on which files a run checks. `exclude` applies under
+  `vendor/` too, the `janalis/custos` package is not indexed, and a project
+  path that contains `vendor/` no longer indexes it twice. A symlink found
+  while scanning a directory is analyzed only when it leads to a regular file
+  inside that directory. Files that rules read by name, such as
+  `composer.json`, are no longer parsed as PHP for the index.
 
 ### Fixed
 
@@ -38,6 +47,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   `unresolved-dispatch` instead of passing as clean.
 - The MCP server applies `flow.assertions` to cross-file flow summaries and
   to the types its `type` tool reports, like the CLI and the language server.
+- The MCP server reads an `exclude` path relative to each scanned path, as
+  documented and as the command line does, instead of the project root.
+- On the command line, `excludedPaths` of HardcodedCredentialAtKnownSink fall
+  back to the project root, not the working directory, for a file with no
+  `custos.json` or `composer.json` above it.
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"custos/internal/php/syntax"
 	"custos/internal/platform/safeio"
@@ -14,17 +15,50 @@ import (
 	"custos/internal/semantic/stubs"
 )
 
-// IndexSources returns files to index: the analysed files plus the
-// project's vendor directory (symbols only; vendor is not analysed).
-func IndexSources(root string, files []string) []string {
+// IndexSources returns files to index: the analysed files first, then the
+// other PHP files under the project paths, then those of the project's vendor
+// directory (symbols only; neither is analysed). Discovery applies exclude
+// everywhere; vendor also leaves out test directories and the custos package.
+// Each file appears once, so a project path that holds vendor adds nothing
+// twice.
+func IndexSources(root string, files, paths, exclude []string) []string {
 	out := append([]string(nil), files...)
+	seen := make(map[string]bool, len(files))
+	for _, f := range files {
+		seen[absolute(f)] = true
+	}
 	vendor := filepath.Join(root, vendorDir(root))
+	add := func(found []string, skip ...string) {
+	next:
+		for _, f := range found {
+			key := absolute(f)
+			for _, dir := range skip {
+				if strings.HasPrefix(key, dir+string(filepath.Separator)) {
+					continue next
+				}
+			}
+			if !seen[key] {
+				seen[key] = true
+				out = append(out, f)
+			}
+		}
+	}
+	// Vendor files are left to the vendor walk and its policy.
+	if own, err := Discover(paths, exclude); err == nil {
+		add(own, absolute(vendor))
+	}
 	if st, err := os.Stat(vendor); err == nil && st.IsDir() {
-		if vf, err := Discover([]string{vendor}, []string{".git", "node_modules", "tests", "Tests", "test"}); err == nil {
-			out = append(out, vf...)
+		if vf, err := Discover([]string{vendor}, append([]string{"node_modules", "tests", "Tests", "test"}, exclude...)); err == nil {
+			add(vf, absolute(filepath.Join(vendor, "janalis", "custos")))
 		}
 	}
 	return out
+}
+
+// absolute is path made absolute and clean, to compare listed files.
+func absolute(path string) string {
+	abs, _ := filepath.Abs(path)
+	return abs
 }
 
 // vendorDir returns composer.json's `config.vendor-dir` (Joomla:

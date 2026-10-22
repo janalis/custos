@@ -2,6 +2,8 @@ package project
 
 import (
 	"context"
+	"path/filepath"
+	"strings"
 
 	"custos/internal/diagnostic"
 	"custos/internal/fixing"
@@ -14,8 +16,12 @@ import (
 type Options struct {
 	Root           string
 	Paths, Exclude []string
-	Analysis       analysis.Config
-	Parse          syntax.Options
+	// Scope lists the project paths whose PHP files are indexed for symbols
+	// besides the analysed ones, so cross-file facts do not depend on which
+	// files a run names. Empty means Paths.
+	Scope    []string
+	Analysis analysis.Config
+	Parse    syntax.Options
 }
 
 // Project binds discovered files to an explicit inspection set.
@@ -53,17 +59,35 @@ func (p *Project) PrepareFixes() []PreparedFix {
 
 // prepare attaches the project index and flow snapshot the engine needs. It
 // returns the project sources the index read (nil where unread), so analysis
-// and fixes see the same bytes without reading each file again.
+// and fixes see the same bytes without reading each file again. Files that
+// rules request by name, such as composer.json, are analysed but never
+// indexed or summarized as PHP.
 func (p *Project) prepare() (*analysis.Engine, [][]byte) {
 	engine := p.Engine
 	if !engine.NeedsIndex() {
 		return engine, nil
 	}
-	ix, sources := BuildIndexKeep(IndexSources(p.Options.Root, p.Files), len(p.Files), p.Options.Parse, infer.Options{Assertions: p.Options.Analysis.Flow.Assertions})
+	scope := p.Options.Scope
+	if len(scope) == 0 {
+		scope = p.Options.Paths
+	}
+	var php []string
+	var at []int
+	patterns := engine.FilePatterns()
+	for i, f := range p.Files {
+		if strings.HasSuffix(f, ".php") || !matchesAny(filepath.Base(f), patterns) {
+			php, at = append(php, f), append(at, i)
+		}
+	}
+	ix, read := BuildIndexKeep(IndexSources(p.Options.Root, php, scope, p.Options.Exclude), len(php), p.Options.Parse, infer.Options{Assertions: p.Options.Analysis.Flow.Assertions})
 	ix.Freeze()
 	engine = engine.WithIndex(ix)
 	if engine.NeedsFlow() {
-		engine = engine.WithFlow(BuildFlowSnapshot(context.Background(), p.Files, sources, p.Options.Parse, ix, p.Options.Analysis.Flow))
+		engine = engine.WithFlow(BuildFlowSnapshot(context.Background(), php, read, p.Options.Parse, ix, p.Options.Analysis.Flow))
+	}
+	sources := make([][]byte, len(p.Files))
+	for j, i := range at {
+		sources[i] = read[j]
 	}
 	return engine, sources
 }

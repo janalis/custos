@@ -11,8 +11,9 @@ import (
 
 // TestHostileRepository runs analyse and fix on a repository whose files try
 // to make custos read devices or write outside the project: a .php symlink
-// to /dev/zero, a .php symlink to a file outside the project, and a
-// custos.json baseline escaping the root.
+// to /dev/zero and one to a file outside the project, never discovered, a
+// .php symlink inside the project, analysed but never written through, and
+// a custos.json baseline escaping the root.
 func TestHostileRepository(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("symlinks")
@@ -29,6 +30,9 @@ func TestHostileRepository(t *testing.T) {
 	if err := os.Symlink("/dev/zero", filepath.Join(dir, "zero.php")); err != nil {
 		t.Skip(err)
 	}
+	if err := os.Symlink(filepath.Join(dir, "a.php"), filepath.Join(dir, "inside.php")); err != nil {
+		t.Skip(err)
+	}
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -37,8 +41,8 @@ func TestHostileRepository(t *testing.T) {
 			t.Errorf("fix stderr: %s", stderr)
 		}
 		_, out, _ := runCLI(t, "analyse", "--rule", "NestedNotOperators", dir)
-		if !strings.Contains(out, "zero.php") {
-			t.Errorf("analyse output does not mention zero.php: %s", out)
+		if strings.Contains(out, "zero.php") || strings.Contains(out, "link.php") || !strings.Contains(out, "2 file(s) analysed") {
+			t.Errorf("analyse output: %s", out)
 		}
 	}()
 	select {

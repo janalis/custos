@@ -22,11 +22,16 @@ paths, custos uses `paths` from `custos.json`, or else the
 [always skipped](./configuration#excluded-directories). Directories are
 searched for files ending in `.php`, lowercase (plus the few files some rules
 read, such as `composer.json`); `.phtml` or `.inc` files are only analyzed
-when named on the command line, which works whatever the extension.
+when named on the command line, which works whatever the extension. A symlink
+found in a directory is analyzed only when it leads to a file inside that
+directory.
 
-Before checking files one by one, custos indexes the symbols they declare and
-those under `vendor/` (or Composer's `config.vendor-dir`), so rules know the
-classes and functions your code uses. Run `composer install` first: without
+Before checking files one by one, custos indexes the symbols declared under
+`paths` from `custos.json` (even when the command line names fewer files) and
+under `vendor/` (or Composer's `config.vendor-dir`), so rules know the
+classes and functions your code uses, whichever files a run checks. In
+`vendor/`, test directories, `exclude` entries and the Composer-installed
+`janalis/custos` package are left out. Run `composer install` first: without
 `vendor/`, types from dependencies are unknown and rules that need them stay
 silent.
 
