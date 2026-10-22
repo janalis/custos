@@ -18,6 +18,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   root in the language server and the MCP server when a file has no
   `custos.json` or `composer.json` above it, instead of the server's working
   directory; over MCP it no longer looks outside the workspace for them.
+- The language server builds cross-file flow summaries once when it indexes
+  the workspace instead of twice, and `custos fix` reads each file once
+  instead of three times, fixing the same bytes it indexed.
 
 ### Fixed
 

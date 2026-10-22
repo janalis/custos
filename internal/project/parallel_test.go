@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -123,5 +124,29 @@ func TestPrepareFixesSurvivesFixCrash(t *testing.T) {
 	outs := p.PrepareFixes()
 	if len(outs) != 1 || outs[0].Err == nil || !strings.Contains(outs[0].Err.Error(), "internal failure, left unchanged: fix bug") || outs[0].Output != nil {
 		t.Fatalf("%+v", outs)
+	}
+}
+
+func TestPrepareFixesReusesReadSources(t *testing.T) {
+	root := t.TempDir()
+	path, link := filepath.Join(root, "a.php"), filepath.Join(root, "link.php")
+	writeFile(t, path, "<?php echo 'disk';")
+	if err := os.Symlink(path, link); err != nil {
+		t.Fatal(err)
+	}
+	old := fixSource
+	t.Cleanup(func() { fixSource = old })
+	var seen []string
+	fixSource = func(_ fixing.Analyzer, _ string, src []byte, _ fixing.Options) fixing.Result {
+		seen = append(seen, string(src))
+		return fixing.Result{Source: src}
+	}
+	engine, err := analysis.NewEngine(nil, analysis.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	outs := PrepareFixes(engine, []string{path, link}, [][]byte{[]byte("<?php echo 'kept';"), []byte("<?php")}, syntax.Options{})
+	if len(seen) != 1 || seen[0] != "<?php echo 'kept';" || !errors.Is(outs[1].Err, ErrSkipped) {
+		t.Fatalf("seen=%q outs=%+v", seen, outs)
 	}
 }

@@ -41,31 +41,31 @@ func Open(rules []analysis.Rule, opt Options) (*Project, error) {
 // AnalyzeReport indexes project and vendor declarations, reuses read sources,
 // and releases lazy edit closures after analysis. Results retain input order.
 func (p *Project) AnalyzeReport() []diagnostic.FileResult {
-	engine := p.Engine
-	var sources [][]byte
-	if engine.NeedsIndex() {
-		ix, srcs := BuildIndexKeep(IndexSources(p.Options.Root, p.Files), len(p.Files), p.Options.Parse, infer.Options{Assertions: p.Options.Analysis.Flow.Assertions})
-		ix.Freeze()
-		engine, sources = engine.WithIndex(ix), srcs
-		if engine.NeedsFlow() {
-			engine = engine.WithFlow(BuildFlowSnapshot(context.Background(), p.Files, srcs, p.Options.Parse, ix, p.Options.Analysis.Flow))
-		}
-	}
+	engine, sources := p.prepare()
 	return RunReport(engine, p.Files, sources, p.Options.Parse)
 }
 
 // PrepareFixes computes changes without writing; the adapter owns writes.
 func (p *Project) PrepareFixes() []PreparedFix {
+	engine, sources := p.prepare()
+	return PrepareFixes(engine, p.Files, sources, p.Options.Parse)
+}
+
+// prepare attaches the project index and flow snapshot the engine needs. It
+// returns the project sources the index read (nil where unread), so analysis
+// and fixes see the same bytes without reading each file again.
+func (p *Project) prepare() (*analysis.Engine, [][]byte) {
 	engine := p.Engine
-	if engine.NeedsIndex() {
-		ix := BuildIndex(IndexSources(p.Options.Root, p.Files), p.Options.Parse, infer.Options{Assertions: p.Options.Analysis.Flow.Assertions})
-		ix.Freeze()
-		engine = engine.WithIndex(ix)
-		if engine.NeedsFlow() {
-			engine = engine.WithFlow(BuildFlowSnapshot(context.Background(), p.Files, nil, p.Options.Parse, ix, p.Options.Analysis.Flow))
-		}
+	if !engine.NeedsIndex() {
+		return engine, nil
 	}
-	return PrepareFixes(engine, p.Files, p.Options.Parse)
+	ix, sources := BuildIndexKeep(IndexSources(p.Options.Root, p.Files), len(p.Files), p.Options.Parse, infer.Options{Assertions: p.Options.Analysis.Flow.Assertions})
+	ix.Freeze()
+	engine = engine.WithIndex(ix)
+	if engine.NeedsFlow() {
+		engine = engine.WithFlow(BuildFlowSnapshot(context.Background(), p.Files, sources, p.Options.Parse, ix, p.Options.Analysis.Flow))
+	}
+	return engine, sources
 }
 
 // AnalyzeBuffer analyzes supplied bytes without reading the filesystem.

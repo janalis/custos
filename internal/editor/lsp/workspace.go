@@ -11,7 +11,6 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	"custos/internal/project"
-	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
 )
@@ -60,20 +59,12 @@ func (s *Server) buildIndex() {
 		return
 	}
 	ix := buildIndexSymbols(project.IndexSources(cfg.Root, files), syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
-	var snapshot *flow.Snapshot
-	if e.NeedsFlow() {
-		snapshot = project.BuildFlowSnapshot(context.Background(), files, nil, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, ix, cfg.Flow)
-	}
 	s.mu.Lock()
 	if s.engine != e || s.indexGeneration != generation {
 		s.mu.Unlock()
 		return
 	}
 	s.engine = e.WithIndex(ix)
-	if snapshot != nil {
-		s.engine = s.engine.WithFlow(snapshot)
-		s.flow = snapshot
-	}
 	s.index = ix
 	s.indexing = false
 	queued := s.pending
@@ -82,9 +73,8 @@ func (s *Server) buildIndex() {
 	if len(queued) > 0 {
 		s.watchedFilesChanged(queued) // replays and re-analyses
 	}
-	if e.NeedsFlow() {
-		s.refreshFlow()
-	}
+	// One flow build, over the final index and the open buffers.
+	s.refreshFlow()
 	n, _, _, _ := ix.Stats()
 	s.logf("indexed %d files in %v", n, time.Since(start).Round(time.Millisecond))
 	s.reanalyzeAll()
@@ -243,7 +233,7 @@ func (s *Server) refreshFlow() {
 		sources[i] = contents[path]
 	}
 	// Compose every unsaved dependency in the same bounded fixed point.
-	build := project.BuildFlow(context.Background(), files, sources, opt, ix, cfg.Flow)
+	build := buildFlow(context.Background(), files, sources, opt, ix, cfg.Flow)
 	s.mu.Lock()
 	if s.engine == e {
 		s.flow, s.flowBuild, s.flowSymbols = build.Snapshot, build, built
@@ -256,5 +246,6 @@ func (s *Server) refreshFlow() {
 var (
 	discoverIndexFiles = project.Discover
 	buildIndexSymbols  = project.BuildIndex
+	buildFlow          = project.BuildFlow
 	updateFlow         = (*project.FlowBuild).Update
 )
