@@ -999,6 +999,19 @@ func (e *Env) paramType(scope syntax.Node, p *syntax.Param) types.Type {
 // bindAtClass binds the relative atoms of a type written at n: `self` and
 // `parent` name the class enclosing n (unknown in a trait, whose self is
 // the using class, or outside a class); `static` (documented only) any
+// declaredParam is the type p's declaration names, built once per parameter.
+func (e *Env) declaredParam(p *syntax.Param) types.Type {
+	if t, ok := e.declared[p]; ok {
+		return t
+	}
+	if e.declared == nil {
+		e.declared = map[*syntax.Param]types.Type{}
+	}
+	t := types.FromNode(p.Type, e.resolver(p.Span().Start))
+	e.declared[p] = t
+	return t
+}
+
 // class extending it, which that class bounds.
 func (e *Env) bindAtClass(t types.Type, n syntax.Node) types.Type {
 	if !t.HasRelative() {
@@ -1017,7 +1030,7 @@ func (e *Env) bindAtClass(t types.Type, n syntax.Node) types.Type {
 
 func (e *Env) paramTypeUnbound(scope syntax.Node, p *syntax.Param) types.Type {
 	at := p.Span().Start
-	declared := types.FromNode(p.Type, e.resolver(at))
+	declared := e.declaredParam(p)
 	if p.Variadic && !declared.IsUnknown() {
 		atoms := make([]string, 0, len(declared.Atoms()))
 		for _, a := range declared.Atoms() {

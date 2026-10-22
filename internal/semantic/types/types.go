@@ -164,6 +164,9 @@ func (t Type) Without(atoms ...string) Type {
 	for _, b := range atoms {
 		drop = append(drop, normalizeAtom(b))
 	}
+	if !slices.ContainsFunc(t.atoms, func(a string) bool { return slices.Contains(drop, a) }) {
+		return t // nothing to drop: keep every fact without copying
+	}
 	out := make([]string, 0, len(t.atoms))
 	for _, a := range t.atoms {
 		if !slices.Contains(drop, a) {

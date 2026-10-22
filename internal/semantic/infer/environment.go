@@ -80,6 +80,8 @@ type Env struct {
 	// conds caches parsedCond; builtinCalls caches isBuiltinCall.
 	conds        map[string]*types.Cond
 	builtinCalls map[*syntax.FuncCall]bool
+	// declared caches the type a parameter's declaration names.
+	declared map[*syntax.Param]types.Type
 
 	// dynReads caches dynamicRead per variable read (computed by
 	// variableBase); assignsMemo caches stmtAssigns.
