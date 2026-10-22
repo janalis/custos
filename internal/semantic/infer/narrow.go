@@ -561,7 +561,9 @@ func (e *Env) condAt(use syntax.Expr, scope syntax.Node, t types.Type, c syntax.
 	// too, which may not run) is a definition reaching use: callers skip the
 	// conditions written before it (see narrowExprAfter's after).
 	r := e.applyCond(t, c, key, truthy)
-	if r.ShapeString() != t.ShapeString() && e.factBroken(scope, key, from, use) {
+	// Different atoms render differently: only equal atoms need the
+	// rendered facts compared.
+	if (!slices.Equal(r.Atoms(), t.Atoms()) || r.ShapeString() != t.ShapeString()) && e.factBroken(scope, key, from, use) {
 		return t
 	}
 	if isDimKey(key) {
