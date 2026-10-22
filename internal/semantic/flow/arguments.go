@@ -7,6 +7,7 @@ import (
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
+	"custos/internal/semantic/names"
 )
 
 // BoundArguments returns values in declaration parameter order. Unknown
@@ -82,7 +83,7 @@ func (e *Env) declaration(at syntax.Node) ([]index.Param, string, bool) {
 	switch n := at.(type) {
 	case *syntax.FuncCall:
 		if f := e.types.ResolveFunction(n); f != nil {
-			return f.Params, strings.ToLower(f.FQN), true
+			return f.Params, names.Fold(f.FQN), true
 		}
 	case *syntax.MethodCall:
 		id, ok := n.Name.(*syntax.Identifier)

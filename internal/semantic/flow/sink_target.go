@@ -6,6 +6,7 @@ import (
 	"custos/internal/php/syntax"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
+	"custos/internal/semantic/names"
 )
 
 // sinkSummaryName accepts method bodies only when inheritance cannot replace
@@ -87,7 +88,7 @@ func (e *Env) sinkSummaryName(at syntax.Node) string {
 // Reserved keys cannot collide with PHP callable identifiers. Class metadata
 // participates in the existing snapshot dependency, overlay and equality paths.
 func sinkClassKey(name string) string {
-	return "\x00sink-class:" + strings.ToLower(strings.TrimPrefix(name, `\`))
+	return "\x00sink-class:" + names.Fold(strings.TrimPrefix(name, `\`))
 }
 
 type sinkClass struct {

@@ -203,7 +203,7 @@ func (s *Snapshot) lookup(name string) (Summary, bool) {
 	if s == nil {
 		return Summary{}, false
 	}
-	name = strings.ToLower(name)
+	name = names.Fold(name)
 	if s.base == nil {
 		v, ok := s.summaries[name]
 		return v, ok

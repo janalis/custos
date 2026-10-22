@@ -7,6 +7,7 @@ import (
 
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/names"
 )
 
 // Index holds symbols keyed by lower-case FQN (constants: exact case, with
@@ -151,7 +152,7 @@ func (ix *Index) runlock(locked bool) {
 	}
 }
 
-func key(fqn string) string { return strings.ToLower(strings.TrimPrefix(fqn, `\`)) }
+func key(fqn string) string { return names.Fold(strings.TrimPrefix(fqn, `\`)) }
 
 // Add inserts (or replaces) the symbols of one file.
 func (ix *Index) Add(fs *FileSymbols) {
