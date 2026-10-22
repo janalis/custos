@@ -40,6 +40,23 @@ func (b *FlowBuild) Files() []string { return b.files }
 
 // BuildFlow is BuildFlowSnapshot keeping what Update needs.
 func BuildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options) *FlowBuild {
+	return BuildFlowOrdered(ctx, files, srcs, opt, ix, options, nil)
+}
+
+// maxWaves bounds the waves of BuildFlowOrdered: each one rebuilds the
+// snapshot and waits for its slowest file, and the deeper files are few.
+const maxWaves = 16
+
+// BuildFlowOrdered is BuildFlow summarizing each file, the first time, after
+// the files whose contracts it read in an earlier build: order gives their
+// depth by path (see Order), and a path it lacks has depth 0. Files are
+// summarized in waves of growing depth, the deepest together, each wave
+// against the snapshot of the waves before; composition then goes on as in
+// BuildFlow. Most files thus read settled contracts the first time instead
+// of being summarized again once they settle. Where BuildFlow settles
+// every file, the snapshot is the same; a call chain whose end BuildFlow
+// drops past its rounds may settle here instead.
+func BuildFlowOrdered(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *FlowBuild {
 	trees := make([]*syntax.File, len(files))
 	// A file that crashes the parser keeps no tree: it is not summarized.
 	_ = parallel(ctx, len(files), 0, func(i int) {
@@ -56,8 +73,63 @@ func BuildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Op
 			b.sources[path] = srcs[i]
 		}
 	}
-	b.Snapshot = b.compose(ctx, flow.NewSnapshotWithOptions(options), make([]*flow.Snapshot, len(files)), ix, func(i int) *syntax.File { return trees[i] })
+	tree := func(i int) *syntax.File { return trees[i] }
+	snapshot := flow.NewSnapshotWithOptions(options)
+	against := make([]*flow.Snapshot, len(files))
+	if len(order) > 0 {
+		waves := make([][]int, maxWaves)
+		for i, path := range files {
+			depth := min(order[path], maxWaves-1)
+			waves[depth] = append(waves[depth], i)
+		}
+		for _, wave := range waves {
+			if len(wave) > 0 {
+				b.summarize(ctx, wave, snapshot, against, ix, tree)
+				snapshot = flow.NewSnapshotWithOptions(options, b.results...)
+			}
+		}
+	}
+	b.Snapshot = b.compose(ctx, snapshot, against, ix, tree)
 	return b
+}
+
+// Order returns, by path, the depth of each file in the relation of the
+// contracts its summaries read: 0 for a file reading none of another file,
+// else one more than the deepest file it reads, ignoring the reads that
+// close a cycle. BuildFlowOrdered takes it for a later build.
+func (b *FlowBuild) Order() map[string]int {
+	order := make(map[string]int, len(b.files))
+	for i, depth := range b.depths() {
+		order[b.files[i]] = depth
+	}
+	return order
+}
+
+// depths is Order by file index.
+func (b *FlowBuild) depths() []int {
+	reads := b.reads()
+	depth := make([]int, len(b.files))
+	// state: 0 unvisited, 1 on the path being walked, 2 done.
+	state := make([]uint8, len(b.files))
+	var walk func(i int)
+	walk = func(i int) {
+		state[i] = 1
+		for _, j := range reads[i] {
+			if state[j] == 0 {
+				walk(j)
+			}
+			if state[j] == 2 {
+				depth[i] = max(depth[i], depth[j]+1)
+			}
+		}
+		state[i] = 2
+	}
+	for i := range b.files {
+		if state[i] == 0 {
+			walk(i)
+		}
+	}
+	return depth
 }
 
 // Update returns the build for the same files after the sources of the
@@ -130,26 +202,11 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 // directly or through others, a contract a file of seed declares, lies on
 // a cycle of the reads relation (possibly reading its own contracts).
 func (b *FlowBuild) recursive(seed []int) bool {
-	owners := map[string][]int{}
-	for j, r := range b.results {
-		if r != nil {
-			for key := range r.Summaries {
-				owners[key] = append(owners[key], j)
-			}
-		}
-	}
-	// reads[i]: the files whose contracts the summaries of file i read.
-	reads := make([][]int, len(b.results))
+	reads := b.reads()
 	readers := make([][]int, len(b.results))
-	for i, r := range b.results {
-		if r == nil {
-			continue
-		}
-		for _, key := range r.Reads() {
-			for _, j := range owners[key] {
-				reads[i] = append(reads[i], j)
-				readers[j] = append(readers[j], i)
-			}
+	for i, files := range reads {
+		for _, j := range files {
+			readers[j] = append(readers[j], i)
 		}
 	}
 	affected := make([]bool, len(b.results))
@@ -168,6 +225,28 @@ func (b *FlowBuild) recursive(seed []int) bool {
 		}
 	}
 	return slices.Contains(cyclicFiles(reads, affected), true)
+}
+
+// reads returns, for each file, the files whose contracts its summaries
+// read.
+func (b *FlowBuild) reads() [][]int {
+	owners := map[string][]int{}
+	for j, r := range b.results {
+		if r != nil {
+			for key := range r.Summaries {
+				owners[key] = append(owners[key], j)
+			}
+		}
+	}
+	reads := make([][]int, len(b.results))
+	for i, r := range b.results {
+		if r != nil {
+			for _, key := range r.Reads() {
+				reads[i] = append(reads[i], owners[key]...)
+			}
+		}
+	}
+	return reads
 }
 
 // cyclicFiles marks the nodes among in that lie on a cycle of edges
@@ -271,14 +350,7 @@ func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, agains
 				summarized[i]++
 			}
 		}
-		// Half the cores: summaries allocate heavily, and on symfony/src
-		// (16 cores) every core made the whole run about 8% slower.
-		_ = parallel(ctx, len(work), runtime.GOMAXPROCS(0)/2, func(j int) {
-			if file := tree(work[j]); file != nil {
-				b.results[work[j]] = extractFlow(file, ix, b.opt.Version, snapshot, b.options)
-				against[work[j]] = snapshot
-			}
-		}, nil)
+		b.summarize(ctx, work, snapshot, against, ix, tree)
 		next := flow.NewSnapshotWithOptions(b.options, b.results...)
 		if snapshot.Equal(next) {
 			snapshot = next
@@ -287,6 +359,18 @@ func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, agains
 		snapshot = next
 	}
 	return b.unsettled(snapshot, against)
+}
+
+// summarize summarizes the files of work side by side against snapshot.
+func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Snapshot, against []*flow.Snapshot, ix *index.Index, tree func(int) *syntax.File) {
+	// Half the cores: summaries allocate heavily, and on symfony/src
+	// (16 cores) every core made the whole run about 8% slower.
+	_ = parallel(ctx, len(work), runtime.GOMAXPROCS(0)/2, func(j int) {
+		if file := tree(work[j]); file != nil {
+			b.results[work[j]] = extractFlow(file, ix, b.opt.Version, snapshot, b.options)
+			against[work[j]] = snapshot
+		}
+	}, nil)
 }
 
 // unsettled drops, once compose stops, every summary computed against

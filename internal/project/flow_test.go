@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -250,5 +251,83 @@ func TestFlowOscillatingFileIsDropped(t *testing.T) {
 	build := BuildFlow(context.Background(), []string{flip, reader}, nil, opt, ix, flow.Options{})
 	if calls != maxSummaries || build.results[0] != nil || build.results[1] != nil {
 		t.Fatalf("summaries of flip: %d, kept %v", calls, build.results)
+	}
+}
+
+// writeChain writes n files, each function returning the one before, the
+// first returning request data.
+func writeChain(t *testing.T, n int) []string {
+	t.Helper()
+	root := t.TempDir()
+	var files []string
+	for i := range n {
+		body := "return $_GET['v'];"
+		if i > 0 {
+			body = fmt.Sprintf("return f%d();", i-1)
+		}
+		path := filepath.Join(root, fmt.Sprintf("f%02d.php", i))
+		writeFile(t, path, fmt.Sprintf("<?php function f%d() { %s }", i, body))
+		files = append(files, path)
+	}
+	return files
+}
+
+// An order from an earlier build summarizes each file of a chain once,
+// whatever depths it gives, and builds the snapshot a build without one does.
+func TestFlowBuildOrdered(t *testing.T) {
+	files := writeChain(t, 6)
+	opt := syntax.Options{Version: phpversion.Default}
+	ix := BuildIndex(files, opt, infer.Options{})
+	extracted := 0
+	old := extractFlow
+	t.Cleanup(func() { extractFlow = old })
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
+		extracted++
+		return old(f, ix, v, s, o)
+	}
+	plain := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
+	order := plain.Order()
+	if order[files[0]] != 0 || order[files[5]] != 5 {
+		t.Fatalf("order: %v", order)
+	}
+	extracted = 0
+	ordered := BuildFlowOrdered(context.Background(), files, nil, opt, ix, flow.Options{}, order)
+	if extracted != len(files) || !ordered.Snapshot.Equal(plain.Snapshot) {
+		t.Fatalf("%d summaries", extracted)
+	}
+	// Past the waves, out of date or missing: only more summaries.
+	stale := map[string]int{files[0]: 3 * maxWaves, files[1]: 2 * maxWaves}
+	if b := BuildFlowOrdered(context.Background(), files, nil, opt, ix, flow.Options{}, stale); !b.Snapshot.Equal(plain.Snapshot) {
+		t.Fatal("stale order")
+	}
+}
+
+// A chain longer than the rounds loses its end without an order; one from
+// an earlier build settles it whole.
+func TestFlowBuildOrderedSettlesLongChains(t *testing.T) {
+	files := writeChain(t, maxRounds+3)
+	opt := syntax.Options{Version: phpversion.Default}
+	ix := BuildIndex(files, opt, infer.Options{})
+	plain := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
+	if plain.results[maxRounds-1] == nil || plain.results[maxRounds] != nil {
+		t.Fatal("the rounds bound the chain")
+	}
+	ordered := BuildFlowOrdered(context.Background(), files, nil, opt, ix, flow.Options{}, plain.Order())
+	if slices.Contains(ordered.results, nil) {
+		t.Fatal("an order settles the whole chain")
+	}
+}
+
+// Files calling each other have the depth the first one visited gives.
+func TestFlowOrderOfARecursion(t *testing.T) {
+	root := t.TempDir()
+	a, b := filepath.Join(root, "a.php"), filepath.Join(root, "b.php")
+	writeFile(t, a, "<?php function a($n) { return $n ? b($n - 1) : $_GET['v']; }")
+	writeFile(t, b, "<?php function b($n) { return a($n); }")
+	opt := syntax.Options{Version: phpversion.Default}
+	ix := BuildIndex([]string{a, b}, opt, infer.Options{})
+	order := BuildFlow(context.Background(), []string{a, b}, nil, opt, ix, flow.Options{}).Order()
+	if order[a] != 1 || order[b] != 0 {
+		t.Fatalf("order: %v", order)
 	}
 }

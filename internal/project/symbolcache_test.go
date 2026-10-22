@@ -13,6 +13,7 @@ import (
 	"custos/internal/inspection/rules/untrustedshellcommand"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
+	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
 )
@@ -256,5 +257,79 @@ func TestCacheDir(t *testing.T) {
 	userCacheDir = func() (string, error) { return "", errors.New("no home") }
 	if got := CacheDir(); got != "" {
 		t.Fatal(got)
+	}
+}
+
+func TestSymbolCacheFlowOrder(t *testing.T) {
+	root, dir := t.TempDir(), t.TempDir()
+	opt := syntax.Options{Version: phpversion.Default}
+	open := func() *SymbolCache { return OpenSymbolCache(dir, root, opt, infer.Options{}) }
+	var none *SymbolCache
+	if none.FlowOrder(nil, flow.Options{}) != nil || none.SaveFlowOrder(nil, flow.Options{}) != nil {
+		t.Fatal("nil cache")
+	}
+	a := filepath.Join(root, "a.php")
+	if open().FlowOrder([]string{a}, flow.Options{}) != nil {
+		t.Fatal("no order saved yet")
+	}
+	if err := open().SaveFlowOrder(map[string]int{a: 2}, flow.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	// Read back under another spelling of the path; files it lacks have none.
+	t.Chdir(root)
+	c := open()
+	if got := c.FlowOrder([]string{"a.php", "b.php"}, flow.Options{}); !reflect.DeepEqual(got, map[string]int{"a.php": 2}) {
+		t.Fatalf("order: %v", got)
+	}
+	// The same order is not written again.
+	backdate(t, c.orderPath())
+	info, _ := os.Stat(c.orderPath())
+	if err := c.SaveFlowOrder(map[string]int{"a.php": 2}, flow.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	if again, _ := os.Stat(c.orderPath()); !again.ModTime().Equal(info.ModTime()) {
+		t.Fatal("unchanged order rewritten")
+	}
+	// Other flow options, or an unreadable file, have no order.
+	if open().FlowOrder([]string{a}, flow.Options{Assertions: true}) != nil {
+		t.Fatal("order of other options")
+	}
+	writeFile(t, c.orderPath(), "not gob")
+	if open().FlowOrder([]string{a}, flow.Options{}) != nil {
+		t.Fatal("corrupt order")
+	}
+}
+
+// With FlowOrder, a run saves the order its flow build settled in, and the
+// next one starts from it.
+func TestProjectReusesFlowOrder(t *testing.T) {
+	root, dir := t.TempDir(), t.TempDir()
+	files := []string{filepath.Join(root, "a.php"), filepath.Join(root, "b.php")}
+	writeFile(t, files[0], "<?php function a() { return $_GET['v']; }")
+	writeFile(t, files[1], "<?php function b() { system(a()); }")
+	opt := syntax.Options{Version: phpversion.Default}
+	open := func(order bool) *Project {
+		p, err := Open([]analysis.Rule{untrustedshellcommand.New()}, Options{Root: root, Paths: []string{root}, Cache: dir, FlowOrder: order, Analysis: analysis.Config{EnableAll: true, PHP: phpversion.Default}, Parse: opt})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	cache := OpenSymbolCache(dir, root, opt, infer.Options{})
+	open(false).AnalyzeReport()
+	if _, err := os.Stat(cache.orderPath()); err == nil {
+		t.Fatal("an order saved without FlowOrder")
+	}
+	for range 2 {
+		found := 0
+		for _, r := range open(true).AnalyzeReport() {
+			found += len(r.Findings)
+		}
+		if found != 1 {
+			t.Fatalf("%d findings", found)
+		}
+	}
+	if got := cache.FlowOrder(files, flow.Options{}); got[files[1]] != 1 {
+		t.Fatalf("order: %v", got)
 	}
 }

@@ -14,6 +14,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   vendor files, checking one file went from about 6 s to 0.4 s of CPU time.
   `--no-cache` turns it off. The language server builds its startup index
   from the same cache.
+- `--flow-order` keeps, in the same cache, the order in which `custos
+  analyse` and `custos fix` summarized the cross-file flow of the checked
+  files, so the next run with it summarizes each file after the ones it
+  calls: on symfony/src, a repeated run takes about 12% less time. A call
+  chain across files too long for a run without it may then be followed to
+  the end instead of being reported as unresolved.
 
 ### Changed
 

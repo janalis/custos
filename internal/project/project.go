@@ -22,9 +22,14 @@ type Options struct {
 	Scope []string
 	// Cache is the directory keeping the declarations of files indexed but
 	// not analysed between runs (see SymbolCache); empty disables it.
-	Cache    string
-	Analysis analysis.Config
-	Parse    syntax.Options
+	Cache string
+	// FlowOrder summarizes the flow of the analysed files in the order the
+	// last run with the cache saved, and saves this run's (see
+	// BuildFlowOrdered). A call chain composing without an order gives up
+	// on may then settle, so results may differ from a run without it.
+	FlowOrder bool
+	Analysis  analysis.Config
+	Parse     syntax.Options
 }
 
 // Project binds discovered files to an explicit inspection set.
@@ -91,7 +96,16 @@ func (p *Project) prepare() (*analysis.Engine, [][]byte) {
 	ix.Freeze()
 	engine = engine.WithIndex(ix)
 	if engine.NeedsFlow() {
-		engine = engine.WithFlow(BuildFlowSnapshot(context.Background(), php, read, p.Options.Parse, ix, p.Options.Analysis.Flow))
+		options := p.Options.Analysis.Flow
+		var order map[string]int
+		if p.Options.FlowOrder {
+			order = cache.FlowOrder(php, options)
+		}
+		build := BuildFlowOrdered(context.Background(), php, read, p.Options.Parse, ix, options, order)
+		if p.Options.FlowOrder && cache != nil {
+			_ = cache.SaveFlowOrder(build.Order(), options)
+		}
+		engine = engine.WithFlow(build.Snapshot)
 	}
 	sources := make([][]byte, len(p.Files))
 	for j, i := range at {

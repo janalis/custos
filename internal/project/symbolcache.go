@@ -6,13 +6,16 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"custos/internal/php/syntax"
 	"custos/internal/platform/safeio"
+	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
 )
@@ -35,6 +38,8 @@ type SymbolCache struct {
 	mu        sync.Mutex
 	fresh     map[string]cachedSymbols
 	missed    bool
+	// order is the flow order FlowOrder read.
+	order map[string]int
 }
 
 type cachedSymbols struct {
@@ -139,22 +144,79 @@ func (c *SymbolCache) Save() error {
 	if c == nil || !c.missed && len(c.fresh) == len(c.old) {
 		return nil
 	}
+	return writeCache(c.path, symbolCacheFile{Key: c.key, Files: c.fresh})
+}
+
+// writeCache writes v to path as gob.
+func writeCache(path string, v any) error {
 	var buf bytes.Buffer
 	// Encoding plain exported data into memory cannot fail.
-	_ = gob.NewEncoder(&buf).Encode(symbolCacheFile{Key: c.key, Files: c.fresh})
-	if err := os.MkdirAll(filepath.Dir(c.path), 0o700); err != nil {
+	_ = gob.NewEncoder(&buf).Encode(v)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
 	// Write aside and rename, so a concurrent run reads a whole file.
-	tmp := fmt.Sprintf("%s.%d", c.path, os.Getpid())
+	tmp := fmt.Sprintf("%s.%d", path, os.Getpid())
 	if err := os.WriteFile(tmp, buf.Bytes(), 0o600); err != nil {
 		return err
 	}
-	if err := os.Rename(tmp, c.path); err != nil {
+	if err := os.Rename(tmp, path); err != nil {
 		_ = os.Remove(tmp)
 		return err
 	}
 	return nil
+}
+
+// flowOrderFile is the order the last flow build of the project saved,
+// by absolute path (see FlowBuild.Order).
+type flowOrderFile struct {
+	Key   string
+	Order map[string]int
+}
+
+// orderPath is where the cache keeps the flow order.
+func (c *SymbolCache) orderPath() string {
+	return strings.TrimSuffix(c.path, ".gob") + "-order.gob"
+}
+
+// FlowOrder returns, by path as files name them, the order the last flow
+// build of these files with options saved; nil when there is none.
+func (c *SymbolCache) FlowOrder(files []string, options flow.Options) map[string]int {
+	if c == nil {
+		return nil
+	}
+	b, err := safeio.ReadFile(c.orderPath(), maxSymbolCacheBytes)
+	if err != nil {
+		return nil
+	}
+	var f flowOrderFile
+	if gob.NewDecoder(bytes.NewReader(b)).Decode(&f) != nil || f.Key != c.key+fmt.Sprint(options) {
+		return nil
+	}
+	c.order = f.Order
+	order := make(map[string]int, len(files))
+	for _, path := range files {
+		if depth, ok := f.Order[absolute(path)]; ok {
+			order[path] = depth
+		}
+	}
+	return order
+}
+
+// SaveFlowOrder keeps order (by path, see FlowBuild.Order) for the next
+// build with options, unless it is the one FlowOrder read.
+func (c *SymbolCache) SaveFlowOrder(order map[string]int, options flow.Options) error {
+	if c == nil {
+		return nil
+	}
+	abs := make(map[string]int, len(order))
+	for path, depth := range order {
+		abs[absolute(path)] = depth
+	}
+	if maps.Equal(abs, c.order) {
+		return nil
+	}
+	return writeCache(c.orderPath(), flowOrderFile{Key: c.key + fmt.Sprint(options), Order: abs})
 }
 
 // relocate points cached declarations at path when an earlier run named
