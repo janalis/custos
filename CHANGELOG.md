@@ -5,6 +5,15 @@ versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `custos analyse` and `custos fix` keep the declarations of the files they
+  index without checking them (`vendor/` and the rest of `paths`) between
+  runs, in the user cache directory or `$CUSTOS_CACHE_DIR`. A run over a few
+  files no longer parses every dependency again: on a project with 20,000
+  vendor files, checking one file went from about 6 s to 0.4 s of CPU time.
+  `--no-cache` turns it off.
+
 ### Changed
 
 - Type inference knows more values: a property, parameter or return type

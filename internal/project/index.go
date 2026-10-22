@@ -96,22 +96,32 @@ func BuildIndex(files []string, opt syntax.Options, options infer.Options) *inde
 // first keep files (nil where unreadable), so a following Run over them does
 // not read them again (IndexSources lists the analysed files first).
 func BuildIndexKeep(files []string, keep int, opt syntax.Options, options infer.Options) (*index.Index, [][]byte) {
+	return BuildIndexCached(files, keep, opt, options, nil)
+}
+
+// BuildIndexCached is BuildIndexKeep that takes the declarations of the
+// files past keep from cache while they are unchanged, records the others
+// in it, and saves it.
+func BuildIndexCached(files []string, keep int, opt syntax.Options, options infer.Options, cache *SymbolCache) (*index.Index, [][]byte) {
 	ix := index.New(stubs.Index())
 	results := make([]*index.FileSymbols, len(files))
 	srcs := make([][]byte, keep)
 	// indexOne isolates crashes of its own.
 	_ = parallel(context.Background(), len(files), 0, func(i int) {
-		var src []byte
-		results[i], src = indexOne(files[i], opt, options)
 		if i < keep {
-			srcs[i] = src
+			results[i], srcs[i] = indexOne(files[i], opt, options)
+			return
 		}
+		results[i] = indexCached(files[i], opt, options, cache)
 	}, nil)
 	for _, fs := range results {
 		if fs != nil && len(fs.Classes)+len(fs.Functions)+len(fs.Constants)+len(fs.ClassAliases) > 0 {
 			ix.Add(fs)
 		}
 	}
+	// Saved before DropStaleInferred rewrites declarations for this project.
+	// The cache only saves time: a failure to write it changes no result.
+	_ = cache.Save()
 	for _, fs := range results {
 		if fs != nil {
 			ix.DropStaleInferred(fs)
@@ -138,6 +148,25 @@ func indexOne(path string, opt syntax.Options, options infer.Options) (fs *index
 		return nil, nil
 	}
 	return extract(path, src, opt, options), src
+}
+
+// indexCached is indexOne for a file whose source is not kept: its
+// declarations come from cache while its stat is unchanged.
+func indexCached(path string, opt syntax.Options, options infer.Options, cache *SymbolCache) *index.FileSymbols {
+	if cache == nil {
+		fs, _ := indexOne(path, opt, options)
+		return fs
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil
+	}
+	if fs := cache.lookup(path, info); fs != nil {
+		return fs
+	}
+	fs, _ := indexOne(path, opt, options)
+	cache.store(path, info, fs)
+	return fs
 }
 
 // ExtractSymbols parses one file and returns its symbols, with the return

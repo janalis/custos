@@ -19,7 +19,10 @@ type Options struct {
 	// Scope lists the project paths whose PHP files are indexed for symbols
 	// besides the analysed ones, so cross-file facts do not depend on which
 	// files a run names. Empty means Paths.
-	Scope    []string
+	Scope []string
+	// Cache is the directory keeping the declarations of files indexed but
+	// not analysed between runs (see SymbolCache); empty disables it.
+	Cache    string
 	Analysis analysis.Config
 	Parse    syntax.Options
 }
@@ -79,7 +82,12 @@ func (p *Project) prepare() (*analysis.Engine, [][]byte) {
 			php, at = append(php, f), append(at, i)
 		}
 	}
-	ix, read := BuildIndexKeep(IndexSources(p.Options.Root, php, scope, p.Options.Exclude), len(php), p.Options.Parse, infer.Options{Assertions: p.Options.Analysis.Flow.Assertions})
+	inferOpt := infer.Options{Assertions: p.Options.Analysis.Flow.Assertions}
+	var cache *SymbolCache
+	if p.Options.Cache != "" {
+		cache = OpenSymbolCache(p.Options.Cache, p.Options.Root, p.Options.Parse, inferOpt)
+	}
+	ix, read := BuildIndexCached(IndexSources(p.Options.Root, php, scope, p.Options.Exclude), len(php), p.Options.Parse, inferOpt, cache)
 	ix.Freeze()
 	engine = engine.WithIndex(ix)
 	if engine.NeedsFlow() {

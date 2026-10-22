@@ -35,6 +35,15 @@ classes and functions your code uses, whichever files a run checks. In
 `vendor/`, types from dependencies are unknown and rules that need them stay
 silent.
 
+The declarations of the files custos indexes without checking them are kept
+between runs, under `custos` in the user cache directory (for example
+`~/.cache/custos` on Linux, `~/Library/Caches/custos` on macOS), or in
+`$CUSTOS_CACHE_DIR` when it is set. A file is parsed again when its size or
+modification time changes, and the whole cache is set aside when the custos
+binary, the target PHP version or the parse and inference options change, so
+results are the same with or without it. `--no-cache` neither reads nor
+writes it.
+
 ## Common flags
 
 These apply to both `analyse` and `fix`:
@@ -47,6 +56,7 @@ These apply to both `analyse` and `fix`:
 | `--comparison-style regular\|yoda` | Preferred operand order for comparison rules and their quick-fixes. |
 | `--config DIR` | Start the search for the [project root](./configuration#project-root) here. |
 | `--exclude a,b` | Extra directories to skip, as `exclude` in `custos.json`. |
+| `--no-cache` | Do not reuse or save the [declarations of dependencies](#paths) between runs. |
 | `--cpuprofile FILE` | Write a Go CPU profile of the analysis to FILE (for `go tool pprof`). |
 
 ## analyse

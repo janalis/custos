@@ -27,6 +27,27 @@ type common struct {
 	all       bool
 	exclude   string
 	profile   string
+	noCache   bool
+}
+
+// userCacheDir is os.UserCacheDir; tests replace it.
+var userCacheDir = os.UserCacheDir
+
+// cacheDir is where declarations of dependencies are kept between runs:
+// $CUSTOS_CACHE_DIR, else custos under the user cache directory; "" with
+// --no-cache or when neither is known.
+func (c *common) cacheDir() string {
+	if c.noCache {
+		return ""
+	}
+	if dir := os.Getenv("CUSTOS_CACHE_DIR"); dir != "" {
+		return dir
+	}
+	dir, err := userCacheDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dir, "custos")
 }
 
 func newFlagSet(name string, stderr io.Writer) *flag.FlagSet {
@@ -44,6 +65,7 @@ func newCommon(name string, stderr io.Writer) *common {
 	c.fs.BoolVar(&c.all, "all", false, "enable every rule, including disabled-by-default ones")
 	c.fs.StringVar(&c.exclude, "exclude", "", "comma-separated extra directories to exclude")
 	c.fs.StringVar(&c.profile, "cpuprofile", "", "write a CPU profile to this file")
+	c.fs.BoolVar(&c.noCache, "no-cache", false, "do not reuse or save the declarations of dependencies between runs")
 	return c
 }
 
@@ -110,7 +132,7 @@ func (c *common) prepare(args []string) (*setup, error) {
 	if c.exclude != "" {
 		exclude = append(exclude, strings.Split(c.exclude, ",")...)
 	}
-	p, err := project.Open(registry(), project.Options{Root: cfg.Root, Paths: paths, Exclude: exclude, Scope: scope, Analysis: acfg, Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}})
+	p, err := project.Open(registry(), project.Options{Root: cfg.Root, Paths: paths, Exclude: exclude, Scope: scope, Cache: c.cacheDir(), Analysis: acfg, Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}})
 	if err != nil {
 		return nil, err
 	}
