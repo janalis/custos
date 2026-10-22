@@ -4,7 +4,6 @@ package redirectcontinuesprotectedexecution
 import (
 	"strings"
 
-	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
@@ -29,13 +28,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 func check(ctx *analysis.Context, n syntax.Node, message string) {
 	c := n.(*syntax.FuncCall)
 
-	report := false
-	var fixes []diagnostic.Fix
-
-	report = protectedRedirect(ctx, c)
-
-	if report {
-		ctx.ReportNode(c, message, fixes...)
+	if protectedRedirect(ctx, c) {
+		ctx.ReportNode(c, message)
 	}
 }
 

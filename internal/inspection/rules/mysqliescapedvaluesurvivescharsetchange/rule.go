@@ -52,7 +52,7 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 		}
 		// Only the last selection on each side decides: an earlier change that
 		// a later call overrides, restores or leaves unproven is not evidence.
-		prior := expansionDLastCharsetCall(ctx, escape, escape.Var, 0)
+		prior := lastCharsetCall(ctx, escape, escape.Var, 0)
 		if prior == nil || (!semanticquery.NativeDominates(prior, escape) && !semanticquery.NativeCallSucceeded(ctx, prior, escape)) {
 			continue
 		}
@@ -60,7 +60,7 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 		if !known {
 			continue
 		}
-		change := expansionDLastCharsetCall(ctx, c, c.Var, escape.Span().End)
+		change := lastCharsetCall(ctx, c, c.Var, escape.Span().End)
 		if change == nil || !semanticquery.NativeCallSucceeded(ctx, change, c) {
 			continue
 		}
@@ -72,10 +72,10 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 	}
 }
 
-// expansionDLastCharsetCall returns the last mysqli::set_charset call on the
+// lastCharsetCall returns the last mysqli::set_charset call on the
 // receiver written after offset from and before at, whether or not it is
 // proven to execute; callers decide what that call proves.
-func expansionDLastCharsetCall(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr, from uint32) *syntax.MethodCall {
+func lastCharsetCall(ctx *analysis.Context, at syntax.Node, receiver syntax.Expr, from uint32) *syntax.MethodCall {
 	var last *syntax.MethodCall
 	for _, event := range semanticquery.ScopeCallEvents(ctx, at) {
 		c, ok := event.(*syntax.MethodCall)

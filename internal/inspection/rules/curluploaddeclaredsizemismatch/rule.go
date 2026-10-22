@@ -33,11 +33,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	handle := semanticquery.CallArgument(c.Args, 0, "handle")
-	uploading, known := semanticquery.NativeTruth(ctx, expansionDCurlOption(ctx, c, handle, "CURLOPT_UPLOAD"))
+	uploading, known := semanticquery.NativeTruth(ctx, curlOption(ctx, c, handle, "CURLOPT_UPLOAD"))
 	if !known || !uploading {
 		return
 	}
-	source := expansionDCurlOption(ctx, c, handle, "CURLOPT_INFILE")
+	source := curlOption(ctx, c, handle, "CURLOPT_INFILE")
 	open := semanticquery.OriginCall(ctx, source, "fopen")
 	if open == nil {
 		return
@@ -65,7 +65,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 }
 
-func expansionDCurlOption(ctx *analysis.Context, at syntax.Node, handle syntax.Expr, option string) syntax.Expr {
+func curlOption(ctx *analysis.Context, at syntax.Node, handle syntax.Expr, option string) syntax.Expr {
 	var result syntax.Expr
 	for _, event := range semanticquery.ScopeCallEvents(ctx, at) {
 		c, ok := event.(*syntax.FuncCall)

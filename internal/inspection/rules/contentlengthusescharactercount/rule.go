@@ -27,7 +27,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 func check(ctx *analysis.Context, n syntax.Node, message string) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	report := false
 	var fixes []diagnostic.Fix
 
 	if name != "header" {
@@ -53,14 +52,11 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 	if !emittedBody(ctx, c, body) {
 		return
 	}
-	report = true
 	if _, bound := ctx.Flow().BoundArguments(length); bound && body != nil && lengthEncodingSafe(ctx, length) && semanticquery.ArgumentsRemovable(length) && semanticquery.CommentFreeSpan(ctx, length.Span()) {
 		fixes = append(fixes, semanticquery.ReplacementFix(length.Span(), semanticquery.GlobalCallName(ctx, "strlen", c)+"("+ctx.Text(body)+")", "Count response bytes"))
 	}
 
-	if report {
-		ctx.ReportNode(c, message, fixes...)
-	}
+	ctx.ReportNode(c, message, fixes...)
 }
 
 func lengthEncodingSafe(ctx *analysis.Context, call *syntax.FuncCall) bool {

@@ -34,16 +34,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 func check(ctx *analysis.Context, n syntax.Node, message string) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	report := false
-
-	if name == "header" {
-		value := semanticquery.CallArgument(c.Args, 0, "header")
-		report = ctx.Flow().Tainted(value, flow.Header)
-
-	}
-
-	report = report || semanticquery.TaintedWrapperSink(ctx, c, flow.Header)
-	if report {
+	if name == "header" && ctx.Flow().Tainted(semanticquery.CallArgument(c.Args, 0, "header"), flow.Header) || semanticquery.TaintedWrapperSink(ctx, c, flow.Header) {
 		ctx.ReportNode(c, message)
 	}
 }

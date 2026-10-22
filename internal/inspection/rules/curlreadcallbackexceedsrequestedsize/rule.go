@@ -59,19 +59,19 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 	}
 	// Any possible write to the requested-size parameter, wherever it sits in
 	// the callback (a loop may run it before a return), invalidates the proof.
-	if expansionDCurlSizeRebound(ctx, body, params[2].Var.Name) {
+	if curlSizeRebound(ctx, body, params[2].Var.Name) {
 		return
 	}
 	ctx.ReportNode(c, message)
 }
 
-// expansionDCurlSizeRebound reports whether the callback body may give its
+// curlSizeRebound reports whether the callback body may give its
 // local variable $name another value: direct and destructuring assignments,
 // ++/--, foreach targets, global/static/catch/unset, references taken by
 // assignment, array item or closure capture, the variable passed as a call
 // argument (the parameter may be by-reference), and constructs that write
 // the local scope by name (variable-variables, extract, include, eval).
-func expansionDCurlSizeRebound(ctx *analysis.Context, body syntax.Node, name string) bool {
+func curlSizeRebound(ctx *analysis.Context, body syntax.Node, name string) bool {
 	rebound := false
 	syntax.Inspect(body, func(n syntax.Node) bool {
 		if rebound {

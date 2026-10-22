@@ -24,8 +24,6 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodC
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.MethodCall)
 	var fixes []diagnostic.Fix
-	report := false
-
 	if !semanticquery.NativeMethod(ctx, c, "PDOStatement", "execute") {
 		return
 	}
@@ -35,14 +33,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 
 	array := semanticquery.NativeArray(ctx, semanticquery.CallArgument(c.Args, 0, "params"))
-	report = array != nil && len(array.Items) == 0 && pdoPriorBindingsRequired(ctx, c, facts)
-	if report && len(c.Args.Args) == 1 && semanticquery.ArgumentsRemovable(&syntax.FuncCall{Args: c.Args}) && semanticquery.CommentFreeSpan(ctx, c.Args.Span()) {
+	if array == nil || len(array.Items) != 0 || !pdoPriorBindingsRequired(ctx, c, facts) {
+		return
+	}
+	if len(c.Args.Args) == 1 && semanticquery.ArgumentsRemovable(&syntax.FuncCall{Args: c.Args}) && semanticquery.CommentFreeSpan(ctx, c.Args.Span()) {
 		fixes = append(fixes, semanticquery.ReplacementFix(c.Args.Span(), "()", "Retain previous bindings"))
 	}
-
-	if report {
-		ctx.ReportNode(c, message, fixes...)
-	}
+	ctx.ReportNode(c, message, fixes...)
 }
 
 // pdoPriorBindingsRequired proves that the statement has earlier

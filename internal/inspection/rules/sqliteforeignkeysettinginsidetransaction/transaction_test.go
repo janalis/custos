@@ -19,7 +19,7 @@ func TestTransactionState(t *testing.T) {
 		{"BEGIN;PRAGMA cache_size=100;", true, false},
 	} {
 		tokens, _ := semanticquery.SQLTokens(tc.sql)
-		active, bad := expansionDTransaction(tokens, false)
+		active, bad := transactionState(tokens, false)
 		if active != tc.active || bad != tc.bad {
 			t.Fatalf("state %q: %v %v", tc.sql, active, bad)
 		}

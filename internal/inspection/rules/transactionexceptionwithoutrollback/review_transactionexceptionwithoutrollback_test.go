@@ -46,7 +46,7 @@ func TestReviewTransactionExceptionWithoutRollback(t *testing.T) {
 		{"rollback before return", "$p->rollBack();return false;}}", 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := expansionCryptoDBProbe{"TransactionExceptionWithoutRollback", []syntax.NodeKind{syntax.KReturn}, func(ctx *analysis.Context, n syntax.Node) {
+			probe := reviewProbe{"TransactionExceptionWithoutRollback", []syntax.NodeKind{syntax.KReturn}, func(ctx *analysis.Context, n syntax.Node) {
 				check(ctx, n, "m")
 			}}
 			engine, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{probe.id}})
@@ -61,18 +61,18 @@ func TestReviewTransactionExceptionWithoutRollback(t *testing.T) {
 	}
 }
 
-type expansionCryptoDBProbe struct {
+type reviewProbe struct {
 	id    string
 	kinds []syntax.NodeKind
 	check func(*analysis.Context, syntax.Node)
 }
 
-func (p expansionCryptoDBProbe) ID() string { return p.id }
+func (p reviewProbe) ID() string { return p.id }
 
-func (p expansionCryptoDBProbe) Semantic() {}
+func (p reviewProbe) Semantic() {}
 
-func (p expansionCryptoDBProbe) Flow() {}
+func (p reviewProbe) Flow() {}
 
-func (p expansionCryptoDBProbe) Kinds() []syntax.NodeKind { return p.kinds }
+func (p reviewProbe) Kinds() []syntax.NodeKind { return p.kinds }
 
-func (p expansionCryptoDBProbe) Check(ctx *analysis.Context, n syntax.Node) { p.check(ctx, n) }
+func (p reviewProbe) Check(ctx *analysis.Context, n syntax.Node) { p.check(ctx, n) }

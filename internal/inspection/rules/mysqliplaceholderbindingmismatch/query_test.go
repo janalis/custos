@@ -2,7 +2,7 @@ package mysqliplaceholderbindingmismatch
 
 import "testing"
 
-func TestNativeSQLPositionalCount(t *testing.T) {
+func TestSQLPositionalCount(t *testing.T) {
 	for _, tc := range []struct {
 		sql   string
 		n     int

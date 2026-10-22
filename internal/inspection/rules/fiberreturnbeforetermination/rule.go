@@ -30,26 +30,26 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 	}
 	c := n.(*syntax.MethodCall)
 	construct := semanticquery.FiberConstruction(ctx, c, "getReturn")
-	if construct == nil || !expansionLanguageFiberStarted(ctx, c) {
+	if construct == nil || !fiberStarted(ctx, c) {
 		return
 	}
 	params, body := semanticquery.NativeCallback(ctx, semanticquery.CallArgument(construct.Args, 0, "callback"))
 	if len(params) > 0 {
 		return
 	}
-	if !expansionLanguageSuspends(ctx, body) {
+	if !suspends(ctx, body) {
 		return
 	}
-	if expansionLanguageFiberUntouched(ctx, c, construct) {
+	if fiberUntouched(ctx, c, construct) {
 		ctx.ReportNode(c, message)
 	}
 }
 
-// expansionLanguageFiberUntouched proves that nothing but the allocation and
+// fiberUntouched proves that nothing but the allocation and
 // dominating start calls names the receiver before the read at c executes.
 // Any other mention (a resume in a loop or branch, a state guard, an alias, an
 // argument, a capture) may complete the fiber, so it abandons the proof.
-func expansionLanguageFiberUntouched(ctx *analysis.Context, c *syntax.MethodCall, construct *syntax.New) bool {
+func fiberUntouched(ctx *analysis.Context, c *syntax.MethodCall, construct *syntax.New) bool {
 	// The allocation only resolves for a plain variable receiver.
 	read := syntax.UnwrapParens(c.Var)
 	receiver, _ := astquery.PlainVariableName(read)
@@ -100,11 +100,11 @@ func expansionLanguageFiberUntouched(ctx *analysis.Context, c *syntax.MethodCall
 	return untouched
 }
 
-func expansionLanguageFiberStarted(ctx *analysis.Context, c *syntax.MethodCall) bool {
+func fiberStarted(ctx *analysis.Context, c *syntax.MethodCall) bool {
 	return len(semanticquery.EarlierMethodCalls(ctx, c, c.Var, "Fiber", "start")) > 0
 }
 
-func expansionLanguageSuspends(ctx *analysis.Context, body syntax.Node) bool {
+func suspends(ctx *analysis.Context, body syntax.Node) bool {
 	if e, ok := body.(syntax.Expr); ok {
 		return semanticquery.ExpansionCStatic(ctx, syntax.UnwrapParens(e), "Fiber", "suspend")
 	}

@@ -23,8 +23,6 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCal
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	report := false
-
 	if name != "unlink" && name != "rmdir" {
 		return
 	}
@@ -56,12 +54,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		if iteratorReassigned(loop, c, variable.Name) {
 			return
 		}
-		report = dotEntriesExcludedAt(ctx, loop, c, variable.Name) != dotEntryNames
-		break
-	}
-
-	if report {
-		ctx.ReportNode(c, message)
+		if dotEntriesExcludedAt(ctx, loop, c, variable.Name) != dotEntryNames {
+			ctx.ReportNode(c, message)
+		}
+		return
 	}
 }
 

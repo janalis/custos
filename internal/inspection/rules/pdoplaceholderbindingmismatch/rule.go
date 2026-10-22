@@ -2,7 +2,6 @@
 package pdoplaceholderbindingmismatch
 
 import (
-	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -20,9 +19,6 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.MethodCall)
-	var fixes []diagnostic.Fix
-	report := false
-
 	if !semanticquery.NativeMethod(ctx, c, "PDOStatement", "execute") {
 		return
 	}
@@ -35,9 +31,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known {
 		return
 	}
-	if len(bindings) != len(facts.Markers) {
-		report = true
-	}
+	report := len(bindings) != len(facts.Markers)
 	for key := range facts.Markers {
 		if !bindings[key] {
 			report = true
@@ -45,6 +39,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 
 	if report {
-		ctx.ReportNode(c, message, fixes...)
+		ctx.ReportNode(c, message)
 	}
 }

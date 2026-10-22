@@ -53,7 +53,7 @@ func TestReviewPdoGroupedFetchReadsRemovedColumn(t *testing.T) {
 		{"rows are not a variable", "function f(PDO $pdo){return $pdo->query('SELECT category, value FROM t')->fetchAll(PDO::FETCH_GROUP | PDO::FETCH_ASSOC)['x'][0]['category'];}", 0, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			probe := expansionCryptoDBProbe{id, []syntax.NodeKind{syntax.KArrayDimFetch}, func(ctx *analysis.Context, n syntax.Node) {
+			probe := reviewProbe{id, []syntax.NodeKind{syntax.KArrayDimFetch}, func(ctx *analysis.Context, n syntax.Node) {
 				check(ctx, n, "Read the group column from the group key.")
 			}}
 			e, err := analysis.NewEngine([]analysis.Rule{probe}, analysis.Config{Only: []string{id}, PHP: tc.php})
@@ -68,18 +68,18 @@ func TestReviewPdoGroupedFetchReadsRemovedColumn(t *testing.T) {
 	}
 }
 
-type expansionCryptoDBProbe struct {
+type reviewProbe struct {
 	id    string
 	kinds []syntax.NodeKind
 	check func(*analysis.Context, syntax.Node)
 }
 
-func (p expansionCryptoDBProbe) ID() string { return p.id }
+func (p reviewProbe) ID() string { return p.id }
 
-func (p expansionCryptoDBProbe) Semantic() {}
+func (p reviewProbe) Semantic() {}
 
-func (p expansionCryptoDBProbe) Flow() {}
+func (p reviewProbe) Flow() {}
 
-func (p expansionCryptoDBProbe) Kinds() []syntax.NodeKind { return p.kinds }
+func (p reviewProbe) Kinds() []syntax.NodeKind { return p.kinds }
 
-func (p expansionCryptoDBProbe) Check(ctx *analysis.Context, n syntax.Node) { p.check(ctx, n) }
+func (p reviewProbe) Check(ctx *analysis.Context, n syntax.Node) { p.check(ctx, n) }

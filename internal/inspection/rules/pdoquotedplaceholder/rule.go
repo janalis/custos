@@ -2,7 +2,6 @@
 package pdoquotedplaceholder
 
 import (
-	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -20,9 +19,6 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.MethodCall)
-	var fixes []diagnostic.Fix
-	report := false
-
 	if !semanticquery.NativeMethod(ctx, c, "PDOStatement", "execute") {
 		return
 	}
@@ -37,11 +33,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for key := range bindings {
 		if facts.Quoted[key] && !facts.Markers[key] {
-			report = true
+			ctx.ReportNode(c, message)
+			return
 		}
-	}
-
-	if report {
-		ctx.ReportNode(c, message, fixes...)
 	}
 }

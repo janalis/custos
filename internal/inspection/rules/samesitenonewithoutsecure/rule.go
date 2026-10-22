@@ -4,7 +4,6 @@ package samesitenonewithoutsecure
 import (
 	"strings"
 
-	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -24,9 +23,6 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCal
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	report := false
-	var fixes []diagnostic.Fix
-
 	if name != "setcookie" || ctx.PHP < phpversion.PHP73 {
 		return
 	}
@@ -48,15 +44,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !s || !strings.EqualFold(site, "none") {
 		return
 	}
-	secure, exists := options["s:secure"]
-	if !exists {
-		report = true
-	} else {
-		truth, known := semanticquery.NativeTruth(ctx, secure)
-		report = known && !truth
+	if secure, exists := options["s:secure"]; exists {
+		if truth, known := semanticquery.NativeTruth(ctx, secure); !known || truth {
+			return
+		}
 	}
-
-	if report {
-		ctx.ReportNode(c, message, fixes...)
-	}
+	ctx.ReportNode(c, message)
 }

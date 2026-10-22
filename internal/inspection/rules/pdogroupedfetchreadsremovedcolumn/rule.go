@@ -80,7 +80,7 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 	if !known {
 		return
 	}
-	columns, known := expansionDProjection(sql)
+	columns, known := selectProjection(sql)
 	if known && len(columns) > 0 && columns[0] == strings.ToUpper(column) {
 		ctx.ReportNode(fetch, message)
 	}
@@ -159,7 +159,7 @@ func pdoGroupedLegacyQuery(ctx *analysis.Context, c *syntax.MethodCall) bool {
 	return m != nil && m.Builtin
 }
 
-func expansionDProjection(sql string) ([]string, bool) {
+func selectProjection(sql string) ([]string, bool) {
 	tokens, known := semanticquery.SQLTokens(sql)
 	if !known || len(tokens) < 2 || tokens[0] != "SELECT" {
 		return nil, false

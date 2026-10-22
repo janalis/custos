@@ -2,7 +2,6 @@
 package headersaftercommittedoutput
 
 import (
-	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -22,19 +21,15 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCal
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	report := false
-	var fixes []diagnostic.Fix
-
 	if name != "header" && name != "setcookie" && name != "http_response_code" {
 		return
 	}
 	if name == "http_response_code" && !headersStatusWrite(ctx, c) {
 		return
 	}
-	commit, report := ctx.Flow().GlobalStateBefore(c, "committed-output")
-
-	if report && !headersUnsentProven(ctx, c, commit.Span) {
-		ctx.ReportNode(c, message, fixes...)
+	commit, committed := ctx.Flow().GlobalStateBefore(c, "committed-output")
+	if committed && !headersUnsentProven(ctx, c, commit.Span) {
+		ctx.ReportNode(c, message)
 	}
 }
 

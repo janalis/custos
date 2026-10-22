@@ -9,7 +9,7 @@ import (
 )
 
 func TestReviewCurlReadCallbackExceedsRequestedSizeRebinding(t *testing.T) {
-	p := expansionCryptoDBProbe{id: "CurlReadCallbackExceedsRequestedSize", kinds: []syntax.NodeKind{syntax.KFuncCall}, check: func(ctx *analysis.Context, n syntax.Node) {
+	p := reviewProbe{id: "CurlReadCallbackExceedsRequestedSize", kinds: []syntax.NodeKind{syntax.KFuncCall}, check: func(ctx *analysis.Context, n syntax.Node) {
 		check(ctx, n, "finding")
 	}}
 	e, err := analysis.NewEngine([]analysis.Rule{p}, analysis.Config{Only: []string{p.id}, PHP: phpversion.PHP85})
@@ -68,18 +68,18 @@ func TestReviewCurlReadCallbackExceedsRequestedSizeRebinding(t *testing.T) {
 	}
 }
 
-type expansionCryptoDBProbe struct {
+type reviewProbe struct {
 	id    string
 	kinds []syntax.NodeKind
 	check func(*analysis.Context, syntax.Node)
 }
 
-func (p expansionCryptoDBProbe) ID() string { return p.id }
+func (p reviewProbe) ID() string { return p.id }
 
-func (p expansionCryptoDBProbe) Semantic() {}
+func (p reviewProbe) Semantic() {}
 
-func (p expansionCryptoDBProbe) Flow() {}
+func (p reviewProbe) Flow() {}
 
-func (p expansionCryptoDBProbe) Kinds() []syntax.NodeKind { return p.kinds }
+func (p reviewProbe) Kinds() []syntax.NodeKind { return p.kinds }
 
-func (p expansionCryptoDBProbe) Check(ctx *analysis.Context, n syntax.Node) { p.check(ctx, n) }
+func (p reviewProbe) Check(ctx *analysis.Context, n syntax.Node) { p.check(ctx, n) }

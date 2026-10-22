@@ -23,8 +23,6 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCal
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	report := false
-
 	switch name {
 	case "fread", "fwrite", "fgets", "fseek", "ftell", "fflush", "ftruncate", "rewind":
 	default:
@@ -42,9 +40,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			break
 		}
 	}
-	report = open != nil && semanticquery.NativeBuiltinName(ctx, open) == "fopen" && !ctx.Flow().Excludes(handle, "false") && (semanticquery.NativeFailureFlowOnly(ctx, handle) || !semanticquery.NativeNarrowedExcludes(ctx, handle, types.Of("resource", "false"), "false"))
-
-	if report {
+	if open != nil && semanticquery.NativeBuiltinName(ctx, open) == "fopen" && !ctx.Flow().Excludes(handle, "false") && (semanticquery.NativeFailureFlowOnly(ctx, handle) || !semanticquery.NativeNarrowedExcludes(ctx, handle, types.Of("resource", "false"), "false")) {
 		ctx.ReportNode(c, message)
 	}
 }

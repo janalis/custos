@@ -23,8 +23,6 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCal
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
 
-	report := false
-
 	if !semanticquery.CallsAnnotatedFunction(ctx, c, "@custos-credential-store") {
 		return
 	}
@@ -40,9 +38,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if hash == "hash" {
 		position = 1
 	}
-	report = passwordParameter(ctx, c, semanticquery.CallArgument(digest.Args, position, "data"))
-
-	if report {
+	if passwordParameter(ctx, c, semanticquery.CallArgument(digest.Args, position, "data")) {
 		ctx.ReportNode(c, message)
 	}
 }

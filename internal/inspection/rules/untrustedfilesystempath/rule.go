@@ -229,17 +229,14 @@ func trustedPrefix(ctx *analysis.Context, e syntax.Expr) (size int, literal, ok 
 func check(ctx *analysis.Context, n syntax.Node, message string) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	report := false
-
+	param := ""
 	switch name {
 	case "readfile", "fopen", "file_get_contents", "file_put_contents", "unlink":
-		report = ctx.Flow().Tainted(semanticquery.CallArgument(c.Args, 0, "filename"), flow.Path)
+		param = "filename"
 	case "rmdir":
-		report = ctx.Flow().Tainted(semanticquery.CallArgument(c.Args, 0, "directory"), flow.Path)
+		param = "directory"
 	}
-
-	report = report || semanticquery.TaintedWrapperSink(ctx, c, flow.Path)
-	if report {
+	if param != "" && ctx.Flow().Tainted(semanticquery.CallArgument(c.Args, 0, param), flow.Path) || semanticquery.TaintedWrapperSink(ctx, c, flow.Path) {
 		ctx.ReportNode(c, message)
 	}
 }

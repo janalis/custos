@@ -9,7 +9,7 @@ import (
 	"custos/internal/php/syntax"
 )
 
-func TestExpansionDCallbackTermination(t *testing.T) {
+func TestCallbackTermination(t *testing.T) {
 	for _, tc := range []struct {
 		body string
 		want bool
@@ -33,8 +33,8 @@ func TestExpansionDCallbackTermination(t *testing.T) {
 	}
 }
 
-func BenchmarkExpansionDCallbackTermination(b *testing.B) {
-	p := nativeProbe{check: func(ctx *analysis.Context, c *syntax.FuncCall) {
+func BenchmarkCallbackTermination(b *testing.B) {
+	p := funcCallProbe{check: func(ctx *analysis.Context, c *syntax.FuncCall) {
 		body := semanticquery.CallArgument(c.Args, 0, "").(*syntax.Closure).Body
 		callbackTerminates(ctx, body)
 	}}
@@ -51,7 +51,7 @@ func BenchmarkExpansionDCallbackTermination(b *testing.B) {
 
 func probeNative(t *testing.T, src string, check func(*analysis.Context, *syntax.FuncCall)) {
 	t.Helper()
-	p := nativeProbe{check: func(ctx *analysis.Context, c *syntax.FuncCall) {
+	p := funcCallProbe{check: func(ctx *analysis.Context, c *syntax.FuncCall) {
 		if name, ok := c.Name.(*syntax.Name); ok && name.Value == "probe" {
 			check(ctx, c)
 		}
@@ -63,16 +63,18 @@ func probeNative(t *testing.T, src string, check func(*analysis.Context, *syntax
 	e.Analyze(syntax.Parse("test.php", []byte("<?php "+src), syntax.Options{}))
 }
 
-type nativeProbe struct {
+type funcCallProbe struct {
 	check func(*analysis.Context, *syntax.FuncCall)
 }
 
-func (nativeProbe) ID() string { return "CurlHeaderCallbackMissingByteCount" }
+func (funcCallProbe) ID() string { return "CurlHeaderCallbackMissingByteCount" }
 
-func (nativeProbe) Semantic() {}
+func (funcCallProbe) Semantic() {}
 
-func (nativeProbe) Flow() {}
+func (funcCallProbe) Flow() {}
 
-func (nativeProbe) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
+func (funcCallProbe) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 
-func (p nativeProbe) Check(ctx *analysis.Context, n syntax.Node) { p.check(ctx, n.(*syntax.FuncCall)) }
+func (p funcCallProbe) Check(ctx *analysis.Context, n syntax.Node) {
+	p.check(ctx, n.(*syntax.FuncCall))
+}

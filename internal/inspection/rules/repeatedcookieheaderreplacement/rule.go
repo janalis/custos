@@ -23,7 +23,6 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCal
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	report := false
 	var fixes []diagnostic.Fix
 
 	if name != "header" {
@@ -51,7 +50,6 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if oldName == "" || newName == "" || oldName == newName || cookieHeaderRemovedBetween(ctx, previous, c) {
 		return
 	}
-	report = true
 	if _, bound := ctx.Flow().BoundArguments(c); bound && replace == nil && semanticquery.CommentFreeSpan(ctx, c.Args.Span()) {
 		insert := syntax.Span{Start: c.Args.Span().End - 1, End: c.Args.Span().End - 1}
 		addition := ", false"
@@ -68,9 +66,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		fixes = append(fixes, semanticquery.ReplacementFix(insert, addition, "Append this cookie header"))
 	}
 
-	if report {
-		ctx.ReportNode(c, message, fixes...)
-	}
+	ctx.ReportNode(c, message, fixes...)
 }
 
 // cookieHeaderName returns the cookie name of a Set-Cookie field line, or ""

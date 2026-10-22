@@ -9,7 +9,7 @@ import (
 	"custos/internal/php/syntax"
 )
 
-func TestExpansionDOMConstructedWriteProof(t *testing.T) {
+func TestDOMConstructedWriteProof(t *testing.T) {
 	for _, tc := range []struct {
 		src  string
 		want bool
@@ -31,7 +31,7 @@ func TestExpansionDOMConstructedWriteProof(t *testing.T) {
 
 func probeNative(t *testing.T, src string, check func(*analysis.Context, *syntax.FuncCall)) {
 	t.Helper()
-	p := nativeProbe{check: func(ctx *analysis.Context, c *syntax.FuncCall) {
+	p := funcCallProbe{check: func(ctx *analysis.Context, c *syntax.FuncCall) {
 		if name, ok := c.Name.(*syntax.Name); ok && name.Value == "probe" {
 			check(ctx, c)
 		}
@@ -43,21 +43,23 @@ func probeNative(t *testing.T, src string, check func(*analysis.Context, *syntax
 	e.Analyze(syntax.Parse("test.php", []byte("<?php "+src), syntax.Options{}))
 }
 
-type nativeProbe struct {
+type funcCallProbe struct {
 	check func(*analysis.Context, *syntax.FuncCall)
 }
 
-func (nativeProbe) ID() string { return "DomTextAssignmentDestroysChildren" }
+func (funcCallProbe) ID() string { return "DomTextAssignmentDestroysChildren" }
 
-func (nativeProbe) Semantic() {}
+func (funcCallProbe) Semantic() {}
 
-func (nativeProbe) Flow() {}
+func (funcCallProbe) Flow() {}
 
-func (nativeProbe) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
+func (funcCallProbe) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCall} }
 
-func (p nativeProbe) Check(ctx *analysis.Context, n syntax.Node) { p.check(ctx, n.(*syntax.FuncCall)) }
+func (p funcCallProbe) Check(ctx *analysis.Context, n syntax.Node) {
+	p.check(ctx, n.(*syntax.FuncCall))
+}
 
-func TestExpansionDOMBeforeWriteProof(t *testing.T) {
+func TestDOMBeforeWriteProof(t *testing.T) {
 	for _, tc := range []struct {
 		src  string
 		want bool

@@ -2,7 +2,6 @@
 package sessioncookieoptionssetafterstart
 
 import (
-	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -22,8 +21,6 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCal
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	report := false
-	var fixes []diagnostic.Fix
 
 	if name != "session_set_cookie_params" {
 		return
@@ -32,10 +29,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if start == nil || !semanticquery.NativeBuiltin(ctx, start, "session_start") {
 		return
 	}
-	report = sessionStartKeepsActive(ctx, start) && !sessionInactiveProven(ctx, c, start)
-
-	if report {
-		ctx.ReportNode(c, message, fixes...)
+	if sessionStartKeepsActive(ctx, start) && !sessionInactiveProven(ctx, c, start) {
+		ctx.ReportNode(c, message)
 	}
 }
 

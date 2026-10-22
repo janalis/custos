@@ -7,7 +7,7 @@ import (
 )
 
 func TestMissingExpression(t *testing.T) {
-	if expansionLanguageMayCall(nil) {
+	if mayCall(nil) {
 		t.Fatal("missing expression cannot contain a call")
 	}
 }
@@ -24,7 +24,7 @@ func TestMayCallSiblings(t *testing.T) {
 	} {
 		f := syntax.Parse("case.php", []byte("<?php "+src), syntax.Options{})
 		stmt := f.Stmts[0].(*syntax.ExprStmt)
-		if got := expansionLanguageMayCall(stmt.Expr); got != want {
+		if got := mayCall(stmt.Expr); got != want {
 			t.Errorf("%s: got %v, want %v", src, got, want)
 		}
 	}

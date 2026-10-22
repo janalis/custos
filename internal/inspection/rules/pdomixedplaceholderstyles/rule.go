@@ -2,7 +2,6 @@
 package pdomixedplaceholderstyles
 
 import (
-	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -20,9 +19,6 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.MethodCall)
-	var fixes []diagnostic.Fix
-	report := false
-
 	if !semanticquery.NativeMethod(ctx, c, "PDO", "prepare") {
 		return
 	}
@@ -34,9 +30,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known {
 		return
 	}
-	report = facts.Positional > 0 && len(facts.Markers) > facts.Positional
-
-	if report {
-		ctx.ReportNode(c, message, fixes...)
+	if facts.Positional > 0 && len(facts.Markers) > facts.Positional {
+		ctx.ReportNode(c, message)
 	}
 }

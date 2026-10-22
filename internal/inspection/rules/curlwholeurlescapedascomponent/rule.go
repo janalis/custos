@@ -30,13 +30,13 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	text, known := semanticquery.NativeString(ctx, semanticquery.CallArgument(origin.Args, 1, "string"))
-	if known && expansionDAbsoluteURL(text) {
+	if known && absoluteURL(text) {
 		ctx.ReportNode(c, message)
 	}
 }
 
 // Keep URL parsing bound to Go's parser; PHP contracts are checked separately.
-func expansionDAbsoluteURL(text string) bool {
+func absoluteURL(text string) bool {
 	u, err := url.Parse(text)
 	return err == nil && u.IsAbs() && u.Host != "" && strings.Contains(text, "://")
 }

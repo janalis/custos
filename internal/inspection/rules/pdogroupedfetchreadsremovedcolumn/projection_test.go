@@ -20,7 +20,7 @@ func TestProjection(t *testing.T) {
 		{"SELECT x AS a,y AS a", false},
 		{"SELECT fn(x)", false},
 	} {
-		_, known := expansionDProjection(tc.sql)
+		_, known := selectProjection(tc.sql)
 		if known != tc.known {
 			t.Fatalf("projection %q: known=%v", tc.sql, known)
 		}

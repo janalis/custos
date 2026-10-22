@@ -35,7 +35,7 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 		return
 	}
 	signature := semanticquery.CallArgument(c.Args, 1, "signature")
-	for _, event := range expansionDOutputs(ctx, c) {
+	for _, event := range outputs(ctx, c) {
 		if !semanticquery.NativeDominates(c, event) {
 			continue
 		}
@@ -60,9 +60,9 @@ func check(ctx *analysis.Context, n syntax.Node, message string) {
 	}
 }
 
-func expansionDOutputs(ctx *analysis.Context, at syntax.Node) []syntax.Node {
+func outputs(ctx *analysis.Context, at syntax.Node) []syntax.Node {
 	scope := syntax.EnclosingVariableScope(at)
-	return ctx.File.Memo(expansionDOutputKey{scope}, func() any {
+	return ctx.File.Memo(outputKey{scope}, func() any {
 		var out []syntax.Node
 		visit := func(n syntax.Node) bool {
 			if n != scope && syntax.IsVariableScope(n) {
@@ -86,4 +86,4 @@ func expansionDOutputs(ctx *analysis.Context, at syntax.Node) []syntax.Node {
 	}).([]syntax.Node)
 }
 
-type expansionDOutputKey struct{ scope syntax.Node }
+type outputKey struct{ scope syntax.Node }

@@ -4,7 +4,6 @@ package pdoreferencebindingvariablereuse
 import (
 	"strconv"
 
-	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -22,9 +21,6 @@ func (rule) Flow()                    {}
 func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KMethodCall} }
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.MethodCall)
-	var fixes []diagnostic.Fix
-	report := false
-
 	if !semanticquery.NativeMethod(ctx, c, "PDOStatement", "execute") {
 		return
 	}
@@ -38,6 +34,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	type referenceBinding struct{ param, value string }
 	variables := map[string]referenceBinding{}
+	report := false
 	prior, historyKnown := semanticquery.NativeCallHistory(ctx, c, c.Var, "bindparam").Certain()
 	if !historyKnown {
 		return
@@ -60,7 +57,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 
 	if report {
-		ctx.ReportNode(c, message, fixes...)
+		ctx.ReportNode(c, message)
 	}
 }
 

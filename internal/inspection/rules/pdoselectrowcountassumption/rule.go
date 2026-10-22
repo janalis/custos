@@ -2,7 +2,6 @@
 package pdoselectrowcountassumption
 
 import (
-	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -24,15 +23,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 
 func check(ctx *analysis.Context, n syntax.Node, message string) {
 	c := n.(*syntax.MethodCall)
-	var fixes []diagnostic.Fix
-	report := false
-
-	if semanticquery.NativeMethod(ctx, c, "PDOStatement", "rowCount") {
-		facts, known := semanticquery.PreparedSQL(ctx, c.Var)
-		report = known && facts.SelectQuery
+	if !semanticquery.NativeMethod(ctx, c, "PDOStatement", "rowCount") {
+		return
 	}
-
-	if report {
-		ctx.ReportNode(c, message, fixes...)
+	if facts, known := semanticquery.PreparedSQL(ctx, c.Var); known && facts.SelectQuery {
+		ctx.ReportNode(c, message)
 	}
 }

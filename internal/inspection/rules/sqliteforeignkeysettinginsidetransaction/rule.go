@@ -60,14 +60,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			tokens, known := sqliteStatementTokens(ctx, prior, class, name)
 			if name == "prepare" {
 				// A prepared statement runs later, at a point not tracked here.
-				opened, _ := expansionDTransaction(tokens, false)
-				kept, _ := expansionDTransaction(tokens, true)
+				opened, _ := transactionState(tokens, false)
+				kept, _ := transactionState(tokens, true)
 				if !known || opened || !kept {
 					return
 				}
 				continue
 			}
-			next, _ := expansionDTransaction(tokens, active)
+			next, _ := transactionState(tokens, active)
 			active = known && next && (certain || active)
 		}
 	}
@@ -75,7 +75,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if !known {
 		return
 	}
-	_, bad := expansionDTransaction(tokens, active)
+	_, bad := transactionState(tokens, active)
 	if bad {
 		ctx.ReportNode(c, message)
 	}
@@ -143,7 +143,7 @@ func sqliteStatementTokens(ctx *analysis.Context, call *syntax.MethodCall, class
 	return tokens, true
 }
 
-func expansionDTransaction(tokens []string, active bool) (bool, bool) {
+func transactionState(tokens []string, active bool) (bool, bool) {
 	start := 0
 	violation := false
 	for i := 0; i <= len(tokens); i++ {

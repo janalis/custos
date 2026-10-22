@@ -22,8 +22,6 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCal
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	report := false
-
 	if name != "fopen" {
 		return
 	}
@@ -51,11 +49,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		// LOCK_UN (3) shares a bit with LOCK_EX (2), so compare the whole
 		// operation once the optional LOCK_NB (4) modifier is masked out.
 		if operation, known := semanticquery.FileLockOperation(ctx, semanticquery.CallArgument(lock.Args, 1, "operation")); known && operation&^4 == 2 {
-			report = true
+			ctx.ReportNode(c, message)
+			return
 		}
-	}
-
-	if report {
-		ctx.ReportNode(c, message)
 	}
 }

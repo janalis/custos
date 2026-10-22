@@ -21,8 +21,6 @@ func (rule) Kinds() []syntax.NodeKind { return []syntax.NodeKind{syntax.KFuncCal
 func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	c := n.(*syntax.FuncCall)
 	name := semanticquery.NativeBuiltinName(ctx, c)
-	report := false
-
 	if name != "file_put_contents" && name != "fopen" {
 		return
 	}
@@ -39,9 +37,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if system, ok := syntax.UnwrapParens(directory).(*syntax.FuncCall); ok && semanticquery.NativeBuiltinName(ctx, system) == "sys_get_temp_dir" {
 		return
 	}
-	report = !directoryVerified(ctx, c, path, open)
-
-	if report {
+	if !directoryVerified(ctx, c, path, open) {
 		ctx.ReportNode(c, message)
 	}
 }
