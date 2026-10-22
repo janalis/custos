@@ -75,17 +75,15 @@ func (f *File) Reads() []string { return f.held }
 // Current reports that the summaries, extracted under the earlier snapshot,
 // would come out the same under s: no contract they were computed from
 // differs between the two. When s holds these very summaries, those the
-// file served itself only need to stay its own.
+// file served itself are unchanged while it alone declares them; one
+// another file declares too compares as any other contract.
 func (f *File) Current(earlier, s *Snapshot) bool {
 	if f.options != snapshotOptions(earlier) || f.options != snapshotOptions(s) {
 		return false
 	}
 	mine := s != nil && s.base == nil && s.files[f.Path] == f
 	for name := range f.consulted {
-		if key := strings.ToLower(name); mine && f.served[key] {
-			if !s.alone(f.Path, key) {
-				return false
-			}
+		if key := strings.ToLower(name); mine && f.served[key] && s.alone(f.Path, key) {
 			continue
 		}
 		before, had := earlier.lookup(name)
