@@ -271,6 +271,8 @@ func (b *FlowBuild) compose(ctx context.Context, snapshot *flow.Snapshot, agains
 				summarized[i]++
 			}
 		}
+		// Half the cores: summaries allocate heavily, and on symfony/src
+		// (16 cores) every core made the whole run about 8% slower.
 		_ = parallel(ctx, len(work), runtime.GOMAXPROCS(0)/2, func(j int) {
 			if file := tree(work[j]); file != nil {
 				b.results[work[j]] = extractFlow(file, ix, b.opt.Version, snapshot, b.options)
