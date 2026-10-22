@@ -1,6 +1,10 @@
 package index
 
-import "testing"
+import (
+	"fmt"
+	"slices"
+	"testing"
+)
 
 func TestSubclasses(t *testing.T) {
 	base := New(nil)
@@ -30,5 +34,17 @@ class E extends A implements I {}
 	}
 	if s := ix.Subclasses("I"); len(s) != 0 {
 		t.Fatalf("interfaces followed: %v", s)
+	}
+}
+
+// Walks that stop at the first match must read the same classes on every
+// run, whatever order the classes were indexed in.
+func TestChildrenSorted(t *testing.T) {
+	ix := New(nil)
+	for i := range 32 {
+		ix.Add(extract(t, fmt.Sprintf("c%d.php", i), fmt.Sprintf("<?php\nclass C%02d extends Base {}\n", 31-i)))
+	}
+	if got := ix.Children("Base"); len(got) != 32 || !slices.IsSorted(got) {
+		t.Fatalf("children: %v", got)
 	}
 }

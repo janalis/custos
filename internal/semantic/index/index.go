@@ -1,6 +1,7 @@
 package index
 
 import (
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -655,7 +656,7 @@ func (ix *Index) FindConst(class, name string, ver phpversion.Version) *ClassCon
 }
 
 // Children returns the FQNs of classes directly extending/implementing fqn
-// (project symbols only).
+// (project symbols only), sorted.
 func (ix *Index) Children(fqn string) []string {
 	// The table is built once per change of the index: readers share it.
 	ix.mu.RLock()
@@ -677,6 +678,11 @@ func (ix *Index) Children(fqn string) []string {
 					ix.children[key(i)] = append(ix.children[key(i)], c.FQN)
 				}
 			}
+		}
+		// Sorted, so walks that stop at the first match read the same
+		// classes on every run.
+		for _, children := range ix.children {
+			slices.Sort(children)
 		}
 	}
 	return ix.children[key(fqn)]
