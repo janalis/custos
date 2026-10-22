@@ -30,24 +30,13 @@ type common struct {
 	noCache   bool
 }
 
-// userCacheDir is os.UserCacheDir; tests replace it.
-var userCacheDir = os.UserCacheDir
-
-// cacheDir is where declarations of dependencies are kept between runs:
-// $CUSTOS_CACHE_DIR, else custos under the user cache directory; "" with
-// --no-cache or when neither is known.
+// cacheDir is where declarations of dependencies are kept between runs
+// (see project.CacheDir); "" with --no-cache.
 func (c *common) cacheDir() string {
 	if c.noCache {
 		return ""
 	}
-	if dir := os.Getenv("CUSTOS_CACHE_DIR"); dir != "" {
-		return dir
-	}
-	dir, err := userCacheDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(dir, "custos")
+	return project.CacheDir()
 }
 
 func newFlagSet(name string, stderr io.Writer) *flag.FlagSet {

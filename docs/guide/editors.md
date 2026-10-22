@@ -23,7 +23,9 @@ updates the project index and re-checks the other open files. When the
 client supports dynamic file watchers, the server also watches `**/*.php`,
 so changes made outside the editor (a `git checkout`, generated code) reach
 the index, and the [baseline](./suppressing#baseline) file, so regenerating
-it takes effect at once.
+it takes effect at once. The server starts from the declarations the command
+line [keeps between runs](./cli#paths) and parses only the files that changed
+since.
 
 ## Settings
 

@@ -50,8 +50,26 @@ type symbolCacheFile struct {
 // maxSymbolCacheBytes bounds the cache file read back.
 const maxSymbolCacheBytes = 1 << 30
 
-// executable is os.Executable; tests replace it.
-var executable = os.Executable
+// executable is os.Executable and userCacheDir os.UserCacheDir; tests
+// replace them.
+var (
+	executable   = os.Executable
+	userCacheDir = os.UserCacheDir
+)
+
+// CacheDir is where adapters keep declarations between runs:
+// $CUSTOS_CACHE_DIR, else custos under the user cache directory; "" when
+// neither is known.
+func CacheDir() string {
+	if dir := os.Getenv("CUSTOS_CACHE_DIR"); dir != "" {
+		return dir
+	}
+	dir, err := userCacheDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dir, "custos")
+}
 
 // OpenSymbolCache loads the cache of the project at root from dir. A
 // missing, unreadable or outdated cache file starts empty; nil is returned

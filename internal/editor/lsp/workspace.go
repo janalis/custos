@@ -58,7 +58,7 @@ func (s *Server) buildIndex() {
 		s.abandonIndex(e, generation)
 		return
 	}
-	ix := buildIndexSymbols(project.IndexSources(cfg.Root, files, paths, cfg.Exclude), syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
+	ix := buildIndexSymbols(cfg.Root, project.IndexSources(cfg.Root, files, paths, cfg.Exclude), syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
 	s.mu.Lock()
 	if s.engine != e || s.indexGeneration != generation {
 		s.mu.Unlock()
@@ -242,10 +242,21 @@ func (s *Server) refreshFlow() {
 	s.mu.Unlock()
 }
 
+// indexWorkspace indexes files, taking the declarations of unchanged ones
+// from the cache the command line shares (see project.SymbolCache).
+func indexWorkspace(root string, files []string, opt syntax.Options, options infer.Options) *index.Index {
+	var cache *project.SymbolCache
+	if dir := project.CacheDir(); dir != "" {
+		cache = project.OpenSymbolCache(dir, root, opt, options)
+	}
+	ix, _ := project.BuildIndexCached(files, 0, opt, options, cache)
+	return ix
+}
+
 // Test seams also keep each build's filesystem/index operations explicit.
 var (
 	discoverIndexFiles = project.Discover
-	buildIndexSymbols  = project.BuildIndex
+	buildIndexSymbols  = indexWorkspace
 	buildFlow          = project.BuildFlow
 	updateFlow         = (*project.FlowBuild).Update
 )

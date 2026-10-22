@@ -239,3 +239,22 @@ func TestSymbolCacheReplacedByNewBuild(t *testing.T) {
 		t.Fatalf("cache files: %v", entries)
 	}
 }
+
+func TestCacheDir(t *testing.T) {
+	old := userCacheDir
+	t.Cleanup(func() { userCacheDir = old })
+	userCacheDir = func() (string, error) { return "/home/u/.cache", nil }
+	t.Setenv("CUSTOS_CACHE_DIR", "")
+	if got := CacheDir(); got != filepath.Join("/home/u/.cache", "custos") {
+		t.Fatal(got)
+	}
+	t.Setenv("CUSTOS_CACHE_DIR", "/ci/cache")
+	if got := CacheDir(); got != "/ci/cache" {
+		t.Fatal(got)
+	}
+	t.Setenv("CUSTOS_CACHE_DIR", "")
+	userCacheDir = func() (string, error) { return "", errors.New("no home") }
+	if got := CacheDir(); got != "" {
+		t.Fatal(got)
+	}
+}

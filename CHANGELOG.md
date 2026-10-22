@@ -12,7 +12,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   runs, in the user cache directory or `$CUSTOS_CACHE_DIR`. A run over a few
   files no longer parses every dependency again: on a project with 20,000
   vendor files, checking one file went from about 6 s to 0.4 s of CPU time.
-  `--no-cache` turns it off.
+  `--no-cache` turns it off. The language server builds its startup index
+  from the same cache.
 
 ### Changed
 
