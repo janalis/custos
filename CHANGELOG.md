@@ -53,7 +53,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   `@require-implements`, …), `$this` is of that type, after the trait's
   own members. A type alias imported with `@phpstan-import-type` (or
   `@psalm-import-type`) reads as the class it comes from declares it, where
-  it read as `mixed`, following that class's own imports.
+  it read as `mixed`, following that class's own imports, also in the
+  members other files read.
 - HardcodedCredentialAtKnownSink matches `excludedPaths` from the workspace
   root in the language server and the MCP server when a file has no
   `custos.json` or `composer.json` above it, instead of the server's working

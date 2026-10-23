@@ -630,6 +630,7 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 	}
 	// Declarations are added in path order so duplicates resolve identically.
 	sort.Strings(names)
+	s.Index.DeferTypeAliases()
 	for _, name := range names {
 		s.Symbols = append(s.Symbols, all[name])
 		s.Index.Add(all[name])
@@ -637,6 +638,7 @@ func AnalyzeSnapshot(ctx context.Context, s *Snapshot) (*Snapshot, error) {
 	for _, symbols := range s.Symbols {
 		s.Index.DropStaleInferred(symbols)
 	}
+	s.Index.LinkTypeAliases()
 	s.Index.Freeze()
 	s.Engine = s.Engine.WithIndex(s.Index)
 

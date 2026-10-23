@@ -30,6 +30,7 @@ type Index struct {
 	// layer and of every base layer is unchanged (see generation).
 	gen              atomic.Uint64
 	frozen           atomic.Bool
+	deferAliases     atomic.Bool // see DeferTypeAliases
 	ancMu            sync.RWMutex
 	ancestors        map[ancKey]ancEntry
 	methodGeneration uint64
@@ -155,8 +156,13 @@ func (ix *Index) runlock(locked bool) {
 
 func key(fqn string) string { return names.Fold(strings.TrimPrefix(fqn, `\`)) }
 
-// Add inserts (or replaces) the symbols of one file.
+// Add inserts (or replaces) the symbols of one file, linking the type
+// aliases its classes import first (see DeferTypeAliases): no reader sees
+// fs before.
 func (ix *Index) Add(fs *FileSymbols) {
+	if !ix.deferAliases.Load() {
+		ix.linkAliases(fs)
+	}
 	ix.mu.Lock()
 	defer ix.mu.Unlock()
 	ix.mutable()

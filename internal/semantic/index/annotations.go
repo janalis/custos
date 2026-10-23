@@ -25,15 +25,15 @@ func (x *extractor) genResolver(at uint32) types.Resolver {
 		// a class or a member is extracted, whose templates are exactly
 		// classTpl and methodTpl.
 		if def, ok := x.aliases[w]; ok {
-			return "=" + def
+			return aliasRef(w, def)
 		}
 		return x.r.Class(w, at)
 	}
 }
 
 // typeAliases records the type aliases class c imports and those it
-// declares, resolved as its members' types are; an imported alias in a
-// declared one reads `\~alias~Local`, for the reader to expand.
+// declares, resolved as its members' types are (an imported alias reads
+// `\`+AliasMark+`Local` in them, for the index to link).
 func (x *extractor) typeAliases(c *Class, d *phpdoc.Doc, at uint32) {
 	for _, it := range d.ImportedTypes() {
 		if c.TypeImports == nil {
@@ -41,13 +41,7 @@ func (x *extractor) typeAliases(c *Class, d *phpdoc.Doc, at uint32) {
 		}
 		c.TypeImports[it.Local] = TypeImport{From: strings.TrimPrefix(x.r.Class(it.From, at), `\`), Name: it.Name}
 	}
-	resolve := x.resolver(at)
-	r := func(w string) string {
-		if _, imported := c.TypeImports[w]; imported {
-			return "~alias~" + w
-		}
-		return resolve(w)
-	}
+	r := x.resolver(at)
 	for name, def := range d.TypeAliases() {
 		if _, imported := c.TypeImports[name]; imported || def == "" {
 			continue

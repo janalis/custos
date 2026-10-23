@@ -20,8 +20,17 @@ type extractor struct {
 	templates  map[string]bool   // @template names in scope (class + member)
 	classTpl   map[string]bool   // class-level @template names of the class being extracted
 	methodTpl  map[string]bool   // @template names of the method being extracted
-	aliases    map[string]string // @phpstan-type / import-type names in scope
+	aliases    map[string]string // @phpstan-type / import-type names in scope (imported: importedAlias)
 }
+
+// importedAlias marks in extractor.aliases a type alias the class imports:
+// its types name it AliasMark+name until the index links it.
+const importedAlias = "\x00import"
+
+// AliasMark prefixes the class name standing for a type alias a class
+// imports in the types the index records for it (`\__custos_alias__Name`),
+// until the index links it (see Index.LinkTypeAliases).
+const AliasMark = "__custos_alias__"
 
 // Extract collects the symbols declared in f.
 func Extract(f *syntax.File) *FileSymbols {
@@ -131,10 +140,19 @@ func (x *extractor) resolver(at uint32) types.Resolver {
 			return ""
 		}
 		if def, ok := x.aliases[w]; ok {
-			return "=" + def
+			return aliasRef(w, def)
 		}
 		return x.r.Class(w, at)
 	}
+}
+
+// aliasRef is what a resolver gives type alias w defined as def: the
+// definition, or the mark of an imported one.
+func aliasRef(w, def string) string {
+	if def == importedAlias {
+		return AliasMark + w
+	}
+	return "=" + def
 }
 
 // withTemplates adds the @template names of d for the duration of fn.
@@ -242,6 +260,9 @@ func (x *extractor) class(n *syntax.ClassLike) {
 	x.classTpl = nil
 	if d != nil {
 		if a := d.TypeAliases(); len(a) > 0 {
+			for _, it := range d.ImportedTypes() {
+				a[it.Local] = importedAlias
+			}
 			x.aliases = a
 		}
 		for _, t := range d.Templates() {

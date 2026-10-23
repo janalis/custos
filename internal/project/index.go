@@ -104,6 +104,7 @@ func BuildIndexKeep(files []string, keep int, opt syntax.Options, options infer.
 // in it, and saves it.
 func BuildIndexCached(files []string, keep int, opt syntax.Options, options infer.Options, cache *SymbolCache) (*index.Index, [][]byte) {
 	ix := index.New(stubs.Index())
+	ix.DeferTypeAliases()
 	results := make([]*index.FileSymbols, len(files))
 	srcs := make([][]byte, keep)
 	// indexOne isolates crashes of its own.
@@ -127,6 +128,7 @@ func BuildIndexCached(files []string, keep int, opt syntax.Options, options infe
 			ix.DropStaleInferred(fs)
 		}
 	}
+	ix.LinkTypeAliases()
 	return ix, srcs
 }
 

@@ -66,3 +66,26 @@ class Editor {
 		"partialKept": "string",
 	})
 }
+
+// Members of another file whose types use an imported alias read it as its
+// class declares it.
+func TestImportedAliasesAcrossFiles(t *testing.T) {
+	checkWith(t, map[string]string{"lib.php": `<?php
+namespace Lib;
+class Field {}
+/** @phpstan-type Row array{name: string, field: Field} */
+class Journal {}
+/** @phpstan-import-type Row from Journal */
+class Access {
+    /** @var list<Row> */
+    public array $rows = [];
+    /** @return Row|null */
+    public function first(): ?array { return null; }
+}
+`}, `<?php
+function run(\Lib\Access $a) {
+    t('first', $a->first());
+    foreach ($a->rows as $row) { t('field', $row['field']); }
+}
+`, map[string]string{"first": `array|null{name: string, field: \Lib\Field}`, "field": `\Lib\Field`})
+}

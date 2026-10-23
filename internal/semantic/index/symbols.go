@@ -292,7 +292,7 @@ type Class struct {
 	Requires []string `json:"req,omitempty"`
 	// TypeAliases are the type aliases the class declares (@phpstan-type,
 	// @psalm-type) as doc types with resolved class names; an alias the
-	// class imports reads `\~alias~Local` in them (see TypeImports).
+	// class imports reads `\`+AliasMark+`Local` in them (see TypeImports).
 	TypeAliases map[string]string `json:"talias,omitempty"`
 	// TypeImports are the type aliases the class imports
 	// (@phpstan-import-type), by the name it gives them.
