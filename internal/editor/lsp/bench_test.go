@@ -1,13 +1,14 @@
 package lsp
 
 import (
+	"bytes"
 	"context"
-	"io"
 	"os"
 	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,6 +23,28 @@ import (
 func percentiles(d []time.Duration) (time.Duration, time.Duration) {
 	sort.Slice(d, func(i, j int) bool { return d[i] < d[j] })
 	return d[len(d)/2], d[len(d)*95/100]
+}
+
+// publishClock records when the first diagnostics written after a reset
+// reach the client.
+type publishClock struct {
+	mu sync.Mutex
+	at time.Time
+}
+
+func (c *publishClock) Write(p []byte) (int, error) {
+	c.mu.Lock()
+	if c.at.IsZero() && bytes.Contains(p, []byte("textDocument/publishDiagnostics")) {
+		c.at = time.Now()
+	}
+	c.mu.Unlock()
+	return len(p), nil
+}
+
+func (c *publishClock) reset() {
+	c.mu.Lock()
+	c.at = time.Time{}
+	c.mu.Unlock()
 }
 
 // timingMeaningful skips performance tests where timings mean nothing.
@@ -75,7 +98,9 @@ func TestEditLatency(t *testing.T) {
 // project (CUSTOS_BENCH_ROOT, holding CUSTOS_BENCH_FILE): every rule, the
 // project index and flow snapshot, and a body-only change to the open
 // file analysed as the debounce timer would (without the delay). It logs
-// wall-clock and CPU percentiles; no budget is enforced.
+// the wall-clock time until the file's diagnostics are published and until
+// its flow summaries are updated too, and the CPU time of both; no budget is
+// enforced.
 func TestWorkspaceEditLatency(t *testing.T) {
 	timingMeaningful(t)
 	root, path := os.Getenv("CUSTOS_BENCH_ROOT"), os.Getenv("CUSTOS_BENCH_FILE")
@@ -86,7 +111,8 @@ func TestWorkspaceEditLatency(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
-	s := whiteBox(t, root, io.Discard, catalogue.All()...)
+	clock := &publishClock{}
+	s := whiteBox(t, root, clock, catalogue.All()...)
 	if s.beginIndexing() {
 		s.buildIndex()
 	}
@@ -96,7 +122,7 @@ func TestWorkspaceEditLatency(t *testing.T) {
 	}
 	uri := "file://" + abs
 	s.docs[uri] = &document{uri: uri, path: abs, text: src, lines: syntax.NewLineIndex(src), analyzed: -1}
-	var wall, cpu []time.Duration
+	var published, wall, cpu []time.Duration
 	for i := 0; i < 20; i++ {
 		// A trailing comment changes the text, not the declarations.
 		s.mu.Lock()
@@ -106,13 +132,16 @@ func TestWorkspaceEditLatency(t *testing.T) {
 		d.version++
 		d.lines = syntax.NewLineIndex(d.text)
 		s.mu.Unlock()
+		clock.reset()
 		start, startCPU := time.Now(), testbudget.CPU()
 		s.analyzeChanged(uri)
 		wall, cpu = append(wall, time.Since(start)), append(cpu, testbudget.CPU()-startCPU)
+		published = append(published, clock.at.Sub(start))
 	}
+	d50, d95 := percentiles(published)
 	p50, p95 := percentiles(wall)
 	c50, c95 := percentiles(cpu)
-	t.Logf("edit in %s: p50 %v, p95 %v; CPU p50 %v, p95 %v (flow %v)", filepath.Base(path), p50, p95, c50, c95, s.flowEnabled())
+	t.Logf("edit in %s: diagnostics p50 %v, p95 %v; with the flow update p50 %v, p95 %v, CPU p50 %v, p95 %v (flow %v)", filepath.Base(path), d50, d95, p50, p95, c50, c95, s.flowEnabled())
 }
 
 // labelled runs a rule under a pprof goroutine label naming it, so that a

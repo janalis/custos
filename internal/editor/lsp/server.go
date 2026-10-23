@@ -71,6 +71,10 @@ type Server struct {
 	// buffer's declarations updates the build instead of redoing it.
 	flowBuild   *project.FlowBuild
 	flowSymbols map[string]*index.FileSymbols
+	// reflowing is true while reflow updates the summaries of the documents
+	// queued in reflowQueue.
+	reflowing   bool
+	reflowQueue map[string]bool
 	shutdown    bool
 	// sem bounds concurrent analyses.
 	sem chan struct{}

@@ -119,3 +119,63 @@ func TestAnalysisSkippedWhenSupersededWhileWaiting(t *testing.T) {
 		t.Fatal("current analysis not published or slot kept")
 	}
 }
+
+// An edited document is analysed before its summaries are updated, and the
+// updates run one at a time: an edit arriving meanwhile is summarized once
+// the running update ends, and a failed update does not stop the next.
+func TestFlowUpdateAfterAnalysis(t *testing.T) {
+	root := t.TempDir()
+	var out bytes.Buffer
+	s := whiteBox(t, root, &out, untrustedshellcommand.New())
+	wrapper := filepath.Join(root, "wrapper.php")
+	src := []byte("<?php function invoke($arg) { system($arg); }")
+	if err := os.WriteFile(wrapper, src, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if !s.beginIndexing() {
+		t.Fatal("index not requested")
+	}
+	s.buildIndex()
+	uri := "file://" + wrapper
+	edit := func(text string) {
+		s.mu.Lock()
+		s.docs[uri] = &document{uri: uri, path: wrapper, text: []byte(text), lines: syntax.NewLineIndex([]byte(text)), analyzed: -1}
+		s.mu.Unlock()
+	}
+	edit(string(src))
+	s.reflow(uri) // records the buffer's symbols
+	defer func(f func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool)) {
+		updateFlow = f
+	}(updateFlow)
+	var updates []string
+	running := false
+	updateFlow = func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
+		if !strings.Contains(out.String(), "publishDiagnostics") {
+			t.Error("summaries updated before the document was analysed")
+		}
+		if running {
+			t.Error("two updates ran at once")
+		}
+		running = true
+		defer func() { running = false }()
+		updates = append(updates, string(changed[wrapper]))
+		if len(updates) == 1 {
+			edit("<?php function invoke($arg) { system($arg); /* later */ }")
+			s.reflow(uri) // queued behind the running update
+		}
+		return b.Update(changed, ix)
+	}
+	edit("<?php function invoke($arg) { system($arg); /* typing */ }")
+	out.Reset()
+	s.analyzeChanged(uri)
+	if len(updates) != 2 || !strings.Contains(updates[1], "later") || s.reflowing {
+		t.Fatalf("updates: %q reflowing=%v", updates, s.reflowing)
+	}
+	updateFlow = func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool) {
+		panic("update")
+	}
+	s.reflow(uri)
+	if s.reflowing || !strings.Contains(out.String(), "flow update panicked") {
+		t.Fatal("failed update left the queue busy or unreported")
+	}
+}

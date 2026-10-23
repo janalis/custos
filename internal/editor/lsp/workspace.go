@@ -11,6 +11,7 @@ import (
 	"custos/internal/inspection/analysis"
 	"custos/internal/php/syntax"
 	"custos/internal/project"
+	"custos/internal/project/config"
 	"custos/internal/semantic/index"
 	"custos/internal/semantic/infer"
 )
@@ -126,14 +127,38 @@ func (s *Server) watchedFilesChanged(changes []fileChange) {
 			ix.Remove(path)
 			continue
 		}
-		fs := project.ExtractSymbols(path, src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
-		ix.DropStaleInferred(fs)
-		ix.Add(fs)
+		addSource(ix, cfg, path, src)
 	}
 	if touched {
 		s.refreshFlow()
 		s.reanalyzeAll()
 	}
+}
+
+// indexDoc refreshes the index entry of an open document from its buffer.
+func (s *Server) indexDoc(uri string) {
+	s.mu.Lock()
+	d, ok := s.docs[uri]
+	ix, cfg := s.index, s.cfg
+	var text []byte
+	var path string
+	if ok {
+		text, path = d.text, d.path
+	}
+	s.mu.Unlock()
+	if !ok || ix == nil {
+		return
+	}
+	addSource(ix, cfg, path, text)
+}
+
+// addSource indexes the declarations of path read from src in place of
+// those indexed for it, and returns them.
+func addSource(ix *index.Index, cfg *config.Config, path string, src []byte) *index.FileSymbols {
+	fs := project.ExtractSymbols(path, src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
+	ix.DropStaleInferred(fs)
+	ix.Add(fs)
+	return fs
 }
 
 // reindexDoc refreshes the index entry of an open document from its buffer
@@ -154,9 +179,7 @@ func (s *Server) reindexDoc(uri string) bool {
 	if !ok || ix == nil {
 		return false
 	}
-	fs := project.ExtractSymbols(path, text, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
-	ix.DropStaleInferred(fs)
-	ix.Add(fs)
+	fs := addSource(ix, cfg, path, text)
 	if build != nil && prev != nil && index.SameDeclarations(prev, fs) {
 		// No other file sees a change: summarize again only what the
 		// buffer's summaries reach.
@@ -201,10 +224,7 @@ func (s *Server) refreshFlow() {
 	sort.Slice(buffers, func(i, j int) bool { return buffers[i].path < buffers[j].path })
 	built := make(map[string]*index.FileSymbols, len(buffers))
 	for _, b := range buffers {
-		symbols := project.ExtractSymbols(b.path, b.src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
-		ix.DropStaleInferred(symbols)
-		ix.Add(symbols)
-		built[b.path] = symbols
+		built[b.path] = addSource(ix, cfg, b.path, b.src)
 	}
 	paths := []string{}
 	for _, p := range cfg.Paths {

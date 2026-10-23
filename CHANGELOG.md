@@ -39,6 +39,13 @@ versions follow [Semantic Versioning](https://semver.org/).
 - The language server builds cross-file flow summaries once when it indexes
   the workspace instead of twice, and `custos fix` reads each file once
   instead of three times, fixing the same bytes it indexed.
+- The language server publishes an edited file's diagnostics before it
+  updates the file's cross-file flow summaries, then checks open files again
+  if they changed. Editing a file on a cycle of calls across files, such as
+  symfony/console's Application.php in the Symfony repository, no longer
+  holds its diagnostics for 15 seconds or more while every summary is
+  rebuilt: they arrive in under 100 ms. Updates run one at a time, and edits
+  made during one are summarized together afterwards.
 - The command line, the language server and the MCP server discover files
   alike. `custos analyse` and `custos fix` index every file under `paths`
   even when the command line names only some, so cross-file results no

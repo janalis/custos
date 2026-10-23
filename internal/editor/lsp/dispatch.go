@@ -55,9 +55,7 @@ func (s *Server) handle(m *message) (result any, rerr *rpcError) {
 			defer s.guard("save", nil)
 			// The saved file's symbols may change what other open documents
 			// report (e.g. a method added or removed), so they are re-analysed.
-			if s.reindexDoc(p.TextDocument.URI) {
-				s.reanalyzeAll()
-			}
+			s.reflow(p.TextDocument.URI)
 		}()
 		return nil, nil
 	case "$/cancelRequest", "$/setTrace":

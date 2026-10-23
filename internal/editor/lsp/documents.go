@@ -1,6 +1,8 @@
 package lsp
 
 import (
+	"maps"
+	"slices"
 	"strings"
 	"time"
 
@@ -80,11 +82,56 @@ func (s *Server) flowEnabled() bool {
 	return s.engine != nil && s.engine.NeedsFlow()
 }
 
-// analyzeChanged republishes buffer summaries before checking dependent documents.
+// analyzeChanged publishes the diagnostics of a changed document against the
+// summaries of the other files, then updates its own (see reflow): updating
+// them may take seconds when the document lies on a cycle of calls, during
+// which no declaration another file sees has changed.
 func (s *Server) analyzeChanged(uri string) {
-	if s.flowEnabled() && s.reindexDoc(uri) {
-		s.reanalyzeAll()
+	if !s.flowEnabled() {
+		s.analyzeNow(uri)
 		return
 	}
+	s.indexDoc(uri)
 	s.analyzeNow(uri)
+	s.reflow(uri)
+}
+
+// reflow updates the flow summaries of uri's buffer (see reindexDoc), one
+// update at a time: a document changed while one runs is queued, and its
+// latest text summarized once that update ends. Open documents are analysed
+// again when a summary changed.
+func (s *Server) reflow(uri string) {
+	s.mu.Lock()
+	if s.reflowQueue == nil {
+		s.reflowQueue = map[string]bool{}
+	}
+	s.reflowQueue[uri] = true
+	if s.reflowing {
+		s.mu.Unlock()
+		return
+	}
+	s.reflowing = true
+	s.mu.Unlock()
+	defer s.guard("flow update", nil)
+	defer func() {
+		s.mu.Lock()
+		s.reflowing = false
+		s.mu.Unlock()
+	}()
+	changed := false
+	for {
+		s.mu.Lock()
+		uris := slices.Sorted(maps.Keys(s.reflowQueue))
+		clear(s.reflowQueue)
+		s.mu.Unlock()
+		if len(uris) == 0 {
+			break
+		}
+		for _, u := range uris {
+			changed = s.reindexDoc(u) || changed
+		}
+	}
+	if changed {
+		s.reanalyzeAll()
+	}
 }
