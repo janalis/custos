@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- PotentialMalware no longer reports `touch()` with three arguments or
+  `get_defined_functions()` in test code, where they set up fixtures.
 - The assertion methods of PHPUnit and `webmozart/assert`
   (`$this->assertNotFalse($handle)`, `self::assertIsResource($stream)`)
   now count as guards for the rules that look for unchecked failures
