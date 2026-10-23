@@ -43,6 +43,9 @@ type FlowBuild struct {
 	traced   bool
 	seen     []map[string]bool
 	declares [][]string
+	// stale marks the files whose seen is only a hint: an update outside
+	// any recursion changed what they consult on the way (see retrace).
+	stale []bool
 }
 
 // Files returns the files the build summarized, in build order.
@@ -190,12 +193,11 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 	// Within a recursion, the fixed point depends on where it starts: when
 	// one depends on a changed file (reading, maybe through others, a
 	// contract it declares itself), the files are summarized again from
-	// none, as a full build does (in the order b took, if any),
-	// all of them unless rescope can tell which. Otherwise every file is
+	// none, as a full build does (in the order b took, if any): all of them
+	// unless rescope can tell which. Otherwise every file is
 	// summarized again when a contract it read differs from the snapshot it
 	// was computed against, as each summary follows from the contracts it
-	// read; how the build of all files from none would have reached them is
-	// then unknown.
+	// read; retrace tells which records that leaves stale.
 	if next.recursive(dirty) {
 		if scoped := b.rescope(next.sources, dirty, probe, ix); scoped != nil {
 			return scoped, true
@@ -211,7 +213,48 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 		against[i] = b.Snapshot
 	}
 	next.Snapshot = next.compose(context.Background(), flow.NewSnapshotWithOptions(b.options, next.results...), against, ix, tree)
+	b.retrace(next, dirty, probe)
 	return next, true
+}
+
+// retrace carries the record of b over to next, which Update made from b
+// summarizing again against b's snapshot after the files of dirty changed
+// (probe holds their first summaries). A file that consulted, maybe through
+// others, a contract of a changed file may consult others on the way in a
+// build of all files from none: its record becomes stale, a hint that
+// rescope summarizes again. The others stand.
+func (b *FlowBuild) retrace(next *FlowBuild, dirty []int, probe []*flow.File) {
+	if !b.traced {
+		return
+	}
+	declares := slices.Clone(b.declares)
+	seed := slices.Clone(dirty)
+	for j, i := range dirty {
+		if probe[j] == nil {
+			return // what it declares is unknown
+		}
+		declares[i] = union(b.declares[i], slices.Collect(maps.Keys(probe[j].Summaries)))
+	}
+	for i, stale := range b.stale {
+		if stale {
+			seed = append(seed, i)
+		}
+	}
+	_, readers := b.links(keyOwners(declares))
+	seen := slices.Clone(b.seen)
+	for i, r := range next.results {
+		if r != nil && r != b.results[i] {
+			hint := maps.Clone(seen[i])
+			if hint == nil {
+				hint = map[string]bool{}
+			}
+			for _, key := range r.Consulted() {
+				hint[key] = true
+			}
+			seen[i] = hint
+		}
+	}
+	next.traced, next.seen, next.declares, next.stale = true, seen, declares, closure(seed, readers)
 }
 
 // rescope returns the build of all files from none after the files of dirty
@@ -232,21 +275,20 @@ func (b *FlowBuild) rescope(sources map[string][]byte, dirty []int, probe []*flo
 			return nil
 		}
 		// The keys the file declared, and those it now declares.
-		declares[i] = slices.Concat(b.declares[i], slices.Collect(maps.Keys(probe[j].Summaries)))
+		declares[i] = union(b.declares[i], slices.Collect(maps.Keys(probe[j].Summaries)))
 	}
 	owners := keyOwners(declares)
-	reads := make([][]int, len(b.files))
-	readers := make([][]int, len(b.files))
-	for i, keys := range b.seen {
-		for key := range keys {
-			for _, j := range owners[key] {
-				reads[i] = append(reads[i], j)
-				readers[j] = append(readers[j], i)
-			}
+	reads, readers := b.links(owners)
+	// Files with a stale record are summarized again as if the edit
+	// reached them.
+	seed := slices.Clone(dirty)
+	for i, stale := range b.stale {
+		if stale {
+			seed = append(seed, i)
 		}
 	}
-	reached := closure(dirty, readers)
-	var seed []int
+	reached := closure(seed, readers)
+	seed = seed[:0]
 	for i, in := range reached {
 		if in {
 			seed = append(seed, i)
@@ -296,14 +338,36 @@ func (b *FlowBuild) rescope(sources map[string][]byte, dirty []int, probe []*flo
 	return next
 }
 
+// links returns, for each file, the files declaring (by owners) a contract
+// its record says it consulted, and the files whose record says they
+// consulted one it declares.
+func (b *FlowBuild) links(owners map[string][]int) (reads, readers [][]int) {
+	reads = make([][]int, len(b.files))
+	readers = make([][]int, len(b.files))
+	for i, keys := range b.seen {
+		for key := range keys {
+			for _, j := range owners[key] {
+				reads[i] = append(reads[i], j)
+				readers[j] = append(readers[j], i)
+			}
+		}
+	}
+	return reads, readers
+}
+
+// union returns the keys of a and b, sorted, each once.
+func union(a, b []string) []string {
+	keys := slices.Concat(a, b)
+	slices.Sort(keys)
+	return slices.Compact(keys)
+}
+
 // keyOwners returns the files declaring each key.
 func keyOwners(declares [][]string) map[string][]int {
 	owners := map[string][]int{}
 	for i, keys := range declares {
 		for _, key := range keys {
-			if files := owners[key]; len(files) == 0 || files[len(files)-1] != i {
-				owners[key] = append(files, i)
-			}
+			owners[key] = append(owners[key], i)
 		}
 	}
 	return owners

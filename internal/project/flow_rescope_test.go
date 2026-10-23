@@ -5,6 +5,7 @@ import (
 	"maps"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"sort"
 	"sync"
 	"testing"
@@ -26,7 +27,7 @@ func rescopeProject(t *testing.T) (map[string]string, []string, *index.Index) {
 		"helper.php": "<?php function helper($x) { return $x; }",
 		"ping.php":   "<?php function ping($n) { if ($n) { pong(helper($n)); } exec($n); }",
 		"pong.php":   "<?php function pong($n) { ping($n); }",
-		"user.php":   "<?php ping($_POST['b']);",
+		"user.php":   "<?php function main() { ping($_POST['b']); }",
 		"shell.php":  "<?php function shell($c) { system($c); }",
 		"loop.php":   "<?php function loop($n) { if ($n) { loop($n - 1); } }",
 		"caller.php": "<?php shell($_GET['x']); loop(1);",
@@ -76,8 +77,13 @@ func updateLikeFull(t *testing.T, build *FlowBuild, path, src string, ix *index.
 			delete(counts, path)
 		}
 	}
-	if !next.Snapshot.Equal(full.Snapshot) || next.traced && (!reflect.DeepEqual(next.seen, full.seen) || !reflect.DeepEqual(next.declares, full.declares)) {
-		t.Fatalf("%s: update differs from a full build: snapshot %v traced %v seen %v declares %v", filepath.Base(path), next.Snapshot.Equal(full.Snapshot), next.traced, reflect.DeepEqual(next.seen, full.seen), reflect.DeepEqual(next.declares, full.declares))
+	if !next.Snapshot.Equal(full.Snapshot) {
+		t.Fatalf("%s: update differs from a full build", filepath.Base(path))
+	}
+	for i := range next.files {
+		if next.traced && (next.stale == nil || !next.stale[i]) && (!reflect.DeepEqual(next.seen[i], full.seen[i]) || !slices.Equal(next.declares[i], full.declares[i])) {
+			t.Fatalf("%s: record of %s differs from a full build", filepath.Base(path), filepath.Base(next.files[i]))
+		}
 	}
 	return next
 }
@@ -123,8 +129,19 @@ func TestFlowUpdateRescopeFallsBack(t *testing.T) {
 		setup func(build *FlowBuild) *FlowBuild
 	}{
 		{"untraced", func(build *FlowBuild) *FlowBuild {
-			// An update outside any recursion loses the record.
-			next := updateLikeFull(t, build, paths["caller.php"], "<?php shell($_GET['y']); loop(2);", ix, nil)
+			// An update outside any recursion whose file has no summaries
+			// leaves what it declares unknown.
+			old := extractFlow
+			t.Cleanup(func() { extractFlow = old })
+			extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
+				if f.Path == paths["shell.php"] {
+					return nil
+				}
+				return old(f, ix, v, s, o)
+			}
+			next := updateLikeFull(t, build, paths["shell.php"], "<?php function shell($c) { exec($c); }", ix, nil)
+			// Nor does the next one tell it.
+			next = updateLikeFull(t, next, paths["user.php"], "<?php function main() { ping($_GET['b']); }", ix, nil)
 			if next.traced {
 				t.Fatal("record kept")
 			}
@@ -183,5 +200,89 @@ func TestSameSummaries(t *testing.T) {
 	other := &flow.File{Path: "a.php", Summaries: map[string]flow.Summary{"b": {}}}
 	if !sameSummaries(nil, nil) || sameSummaries(file, nil) || sameSummaries(nil, file) || !sameSummaries(file, file) || sameSummaries(file, other) {
 		t.Fatal("summaries compared wrongly")
+	}
+}
+
+// An update outside any recursion leaves the records of the files reading
+// the changed one stale; the next update within a recursion summarizes
+// them again and stays within its scope.
+func TestFlowUpdateRetracesStaleRecords(t *testing.T) {
+	paths, files, ix := rescopeProject(t)
+	opt := syntax.Options{Version: phpversion.Default}
+	build := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
+	counts := countSummaries(t)
+	build = updateLikeFull(t, build, paths["user.php"], "<?php function main() { ping($_GET['b']); }", ix, nil)
+	var stale []string
+	for i, s := range build.stale {
+		if s {
+			stale = append(stale, filepath.Base(build.files[i]))
+		}
+	}
+	if !build.traced || !slices.Equal(stale, []string{"user.php"}) {
+		t.Fatalf("stale records: %v", stale)
+	}
+	clear(counts)
+	build = updateLikeFull(t, build, paths["ping.php"], "<?php function ping($n) { if ($n) { pong(helper($n)); } passthru($n); }", ix, counts)
+	if counts[paths["shell.php"]] != 0 || counts[paths["user.php"]] == 0 || slices.Contains(build.stale, true) {
+		t.Fatalf("scoped update: summaries=%v stale=%v", counts, build.stale)
+	}
+	// Stale records stay stale over updates, as do their readers.
+	build = updateLikeFull(t, build, paths["caller.php"], "<?php shell($_GET['y']); loop(2);", ix, nil)
+	build = updateLikeFull(t, build, paths["user.php"], "<?php function main() { ping($_POST['b']); }", ix, nil)
+	build = updateLikeFull(t, build, paths["shell.php"], "<?php function shell($c) { exec($c); }", ix, nil)
+	stale = stale[:0]
+	for i, s := range build.stale {
+		if s {
+			stale = append(stale, filepath.Base(build.files[i]))
+		}
+	}
+	if !slices.Equal(stale, []string{"caller.php", "shell.php", "user.php"}) || !slices.Equal(build.declares[build.at[paths["shell.php"]]], []string{"shell"}) {
+		t.Fatalf("stale records: %v, declares %v", stale, build.declares[build.at[paths["shell.php"]]])
+	}
+	// The next update within a recursion summarizes them all again.
+	clear(counts)
+	build = updateLikeFull(t, build, paths["ping.php"], "<?php function ping($n) { if ($n) { pong(helper($n)); } exec($n); }", ix, counts)
+	if counts[paths["caller.php"]] == 0 || slices.Contains(build.stale, true) {
+		t.Fatalf("stale records not summarized again: summaries=%v", counts)
+	}
+}
+
+// A stale record keeps what the file consulted since, so the next update
+// within a recursion summarizes what it now calls along.
+func TestFlowUpdateStaleRecordHints(t *testing.T) {
+	paths, files, ix := rescopeProject(t)
+	opt := syntax.Options{Version: phpversion.Default}
+	build := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
+	counts := countSummaries(t)
+	build = updateLikeFull(t, build, paths["user.php"], "<?php function main() { ping($_POST['b']); shell($_GET['c']); }", ix, nil)
+	clear(counts)
+	updateLikeFull(t, build, paths["ping.php"], "<?php function ping($n) { if ($n) { pong(helper($n)); } passthru($n); }", ix, counts)
+	if counts[paths["shell.php"]] == 0 || counts[paths["loop.php"]] != 0 {
+		t.Fatalf("summaries=%v", counts)
+	}
+}
+
+// A file whose summaries crashed has no record: once an update summarizes
+// it, what it consulted starts one.
+func TestFlowUpdateRecordsFirstSummaries(t *testing.T) {
+	paths, files, ix := rescopeProject(t)
+	opt := syntax.Options{Version: phpversion.Default}
+	old := extractFlow
+	t.Cleanup(func() { extractFlow = old })
+	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
+		if f.Path == paths["user.php"] {
+			return nil
+		}
+		return old(f, ix, v, s, o)
+	}
+	build := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
+	extractFlow = old
+	i := build.at[paths["user.php"]]
+	if build.seen[i] != nil {
+		t.Fatal("crashed summaries recorded")
+	}
+	build = updateLikeFull(t, build, paths["user.php"], "<?php function main() { ping($_GET['b']); }", ix, nil)
+	if !build.stale[i] || !build.seen[i]["ping"] {
+		t.Fatalf("record: stale=%v seen=%v", build.stale[i], build.seen[i])
 	}
 }
