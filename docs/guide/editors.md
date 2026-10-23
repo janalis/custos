@@ -18,17 +18,17 @@ What it offers:
   `custos.fixRule` (arguments: the document URI and a rule ID), which apply
   the quick-fixes of an open document.
 
-Diagnostics follow your typing with a short delay (150 ms). The server then
-updates the cross-file flow summaries of the edited file in the background
-and, when they changed, re-checks the other open files. Saving a file
-updates the project index and re-checks the other open files. When the
-client supports dynamic file watchers, the server also watches `**/*.php`,
-so changes made outside the editor (a `git checkout`, generated code) reach
-the index, and the [baseline](./suppressing#baseline) file, so regenerating
-it takes effect at once. The server starts from the declarations the command
-line [keeps between runs](./cli#paths) and parses only the files that changed
-since. With `flow.order` set, it also summarizes the cross-file flow in the
-order the last run saved, and saves its own.
+Diagnostics follow your typing with a short delay (150 ms). Once you pause
+for a second, the server updates the cross-file flow summaries of the edited
+files in the background and, when they changed, re-checks the other open
+files. Saving a file updates the project index and re-checks the other open
+files. When the client supports dynamic file watchers, the server also
+watches `**/*.php`, so changes made outside the editor (a `git checkout`,
+generated code) reach the index, and the [baseline](./suppressing#baseline)
+file, so regenerating it takes effect at once. The server starts from the
+declarations the command line [keeps between runs](./cli#paths) and parses
+only the files that changed since. With `flow.order` set, it also summarizes
+the cross-file flow in the order the last run saved, and saves its own.
 
 ## Settings
 

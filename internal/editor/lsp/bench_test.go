@@ -111,6 +111,8 @@ func TestWorkspaceEditLatency(t *testing.T) {
 	if err != nil {
 		t.Skip(err)
 	}
+	defer func(d time.Duration) { FlowDelay = d }(FlowDelay)
+	FlowDelay = time.Hour
 	clock := &publishClock{}
 	s := whiteBox(t, root, clock, catalogue.All()...)
 	if s.beginIndexing() {
@@ -135,6 +137,7 @@ func TestWorkspaceEditLatency(t *testing.T) {
 		clock.reset()
 		start, startCPU := time.Now(), testbudget.CPU()
 		s.analyzeChanged(uri)
+		s.reflowPending() // as once editing pauses
 		wall, cpu = append(wall, time.Since(start)), append(cpu, testbudget.CPU()-startCPU)
 		published = append(published, clock.at.Sub(start))
 	}

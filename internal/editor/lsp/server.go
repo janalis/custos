@@ -23,6 +23,10 @@ import (
 // Debounce is the delay between the last edit and re-analysis.
 var Debounce = 150 * time.Millisecond
 
+// FlowDelay is the pause in editing after which the cross-file flow
+// summaries of the edited documents are updated (see reflowLater).
+var FlowDelay = time.Second
+
 const (
 	cmdFixFile = "custos.fixFile"
 	cmdFixRule = "custos.fixRule"
@@ -75,6 +79,9 @@ type Server struct {
 	// queued in reflowQueue.
 	reflowing   bool
 	reflowQueue map[string]bool
+	// flowPending holds the documents edited since flowTimer was set.
+	flowPending map[string]bool
+	flowTimer   *time.Timer
 	shutdown    bool
 	// sem bounds concurrent analyses.
 	sem chan struct{}

@@ -45,8 +45,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   if they changed. Editing a file on a cycle of calls across files, such as
   symfony/console's Application.php in the Symfony repository, no longer
   holds its diagnostics for 15 seconds or more while every summary is
-  rebuilt: they arrive in under 100 ms. Updates run one at a time, and edits
-  made during one are summarized together afterwards.
+  rebuilt: they arrive in under 100 ms. The update waits until editing
+  pauses for a second; updates run one at a time, and edits made during one
+  are summarized together afterwards.
 - After an edit within a cycle of calls, the language server summarizes
   again only the files the edit can change and those whose contracts they
   consult, as long as that provably gives what summarizing every file does;

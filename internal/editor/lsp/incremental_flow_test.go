@@ -6,8 +6,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
+	"time"
+
+	"custos/internal/testing/testbudget"
 
 	"custos/internal/inspection/rules/untrustedshellcommand"
 	"custos/internal/php/syntax"
@@ -169,7 +173,13 @@ func TestFlowUpdateAfterAnalysis(t *testing.T) {
 	}
 	edit("<?php function invoke($arg) { system($arg); /* typing */ }")
 	out.Reset()
+	defer func(d time.Duration) { FlowDelay = d }(FlowDelay)
+	FlowDelay = time.Hour
 	s.analyzeChanged(uri)
+	if len(updates) != 0 || !s.flowPending[uri] {
+		t.Fatal("summaries updated before editing paused")
+	}
+	s.reflowPending()
 	if len(updates) != 2 || !strings.Contains(updates[1], "later") || s.reflowing {
 		t.Fatalf("updates: %q reflowing=%v", updates, s.reflowing)
 	}
@@ -224,5 +234,54 @@ func TestOpenedDocumentUpdatesBuild(t *testing.T) {
 				t.Fatalf("builds=%d", builds)
 			}
 		})
+	}
+}
+
+// Once editing pauses, the summaries of every document edited meanwhile are
+// updated together.
+func TestFlowUpdateAfterPause(t *testing.T) {
+	root := t.TempDir()
+	s := whiteBox(t, root, io.Discard, untrustedshellcommand.New())
+	var uris []string
+	for _, name := range []string{"a.php", "b.php"} {
+		path := filepath.Join(root, name)
+		src := "<?php function " + strings.TrimSuffix(name, ".php") + "($x) { system($x); }"
+		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		uri := "file://" + path
+		s.docs[uri] = &document{uri: uri, path: path, text: []byte(src + " // edited"), lines: syntax.NewLineIndex([]byte(src + " // edited")), analyzed: -1}
+		uris = append(uris, uri)
+	}
+	if !s.beginIndexing() {
+		t.Fatal("index not requested")
+	}
+	s.buildIndex()
+	defer func(f func(*project.FlowBuild, map[string][]byte, *index.Index) (*project.FlowBuild, bool)) {
+		updateFlow = f
+	}(updateFlow)
+	updated := make(chan string, 4)
+	updateFlow = func(b *project.FlowBuild, changed map[string][]byte, ix *index.Index) (*project.FlowBuild, bool) {
+		for path := range changed {
+			updated <- filepath.Base(path)
+		}
+		return b.Update(changed, ix)
+	}
+	defer func(d time.Duration) { FlowDelay = d }(FlowDelay)
+	FlowDelay = 20 * time.Millisecond
+	for _, uri := range uris {
+		s.analyzeChanged(uri)
+	}
+	var got []string
+	for range uris {
+		select {
+		case path := <-updated:
+			got = append(got, path)
+		case <-time.After(testbudget.Of(5 * time.Second)):
+			t.Fatalf("updated: %v", got)
+		}
+	}
+	if !slices.Equal(got, []string{"a.php", "b.php"}) {
+		t.Fatalf("updated: %v", got)
 	}
 }

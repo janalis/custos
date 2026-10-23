@@ -83,9 +83,9 @@ func (s *Server) flowEnabled() bool {
 }
 
 // analyzeChanged publishes the diagnostics of a changed document against the
-// summaries of the other files, then updates its own (see reflow): updating
-// them may take seconds when the document lies on a cycle of calls, during
-// which no declaration another file sees has changed.
+// summaries of the other files, then has its own updated (see reflowLater):
+// updating them may take seconds when the document lies on a cycle of
+// calls, during which no declaration another file sees has changed.
 func (s *Server) analyzeChanged(uri string) {
 	if !s.flowEnabled() {
 		s.analyzeNow(uri)
@@ -93,19 +93,48 @@ func (s *Server) analyzeChanged(uri string) {
 	}
 	s.indexDoc(uri)
 	s.analyzeNow(uri)
-	s.reflow(uri)
+	s.reflowLater(uri)
 }
 
-// reflow updates the flow summaries of uri's buffer (see reindexDoc), one
-// update at a time: a document changed while one runs is queued, and its
-// latest text summarized once that update ends. Open documents are analysed
-// again when a summary changed.
-func (s *Server) reflow(uri string) {
+// reflowLater updates the flow summaries of uri's buffer once editing
+// pauses for FlowDelay, with those of every document edited meanwhile: an
+// update within a recursion keeps cores busy for seconds, which a pause
+// after each keystroke would repeat.
+func (s *Server) reflowLater(uri string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.flowPending == nil {
+		s.flowPending = map[string]bool{}
+	}
+	s.flowPending[uri] = true
+	if s.flowTimer != nil {
+		s.flowTimer.Stop()
+	}
+	s.flowTimer = time.AfterFunc(FlowDelay, s.reflowPending)
+}
+
+// reflowPending updates the flow summaries of the documents reflowLater
+// queued.
+func (s *Server) reflowPending() {
+	s.mu.Lock()
+	uris := slices.Sorted(maps.Keys(s.flowPending))
+	clear(s.flowPending)
+	s.mu.Unlock()
+	s.reflow(uris...)
+}
+
+// reflow updates the flow summaries of the buffers of uris (see
+// reindexDoc), one update at a time: a document changed while one runs is
+// queued, and its latest text summarized once that update ends. Open
+// documents are analysed again when a summary changed.
+func (s *Server) reflow(uris ...string) {
 	s.mu.Lock()
 	if s.reflowQueue == nil {
 		s.reflowQueue = map[string]bool{}
 	}
-	s.reflowQueue[uri] = true
+	for _, uri := range uris {
+		s.reflowQueue[uri] = true
+	}
 	if s.reflowing {
 		s.mu.Unlock()
 		return
