@@ -333,8 +333,8 @@ func TestFlowBuildUpdateKeepsOrder(t *testing.T) {
 		whole bool
 	}{{plain, false}, {BuildFlowOrdered(context.Background(), files, nil, opt, ix, flow.Options{}, plain.Order()), true}} {
 		next, ok := tc.build.Update(edit, ix)
-		if !ok || next.ordered != tc.whole || !slices.Contains(next.results, nil) == !tc.whole {
-			t.Fatalf("ordered %v: update ok=%v ordered=%v dropped=%v", tc.whole, ok, next.ordered, slices.Contains(next.results, nil))
+		if !ok || (next.order != nil) != tc.whole || !slices.Contains(next.results, nil) == !tc.whole {
+			t.Fatalf("ordered %v: update ok=%v ordered=%v dropped=%v", tc.whole, ok, next.order != nil, slices.Contains(next.results, nil))
 		}
 	}
 }

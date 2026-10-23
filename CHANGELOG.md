@@ -47,6 +47,12 @@ versions follow [Semantic Versioning](https://semver.org/).
   holds its diagnostics for 15 seconds or more while every summary is
   rebuilt: they arrive in under 100 ms. Updates run one at a time, and edits
   made during one are summarized together afterwards.
+- After an edit within a cycle of calls, the language server summarizes
+  again only the files the edit can change and those whose contracts they
+  consult, as long as that provably gives what summarizing every file does;
+  otherwise it still summarizes every file. On the Symfony repository, the
+  update after an edit to symfony/console's Application.php takes 40% less
+  CPU time.
 - The command line, the language server and the MCP server discover files
   alike. `custos analyse` and `custos fix` index every file under `paths`
   even when the command line names only some, so cross-file results no

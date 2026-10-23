@@ -2,6 +2,7 @@ package flow
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -199,8 +200,11 @@ func TestSummariesKnowTheContractsTheyUsed(t *testing.T) {
 	// no other file declares it; then it compares as any other.
 	e, f = environment(t, `function wrap($c){return inner($c);} function inner($c){return $_GET['x'];}`, nil)
 	_, alone := Summarize(f, e.types, NewSnapshot(), Options{})
-	if !alone.served["inner"] || len(alone.Reads()) != 0 {
-		t.Fatalf("served=%v reads=%v", alone.served, alone.Reads())
+	if !alone.served["inner"] || len(alone.Reads()) != 0 || !slices.Equal(alone.Consulted(), []string{"inner"}) {
+		t.Fatalf("served=%v reads=%v consulted=%v", alone.served, alone.Reads(), alone.Consulted())
+	}
+	if !slices.Equal(own.Consulted(), own.Reads()) || len(own.Reads()) == 0 {
+		t.Fatalf("held: consulted=%v reads=%v", own.Consulted(), own.Reads())
 	}
 	rival := &File{Path: "rival.php", Summaries: map[string]Summary{"inner": {}}}
 	if !alone.Current(NewSnapshot(), NewSnapshot(alone)) || !alone.Current(NewSnapshot(), NewSnapshot(alone, rival)) || alone.Current(NewSnapshot(rival), NewSnapshot(alone, rival)) {

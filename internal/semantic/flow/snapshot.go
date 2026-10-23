@@ -72,6 +72,17 @@ type File struct {
 // a recursion, the summaries depend on what the snapshot held for them.
 func (f *File) Reads() []string { return f.held }
 
+// Consulted returns the summary keys of every contract the summaries were
+// computed from: those Reads lists and those the file's own summaries
+// answered. Nothing else of a snapshot can change them.
+func (f *File) Consulted() []string {
+	keys := slices.Clone(f.held)
+	for key := range f.served {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
 // Current reports that the summaries, extracted under the earlier snapshot,
 // would come out the same under s: no contract they were computed from
 // differs between the two. When s holds these very summaries, those the

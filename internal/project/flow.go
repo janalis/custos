@@ -33,8 +33,16 @@ type FlowBuild struct {
 	sources map[string][]byte
 	opt     syntax.Options
 	options flow.Options
-	// ordered is set when the build took an order (see BuildFlowOrdered).
-	ordered bool
+	// order is the order the build took (see BuildFlowOrdered), nil for
+	// none: a build of all files from none again takes it.
+	order map[string]int
+	// traced is set when seen and declares hold, for each file, the keys
+	// of the contracts every summary of it consulted on the way to its
+	// results, and those its summaries declare, as a build of all files
+	// from none computes them (see rescope).
+	traced   bool
+	seen     []map[string]bool
+	declares [][]string
 }
 
 // Files returns the files the build summarized, in build order.
@@ -68,7 +76,7 @@ func BuildFlowOrdered(ctx context.Context, files []string, srcs [][]byte, opt sy
 		}
 		trees[i] = parseFlowSource(files[i], src, opt)
 	}, nil)
-	b := &FlowBuild{files: files, at: make(map[string]int, len(files)), results: make([]*flow.File, len(trees)), sources: map[string][]byte{}, opt: opt, options: options, ordered: order != nil}
+	b := &FlowBuild{files: files, at: make(map[string]int, len(files)), results: make([]*flow.File, len(trees)), sources: map[string][]byte{}, opt: opt, options: options, order: order, traced: true, seen: make([]map[string]bool, len(files)), declares: make([][]string, len(files))}
 	for i, path := range files {
 		b.at[path] = i
 		if i < len(srcs) && srcs[i] != nil {
@@ -151,7 +159,7 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 		}
 		dirty = append(dirty, i)
 	}
-	next := &FlowBuild{files: b.files, at: b.at, results: append([]*flow.File(nil), b.results...), sources: maps.Clone(b.sources), opt: b.opt, options: b.options, ordered: b.ordered}
+	next := &FlowBuild{files: b.files, at: b.at, results: append([]*flow.File(nil), b.results...), sources: maps.Clone(b.sources), opt: b.opt, options: b.options, order: b.order}
 	maps.Copy(next.sources, changed)
 	var mu sync.Mutex
 	trees := map[int]*syntax.File{}
@@ -182,20 +190,21 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 	// Within a recursion, the fixed point depends on where it starts: when
 	// one depends on a changed file (reading, maybe through others, a
 	// contract it declares itself), the files are summarized again from
-	// none, as a full build does (in the order b gives, when it took one).
-	// Otherwise every file is summarized again
-	// when a contract it read differs from the snapshot it was computed
-	// against, as each summary follows from the contracts it read.
+	// none, as a full build does (in the order b took, if any),
+	// all of them unless rescope can tell which. Otherwise every file is
+	// summarized again when a contract it read differs from the snapshot it
+	// was computed against, as each summary follows from the contracts it
+	// read; how the build of all files from none would have reached them is
+	// then unknown.
 	if next.recursive(dirty) {
+		if scoped := b.rescope(next.sources, dirty, probe, ix); scoped != nil {
+			return scoped, true
+		}
 		srcs := make([][]byte, len(b.files))
 		for i, path := range b.files {
 			srcs[i] = next.sources[path]
 		}
-		var order map[string]int
-		if b.ordered {
-			order = b.Order()
-		}
-		return BuildFlowOrdered(context.Background(), b.files, srcs, b.opt, ix, b.options, order), true
+		return BuildFlowOrdered(context.Background(), b.files, srcs, b.opt, ix, b.options, b.order), true
 	}
 	against := make([]*flow.Snapshot, len(b.files))
 	for i := range against {
@@ -203,6 +212,129 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 	}
 	next.Snapshot = next.compose(context.Background(), flow.NewSnapshotWithOptions(b.options, next.results...), against, ix, tree)
 	return next, true
+}
+
+// rescope returns the build of all files from none after the files of dirty
+// changed (sources as Update has them; probe holds their summaries), made
+// by summarizing from none only the files that build may summarize
+// differently and those whose contracts they consult; nil when that cannot
+// be told. A file outside them consulted, every time it was summarized, no
+// contract of a file the change reaches, and those inside consult only
+// contracts declared inside, so each is summarized exactly as the build of
+// all files summarizes it.
+func (b *FlowBuild) rescope(sources map[string][]byte, dirty []int, probe []*flow.File, ix *index.Index) *FlowBuild {
+	if !b.traced {
+		return nil
+	}
+	declares := slices.Clone(b.declares)
+	for j, i := range dirty {
+		if probe[j] == nil {
+			return nil
+		}
+		// The keys the file declared, and those it now declares.
+		declares[i] = slices.Concat(b.declares[i], slices.Collect(maps.Keys(probe[j].Summaries)))
+	}
+	owners := keyOwners(declares)
+	reads := make([][]int, len(b.files))
+	readers := make([][]int, len(b.files))
+	for i, keys := range b.seen {
+		for key := range keys {
+			for _, j := range owners[key] {
+				reads[i] = append(reads[i], j)
+				readers[j] = append(readers[j], i)
+			}
+		}
+	}
+	reached := closure(dirty, readers)
+	var seed []int
+	for i, in := range reached {
+		if in {
+			seed = append(seed, i)
+		}
+	}
+	// The contracts the changed files consult now, as far as the probe
+	// tells, are likely consulted on the way too.
+	for _, r := range probe {
+		for _, key := range r.Consulted() {
+			seed = append(seed, owners[key]...)
+		}
+	}
+	scope := closure(seed, reads)
+	var files []string
+	var srcs [][]byte
+	var at []int
+	for i, in := range scope {
+		if in {
+			files, srcs, at = append(files, b.files[i]), append(srcs, sources[b.files[i]]), append(at, i)
+		}
+	}
+	if len(files) == len(b.files) {
+		return nil
+	}
+	part := BuildFlowOrdered(context.Background(), files, srcs, b.opt, ix, b.options, b.order)
+	for k, i := range at {
+		declares[i] = part.declares[k]
+	}
+	owners = keyOwners(declares)
+	for k, keys := range part.seen {
+		for key := range keys {
+			for _, j := range owners[key] {
+				if !scope[j] {
+					return nil // a contract declared outside: unlike the full build
+				}
+			}
+		}
+		if i := at[k]; !reached[i] && !sameSummaries(part.results[k], b.results[i]) {
+			return nil
+		}
+	}
+	next := &FlowBuild{files: b.files, at: b.at, results: slices.Clone(b.results), sources: sources, opt: b.opt, options: b.options, order: b.order, traced: true, seen: slices.Clone(b.seen), declares: declares}
+	for k, i := range at {
+		next.results[i], next.seen[i] = part.results[k], part.seen[k]
+	}
+	next.Snapshot = flow.NewSnapshotWithOptions(b.options, next.results...)
+	return next
+}
+
+// keyOwners returns the files declaring each key.
+func keyOwners(declares [][]string) map[string][]int {
+	owners := map[string][]int{}
+	for i, keys := range declares {
+		for _, key := range keys {
+			if files := owners[key]; len(files) == 0 || files[len(files)-1] != i {
+				owners[key] = append(files, i)
+			}
+		}
+	}
+	return owners
+}
+
+// closure returns the nodes reached from seed along edges, seed included.
+func closure(seed []int, edges [][]int) []bool {
+	in := make([]bool, len(edges))
+	stack := slices.Clone(seed)
+	for _, i := range seed {
+		in[i] = true
+	}
+	for len(stack) > 0 {
+		i := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		for _, j := range edges[i] {
+			if !in[j] {
+				in[j] = true
+				stack = append(stack, j)
+			}
+		}
+	}
+	return in
+}
+
+// sameSummaries reports that a and b (either nil) hold the same summaries.
+func sameSummaries(a, b *flow.File) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return flow.NewSnapshot(a).Equal(flow.NewSnapshot(b))
 }
 
 // recursive reports whether a file of seed, or one whose summaries read,
@@ -374,10 +506,26 @@ func (b *FlowBuild) summarize(ctx context.Context, work []int, snapshot *flow.Sn
 	// (16 cores) every core made the whole run about 8% slower.
 	_ = parallel(ctx, len(work), runtime.GOMAXPROCS(0)/2, func(j int) {
 		if file := tree(work[j]); file != nil {
-			b.results[work[j]] = extractFlow(file, ix, b.opt.Version, snapshot, b.options)
-			against[work[j]] = snapshot
+			i := work[j]
+			b.results[i] = extractFlow(file, ix, b.opt.Version, snapshot, b.options)
+			against[i] = snapshot
+			if b.traced && b.results[i] != nil {
+				b.trace(i)
+			}
 		}
 	}, nil)
+}
+
+// trace records what the summaries of file i just consulted and declare.
+func (b *FlowBuild) trace(i int) {
+	r := b.results[i]
+	if b.seen[i] == nil {
+		b.seen[i] = map[string]bool{}
+		b.declares[i] = slices.Sorted(maps.Keys(r.Summaries))
+	}
+	for _, key := range r.Consulted() {
+		b.seen[i][key] = true
+	}
 }
 
 // unsettled drops, once compose stops, every summary computed against
