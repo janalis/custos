@@ -59,6 +59,9 @@ func literalStringHaystack(ctx *analysis.Context, h syntax.Expr) bool {
 		if it == nil || it.Key != nil || it.Unpack || it.Value == nil {
 			return false
 		}
+		if classNameLiteral(it.Value) {
+			continue // `Foo::class` is a class name: never numeric
+		}
 		content, ok := stringLiteralContent(ctx, it.Value)
 		if !ok {
 			return false
@@ -69,6 +72,18 @@ func literalStringHaystack(ctx *analysis.Context, h syntax.Expr) bool {
 		}
 	}
 	return true
+}
+
+// classNameLiteral reports `Name::class` with a written class name (not
+// `$object::class`, which reads a value).
+func classNameLiteral(e syntax.Expr) bool {
+	c, ok := e.(*syntax.ClassConstFetch)
+	if !ok {
+		return false
+	}
+	_, named := c.Class.(*syntax.Name)
+	id, ok := c.Name.(*syntax.Identifier)
+	return named && ok && strings.EqualFold(id.Value, "class")
 }
 
 // stringLiteralContent returns the raw text between the quotes of a quoted

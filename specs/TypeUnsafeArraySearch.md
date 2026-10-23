@@ -37,7 +37,8 @@ Visit every function call.
 - **E1** *Literal string haystack*: `H` is an array literal (`[...]` or
   `array(...)`, not wrapped in parentheses) with at least one element, and
   **every** element is a plain value element (no `key =>`, no spread) whose
-  value is a string literal (any quoting) whose contents, after trimming
+  value is a class name written `Name::class` (custos, see Divergences) or
+  a string literal (any quoting) whose contents, after trimming
   surrounding whitespace, are non-empty and are not a numeric string (PHP's
   grammar: optional sign, digits with an optional decimal part or a bare
   `.5` fraction, optional exponent — `10`, `-1`, `1.5`, `.5`, `1e3`, `+2`).
@@ -145,6 +146,11 @@ function pick($code, array $allowed) {
 ```
 
 ## Divergences
+
+- **Class names (custos diverges, E1).** Upstream only accepts quoted
+  strings in a literal haystack, so `in_array($type, ['string',
+  Header::class])` is reported. A `Name::class` is a class name, never a
+  numeric string: a loose search compares it as a strict one does.
 
 - **Case of the name (custos diverges from upstream).** Upstream compares
   the written name case-sensitively, so `In_Array($a, $b)` is not reported.
