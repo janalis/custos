@@ -36,7 +36,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   an empty one (`$list ?? []`, `$found ? $list : []`) keeps the elements of
   the array, and a method declaring only `: array` or `: iterable` keeps the
   documented return of the method it overrides (`{@inheritDoc}` on
-  Doctrine's `getAllMetadata()` reads `list<ClassMetadata>`).
+  Doctrine's `getAllMetadata()` reads `list<ClassMetadata>`). The array a
+  `foreach` iterates no longer takes the types its body assigns to it later.
 - HardcodedCredentialAtKnownSink matches `excludedPaths` from the workspace
   root in the language server and the MCP server when a file has no
   `custos.json` or `composer.json` above it, instead of the server's working

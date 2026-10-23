@@ -557,12 +557,22 @@ func iterElem(t types.Type) types.Type {
 }
 
 // outermostLoop returns the outermost loop statement enclosing n within
-// scope, or nil.
+// scope, or nil. The array a foreach iterates and the initializers of a for
+// loop are evaluated once, before the loop: they are not within it.
 func outermostLoop(n, scope syntax.Node) syntax.Node {
 	var loop syntax.Node
-	for p := n.Parent(); p != nil && p != scope; p = p.Parent() {
-		switch p.(type) {
-		case *syntax.For, *syntax.Foreach, *syntax.While, *syntax.DoWhile:
+	child := n
+	for p := n.Parent(); p != nil && p != scope; child, p = p, p.Parent() {
+		switch p := p.(type) {
+		case *syntax.Foreach:
+			if syntax.Node(p.Expr) != child {
+				loop = p
+			}
+		case *syntax.For:
+			if !slices.ContainsFunc(p.Init, func(e syntax.Expr) bool { return syntax.Node(e) == child }) {
+				loop = p
+			}
+		case *syntax.While, *syntax.DoWhile:
 			loop = p
 		}
 	}
