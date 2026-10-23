@@ -54,8 +54,10 @@ not `null`):
   body (not at file/class level).
 - D3: resolve the type sets of `L` and `R`. A set is unusable (→ no report)
   when the inferred type is missing, contains an unknown/unresolved part, or
-  contains `mixed` or `object`. From a usable set remove `null` and `static`
-  (`$this` counts as `static`); if it is then empty → no report.
+  contains `mixed` or `object`. From a usable set remove `null`, `static`
+  (`$this` counts as `static`), `never` and `void` (a call to a `void`
+  method evaluates to `null`: `$channel->ack($tag) ?? true` relies on it);
+  if it is then empty → no report.
   Types are normalized: `integer`→`int`, `boolean`/`true`/`false`→`bool`,
   any `T[]`→`array`, `Closure`→`callable`, `iterable`→ both `array` and
   `\Traversable` (custos diverges, see Divergences); class types are
@@ -110,7 +112,12 @@ not `null`):
   `$map ?? [$this, 'identity']`). An operand typed `\Closure` is not
   covered, since only an object satisfies that type; it is still reported
   with a string or array fallback.
-- D6: not complementary, not related, and none of D5a–D5d applies →
+- D5e: boolean sentinel (custos diverges). When `R` is the literal `true`
+  or `false`, the fallback marks an absent value (`$seen[$id] ?? false`,
+  `!(self::$override ?? true)`, a cache slot set to `false` so that `??=`
+  does not compute it again) → no report. (A comparison on the left is a
+  `bool` already: D4 finds the sides complementary.)
+- D6: not complementary, not related, and none of D5a–D5e applies →
   report.
 
 ## Exceptions (no report)
@@ -135,6 +142,8 @@ not `null`):
   to `\Stringable` (D5c).
 - E10: a `callable` operand next to a string or array (D5d).
 - E11: `$v?->m() ?? null` when `$v` is not certainly set (D1a).
+- E12: a `true` or `false` literal fallback (D5e), and a `void` call on the
+  left (D3).
 
 ## Report
 
@@ -252,6 +261,13 @@ class Inventory {
 ```
 
 ## Divergences
+
+- **Boolean sentinels and void calls (custos diverges, D5e, D3).** Upstream
+  compares the types of `$cache[$k] ?? false` like any other pair and
+  reports `?array ?? false`. A boolean literal fallback is a deliberate
+  "absent" marker, so custos does not report it. A `void` call (an
+  extension method that used to return a value) evaluates to `null` and is
+  read as such.
 
 - **Scalar fallbacks (custos diverges, D5a).** Upstream reports any `??`
   whose scalar operand types differ, e.g. a nullable `int` with a string

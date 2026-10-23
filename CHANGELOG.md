@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- ProperNullCoalescingOperatorUsage no longer reports a `true` or `false`
+  fallback (`$seen[$id] ?? false`), a deliberate "absent" marker, nor a
+  `void` call on the left, which evaluates to null.
 - StreamOpenFailureUnchecked and FileReadFailureUnchecked no longer report
   PHP's own streams (`php://memory`, `php://temp`, `php://output`, the
   standard streams), which always open. On PHP 8.0 and later, a stream

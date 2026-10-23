@@ -6,7 +6,7 @@ class VerbPolicy
 
     public function fallback()
     {
-        return <weak_warning descr="Operand types of '??' do not match ([array] vs [bool]).">$this->verbs ?? true</weak_warning>;
+        return <weak_warning descr="Operand types of '??' do not match ([array] vs [string]).">$this->verbs ?? 'all'</weak_warning>;
     }
 }
 

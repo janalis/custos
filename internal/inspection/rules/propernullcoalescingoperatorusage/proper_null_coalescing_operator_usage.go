@@ -82,7 +82,7 @@ func (r properNullCoalescingOperatorUsage) Check(ctx *analysis.Context, n syntax
 			}
 		}
 	}
-	if complementary || pncoScalarOnly(lt) && pncoScalarOnly(rt) && !pncoNeverNull(b.Left) || r.related(ctx, lt, rt) || r.sameFamily(ctx, lt, rt) ||
+	if complementary || pncoScalarOnly(lt) && pncoScalarOnly(rt) && !pncoNeverNull(b.Left) || pncoBoolSentinel(b) || r.related(ctx, lt, rt) || r.sameFamily(ctx, lt, rt) ||
 		pncoCallableValue(ctx, b.Left, rt) || pncoCallableValue(ctx, b.Right, lt) {
 		return
 	}
@@ -101,8 +101,9 @@ func (properNullCoalescingOperatorUsage) typeSet(ctx *analysis.Context, e syntax
 	out := map[string]bool{}
 	for _, a := range t.Atoms() {
 		switch {
-		case a == "null" || a == "static" || a == "never":
-			// never (`?? throw …`) is the bottom type: it fits any side.
+		case a == "null" || a == "static" || a == "never" || a == "void":
+			// never (`?? throw …`) is the bottom type: it fits any side; a
+			// void call evaluates to null.
 			continue
 		case a == "true" || a == "false":
 			a = "bool"
@@ -202,6 +203,17 @@ func pncoScalarOnly(set map[string]bool) bool {
 		}
 	}
 	return true
+}
+
+// pncoBoolSentinel reports a `true` or `false` literal fallback marking an
+// absent value (D5e).
+func pncoBoolSentinel(b *syntax.Binary) bool {
+	c, ok := syntax.UnwrapParens(b.Right).(*syntax.ConstFetch)
+	if !ok {
+		return false
+	}
+	name := strings.ToLower(strings.TrimPrefix(c.Name.Value, `\`))
+	return name == "true" || name == "false"
 }
 
 // pncoNeverNull reports whether e is an operator expression whose value is
