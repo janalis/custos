@@ -105,6 +105,23 @@ own fix.
   neither kind is reported.
 - **E7** (custos) `json_decode` whose flags provably set
   `JSON_OBJECT_AS_ARRAY` (D1a) — no kind T.
+- **E8** (custos, see Divergences) Kind E when the code tests the result
+  for failure where it is produced: the call itself (or the ternary it is
+  a branch of, `$x = $ok ? json_decode($s, true) : [];`), the plain assignment
+  storing it in a variable, or that variable's first occurrence after the
+  assignment in the same function (not inside a nested function, closure
+  or class, and not written again there), parentheses aside, is
+  - the condition of a ternary (`?:` included), `if`, `elseif` or `while`;
+  - the operand of `!`;
+  - compared with `==`, `!=`, `===` or `!==` to `false` or `null`;
+  - the argument of a type test: `is_array`, `is_string`, `is_object`,
+    `is_null`, `is_bool`, `is_int`, `is_float`, `is_scalar`,
+    `is_iterable` or `is_countable`;
+  - for `json_decode` (whose failure value is `null`), the left operand of
+    `??`.
+  `$json = json_encode($q); $key = false === $json ? '' : $json;`,
+  `$rows = json_decode($raw, true); if (!is_array($rows)) { … }` and
+  `json_decode($raw, true) ?: []` are not reported.
 
 ## Report
 
@@ -284,6 +301,13 @@ class Exporter {
 ```
 
 ## Divergences
+
+- **Handled failures (custos diverges from upstream, E8).** Upstream asks
+  for `JSON_THROW_ON_ERROR` on every call. When the code already tests the
+  result for the failure value and falls back (`?: []`, `is_array()`,
+  `false === $json`), adding the flag turns that fallback into an
+  exception the caller does not catch: the suggested fix changes
+  behavior. custos does not report kind E there.
 
 - **Case of the name (custos diverges from upstream).** Upstream compares
   the written name case-sensitively, so `JSON_DECODE($s)` is not reported.

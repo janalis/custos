@@ -114,6 +114,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` when the
+  code tests the result for failure where it is produced (`?: []`,
+  `is_array()`, `false === $json`): the flag would turn that fallback into
+  an uncaught exception.
 - PotentialMalware no longer reports `touch()` with three arguments or
   `get_defined_functions()` in test code, where they set up fixtures.
 - The assertion methods of PHPUnit and `webmozart/assert`

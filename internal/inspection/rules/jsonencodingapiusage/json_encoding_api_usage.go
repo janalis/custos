@@ -103,6 +103,9 @@ func (jsonEncodingAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if hasFlags && jsonStrictFlags(ctx, flags.Value) { // D4, D5
 		return
 	}
+	if jsonFailureHandled(call, decode) { // E8
+		return
+	}
 	throwConst := jsonThrowConst(ctx, span.Start)
 	if hasFlags && flags.Name != nil { // F4: add the constant to the named flags
 		val := flags.Value
@@ -293,4 +296,119 @@ func jsonStrictFlags(ctx *analysis.Context, f syntax.Expr) bool {
 		return !strict
 	})
 	return strict
+}
+
+// jsonTypeChecks are the type tests that tell a JSON result from the
+// failure value (E8).
+var jsonTypeChecks = map[string]bool{
+	"is_array": true, "is_string": true, "is_object": true, "is_null": true, "is_bool": true,
+	"is_int": true, "is_float": true, "is_scalar": true, "is_iterable": true, "is_countable": true,
+}
+
+// jsonFailureHandled reports whether the result of call is tested for the
+// failure value where it is produced (E8): the call itself (or the ternary
+// it is a branch of), or, when a plain assignment stores it in a variable,
+// the assignment or that variable's first read after it in the same scope.
+func jsonFailureHandled(call *syntax.FuncCall, decode bool) bool {
+	x := jsonOuter(call)
+	// A branch of a ternary is produced where the ternary is.
+	for t, ok := x.Parent().(*syntax.Ternary); ok && syntax.Node(t.Cond) != x; t, ok = x.Parent().(*syntax.Ternary) {
+		x = jsonOuter(t)
+	}
+	if a, ok := x.Parent().(*syntax.Assign); ok && a.Op.Kind == syntax.TEqual && !a.ByRef && syntax.Node(a.Value) == x {
+		if jsonFailureTest(jsonOuter(a), decode) {
+			return true // `if ($data = json_decode(…))`
+		}
+		v, ok := syntax.UnwrapParens(a.Var).(*syntax.Variable)
+		if !ok || v.Name == "" || v.NameExpr != nil {
+			return false
+		}
+		read := jsonFirstRead(v.Name, a)
+		if read == nil {
+			return false
+		}
+		x = jsonOuter(read)
+	}
+	return jsonFailureTest(x, decode)
+}
+
+// jsonOuter returns x with the parentheses around it.
+func jsonOuter(x syntax.Expr) syntax.Expr {
+	for {
+		p, ok := x.Parent().(*syntax.Paren)
+		if !ok {
+			return x
+		}
+		x = p
+	}
+}
+
+// jsonFirstRead returns the first occurrence of variable name after
+// assignment a in its scope (nil when there is none or it is written
+// there).
+func jsonFirstRead(name string, a *syntax.Assign) syntax.Expr {
+	scope := syntax.EnclosingVariableScope(a)
+	var first *syntax.Variable
+	syntax.Inspect(scope, func(n syntax.Node) bool {
+		switch v := n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
+			return n == scope
+		case *syntax.Variable:
+			if v.Name == name && v.Span().Start >= a.Span().End && (first == nil || v.Span().Start < first.Span().Start) {
+				first = v
+			}
+		}
+		return true
+	})
+	if first == nil {
+		return nil
+	}
+	if w, ok := jsonOuter(first).Parent().(*syntax.Assign); ok && syntax.Node(w.Var) == jsonOuter(first) {
+		return nil
+	}
+	return first
+}
+
+// jsonFailureTest reports whether x is tested for a failed JSON call: the
+// condition of a ternary (`?:` included) or of an if, elseif or while,
+// negated with `!`, compared with false or null, given to a type test
+// (is_array() and the like), or, for json_decode (null on failure), the
+// left operand of `??`.
+func jsonFailureTest(x syntax.Expr, decode bool) bool {
+	switch p := x.Parent().(type) {
+	case *syntax.Ternary:
+		return syntax.Node(p.Cond) == x
+	case *syntax.If:
+		return syntax.Node(p.Cond) == x
+	case *syntax.ElseIf:
+		return syntax.Node(p.Cond) == x
+	case *syntax.While:
+		return syntax.Node(p.Cond) == x
+	case *syntax.Unary:
+		return p.Op.Kind == syntax.TExclaim
+	case *syntax.Binary:
+		switch p.Op.Kind {
+		case syntax.TCoalesce:
+			return decode && syntax.Node(p.Left) == x
+		case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+			other := p.Right
+			if syntax.Node(other) == x {
+				other = p.Left
+			}
+			c, ok := syntax.UnwrapParens(other).(*syntax.ConstFetch)
+			name := ""
+			if ok {
+				name = strings.ToLower(strings.TrimPrefix(c.Name.Value, `\`))
+			}
+			return name == "false" || name == "null"
+		}
+	case *syntax.Arg:
+		f, ok := p.Parent().Parent().(*syntax.FuncCall)
+		if !ok {
+			return false
+		}
+		nm, ok := f.Name.(*syntax.Name)
+		return ok && jsonTypeChecks[strings.ToLower(strings.TrimPrefix(nm.Value, `\`))]
+	}
+	return false
 }
