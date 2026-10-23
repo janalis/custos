@@ -40,22 +40,56 @@ func (r alterInForeach) Check(ctx *analysis.Context, n syntax.Node) {
 
 // checkByRef implements part A (D1-D3).
 func (alterInForeach) checkByRef(ctx *analysis.Context, f *syntax.Foreach, name string) {
-	next := byRefFollower(ctx.File, f) // D2
-	switch nx := next.(type) {         // D3
-	case nil, *syntax.Return:
-		return
-	case *syntax.ExprStmt:
-		if _, ok := nx.Expr.(*syntax.Throw); ok {
+	// D3a: an outer loop that leaves the variable to the inner one may
+	// release it instead.
+	for loop := syntax.Node(f); loop != nil; loop = outerLoopLeaving(loop, name) {
+		if releasedAfter(ctx.File, loop, name) {
 			return
-		}
-	case *syntax.Unset:
-		for _, v := range nx.Vars {
-			if vn, ok := astquery.PlainVariableName(v); ok && vn == name {
-				return
-			}
 		}
 	}
 	ctx.ReportNode(f.Value, "Unset '$"+name+"' right after the loop: it is still a reference to the last element.")
+}
+
+// releasedAfter reports whether the follower of loop ends the reference
+// held in name (D3).
+func releasedAfter(f *syntax.File, loop syntax.Node, name string) bool {
+	switch nx := byRefFollower(f, loop).(type) { // D2
+	case nil, *syntax.Return:
+		return true
+	case *syntax.ExprStmt:
+		_, ok := nx.Expr.(*syntax.Throw)
+		return ok
+	case *syntax.Unset:
+		for _, v := range nx.Vars {
+			if vn, ok := astquery.PlainVariableName(v); ok && vn == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// outerLoopLeaving returns the loop enclosing loop when it mentions name
+// nowhere outside loop, nil otherwise.
+func outerLoopLeaving(loop syntax.Node, name string) syntax.Node {
+	outer := enclosingBreakable(loop, false)
+	if outer == nil {
+		return nil
+	}
+	mentioned := false
+	syntax.Inspect(outer, func(n syntax.Node) bool {
+		if n == loop || mentioned {
+			return false
+		}
+		if v, ok := n.(*syntax.Variable); ok && v.Name == name {
+			mentioned = true
+		}
+		return true
+	})
+	if mentioned {
+		return nil
+	}
+	return outer
 }
 
 // checkUnset implements part B (D4-D6).

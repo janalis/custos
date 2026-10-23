@@ -7,16 +7,18 @@ function breaks(array $xs, $mode) {
     }
     echo $mode;
 
+    // The outer loops leave $b and $c alone: the unset after them releases
+    // the reference.
     while ($mode) {
         while ($xs) {
-            foreach ($xs as &<warning descr="Unset '$b' right after the loop: it is still a reference to the last element.">$b</warning>) { $b++; }
+            foreach ($xs as &$b) { $b++; }
             break 2;
         }
     }
     unset($b);
 
     while ($mode) {
-        foreach ($xs as &<warning descr="Unset '$c' right after the loop: it is still a reference to the last element.">$c</warning>) { $c++; }
+        foreach ($xs as &$c) { $c++; }
         continue;
     }
     unset($c);

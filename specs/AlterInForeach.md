@@ -57,13 +57,20 @@ its parent, skipping whitespace and ordinary comments (`//`, `#`, `/* */`) but
     function): restart the search from that construct, as if it were the
     foreach, and repeat while the result is again such a `break`. A `break`
     with a level (`break 2;`), a `continue`, or a stray `break` with no
-    enclosing loop/switch is an ordinary follower (reported).
+    enclosing loop/switch is an ordinary follower (D3, then D3a).
 - **D3** No report when any of these holds:
   - `N` does not exist;
   - `N` is a `return` statement or a `throw` statement;
   - `N` is an `unset(...)` statement with at least one argument that is a
     plain variable whose name equals `V`'s name (case-sensitive; other
     arguments ignored).
+- **D3a** When D3 does not apply and the foreach is inside another loop
+  (`foreach`, `for`, `while` or `do`) of the same function that mentions
+  no variable named like `V` outside the foreach (in its header or its
+  body), repeat D2 and D3 from that outer loop; continue outward while
+  the outer loop meets the same condition. Each pass of the outer loop
+  rebinds `V` before anything else uses it, so the reference only
+  outlives the outermost loop checked.
   Otherwise report `V` (severity warning).
 
 ### B. Unset of a non-reference value
@@ -247,3 +254,10 @@ function tail(array $list) {
   skips empty statements and follows a plain `break;` to the statement after
   the loop or switch it leaves (D2), consistent with the branch-follower
   rule above.
+- **custos diverges — part A, nested loops (D3a).** Upstream only looks
+  at what follows the by-reference loop itself, so an inner
+  `foreach ($items as &$item)` followed by more statements of the outer
+  loop is reported even when `unset($item)` comes right after the outer
+  loop (Symfony's event dispatcher). As long as the outer loop never uses
+  the variable, nothing can write through the stale reference before the
+  next inner loop rebinds it or the unset releases it: custos stays silent.
