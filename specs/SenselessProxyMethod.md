@@ -141,6 +141,13 @@ When D1–D10 all hold and E7–E9 do not apply, report.
   passes every declared parameter, so the parent sees an argument the
   caller left out; without the proxy it would not.
 
+- **E10** (custos, see Divergences) The parent method carries an
+  attribute other than `#[\Override]`. Code that reads attributes through
+  reflection sees the child's override, without them, in place of the
+  parent's method: removing the override changes what it finds (a
+  `#[Route]` on a framework's base controller action then applies to every
+  subclass).
+
 ## Report
 
 - Range: the method's name identifier.
@@ -352,6 +359,11 @@ class DiskStore extends Store
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,
   are not recognized as equivalent. custos folds the case of those names
   (Detection, "Name case").
+- **custos diverges — attributes of the parent method (E10).** Upstream
+  only looks at the child's attributes. An override hides the parent
+  method's attributes from reflection on the child class (Symfony's route
+  loader reads `#[Route]` on inherited actions), so removing it is not
+  neutral; custos does not report it.
 - **custos diverges — PHP 4 constructors (E7).** Below PHP 8.0, removing a
   `__construct` proxy from a non-namespaced class that also has a method
   named like the class turns that method into the constructor (found on

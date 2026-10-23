@@ -120,13 +120,16 @@ type Method struct {
 	Static     bool       `json:"static,omitempty"`
 	Abstract   bool       `json:"abstract,omitempty"`
 	Final      bool       `json:"final,omitempty"`
-	ByRef      bool       `json:"byRef,omitempty"`
-	Params     []Param    `json:"params,omitempty"`
-	Return     string     `json:"ret,omitempty"`
-	RetVer     []VerType  `json:"rv,omitempty"` // older versions' return types (see Function.RetVer)
-	DocReturn  string     `json:"dret,omitempty"`
-	Inferred   string     `json:"iret,omitempty"` // body-derived return type (see Function.Inferred)
-	CondReturn string     `json:"cret,omitempty"` // conditional return type (see Function.CondReturn)
+	// Attrs are the FQNs of the method's attributes, in source order (none
+	// for stubs, whose attributes describe the stub).
+	Attrs      []string  `json:"attrs,omitempty"`
+	ByRef      bool      `json:"byRef,omitempty"`
+	Params     []Param   `json:"params,omitempty"`
+	Return     string    `json:"ret,omitempty"`
+	RetVer     []VerType `json:"rv,omitempty"` // older versions' return types (see Function.RetVer)
+	DocReturn  string    `json:"dret,omitempty"`
+	Inferred   string    `json:"iret,omitempty"` // body-derived return type (see Function.Inferred)
+	CondReturn string    `json:"cret,omitempty"` // conditional return type (see Function.CondReturn)
 	// GenReturn is the documented return type when it mentions class
 	// templates, which appear as `\~T` atoms (see Class.Templates); bound
 	// per receiver by infer. Empty otherwise.

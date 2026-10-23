@@ -401,6 +401,13 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 		ByRef: m.ByRef, Params: x.params(m.Params, d, at), Span: m.Span(),
 		Avail: x.avail(m.Attrs, d), EmptyBody: m.Body != nil && len(m.Body.Stmts) == 0 && !promotes(m.Params),
 	}
+	if !x.stub {
+		for _, g := range m.Attrs {
+			for _, a := range g.Attrs {
+				meth.Attrs = append(meth.Attrs, x.r.Class(a.Name.Value, a.Span().Start))
+			}
+		}
+	}
 	if strings.EqualFold(m.Name.Value, "__construct") {
 		meth.StoresParams, meth.Stores = storedParams(m)
 		meth.CtorTpl = x.ctorTemplates(d, m.Params, at)

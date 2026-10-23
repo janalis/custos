@@ -114,6 +114,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- SenselessProxyMethod no longer reports an override whose parent method
+  carries attributes other than `#[\Override]`: the override hides them
+  from reflection on the child (a `#[Route]` on a base controller action),
+  so removing it is not neutral.
 
 ## [0.1.7] - 2026-10-21
 

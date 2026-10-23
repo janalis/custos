@@ -85,6 +85,11 @@ func (senselessProxyMethod) Check(ctx *analysis.Context, n syntax.Node) {
 	if spmTraitProvides(ctx, own, strings.ToLower(m.Name.Value), map[string]bool{}) { // E8
 		return
 	}
+	for _, a := range pm.Attrs { // E10
+		if !strings.EqualFold(strings.TrimPrefix(a, `\`), "Override") {
+			return
+		}
+	}
 	pmDecl := semanticquery.MethodDecl(ctx.File, ix, pm, ctx.PHP)
 	if !returns && !spmParentReturnsNothing(pm, pmDecl) { // D10
 		return
