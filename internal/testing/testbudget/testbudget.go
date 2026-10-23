@@ -15,11 +15,12 @@ import (
 const reference = 4 * time.Millisecond
 
 // Of returns d scaled by how much slower than the reference the machine is
-// right now (never less than d itself). It calibrates on every call (about
-// 10 ms), so call it right after the timed work: the load then is the load
-// the work ran under, not that of a quieter moment earlier in the run.
+// right now (never less than d itself), and by raceFactor in a
+// race-detector build. It calibrates on every call (about 10 ms), so call
+// it right after the timed work: the load then is the load the work ran
+// under, not that of a quieter moment earlier in the run.
 func Of(d time.Duration) time.Duration {
-	return time.Duration(float64(d) * scale(calibrate(), reference))
+	return time.Duration(float64(d) * scale(calibrate(), reference) * raceFactor)
 }
 
 // scale is the slowdown factor of measured against ref, at least 1.
