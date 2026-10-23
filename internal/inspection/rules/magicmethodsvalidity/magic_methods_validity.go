@@ -374,7 +374,7 @@ func (c *magicCheck) callsParent() {
 		return
 	}
 	pm := ix.FindMethod(parent, c.name, c.ctx.PHP)
-	if pm == nil || pm.Abstract || pm.Visibility == index.Private || pm.EmptyBody {
+	if pm == nil || pm.Abstract || pm.Visibility == index.Private || pm.EmptyBody || throwableConstructor(pm) {
 		return
 	}
 	called := false
@@ -576,6 +576,20 @@ func (c *magicCheck) subtypeOfAllowed(a string, allowed []string) bool {
 		if strings.HasPrefix(t, `\`) && c.ctx.Index().IsSubtype(a, t, c.ctx.PHP) {
 			return true
 		}
+	}
+	return false
+}
+
+// throwableConstructor reports the builtin constructor of \Exception or
+// \Error: it only stores its arguments, which default to what the
+// properties hold, so a subclass constructor need not call it.
+func throwableConstructor(m *index.Method) bool {
+	if !m.Builtin || !strings.EqualFold(m.Name, "__construct") {
+		return false
+	}
+	switch strings.ToLower(strings.TrimPrefix(m.Class, `\`)) {
+	case "exception", "error":
+		return true
 	}
 	return false
 }

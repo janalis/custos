@@ -356,7 +356,12 @@ interface Printable { public function __toString(); }
   method whose parent version has an empty body and promotes no
   constructor parameter (`public function __construct() {}`): calling it
   would do nothing (Doctrine/PrestaShop base classes). Builtin parents are
-  always checked (their stub bodies say nothing).
+  checked (their stub bodies say nothing), except the constructors of
+  `\Exception` and `\Error`: they only store their arguments in
+  properties whose defaults are what they store when not given, and PHP
+  records the file and line when the object is created, so a subclass
+  constructor that does not call them loses nothing
+  (`LazyResponseException::__construct(Response $response)`).
 - **Single-underscore hooks (custos diverges, D15).** `_construct()`,
   `_get()`, `_call()`… are not reported when the class hierarchy also
   declares the real magic method (`__construct()` calling

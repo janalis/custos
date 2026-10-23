@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- MagicMethodsValidity no longer asks a constructor to call
+  `\Exception::__construct()` or `\Error::__construct()`, which only store
+  arguments that default to what the properties hold.
 - NotOptimalRegularExpressions no longer suggests `\d` for `[0-9]` (nor
   `\w`, `\D`, `\W` for their classes) in a pattern with the `u` modifier,
   where the shorthand matches the digits and letters of every script.
