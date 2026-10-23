@@ -84,7 +84,7 @@ func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 			}
 			m, origin = cm, c
 		}
-		if m == nil || len(m.Asserts) == 0 || e.userDoc(m.Builtin) {
+		if m == nil || len(m.Asserts) == 0 || e.userDoc(m.Builtin) && !runtimeAssertion(m.Class) {
 			return nil
 		}
 		return &callAsserts{
@@ -102,7 +102,7 @@ func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 		return nil
 	}
 	m := e.Index.FindMethod(cls, id.Value, e.PHP)
-	if m == nil || len(m.Asserts) == 0 || e.userDoc(m.Builtin) {
+	if m == nil || len(m.Asserts) == 0 || e.userDoc(m.Builtin) && !runtimeAssertion(m.Class) {
 		return nil
 	}
 	ca := &callAsserts{asserts: m.Asserts, params: m.Params, ft: m.Tpl, cls: e.Index.Class(m.Class, e.PHP), args: n.Args, origin: cls}
@@ -117,6 +117,17 @@ func (e *Env) resolveAsserts(x syntax.Expr) *callAsserts {
 		}
 	}
 	return ca
+}
+
+// runtimeAssertions are the classes whose methods check what their
+// assertion annotations say at run time, throwing when it does not hold:
+// a native Env trusts them too.
+var runtimeAssertions = map[string]bool{`phpunit\framework\assert`: true, `webmozart\assert\assert`: true}
+
+// runtimeAssertion reports whether class cls declares methods that check
+// their assertions at run time (see runtimeAssertions).
+func runtimeAssertion(cls string) bool {
+	return runtimeAssertions[strings.ToLower(strings.TrimPrefix(cls, `\`))]
 }
 
 // applyAsserts applies the assertions of kind in ca whose target is the

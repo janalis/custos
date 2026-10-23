@@ -114,6 +114,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- The assertion methods of PHPUnit and `webmozart/assert`
+  (`$this->assertNotFalse($handle)`, `self::assertIsResource($stream)`)
+  now count as guards for the rules that look for unchecked failures
+  (StreamOpenFailureUnchecked, GlobFailureUnchecked and the like): they
+  throw when they fail.
 - SenselessProxyMethod no longer reports an override whose parent method
   carries attributes other than `#[\Override]`: the override hides them
   from reflection on the child (a `#[Route]` on a base controller action),

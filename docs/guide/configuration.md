@@ -103,6 +103,14 @@ By default, custos does not treat `assert()` as a guard, because PHP can be
 configured to skip assertions. Set `flow.assertions` to `true` only when your
 runtime always runs assertions and a failed one stops execution.
 
+The assertion methods of PHPUnit (`$this->assertNotFalse($handle)`,
+`self::assertIsResource($stream)`) and of `webmozart/assert` always run and
+throw when they fail, so they are guards whatever this setting: after them,
+rules that look for unchecked failures know the value is not the failure
+value. Other functions and methods documented with `@phpstan-assert` or
+`@psalm-assert` refine inferred types, but those rules do not take their
+documentation as proof.
+
 ## In the language server
 
 `custos lsp` reads the same `custos.json`, found from the first workspace
