@@ -70,7 +70,9 @@ function partial(string $str, int $n)
     } else {
         return 3;
     }
-    throw new Exception(<warning descr="This check is always false for the declared parameter type; is the parameter being reused?">is_int($str)</warning>);
+    // Only the elseif branch gets here, after `$str = 5`: the test is about
+    // that value.
+    throw new Exception(is_int($str));
     $str = 2;
 }
 
@@ -133,3 +135,16 @@ function anon() {
 
 final class Kid2 extends Fluent {}
 final class Kid3 extends Fluent {}
+
+// A value assigned since, or bound by foreach, is what the test is about.
+function reassigned(array $result, string $data): array
+{
+    foreach ($result as $name => $message) {
+        $result[$name] = is_array($message) ? implode(',', $message) : $message;
+    }
+    $data = json_decode($data, true);
+    if (is_array($data)) {
+        return $data;
+    }
+    return $result;
+}

@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- CallableParameterUseCaseInTypeContext no longer calls an `is_*()` test
+  "always false" where the parameter holds a value assigned since (or
+  bound by `foreach`) rather than the one it was given.
 - MagicMethodsValidity no longer asks a constructor to call
   `\Exception::__construct()` or `\Error::__construct()`, which only store
   arguments that default to what the properties hold.

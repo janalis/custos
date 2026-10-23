@@ -6,6 +6,7 @@ import (
 
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/flowquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/phpdoc"
 	"custos/internal/php/syntax"
@@ -237,6 +238,9 @@ func (cp *cpState) checkIs(v *syntax.Variable, set map[string]bool) {
 	arg, ok := v.Parent().(*syntax.Arg)
 	if !ok || arg.Value != syntax.Expr(v) || arg.Unpack {
 		return
+	}
+	if defs, entry := flowquery.ReachingAssignmentsIn(cp.ctx.File, cp.fn, v, v.Name); !entry || len(defs) > 0 {
+		return // E8: the parameter may hold another value here
 	}
 	list := arg.Parent().(*syntax.ArgList) // an Arg always sits in an ArgList
 	call, ok := list.Parent().(*syntax.FuncCall)

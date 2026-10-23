@@ -184,6 +184,12 @@ and is kept as its FQN with leading `\` and original case (e.g.
   unknown base).
 - **E6** Uses in unreachable code or in nested closures.
 - **E7** Test contexts (D0).
+- **E8** (custos, see Divergences) D6 where the parameter may hold another
+  value: an assignment to it, or a `foreach` binding it, may reach the
+  access (`$message = \is_array($message) ? … : $message;` in a loop over
+  `$result as $name => $message`, `$data = $this->parse($data); if
+  (\is_array($data))`). The test is then about that value, not the
+  declared one.
 
 ## Report
 
@@ -257,6 +263,11 @@ function untyped($flag = null) {
 ```
 
 ## Divergences
+
+- **Reassigned parameters (custos diverges, E8).** Upstream compares an
+  `is_*()` test with the declared type wherever the parameter is read, so
+  it calls a test of a value assigned since "always false". custos only
+  checks a parameter still holding the value it was given.
 
 - **Flow-aware variables and `?:` (custos diverges):** inherited from the
   shared T-rules (see UnnecessaryCasting): variable types are narrowed by
