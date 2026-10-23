@@ -318,6 +318,27 @@ func TestFlowBuildOrderedSettlesLongChains(t *testing.T) {
 	}
 }
 
+// An update rebuilding every summary keeps the order the build took: a
+// chain ending in a recursion and longer than the rounds stays whole.
+func TestFlowBuildUpdateKeepsOrder(t *testing.T) {
+	files := writeChain(t, maxRounds+3)
+	recursion := "<?php function f0($n = 1) { return $n ? f0($n - 1) : $_GET['v']; }"
+	writeFile(t, files[0], recursion)
+	opt := syntax.Options{Version: phpversion.Default}
+	ix := BuildIndex(files, opt, infer.Options{})
+	plain := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
+	edit := map[string][]byte{files[0]: []byte(recursion + " // edited")}
+	for _, tc := range []struct {
+		build *FlowBuild
+		whole bool
+	}{{plain, false}, {BuildFlowOrdered(context.Background(), files, nil, opt, ix, flow.Options{}, plain.Order()), true}} {
+		next, ok := tc.build.Update(edit, ix)
+		if !ok || next.ordered != tc.whole || !slices.Contains(next.results, nil) == !tc.whole {
+			t.Fatalf("ordered %v: update ok=%v ordered=%v dropped=%v", tc.whole, ok, next.ordered, slices.Contains(next.results, nil))
+		}
+	}
+}
+
 // Files calling each other have the depth the first one visited gives.
 func TestFlowOrderOfARecursion(t *testing.T) {
 	root := t.TempDir()

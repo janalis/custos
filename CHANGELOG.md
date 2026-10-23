@@ -21,7 +21,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   chain across files too long for a run without it may then be followed to
   the end instead of being reported as unresolved. `"flow": {"order": true}`
   in `custos.json` turns it on for every run and for the language server,
-  which reads and saves the same order.
+  which reads and saves the same order and follows it when an edit makes it
+  rebuild every summary.
 
 ### Changed
 

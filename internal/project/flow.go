@@ -33,6 +33,8 @@ type FlowBuild struct {
 	sources map[string][]byte
 	opt     syntax.Options
 	options flow.Options
+	// ordered is set when the build took an order (see BuildFlowOrdered).
+	ordered bool
 }
 
 // Files returns the files the build summarized, in build order.
@@ -66,7 +68,7 @@ func BuildFlowOrdered(ctx context.Context, files []string, srcs [][]byte, opt sy
 		}
 		trees[i] = parseFlowSource(files[i], src, opt)
 	}, nil)
-	b := &FlowBuild{files: files, at: make(map[string]int, len(files)), results: make([]*flow.File, len(trees)), sources: map[string][]byte{}, opt: opt, options: options}
+	b := &FlowBuild{files: files, at: make(map[string]int, len(files)), results: make([]*flow.File, len(trees)), sources: map[string][]byte{}, opt: opt, options: options, ordered: order != nil}
 	for i, path := range files {
 		b.at[path] = i
 		if i < len(srcs) && srcs[i] != nil {
@@ -149,7 +151,7 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 		}
 		dirty = append(dirty, i)
 	}
-	next := &FlowBuild{files: b.files, at: b.at, results: append([]*flow.File(nil), b.results...), sources: maps.Clone(b.sources), opt: b.opt, options: b.options}
+	next := &FlowBuild{files: b.files, at: b.at, results: append([]*flow.File(nil), b.results...), sources: maps.Clone(b.sources), opt: b.opt, options: b.options, ordered: b.ordered}
 	maps.Copy(next.sources, changed)
 	var mu sync.Mutex
 	trees := map[int]*syntax.File{}
@@ -180,7 +182,8 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 	// Within a recursion, the fixed point depends on where it starts: when
 	// one depends on a changed file (reading, maybe through others, a
 	// contract it declares itself), the files are summarized again from
-	// none, as a full build does. Otherwise every file is summarized again
+	// none, as a full build does (in the order b gives, when it took one).
+	// Otherwise every file is summarized again
 	// when a contract it read differs from the snapshot it was computed
 	// against, as each summary follows from the contracts it read.
 	if next.recursive(dirty) {
@@ -188,7 +191,11 @@ func (b *FlowBuild) Update(changed map[string][]byte, ix *index.Index) (*FlowBui
 		for i, path := range b.files {
 			srcs[i] = next.sources[path]
 		}
-		return BuildFlow(context.Background(), b.files, srcs, b.opt, ix, b.options), true
+		var order map[string]int
+		if b.ordered {
+			order = b.Order()
+		}
+		return BuildFlowOrdered(context.Background(), b.files, srcs, b.opt, ix, b.options, order), true
 	}
 	against := make([]*flow.Snapshot, len(b.files))
 	for i := range against {
