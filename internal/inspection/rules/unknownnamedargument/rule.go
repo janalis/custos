@@ -142,7 +142,7 @@ func methodTargets(ctx *analysis.Context, cls, name string, overrides bool, name
 		return false
 	}
 	m := ix.FindMethod(cls, name, ctx.PHP)
-	if !addMethod(ctx, m, names) {
+	if redeclared(ctx, cls) || !addMethod(ctx, m, names) || redeclared(ctx, m.Class) {
 		return false
 	}
 	if !overrides || m.Visibility == index.Private || m.Final || c.Final {
@@ -159,13 +159,19 @@ func methodTargets(ctx *analysis.Context, cls, name string, overrides bool, name
 				continue
 			}
 			seen[k] = true
-			if !addMethod(ctx, ix.FindMethod(child, name, ctx.PHP), names) {
+			if redeclared(ctx, child) || !addMethod(ctx, ix.FindMethod(child, name, ctx.PHP), names) {
 				return false
 			}
 			queue = append(queue, child)
 		}
 	}
 	return true
+}
+
+// redeclared reports whether the project declares class cls more than once
+// (E3): which declaration runs depends on what the autoloader loads.
+func redeclared(ctx *analysis.Context, cls string) bool {
+	return len(ctx.Index().ClassDecls(cls, ctx.PHP)) > 1
 }
 
 // addMethod adds the parameters of a resolved method; false for an unknown

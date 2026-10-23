@@ -84,3 +84,32 @@ namespace Conditional {
     if (\PHP_VERSION_ID > 80000) { function open($a) {} } else { function open(...$all) {} }
     open(b: 1);
 }
+
+// A class declared twice: which declaration runs depends on what is
+// loaded, so the names of either may be meant.
+if (PHP_VERSION_ID > 80000) {
+    class Journal { public function replay($kind, $digest = null) {} }
+} else {
+    class Journal { public function replay($kind) {} }
+}
+function replayJournal(Journal $j) { $j->replay('record', digest: 'x'); }
+class Base2 { public function emit($a) {} }
+if (PHP_VERSION_ID > 80000) {
+    class Leaf2 extends Base2 { public function emit($a, $b = 1) {} }
+} else {
+    class Leaf2 extends Base2 { public function emit($a) {} }
+}
+function emitBase(Base2 $s) { $s->emit(1, b: 2); }
+if (PHP_VERSION_ID > 80000) {
+    class Ledger { public function replay($kind) {} }
+} else {
+    class Ledger { public function replay($kind, $digest = null) {} }
+}
+function replayLedger(Ledger $l) { $l->replay('record', digest: 'x'); }
+class Base3 { public function emit($a) {} }
+if (PHP_VERSION_ID > 80000) {
+    class Leaf3 extends Base3 { public function emit($a) {} }
+} else {
+    class Leaf3 extends Base3 { public function emit($a, $b = 1) {} }
+}
+function emitBase3(Base3 $s) { $s->emit(1, b: 2); }

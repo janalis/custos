@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- UnknownNamedArgument no longer reports a named argument to a method of a
+  class the project declares more than once (an older copy of the code
+  left in the project): which declaration runs depends on the autoloader.
 - JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` when the
   code tests the result for failure where it is produced (`?: []`,
   `is_array()`, `false === $json`): the flag would turn that fallback into

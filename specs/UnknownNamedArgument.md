@@ -29,7 +29,7 @@ Detect a named argument absent from every resolved target parameter list where n
 
 - E1. Unresolved targets, variadic collectors, method overload uncertainty and valid inherited parameters are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
-- E3. No report when any target of D4 is unknown: a receiver class that is not indexed, a class of a union receiver lacking the method, a dynamic method or class name.
+- E3. No report when any target of D4 is unknown: a receiver class that is not indexed, a class of a union receiver lacking the method, a dynamic method or class name, or a class the project declares more than once (the receiver class, the class declaring the method or a subtype that may override it: which declaration runs depends on what the autoloader loads).
 - E4. No report when a target is a builtin outside D6 (PECL and other unverified extensions such as Imagick, AMQP or SNMP, and the listed drifted builtins): their stub names document the API but are not the names the extension declares.
 - E5. No report when any target, including an override in a subtype, has a variadic parameter, or is declared only by a `@method` tag (served by `__call` / `__callStatic`, which accept any name).
 - E6. No report when the receiver class is a trait (`$this`, `self` or `static` inside a trait method): the method runs in the using classes, which may declare the callee with other names.
