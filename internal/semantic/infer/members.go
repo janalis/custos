@@ -34,6 +34,26 @@ func (e *Env) traitThis(x syntax.Expr) string {
 	return e.ClassFQN(c)
 }
 
+// traitRequired types `$this` inside a trait as the classes and interfaces
+// the trait requires of the classes using it (@require-extends,
+// @require-implements): every such class is one of them. Unknown without
+// any.
+func (e *Env) traitRequired(this *syntax.Variable) types.Type {
+	fqn := e.traitThis(this)
+	if fqn == "" {
+		return types.Unknown
+	}
+	c := e.Index.Class(fqn, e.PHP)
+	if c == nil || len(c.Requires) == 0 {
+		return types.Unknown
+	}
+	names := make([]string, len(c.Requires))
+	for i, r := range c.Requires {
+		names[i] = `\` + r
+	}
+	return types.FromDoc(strings.Join(names, "&"), nil)
+}
+
 // traitPropertyType types `$this->p` inside a trait, where `$this` has no
 // class of its own, from the trait's declaration of p: a class using the
 // trait cannot declare p again with another type (unlike its methods, which
@@ -434,9 +454,14 @@ func (e *Env) methodCallType(n *syntax.MethodCall) types.Type {
 	if !ok {
 		return types.Unknown
 	}
+	// A trait's own method first: it replaces the one of a class it
+	// requires the using class to extend.
+	if t := e.traitMethodType(n, id.Value); !t.IsUnknown() {
+		return t
+	}
 	recv := e.chainReceiver(n.Var, n.NullSafe)
 	if recv.IsUnknown() {
-		return e.traitMethodType(n, id.Value)
+		return types.Unknown
 	}
 	var ts []types.Type
 	for _, cls := range e.memberClasses(recv, func(c string) bool { return e.Index.FindMethod(c, id.Value, e.PHP) != nil }) {

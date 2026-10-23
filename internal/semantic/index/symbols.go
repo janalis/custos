@@ -280,6 +280,10 @@ type Class struct {
 	// traits by @extends / @implements / @use (and their template-,
 	// phpstan- and psalm- variants); arguments may use `\~T` atoms.
 	Supers []SuperArgs `json:"sup,omitempty"`
+	// Requires lists the classes and interfaces a trait requires of the
+	// classes using it (@require-extends, @require-implements and their
+	// phpstan- and psalm- variants), as FQNs.
+	Requires []string `json:"req,omitempty"`
 	// Attrs are the FQNs of the class's attributes (`#[\AllowDynamicProperties]`
 	// → "AllowDynamicProperties"), in source order.
 	Attrs []string    `json:"attrs,omitempty"`

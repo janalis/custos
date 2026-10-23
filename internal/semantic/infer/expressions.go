@@ -145,8 +145,8 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.PropertyFetch:
 		recv := e.chainReceiver(n.Var, n.NullSafe)
 		t := e.propertyType(recv, n.Name, false)
-		if recv.IsUnknown() {
-			t = e.traitPropertyType(n)
+		if tt := e.traitPropertyType(n); !tt.IsUnknown() {
+			t = tt // a trait's own property, whatever class it requires
 		}
 		if key := narrowKey(n); key != "" {
 			t = e.narrowExpr(t, n, key, syntax.EnclosingVariableScope(n))

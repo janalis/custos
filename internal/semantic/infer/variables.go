@@ -333,7 +333,7 @@ func (e *Env) variableBase(v *syntax.Variable) types.Type {
 	if v.Name == "this" {
 		fqn := e.selfClass(syntax.EnclosingClass(v))
 		if fqn == "" {
-			return types.Unknown
+			return e.traitRequired(v)
 		}
 		t := types.Of(`\` + fqn)
 		if c := e.Index.Class(fqn, e.PHP); c != nil && c.Kind == syntax.KindEnum {

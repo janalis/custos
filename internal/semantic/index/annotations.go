@@ -39,6 +39,14 @@ func (x *extractor) generics(c *Class, d *phpdoc.Doc, at uint32) {
 	}
 	for _, t := range d.Tags {
 		switch strings.ToLower(t.Name) {
+		case "require-extends", "phpstan-require-extends", "psalm-require-extends",
+			"require-implements", "phpstan-require-implements", "psalm-require-implements":
+			if typ, _ := phpdoc.SplitType(t.Text); c.Kind == syntax.KindTrait && typ != "" {
+				if fqn := x.r.Class(typ, at); fqn != "" {
+					c.Requires = append(c.Requires, strings.TrimPrefix(fqn, `\`))
+				}
+			}
+			continue
 		case "extends", "template-extends", "phpstan-extends", "psalm-extends",
 			"implements", "template-implements", "phpstan-implements", "psalm-implements",
 			"use", "template-use", "phpstan-use", "psalm-use":

@@ -48,7 +48,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   declared `array` does, a closure declaring only `: array` returns the
   array its body builds, `(array) $x` keeps the elements of $x (a scalar
   becomes a list of itself), and `array_replace_recursive()` keeps the
-  elements of its arrays.
+  elements of its arrays. Inside a trait that requires its users to extend
+  a class or implement an interface (`@phpstan-require-extends`,
+  `@require-implements`, …), `$this` is of that type, after the trait's
+  own members.
 - HardcodedCredentialAtKnownSink matches `excludedPaths` from the workspace
   root in the language server and the MCP server when a file has no
   `custos.json` or `composer.json` above it, instead of the server's working
