@@ -76,6 +76,10 @@ Visit every class's own constructor.
 - **E4** Classes without their own constructor, interfaces, traits.
 - **E5** Properties read by a property hook, and properties named by
   `__sleep()`.
+- **E6** An assignment storing an array literal with at least one
+  by-reference item (`$this->roots = [&$this->data, &$this->count];`):
+  building it turns the referenced variables into references, which clones
+  of the object then share, so the assignment has an effect of its own.
 
 ## Report
 
@@ -186,3 +190,8 @@ class Mailer
   `$this->__construct(…)` (SimplePie's `File` follows a redirect by
   re-running itself) reads, in the second run, what the first one stored:
   such classes are not reported.
+- **Arrays of references (custos, E6).** Upstream reports a property
+  only ever assigned `[&$this->data, …]` in the constructor. That
+  assignment is what makes `$data` shared between the object and its
+  clones (Symfony's `DumpDataCollector`), so removing it changes behavior:
+  custos does not report it.

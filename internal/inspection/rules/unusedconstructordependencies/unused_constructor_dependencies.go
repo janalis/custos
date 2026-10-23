@@ -107,7 +107,7 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 				continue
 			}
 			for _, r := range refs { // D6
-				if ucdPlainTarget(r) {
+				if ucdPlainTarget(r) && !ucdBindsReferences(r) {
 					ctx.ReportNode(r, unusedCtorDepMsg)
 				}
 			}
@@ -241,6 +241,23 @@ func ucdPlainTarget(ref syntax.Expr) bool {
 	parent, child := astquery.ParentSkipParens(ref)
 	a, ok := parent.(*syntax.Assign)
 	return ok && a.Op.Kind == syntax.TEqual && syntax.Node(a.Var) == child && child == syntax.Node(ref)
+}
+
+// ucdBindsReferences reports whether the plain assignment to ref stores an
+// array holding references (`[&$this->data]`): building it turns what they
+// point to into references shared by clones of the object (E6).
+func ucdBindsReferences(ref syntax.Expr) bool {
+	parent, _ := astquery.ParentSkipParens(ref)
+	arr, ok := syntax.UnwrapParens(parent.(*syntax.Assign).Value).(*syntax.Array)
+	if !ok {
+		return false
+	}
+	for _, it := range arr.Items {
+		if it != nil && it.ByRef {
+			return true
+		}
+	}
+	return false
 }
 
 // collectPropRefs calls fn for every property access under root named after
