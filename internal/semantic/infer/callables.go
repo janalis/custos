@@ -46,16 +46,26 @@ func (e *Env) closureReturn(n syntax.Expr) types.Type {
 			t = pickMemberType(t, e.docType(doc, e.resolverFor(n, at)))
 		}
 	}
-	if t.IsUnknown() {
+	inferred := func() types.Type {
 		span := n.Span()
 		if e.bodyBusy[span] || e.bodyDepth >= maxBodyDepth {
 			return types.Unknown
 		}
 		e.bodyBusy[span] = true
 		e.bodyDepth++
-		t = body()
+		t := body()
 		e.bodyDepth--
 		delete(e.bodyBusy, span)
+		return t
+	}
+	switch {
+	case t.IsUnknown():
+		t = inferred()
+	case t.HasAny("array", "iterable") && t.OnlyOf("array", "iterable", "null"):
+		// A plain declared array, refined by the body (as for methods).
+		if bt := inferred(); bt.Without("null").IsArrayLike() && (t.Has("null") || !bt.Has("null")) {
+			t = bt
+		}
 	}
 	t = bindStatic(t, e.selfClass(syntax.EnclosingClass(n)))
 	return voidAsNull(t)

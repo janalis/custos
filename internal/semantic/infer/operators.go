@@ -49,7 +49,7 @@ func (e *Env) unaryType(n *syntax.Unary) types.Type {
 	case syntax.TStringCast:
 		return types.String
 	case syntax.TArrayCast:
-		return types.Array
+		return castToArray(e.TypeOf(n.Expr))
 	case syntax.TBoolCast:
 		return types.Bool
 	case syntax.TObjectCast:
@@ -227,4 +227,36 @@ func integerLiteral(x syntax.Expr) (int64, bool) {
 	}
 	v, err := strconv.ParseInt(strings.ReplaceAll(lit.Raw, "_", ""), 0, 64)
 	return v, err == nil
+}
+
+// castToArray types `(array) $x` for $x of type t: arrays stay as they
+// are, null becomes an empty array and a scalar a list of itself; an
+// object (its properties) or anything unknown gives an array.
+func castToArray(t types.Type) types.Type {
+	if t.IsUnknown() {
+		return types.Array
+	}
+	var others, scalars []string
+	parts := []types.Type{}
+	for _, a := range t.Atoms() {
+		switch a {
+		case "null":
+			parts = append(parts, types.FromDoc("array{}", nil))
+		case "int", "float", "string", "bool", "false", "true":
+			scalars = append(scalars, a)
+		default:
+			if a != "array" && !strings.HasSuffix(a, "[]") {
+				return types.Array
+			}
+			continue
+		}
+		others = append(others, a)
+	}
+	if arrays := t.Without(others...); len(arrays.Atoms()) > 0 {
+		parts = append(parts, arrays)
+	}
+	if len(scalars) > 0 {
+		parts = append(parts, listOf(types.Of(scalars...), true))
+	}
+	return types.Union(parts...)
 }

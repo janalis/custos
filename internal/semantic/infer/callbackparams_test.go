@@ -72,8 +72,9 @@ t('lib', \Lib\first([]));
 `, map[string]string{"lib": `\Lib\Foo[]`})
 }
 
-// A callback parameter declared `array` or `iterable` keeps the facts of the
-// arrays the builtin passes; any other passed type leaves the declaration.
+// A callback parameter declared `array` or `iterable` (maybe nullable) keeps
+// the facts of the arrays the builtin passes; any other passed type leaves
+// the declaration.
 func TestCallbackArrayParametersFromBuiltins(t *testing.T) {
 	checkAnywhere(t, `<?php
 /**
@@ -93,7 +94,7 @@ function run(array $rows, array $names, array $lists) {
 `, map[string]string{
 		"row": "array{id: int, name: string}", "filter": "array{id: int, name: string}",
 		"usortA": "array{id: int, name: string}", "usortB": "array{id: int, name: string}",
-		"iterable": "int[]", "nullable": "array|null", "scalar": "array", "unknown": "array",
+		"iterable": "int[]", "nullable": "int[]", "scalar": "array", "unknown": "array",
 	})
 	checkShape(t, `<?php
 /** @param list<array{id: int, name: string}> $rows */

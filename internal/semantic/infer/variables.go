@@ -1056,19 +1056,20 @@ func (e *Env) paramTypeUnbound(scope syntax.Node, p *syntax.Param) types.Type {
 		return declared
 	}
 	// A callback's untyped parameter receives what its caller passes; one
-	// declared `array` (or `iterable`) keeps the passed array's facts.
+	// declared `array` (or `iterable`, maybe nullable) keeps the passed
+	// array's facts, with null only when it admits null.
 	var ct types.Type
 	switch fn := scope.(type) {
 	case *syntax.Closure:
-		if declared.IsUnknown() || declared.OnlyOf("array", "iterable") {
+		if declared.IsUnknown() || declared.HasAny("array", "iterable") && declared.OnlyOf("array", "iterable", "null") {
 			ct = e.contextParamType(fn, nodeIndex(fn.Params, p))
 		}
 	case *syntax.ArrowFunction:
-		if declared.IsUnknown() || declared.OnlyOf("array", "iterable") {
+		if declared.IsUnknown() || declared.HasAny("array", "iterable") && declared.OnlyOf("array", "iterable", "null") {
 			ct = e.contextParamType(fn, nodeIndex(fn.Params, p))
 		}
 	}
-	if declared.IsUnknown() || ct.IsArrayLike() {
+	if declared.IsUnknown() || ct.Without("null").IsArrayLike() && (declared.Has("null") || !ct.Has("null")) {
 		return ct
 	}
 	return declared

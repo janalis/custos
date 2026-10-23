@@ -12,7 +12,7 @@ import (
 // arrayBuiltins are the array-returning builtins arrayBuiltinType types
 // from their arguments.
 var arrayBuiltins = map[string]bool{
-	"array_merge": true, "array_replace": true, "array_chunk": true, "array_combine": true,
+	"array_merge": true, "array_replace": true, "array_replace_recursive": true, "array_chunk": true, "array_combine": true,
 	"array_column": true, "array_fill": true, "array_fill_keys": true, "array_keys": true,
 	"array_flip": true, "array_pad": true, "array_count_values": true, "iterator_to_array": true,
 	"array_intersect_key": true, "array_diff_key": true, "array_intersect": true, "array_diff": true,
@@ -53,6 +53,28 @@ func (e *Env) arrayBuiltinType(builtin string, n *syntax.FuncCall, arg func(int)
 	switch builtin {
 	case "array_merge", "array_replace":
 		return e.mergeType(n, builtin == "array_merge")
+	case "array_replace_recursive":
+		// Arrays at the same key merge too: the union of the elements
+		// (keys only one has optional) holds what they merge into.
+		var elems, keys []types.Type
+		nonEmpty := false
+		for _, x := range n.Args.Args {
+			a, ok := x.(*syntax.Arg)
+			if !ok || a.Unpack || a.Name != nil {
+				return types.Unknown, false
+			}
+			t := e.TypeOf(a.Value)
+			if !t.IsArrayLike() {
+				return types.Unknown, false
+			}
+			elems, keys = append(elems, arrayElements(t)), append(keys, t.ArrayKey())
+			nonEmpty = nonEmpty || t.IsNonEmptyArray()
+		}
+		el := types.Union(elems...)
+		if el.IsUnknown() {
+			return types.Array.WithNonEmpty(nonEmpty), true
+		}
+		return arrayOf(el).WithNonEmpty(nonEmpty).WithArrayKey(types.Union(keys...)), true
 	case "array_chunk":
 		t, ok := array(0)
 		if !ok {

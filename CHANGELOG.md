@@ -44,6 +44,11 @@ versions follow [Semantic Versioning](https://semver.org/).
   (`$groups[$id]['files'][] = $file`) updates it along its keys, so the
   element keeps its shape and `files` holds the files written, where the
   element became a plain array or kept the empty `files` it started with.
+  A callback parameter declared `?array` takes the elements passed as one
+  declared `array` does, a closure declaring only `: array` returns the
+  array its body builds, `(array) $x` keeps the elements of $x (a scalar
+  becomes a list of itself), and `array_replace_recursive()` keeps the
+  elements of its arrays.
 - HardcodedCredentialAtKnownSink matches `excludedPaths` from the workspace
   root in the language server and the MCP server when a file has no
   `custos.json` or `composer.json` above it, instead of the server's working
