@@ -25,7 +25,8 @@ so changes made outside the editor (a `git checkout`, generated code) reach
 the index, and the [baseline](./suppressing#baseline) file, so regenerating
 it takes effect at once. The server starts from the declarations the command
 line [keeps between runs](./cli#paths) and parses only the files that changed
-since.
+since. With `flow.order` set, it also summarizes the cross-file flow in the
+order the last run saved, and saves its own.
 
 ## Settings
 

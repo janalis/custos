@@ -50,7 +50,9 @@ the flag summarizes each file after the ones it calls, instead of again once
 they settle. A repeated run over symfony/src takes about 12% less time.
 Results stay the same, except that a chain of calls across files too long
 for a run without the flag, whose end it reports as unresolved, may be
-followed to the end.
+followed to the end. Setting `flow.order` to `true` in
+[`custos.json`](./configuration) has the same effect, also in the language
+server.
 
 ## Common flags
 

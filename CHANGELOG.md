@@ -19,7 +19,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   files, so the next run with it summarizes each file after the ones it
   calls: on symfony/src, a repeated run takes about 12% less time. A call
   chain across files too long for a run without it may then be followed to
-  the end instead of being reported as unresolved.
+  the end instead of being reported as unresolved. `"flow": {"order": true}`
+  in `custos.json` turns it on for every run and for the language server,
+  which reads and saves the same order.
 
 ### Changed
 

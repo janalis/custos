@@ -232,8 +232,20 @@ func (s *Server) refreshFlow() {
 	for i, path := range files {
 		sources[i] = contents[path]
 	}
+	// With flow.order, read and save the order as the command line does.
+	var cache *project.SymbolCache
+	var order map[string]int
+	if cfg.FlowOrder {
+		if dir := project.CacheDir(); dir != "" {
+			cache = project.FlowOrderCache(dir, cfg.Root, opt, infer.Options{Assertions: cfg.Flow.Assertions})
+		}
+		order = cache.FlowOrder(files, cfg.Flow)
+	}
 	// Compose every unsaved dependency in the same bounded fixed point.
-	build := buildFlow(context.Background(), files, sources, opt, ix, cfg.Flow)
+	build := buildFlow(context.Background(), files, sources, opt, ix, cfg.Flow, order)
+	if cfg.FlowOrder {
+		_ = cache.SaveFlowOrder(build.Order(), cfg.Flow)
+	}
 	s.mu.Lock()
 	if s.engine == e {
 		s.flow, s.flowBuild, s.flowSymbols = build.Snapshot, build, built
@@ -257,6 +269,6 @@ func indexWorkspace(root string, files []string, opt syntax.Options, options inf
 var (
 	discoverIndexFiles = project.Discover
 	buildIndexSymbols  = indexWorkspace
-	buildFlow          = project.BuildFlow
+	buildFlow          = project.BuildFlowOrdered
 	updateFlow         = (*project.FlowBuild).Update
 )

@@ -34,9 +34,11 @@ type RuleSettings struct {
 	Options  map[string]any `json:"options,omitempty"`
 }
 
-// FlowSettings configures optional runtime assumptions.
+// FlowSettings configures optional runtime assumptions and how cross-file
+// flow is summarized.
 type FlowSettings struct {
 	Assertions *bool `json:"assertions,omitempty"`
+	Order      *bool `json:"order,omitempty"`
 }
 
 // File is the JSON shape of custos.json (also accepted as LSP
@@ -54,7 +56,10 @@ type File struct {
 
 // Config is the resolved configuration.
 type Config struct {
-	Flow            flow.Options
+	Flow flow.Options
+	// FlowOrder summarizes cross-file flow in the order the last run saved
+	// (see project.Options.FlowOrder).
+	FlowOrder       bool
 	Root            string // directory of custos.json / composer.json (or cwd)
 	PHP             phpversion.Version
 	PHPSource       string // where PHP came from: config | composer | default
@@ -127,6 +132,9 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 	}
 	if f.Flow != nil && f.Flow.Assertions != nil {
 		c.Flow.Assertions = *f.Flow.Assertions
+	}
+	if f.Flow != nil && f.Flow.Order != nil {
+		c.FlowOrder = *f.Flow.Order
 	}
 	if f.ShortOpenTag != nil {
 		c.ShortOpenTag = *f.ShortOpenTag

@@ -80,6 +80,22 @@ func CacheDir() string {
 // missing, unreadable or outdated cache file starts empty; nil is returned
 // when the running binary cannot be identified.
 func OpenSymbolCache(dir, root string, opt syntax.Options, options infer.Options) *SymbolCache {
+	c := FlowOrderCache(dir, root, opt, options)
+	if c == nil {
+		return nil
+	}
+	if b, err := safeio.ReadFile(c.path, maxSymbolCacheBytes); err == nil {
+		var f symbolCacheFile
+		if gob.NewDecoder(bytes.NewReader(b)).Decode(&f) == nil && f.Key == c.key {
+			c.old = f.Files
+		}
+	}
+	return c
+}
+
+// FlowOrderCache is OpenSymbolCache without reading the declarations, for
+// FlowOrder and SaveFlowOrder alone: it caches no declaration.
+func FlowOrderCache(dir, root string, opt syntax.Options, options infer.Options) *SymbolCache {
 	exe, err := executable()
 	if err != nil {
 		return nil
@@ -93,19 +109,12 @@ func OpenSymbolCache(dir, root string, opt syntax.Options, options infer.Options
 	// The file is named by project and options only, so a new custos build
 	// replaces its cache instead of adding one beside it.
 	sum := sha256.Sum256([]byte(absolute(root) + "\x00" + settings))
-	c := &SymbolCache{
+	return &SymbolCache{
 		path:    filepath.Join(dir, "symbols-"+hex.EncodeToString(sum[:8])+".gob"),
 		key:     key,
 		started: time.Now(),
 		fresh:   map[string]cachedSymbols{},
 	}
-	if b, err := safeio.ReadFile(c.path, maxSymbolCacheBytes); err == nil {
-		var f symbolCacheFile
-		if gob.NewDecoder(bytes.NewReader(b)).Decode(&f) == nil && f.Key == key {
-			c.old = f.Files
-		}
-	}
-	return c
 }
 
 // lookup returns the cached declarations of path when its stat is unchanged.

@@ -30,6 +30,7 @@ custos reads `custos.json` from the project root. Every key is optional.
 | `comparisonStyle` | `"regular"` (`$x === null`, default) or `"yoda"` (`null === $x`): the operand order that comparison rules expect and that quick-fixes write. |
 | `shortOpenTag` | Treat `<?` as an opening tag, as with PHP's `short_open_tag` setting. Default `false`. |
 | `flow.assertions` | Trust `assert()` calls as guards. Default `false`. See [Assertions](#assertions). |
+| `flow.order` | Summarize cross-file flow in the order the last run saved, as [`--flow-order`](./cli#paths) does; the language server honors it too. Default `false`. |
 | `paths` | What `custos analyse` and `custos fix` check when no path is given. Relative to the root; must stay inside it. Default: the root. |
 | `exclude` | Extra directories to skip. See [Excluded directories](#excluded-directories). |
 | `baseline` | Baseline file used by `analyse`, relative to the root (see [Baseline](./suppressing#baseline)). |

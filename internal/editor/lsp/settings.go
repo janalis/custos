@@ -166,6 +166,9 @@ func mergeOverrides(base *config.Config, over config.File) (*config.Config, erro
 	if f.Flow.Assertions == nil {
 		f.Flow.Assertions = &base.Flow.Assertions
 	}
+	if f.Flow.Order == nil {
+		f.Flow.Order = &base.FlowOrder
+	}
 	if f.ShortOpenTag == nil {
 		f.ShortOpenTag = &base.ShortOpenTag
 	}

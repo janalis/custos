@@ -123,7 +123,7 @@ func (c *common) prepare(args []string) (*setup, error) {
 	if c.exclude != "" {
 		exclude = append(exclude, strings.Split(c.exclude, ",")...)
 	}
-	p, err := project.Open(registry(), project.Options{Root: cfg.Root, Paths: paths, Exclude: exclude, Scope: scope, Cache: c.cacheDir(), FlowOrder: c.flowOrder, Analysis: acfg, Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}})
+	p, err := project.Open(registry(), project.Options{Root: cfg.Root, Paths: paths, Exclude: exclude, Scope: scope, Cache: c.cacheDir(), FlowOrder: c.flowOrder || cfg.FlowOrder, Analysis: acfg, Parse: syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}})
 	if err != nil {
 		return nil, err
 	}

@@ -43,6 +43,21 @@ func TestAssertionOverrideFalse(t *testing.T) {
 	}
 }
 
+func TestFlowOrderOverride(t *testing.T) {
+	enabled := true
+	base, err := config.Resolve(t.TempDir(), config.File{Flow: &config.FlowSettings{Order: &enabled}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, over := range []config.File{{}, {Flow: &config.FlowSettings{}}, {Flow: &config.FlowSettings{Order: new(bool)}}} {
+		merged, err := mergeOverrides(base, over)
+		want := over.Flow == nil || over.Flow.Order == nil
+		if err != nil || merged.FlowOrder != want {
+			t.Fatalf("override=%+v merged=%+v err=%v", over, merged, err)
+		}
+	}
+}
+
 func TestAssertionModeOwnsIndexBuild(t *testing.T) {
 	for _, failOldDiscovery := range []bool{false, true} {
 		t.Run(map[bool]string{false: "stale completed build", true: "stale failed discovery"}[failOldDiscovery], func(t *testing.T) {
