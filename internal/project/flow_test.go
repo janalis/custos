@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"custos/internal/inspection/analysis"
@@ -278,11 +279,11 @@ func TestFlowBuildOrdered(t *testing.T) {
 	files := writeChain(t, 6)
 	opt := syntax.Options{Version: phpversion.Default}
 	ix := BuildIndex(files, opt, infer.Options{})
-	extracted := 0
+	var extracted atomic.Int64
 	old := extractFlow
 	t.Cleanup(func() { extractFlow = old })
 	extractFlow = func(f *syntax.File, ix *index.Index, v phpversion.Version, s *flow.Snapshot, o flow.Options) *flow.File {
-		extracted++
+		extracted.Add(1)
 		return old(f, ix, v, s, o)
 	}
 	plain := BuildFlow(context.Background(), files, nil, opt, ix, flow.Options{})
@@ -290,10 +291,10 @@ func TestFlowBuildOrdered(t *testing.T) {
 	if order[files[0]] != 0 || order[files[5]] != 5 {
 		t.Fatalf("order: %v", order)
 	}
-	extracted = 0
+	extracted.Store(0)
 	ordered := BuildFlowOrdered(context.Background(), files, nil, opt, ix, flow.Options{}, order)
-	if extracted != len(files) || !ordered.Snapshot.Equal(plain.Snapshot) {
-		t.Fatalf("%d summaries", extracted)
+	if extracted.Load() != int64(len(files)) || !ordered.Snapshot.Equal(plain.Snapshot) {
+		t.Fatalf("%d summaries", extracted.Load())
 	}
 	// Past the waves, out of date or missing: only more summaries.
 	stale := map[string]int{files[0]: 3 * maxWaves, files[1]: 2 * maxWaves}
