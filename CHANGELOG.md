@@ -118,6 +118,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   read after `$parts ?? null` (or another falsy fallback) was checked.
 - TypeUnsafeArraySearch no longer asks for strict mode when the haystack
   lists `Name::class` constants.
+- LoopWhichDoesNotLoop no longer reports an empty `foreach` body whose key
+  or value goes to a property, an element, a `list()` or a variable read
+  after the loop.
 - CallableParameterUseCaseInTypeContext no longer calls an `is_*()` test
   "always false" where the parameter holds a value assigned since (or
   bound by `foreach`) rather than the one it was given.

@@ -180,6 +180,11 @@ while ($ok) break;
   unknown, `object`, `iterable`, `mixed` or a class: iterating may be done
   for the iterator's side effects (Doctrine tests initialize lazy
   collections with `foreach ($user->groups as $g) {}`).
+- **Empty bodies keeping the last pair (custos diverges).** An empty
+  `foreach` body whose key or value goes to a property, an array element
+  or a `list()` (`foreach ($pairs as $this->name => $this->value) {}`), or
+  to a variable read after the loop, keeps the last key or value on
+  purpose: it is not reported.
 - **`$this` in a trait (custos diverges, D4).** `foreach ($this as $el) {
   return false; }` inside a trait method tests the using class (a
   Traversable collection, CakePHP's `CollectionTrait::isEmpty()`) for

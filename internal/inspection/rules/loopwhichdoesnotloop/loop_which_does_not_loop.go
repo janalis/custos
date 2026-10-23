@@ -83,6 +83,11 @@ func (loopWhichDoesNotLoop) Check(ctx *analysis.Context, n syntax.Node) {
 		if last == nil && (t.IsUnknown() || t.Has("object") || t.Has("iterable") || t.Has("mixed") || len(t.Classes()) > 0) {
 			return
 		}
+		// custos: an empty body that stores every key or value in turn
+		// keeps the last ones (`foreach ($a as $s->key => $s->value) {}`).
+		if last == nil && (keepsLast(fe, fe.Key) || keepsLast(fe, fe.Value)) {
+			return
+		}
 		// custos: `foreach ($this as …)` in a trait iterates the using
 		// class (CakePHP's CollectionTrait::isEmpty()).
 		if v, ok := syntax.UnwrapParens(fe.Expr).(*syntax.Variable); ok && v.Name == "this" {
@@ -193,4 +198,28 @@ func continuesLoop(body, loop syntax.Node) bool {
 		return true
 	})
 	return found
+}
+
+// keepsLast reports a foreach target that outlives the loop: anything but
+// a plain variable (a property, an element, a list), or a variable read
+// after the loop.
+func keepsLast(fe *syntax.Foreach, target syntax.Expr) bool {
+	if target == nil {
+		return false
+	}
+	v, ok := syntax.UnwrapParens(target).(*syntax.Variable)
+	if !ok || v.Name == "" {
+		return true
+	}
+	read := false
+	syntax.Inspect(syntax.EnclosingVariableScope(fe), func(n syntax.Node) bool {
+		if read || n != syntax.EnclosingVariableScope(fe) && syntax.IsVariableScope(n) {
+			return false
+		}
+		if u, ok := n.(*syntax.Variable); ok && u.Name == v.Name && u.Span().Start >= fe.Span().End {
+			read = true
+		}
+		return true
+	})
+	return read
 }
