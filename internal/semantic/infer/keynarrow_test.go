@@ -111,8 +111,10 @@ function deep(array $d) {
 `, map[string]string{
 		"isset": `\Foo`, "guard": `\Foo`,
 		"sibling": `\Foo|null`, "computedBelow": `\Foo|null`,
-		// Writes elsewhere in the array already widen its element type.
-		"computedTop": "?unknown", "otherBranch": "?unknown", "whole": "?unknown",
+		// An empty array written at a computed key may replace $m['a']: the
+		// read then gives null. A write under another literal key leaves
+		// the narrowed element alone.
+		"computedTop": `\Foo|null`, "otherBranch": `\Foo`, "whole": "?unknown",
 		"four": "int[]|null[]", "five": "int|null",
 	})
 }

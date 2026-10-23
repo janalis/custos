@@ -32,7 +32,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   the matches of `preg_match_all()` with `PREG_SET_ORDER` or
   `PREG_OFFSET_CAPTURE`, `static` locals, and the parameters of a closure
   passed where a function or method documents the callback's signature
-  (`@param Closure(T, TKey): bool $p` on a generic collection).
+  (`@param Closure(T, TKey): bool $p` on a generic collection). An array or
+  an empty one (`$list ?? []`, `$found ? $list : []`) keeps the elements of
+  the array.
 - HardcodedCredentialAtKnownSink matches `excludedPaths` from the workspace
   root in the language server and the MCP server when a file has no
   `custos.json` or `composer.json` above it, instead of the server's working

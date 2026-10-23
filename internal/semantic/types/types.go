@@ -123,6 +123,10 @@ func (t Type) OnlyOf(atoms ...string) bool {
 // Union merges types. Unknown absorbs nothing: unknown|int = int|unknown
 // is represented as unknown (callers must treat partial knowledge as unknown).
 func Union(ts ...Type) Type {
+	ts, absorbed := absorbEmptyArrays(ts)
+	if absorbed {
+		return Union(ts...).WithNonEmpty(false)
+	}
 	var all []string
 	info, ints, lens, cases, strs := false, false, false, false, false
 	for _, t := range ts {
@@ -151,6 +155,41 @@ func Union(ts ...Type) Type {
 		u.strs = unionStrs(ts)
 	}
 	return u.withGen(unionGen(u, ts)).withInter(unionInter(ts))
+}
+
+// absorbEmptyArrays drops the empty arrays (`[]`) of ts when another member
+// has array members that hold an empty array too (`T[]`, or `array` without
+// a sealed shape): the union then reads their elements, which an empty array
+// adds none to. absorbed reports a drop; the union is then no longer known
+// non-empty.
+func absorbEmptyArrays(ts []Type) ([]Type, bool) {
+	empty, other := 0, false
+	for _, t := range ts {
+		switch {
+		case t.isEmptyArray():
+			empty++
+		case !t.hasArrayAtom():
+		case t.arr != nil && t.arr.shape && t.arr.sealed:
+			return ts, false // keys become optional instead (see mergeInfo)
+		default:
+			other = true
+		}
+	}
+	if empty == 0 || !other {
+		return ts, false
+	}
+	kept := make([]Type, 0, len(ts)-empty)
+	for _, t := range ts {
+		if !t.isEmptyArray() {
+			kept = append(kept, t)
+		}
+	}
+	return kept, true
+}
+
+// isEmptyArray reports whether t is exactly the empty array.
+func (t Type) isEmptyArray() bool {
+	return len(t.atoms) == 1 && t.atoms[0] == "array" && t.arr != nil && t.arr.shape && t.arr.sealed && len(t.arr.keys) == 0
 }
 
 // Without removes atoms.
