@@ -18,7 +18,9 @@ What it offers:
   `custos.fixRule` (arguments: the document URI and a rule ID), which apply
   the quick-fixes of an open document.
 
-Diagnostics follow your typing with a short delay (150 ms). Saving a file
+Diagnostics follow your typing with a short delay (150 ms). The server then
+updates the cross-file flow summaries of the edited file in the background
+and, when they changed, re-checks the other open files. Saving a file
 updates the project index and re-checks the other open files. When the
 client supports dynamic file watchers, the server also watches `**/*.php`,
 so changes made outside the editor (a `git checkout`, generated code) reach
