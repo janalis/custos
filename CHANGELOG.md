@@ -30,7 +30,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   documented as a subclass of its declared type (`@var Text` on a `Message`
   property), the elements nested writes create (`$groups[$key][] = $row`),
   the matches of `preg_match_all()` with `PREG_SET_ORDER` or
-  `PREG_OFFSET_CAPTURE`, `static` locals, and the parameters of a closure
+  `PREG_OFFSET_CAPTURE` and those `preg_replace_callback()` passes its
+  callback, `static` locals, and the parameters of a closure
   passed where a function or method documents the callback's signature
   (`@param Closure(T, TKey): bool $p` on a generic collection). An array or
   an empty one (`$list ?? []`, `$found ? $list : []`) keeps the elements of

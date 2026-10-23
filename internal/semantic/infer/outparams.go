@@ -386,22 +386,11 @@ func (e *Env) builtinOutType(kind outKind, al *syntax.ArgList, v *syntax.Variabl
 		// pairs each match with its offset. preg_match_all() lists the
 		// matches per group, or with PREG_SET_ORDER per match: strings
 		// either way. Other flags: plain array.
-		el := "string"
+		flags := "0"
 		if len(al.Args) > 3 {
-			switch matchFlags(al.Args[3]) {
-			case "0":
-			case "preg_pattern_order", "preg_set_order":
-				if kind != outMatchesAll {
-					el = ""
-				}
-			case "preg_unmatched_as_null":
-				el = "(string|null)"
-			case "preg_offset_capture":
-				el = "array{0: string, 1: int}"
-			default:
-				el = ""
-			}
+			flags = matchFlags(al.Args[3])
 		}
+		el := matchesElement(flags, kind == outMatchesAll)
 		return func() types.Type {
 			switch {
 			case el == "":
@@ -467,6 +456,27 @@ func unconditionalBlock(call syntax.Expr) syntax.Span {
 	}
 }
 
+// matchesElement returns the doc type of each group's entry in the matches
+// of a preg function with the named flags (see matchFlags), "" when they
+// are unknown: unmatched groups are ” without flags, PREG_UNMATCHED_AS_NULL
+// makes them null, PREG_OFFSET_CAPTURE pairs each match with its offset;
+// PREG_PATTERN_ORDER and PREG_SET_ORDER only order preg_match_all()'s.
+func matchesElement(flags string, all bool) string {
+	switch flags {
+	case "0":
+		return "string"
+	case "preg_pattern_order", "preg_set_order":
+		if all {
+			return "string"
+		}
+	case "preg_unmatched_as_null":
+		return "(string|null)"
+	case "preg_offset_capture":
+		return "array{0: string, 1: int}"
+	}
+	return ""
+}
+
 // matchFlags names the flags argument of preg_match(): "0" for a literal 0,
 // the lower-case constant name for a single constant, "" otherwise.
 func matchFlags(x syntax.Expr) string {
@@ -474,7 +484,12 @@ func matchFlags(x syntax.Expr) string {
 	if !ok || a.Name != nil || a.Unpack {
 		return ""
 	}
-	switch v := syntax.UnwrapParens(a.Value).(type) {
+	return flagsValue(a.Value)
+}
+
+// flagsValue is matchFlags for the value of the argument.
+func flagsValue(x syntax.Expr) string {
+	switch v := syntax.UnwrapParens(x).(type) {
 	case *syntax.Literal:
 		if v.Raw == "0" {
 			return "0"

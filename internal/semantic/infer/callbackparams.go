@@ -12,7 +12,7 @@ import (
 // fixed callback contract takes.
 var callbackSlot = map[string]int{
 	"array_map": 0, "array_filter": 1, "array_walk": 1, "array_reduce": 1,
-	"usort": 1, "uasort": 1, "uksort": 1,
+	"usort": 1, "uasort": 1, "uksort": 1, "preg_replace_callback": 1,
 }
 
 // contextParamType types parameter i of closure or arrow function fn when fn
@@ -124,6 +124,15 @@ func (e *Env) builtinCallbackParam(fn syntax.Node, arg *syntax.Arg, i int) types
 	case "uksort":
 		if i < 2 {
 			return e.foreachKey(at(0))
+		}
+	case "preg_replace_callback":
+		// The matches, as preg_match() stores them by its flags.
+		flags := "0"
+		if f := at(5); f != nil {
+			flags = flagsValue(f)
+		}
+		if el := matchesElement(flags, false); i == 0 && el != "" {
+			return types.FromDoc(el+"[]", nil)
 		}
 	}
 	return types.Unknown
