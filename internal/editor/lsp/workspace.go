@@ -1,6 +1,7 @@
 package lsp
 
 import (
+	"bytes"
 	"context"
 	"maps"
 	"path/filepath"
@@ -152,10 +153,15 @@ func (s *Server) indexDoc(uri string) {
 	addSource(ix, cfg, path, text)
 }
 
+// extractSource returns the declarations of path read from src.
+func extractSource(cfg *config.Config, path string, src []byte) *index.FileSymbols {
+	return project.ExtractSymbols(path, src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
+}
+
 // addSource indexes the declarations of path read from src in place of
 // those indexed for it, and returns them.
 func addSource(ix *index.Index, cfg *config.Config, path string, src []byte) *index.FileSymbols {
-	fs := project.ExtractSymbols(path, src, syntax.Options{Version: cfg.PHP, ShortOpenTag: cfg.ShortOpenTag}, infer.Options{Assertions: cfg.Flow.Assertions})
+	fs := extractSource(cfg, path, src)
 	ix.DropStaleInferred(fs)
 	ix.Add(fs)
 	return fs
@@ -180,6 +186,23 @@ func (s *Server) reindexDoc(uri string) bool {
 		return false
 	}
 	fs := addSource(ix, cfg, path, text)
+	if build != nil && prev == nil && build.FromDisk(path) {
+		// The build read the file as saved, which is what the buffer of a
+		// document just opened holds.
+		if disk, err := project.ReadSource(path); err == nil {
+			if bytes.Equal(disk, text) {
+				s.mu.Lock()
+				if s.flowBuild == build {
+					symbols := maps.Clone(s.flowSymbols)
+					symbols[path] = fs
+					s.flowSymbols = symbols
+				}
+				s.mu.Unlock()
+				return false
+			}
+			prev = extractSource(cfg, path, disk)
+		}
+	}
 	if build != nil && prev != nil && index.SameDeclarations(prev, fs) {
 		// No other file sees a change: summarize again only what the
 		// buffer's summaries reach.

@@ -53,6 +53,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   otherwise it still summarizes every file. On the Symfony repository, the
   update after an edit to symfony/console's Application.php takes 40% less
   CPU time.
+- Opening a file in the language server no longer rebuilds the cross-file
+  flow summaries of the whole workspace: a buffer holding the saved file
+  changes nothing, and one with other text but the same declarations
+  updates the summaries as an edit does.
 - The command line, the language server and the MCP server discover files
   alike. `custos analyse` and `custos fix` index every file under `paths`
   even when the command line names only some, so cross-file results no

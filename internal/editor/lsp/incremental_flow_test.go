@@ -12,6 +12,7 @@ import (
 	"custos/internal/inspection/rules/untrustedshellcommand"
 	"custos/internal/php/syntax"
 	"custos/internal/project"
+	"custos/internal/semantic/flow"
 	"custos/internal/semantic/index"
 )
 
@@ -40,9 +41,10 @@ func TestIncrementalFlowRefresh(t *testing.T) {
 		s.docs[uri].text = []byte(src)
 		return s.reindexDoc(uri)
 	}
-	// The buffer has no recorded symbols yet: a full rebuild.
-	if !edit("<?php function invoke($arg) { system($arg); }") || s.flowBuild == nil {
-		t.Fatal("first edit did not rebuild")
+	// The buffer holds the file as the build read it: nothing to redo.
+	opened := s.flowBuild
+	if edit("<?php function invoke($arg) { system($arg); }") || s.flowBuild != opened || s.flowSymbols[wrapper] == nil {
+		t.Fatal("opening a saved file summarized it again")
 	}
 	full := s.flowBuild
 	if edit("<?php function invoke($arg) { system($arg); /* typing */ }") {
@@ -177,5 +179,50 @@ func TestFlowUpdateAfterAnalysis(t *testing.T) {
 	s.reflow(uri)
 	if s.reflowing || !strings.Contains(out.String(), "flow update panicked") {
 		t.Fatal("failed update left the queue busy or unreported")
+	}
+}
+
+// A document opened with other text than the saved file updates the build
+// the file was summarized in when the declarations are the same, and
+// rebuilds it otherwise or when the file cannot be read.
+func TestOpenedDocumentUpdatesBuild(t *testing.T) {
+	for _, tc := range []struct {
+		name, text string
+		remove     bool
+		rebuilt    bool
+	}{
+		{"same declarations", "<?php function invoke($arg) { echo $arg; }", false, false},
+		{"other declarations", "<?php function invoke($arg, $more = null) { system($arg); }", false, true},
+		{"unreadable file", "<?php function invoke($arg) { echo $arg; }", true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			s := whiteBox(t, root, io.Discard, untrustedshellcommand.New())
+			wrapper := filepath.Join(root, "wrapper.php")
+			if err := os.WriteFile(wrapper, []byte("<?php function invoke($arg) { system($arg); }"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			if !s.beginIndexing() {
+				t.Fatal("index not requested")
+			}
+			s.buildIndex()
+			if tc.remove {
+				if err := os.Remove(wrapper); err != nil {
+					t.Fatal(err)
+				}
+			}
+			old := buildFlow
+			defer func() { buildFlow = old }()
+			builds := 0
+			buildFlow = func(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options, order map[string]int) *project.FlowBuild {
+				builds++
+				return old(ctx, files, srcs, opt, ix, options, order)
+			}
+			uri := "file://" + wrapper
+			s.docs[uri] = &document{path: wrapper, text: []byte(tc.text)}
+			if !s.reindexDoc(uri) || (builds > 0) != tc.rebuilt {
+				t.Fatalf("builds=%d", builds)
+			}
+		})
 	}
 }

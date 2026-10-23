@@ -51,6 +51,14 @@ type FlowBuild struct {
 // Files returns the files the build summarized, in build order.
 func (b *FlowBuild) Files() []string { return b.files }
 
+// FromDisk reports whether the build summarized path as read from disk: it
+// is one of its files and no source was supplied for it.
+func (b *FlowBuild) FromDisk(path string) bool {
+	_, file := b.at[path]
+	_, supplied := b.sources[path]
+	return file && !supplied
+}
+
 // BuildFlow is BuildFlowSnapshot keeping what Update needs.
 func BuildFlow(ctx context.Context, files []string, srcs [][]byte, opt syntax.Options, ix *index.Index, options flow.Options) *FlowBuild {
 	return BuildFlowOrdered(ctx, files, srcs, opt, ix, options, nil)
