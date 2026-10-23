@@ -173,7 +173,7 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 		return e.classConstType(n)
 	case *syntax.ArrayDimFetch:
 		t := e.dimType(n)
-		if key := narrowKey(n); key != "" && !t.IsUnknown() {
+		if key := narrowKey(n); key != "" {
 			t = e.narrowExpr(t, n, key, syntax.EnclosingVariableScope(n))
 		}
 		return t

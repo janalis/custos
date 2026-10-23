@@ -202,10 +202,13 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 			return r
 		}
 		a, ok := c.Args.Args[0].(*syntax.Arg)
-		if !ok || !isVar(a.Value, name) {
+		fn := strings.ToLower(strings.TrimPrefix(nm.Value, `\`))
+		if !ok {
 			return t
 		}
-		fn := strings.ToLower(strings.TrimPrefix(nm.Value, `\`))
+		if x := unlessNull(a.Value); !isVar(a.Value, name) && (fn == "is_null" || x == nil || !isVar(x, name)) {
+			return t
+		}
 		switch _, check := typeChecks[fn]; {
 		case !check && fn != "count" && fn != "sizeof" && fn != "is_a" && fn != "is_subclass_of" && fn != "in_array":
 			return t
@@ -229,6 +232,19 @@ func (e *Env) applyCondB(t types.Type, cond syntax.Expr, name string, truthy boo
 		return narrowAtoms(t, atoms, truthy)
 	}
 	return t
+}
+
+// unlessNull returns x of `x ?? null`, else nil: a type check other than
+// is_null() is true of it exactly when it is true of x, which is then set.
+func unlessNull(v syntax.Expr) syntax.Expr {
+	b, ok := syntax.UnwrapParens(v).(*syntax.Binary)
+	if !ok || b.Op.Kind != syntax.TCoalesce {
+		return nil
+	}
+	if c, ok := syntax.UnwrapParens(b.Right).(*syntax.ConstFetch); ok && strings.EqualFold(c.Name.Value, "null") {
+		return b.Left
+	}
+	return nil
 }
 
 // needleSearches are the builtins that find a needle in a haystack: a true
