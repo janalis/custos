@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- ParseUrlFailureDereferenced no longer reports a `parse_url()` result
+  read after `$parts ?? null` (or another falsy fallback) was checked.
 - CallableParameterUseCaseInTypeContext no longer calls an `is_*()` test
   "always false" where the parameter holds a value assigned since (or
   bound by `foreach`) rather than the one it was given.

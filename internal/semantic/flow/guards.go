@@ -72,6 +72,12 @@ func (e *Env) refine(expr syntax.Expr, f *frame, truth bool) {
 			e.refine(n.Expr, f, !truth)
 		}
 	case *syntax.Binary:
+		if truth && n.Op.Kind == syntax.TCoalesce && falsyConstant(n.Right) {
+			// `$v['k'] ?? null` holds only where $v['k'] is set and holds,
+			// as isset() and a truth test of it would.
+			exclude(n.Left, f, true, true)
+			exclude(indexed(n.Left), f, true, true)
+		}
 		// A constant-first comparison states the same fact. It only pins the
 		// variable to a literal in the written order, as it always did.
 		e.refineInts(n, f, truth)
@@ -746,4 +752,20 @@ func (e *Env) stored(flag *syntax.Variable, f *frame) syntax.Expr {
 		return nil
 	}
 	return test
+}
+
+// falsyConstant reports a constant PHP reads as false: null, false, 0,
+// 0.0, ” or '0' written as such.
+func falsyConstant(x syntax.Expr) bool {
+	switch c := syntax.UnwrapParens(x).(type) {
+	case *syntax.ConstFetch:
+		name := strings.ToLower(strings.TrimPrefix(c.Name.Value, `\`))
+		return name == "null" || name == "false"
+	case *syntax.Literal:
+		switch c.Raw {
+		case "0", "0.0", "''", `""`, "'0'", `"0"`:
+			return true
+		}
+	}
+	return false
 }

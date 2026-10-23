@@ -35,6 +35,7 @@ unchecked result.
   - plain truthiness (`$parts`, `!$parts`) and `empty($parts)`;
   - `is_array($parts)` and `array_key_exists($key, $parts)` resolved to the builtins;
   - `isset` or `empty` on a key of the variable (`isset($parts['host'])`, `!empty($parts['path'])`); `isset($parts)` alone proves nothing because `false` is set.
+  - a key of the variable with a fallback PHP reads as false (`null`, `false`, `0`, `''`, `'0'`) that holds (`$parts['port'] ?? null ? … : …`): the key is then set and holds.
   - negation, and `&&`/`||` (also `and`/`or`) combinations: a true conjunction needs one proving operand, a false conjunction needs all of them, and symmetrically for disjunctions.
 - D5. A guard applies in these positions: the matching branch of an enclosing `if`/`elseif`/`else` (later branches also know the earlier conditions failed); the matching arm of an enclosing ternary; the right operand of `&&` or `||` whose left operand is the guard; and any statement after an earlier sibling `if` whose main body always exits, at every enclosing block level inside the same function scope.
 
