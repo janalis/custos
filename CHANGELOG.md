@@ -114,6 +114,12 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- StreamOpenFailureUnchecked and FileReadFailureUnchecked no longer report
+  PHP's own streams (`php://memory`, `php://temp`, `php://output`, the
+  standard streams), which always open. On PHP 8.0 and later, a stream
+  call that returned (`fread($h, 4)`) proves the handle open for the rules
+  that look for unchecked failures, since PHP throws for `false` there:
+  only the first unguarded use of a handle is reported.
 - UnknownNamedArgument no longer reports a named argument to a method of a
   class the project declares more than once (an older copy of the code
   left in the project): which declaration runs depends on the autoloader.

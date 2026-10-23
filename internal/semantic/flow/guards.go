@@ -337,6 +337,22 @@ func exclude(x syntax.Expr, f *frame, nonFalse, nonNull bool) {
 	}
 }
 
+// excludeValue is exclude for a value a call accepted: the call says what
+// the variable holds, not whether an operation made on it before succeeded
+// (its state).
+func excludeValue(x syntax.Expr, f *frame, nonFalse, nonNull bool) {
+	variable := guarded(x)
+	if variable == nil {
+		return
+	}
+	if v, tracked := f.vars[variable.Name]; tracked {
+		v.NonFalse = v.NonFalse || nonFalse
+		v.NonNull = v.NonNull || nonNull
+		v.origins = v.origins.excluding(nonFalse, nonNull, f.owner)
+		f.setVar(variable.Name, v)
+	}
+}
+
 // excluding records that the value a name holds is not false and/or not null.
 func (f *frame) excluding(name string, v Value, nonFalse, nonNull bool) {
 	if nonFalse {

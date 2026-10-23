@@ -1028,6 +1028,8 @@ func (e *Env) accepted(call syntax.Node, list *syntax.ArgList, builtin bool, fol
 		}
 		if compound, nullable := compoundOnly(params[at].Type); builtin && compound {
 			exclude(arg.Value, f, true, !nullable)
+		} else if resource, nullable := resourceOnly(params[at]); builtin && resource {
+			excludeValue(arg.Value, f, true, !nullable)
 		} else if !builtin && !params[at].Optional && rejectsNull(params[at].Type) {
 			exclude(arg.Value, f, false, true)
 		}
@@ -1068,6 +1070,28 @@ func rejectsNull(declared string) bool {
 		}
 	}
 	return true
+}
+
+// resourceOnly reports a builtin parameter PHP checks as a resource (no
+// declared type, documented `resource` in the stubs: `fread($stream)`),
+// and whether it also takes null.
+func resourceOnly(p index.Param) (bool, bool) {
+	if p.Type != "" || p.DocType == "" {
+		return false, false
+	}
+	resource, nullable := false, false
+	for _, part := range strings.Split(p.DocType, "|") {
+		switch strings.ToLower(strings.TrimPrefix(part, "?")) {
+		case "resource":
+			resource = true
+		case "null":
+			nullable = true
+		default:
+			return false, false
+		}
+		nullable = nullable || strings.HasPrefix(part, "?")
+	}
+	return resource, nullable
 }
 
 // compoundOnly reports a declared parameter type made only of arrays,

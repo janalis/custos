@@ -49,8 +49,8 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		inputs = semanticquery.NativeStringInputs(ctx, n, args)
 	}
 	for _, input := range inputs {
-		_, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
-		if !ok {
+		read, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
+		if !ok || infallibleRead(ctx, read) {
 			continue
 		}
 
@@ -69,4 +69,15 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
+}
+
+// infallibleRead reports whether read is stream_get_contents() of a handle
+// opened on one of PHP's own memory or standard streams (E7), which
+// cannot fail.
+func infallibleRead(ctx *analysis.Context, read *syntax.FuncCall) bool {
+	if semanticquery.NativeBuiltinName(ctx, read) != "stream_get_contents" {
+		return false
+	}
+	open, ok := semanticquery.NativeLocalValue(ctx, semanticquery.CallArgument(read.Args, 0, "stream")).(*syntax.FuncCall)
+	return ok && semanticquery.NativeBuiltinName(ctx, open) == "fopen" && semanticquery.InfallibleOpen(open)
 }

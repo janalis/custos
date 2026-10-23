@@ -26,14 +26,14 @@ namespace App\Tests {
         // A failing PHPUnit assertion throws: the stream is open below it.
         public function testResource(): void
         {
-            $stream = fopen('php://memory', 'rb+');
+            $stream = fopen(sys_get_temp_dir() . '/stream', 'rb+');
             static::assertIsResource($stream);
             fwrite($stream, 'x');
         }
 
         public function testNotFalse(): void
         {
-            $stream = fopen('php://memory', 'rb+');
+            $stream = fopen(sys_get_temp_dir() . '/stream', 'rb+');
             $this->assertNotFalse($stream);
             fwrite($stream, 'x');
         }
@@ -41,7 +41,7 @@ namespace App\Tests {
         // A project's own assertion is only documented.
         public function testOwnCheck(): void
         {
-            $stream = fopen('php://memory', 'rb+');
+            $stream = fopen(sys_get_temp_dir() . '/stream', 'rb+');
             Check::notFalse($stream);
             <warning descr="Check that the stream opened successfully.">fwrite($stream, 'x')</warning>;
         }

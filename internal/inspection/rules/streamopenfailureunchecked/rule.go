@@ -35,7 +35,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 
 	var open *syntax.FuncCall
 	for _, candidate := range semanticquery.NativeLocalBuiltinResults(ctx, handle, "false", "fopen") {
-		if call, ok := candidate.(*syntax.FuncCall); ok && (!semanticquery.NativeFailureFlowOnly(ctx, handle) || !joinedWarningUnknown(ctx, call)) {
+		if call, ok := candidate.(*syntax.FuncCall); ok && !semanticquery.InfallibleOpen(call) && (!semanticquery.NativeFailureFlowOnly(ctx, handle) || !joinedWarningUnknown(ctx, call)) {
 			open = call
 			break
 		}
