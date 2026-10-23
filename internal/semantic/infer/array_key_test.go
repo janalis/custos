@@ -134,7 +134,7 @@ function f(int $x, string $k) {
     t('destructured', $d['b']);
 }
 `, map[string]string{
-		"nested": "int[]", "otherKey": "?unknown", "written": "string", "append": "?unknown",
+		"nested": "int[]{s: int}", "otherKey": "?unknown", "written": "string", "append": "?unknown",
 		"appendStr": "?unknown", "computed": "string", "destructured": "?unknown",
 	})
 }

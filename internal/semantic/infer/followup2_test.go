@@ -189,7 +189,7 @@ function f(Res $res, int $k) {
 }
 `, map[string]string{
 		"zero": "null|string", "one": "null|string|string[]", "user": "null|string", "privs": "int[]|null|string{0: int}",
-		"appendInt": "int|null|string", "appendStr": "null|string", "computed": "float|null|string", "nested": "null|string",
+		"appendInt": "int|null|string", "appendStr": "null|string", "computed": "float|null|string", "nested": "int[]|null|string{1: int}",
 	})
 }
 

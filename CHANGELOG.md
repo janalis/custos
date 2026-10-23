@@ -40,7 +40,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   Doctrine's `getAllMetadata()` reads `list<ClassMetadata>`). The array a
   `foreach` iterates no longer takes the types its body assigns to it later.
   A type check narrows an element written `$a['k'] ?? null` too, and an
-  element of an array nothing is known of.
+  element of an array nothing is known of. A write below an element
+  (`$groups[$id]['files'][] = $file`) updates it along its keys, so the
+  element keeps its shape and `files` holds the files written, where the
+  element became a plain array or kept the empty `files` it started with.
 - HardcodedCredentialAtKnownSink matches `excludedPaths` from the workspace
   root in the language server and the MCP server when a file has no
   `custos.json` or `composer.json` above it, instead of the server's working

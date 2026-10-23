@@ -523,7 +523,7 @@ function f(array $xs, string $k) {
 }
 `, map[string]string{
 		"name": "string", "n": "int", "overwritten": "int|string", "computed": "int|null",
-		"nestedWrite": "?unknown", "otherKey": "string", "append": "int",
+		"nestedWrite": "int", "otherKey": "string", "append": "int",
 		"byRef": "?unknown", "foreachRef": "?unknown", "destructKey": "string", "destructPos": "string",
 	})
 }
@@ -668,7 +668,7 @@ function f(array $xs, bool $c) {
 }
 `, map[string]string{
 		"before": "int", "after": "int|string", "branch": "int|string", "reassigned": "float",
-		"loopBefore": "int|string", "beforeNested": "int", "afterNested": "?unknown",
+		"loopBefore": "int|string", "beforeNested": "int", "afterNested": "int",
 		"missingBefore": "?unknown", "missingAfter": "int",
 		"elemBefore": "int", "elemAfter": "int|string", "cycle": "int",
 	})

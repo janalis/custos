@@ -22,5 +22,5 @@ function f(array $rows) {
     $shape['k']['y'] = 'v';
     t('literal', $shape['k']);
 }
-`, map[string]string{"group": `string[]`, "deep": `array`, "counted": `array`, "each": `string[]`, "literal": `string[]`})
+`, map[string]string{"group": `string[]`, "deep": `array`, "counted": `array`, "each": `non-empty string[]`, "literal": `string[]{y: string}`})
 }

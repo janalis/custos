@@ -106,11 +106,12 @@ func (e *Env) widenKey(kt types.Type, v *syntax.Variable, key string, appends bo
 		return kt
 	}
 	ts := []types.Type{kt}
-	var nested []types.Type
+	var nested []*elemWrite
+	var nestedBack []bool
 	for i, w := range ws {
 		if w.nested {
 			if k, ok := syntax.LiteralArrayKey(w.key); !ok || k == key {
-				nested = append(nested, e.nestedElementType(w))
+				nested, nestedBack = append(nested, w), append(nestedBack, back[i])
 			}
 			continue
 		}
@@ -133,25 +134,176 @@ func (e *Env) widenKey(kt types.Type, v *syntax.Variable, key string, appends bo
 		}
 		ts = append(ts, t)
 	}
-	if len(nested) > 0 {
-		if created, ok := createdByNested(ts, nested); ok {
-			return created
-		}
-		return types.Unknown
-	}
-	return types.Union(ts...)
+	return e.withNestedWrites(types.Union(ts...), kt.OnlyOf("never"), nested, nestedBack)
 }
 
-// createdByNested is the element nested writes create (see
-// nestedElementType) when they are its only source: ts holds the element
-// type before the writes, which "never" says is absent, and nothing else
-// stores into it. A nested write into an element that may exist changes it
-// in place, which no union of types describes.
-func createdByNested(ts, nested []types.Type) (types.Type, bool) {
-	if len(ts) != 1 || !ts[0].OnlyOf("never") {
-		return types.Type{}, false
+// maxNestedPasses bounds how often withNestedWrites applies the nested
+// writes before giving up on the element type (tests lower it).
+var maxNestedPasses = 4
+
+// withNestedWrites returns element type el (never: no element yet) joined
+// with the elements the nested writes leave (`$a[k][k2] = v`): each
+// changes an element of the type in place, or creates one when the array
+// may lack it (create: it started empty; the elements of a typed array are
+// taken as present, as reads take them). They apply in turn until the type
+// no longer changes, as one may store into what another wrote; unknown
+// when it keeps changing. A write of an unknown value reaching through a
+// loop's back edge (back) adds nothing, as for variables: it stores what
+// the loop read.
+func (e *Env) withNestedWrites(el types.Type, create bool, nested []*elemWrite, back []bool) types.Type {
+	if len(nested) == 0 {
+		return el
 	}
-	return types.Union(nested...), true
+	stored := make([]types.Type, len(nested))
+	for i, w := range nested {
+		stored[i] = types.Unknown
+		if w.known() {
+			stored[i] = e.elementStoredType(w)
+		}
+	}
+	for range maxNestedPasses {
+		if el.IsUnknown() {
+			return el
+		}
+		prev := el.ShapeString()
+		for i, w := range nested {
+			if stored[i].IsUnknown() && back[i] {
+				continue
+			}
+			el = types.Union(el, e.nestedWrite(el, w, stored[i]))
+			if create {
+				el = types.Union(el, e.nestedWrite(types.Of("never"), w, stored[i]))
+			}
+		}
+		if el.ShapeString() == prev {
+			return el
+		}
+	}
+	return types.Unknown
+}
+
+// nestedWrite returns an element of type el (never: absent) after nested
+// write w stores v below it: the keys under the element's own, by
+// writeInto. A destructuring or reference write leaves an array of unknown
+// values.
+func (e *Env) nestedWrite(el types.Type, w *elemWrite, v types.Type) types.Type {
+	var target syntax.Expr
+	switch {
+	case w.inc != nil:
+		target = w.inc.Var
+	case w.a != nil && !w.a.ByRef:
+		target = w.a.Var
+	default:
+		return types.Array
+	}
+	var path []syntax.Expr
+	for x := syntax.UnwrapParens(target); ; {
+		d, ok := x.(*syntax.ArrayDimFetch)
+		if !ok {
+			break
+		}
+		path = append(path, d.Dim)
+		x = syntax.UnwrapParens(d.Var)
+	}
+	slices.Reverse(path)
+	return e.writeInto(el, path[1:], v)
+}
+
+// writeInto returns a value of type t after v is stored into it through
+// the keys of path (nil for an append): its arrays as writeIntoArray
+// leaves them, null and false (or an absent value, never) turned into one;
+// other values keep their type (an ArrayAccess object takes the write, PHP
+// throws on a string offset written below or a scalar, and mixed or
+// iterable admits the array written). Unknown for a callable, which may be
+// an array that stops being one.
+func (e *Env) writeInto(t types.Type, path []syntax.Expr, v types.Type) types.Type {
+	if len(path) == 0 {
+		return v
+	}
+	if t.IsUnknown() {
+		return types.Unknown
+	}
+	var others, kept []string
+	created := false
+	for _, a := range t.Atoms() {
+		switch {
+		case a == "array" || strings.HasSuffix(a, "[]"):
+			continue
+		case a == "callable":
+			return types.Unknown
+		case a == "null" || a == "false" || a == "never":
+			created = true
+		case a == "bool":
+			created = true
+			kept = append(kept, a)
+		default:
+			kept = append(kept, a)
+		}
+		others = append(others, a)
+	}
+	var parts []types.Type
+	if len(kept) > 0 {
+		parts = append(parts, types.Of(kept...))
+	}
+	arrays := t.Without(others...)
+	switch {
+	case created && len(arrays.Atoms()) > 0:
+		arrays = types.Union(arrays, types.FromDoc("array{}", nil))
+	case created:
+		arrays = types.FromDoc("array{}", nil)
+	case len(arrays.Atoms()) == 0:
+		return types.Union(parts...)
+	}
+	return types.Union(append(parts, e.writeIntoArray(arrays, path, v))...)
+}
+
+// writeIntoArray is writeInto for an array base: a literal key of its
+// shape holds what is written below it, any other key joins its elements.
+func (e *Env) writeIntoArray(base types.Type, path []syntax.Expr, v types.Type) types.Type {
+	rest := path[1:]
+	if key, ok := syntax.LiteralArrayKey(path[0]); path[0] != nil && ok && base.HasShape() {
+		keys := slices.Clone(base.ShapeKeys())
+		at := slices.IndexFunc(keys, func(k types.ShapeKey) bool { return k.Name == key })
+		// The key holds what is written below it (unknown when that is),
+		// the array keeps its other keys.
+		var nt types.Type
+		switch {
+		case at < 0 && !base.IsSealedShape():
+			nt = e.writeInto(types.Unknown, rest, v) // the key may hold anything
+		case at < 0:
+			nt = e.writeInto(types.Of("never"), rest, v)
+		case keys[at].Optional:
+			nt = types.Union(e.writeInto(keys[at].Type, rest, v), e.writeInto(types.Of("never"), rest, v))
+		default:
+			nt = e.writeInto(keys[at].Type, rest, v)
+		}
+		if at < 0 {
+			keys = append(keys, types.ShapeKey{Name: key, Type: nt})
+		} else {
+			keys[at] = types.ShapeKey{Name: key, Type: nt}
+		}
+		if len(keys) <= types.MaxShapeKeys {
+			values := []types.Type{types.Of("never")}
+			for _, k := range keys {
+				values = append(values, k.Type)
+			}
+			return elementArray(types.Union(values...), true).WithShape(keys, base.IsSealedShape())
+		}
+	}
+	// Another key: a new element, or (unless appended) an existing one
+	// written below.
+	prior := arrayElements(base)
+	if prior.IsUnknown() {
+		return types.Array
+	}
+	elem := types.Union(prior, e.writeInto(types.Of("never"), rest, v))
+	if path[0] != nil && !prior.OnlyOf("never") {
+		elem = types.Union(elem, e.writeInto(prior, rest, v))
+	}
+	if elem.IsUnknown() {
+		return types.Array
+	}
+	return arrayOf(elem).WithNonEmpty(true)
 }
 
 // shapeElem is the union of the values of a sealed shape (unknown when the
