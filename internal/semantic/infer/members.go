@@ -358,10 +358,35 @@ func (e *Env) methodReturn(cls, name string, virtual bool, origin string, args [
 	if m.Builtin {
 		return bind(e.builtinMemberType(m.Return, m.DocReturn))
 	}
+	if m.DocReturn == "" && types.FromDoc(m.Return, nil).HasAny("array", "iterable") {
+		// An override declaring only `: array` keeps the documented return
+		// of the method it overrides (`{@inheritDoc}`, or no doc at all), as
+		// a doc narrows its own declaration (see pickMemberType).
+		if pm := e.inheritedDoc(m); pm != nil {
+			if t, ok := e.genMethodReturn(pm, origin, args); ok {
+				return bind(t)
+			}
+			return e.bindMember(e.memberType(m.Return, pm.DocReturn), pm.Class, pm.TypeClass, origin)
+		}
+	}
 	if t := e.methodBodyReturn(m, virtual); !t.IsUnknown() {
 		return bind(t) // a plain declared array, refined by the body
 	}
 	return bind(e.memberType(m.Return, m.DocReturn))
+}
+
+// inheritedDoc returns the nearest method m overrides (in the parents and
+// interfaces of its class) that documents a return type; nil when none
+// does.
+func (e *Env) inheritedDoc(m *index.Method) *index.Method {
+	anc := e.Index.Ancestors(strings.TrimPrefix(m.Class, `\`), e.PHP)
+	low := strings.ToLower(m.Name)
+	for _, c := range anc[min(1, len(anc)):] {
+		if pm, ok := c.Methods[low]; ok && !pm.Magic && pm.DocReturn != "" {
+			return pm
+		}
+	}
+	return nil
 }
 
 // inheritedSignature returns the nearest method m overrides (in the parents

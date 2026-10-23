@@ -34,7 +34,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   passed where a function or method documents the callback's signature
   (`@param Closure(T, TKey): bool $p` on a generic collection). An array or
   an empty one (`$list ?? []`, `$found ? $list : []`) keeps the elements of
-  the array.
+  the array, and a method declaring only `: array` or `: iterable` keeps the
+  documented return of the method it overrides (`{@inheritDoc}` on
+  Doctrine's `getAllMetadata()` reads `list<ClassMetadata>`).
 - HardcodedCredentialAtKnownSink matches `excludedPaths` from the workspace
   root in the language server and the MCP server when a file has no
   `custos.json` or `composer.json` above it, instead of the server's working
