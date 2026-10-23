@@ -1,6 +1,7 @@
 package infer
 
 import (
+	"regexp"
 	"strings"
 
 	"custos/internal/php/phpdoc"
@@ -197,6 +198,13 @@ func (e *Env) scopeDocs(n syntax.Node) *docScope {
 			for k, v := range aliases {
 				s.aliases[k] = v
 			}
+			// An imported alias reads as its class declares it; mixed
+			// when that is unknown.
+			for _, it := range d.ImportedTypes() {
+				if def, ok := e.typeAlias(e.Names.Class(it.From, n.Span().Start), it.Name, 0); ok {
+					s.aliases[it.Local] = def
+				}
+			}
 		}
 	}
 	if e.docScopes == nil {
@@ -257,4 +265,35 @@ func (e *Env) docType(text string, resolve types.Resolver) types.Type {
 	return types.FromDocResolved(text, resolve, func(expr string) types.Type {
 		return index.ResolveDocType(expr, resolve, func(name string) *index.Class { return e.Index.Class(name, e.PHP) })
 	})
+}
+
+// maxAliasDepth bounds the imports typeAlias follows.
+const maxAliasDepth = 8
+
+// aliasRef matches the imported aliases the index leaves in a declared one.
+var aliasRef = regexp.MustCompile(`\\~alias~([A-Za-z_][A-Za-z0-9_]*)`)
+
+// typeAlias returns type alias name of class cls as a doc type: the one it
+// declares, with the aliases it imports expanded, or the one it imports;
+// ok is false when neither is known (or past maxAliasDepth imports, as a
+// cycle of them would be).
+func (e *Env) typeAlias(cls, name string, depth int) (string, bool) {
+	c := e.Index.Class(cls, e.PHP)
+	if c == nil || depth > maxAliasDepth {
+		return "", false
+	}
+	if im, ok := c.TypeImports[name]; ok {
+		return e.typeAlias(im.From, im.Name, depth+1)
+	}
+	def, ok := c.TypeAliases[name]
+	if !ok {
+		return "", false
+	}
+	return aliasRef.ReplaceAllStringFunc(def, func(ref string) string {
+		sub, ok := e.typeAlias(cls, aliasRef.FindStringSubmatch(ref)[1], depth+1)
+		if !ok {
+			return "mixed"
+		}
+		return "(" + sub + ")"
+	}), true
 }

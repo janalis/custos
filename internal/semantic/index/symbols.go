@@ -256,6 +256,12 @@ type VerInterfaces struct {
 	Interfaces []string
 }
 
+// TypeImport is a type alias a class imports: alias Name of class From.
+type TypeImport struct {
+	From string `json:"from"`
+	Name string `json:"name"`
+}
+
 // Class is a class, interface, trait or enum.
 type Class struct {
 	InterfacesVer    []VerInterfaces        `json:"ifacesVer,omitempty"`
@@ -284,6 +290,13 @@ type Class struct {
 	// classes using it (@require-extends, @require-implements and their
 	// phpstan- and psalm- variants), as FQNs.
 	Requires []string `json:"req,omitempty"`
+	// TypeAliases are the type aliases the class declares (@phpstan-type,
+	// @psalm-type) as doc types with resolved class names; an alias the
+	// class imports reads `\~alias~Local` in them (see TypeImports).
+	TypeAliases map[string]string `json:"talias,omitempty"`
+	// TypeImports are the type aliases the class imports
+	// (@phpstan-import-type), by the name it gives them.
+	TypeImports map[string]TypeImport `json:"timport,omitempty"`
 	// Attrs are the FQNs of the class's attributes (`#[\AllowDynamicProperties]`
 	// → "AllowDynamicProperties"), in source order.
 	Attrs []string    `json:"attrs,omitempty"`

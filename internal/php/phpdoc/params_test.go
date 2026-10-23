@@ -1,6 +1,7 @@
 package phpdoc
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -53,6 +54,14 @@ func TestEmptyTemplateAndImportTags(t *testing.T) {
 	}
 	if a := d.TypeAliases(); len(a) != 1 || a["C"] != "" {
 		t.Errorf("TypeAliases = %v", a)
+	}
+}
+
+func TestImportedTypes(t *testing.T) {
+	d := Parse("/**\n * @phpstan-import-type\n * @phpstan-import-type A\n * @phpstan-import-type A to B\n * @phpstan-import-type A from B as C\n * @psalm-import-type D FROM \\E\n * @param int $x\n */")
+	want := []ImportedType{{Name: "A", From: "B", Local: "C"}, {Name: "D", From: `\E`, Local: "D"}}
+	if got := d.ImportedTypes(); !slices.Equal(got, want) {
+		t.Errorf("ImportedTypes = %+v", got)
 	}
 }
 

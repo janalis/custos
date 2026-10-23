@@ -432,3 +432,30 @@ func (d *Doc) TypeAliases() map[string]string {
 	}
 	return out
 }
+
+// ImportedType is a type alias imported with @phpstan-import-type or
+// @psalm-import-type: alias Name of class From, known here as Local.
+type ImportedType struct{ Name, From, Local string }
+
+// ImportedTypes returns the type aliases the doc imports
+// (`@phpstan-import-type Name from From as Local`), as written.
+func (d *Doc) ImportedTypes() []ImportedType {
+	var out []ImportedType
+	for _, t := range d.Tags {
+		switch strings.ToLower(t.Name) {
+		case "phpstan-import-type", "psalm-import-type":
+		default:
+			continue
+		}
+		f := strings.Fields(t.Text)
+		if len(f) < 3 || !strings.EqualFold(f[1], "from") {
+			continue
+		}
+		it := ImportedType{Name: f[0], From: f[2], Local: f[0]}
+		if len(f) >= 5 && strings.EqualFold(f[3], "as") {
+			it.Local = f[4]
+		}
+		out = append(out, it)
+	}
+	return out
+}

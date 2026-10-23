@@ -31,6 +31,36 @@ func (x *extractor) genResolver(at uint32) types.Resolver {
 	}
 }
 
+// typeAliases records the type aliases class c imports and those it
+// declares, resolved as its members' types are; an imported alias in a
+// declared one reads `\~alias~Local`, for the reader to expand.
+func (x *extractor) typeAliases(c *Class, d *phpdoc.Doc, at uint32) {
+	for _, it := range d.ImportedTypes() {
+		if c.TypeImports == nil {
+			c.TypeImports = map[string]TypeImport{}
+		}
+		c.TypeImports[it.Local] = TypeImport{From: strings.TrimPrefix(x.r.Class(it.From, at), `\`), Name: it.Name}
+	}
+	resolve := x.resolver(at)
+	r := func(w string) string {
+		if _, imported := c.TypeImports[w]; imported {
+			return "~alias~" + w
+		}
+		return resolve(w)
+	}
+	for name, def := range d.TypeAliases() {
+		if _, imported := c.TypeImports[name]; imported || def == "" {
+			continue
+		}
+		if t := types.FromDoc(def, r); !t.IsUnknown() {
+			if c.TypeAliases == nil {
+				c.TypeAliases = map[string]string{}
+			}
+			c.TypeAliases[name] = t.DocString()
+		}
+	}
+}
+
 // generics records the class templates of d and the generic arguments
 // given to the parents, interfaces and traits (@extends Base<Foo> …).
 func (x *extractor) generics(c *Class, d *phpdoc.Doc, at uint32) {

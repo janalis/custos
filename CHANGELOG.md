@@ -51,7 +51,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   elements of its arrays. Inside a trait that requires its users to extend
   a class or implement an interface (`@phpstan-require-extends`,
   `@require-implements`, …), `$this` is of that type, after the trait's
-  own members.
+  own members. A type alias imported with `@phpstan-import-type` (or
+  `@psalm-import-type`) reads as the class it comes from declares it, where
+  it read as `mixed`, following that class's own imports.
 - HardcodedCredentialAtKnownSink matches `excludedPaths` from the workspace
   root in the language server and the MCP server when a file has no
   `custos.json` or `composer.json` above it, instead of the server's working

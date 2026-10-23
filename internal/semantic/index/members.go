@@ -41,6 +41,7 @@ func (x *extractor) classBody(n *syntax.ClassLike) {
 		c.Avail = x.avail(n.Attrs, d)
 		x.magicMembers(c, d, at)
 		x.generics(c, d, at)
+		x.typeAliases(c, d, at)
 	}
 	for _, m := range n.Members {
 		switch m := m.(type) {
