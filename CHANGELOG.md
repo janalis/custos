@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- NotOptimalRegularExpressions no longer suggests `\d` for `[0-9]` (nor
+  `\w`, `\D`, `\W` for their classes) in a pattern with the `u` modifier,
+  where the shorthand matches the digits and letters of every script.
 - ProperNullCoalescingOperatorUsage no longer reports a `true` or `false`
   fallback (`$seen[$id] ?? false`), a deliberate "absent" marker, nor a
   `void` call on the left, which evaluates to null.

@@ -40,18 +40,18 @@ func (c *noreCase) checkBody() {
 
 	if body != "" { // D14
 		norm := noreNormalize(pat)
-		hint := "same result without /u"
-		if has('u') {
-			hint = "matches more under /u"
-		}
 		for _, kv := range noreShortClasses {
-			if noreHasUnescaped(norm, kv[0]) {
-				h := hint
-				if strings.HasPrefix(kv[0], `[^\`) {
-					h = "same result" // a negated shorthand is its complement in every mode
-				}
-				c.report(diagnostic.SeverityInfo, "Write '"+kv[0]+"' as '"+kv[1]+"' ("+h+").")
+			if !noreHasUnescaped(norm, kv[0]) {
+				continue
 			}
+			h := "same result without /u"
+			switch {
+			case strings.HasPrefix(kv[0], `[^\`):
+				h = "same result" // a negated shorthand is its complement in every mode
+			case has('u'):
+				continue // E8: under /u the shorthand covers other scripts
+			}
+			c.report(diagnostic.SeverityInfo, "Write '"+kv[0]+"' as '"+kv[1]+"' ("+h+").")
 		}
 	}
 	if strings.IndexByte(pat, '[') >= 0 { // D15

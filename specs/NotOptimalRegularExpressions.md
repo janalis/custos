@@ -179,8 +179,10 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
   | `[^\w]`, `[^A-Za-z0-9_]` | `\W` |
   | `[^\s]` | `\S` |
 
-  The message carries a hint: "equivalent" when `mods` lacks `u`, "broader
-  under /u" when it contains `u`. (`[0-9,]` matches no key; `[[:digit:]]`
+  The message carries a hint: "same result" for the negated shorthands
+  `[^\d]`, `[^\w]` and `[^\s]`, which mean the same in every mode, and
+  "same result without /u" for the others, which are not reported when
+  `mods` contains `u` (E8). (`[0-9,]` matches no key; `[[:digit:]]`
   matches `[:digit:]`.)
 - **D15** Repeated identical classes. The decoded pattern (D4) contains
   `[`. Find the first (leftmost) run, not starting at a `[` preceded by an
@@ -340,6 +342,10 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
   `.` as trim character, differing characters in the two trim halves,
   D22f with any modifier.
 - **E7** D23 with a third argument or another wrapper function.
+- **E8** (custos, see Divergences) D14 under `/u` for the keys other than
+  `[^\d]`, `[^\w]` and `[^\s]`: there `\d`, `\w` and their complements
+  cover the digits and letters of every script, so `[0-9]` → `\d` would
+  accept Arabic-Indic digits in a JSON number.
 
 ## Report
 
@@ -648,6 +654,11 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
 ```
 
 ## Divergences
+
+- **Shorthands under /u (custos diverges, E8).** Upstream suggests `\d` for
+  `[0-9]` (and the like) whatever the modifiers. With `/u`, PCRE matches
+  Unicode digits and letters with the shorthands, so the suggestion
+  changes what the pattern accepts; custos does not make it there.
 
 - **Unstable variables — custos refinement, not upstream.** Value discovery ignores `++`/`--` and compound assignments upstream, so a variable later incremented or extended is analyzed with its initial value only. custos makes the result unknown (no candidate, no report), as in the shared value discovery of `CallableMethodValidity`. No upstream fixture relies on such a variable.
 - **D21 range.** The upstream fixture highlights only the function name of
