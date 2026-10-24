@@ -60,6 +60,10 @@ Visit every function call.
   literal is `\string`).
   - needle `@var int`, haystack `@var int[]` → skipped.
   - needle `@var int`, haystack `@var array` → reported.
+  - (custos) `A` may also be an array whose keys and values are all known,
+    with at least one entry, every value of type `T` alone: a class
+    constant `const MODES = ['HTML', 'Markdown'];` searched with a string
+    needle → skipped; `const MIXED = ['HTML', 1];` → reported.
   - needle `'1'` (`\string`), haystack `[]` (`\array`) → reported.
 - **E3** Calls with 0, 1 or 3+ arguments, and calls where a written argument
   is a spread (`in_array($needle, ...$rest)`, `in_array(...$args)`,
@@ -147,6 +151,12 @@ function pick($code, array $allowed) {
 
 ## Divergences
 
+- **Constant arrays of one type (custos diverges, E2).** Upstream types a
+  class constant `['HTML', 'Markdown']` as a plain array, so a string
+  needle searched in it is reported. Every value is a string like the
+  needle, so loose and strict comparison agree: custos does not report it
+  (monolog, pheanstalk). A static property a trait declares for itself,
+  read as `self::$values`, also keeps its declared type there.
 - **Class names (custos diverges, E1).** Upstream only accepts quoted
   strings in a literal haystack, so `in_array($type, ['string',
   Header::class])` is reported. A `Name::class` is a class name, never a

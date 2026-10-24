@@ -23,6 +23,19 @@ func (e *Env) selfClass(c *syntax.ClassLike) string {
 	return e.ClassFQN(c)
 }
 
+// traitSelf returns the FQN of the trait whose code names it as `self` or
+// `static` in class reference x, "" otherwise. A class using the trait can
+// only redeclare the trait's properties compatibly, so they keep the types
+// the trait gives them.
+func (e *Env) traitSelf(x syntax.Expr) string {
+	n, ok := x.(*syntax.Name)
+	c := syntax.EnclosingClass(x)
+	if !ok || c == nil || c.ClassKind != syntax.KindTrait || !strings.EqualFold(n.Value, "self") && !strings.EqualFold(n.Value, "static") {
+		return ""
+	}
+	return e.ClassFQN(c)
+}
+
 // traitThis returns the FQN of the trait x is `$this` in, "" when x is not
 // `$this` inside a trait.
 func (e *Env) traitThis(x syntax.Expr) string {

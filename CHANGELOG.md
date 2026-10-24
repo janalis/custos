@@ -125,6 +125,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - PropertyInitializationFlaws no longer reports a re-declaration that
   gives the property another type, nor takes `''` for an inherited `'    '`
   declared in another file.
+- TypeUnsafeArraySearch no longer reports a search of a string among the
+  values of a class constant listing only strings, nor in a trait's own
+  typed static property read as `self::$values`.
 - UnusedConstructorDependencies no longer reports a property assigned an
   array of references (`[&$this->data]`), which makes clones share them.
 - AlterInForeach no longer asks to unset the value of an inner

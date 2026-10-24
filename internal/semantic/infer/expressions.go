@@ -155,6 +155,9 @@ func (e *Env) infer(x syntax.Expr) types.Type {
 	case *syntax.StaticPropertyFetch:
 		cls := e.classRef(n.Class)
 		if cls == "" {
+			cls = e.traitSelf(n.Class)
+		}
+		if cls == "" {
 			return types.Unknown
 		}
 		v, ok := n.Name.(*syntax.Variable)

@@ -7,6 +7,7 @@ import (
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
+	"custos/internal/semantic/types"
 )
 
 // typeUnsafeArraySearch asks for the strict argument of in_array() and
@@ -38,7 +39,7 @@ func (typeUnsafeArraySearch) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	nt, ht := ctx.TypeOf(needle.Value), ctx.TypeOf(haystack.Value) // E2
 	if !nt.IsUnknown() && !ht.IsUnknown() && len(nt.Atoms()) == 1 && len(ht.Atoms()) == 1 &&
-		strings.TrimPrefix(ht.Atoms()[0], `\`) == strings.TrimPrefix(nt.Atoms()[0], `\`)+"[]" {
+		(strings.TrimPrefix(ht.Atoms()[0], `\`) == strings.TrimPrefix(nt.Atoms()[0], `\`)+"[]" || shapeOf(ht, nt.Atoms()[0])) {
 		return
 	}
 	// custos: no fixing. `true` changes the result whenever loose and strict
@@ -47,6 +48,20 @@ func (typeUnsafeArraySearch) Check(ctx *analysis.Context, n syntax.Node) {
 	// known to be equivalent (same scalar type on both sides) are already
 	// exempt (E2).
 	ctx.Report(call.Span(), "Pass a third argument to say whether this search must be type-strict.")
+}
+
+// shapeOf reports whether t is a sealed array shape whose every value has
+// type atom alone (`const MODES = ['a', 'b']` with a string needle).
+func shapeOf(t types.Type, atom string) bool {
+	if !t.IsSealedShape() || len(t.ShapeKeys()) == 0 {
+		return false
+	}
+	for _, k := range t.ShapeKeys() {
+		if as := k.Type.Atoms(); k.Type.IsUnknown() || len(as) != 1 || strings.TrimPrefix(as[0], `\`) != strings.TrimPrefix(atom, `\`) {
+			return false
+		}
+	}
+	return true
 }
 
 // literalStringHaystack implements E1.
