@@ -36,6 +36,8 @@ function bodyDemo($s, $m) {
 
     preg_match(<weak_warning descr="Tag content matched with '.' likely needs the /s flag.">'#<li>.*</li>#'</weak_warning>, $s, $m);
     preg_match(<weak_warning descr="Tag content matched with '.' likely needs the /s flag.">'#<li>.+?</li>#'</weak_warning>, $s, $m);
+    // Under /m each line is matched on its own.
+    preg_match('#^\s*<p>.*</p>\s*$#m', $s, $m);
     preg_match('#<li>.*</li>#s', $s, $m);
     preg_match('#<li>[^<]*</li>#', $s, $m);
 

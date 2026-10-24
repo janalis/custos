@@ -224,7 +224,8 @@ terminator" = `\n`, `\r`, U+0085, U+2028, U+2029.
      (error), naming the alternative and `Q`.
   Not reported: `{m,n}` outer quantifiers, possessive `)*+`/`)++`, groups
   directly after `>` (atomic `(?>(…)*)`), alternatives like `\d{1,}`.
-- **D19** Probably missing `s` around tag content. `mods` lacks `s`, `body`
+- **D19** Probably missing `s` around tag content. `mods` lacks `s` and
+  (custos) `m`, which says lines are matched one by one, `body`
   contains `>`, `body` has no line terminator, and `body` contains `>`
   immediately followed by `.`, then `*` or `+`, an optional `?`, then `<`
   → report `L` (info).
@@ -655,6 +656,9 @@ function plainDemo($path, $name, $tpl, $raw, $list) {
 
 ## Divergences
 
+- **Line-by-line patterns (custos diverges, D19).** Upstream asks for `/s`
+  on `#^\s*<p>.*</p>\s*$#m`. The `m` flag anchors each line: the pattern
+  is meant to stay within a line, so custos does not report it (webform).
 - **Shorthands under /u (custos diverges, E8).** Upstream suggests `\d` for
   `[0-9]` (and the like) whatever the modifiers. With `/u`, PCRE matches
   Unicode digits and letters with the shorthands, so the suggestion

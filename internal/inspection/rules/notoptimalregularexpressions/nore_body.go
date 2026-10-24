@@ -82,7 +82,8 @@ func (c *noreCase) checkBody() {
 			c.report(diagnostic.SeverityError, "Nested quantifier ("+f[0]+")"+f[1]+" risks catastrophic backtracking.")
 		}
 	}
-	if !has('s') && strings.IndexByte(body, '>') >= 0 && !noreHasLineTerminator(body) && noreTagDot.MatchString(body) { // D19
+	// custos: under /m the pattern works line by line on purpose.
+	if !has('s') && !has('m') && strings.IndexByte(body, '>') >= 0 && !noreHasLineTerminator(body) && noreTagDot.MatchString(body) { // D19
 		c.report(diagnostic.SeverityInfo, "Tag content matched with '.' likely needs the /s flag.")
 	}
 }
