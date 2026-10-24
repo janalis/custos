@@ -704,9 +704,10 @@ func notOptimalLiteral(e syntax.Expr) bool {
 
 func equalityNextToInstanceof(ctx *analysis.Context, ops []syntax.Expr) {
 	var subj syntax.Expr
+	var test *syntax.Instanceof
 	for _, o := range ops {
 		if io, ok := o.(*syntax.Instanceof); ok {
-			subj = io.Expr
+			subj, test = io.Expr, io
 			break
 		}
 	}
@@ -734,10 +735,34 @@ func equalityNextToInstanceof(ctx *analysis.Context, ops []syntax.Expr) {
 		// $b`) is an ordinary identity/equality check; only a comparison with
 		// a literal (null, bool, number, string, array) is redundant or
 		// suspicious next to instanceof.
-		if other != nil && notOptimalLiteral(other) {
+		if other != nil && notOptimalLiteral(other) && !stringableEquality(ctx, test, b, other) {
 			ctx.ReportSeverity(b.Span(), diagnostic.SeverityInfo, notOptimalEqualityMsg)
 		}
 	}
+}
+
+// stringableEquality reports a loose comparison b with string literal
+// other when the instanceof class converts to a string (custos):
+// `$r instanceof Status && $r == 'QUEUED'` compares the status text.
+func stringableEquality(ctx *analysis.Context, test *syntax.Instanceof, b *syntax.Binary, other syntax.Expr) bool {
+	if b.Op.Kind != syntax.TIsEqual && b.Op.Kind != syntax.TIsNotEqual {
+		return false
+	}
+	switch x := syntax.UnwrapParens(other).(type) {
+	case *syntax.Literal:
+		if x.LitKind != syntax.LitString {
+			return false
+		}
+	case *syntax.InterpolatedString:
+	default:
+		return false
+	}
+	name, ok := test.Class.(*syntax.Name)
+	if !ok {
+		return false
+	}
+	fqn := ctx.Names().Class(name.Value, name.Span().Start)
+	return ctx.Index().FindMethod(fqn, "__toString", ctx.PHP) != nil
 }
 
 type instanceofEntry struct {

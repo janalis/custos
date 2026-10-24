@@ -118,6 +118,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   string-convertible member as uncomparable, nor prefers `===` for an
   emptiness test on a value that may be false or null (`getDocComment() !=
   ''`) or a comparison with its own cast (`(int) $v == $v`).
+- NotOptimalIfConditions no longer reports `$r instanceof Status && $r ==
+  'QUEUED'` when the class converts to a string.
 - CallableParameterUseCaseInTypeContext no longer reports a ternary that
   gives the parameter back in one branch for that branch's type, nor takes
   arithmetic on a `mixed` value (`max($values) + 1`) for a float.

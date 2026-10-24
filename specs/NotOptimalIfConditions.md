@@ -259,7 +259,9 @@ equivalent to `subj`. The other operand must be a literal value (parentheses
 stripped, optionally signed): a number or string literal (interpolated
 strings included), `null`/`true`/`false`, or an array literal (custos
 diverges: comparing `subj` with any other expression, e.g. `$a instanceof X
-&& $a !== $b`, is an ordinary identity check and is not reported).
+&& $a !== $b`, is an ordinary identity check and is not reported). Not reported either (custos): a loose `==`/`!=` with a string literal when
+the class of that `instanceof` declares or inherits `__toString()`
+(`$r instanceof Status && $r == 'QUEUED'` compares the status text).
 
 ### D4 — redundant instanceof (option REPORT_INSTANCE_OF_FLAWS)
 
@@ -427,6 +429,12 @@ if ($s instanceof Circle || $t instanceof Shape) {}
 
 ## Divergences
 
+- **Stringable classes (custos diverges, D3).** Upstream reports any
+  comparison with a literal next to `instanceof`. When the class converts
+  to a string, `$r instanceof Status && $r == 'QUEUED'` is a deliberate
+  comparison of its text (predis): custos does not report it. Strict
+  comparisons, and those with `null`, booleans, numbers or arrays, still
+  are.
 - **D3 identity checks (custos diverges from upstream).** Upstream reports
   any equality operand on the instanceof subject, so the common
   `$other instanceof User && $other !== $current` ("another user than this
