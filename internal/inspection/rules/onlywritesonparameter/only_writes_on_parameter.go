@@ -105,7 +105,7 @@ func (onlyWritesOnParameter) Check(ctx *analysis.Context, n syntax.Node) {
 			done[v.Name] = true
 			name := v.Name
 			s.analyse(name, func(targets []syntax.Node) bool { // D8, D4c
-				return s.holdsObject(name) || s.elementWritesMayReachObject(targets)
+				return s.holdsObject(name) || s.elementWritesMayReachObject(targets) || s.keepsAlive(targets)
 			})
 		}
 		return true
@@ -543,6 +543,30 @@ func (s *owpScope) elementWritesMayReachObject(targets []syntax.Node) bool {
 			base = inner.Var
 		}
 		if ty := s.ctx.TypeOf(base); !ty.IsUnknown() && !owpObjectType(ty) {
+			return false
+		}
+	}
+	return true
+}
+
+// keepsAlive reports whether every write target of a local stores, as an
+// element (`$buffers[] = $buf`), an object PHP frees with side effects: an
+// FFI\CData, whose memory pointers made from it still use, or an object of
+// a class with __destruct(). Holding them is the point (custos, D4e).
+func (s *owpScope) keepsAlive(targets []syntax.Node) bool {
+	for _, t := range targets {
+		a, ok := t.Parent().(*syntax.Assign)
+		if _, dim := t.(*syntax.ArrayDimFetch); !dim || !ok || syntax.Node(a.Var) != t {
+			return false
+		}
+		live := false
+		for _, cls := range s.ctx.TypeOf(a.Value).Classes() {
+			cls = strings.TrimPrefix(cls, `\`)
+			if strings.EqualFold(cls, `FFI\CData`) || s.ctx.Index().FindMethod(cls, "__destruct", s.ctx.PHP) != nil {
+				live = true
+			}
+		}
+		if !live {
 			return false
 		}
 	}

@@ -82,6 +82,12 @@ For each plain assignment `$v = …` or by-reference assignment `$v = &…`
 - **D4d** (custos refinement, see Divergences) A `global $v` declaration
   counts as a read: the variable is bound to the global one, so writes to it
   are never lost.
+- **D4e** (custos refinement, see Divergences) Kept-alive values: for an
+  Entry 3 local, drop all **W** findings when every lost write is an
+  element write (`$buffers[] = $buf;`) storing a value whose inferred type
+  includes `FFI\CData` or a class declaring or inheriting `__destruct()`:
+  the array keeps those objects alive while the function runs, which is
+  its purpose.
 - **D5** The target is a simple variable with a non-empty literal name that
   is not one of `_GET`, `_POST`, `_SESSION`, `_REQUEST`, `_FILES`, `_COOKIE`,
   `_ENV`, `_SERVER`, `GLOBALS`, `HTTP_RAW_POST_DATA`.
@@ -333,6 +339,12 @@ function silenced(array $out)
 
 ## Divergences
 
+- **custos diverges — arrays keeping objects alive (D4e).** Upstream
+  reports `$buffers[] = $nameBuffer;` when `$buffers` is never read. When
+  the stored values are FFI buffers whose raw pointers the function still
+  hands to C code (amphp/hpack), or objects with a destructor, dropping the
+  writes frees them early and changes behavior: custos does not report
+  them.
 - **compact() / get_defined_vars() (E8) — custos refinement, not upstream.**
   Upstream's flow analysis does not see names passed to `compact()`, so
   `if (!($page = $repo->find()))) { throw …; } return compact('page');`

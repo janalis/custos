@@ -121,6 +121,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   other methods may fill it.
 - UnusedConstructorDependencies no longer reports a property holding an
   object with a destructor, which it keeps alive.
+- OnlyWritesOnParameter no longer reports an array that only keeps FFI
+  buffers or objects with destructors alive.
 - MagicMethodsValidity no longer asks a constructor to call a parent
   constructor that does nothing without arguments (each statement only
   runs for an optional parameter given a value).
