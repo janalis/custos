@@ -117,6 +117,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - CallableParameterUseCaseInTypeContext no longer reports a ternary that
   gives the parameter back in one branch for that branch's type, nor takes
   arithmetic on a `mixed` value (`max($values) + 1`) for a float.
+- ArrayRandInvalidCount no longer takes a property's default as its value:
+  other methods may fill it.
 - MagicMethodsValidity no longer asks a constructor to call a parent
   constructor that does nothing without arguments (each statement only
   runs for an optional parameter given a value).

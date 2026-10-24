@@ -30,14 +30,24 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	count, k := int64(1), true
 	if arg != nil {
 		count, k = semanticquery.NativeInt(ctx, arg)
-		k = k && !rewritten(ctx, c, arg)
+		k = k && !rewritten(ctx, c, arg) && !property(arg)
 	}
 	array := semanticquery.CallArgument(c.Args, 0, "array")
 	entries, known := semanticquery.NativeArrayEntries(ctx, array)
-	known = known && !rewritten(ctx, c, array)
+	known = known && !rewritten(ctx, c, array) && !property(array)
 	if k && (count < 1 || known && count > int64(len(entries))) {
 		ctx.ReportNode(c, message)
 	}
+}
+
+// property reports whether e reads a property: other methods may have
+// changed it since its default or the constructor's write (D2).
+func property(e syntax.Expr) bool {
+	switch syntax.UnwrapParens(e).(type) {
+	case *syntax.PropertyFetch, *syntax.StaticPropertyFetch:
+		return true
+	}
+	return false
 }
 
 // rewritten reports whether e is a plain variable that its scope changes in

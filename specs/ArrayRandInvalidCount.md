@@ -22,6 +22,9 @@ Identify array_rand when count is a proven integer below one or greater than the
 ## Exceptions (no report)
 
 - E1. Exclude unresolved required symbols, user-defined lookalikes, incomplete syntax, unknown required values and unsupported versions. Cases outside D1 receive no finding.
+- E1b. A count or array read from a property (`$this->pool`,
+  `self::$slaves`) is not proven: other methods may have changed it since
+  its default or the constructor's write.
 - E2. An array filled by incrementing its offsets, or a counter advanced with `++`, is not treated as still holding its initial value (D4).
 - E3. Both `@custos-ignore ArrayRandInvalidCount` and `@noinspection ArrayRandInvalidCount` suppress this native rule.
 
