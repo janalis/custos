@@ -120,6 +120,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   (`[self::USER, Webform::PAGE]`) like the string literals they hold.
 - PackedHashtableOptimization no longer asks to write numeric-string keys
   as integers: PHP already stores them as integers.
+- MagicMethodsValidity no longer asks for a companion magic method in a
+  trait or when an ancestor is not indexed.
 - ReturnTypeCanBeDeclared no longer suggests a `@template` name as a return
   type, nor `void` in a hierarchy where another declaration of the method
   returns a value.

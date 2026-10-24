@@ -8,6 +8,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 	"custos/internal/semantic/index"
@@ -340,6 +341,11 @@ func (c *magicCheck) noReturn() {
 
 func (c *magicCheck) pair(companion string) {
 	if c.declares(strings.ToLower(companion)) {
+		return
+	}
+	// custos: the class using a trait, or an unindexed ancestor, may
+	// declare the companion.
+	if c.cl.ClassKind == syntax.KindTrait || !semanticquery.HierarchyResolved(c.ctx.Index(), c.ctx.Names().DeclFQN(c.cl), c.ctx.PHP) {
 		return
 	}
 	for _, r := range c.supertypes(false) {

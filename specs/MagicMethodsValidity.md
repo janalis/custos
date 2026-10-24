@@ -49,8 +49,10 @@ Building-block checks:
   class methods are ignored). Bare `return;` is fine. Reports on the **whole
   return statement**, from `return` through the terminating `;`.
 - **C-pair(M)** "needs companion M": the class-like has no method `M` — own,
-  inherited from resolvable parents, or from used traits. An unresolvable
-  parent contributes nothing (so the report still happens).
+  inherited from resolvable parents, or from used traits. (custos) Not
+  reported in a trait, whose using classes may declare `M`, nor when an
+  ancestor, interface or used trait is not indexed (a Drupal contrib class
+  extending core): it may declare `M`.
 - **C-parent** "should call parent": all of:
   - the method has no `#[\Override]` attribute (written `#[Override]` in the
     global namespace, `#[\Override]`, or imported alias resolving to
@@ -302,6 +304,10 @@ interface Printable { public function __toString(); }
 
 ## Divergences
 
+- **Companions out of sight (custos diverges, C-pair).** Upstream reports
+  `__get` without `__set` even in a trait, or when the parent class is not
+  available, where the companion may well exist. custos stays silent in
+  both cases.
 - Case-insensitive names (custos diverges from upstream). Upstream
   dispatches on the exact spelling, so a real magic method written
   `__ToString` or `__Get` is reported as a non-magic `__` method (and its
