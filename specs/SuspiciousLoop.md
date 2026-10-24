@@ -28,8 +28,10 @@ variable of an outer loop.
 Applies to `for` and `foreach` statements.
 
 - **D2** Loop variable names of a loop:
-  - `for`: for each expression of the init section that is an assignment
-    whose target is a simple variable (`$i = 0`), that variable's name;
+  - `for`: for each expression of the init section that is a plain `=`
+    assignment whose target is a simple variable (`$i = 0`), that
+    variable's name, unless the assigned value reads that variable
+    (`$i = $i + 1`, custos); compound assignments (`$i += $step`) and
     other init expressions are ignored;
   - `foreach`: the names of the key and value variables (including a
     by-reference value `&$v`, and the variables of a `list(...)`/`[...]`
@@ -111,6 +113,11 @@ foreach ($matrix as $row => $cols) {
 
 ## Divergences
 
+- **Loops going on from the given value (custos diverges, D2).** Upstream
+  counts any assignment of the `for` init. `for ($index += $direction; …)`
+  or `for ($i = $i + 1; …)` starts from the value the parameter (or the
+  outer loop) holds: nothing it was given is lost, so custos does not take
+  the variable as the loop's own (php-cs-fixer, amphp/hpack).
 - Upstream gathers loop variable names in a hash set, so the order of
   multiple reports on one keyword is unspecified. custos reports in source
   order of the clashing variables.

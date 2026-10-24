@@ -128,6 +128,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - TypeUnsafeArraySearch no longer reports a search of a string among the
   values of a class constant listing only strings, nor in a trait's own
   typed static property read as `self::$values`.
+- SuspiciousLoop no longer reports a `for` loop that starts from the
+  parameter's own value (`for ($index += $step; …)`).
 - UnusedConstructorDependencies no longer reports a property assigned an
   array of references (`[&$this->data]`), which makes clones share them.
 - AlterInForeach no longer asks to unset the value of an inner

@@ -107,8 +107,8 @@ func loopVarNames(n syntax.Node, dst []string) []string {
 	case *syntax.For:
 		for _, e := range l.Init {
 			if a, ok := e.(*syntax.Assign); ok {
-				if v, ok := a.Var.(*syntax.Variable); ok {
-					add(v)
+				if v, ok := a.Var.(*syntax.Variable); ok && a.Op.Kind == syntax.TEqual && !readsVar(a.Value, v) {
+					add(v) // custos: `$i += $step` or `$i = $i + 1` goes on from the value given
 				}
 			}
 		}
@@ -121,4 +121,16 @@ func loopVarNames(n syntax.Node, dst []string) []string {
 		}
 	}
 	return dst
+}
+
+// readsVar reports whether e reads variable v by name.
+func readsVar(e syntax.Expr, v *syntax.Variable) bool {
+	found := false
+	syntax.Inspect(e, func(n syntax.Node) bool {
+		if u, ok := n.(*syntax.Variable); ok && u.NameExpr == nil && u.Name == v.Name {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
