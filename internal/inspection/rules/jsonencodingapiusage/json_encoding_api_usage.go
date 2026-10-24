@@ -103,7 +103,7 @@ func (jsonEncodingAPIUsage) Check(ctx *analysis.Context, n syntax.Node) {
 	if hasFlags && jsonStrictFlags(ctx, flags.Value) { // D4, D5
 		return
 	}
-	if jsonFailureHandled(call, decode) { // E8
+	if jsonFailureHandled(ctx, call, decode) { // E8
 		return
 	}
 	throwConst := jsonThrowConst(ctx, span.Start)
@@ -308,14 +308,25 @@ var jsonTypeChecks = map[string]bool{
 // jsonFailureHandled reports whether the result of call is tested for the
 // failure value where it is produced (E8): the call itself (or the ternary
 // it is a branch of), or, when a plain assignment stores it in a variable,
-// the assignment or that variable's first read after it in the same scope.
-func jsonFailureHandled(call *syntax.FuncCall, decode bool) bool {
+// the assignment or that variable's first read after it in the same scope;
+// or the statement producing it is followed by an `if` asking
+// json_last_error().
+func jsonFailureHandled(ctx *analysis.Context, call *syntax.FuncCall, decode bool) bool {
 	x := jsonOuter(call)
 	// A branch of a ternary is produced where the ternary is.
 	for t, ok := x.Parent().(*syntax.Ternary); ok && syntax.Node(t.Cond) != x; t, ok = x.Parent().(*syntax.Ternary) {
 		x = jsonOuter(t)
 	}
-	if a, ok := x.Parent().(*syntax.Assign); ok && a.Op.Kind == syntax.TEqual && !a.ByRef && syntax.Node(a.Value) == x {
+	a, assigned := x.Parent().(*syntax.Assign)
+	assigned = assigned && a.Op.Kind == syntax.TEqual && !a.ByRef && syntax.Node(a.Value) == x
+	stmt := x
+	if assigned {
+		stmt = jsonOuter(a)
+	}
+	if es, ok := stmt.Parent().(*syntax.ExprStmt); ok && jsonLastErrorTested(ctx, es) {
+		return true
+	}
+	if assigned {
 		if jsonFailureTest(jsonOuter(a), decode) {
 			return true // `if ($data = json_decode(…))`
 		}
@@ -332,15 +343,39 @@ func jsonFailureHandled(call *syntax.FuncCall, decode bool) bool {
 	return jsonFailureTest(x, decode)
 }
 
-// jsonOuter returns x with the parentheses around it.
+// jsonOuter returns x with the parentheses and `@` operators around it.
 func jsonOuter(x syntax.Expr) syntax.Expr {
 	for {
-		p, ok := x.Parent().(*syntax.Paren)
-		if !ok {
+		switch p := x.Parent().(type) {
+		case *syntax.Paren:
+			x = p
+		case *syntax.Unary:
+			if p.Op.Kind != syntax.TAt {
+				return x
+			}
+			x = p
+		default:
 			return x
 		}
-		x = p
 	}
+}
+
+// jsonLastErrorTested reports whether the statement after es is an `if`
+// whose condition calls json_last_error() or json_last_error_msg().
+func jsonLastErrorTested(ctx *analysis.Context, es *syntax.ExprStmt) bool {
+	next, ok := astquery.NextStmt(ctx.File, es)
+	is, isIf := next.(*syntax.If)
+	if !ok || !isIf {
+		return false
+	}
+	found := false
+	syntax.Inspect(is.Cond, func(n syntax.Node) bool {
+		if c, ok := n.(*syntax.FuncCall); ok && (ctx.IsGlobalFunctionCall(c, "json_last_error") || ctx.IsGlobalFunctionCall(c, "json_last_error_msg")) {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
 
 // jsonFirstRead returns the first occurrence of variable name after

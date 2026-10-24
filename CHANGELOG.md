@@ -120,6 +120,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - FopenBinaryUnsafeUsage no longer asks for the `b` flag on streams other
   than plain files (`php://stdout`, `php://fd/3`, registered wrappers) or on
   a mode that comes from a parameter's default.
+- JsonEncodingApiUsage looks through `@` for the failure test, and accepts
+  an `if` checking `json_last_error()` right after the call.
 - UnusedConstructorDependencies no longer reports a property assigned an
   array of references (`[&$this->data]`), which makes clones share them.
 - AlterInForeach no longer asks to unset the value of an inner

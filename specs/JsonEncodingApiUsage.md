@@ -121,7 +121,13 @@ own fix.
     `??`.
   `$json = json_encode($q); $key = false === $json ? '' : $json;`,
   `$rows = json_decode($raw, true); if (!is_array($rows)) { … }` and
-  `json_decode($raw, true) ?: []` are not reported.
+  `json_decode($raw, true) ?: []` are not reported. The `@` operator is
+  looked through like parentheses (`$json = @json_encode($q); if (false
+  === $json)`). Kind E is not reported either when the statement making
+  the call (`$rules = json_decode($s, true);`, `@json_decode($s);`) is
+  directly followed, in the same statement list, by an `if` whose
+  condition calls `json_last_error()` or `json_last_error_msg()`
+  (`if (JSON_ERROR_NONE !== json_last_error()) { … }`).
 
 ## Report
 
@@ -307,7 +313,8 @@ class Exporter {
   result for the failure value and falls back (`?: []`, `is_array()`,
   `false === $json`), adding the flag turns that fallback into an
   exception the caller does not catch: the suggested fix changes
-  behavior. custos does not report kind E there.
+  behavior. custos does not report kind E there, nor when the next
+  statement checks `json_last_error()` (php-cs-fixer, nikic/php-parser).
 
 - **Case of the name (custos diverges from upstream).** Upstream compares
   the written name case-sensitively, so `JSON_DECODE($s)` is not reported.
