@@ -362,6 +362,12 @@ interface Printable { public function __toString(); }
   records the file and line when the object is created, so a subclass
   constructor that does not call them loses nothing
   (`LazyResponseException::__construct(Response $response)`).
+  A parent body counts as empty, too, when every parameter is optional and
+  every statement is an `if` without `elseif`/`else` whose condition is
+  false for the defaults: `$p`, `!empty($p)` on a falsy default (`null`,
+  `false`, `0`, `''`, `'0'`, `[]`), `isset($p)` or `$p !== null` on a
+  `null` default (`if ($options) { $this->setOptions($options); }` with
+  `$options = []`, laminas-code's generators).
 - **Single-underscore hooks (custos diverges, D15).** `_construct()`,
   `_get()`, `_call()`… are not reported when the class hierarchy also
   declares the real magic method (`__construct()` calling

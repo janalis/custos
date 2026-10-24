@@ -346,6 +346,77 @@ func parentCalls(body syntax.Node) []string {
 	return names
 }
 
+// idleByDefault reports whether calling method m with no argument does
+// nothing: every statement of its body is an `if` without `else` whose
+// condition is false when its optional parameters keep their defaults
+// (`if ($options) { $this->setOptions($options); }` with `$options = []`).
+func idleByDefault(m *syntax.Method) bool {
+	defaults := map[string]syntax.Expr{}
+	for _, p := range m.Params {
+		if p.Default == nil {
+			return len(m.Body.Stmts) == 0
+		}
+		defaults[p.Var.Name] = p.Default
+	}
+	for _, st := range m.Body.Stmts {
+		is, ok := st.(*syntax.If)
+		if !ok || len(is.ElseIfs) > 0 || is.Else != nil || !falseByDefault(is.Cond, defaults) {
+			return false
+		}
+	}
+	return true
+}
+
+// falseByDefault reports whether cond is false when each parameter holds
+// its default: `$p`, `!empty($p)` or `isset($p)` on a falsy default, and
+// `$p !== null` on a null one.
+func falseByDefault(cond syntax.Expr, defaults map[string]syntax.Expr) bool {
+	param := func(e syntax.Expr) syntax.Expr {
+		if v, ok := syntax.UnwrapParens(e).(*syntax.Variable); ok && v.NameExpr == nil {
+			return defaults[v.Name]
+		}
+		return nil
+	}
+	switch c := syntax.UnwrapParens(cond).(type) {
+	case *syntax.Variable:
+		return falsyDefault(param(c))
+	case *syntax.Unary:
+		if e, ok := syntax.UnwrapParens(c.Expr).(*syntax.Empty); ok && c.Op.Kind == syntax.TExclaim {
+			return falsyDefault(param(e.Expr))
+		}
+	case *syntax.Isset:
+		return len(c.Vars) == 1 && nullDefault(param(c.Vars[0]))
+	case *syntax.Binary:
+		if c.Op.Kind == syntax.TIsNotIdentical {
+			return nullDefault(param(c.Left)) && nullDefault(c.Right) ||
+				nullDefault(param(c.Right)) && nullDefault(c.Left)
+		}
+	}
+	return false
+}
+
+// falsyDefault reports whether e is a literal PHP takes as false.
+func falsyDefault(e syntax.Expr) bool {
+	switch d := syntax.UnwrapParens(e).(type) {
+	case *syntax.Array:
+		return len(d.Items) == 0
+	case *syntax.Literal:
+		switch d.Raw {
+		case "0", "''", `""`, "'0'", `"0"`:
+			return true
+		}
+	case *syntax.ConstFetch:
+		return strings.EqualFold(d.Name.Value, "null") || strings.EqualFold(d.Name.Value, "false")
+	}
+	return false
+}
+
+// nullDefault reports whether e is the constant null.
+func nullDefault(e syntax.Expr) bool {
+	c, ok := syntax.UnwrapParens(e).(*syntax.ConstFetch)
+	return ok && strings.EqualFold(c.Name.Value, "null")
+}
+
 func storedParams(m *syntax.Method) (bool, []string) {
 	if m.Body == nil {
 		return false, nil
@@ -399,7 +470,7 @@ func (x *extractor) methodBody(c *Class, m *syntax.Method, d *phpdoc.Doc) {
 		Name: m.Name.Value, Class: c.FQN, Visibility: visibility(m.Modifiers), Static: m.Modifiers.Has(syntax.TStatic),
 		Abstract: m.Modifiers.Has(syntax.TAbstract) || c.Kind == syntax.KindInterface, Final: m.Modifiers.Has(syntax.TFinal),
 		ByRef: m.ByRef, Params: x.params(m.Params, d, at), Span: m.Span(),
-		Avail: x.avail(m.Attrs, d), EmptyBody: m.Body != nil && len(m.Body.Stmts) == 0 && !promotes(m.Params),
+		Avail: x.avail(m.Attrs, d), EmptyBody: m.Body != nil && !promotes(m.Params) && idleByDefault(m),
 	}
 	if !x.stub {
 		for _, g := range m.Attrs {

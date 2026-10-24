@@ -150,9 +150,11 @@ type Method struct {
 	// `parent::` (nested closures and classes excluded); project methods
 	// only.
 	ParentCalls []string `json:"pcalls,omitempty"`
-	// EmptyBody is set for a project method whose body holds no statement
-	// and that promotes no constructor parameter (`public function
-	// __construct() {}`): calling it does nothing. Never set for builtins
+	// EmptyBody is set for a project method that promotes no constructor
+	// parameter and whose body holds no statement (`public function
+	// __construct() {}`), or, all its parameters being optional, only
+	// `if` statements whose conditions are false for their defaults:
+	// calling it with no argument does nothing. Never set for builtins
 	// (stub bodies are empty placeholders).
 	EmptyBody bool `json:"empty,omitempty"`
 	// StoresParams is set for a project constructor that only stores its
