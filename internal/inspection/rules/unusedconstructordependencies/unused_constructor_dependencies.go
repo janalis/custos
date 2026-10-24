@@ -107,7 +107,7 @@ func (unusedConstructorDependencies) Check(ctx *analysis.Context, n syntax.Node)
 				continue
 			}
 			for _, r := range refs { // D6
-				if ucdPlainTarget(r) && !ucdBindsReferences(r) {
+				if ucdPlainTarget(r) && !ucdBindsReferences(r) && !ucdKeepsAlive(ctx, r) {
 					ctx.ReportNode(r, unusedCtorDepMsg)
 				}
 			}
@@ -254,6 +254,19 @@ func ucdBindsReferences(ref syntax.Expr) bool {
 	}
 	for _, it := range arr.Items {
 		if it != nil && it.ByRef {
+			return true
+		}
+	}
+	return false
+}
+
+// ucdKeepsAlive reports whether the plain assignment to ref stores an object
+// whose class declares or inherits __destruct(): holding it delays that
+// destructor (E7).
+func ucdKeepsAlive(ctx *analysis.Context, ref syntax.Expr) bool {
+	parent, _ := astquery.ParentSkipParens(ref)
+	for _, cls := range ctx.TypeOf(parent.(*syntax.Assign).Value).Classes() {
+		if ctx.Index().FindMethod(strings.TrimPrefix(cls, `\`), "__destruct", ctx.PHP) != nil {
 			return true
 		}
 	}

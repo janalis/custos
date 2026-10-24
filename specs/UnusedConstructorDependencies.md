@@ -80,6 +80,10 @@ Visit every class's own constructor.
   by-reference item (`$this->roots = [&$this->data, &$this->count];`):
   building it turns the referenced variables into references, which clones
   of the object then share, so the assignment has an effect of its own.
+- **E7** An assignment storing an object whose class declares or inherits
+  `__destruct()`: holding it keeps the object alive, delaying its
+  destructor until this object goes away (Doctrine DBAL's mysqli `Result`
+  keeps its `Statement`).
 
 ## Report
 
@@ -195,3 +199,7 @@ class Mailer
   assignment is what makes `$data` shared between the object and its
   clones (Symfony's `DumpDataCollector`), so removing it changes behavior:
   custos does not report it.
+- **Objects with destructors (custos, E7).** A property only written in
+  the constructor may still matter when the object it holds has a
+  destructor: the reference decides when that destructor runs, so custos
+  does not call the assignment dead.

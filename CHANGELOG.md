@@ -119,6 +119,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   arithmetic on a `mixed` value (`max($values) + 1`) for a float.
 - ArrayRandInvalidCount no longer takes a property's default as its value:
   other methods may fill it.
+- UnusedConstructorDependencies no longer reports a property holding an
+  object with a destructor, which it keeps alive.
 - MagicMethodsValidity no longer asks a constructor to call a parent
   constructor that does nothing without arguments (each statement only
   runs for an optional parameter given a value).
