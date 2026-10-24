@@ -107,6 +107,15 @@ and is kept as its FQN with leading `\` and original case (e.g.
   `$p = &value`); compound assignments (`.=`, `+=`, `??=` …) and
   destructuring are not considered. The assignment's target must be the
   parameter variable itself.
+- **D7a2** (custos) When `value` is a ternary (`?:` included) one of whose
+  branches is the parameter itself (`$p = is_numeric($p) ? '_' . $p : $p;`),
+  `value` stands for the other branch only: giving the parameter back keeps
+  the value it holds, checked where it was assigned. Both branches the
+  parameter → no report. The report range stays the whole value. This
+  only applies where the parameter holds its entry value or the value of a
+  plain assignment; after a write D7 does not check (inside a `foreach`
+  over the parameter, `foreach ($rows as $message)`), the whole value is
+  checked.
 - **D7b** `R` = normalized (N) types of `value`, unknowns dropped, computed
   with the expression type rules **T** of `specs/UnnecessaryCasting.md`
   (section "Expression type rules (T-rules)", including the R-function
@@ -264,6 +273,12 @@ function untyped($flag = null) {
 
 ## Divergences
 
+- **Ternaries giving the parameter back (custos diverges, D7a2).**
+  Upstream types `$name = is_numeric($name) ? '_' . $name : $name;` from
+  both branches, so a failure marker dropped at an earlier
+  `$name = preg_replace(…)` comes back through `$name` and is reported
+  (Doctrine ORM's quote strategy). custos only checks the branch that
+  brings a new value.
 - **Reassigned parameters (custos diverges, E8).** Upstream compares an
   `is_*()` test with the declared type wherever the parameter is read, so
   it calls a test of a value assigned since "always false". custos only

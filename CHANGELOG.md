@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- CallableParameterUseCaseInTypeContext no longer reports a ternary that
+  gives the parameter back in one branch for that branch's type, nor takes
+  arithmetic on a `mixed` value (`max($values) + 1`) for a float.
 - MagicMethodsValidity no longer asks a constructor to call a parent
   constructor that does nothing without arguments (each statement only
   runs for an optional parameter given a value).

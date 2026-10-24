@@ -306,6 +306,23 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 		return
 	}
 	value := as.Value
+	// custos: a ternary branch giving the parameter back keeps the value
+	// it holds, checked where it was assigned: only the other one is new.
+	// Not after a write D7 does not check (a foreach over the parameter).
+	if t, ok := syntax.UnwrapParens(value).(*syntax.Ternary); ok {
+		then := t.Then
+		if then == nil {
+			then = t.Cond // `$p ?: $default`
+		}
+		switch {
+		case cpSameVar(then, v) && cpSameVar(t.Else, v) && cp.checkedValue(then):
+			return
+		case cpSameVar(then, v) && cp.checkedValue(then):
+			value = t.Else
+		case cpSameVar(t.Else, v) && cp.checkedValue(t.Else):
+			value = then
+		}
+	}
 	// custos: an inline `/** @var User $u */` on the assignment states the
 	// value's type (a repository's `object|null` find result).
 	if cp.documented(as, v.Name) {
@@ -376,9 +393,28 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 		if cp.compatible(t, set) {
 			continue
 		}
-		cp.ctx.ReportNode(value, strings.Replace(cpMsgAssign, "%s", t, 1))
+		cp.ctx.ReportNode(as.Value, strings.Replace(cpMsgAssign, "%s", t, 1))
 		return
 	}
+}
+
+// checkedValue reports whether the parameter read by branch holds there its
+// entry value or one of its plain assignments, all checked by D7.
+func (cp *cpState) checkedValue(branch syntax.Expr) bool {
+	v := syntax.UnwrapParens(branch).(*syntax.Variable)
+	for p := v.Parent(); p != nil && p != cp.fn; p = p.Parent() {
+		if fe, ok := p.(*syntax.Foreach); ok && (cpSameVar(fe.Key, v) || cpSameVar(fe.Value, v)) {
+			return false // each pass stores an element first
+		}
+	}
+	defs, entry := flowquery.ReachingAssignmentsIn(cp.ctx.File, cp.fn, v, v.Name)
+	return entry || len(defs) > 0
+}
+
+// cpSameVar reports whether e is variable v (by name).
+func cpSameVar(e syntax.Expr, v *syntax.Variable) bool {
+	x, ok := syntax.UnwrapParens(e).(*syntax.Variable)
+	return ok && x.NameExpr == nil && x.Name == v.Name
 }
 
 // documented reports an inline `@var` doc comment typing name on the

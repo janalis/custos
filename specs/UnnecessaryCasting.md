@@ -141,7 +141,8 @@ and method bodies included) a `global` statement names it, or an element of
      T-rules, such as CallableParameterUseCaseInTypeContext, keep int);
      else int.
   **custos (this rule only, see Divergences):** arithmetic is typed by
-  PHP's actual result instead: an operand with no known type → empty; any
+  PHP's actual result instead: an operand with no known type, or one that
+  may be `mixed` (`max($values)` of an array of unknown values) → empty; any
   float-only operand → float; operands made only of int, bool and null
   (which count as 0, 0 and 1) → int (`/` → `{int, float}`; `**` with a
   non-literal exponent → `{int, float}`), so `strtotime($d) + 60` is an

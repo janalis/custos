@@ -748,7 +748,8 @@ func (r *TRules) ParamTypes(scope syntax.Node, p *syntax.Param) types.Type {
 // soundArithmetic implements SoundArithmetic.
 func (r *TRules) soundArithmetic(n *syntax.Binary) types.Type {
 	l, rt := r.TypeOf(n.Left), r.TypeOf(n.Right)
-	if l.IsUnknown() || rt.IsUnknown() {
+	// A mixed operand may be anything: what it adds is not known either.
+	if l.IsUnknown() || rt.IsUnknown() || l.Has("mixed") || rt.Has("mixed") {
 		return types.Unknown
 	}
 	// Array operands (`array` or element-typed `T[]`): only array + array
