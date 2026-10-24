@@ -122,6 +122,10 @@ versions follow [Semantic Versioning](https://semver.org/).
   as integers: PHP already stores them as integers.
 - MagicMethodsValidity no longer asks for a companion magic method in a
   trait or when an ancestor is not indexed.
+- The failure rules no longer take an array for a call's result once an
+  element is written with it (`$files[] = $file` from `glob()`), and the
+  untrusted-path and destination rules no longer follow request data
+  through the text `str_replace()` or `preg_replace()` searches for.
 - ReturnTypeCanBeDeclared no longer suggests a `@template` name as a return
   type, nor `void` in a hierarchy where another declaration of the method
   returns a value.

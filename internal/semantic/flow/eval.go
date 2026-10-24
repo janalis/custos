@@ -1045,6 +1045,29 @@ func (e *Env) request(name string, at syntax.Expr, f *frame) Value {
 	return v
 }
 
+// searchedOnly reports whether argument x, the i-th of a call to builtin
+// name, is the text or pattern searched for by a replacing function: none
+// of it reaches the result.
+func searchedOnly(name string, x syntax.Node, i int) bool {
+	var param string
+	switch name {
+	case "str_replace", "str_ireplace":
+		param = "search"
+	case "preg_replace":
+		param = "pattern"
+	default:
+		return false
+	}
+	a, ok := x.(*syntax.Arg)
+	if !ok || a.Unpack {
+		return false
+	}
+	if a.Name != nil {
+		return a.Name.Value == param
+	}
+	return i == 0
+}
+
 func external(s string) bool {
 	switch s {
 	case "_GET", "_POST", "_REQUEST", "_COOKIE", "_FILES", "_SERVER":
@@ -1106,7 +1129,10 @@ func (e *Env) call(n syntax.Node, args *syntax.ArgList, receiver syntax.Expr, f 
 	// A PHP function that edits text makes, of matched labels and literals,
 	// text of the program.
 	labels, texts := 0, 0
-	for _, a := range values {
+	for i, a := range values {
+		if builtin && searchedOnly(name, args.Args[i], i) {
+			continue // what is searched for is removed, never copied
+		}
 		if builtin && !yieldsElements(name) && !keepsElements(name) && name != "array_merge" && name != "array_replace" && name != "array_map" && name != "array_chunk" {
 			// An unaudited transform may expose keys in its result. A later
 			// element projection cannot reinterpret those as original values.
@@ -1671,6 +1697,9 @@ func (e *Env) store(n *syntax.Assign, v Value, f *frame, r *scopeResult) {
 			e.implicit(n, f, r)
 		}
 		array := unsettled(old, v, r)
+		// The variable now holds an array with the value in it: neither
+		// what it held nor the value written produced it.
+		array.origins = nil
 		array.plain = held
 		array.deep = held && v.deep && (old.deep || !tracked && (external(name) || f.definite && importable(name)))
 		// A literal key directly in the array is tracked on its own; a
