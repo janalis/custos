@@ -128,6 +128,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   through the text `str_replace()` or `preg_replace()` searches for.
 - JsonEncodingApiUsage also accepts a ternary on `json_last_error()` in
   the next statement and a property tested at its first read.
+- CallableParameterUseCaseInTypeContext no longer reports a method given
+  the parameter whose union return type fits it in part
+  (`$form = $tokens->replace($form)`, `string|array`).
 - ReturnTypeCanBeDeclared no longer suggests a `@template` name as a return
   type, nor `void` in a hierarchy where another declaration of the method
   returns a value.

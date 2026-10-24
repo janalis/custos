@@ -51,3 +51,37 @@ function narrowed(Message $message, Response $response)
         $message = \is_array($message) ? implode(' ', $message) : $message;
     }
 }
+
+interface TokenManager
+{
+    /** @return string|array */
+    public function replace($text);
+
+    /** @return int|float */
+    public function number($text);
+
+    /** @return string|false */
+    public function find($text);
+}
+
+function tokens(TokenManager $t, array $form, ?string $message, string $s)
+{
+    // A call that may return the parameter's type is not reported.
+    $form = $t->replace($form);
+    $message = $t->replace($message);
+    $s = <warning descr="Assigning a value of type float does not match the parameter's declared type.">$t->number($s)</warning>;
+    $s = $t->find($s);
+    // A method not given the parameter returns what it documents.
+    $form = <warning descr="Assigning a value of type string does not match the parameter's declared type.">$t->replace($s)</warning>;
+    // A static method given it may return its type too.
+    $form = TokenStatics::replace($form);
+}
+
+final class TokenStatics
+{
+    /** @return string|array */
+    public static function replace($text)
+    {
+        return $text;
+    }
+}

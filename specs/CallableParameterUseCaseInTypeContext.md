@@ -146,6 +146,13 @@ and is kept as its FQN with leading `\` and original case (e.g.
     `R` has an entry other than `bool`/`null`: remove `bool`, and if `R`
     contains `string` or `array` also remove `null`.
 - **D7d** Remove `mixed` from `R`.
+- **D7f** (custos) When `value` is a method call (instance, nullsafe or
+  static) given the parameter itself as an argument and `R` holds two or
+  more types besides `bool` and `null`, report only if none of those fits
+  the parameter (D7e.2): such a call documented `string|array` may return
+  the type it is given (`$form = $tokens->replace($form);` on an `array`
+  parameter). Other calls (`$port = $request->getPort();`) are checked as
+  usual.
 - **D7e** For each `t` in `R` (iteration order unspecified; stop at the first
   violation, so at most one report per assignment):
   1. If `t` is `self` or `static`, try to translate it to a class:
@@ -273,6 +280,12 @@ function untyped($flag = null) {
 
 ## Divergences
 
+- **Calls returning the type given (custos diverges, D7f).** Upstream
+  reports `$form = $tokens->replace($form)` (typed `string|array`) on an
+  `array` parameter for its `string` member. A method given the parameter
+  this way returns the type of what it is given (Drupal's token
+  replacement): custos reports such a call's union only when no member
+  fits.
 - **Ternaries giving the parameter back (custos diverges, D7a2).**
   Upstream types `$name = is_numeric($name) ? '_' . $name : $name;` from
   both branches, so a failure marker dropped at an earlier

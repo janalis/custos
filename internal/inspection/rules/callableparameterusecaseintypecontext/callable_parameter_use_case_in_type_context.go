@@ -383,6 +383,17 @@ func (cp *cpState) checkAssign(v *syntax.Variable, set map[string]bool) {
 	if r["mixed"] { // D7d: mixed covers every type; custos skips (E3)
 		return
 	}
+	// custos (D7f): a method given the parameter whose value types, failure
+	// markers aside, fit the parameter in part may return the type it is
+	// given (`$form = $tokens->replace($form)`, `@return string|array`):
+	// only such a call none of whose types fit is reported.
+	if others >= 2 && cpGivenBack(value, v) {
+		for t := range r {
+			if t != "bool" && t != "null" && cp.compatible(t, set) {
+				return
+			}
+		}
+	}
 	for _, t := range cpSorted(r) { // D7e
 		if t == "self" || t == "static" {
 			t = cp.translateSelf(value, v)
@@ -409,6 +420,26 @@ func (cp *cpState) checkedValue(branch syntax.Expr) bool {
 	}
 	defs, entry := flowquery.ReachingAssignmentsIn(cp.ctx.File, cp.fn, v, v.Name)
 	return entry || len(defs) > 0
+}
+
+// cpGivenBack reports whether value is a method call (instance, static or
+// nullsafe) passing variable v as one of its arguments.
+func cpGivenBack(value syntax.Expr, v *syntax.Variable) bool {
+	var args *syntax.ArgList
+	switch c := syntax.UnwrapParens(value).(type) {
+	case *syntax.MethodCall:
+		args = c.Args
+	case *syntax.StaticCall:
+		args = c.Args
+	default:
+		return false
+	}
+	for _, x := range args.Args {
+		if a, ok := x.(*syntax.Arg); ok && cpSameVar(a.Value, v) {
+			return true
+		}
+	}
+	return false
 }
 
 // cpSameVar reports whether e is variable v (by name).
