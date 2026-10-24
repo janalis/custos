@@ -122,6 +122,9 @@ versions follow [Semantic Versioning](https://semver.org/).
   a mode that comes from a parameter's default.
 - JsonEncodingApiUsage looks through `@` for the failure test, and accepts
   an `if` checking `json_last_error()` right after the call.
+- PropertyInitializationFlaws no longer reports a re-declaration that
+  gives the property another type, nor takes `''` for an inherited `'    '`
+  declared in another file.
 - UnusedConstructorDependencies no longer reports a property assigned an
   array of references (`[&$this->data]`), which makes clones share them.
 - AlterInForeach no longer asks to unset the value of an inner

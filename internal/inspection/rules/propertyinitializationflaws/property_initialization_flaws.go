@@ -105,6 +105,10 @@ func pifDefaults(ctx *analysis.Context, prop *syntax.Property) {
 		if o == nil || !o.HasDefault || o.Visibility == index.Private {
 			continue
 		}
+		// custos: a re-declaration may be there to give another type.
+		if own := semanticquery.PropertyInChain(ctx.Index(), ctx.Names().DeclFQN(cl), item.Var.Name, ctx.PHP); own != nil && (own.Type != o.Type || own.DocType != o.DocType) {
+			continue
+		}
 		if pifSameAsInherited(ctx, d, o) {
 			ctx.Report(d.Span(), pifMsgSame)
 		}
@@ -120,7 +124,7 @@ func pifSameAsInherited(ctx *analysis.Context, d syntax.Expr, o *index.Property)
 		if pifClassRefs(ctx, d) != nil {
 			return false
 		}
-		return astquery.SquashWhitespace(ctx.Text(d)) == astquery.SquashWhitespace(o.Default)
+		return pifSquash(ctx.Text(d)) == pifSquash(o.Default)
 	}
 	if !astquery.EquivalentFoldNames(ctx.File, d, od) {
 		return false
@@ -135,6 +139,33 @@ func pifSameAsInherited(ctx *analysis.Context, d syntax.Expr, o *index.Property)
 		}
 	}
 	return true
+}
+
+// pifSquash drops the whitespace of default text s outside its quoted
+// strings; s is kept whole when it holds a heredoc.
+func pifSquash(s string) string {
+	if strings.Contains(s, "<<<") {
+		return s
+	}
+	var b strings.Builder
+	var quote byte
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case quote != 0 && c == '\\' && i+1 < len(s):
+			b.WriteByte(c)
+			i++
+			c = s[i]
+		case quote != 0 && c == quote:
+			quote = 0
+		case quote == 0 && (c == '\'' || c == '"'):
+			quote = c
+		case quote == 0 && (c == ' ' || c == '\t' || c == '\n' || c == '\r'):
+			continue
+		}
+		b.WriteByte(c)
+	}
+	return b.String()
 }
 
 // pifPropertyDefault finds the default expression node of an indexed

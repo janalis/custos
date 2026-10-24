@@ -37,7 +37,12 @@ parents) and `O` the property with the same name found in `Par` or anything
   (custos, see Divergences), `D` and `OD` both exist,
   `O` is **not** `private`, and `D` is *equivalent* to `OD` (same node kind
   and structurally identical ignoring whitespace/comments, or identical
-  source text) → candidate.
+  source text; whitespace inside a quoted string is part of the value,
+  so `''` never matches `'    '`) → candidate.
+  - Type guard (custos): no report when the re-declaration gives the
+    property another declared type or another doc type (`@var`,
+    `@phpstan-var`, `@psalm-var`) than `O`: it is there to narrow the
+    type (`/** @var list<Comparison> */ protected array $parts = [];`).
   - Class-reference guard: collect the fully-qualified names that every class
     reference inside `OD` resolves to (e.g. the `Foo` in `Foo::class`,
     `Foo::BAR`; unresolvable references count as one "unknown" entry). If that
@@ -340,6 +345,12 @@ final class Job
 
 ## Divergences
 
+- **Re-declarations changing the type (custos diverges, D2).** Upstream
+  asks to drop a re-declaration whose default repeats the parent's even
+  when it narrows the type (Doctrine ORM's `Query\Expr` classes redeclare
+  `$parts` with a narrower `@phpstan-var`). Dropping it loses that type:
+  custos only reports a re-declaration with the parent's declared and doc
+  types.
 - **Default mirrored by the parameter default (custos diverges).**
   Upstream reports (and its fix removes) `private $options = [];` when the
   constructor runs `$this->payload = $options;` with `array $options = []`.
