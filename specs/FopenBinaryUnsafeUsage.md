@@ -66,6 +66,15 @@ All character tests are case-sensitive (`B`, `T` are ordinary characters).
   `fopen($p, ...$rest)` and `fopen(...$all)` are skipped.
 - **E7** Mode literal with a backslash (`"r\x62"`, `'r\\'`) or a
   double-quoted one holding a single quote (`"r'"`).
+- **E8** K2/K3 when the filename is a string literal, or a concatenation
+  whose leftmost operand is one, naming a stream other than a plain file:
+  a `scheme://` prefix with a non-empty scheme other than `file`
+  (`php://memory`, `'php://fd/' . $fd`, a registered wrapper). The binary
+  flag only matters for files.
+- **E9** K2/K3 when `L` is the default value of a parameter
+  (`function open($f, $mode = 'r')`, or a property assigned from such a
+  parameter): callers choose the mode, and rewriting the default would
+  change what the function does when they pass none.
 
 ## Report
 
@@ -157,6 +166,12 @@ function open_files($path)
   any literal from its raw text into single quotes, which changes the value
   of a mode written with escape sequences and yields invalid PHP when a
   double-quoted mode holds a single quote. custos does not report those.
+- **Streams and parameter defaults (custos diverges, E8, E9).** Upstream
+  asks for `b` on `fopen('php://stdout', 'w')` and on modes that only come
+  from a parameter's default. The flag changes nothing on PHP's own and
+  user-registered streams, and a default is not the mode callers pass:
+  custos reports neither (amphp, nyholm/psr7, monolog). A misplaced `b`
+  (K1) is still reported in both cases.
 - When several `fopen()` calls share one resolved literal, upstream applies
   the rewrite once (later fixes find the literal already replaced). custos
   also rewrites the shared literal once: the overlapping edits of the other

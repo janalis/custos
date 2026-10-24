@@ -49,6 +49,8 @@ func (fopenBinaryUnsafeUsage) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	case !ctx.Bool("ENFORCE_BINARY_MODIFIER_USAGE"):
 		return
+	case streamWrapper(call) || paramDefault(lit): // E8, E9
+		return
 	case strings.IndexByte(m, 't') >= 0:
 		sev, msg = diagnostic.SeverityWarning, "Use the 'b' flag instead of 't' for binary-safe file access."
 	default:
@@ -82,6 +84,38 @@ func fopenModeArgument(call *syntax.FuncCall) syntax.Expr {
 		}
 	}
 	return nil
+}
+
+// streamWrapper reports whether fopen call names, by a literal or a
+// concatenation starting with one, a stream other than a plain file
+// (`php://memory`, `php://fd/3`, a registered wrapper): the binary flag only
+// matters for files.
+func streamWrapper(call *syntax.FuncCall) bool {
+	e := syntax.UnwrapParens(semanticquery.CallArgument(call.Args, 0, "filename"))
+	for {
+		b, ok := e.(*syntax.Binary)
+		if !ok || b.Op.Kind != syntax.TDot {
+			break
+		}
+		e = syntax.UnwrapParens(b.Left)
+	}
+	lit, ok := e.(*syntax.Literal)
+	if !ok {
+		return false
+	}
+	name, ok := syntax.LiteralStringValue(lit)
+	if !ok {
+		return false
+	}
+	scheme, _, found := strings.Cut(name, "://")
+	return found && scheme != "" && !strings.EqualFold(scheme, "file")
+}
+
+// paramDefault reports whether lit is the default of a parameter: callers
+// choose the mode (E9).
+func paramDefault(lit syntax.Expr) bool {
+	_, ok := lit.Parent().(*syntax.Param)
+	return ok
 }
 
 // fopenFixMode implements F1.

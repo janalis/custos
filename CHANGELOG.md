@@ -117,6 +117,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - MagicMethodsValidity no longer asks a constructor to call a parent
   constructor that does nothing without arguments (each statement only
   runs for an optional parameter given a value).
+- FopenBinaryUnsafeUsage no longer asks for the `b` flag on streams other
+  than plain files (`php://stdout`, `php://fd/3`, registered wrappers) or on
+  a mode that comes from a parameter's default.
 - UnusedConstructorDependencies no longer reports a property assigned an
   array of references (`[&$this->data]`), which makes clones share them.
 - AlterInForeach no longer asks to unset the value of an inner

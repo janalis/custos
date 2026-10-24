@@ -1,8 +1,8 @@
 <?php
 function open_named($path, $ctx, array $rest)
 {
-    $a = fopen(mode: 'rb', filename: 'php://memory');
-    $b = fopen(mode: 'rb', filename: 'php://memory');
+    $a = fopen(mode: 'rb', filename: 'data.bin');
+    $b = fopen(mode: 'rb', filename: 'data.bin');
     $c = fopen($path, mode: 'wb');
     $d = fopen(filename: $path, context: $ctx);
     $e = fopen($path, ...$rest);

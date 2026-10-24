@@ -1,8 +1,8 @@
 <?php
 function open_named($path, $ctx, array $rest)
 {
-    $a = fopen(mode: 'rb', filename: 'php://memory');
-    $b = fopen(mode: <warning descr="Add the 'b' flag to the mode for binary-safe file access.">'r'</warning>, filename: 'php://memory');
+    $a = fopen(mode: 'rb', filename: 'data.bin');
+    $b = fopen(mode: <warning descr="Add the 'b' flag to the mode for binary-safe file access.">'r'</warning>, filename: 'data.bin');
     $c = fopen($path, mode: <warning descr="Use the 'b' flag instead of 't' for binary-safe file access.">'wt'</warning>);
     $d = fopen(filename: $path, context: $ctx);
     $e = fopen($path, ...$rest);
