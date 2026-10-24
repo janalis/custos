@@ -85,6 +85,9 @@ engine enforce the contract and documents it in the signature.
   exclude overflow of an unknown integer base. This also applies through
   assignments and compound `**=` writes. A single integer or float return
   declaration is withheld for these uncertain results.
+- **D5c** (custos) When the `@return` tag names a `@template` parameter
+  of the method or of its class (`@return T|null`), stop: a template is no
+  class, and declaring it as one throws on every call.
 - **D6** If `R0` contains any unknown member, stop — unless `R0` has exactly
   two members, exactly one of which is known (a contribution from an
   unresolvable parent/interface declaration must not block the report; in our
@@ -182,6 +185,13 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
   with an alias a `use … { m as alias; }` block gives it. Classes using the
   trait from other files are not known, so such a method never gets a fix
   (F1), with the plain message when no override is seen.
+- **D13c** (custos) A `void` suggestion is dropped when a parent class or
+  interface (transitively), or a known descendant, declares the method with
+  a return value: a native return type, a `@return` tag or an inferred type
+  other than `void` and `null` (a body falling off its end returns null). `void` can neither override nor be overridden by a
+  method returning a value (Doctrine DBAL's platforms throwing in a method
+  their parent documents as returning a string; a laminas-code interface
+  documented `@return void` whose implementation returns `$this`).
 
 ## Exceptions (no report)
 
@@ -359,6 +369,12 @@ abstract class Node {
 
 ## Divergences
 
+- **Templates and value-returning parents (custos diverges, D5c, D13c).**
+  Upstream reads a `@template` name in `@return` as a class of the current
+  namespace and suggests `: ?T`, a class that does not exist (Doctrine
+  Annotations, DBAL). It also suggests `void` for an override that only
+  throws while its parent promises a value, which no hierarchy refactoring
+  can satisfy. custos reports neither.
 - **Anonymous results have no declaration suggestion.** Their internal
   identities support member lookup but cannot be written as PHP type names.
   Skip suggestions whose inferred result contains an anonymous class,

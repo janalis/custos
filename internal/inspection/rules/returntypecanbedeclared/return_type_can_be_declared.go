@@ -160,7 +160,25 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 	docRet := ""
 	if hasReturnTag {
 		docRet = doc.ReturnType()
-		add(types.FromDoc(docRet, resolve))
+		// custos: a template parameter of the method or its class names no
+		// class (`@return T|null`): no type can be declared from it.
+		tpl := map[string]bool{}
+		for _, t := range doc.Templates() {
+			tpl[t] = true
+		}
+		if c := index.DocComment(ctx.File, class); c != "" {
+			for _, t := range phpdoc.Parse(c).Templates() {
+				tpl[t] = true
+			}
+		}
+		templated := false
+		add(types.FromDoc(docRet, func(w string) string {
+			templated = templated || tpl[w]
+			return resolve(w)
+		}))
+		if templated {
+			return
+		}
 	}
 	hasYield := false
 	if !abstract {
@@ -366,6 +384,9 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 	if !hasYield && (suggestion == "void" && valueReturn || suggestion != "void" && bareReturn) {
 		return
 	}
+	if suggestion == "void" && rtdHierarchyReturnsValue(ctx, class, m) { // D13c
+		return
+	}
 	span := m.Name.Span()
 	if rtdOverridden(ctx, class, m) { // D13
 		ctx.Report(span, "Declare ': "+suggestion+"' as the return type (update the whole hierarchy with a signature refactoring).")
@@ -497,6 +518,35 @@ func rtdOverridden(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Met
 		return semanticquery.DescendantMethods(ix, fqn, ctx.PHP)
 	}).(semanticquery.MethodOverrides)
 	return below.MayOverride(name)
+}
+
+// rtdHierarchyReturnsValue reports whether a parent class or interface of
+// class, or a known descendant, declares method m with a return value
+// (native, @return or inferred) other than `void` or `null`: `void` cannot
+// sit above or below a method returning one (D13c).
+func rtdHierarchyReturnsValue(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Method) bool {
+	fqn := ctx.Types().ClassFQN(class)
+	name := strings.ToLower(m.Name.Value)
+	self := strings.ToLower(strings.TrimPrefix(fqn, `\`))
+	var related []*index.Method
+	for _, c := range ctx.Index().Ancestors(fqn, ctx.PHP) {
+		if am, ok := c.Methods[name]; ok && strings.ToLower(strings.TrimPrefix(c.FQN, `\`)) != self {
+			related = append(related, am)
+		}
+	}
+	below := ctx.Memo("descendant-methods\x00"+self, func() any {
+		return semanticquery.DescendantMethods(ctx.Index(), fqn, ctx.PHP)
+	}).(semanticquery.MethodOverrides)
+	related = append(related, below.Declared(name)...)
+	for _, am := range related {
+		for _, r := range []string{am.Return, am.DocReturn, am.Inferred} {
+			// A body falling off its end is inferred as null.
+			if r != "" && !strings.EqualFold(r, "void") && !strings.EqualFold(r, "null") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // rtdTraitExposed reports whether trait method m is composed into classes

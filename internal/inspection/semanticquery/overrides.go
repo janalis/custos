@@ -12,12 +12,19 @@ import (
 // Incomplete enumeration cannot establish the absence of an override.
 type MethodOverrides struct {
 	names    map[string]bool
+	declared map[string][]*index.Method
 	Complete bool
 }
 
 // MayOverride reports a known override or an incomplete hierarchy.
 func (m MethodOverrides) MayOverride(name string) bool {
 	return !m.Complete || m.names[strings.ToLower(name)]
+}
+
+// Declared returns the methods named name that descendants declare
+// themselves (composed trait methods aside).
+func (m MethodOverrides) Declared(name string) []*index.Method {
+	return m.declared[strings.ToLower(name)]
 }
 
 // DescendantMethods follows classes and interfaces, including methods composed
@@ -27,7 +34,7 @@ func DescendantMethods(ix *index.Index, fqn string, ver phpversion.Version) Meth
 }
 
 func descendantMethods(ix *index.Index, fqn string, ver phpversion.Version, budget int) MethodOverrides {
-	out := MethodOverrides{names: map[string]bool{}, Complete: true}
+	out := MethodOverrides{names: map[string]bool{}, declared: map[string][]*index.Method{}, Complete: true}
 	seen := map[string]bool{}
 	queue := []string{fqn}
 	charge := func() bool {
@@ -65,6 +72,7 @@ func descendantMethods(ix *index.Index, fqn string, ver phpversion.Version, budg
 				}
 				if ver == 0 || method.Avail.In(ver) {
 					out.names[name] = true
+					out.declared[name] = append(out.declared[name], method)
 				}
 			}
 			if !ix.AncestorsComplete(child, ver) {
