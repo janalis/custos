@@ -92,7 +92,67 @@ func (typeUnsafeComparison) Check(ctx *analysis.Context, n syntax.Node) {
 	if tucObjectsOnly(ctx, b.Left) && tucObjectsOnly(ctx, b.Right) {
 		return
 	}
+	// custos: loose comparisons meant as such (D5a, D5b).
+	if tucEmptinessTest(ctx, b.Left, b.Right) || tucEmptinessTest(ctx, b.Right, b.Left) ||
+		tucCastTest(ctx, b.Left, b.Right) || tucCastTest(ctx, b.Right, b.Left) {
+		return
+	}
 	ctx.ReportSeverity(span, diagnostic.SeverityInfo, "Prefer '"+strict+"' to avoid implicit type juggling.") // D6
+}
+
+// tucEmptinessTest reports whether falsy is a falsy constant (`false`,
+// `null`, `0`, `”`, `'0'`) compared with other, a value whose type holds
+// false or null next to another type: an emptiness test, which === would
+// turn into a test of one of them (D5a).
+func tucEmptinessTest(ctx *analysis.Context, falsy, other syntax.Expr) bool {
+	switch x := syntax.UnwrapParens(falsy).(type) {
+	case *syntax.ConstFetch:
+		if !syntax.IsNullConst(x) && !strings.EqualFold(strings.TrimPrefix(x.Name.Value, `\`), "false") {
+			return false
+		}
+	case *syntax.Literal:
+		if x.LitKind == syntax.LitString {
+			content, _ := tucStringContent(ctx, x)
+			if val, known := tucLiteralValue(x, content); !known || val != "" && val != "0" {
+				return false
+			}
+		} else if x.Raw != "0" {
+			return false
+		}
+	default:
+		return false
+	}
+	t := ctx.TypeOf(other)
+	if t.IsUnknown() || !t.Has("false") && !t.Has("null") && !t.Has("bool") {
+		return false
+	}
+	for _, a := range t.Atoms() {
+		switch a {
+		case "false", "null", "bool", "true":
+		default:
+			return true
+		}
+	}
+	return false
+}
+
+// tucCastTest reports whether cast converts other itself, by a cast to
+// int, float or string or by interpolating it alone (`(int) $v == $v`,
+// `"$n" != $n`): a test of what the conversion keeps (D5b).
+func tucCastTest(ctx *analysis.Context, cast, other syntax.Expr) bool {
+	var inner syntax.Expr
+	switch x := syntax.UnwrapParens(cast).(type) {
+	case *syntax.Unary:
+		switch x.Op.Kind {
+		case syntax.TIntCast, syntax.TDoubleCast, syntax.TStringCast:
+			inner = x.Expr
+		}
+	case *syntax.InterpolatedString:
+		if len(x.Parts) == 1 && !x.Backtick {
+			inner = x.Parts[0]
+		}
+	}
+	return inner != nil && astquery.Equivalent(ctx.File, syntax.UnwrapParens(inner), syntax.UnwrapParens(other))
 }
 
 // tucStringContent returns the raw contents of a string literal operand
@@ -196,16 +256,20 @@ func tucObjectWithoutToString(ctx *analysis.Context, e syntax.Expr) (cls string,
 		return "", false
 	}
 	ix := ctx.Index()
+	missing := ""
 	for _, c := range classes {
 		decl := ix.Class(c, ctx.PHP)
 		if decl == nil || !tucHierarchyKnown(ctx, decl.FQN) {
 			continue
 		}
-		if ix.FindMethod(decl.FQN, "__toString", ctx.PHP) == nil {
-			return `\` + strings.TrimPrefix(decl.FQN, `\`), true
+		if ix.FindMethod(decl.FQN, "__toString", ctx.PHP) != nil {
+			return "", true // custos: the members that convert make it meaningful
+		}
+		if missing == "" {
+			missing = `\` + strings.TrimPrefix(decl.FQN, `\`)
 		}
 	}
-	return "", true
+	return missing, true
 }
 
 // tucObjectsOnly reports whether e is known to hold only objects.

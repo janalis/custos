@@ -44,10 +44,10 @@ string literal here).
   at least one part remains and **every** non-`null` part is a class name
   (starts with `\`), then:
   - resolve each class name to its class/interface declarations (project and
-    stubs); for the first one found that has no
-    `__toString` method — own or inherited from parent classes, traits or
-    interfaces, abstract declarations count — report kind M (D7) and stop
-    checking further classes; **except** when the type contains `null` and
+    stubs); when none of them has a `__toString` method — own or inherited
+    from parent classes, traits or interfaces, abstract declarations count —
+    report kind M (D7) naming the first one found (custos: a union where
+    some class converts, `Name|ComplexType`, is not reported); **except** when the type contains `null` and
     the literal's static value is the empty string (`?Invoice $n; $n == ''`):
     that comparison is a null test (`null == ''` holds) and is not reported;
   - in all cases (reported or not), **end** analysis of this expression
@@ -82,6 +82,15 @@ string literal here).
   `\PDO`, `\PDOStatement`, `\ArrayObject`, `\SplObjectStorage`, `\Closure`. Operands are used as written (a parenthesised
   operand has the type of its content). Types such as `\DateTime|false`
   (e.g. return of `date_create()` from stubs) count as comparable.
+- **D5a** (custos) The comparison is not an *emptiness test*: one operand
+  is `false`, `null`, `0`, `''` or `'0'` and the other's inferred type holds
+  `false`, `null` or `bool` together with another type
+  (`$doc->getDocComment() != ''` on `string|false`). `===` would test only
+  one of the empty values.
+- **D5b** (custos) The comparison is not a *conversion test*: one operand
+  is an `(int)`, `(float)` or `(string)` cast of the other, or a string
+  interpolating it alone (`(int) $v == $v`, `"$n" != $n`), which tests
+  whether the conversion keeps the value.
 - **D6** Then report kind H.
 
 At most one report per expression (M, S or H).
@@ -268,6 +277,18 @@ function compare(Labelled $l, Plain $p, ChildTag $t, Invoice $i, ?Invoice $n, st
 
 ## Divergences
 
+- **Unions with convertible members (custos diverges, D2).** Upstream
+  reports kind M as soon as one class of the operand's type has no
+  `__toString()`. With `Name|Identifier|ComplexType`, the comparison with a
+  string works for the members that convert (nikic/php-parser): custos only
+  reports when no member converts.
+- **Deliberate loose comparisons (custos diverges, D5a, D5b).** Upstream
+  prefers `===` for every loose comparison. An emptiness test on a value
+  that may be `false` or `null` (`preg_match(…) == false`,
+  `getDocComment() != ''`) and a comparison of a value with its own
+  conversion (`(int) $v == $v`) rely on loose equality: `===` changes their
+  result. custos does not suggest it there (laminas-code, twig, predis,
+  webmozart/assert).
 - **Numeric-string grammar (custos diverges):** upstream's numeric test only
   knows plain decimals, so exponent forms (`'1e3'`), a trailing dot (`'1.'`)
   and whitespace-padded numbers (`' 1'`) get the strict fix although PHP
