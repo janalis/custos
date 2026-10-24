@@ -12,12 +12,12 @@ Group: [Performance](/rules/#performance) · PhpStorm name: `PackedHashtableOpti
 
 Since PHP 7 an array whose keys are integers inserted in ascending order can
 be stored in a compact "packed" layout. An array literal that lists integer
-keys out of order, or spells integer keys as numeric strings, misses that
-layout. Sorting the keys or writing them as integers lets the engine use it.
+keys out of order (numeric-string keys count as the integers PHP stores
+them as) misses that layout. Sorting the keys lets the engine use it.
 
 ## Example
 
-```php{2,5,8,11}
+```php{2,5,8}
 <?php
 $grid = [
     5 => 'e', 3 => 'c', 9 => 'i'
@@ -25,11 +25,9 @@ $grid = [
 $cells = array(
     -1 => 'a', -4 => 'b', 0 => 'c', 2 => 'd'
 );
-$names = [
-    '3' => 'x', 4 => 'y', '8' => 'z'
-];
 $mixed = array('7' => 1, '2' => 2, 9 => 3);
 
+$names = ['3' => 'x', 4 => 'y', '8' => 'z']; // already stored as integers
 $small = [2 => 'b', 1 => 'a'];
 $sorted = [1 => 'a', 2 => 'b', 2 => 'c'];
 $labels = ['3' => 'x', 'label' => 'y', 5 => 'z'];
@@ -44,8 +42,7 @@ Reported:
 <ul>
 <li>line 2: Sort the integer keys ascending so the array can be stored packed.</li>
 <li>line 5: Sort the integer keys ascending so the array can be stored packed.</li>
-<li>line 8: Write the keys as integers so the array can be stored packed.</li>
-<li>line 11: Sort the integer keys ascending so the array can be stored packed.</li>
+<li>line 8: Sort the integer keys ascending so the array can be stored packed.</li>
 </ul>
 
 ## Configure

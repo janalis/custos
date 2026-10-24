@@ -12,8 +12,8 @@ php: { min: "7.0", max: "" }
 
 Since PHP 7 an array whose keys are integers inserted in ascending order can
 be stored in a compact "packed" layout. An array literal that lists integer
-keys out of order, or spells integer keys as numeric strings, misses that
-layout. Sorting the keys or writing them as integers lets the engine use it.
+keys out of order (numeric-string keys count as the integers PHP stores
+them as) misses that layout. Sorting the keys lets the engine use it.
 
 ## Detection
 
@@ -45,11 +45,9 @@ layout. Sorting the keys or writing them as integers lets the engine use it.
     Float literals and integer literals that overflow the 64-bit range (PHP
     makes them floats) → no report.
 - **D6** Let *ascending* be true unless some key is strictly smaller than the
-  key immediately before it (equal neighbors are fine). Let *has-string* be
-  true when at least one key is a string literal.
+  key immediately before it (equal neighbors are fine).
   - **D6a** not ascending → report kind R (reorder).
-  - **D6b** ascending and has-string → report kind I (use integer keys).
-  - ascending without string keys → nothing.
+  - ascending → nothing, string keys or not (custos, see Divergences).
 
 ## Exceptions (no report)
 
@@ -67,7 +65,6 @@ layout. Sorting the keys or writing them as integers lets the engine use it.
 - Severity: info (weak warning).
 - Messages:
   - R: `Sort the integer keys ascending so the array can be stored packed.`
-  - I: `Write the keys as integers so the array can be stored packed.`
 
 ## Fix
 
@@ -91,11 +88,9 @@ $grid = <weak_warning descr="Sort the integer keys ascending so the array can be
 $cells = <weak_warning descr="Sort the integer keys ascending so the array can be stored packed.">array</weak_warning>(
     -1 => 'a', -4 => 'b', 0 => 'c', 2 => 'd'
 );
-$names = <weak_warning descr="Write the keys as integers so the array can be stored packed.">[</weak_warning>
-    '3' => 'x', 4 => 'y', '8' => 'z'
-];
 $mixed = <weak_warning descr="Sort the integer keys ascending so the array can be stored packed.">array</weak_warning>('7' => 1, '2' => 2, 9 => 3);
 
+$names = ['3' => 'x', 4 => 'y', '8' => 'z']; // already stored as integers
 $small = [2 => 'b', 1 => 'a'];
 $sorted = [1 => 'a', 2 => 'b', 2 => 'c'];
 $labels = ['3' => 'x', 'label' => 'y', 5 => 'z'];
@@ -115,6 +110,11 @@ $ids = <weak_warning descr="Sort the integer keys ascending so the array can be 
 
 ## Divergences
 
+- **Numeric-string keys (custos diverges, D6).** Upstream asks to write
+  `['0' => …, '1' => …, '2' => …]` with integer keys. PHP already stores a
+  canonical integer string key as that integer, so both spellings build the
+  same packable array: custos does not report it (webform, Drupal option
+  lists). Keys out of order are still reported.
 - **Sign handling in string keys:** upstream's integer parse accepts a
   leading `+` (and `-0`), but PHP keeps `'+5'` and `'-0'` as string keys, so
   such arrays are mis-classified (e.g. `['+5' => …, 6 => …, 7 => …]` gets

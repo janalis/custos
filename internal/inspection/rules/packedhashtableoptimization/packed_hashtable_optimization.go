@@ -31,7 +31,7 @@ func (packedHashtableOptimization) Check(ctx *analysis.Context, n syntax.Node) {
 	if semanticquery.InTestContext(ctx, arr) { // D3
 		return
 	}
-	ascending, hasString := true, false
+	ascending := true
 	var prev int64
 	for i, it := range arr.Items {
 		if it == nil || it.Key == nil || it.Unpack { // D4
@@ -42,7 +42,6 @@ func (packedHashtableOptimization) Check(ctx *analysis.Context, n syntax.Node) {
 			ok  bool
 		)
 		if content, _, isStr := astquery.QuotedStringRaw(it.Key); isStr {
-			hasString = true
 			key, ok = pkStringKey(content)
 		} else {
 			key, ok = pkNumberKey(ctx, it.Key)
@@ -55,15 +54,12 @@ func (packedHashtableOptimization) Check(ctx *analysis.Context, n syntax.Node) {
 		}
 		prev = key
 	}
-	var msg string
-	switch {
-	case !ascending: // D6a
-		msg = "Sort the integer keys ascending so the array can be stored packed."
-	case hasString: // D6b
-		msg = "Write the keys as integers so the array can be stored packed."
-	default:
+	// D6: PHP stores a canonical integer string key as that integer, so
+	// only the order matters (custos: no kind I).
+	if ascending {
 		return
 	}
+	msg := "Sort the integer keys ascending so the array can be stored packed."
 	start := arr.Span().Start
 	end := start + 1
 	if !arr.Short {

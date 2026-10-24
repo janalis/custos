@@ -1220,7 +1220,7 @@
   },
   "PackedHashtableOptimization": {
     "phpMin": "7.0",
-    "summary": "Since PHP 7 an array whose keys are integers inserted in ascending order can\nbe stored in a compact \"packed\" layout. An array literal that lists integer\nkeys out of order, or spells integer keys as numeric strings, misses that\nlayout. Sorting the keys or writing them as integers lets the engine use it."
+    "summary": "Since PHP 7 an array whose keys are integers inserted in ascending order can\nbe stored in a compact \"packed\" layout. An array literal that lists integer\nkeys out of order (numeric-string keys count as the integers PHP stores\nthem as) misses that layout. Sorting the keys lets the engine use it."
   },
   "ParameterDefaultValueIsNotNull": {
     "summary": "Optional parameters that may be \"absent\" are best expressed with a `null`\ndefault (and a nullable type) rather than a sentinel such as `0`, `''` or\n`[]`. This opt-in style rule flags non-null defaults where `null` could be used."
