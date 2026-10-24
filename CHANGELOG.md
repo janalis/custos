@@ -116,6 +116,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   are followed instead of being reported as `unresolved-dispatch`.
 - PhpUnitTests no longer reports a `@covers` class target as unresolved
   when the test's own parent is not indexed (the framework is missing).
+- TypeUnsafeArraySearch takes class constants holding plain strings
+  (`[self::USER, Webform::PAGE]`) like the string literals they hold.
 - ReturnTypeCanBeDeclared no longer suggests a `@template` name as a return
   type, nor `void` in a hierarchy where another declaration of the method
   returns a value.

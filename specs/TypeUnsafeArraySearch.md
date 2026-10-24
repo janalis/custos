@@ -48,6 +48,9 @@ Visit every function call.
     `['k' => 'v']` (keyed), `['a', 5]` (non-string), `['a', $x]` → not
     skipped → reported.
   - An empty array literal `[]` is not skipped by E1.
+  - (custos) An item may also be a class constant fetched through a class
+    name (`self::USER`, `Webform::PAGE`, not `static::`, which a subclass
+    may redefine) whose initializer is such a string literal.
 - **E2** *Matching types*: the inferred type of `N` (unknown parts removed)
   consists of exactly one type `T`, the inferred type of `H` (unknown parts
   removed) consists of exactly one type `A`, and `A` equals `T` with a leading

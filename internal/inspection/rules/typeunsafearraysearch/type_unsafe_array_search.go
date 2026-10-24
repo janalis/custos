@@ -107,6 +107,18 @@ func stringLiteralContent(ctx *analysis.Context, e syntax.Expr) (string, bool) {
 	if raw, _, ok := astquery.QuotedStringRaw(e); ok {
 		return raw, true
 	}
+	// custos: a class constant named through its class (not static::,
+	// which a subclass may redefine) stands for its string initializer.
+	if cf, ok := e.(*syntax.ClassConstFetch); ok {
+		if n, named := cf.Class.(*syntax.Name); named && !strings.EqualFold(n.Value, "static") {
+			if lit := semanticquery.LocalStringLiteral(ctx.Types(), cf); lit != nil {
+				if raw, _, ok := astquery.QuotedStringRaw(lit); ok {
+					return raw, true
+				}
+			}
+		}
+		return "", false
+	}
 	if is, ok := e.(*syntax.InterpolatedString); ok && !is.Heredoc && !is.Backtick {
 		if t := ctx.Text(is); len(t) >= 2 && t[0] == '"' && t[len(t)-1] == '"' {
 			return t[1 : len(t)-1], true
