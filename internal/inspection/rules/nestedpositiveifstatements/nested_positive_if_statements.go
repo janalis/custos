@@ -41,6 +41,10 @@ func (nestedPositiveIfStatements) Check(ctx *analysis.Context, n syntax.Node) {
 		if body, ok := c.Body.(*syntax.Block); ok && body.Alt { // E6: the body text has no endif
 			return
 		}
+		if npiLosesComments(f, block, c, c.Cond.Span(), c.Body.Span()) { // F3
+			ctx.Report(kwSpan, nestedPositiveIfMsg)
+			return
+		}
 		ctx.Report(kwSpan, nestedPositiveIfMsg, diagnostic.Fix{
 			Title: "Merge into the parent if",
 			Edits: func() []diagnostic.TextEdit {
@@ -60,6 +64,10 @@ func (nestedPositiveIfStatements) Check(ctx *analysis.Context, n syntax.Node) {
 			},
 		})
 	case *syntax.Else: // Case B (D6: the block is the else body)
+		if npiLosesComments(f, block, c, c.Span()) { // F3
+			ctx.Report(kwSpan, nestedPositiveIfMsg)
+			return
+		}
 		ctx.Report(kwSpan, nestedPositiveIfMsg, diagnostic.Fix{
 			Title: "Turn into else if",
 			Edits: func() []diagnostic.TextEdit {
@@ -152,6 +160,29 @@ func npiSameTokens(f *syntax.File, a, b syntax.Span) bool {
 
 // npiWithComments returns the text of n where comments lying in block before
 // c are inserted right after the opening brace of c's body (when braced).
+// npiLosesComments reports whether block holds a comment the fix would
+// drop: one neither before the inner if c with a braced body (moved into
+// it) nor inside a kept span.
+func npiLosesComments(f *syntax.File, block *syntax.Block, c *syntax.If, kept ...syntax.Span) bool {
+	body, braced := c.Body.(*syntax.Block)
+	braced = braced && !body.Alt && body.Span().Len() > 0 && f.Src[body.Span().Start] == '{'
+	bs := block.Span()
+	for k := astquery.TokenIndex(f, bs.Start); k < len(f.Tokens) && f.Tokens[k].Start < bs.End; k++ {
+		t := f.Tokens[k]
+		if t.Kind != syntax.TComment && t.Kind != syntax.TDocComment || braced && t.End <= c.Span().Start {
+			continue
+		}
+		in := false
+		for _, s := range kept {
+			in = in || t.Start >= s.Start && t.End <= s.End
+		}
+		if !in {
+			return true
+		}
+	}
+	return false
+}
+
 func npiWithComments(f *syntax.File, block *syntax.Block, c *syntax.If, n syntax.Node) string {
 	ns := n.Span()
 	text := string(f.Src[ns.Start:ns.End])

@@ -120,6 +120,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   ''`) or a comparison with its own cast (`(int) $v == $v`).
 - NotOptimalIfConditions no longer reports `$r instanceof Status && $r ==
   'QUEUED'` when the class converts to a string.
+- NestedPositiveIfStatements no longer offers a quick-fix that would drop
+  a comment.
 - CallableParameterUseCaseInTypeContext no longer reports a ternary that
   gives the parameter back in one branch for that branch's type, nor takes
   arithmetic on a `mixed` value (`max($values) + 1`) for a float.

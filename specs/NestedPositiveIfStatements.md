@@ -74,9 +74,12 @@ comments (line, block and doc comments); the empty statement `;` counts.
 Comment preservation (both cases): comments located inside the parent block
 before `C` (between `{` and `C`) are moved into `C`'s body block, immediately
 after its opening `{`, keeping their original order, and before `C`'s existing
-body content. This only happens when `C`'s body is a braced block; otherwise
-those comments are dropped. Comments after `C` inside the parent block are
-dropped.
+body content. This only happens when `C`'s body is a braced block.
+
+- F3 (custos) No fix is offered (the report stays) when it would drop a
+  comment: one before `C` whose body is not braced, one after `C` inside the
+  parent block, or, in Case A, one inside `C` outside its condition and body
+  (in its discarded `else`, or between its parts).
 
 - F1 (Case A): with `PC` = parent condition text and `CC` = child condition
   text (both the expression inside the `if ( … )` parentheses):
@@ -219,6 +222,10 @@ function else_cases($u, $v) {
 
 ## Divergences
 
+- **Comments (custos diverges, F3).** Upstream's fix drops the comments it
+  cannot place (after the inner `if`, in its discarded `else`). custos
+  reports those cases without a fix rather than delete them (composer/semver,
+  monolog, php-cs-fixer).
 - Upstream never wraps the child condition. When the child condition binds
   looser than `&&` (ternary, `??`, `xor`), the merged condition changes
   meaning (`$u && $a ? $b : $c`), so the fix parenthesises such a child.
