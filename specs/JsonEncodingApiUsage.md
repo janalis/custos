@@ -127,7 +127,12 @@ own fix.
   the call (`$rules = json_decode($s, true);`, `@json_decode($s);`) is
   directly followed, in the same statement list, by an `if` whose
   condition calls `json_last_error()` or `json_last_error_msg()`
-  (`if (JSON_ERROR_NONE !== json_last_error()) { … }`).
+  (`if (JSON_ERROR_NONE !== json_last_error()) { … }`), or by a `return`
+  or expression statement holding a ternary with such a condition
+  (`return json_last_error() === JSON_ERROR_NONE ? $data : $body;`; not
+  inside a closure). A plain assignment to a property (`$this->data =
+  json_decode(…)`) counts like one to a variable: the first access to
+  the same property after it in the function is the one tested.
 
 ## Report
 

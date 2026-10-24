@@ -330,11 +330,16 @@ func jsonFailureHandled(ctx *analysis.Context, call *syntax.FuncCall, decode boo
 		if jsonFailureTest(jsonOuter(a), decode) {
 			return true // `if ($data = json_decode(…))`
 		}
-		v, ok := syntax.UnwrapParens(a.Var).(*syntax.Variable)
-		if !ok || v.Name == "" || v.NameExpr != nil {
-			return false
+		var read syntax.Expr
+		switch t := syntax.UnwrapParens(a.Var).(type) {
+		case *syntax.Variable:
+			if t.Name == "" || t.NameExpr != nil {
+				return false
+			}
+			read = jsonFirstRead(t.Name, a)
+		case *syntax.PropertyFetch:
+			read = jsonFirstPropertyRead(ctx, t, a)
 		}
-		read := jsonFirstRead(v.Name, a)
 		if read == nil {
 			return false
 		}
@@ -360,22 +365,65 @@ func jsonOuter(x syntax.Expr) syntax.Expr {
 	}
 }
 
-// jsonLastErrorTested reports whether the statement after es is an `if`
-// whose condition calls json_last_error() or json_last_error_msg().
+// jsonLastErrorTested reports whether the statement after es asks
+// json_last_error() or json_last_error_msg(): in the condition of an `if`,
+// or of a ternary it returns or evaluates.
 func jsonLastErrorTested(ctx *analysis.Context, es *syntax.ExprStmt) bool {
 	next, ok := astquery.NextStmt(ctx.File, es)
-	is, isIf := next.(*syntax.If)
-	if !ok || !isIf {
+	if !ok {
 		return false
 	}
+	var conds []syntax.Expr
+	switch st := next.(type) {
+	case *syntax.If:
+		conds = append(conds, st.Cond)
+	case *syntax.Return, *syntax.ExprStmt:
+		syntax.Inspect(st, func(n syntax.Node) bool {
+			switch t := n.(type) {
+			case *syntax.Closure, *syntax.ArrowFunction:
+				return false
+			case *syntax.Ternary:
+				conds = append(conds, t.Cond)
+			}
+			return true
+		})
+	}
 	found := false
-	syntax.Inspect(is.Cond, func(n syntax.Node) bool {
-		if c, ok := n.(*syntax.FuncCall); ok && (ctx.IsGlobalFunctionCall(c, "json_last_error") || ctx.IsGlobalFunctionCall(c, "json_last_error_msg")) {
-			found = true
-		}
-		return !found
-	})
+	for _, cond := range conds {
+		syntax.Inspect(cond, func(n syntax.Node) bool {
+			if c, ok := n.(*syntax.FuncCall); ok && (ctx.IsGlobalFunctionCall(c, "json_last_error") || ctx.IsGlobalFunctionCall(c, "json_last_error_msg")) {
+				found = true
+			}
+			return !found
+		})
+	}
 	return found
+}
+
+// jsonFirstPropertyRead returns the first access to the property p is
+// (`$this->data`) after assignment a in its function, nil when there is
+// none or it is written there.
+func jsonFirstPropertyRead(ctx *analysis.Context, p *syntax.PropertyFetch, a *syntax.Assign) syntax.Expr {
+	scope := syntax.EnclosingVariableScope(a)
+	var first *syntax.PropertyFetch
+	syntax.Inspect(scope, func(n syntax.Node) bool {
+		switch x := n.(type) {
+		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
+			return n == scope
+		case *syntax.PropertyFetch:
+			if x.Span().Start >= a.Span().End && (first == nil || x.Span().Start < first.Span().Start) && astquery.Equivalent(ctx.File, x, p) {
+				first = x
+			}
+		}
+		return true
+	})
+	if first == nil {
+		return nil
+	}
+	if w, ok := jsonOuter(first).Parent().(*syntax.Assign); ok && syntax.Node(w.Var) == jsonOuter(first) {
+		return nil
+	}
+	return first
 }
 
 // jsonFirstRead returns the first occurrence of variable name after

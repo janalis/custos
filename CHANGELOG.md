@@ -126,6 +126,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   element is written with it (`$files[] = $file` from `glob()`), and the
   untrusted-path and destination rules no longer follow request data
   through the text `str_replace()` or `preg_replace()` searches for.
+- JsonEncodingApiUsage also accepts a ternary on `json_last_error()` in
+  the next statement and a property tested at its first read.
 - ReturnTypeCanBeDeclared no longer suggests a `@template` name as a return
   type, nor `void` in a hierarchy where another declaration of the method
   returns a value.
