@@ -25,6 +25,7 @@ class InheritedTest extends BaseTestCase
     /** @dataProvider \Vendor\Kit\Rows::all */
     public function testE($r) {}
 
+    // Nor is the class a @covers names (E9d).
     /** @covers \Vendor\Kit\Thing::run */
     public function testF() {}
 

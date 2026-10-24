@@ -25,8 +25,9 @@ class InheritedTest extends BaseTestCase
     /** @dataProvider \Vendor\Kit\Rows::all */
     public function <error descr="The @dataProvider target cannot be resolved to a method.">testE</error>($r) {}
 
+    // Nor is the class a @covers names (E9d).
     /** @covers \Vendor\Kit\Thing::run */
-    public function <error descr="The @covers target '\Vendor\Kit\Thing::run' cannot be resolved.">testF</error>() {}
+    public function testF() {}
 
     /** <weak_warning descr="Remove '@test': the method name already marks it as a test.">@test</weak_warning> @dataProvider rows */
     public function testWithRows($r) {}

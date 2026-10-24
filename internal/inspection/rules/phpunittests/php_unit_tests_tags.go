@@ -205,6 +205,11 @@ func putCheckTags(ctx *analysis.Context, m *syntax.Method) {
 					continue
 				}
 			}
+			// E9d: a test whose own hierarchy is not indexed runs without its
+			// framework's code, which may hold the class covered.
+			if !strings.HasPrefix(ref, "::") && !semanticquery.HierarchyResolved(ctx.Index(), classFQN, ctx.PHP) {
+				continue
+			}
 			if !putCoversResolves(ctx, ref, at) { // D9, D10
 				ctx.ReportSeverity(m.Name.Span(), diagnostic.SeverityError, "The @covers target '"+t.value+"' cannot be resolved.")
 			}

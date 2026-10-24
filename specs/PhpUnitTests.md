@@ -386,6 +386,11 @@ integer/float literal, optionally with a unary minus.
   `\SplObjectStorage $store`, or with an untyped `$store`.
 - **E9b** D5/D7/D10 when the method is not found but the class has an
   ancestor, interface or trait that is not indexed.
+- **E9d** (custos) D9/D10 for a `@covers` target naming a class
+  (`\Vendor\Filter\Align`, `\A\B::m`) when the test class has an
+  ancestor, interface or trait that is not indexed: the project is analyzed
+  without its framework (Drupal contrib modules without core), whose classes
+  the target may name. `@covers ::m` targets are still checked.
 - **E9c** D19 when the constant is only the message argument; D20 when
   the `is_*` call has more than one argument; D22 when the literal is not
   a class name.
