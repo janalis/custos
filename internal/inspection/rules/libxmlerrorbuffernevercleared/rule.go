@@ -151,6 +151,9 @@ func clearedAfter(ctx *analysis.Context, loop syntax.Stmt) bool {
 func leavesList(root syntax.Node, nested bool) bool {
 	leaves := false
 	syntax.Inspect(root, func(n syntax.Node) bool {
+		if leaves {
+			return false
+		}
 		switch t := n.(type) {
 		case *syntax.Return, *syntax.Throw, *syntax.Exit, *syntax.Goto, *syntax.Label,
 			*syntax.Yield, *syntax.YieldFrom, *syntax.HaltCompiler:

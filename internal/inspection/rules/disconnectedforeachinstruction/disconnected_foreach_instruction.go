@@ -423,6 +423,9 @@ var dfiPerIterationFuncs = func() map[string]bool {
 func dfiPerIteration(ctx *analysis.Context, s syntax.Stmt) bool {
 	found := false
 	syntax.Inspect(s, func(x syntax.Node) bool {
+		if found {
+			return false
+		}
 		switch c := x.(type) {
 		case *syntax.FuncCall:
 			// A callback (`$progress(…)`, `$progress && $progress(…)`) is

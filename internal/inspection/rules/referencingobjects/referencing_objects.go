@@ -108,6 +108,9 @@ func hasScalarMember(t syntax.Expr) bool {
 func forwardedByRef(ctx *analysis.Context, body *syntax.Block, name string) bool {
 	found := false
 	syntax.Inspect(body, func(n syntax.Node) bool {
+		if found {
+			return false
+		}
 		v, ok := n.(*syntax.Variable)
 		if !ok || v.NameExpr != nil || v.Name != name {
 			return !found
@@ -295,6 +298,9 @@ func roNullable(t syntax.Expr) bool {
 func roWritesByName(ctx *analysis.Context, body *syntax.Block) bool {
 	found := false
 	syntax.Inspect(body, func(n syntax.Node) bool {
+		if found {
+			return false
+		}
 		switch x := n.(type) {
 		case *syntax.Variable:
 			found = x.NameExpr != nil

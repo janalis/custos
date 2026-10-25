@@ -2928,6 +2928,9 @@ func (e *Env) computedDefines() bool {
 	return e.file.Memo(computedDefinesKey{}, func() any {
 		found := false
 		syntax.InspectFile(e.file, func(n syntax.Node) bool {
+			if found {
+				return false
+			}
 			call, ok := n.(*syntax.FuncCall)
 			if name, builtin := e.callName(n); ok && builtin && name == "define" {
 				found = true

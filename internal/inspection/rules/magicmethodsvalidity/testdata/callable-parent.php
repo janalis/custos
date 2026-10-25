@@ -20,6 +20,11 @@ class ByClass extends Base
     public function __construct() { call_user_func_array(parent::class . '::__CONSTRUCT', [1]); }
 }
 
+class ByNameFirst extends Base
+{
+    public function __construct() { call_user_func(['parent::__construct', null][0], 1); }
+}
+
 class Other extends Base
 {
     public function <error descr="__construct does not call Base::__construct().">__construct</error>() { call_user_func_array('Base::init', [1]); strlen('x'); call_user_func(); }

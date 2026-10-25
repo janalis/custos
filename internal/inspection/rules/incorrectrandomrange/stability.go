@@ -91,6 +91,9 @@ func (s *stability) dynamicScope(body syntax.Node) bool {
 	return s.ctx.File.Memo(dynamicScopeKey{body}, func() any {
 		found := false
 		syntax.Inspect(body, func(n syntax.Node) bool {
+			if found {
+				return false
+			}
 			switch x := n.(type) {
 			case *syntax.Variable:
 				found = x.NameExpr != nil

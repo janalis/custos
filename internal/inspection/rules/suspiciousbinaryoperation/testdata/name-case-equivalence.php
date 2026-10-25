@@ -15,5 +15,6 @@ function varying($a, Repo $r) {
         new Repo() == new Repo(),
         userRandom() == userRandom(),
         $a++ == $a++,
+        $a->next() . strlen('x') === $a->next() . strlen('x'),
     ];
 }

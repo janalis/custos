@@ -449,6 +449,9 @@ func sboVaries(name string) bool {
 func sboMayVary(ctx *analysis.Context, e syntax.Expr) bool {
 	vary := false
 	syntax.Inspect(e, func(x syntax.Node) bool {
+		if vary {
+			return false
+		}
 		switch c := x.(type) {
 		case *syntax.MethodCall, *syntax.StaticCall, *syntax.New, *syntax.IncDec, *syntax.Assign,
 			*syntax.Yield, *syntax.YieldFrom, *syntax.Include, *syntax.Eval:

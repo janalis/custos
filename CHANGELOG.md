@@ -114,6 +114,14 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- Several checks that search an expression or a block for a match kept
+  looking after finding one, and a later node could undo it: a per-iteration
+  `echo` followed by another call in DisconnectedForeachInstruction, a
+  `parent::__construct` callable followed by another array entry in
+  MagicMethodsValidity, a varying call followed by a plain one in
+  SuspiciousBinaryOperation, and the same pattern in
+  LibxmlErrorBufferNeverCleared, ReferencingObjects, IncorrectRandomRange and
+  the flow analysis.
 - SlowArrayOperationsInLoop sees every other mention of the accumulator in
   the loop, not only the last one it visits: a merge whose target is also
   written by element in a nested loop is no longer reported.

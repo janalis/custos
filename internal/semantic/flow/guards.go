@@ -591,6 +591,9 @@ func (e *Env) rebinds(x, tested syntax.Expr, f *frame) bool {
 			return !reachable
 		})
 		syntax.Inspect(x, func(n syntax.Node) bool {
+			if found {
+				return false
+			}
 			switch n.(type) {
 			case *syntax.FuncCall, *syntax.MethodCall, *syntax.StaticCall, *syntax.New:
 				found = reachable

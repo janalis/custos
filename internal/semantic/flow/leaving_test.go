@@ -1015,6 +1015,7 @@ func TestComputedDefinesShadowConstants(t *testing.T) {
 		{`namespace App; ` + body, true},
 		{`namespace App; ` + body + ` define('App\OTHER', 1);`, true},
 		{`namespace App; ` + body + ` define($name, 1);`, false},
+		{`namespace App; ` + body + ` define($name, 1); define('App\OTHER', 2);`, false},
 		{`namespace App; ` + body + ` define(...$args);`, false},
 		{`namespace App; ` + body + ` define();`, false},
 		{`namespace App; ` + body + ` define(constant_name: 'App\OTHER', value: 1);`, false},

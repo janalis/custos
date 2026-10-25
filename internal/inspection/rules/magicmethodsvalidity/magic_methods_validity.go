@@ -455,6 +455,9 @@ func (c *magicCheck) callableNamesParent(call *syntax.FuncCall) bool {
 	}
 	found := false
 	syntax.Inspect(args[0], func(n syntax.Node) bool {
+		if found {
+			return false
+		}
 		if e, ok := n.(syntax.Expr); ok {
 			v, ok := astquery.QuotedStringValue(e)
 			found = ok && strings.HasSuffix(strings.ToLower(v), "::"+strings.ToLower(c.name))

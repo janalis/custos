@@ -72,6 +72,12 @@ final class Runner
         unknown_function($item);
     }
 
+    public function passOnFirst(Item &$item): void
+    {
+        unknown_function($item);
+        Runner::sink($item);
+    }
+
     public function unknownMethod(Item &$item): void
     {
         $this->swap->missing($item);
