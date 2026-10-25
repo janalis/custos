@@ -26,6 +26,7 @@ Detect tempnam result used for sensitive content under an explicitly enabled req
   Parentheses around the operands are ignored. The loose operators are accepted because a canonical path is an absolute string or `false`, so numeric-string juggling cannot occur. A comparison of uncanonical values (`dirname($path) !== $dir`) proves nothing: symlinks and relative segments make equal directories differ and different ones match.
 - E4. A guard placed before the `tempnam` call that produced the written path verified a different file; the report is kept when the variable is assigned a new temporary file after the guard.
 - E5. The fallback is intentional when the directory argument of `tempnam` is a builtin `sys_get_temp_dir()` call, directly or through a variable with that single known value: the system directory is the fallback target, so there is no other location to end up in. A path derived from it (`sys_get_temp_dir() . '/private'`) is an ordinary required directory.
+- E6. Test code (a test file, or a method of a class whose name marks it as a test) is not reported: its temporary files are throwaway fixtures, not sensitive content.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report

@@ -37,6 +37,10 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	if system, ok := syntax.UnwrapParens(directory).(*syntax.FuncCall); ok && semanticquery.NativeBuiltinName(ctx, system) == "sys_get_temp_dir" {
 		return
 	}
+	// E6: test fixtures are throwaway files, not sensitive content.
+	if semanticquery.InTestContext(ctx, c) {
+		return
+	}
 	if !directoryVerified(ctx, c, path, open) {
 		ctx.ReportNode(c, message)
 	}
