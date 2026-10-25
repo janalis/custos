@@ -114,6 +114,11 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- PhpUnitTests and PhpUnitDeprecations take the PHPUnit version from the
+  schema that `phpunit.xml` or `phpunit.xml.dist` names when PHPUnit is not
+  in `vendor/` and composer.json does not constrain it, as in projects that
+  install it through symfony/phpunit-bridge, instead of suggesting
+  `assertRegExp()` to PHPUnit 10+ projects.
 - ForgottenDebugOutput no longer reports dumps whose output is captured
   between `ob_start()` and a later `ob_get_clean()` (or another call that
   reads or ends the buffer), nor a first-class callable such as

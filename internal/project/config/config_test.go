@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -185,5 +186,43 @@ func TestComposerPHPUnit(t *testing.T) {
 	}
 	if composerPHPUnit(t.TempDir()) != 0 {
 		t.Error("no composer.json")
+	}
+}
+
+func TestSchemaPHPUnit(t *testing.T) {
+	const xsd = `<phpunit xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/%s/phpunit.xsd">`
+	for files, want := range map[[3]string]int{
+		{"", "13.1", ""}:    100,
+		{"9.3", "13.1", ""}: 93,
+		{"", "8.5", ""}:     85,
+		{"", "vendor", ""}:  0,
+		{"", "9.6", `{"require-dev": {"phpunit/phpunit": "^10.5"}}`}: 100,
+		{"", "", ""}: 0,
+	} {
+		dir := t.TempDir()
+		for i, name := range []string{"phpunit.xml", "phpunit.xml.dist"} {
+			if files[i] == "" {
+				continue
+			}
+			body := fmt.Sprintf(xsd, files[i])
+			if files[i] == "vendor" {
+				body = `<phpunit xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd">`
+			}
+			if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if files[2] != "" {
+			if err := os.WriteFile(filepath.Join(dir, "composer.json"), []byte(files[2]), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		c, err := Resolve(dir, File{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got, _ := c.Rules["PhpUnitTests"].Options["@composerPHPUnit"].(int); got != want {
+			t.Errorf("%v: option %d want %d", files, got, want)
+		}
 	}
 }

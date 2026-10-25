@@ -206,12 +206,16 @@ final class ExportTest
   nor does it have a `...DoesNotExist()` twin, so the rename turns a working
   call into a call to an undefined method. custos applies the same receiver
   check as for `assertEquals` (E5) and reports nothing for such calls.
-- **PHPUnit version from composer.json (custos).** When PHPUnit itself is
+- **PHPUnit version from composer.json or phpunit.xml (custos).** When PHPUnit itself is
   not indexed (no vendor directory, or one installed without dev
   dependencies) and `PHP_UNIT_VERSION` is not configured, the version is
   the lowest one allowed by composer.json's `phpunit/phpunit` constraint
-  (`require-dev`, else `require`) before falling back to the option
-  default: EspoCRM (`^11.5`) was told to use `assertContains()` (strict
-  from 9.0, unlike `in_array()`) and Grav `assertRegExp()` (removed in 10).
+  (`require-dev`, else `require`), else the version of the schema that
+  `phpunit.xml` (else `phpunit.xml.dist`) at the project root names
+  (`https://schema.phpunit.de/13.1/phpunit.xsd` → 13.1), before falling
+  back to the option default: EspoCRM (`^11.5`) was told to use
+  `assertContains()` (strict from 9.0, unlike `in_array()`) and Grav and
+  Symfony (PHPUnit installed by symfony/phpunit-bridge outside `vendor/`)
+  `assertRegExp()` (removed in 10).
 
 Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.

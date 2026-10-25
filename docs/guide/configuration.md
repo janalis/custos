@@ -93,7 +93,8 @@ The first of these that is set decides:
 The PHPUnit rules adapt their advice to the PHPUnit version the project
 uses: the installed `phpunit/phpunit` when the project's `vendor` is
 available, else the lowest version `composer.json` allows (`require-dev`,
-then `require`). See the `PHP_UNIT_VERSION` option of
+then `require`), else the version of the schema that `phpunit.xml` or
+`phpunit.xml.dist` names. See the `PHP_UNIT_VERSION` option of
 [PhpUnitTests](/rules/phpunit/PhpUnitTests) and
 [PhpUnitDeprecations](/rules/phpunit/PhpUnitDeprecations).
 

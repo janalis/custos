@@ -15,7 +15,8 @@ import (
 //
 // When PHPUnit is not indexed (no vendor directory, or one installed
 // without dev dependencies) the CLI passes the lowest version allowed by
-// composer.json's phpunit/phpunit constraint as the internal option
+// composer.json's phpunit/phpunit constraint, else the version of the
+// schema phpunit.xml(.dist) names, as the internal option
 // "@composerPHPUnit" (custos).
 func DetectedPHPUnitVersion(ctx *analysis.Context) (int, bool) {
 	v := ctx.Memo("phpunit.detectedVersion", func() any {

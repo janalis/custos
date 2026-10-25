@@ -154,7 +154,11 @@ func resolve(root string, f File, read func(string) ([]byte, error)) (*Config, e
 		}
 		c.Rules[m.ID] = rc
 	}
-	if v := composerPHPUnitRead(read); v > 0 {
+	v := composerPHPUnitRead(read)
+	if v == 0 {
+		v = schemaPHPUnitRead(read)
+	}
+	if v > 0 {
 		// Fallback for the PHPUnit rules when PHPUnit itself is not
 		// indexed (see rules/phpunit detectedPHPUnitVersion).
 		for _, id := range []string{"PhpUnitTests", "PhpUnitDeprecations"} {
@@ -211,6 +215,30 @@ func composerPHPUnitRead(read func(string) ([]byte, error)) int {
 }
 
 var unitVersionRe = regexp.MustCompile(`(\d+)(?:\.(\d+))?`)
+
+// schemaPHPUnitRead returns the PHPUnit version that phpunit.xml (else
+// phpunit.xml.dist) names in its schema URL, numbered as composerPHPUnit
+// does; 0 when neither names one. A project whose PHPUnit lives outside
+// vendor/ (symfony/phpunit-bridge) still declares the schema it targets.
+func schemaPHPUnitRead(read func(string) ([]byte, error)) int {
+	for _, name := range []string{"phpunit.xml", "phpunit.xml.dist"} {
+		b, err := read(name)
+		if err != nil {
+			continue
+		}
+		if m := schemaVersionRe.FindSubmatch(b); m != nil {
+			major, _ := strconv.Atoi(string(m[1]))
+			minor, _ := strconv.Atoi(string(m[2]))
+			if major >= 10 {
+				return 100
+			}
+			return major*10 + min(minor, 9)
+		}
+	}
+	return 0
+}
+
+var schemaVersionRe = regexp.MustCompile(`schema\.phpunit\.de/(\d+)\.(\d+)/phpunit\.xsd`)
 
 // insideRoot reports whether the relative path p stays within the root
 // directory (no absolute path, no leading "..", no volume name).

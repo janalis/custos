@@ -95,7 +95,7 @@ var (
 	maxVendorBytes int64 = 1 << 30
 )
 
-var configInputs = []string{"custos.json", "composer.json", "composer.lock"}
+var configInputs = []string{"custos.json", "composer.json", "composer.lock", "phpunit.xml", "phpunit.xml.dist"}
 
 // ReadConfined never follows a link outside root or reads a special file.
 func ReadConfined(root *os.Root, name string, limit int64) ([]byte, error) {

@@ -910,13 +910,17 @@ class ArchiveTest
   global function name in `@covers` (`@covers \clean_param`, Moodle); a
   bare name that resolves to a function satisfies the target instead of
   being reported as an unresolvable class.
-- **PHPUnit version from composer.json (custos).** When PHPUnit itself is
+- **PHPUnit version from composer.json or phpunit.xml (custos).** When PHPUnit itself is
   not indexed (no vendor directory, or one installed without dev
   dependencies) and `PHP_UNIT_VERSION` is not configured, the version is
   the lowest one allowed by composer.json's `phpunit/phpunit` constraint
-  (`require-dev`, else `require`) before falling back to the option
-  default: EspoCRM (`^11.5`) was told to use `assertContains()` (strict
-  from 9.0, unlike `in_array()`) and Grav `assertRegExp()` (removed in 10).
+  (`require-dev`, else `require`), else the version of the schema that
+  `phpunit.xml` (else `phpunit.xml.dist`) at the project root names
+  (`https://schema.phpunit.de/13.1/phpunit.xsd` → 13.1), before falling
+  back to the option default: EspoCRM (`^11.5`) was told to use
+  `assertContains()` (strict from 9.0, unlike `in_array()`) and Grav and
+  Symfony (PHPUnit installed by symfony/phpunit-bridge outside `vendor/`)
+  `assertRegExp()` (removed in 10).
 - Conformance note: the harness passes `PHP_UNIT_VERSION` as
   `PhpUnitVersion.PHPUNIT75` style values; strip the prefix.
 
