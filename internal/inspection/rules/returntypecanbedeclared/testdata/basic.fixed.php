@@ -19,7 +19,7 @@ namespace Shop {
 
         public function clear(): void { $this->n = 0; }
 
-        public function maybe($f): ?\ArrayObject {
+        public function maybe($f) {
             if ($f) {
                 return new \ArrayObject();
             }

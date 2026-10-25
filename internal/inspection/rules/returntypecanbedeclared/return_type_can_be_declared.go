@@ -449,12 +449,13 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 		ctx.Report(span, "Declare ': "+suggestion+"' as the return type (update the whole hierarchy with a signature refactoring).")
 		return
 	}
-	if unknownReturn || docReturn || rtdTraitExposed(class, m) {
+	if unknownReturn || docReturn || rtdTraitExposed(class, m) || suggestion != "void" && !hasYield && !syntax.Terminates(m.Body) {
 		// custos: a returned value of unknown type means the suggestion
 		// rests on the @return tag alone; a wrong doc would make the added
 		// native type throw, so it is reported without a fixing. Nor is a
 		// trait method fixed when the subclasses of the classes using the
-		// trait (not enumerable) may override it.
+		// trait (not enumerable) may override it, nor a body that can end
+		// without a return: even a nullable type throws ("none returned").
 		ctx.Report(span, "Declare ': "+suggestion+"' as the return type.")
 		return
 	}

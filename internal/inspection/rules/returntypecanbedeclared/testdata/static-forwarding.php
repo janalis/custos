@@ -66,6 +66,12 @@ final class Plain extends Upload
         return $made;
     }
 
+    // Nor does a method the class does not declare.
+    public static function missing()
+    {
+        return self::nowhere();
+    }
+
     // A class or method named by an expression says nothing.
     public static function dynamic($cls, string $m)
     {

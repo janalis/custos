@@ -233,6 +233,11 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
     starts a new line; any whitespace compares equal).
   - Abstract/interface: `function g();` → `function g(): T;`.
   - Everything else (doc comments, body) is unchanged.
+- **F2** (custos) No fix when the suggestion is not `void`, the method is not
+  a generator, and its body can end without a `return` or `throw` (a missing
+  `else`, a `switch` without `default`, an empty body): PHP raises a
+  TypeError ("none returned") when such a body ends, even under a nullable
+  type. The finding is still reported.
 
 ## Options
 
@@ -324,7 +329,7 @@ namespace Shop {
 
         public function clear(): void { $this->n = 0; }
 
-        public function maybe($f): ?\ArrayObject {
+        public function maybe($f) {
             if ($f) {
                 return new \ArrayObject();
             }
@@ -396,6 +401,10 @@ abstract class Node {
   Skip suggestions whose inferred result contains an anonymous class,
   including nullable results and classes with named parents.
 
+- **No fix for bodies that can end without a return (custos diverges, F2).**
+  Upstream adds the implicit `null` (D9) and fixes `?T`; reaching the end of
+  the body then throws a TypeError, since a function with a return type
+  never returns null implicitly. The suggestion stays, without a fix.
 - **Doc-only suggestions have no fix (custos diverges from upstream).** When
   a returned value's type is unknown (or `mixed`) and the suggestion
   therefore rests on the `@return` tag alone, the finding is reported
