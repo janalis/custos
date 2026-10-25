@@ -119,7 +119,7 @@ func mergeNotAccumulating(ctx *analysis.Context, loop syntax.Node, a *syntax.Ass
 	plain, _ := a.Var.(*syntax.Variable)
 	read := false
 	syntax.Inspect(loop, func(x syntax.Node) bool {
-		if x == syntax.Node(a.Var) || x == syntax.Node(matched) || sibling(x) {
+		if read || x == syntax.Node(a.Var) || x == syntax.Node(matched) || sibling(x) {
 			return false
 		}
 		if e, ok := x.(syntax.Expr); ok && e.Kind() == a.Var.Kind() {

@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- SlowArrayOperationsInLoop sees every other mention of the accumulator in
+  the loop, not only the last one it visits: a merge whose target is also
+  written by element in a nested loop is no longer reported.
 - RandomApiMigration no longer suggests `random_int()` in a file that seeds
   the generator with `mt_srand($seed)` or `srand($seed)`: `random_int()`
   ignores the seed.
