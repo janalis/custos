@@ -50,9 +50,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	// only for a proven literal credential.
 	patterns := ctx.List("excludedPaths")
 	if len(patterns) > 0 {
-		parts := strings.Split(ctx.ProjectPath(), "/")
+		// Directory names compare case-insensitively: `**/tests/**` also
+		// skips the `Tests/` folders of PSR-4 layouts.
+		parts := strings.Split(strings.ToLower(ctx.ProjectPath()), "/")
 		for _, pattern := range patterns {
-			if glob(strings.Split(pattern, "/"), parts) {
+			if glob(strings.Split(strings.ToLower(pattern), "/"), parts) {
 				return
 			}
 		}

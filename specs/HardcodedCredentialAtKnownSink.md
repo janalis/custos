@@ -22,7 +22,7 @@ Literal credentials embedded in connection setup are difficult to rotate and pro
 ## Exceptions (no report)
 
 - E1. Do not report unresolved or shadowed builtin names, unknown values, or incomplete receiver/type provenance. Unknown calls, aliases escaping, and intervening writes invalidate local proof. Similar code outside the stated detection contract is not a finding.
-- E1a. Do not report a file whose project-relative path (D1a) matches an `excludedPaths` glob. `**` matches any number of path segments; other segments use shell-style matching. Invalid globs and paths or patterns beyond the segment budget match nothing.
+- E1a. Do not report a file whose project-relative path (D1a) matches an `excludedPaths` glob. `**` matches any number of path segments; other segments use shell-style matching, ignoring letter case (`**/tests/**` also excludes `src/Tests/`). Invalid globs and paths or patterns beyond the segment budget match nothing.
 - E2. Both standard suppression forms suppress this native ID.
 
 ## Report

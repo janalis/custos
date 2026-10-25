@@ -15,6 +15,8 @@ func TestCredentialPathPolicy(t *testing.T) {
 		want     int
 	}{
 		{"/project/tests/example.php", []string{"**/tests/**"}, 0},
+		{"/project/src/Tests/Example.php", []string{"**/tests/**"}, 0},
+		{"/project/testdata/example.php", []string{"**/TestData/**"}, 0},
 		{"/project/app.php", []string{"**/tests/**"}, 1},
 		{"/project/example.php", []string{"[invalid"}, 1},
 		{"/project/example.php", nil, 1},
