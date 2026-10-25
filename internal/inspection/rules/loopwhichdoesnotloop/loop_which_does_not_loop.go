@@ -95,6 +95,12 @@ func (loopWhichDoesNotLoop) Check(ctx *analysis.Context, n syntax.Node) {
 				return
 			}
 		}
+		// custos: a property of unknown type is often a collection that its
+		// class fills elsewhere (Doctrine relations): taking its first
+		// element may be the point.
+		if _, prop := syntax.UnwrapParens(fe.Expr).(*syntax.PropertyFetch); prop && t.IsUnknown() && last != nil {
+			return
+		}
 		if traversable(ctx, t) || (last != nil && callsGeneratorMethod(ctx, fe.Expr)) {
 			return
 		}

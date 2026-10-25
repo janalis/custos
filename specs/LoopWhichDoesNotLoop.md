@@ -175,6 +175,12 @@ while ($ok) break;
   `for (; next($a) !== false;) {}` repeat as long as the condition holds —
   the condition does the work. custos reports an empty body only for
   `foreach`.
+- **Properties of unknown type (custos diverges).** A `foreach` over a
+  property whose type is unknown, with a body ending in `return` or
+  `break`, is not reported: such a property is usually a collection its
+  class fills elsewhere (an untyped Doctrine relation, `@ORM\ManyToMany`),
+  and returning its first element is the point. A property known to hold
+  an array is still reported.
 - **Empty bodies over objects (custos diverges).** An empty `foreach` body
   is still reported over known arrays, but not when the subject's type is
   unknown, `object`, `iterable`, `mixed` or a class: iterating may be done
