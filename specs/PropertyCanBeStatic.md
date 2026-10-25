@@ -29,6 +29,9 @@ PHP 5.6+, as a class constant.
   *including everything the parent inherits* (its ancestors' properties of any
   visibility, private included, and properties of traits used anywhere in that
   chain). If found → no report. An unresolvable parent, or no parent, passes.
+- **D4a** (custos) Subclass check: if a class extending this one, directly
+  or transitively (as far as the project is indexed), declares a property
+  with the same name → no report.
 - **D5** Walk the array literal's top-level elements in order; for a
   `key => value` element take the value, for a plain element take the
   element's expression. Count the elements whose (unparenthesised) value is
@@ -45,6 +48,7 @@ PHP 5.6+, as a class constant.
   (nested levels are not counted).
 - **E4** The property re-declares a property already present in the parent
   chain (D4).
+- **E4a** (custos) A subclass re-declares the property (D4a).
 - **E5** The class modifies the property per instance, or the property has
   hooks (see Divergences).
 - **E6** Suppression comments (a doc comment carrying `@noinspection` with the legacy ID
@@ -130,3 +134,9 @@ TXT, 3, ['three']];
   subclasses or from outside the class are not tracked.
 - **Hooked properties (custos diverges).** A property declared with hooks
   can be neither static nor a constant, so it is not reported.
+- **Subclass re-declarations (custos diverges, D4a).** Upstream looks only
+  up the hierarchy. A subclass that re-declares the property gives it a
+  value of its own, and once the base property is static that
+  re-declaration is a fatal error ("Cannot redeclare static … as non
+  static"), so the advice cannot be followed (Symfony's `UrlGenerator`,
+  Drupal's `EntityFormHandlerBase`).

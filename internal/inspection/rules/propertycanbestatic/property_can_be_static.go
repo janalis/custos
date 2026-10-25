@@ -68,6 +68,9 @@ func (propertyCanBeStatic) Check(ctx *analysis.Context, n syntax.Node) {
 		if pcbsWritten(ctx, cl)[item.Var.Name] { // custos: per-instance state
 			continue
 		}
+		if fqn := ctx.Names().DeclFQN(cl); fqn != "" && pcbsRedeclaredBelow(ctx.Index(), fqn, item.Var.Name, ctx.PHP) { // D4a
+			continue
+		}
 		msg := "Large array default on an instance property; consider a static property."
 		if ctx.PHP >= phpversion.PHP56 {
 			msg = "Large array default on an instance property; consider a static property or a class constant."
@@ -234,6 +237,18 @@ func pcbsBindsByRef(arg *syntax.Arg, pos int, params []index.Param) bool {
 				return true
 			}
 		case i == pos || p.Variadic && i < pos:
+			return true
+		}
+	}
+	return false
+}
+
+// pcbsRedeclaredBelow reports a subclass of fqn that declares the property
+// name itself (D4a): a static base property under a non-static
+// redeclaration is a fatal error, and the value differs per class anyway.
+func pcbsRedeclaredBelow(ix *index.Index, fqn, name string, ver phpversion.Version) bool {
+	for _, sub := range ix.Subclasses(fqn) {
+		if c := ix.Class(sub, ver); c != nil && c.Props[name] != nil {
 			return true
 		}
 	}
