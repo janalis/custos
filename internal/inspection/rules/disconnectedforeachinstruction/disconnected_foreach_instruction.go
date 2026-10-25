@@ -398,12 +398,17 @@ func dfiIsDomCreate(ctx *analysis.Context, call *syntax.MethodCall) bool {
 }
 
 // dfiPerIterationFuncs are built-ins whose effect or result belongs to each
-// iteration: output, stream writes, random numbers and clocks
+// iteration: output, stream writes, reads, moves and locks, handlers and
+// output buffers pushed or popped, random numbers and clocks
 // (lower-case).
 var dfiPerIterationFuncs = func() map[string]bool {
 	m := map[string]bool{}
 	for _, f := range strings.Fields(`fwrite fputs fputcsv fprintf vfprintf fflush printf vprintf
 		file_put_contents var_dump print_r var_export debug_zval_dump debug_print_backtrace
+		fread fgets fgetc fgetcsv fscanf fpassthru stream_get_contents stream_get_line
+		stream_copy_to_stream fseek rewind ftruncate flock
+		set_error_handler restore_error_handler set_exception_handler restore_exception_handler
+		ob_start ob_end_clean ob_end_flush ob_get_clean ob_get_flush
 		rand mt_rand random_int random_bytes lcg_value uniqid microtime hrtime time array_rand
 		shuffle str_shuffle`) {
 		m[f] = true

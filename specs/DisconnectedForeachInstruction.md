@@ -263,7 +263,17 @@ foreach ($rows as $row) {
   `hrtime`, `time`, `array_rand`, `shuffle`, `str_shuffle`) are not
   reported: running them once before the loop changes the output or the
   values (PrestaShop writes one `.htaccess` header per shop; Matomo draws a
-  random value per period). `error_log()` and `usleep()` keep the upstream
+  random value per period). Nor are statements calling a built-in that
+  reads, moves, truncates or locks a stream (`fread`, `fgets`, `fgetc`,
+  `fgetcsv`, `fscanf`, `fpassthru`, `stream_get_contents`,
+  `stream_get_line`, `stream_copy_to_stream`, `fseek`, `rewind`,
+  `ftruncate`, `flock`) or pushes or pops a handler or an output buffer
+  (`set_error_handler`, `restore_error_handler`, `set_exception_handler`,
+  `restore_exception_handler`, `ob_start`, `ob_end_clean`, `ob_end_flush`,
+  `ob_get_clean`, `ob_get_flush`): the stream position or the handler stack
+  changes on each call (Symfony's `DumpDataCollector` truncates and rewinds
+  its buffer per dump; moving `flock($h, LOCK_UN)` out of a lock loop
+  deadlocks). `error_log()` and `usleep()` keep the upstream
   behavior (upstream fixtures). Output is per-iteration too: statements
   containing `echo` or `print`, or calling `printf`/`vprintf`/
   `var_dump`/`print_r`/`var_export`/`debug_zval_dump`/

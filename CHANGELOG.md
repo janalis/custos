@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- DisconnectedForeachInstruction no longer asks to move out of a loop a
+  call that reads, moves, truncates or locks a stream, or that pushes or
+  pops an error handler or an output buffer.
 - PropertyCanBeStatic no longer reports a property that a subclass
   re-declares: making it static would be a fatal error.
 - BadExceptionsProcessing no longer reports the size of a `try` block that
