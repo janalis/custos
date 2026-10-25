@@ -22,6 +22,7 @@ Detect a write to $_SESSION after successful session_write_close and before a pr
 
 - E1. Reads, reopened sessions, failed close, externally persisted session wrappers and unknown session state are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
+- E3. Assigning an empty array to the whole `$_SESSION` (`$_SESSION = [];`, `$_SESSION = array();`) clears the in-memory copy of a closed session; no change is meant to persist. Writes of a key, compound assignments and non-empty arrays stay reported.
 
 ## Report
 

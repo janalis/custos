@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- SessionMutationAfterClose no longer reports `$_SESSION = [];` after the
+  session is closed: it clears the in-memory copy.
 - ClassMethodNameMatchesFieldName no longer reports a method named like a
   private property of an ancestor class, and advises renaming the property
   when an interface or the parent class imposes the method name.

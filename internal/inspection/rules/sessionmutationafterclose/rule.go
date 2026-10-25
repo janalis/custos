@@ -29,6 +29,11 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 func sessionMutation(n syntax.Node) bool {
 	var expr syntax.Expr
 	if assign, ok := n.(*syntax.Assign); ok {
+		if arr, empty := syntax.UnwrapParens(assign.Value).(*syntax.Array); empty && len(arr.Items) == 0 && assign.Op.Kind == syntax.TEqual {
+			if v, whole := assign.Var.(*syntax.Variable); whole && v.Name == "_SESSION" {
+				return false // E3: clearing the closed session's in-memory copy
+			}
+		}
 		expr = assign.Var
 	} else {
 		expr = n.(*syntax.IncDec).Var
