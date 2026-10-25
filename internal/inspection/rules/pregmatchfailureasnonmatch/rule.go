@@ -2,6 +2,8 @@
 package pregmatchfailureasnonmatch
 
 import (
+	"strings"
+
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/semanticquery"
@@ -25,6 +27,9 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	default:
 		return
 	}
+	if alwaysMatches(ctx, semanticquery.CallArgument(call.Args, 0, "pattern")) { // E3
+		return
+	}
 	p, _ := astquery.ParentSkipParens(call)
 	u, ok := p.(*syntax.Unary)
 	if !ok || u.Op.Kind != syntax.TExclaim {
@@ -35,4 +40,25 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	ctx.ReportNode(call, message)
+}
+
+// alwaysMatches reports a literal pattern whose body is empty or `^`
+// (`//u`, `{^}u`): it matches every subject, so a falsy result can only be
+// the failure, which is what the UTF-8 validity check `!preg_match('//u',
+// $s)` tests.
+func alwaysMatches(ctx *analysis.Context, pattern syntax.Expr) bool {
+	v, ok := semanticquery.NativeString(ctx, pattern)
+	if !ok || len(v) < 2 {
+		return false
+	}
+	closing := map[byte]byte{'(': ')', '{': '}', '[': ']', '<': '>'}[v[0]]
+	if closing == 0 {
+		closing = v[0]
+	}
+	end := strings.LastIndexByte(v, closing)
+	if end < 1 {
+		return false
+	}
+	body := v[1:end]
+	return body == "" || body == "^"
 }

@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- PregMatchFailureAsNonMatch no longer reports the UTF-8 validity check
+  `!preg_match('//u', $s)`: a pattern that matches everything can only fail.
 - DateOnlyParseRetainsCurrentTime no longer reports a `createFromFormat()`
   call whose value is only tested for success.
 - TempnamDirectoryFallbackUnchecked no longer reports test code, whose

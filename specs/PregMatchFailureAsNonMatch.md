@@ -21,6 +21,7 @@ Detect preg_match or preg_match_all tested with boolean negation or a falsy bran
 ## Exceptions (no report)
 
 - E1. Strict false/zero checks, deliberate combined handling, and unknown wrappers are excluded.
+- E3. A literal pattern whose body is empty or `^` (`//u`, `{^}u`) matches every subject, so a falsy result can only be the failure: `!preg_match('//u', $s)` is the UTF-8 validity check and tests exactly that.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report

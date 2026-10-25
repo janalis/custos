@@ -34,6 +34,7 @@ Reported:
 ## Exceptions (no report)
 
 - Strict false/zero checks, deliberate combined handling, and unknown wrappers are excluded.
+- A literal pattern whose body is empty or `^` (`//u`, `{^}u`) matches every subject, so a falsy result can only be the failure: `!preg_match('//u', $s)` is the UTF-8 validity check and tests exactly that.
 - Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Fix
