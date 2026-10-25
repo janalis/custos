@@ -82,8 +82,8 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
   `phpinfo` — 1, `print_r` — 2, `var_export` — 2. (No allowance for
   `var_dump`, `debug_zval_dump`, `debug_print_backtrace` or any other name:
   they are reported with any number of arguments.)
-- **D4** Not in an *output-buffered* context (E2, E2a) and not inside a *debug
-  wrapper* (E3) → report.
+- **D4** Not in an *output-buffered* context (E2, E2a), not behind a debug
+  switch (E6), and not inside a *debug wrapper* (E3) → report.
 
 ### Method calls
 
@@ -135,6 +135,14 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
     never wrappers.
   Closures and arrow functions are never wrappers.
 - **E4** `use function var_dump;` import lines.
+- **E6** (custos) Debug switch: the call sits in the body of an enclosing
+  `if` or `elseif` whose condition, or in a case of an enclosing `switch`
+  whose subject, mentions a variable, property, constant, function or
+  method whose name contains `debug` (case-insensitive), within the same
+  function-like: `if ($this->debugMode) { dump($row); }`,
+  `switch ($this->debugOutput) { case 'error_log': error_log($s); }`. The
+  output is a feature behind a switch, not a leftover. `else` branches and
+  calls inside the condition itself are still reported.
 
 ## Report
 
@@ -218,6 +226,10 @@ function work($order, Probe $probe, Quiet $quiet) {
   buffer, custos keeps upstream's single-statement exemption.
 - **First-class callables (custos diverges, E5).** `var_dump(...)` does not
   dump anything; upstream reports it like a call.
+- **Debug switches (custos diverges, E6).** Upstream reports output guarded
+  by an explicit debug flag or level (`if ($this->do_debug >= 1)`, a
+  `switch` on the configured debug output); such code is a deliberate
+  debugging feature, as in mailer and protocol libraries.
 - Method wrappers (custos diverges from upstream). Upstream builds a
   method's identity with a `.` separator and compares it with entries
   written with `::`, so no method is ever recognized as a debug wrapper and

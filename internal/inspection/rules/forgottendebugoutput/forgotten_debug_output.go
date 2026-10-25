@@ -89,7 +89,7 @@ func (forgottenDebugOutput) Check(ctx *analysis.Context, n syntax.Node) {
 		if want, ok := debugArgAllowance[strings.ToLower(name)]; ok && astquery.ArgCount(x) == want { // D3
 			return
 		}
-		if debugOutputBuffered(ctx.File, x) || debugCaptured(ctx.File, x) || debugInWrapper(ctx, x, entries) { // D4
+		if debugOutputBuffered(ctx.File, x) || debugCaptured(ctx.File, x) || debugGated(x) || debugInWrapper(ctx, x, entries) { // D4
 			return
 		}
 		ctx.ReportNode(x, debugOutputMsg)
@@ -152,7 +152,7 @@ func debugCheckMethod(ctx *analysis.Context, call syntax.Node, name, recv syntax
 	}
 	for _, cls := range classes {
 		if declaring[strings.ToLower(cls)] {
-			if !debugInWrapper(ctx, call, entries) { // D7
+			if !debugGated(call) && !debugInWrapper(ctx, call, entries) { // D7
 				ctx.ReportNode(call, debugOutputMsg)
 			}
 			return
@@ -255,4 +255,56 @@ func debugInWrapper(ctx *analysis.Context, n syntax.Node, entries []string) bool
 		return fqn != "" && debugHasEntry(entries, `\`+fqn+"::"+fn.Name.Value)
 	}
 	return false
+}
+
+// debugGated implements E6: the call runs only when an enclosing `if` or
+// `elseif` condition, or an enclosing `switch` subject, in the same
+// function-like reads a name containing "debug" (`if ($this->debugMode)`,
+// `switch ($this->debugOutput)`): the output is a feature, not a leftover.
+func debugGated(call syntax.Node) bool {
+	child := call
+	for n := call.Parent(); n != nil && !syntax.IsFuncLike(n); child, n = n, n.Parent() {
+		var cond syntax.Expr
+		switch x := n.(type) {
+		case *syntax.If:
+			if child == syntax.Node(x.Body) {
+				cond = x.Cond
+			}
+		case *syntax.ElseIf:
+			if child == syntax.Node(x.Body) {
+				cond = x.Cond
+			}
+		case *syntax.Switch:
+			if child != syntax.Node(x.Cond) {
+				cond = x.Cond
+			}
+		}
+		if cond != nil && debugNamed(cond) {
+			return true
+		}
+	}
+	return false
+}
+
+// debugNamed reports whether e mentions a variable, property, constant,
+// function or method whose name contains "debug" (case-insensitive).
+func debugNamed(e syntax.Expr) bool {
+	found := false
+	syntax.Inspect(e, func(n syntax.Node) bool {
+		if found {
+			return false
+		}
+		var name string
+		switch x := n.(type) {
+		case *syntax.Variable:
+			name = x.Name
+		case *syntax.Identifier:
+			name = x.Value
+		case *syntax.Name:
+			name = x.Value
+		}
+		found = strings.Contains(strings.ToLower(name), "debug")
+		return !found
+	})
+	return found
 }
