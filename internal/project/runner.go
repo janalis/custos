@@ -26,10 +26,6 @@ func Discover(paths, exclude []string) ([]string, error) {
 // of patterns (path.Match syntax, e.g. "composer.json"), as requested by
 // rules implementing analysis.FilePatternRule (see Engine.FilePatterns).
 func DiscoverWith(paths, exclude, patterns []string) ([]string, error) {
-	ex := map[string]bool{}
-	for _, e := range exclude {
-		ex[filepath.ToSlash(strings.TrimSuffix(e, "/"))] = true
-	}
 	var out []string
 	for _, root := range paths {
 		info, err := os.Stat(root)
@@ -47,7 +43,7 @@ func DiscoverWith(paths, exclude, patterns []string) ([]string, error) {
 			if d.IsDir() {
 				if p != root {
 					rel, _ := filepath.Rel(root, p)
-					if ex[d.Name()] || ex[filepath.ToSlash(rel)] || hidden(d.Name()) {
+					if excluded(exclude, filepath.ToSlash(rel)) || hidden(d.Name()) {
 						return filepath.SkipDir
 					}
 				}

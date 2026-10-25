@@ -70,11 +70,12 @@ Unknown top-level keys and unknown rule options are ignored.
 
 Directories named `vendor` and `node_modules`, hidden directories (whose name
 starts with a dot, such as `.git`, `.idea`, `.custos` or `.phpunit.cache`), and
-`var/cache` below each scanned path, are always skipped; a scanned path may
-still be a hidden directory itself. `exclude` (or `--exclude a,b` on the command
-line) adds more. Each entry is a directory name, skipped at any depth, or a
-path relative to each scanned path (not to the root): with `"paths": ["src"]`,
-write `"gen"` or `"sub/gen"` to skip `src/sub/gen`, not `"src/sub/gen"`.
+`var/cache` directories (a nested application's too), are always skipped; a
+scanned path may still be a hidden directory itself. `exclude` (or
+`--exclude a,b` on the command line) adds more. Each entry is a directory name
+or a path of several names, skipped at any depth below each scanned path (not
+the root): with `"paths": ["src"]`, write `"gen"` or `"sub/gen"` to skip
+`src/sub/gen` (and `src/app/sub/gen`), not `"src/sub/gen"`.
 
 ## Target PHP version
 

@@ -385,15 +385,17 @@ func TestSnapshotProjectPaths(t *testing.T) {
 	}
 }
 
-// Excludes are directory names or paths relative to each scanned path, as on
-// the command line.
+// Excludes are directory names or paths below each scanned path, matched at
+// any depth, as on the command line.
 func TestSnapshotExcludeRelativeToScannedPath(t *testing.T) {
 	dir := t.TempDir()
 	for name, text := range map[string]string{
-		"custos.json":         `{"paths":["src"],"exclude":["sub/gen"]}`,
-		"src/a.php":           "<?php",
-		"src/sub/gen/g.php":   "<?php",
-		"src/other/gen/o.php": "<?php",
+		"custos.json":             `{"paths":["src"],"exclude":["sub/gen", "var/cache/"]}`,
+		"src/a.php":               "<?php",
+		"src/sub/gen/g.php":       "<?php",
+		"src/other/gen/o.php":     "<?php",
+		"src/app/sub/gen/n.php":   "<?php",
+		"src/app/var/cache/c.php": "<?php",
 	} {
 		p := filepath.Join(dir, name)
 		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {

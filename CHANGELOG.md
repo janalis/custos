@@ -114,6 +114,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- An `exclude` entry of several directory names, such as the default
+  `var/cache`, now matches at any depth below a scanned path, like a single
+  name: the generated cache of a nested Symfony application is no longer
+  analyzed.
 - InvertedIfElseConstructs (opt-in) no longer offers to swap the branches
   when a comment sits between them: it would end up above the wrong branch.
 - ParameterDefaultValueIsNotNull (opt-in) no longer reports public and

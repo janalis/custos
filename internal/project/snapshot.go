@@ -303,7 +303,7 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 						}
 						continue
 					}
-					if inVendor && (d.Name() == "tests" || d.Name() == "Tests" || d.Name() == "test") || excluded(cfg.Exclude, d.Name(), strings.TrimPrefix(child, scanned+"/")) || hidden(d.Name()) {
+					if inVendor && (d.Name() == "tests" || d.Name() == "Tests" || d.Name() == "test") || excluded(cfg.Exclude, strings.TrimPrefix(child, scanned+"/")) || hidden(d.Name()) {
 						continue
 					}
 					if !recurse {
@@ -384,9 +384,14 @@ func discover(ctx context.Context, root *os.Root, cfg *config.Config, patterns [
 	return l, nil
 }
 
-func excluded(patterns []string, entry, name string) bool {
+// excluded reports whether rel, a slash-separated directory path below a
+// scanned path, ends in one of the exclude entries: a directory name or a
+// path of several names, both matched at any depth (a nested application's
+// var/cache too).
+func excluded(patterns []string, rel string) bool {
 	for _, ex := range patterns {
-		if entry == ex || name == strings.TrimSuffix(ex, "/") {
+		ex = strings.TrimSuffix(filepath.ToSlash(ex), "/")
+		if rel == ex || strings.HasSuffix(rel, "/"+ex) {
 			return true
 		}
 	}
