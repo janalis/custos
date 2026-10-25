@@ -4,7 +4,7 @@ namespace Shop {
 
     interface Pricing {
         /** @return int|null */
-        function <weak_warning descr="Declare ': ?int' as the return type.">discount</weak_warning>();
+        function <weak_warning descr="Declare ': ?int' as the return type (update the whole hierarchy with a signature refactoring).">discount</weak_warning>();
         function undocumented();
     }
 

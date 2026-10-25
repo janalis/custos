@@ -55,11 +55,11 @@ namespace {
 
     interface Shape {
         /** @return int */
-        public function area(): int;
+        public function area();
         /** @return iterable|null */
         public function many();
         /** @return void|null */
-        public function nothing(): void;
+        public function nothing();
     }
     abstract class Base implements Shape {}
     abstract class Square extends Base implements Shape {}

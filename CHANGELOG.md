@@ -120,6 +120,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   `self::m()` in a class whose hierarchy is not fully indexed.
 - NullCoalescingOperatorCanBeUsed no longer offers a quick-fix that would
   drop a comment.
+- ReturnTypeCanBeDeclared no longer offers a quick-fix on abstract and
+  interface methods, and keeps `static` through `parent::create()` calls.
 - IssetConstructsCanBeMerged, CascadeStringReplacement, OpAssignShortSyntax,
   IfReturnReturnSimplification and StrTrUsageAsStrReplace no longer offer a
   quick-fix that would drop a comment.

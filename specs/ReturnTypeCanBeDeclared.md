@@ -44,6 +44,12 @@ engine enforce the contract and documents it in the signature.
   `@var`-annotated variables, etc. A type that cannot be determined is
   *unknown* (e.g. `mixed`-returning calls are `mixed`, which is known but not
   declarable; an unresolvable call, or an untyped parameter, is unknown).
+- **D5a** (custos) A call through `parent::`, `self::` or `static::` to a
+  method whose native return type or `@return` tag is `static` or `$this`
+  is `static`: the late static binding goes on. So is a returned variable
+  every value of which (all plain assignments reaching the `return`, none
+  from the entry) is such a call or `new static`
+  (`$instance = parent::create($c); …; return $instance;`).
 - **D5b** (custos) For a `return $this->p;` whose property `p` has no
   native type, is not static/promoted/magic, has no default or a `null`
   default, and is not assigned (non-null) by a top-level statement of this
@@ -177,9 +183,11 @@ Only applies when `t` starts with `\` or equals `static`; otherwise returns
   replacement exists. Keep the suggestion, withhold the one-click fix and use
   the hierarchy-refactoring message. Include composed trait methods and aliases
   when enumerating descendant replacements.
-- **D13b** (custos) Trait methods. An abstract trait method always counts
-  as overridden (every class using the trait declares it). Another trait
-  method that is neither `final` nor `private` counts as overridden when a
+- **D13b** (custos) Abstract methods. An abstract method (an interface
+  method, an abstract class or trait method) always counts as overridden:
+  every class implementing it declares it, also outside the project, so it
+  never gets a fix (an interface implemented by a module outside the tree
+  would no longer load). A trait method that is neither `final` nor `private` counts as overridden when a
   class-like of the same file that composes the trait (directly, through
   another trait or through a parent) declares a method with that name, or
   with an alias a `use … { m as alias; }` block gives it. Classes using the
@@ -369,6 +377,14 @@ abstract class Node {
 
 ## Divergences
 
+- **Abstract methods and forwarded `static` (custos diverges, D13b,
+  D5a).** Upstream offers the fix on an interface or abstract method with
+  no implementation in sight (ctools, feeds): the implementations it cannot
+  see would no longer load. custos reports those with the hierarchy
+  message and no fix. Upstream also types `$instance = parent::create()`
+  as the parent class, so a parent declared `: static` and an override
+  declared `: WidgetBase` (entity_browser) cannot both be applied; custos
+  keeps `static` through such calls.
 - **Templates and value-returning parents (custos diverges, D5c, D13c).**
   Upstream reads a `@template` name in `@return` as a class of the current
   namespace and suggests `: ?T`, a class that does not exist (Doctrine

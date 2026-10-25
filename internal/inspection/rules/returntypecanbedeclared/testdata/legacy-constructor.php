@@ -15,5 +15,5 @@ class Teapot {
 
 interface Pourable {
     /** @return string */
-    public function <weak_warning descr="Declare ': string' as the return type.">pourable</weak_warning>();
+    public function <weak_warning descr="Declare ': string' as the return type (update the whole hierarchy with a signature refactoring).">pourable</weak_warning>();
 }

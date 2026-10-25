@@ -4,7 +4,7 @@ namespace Shop {
 
     interface Pricing {
         /** @return int|null */
-        function discount(): ?int;
+        function discount();
         function undocumented();
     }
 

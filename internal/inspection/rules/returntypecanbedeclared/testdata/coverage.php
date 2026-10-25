@@ -55,11 +55,11 @@ namespace {
 
     interface Shape {
         /** @return int */
-        public function <weak_warning descr="Declare ': int' as the return type.">area</weak_warning>();
+        public function <weak_warning descr="Declare ': int' as the return type (update the whole hierarchy with a signature refactoring).">area</weak_warning>();
         /** @return iterable|null */
         public function many();
         /** @return void|null */
-        public function <weak_warning descr="Declare ': void' as the return type.">nothing</weak_warning>();
+        public function <weak_warning descr="Declare ': void' as the return type (update the whole hierarchy with a signature refactoring).">nothing</weak_warning>();
     }
     abstract class Base implements Shape {}
     abstract class Square extends Base implements Shape {}

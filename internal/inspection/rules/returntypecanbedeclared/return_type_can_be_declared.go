@@ -111,8 +111,62 @@ func rtdExprTypeIn(env *infer.Env, e syntax.Expr) types.Type {
 		if n, ok := x.Class.(*syntax.Name); ok && strings.EqualFold(n.Value, "static") {
 			return types.Of("static")
 		}
+	case *syntax.StaticCall:
+		if rtdForwardsStatic(env, x) {
+			return types.Of("static")
+		}
 	}
 	return env.TypeOf(e)
+}
+
+// rtdForwardsStatic reports whether call, through parent::, self:: or
+// static::, reaches a method declared or documented to return static (or
+// $this): the late static binding goes on, so it returns the calling class
+// (custos: `$instance = parent::create(...)` keeps `static`).
+func rtdForwardsStatic(env *infer.Env, call *syntax.StaticCall) bool {
+	n, named := call.Class.(*syntax.Name)
+	id, ok := call.Name.(*syntax.Identifier)
+	if !named || !ok {
+		return false
+	}
+	switch strings.ToLower(n.Value) {
+	case "parent", "self", "static":
+	default:
+		return false
+	}
+	cls := env.ClassRef(call.Class)
+	if cls == "" {
+		return false
+	}
+	m := env.Index.FindMethod(cls, id.Value, env.PHP)
+	if m == nil {
+		return false
+	}
+	for _, r := range []string{m.Return, m.DocReturn} {
+		if r = strings.TrimSpace(r); strings.EqualFold(r, "static") || r == "$this" {
+			return true
+		}
+	}
+	return false
+}
+
+// rtdStaticVariable reports whether every value variable v may hold at
+// the return statement ret is static (`new static`, a call forwarding the
+// late static binding): it then returns static too.
+func rtdStaticVariable(env *infer.Env, m *syntax.Method, ret *syntax.Return, v *syntax.Variable) bool {
+	if v.NameExpr != nil || v.Name == "" || v.Name == "this" {
+		return false
+	}
+	defs, entry := flowquery.ReachingAssignments(m, ret, v.Name)
+	if entry || len(defs) == 0 {
+		return false
+	}
+	for _, d := range defs {
+		if d.ByRef || !rtdExprTypeIn(env, d.Value).Equal(types.Of("static")) {
+			return false
+		}
+	}
+	return true
 }
 
 func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
@@ -207,6 +261,9 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 				} else {
 					valueReturn = true
 					t := rtdExprType(ctx, x.Expr)
+					if v, ok := syntax.UnwrapParens(x.Expr).(*syntax.Variable); ok && rtdStaticVariable(ctx.Types(), m, x, v) {
+						t = types.Of("static")
+					}
 					if vars == nil {
 						vars = rtdScanVars(ctx, class, m)
 					}
@@ -392,8 +449,7 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 		ctx.Report(span, "Declare ': "+suggestion+"' as the return type (update the whole hierarchy with a signature refactoring).")
 		return
 	}
-	pos, ok := rtdParamsEnd(ctx, m)
-	if !ok || unknownReturn || docReturn || rtdTraitExposed(class, m) {
+	if unknownReturn || docReturn || rtdTraitExposed(class, m) {
 		// custos: a returned value of unknown type means the suggestion
 		// rests on the @return tag alone; a wrong doc would make the added
 		// native type throw, so it is reported without a fixing. Nor is a
@@ -402,6 +458,7 @@ func (r returnTypeCanBeDeclared) Check(ctx *analysis.Context, n syntax.Node) {
 		ctx.Report(span, "Declare ': "+suggestion+"' as the return type.")
 		return
 	}
+	pos := rtdParamsEnd(ctx, m)
 	text := ": " + suggestion
 	if int(pos) < len(ctx.Src) && ctx.Src[pos] == '{' {
 		text += " "
@@ -493,8 +550,10 @@ func rtdTrait(ctx *analysis.Context, t string) bool {
 
 // rtdOverridden implements D13.
 func rtdOverridden(ctx *analysis.Context, class *syntax.ClassLike, m *syntax.Method) bool {
-	if class.ClassKind == syntax.KindTrait && m.Body == nil {
-		return true // every class using the trait declares the method
+	if m.Body == nil {
+		// Every class using the trait, or implementing the abstract or
+		// interface method, declares it, also outside the index (custos).
+		return true
 	}
 	if class.Modifiers.Has(syntax.TFinal) || m.Modifiers.Has(syntax.TFinal) || m.Modifiers.Has(syntax.TPrivate) {
 		return false
@@ -862,12 +921,11 @@ func rtdLateConst(ctx *analysis.Context, class *syntax.ClassLike, c *syntax.Clas
 }
 
 // rtdParamsEnd returns the offset right after the `)` closing the parameter
-// list of m.
-func rtdParamsEnd(ctx *analysis.Context, m *syntax.Method) (uint32, bool) {
-	end := m.Span().End
-	if m.Body != nil {
-		end = m.Body.Span().Start
-	}
+// list of m, a method with a body: the parser only gives a body to a method
+// whose parameter list it read, so that `)` precedes it (abstract methods
+// never get a fix, D13b).
+func rtdParamsEnd(ctx *analysis.Context, m *syntax.Method) uint32 {
+	end := m.Body.Span().Start
 	toks := ctx.File.Tokens
 	lo, hi := 0, len(toks)
 	for lo < hi {
@@ -878,12 +936,11 @@ func rtdParamsEnd(ctx *analysis.Context, m *syntax.Method) (uint32, bool) {
 			hi = mid
 		}
 	}
-	for i := lo - 1; i >= 0 && toks[i].Start >= m.Span().Start; i-- {
-		if toks[i].Kind == syntax.TRParen {
-			return toks[i].End, true
-		}
+	i := lo - 1
+	for toks[i].Kind != syntax.TRParen {
+		i--
 	}
-	return 0, false
+	return toks[i].End
 }
 
 // rtdInheritedParamType types a returned, untyped and undocumented parameter

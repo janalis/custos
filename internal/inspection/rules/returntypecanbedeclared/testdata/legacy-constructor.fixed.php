@@ -15,5 +15,5 @@ class Teapot {
 
 interface Pourable {
     /** @return string */
-    public function pourable(): string;
+    public function pourable();
 }
