@@ -59,7 +59,15 @@ var transforms = map[string]transform{
 	"base64_encode": {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL | Header},
 	"bin2hex":       {safe: HTML | HTMLSingleQuoted | HTMLDoubleQuoted | HTMLURL | HTMLUnquoted | Header},
 	"intval":        {safe: everyContext},
-	"floatval":      {safe: everyContext},
+	// Declared `int|string`: the string holds the digits of a count or id
+	// beyond PHP_INT_MAX.
+	"mysqli_num_rows":           {safe: everyContext},
+	"mysqli_affected_rows":      {safe: everyContext},
+	"mysqli_insert_id":          {safe: everyContext},
+	"mysqli_stmt_num_rows":      {safe: everyContext},
+	"mysqli_stmt_affected_rows": {safe: everyContext},
+	"mysqli_stmt_insert_id":     {safe: everyContext},
+	"floatval":                  {safe: everyContext},
 
 	"escapeshellarg": {safe: Shell},
 
