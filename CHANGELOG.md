@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- UnsetConstructsCanBeMerged no longer offers to merge `unset()` calls when
+  one of them has a comment after it on its line: the comment would end up
+  on the merged line.
 - ReturnTypeCanBeDeclared no longer offers a quick-fix on a method whose
   body can end without a `return`, such as an `if` with no `else`: PHP
   throws when the end is reached, even under a nullable type.

@@ -63,6 +63,10 @@ Visit every `unset(...)` statement.
     following opening tag or inline HTML inside PHP code; or
   - contains a comment anywhere inside it (typically within the parentheses):
     regeneration keeps only the argument texts and would lose the comment.
+  - other than the last of the run, is followed by a comment on the same line
+    (`unset($a); // why`): deleting the statement would append that comment
+    to the merged line, away from the argument it describes. A comment on a
+    line of its own between the statements stays where it is.
 
   The decision is taken for the run as a whole so that a partial merge never
   reorders the arguments around a statement left in place.
@@ -119,6 +123,6 @@ function release(array $cache, $tmp, $lock) {
 - Upstream skips plain comments implicitly and doc comments explicitly;
   custos skips all comments, which is the same observable behavior.
 - **F3** is custos-only: upstream offers the merge regardless of how the
-  statements are terminated and of comments inside them, which can produce
+  statements are terminated and of comments inside or after them, which can produce
   unparsable template code or silently drop comments. custos keeps the report
   and offers no fix in those runs.

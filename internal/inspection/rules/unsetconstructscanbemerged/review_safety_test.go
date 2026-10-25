@@ -28,7 +28,8 @@ func TestReviewSafety(t *testing.T) {
 		{"comment in first", "<?php unset($a /* keep */); unset($b);", 1, ""},
 		{"comment in merged", "<?php unset($a); unset($b, // keep\n$c);", 1, ""},
 		{"comment later in run", "<?php unset($a); unset($b); unset(/* keep */ $c);", 2, ""},
-		{"comment between statements", "<?php unset($a); /* why */ unset($b);", 1, "<?php unset($a, $b); /* why */"},
+		{"comment between statements", "<?php unset($a); /* why */ unset($b);", 1, ""},
+		{"comment on its own line", "<?php unset($a);\n// why\nunset($b);", 1, "<?php unset($a, $b);\n// why\n"},
 		{"trailing comma", "<?php unset($a,); unset($b,);", 1, "<?php unset($a, $b);"},
 		{"run of three", "<?php unset($a); unset($b); unset($c);", 2, "<?php unset($a, $b, $c);"},
 	} {

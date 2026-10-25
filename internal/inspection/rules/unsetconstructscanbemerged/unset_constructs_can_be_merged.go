@@ -1,6 +1,7 @@
 package unsetconstructscanbemerged
 
 import (
+	"bytes"
 	"strings"
 
 	"custos/internal/diagnostic"
@@ -56,10 +57,19 @@ func (unsetConstructsCanBeMerged) Check(ctx *analysis.Context, n syntax.Node) {
 	f := ctx.File
 	// F3: the merge regenerates one statement and deletes the others, so it
 	// is offered only when every statement of the run ends with `;` (a
-	// statement closed by `?>` owns the tag) and holds no comment.
-	for _, st := range list[firstIdx:end] {
+	// statement closed by `?>` owns the tag), holds no comment, and none
+	// but the last has a comment after it on its line: that comment would
+	// be appended to the merged line, away from the argument it describes.
+	for k, st := range list[firstIdx:end] {
 		sp := st.Span()
-		if f.Src[sp.End-1] != ';' || astquery.HasComment(f, sp) {
+		trail := sp
+		if next := firstIdx + k + 1; next < end {
+			trail = syntax.Span{Start: sp.End, End: list[next].Span().Start}
+			if nl := bytes.IndexByte(f.Src[sp.End:trail.End], '\n'); nl >= 0 {
+				trail.End = sp.End + uint32(nl)
+			}
+		}
+		if f.Src[sp.End-1] != ';' || astquery.HasComment(f, sp) || astquery.HasComment(f, trail) {
 			ctx.Report(cur.Span(), unsetConstructsCanBeMergedMsg)
 			return
 		}
