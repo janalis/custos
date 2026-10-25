@@ -28,7 +28,12 @@ func (throwRawException) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	fqn := ctx.Names().Class(name.Value, name.Span().Start)
 	if strings.EqualFold(fqn, "Exception") { // D2
-		ctx.ReportNode(name, "Throw a more specific exception class than \\Exception.", diagnostic.Fix{
+		const msg = "Throw a more specific exception class than \\Exception."
+		if treCaughtAsRuntime(ctx, n) {
+			ctx.ReportNode(name, msg)
+			return
+		}
+		ctx.ReportNode(name, msg, diagnostic.Fix{
 			Title: "Throw \\RuntimeException",
 			Edits: func() []diagnostic.TextEdit {
 				q := name.Value[:strings.LastIndexByte(name.Value, '\\')+1]
@@ -64,6 +69,27 @@ func (throwRawException) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	ctx.ReportNode(nw, "Pass a message when throwing this exception.")
+}
+
+// treCaughtAsRuntime reports whether the throw sits in the body of a try,
+// in the same function-like, with a catch naming \RuntimeException: F1
+// would route the exception to that handler instead.
+func treCaughtAsRuntime(ctx *analysis.Context, n syntax.Node) bool {
+	child := n
+	for p := n.Parent(); p != nil && !syntax.IsFuncLike(p); child, p = p, p.Parent() {
+		t, ok := p.(*syntax.Try)
+		if !ok || child != syntax.Node(t.Body) {
+			continue
+		}
+		for _, c := range t.Catches {
+			for _, ty := range c.Types {
+				if strings.EqualFold(ctx.Names().Class(ty.Value, ty.Span().Start), "RuntimeException") {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // treUserPresetsMessage reports whether a user (non-stub) parent class of

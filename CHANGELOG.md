@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- ThrowRawException no longer offers its `\RuntimeException` quick-fix
+  inside a `try` that catches `RuntimeException`: the exception would reach
+  another handler.
 - JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` when the
   result is tested with `empty()` (or, after `json_decode()`, `isset()`):
   the flag would turn that fallback into an exception.

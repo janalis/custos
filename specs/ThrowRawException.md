@@ -87,6 +87,10 @@ be the thrown operand.
   - `new \Exception('a')` → `new \RuntimeException('a')`
   - alias `new Base('a')` (alias of `\Exception`) → `new \RuntimeException('a')`
   Arguments, `use` statements and everything else are untouched.
+- **F2** (custos) No fix when the `throw` sits in the body of a `try`, in
+  the same function-like, that has a `catch` naming `\RuntimeException`
+  (directly, by alias or in a `|` list): the replacement would make that
+  handler run instead of the one catching `\Exception`. The finding stays.
 - D3 has no fix.
 
 ## Options
