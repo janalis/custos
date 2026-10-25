@@ -121,6 +121,11 @@ own fix.
     `is_iterable` or `is_countable`;
   - for `json_decode` (whose failure value is `null`), an argument of
     `isset()` or the left operand of `??`.
+  - for `json_decode`, the base of an element or property read (through
+    any chain of them) that is itself an argument of `isset()` or
+    `empty()` or the left operand of `??`: `$docs[0]['tags'] ?? []`,
+    `isset($doc->title)`. Reads of `null` count as missing there, so the
+    failure falls back like the value itself.
   `$json = json_encode($q); $key = false === $json ? '' : $json;`,
   `$rows = json_decode($raw, true); if (!is_array($rows)) { … }` and
   `json_decode($raw, true) ?: []` are not reported. The `@` operator is

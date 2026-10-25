@@ -467,6 +467,9 @@ func jsonFirstRead(name string, a *syntax.Assign) syntax.Expr {
 // a type test (is_array() and the like), or, for json_decode (null on
 // failure), given to isset() or the left operand of `??`.
 func jsonFailureTest(x syntax.Expr, decode bool) bool {
+	if decode && jsonFetchedFallback(x) {
+		return true
+	}
 	switch p := x.Parent().(type) {
 	case *syntax.Ternary:
 		return syntax.Node(p.Cond) == x
@@ -507,4 +510,33 @@ func jsonFailureTest(x syntax.Expr, decode bool) bool {
 		return ok && jsonTypeChecks[strings.ToLower(strings.TrimPrefix(nm.Value, `\`))]
 	}
 	return false
+}
+
+// jsonFetchedFallback reports an element or property read from a decoded
+// value that falls back when the value is missing: `$doc[0] ?? []`,
+// `isset($doc->tags)`, `empty($doc['k'])`. A failed decode yields null,
+// whose elements read as missing.
+func jsonFetchedFallback(x syntax.Expr) bool {
+	var outer syntax.Node = x
+	for {
+		switch p := outer.Parent().(type) {
+		case *syntax.ArrayDimFetch:
+			if p.Var != outer {
+				return false
+			}
+			outer = p
+			continue
+		case *syntax.PropertyFetch:
+			if p.Var != outer {
+				return false
+			}
+			outer = p
+			continue
+		case *syntax.Binary:
+			return outer != syntax.Node(x) && p.Op.Kind == syntax.TCoalesce && syntax.Node(p.Left) == outer
+		case *syntax.Isset, *syntax.Empty:
+			return outer != syntax.Node(x)
+		}
+		return false
+	}
 }

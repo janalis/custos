@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- JsonEncodingApiUsage also accepts a fallback on an element of the
+  decoded value, as in `$documents[0] ?? []` or `isset($doc->title)`, as a
+  failure test.
 - RedundantElseClause quick-fixes now move the `else` body to the `if`
   statement's indentation instead of leaving it one level too deep.
 - ThrowRawException no longer offers its `\RuntimeException` quick-fix
