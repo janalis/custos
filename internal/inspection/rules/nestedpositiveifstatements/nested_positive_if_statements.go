@@ -41,7 +41,7 @@ func (nestedPositiveIfStatements) Check(ctx *analysis.Context, n syntax.Node) {
 		if body, ok := c.Body.(*syntax.Block); ok && body.Alt { // E6: the body text has no endif
 			return
 		}
-		if npiLosesComments(f, block, c, c.Cond.Span(), c.Body.Span()) { // F3
+		if npiLosesComments(f, block, c, c.Cond.Span(), c.Body.Span()) || npiMovesDirective(f, block, c) { // F3
 			ctx.Report(kwSpan, nestedPositiveIfMsg)
 			return
 		}
@@ -64,7 +64,7 @@ func (nestedPositiveIfStatements) Check(ctx *analysis.Context, n syntax.Node) {
 			},
 		})
 	case *syntax.Else: // Case B (D6: the block is the else body)
-		if npiLosesComments(f, block, c, c.Span()) { // F3
+		if npiLosesComments(f, block, c, c.Span()) || npiMovesDirective(f, block, c) { // F3
 			ctx.Report(kwSpan, nestedPositiveIfMsg)
 			return
 		}
@@ -160,6 +160,27 @@ func npiSameTokens(f *syntax.File, a, b syntax.Span) bool {
 
 // npiWithComments returns the text of n where comments lying in block before
 // c are inserted right after the opening brace of c's body (when braced).
+// npiDirectives mark comments that act on the line after them.
+var npiDirectives = []string{"@phpstan-ignore", "@psalm-suppress", "phpcs:ignore", "@noinspection", "@custos-ignore"}
+
+// npiMovesDirective reports whether a comment the fix moves from before the
+// inner if c into its body is a directive for the line after it: moved, it
+// would act on another statement.
+func npiMovesDirective(f *syntax.File, block *syntax.Block, c *syntax.If) bool {
+	for k := astquery.TokenIndex(f, block.Span().Start); k < len(f.Tokens) && f.Tokens[k].End <= c.Span().Start; k++ {
+		t := f.Tokens[k]
+		if t.Kind != syntax.TComment && t.Kind != syntax.TDocComment {
+			continue
+		}
+		for _, d := range npiDirectives {
+			if strings.Contains(string(f.Src[t.Start:t.End]), d) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // npiLosesComments reports whether block holds a comment the fix would
 // drop: one neither before the inner if c with a braced body (moved into
 // it) nor inside a kept span.
