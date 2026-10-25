@@ -82,6 +82,12 @@ Let `I` be `if (COND1) BODY1 A …`.
   its own line instead of inside the comment.
   Example: `if ($ok) { return 1; } else { log(); return 2; }` →
   `if ($ok) { return 1; }` + newline + `log(); return 2;`.
+  The moved lines take the `if` statement's indentation: each line after the
+  first that starts with the indentation of the content's first line has it
+  replaced by the `if`'s, whether that first line holds code or a comment.
+  Lines indented less are kept as they are, and nothing is re-indented when
+  a line break lies inside a string, heredoc or inline HTML, whose value
+  would change.
 - **F2** `A` is `else if (…) …` (else followed by an `if`): remove the `else`
   clause and insert, after `I` and a newline, the nested `if` statement
   verbatim, including its own `elseif`/`else` branches.

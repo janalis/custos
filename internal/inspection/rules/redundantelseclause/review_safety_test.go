@@ -58,6 +58,16 @@ func TestReviewSafety(t *testing.T) {
 			"<?php\nfunction f($a) { if ($a) { return 1; }\n?>x<?php\n}",
 		},
 		{
+			"dedented body",
+			"<?php\nfunction f($a) {\n    if ($a) {\n        return 1;\n    } else {\n        // fall back\n        if ($b) {\n            g();\n        }\n// left\n        return 2;\n    }\n}",
+			"<?php\nfunction f($a) {\n    if ($a) {\n        return 1;\n    }\n    // fall back\n    if ($b) {\n        g();\n    }\n// left\n    return 2;\n}",
+		},
+		{
+			"multi-line string kept",
+			"<?php\nfunction f($a) {\n    if ($a) {\n        return 1;\n    } else {\n        g('a\n        b');\n        return 2;\n    }\n}",
+			"<?php\nfunction f($a) {\n    if ($a) {\n        return 1;\n    }\n    g('a\n        b');\n        return 2;\n}",
+		},
+		{
 			"else if then code",
 			"<?php\nif ($a) { return 1; } else if ($b) { g(); } h();",
 			"<?php\nif ($a) { return 1; }\nif ($b) { g(); } h();",
