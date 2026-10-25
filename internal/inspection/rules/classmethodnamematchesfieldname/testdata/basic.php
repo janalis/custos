@@ -16,7 +16,7 @@ class Hooks {
 }
 
 class Child extends Account {
-    public function <weak_warning descr="A property with this name exists and its type is unknown; rename the method or type the property.">owner</weak_warning>() {}
+    public function owner() {}           // custos: Account's $owner is private to it
 }
 
 trait Bag {

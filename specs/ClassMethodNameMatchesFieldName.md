@@ -49,6 +49,10 @@ cannot tell which one is meant.
   the type of such a property is fixed by PHP, not missing, and the user
   cannot type it.
 
+- **E5** (custos) The property found is `private` and declared in an
+  ancestor class (or a trait that an ancestor uses): it is invisible from the
+  method's class, where `$this->name` cannot name it.
+
 ## Report
 
 - Range: the method name identifier.
@@ -58,6 +62,13 @@ cannot tell which one is meant.
     the method or type the property.`
   - D5: `A callable property with this name exists; rename the method (for
     example with a get/is/has prefix).`
+- **R1** (custos) When the parent class or an interface of the method's
+  class declares a method with this name, renaming the method would break
+  that contract, so the messages advise renaming the property instead:
+  - D4: `A property with this name exists and its type is unknown; the
+    method name is inherited, so rename or type the property.`
+  - D5: `A callable property with this name exists; the method name is
+    inherited, so rename the property.`
 
 ## Fix
 
@@ -124,3 +135,11 @@ interface Named {
   `$line`, `$code`) is not reported as "type unknown": these properties are
   typed or documented by PHP itself and the advice to type the property
   cannot be followed.
+- **Private ancestor properties (custos diverges, E5).** Upstream looks the
+  property up through the ancestors whatever its visibility, so a subclass
+  method is reported for a `private` property of its parent, which the
+  subclass cannot read or call (Symfony's `ContainerBuilder::getEnv()`).
+- **Inherited method names (custos, R1).** Same reports, but the advice to
+  rename the method cannot be followed when an interface or the parent class
+  imposes the name (`DataTransformerInterface::transform()`,
+  `\Countable::count()`): the property is the one to rename.

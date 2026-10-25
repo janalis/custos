@@ -22,8 +22,10 @@ func (classMethodNameMatchesFieldName) Kinds() []syntax.NodeKind {
 }
 
 const (
-	cmnUnknownMsg  = "A property with this name exists and its type is unknown; rename the method or type the property."
-	cmnCallableMsg = "A callable property with this name exists; rename the method (for example with a get/is/has prefix)."
+	cmnUnknownMsg          = "A property with this name exists and its type is unknown; rename the method or type the property."
+	cmnCallableMsg         = "A callable property with this name exists; rename the method (for example with a get/is/has prefix)."
+	cmnInheritedUnknownMsg = "A property with this name exists and its type is unknown; the method name is inherited, so rename or type the property."
+	cmnInheritedCallMsg    = "A callable property with this name exists; the method name is inherited, so rename the property."
 )
 
 func (r classMethodNameMatchesFieldName) Check(ctx *analysis.Context, n syntax.Node) {
@@ -45,21 +47,47 @@ func (r classMethodNameMatchesFieldName) Check(ctx *analysis.Context, n syntax.N
 	if prop == nil || prop.Magic { // D2
 		return
 	}
+	owner := prop.TypeClass
+	if owner == "" {
+		owner = prop.Class
+	}
+	if prop.Visibility == index.Private && fqn != "" && !strings.EqualFold(strings.TrimPrefix(owner, `\`), strings.TrimPrefix(fqn, `\`)) {
+		return // E5: an ancestor's private property is not one of this class
+	}
+	unknownMsg, callableMsg := cmnUnknownMsg, cmnCallableMsg
+	if cmnInherited(ctx, fqn, m.Name.Value) { // R1
+		unknownMsg, callableMsg = cmnInheritedUnknownMsg, cmnInheritedCallMsg
+	}
 	atoms := r.propertyTypes(ctx, prop)
 	if len(atoms) == 0 { // D4
 		if prop.Builtin { // E4: the stubs carry no property types
 			return
 		}
-		ctx.Report(m.Name.Span(), cmnUnknownMsg)
+		ctx.Report(m.Name.Span(), unknownMsg)
 		return
 	}
 	for _, a := range atoms { // D5
 		low := strings.ToLower(a)
 		if low == "callable" || low == `\closure` || low == "closure" {
-			ctx.Report(m.Name.Span(), cmnCallableMsg)
+			ctx.Report(m.Name.Span(), callableMsg)
 			return
 		}
 	}
+}
+
+// cmnInherited reports a method name that the parent class or an interface
+// of fqn declares: renaming the method would break that contract.
+func cmnInherited(ctx *analysis.Context, fqn, name string) bool {
+	c := ctx.Index().Class(fqn, ctx.PHP)
+	if c == nil {
+		return false
+	}
+	for _, up := range append([]string{c.Parent}, c.Interfaces...) {
+		if up != "" && ctx.Index().FindMethod(up, name, ctx.PHP) != nil {
+			return true
+		}
+	}
+	return false
 }
 
 func localProperty(ctx *analysis.Context, cls *syntax.ClassLike, name string) *index.Property {
