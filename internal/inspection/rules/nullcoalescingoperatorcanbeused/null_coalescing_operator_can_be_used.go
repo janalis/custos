@@ -272,7 +272,7 @@ func (nullCoalescingOperatorCanBeUsed) checkTernary(ctx *analysis.Context, t *sy
 // with text is only offered when safe.
 func ncoReport(ctx *analysis.Context, at syntax.Span, shown string, safe bool, span syntax.Span, text string) {
 	msg := "Simplify to '" + shown + "' using the null coalescing operator."
-	if !safe {
+	if !safe || astquery.DropsComment(ctx.File, span, text) { // F5, F6
 		ctx.Report(at, msg)
 		return
 	}

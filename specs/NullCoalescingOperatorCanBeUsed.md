@@ -219,6 +219,10 @@ Separator in `R` is exactly ` ?? ` (one space each side).
 - **F4 Form B, S4**: replace the text range from the start of the `if` through
   the end of the following `return` statement (including the `;`) with `Q;`.
 - Whitespace before the replaced range and after it is kept untouched.
+- **F6 No fix that drops a comment** (custos). When the replaced range holds
+  a comment that `Q` (or `R`) does not carry over (one inside the `if` body,
+  between the `if` and the `return` or assignment it merges), the finding
+  is reported without a fix.
 - **F5 No fix when the probe has side effects.** The original evaluates the
   probed expression twice (once in the condition, once as the value) and `R`
   evaluates it once. When cand contains a function/method/static call, `|>`,
@@ -351,6 +355,9 @@ is negated K-null with `===`, so the true branch is the "set" branch.
 
 ## Divergences
 
+- **Comments (custos diverges, F6).** Upstream's fix deletes the comments of
+  the statements it merges into one `??`. custos reports those cases without
+  a fix (feeds).
 - G2/G3 fallback (custos diverges from upstream). Upstream rewrites
   `!empty($o) ? $o->p : 'x'` without any type check, and the truthy form
   `$o ? $o->p : 'x'` only checks the property's nullability. Both change the

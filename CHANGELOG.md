@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- NullCoalescingOperatorCanBeUsed no longer offers a quick-fix that would
+  drop a comment.
 - IssetConstructsCanBeMerged, CascadeStringReplacement, OpAssignShortSyntax,
   IfReturnReturnSimplification and StrTrUsageAsStrReplace no longer offer a
   quick-fix that would drop a comment.
