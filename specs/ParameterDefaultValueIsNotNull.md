@@ -38,8 +38,12 @@ Applies to every function-like declaration: named functions, methods
   from its own ancestors or traits — has a method with the same name
   (case-insensitive) that is not private. Then nothing is reported for this
   method at all (the signature is dictated by the parent). Interfaces
-  implemented by the class do not trigger this exception. If the parent cannot
-  be resolved, no exception applies.
+  implemented by the class do not trigger this exception.
+- E2a (custos, see Divergences): the same holds when the parent class, or a
+  parent class or trait further up its hierarchy, cannot be resolved: the
+  unknown class may declare the method and dictate its signature. Private
+  methods and constructors are still reported: no parent dictates their
+  parameters.
 - E3: a private method in the parent does not trigger E2.
 
 ## Report
@@ -91,5 +95,10 @@ $cb = function (<weak_warning descr="Prefer null as the default value for this p
 
 ## Divergences
 
-None known. `mixed` is treated as a type that does not include `null`
-(matching upstream, whose declared type for `mixed` does not list `null`).
+- **Unresolved ancestors (custos diverges, E2a).** Upstream reports a
+  method whose class extends a parent it cannot resolve (a framework base
+  class outside the analyzed tree, such as `setUp($importViews = TRUE)` on
+  a Drupal test base), although that parent most likely dictates the
+  signature.
+- `mixed` is treated as a type that does not include `null` (matching
+  upstream, whose declared type for `mixed` does not list `null`).

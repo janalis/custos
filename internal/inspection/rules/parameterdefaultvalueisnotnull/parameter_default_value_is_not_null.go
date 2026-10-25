@@ -62,7 +62,8 @@ func pdvTypeHasNull(ctx *analysis.Context, t syntax.Expr) bool {
 
 // pdvOverridesParent reports whether m's class extends a resolvable
 // parent class whose hierarchy (excluding interfaces) has a non-private
-// method of the same name.
+// method of the same name, or extends a class whose hierarchy is not fully
+// known.
 func pdvOverridesParent(ctx *analysis.Context, m *syntax.Method) bool {
 	cls, ok := m.Parent().(*syntax.ClassLike)
 	if !ok || cls.ClassKind == syntax.KindInterface || len(cls.Extends) == 0 || m.Name == nil {
@@ -71,9 +72,20 @@ func pdvOverridesParent(ctx *analysis.Context, m *syntax.Method) bool {
 	parent := ctx.Names().Class(cls.Extends[0].Value, cls.Span().Start)
 	ix := ctx.Index()
 	lname := strings.ToLower(m.Name.Value)
+	// E2a: an unknown ancestor may declare the method, unless the method
+	// is private or a constructor, whose signature no parent dictates.
+	free := m.Modifiers.Has(syntax.TPrivate) || lname == "__construct"
+	if !free && (ix.Class(parent, ctx.PHP) == nil || !ix.AncestorsComplete(parent, ctx.PHP)) {
+		return true
+	}
 	for _, c := range ix.Ancestors(parent, ctx.PHP) {
 		if c.Kind == syntax.KindInterface {
 			continue
+		}
+		for _, sup := range append([]string{c.Parent}, c.Traits...) {
+			if !free && sup != "" && ix.Class(sup, ctx.PHP) == nil { // E2a
+				return true
+			}
 		}
 		if pm, ok := c.Methods[lname]; ok && pm.Visibility != index.Private {
 			return true
