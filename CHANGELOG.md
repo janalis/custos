@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- EmptyClass (opt-in) no longer reports a class that holds `@phpstan-type`
+  or `@psalm-type` aliases for other files to import.
 - JsonEncodingApiUsage also accepts a fallback on an element of the
   decoded value, as in `$documents[0] ?? []` or `isset($doc->title)`, as a
   failure test.

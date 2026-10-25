@@ -52,6 +52,11 @@ func (emptyClass) Check(ctx *analysis.Context, n syntax.Node) {
 	if semanticquery.DocHasAnnotation(ctx.File, cl) {
 		return
 	}
+	// custos: a holder of type aliases for static analyzers
+	// (`@phpstan-type Row array{…}`) is imported by name (E8).
+	if semanticquery.DocHasTag(ctx.File, cl, "phpstan-type") || semanticquery.DocHasTag(ctx.File, cl, "psalm-type") {
+		return
+	}
 	if parent := ctx.Names().ParentFQN(cl); parent != "" { // D4
 		ix := ctx.Index()
 		if pc := ix.Class(parent, ctx.PHP); pc != nil {

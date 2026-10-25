@@ -48,6 +48,9 @@ weight or an unfinished stub.
   `\Exception` are reported.
 - **E6** (custos) Classes carrying an attribute or a docblock annotation
   (see Divergences).
+- **E8** (custos) Classes whose doc comment defines a type alias with
+  `@phpstan-type` or `@psalm-type`: other files import the alias through
+  the class (`@phpstan-import-type Row from Rows`), which is its purpose.
 - **E7** (custos) Declarations nested in a block (`if (…) { class A {} }`):
   a conditional declaration is usually the empty fallback of a version
   check whose other branch declares the full class or trait.
@@ -123,6 +126,9 @@ $x = new class {};
   class the way an attribute does: Drupal discovers its plugins through
   them (11 of 15 sampled findings on a Drupal site). custos does not report
   such a class. Lower-case phpDoc tags (`@internal`, `@see`) do not count.
+- **Type-alias holders (custos diverges, E8).** A class that only carries
+  `@phpstan-type`/`@psalm-type` definitions exists so that other files can
+  import them; upstream reports it as empty.
 - **Conditional declarations (custos diverges, E7).** Upstream reports the
   empty `else` side of `if (version_compare(…)) { trait T { … } } else {
   trait T {} }` (Symfony's Redis proxy traits); removing it leaves `T`
