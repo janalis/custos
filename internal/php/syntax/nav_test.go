@@ -48,3 +48,22 @@ func TestNavHelpers(t *testing.T) {
 		t.Error("IsNullConst")
 	}
 }
+
+// The constructor arguments of an anonymous class belong to the scope that
+// creates it; its body belongs to the anonymous class.
+func TestEnclosingClassAnonymousArguments(t *testing.T) {
+	f := Parse("t.php", []byte(`<?php class Outer { function m() { return new class($this->a) { function n() { return $this->b; } }; } }`), Options{Version: phpversion.Max})
+	fetches := map[string]*PropertyFetch{}
+	InspectFile(f, func(n Node) bool {
+		if p, ok := n.(*PropertyFetch); ok {
+			fetches[p.Name.(*Identifier).Value] = p
+		}
+		return true
+	})
+	if c := EnclosingClass(fetches["a"]); c == nil || c.Name == nil || c.Name.Value != "Outer" {
+		t.Errorf("argument: got %v, want Outer", c)
+	}
+	if c := EnclosingClass(fetches["b"]); c == nil || c.Name != nil {
+		t.Errorf("body: got %v, want the anonymous class", c)
+	}
+}

@@ -74,8 +74,11 @@ func FuncLikeParams(n Node) []*Param {
 // EnclosingClass returns the class-like declaration containing n (nil
 // outside one).
 func EnclosingClass(n Node) *ClassLike {
-	for p := n.Parent(); p != nil; p = p.Parent() {
-		if c, ok := p.(*ClassLike); ok {
+	child := n
+	for p := n.Parent(); p != nil; child, p = p, p.Parent() {
+		// The constructor arguments of an anonymous class are evaluated
+		// where the class is created, not inside it.
+		if c, ok := p.(*ClassLike); ok && (c.Args == nil || child != Node(c.Args)) {
 			return c
 		}
 	}
