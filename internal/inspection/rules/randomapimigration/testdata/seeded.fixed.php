@@ -1,17 +1,11 @@
 <?php
-function shuffledDeck(int $seed): array
+function layout(array $nodes, int $seed): array
 {
     mt_srand($seed);
     $out = [];
-    for ($i = 0; $i < 5; $i++) {
-        $out[] = mt_rand(1, 52);
+    foreach ($nodes as $node) {
+        $out[$node] = [mt_rand(0, 100), mt_rand(0, 100)];
     }
-    $out[] = rand(10, 1);
-    $out[] = mt_rand(...$out);
-    $out[] = mt_rand(...$out, ...$out);
-    $out[] = mt_rand(...$out, ...$out);
-    $out[] = mt_rand(1, ...$out);
-    $pick = mt_rand(...);
-    $keep = mt_rand(...);
+    $out['jitter'] = mt_rand(1, 6);
     return $out;
 }

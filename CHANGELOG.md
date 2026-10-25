@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- RandomApiMigration no longer suggests `random_int()` in a file that seeds
+  the generator with `mt_srand($seed)` or `srand($seed)`: `random_int()`
+  ignores the seed.
 - The taint rules no longer carry request data through
   `mysqli_num_rows()`, `mysqli_affected_rows()`, `mysqli_insert_id()` and
   their `mysqli_stmt_` forms, which return a number.

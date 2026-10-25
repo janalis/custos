@@ -16,8 +16,9 @@ func TestReviewSafety(t *testing.T) {
 		findings     int
 		fixed        string
 	}{
-		{"seeded mt_rand", "<?php mt_srand($seed); $a = mt_rand(1, 52);", phpversion.PHP85, 1, ""},
-		{"seeded rand", "<?php srand($seed); $a = rand(1, 52);", phpversion.PHP85, 2, "<?php mt_srand($seed); $a = rand(1, 52);"},
+		{"seeded mt_rand", "<?php mt_srand($seed); $a = mt_rand(1, 52);", phpversion.PHP85, 0, ""},
+		{"seeded rand", "<?php srand($seed); $a = rand(1, 52);", phpversion.PHP85, 2, "<?php mt_srand($seed); $a = mt_rand(1, 52);"},
+		{"reseeded at random", "<?php mt_srand(); $a = mt_rand(1, 52);", phpversion.PHP85, 1, ""},
 		{"reversed modern", "<?php $a = rand(10, 1);", phpversion.PHP85, 1, ""},
 		{"reversed classic", "<?php $a = rand(10, 1);", phpversion.PHP56, 1, ""},
 		{"reversed signed", "<?php $a = rand(-1, -10);", phpversion.PHP56, 1, ""},

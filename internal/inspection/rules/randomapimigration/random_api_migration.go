@@ -45,7 +45,7 @@ func (randomAPIMigration) Check(ctx *analysis.Context, n syntax.Node) {
 		return
 	}
 	lo, hi, two := boundArgs(call)
-	if suggested == "random_int" && !two { // D4
+	if suggested == "random_int" && (!two || seeded(ctx)) { // D4, E4
 		if name != "rand" {
 			return
 		}
@@ -67,6 +67,27 @@ func (randomAPIMigration) Check(ctx *analysis.Context, n syntax.Node) {
 		Title: "Use " + suggested + "()",
 		Edits: func() []diagnostic.TextEdit { return []diagnostic.TextEdit{{Span: span, NewText: repl}} },
 	})
+}
+
+// seeded reports whether the file seeds the generator with a value
+// (`mt_srand($seed)`, `srand(42)`): its sequence is meant to be reproducible,
+// which random_int() would ignore (E4).
+func seeded(ctx *analysis.Context) bool {
+	return ctx.Memo("randomapimigration.seeded", func() any {
+		found := false
+		syntax.InspectFile(ctx.File, func(n syntax.Node) bool {
+			if c, ok := n.(*syntax.FuncCall); ok && astquery.ArgCount(c) > 0 {
+				if _, name, ok := astquery.FuncNamePart(c); ok {
+					switch strings.ToLower(name) {
+					case "mt_srand", "srand":
+						found = true
+					}
+				}
+			}
+			return !found
+		})
+		return found
+	}).(bool)
 }
 
 // boundArgs returns the two arguments of a call passing exactly two real

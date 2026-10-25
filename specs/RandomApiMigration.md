@@ -60,6 +60,11 @@ Visit every plain function call (not method/static calls).
   classic table.
 - **E2** `mt_srand`, `mt_getrandmax`, `random_int` themselves.
 - **E3** Calls not resolving to the global function; method/static calls.
+- **E4** (custos) Under the modern table, when the file calls `srand()` or
+  `mt_srand()` with a seed, `random_int` is not suggested: the sequence is
+  meant to be reproducible and `random_int()` ignores the seed. As in D4,
+  `rand` then gets the `mt_rand` suggestion and `mt_rand` is not reported.
+  `mt_srand()` without an argument reseeds at random and changes nothing.
 
 ## Report
 
@@ -189,5 +194,10 @@ function throwDice($sides)
   name (`mt_srand`, `mt_rand`, `random_int`), which a function of that name declared in (or imported into) the current
   namespace captures, so the fix would call user code. custos writes
   `\name` in that case.
+- **Seeded sequences (custos diverges, E4).** Upstream suggests
+  `random_int()` for `mt_rand(0, 100)` in a file that calls
+  `mt_srand($seed)` to get the same layout from the same seed; following
+  that advice breaks the reproducibility the seeding asks for. custos
+  suggests nothing for `mt_rand` there and `mt_rand` for `rand`.
 
 Recorded in `internal/testing/conformance/testdata/ea-divergences.json`.
