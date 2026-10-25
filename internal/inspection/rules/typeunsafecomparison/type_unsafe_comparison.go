@@ -100,14 +100,16 @@ func (typeUnsafeComparison) Check(ctx *analysis.Context, n syntax.Node) {
 	ctx.ReportSeverity(span, diagnostic.SeverityInfo, "Prefer '"+strict+"' to avoid implicit type juggling.") // D6
 }
 
-// tucEmptinessTest reports whether falsy is a falsy constant (`false`,
-// `null`, `0`, `”`, `'0'`) compared with other, a value whose type holds
-// false or null next to another type: an emptiness test, which === would
-// turn into a test of one of them (D5a).
+// tucEmptinessTest reports whether falsy is a boolean-like constant
+// (false, true, null, 0, the empty string or "0") compared with other, a
+// value whose type holds false or null next to another type (mixed
+// included): an emptiness or truthiness test, which === would turn into a
+// test of one of them (D5a).
 func tucEmptinessTest(ctx *analysis.Context, falsy, other syntax.Expr) bool {
 	switch x := syntax.UnwrapParens(falsy).(type) {
 	case *syntax.ConstFetch:
-		if !syntax.IsNullConst(x) && !strings.EqualFold(strings.TrimPrefix(x.Name.Value, `\`), "false") {
+		name := strings.ToLower(strings.TrimPrefix(x.Name.Value, `\`))
+		if name != "null" && name != "false" && name != "true" {
 			return false
 		}
 	case *syntax.Literal:
@@ -123,6 +125,9 @@ func tucEmptinessTest(ctx *analysis.Context, falsy, other syntax.Expr) bool {
 		return false
 	}
 	t := ctx.TypeOf(other)
+	if t.Has("mixed") {
+		return true
+	}
 	if t.IsUnknown() || !t.Has("false") && !t.Has("null") && !t.Has("bool") {
 		return false
 	}

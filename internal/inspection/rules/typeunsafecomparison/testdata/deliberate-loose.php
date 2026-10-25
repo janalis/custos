@@ -31,3 +31,15 @@ function compare(Name|Identifier|ComplexType $type, ComplexType $complex, $v, st
     $t = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">"$n$n" == $n</weak_warning>;
     return [$a, $b, $c, $d, $e, $f, $g, $h, $i, $j, $k, $l, $m, $o, $p, $q, $r, $t];
 }
+
+function truthiness(int|bool $flag, mixed $m, int $n, $unknown)
+{
+    // A flag stored as 1 or TRUE, a mixed value tested for emptiness.
+    $a = $flag == true;
+    $b = $m == null;
+    $c = $m != '';
+    $d = TRUE == $m;
+    $e = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$n == true</weak_warning>;
+    $f = <weak_warning descr="Prefer '===' to avoid implicit type juggling.">$unknown == true</weak_warning>;
+    return [$a, $b, $c, $d, $e, $f];
+}

@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- TypeUnsafeComparison no longer prefers `===` for a truthiness test
+  (`$flag == true`) or an emptiness test on a `mixed` value.
 - NullCoalescingOperatorCanBeUsed no longer offers a quick-fix that would
   drop a comment.
 - IssetConstructsCanBeMerged, CascadeStringReplacement, OpAssignShortSyntax,

@@ -82,11 +82,12 @@ string literal here).
   `\PDO`, `\PDOStatement`, `\ArrayObject`, `\SplObjectStorage`, `\Closure`. Operands are used as written (a parenthesised
   operand has the type of its content). Types such as `\DateTime|false`
   (e.g. return of `date_create()` from stubs) count as comparable.
-- **D5a** (custos) The comparison is not an *emptiness test*: one operand
-  is `false`, `null`, `0`, `''` or `'0'` and the other's inferred type holds
-  `false`, `null` or `bool` together with another type
-  (`$doc->getDocComment() != ''` on `string|false`). `===` would test only
-  one of the empty values.
+- **D5a** (custos) The comparison is not an *emptiness or truthiness
+  test*: one operand is `false`, `true`, `null`, `0`, `''` or `'0'` and the
+  other's inferred type holds `false`, `null` or `bool` together with
+  another type, or holds `mixed` (`$doc->getDocComment() != ''` on
+  `string|false`, `$config->get('enabled') == TRUE` on `mixed`). `===`
+  would test only one of the values PHP takes as empty or true.
 - **D5b** (custos) The comparison is not a *conversion test*: one operand
   is an `(int)`, `(float)` or `(string)` cast of the other, or a string
   interpolating it alone (`(int) $v == $v`, `"$n" != $n`), which tests
