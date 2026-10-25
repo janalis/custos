@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- TypesCastingCanBeUsed no longer suggests `(string)$dir` for `"$dir"` when
+  `$dir` is already a string: UnnecessaryCasting would report that cast.
 - SessionMutationAfterClose no longer reports `$_SESSION = [];` after the
   session is closed: it clears the in-memory copy.
 - ClassMethodNameMatchesFieldName no longer reports a method named like a

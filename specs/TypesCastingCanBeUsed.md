@@ -88,6 +88,10 @@ expresses the same thing directly and avoids a function call.
   interpolations (`"{$a}{$b}"`), heredocs, single-quoted strings.
 - **E4** `parent::__toString()`; `$o->__toString(...)`; calls to other
   methods; option off.
+- **E5** (custos) A single-interpolation string whose interpolated value is
+  known to be a `string` (`"$dir"` with `string $dir`, the result of
+  `sprintf()`): the `(string)` cast would be as redundant as the quotes.
+  A nullable or non-string value is still reported.
 
 ## Report
 
@@ -210,6 +214,9 @@ class Tag extends Base {
 
 ## Divergences
 
+- **Values that are already strings (custos diverges, E5).** Upstream
+  suggests `(string)$dir` for `"$dir"` whatever the value's type, and
+  UnnecessaryCasting then reports the cast it suggested.
 - A cast binds more loosely than `**`, `[]` and `->`; replacing a call that is
   the operand of such an operator changes meaning (`intval($x) ** 2` →
   `(int)$x ** 2`, `strval($n)[0]` → `(string)$n[0]`). Upstream does not guard

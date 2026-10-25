@@ -1,6 +1,7 @@
 package typescastingcanbeused
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 
@@ -103,6 +104,9 @@ func (typesCastingCanBeUsed) checkString(ctx *analysis.Context, s *syntax.Interp
 		return
 	}
 	part := s.Parts[0] // never a StringPart: the lexer only interpolates strings with a $var, ${ or {$
+	if t := ctx.TypeOf(part); !t.IsUnknown() && slices.Equal(t.Atoms(), []string{"string"}) {
+		return // E5: already a string, so the cast would be redundant too
+	}
 	ps := part.Span()
 	var r string
 	switch {
