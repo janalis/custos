@@ -114,6 +114,10 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- ForgottenDebugOutput no longer reports dumps whose output is captured
+  between `ob_start()` and a later `ob_get_clean()` (or another call that
+  reads or ends the buffer), nor a first-class callable such as
+  `var_dump(...)`.
 - UnsetConstructsCanBeMerged no longer offers to merge `unset()` calls when
   one of them has a comment after it on its line: the comment would end up
   on the merged line.

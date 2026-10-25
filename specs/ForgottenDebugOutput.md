@@ -82,7 +82,7 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
   `phpinfo` — 1, `print_r` — 2, `var_export` — 2. (No allowance for
   `var_dump`, `debug_zval_dump`, `debug_print_backtrace` or any other name:
   they are reported with any number of arguments.)
-- **D4** Not in an *output-buffered* context (E2) and not inside a *debug
+- **D4** Not in an *output-buffered* context (E2, E2a) and not inside a *debug
   wrapper* (E3) → report.
 
 ### Method calls
@@ -98,7 +98,7 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
   override does not.
 - **D7** Not inside a debug wrapper (E3) → report once (stop after the first
   matching entry). The output-buffer exception does not apply to method
-  calls.
+  calls. A first-class callable (E5) is never reported.
 
 ## Exceptions (no report)
 
@@ -112,6 +112,15 @@ such call appends `<entry>` (with Java string escapes decoded, i.e. `\\` →
   arguments: `ob_start(); var_dump($x);`. Only the very next statement is
   covered; calls nested in larger expressions (`echo print_r($x);`,
   `$s = print_r($x);`) are never covered.
+- **E2a** (custos) Captured output: a statement enclosing the call (the
+  call may sit anywhere inside it, at any depth outside nested functions
+  and closures) is preceded in its statement list by an expression
+  statement calling `ob_start`, with no call to `ob_get_clean`,
+  `ob_get_contents`, `ob_get_flush`, `ob_end_clean` or `ob_end_flush` in
+  between, and followed later in that list by a statement calling one of
+  them: `ob_start(); var_dump($a); print_r($b); $out = ob_get_clean();`.
+- **E5** (custos) A first-class callable `var_dump(...)`, `$probe->dump(...)`:
+  it only creates a Closure and prints nothing.
 - **E3** Debug wrapper: the nearest enclosing function-like is
   - a *named function* whose short name equals (case-insensitively) a function entry of the
     effective list — e.g. `function dd($v) { var_dump($v); }` is not reported
@@ -202,6 +211,13 @@ function work($order, Probe $probe, Quiet $quiet) {
   written in another case escape the check (and `OB_START();` does not
   cover the next call) although PHP treats them as the same symbols. custos
   compares all of them case-insensitively (D1, D3, D5, D6, E2, E3).
+- **Captured output (custos diverges, E2a).** Upstream exempts only the
+  statement right after `ob_start()`, so the second dump of a buffer read
+  by `ob_get_clean()` (or a dump assigned to a variable) is reported,
+  although nothing is printed. Without a later call reading or ending the
+  buffer, custos keeps upstream's single-statement exemption.
+- **First-class callables (custos diverges, E5).** `var_dump(...)` does not
+  dump anything; upstream reports it like a call.
 - Method wrappers (custos diverges from upstream). Upstream builds a
   method's identity with a `.` separator and compares it with entries
   written with `::`, so no method is ever recognized as a debug wrapper and

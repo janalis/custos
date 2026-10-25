@@ -1,6 +1,7 @@
 package forgottendebugoutput
 
 import (
+	"slices"
 	"strings"
 
 	"custos/internal/inspection/analysis"
@@ -76,6 +77,9 @@ func debugEntries(ctx *analysis.Context) []string {
 
 func (forgottenDebugOutput) Check(ctx *analysis.Context, n syntax.Node) {
 	entries := ctx.Memo("entries", func() any { return debugEntries(ctx) }).([]string)
+	if debugCallableSyntax(n) { // E5: f(...) only creates a Closure
+		return
+	}
 	switch x := n.(type) {
 	case *syntax.FuncCall:
 		name := astquery.CallLastName(x)
@@ -85,7 +89,7 @@ func (forgottenDebugOutput) Check(ctx *analysis.Context, n syntax.Node) {
 		if want, ok := debugArgAllowance[strings.ToLower(name)]; ok && astquery.ArgCount(x) == want { // D3
 			return
 		}
-		if debugOutputBuffered(ctx.File, x) || debugInWrapper(ctx, x, entries) { // D4
+		if debugOutputBuffered(ctx.File, x) || debugCaptured(ctx.File, x) || debugInWrapper(ctx, x, entries) { // D4
 			return
 		}
 		ctx.ReportNode(x, debugOutputMsg)
@@ -94,6 +98,24 @@ func (forgottenDebugOutput) Check(ctx *analysis.Context, n syntax.Node) {
 	case *syntax.StaticCall:
 		debugCheckMethod(ctx, x, x.Name, x.Class, entries)
 	}
+}
+
+// debugCallableSyntax reports a first-class callable `f(...)`.
+func debugCallableSyntax(n syntax.Node) bool {
+	var args *syntax.ArgList
+	switch x := n.(type) {
+	case *syntax.FuncCall:
+		args = x.Args
+	case *syntax.MethodCall:
+		args = x.Args
+	case *syntax.StaticCall:
+		args = x.Args
+	}
+	if args == nil || len(args.Args) != 1 {
+		return false
+	}
+	_, ok := args.Args[0].(*syntax.VariadicPlaceholder)
+	return ok
 }
 
 // debugHasEntry compares case-insensitively: PHP function, class and method
@@ -158,6 +180,64 @@ func debugOutputBuffered(f *syntax.File, call *syntax.FuncCall) bool {
 	}
 	pc, ok := ps.Expr.(*syntax.FuncCall)
 	return ok && strings.EqualFold(astquery.CallLastName(pc), "ob_start")
+}
+
+// debugBufferReads lists the calls that end or read the output buffer.
+var debugBufferReads = map[string]bool{
+	"ob_get_clean": true, "ob_get_contents": true, "ob_get_flush": true,
+	"ob_end_clean": true, "ob_end_flush": true,
+}
+
+// debugCaptured implements E2a: a statement holding the call sits between an
+// `ob_start()` statement and a later one that reads or ends the buffer, in
+// the same statement list: the output is captured, not printed.
+func debugCaptured(f *syntax.File, call *syntax.FuncCall) bool {
+	for n := call.Parent(); n != nil && !syntax.IsFuncLike(n); n = n.Parent() {
+		st, isStmt := n.(syntax.Stmt)
+		if !isStmt {
+			continue
+		}
+		list, i, ok := astquery.StmtList(f, st)
+		if !ok {
+			continue
+		}
+		if debugBufferOpened(list[:i]) && slices.ContainsFunc(list[i+1:], debugReadsBuffer) {
+			return true
+		}
+	}
+	return false
+}
+
+// debugBufferOpened reports an `ob_start()` statement in stmts that no later
+// one of them reads or ends.
+func debugBufferOpened(stmts []syntax.Stmt) bool {
+	for j := len(stmts) - 1; j >= 0; j-- {
+		if debugReadsBuffer(stmts[j]) {
+			return false
+		}
+		if es, ok := stmts[j].(*syntax.ExprStmt); ok {
+			if c, ok := es.Expr.(*syntax.FuncCall); ok && strings.EqualFold(astquery.CallLastName(c), "ob_start") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// debugReadsBuffer reports a call in s, outside nested function-likes, that
+// reads or ends the output buffer.
+func debugReadsBuffer(s syntax.Stmt) bool {
+	found := false
+	syntax.Inspect(s, func(n syntax.Node) bool {
+		if found || syntax.IsFuncLike(n) {
+			return false
+		}
+		if c, ok := n.(*syntax.FuncCall); ok && debugBufferReads[strings.ToLower(astquery.CallLastName(c))] {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
 
 // debugInWrapper implements E3: the nearest enclosing function-like is a
