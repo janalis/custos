@@ -7,5 +7,5 @@ namespace App {
     $a = <weak_warning descr="Write '\IS_INT(...)' to allow compile-time binding.">IS_INT($x)</weak_warning>;
     $b = count([]);
     $c = array_map('is_int', []);
-    $d = \call_user_func(<weak_warning descr="Write '\Is_Int' to allow compile-time binding.">'Is_Int'</weak_warning>, 1);
+    $d = \call_user_func(<weak_warning descr="Write '\Is_Int' to show that the callback names a global function.">'Is_Int'</weak_warning>, 1);
 }

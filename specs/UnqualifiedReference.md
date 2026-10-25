@@ -139,9 +139,12 @@ reports: one on the call (Part A) and one on the callback string (Part B).
   constant identifier; Part B — the callback string literal including its
   quotes.
 - Severity: info (weak warning).
-- Message: `Write '\{name}' to allow compile-time binding.` where `{name}` is
-  the function name followed by `(...)` for calls, the constant name for
-  constants, or the callback string contents (no `(...)`) for Part B.
+- Message: Part A — `Write '\{name}' to allow compile-time binding.` where
+  `{name}` is the function name followed by `(...)` for calls, or the
+  constant name for constants; Part B — `Write '\{name}' to show that the
+  callback names a global function.` with the callback string contents
+  (no `(...)`). A callback string is always resolved as a global name at
+  run time, so the backslash binds nothing at compile time.
 
 ## Fix
 

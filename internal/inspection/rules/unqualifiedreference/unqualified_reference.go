@@ -183,7 +183,9 @@ func (unqualifiedReference) callback(ctx *analysis.Context, call *syntax.FuncCal
 	if quote == '"' {
 		ins = `\\`
 	}
-	ctx.Report(span, "Write '\\"+content+"' to allow compile-time binding.", diagnostic.Fix{
+	// A callback string is always resolved as a global name at run time:
+	// the backslash only makes that visible.
+	ctx.Report(span, "Write '\\"+content+"' to show that the callback names a global function.", diagnostic.Fix{
 		Title: "Qualify with '\\'",
 		Edits: func() []diagnostic.TextEdit {
 			return []diagnostic.TextEdit{{Span: syntax.Span{Start: open, End: open}, NewText: ins}}

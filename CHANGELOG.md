@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- UnqualifiedReference no longer says a backslash in a callback string such
+  as `'\strval'` allows compile-time binding: a callback string always names
+  a global function, and the message now says so.
 - RecursiveTraversalOmitsDirectories no longer reports a traversal that
   passes `RecursiveIteratorIterator::LEAVES_ONLY` explicitly.
 - PregMatchFailureAsNonMatch no longer reports the UTF-8 validity check

@@ -13,8 +13,8 @@ namespace Shop\Cart {
     $n = <weak_warning descr="Write '\count(...)' to allow compile-time binding.">count([1])</weak_warning>;
     $u = <weak_warning descr="Write '\ucfirst(...)' to allow compile-time binding.">ucfirst('x')</weak_warning>;
     $e = <weak_warning descr="Write '\PHP_EOL' to allow compile-time binding.">PHP_EOL</weak_warning>;
-    \array_map(<weak_warning descr="Write '\legacy_hook' to allow compile-time binding.">'legacy_hook'</weak_warning>, []);
-    \array_walk($list, <weak_warning descr="Write '\legacy_hook' to allow compile-time binding.">"legacy_hook"</weak_warning>);
+    \array_map(<weak_warning descr="Write '\legacy_hook' to show that the callback names a global function.">'legacy_hook'</weak_warning>, []);
+    \array_walk($list, <weak_warning descr="Write '\legacy_hook' to show that the callback names a global function.">"legacy_hook"</weak_warning>);
 
     $ok = \count([1]) + money(1) + SCALE + array_sum([]) + E_ALL;
     $ok2 = true && null === __LINE__;
