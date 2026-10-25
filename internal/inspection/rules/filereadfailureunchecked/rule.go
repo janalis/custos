@@ -3,6 +3,7 @@ package filereadfailureunchecked
 
 import (
 	"custos/internal/inspection/analysis"
+	"custos/internal/inspection/astquery"
 	"custos/internal/inspection/phpunit"
 	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
@@ -50,7 +51,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	for _, input := range inputs {
 		read, ok := semanticquery.NativeLocalBuiltinResult(ctx, input, "false", "file_get_contents", "stream_get_contents").(*syntax.FuncCall)
-		if !ok || infallibleRead(ctx, read) {
+		if !ok || infallibleRead(ctx, read) || throwingDecode(ctx, n, input) {
 			continue
 		}
 
@@ -80,4 +81,27 @@ func infallibleRead(ctx *analysis.Context, read *syntax.FuncCall) bool {
 	}
 	open, ok := semanticquery.NativeLocalValue(ctx, semanticquery.CallArgument(read.Args, 0, "stream")).(*syntax.FuncCall)
 	return ok && semanticquery.NativeBuiltinName(ctx, open) == "fopen" && semanticquery.InfallibleOpen(open)
+}
+
+// throwingDecode reports whether input is the text json_decode() call n
+// decodes under JSON_THROW_ON_ERROR (E8): the failure value is the empty
+// text there (or a TypeError under strict types), which throws a
+// JsonException, so the failed read cannot pass unnoticed.
+func throwingDecode(ctx *analysis.Context, n syntax.Node, input syntax.Expr) bool {
+	call, ok := n.(*syntax.FuncCall)
+	if !ok || semanticquery.NativeBuiltinName(ctx, call) != "json_decode" || semanticquery.CallArgument(call.Args, 0, "json") != input {
+		return false
+	}
+	flags := semanticquery.CallArgument(call.Args, 3, "flags")
+	if flags == nil {
+		return false
+	}
+	throws := false
+	syntax.Inspect(flags, func(x syntax.Node) bool {
+		if c, ok := x.(*syntax.ConstFetch); ok && c.Name != nil && astquery.LastNamePart(c.Name.Value) == "JSON_THROW_ON_ERROR" {
+			throws = true
+		}
+		return !throws
+	})
+	return throws
 }
