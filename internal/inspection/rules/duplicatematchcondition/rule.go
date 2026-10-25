@@ -63,7 +63,14 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 // conditionKey returns a comparison key for a condition whose value is
 // statically known, or "" when nothing definite can be said about it.
 func conditionKey(ctx *analysis.Context, condition syntax.Expr) string {
-	if v, ok := syntax.UnwrapParens(condition).(*syntax.Variable); ok && !stableLocal(ctx, v) {
+	switch c := syntax.UnwrapParens(condition).(type) {
+	case *syntax.Variable:
+		if !stableLocal(ctx, c) {
+			return ""
+		}
+	case *syntax.PropertyFetch, *syntax.StaticPropertyFetch, *syntax.ArrayDimFetch:
+		// A property or an element holds its default only until written:
+		// two of them sharing one value are still two conditions.
 		return ""
 	}
 	value := semanticquery.NativeValue(ctx, condition)

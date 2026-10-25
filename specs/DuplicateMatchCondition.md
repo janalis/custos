@@ -23,6 +23,7 @@ Detect a later match arm condition statically strictly identical to an earlier c
 
 - E1. Unknown values, different strict types and effectful condition expressions are excluded.
 - E3. A variable condition is ignored when the variable has any other binding in its scope: `++`/`--`, a compound, by-reference or destructuring assignment, a second assignment, a `catch`, `foreach`, `global`, `static` or `unset` binding, or a by-reference closure capture. It is ignored as well when its single assignment copies or computes from another variable (`$a = $b`), because that variable may itself have changed. It is also ignored in top-level code and arrow functions, and when the scope contains a variable-variable, `extract()`, `eval` or an include, since those can rebind a local by name.
+- E4. A property (`$this->p`, `self::$p`) or array element (`$a['k']`) condition never takes part: its declared default holds only until it is written, so two properties sharing a default are still two conditions (`match (true) { $this->comment => …, $this->anchor => … }`).
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 
 ## Report

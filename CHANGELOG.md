@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- DuplicateMatchCondition no longer treats two properties or array elements
+  with the same default value as one condition; its quick-fix deleted the
+  second, still reachable, arm.
 - FileReadFailureUnchecked no longer reports a read decoded by
   `json_decode()` with `JSON_THROW_ON_ERROR`, where a failed read throws.
 - UntrustedHeaderValue no longer reports request data passed through
