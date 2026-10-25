@@ -133,7 +133,10 @@ Build the ordered usage list for name `n` from the variables named `n` in
 Duplicates are possible and harmless (reports are de-duplicated).
 
 When a declaration `A` is given (strategy C), skip usages until reaching a
-usage whose parent is `A` (that one is skipped too). Then evaluate each
+usage whose parent is `A` (that one is skipped too). Usages inside `A`'s
+right side are skipped as well (custos, see Divergences): they read the
+value the variable held before `A`, such as a `foreach` value in
+`foreach ($tree as $n) { $n = $this->find($n->children); }`. Then evaluate each
 remaining usage `v` (parent `P`, grandparent `G`) in order; *stop* ends the
 walk for this name, *skip* goes to the next usage:
 
@@ -177,9 +180,8 @@ walk for this name, *skip* goes to the next usage:
     operand of `??`, or is directly an argument of `isset(...)` → skip.
     (A method call in the chain stops the climb: `isset($n->a->m()->b)` is
     reported.)
-  - method call: if a declaration `A` was given (strategy C only) and `G`
-    is that very `A` (the declaring statement is `$n = $n->next();`) →
-    skip. In every other situation the method call is reported, notably:
+  - method call: reported (inside the declaring assignment `A` itself,
+    `$n = $n->next();`, the usage was already skipped). Notably:
     strategy A (parameters — there is no `A`, so `$p = $p->next();` reports
     the right-side `$p`), and later, non-declaring re-assignments of a local
     (`$n = $n->next();` after the declaration reports the right-side `$n`
@@ -428,3 +430,7 @@ function visit(?Node $item) {
   `if (lookup() === null) { return; } $n = lookup(); $n->open();` report
   nothing. A test that does not guard the assignment (an earlier `if` whose
   body has ended) still leaves the local nullable.
+- **Reads inside the declaring assignment (custos diverges).** Upstream
+  reports `$n->children` in `$n = $this->find($n->children);` once the
+  declaration makes `$n` nullable, although that read happens before the
+  assignment and sees the earlier value (a `foreach` or destructured value).

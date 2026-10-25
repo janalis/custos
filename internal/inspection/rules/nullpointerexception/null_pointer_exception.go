@@ -311,6 +311,9 @@ func (u *npeUnit) walk(name string, decl *syntax.Assign) {
 	}
 	for ; i < len(list); i++ {
 		v := list[i]
+		if decl != nil && npeWithin(v, decl.Value) { // U0: read before the declaration assigns
+			continue
+		}
 		stop, rep := u.evaluate(v, name, decl)
 		// U12: a variable whose native type is unknown is read as the
 		// nullable object D5 found (strategy C); a declared one keeps its type.
@@ -324,6 +327,12 @@ func (u *npeUnit) walk(name string, decl *syntax.Assign) {
 			return
 		}
 	}
+}
+
+// npeWithin reports whether n lies inside e.
+func npeWithin(n syntax.Node, e syntax.Expr) bool {
+	sp, in := n.Span(), e.Span()
+	return sp.Start >= in.Start && sp.End <= in.End
 }
 
 // npeAssertNames are matched case-insensitively (lower-case keys), like PHP
@@ -362,10 +371,6 @@ func npeArgCall(v syntax.Expr) (call syntax.Node, idx int, name string) {
 
 func (u *npeUnit) evaluate(v *syntax.Variable, name string, decl *syntax.Assign) (stop, report bool) {
 	p := v.Parent()
-	var g syntax.Node
-	if p != nil {
-		g = p.Parent()
-	}
 	switch p := p.(type) {
 	case *syntax.Instanceof: // U1
 		if p.Expr == syntax.Expr(v) {
@@ -454,13 +459,7 @@ func (u *npeUnit) evaluate(v *syntax.Variable, name string, decl *syntax.Assign)
 		}
 		return false, true
 	case *syntax.MethodCall: // U8
-		if p.Var != syntax.Expr(v) || p.NullSafe {
-			return false, false
-		}
-		if decl != nil && g == syntax.Node(decl) {
-			return false, false
-		}
-		return false, true
+		return false, p.Var == syntax.Expr(v) && !p.NullSafe
 	case *syntax.FuncCall: // U9
 		return false, p.Name == syntax.Expr(v)
 	case *syntax.Clone: // U10

@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- NullPointerException (opt-in) no longer reports a read on the right side
+  of the assignment that makes the variable nullable, as in
+  `$node = $this->find($node->children)`: it sees the earlier value.
 - EmptyClass (opt-in) no longer reports a class that holds `@phpstan-type`
   or `@psalm-type` aliases for other files to import.
 - JsonEncodingApiUsage also accepts a fallback on an element of the
