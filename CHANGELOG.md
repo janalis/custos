@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- DateOnlyParseRetainsCurrentTime no longer reports a `createFromFormat()`
+  call whose value is only tested for success.
 - TempnamDirectoryFallbackUnchecked no longer reports test code, whose
   temporary files are throwaway fixtures.
 - DisconnectedForeachInstruction no longer asks to move out of a loop a

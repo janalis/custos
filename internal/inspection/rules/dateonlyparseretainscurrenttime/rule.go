@@ -40,7 +40,7 @@ func (rule) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
-	if resetBySetTime(call) {
+	if resetBySetTime(call) || successTest(call) {
 		return
 	}
 	literal, ok := arg.(*syntax.Literal)
@@ -72,6 +72,30 @@ func resetBySetTime(call *syntax.StaticCall) bool {
 	}
 	name, ok := method.Name.(*syntax.Identifier)
 	return ok && strings.EqualFold(name.Value, "setTime")
+}
+
+// successTest reports a call whose value is only tested for success (E4): a
+// condition, an operand of `!`, `&&` or `||`, or compared with false. The
+// time of day never reaches such a test.
+func successTest(call *syntax.StaticCall) bool {
+	if astquery.IsLogicalOperand(call) {
+		return true
+	}
+	parent, child := astquery.ParentSkipParens(call)
+	b, ok := parent.(*syntax.Binary)
+	if !ok {
+		return false
+	}
+	switch b.Op.Kind {
+	case syntax.TIsIdentical, syntax.TIsNotIdentical, syntax.TIsEqual, syntax.TIsNotEqual:
+		other := b.Left
+		if other == child {
+			other = b.Right
+		}
+		v, isBool := astquery.BoolConst(syntax.UnwrapParens(other))
+		return isBool && !v
+	}
+	return false
 }
 
 func (rule) Semantic() {}

@@ -23,6 +23,7 @@ Detect DateTime or DateTimeImmutable createFromFormat with a format containing c
 - E1. Formats containing ! or resetting unspecified fields with a trailing vertical-bar modifier, intentional current-time completion and unknown formats are excluded.
 - E2. Unresolved targets, incomplete required facts, suppressed findings and PHP versions lacking the referenced API or language feature produce no report. User declarations shadowing builtin names are not builtin contracts.
 - E3. No report when the createFromFormat call (optionally parenthesised) is the direct receiver of a `->setTime(...)` or `?->setTime(...)` call: that call overwrites every omitted time field, so the current time is never kept. Only the immediate receiver counts; a later `setTime` statement on a variable and a chained `format()` are not tracked.
+- E4. No report when the call's value is only tested for success: it is a condition, an operand of `!`, `&&` or `||`, or compared with `false` (`if (!DateTimeImmutable::createFromFormat('d/m/Y', $s)) throw …;`). The time of day never reaches such a test.
 
 ## Report
 
