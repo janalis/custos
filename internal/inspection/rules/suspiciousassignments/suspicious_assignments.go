@@ -558,7 +558,8 @@ func saDestructuring(ctx *analysis.Context, a *syntax.Assign) {
 	supporting, bad, onlyMarkers := false, false, true
 	for _, at := range t.Atoms() { // D20
 		switch {
-		case at == "array" || at == "mixed" || strings.HasSuffix(at, "[]"):
+		case at == "array" || at == "mixed" || at == "iterable" || strings.HasSuffix(at, "[]"):
+			// custos: an iterable may be the array the code expects.
 			supporting = true
 		case strings.HasPrefix(at, `\`) && saArrayAccess(ctx, strings.TrimPrefix(at, `\`)):
 			supporting = true

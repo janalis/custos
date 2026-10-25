@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- SuspiciousAssignments no longer reports destructuring an `iterable`
+  value, which may be an array.
 - The rules that look for unchecked failures take `$this->fail()`,
   `self::markTestSkipped()` and `markTestIncomplete()` as leaving the test
   in a class that extends PHPUnit's `TestCase` when PHPUnit itself is not

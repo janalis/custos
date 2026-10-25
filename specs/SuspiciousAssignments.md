@@ -146,10 +146,11 @@ body, unless it is in a test context (E6).
   empty → nothing.
 - **D20** Report when at least one type in the set does not support
   destructuring. Supporting types: `array` (including any `X[]` typed array),
-  `mixed`, and classes/interfaces whose inheritance tree (itself, parents,
-  implemented interfaces) contains `\ArrayAccess`. Everything else — `string`,
+  `mixed`, `iterable` (custos, see Divergences), and classes/interfaces whose
+  inheritance tree (itself, parents, implemented interfaces) contains
+  `\ArrayAccess`. Everything else — `string`,
   `int`, `float`, `bool`/`true`/`false`, `null`, `callable`/`\Closure`,
-  `iterable`, `object`, `resource`, `self`/`static`/`$this`, classes without
+  `object`, `resource`, `self`/`static`/`$this`, classes without
   `ArrayAccess`, `void` — is non-supporting.
 - **D20a** (custos refinement, see Divergences) Failure markers: when the set
   contains at least one supporting type, `null` and `false` are ignored for
@@ -315,6 +316,11 @@ function failure_markers(array|false $found, ?array $cached, string|false $line,
 
 ## Divergences
 
+- **`iterable` (custos diverges, D20).** An `iterable` is an array or a
+  `Traversable`; upstream reports destructuring it as a value that is not an
+  array, although a declared `iterable` is often the array the caller
+  expects (`[$a, $b] = $receiver->get(2)` on a method declared `iterable`).
+  custos counts it as supporting, like `mixed`.
 - **D16 — custos diverges from upstream.** Upstream takes any assignment in
   the preceding `if` block as the conditional write, so
   `if ($c) { $v .= 'x'; } $v = '';` is reported with "an 'else' may be
