@@ -95,6 +95,11 @@ spaces, e.g. `$s .= 'a' . $t`).
     plain variable is otherwise read after the fragment in both forms, so a
     single fragment, or the first of a chain, may contain calls.
 
+- **No fix that drops a comment** (custos). The compound assignment is rebuilt from the target and the operand, so a
+  comment elsewhere in the replaced text would be deleted: when the
+  replaced text holds a comment the replacement does not carry over, the
+  finding is reported without a fix.
+
 ## Options
 
 None.
@@ -155,6 +160,8 @@ Note: with PHP 8 precedence (`+`/`-` bind tighter than `.`),
 `$n = $n . 'a' + 1` parses as `$n . ('a' + 1)` whose single fragment is a binary
 expression → not reported, the same outcome as with the older precedence.
 
+- **Comments (custos diverges).** Upstream's fix deletes the comments of
+  the text it rebuilds. custos reports those cases without a fix.
 - **Name case (custos diverges).** Upstream compares the expressions
   textually, so operands that differ only in the case of a function, method
   or class name (`Stats::$n` vs `stats::$n`), which PHP treats as the same,

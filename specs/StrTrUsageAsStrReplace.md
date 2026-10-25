@@ -126,6 +126,11 @@ each expression at most once, with surrounding parentheses removed first:
   while `str_replace` looks for the whole substring, so the rewrite would
   change the result.
 
+- **No fix that drops a comment** (custos). The `str_replace()` call is rebuilt from the arguments, so a
+  comment elsewhere in the replaced text would be deleted: when the
+  replaced text holds a comment the replacement does not carry over, the
+  finding is reported without a fix.
+
 ## Options
 
 None.
@@ -178,6 +183,8 @@ function slug($title, $glue = '+') {
 
 ## Divergences
 
+- **Comments (custos diverges).** Upstream's fix deletes the comments of
+  the text it rebuilds. custos reports those cases without a fix.
 - **Fix limited to proven values — custos diverges from upstream** (F2).
   Upstream rewrites every reported call, including those whose `from`/`to`
   was only guessed from a parameter default, a property default or one

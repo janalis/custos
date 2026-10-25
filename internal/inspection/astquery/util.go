@@ -1,6 +1,8 @@
 package astquery
 
 import (
+	"strings"
+
 	"custos/internal/php/syntax"
 )
 
@@ -81,12 +83,18 @@ func FindToken(f *syntax.File, span syntax.Span, k syntax.TokenKind) (syntax.Tok
 
 // HasComment reports whether a comment or doc comment lies inside span.
 func HasComment(f *syntax.File, span syntax.Span) bool {
+	return DropsComment(f, span, "")
+}
+
+// DropsComment reports whether span holds a comment that text, its
+// replacement, does not carry over: replacing span would delete it.
+func DropsComment(f *syntax.File, span syntax.Span, text string) bool {
 	for i := TokenIndex(f, span.Start); i < len(f.Tokens); i++ {
 		t := f.Tokens[i]
 		if t.End > span.End {
 			break
 		}
-		if t.Kind == syntax.TComment || t.Kind == syntax.TDocComment {
+		if (t.Kind == syntax.TComment || t.Kind == syntax.TDocComment) && (text == "" || !strings.Contains(text, string(f.Src[t.Start:t.End]))) {
 			return true
 		}
 	}

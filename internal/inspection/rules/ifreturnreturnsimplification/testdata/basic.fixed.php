@@ -4,7 +4,9 @@ function isAdult(int $age): bool {
 }
 
 function isBlank(string $s): bool {
-    return $s !== '';
+    if (($s === '')) { return FALSE; }
+    // fallthrough
+    return TRUE;
 }
 
 function hasBoth($m, $n) {

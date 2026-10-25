@@ -109,6 +109,11 @@ text kept verbatim).
   without its `;` (`return T ?>`), so the code following the tag is still
   parsed as before.
 
+- **No fix that drops a comment** (custos). The `return` replaces the whole `if` and the statement after it, so a
+  comment elsewhere in the replaced text would be deleted: when the
+  replaced text holds a comment the replacement does not carry over, the
+  finding is reported without a fix.
+
 ## Options
 
 None.
@@ -234,6 +239,8 @@ function hasElseif($q) {
 
 ## Divergences
 
+- **Comments (custos diverges).** Upstream's fix deletes the comments of
+  the text it rebuilds. custos reports those cases without a fix.
 - custos diverges from upstream on the accepted operators (D1/E1). Upstream
   takes any binary operator, so `if ($a + $b) { return true; } return false;`
   would become `return $a + $b;`, which returns an `int` instead of a `bool`

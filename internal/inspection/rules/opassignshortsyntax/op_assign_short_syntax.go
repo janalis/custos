@@ -87,7 +87,7 @@ func (opAssignShortSyntax) Check(ctx *analysis.Context, n syntax.Node) {
 	repl := sb.String()
 	span := a.Span()
 	msg := "Use the compound form '" + repl + "'."
-	if !opAssignFixable(a.Var, op, frags) {
+	if !opAssignFixable(a.Var, op, frags) || astquery.DropsComment(ctx.File, span, repl) { // custos: keep comments
 		ctx.Report(span, msg)
 		return
 	}

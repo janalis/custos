@@ -245,6 +245,11 @@ Worked results (short syntax on):
 - `str_replace(['p', 'q'], 'z', str_replace(['r'], 'w', $in))` →
   `str_replace(['r', 'p', 'q'], ['w', 'z', 'z'], $in)` (expansion)
 
+- **No fix that drops a comment** (custos). The merged call is rebuilt from the arguments of the calls it folds, so a
+  comment elsewhere in the replaced text would be deleted: when the
+  replaced text holds a comment the replacement does not carry over, the
+  finding is reported without a fix.
+
 ## Options
 
 | Option | Type | Default | Effect |
@@ -327,6 +332,8 @@ function swap(array $from, array $to, $text) {
 
 ## Divergences
 
+- **Comments (custos diverges).** Upstream's fix deletes the comments of
+  the text it rebuilds. custos reports those cases without a fix.
 - **Arity of the merged-in call not checked upstream:** `G`/`I` are not
   required to have 3 arguments (upstream would fail on fewer). custos
   requires exactly 3 arguments for `G` and `I` as well.

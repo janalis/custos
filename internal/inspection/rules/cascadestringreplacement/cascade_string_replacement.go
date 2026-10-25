@@ -94,7 +94,7 @@ func (cascadeStringReplacement) Check(ctx *analysis.Context, n syntax.Node) {
 	if inner, ok := csrMatch(c.ctx, f.args[2]); ok && c.mergeable(inner, f) {
 		span := f.call.Span()
 		strip, fixable := csrKeyMode([]csrCall{f, inner})
-		fixable = fixable && c.fixable([]csrCall{f, inner}, false)
+		fixable = fixable && c.fixable([]csrCall{f, inner}, false) && !astquery.HasComment(ctx.File, span)
 		nestedFix = &diagnostic.Fix{
 			Title: "Merge the str_replace() calls",
 			Edits: func() []diagnostic.TextEdit {
@@ -137,6 +137,9 @@ func (c *csrCtx) reportSimplified(f csrCall, simplified syntax.Expr, nestedFix *
 	}
 	if nestedFix != nil {
 		fx = *nestedFix
+	} else if astquery.DropsComment(c.ctx.File, span, text) {
+		c.ctx.ReportSeverity(span, diagnostic.SeverityInfo, "All searched items are identical; pass the single string.")
+		return
 	}
 	c.ctx.ReportSeverity(span, diagnostic.SeverityInfo, "All searched items are identical; pass the single string.", fx)
 }
@@ -302,6 +305,17 @@ func csrLocal(stmt syntax.Stmt, name string) bool {
 	return local
 }
 
+// chainComments reports a comment in the statements a cascade fix merges:
+// the fix rebuilds them, so it would delete it (custos).
+func (c *csrCtx) chainComments(stmts []syntax.Stmt) bool {
+	for _, s := range stmts {
+		if astquery.HasComment(c.ctx.File, s.Span()) {
+			return true
+		}
+	}
+	return false
+}
+
 // reportCascade reports F (part A). The fix folds the whole chain of
 // cascading statements around stmt into its last statement, which is what
 // applying every cascade fix in turn produces.
@@ -309,7 +323,7 @@ func (c *csrCtx) reportCascade(f csrCall, stmt syntax.Stmt) {
 	ctx := c.ctx
 	const msg = "Fold this str_replace() into the preceding one on the same variable."
 	ch := c.chain(stmt)
-	if !ch.fixable {
+	if !ch.fixable || c.chainComments(ch.stmts) {
 		ctx.Report(f.call.Span(), msg)
 		return
 	}

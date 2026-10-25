@@ -40,7 +40,7 @@ func (strTrUsageAsStrReplace) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	repl := semanticquery.QualifiedBuiltinFor(ctx, "str_replace", call) + "(" + ctx.Text(args[1]) + ", " + ctx.Text(args[2]) + ", " + ctx.Text(args[0]) + ")"
 	span := call.Span()
-	if !fromProven || !toProven { // F2: the runtime value may be longer
+	if !fromProven || !toProven || astquery.DropsComment(ctx.File, span, repl) { // F2: the runtime value may be longer; custos: keep comments
 		ctx.Report(span, "Use '"+repl+"' instead.")
 		return
 	}

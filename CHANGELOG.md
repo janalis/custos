@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- IssetConstructsCanBeMerged, CascadeStringReplacement, OpAssignShortSyntax,
+  IfReturnReturnSimplification and StrTrUsageAsStrReplace no longer offer a
+  quick-fix that would drop a comment.
 - PhpUnitTests no longer reports a `@covers` class target as unresolved
   when the test's own parent is not indexed (the framework is missing).
 - TypeUnsafeArraySearch takes class constants holding plain strings

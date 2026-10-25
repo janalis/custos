@@ -99,6 +99,10 @@ func (ifReturnReturnSimplification) Check(ctx *analysis.Context, n syntax.Node) 
 		span.End, end = tag, " "
 	}
 	kw := syntax.Span{Start: s.Span().Start, End: s.Span().Start + 2}
+	if astquery.DropsComment(ctx.File, span, repl) { // custos: the fix would delete them
+		ctx.Report(kw, "Return the condition directly: '"+repl+"'.")
+		return
+	}
 	ctx.Report(kw, "Return the condition directly: '"+repl+"'.", diagnostic.Fix{
 		Title: "Return the condition",
 		Edits: func() []diagnostic.TextEdit {

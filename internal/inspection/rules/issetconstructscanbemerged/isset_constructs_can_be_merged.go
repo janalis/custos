@@ -75,11 +75,12 @@ func (issetConstructsCanBeMerged) Check(ctx *analysis.Context, n syntax.Node) {
 	}
 	// F2: fragments between the hits short-circuit the second check, so it
 	// only moves in front of them when evaluating it early is unobservable.
-	if second != first+1 && !plainVariables(hits[1]) {
+	span := root.Span()
+	// F3 (custos): no fix would keep the comments between the checks.
+	if second != first+1 && !plainVariables(hits[1]) || astquery.HasComment(ctx.File, span) {
 		ctx.Report(hits[1].Span(), msg)
 		return
 	}
-	span := root.Span()
 	ctx.Report(hits[1].Span(), msg, diagnostic.Fix{
 		Title: "Merge isset() calls",
 		Edits: func() []diagnostic.TextEdit {

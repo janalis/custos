@@ -122,6 +122,11 @@ applied and the file re-analyzed.
     spacing between fragments is normalized to single spaces around the
     operator; comments located between fragments are lost.
 
+- **No fix that drops a comment** (custos). The merged `isset()` call rebuilds the chain from its arguments, so a
+  comment elsewhere in the replaced text would be deleted: when the
+  replaced text holds a comment the replacement does not carry over, the
+  finding is reported without a fix.
+
 ## Options
 
 None.
@@ -168,6 +173,8 @@ function probe(array $cfg, $row, $extra) {
 
 ## Divergences
 
+- **Comments (custos diverges).** Upstream's fix deletes the comments of
+  the text it rebuilds. custos reports those cases without a fix.
 - **Unary operator not checked (upstream bug).** In `||` chains upstream
   accepts any unary expression wrapping `isset` (e.g. a cast
   `(bool) isset($a)` or `@`-like wrappers the parser models as unary) and the
