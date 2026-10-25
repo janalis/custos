@@ -39,6 +39,11 @@ func (emptyClass) Check(ctx *analysis.Context, n syntax.Node) {
 			return
 		}
 	}
+	// custos: a docblock annotation (`@FieldFormatter(...)`, `@ORM\Entity`,
+	// `@Annotation`) registers the class like an attribute does.
+	if semanticquery.DocHasAnnotation(ctx.File, cl) {
+		return
+	}
 	if parent := ctx.Names().ParentFQN(cl); parent != "" { // D4
 		ix := ctx.Index()
 		if pc := ix.Class(parent, ctx.PHP); pc != nil {

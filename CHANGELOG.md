@@ -114,6 +114,8 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- EmptyClass no longer reports a class registered by a docblock annotation
+  such as Drupal's `@FieldFormatter(...)` or Doctrine's `@ORM\Entity`.
 - HardcodedCredentialAtKnownSink matches its `excludedPaths` globs without
   regard to letter case, so the default `**/tests/**` also skips `Tests/`
   directories.

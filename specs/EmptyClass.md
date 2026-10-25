@@ -46,6 +46,8 @@ weight or an unfinished stub.
 - **E5** Classes that are (directly or indirectly) subclasses of
   `\Exception`. Subclasses of `\Error` or other throwables that do not reach
   `\Exception` are reported.
+- **E6** (custos) Classes carrying an attribute or a docblock annotation
+  (see Divergences).
 
 ## Report
 
@@ -112,3 +114,9 @@ $x = new class {};
   Sylius and Shopware). custos does not report it. This also exempts
   classes whose only attribute is metadata (Shopware `#[Package]`), an
   accepted loss.
+- **Annotated classes (custos diverges, extends the above).** A docblock
+  annotation, a tag whose name is not all lower-case (`@FieldFormatter(…)`,
+  `@ContentEntityType(…)`, `@ORM\Entity`, `@Annotation`), registers the
+  class the way an attribute does: Drupal discovers its plugins through
+  them (11 of 15 sampled findings on a Drupal site). custos does not report
+  such a class. Lower-case phpDoc tags (`@internal`, `@see`) do not count.
