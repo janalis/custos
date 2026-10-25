@@ -110,7 +110,9 @@ own fix.
   a branch of, `$x = $ok ? json_decode($s, true) : [];`), the plain assignment
   storing it in a variable, or that variable's first occurrence after the
   assignment in the same function (not inside a nested function, closure
-  or class, and not written again there), parentheses aside, is
+  or class, and not written again there; an `if ($var instanceof C) { … }`
+  without `elseif` or `else` is skipped, since the failure value is no
+  instance and never enters it), parentheses aside, is
   - the condition of a ternary (`?:` included), `if`, `elseif` or `while`;
   - the operand of `!`;
   - compared with `==`, `!=`, `===` or `!==` to `false` or `null`;

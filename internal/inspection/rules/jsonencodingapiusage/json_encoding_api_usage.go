@@ -436,6 +436,15 @@ func jsonFirstRead(name string, a *syntax.Assign) syntax.Expr {
 		switch v := n.(type) {
 		case *syntax.Closure, *syntax.ArrowFunction, *syntax.Function, *syntax.ClassLike:
 			return n == scope
+		case *syntax.If:
+			// The failure value (null or false) is no instance of anything:
+			// `if ($data instanceof \stdClass) { … }` without other arms
+			// never runs for it, so the test comes after.
+			if t, ok := syntax.UnwrapParens(v.Cond).(*syntax.Instanceof); ok && len(v.ElseIfs) == 0 && v.Else == nil {
+				if tested, ok := syntax.UnwrapParens(t.Expr).(*syntax.Variable); ok && tested.Name == name && v.Span().Start >= a.Span().End {
+					return false
+				}
+			}
 		case *syntax.Variable:
 			if v.Name == name && v.Span().Start >= a.Span().End && (first == nil || v.Span().Start < first.Span().Start) {
 				first = v
