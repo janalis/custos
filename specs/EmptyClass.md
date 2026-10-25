@@ -48,6 +48,9 @@ weight or an unfinished stub.
   `\Exception` are reported.
 - **E6** (custos) Classes carrying an attribute or a docblock annotation
   (see Divergences).
+- **E7** (custos) Declarations nested in a block (`if (…) { class A {} }`):
+  a conditional declaration is usually the empty fallback of a version
+  check whose other branch declares the full class or trait.
 
 ## Report
 
@@ -120,3 +123,7 @@ $x = new class {};
   class the way an attribute does: Drupal discovers its plugins through
   them (11 of 15 sampled findings on a Drupal site). custos does not report
   such a class. Lower-case phpDoc tags (`@internal`, `@see`) do not count.
+- **Conditional declarations (custos diverges, E7).** Upstream reports the
+  empty `else` side of `if (version_compare(…)) { trait T { … } } else {
+  trait T {} }` (Symfony's Redis proxy traits); removing it leaves `T`
+  undeclared on the other versions, a fatal error for every class using it.

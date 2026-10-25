@@ -30,6 +30,14 @@ func (emptyClass) Check(ctx *analysis.Context, n syntax.Node) {
 	if semanticquery.DocHasTag(ctx.File, cl, "deprecated") { // D3
 		return
 	}
+	// custos: a declaration inside a block is conditional, typically the
+	// empty fallback of a version check that declares the full one in the
+	// other branch; removing it leaves the name undeclared there.
+	switch cl.Parent().(type) {
+	case *syntax.File, *syntax.Namespace:
+	default:
+		return
+	}
 	// custos: an attribute class is used by its name alone, and any other
 	// attribute configures the class from outside (#[ApiResource],
 	// #[ORM\Entity], #[Route], #[AsEventListener]): declaring nothing is
