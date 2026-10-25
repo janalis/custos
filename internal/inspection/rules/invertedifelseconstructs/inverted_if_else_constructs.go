@@ -73,7 +73,10 @@ func (invertedIfElseConstructs) Check(ctx *analysis.Context, n syntax.Node) {
 	lp, lok := invertedSignificantBefore(ctx.File, cond.Span().Start, syntax.TLParen)
 	rp, rok := astquery.NextSignificant(ctx.File, cond.Span().End)
 	var fixes []diagnostic.Fix
-	if lok && rok && rp.Kind == syntax.TRParen {
+	// F4: a comment between the bodies describes the else branch and
+	// would end up above the other one.
+	between := syntax.Span{Start: partnerBody.Span().End, End: elseBody.Span().Start}
+	if lok && rok && rp.Kind == syntax.TRParen && !astquery.HasComment(ctx.File, between) {
 		fixes = append(fixes, diagnostic.Fix{
 			Title: "Swap the branches",
 			Edits: func() []diagnostic.TextEdit {

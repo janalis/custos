@@ -86,6 +86,10 @@ Visit every `else` branch `E` (the plain `else` keyword; an `else if (…)` is a
   whitespace-collapsed.
 - Other branches (`if` branch when `P` is an `elseif`, earlier `elseif`s) are
   untouched.
+- **F4** (custos) No fix when a comment lies between `P`'s body and `E`'s
+  body (`} // Not ready: queue it.` newline `else {`): it describes the
+  `else` branch and would stay above the other one after the swap. The
+  finding stays.
 
 ## Options
 
