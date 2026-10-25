@@ -114,13 +114,13 @@ own fix.
   without `elseif` or `else` is skipped, since the failure value is no
   instance and never enters it), parentheses aside, is
   - the condition of a ternary (`?:` included), `if`, `elseif` or `while`;
-  - the operand of `!`;
+  - the operand of `!` or the argument of `empty()`;
   - compared with `==`, `!=`, `===` or `!==` to `false` or `null`;
   - the argument of a type test: `is_array`, `is_string`, `is_object`,
     `is_null`, `is_bool`, `is_int`, `is_float`, `is_scalar`,
     `is_iterable` or `is_countable`;
-  - for `json_decode` (whose failure value is `null`), the left operand of
-    `??`.
+  - for `json_decode` (whose failure value is `null`), an argument of
+    `isset()` or the left operand of `??`.
   `$json = json_encode($q); $key = false === $json ? '' : $json;`,
   `$rows = json_decode($raw, true); if (!is_array($rows)) { … }` and
   `json_decode($raw, true) ?: []` are not reported. The `@` operator is

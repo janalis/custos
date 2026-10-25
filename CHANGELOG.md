@@ -114,6 +114,9 @@ versions follow [Semantic Versioning](https://semver.org/).
 - A recursive function or method that passes its argument on to a sink no
   longer keeps growing its flow summary until it is dropped: calls into it
   are followed instead of being reported as `unresolved-dispatch`.
+- JsonEncodingApiUsage no longer asks for `JSON_THROW_ON_ERROR` when the
+  result is tested with `empty()` (or, after `json_decode()`, `isset()`):
+  the flag would turn that fallback into an exception.
 - ForgottenDebugOutput no longer reports output behind an explicit debug
   switch, such as `if ($this->debugMode) { dump($row); }` or a `switch` on
   the configured debug output.

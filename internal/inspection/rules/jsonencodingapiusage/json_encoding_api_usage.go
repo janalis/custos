@@ -463,9 +463,9 @@ func jsonFirstRead(name string, a *syntax.Assign) syntax.Expr {
 
 // jsonFailureTest reports whether x is tested for a failed JSON call: the
 // condition of a ternary (`?:` included) or of an if, elseif or while,
-// negated with `!`, compared with false or null, given to a type test
-// (is_array() and the like), or, for json_decode (null on failure), the
-// left operand of `??`.
+// negated with `!`, given to empty(), compared with false or null, given to
+// a type test (is_array() and the like), or, for json_decode (null on
+// failure), given to isset() or the left operand of `??`.
 func jsonFailureTest(x syntax.Expr, decode bool) bool {
 	switch p := x.Parent().(type) {
 	case *syntax.Ternary:
@@ -478,6 +478,10 @@ func jsonFailureTest(x syntax.Expr, decode bool) bool {
 		return syntax.Node(p.Cond) == x
 	case *syntax.Unary:
 		return p.Op.Kind == syntax.TExclaim
+	case *syntax.Empty:
+		return true
+	case *syntax.Isset:
+		return decode
 	case *syntax.Binary:
 		switch p.Op.Kind {
 		case syntax.TCoalesce:
