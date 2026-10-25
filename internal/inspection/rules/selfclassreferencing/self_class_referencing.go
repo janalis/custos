@@ -6,6 +6,7 @@ import (
 	"custos/internal/diagnostic"
 	"custos/internal/inspection/analysis"
 	"custos/internal/inspection/astquery"
+	"custos/internal/inspection/semanticquery"
 	"custos/internal/php/syntax"
 	phpversion "custos/internal/php/version"
 )
@@ -128,10 +129,12 @@ func (c *selfRefCheck) ref(n *syntax.Name) {
 // rebinds reports whether swapping `self` and the class name at n could change
 // behaviour. custos: self::m() forwards the late static binding, Name::m()
 // resets it: inside m(), static:: and `new static` name the calling subclass
-// in one spelling and this class in the other.
+// in one spelling and this class in the other. Subclasses may also live
+// outside the index when the class extends one it does not hold.
 func (c *selfRefCheck) rebinds(n *syntax.Name) bool {
 	_, call := n.Parent().(*syntax.StaticCall)
-	return call && !c.final && len(c.ctx.Index().ChildrenAll(c.fqn)) > 0
+	ix := c.ctx.Index()
+	return call && !c.final && (len(ix.ChildrenAll(c.fqn)) > 0 || !semanticquery.HierarchyResolved(ix, c.fqn, c.ctx.PHP))
 }
 
 func (c *selfRefCheck) magic(n *syntax.MagicConst) {

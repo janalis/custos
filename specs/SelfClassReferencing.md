@@ -221,7 +221,9 @@ __CLASS__;                          // not inside a class method
   static `m()`, `static::` and `new static` name the calling subclass after
   the rewrite (`Model::make()` returns a `Model`, `self::make()` called
   from `User::build()` a `User`). In a class that is neither final nor an
-  enum and has indexed subclasses, a static call `Name::m()` is reported
+  enum and has indexed subclasses, or extends, implements or uses a type
+  that is not indexed (whose subclasses and inherited methods are out of
+  sight: Drupal entities extending core), a static call `Name::m()` is reported
   without a fix. The hazard is symmetric, so reverse mode likewise reports
   `self::m()` without a fix in such a class.
 - **Catch clauses (custos diverges).** Upstream treats the class name of a

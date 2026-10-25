@@ -116,6 +116,8 @@ versions follow [Semantic Versioning](https://semver.org/).
   are followed instead of being reported as `unresolved-dispatch`.
 - TypeUnsafeComparison no longer prefers `===` for a truthiness test
   (`$flag == true`) or an emptiness test on a `mixed` value.
+- SelfClassReferencing no longer offers to rewrite `Name::m()` as
+  `self::m()` in a class whose hierarchy is not fully indexed.
 - NullCoalescingOperatorCanBeUsed no longer offers a quick-fix that would
   drop a comment.
 - IssetConstructsCanBeMerged, CascadeStringReplacement, OpAssignShortSyntax,
